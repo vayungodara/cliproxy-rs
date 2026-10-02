@@ -4,6 +4,7 @@
 //! Unicode version or its full (multi-character) case mappings.
 
 use crate::gostr_tables::{CASE_ORBIT, CASE_RANGES, PRINT_RANGES};
+use crate::json::decode_rune;
 
 const MAX_RUNE: u32 = 0x10FFFF;
 const UPPER: usize = 0;
@@ -103,6 +104,35 @@ impl GoStr for str {
     }
 }
 
+/// `strings.TrimSpace` on a Go byte string: Unicode white space at both ends; invalid
+/// UTF-8 is never space.
+pub fn trim_space(b: &[u8]) -> &[u8] {
+    let mut start = 0;
+    while start < b.len() {
+        match decode_rune(&b[start..]) {
+            (Some(c), n) if c.is_whitespace() => start += n,
+            _ => break,
+        }
+    }
+    let mut end = b.len();
+    while end > start {
+        let mut i = end - 1;
+        while i > start && end - i < 4 && b[i] & 0xC0 == 0x80 {
+            i -= 1;
+        }
+        match decode_rune(&b[i..end]) {
+            (Some(c), n) if i + n == end && c.is_whitespace() => end = i,
+            _ => break,
+        }
+    }
+    &b[start..end]
+}
+
+/// `strings.ToLower` on a Go byte string. Invalid bytes become U+FFFD as in Go.
+pub fn lower_bytes(b: &[u8]) -> String {
+    String::from_utf8_lossy(b).go_lower()
+}
+
 /// `strconv.IsPrint`.
 pub fn is_print(c: char) -> bool {
     let r = c as u32;
@@ -119,11 +149,20 @@ pub fn is_print(c: char) -> bool {
         .is_ok()
 }
 
-/// `strconv.Quote`, which is what `%q` prints for a string.
-pub fn quote(s: &str) -> String {
+/// `strconv.Quote`, which is what `%q` prints for a Go string (bytes; invalid UTF-8
+/// prints as `\xNN`).
+pub fn quote(s: impl AsRef<[u8]>) -> String {
+    let mut s = s.as_ref();
     let mut out = String::with_capacity(s.len() + 2);
     out.push('"');
-    for c in s.chars() {
+    while !s.is_empty() {
+        let (c, width) = decode_rune(s);
+        let Some(c) = c else {
+            out.push_str(&format!("\\x{:02x}", s[0]));
+            s = &s[1..];
+            continue;
+        };
+        s = &s[width..];
         match c {
             '"' | '\\' => {
                 out.push('\\');
@@ -166,5 +205,9 @@ mod tests {
         assert_eq!(quote("é\u{7f}\u{1}\""), r#""é\x7f\x01\"""#);
         assert_eq!(quote("\u{e0000}"), r#""\U000e0000""#);
         assert_eq!(quote("\u{1f600}"), "\"\u{1f600}\"");
+        assert_eq!(quote(b"a\xffb\xef\xbf\xbd"), "\"a\\xffb\u{fffd}\"");
+        assert_eq!(trim_space(b"\xc2\xa0 a b\t\xe3\x80\x80"), b"a b");
+        assert_eq!(trim_space(b" \xff "), b"\xff");
+        assert_eq!(trim_space(b"\xe3\x80"), b"\xe3\x80", "a truncated rune is not space");
     }
 }
