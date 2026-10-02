@@ -1,0 +1,51 @@
+package signature
+
+import (
+	"encoding/json"
+	"os"
+	"testing"
+)
+
+// TestRecordSignatureMatrix exists only to feed the cliproxy-rs recorder.
+func TestRecordSignatureMatrix(t *testing.T) {
+	raw, err := os.ReadFile(os.Getenv("CPA_SIG_CORPUS"))
+	if err != nil {
+		t.Skip("no corpus")
+	}
+	var corpus []string
+	if err := json.Unmarshal(raw, &corpus); err != nil {
+		t.Fatal(err)
+	}
+	corpus = append(corpus, "", "  ", "claude#", "gemini#skip_thought_signature_validator", "google# context_engineering_is_the_way_to_go ", "openai#gAAAA", "x#y", "sealed.v1.abc", "swe#sealed.v1.z", "R", "E", "C", "Eg==", "RWc=")
+	targets := []SignatureProvider{"", SignatureProviderUnknown, SignatureProviderClaude, SignatureProviderGemini, SignatureProviderGeminiBypass, SignatureProviderGPT, SignatureProviderKimi, SignatureProviderGrok, SignatureProviderSWE}
+	kinds := []SignatureBlockKind{"", SignatureBlockKindUnknown, SignatureBlockKindClaudeThinking, SignatureBlockKindGeminiModelPart, SignatureBlockKindGeminiFunctionCall, SignatureBlockKindGPTReasoning}
+	for _, sig := range corpus {
+		for _, opt := range []ClaudeSignatureValidationOptions{{}, {Strict: true}, {PrefixOnly: true}, {Base64Only: true}} {
+			IsValidClaudeThinkingSignature(sig, opt)
+			_, _ = NormalizeClaudeProviderNativeThinkingSignature(sig, opt)
+		}
+		for _, opt := range []GeminiThoughtSignatureValidationOptions{{}, {AllowBypassSentinel: true}, {RequireKnownEnvelope: true}, {RequireObservedMarker: true}} {
+			_, _ = InspectGeminiThoughtSignature(sig, opt)
+		}
+		_, _ = InspectClaudeCAISSignature(sig)
+		_, _ = InspectGPTReasoningSignature(sig)
+		_, _ = InspectGrokEncryptedContent(sig)
+		_, _ = InspectKimiThinkingSignature(sig)
+		_, _ = InspectClaudeSingleLayerSignature(sig)
+		_, _ = InspectClaudeDoubleLayerSignature(sig)
+		HasDecodableClaudeThinkingSignature(sig)
+		IsRecognizedReasoningSignature(sig)
+		SplitSignatureProviderPrefix(sig)
+		CompatibleAntigravityClaudeThinkingSignature(sig)
+		if len(sig) >= 1500 {
+			continue
+		}
+		for _, kind := range kinds {
+			DetectSignatureProviderForBlock(sig, kind)
+			GeminiReplaySignatureOrBypass(sig, kind)
+			for _, target := range targets {
+				DecideSignatureCompatibilityForModel(target, "claude-opus-4-6", sig, kind)
+			}
+		}
+	}
+}

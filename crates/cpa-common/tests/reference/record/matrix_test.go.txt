@@ -1,0 +1,90 @@
+package test
+
+import (
+	"fmt"
+	"testing"
+
+	"github.com/router-for-me/CLIProxyAPI/v8/internal/registry"
+	"github.com/router-for-me/CLIProxyAPI/v8/internal/thinking"
+)
+
+// TestRecordThinkingMatrix exists only to feed the cliproxy-rs recorder: it calls every
+// built-in applier and the resolved ApplyThinking pipeline over a cross product of
+// modes, capabilities and body shapes. Go's outputs are captured by the recorder.
+func TestRecordThinkingMatrix(t *testing.T) {
+	infos := []*registry.ModelInfo{
+		nil,
+		{ID: "claude-user", Type: "claude", UserDefined: true},
+		{ID: "lvl", Type: "gemini", Thinking: &registry.ThinkingSupport{Levels: []string{"low", "high"}}},
+		{ID: "lvl-none", Type: "openai", Thinking: &registry.ThinkingSupport{Levels: []string{"none", "low", "medium", "high"}, ZeroAllowed: true}},
+		{ID: "bud", Type: "gemini", Thinking: &registry.ThinkingSupport{Min: 128, Max: 32768, ZeroAllowed: true, DynamicAllowed: true}},
+		{ID: "bud-strict", Type: "antigravity", Thinking: &registry.ThinkingSupport{Min: 1024, Max: 20000}},
+		{ID: "hyb", Type: "claude", Thinking: &registry.ThinkingSupport{Min: 1024, Max: 128000, ZeroAllowed: true, Levels: []string{"low", "medium", "high", "max"}}, MaxCompletionTokens: 64000},
+		{ID: "claude-opus-x", Type: "antigravity", Thinking: &registry.ThinkingSupport{Min: 1024, Max: 64000, ZeroAllowed: true, DynamicAllowed: true}, MaxCompletionTokens: 32000},
+		{ID: "plain", Type: "openai"},
+		{ID: "upd", Type: "codex", SupportConfigurationUpdate: true, Thinking: &registry.ThinkingSupport{Levels: []string{"low", "medium", "high", "xhigh"}}},
+	}
+	configs := []thinking.ThinkingConfig{
+		{Mode: thinking.ModeAuto, Budget: -1},
+		{Mode: thinking.ModeNone},
+		{Mode: thinking.ModeNone, Budget: 512},
+		{Mode: thinking.ModeNone, Level: "low"},
+		{Mode: thinking.ModeNone, Level: "none"},
+	}
+	for _, b := range []int{-2, 1, 100, 1024, 8192, 31999, 50000, 200000} {
+		configs = append(configs, thinking.ThinkingConfig{Mode: thinking.ModeBudget, Budget: b})
+	}
+	for _, l := range []string{"", "minimal", "low", "medium", "high", "xhigh", "max", "none", "auto", "Ultra"} {
+		configs = append(configs, thinking.ThinkingConfig{Mode: thinking.ModeLevel, Level: thinking.ThinkingLevel(l)})
+	}
+	bodies := []string{
+		``, `x`, `{}`,
+		`{"generationConfig":{"maxOutputTokens":2048,"thinkingConfig":{"include_thoughts":false,"thinking_budget":5}}}`,
+		`{"request":{"generationConfig":{"maxOutputTokens":4096,"thinkingConfig":{"includeThoughts":true,"thinkingLevel":"low"}}}}`,
+		`{"generation_config":{"thinking_summaries":"AUTO","thinking_config":{"include_thoughts":false},"thinkingBudget":9}}`,
+		`{"max_tokens":1000,"thinking":{"type":"enabled","budget_tokens":2048,"display":"summarized"},"output_config":{"effort":"low"}}`,
+		`{"reasoning_effort":"low","reasoning":{"effort":"high","summary":"auto"},"thinking":{"type":"enabled","effort":"high"}}`,
+	}
+	for _, name := range []string{"gemini", "antigravity", "interactions", "claude", "openai", "codex", "xai", "kimi"} {
+		applier := thinking.GetProviderApplier(name)
+		for _, info := range infos {
+			for _, config := range configs {
+				for _, body := range bodies {
+					_, _ = applier.Apply([]byte(body), config, info)
+				}
+			}
+		}
+	}
+	sources := map[string]string{
+		"openai":          `{"reasoning_effort":"high","reasoning":{"exclude":false}}`,
+		"openai-response": `{"reasoning":{"effort":"medium","summary":"concise"},"input":[{"type":"configuration_update","reasoning":{"effort":"low"}}]}`,
+		"claude":          `{"max_tokens":9000,"thinking":{"type":"enabled","budget_tokens":4096,"display":"omitted"}}`,
+		"gemini":          `{"generationConfig":{"thinkingConfig":{"thinkingBudget":-1,"includeThoughts":true}}}`,
+		"interactions":    `{"generation_config":{"thinking_level":"high","thinking_summaries":"none"}}`,
+		"kimi":            `{"thinking":{"type":"disabled"}}`,
+	}
+	targets := map[string]string{
+		"gemini":       `{"generationConfig":{"thinkingConfig":{"thinkingLevel":"high"}}}`,
+		"antigravity":  `{"request":{"generationConfig":{"thinkingConfig":{"thinkingBudget":2048}}}}`,
+		"interactions": `{"generation_config":{"thinking_budget":4000}}`,
+		"claude":       `{"max_tokens":3000,"thinking":{"type":"adaptive"},"output_config":{"effort":"medium"}}`,
+		"openai":       `{"reasoning_effort":"minimal"}`,
+		"codex":        `{"reasoning":{"effort":"low"},"input":[{"type":"configuration_update","reasoning":{"effort":"high"}},{"type":"message"}]}`,
+		"xai":          `{"reasoning":{"effort":"high"}}`,
+		"kimi":         `{"thinking":{"type":"enabled","effort":"low"}}`,
+	}
+	for from, source := range sources {
+		for to, target := range targets {
+			for _, info := range infos {
+				for _, suffix := range []string{"", "(high)", "(8192)", "(none)", "(auto)", "(0)", "(bogus)"} {
+					model := fmt.Sprintf("m%s", suffix)
+					if info != nil {
+						model = info.ID + suffix
+					}
+					_, _ = thinking.ApplyThinkingWithModelInfo([]byte(target), []byte(source), model, from, to, to, info)
+					_, _ = thinking.ApplyThinkingWithModelInfo([]byte(`{}`), nil, model, from, to, "openrouter", info)
+				}
+			}
+		}
+	}
+}
