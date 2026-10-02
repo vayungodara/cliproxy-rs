@@ -1252,6 +1252,7 @@ mod tests {
             claude: cpa_exec::claude::ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
             codex: Default::default(),
             devices: Default::default(),
+            openai: Default::default(),
         };
         // Legacy top-level keys and the canonical routing block both reach the scheduler.
         let rt = Runtime::new(
@@ -1282,6 +1283,7 @@ mod tests {
                 claude: cpa_exec::claude::ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
                 codex: Default::default(),
                 devices: Default::default(),
+                openai: Default::default(),
             },
         );
         let offsets: Vec<usize> = (0..4).map(|_| rt.next_pool_offset("a|openai|m", 3)).collect();
@@ -1305,6 +1307,7 @@ mod tests {
                 claude: cpa_exec::claude::ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
                 codex: Default::default(),
                 devices: Default::default(),
+                openai: Default::default(),
             },
         ));
         let lock = rt.store.prepare_lock("a.json");

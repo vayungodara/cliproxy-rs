@@ -104,6 +104,7 @@ async fn proxy(dir: &Path, upstream_url: &str) -> String {
         claude: ClaudeExecutor::new(upstream_url).unwrap(),
         codex: Default::default(),
         devices: Default::default(),
+        openai: Default::default(),
     };
     let rt = Arc::new(Runtime::new(config, creds, executors));
     // This suite checks wire passthrough, one upstream attempt per request. Scheduler

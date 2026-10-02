@@ -15,10 +15,13 @@
 //! and these fallbacks when the caller is authenticated. It is not ported; requests
 //! without an explicit session use the derived and hash fallbacks instead.
 
+use std::collections::BTreeMap;
+
 use cpa_core::format::Format;
 use http::HeaderMap;
-use serde_json::{Map, Value};
 use sha2::{Digest, Sha256};
+
+use crate::json::{self, GoValue, Kind, Res};
 
 /// Go `SessionInfo`, minus the fields only Home and LCP fill.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -76,35 +79,36 @@ fn hex(bytes: &[u8]) -> String {
 /// A request body viewed the way Go's session extractors read it: gjson paths on the
 /// root, and on `request` when the body is an envelope without top-level `contents`.
 struct Body<'a> {
-    json: std::borrow::Cow<'a, str>,
+    json: &'a [u8],
     nested: bool,
     exists: bool,
 }
 
 impl<'a> Body<'a> {
     fn new(payload: &'a [u8]) -> Self {
-        let json = String::from_utf8_lossy(payload);
         let (exists, nested) = if payload.is_empty() {
             (false, false)
         } else {
-            let root = gjson::parse(&json);
-            let nested = gjson::get(&json, "request").exists() && !gjson::get(&json, "contents").exists();
-            (root.exists(), nested)
+            let nested = json::get(payload, "request").exists() && !json::get(payload, "contents").exists();
+            (json::parse(payload).exists(), nested)
         };
-        Self { json, nested, exists }
+        Self {
+            json: payload,
+            nested,
+            exists,
+        }
     }
 
-    /// gjson `root.Get(path).String()`.
-    fn raw(&self, path: &str) -> String {
-        gjson::get(&self.json, path).str().to_owned()
+    fn get(&self, path: &str) -> Res<'a> {
+        json::get(self.json, path)
     }
 
-    /// The normalized root value at `path`.
+    /// The normalized root value at `path` (gjson `root.Get(path).String()`).
     fn root(&self, path: &str) -> String {
         if !self.exists {
             return String::new();
         }
-        normalize_explicit_id(&self.raw(path))
+        normalize_explicit_id(&self.get(path).str())
     }
 
     /// The normalized nested `request` value at `path`, when the body is an envelope.
@@ -112,7 +116,7 @@ impl<'a> Body<'a> {
         if !self.nested {
             return String::new();
         }
-        normalize_explicit_id(&self.raw(&format!("request.{path}")))
+        normalize_explicit_id(&self.get("request").get(path).str())
     }
 
     /// The first path with a value, checking root then `request` for each path.
@@ -165,40 +169,40 @@ pub fn claude_metadata_identities(payload: &[u8]) -> (String, String, String) {
     if payload.is_empty() {
         return Default::default();
     }
-    let json = String::from_utf8_lossy(payload);
-    let mut user_id = gjson::get(&json, "metadata.user_id").str().trim().to_owned();
-    if user_id.is_empty() && gjson::get(&json, "request").exists() && !gjson::get(&json, "contents").exists() {
-        user_id = gjson::get(&json, "request.metadata.user_id").str().trim().to_owned();
+    let mut user_id = json::get(payload, "metadata.user_id").str().trim().to_owned();
+    if user_id.is_empty() && json::get(payload, "request").exists() && !json::get(payload, "contents").exists() {
+        user_id = json::get(payload, "request.metadata.user_id").str().trim().to_owned();
     }
     if user_id.is_empty() {
         return Default::default();
     }
-    let first = |source: &str, paths: &[&str]| {
+    let first = |source: &[u8], paths: &[&str]| {
         paths
             .iter()
-            .map(|p| normalize_explicit_id(gjson::get(source, p).str()))
+            .map(|p| normalize_explicit_id(&json::get(source, p).str()))
             .find(|v| !v.is_empty())
             .unwrap_or_default()
     };
     if user_id.starts_with('{') {
+        let parsed = user_id.as_bytes();
         return (
-            first(&user_id, &["session_id"]),
-            first(&user_id, &["parent_session_id", "parent_agent_id", "parent_id"]),
-            first(&user_id, &["agent_id", "subagent_id"]),
+            first(parsed, &["session_id"]),
+            first(parsed, &["parent_session_id", "parent_agent_id", "parent_id"]),
+            first(parsed, &["agent_id", "subagent_id"]),
         );
     }
     if let Some(session) = legacy_claude_session(&user_id) {
         return (
             normalize_explicit_id(session),
             first(
-                &json,
+                payload,
                 &[
                     "metadata.parent_agent_id",
                     "metadata.parent_session_id",
                     "metadata.parent_id",
                 ],
             ),
-            first(&json, &["metadata.agent_id", "metadata.subagent_id"]),
+            first(payload, &["metadata.agent_id", "metadata.subagent_id"]),
         );
     }
     Default::default()
@@ -558,10 +562,10 @@ fn codex(headers: &HeaderMap, body: &Body<'_>, parent: &str) -> Option<SessionIn
         .get("X-Codex-Turn-Metadata")
         .map(|v| String::from_utf8_lossy(v.as_bytes()).trim().to_owned())
         .unwrap_or_default();
-    let turn_exists = !turn.is_empty() && gjson::parse(&turn).exists();
+    let turn_exists = !turn.is_empty() && json::parse(turn.as_bytes()).exists();
     let turn_get = |path: &str| {
         if turn_exists {
-            normalize_explicit_id(gjson::get(&turn, path).str())
+            normalize_explicit_id(&json::get(turn.as_bytes(), path).str())
         } else {
             String::new()
         }
@@ -602,7 +606,7 @@ fn codex(headers: &HeaderMap, body: &Body<'_>, parent: &str) -> Option<SessionIn
     }
     let mut agent_name = String::new();
     if turn_exists {
-        let raw = gjson::get(&turn, "agent_name").str().to_owned();
+        let raw = json::get(turn.as_bytes(), "agent_name").str().into_owned();
         let raw = raw.strip_prefix("/root/").unwrap_or(&raw);
         let raw = raw.strip_prefix('/').unwrap_or(raw);
         let raw = normalize_explicit_id(raw.trim());
@@ -612,7 +616,7 @@ fn codex(headers: &HeaderMap, body: &Body<'_>, parent: &str) -> Option<SessionIn
     }
     let sub = header(headers, "X-Openai-Subagent");
     let mut subagent = !sub.is_empty() && !sub.eq_ignore_ascii_case("false") && sub != "0";
-    if turn_exists && gjson::get(&turn, "subagent_kind").str() == "thread_spawn" {
+    if turn_exists && json::get(turn.as_bytes(), "subagent_kind").str() == "thread_spawn" {
         subagent = true;
     }
 
@@ -883,18 +887,16 @@ fn payload_session(headers: &HeaderMap, body: &Body<'_>, parent: &str) -> Option
 /// `conv:<id>` from `conversation.id` or a string `conversation` (root, else the
 /// envelope's), or empty.
 fn conversation_alias(body: &Body<'_>) -> String {
-    let path = if gjson::get(&body.json, "conversation").exists() || !body.nested {
-        "conversation"
-    } else {
-        "request.conversation"
-    };
-    let conversation = gjson::get(&body.json, path);
-    let id = normalize_explicit_id(conversation.get("id").str());
+    let mut conversation = body.get("conversation");
+    if !conversation.exists() && body.nested {
+        conversation = body.get("request").get("conversation");
+    }
+    let id = normalize_explicit_id(&conversation.get("id").str());
     if !id.is_empty() {
         return format!("conv:{id}");
     }
-    if conversation.kind() == gjson::Kind::String {
-        let id = normalize_explicit_id(conversation.str());
+    if conversation.kind == Kind::String {
+        let id = normalize_explicit_id(&conversation.str());
         if !id.is_empty() {
             return format!("conv:{id}");
         }
@@ -1076,9 +1078,9 @@ pub fn has_explicit_session(headers: &HeaderMap, payload: &[u8]) -> bool {
     if !claude_metadata_identities(payload).0.is_empty() {
         return true;
     }
-    let mut user = body.raw("metadata.user_id").trim().to_owned();
+    let mut user = body.get("metadata.user_id").str().trim().to_owned();
     if user.is_empty() && body.nested {
-        user = body.raw("request.metadata.user_id").trim().to_owned();
+        user = body.get("request").get("metadata.user_id").str().trim().to_owned();
     }
     !normalize_explicit_id(&user).is_empty() || !conversation_alias(&body).is_empty()
 }
@@ -1105,15 +1107,15 @@ pub fn derive_id(format: Format, payload: &[u8], caller_scope: &str) -> String {
     if payload.is_empty() {
         return String::new();
     }
-    let body = match serde_json::from_slice::<Value>(payload) {
-        Ok(Value::Object(body)) => body,
-        Ok(Value::Null) => Map::new(),
+    // Go `json.Unmarshal` into `map[string]any`: a JSON null decodes to an empty map.
+    let body = match GoValue::parse_f64(payload) {
+        Some(GoValue::Object(body)) => body,
+        Some(GoValue::Null) => Object::new(),
         _ => return String::new(),
     };
-    let google = matches!(format, Format::Gemini | Format::Antigravity);
-    let resource = if google {
+    let resource = if matches!(format, Format::Gemini | Format::Antigravity) {
         let request = match body.get("request") {
-            Some(Value::Object(request)) => request,
+            Some(GoValue::Object(request)) => request,
             _ => &body,
         };
         string_field(request, &["cachedContent", "cached_content"])
@@ -1131,43 +1133,46 @@ pub fn derive_id(format: Format, payload: &[u8], caller_scope: &str) -> String {
         return String::new();
     }
     // Go `canonicalRoot` field order and omitempty rules.
-    let mut json = String::from("{\"version\":\"cpa-session-root-v1\",\"format\":");
-    crate::gojson::string(format.as_str(), &mut json);
-    json.push_str(",\"caller_scope\":");
-    crate::gojson::string(caller_scope.trim(), &mut json);
+    let string = |out: &mut Vec<u8>, s: &str| json::marshal_str(out, s.as_bytes(), true);
+    let mut out = b"{\"version\":\"cpa-session-root-v1\",\"format\":".to_vec();
+    string(&mut out, format.as_str());
+    out.extend_from_slice(b",\"caller_scope\":");
+    string(&mut out, caller_scope.trim());
     if !instructions.is_empty() {
-        json.push_str(",\"instructions\":[");
+        out.extend_from_slice(b",\"instructions\":[");
         for (i, instruction) in instructions.iter().enumerate() {
             if i > 0 {
-                json.push(',');
+                out.push(b',');
             }
-            crate::gojson::string(instruction, &mut json);
+            string(&mut out, instruction);
         }
-        json.push(']');
+        out.push(b']');
     }
-    json.push_str(",\"user\":[");
+    out.extend_from_slice(b",\"user\":[");
     for (i, part) in user.iter().enumerate() {
         if i > 0 {
-            json.push(',');
+            out.push(b',');
         }
-        json.push_str("{\"kind\":");
-        crate::gojson::string(&part.kind, &mut json);
+        out.extend_from_slice(b"{\"kind\":");
+        string(&mut out, &part.kind);
         if !part.mime.is_empty() {
-            json.push_str(",\"mime\":");
-            crate::gojson::string(&part.mime, &mut json);
+            out.extend_from_slice(b",\"mime\":");
+            string(&mut out, &part.mime);
         }
-        json.push_str(",\"value\":");
-        crate::gojson::string(&part.value, &mut json);
-        json.push('}');
+        out.extend_from_slice(b",\"value\":");
+        string(&mut out, &part.value);
+        out.push(b'}');
     }
-    json.push(']');
+    out.push(b']');
     if !resource.is_empty() {
-        json.push_str(",\"resource\":");
-        crate::gojson::string(&resource, &mut json);
+        out.extend_from_slice(b",\"resource\":");
+        string(&mut out, &resource);
     }
-    json.push('}');
-    format!("ctx:v1:{}", hex(&Sha256::digest(json.as_bytes())))
+    out.push(b'}');
+    format!("ctx:v1:{}", hex(&Sha256::digest(&out)))
 }
+
+type Object = BTreeMap<String, GoValue>;
 
 struct Part {
     kind: String,
@@ -1175,25 +1180,28 @@ struct Part {
     value: String,
 }
 
-fn lower(v: Option<&Value>) -> String {
-    v.and_then(Value::as_str).unwrap_or_default().trim().to_lowercase()
+/// Go `normalizedString`: a string value, trimmed and lowercased; empty otherwise.
+fn lower(v: Option<&GoValue>) -> String {
+    match v {
+        Some(GoValue::String(s)) => s.trim().to_lowercase(),
+        _ => String::new(),
+    }
 }
 
-fn first_field<'v>(object: &'v Map<String, Value>, keys: &[&str]) -> Option<&'v Value> {
+fn first_field<'v>(object: &'v Object, keys: &[&str]) -> Option<&'v GoValue> {
     keys.iter().find_map(|k| object.get(*k))
 }
 
-fn string_field(object: &Map<String, Value>, keys: &[&str]) -> String {
-    first_field(object, keys)
-        .and_then(Value::as_str)
-        .unwrap_or_default()
-        .trim()
-        .to_owned()
+fn string_field(object: &Object, keys: &[&str]) -> String {
+    match first_field(object, keys) {
+        Some(GoValue::String(s)) => s.trim().to_owned(),
+        _ => String::new(),
+    }
 }
 
-fn content_value(value: &Value) -> &Value {
+fn content_value(value: &GoValue) -> &GoValue {
     match value {
-        Value::Object(object) => ["content", "parts", "text"]
+        GoValue::Object(object) => ["content", "parts", "text"]
             .iter()
             .find_map(|k| object.get(*k))
             .unwrap_or(value),
@@ -1201,28 +1209,38 @@ fn content_value(value: &Value) -> &Value {
     }
 }
 
-fn parts(value: &Value) -> Vec<Part> {
+fn parts(value: &GoValue) -> Vec<Part> {
     let mut out = Vec::new();
     append_parts(&mut out, value);
     out
 }
 
-fn append_parts(out: &mut Vec<Part>, value: &Value) {
+fn text_part(out: &mut Vec<Part>, text: &str) {
+    if !text.is_empty() {
+        out.push(Part {
+            kind: "text".into(),
+            mime: String::new(),
+            value: text.to_owned(),
+        });
+    }
+}
+
+fn json_part(out: &mut Vec<Part>, value: &GoValue) {
+    out.push(Part {
+        kind: "json".into(),
+        mime: String::new(),
+        value: String::from_utf8_lossy(&value.marshal()).into_owned(),
+    });
+}
+
+fn append_parts(out: &mut Vec<Part>, value: &GoValue) {
     match value {
-        Value::Null => {}
-        Value::String(text) => {
-            if !text.is_empty() {
-                out.push(Part {
-                    kind: "text".into(),
-                    mime: String::new(),
-                    value: text.clone(),
-                });
-            }
-        }
-        Value::Array(items) => items.iter().for_each(|item| append_parts(out, item)),
-        Value::Object(object) => {
-            if let Some(Value::String(text)) = object.get("text") {
-                return append_parts(out, &Value::String(text.clone()));
+        GoValue::Null => {}
+        GoValue::String(text) => text_part(out, text),
+        GoValue::Array(items) => items.iter().for_each(|item| append_parts(out, item)),
+        GoValue::Object(object) => {
+            if let Some(GoValue::String(text)) = object.get("text") {
+                return text_part(out, text);
             }
             if let Some(nested) = object.get("content").or_else(|| object.get("parts")) {
                 return append_parts(out, nested);
@@ -1244,27 +1262,19 @@ fn append_parts(out: &mut Vec<Part>, value: &Value) {
                     &lower(object.get("media_type")),
                 );
             }
-            out.push(Part {
-                kind: "json".into(),
-                mime: String::new(),
-                value: crate::gojson::marshal(&without_cache_control(value)),
-            });
+            json_part(out, &without_cache_control(value));
         }
-        scalar => out.push(Part {
-            kind: "json".into(),
-            mime: String::new(),
-            value: crate::gojson::marshal(scalar),
-        }),
+        scalar => json_part(out, scalar),
     }
 }
 
-fn media(out: &mut Vec<Part>, kind: &str, value: &Value, fallback_mime: &str) {
+fn media(out: &mut Vec<Part>, kind: &str, value: &GoValue, fallback_mime: &str) {
     let kind = match kind.trim() {
         "" => "media",
         kind => kind,
     };
     match value {
-        Value::String(text) => {
+        GoValue::String(text) => {
             if !text.is_empty() {
                 out.push(Part {
                     kind: kind.into(),
@@ -1273,7 +1283,7 @@ fn media(out: &mut Vec<Part>, kind: &str, value: &Value, fallback_mime: &str) {
                 });
             }
         }
-        Value::Object(object) => {
+        GoValue::Object(object) => {
             let mut mime = string_field(object, &["mimeType", "mime_type", "media_type"]);
             if mime.is_empty() {
                 mime = fallback_mime.into();
@@ -1291,22 +1301,22 @@ fn media(out: &mut Vec<Part>, kind: &str, value: &Value, fallback_mime: &str) {
     }
 }
 
-fn without_cache_control(value: &Value) -> Value {
+fn without_cache_control(value: &GoValue) -> GoValue {
     match value {
-        Value::Object(object) => Value::Object(
+        GoValue::Object(object) => GoValue::Object(
             object
                 .iter()
                 .filter(|(k, _)| !k.trim().eq_ignore_ascii_case("cache_control"))
                 .map(|(k, v)| (k.clone(), without_cache_control(v)))
                 .collect(),
         ),
-        Value::Array(items) => Value::Array(items.iter().map(without_cache_control).collect()),
+        GoValue::Array(items) => GoValue::Array(items.iter().map(without_cache_control).collect()),
         other => other.clone(),
     }
 }
 
 /// Go `appendInstruction`: the value's text parts joined by newlines, first 50 runes.
-fn append_instruction(instructions: &mut Vec<String>, value: &Value) {
+fn append_instruction(instructions: &mut Vec<String>, value: &GoValue) {
     let text: Vec<String> = parts(value)
         .into_iter()
         .filter(|p| p.kind == "text" && !p.value.is_empty())
@@ -1319,21 +1329,27 @@ fn append_instruction(instructions: &mut Vec<String>, value: &Value) {
 
 type Root = (Vec<String>, Vec<Part>);
 
-fn messages_root(body: &Map<String, Value>, top_level_system: bool) -> Root {
+fn array(value: Option<&GoValue>) -> &[GoValue] {
+    match value {
+        Some(GoValue::Array(items)) => items,
+        _ => &[],
+    }
+}
+
+fn messages_root(body: &Object, top_level_system: bool) -> Root {
     let mut instructions = Vec::new();
     if top_level_system && let Some(system) = body.get("system") {
         append_instruction(&mut instructions, system);
     }
-    for message in body.get("messages").and_then(Value::as_array).into_iter().flatten() {
-        let Value::Object(message) = message else {
+    for message in array(body.get("messages")) {
+        let GoValue::Object(message) = message else {
             continue;
         };
+        let content = message.get("content").unwrap_or(&GoValue::Null);
         match lower(message.get("role")).as_str() {
-            "system" | "developer" => {
-                append_instruction(&mut instructions, message.get("content").unwrap_or(&Value::Null))
-            }
+            "system" | "developer" => append_instruction(&mut instructions, content),
             "user" => {
-                let user = parts(message.get("content").unwrap_or(&Value::Null));
+                let user = parts(content);
                 if !user.is_empty() {
                     return (instructions, user);
                 }
@@ -1344,25 +1360,24 @@ fn messages_root(body: &Map<String, Value>, top_level_system: bool) -> Root {
     (instructions, Vec::new())
 }
 
-fn responses_root(body: &Map<String, Value>) -> Root {
+fn responses_root(body: &Object) -> Root {
     let mut instructions = Vec::new();
     if let Some(value) = body.get("instructions") {
         append_instruction(&mut instructions, value);
     }
     match body.get("input") {
         None => (instructions, Vec::new()),
-        Some(Value::String(input)) => (instructions, parts(&Value::String(input.clone()))),
+        Some(input @ GoValue::String(_)) => (instructions, parts(input)),
         Some(input) => {
-            for item in input.as_array().into_iter().flatten() {
-                let Value::Object(item) = item else {
+            for item in array(Some(input)) {
+                let GoValue::Object(item) = item else {
                     continue;
                 };
+                let content = item.get("content").unwrap_or(&GoValue::Null);
                 match lower(item.get("role")).as_str() {
-                    "system" | "developer" => {
-                        append_instruction(&mut instructions, item.get("content").unwrap_or(&Value::Null))
-                    }
+                    "system" | "developer" => append_instruction(&mut instructions, content),
                     "user" => {
-                        let user = parts(item.get("content").unwrap_or(&Value::Null));
+                        let user = parts(content);
                         if !user.is_empty() {
                             return (instructions, user);
                         }
@@ -1375,17 +1390,17 @@ fn responses_root(body: &Map<String, Value>) -> Root {
     }
 }
 
-fn gemini_root(body: &Map<String, Value>) -> Root {
+fn gemini_root(body: &Object) -> Root {
     let body = match body.get("request") {
-        Some(Value::Object(request)) => request,
+        Some(GoValue::Object(request)) => request,
         _ => body,
     };
     let mut instructions = Vec::new();
     if let Some(value) = first_field(body, &["systemInstruction", "system_instruction"]) {
         append_instruction(&mut instructions, content_value(value));
     }
-    for content in body.get("contents").and_then(Value::as_array).into_iter().flatten() {
-        let Value::Object(object) = content else {
+    for content in array(body.get("contents")) {
+        let GoValue::Object(object) = content else {
             continue;
         };
         if lower(object.get("role")) != "user" {
@@ -1399,7 +1414,7 @@ fn gemini_root(body: &Map<String, Value>) -> Root {
     (instructions, Vec::new())
 }
 
-fn interactions_root(body: &Map<String, Value>) -> Root {
+fn interactions_root(body: &Object) -> Root {
     let mut instructions = Vec::new();
     if let Some(value) = first_field(body, &["system_instruction", "systemInstruction"]) {
         append_instruction(&mut instructions, content_value(value));
@@ -1407,13 +1422,13 @@ fn interactions_root(body: &Map<String, Value>) -> Root {
     let Some(input) = body.get("input") else {
         return (instructions, Vec::new());
     };
-    if let Value::String(text) = input {
-        return (instructions, parts(&Value::String(text.clone())));
+    if let GoValue::String(_) = input {
+        return (instructions, parts(input));
     }
     for entry in flatten_interaction_entries(input) {
         let step = match &entry {
-            Value::String(_) => return (instructions, parts(&entry)),
-            Value::Object(step) => step,
+            GoValue::String(_) => return (instructions, parts(&entry)),
+            GoValue::Object(step) => step,
             _ => continue,
         };
         let role = lower(step.get("role"));
@@ -1432,25 +1447,25 @@ fn interactions_root(body: &Map<String, Value>) -> Root {
 }
 
 /// Go `flattenInteractionEntries`: steps flattened depth-first, inheriting the role.
-fn flatten_interaction_entries(value: &Value) -> Vec<Value> {
-    fn walk(value: &Value, inherited: &str, out: &mut Vec<Value>) {
+fn flatten_interaction_entries(value: &GoValue) -> Vec<GoValue> {
+    fn walk(value: &GoValue, inherited: &str, out: &mut Vec<GoValue>) {
         match value {
-            Value::Array(items) => items.iter().for_each(|item| walk(item, inherited, out)),
-            Value::Object(object) => {
+            GoValue::Array(items) => items.iter().for_each(|item| walk(item, inherited, out)),
+            GoValue::Object(object) => {
                 let own = lower(object.get("role"));
                 let role = if own.is_empty() {
                     inherited.to_owned()
                 } else {
                     own.clone()
                 };
-                if let Some(Value::Array(steps)) = object.get("steps") {
+                if let Some(GoValue::Array(steps)) = object.get("steps") {
                     steps.iter().for_each(|step| walk(step, &role, out));
                     return;
                 }
                 if !role.is_empty() && own.is_empty() {
                     let mut cloned = object.clone();
-                    cloned.insert("role".into(), Value::String(role));
-                    out.push(Value::Object(cloned));
+                    cloned.insert("role".into(), GoValue::String(role));
+                    out.push(GoValue::Object(cloned));
                 } else {
                     out.push(value.clone());
                 }
@@ -1467,20 +1482,17 @@ fn flatten_interaction_entries(value: &Value) -> Vec<Value> {
 /// message (primary), and with the first assistant reply (primary, short hash as
 /// fallback) once the conversation has one.
 fn message_hash_ids(payload: &[u8]) -> (String, String) {
-    let json = String::from_utf8_lossy(payload);
-    let (mut system, mut user, mut assistant) = (String::new(), String::new(), String::new());
-    let take = |s: &str| -> String {
-        // Go slices bytes, which may split a rune; keep the bytes lossily.
-        String::from_utf8_lossy(&s.as_bytes()[..s.len().min(100)]).into_owned()
-    };
-    let messages = gjson::get(&json, "messages");
-    if messages.exists() && messages.kind() == gjson::Kind::Array {
+    let (mut system, mut user, mut assistant) = (Vec::new(), Vec::new(), Vec::new());
+    // Go `truncateString(s, 100)` slices bytes, which may split a rune.
+    let take = |s: &[u8]| s[..s.len().min(100)].to_vec();
+    let messages = json::get(payload, "messages");
+    if messages.is_array() {
         messages.each(|_, message| {
             let content = message_content(&message.get("content"));
             if content.is_empty() {
                 return true;
             }
-            match message.get("role").str() {
+            match &*message.get("role").str() {
                 "system" if system.is_empty() => system = take(&content),
                 "user" if user.is_empty() => user = take(&content),
                 "assistant" if assistant.is_empty() => assistant = take(&content),
@@ -1490,44 +1502,44 @@ fn message_hash_ids(payload: &[u8]) -> (String, String) {
         });
     }
     if system.is_empty() {
-        let top = gjson::get(&json, "system");
-        if top.kind() == gjson::Kind::Array {
+        let top = json::get(payload, "system");
+        if top.is_array() {
             top.each(|_, part| {
-                let text = part.get("text");
-                if !text.str().is_empty() && system.is_empty() {
-                    system = take(text.str());
+                let text = part.get("text").bytes();
+                if !text.is_empty() && system.is_empty() {
+                    system = take(&text);
                     return false;
                 }
                 true
             });
-        } else if top.kind() == gjson::Kind::String {
-            system = take(top.str());
+        } else if top.kind == Kind::String {
+            system = take(&top.bytes());
         }
     }
     if system.is_empty() && user.is_empty() {
-        let instruction = gjson::get(&json, "systemInstruction.parts");
-        if instruction.exists() && instruction.kind() == gjson::Kind::Array {
+        let instruction = json::get(payload, "systemInstruction.parts");
+        if instruction.is_array() {
             instruction.each(|_, part| {
-                let text = part.get("text");
-                if !text.str().is_empty() && system.is_empty() {
-                    system = take(text.str());
+                let text = part.get("text").bytes();
+                if !text.is_empty() && system.is_empty() {
+                    system = take(&text);
                     return false;
                 }
                 true
             });
         }
-        let contents = gjson::get(&json, "contents");
-        if contents.exists() && contents.kind() == gjson::Kind::Array {
+        let contents = json::get(payload, "contents");
+        if contents.is_array() {
             contents.each(|_, message| {
-                let role = message.get("role").str().to_owned();
+                let role = message.get("role").str().into_owned();
                 message.get("parts").each(|_, part| {
-                    let text = part.get("text");
-                    if text.str().is_empty() {
+                    let text = part.get("text").bytes();
+                    if text.is_empty() {
                         return true;
                     }
                     match role.as_str() {
-                        "user" if user.is_empty() => user = take(text.str()),
-                        "model" if assistant.is_empty() => assistant = take(text.str()),
+                        "user" if user.is_empty() => user = take(&text),
+                        "model" if assistant.is_empty() => assistant = take(&text),
                         _ => {}
                     }
                     false
@@ -1537,26 +1549,26 @@ fn message_hash_ids(payload: &[u8]) -> (String, String) {
         }
     }
     if system.is_empty() && user.is_empty() {
-        let instructions = gjson::get(&json, "instructions");
-        if !instructions.str().is_empty() {
-            system = take(instructions.str());
+        let instructions = json::get(payload, "instructions").bytes();
+        if !instructions.is_empty() {
+            system = take(&instructions);
         }
-        let input = gjson::get(&json, "input");
-        if input.exists() && input.kind() == gjson::Kind::Array {
+        let input = json::get(payload, "input");
+        if input.is_array() {
             input.each(|_, item| {
-                let kind = item.get("type").str().to_owned();
+                let kind = item.get("type").str().into_owned();
                 if kind == "reasoning" || (!kind.is_empty() && kind != "message") {
                     return true;
                 }
-                let role = item.get("role").str().to_owned();
+                let role = item.get("role").str().into_owned();
                 if kind.is_empty() && role.is_empty() {
                     return true;
                 }
                 let content = item.get("content");
-                let text = if content.kind() == gjson::Kind::String {
-                    content.str().to_owned()
+                let text = if content.kind == Kind::String {
+                    content.bytes().into_owned()
                 } else {
-                    responses_content(&content)
+                    joined_text(&content, &["input_text", "output_text", "text"])
                 };
                 if text.is_empty() {
                     return true;
@@ -1574,52 +1586,42 @@ fn message_hash_ids(payload: &[u8]) -> (String, String) {
     if user.is_empty() {
         return Default::default();
     }
-    let short = session_hash(&system, &user, "");
+    let short = session_hash(&system, &user, &[]);
     if assistant.is_empty() {
         return (short, String::new());
     }
     (session_hash(&system, &user, &assistant), short)
 }
 
-fn message_content(content: &gjson::Value<'_>) -> String {
-    if content.kind() == gjson::Kind::String {
-        return content.str().to_owned();
+/// Go `extractMessageContent`.
+fn message_content(content: &Res<'_>) -> Vec<u8> {
+    if content.kind == Kind::String {
+        return content.bytes().into_owned();
     }
-    if content.kind() == gjson::Kind::Array {
-        let mut texts = Vec::new();
-        content.each(|_, part| {
-            if part.get("type").str() == "text" {
-                let text = part.get("text");
-                if !text.str().is_empty() {
-                    texts.push(text.str().to_owned());
-                }
-            }
-            true
-        });
-        return texts.join(" ");
-    }
-    String::new()
+    joined_text(content, &["text"])
 }
 
-fn responses_content(content: &gjson::Value<'_>) -> String {
-    if content.kind() != gjson::Kind::Array {
-        return String::new();
+/// The `text` of array parts whose `type` is one of `types`, joined by spaces (Go
+/// `extractMessageContent` and `extractResponsesAPIContent`).
+fn joined_text(content: &Res<'_>, types: &[&str]) -> Vec<u8> {
+    if !content.is_array() {
+        return Vec::new();
     }
-    let mut texts = Vec::new();
+    let mut texts: Vec<Vec<u8>> = Vec::new();
     content.each(|_, part| {
-        if matches!(part.get("type").str(), "input_text" | "output_text" | "text") {
-            let text = part.get("text");
-            if !text.str().is_empty() {
-                texts.push(text.str().to_owned());
+        if types.contains(&&*part.get("type").str()) {
+            let text = part.get("text").bytes();
+            if !text.is_empty() {
+                texts.push(text.into_owned());
             }
         }
         true
     });
-    texts.join(" ")
+    texts.join(&b' ')
 }
 
 /// Go `computeSessionHash`: FNV-64a over the labelled parts.
-fn session_hash(system: &str, user: &str, assistant: &str) -> String {
+fn session_hash(system: &[u8], user: &[u8], assistant: &[u8]) -> String {
     let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
     let mut write = |bytes: &[u8]| {
         for b in bytes {
@@ -1627,10 +1629,10 @@ fn session_hash(system: &str, user: &str, assistant: &str) -> String {
             hash = hash.wrapping_mul(0x0100_0000_01b3);
         }
     };
-    for (label, value) in [("sys:", system), ("usr:", user), ("ast:", assistant)] {
+    for (label, value) in [(&b"sys:"[..], system), (b"usr:", user), (b"ast:", assistant)] {
         if !value.is_empty() {
-            write(label.as_bytes());
-            write(value.as_bytes());
+            write(label);
+            write(value);
             write(b"\n");
         }
     }

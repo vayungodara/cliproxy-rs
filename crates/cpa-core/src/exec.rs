@@ -73,6 +73,11 @@ pub struct ExecRequest {
     /// Provider replay caches (Codex and Kimi reasoning replay) key on
     /// `execution:<id>` before falling back to payload or header identity.
     pub execution_session: Option<String>,
+    /// Go `derived_session_id` metadata (`ctx:v1:<sha256>`, from
+    /// `cpa_common::session::derive_id`): set only when the request carries no explicit
+    /// session signal and no execution session, exactly when Go's `session.Enrich` sets
+    /// it. Go `helps.ProviderSessionUUID` falls back to it after the execution session.
+    pub derived_session: Option<String>,
     /// Inbound headers. Executors forward only what their provider profile allows.
     /// Contains client credentials: never log or forward wholesale.
     pub headers: HeaderMap,
@@ -89,6 +94,7 @@ impl fmt::Debug for ExecRequest {
             .field("stream", &self.stream)
             .field("alt", &self.alt)
             .field("execution_session", &self.execution_session)
+            .field("derived_session", &self.derived_session)
             .field("body_len", &self.body.len())
             .finish_non_exhaustive()
     }

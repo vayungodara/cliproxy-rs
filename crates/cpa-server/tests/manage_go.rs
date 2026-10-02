@@ -208,6 +208,7 @@ mod access {
                 claude: ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
                 codex: Default::default(),
                 devices: Default::default(),
+                openai: Default::default(),
             },
         ));
         let options = Options {
@@ -295,6 +296,7 @@ mod routes {
                     claude: ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
                     codex: Default::default(),
                     devices: Default::default(),
+                    openai: Default::default(),
                 },
             ));
             let state = Management::with_options(

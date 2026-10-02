@@ -9,7 +9,6 @@ pub mod dispatch;
 mod errors;
 mod gemini;
 mod gojson;
-mod jsonedit;
 pub mod management;
 mod models;
 mod openai;

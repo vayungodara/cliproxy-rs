@@ -97,7 +97,7 @@ impl Failure {
         match self {
             Failure::Exec(e) => classify::error_text(e),
             Failure::UnknownModel(model) => {
-                let message = crate::jsonedit::sjson_string(&format!("unknown provider for model {model}"));
+                let message = gojson::sjson_string(&format!("unknown provider for model {model}"));
                 format!(
                     r#"{{"error":{{"message":{message},"type":"invalid_request_error","code":"model_not_found","param":"model"}}}}"#
                 )
@@ -505,6 +505,7 @@ pub async fn run(rt: &Arc<Runtime>, call: Call, trace: &Trace) -> Result<Done, R
         alt: call.alt.clone(),
         session: session.id,
         execution_session: call.execution_session.clone(),
+        derived_session: session.derived,
         headers: call.headers.clone(),
         caller: call.caller.clone(),
     };

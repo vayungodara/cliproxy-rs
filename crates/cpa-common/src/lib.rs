@@ -11,13 +11,37 @@
 //!   rules applied to the final provider body).
 //! - `headers`: util/header_helpers.go (custom `header:*` attributes and `$Header`
 //!   references copied from the client request).
+//! - `json`: Go-exact tidwall/gjson, tidwall/sjson and encoding/json behaviour, used by
+//!   every crate that edits JSON on the wire (owner: translators).
 //! - `codex_client`: executor/helps/codex_multi_agent_v2.go (Codex-client request rewrites
 //!   shared by every executor that serves Codex clients).
 //! - `session`: sdk/cliproxy/session (session identity, parent/child relationships and the
-//!   derived identity executors key provider sessions on). Owner: server.
+//!   derived identity executors key provider sessions on; owner: server).
+//!
+//! - `gojson`: tidwall/gjson and sjson v1.2.5 semantics for byte-faithful raw JSON edits,
+//!   used by `thinking` and `signature` and available to every executor and translator.
 //!
 //! The proxy-aware HTTP client (executor/helps/proxy_helpers.go) touches the network and
 //! lives in cpa-exec instead.
 
-mod gojson;
+pub mod gojson;
+pub mod gostr;
+mod gostr_tables;
+pub mod json;
 pub mod session;
+pub mod signature;
+pub mod thinking;
+
+/// Calls recorded from Go's own test suites at 6fecc6e, one JSON object per line
+/// (tests/reference/record/README.md).
+#[cfg(test)]
+pub(crate) fn go_calls() -> impl Iterator<Item = &'static str> {
+    use std::io::Read;
+    static CALLS: std::sync::LazyLock<String> = std::sync::LazyLock::new(|| {
+        let gz = include_bytes!("../tests/fixtures/go_calls.jsonl.gz");
+        let mut text = String::new();
+        flate2::read::GzDecoder::new(&gz[..]).read_to_string(&mut text).unwrap();
+        text
+    });
+    CALLS.lines()
+}

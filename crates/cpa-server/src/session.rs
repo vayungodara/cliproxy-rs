@@ -14,6 +14,8 @@ pub struct Session {
     pub parent: Option<String>,
     /// The session forked from `parent`.
     pub fork: bool,
+    /// Go `derived_session_id` (see `ExecRequest::derived_session`).
+    pub derived: Option<String>,
 }
 
 /// Resolves the session of a request in `format` from its client headers and body.
@@ -35,6 +37,7 @@ pub fn resolve(format: Format, headers: &HeaderMap, body: &[u8], execution: Opti
         id: some(primary),
         parent: some(parent),
         fork,
+        derived,
     }
 }
 

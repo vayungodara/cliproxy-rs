@@ -1,0 +1,366 @@
+//! Adapts Go-shaped stream translators to the [`StreamTranslator`] contract.
+//!
+//! Go executors read upstream bodies line by line and call the translator per line (or,
+//! for OpenAI-compatible upstreams, per SSE frame). Translators return chunks, which the
+//! client's route handler then frames. Here every framed upstream event is turned back
+//! into the lines the Go executor would have passed, each goes through the Go-shaped
+//! [`GoStream`], and each chunk is framed the way that client's Go handler writes it, so
+//! the bytes returned are the bytes the client receives.
+
+use crate::{Error, StreamTranslator};
+use bytes::Bytes;
+use cpa_core::format::Format;
+
+/// One Go `ResponseStreamTransform` with its request-local state.
+#[doc(hidden)]
+pub trait GoStream: Send {
+    /// One upstream line (no terminator) in, zero or more Go chunks out.
+    fn line(&mut self, line: &[u8]) -> Result<Vec<Vec<u8>>, Error>;
+}
+
+/// bufio.ScanLines over one event: split on `\n`, drop one trailing `\r` per line, and
+/// no empty token after a final newline.
+pub(crate) fn scan_lines(event: &[u8]) -> impl Iterator<Item = &[u8]> {
+    let body = event.strip_suffix(b"\n").unwrap_or(event);
+    let empty = event.is_empty();
+    body.split(|&c| c == b'\n')
+        .filter(move |_| !empty)
+        .map(|line| line.strip_suffix(b"\r").unwrap_or(line))
+}
+
+/// How the client's Go handler writes one translator chunk. Go's stream layer drops
+/// empty chunks before any handler sees them (handlers_stream.go).
+pub fn frame(client: Format, chunk: &[u8]) -> Option<Vec<u8>> {
+    if chunk.is_empty() {
+        return None;
+    }
+    match client {
+        // openai_handlers.go: `data: %s\n\n`. gemini_handlers.go writes the same for the
+        // default (no `alt`) streaming mode.
+        Format::OpenAI | Format::Gemini => {
+            let mut out = Vec::with_capacity(chunk.len() + 8);
+            out.extend_from_slice(b"data: ");
+            out.extend_from_slice(chunk);
+            out.extend_from_slice(b"\n\n");
+            Some(out)
+        }
+        // interactions_handlers.go: empty chunks are dropped, chunks that already carry
+        // SSE fields are written as is, and a missing blank line is added.
+        Format::Interactions => {
+            let trimmed = crate::common::trim_space(chunk);
+            let mut out = vec![];
+            if !(trimmed.starts_with(b"event:") || trimmed.starts_with(b"data:")) {
+                out.extend_from_slice(b"data: ");
+            }
+            out.extend_from_slice(chunk);
+            if !chunk.ends_with(b"\n\n") {
+                out.extend_from_slice(b"\n\n");
+            }
+            Some(out)
+        }
+        // Claude translators emit complete SSE events; Responses chunks are joined per
+        // upstream event by `join_responses_frames`.
+        _ => Some(chunk.to_vec()),
+    }
+}
+
+fn responses_client(client: Format) -> bool {
+    matches!(client, Format::OpenAIResponse | Format::Codex)
+}
+
+/// Go's responsesSSEFramer.WriteChunk/Flush joining and emission rules
+/// (openai_responses_handlers.go): line chunks are joined into frames, a valid data-only
+/// frame closes before the next `data:` line, and every frame ends with a blank line.
+// ponytail: repairFrame (private-event filtering, completed-output and error repair,
+// terminal tracking) is route logic and stays with the Responses route in cpa-server.
+#[derive(Default)]
+struct ResponsesFramer {
+    pending: Vec<u8>,
+}
+
+fn has_field(chunk: &[u8], prefix: &[u8]) -> bool {
+    chunk
+        .split(|&c| c == b'\n')
+        .any(|line| crate::common::trim_space(line).starts_with(prefix))
+}
+
+/// responsesSSEDataLinesValid: no data, `[DONE]`, or one valid JSON payload.
+fn data_lines_valid(chunk: &[u8]) -> bool {
+    let mut payload: Option<Vec<u8>> = None;
+    for line in chunk.split(|&c| c == b'\n') {
+        let line = line.strip_suffix(b"\r").unwrap_or(line);
+        if let Some(data) = crate::common::trim_space(line).strip_prefix(b"data:") {
+            match &mut payload {
+                Some(p) => {
+                    p.push(b'\n');
+                    p.extend_from_slice(crate::common::trim_space(data));
+                }
+                None => payload = Some(crate::common::trim_space(data).to_vec()),
+            }
+        }
+    }
+    data_payload_valid(payload)
+}
+
+fn data_payload_valid(payload: Option<Vec<u8>>) -> bool {
+    let Some(payload) = payload else {
+        return true;
+    };
+    let payload = crate::common::trim_space(&payload);
+    payload.is_empty() || payload == b"[DONE]" || cpa_common::json::valid(payload)
+}
+
+fn starts_new_data_frame(pending: &[u8], chunk: &[u8]) -> bool {
+    let trimmed = crate::common::trim_space(pending);
+    if trimmed.is_empty()
+        || has_field(trimmed, b"event:")
+        || !has_field(trimmed, b"data:")
+        || !data_lines_valid(trimmed)
+    {
+        return false;
+    }
+    let start = chunk
+        .iter()
+        .position(|c| !matches!(c, b' ' | b'\t' | b'\r' | b'\n'))
+        .unwrap_or(chunk.len());
+    chunk[start..].starts_with(b"data:")
+}
+
+/// responsesSSENeedsLineBreak: a field line appended to an unterminated line.
+fn needs_line_break(pending: &[u8], chunk: &[u8]) -> bool {
+    if pending.is_empty() || chunk.is_empty() || pending.ends_with(b"\n") || pending.ends_with(b"\r") {
+        return false;
+    }
+    if chunk[0] == b'\n' || chunk[0] == b'\r' {
+        return false;
+    }
+    let start = chunk
+        .iter()
+        .position(|c| !matches!(c, b' ' | b'\t'))
+        .unwrap_or(chunk.len());
+    let trimmed = &chunk[start..];
+    !trimmed.is_empty()
+        && [&b"data:"[..], b"event:", b"id:", b"retry:", b":"]
+            .iter()
+            .any(|p| trimmed.starts_with(p))
+}
+
+fn frame_len(chunk: &[u8]) -> usize {
+    let lf = chunk.windows(2).position(|w| w == b"\n\n");
+    let crlf = chunk.windows(4).position(|w| w == b"\r\n\r\n");
+    match (lf, crlf) {
+        (None, None) => 0,
+        (None, Some(c)) => c + 4,
+        (Some(l), None) => l + 2,
+        (Some(l), Some(c)) => {
+            if l < c {
+                l + 2
+            } else {
+                c + 4
+            }
+        }
+    }
+}
+
+fn can_emit_without_delimiter(chunk: &[u8]) -> bool {
+    let trimmed = crate::common::trim_space(chunk);
+    let needs_more_data = has_field(trimmed, b"event:") && !has_field(trimmed, b"data:");
+    !trimmed.is_empty()
+        && !needs_more_data
+        && has_field(trimmed, b"event:")
+        && has_field(trimmed, b"data:")
+        && data_lines_valid(trimmed)
+}
+
+/// writeResponsesSSEChunk: the frame, then whatever completes its blank line.
+fn terminated(frame: &[u8]) -> Option<Vec<u8>> {
+    if frame.is_empty() {
+        return None;
+    }
+    let mut out = frame.to_vec();
+    if !(frame.ends_with(b"\n\n") || frame.ends_with(b"\r\n\r\n")) {
+        out.extend_from_slice(if frame.ends_with(b"\r\n") {
+            b"\r\n"
+        } else if frame.ends_with(b"\n") {
+            b"\n"
+        } else {
+            b"\n\n"
+        });
+    }
+    Some(out)
+}
+
+impl ResponsesFramer {
+    fn write(&mut self, chunk: &[u8], out: &mut Vec<Vec<u8>>) {
+        if chunk.is_empty() {
+            return;
+        }
+        if starts_new_data_frame(&self.pending, chunk) {
+            out.extend(terminated(&self.pending));
+            self.pending.clear();
+        }
+        if needs_line_break(&self.pending, chunk) {
+            self.pending.push(b'\n');
+        }
+        self.pending.extend_from_slice(chunk);
+        loop {
+            let n = frame_len(&self.pending);
+            if n == 0 {
+                break;
+            }
+            out.extend(terminated(&self.pending[..n]));
+            self.pending.drain(..n);
+        }
+        if crate::common::trim_space(&self.pending).is_empty() {
+            self.pending.clear();
+            return;
+        }
+        if can_emit_without_delimiter(&self.pending) {
+            out.extend(terminated(&self.pending));
+            self.pending.clear();
+        }
+    }
+
+    fn flush(&mut self, out: &mut Vec<Vec<u8>>) {
+        let pending = std::mem::take(&mut self.pending);
+        let trimmed = crate::common::trim_space(&pending);
+        if !trimmed.is_empty() && has_field(trimmed, b"data:") && data_lines_valid(trimmed) {
+            out.extend(terminated(&pending));
+        }
+    }
+}
+
+struct Framed {
+    client: Format,
+    inner: Box<dyn GoStream>,
+    responses: ResponsesFramer,
+}
+
+impl Framed {
+    fn framed(&mut self, chunks: Vec<Vec<u8>>) -> Vec<Bytes> {
+        if responses_client(self.client) {
+            let mut out = vec![];
+            for chunk in &chunks {
+                self.responses.write(chunk, &mut out);
+            }
+            return out.into_iter().map(Bytes::from).collect();
+        }
+        chunks
+            .iter()
+            .filter_map(|c| frame(self.client, c))
+            .map(Bytes::from)
+            .collect()
+    }
+}
+
+impl StreamTranslator for Framed {
+    fn event(&mut self, event: &[u8]) -> Result<Vec<Bytes>, Error> {
+        let mut chunks = vec![];
+        for line in scan_lines(event) {
+            chunks.extend(self.inner.line(line)?);
+        }
+        Ok(self.framed(chunks))
+    }
+
+    fn finish(&mut self) -> Result<Vec<Bytes>, Error> {
+        let mut out = vec![];
+        self.responses.flush(&mut out);
+        Ok(out.into_iter().map(Bytes::from).collect())
+    }
+}
+
+/// Wraps a Go-shaped translator. Executor-side line handling stays with the executor:
+/// Go's OpenAI-compatible executor joins a frame's `data:` lines into one line and feeds
+/// `data: [DONE]` when a non-Responses stream ends without one; the Gemini executors feed
+/// a final `[DONE]`. Executors that do so pass those lines as events.
+pub(crate) fn framed(client: Format, _upstream: Format, inner: Box<dyn GoStream>) -> Box<dyn StreamTranslator> {
+    Box::new(Framed {
+        client,
+        inner,
+        responses: ResponsesFramer::default(),
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn scan_lines_matches_bufio() {
+        let lines: Vec<&[u8]> = scan_lines(b"event: a\r\ndata: 1\n\n").collect();
+        assert_eq!(lines, [&b"event: a"[..], b"data: 1", b""]);
+        let lines: Vec<&[u8]> = scan_lines(b"data: tail").collect();
+        assert_eq!(lines, [&b"data: tail"[..]]);
+        assert_eq!(scan_lines(b"").count(), 0);
+        assert_eq!(scan_lines(b"\n").collect::<Vec<_>>(), [&b""[..]]);
+    }
+
+    struct Echo(Vec<Vec<u8>>);
+    impl GoStream for Echo {
+        fn line(&mut self, line: &[u8]) -> Result<Vec<Vec<u8>>, Error> {
+            self.0.push(line.to_vec());
+            Ok(vec![line.to_vec()])
+        }
+    }
+
+    fn responses(chunks: &[&[u8]]) -> Vec<Vec<u8>> {
+        let mut framer = ResponsesFramer::default();
+        let mut out = vec![];
+        for c in chunks {
+            framer.write(c, &mut out);
+        }
+        framer.flush(&mut out);
+        out
+    }
+
+    #[test]
+    fn responses_framer_matches_go_joining() {
+        assert_eq!(
+            responses(&[b"event: a", b"data: {}", b""]),
+            [b"event: a\ndata: {}\n\n".to_vec()]
+        );
+        assert_eq!(
+            responses(&[b"event: a\ndata: 1\n\nevent: b\ndata: 2\n\n"]),
+            [b"event: a\ndata: 1\n\n".to_vec(), b"event: b\ndata: 2\n\n".to_vec()]
+        );
+        // A valid data-only frame closes before the next data line (oracle finding 2).
+        assert_eq!(
+            responses(&[b"data: {}", b"data: []"]),
+            [b"data: {}\n\n".to_vec(), b"data: []\n\n".to_vec()]
+        );
+        // An event line waits for its data, even across upstream events.
+        assert_eq!(
+            responses(&[b"event: x", b"", b"data: {}"]),
+            [b"event: x\ndata: {}\n\n".to_vec()]
+        );
+        // An event without data is dropped at flush; blank input emits nothing.
+        assert!(responses(&[b"event: lonely"]).is_empty());
+        assert!(responses(&[b"", b"  "]).is_empty());
+        assert_eq!(responses(&[b"data: x\r\n"]), Vec::<Vec<u8>>::new());
+        assert_eq!(responses(&[b"data: [DONE]"]), [b"data: [DONE]\n\n".to_vec()]);
+    }
+
+    #[test]
+    fn events_become_scanner_lines_and_chunks_get_client_framing() {
+        let mut s = framed(Format::OpenAI, Format::OpenAI, Box::new(Echo(vec![])));
+        let out = s.event(b"event: x\r\ndata: {}\n\n").unwrap();
+        assert_eq!(
+            out,
+            [
+                Bytes::from_static(b"data: event: x\n\n"),
+                Bytes::from_static(b"data: data: {}\n\n")
+            ]
+        );
+        // A single line (how some executors feed) is one scanner line.
+        assert_eq!(
+            s.event(b": keep-alive").unwrap(),
+            [Bytes::from_static(b"data: : keep-alive\n\n")]
+        );
+        assert!(s.finish().unwrap().is_empty());
+        let mut s = framed(Format::Claude, Format::OpenAI, Box::new(Echo(vec![])));
+        assert_eq!(
+            s.event(b"event: e\ndata: 1\n\n").unwrap(),
+            [Bytes::from_static(b"event: e"), Bytes::from_static(b"data: 1")]
+        );
+    }
+}
