@@ -11,8 +11,12 @@
 //!   rules applied to the final provider body).
 //! - `headers`: util/header_helpers.go (custom `header:*` attributes and `$Header`
 //!   references copied from the client request).
+//! - `json`: Go-exact tidwall/gjson, tidwall/sjson and encoding/json behaviour, used by
+//!   every crate that edits JSON on the wire (owner: translators).
 //! - `codex_client`: executor/helps/codex_multi_agent_v2.go (Codex-client request rewrites
 //!   shared by every executor that serves Codex clients).
 //!
 //! The proxy-aware HTTP client (executor/helps/proxy_helpers.go) touches the network and
 //! lives in cpa-exec instead.
+
+pub mod json;
