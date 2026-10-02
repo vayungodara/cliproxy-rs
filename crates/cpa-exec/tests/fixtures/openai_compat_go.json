@@ -2199,6 +2199,35 @@
       "output": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
     },
     {
+      "name": "thinking_file_credential_not_bound",
+      "config": "\napi-keys:\n  openai-compatibility:\n    - name: Acme\n      base-url: http://UPSTREAM/v1\n      headers:\n        X-Static: static-value\n        X-Forward: $X-Client-Trace\n        X-Missing: $X-Not-Sent\n      models:\n        - name: acme-chat\n          alias: chat\n        - name: acme-mct\n          alias: mct\n          use-max-completion-tokens: true\n        - name: acme-text\n          alias: text\n          input-modalities: [text]\n        - name: acme-image\n          alias: img\n          image: true\n        - name: gpt-4o\n          alias: four\n      keys:\n        - api-key: sk-fake-acme\n    - name: cachey\n      base-url: http://UPSTREAM/v2/\n      support-prompt-cache-key: true\n      models:\n        - name: cache-model\n          alias: cm\n      keys:\n        - api-key: sk-fake-cache\n",
+      "config_auth": -1,
+      "provider": "openai-compatible-acme",
+      "attributes": {
+        "auth_kind": "oauth",
+        "base_url": "http://UPSTREAM/v1",
+        "compat_name": "Acme",
+        "provider_key": "openai-compatible-acme"
+      },
+      "model": "acme-chat",
+      "requested_model": "chat",
+      "payload": "{\"model\":\"chat\",\"reasoning_effort\":\"xhigh\",\"messages\":[]}",
+      "source": "openai",
+      "op": "execute",
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "application/json"
+          ]
+        ],
+        "body": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
+      },
+      "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 62\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"reasoning_effort\":\"xhigh\",\"messages\":[]}",
+      "output": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
+    },
+    {
       "name": "needs_translator_responses_source",
       "config": "\napi-keys:\n  openai-compatibility:\n    - name: Acme\n      base-url: http://UPSTREAM/v1\n      headers:\n        X-Static: static-value\n        X-Forward: $X-Client-Trace\n        X-Missing: $X-Not-Sent\n      models:\n        - name: acme-chat\n          alias: chat\n        - name: acme-mct\n          alias: mct\n          use-max-completion-tokens: true\n        - name: acme-text\n          alias: text\n          input-modalities: [text]\n        - name: acme-image\n          alias: img\n          image: true\n        - name: gpt-4o\n          alias: four\n      keys:\n        - api-key: sk-fake-acme\n    - name: cachey\n      base-url: http://UPSTREAM/v2/\n      support-prompt-cache-key: true\n      models:\n        - name: cache-model\n          alias: cm\n      keys:\n        - api-key: sk-fake-cache\n",
       "config_auth": 0,
@@ -2596,6 +2625,38 @@
           "boundary": "q"
         }
       }
+    ],
+    "token_counts": [
+      [
+        "gpt-4",
+        "{\"messages\":{\"content\":\"a\"}}",
+        0
+      ],
+      [
+        "gpt-4",
+        "{\"messages\":[{\"tool_calls\":{\"id\":\"a\"}}]}",
+        0
+      ],
+      [
+        "gpt-4",
+        "{\"functions\":{\"name\":\"a\"}}",
+        0
+      ],
+      [
+        "gpt-4",
+        "{\"tools\":{\"type\":\"function\",\"function\":{\"name\":\"lookup\"}}}",
+        3
+      ],
+      [
+        "gpt-4o",
+        "{\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"},[\"nested\",{\"k\":1}],7,{\"type\":\"tool_result\",\"name\":\"t\",\"content\":\"out\"}]}],\"input\":\"in\",\"prompt\":{\"p\":1}}",
+        24
+      ],
+      [
+        "",
+        "{\"messages\":[{\"content\":{\"type\":\"x\"}}],\"tool_choice\":{\"type\":\"function\"}}",
+        10
+      ]
     ],
     "trim_space": [
       [

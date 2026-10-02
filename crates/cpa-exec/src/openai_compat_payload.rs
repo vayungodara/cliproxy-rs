@@ -158,6 +158,9 @@ pub(crate) fn resolved_model(
     route_model: &str,
     upstream_model: &str,
 ) -> Option<ModelCaps> {
+    if !configured_model_routing(credential) {
+        return None;
+    }
     let compat = compat?;
     let mut routes: Vec<(String, &str, &CompatModel)> = Vec::new();
     for m in &compat.models {
@@ -201,6 +204,93 @@ pub(crate) fn resolved_model(
         })
     });
     Some(resolve_model_info(name, "openai-compatibility", support))
+}
+
+/// `isConfiguredModelRoutingAuth`: API-key credentials, or config-sourced ones that name a
+/// compatibility provider. Others never bind configured capabilities.
+fn configured_model_routing(credential: &Credential) -> bool {
+    auth_kind(credential) == "apikey"
+        || (auth_source_kind(credential) == "config" && !attribute(credential, "compat_name").is_empty())
+}
+
+fn attribute<'a>(credential: &'a Credential, key: &str) -> &'a str {
+    credential.attributes.get(key).map_or("", |v| v.trim())
+}
+
+/// `normalizeAuthKind`.
+fn normalize_auth_kind(kind: &str) -> &'static str {
+    match kind.trim().go_lower().as_str() {
+        "apikey" | "api_key" | "api-key" => "apikey",
+        "oauth" | "oauth2" => "oauth",
+        _ => "",
+    }
+}
+
+/// `Auth.AuthKind`: explicit kind, then the field-shape fallbacks.
+fn auth_kind(credential: &Credential) -> &'static str {
+    let explicit = normalize_auth_kind(attribute(credential, "auth_kind"));
+    if !explicit.is_empty() {
+        return explicit;
+    }
+    let explicit = normalize_auth_kind(credential.str("auth_kind").unwrap_or_default());
+    if !explicit.is_empty() {
+        return explicit;
+    }
+    if !attribute(credential, "api_key").is_empty() {
+        return "apikey";
+    }
+    let oauth_keys = [
+        "access_token",
+        "refresh_token",
+        "id_token",
+        "email",
+        "token_type",
+        "expires_at",
+        "expired",
+    ];
+    let has_oauth = oauth_keys
+        .iter()
+        .any(|k| credential.str(k).is_some_and(|v| !v.trim().is_empty()))
+        || credential
+            .metadata
+            .get("token")
+            .and_then(serde_json::Value::as_object)
+            .is_some_and(|t| !t.is_empty());
+    if has_oauth { "oauth" } else { "" }
+}
+
+/// `Auth.AuthSourceKind`, the `config` answer only (all validation needs).
+fn auth_source_kind(credential: &Credential) -> &'static str {
+    let normalize = |s: &str| match s.trim().go_lower().as_str() {
+        "config" => "config",
+        "file" | "filesystem" => "file",
+        "git" => "git",
+        "memory" | "runtime" | "runtime_only" => "memory",
+        "objectstore" | "object-store" => "objectstore",
+        "postgres" | "postgresql" | "database" | "db" => "postgres",
+        _ => "",
+    };
+    if attribute(credential, "runtime_only").go_eq_fold("true") {
+        return "memory";
+    }
+    let backend = normalize(attribute(credential, "source_backend"));
+    if !backend.is_empty() {
+        return backend;
+    }
+    let source = attribute(credential, "source");
+    if !source.is_empty() {
+        if source.go_lower().starts_with("config:") {
+            return "config";
+        }
+        let kind = normalize(source);
+        return if kind.is_empty() { "file" } else { kind };
+    }
+    // ponytail: Go then reads the `path` attribute and Auth.FileName; credentials built
+    // without a `source` attribute fall back to how they were loaded.
+    match credential.source {
+        Source::Config { .. } => "config",
+        Source::File(_) => "file",
+    }
 }
 
 /// `modelAliasLookupCandidates`: the model, then its suffix-free name when different.
@@ -708,11 +798,13 @@ pub(crate) fn count_chat_tokens(model: &str, payload: &[u8]) -> Result<i64, Stri
     }
     let mut segments = Vec::new();
     let root = gj::parse(payload);
-    for message in root.get("messages").array() {
+    let messages = root.get("messages");
+    for message in messages.is_array().then(|| messages.array()).into_iter().flatten() {
         add(&mut segments, &s(&message.get("role")));
         add(&mut segments, &s(&message.get("name")));
         collect_content(&message.get("content"), &mut segments);
-        for call in message.get("tool_calls").array() {
+        let calls = message.get("tool_calls");
+        for call in calls.is_array().then(|| calls.array()).into_iter().flatten() {
             add(&mut segments, &s(&call.get("id")));
             add(&mut segments, &s(&call.get("type")));
             let function = call.get("function");
@@ -734,7 +826,8 @@ pub(crate) fn count_chat_tokens(model: &str, payload: &[u8]) -> Result<i64, Stri
     } else if tools.exists() {
         tool_payload(&tools, &mut segments);
     }
-    for function in root.get("functions").array() {
+    let functions = root.get("functions");
+    for function in functions.is_array().then(|| functions.array()).into_iter().flatten() {
         function_fields(&function, &mut segments, false);
     }
     let choice = root.get("tool_choice");

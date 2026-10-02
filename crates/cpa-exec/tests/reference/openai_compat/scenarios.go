@@ -254,6 +254,15 @@ func scenarios() []scenario {
 			return s
 		}(),
 		func() scenario {
+			// A file credential is not configured-model routing: Go binds no capabilities and
+			// the unknown model's effort passes through unclamped.
+			s := chat("thinking_file_credential_not_bound", "acme-chat", "chat", `{"model":"chat","reasoning_effort":"xhigh","messages":[]}`, jsonOK)
+			s.ConfigAuth = -1
+			s.Provider = "openai-compatible-acme"
+			s.Attributes = map[string]string{"base_url": "http://UPSTREAM/v1", "compat_name": "Acme", "provider_key": "openai-compatible-acme", "auth_kind": "oauth"}
+			return s
+		}(),
+		func() scenario {
 			s := chat("needs_translator_responses_source", "acme-chat", "chat", `{"model":"chat","input":"hello","max_output_tokens":20}`, jsonOK)
 			s.Source = "openai-response"
 			s.Needs = []string{"translator"}

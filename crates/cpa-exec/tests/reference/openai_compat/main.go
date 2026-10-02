@@ -25,6 +25,7 @@ import (
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/modelconfig"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/registry"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/runtime/executor"
+	"github.com/router-for-me/CLIProxyAPI/v8/internal/runtime/executor/helps"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/thinking"
 	// Production registers every translator through this package (cmd/server/main.go).
 	_ "github.com/router-for-me/CLIProxyAPI/v8/internal/translator"
@@ -467,5 +468,24 @@ func vectors() map[string]any {
 		}
 		media = append(media, map[string]any{"input": in, "media": mt, "params": params, "error": errText})
 	}
-	return map[string]any{"http_time": times, "json_valid": valids, "gjson_int": ints, "trim_space": trims, "media_type": media}
+	counts := []any{}
+	for _, in := range [][2]string{
+		{"gpt-4", `{"messages":{"content":"a"}}`},
+		{"gpt-4", `{"messages":[{"tool_calls":{"id":"a"}}]}`},
+		{"gpt-4", `{"functions":{"name":"a"}}`},
+		{"gpt-4", `{"tools":{"type":"function","function":{"name":"lookup"}}}`},
+		{"gpt-4o", `{"messages":[{"role":"user","content":[{"type":"text","text":"hi"},["nested",{"k":1}],7,{"type":"tool_result","name":"t","content":"out"}]}],"input":"in","prompt":{"p":1}}`},
+		{"", `{"messages":[{"content":{"type":"x"}}],"tool_choice":{"type":"function"}}`},
+	} {
+		enc, errEnc := helps.TokenizerForModel(in[0])
+		if errEnc != nil {
+			panic(errEnc)
+		}
+		n, errCount := helps.CountOpenAIChatTokens(enc, []byte(in[1]))
+		if errCount != nil {
+			panic(errCount)
+		}
+		counts = append(counts, []any{in[0], in[1], n})
+	}
+	return map[string]any{"http_time": times, "json_valid": valids, "gjson_int": ints, "trim_space": trims, "media_type": media, "token_counts": counts}
 }

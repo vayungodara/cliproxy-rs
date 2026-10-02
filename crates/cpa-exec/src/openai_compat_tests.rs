@@ -382,4 +382,12 @@ fn go_primitive_vectors() {
         };
         assert_eq!(parse_media_type(input), want, "mime.ParseMediaType({input:?})");
     }
+    for case in v["token_counts"].as_array().unwrap() {
+        let (model, payload) = (case[0].as_str().unwrap(), case[1].as_str().unwrap());
+        assert_eq!(
+            crate::openai_compat_payload::count_chat_tokens(model, payload.as_bytes()),
+            Ok(case[2].as_i64().unwrap()),
+            "CountOpenAIChatTokens({model:?}, {payload})"
+        );
+    }
 }
