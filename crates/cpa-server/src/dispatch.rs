@@ -820,21 +820,22 @@ async fn finish(call: &Call, response: cpa_core::exec::ExecResponse) -> Result<D
     }
 }
 
-/// Go `rewriteModelInResponse` over a buffered body or each SSE data line.
+/// Go's force-mapped model rewrite: `rewriteModelInResponse` over a buffered body and
+/// `StreamRewriter.RewriteChunk` over each stream event.
 fn rewrite_model(done: Done, target: &str) -> Done {
     match done {
         Done::Buffered { headers, body } => Done::Buffered {
             headers,
-            body: rewrite_payload(&body, target),
+            body: rewrite_body(&body, target),
         },
         Done::Stream { headers, first, rest } => {
             let target_owned = target.to_owned();
             let rest = rest
-                .map(move |item| item.map(|event| rewrite_payload(&event, &target_owned)))
+                .map(move |item| item.map(|event| rewrite_event(&event, &target_owned)))
                 .boxed();
             Done::Stream {
                 headers,
-                first: first.map(|event| rewrite_payload(&event, target)),
+                first: first.map(|event| rewrite_event(&event, target)),
                 rest,
             }
         }
@@ -849,59 +850,59 @@ const MODEL_PATHS: [&str; 5] = [
     "message.model",
 ];
 
-fn rewrite_json(data: &str, target: &str) -> Option<String> {
-    let mut value: serde_json::Value = serde_json::from_str(data).ok()?;
-    let mut changed = false;
+/// Go `rewriteModelInResponse`: `sjson.SetBytes` on each model path that exists, so
+/// every other byte is kept.
+fn rewrite_json(data: &[u8], target: &str) -> Vec<u8> {
+    let mut out = data.to_vec();
     for path in MODEL_PATHS {
-        let mut node = Some(&mut value);
-        let parts: Vec<&str> = path.split('.').collect();
-        for part in &parts[..parts.len() - 1] {
-            node = node.and_then(|n| n.get_mut(*part));
-        }
-        if let Some(slot) = node.and_then(|n| n.get_mut(parts[parts.len() - 1])) {
-            *slot = target.into();
-            changed = true;
+        if cpa_common::json::get(&out, path).exists() {
+            cpa_common::json::set_str(&mut out, path, target);
         }
     }
-    changed.then(|| value.to_string())
+    out
 }
 
-fn rewrite_payload(payload: &Bytes, target: &str) -> Bytes {
-    let Ok(text) = std::str::from_utf8(payload) else {
-        return payload.clone();
-    };
-    if text.trim_start().starts_with('{') {
-        return rewrite_json(text, target)
-            .map(Bytes::from)
-            .unwrap_or_else(|| payload.clone());
-    }
-    let mut changed = false;
-    let lines: Vec<String> = text
-        .split('\n')
-        .map(|line| {
-            let Some(rest) = line.strip_prefix("data:") else {
-                return line.to_owned();
-            };
-            let data = rest.trim_start();
-            let prefix = &line[..line.len() - data.len()];
-            match data
-                .starts_with('{')
-                .then(|| rewrite_json(data.trim_end_matches('\r'), target))
-                .flatten()
-            {
-                Some(json) => {
-                    changed = true;
-                    format!("{prefix}{json}{}", if data.ends_with('\r') { "\r" } else { "" })
-                }
-                None => line.to_owned(),
-            }
-        })
-        .collect();
-    if changed {
-        Bytes::from(lines.join("\n"))
+/// A buffered body: a JSON document, or SSE text rewritten line by line.
+fn rewrite_body(body: &Bytes, target: &str) -> Bytes {
+    if body.trim_ascii_start().starts_with(b"{") {
+        Bytes::from(rewrite_json(body, target))
     } else {
-        payload.clone()
+        rewrite_lines(body, target)
     }
+}
+
+/// Go `StreamRewriter.RewriteChunk` for one complete event: a bare JSON chunk comes
+/// back trimmed and rewritten, SSE text line by line.
+// ponytail: executors emit whole events, so Go's buffering of partial and glued events
+// is not ported; an invalid `data:` JSON line passes through unchanged.
+fn rewrite_event(event: &Bytes, target: &str) -> Bytes {
+    let trimmed = event.trim_ascii();
+    if trimmed.starts_with(b"{") && cpa_common::json::valid(trimmed) {
+        return Bytes::from(rewrite_json(trimmed, target));
+    }
+    rewrite_lines(event, target)
+}
+
+/// Go `rewriteSSEPayloadLines`: `data: {..}` / `data:{..}` lines holding valid JSON.
+fn rewrite_lines(payload: &Bytes, target: &str) -> Bytes {
+    let mut changed = false;
+    let mut out = Vec::with_capacity(payload.len());
+    for (i, line) in payload.split(|&b| b == b'\n').enumerate() {
+        if i > 0 {
+            out.push(b'\n');
+        }
+        let data = line.strip_prefix(b"data: ").or_else(|| line.strip_prefix(b"data:"));
+        match data {
+            Some(json) if json.starts_with(b"{") && cpa_common::json::valid(json) => {
+                out.extend_from_slice(&line[..line.len() - json.len()]);
+                let rewritten = rewrite_json(json, target);
+                changed |= rewritten != json;
+                out.extend_from_slice(&rewritten);
+            }
+            _ => out.extend_from_slice(line),
+        }
+    }
+    if changed { Bytes::from(out) } else { payload.clone() }
 }
 
 #[cfg(test)]
@@ -947,16 +948,28 @@ mod tests {
     fn force_mapping_rewrites_json_and_sse_model_fields() {
         let body = Bytes::from_static(br#"{"id":"x","model":"claude-opus-5","message":{"model":"claude-opus-5"}}"#);
         assert_eq!(
-            rewrite_payload(&body, "opus"),
+            rewrite_body(&body, "opus"),
             r#"{"id":"x","model":"opus","message":{"model":"opus"}}"#
         );
         let event = Bytes::from_static(b"event: message_start\ndata: {\"message\":{\"model\":\"up\"}}\n\n");
         assert_eq!(
-            rewrite_payload(&event, "alias"),
+            rewrite_event(&event, "alias"),
             "event: message_start\ndata: {\"message\":{\"model\":\"alias\"}}\n\n"
         );
         let untouched = Bytes::from_static(b"data: [DONE]\n\n");
-        assert_eq!(rewrite_payload(&untouched, "alias"), untouched);
+        assert_eq!(rewrite_event(&untouched, "alias"), untouched);
+        // sjson keeps every other byte: spacing, escapes, number spelling, CRLF.
+        let crlf = Bytes::from_static(b"data: {\"model\" : \"up\", \"x\":\"\\u00e9\", \"n\":1.50}\r\n\r\n");
+        assert_eq!(
+            rewrite_event(&crlf, "alias"),
+            "data: {\"model\" : \"alias\", \"x\":\"\\u00e9\", \"n\":1.50}\r\n\r\n"
+        );
+        // A path that is absent is not added; `data:` needs `{` right after the prefix.
+        let spaced = Bytes::from_static(b"data:  {\"model\":\"up\"}\n\n");
+        assert_eq!(rewrite_event(&spaced, "alias"), spaced);
+        // Go trims a bare JSON stream chunk.
+        let bare = Bytes::from_static(b" {\"modelVersion\":\"up\"}\n");
+        assert_eq!(rewrite_event(&bare, "alias"), r#"{"modelVersion":"alias"}"#);
     }
 
     #[test]

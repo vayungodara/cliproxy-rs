@@ -711,3 +711,47 @@ async fn bootstrap_retries_rerun_a_stream_that_broke_before_its_first_payload() 
     assert_eq!(status, 500, "without bootstrap retries the transport fault is final");
     assert_eq!(script.calls.lock().unwrap().len(), 1);
 }
+
+/// Go net/http: no Content-Length set by the handler means chunked above 2048 bytes and
+/// Content-Length at or below it; a bodiless HEAD carries neither.
+#[tokio::test]
+async fn response_framing_follows_go_net_http() {
+    let (url, _, _) = scripted_proxy("", &["fake-a"], vec![json_reply()]).await;
+    let client = wreq::Client::new();
+    let res = client
+        .get(format!("{url}/v1/models"))
+        .header("authorization", "Bearer client-key")
+        .header("anthropic-version", "2023-06-01")
+        .send()
+        .await
+        .unwrap();
+    let headers = res.headers().clone();
+    let body = res.bytes().await.unwrap();
+    assert!(body.len() > 2048, "the Anthropic catalog is large: {}", body.len());
+    assert_eq!(
+        headers.get("transfer-encoding").map(|v| v.to_str().unwrap()),
+        Some("chunked")
+    );
+    assert!(headers.get("content-length").is_none());
+
+    let res = client.get(format!("{url}/")).send().await.unwrap();
+    let length = res
+        .headers()
+        .get("content-length")
+        .map(|v| v.to_str().unwrap().to_owned());
+    assert_eq!(length, Some(res.bytes().await.unwrap().len().to_string()));
+
+    let res = client.head(format!("{url}/healthz")).send().await.unwrap();
+    assert_eq!(res.status(), 200);
+    assert!(res.headers().get("content-length").is_none(), "{:?}", res.headers());
+    assert!(res.headers().get("transfer-encoding").is_none(), "{:?}", res.headers());
+
+    // Client-auth failures use gin's JSON content type.
+    let res = client.get(format!("{url}/v1/models")).send().await.unwrap();
+    assert_eq!(res.status(), 401);
+    assert_eq!(
+        res.headers().get("content-type").unwrap(),
+        "application/json; charset=utf-8"
+    );
+    assert_eq!(res.text().await.unwrap(), r#"{"error":"Missing API key"}"#);
+}
