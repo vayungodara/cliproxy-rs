@@ -357,12 +357,7 @@ fn prepare(req: &ExecRequest, stream: bool) -> Result<Prepared, ExecError> {
         gj::delete(&mut body, key);
     }
     normalize_codex_instructions(&mut body);
-    // ponytail: the OpenAI-compatible thread's sanitizer edits text; a body that is not
-    // UTF-8 is left as is rather than lossily rewritten.
-    body = match String::from_utf8(body) {
-        Ok(text) => sanitize_reasoning_encrypted_content(text).into_bytes(),
-        Err(raw) => raw.into_bytes(),
-    };
+    body = sanitize_reasoning_encrypted_content(body);
     sanitize_web_search_tools(&mut body);
     body = normalize_codex_tool_integer_types(body, &req.headers);
     Ok(Prepared { body, response })

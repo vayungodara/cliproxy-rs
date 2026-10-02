@@ -459,7 +459,7 @@ fn build_config_models(models: &[ConfigModel], owned_by: &str, kind: &str, now: 
 }
 
 /// `NormalizeThinkingSupport`: lowercase unique levels; `none` and `auto` flags.
-fn normalize_thinking(mut t: ThinkingSupport) -> ThinkingSupport {
+pub fn normalize_thinking(mut t: ThinkingSupport) -> ThinkingSupport {
     let mut seen = std::collections::HashSet::new();
     let levels = std::mem::take(&mut t.levels);
     for level in levels {
