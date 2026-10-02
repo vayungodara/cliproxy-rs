@@ -232,8 +232,29 @@ impl ResponsesFramer {
 
 struct Framed {
     client: Format,
+    upstream: Format,
     inner: Box<dyn GoStream>,
     responses: ResponsesFramer,
+}
+
+/// Go's OpenAI-compatible executor joins a frame's `data:` lines with `\n` and passes the
+/// result as one translator line, so for OpenAI upstreams a line that does not start an
+/// SSE field continues the previous line.
+fn openai_lines(event: &[u8]) -> Vec<Vec<u8>> {
+    let mut out: Vec<Vec<u8>> = vec![];
+    for line in scan_lines(event) {
+        let field = [&b"data:"[..], b"event:", b"id:", b"retry:", b":"]
+            .iter()
+            .any(|p| line.trim_ascii_start().starts_with(p));
+        match out.last_mut() {
+            Some(previous) if !field && !line.is_empty() && previous.starts_with(b"data:") => {
+                previous.push(b'\n');
+                previous.extend_from_slice(line);
+            }
+            _ => out.push(line.to_vec()),
+        }
+    }
+    out
 }
 
 impl Framed {
@@ -256,8 +277,14 @@ impl Framed {
 impl StreamTranslator for Framed {
     fn event(&mut self, event: &[u8]) -> Result<Vec<Bytes>, Error> {
         let mut chunks = vec![];
-        for line in scan_lines(event) {
-            chunks.extend(self.inner.line(line)?);
+        if self.upstream == Format::OpenAI {
+            for line in openai_lines(event) {
+                chunks.extend(self.inner.line(&line)?);
+            }
+        } else {
+            for line in scan_lines(event) {
+                chunks.extend(self.inner.line(line)?);
+            }
         }
         Ok(self.framed(chunks))
     }
@@ -273,9 +300,10 @@ impl StreamTranslator for Framed {
 /// Go's OpenAI-compatible executor joins a frame's `data:` lines into one line and feeds
 /// `data: [DONE]` when a non-Responses stream ends without one; the Gemini executors feed
 /// a final `[DONE]`. Executors that do so pass those lines as events.
-pub(crate) fn framed(client: Format, _upstream: Format, inner: Box<dyn GoStream>) -> Box<dyn StreamTranslator> {
+pub(crate) fn framed(client: Format, upstream: Format, inner: Box<dyn GoStream>) -> Box<dyn StreamTranslator> {
     Box::new(Framed {
         client,
+        upstream,
         inner,
         responses: ResponsesFramer::default(),
     })
@@ -338,6 +366,24 @@ mod tests {
         assert!(responses(&[b"", b"  "]).is_empty());
         assert_eq!(responses(&[b"data: x\r\n"]), Vec::<Vec<u8>>::new());
         assert_eq!(responses(&[b"data: [DONE]"]), [b"data: [DONE]\n\n".to_vec()]);
+    }
+
+    #[test]
+    fn openai_joined_data_payload_stays_one_line() {
+        // Go scenario stream_multiline_data: the executor's joined payload keeps its newline.
+        let mut s = framed(Format::OpenAI, Format::OpenAI, Box::new(Echo(vec![])));
+        let out = s.event(b"data: {\"id\":\"m\",\n\"choices\":[]}\n\n").unwrap();
+        assert_eq!(
+            out,
+            [Bytes::from_static(b"data: data: {\"id\":\"m\",\n\"choices\":[]}\n\n")]
+        );
+        // Field lines still split; raw single lines (Kimi) pass as they are.
+        let out = s.event(b"event: x\ndata: 1\n\n").unwrap();
+        assert_eq!(out.len(), 2);
+        assert_eq!(
+            s.event(b": keep-alive").unwrap(),
+            [Bytes::from_static(b"data: : keep-alive\n\n")]
+        );
     }
 
     #[test]
