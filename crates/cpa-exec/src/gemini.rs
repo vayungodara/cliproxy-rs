@@ -155,21 +155,89 @@ fn original_request(req: &ExecRequest) -> &Bytes {
     }
 }
 
-/// `TranslateRequestWithAPIKeyModelCompatibility` for one payload.
-// ponytail: the compat translator variants (ConvertClaudeRequestToGeminiWithCompat,
-// ConvertClaudeRequestToInteractionsWithCompat) and the Codex-client rewrites
-// (NormalizeCodexToolIntegerTypes, multi-agent v2; owner: Codex thread) are not ported;
-// every model uses the registered pair through cpa_translate (owner: translator thread).
+/// `TranslateRequestWithAPIKeyModelCompatibility` for one payload: Codex clients' tool
+/// integer types first, then the registered pair, or for an is-compat model the
+/// `...WithCompat` translator between Go's summary extraction and application.
+// ponytail: ConvertClaudeRequestToInteractionsWithCompat is not in cpa_translate yet, so
+// is-compat Claude clients of an Interactions key use the regular pair (translator
+// thread); the Codex multi-agent v2 input rewrites are cpa_common::codex_client's (Codex
+// thread) and not applied.
 fn translate(
-    source: Format,
+    req: &ExecRequest,
     target: Format,
     model: &str,
     body: &[u8],
     stream: bool,
-    _compat: bool,
+    compat: bool,
 ) -> Result<Vec<u8>, ExecError> {
-    cpa_translate::translate_request(source, target, &RequestCtx { model, stream }, body)
-        .map_err(|e| ExecError::local(400, FailureScope::Request, e.to_string()))
+    let error = |e: cpa_translate::Error| ExecError::local(400, FailureScope::Request, e.to_string());
+    let source = req.source_format;
+    let normalized;
+    let body = if cpa_common::payload::is_codex_user_agent(&req.headers) {
+        normalized = cpa_common::payload::normalize_codex_tool_integer_types(body, &req.headers);
+        normalized.as_slice()
+    } else {
+        body
+    };
+    let ctx = RequestCtx { model, stream };
+    let compat_translator: Option<cpa_translate::RequestFn> = match (source, target) {
+        (Format::Claude, Format::Gemini) if compat => Some(cpa_translate::claude_to_gemini_with_compat),
+        _ => None,
+    };
+    let Some(convert) = compat_translator else {
+        return cpa_translate::translate_request(source, target, &ctx, body).map_err(error);
+    };
+    use cpa_common::thinking::{apply_summary_config_for_model, extract_translated_summary_config};
+    let summary = extract_translated_summary_config(body, source.as_str(), target.as_str());
+    let translated = deep_stack(body, || convert(&ctx, body)).map_err(error)?;
+    Ok(apply_summary_config_for_model(
+        &translated,
+        target.as_str(),
+        model,
+        summary,
+    ))
+}
+
+/// Runs a translator on a thread with Go's maximum goroutine stack when the body nests
+/// deeply, as `cpa_translate::translate_request` does for registered pairs: the ported
+/// schema walkers recurse per nesting level like Go's, whose stacks grow.
+// ponytail: duplicate of cpa_translate's private guard until its exported `...WithCompat`
+// entry points guard themselves (owner: translator thread).
+fn deep_stack<T: Send>(body: &[u8], f: impl FnOnce() -> T + Send) -> T {
+    const DEEP: usize = 256;
+    let (mut depth, mut max, mut in_string, mut escaped) = (0usize, 0usize, false, false);
+    for &b in body {
+        if in_string {
+            match b {
+                _ if escaped => escaped = false,
+                b'\\' => escaped = true,
+                b'"' => in_string = false,
+                _ => {}
+            }
+            continue;
+        }
+        match b {
+            b'"' => in_string = true,
+            b'{' | b'[' => {
+                depth += 1;
+                max = max.max(depth);
+            }
+            b'}' | b']' => depth = depth.saturating_sub(1),
+            _ => {}
+        }
+    }
+    if max <= DEEP {
+        return f();
+    }
+    std::thread::scope(|scope| {
+        std::thread::Builder::new()
+            .stack_size(1 << 30)
+            .spawn_scoped(scope, f)
+            .map(|handle| handle.join())
+    })
+    .ok()
+    .and_then(Result::ok)
+    .expect("deep JSON translation thread")
 }
 
 /// `TranslateRequestPairWithAPIKeyModelCompatibility`: the payload-config baseline from
@@ -181,12 +249,12 @@ fn translate_pair(
     model: &str,
     compat: bool,
 ) -> Result<(Vec<u8>, Vec<u8>), ExecError> {
-    let working = translate(req.source_format, target, model, &req.body, req.stream, compat)?;
+    let working = translate(req, target, model, &req.body, req.stream, compat)?;
     let source = original_request(req);
     if *source == req.body {
         return Ok((working.clone(), working));
     }
-    let original = translate(req.source_format, target, model, source, req.stream, compat)?;
+    let original = translate(req, target, model, source, req.stream, compat)?;
     Ok((original, working))
 }
 
@@ -254,9 +322,13 @@ fn request_headers(credential: &Credential, req: &ExecRequest) -> GoHeaders {
     if !key.is_empty() {
         headers.set("x-goog-api-key", key);
     }
-    let session =
-        cpa_common::session::cpa_session_id(&req.headers, original_request(req), req.execution_session.as_deref());
-    for (name, value) in cpa_common::headers::custom_headers(&credential.attributes, &req.headers, session.as_deref()) {
+    // `$CPA-SESSION-ID` is the attempt's canonical session: Go's conductor binds it to the
+    // context (ensureCanonicalSessionMetadata + syncMetadataSessionToContext) before the
+    // executor runs, and EnsureSessionContext keeps it. Dispatch puts the same bound
+    // identity, derived and message-hash fallbacks included, in `req.session`.
+    for (name, value) in
+        cpa_common::headers::custom_headers(&credential.attributes, &req.headers, req.session.as_deref())
+    {
         headers.set(&name, value);
     }
     headers
@@ -492,7 +564,7 @@ impl GeminiExecutor {
         require_pairs(from, to, req.response_format)?;
         let resolved = resolved(credential, cfg, req);
         let compat = resolved.as_ref().is_some_and(|r| r.is_compat);
-        let body = translate(from, to, &base_model, &req.body, false, compat)?;
+        let body = translate(req, to, &base_model, &req.body, false, compat)?;
         let mut body = apply_thinking(req, body, from, to, &credential.provider, resolved.as_ref())?;
         body = payload::fix_image_aspect_ratio(&base_model, body);
         for path in ["tools", "generationConfig", "safetySettings"] {
@@ -565,6 +637,16 @@ impl Output {
         Ok(out)
     }
 
+    /// `responsesSSEFramer.Flush` before a terminal error.
+    fn flush_frames(&mut self) -> Vec<Bytes> {
+        let mut out = match &mut self.translator {
+            Some(translator) => translator.flush_frames(),
+            None => Vec::new(),
+        };
+        self.client_bytes(&mut out);
+        out
+    }
+
     fn client_bytes(&mut self, out: &mut Vec<Bytes>) {
         match self.client {
             Format::Gemini => {
@@ -607,10 +689,14 @@ impl Output {
 trait LineState: Send + 'static {
     fn line(&mut self, line: &[u8]) -> Result<Vec<Bytes>, ExecError>;
     fn end(&mut self) -> Result<Vec<Bytes>, ExecError>;
+    /// Client frames still pending when a terminal error is written.
+    fn flush(&mut self) -> Vec<Bytes>;
 }
 
 /// Runs `state` over `lines`. A translation error is terminal; a scanner error is
-/// reported after the end-of-stream items, like Go's `scanner.Err()` check.
+/// reported after the end-of-stream items, like Go's `scanner.Err()` check. Pending
+/// client frames are flushed before any terminal error (Go's Responses handler flushes
+/// its framer before writing the error).
 fn drive<S: LineState>(lines: ExecStream, state: S) -> ExecStream {
     futures_util::stream::unfold(
         (lines, state, VecDeque::<Result<Bytes, ExecError>>::new(), false),
@@ -637,11 +723,13 @@ fn drive<S: LineState>(lines: ExecStream, state: S) -> ExecStream {
                 match result {
                     Ok(out) => ready.extend(out.into_iter().map(Ok)),
                     Err(error) => {
+                        ready.extend(state.flush().into_iter().map(Ok));
                         ready.push_back(Err(error));
                         continue;
                     }
                 }
                 if let Some(Err(error)) = scanned {
+                    ready.extend(state.flush().into_iter().map(Ok));
                     ready.push_back(Err(error));
                 }
             }
@@ -667,6 +755,10 @@ impl LineState for GeminiLines {
         let mut out = self.0.translate(b"[DONE]")?;
         out.extend(self.0.finish()?);
         Ok(out)
+    }
+
+    fn flush(&mut self) -> Vec<Bytes> {
+        self.0.flush_frames()
     }
 }
 
@@ -726,6 +818,10 @@ impl LineState for InteractionsFrames {
         let mut out = self.emit()?;
         out.extend(self.output.finish()?);
         Ok(out)
+    }
+
+    fn flush(&mut self) -> Vec<Bytes> {
+        self.output.flush_frames()
     }
 }
 

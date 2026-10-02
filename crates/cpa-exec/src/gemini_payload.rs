@@ -255,10 +255,20 @@ pub(crate) fn resolved_model(
     route_model: &str,
     upstream_model: &str,
 ) -> Option<Resolved> {
-    if !dynamic::is_api_key(credential) {
+    let attr = |k: &str| credential.attributes.get(k).map(|v| v.trim()).unwrap_or_default();
+    // Auth.AuthKind: a recognized attribute, then a recognized metadata field, then a
+    // non-empty API key attribute.
+    let kind = |k: &str| match k.trim().go_lower().as_str() {
+        "apikey" | "api_key" | "api-key" => Some(true),
+        "oauth" | "oauth2" => Some(false),
+        _ => None,
+    };
+    let api_key_kind = kind(attr("auth_kind"))
+        .or_else(|| credential.str("auth_kind").and_then(kind))
+        .unwrap_or(!attr("api_key").is_empty());
+    if !api_key_kind {
         return None;
     }
-    let attr = |k: &str| credential.attributes.get(k).map(|v| v.trim()).unwrap_or_default();
     let entries = config_entries(cfg, family);
     let (key, base) = (attr("api_key"), attr("base_url"));
     let matches = |e: &Yaml| {

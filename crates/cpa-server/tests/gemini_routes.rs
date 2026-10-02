@@ -15,7 +15,7 @@ use cpa_exec::claude::ClaudeExecutor;
 use cpa_server::{Runtime, router};
 
 /// Path with query, the upstream API key header, the Api-Revision header and the body.
-type Seen = Mutex<Vec<(String, Option<String>, Option<String>, String)>>;
+type Seen = Mutex<Vec<(String, Option<String>, Option<String>, String, Option<String>)>>;
 
 const ANSWER: &str = r#"{"candidates":[{"content":{"role":"model","parts":[{"text":"ok"}]},"finishReason":"STOP"}],"usageMetadata":{"totalTokenCount":4}}"#;
 const CHUNK: &str =
@@ -24,13 +24,15 @@ const INTERACTION: &str = r#"{"id":"int_1","status":"completed","outputs":[{"typ
 
 async fn upstream(State(seen): State<Arc<Seen>>, req: Request) -> Response {
     let path = req.uri().path_and_query().map(|p| p.to_string()).unwrap_or_default();
-    let (key, revision) = {
+    let (key, revision, session) = {
         let header = |name: &str| req.headers().get(name).and_then(|v| v.to_str().ok()).map(str::to_owned);
-        (header("x-goog-api-key"), header("api-revision"))
+        (header("x-goog-api-key"), header("api-revision"), header("x-session"))
     };
     let body = axum::body::to_bytes(req.into_body(), usize::MAX).await.unwrap();
     let body = String::from_utf8(body.to_vec()).unwrap();
-    seen.lock().unwrap().push((path.clone(), key, revision, body.clone()));
+    seen.lock()
+        .unwrap()
+        .push((path.clone(), key, revision, body.clone(), session));
     if path.contains(":streamGenerateContent") {
         let sse = format!("data: {CHUNK}\n\ndata: {ANSWER}\n\n");
         return ([("content-type", "text/event-stream")], Bytes::from(sse)).into_response();
@@ -63,7 +65,7 @@ async fn proxy() -> (String, Arc<Seen>) {
     let seen = Arc::new(Seen::default());
     let up = serve(axum::Router::new().fallback(upstream).with_state(seen.clone())).await;
     let config = Config::parse(&format!(
-        "access:\n  api-keys: [client-key]\napi-keys:\n  gemini:\n    - base-url: {up}/\n      models:\n        - name: gemini-2.5-flash\n          alias: flash\n      keys:\n        - api-key: AIza-fake-upstream\n  interactions:\n    - base-url: {up}\n      models:\n        - name: gemini-3-pro-preview\n          alias: native-pro\n      keys:\n        - api-key: AIza-fake-interactions\n"
+        "access:\n  api-keys: [client-key]\napi-keys:\n  gemini:\n    - base-url: {up}/\n      headers:\n        X-Session: \"s-$CPA-SESSION-ID\"\n      models:\n        - name: gemini-2.5-flash\n          alias: flash\n      keys:\n        - api-key: AIza-fake-upstream\n  interactions:\n    - base-url: {up}\n      models:\n        - name: gemini-3-pro-preview\n          alias: native-pro\n      keys:\n        - api-key: AIza-fake-interactions\n"
     ))
     .unwrap();
     let credentials = cpa_core::config::credentials::load(&config);
@@ -108,8 +110,14 @@ async fn generate_content_routes_alias_to_gemini_key() {
     assert_eq!(text, ANSWER, "Gemini responses pass through");
     let seen = seen.lock().unwrap().clone();
     assert_eq!(seen.len(), 1);
-    let (path, key, _, body) = &seen[0];
+    let (path, key, _, body, session) = &seen[0];
     assert_eq!(path, "/v1beta/models/gemini-2.5-flash:generateContent");
+    // Without an explicit client session, $CPA-SESSION-ID is the derived canonical
+    // session the conductor binds (Go syncMetadataSessionToContext).
+    assert!(
+        session.as_deref().is_some_and(|s| s.starts_with("s-derived:ctx:v1:")),
+        "{session:?}"
+    );
     assert_eq!(
         key.as_deref(),
         Some("AIza-fake-upstream"),
@@ -160,7 +168,7 @@ async fn interactions_route_uses_interactions_key() {
     let (status, _, text) = post(&url, "/v1beta/interactions", r#"{"model":"native-pro","input":"hi"}"#).await;
     assert_eq!(status, 200, "{text}");
     assert_eq!(text, INTERACTION);
-    let (path, key, revision, body) = seen.lock().unwrap()[0].clone();
+    let (path, key, revision, body, _) = seen.lock().unwrap()[0].clone();
     assert_eq!(path, "/v1beta/interactions");
     assert_eq!(key.as_deref(), Some("AIza-fake-interactions"));
     assert_eq!(revision.as_deref(), Some("2026-05-20"));

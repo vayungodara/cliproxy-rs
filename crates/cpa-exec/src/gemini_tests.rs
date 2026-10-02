@@ -153,7 +153,7 @@ fn request(s: &Value) -> ExecRequest {
         body,
         stream: op == "stream",
         alt: s["alt"].as_str().map(str::to_owned),
-        session: None,
+        session: s["session"].as_str().map(str::to_owned),
         execution_session: None,
         derived_session: None,
         headers,
@@ -533,4 +533,84 @@ fn configured_budget_thinking_keeps_yaml_flags() {
         ),
         (64, 2048, true, true)
     );
+}
+
+/// Before a terminal error reaches a Responses client, the frame the translator is still
+/// joining is written first (Go's responsesSSEFramer.Flush in WriteTerminalError).
+#[tokio::test]
+async fn pending_responses_frame_is_flushed_before_terminal_error() {
+    struct Pending(Option<Bytes>);
+    impl StreamTranslator for Pending {
+        fn event(&mut self, event: &[u8]) -> Result<Vec<Bytes>, cpa_translate::Error> {
+            if event == br#"{"fail":1}"# {
+                return Err(cpa_translate::Error("bad tool input".into()));
+            }
+            self.0 = Some(Bytes::from(format!(
+                "event: x\ndata: {}\n\n",
+                String::from_utf8_lossy(event)
+            )));
+            Ok(Vec::new())
+        }
+        fn finish(&mut self) -> Result<Vec<Bytes>, cpa_translate::Error> {
+            Ok(Vec::new())
+        }
+        fn flush_frames(&mut self) -> Vec<Bytes> {
+            self.0.take().into_iter().collect()
+        }
+    }
+    let output = Output {
+        translator: Some(Box::new(Pending(None))),
+        client: Format::OpenAIResponse,
+        raw: false,
+        claude: ClaudeInputTokens::new(
+            Format::OpenAIResponse,
+            Format::Gemini,
+            Format::OpenAIResponse,
+            Bytes::new(),
+        ),
+    };
+    let lines = futures_util::stream::iter([
+        Ok(Bytes::from_static(br#"data: {"a":1}"#)),
+        Ok(Bytes::from_static(br#"data: {"fail":1}"#)),
+        Ok(Bytes::from_static(br#"data: {"never":1}"#)),
+    ])
+    .boxed();
+    let items: Vec<Result<Bytes, ExecError>> = gemini_lines(lines, output).collect().await;
+    assert_eq!(items.len(), 2, "{items:?}");
+    assert_eq!(
+        items[0].as_ref().unwrap(),
+        &Bytes::from_static(b"event: x\ndata: {\"a\":1}\n\n")
+    );
+    let error = items[1].as_ref().unwrap_err();
+    assert_eq!((error.status, &error.body[..]), (502, EMPTY_TRANSLATION.as_bytes()));
+}
+
+/// Go `Auth.AuthKind` decides whether configured capabilities bind: a recognized
+/// attribute, then a recognized metadata field, then a non-empty API key attribute.
+#[test]
+fn resolved_model_follows_go_auth_kind() {
+    let cfg = Config::parse(
+        "api-keys:\n  gemini:\n    - base-url: http://example.invalid\n      models:\n        - name: gemini-2.5-pro\n          alias: pro\n      keys:\n        - api-key: AIza-fake\n",
+    )
+    .unwrap();
+    let base = cpa_core::config::credentials::from_config(&cfg)
+        .into_iter()
+        .find(|c| c.provider == "gemini")
+        .unwrap();
+    let resolve =
+        |c: &Credential| payload::resolved_model(c, &cfg, "gemini", "gemini", "pro", "gemini-2.5-pro").is_some();
+    assert!(resolve(&base));
+    // An unknown attribute kind falls through to the API key.
+    let mut unknown = base.clone();
+    unknown.attributes.insert("auth_kind".into(), "weird".into());
+    assert!(resolve(&unknown));
+    // A metadata OAuth kind wins over the API key attribute.
+    let mut oauth = unknown.clone();
+    oauth.metadata.insert("auth_kind".into(), "oauth".into());
+    assert!(!resolve(&oauth));
+    // Without a kind, an empty API key is not an API-key credential.
+    let mut empty = base.clone();
+    empty.attributes.remove("auth_kind");
+    empty.attributes.insert("api_key".into(), "  ".into());
+    assert!(!resolve(&empty));
 }

@@ -6,9 +6,10 @@ every scenario the generator parses the scenario config with `config.ParseConfig
 synthesizes credentials with the real config synthesizer (or uses explicit attributes),
 binds the model info the conductor would bind for configured models
 (`cliproxy.resolved_api_key_model_info`, after `rewriteModelForAuth` strips the
-credential prefix), enriches the context with the request's explicit session the way the
-route handler does (`handlers.EnrichContextWithSessionHierarchy`, read by
-`$CPA-SESSION-ID`), and runs `Execute`, `ExecuteStream` or
+credential prefix), binds the attempt's canonical session the way the conductor does
+(`session.Enrich`, `ensureCanonicalSessionMetadata`, `syncMetadataSessionToContext`; read
+by `$CPA-SESSION-ID`, explicit or derived) and records it as `session` for the Rust
+`ExecRequest.session`, and runs `Execute`, `ExecuteStream` or
 `CountTokens` against a one-shot raw TCP capture server. It records the exact upstream
 request text and what the executor returned: the payload, the stream chunks, or the
 status and message of the error. Nothing contacts Google; every key is fake.

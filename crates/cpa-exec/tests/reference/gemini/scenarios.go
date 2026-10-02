@@ -184,6 +184,8 @@ func scenarios() []scenario {
 			s.ConfigAuth = 2
 			s.Headers = map[string]string{"X-Session-Id": "client-session-1"}
 		}),
+		// Without an explicit session $CPA-SESSION-ID is the derived canonical session.
+		with(g("gen_session_header_derived", "execute", "gemini-2.5-flash", "team/gemini-2.5-flash", gem("gemini-2.5-flash", `[{"role":"user","parts":[{"text":"derive me"}]}]`, ""), jsonOK), func(s *scenario) { s.ConfigAuth = 2 }),
 
 		// streamGenerateContent: alt=sse, usage stripped from non-terminal chunks,
 		// comments, event lines and [DONE] skipped.

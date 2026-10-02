@@ -27,9 +27,10 @@ import (
 	// Production registers every translator through this package (cmd/server/main.go).
 	_ "github.com/router-for-me/CLIProxyAPI/v8/internal/translator"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/watcher/synthesizer"
-	"github.com/router-for-me/CLIProxyAPI/v8/sdk/api/handlers"
+	"github.com/router-for-me/CLIProxyAPI/v8/internal/util"
 	cliproxyauth "github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/auth"
 	cliproxyexecutor "github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/executor"
+	cliproxysession "github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/session"
 	sdktranslator "github.com/router-for-me/CLIProxyAPI/v8/sdk/translator"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
@@ -67,6 +68,8 @@ type scenario struct {
 	Op      string            `json:"op"`
 	Alt     string            `json:"alt,omitempty"`
 	Headers map[string]string `json:"headers,omitempty"`
+	// Session is the canonical session the conductor binds (ExecRequest.session).
+	Session string `json:"session,omitempty"`
 	// Needs lists translator registrations Go used whose result is not the
 	// identity: "pair:<client>-><upstream>" and "token_count:<client>-><upstream>".
 	Needs    []string  `json:"needs,omitempty"`
@@ -381,13 +384,41 @@ func run(s *scenario) {
 		countBody = []byte(s.Upstream.Body)
 	}
 	s.Needs = needs(s, upstreamFormat, payload, countBody)
-	// The route handler enriches the context with the request's explicit session before
-	// execution (handlers.EnrichContextWithSessionHierarchy); $CPA-SESSION-ID reads it.
-	sessionPayload := payload
-	if len(opts.OriginalRequest) > 0 {
-		sessionPayload = opts.OriginalRequest
+	// The conductor binds the attempt's canonical session to the context before the
+	// executor runs (session.Enrich, ensureCanonicalSessionMetadata and
+	// syncMetadataSessionToContext in sdk/cliproxy/auth); $CPA-SESSION-ID reads it.
+	// The bound identity is recorded as the scenario's session (Rust ExecRequest.session).
+	req, opts = cliproxysession.Enrich(req, opts)
+	sessionPayload := opts.OriginalRequest
+	if len(sessionPayload) == 0 {
+		sessionPayload = req.Payload
 	}
-	ctx := handlers.EnrichContextWithSessionHierarchy(context.Background(), headers, sessionPayload, nil)
+	if opts.Metadata == nil {
+		opts.Metadata = map[string]any{}
+	}
+	if id, _ := opts.Metadata[cliproxyexecutor.CanonicalSessionIDMetadataKey].(string); strings.TrimSpace(id) == "" {
+		if canonical := cliproxyauth.CanonicalSessionID(opts.Headers, sessionPayload, opts.Metadata); canonical != "" {
+			opts.Metadata[cliproxyexecutor.CanonicalSessionIDMetadataKey] = canonical
+		}
+	}
+	canonical, _ := opts.Metadata[cliproxyexecutor.CanonicalSessionIDMetadataKey].(string)
+	if canonical == "" {
+		canonical, _ = opts.Metadata[cliproxyexecutor.LCPAffinitySessionIDMetadataKey].(string)
+	}
+	if canonical == "" {
+		if id, _ := opts.Metadata[cliproxyexecutor.ExecutionSessionMetadataKey].(string); strings.TrimSpace(id) != "" {
+			canonical = "execution:" + strings.TrimPrefix(strings.TrimSpace(id), "execution:")
+		}
+	}
+	if canonical == "" {
+		if id, _ := opts.Metadata[cliproxyexecutor.DerivedSessionIDMetadataKey].(string); strings.TrimSpace(id) != "" {
+			canonical = "derived:" + strings.TrimPrefix(strings.TrimSpace(id), "derived:")
+		}
+	}
+	if canonical = strings.TrimSpace(canonical); canonical != "" {
+		s.Session = cliproxysession.BoundSessionIdentity(canonical)
+	}
+	ctx := util.WithSessionID(context.Background(), s.Session)
 
 	switch s.Op {
 	case "execute":
