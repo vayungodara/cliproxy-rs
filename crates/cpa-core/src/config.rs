@@ -13,10 +13,13 @@ use anyhow::{Context, bail};
 use serde::{Deserialize, Serialize};
 use serde_yaml_ng::{Mapping, Value};
 
+pub mod credentials;
 mod document;
 mod schema;
+mod trusted;
 pub use document::ConfigDocument;
 pub use schema::validate as validate_config_fields;
+pub use trusted::{TrustedProxies, go_trim_space};
 
 /// Default port used only where CLIProxyAPI falls back to it (management base URL).
 /// The loader itself leaves an omitted port at 0, as Go does.
@@ -31,6 +34,8 @@ pub struct Config {
     pub port: u16,
     /// Client keys for the proxy API, trimmed and de-duplicated. Empty disables client auth.
     pub api_keys: Vec<String>,
+    /// `server.trusted-proxies`, validated. Go applies it at startup only.
+    pub trusted_proxies: Vec<String>,
     pub auth_dir: PathBuf,
     pub routing: RoutingConfig,
     pub management: ManagementConfig,
@@ -201,10 +206,16 @@ impl Config {
             Some(_) => bail!("access.api-keys must be a list of strings"),
         };
         let auth_dir = string_or_empty(pick("oauth.auth-dir", "auth-dir"), "oauth.auth-dir")?;
+        let trusted_proxies: Vec<String> = match lookup(canonical, "server.trusted-proxies") {
+            Some(Value::Sequence(seq)) => seq.iter().map(go_string).collect(),
+            _ => Vec::new(),
+        };
+        trusted::validate(&trusted_proxies)?;
         Ok(Config {
             host,
             port,
             api_keys: normalize_keys(api_keys),
+            trusted_proxies,
             auth_dir: resolve_auth_dir(&auth_dir),
             routing,
             management,
@@ -262,6 +273,16 @@ fn lookup<'a>(root: &'a Mapping, path: &str) -> Option<&'a Value> {
         cur = cur.as_mapping()?.get(part)?;
     }
     Some(cur)
+}
+
+/// A YAML scalar decoded into a Go `string` field (yaml.v3 accepts numbers/bools).
+fn go_string(value: &Value) -> String {
+    match value {
+        Value::String(s) => s.clone(),
+        Value::Number(n) => n.to_string(),
+        Value::Bool(b) => b.to_string(),
+        _ => String::new(),
+    }
 }
 
 fn string_or_empty(value: Option<&Value>, name: &str) -> anyhow::Result<String> {

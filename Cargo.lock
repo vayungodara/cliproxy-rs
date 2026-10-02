@@ -500,6 +500,7 @@ name = "cpa-core"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "base64 0.22.1",
  "bcrypt",
  "bytes",
  "futures-util",
@@ -507,6 +508,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml_ng",
+ "sha2",
  "tracing",
  "yaml-edit",
 ]

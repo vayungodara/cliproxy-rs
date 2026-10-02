@@ -21,6 +21,9 @@ struct Args {
     /// Log in to Claude using browser OAuth and PKCE.
     #[arg(long)]
     claude_login: bool,
+    /// Management password accepted from loopback clients only.
+    #[arg(long, hide = true, default_value = "")]
+    password: String,
 }
 
 /// Go's flag package treats `-name` and `--name` the same; clap needs `--name`.
@@ -78,8 +81,8 @@ async fn main() -> anyhow::Result<()> {
     if config.api_keys.is_empty() {
         tracing::warn!("access.api-keys is empty: the proxy API is open to anyone who can reach it");
     }
-    let credentials = cpa_core::credential::load_dir(&config.auth_dir)
-        .with_context(|| format!("reading auth dir {}", config.auth_dir.display()))?;
+    // Auth-dir files and config API keys, synthesized as Go's watcher does.
+    let credentials = cpa_core::config::credentials::load(&config);
     tracing::info!(credentials = credentials.len(), "credentials loaded");
     let listener =
         bind(&config.host, config.port).with_context(|| format!("binding {}:{}", config.host, config.port))?;
@@ -90,9 +93,16 @@ async fn main() -> anyhow::Result<()> {
     };
     let rt = Arc::new(Runtime::new(config, credentials, executors));
     rt.start_auto_refresh();
-    let management = cpa_server::management::Management::new(rt.clone(), args.config);
+    let options = cpa_server::management::Options {
+        local_password: args.password,
+        ..Default::default()
+    };
+    let management = cpa_server::management::Management::with_options(rt.clone(), args.config, options);
     let _watcher = cpa_server::watching::start(&management);
-    let app = router(rt).merge(cpa_server::management::router(management));
+    // Go applies its CORS middleware to every route, not only management.
+    let app = router(rt)
+        .merge(cpa_server::management::router(management))
+        .layer(axum::middleware::from_fn(cpa_server::management::cors));
     axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>()).await?;
     Ok(())
 }

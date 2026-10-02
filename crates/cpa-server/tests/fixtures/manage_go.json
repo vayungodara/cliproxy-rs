@@ -1,0 +1,6241 @@
+{
+ "client_ip_bytes": [
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "127.0.0.1:40000",
+   "xff_hex": "c3a974c3a92c203139382e35312e3130302e39",
+   "ip": "198.51.100.9"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "127.0.0.1:40000",
+   "xff_hex": "fffe2c203139382e35312e3130302e39",
+   "ip": "198.51.100.9"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "127.0.0.1:40000",
+   "xff_hex": "c2a03139382e35312e3130302e39e28083",
+   "ip": "198.51.100.9"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "127.0.0.1:40000",
+   "xff_hex": "3139382e35312e3130302e3920c285",
+   "ip": "198.51.100.9"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "127.0.0.1:40000",
+   "xff_hex": "3139382e35312e3130302e392c20ff",
+   "x_real_ip_hex": "3230332e302e3131332e35",
+   "ip": "203.0.113.5"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "127.0.0.1:40000",
+   "xff_hex": "3139382e35312e3130302e39ff",
+   "ip": "127.0.0.1"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "127.0.0.1:40000",
+   "xff_hex": "ff3139382e35312e3130302e39",
+   "ip": "127.0.0.1"
+  },
+  {
+   "trusted": [
+    "::1"
+   ],
+   "remote": "[::1]:1",
+   "xff_hex": "7880792c203a3a312c20323030313a6462383a3a37",
+   "ip": "2001:db8::7"
+  },
+  {
+   "trusted": [
+    "fe80::/10"
+   ],
+   "remote": "[fe80::1%eth0]:1",
+   "xff_hex": "3139382e35312e3130302e39",
+   "ip": ""
+  },
+  {
+   "trusted": null,
+   "remote": "[fe80::1%eth0]:1",
+   "xff_hex": "3139382e35312e3130302e39",
+   "ip": ""
+  }
+ ],
+ "routes": [
+  {
+   "name": "unknown_paths_methods_and_preflight",
+   "yaml": "remote-management:\n  secret-key: '$HASH'\nport: 0\n",
+   "steps": [
+    {
+     "method": "GET",
+     "path": "/v8/management/unknown",
+     "remote": "127.0.0.1:40000",
+     "status": 404,
+     "resp_body": "",
+     "resp_headers": {
+      "Access-Control-Allow-Headers": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/v8/management/unknown",
+     "remote": "127.0.0.1:40000",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-secret"
+      ]
+     },
+     "status": 404,
+     "resp_body": "",
+     "resp_headers": {
+      "Access-Control-Allow-Headers": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/v8/management/config",
+     "remote": "127.0.0.1:40000",
+     "status": 404,
+     "resp_body": "",
+     "resp_headers": {
+      "Access-Control-Allow-Headers": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+     }
+    },
+    {
+     "method": "DELETE",
+     "path": "/v8/management/config",
+     "remote": "127.0.0.1:40000",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-secret"
+      ]
+     },
+     "status": 307,
+     "resp_body": "",
+     "resp_headers": {}
+    },
+    {
+     "method": "HEAD",
+     "path": "/v8/management/config",
+     "remote": "127.0.0.1:40000",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-secret"
+      ]
+     },
+     "status": 404,
+     "resp_body": "",
+     "resp_headers": {
+      "Access-Control-Allow-Headers": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+     }
+    },
+    {
+     "method": "OPTIONS",
+     "path": "/v8/management/config",
+     "remote": "203.0.113.1:1",
+     "status": 204,
+     "resp_body": "",
+     "resp_headers": {
+      "Access-Control-Allow-Headers": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+     }
+    },
+    {
+     "method": "OPTIONS",
+     "path": "/anything/at/all",
+     "remote": "127.0.0.1:40000",
+     "status": 204,
+     "resp_body": "",
+     "resp_headers": {
+      "Access-Control-Allow-Headers": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/v8/management/config",
+     "remote": "127.0.0.1:40000",
+     "status": 401,
+     "resp_body": "{\"error\":\"missing management key\"}",
+     "resp_headers": {
+      "Access-Control-Allow-Headers": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+      "Content-Type": "application/json; charset=utf-8",
+      "X-CPA-BUILD-DATE": "unknown",
+      "X-CPA-COMMIT": "none",
+      "X-CPA-SUPPORT-PLUGIN": "1",
+      "X-CPA-VERSION": "present"
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/v8/management/config",
+     "remote": "127.0.0.1:40000",
+     "headers": {
+      "Authorization": [
+       "Bearer wrong"
+      ]
+     },
+     "status": 401,
+     "resp_body": "{\"error\":\"invalid management key\"}",
+     "resp_headers": {
+      "Access-Control-Allow-Headers": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+      "Content-Type": "application/json; charset=utf-8",
+      "X-CPA-BUILD-DATE": "unknown",
+      "X-CPA-COMMIT": "none",
+      "X-CPA-SUPPORT-PLUGIN": "1",
+      "X-CPA-VERSION": "present"
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/v8/management",
+     "remote": "127.0.0.1:40000",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-secret"
+      ]
+     },
+     "status": 404,
+     "resp_body": "",
+     "resp_headers": {
+      "Access-Control-Allow-Headers": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/v8/management/",
+     "remote": "127.0.0.1:40000",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-secret"
+      ]
+     },
+     "status": 404,
+     "resp_body": "",
+     "resp_headers": {
+      "Access-Control-Allow-Headers": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/v0/management/unknown",
+     "remote": "127.0.0.1:40000",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-secret"
+      ]
+     },
+     "status": 404,
+     "resp_body": "",
+     "resp_headers": {
+      "Access-Control-Allow-Headers": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/v8/management/credentials/status",
+     "remote": "127.0.0.1:40000",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-secret"
+      ]
+     },
+     "status": 404,
+     "resp_body": "",
+     "resp_headers": {
+      "Access-Control-Allow-Headers": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+     }
+    },
+    {
+     "method": "PATCH",
+     "path": "/v8/management/credentials/status",
+     "remote": "203.0.113.1:1",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-secret"
+      ]
+     },
+     "status": 403,
+     "resp_body": "{\"error\":\"remote management disabled\"}",
+     "resp_headers": {
+      "Access-Control-Allow-Headers": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+      "Content-Type": "application/json; charset=utf-8",
+      "X-CPA-BUILD-DATE": "unknown",
+      "X-CPA-COMMIT": "none",
+      "X-CPA-SUPPORT-PLUGIN": "1",
+      "X-CPA-VERSION": "present"
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/v8/management/config/server/port",
+     "remote": "127.0.0.1:40000",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-secret"
+      ]
+     },
+     "status": 200,
+     "resp_body": "0",
+     "resp_headers": {
+      "Access-Control-Allow-Headers": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "X-CPA-BUILD-DATE": "unknown",
+      "X-CPA-COMMIT": "none",
+      "X-CPA-SUPPORT-PLUGIN": "1",
+      "X-CPA-VERSION": "present"
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/v8/management/config/server/missing",
+     "remote": "127.0.0.1:40000",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-secret"
+      ]
+     },
+     "status": 404,
+     "resp_body": "{\"error\":\"not_found\"}",
+     "resp_headers": {
+      "Access-Control-Allow-Headers": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+      "Content-Type": "application/json; charset=utf-8",
+      "X-CPA-BUILD-DATE": "unknown",
+      "X-CPA-COMMIT": "none",
+      "X-CPA-SUPPORT-PLUGIN": "1",
+      "X-CPA-VERSION": "present"
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/v8/management/config/",
+     "remote": "127.0.0.1:40000",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-secret"
+      ]
+     },
+     "status": 200,
+     "resp_body": "{\"config-version\":8,\"management\":{\"secret-key\":\"$2a$04$CCJqN/FR9a.vRl53/GHf2el//wySod.bqD6UQTeOBpsw9PSaFdz3.\"},\"server\":{\"port\":0}}",
+     "resp_headers": {
+      "Access-Control-Allow-Headers": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      "X-CPA-BUILD-DATE": "unknown",
+      "X-CPA-COMMIT": "none",
+      "X-CPA-SUPPORT-PLUGIN": "1",
+      "X-CPA-VERSION": "present"
+     }
+    }
+   ]
+  },
+  {
+   "name": "availability_follows_secret_across_reloads",
+   "yaml": "remote-management:\n  allow-remote: false\nport: 0\n",
+   "steps": [
+    {
+     "method": "GET",
+     "path": "/v8/management/config",
+     "remote": "127.0.0.1:40000",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-secret"
+      ]
+     },
+     "status": 404,
+     "resp_body": "",
+     "resp_headers": {
+      "Access-Control-Allow-Headers": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+     }
+    },
+    {
+     "method": "OPTIONS",
+     "path": "/v8/management/config",
+     "remote": "127.0.0.1:40000",
+     "status": 204,
+     "resp_body": "",
+     "resp_headers": {
+      "Access-Control-Allow-Headers": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+     }
+    },
+    {
+     "update": "remote-management:\n  secret-key: '$HASH'\nport: 0\n",
+     "method": "GET",
+     "path": "/v8/management/config/port",
+     "remote": "127.0.0.1:40000",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-secret"
+      ]
+     },
+     "status": 404,
+     "resp_body": "{\"error\":\"not_found\"}",
+     "resp_headers": {
+      "Access-Control-Allow-Headers": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+      "Content-Type": "application/json; charset=utf-8",
+      "X-CPA-BUILD-DATE": "unknown",
+      "X-CPA-COMMIT": "none",
+      "X-CPA-SUPPORT-PLUGIN": "1",
+      "X-CPA-VERSION": "present"
+     }
+    },
+    {
+     "update": "remote-management:\n  allow-remote: false\nport: 0\n",
+     "method": "GET",
+     "path": "/v8/management/config",
+     "remote": "127.0.0.1:40000",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-secret"
+      ]
+     },
+     "status": 404,
+     "resp_body": "",
+     "resp_headers": {
+      "Access-Control-Allow-Headers": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+     }
+    }
+   ]
+  },
+  {
+   "name": "local_password_only_until_reload",
+   "yaml": "remote-management:\n  allow-remote: false\nport: 0\n",
+   "local_password": "fake-local",
+   "steps": [
+    {
+     "method": "GET",
+     "path": "/v8/management/config",
+     "remote": "127.0.0.1:40000",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-local"
+      ]
+     },
+     "status": 403,
+     "resp_body": "{\"error\":\"remote management key not set\"}",
+     "resp_headers": {
+      "Access-Control-Allow-Headers": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+      "Content-Type": "application/json; charset=utf-8",
+      "X-CPA-BUILD-DATE": "unknown",
+      "X-CPA-COMMIT": "none",
+      "X-CPA-SUPPORT-PLUGIN": "1",
+      "X-CPA-VERSION": "present"
+     }
+    },
+    {
+     "update": "remote-management:\n  allow-remote: false\nport: 0\n",
+     "method": "GET",
+     "path": "/v8/management/config",
+     "remote": "127.0.0.1:40000",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-local"
+      ]
+     },
+     "status": 404,
+     "resp_body": "",
+     "resp_headers": {
+      "Access-Control-Allow-Headers": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+     }
+    }
+   ]
+  },
+  {
+   "name": "env_secret_survives_reload",
+   "yaml": "remote-management:\n  allow-remote: false\nport: 0\n",
+   "env": "fake-env",
+   "steps": [
+    {
+     "method": "GET",
+     "path": "/v8/management/config/port",
+     "remote": "127.0.0.1:40000",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-env"
+      ]
+     },
+     "status": 404,
+     "resp_body": "{\"error\":\"not_found\"}",
+     "resp_headers": {
+      "Access-Control-Allow-Headers": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+      "Content-Type": "application/json; charset=utf-8",
+      "X-CPA-BUILD-DATE": "unknown",
+      "X-CPA-COMMIT": "none",
+      "X-CPA-SUPPORT-PLUGIN": "1",
+      "X-CPA-VERSION": "present"
+     }
+    },
+    {
+     "update": "remote-management:\n  allow-remote: false\nport: 0\n",
+     "method": "GET",
+     "path": "/v8/management/config/port",
+     "remote": "203.0.113.1:1",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-env"
+      ]
+     },
+     "status": 404,
+     "resp_body": "{\"error\":\"not_found\"}",
+     "resp_headers": {
+      "Access-Control-Allow-Headers": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+      "Content-Type": "application/json; charset=utf-8",
+      "X-CPA-BUILD-DATE": "unknown",
+      "X-CPA-COMMIT": "none",
+      "X-CPA-SUPPORT-PLUGIN": "1",
+      "X-CPA-VERSION": "present"
+     }
+    }
+   ]
+  }
+ ],
+ "access": [
+  {
+   "name": "local_header_forms",
+   "secret": "fake-secret",
+   "allow_remote": false,
+   "trusted": null,
+   "steps": [
+    {
+     "remote": "127.0.0.1:40000",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-secret"
+      ]
+     },
+     "status": 200,
+     "body": "{\"ok\":true}",
+     "x_cpa_version": "dev"
+    },
+    {
+     "remote": "127.0.0.1:40000",
+     "headers": {
+      "X-Management-Key": [
+       "fake-secret"
+      ]
+     },
+     "status": 200,
+     "body": "{\"ok\":true}",
+     "x_cpa_version": "dev"
+    },
+    {
+     "remote": "127.0.0.1:40000",
+     "headers": {
+      "Authorization": [
+       "fake-secret"
+      ]
+     },
+     "status": 200,
+     "body": "{\"ok\":true}",
+     "x_cpa_version": "dev"
+    },
+    {
+     "remote": "127.0.0.1:40000",
+     "headers": {
+      "Authorization": [
+       "bEaReR fake-secret"
+      ]
+     },
+     "status": 200,
+     "body": "{\"ok\":true}",
+     "x_cpa_version": "dev"
+    },
+    {
+     "remote": "127.0.0.1:40000",
+     "headers": {
+      "Authorization": [
+       "Bearer  fake-secret"
+      ]
+     },
+     "status": 401,
+     "body": "{\"error\":\"invalid management key\"}",
+     "x_cpa_version": "dev"
+    },
+    {
+     "remote": "127.0.0.1:40000",
+     "headers": {
+      "Authorization": [
+       "Basic abc"
+      ],
+      "X-Management-Key": [
+       "fake-secret"
+      ]
+     },
+     "status": 401,
+     "body": "{\"error\":\"invalid management key\"}",
+     "x_cpa_version": "dev"
+    },
+    {
+     "remote": "127.0.0.1:40000",
+     "headers": {
+      "Authorization": [
+       "Bearer "
+      ],
+      "X-Management-Key": [
+       "fake-secret"
+      ]
+     },
+     "status": 200,
+     "body": "{\"ok\":true}",
+     "x_cpa_version": "dev"
+    },
+    {
+     "remote": "127.0.0.1:40000",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-secret",
+       "Bearer other"
+      ]
+     },
+     "status": 200,
+     "body": "{\"ok\":true}",
+     "x_cpa_version": "dev"
+    },
+    {
+     "remote": "127.0.0.1:40000",
+     "status": 401,
+     "body": "{\"error\":\"missing management key\"}",
+     "x_cpa_version": "dev"
+    }
+   ]
+  },
+  {
+   "name": "remote_policy_is_exact_loopback_strings",
+   "secret": "fake-secret",
+   "allow_remote": false,
+   "trusted": null,
+   "steps": [
+    {
+     "remote": "203.0.113.5:1",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-secret"
+      ]
+     },
+     "status": 403,
+     "body": "{\"error\":\"remote management disabled\"}",
+     "x_cpa_version": "dev"
+    },
+    {
+     "remote": "127.0.0.2:1",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-secret"
+      ]
+     },
+     "status": 403,
+     "body": "{\"error\":\"remote management disabled\"}",
+     "x_cpa_version": "dev"
+    },
+    {
+     "remote": "[::1]:1",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-secret"
+      ]
+     },
+     "status": 200,
+     "body": "{\"ok\":true}",
+     "x_cpa_version": "dev"
+    },
+    {
+     "remote": "[::ffff:127.0.0.1]:1",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-secret"
+      ]
+     },
+     "status": 200,
+     "body": "{\"ok\":true}",
+     "x_cpa_version": "dev"
+    },
+    {
+     "remote": "[0:0:0:0:0:0:0:1]:1",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-secret"
+      ]
+     },
+     "status": 200,
+     "body": "{\"ok\":true}",
+     "x_cpa_version": "dev"
+    },
+    {
+     "remote": "203.0.113.5:1",
+     "status": 403,
+     "body": "{\"error\":\"remote management disabled\"}",
+     "x_cpa_version": "dev"
+    }
+   ]
+  },
+  {
+   "name": "ban_after_five_failures_including_missing",
+   "secret": "fake-secret",
+   "allow_remote": false,
+   "trusted": null,
+   "steps": [
+    {
+     "remote": "127.0.0.1:40000",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-wrong"
+      ]
+     },
+     "status": 401,
+     "body": "{\"error\":\"invalid management key\"}",
+     "x_cpa_version": "dev"
+    },
+    {
+     "remote": "127.0.0.1:40000",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-wrong"
+      ]
+     },
+     "status": 401,
+     "body": "{\"error\":\"invalid management key\"}",
+     "x_cpa_version": "dev"
+    },
+    {
+     "remote": "127.0.0.1:40000",
+     "status": 401,
+     "body": "{\"error\":\"missing management key\"}",
+     "x_cpa_version": "dev"
+    },
+    {
+     "remote": "127.0.0.1:40000",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-wrong"
+      ]
+     },
+     "status": 401,
+     "body": "{\"error\":\"invalid management key\"}",
+     "x_cpa_version": "dev"
+    },
+    {
+     "remote": "127.0.0.1:40000",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-wrong"
+      ]
+     },
+     "status": 401,
+     "body": "{\"error\":\"invalid management key\"}",
+     "x_cpa_version": "dev"
+    },
+    {
+     "remote": "127.0.0.1:40000",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-secret"
+      ]
+     },
+     "status": 403,
+     "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
+     "x_cpa_version": "dev"
+    },
+    {
+     "remote": "[::1]:2",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-secret"
+      ]
+     },
+     "status": 200,
+     "body": "{\"ok\":true}",
+     "x_cpa_version": "dev"
+    }
+   ]
+  },
+  {
+   "name": "success_resets_count",
+   "secret": "fake-secret",
+   "allow_remote": false,
+   "trusted": null,
+   "steps": [
+    {
+     "remote": "127.0.0.1:40000",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-wrong"
+      ]
+     },
+     "status": 401,
+     "body": "{\"error\":\"invalid management key\"}",
+     "x_cpa_version": "dev"
+    },
+    {
+     "remote": "127.0.0.1:40000",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-wrong"
+      ]
+     },
+     "status": 401,
+     "body": "{\"error\":\"invalid management key\"}",
+     "x_cpa_version": "dev"
+    },
+    {
+     "remote": "127.0.0.1:40000",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-wrong"
+      ]
+     },
+     "status": 401,
+     "body": "{\"error\":\"invalid management key\"}",
+     "x_cpa_version": "dev"
+    },
+    {
+     "remote": "127.0.0.1:40000",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-wrong"
+      ]
+     },
+     "status": 401,
+     "body": "{\"error\":\"invalid management key\"}",
+     "x_cpa_version": "dev"
+    },
+    {
+     "remote": "127.0.0.1:40000",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-secret"
+      ]
+     },
+     "status": 200,
+     "body": "{\"ok\":true}",
+     "x_cpa_version": "dev"
+    },
+    {
+     "remote": "127.0.0.1:40000",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-wrong"
+      ]
+     },
+     "status": 401,
+     "body": "{\"error\":\"invalid management key\"}",
+     "x_cpa_version": "dev"
+    },
+    {
+     "remote": "127.0.0.1:40000",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-wrong"
+      ]
+     },
+     "status": 401,
+     "body": "{\"error\":\"invalid management key\"}",
+     "x_cpa_version": "dev"
+    },
+    {
+     "remote": "127.0.0.1:40000",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-wrong"
+      ]
+     },
+     "status": 401,
+     "body": "{\"error\":\"invalid management key\"}",
+     "x_cpa_version": "dev"
+    },
+    {
+     "remote": "127.0.0.1:40000",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-wrong"
+      ]
+     },
+     "status": 401,
+     "body": "{\"error\":\"invalid management key\"}",
+     "x_cpa_version": "dev"
+    },
+    {
+     "remote": "127.0.0.1:40000",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-secret"
+      ]
+     },
+     "status": 200,
+     "body": "{\"ok\":true}",
+     "x_cpa_version": "dev"
+    }
+   ]
+  },
+  {
+   "name": "remote_failures_ban_before_policy",
+   "secret": "fake-secret",
+   "allow_remote": false,
+   "trusted": null,
+   "steps": [
+    {
+     "remote": "203.0.113.7:1",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-wrong"
+      ]
+     },
+     "status": 403,
+     "body": "{\"error\":\"remote management disabled\"}",
+     "x_cpa_version": "dev"
+    },
+    {
+     "remote": "203.0.113.7:1",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-wrong"
+      ]
+     },
+     "status": 403,
+     "body": "{\"error\":\"remote management disabled\"}",
+     "x_cpa_version": "dev"
+    }
+   ]
+  },
+  {
+   "name": "allow_remote_bans_remote_ip",
+   "secret": "fake-secret",
+   "allow_remote": true,
+   "trusted": null,
+   "steps": [
+    {
+     "remote": "203.0.113.7:1",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-secret"
+      ]
+     },
+     "status": 200,
+     "body": "{\"ok\":true}",
+     "x_cpa_version": "dev"
+    },
+    {
+     "remote": "203.0.113.7:1",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-wrong"
+      ]
+     },
+     "status": 401,
+     "body": "{\"error\":\"invalid management key\"}",
+     "x_cpa_version": "dev"
+    },
+    {
+     "remote": "203.0.113.7:1",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-wrong"
+      ]
+     },
+     "status": 401,
+     "body": "{\"error\":\"invalid management key\"}",
+     "x_cpa_version": "dev"
+    },
+    {
+     "remote": "203.0.113.7:1",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-wrong"
+      ]
+     },
+     "status": 401,
+     "body": "{\"error\":\"invalid management key\"}",
+     "x_cpa_version": "dev"
+    },
+    {
+     "remote": "203.0.113.7:1",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-wrong"
+      ]
+     },
+     "status": 401,
+     "body": "{\"error\":\"invalid management key\"}",
+     "x_cpa_version": "dev"
+    },
+    {
+     "remote": "203.0.113.7:1",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-wrong"
+      ]
+     },
+     "status": 401,
+     "body": "{\"error\":\"invalid management key\"}",
+     "x_cpa_version": "dev"
+    },
+    {
+     "remote": "203.0.113.7:1",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-secret"
+      ]
+     },
+     "status": 403,
+     "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
+     "x_cpa_version": "dev"
+    },
+    {
+     "remote": "127.0.0.1:40000",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-secret"
+      ]
+     },
+     "status": 200,
+     "body": "{\"ok\":true}",
+     "x_cpa_version": "dev"
+    }
+   ]
+  },
+  {
+   "name": "env_secret_allows_remote",
+   "allow_remote": false,
+   "env": "fake-env",
+   "trusted": null,
+   "steps": [
+    {
+     "remote": "203.0.113.8:1",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-env"
+      ]
+     },
+     "status": 200,
+     "body": "{\"ok\":true}",
+     "x_cpa_version": "dev"
+    },
+    {
+     "remote": "203.0.113.8:1",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-wrong"
+      ]
+     },
+     "status": 401,
+     "body": "{\"error\":\"invalid management key\"}",
+     "x_cpa_version": "dev"
+    },
+    {
+     "remote": "127.0.0.1:40000",
+     "headers": {
+      "X-Management-Key": [
+       "fake-env"
+      ]
+     },
+     "status": 200,
+     "body": "{\"ok\":true}",
+     "x_cpa_version": "dev"
+    }
+   ]
+  },
+  {
+   "name": "env_and_config_secret",
+   "secret": "fake-secret",
+   "allow_remote": false,
+   "env": "fake-env",
+   "trusted": null,
+   "steps": [
+    {
+     "remote": "203.0.113.8:1",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-secret"
+      ]
+     },
+     "status": 200,
+     "body": "{\"ok\":true}",
+     "x_cpa_version": "dev"
+    },
+    {
+     "remote": "203.0.113.8:1",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-env"
+      ]
+     },
+     "status": 200,
+     "body": "{\"ok\":true}",
+     "x_cpa_version": "dev"
+    }
+   ]
+  },
+  {
+   "name": "local_password_is_loopback_only",
+   "secret": "fake-secret",
+   "allow_remote": true,
+   "local_password": "fake-local",
+   "trusted": null,
+   "steps": [
+    {
+     "remote": "127.0.0.1:40000",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-local"
+      ]
+     },
+     "status": 200,
+     "body": "{\"ok\":true}",
+     "x_cpa_version": "dev"
+    },
+    {
+     "remote": "203.0.113.9:1",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-local"
+      ]
+     },
+     "status": 401,
+     "body": "{\"error\":\"invalid management key\"}",
+     "x_cpa_version": "dev"
+    },
+    {
+     "remote": "[::1]:3",
+     "headers": {
+      "X-Management-Key": [
+       "fake-local"
+      ]
+     },
+     "status": 200,
+     "body": "{\"ok\":true}",
+     "x_cpa_version": "dev"
+    }
+   ]
+  },
+  {
+   "name": "local_password_without_secret",
+   "allow_remote": false,
+   "local_password": "fake-local",
+   "trusted": null,
+   "steps": [
+    {
+     "remote": "127.0.0.1:40000",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-local"
+      ]
+     },
+     "status": 403,
+     "body": "{\"error\":\"remote management key not set\"}",
+     "x_cpa_version": "dev"
+    },
+    {
+     "remote": "127.0.0.1:40000",
+     "status": 403,
+     "body": "{\"error\":\"remote management key not set\"}",
+     "x_cpa_version": "dev"
+    }
+   ]
+  },
+  {
+   "name": "trusted_loopback_proxy_uses_forwarded_ip",
+   "secret": "fake-secret",
+   "allow_remote": false,
+   "trusted": [
+    "127.0.0.1",
+    "::1"
+   ],
+   "steps": [
+    {
+     "remote": "127.0.0.1:40000",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-secret"
+      ],
+      "X-Forwarded-For": [
+       "203.0.113.9"
+      ]
+     },
+     "status": 403,
+     "body": "{\"error\":\"remote management disabled\"}",
+     "x_cpa_version": "dev"
+    },
+    {
+     "remote": "127.0.0.1:40000",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-secret"
+      ],
+      "X-Forwarded-For": [
+       "127.0.0.1"
+      ]
+     },
+     "status": 200,
+     "body": "{\"ok\":true}",
+     "x_cpa_version": "dev"
+    },
+    {
+     "remote": "127.0.0.1:40000",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-secret"
+      ],
+      "X-Forwarded-For": [
+       "203.0.113.9, 127.0.0.1"
+      ]
+     },
+     "status": 403,
+     "body": "{\"error\":\"remote management disabled\"}",
+     "x_cpa_version": "dev"
+    },
+    {
+     "remote": "127.0.0.1:40000",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-secret"
+      ],
+      "X-Real-IP": [
+       "::1"
+      ]
+     },
+     "status": 200,
+     "body": "{\"ok\":true}",
+     "x_cpa_version": "dev"
+    },
+    {
+     "remote": "127.0.0.1:40000",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-secret"
+      ],
+      "X-Forwarded-For": [
+       "garbage"
+      ],
+      "X-Real-IP": [
+       "203.0.113.4"
+      ]
+     },
+     "status": 403,
+     "body": "{\"error\":\"remote management disabled\"}",
+     "x_cpa_version": "dev"
+    },
+    {
+     "remote": "127.0.0.1:40000",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-secret"
+      ],
+      "X-Forwarded-For": [
+       "::ffff:127.0.0.1"
+      ]
+     },
+     "status": 403,
+     "body": "{\"error\":\"remote management disabled\"}",
+     "x_cpa_version": "dev"
+    },
+    {
+     "remote": "203.0.113.5:1",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-secret"
+      ],
+      "X-Forwarded-For": [
+       "127.0.0.1"
+      ]
+     },
+     "status": 403,
+     "body": "{\"error\":\"remote management disabled\"}",
+     "x_cpa_version": "dev"
+    }
+   ]
+  },
+  {
+   "name": "untrusted_forwarded_headers_are_ignored",
+   "secret": "fake-secret",
+   "allow_remote": false,
+   "trusted": null,
+   "steps": [
+    {
+     "remote": "203.0.113.5:1",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-secret"
+      ],
+      "X-Forwarded-For": [
+       "127.0.0.1"
+      ]
+     },
+     "status": 403,
+     "body": "{\"error\":\"remote management disabled\"}",
+     "x_cpa_version": "dev"
+    },
+    {
+     "remote": "127.0.0.1:40000",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-secret"
+      ],
+      "X-Forwarded-For": [
+       "203.0.113.9"
+      ]
+     },
+     "status": 200,
+     "body": "{\"ok\":true}",
+     "x_cpa_version": "dev"
+    }
+   ]
+  },
+  {
+   "name": "forwarded_junk_cannot_make_remote_local",
+   "secret": "fake-secret",
+   "allow_remote": false,
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "steps": [
+    {
+     "remote": "127.0.0.1:40000",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-secret"
+      ],
+      "X-Forwarded-For": [
+       "été, 198.51.100.9"
+      ]
+     },
+     "status": 403,
+     "body": "{\"error\":\"remote management disabled\"}",
+     "x_cpa_version": "dev"
+    },
+    {
+     "remote": "127.0.0.1:40000",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-secret"
+      ],
+      "X-Forwarded-For": [
+       "été, 127.0.0.1"
+      ]
+     },
+     "status": 200,
+     "body": "{\"ok\":true}",
+     "x_cpa_version": "dev"
+    }
+   ]
+  },
+  {
+   "name": "forwarded_ip_is_the_ban_key",
+   "secret": "fake-secret",
+   "allow_remote": true,
+   "trusted": [
+    "127.0.0.0/8"
+   ],
+   "steps": [
+    {
+     "remote": "127.0.0.1:40000",
+     "headers": {
+      "Authorization": [
+       "Bearer x"
+      ],
+      "X-Forwarded-For": [
+       "203.0.113.20"
+      ]
+     },
+     "status": 401,
+     "body": "{\"error\":\"invalid management key\"}",
+     "x_cpa_version": "dev"
+    },
+    {
+     "remote": "127.0.0.1:40000",
+     "headers": {
+      "Authorization": [
+       "Bearer x"
+      ],
+      "X-Forwarded-For": [
+       "203.0.113.20"
+      ]
+     },
+     "status": 401,
+     "body": "{\"error\":\"invalid management key\"}",
+     "x_cpa_version": "dev"
+    },
+    {
+     "remote": "127.0.0.1:40000",
+     "headers": {
+      "Authorization": [
+       "Bearer x"
+      ],
+      "X-Forwarded-For": [
+       "203.0.113.20"
+      ]
+     },
+     "status": 401,
+     "body": "{\"error\":\"invalid management key\"}",
+     "x_cpa_version": "dev"
+    },
+    {
+     "remote": "127.0.0.1:40000",
+     "headers": {
+      "Authorization": [
+       "Bearer x"
+      ],
+      "X-Forwarded-For": [
+       "203.0.113.20"
+      ]
+     },
+     "status": 401,
+     "body": "{\"error\":\"invalid management key\"}",
+     "x_cpa_version": "dev"
+    },
+    {
+     "remote": "127.0.0.1:40000",
+     "headers": {
+      "Authorization": [
+       "Bearer x"
+      ],
+      "X-Forwarded-For": [
+       "203.0.113.20"
+      ]
+     },
+     "status": 401,
+     "body": "{\"error\":\"invalid management key\"}",
+     "x_cpa_version": "dev"
+    },
+    {
+     "remote": "127.0.0.1:40000",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-secret"
+      ],
+      "X-Forwarded-For": [
+       "203.0.113.20"
+      ]
+     },
+     "status": 403,
+     "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
+     "x_cpa_version": "dev"
+    },
+    {
+     "remote": "127.0.0.1:40000",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-secret"
+      ],
+      "X-Forwarded-For": [
+       "203.0.113.21"
+      ]
+     },
+     "status": 200,
+     "body": "{\"ok\":true}",
+     "x_cpa_version": "dev"
+    },
+    {
+     "remote": "127.0.0.1:40000",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-secret"
+      ]
+     },
+     "status": 200,
+     "body": "{\"ok\":true}",
+     "x_cpa_version": "dev"
+    }
+   ]
+  }
+ ],
+ "client_ip": [
+  {
+   "trusted": null,
+   "remote": "127.0.0.1:1",
+   "ip": "127.0.0.1"
+  },
+  {
+   "trusted": null,
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1"
+    ]
+   },
+   "ip": "127.0.0.1"
+  },
+  {
+   "trusted": null,
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     " 203.0.113.1 , 10.9.9.9 "
+    ]
+   },
+   "ip": "127.0.0.1"
+  },
+  {
+   "trusted": null,
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "10.9.9.9, 127.0.0.1"
+    ]
+   },
+   "ip": "127.0.0.1"
+  },
+  {
+   "trusted": null,
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "bogus, 203.0.113.1"
+    ]
+   },
+   "ip": "127.0.0.1"
+  },
+  {
+   "trusted": null,
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1, bogus"
+    ]
+   },
+   "ip": "127.0.0.1"
+  },
+  {
+   "trusted": null,
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     ""
+    ],
+    "X-Real-IP": [
+     "2001:db8::1"
+    ]
+   },
+   "ip": "127.0.0.1"
+  },
+  {
+   "trusted": null,
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1",
+     "203.0.113.2"
+    ]
+   },
+   "ip": "127.0.0.1"
+  },
+  {
+   "trusted": null,
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Real-IP": [
+     "0:0:0:0:0:0:0:1"
+    ]
+   },
+   "ip": "127.0.0.1"
+  },
+  {
+   "trusted": null,
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "::FFFF:127.0.0.1"
+    ]
+   },
+   "ip": "127.0.0.1"
+  },
+  {
+   "trusted": null,
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "fe80::1%eth0"
+    ],
+    "X-Real-IP": [
+     "203.0.113.3"
+    ]
+   },
+   "ip": "127.0.0.1"
+  },
+  {
+   "trusted": null,
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "01.2.3.4"
+    ]
+   },
+   "ip": "127.0.0.1"
+  },
+  {
+   "trusted": null,
+   "remote": "[::1]:1",
+   "ip": "::1"
+  },
+  {
+   "trusted": null,
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1"
+    ]
+   },
+   "ip": "::1"
+  },
+  {
+   "trusted": null,
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     " 203.0.113.1 , 10.9.9.9 "
+    ]
+   },
+   "ip": "::1"
+  },
+  {
+   "trusted": null,
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "10.9.9.9, 127.0.0.1"
+    ]
+   },
+   "ip": "::1"
+  },
+  {
+   "trusted": null,
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "bogus, 203.0.113.1"
+    ]
+   },
+   "ip": "::1"
+  },
+  {
+   "trusted": null,
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1, bogus"
+    ]
+   },
+   "ip": "::1"
+  },
+  {
+   "trusted": null,
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     ""
+    ],
+    "X-Real-IP": [
+     "2001:db8::1"
+    ]
+   },
+   "ip": "::1"
+  },
+  {
+   "trusted": null,
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1",
+     "203.0.113.2"
+    ]
+   },
+   "ip": "::1"
+  },
+  {
+   "trusted": null,
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Real-IP": [
+     "0:0:0:0:0:0:0:1"
+    ]
+   },
+   "ip": "::1"
+  },
+  {
+   "trusted": null,
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "::FFFF:127.0.0.1"
+    ]
+   },
+   "ip": "::1"
+  },
+  {
+   "trusted": null,
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "fe80::1%eth0"
+    ],
+    "X-Real-IP": [
+     "203.0.113.3"
+    ]
+   },
+   "ip": "::1"
+  },
+  {
+   "trusted": null,
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "01.2.3.4"
+    ]
+   },
+   "ip": "::1"
+  },
+  {
+   "trusted": null,
+   "remote": "10.1.2.3:1",
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": null,
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": null,
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Forwarded-For": [
+     " 203.0.113.1 , 10.9.9.9 "
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": null,
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "10.9.9.9, 127.0.0.1"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": null,
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "bogus, 203.0.113.1"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": null,
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1, bogus"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": null,
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Forwarded-For": [
+     ""
+    ],
+    "X-Real-IP": [
+     "2001:db8::1"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": null,
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1",
+     "203.0.113.2"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": null,
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Real-IP": [
+     "0:0:0:0:0:0:0:1"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": null,
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "::FFFF:127.0.0.1"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": null,
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "fe80::1%eth0"
+    ],
+    "X-Real-IP": [
+     "203.0.113.3"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": null,
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "01.2.3.4"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": null,
+   "remote": "[::ffff:10.1.2.3]:1",
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": null,
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": null,
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     " 203.0.113.1 , 10.9.9.9 "
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": null,
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "10.9.9.9, 127.0.0.1"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": null,
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "bogus, 203.0.113.1"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": null,
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1, bogus"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": null,
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     ""
+    ],
+    "X-Real-IP": [
+     "2001:db8::1"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": null,
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1",
+     "203.0.113.2"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": null,
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Real-IP": [
+     "0:0:0:0:0:0:0:1"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": null,
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "::FFFF:127.0.0.1"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": null,
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "fe80::1%eth0"
+    ],
+    "X-Real-IP": [
+     "203.0.113.3"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": null,
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "01.2.3.4"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": null,
+   "remote": "198.51.100.1:1",
+   "ip": "198.51.100.1"
+  },
+  {
+   "trusted": null,
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1"
+    ]
+   },
+   "ip": "198.51.100.1"
+  },
+  {
+   "trusted": null,
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     " 203.0.113.1 , 10.9.9.9 "
+    ]
+   },
+   "ip": "198.51.100.1"
+  },
+  {
+   "trusted": null,
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "10.9.9.9, 127.0.0.1"
+    ]
+   },
+   "ip": "198.51.100.1"
+  },
+  {
+   "trusted": null,
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "bogus, 203.0.113.1"
+    ]
+   },
+   "ip": "198.51.100.1"
+  },
+  {
+   "trusted": null,
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1, bogus"
+    ]
+   },
+   "ip": "198.51.100.1"
+  },
+  {
+   "trusted": null,
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     ""
+    ],
+    "X-Real-IP": [
+     "2001:db8::1"
+    ]
+   },
+   "ip": "198.51.100.1"
+  },
+  {
+   "trusted": null,
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1",
+     "203.0.113.2"
+    ]
+   },
+   "ip": "198.51.100.1"
+  },
+  {
+   "trusted": null,
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Real-IP": [
+     "0:0:0:0:0:0:0:1"
+    ]
+   },
+   "ip": "198.51.100.1"
+  },
+  {
+   "trusted": null,
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "::FFFF:127.0.0.1"
+    ]
+   },
+   "ip": "198.51.100.1"
+  },
+  {
+   "trusted": null,
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "fe80::1%eth0"
+    ],
+    "X-Real-IP": [
+     "203.0.113.3"
+    ]
+   },
+   "ip": "198.51.100.1"
+  },
+  {
+   "trusted": null,
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "01.2.3.4"
+    ]
+   },
+   "ip": "198.51.100.1"
+  },
+  {
+   "trusted": [],
+   "remote": "127.0.0.1:1",
+   "ip": "127.0.0.1"
+  },
+  {
+   "trusted": [],
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1"
+    ]
+   },
+   "ip": "127.0.0.1"
+  },
+  {
+   "trusted": [],
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     " 203.0.113.1 , 10.9.9.9 "
+    ]
+   },
+   "ip": "127.0.0.1"
+  },
+  {
+   "trusted": [],
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "10.9.9.9, 127.0.0.1"
+    ]
+   },
+   "ip": "127.0.0.1"
+  },
+  {
+   "trusted": [],
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "bogus, 203.0.113.1"
+    ]
+   },
+   "ip": "127.0.0.1"
+  },
+  {
+   "trusted": [],
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1, bogus"
+    ]
+   },
+   "ip": "127.0.0.1"
+  },
+  {
+   "trusted": [],
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     ""
+    ],
+    "X-Real-IP": [
+     "2001:db8::1"
+    ]
+   },
+   "ip": "127.0.0.1"
+  },
+  {
+   "trusted": [],
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1",
+     "203.0.113.2"
+    ]
+   },
+   "ip": "127.0.0.1"
+  },
+  {
+   "trusted": [],
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Real-IP": [
+     "0:0:0:0:0:0:0:1"
+    ]
+   },
+   "ip": "127.0.0.1"
+  },
+  {
+   "trusted": [],
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "::FFFF:127.0.0.1"
+    ]
+   },
+   "ip": "127.0.0.1"
+  },
+  {
+   "trusted": [],
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "fe80::1%eth0"
+    ],
+    "X-Real-IP": [
+     "203.0.113.3"
+    ]
+   },
+   "ip": "127.0.0.1"
+  },
+  {
+   "trusted": [],
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "01.2.3.4"
+    ]
+   },
+   "ip": "127.0.0.1"
+  },
+  {
+   "trusted": [],
+   "remote": "[::1]:1",
+   "ip": "::1"
+  },
+  {
+   "trusted": [],
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1"
+    ]
+   },
+   "ip": "::1"
+  },
+  {
+   "trusted": [],
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     " 203.0.113.1 , 10.9.9.9 "
+    ]
+   },
+   "ip": "::1"
+  },
+  {
+   "trusted": [],
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "10.9.9.9, 127.0.0.1"
+    ]
+   },
+   "ip": "::1"
+  },
+  {
+   "trusted": [],
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "bogus, 203.0.113.1"
+    ]
+   },
+   "ip": "::1"
+  },
+  {
+   "trusted": [],
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1, bogus"
+    ]
+   },
+   "ip": "::1"
+  },
+  {
+   "trusted": [],
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     ""
+    ],
+    "X-Real-IP": [
+     "2001:db8::1"
+    ]
+   },
+   "ip": "::1"
+  },
+  {
+   "trusted": [],
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1",
+     "203.0.113.2"
+    ]
+   },
+   "ip": "::1"
+  },
+  {
+   "trusted": [],
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Real-IP": [
+     "0:0:0:0:0:0:0:1"
+    ]
+   },
+   "ip": "::1"
+  },
+  {
+   "trusted": [],
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "::FFFF:127.0.0.1"
+    ]
+   },
+   "ip": "::1"
+  },
+  {
+   "trusted": [],
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "fe80::1%eth0"
+    ],
+    "X-Real-IP": [
+     "203.0.113.3"
+    ]
+   },
+   "ip": "::1"
+  },
+  {
+   "trusted": [],
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "01.2.3.4"
+    ]
+   },
+   "ip": "::1"
+  },
+  {
+   "trusted": [],
+   "remote": "10.1.2.3:1",
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [],
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [],
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Forwarded-For": [
+     " 203.0.113.1 , 10.9.9.9 "
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [],
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "10.9.9.9, 127.0.0.1"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [],
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "bogus, 203.0.113.1"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [],
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1, bogus"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [],
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Forwarded-For": [
+     ""
+    ],
+    "X-Real-IP": [
+     "2001:db8::1"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [],
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1",
+     "203.0.113.2"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [],
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Real-IP": [
+     "0:0:0:0:0:0:0:1"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [],
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "::FFFF:127.0.0.1"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [],
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "fe80::1%eth0"
+    ],
+    "X-Real-IP": [
+     "203.0.113.3"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [],
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "01.2.3.4"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [],
+   "remote": "[::ffff:10.1.2.3]:1",
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [],
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [],
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     " 203.0.113.1 , 10.9.9.9 "
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [],
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "10.9.9.9, 127.0.0.1"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [],
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "bogus, 203.0.113.1"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [],
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1, bogus"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [],
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     ""
+    ],
+    "X-Real-IP": [
+     "2001:db8::1"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [],
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1",
+     "203.0.113.2"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [],
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Real-IP": [
+     "0:0:0:0:0:0:0:1"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [],
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "::FFFF:127.0.0.1"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [],
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "fe80::1%eth0"
+    ],
+    "X-Real-IP": [
+     "203.0.113.3"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [],
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "01.2.3.4"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [],
+   "remote": "198.51.100.1:1",
+   "ip": "198.51.100.1"
+  },
+  {
+   "trusted": [],
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1"
+    ]
+   },
+   "ip": "198.51.100.1"
+  },
+  {
+   "trusted": [],
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     " 203.0.113.1 , 10.9.9.9 "
+    ]
+   },
+   "ip": "198.51.100.1"
+  },
+  {
+   "trusted": [],
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "10.9.9.9, 127.0.0.1"
+    ]
+   },
+   "ip": "198.51.100.1"
+  },
+  {
+   "trusted": [],
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "bogus, 203.0.113.1"
+    ]
+   },
+   "ip": "198.51.100.1"
+  },
+  {
+   "trusted": [],
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1, bogus"
+    ]
+   },
+   "ip": "198.51.100.1"
+  },
+  {
+   "trusted": [],
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     ""
+    ],
+    "X-Real-IP": [
+     "2001:db8::1"
+    ]
+   },
+   "ip": "198.51.100.1"
+  },
+  {
+   "trusted": [],
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1",
+     "203.0.113.2"
+    ]
+   },
+   "ip": "198.51.100.1"
+  },
+  {
+   "trusted": [],
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Real-IP": [
+     "0:0:0:0:0:0:0:1"
+    ]
+   },
+   "ip": "198.51.100.1"
+  },
+  {
+   "trusted": [],
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "::FFFF:127.0.0.1"
+    ]
+   },
+   "ip": "198.51.100.1"
+  },
+  {
+   "trusted": [],
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "fe80::1%eth0"
+    ],
+    "X-Real-IP": [
+     "203.0.113.3"
+    ]
+   },
+   "ip": "198.51.100.1"
+  },
+  {
+   "trusted": [],
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "01.2.3.4"
+    ]
+   },
+   "ip": "198.51.100.1"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "127.0.0.1:1",
+   "ip": "127.0.0.1"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1"
+    ]
+   },
+   "ip": "203.0.113.1"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     " 203.0.113.1 , 10.9.9.9 "
+    ]
+   },
+   "ip": "10.9.9.9"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "10.9.9.9, 127.0.0.1"
+    ]
+   },
+   "ip": "10.9.9.9"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "bogus, 203.0.113.1"
+    ]
+   },
+   "ip": "203.0.113.1"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1, bogus"
+    ]
+   },
+   "ip": "127.0.0.1"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     ""
+    ],
+    "X-Real-IP": [
+     "2001:db8::1"
+    ]
+   },
+   "ip": "2001:db8::1"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1",
+     "203.0.113.2"
+    ]
+   },
+   "ip": "203.0.113.1"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Real-IP": [
+     "0:0:0:0:0:0:0:1"
+    ]
+   },
+   "ip": "0:0:0:0:0:0:0:1"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "::FFFF:127.0.0.1"
+    ]
+   },
+   "ip": "::FFFF:127.0.0.1"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "fe80::1%eth0"
+    ],
+    "X-Real-IP": [
+     "203.0.113.3"
+    ]
+   },
+   "ip": "203.0.113.3"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "01.2.3.4"
+    ]
+   },
+   "ip": "127.0.0.1"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "[::1]:1",
+   "ip": "::1"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1"
+    ]
+   },
+   "ip": "::1"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     " 203.0.113.1 , 10.9.9.9 "
+    ]
+   },
+   "ip": "::1"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "10.9.9.9, 127.0.0.1"
+    ]
+   },
+   "ip": "::1"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "bogus, 203.0.113.1"
+    ]
+   },
+   "ip": "::1"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1, bogus"
+    ]
+   },
+   "ip": "::1"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     ""
+    ],
+    "X-Real-IP": [
+     "2001:db8::1"
+    ]
+   },
+   "ip": "::1"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1",
+     "203.0.113.2"
+    ]
+   },
+   "ip": "::1"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Real-IP": [
+     "0:0:0:0:0:0:0:1"
+    ]
+   },
+   "ip": "::1"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "::FFFF:127.0.0.1"
+    ]
+   },
+   "ip": "::1"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "fe80::1%eth0"
+    ],
+    "X-Real-IP": [
+     "203.0.113.3"
+    ]
+   },
+   "ip": "::1"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "01.2.3.4"
+    ]
+   },
+   "ip": "::1"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "10.1.2.3:1",
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Forwarded-For": [
+     " 203.0.113.1 , 10.9.9.9 "
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "10.9.9.9, 127.0.0.1"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "bogus, 203.0.113.1"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1, bogus"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Forwarded-For": [
+     ""
+    ],
+    "X-Real-IP": [
+     "2001:db8::1"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1",
+     "203.0.113.2"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Real-IP": [
+     "0:0:0:0:0:0:0:1"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "::FFFF:127.0.0.1"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "fe80::1%eth0"
+    ],
+    "X-Real-IP": [
+     "203.0.113.3"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "01.2.3.4"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "[::ffff:10.1.2.3]:1",
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     " 203.0.113.1 , 10.9.9.9 "
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "10.9.9.9, 127.0.0.1"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "bogus, 203.0.113.1"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1, bogus"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     ""
+    ],
+    "X-Real-IP": [
+     "2001:db8::1"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1",
+     "203.0.113.2"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Real-IP": [
+     "0:0:0:0:0:0:0:1"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "::FFFF:127.0.0.1"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "fe80::1%eth0"
+    ],
+    "X-Real-IP": [
+     "203.0.113.3"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "01.2.3.4"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "198.51.100.1:1",
+   "ip": "198.51.100.1"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1"
+    ]
+   },
+   "ip": "198.51.100.1"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     " 203.0.113.1 , 10.9.9.9 "
+    ]
+   },
+   "ip": "198.51.100.1"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "10.9.9.9, 127.0.0.1"
+    ]
+   },
+   "ip": "198.51.100.1"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "bogus, 203.0.113.1"
+    ]
+   },
+   "ip": "198.51.100.1"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1, bogus"
+    ]
+   },
+   "ip": "198.51.100.1"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     ""
+    ],
+    "X-Real-IP": [
+     "2001:db8::1"
+    ]
+   },
+   "ip": "198.51.100.1"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1",
+     "203.0.113.2"
+    ]
+   },
+   "ip": "198.51.100.1"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Real-IP": [
+     "0:0:0:0:0:0:0:1"
+    ]
+   },
+   "ip": "198.51.100.1"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "::FFFF:127.0.0.1"
+    ]
+   },
+   "ip": "198.51.100.1"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "fe80::1%eth0"
+    ],
+    "X-Real-IP": [
+     "203.0.113.3"
+    ]
+   },
+   "ip": "198.51.100.1"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "01.2.3.4"
+    ]
+   },
+   "ip": "198.51.100.1"
+  },
+  {
+   "trusted": [
+    "10.0.0.0/8",
+    "::1"
+   ],
+   "remote": "127.0.0.1:1",
+   "ip": "127.0.0.1"
+  },
+  {
+   "trusted": [
+    "10.0.0.0/8",
+    "::1"
+   ],
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1"
+    ]
+   },
+   "ip": "127.0.0.1"
+  },
+  {
+   "trusted": [
+    "10.0.0.0/8",
+    "::1"
+   ],
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     " 203.0.113.1 , 10.9.9.9 "
+    ]
+   },
+   "ip": "127.0.0.1"
+  },
+  {
+   "trusted": [
+    "10.0.0.0/8",
+    "::1"
+   ],
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "10.9.9.9, 127.0.0.1"
+    ]
+   },
+   "ip": "127.0.0.1"
+  },
+  {
+   "trusted": [
+    "10.0.0.0/8",
+    "::1"
+   ],
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "bogus, 203.0.113.1"
+    ]
+   },
+   "ip": "127.0.0.1"
+  },
+  {
+   "trusted": [
+    "10.0.0.0/8",
+    "::1"
+   ],
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1, bogus"
+    ]
+   },
+   "ip": "127.0.0.1"
+  },
+  {
+   "trusted": [
+    "10.0.0.0/8",
+    "::1"
+   ],
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     ""
+    ],
+    "X-Real-IP": [
+     "2001:db8::1"
+    ]
+   },
+   "ip": "127.0.0.1"
+  },
+  {
+   "trusted": [
+    "10.0.0.0/8",
+    "::1"
+   ],
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1",
+     "203.0.113.2"
+    ]
+   },
+   "ip": "127.0.0.1"
+  },
+  {
+   "trusted": [
+    "10.0.0.0/8",
+    "::1"
+   ],
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Real-IP": [
+     "0:0:0:0:0:0:0:1"
+    ]
+   },
+   "ip": "127.0.0.1"
+  },
+  {
+   "trusted": [
+    "10.0.0.0/8",
+    "::1"
+   ],
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "::FFFF:127.0.0.1"
+    ]
+   },
+   "ip": "127.0.0.1"
+  },
+  {
+   "trusted": [
+    "10.0.0.0/8",
+    "::1"
+   ],
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "fe80::1%eth0"
+    ],
+    "X-Real-IP": [
+     "203.0.113.3"
+    ]
+   },
+   "ip": "127.0.0.1"
+  },
+  {
+   "trusted": [
+    "10.0.0.0/8",
+    "::1"
+   ],
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "01.2.3.4"
+    ]
+   },
+   "ip": "127.0.0.1"
+  },
+  {
+   "trusted": [
+    "10.0.0.0/8",
+    "::1"
+   ],
+   "remote": "[::1]:1",
+   "ip": "::1"
+  },
+  {
+   "trusted": [
+    "10.0.0.0/8",
+    "::1"
+   ],
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1"
+    ]
+   },
+   "ip": "203.0.113.1"
+  },
+  {
+   "trusted": [
+    "10.0.0.0/8",
+    "::1"
+   ],
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     " 203.0.113.1 , 10.9.9.9 "
+    ]
+   },
+   "ip": "203.0.113.1"
+  },
+  {
+   "trusted": [
+    "10.0.0.0/8",
+    "::1"
+   ],
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "10.9.9.9, 127.0.0.1"
+    ]
+   },
+   "ip": "127.0.0.1"
+  },
+  {
+   "trusted": [
+    "10.0.0.0/8",
+    "::1"
+   ],
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "bogus, 203.0.113.1"
+    ]
+   },
+   "ip": "203.0.113.1"
+  },
+  {
+   "trusted": [
+    "10.0.0.0/8",
+    "::1"
+   ],
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1, bogus"
+    ]
+   },
+   "ip": "::1"
+  },
+  {
+   "trusted": [
+    "10.0.0.0/8",
+    "::1"
+   ],
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     ""
+    ],
+    "X-Real-IP": [
+     "2001:db8::1"
+    ]
+   },
+   "ip": "2001:db8::1"
+  },
+  {
+   "trusted": [
+    "10.0.0.0/8",
+    "::1"
+   ],
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1",
+     "203.0.113.2"
+    ]
+   },
+   "ip": "203.0.113.1"
+  },
+  {
+   "trusted": [
+    "10.0.0.0/8",
+    "::1"
+   ],
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Real-IP": [
+     "0:0:0:0:0:0:0:1"
+    ]
+   },
+   "ip": "0:0:0:0:0:0:0:1"
+  },
+  {
+   "trusted": [
+    "10.0.0.0/8",
+    "::1"
+   ],
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "::FFFF:127.0.0.1"
+    ]
+   },
+   "ip": "::FFFF:127.0.0.1"
+  },
+  {
+   "trusted": [
+    "10.0.0.0/8",
+    "::1"
+   ],
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "fe80::1%eth0"
+    ],
+    "X-Real-IP": [
+     "203.0.113.3"
+    ]
+   },
+   "ip": "203.0.113.3"
+  },
+  {
+   "trusted": [
+    "10.0.0.0/8",
+    "::1"
+   ],
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "01.2.3.4"
+    ]
+   },
+   "ip": "::1"
+  },
+  {
+   "trusted": [
+    "10.0.0.0/8",
+    "::1"
+   ],
+   "remote": "10.1.2.3:1",
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [
+    "10.0.0.0/8",
+    "::1"
+   ],
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1"
+    ]
+   },
+   "ip": "203.0.113.1"
+  },
+  {
+   "trusted": [
+    "10.0.0.0/8",
+    "::1"
+   ],
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Forwarded-For": [
+     " 203.0.113.1 , 10.9.9.9 "
+    ]
+   },
+   "ip": "203.0.113.1"
+  },
+  {
+   "trusted": [
+    "10.0.0.0/8",
+    "::1"
+   ],
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "10.9.9.9, 127.0.0.1"
+    ]
+   },
+   "ip": "127.0.0.1"
+  },
+  {
+   "trusted": [
+    "10.0.0.0/8",
+    "::1"
+   ],
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "bogus, 203.0.113.1"
+    ]
+   },
+   "ip": "203.0.113.1"
+  },
+  {
+   "trusted": [
+    "10.0.0.0/8",
+    "::1"
+   ],
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1, bogus"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [
+    "10.0.0.0/8",
+    "::1"
+   ],
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Forwarded-For": [
+     ""
+    ],
+    "X-Real-IP": [
+     "2001:db8::1"
+    ]
+   },
+   "ip": "2001:db8::1"
+  },
+  {
+   "trusted": [
+    "10.0.0.0/8",
+    "::1"
+   ],
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1",
+     "203.0.113.2"
+    ]
+   },
+   "ip": "203.0.113.1"
+  },
+  {
+   "trusted": [
+    "10.0.0.0/8",
+    "::1"
+   ],
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Real-IP": [
+     "0:0:0:0:0:0:0:1"
+    ]
+   },
+   "ip": "0:0:0:0:0:0:0:1"
+  },
+  {
+   "trusted": [
+    "10.0.0.0/8",
+    "::1"
+   ],
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "::FFFF:127.0.0.1"
+    ]
+   },
+   "ip": "::FFFF:127.0.0.1"
+  },
+  {
+   "trusted": [
+    "10.0.0.0/8",
+    "::1"
+   ],
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "fe80::1%eth0"
+    ],
+    "X-Real-IP": [
+     "203.0.113.3"
+    ]
+   },
+   "ip": "203.0.113.3"
+  },
+  {
+   "trusted": [
+    "10.0.0.0/8",
+    "::1"
+   ],
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "01.2.3.4"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [
+    "10.0.0.0/8",
+    "::1"
+   ],
+   "remote": "[::ffff:10.1.2.3]:1",
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [
+    "10.0.0.0/8",
+    "::1"
+   ],
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1"
+    ]
+   },
+   "ip": "203.0.113.1"
+  },
+  {
+   "trusted": [
+    "10.0.0.0/8",
+    "::1"
+   ],
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     " 203.0.113.1 , 10.9.9.9 "
+    ]
+   },
+   "ip": "203.0.113.1"
+  },
+  {
+   "trusted": [
+    "10.0.0.0/8",
+    "::1"
+   ],
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "10.9.9.9, 127.0.0.1"
+    ]
+   },
+   "ip": "127.0.0.1"
+  },
+  {
+   "trusted": [
+    "10.0.0.0/8",
+    "::1"
+   ],
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "bogus, 203.0.113.1"
+    ]
+   },
+   "ip": "203.0.113.1"
+  },
+  {
+   "trusted": [
+    "10.0.0.0/8",
+    "::1"
+   ],
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1, bogus"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [
+    "10.0.0.0/8",
+    "::1"
+   ],
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     ""
+    ],
+    "X-Real-IP": [
+     "2001:db8::1"
+    ]
+   },
+   "ip": "2001:db8::1"
+  },
+  {
+   "trusted": [
+    "10.0.0.0/8",
+    "::1"
+   ],
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1",
+     "203.0.113.2"
+    ]
+   },
+   "ip": "203.0.113.1"
+  },
+  {
+   "trusted": [
+    "10.0.0.0/8",
+    "::1"
+   ],
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Real-IP": [
+     "0:0:0:0:0:0:0:1"
+    ]
+   },
+   "ip": "0:0:0:0:0:0:0:1"
+  },
+  {
+   "trusted": [
+    "10.0.0.0/8",
+    "::1"
+   ],
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "::FFFF:127.0.0.1"
+    ]
+   },
+   "ip": "::FFFF:127.0.0.1"
+  },
+  {
+   "trusted": [
+    "10.0.0.0/8",
+    "::1"
+   ],
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "fe80::1%eth0"
+    ],
+    "X-Real-IP": [
+     "203.0.113.3"
+    ]
+   },
+   "ip": "203.0.113.3"
+  },
+  {
+   "trusted": [
+    "10.0.0.0/8",
+    "::1"
+   ],
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "01.2.3.4"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [
+    "10.0.0.0/8",
+    "::1"
+   ],
+   "remote": "198.51.100.1:1",
+   "ip": "198.51.100.1"
+  },
+  {
+   "trusted": [
+    "10.0.0.0/8",
+    "::1"
+   ],
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1"
+    ]
+   },
+   "ip": "198.51.100.1"
+  },
+  {
+   "trusted": [
+    "10.0.0.0/8",
+    "::1"
+   ],
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     " 203.0.113.1 , 10.9.9.9 "
+    ]
+   },
+   "ip": "198.51.100.1"
+  },
+  {
+   "trusted": [
+    "10.0.0.0/8",
+    "::1"
+   ],
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "10.9.9.9, 127.0.0.1"
+    ]
+   },
+   "ip": "198.51.100.1"
+  },
+  {
+   "trusted": [
+    "10.0.0.0/8",
+    "::1"
+   ],
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "bogus, 203.0.113.1"
+    ]
+   },
+   "ip": "198.51.100.1"
+  },
+  {
+   "trusted": [
+    "10.0.0.0/8",
+    "::1"
+   ],
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1, bogus"
+    ]
+   },
+   "ip": "198.51.100.1"
+  },
+  {
+   "trusted": [
+    "10.0.0.0/8",
+    "::1"
+   ],
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     ""
+    ],
+    "X-Real-IP": [
+     "2001:db8::1"
+    ]
+   },
+   "ip": "198.51.100.1"
+  },
+  {
+   "trusted": [
+    "10.0.0.0/8",
+    "::1"
+   ],
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1",
+     "203.0.113.2"
+    ]
+   },
+   "ip": "198.51.100.1"
+  },
+  {
+   "trusted": [
+    "10.0.0.0/8",
+    "::1"
+   ],
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Real-IP": [
+     "0:0:0:0:0:0:0:1"
+    ]
+   },
+   "ip": "198.51.100.1"
+  },
+  {
+   "trusted": [
+    "10.0.0.0/8",
+    "::1"
+   ],
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "::FFFF:127.0.0.1"
+    ]
+   },
+   "ip": "198.51.100.1"
+  },
+  {
+   "trusted": [
+    "10.0.0.0/8",
+    "::1"
+   ],
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "fe80::1%eth0"
+    ],
+    "X-Real-IP": [
+     "203.0.113.3"
+    ]
+   },
+   "ip": "198.51.100.1"
+  },
+  {
+   "trusted": [
+    "10.0.0.0/8",
+    "::1"
+   ],
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "01.2.3.4"
+    ]
+   },
+   "ip": "198.51.100.1"
+  },
+  {
+   "trusted": [
+    "::ffff:127.0.0.1"
+   ],
+   "remote": "127.0.0.1:1",
+   "ip": "127.0.0.1"
+  },
+  {
+   "trusted": [
+    "::ffff:127.0.0.1"
+   ],
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1"
+    ]
+   },
+   "ip": "127.0.0.1"
+  },
+  {
+   "trusted": [
+    "::ffff:127.0.0.1"
+   ],
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     " 203.0.113.1 , 10.9.9.9 "
+    ]
+   },
+   "ip": "127.0.0.1"
+  },
+  {
+   "trusted": [
+    "::ffff:127.0.0.1"
+   ],
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "10.9.9.9, 127.0.0.1"
+    ]
+   },
+   "ip": "127.0.0.1"
+  },
+  {
+   "trusted": [
+    "::ffff:127.0.0.1"
+   ],
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "bogus, 203.0.113.1"
+    ]
+   },
+   "ip": "127.0.0.1"
+  },
+  {
+   "trusted": [
+    "::ffff:127.0.0.1"
+   ],
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1, bogus"
+    ]
+   },
+   "ip": "127.0.0.1"
+  },
+  {
+   "trusted": [
+    "::ffff:127.0.0.1"
+   ],
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     ""
+    ],
+    "X-Real-IP": [
+     "2001:db8::1"
+    ]
+   },
+   "ip": "127.0.0.1"
+  },
+  {
+   "trusted": [
+    "::ffff:127.0.0.1"
+   ],
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1",
+     "203.0.113.2"
+    ]
+   },
+   "ip": "127.0.0.1"
+  },
+  {
+   "trusted": [
+    "::ffff:127.0.0.1"
+   ],
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Real-IP": [
+     "0:0:0:0:0:0:0:1"
+    ]
+   },
+   "ip": "127.0.0.1"
+  },
+  {
+   "trusted": [
+    "::ffff:127.0.0.1"
+   ],
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "::FFFF:127.0.0.1"
+    ]
+   },
+   "ip": "127.0.0.1"
+  },
+  {
+   "trusted": [
+    "::ffff:127.0.0.1"
+   ],
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "fe80::1%eth0"
+    ],
+    "X-Real-IP": [
+     "203.0.113.3"
+    ]
+   },
+   "ip": "127.0.0.1"
+  },
+  {
+   "trusted": [
+    "::ffff:127.0.0.1"
+   ],
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "01.2.3.4"
+    ]
+   },
+   "ip": "127.0.0.1"
+  },
+  {
+   "trusted": [
+    "::ffff:127.0.0.1"
+   ],
+   "remote": "[::1]:1",
+   "ip": "::1"
+  },
+  {
+   "trusted": [
+    "::ffff:127.0.0.1"
+   ],
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1"
+    ]
+   },
+   "ip": "203.0.113.1"
+  },
+  {
+   "trusted": [
+    "::ffff:127.0.0.1"
+   ],
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     " 203.0.113.1 , 10.9.9.9 "
+    ]
+   },
+   "ip": "10.9.9.9"
+  },
+  {
+   "trusted": [
+    "::ffff:127.0.0.1"
+   ],
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "10.9.9.9, 127.0.0.1"
+    ]
+   },
+   "ip": "127.0.0.1"
+  },
+  {
+   "trusted": [
+    "::ffff:127.0.0.1"
+   ],
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "bogus, 203.0.113.1"
+    ]
+   },
+   "ip": "203.0.113.1"
+  },
+  {
+   "trusted": [
+    "::ffff:127.0.0.1"
+   ],
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1, bogus"
+    ]
+   },
+   "ip": "::1"
+  },
+  {
+   "trusted": [
+    "::ffff:127.0.0.1"
+   ],
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     ""
+    ],
+    "X-Real-IP": [
+     "2001:db8::1"
+    ]
+   },
+   "ip": "2001:db8::1"
+  },
+  {
+   "trusted": [
+    "::ffff:127.0.0.1"
+   ],
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1",
+     "203.0.113.2"
+    ]
+   },
+   "ip": "203.0.113.1"
+  },
+  {
+   "trusted": [
+    "::ffff:127.0.0.1"
+   ],
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Real-IP": [
+     "0:0:0:0:0:0:0:1"
+    ]
+   },
+   "ip": "0:0:0:0:0:0:0:1"
+  },
+  {
+   "trusted": [
+    "::ffff:127.0.0.1"
+   ],
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "::FFFF:127.0.0.1"
+    ]
+   },
+   "ip": "::FFFF:127.0.0.1"
+  },
+  {
+   "trusted": [
+    "::ffff:127.0.0.1"
+   ],
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "fe80::1%eth0"
+    ],
+    "X-Real-IP": [
+     "203.0.113.3"
+    ]
+   },
+   "ip": "203.0.113.3"
+  },
+  {
+   "trusted": [
+    "::ffff:127.0.0.1"
+   ],
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "01.2.3.4"
+    ]
+   },
+   "ip": "::1"
+  },
+  {
+   "trusted": [
+    "::ffff:127.0.0.1"
+   ],
+   "remote": "10.1.2.3:1",
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [
+    "::ffff:127.0.0.1"
+   ],
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [
+    "::ffff:127.0.0.1"
+   ],
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Forwarded-For": [
+     " 203.0.113.1 , 10.9.9.9 "
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [
+    "::ffff:127.0.0.1"
+   ],
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "10.9.9.9, 127.0.0.1"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [
+    "::ffff:127.0.0.1"
+   ],
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "bogus, 203.0.113.1"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [
+    "::ffff:127.0.0.1"
+   ],
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1, bogus"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [
+    "::ffff:127.0.0.1"
+   ],
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Forwarded-For": [
+     ""
+    ],
+    "X-Real-IP": [
+     "2001:db8::1"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [
+    "::ffff:127.0.0.1"
+   ],
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1",
+     "203.0.113.2"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [
+    "::ffff:127.0.0.1"
+   ],
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Real-IP": [
+     "0:0:0:0:0:0:0:1"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [
+    "::ffff:127.0.0.1"
+   ],
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "::FFFF:127.0.0.1"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [
+    "::ffff:127.0.0.1"
+   ],
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "fe80::1%eth0"
+    ],
+    "X-Real-IP": [
+     "203.0.113.3"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [
+    "::ffff:127.0.0.1"
+   ],
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "01.2.3.4"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [
+    "::ffff:127.0.0.1"
+   ],
+   "remote": "[::ffff:10.1.2.3]:1",
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [
+    "::ffff:127.0.0.1"
+   ],
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [
+    "::ffff:127.0.0.1"
+   ],
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     " 203.0.113.1 , 10.9.9.9 "
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [
+    "::ffff:127.0.0.1"
+   ],
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "10.9.9.9, 127.0.0.1"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [
+    "::ffff:127.0.0.1"
+   ],
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "bogus, 203.0.113.1"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [
+    "::ffff:127.0.0.1"
+   ],
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1, bogus"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [
+    "::ffff:127.0.0.1"
+   ],
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     ""
+    ],
+    "X-Real-IP": [
+     "2001:db8::1"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [
+    "::ffff:127.0.0.1"
+   ],
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1",
+     "203.0.113.2"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [
+    "::ffff:127.0.0.1"
+   ],
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Real-IP": [
+     "0:0:0:0:0:0:0:1"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [
+    "::ffff:127.0.0.1"
+   ],
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "::FFFF:127.0.0.1"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [
+    "::ffff:127.0.0.1"
+   ],
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "fe80::1%eth0"
+    ],
+    "X-Real-IP": [
+     "203.0.113.3"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [
+    "::ffff:127.0.0.1"
+   ],
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "01.2.3.4"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [
+    "::ffff:127.0.0.1"
+   ],
+   "remote": "198.51.100.1:1",
+   "ip": "198.51.100.1"
+  },
+  {
+   "trusted": [
+    "::ffff:127.0.0.1"
+   ],
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1"
+    ]
+   },
+   "ip": "198.51.100.1"
+  },
+  {
+   "trusted": [
+    "::ffff:127.0.0.1"
+   ],
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     " 203.0.113.1 , 10.9.9.9 "
+    ]
+   },
+   "ip": "198.51.100.1"
+  },
+  {
+   "trusted": [
+    "::ffff:127.0.0.1"
+   ],
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "10.9.9.9, 127.0.0.1"
+    ]
+   },
+   "ip": "198.51.100.1"
+  },
+  {
+   "trusted": [
+    "::ffff:127.0.0.1"
+   ],
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "bogus, 203.0.113.1"
+    ]
+   },
+   "ip": "198.51.100.1"
+  },
+  {
+   "trusted": [
+    "::ffff:127.0.0.1"
+   ],
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1, bogus"
+    ]
+   },
+   "ip": "198.51.100.1"
+  },
+  {
+   "trusted": [
+    "::ffff:127.0.0.1"
+   ],
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     ""
+    ],
+    "X-Real-IP": [
+     "2001:db8::1"
+    ]
+   },
+   "ip": "198.51.100.1"
+  },
+  {
+   "trusted": [
+    "::ffff:127.0.0.1"
+   ],
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1",
+     "203.0.113.2"
+    ]
+   },
+   "ip": "198.51.100.1"
+  },
+  {
+   "trusted": [
+    "::ffff:127.0.0.1"
+   ],
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Real-IP": [
+     "0:0:0:0:0:0:0:1"
+    ]
+   },
+   "ip": "198.51.100.1"
+  },
+  {
+   "trusted": [
+    "::ffff:127.0.0.1"
+   ],
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "::FFFF:127.0.0.1"
+    ]
+   },
+   "ip": "198.51.100.1"
+  },
+  {
+   "trusted": [
+    "::ffff:127.0.0.1"
+   ],
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "fe80::1%eth0"
+    ],
+    "X-Real-IP": [
+     "203.0.113.3"
+    ]
+   },
+   "ip": "198.51.100.1"
+  },
+  {
+   "trusted": [
+    "::ffff:127.0.0.1"
+   ],
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "01.2.3.4"
+    ]
+   },
+   "ip": "198.51.100.1"
+  },
+  {
+   "trusted": [
+    "0.0.0.0/0"
+   ],
+   "remote": "127.0.0.1:1",
+   "ip": "127.0.0.1"
+  },
+  {
+   "trusted": [
+    "0.0.0.0/0"
+   ],
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1"
+    ]
+   },
+   "ip": "203.0.113.1"
+  },
+  {
+   "trusted": [
+    "0.0.0.0/0"
+   ],
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     " 203.0.113.1 , 10.9.9.9 "
+    ]
+   },
+   "ip": "203.0.113.1"
+  },
+  {
+   "trusted": [
+    "0.0.0.0/0"
+   ],
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "10.9.9.9, 127.0.0.1"
+    ]
+   },
+   "ip": "10.9.9.9"
+  },
+  {
+   "trusted": [
+    "0.0.0.0/0"
+   ],
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "bogus, 203.0.113.1"
+    ]
+   },
+   "ip": "127.0.0.1"
+  },
+  {
+   "trusted": [
+    "0.0.0.0/0"
+   ],
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1, bogus"
+    ]
+   },
+   "ip": "127.0.0.1"
+  },
+  {
+   "trusted": [
+    "0.0.0.0/0"
+   ],
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     ""
+    ],
+    "X-Real-IP": [
+     "2001:db8::1"
+    ]
+   },
+   "ip": "2001:db8::1"
+  },
+  {
+   "trusted": [
+    "0.0.0.0/0"
+   ],
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1",
+     "203.0.113.2"
+    ]
+   },
+   "ip": "203.0.113.1"
+  },
+  {
+   "trusted": [
+    "0.0.0.0/0"
+   ],
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Real-IP": [
+     "0:0:0:0:0:0:0:1"
+    ]
+   },
+   "ip": "0:0:0:0:0:0:0:1"
+  },
+  {
+   "trusted": [
+    "0.0.0.0/0"
+   ],
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "::FFFF:127.0.0.1"
+    ]
+   },
+   "ip": "::FFFF:127.0.0.1"
+  },
+  {
+   "trusted": [
+    "0.0.0.0/0"
+   ],
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "fe80::1%eth0"
+    ],
+    "X-Real-IP": [
+     "203.0.113.3"
+    ]
+   },
+   "ip": "203.0.113.3"
+  },
+  {
+   "trusted": [
+    "0.0.0.0/0"
+   ],
+   "remote": "127.0.0.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "01.2.3.4"
+    ]
+   },
+   "ip": "127.0.0.1"
+  },
+  {
+   "trusted": [
+    "0.0.0.0/0"
+   ],
+   "remote": "[::1]:1",
+   "ip": "::1"
+  },
+  {
+   "trusted": [
+    "0.0.0.0/0"
+   ],
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1"
+    ]
+   },
+   "ip": "::1"
+  },
+  {
+   "trusted": [
+    "0.0.0.0/0"
+   ],
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     " 203.0.113.1 , 10.9.9.9 "
+    ]
+   },
+   "ip": "::1"
+  },
+  {
+   "trusted": [
+    "0.0.0.0/0"
+   ],
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "10.9.9.9, 127.0.0.1"
+    ]
+   },
+   "ip": "::1"
+  },
+  {
+   "trusted": [
+    "0.0.0.0/0"
+   ],
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "bogus, 203.0.113.1"
+    ]
+   },
+   "ip": "::1"
+  },
+  {
+   "trusted": [
+    "0.0.0.0/0"
+   ],
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1, bogus"
+    ]
+   },
+   "ip": "::1"
+  },
+  {
+   "trusted": [
+    "0.0.0.0/0"
+   ],
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     ""
+    ],
+    "X-Real-IP": [
+     "2001:db8::1"
+    ]
+   },
+   "ip": "::1"
+  },
+  {
+   "trusted": [
+    "0.0.0.0/0"
+   ],
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1",
+     "203.0.113.2"
+    ]
+   },
+   "ip": "::1"
+  },
+  {
+   "trusted": [
+    "0.0.0.0/0"
+   ],
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Real-IP": [
+     "0:0:0:0:0:0:0:1"
+    ]
+   },
+   "ip": "::1"
+  },
+  {
+   "trusted": [
+    "0.0.0.0/0"
+   ],
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "::FFFF:127.0.0.1"
+    ]
+   },
+   "ip": "::1"
+  },
+  {
+   "trusted": [
+    "0.0.0.0/0"
+   ],
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "fe80::1%eth0"
+    ],
+    "X-Real-IP": [
+     "203.0.113.3"
+    ]
+   },
+   "ip": "::1"
+  },
+  {
+   "trusted": [
+    "0.0.0.0/0"
+   ],
+   "remote": "[::1]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "01.2.3.4"
+    ]
+   },
+   "ip": "::1"
+  },
+  {
+   "trusted": [
+    "0.0.0.0/0"
+   ],
+   "remote": "10.1.2.3:1",
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [
+    "0.0.0.0/0"
+   ],
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1"
+    ]
+   },
+   "ip": "203.0.113.1"
+  },
+  {
+   "trusted": [
+    "0.0.0.0/0"
+   ],
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Forwarded-For": [
+     " 203.0.113.1 , 10.9.9.9 "
+    ]
+   },
+   "ip": "203.0.113.1"
+  },
+  {
+   "trusted": [
+    "0.0.0.0/0"
+   ],
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "10.9.9.9, 127.0.0.1"
+    ]
+   },
+   "ip": "10.9.9.9"
+  },
+  {
+   "trusted": [
+    "0.0.0.0/0"
+   ],
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "bogus, 203.0.113.1"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [
+    "0.0.0.0/0"
+   ],
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1, bogus"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [
+    "0.0.0.0/0"
+   ],
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Forwarded-For": [
+     ""
+    ],
+    "X-Real-IP": [
+     "2001:db8::1"
+    ]
+   },
+   "ip": "2001:db8::1"
+  },
+  {
+   "trusted": [
+    "0.0.0.0/0"
+   ],
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1",
+     "203.0.113.2"
+    ]
+   },
+   "ip": "203.0.113.1"
+  },
+  {
+   "trusted": [
+    "0.0.0.0/0"
+   ],
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Real-IP": [
+     "0:0:0:0:0:0:0:1"
+    ]
+   },
+   "ip": "0:0:0:0:0:0:0:1"
+  },
+  {
+   "trusted": [
+    "0.0.0.0/0"
+   ],
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "::FFFF:127.0.0.1"
+    ]
+   },
+   "ip": "::FFFF:127.0.0.1"
+  },
+  {
+   "trusted": [
+    "0.0.0.0/0"
+   ],
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "fe80::1%eth0"
+    ],
+    "X-Real-IP": [
+     "203.0.113.3"
+    ]
+   },
+   "ip": "203.0.113.3"
+  },
+  {
+   "trusted": [
+    "0.0.0.0/0"
+   ],
+   "remote": "10.1.2.3:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "01.2.3.4"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [
+    "0.0.0.0/0"
+   ],
+   "remote": "[::ffff:10.1.2.3]:1",
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [
+    "0.0.0.0/0"
+   ],
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1"
+    ]
+   },
+   "ip": "203.0.113.1"
+  },
+  {
+   "trusted": [
+    "0.0.0.0/0"
+   ],
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     " 203.0.113.1 , 10.9.9.9 "
+    ]
+   },
+   "ip": "203.0.113.1"
+  },
+  {
+   "trusted": [
+    "0.0.0.0/0"
+   ],
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "10.9.9.9, 127.0.0.1"
+    ]
+   },
+   "ip": "10.9.9.9"
+  },
+  {
+   "trusted": [
+    "0.0.0.0/0"
+   ],
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "bogus, 203.0.113.1"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [
+    "0.0.0.0/0"
+   ],
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1, bogus"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [
+    "0.0.0.0/0"
+   ],
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     ""
+    ],
+    "X-Real-IP": [
+     "2001:db8::1"
+    ]
+   },
+   "ip": "2001:db8::1"
+  },
+  {
+   "trusted": [
+    "0.0.0.0/0"
+   ],
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1",
+     "203.0.113.2"
+    ]
+   },
+   "ip": "203.0.113.1"
+  },
+  {
+   "trusted": [
+    "0.0.0.0/0"
+   ],
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Real-IP": [
+     "0:0:0:0:0:0:0:1"
+    ]
+   },
+   "ip": "0:0:0:0:0:0:0:1"
+  },
+  {
+   "trusted": [
+    "0.0.0.0/0"
+   ],
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "::FFFF:127.0.0.1"
+    ]
+   },
+   "ip": "::FFFF:127.0.0.1"
+  },
+  {
+   "trusted": [
+    "0.0.0.0/0"
+   ],
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "fe80::1%eth0"
+    ],
+    "X-Real-IP": [
+     "203.0.113.3"
+    ]
+   },
+   "ip": "203.0.113.3"
+  },
+  {
+   "trusted": [
+    "0.0.0.0/0"
+   ],
+   "remote": "[::ffff:10.1.2.3]:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "01.2.3.4"
+    ]
+   },
+   "ip": "10.1.2.3"
+  },
+  {
+   "trusted": [
+    "0.0.0.0/0"
+   ],
+   "remote": "198.51.100.1:1",
+   "ip": "198.51.100.1"
+  },
+  {
+   "trusted": [
+    "0.0.0.0/0"
+   ],
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1"
+    ]
+   },
+   "ip": "203.0.113.1"
+  },
+  {
+   "trusted": [
+    "0.0.0.0/0"
+   ],
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     " 203.0.113.1 , 10.9.9.9 "
+    ]
+   },
+   "ip": "203.0.113.1"
+  },
+  {
+   "trusted": [
+    "0.0.0.0/0"
+   ],
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "10.9.9.9, 127.0.0.1"
+    ]
+   },
+   "ip": "10.9.9.9"
+  },
+  {
+   "trusted": [
+    "0.0.0.0/0"
+   ],
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "bogus, 203.0.113.1"
+    ]
+   },
+   "ip": "198.51.100.1"
+  },
+  {
+   "trusted": [
+    "0.0.0.0/0"
+   ],
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1, bogus"
+    ]
+   },
+   "ip": "198.51.100.1"
+  },
+  {
+   "trusted": [
+    "0.0.0.0/0"
+   ],
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     ""
+    ],
+    "X-Real-IP": [
+     "2001:db8::1"
+    ]
+   },
+   "ip": "2001:db8::1"
+  },
+  {
+   "trusted": [
+    "0.0.0.0/0"
+   ],
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "203.0.113.1",
+     "203.0.113.2"
+    ]
+   },
+   "ip": "203.0.113.1"
+  },
+  {
+   "trusted": [
+    "0.0.0.0/0"
+   ],
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Real-IP": [
+     "0:0:0:0:0:0:0:1"
+    ]
+   },
+   "ip": "0:0:0:0:0:0:0:1"
+  },
+  {
+   "trusted": [
+    "0.0.0.0/0"
+   ],
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "::FFFF:127.0.0.1"
+    ]
+   },
+   "ip": "::FFFF:127.0.0.1"
+  },
+  {
+   "trusted": [
+    "0.0.0.0/0"
+   ],
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "fe80::1%eth0"
+    ],
+    "X-Real-IP": [
+     "203.0.113.3"
+    ]
+   },
+   "ip": "203.0.113.3"
+  },
+  {
+   "trusted": [
+    "0.0.0.0/0"
+   ],
+   "remote": "198.51.100.1:1",
+   "headers": {
+    "X-Forwarded-For": [
+     "01.2.3.4"
+    ]
+   },
+   "ip": "198.51.100.1"
+  }
+ ],
+ "synth": [
+  {
+   "name": "legacy_claude_and_overrides",
+   "yaml": "\nclaude-api-key:\n  - api-key: \" fake-claude-1 \"\n    base-url: \"https://claude.example.invalid/ \"\n    priority: 3\n    weight: 0\n    prefix: \"/team/\"\n    proxy-url: \" socks5://proxy.example.invalid:1080 \"\n    headers: {X-Extra: \" v \", X-Blank: \" \", \" \": x}\n    excluded-models: [\" Claude-Opus-*\", claude-opus-*, \"\", Haiku]\n    disable-cooling: false\n    request-retry: -1\n    request-scoped-errors:\n      - {status: 400, match: [\"overloaded\"], action: stop}\n    models:\n      - {name: claude-sonnet-4-6, alias: sonnet}\n    rebuild-mid-system-message: true\n    fingerprint-profile: \" CLI \"\n  - api-key: fake-claude-2\n    weight: -4\n    request-retry: 2\n    prefix: a/b\n  - api-key: \"\"\n    base-url: \"\"\n  - api-key: fake-claude-2\n    weight: -4\n    request-retry: 2\n    prefix: a/b\n",
+   "config": [
+    {
+     "id": "claude:apikey:4cb9b4def9c2",
+     "provider": "claude",
+     "label": "claude-apikey",
+     "prefix": "team",
+     "proxy_url": "socks5://proxy.example.invalid:1080",
+     "disabled": false,
+     "status": "active",
+     "auth_index": "c2e45ecae843621e",
+     "attributes": {
+      "api_key": "fake-claude-1",
+      "auth_kind": "apikey",
+      "base_url": "https://claude.example.invalid/",
+      "config_index": "0",
+      "excluded_models": "claude-opus-*,haiku",
+      "excluded_models_hash": "a5ae3fec8f2f3e0a18b852c7bbe7d820b2414b31abcdc9a81d4049d2e70cef4e",
+      "fingerprint_profile": "cli",
+      "header:X-Extra": "v",
+      "models_hash": "b800ea6f856f963d0e3edfe83ef11201f47809c2da082abd16f965634e8ba7f3",
+      "priority": "3",
+      "rebuild_mid_system_message": "true",
+      "source": "config:claude[4cb9b4def9c2]",
+      "weight": "0"
+     },
+     "metadata": {
+      "disable_cooling": false,
+      "request_scoped_errors": [
+       {
+        "action": "stop",
+        "match": [
+         "overloaded"
+        ],
+        "status": 400
+       }
+      ]
+     }
+    },
+    {
+     "id": "claude:apikey:add9e294850f",
+     "provider": "claude",
+     "label": "claude-apikey",
+     "prefix": "",
+     "proxy_url": "",
+     "disabled": false,
+     "status": "active",
+     "auth_index": "8e85a34a5777b11c",
+     "attributes": {
+      "api_key": "fake-claude-2",
+      "auth_kind": "apikey",
+      "config_index": "1",
+      "source": "config:claude[add9e294850f]",
+      "weight": "0"
+     },
+     "metadata": {
+      "request_retry": 2
+     }
+    },
+    {
+     "id": "claude:apikey:add9e294850f-1",
+     "provider": "claude",
+     "label": "claude-apikey",
+     "prefix": "",
+     "proxy_url": "",
+     "disabled": false,
+     "status": "active",
+     "auth_index": "8e85a34a5777b11c",
+     "attributes": {
+      "api_key": "fake-claude-2",
+      "auth_kind": "apikey",
+      "config_index": "3",
+      "source": "config:claude[add9e294850f-1]",
+      "weight": "0"
+     },
+     "metadata": {
+      "request_retry": 2
+     }
+    }
+   ],
+   "file": []
+  },
+  {
+   "name": "v8_groups_inherit_and_override",
+   "yaml": "\nconfig-version: 8\napi-keys:\n  claude:\n    - name: team\n      base-url: https://claude.example.invalid\n      priority: 5\n      prefix: grp\n      disable-cooling: true\n      excluded-models: [group-model]\n      headers: {X-Group: g}\n      keys:\n        - api-key: fake-k1\n        - api-key: fake-k2\n          priority: 9\n          prefix: null\n          disable-cooling: false\n          weight: 7\n          excluded-models: [key-model]\n  codex:\n    - name: c\n      base-url: https://codex.example.invalid\n      keys:\n        - {api-key: fake-codex, websockets: true, alpha-search: true, disable-codex-cloaking: false}\n    - name: no-base\n      keys:\n        - {api-key: fake-codex-dropped}\n  xai:\n    - base-url: https://xai.example.invalid\n      keys: [{api-key: fake-xai, alpha-search: true}]\n  meta:\n    - keys: [{api-key: \"dca:fake\"}, {api-key: fake-meta}]\n",
+   "config": [
+    {
+     "id": "claude:apikey:640cb2983f6b",
+     "provider": "claude",
+     "label": "claude-apikey",
+     "prefix": "grp",
+     "proxy_url": "",
+     "disabled": false,
+     "status": "active",
+     "auth_index": "c551042554fe3b84",
+     "attributes": {
+      "api_key": "fake-k1",
+      "auth_kind": "apikey",
+      "base_url": "https://claude.example.invalid",
+      "config_index": "0",
+      "excluded_models": "group-model",
+      "excluded_models_hash": "8dc1e481bb66acd3b0916c9b4cd9911cd6308cb1100b00f0370a7bc3527e4e8f",
+      "header:X-Group": "g",
+      "priority": "5",
+      "source": "config:claude[640cb2983f6b]"
+     },
+     "metadata": {
+      "disable_cooling": true
+     }
+    },
+    {
+     "id": "claude:apikey:a6bac813c8b9",
+     "provider": "claude",
+     "label": "claude-apikey",
+     "prefix": "grp",
+     "proxy_url": "",
+     "disabled": false,
+     "status": "active",
+     "auth_index": "70089010642be90c",
+     "attributes": {
+      "api_key": "fake-k2",
+      "auth_kind": "apikey",
+      "base_url": "https://claude.example.invalid",
+      "config_index": "1",
+      "excluded_models": "key-model",
+      "excluded_models_hash": "4300b50e298ab73e7c1d72c07256e210088deba90d86be859f283f5c206fd742",
+      "header:X-Group": "g",
+      "priority": "9",
+      "source": "config:claude[a6bac813c8b9]",
+      "weight": "7"
+     },
+     "metadata": {
+      "disable_cooling": false
+     }
+    },
+    {
+     "id": "codex:apikey:da46cd949b15",
+     "provider": "codex",
+     "label": "codex-apikey",
+     "prefix": "",
+     "proxy_url": "",
+     "disabled": false,
+     "status": "active",
+     "auth_index": "3b2f9c9395d254ab",
+     "attributes": {
+      "api_key": "fake-codex",
+      "auth_kind": "apikey",
+      "base_url": "https://codex.example.invalid",
+      "codex_alpha_search": "true",
+      "codex_disable_cloaking": "false",
+      "config_index": "0",
+      "source": "config:codex[da46cd949b15]",
+      "websockets": "true"
+     },
+     "metadata": {}
+    },
+    {
+     "id": "xai:apikey:90ddc80bbd38",
+     "provider": "xai",
+     "label": "xai-apikey",
+     "prefix": "",
+     "proxy_url": "",
+     "disabled": false,
+     "status": "active",
+     "auth_index": "354f79abec585b87",
+     "attributes": {
+      "api_key": "fake-xai",
+      "auth_kind": "apikey",
+      "base_url": "https://xai.example.invalid",
+      "config_index": "0",
+      "source": "config:xai[90ddc80bbd38]"
+     },
+     "metadata": {}
+    },
+    {
+     "id": "meta:apikey:d69e616a6181",
+     "provider": "meta",
+     "label": "meta-apikey",
+     "prefix": "",
+     "proxy_url": "",
+     "disabled": false,
+     "status": "active",
+     "auth_index": "e53fa1734ffaa7f6",
+     "attributes": {
+      "api_key": "fake-meta",
+      "auth_kind": "apikey",
+      "base_url": "https://api.meta.ai/v1",
+      "config_index": "0",
+      "source": "config:meta[d69e616a6181]"
+     },
+     "metadata": {}
+    }
+   ],
+   "file": []
+  },
+  {
+   "name": "gemini_vertex_compat",
+   "yaml": "\ngemini-api-key:\n  - {api-key: fake-g1, priority: 1}\n  - {api-key: \" fake-g1 \"}\n  - {api-key: \"\", base-url: \"\"}\n  - {api-key: \"\", base-url: \"https://gemini.example.invalid\"}\ninteractions-api-key:\n  - {api-key: fake-i1, excluded-models: [X]}\nvertex-api-key:\n  - {api-key: \"\", base-url: https://v.example.invalid}\n  - api-key: fake-v1\n    base-url: https://v.example.invalid\n    weight: 3\n    request-retry: 0\n    models: [{name: m1, alias: a1}, {name: m2, alias: \"\"}]\n  - {api-key: fake-v1, base-url: https://v.example.invalid}\nopenai-compatibility:\n  - name: OpenRouter\n    base-url: https://router.example.invalid\n    priority: 2\n    disable-cooling: true\n    request-retry: 1\n    headers: {X-H: v}\n    api-key-entries:\n      - {api-key: fake-or-1, weight: 4, proxy-url: http://p.example.invalid}\n      - {api-key: fake-or-1}\n  - name: nokeys\n    base-url: https://nokeys.example.invalid\n  - name: off\n    disabled: true\n    base-url: https://off.example.invalid\n    api-key-entries: [{api-key: fake-off}]\n  - name: nobase\n    api-key-entries: [{api-key: fake-nobase}]\n  - name: openai-compatible-pre\n    base-url: https://pre.example.invalid\n    api-key-entries: [{api-key: fake-pre}]\n",
+   "config": [
+    {
+     "id": "gemini:apikey:62813ab94c9d",
+     "provider": "gemini",
+     "label": "gemini-apikey",
+     "prefix": "",
+     "proxy_url": "",
+     "disabled": false,
+     "status": "active",
+     "auth_index": "d5035ab75e7c6252",
+     "attributes": {
+      "api_key": "fake-g1",
+      "auth_kind": "apikey",
+      "config_index": "0",
+      "priority": "1",
+      "source": "config:gemini[62813ab94c9d]"
+     },
+     "metadata": {}
+    },
+    {
+     "id": "gemini:apikey:784f12cb5db8",
+     "provider": "gemini",
+     "label": "gemini-apikey",
+     "prefix": "",
+     "proxy_url": "",
+     "disabled": false,
+     "status": "active",
+     "auth_index": "148586c1e1a0cc54",
+     "attributes": {
+      "auth_kind": "apikey",
+      "base_url": "https://gemini.example.invalid",
+      "config_index": "1",
+      "source": "config:gemini[784f12cb5db8]"
+     },
+     "metadata": {}
+    },
+    {
+     "id": "gemini-interactions:apikey:385b324fc518",
+     "provider": "gemini-interactions",
+     "label": "interactions-apikey",
+     "prefix": "",
+     "proxy_url": "",
+     "disabled": false,
+     "status": "active",
+     "auth_index": "116e02dfd1a7552f",
+     "attributes": {
+      "api_key": "fake-i1",
+      "auth_kind": "apikey",
+      "config_index": "0",
+      "excluded_models": "x",
+      "excluded_models_hash": "cd65ea2c2ad99e94a85b1b6df72efef9cb2ed0ae933a60c32ce16317f7d7d6aa",
+      "source": "config:interactions[385b324fc518]"
+     },
+     "metadata": {}
+    },
+    {
+     "id": "openai-compatibility:openrouter:00ec117279af",
+     "provider": "openai-compatible-openrouter",
+     "label": "OpenRouter",
+     "prefix": "",
+     "proxy_url": "http://p.example.invalid",
+     "disabled": false,
+     "status": "active",
+     "auth_index": "285ed8a24187f4d5",
+     "attributes": {
+      "api_key": "fake-or-1",
+      "base_url": "https://router.example.invalid",
+      "compat_name": "OpenRouter",
+      "config_index": "0",
+      "header:X-H": "v",
+      "priority": "2",
+      "provider_key": "openai-compatible-openrouter",
+      "source": "config:openrouter[00ec117279af]",
+      "weight": "4"
+     },
+     "metadata": {
+      "disable_cooling": true,
+      "request_retry": 1
+     }
+    },
+    {
+     "id": "openai-compatibility:openrouter:674c7516ed86",
+     "provider": "openai-compatible-openrouter",
+     "label": "OpenRouter",
+     "prefix": "",
+     "proxy_url": "",
+     "disabled": false,
+     "status": "active",
+     "auth_index": "285ed8a24187f4d5",
+     "attributes": {
+      "api_key": "fake-or-1",
+      "base_url": "https://router.example.invalid",
+      "compat_name": "OpenRouter",
+      "config_index": "0",
+      "header:X-H": "v",
+      "priority": "2",
+      "provider_key": "openai-compatible-openrouter",
+      "source": "config:openrouter[674c7516ed86]"
+     },
+     "metadata": {
+      "disable_cooling": true,
+      "request_retry": 1
+     }
+    },
+    {
+     "id": "openai-compatibility:nokeys:69ee5b3ace4a",
+     "provider": "openai-compatible-nokeys",
+     "label": "nokeys",
+     "prefix": "",
+     "proxy_url": "",
+     "disabled": false,
+     "status": "active",
+     "auth_index": "7a5f92c22c083420",
+     "attributes": {
+      "base_url": "https://nokeys.example.invalid",
+      "compat_name": "nokeys",
+      "config_index": "1",
+      "provider_key": "openai-compatible-nokeys",
+      "source": "config:nokeys[69ee5b3ace4a]"
+     },
+     "metadata": {}
+    },
+    {
+     "id": "openai-compatibility:openai-compatible-pre:3862844e33bb",
+     "provider": "openai-compatible-pre",
+     "label": "openai-compatible-pre",
+     "prefix": "",
+     "proxy_url": "",
+     "disabled": false,
+     "status": "active",
+     "auth_index": "85f57051d7c0b8d9",
+     "attributes": {
+      "api_key": "fake-pre",
+      "base_url": "https://pre.example.invalid",
+      "compat_name": "openai-compatible-pre",
+      "config_index": "3",
+      "provider_key": "openai-compatible-pre",
+      "source": "config:openai-compatible-pre[3862844e33bb]"
+     },
+     "metadata": {}
+    },
+    {
+     "id": "vertex:apikey:05e6815ce0da",
+     "provider": "vertex",
+     "label": "vertex-apikey",
+     "prefix": "",
+     "proxy_url": "",
+     "disabled": false,
+     "status": "active",
+     "auth_index": "28313945bd662005",
+     "attributes": {
+      "api_key": "fake-v1",
+      "auth_kind": "apikey",
+      "base_url": "https://v.example.invalid",
+      "config_index": "0",
+      "models_hash": "95f87484223e01ab65a28478ad5b5fe38ceb86494bc145a1f4fac6d618bc4133",
+      "provider_key": "vertex",
+      "source": "config:vertex-apikey[05e6815ce0da]",
+      "weight": "3"
+     },
+     "metadata": {
+      "request_retry": 0
+     }
+    }
+   ],
+   "file": []
+  },
+  {
+   "name": "oauth_files",
+   "yaml": "\nauth-dir: ./auth\noauth-excluded-models:\n  Claude: [\" Opus-X \", opus-x, sonnet-y]\n",
+   "files": {
+    "broken.json": "{\"type\":",
+    "claude-a.json": "{\"type\":\"claude\",\"email\":\"a@example.invalid\",\"priority\":\"7\",\"weight\":2,\"excluded_models\":[\"Haiku-Z\"],\"prefix\":\"/p/\",\"proxy_url\":\"http://p.example.invalid\",\"note\":\" hi \",\"disabled\":true}",
+    "codex-b.json": "{\"type\":\"codex\",\"plan_type\":\" pro \"}",
+    "gemini-c.json": "{\"type\":\"gemini\"}",
+    "notype.json": "{\"email\":\"x@example.invalid\"}",
+    "upper.JSON": "{\"type\":\"Claude\",\"priority\":1.9}",
+    "weightbad.json": "{\"type\":\"claude\",\"weight\":\"abc\"}"
+   },
+   "config": [],
+   "file": [
+    {
+     "id": "claude-a.json",
+     "provider": "claude",
+     "label": "a@example.invalid",
+     "prefix": "p",
+     "proxy_url": "http://p.example.invalid",
+     "disabled": true,
+     "status": "disabled",
+     "auth_index": "2effc5e0db46aab3",
+     "file_name": "claude-a.json",
+     "attributes": {
+      "auth_kind": "oauth",
+      "excluded_models": "haiku-z,opus-x,sonnet-y",
+      "excluded_models_hash": "8480295ea65f029a38a13dfa62589fd83e54adeaacc4bb0b641be75ef531cff2",
+      "file_priority": "true",
+      "note": "hi",
+      "path": "/fixture-root/auth/claude-a.json",
+      "priority": "7",
+      "source": "/fixture-root/auth/claude-a.json",
+      "source_backend": "file",
+      "weight": "2"
+     },
+     "metadata": {
+      "disabled": true,
+      "email": "a@example.invalid",
+      "excluded_models": [
+       "Haiku-Z"
+      ],
+      "note": " hi ",
+      "prefix": "/p/",
+      "priority": "7",
+      "proxy_url": "http://p.example.invalid",
+      "type": "claude",
+      "weight": 2
+     }
+    },
+    {
+     "id": "codex-b.json",
+     "provider": "codex",
+     "label": "codex",
+     "prefix": "",
+     "proxy_url": "",
+     "disabled": false,
+     "status": "active",
+     "auth_index": "a8e39a61e6dec779",
+     "file_name": "codex-b.json",
+     "attributes": {
+      "auth_kind": "oauth",
+      "path": "/fixture-root/auth/codex-b.json",
+      "plan_type": "pro",
+      "source": "/fixture-root/auth/codex-b.json",
+      "source_backend": "file"
+     },
+     "metadata": {
+      "plan_type": " pro ",
+      "type": "codex"
+     }
+    },
+    {
+     "id": "upper.JSON",
+     "provider": "claude",
+     "label": "claude",
+     "prefix": "",
+     "proxy_url": "",
+     "disabled": false,
+     "status": "active",
+     "auth_index": "15f76b2bff6727fd",
+     "file_name": "upper.JSON",
+     "attributes": {
+      "auth_kind": "oauth",
+      "excluded_models": "opus-x,sonnet-y",
+      "excluded_models_hash": "a1c2e80146bc0d36351360d6ed25ce4ebf656335269871f0eafac50838aba7fd",
+      "file_priority": "true",
+      "path": "/fixture-root/auth/upper.JSON",
+      "priority": "1",
+      "source": "/fixture-root/auth/upper.JSON",
+      "source_backend": "file"
+     },
+     "metadata": {
+      "priority": 1.9,
+      "type": "Claude"
+     }
+    }
+   ]
+  },
+  {
+   "name": "invalid_weight",
+   "yaml": "claude-api-key:\n  - {api-key: fake, weight: 1000001}\n",
+   "error": "claude-api-key[0].weight: weight must not exceed 1000000",
+   "config": null,
+   "file": null
+  }
+ ],
+ "load_errors": [
+  {
+   "yaml": "trusted-proxies: ['']",
+   "error": "invalid trusted-proxies entry \"\": expected an IP address or CIDR"
+  },
+  {
+   "yaml": "trusted-proxies: [' 127.0.0.1']",
+   "error": "invalid trusted-proxies entry \" 127.0.0.1\": expected an IP address or CIDR"
+  },
+  {
+   "yaml": "trusted-proxies: [nonsense]",
+   "error": "invalid trusted-proxies entry \"nonsense\": invalid CIDR address: nonsense"
+  },
+  {
+   "yaml": "trusted-proxies: [10.0.0.0/33]",
+   "error": "invalid trusted-proxies entry \"10.0.0.0/33\": invalid CIDR address: 10.0.0.0/33"
+  },
+  {
+   "yaml": "trusted-proxies: ['::1/129']",
+   "error": "invalid trusted-proxies entry \"::1/129\": invalid CIDR address: ::1/129"
+  },
+  {
+   "yaml": "trusted-proxies: [fe80::1%eth0]",
+   "error": "invalid trusted-proxies entry \"fe80::1%eth0\": invalid CIDR address: fe80::1%eth0"
+  },
+  {
+   "yaml": "server: {trusted-proxies: [127.0.0.1, '::1', 10.0.0.0/8]}",
+   "error": ""
+  },
+  {
+   "yaml": "trusted-proxies: [01.2.3.4]",
+   "error": "invalid trusted-proxies entry \"01.2.3.4\": invalid CIDR address: 01.2.3.4"
+  }
+ ]
+}

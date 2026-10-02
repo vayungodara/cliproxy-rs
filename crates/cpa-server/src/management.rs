@@ -1,23 +1,27 @@
-//! Management API over persisted config and the shared credential store.
+//! Management API (v8, plus the few legacy v0 reads the dashboard predates).
+//!
+//! Routing follows gin: an unknown path or an unregistered method on a known path is a
+//! bare 404 that never reaches authentication. Access rules live in [`access`].
 use std::collections::HashMap;
-use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, PoisonError};
-use std::time::{Duration, Instant};
 
 use axum::body::Bytes;
-use axum::extract::{ConnectInfo, OriginalUri, Request, State};
-use axum::http::{Method, StatusCode, header};
-use axum::middleware::Next;
+use axum::extract::{OriginalUri, State};
+use axum::handler::Handler;
+use axum::http::{HeaderValue, Method, StatusCode, header};
 use axum::response::{IntoResponse, Response};
-use axum::routing::{any, get};
-use axum::{Json, Router, middleware};
-use cpa_core::config::{Config, ConfigDocument, is_bcrypt};
-use cpa_core::credential::{MetadataPatch, Source};
+use axum::routing::{MethodRouter, any, get};
+use axum::{Router, middleware};
+use cpa_core::config::{Config, ConfigDocument, credentials, is_bcrypt};
+use cpa_core::credential::{Credential, MetadataPatch, Source};
 use serde_json::{Value, json};
-use subtle::ConstantTimeEq;
 
 use crate::Runtime;
+use crate::scheduler::{ErrorRule, Policy};
+
+mod access;
+pub use access::cors;
 
 pub struct Management {
     pub(crate) rt: Arc<Runtime>,
@@ -25,146 +29,188 @@ pub struct Management {
     // ponytail: one lock for config and auth disk operations; split only if management
     // throughput matters. The watcher shares it, preventing stale disk publication.
     pub(crate) disk: Mutex<()>,
-    failures: Mutex<HashMap<std::net::IpAddr, (u8, Instant)>>,
-    env_secret: String,
+    access: access::Access,
+}
+
+#[derive(Default)]
+pub struct Options {
+    /// `--password`: accepted from loopback clients only, like Go's local password.
+    pub local_password: String,
+    /// Overrides the `MANAGEMENT_PASSWORD` environment variable when set.
+    pub management_password: Option<String>,
 }
 
 impl Management {
     pub fn new(rt: Arc<Runtime>, path: PathBuf) -> Arc<Self> {
+        Self::with_options(rt, path, Options::default())
+    }
+
+    /// Captures startup-only settings (trusted proxies, environment secret) and
+    /// publishes the scheduler policy derived from the current config.
+    pub fn with_options(rt: Arc<Runtime>, path: PathBuf, options: Options) -> Arc<Self> {
+        let cfg = rt.config();
+        rt.publish_policy(policy(&cfg));
         Arc::new(Self {
+            access: access::Access::new(&cfg, options),
             rt,
             path,
             disk: Mutex::new(()),
-            failures: Mutex::new(HashMap::new()),
-            env_secret: std::env::var("MANAGEMENT_PASSWORD")
-                .unwrap_or_default()
-                .trim()
-                .to_owned(),
         })
+    }
+
+    /// Publishes a config and everything Go derives from it on reload: scheduler
+    /// policy, management availability, and the credential set (auth-dir files plus
+    /// config API keys). `files` replaces the auth-dir scan when the caller already
+    /// has a reconciled list. Callers hold `disk`. Infallible on purpose: access
+    /// settings of a valid config (a rotated or removed secret) always take effect.
+    pub(crate) fn publish(&self, cfg: Config, files: Option<Vec<Credential>>) {
+        let mut all = files.unwrap_or_else(|| credentials::from_auth_dir(&cfg));
+        all.extend(credentials::from_config(&cfg));
+        self.access.config_published(&cfg);
+        let policy = policy(&cfg);
+        self.rt.publish_config_and_policy(cfg, policy);
+        self.rt.store().reconcile(all);
     }
 }
 
+/// `Policy::from(routing)` plus the provider-level rules Go reads from config:
+/// `oauth.request-scoped-errors`, sanitized like `SanitizeOAuthRequestScopedErrors`.
+pub fn policy(cfg: &Config) -> Policy {
+    let mut policy = Policy::from(&cfg.routing);
+    let rules = cfg
+        .document
+        .get("oauth")
+        .and_then(|o| o.get("request-scoped-errors"))
+        .and_then(serde_yaml_ng::Value::as_mapping);
+    for (channel, list) in rules.into_iter().flatten() {
+        let channel = channel.as_str().unwrap_or_default().trim().to_lowercase();
+        let clean: Vec<ErrorRule> = list
+            .as_sequence()
+            .into_iter()
+            .flatten()
+            .filter_map(|r| {
+                let words = |k: &str| -> Vec<String> {
+                    r.get(k)
+                        .and_then(serde_yaml_ng::Value::as_sequence)
+                        .into_iter()
+                        .flatten()
+                        .filter_map(|v| v.as_str().map(|s| s.trim().to_owned()))
+                        .filter(|s| !s.is_empty())
+                        .collect()
+                };
+                let rule = ErrorRule {
+                    status: r.get("status").and_then(serde_yaml_ng::Value::as_i64).unwrap_or(0),
+                    r#match: words("match"),
+                    match_regex: words("match-regexr"),
+                    action: r
+                        .get("action")
+                        .and_then(serde_yaml_ng::Value::as_str)
+                        .unwrap_or_default()
+                        .trim()
+                        .to_lowercase(),
+                };
+                (rule.status > 0
+                    && !(rule.r#match.is_empty() && rule.match_regex.is_empty())
+                    && !rule.action.is_empty())
+                .then_some(rule)
+            })
+            .collect();
+        if !channel.is_empty() && !clean.is_empty() {
+            policy.oauth_request_scoped_errors.insert(channel, clean);
+        }
+    }
+    policy
+}
+
+/// gin `c.JSON`: compact JSON with the charset parameter.
+pub(crate) fn json(status: StatusCode, value: &Value) -> Response {
+    (
+        status,
+        [(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static("application/json; charset=utf-8"),
+        )],
+        value.to_string(),
+    )
+        .into_response()
+}
+
+pub(crate) fn json_error(status: StatusCode, message: &str) -> Response {
+    json(status, &json!({"error": message}))
+}
+
+fn error(code: u16, message: &str) -> Response {
+    json_error(StatusCode::from_u16(code).unwrap(), message)
+}
+
+/// Wraps one method handler in the management guard; methods without a handler fall
+/// through to a bare 404 like gin's NoRoute.
+macro_rules! guarded {
+    ($state:expr, $handler:expr) => {
+        $handler.layer(middleware::from_fn_with_state($state.clone(), access::guard))
+    };
+}
+
+/// gin answers HEAD and unregistered methods on a known path with NoRoute's 404 and
+/// no `Allow` header; starting from `any` keeps axum from adding one.
+fn methods() -> MethodRouter<Arc<Management>> {
+    any(|| async { access::not_found() }).head(|| async { access::not_found() })
+}
+
 pub fn router(state: Arc<Management>) -> Router {
-    let api = Router::new()
-        .route("/config", any(config))
-        .route("/config.yaml", any(config))
-        .route("/config/{*path}", any(config))
-        .route("/credentials", get(credentials))
-        .route("/credentials/download", get(download))
-        .route("/credentials/status", axum::routing::patch(status))
-        .fallback(|| async { error(501, "not_implemented") })
-        .layer(middleware::from_fn_with_state(state.clone(), authenticate));
-    let legacy = Router::new()
-        .route("/config.yaml", get(legacy_yaml))
-        .route("/auth-files", get(credentials))
-        .route("/auth-files/download", get(download))
-        .route("/auth-files/status", axum::routing::patch(status))
-        .fallback(|| async { error(501, "not_implemented") })
-        .layer(middleware::from_fn_with_state(state.clone(), authenticate));
+    let s = &state;
+    let v8 = "/v8/management";
+    let v0 = "/v0/management";
     Router::new()
-        .nest("/v8/management", api)
-        .nest("/v0/management", legacy)
+        .route(
+            &format!("{v8}/config"),
+            methods()
+                .get(guarded!(s, config))
+                .put(guarded!(s, config))
+                .patch(guarded!(s, config)),
+        )
+        .route(
+            &format!("{v8}/config.yaml"),
+            methods().get(guarded!(s, config)).put(guarded!(s, config)),
+        )
+        .route(
+            &format!("{v8}/config/"),
+            methods()
+                .get(guarded!(s, config))
+                .put(guarded!(s, config))
+                .patch(guarded!(s, config))
+                .delete(guarded!(s, config)),
+        )
+        .route(
+            &format!("{v8}/config/{{*path}}"),
+            methods()
+                .get(guarded!(s, config))
+                .put(guarded!(s, config))
+                .patch(guarded!(s, config))
+                .delete(guarded!(s, config)),
+        )
+        .route(&format!("{v8}/credentials"), methods().get(guarded!(s, credentials)))
+        .route(
+            &format!("{v8}/credentials/download"),
+            methods().get(guarded!(s, download)),
+        )
+        .route(
+            &format!("{v8}/credentials/status"),
+            methods().patch(guarded!(s, status)),
+        )
+        .route(&format!("{v0}/config.yaml"), methods().get(guarded!(s, legacy_yaml)))
+        .route(&format!("{v0}/auth-files"), methods().get(guarded!(s, credentials)))
+        .route(
+            &format!("{v0}/auth-files/download"),
+            methods().get(guarded!(s, download)),
+        )
+        .route(&format!("{v0}/auth-files/status"), methods().patch(guarded!(s, status)))
         .route("/management.html", get(panel))
         .route("/assets/{*path}", get(panel))
         .route("/fonts/{*path}", get(panel))
         .route("/favicon.svg", get(panel))
+        .layer(middleware::from_fn(cors))
         .with_state(state)
-}
-
-fn error(code: u16, message: &str) -> Response {
-    (StatusCode::from_u16(code).unwrap(), Json(json!({"error": message}))).into_response()
-}
-
-async fn authenticate(State(state): State<Arc<Management>>, req: Request, next: Next) -> Response {
-    let cfg = state.rt.config();
-    let key = cfg.management.secret_key.clone();
-    if key.is_empty() && state.env_secret.is_empty() {
-        return error(404, "not_found");
-    }
-    let peer = req
-        .extensions()
-        .get::<ConnectInfo<SocketAddr>>()
-        .map(|p| p.0.ip().to_canonical());
-    // Never trust X-Forwarded-For implicitly. The trusted-proxy port is still pending.
-    let local = peer.is_some_and(|ip| ip.is_loopback());
-    if !local && !cfg.management.allow_remote && state.env_secret.is_empty() {
-        return error(403, "remote management disabled");
-    }
-    let banned = peer.is_some_and(|ip| {
-        state
-            .failures
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .get(&ip)
-            .is_some_and(|(count, since)| *count >= 5 && since.elapsed() < Duration::from_secs(1800))
-    });
-    if banned {
-        return error(403, "IP banned due to too many failed attempts");
-    }
-    let authorization = req
-        .headers()
-        .get(header::AUTHORIZATION)
-        .and_then(|h| h.to_str().ok())
-        .unwrap_or_default();
-    let provided = authorization
-        .split_once(' ')
-        .filter(|(kind, _)| kind.eq_ignore_ascii_case("bearer"))
-        .map(|(_, value)| value)
-        .unwrap_or(authorization);
-    let provided = if provided.is_empty() {
-        req.headers()
-            .get("X-Management-Key")
-            .and_then(|h| h.to_str().ok())
-            .unwrap_or_default()
-    } else {
-        provided
-    };
-    let provided = provided.to_owned();
-    let valid = !provided.is_empty()
-        && ((!state.env_secret.is_empty() && bool::from(state.env_secret.as_bytes().ct_eq(provided.as_bytes())))
-            || tokio::task::spawn_blocking({
-                let provided = provided.clone();
-                move || bcrypt::verify(provided, &key).unwrap_or(false)
-            })
-            .await
-            .unwrap_or(false));
-    if let Some(ip) = peer {
-        let mut failures = state.failures.lock().unwrap_or_else(PoisonError::into_inner);
-        if valid {
-            failures.remove(&ip);
-        } else {
-            // Bound stale entries rather than retaining arbitrary remote IPs forever.
-            failures.retain(|_, (_, since)| since.elapsed() < Duration::from_secs(3600));
-            let attempt = failures.entry(ip).or_insert((0, Instant::now()));
-            if attempt.1.elapsed() >= Duration::from_secs(1800) {
-                *attempt = (0, Instant::now());
-            }
-            attempt.0 += 1;
-            attempt.1 = Instant::now();
-        }
-    }
-    let mut response = if valid {
-        next.run(req).await
-    } else {
-        error(
-            401,
-            if provided.is_empty() {
-                "missing management key"
-            } else {
-                "invalid management key"
-            },
-        )
-    };
-    response
-        .headers_mut()
-        .insert("X-CPA-VERSION", "cliproxy-rs/0.1.0".parse().unwrap());
-    response
-        .headers_mut()
-        .insert("X-CPA-SUPPORT-PLUGIN", "false".parse().unwrap());
-    response
-        .headers_mut()
-        .insert(header::CACHE_CONTROL, "no-store".parse().unwrap());
-    response
 }
 
 async fn config(
@@ -173,9 +219,33 @@ async fn config(
     method: Method,
     body: Bytes,
 ) -> Response {
-    tokio::task::spawn_blocking(move || config_sync(&state, uri.path(), method, &body))
+    // gin's *path parameter is the decoded path.
+    let path = percent_decode(uri.path());
+    tokio::task::spawn_blocking(move || config_sync(&state, &path, method, &body))
         .await
         .unwrap_or_else(|_| error(500, "internal_error"))
+}
+
+fn percent_decode(path: &str) -> String {
+    let bytes = path.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        let hex = bytes
+            .get(i + 1..i + 3)
+            .and_then(|h| u8::from_str_radix(std::str::from_utf8(h).ok()?, 16).ok());
+        match (bytes[i], hex) {
+            (b'%', Some(b)) => {
+                out.push(b);
+                i += 3;
+            }
+            (b, _) => {
+                out.push(b);
+                i += 1;
+            }
+        }
+    }
+    String::from_utf8_lossy(&out).into_owned()
 }
 
 fn config_sync(state: &Management, path: &str, method: Method, body: &[u8]) -> Response {
@@ -189,7 +259,10 @@ fn config_sync(state: &Management, path: &str, method: Method, body: &[u8]) -> R
         Err(_) => return error(500, "invalid_config"),
     };
     let yaml = path.ends_with("/config.yaml");
-    let suffix = path.strip_prefix("/v8/management/config/").unwrap_or_default();
+    let suffix = path
+        .strip_prefix("/v8/management/config/")
+        .unwrap_or_default()
+        .trim_matches('/');
     let parts: Vec<_> = if suffix.is_empty() {
         vec![]
     } else {
@@ -198,7 +271,14 @@ fn config_sync(state: &Management, path: &str, method: Method, body: &[u8]) -> R
     if method == Method::GET {
         if yaml {
             return match doc.render_preserving(&original) {
-                Ok(text) => ([(header::CONTENT_TYPE, "application/yaml; charset=utf-8")], text).into_response(),
+                Ok(text) => (
+                    [
+                        (header::CONTENT_TYPE, "application/yaml; charset=utf-8"),
+                        (header::CACHE_CONTROL, "no-store"),
+                    ],
+                    text,
+                )
+                    .into_response(),
                 Err(_) => error(500, "encode_failed"),
             };
         }
@@ -225,7 +305,11 @@ fn config_sync(state: &Management, path: &str, method: Method, body: &[u8]) -> R
             };
             selected = next;
         }
-        return Json(selected).into_response();
+        let mut response = json(StatusCode::OK, selected);
+        response
+            .headers_mut()
+            .insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
+        return response;
     }
     if ![Method::PUT, Method::PATCH, Method::DELETE].contains(&method) {
         return error(405, "method_not_allowed");
@@ -321,9 +405,8 @@ fn config_sync(state: &Management, path: &str, method: Method, body: &[u8]) -> R
     if ConfigDocument::write(&state.path, &text).is_err() {
         return error(500, "write_failed");
     }
-    state.rt.publish_config(cfg);
-    // Watcher will reconcile a changed auth-dir; it uses the same disk lock.
-    Json(json!({"status":"ok", "config-version":8})).into_response()
+    state.publish(cfg, None);
+    json(StatusCode::OK, &json!({"status":"ok", "config-version":8}))
 }
 
 async fn legacy_yaml(State(state): State<Arc<Management>>) -> Response {
@@ -334,24 +417,25 @@ async fn legacy_yaml(State(state): State<Arc<Management>>) -> Response {
 }
 
 async fn credentials(State(state): State<Arc<Management>>) -> Response {
-    // ponytail: file-backed nonpaginated inventory; virtual/config credentials and
-    // scheduler cooldown snapshots require the later management parity pass.
+    // ponytail: interim file-only inventory; the full Go projection (auth_index,
+    // cooldowns, counters, filters, pagination) replaces this in the credentials pass.
+    // Go lists only file-backed and runtime-only auths, never config API keys.
     let files: Vec<_> = state
         .rt
         .store()
         .snapshot()
         .iter()
+        .filter(|c| matches!(c.source, Source::File(_)))
         .map(|c| {
             json!({
-                "id":c.id, "name":c.id, "auth_index":c.id, "provider":c.provider,
+                "id":c.id, "name":c.id, "auth_index":credentials::auth_index(c), "provider":c.provider,
                 "type":c.provider, "email":c.str("email").unwrap_or_default(), "label":c.label,
                 "disabled":c.disabled, "status":if c.disabled {"disabled"} else {"active"},
-                "runtime_only":matches!(c.source, Source::Config {..}), "unavailable":false,
-                "cooldowns":null, "quota_supported":false
+                "runtime_only":false, "unavailable":false, "cooldowns":null
             })
         })
         .collect();
-    Json(json!({"files": files})).into_response()
+    json(StatusCode::OK, &json!({"files": files}))
 }
 
 async fn download(
@@ -386,7 +470,12 @@ async fn status(State(state): State<Arc<Management>>, body: Bytes) -> Response {
     let Some(disabled) = value.get("disabled").and_then(Value::as_bool) else {
         return error(400, "disabled is required");
     };
-    let Some(credential) = state.rt.store().get(name) else {
+    let Some(credential) = state
+        .rt
+        .store()
+        .get(name)
+        .filter(|c| matches!(c.source, Source::File(_)))
+    else {
         return error(404, "auth file not found");
     };
     let id = credential.id.clone();
@@ -400,7 +489,7 @@ async fn status(State(state): State<Arc<Management>>, body: Bytes) -> Response {
     })
     .await;
     match result {
-        Ok(Ok(_)) => Json(json!({"status":"ok", "disabled":disabled})).into_response(),
+        Ok(Ok(_)) => json(StatusCode::OK, &json!({"status":"ok", "disabled":disabled})),
         Ok(Err(crate::runtime::PatchError::Stale { .. })) => error(409, "stale credential"),
         _ => error(500, "write_failed"),
     }
