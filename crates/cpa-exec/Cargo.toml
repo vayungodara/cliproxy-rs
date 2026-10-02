@@ -27,6 +27,10 @@ uuid = { version = "1", features = ["v5"] }
 url = "2"
 httpdate = "1"
 tiktoken-rs = "0.7"
+# Codex: raw JSON reads for byte-preserving request edits, config document access, logs.
+gjson = "0.8.1"
+serde_yaml_ng.workspace = true
+tracing.workspace = true
 
 [dev-dependencies]
 axum.workspace = true

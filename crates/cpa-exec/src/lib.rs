@@ -10,6 +10,14 @@
 //! the runtime commits. Executors never write credential files themselves.
 
 pub mod claude;
+pub mod codex;
+mod codex_json;
+pub mod codex_oauth;
+pub mod codex_quota;
+mod codex_request;
+mod codex_response;
+#[cfg(test)]
+mod codex_testkit;
 pub mod oauth;
 mod quota;
 mod tls;
@@ -24,6 +32,7 @@ use cpa_core::exec::{ExecError, ExecRequest, ExecResponse, FailureScope};
 
 pub struct Executors {
     pub claude: claude::ClaudeExecutor,
+    pub codex: codex::CodexExecutor,
 }
 
 impl Executors {
@@ -35,6 +44,7 @@ impl Executors {
     ) -> Result<ExecResponse, ExecError> {
         match credential.provider.as_str() {
             "claude" => self.claude.execute(credential, req, cfg).await,
+            "codex" => self.codex.execute(credential, req, cfg).await,
             other => Err(no_executor(other)),
         }
     }
@@ -43,6 +53,7 @@ impl Executors {
     pub fn needs_prepare(&self, credential: &Credential, cfg: &Config) -> bool {
         match credential.provider.as_str() {
             "claude" => self.claude.needs_prepare(credential, cfg),
+            "codex" => self.codex.needs_prepare(credential, cfg),
             _ => false,
         }
     }
@@ -51,6 +62,7 @@ impl Executors {
     pub async fn prepare(&self, credential: &Credential, cfg: &Config) -> Result<MetadataPatch, ExecError> {
         match credential.provider.as_str() {
             "claude" => self.claude.prepare(credential, cfg).await,
+            "codex" => self.codex.prepare(credential, cfg).await,
             other => Err(no_executor(other)),
         }
     }
