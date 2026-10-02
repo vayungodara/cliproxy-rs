@@ -12,11 +12,14 @@ rust-version = "1.88"
 cpa-core = { path = "crates/cpa-core" }
 cpa-exec = { path = "crates/cpa-exec" }
 cpa-server = { path = "crates/cpa-server" }
+cpa-translate = { path = "crates/cpa-translate" }
 
 anyhow = "1"
 axum = "0.8.9"
 bytes = "1"
 clap = { version = "4", features = ["derive"] }
+futures-util = "0.3"
+http = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
 serde_yaml_ng = "0.10"

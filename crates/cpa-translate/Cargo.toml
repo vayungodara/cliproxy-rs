@@ -1,0 +1,11 @@
+[package]
+name = "cpa-translate"
+description = "Request and response translation between AI API formats"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+bytes.workspace = true
+cpa-core.workspace = true

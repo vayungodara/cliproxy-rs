@@ -1,5 +1,11 @@
-//! Formats shared with CLIProxyAPI: `config.yaml` and the credential files in `auth-dir`.
+//! Contracts shared by every cliproxy-rs crate.
+//!
+//! - [`config`]: `config.yaml`, compatible with CLIProxyAPI.
+//! - [`credential`]: runtime credentials loaded from `auth-dir` or config.
+//! - [`exec`]: the execution envelope passed between the runtime and executors.
+//! - [`format`]: request/response wire formats.
 
-pub mod auth;
 pub mod config;
+pub mod credential;
+pub mod exec;
 pub mod format;

@@ -1,0 +1,125 @@
+//! Runtime credentials.
+//!
+//! A credential keeps its complete JSON metadata so fields this crate does not know
+//! survive a write-back. Providers read it through their own validated views; this type
+//! carries only what routing and persistence need (sdk/cliproxy/auth/types.go).
+
+use std::collections::BTreeMap;
+use std::path::{Path, PathBuf};
+
+use serde_json::{Map, Value};
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Source {
+    /// A JSON file in `auth-dir`.
+    File(PathBuf),
+    /// An entry synthesized from `config.yaml` (for example `claude-api-key[i]`).
+    Config { section: String, index: usize },
+}
+
+#[derive(Debug, Clone)]
+pub struct Credential {
+    /// Path relative to `auth-dir` for files, as CLIProxyAPI uses.
+    pub id: String,
+    /// The `type` field: `claude`, `codex`, `antigravity`, ...
+    pub provider: String,
+    pub source: Source,
+    pub disabled: bool,
+    /// Email when present, otherwise the provider.
+    pub label: String,
+    /// Config-derived attributes, never persisted to the credential file.
+    pub attributes: BTreeMap<String, String>,
+    /// The full credential JSON. Source of truth for provider fields.
+    pub metadata: Map<String, Value>,
+    /// Bumped on every accepted change; patches against an old revision are rejected.
+    pub revision: u64,
+}
+
+impl Credential {
+    pub fn str(&self, key: &str) -> Option<&str> {
+        self.metadata.get(key).and_then(Value::as_str)
+    }
+
+    /// Builds a credential from one auth file. Returns `None` for files CLIProxyAPI
+    /// ignores here: no `type`, or `gemini-cli` (internal/watcher/synthesizer/file.go).
+    pub fn from_file(auth_dir: &Path, path: &Path, metadata: Map<String, Value>) -> Option<Self> {
+        let provider = metadata
+            .get("type")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_owned();
+        if provider.is_empty() || provider == "gemini-cli" {
+            return None;
+        }
+        let id = path
+            .strip_prefix(auth_dir)
+            .unwrap_or(path)
+            .to_string_lossy()
+            .into_owned();
+        let label = match metadata.get("email").and_then(Value::as_str) {
+            Some(email) if !email.is_empty() => email.to_owned(),
+            _ => provider.clone(),
+        };
+        Some(Self {
+            id,
+            disabled: metadata
+                .get("disabled")
+                .and_then(Value::as_bool)
+                .unwrap_or(false),
+            label,
+            provider,
+            source: Source::File(path.to_owned()),
+            attributes: BTreeMap::new(),
+            metadata,
+            revision: 0,
+        })
+    }
+}
+
+/// A change to credential metadata, produced by token refresh or the management API.
+#[derive(Debug, Clone, Default)]
+pub struct MetadataPatch {
+    pub set: Map<String, Value>,
+    pub remove: Vec<String>,
+}
+
+impl MetadataPatch {
+    pub fn apply(&self, metadata: &mut Map<String, Value>) {
+        for key in &self.remove {
+            metadata.remove(key);
+        }
+        for (key, value) in &self.set {
+            metadata.insert(key.clone(), value.clone());
+        }
+    }
+}
+
+/// Reads every `*.json` credential in `dir`. Unreadable or malformed files are skipped
+/// with a warning so one bad file cannot take the proxy down. A missing directory is empty.
+pub fn load_dir(dir: &Path) -> anyhow::Result<Vec<Credential>> {
+    let entries = match std::fs::read_dir(dir) {
+        Ok(entries) => entries,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(e) => return Err(e.into()),
+    };
+    // ponytail: top-level files only. The watcher port decides whether nested
+    // directories count, matching internal/watcher.
+    let mut out = Vec::new();
+    for entry in entries {
+        let path = entry?.path();
+        if path.extension().is_none_or(|ext| ext != "json") {
+            continue;
+        }
+        let parsed = std::fs::read(&path)
+            .map_err(anyhow::Error::from)
+            .and_then(|bytes| Ok(serde_json::from_slice::<Map<String, Value>>(&bytes)?));
+        match parsed {
+            Ok(metadata) => out.extend(Credential::from_file(dir, &path, metadata)),
+            Err(e) => {
+                tracing::warn!(path = %path.display(), error = %e, "skipping credential file")
+            }
+        }
+    }
+    out.sort_by(|a, b| a.id.cmp(&b.id));
+    Ok(out)
+}

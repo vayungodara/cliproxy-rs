@@ -118,8 +118,10 @@ mod tests {
 
     #[test]
     fn legacy_spellings_still_work() {
-        let cfg = Config::parse("host: 127.0.0.1\nport: 9000\napi-keys: [' a ', a, '', b]\nauth-dir: /x\n")
-            .unwrap();
+        let cfg = Config::parse(
+            "host: 127.0.0.1\nport: 9000\napi-keys: [' a ', a, '', b]\nauth-dir: /x\n",
+        )
+        .unwrap();
         assert_eq!(cfg.host, "127.0.0.1");
         assert_eq!(cfg.port, 9000);
         assert_eq!(cfg.api_keys, ["a", "b"]);
