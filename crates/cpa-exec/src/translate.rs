@@ -8,24 +8,41 @@ use cpa_core::format::Format;
 use cpa_translate::{Pair, RequestCtx, ResponseCtx, StreamTranslator};
 use futures_util::StreamExt;
 
-pub(crate) fn request(req: &ExecRequest) -> Result<Bytes, ExecError> {
-    match cpa_translate::pair(req.source_format, Format::Claude) {
-        Some(pair) => (pair.request)(
-            &RequestCtx {
-                model: &req.model,
-                stream: req.stream || req.source_format != Format::Claude,
-            },
-            &req.body,
-        )
-        .map(Bytes::from)
-        .map_err(error),
-        None if req.source_format == Format::Claude => Ok(req.body.clone()),
-        None => Err(ExecError::local(
-            501,
-            FailureScope::Request,
-            "Claude request translation pair is not registered",
-        )),
-    }
+/// sdktranslator.TranslateRequest to Claude for `model` (the base model, without a
+/// thinking suffix): a registered pair with Go's summary pipeline, else Go's top-level
+/// model rewrite. Streaming translation whenever the client is not Claude.
+///
+/// With `is_compat` (an is-compat API-key model), OpenAI Chat and Responses clients use
+/// Go's `...WithCompat` translators, which keep unsigned reasoning history, between the
+/// same summary extraction and application
+/// (`TranslateRequestWithAPIKeyModelCompatibilityForExecutor`).
+// ponytail: the Codex orphan-delegation and multi-agent v2 input rewrites Go applies to
+// compat Responses payloads first are cpa_common::codex_client's (Codex thread).
+pub(crate) fn request(req: &ExecRequest, model: &str, is_compat: bool) -> Result<Bytes, ExecError> {
+    let ctx = RequestCtx {
+        model,
+        stream: req.stream || req.source_format != Format::Claude,
+    };
+    let compat: Option<cpa_translate::RequestFn> = match req.source_format {
+        Format::OpenAI if is_compat => Some(cpa_translate::openai_to_claude_with_compat),
+        Format::OpenAIResponse if is_compat => Some(cpa_translate::responses_to_claude_with_compat),
+        _ => None,
+    };
+    let Some(translate) = compat else {
+        return cpa_translate::translate_request(req.source_format, Format::Claude, &ctx, &req.body)
+            .map(Bytes::from)
+            .map_err(error);
+    };
+    use cpa_common::thinking::{apply_summary_config_for_model, extract_translated_summary_config};
+    let (from, to) = (req.source_format.as_str(), Format::Claude.as_str());
+    let summary = extract_translated_summary_config(&req.body, from, to);
+    let translated = translate(&ctx, &req.body).map_err(error)?;
+    Ok(Bytes::from(apply_summary_config_for_model(
+        &translated,
+        to,
+        model,
+        summary,
+    )))
 }
 
 pub(crate) async fn response(
@@ -260,10 +277,14 @@ mod tests {
     }
 
     #[test]
-    fn native_identity_keeps_request_bytes() {
+    fn native_identity_keeps_request_bytes_and_rewrites_only_a_different_model() {
         let mut request = req(false, Operation::Generate);
         request.source_format = Format::Claude;
         request.body = Bytes::from_static(br#"{  "model" : "claude", "messages": [] }"#);
-        assert_eq!(super::request(&request).unwrap(), request.body);
+        assert_eq!(super::request(&request, "claude", false).unwrap(), request.body);
+        assert_eq!(
+            super::request(&request, "claude-base", false).unwrap(),
+            br#"{  "model" : "claude-base", "messages": [] }"#.as_slice()
+        );
     }
 }

@@ -1,0 +1,1787 @@
+{
+ "client": "gemini",
+ "fixtures": [
+  {
+   "name": "TestConvertGeminiRequestToGemini_BackfillsEmptyName:173",
+   "path": "request",
+   "model": "",
+   "input": "{\n\t\t\"contents\": [\n\t\t\t{\n\t\t\t\t\"role\": \"model\",\n\t\t\t\t\"parts\": [\n\t\t\t\t\t{\"functionCall\": {\"name\": \"Bash\", \"args\": {\"cmd\": \"ls\"}}}\n\t\t\t\t]\n\t\t\t},\n\t\t\t{\n\t\t\t\t\"role\": \"user\",\n\t\t\t\t\"parts\": [\n\t\t\t\t\t{\"functionResponse\": {\"name\": \"\", \"response\": {\"output\": \"file1.txt\"}}}\n\t\t\t\t]\n\t\t\t}\n\t\t]\n\t}",
+   "outputs": [
+    [
+     "{\n\t\t\"contents\": [{\n\t\t\t\t\"role\": \"model\",\n\t\t\t\t\"parts\": [{\"functionCall\": {\"name\": \"Bash\", \"args\": {\"cmd\": \"ls\"}},\"thoughtSignature\":\"skip_thought_signature_validator\"}]\n\t\t\t},{\n\t\t\t\t\"role\": \"user\",\n\t\t\t\t\"parts\": [{\"functionResponse\": {\"name\": \"Bash\", \"response\": {\"output\": \"file1.txt\"}}}]\n\t\t\t}]\n\t,\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertGeminiRequestToGemini_FunctionResponseWithInvalidRoleNormalizesToUser:264",
+   "path": "request",
+   "model": "gemini-3-flash",
+   "input": "{\n\t\t\"contents\": [\n\t\t\t{\"role\": \"user\", \"parts\": [{\"text\": \"reminder\"}]},\n\t\t\t{\"role\": \"invalid\", \"parts\": [{\"functionResponse\": {\"name\": \"lookup\", \"response\": {}}}]}\n\t\t]\n\t}",
+   "outputs": [
+    [
+     "{\n\t\t\"contents\": [{\"role\": \"user\", \"parts\": [{\"text\": \"reminder\"}]},{\"role\": \"user\", \"parts\": [{\"functionResponse\": {\"name\": \"lookup\", \"response\": {}}}]}]\n\t,\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/0/gemini-2.5-pro",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "stream": true,
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":0}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":0}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/0/gemini-3-pro-preview",
+   "path": "request",
+   "model": "gemini-3-pro-preview",
+   "stream": true,
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":0}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":0}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/0/claude-opus-4-6",
+   "path": "request",
+   "model": "claude-opus-4-6",
+   "stream": true,
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":0}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":0}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/0/gpt-5",
+   "path": "request",
+   "model": "gpt-5",
+   "stream": true,
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":0}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":0}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/0/kimi-k2.5",
+   "path": "request",
+   "model": "kimi-k2.5",
+   "stream": true,
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":0}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":0}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/0/unknown-model",
+   "path": "request",
+   "model": "unknown-model",
+   "stream": true,
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":0}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":0}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/0/gemini-2.5-flash(8192)",
+   "path": "request",
+   "model": "gemini-2.5-flash(8192)",
+   "stream": true,
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":0}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":0}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/1/gemini-2.5-pro",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":-1}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":-1}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/1/gemini-3-pro-preview",
+   "path": "request",
+   "model": "gemini-3-pro-preview",
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":-1}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":-1}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/1/claude-opus-4-6",
+   "path": "request",
+   "model": "claude-opus-4-6",
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":-1}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":-1}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/1/gpt-5",
+   "path": "request",
+   "model": "gpt-5",
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":-1}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":-1}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/1/kimi-k2.5",
+   "path": "request",
+   "model": "kimi-k2.5",
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":-1}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":-1}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/1/unknown-model",
+   "path": "request",
+   "model": "unknown-model",
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":-1}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":-1}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/1/gemini-2.5-flash(8192)",
+   "path": "request",
+   "model": "gemini-2.5-flash(8192)",
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":-1}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":-1}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/2/gemini-2.5-pro",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "stream": true,
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":1024}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":1024}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/2/gemini-3-pro-preview",
+   "path": "request",
+   "model": "gemini-3-pro-preview",
+   "stream": true,
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":1024}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":1024}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/2/claude-opus-4-6",
+   "path": "request",
+   "model": "claude-opus-4-6",
+   "stream": true,
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":1024}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":1024}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/2/gpt-5",
+   "path": "request",
+   "model": "gpt-5",
+   "stream": true,
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":1024}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":1024}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/2/kimi-k2.5",
+   "path": "request",
+   "model": "kimi-k2.5",
+   "stream": true,
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":1024}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":1024}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/2/unknown-model",
+   "path": "request",
+   "model": "unknown-model",
+   "stream": true,
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":1024}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":1024}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/2/gemini-2.5-flash(8192)",
+   "path": "request",
+   "model": "gemini-2.5-flash(8192)",
+   "stream": true,
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":1024}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":1024}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/3/gemini-2.5-pro",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":24577,\"includeThoughts\":true}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":24577,\"includeThoughts\":true}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/3/gemini-3-pro-preview",
+   "path": "request",
+   "model": "gemini-3-pro-preview",
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":24577,\"includeThoughts\":true}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":24577,\"includeThoughts\":true}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/3/claude-opus-4-6",
+   "path": "request",
+   "model": "claude-opus-4-6",
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":24577,\"includeThoughts\":true}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":24577,\"includeThoughts\":true}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/3/gpt-5",
+   "path": "request",
+   "model": "gpt-5",
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":24577,\"includeThoughts\":true}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":24577,\"includeThoughts\":true}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/3/kimi-k2.5",
+   "path": "request",
+   "model": "kimi-k2.5",
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":24577,\"includeThoughts\":true}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":24577,\"includeThoughts\":true}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/3/unknown-model",
+   "path": "request",
+   "model": "unknown-model",
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":24577,\"includeThoughts\":true}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":24577,\"includeThoughts\":true}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/3/gemini-2.5-flash(8192)",
+   "path": "request",
+   "model": "gemini-2.5-flash(8192)",
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":24577,\"includeThoughts\":true}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":24577,\"includeThoughts\":true}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/4/gemini-2.5-pro",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "stream": true,
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":\"512\"}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":\"512\"}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/4/gemini-3-pro-preview",
+   "path": "request",
+   "model": "gemini-3-pro-preview",
+   "stream": true,
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":\"512\"}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":\"512\"}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/4/claude-opus-4-6",
+   "path": "request",
+   "model": "claude-opus-4-6",
+   "stream": true,
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":\"512\"}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":\"512\"}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/4/gpt-5",
+   "path": "request",
+   "model": "gpt-5",
+   "stream": true,
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":\"512\"}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":\"512\"}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/4/kimi-k2.5",
+   "path": "request",
+   "model": "kimi-k2.5",
+   "stream": true,
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":\"512\"}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":\"512\"}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/4/unknown-model",
+   "path": "request",
+   "model": "unknown-model",
+   "stream": true,
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":\"512\"}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":\"512\"}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/4/gemini-2.5-flash(8192)",
+   "path": "request",
+   "model": "gemini-2.5-flash(8192)",
+   "stream": true,
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":\"512\"}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":\"512\"}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/5/gemini-2.5-pro",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingLevel\":\"high\"}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingLevel\":\"high\"}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/5/gemini-3-pro-preview",
+   "path": "request",
+   "model": "gemini-3-pro-preview",
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingLevel\":\"high\"}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingLevel\":\"high\"}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/5/claude-opus-4-6",
+   "path": "request",
+   "model": "claude-opus-4-6",
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingLevel\":\"high\"}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingLevel\":\"high\"}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/5/gpt-5",
+   "path": "request",
+   "model": "gpt-5",
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingLevel\":\"high\"}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingLevel\":\"high\"}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/5/kimi-k2.5",
+   "path": "request",
+   "model": "kimi-k2.5",
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingLevel\":\"high\"}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingLevel\":\"high\"}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/5/unknown-model",
+   "path": "request",
+   "model": "unknown-model",
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingLevel\":\"high\"}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingLevel\":\"high\"}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/5/gemini-2.5-flash(8192)",
+   "path": "request",
+   "model": "gemini-2.5-flash(8192)",
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingLevel\":\"high\"}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingLevel\":\"high\"}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/6/gemini-2.5-pro",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "stream": true,
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingLevel\":\" LOW \"}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingLevel\":\" LOW \"}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/6/gemini-3-pro-preview",
+   "path": "request",
+   "model": "gemini-3-pro-preview",
+   "stream": true,
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingLevel\":\" LOW \"}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingLevel\":\" LOW \"}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/6/claude-opus-4-6",
+   "path": "request",
+   "model": "claude-opus-4-6",
+   "stream": true,
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingLevel\":\" LOW \"}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingLevel\":\" LOW \"}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/6/gpt-5",
+   "path": "request",
+   "model": "gpt-5",
+   "stream": true,
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingLevel\":\" LOW \"}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingLevel\":\" LOW \"}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/6/kimi-k2.5",
+   "path": "request",
+   "model": "kimi-k2.5",
+   "stream": true,
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingLevel\":\" LOW \"}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingLevel\":\" LOW \"}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/6/unknown-model",
+   "path": "request",
+   "model": "unknown-model",
+   "stream": true,
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingLevel\":\" LOW \"}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingLevel\":\" LOW \"}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/6/gemini-2.5-flash(8192)",
+   "path": "request",
+   "model": "gemini-2.5-flash(8192)",
+   "stream": true,
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingLevel\":\" LOW \"}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingLevel\":\" LOW \"}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/7/gemini-2.5-pro",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingLevel\":\"minimal\",\"includeThoughts\":false}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingLevel\":\"minimal\",\"includeThoughts\":false}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/7/gemini-3-pro-preview",
+   "path": "request",
+   "model": "gemini-3-pro-preview",
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingLevel\":\"minimal\",\"includeThoughts\":false}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingLevel\":\"minimal\",\"includeThoughts\":false}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/7/claude-opus-4-6",
+   "path": "request",
+   "model": "claude-opus-4-6",
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingLevel\":\"minimal\",\"includeThoughts\":false}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingLevel\":\"minimal\",\"includeThoughts\":false}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/7/gpt-5",
+   "path": "request",
+   "model": "gpt-5",
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingLevel\":\"minimal\",\"includeThoughts\":false}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingLevel\":\"minimal\",\"includeThoughts\":false}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/7/kimi-k2.5",
+   "path": "request",
+   "model": "kimi-k2.5",
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingLevel\":\"minimal\",\"includeThoughts\":false}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingLevel\":\"minimal\",\"includeThoughts\":false}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/7/unknown-model",
+   "path": "request",
+   "model": "unknown-model",
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingLevel\":\"minimal\",\"includeThoughts\":false}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingLevel\":\"minimal\",\"includeThoughts\":false}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/7/gemini-2.5-flash(8192)",
+   "path": "request",
+   "model": "gemini-2.5-flash(8192)",
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingLevel\":\"minimal\",\"includeThoughts\":false}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingLevel\":\"minimal\",\"includeThoughts\":false}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/8/gemini-2.5-pro",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "stream": true,
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinking_budget\":2048,\"include_thoughts\":true}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinking_budget\":2048,\"includeThoughts\":true}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/8/gemini-3-pro-preview",
+   "path": "request",
+   "model": "gemini-3-pro-preview",
+   "stream": true,
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinking_budget\":2048,\"include_thoughts\":true}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinking_budget\":2048,\"includeThoughts\":true}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/8/claude-opus-4-6",
+   "path": "request",
+   "model": "claude-opus-4-6",
+   "stream": true,
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinking_budget\":2048,\"include_thoughts\":true}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinking_budget\":2048,\"includeThoughts\":true}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/8/gpt-5",
+   "path": "request",
+   "model": "gpt-5",
+   "stream": true,
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinking_budget\":2048,\"include_thoughts\":true}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinking_budget\":2048,\"includeThoughts\":true}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/8/kimi-k2.5",
+   "path": "request",
+   "model": "kimi-k2.5",
+   "stream": true,
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinking_budget\":2048,\"include_thoughts\":true}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinking_budget\":2048,\"includeThoughts\":true}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/8/unknown-model",
+   "path": "request",
+   "model": "unknown-model",
+   "stream": true,
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinking_budget\":2048,\"include_thoughts\":true}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinking_budget\":2048,\"includeThoughts\":true}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/8/gemini-2.5-flash(8192)",
+   "path": "request",
+   "model": "gemini-2.5-flash(8192)",
+   "stream": true,
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinking_budget\":2048,\"include_thoughts\":true}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinking_budget\":2048,\"includeThoughts\":true}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/9/gemini-2.5-pro",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"includeThoughts\":true}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"includeThoughts\":true}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/9/gemini-3-pro-preview",
+   "path": "request",
+   "model": "gemini-3-pro-preview",
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"includeThoughts\":true}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"includeThoughts\":true}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/9/claude-opus-4-6",
+   "path": "request",
+   "model": "claude-opus-4-6",
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"includeThoughts\":true}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"includeThoughts\":true}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/9/gpt-5",
+   "path": "request",
+   "model": "gpt-5",
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"includeThoughts\":true}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"includeThoughts\":true}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/9/kimi-k2.5",
+   "path": "request",
+   "model": "kimi-k2.5",
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"includeThoughts\":true}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"includeThoughts\":true}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/9/unknown-model",
+   "path": "request",
+   "model": "unknown-model",
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"includeThoughts\":true}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"includeThoughts\":true}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/9/gemini-2.5-flash(8192)",
+   "path": "request",
+   "model": "gemini-2.5-flash(8192)",
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"includeThoughts\":true}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"includeThoughts\":true}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/10/gemini-2.5-pro",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "stream": true,
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/10/gemini-3-pro-preview",
+   "path": "request",
+   "model": "gemini-3-pro-preview",
+   "stream": true,
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/10/claude-opus-4-6",
+   "path": "request",
+   "model": "claude-opus-4-6",
+   "stream": true,
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/10/gpt-5",
+   "path": "request",
+   "model": "gpt-5",
+   "stream": true,
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/10/kimi-k2.5",
+   "path": "request",
+   "model": "kimi-k2.5",
+   "stream": true,
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/10/unknown-model",
+   "path": "request",
+   "model": "unknown-model",
+   "stream": true,
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/10/gemini-2.5-flash(8192)",
+   "path": "request",
+   "model": "gemini-2.5-flash(8192)",
+   "stream": true,
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/11/gemini-2.5-pro",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingLevel\":\"xhigh\"}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingLevel\":\"xhigh\"}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/11/gemini-3-pro-preview",
+   "path": "request",
+   "model": "gemini-3-pro-preview",
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingLevel\":\"xhigh\"}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingLevel\":\"xhigh\"}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/11/claude-opus-4-6",
+   "path": "request",
+   "model": "claude-opus-4-6",
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingLevel\":\"xhigh\"}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingLevel\":\"xhigh\"}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/11/gpt-5",
+   "path": "request",
+   "model": "gpt-5",
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingLevel\":\"xhigh\"}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingLevel\":\"xhigh\"}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/11/kimi-k2.5",
+   "path": "request",
+   "model": "kimi-k2.5",
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingLevel\":\"xhigh\"}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingLevel\":\"xhigh\"}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/11/unknown-model",
+   "path": "request",
+   "model": "unknown-model",
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingLevel\":\"xhigh\"}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingLevel\":\"xhigh\"}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/11/gemini-2.5-flash(8192)",
+   "path": "request",
+   "model": "gemini-2.5-flash(8192)",
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingLevel\":\"xhigh\"}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingLevel\":\"xhigh\"}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/12/gemini-2.5-pro",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "stream": true,
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":1e3}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":1e3}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/12/gemini-3-pro-preview",
+   "path": "request",
+   "model": "gemini-3-pro-preview",
+   "stream": true,
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":1e3}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":1e3}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/12/claude-opus-4-6",
+   "path": "request",
+   "model": "claude-opus-4-6",
+   "stream": true,
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":1e3}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":1e3}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/12/gpt-5",
+   "path": "request",
+   "model": "gpt-5",
+   "stream": true,
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":1e3}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":1e3}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/12/kimi-k2.5",
+   "path": "request",
+   "model": "kimi-k2.5",
+   "stream": true,
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":1e3}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":1e3}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/12/unknown-model",
+   "path": "request",
+   "model": "unknown-model",
+   "stream": true,
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":1e3}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":1e3}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-thinking/12/gemini-2.5-flash(8192)",
+   "path": "request",
+   "model": "gemini-2.5-flash(8192)",
+   "stream": true,
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":1e3}}}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"maxOutputTokens\":100,\"thinkingConfig\":{\"thinkingBudget\":1e3}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini/0",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "input": "{\"contents\":[{\"parts\":[{\"text\":\"no role\"}]},{\"role\":\"bogus\",\"parts\":[{\"text\":\"x\"}]},{\"role\":\"MODEL\",\"parts\":[{\"text\":\"y\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"z\"}]},{\"parts\":[{\"functionResponse\":{\"name\":\"f\",\"response\":{\"r\":1}}}]},{\"role\":\"\",\"parts\":[{\"function_response\":{\"name\":\"g\"}}]}]}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"parts\":[{\"text\":\"no role\"}],\"role\":\"user\"},{\"role\":\"model\",\"parts\":[{\"text\":\"x\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"y\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"z\"}]},{\"parts\":[{\"functionResponse\":{\"name\":\"f\",\"response\":{\"r\":1}}}],\"role\":\"user\"},{\"role\":\"user\",\"parts\":[{\"function_response\":{\"name\":\"g\"}}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini/1",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "stream": true,
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"ok\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"fine\"}]}],\"safetySettings\":[]}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"ok\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"fine\"}]}],\"safetySettings\":[]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini/2",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "input": "{\"contents\":{\"a\":{\"parts\":[{\"text\":\"obj\"}]},\"b\":{\"role\":\"model\"}}}",
+   "outputs": [
+    [
+     "{\"contents\":{\"a\":{\"parts\":[{\"text\":\"obj\"}]},\"b\":{\"role\":\"model\"},\"0\":{\"role\":\"user\"}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini/3",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "stream": true,
+   "input": "{\"contents\":\"str\"}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\"}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini/4",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "input": "{\"contents\":null}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\"}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini/5",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "stream": true,
+   "input": "{\"contents\":[]}",
+   "outputs": [
+    [
+     "{\"contents\":[],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini/6",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "input": "{\"systemInstruction\":{\"parts\":[{\"text\":\"sys \u003cb\u003e\"}]},\"generationConfig\":{\"temperature\":0.5}}",
+   "outputs": [
+    [
+     "{\"systemInstruction\":{\"parts\":[{\"text\":\"sys \u003cb\u003e\"}]},\"generationConfig\":{\"temperature\":0.5},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini/7",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "stream": true,
+   "input": "{\"tools\":[{\"functionDeclarations\":[{\"name\":\"a\",\"description\":\"d\",\"parameters\":{\"type\":\"OBJECT\",\"properties\":{\"q\":{\"type\":\"STRING\"}}}},{\"name\":\"b\",\"parametersJsonSchema\":{\"type\":\"object\"}}]},{\"googleSearch\":{}},{\"function_declarations\":[{\"name\":\"c\",\"parameters\":{\"type\":\"object\"}}]},{\"codeExecution\":{}}],\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"x\"}]}]}",
+   "outputs": [
+    [
+     "{\"tools\":[{\"function_declarations\":[{\"name\":\"a\",\"description\":\"d\",\"parametersJsonSchema\":{\"type\":\"OBJECT\",\"properties\":{\"q\":{\"type\":\"STRING\"}}}},{\"name\":\"b\",\"parametersJsonSchema\":{\"type\":\"object\"}}]},{\"googleSearch\":{}},{\"function_declarations\":[{\"name\":\"c\",\"parametersJsonSchema\":{\"type\":\"object\"}}]},{\"codeExecution\":{}}],\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"x\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini/8",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "input": "{\"tools\":[{\"functionDeclarations\":[{\"name\":\"keep\",\"parametersJsonSchema\":{}}]},{\"function_declarations\":\"bad\"}],\"toolConfig\":{\"functionCallingConfig\":{\"mode\":\"ANY\",\"allowedFunctionNames\":[\"keep\"]}},\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"x\"}]}]}",
+   "outputs": [
+    [
+     "{\"tools\":[{\"function_declarations\":[{\"name\":\"keep\",\"parametersJsonSchema\":{}}]},{\"function_declarations\":\"bad\"}],\"toolConfig\":{\"functionCallingConfig\":{\"mode\":\"ANY\",\"allowedFunctionNames\":[\"keep\"]}},\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"x\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini/9",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "stream": true,
+   "input": "{\"tools\":{\"functionDeclarations\":[]},\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"x\"}]}]}",
+   "outputs": [
+    [
+     "{\"tools\":{\"functionDeclarations\":[]},\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"x\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini/10",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "input": "{\"generationConfig\":{\"responseSchema\":{\"type\":\"OBJECT\"},\"responseMimeType\":\"application/json\",\"stopSequences\":[\"\u003cs\u003e\",\"b\"],\"candidateCount\":2,\"topK\":40,\"topP\":0.9,\"seed\":7,\"presencePenalty\":0.1,\"frequencyPenalty\":0.2,\"responseModalities\":[\"TEXT\",\"IMAGE\"]},\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"x\"}]}]}",
+   "outputs": [
+    [
+     "{\"generationConfig\":{\"responseMimeType\":\"application/json\",\"stopSequences\":[\"\u003cs\u003e\",\"b\"],\"candidateCount\":2,\"topK\":40,\"topP\":0.9,\"seed\":7,\"presencePenalty\":0.1,\"frequencyPenalty\":0.2,\"responseModalities\":[\"TEXT\",\"IMAGE\"],\"responseJsonSchema\":{\"type\":\"OBJECT\"}},\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"x\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini/11",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "stream": true,
+   "input": "{\"generationConfig\":{\"responseJsonSchema\":{\"type\":\"object\"},\"responseSchema\":{\"type\":\"object\",\"x\":1}},\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"x\"}]}]}",
+   "outputs": [
+    [
+     "{\"generationConfig\":{\"responseJsonSchema\":{\"type\":\"object\",\"x\":1}},\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"x\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini/12",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "input": "{\"contents\":[{\"role\":\"model\",\"parts\":[{\"functionCall\":{\"name\":\"Bash\",\"args\":{\"cmd\":\"ls\"}}},{\"functionCall\":{\"name\":\"Read\",\"args\":{}}}]},{\"role\":\"user\",\"parts\":[{\"functionResponse\":{\"name\":\"\",\"response\":{\"ok\":1}}},{\"functionResponse\":{\"name\":\"  \",\"response\":{}}},{\"functionResponse\":{\"response\":{}}}]},{\"role\":\"model\",\"parts\":[{\"functionCall\":{\"name\":\"Once\"}}]},{\"role\":\"user\",\"parts\":[{\"text\":\"between\"}]},{\"role\":\"user\",\"parts\":[{\"functionResponse\":{\"name\":\"\"}}]}]}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"model\",\"parts\":[{\"functionCall\":{\"name\":\"Bash\",\"args\":{\"cmd\":\"ls\"}},\"thoughtSignature\":\"skip_thought_signature_validator\"},{\"functionCall\":{\"name\":\"Read\",\"args\":{}}}]},{\"role\":\"user\",\"parts\":[{\"functionResponse\":{\"name\":\"Bash\",\"response\":{\"ok\":1}}},{\"functionResponse\":{\"name\":\"Read\",\"response\":{}}},{\"functionResponse\":{\"response\":{}}}]},{\"role\":\"model\",\"parts\":[{\"functionCall\":{\"name\":\"Once\"},\"thoughtSignature\":\"skip_thought_signature_validator\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"between\"}]},{\"role\":\"user\",\"parts\":[{\"functionResponse\":{\"name\":\"\"}}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini/13",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "stream": true,
+   "input": "{\"contents\":[{\"role\":\"model\",\"parts\":{\"functionCall\":{\"name\":\"ObjParts\"}}},{\"role\":\"user\",\"parts\":[{\"functionResponse\":{\"name\":\"\"}},{\"functionResponse\":{\"name\":\"\"}}]}]}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"model\",\"parts\":{\"functionCall\":{\"name\":\"ObjParts\"}}},{\"role\":\"user\",\"parts\":[{\"functionResponse\":{\"name\":\"\"}},{\"functionResponse\":{\"name\":\"\"}}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini/14",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "input": "{\"contents\":[{\"role\":\"model\",\"parts\":[{\"functionCall\":{\"name\":\"A\"}}]},{\"role\":\"function\",\"parts\":[{\"functionResponse\":{\"name\":\"\",\"response\":{\"r\":\"\u003cx\u003e\"}}}]}]}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"model\",\"parts\":[{\"functionCall\":{\"name\":\"A\"},\"thoughtSignature\":\"skip_thought_signature_validator\"}]},{\"role\":\"user\",\"parts\":[{\"functionResponse\":{\"name\":\"A\",\"response\":{\"r\":\"\u003cx\u003e\"}}}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini/15",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "stream": true,
+   "input": "{\"contents\":[{\"role\":\"model\",\"parts\":[{\"text\":\"t\",\"thought\":true,\"thoughtSignature\":\"bad-sig\"},{\"functionCall\":{\"name\":\"f\",\"args\":{}},\"thoughtSignature\":\"skip_thought_signature_validator\"},{\"text\":\"x\",\"thought_signature\":\"EjQKMgEMOdbHO0Gd+c9Mxk4ELwPGbpCEcp2mFfYYLix2UVtBH3fL8GECc4+JITVnHF4qZDsA\"}]},{\"role\":\"user\",\"parts\":[{\"functionResponse\":{\"name\":\"f\",\"response\":{}},\"thoughtSignature\":\"claude#EjQ=\"}]}]}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"model\",\"parts\":[{\"text\":\"t\",\"thought\":true},{\"functionCall\":{\"name\":\"f\",\"args\":{}},\"thoughtSignature\":\"skip_thought_signature_validator\"},{\"text\":\"x\",\"thoughtSignature\":\"EjQKMgEMOdbHO0Gd+c9Mxk4ELwPGbpCEcp2mFfYYLix2UVtBH3fL8GECc4+JITVnHF4qZDsA\"}]},{\"role\":\"user\",\"parts\":[{\"functionResponse\":{\"name\":\"f\",\"response\":{}}}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini/16",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"inlineData\":{\"mimeType\":\"image/png\",\"data\":\"iVBOR\"}},{\"fileData\":{\"mimeType\":\"application/pdf\",\"fileUri\":\"gs://b/f.pdf\"}},{\"text\":\"what \u003cis\u003e this \u0026 é\"}]}]}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"inlineData\":{\"mimeType\":\"image/png\",\"data\":\"iVBOR\"}},{\"fileData\":{\"mimeType\":\"application/pdf\",\"fileUri\":\"gs://b/f.pdf\"}},{\"text\":\"what \u003cis\u003e this \u0026 é\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini/17",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "stream": true,
+   "input": "{\"contents\":[{\"role\":\"model\",\"parts\":[{\"executableCode\":{\"language\":\"PYTHON\",\"code\":\"print(1)\"}},{\"codeExecutionResult\":{\"outcome\":\"OUTCOME_OK\",\"output\":\"1\"}}]}]}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"model\",\"parts\":[{\"executableCode\":{\"language\":\"PYTHON\",\"code\":\"print(1)\"}},{\"codeExecutionResult\":{\"outcome\":\"OUTCOME_OK\",\"output\":\"1\"}}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini/18",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"model\",\"parts\":[]},{\"role\":\"model\"},{\"role\":\"user\",\"parts\":[{\"text\":\"\"}]}]}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"model\",\"parts\":[]},{\"role\":\"model\"},{\"role\":\"user\",\"parts\":[{\"text\":\"\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini/19",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "stream": true,
+   "input": "{\"model\":\"old\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"x\"}]}],\"cachedContent\":\"cachedContents/abc\",\"labels\":{\"k\":\"v\"}}",
+   "outputs": [
+    [
+     "{\"model\":\"old\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"x\"}]}],\"cachedContent\":\"cachedContents/abc\",\"labels\":{\"k\":\"v\"},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini/20",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "bytes": true,
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"badÿþ\"}]},{\"role\":\"rÿ\",\"parts\":[{\"text\":\"Ã\"}]}]}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"badÿþ\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"Ã\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini/21",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "stream": true,
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"\\ud800 lone \\u2028 \\u00e9 \u003c\u0026\u003e\"}]}]}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"\\ud800 lone \\u2028 \\u00e9 \u003c\u0026\u003e\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini/22",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "input": "not json",
+   "outputs": [
+    [
+     "{\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini/23",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "stream": true,
+   "outputs": [
+    [
+     "{\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini/24",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "input": "[]",
+   "outputs": [
+    [
+     "[]"
+    ]
+   ]
+  },
+  {
+   "name": "gemini/25",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "stream": true,
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"x\"}]}],}",
+   "outputs": [
+    [
+     "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"x\"}]}],,\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini/26",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "input": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"unterminated",
+   "outputs": [
+    [
+     ",\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini/27",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "stream": true,
+   "input": " {\"contents\" : [ {\"parts\" : [ {\"text\" : \"spaced\"} ] } ] } trailing",
+   "outputs": [
+    [
+     "{\"contents\" : [{\"parts\" : [ {\"text\" : \"spaced\"} ] ,\"role\":\"user\"}] ,\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-up/finish-reasons",
+   "path": "stream",
+   "model": "gemini-2.5-pro",
+   "original": "{\"model\":\"client-model\",\"stream\":true,\"tools\":[{\"name\":\"Read\"},{\"function\":{\"name\":\"Lookup\"}}]}",
+   "lines": [
+    "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"a\"}]},\"index\":0,\"finishReason\":\"MAX_TOKENS\"}],\"modelVersion\":\"gemini-2.5-pro\",\"responseId\":\"resp-1\",\"createTime\":\"2025-01-01T00:00:00Z\"}",
+    "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},\"index\":0,\"finishReason\":\"SAFETY\",\"safetyRatings\":[{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"probability\":\"HIGH\"}]}],\"modelVersion\":\"gemini-2.5-pro\",\"responseId\":\"resp-1\",\"createTime\":\"2025-01-01T00:00:00Z\"}",
+    "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[]},\"index\":0,\"finishReason\":\"MALFORMED_FUNCTION_CALL\"}],\"modelVersion\":\"gemini-2.5-pro\",\"responseId\":\"resp-1\",\"createTime\":\"2025-01-01T00:00:00Z\"}",
+    "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"c\"}]},\"index\":0,\"finishReason\":\"RECITATION\"}],\"modelVersion\":\"gemini-2.5-pro\",\"responseId\":\"resp-1\",\"createTime\":\"2025-01-01T00:00:00Z\"}",
+    "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"d\"}]},\"index\":0,\"finishReason\":\"OTHER\"}],\"modelVersion\":\"gemini-2.5-pro\",\"responseId\":\"resp-1\",\"createTime\":\"2025-01-01T00:00:00Z\"}",
+    "data: [DONE]"
+   ],
+   "outputs": [
+    [
+     "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"a\"}]},\"index\":0,\"finishReason\":\"MAX_TOKENS\"}],\"modelVersion\":\"gemini-2.5-pro\",\"responseId\":\"resp-1\",\"createTime\":\"2025-01-01T00:00:00Z\"}"
+    ],
+    [
+     "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},\"index\":0,\"finishReason\":\"SAFETY\",\"safetyRatings\":[{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"probability\":\"HIGH\"}]}],\"modelVersion\":\"gemini-2.5-pro\",\"responseId\":\"resp-1\",\"createTime\":\"2025-01-01T00:00:00Z\"}"
+    ],
+    [
+     "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[]},\"index\":0,\"finishReason\":\"MALFORMED_FUNCTION_CALL\"}],\"modelVersion\":\"gemini-2.5-pro\",\"responseId\":\"resp-1\",\"createTime\":\"2025-01-01T00:00:00Z\"}"
+    ],
+    [
+     "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"c\"}]},\"index\":0,\"finishReason\":\"RECITATION\"}],\"modelVersion\":\"gemini-2.5-pro\",\"responseId\":\"resp-1\",\"createTime\":\"2025-01-01T00:00:00Z\"}"
+    ],
+    [
+     "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"d\"}]},\"index\":0,\"finishReason\":\"OTHER\"}],\"modelVersion\":\"gemini-2.5-pro\",\"responseId\":\"resp-1\",\"createTime\":\"2025-01-01T00:00:00Z\"}"
+    ],
+    []
+   ]
+  },
+  {
+   "name": "gemini-up/framing",
+   "path": "stream",
+   "model": "gemini-2.5-pro",
+   "bytes": true,
+   "original": "{\"model\":\"client-model\",\"stream\":true,\"tools\":[{\"name\":\"Read\"},{\"function\":{\"name\":\"Lookup\"}}]}",
+   "lines": [
+    "",
+    ": keepalive",
+    "event: x",
+    "{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"bare\"}]}}]}",
+    "data:   [DONE]  ",
+    "data: not json",
+    "data: {\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"badÿ\"}]}}]}",
+    "data: {\"error\":{\"code\":429,\"message\":\"quota \u003cx\u003e\"}}"
+   ],
+   "outputs": [
+    [
+     ""
+    ],
+    [
+     ": keepalive"
+    ],
+    [
+     "event: x"
+    ],
+    [
+     "{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"bare\"}]}}]}"
+    ],
+    [],
+    [
+     "not json"
+    ],
+    [
+     "{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"badÿ\"}]}}]}"
+    ],
+    [
+     "{\"error\":{\"code\":429,\"message\":\"quota \u003cx\u003e\"}}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-up/function-calls",
+   "path": "stream",
+   "model": "gemini-2.5-pro",
+   "original": "{\"model\":\"client-model\",\"stream\":true,\"tools\":[{\"name\":\"Read\"},{\"function\":{\"name\":\"Lookup\"}}]}",
+   "lines": [
+    "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"calling\"},{\"functionCall\":{\"name\":\"lookup\",\"args\":{\"q\":\"\u003cx\u003e\",\"n\":1e3}},\"thoughtSignature\":\"sig\"}]},\"index\":0}],\"modelVersion\":\"gemini-2.5-pro\",\"responseId\":\"resp-1\",\"createTime\":\"2025-01-01T00:00:00Z\"}",
+    "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"functionCall\":{\"id\":\"call-2\",\"name\":\"Read\",\"args\":{}}},{\"functionCall\":{\"name\":\"noargs\"}}]},\"index\":0,\"finishReason\":\"STOP\"}],\"modelVersion\":\"gemini-2.5-pro\",\"responseId\":\"resp-1\",\"createTime\":\"2025-01-01T00:00:00Z\"}",
+    "data: {\"usageMetadata\":{\"promptTokenCount\":12,\"candidatesTokenCount\":5,\"thoughtsTokenCount\":3,\"cachedContentTokenCount\":4,\"totalTokenCount\":20}}",
+    "data: [DONE]"
+   ],
+   "outputs": [
+    [
+     "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"calling\"},{\"functionCall\":{\"name\":\"lookup\",\"args\":{\"q\":\"\u003cx\u003e\",\"n\":1e3}},\"thoughtSignature\":\"sig\"}]},\"index\":0}],\"modelVersion\":\"gemini-2.5-pro\",\"responseId\":\"resp-1\",\"createTime\":\"2025-01-01T00:00:00Z\"}"
+    ],
+    [
+     "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"functionCall\":{\"id\":\"call-2\",\"name\":\"Read\",\"args\":{}}},{\"functionCall\":{\"name\":\"noargs\"}}]},\"index\":0,\"finishReason\":\"STOP\"}],\"modelVersion\":\"gemini-2.5-pro\",\"responseId\":\"resp-1\",\"createTime\":\"2025-01-01T00:00:00Z\"}"
+    ],
+    [
+     "{\"usageMetadata\":{\"promptTokenCount\":12,\"candidatesTokenCount\":5,\"thoughtsTokenCount\":3,\"cachedContentTokenCount\":4,\"totalTokenCount\":20}}"
+    ],
+    []
+   ]
+  },
+  {
+   "name": "gemini-up/grounding",
+   "path": "stream",
+   "model": "gemini-2.5-pro",
+   "original": "{\"model\":\"client-model\",\"stream\":true,\"tools\":[{\"name\":\"Read\"},{\"function\":{\"name\":\"Lookup\"}}]}",
+   "lines": [
+    "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"grounded\"}]},\"index\":0,\"groundingMetadata\":{\"webSearchQueries\":[\"q\"],\"groundingChunks\":[{\"web\":{\"uri\":\"https://a\",\"title\":\"A\"}}]},\"finishReason\":\"STOP\"}],\"modelVersion\":\"gemini-2.5-pro\",\"responseId\":\"resp-1\",\"createTime\":\"2025-01-01T00:00:00Z\"}",
+    "data: [DONE]"
+   ],
+   "outputs": [
+    [
+     "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"grounded\"}]},\"index\":0,\"groundingMetadata\":{\"webSearchQueries\":[\"q\"],\"groundingChunks\":[{\"web\":{\"uri\":\"https://a\",\"title\":\"A\"}}]},\"finishReason\":\"STOP\"}],\"modelVersion\":\"gemini-2.5-pro\",\"responseId\":\"resp-1\",\"createTime\":\"2025-01-01T00:00:00Z\"}"
+    ],
+    []
+   ]
+  },
+  {
+   "name": "gemini-up/inline-data",
+   "path": "stream",
+   "model": "gemini-2.5-pro",
+   "original": "{\"model\":\"client-model\",\"stream\":true,\"tools\":[{\"name\":\"Read\"},{\"function\":{\"name\":\"Lookup\"}}]}",
+   "lines": [
+    "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"inlineData\":{\"mimeType\":\"image/png\",\"data\":\"iVBOR\"}},{\"text\":\"caption\"},{\"executableCode\":{\"language\":\"PYTHON\",\"code\":\"x\"}},{\"codeExecutionResult\":{\"outcome\":\"OUTCOME_OK\",\"output\":\"1\"}}]},\"index\":0,\"finishReason\":\"STOP\"}],\"modelVersion\":\"gemini-2.5-pro\",\"responseId\":\"resp-1\",\"createTime\":\"2025-01-01T00:00:00Z\"}",
+    "data: [DONE]"
+   ],
+   "outputs": [
+    [
+     "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"inlineData\":{\"mimeType\":\"image/png\",\"data\":\"iVBOR\"}},{\"text\":\"caption\"},{\"executableCode\":{\"language\":\"PYTHON\",\"code\":\"x\"}},{\"codeExecutionResult\":{\"outcome\":\"OUTCOME_OK\",\"output\":\"1\"}}]},\"index\":0,\"finishReason\":\"STOP\"}],\"modelVersion\":\"gemini-2.5-pro\",\"responseId\":\"resp-1\",\"createTime\":\"2025-01-01T00:00:00Z\"}"
+    ],
+    []
+   ]
+  },
+  {
+   "name": "gemini-up/multi-candidate",
+   "path": "stream",
+   "model": "gemini-2.5-pro",
+   "original": "{\"model\":\"client-model\",\"stream\":true,\"tools\":[{\"name\":\"Read\"},{\"function\":{\"name\":\"Lookup\"}}]}",
+   "lines": [
+    "data: {\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"c0\"}]},\"index\":0},{\"content\":{\"parts\":[{\"text\":\"c1\"}]},\"index\":1,\"finishReason\":\"STOP\"}],\"responseId\":\"r\"}",
+    "data: [DONE]"
+   ],
+   "outputs": [
+    [
+     "{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"c0\"}]},\"index\":0},{\"content\":{\"parts\":[{\"text\":\"c1\"}]},\"index\":1,\"finishReason\":\"STOP\"}],\"responseId\":\"r\"}"
+    ],
+    []
+   ]
+  },
+  {
+   "name": "gemini-up/text",
+   "path": "stream",
+   "model": "gemini-2.5-pro",
+   "original": "{\"model\":\"client-model\",\"stream\":true,\"tools\":[{\"name\":\"Read\"},{\"function\":{\"name\":\"Lookup\"}}]}",
+   "lines": [
+    "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"Hello \u003cb\u003e\"}]},\"index\":0}],\"modelVersion\":\"gemini-2.5-pro\",\"responseId\":\"resp-1\",\"createTime\":\"2025-01-01T00:00:00Z\"}",
+    "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\" \u0026 é \\u2028\"}]},\"index\":0}],\"modelVersion\":\"gemini-2.5-pro\",\"responseId\":\"resp-1\",\"createTime\":\"2025-01-01T00:00:00Z\"}",
+    "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"\"}]},\"index\":0,\"finishReason\":\"STOP\"}],\"modelVersion\":\"gemini-2.5-pro\",\"responseId\":\"resp-1\",\"createTime\":\"2025-01-01T00:00:00Z\"}",
+    "data: {\"candidates\":[],\"usageMetadata\":{\"promptTokenCount\":12,\"candidatesTokenCount\":5,\"thoughtsTokenCount\":3,\"cachedContentTokenCount\":4,\"totalTokenCount\":20}}",
+    "data: [DONE]"
+   ],
+   "outputs": [
+    [
+     "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"Hello \u003cb\u003e\"}]},\"index\":0}],\"modelVersion\":\"gemini-2.5-pro\",\"responseId\":\"resp-1\",\"createTime\":\"2025-01-01T00:00:00Z\"}"
+    ],
+    [
+     "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\" \u0026 é \\u2028\"}]},\"index\":0}],\"modelVersion\":\"gemini-2.5-pro\",\"responseId\":\"resp-1\",\"createTime\":\"2025-01-01T00:00:00Z\"}"
+    ],
+    [
+     "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"\"}]},\"index\":0,\"finishReason\":\"STOP\"}],\"modelVersion\":\"gemini-2.5-pro\",\"responseId\":\"resp-1\",\"createTime\":\"2025-01-01T00:00:00Z\"}"
+    ],
+    [
+     "{\"candidates\":[],\"usageMetadata\":{\"promptTokenCount\":12,\"candidatesTokenCount\":5,\"thoughtsTokenCount\":3,\"cachedContentTokenCount\":4,\"totalTokenCount\":20}}"
+    ],
+    []
+   ]
+  },
+  {
+   "name": "gemini-up/thoughts",
+   "path": "stream",
+   "model": "gemini-2.5-pro",
+   "original": "{\"model\":\"client-model\",\"stream\":true,\"tools\":[{\"name\":\"Read\"},{\"function\":{\"name\":\"Lookup\"}}]}",
+   "lines": [
+    "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"think\",\"thought\":true}]},\"index\":0}],\"modelVersion\":\"gemini-2.5-pro\",\"responseId\":\"resp-1\",\"createTime\":\"2025-01-01T00:00:00Z\"}",
+    "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"\",\"thought\":true,\"thoughtSignature\":\"EjQKMgEMOdbHO0Gd+c9Mxk4ELwPGbpCEcp2mFfYYLix2UVtBH3fL8GECc4+JITVnHF4qZDsA\"}]},\"index\":0}],\"modelVersion\":\"gemini-2.5-pro\",\"responseId\":\"resp-1\",\"createTime\":\"2025-01-01T00:00:00Z\"}",
+    "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"answer\"}]},\"index\":0,\"finishReason\":\"STOP\"}],\"modelVersion\":\"gemini-2.5-pro\",\"responseId\":\"resp-1\",\"createTime\":\"2025-01-01T00:00:00Z\"}",
+    "data: {\"candidates\":[{\"content\":{\"parts\":[]},\"finishReason\":\"STOP\"}],\"usageMetadata\":{\"promptTokenCount\":12,\"candidatesTokenCount\":5,\"thoughtsTokenCount\":3,\"cachedContentTokenCount\":4,\"totalTokenCount\":20}}"
+   ],
+   "outputs": [
+    [
+     "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"think\",\"thought\":true}]},\"index\":0}],\"modelVersion\":\"gemini-2.5-pro\",\"responseId\":\"resp-1\",\"createTime\":\"2025-01-01T00:00:00Z\"}"
+    ],
+    [
+     "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"\",\"thought\":true,\"thoughtSignature\":\"EjQKMgEMOdbHO0Gd+c9Mxk4ELwPGbpCEcp2mFfYYLix2UVtBH3fL8GECc4+JITVnHF4qZDsA\"}]},\"index\":0}],\"modelVersion\":\"gemini-2.5-pro\",\"responseId\":\"resp-1\",\"createTime\":\"2025-01-01T00:00:00Z\"}"
+    ],
+    [
+     "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"answer\"}]},\"index\":0,\"finishReason\":\"STOP\"}],\"modelVersion\":\"gemini-2.5-pro\",\"responseId\":\"resp-1\",\"createTime\":\"2025-01-01T00:00:00Z\"}"
+    ],
+    [
+     "{\"candidates\":[{\"content\":{\"parts\":[]},\"finishReason\":\"STOP\"}],\"usageMetadata\":{\"promptTokenCount\":12,\"candidatesTokenCount\":5,\"thoughtsTokenCount\":3,\"cachedContentTokenCount\":4,\"totalTokenCount\":20}}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-up/usage-only",
+   "path": "stream",
+   "model": "gemini-2.5-pro",
+   "original": "{\"model\":\"client-model\",\"stream\":true,\"tools\":[{\"name\":\"Read\"},{\"function\":{\"name\":\"Lookup\"}}]}",
+   "lines": [
+    "data: {\"usageMetadata\":{\"promptTokenCount\":\"7\",\"candidatesTokenCount\":1.5}}",
+    "data: {\"candidates\":[{\"finishReason\":\"STOP\"}]}",
+    "data: [DONE]"
+   ],
+   "outputs": [
+    [
+     "{\"usageMetadata\":{\"promptTokenCount\":\"7\",\"candidatesTokenCount\":1.5}}"
+    ],
+    [
+     "{\"candidates\":[{\"finishReason\":\"STOP\"}]}"
+    ],
+    []
+   ]
+  },
+  {
+   "name": "gemini-up/non-stream/0",
+   "path": "non_stream",
+   "model": "gemini-2.5-pro",
+   "input": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"think\",\"thought\":true,\"thoughtSignature\":\"sig\"},{\"text\":\"Hello \u003cb\u003e é\"},{\"functionCall\":{\"name\":\"lookup\",\"args\":{\"q\":1}}}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":12,\"candidatesTokenCount\":5,\"thoughtsTokenCount\":3,\"cachedContentTokenCount\":4,\"totalTokenCount\":20},\"modelVersion\":\"gemini-2.5-pro\",\"responseId\":\"resp-1\"}",
+   "original": "{\"model\":\"client-model\",\"tools\":[{\"name\":\"Read\"}]}",
+   "outputs": [
+    [
+     "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"think\",\"thought\":true,\"thoughtSignature\":\"sig\"},{\"text\":\"Hello \u003cb\u003e é\"},{\"functionCall\":{\"name\":\"lookup\",\"args\":{\"q\":1}}}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":12,\"candidatesTokenCount\":5,\"thoughtsTokenCount\":3,\"cachedContentTokenCount\":4,\"totalTokenCount\":20},\"modelVersion\":\"gemini-2.5-pro\",\"responseId\":\"resp-1\"}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-up/non-stream/1",
+   "path": "non_stream",
+   "model": "gemini-2.5-pro",
+   "input": "{\"candidates\":[{\"content\":{\"parts\":[{\"functionCall\":{\"id\":\"c1\",\"name\":\"Read\",\"args\":{\"path\":\"/a\"}}},{\"functionCall\":{\"name\":\"Read\"}}]},\"finishReason\":\"MAX_TOKENS\"}],\"usageMetadata\":{\"promptTokenCount\":3}}",
+   "original": "{\"model\":\"client-model\",\"tools\":[{\"name\":\"Read\"}]}",
+   "outputs": [
+    [
+     "{\"candidates\":[{\"content\":{\"parts\":[{\"functionCall\":{\"id\":\"c1\",\"name\":\"Read\",\"args\":{\"path\":\"/a\"}}},{\"functionCall\":{\"name\":\"Read\"}}]},\"finishReason\":\"MAX_TOKENS\"}],\"usageMetadata\":{\"promptTokenCount\":3}}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-up/non-stream/2",
+   "path": "non_stream",
+   "model": "gemini-2.5-pro",
+   "input": "{\"candidates\":[{\"content\":{\"parts\":[{\"inlineData\":{\"mimeType\":\"image/jpeg\",\"data\":\"/9j/\"}}]},\"finishReason\":\"SAFETY\"}]}",
+   "original": "{\"model\":\"client-model\",\"tools\":[{\"name\":\"Read\"}]}",
+   "outputs": [
+    [
+     "{\"candidates\":[{\"content\":{\"parts\":[{\"inlineData\":{\"mimeType\":\"image/jpeg\",\"data\":\"/9j/\"}}]},\"finishReason\":\"SAFETY\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-up/non-stream/3",
+   "path": "non_stream",
+   "model": "gemini-2.5-pro",
+   "input": "{\"candidates\":[]}",
+   "original": "{\"model\":\"client-model\",\"tools\":[{\"name\":\"Read\"}]}",
+   "outputs": [
+    [
+     "{\"candidates\":[]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-up/non-stream/4",
+   "path": "non_stream",
+   "model": "gemini-2.5-pro",
+   "input": "{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"\"}]}}]}",
+   "original": "{\"model\":\"client-model\",\"tools\":[{\"name\":\"Read\"}]}",
+   "outputs": [
+    [
+     "{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"\"}]}}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-up/non-stream/5",
+   "path": "non_stream",
+   "model": "gemini-2.5-pro",
+   "input": "{\"promptFeedback\":{\"blockReason\":\"SAFETY\"}}",
+   "original": "{\"model\":\"client-model\",\"tools\":[{\"name\":\"Read\"}]}",
+   "outputs": [
+    [
+     "{\"promptFeedback\":{\"blockReason\":\"SAFETY\"}}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-up/non-stream/6",
+   "path": "non_stream",
+   "model": "gemini-2.5-pro",
+   "input": "{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"a\"}]}},{\"content\":{\"parts\":[{\"text\":\"b\"}]},\"index\":1}]}",
+   "original": "{\"model\":\"client-model\",\"tools\":[{\"name\":\"Read\"}]}",
+   "outputs": [
+    [
+     "{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"a\"}]}},{\"content\":{\"parts\":[{\"text\":\"b\"}]},\"index\":1}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-up/non-stream/7",
+   "path": "non_stream",
+   "model": "gemini-2.5-pro",
+   "input": "not json",
+   "original": "{\"model\":\"client-model\",\"tools\":[{\"name\":\"Read\"}]}",
+   "outputs": [
+    [
+     "not json"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-up/non-stream/8",
+   "path": "non_stream",
+   "model": "gemini-2.5-pro",
+   "original": "{\"model\":\"client-model\",\"tools\":[{\"name\":\"Read\"}]}",
+   "outputs": [
+    [
+     ""
+    ]
+   ]
+  },
+  {
+   "name": "gemini-up/non-stream/9",
+   "path": "non_stream",
+   "model": "gemini-2.5-pro",
+   "bytes": true,
+   "input": "{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"badþ\"}]}}]}",
+   "original": "{\"model\":\"client-model\",\"tools\":[{\"name\":\"Read\"}]}",
+   "outputs": [
+    [
+     "{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"badþ\"}]}}]}"
+    ]
+   ]
+  },
+  {
+   "name": "gemini-up/non-stream/10",
+   "path": "non_stream",
+   "model": "gemini-2.5-pro",
+   "input": "[{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"array body\"}]}}]}]",
+   "original": "{\"model\":\"client-model\",\"tools\":[{\"name\":\"Read\"}]}",
+   "outputs": [
+    [
+     "[{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"array body\"}]}}]}]"
+    ]
+   ]
+  },
+  {
+   "name": "token-count/0",
+   "path": "token_count",
+   "model": "gemini-2.5-pro",
+   "input": "{\"upstream\":\"body\"}",
+   "outputs": [
+    [
+     "{\"totalTokens\":0,\"promptTokensDetails\":[{\"modality\":\"TEXT\",\"tokenCount\":0}]}"
+    ]
+   ]
+  },
+  {
+   "name": "token-count/1",
+   "path": "token_count",
+   "model": "gemini-2.5-pro",
+   "input": "{\"upstream\":\"body\"}",
+   "count": 1,
+   "outputs": [
+    [
+     "{\"totalTokens\":1,\"promptTokensDetails\":[{\"modality\":\"TEXT\",\"tokenCount\":1}]}"
+    ]
+   ]
+  },
+  {
+   "name": "token-count/123456789012",
+   "path": "token_count",
+   "model": "gemini-2.5-pro",
+   "input": "{\"upstream\":\"body\"}",
+   "count": 123456789012,
+   "outputs": [
+    [
+     "{\"totalTokens\":123456789012,\"promptTokensDetails\":[{\"modality\":\"TEXT\",\"tokenCount\":123456789012}]}"
+    ]
+   ]
+  }
+ ],
+ "token_count": true,
+ "upstream": "gemini"
+}

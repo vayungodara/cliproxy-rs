@@ -13,8 +13,12 @@ use cpa_core::format::Format;
 use cpa_translate::{RequestCtx, ResponseCtx, StreamTranslator};
 use futures_util::StreamExt;
 
+use cpa_common::gostr::GoStr;
+use cpa_common::json as gj;
+use cpa_common::thinking::{self, ModelCaps, RequestThinking, parse_suffix};
+
 use crate::openai_compat_go as go;
-use crate::openai_compat_http::{self as wire, Clients, GoHeaders, ThinkingInput, json};
+use crate::openai_compat_http::{self as wire, Clients, GoHeaders};
 use crate::openai_compat_multipart as multipart;
 use crate::openai_compat_payload as payload;
 
@@ -88,10 +92,6 @@ fn endpoint(base_url: &str, path: &str) -> String {
     format!("{}{path}", base_url.strip_suffix('/').unwrap_or(base_url))
 }
 
-fn not_text() -> ExecError {
-    ExecError::local(400, FailureScope::Request, "request body is not editable JSON text")
-}
-
 fn not_registered(what: &str, from: Format, to: Format) -> ExecError {
     ExecError::local(
         501,
@@ -104,30 +104,38 @@ fn not_registered(what: &str, from: Format, to: Format) -> ExecError {
     )
 }
 
-/// `sdktranslator.TranslateRequest`: the registered pair, else the body unchanged when
-/// the formats match.
+/// `helps.TranslateRequestWithAPIKeyModelCompatibilityAndUpdateIntent` for this executor.
 // ponytail: Go switches to the compat translators (ConvertClaudeRequestToOpenAIWithCompat)
-// when the configured model sets `is-compat`; cpa-translate has no compat variant for
-// OpenAI targets yet, so every model uses the regular pair (translator thread).
-fn translate_request(req: &ExecRequest, target: Format, model: &str, stream: bool) -> Result<go::GoText, ExecError> {
-    match cpa_translate::pair(req.source_format, target) {
-        Some(pair) => {
-            let out = (pair.request)(&RequestCtx { model, stream }, &req.body)
-                .map_err(|e| ExecError::local(400, FailureScope::Request, e.to_string()))?;
-            go::GoText::new(&out).ok_or_else(not_text)
-        }
-        // The registry fallback still normalizes `model` (sdk/translator/registry.go).
-        None if req.source_format == target => {
-            let body = go::GoText::new(&req.body).ok_or_else(not_text)?;
-            if model.is_empty() || json::string(&body.text, "model") == model {
-                Ok(body)
-            } else {
-                let text = json::set_str(&body.text, "model", model);
-                Ok(go::GoText { text, ..body })
-            }
-        }
-        None => Err(not_registered("request", req.source_format, target)),
-    }
+// when the resolved model sets `is-compat`; cpa-translate has no compat variant for
+// OpenAI targets yet (translator thread). The Codex multi-agent v2 rewrites and their
+// configuration-update intent (owner: Codex thread) are not applied, so the intent is
+// always false.
+fn translate_request(req: &ExecRequest, target: Format, model: &str, stream: bool) -> Result<Vec<u8>, ExecError> {
+    cpa_translate::translate_request(req.source_format, target, &RequestCtx { model, stream }, &req.body)
+        .map_err(|e| ExecError::local(400, FailureScope::Request, e.to_string()))
+}
+
+/// `helps.ApplyRequestThinking` with the capabilities bound to this attempt.
+fn apply_thinking(
+    body: Vec<u8>,
+    req: &ExecRequest,
+    target: Format,
+    provider: &str,
+    resolved: Option<&ModelCaps>,
+) -> Result<Vec<u8>, ExecError> {
+    thinking::apply_request_thinking(&RequestThinking {
+        body: &body,
+        payload: &req.body,
+        original: &req.original_body,
+        model: &req.model,
+        from: req.source_format.as_str(),
+        to: target.as_str(),
+        provider,
+        resolved: resolved.map(Some),
+        has_request_transformer: cpa_translate::pair(req.source_format, target).is_some(),
+        updates_changed: false,
+    })
+    .map_err(|e| ExecError::local(400, FailureScope::Request, e.message))
 }
 
 fn base_headers(api_key: &str, content_type: &str) -> GoHeaders {
@@ -161,14 +169,14 @@ impl OpenAICompatExecutor {
         cfg: &Config,
     ) -> Result<ExecResponse, ExecError> {
         match req.operation {
-            Operation::CountTokens => count_tokens(credential, &req),
+            Operation::CountTokens => count_tokens(credential, &req, cfg),
             Operation::Generate => self.chat(credential, req, cfg).await,
         }
     }
 
     /// Execute (`stream` false) and ExecuteStream (`stream` true) for chat and compact.
     async fn chat(&self, credential: &Credential, req: ExecRequest, cfg: &Config) -> Result<ExecResponse, ExecError> {
-        let base_model = wire::parse_suffix(&req.model).0.to_owned();
+        let base_model = parse_suffix(&req.model).model_name;
         let (base_url, api_key) = credentials(credential);
         if base_url.is_empty() {
             return Err(missing_base_url());
@@ -184,22 +192,12 @@ impl OpenAICompatExecutor {
         if response_pair.is_none() && req.response_format != target {
             return Err(not_registered("response", req.response_format, target));
         }
-        let encoding = translate_request(&req, target, &base_model, req.stream)?;
-        let mut body = encoding.text.clone();
-        body = wire::apply_thinking(ThinkingInput {
-            body,
-            model: &req.model,
-            from: req.source_format.as_str(),
-            to: target.as_str(),
-            provider: &credential.provider,
-        })?;
-        body = wire::apply_payload_rules(body, cfg);
         let compat = payload::resolve_compat(credential, cfg);
-        let requested = if req.requested_model.trim().is_empty() {
-            req.model.trim()
-        } else {
-            req.requested_model.trim()
-        };
+        let resolved = payload::resolved_model(compat.as_ref(), credential, route_model(&req), &req.model);
+        let mut body = translate_request(&req, target, &base_model, req.stream)?;
+        body = apply_thinking(body, &req, target, &credential.provider, resolved.as_ref())?;
+        body = wire::apply_payload_rules(body, cfg);
+        let requested = route_model(&req);
         if payload::excludes_images(compat.as_ref(), &base_model, requested) {
             body = payload::normalize_tool_results_text_only(body);
         }
@@ -209,11 +207,11 @@ impl OpenAICompatExecutor {
             body = prompt_cache_key(compat.as_ref(), &credential.provider, &req, &base_model, body);
         }
         if compact && !req.stream {
-            body = json::delete(&body, "stream");
+            gj::delete(&mut body, "stream");
             body = payload::sanitize_reasoning_encrypted_content(body);
         }
         if req.stream {
-            body = json::set_bool_if_different(&body, "stream_options.include_usage", true);
+            payload::set_bool_if_different(&mut body, "stream_options.include_usage", true);
         }
         let mut headers = base_headers(&api_key, "application/json");
         apply_custom(&mut headers, credential, &req);
@@ -222,13 +220,7 @@ impl OpenAICompatExecutor {
             headers.set("Cache-Control", "no-cache");
         }
         let client = self.clients.for_credential(credential, cfg);
-        let upstream = wire::send(
-            &client,
-            &endpoint(&base_url, path),
-            headers,
-            Bytes::from(encoding.bytes(&body)),
-        )
-        .await?;
+        let upstream = wire::send(&client, &endpoint(&base_url, path), headers, Bytes::from(body.clone())).await?;
         if !(200..300).contains(&upstream.status) {
             return Err(upstream_error(upstream, true).await);
         }
@@ -243,7 +235,7 @@ impl OpenAICompatExecutor {
                 Some(pair) => (pair.stream)(&ResponseCtx {
                     model: &req.model,
                     original_request: &original,
-                    translated_request: body.as_bytes(),
+                    translated_request: &body,
                 }),
                 None => Box::new(Identity),
             };
@@ -264,7 +256,7 @@ impl OpenAICompatExecutor {
                 &ResponseCtx {
                     model: &req.model,
                     original_request: &original,
-                    translated_request: body.as_bytes(),
+                    translated_request: &body,
                 },
                 &raw,
             )
@@ -294,7 +286,7 @@ impl OpenAICompatExecutor {
         request_path: &str,
         cfg: &Config,
     ) -> Result<ExecResponse, ExecError> {
-        let base_model = wire::parse_suffix(&req.model).0.trim().to_owned();
+        let base_model = parse_suffix(&req.model).model_name.trim().to_owned();
         let (base_url, api_key) = credentials(credential);
         if base_url.is_empty() {
             return Err(missing_base_url());
@@ -351,19 +343,17 @@ fn prepare_images_payload(
     content_type: &str,
     stream: bool,
 ) -> Result<(Bytes, String), ExecError> {
-    if go::json_valid(body)
-        && let Some(encoding) = go::GoText::new(body)
-    {
-        let mut text = encoding.text.clone();
+    if go::json_valid(body) {
+        let mut body = body.to_vec();
         if !model.is_empty() {
-            text = json::set_str_if_different(&text, "model", model);
+            payload::set_str_if_different(&mut body, "model", model);
         }
-        text = if stream {
-            json::set_bool_if_different(&text, "stream", true)
+        if stream {
+            payload::set_bool_if_different(&mut body, "stream", true);
         } else {
-            json::delete(&text, "stream")
-        };
-        return Ok((Bytes::from(encoding.bytes(&text)), "application/json".into()));
+            gj::delete(&mut body, "stream");
+        }
+        return Ok((Bytes::from(body), "application/json".into()));
     }
     let Some(boundary) = multipart::boundary(content_type) else {
         return Ok((Bytes::copy_from_slice(body), content_type.to_owned()));
@@ -376,76 +366,79 @@ fn prepare_images_payload(
     Ok((Bytes::from(out), content_type))
 }
 
+/// `helps.PayloadRequestedModel`: the client's model, else the execution model.
+fn route_model(req: &ExecRequest) -> &str {
+    if req.requested_model.trim().is_empty() {
+        req.model.trim()
+    } else {
+        req.requested_model.trim()
+    }
+}
+
 /// `applyPromptCacheKey`.
 fn prompt_cache_key(
     compat: Option<&payload::Compat>,
     provider: &str,
     req: &ExecRequest,
     base_model: &str,
-    body: String,
-) -> String {
+    mut body: Vec<u8>,
+) -> Vec<u8> {
     if !compat.is_some_and(|c| c.support_prompt_cache_key) {
         return body;
     }
-    let sources = [
-        String::from_utf8_lossy(&req.body).into_owned(),
-        String::from_utf8_lossy(&req.original_body).into_owned(),
-        body.clone(),
-    ];
-    for source in &sources {
-        let key = json::string(source, "prompt_cache_key");
-        let key = key.trim();
-        if !key.is_empty() {
-            return json::set_str_if_different(&body, "prompt_cache_key", key);
-        }
+    let explicit = [&req.body[..], &req.original_body[..], &body[..]]
+        .into_iter()
+        .map(|source| gj::get(source, "prompt_cache_key").str().trim().to_owned())
+        .find(|key| !key.is_empty());
+    if let Some(key) = explicit {
+        payload::set_str_if_different(&mut body, "prompt_cache_key", &key);
+        return body;
     }
-    let model = json::string(&body, "model").trim().to_owned();
+    let model = gj::get(&body, "model").str().trim().to_owned();
     let model = if model.is_empty() { base_model.to_owned() } else { model };
     if req.source_format == Format::Claude
-        && let Some(key) = payload::claude_code_prompt_cache(&model, &sources[0], &req.headers)
+        && let Some(key) = payload::claude_code_prompt_cache(&model, &req.body, &req.headers)
     {
-        return json::set_str_if_different(&body, "prompt_cache_key", &key);
+        payload::set_str_if_different(&mut body, "prompt_cache_key", &key);
+        return body;
     }
-    // helps.ProviderSessionUUID: the execution session first.
-    // ponytail: Go then falls back to the derived (message-hash) session identity, which
-    // the server does not compute yet (M4-0021); such requests get no key.
-    let Some(execution) = req
-        .execution_session
-        .as_deref()
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-    else {
+    let Some(session) = provider_session_uuid(provider, req) else {
         return body;
     };
-    let provider = provider.trim().to_lowercase();
-    if provider.is_empty() {
-        return body;
-    }
-    let session = uuid::Uuid::new_v5(
-        &uuid::Uuid::NAMESPACE_OID,
-        format!("cli-proxy-api\0{provider}\0execution-session\0{execution}").as_bytes(),
-    )
-    .to_string();
+    let provider = provider.trim().go_lower();
     let identity = format!(
         "cli-proxy-api:openai-compat:prompt-cache\0{provider}\0{}\0{}\0{session}",
-        model.to_lowercase(),
-        req.source_format.as_str().to_lowercase()
+        model.go_lower(),
+        req.source_format.as_str().trim().go_lower()
     );
     let key = uuid::Uuid::new_v5(&uuid::Uuid::NAMESPACE_OID, identity.as_bytes()).to_string();
-    json::set_str_if_different(&body, "prompt_cache_key", &key)
+    payload::set_str_if_different(&mut body, "prompt_cache_key", &key);
+    body
+}
+
+/// `helps.ProviderSessionUUID`: the execution session, else the derived session identity,
+/// as a provider-scoped stable UUID.
+fn provider_session_uuid(provider: &str, req: &ExecRequest) -> Option<String> {
+    let nonempty = |s: &Option<String>| s.as_deref().map(str::trim).filter(|s| !s.is_empty()).map(str::to_owned);
+    let (kind, value) = match nonempty(&req.execution_session) {
+        Some(execution) => ("execution-session", execution),
+        None => ("derived-session", nonempty(&req.derived_session)?),
+    };
+    let provider = provider.trim().go_lower();
+    if provider.is_empty() {
+        return None;
+    }
+    let identity = format!("cli-proxy-api\0{provider}\0{kind}\0{value}");
+    Some(uuid::Uuid::new_v5(&uuid::Uuid::NAMESPACE_OID, identity.as_bytes()).to_string())
 }
 
 /// `CountTokens`: a local tiktoken estimate of the translated chat request.
-fn count_tokens(credential: &Credential, req: &ExecRequest) -> Result<ExecResponse, ExecError> {
-    let base_model = wire::parse_suffix(&req.model).0.to_owned();
-    let body = translate_request(req, Format::OpenAI, &base_model, false)?.text;
-    let body = wire::apply_thinking(ThinkingInput {
-        body,
-        model: &req.model,
-        from: req.source_format.as_str(),
-        to: Format::OpenAI.as_str(),
-        provider: &credential.provider,
-    })?;
+fn count_tokens(credential: &Credential, req: &ExecRequest, cfg: &Config) -> Result<ExecResponse, ExecError> {
+    let base_model = parse_suffix(&req.model).model_name;
+    let compat = payload::resolve_compat(credential, cfg);
+    let resolved = payload::resolved_model(compat.as_ref(), credential, route_model(req), &req.model);
+    let body = translate_request(req, Format::OpenAI, &base_model, false)?;
+    let body = apply_thinking(body, req, Format::OpenAI, &credential.provider, resolved.as_ref())?;
     let count = payload::count_chat_tokens(&base_model, &body).map_err(|e| {
         ExecError::local(
             500,
@@ -454,18 +447,7 @@ fn count_tokens(credential: &Credential, req: &ExecRequest) -> Result<ExecRespon
         )
     })?;
     let usage = format!(r#"{{"usage":{{"prompt_tokens":{count},"completion_tokens":0,"total_tokens":{count}}}}}"#);
-    let out = match cpa_translate::pair(req.response_format, Format::OpenAI).and_then(|p| p.count_tokens) {
-        Some(transform) => transform(
-            &ResponseCtx {
-                model: &req.model,
-                original_request: &req.original_body,
-                translated_request: body.as_bytes(),
-            },
-            usage.as_bytes(),
-        )
-        .map_err(|e| ExecError::local(400, FailureScope::Request, e.to_string()))?,
-        None => usage.into_bytes(),
-    };
+    let out = cpa_translate::translate_token_count(req.response_format, Format::OpenAI, count, usage.as_bytes());
     Ok(ExecResponse {
         status: 200,
         headers: Default::default(),
@@ -544,9 +526,8 @@ impl Frames {
         if !done && !go::json_valid(payload_bytes) {
             return self.fail(502, "upstream stream ended with incomplete SSE data frame");
         }
-        let text = String::from_utf8_lossy(payload_bytes).into_owned();
-        if !done && let Some(status) = payload::stream_data_error(&text, &event) {
-            return self.fail(status, text);
+        if !done && let Some(status) = payload::stream_data_error(payload_bytes, &event) {
+            return self.fail(status, String::from_utf8_lossy(payload_bytes));
         }
         let mut line = b"data: ".to_vec();
         line.extend_from_slice(payload_bytes);

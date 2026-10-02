@@ -305,6 +305,10 @@ fn header_session(headers: &HeaderMap) -> Option<String> {
 /// (`xaiReasoningReplayIsolateSessionKey`). Empty when no session or no client key.
 fn session_key(req: &ExecRequest, payload: &str) -> String {
     let key = claude_code_session(payload, &req.headers)
+        .or_else(|| {
+            let execution = req.execution_session.as_deref().map(str::trim).unwrap_or_default();
+            (!execution.is_empty()).then(|| format!("execution:{execution}"))
+        })
         .or_else(|| payload_session(payload))
         .or_else(|| header_session(&req.headers))
         .unwrap_or_default();
@@ -740,6 +744,27 @@ mod tests {
         // Different tool input: not the same turn.
         let other = body.replace(r#""path":"a""#, r#""path":"b""#);
         assert!(restore(&other, CACHED).is_none());
+    }
+
+    #[test]
+    fn execution_session_follows_claude_code_session_and_skips_caller_isolation() {
+        // codexReasoningReplaySessionKey: Claude Code session, then the execution session
+        // (not isolated per caller key), then payload and header keys.
+        let fx = serde_json::json!({"request": {"body": "{}", "source": "claude", "model": "kimi-k3"}});
+        let mut req = crate::kimi_fixture::request(&fx, "");
+        req.headers.insert("session_id", "s1".parse().unwrap());
+        assert_eq!(session_key(&req, "{}"), "", "header sessions need a caller key");
+        req.execution_session = Some(" e1 ".into());
+        assert_eq!(session_key(&req, "{}"), "execution:e1");
+        // A Claude Code session wins over the execution session and is caller-isolated.
+        req.headers.insert("X-Claude-Code-Session-Id", "cc".parse().unwrap());
+        assert_eq!(session_key(&req, "{}"), "");
+        req.caller.principal = "k".into();
+        let key = session_key(&req, "{}");
+        assert!(
+            key.starts_with("caller:") && key.ends_with(":claude:cc:agent:main"),
+            "{key}"
+        );
     }
 
     #[test]
