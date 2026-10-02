@@ -396,7 +396,7 @@ def run_case(root, output, upstream, case):
         diff = differences(comparable(observations["go"]), comparable(observations["rust"]))
         write_json(directory / "diff.json", diff)
         errors = [error for side in ports for error in observations[side]["upstream"]["errors"]]
-        expected_traffic = case["name"] not in {
+        expected_traffic = not case.get("no_upstream") and case["name"] not in {
             "auth-missing", "auth-wrong", "auth-query-first", "models-openai", "models-anthropic", "disabled-credential"}
         if expected_traffic:
             for side in ports:

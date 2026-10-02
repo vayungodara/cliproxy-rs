@@ -114,19 +114,25 @@ async fn alpha_search(
         .filter(|c| c.provider == "codex" && !allowed(c))
         .map(|c| c.id.clone())
         .collect();
+    // Selection carries no route model: Go's Alpha Search picks any policy-eligible Codex
+    // credential without registry model admission, then resolves the API-key model.
     let selection = Selection {
         provider: "codex".into(),
-        model: model.clone(),
         session: (!id.is_empty()).then_some(id),
         exclude,
         ..Selection::default()
     };
     // ponytail: one selection, no failover or outcome recording, as in Go; plugin model
     // routing and Home dispatch are not ported. Selection error texts follow claude.rs.
-    let lease = match rt.acquire_with_policy(selection, &cfg, policy).await {
+    let lease = match rt.acquire(selection, &cfg, policy, &rt.registry()).await {
         Ok(lease) => lease,
-        Err(AcquireError::NoCredential) => return error(503, "auth_not_found: no auth available"),
-        Err(AcquireError::Cooldown { wait }) => {
+        // ponytail: integrator mapping onto the server thread's new AcquireError; the Codex
+        // thread reconciles these texts with dispatch.rs's Go error shapes.
+        Err(AcquireError::Unavailable { retry_after: None, .. }) => {
+            return error(503, "auth_not_found: no auth available");
+        }
+        Err(AcquireError::Unavailable { .. }) => return error(503, "auth_unavailable: no auth available"),
+        Err(AcquireError::Cooldown { wait, .. }) => {
             let mut response = error(
                 429,
                 &format!(
@@ -144,10 +150,18 @@ async fn alpha_search(
             return error(e.status, &String::from_utf8_lossy(&e.body));
         }
     };
+    // ponytail: integrator port of the old lease.execution_model through the registry's alias
+    // resolution; the Codex thread re-verifies it against Go's API-key model rewrite.
+    let aliases = cpa_core::registry::dynamic::global_aliases(&cfg);
+    let execution_model = cpa_core::registry::dynamic::execution_models(&aliases, &lease.credential, &model)
+        .0
+        .into_iter()
+        .next()
+        .unwrap_or_else(|| model.clone());
     let result = rt
         .executors
         .codex
-        .alpha_search(&lease.credential, &body, &headers, &lease.execution_model)
+        .alpha_search(&lease.credential, &body, &headers, &execution_model)
         .await;
     // Dropping the lease reports `Cancelled`: Go's Alpha Search never marks a result.
     drop(lease);

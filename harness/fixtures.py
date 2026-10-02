@@ -134,6 +134,43 @@ def cases():
     add("tls-reconnect-two-turns", turns=2,
         script={"status": 200, "body": MESSAGE, "close_connection": True})
     add("disabled-credential", disabled=True)
+    # Route surface beyond Messages. Cases marked no_upstream must not reach a provider.
+    openai_headers = [["Authorization", "Bearer fixture-client-key"], ["Content-Type", "application/json"]]
+    chat = {"model": MODEL, "max_tokens": 17, "messages": [{"role": "user", "content": "Local question"}]}
+    sse = {"status": 200, "body": SSE, "sse": True}
+    add("chat-completions", path="/v1/chat/completions", body=encoded(chat), headers=openai_headers, script=sse)
+    add("chat-completions-stream", path="/v1/chat/completions", body=encoded({**chat, "stream": True}),
+        headers=openai_headers, script=sse)
+    add("chat-upstream-429", path="/v1/chat/completions", body=encoded(chat), headers=openai_headers,
+        script={"status": 429, "body": encoded({"type": "error", "error": {
+            "type": "rate_limit_error", "message": "scripted 429"}})})
+    add("completions", path="/v1/completions", headers=openai_headers, script=sse,
+        body=encoded({"model": MODEL, "prompt": "Local question", "max_tokens": 17}))
+    add("completions-stream", path="/v1/completions", headers=openai_headers, script=sse,
+        body=encoded({"model": MODEL, "prompt": "Local question", "max_tokens": 17, "stream": True}))
+    add("unknown-model", body=encoded({**body, "model": "no-such-model"}), no_upstream=True)
+    add("chat-unknown-model", path="/v1/chat/completions", headers=openai_headers, no_upstream=True,
+        body=encoded({**chat, "model": "no-such-model"}))
+    add("compact-claude", path="/v1/responses/compact", headers=openai_headers, no_upstream=True,
+        body=encoded({"model": MODEL, "input": "Local question"}))
+    add("compact-stream-rejected", path="/v1/responses/compact", headers=openai_headers, no_upstream=True,
+        body=encoded({"model": MODEL, "input": "Local question", "stream": True}))
+    add("models-anthropic-ua", method="GET", path="/v1/models", body="", no_upstream=True,
+        headers=base["headers"][:1] + [["User-Agent", "claude-cli/2.1.280 (external, cli)"]])
+    add("models-gemini", method="GET", path="/v1beta/models", body="", headers=base["headers"][:1], no_upstream=True)
+    add("models-gemini-get", method="GET", path=f"/v1beta/models/{MODEL}", body="", headers=base["headers"][:1],
+        no_upstream=True)
+    add("models-gemini-get-missing", method="GET", path="/v1beta/models/no-such-model", body="",
+        headers=base["headers"][:1], no_upstream=True)
+    add("gemini-unknown-method", path=f"/v1beta/models/{MODEL}:foo", body="{}", headers=openai_headers,
+        no_upstream=True)
+    add("gemini-bad-action", path=f"/v1beta/models/{MODEL}", body="{}", headers=openai_headers, no_upstream=True)
+    add("interactions-invalid", path="/v1beta/interactions", body="{}", headers=openai_headers, no_upstream=True)
+    add("interactions-bad-stream", path="/v1beta/interactions", headers=openai_headers, no_upstream=True,
+        body=encoded({"model": MODEL, "stream": "yes"}))
+    add("healthz-head", method="HEAD", path="/healthz", body="", headers=[], no_upstream=True)
+    add("root", method="GET", path="/", body="", headers=[], no_upstream=True)
+    add("dd-model-messages", body=encoded({**body, "model": "claude-fable-5-dd-6-4-tennos-edualc"}))
     return out
 
 
