@@ -1918,6 +1918,28 @@
    ]
   },
   {
+   "name": "coercion/9",
+   "path": "request",
+   "model": "gpt-test",
+   "input": "{\"top_p\":\"1_0\",\"max_tokens\":\"1_0\",\"stop\":[\"a\"\"b\"],\"messages\":[]}",
+   "outputs": [
+    [
+     "{\"top_p\":\"1_0\",\"max_tokens\":\"1_0\",\"stop\":[\"a\"\"b\"],\"messages\":[],\"model\":\"gpt-test\"}"
+    ]
+   ]
+  },
+  {
+   "name": "coercion/10",
+   "path": "request",
+   "model": "gpt-test",
+   "input": "{\"top_p\":\"1__0\",\"stop\":[1e19,-1.5e0],\"messages\":[]}",
+   "outputs": [
+    [
+     "{\"top_p\":\"1__0\",\"stop\":[1e19,-1.5e0],\"messages\":[],\"model\":\"gpt-test\"}"
+    ]
+   ]
+  },
+  {
    "name": "malformed/0",
    "path": "request",
    "model": "gpt-test",
@@ -2042,6 +2064,29 @@
   },
   {
    "name": "malformed/11",
+   "path": "request",
+   "model": "gpt-test",
+   "input": "{\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"f\",\"parameters\":{\"properties\":{\"\\ud800\\u0061\":{},\"\\u00e9\u003c\":{\"enum\":[\"\\ud83d\\ude00\"]}},\"required\":[\"\\ud800\\u0061\"],\"allOf\":[{\"required\":[\"\\udc00\"]}]}}}],\"messages\":[]}",
+   "outputs": [
+    [
+     "{\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"f\",\"parameters\":{\"properties\":{\"\\ud800\\u0061\":{},\"\\u00e9\u003c\":{\"enum\":[\"\\ud83d\\ude00\"]}},\"required\":[\"\\ud800\\u0061\"],\"allOf\":[{\"required\":[\"\\udc00\"]}]}}}],\"messages\":[],\"model\":\"gpt-test\"}"
+    ]
+   ]
+  },
+  {
+   "name": "malformed/12",
+   "path": "request",
+   "model": "gpt-test",
+   "bytes": true,
+   "input": "{\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"f\",\"parameters\":{\"properties\":{\"kâ\":{}},\"allOf\":[{\"required\":[\"â\"]}]}}}],\"messages\":[]}",
+   "outputs": [
+    [
+     "{\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"f\",\"parameters\":{\"properties\":{\"kâ\":{}},\"allOf\":[{\"required\":[\"â\"]}]}}}],\"messages\":[],\"model\":\"gpt-test\"}"
+    ]
+   ]
+  },
+  {
+   "name": "malformed/13",
    "path": "request",
    "model": "gpt-test",
    "input": " {\"model\" : \"old\", \"messages\":[{\"role\":\"user\",\"content\":\"x\"}]} trailing {}",

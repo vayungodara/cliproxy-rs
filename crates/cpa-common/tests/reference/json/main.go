@@ -10,6 +10,7 @@ import (
 	"os"
 	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
@@ -83,12 +84,14 @@ func main() {
 		`{"arr":[{"t":"x","v":1},{"t":"y"},{"v":[1,2]}],"num":[0,1,2]}`,
 		`{"t":true,"f":false,"tt":"TRUE","t1":"1","tf":"t","n0":0,"n1":0.5,"str0":"0"}`,
 		"{\"a\":1}\n{\"a\":2}",
+		`["a""b"]`, `{"a":[{"x":1}]}`, `["x"]`, `1e19`, `-1.5e0`, `2e19`, `{"f":"1_0","g":"1__0","h":"1e1_0","i":"_1","j":"1_","k":"0x1p-2"}`,
 	}
 	paths := []string{"a", "b", "c", "c.0", "c.1", "c.2.d", "c.#", "c.#.d", "e.f.g", "e.f", "h", "h.#", "model", "n", "s", "esc\\\"key", "esc\"key",
 		"max_tokens", "top_p", "stop", "stop.0", "stop.1", "stop.3", "stop.#", "neg", "big", "nan", "inf", "plus", "x", "y", "z",
 		"0", "1", "1.a", "1.a.#", "1.a.#.b", "1.a.1.b", "2.1", "3", "4", "5", "-1", "a\\.b", "a.b", "w*c", "w?c", "q\\?", "pipe|k", "pipe\\|k",
 		"@this", "#", "", "arr.#.t", "arr.#.v", "arr.1.t", "num.#", "unterminated", "bs", "bs2", "u", "uu", "ctl",
-		"t", "f", "tt", "t1", "tf", "n0", "n1", "str0", "a|b", "e|f", "e.f|g", "c.#|0", "*", "e.*", "e.f.?"}
+		"t", "f", "tt", "t1", "tf", "n0", "n1", "str0", "a|b", "e|f", "e.f|g", "c.#|0", "*", "e.*", "e.f.?",
+		"a|#.x", "#.@this", "g", "h", "i", "j"}
 	var gets []getCase
 	for _, doc := range docs {
 		for _, path := range paths {
@@ -131,10 +134,10 @@ func main() {
 		_ = gjson.Valid(doc)
 	}
 
-	setDocs := []string{`{}`, ``, ` `, `[]`, `[1,2]`, `{"a":1}`, `{"a":{"b":[1,{"c":2}]}}`, `{ "x" : 1 , "y" : [ ] }  tail}`, `invalid`, `"str"`, `{`, `{"a":1,}`,
+	setDocs := []string{`{"a":[{"x":1}]}`, `["x"]`, `{}`, ``, ` `, `[]`, `[1,2]`, `{"a":1}`, `{"a":{"b":[1,{"c":2}]}}`, `{ "x" : 1 , "y" : [ ] }  tail}`, `invalid`, `"str"`, `{`, `{"a":1,}`,
 		`{"msgs":[{"role":"user"},{"role":"assistant"}],"tools":[],"meta":{}}`, `{"k":"v"} trailing {}`, `[[]]`, `{"e\"k":1}`, `{"a":1,"b":2,"c":3}`}
 	setPaths := []string{"a", "a.b", "a.b.1.c", "a.b.-1", "x", "y.0", "y.-1", "y.3", "0", "-1", "2", "5", "msgs.1.role", "msgs.-1", "msgs.2.content.0.text", "tools.-1",
-		"meta.user_id", "new.0.x", "new.-1", ":0", "a.:1", "a\\.b", "e\\\"k", "k", "b", "c", "a*", "a?", "#", "msgs.#.role", "", "a..b", "a.", ".a"}
+		"meta.user_id", "new.0.x", "new.-1", ":0", "a.:1", "a\\.b", "e\\\"k", "k", "b", "c", "a*", "a?", "#", "msgs.#.role", "", "a..b", "a.", ".a", "a|#.x"}
 	values := map[string][]string{
 		"str": {"a<b>&c", "é<", "q\"uote\n\x08\xff"},
 		"raw": {`{"z":1}`, ``},
@@ -160,6 +163,14 @@ func main() {
 			}
 		}
 	}
+	// sjson's signed index arithmetic: a wrapped-negative index pads nothing. (On a
+	// non-empty array Go's n-len(items) wraps again and exhausts memory, in Go too.)
+	for _, doc := range []string{`[]`, `{}`, `{"a":[]}`} {
+		for _, path := range []string{"9223372036854775808", "a.18446744073709551617.b", "a.9223372036854775808"} {
+			out, err := sjson.SetRaw(doc, path, "1")
+			sets = append(sets, setCase{JSON: h(doc), Path: path, Kind: "raw", Value: h("1"), Output: h(out), Err: err != nil})
+		}
+	}
 	strs := []string{"plain", "a<b>&c", "é<", "\u2028\u2029", "bad\xff\xfe", "\x00\x01\x08\x09\x0a\x0c\x0d\x1f\x7f", "\"\\/", "\xe2\x80", "\xed\xa0\x80", "\xf0\x9f\x98\x80", "\xc0\x80"}
 	var encs []encodeCase
 	for _, s := range strs {
@@ -179,7 +190,36 @@ func main() {
 		j, _ := json.Marshal(f)
 		floats = append(floats, floatCase{Bits: math.Float64bits(f), F: strconv.FormatFloat(f, 'f', -1, 64), JSON: string(j)})
 	}
-	out := map[string]any{"get": gets, "set": sets, "encode": encs, "float": floats}
+	type decodeCase struct {
+		Input   string `json:"input"`
+		Float   string `json:"float"`
+		Number  string `json:"number"`
+	}
+	var decodes []decodeCase
+	for _, in := range []string{
+		`{"z":1.50,"a":{"y":"<&>","b":[true,null]},"a":2}`, `{"\ud800\u0061":1,"\ud83d\ude00":"\udc00x"}`, "{\"k\":\"\xe2\x82\",\"\xff\":1}",
+		`[1e3,1.50,9007199254740993,1e-7,1e21,-0,0.1]`, `[1e400]`, `{"a":"\u2028\u2029<>&\u0000"}`, `"\/\'"`, `{"bad`, ` [ 1 , "x" ] `,
+	} {
+		d := decodeCase{Input: h(in)}
+		var v any
+		if err := json.Unmarshal([]byte(in), &v); err == nil {
+			b, errM := json.Marshal(v)
+			if errM == nil {
+				d.Float = h(string(b))
+			}
+		}
+		dec := json.NewDecoder(strings.NewReader(in))
+		dec.UseNumber()
+		var n any
+		if err := dec.Decode(&n); err == nil && !dec.More() {
+			b, errM := json.Marshal(n)
+			if errM == nil {
+				d.Number = h(string(b))
+			}
+		}
+		decodes = append(decodes, d)
+	}
+	out := map[string]any{"get": gets, "set": sets, "encode": encs, "float": floats, "decode": decodes}
 	raw, err := json.Marshal(out)
 	if err != nil {
 		panic(err)

@@ -180,3 +180,26 @@ fn kimi_device_vectors_match() {
     }
     assert!(seen >= 25, "vector extraction lost cases: {seen}");
 }
+
+/// json.Unmarshal into `any` (float64 numbers) and Decoder.UseNumber, each re-marshaled.
+#[test]
+fn decode_then_marshal_matches_encoding_json() {
+    let all = fixtures();
+    for case in all["decode"].as_array().unwrap() {
+        let input = b(&case["input"]);
+        let float = gj::GoValue::parse_f64(&input).map(|v| v.marshal()).unwrap_or_default();
+        let number = gj::GoValue::parse(&input).map(|v| v.marshal()).unwrap_or_default();
+        assert_eq!(
+            float,
+            b(&case["float"]),
+            "float mode: {:?}",
+            String::from_utf8_lossy(&input)
+        );
+        assert_eq!(
+            number,
+            b(&case["number"]),
+            "number mode: {:?}",
+            String::from_utf8_lossy(&input)
+        );
+    }
+}

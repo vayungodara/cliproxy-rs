@@ -111,7 +111,7 @@ impl<'a> Res<'a> {
             Kind::String => parse_uint(&self.s).unwrap_or(0),
             Kind::Number => match safe_int(self.num) {
                 Some(n) if n >= 0 => n as u64,
-                _ => parse_uint(&self.raw).unwrap_or(go_f64_to_i64(self.num) as u64),
+                _ => parse_uint(&self.raw).unwrap_or_else(|| go_f64_to_u64(self.num)),
             },
             _ => 0,
         }
@@ -350,6 +350,8 @@ fn each_in<'d>(json: &'d [u8], base: usize, indexes: Option<&[usize]>, f: &mut d
             return;
         }
         idx += 1;
+        // Go's loop post statement skips one byte after every value.
+        i += 1;
     }
 }
 
@@ -388,14 +390,52 @@ fn parse_int(s: &[u8]) -> Option<i64> {
     Some(if neg { n.wrapping_neg() } else { n })
 }
 
+/// Go's `uint64(f)` on amd64: signed conversion below 2^63, offset conversion above.
+fn go_f64_to_u64(f: f64) -> u64 {
+    const CUTOFF: f64 = 9_223_372_036_854_775_808.0;
+    if f < CUTOFF {
+        go_f64_to_i64(f) as u64
+    } else {
+        go_f64_to_i64(f - CUTOFF) as u64 | (1 << 63)
+    }
+}
+
 /// `strconv.ParseFloat(s, 64)` with the error ignored (0 on syntax errors, ±Inf on
-/// overflow).
+/// overflow), including Go's digit-separating underscores.
 // ponytail: Go also accepts hexadecimal floats ("0x1p-2"); they parse as 0 here.
 pub fn parse_float(s: &[u8]) -> f64 {
-    std::str::from_utf8(s)
-        .ok()
-        .and_then(|s| s.parse::<f64>().ok())
-        .unwrap_or(0.0)
+    let Ok(text) = std::str::from_utf8(s) else {
+        return 0.0;
+    };
+    if text.contains('_') {
+        if !underscore_ok(text.as_bytes()) {
+            return 0.0;
+        }
+        return text.replace('_', "").parse::<f64>().unwrap_or(0.0);
+    }
+    text.parse::<f64>().unwrap_or(0.0)
+}
+
+/// strconv's underscoreOK for decimal input: underscores only between digits.
+fn underscore_ok(s: &[u8]) -> bool {
+    let s = s.strip_prefix(b"-").or_else(|| s.strip_prefix(b"+")).unwrap_or(s);
+    let mut saw = b'^';
+    for &c in s {
+        if c.is_ascii_digit() {
+            saw = b'0';
+        } else if c == b'_' {
+            if saw != b'0' {
+                return false;
+            }
+            saw = b'_';
+        } else {
+            if saw == b'_' {
+                return false;
+            }
+            saw = b'!';
+        }
+    }
+    saw != b'_'
 }
 
 /// `strconv.FormatFloat(f, 'f', -1, 64)`.
@@ -755,6 +795,10 @@ fn json_res(json: &[u8], start: usize, end: usize) -> Res<'_> {
     }
 }
 
+fn unindexed(r: Res<'_>) -> Res<'_> {
+    Res { index: 0, ..r }
+}
+
 fn parse_any(json: &[u8], mut i: usize, hit: bool) -> (usize, Res<'_>, bool) {
     while i < json.len() {
         let c = json[i];
@@ -775,8 +819,9 @@ fn parse_any(json: &[u8], mut i: usize, hit: bool) -> (usize, Res<'_>, bool) {
                 if !ok {
                     return (next, Res::default(), false);
                 }
+                // Go's parseAny only assigns indexes to containers.
                 let res = if hit {
-                    string_res(json, start, end, esc)
+                    unindexed(string_res(json, start, end, esc))
                 } else {
                     Res::default()
                 };
@@ -788,7 +833,7 @@ fn parse_any(json: &[u8], mut i: usize, hit: bool) -> (usize, Res<'_>, bool) {
                 let (next, end) = parse_literal(json, i);
                 i = next;
                 if hit {
-                    return (i, literal_res(json, start, end), true);
+                    return (i, unindexed(literal_res(json, start, end)), true);
                 }
             }
             b'+' | b'-' | b'0'..=b'9' | b'i' | b'I' | b'N' => num = true,
@@ -798,7 +843,7 @@ fn parse_any(json: &[u8], mut i: usize, hit: bool) -> (usize, Res<'_>, bool) {
             let start = i;
             let (next, end) = parse_number(json, i);
             let res = if hit {
-                number_res(json, start, end)
+                unindexed(number_res(json, start, end))
             } else {
                 Res::default()
             };
@@ -1332,6 +1377,8 @@ pub fn get<'a>(json: &'a [u8], path: &str) -> Res<'a> {
         }
     }
     if let Some(pipe) = c.pipe {
+        // Go pipes before fillIndex, while the left-hand value's index is still zero.
+        c.value.index = 0;
         let mut res = c.value.get(&String::from_utf8_lossy(&pipe));
         res.index = 0;
         return res;
@@ -1790,6 +1837,63 @@ pub fn compact(src: &[u8], html: bool) -> Vec<u8> {
     out
 }
 
+/// encoding/json's decoding of one raw string token (decode.go unquoteBytes): invalid
+/// UTF-8 becomes U+FFFD per byte, and a `\u` surrogate consumes the next escape only when
+/// the two form a valid pair. `None` for a token Go rejects. Use this rather than
+/// [`Res::s`] (gjson's decoding) wherever Go decodes with encoding/json.
+pub fn go_unquote(raw: &[u8]) -> Option<String> {
+    let s = raw.strip_prefix(b"\"")?.strip_suffix(b"\"")?;
+    let u4 = |s: &[u8]| -> Option<u32> {
+        let hex = s.strip_prefix(b"\\u")?.get(..4)?;
+        if !hex.iter().all(u8::is_ascii_hexdigit) {
+            return None;
+        }
+        u32::from_str_radix(std::str::from_utf8(hex).ok()?, 16).ok()
+    };
+    let mut out = String::with_capacity(s.len());
+    let mut r = 0;
+    while r < s.len() {
+        let c = s[r];
+        if c == b'\\' {
+            let escaped = *s.get(r + 1)?;
+            match escaped {
+                b'"' | b'\\' | b'/' | b'\'' => out.push(escaped as char),
+                b'b' => out.push('\u{8}'),
+                b'f' => out.push('\u{c}'),
+                b'n' => out.push('\n'),
+                b'r' => out.push('\r'),
+                b't' => out.push('\t'),
+                b'u' => {
+                    let mut rune = u4(&s[r..])?;
+                    r += 6;
+                    if (0xD800..0xE000).contains(&rune) {
+                        if let Some(low) = u4(&s[r..])
+                            && (0xD800..0xDC00).contains(&rune)
+                            && (0xDC00..0xE000).contains(&low)
+                        {
+                            r += 6;
+                            out.push(char::from_u32(0x10000 + ((rune - 0xD800) << 10) + (low - 0xDC00))?);
+                            continue;
+                        }
+                        rune = 0xFFFD;
+                    }
+                    out.push(char::from_u32(rune).unwrap_or('\u{FFFD}'));
+                    continue;
+                }
+                _ => return None,
+            }
+            r += 2;
+        } else if c == b'"' || c < b' ' {
+            return None;
+        } else {
+            let (ch, n) = decode_rune(&s[r..]);
+            out.push(ch.unwrap_or('\u{FFFD}'));
+            r += n;
+        }
+    }
+    Some(out)
+}
+
 /// `json.Marshal(string)`.
 pub fn quote(s: impl AsRef<[u8]>) -> Vec<u8> {
     let mut out = Vec::with_capacity(s.as_ref().len() + 2);
@@ -1914,16 +2018,24 @@ fn append_stringify(buf: &mut Vec<u8>, s: &[u8]) {
     }
 }
 
-fn atoui(p: &PathPart) -> (usize, bool) {
+/// sjson's atoui accumulates into Go's signed int, so huge indexes wrap negative.
+fn atoui(p: &PathPart) -> (isize, bool) {
     if p.force || !p.part.iter().all(u8::is_ascii_digit) {
         return (0, false);
     }
     (
         p.part
             .iter()
-            .fold(0usize, |n, c| n.wrapping_mul(10).wrapping_add(usize::from(c - b'0'))),
+            .fold(0isize, |n, c| n.wrapping_mul(10).wrapping_add(isize::from(c - b'0'))),
         true,
     )
+}
+
+/// appendRepeat: a negative count repeats nothing.
+fn repeat(buf: &mut Vec<u8>, s: &[u8], n: isize) {
+    for _ in 0..n.max(0) {
+        buf.extend_from_slice(s);
+    }
 }
 
 fn append_build(buf: &mut Vec<u8>, array: bool, paths: &[PathPart], raw: &[u8], stringify: bool) {
@@ -1935,9 +2047,7 @@ fn append_build(buf: &mut Vec<u8>, array: bool, paths: &[PathPart], raw: &[u8], 
         let (n, numeric) = atoui(&paths[1]);
         if numeric || (!paths[1].force && paths[1].part == b"-1") {
             buf.push(b'[');
-            for _ in 0..n {
-                buf.extend_from_slice(b"null,");
-            }
+            repeat(buf, b"null,", n);
             append_build(buf, true, &paths[1..], raw, stringify);
             buf.push(b']');
         } else {
@@ -2112,13 +2222,9 @@ fn append_raw_paths(
                 buf.extend_from_slice(&item.raw);
             }
             if items.is_empty() {
-                for _ in 0..n {
-                    buf.extend_from_slice(b"null,");
-                }
+                repeat(buf, b"null,", n);
             } else {
-                for _ in items.len()..n.max(items.len()) {
-                    buf.extend_from_slice(b",null");
-                }
+                repeat(buf, b",null", n.wrapping_sub(items.len() as isize));
                 if comma {
                     buf.push(b',');
                 }
@@ -2340,7 +2446,7 @@ impl GoValue {
             Kind::False => Self::Bool(false),
             Kind::Number if float => Self::Number(json_float(parse_float(&r.raw))?),
             Kind::Number => Self::Number(String::from_utf8_lossy(&r.raw).into_owned()),
-            Kind::String => Self::String(String::from_utf8_lossy(&r.s).into_owned()),
+            Kind::String => Self::String(go_unquote(&r.raw)?),
             Kind::Json if r.is_array() => {
                 let mut items = vec![];
                 for item in r.array() {
@@ -2352,11 +2458,11 @@ impl GoValue {
                 let mut map = std::collections::BTreeMap::new();
                 let mut ok = true;
                 r.each(|key, value| {
-                    match Self::from_res(&value, float) {
-                        Some(v) => {
-                            map.insert(String::from_utf8_lossy(&key.s).into_owned(), v);
+                    match (go_unquote(&key.raw), Self::from_res(&value, float)) {
+                        (Some(k), Some(v)) => {
+                            map.insert(k, v);
                         }
-                        None => ok = false,
+                        _ => ok = false,
                     }
                     ok
                 });

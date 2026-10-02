@@ -112,6 +112,8 @@ func openAIChatRequests(model string) []fixture {
 		`{"max_tokens":9007199254740993,"top_p":-0,"messages":[]}`,
 		`{"max_tokens":true,"top_p":true,"messages":[{"role":"user","content":["a","b"]}]}`,
 		`{"max_tokens":null,"top_p":null,"stop":null,"messages":[{"role":"user","content":null},{"role":"user","content":1}]}`,
+		`{"top_p":"1_0","max_tokens":"1_0","stop":["a""b"],"messages":[]}`,
+		`{"top_p":"1__0","stop":[1e19,-1.5e0],"messages":[]}`,
 	} {
 		out = append(out, req(fmt.Sprintf("coercion/%d", i), model, input, false))
 	}
@@ -125,6 +127,8 @@ func openAIChatRequests(model string) []fixture {
 		`{"messages":[{"role":"user","content":"x"}],}`,
 		`not json at all`, ``, `[]`, `null`, `{"messages":"text"}`,
 		`{"messages":[{"role":"user","content":"\ud800 lone \udc00 \u00e9"}]}`,
+		`{"tools":[{"type":"function","function":{"name":"f","parameters":{"properties":{"\ud800\u0061":{},"\u00e9<":{"enum":["\ud83d\ude00"]}},"required":["\ud800\u0061"],"allOf":[{"required":["\udc00"]}]}}}],"messages":[]}`,
+		"{\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"f\",\"parameters\":{\"properties\":{\"k\xe2\x82\":{}},\"allOf\":[{\"required\":[\"\xe2\x82\"]}]}}}],\"messages\":[]}",
 		` {"model" : "old", "messages":[{"role":"user","content":"x"}]} trailing {}`,
 	} {
 		out = append(out, req(fmt.Sprintf("malformed/%d", i), model, input, false))

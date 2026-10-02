@@ -496,7 +496,7 @@ fn raw_object(raw: &[u8]) -> Option<BTreeMap<String, Vec<u8>>> {
     }
     let mut map = BTreeMap::new();
     root.each(|k, v| {
-        map.insert(String::from_utf8_lossy(&k.s).into_owned(), v.raw.to_vec());
+        map.insert(gj::go_unquote(&k.raw).unwrap_or_default(), v.raw.to_vec());
         true
     });
     Some(map)
@@ -514,7 +514,7 @@ fn raw_strings(raw: &[u8]) -> Option<Vec<String>> {
             .array()
             .iter()
             .map(|v| match v.kind {
-                Kind::String => Some(String::from_utf8_lossy(&v.s).into_owned()),
+                Kind::String => gj::go_unquote(&v.raw),
                 Kind::Null => Some(String::new()),
                 _ => None,
             })

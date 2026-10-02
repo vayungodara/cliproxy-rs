@@ -47,7 +47,7 @@ pub fn frame(client: Format, chunk: &[u8]) -> Option<Vec<u8>> {
         // interactions_handlers.go: empty chunks are dropped, chunks that already carry
         // SSE fields are written as is, and a missing blank line is added.
         Format::Interactions => {
-            let trimmed = chunk.trim_ascii();
+            let trimmed = crate::common::trim_space(chunk);
             let mut out = vec![];
             if !(trimmed.starts_with(b"event:") || trimmed.starts_with(b"data:")) {
                 out.extend_from_slice(b"data: ");
@@ -68,6 +68,64 @@ fn responses_client(client: Format) -> bool {
     matches!(client, Format::OpenAIResponse | Format::Codex)
 }
 
+/// Go's responsesSSEFramer.WriteChunk/Flush joining and emission rules
+/// (openai_responses_handlers.go): line chunks are joined into frames, a valid data-only
+/// frame closes before the next `data:` line, and every frame ends with a blank line.
+// ponytail: repairFrame (private-event filtering, completed-output and error repair,
+// terminal tracking) is route logic and stays with the Responses route in cpa-server.
+#[derive(Default)]
+struct ResponsesFramer {
+    pending: Vec<u8>,
+}
+
+fn has_field(chunk: &[u8], prefix: &[u8]) -> bool {
+    chunk
+        .split(|&c| c == b'\n')
+        .any(|line| crate::common::trim_space(line).starts_with(prefix))
+}
+
+/// responsesSSEDataLinesValid: no data, `[DONE]`, or one valid JSON payload.
+fn data_lines_valid(chunk: &[u8]) -> bool {
+    let mut payload: Option<Vec<u8>> = None;
+    for line in chunk.split(|&c| c == b'\n') {
+        let line = line.strip_suffix(b"\r").unwrap_or(line);
+        if let Some(data) = crate::common::trim_space(line).strip_prefix(b"data:") {
+            match &mut payload {
+                Some(p) => {
+                    p.push(b'\n');
+                    p.extend_from_slice(crate::common::trim_space(data));
+                }
+                None => payload = Some(crate::common::trim_space(data).to_vec()),
+            }
+        }
+    }
+    data_payload_valid(payload)
+}
+
+fn data_payload_valid(payload: Option<Vec<u8>>) -> bool {
+    let Some(payload) = payload else {
+        return true;
+    };
+    let payload = crate::common::trim_space(&payload);
+    payload.is_empty() || payload == b"[DONE]" || cpa_common::json::valid(payload)
+}
+
+fn starts_new_data_frame(pending: &[u8], chunk: &[u8]) -> bool {
+    let trimmed = crate::common::trim_space(pending);
+    if trimmed.is_empty()
+        || has_field(trimmed, b"event:")
+        || !has_field(trimmed, b"data:")
+        || !data_lines_valid(trimmed)
+    {
+        return false;
+    }
+    let start = chunk
+        .iter()
+        .position(|c| !matches!(c, b' ' | b'\t' | b'\r' | b'\n'))
+        .unwrap_or(chunk.len());
+    chunk[start..].starts_with(b"data:")
+}
+
 /// responsesSSENeedsLineBreak: a field line appended to an unterminated line.
 fn needs_line_break(pending: &[u8], chunk: &[u8]) -> bool {
     if pending.is_empty() || chunk.is_empty() || pending.ends_with(b"\n") || pending.ends_with(b"\r") {
@@ -76,68 +134,116 @@ fn needs_line_break(pending: &[u8], chunk: &[u8]) -> bool {
     if chunk[0] == b'\n' || chunk[0] == b'\r' {
         return false;
     }
-    let trimmed = chunk.trim_ascii_start();
-    [&b"data:"[..], b"event:", b"id:", b"retry:", b":"]
+    let start = chunk
         .iter()
-        .any(|p| trimmed.starts_with(p))
+        .position(|c| !matches!(c, b' ' | b'\t'))
+        .unwrap_or(chunk.len());
+    let trimmed = &chunk[start..];
+    !trimmed.is_empty()
+        && [&b"data:"[..], b"event:", b"id:", b"retry:", b":"]
+            .iter()
+            .any(|p| trimmed.starts_with(p))
 }
 
-/// The Responses route writes translator chunks through responsesSSEFramer: line chunks
-/// are joined into frames and every frame ends with a blank line (writeResponsesSSEChunk).
-// ponytail: the route's private-event filtering, completed-output repair and terminal
-// tracking (responsesSSEFramer.repairFrame) stay with the Responses route in cpa-server;
-// a frame without data is closed at the end of its upstream event instead of being held.
-fn join_responses_frames(chunks: Vec<Vec<u8>>) -> Vec<Vec<u8>> {
-    let mut pending: Vec<u8> = vec![];
-    for chunk in chunks.iter().filter(|c| !c.is_empty()) {
-        if needs_line_break(&pending, chunk) {
-            pending.push(b'\n');
-        }
-        pending.extend_from_slice(chunk);
-    }
-    let mut frames = vec![];
-    let mut rest = &pending[..];
-    loop {
-        let lf = rest.windows(2).position(|w| w == b"\n\n").map(|i| i + 2);
-        let crlf = rest.windows(4).position(|w| w == b"\r\n\r\n").map(|i| i + 4);
-        let end = match (lf, crlf) {
-            (Some(a), Some(b)) => {
-                if a - 2 < b - 4 {
-                    a
-                } else {
-                    b
-                }
+fn frame_len(chunk: &[u8]) -> usize {
+    let lf = chunk.windows(2).position(|w| w == b"\n\n");
+    let crlf = chunk.windows(4).position(|w| w == b"\r\n\r\n");
+    match (lf, crlf) {
+        (None, None) => 0,
+        (None, Some(c)) => c + 4,
+        (Some(l), None) => l + 2,
+        (Some(l), Some(c)) => {
+            if l < c {
+                l + 2
+            } else {
+                c + 4
             }
-            (Some(a), None) => a,
-            (None, Some(b)) => b,
-            (None, None) => break,
-        };
-        frames.push(rest[..end].to_vec());
-        rest = &rest[end..];
+        }
     }
-    if !rest.trim_ascii().is_empty() {
-        let mut frame = rest.to_vec();
-        frame.extend_from_slice(if rest.ends_with(b"\r\n") {
+}
+
+fn can_emit_without_delimiter(chunk: &[u8]) -> bool {
+    let trimmed = crate::common::trim_space(chunk);
+    let needs_more_data = has_field(trimmed, b"event:") && !has_field(trimmed, b"data:");
+    !trimmed.is_empty()
+        && !needs_more_data
+        && has_field(trimmed, b"event:")
+        && has_field(trimmed, b"data:")
+        && data_lines_valid(trimmed)
+}
+
+/// writeResponsesSSEChunk: the frame, then whatever completes its blank line.
+fn terminated(frame: &[u8]) -> Option<Vec<u8>> {
+    if frame.is_empty() {
+        return None;
+    }
+    let mut out = frame.to_vec();
+    if !(frame.ends_with(b"\n\n") || frame.ends_with(b"\r\n\r\n")) {
+        out.extend_from_slice(if frame.ends_with(b"\r\n") {
             b"\r\n"
-        } else if rest.ends_with(b"\n") {
+        } else if frame.ends_with(b"\n") {
             b"\n"
         } else {
             b"\n\n"
         });
-        frames.push(frame);
     }
-    frames
+    Some(out)
+}
+
+impl ResponsesFramer {
+    fn write(&mut self, chunk: &[u8], out: &mut Vec<Vec<u8>>) {
+        if chunk.is_empty() {
+            return;
+        }
+        if starts_new_data_frame(&self.pending, chunk) {
+            out.extend(terminated(&self.pending));
+            self.pending.clear();
+        }
+        if needs_line_break(&self.pending, chunk) {
+            self.pending.push(b'\n');
+        }
+        self.pending.extend_from_slice(chunk);
+        loop {
+            let n = frame_len(&self.pending);
+            if n == 0 {
+                break;
+            }
+            out.extend(terminated(&self.pending[..n]));
+            self.pending.drain(..n);
+        }
+        if crate::common::trim_space(&self.pending).is_empty() {
+            self.pending.clear();
+            return;
+        }
+        if can_emit_without_delimiter(&self.pending) {
+            out.extend(terminated(&self.pending));
+            self.pending.clear();
+        }
+    }
+
+    fn flush(&mut self, out: &mut Vec<Vec<u8>>) {
+        let pending = std::mem::take(&mut self.pending);
+        let trimmed = crate::common::trim_space(&pending);
+        if !trimmed.is_empty() && has_field(trimmed, b"data:") && data_lines_valid(trimmed) {
+            out.extend(terminated(&pending));
+        }
+    }
 }
 
 struct Framed {
     client: Format,
     inner: Box<dyn GoStream>,
+    responses: ResponsesFramer,
 }
 
 impl Framed {
-    fn framed(&self, chunks: Vec<Vec<u8>>) -> Vec<Bytes> {
+    fn framed(&mut self, chunks: Vec<Vec<u8>>) -> Vec<Bytes> {
         if responses_client(self.client) {
-            return join_responses_frames(chunks).into_iter().map(Bytes::from).collect();
+            let mut out = vec![];
+            for chunk in &chunks {
+                self.responses.write(chunk, &mut out);
+            }
+            return out.into_iter().map(Bytes::from).collect();
         }
         chunks
             .iter()
@@ -157,7 +263,9 @@ impl StreamTranslator for Framed {
     }
 
     fn finish(&mut self) -> Result<Vec<Bytes>, Error> {
-        Ok(vec![])
+        let mut out = vec![];
+        self.responses.flush(&mut out);
+        Ok(out.into_iter().map(Bytes::from).collect())
     }
 }
 
@@ -166,7 +274,11 @@ impl StreamTranslator for Framed {
 /// `data: [DONE]` when a non-Responses stream ends without one; the Gemini executors feed
 /// a final `[DONE]`. Executors that do so pass those lines as events.
 pub(crate) fn framed(client: Format, _upstream: Format, inner: Box<dyn GoStream>) -> Box<dyn StreamTranslator> {
-    Box::new(Framed { client, inner })
+    Box::new(Framed {
+        client,
+        inner,
+        responses: ResponsesFramer::default(),
+    })
 }
 
 #[cfg(test)]
@@ -191,22 +303,41 @@ mod tests {
         }
     }
 
+    fn responses(chunks: &[&[u8]]) -> Vec<Vec<u8>> {
+        let mut framer = ResponsesFramer::default();
+        let mut out = vec![];
+        for c in chunks {
+            framer.write(c, &mut out);
+        }
+        framer.flush(&mut out);
+        out
+    }
+
     #[test]
-    fn responses_clients_get_whole_frames() {
-        let chunks = |v: &[&[u8]]| v.iter().map(|c| c.to_vec()).collect::<Vec<_>>();
+    fn responses_framer_matches_go_joining() {
         assert_eq!(
-            join_responses_frames(chunks(&[b"event: a", b"data: {}", b""])),
+            responses(&[b"event: a", b"data: {}", b""]),
             [b"event: a\ndata: {}\n\n".to_vec()]
         );
         assert_eq!(
-            join_responses_frames(chunks(&[b"event: a\ndata: 1\n\nevent: b\ndata: 2\n\n"])),
+            responses(&[b"event: a\ndata: 1\n\nevent: b\ndata: 2\n\n"]),
             [b"event: a\ndata: 1\n\n".to_vec(), b"event: b\ndata: 2\n\n".to_vec()]
         );
-        assert_eq!(join_responses_frames(chunks(&[b"", b"  "])), Vec::<Vec<u8>>::new());
+        // A valid data-only frame closes before the next data line (oracle finding 2).
         assert_eq!(
-            join_responses_frames(chunks(&[b"data: x\r\n"])),
-            [b"data: x\r\n\r\n".to_vec()]
+            responses(&[b"data: {}", b"data: []"]),
+            [b"data: {}\n\n".to_vec(), b"data: []\n\n".to_vec()]
         );
+        // An event line waits for its data, even across upstream events.
+        assert_eq!(
+            responses(&[b"event: x", b"", b"data: {}"]),
+            [b"event: x\ndata: {}\n\n".to_vec()]
+        );
+        // An event without data is dropped at flush; blank input emits nothing.
+        assert!(responses(&[b"event: lonely"]).is_empty());
+        assert!(responses(&[b"", b"  "]).is_empty());
+        assert_eq!(responses(&[b"data: x\r\n"]), Vec::<Vec<u8>>::new());
+        assert_eq!(responses(&[b"data: [DONE]"]), [b"data: [DONE]\n\n".to_vec()]);
     }
 
     #[test]
