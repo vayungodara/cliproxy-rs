@@ -11,17 +11,22 @@
 //! port `setComplexPath` if one needs them. Bodies are `&str`: callers holding
 //! non-UTF-8 bytes must decide before editing (gjson.rs is UTF-8 only).
 
+use crate::gostr::GoStr;
 use gjson::{Kind, Value};
 
-/// gjson `Result.String()`: numbers keep their raw spelling only when it is a plain
-/// integer, otherwise they are reformatted the way `strconv.FormatFloat(f, 'f', -1, 64)`
-/// does; null is empty; objects and arrays are raw JSON.
+/// gjson `Result.String()`: numbers keep their raw spelling when it is an optional `-`
+/// followed only by digits (even none), otherwise they are reformatted the way
+/// `strconv.FormatFloat(f, 'f', -1, 64)` does; null is empty; objects and arrays are raw.
+///
+/// ponytail: malformed number tokens (`1_024`, `-`) are scanned by gjson.rs, which can
+/// stop at different bytes than Go's scanner. Inputs that pass `valid()` are unaffected;
+/// every thinking/signature path that reads numbers validates first.
 pub fn go_str(v: &Value<'_>) -> String {
     match v.kind() {
         Kind::Number => {
             let raw = v.json();
             let digits = raw.strip_prefix('-').unwrap_or(raw);
-            if !digits.is_empty() && digits.bytes().all(|b| b.is_ascii_digit()) {
+            if digits.bytes().all(|b| b.is_ascii_digit()) {
                 raw.to_owned()
             } else {
                 format_float(go_num(raw))
@@ -31,10 +36,15 @@ pub fn go_str(v: &Value<'_>) -> String {
     }
 }
 
-/// `strconv.FormatFloat(f, 'f', -1, 64)` for finite values.
+/// `strconv.FormatFloat(f, 'f', -1, 64)`: shortest round-trip digits, no exponent.
 pub fn format_float(f: f64) -> String {
-    let s = format!("{f}");
-    if s == "-0" { "-0".into() } else { s }
+    if f.is_nan() {
+        "NaN".into()
+    } else if f.is_infinite() {
+        if f > 0.0 { "+Inf".into() } else { "-Inf".into() }
+    } else {
+        format!("{f}")
+    }
 }
 
 /// gjson's number parse of a raw literal (`strconv.ParseFloat`, 0 on failure).
@@ -86,21 +96,11 @@ pub fn go_int(v: &Value<'_>) -> i64 {
     }
 }
 
-/// gjson `Result.Float()`.
-pub fn go_float(v: &Value<'_>) -> f64 {
-    match v.kind() {
-        Kind::True => 1.0,
-        Kind::String => v.str().parse::<f64>().unwrap_or(0.0),
-        Kind::Number => go_num(v.json()),
-        _ => 0.0,
-    }
-}
-
 /// gjson `Result.Bool()`.
 pub fn go_bool(v: &Value<'_>) -> bool {
     match v.kind() {
         Kind::True => true,
-        Kind::String => matches!(v.str().to_lowercase().as_str(), "1" | "t" | "true"),
+        Kind::String => matches!(v.str().go_lower().as_str(), "1" | "t" | "true"),
         Kind::Number => go_num(v.json()) != 0.0,
         _ => false,
     }
@@ -212,7 +212,7 @@ fn parse_path(mut path: &str) -> Option<Vec<Part>> {
 }
 
 /// Go `encoding/json` string encoding (HTML-escaped, U+2028/2029 escaped).
-pub fn go_quote(s: &str) -> String {
+pub fn marshal_string(s: &str) -> String {
     let mut out = String::with_capacity(s.len() + 2);
     out.push('"');
     for c in s.chars() {
@@ -238,24 +238,50 @@ fn stringify(s: &str) -> String {
     if s.bytes()
         .any(|b| !(b' '..=0x7f).contains(&b) || b == b'"' || b == b'\\')
     {
-        go_quote(s)
+        marshal_string(s)
     } else {
         format!("\"{s}\"")
     }
 }
 
-fn atoui(p: &Part) -> Option<usize> {
+/// sjson `atoui`: digits only (empty is 0), accumulated in Go's 64-bit `int` with
+/// wrapping, so huge indexes turn negative exactly as in Go.
+fn atoui(p: &Part) -> Option<i64> {
     if p.force {
         return None;
     }
-    let mut n = 0usize;
+    let mut n = 0i64;
     for b in p.part.bytes() {
         if !b.is_ascii_digit() {
             return None;
         }
-        n = n.wrapping_mul(10).wrapping_add(usize::from(b - b'0'));
+        n = n.wrapping_mul(10).wrapping_add(i64::from(b - b'0'));
     }
     Some(n)
+}
+
+/// sjson `appendRepeat`: a non-positive count appends nothing.
+fn repeat(buf: &mut String, s: &str, n: i64) {
+    for _ in 0..n.max(0) {
+        buf.push_str(s);
+    }
+}
+
+/// gjson's array element lookup for a simple path part: `parseUint` digits only,
+/// wrapping, then `int(n)`. Returns the element's byte range in `json`.
+fn array_element(json: &str, part: &str) -> Option<(usize, usize)> {
+    if part.is_empty() || !part.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    let mut n = 0u64;
+    for b in part.bytes() {
+        n = n.wrapping_mul(10).wrapping_add(u64::from(b - b'0'));
+    }
+    let index = usize::try_from(n as i64).ok()?;
+    let root = gjson::parse(json);
+    let items = root.array();
+    let item = items.get(index)?;
+    offset(json, item.json()).map(|o| (o, item.json().len()))
 }
 
 fn append_build(buf: &mut String, array: bool, paths: &[Part], raw: &str, quote: bool) {
@@ -267,7 +293,7 @@ fn append_build(buf: &mut String, array: bool, paths: &[Part], raw: &str, quote:
         let numeric = atoui(&paths[1]);
         if numeric.is_some() || (!paths[1].force && paths[1].part == "-1") {
             buf.push('[');
-            buf.push_str(&"null,".repeat(numeric.unwrap_or(0)));
+            repeat(buf, "null,", numeric.unwrap_or(0));
             append_build(buf, true, &paths[1..], raw, quote);
             buf.push(']');
         } else {
@@ -359,11 +385,15 @@ fn append_raw_paths(buf: &mut String, json: &str, paths: &[Part], edit: &Edit<'_
         }
     }
     if found.is_none() {
-        let res = gjson::get(json, &paths[0].gpart);
-        if res.exists() {
-            found = offset(json, res.json())
-                .filter(|o| *o > 0)
-                .map(|o| (o, res.json().len()));
+        if json.trim_start_matches(|c: char| c <= ' ').starts_with('[') {
+            found = array_element(json, &paths[0].gpart).filter(|(o, _)| *o > 0);
+        } else {
+            let res = gjson::get(json, &paths[0].gpart);
+            if res.exists() {
+                found = offset(json, res.json())
+                    .filter(|o| *o > 0)
+                    .map(|o| (o, res.json().len()));
+            }
         }
     }
     if let Some((index, len)) = found {
@@ -449,9 +479,9 @@ fn append_raw_paths(buf: &mut String, json: &str, paths: &[Part], edit: &Edit<'_
         buf.push_str(item.json());
     }
     if items.is_empty() {
-        buf.push_str(&"null,".repeat(n));
+        repeat(buf, "null,", n);
     } else {
-        buf.push_str(&",null".repeat(n.saturating_sub(items.len())));
+        repeat(buf, ",null", n.wrapping_sub(items.len() as i64));
         if comma {
             buf.push(',');
         }

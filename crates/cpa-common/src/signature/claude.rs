@@ -6,7 +6,8 @@ use gjson::Kind;
 
 use super::wire::{self, BYTES, STD, VARINT, WireError};
 use super::{Error, err};
-use crate::json;
+use crate::gojson as json;
+use crate::gostr::quote;
 
 pub const MAX_CLAUDE_THINKING_SIGNATURE_LEN: usize = 32 * 1024 * 1024;
 
@@ -123,7 +124,7 @@ pub fn validate_claude_thinking_signatures(body: &str, opt: ClaudeValidation) ->
 
 /// Go `%q` of `string(sig[0])`: the first byte converted as a rune (U+0000..U+00FF).
 pub(crate) fn first_char(sig: &str) -> String {
-    go_quote(&char::from(sig.as_bytes()[0]).to_string())
+    quote(&char::from(sig.as_bytes()[0]).to_string())
 }
 
 fn check_len(sig: &str) -> Result<(), Error> {
@@ -490,7 +491,7 @@ pub fn inspect_claude_cais_signature(raw: &str) -> Result<ClaudeCaisInfo, Error>
                 if !value.starts_with("claude-") {
                     return err(format!(
                         "invalid Claude CAIS signature: channel field 6 model_text must start with \"claude-\", got {}",
-                        go_quote(value)
+                        quote(value)
                     ));
                 }
                 info.model_text = value.to_owned();
@@ -505,7 +506,7 @@ pub fn inspect_claude_cais_signature(raw: &str) -> Result<ClaudeCaisInfo, Error>
                 if !is_canonical_uuid(value.as_bytes()) {
                     return err(format!(
                         "invalid Claude CAIS signature: channel field 11 context id must be a canonical UUID, got {}",
-                        go_quote(value)
+                        quote(value)
                     ));
                 }
                 info.context_id = value.to_owned();
@@ -530,39 +531,10 @@ pub fn inspect_claude_cais_signature(raw: &str) -> Result<ClaudeCaisInfo, Error>
     if info.envelope_version >= 4 && info.block_kind != "thinking" && info.block_kind != "narration" {
         return err(format!(
             "invalid Claude CAQS signature: expected block kind \"thinking\" or \"narration\", got {}",
-            go_quote(&info.block_kind)
+            quote(&info.block_kind)
         ));
     }
     Ok(info)
-}
-
-/// Go `%q` for a valid UTF-8 string (strconv.Quote).
-pub(crate) fn go_quote(s: &str) -> String {
-    let mut out = String::from("\"");
-    for c in s.chars() {
-        match c {
-            '"' => out.push_str("\\\""),
-            '\\' => out.push_str("\\\\"),
-            '\u{7}' => out.push_str("\\a"),
-            '\u{8}' => out.push_str("\\b"),
-            '\u{c}' => out.push_str("\\f"),
-            '\n' => out.push_str("\\n"),
-            '\r' => out.push_str("\\r"),
-            '\t' => out.push_str("\\t"),
-            '\u{b}' => out.push_str("\\v"),
-            c if (c as u32) < 0x20 || c as u32 == 0x7f => out.push_str(&format!("\\x{:02x}", c as u32)),
-            c if is_go_printable(c) => out.push(c),
-            c if (c as u32) < 0x10000 => out.push_str(&format!("\\u{:04x}", c as u32)),
-            c => out.push_str(&format!("\\U{:08x}", c as u32)),
-        }
-    }
-    out.push('"');
-    out
-}
-
-/// Approximates `strconv.IsPrint` for non-ASCII runes.
-fn is_go_printable(c: char) -> bool {
-    !c.is_control() && !matches!(c as u32, 0xad | 0x2028 | 0x2029 | 0xfeff | 0xfff9..=0xfffb | 0xe000..=0xf8ff)
 }
 
 fn cais_varint(raw: &[u8], typ: u8, label: &str) -> Result<u64, Error> {

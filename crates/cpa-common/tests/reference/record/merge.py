@@ -8,11 +8,12 @@ import json, pathlib, sys
 src, dst = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2])
 by_signature = '--by-signature' in sys.argv[3:]
 lines = set()
-dropped = 0
+dropped = []
 for path in sorted(src.glob('*.jsonl')):
     for line in path.read_text().splitlines():
         if len(line) > 64 * 1024 or '"non_utf8":true' in line:
-            dropped += 1
+            reason = 'non-UTF-8' if '"non_utf8":true' in line else f'{len(line)} bytes'
+            dropped.append(f"{json.loads(line)['fn']} ({reason})")
             continue
         lines.add(line)
 
@@ -28,4 +29,6 @@ def key(line):
 
 records = sorted(lines, key=key)
 dst.write_text('\n'.join(records) + '\n')
-print(f'{len(records)} records, {dropped} dropped (over 64 KiB or non-UTF-8)')
+print(f'{len(records)} records, {len(dropped)} dropped (over 64 KiB or non-UTF-8)')
+for item in sorted(dropped):
+    print('  dropped', item)

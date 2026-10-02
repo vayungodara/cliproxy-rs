@@ -4,12 +4,13 @@ use gjson::{Kind, Value};
 
 use super::claude::is_empty_thinking_placeholder;
 use super::{Action, BlockKind, Decision, Provider, decide_compatibility_for_model, normalize_target};
-use crate::json;
+use crate::gojson as json;
 
 /// `ClaudeMessagesSignatureSanitizeOptions`.
 #[derive(Debug, Clone, Default)]
 pub struct ClaudeMessagesSanitizeOptions {
-    pub target_provider: Option<Provider>,
+    /// `Provider::Empty` is Go's zero value.
+    pub target_provider: Provider,
     pub target_model: String,
     pub drop_empty_messages: bool,
     pub drop_tool_signatures: bool,
@@ -33,7 +34,7 @@ pub fn sanitize_claude_messages_signatures_for_model(payload: &str, target_model
     sanitize_claude_messages_signatures_for_target(
         payload,
         &ClaudeMessagesSanitizeOptions {
-            target_provider: Some(super::provider_from_model_name(target_model)),
+            target_provider: super::provider_from_model_name(target_model),
             target_model: target_model.into(),
             drop_empty_messages: true,
             ..Default::default()
@@ -50,7 +51,7 @@ pub fn sanitize_claude_messages_for_claude_upstream(
     sanitize_claude_messages_signatures_for_target(
         payload,
         &ClaudeMessagesSanitizeOptions {
-            target_provider: Some(Provider::Claude),
+            target_provider: Provider::Claude,
             target_model: target_model.into(),
             drop_empty_messages: true,
             drop_tool_signatures: true,
@@ -65,10 +66,8 @@ pub fn sanitize_claude_messages_signatures_for_target(
     payload: &str,
     opts: &ClaudeMessagesSanitizeOptions,
 ) -> (String, SanitizeReport) {
-    let mut target = normalize_target(opts.target_provider.unwrap_or(Provider::Unknown));
-    // Go's zero-value (empty) target provider skips the model-name fallback; an
-    // explicit "unknown" does not.
-    if opts.target_provider.is_some() && target == Provider::Unknown && !opts.target_model.is_empty() {
+    let mut target = normalize_target(opts.target_provider);
+    if target == Provider::Unknown && !opts.target_model.is_empty() {
         target = super::provider_from_model_name(&opts.target_model);
     }
     let mut report = SanitizeReport {

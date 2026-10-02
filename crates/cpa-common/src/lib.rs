@@ -14,13 +14,15 @@
 //! - `codex_client`: executor/helps/codex_multi_agent_v2.go (Codex-client request rewrites
 //!   shared by every executor that serves Codex clients).
 //!
-//! - `json`: tidwall/gjson and sjson v1.2.5 semantics for byte-faithful raw JSON edits,
+//! - `gojson`: tidwall/gjson and sjson v1.2.5 semantics for byte-faithful raw JSON edits,
 //!   used by `thinking` and `signature` and available to every executor and translator.
 //!
 //! The proxy-aware HTTP client (executor/helps/proxy_helpers.go) touches the network and
 //! lives in cpa-exec instead.
 
-pub mod json;
+pub mod gojson;
+pub mod gostr;
+mod gostr_tables;
 pub mod signature;
 pub mod thinking;
 

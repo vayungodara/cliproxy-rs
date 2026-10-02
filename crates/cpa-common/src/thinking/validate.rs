@@ -1,5 +1,6 @@
 //! Capability validation and normalization (validate.go).
 
+use crate::gostr::GoStr;
 use cpa_core::registry::ThinkingSupport;
 
 use super::{
@@ -17,8 +18,8 @@ pub fn validate_config(
     to: &str,
     from_suffix: bool,
 ) -> Result<Config, Error> {
-    let from = from.trim().to_lowercase();
-    let to = to.trim().to_lowercase();
+    let from = from.trim().go_lower();
+    let to = to.trim().go_lower();
     let model = info
         .map(|i| i.id.as_str())
         .filter(|id| !id.is_empty())
@@ -29,6 +30,7 @@ pub fn validate_config(
                 code: Some(ErrorCode::ThinkingNotSupported),
                 message: "thinking not supported for this model".into(),
                 model: model.into(),
+                body: None,
             });
         }
         return Ok(config);
@@ -36,7 +38,7 @@ pub fn validate_config(
     let capability = detect_capability(info);
     let has_levels = matches!(capability, Capability::LevelOnly | Capability::Hybrid);
     let family_mismatch = info.is_some_and(|i| {
-        let kind = i.kind.trim().to_lowercase();
+        let kind = i.kind.trim().go_lower();
         !kind.is_empty()
             && ((!from.is_empty() && !is_same_provider_family(&from, &kind))
                 || (!to.is_empty() && !is_same_provider_family(&to, &kind)))
@@ -84,12 +86,12 @@ pub fn validate_config(
             config.level = clamp_level(&config.level, info);
         }
         if !is_level_supported(&config.level, &support.levels) {
-            let valid: Vec<String> = support.levels.iter().map(|l| l.trim().to_lowercase()).collect();
+            let valid: Vec<String> = support.levels.iter().map(|l| l.trim().go_lower()).collect();
             return Err(Error::new(
                 ErrorCode::LevelNotSupported,
                 format!(
-                    "level \"{}\" not supported, valid levels: {}",
-                    config.level.to_lowercase(),
+                    "level {} not supported, valid levels: {}",
+                    crate::gostr::quote(&config.level.go_lower()),
                     valid.join(", ")
                 ),
             ));
@@ -205,11 +207,11 @@ fn clamp_budget(value: i64, support: &ThinkingSupport) -> i64 {
 }
 
 pub(crate) fn is_level_supported(level: &str, supported: &[String]) -> bool {
-    supported.iter().any(|s| level.eq_ignore_ascii_case(s.trim()))
+    supported.iter().any(|s| level.go_eq_fold(s.trim()))
 }
 
 fn level_index(level: &str) -> Option<usize> {
-    STANDARD_LEVELS.iter().position(|l| level.eq_ignore_ascii_case(l))
+    STANDARD_LEVELS.iter().position(|l| level.go_eq_fold(l))
 }
 
 pub(crate) fn is_budget_capable_provider(provider: &str) -> bool {

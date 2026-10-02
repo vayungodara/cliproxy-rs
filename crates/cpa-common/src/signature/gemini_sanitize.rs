@@ -6,7 +6,7 @@ use super::{
     Action, BlockKind, GEMINI_SKIP_THOUGHT_SIGNATURE_VALIDATOR, Provider, compatible_signature_for_provider_block,
     decide_compatibility, is_gemini_bypass, payload_without_provider_prefix,
 };
-use crate::json;
+use crate::gojson as json;
 
 /// `GeminiReplaySignatureOrBypass`: a Gemini-replayable signature, or the bypass
 /// sentinel for missing, unknown or foreign signatures.
@@ -81,6 +81,10 @@ fn is_server_tool_part(part: &Value<'_>) -> bool {
 /// `SanitizeGeminiRequestThoughtSignatures`: keeps native signatures on their parts,
 /// echoes server-side tool blocks untouched, gives a missing or foreign first
 /// functionCall the bypass sentinel and leaves sibling calls unsigned.
+///
+/// ponytail: `contents_path` must be a simple dotted path (Go's callers pass `contents`
+/// and `request.contents`). A gjson query path is read but not written back, because the
+/// sjson port has no `setComplexPath`; port it in `json.rs` if a caller needs one.
 pub fn sanitize_gemini_request_thought_signatures(payload: &str, contents_path: &str) -> String {
     let path = match contents_path.trim() {
         "" => "contents",

@@ -5,6 +5,7 @@
 //! cryptography. Detection order and envelope rules follow Go exactly because a wrong
 //! claim either drops valid history or replays a foreign signature upstream (400).
 
+use crate::gostr::GoStr;
 mod claude;
 mod claude_messages;
 mod gemini;
@@ -38,8 +39,12 @@ pub(crate) fn err<T>(message: impl Into<String>) -> Result<T, Error> {
     Err(Error(message.into()))
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum Provider {
+    /// Go's zero value `""`: behaves like `Unknown` but is reported as empty and does
+    /// not trigger the model-name fallback in the Claude Messages sanitizer.
+    #[default]
+    Empty,
     Unknown,
     Claude,
     Gemini,
@@ -54,6 +59,7 @@ pub enum Provider {
 impl Provider {
     pub fn as_str(self) -> &'static str {
         match self {
+            Self::Empty => "",
             Self::Unknown => "unknown",
             Self::Claude => "claude",
             Self::Gemini => "gemini",
@@ -125,7 +131,7 @@ pub struct Decision {
 
 /// `SignatureProviderFromModelName`.
 pub fn provider_from_model_name(model: &str) -> Provider {
-    let lower = model.trim().to_lowercase();
+    let lower = model.trim().go_lower();
     let has = |s: &str| lower.contains(s);
     let starts = |s: &str| lower.starts_with(s);
     if has("claude") {
@@ -314,7 +320,7 @@ pub fn split_provider_prefix(raw: &str) -> Option<(Provider, &str)> {
 
 /// `SignatureProviderFromCachePrefix`.
 pub fn provider_from_cache_prefix(prefix: &str) -> Provider {
-    match prefix.trim().to_lowercase().as_str() {
+    match prefix.trim().go_lower().as_str() {
         "claude" | "anthropic" | "cais" | "claude-cais" | "claude_cais" | "ccmax" | "claude-code-max"
         | "claude_code_max" => Provider::Claude,
         "gemini" | "google" => Provider::Gemini,

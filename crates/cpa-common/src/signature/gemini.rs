@@ -1,12 +1,13 @@
 //! Gemini `thoughtSignature` validation (gemini_validation.go).
 
+use crate::gostr::GoStr;
 use gjson::{Kind, Value};
 
 use super::claude::is_valid_claude_cais_signature;
 use super::gemini_sanitize::{has_normalized_part_signature, part_thought_signature};
 use super::wire::{self, BYTES, FIXED32, FIXED64, RAW_STD, STD, VARINT};
 use super::{Error, err};
-use crate::json;
+use crate::gojson as json;
 
 pub const MAX_GEMINI_THOUGHT_SIGNATURE_LEN: usize = 32 * 1024 * 1024;
 /// Sentinel Gemini accepts in place of a missing first-functionCall signature.
@@ -107,8 +108,8 @@ pub fn inspect_gemini_thought_signature(raw: &str, opt: GeminiValidation) -> Res
     };
     if opt.require_known_envelope && !info.known_envelope {
         return err(format!(
-            "invalid Gemini thought signature: unknown envelope \"{}\"",
-            envelope.as_str()
+            "invalid Gemini thought signature: unknown envelope {}",
+            crate::gostr::quote(envelope.as_str())
         ));
     }
     if opt.require_observed_marker && !info.has_observed_marker {
@@ -156,7 +157,7 @@ pub fn validate_gemini_thought_signatures(body: &str, opt: GeminiValidation) -> 
         if parts.kind() != Kind::Array {
             continue;
         }
-        let model_turn = json::go_str(&content.get("role")).trim().eq_ignore_ascii_case("model");
+        let model_turn = json::go_str(&content.get("role")).trim().go_eq_fold("model");
         let mut first_call_seen = false;
         for (j, part) in parts.array().iter().enumerate() {
             let has_call = part.get("functionCall").exists();
@@ -272,7 +273,7 @@ pub fn validate_gemini_function_call_pairing(body: &str) -> Result<(), Error> {
             return true;
         }
         if responses.is_empty() {
-            if !pending.is_empty() && json::go_str(&content.get("role")).trim().to_lowercase() == "model" {
+            if !pending.is_empty() && json::go_str(&content.get("role")).trim().go_lower() == "model" {
                 result = err(format!(
                     "{path}[{index}]: model content appears before {} pending functionResponse part(s)",
                     pending.len()
@@ -300,8 +301,8 @@ pub fn validate_gemini_function_call_pairing(body: &str) -> Result<(), Error> {
             } else if !call.id.is_empty() && *response_id != call.id {
                 Some(format!(
                     "{part_path}: functionResponse.id {} does not match functionCall.id {} at {}",
-                    super::claude::go_quote(response_id),
-                    super::claude::go_quote(&call.id),
+                    crate::gostr::quote(response_id),
+                    crate::gostr::quote(&call.id),
                     call.path
                 ))
             } else if response_name.is_empty() {
@@ -309,8 +310,8 @@ pub fn validate_gemini_function_call_pairing(body: &str) -> Result<(), Error> {
             } else if !call.name.is_empty() && *response_name != call.name {
                 Some(format!(
                     "{part_path}: functionResponse.name {} does not match functionCall.name {} at {}",
-                    super::claude::go_quote(response_name),
-                    super::claude::go_quote(&call.name),
+                    crate::gostr::quote(response_name),
+                    crate::gostr::quote(&call.name),
                     call.path
                 ))
             } else {

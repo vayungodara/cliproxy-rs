@@ -49,9 +49,14 @@ Two Go tests fail under recording, `TestConvertGeminiRequestToAntigravityBoundsL
 and `TestConvertGeminiRequestToGeminiReusesLargeNormalizedPayload`: they assert allocation
 budgets, and the recorder serializes their 20 MiB payloads. Their behaviour is unaffected.
 
-Lines over 64 KiB are dropped (they only exercise the 32 MiB signature caps, covered by
-`length_caps_reject_before_decoding`), as are calls with non-UTF-8 strings, which the
-`&str` API cannot receive. Replay normalizes protobuf-go's `proto:` separator: the library
+`merge.py` lists every record it drops. At 6fecc6e that is eight:
+
+- `normalize_claude` and `validate_claude` (32 MiB signatures): the length caps, covered by
+  `length_caps_reject_before_decoding`.
+- Two `sanitize_gemini` calls (4 MiB and 20 MiB inline media) that Go returns unchanged,
+  rebuilt byte for byte in `large_inline_data_passes_through_like_go`.
+- `decide`, `detect`, `inspect_kimi` and `split_prefix` with non-UTF-8 signature strings.
+  The `&str` API cannot receive them (see the UTF-8 note in `src/json.rs`). Replay normalizes protobuf-go's `proto:` separator: the library
 picks U+0020 or U+00A0 per binary so nothing depends on it.
 
 `../sjson/main.go` generates `../../fixtures/sjson_go.json` the same way for the

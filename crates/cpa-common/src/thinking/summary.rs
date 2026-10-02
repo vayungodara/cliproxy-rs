@@ -1,9 +1,10 @@
 //! Reasoning summary (visibility) intent, kept separate from effort (summary.go).
 
+use crate::gostr::GoStr;
 use gjson::Kind;
 
 use super::{ModelCaps, lookup_model_info, parse_suffix};
-use crate::json;
+use crate::gojson as json;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum SummaryMode {
@@ -44,7 +45,7 @@ fn supported(format: &str) -> bool {
 
 /// `ExtractSummaryConfig`.
 pub fn extract_summary_config(body: &str, format: &str) -> SummaryConfig {
-    let format = format.trim().to_lowercase();
+    let format = format.trim().go_lower();
     if !supported(&format) || body.is_empty() || !json::valid(body) {
         return SummaryConfig::default();
     }
@@ -55,7 +56,7 @@ pub fn extract_summary_config(body: &str, format: &str) -> SummaryConfig {
             }
             let effort = gjson::get(body, "reasoning_effort");
             if effort.kind() == Kind::String {
-                return match effort.str().trim().to_lowercase().as_str() {
+                return match effort.str().trim().go_lower().as_str() {
                     "" => SummaryConfig::default(),
                     "none" => SummaryConfig::disabled(),
                     _ => SummaryConfig::enabled("auto"),
@@ -73,7 +74,7 @@ pub fn extract_summary_config(body: &str, format: &str) -> SummaryConfig {
             if claude_accepts_display(body) {
                 let value = gjson::get(body, "thinking.display");
                 if value.kind() == Kind::String {
-                    match value.str().trim().to_lowercase().as_str() {
+                    match value.str().trim().go_lower().as_str() {
                         "summarized" => return SummaryConfig::enabled("auto"),
                         "omitted" => return SummaryConfig::disabled(),
                         _ => {}
@@ -115,7 +116,7 @@ pub fn extract_summary_config(body: &str, format: &str) -> SummaryConfig {
             ] {
                 let value = gjson::get(body, path);
                 if value.kind() == Kind::String {
-                    match value.str().trim().to_lowercase().as_str() {
+                    match value.str().trim().go_lower().as_str() {
                         "auto" => return SummaryConfig::enabled("auto"),
                         "none" => return SummaryConfig::disabled(),
                         _ => {}
@@ -142,7 +143,7 @@ pub fn extract_summary_config(body: &str, format: &str) -> SummaryConfig {
 /// `ExtractExplicitSummaryConfig`: like [`extract_summary_config`] but OpenAI chat
 /// `reasoning_effort` alone does not imply a summary.
 pub fn extract_explicit_summary_config(body: &str, format: &str) -> SummaryConfig {
-    let format = format.trim().to_lowercase();
+    let format = format.trim().go_lower();
     if format != "openai" {
         return extract_summary_config(body, &format);
     }
@@ -154,8 +155,8 @@ pub fn extract_explicit_summary_config(body: &str, format: &str) -> SummaryConfi
 
 /// `ExtractTranslatedSummaryConfig`.
 pub fn extract_translated_summary_config(body: &str, source_format: &str, target_format: &str) -> SummaryConfig {
-    let source = source_format.trim().to_lowercase();
-    if target_format.trim().eq_ignore_ascii_case("claude") && source == "openai" {
+    let source = source_format.trim().go_lower();
+    if target_format.trim().go_lower() == "claude" && source == "openai" {
         return extract_explicit_summary_config(body, &source);
     }
     extract_summary_config(body, &source)
@@ -188,7 +189,7 @@ pub(crate) fn apply_summary_config_for_provider(
     info: Option<&ModelCaps>,
     config: SummaryConfig,
 ) -> String {
-    let format = format.trim().to_lowercase();
+    let format = format.trim().go_lower();
     if config.mode == SummaryMode::Unspecified || !supported(&format) || body.is_empty() || !json::valid(body) {
         return body.to_owned();
     }
@@ -268,7 +269,7 @@ pub(crate) fn apply_summary_config_for_provider(
 fn claude_accepts_display(body: &str) -> bool {
     match json::go_str(&gjson::get(body, "thinking.type"))
         .trim()
-        .to_lowercase()
+        .go_lower()
         .as_str()
     {
         "adaptive" => true,
@@ -285,7 +286,7 @@ fn claude_accepts_display(body: &str) -> bool {
 }
 
 fn is_openrouter(provider: &str) -> bool {
-    let provider = provider.trim().to_lowercase();
+    let provider = provider.trim().go_lower();
     provider == "openrouter"
         || provider
             .split(['-', '_', '/', '.', ':'])
@@ -357,7 +358,7 @@ fn responses_summary(body: &str, path: &str) -> Option<SummaryConfig> {
     }
     match value.kind() {
         Kind::Null => Some(SummaryConfig::disabled()),
-        Kind::String => match value.str().trim().to_lowercase().as_str() {
+        Kind::String => match value.str().trim().go_lower().as_str() {
             raw @ ("auto" | "concise" | "detailed") => Some(SummaryConfig::enabled(raw)),
             "none" => Some(SummaryConfig::disabled()),
             _ => None,
@@ -377,7 +378,7 @@ pub(crate) fn strip_inferred_claude_summary_activation(body: &str, info: Option<
     }
     if !json::go_str(&gjson::get(body, "thinking.type"))
         .trim()
-        .eq_ignore_ascii_case("adaptive")
+        .go_eq_fold("adaptive")
     {
         return body.to_owned();
     }
@@ -431,7 +432,7 @@ fn enable_claude_thinking_for_summary(body: &str, model: &str, resolved: Option<
 }
 
 fn normalized_detail(detail: &str) -> &'static str {
-    match detail.trim().to_lowercase().as_str() {
+    match detail.trim().go_lower().as_str() {
         "concise" => "concise",
         "detailed" => "detailed",
         _ => "auto",

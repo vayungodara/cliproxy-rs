@@ -11,8 +11,8 @@ fn s(v: &Value) -> &str {
 
 fn provider(v: &str) -> Provider {
     match v {
-        // Go's zero value behaves exactly like "unknown" (see provider_out).
-        "" | "unknown" => Provider::Unknown,
+        "" => Provider::Empty,
+        "unknown" => Provider::Unknown,
         "claude" => Provider::Claude,
         "gemini" => Provider::Gemini,
         "gemini_bypass" => Provider::GeminiBypass,
@@ -186,7 +186,7 @@ fn replay(fn_name: &str, input: &Value) -> Option<Value> {
             let (out, report) = sanitize_claude_messages_signatures_for_target(
                 s(&input["body"]),
                 &ClaudeMessagesSanitizeOptions {
-                    target_provider: (!target.is_empty()).then(|| provider(target)),
+                    target_provider: provider(target),
                     target_model: s(&input["model"]).into(),
                     drop_empty_messages: input["drop_empty_messages"].as_bool().unwrap(),
                     drop_tool_signatures: input["drop_tool_signatures"].as_bool().unwrap(),
@@ -211,20 +211,20 @@ fn replay(fn_name: &str, input: &Value) -> Option<Value> {
     })
 }
 
-/// Go's zero-value provider prints as "" where cliproxy-rs reports `unknown`; both take
-/// the same branches (no target matches, no model fallback).
-fn normalize_zero_provider(v: &mut Value) {
+/// protobuf-go picks a regular or non-breaking space after "proto:" per binary
+/// (internal/detrand) so callers cannot depend on it; the recording build chose U+00A0.
+/// Only error strings are normalized, never bodies.
+fn normalize_proto_separator(v: &mut Value) {
     match v {
         Value::Object(map) => {
             for (key, value) in map.iter_mut() {
-                if (key == "target" || key == "provider") && value == "" {
-                    *value = json!("unknown");
-                } else {
-                    normalize_zero_provider(value);
+                match value {
+                    Value::String(text) if key == "err" => *text = text.replace("proto:\u{a0}", "proto: "),
+                    other => normalize_proto_separator(other),
                 }
             }
         }
-        Value::Array(items) => items.iter_mut().for_each(normalize_zero_provider),
+        Value::Array(items) => items.iter_mut().for_each(normalize_proto_separator),
         _ => {}
     }
 }
@@ -252,16 +252,18 @@ fn replay_all(lines: impl Iterator<Item = String>) -> std::collections::BTreeMap
     for line in lines {
         let record: Value = serde_json::from_str(&line).unwrap();
         let fn_name = s(&record["fn"]);
-        let Some(mut got) = replay(fn_name, &record["in"]) else {
+        let Some(got) = replay(fn_name, &record["in"]) else {
             continue;
         };
         *ran.entry(fn_name.to_owned()).or_default() += 1;
-        // protobuf-go picks a regular or non-breaking space after "proto:" per binary
-        // (internal/detrand) so callers cannot depend on it; the recording build chose U+00A0.
-        let mut want: Value =
-            serde_json::from_str(&record["out"].to_string().replace("proto:\u{a0}", "proto: ")).unwrap();
-        normalize_zero_provider(&mut want);
-        normalize_zero_provider(&mut got);
+        let mut want = record["out"].clone();
+        if fn_name == "validate_pairing" || fn_name == "validate_claude" || fn_name == "validate_gemini" {
+            // These return the error string itself as the output.
+            if let Value::String(text) = &mut want {
+                *text = text.replace("proto:\u{a0}", "proto: ");
+            }
+        }
+        normalize_proto_separator(&mut want);
         if got != want {
             failures.push(format!(
                 "{fn_name}\n  in:   {}\n  want: {want}\n  got:  {got}",
@@ -297,4 +299,30 @@ fn length_caps_reject_before_decoding() {
     );
     let exact = "A".repeat(MAX_CLAUDE_THINKING_SIGNATURE_LEN - 4) + "AAA=";
     assert!(inspect_gemini_thought_signature(&exact, GeminiValidation::default()).is_ok());
+}
+
+/// The two recorded sanitizer calls over 64 KiB (translator tests at 6fecc6e), rebuilt
+/// byte for byte: large inline media must pass through unchanged and without copies of
+/// the body being edited.
+#[test]
+fn large_inline_data_passes_through_like_go() {
+    let cases = [
+        (
+            r#"{"project":"","request":{"contents":[{"role":"user","parts":[{"inlineData":{"mimeType":"image/png","data":""#,
+            r#""}},{"text":"describe"}]}]},"model":"gemini-3-flash"}"#,
+            4_194_464,
+            "request.contents",
+        ),
+        (
+            r#"{"contents":[{"role":"user","parts":[{"inlineData":{"mimeType":"video/mp4","data":""#,
+            r#""}}]}],"safetySettings":[]}"#,
+            20_971_630,
+            "contents",
+        ),
+    ];
+    for (prefix, suffix, total, path) in cases {
+        let body = format!("{prefix}{}{suffix}", "A".repeat(total - prefix.len() - suffix.len()));
+        assert_eq!(body.len(), total);
+        assert_eq!(sanitize_gemini_request_thought_signatures(&body, path), body);
+    }
 }

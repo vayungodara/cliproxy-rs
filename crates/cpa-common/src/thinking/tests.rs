@@ -136,8 +136,7 @@ fn replay(fn_name: &str, input: &Value) -> Option<Value> {
             };
             match result {
                 Ok(body) => serde_json::json!({"body": body, "err": null}),
-                // Go also returns a body with an error; callers discard it.
-                Err(e) => serde_json::json!({"err": err_json(&e)}),
+                Err(e) => serde_json::json!({"body": e.body, "err": err_json(&e)}),
             }
         }
         "validate_config" => {
@@ -259,10 +258,7 @@ fn replay_all(lines: impl Iterator<Item = String>) -> std::collections::BTreeMap
         LOOKUPS.with(|l| *l.borrow_mut() = None);
         let Some(got) = got else { continue };
         *ran.entry(fn_name.clone()).or_default() += 1;
-        let mut want = record["out"].clone();
-        if fn_name == "apply_thinking" && !want["err"].is_null() {
-            want.as_object_mut().unwrap().remove("body");
-        }
+        let want = record["out"].clone();
         let missed = MISSED.with(|m| m.borrow().clone());
         if got != want || !missed.is_empty() {
             failures.push(format!(

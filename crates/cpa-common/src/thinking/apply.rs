@@ -14,7 +14,8 @@ use super::{
     is_user_defined_model, lookup_model_info, parse_level_suffix, parse_numeric_suffix, parse_special_suffix,
     parse_suffix, strip_configuration_updates, strip_responses_effort, strip_thinking_config,
 };
-use crate::json;
+use crate::gojson as json;
+use crate::gostr::GoStr;
 
 /// `ApplyThinking`: summary intent comes from the target body itself.
 pub fn apply_thinking(body: &str, model: &str, from: &str, to: &str, provider: &str) -> Result<String, Error> {
@@ -197,8 +198,8 @@ pub fn translated_request_summary_config(
     to: &str,
     has_request_transformer: bool,
 ) -> SummaryConfig {
-    let from = from.trim().to_lowercase();
-    let to = to.trim().to_lowercase();
+    let from = from.trim().go_lower();
+    let to = to.trim().go_lower();
     let target = if from == to {
         extract_summary_config(body, &to)
     } else {
@@ -234,15 +235,15 @@ fn run(
     summary: SummaryConfig,
     updates_changed: bool,
 ) -> Result<String, Error> {
-    let mut target = to.trim().to_lowercase();
+    let mut target = to.trim().go_lower();
     if target == "openai-response" {
         target = "codex".into();
     }
-    let mut provider = provider.trim().to_lowercase();
+    let mut provider = provider.trim().go_lower();
     if provider.is_empty() {
         provider.clone_from(&target);
     }
-    let mut from = from.trim().to_lowercase();
+    let mut from = from.trim().go_lower();
     if from.is_empty() {
         from.clone_from(&target);
     }
@@ -354,7 +355,10 @@ fn run(
         config.level = map_configured_high_intent(&config.level, info);
     }
 
-    let validated = validate_config(config, Some(info), &from, &target, suffix.has_suffix)?;
+    let validated = validate_config(config, Some(info), &from, &target, suffix.has_suffix).map_err(|mut e| {
+        e.body = Some(body.clone());
+        e
+    })?;
     let applied = apply_fn(&body, &validated, Some(info))?;
     if fully_disabled(&validated) || native_responses {
         return Ok(applied);
@@ -374,12 +378,12 @@ fn fully_disabled(config: &Config) -> bool {
 }
 
 fn should_map_configured_high_intent(from: &str, to: &str, info: &ModelCaps) -> bool {
-    let from = from.trim().to_lowercase();
-    let to = to.trim().to_lowercase();
+    let from = from.trim().go_lower();
+    let to = to.trim().go_lower();
     if from != to {
         return true;
     }
-    let kind = info.kind.trim().to_lowercase();
+    let kind = info.kind.trim().go_lower();
     !kind.is_empty() && !is_same_provider_family(&to, &kind)
 }
 
@@ -387,7 +391,7 @@ fn map_configured_high_intent(level: &str, info: &ModelCaps) -> String {
     let Some(support) = info.thinking.as_ref().filter(|s| !s.levels.is_empty()) else {
         return level.to_owned();
     };
-    let level = level.trim().to_lowercase();
+    let level = level.trim().go_lower();
     let candidates: &[&str] = match level.as_str() {
         LEVEL_XHIGH => &[LEVEL_XHIGH, LEVEL_MAX, LEVEL_HIGH],
         LEVEL_MAX => &[LEVEL_MAX, LEVEL_XHIGH, LEVEL_HIGH],
@@ -400,7 +404,7 @@ fn map_configured_high_intent(level: &str, info: &ModelCaps) -> String {
 }
 
 fn extract_source_thinking_config(body: &str, provider: &str) -> Config {
-    let provider = provider.trim().to_lowercase();
+    let provider = provider.trim().go_lower();
     if provider == "openai-response" {
         return extract_codex_config(body);
     }
@@ -495,7 +499,7 @@ pub fn extract_thinking_config(body: &str, provider: &str) -> Config {
 
 /// `ExtractReasoningEffort`: the source request's effort for usage reporting.
 pub fn extract_reasoning_effort(body: &str, provider: &str, model: &str) -> String {
-    let provider = provider.trim().to_lowercase();
+    let provider = provider.trim().go_lower();
     if is_responses_format(&provider) {
         let effort = effort_from_config(&extract_configuration_update_config(body));
         if !effort.is_empty() {
@@ -518,7 +522,7 @@ pub fn extract_reasoning_effort(body: &str, provider: &str, model: &str) -> Stri
 
 /// `ExtractTranslatedReasoningEffort`: the final provider payload's effort.
 pub fn extract_translated_reasoning_effort(body: &str, provider: &str) -> String {
-    let provider = provider.trim().to_lowercase();
+    let provider = provider.trim().go_lower();
     let mut config = extract_for_usage(body, &provider);
     if !config.is_set() && (provider == "openai" || provider == "openai-response") {
         config = extract_codex_usage_config(body);
@@ -530,7 +534,7 @@ pub fn extract_translated_reasoning_effort(body: &str, provider: &str) -> String
 }
 
 fn extract_for_usage(body: &str, provider: &str) -> Config {
-    match provider.trim().to_lowercase().as_str() {
+    match provider.trim().go_lower().as_str() {
         "codex" | "xai" | "openai-response" => extract_codex_usage_config(body),
         p => extract_thinking_config(body, p),
     }
@@ -543,7 +547,7 @@ fn effort_from_config(config: &Config) -> String {
     match config.mode {
         Mode::None => LEVEL_NONE.into(),
         Mode::Auto => LEVEL_AUTO.into(),
-        Mode::Level => config.level.trim().to_lowercase(),
+        Mode::Level => config.level.trim().go_lower(),
         Mode::Budget => convert_budget_to_level(config.budget).unwrap_or_default().into(),
     }
 }
@@ -570,7 +574,7 @@ fn extract_claude_config(body: &str) -> Config {
     let kind = json::go_str(&gjson::get(body, "thinking.type"));
     let effort = || {
         let effort = gjson::get(body, "output_config.effort");
-        (effort.kind() == gjson::Kind::String).then(|| effort.str().trim().to_lowercase())
+        (effort.kind() == gjson::Kind::String).then(|| effort.str().trim().go_lower())
     };
     if kind == "disabled" {
         return Config::none();
@@ -630,7 +634,7 @@ fn extract_interactions_config(body: &str) -> Config {
     ] {
         let level = gjson::get(body, path);
         if level.exists() {
-            return level_or_special(&json::go_str(&level).trim().to_lowercase());
+            return level_or_special(&json::go_str(&level).trim().go_lower());
         }
     }
     for path in [
@@ -666,7 +670,7 @@ fn extract_openai_config(body: &str) -> Config {
 fn extract_kimi_config(body: &str) -> Config {
     let kind = gjson::get(body, "thinking.type");
     if kind.exists() {
-        match json::go_str(&kind).trim().to_lowercase().as_str() {
+        match json::go_str(&kind).trim().go_lower().as_str() {
             "disabled" => return Config::none(),
             "enabled" if !gjson::get(body, "thinking.effort").exists() => return Config::default(),
             _ => {}
@@ -674,7 +678,7 @@ fn extract_kimi_config(body: &str) -> Config {
     }
     let effort = gjson::get(body, "thinking.effort");
     if effort.exists() {
-        let value = json::go_str(&effort).trim().to_lowercase();
+        let value = json::go_str(&effort).trim().go_lower();
         return if value.is_empty() {
             Config::default()
         } else {

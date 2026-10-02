@@ -5,13 +5,14 @@ use super::{
     Config, Error, LEVEL_AUTO, LEVEL_HIGH, LEVEL_MAX, LEVEL_NONE, LEVEL_XHIGH, Mode, ModelCaps,
     convert_budget_to_level, has_level, is_user_defined_model,
 };
-use crate::json;
+use crate::gojson as json;
+use crate::gostr::GoStr;
 
 pub(crate) type ApplyFn = fn(&str, &Config, Option<&ModelCaps>) -> Result<String, Error>;
 
 /// `GetProviderApplier` for the built-in providers.
 pub(crate) fn applier(provider: &str) -> Option<ApplyFn> {
-    Some(match provider.trim().to_lowercase().as_str() {
+    Some(match provider.trim().go_lower().as_str() {
         "gemini" => gemini,
         "antigravity" => antigravity,
         "interactions" => interactions,
@@ -65,7 +66,7 @@ fn gemini_like(
 ) -> Result<String, Error> {
     if is_user_defined_model(info) {
         let body = object_or_empty(body);
-        let claude = antigravity && info.is_some_and(|i| i.id.to_lowercase().contains("claude"));
+        let claude = antigravity && info.is_some_and(|i| i.id.go_lower().contains("claude"));
         if config.mode == Mode::Auto {
             return Ok(gemini_budget(&body, config, info, prefix, claude));
         }
@@ -80,7 +81,7 @@ fn gemini_like(
     };
     let body = object_or_empty(body);
     if antigravity {
-        let claude = info_ref.id.to_lowercase().contains("claude");
+        let claude = info_ref.id.go_lower().contains("claude");
         if matches!(config.mode, Mode::Auto | Mode::Budget) {
             return Ok(gemini_budget(&body, config, info, prefix, claude));
         }
@@ -241,7 +242,7 @@ fn interactions_summaries(result: String, original: &str) -> String {
     ] {
         let v = gjson::get(original, path);
         if v.kind() == gjson::Kind::String {
-            let normalized = v.str().trim().to_lowercase();
+            let normalized = v.str().trim().go_lower();
             if normalized == "auto" || normalized == "none" {
                 return json::set_str(&result, "generation_config.thinking_summaries", &normalized);
             }
@@ -264,7 +265,7 @@ fn interactions_summaries(result: String, original: &str) -> String {
 }
 
 fn normalize_interactions_level(level: &str, info: Option<&ModelCaps>) -> String {
-    let level = level.trim().to_lowercase();
+    let level = level.trim().go_lower();
     if level.is_empty() || level == LEVEL_NONE || level == LEVEL_AUTO {
         return String::new();
     }
@@ -275,9 +276,9 @@ fn normalize_interactions_level(level: &str, info: Option<&ModelCaps>) -> String
     {
         return levels
             .iter()
-            .find(|c| c.eq_ignore_ascii_case(&level))
+            .find(|c| c.go_eq_fold(&level))
             .unwrap_or(&levels[levels.len() - 1])
-            .to_lowercase();
+            .go_lower();
     }
     match level.as_str() {
         LEVEL_MAX | LEVEL_XHIGH => LEVEL_HIGH.into(),

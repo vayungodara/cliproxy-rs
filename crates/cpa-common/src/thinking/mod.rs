@@ -9,6 +9,7 @@
 //! ponytail: Go's plugin-registered appliers (RegisterPluginProvider, M6) are not
 //! ported; only the built-in appliers exist. Debug logging is omitted.
 
+use crate::gostr::GoStr;
 mod apply;
 mod providers;
 mod summary;
@@ -22,7 +23,7 @@ pub use validate::validate_config;
 use cpa_core::registry::{ModelInfo, ThinkingSupport};
 use serde_json::Value as Json;
 
-use crate::json;
+use crate::gojson as json;
 
 /// `ThinkingMode`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -128,6 +129,9 @@ pub struct Error {
     pub code: Option<ErrorCode>,
     pub message: String,
     pub model: String,
+    /// The processed body Go returns alongside the error (ApplyThinking returns the target
+    /// with configuration updates already stripped). Go's executors discard it.
+    pub body: Option<String>,
 }
 
 impl Error {
@@ -136,6 +140,7 @@ impl Error {
             code: Some(code),
             message: message.into(),
             model: String::new(),
+            body: None,
         }
     }
     /// HTTP status for the client, as `ThinkingError.StatusCode()`.
@@ -171,7 +176,7 @@ impl From<&ModelInfo> for ModelCaps {
             id: info.id.clone(),
             kind: info.kind.clone(),
             thinking: info.thinking.clone(),
-            user_defined: false,
+            user_defined: info.raw.get("user_defined") == Some(&Json::Bool(true)),
             support_configuration_update: info.raw.get("support_configuration_update") == Some(&Json::Bool(true)),
             max_completion_tokens: info
                 .raw
@@ -182,19 +187,15 @@ impl From<&ModelInfo> for ModelCaps {
     }
 }
 
-/// `registry.LookupModelInfo(model, provider)`.
-///
-/// ponytail: static catalog only (cpa_core::registry::pinned). Go consults the dynamic
-/// registry first (per-credential registrations, config `models[]` with UserDefined,
-/// remote catalog); the server thread owns that overlay in cpa-core registry.rs and this
-/// adapter switches to it when it lands.
+/// `registry.LookupModelInfo(model, provider)`: the server's dynamic registry
+/// (provider-specific registration, then the last registration), then the pinned catalog.
 pub fn lookup_model_info(model: &str, provider: &str) -> Option<ModelCaps> {
     #[cfg(test)]
     if let Some(found) = tests::lookup_override(model, provider) {
         return found;
     }
-    let _ = provider;
-    cpa_core::registry::pinned().lookup(model.trim()).map(ModelCaps::from)
+    let provider = Some(provider).filter(|p| !p.is_empty());
+    cpa_core::registry::lookup_model(model, provider).map(|info| ModelCaps::from(&info))
 }
 
 /// `SuffixResult`.
@@ -228,7 +229,7 @@ pub fn parse_numeric_suffix(raw: &str) -> Option<i64> {
 
 /// `ParseSpecialSuffix`: `none`, `auto` or `-1`.
 pub fn parse_special_suffix(raw: &str) -> Option<Mode> {
-    match raw.to_lowercase().as_str() {
+    match raw.go_lower().as_str() {
         "none" => Some(Mode::None),
         "auto" | "-1" => Some(Mode::Auto),
         _ => None,
@@ -237,7 +238,7 @@ pub fn parse_special_suffix(raw: &str) -> Option<Mode> {
 
 /// `ParseLevelSuffix`: one of the discrete effort levels.
 pub fn parse_level_suffix(raw: &str) -> Option<&'static str> {
-    match raw.to_lowercase().as_str() {
+    match raw.go_lower().as_str() {
         "minimal" => Some(LEVEL_MINIMAL),
         "low" => Some(LEVEL_LOW),
         "medium" => Some(LEVEL_MEDIUM),
@@ -250,7 +251,7 @@ pub fn parse_level_suffix(raw: &str) -> Option<&'static str> {
 
 /// `ConvertLevelToBudget`.
 pub fn convert_level_to_budget(level: &str) -> Option<i64> {
-    match level.to_lowercase().as_str() {
+    match level.go_lower().as_str() {
         "none" => Some(0),
         "auto" => Some(-1),
         "minimal" => Some(512),
@@ -279,12 +280,12 @@ pub fn convert_budget_to_level(budget: i64) -> Option<&'static str> {
 
 /// `HasLevel`.
 pub fn has_level(levels: &[String], target: &str) -> bool {
-    levels.iter().any(|l| l.trim().eq_ignore_ascii_case(target))
+    levels.iter().any(|l| l.trim().go_eq_fold(target))
 }
 
 /// `MapToClaudeEffort`.
 pub fn map_to_claude_effort(level: &str, supports_max: bool) -> Option<&'static str> {
-    match level.trim().to_lowercase().as_str() {
+    match level.trim().go_lower().as_str() {
         "minimal" => Some("low"),
         "low" => Some("low"),
         "medium" => Some("medium"),
@@ -382,7 +383,7 @@ pub(crate) fn extract_configuration_update_config(body: &str) -> Config {
         if json::go_str(&item.get("type")) == "configuration_update" {
             let value = item.get("reasoning.effort");
             if value.kind() == gjson::Kind::String {
-                let normalized = value.str().trim().to_lowercase();
+                let normalized = value.str().trim().go_lower();
                 if !normalized.is_empty() {
                     effort = normalized;
                 }
