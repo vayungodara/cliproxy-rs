@@ -40,6 +40,8 @@ pub struct Runtime {
     oauth_sink: RwLock<Option<OAuthCallbackSink>>,
     /// Go `modelPoolOffsets`: rotation cursors for OpenAI-compatible alias pools.
     pool_offsets: Mutex<HashMap<String, usize>>,
+    /// Usage records for `GET /observability/usage/queue` (management configures it).
+    usage: crate::usage::UsageQueue,
 }
 
 /// An OAuth provider redirect received on the main listener.
@@ -71,9 +73,16 @@ impl Runtime {
             registry: Mutex::default(),
             oauth_sink: RwLock::default(),
             pool_offsets: Mutex::default(),
+            usage: crate::usage::UsageQueue::default(),
         };
         rt.publish_policy(policy);
         rt
+    }
+
+    /// The usage queue: the request path calls `enqueue` with one serialized Go
+    /// `queuedUsageDetail` per upstream request when `accepts()` (additive API).
+    pub fn usage_queue(&self) -> &crate::usage::UsageQueue {
+        &self.usage
     }
 
     /// The config snapshot to use for one whole request.

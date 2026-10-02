@@ -479,14 +479,28 @@ pub async fn send_routed(
     body: Bytes,
     timeout: Option<std::time::Duration>,
 ) -> Result<Upstream, ExecError> {
+    send_request(route, wreq::Method::POST, url, headers, Some(body), timeout).await
+}
+
+/// [`send_routed`] for any method. `None` is Go's nil body: no body and no
+/// Content-Length (management `api-call`).
+pub async fn send_request(
+    route: &(dyn Fn(&url::Url) -> Result<Route, ExecError> + Sync),
+    method: wreq::Method,
+    url: &str,
+    headers: GoHeaders,
+    body: Option<Bytes>,
+    timeout: Option<std::time::Duration>,
+) -> Result<Upstream, ExecError> {
     let initial =
         url::Url::parse(url).map_err(|_| ExecError::local(500, FailureScope::Request, "invalid upstream URL"))?;
     let explicit_referer = headers.get("Referer").map(str::to_owned);
     let mut current = initial.clone();
     // req.Host: the custom Host of the current hop, if any.
     let mut host = headers.get("Host").filter(|h| !h.is_empty()).map(str::to_owned);
-    let mut method = wreq::Method::POST;
-    let mut include_body = true;
+    let mut method = method;
+    let mut include_body = body.is_some();
+    let body = body.unwrap_or_default();
     let mut strip_sensitive = false;
     let mut hop_headers = headers.clone();
     let mut sent = 0;

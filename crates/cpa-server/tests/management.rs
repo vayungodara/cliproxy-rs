@@ -818,3 +818,155 @@ async fn config_key_prefix_patch_refreshes_the_registry() {
     assert!(f.rt.registry().ids().any(|m| m == "new/sonnet"));
     server.abort();
 }
+
+/// `GET /server/latest-version`: Go's failed-lookup shape while no release
+/// repository is configured, and Go's handling of each release-API answer.
+#[tokio::test]
+async fn latest_version_follows_go_for_each_release_answer() {
+    use axum::http::{HeaderMap, StatusCode};
+    use std::sync::Mutex;
+    let seen: Arc<Mutex<Vec<(String, String)>>> = Arc::default();
+    let record = seen.clone();
+    let release = axum::Router::new().route(
+        "/{case}",
+        axum::routing::get(
+            move |axum::extract::Path(case): axum::extract::Path<String>, headers: HeaderMap| {
+                let record = record.clone();
+                async move {
+                    let h = |n: &str| {
+                        headers
+                            .get(n)
+                            .and_then(|v| v.to_str().ok())
+                            .unwrap_or_default()
+                            .to_owned()
+                    };
+                    record.lock().unwrap().push((h("accept"), h("user-agent")));
+                    match case.as_str() {
+                        "tag" => (StatusCode::OK, r#"{"tag_name":" v1.2.3 ","name":"ignored"}"#.to_owned()),
+                        "name" => (StatusCode::OK, r#"{"tag_name":"","name":"Release 9"}"#.to_owned()),
+                        "empty" => (StatusCode::OK, r#"{"tag_name":" "}"#.to_owned()),
+                        "bad" => (StatusCode::OK, "not json".to_owned()),
+                        _ => (StatusCode::FORBIDDEN, " rate limited \n".to_owned()),
+                    }
+                }
+            },
+        ),
+    );
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let upstream = format!("http://{}", listener.local_addr().unwrap());
+    let release_server = tokio::spawn(async move { axum::serve(listener, release).await.unwrap() });
+
+    let get = |url: Option<String>| async move {
+        let f = Fixture::new(&format!(
+            "latest-{}",
+            url.as_deref().map_or("none", |u| u.rsplit('/').next().unwrap())
+        ));
+        let options = management::Options {
+            latest_release_url: url,
+            ..Default::default()
+        };
+        let state = Management::with_options(f.rt.clone(), f.dir.join("config.yaml"), options);
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let base = format!("http://{}", listener.local_addr().unwrap());
+        let app = management::router(state);
+        let server = tokio::spawn(async move {
+            axum::serve(
+                listener,
+                app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+            )
+            .await
+            .unwrap()
+        });
+        let r = wreq::Client::new()
+            .get(format!("{base}/v8/management/server/latest-version"))
+            .bearer_auth("fake-management-only")
+            .send()
+            .await
+            .unwrap();
+        let out = (r.status().as_u16(), r.json::<Value>().await.unwrap());
+        server.abort();
+        out
+    };
+    assert_eq!(
+        get(None).await,
+        (
+            502,
+            json!({"error": "request_failed", "message": "no release repository is configured"})
+        )
+    );
+    assert!(seen.lock().unwrap().is_empty(), "nothing is asked while unconfigured");
+    assert_eq!(
+        get(Some(format!("{upstream}/tag"))).await,
+        (200, json!({"latest-version": "v1.2.3"}))
+    );
+    assert_eq!(
+        get(Some(format!("{upstream}/name"))).await,
+        (200, json!({"latest-version": "Release 9"}))
+    );
+    assert_eq!(
+        get(Some(format!("{upstream}/empty"))).await,
+        (
+            502,
+            json!({"error": "invalid_response", "message": "missing release version"})
+        )
+    );
+    let (status, body) = get(Some(format!("{upstream}/bad"))).await;
+    assert_eq!((status, body["error"].as_str()), (502, Some("decode_failed")));
+    assert_eq!(
+        get(Some(format!("{upstream}/limited"))).await,
+        (
+            502,
+            json!({"error": "unexpected_status", "message": "status 403: rate limited"})
+        )
+    );
+    assert!(
+        seen.lock()
+            .unwrap()
+            .iter()
+            .all(|h| *h == ("application/vnd.github+json".to_owned(), "cliproxy-rs".to_owned()))
+    );
+    release_server.abort();
+}
+
+/// `GET /observability/usage/queue` drains queued records oldest first; a record that
+/// is not JSON comes back as a string. Disabling statistics stops queueing.
+#[tokio::test]
+async fn usage_queue_pops_records_in_order() {
+    let f = Fixture::from_yaml("usageq", |auth, hash| {
+        format!(
+            "config-version: 8\nmanagement:\n  secret-key: '{hash}'\noauth:\n  auth-dir: {}\nobservability:\n  usage:\n    usage-statistics-enabled: true\n",
+            auth.display()
+        )
+    });
+    let (base, server) = f.server().await;
+    let queue = f.rt.usage_queue();
+    queue.enqueue(br#"{"model":"a","tokens":{"total_tokens":3}}"#.to_vec());
+    queue.enqueue(b"not json".to_vec());
+    queue.enqueue(br#"{"model":"c"}"#.to_vec());
+    let client = wreq::Client::new();
+    let pop = |q: &str| {
+        client
+            .get(format!("{base}/v8/management/observability/usage/queue{q}"))
+            .bearer_auth("fake-management-only")
+            .send()
+    };
+    let first: Value = pop("").await.unwrap().json().await.unwrap();
+    assert_eq!(first, json!([{"model": "a", "tokens": {"total_tokens": 3}}]));
+    let rest: Value = pop("?count=10").await.unwrap().json().await.unwrap();
+    assert_eq!(rest, json!(["not json", {"model": "c"}]));
+    let r = client
+        .put(format!(
+            "{base}/v8/management/config/observability/usage/usage-statistics-enabled"
+        ))
+        .bearer_auth("fake-management-only")
+        .body("false")
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(r.status(), 200);
+    assert!(!queue.accepts());
+    queue.enqueue(br#"{"model":"d"}"#.to_vec());
+    let none: Value = pop("?count=10").await.unwrap().json().await.unwrap();
+    assert_eq!(none, json!([]));
+    server.abort();
+}

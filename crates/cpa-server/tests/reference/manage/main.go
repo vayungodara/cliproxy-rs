@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -280,6 +281,44 @@ type credScenario struct {
 	Files   map[string]string `json:"auth_files"`
 	Indexes map[string]string `json:"indexes"`
 	Steps   []credStep        `json:"steps"`
+	// Echo starts a local upstream for api-call; "$ECHO" in steps is its base URL.
+	Echo bool `json:"echo,omitempty"`
+}
+
+// echoHandler reports what an api-call upstream received. The Rust replay runs an
+// equivalent server, so both sides compare the requests their clients sent.
+func echoHandler(listener *string) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/redirect":
+			w.Header().Set("Location", "/echo?from=redirect")
+			w.WriteHeader(http.StatusFound)
+			return
+		case "/status":
+			w.Header().Set("X-Multi", "a")
+			w.Header().Add("X-Multi", "b")
+			w.Header().Set("Content-Type", "text/plain")
+			w.WriteHeader(http.StatusTeapot)
+			_, _ = w.Write([]byte("teapot\xff"))
+			return
+		}
+		body, _ := io.ReadAll(r.Body)
+		headers := map[string][]string{}
+		for _, k := range []string{"Authorization", "X-Custom", "Content-Type", "User-Agent", "Content-Length", "Accept-Encoding", "Referer"} {
+			if v, ok := r.Header[k]; ok {
+				headers[k] = v
+			}
+		}
+		host := r.Host
+		if host == *listener {
+			host = "<listener>"
+		}
+		out := map[string]any{"method": r.Method, "path": r.URL.Path, "query": r.URL.RawQuery, "host": host, "headers": headers, "body": string(body), "content_length": r.ContentLength}
+		w.Header().Set("Content-Type", "application/json")
+		enc := json.NewEncoder(w)
+		enc.SetEscapeHTML(false)
+		_ = enc.Encode(out)
+	})
 }
 
 func snapshotDir(dir string) map[string]any {
@@ -334,7 +373,16 @@ func runCreds(s credScenario) credScenario {
 		s.Indexes[key] = a.EnsureIndex()
 	}
 	server := api.NewServer(cfg, manager, sdkaccess.NewManager(), path)
+	echoURL := "http://echo.invalid"
+	if s.Echo {
+		listener := ""
+		echo := httptest.NewServer(echoHandler(&listener))
+		defer echo.Close()
+		echoURL = echo.URL
+		listener = strings.TrimPrefix(echo.URL, "http://")
+	}
 	resolve := func(text string) string {
+		text = strings.ReplaceAll(text, "$ECHO", echoURL)
 		text = strings.ReplaceAll(text, "$CFGID", cfgID)
 		for name, index := range s.Indexes {
 			text = strings.ReplaceAll(text, "$INDEX("+name+")", index)
@@ -391,7 +439,8 @@ func runCreds(s credScenario) credScenario {
 	// Report paths relative to the placeholder root, as the Rust replay does.
 	raw, err := json.Marshal(s.Steps)
 	must(err)
-	must(json.Unmarshal([]byte(strings.ReplaceAll(string(raw), root, fixtureRoot)), &s.Steps))
+	raw = []byte(strings.ReplaceAll(string(raw), root, fixtureRoot))
+	must(json.Unmarshal([]byte(strings.ReplaceAll(string(raw), echoURL, "$ECHO")), &s.Steps))
 	return s
 }
 
@@ -1193,6 +1242,43 @@ func credScenarios() []credScenario {
 			call(http.MethodPost, "/credentials/refresh", `{"name":"missing.json"}`),
 			call(http.MethodDelete, "/credentials?all=true", ""),
 			get("/credentials"),
+		},
+	}, {
+		Name: "api_call_and_usage", Echo: true,
+		Files: map[string]string{
+			"claude-a.json": files["claude-a.json"],
+			"quote.json":    `{"type":"claude","access_token":"a\"b<c"}`,
+			"empty.json":    `{"type":"claude","email":"e@example.invalid"}`,
+		},
+		YAML: "config-version: 8\nmanagement:\n  secret-key: '$HASH'\noauth:\n  auth-dir: $AUTH\napi-keys:\n  claude:\n    - base-url: https://claude.example.invalid\n      keys:\n        - api-key: fake-usage\n  openai-compatibility:\n    - name: Compat-One\n      base-url: https://compat.example.invalid/v1\n      keys:\n        - api-key: fake-compat\n",
+		Steps: []credStep{
+			call(http.MethodPost, "/requests/api-call", ``),
+			call(http.MethodPost, "/requests/api-call", `[]`),
+			call(http.MethodPost, "/requests/api-call", `{"method":1}`),
+			call(http.MethodPost, "/requests/api-call", `{"header":{"a":1},"method":"GET"}`),
+			call(http.MethodPost, "/requests/api-call", `null`),
+			call(http.MethodPost, "/requests/api-call", `{"method":"get"}`),
+			call(http.MethodPost, "/requests/api-call", `{"method":"GET","url":"/relative"}`),
+			call(http.MethodPost, "/requests/api-call", `{"method":"GET","url":"http://"}`),
+			call(http.MethodPost, "/requests/api-call", `{"method":"GET","url":"mailto:x@example.invalid"}`),
+			call(http.MethodPost, "/requests/api-call", `{"method":"GET","url":"$ECHO/echo","proxy_url":"ftp://proxy.example.invalid"}`),
+			call(http.MethodPost, "/requests/api-call", `{"method":"GET","url":"$ECHO/echo","header":{"Authorization":"Bearer $TOKEN$"}}`),
+			call(http.MethodPost, "/requests/api-call", `{"auth_index":"nope","method":"GET","url":"$ECHO/echo","data":"$TOKEN$"}`),
+			call(http.MethodPost, "/requests/api-call", `{"auth_index":"$INDEX(empty.json)","method":"GET","url":"$ECHO/echo","data":"$TOKEN$"}`),
+			call(http.MethodPost, "/requests/api-call", `{"auth_index":"$INDEX(claude-a.json)","method":"post","url":"$ECHO/echo?q=1","header":{"Authorization":"Bearer $TOKEN$","X-Custom":"c","Host":"override.example.invalid"},"data":"{\"t\":\"$TOKEN$\"}"}`),
+			call(http.MethodPost, "/requests/api-call", `{"AuthIndex":"$INDEX($CFGID)","method":"PUT","url":"$ECHO/echo","header":{"X-Custom":"$TOKEN$"},"data":"plain $TOKEN$"}`),
+			call(http.MethodPost, "/requests/api-call", `{"authIndex":"$INDEX(quote.json)","method":"PATCH","url":"$ECHO/echo","data":"{\"t\":\"$TOKEN$\"}"}`),
+			call(http.MethodPost, "/requests/api-call", `{"authIndex":"$INDEX(quote.json)","method":"PATCH","url":"$ECHO/echo","data":"not json $TOKEN$"}`),
+			call(http.MethodPost, "/requests/api-call", `{"method":"POST","url":"$ECHO/redirect","header":{"Content-Type":"text/plain","Authorization":"keep"},"data":"x"}`),
+			call(http.MethodPost, "/requests/api-call", `{"method":"GET","url":"$ECHO/status"}`),
+			call(http.MethodPost, "/requests/api-call", `{"method":"GE T","url":"$ECHO/echo"}`),
+			call(http.MethodPost, "/requests/api-call", `{"method":"GET","url":"http://127.0.0.1:1/unreachable"}`),
+			call(http.MethodPost, "/requests/api-call", `{"method":"GET","url":"$ECHO/echo","proxy_url":"direct"} trailing`),
+			get("/observability/usage/api-keys"),
+			get("/observability/usage/queue"),
+			get("/observability/usage/queue?count=abc"),
+			get("/observability/usage/queue?count=-2"),
+			get("/observability/usage/queue?count=%2B3"),
 		},
 	}, {
 		// The dashboard's capability probes: Go rejects each with 400 before any I/O.
