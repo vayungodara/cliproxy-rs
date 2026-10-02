@@ -604,5 +604,177 @@
    ]
   },
   "body": "{\"model\": \"claude-sonnet-4-6\", \"max_tokens\": 64, \"system\": \"Cloaked\", \"messages\": [{\"role\": \"user\", \"content\": \"cloak me\"}]}"
+ },
+ {
+  "name": "oauth-fast-unified-429",
+  "config": "config-version: 8\naccess:\n  api-keys: [client-key-1]\noauth:\n  auth-dir: AUTH_DIR\n",
+  "auth_file": "{\"type\": \"claude\", \"access_token\": \"sk-ant-oat01-FAKE-LOCAL-ONLY\", \"refresh_token\": \"sk-ant-ort01-FAKE-LOCAL-ONLY\", \"id_token\": \"\", \"email\": \"fixture@example.invalid\", \"account_uuid\": \"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee\", \"organization_uuid\": \"12345678-1234-4234-8234-123456789abc\", \"organization_name\": \"Fixture\", \"claude_device_ids\": [\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\"], \"expired\": \"2099-01-01T00:00:00Z\", \"last_refresh\": \"2026-10-01T00:00:00Z\"}",
+  "client_key": "client-key-1",
+  "model": "claude-opus-5-5",
+  "headers": [
+   [
+    "Authorization",
+    "Bearer client-key-1"
+   ],
+   [
+    "Content-Type",
+    "application/json"
+   ],
+   [
+    "Anthropic-Version",
+    "2023-06-01"
+   ]
+  ],
+  "stream": false,
+  "count": false,
+  "reply": {
+   "status": 429,
+   "content_type": "application/json",
+   "body": "{\"type\":\"error\",\"error\":{\"type\":\"rate_limit_error\",\"message\":\"rate limited\"}}",
+   "headers": [
+    [
+     "Anthropic-Ratelimit-Unified-Status",
+     "rejected"
+    ],
+    [
+     "Anthropic-Ratelimit-Unified-5h-Status",
+     "rejected"
+    ],
+    [
+     "Anthropic-Ratelimit-Unified-5h-Reset",
+     "4102444800"
+    ],
+    [
+     "Request-Id",
+     "req_fixture_429"
+    ],
+    [
+     "X-Fixture-Trace",
+     "t-1"
+    ]
+   ]
+  },
+  "body": "{\"model\": \"claude-opus-5-5\", \"max_tokens\": 64, \"speed\": \"fast\", \"messages\": [{\"role\": \"user\", \"content\": \"fast please\"}]}"
+ },
+ {
+  "name": "oauth-fast-500",
+  "config": "config-version: 8\naccess:\n  api-keys: [client-key-1]\noauth:\n  auth-dir: AUTH_DIR\n",
+  "auth_file": "{\"type\": \"claude\", \"access_token\": \"sk-ant-oat01-FAKE-LOCAL-ONLY\", \"refresh_token\": \"sk-ant-ort01-FAKE-LOCAL-ONLY\", \"id_token\": \"\", \"email\": \"fixture@example.invalid\", \"account_uuid\": \"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee\", \"organization_uuid\": \"12345678-1234-4234-8234-123456789abc\", \"organization_name\": \"Fixture\", \"claude_device_ids\": [\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\"], \"expired\": \"2099-01-01T00:00:00Z\", \"last_refresh\": \"2026-10-01T00:00:00Z\"}",
+  "client_key": "client-key-1",
+  "model": "claude-opus-5-5",
+  "headers": [
+   [
+    "Authorization",
+    "Bearer client-key-1"
+   ],
+   [
+    "Content-Type",
+    "application/json"
+   ],
+   [
+    "Anthropic-Version",
+    "2023-06-01"
+   ]
+  ],
+  "stream": false,
+  "count": false,
+  "reply": {
+   "status": 500,
+   "content_type": "application/json",
+   "body": "{\"type\":\"error\",\"error\":{\"type\":\"api_error\",\"message\":\"boom\"}}",
+   "headers": [
+    [
+     "X-Fixture-Trace",
+     "t-2"
+    ]
+   ]
+  },
+  "body": "{\"model\": \"claude-opus-5-5\", \"max_tokens\": 64, \"speed\": \"fast\", \"messages\": [{\"role\": \"user\", \"content\": \"fast please\"}]}"
+ },
+ {
+  "name": "oauth-unified-429",
+  "config": "config-version: 8\naccess:\n  api-keys: [client-key-1]\noauth:\n  auth-dir: AUTH_DIR\n",
+  "auth_file": "{\"type\": \"claude\", \"access_token\": \"sk-ant-oat01-FAKE-LOCAL-ONLY\", \"refresh_token\": \"sk-ant-ort01-FAKE-LOCAL-ONLY\", \"id_token\": \"\", \"email\": \"fixture@example.invalid\", \"account_uuid\": \"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee\", \"organization_uuid\": \"12345678-1234-4234-8234-123456789abc\", \"organization_name\": \"Fixture\", \"claude_device_ids\": [\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\"], \"expired\": \"2099-01-01T00:00:00Z\", \"last_refresh\": \"2026-10-01T00:00:00Z\"}",
+  "client_key": "client-key-1",
+  "model": "claude-opus-5-5",
+  "headers": [
+   [
+    "Authorization",
+    "Bearer client-key-1"
+   ],
+   [
+    "Content-Type",
+    "application/json"
+   ],
+   [
+    "Anthropic-Version",
+    "2023-06-01"
+   ]
+  ],
+  "stream": false,
+  "count": false,
+  "reply": {
+   "status": 429,
+   "content_type": "application/json",
+   "body": "{\"type\":\"error\",\"error\":{\"type\":\"rate_limit_error\",\"message\":\"rate limited\"}}",
+   "headers": [
+    [
+     "Anthropic-Ratelimit-Unified-Status",
+     "rejected"
+    ],
+    [
+     "Anthropic-Ratelimit-Unified-5h-Status",
+     "rejected"
+    ],
+    [
+     "Anthropic-Ratelimit-Unified-5h-Reset",
+     "4102444800"
+    ],
+    [
+     "Request-Id",
+     "req_fixture_429"
+    ],
+    [
+     "X-Fixture-Trace",
+     "t-1"
+    ]
+   ]
+  },
+  "body": "{\"model\": \"claude-opus-5-5\", \"max_tokens\": 64, \"messages\": [{\"role\": \"user\", \"content\": \"slow please\"}]}"
+ },
+ {
+  "name": "oauth-model-429",
+  "config": "config-version: 8\naccess:\n  api-keys: [client-key-1]\noauth:\n  auth-dir: AUTH_DIR\n",
+  "auth_file": "{\"type\": \"claude\", \"access_token\": \"sk-ant-oat01-FAKE-LOCAL-ONLY\", \"refresh_token\": \"sk-ant-ort01-FAKE-LOCAL-ONLY\", \"id_token\": \"\", \"email\": \"fixture@example.invalid\", \"account_uuid\": \"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee\", \"organization_uuid\": \"12345678-1234-4234-8234-123456789abc\", \"organization_name\": \"Fixture\", \"claude_device_ids\": [\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\"], \"expired\": \"2099-01-01T00:00:00Z\", \"last_refresh\": \"2026-10-01T00:00:00Z\"}",
+  "client_key": "client-key-1",
+  "model": "claude-opus-5-5",
+  "headers": [
+   [
+    "Authorization",
+    "Bearer client-key-1"
+   ],
+   [
+    "Content-Type",
+    "application/json"
+   ],
+   [
+    "Anthropic-Version",
+    "2023-06-01"
+   ]
+  ],
+  "stream": false,
+  "count": false,
+  "reply": {
+   "status": 429,
+   "content_type": "application/json",
+   "body": "{\"type\":\"error\",\"error\":{\"type\":\"rate_limit_error\",\"message\":\"rate limited\"}}",
+   "headers": [
+    [
+     "Retry-After",
+     "7"
+    ]
+   ]
+  },
+  "body": "{\"model\": \"claude-opus-5-5\", \"max_tokens\": 64, \"messages\": [{\"role\": \"user\", \"content\": \"model limit\"}]}"
  }
 ]

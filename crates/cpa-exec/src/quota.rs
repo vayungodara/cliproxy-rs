@@ -41,7 +41,8 @@ fn overage_only(headers: &HeaderMap) -> bool {
             || (allowed(&seven) && five.is_empty() && healthy(headers, "5h"))
             || (allowed(&five) && seven.is_empty() && healthy(headers, "7d")))
 }
-fn shared_rejection(headers: &HeaderMap) -> bool {
+/// `ClaudeHeadersIndicateUnifiedRateLimitRejection`.
+pub(crate) fn shared_rejection(headers: &HeaderMap) -> bool {
     status(headers, "5h-") == "rejected"
         || status(headers, "7d-") == "rejected"
         || (status(headers, "") == "rejected" && !overage_only(headers))
@@ -51,7 +52,7 @@ fn shared_rejection(headers: &HeaderMap) -> bool {
 /// rejection cools only the model, like any other 429.
 pub(crate) fn classify(mut error: ExecError, model_level_cooling: bool) -> ExecError {
     if (400..600).contains(&error.status) {
-        error.retry_after = reset(&error.headers, SystemTime::now(), fuzz());
+        error.retry_after = rate_limit_reset(&error.headers);
     }
     if error.status == 429 {
         let value: serde_json::Value = serde_json::from_slice(&error.body).unwrap_or_default();
@@ -73,6 +74,11 @@ pub(crate) fn classify(mut error: ExecError, model_level_cooling: bool) -> ExecE
         };
     }
     error
+}
+
+/// `ParseClaudeRateLimitReset` now, with Go's 1–30 s fuzz.
+pub(crate) fn rate_limit_reset(headers: &HeaderMap) -> Option<Duration> {
+    reset(headers, SystemTime::now(), fuzz())
 }
 
 fn fuzz() -> Duration {

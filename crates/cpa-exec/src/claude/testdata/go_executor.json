@@ -117,7 +117,7 @@
       ],
       [
        "x-client-request-id",
-       "fd2282a8-a8cc-4794-86da-8d91ea170894"
+       "3b0b8f87-776f-43e0-b118-06e1c498a662"
       ]
      ],
      "body": "{\"model\": \"claude-sonnet-4-6\", \"max_tokens\": 64, \"messages\": [{\"role\": \"user\", \"content\": [{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nAs you answer the user's questions, you can use the following context:\\n# currentDate\\nToday's date is 2026-10-02.\\n\\n      IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.\\n\u003c/system-reminder\u003e\\n\\n\"},{\"type\":\"text\",\"text\":\"Hello there, my friend\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}]}],\"system\":[{\"type\":\"text\",\"text\":\"x-anthropic-billing-header: cc_version=2.1.280.36c; cc_entrypoint=cli; cch=89232; cc_prompt_id=af650718-e09a-413b-8a05-ab2bd9962dd7; cc_turn_origin=human;\"},{\"type\":\"text\",\"text\":\"You are Claude Code, Anthropic's official CLI for Claude.\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}],\"diagnostics\":{\"previous_message_id\":null},\"stream\":false,\"metadata\":{\"user_id\":\"{\\\"device_id\\\":\\\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\\\",\\\"account_uuid\\\":\\\"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee\\\",\\\"session_id\\\":\\\"4e738e9a-e7db-58a4-bf4c-da95e6c67962\\\"}\"}}",
@@ -249,7 +249,7 @@
       ],
       [
        "x-client-request-id",
-       "9dc85a38-73a0-44e9-a4a8-9e89db3eb28e"
+       "0207d6e2-357c-4373-9d8f-45f0fd5c7fd7"
       ]
      ],
      "body": "{\"model\": \"claude-opus-5-5\", \"max_tokens\": 2048, \"system\": [{\"type\":\"text\",\"text\":\"x-anthropic-billing-header: cc_version=2.1.280.c9f; cc_entrypoint=cli; cch=4f927; cc_prompt_id=b4fd1a0d-12b5-45b5-80c4-0731e17722ee; cc_turn_origin=human;\"},{\"type\":\"text\",\"text\":\"You are Claude Code, Anthropic's official CLI for Claude.\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}], \"tools\": [{\"name\": \"mcp__private_pattern__bunker_lookup\", \"description\": \"Look things up\", \"input_schema\": {\"type\": \"object\", \"properties\": {\"q\": {\"type\": \"string\"}}}},{\"type\": \"web_search_20250305\", \"name\": \"web_search\", \"max_uses\": 2},{ \"name\": \"mcp__private_pattern__era_run_it\", \"input_schema\": {\"type\": \"object\"}},{\"name\": \"mcp__team__deploy\", \"input_schema\": {\"type\": \"object\"}}], \"thinking\": {\"type\": \"adaptive\",\"display\":\"updates\"}, \"tool_choice\": {\"type\": \"auto\"}, \"metadata\": {\"user_id\": \"{\\\"device_id\\\":\\\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\\\",\\\"account_uuid\\\":\\\"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee\\\",\\\"session_id\\\":\\\"0c1f8615-06d0-5a2d-9835-0d35ed183fec\\\"}\"}, \"messages\": [{\"role\": \"user\", \"content\": [{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nAs you answer the user's questions, you can use the following context:\\n# currentDate\\nToday's date is 2026-10-02.\\n\\n      IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.\\n\u003c/system-reminder\u003e\\n\\n\"},{\"type\":\"text\",\"text\":\"Find the thing\"}]},{\"role\":\"system\",\"content\":[{\"type\":\"text\",\"text\":\"Rule one\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}]},{\"role\":\"system\",\"content\":[{\"type\":\"text\",\"text\":\"Rule two \u003cb\u003e\u0026\u003c/b\u003e\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}]},{\"role\": \"assistant\", \"content\": [{\"type\": \"text\", \"text\": \"Looking\"},{\"type\": \"tool_use\", \"id\": \"tu_1\", \"name\": \"mcp__private_pattern__bunker_lookup\", \"input\": {\"q\": \"x\"}}]},{\"role\": \"user\", \"content\": [{\"type\": \"tool_result\", \"tool_use_id\": \"tu_1\", \"content\": \"found\"}, {\"type\": \"text\", \"text\": \"Thanks, now deploy\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}]}],\"fallbacks\":[{\"model\":\"claude-opus-4-8\"}],\"context_management\":{\"edits\":[{\"type\":\"clear_thinking_20251015\",\"keep\":\"all\"}]},\"diagnostics\":{\"previous_message_id\":null},\"stream\":false}",
@@ -377,7 +377,7 @@
       ],
       [
        "x-client-request-id",
-       "f36b9be5-0281-43cf-a27d-0ffd8cd871e0"
+       "d4090c40-3c0e-4204-b763-51aa813eb071"
       ]
      ],
      "body": "{\"model\": \"claude-sonnet-4-5\", \"max_tokens\": 100, \"stream\": true, \"system\": [{\"type\":\"text\",\"text\":\"x-anthropic-billing-header: cc_version=2.1.280.3c7; cc_entrypoint=cli; cch=fa9d9; cc_prompt_id=1944279b-c741-4707-b485-97776f04824a; cc_turn_origin=human;\"},{\"type\":\"text\",\"text\":\"You are Claude Code, Anthropic's official CLI for Claude.\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}], \"tools\": [{\"name\": \"mcp__private_pattern__bunker_lookup\", \"description\": \"Look things up\", \"input_schema\": {\"type\": \"object\", \"properties\": {\"q\": {\"type\": \"string\"}}}}], \"messages\": [{\"role\": \"user\", \"content\": [{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nAs you answer the user's questions, you can use the following context:\\n# currentDate\\nToday's date is 2026-10-02.\\n\\n      IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.\\n\u003c/system-reminder\u003e\\n\\n\"},{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nBe terse\\n\u003c/system-reminder\u003e\"},{\"type\": \"text\", \"text\": \"first question here\", \"cache_control\": {\"type\":\"ephemeral\",\"ttl\":\"1h\"}}]}, {\"role\": \"assistant\", \"content\": \"an answer\"}, {\"role\": \"user\", \"content\": [{\"type\": \"text\", \"text\": \"second\", \"cache_control\": {\"type\":\"ephemeral\",\"ttl\":\"1h\"}}]}],\"diagnostics\":{\"previous_message_id\":null},\"metadata\":{\"user_id\":\"{\\\"device_id\\\":\\\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\\\",\\\"account_uuid\\\":\\\"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee\\\",\\\"session_id\\\":\\\"f54c65e0-4cc5-53aa-8460-a0d0d53fa0b5\\\"}\"}}",
@@ -510,7 +510,7 @@
       ],
       [
        "x-client-request-id",
-       "a340304a-0075-4342-ad39-8bbb271fe357"
+       "69599c25-7248-4ce8-9a7f-4cbad0303b09"
       ]
      ],
      "body": "{\"model\": \"claude-sonnet-4-6\", \"max_tokens\": 64, \"system\": [{\"type\":\"text\",\"text\":\"x-anthropic-billing-header: cc_version=2.1.280.d7a; cc_entrypoint=cli; cch=0f2f8; cc_prompt_id=b565f1a1-f545-4c9d-b018-7d6c244dc5d0; cc_turn_origin=human;\"},{\"type\":\"text\",\"text\":\"You are Claude Code, Anthropic's official CLI for Claude.\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}], \"messages\": [{\"role\": \"user\", \"content\": [{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nAs you answer the user's questions, you can use the following context:\\n# currentDate\\nToday's date is 2026-10-02.\\n\\n      IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.\\n\u003c/system-reminder\u003e\\n\\n\"},{\"type\": \"text\", \"text\": \"Tell me the S​ECRET THING about p​roxy servers\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}]}],\"diagnostics\":{\"previous_message_id\":null},\"stream\":false,\"metadata\":{\"user_id\":\"{\\\"device_id\\\":\\\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\\\",\\\"account_uuid\\\":\\\"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee\\\",\\\"session_id\\\":\\\"cb7f6a1c-985c-5958-9ce9-a7dae02e7f88\\\"}\"}}",
@@ -728,7 +728,7 @@
       ],
       [
        "x-client-request-id",
-       "93f43cef-0d20-4bfb-8893-4cbec5e2ba1a"
+       "92b11c91-0fb0-422f-8497-d89b0bdb413f"
       ]
      ],
      "body": "{\"model\": \"claude-sonnet-4-6\", \"max_tokens\": 64, \"messages\": [{\"role\": \"user\", \"content\": [{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nAs you answer the user's questions, you can use the following context:\\n# currentDate\\nToday's date is 2026-10-02.\\n\\n      IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.\\n\u003c/system-reminder\u003e\\n\\n\"},{\"type\":\"text\",\"text\":\"Hi from api key\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}]}],\"system\":[{\"type\":\"text\",\"text\":\"x-anthropic-billing-header: cc_version=2.1.280.539; cc_entrypoint=cli; cch=ac2ce; cc_prompt_id=1296f6e4-a049-4bc7-92da-4fe5c8112b45; cc_turn_origin=human;\"},{\"type\":\"text\",\"text\":\"You are Claude Code, Anthropic's official CLI for Claude.\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}],\"diagnostics\":{\"previous_message_id\":null},\"stream\":false,\"metadata\":{\"user_id\":\"{\\\"device_id\\\":\\\"f2b79c7fe2bd2392c8571c1f0615fff58a70ab70defbc48855af6054c2375afa\\\",\\\"account_uuid\\\":\\\"215c2f92-2316-5385-9425-341a59252323\\\",\\\"session_id\\\":\\\"b941807b-c3f4-5940-ab56-a1c0bf3223b1\\\"}\"}}",
@@ -1147,7 +1147,7 @@
       ],
       [
        "x-client-request-id",
-       "75f344bc-b1c9-49cd-a94a-83af85a244a6"
+       "262cddc1-d1eb-464a-9dbc-87a6e0dcc36f"
       ]
      ],
      "body": "{\"model\": \"claude-opus-5-5\", \"tools\": [{\"name\": \"mcp__private_pattern__bunker_lookup\", \"description\": \"Look things up\", \"input_schema\": {\"type\": \"object\", \"properties\": {\"q\": {\"type\": \"string\"}}}},{\"type\": \"web_search_20250305\", \"name\": \"web_search\", \"max_uses\": 2}], \"messages\": [{\"role\": \"user\", \"content\": \"count me\"},{\"role\":\"system\",\"content\":[{\"type\":\"text\",\"text\":\"Count rules\",\"cache_control\":{\"type\":\"ephemeral\"}}]}]}",
@@ -1275,7 +1275,7 @@
       ],
       [
        "x-client-request-id",
-       "3dc68947-f61a-4b91-9937-273400f2ab09"
+       "cd3f16f7-d38c-4b79-9b56-58372b390f01"
       ]
      ],
      "body": "{\"model\": \"claude-sonnet-4-6\", \"max_tokens\": 1, \"messages\": [{\"role\": \"user\", \"content\": [{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nAs you answer the user's questions, you can use the following context:\\n# currentDate\\nToday's date is 2026-10-02.\\n\\n      IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.\\n\u003c/system-reminder\u003e\\n\\n\"},{\"type\":\"text\",\"text\":\"quota\",\"cache_control\":{\"type\":\"ephemeral\"}}]}],\"system\":[{\"type\":\"text\",\"text\":\"x-anthropic-billing-header: cc_version=2.1.280.608; cc_entrypoint=cli; cch=5d9f4;\"},{\"type\":\"text\",\"text\":\"You are Claude Code, Anthropic's official CLI for Claude.\",\"cache_control\":{\"type\":\"ephemeral\"}}],\"stream\":false,\"metadata\":{\"user_id\":\"{\\\"device_id\\\":\\\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\\\",\\\"account_uuid\\\":\\\"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee\\\",\\\"session_id\\\":\\\"e9c7556c-d70e-54f3-86be-d6bdf2a4dc98\\\"}\"}}",
@@ -1403,7 +1403,7 @@
       ],
       [
        "x-client-request-id",
-       "b1edd295-5cba-47e9-81c9-e6d0fdeed586"
+       "d7bd3b71-989c-45bc-8653-892a005d9be3"
       ]
      ],
      "body": "{\"model\": \"claude-opus-5-5\", \"max_tokens\": 64, \"speed\": \"fast\", \"messages\": [{\"role\": \"user\", \"content\": [{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nAs you answer the user's questions, you can use the following context:\\n# currentDate\\nToday's date is 2026-10-02.\\n\\n      IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.\\n\u003c/system-reminder\u003e\\n\\n\"},{\"type\":\"text\",\"text\":\"fast please\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}]}],\"system\":[{\"type\":\"text\",\"text\":\"x-anthropic-billing-header: cc_version=2.1.280.c9f; cc_entrypoint=cli; cch=5b904; cc_prompt_id=8160cd15-7b7d-4dc4-bcac-8d20602a4b03; cc_turn_origin=human;\"},{\"type\":\"text\",\"text\":\"You are Claude Code, Anthropic's official CLI for Claude.\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}],\"fallbacks\":[{\"model\":\"claude-opus-4-8\"}],\"diagnostics\":{\"previous_message_id\":null},\"stream\":false,\"metadata\":{\"user_id\":\"{\\\"device_id\\\":\\\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\\\",\\\"account_uuid\\\":\\\"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee\\\",\\\"session_id\\\":\\\"3675c4ad-7ea8-5f6d-b512-8aea3e7e4ace\\\"}\"}}",
@@ -1411,7 +1411,25 @@
     }
    ],
    "output": null,
-   "error": "claude Fast upstream request failed with status 429"
+   "error": "claude Fast upstream request failed with status 429",
+   "error_info": {
+    "request_scoped": true,
+    "credential_scoped": false,
+    "retry_after": true,
+    "direct": true,
+    "direct_status": 429,
+    "direct_headers": [
+     [
+      "Content-Type",
+      "application/json"
+     ],
+     [
+      "Retry-After",
+      "3"
+     ]
+    ],
+    "direct_body": "{\"type\":\"error\",\"error\":{\"type\":\"rate_limit_error\",\"message\":\"Usage credits are required for fast mode\"}}"
+   }
   },
   {
    "name": "oauth-subagent",
@@ -1538,7 +1556,7 @@
       ],
       [
        "x-client-request-id",
-       "d7f9af03-077d-48c6-aac3-7bb3979e15b7"
+       "3bee7990-86a3-43f5-a068-88160e814547"
       ]
      ],
      "body": "{\"model\": \"claude-sonnet-4-6\", \"max_tokens\": 64, \"system\": [{\"type\":\"text\",\"text\":\"x-anthropic-billing-header: cc_version=2.1.280.1a7; cc_entrypoint=cli; cch=6b2a5; cc_is_subagent=true; cc_prompt_id=69bf3363-a60c-4715-9c43-10ece9b2a18c;\"},{\"type\":\"text\",\"text\":\"You are Claude Code, Anthropic's official CLI for Claude.\",\"cache_control\":{\"type\":\"ephemeral\"}}], \"messages\": [{\"role\": \"user\", \"content\": [{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nAs you answer the user's questions, you can use the following context:\\n# currentDate\\nToday's date is 2026-10-02.\\n\\n      IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.\\n\u003c/system-reminder\u003e\\n\\n\"},{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nSub system\\n\u003c/system-reminder\u003e\"},{\"type\":\"text\",\"text\":\"sub task\",\"cache_control\":{\"type\":\"ephemeral\"}}]}],\"diagnostics\":{\"previous_message_id\":null},\"stream\":false,\"metadata\":{\"user_id\":\"{\\\"device_id\\\":\\\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\\\",\\\"account_uuid\\\":\\\"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee\\\",\\\"session_id\\\":\\\"2e0204ed-3801-5d99-b3cb-371604e43ec1\\\"}\"}}",
@@ -1660,7 +1678,7 @@
       ],
       [
        "x-client-request-id",
-       "52e3af8a-6bb3-4e97-89c4-5afd66a7c074"
+       "484b75e3-63e4-40a9-bbdd-94415d312939"
       ]
      ],
      "body": "{\"model\": \"claude-sonnet-4-6\", \"max_tokens\": 64, \"messages\": [{\"role\": \"user\", \"content\": [{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nAs you answer the user's questions, you can use the following context:\\n# currentDate\\nToday's date is 2026-10-02.\\n\\n      IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.\\n\u003c/system-reminder\u003e\\n\\n\"},{\"type\":\"text\",\"text\":\"boom\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}]}],\"system\":[{\"type\":\"text\",\"text\":\"x-anthropic-billing-header: cc_version=2.1.280.d7b; cc_entrypoint=cli; cch=ea1d4; cc_prompt_id=55a0e56a-944e-4616-82e8-93073d2f025b; cc_turn_origin=human;\"},{\"type\":\"text\",\"text\":\"You are Claude Code, Anthropic's official CLI for Claude.\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}],\"diagnostics\":{\"previous_message_id\":null},\"stream\":false,\"metadata\":{\"user_id\":\"{\\\"device_id\\\":\\\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\\\",\\\"account_uuid\\\":\\\"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee\\\",\\\"session_id\\\":\\\"9b75eda6-d88c-569f-aff6-0245d758b7b5\\\"}\"}}",
@@ -1669,7 +1687,13 @@
    ],
    "output": null,
    "error": "status 500",
-   "error_status": 500
+   "error_status": 500,
+   "error_info": {
+    "request_scoped": false,
+    "credential_scoped": false,
+    "retry_after": false,
+    "direct": false
+   }
   },
   {
    "name": "oauth-turn-1",
@@ -1788,7 +1812,7 @@
       ],
       [
        "x-client-request-id",
-       "96092376-65a6-4d04-af74-de5c28cc5c47"
+       "552b9199-04ae-4506-a587-9ccf4338856c"
       ]
      ],
      "body": "{\"model\": \"claude-sonnet-4-6\", \"max_tokens\": 64, \"system\": [{\"type\":\"text\",\"text\":\"x-anthropic-billing-header: cc_version=2.1.280.fbf; cc_entrypoint=cli; cch=b86bd; cc_prompt_id=42db9d24-8eb1-40c1-8da1-1296c8bae56e; cc_turn_origin=human;\"},{\"type\":\"text\",\"text\":\"You are Claude Code, Anthropic's official CLI for Claude.\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}], \"messages\": [{\"role\": \"user\", \"content\": [{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nAs you answer the user's questions, you can use the following context:\\n# currentDate\\nToday's date is 2026-10-02.\\n\\n      IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.\\n\u003c/system-reminder\u003e\\n\\n\"},{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nTurns\\n\u003c/system-reminder\u003e\"},{\"type\":\"text\",\"text\":\"Start the conversation now\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}]}],\"diagnostics\":{\"previous_message_id\":null},\"stream\":false,\"metadata\":{\"user_id\":\"{\\\"device_id\\\":\\\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\\\",\\\"account_uuid\\\":\\\"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee\\\",\\\"session_id\\\":\\\"7bce2dc6-45a9-5c5e-b9cf-6df41c4885c6\\\"}\"}}",
@@ -1916,7 +1940,7 @@
       ],
       [
        "x-client-request-id",
-       "2fe9e3c1-cc4b-4607-8a35-78bf5fc36391"
+       "bdb23c47-9ab2-4169-b00e-cd48901e8fd5"
       ]
      ],
      "body": "{\"model\": \"claude-sonnet-4-6\", \"max_tokens\": 64, \"system\": [{\"type\":\"text\",\"text\":\"x-anthropic-billing-header: cc_version=2.1.280.fbf; cc_entrypoint=cli; cch=a8d85; cc_prompt_id=42db9d24-8eb1-40c1-8da1-1296c8bae56e; cc_turn_origin=human;\"},{\"type\":\"text\",\"text\":\"You are Claude Code, Anthropic's official CLI for Claude.\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}], \"messages\": [{\"role\": \"user\", \"content\": [{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nAs you answer the user's questions, you can use the following context:\\n# currentDate\\nToday's date is 2026-10-02.\\n\\n      IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.\\n\u003c/system-reminder\u003e\\n\\n\"},{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nTurns\\n\u003c/system-reminder\u003e\"},{\"type\":\"text\",\"text\":\"Start the conversation now\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}]}, {\"role\": \"assistant\", \"content\": \"turn one\"}, {\"role\": \"user\", \"content\": [{\"type\":\"text\",\"text\":\"And continue\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}]}],\"diagnostics\":{\"previous_message_id\":null},\"stream\":false,\"metadata\":{\"user_id\":\"{\\\"device_id\\\":\\\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\\\",\\\"account_uuid\\\":\\\"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee\\\",\\\"session_id\\\":\\\"7bce2dc6-45a9-5c5e-b9cf-6df41c4885c6\\\"}\"}}",
@@ -2007,7 +2031,7 @@
       ],
       [
        "X-Claude-Code-Session-Id",
-       "d69f63c5-ca7c-4367-aad5-f2d7a30b6bd9"
+       "a75baafd-ba26-4530-b765-1b6060ae9b87"
       ],
       [
        "X-Stainless-Arch",
@@ -2042,13 +2066,619 @@
        "600"
       ]
      ],
-     "body": "{\"model\": \"claude-sonnet-4-6\", \"max_tokens\": 64, \"system\": [{\"type\":\"text\",\"text\":\"x-anthropic-billing-header: cc_version=2.1.280.f5f; cc_entrypoint=cli;\"},{\"type\":\"text\",\"text\":\"You are Claude Code, Anthropic's official CLI for Claude.\",\"cache_control\":{\"type\":\"ephemeral\"}}], \"messages\": [{\"role\": \"user\", \"content\": [{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nAs you answer the user's questions, you can use the following context:\\n# currentDate\\nToday's date is 2026-10-02.\\n\\n      IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.\\n\u003c/system-reminder\u003e\\n\\n\"},{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nCloaked\\n\u003c/system-reminder\u003e\"},{\"type\":\"text\",\"text\":\"cloak me\",\"cache_control\":{\"type\":\"ephemeral\"}}]}],\"metadata\":{\"user_id\":\"{\\\"device_id\\\":\\\"c8e546656e03d746efbd30ed0c72053f13c3e90bd0818048267a5b9ec2a9c8be\\\",\\\"account_uuid\\\":\\\"\\\",\\\"session_id\\\":\\\"d69f63c5-ca7c-4367-aad5-f2d7a30b6bd9\\\"}\"},\"stream\":false}",
+     "body": "{\"model\": \"claude-sonnet-4-6\", \"max_tokens\": 64, \"system\": [{\"type\":\"text\",\"text\":\"x-anthropic-billing-header: cc_version=2.1.280.f5f; cc_entrypoint=cli;\"},{\"type\":\"text\",\"text\":\"You are Claude Code, Anthropic's official CLI for Claude.\",\"cache_control\":{\"type\":\"ephemeral\"}}], \"messages\": [{\"role\": \"user\", \"content\": [{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nAs you answer the user's questions, you can use the following context:\\n# currentDate\\nToday's date is 2026-10-02.\\n\\n      IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.\\n\u003c/system-reminder\u003e\\n\\n\"},{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nCloaked\\n\u003c/system-reminder\u003e\"},{\"type\":\"text\",\"text\":\"cloak me\",\"cache_control\":{\"type\":\"ephemeral\"}}]}],\"metadata\":{\"user_id\":\"{\\\"device_id\\\":\\\"ec8ce7db0156bb049712f62da6b848c2229ac5ccdcb458f6f1e7720d8bc2b8ab\\\",\\\"account_uuid\\\":\\\"\\\",\\\"session_id\\\":\\\"a75baafd-ba26-4530-b765-1b6060ae9b87\\\"}\"},\"stream\":false}",
      "reply": "{\"id\":\"msg_go_fixture\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-sonnet-4-6\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"usage\":{\"input_tokens\":5,\"output_tokens\":2}}"
     }
    ],
    "output": [
     "{\"id\":\"msg_go_fixture\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-sonnet-4-6\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"usage\":{\"input_tokens\":5,\"output_tokens\":2}}"
    ]
+  },
+  {
+   "name": "oauth-fast-unified-429",
+   "config": "config-version: 8\naccess:\n  api-keys: [client-key-1]\noauth:\n  auth-dir: AUTH_DIR\n",
+   "auth_file": "{\"type\": \"claude\", \"access_token\": \"sk-ant-oat01-FAKE-LOCAL-ONLY\", \"refresh_token\": \"sk-ant-ort01-FAKE-LOCAL-ONLY\", \"id_token\": \"\", \"email\": \"fixture@example.invalid\", \"account_uuid\": \"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee\", \"organization_uuid\": \"12345678-1234-4234-8234-123456789abc\", \"organization_name\": \"Fixture\", \"claude_device_ids\": [\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\"], \"expired\": \"2099-01-01T00:00:00Z\", \"last_refresh\": \"2026-10-01T00:00:00Z\"}",
+   "client_key": "client-key-1",
+   "model": "claude-opus-5-5",
+   "headers": [
+    [
+     "Authorization",
+     "Bearer client-key-1"
+    ],
+    [
+     "Content-Type",
+     "application/json"
+    ],
+    [
+     "Anthropic-Version",
+     "2023-06-01"
+    ]
+   ],
+   "body": "{\"model\": \"claude-opus-5-5\", \"max_tokens\": 64, \"speed\": \"fast\", \"messages\": [{\"role\": \"user\", \"content\": \"fast please\"}]}",
+   "stream": false,
+   "count": false,
+   "reply": {
+    "status": 429,
+    "content_type": "application/json",
+    "body": "{\"type\":\"error\",\"error\":{\"type\":\"rate_limit_error\",\"message\":\"rate limited\"}}",
+    "headers": [
+     [
+      "Anthropic-Ratelimit-Unified-Status",
+      "rejected"
+     ],
+     [
+      "Anthropic-Ratelimit-Unified-5h-Status",
+      "rejected"
+     ],
+     [
+      "Anthropic-Ratelimit-Unified-5h-Reset",
+      "4102444800"
+     ],
+     [
+      "Request-Id",
+      "req_fixture_429"
+     ],
+     [
+      "X-Fixture-Trace",
+      "t-1"
+     ]
+    ]
+   },
+   "date": "2026-10-02",
+   "upstream": [
+    {
+     "url": "https://api.anthropic.com/v1/messages?beta=true",
+     "headers": [
+      [
+       "Accept",
+       "application/json"
+      ],
+      [
+       "Accept-Encoding",
+       "gzip, deflate, br, zstd"
+      ],
+      [
+       "Authorization",
+       "Bearer sk-ant-oat01-FAKE-LOCAL-ONLY"
+      ],
+      [
+       "Connection",
+       "keep-alive"
+      ],
+      [
+       "Content-Type",
+       "application/json"
+      ],
+      [
+       "User-Agent",
+       "claude-cli/2.1.280 (external, cli)"
+      ],
+      [
+       "X-Claude-Code-Session-Id",
+       "3675c4ad-7ea8-5f6d-b512-8aea3e7e4ace"
+      ],
+      [
+       "X-Stainless-Arch",
+       "arm64"
+      ],
+      [
+       "X-Stainless-Lang",
+       "js"
+      ],
+      [
+       "X-Stainless-OS",
+       "MacOS"
+      ],
+      [
+       "X-Stainless-Package-Version",
+       "0.112.1"
+      ],
+      [
+       "X-Stainless-Retry-Count",
+       "0"
+      ],
+      [
+       "X-Stainless-Runtime",
+       "node"
+      ],
+      [
+       "X-Stainless-Runtime-Version",
+       "v26.3.0"
+      ],
+      [
+       "X-Stainless-Timeout",
+       "600"
+      ],
+      [
+       "anthropic-beta",
+       "claude-code-20250219,oauth-2025-04-20,interleaved-thinking-2025-05-14,redact-thinking-2026-02-12,thinking-token-count-2026-05-13,context-management-2025-06-27,prompt-caching-scope-2026-01-05,mid-conversation-system-2026-04-07,per-turn-control-2026-07-01,mid-conversation-tool-changes-2026-07-01,mid-conversation-system-clear-at-2026-08-21,effort-2025-11-24,server-side-fallback-2026-06-01,fallback-credit-2026-06-01,fast-mode-2026-02-01,extended-cache-ttl-2025-04-11,cache-diagnosis-2026-04-07"
+      ],
+      [
+       "anthropic-dangerous-direct-browser-access",
+       "true"
+      ],
+      [
+       "anthropic-version",
+       "2023-06-01"
+      ],
+      [
+       "x-app",
+       "cli"
+      ],
+      [
+       "x-client-request-id",
+       "48db798e-1d84-45d9-93b2-07e2fe41af60"
+      ]
+     ],
+     "body": "{\"model\": \"claude-opus-5-5\", \"max_tokens\": 64, \"speed\": \"fast\", \"messages\": [{\"role\": \"user\", \"content\": [{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nAs you answer the user's questions, you can use the following context:\\n# currentDate\\nToday's date is 2026-10-02.\\n\\n      IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.\\n\u003c/system-reminder\u003e\\n\\n\"},{\"type\":\"text\",\"text\":\"fast please\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}]}],\"system\":[{\"type\":\"text\",\"text\":\"x-anthropic-billing-header: cc_version=2.1.280.c9f; cc_entrypoint=cli; cch=5b904; cc_prompt_id=8160cd15-7b7d-4dc4-bcac-8d20602a4b03; cc_turn_origin=human;\"},{\"type\":\"text\",\"text\":\"You are Claude Code, Anthropic's official CLI for Claude.\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}],\"fallbacks\":[{\"model\":\"claude-opus-4-8\"}],\"diagnostics\":{\"previous_message_id\":null},\"stream\":false,\"metadata\":{\"user_id\":\"{\\\"device_id\\\":\\\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\\\",\\\"account_uuid\\\":\\\"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee\\\",\\\"session_id\\\":\\\"3675c4ad-7ea8-5f6d-b512-8aea3e7e4ace\\\"}\"}}",
+     "reply": "{\"type\":\"error\",\"error\":{\"type\":\"rate_limit_error\",\"message\":\"rate limited\"}}"
+    }
+   ],
+   "output": null,
+   "error": "claude Fast upstream request failed with status 429",
+   "error_info": {
+    "request_scoped": false,
+    "credential_scoped": true,
+    "retry_after": true,
+    "direct": true,
+    "direct_status": 429,
+    "direct_headers": [
+     [
+      "Anthropic-Ratelimit-Unified-5h-Reset",
+      "4102444800"
+     ],
+     [
+      "Anthropic-Ratelimit-Unified-5h-Status",
+      "rejected"
+     ],
+     [
+      "Anthropic-Ratelimit-Unified-Status",
+      "rejected"
+     ],
+     [
+      "Content-Type",
+      "application/json"
+     ],
+     [
+      "Request-Id",
+      "req_fixture_429"
+     ],
+     [
+      "X-Fixture-Trace",
+      "t-1"
+     ]
+    ],
+    "direct_body": "{\"type\":\"error\",\"error\":{\"type\":\"rate_limit_error\",\"message\":\"rate limited\"}}"
+   }
+  },
+  {
+   "name": "oauth-fast-500",
+   "config": "config-version: 8\naccess:\n  api-keys: [client-key-1]\noauth:\n  auth-dir: AUTH_DIR\n",
+   "auth_file": "{\"type\": \"claude\", \"access_token\": \"sk-ant-oat01-FAKE-LOCAL-ONLY\", \"refresh_token\": \"sk-ant-ort01-FAKE-LOCAL-ONLY\", \"id_token\": \"\", \"email\": \"fixture@example.invalid\", \"account_uuid\": \"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee\", \"organization_uuid\": \"12345678-1234-4234-8234-123456789abc\", \"organization_name\": \"Fixture\", \"claude_device_ids\": [\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\"], \"expired\": \"2099-01-01T00:00:00Z\", \"last_refresh\": \"2026-10-01T00:00:00Z\"}",
+   "client_key": "client-key-1",
+   "model": "claude-opus-5-5",
+   "headers": [
+    [
+     "Authorization",
+     "Bearer client-key-1"
+    ],
+    [
+     "Content-Type",
+     "application/json"
+    ],
+    [
+     "Anthropic-Version",
+     "2023-06-01"
+    ]
+   ],
+   "body": "{\"model\": \"claude-opus-5-5\", \"max_tokens\": 64, \"speed\": \"fast\", \"messages\": [{\"role\": \"user\", \"content\": \"fast please\"}]}",
+   "stream": false,
+   "count": false,
+   "reply": {
+    "status": 500,
+    "content_type": "application/json",
+    "body": "{\"type\":\"error\",\"error\":{\"type\":\"api_error\",\"message\":\"boom\"}}",
+    "headers": [
+     [
+      "X-Fixture-Trace",
+      "t-2"
+     ]
+    ]
+   },
+   "date": "2026-10-02",
+   "upstream": [
+    {
+     "url": "https://api.anthropic.com/v1/messages?beta=true",
+     "headers": [
+      [
+       "Accept",
+       "application/json"
+      ],
+      [
+       "Accept-Encoding",
+       "gzip, deflate, br, zstd"
+      ],
+      [
+       "Authorization",
+       "Bearer sk-ant-oat01-FAKE-LOCAL-ONLY"
+      ],
+      [
+       "Connection",
+       "keep-alive"
+      ],
+      [
+       "Content-Type",
+       "application/json"
+      ],
+      [
+       "User-Agent",
+       "claude-cli/2.1.280 (external, cli)"
+      ],
+      [
+       "X-Claude-Code-Session-Id",
+       "3675c4ad-7ea8-5f6d-b512-8aea3e7e4ace"
+      ],
+      [
+       "X-Stainless-Arch",
+       "arm64"
+      ],
+      [
+       "X-Stainless-Lang",
+       "js"
+      ],
+      [
+       "X-Stainless-OS",
+       "MacOS"
+      ],
+      [
+       "X-Stainless-Package-Version",
+       "0.112.1"
+      ],
+      [
+       "X-Stainless-Retry-Count",
+       "0"
+      ],
+      [
+       "X-Stainless-Runtime",
+       "node"
+      ],
+      [
+       "X-Stainless-Runtime-Version",
+       "v26.3.0"
+      ],
+      [
+       "X-Stainless-Timeout",
+       "600"
+      ],
+      [
+       "anthropic-beta",
+       "claude-code-20250219,oauth-2025-04-20,interleaved-thinking-2025-05-14,redact-thinking-2026-02-12,thinking-token-count-2026-05-13,context-management-2025-06-27,prompt-caching-scope-2026-01-05,mid-conversation-system-2026-04-07,per-turn-control-2026-07-01,mid-conversation-tool-changes-2026-07-01,mid-conversation-system-clear-at-2026-08-21,effort-2025-11-24,server-side-fallback-2026-06-01,fallback-credit-2026-06-01,fast-mode-2026-02-01,extended-cache-ttl-2025-04-11,cache-diagnosis-2026-04-07"
+      ],
+      [
+       "anthropic-dangerous-direct-browser-access",
+       "true"
+      ],
+      [
+       "anthropic-version",
+       "2023-06-01"
+      ],
+      [
+       "x-app",
+       "cli"
+      ],
+      [
+       "x-client-request-id",
+       "7eca3e38-33d5-40e7-a5d5-114dcad62579"
+      ]
+     ],
+     "body": "{\"model\": \"claude-opus-5-5\", \"max_tokens\": 64, \"speed\": \"fast\", \"messages\": [{\"role\": \"user\", \"content\": [{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nAs you answer the user's questions, you can use the following context:\\n# currentDate\\nToday's date is 2026-10-02.\\n\\n      IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.\\n\u003c/system-reminder\u003e\\n\\n\"},{\"type\":\"text\",\"text\":\"fast please\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}]}],\"system\":[{\"type\":\"text\",\"text\":\"x-anthropic-billing-header: cc_version=2.1.280.c9f; cc_entrypoint=cli; cch=5b904; cc_prompt_id=8160cd15-7b7d-4dc4-bcac-8d20602a4b03; cc_turn_origin=human;\"},{\"type\":\"text\",\"text\":\"You are Claude Code, Anthropic's official CLI for Claude.\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}],\"fallbacks\":[{\"model\":\"claude-opus-4-8\"}],\"diagnostics\":{\"previous_message_id\":null},\"stream\":false,\"metadata\":{\"user_id\":\"{\\\"device_id\\\":\\\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\\\",\\\"account_uuid\\\":\\\"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee\\\",\\\"session_id\\\":\\\"3675c4ad-7ea8-5f6d-b512-8aea3e7e4ace\\\"}\"}}",
+     "reply": "{\"type\":\"error\",\"error\":{\"type\":\"api_error\",\"message\":\"boom\"}}"
+    }
+   ],
+   "output": null,
+   "error": "claude Fast upstream request failed with status 500",
+   "error_info": {
+    "request_scoped": true,
+    "credential_scoped": false,
+    "retry_after": false,
+    "direct": true,
+    "direct_status": 500,
+    "direct_headers": [
+     [
+      "Content-Type",
+      "application/json"
+     ],
+     [
+      "X-Fixture-Trace",
+      "t-2"
+     ]
+    ],
+    "direct_body": "{\"type\":\"error\",\"error\":{\"type\":\"api_error\",\"message\":\"boom\"}}"
+   }
+  },
+  {
+   "name": "oauth-unified-429",
+   "config": "config-version: 8\naccess:\n  api-keys: [client-key-1]\noauth:\n  auth-dir: AUTH_DIR\n",
+   "auth_file": "{\"type\": \"claude\", \"access_token\": \"sk-ant-oat01-FAKE-LOCAL-ONLY\", \"refresh_token\": \"sk-ant-ort01-FAKE-LOCAL-ONLY\", \"id_token\": \"\", \"email\": \"fixture@example.invalid\", \"account_uuid\": \"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee\", \"organization_uuid\": \"12345678-1234-4234-8234-123456789abc\", \"organization_name\": \"Fixture\", \"claude_device_ids\": [\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\"], \"expired\": \"2099-01-01T00:00:00Z\", \"last_refresh\": \"2026-10-01T00:00:00Z\"}",
+   "client_key": "client-key-1",
+   "model": "claude-opus-5-5",
+   "headers": [
+    [
+     "Authorization",
+     "Bearer client-key-1"
+    ],
+    [
+     "Content-Type",
+     "application/json"
+    ],
+    [
+     "Anthropic-Version",
+     "2023-06-01"
+    ]
+   ],
+   "body": "{\"model\": \"claude-opus-5-5\", \"max_tokens\": 64, \"messages\": [{\"role\": \"user\", \"content\": \"slow please\"}]}",
+   "stream": false,
+   "count": false,
+   "reply": {
+    "status": 429,
+    "content_type": "application/json",
+    "body": "{\"type\":\"error\",\"error\":{\"type\":\"rate_limit_error\",\"message\":\"rate limited\"}}",
+    "headers": [
+     [
+      "Anthropic-Ratelimit-Unified-Status",
+      "rejected"
+     ],
+     [
+      "Anthropic-Ratelimit-Unified-5h-Status",
+      "rejected"
+     ],
+     [
+      "Anthropic-Ratelimit-Unified-5h-Reset",
+      "4102444800"
+     ],
+     [
+      "Request-Id",
+      "req_fixture_429"
+     ],
+     [
+      "X-Fixture-Trace",
+      "t-1"
+     ]
+    ]
+   },
+   "date": "2026-10-02",
+   "upstream": [
+    {
+     "url": "https://api.anthropic.com/v1/messages?beta=true",
+     "headers": [
+      [
+       "Accept",
+       "application/json"
+      ],
+      [
+       "Accept-Encoding",
+       "gzip, deflate, br, zstd"
+      ],
+      [
+       "Authorization",
+       "Bearer sk-ant-oat01-FAKE-LOCAL-ONLY"
+      ],
+      [
+       "Connection",
+       "keep-alive"
+      ],
+      [
+       "Content-Type",
+       "application/json"
+      ],
+      [
+       "User-Agent",
+       "claude-cli/2.1.280 (external, cli)"
+      ],
+      [
+       "X-Claude-Code-Session-Id",
+       "24cf35ba-e36f-5331-ac66-eed0cc908927"
+      ],
+      [
+       "X-Stainless-Arch",
+       "arm64"
+      ],
+      [
+       "X-Stainless-Lang",
+       "js"
+      ],
+      [
+       "X-Stainless-OS",
+       "MacOS"
+      ],
+      [
+       "X-Stainless-Package-Version",
+       "0.112.1"
+      ],
+      [
+       "X-Stainless-Retry-Count",
+       "0"
+      ],
+      [
+       "X-Stainless-Runtime",
+       "node"
+      ],
+      [
+       "X-Stainless-Runtime-Version",
+       "v26.3.0"
+      ],
+      [
+       "X-Stainless-Timeout",
+       "600"
+      ],
+      [
+       "anthropic-beta",
+       "claude-code-20250219,oauth-2025-04-20,interleaved-thinking-2025-05-14,redact-thinking-2026-02-12,thinking-token-count-2026-05-13,context-management-2025-06-27,prompt-caching-scope-2026-01-05,mid-conversation-system-2026-04-07,per-turn-control-2026-07-01,mid-conversation-tool-changes-2026-07-01,mid-conversation-system-clear-at-2026-08-21,effort-2025-11-24,server-side-fallback-2026-06-01,fallback-credit-2026-06-01,extended-cache-ttl-2025-04-11,cache-diagnosis-2026-04-07"
+      ],
+      [
+       "anthropic-dangerous-direct-browser-access",
+       "true"
+      ],
+      [
+       "anthropic-version",
+       "2023-06-01"
+      ],
+      [
+       "x-app",
+       "cli"
+      ],
+      [
+       "x-client-request-id",
+       "3ea442c0-93e1-468f-a333-973d9012708d"
+      ]
+     ],
+     "body": "{\"model\": \"claude-opus-5-5\", \"max_tokens\": 64, \"messages\": [{\"role\": \"user\", \"content\": [{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nAs you answer the user's questions, you can use the following context:\\n# currentDate\\nToday's date is 2026-10-02.\\n\\n      IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.\\n\u003c/system-reminder\u003e\\n\\n\"},{\"type\":\"text\",\"text\":\"slow please\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}]}],\"system\":[{\"type\":\"text\",\"text\":\"x-anthropic-billing-header: cc_version=2.1.280.c9f; cc_entrypoint=cli; cch=9db9a; cc_prompt_id=c761a64b-60fb-40f6-a194-8411638b84e7; cc_turn_origin=human;\"},{\"type\":\"text\",\"text\":\"You are Claude Code, Anthropic's official CLI for Claude.\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}],\"fallbacks\":[{\"model\":\"claude-opus-4-8\"}],\"diagnostics\":{\"previous_message_id\":null},\"stream\":false,\"metadata\":{\"user_id\":\"{\\\"device_id\\\":\\\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\\\",\\\"account_uuid\\\":\\\"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee\\\",\\\"session_id\\\":\\\"24cf35ba-e36f-5331-ac66-eed0cc908927\\\"}\"}}",
+     "reply": "{\"type\":\"error\",\"error\":{\"type\":\"rate_limit_error\",\"message\":\"rate limited\"}}"
+    }
+   ],
+   "output": null,
+   "error": "{\"type\":\"error\",\"error\":{\"type\":\"rate_limit_error\",\"message\":\"rate limited\"}}",
+   "error_status": 429,
+   "error_info": {
+    "request_scoped": false,
+    "credential_scoped": true,
+    "retry_after": true,
+    "direct": false
+   }
+  },
+  {
+   "name": "oauth-model-429",
+   "config": "config-version: 8\naccess:\n  api-keys: [client-key-1]\noauth:\n  auth-dir: AUTH_DIR\n",
+   "auth_file": "{\"type\": \"claude\", \"access_token\": \"sk-ant-oat01-FAKE-LOCAL-ONLY\", \"refresh_token\": \"sk-ant-ort01-FAKE-LOCAL-ONLY\", \"id_token\": \"\", \"email\": \"fixture@example.invalid\", \"account_uuid\": \"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee\", \"organization_uuid\": \"12345678-1234-4234-8234-123456789abc\", \"organization_name\": \"Fixture\", \"claude_device_ids\": [\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\"], \"expired\": \"2099-01-01T00:00:00Z\", \"last_refresh\": \"2026-10-01T00:00:00Z\"}",
+   "client_key": "client-key-1",
+   "model": "claude-opus-5-5",
+   "headers": [
+    [
+     "Authorization",
+     "Bearer client-key-1"
+    ],
+    [
+     "Content-Type",
+     "application/json"
+    ],
+    [
+     "Anthropic-Version",
+     "2023-06-01"
+    ]
+   ],
+   "body": "{\"model\": \"claude-opus-5-5\", \"max_tokens\": 64, \"messages\": [{\"role\": \"user\", \"content\": \"model limit\"}]}",
+   "stream": false,
+   "count": false,
+   "reply": {
+    "status": 429,
+    "content_type": "application/json",
+    "body": "{\"type\":\"error\",\"error\":{\"type\":\"rate_limit_error\",\"message\":\"rate limited\"}}",
+    "headers": [
+     [
+      "Retry-After",
+      "7"
+     ]
+    ]
+   },
+   "date": "2026-10-02",
+   "upstream": [
+    {
+     "url": "https://api.anthropic.com/v1/messages?beta=true",
+     "headers": [
+      [
+       "Accept",
+       "application/json"
+      ],
+      [
+       "Accept-Encoding",
+       "gzip, deflate, br, zstd"
+      ],
+      [
+       "Authorization",
+       "Bearer sk-ant-oat01-FAKE-LOCAL-ONLY"
+      ],
+      [
+       "Connection",
+       "keep-alive"
+      ],
+      [
+       "Content-Type",
+       "application/json"
+      ],
+      [
+       "User-Agent",
+       "claude-cli/2.1.280 (external, cli)"
+      ],
+      [
+       "X-Claude-Code-Session-Id",
+       "a0330aa5-080d-55ae-bced-eb07d0456b21"
+      ],
+      [
+       "X-Stainless-Arch",
+       "arm64"
+      ],
+      [
+       "X-Stainless-Lang",
+       "js"
+      ],
+      [
+       "X-Stainless-OS",
+       "MacOS"
+      ],
+      [
+       "X-Stainless-Package-Version",
+       "0.112.1"
+      ],
+      [
+       "X-Stainless-Retry-Count",
+       "0"
+      ],
+      [
+       "X-Stainless-Runtime",
+       "node"
+      ],
+      [
+       "X-Stainless-Runtime-Version",
+       "v26.3.0"
+      ],
+      [
+       "X-Stainless-Timeout",
+       "600"
+      ],
+      [
+       "anthropic-beta",
+       "claude-code-20250219,oauth-2025-04-20,interleaved-thinking-2025-05-14,redact-thinking-2026-02-12,thinking-token-count-2026-05-13,context-management-2025-06-27,prompt-caching-scope-2026-01-05,mid-conversation-system-2026-04-07,per-turn-control-2026-07-01,mid-conversation-tool-changes-2026-07-01,mid-conversation-system-clear-at-2026-08-21,effort-2025-11-24,server-side-fallback-2026-06-01,fallback-credit-2026-06-01,extended-cache-ttl-2025-04-11,cache-diagnosis-2026-04-07"
+      ],
+      [
+       "anthropic-dangerous-direct-browser-access",
+       "true"
+      ],
+      [
+       "anthropic-version",
+       "2023-06-01"
+      ],
+      [
+       "x-app",
+       "cli"
+      ],
+      [
+       "x-client-request-id",
+       "cbcbc182-04f0-419f-86eb-4ab3b05816a5"
+      ]
+     ],
+     "body": "{\"model\": \"claude-opus-5-5\", \"max_tokens\": 64, \"messages\": [{\"role\": \"user\", \"content\": [{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nAs you answer the user's questions, you can use the following context:\\n# currentDate\\nToday's date is 2026-10-02.\\n\\n      IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.\\n\u003c/system-reminder\u003e\\n\\n\"},{\"type\":\"text\",\"text\":\"model limit\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}]}],\"system\":[{\"type\":\"text\",\"text\":\"x-anthropic-billing-header: cc_version=2.1.280.b2d; cc_entrypoint=cli; cch=7a394; cc_prompt_id=ac9ea753-1bd9-496a-96db-bf4a3041625d; cc_turn_origin=human;\"},{\"type\":\"text\",\"text\":\"You are Claude Code, Anthropic's official CLI for Claude.\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}],\"fallbacks\":[{\"model\":\"claude-opus-4-8\"}],\"diagnostics\":{\"previous_message_id\":null},\"stream\":false,\"metadata\":{\"user_id\":\"{\\\"device_id\\\":\\\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\\\",\\\"account_uuid\\\":\\\"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee\\\",\\\"session_id\\\":\\\"a0330aa5-080d-55ae-bced-eb07d0456b21\\\"}\"}}",
+     "reply": "{\"type\":\"error\",\"error\":{\"type\":\"rate_limit_error\",\"message\":\"rate limited\"}}"
+    }
+   ],
+   "output": null,
+   "error": "{\"type\":\"error\",\"error\":{\"type\":\"rate_limit_error\",\"message\":\"rate limited\"}}",
+   "error_status": 429,
+   "error_info": {
+    "request_scoped": false,
+    "credential_scoped": false,
+    "retry_after": true,
+    "direct": false
+   }
   }
  ],
  "sjson": [

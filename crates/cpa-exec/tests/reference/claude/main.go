@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -59,11 +60,52 @@ type upstream struct {
 
 type result struct {
 	scenario
-	Date     string     `json:"date"`
-	Upstream []upstream `json:"upstream"`
-	Output   []string   `json:"output"`
-	Error    string     `json:"error,omitempty"`
-	Status   int        `json:"error_status,omitempty"`
+	Date      string     `json:"date"`
+	Upstream  []upstream `json:"upstream"`
+	Output    []string   `json:"output"`
+	Error     string     `json:"error,omitempty"`
+	Status    int        `json:"error_status,omitempty"`
+	ErrorInfo *errInfo   `json:"error_info,omitempty"`
+}
+
+// errInfo is what the conductor and handlers read from an executor error.
+type errInfo struct {
+	RequestScoped    bool        `json:"request_scoped"`
+	CredentialScoped bool        `json:"credential_scoped"`
+	RetryAfter       bool        `json:"retry_after"`
+	Direct           bool        `json:"direct"`
+	DirectStatus     int         `json:"direct_status,omitempty"`
+	DirectHeaders    [][2]string `json:"direct_headers,omitempty"`
+	DirectBody       string      `json:"direct_body,omitempty"`
+}
+
+func describe(err error) *errInfo {
+	info := &errInfo{}
+	var requestScoped interface{ IsRequestScoped() bool }
+	if errors.As(err, &requestScoped) {
+		info.RequestScoped = requestScoped.IsRequestScoped()
+	}
+	var credentialScoped interface{ IsCredentialScoped() bool }
+	if errors.As(err, &credentialScoped) {
+		info.CredentialScoped = credentialScoped.IsCredentialScoped()
+	}
+	var retry interface{ RetryAfter() *time.Duration }
+	if errors.As(err, &retry) {
+		info.RetryAfter = retry.RetryAfter() != nil
+	}
+	var terminated *cliproxyexecutor.RequestTerminatedError
+	if errors.As(err, &terminated) {
+		info.Direct = true
+		info.DirectStatus = terminated.HTTPStatus
+		info.DirectBody = string(terminated.Body)
+		for key, values := range terminated.Header {
+			for _, value := range values {
+				info.DirectHeaders = append(info.DirectHeaders, [2]string{key, value})
+			}
+		}
+		sort.Slice(info.DirectHeaders, func(i, j int) bool { return info.DirectHeaders[i][0] < info.DirectHeaders[j][0] })
+	}
+	return info
 }
 
 type capture struct {
@@ -232,6 +274,7 @@ func run(root string, s scenario) result {
 		if sc, ok := errRun.(interface{ StatusCode() int }); ok {
 			out.Status = sc.StatusCode()
 		}
+		out.ErrorInfo = describe(errRun)
 	}
 	out.Upstream = cap.requests
 	return out

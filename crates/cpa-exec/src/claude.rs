@@ -218,6 +218,8 @@ impl ClaudeExecutor {
         let reverse = prepared.reverse.clone();
         let continuity = prepared.continuity.clone();
         let request_id = header_value(&response.headers, "request-id");
+        let fast = ctx.first_party && prepared.fast;
+        let wrap = |e| fast_request_error(fast, e);
         let body = match response.body {
             ResponseBody::Stream(raw) if upstream_stream && req.stream && req.operation == Operation::Generate => {
                 let done: stream::OnComplete = Box::new(move |message_id| {
@@ -232,9 +234,9 @@ impl ClaudeExecutor {
                 ResponseBody::Stream(stream::relay(raw, reverse, done))
             }
             ResponseBody::Stream(raw) => {
-                let data = collect(raw).await?;
+                let data = collect(raw).await.map_err(wrap)?;
                 if upstream_stream {
-                    stream::validate_buffered(&data)?;
+                    stream::validate_buffered(&data).map_err(wrap)?;
                     let id = stream::buffered_message_id(&data);
                     session::commit(
                         &continuity.key,
@@ -249,11 +251,11 @@ impl ClaudeExecutor {
                             out.push(b'\n');
                         }
                         out.extend(stream::restore_line(line, &reverse).map_err(|m| {
-                            ExecError::local(
-                                502,
+                            wrap(ExecError::local(
+                                500,
                                 FailureScope::Request,
                                 format!("restore Claude OAuth tool name from streaming response: {m}"),
-                            )
+                            ))
                         })?);
                     }
                     ResponseBody::Buffered(Bytes::from(out))
@@ -269,7 +271,7 @@ impl ClaudeExecutor {
                     );
                     let restored = alias::restore_response(&text, &reverse).map_err(|m| {
                         ExecError::local(
-                            502,
+                            500,
                             FailureScope::Request,
                             format!("restore Claude OAuth tool name from response: {m}"),
                         )
@@ -325,57 +327,52 @@ impl ClaudeExecutor {
 
     async fn send(&self, ctx: &Ctx<'_>, prepared: &Prepared, path: &str) -> Result<RawResponse, ExecError> {
         let url = format!("{}{path}?beta=true", ctx.base_url);
-        let (status, headers, body) = if ctx.first_party {
-            let client = self.native_client(&ctx.proxy)?;
-            let mut order = wreq::header::OrigHeaderMap::new();
-            for name in &prepared.order {
-                order.insert(name.clone());
-            }
-            let mut request = client
-                .post(&url)
-                .redirect(wreq::redirect::Policy::none())
-                .orig_headers(order)
-                .default_headers(false);
-            for (name, value) in &prepared.headers {
-                request = request.header(name.as_str(), value.as_str());
-            }
-            let res = request
-                .body(prepared.body.clone())
-                .send()
-                .await
-                .map_err(transport_error)?;
-            decoded_response(res).await?
-        } else {
-            // Go's fallback round tripper: http.DefaultTransport (or the proxy
-            // transport) behind an http.Client that follows redirects.
-            let mut headers = GoHeaders::new();
-            for (name, value) in &prepared.headers {
-                headers.add_raw(name, value.as_str());
-            }
-            let client = self.go.get(&ctx.proxy);
-            let upstream = crate::proxy::send(&client, &url, headers, prepared.body.clone(), None).await?;
-            decode_upstream(upstream).await?
-        };
         let fast = ctx.first_party && prepared.fast;
+        let exchange = async {
+            Ok(if ctx.first_party {
+                let client = self.native_client(&ctx.proxy)?;
+                let mut order = wreq::header::OrigHeaderMap::new();
+                for name in &prepared.order {
+                    order.insert(name.clone());
+                }
+                let mut request = client
+                    .post(&url)
+                    .redirect(wreq::redirect::Policy::none())
+                    .orig_headers(order)
+                    .default_headers(false);
+                for (name, value) in &prepared.headers {
+                    request = request.header(name.as_str(), value.as_str());
+                }
+                let res = request
+                    .body(prepared.body.clone())
+                    .send()
+                    .await
+                    .map_err(transport_error)?;
+                decoded_response(res).await?
+            } else {
+                // Go's fallback round tripper: http.DefaultTransport (or the proxy
+                // transport) behind an http.Client that follows redirects.
+                let mut headers = GoHeaders::new();
+                for (name, value) in &prepared.headers {
+                    headers.add_raw(name, value.as_str());
+                }
+                let client = self.go.get(&ctx.proxy);
+                let upstream = crate::proxy::send(&client, &url, headers, prepared.body.clone(), None).await?;
+                decode_upstream(upstream).await?
+            })
+        };
+        let (status, headers, body) = exchange.await.map_err(|e| fast_request_error(fast, e))?;
         if !(200..300).contains(&status) {
-            let data = crate::upstream::read_bounded(body, crate::upstream::MAX_ERROR_BODY).await?;
-            if fast {
-                return Err(fast_direct_error(status, headers, data));
-            }
-            let mut error = ExecError {
+            let data = crate::upstream::read_bounded(body, crate::upstream::MAX_ERROR_BODY)
+                .await
+                .map_err(|e| fast_request_error(fast, e))?;
+            return Err(upstream_error(
                 status,
-                scope: crate::upstream::scope_for(status),
-                retry_after: None,
-                headers: Box::new(headers),
-                body: if data.is_empty() {
-                    Bytes::from(format!("status {status}"))
-                } else {
-                    data
-                },
-                direct: false,
-            };
-            error = quota::classify(error, ctx.settings.model_level_cooling);
-            return Err(error);
+                headers,
+                data,
+                fast,
+                ctx.settings.model_level_cooling,
+            ));
         }
         Ok(RawResponse {
             status,
@@ -403,20 +400,55 @@ async fn collect(mut raw: cpa_core::exec::ExecStream) -> Result<Bytes, ExecError
     Ok(out.freeze())
 }
 
-/// `newClaudeFastDirectResponseError`: fast-mode refusals reach the client as sent.
-fn fast_direct_error(status: u16, headers: http::HeaderMap, body: Bytes) -> ExecError {
-    let mut kept = http::HeaderMap::new();
-    if let Some(ct) = headers.get(http::header::CONTENT_TYPE) {
-        kept.insert(http::header::CONTENT_TYPE, ct.clone());
+/// A non-2xx upstream answer. `headers` are already decoded (no Content-Encoding or
+/// Content-Length). Fast requests to Anthropic answer the client as sent
+/// (`newClaudeFastDirectResponseError`); everything else is classified
+/// (`classifyClaudeUpstreamErrorWithCooling`).
+fn upstream_error(
+    status: u16,
+    headers: http::HeaderMap,
+    body: Bytes,
+    fast: bool,
+    model_level_cooling: bool,
+) -> ExecError {
+    if fast {
+        // Only a genuine shared-window 429 leaves the request's scope.
+        let rate_limited = status == 429;
+        return ExecError {
+            status,
+            scope: if rate_limited && quota::shared_rejection(&headers) {
+                FailureScope::Credential
+            } else {
+                FailureScope::Request
+            },
+            retry_after: rate_limited.then(|| quota::rate_limit_reset(&headers)).flatten(),
+            headers: Box::new(headers),
+            body,
+            direct: true,
+        };
     }
-    ExecError {
+    let error = ExecError {
         status,
-        scope: FailureScope::Request,
+        scope: crate::upstream::scope_for(status),
         retry_after: None,
-        headers: Box::new(kept),
-        body,
-        direct: true,
+        headers: Box::new(headers),
+        body: if body.is_empty() {
+            Bytes::from(format!("status {status}"))
+        } else {
+            body
+        },
+        direct: false,
+    };
+    quota::classify(error, model_level_cooling)
+}
+
+/// `wrapClaudeFastRequestError`: any other failure of a fast request stops at the
+/// caller instead of failing over, unless it is already credential-scoped.
+fn fast_request_error(fast: bool, mut error: ExecError) -> ExecError {
+    if fast && error.scope != FailureScope::Credential {
+        error.scope = FailureScope::Request;
     }
+    error
 }
 
 /// Request facts shared by every stage.

@@ -89,7 +89,7 @@ impl Relay {
             Ok(restored) => restored,
             Err(message) => {
                 self.fail(ExecError::local(
-                    502,
+                    500,
                     FailureScope::Request,
                     format!("restore Claude OAuth tool name from streaming response: {message}"),
                 ));
@@ -156,7 +156,7 @@ impl Relay {
         }
         if self.line.len() > MAX_LINE {
             self.fail(ExecError::local(
-                502,
+                500,
                 FailureScope::Request,
                 "bufio.Scanner: token too long",
             ));
@@ -215,7 +215,8 @@ pub(crate) fn relay(body: ExecStream, reverse: Reverse, done: OnComplete) -> Exe
 
 /// `validateClaudeStreamingResponse` for buffered SSE behind a non-stream client.
 pub(crate) fn validate_buffered(data: &[u8]) -> Result<(), ExecError> {
-    let bad = |m: &str| ExecError::local(502, FailureScope::Request, m.to_owned());
+    // statusErr{502}: classified by status like any upstream 502.
+    let bad = |m: &str| ExecError::local(502, crate::upstream::scope_for(502), m.to_owned());
     let (mut has_data, mut start, mut delta) = (false, false, false);
     for line in data.split(|b| *b == b'\n') {
         let line = line.trim_ascii();
