@@ -138,6 +138,7 @@ fn streaming(upstream: ExecStream, translator: Box<dyn StreamTranslator>) -> Exe
         upstream: ExecStream,
         translator: Box<dyn StreamTranslator>,
         ready: VecDeque<Bytes>,
+        error: Option<ExecError>,
         done: bool,
     }
     futures_util::stream::unfold(
@@ -145,12 +146,16 @@ fn streaming(upstream: ExecStream, translator: Box<dyn StreamTranslator>) -> Exe
             upstream,
             translator,
             ready: VecDeque::new(),
+            error: None,
             done: false,
         },
         |mut state| async move {
             loop {
                 if let Some(event) = state.ready.pop_front() {
                     return Some((Ok(event), state));
+                }
+                if let Some(error) = state.error.take() {
+                    return Some((Err(error), state));
                 }
                 if state.done {
                     return None;
@@ -166,8 +171,11 @@ fn streaming(upstream: ExecStream, translator: Box<dyn StreamTranslator>) -> Exe
                 match result {
                     Ok(events) => state.ready.extend(events),
                     Err(error) => {
+                        // Go's responsesSSEFramer.Flush: a Responses client gets the frame
+                        // still being joined before the terminal error.
+                        state.ready.extend(state.translator.flush_frames());
+                        state.error = Some(error);
                         state.done = true;
-                        return Some((Err(error), state));
                     }
                 }
             }
@@ -299,6 +307,46 @@ mod tests {
             "must never poll pending upstream or finish after a transform error"
         );
         assert!(result[0].is_err());
+    }
+
+    /// Holds each event as a pending frame, like Go's responsesSSEFramer.
+    #[derive(Default)]
+    struct Framer(Vec<Bytes>);
+    impl StreamTranslator for Framer {
+        fn event(&mut self, event: &[u8]) -> Result<Vec<Bytes>, cpa_translate::Error> {
+            if event == b"bad" {
+                return Err(cpa_translate::Error("malformed event".into()));
+            }
+            self.0.push(Bytes::copy_from_slice(event));
+            Ok(Vec::new())
+        }
+        fn finish(&mut self) -> Result<Vec<Bytes>, cpa_translate::Error> {
+            Ok(std::mem::take(&mut self.0))
+        }
+        fn flush_frames(&mut self) -> Vec<Bytes> {
+            std::mem::take(&mut self.0)
+        }
+    }
+
+    #[tokio::test]
+    async fn pending_frames_flush_before_a_terminal_error() {
+        let failing = futures_util::stream::iter(vec![
+            Ok(Bytes::from_static(b"frame")),
+            Err(ExecError::local(502, FailureScope::Transport, "upstream reset")),
+        ])
+        .chain(futures_util::stream::pending())
+        .boxed();
+        let result: Vec<_> = streaming(failing, Box::<Framer>::default()).collect().await;
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0].as_ref().unwrap(), "frame");
+        assert_eq!(result[1].as_ref().unwrap_err().status, 502);
+        // A translator error flushes the same way.
+        let result: Vec<_> = streaming(stream(&[b"frame", b"bad"]), Box::<Framer>::default())
+            .collect()
+            .await;
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0].as_ref().unwrap(), "frame");
+        assert!(result[1].is_err());
     }
 
     #[test]
