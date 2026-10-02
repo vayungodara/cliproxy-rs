@@ -139,6 +139,7 @@ async fn main() -> anyhow::Result<()> {
         claude: ClaudeExecutor::new(DEFAULT_BASE_URL)?,
         codex: cpa_exec::codex::CodexExecutor::new()?,
         devices: Default::default(),
+        openai: Default::default(),
     };
     let rt = Arc::new(Runtime::new(config, credentials, executors));
     rt.start_auto_refresh();

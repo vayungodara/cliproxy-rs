@@ -25,6 +25,7 @@ async fn main() -> anyhow::Result<()> {
     let executors = Executors {
         claude: ClaudeExecutor::with_client(client, DEFAULT_BASE_URL),
         codex: Default::default(),
+        openai: Default::default(),
         devices: Default::default(),
     };
     let listener = tokio::net::TcpListener::bind((config.host.as_str(), config.port)).await?;
