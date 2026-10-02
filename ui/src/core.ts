@@ -103,7 +103,7 @@ export function span(ms: number): string {
   return `${Math.round(h / 24)}d`;
 }
 export function ago(value: unknown, now = Date.now()): string {
-  const t = Date.parse(String(value ?? ""));
+  const t = typeof value === "number" ? value : Date.parse(String(value ?? ""));
   if (Number.isNaN(t) || t <= 0) return "";
   return now - t < 45_000 ? "just now" : `${span(now - t)} ago`;
 }

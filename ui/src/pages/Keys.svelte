@@ -13,7 +13,7 @@
     const k = draft.trim();
     if (keys.includes(k)) return store.notify("That key is already in the list.", true);
     store
-      .act(() => store.replace("access/api-keys", keys, [...keys, k]), "Key added. Copy it now; it is masked from here on.")
+      .act(() => store.replace("access/api-keys", keys, [...keys, k]), "Key added.")
       .then((ok) => ok && (draft = ""));
   }
 </script>
@@ -53,7 +53,7 @@
       {:else}
         <div class="state">
           <div class="row"><span class="lamp warn"></span>No client keys</div>
-          <p>Without client keys the proxy may accept requests from anyone who can reach it. Add one before exposing it beyond this machine.</p>
+          <p>Without one, anyone who can reach the proxy may be able to use it.</p>
         </div>
       {/if}
       <form class="form" onsubmit={add}>

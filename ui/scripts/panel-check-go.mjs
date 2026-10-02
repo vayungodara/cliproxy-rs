@@ -160,11 +160,26 @@ try {
       await shot(`go-phone-${theme}-${p}`);
     }
   }
+  // Phone menu: focus moves into the page list, the covered page is inert, Escape returns focus.
+  await page.locator(".menu").click();
+  await page.waitForFunction(() => document.activeElement?.closest(".nav"));
+  assert.equal(await page.evaluate(() => document.querySelector("main").inert), true);
+  await page.keyboard.press("Escape");
+  assert.equal(await page.evaluate(() => document.activeElement?.classList.contains("menu")), true);
   await page.locator(".menu").click();
   await page.getByRole("link", { name: "Logs" }).click();
   await settle();
   assert.equal(await page.evaluate(() => location.hash), "#logs");
-  pass("phone: overview and credentials fit 390 px in both themes; menu navigates");
+  assert.equal(await page.evaluate(() => document.activeElement?.id), "main");
+  pass("phone: both themes fit 390 px; menu takes focus, makes the page inert, Escape returns focus, links navigate");
+
+  // Skip link focuses the content instead of routing to a page called "main".
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await go("#keys");
+  await page.locator(".skip").focus();
+  await page.keyboard.press("Enter");
+  assert.deepEqual(await page.evaluate(() => [location.hash, document.activeElement?.id]), ["#keys", "main"]);
+  pass("skip link moves focus to the content and keeps the page");
 
   const foreign = requests.filter((r) => !r.url.startsWith(origin) && !r.url.startsWith("data:"));
   assert.deepEqual(foreign, [], "requests outside the serving origin");

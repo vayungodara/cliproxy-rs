@@ -38,11 +38,7 @@
   {#if !edit}<button
       class="key"
       disabled={store.busy}
-      onclick={() =>
-        store.act(async () => {
-          await api(fieldPath("plugins/enabled"), "PUT", !on);
-          await after();
-        }, on ? "Plugins turned off." : "Plugins turned on. A restart may be needed.")}
+      onclick={() => store.call("PUT", fieldPath("plugins/enabled"), !on, on ? "Plugins off." : "Plugins on. A restart may be needed.", "", after)}
       ><span class="lamp {on ? 'ok' : 'off'}"></span>{on ? "Plugins on" : "Plugins off"}</button
     ><button class="key" disabled={market.loading || !store.can("GET", "/plugins/store")} onclick={() => market.load()}>Browse store</button>{/if}
 </div>
@@ -66,22 +62,15 @@
               <button
                 class="key small"
                 disabled={store.busy}
-                onclick={() =>
-                  store.act(async () => {
-                    await api(fieldPath(`plugins/configs/${p.id}/enabled`), "PUT", !p.enabled);
-                    await after();
-                  }, "Saved. A restart may be needed.")}>{p.enabled ? "Disable" : "Enable"}</button
+                onclick={() => store.call("PUT", fieldPath(`plugins/configs/${p.id}/enabled`), !p.enabled, "Saved. A restart may be needed.", "", after)}
+                >{p.enabled ? "Disable" : "Enable"}</button
               >
               <button class="key small" disabled={store.busy} onclick={() => configure(p.id)}>Configure</button>
               <button
                 class="key small quiet danger"
                 disabled={store.busy}
-                onclick={() =>
-                  confirm(`Delete plugin ${p.id}, its binary and its settings?`) &&
-                  store.act(async () => {
-                    await api(`/plugins/${encodeURIComponent(p.id)}`, "DELETE");
-                    await after();
-                  }, "Plugin deleted.")}>Delete</button
+                onclick={() => store.call("DELETE", `/plugins/${encodeURIComponent(p.id)}`, undefined, "Plugin deleted.", `Delete plugin ${p.id}, its binary and its settings?`, after)}
+                >Delete</button
               >
             </li>
           {/each}
@@ -89,7 +78,7 @@
       {:else}
         <div class="state">
           <div class="row"><span class="lamp off"></span>No plugins installed</div>
-          <p>Plugins add providers, sign-in flows and quota sources. Browse the store to see what is available.</p>
+          <p>Plugins add providers, sign-in flows and quota sources.</p>
         </div>
       {/if}
     {/snippet}

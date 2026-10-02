@@ -62,6 +62,14 @@ try {
   assert.equal(evaluate(`[...document.querySelectorAll('main button')].find(b=>b.textContent.includes('Refresh tokens')).disabled`), rust);
   console.log(`PASS credential actions match server capabilities (${rust ? "Rust: disabled with an explanation" : "Go: enabled"})`);
 
+  // A route the server lacks is read once, not retried in a loop.
+  const before = evaluate("window.__calls.length");
+  browser("click", 'nav a[href="#quotas"]');
+  browser("wait", "4000");
+  const pluginReads = evaluate(`window.__calls.slice(${before}).filter(c=>c.path.endsWith('/plugins')&&c.method==='GET').length`);
+  assert.ok(pluginReads <= 1, `GET /plugins read ${pluginReads} times`);
+  console.log(`PASS unsupported reads are not retried in a loop (${pluginReads} read of GET /plugins)`);
+
   browser("click", 'nav a[href="#payload"]');
   settled();
   browser("find", "role", "button", "click", "--name", "Add rule");

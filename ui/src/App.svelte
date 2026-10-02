@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Component } from "svelte";
+  import { tick, type Component } from "svelte";
   import { store, pages } from "./store.svelte";
   import Overview from "./pages/Overview.svelte";
   import Credentials from "./pages/Credentials.svelte";
@@ -38,6 +38,13 @@
   const host = $derived(store.server.replace(/^https?:\/\//, ""));
   const version = $derived(/^\d/.test(store.meta.version) ? `v${store.meta.version}` : store.meta.version);
   let menu = $state(false);
+  // After a page change, move focus to the new content (not on credential or log arguments).
+  let page = store.route.page;
+  $effect(() => {
+    if (store.route.page === page) return;
+    page = store.route.page;
+    document.getElementById("main")?.focus({ preventScroll: true });
+  });
   let server = $state(location.origin),
     secret = $state(""),
     failure = $state(""),
@@ -67,7 +74,15 @@
 </script>
 
 <svelte:head><title>{store.logged ? `${title} · cliproxy-rs` : "Sign in · cliproxy-rs"}</title></svelte:head>
-<svelte:window onkeydown={(e) => e.key === "Escape" && (menu = false)} />
+<svelte:window
+  onkeydown={(e) => {
+    if (e.key === "Escape" && menu) {
+      menu = false;
+      document.querySelector<HTMLElement>(".menu")?.focus();
+    }
+  }}
+  onbeforeunload={(e) => store.dirty && e.preventDefault()}
+/>
 
 {#snippet mark()}<svg width="22" height="22" viewBox="0 0 40 40" aria-hidden="true"
     ><rect width="40" height="40" rx="10" fill="var(--ink)" /><path
@@ -116,7 +131,9 @@
     </form>
   </main>
 {:else}
-  <a class="key skip" href="#main">Skip to content</a>
+  <a class="key skip" href="#main" onclick={(e) => (e.preventDefault(), document.getElementById("main")?.focus())}
+    >Skip to content</a
+  >
   <div class="shell">
     <nav class="side" class:open={menu} id="pages" aria-label="Pages">
       <a class="brand" href="#overview">{@render mark()}</a>
@@ -131,7 +148,7 @@
       </div>
       <div class="side-foot">
         {@render theme()}
-        <button class="key quiet" onclick={() => store.logout()}><svg class="i" aria-hidden="true"><use href="#i-out" /></svg>Sign out</button>
+        <button class="key quiet" onclick={() => (!store.dirty || confirm("Discard unsaved changes?")) && store.logout()}><svg class="i" aria-hidden="true"><use href="#i-out" /></svg>Sign out</button>
       </div>
     </nav>
     <div class="main">
@@ -148,10 +165,10 @@
           aria-label="Pages"
           aria-expanded={menu}
           aria-controls="pages"
-          onclick={() => (menu = !menu)}><svg class="i" aria-hidden="true"><use href={`#i-${menu ? "close" : "menu"}`} /></svg></button
+          onclick={() => (menu = !menu) && tick().then(() => document.querySelector<HTMLElement>(".nav a")?.focus())}><svg class="i" aria-hidden="true"><use href={`#i-${menu ? "close" : "menu"}`} /></svg></button
         >
       </header>
-      <main class="page" id="main" tabindex="-1">
+      <main class="page" id="main" tabindex="-1" inert={menu}>
         {#key store.route.page}<View />{/key}
       </main>
     </div>

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { store, Res, every } from "../store.svelte";
-  import { api } from "../api";
+  import { api, missing, text } from "../api";
   import { readPath, label, mask, sum, type Data, type Buckets } from "../core";
   import Grille from "../Grille.svelte";
   import Load from "../Load.svelte";
@@ -85,10 +85,10 @@
       {:else}
         <div class="state">
           <div class="row"><span class="lamp off"></span>No {label(family)} API keys</div>
-          <p>Add a group: one endpoint with one or more keys. Requests are spread across keys by weight.</p>
+          <p>A group is one endpoint with one or more keys, used in turn by weight.</p>
         </div>
       {/if}
-      {#if usage.error && !usage.data}<p class="note"><span class="lamp off"></span>Per-key traffic is not reported by this server.</p>{/if}
+      {#if usage.error}<p class="note"><span class="lamp {missing(usage.error) ? 'off' : 'bad'}"></span>{missing(usage.error) ? "Per-key traffic is not reported by this server." : text(usage.error)}</p>{/if}
       <form class="form" onsubmit={add}>
         <label class="field">Group name<input required bind:value={form.name} /></label>
         <label class="field"

@@ -13,9 +13,7 @@
     "kimi-ai": "https://api.kimi.ai/coding/v1/usages",
   };
   $effect(() => every(15_000, () => store.creds.load(true)));
-  $effect(() => {
-    if (!store.plugins.data && !store.plugins.loading) store.plugins.load();
-  });
+  if (!store.plugins.data) store.plugins.load();
   let live = $state<Record<string, { at: number; windows: Window[] } | { error: string }>>({});
   const plugin = (p: string) => (store.plugins.data || []).find((x) => x.supports_quota && (x.quota_provider || x.id) === p);
   const id = (a: Data) => a.auth_index || a.name;
@@ -62,8 +60,8 @@
 <div class="head"><h1>Quotas</h1></div>
 <Missing actions={[["POST", "/requests/api-call", "live quota checks"], ["POST", "/routing/cooldown/reset", "cooldown reset"]]} />
 <p class="muted">
-  Signals are what providers reported on recent responses. Checking quota asks the provider directly
-  with the credential’s token. Resetting a cooldown only clears local routing state.
+  Signals come from recent provider responses. Checking asks the provider with the credential’s token.
+  Resetting a cooldown clears local routing state only.
 </p>
 
 <Load res={store.creds} what="Credentials">
@@ -81,11 +79,8 @@
             <button
               class="key small quiet"
               disabled={store.busy || !a.auth_index || !a.cooldowns?.length || !store.can("POST", "/routing/cooldown/reset")}
-              onclick={() =>
-                store.act(async () => {
-                  await api("/routing/cooldown/reset", "POST", { auth_index: a.auth_index });
-                  await store.creds.load(true);
-                }, "Cooldown cleared.")}>Reset cooldown</button
+              onclick={() => store.call("POST", "/routing/cooldown/reset", { auth_index: a.auth_index }, "Cooldown cleared.")}
+              >Reset cooldown</button
             >
           </div>
           {#if q && "windows" in q}

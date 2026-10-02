@@ -55,8 +55,12 @@
   const selected = $derived(rows.find((r) => r.a.name === open)?.a);
   let fields = $state({ note: "", priority: "", weight: "", request_retry: "" });
   let models = $state<Res<Data[]> | null>(null);
+  // Fill the form when a credential is opened, not on every poll, so typing is not overwritten.
+  let formFor = "";
   $effect(() => {
     const a = selected;
+    if (a?.name === formFor) return;
+    formFor = a?.name || "";
     if (!a) return;
     fields = {
       note: a.note || "",
@@ -207,9 +211,7 @@
                   >
                   {#if r.b}<Grille data={r.b} {max} />{:else}<span class="legend">Not reported</span>{/if}
                   <span class="num count"
-                    >{r.b ? sum(r.b.total).toLocaleString() : "—"}{#if r.b && sum(r.b.failed)}<small
-                        class="error"> · {sum(r.b.failed)} failed</small
-                      >{/if}</span
+                    >{r.b ? sum(r.b.total).toLocaleString() : "—"}{#if r.b && sum(r.b.failed)}<small class="error">{sum(r.b.failed)} failed</small>{/if}</span
                   >
                   <span class="state-label">{r.s.label}{#if r.s.detail}<small title={r.s.detail}>{r.s.detail}</small>{/if}</span>
                 </button>
@@ -228,7 +230,7 @@
                       </div>
                     {/if}
                     {#if !a.runtime_only}
-                      <form class="form" onsubmit={(e) => (e.preventDefault(), saveFields(a))}>
+                      <form class="form" onsubmit={(e) => (e.preventDefault(), saveFields(a))} inert={!store.can("PATCH", "/credentials/fields")}>
                         {#each fieldNames as [k, name, hint]}<label class="field" class:note-field={k === "note"}
                             >{name}<input bind:value={fields[k]} placeholder={hint} inputmode={k === "note" ? undefined : "numeric"} /></label
                           >{/each}

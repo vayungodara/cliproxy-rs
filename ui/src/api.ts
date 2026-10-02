@@ -77,27 +77,38 @@ export async function api(
   body?: unknown,
   format: "json" | "text" | "blob" = "json",
 ): Promise<any> {
+  const at = revision;
   const response = await send(path, method, body);
-  if (!response.ok) {
-    const value: Data = await response.json().catch(() => ({}));
-    if (response.status === 401) hooks.unauthorized();
-    const error = new ApiError(
-      String(value.message || value.error || `HTTP ${response.status}`),
-      response.status,
-      String(value.code || value.error || ""),
-      method,
-      route(path),
-    );
-    if (error.missing) {
-      error.message = `Not available on this server (${method} ${route(path)} → ${response.status}).`;
-      hooks.missing(method, route(path));
-    }
-    throw error;
+  const ok = response.ok;
+  const value = !ok
+    ? await response.json().catch(() => ({}))
+    : format === "blob"
+      ? await response.blob()
+      : format === "text"
+        ? await response.text()
+        : response.status === 204
+          ? {}
+          : await response.json();
+  // A body that finishes after sign-out or a reconnect belongs to the old session.
+  if (at !== revision) throw new Error("Connection changed. Try again.");
+  if (ok) return value;
+  if (response.status === 401) hooks.unauthorized();
+  const error = new ApiError(
+    String(value.message || value.error || `HTTP ${response.status}`),
+    response.status,
+    String(value.code || value.error || ""),
+    method,
+    route(path),
+  );
+  if (error.missing) {
+    error.message = `Not available on this server (${method} ${route(path)} → ${response.status}).`;
+    hooks.missing(method, route(path));
   }
-  if (format === "blob") return response.blob();
-  if (format === "text") return response.text();
-  return response.status === 204 ? {} : response.json();
+  throw error;
 }
+/** True when the server lacks the route; other errors are real failures. */
+export const missing = (e: unknown) => e instanceof ApiError && e.missing;
+export const text = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 /**
  * Ask which methods a route supports without side effects. Go answers OPTIONS with 204 for

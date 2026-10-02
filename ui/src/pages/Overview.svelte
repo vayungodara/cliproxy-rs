@@ -34,8 +34,7 @@
       <section class="window first">
         <h2>No credentials connected</h2>
         <p class="muted">
-          Requests are routed through the accounts and API keys you connect. Sign in with a
-          provider, upload a credential file, or add an API key under Providers.
+          Sign in with a provider, upload a credential file, or add an API key under Providers.
         </p>
         <div class="row">
           <a class="key primary" href="#connect"><svg class="i" aria-hidden="true"><use href="#i-plus" /></svg>Connect account</a>

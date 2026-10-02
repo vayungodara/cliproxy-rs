@@ -53,5 +53,5 @@
         </p>
       {/snippet}
     </Load>
-  {:else}<p class="muted">The server asks GitHub for the latest CLIProxyAPI release. Nothing is checked automatically.</p>{/if}
+  {:else}<p class="muted">The server asks GitHub on request; nothing is checked automatically.</p>{/if}
 </section>

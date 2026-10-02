@@ -17,16 +17,18 @@ colors:
   dark-ink-2: "#a39e94"
   dark-hole: "#2b2925"
   accent: "#f2c230"
+  accent-pressed: "#e8b71c"
   ok: "#2e9150 / #47b26b"
   warn: "#e2771f / #ee8a3c"
   bad: "#d23e28 / #ec5a43"
+  warn-text: "#8f4006 / #ee8a3c"
 rounded:
   key: "999px"
   field: "8px"
   window: "12px"
 typography:
   ui:
-    fontFamily: "Host Grotesk (self-hosted subset, 400–650), system-ui"
+    fontFamily: "Host"
   code:
     fontFamily: "ui-monospace, SF Mono, Cascadia Mono, Menlo, Consolas"
 ---
@@ -57,11 +59,13 @@ The concept round, the rejected directions and the reasons are in `design/README
 - **Accent** (Braun yellow `#f2c230`) appears in exactly three places: the primary key, the current-page dot, and text selection. Never on a status.
 - **Lamps**: green ready, orange cooling, red failing, hollow ring disabled or not available. A lamp always has a word next to it or an accessible label.
 - **Grille**: unlit holes use `--hole`; lit holes are ink at four strengths; a hole is red when its bucket had failures.
-- Secondary text is `--ink-2` (5:1 or better on body and panel in both themes). `--ink-3` is for hole edges, placeholders and counts only.
+- Text uses `--ink` or `--ink-2` (5:1 or better on body and panel in both themes, checked with axe-core). `--ink-3` is never text: it draws hole edges, hollow lamps and hover borders.
+- Warning text in logs uses `--warn-text`, a darker orange in the light theme, because the lamp orange is too light for small text.
+- Depth comes from two shadow tokens only: `--sunk` (inset, for recessed windows, tracks and nav holes) and `--lift` (a 1 px top highlight and a soft drop, for key faces). Lamps add a small inner highlight. The yellow key darkens to `#e8b71c` on hover.
 
 ## Type
 
-One family, Host Grotesk, self-hosted as a 17.5 KB Latin subset with weights 400–650. Its figures are tabular by default, so numbers align without features.
+One family, Host Grotesk (declared as `font-family: Host`), self-hosted as a 17.5 KB Latin subset with weights 400–650 and falling back to `system-ui`. Its figures are tabular by default, so numbers align without features.
 
 | Role | Size / weight |
 | --- | --- |

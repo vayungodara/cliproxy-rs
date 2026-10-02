@@ -7,9 +7,7 @@
   const builtIn = ["claude", "codex", "antigravity", "kimi", "kimi-ai", "xai", "devin", "meta"];
   // Go starts a local callback forwarder for these when asked by a web UI.
   const forwarded = ["claude", "codex", "antigravity", "xai", "devin"];
-  $effect(() => {
-    if (!store.plugins.data && !store.plugins.loading) store.plugins.load();
-  });
+  if (!store.plugins.data) store.plugins.load();
   const providers = $derived([
     ...builtIn,
     ...(store.plugins.data || []).filter((p) => p.supports_oauth).map((p) => String(p.oauth_provider || p.id)),
@@ -38,13 +36,15 @@
   }
   $effect(() =>
     every(2000, async () => {
-      if (!session || status !== "wait") return;
-      const r = await api(`/oauth/status?state=${encodeURIComponent(session.state)}`).catch((e) => ({ status: "error", error: e.message }));
-      if (r.status === "wait") return;
+      const s = session;
+      if (!s || status !== "wait") return;
+      const r = await api(`/oauth/status?state=${encodeURIComponent(s.state)}`).catch((e) => ({ status: "error", error: e.message }));
+      // A reply for a session that was cancelled or replaced meanwhile is ignored.
+      if (r.status === "wait" || s !== session || status !== "wait") return;
       status = r.status;
       problem = r.error || "";
       if (r.status === "ok") {
-        store.notify(`${label(session.provider)} account connected.`);
+        store.notify(`${label(s.provider)} account connected.`);
         store.creds.load(true);
       }
     }),
@@ -100,7 +100,7 @@
         </li>
         {#if session.flow !== "device"}
           <li>
-            <span>If the browser ends on a page that does not load, the server is on another machine. Paste that page’s full address here.</span>
+            <span>If the browser ends on a page that fails to load, paste its full address here.</span>
             <form
               class="form"
               onsubmit={(e) => {
@@ -116,7 +116,7 @@
       </ol>
       <div class="row"><button class="key quiet" onclick={cancel}>Cancel sign-in</button></div>
     {:else if status === "ok"}
-      <p>The credential is saved on the server and already in rotation.</p>
+      <p>Saved on the server and in rotation.</p>
       <div class="row"><a class="key primary" href="#credentials">View credentials</a></div>
     {:else}
       {#if problem}<p class="error">{problem}</p>{/if}
@@ -128,10 +128,6 @@
 <section class="section">
   <h2>Other ways</h2>
   <ul class="list">
-    <li class="item">
-      <span class="grow">Upload credential files exported from another CLIProxyAPI server.</span>
-      <a class="key" href="#credentials"><svg class="i" aria-hidden="true"><use href="#i-upload" /></svg>Upload on Credentials</a>
-    </li>
     <li class="item">
       <span class="grow">Use a Google Cloud service-account JSON for Vertex AI.</span>
       <label class="key" aria-disabled={!store.can("POST", "/oauth/import")}

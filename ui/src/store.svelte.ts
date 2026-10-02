@@ -25,22 +25,29 @@ export class Res<T> {
   data = $state.raw<T>();
   error = $state.raw<unknown>(null);
   loading = $state(false);
+  #gen = 0;
   constructor(private read: () => Promise<T>) {}
+  /** The latest started read wins; an older one finishing later is dropped. */
   async load(quiet = false) {
+    const gen = ++this.#gen;
     if (!quiet) this.loading = true;
     try {
-      this.data = await this.read();
-      this.error = null;
+      const data = await this.read();
+      if (gen === this.#gen) (this.data = data), (this.error = null);
     } catch (e) {
-      this.error = e;
+      if (gen === this.#gen) this.error = e;
     } finally {
-      this.loading = false;
+      if (gen === this.#gen) this.loading = false;
     }
   }
 }
 
 function parse(hash: string) {
-  const [page = "", ...rest] = decodeURIComponent(hash.replace(/^#/, "")).split("/");
+  let h = hash.slice(1);
+  try {
+    h = decodeURIComponent(h);
+  } catch {}
+  const [page = "", ...rest] = h.split("/");
   const name = aliases[page] || page;
   return { page: routes.has(name) ? name : "overview", arg: rest.join("/") };
 }
@@ -75,6 +82,7 @@ class Store {
   #timer: ReturnType<typeof setTimeout> | undefined;
 
   async login(server: string, secret: string) {
+    this.meta = { version: "", commit: "", built: "" };
     connect(server, secret, {
       unauthorized: () => {
         this.logout();
@@ -172,8 +180,10 @@ class Store {
   async replace(path: string, before: unknown, next: unknown) {
     const url = fieldPath(path);
     const latest = await configValue(url, Array.isArray(before) ? [] : {});
-    if (!equal(latest, before))
-      throw new Error("This setting changed on the server since you opened it. Nothing was written; review and try again.");
+    if (!equal(latest, before)) {
+      await this.config.load(true);
+      throw new Error("This setting changed on the server. Nothing was written; the page now shows the server copy.");
+    }
     await api(url, "PUT", next);
     await this.config.load(true);
   }

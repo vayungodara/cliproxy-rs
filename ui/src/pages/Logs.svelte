@@ -26,7 +26,7 @@
   const files = new Res<Data[]>(async () => (await api("/observability/logs/errors")).files || []);
   logs.load();
   files.load();
-  $effect(() => every(3000, async () => tail && !logs.error && (await logs.load(true))));
+  $effect(() => every(3000, async () => tail && store.can("GET", "/observability/logs") && (await logs.load(true))));
   const shown = $derived((logs.data || []).filter((l) => l.toLowerCase().includes(query.trim().toLowerCase())));
   const parse = (line: string) => line.match(/^\[([^\]]*)\] \[([^\]]*)\] \[(\w+)\s*\] (?:\[[^\]]*\] )?(.*)$/);
   async function inspect(id: string) {
@@ -47,19 +47,14 @@
 
 <div class="head">
   <h1>Logs</h1>
-  <button class="key" disabled={!!logs.error} aria-pressed={tail} onclick={() => (tail = !tail)}
+  <button class="key" disabled={!store.can("GET", "/observability/logs")} aria-pressed={tail} onclick={() => (tail = !tail)}
     ><span class="lamp {tail ? 'ok live' : 'off'}"></span>{tail ? "Following" : "Paused"}</button
   >
   <button
     class="key quiet danger"
     disabled={store.busy || !store.can("DELETE", "/observability/logs")}
-    onclick={() =>
-      confirm("Delete the server’s application logs?") &&
-      store.act(async () => {
-        await api("/observability/logs", "DELETE");
-        cursor = "";
-        await logs.load();
-      }, "Logs cleared.")}>Clear</button
+    onclick={() => store.call("DELETE", "/observability/logs", undefined, "Logs cleared.", "Delete the server’s application logs?", () => ((cursor = ""), logs.load()))}
+    >Clear</button
   >
 </div>
 <Missing actions={[["DELETE", "/observability/logs", "clearing logs"]]} />
@@ -74,11 +69,11 @@
           {@const m = parse(line)}
           {#if m}<div class={m[3].toLowerCase()}>
               <span class="t">{m[1].slice(11)}</span>
-              {#if /[^-]/.test(m[2])}<a class="t" href={`#logs/${m[2]}`}>{m[2]}</a>{:else}<span class="t">{m[2]}</span>{/if}
+              {#if /[^-]/.test(m[2])}<a class="t" href={`#logs/${encodeURIComponent(m[2])}`}>{m[2]}</a>{:else}<span class="t">{m[2]}</span>{/if}
               <span class="lvl">{m[3]}</span>
               {m[4]}
             </div>{:else}<div>{line}</div>{/if}
-        {:else}<div class="muted">{query ? "No lines match." : lines.length ? "" : "No log lines yet. Logging to file must be on (observability.logs.logging-to-file)."}</div>{/each}
+        {:else}<div class="muted">{query ? "No lines match." : lines.length ? "" : "No lines yet. Needs observability.logs.logging-to-file."}</div>{/each}
       </div>
       <p class="legend">{shown.length.toLocaleString()} of {lines.length.toLocaleString()} lines · newest {MAX.toLocaleString()} kept in this tab</p>
     </section>
@@ -91,7 +86,7 @@
       e.preventDefault();
       const id = reqId.trim();
       if (store.route.arg === id) inspect(id);
-      else store.go(`logs/${id}`);
+      else store.go(`logs/${encodeURIComponent(id)}`);
     }}>
     <label class="field">Request ID<input required bind:value={reqId} placeholder="From a log line or the X-Request-Id header" /></label>
     <button class="key">Open</button>

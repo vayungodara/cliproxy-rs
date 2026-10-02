@@ -114,4 +114,6 @@ test("durations round to the unit a reader needs", () => {
   assert.equal(ago("not a date", now), "");
   assert.equal(ago(at(-10_000), now), "just now");
   assert.equal(ago(at(-3_600_000), now), "1h ago");
+  // Epoch milliseconds (as stored for quota checks) are accepted, not parsed as strings.
+  assert.equal(ago(now - 120_000, now), "2m ago");
 });

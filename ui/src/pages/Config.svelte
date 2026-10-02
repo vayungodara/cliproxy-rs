@@ -6,17 +6,17 @@
   import Load from "../Load.svelte";
 
   const about: Record<string, string> = {
-    server: "Listener, TLS and discovery. Some changes need a restart.",
-    management: "Remote management and the management key.",
-    access: "Keys that clients send to this proxy.",
-    routing: "Strategy, retries, cooldowns and session affinity.",
-    requests: "Outbound proxy, headers, streaming and payload rules.",
-    "api-keys": "Upstream provider API keys, grouped by endpoint.",
-    oauth: "Auth directory, model aliases, exclusions and provider options.",
-    client: "Behaviour tuned for specific client tools.",
+    server: "Listener and TLS. Some changes need a restart.",
+    management: "Remote access and the management key.",
+    access: "Client keys.",
+    routing: "Strategy, retries and cooldowns.",
+    requests: "Outbound proxy, streaming and payload rules.",
+    "api-keys": "Provider API keys.",
+    oauth: "Auth directory, aliases and exclusions.",
+    client: "Per-client tweaks.",
     multimedia: "Image and video generation.",
-    observability: "Logs, request logging and usage statistics.",
-    plugins: "Native plugins and their settings.",
+    observability: "Logs and usage statistics.",
+    plugins: "Native plugins.",
   };
   let edit = $state<{ path: string; value: unknown; title: string; yaml: boolean } | null>(null);
   function open(section: string) {
@@ -54,8 +54,8 @@
         {/each}
       </ul>
       <p class="note">
-        Reads show what is saved in the file, not runtime defaults. Each edit is previewed as a diff and
-        refused if the file changed meanwhile.
+        Reads show what is saved in the file, not runtime defaults. Each edit is previewed as a diff, and
+        the file is reread before writing so a change made elsewhere is caught.
       </p>
     {/snippet}
   </Load>

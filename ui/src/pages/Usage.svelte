@@ -1,6 +1,6 @@
 <script lang="ts">
   import { store, Res, every } from "../store.svelte";
-  import { api } from "../api";
+  import { api, missing, text } from "../api";
   import { buckets, sumBuckets, sum, label, provider, cleanEvent, usageStats, type Buckets, type Data, type Event } from "../core";
   import Grille from "../Grille.svelte";
   import Missing from "../Missing.svelte";
@@ -69,8 +69,8 @@
         </li>
       {/each}
     </ul>
-  {:else}<p class="muted">{store.creds.data ? "No traffic sources yet." : "Loading…"}</p>{/if}
-  {#if keys.error && !keys.data}<p class="note"><span class="lamp off"></span>API-key traffic is not reported by this server.</p>{/if}
+  {:else}<p class="muted">{store.creds.error ? text(store.creds.error) : store.creds.data ? "No traffic sources yet." : "Loading…"}</p>{/if}
+  {#if keys.error}<p class="note"><span class="lamp {missing(keys.error) ? 'off' : 'bad'}"></span>{missing(keys.error) ? "API-key traffic is not reported by this server." : text(keys.error)}</p>{/if}
 </section>
 
 <section class="section">
@@ -81,7 +81,7 @@
       disabled={!store.can("GET", "/observability/usage/queue")}
       aria-pressed={live}
       onclick={() => {
-        if (live || confirm("The live view takes records from the server’s usage queue. Another collector reading the same queue will miss them. Start?")) live = !live;
+        if (live || confirm("The live view takes records off the server’s usage queue; other readers of that queue will miss them. Start?")) live = !live;
       }}><span class="lamp {live ? 'ok live' : 'off'}"></span>{live ? "Stop" : "Start live view"}</button
     >
   </div>
@@ -89,8 +89,8 @@
   {#if !events.length}
     <p class="muted">
       {live
-        ? "Listening. Requests appear here as the server finishes them."
-        : "Per-request detail (model, latency, tokens) for this tab only. Nothing is kept after you leave the page."}
+        ? "Listening for requests…"
+        : "Model, latency and tokens per request, kept in this tab only."}
     </p>
   {:else}
     <div class="window display live-readings">
@@ -99,10 +99,10 @@
       <div class="reading"><span class="legend">Tokens</span><strong>{fmt(stats.input + stats.output)}</strong><span class="legend">{fmt(stats.input)} in · {fmt(stats.output)} out</span></div>
     </div>
     <ul class="list">
-      <li class="item usage-model legend" aria-hidden="true"><span>Model</span><span class="count">Requests</span><span class="count">Failed</span><span class="count">Tokens in</span><span class="count">Tokens out</span></li>
+      <li class="item usage-model legend" aria-hidden="true"><span>Model</span><span class="count">Requests</span><span class="count">Failed</span><span class="count">Tokens</span></li>
       {#each stats.models as m (m.model)}
         <li class="item usage-model">
-          <code class="ellipsis">{m.model}</code><span class="num count">{m.count}</span><span class="num count">{m.failed || ""}</span><span class="num count">{m.input.toLocaleString()}</span><span class="num count">{m.output.toLocaleString()}</span>
+          <code class="ellipsis">{m.model}</code><span class="num count">{m.count}</span><span class="num count">{m.failed || ""}</span><span class="num count">{(m.input + m.output).toLocaleString()}</span>
         </li>
       {/each}
     </ul>
@@ -114,7 +114,7 @@
           <span class="legend">{time(e.at)}</span>
           <code class="ellipsis grow">{e.model}</code>
           <span class="num">{e.latency} ms · {e.failed ? `HTTP ${e.status || "?"}` : `${e.input + e.output} tok`}</span>
-          <a class="legend mono ellipsis" href={`#logs/${e.id}`} title={e.id}>{e.id}</a>
+          <a class="legend mono ellipsis" href={`#logs/${encodeURIComponent(e.id)}`} title={e.id}>{e.id}</a>
         </li>
       {/each}
     </ul>

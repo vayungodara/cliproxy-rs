@@ -4,11 +4,11 @@
   import Load from "../Load.svelte";
 
   const kinds: [string, string][] = [
-    ["default", "Set a value only when the request does not have one."],
-    ["default-raw", "Like default, but each value is raw JSON text."],
-    ["override", "Always set the value, replacing what the client sent."],
-    ["override-raw", "Like override, but each value is raw JSON text."],
-    ["filter", "Remove these paths from the request."],
+    ["default", "Set a value the request lacks."],
+    ["default-raw", "Default, with raw JSON values."],
+    ["override", "Always set the value."],
+    ["override-raw", "Override, with raw JSON values."],
+    ["filter", "Remove paths from the request."],
   ];
   let kind = $state("default");
   let form = $state({ model: "*", protocol: "", params: '{\n  "temperature": 0.7\n}' });

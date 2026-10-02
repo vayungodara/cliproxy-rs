@@ -55,7 +55,7 @@ No repository or release exists for this dashboard yet. Until one is published, 
 
 SHA-256 of the `dist-panel/management.html` built from this commit:
 
-<!-- sha256 -->`e9ed4ee9450ee7d92d171dbd954f475ca32db1411256f0a90d7a46824011689a`<!-- /sha256 -->
+<!-- sha256 -->`7948f934b1022a2bb8a583d0aaf941ede2cf340c69dd904531409594f0d074b6`<!-- /sha256 -->
 
 ```sh
 sha256sum static/management.html

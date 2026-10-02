@@ -15,14 +15,15 @@
 {#if res.data !== undefined && !missing}
   {#if error}<p class="note error" role="alert">
       <span class="lamp bad"></span>Showing the last good read. {error.message}
+      <button class="key small quiet" onclick={() => res.load()}>Retry</button>
     </p>{/if}
   {@render children(res.data)}
 {:else if missing && error instanceof ApiError}
   <div class="state">
     <div class="row"><span class="lamp off"></span>Not available on this server</div>
     <p>
-      {what} come{what.endsWith("s") ? "" : "s"} from <code>{error.method} {error.path}</code>, which this server
-      answers with {error.status}. CLIProxyAPI’s v8 API defines it; this server has not implemented it yet.
+      <code>{error.method} {error.path}</code> answered {error.status}. It is part of the v8 API, but this
+      server does not implement it yet.
     </p>
   </div>
 {:else if error}
