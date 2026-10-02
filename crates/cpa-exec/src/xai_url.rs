@@ -12,6 +12,8 @@ pub(crate) struct GoUrl {
     pub scheme: String,
     /// `URL.Hostname()`: host without port or IPv6 brackets.
     pub hostname: String,
+    /// `URL.Port()`: the numeric port, empty when absent.
+    pub port: String,
 }
 
 /// `url.Parse`. The error is Go's `*url.Error` text.
@@ -40,6 +42,7 @@ fn parse_inner(raw: &str) -> Result<GoUrl, String> {
         return Ok(GoUrl {
             scheme: String::new(),
             hostname: String::new(),
+            port: String::new(),
         });
     }
     let (scheme, rest) = scheme(raw)?;
@@ -55,6 +58,7 @@ fn parse_inner(raw: &str) -> Result<GoUrl, String> {
             return Ok(GoUrl {
                 scheme,
                 hostname: String::new(),
+                port: String::new(),
             });
         }
         if rest.split('/').next().unwrap_or_default().contains(':') {
@@ -69,14 +73,12 @@ fn parse_inner(raw: &str) -> Result<GoUrl, String> {
             Some(i) => (&authority[..i], &authority[i..]),
             None => (authority, ""),
         };
-        host = parse_authority(authority)?;
+        host = parse_authority(&scheme, authority)?;
         path = tail;
     }
     unescape(path.as_bytes(), Mode::Other)?;
-    Ok(GoUrl {
-        scheme,
-        hostname: hostname(&host),
-    })
+    let (hostname, port) = split_host_port(&host);
+    Ok(GoUrl { scheme, hostname, port })
 }
 
 /// `getScheme`.
@@ -95,9 +97,9 @@ fn scheme(raw: &str) -> Result<(&str, &str), String> {
 }
 
 /// `parseAuthority`: the host; userinfo is only validated.
-fn parse_authority(authority: &str) -> Result<String, String> {
+fn parse_authority(scheme: &str, authority: &str) -> Result<String, String> {
     let at = authority.rfind('@');
-    let host = parse_host(at.map_or(authority, |i| &authority[i + 1..]))?;
+    let host = parse_host(scheme, at.map_or(authority, |i| &authority[i + 1..]))?;
     let Some(i) = at else { return Ok(host) };
     let userinfo = &authority[..i];
     let valid = userinfo.chars().all(|c| {
@@ -147,7 +149,7 @@ fn valid_port(port: &str) -> bool {
 }
 
 /// `parseHost` with the default `urlstrictcolons=1` (Go 1.26).
-fn parse_host(host: &str) -> Result<String, String> {
+fn parse_host(scheme: &str, host: &str) -> Result<String, String> {
     if let Some(open) = host.rfind('[') {
         let Some(close) = host.rfind(']') else {
             return Err("missing ']' in host".into());
@@ -171,8 +173,7 @@ fn parse_host(host: &str) -> Result<String, String> {
             None => unescape(inner.as_bytes(), Mode::Host)?,
         };
         let text = String::from_utf8_lossy(&unescaped).into_owned();
-        // ponytail: netip.ParseAddr's detailed error text is not ported; IP literals can
-        // never pass the x.ai host check, so only this message differs from Go.
+        // ponytail: netip.ParseAddr's detailed error text is not ported.
         let addr = text.split_once('%').map_or(text.as_str(), |(a, _)| a);
         match addr.parse::<std::net::IpAddr>() {
             Ok(std::net::IpAddr::V6(_)) => {}
@@ -181,31 +182,37 @@ fn parse_host(host: &str) -> Result<String, String> {
         }
         return Ok(format!("[{text}]{}", String::from_utf8_lossy(&port)));
     }
-    // Strict colons: the port starts at the first colon, so a second one is invalid.
-    if let Some(i) = host.find(':')
-        && !valid_port(&host[i..])
-    {
-        return Err(format!(
-            "invalid port {} after host",
-            quote_bytes(&host.as_bytes()[i..])
-        ));
+    // Strict colons: the port starts at the first colon, so a second one is invalid,
+    // except for PostgreSQL's comma-separated host lists.
+    if let Some(first) = host.find(':') {
+        let i = match host.rfind(':') {
+            Some(last) if last != first && matches!(scheme, "postgresql" | "postgres") => last,
+            _ => first,
+        };
+        if !valid_port(&host[i..]) {
+            return Err(format!(
+                "invalid port {} after host",
+                quote_bytes(&host.as_bytes()[i..])
+            ));
+        }
     }
     let out = unescape(host.as_bytes(), Mode::Host)?;
     Ok(String::from_utf8_lossy(&out).into_owned())
 }
 
-/// `URL.Hostname()` (`splitHostPort`).
-fn hostname(host: &str) -> String {
-    let mut h = host;
+/// `splitHostPort`: `URL.Hostname()` and `URL.Port()`.
+fn split_host_port(host: &str) -> (String, String) {
+    let (mut h, mut port) = (host, "");
     if let Some(colon) = h.rfind(':')
         && valid_port(&h[colon..])
     {
+        port = &h[colon + 1..];
         h = &h[..colon];
     }
     if h.starts_with('[') && h.ends_with(']') && h.len() >= 2 {
         h = &h[1..h.len() - 1];
     }
-    h.to_owned()
+    (h.to_owned(), port.to_owned())
 }
 
 fn unhex(c: u8) -> u8 {
@@ -296,4 +303,62 @@ pub(crate) fn quote_bytes(b: &[u8]) -> String {
     }
     out.push('"');
     out
+}
+
+/// Whether the HTTP client, which parses URLs with WHATWG rules (`url`), would contact
+/// the same scheme, host and port that Go's `net/url` parses from `raw`. They disagree on
+/// inputs such as `https://evil.example\[::1%25.x.ai]/`, where Go starts the host at the
+/// last `[`; a request must never go to a host Go would not contact.
+pub(crate) fn same_authority(raw: &str) -> bool {
+    let (Ok(go), Ok(wh)) = (parse(raw), url::Url::parse(raw)) else {
+        return false;
+    };
+    if go.scheme != wh.scheme() {
+        return false;
+    }
+    let host_matches = match wh.host() {
+        Some(url::Host::Domain(domain)) => {
+            matches!(url::Host::parse(&go.hostname), Ok(url::Host::Domain(d)) if d == domain)
+        }
+        Some(url::Host::Ipv4(ip)) => go.hostname.parse::<std::net::Ipv4Addr>() == Ok(ip),
+        Some(url::Host::Ipv6(ip)) => go.hostname.parse::<std::net::Ipv6Addr>() == Ok(ip),
+        None => false,
+    };
+    let go_port = if go.port.is_empty() {
+        url::Url::parse(&format!("{}://h/", go.scheme))
+            .ok()
+            .and_then(|u| u.port_or_known_default())
+    } else {
+        go.port.parse::<u16>().ok()
+    };
+    host_matches && go_port.is_some() && go_port == wh.port_or_known_default()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn transport_must_agree_with_go_on_the_authority() {
+        for ok in [
+            "https://auth.x.ai/oauth2/token",
+            "https://AUTH.X.AI:443/t",
+            "https://auth.x.ai:8443/t?q=1#f",
+            "https://u:p@auth.x.ai/t",
+            "https://例.x.ai/t",
+            "http://127.0.0.1:9/t",
+            "https://[::1]:8443/t",
+        ] {
+            assert!(same_authority(ok), "{ok}");
+        }
+        for bad in [
+            r"https://attacker.example\[::1%25.x.ai]/oauth2/token",
+            r"https://auth.x.ai\@evil.example/t",
+            "https://auth.x.ai:99999/t",
+            "https://%61uth.x.ai/t",
+            "https:auth.x.ai/t",
+        ] {
+            assert!(!same_authority(bad), "{bad}");
+        }
+    }
 }

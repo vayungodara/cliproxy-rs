@@ -237,12 +237,21 @@ pub struct TokenData {
 
 /// `parseJWTIdentity`: email and subject claims from an ID token, unverified.
 pub fn parse_jwt_identity(token: &str) -> (String, String) {
+    use base64::engine::{DecodePaddingMode, GeneralPurpose, GeneralPurposeConfig};
+    // base64.URLEncoding: padded, discarded bits may be non-zero, CR and LF are skipped.
+    const GO_URL_ENCODING: GeneralPurpose = GeneralPurpose::new(
+        &base64::alphabet::URL_SAFE,
+        GeneralPurposeConfig::new()
+            .with_decode_allow_trailing_bits(true)
+            .with_decode_padding_mode(DecodePaddingMode::RequireCanonical),
+    );
     let mut parts = token.split('.');
     let (Some(_), Some(payload)) = (parts.next(), parts.next()) else {
         return Default::default();
     };
     let padded = format!("{payload}{}", "=".repeat((4 - payload.len() % 4) % 4));
-    let Ok(raw) = base64::engine::general_purpose::URL_SAFE.decode(padded) else {
+    let padded: String = padded.chars().filter(|c| !matches!(c, '\r' | '\n')).collect();
+    let Ok(raw) = GO_URL_ENCODING.decode(padded) else {
         return Default::default();
     };
     let Some(GoValue::Object(claims)) = GoValue::parse_f64(&raw) else {
@@ -255,22 +264,28 @@ pub fn parse_jwt_identity(token: &str) -> (String, String) {
     (claim("email"), claim("sub"))
 }
 
-/// `buildTokenData`.
+/// `time.Duration(seconds) * time.Second` in nanoseconds, wrapping like Go's int64.
+fn go_seconds(seconds: i64) -> i64 {
+    seconds.wrapping_mul(1_000_000_000)
+}
+
+/// `buildTokenData`. Identity comes from the untrimmed ID token, as in Go.
 fn token_data(decoded: &Decoded, now: DateTime<Utc>) -> TokenData {
-    let id_token = decoded.s("id_token").trim().to_owned();
-    let (email, subject) = parse_jwt_identity(&id_token);
+    let (email, subject) = parse_jwt_identity(&decoded.s("id_token"));
     let expires_in = decoded.i("expires_in");
+    let expire = (expires_in > 0).then(|| {
+        let at = now
+            .checked_add_signed(chrono::Duration::nanoseconds(go_seconds(expires_in)))
+            .unwrap_or(now);
+        rfc3339_utc(at)
+    });
     TokenData {
         access_token: decoded.s("access_token").trim().to_owned(),
         refresh_token: decoded.s("refresh_token").trim().to_owned(),
-        id_token,
+        id_token: decoded.s("id_token").trim().to_owned(),
         token_type: decoded.s("token_type").trim().to_owned(),
         expires_in,
-        expire: if expires_in > 0 {
-            rfc3339_utc(now + chrono::Duration::seconds(expires_in))
-        } else {
-            String::new()
-        },
+        expire: expire.unwrap_or_default(),
         email,
         subject,
     }
@@ -279,11 +294,22 @@ fn token_data(decoded: &Decoded, now: DateTime<Utc>) -> TokenData {
 /// The poll interval Go starts with (`PollForToken`).
 fn initial_interval(device_interval: i64, min_poll: Option<Duration>) -> Duration {
     let min = min_poll.unwrap_or(DEFAULT_POLL_INTERVAL);
-    let interval = Duration::from_secs(device_interval.max(0) as u64);
-    if min_poll.is_some() && device_interval <= 0 {
+    let interval = go_seconds(device_interval);
+    if (min_poll.is_some() && device_interval <= 0) || interval < min.as_nanos() as i64 {
         min
     } else {
-        interval.max(min)
+        Duration::from_nanos(interval as u64)
+    }
+}
+
+/// When polling stops, in nanoseconds after the first poll: 30 minutes, or the device
+/// code lifetime when that is earlier (Go's wrapped duration can lie in the past).
+fn poll_deadline(expires_in: i64) -> i64 {
+    let max = MAX_POLL_DURATION.as_nanos() as i64;
+    if expires_in > 0 {
+        go_seconds(expires_in).min(max)
+    } else {
+        max
     }
 }
 
@@ -314,11 +340,18 @@ impl XaiAuth {
         self
     }
 
-    fn target(&self, url: &str) -> String {
-        match (&self.issuer_origin, url.strip_prefix(ISSUER)) {
+    /// Where a request for `url` goes. Fails closed when the HTTP client would contact a
+    /// different host than Go's `net/url` reads from the same string.
+    // ponytail: the request target is the WHATWG form of the URL, so dot segments and
+    // backslashes in an accepted path are normalized where Go sends them as given.
+    fn target(&self, url: &str) -> Result<String, ()> {
+        if !crate::xai_url::same_authority(url) {
+            return Err(());
+        }
+        Ok(match (&self.issuer_origin, url.strip_prefix(ISSUER)) {
             (Some(origin), Some(rest)) => format!("{origin}{rest}"),
             _ => url.to_owned(),
-        }
+        })
     }
 
     /// Go's `minPollInterval` test knob.
@@ -333,7 +366,7 @@ impl XaiAuth {
         headers.set("User-Agent", "Go-http-client/1.1");
         headers.set("Content-Type", "application/x-www-form-urlencoded");
         headers.set("Accept", "application/json");
-        let upstream = crate::proxy::send(&self.client, &self.target(url), headers, body, Some(HTTP_TIMEOUT))
+        let upstream = crate::proxy::send(&self.client, &self.target(url)?, headers, body, Some(HTTP_TIMEOUT))
             .await
             .map_err(|_| ())?;
         let status = upstream.status;
@@ -353,7 +386,7 @@ impl XaiAuth {
         headers.set("Accept", "application/json");
         let builder = self
             .client
-            .get(self.target(url))
+            .get(self.target(url)?)
             .redirect(wreq::redirect::Policy::none())
             .timeout(HTTP_TIMEOUT);
         let (builder, auto_gzip) = headers.apply(builder, None);
@@ -500,7 +533,7 @@ impl XaiAuth {
             "" => {}
             "authorization_pending" => return Ok(None),
             "slow_down" => {
-                *interval += self.min_poll_interval.unwrap_or(DEFAULT_POLL_INTERVAL);
+                *interval = interval.saturating_add(self.min_poll_interval.unwrap_or(DEFAULT_POLL_INTERVAL));
                 return Ok(None);
             }
             "expired_token" => return Err(fail("xai device code expired".into())),
@@ -539,15 +572,12 @@ impl XaiAuth {
         }
         let mut interval = initial_interval(code.interval, self.min_poll_interval);
         let start = tokio::time::Instant::now();
-        let mut deadline = start + MAX_POLL_DURATION;
-        if code.expires_in > 0 {
-            deadline = deadline.min(start + Duration::from_secs(code.expires_in as u64));
-        }
+        let deadline = poll_deadline(code.expires_in);
         let mut first = true;
         loop {
             if !first {
                 tokio::time::sleep(interval).await;
-                if tokio::time::Instant::now() > deadline {
+                if start.elapsed().as_nanos() as i64 > deadline {
                     return Err(auth_error(400, "xai device code expired"));
                 }
             }
@@ -760,8 +790,12 @@ fn canonical_key(key: &str) -> &str {
 
 /// The file `Manager.Login` + `FileTokenStore.Save` write: non-token fields of an
 /// existing file are kept (`MergeExistingAuthMetadata`), legacy keys are renamed
-/// (`NormalizeCredentialMetadata`), and `disabled` is the existing boolean or false.
-pub fn saved_document(mut record: BTreeMap<String, GoValue>, existing: Option<&[u8]>) -> BTreeMap<String, GoValue> {
+/// (`NormalizeCredentialMetadata`), `disabled` is the existing boolean or false, and a
+/// merged `weight` must be valid (`ValidateAuthWeight`) or nothing is written.
+pub fn saved_document(
+    mut record: BTreeMap<String, GoValue>,
+    existing: Option<&[u8]>,
+) -> Result<BTreeMap<String, GoValue>, String> {
     let existing = existing.and_then(GoValue::parse_f64).and_then(|v| match v {
         GoValue::Object(map) if !map.is_empty() => Some(map),
         _ => None,
@@ -786,8 +820,65 @@ pub fn saved_document(mut record: BTreeMap<String, GoValue>, existing: Option<&[
         let value = record.remove(&key).expect("present");
         record.entry(canonical_key(&key).to_owned()).or_insert(value);
     }
+    if let Some(weight) = record.get("weight") {
+        let json = match weight {
+            GoValue::Number(n) => serde_json::from_str(n).unwrap_or(Value::Null),
+            GoValue::String(s) => Value::String(s.clone()),
+            _ => Value::Null,
+        };
+        cpa_core::config::credentials::parse_weight(&json)
+            .map_err(|e| format!("auth filestore: invalid metadata weight: {e}"))?;
+    }
     record.insert("disabled".into(), GoValue::Bool(disabled));
-    record
+    Ok(record)
+}
+
+/// `xaiMetadataString`: a metadata value as `fmt.Sprint` prints it (JSON numbers are
+/// float64 in Go's decoded auth files), trimmed; missing and null are empty.
+pub(crate) fn metadata_string(credential: &Credential, key: &str) -> String {
+    match credential.metadata.get(key) {
+        None | Some(Value::Null) => String::new(),
+        Some(value) => go_sprint(value).trim().to_owned(),
+    }
+}
+
+/// `fmt.Sprint` of a value decoded by `encoding/json` into `any`.
+fn go_sprint(value: &Value) -> String {
+    match value {
+        Value::Null => "<nil>".into(),
+        Value::Bool(b) => b.to_string(),
+        Value::String(s) => s.clone(),
+        Value::Number(n) => go_float_v(n.as_f64().unwrap_or(f64::NAN)),
+        Value::Array(items) => format!("[{}]", items.iter().map(go_sprint).collect::<Vec<_>>().join(" ")),
+        Value::Object(map) => {
+            let mut keys: Vec<&String> = map.keys().collect();
+            keys.sort();
+            let items: Vec<String> = keys.iter().map(|k| format!("{k}:{}", go_sprint(&map[*k]))).collect();
+            format!("map[{}]", items.join(" "))
+        }
+    }
+}
+
+/// `%v` of a float64: `strconv.FormatFloat(f, 'g', -1, 64)`, the shortest digits in
+/// exponent form when the decimal exponent is below -4 or at least 6.
+fn go_float_v(f: f64) -> String {
+    if f.is_nan() {
+        return "NaN".into();
+    }
+    if f.is_infinite() {
+        return if f > 0.0 { "+Inf".into() } else { "-Inf".into() };
+    }
+    if f == 0.0 {
+        return if f.is_sign_negative() { "-0".into() } else { "0".into() };
+    }
+    let sci = format!("{f:e}");
+    let (mantissa, exp) = sci.split_once('e').expect("exponent form");
+    let exp: i32 = exp.parse().expect("exponent");
+    if !(-4..6).contains(&exp) {
+        let sign = if exp < 0 { '-' } else { '+' };
+        return format!("{mantissa}e{sign}{:02}", exp.abs());
+    }
+    format!("{f}")
 }
 
 /// Metadata change for a successful refresh (`XAIExecutor.Refresh`).
@@ -822,7 +913,7 @@ pub fn refresh_patch(
     if !token_endpoint.is_empty() {
         set("token_endpoint", json!(token_endpoint));
     }
-    if credential.str("base_url").is_none_or(|b| b.trim().is_empty()) {
+    if metadata_string(credential, "base_url").is_empty() {
         set("base_url", json!(DEFAULT_API_BASE_URL));
     }
     set("last_refresh", json!(rfc3339_utc(now)));
@@ -832,7 +923,7 @@ pub fn refresh_patch(
 /// Whether the background loop should refresh: a refresh token and expiry within the
 /// SDK lead (`RefreshSoon`; requests keep the current token).
 pub fn needs_refresh(credential: &Credential) -> bool {
-    credential.str("refresh_token").is_some_and(|t| !t.trim().is_empty())
+    !metadata_string(credential, "refresh_token").is_empty()
         && crate::kimi_http::refresh_due(
             credential,
             Some(chrono::Duration::from_std(REFRESH_LEAD).expect("lead fits")),
@@ -842,11 +933,11 @@ pub fn needs_refresh(credential: &Credential) -> bool {
 
 /// `XAIExecutor.Refresh`: nothing to do without a refresh token.
 pub async fn refresh(auth: &XaiAuth, credential: &Credential) -> Result<MetadataPatch, ExecError> {
-    let refresh_token = credential.str("refresh_token").unwrap_or_default().trim().to_owned();
+    let refresh_token = metadata_string(credential, "refresh_token");
     if refresh_token.is_empty() {
         return Ok(MetadataPatch::default());
     }
-    let token_endpoint = credential.str("token_endpoint").unwrap_or_default().trim().to_owned();
+    let token_endpoint = metadata_string(credential, "token_endpoint");
     let tokens = auth.refresh(&refresh_token, &token_endpoint).await?;
     Ok(refresh_patch(credential, &tokens, &token_endpoint, Utc::now()))
 }
@@ -906,12 +997,12 @@ pub(crate) async fn login_with(auth: XaiAuth, auth_dir: &Path, no_browser: bool)
     let metadata = record.metadata;
     tokio::task::spawn_blocking(move || {
         let existing = std::fs::read(&target).ok().filter(|raw| !raw.is_empty());
-        let document = GoValue::Object(saved_document(metadata, existing.as_deref()));
+        let document = GoValue::Object(saved_document(metadata, existing.as_deref()).map_err(|e| auth_error(500, e))?);
         crate::kimi_auth::write_private(&target, &document.encode_indented())
+            .map_err(|_| auth_error(500, "xai: cannot write credential file"))
     })
     .await
-    .map_err(|_| auth_error(500, "xai: credential publication failed"))?
-    .map_err(|_| auth_error(500, "xai: cannot write credential file"))?;
+    .map_err(|_| auth_error(500, "xai: credential publication failed"))??;
     println!("Authentication saved to {}", path.display());
     println!("Authenticated as {}", record.label);
     println!("xAI authentication successful!");

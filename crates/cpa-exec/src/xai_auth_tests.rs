@@ -344,3 +344,31 @@ async fn slow_down_adds_the_poll_step() {
     assert_eq!(plain.exchange(&endpoint, "d", &mut interval).await.unwrap(), None);
     assert_eq!(interval, Duration::from_millis(5011));
 }
+
+#[test]
+fn metadata_strings_follow_go_fmt_sprint() {
+    for case in fixture()["sprint"].as_array().unwrap() {
+        let (raw, want) = (case[0].as_str().unwrap(), case[1].as_str().unwrap());
+        let mut metadata = Map::new();
+        metadata.insert("type".into(), Value::from("xai"));
+        metadata.insert("k".into(), serde_json::from_str(raw).unwrap());
+        let credential = Credential::from_file(Path::new("/f"), Path::new("/f/x.json"), metadata).unwrap();
+        assert_eq!(metadata_string(&credential, "k"), want, "fmt.Sprint({raw})");
+    }
+}
+
+#[test]
+fn token_expiry_wraps_like_go_durations() {
+    let now = DateTime::from_timestamp(1_000_000_000, 0).unwrap();
+    for case in fixture()["expiry"].as_array().unwrap() {
+        let mut decoded = Decoded::default();
+        decoded.strs.insert("access_token", "a".into());
+        decoded.ints.insert("expires_in", case[0].as_i64().unwrap());
+        assert_eq!(
+            token_data(&decoded, now).expire,
+            case[1].as_str().unwrap(),
+            "expires_in {}",
+            case[0]
+        );
+    }
+}

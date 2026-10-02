@@ -20,6 +20,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	xaiauth "github.com/router-for-me/CLIProxyAPI/v8/internal/auth/xai"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/config"
@@ -61,6 +62,10 @@ type refreshCase struct {
 }
 
 type fixture struct {
+	// Sprint is xaiMetadataString's fmt.Sprint of JSON-decoded metadata values.
+	Sprint [][2]string `json:"sprint"`
+	// Expiry is buildTokenData's expiry for expires_in at Unix 1e9.
+	Expiry    [][2]any      `json:"expiry"`
 	Validate  [][3]any      `json:"validate"`
 	FileNames [][3]string   `json:"file_names"`
 	Login     []loginCase   `json:"login"`
@@ -284,6 +289,34 @@ func loginCases() []loginCase {
 			{"/oauth2/device/code", 200, deviceOK},
 			{"/oauth2/token", 502, `<html>bad gateway</html>`},
 		}},
+		{Name: "jwt_trailing_bits_names_file", Script: []reply{
+			{"/.well-known/openid-configuration", 200, discoveryOK},
+			{"/oauth2/device/code", 200, deviceOK},
+			{"/oauth2/token", 200, `{"access_token":"a","id_token":"a.eyJzdWIiOiJ1In1.sig"}`},
+		}},
+		{Name: "jwt_identity_from_untrimmed_token", Script: []reply{
+			{"/.well-known/openid-configuration", 200, discoveryOK},
+			{"/oauth2/device/code", 200, deviceOK},
+			{"/oauth2/token", 200, `{"access_token":"a","id_token":"a.eyJzdWIiOiJ1In0 "}`},
+		}},
+		{Name: "existing_invalid_weight_blocks_save", ExistingName: "xai-w.json",
+			Existing: `{"type":"xai","weight":1000001}`,
+			Script: []reply{
+				{"/.well-known/openid-configuration", 200, discoveryOK},
+				{"/oauth2/device/code", 200, deviceOK},
+				{"/oauth2/token", 200, `{"access_token":"a","id_token":"` + jwt(`{"sub":"w"}`) + `"}`},
+			}},
+		{Name: "device_expires_in_overflows", Script: []reply{
+			{"/.well-known/openid-configuration", 200, discoveryOK},
+			{"/oauth2/device/code", 200, `{"device_code":"d","user_code":"u","verification_uri":"https://accounts.x.ai/device","expires_in":9223372037}`},
+			{"/oauth2/token", 400, `{"error":"authorization_pending"}`},
+			{"/oauth2/token", 200, `{"access_token":"never"}`},
+		}},
+		{Name: "token_expires_in_overflows", Script: []reply{
+			{"/.well-known/openid-configuration", 200, discoveryOK},
+			{"/oauth2/device/code", 200, deviceOK},
+			{"/oauth2/token", 200, `{"access_token":"a","expires_in":9223372036854775807}`},
+		}},
 		{Name: "device_status_error", Script: []reply{
 			{"/.well-known/openid-configuration", 200, discoveryOK},
 			{"/oauth2/device/code", 429, `{"error":"slow"}`},
@@ -305,6 +338,8 @@ func refreshCases() []refreshCase {
 				{"/oauth2/token", 200, `{"access_token":"at-new","expires_in":60}`},
 			}},
 		{Name: "no_refresh_token", Metadata: map[string]any{"type": "xai", "access_token": "at"}},
+		{Name: "numeric_refresh_token_and_bool_base_url", Metadata: map[string]any{"type": "xai", "refresh_token": float64(100000000), "token_endpoint": "http://UPSTREAM/oauth2/token", "base_url": true},
+			Script: []reply{{"/oauth2/token", 200, `{"access_token":"at-new"}`}}},
 		{Name: "status_error", Metadata: map[string]any{"type": "xai", "refresh_token": "rt-old", "token_endpoint": "http://UPSTREAM/oauth2/token"},
 			Script: []reply{{"/oauth2/token", 401, `{"error":"invalid_grant"}`}}},
 		{Name: "missing_access_token", Metadata: map[string]any{"type": "xai", "refresh_token": "rt-old", "token_endpoint": "http://UPSTREAM/oauth2/token"},
@@ -331,6 +366,7 @@ func main() {
 		"https://[::1/t", "https://foo%e4%be%8b.x.ai/t", "https://auth.x.ai/%e4", "https://auth.x.ai/t?%zz", "https://AUTH.x.AI",
 		"https://auth.x.ai%", "https://auth.x.ai%4", "https://u:p@w@auth.x.ai/t", "https://auth.x.ai /t", "https://x.ai:443",
 		"https://sub.X.Ai./t", "https:/auth.x.ai/t", "https://auth\u00a0.x.ai/t", "https://[::1]:8443/t", "https://[::1]x/t",
+		"postgres://a:1,b:2/t", "postgresql://a:1:2/t", "https://a:1,b:2/t", "https://attacker.example\\[::1%25.x.ai]/oauth2/token",
 	} {
 		value, err := xaiauth.ValidateOAuthEndpoint(raw, "token_endpoint")
 		if err != nil {
@@ -345,6 +381,17 @@ func main() {
 		out.FileNames = append(out.FileNames, [3]string{pair[0], pair[1], xaiauth.CredentialFileName(pair[0], pair[1])})
 	}
 
+	for _, raw := range []string{`"  s  "`, `123`, `100000000`, `1e21`, `1e20`, `123456`, `1234567`, `0.0001`, `0.00001`, `-2.5`, `1.5e300`, `true`, `false`, `[1,"a",null]`, `{"b":1,"a":"x"}`, `0`, `-0`} {
+		var v any
+		if err := json.Unmarshal([]byte(raw), &v); err != nil {
+			panic(err)
+		}
+		out.Sprint = append(out.Sprint, [2]string{raw, strings.TrimSpace(fmt.Sprint(v))})
+	}
+	for _, v := range []int64{3600, 1, 9223372036854775807, 9223372037, 1 << 40} {
+		at := time.Unix(1_000_000_000, 0).Add(time.Duration(v) * time.Second).UTC().Format(time.RFC3339)
+		out.Expiry = append(out.Expiry, [2]any{v, at})
+	}
 	for _, c := range loginCases() {
 		dir, err := os.MkdirTemp("", "xai-login-")
 		if err != nil {
