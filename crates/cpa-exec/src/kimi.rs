@@ -448,11 +448,14 @@ fn translate_lines(upstream: ExecStream, translator: Box<dyn StreamTranslator>) 
                     },
                     end => {
                         st.done = true;
+                        // Go translates a final [DONE] even after a scan error.
                         match st.translator.finish() {
                             Ok(events) => st.ready.extend(events.into_iter().map(Ok)),
                             Err(error) => st.ready.push_back(Err(fail(error))),
                         }
                         if let Some(Err(error)) = end {
+                            // The Responses route flushes pending frames before the error.
+                            st.ready.extend(st.translator.flush_frames().into_iter().map(Ok));
                             st.ready.push_back(Err(error));
                         }
                     }
@@ -464,12 +467,12 @@ fn translate_lines(upstream: ExecStream, translator: Box<dyn StreamTranslator>) 
 }
 
 /// Native Responses streaming: Go writes every scanned line plus `\n` as one chunk and
-/// the Responses route joins chunks into frames (responses_frames), flushing what is
-/// pending at the end and before a terminal error.
+/// the Responses route joins chunks into frames (cpa_translate's ResponsesFramer),
+/// flushing what is pending at the end and before a terminal error.
 fn responses_frames(lines: ExecStream) -> ExecStream {
     struct State {
         lines: ExecStream,
-        joiner: crate::responses_frames::Joiner,
+        joiner: cpa_translate::stream::ResponsesFramer,
         ready: VecDeque<Result<Bytes, ExecError>>,
         done: bool,
     }
