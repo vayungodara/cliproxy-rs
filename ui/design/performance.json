@@ -1,0 +1,12 @@
+{
+  "target": "/management.html",
+  "viewport": { "width": 1440, "height": 1000, "deviceScaleFactor": 2 },
+  "measurement": "Buffered initial-navigation layout-shift entries plus one second observation; excludes recent user input",
+  "cls": 0,
+  "resources": [
+    { "name": "/fonts/public-sans.woff2", "status": 200 },
+    { "name": "/assets/index-CVryLbg7.js", "status": 200 },
+    { "name": "/assets/index-oIVwW5-s.css", "status": 200 },
+    { "name": "/favicon.svg", "status": 200 }
+  ]
+}
