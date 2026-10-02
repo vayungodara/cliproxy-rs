@@ -4,7 +4,8 @@
 //! `countTokens` under `{base}/v1beta/models/{model}`. `gemini-interactions` credentials
 //! send Interactions, OpenAI, Responses, Claude and Gemini clients to
 //! `{base}/v1beta/interactions`; any other client format takes the generateContent path.
-//! Both authenticate with `x-goog-api-key` and add the credential's custom headers.
+//! Both authenticate with `x-goog-api-key` and add the credential's custom headers
+//! (`cpa_common::headers`); config payload rules apply through `cpa_common::payload`.
 //!
 //! Stream items are the bytes the client's Go route handler writes: Gemini clients get
 //! `data: <chunk>\n\n`, or the bare chunk when the request named an `alt`; Interactions
@@ -213,25 +214,36 @@ fn apply_thinking(
     .map_err(|e| ExecError::local(e.status(), FailureScope::Request, e.message))
 }
 
-// ponytail: adapter for cpa_common::payload (owner: server thread; Go
-// helps.ApplyPayloadConfigWithRequest with the translated baseline, requested model,
-// request path and client headers). Identity until payload rules land.
+/// `helps.ApplyPayloadConfigWithRequest`: config payload rules on the final body, with
+/// the translated original request as the baseline for `default` rules.
 fn apply_payload_rules(
-    _cfg: &Config,
-    _model: &str,
-    _protocol: &str,
-    _from: Format,
+    rules: &cpa_common::payload::Rules,
+    model: &str,
+    protocol: &str,
     body: Vec<u8>,
-    _original_translated: &[u8],
-    _req: &ExecRequest,
+    original_translated: &[u8],
+    req: &ExecRequest,
 ) -> Vec<u8> {
-    body
-}
-
-// ponytail: adapter for cpa_common::headers (owner: server thread), interim
-// kimi_http::custom_headers (Go util.ApplyCustomHeadersFromAttrs; Header.Set each).
-fn custom_headers(credential: &Credential, req: &ExecRequest) -> Vec<(String, String)> {
-    crate::kimi_http::custom_headers(credential, &req.headers, req.session.as_deref())
+    let requested = match req.requested_model.trim() {
+        "" => req.model.trim(),
+        requested => requested,
+    };
+    cpa_common::payload::apply(
+        rules,
+        &cpa_common::payload::Request {
+            target_executor: "",
+            model,
+            requested_model: requested,
+            protocol,
+            from_protocol: req.source_format.as_str(),
+            root: "",
+            original: original_translated,
+            // Gemini routes are never the Images API, the only path payload rules read.
+            request_path: "",
+            headers: Some(&req.headers),
+        },
+        body,
+    )
 }
 
 /// Content-Type, the API key and the credential's custom headers (`applyGeminiHeaders`).
@@ -242,7 +254,9 @@ fn request_headers(credential: &Credential, req: &ExecRequest) -> GoHeaders {
     if !key.is_empty() {
         headers.set("x-goog-api-key", key);
     }
-    for (name, value) in custom_headers(credential, req) {
+    let session =
+        cpa_common::session::cpa_session_id(&req.headers, original_request(req), req.execution_session.as_deref());
+    for (name, value) in cpa_common::headers::custom_headers(&credential.attributes, &req.headers, session.as_deref()) {
         headers.set(&name, value);
     }
     headers
@@ -355,7 +369,8 @@ impl GeminiExecutor {
         let (original_translated, body) = translate_pair(req, to, &base_model, compat)?;
         let mut body = apply_thinking(req, body, from, to, &credential.provider, resolved.as_ref())?;
         body = payload::fix_image_aspect_ratio(&base_model, body);
-        body = apply_payload_rules(cfg, &base_model, to.as_str(), from, body, &original_translated, req);
+        let rules = cpa_common::payload::Rules::from_config(cfg);
+        body = apply_payload_rules(&rules, &base_model, to.as_str(), body, &original_translated, req);
         body = payload::set_str_if_different(body, "model", &base_model);
         body = payload::cap_max_output_tokens(body, &base_model);
         body = cpa_common::signature::sanitize_gemini_request_thought_signatures(&body, "contents");
@@ -420,7 +435,8 @@ impl GeminiExecutor {
         }
         // applyGeminiInteractionsThinking: the Gemini applier family for the target.
         body = apply_thinking(req, body, from, to, "gemini", resolved.as_ref())?;
-        body = apply_payload_rules(cfg, &target, "interactions", from, body, &original_translated, req);
+        let rules = cpa_common::payload::Rules::from_config(cfg);
+        body = apply_payload_rules(&rules, &target, "interactions", body, &original_translated, req);
         body = payload::sanitize_interactions_input_ids(body);
         if req.stream {
             body = payload::set_bool_if_different(body, "stream", true);

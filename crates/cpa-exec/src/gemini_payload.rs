@@ -14,6 +14,7 @@ use cpa_common::thinking::{ModelCaps, parse_suffix};
 use cpa_core::config::Config;
 use cpa_core::credential::Credential;
 use cpa_core::registry::ThinkingSupport;
+use cpa_core::registry::dynamic;
 use serde_yaml_ng::Value as Yaml;
 
 const EMPTY_USER_TURN: &[u8] = br#"{"role":"user","parts":[{"text":""}]}"#;
@@ -237,20 +238,15 @@ pub(crate) struct Resolved {
     pub is_compat: bool,
 }
 
-/// One `models[]` entry of a config API key.
-struct ConfiguredModel {
-    name: String,
-    alias: String,
-    is_compat: bool,
-    thinking: Option<ThinkingSupport>,
-}
-
 /// `attachResolvedAPIKeyModelInfo` for Gemini-family API keys: `family` is the config
 /// section under `api-keys` (`gemini`, `interactions`) and `model_type` Go's model type.
 // ponytail: Go binds this in the conductor for every API-key provider. The runtime does
 // not yet carry it on ExecRequest (owner: server thread), so the Gemini executors resolve
 // it here from the config document. Entries are matched like resolveAPIKeyConfig minus
-// its config_index shortcut, which only differs for duplicate keys whose headers differ.
+// its config_index shortcut: Go's sanitized list is not exposed, so entries that differ
+// only by header maps or by letter case of key, base URL, proxy or prefix (Go dedupes
+// case-sensitively, the fallback matches case-insensitively) bind the first entry's
+// models. Exact once cpa_core exposes the sanitized, index-aligned key entries.
 pub(crate) fn resolved_model(
     credential: &Credential,
     cfg: &Config,
@@ -259,19 +255,10 @@ pub(crate) fn resolved_model(
     route_model: &str,
     upstream_model: &str,
 ) -> Option<Resolved> {
-    let attr = |k: &str| credential.attributes.get(k).map(|v| v.trim()).unwrap_or_default();
-    // Auth.AuthKind: the attribute, then the metadata field, then an API key attribute.
-    let kind = |k: &str| match k.trim().go_lower().as_str() {
-        "apikey" | "api_key" | "api-key" => Some(true),
-        "oauth" | "oauth2" => Some(false),
-        _ => None,
-    };
-    let api_key_kind = kind(attr("auth_kind"))
-        .or_else(|| credential.str("auth_kind").and_then(kind))
-        .unwrap_or(!attr("api_key").is_empty());
-    if !api_key_kind {
+    if !dynamic::is_api_key(credential) {
         return None;
     }
+    let attr = |k: &str| credential.attributes.get(k).map(|v| v.trim()).unwrap_or_default();
     let entries = config_entries(cfg, family);
     let (key, base) = (attr("api_key"), attr("base_url"));
     let matches = |e: &Yaml| {
@@ -284,7 +271,7 @@ pub(crate) fn resolved_model(
         }
         !base.is_empty() && b.go_eq_fold(base)
     };
-    let (prefix, proxy) = (attr("prefix"), attr("proxy_url"));
+    let (prefix, proxy) = (dynamic::credential_prefix(credential), attr("proxy_url"));
     let entry = entries
         .iter()
         .find(|e| {
@@ -303,19 +290,35 @@ pub(crate) fn resolved_model(
         .and_then(Yaml::as_sequence)
         .into_iter()
         .flatten()
-        .map(|m| ConfiguredModel {
-            name: yaml_text(m, "name"),
-            alias: yaml_text(m, "alias"),
-            is_compat: m.get("is-compat").and_then(Yaml::as_bool).unwrap_or(false),
-            thinking: m.get("thinking").filter(|t| !t.is_null()).map(thinking_support),
+        .filter_map(|m| serde_yaml_ng::from_value::<dynamic::ConfigModel>(m.clone()).ok())
+        .filter_map(|m| {
+            // addConfiguredModelCapability: a missing name is the alias and vice versa,
+            // before routes and capabilities are built.
+            let (name, alias) = (m.name.trim().to_owned(), m.alias.trim().to_owned());
+            let name = if name.is_empty() { alias.clone() } else { name };
+            let alias = if alias.is_empty() { name.clone() } else { alias };
+            (!name.is_empty()).then_some(ConfiguredModel {
+                name,
+                alias,
+                is_compat: m.is_compat,
+                thinking: m.thinking,
+            })
         })
         .collect();
-    let route_model = rewrite_model_for_auth(route_model, prefix);
-    let model = lookup_route(&models, &route_model, upstream_model)?;
+    let route_model = dynamic::strip_prefix(route_model.trim(), credential);
+    let model = lookup_route(&models, route_model, upstream_model)?;
     Some(Resolved {
-        caps: resolve_model_info(&model.name, model_type, model.thinking.as_ref()),
+        caps: resolve_model_info(&model.name, model_type, model.thinking.clone()),
         is_compat: model.is_compat,
     })
+}
+
+/// One `models[]` entry of a config API key, name and alias filled from each other.
+struct ConfiguredModel {
+    name: String,
+    alias: String,
+    is_compat: bool,
+    thinking: Option<ThinkingSupport>,
 }
 
 /// `lookupAPIKeyModelCapability` over `addConfiguredModelCapability` routes: the route
@@ -338,18 +341,9 @@ fn lookup_route<'a>(models: &'a [ConfiguredModel], route_model: &str, upstream: 
     // Route keys per model, in Go's insertion order (alias first, then name).
     let mut routes: Vec<(String, usize, String)> = Vec::new();
     for (index, m) in models.iter().enumerate() {
-        let (mut name, mut alias) = (m.name.trim().to_owned(), m.alias.trim().to_owned());
-        if name.is_empty() {
-            name.clone_from(&alias);
-        }
-        if alias.is_empty() {
-            alias.clone_from(&name);
-        }
-        if name.is_empty() {
-            continue;
-        }
+        let name = &m.name;
         let mut seen: Vec<String> = Vec::new();
-        for route in [&alias, &name] {
+        for route in [&m.alias, name] {
             for candidate in candidates(route) {
                 let key = candidate.trim().go_lower();
                 if key.is_empty() || seen.contains(&key) {
@@ -358,7 +352,7 @@ fn lookup_route<'a>(models: &'a [ConfiguredModel], route_model: &str, upstream: 
                 seen.push(key.clone());
                 let duplicate = routes
                     .iter()
-                    .any(|(k, _, upstream)| *k == key && upstream.go_eq_fold(&name));
+                    .any(|(k, _, upstream)| *k == key && upstream.go_eq_fold(name));
                 if !duplicate {
                     routes.push((key, index, name.clone()));
                 }
@@ -389,24 +383,10 @@ fn lookup_route<'a>(models: &'a [ConfiguredModel], route_model: &str, upstream: 
         .and_then(|(index, _)| models.get(*index))
 }
 
-/// `rewriteModelForAuth`: the credential's `prefix/` namespace is not part of the route.
-fn rewrite_model_for_auth(model: &str, prefix: &str) -> String {
-    let model = model.trim();
-    let prefix = prefix.trim();
-    if prefix.is_empty() {
-        return model.to_owned();
-    }
-    model
-        .strip_prefix(prefix)
-        .and_then(|rest| rest.strip_prefix('/'))
-        .unwrap_or(model)
-        .to_owned()
-}
-
 /// `modelconfig.ResolveModelInfo`: the static definition of the configured name's base,
 /// with the configured name as ID, the provider's model type, configured thinking when
 /// set (normalized), and never user-defined.
-fn resolve_model_info(name: &str, model_type: &str, thinking: Option<&ThinkingSupport>) -> ModelCaps {
+fn resolve_model_info(name: &str, model_type: &str, thinking: Option<ThinkingSupport>) -> ModelCaps {
     let name = name.trim();
     let base = parse_suffix(name).model_name;
     let mut caps = cpa_core::registry::pinned()
@@ -416,51 +396,10 @@ fn resolve_model_info(name: &str, model_type: &str, thinking: Option<&ThinkingSu
     caps.id = name.to_owned();
     caps.kind = model_type.trim().to_owned();
     if let Some(support) = thinking {
-        caps.thinking = Some(normalize_thinking(support));
+        caps.thinking = Some(dynamic::normalize_thinking(support));
     }
     caps.user_defined = false;
     caps
-}
-
-/// `modelconfig.NormalizeThinkingSupport`.
-fn normalize_thinking(raw: &ThinkingSupport) -> ThinkingSupport {
-    let mut out = ThinkingSupport {
-        levels: Vec::new(),
-        ..raw.clone()
-    };
-    for level in &raw.levels {
-        let level = level.trim().go_lower();
-        if level.is_empty() {
-            continue;
-        }
-        match level.as_str() {
-            "none" => out.zero_allowed = true,
-            "auto" => out.dynamic_allowed = true,
-            _ => {}
-        }
-        if !out.levels.contains(&level) {
-            out.levels.push(level);
-        }
-    }
-    out
-}
-
-fn thinking_support(value: &Yaml) -> ThinkingSupport {
-    let int = |k: &str| value.get(k).and_then(Yaml::as_i64).unwrap_or(0);
-    let flag = |k: &str| value.get(k).and_then(Yaml::as_bool).unwrap_or(false);
-    ThinkingSupport {
-        min: int("min"),
-        max: int("max"),
-        zero_allowed: flag("zero-allowed"),
-        dynamic_allowed: flag("dynamic-allowed"),
-        levels: value
-            .get("levels")
-            .and_then(Yaml::as_sequence)
-            .into_iter()
-            .flatten()
-            .filter_map(|l| l.as_str().map(str::to_owned))
-            .collect(),
-    }
 }
 
 fn yaml_text(value: &Yaml, key: &str) -> String {

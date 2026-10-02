@@ -293,6 +293,7 @@ mod readiness_tests {
             claude: claude::ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
             codex: Default::default(),
             openai: Default::default(),
+            google: Default::default(),
             devices: Default::default(),
         };
         let has = |m: serde_json::Value| executors.has_refresh_credential(&credential(m));

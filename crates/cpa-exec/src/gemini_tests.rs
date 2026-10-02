@@ -164,7 +164,10 @@ fn request(s: &Value) -> ExecRequest {
     }
 }
 
-/// The bytes Go's route handler writes for the executor's stream chunks.
+/// The bytes Go's route handler writes for the executor's stream chunks, written out
+/// from the handlers rather than taken from the Rust framer. Empty chunks never reach a
+/// handler (handlers_stream.go). The Responses route's terminal tracking and the Gemini
+/// route's keep-alives belong to the server, so this stops at each chunk's framing.
 fn client_bytes(client: Format, alt: bool, chunks: &[Value]) -> Vec<u8> {
     let mut out = Vec::new();
     for chunk in chunks {
@@ -173,14 +176,34 @@ fn client_bytes(client: Format, alt: bool, chunks: &[Value]) -> Vec<u8> {
             continue;
         }
         match client {
+            // gemini_handlers.go: `data: ` + chunk + `\n\n`, or the chunk with an alt.
             Format::Gemini if alt => out.extend_from_slice(chunk),
+            // openai_handlers.go: fmt.Fprintf("data: %s\n\n").
+            Format::Gemini | Format::OpenAI => {
+                out.extend_from_slice(b"data: ");
+                out.extend_from_slice(chunk);
+                out.extend_from_slice(b"\n\n");
+            }
+            // interactions_handlers.go WriteChunk.
+            Format::Interactions => {
+                let trimmed = cpa_common::gostr::trim_space(chunk);
+                if !(trimmed.starts_with(b"event:") || trimmed.starts_with(b"data:")) {
+                    out.extend_from_slice(b"data: ");
+                }
+                out.extend_from_slice(chunk);
+                if !chunk.ends_with(b"\n\n") {
+                    out.extend_from_slice(b"\n\n");
+                }
+            }
+            // responsesSSEFramer for complete events: the event and its blank line.
             Format::OpenAIResponse => {
                 out.extend_from_slice(chunk);
                 if !chunk.ends_with(b"\n\n") {
                     out.extend_from_slice(b"\n\n");
                 }
             }
-            _ => out.extend(cpa_translate::stream::frame(client, chunk).unwrap_or_default()),
+            // code_handlers.go: the chunk as is.
+            _ => out.extend_from_slice(chunk),
         }
     }
     out
@@ -428,4 +451,86 @@ fn white_images_are_go_pngs() {
         assert_eq!(u32::from_be_bytes(png[16..20].try_into().unwrap()), w, "{ratio}");
         assert_eq!(u32::from_be_bytes(png[20..24].try_into().unwrap()), h, "{ratio}");
     }
+}
+
+/// Go schedules one unconditional delete ten minutes after every remember and never
+/// cancels it (rememberStopWithoutUsage), so the first timer wins and an old timer can
+/// delete a re-remembered trace.
+#[test]
+fn stop_memory_follows_go_timers() {
+    use std::time::{Duration, Instant};
+    let t0 = Instant::now();
+    let at0 = |secs: f64| t0 + Duration::from_secs_f64(secs);
+    let filter = |line: &str, now| String::from_utf8(sse::filter_sse_usage_metadata_at(line.as_bytes(), now)).unwrap();
+    let stop = |t: &str| format!(r#"data: {{"traceId":"{t}","candidates":[{{"finishReason":"STOP"}}]}}"#);
+    let usage = |t: &str| format!(r#"data: {{"traceId":"{t}","usageMetadata":{{"n":1}}}}"#);
+    let renamed = |t: &str| format!(r#"data: {{"traceId":"{t}","cpaUsageMetadata":{{"n":1}}}}"#);
+
+    // A second remember does not extend the first one's lifetime.
+    filter(&stop("clock-a"), at0(0.0));
+    filter(&stop("clock-a"), at0(599.0));
+    assert_eq!(filter(&usage("clock-a"), at0(600.5)), renamed("clock-a"));
+
+    // Within the window the usage chunk keeps its usage and consumes the entry.
+    filter(&stop("clock-b"), at0(0.0));
+    assert_eq!(filter(&usage("clock-b"), at0(100.0)), usage("clock-b"));
+    assert_eq!(filter(&usage("clock-b"), at0(101.0)), renamed("clock-b"));
+    // Re-remembered after consumption: the first timer still deletes it at 600s.
+    filter(&stop("clock-b"), at0(200.0));
+    assert_eq!(filter(&usage("clock-b"), at0(601.0)), renamed("clock-b"));
+
+    // Without an older timer the same timeline keeps the usage.
+    filter(&stop("clock-c"), at0(200.0));
+    assert_eq!(filter(&usage("clock-c"), at0(601.0)), usage("clock-c"));
+}
+
+/// A configured model without `name` routes and resolves as its alias (Go normalizes
+/// both before building the capability).
+#[test]
+fn alias_only_model_resolves_static_capabilities() {
+    let cfg = Config::parse(
+        "api-keys:\n  gemini:\n    - base-url: http://example.invalid\n      models:\n        - alias: gemini-2.5-flash\n      keys:\n        - api-key: AIza-fake\n",
+    )
+    .unwrap();
+    let cred = cpa_core::config::credentials::from_config(&cfg)
+        .into_iter()
+        .find(|c| c.provider == "gemini")
+        .unwrap();
+    let resolved = payload::resolved_model(
+        &cred,
+        &cfg,
+        "gemini",
+        "gemini",
+        "gemini-2.5-flash(1024)",
+        "gemini-2.5-flash(1024)",
+    )
+    .unwrap();
+    assert_eq!(resolved.caps.id, "gemini-2.5-flash");
+    let thinking = resolved.caps.thinking.unwrap();
+    assert_eq!((thinking.max, thinking.zero_allowed), (24576, true));
+}
+
+/// Configured budget thinking uses Go's YAML spellings (`zero-allowed`,
+/// `dynamic-allowed`); both must reach the bound capabilities.
+#[test]
+fn configured_budget_thinking_keeps_yaml_flags() {
+    let cfg = Config::parse(
+        "api-keys:\n  gemini:\n    - base-url: http://example.invalid\n      models:\n        - name: gemini-2.5-pro\n          alias: budget\n          thinking:\n            min: 64\n            max: 2048\n            zero-allowed: true\n            dynamic-allowed: true\n      keys:\n        - api-key: AIza-fake\n",
+    )
+    .unwrap();
+    let cred = cpa_core::config::credentials::from_config(&cfg)
+        .into_iter()
+        .find(|c| c.provider == "gemini")
+        .unwrap();
+    let resolved = payload::resolved_model(&cred, &cfg, "gemini", "gemini", "budget", "gemini-2.5-pro").unwrap();
+    let thinking = resolved.caps.thinking.unwrap();
+    assert_eq!(
+        (
+            thinking.min,
+            thinking.max,
+            thinking.zero_allowed,
+            thinking.dynamic_allowed
+        ),
+        (64, 2048, true, true)
+    );
 }

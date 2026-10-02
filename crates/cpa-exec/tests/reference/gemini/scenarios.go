@@ -3,6 +3,31 @@ package main
 import "strings"
 
 const baseConfig = `
+requests:
+  payload:
+    default:
+      - models:
+          - name: gemini-2.5-flash-lite
+            protocol: gemini
+        params:
+          generationConfig.temperature: 0.25
+          generationConfig.topP: 0.5
+    override:
+      - models:
+          - name: gemini-2.5-flash-lite
+            from-protocol: gemini
+        params:
+          generationConfig.topK: 3
+      - models:
+          - name: gemini-3.1-pro-preview
+            protocol: interactions
+        params:
+          generation_config.seed: 7
+    filter:
+      - models:
+          - name: gemini-2.5-flash-lite
+        params:
+          - generationConfig.stopSequences
 api-keys:
   gemini:
     - name: g1
@@ -27,6 +52,19 @@ api-keys:
       base-url: http://UPSTREAM///
       keys:
         - api-key: AIza-fake-gemini-2
+    - name: g3
+      base-url: http://UPSTREAM
+      prefix: team
+      headers:
+        X-Session: "sess-$CPA-SESSION-ID"
+      models:
+        - name: gemini-2.5-pro
+          alias: pro-team
+          thinking:
+            levels: [low]
+        - alias: gemini-2.5-flash
+      keys:
+        - api-key: AIza-fake-gemini-3
   interactions:
     - name: i1
       base-url: http://UPSTREAM
@@ -56,10 +94,10 @@ func gem(model, contents, extra string) string {
 	return `{"model":"` + model + `","contents":` + contents + `,"safetySettings":` + safety + extra + `}`
 }
 
-var jsonOK = &upstream{Status: 200, Headers: [][2]string{{"Content-Type", "application/json; charset=UTF-8"}, {"X-Upstream", "1"}}, Body: `{"candidates":[{"content":{"role":"model","parts":[{"text":"ok"}]},"finishReason":"STOP","index":0}],"usageMetadata":{"promptTokenCount":3,"candidatesTokenCount":1,"totalTokenCount":4},"modelVersion":"gemini-2.5-flash","responseId":"r1"}`}
+var jsonOK = &upstream{Status: 200, Headers: [][2]string{{"Content-Type", "application/json; charset=UTF-8"}, {"X-Upstream", "1"}}, Body: `{"candidates":[{"content":{"role":"model","parts":[{"text":"ok"}]},"finishReason":"STOP","index":0}],"usageMetadata":{"promptTokenCount":3,"candidatesTokenCount":1,"totalTokenCount":4},"modelVersion":"gemini-2.5-flash","createTime":"2026-10-01T12:00:00.123456Z","responseId":"r1"}`}
 
-const sseChunk1 = `{"candidates":[{"content":{"role":"model","parts":[{"text":"he"}]},"index":0}],"usageMetadata":{"promptTokenCount":3,"totalTokenCount":3},"modelVersion":"gemini-2.5-flash","responseId":"r1"}`
-const sseChunk2 = `{"candidates":[{"content":{"role":"model","parts":[{"text":"llo"}]},"finishReason":"STOP","index":0}],"usageMetadata":{"promptTokenCount":3,"candidatesTokenCount":2,"totalTokenCount":5},"modelVersion":"gemini-2.5-flash","responseId":"r1"}`
+const sseChunk1 = `{"candidates":[{"content":{"role":"model","parts":[{"text":"he"}]},"index":0}],"usageMetadata":{"promptTokenCount":3,"totalTokenCount":3},"modelVersion":"gemini-2.5-flash","createTime":"2026-10-01T12:00:00.123456Z","responseId":"r1"}`
+const sseChunk2 = `{"candidates":[{"content":{"role":"model","parts":[{"text":"llo"}]},"finishReason":"STOP","index":0}],"usageMetadata":{"promptTokenCount":3,"candidatesTokenCount":2,"totalTokenCount":5},"modelVersion":"gemini-2.5-flash","createTime":"2026-10-01T12:00:00.123456Z","responseId":"r1"}`
 
 func sse(body string) *upstream {
 	return &upstream{Status: 200, Headers: [][2]string{{"Content-Type", "text/event-stream"}}, Body: body}
@@ -133,6 +171,19 @@ func scenarios() []scenario {
 		with(g("gen_base_url_trailing_slashes", "execute", "gemini-2.5-flash", "", gem("gemini-2.5-flash", userHi, ""), jsonOK), func(s *scenario) { s.ConfigAuth = 1 }),
 		{Name: "gen_attributes_without_key", Provider: "gemini", ConfigAuth: -1, Attributes: map[string]string{"base_url": " http://UPSTREAM/v-custom/ ", "header:X-Attr": "attr-value"}, Model: "gemini-2.5-flash", Payload: gem("gemini-2.5-flash", userHi, ""), Source: "gemini", Op: "execute", Upstream: jsonOK},
 		g("gen_original_differs", "execute", "gemini-2.5-flash", "", gem("gemini-2.5-flash", userHi, ""), jsonOK),
+		// Payload rules: default (only missing, judged on the translated original),
+		// override and filter for the upstream model and protocol.
+		g("gen_payload_rules", "execute", "gemini-2.5-flash-lite", "", gem("gemini-2.5-flash-lite", userHi, `,"generationConfig":{"topP":0.9,"stopSequences":["x"],"topK":40}`), jsonOK),
+		g("stream_payload_rules", "stream", "gemini-2.5-flash-lite", "", gem("gemini-2.5-flash-lite", userHi, ""), geminiSSE),
+		g("count_payload_rules_not_applied", "count", "gemini-2.5-flash-lite", "", gem("gemini-2.5-flash-lite", userHi, `,"generationConfig":{"stopSequences":["x"]}`), &upstream{Status: 200, Body: countReply}),
+		// Prefixed credential: the route model loses the prefix before capability lookup;
+		// configured levels reject what the static model would accept; an alias-only model
+		// keeps the static capabilities; $CPA-SESSION-ID expands to the explicit session.
+		with(g("gen_prefixed_configured_levels", "execute", "gemini-2.5-pro(medium)", "team/pro-team(medium)", gem("gemini-2.5-pro", userHi, ""), jsonOK), func(s *scenario) { s.ConfigAuth = 2 }),
+		with(g("gen_prefixed_alias_only_model", "execute", "gemini-2.5-flash(1024)", "team/gemini-2.5-flash(1024)", gem("gemini-2.5-flash", userHi, ""), jsonOK), func(s *scenario) {
+			s.ConfigAuth = 2
+			s.Headers = map[string]string{"X-Session-Id": "client-session-1"}
+		}),
 
 		// streamGenerateContent: alt=sse, usage stripped from non-terminal chunks,
 		// comments, event lines and [DONE] skipped.
@@ -183,6 +234,9 @@ func scenarios() []scenario {
 		i("int_stream_ids", "stream", "gemini-3-pro-preview", interactionsInput, interactionsSSE),
 		i("int_stream_error", "stream", "gemini-3-pro-preview", `{"model":"gemini-3-pro-preview","input":"hi"}`, &upstream{Status: 503, Headers: [][2]string{{"Content-Encoding", "gzip"}}, Body: `{"error":{"code":503,"message":"overloaded"}}`, Gzip: true}),
 		with(i("int_compact_alt_rejected", "execute", "gemini-3-pro-preview", `{"model":"gemini-3-pro-preview","input":"hi"}`, nil), func(s *scenario) { s.Alt = "responses/compact" }),
+		i("int_payload_rules", "execute", "gemini-3.1-pro-preview", `{"model":"gemini-3.1-pro-preview","input":"hi","generation_config":{"seed":1}}`, &upstream{Status: 200, Body: interactionsOK}),
+		// countTokens always targets generateContent, even on an Interactions key.
+		i("int_count_uses_count_tokens", "count", "gemini-3-pro-preview", gem("gemini-3-pro-preview", userHi, ""), &upstream{Status: 200, Body: countReply}),
 		with(i("int_stream_alt_ignored", "stream", "gemini-3-pro-preview", `{"model":"gemini-3-pro-preview","input":"hi"}`, interactionsSSE), func(s *scenario) { s.Alt = "json" }),
 
 		// Native Interactions for translated clients (need their translator pairs).

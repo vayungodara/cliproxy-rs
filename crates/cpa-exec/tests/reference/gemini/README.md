@@ -5,12 +5,18 @@
 every scenario the generator parses the scenario config with `config.ParseConfigBytes`,
 synthesizes credentials with the real config synthesizer (or uses explicit attributes),
 binds the model info the conductor would bind for configured models
-(`cliproxy.resolved_api_key_model_info`), and runs `Execute`, `ExecuteStream` or
+(`cliproxy.resolved_api_key_model_info`, after `rewriteModelForAuth` strips the
+credential prefix), enriches the context with the request's explicit session the way the
+route handler does (`handlers.EnrichContextWithSessionHierarchy`, read by
+`$CPA-SESSION-ID`), and runs `Execute`, `ExecuteStream` or
 `CountTokens` against a one-shot raw TCP capture server. It records the exact upstream
 request text and what the executor returned: the payload, the stream chunks, or the
 status and message of the error. Nothing contacts Google; every key is fake.
 
-Normalization is limited to the capture server address (`UPSTREAM`).
+Normalization is limited to the capture server address (`UPSTREAM`). Gemini answers carry
+a fixed `createTime` so translators that would otherwise read the clock stay
+deterministic. The scenario config includes `requests.payload` rules for two models, so
+payload-rule scenarios exercise `cpa_common::payload` through the executor.
 
 `needs` lists the translator registrations a scenario depends on whose Go result is not
 the identity: `pair:<client>-><upstream>` for a request or response translation, and

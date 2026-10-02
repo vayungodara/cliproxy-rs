@@ -12,42 +12,64 @@ use cpa_common::gostr::trim_space;
 use cpa_common::json::{self as gj, Kind};
 use cpa_core::format::Format;
 
-/// How long a stop chunk without usage is remembered per trace ID (Go `time.AfterFunc`).
+/// How long after each remember Go deletes a trace ID (`time.AfterFunc(10*time.Minute)`).
 const STOP_MEMORY: Duration = Duration::from_secs(600);
 
-/// Go's process-wide `stopChunkWithoutUsage` map: trace IDs whose stop chunk arrived
-/// without usage, so the usage chunk that follows keeps its `usageMetadata`.
-fn stop_without_usage() -> &'static Mutex<HashMap<Vec<u8>, Instant>> {
-    static MAP: OnceLock<Mutex<HashMap<Vec<u8>, Instant>>> = OnceLock::new();
-    MAP.get_or_init(Mutex::default)
+/// One trace ID of Go's process-wide `stopChunkWithoutUsage` map. Every remember
+/// schedules its own unconditional delete, and consuming the entry cancels none of them,
+/// so an older timer can delete a newer entry.
+#[derive(Default)]
+struct Trace {
+    present: bool,
+    deletes: Vec<Instant>,
 }
 
-fn remember_stop(trace: &[u8]) {
-    let mut map = stop_without_usage()
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner);
-    let now = Instant::now();
-    map.retain(|_, at| now.duration_since(*at) < STOP_MEMORY);
-    map.insert(trace.to_vec(), now);
-}
-
-/// Removes `trace` when it is remembered and not expired.
-fn forget_stop(trace: &[u8]) -> bool {
-    let mut map = stop_without_usage()
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner);
-    match map.remove(trace) {
-        Some(at) => Instant::now().duration_since(at) < STOP_MEMORY,
-        None => false,
+impl Trace {
+    /// Runs the deletes due at `now`.
+    fn expire(&mut self, now: Instant) {
+        let before = self.deletes.len();
+        self.deletes.retain(|at| *at > now);
+        if self.deletes.len() != before {
+            self.present = false;
+        }
     }
 }
 
-fn is_remembered(trace: &[u8]) -> bool {
-    let map = stop_without_usage()
+/// Trace IDs whose stop chunk arrived without usage, so the usage chunk that follows
+/// keeps its `usageMetadata`.
+fn stop_without_usage() -> std::sync::MutexGuard<'static, HashMap<Vec<u8>, Trace>> {
+    static MAP: OnceLock<Mutex<HashMap<Vec<u8>, Trace>>> = OnceLock::new();
+    MAP.get_or_init(Mutex::default)
         .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner);
-    map.get(trace)
-        .is_some_and(|at| Instant::now().duration_since(*at) < STOP_MEMORY)
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
+/// `rememberStopWithoutUsage`.
+fn remember_stop(trace: &[u8], now: Instant) {
+    let mut map = stop_without_usage();
+    // Timers with nothing left to delete are dropped here, keeping the map bounded by
+    // the traces seen in the last ten minutes.
+    map.retain(|_, t| {
+        t.expire(now);
+        !t.deletes.is_empty()
+    });
+    let entry = map.entry(trace.to_vec()).or_default();
+    entry.present = true;
+    entry.deletes.push(now + STOP_MEMORY);
+}
+
+/// `stopChunkWithoutUsage.Load`, deleting the entry when `consume` is set.
+fn take_stop(trace: &[u8], now: Instant, consume: bool) -> bool {
+    let mut map = stop_without_usage();
+    let Some(entry) = map.get_mut(trace) else {
+        return false;
+    };
+    entry.expire(now);
+    let present = entry.present;
+    if consume {
+        entry.present = false;
+    }
+    present
 }
 
 fn finish_reason(json: &[u8]) -> gj::Res<'_> {
@@ -108,6 +130,10 @@ pub(crate) fn strip_usage_metadata(raw: &[u8]) -> Option<Vec<u8>> {
 
 /// `helps.FilterSSEUsageMetadata` over one scanned line (or a multi-line payload).
 pub(crate) fn filter_sse_usage_metadata(payload: &[u8]) -> Vec<u8> {
+    filter_sse_usage_metadata_at(payload, Instant::now())
+}
+
+pub(crate) fn filter_sse_usage_metadata_at(payload: &[u8], now: Instant) -> Vec<u8> {
     if payload.is_empty() {
         return Vec::new();
     }
@@ -126,11 +152,11 @@ pub(crate) fn filter_sse_usage_metadata(payload: &[u8]) -> Vec<u8> {
         let raw = trim_space(&line[data_index + 5..]).to_vec();
         let trace = gj::get(&raw, "traceId").bytes().into_owned();
         if is_stop_without_usage(&raw) && !trace.is_empty() {
-            remember_stop(&trace);
+            remember_stop(&trace, now);
             continue;
         }
-        if !trace.is_empty() && is_remembered(&trace) && has_usage(&raw) {
-            forget_stop(&trace);
+        if !trace.is_empty() && take_stop(&trace, now, false) && has_usage(&raw) {
+            take_stop(&trace, now, true);
             continue;
         }
         let Some(cleaned) = strip_usage_metadata(&raw) else {

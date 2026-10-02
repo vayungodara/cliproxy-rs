@@ -27,6 +27,7 @@ import (
 	// Production registers every translator through this package (cmd/server/main.go).
 	_ "github.com/router-for-me/CLIProxyAPI/v8/internal/translator"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/watcher/synthesizer"
+	"github.com/router-for-me/CLIProxyAPI/v8/sdk/api/handlers"
 	cliproxyauth "github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/auth"
 	cliproxyexecutor "github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/executor"
 	sdktranslator "github.com/router-for-me/CLIProxyAPI/v8/sdk/translator"
@@ -363,12 +364,16 @@ func run(s *scenario) {
 			models = cfg.InteractionsKey[index].Models
 			modelType = "interactions"
 		}
+		// rewriteModelForAuth: the credential's prefix is not part of the route.
+		if prefix := strings.TrimSpace(auth.Prefix); prefix != "" {
+			requested = strings.TrimPrefix(strings.TrimSpace(requested), prefix+"/")
+		}
 		if info := resolvedModelInfo(models, modelType, requested, s.Model); info != nil {
 			req.Metadata["cliproxy.resolved_api_key_model_info"] = info
 		}
 	}
 	upstreamFormat := "gemini"
-	if s.Provider == "gemini-interactions" && nativeInteractionsSource(s.Source) {
+	if s.Provider == "gemini-interactions" && nativeInteractionsSource(s.Source) && s.Op != "count" {
 		upstreamFormat = "interactions"
 	}
 	countBody := []byte(nil)
@@ -376,7 +381,13 @@ func run(s *scenario) {
 		countBody = []byte(s.Upstream.Body)
 	}
 	s.Needs = needs(s, upstreamFormat, payload, countBody)
-	ctx := context.Background()
+	// The route handler enriches the context with the request's explicit session before
+	// execution (handlers.EnrichContextWithSessionHierarchy); $CPA-SESSION-ID reads it.
+	sessionPayload := payload
+	if len(opts.OriginalRequest) > 0 {
+		sessionPayload = opts.OriginalRequest
+	}
+	ctx := handlers.EnrichContextWithSessionHierarchy(context.Background(), headers, sessionPayload, nil)
 
 	switch s.Op {
 	case "execute":
