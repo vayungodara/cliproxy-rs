@@ -42,6 +42,9 @@ struct Args {
     /// Login to xAI using OAuth
     #[arg(long)]
     xai_login: bool,
+    /// Login to Meta using OAuth
+    #[arg(long)]
+    meta_login: bool,
     /// Management password accepted from loopback clients only.
     #[arg(long, hide = true, default_value = "")]
     password: String,
@@ -95,8 +98,24 @@ async fn main() -> anyhow::Result<()> {
     let args = Args::parse_from(go_style_args());
     let config = Config::load(&args.config).with_context(|| format!("reading {}", args.config.display()))?;
     if args.claude_login {
-        let path = cpa_exec::oauth::login(&config.auth_dir).await?;
-        println!("Claude credentials saved to {}", path.display());
+        let options = cpa_exec::claude_login::LoginOptions {
+            no_browser: args.no_browser,
+            callback_port: match args.oauth_callback_port {
+                0 => cpa_exec::claude_login::DEFAULT_CALLBACK_PORT,
+                port => port,
+            },
+        };
+        if let Err(error) = cpa_exec::claude_login::login(&config.auth_dir, &options).await {
+            let message = String::from_utf8_lossy(&error.body).into_owned();
+            // DoClaudeLogin: a busy callback port exits with ErrPortInUse's code 13.
+            if message.starts_with(cpa_exec::claude_login::PORT_IN_USE) {
+                tracing::error!(
+                    "The required port is already in use. Please close any applications using port 3000 and try again."
+                );
+                std::process::exit(13);
+            }
+            println!("Claude authentication failed: {message}");
+        }
         return Ok(());
     }
     if args.codex_login || args.codex_device_login {
@@ -126,6 +145,10 @@ async fn main() -> anyhow::Result<()> {
         if let Err(error) = cpa_exec::xai_auth::login(&config, args.no_browser).await {
             tracing::error!("xAI authentication failed: {}", String::from_utf8_lossy(&error.body));
         }
+        return Ok(());
+    }
+    if args.meta_login {
+        cpa_exec::meta_auth::login(&config, args.no_browser).await?;
         return Ok(());
     }
     if config.api_keys.is_empty() {

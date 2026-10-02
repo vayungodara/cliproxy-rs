@@ -1,0 +1,147 @@
+{
+  "name": "login-no-mint",
+  "credential": {},
+  "request": {
+    "login": "meta",
+    "stale_file": ""
+  },
+  "responses": [
+    {
+      "status": 200,
+      "headers": [
+        [
+          "Content-Type",
+          "application/json"
+        ]
+      ],
+      "body": "{\"device_code\":\"meta-dev-2\",\"user_code\":\"AB-CD\",\"verification_uri\":\"https://www.meta.ai/device\",\"verification_uri_complete\":\"https://www.meta.ai/device?code=AB-CD\",\"expires_in\":0,\"interval\":0}"
+    },
+    {
+      "status": 200,
+      "headers": [
+        [
+          "Content-Type",
+          "application/json"
+        ]
+      ],
+      "body": "{\"access_token\":\"dca:nomint\",\"token_type\":\"\",\"expires_in\":3600}"
+    },
+    {
+      "status": 500,
+      "headers": [
+        [
+          "Content-Type",
+          "application/json"
+        ]
+      ],
+      "body": "upstream down"
+    }
+  ],
+  "upstream": [
+    {
+      "method": "POST",
+      "target": "/oidc/device/authorization/",
+      "headers": [
+        [
+          "Host",
+          "auth.meta.com"
+        ],
+        [
+          "User-Agent",
+          "muse-code/1.0.2"
+        ],
+        [
+          "Content-Length",
+          "26"
+        ],
+        [
+          "Accept",
+          "application/json"
+        ],
+        [
+          "Content-Type",
+          "application/x-www-form-urlencoded"
+        ],
+        [
+          "Accept-Encoding",
+          "gzip"
+        ]
+      ],
+      "body": "client_id=1031625952748946"
+    },
+    {
+      "method": "POST",
+      "target": "/oidc/device/token/",
+      "headers": [
+        [
+          "Host",
+          "auth.meta.com"
+        ],
+        [
+          "User-Agent",
+          "muse-code/1.0.2"
+        ],
+        [
+          "Content-Length",
+          "115"
+        ],
+        [
+          "Accept",
+          "application/json"
+        ],
+        [
+          "Content-Type",
+          "application/x-www-form-urlencoded"
+        ],
+        [
+          "Accept-Encoding",
+          "gzip"
+        ]
+      ],
+      "body": "client_id=1031625952748946\u0026device_code=meta-dev-2\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code"
+    },
+    {
+      "method": "POST",
+      "target": "/muse-code/key",
+      "headers": [
+        [
+          "Host",
+          "127.0.0.1:41669"
+        ],
+        [
+          "User-Agent",
+          "muse-code/1.0.2"
+        ],
+        [
+          "Content-Length",
+          "26"
+        ],
+        [
+          "Accept",
+          "application/json"
+        ],
+        [
+          "Authorization",
+          "Bearer dca:nomint"
+        ],
+        [
+          "Content-Type",
+          "application/json"
+        ],
+        [
+          "Accept-Encoding",
+          "gzip"
+        ]
+      ],
+      "body": "{\"dca_token\":\"dca:nomint\"}"
+    }
+  ],
+  "downstream": {},
+  "extra": {
+    "before_unix": 1790974796,
+    "disabled": false,
+    "file_name": "meta-8439ca6c79abe047.json",
+    "file_raw": "{\n  \"access_token\": \"dca:nomint\",\n  \"auth_kind\": \"oauth\",\n  \"base_url\": \"https://api.meta.ai/v1\",\n  \"dca_expired\": \"2026-10-02T22:00:01Z\",\n  \"dca_expires_at\": 1790978401,\n  \"dca_token\": \"dca:nomint\",\n  \"disabled\": false,\n  \"expired\": \"2026-10-02T22:00:01Z\",\n  \"expires_in\": 3600,\n  \"last_refresh\": \"2026-10-02T21:00:01Z\",\n  \"type\": \"meta\"\n}\n",
+    "label": "Meta"
+  }
+}

@@ -53,21 +53,16 @@ pub(crate) fn hostname() -> Option<String> {
 /// Version reported where Go sends `buildinfo.Version`.
 pub(crate) const BUILD_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-/// `statusErr{code, msg: body}` with the scheduler hints the shared adapter derives.
+/// `statusErr{code, msg: body}`. Go's Kimi errors carry no retry hint (Retry-After is not
+/// read) and are not credential-scoped, so a 429 cools only the model: the scheduler
+/// reserves credential-wide quota cooldowns for credential-scoped 429s.
 pub(crate) async fn status_error(upstream: crate::proxy::Upstream) -> ExecError {
     let body = crate::proxy::read_all(upstream.body, crate::proxy::MAX_ERROR_BODY, true)
         .await
         .unwrap_or_default();
-    let now = std::time::SystemTime::now();
-    let retry_after = upstream
-        .headers
-        .get(http::header::RETRY_AFTER)
-        .and_then(|v| v.to_str().ok())
-        .and_then(|raw| crate::quota::retry_after(raw, now))
-        .and_then(|deadline| deadline.duration_since(now).ok());
-    // Same status-only classification as upstream::scope_for.
     let scope = match upstream.status {
-        401 | 402 | 403 | 408 | 429 | 500.. => FailureScope::Credential,
+        429 => FailureScope::Model,
+        401 | 402 | 403 | 408 | 500.. => FailureScope::Credential,
         _ => FailureScope::Request,
     };
     ExecError {
@@ -75,9 +70,27 @@ pub(crate) async fn status_error(upstream: crate::proxy::Upstream) -> ExecError 
         scope,
         body,
         headers: Box::new(upstream.headers),
-        retry_after,
+        retry_after: None,
         direct: false,
     }
+}
+
+/// Go `io.ReadAll` for a body whose read failure must surface: the first `keep` bytes are
+/// kept and the rest is drained, so a read error anywhere in the body is returned.
+// ponytail: Go keeps the whole body; bytes past `keep` are discarded to bound memory.
+// Provider-neutral; hoist into crate::proxy (owner: Claude thread) if others need it.
+pub(crate) async fn read_all_strict(
+    mut body: futures_util::stream::BoxStream<'static, Result<bytes::Bytes, ExecError>>,
+    keep: usize,
+) -> Result<bytes::Bytes, ExecError> {
+    use futures_util::StreamExt;
+    let mut out = bytes::BytesMut::new();
+    while let Some(chunk) = body.next().await {
+        let chunk = chunk?;
+        let room = keep.saturating_sub(out.len());
+        out.extend_from_slice(&chunk[..chunk.len().min(room)]);
+    }
+    Ok(out.freeze())
 }
 
 /// ponytail: adapter for `cpa_common::headers` (owner: server thread); swap for the shared

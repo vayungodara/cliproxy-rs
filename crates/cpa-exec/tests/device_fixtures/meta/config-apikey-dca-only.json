@@ -1,0 +1,25 @@
+{
+  "name": "config-apikey-dca-only",
+  "credential": {
+    "base_url": "http://127.0.0.1:32939/v1"
+  },
+  "attributes": {
+    "api_key": "dca:cfg",
+    "source": "config:meta[abc]"
+  },
+  "request": {
+    "body": "{\"model\":\"muse-spark-1.3\",\"input\":\"hi\"}",
+    "model": "muse-spark-1.3",
+    "source": "openai-response",
+    "stream": false
+  },
+  "responses": null,
+  "upstream": null,
+  "downstream": {
+    "err_status": 401,
+    "err_body": "meta executor: meta-api-key requires a valid API key (DCA tokens require OAuth storage)"
+  },
+  "extra": {
+    "credential_scoped": false
+  }
+}
