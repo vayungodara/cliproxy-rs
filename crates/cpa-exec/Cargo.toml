@@ -8,6 +8,7 @@ rust-version.workspace = true
 
 [dependencies]
 bytes.workspace = true
+cpa-common.workspace = true
 cpa-core.workspace = true
 cpa-translate.workspace = true
 futures-util.workspace = true
@@ -22,10 +23,15 @@ base64 = "0.22"
 chrono = { version = "0.4", default-features = false, features = ["clock", "serde"] }
 getrandom = "0.3"
 sha2 = "0.10"
-uuid = { version = "1", features = ["v5"] }
+uuid = { version = "1", features = ["v4", "v5"] }
 url = "2"
 httpdate = "1"
 tiktoken-rs = "0.7"
+# Codex: raw JSON reads for byte-preserving request edits, config document access, logs.
+gjson = "0.8.1"
+serde_yaml_ng.workspace = true
+tracing.workspace = true
+libc.workspace = true
 
 [dev-dependencies]
 axum.workspace = true

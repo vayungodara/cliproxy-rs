@@ -1,0 +1,87 @@
+{
+  "name": "chat-kimi-ai-metadata-base",
+  "credential": {
+    "access_token": "kimi-ai-access",
+    "base_url": "http://127.0.0.1:39121/coding",
+    "domain": "kimi.ai",
+    "type": "kimi-ai"
+  },
+  "request": {
+    "body": "{\"model\":\"kimi-k2\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"reasoning_effort\":\"high\"}",
+    "model": "kimi-k2",
+    "source": "openai",
+    "stream": false
+  },
+  "responses": [
+    {
+      "status": 200,
+      "headers": [
+        [
+          "Content-Type",
+          "application/json"
+        ]
+      ],
+      "body": "{\"id\":\"c3\",\"object\":\"chat.completion\",\"created\":3,\"model\":\"kimi-k2\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}]}"
+    }
+  ],
+  "upstream": [
+    {
+      "method": "POST",
+      "target": "/coding/v1/chat/completions",
+      "headers": [
+        [
+          "Host",
+          "127.0.0.1:39121"
+        ],
+        [
+          "User-Agent",
+          "CLIProxyAPI/0.1.0"
+        ],
+        [
+          "Content-Length",
+          "58"
+        ],
+        [
+          "Accept",
+          "application/json"
+        ],
+        [
+          "Authorization",
+          "Bearer kimi-ai-access"
+        ],
+        [
+          "Content-Type",
+          "application/json"
+        ],
+        [
+          "X-Msh-Device-Id",
+          "cli-proxy-api-device"
+        ],
+        [
+          "X-Msh-Device-Model",
+          "linux amd64"
+        ],
+        [
+          "X-Msh-Device-Name",
+          "e2b.local"
+        ],
+        [
+          "X-Msh-Platform",
+          "CLIProxyAPI"
+        ],
+        [
+          "X-Msh-Version",
+          "0.1.0"
+        ],
+        [
+          "Accept-Encoding",
+          "gzip"
+        ]
+      ],
+      "body": "{\"model\":\"k2\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
+    }
+  ],
+  "downstream": {
+    "body": "{\"id\":\"c3\",\"object\":\"chat.completion\",\"created\":3,\"model\":\"kimi-k2\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}]}"
+  }
+}

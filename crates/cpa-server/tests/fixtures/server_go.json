@@ -1,0 +1,836 @@
+{
+  "availability": [
+    {
+      "states": [
+        "none"
+      ],
+      "available": true
+    },
+    {
+      "states": [
+        "quota"
+      ],
+      "available": true
+    },
+    {
+      "states": [
+        "other"
+      ],
+      "available": false
+    },
+    {
+      "states": [
+        "other_qe"
+      ],
+      "available": false
+    },
+    {
+      "states": [
+        "none",
+        "none"
+      ],
+      "available": true
+    },
+    {
+      "states": [
+        "quota",
+        "quota"
+      ],
+      "available": true
+    },
+    {
+      "states": [
+        "other",
+        "other"
+      ],
+      "available": false
+    },
+    {
+      "states": [
+        "other",
+        "none"
+      ],
+      "available": true
+    },
+    {
+      "states": [
+        "quota",
+        "none"
+      ],
+      "available": true
+    },
+    {
+      "states": [
+        "quota",
+        "other"
+      ],
+      "available": false
+    },
+    {
+      "states": [
+        "other_qe",
+        "none"
+      ],
+      "available": true
+    },
+    {
+      "states": [
+        "other_qe",
+        "quota"
+      ],
+      "available": false
+    },
+    {
+      "states": [
+        "other_qe",
+        "other_qe"
+      ],
+      "available": false
+    },
+    {
+      "states": [
+        "quota",
+        "quota",
+        "other"
+      ],
+      "available": false
+    },
+    {
+      "states": [
+        "other",
+        "other",
+        "none"
+      ],
+      "available": true
+    }
+  ],
+  "cooldown": [
+    {
+      "name": "429_no_hint",
+      "steps": [
+        {
+          "model": "m1",
+          "status": 429,
+          "message": "rate limited",
+          "retry_after_ms": -1,
+          "credential_scope": false
+        }
+      ],
+      "seconds": {
+        "m1": 1
+      },
+      "quota": {
+        "m1": true
+      }
+    },
+    {
+      "name": "429_twice_reuses_deadline",
+      "steps": [
+        {
+          "model": "m1",
+          "status": 429,
+          "message": "rate limited",
+          "retry_after_ms": -1,
+          "credential_scope": false
+        },
+        {
+          "model": "m1",
+          "status": 429,
+          "message": "rate limited",
+          "retry_after_ms": -1,
+          "credential_scope": false
+        }
+      ],
+      "seconds": {
+        "m1": 1
+      },
+      "quota": {
+        "m1": true
+      }
+    },
+    {
+      "name": "429_zero_hint_floor",
+      "steps": [
+        {
+          "model": "m1",
+          "status": 429,
+          "message": "rate limited",
+          "retry_after_ms": 0,
+          "credential_scope": false
+        }
+      ],
+      "seconds": {
+        "m1": 10
+      },
+      "quota": {
+        "m1": true
+      }
+    },
+    {
+      "name": "429_small_hint_floor",
+      "steps": [
+        {
+          "model": "m1",
+          "status": 429,
+          "message": "rate limited",
+          "retry_after_ms": 3000,
+          "credential_scope": false
+        }
+      ],
+      "seconds": {
+        "m1": 10
+      },
+      "quota": {
+        "m1": true
+      }
+    },
+    {
+      "name": "429_large_hint",
+      "steps": [
+        {
+          "model": "m1",
+          "status": 429,
+          "message": "rate limited",
+          "retry_after_ms": 30000,
+          "credential_scope": false
+        }
+      ],
+      "seconds": {
+        "m1": 30
+      },
+      "quota": {
+        "m1": true
+      }
+    },
+    {
+      "name": "429_hint_then_none",
+      "steps": [
+        {
+          "model": "m1",
+          "status": 429,
+          "message": "rate limited",
+          "retry_after_ms": 120000,
+          "credential_scope": false
+        },
+        {
+          "model": "m1",
+          "status": 429,
+          "message": "rate limited",
+          "retry_after_ms": -1,
+          "credential_scope": false
+        }
+      ],
+      "seconds": {
+        "m1": 120
+      },
+      "quota": {
+        "m1": true
+      }
+    },
+    {
+      "name": "401",
+      "steps": [
+        {
+          "model": "m1",
+          "status": 401,
+          "message": "unauthorized",
+          "retry_after_ms": -1,
+          "credential_scope": false
+        }
+      ],
+      "seconds": {
+        "m1": 1800
+      },
+      "quota": {
+        "m1": false
+      }
+    },
+    {
+      "name": "402",
+      "steps": [
+        {
+          "model": "m1",
+          "status": 402,
+          "message": "payment required",
+          "retry_after_ms": -1,
+          "credential_scope": false
+        }
+      ],
+      "seconds": {
+        "m1": 1800
+      },
+      "quota": {
+        "m1": false
+      }
+    },
+    {
+      "name": "403",
+      "steps": [
+        {
+          "model": "m1",
+          "status": 403,
+          "message": "forbidden",
+          "retry_after_ms": -1,
+          "credential_scope": false
+        }
+      ],
+      "seconds": {
+        "m1": 1800
+      },
+      "quota": {
+        "m1": false
+      }
+    },
+    {
+      "name": "404",
+      "steps": [
+        {
+          "model": "m1",
+          "status": 404,
+          "message": "not found",
+          "retry_after_ms": -1,
+          "credential_scope": false
+        }
+      ],
+      "seconds": {
+        "m1": 43200
+      },
+      "quota": {
+        "m1": false
+      }
+    },
+    {
+      "name": "404_hint",
+      "steps": [
+        {
+          "model": "m1",
+          "status": 404,
+          "message": "not found",
+          "retry_after_ms": 60000,
+          "credential_scope": false
+        }
+      ],
+      "seconds": {
+        "m1": 60
+      },
+      "quota": {
+        "m1": false
+      }
+    },
+    {
+      "name": "500",
+      "steps": [
+        {
+          "model": "m1",
+          "status": 500,
+          "message": "boom",
+          "retry_after_ms": -1,
+          "credential_scope": false
+        }
+      ],
+      "seconds": {
+        "m1": 60
+      },
+      "quota": {
+        "m1": false
+      }
+    },
+    {
+      "name": "500_hint",
+      "steps": [
+        {
+          "model": "m1",
+          "status": 500,
+          "message": "boom",
+          "retry_after_ms": 5000,
+          "credential_scope": false
+        }
+      ],
+      "seconds": {
+        "m1": 5
+      },
+      "quota": {
+        "m1": false
+      }
+    },
+    {
+      "name": "503",
+      "steps": [
+        {
+          "model": "m1",
+          "status": 503,
+          "message": "overloaded",
+          "retry_after_ms": -1,
+          "credential_scope": false
+        }
+      ],
+      "seconds": {
+        "m1": 60
+      },
+      "quota": {
+        "m1": false
+      }
+    },
+    {
+      "name": "418_default",
+      "steps": [
+        {
+          "model": "m1",
+          "status": 418,
+          "message": "teapot",
+          "retry_after_ms": -1,
+          "credential_scope": false
+        }
+      ],
+      "seconds": {
+        "m1": 60
+      },
+      "quota": {
+        "m1": false
+      }
+    },
+    {
+      "name": "400_request_fault",
+      "steps": [
+        {
+          "model": "m1",
+          "status": 400,
+          "message": "bad request",
+          "retry_after_ms": -1,
+          "credential_scope": false
+        }
+      ],
+      "seconds": {
+        "m1": 0
+      },
+      "quota": {
+        "m1": false
+      }
+    },
+    {
+      "name": "400_model_support",
+      "steps": [
+        {
+          "model": "m1",
+          "status": 400,
+          "message": "The requested model is not supported",
+          "retry_after_ms": -1,
+          "credential_scope": false
+        }
+      ],
+      "seconds": {
+        "m1": 43200
+      },
+      "quota": {
+        "m1": false
+      }
+    },
+    {
+      "name": "404_model_support_hint",
+      "steps": [
+        {
+          "model": "m1",
+          "status": 404,
+          "message": "model_not_supported",
+          "retry_after_ms": 90000,
+          "credential_scope": false
+        }
+      ],
+      "seconds": {
+        "m1": 90
+      },
+      "quota": {
+        "m1": false
+      }
+    },
+    {
+      "name": "400_invalid_grant",
+      "steps": [
+        {
+          "model": "m1",
+          "status": 400,
+          "message": "{\"error\":\"invalid_grant\"}",
+          "retry_after_ms": -1,
+          "credential_scope": false
+        }
+      ],
+      "seconds": {
+        "m1": 1800
+      },
+      "quota": {
+        "m1": false
+      }
+    },
+    {
+      "name": "403_cloudflare",
+      "steps": [
+        {
+          "model": "m1",
+          "status": 403,
+          "message": "\u003chtml\u003eJust a moment... cloudflare\u003c/html\u003e",
+          "retry_after_ms": -1,
+          "credential_scope": false
+        }
+      ],
+      "seconds": {
+        "m1": 10
+      },
+      "quota": {
+        "m1": true
+      }
+    },
+    {
+      "name": "403_cloudflare_twice",
+      "steps": [
+        {
+          "model": "m1",
+          "status": 403,
+          "message": "challenge-platform",
+          "retry_after_ms": -1,
+          "credential_scope": false
+        },
+        {
+          "model": "m1",
+          "status": 403,
+          "message": "challenge-platform",
+          "retry_after_ms": -1,
+          "credential_scope": false
+        }
+      ],
+      "seconds": {
+        "m1": 10
+      },
+      "quota": {
+        "m1": true
+      }
+    },
+    {
+      "name": "500_then_429",
+      "steps": [
+        {
+          "model": "m1",
+          "status": 500,
+          "message": "boom",
+          "retry_after_ms": -1,
+          "credential_scope": false
+        },
+        {
+          "model": "m1",
+          "status": 429,
+          "message": "rate limited",
+          "retry_after_ms": -1,
+          "credential_scope": false
+        }
+      ],
+      "seconds": {
+        "m1": 60
+      },
+      "quota": {
+        "m1": true
+      }
+    },
+    {
+      "name": "401_then_429_short",
+      "steps": [
+        {
+          "model": "m1",
+          "status": 401,
+          "message": "unauthorized",
+          "retry_after_ms": -1,
+          "credential_scope": false
+        },
+        {
+          "model": "m1",
+          "status": 429,
+          "message": "rate limited",
+          "retry_after_ms": 5000,
+          "credential_scope": false
+        }
+      ],
+      "seconds": {
+        "m1": 1800
+      },
+      "quota": {
+        "m1": true
+      }
+    },
+    {
+      "name": "credential_scope",
+      "steps": [
+        {
+          "model": "m2",
+          "status": 500,
+          "message": "boom",
+          "retry_after_ms": -1,
+          "credential_scope": false
+        },
+        {
+          "model": "m1",
+          "status": 429,
+          "message": "credential quota",
+          "retry_after_ms": 600000,
+          "credential_scope": true
+        }
+      ],
+      "seconds": {
+        "m1": 600,
+        "m2": 600
+      },
+      "quota": {
+        "m1": true,
+        "m2": true
+      }
+    },
+    {
+      "name": "credential_scope_short_keeps_sibling",
+      "steps": [
+        {
+          "model": "m2",
+          "status": 401,
+          "message": "unauthorized",
+          "retry_after_ms": -1,
+          "credential_scope": false
+        },
+        {
+          "model": "m1",
+          "status": 429,
+          "message": "credential quota",
+          "retry_after_ms": 20000,
+          "credential_scope": true
+        }
+      ],
+      "seconds": {
+        "m1": 20,
+        "m2": 1800
+      },
+      "quota": {
+        "m1": true,
+        "m2": true
+      }
+    }
+  ],
+  "extract": [
+    {
+      "in": "",
+      "out": ""
+    },
+    {
+      "in": "{\"error\":{\"code\":\"x\",\"message\":\"boom\"}}",
+      "out": "x: boom"
+    },
+    {
+      "in": "{\"error\":{\"type\":\"overloaded\",\"message\":\"overloaded now\"}}",
+      "out": "overloaded now"
+    },
+    {
+      "in": "{\"error\":{\"type\":\"rate_limit_error\",\"message\":\"Rate limited\"}}",
+      "out": "rate_limit_error: Rate limited"
+    },
+    {
+      "in": "{\"error\":{\"code\":\"insufficient_quota\",\"message\":\"You exceeded your quota: insufficient_quota\"}}",
+      "out": "You exceeded your quota: insufficient_quota"
+    },
+    {
+      "in": "status 500: {\"message\":\"m at /home/u/f.json: denied\"}",
+      "out": "m at [REDACTED_PATH]: denied"
+    },
+    {
+      "in": "{\"error\":\"flat sk-abcdefghijkl\"}",
+      "out": "flat sk-[REDACTED]"
+    },
+    {
+      "in": "{\"code\":\"c\",\"message\":\"\"}",
+      "out": "c"
+    },
+    {
+      "in": "{\"type\":\"t\"}",
+      "out": "t"
+    },
+    {
+      "in": "{\"error\":{\"code\":42,\"message\":\"numeric\"}}",
+      "out": "42: numeric"
+    },
+    {
+      "in": "{\"other\":1}",
+      "out": "{\"other\":1}"
+    },
+    {
+      "in": "plain text",
+      "out": "plain text"
+    },
+    {
+      "in": "[1,2]",
+      "out": "[1,2]"
+    }
+  ],
+  "sanitize": [
+    {
+      "in": "",
+      "out": ""
+    },
+    {
+      "in": "   ",
+      "out": ""
+    },
+    {
+      "in": "  plain message  ",
+      "out": "plain message"
+    },
+    {
+      "in": "open /home/user/.cli-proxy-api/claude-a.json: permission denied",
+      "out": "open [REDACTED_PATH]: permission denied"
+    },
+    {
+      "in": "copy /tmp/a to /tmp/b: denied",
+      "out": "copy [REDACTED_PATH] to [REDACTED_PATH]: denied"
+    },
+    {
+      "in": "copy /tmp/a TO /tmp/b: denied",
+      "out": "copy [REDACTED_PATH] TO [REDACTED_PATH]: denied"
+    },
+    {
+      "in": "request to https://user:pass@api.example.com/v1?key=abc123\u0026x=1 failed",
+      "out": "request to https://[REDACTED_AUTH]@api.example.com/v1?key=[REDACTED]"
+    },
+    {
+      "in": "Post \"https://api.example.com/v1/messages?beta=true\": dial tcp 10.0.0.1:443: i/o timeout",
+      "out": "Post \"https://api.example.com/v1/messages?beta=true\": dial tcp 10.0.0.1:443: i/o timeout"
+    },
+    {
+      "in": "Authorization: Bearer sk-ant-api03-abcdefghijkl",
+      "out": "Authorization: [REDACTED]"
+    },
+    {
+      "in": "invalid api key: sk-abcdefghijklmnop",
+      "out": "invalid token: [REDACTED]"
+    },
+    {
+      "in": "invalid x-api-key",
+      "out": "invalid x-api-key"
+    },
+    {
+      "in": "the api key is abc123, retry later",
+      "out": "the api key: [REDACTED]"
+    },
+    {
+      "in": "{\"token\": \"secret-value\", \"other\": 1}",
+      "out": "{\"token\": [REDACTED], \"other\": 1}"
+    },
+    {
+      "in": "Cookie: session=abc; other=1",
+      "out": "Cookie: [REDACTED]"
+    },
+    {
+      "in": "C:\\Users\\me\\auth.json not found",
+      "out": "[REDACTED_PATH]"
+    },
+    {
+      "in": "\\\\server\\share\\file failed",
+      "out": "[REDACTED_PATH]"
+    },
+    {
+      "in": "failed reading '/etc/secret.pem'",
+      "out": "failed reading '[REDACTED_PATH]'"
+    },
+    {
+      "in": "failed reading \"/etc/secret.pem\" now",
+      "out": "failed reading \"[REDACTED_PATH]\" now"
+    },
+    {
+      "in": "failed reading `/etc/secret.pem` now",
+      "out": "failed reading `[REDACTED_PATH]` now"
+    },
+    {
+      "in": "error at (/var/lib/x/y): no such file or directory",
+      "out": "error at ([REDACTED_PATH]): no such file or directory"
+    },
+    {
+      "in": "read /a b/c d: is a directory",
+      "out": "read [REDACTED_PATH]: is a directory"
+    },
+    {
+      "in": "upstream returned 401: invalid token abc.def.ghi",
+      "out": "upstream returned 401: invalid token: [REDACTED]"
+    },
+    {
+      "in": "password=hunter2 and user=bob",
+      "out": "password: [REDACTED]"
+    },
+    {
+      "in": "client_secret is s3cr3t; next",
+      "out": "client_secret: [REDACTED]"
+    },
+    {
+      "in": "auth basic dXNlcjpwYXNz",
+      "out": "auth Bearer [REDACTED]"
+    },
+    {
+      "in": "ghp_abcdefghijk1234 leaked",
+      "out": "sk-[REDACTED] leaked"
+    },
+    {
+      "in": "path /usr/local/bin/tool:12 crashed",
+      "out": "path [REDACTED_PATH] crashed"
+    },
+    {
+      "in": "multiple /a/b and /c/d paths",
+      "out": "multiple [REDACTED_PATH] and [REDACTED_PATH] paths"
+    },
+    {
+      "in": "config at /opt/app/config.yaml loaded",
+      "out": "config at [REDACTED_PATH] loaded"
+    },
+    {
+      "in": "token: XYZ αβγ",
+      "out": "token: [REDACTED]"
+    },
+    {
+      "in": "connect: connection refused",
+      "out": "connect: connection refused"
+    },
+    {
+      "in": "sessionid=abcd1234",
+      "out": "sessionid: [REDACTED]"
+    },
+    {
+      "in": "rate limited, please retry in 30s",
+      "out": "rate limited, please retry in 30s"
+    },
+    {
+      "in": "model claude-sonnet-4 is not supported: use another",
+      "out": "model claude-sonnet-4 is not supported: use another"
+    },
+    {
+      "in": "see http://example.com/docs/errors: failed",
+      "out": "see http://example.com/docs/errors: failed"
+    },
+    {
+      "in": "x=/srv/data/file.txt, y=2",
+      "out": "x=[REDACTED_PATH], y=2"
+    },
+    {
+      "in": "Set-Cookie: a=b\nnext line",
+      "out": "Cookie: [REDACTED]\nnext line"
+    },
+    {
+      "in": "key: \"quoted value\" rest",
+      "out": "key: [REDACTED] rest"
+    },
+    {
+      "in": "bearer abc.def and more",
+      "out": "Bearer [REDACTED] and more"
+    },
+    {
+      "in": "The access token provided is expired via oauth",
+      "out": "The access token: [REDACTED]"
+    },
+    {
+      "in": "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+      "out": "ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé..."
+    },
+    {
+      "in": "ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ",
+      "out": "ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab a..."
+    }
+  ]
+}

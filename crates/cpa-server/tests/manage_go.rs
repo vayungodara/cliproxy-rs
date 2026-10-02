@@ -206,6 +206,8 @@ mod access {
             vec![],
             Executors {
                 claude: ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
+                codex: Default::default(),
+                devices: Default::default(),
             },
         ));
         let options = Options {
@@ -291,6 +293,8 @@ mod routes {
                 vec![],
                 Executors {
                     claude: ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
+                    codex: Default::default(),
+                    devices: Default::default(),
                 },
             ));
             let state = Management::with_options(

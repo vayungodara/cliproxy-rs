@@ -1,0 +1,21 @@
+{
+  "name": "transport-stream-options-not-object",
+  "credential": {
+    "access_token": "kimi-access-fixture",
+    "device_id": "dev-fixture-1",
+    "type": "kimi"
+  },
+  "request": {
+    "body": "{\"model\":\"kimi-k2\",\"stream\":true,\"stream_options\":[],\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+    "headers": null,
+    "model": "kimi-k2",
+    "source": "openai",
+    "stream": true
+  },
+  "responses": null,
+  "upstream": null,
+  "downstream": {
+    "err_status": -1,
+    "err_body": "kimi executor: failed to set stream_options in payload: cannot set array element for non-numeric key 'include_usage'"
+  }
+}

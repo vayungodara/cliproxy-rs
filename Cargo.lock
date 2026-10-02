@@ -496,6 +496,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7704b5fdd17b18ae31c4c1da5a2e0305a2bf17b5249300a9ee9ed7b72114c636"
 
 [[package]]
+name = "cpa-common"
+version = "0.1.0"
+dependencies = [
+ "cpa-core",
+ "serde_json",
+]
+
+[[package]]
 name = "cpa-core"
 version = "0.1.0"
 dependencies = [
@@ -522,18 +530,23 @@ dependencies = [
  "base64 0.22.1",
  "bytes",
  "chrono",
+ "cpa-common",
  "cpa-core",
  "cpa-translate",
  "futures-util",
  "getrandom 0.3.4",
+ "gjson",
  "http",
  "httpdate",
+ "libc",
  "serde",
  "serde_json",
+ "serde_yaml_ng",
  "sha2",
  "tiktoken-rs",
  "tokio",
  "tokio-util",
+ "tracing",
  "url",
  "uuid",
  "wreq",
@@ -551,6 +564,7 @@ dependencies = [
  "chrono",
  "cpa-core",
  "cpa-exec",
+ "cpa-translate",
  "futures-util",
  "regex",
  "serde",
@@ -567,6 +581,7 @@ name = "cpa-translate"
 version = "0.1.0"
 dependencies = [
  "bytes",
+ "cpa-common",
  "cpa-core",
  "gjson",
  "rand",
@@ -1979,6 +1994,7 @@ version = "1.26.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2ef6dac1e96601b4fb3acccccff2139741fcb757cb9a36089bf5be91cfb285ce"
 dependencies = [
+ "getrandom 0.4.3",
  "js-sys",
  "sha1_smol",
  "wasm-bindgen",

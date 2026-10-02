@@ -1,0 +1,106 @@
+{
+  "name": "transport-custom-headers",
+  "credential": {
+    "access_token": "kimi-access-fixture",
+    "device_id": "dev-fixture-1",
+    "type": "kimi"
+  },
+  "attributes": {
+    "header:Accept-Encoding": "identity",
+    "header:Host": "kimi.internal",
+    "header:Range": "bytes=0-",
+    "header:X-Trace": "$X-Client-Trace"
+  },
+  "request": {
+    "body": "{\"model\":\"kimi-k2\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+    "headers": [
+      [
+        "X-Client-Trace",
+        "trace-1"
+      ]
+    ],
+    "model": "kimi-k2",
+    "source": "openai",
+    "stream": false
+  },
+  "responses": [
+    {
+      "status": 200,
+      "headers": [
+        [
+          "Content-Type",
+          "application/json"
+        ]
+      ],
+      "body": "{\"id\":\"c9\",\"object\":\"chat.completion\",\"created\":9,\"model\":\"k2\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}]}"
+    }
+  ],
+  "upstream": [
+    {
+      "method": "POST",
+      "target": "/coding/v1/chat/completions",
+      "headers": [
+        [
+          "Host",
+          "kimi.internal"
+        ],
+        [
+          "User-Agent",
+          "CLIProxyAPI/0.1.0"
+        ],
+        [
+          "Content-Length",
+          "58"
+        ],
+        [
+          "Accept",
+          "application/json"
+        ],
+        [
+          "Accept-Encoding",
+          "identity"
+        ],
+        [
+          "Authorization",
+          "Bearer kimi-access-fixture"
+        ],
+        [
+          "Content-Type",
+          "application/json"
+        ],
+        [
+          "Range",
+          "bytes=0-"
+        ],
+        [
+          "X-Msh-Device-Id",
+          "dev-fixture-1"
+        ],
+        [
+          "X-Msh-Device-Model",
+          "linux amd64"
+        ],
+        [
+          "X-Msh-Device-Name",
+          "e2b.local"
+        ],
+        [
+          "X-Msh-Platform",
+          "CLIProxyAPI"
+        ],
+        [
+          "X-Msh-Version",
+          "0.1.0"
+        ],
+        [
+          "X-Trace",
+          "trace-1"
+        ]
+      ],
+      "body": "{\"model\":\"k2\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
+    }
+  ],
+  "downstream": {
+    "body": "{\"id\":\"c9\",\"object\":\"chat.completion\",\"created\":9,\"model\":\"k2\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}]}"
+  }
+}
