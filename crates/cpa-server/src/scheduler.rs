@@ -829,6 +829,50 @@ impl Scheduler {
     }
 }
 
+/// One active cooldown for management views (additive read API). `model` is empty for
+/// a credential-wide cooldown.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CooldownState {
+    pub model: String,
+    pub remaining: Duration,
+    pub level: u32,
+    pub status: u16,
+    pub quota: bool,
+}
+
+impl Scheduler {
+    /// Unexpired cooldowns of one credential, model keys sorted, credential-wide first.
+    pub(crate) fn cooldowns_of(&self, id: &str, now: Instant) -> Vec<CooldownState> {
+        let mut out: Vec<CooldownState> = self
+            .cooldowns
+            .iter()
+            .filter(|((cid, _), s)| cid == id && s.deadline > now)
+            .map(|((_, model), s)| CooldownState {
+                model: model.clone(),
+                remaining: s.deadline - now,
+                level: s.level,
+                status: s.status,
+                quota: s.quota,
+            })
+            .collect();
+        out.sort_by(|a, b| a.model.cmp(&b.model));
+        out
+    }
+
+    /// Clears every cooldown of one credential; returns the model keys that had one.
+    pub(crate) fn reset_cooldowns(&mut self, id: &str) -> Vec<String> {
+        let mut models: Vec<String> = self
+            .cooldowns
+            .keys()
+            .filter(|(cid, model)| cid == id && !model.is_empty())
+            .map(|(_, model)| model.clone())
+            .collect();
+        models.sort();
+        self.cooldowns.retain(|(cid, _), _| cid != id);
+        models
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

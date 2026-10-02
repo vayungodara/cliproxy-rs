@@ -587,6 +587,7 @@ pub struct CredentialStore {
     attempts: AtomicU64,
     stats: [AtomicU64; 3],
     prepare_locks: Mutex<HashMap<String, Arc<tokio::sync::Mutex<()>>>>,
+    activity: Mutex<HashMap<String, CredentialActivity>>,
 }
 
 impl CredentialStore {
@@ -608,6 +609,7 @@ impl CredentialStore {
             attempts: AtomicU64::new(0),
             stats: Default::default(),
             prepare_locks: Mutex::default(),
+            activity: Mutex::default(),
         })
     }
 
@@ -780,6 +782,9 @@ impl CredentialStore {
             Outcome::Cancelled => 2,
         };
         self.stats[slot].fetch_add(1, Ordering::Relaxed);
+        if !matches!(outcome, Outcome::Cancelled) {
+            self.note_activity(&lease.credential.id, matches!(outcome, Outcome::Success));
+        }
         let inner = self.read();
         // Outcomes from credentials deleted/re-created during an attempt must not
         // poison the replacement. Metadata edits likewise invalidate stale results.
@@ -858,6 +863,37 @@ impl CredentialStore {
         Ok(committed)
     }
 
+    /// Replaces a config-backed credential in memory if it is still at
+    /// `expected_revision`: Go's `Manager.Update` never persists config API keys, and
+    /// the next config publish re-synthesizes them. `NotFound` unless `next.id` names
+    /// a config-backed credential. Additive API for the management stream.
+    pub fn replace_config_backed(
+        &self,
+        next: Credential,
+        expected_revision: u64,
+    ) -> Result<Arc<Credential>, PatchError> {
+        let mut inner = self.inner.write().unwrap_or_else(PoisonError::into_inner);
+        let generation = inner.generation + 1;
+        let slot = inner
+            .creds
+            .iter_mut()
+            .find(|c| c.id == next.id && matches!(c.source, Source::Config { .. }))
+            .ok_or(PatchError::NotFound)?;
+        if slot.revision != expected_revision {
+            return Err(PatchError::Stale { current: slot.revision });
+        }
+        let mut next = next;
+        next.source = slot.source.clone();
+        next.revision = generation;
+        *slot = Arc::new(next);
+        let committed = slot.clone();
+        inner.generation = generation;
+        // Registrations depend on the credential (prefix, models): invalidate the
+        // registry cache like `apply_patch` does.
+        inner.epoch += 1;
+        Ok(committed)
+    }
+
     /// Replaces the credential set (watcher reload, management import/delete). Unchanged
     /// credentials keep their revision; new and changed ones get fresh revisions.
     pub fn reconcile(&self, credentials: Vec<Credential>) {
@@ -892,6 +928,83 @@ impl CredentialStore {
 
     fn read(&self) -> std::sync::RwLockReadGuard<'_, Inner> {
         self.inner.read().unwrap_or_else(PoisonError::into_inner)
+    }
+}
+
+/// Per-credential outcome counters for management views (Go `Auth.Success`/`Failed`
+/// and its 20 x 10-minute recent-request ring). Additive read API.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct CredentialActivity {
+    pub success: u64,
+    pub failed: u64,
+    /// `(bucket, success, failed)` for the most recent buckets, where `bucket` is
+    /// Unix seconds / 600; at most 20 entries, oldest first.
+    pub recent: Vec<(i64, u64, u64)>,
+}
+
+pub const RECENT_BUCKET_SECONDS: i64 = 600;
+const RECENT_BUCKETS: usize = 20;
+
+impl CredentialStore {
+    fn note_activity(&self, id: &str, success: bool) {
+        let bucket = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |d| d.as_secs() as i64 / RECENT_BUCKET_SECONDS);
+        let mut all = self.activity.lock().unwrap_or_else(PoisonError::into_inner);
+        let entry = all.entry(id.to_owned()).or_default();
+        if success {
+            entry.success += 1;
+        } else {
+            entry.failed += 1;
+        }
+        match entry.recent.last_mut() {
+            Some(last) if last.0 == bucket => {
+                if success {
+                    last.1 += 1;
+                } else {
+                    last.2 += 1;
+                }
+            }
+            _ => entry.recent.push((bucket, u64::from(success), u64::from(!success))),
+        }
+        entry.recent.retain(|(b, _, _)| bucket - b < RECENT_BUCKETS as i64);
+    }
+
+    /// Counters for one credential; zero when it has served nothing yet.
+    pub fn activity(&self, id: &str) -> CredentialActivity {
+        self.activity
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .get(id)
+            .cloned()
+            .unwrap_or_default()
+    }
+
+    /// Active cooldowns of one credential.
+    pub fn cooldowns(&self, id: &str) -> Vec<crate::scheduler::CooldownState> {
+        self.scheduler
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .cooldowns_of(id, Instant::now())
+    }
+
+    /// Clears the cooldowns of one credential (Go `Manager.ResetQuota`); returns the
+    /// model keys that were cooling.
+    pub fn reset_cooldowns(&self, id: &str) -> Vec<String> {
+        self.scheduler
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .reset_cooldowns(id)
+    }
+}
+
+impl Runtime {
+    /// Runs the executor's single-flighted preparation now, due or not (management
+    /// refresh, Go `RefreshAuthFile`). Returns the committed credential.
+    pub async fn refresh_credential(&self, id: &str) -> Result<Arc<Credential>, ExecError> {
+        let cfg = self.config();
+        let revision = self.store.get(id).map(|c| c.revision);
+        self.prepare_credential(id, &cfg, revision).await
     }
 }
 
