@@ -8,24 +8,21 @@ use cpa_core::format::Format;
 use cpa_translate::{Pair, RequestCtx, ResponseCtx, StreamTranslator};
 use futures_util::StreamExt;
 
-pub(crate) fn request(req: &ExecRequest) -> Result<Bytes, ExecError> {
-    match cpa_translate::pair(req.source_format, Format::Claude) {
-        Some(pair) => (pair.request)(
-            &RequestCtx {
-                model: &req.model,
-                stream: req.stream || req.source_format != Format::Claude,
-            },
-            &req.body,
-        )
-        .map(Bytes::from)
-        .map_err(error),
-        None if req.source_format == Format::Claude => Ok(req.body.clone()),
-        None => Err(ExecError::local(
-            501,
-            FailureScope::Request,
-            "Claude request translation pair is not registered",
-        )),
-    }
+/// sdktranslator.TranslateRequest to Claude for `model` (the base model, without a
+/// thinking suffix): a registered pair with Go's summary pipeline, else Go's top-level
+/// model rewrite. Streaming translation whenever the client is not Claude.
+pub(crate) fn request(req: &ExecRequest, model: &str) -> Result<Bytes, ExecError> {
+    cpa_translate::translate_request(
+        req.source_format,
+        Format::Claude,
+        &RequestCtx {
+            model,
+            stream: req.stream || req.source_format != Format::Claude,
+        },
+        &req.body,
+    )
+    .map(Bytes::from)
+    .map_err(error)
 }
 
 pub(crate) async fn response(
@@ -259,10 +256,14 @@ mod tests {
     }
 
     #[test]
-    fn native_identity_keeps_request_bytes() {
+    fn native_identity_keeps_request_bytes_and_rewrites_only_a_different_model() {
         let mut request = req(false, Operation::Generate);
         request.source_format = Format::Claude;
         request.body = Bytes::from_static(br#"{  "model" : "claude", "messages": [] }"#);
-        assert_eq!(super::request(&request).unwrap(), request.body);
+        assert_eq!(super::request(&request, "claude").unwrap(), request.body);
+        assert_eq!(
+            super::request(&request, "claude-base").unwrap(),
+            br#"{  "model" : "claude-base", "messages": [] }"#.as_slice()
+        );
     }
 }

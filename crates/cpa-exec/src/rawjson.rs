@@ -1,14 +1,12 @@
-//! Byte-preserving JSON edits with tidwall/sjson v1.2.5 semantics.
+//! Byte-preserving JSON edits for the Claude executor: tidwall/sjson v1.2.5 and Go
+//! encoding/json through the shared `cpa_common::json` port, behind `&str` signatures.
 //!
 //! Claude request rewriting must reproduce Go's bytes exactly: CCH signs the final
-//! body, and prompt caching keys on it. Untouched members keep their order, spacing
-//! and number spelling; new members are appended before the parent's last `}`.
-//! Lookups use the gjson crate (same path syntax as Go's gjson).
-//!
-//! ponytail: simple dotted paths only (keys and array indexes, no escapes,
-//! wildcards or modifiers). Every Claude rule uses simple paths.
+//! body, and prompt caching keys on it. Lookups use the gjson crate (same path syntax as
+//! Go's gjson for the simple dotted paths these rules use).
 
-use gjson::{Kind, Value};
+use cpa_common::json;
+use gjson::Value;
 
 /// Looks up `path` in `json`.
 pub(crate) fn get<'a>(json: &'a str, path: &'a str) -> Value<'a> {
@@ -33,268 +31,29 @@ pub(crate) fn js_string(s: &str) -> String {
 }
 
 fn marshal(s: &str, html: bool) -> String {
-    let mut out = String::with_capacity(s.len() + 2);
-    out.push('"');
-    for c in s.chars() {
-        match c {
-            '"' => out.push_str("\\\""),
-            '\\' => out.push_str("\\\\"),
-            '\n' => out.push_str("\\n"),
-            '\r' => out.push_str("\\r"),
-            '\t' => out.push_str("\\t"),
-            '\u{8}' => out.push_str("\\b"),
-            '\u{c}' => out.push_str("\\f"),
-            '<' | '>' | '&' if html => out.push_str(&format!("\\u{:04x}", c as u32)),
-            '\u{2028}' | '\u{2029}' => out.push_str(&format!("\\u{:04x}", c as u32)),
-            c if (c as u32) < 0x20 => out.push_str(&format!("\\u{:04x}", c as u32)),
-            c => out.push(c),
-        }
-    }
-    out.push('"');
-    out
+    let mut out = Vec::with_capacity(s.len() + 2);
+    json::marshal_str(&mut out, s.as_bytes(), html);
+    text(out)
 }
 
-/// sjson's `appendStringify`: only strings that need escaping go through Go's marshaller.
-pub(crate) fn sjson_string(s: &str) -> String {
-    if s.bytes()
-        .any(|b| !(b' '..=0x7f).contains(&b) || b == b'"' || b == b'\\')
-    {
-        go_string(s)
-    } else {
-        format!("\"{s}\"")
-    }
+/// The edits below never break UTF-8 in a UTF-8 document; the fallback is unreachable.
+fn text(bytes: Vec<u8>) -> String {
+    String::from_utf8(bytes).unwrap_or_else(|e| String::from_utf8_lossy(e.as_bytes()).into_owned())
 }
 
-/// `sjson.SetRawBytes`.
+/// `sjson.SetRawBytes`; an sjson error leaves the document unchanged.
 pub(crate) fn set_raw(json: &str, path: &str, raw: &str) -> String {
-    let parts: Vec<&str> = path.split('.').collect();
-    let mut out = String::with_capacity(json.len() + raw.len() + path.len() + 4);
-    match append_paths(&mut out, json, &parts, raw, false) {
-        Ok(()) => out,
-        Err(()) => json.to_owned(),
-    }
+    json::try_set_raw(json.as_bytes(), path, raw).map_or_else(|_| json.to_owned(), text)
 }
 
 /// `sjson.SetBytes` with a Go string value.
 pub(crate) fn set_str(json: &str, path: &str, value: &str) -> String {
-    set_raw(json, path, &sjson_string(value))
+    json::try_set_str(json.as_bytes(), path, value).map_or_else(|_| json.to_owned(), text)
 }
 
-/// `sjson.DeleteBytes`. Missing paths leave the input unchanged.
+/// `sjson.DeleteBytes`.
 pub(crate) fn delete(json: &str, path: &str) -> String {
-    let parts: Vec<&str> = path.split('.').collect();
-    let mut out = String::with_capacity(json.len());
-    match append_paths(&mut out, json, &parts, "", true) {
-        Ok(()) => out,
-        Err(()) => json.to_owned(),
-    }
-}
-
-/// Go's `gjson.Result.Index > 0` lookup of one path component inside `json`.
-fn component<'a>(json: &'a str, part: &'a str, delete: bool) -> Option<(usize, &'a str)> {
-    let value = if delete && part == "-1" {
-        let count = gjson::get(json, "#").i64();
-        if count <= 0 {
-            return None;
-        }
-        // The index string must outlive the lookup; resolve by iteration instead.
-        let parsed = gjson::parse(json);
-        let items = parsed.array();
-        let last = items.into_iter().last()?;
-        let start = offset(json, &last)?;
-        return Some((start, &json[start..start + last.json().len()]));
-    } else {
-        gjson::get(json, part)
-    };
-    let start = offset(json, &value).filter(|start| *start > 0)?;
-    Some((start, &json[start..start + value.json().len()]))
-}
-
-fn append_paths(buf: &mut String, json: &str, parts: &[&str], raw: &str, delete: bool) -> Result<(), ()> {
-    if let Some((start, found)) = component(json, parts[0], delete) {
-        let end = start + found.len();
-        if parts.len() > 1 {
-            buf.push_str(&json[..start]);
-            append_paths(buf, found, &parts[1..], raw, delete)?;
-            buf.push_str(&json[end..]);
-            return Ok(());
-        }
-        buf.push_str(&json[..start]);
-        let mut skip = 0;
-        if delete {
-            if delete_tail_item(buf) {
-                // The member was first: drop the comma that follows it instead.
-                for (i, b) in json[end..].bytes().enumerate() {
-                    if b <= b' ' {
-                        continue;
-                    }
-                    if b == b',' {
-                        skip = i + 1;
-                    }
-                    break;
-                }
-            }
-        } else {
-            buf.push_str(raw);
-        }
-        buf.push_str(&json[end + skip..]);
-        return Ok(());
-    }
-    if delete {
-        return Err(());
-    }
-    let numeric = parts[0]
-        .parse::<usize>()
-        .ok()
-        .filter(|_| parts[0].bytes().all(|b| b.is_ascii_digit()));
-    let mut json = json;
-    if json.bytes().all(|b| b <= b' ') {
-        json = if numeric.is_some() { "[]" } else { "{}" };
-    }
-    let mut parsed = gjson::parse(json);
-    if !matches!(parsed.kind(), Kind::Object | Kind::Array) {
-        json = if numeric.is_some() { "[]" } else { "{}" };
-        parsed = gjson::parse(json);
-    }
-    let whole = parsed.json();
-    let comma = whole[1..]
-        .bytes()
-        .find(|b| *b > b' ')
-        .is_some_and(|b| b != b'}' && b != b']');
-    match whole.as_bytes()[0] {
-        b'{' => {
-            let end = whole.rfind('}').ok_or(())?;
-            buf.push_str(&whole[..end]);
-            if comma {
-                buf.push(',');
-            }
-            build(buf, false, parts, raw);
-            buf.push('}');
-            Ok(())
-        }
-        b'[' => {
-            let Some(n) = numeric else {
-                if parts[0] != "-1" {
-                    return Err(());
-                }
-                let trimmed = whole.trim_matches(|c: char| c <= ' ');
-                buf.push_str(trimmed.strip_suffix(']').unwrap_or(trimmed));
-                if comma {
-                    buf.push(',');
-                }
-                build(buf, true, parts, raw);
-                buf.push(']');
-                return Ok(());
-            };
-            buf.push('[');
-            let items = parsed.array();
-            for (i, item) in items.iter().enumerate() {
-                if i > 0 {
-                    buf.push(',');
-                }
-                buf.push_str(item.json());
-            }
-            if items.is_empty() {
-                buf.push_str(&"null,".repeat(n));
-            } else {
-                buf.push_str(&",null".repeat(n.saturating_sub(items.len())));
-                if comma {
-                    buf.push(',');
-                }
-            }
-            build(buf, true, parts, raw);
-            buf.push(']');
-            Ok(())
-        }
-        _ => Err(()),
-    }
-}
-
-/// sjson `appendBuild`.
-fn build(buf: &mut String, array: bool, parts: &[&str], raw: &str) {
-    if !array {
-        buf.push_str(&sjson_string(parts[0]));
-        buf.push(':');
-    }
-    if parts.len() > 1 {
-        let next = parts[1];
-        if let Some(n) = next
-            .parse::<usize>()
-            .ok()
-            .filter(|_| next.bytes().all(|b| b.is_ascii_digit()))
-        {
-            buf.push('[');
-            buf.push_str(&"null,".repeat(n));
-            build(buf, true, &parts[1..], raw);
-            buf.push(']');
-        } else if next == "-1" {
-            buf.push('[');
-            build(buf, true, &parts[1..], raw);
-            buf.push(']');
-        } else {
-            buf.push('{');
-            build(buf, false, &parts[1..], raw);
-            buf.push('}');
-        }
-    } else {
-        buf.push_str(raw);
-    }
-}
-
-/// sjson `deleteTailItem`: removes the preceding `,"key":` or `"key":`. Returns true
-/// when the deleted member was the first one (the following comma must go instead).
-fn delete_tail_item(buf: &mut String) -> bool {
-    let bytes = buf.as_bytes();
-    let mut i = bytes.len();
-    while i > 0 {
-        i -= 1;
-        match bytes[i] {
-            b'[' => return true,
-            b',' => {
-                buf.truncate(i);
-                return false;
-            }
-            b':' => {
-                // Walk back over the key string.
-                let mut j = i;
-                while j > 0 {
-                    j -= 1;
-                    if bytes[j] != b'"' {
-                        continue;
-                    }
-                    while j > 0 {
-                        j -= 1;
-                        if bytes[j] != b'"' {
-                            continue;
-                        }
-                        if j > 0 && bytes[j - 1] == b'\\' {
-                            j -= 1;
-                            continue;
-                        }
-                        while j > 0 {
-                            j -= 1;
-                            match bytes[j] {
-                                b'{' => {
-                                    buf.truncate(j + 1);
-                                    return true;
-                                }
-                                b',' => {
-                                    buf.truncate(j);
-                                    return false;
-                                }
-                                _ => {}
-                            }
-                        }
-                        return false;
-                    }
-                    return false;
-                }
-                return false;
-            }
-            _ => {}
-        }
-    }
-    false
+    json::try_delete(json.as_bytes(), path).map_or_else(|_| json.to_owned(), text)
 }
 
 /// `gjson.Result.String()` on a lookup, owned.

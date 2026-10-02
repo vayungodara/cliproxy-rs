@@ -71,7 +71,7 @@ fn pipeline_reproduces_go_upstream_captures() {
         let req = request(case);
         let mut ctx = Ctx::new(&executor, &credential, &req, &cfg, Default::default());
         ctx.today = "2026-10-02".into();
-        let translated = translate::request(&req).unwrap();
+        let translated = translate::request(&req, &ctx.base_model).unwrap();
         let prepared = if req.operation == Operation::CountTokens {
             ctx.prepare_count(&req, &translated).unwrap()
         } else {
@@ -312,7 +312,7 @@ async fn executor_scenarios_match_go() {
         };
         let mut ctx = Ctx::new(&executor, &credential, &req, &cfg, Default::default());
         ctx.today = scenario["date"].as_str().unwrap().into();
-        let translated = translate::request(&req).unwrap();
+        let translated = translate::request(&req, &ctx.base_model).unwrap();
         let prepared = if count {
             ctx.prepare_count(&req, &translated).unwrap()
         } else {

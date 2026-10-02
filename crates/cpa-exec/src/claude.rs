@@ -9,10 +9,12 @@
 //! origin gets Go's standard transport (proxy.rs), exactly as Go's fallback round
 //! tripper does. Delegating executors (Kimi) pass a [`Delegation`].
 //!
-//! ponytail: not ported here, each with its owner noted in docs/reviews:
-//! payload rules (M4-0031) and thinking-suffix application inside the executor,
-//! thinking-signature validation (M1-0020; tool-use signature fields are stripped),
-//! Vertex delegation, Home KV identity, usage reporting and request logs.
+//! Thinking (`cpa_common::thinking`), signature sanitizing (`cpa_common::signature`)
+//! and request translation (`cpa_translate::translate_request`) are the shared modules.
+//!
+//! ponytail: not ported here, each with its owner noted in docs/reviews: payload rules
+//! (M4-0031, server thread), Vertex delegation, Home KV identity, usage reporting and
+//! request logs.
 
 mod alias;
 mod betas;
@@ -202,7 +204,7 @@ impl ClaudeExecutor {
 
     async fn generate(&self, ctx: Ctx<'_>, req: ExecRequest) -> Result<ExecResponse, ExecError> {
         let upstream_stream = req.stream || req.response_format != Format::Claude;
-        let translated = translate::request(&req)?;
+        let translated = translate::request(&req, &ctx.base_model)?;
         let prepared = ctx.prepare_messages(&req, &translated, upstream_stream)?;
         let response = self.send(&ctx, &prepared, "/v1/messages").await?;
         let reverse = prepared.reverse.clone();
@@ -290,15 +292,28 @@ impl ClaudeExecutor {
     }
 
     async fn count_tokens(&self, ctx: Ctx<'_>, req: ExecRequest, upstream: bool) -> Result<ExecResponse, ExecError> {
-        let translated = translate::request(&req)?;
+        let translated = translate::request(&req, &ctx.base_model)?;
+        // sdktranslator.TranslateTokenCount(to=claude, responseFormat, count, raw).
+        let render = |raw: &[u8]| {
+            let count = gjson::get(&String::from_utf8_lossy(raw), "input_tokens").i64();
+            Bytes::from(cpa_translate::translate_token_count(
+                req.response_format,
+                Format::Claude,
+                count,
+                raw,
+            ))
+        };
         if !upstream && (ctx.api_key.trim().is_empty() || !ctx.first_party) {
-            let body = sanitize_for_upstream(&String::from_utf8_lossy(&translated), &ctx.base_model);
-            let response = ExecResponse {
+            let mut body = ctx.apply_thinking(&req, String::from_utf8_lossy(&translated).into_owned())?;
+            if ctx.rebuild_mid_system() {
+                body = rebuild_mid_system(&body);
+            }
+            let body = sanitize_for_upstream(&body, &ctx.base_model, ctx.is_compat);
+            return Ok(ExecResponse {
                 status: 200,
                 headers: Default::default(),
-                body: ResponseBody::Buffered(tokens::count(body.as_bytes())?),
-            };
-            return translate::response(req, translated, response).await;
+                body: ResponseBody::Buffered(render(&tokens::count(body.as_bytes())?)),
+            });
         }
         let prepared = ctx.prepare_count(&req, &translated)?;
         let response = self.send(&ctx, &prepared, "/v1/messages/count_tokens").await?;
@@ -306,12 +321,11 @@ impl ClaudeExecutor {
             ResponseBody::Stream(raw) => collect(raw).await?,
             ResponseBody::Buffered(b) => b,
         };
-        let response = ExecResponse {
+        Ok(ExecResponse {
             status: response.status,
             headers: response.headers,
-            body: ResponseBody::Buffered(body),
-        };
-        translate::response(req, translated, response).await
+            body: ResponseBody::Buffered(render(&body)),
+        })
     }
 
     async fn send(&self, ctx: &Ctx<'_>, prepared: &Prepared, path: &str) -> Result<RawResponse, ExecError> {
@@ -482,6 +496,10 @@ struct Ctx<'a> {
     kimi: bool,
     /// Normalized execution-session ID (websocket executions), or empty.
     execution: String,
+    /// `cliproxyauth.ResolvedModelInfo`: the configured model bound to an API-key attempt.
+    resolved: Option<cpa_core::registry::ModelInfo>,
+    /// `helps.APIKeyModelIsCompat`.
+    is_compat: bool,
     /// Real Claude OAuth token (`sk-ant-oat`).
     oauth_token: bool,
     /// `fp.ProfileClaudeCodeCLI`: OAuth token or `fingerprint-profile: claude-code-cli`.
@@ -501,6 +519,19 @@ struct Prepared {
     reverse: alias::Reverse,
     continuity: session::Continuity,
     fast: bool,
+}
+
+/// `cliproxyauth.ResolvedModelInfo` for Claude: the scheduler binds the configured model
+/// definition to API-key attempts whose key lists `models[]`; other attempts look the
+/// model up in the registry.
+fn resolved_model(credential: &Credential, req: &ExecRequest) -> Option<cpa_core::registry::ModelInfo> {
+    use cpa_core::registry::dynamic;
+    if !dynamic::is_api_key(credential) || dynamic::config_models(credential).is_empty() {
+        return None;
+    }
+    [&req.requested_model, &req.model]
+        .into_iter()
+        .find_map(|model| cpa_core::registry::credential_model(&credential.id, &base_model(model)))
 }
 
 /// `config.NormalizeClaudeFingerprintProfile`: unknown values are the default ("").
@@ -546,19 +577,17 @@ fn identity_seed(credential: &Credential) -> String {
 
 /// `thinking.ParseSuffix`: `model(level)` → `model`.
 fn base_model(model: &str) -> String {
-    match (model.rfind('('), model.ends_with(')')) {
-        (Some(open), true) => model[..open].to_owned(),
-        _ => model.to_owned(),
-    }
+    cpa_common::thinking::parse_suffix(model).model_name
 }
 
-/// `sanitizeClaudeMessagesForClaudeUpstreamWithDebug`: for Claude targets, tool-use
-/// parts lose foreign signature/provenance fields and any modified message is
-/// rebuilt the way Go joins kept parts; then empty web_search domain lists go.
-fn sanitize_for_upstream(body: &str, base_model: &str) -> String {
+/// `sanitizeClaudeMessagesForClaudeUpstreamWithDebug`: Claude-family targets (and
+/// compat models, which keep empty thinking blocks) go through the shared Messages
+/// signature sanitizer; then empty web_search domain lists are removed.
+fn sanitize_for_upstream(body: &str, base_model: &str, preserve_empty_thinking: bool) -> String {
+    use cpa_common::signature::{Provider, provider_from_model_name, sanitize_claude_messages_for_claude_upstream};
     let mut body = body.to_owned();
-    if base_model.to_lowercase().contains("claude") {
-        body = sanitize_signatures(&body);
+    if provider_from_model_name(base_model) == Provider::Claude || preserve_empty_thinking {
+        body = sanitize_claude_messages_for_claude_upstream(&body, base_model, preserve_empty_thinking).0;
     }
     let tools = rawjson::get(&body, "tools").array().len();
     for t in 0..tools {
@@ -577,97 +606,6 @@ fn sanitize_for_upstream(body: &str, base_model: &str) -> String {
         }
     }
     body
-}
-
-/// `SanitizeClaudeMessagesForClaudeUpstream` (DropToolSignatures, DropEmptyMessages).
-fn sanitize_signatures(body: &str) -> String {
-    let messages = rawjson::get(body, "messages");
-    if messages.kind() != gjson::Kind::Array {
-        return body.to_owned();
-    }
-    let mut kept_messages = Vec::new();
-    let mut modified = false;
-    for message in messages.array() {
-        let content = message.get("content");
-        if content.kind() != gjson::Kind::Array {
-            kept_messages.push(message.json().to_owned());
-            continue;
-        }
-        let mut parts = Vec::new();
-        let mut changed = false;
-        for part in content.array() {
-            match part.get("type").str() {
-                "tool_use" => {
-                    let (raw, stripped) = strip_tool_use_provenance(part.json());
-                    changed |= stripped;
-                    parts.push(raw);
-                }
-                "thinking" => match thinking_signature_decision(part.json()) {
-                    Some(raw) => {
-                        changed |= raw != part.json();
-                        parts.push(raw);
-                    }
-                    None => changed = true,
-                },
-                _ => parts.push(part.json().to_owned()),
-            }
-        }
-        if !changed {
-            kept_messages.push(message.json().to_owned());
-            continue;
-        }
-        modified = true;
-        if parts.is_empty() {
-            continue;
-        }
-        kept_messages.push(rawjson::set_raw(
-            message.json(),
-            "content",
-            &format!("[{}]", parts.join(",")),
-        ));
-    }
-    if !modified {
-        return body.to_owned();
-    }
-    rawjson::set_raw(body, "messages", &format!("[{}]", kept_messages.join(",")))
-}
-
-fn strip_tool_use_provenance(raw: &str) -> (String, bool) {
-    let mut raw = raw.to_owned();
-    let mut changed = false;
-    for path in [
-        "signature",
-        "thoughtSignature",
-        "thought_signature",
-        "extra_content.google.thought_signature",
-        "model",
-    ] {
-        if gjson::get(&raw, path).exists() {
-            raw = rawjson::delete(&raw, path);
-            changed = true;
-        }
-    }
-    for path in ["extra_content.google", "extra_content"] {
-        let v = gjson::get(&raw, path).json().to_owned();
-        let mut members = 0;
-        gjson::parse(&v).each(|_, _| {
-            members += 1;
-            true
-        });
-        if gjson::parse(&v).kind() == gjson::Kind::Object && members == 0 {
-            raw = rawjson::delete(&raw, path);
-            changed = true;
-        }
-    }
-    (raw, changed)
-}
-
-/// Keep, rewrite (`Some`) or drop (`None`) one thinking block for a Claude target.
-// ponytail: adapter for cpa-common::signature (owner: Google thread). Until it lands,
-// every thinking block is preserved as sent; foreign or invalid signatures are left
-// for Anthropic to reject instead of being dropped or replaced locally.
-fn thinking_signature_decision(raw: &str) -> Option<String> {
-    Some(raw.to_owned())
 }
 
 /// `extractAndRemoveBetas`.
@@ -734,6 +672,7 @@ impl<'a> Ctx<'a> {
         let api_key_kind = attr("auth_kind") == "apikey";
         let bearer = oauth_token || (!api_key_kind && attr("api_key").trim().is_empty());
         let base = base_model(&req.model);
+        let resolved = resolved_model(credential, req);
         Self {
             credential,
             first_party: tokens::first_party(&base_url),
@@ -741,6 +680,8 @@ impl<'a> Ctx<'a> {
             upstream_model: delegation.upstream_model.map_or_else(|| base.clone(), |f| f(&base)),
             kimi: kimi_upstream(&credential.provider, &base_url),
             execution: session::normalize(req.execution_session.as_deref().unwrap_or_default()),
+            is_compat: resolved.as_ref().is_some_and(cpa_core::registry::ModelInfo::is_compat),
+            resolved,
             base_model: base,
             cli_profile: oauth_token || profile == "claude-code-cli",
             oauth_token,
@@ -774,6 +715,31 @@ impl<'a> Ctx<'a> {
             chrono::Local::now().format("%Y-%m-%d").to_string()
         };
         self
+    }
+
+    /// `helps.ApplyRequestThinking` with provider `claude`.
+    fn apply_thinking(&self, req: &ExecRequest, body: String) -> Result<String, ExecError> {
+        use cpa_common::thinking::{ModelCaps, RequestThinking, apply_request_thinking};
+        let caps = self.resolved.as_ref().map(ModelCaps::from);
+        apply_request_thinking(&RequestThinking {
+            body: &body,
+            payload: &String::from_utf8_lossy(&req.body),
+            original: &String::from_utf8_lossy(&req.original_body),
+            model: &req.model,
+            from: req.source_format.as_str(),
+            to: Format::Claude.as_str(),
+            provider: "claude",
+            resolved: self.resolved.as_ref().map(|_| caps.as_ref()),
+            has_request_transformer: cpa_translate::pair(req.source_format, Format::Claude).is_some(),
+            updates_changed: false,
+        })
+        .map_err(|e| {
+            if e.code.is_some() {
+                ExecError::local(e.status(), FailureScope::Request, e.message)
+            } else {
+                plain_error(e.message)
+            }
+        })
     }
 
     /// `resolveClaudeWirePolicy`: (cloak, strict, sensitive words, cache user id).
@@ -874,6 +840,7 @@ impl<'a> Ctx<'a> {
         };
         let mut body = translated;
         body = set_string_if_different(&body, "model", &self.upstream_model);
+        body = self.apply_thinking(req, body)?;
         if self.rebuild_mid_system() {
             body = rebuild_mid_system(&body);
         }
@@ -1011,7 +978,7 @@ impl<'a> Ctx<'a> {
                 .unwrap_or(alias::DEFAULT_SECRET);
             (body, reverse) = alias::remap(&body, secret);
         }
-        body = sanitize_for_upstream(&body, &self.base_model);
+        body = sanitize_for_upstream(&body, &self.base_model, self.is_compat);
         if self.cli_profile {
             body = self.apply_identity(&body, &session_id)?;
         }
@@ -1082,6 +1049,7 @@ impl<'a> Ctx<'a> {
         };
         let mut body = String::from_utf8_lossy(translated).into_owned();
         body = set_string_if_different(&body, "model", &self.upstream_model);
+        body = self.apply_thinking(req, body)?;
         if self.rebuild_mid_system() {
             body = rebuild_mid_system(&body);
         }
@@ -1108,7 +1076,7 @@ impl<'a> Ctx<'a> {
                 .unwrap_or(alias::DEFAULT_SECRET);
             body = alias::remap(&body, secret).0;
         }
-        body = sanitize_for_upstream(&body, &self.base_model);
+        body = sanitize_for_upstream(&body, &self.base_model, self.is_compat);
         if self.first_party || self.cli_profile {
             for field in ["metadata", "context_management", "diagnostics"] {
                 body = rawjson::delete(&body, field);
