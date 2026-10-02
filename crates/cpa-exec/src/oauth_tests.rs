@@ -1,0 +1,345 @@
+use super::*;
+use axum::extract::{Request, State};
+use axum::response::IntoResponse;
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+#[derive(Default)]
+struct Mock {
+    calls: Mutex<Vec<(String, http::HeaderMap, Vec<u8>)>>,
+    profile_status: u16,
+    token_status: u16,
+    omit_refresh: bool,
+    started: tokio::sync::Notify,
+    release: tokio::sync::Notify,
+    hold: bool,
+    token_calls: AtomicUsize,
+}
+
+async fn handler(State(mock): State<Arc<Mock>>, request: Request) -> axum::response::Response {
+    let (parts, body) = request.into_parts();
+    let body = axum::body::to_bytes(body, 8192).await.unwrap();
+    mock.calls
+        .lock()
+        .unwrap()
+        .push((parts.uri.path().into(), parts.headers, body.to_vec()));
+    if parts.uri.path() == "/token" {
+        mock.token_calls.fetch_add(1, Ordering::SeqCst);
+        mock.started.notify_one();
+        if mock.hold {
+            mock.release.notified().await;
+        }
+        if mock.token_status != 0 {
+            return (
+                http::StatusCode::from_u16(mock.token_status).unwrap(),
+                [("retry-after", "2")],
+                "fake-refresh-echo",
+            )
+                .into_response();
+        }
+        let mut response = json!({"access_token":"sk-ant-oat-new-fake", "expires_in":36000,
+            "account":{"uuid":"token-account", "email_address":"token@example.test"},
+            "organization":{"uuid":"token-org", "name":"Token Organization"}});
+        if !mock.omit_refresh {
+            response["refresh_token"] = "fake-rotated".into();
+        }
+        axum::Json(response).into_response()
+    } else if parts.uri.path() == "/profile" {
+        if mock.profile_status != 0 {
+            return (
+                http::StatusCode::from_u16(mock.profile_status).unwrap(),
+                "fake-access-echo",
+            )
+                .into_response();
+        }
+        axum::Json(
+            json!({"account":{"uuid":"profile-account", "email":"profile@example.test"},
+            "organization":{"uuid":"profile-org", "name":"Profile Organization"}}),
+        )
+        .into_response()
+    } else {
+        axum::Json(json!({})).into_response()
+    }
+}
+
+async fn service(mock: Arc<Mock>) -> OAuth {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let base = format!("http://{}", listener.local_addr().unwrap());
+    let router = axum::Router::new().fallback(handler).with_state(mock);
+    tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
+    OAuth::with_endpoints(
+        wreq::Client::builder()
+            .http1_only()
+            .redirect(wreq::redirect::Policy::none())
+            .build()
+            .unwrap(),
+        &format!("{base}/token"),
+        &format!("{base}/profile"),
+        &format!("{base}/roles"),
+    )
+}
+
+fn credential() -> Credential {
+    Credential::from_file(Path::new("/fake"), Path::new("/fake/claude.json"), json!({
+        "type":"claude", "access_token":"sk-ant-oat-old-fake", "refresh_token":"fake-refresh",
+        "email":"old@example.test", "account_uuid":"old-account", "organization_uuid":"old-org",
+        "expired":"2000-01-01T00:00:00Z", "claude_device_ids":["invalid", format!(" {} ", "A".repeat(64)), "b".repeat(64)],
+        "unknown":{"preserve":true}, "id_token":"fake-id"
+    }).as_object().unwrap().clone()).unwrap()
+}
+
+#[test]
+fn refresh_lead_and_legacy_refresh_spelling() {
+    let now = DateTime::parse_from_rfc3339("2026-10-02T12:00:00Z")
+        .unwrap()
+        .with_timezone(&Utc);
+    let mut credential = credential();
+    credential
+        .metadata
+        .insert("expired".into(), "2026-10-02T16:00:01Z".into());
+    assert!(!refresh_due(&credential, now));
+    credential
+        .metadata
+        .insert("expired".into(), "2026-10-02T16:00:00Z".into());
+    assert!(refresh_due(&credential, now));
+    credential.metadata.insert("refresh_token".into(), "".into());
+    assert!(!refresh_due(&credential, now));
+    credential.metadata.insert("refreshToken".into(), "fake-legacy".into());
+    assert!(refresh_due(&credential, now));
+}
+
+#[tokio::test]
+async fn refresh_rotation_preserves_identity_on_optional_profile_failure() {
+    let mock = Arc::new(Mock {
+        profile_status: 503,
+        ..Default::default()
+    });
+    let oauth = service(mock.clone()).await;
+    let mut credential = credential();
+    let patch = oauth.prepare(&credential).await.unwrap();
+    patch.apply(&mut credential.metadata);
+    assert_eq!(credential.str("access_token"), Some("sk-ant-oat-new-fake"));
+    assert_eq!(credential.str("refresh_token"), Some("fake-rotated"));
+    assert_eq!(credential.str("account_uuid"), Some("old-account"));
+    assert_eq!(credential.str("email"), Some("old@example.test"));
+    assert_eq!(credential.str("id_token"), Some("fake-id"));
+    assert_eq!(credential.metadata["unknown"], json!({"preserve":true}));
+    assert_eq!(credential.metadata["claude_device_ids"], json!(["a".repeat(64)]));
+    assert!(!needs_prepare(&credential));
+    let calls = mock.calls.lock().unwrap();
+    assert_eq!(calls.len(), 2);
+    assert_eq!(calls[0].2, format!(r#"{{"client_id":"{CLIENT_ID}","grant_type":"refresh_token","refresh_token":"fake-refresh","scope":"{SCOPE}"}}"#).as_bytes());
+    assert_eq!(calls[1].1["authorization"], "Bearer sk-ant-oat-new-fake");
+}
+
+#[tokio::test]
+async fn missing_rotated_refresh_and_profile_fields_keep_saved_values() {
+    let mock = Arc::new(Mock {
+        omit_refresh: true,
+        ..Default::default()
+    });
+    let oauth = service(mock).await;
+    let patch = oauth.refresh("fake-refresh").await.unwrap();
+    assert_eq!(patch.set["refresh_token"], "fake-refresh");
+    assert_eq!(patch.set["account_uuid"], "profile-account");
+    assert_eq!(patch.set["email"], "profile@example.test");
+}
+
+#[tokio::test]
+async fn token_key_singleflight_survives_canceled_waiter() {
+    let mock = Arc::new(Mock {
+        hold: true,
+        ..Default::default()
+    });
+    let oauth = service(mock.clone()).await;
+    let first = oauth.clone();
+    let waiter = tokio::spawn(async move { first.refresh("fake-refresh").await });
+    mock.started.notified().await;
+    waiter.abort();
+    assert!(waiter.await.unwrap_err().is_cancelled());
+    let second = oauth.clone();
+    let waiter = tokio::spawn(async move { second.refresh("fake-refresh").await });
+    mock.release.notify_one();
+    let patch = waiter.await.unwrap().unwrap();
+    assert_eq!(patch.set["refresh_token"], "fake-rotated");
+    assert_eq!(oauth.refresh("fake-refresh").await.unwrap().set, patch.set);
+    assert_eq!(mock.token_calls.load(Ordering::SeqCst), 1);
+}
+
+#[tokio::test]
+async fn refresh_429_backoff_and_error_redaction() {
+    let mock = Arc::new(Mock {
+        token_status: 429,
+        ..Default::default()
+    });
+    let oauth = service(mock.clone()).await;
+    for _ in 0..2 {
+        let error = oauth.refresh("fake-refresh").await.unwrap_err();
+        assert_eq!(error.status, 429);
+        assert_eq!(error.retry_after, Some(Duration::from_secs(5)));
+        assert!(!error.to_string().contains("fake-refresh"));
+        assert!(error.headers.is_empty());
+    }
+    assert_eq!(mock.token_calls.load(Ordering::SeqCst), 1);
+    let mut headers = http::HeaderMap::new();
+    headers.insert("retry-after-ms", "9000".parse().unwrap());
+    assert_eq!(refresh_backoff(&headers), Duration::from_secs(9));
+    headers.insert("retry-after", "9999".parse().unwrap());
+    assert_eq!(refresh_backoff(&headers), Duration::from_secs(300));
+}
+
+#[tokio::test]
+async fn code_exchange_login_layout_and_atomic_permissions() {
+    let mock: Arc<Mock> = Arc::default();
+    let oauth = service(mock.clone()).await;
+    let patch = oauth
+        .exchange("fake-code#state-fragment", "state-argument", "fake-verifier")
+        .await
+        .unwrap();
+    let calls = mock.calls.lock().unwrap();
+    assert_eq!(
+        calls.iter().map(|c| c.0.as_str()).collect::<Vec<_>>(),
+        ["/token", "/profile", "/roles"]
+    );
+    assert_eq!(calls[0].2, format!(r#"{{"grant_type":"authorization_code","code":"fake-code","redirect_uri":"{REDIRECT_URI}","client_id":"{CLIENT_ID}","code_verifier":"fake-verifier","state":"state-fragment"}}"#).as_bytes());
+    drop(calls);
+    for field in [
+        "id_token",
+        "access_token",
+        "refresh_token",
+        "last_refresh",
+        "email",
+        "type",
+        "expired",
+    ] {
+        assert!(patch.set[field].is_string(), "{field} must always serialize");
+    }
+    assert!(canonical_pool(patch.set.get("claude_device_ids")));
+    let directory = std::env::temp_dir().join(format!("cpa-login-test-{}", random_hex(8).unwrap()));
+    let path = write_login(&directory, patch.clone()).unwrap();
+    let mut metadata: Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+    metadata["unknown"] = json!({"preserve":true});
+    std::fs::write(&path, metadata.to_string()).unwrap();
+    write_login(&directory, patch).unwrap();
+    let metadata: Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+    assert_eq!(metadata["unknown"], json!({"preserve":true}));
+    assert!(metadata.get("Metadata").is_none());
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        assert_eq!(std::fs::metadata(&path).unwrap().permissions().mode() & 0o777, 0o600);
+    }
+    assert_eq!(
+        std::fs::read_dir(&directory).unwrap().count(),
+        1,
+        "no credential temp files remain"
+    );
+    std::fs::remove_dir_all(directory).unwrap();
+}
+
+#[tokio::test]
+async fn callback_rejects_bad_state_then_accepts_valid_request() {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    let waiting = tokio::spawn(async move { callback(&listener, "good-state").await });
+    for (target, expected_status) in [
+        ("/callback?code=fake&state=wrong", "400"),
+        ("/callback?code=fake%23wrong&state=good-state", "400"),
+        ("/callback?code=fake%23good-state&state=good-state", "200"),
+    ] {
+        let mut socket = tokio::net::TcpStream::connect(addr).await.unwrap();
+        socket
+            .write_all(format!("GET {target} HTTP/1.1\r\nHost: localhost\r\n\r\n").as_bytes())
+            .await
+            .unwrap();
+        let mut response = String::new();
+        socket.read_to_string(&mut response).await.unwrap();
+        assert!(response.starts_with(&format!("HTTP/1.1 {expected_status}")));
+        assert!(!response.contains("fake"), "callback must not reflect codes");
+    }
+    assert_eq!(waiting.await.unwrap().unwrap(), "fake#good-state");
+    let (verifier, challenge) = pkce().unwrap();
+    assert_eq!(verifier.len(), 128);
+    assert_eq!(challenge.len(), 43);
+    let url = Url::parse(&authorize_url("good-state", &challenge)).unwrap();
+    assert!(url.query_pairs().any(|(key, value)| key == "scope" && value == SCOPE));
+}
+
+#[tokio::test]
+async fn raw_oauth_token_and_inspection_header_order_and_case() {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let base = format!("http://{}", listener.local_addr().unwrap());
+    let capture = tokio::spawn(async move {
+        let mut captures = Vec::new();
+        for index in 0..3 {
+            let (mut socket, _) = listener.accept().await.unwrap();
+            let mut bytes = Vec::new();
+            while !bytes.ends_with(b"\r\n\r\n") {
+                let mut byte = [0];
+                socket.read_exact(&mut byte).await.unwrap();
+                bytes.push(byte[0]);
+            }
+            let headers = String::from_utf8(bytes).unwrap();
+            let length = headers
+                .lines()
+                .find_map(|line| line.strip_prefix("Content-Length: "))
+                .map(|s| s.parse::<usize>().unwrap())
+                .unwrap_or(0);
+            let mut body = vec![0; length];
+            socket.read_exact(&mut body).await.unwrap();
+            captures.push((headers, body));
+            let body = if index == 0 {
+                r#"{"access_token":"fake-access","refresh_token":"fake-refresh","expires_in":36000}"#
+            } else {
+                "{}"
+            };
+            socket.write_all(format!("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len()).as_bytes()).await.unwrap();
+        }
+        captures
+    });
+    let oauth = OAuth::with_endpoints(
+        wreq::Client::builder().http1_only().build().unwrap(),
+        &format!("{base}/token"),
+        &format!("{base}/profile"),
+        &format!("{base}/roles"),
+    );
+    oauth
+        .exchange("fake-code", "fake-state", "fake-verifier")
+        .await
+        .unwrap();
+    let captures = capture.await.unwrap();
+    let names = |raw: &str| {
+        raw.lines()
+            .skip(1)
+            .filter_map(|line| line.split_once(':').map(|(name, _)| name.to_owned()))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(
+        names(&captures[0].0),
+        [
+            "Accept",
+            "Content-Type",
+            "User-Agent",
+            "Content-Length",
+            "Accept-Encoding",
+            "Host",
+            "Connection"
+        ]
+    );
+    for (headers, body) in &captures[1..] {
+        assert_eq!(
+            names(headers),
+            [
+                "Accept",
+                "Content-Type",
+                "Authorization",
+                "Cache-Control",
+                "User-Agent",
+                "Accept-Encoding",
+                "Host",
+                "Connection"
+            ]
+        );
+        assert!(headers.contains("Authorization: Bearer fake-access\r\n"));
+        assert!(body.is_empty());
+    }
+}

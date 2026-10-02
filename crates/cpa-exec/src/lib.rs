@@ -10,7 +10,13 @@
 //! the runtime commits. Executors never write credential files themselves.
 
 pub mod claude;
+pub mod oauth;
+mod quota;
+mod tls;
+mod tokens;
+mod translate;
 mod upstream;
+mod wire;
 
 use cpa_core::config::Config;
 use cpa_core::credential::{Credential, MetadataPatch};
