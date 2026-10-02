@@ -40,6 +40,9 @@ func matrix(r registration, model string) []fixture {
 	switch r.client {
 	case "openai":
 		out = append(out, openAIChatRequests(model)...)
+		if r.upstream == "gemini" {
+			out = append(out, openAIGeminiRequests(model)...)
+		}
 		if r.upstream == "claude" {
 			for _, f := range openAIChatRequests(model) {
 				if strings.HasPrefix(f.Name, "tools/") || strings.HasPrefix(f.Name, "reasoning/") {
@@ -57,7 +60,7 @@ func matrix(r registration, model string) []fixture {
 		out = append(out, geminiRequests(model)...)
 	case "claude":
 		out = append(out, claudeRequests(model)...)
-		if r.upstream == "openai" {
+		if r.upstream == "openai" || r.upstream == "gemini" {
 			for _, f := range claudeRequests(model) {
 				if strings.HasPrefix(f.Name, "messages/") || strings.HasPrefix(f.Name, "thinking/") {
 					f.Name = "compat/" + f.Name
@@ -430,7 +433,7 @@ func claudeRequests(model string) []fixture {
 		`"thinking":"enabled"`, `"thinking":null`, `"thinking":{"type":"Enabled","budget_tokens":100}`,
 		"\"thinking\":{\"type\":\"enabled\"},\"output_config\":{\"effort\":\"H\xffIGH\"}",
 	} {
-		for _, m := range []string{"gpt-5", "gpt-test", "kimi-k2.5", "claude-opus-4-6", "unknown-model"} {
+		for _, m := range []string{"gpt-5", "gpt-test", "kimi-k2.5", "claude-opus-4-6", "unknown-model", "gemini-2.5-pro", "gemini-3-pro-preview"} {
 			out = append(out, req(fmt.Sprintf("thinking/%d/%s", i, m), m, `{`+thinking+`,"max_tokens":100,"messages":[{"role":"user","content":"hi"}]}`, i%2 == 0))
 		}
 	}
@@ -629,7 +632,8 @@ func geminiUpstreamResponses() []fixture {
 	cases := map[string][]string{
 		"text":            {chunk(`[{"text":"Hello <b>"}]`, ``), chunk(`[{"text":" & é \u2028"}]`, ``), chunk(`[{"text":""}]`, `,"finishReason":"STOP"`) + ``, `data: {"candidates":[],` + usage + `}`, "data: [DONE]"},
 		"thoughts":        {chunk(`[{"text":"think","thought":true}]`, ``), chunk(`[{"text":"","thought":true,"thoughtSignature":"EjQKMgEMOdbHO0Gd+c9Mxk4ELwPGbpCEcp2mFfYYLix2UVtBH3fL8GECc4+JITVnHF4qZDsA"}]`, ``), chunk(`[{"text":"answer"}]`, `,"finishReason":"STOP"`), `data: {"candidates":[{"content":{"parts":[]},"finishReason":"STOP"}],` + usage + `}`},
-		"function-calls":  {chunk(`[{"text":"calling"},{"functionCall":{"name":"lookup","args":{"q":"<x>","n":1e3}},"thoughtSignature":"sig"}]`, ``), chunk(`[{"functionCall":{"id":"call-2","name":"Read","args":{}}},{"functionCall":{"name":"noargs"}}]`, `,"finishReason":"STOP"`), `data: {` + usage + `}`, "data: [DONE]"},
+		"function-calls":  {chunk(`[{"text":"calling"},{"functionCall":{"name":"lookup","args":{"q":"<x>","n":1e3}},"thoughtSignature":"sig"}]`, ``), chunk(`[{"functionCall":{"id":"call-2","name":"Read","args":{}}},{"functionCall":{"name":"noargs"}},{"functionCall":{"name":"a.b_c_d","args":[1]}}]`, `,"finishReason":"STOP"`), `data: {` + usage + `}`, "data: [DONE]"},
+		"create-time":     {`data: {"candidates":[{"content":{"parts":[{"text":"a"}]}}],"createTime":"2025-01-02T03:04:05.678+01:00"}`, `data: {"candidates":[{"content":{"parts":[{"text":"b"}]}}],"createTime":"not a time"}`, `data: {"candidates":[{"content":{"parts":[{"text":"c"},{"text":"d","thought":true},{"text":"e"}]},"finishReason":"stop"}],"createTime":5,` + usage + `}`, `data: {"candidates":[{"content":{"parts":[{"thoughtSignature":"only-sig"},{"thought_signature":"","text":"keep"},{"audioTranscription":{"text":"spoken"}},{"inline_data":{"mime_type":"audio/wav","data":"UklG"}},{"inlineData":{"data":""}}]},"index":2,"finishReason":"MAX_TOKENS"}],"usageMetadata":{"promptTokenCount":1}}`},
 		"finish-reasons":  {chunk(`[{"text":"a"}]`, `,"finishReason":"MAX_TOKENS"`), chunk(`[{"text":"b"}]`, `,"finishReason":"SAFETY","safetyRatings":[{"category":"HARM_CATEGORY_HATE_SPEECH","probability":"HIGH"}]`), chunk(`[]`, `,"finishReason":"MALFORMED_FUNCTION_CALL"`), chunk(`[{"text":"c"}]`, `,"finishReason":"RECITATION"`), chunk(`[{"text":"d"}]`, `,"finishReason":"OTHER"`), "data: [DONE]"},
 		"inline-data":     {chunk(`[{"inlineData":{"mimeType":"image/png","data":"iVBOR"}},{"text":"caption"},{"executableCode":{"language":"PYTHON","code":"x"}},{"codeExecutionResult":{"outcome":"OUTCOME_OK","output":"1"}}]`, `,"finishReason":"STOP"`), "data: [DONE]"},
 		"grounding":       {chunk(`[{"text":"grounded"}]`, `,"groundingMetadata":{"webSearchQueries":["q"],"groundingChunks":[{"web":{"uri":"https://a","title":"A"}}]},"finishReason":"STOP"`), "data: [DONE]"},
@@ -645,12 +649,12 @@ func geminiUpstreamResponses() []fixture {
 	var out []fixture
 	for _, name := range names {
 		f := streamCase("gemini-up/"+name, "gemini-2.5-pro", cases[name]...)
-		f.Original = `{"model":"client-model","stream":true,"tools":[{"name":"Read"},{"function":{"name":"Lookup"}}]}`
+		f.Original = `{"model":"client-model","stream":true,"tools":[{"name":"Read"},{"function":{"name":"Lookup"}},{"name":"a.b/c d"},{"name":"a.b c/d"}]}`
 		out = append(out, f)
 	}
 	for i, body := range []string{
 		`{"candidates":[{"content":{"role":"model","parts":[{"text":"think","thought":true,"thoughtSignature":"sig"},{"text":"Hello <b> é"},{"functionCall":{"name":"lookup","args":{"q":1}}}]},"finishReason":"STOP","index":0}],` + usage + `,"modelVersion":"gemini-2.5-pro","responseId":"resp-1"}`,
-		`{"candidates":[{"content":{"parts":[{"functionCall":{"id":"c1","name":"Read","args":{"path":"/a"}}},{"functionCall":{"name":"Read"}}]},"finishReason":"MAX_TOKENS"}],"usageMetadata":{"promptTokenCount":3}}`,
+		`{"candidates":[{"content":{"parts":[{"functionCall":{"id":"c1","name":"Read","args":{"path":"/a"}}},{"functionCall":{"name":"look_up"}},{"text":"t1"},{"text":"t2"},{"text":"r","thought":true},{"inlineData":{"data":"AA"}},{"inline_data":{"mime_type":"image/webp","data":"BB"}},{"audioTranscription":{"text":"heard"}}]},"finishReason":"MAX_TOKENS","index":1}],"usageMetadata":{"promptTokenCount":3,"cachedContentTokenCount":2},"createTime":"2025-06-01T00:00:00Z"}`,
 		`{"candidates":[{"content":{"parts":[{"inlineData":{"mimeType":"image/jpeg","data":"/9j/"}}]},"finishReason":"SAFETY"}]}`,
 		`{"candidates":[]}`, `{"candidates":[{"content":{"parts":[{"text":""}]}}]}`, `{"promptFeedback":{"blockReason":"SAFETY"}}`,
 		`{"candidates":[{"content":{"parts":[{"text":"a"}]}},{"content":{"parts":[{"text":"b"}]},"index":1}]}`,
@@ -658,8 +662,49 @@ func geminiUpstreamResponses() []fixture {
 		`[{"candidates":[{"content":{"parts":[{"text":"array body"}]}}]}]`,
 	} {
 		n := nonStream(fmt.Sprintf("gemini-up/non-stream/%d", i), "gemini-2.5-pro", body)
-		n.Original = `{"model":"client-model","tools":[{"name":"Read"}]}`
+		n.Original = `{"model":"client-model","tools":[{"name":"Read"},{"name":"look up"}]}`
 		out = append(out, n)
+	}
+	return out
+}
+
+// openAIGeminiRequests exercise the OpenAI Chat -> Gemini branches: generation settings,
+// modalities, response formats, media parts, demoted system messages, tool turns,
+// declarations with sanitized names and strictness, built-in tools and tool choices.
+func openAIGeminiRequests(model string) []fixture {
+	var out []fixture
+	sig := "EjQKMgEMOdbHO0Gd+c9Mxk4ELwPGbpCEcp2mFfYYLix2UVtBH3fL8GECc4+JITVnHF4qZDsA"
+	for i, input := range []string{
+		`{"messages":[{"role":"user","content":"x"}],"temperature":0.2,"top_p":1,"top_k":40,"max_tokens":12.75,"n":3,"reasoning_effort":"AUTO","generationConfig":{"seed":1,"maxOutputTokens":5}}`,
+		`{"messages":[{"role":"user","content":"x"}],"temperature":"0.2","top_k":"4","max_completion_tokens":1e3,"n":1,"reasoning_effort":" Medium "}`,
+		`{"messages":[{"role":"user","content":"x"}],"max_tokens":"9","max_completion_tokens":7,"n":"2","reasoning_effort":""}`,
+		`{"messages":[{"role":"user","content":"x"}],"modalities":["Text","IMAGE","audio",5],"image_config":{"aspect_ratio":"16:9","image_size":"2K"}}`,
+		`{"messages":[{"role":"user","content":"x"}],"modalities":"text","image_config":{"aspect_ratio":5,"image_size":"<1K>"}}`,
+		`{"messages":[{"role":"user","content":"x"}],"response_format":{"type":"json_schema","json_schema":{"name":"n","schema":{"type":"object","properties":{"a":{"type":"string"}}}}},"generationConfig":{"responseSchema":{"x":1}}}`,
+		`{"messages":[{"role":"user","content":"x"}],"response_format":{"type":" JSON_OBJECT "}}`,
+		`{"messages":[{"role":"user","content":"x"}],"response_format":{"type":"json_schema"}}`,
+		`{"messages":[{"role":"system","content":"sys1"},{"role":"developer","content":{"type":"text","text":"dev obj"}},{"role":"system","content":[{"type":"text","text":"a"},{"type":"image_url"},{"text":"c"}]},{"role":"user","content":"hello"},{"role":"system","content":"late rule"},{"role":"developer","content":"  "},{"role":"system","content":[{"type":"text","text":"arr late"},{"type":"text","text":""}]}]}`,
+		`{"messages":[{"role":"system","content":"only system"}]}`,
+		`{"messages":[{"role":"user","content":[{"type":"text","text":"look"},{"type":"image_url","image_url":{"url":"data:image/png;base64,iVBOR"}},{"type":"image_url","image_url":{"url":"https://x/y.png"}},{"type":"image_url","image_url":{"url":"data:image/jpeg;base64,"}},{"type":"video_url","video_url":{"url":"data:video/mp4;base64,AAAA"}},{"type":"file","file":{"filename":"doc.PDF","file_data":"UERG"}},{"type":"file","file":{"filename":"a.unknownext","file_data":"QQ=="}},{"type":"file","file":{"file_data":"data:text/plain;charset=utf-8;BASE64,aGk="}},{"type":"file","file":{"file_data":"DATA:;base64,x"}},{"type":"file","file":{"filename":"dir.x/noext","file_data":"Zg=="}},{"type":"input_audio","input_audio":{"data":"UklG","format":"mp3"}},{"type":"input_audio","input_audio":{"data":"AA","format":"opus"}},{"type":"input_audio","input_audio":{"data":"AA"}},{"type":"input_audio","input_audio":{"format":"wav"}}]}]}`,
+		`{"messages":[{"role":"user","content":"q"},{"role":"assistant","content":"thinking out loud","reasoning_content":"r <x>"},{"role":"assistant","content":[{"type":"text","text":"multi"},{"type":"image_url","image_url":{"url":"data:image/gif;base64,R0lG"}},{"type":"text","text":""}],"reasoning_content":5},{"role":"assistant","content":"","reasoning_content":""},{"role":"user","content":"next"},{"role":"assistant","content":"trailing model dropped"}]}`,
+		`{"messages":[{"role":"user","content":"q"},{"role":"assistant","content":"calling","tool_calls":[{"id":"c1","type":"function","function":{"name":"get weather!","arguments":"{\"city\":\"<P>\"}"},"extra_content":{"google":{"thought_signature":"` + sig + `"}}},{"id":"c2","type":"function","function":{"name":"Read","arguments":"not json"},"thoughtSignature":"claude#EjQ="},{"id":"c3","type":"custom","function":{"name":"skip"}},{"id":"c4","type":"function","function":{"name":"","arguments":"{}"}},{"id":"c5","type":"function","function":{"name":"9lives","arguments":""},"function":{"extra_content":{"google":{"thought_signature":"skip_thought_signature_validator"}}}}]},{"role":"tool","tool_call_id":"c1","content":"sunny <&>"},{"role":"tool","tool_call_id":"c2","content":[{"type":"text","text":"file"}]},{"role":"tool","tool_call_id":"c1","content":{"override":true}},{"role":"user","content":"thanks"},{"role":"tool","tool_call_id":"c5","content":""}]}`,
+		`{"messages":[{"role":"assistant","tool_calls":[{"id":"a","type":"function","function":{"name":"A","arguments":"{}"}}]},{"role":"assistant","content":"second"},{"role":"tool","tool_call_id":"a","content":"late"}]}`,
+		`{"messages":[{"role":"assistant","content":"x","tool_calls":[]},{"role":"assistant","tool_calls":[{"type":"other"}]},{"role":"assistant","tool_calls":{"id":"obj","type":"function","function":{"name":"O","arguments":"{}"}}}]}`,
+		`{"messages":[{"role":"user","content":"x"}],"tools":[{"type":"function","function":{"name":"get weather","description":"d <b>","parameters":{"type":"object","properties":{"city":{"type":["string","null"],"format":"city","minLength":1},"unit":{"enum":["c","f"]}},"required":["city","missing"],"additionalProperties":false,"$schema":"x"},"strict":true}},{"type":"function","function":{"name":"noparams"},"strict":false},{"type":"function","function":{"name":5,"parameters":{}}},{"type":"function","function":"bad"},{"type":"web_search"},{"google_search":{"x":1}},{"type":"function","function":{"name":"both"},"code_execution":{},"url_context":{"u":1}}],"tool_choice":"auto"}`,
+		`{"messages":[{"role":"user","content":"x"}],"tools":[{"type":"function","function":{"name":"a b","parameters":{"type":"object"}}},{"type":"function","function":{"name":"a_b","parameters":{"type":"object"}}}],"tool_choice":{"type":"function","function":{"name":"a b"}}}`,
+		`{"messages":[{"role":"user","content":"x"}],"tools":[{"type":"function","function":{"name":"Read","parameters":{"type":"object"},"strict":true}}],"tool_choice":{"type":"function","name":" Read "},"parallel_tool_calls":true}`,
+		`{"messages":[{"role":"user","content":"x"}],"tools":[{"type":"function","function":{"name":"Read","parameters":{"type":"object"}}}],"tool_choice":{"type":"function","function":{"name":"Missing"}}}`,
+		`{"messages":[{"role":"user","content":"x"}],"tools":[{"type":"function","function":{"name":"Read","parameters":{"type":"object"}}},{"type":"function","function":{"name":"Write"},"strict":true}],"tool_choice":{"type":"allowed_tools","allowed_tools":{"mode":"required","tools":[{"type":"function","function":{"name":"Write"}},{"name":"Read"}]}}}`,
+		`{"messages":[{"role":"user","content":"x"}],"tools":[{"type":"function","function":{"name":"Read","strict":true}},{"type":"function","function":{"name":"Write"}},{"google_search":{}}],"tool_choice":{"type":"allowed_tools","tools":[{"name":"Read"}],"mode":"AUTO"}}`,
+		`{"messages":[{"role":"user","content":"x"}],"tools":[{"type":"function","function":{"name":"Read"}}],"tool_choice":{"type":"allowed_tools","allowed_tools":{"tools":{"name":"Read"}}}}`,
+		`{"messages":[{"role":"user","content":"x"}],"tools":[{"type":"function","function":{"name":"Read"}}],"tool_choice":{"type":"allowed_tools","allowed_tools":{"tools":[{"name":"Nope"}],"mode":"any"}}}`,
+		`{"messages":[{"role":"user","content":"x"}],"tools":[{"type":"function","function":{"name":"Read","strict":true}}]}`,
+		`{"messages":[{"role":"user","content":"x"}],"tools":[{"type":"function","function":{"name":"Read"}}],"tool_choice":"REQUIRED","parallel_tool_calls":false}`,
+		`{"messages":[{"role":"user","content":"x"}],"tools":[{"type":"function","function":{"name":"Read"}}],"tool_choice":{"type":"any"},"parallel_tool_calls":"false"}`,
+		`{"messages":[{"role":"user","content":"x"}],"tools":[{"type":"function","function":{"name":"Read"}}],"tool_choice":5}`,
+		`{"messages":[{"role":"user","content":"x"}],"tools":[],"tool_choice":"none","safetySettings":[{"category":"x"}]}`,
+	} {
+		out = append(out, req(fmt.Sprintf("openai-gemini/%d", i), model, input, i%2 == 0))
 	}
 	return out
 }

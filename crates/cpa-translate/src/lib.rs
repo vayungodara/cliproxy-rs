@@ -32,6 +32,11 @@ mod claude_responses_response;
 mod codex_responses;
 mod common;
 mod gemini;
+mod gemini_chat_request;
+mod gemini_chat_response;
+mod gemini_claude;
+mod gemini_claude_response;
+mod mime;
 mod openai;
 mod openai_claude;
 mod openai_claude_response;
@@ -40,6 +45,7 @@ pub mod stream;
 mod thinking;
 
 pub use claude_chat_request::request_with_compat as openai_to_claude_with_compat;
+pub use gemini_claude::request_with_compat as claude_to_gemini_with_compat;
 pub use openai_claude::request_with_compat as claude_to_openai_with_compat;
 
 /// ConvertOpenAIResponsesRequestToClaudeWithCompat: like the registered Responses ->
@@ -116,6 +122,8 @@ fn registered(client: Format, upstream: Format) -> Option<&'static Registered> {
         (Format::OpenAIResponse, Format::Claude) => Some(&claude_responses_response::PAIR),
         (Format::Claude, Format::OpenAI) => Some(&openai_claude::PAIR),
         (Format::Gemini, Format::Gemini) => Some(&gemini::PAIR),
+        (Format::OpenAI, Format::Gemini) => Some(&gemini_chat_request::PAIR),
+        (Format::Claude, Format::Gemini) => Some(&gemini_claude::PAIR),
         _ => None,
     }
 }
