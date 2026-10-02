@@ -207,7 +207,7 @@ fn base_headers(api_key: &str, content_type: &str) -> GoHeaders {
 /// `util.ApplyCustomHeadersFromAttrs` with the client headers and explicit session.
 fn apply_custom(headers: &mut GoHeaders, credential: &Credential, req: &ExecRequest) {
     let session =
-        cpa_common::session::cpa_session_id(&req.headers, &req.original_body, req.execution_session.as_deref());
+        cpa_common::session::cpa_session_id(&req.headers, original_payload(req), req.execution_session.as_deref());
     for (name, value) in cpa_common::headers::custom_headers(&credential.attributes, &req.headers, session.as_deref()) {
         headers.set(&name, value);
     }

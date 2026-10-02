@@ -47,13 +47,21 @@ api-keys:
 const payloadConfig = baseConfig + `
 requests:
   payload:
+    # One param per rule: Go ranges over each rule's params map, so several params in
+    # one rule are written in random order.
     default:
       - models:
           - name: "acme-*"
             protocol: "openai"
         params:
           "temperature": 0.25
+      - models:
+          - name: "acme-*"
+        params:
           "metadata.tier": "gold"
+      - models:
+          - name: "acme-chat"
+        params:
           "max_tokens": 1
     default-raw:
       - models:
@@ -321,6 +329,9 @@ func scenarios() []scenario {
 			Model:      "solo", Payload: hi, Source: "openai", Op: "execute", Upstream: jsonOK},
 		// Go expands $CPA-SESSION-ID to CanonicalSessionID, message-hash fallback included;
 		// the shared Rust helper passes only the explicit session (integrator decision).
+		{Name: "custom_header_session_from_payload_without_original", ConfigAuth: -1, Provider: "openai-compatible-solo",
+			Attributes: map[string]string{"base_url": "http://UPSTREAM/v1", "api_key": "sk-fake-solo", "header:X-Sess": "$CPA-SESSION-ID"},
+			Model:      "solo", Payload: `{"model":"solo","messages":[{"role":"user","content":"hi"}],"prompt_cache_key":"pc-1"}`, Source: "openai", Op: "execute", Upstream: jsonOK},
 		{Name: "custom_header_cpa_session_id_absent", Needs: []string{"session"}, ConfigAuth: -1, Provider: "openai-compatible-solo",
 			Attributes: map[string]string{"base_url": "http://UPSTREAM/v1", "api_key": "sk-fake-solo", "header:X-Sess": "$CPA-SESSION-ID", "header:X-Mix": "pre-$CPA-SESSION-ID-post"},
 			Model:      "solo", Payload: hi, Source: "openai", Op: "execute", Upstream: jsonOK},

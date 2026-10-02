@@ -163,10 +163,11 @@ fn request(s: &Value) -> (ExecRequest, String) {
         }
         None => Bytes::from(s["payload"].as_str().unwrap().to_owned()),
     };
+    // Go sets opts.OriginalRequest only when the scenario has one.
     let original = s["original"]
         .as_str()
         .map(|o| Bytes::from(o.to_owned()))
-        .unwrap_or_else(|| payload.clone());
+        .unwrap_or_default();
     let mut headers = http::HeaderMap::new();
     for (k, v) in s["headers"].as_object().into_iter().flatten() {
         headers.insert(
