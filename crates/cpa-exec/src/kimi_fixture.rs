@@ -284,6 +284,7 @@ pub(crate) fn request(fixture: &Value, principal: &str) -> ExecRequest {
         stream: r["stream"].as_bool().unwrap_or(false),
         alt: r["alt"].as_str().map(str::to_owned),
         session: None,
+        execution_session: None,
         headers,
         caller: Caller {
             principal: principal.into(),

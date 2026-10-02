@@ -79,10 +79,16 @@ impl MetaExecutor {
     /// ShouldPrepareRequestAuth (no usable key but a DCA token), or a due
     /// `refresh_interval`: the SDK refresh lead is nil, so nothing else schedules a mint.
     pub fn needs_prepare(&self, credential: &Credential, _cfg: &Config) -> bool {
-        if is_config_api_key(credential) || dca_token(credential).is_none() {
-            return false;
-        }
-        creds(credential).1.is_empty() || refresh_due(credential, None, chrono::Utc::now())
+        self.must_mint(credential)
+            || (!is_config_api_key(credential)
+                && dca_token(credential).is_some()
+                && refresh_due(credential, None, chrono::Utc::now()))
+    }
+
+    /// `ShouldPrepareRequestAuth`: requests must wait for a mint because there is no
+    /// usable key, only a DCA token.
+    pub fn must_mint(&self, credential: &Credential) -> bool {
+        !is_config_api_key(credential) && creds(credential).1.is_empty() && dca_token(credential).is_some()
     }
 
     /// Refresh: re-mints the API key from the DCA token. Also what the runtime should call

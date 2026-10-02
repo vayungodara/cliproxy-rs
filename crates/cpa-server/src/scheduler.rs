@@ -5,7 +5,9 @@ use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
 use cpa_core::credential::Credential;
-use cpa_core::exec::{ExecError, FailureScope};
+use cpa_core::exec::ExecError;
+#[cfg(test)]
+use cpa_core::exec::FailureScope;
 use serde::Deserialize;
 use serde_json::Value;
 
@@ -214,6 +216,8 @@ pub struct ErrorRule {
 
 #[derive(Debug, Clone, Copy)]
 pub struct ErrorAction {
+    /// A configured request-scoped rule decided this outcome.
+    pub matched: bool,
     pub stop: bool,
     pub cooldown: bool,
     pub force_cooldown: bool,
@@ -286,9 +290,10 @@ impl Policy {
                 .flatten()
         });
         if let Some(rules) = rules {
-            let body = String::from_utf8_lossy(&error.body);
+            let body = crate::classify::error_text(error);
+            let status = i64::from(crate::classify::go_status(error));
             for rule in rules {
-                if rule.status <= 0 || rule.status != i64::from(error.status) {
+                if rule.status <= 0 || rule.status != status {
                     continue;
                 }
                 let matches = rule.r#match.iter().any(|s| !s.is_empty() && body.contains(s))
@@ -307,26 +312,26 @@ impl Policy {
                     _ => continue,
                 };
                 return ErrorAction {
+                    matched: true,
                     stop,
                     cooldown,
                     force_cooldown: cooldown,
                 };
             }
         }
-        // ponytail: compatibility for the baseline executor's untyped transport error.
-        // Remove the string check when all executors report FailureScope::Transport.
-        let transport = error.scope == FailureScope::Transport
-            || (error.headers.is_empty() && error.body.starts_with(b"upstream request failed:"));
-        // ponytail: generic scopes/statuses only; Go's provider-specific model-support,
-        // invalid_grant, Cloudflare and compact classifiers remain M4-0024.
+        // Go `shouldSkipCredentialCooldown`: request faults and transport/lifecycle
+        // faults never cool a credential.
+        let request = crate::classify::is_request_invalid(error);
         ErrorAction {
-            stop: error.scope == FailureScope::Request,
-            cooldown: error.scope != FailureScope::Request && !transport,
+            matched: false,
+            stop: request,
+            cooldown: !request && !crate::classify::is_transport(error),
             force_cooldown: false,
         }
     }
 }
 
+/// Go `isCredentialRetryRoundStatus`.
 pub fn retry_status(status: u16) -> bool {
     matches!(status, 403 | 408 | 429 | 500 | 502 | 503 | 504)
 }
@@ -345,66 +350,7 @@ fn weight(c: &Credential) -> i64 {
     value.filter(|n| *n <= 1_000_000).unwrap_or(0).max(0)
 }
 
-pub fn canonical_model(model: &str) -> &str {
-    // Go's thinking.ParseSuffix removes the terminal parenthesized thinking suffix.
-    let model = model.trim();
-    if model.ends_with(')') {
-        model
-            .rsplit_once('(')
-            .map(|(base, _)| base.trim())
-            .filter(|base| !base.is_empty())
-            .unwrap_or(model)
-    } else {
-        model
-    }
-}
-
-fn wildcard(pattern: &str, model: &str) -> bool {
-    // '*' is the only wildcard in Go's excluded-model matcher.
-    let pattern = format!("^{}$", regex::escape(pattern).replace("\\*", ".*"));
-    regex::Regex::new(&pattern).is_ok_and(|re| re.is_match(model))
-}
-
-pub fn execution_model(c: &Credential, model: &str, policy: &Policy) -> Option<String> {
-    let requested = model.trim();
-    let model = canonical_model(requested);
-    let suffix = requested.strip_prefix(model).unwrap_or("");
-    let prefix = c
-        .attributes
-        .get("prefix")
-        .map(String::as_str)
-        .or_else(|| c.str("prefix"))
-        .unwrap_or("");
-    let model = if prefix.is_empty() {
-        model
-    } else if let Some(model) = model.strip_prefix(&format!("{prefix}/")) {
-        model
-    } else if policy.force_model_prefix || model.contains('/') {
-        return None;
-    } else {
-        model
-    };
-    // ponytail: local aliases only; registry listings and global OAuth aliases remain
-    // the model-registry stream's responsibility.
-    let mut resolved = model;
-    if let Some(aliases) = metadata(c, "model_aliases").and_then(Value::as_array) {
-        for alias in aliases {
-            if alias.get("alias").and_then(Value::as_str) == Some(model) {
-                resolved = alias.get("name").and_then(Value::as_str)?;
-                break;
-            }
-        }
-    }
-    let excluded = metadata(c, "excluded_models").and_then(Value::as_array);
-    if excluded.is_some_and(|list| list.iter().filter_map(Value::as_str).any(|p| wildcard(p, resolved))) {
-        return None;
-    }
-    Some(if resolved.ends_with(')') {
-        resolved.to_owned()
-    } else {
-        format!("{resolved}{suffix}")
-    })
-}
+pub use cpa_core::registry::dynamic::canonical_model;
 
 #[derive(Default)]
 struct Rotation {
@@ -413,18 +359,47 @@ struct Rotation {
     current: HashMap<String, i64>,
 }
 
-struct Cooldown {
-    deadline: Instant,
-    level: u32,
-    status: u16,
-    quota: bool,
+pub(crate) struct Cooldown {
+    pub deadline: Instant,
+    pub level: u32,
+    pub status: u16,
+    /// Quota-style cooldown (429 or Cloudflare): reported as a model cooldown.
+    pub quota: bool,
+    /// The failure that set it (Go `ModelState.LastError`), for error summaries.
+    pub error: String,
 }
 
 #[derive(Default)]
 pub(crate) struct Scheduler {
     rotations: HashMap<(String, String), Rotation>,
-    cooldowns: HashMap<(String, String), Cooldown>,
+    /// Mixed-provider round-robin cursors (Go `mixedCursors`).
+    cursors: HashMap<(String, String), usize>,
+    pub(crate) cooldowns: HashMap<(String, String), Cooldown>,
     bindings: HashMap<(String, String, String), (String, Instant)>,
+}
+
+/// Go `nextQuotaCooldown`: 1s doubling to 30m.
+fn quota_backoff(level: u32) -> (Duration, u32) {
+    let seconds = (1u64 << level.min(11)).min(1800);
+    if seconds >= 1800 {
+        (Duration::from_secs(1800), level)
+    } else {
+        (Duration::from_secs(seconds), level + 1)
+    }
+}
+
+/// Go `recoverableFailureRetryAfterWithHint`.
+fn transient(policy: &Policy, hint: Option<Duration>, disabled: bool) -> Option<Duration> {
+    if disabled || policy.transient_error_cooldown_seconds < 0 {
+        return None;
+    }
+    if let Some(hint) = hint.filter(|d| !d.is_zero()) {
+        return Some(hint);
+    }
+    Some(Duration::from_secs(match policy.transient_error_cooldown_seconds {
+        0 => 60,
+        s => s as u64,
+    }))
 }
 
 impl Scheduler {
@@ -435,6 +410,7 @@ impl Scheduler {
             || previous.session_affinity_subagents != next.session_affinity_subagents
         {
             self.rotations.clear();
+            self.cursors.clear();
             self.bindings.clear();
         }
     }
@@ -461,6 +437,14 @@ impl Scheduler {
             .max()
     }
 
+    /// The last failure recorded for this credential and model, if any.
+    pub fn last_error(&self, c: &Credential, model: &str) -> Option<&Cooldown> {
+        let model = canonical_model(model);
+        self.cooldowns
+            .get(&(c.id.clone(), model.to_owned()))
+            .or_else(|| self.cooldowns.get(&(c.id.clone(), String::new())))
+    }
+
     pub fn retry_eligible(&self, c: &Credential, model: &str, now: Instant) -> bool {
         let model = canonical_model(model);
         [model, ""].into_iter().all(|model| {
@@ -470,9 +454,10 @@ impl Scheduler {
         })
     }
 
+    /// Picks among ready candidates, each paired with its provider key.
     pub fn pick<'a>(
         &mut self,
-        candidates: &[&'a Credential],
+        candidates: &[(&'a Credential, &str)],
         selection: &Selection,
         policy: &Policy,
         now: Instant,
@@ -480,72 +465,79 @@ impl Scheduler {
         if candidates.is_empty() {
             return None;
         }
+        let model = canonical_model(&selection.model).to_owned();
+        let provider_keys = selection.provider_keys();
+        let providers_key = provider_keys.join(",");
         self.bindings.retain(|_, (_, deadline)| *deadline > now);
-        let binding_key = selection.session.as_ref().map(|s| {
-            (
-                selection.provider.clone(),
-                canonical_model(&selection.model).to_owned(),
-                s.clone(),
-            )
-        });
+        let binding_key = selection
+            .session
+            .as_ref()
+            .map(|s| (providers_key.clone(), model.clone(), s.clone()));
         if policy.session_affinity
             && let Some((id, deadline)) = binding_key.as_ref().and_then(|key| self.bindings.get_mut(key))
-            && let Some(c) = candidates.iter().find(|c| c.id == *id)
+            && let Some((c, _)) = candidates.iter().find(|(c, _)| c.id == *id)
         {
             *deadline = now + policy.session_affinity_ttl;
             return Some(c);
         }
-        let tier = candidates.iter().map(|c| integer(c, "priority").unwrap_or(0)).max()?;
-        let mut candidates: Vec<_> = candidates
+        let tier = candidates
+            .iter()
+            .map(|(c, _)| integer(c, "priority").unwrap_or(0))
+            .max()?;
+        let mut ready: Vec<(&Credential, &str)> = candidates
             .iter()
             .copied()
-            .filter(|c| integer(c, "priority").unwrap_or(0) == tier)
+            .filter(|(c, _)| integer(c, "priority").unwrap_or(0) == tier)
             .collect();
-        candidates.sort_by(|a, b| a.id.cmp(&b.id));
-        let key = (selection.provider.clone(), canonical_model(&selection.model).to_owned());
-        if !self.rotations.contains_key(&key) && self.rotations.len() >= 4096 {
-            self.rotations.clear();
-        }
-        let state = self.rotations.entry(key).or_default();
-        let picked = match policy.strategy {
-            Strategy::FillFirst => candidates[0],
-            Strategy::RoundRobin => {
-                let picked = candidates
-                    .iter()
-                    .find(|c| c.id > state.last)
-                    .copied()
-                    .unwrap_or(candidates[0]);
-                state.last.clone_from(&picked.id);
-                picked
+        ready.sort_by(|a, b| a.0.id.cmp(&b.0.id));
+        // Providers that have ready candidates, in the request's provider order.
+        let mut groups: Vec<(&str, Vec<&Credential>)> = Vec::new();
+        for provider in provider_keys
+            .iter()
+            .map(String::as_str)
+            .chain(ready.iter().map(|(_, p)| *p))
+        {
+            if groups.iter().any(|(p, _)| *p == provider) {
+                continue;
             }
-            Strategy::WeightedRoundRobin => {
-                if candidates
-                    .iter()
-                    .any(|c| state.weights.get(&c.id).is_some_and(|w| *w != weight(c)))
-                {
-                    state.current.clear();
+            let members: Vec<&Credential> = ready.iter().filter(|(_, p)| *p == provider).map(|(c, _)| *c).collect();
+            if !members.is_empty() {
+                groups.push((provider, members));
+            }
+        }
+        if self.rotations.len() >= 4096 {
+            self.rotations.clear();
+            self.cursors.clear();
+        }
+        let picked = if groups.len() == 1 {
+            let (provider, members) = &groups[0];
+            self.pick_within(provider, &model, members, policy.strategy)
+        } else {
+            match policy.strategy {
+                Strategy::FillFirst => groups[0].1[0],
+                Strategy::WeightedRoundRobin => {
+                    let all: Vec<&Credential> = ready.iter().map(|(c, _)| *c).collect();
+                    self.pick_within(&providers_key, &model, &all, Strategy::WeightedRoundRobin)
                 }
-                if state.weights.len() > 1024 || state.current.len() > 1024 {
-                    state.weights.retain(|id, _| candidates.iter().any(|c| c.id == *id));
-                    state.current.retain(|id, _| candidates.iter().any(|c| c.id == *id));
-                }
-                let mut total = 0i64;
-                let mut best = i64::MIN;
-                let mut picked = candidates[0];
-                for c in candidates {
-                    let w = weight(c);
-                    state.weights.insert(c.id.clone(), w);
-                    let current = state.current.entry(c.id.clone()).or_default();
-                    *current = current.saturating_add(w);
-                    total = total.saturating_add(w);
-                    if *current > best {
-                        best = *current;
-                        picked = c;
+                Strategy::RoundRobin => {
+                    // Go `pickMixed`: a cursor over provider segments sized by their ready
+                    // counts, then that provider's own round-robin.
+                    let total: usize = groups.iter().map(|(_, m)| m.len()).sum();
+                    let cursor = self.cursors.entry((providers_key.clone(), model.clone())).or_default();
+                    let slot = *cursor % total;
+                    *cursor = slot + 1;
+                    let mut start = 0;
+                    let mut index = 0;
+                    for (i, (_, members)) in groups.iter().enumerate() {
+                        if slot < start + members.len() {
+                            index = i;
+                            break;
+                        }
+                        start += members.len();
                     }
+                    let (provider, members) = &groups[index];
+                    self.pick_within(provider, &model, members, Strategy::RoundRobin)
                 }
-                let current = state.current.get_mut(&picked.id).unwrap();
-                *current = current.saturating_sub(total);
-                picked
             }
         };
         if policy.session_affinity
@@ -562,10 +554,62 @@ impl Scheduler {
         Some(picked)
     }
 
+    fn pick_within<'a>(
+        &mut self,
+        scope: &str,
+        model: &str,
+        members: &[&'a Credential],
+        strategy: Strategy,
+    ) -> &'a Credential {
+        let state = self.rotations.entry((scope.to_owned(), model.to_owned())).or_default();
+        match strategy {
+            Strategy::FillFirst => members[0],
+            Strategy::RoundRobin => {
+                let picked = members
+                    .iter()
+                    .find(|c| c.id > state.last)
+                    .copied()
+                    .unwrap_or(members[0]);
+                state.last.clone_from(&picked.id);
+                picked
+            }
+            Strategy::WeightedRoundRobin => {
+                if members
+                    .iter()
+                    .any(|c| state.weights.get(&c.id).is_some_and(|w| *w != weight(c)))
+                {
+                    state.current.clear();
+                }
+                if state.weights.len() > 1024 || state.current.len() > 1024 {
+                    state.weights.retain(|id, _| members.iter().any(|c| c.id == *id));
+                    state.current.retain(|id, _| members.iter().any(|c| c.id == *id));
+                }
+                let mut total = 0i64;
+                let mut best = i64::MIN;
+                let mut picked = members[0];
+                for c in members {
+                    let w = weight(c);
+                    state.weights.insert(c.id.clone(), w);
+                    let current = state.current.entry(c.id.clone()).or_default();
+                    *current = current.saturating_add(w);
+                    total = total.saturating_add(w);
+                    if *current > best {
+                        best = *current;
+                        picked = c;
+                    }
+                }
+                let current = state.current.get_mut(&picked.id).unwrap();
+                *current = current.saturating_sub(total);
+                picked
+            }
+        }
+    }
+
     pub fn admits(&self, c: &Credential, policy: &Policy) -> bool {
         policy.strategy != Strategy::WeightedRoundRobin || weight(c) > 0
     }
 
+    /// Applies one attempt's outcome (Go `MarkResult`).
     pub fn record(&mut self, c: &Credential, model: &str, outcome: &Outcome, policy: &Policy, now: Instant) {
         let model = canonical_model(model);
         let key = (c.id.clone(), model.to_owned());
@@ -582,100 +626,94 @@ impl Scheduler {
                 self.cooldowns.remove(&key);
                 return;
             }
-            Outcome::Cancelled => return,
+            Outcome::Cancelled | Outcome::Neutral(_) => return,
             Outcome::Failure(error) => error,
         };
         let action = policy.error_action(c, error);
         if !action.cooldown {
             return;
         }
-        let credential_quota = error.status == 429 && error.scope == FailureScope::Credential;
+        let credential_quota = crate::classify::credential_scoped(error);
         let key = if credential_quota {
             (c.id.clone(), String::new())
         } else {
             key
         };
-        // Go applies the normal policy first; force-cooldown supplies a 1m fallback
-        // only if that policy produced no deadline (including disable-cooling).
-        let cooling_disabled = policy.cooling_disabled(c);
-        let transient_disabled =
-            policy.transient_error_cooldown_seconds < 0 && !matches!(error.status, 401..=404 | 429);
-        if cooling_disabled || transient_disabled {
-            if !action.force_cooldown {
-                self.cooldowns.remove(&key);
-                return;
-            }
-            let next = now + Duration::from_secs(60);
-            let deadline = self
-                .cooldowns
-                .get(&key)
-                .filter(|s| s.deadline > now)
-                .map(|s| s.deadline.max(next))
-                .unwrap_or(next);
-            self.cooldowns.insert(
-                key,
-                Cooldown {
-                    deadline,
-                    level: 0,
-                    status: error.status,
-                    quota: error.status == 429,
-                },
-            );
-            if credential_quota {
-                self.extend_siblings(c, deadline, now);
-            }
-            return;
-        }
+        // A forced cooldown applies the normal policy even when cooling is disabled.
+        let disabled = policy.cooling_disabled(c) && !action.force_cooldown;
+        let status = crate::classify::go_status(error);
+        let text = crate::classify::error_text(error);
         let prev = self.cooldowns.get(&key);
+        let prev_live = prev.filter(|s| s.deadline > now).map(|s| s.deadline);
         let mut level = prev.filter(|s| s.quota).map(|s| s.level).unwrap_or(0);
-        let duration = match error.status {
-            401..=403 => Duration::from_secs(1800),
-            404 => error
-                .retry_after
-                .filter(|d| !d.is_zero())
-                .unwrap_or(Duration::from_secs(43200)),
-            429 => match error.retry_after {
-                Some(d) => d.max(Duration::from_secs(10)),
-                None => {
-                    // An active quota deadline is reused, not exponentially extended.
-                    if let Some(prev) = prev.filter(|s| s.quota && s.deadline > now) {
+        let hint = error.retry_after.filter(|d| !d.is_zero());
+        let mut quota = false;
+        let duration = if crate::classify::is_model_support(status, &text) {
+            (!disabled).then(|| hint.unwrap_or(Duration::from_secs(43200)))
+        } else if crate::classify::is_cloudflare(status, &text) {
+            quota = true;
+            (!disabled).then(|| {
+                let (d, next) = quota_backoff(level);
+                level = next;
+                d.max(Duration::from_secs(10))
+            })
+        } else if crate::classify::is_invalid_grant(status, &text) {
+            (!disabled).then_some(Duration::from_secs(1800))
+        } else {
+            match status {
+                401..=403 => (!disabled).then_some(Duration::from_secs(1800)),
+                404 => (!disabled).then(|| hint.unwrap_or(Duration::from_secs(43200))),
+                429 => {
+                    quota = true;
+                    if credential_quota && prev.is_none_or(|s| !s.quota) {
+                        level = 0;
+                    }
+                    if disabled {
+                        None
+                    } else if let Some(hint) = error.retry_after {
+                        // A present hint, even zero, gets the 10s floor (Go
+                        // minQuotaCooldownFloor); only an absent one backs off.
+                        Some(hint.max(Duration::from_secs(10)))
+                    } else if let Some(prev) = prev.filter(|s| s.quota && s.deadline > now) {
+                        // Go `quotaCooldownAfterFailure`: an active quota deadline is
+                        // reused, not extended.
                         let deadline = prev.deadline;
+                        if let Some(slot) = self.cooldowns.get_mut(&key) {
+                            slot.error = text;
+                        }
                         if credential_quota {
                             self.extend_siblings(c, deadline, now);
                         }
                         return;
+                    } else {
+                        let (d, next) = quota_backoff(level);
+                        level = next;
+                        Some(d)
                     }
-                    let seconds = (1u64 << level.min(11)).min(1800);
-                    if seconds < 1800 {
-                        level += 1;
-                    }
-                    Duration::from_secs(seconds)
                 }
-            },
-            _ => {
-                let seconds = policy.transient_error_cooldown_seconds;
-                // Only the explicitly transient status set honors Retry-After.
-                error
-                    .retry_after
-                    .filter(|_| matches!(error.status, 408 | 500 | 502..=504 | 520..=526))
-                    .filter(|d| !d.is_zero())
-                    .unwrap_or(Duration::from_secs(if seconds > 0 { seconds as u64 } else { 60 }))
+                408 | 500 | 502..=504 | 520..=526 => transient(policy, hint, disabled),
+                _ => transient(policy, None, disabled),
             }
         };
-        let Some(next) = now.checked_add(duration) else {
+        // Go falls back to the one-minute transient cooldown when a forced cooldown's
+        // policy produced none (for example transient cooldowns disabled).
+        let duration = match duration {
+            None if action.force_cooldown => Some(Duration::from_secs(60)),
+            d => d,
+        };
+        let Some(next) = duration.and_then(|d| now.checked_add(d)) else {
+            self.cooldowns.remove(&key);
             return;
         };
-        let deadline = prev
-            .filter(|s| s.deadline > now)
-            .map(|s| s.deadline.max(next))
-            .unwrap_or(next);
+        let deadline = prev_live.map_or(next, |p| p.max(next));
         self.cooldowns.insert(
             key,
             Cooldown {
                 deadline,
                 level,
                 status: error.status,
-                quota: error.status == 429,
+                quota,
+                error: text,
             },
         );
         if credential_quota {
@@ -691,6 +729,21 @@ impl Scheduler {
         }
     }
 
+    /// Clears every cooldown of one credential (Go `ResetQuota`), returning the models
+    /// that were cooling.
+    pub fn reset(&mut self, id: &str) -> Vec<String> {
+        let mut models: Vec<String> = self
+            .cooldowns
+            .keys()
+            .filter(|(cid, _)| cid == id)
+            .map(|(_, m)| m.clone())
+            .collect();
+        self.cooldowns.retain(|(cid, _), _| cid != id);
+        self.bindings.retain(|_, (bound, _)| bound != id);
+        models.sort();
+        models
+    }
+
     pub fn reconcile(&mut self, credentials: &[std::sync::Arc<Credential>]) {
         self.cooldowns
             .retain(|(id, _), _| credentials.iter().any(|c| c.id == *id));
@@ -703,6 +756,10 @@ impl Scheduler {
 mod tests {
     use super::*;
     use std::path::Path;
+
+    fn tag<'a>(creds: &[&'a Credential]) -> Vec<(&'a Credential, &'static str)> {
+        creds.iter().map(|c| (*c, "claude")).collect()
+    }
 
     fn cred(id: &str, extra: Value) -> Credential {
         let mut metadata = extra.as_object().unwrap().clone();
@@ -824,11 +881,11 @@ mod tests {
         let p = Policy::default();
         let now = Instant::now();
         let mut s = Scheduler::default();
-        assert_eq!(s.pick(&[&c, &b, &a], &selection("m"), &p, now).unwrap().id, "a");
-        assert_eq!(s.pick(&[&a, &c], &selection("m"), &p, now).unwrap().id, "c");
-        assert_eq!(s.pick(&[&a, &b, &c], &selection("m"), &p, now).unwrap().id, "a");
-        assert_eq!(s.pick(&[&a, &b], &selection("other"), &p, now).unwrap().id, "a");
-        assert_eq!(s.pick(&[&a, &b], &selection("m(high)"), &p, now).unwrap().id, "b");
+        assert_eq!(s.pick(&tag(&[&c, &b, &a]), &selection("m"), &p, now).unwrap().id, "a");
+        assert_eq!(s.pick(&tag(&[&a, &c]), &selection("m"), &p, now).unwrap().id, "c");
+        assert_eq!(s.pick(&tag(&[&a, &b, &c]), &selection("m"), &p, now).unwrap().id, "a");
+        assert_eq!(s.pick(&tag(&[&a, &b]), &selection("other"), &p, now).unwrap().id, "a");
+        assert_eq!(s.pick(&tag(&[&a, &b]), &selection("m(high)"), &p, now).unwrap().id, "b");
     }
 
     #[test]
@@ -843,14 +900,19 @@ mod tests {
         let now = Instant::now();
         let mut s = Scheduler::default();
         let picks: Vec<_> = (0..7)
-            .map(|_| s.pick(&[&a, &b, &c], &selection("m"), &p, now).unwrap().id.clone())
+            .map(|_| {
+                s.pick(&tag(&[&a, &b, &c]), &selection("m"), &p, now)
+                    .unwrap()
+                    .id
+                    .clone()
+            })
             .collect();
         assert_eq!(picks, ["a", "a", "b", "a", "c", "a", "a"]);
         let mut s = Scheduler::default();
-        assert_eq!(s.pick(&[&a, &b, &c], &selection("m"), &p, now).unwrap().id, "a");
-        assert_eq!(s.pick(&[&b, &c], &selection("m"), &p, now).unwrap().id, "b");
-        assert_eq!(s.pick(&[&a, &b, &c], &selection("m"), &p, now).unwrap().id, "a");
-        assert_eq!(s.pick(&[&a, &b, &c], &selection("m"), &p, now).unwrap().id, "c");
+        assert_eq!(s.pick(&tag(&[&a, &b, &c]), &selection("m"), &p, now).unwrap().id, "a");
+        assert_eq!(s.pick(&tag(&[&b, &c]), &selection("m"), &p, now).unwrap().id, "b");
+        assert_eq!(s.pick(&tag(&[&a, &b, &c]), &selection("m"), &p, now).unwrap().id, "a");
+        assert_eq!(s.pick(&tag(&[&a, &b, &c]), &selection("m"), &p, now).unwrap().id, "c");
         for v in [
             serde_json::json!(0),
             serde_json::json!(-3),
@@ -880,24 +942,26 @@ mod tests {
         };
         let now = Instant::now();
         let mut s = Scheduler::default();
-        assert_eq!(s.pick(&[&low], &sel, &p, now).unwrap().id, "a");
+        assert_eq!(s.pick(&tag(&[&low]), &sel, &p, now).unwrap().id, "a");
         assert_eq!(
-            s.pick(&[&low, &high], &sel, &p, now + Duration::from_secs(5))
+            s.pick(&tag(&[&low, &high]), &sel, &p, now + Duration::from_secs(5))
                 .unwrap()
                 .id,
             "a"
         );
         assert_eq!(
-            s.pick(&[&low, &high], &sel, &p, now + Duration::from_secs(15))
+            s.pick(&tag(&[&low, &high]), &sel, &p, now + Duration::from_secs(15))
                 .unwrap()
                 .id,
             "b"
         );
         assert_eq!(
-            s.pick(&[&low], &sel, &p, now + Duration::from_secs(16)).unwrap().id,
+            s.pick(&tag(&[&low]), &sel, &p, now + Duration::from_secs(16))
+                .unwrap()
+                .id,
             "a"
         );
-        assert_eq!(s.pick(&[&low, &high], &selection("m"), &p, now).unwrap().id, "b");
+        assert_eq!(s.pick(&tag(&[&low, &high]), &selection("m"), &p, now).unwrap().id, "b");
     }
 
     #[test]
@@ -979,6 +1043,62 @@ mod tests {
         }
     }
 
+    /// Go `Manager.MarkResult` cooldowns: goldens from tests/reference/server/main.go,
+    /// replayed with upstream-shaped errors (headers present, executor scopes).
+    #[test]
+    fn cooldowns_match_go_mark_result() {
+        let fixture: Value = serde_json::from_str(include_str!("../tests/fixtures/server_go.json")).unwrap();
+        let cases = fixture["cooldown"].as_array().unwrap();
+        assert_eq!(cases.len(), 25);
+        let policy = Policy::default();
+        for case in cases {
+            let name = case["name"].as_str().unwrap();
+            let c = cred(&format!("{name}.json"), serde_json::json!({}));
+            let mut s = Scheduler::default();
+            let now = Instant::now();
+            for step in case["steps"].as_array().unwrap() {
+                let status = step["status"].as_u64().unwrap() as u16;
+                let scope = if step["credential_scope"].as_bool().unwrap() {
+                    FailureScope::Credential
+                } else {
+                    match status {
+                        429 => FailureScope::Model,
+                        401..=403 | 408 | 500.. => FailureScope::Credential,
+                        _ => FailureScope::Request,
+                    }
+                };
+                let mut error = ExecError::local(status, scope, step["message"].as_str().unwrap());
+                error
+                    .headers
+                    .insert("content-type", "application/json".parse().unwrap());
+                let hint = step["retry_after_ms"].as_i64().unwrap();
+                error.retry_after = (hint >= 0).then(|| Duration::from_millis(hint as u64));
+                s.record(
+                    &c,
+                    step["model"].as_str().unwrap(),
+                    &Outcome::Failure(error),
+                    &policy,
+                    now,
+                );
+            }
+            for (model, seconds) in case["seconds"].as_object().unwrap() {
+                let wait = s.wait(&c, model, now).unwrap_or_default();
+                assert_eq!(
+                    wait.as_secs_f64().round() as u64,
+                    seconds.as_u64().unwrap(),
+                    "{name} {model} wait"
+                );
+                let quota = case["quota"][model].as_bool().unwrap();
+                // Go keeps `Quota.Exceeded` on an expired state; only a live one matters.
+                assert_eq!(
+                    s.quota_cooling(&c, model, now),
+                    quota && wait > Duration::ZERO,
+                    "{name} {model} quota"
+                );
+            }
+        }
+    }
+
     #[test]
     fn policy_change_resets_rotation_and_affinity_but_keeps_cooldowns() {
         let a = cred("a", serde_json::json!({}));
@@ -991,7 +1111,7 @@ mod tests {
         let mut s = Scheduler::default();
         let mut selection = selection("m");
         selection.session = Some("session".into());
-        assert_eq!(s.pick(&[&a, &b], &selection, &p, now).unwrap().id, "a");
+        assert_eq!(s.pick(&tag(&[&a, &b]), &selection, &p, now).unwrap().id, "a");
         s.record(
             &a,
             "other",
@@ -1014,7 +1134,9 @@ mod tests {
     #[test]
     fn forced_cooling_uses_fallback_and_quota_does_not_reuse_transient_state() {
         let now = Instant::now();
-        for status in [401, 404, 429, 503] {
+        // Go: a forced cooldown re-enables the normal policy despite disable_cooling
+        // (conductor_cooldown.go MarkResult), so the status decides the duration.
+        for (status, seconds) in [(401, 1800), (404, 43200), (429, 1), (503, 60)] {
             let c = cred(
                 "a",
                 serde_json::json!({"disable_cooling":true,
@@ -1028,8 +1150,33 @@ mod tests {
                 &Policy::default(),
                 now,
             );
-            assert_eq!(s.wait(&c, "m", now), Some(Duration::from_secs(60)), "status {status}");
+            assert_eq!(
+                s.wait(&c, "m", now),
+                Some(Duration::from_secs(seconds)),
+                "status {status}"
+            );
         }
+        // With transient cooldowns disabled, the forced cooldown falls back to one minute.
+        let c = cred(
+            "a",
+            serde_json::json!({"request_scoped_errors":[{"status":503,"match":["forced"],"action":"continue-and-cooldown"}]}),
+        );
+        let no_transient = Policy {
+            transient_error_cooldown_seconds: -1,
+            ..Policy::default()
+        };
+        let mut s = Scheduler::default();
+        let forced = Outcome::Failure(ExecError::local(503, FailureScope::Credential, "forced"));
+        s.record(&c, "m", &forced, &no_transient, now);
+        assert_eq!(s.wait(&c, "m", now), Some(Duration::from_secs(60)));
+        let plain = Outcome::Failure(ExecError::local(503, FailureScope::Credential, "plain"));
+        let mut s = Scheduler::default();
+        s.record(&c, "m", &plain, &no_transient, now);
+        assert_eq!(
+            s.wait(&c, "m", now),
+            None,
+            "negative transient seconds disable 503 cooldowns"
+        );
         let c = cred("a", serde_json::json!({}));
         let p = Policy::default();
         let mut s = Scheduler::default();
@@ -1056,7 +1203,7 @@ mod tests {
             Some(Duration::from_secs(60)),
             "live deadline never shortened"
         );
-        let mut hint = ExecError::local(409, FailureScope::Model, "other status");
+        let mut hint = ExecError::local(418, FailureScope::Model, "other status");
         hint.retry_after = Some(Duration::from_secs(900));
         s.record(&c, "other", &Outcome::Failure(hint), &p, now);
         assert_eq!(
@@ -1133,31 +1280,5 @@ mod tests {
             );
             assert_eq!(s.wait(&c, "m", now), None);
         }
-    }
-
-    #[test]
-    fn prefixes_aliases_exclusions_and_thinking_suffixes() {
-        let mut c = cred(
-            "a",
-            serde_json::json!({"prefix":"team", "model_aliases":[{"alias":"friendly","name":"claude-sonnet"}],
-            "excluded_models":["claude-opus*", "*haiku*"]}),
-        );
-        let mut p = Policy::default();
-        assert_eq!(
-            execution_model(&c, "team/friendly(high)", &p),
-            Some("claude-sonnet(high)".into())
-        );
-        assert_eq!(execution_model(&c, "claude-opus-5", &p), None);
-        assert_eq!(execution_model(&c, "other/friendly", &p), None);
-        p.force_model_prefix = true;
-        assert_eq!(execution_model(&c, "friendly", &p), None);
-        assert_eq!(execution_model(&c, "team/friendly", &p), Some("claude-sonnet".into()));
-        c.metadata
-            .insert("excluded_models".into(), serde_json::json!(["claude-sonnet"]));
-        assert_eq!(
-            execution_model(&c, "team/friendly", &p),
-            None,
-            "execution model exclusions"
-        );
     }
 }

@@ -344,10 +344,15 @@ impl OAuth {
 }
 
 pub(crate) fn needs_prepare(credential: &Credential) -> bool {
-    refresh_due(credential, Utc::now())
-        || credential.str("access_token").is_some_and(|s| s.contains("sk-ant-oat"))
-            && (!canonical_pool(credential.metadata.get("claude_device_ids"))
-                || credential.str("account_uuid").unwrap_or_default().trim().is_empty())
+    refresh_due(credential, Utc::now()) || needs_identity(credential)
+}
+
+/// Go `ClaudeExecutor.ShouldPrepareRequestAuth`: an OAuth token without a canonical
+/// device pool or account UUID cannot be cloaked, so requests wait for preparation.
+pub(crate) fn needs_identity(credential: &Credential) -> bool {
+    credential.str("access_token").is_some_and(|s| s.contains("sk-ant-oat"))
+        && (!canonical_pool(credential.metadata.get("claude_device_ids"))
+            || credential.str("account_uuid").unwrap_or_default().trim().is_empty())
 }
 
 fn refresh_token(credential: &Credential) -> &str {

@@ -21,9 +21,18 @@ struct Args {
     /// Log in to Claude using browser OAuth and PKCE.
     #[arg(long)]
     claude_login: bool,
+    /// Login to Codex using OAuth
+    #[arg(long)]
+    codex_login: bool,
+    /// Login to Codex using device code flow
+    #[arg(long)]
+    codex_device_login: bool,
     /// Don't open browser automatically for OAuth
     #[arg(long)]
     no_browser: bool,
+    /// Override OAuth callback port (defaults to provider-specific port)
+    #[arg(long, default_value_t = 0)]
+    oauth_callback_port: u16,
     /// Login to Kimi (.com) using OAuth
     #[arg(long)]
     kimi_login: bool,
@@ -90,6 +99,23 @@ async fn main() -> anyhow::Result<()> {
         println!("Claude credentials saved to {}", path.display());
         return Ok(());
     }
+    if args.codex_login || args.codex_device_login {
+        let options = cpa_exec::codex_oauth::LoginOptions {
+            no_browser: args.no_browser,
+            callback_port: match args.oauth_callback_port {
+                0 => cpa_exec::codex_oauth::DEFAULT_CALLBACK_PORT,
+                port => port,
+            },
+        };
+        let path = if args.codex_login {
+            cpa_exec::codex_oauth::login(&config.auth_dir, &options).await?
+        } else {
+            cpa_exec::codex_oauth::device_login(&config.auth_dir, &options).await?
+        };
+        println!("Authentication saved to {}", path.display());
+        println!("Codex authentication successful!");
+        return Ok(());
+    }
     if args.kimi_login || args.kimi_ai_login {
         let provider = if args.kimi_login { "kimi" } else { "kimi-ai" };
         cpa_exec::kimi_auth::login(provider, &config, args.no_browser).await?;
@@ -111,6 +137,7 @@ async fn main() -> anyhow::Result<()> {
     tracing::info!(addr = %listener.local_addr()?, "listening");
     let executors = Executors {
         claude: ClaudeExecutor::new(DEFAULT_BASE_URL)?,
+        codex: cpa_exec::codex::CodexExecutor::new()?,
         devices: Default::default(),
     };
     let rt = Arc::new(Runtime::new(config, credentials, executors));
