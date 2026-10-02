@@ -761,6 +761,30 @@
    ]
   },
   {
+   "name": "thinking/0/gemini-2.5-pro",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "stream": true,
+   "input": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":-5},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-2.5-pro\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true}"
+    ]
+   ]
+  },
+  {
+   "name": "thinking/0/gemini-3-pro-preview",
+   "path": "request",
+   "model": "gemini-3-pro-preview",
+   "stream": true,
+   "input": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":-5},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3-pro-preview\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true}"
+    ]
+   ]
+  },
+  {
    "name": "thinking/1/gpt-5",
    "path": "request",
    "model": "gpt-5",
@@ -812,6 +836,28 @@
    "outputs": [
     [
      "{\"model\":\"unknown-model\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"auto\"}"
+    ]
+   ]
+  },
+  {
+   "name": "thinking/1/gemini-2.5-pro",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "input": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":-1},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-2.5-pro\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"auto\"}"
+    ]
+   ]
+  },
+  {
+   "name": "thinking/1/gemini-3-pro-preview",
+   "path": "request",
+   "model": "gemini-3-pro-preview",
+   "input": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":-1},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3-pro-preview\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"auto\"}"
     ]
    ]
   },
@@ -876,6 +922,30 @@
    ]
   },
   {
+   "name": "thinking/2/gemini-2.5-pro",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "stream": true,
+   "input": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":0},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-2.5-pro\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true,\"reasoning_effort\":\"none\"}"
+    ]
+   ]
+  },
+  {
+   "name": "thinking/2/gemini-3-pro-preview",
+   "path": "request",
+   "model": "gemini-3-pro-preview",
+   "stream": true,
+   "input": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":0},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3-pro-preview\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true,\"reasoning_effort\":\"none\"}"
+    ]
+   ]
+  },
+  {
    "name": "thinking/3/gpt-5",
    "path": "request",
    "model": "gpt-5",
@@ -927,6 +997,28 @@
    "outputs": [
     [
      "{\"model\":\"unknown-model\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"minimal\"}"
+    ]
+   ]
+  },
+  {
+   "name": "thinking/3/gemini-2.5-pro",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "input": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":1},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-2.5-pro\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"minimal\"}"
+    ]
+   ]
+  },
+  {
+   "name": "thinking/3/gemini-3-pro-preview",
+   "path": "request",
+   "model": "gemini-3-pro-preview",
+   "input": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":1},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3-pro-preview\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"minimal\"}"
     ]
    ]
   },
@@ -991,6 +1083,30 @@
    ]
   },
   {
+   "name": "thinking/4/gemini-2.5-pro",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "stream": true,
+   "input": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":512},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-2.5-pro\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true,\"reasoning_effort\":\"minimal\"}"
+    ]
+   ]
+  },
+  {
+   "name": "thinking/4/gemini-3-pro-preview",
+   "path": "request",
+   "model": "gemini-3-pro-preview",
+   "stream": true,
+   "input": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":512},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3-pro-preview\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true,\"reasoning_effort\":\"minimal\"}"
+    ]
+   ]
+  },
+  {
    "name": "thinking/5/gpt-5",
    "path": "request",
    "model": "gpt-5",
@@ -1042,6 +1158,28 @@
    "outputs": [
     [
      "{\"model\":\"unknown-model\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"low\"}"
+    ]
+   ]
+  },
+  {
+   "name": "thinking/5/gemini-2.5-pro",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "input": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":513},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-2.5-pro\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"low\"}"
+    ]
+   ]
+  },
+  {
+   "name": "thinking/5/gemini-3-pro-preview",
+   "path": "request",
+   "model": "gemini-3-pro-preview",
+   "input": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":513},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3-pro-preview\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"low\"}"
     ]
    ]
   },
@@ -1106,6 +1244,30 @@
    ]
   },
   {
+   "name": "thinking/6/gemini-2.5-pro",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "stream": true,
+   "input": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":1024},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-2.5-pro\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true,\"reasoning_effort\":\"low\"}"
+    ]
+   ]
+  },
+  {
+   "name": "thinking/6/gemini-3-pro-preview",
+   "path": "request",
+   "model": "gemini-3-pro-preview",
+   "stream": true,
+   "input": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":1024},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3-pro-preview\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true,\"reasoning_effort\":\"low\"}"
+    ]
+   ]
+  },
+  {
    "name": "thinking/7/gpt-5",
    "path": "request",
    "model": "gpt-5",
@@ -1157,6 +1319,28 @@
    "outputs": [
     [
      "{\"model\":\"unknown-model\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"medium\"}"
+    ]
+   ]
+  },
+  {
+   "name": "thinking/7/gemini-2.5-pro",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "input": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":1025},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-2.5-pro\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"medium\"}"
+    ]
+   ]
+  },
+  {
+   "name": "thinking/7/gemini-3-pro-preview",
+   "path": "request",
+   "model": "gemini-3-pro-preview",
+   "input": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":1025},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3-pro-preview\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"medium\"}"
     ]
    ]
   },
@@ -1221,6 +1405,30 @@
    ]
   },
   {
+   "name": "thinking/8/gemini-2.5-pro",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "stream": true,
+   "input": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":8192},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-2.5-pro\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true,\"reasoning_effort\":\"medium\"}"
+    ]
+   ]
+  },
+  {
+   "name": "thinking/8/gemini-3-pro-preview",
+   "path": "request",
+   "model": "gemini-3-pro-preview",
+   "stream": true,
+   "input": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":8192},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3-pro-preview\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true,\"reasoning_effort\":\"medium\"}"
+    ]
+   ]
+  },
+  {
    "name": "thinking/9/gpt-5",
    "path": "request",
    "model": "gpt-5",
@@ -1272,6 +1480,28 @@
    "outputs": [
     [
      "{\"model\":\"unknown-model\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"high\"}"
+    ]
+   ]
+  },
+  {
+   "name": "thinking/9/gemini-2.5-pro",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "input": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":8193},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-2.5-pro\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"high\"}"
+    ]
+   ]
+  },
+  {
+   "name": "thinking/9/gemini-3-pro-preview",
+   "path": "request",
+   "model": "gemini-3-pro-preview",
+   "input": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":8193},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3-pro-preview\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"high\"}"
     ]
    ]
   },
@@ -1336,6 +1566,30 @@
    ]
   },
   {
+   "name": "thinking/10/gemini-2.5-pro",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "stream": true,
+   "input": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":24576},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-2.5-pro\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true,\"reasoning_effort\":\"high\"}"
+    ]
+   ]
+  },
+  {
+   "name": "thinking/10/gemini-3-pro-preview",
+   "path": "request",
+   "model": "gemini-3-pro-preview",
+   "stream": true,
+   "input": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":24576},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3-pro-preview\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true,\"reasoning_effort\":\"high\"}"
+    ]
+   ]
+  },
+  {
    "name": "thinking/11/gpt-5",
    "path": "request",
    "model": "gpt-5",
@@ -1387,6 +1641,28 @@
    "outputs": [
     [
      "{\"model\":\"unknown-model\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"xhigh\"}"
+    ]
+   ]
+  },
+  {
+   "name": "thinking/11/gemini-2.5-pro",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "input": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":24577},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-2.5-pro\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"xhigh\"}"
+    ]
+   ]
+  },
+  {
+   "name": "thinking/11/gemini-3-pro-preview",
+   "path": "request",
+   "model": "gemini-3-pro-preview",
+   "input": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":24577},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3-pro-preview\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"xhigh\"}"
     ]
    ]
   },
@@ -1451,6 +1727,30 @@
    ]
   },
   {
+   "name": "thinking/12/gemini-2.5-pro",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "stream": true,
+   "input": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":\"12.75\"},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-2.5-pro\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true,\"reasoning_effort\":\"none\"}"
+    ]
+   ]
+  },
+  {
+   "name": "thinking/12/gemini-3-pro-preview",
+   "path": "request",
+   "model": "gemini-3-pro-preview",
+   "stream": true,
+   "input": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":\"12.75\"},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3-pro-preview\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true,\"reasoning_effort\":\"none\"}"
+    ]
+   ]
+  },
+  {
    "name": "thinking/13/gpt-5",
    "path": "request",
    "model": "gpt-5",
@@ -1502,6 +1802,28 @@
    "outputs": [
     [
      "{\"model\":\"unknown-model\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"low\"}"
+    ]
+   ]
+  },
+  {
+   "name": "thinking/13/gemini-2.5-pro",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "input": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":1e3},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-2.5-pro\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"low\"}"
+    ]
+   ]
+  },
+  {
+   "name": "thinking/13/gemini-3-pro-preview",
+   "path": "request",
+   "model": "gemini-3-pro-preview",
+   "input": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":1e3},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3-pro-preview\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"low\"}"
     ]
    ]
   },
@@ -1566,6 +1888,30 @@
    ]
   },
   {
+   "name": "thinking/14/gemini-2.5-pro",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "stream": true,
+   "input": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":null},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-2.5-pro\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true,\"reasoning_effort\":\"none\"}"
+    ]
+   ]
+  },
+  {
+   "name": "thinking/14/gemini-3-pro-preview",
+   "path": "request",
+   "model": "gemini-3-pro-preview",
+   "stream": true,
+   "input": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":null},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3-pro-preview\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true,\"reasoning_effort\":\"none\"}"
+    ]
+   ]
+  },
+  {
    "name": "thinking/15/gpt-5",
    "path": "request",
    "model": "gpt-5",
@@ -1617,6 +1963,28 @@
    "outputs": [
     [
      "{\"model\":\"unknown-model\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"high\"}"
+    ]
+   ]
+  },
+  {
+   "name": "thinking/15/gemini-2.5-pro",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "input": "{\"thinking\":{\"type\":\"enabled\"},\"output_config\":{\"effort\":\" HIGH \"},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-2.5-pro\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"high\"}"
+    ]
+   ]
+  },
+  {
+   "name": "thinking/15/gemini-3-pro-preview",
+   "path": "request",
+   "model": "gemini-3-pro-preview",
+   "input": "{\"thinking\":{\"type\":\"enabled\"},\"output_config\":{\"effort\":\" HIGH \"},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3-pro-preview\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"high\"}"
     ]
    ]
   },
@@ -1681,6 +2049,30 @@
    ]
   },
   {
+   "name": "thinking/16/gemini-2.5-pro",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "stream": true,
+   "input": "{\"thinking\":{\"type\":\"enabled\"},\"output_config\":{\"effort\":\"  \"},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-2.5-pro\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true,\"reasoning_effort\":\"auto\"}"
+    ]
+   ]
+  },
+  {
+   "name": "thinking/16/gemini-3-pro-preview",
+   "path": "request",
+   "model": "gemini-3-pro-preview",
+   "stream": true,
+   "input": "{\"thinking\":{\"type\":\"enabled\"},\"output_config\":{\"effort\":\"  \"},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3-pro-preview\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true,\"reasoning_effort\":\"auto\"}"
+    ]
+   ]
+  },
+  {
    "name": "thinking/17/gpt-5",
    "path": "request",
    "model": "gpt-5",
@@ -1732,6 +2124,28 @@
    "outputs": [
     [
      "{\"model\":\"unknown-model\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"auto\"}"
+    ]
+   ]
+  },
+  {
+   "name": "thinking/17/gemini-2.5-pro",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "input": "{\"thinking\":{\"type\":\"enabled\"},\"output_config\":{\"effort\":5},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-2.5-pro\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"auto\"}"
+    ]
+   ]
+  },
+  {
+   "name": "thinking/17/gemini-3-pro-preview",
+   "path": "request",
+   "model": "gemini-3-pro-preview",
+   "input": "{\"thinking\":{\"type\":\"enabled\"},\"output_config\":{\"effort\":5},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3-pro-preview\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"auto\"}"
     ]
    ]
   },
@@ -1796,6 +2210,30 @@
    ]
   },
   {
+   "name": "thinking/18/gemini-2.5-pro",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "stream": true,
+   "input": "{\"thinking\":{\"type\":\"enabled\"},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-2.5-pro\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true,\"reasoning_effort\":\"auto\"}"
+    ]
+   ]
+  },
+  {
+   "name": "thinking/18/gemini-3-pro-preview",
+   "path": "request",
+   "model": "gemini-3-pro-preview",
+   "stream": true,
+   "input": "{\"thinking\":{\"type\":\"enabled\"},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3-pro-preview\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true,\"reasoning_effort\":\"auto\"}"
+    ]
+   ]
+  },
+  {
    "name": "thinking/19/gpt-5",
    "path": "request",
    "model": "gpt-5",
@@ -1847,6 +2285,28 @@
    "outputs": [
     [
      "{\"model\":\"unknown-model\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"medium\"}"
+    ]
+   ]
+  },
+  {
+   "name": "thinking/19/gemini-2.5-pro",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "input": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":2000},\"output_config\":{\"effort\":\"max\"},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-2.5-pro\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"medium\"}"
+    ]
+   ]
+  },
+  {
+   "name": "thinking/19/gemini-3-pro-preview",
+   "path": "request",
+   "model": "gemini-3-pro-preview",
+   "input": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":2000},\"output_config\":{\"effort\":\"max\"},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3-pro-preview\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"medium\"}"
     ]
    ]
   },
@@ -1911,6 +2371,30 @@
    ]
   },
   {
+   "name": "thinking/20/gemini-2.5-pro",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "stream": true,
+   "input": "{\"thinking\":{\"type\":\"adaptive\"},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-2.5-pro\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true,\"reasoning_effort\":\"xhigh\"}"
+    ]
+   ]
+  },
+  {
+   "name": "thinking/20/gemini-3-pro-preview",
+   "path": "request",
+   "model": "gemini-3-pro-preview",
+   "stream": true,
+   "input": "{\"thinking\":{\"type\":\"adaptive\"},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3-pro-preview\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true,\"reasoning_effort\":\"xhigh\"}"
+    ]
+   ]
+  },
+  {
    "name": "thinking/21/gpt-5",
    "path": "request",
    "model": "gpt-5",
@@ -1962,6 +2446,28 @@
    "outputs": [
     [
      "{\"model\":\"unknown-model\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"max\"}"
+    ]
+   ]
+  },
+  {
+   "name": "thinking/21/gemini-2.5-pro",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "input": "{\"thinking\":{\"type\":\"adaptive\"},\"output_config\":{\"effort\":\"Max\"},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-2.5-pro\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"max\"}"
+    ]
+   ]
+  },
+  {
+   "name": "thinking/21/gemini-3-pro-preview",
+   "path": "request",
+   "model": "gemini-3-pro-preview",
+   "input": "{\"thinking\":{\"type\":\"adaptive\"},\"output_config\":{\"effort\":\"Max\"},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3-pro-preview\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"max\"}"
     ]
    ]
   },
@@ -2026,6 +2532,30 @@
    ]
   },
   {
+   "name": "thinking/22/gemini-2.5-pro",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "stream": true,
+   "input": "{\"thinking\":{\"type\":\"auto\"},\"output_config\":{\"effort\":\"\\u00c9LEV\\u00c9\"},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-2.5-pro\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true,\"reasoning_effort\":\"élevé\"}"
+    ]
+   ]
+  },
+  {
+   "name": "thinking/22/gemini-3-pro-preview",
+   "path": "request",
+   "model": "gemini-3-pro-preview",
+   "stream": true,
+   "input": "{\"thinking\":{\"type\":\"auto\"},\"output_config\":{\"effort\":\"\\u00c9LEV\\u00c9\"},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3-pro-preview\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true,\"reasoning_effort\":\"élevé\"}"
+    ]
+   ]
+  },
+  {
    "name": "thinking/23/gpt-5",
    "path": "request",
    "model": "gpt-5",
@@ -2077,6 +2607,28 @@
    "outputs": [
     [
      "{\"model\":\"unknown-model\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"xhigh\"}"
+    ]
+   ]
+  },
+  {
+   "name": "thinking/23/gemini-2.5-pro",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "input": "{\"thinking\":{\"type\":\"adaptive\"},\"output_config\":{\"effort\":\"\"},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-2.5-pro\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"xhigh\"}"
+    ]
+   ]
+  },
+  {
+   "name": "thinking/23/gemini-3-pro-preview",
+   "path": "request",
+   "model": "gemini-3-pro-preview",
+   "input": "{\"thinking\":{\"type\":\"adaptive\"},\"output_config\":{\"effort\":\"\"},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3-pro-preview\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"xhigh\"}"
     ]
    ]
   },
@@ -2141,6 +2693,30 @@
    ]
   },
   {
+   "name": "thinking/24/gemini-2.5-pro",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "stream": true,
+   "input": "{\"thinking\":{\"type\":\"disabled\"},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-2.5-pro\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true,\"reasoning_effort\":\"none\"}"
+    ]
+   ]
+  },
+  {
+   "name": "thinking/24/gemini-3-pro-preview",
+   "path": "request",
+   "model": "gemini-3-pro-preview",
+   "stream": true,
+   "input": "{\"thinking\":{\"type\":\"disabled\"},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3-pro-preview\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true,\"reasoning_effort\":\"none\"}"
+    ]
+   ]
+  },
+  {
    "name": "thinking/25/gpt-5",
    "path": "request",
    "model": "gpt-5",
@@ -2192,6 +2768,28 @@
    "outputs": [
     [
      "{\"model\":\"unknown-model\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false}"
+    ]
+   ]
+  },
+  {
+   "name": "thinking/25/gemini-2.5-pro",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "input": "{\"thinking\":{\"type\":\"unknown\"},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-2.5-pro\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false}"
+    ]
+   ]
+  },
+  {
+   "name": "thinking/25/gemini-3-pro-preview",
+   "path": "request",
+   "model": "gemini-3-pro-preview",
+   "input": "{\"thinking\":{\"type\":\"unknown\"},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3-pro-preview\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false}"
     ]
    ]
   },
@@ -2256,6 +2854,30 @@
    ]
   },
   {
+   "name": "thinking/26/gemini-2.5-pro",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "stream": true,
+   "input": "{\"thinking\":{\"budget_tokens\":100},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-2.5-pro\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true}"
+    ]
+   ]
+  },
+  {
+   "name": "thinking/26/gemini-3-pro-preview",
+   "path": "request",
+   "model": "gemini-3-pro-preview",
+   "stream": true,
+   "input": "{\"thinking\":{\"budget_tokens\":100},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3-pro-preview\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true}"
+    ]
+   ]
+  },
+  {
    "name": "thinking/27/gpt-5",
    "path": "request",
    "model": "gpt-5",
@@ -2307,6 +2929,28 @@
    "outputs": [
     [
      "{\"model\":\"unknown-model\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false}"
+    ]
+   ]
+  },
+  {
+   "name": "thinking/27/gemini-2.5-pro",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "input": "{\"thinking\":\"enabled\",\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-2.5-pro\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false}"
+    ]
+   ]
+  },
+  {
+   "name": "thinking/27/gemini-3-pro-preview",
+   "path": "request",
+   "model": "gemini-3-pro-preview",
+   "input": "{\"thinking\":\"enabled\",\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3-pro-preview\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false}"
     ]
    ]
   },
@@ -2371,6 +3015,30 @@
    ]
   },
   {
+   "name": "thinking/28/gemini-2.5-pro",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "stream": true,
+   "input": "{\"thinking\":null,\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-2.5-pro\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true}"
+    ]
+   ]
+  },
+  {
+   "name": "thinking/28/gemini-3-pro-preview",
+   "path": "request",
+   "model": "gemini-3-pro-preview",
+   "stream": true,
+   "input": "{\"thinking\":null,\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3-pro-preview\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true}"
+    ]
+   ]
+  },
+  {
    "name": "thinking/29/gpt-5",
    "path": "request",
    "model": "gpt-5",
@@ -2422,6 +3090,28 @@
    "outputs": [
     [
      "{\"model\":\"unknown-model\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false}"
+    ]
+   ]
+  },
+  {
+   "name": "thinking/29/gemini-2.5-pro",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "input": "{\"thinking\":{\"type\":\"Enabled\",\"budget_tokens\":100},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-2.5-pro\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false}"
+    ]
+   ]
+  },
+  {
+   "name": "thinking/29/gemini-3-pro-preview",
+   "path": "request",
+   "model": "gemini-3-pro-preview",
+   "input": "{\"thinking\":{\"type\":\"Enabled\",\"budget_tokens\":100},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3-pro-preview\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false}"
     ]
    ]
   },
@@ -2487,6 +3177,32 @@
    "outputs": [
     [
      "{\"model\":\"unknown-model\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true,\"reasoning_effort\":\"hï¿½igh\"}"
+    ]
+   ]
+  },
+  {
+   "name": "thinking/30/gemini-2.5-pro",
+   "path": "request",
+   "model": "gemini-2.5-pro",
+   "stream": true,
+   "bytes": true,
+   "input": "{\"thinking\":{\"type\":\"enabled\"},\"output_config\":{\"effort\":\"HÿIGH\"},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-2.5-pro\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true,\"reasoning_effort\":\"hï¿½igh\"}"
+    ]
+   ]
+  },
+  {
+   "name": "thinking/30/gemini-3-pro-preview",
+   "path": "request",
+   "model": "gemini-3-pro-preview",
+   "stream": true,
+   "bytes": true,
+   "input": "{\"thinking\":{\"type\":\"enabled\"},\"output_config\":{\"effort\":\"HÿIGH\"},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3-pro-preview\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true,\"reasoning_effort\":\"hï¿½igh\"}"
     ]
    ]
   },
@@ -3408,6 +4124,30 @@
    ]
   },
   {
+   "name": "compat/thinking/0/gemini-2.5-pro",
+   "path": "request_compat",
+   "model": "gemini-2.5-pro",
+   "stream": true,
+   "input": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":-5},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-2.5-pro\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true}"
+    ]
+   ]
+  },
+  {
+   "name": "compat/thinking/0/gemini-3-pro-preview",
+   "path": "request_compat",
+   "model": "gemini-3-pro-preview",
+   "stream": true,
+   "input": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":-5},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3-pro-preview\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true}"
+    ]
+   ]
+  },
+  {
    "name": "compat/thinking/1/gpt-5",
    "path": "request_compat",
    "model": "gpt-5",
@@ -3459,6 +4199,28 @@
    "outputs": [
     [
      "{\"model\":\"unknown-model\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"auto\"}"
+    ]
+   ]
+  },
+  {
+   "name": "compat/thinking/1/gemini-2.5-pro",
+   "path": "request_compat",
+   "model": "gemini-2.5-pro",
+   "input": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":-1},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-2.5-pro\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"auto\"}"
+    ]
+   ]
+  },
+  {
+   "name": "compat/thinking/1/gemini-3-pro-preview",
+   "path": "request_compat",
+   "model": "gemini-3-pro-preview",
+   "input": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":-1},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3-pro-preview\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"auto\"}"
     ]
    ]
   },
@@ -3523,6 +4285,30 @@
    ]
   },
   {
+   "name": "compat/thinking/2/gemini-2.5-pro",
+   "path": "request_compat",
+   "model": "gemini-2.5-pro",
+   "stream": true,
+   "input": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":0},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-2.5-pro\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true,\"reasoning_effort\":\"none\"}"
+    ]
+   ]
+  },
+  {
+   "name": "compat/thinking/2/gemini-3-pro-preview",
+   "path": "request_compat",
+   "model": "gemini-3-pro-preview",
+   "stream": true,
+   "input": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":0},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3-pro-preview\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true,\"reasoning_effort\":\"none\"}"
+    ]
+   ]
+  },
+  {
    "name": "compat/thinking/3/gpt-5",
    "path": "request_compat",
    "model": "gpt-5",
@@ -3574,6 +4360,28 @@
    "outputs": [
     [
      "{\"model\":\"unknown-model\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"minimal\"}"
+    ]
+   ]
+  },
+  {
+   "name": "compat/thinking/3/gemini-2.5-pro",
+   "path": "request_compat",
+   "model": "gemini-2.5-pro",
+   "input": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":1},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-2.5-pro\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"minimal\"}"
+    ]
+   ]
+  },
+  {
+   "name": "compat/thinking/3/gemini-3-pro-preview",
+   "path": "request_compat",
+   "model": "gemini-3-pro-preview",
+   "input": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":1},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3-pro-preview\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"minimal\"}"
     ]
    ]
   },
@@ -3638,6 +4446,30 @@
    ]
   },
   {
+   "name": "compat/thinking/4/gemini-2.5-pro",
+   "path": "request_compat",
+   "model": "gemini-2.5-pro",
+   "stream": true,
+   "input": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":512},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-2.5-pro\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true,\"reasoning_effort\":\"minimal\"}"
+    ]
+   ]
+  },
+  {
+   "name": "compat/thinking/4/gemini-3-pro-preview",
+   "path": "request_compat",
+   "model": "gemini-3-pro-preview",
+   "stream": true,
+   "input": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":512},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3-pro-preview\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true,\"reasoning_effort\":\"minimal\"}"
+    ]
+   ]
+  },
+  {
    "name": "compat/thinking/5/gpt-5",
    "path": "request_compat",
    "model": "gpt-5",
@@ -3689,6 +4521,28 @@
    "outputs": [
     [
      "{\"model\":\"unknown-model\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"low\"}"
+    ]
+   ]
+  },
+  {
+   "name": "compat/thinking/5/gemini-2.5-pro",
+   "path": "request_compat",
+   "model": "gemini-2.5-pro",
+   "input": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":513},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-2.5-pro\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"low\"}"
+    ]
+   ]
+  },
+  {
+   "name": "compat/thinking/5/gemini-3-pro-preview",
+   "path": "request_compat",
+   "model": "gemini-3-pro-preview",
+   "input": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":513},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3-pro-preview\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"low\"}"
     ]
    ]
   },
@@ -3753,6 +4607,30 @@
    ]
   },
   {
+   "name": "compat/thinking/6/gemini-2.5-pro",
+   "path": "request_compat",
+   "model": "gemini-2.5-pro",
+   "stream": true,
+   "input": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":1024},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-2.5-pro\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true,\"reasoning_effort\":\"low\"}"
+    ]
+   ]
+  },
+  {
+   "name": "compat/thinking/6/gemini-3-pro-preview",
+   "path": "request_compat",
+   "model": "gemini-3-pro-preview",
+   "stream": true,
+   "input": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":1024},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3-pro-preview\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true,\"reasoning_effort\":\"low\"}"
+    ]
+   ]
+  },
+  {
    "name": "compat/thinking/7/gpt-5",
    "path": "request_compat",
    "model": "gpt-5",
@@ -3804,6 +4682,28 @@
    "outputs": [
     [
      "{\"model\":\"unknown-model\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"medium\"}"
+    ]
+   ]
+  },
+  {
+   "name": "compat/thinking/7/gemini-2.5-pro",
+   "path": "request_compat",
+   "model": "gemini-2.5-pro",
+   "input": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":1025},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-2.5-pro\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"medium\"}"
+    ]
+   ]
+  },
+  {
+   "name": "compat/thinking/7/gemini-3-pro-preview",
+   "path": "request_compat",
+   "model": "gemini-3-pro-preview",
+   "input": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":1025},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3-pro-preview\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"medium\"}"
     ]
    ]
   },
@@ -3868,6 +4768,30 @@
    ]
   },
   {
+   "name": "compat/thinking/8/gemini-2.5-pro",
+   "path": "request_compat",
+   "model": "gemini-2.5-pro",
+   "stream": true,
+   "input": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":8192},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-2.5-pro\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true,\"reasoning_effort\":\"medium\"}"
+    ]
+   ]
+  },
+  {
+   "name": "compat/thinking/8/gemini-3-pro-preview",
+   "path": "request_compat",
+   "model": "gemini-3-pro-preview",
+   "stream": true,
+   "input": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":8192},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3-pro-preview\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true,\"reasoning_effort\":\"medium\"}"
+    ]
+   ]
+  },
+  {
    "name": "compat/thinking/9/gpt-5",
    "path": "request_compat",
    "model": "gpt-5",
@@ -3919,6 +4843,28 @@
    "outputs": [
     [
      "{\"model\":\"unknown-model\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"high\"}"
+    ]
+   ]
+  },
+  {
+   "name": "compat/thinking/9/gemini-2.5-pro",
+   "path": "request_compat",
+   "model": "gemini-2.5-pro",
+   "input": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":8193},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-2.5-pro\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"high\"}"
+    ]
+   ]
+  },
+  {
+   "name": "compat/thinking/9/gemini-3-pro-preview",
+   "path": "request_compat",
+   "model": "gemini-3-pro-preview",
+   "input": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":8193},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3-pro-preview\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"high\"}"
     ]
    ]
   },
@@ -3983,6 +4929,30 @@
    ]
   },
   {
+   "name": "compat/thinking/10/gemini-2.5-pro",
+   "path": "request_compat",
+   "model": "gemini-2.5-pro",
+   "stream": true,
+   "input": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":24576},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-2.5-pro\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true,\"reasoning_effort\":\"high\"}"
+    ]
+   ]
+  },
+  {
+   "name": "compat/thinking/10/gemini-3-pro-preview",
+   "path": "request_compat",
+   "model": "gemini-3-pro-preview",
+   "stream": true,
+   "input": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":24576},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3-pro-preview\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true,\"reasoning_effort\":\"high\"}"
+    ]
+   ]
+  },
+  {
    "name": "compat/thinking/11/gpt-5",
    "path": "request_compat",
    "model": "gpt-5",
@@ -4034,6 +5004,28 @@
    "outputs": [
     [
      "{\"model\":\"unknown-model\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"xhigh\"}"
+    ]
+   ]
+  },
+  {
+   "name": "compat/thinking/11/gemini-2.5-pro",
+   "path": "request_compat",
+   "model": "gemini-2.5-pro",
+   "input": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":24577},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-2.5-pro\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"xhigh\"}"
+    ]
+   ]
+  },
+  {
+   "name": "compat/thinking/11/gemini-3-pro-preview",
+   "path": "request_compat",
+   "model": "gemini-3-pro-preview",
+   "input": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":24577},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3-pro-preview\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"xhigh\"}"
     ]
    ]
   },
@@ -4098,6 +5090,30 @@
    ]
   },
   {
+   "name": "compat/thinking/12/gemini-2.5-pro",
+   "path": "request_compat",
+   "model": "gemini-2.5-pro",
+   "stream": true,
+   "input": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":\"12.75\"},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-2.5-pro\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true,\"reasoning_effort\":\"none\"}"
+    ]
+   ]
+  },
+  {
+   "name": "compat/thinking/12/gemini-3-pro-preview",
+   "path": "request_compat",
+   "model": "gemini-3-pro-preview",
+   "stream": true,
+   "input": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":\"12.75\"},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3-pro-preview\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true,\"reasoning_effort\":\"none\"}"
+    ]
+   ]
+  },
+  {
    "name": "compat/thinking/13/gpt-5",
    "path": "request_compat",
    "model": "gpt-5",
@@ -4149,6 +5165,28 @@
    "outputs": [
     [
      "{\"model\":\"unknown-model\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"low\"}"
+    ]
+   ]
+  },
+  {
+   "name": "compat/thinking/13/gemini-2.5-pro",
+   "path": "request_compat",
+   "model": "gemini-2.5-pro",
+   "input": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":1e3},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-2.5-pro\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"low\"}"
+    ]
+   ]
+  },
+  {
+   "name": "compat/thinking/13/gemini-3-pro-preview",
+   "path": "request_compat",
+   "model": "gemini-3-pro-preview",
+   "input": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":1e3},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3-pro-preview\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"low\"}"
     ]
    ]
   },
@@ -4213,6 +5251,30 @@
    ]
   },
   {
+   "name": "compat/thinking/14/gemini-2.5-pro",
+   "path": "request_compat",
+   "model": "gemini-2.5-pro",
+   "stream": true,
+   "input": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":null},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-2.5-pro\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true,\"reasoning_effort\":\"none\"}"
+    ]
+   ]
+  },
+  {
+   "name": "compat/thinking/14/gemini-3-pro-preview",
+   "path": "request_compat",
+   "model": "gemini-3-pro-preview",
+   "stream": true,
+   "input": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":null},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3-pro-preview\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true,\"reasoning_effort\":\"none\"}"
+    ]
+   ]
+  },
+  {
    "name": "compat/thinking/15/gpt-5",
    "path": "request_compat",
    "model": "gpt-5",
@@ -4264,6 +5326,28 @@
    "outputs": [
     [
      "{\"model\":\"unknown-model\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"high\"}"
+    ]
+   ]
+  },
+  {
+   "name": "compat/thinking/15/gemini-2.5-pro",
+   "path": "request_compat",
+   "model": "gemini-2.5-pro",
+   "input": "{\"thinking\":{\"type\":\"enabled\"},\"output_config\":{\"effort\":\" HIGH \"},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-2.5-pro\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"high\"}"
+    ]
+   ]
+  },
+  {
+   "name": "compat/thinking/15/gemini-3-pro-preview",
+   "path": "request_compat",
+   "model": "gemini-3-pro-preview",
+   "input": "{\"thinking\":{\"type\":\"enabled\"},\"output_config\":{\"effort\":\" HIGH \"},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3-pro-preview\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"high\"}"
     ]
    ]
   },
@@ -4328,6 +5412,30 @@
    ]
   },
   {
+   "name": "compat/thinking/16/gemini-2.5-pro",
+   "path": "request_compat",
+   "model": "gemini-2.5-pro",
+   "stream": true,
+   "input": "{\"thinking\":{\"type\":\"enabled\"},\"output_config\":{\"effort\":\"  \"},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-2.5-pro\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true,\"reasoning_effort\":\"auto\"}"
+    ]
+   ]
+  },
+  {
+   "name": "compat/thinking/16/gemini-3-pro-preview",
+   "path": "request_compat",
+   "model": "gemini-3-pro-preview",
+   "stream": true,
+   "input": "{\"thinking\":{\"type\":\"enabled\"},\"output_config\":{\"effort\":\"  \"},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3-pro-preview\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true,\"reasoning_effort\":\"auto\"}"
+    ]
+   ]
+  },
+  {
    "name": "compat/thinking/17/gpt-5",
    "path": "request_compat",
    "model": "gpt-5",
@@ -4379,6 +5487,28 @@
    "outputs": [
     [
      "{\"model\":\"unknown-model\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"auto\"}"
+    ]
+   ]
+  },
+  {
+   "name": "compat/thinking/17/gemini-2.5-pro",
+   "path": "request_compat",
+   "model": "gemini-2.5-pro",
+   "input": "{\"thinking\":{\"type\":\"enabled\"},\"output_config\":{\"effort\":5},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-2.5-pro\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"auto\"}"
+    ]
+   ]
+  },
+  {
+   "name": "compat/thinking/17/gemini-3-pro-preview",
+   "path": "request_compat",
+   "model": "gemini-3-pro-preview",
+   "input": "{\"thinking\":{\"type\":\"enabled\"},\"output_config\":{\"effort\":5},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3-pro-preview\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"auto\"}"
     ]
    ]
   },
@@ -4443,6 +5573,30 @@
    ]
   },
   {
+   "name": "compat/thinking/18/gemini-2.5-pro",
+   "path": "request_compat",
+   "model": "gemini-2.5-pro",
+   "stream": true,
+   "input": "{\"thinking\":{\"type\":\"enabled\"},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-2.5-pro\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true,\"reasoning_effort\":\"auto\"}"
+    ]
+   ]
+  },
+  {
+   "name": "compat/thinking/18/gemini-3-pro-preview",
+   "path": "request_compat",
+   "model": "gemini-3-pro-preview",
+   "stream": true,
+   "input": "{\"thinking\":{\"type\":\"enabled\"},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3-pro-preview\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true,\"reasoning_effort\":\"auto\"}"
+    ]
+   ]
+  },
+  {
    "name": "compat/thinking/19/gpt-5",
    "path": "request_compat",
    "model": "gpt-5",
@@ -4494,6 +5648,28 @@
    "outputs": [
     [
      "{\"model\":\"unknown-model\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"medium\"}"
+    ]
+   ]
+  },
+  {
+   "name": "compat/thinking/19/gemini-2.5-pro",
+   "path": "request_compat",
+   "model": "gemini-2.5-pro",
+   "input": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":2000},\"output_config\":{\"effort\":\"max\"},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-2.5-pro\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"medium\"}"
+    ]
+   ]
+  },
+  {
+   "name": "compat/thinking/19/gemini-3-pro-preview",
+   "path": "request_compat",
+   "model": "gemini-3-pro-preview",
+   "input": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":2000},\"output_config\":{\"effort\":\"max\"},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3-pro-preview\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"medium\"}"
     ]
    ]
   },
@@ -4558,6 +5734,30 @@
    ]
   },
   {
+   "name": "compat/thinking/20/gemini-2.5-pro",
+   "path": "request_compat",
+   "model": "gemini-2.5-pro",
+   "stream": true,
+   "input": "{\"thinking\":{\"type\":\"adaptive\"},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-2.5-pro\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true,\"reasoning_effort\":\"xhigh\"}"
+    ]
+   ]
+  },
+  {
+   "name": "compat/thinking/20/gemini-3-pro-preview",
+   "path": "request_compat",
+   "model": "gemini-3-pro-preview",
+   "stream": true,
+   "input": "{\"thinking\":{\"type\":\"adaptive\"},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3-pro-preview\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true,\"reasoning_effort\":\"xhigh\"}"
+    ]
+   ]
+  },
+  {
    "name": "compat/thinking/21/gpt-5",
    "path": "request_compat",
    "model": "gpt-5",
@@ -4609,6 +5809,28 @@
    "outputs": [
     [
      "{\"model\":\"unknown-model\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"max\"}"
+    ]
+   ]
+  },
+  {
+   "name": "compat/thinking/21/gemini-2.5-pro",
+   "path": "request_compat",
+   "model": "gemini-2.5-pro",
+   "input": "{\"thinking\":{\"type\":\"adaptive\"},\"output_config\":{\"effort\":\"Max\"},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-2.5-pro\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"max\"}"
+    ]
+   ]
+  },
+  {
+   "name": "compat/thinking/21/gemini-3-pro-preview",
+   "path": "request_compat",
+   "model": "gemini-3-pro-preview",
+   "input": "{\"thinking\":{\"type\":\"adaptive\"},\"output_config\":{\"effort\":\"Max\"},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3-pro-preview\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"max\"}"
     ]
    ]
   },
@@ -4673,6 +5895,30 @@
    ]
   },
   {
+   "name": "compat/thinking/22/gemini-2.5-pro",
+   "path": "request_compat",
+   "model": "gemini-2.5-pro",
+   "stream": true,
+   "input": "{\"thinking\":{\"type\":\"auto\"},\"output_config\":{\"effort\":\"\\u00c9LEV\\u00c9\"},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-2.5-pro\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true,\"reasoning_effort\":\"élevé\"}"
+    ]
+   ]
+  },
+  {
+   "name": "compat/thinking/22/gemini-3-pro-preview",
+   "path": "request_compat",
+   "model": "gemini-3-pro-preview",
+   "stream": true,
+   "input": "{\"thinking\":{\"type\":\"auto\"},\"output_config\":{\"effort\":\"\\u00c9LEV\\u00c9\"},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3-pro-preview\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true,\"reasoning_effort\":\"élevé\"}"
+    ]
+   ]
+  },
+  {
    "name": "compat/thinking/23/gpt-5",
    "path": "request_compat",
    "model": "gpt-5",
@@ -4724,6 +5970,28 @@
    "outputs": [
     [
      "{\"model\":\"unknown-model\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"xhigh\"}"
+    ]
+   ]
+  },
+  {
+   "name": "compat/thinking/23/gemini-2.5-pro",
+   "path": "request_compat",
+   "model": "gemini-2.5-pro",
+   "input": "{\"thinking\":{\"type\":\"adaptive\"},\"output_config\":{\"effort\":\"\"},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-2.5-pro\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"xhigh\"}"
+    ]
+   ]
+  },
+  {
+   "name": "compat/thinking/23/gemini-3-pro-preview",
+   "path": "request_compat",
+   "model": "gemini-3-pro-preview",
+   "input": "{\"thinking\":{\"type\":\"adaptive\"},\"output_config\":{\"effort\":\"\"},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3-pro-preview\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false,\"reasoning_effort\":\"xhigh\"}"
     ]
    ]
   },
@@ -4788,6 +6056,30 @@
    ]
   },
   {
+   "name": "compat/thinking/24/gemini-2.5-pro",
+   "path": "request_compat",
+   "model": "gemini-2.5-pro",
+   "stream": true,
+   "input": "{\"thinking\":{\"type\":\"disabled\"},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-2.5-pro\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true,\"reasoning_effort\":\"none\"}"
+    ]
+   ]
+  },
+  {
+   "name": "compat/thinking/24/gemini-3-pro-preview",
+   "path": "request_compat",
+   "model": "gemini-3-pro-preview",
+   "stream": true,
+   "input": "{\"thinking\":{\"type\":\"disabled\"},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3-pro-preview\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true,\"reasoning_effort\":\"none\"}"
+    ]
+   ]
+  },
+  {
    "name": "compat/thinking/25/gpt-5",
    "path": "request_compat",
    "model": "gpt-5",
@@ -4839,6 +6131,28 @@
    "outputs": [
     [
      "{\"model\":\"unknown-model\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false}"
+    ]
+   ]
+  },
+  {
+   "name": "compat/thinking/25/gemini-2.5-pro",
+   "path": "request_compat",
+   "model": "gemini-2.5-pro",
+   "input": "{\"thinking\":{\"type\":\"unknown\"},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-2.5-pro\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false}"
+    ]
+   ]
+  },
+  {
+   "name": "compat/thinking/25/gemini-3-pro-preview",
+   "path": "request_compat",
+   "model": "gemini-3-pro-preview",
+   "input": "{\"thinking\":{\"type\":\"unknown\"},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3-pro-preview\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false}"
     ]
    ]
   },
@@ -4903,6 +6217,30 @@
    ]
   },
   {
+   "name": "compat/thinking/26/gemini-2.5-pro",
+   "path": "request_compat",
+   "model": "gemini-2.5-pro",
+   "stream": true,
+   "input": "{\"thinking\":{\"budget_tokens\":100},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-2.5-pro\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true}"
+    ]
+   ]
+  },
+  {
+   "name": "compat/thinking/26/gemini-3-pro-preview",
+   "path": "request_compat",
+   "model": "gemini-3-pro-preview",
+   "stream": true,
+   "input": "{\"thinking\":{\"budget_tokens\":100},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3-pro-preview\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true}"
+    ]
+   ]
+  },
+  {
    "name": "compat/thinking/27/gpt-5",
    "path": "request_compat",
    "model": "gpt-5",
@@ -4954,6 +6292,28 @@
    "outputs": [
     [
      "{\"model\":\"unknown-model\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false}"
+    ]
+   ]
+  },
+  {
+   "name": "compat/thinking/27/gemini-2.5-pro",
+   "path": "request_compat",
+   "model": "gemini-2.5-pro",
+   "input": "{\"thinking\":\"enabled\",\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-2.5-pro\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false}"
+    ]
+   ]
+  },
+  {
+   "name": "compat/thinking/27/gemini-3-pro-preview",
+   "path": "request_compat",
+   "model": "gemini-3-pro-preview",
+   "input": "{\"thinking\":\"enabled\",\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3-pro-preview\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false}"
     ]
    ]
   },
@@ -5018,6 +6378,30 @@
    ]
   },
   {
+   "name": "compat/thinking/28/gemini-2.5-pro",
+   "path": "request_compat",
+   "model": "gemini-2.5-pro",
+   "stream": true,
+   "input": "{\"thinking\":null,\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-2.5-pro\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true}"
+    ]
+   ]
+  },
+  {
+   "name": "compat/thinking/28/gemini-3-pro-preview",
+   "path": "request_compat",
+   "model": "gemini-3-pro-preview",
+   "stream": true,
+   "input": "{\"thinking\":null,\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3-pro-preview\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true}"
+    ]
+   ]
+  },
+  {
    "name": "compat/thinking/29/gpt-5",
    "path": "request_compat",
    "model": "gpt-5",
@@ -5069,6 +6453,28 @@
    "outputs": [
     [
      "{\"model\":\"unknown-model\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false}"
+    ]
+   ]
+  },
+  {
+   "name": "compat/thinking/29/gemini-2.5-pro",
+   "path": "request_compat",
+   "model": "gemini-2.5-pro",
+   "input": "{\"thinking\":{\"type\":\"Enabled\",\"budget_tokens\":100},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-2.5-pro\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false}"
+    ]
+   ]
+  },
+  {
+   "name": "compat/thinking/29/gemini-3-pro-preview",
+   "path": "request_compat",
+   "model": "gemini-3-pro-preview",
+   "input": "{\"thinking\":{\"type\":\"Enabled\",\"budget_tokens\":100},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3-pro-preview\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":false}"
     ]
    ]
   },
@@ -5134,6 +6540,32 @@
    "outputs": [
     [
      "{\"model\":\"unknown-model\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true,\"reasoning_effort\":\"hï¿½igh\"}"
+    ]
+   ]
+  },
+  {
+   "name": "compat/thinking/30/gemini-2.5-pro",
+   "path": "request_compat",
+   "model": "gemini-2.5-pro",
+   "stream": true,
+   "bytes": true,
+   "input": "{\"thinking\":{\"type\":\"enabled\"},\"output_config\":{\"effort\":\"HÿIGH\"},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-2.5-pro\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true,\"reasoning_effort\":\"hï¿½igh\"}"
+    ]
+   ]
+  },
+  {
+   "name": "compat/thinking/30/gemini-3-pro-preview",
+   "path": "request_compat",
+   "model": "gemini-3-pro-preview",
+   "stream": true,
+   "bytes": true,
+   "input": "{\"thinking\":{\"type\":\"enabled\"},\"output_config\":{\"effort\":\"HÿIGH\"},\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3-pro-preview\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100,\"stream\":true,\"reasoning_effort\":\"hï¿½igh\"}"
     ]
    ]
   },
@@ -6209,10 +7641,10 @@
      "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"call_a\",\"name\":\"tool_0\",\"input\":{}}}\n\n",
      "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"x\\\":1}\"}}\n\n",
      "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\n",
-     "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":1,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_1790978566569225878_1\",\"name\":\"tool_1\",\"input\":{}}}\n\n",
+     "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":1,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_1790980459907625733_1\",\"name\":\"tool_1\",\"input\":{}}}\n\n",
      "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"[1]\"}}\n\n",
      "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":1}\n\n",
-     "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":2,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_1790978566569252679_2\",\"name\":\"tool_7\",\"input\":{}}}\n\n",
+     "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":2,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_1790980459907632230_2\",\"name\":\"tool_7\",\"input\":{}}}\n\n",
      "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":2,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"not json\"}}\n\n",
      "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":2}\n\n"
     ],
@@ -6341,7 +7773,7 @@
    "original": "{\"tools\":[{\"name\":\"Read\"},{\"name\":\"_Write\"}]}",
    "outputs": [
     [
-     "{\"id\":\"c\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"r1r2\"},{\"type\":\"text\",\"text\":\"t1t2\"},{\"type\":\"tool_use\",\"id\":\"call_1\",\"name\":\"Read\",\"input\":{\"a\":1}},{\"type\":\"tool_use\",\"id\":\"toolu_1790978566576740232_5\",\"name\":\"_Write\",\"input\":{}},{\"type\":\"thinking\",\"thinking\":\"tail\"},{\"type\":\"thinking\",\"thinking\":\"after content\"},{\"type\":\"tool_use\",\"id\":\"c2\",\"name\":\"_Write\",\"input\":{\"b\": 2}  }],\"stop_reason\":\"tool_use\",\"stop_sequence\":null,\"usage\":{\"input_tokens\":0,\"output_tokens\":0}}"
+     "{\"id\":\"c\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"r1r2\"},{\"type\":\"text\",\"text\":\"t1t2\"},{\"type\":\"tool_use\",\"id\":\"call_1\",\"name\":\"Read\",\"input\":{\"a\":1}},{\"type\":\"tool_use\",\"id\":\"toolu_1790980459915297760_5\",\"name\":\"_Write\",\"input\":{}},{\"type\":\"thinking\",\"thinking\":\"tail\"},{\"type\":\"thinking\",\"thinking\":\"after content\"},{\"type\":\"tool_use\",\"id\":\"c2\",\"name\":\"_Write\",\"input\":{\"b\": 2}  }],\"stop_reason\":\"tool_use\",\"stop_sequence\":null,\"usage\":{\"input_tokens\":0,\"output_tokens\":0}}"
     ]
    ],
    "dynamic": [
@@ -6360,7 +7792,7 @@
    "input": "{\"id\":\"c\",\"choices\":[{\"message\":{\"content\":[{\"type\":\"reasoning\",\"text\":\"r1\"},{\"type\":\"reasoning\",\"text\":\"r2\"},{\"type\":\"text\",\"text\":\"t1\"},{\"type\":\"text\",\"text\":\"t2\"},{\"type\":\"reasoning\"},{\"type\":\"tool_calls\",\"tool_calls\":[{\"id\":\"call 1\",\"function\":{\"name\":\"read\",\"arguments\":\"{'a':1}\"}},{\"function\":{\"name\":\"write\",\"arguments\":\"[1]\"}}]},{\"type\":\"image\"},{\"type\":\"text\",\"text\":\"\"},{\"type\":\"reasoning\",\"text\":\"tail\"}],\"tool_calls\":[{\"id\":\"c2\",\"function\":{\"name\":\"WRITE\",\"arguments\":\"{\\\"b\\\": 2}  \"}}],\"reasoning\":{\"text\":\"after content\"}}}]}",
    "outputs": [
     [
-     "{\"id\":\"c\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"r1r2\"},{\"type\":\"text\",\"text\":\"t1t2\"},{\"type\":\"tool_use\",\"id\":\"call_1\",\"name\":\"read\",\"input\":{\"a\":1}},{\"type\":\"tool_use\",\"id\":\"toolu_1790978566577974865_7\",\"name\":\"write\",\"input\":{}},{\"type\":\"thinking\",\"thinking\":\"tail\"},{\"type\":\"thinking\",\"thinking\":\"after content\"},{\"type\":\"tool_use\",\"id\":\"c2\",\"name\":\"WRITE\",\"input\":{\"b\": 2}  }],\"stop_reason\":\"tool_use\",\"stop_sequence\":null,\"usage\":{\"input_tokens\":0,\"output_tokens\":0}}"
+     "{\"id\":\"c\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"r1r2\"},{\"type\":\"text\",\"text\":\"t1t2\"},{\"type\":\"tool_use\",\"id\":\"call_1\",\"name\":\"read\",\"input\":{\"a\":1}},{\"type\":\"tool_use\",\"id\":\"toolu_1790980459916732667_7\",\"name\":\"write\",\"input\":{}},{\"type\":\"thinking\",\"thinking\":\"tail\"},{\"type\":\"thinking\",\"thinking\":\"after content\"},{\"type\":\"tool_use\",\"id\":\"c2\",\"name\":\"WRITE\",\"input\":{\"b\": 2}  }],\"stop_reason\":\"tool_use\",\"stop_sequence\":null,\"usage\":{\"input_tokens\":0,\"output_tokens\":0}}"
     ]
    ],
    "dynamic": [

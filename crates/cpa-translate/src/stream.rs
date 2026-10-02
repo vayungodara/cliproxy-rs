@@ -71,10 +71,14 @@ fn responses_client(client: Format) -> bool {
 /// Go's responsesSSEFramer.WriteChunk/Flush joining and emission rules
 /// (openai_responses_handlers.go): line chunks are joined into frames, a valid data-only
 /// frame closes before the next `data:` line, and every frame ends with a blank line.
+///
+/// For executors that pass upstream Responses lines through untranslated: `write` each
+/// chunk, then `flush` at the end of the stream and before writing a terminal error (Go
+/// flushes in both places; an incomplete or invalid pending frame is dropped).
 // ponytail: repairFrame (private-event filtering, completed-output and error repair,
 // terminal tracking) is route logic and stays with the Responses route in cpa-server.
 #[derive(Default)]
-struct ResponsesFramer {
+pub struct ResponsesFramer {
     pending: Vec<u8>,
 }
 
@@ -107,7 +111,7 @@ fn data_payload_valid(payload: Option<Vec<u8>>) -> bool {
         return true;
     };
     let payload = crate::common::trim_space(&payload);
-    payload.is_empty() || payload == b"[DONE]" || cpa_common::json::valid(payload)
+    payload.is_empty() || payload == b"[DONE]" || cpa_common::json::std_valid(payload)
 }
 
 fn starts_new_data_frame(pending: &[u8], chunk: &[u8]) -> bool {
@@ -191,7 +195,21 @@ fn terminated(frame: &[u8]) -> Option<Vec<u8>> {
 }
 
 impl ResponsesFramer {
-    fn write(&mut self, chunk: &[u8], out: &mut Vec<Vec<u8>>) {
+    /// WriteChunk: the frames this chunk completes, each ending in a blank line.
+    pub fn write(&mut self, chunk: &[u8]) -> Vec<Bytes> {
+        let mut out = vec![];
+        self.write_into(chunk, &mut out);
+        out.into_iter().map(Bytes::from).collect()
+    }
+
+    /// Flush: the pending frame when it carries valid data; otherwise nothing.
+    pub fn flush(&mut self) -> Vec<Bytes> {
+        let mut out = vec![];
+        self.flush_into(&mut out);
+        out.into_iter().map(Bytes::from).collect()
+    }
+
+    fn write_into(&mut self, chunk: &[u8], out: &mut Vec<Vec<u8>>) {
         if chunk.is_empty() {
             return;
         }
@@ -221,7 +239,7 @@ impl ResponsesFramer {
         }
     }
 
-    fn flush(&mut self, out: &mut Vec<Vec<u8>>) {
+    fn flush_into(&mut self, out: &mut Vec<Vec<u8>>) {
         let pending = std::mem::take(&mut self.pending);
         let trimmed = crate::common::trim_space(&pending);
         if !trimmed.is_empty() && has_field(trimmed, b"data:") && data_lines_valid(trimmed) {
@@ -262,7 +280,7 @@ impl Framed {
         if responses_client(self.client) {
             let mut out = vec![];
             for chunk in &chunks {
-                self.responses.write(chunk, &mut out);
+                self.responses.write_into(chunk, &mut out);
             }
             return out.into_iter().map(Bytes::from).collect();
         }
@@ -275,6 +293,10 @@ impl Framed {
 }
 
 impl StreamTranslator for Framed {
+    fn flush_frames(&mut self) -> Vec<Bytes> {
+        self.responses.flush()
+    }
+
     fn event(&mut self, event: &[u8]) -> Result<Vec<Bytes>, Error> {
         let mut chunks = vec![];
         if self.upstream == Format::OpenAI {
@@ -291,7 +313,7 @@ impl StreamTranslator for Framed {
 
     fn finish(&mut self) -> Result<Vec<Bytes>, Error> {
         let mut out = vec![];
-        self.responses.flush(&mut out);
+        self.responses.flush_into(&mut out);
         Ok(out.into_iter().map(Bytes::from).collect())
     }
 }
@@ -335,10 +357,59 @@ mod tests {
         let mut framer = ResponsesFramer::default();
         let mut out = vec![];
         for c in chunks {
-            framer.write(c, &mut out);
+            out.extend(framer.write(c).into_iter().map(|b| b.to_vec()));
         }
-        framer.flush(&mut out);
+        out.extend(framer.flush().into_iter().map(|b| b.to_vec()));
         out
+    }
+
+    /// Chunks and frames recorded from Go's responsesSSEFramer (the Kimi device fixtures
+    /// responses-stream-clamp and responses-stream-data-only-frames).
+    #[test]
+    fn responses_framer_matches_recorded_go_frames() {
+        let clamp: [&[u8]; 9] = [
+            b"event: response.created\n",
+            b"data: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_2\"}}\n",
+            b"\n",
+            b"event: response.output_text.delta\n",
+            b"data: {\"type\":\"response.output_text.delta\",\"delta\":\"hi\"}\n",
+            b"\n",
+            b"event: response.completed\n",
+            b"data: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_2\"}}\n",
+            b"\n",
+        ];
+        assert_eq!(
+            responses(&clamp),
+            vec![
+                b"event: response.created\ndata: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_2\"}}\n\n".to_vec(),
+                b"event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"delta\":\"hi\"}\n\n".to_vec(),
+                b"event: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_2\"}}\n\n".to_vec(),
+            ]
+        );
+        // Data-only events stay separate frames; the invalid tail is dropped on flush.
+        let data_only: [&[u8]; 6] = [
+            b"data: {\"type\":\"response.output_text.delta\",\"delta\":\"a\"}\n",
+            b"data: {\"type\":\"response.output_text.delta\",\"delta\":\"b\"}\n",
+            b"\n",
+            b"data: [DONE]\n",
+            b": keep\n",
+            b"data: {\"type\":\n",
+        ];
+        assert_eq!(
+            responses(&data_only),
+            vec![
+                b"data: {\"type\":\"response.output_text.delta\",\"delta\":\"a\"}\n\n".to_vec(),
+                b"data: {\"type\":\"response.output_text.delta\",\"delta\":\"b\"}\n\n".to_vec(),
+                b"data: [DONE]\n: keep\n\n".to_vec(),
+            ]
+        );
+        // Flushing before a terminal error emits a valid pending frame exactly once.
+        let mut framer = ResponsesFramer::default();
+        assert!(framer.write(b"event: response.created\n").is_empty());
+        assert_eq!(framer.write(b"data: {\"a\":1}").len(), 1);
+        assert!(framer.write(b"data: {\"b\":2}").is_empty());
+        assert_eq!(framer.flush(), vec![Bytes::from_static(b"data: {\"b\":2}\n\n")]);
+        assert!(framer.flush().is_empty());
     }
 
     #[test]

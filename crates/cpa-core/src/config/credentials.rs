@@ -719,6 +719,73 @@ fn openai_compat(cfg: &Config, ids: &mut Ids) -> Vec<Credential> {
     out
 }
 
+/// Go `proxyURLFromAPIKeyConfig` (management `api-call`): the `proxy-url` of the first
+/// config entry matching an API-key credential's key and base URL, which is not
+/// always the entry the credential came from when keys repeat. Empty when none
+/// matches; callers check that the credential is an API key.
+pub fn api_key_config_proxy(cfg: &Config, c: &Credential) -> String {
+    let attr = |k: &str| c.attributes.get(k).map(|v| v.trim()).unwrap_or_default();
+    let fold = |a: &str, b: &str| a.to_lowercase() == b.to_lowercase();
+    let (key, base) = (attr("api_key"), attr("base_url"));
+    let compat = attr("compat_name");
+    if !compat.is_empty() || fold(c.provider.trim(), "openai-compatibility") {
+        if key.is_empty() {
+            return String::new();
+        }
+        let candidates: Vec<&str> = [compat, attr("provider_key"), c.provider.trim()]
+            .into_iter()
+            .filter(|v| !v.is_empty())
+            .collect();
+        for group in groups(cfg, "openai-compatibility") {
+            let Some(g) = group.as_mapping() else { continue };
+            // SanitizeOpenAICompatibility drops entries without a base URL.
+            if text(g.get("base-url")).trim().is_empty() || boolean(g.get("disabled")).unwrap_or(false) {
+                continue;
+            }
+            let name = text(g.get("name")).trim().to_owned();
+            if !candidates.iter().any(|cand| fold(cand, &name)) {
+                continue;
+            }
+            return g
+                .get("keys")
+                .and_then(Value::as_sequence)
+                .into_iter()
+                .flatten()
+                .find(|e| fold(text(e.get("api-key")).trim(), key))
+                .map(|e| text(e.get("proxy-url")).trim().to_owned())
+                .unwrap_or_default();
+        }
+        return String::new();
+    }
+    let family = match c.provider.trim().to_lowercase().as_str() {
+        "gemini" => "gemini",
+        "gemini-interactions" => "interactions",
+        "claude" => "claude",
+        "codex" => "codex",
+        "xai" => "xai",
+        "meta" => "meta",
+        _ => return String::new(),
+    };
+    // Go `resolveAPIKeyConfig`.
+    let entries = sanitized(cfg, family);
+    let matched = entries.iter().find(|e| {
+        let (k, b) = (e.api_key.trim(), e.base_url.trim());
+        if !key.is_empty() && !base.is_empty() {
+            fold(k, key) && fold(b, base)
+        } else if !key.is_empty() {
+            fold(k, key) && (b.is_empty() || fold(b, base))
+        } else {
+            !base.is_empty() && fold(b, base)
+        }
+    });
+    let matched = matched.or_else(|| {
+        (!key.is_empty())
+            .then(|| entries.iter().find(|e| fold(e.api_key.trim(), key)))
+            .flatten()
+    });
+    matched.map(|e| e.proxy_url.trim().to_owned()).unwrap_or_default()
+}
+
 /// Go `NormalizeCredentialMetadata`: config-style aliases become snake_case unless the
 /// canonical key is present.
 fn normalize_metadata(meta: &mut Map<String, Json>) {
@@ -1192,4 +1259,28 @@ fn clean(path: &Path) -> PathBuf {
         }
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Go `proxyURLFromAPIKeyConfig`: the first matching entry wins, so a repeated key
+    /// takes the earlier entry's `direct`, and compat keys match by name then key.
+    #[test]
+    fn api_key_config_proxy_takes_the_first_matching_entry() {
+        let cfg = Config::parse(
+            "api-keys:\n  claude:\n    - base-url: https://c.example.invalid\n      proxy-url: direct\n      keys: [{api-key: dup}]\n    - base-url: https://c.example.invalid\n      keys: [{api-key: dup, prefix: second}]\n  openai-compatibility:\n    - name: Off\n      disabled: true\n      base-url: https://o.example.invalid\n      keys: [{api-key: k, proxy-url: socks5://off.example.invalid:1}]\n    - name: One\n      base-url: https://o.example.invalid\n      keys: [{api-key: k, proxy-url: http://one.example.invalid:1}]\n",
+        )
+        .unwrap();
+        let creds = from_config(&cfg);
+        let second = creds
+            .iter()
+            .find(|c| c.attributes.get("prefix").map(String::as_str) == Some("second"))
+            .unwrap();
+        assert_eq!(second.attributes.get("proxy_url"), None);
+        assert_eq!(api_key_config_proxy(&cfg, second), "direct");
+        let compat = creds.iter().find(|c| c.attributes.contains_key("compat_name")).unwrap();
+        assert_eq!(api_key_config_proxy(&cfg, compat), "http://one.example.invalid:1");
+    }
 }

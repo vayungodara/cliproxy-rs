@@ -285,6 +285,7 @@ mod access {
         let options = Options {
             local_password: scenario["local_password"].as_str().unwrap_or_default().into(),
             management_password: Some(scenario["env"].as_str().unwrap_or_default().into()),
+            ..Options::default()
         };
         Management::with_options(rt, path, options)
     }
@@ -377,6 +378,7 @@ mod routes {
                 Options {
                     local_password: scenario["local_password"].as_str().unwrap_or_default().into(),
                     management_password: Some(scenario["env"].as_str().unwrap_or_default().into()),
+                    ..Options::default()
                 },
             );
             let (base, server) = super::access::serve(state.clone()).await;
@@ -738,16 +740,23 @@ mod creds {
                 .iter()
                 .map(|c| (credentials::auth_index(c), rust_name(c)))
                 .collect();
+            // Go's generator keeps the last config credential it registered.
             let cfg_id = rt
                 .store()
                 .snapshot()
                 .iter()
-                .find(|c| matches!(c.source, Source::Config { .. }))
+                .rfind(|c| matches!(c.source, Source::Config { .. }))
                 .unwrap()
                 .id
                 .clone();
+            let (echo_url, echo_server) = if scenario["echo"] == true {
+                let (url, handle) = echo::serve().await;
+                (url, Some(handle))
+            } else {
+                ("http://echo.invalid".to_owned(), None)
+            };
             let resolve = |text: &str, names: &HashMap<String, String>| {
-                let mut text = text.replace("$CFGID", &cfg_id);
+                let mut text = text.replace("$ECHO", &echo_url).replace("$CFGID", &cfg_id);
                 for (index, name) in names {
                     text = text.replace(&format!("$INDEX({name})"), index);
                 }
@@ -780,7 +789,8 @@ mod creds {
                     .text()
                     .await
                     .unwrap()
-                    .replace(&root.display().to_string(), "/fixture-root");
+                    .replace(&root.display().to_string(), "/fixture-root")
+                    .replace(&echo_url, "$ECHO");
                 assert_eq!(status, step["status"], "{at}: {body}");
                 // New credentials (uploads) get indexes on both sides.
                 for c in rt.store().snapshot().iter() {
@@ -797,7 +807,13 @@ mod creds {
                 } else {
                     let got: Value = serde_json::from_str(&body).unwrap();
                     let mut want = normalize(&step["response"], &go_names);
-                    let got = normalize(&got, &rust_names);
+                    let mut got = normalize(&got, &rust_names);
+                    // api-call relays the upstream's own Date header.
+                    for v in [&mut want, &mut got] {
+                        if let Some(h) = v.get_mut("header").and_then(Value::as_object_mut) {
+                            h.remove("Date");
+                        }
+                    }
                     // Go's harness registers no models, so its cooldown-reset fallback list
                     // is always empty; cliproxy-rs reports the credential's registrations
                     // (none here: the credential is disabled by this step).
@@ -844,9 +860,12 @@ mod creds {
                 compared += 1;
             }
             server.abort();
+            if let Some(echo) = echo_server {
+                echo.abort();
+            }
             let _ = std::fs::remove_dir_all(&dir);
         }
-        assert_eq!(compared, 89);
+        assert_eq!(compared, 122);
     }
 
     /// Every file in the auth dir and the config, byte for byte.
@@ -871,12 +890,7 @@ mod creds {
     /// cooldown state untouched; routes not built yet must stay an empty 404.
     #[tokio::test]
     async fn dashboard_probes_are_rejected_without_side_effects() {
-        const NOT_YET: &[&str] = &[
-            "/requests/api-call",
-            "/oauth/import",
-            "/oauth/auth-url",
-            "/observability/usage/queue",
-        ];
+        const NOT_YET: &[&str] = &["/oauth/import", "/oauth/auth-url"];
         let scenario = fixture()["credentials"]
             .as_array()
             .unwrap()
@@ -961,8 +975,100 @@ mod creds {
                 .collect();
             assert_eq!(creds_now, creds_before, "{at}: probe changed credentials");
         }
-        assert_eq!(implemented, 5);
+        assert_eq!(implemented, 7);
         server.abort();
         let _ = std::fs::remove_dir_all(&dir);
+    }
+}
+
+/// The api-call upstream: the same reports as `echoHandler` in the Go generator, so
+/// each side records what its own client sent.
+mod echo {
+    use axum::body::Bytes;
+    use axum::http::{HeaderMap, Method, StatusCode, Uri, header};
+    use axum::response::{IntoResponse, Response};
+    use serde_json::{Map, Value, json};
+    use std::collections::BTreeMap;
+
+    pub(super) async fn serve() -> (String, tokio::task::JoinHandle<()>) {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap().to_string();
+        let own = addr.clone();
+        let app = axum::Router::new().fallback(move |method: Method, uri: Uri, headers: HeaderMap, body: Bytes| {
+            let own = own.clone();
+            async move { handle(&own, method, uri, headers, body) }
+        });
+        let handle = tokio::spawn(async move {
+            axum::serve(listener, app).await.unwrap();
+        });
+        (format!("http://{addr}"), handle)
+    }
+
+    fn handle(own: &str, method: Method, uri: Uri, headers: HeaderMap, body: Bytes) -> Response {
+        match uri.path() {
+            "/redirect" => return (StatusCode::FOUND, [(header::LOCATION, "/echo?from=redirect")]).into_response(),
+            "/redirect307" => {
+                return (StatusCode::TEMPORARY_REDIRECT, [(header::LOCATION, "/echo?from=307")]).into_response();
+            }
+            "/chunked" => {
+                let parts = futures_util::stream::iter([
+                    Ok::<_, std::io::Error>(Bytes::from_static(b"part")),
+                    Ok(Bytes::from_static(b"two")),
+                ]);
+                return (
+                    [(header::CONTENT_TYPE, "text/plain"), (header::TRAILER, "X-Foo")],
+                    axum::body::Body::from_stream(parts),
+                )
+                    .into_response();
+            }
+            "/status" => {
+                let mut res = (StatusCode::IM_A_TEAPOT, &b"teapot\xff"[..]).into_response();
+                let h = res.headers_mut();
+                h.insert(header::CONTENT_TYPE, "text/plain".parse().unwrap());
+                h.append("x-multi", "a".parse().unwrap());
+                h.append("x-multi", "b".parse().unwrap());
+                return res;
+            }
+            _ => {}
+        }
+        let mut seen = BTreeMap::new();
+        for name in [
+            "Authorization",
+            "X-Custom",
+            "Content-Type",
+            "User-Agent",
+            "Content-Length",
+            "Accept-Encoding",
+            "Referer",
+        ] {
+            let values: Vec<Value> = headers
+                .get_all(name)
+                .iter()
+                .map(|v| Value::from(String::from_utf8_lossy(v.as_bytes()).into_owned()))
+                .collect();
+            if !values.is_empty() {
+                seen.insert(name, Value::Array(values));
+            }
+        }
+        let host = headers
+            .get(header::HOST)
+            .and_then(|h| h.to_str().ok())
+            .unwrap_or_default();
+        let host = if host == own { "<listener>" } else { host };
+        let length: i64 = headers
+            .get(header::CONTENT_LENGTH)
+            .and_then(|v| v.to_str().ok()?.parse().ok())
+            .unwrap_or(0);
+        // Go's json.Encoder: sorted keys, compact, trailing newline.
+        let mut out = Map::new();
+        out.insert("body".into(), String::from_utf8_lossy(&body).into_owned().into());
+        out.insert("content_length".into(), length.into());
+        out.insert("headers".into(), json!(seen));
+        out.insert("host".into(), host.into());
+        out.insert("method".into(), method.as_str().into());
+        out.insert("path".into(), uri.path().into());
+        out.insert("query".into(), uri.query().unwrap_or_default().into());
+        let text = format!("{}\n", Value::Object(out));
+        ([(header::CONTENT_TYPE, "application/json")], text).into_response()
     }
 }
