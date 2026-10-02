@@ -29,6 +29,7 @@ httpdate = "1"
 tiktoken-rs = "0.7"
 libc.workspace = true
 gjson = "0.8.1"
+serde_yaml_ng.workspace = true
 
 [dev-dependencies]
 axum.workspace = true

@@ -19,6 +19,10 @@ mod kimi_json;
 mod kimi_replay;
 mod kimi_thinking;
 pub mod oauth;
+pub mod openai_compat;
+mod openai_compat_http;
+pub mod openai_compat_multipart;
+mod openai_compat_payload;
 mod quota;
 mod tls;
 mod tokens;
@@ -34,6 +38,14 @@ pub struct Executors {
     pub claude: claude::ClaudeExecutor,
     /// Device-login providers (Kimi, Meta, Devin). `Default` builds production clients.
     pub devices: DeviceExecutors,
+    /// API-key upstreams speaking OpenAI wire formats (OpenAI-compatible providers, xAI).
+    pub openai: OpenAIExecutors,
+}
+
+/// OpenAI-wire executors, grouped like [`DeviceExecutors`].
+#[derive(Default)]
+pub struct OpenAIExecutors {
+    pub compat: openai_compat::OpenAICompatExecutor,
 }
 
 /// Executors for the device-login providers, grouped so adding one does not touch every
@@ -53,6 +65,23 @@ impl Executors {
         match credential.provider.as_str() {
             "claude" => self.claude.execute(credential, req, cfg).await,
             p if kimi::PROVIDERS.contains(&p) => self.devices.kimi.execute(&self.claude, credential, req, cfg).await,
+            p if openai_compat::handles(p) => self.openai.compat.execute(credential, req, cfg).await,
+            other => Err(no_executor(other)),
+        }
+    }
+
+    /// The Images API (`/v1/images/generations`, `/v1/images/edits`) for providers that
+    /// serve it directly. `request_path` is the inbound route; `req.stream` asks for the
+    /// upstream event stream passed through raw.
+    pub async fn images(
+        &self,
+        credential: &Credential,
+        req: ExecRequest,
+        request_path: &str,
+        cfg: &Config,
+    ) -> Result<ExecResponse, ExecError> {
+        match credential.provider.as_str() {
+            p if openai_compat::handles(p) => self.openai.compat.images(credential, req, request_path, cfg).await,
             other => Err(no_executor(other)),
         }
     }

@@ -105,6 +105,7 @@ async fn main() -> anyhow::Result<()> {
     let executors = Executors {
         claude: ClaudeExecutor::new(DEFAULT_BASE_URL)?,
         devices: Default::default(),
+        openai: Default::default(),
     };
     let rt = Arc::new(Runtime::new(config, credentials, executors));
     rt.start_auto_refresh();

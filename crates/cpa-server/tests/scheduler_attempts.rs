@@ -128,6 +128,7 @@ impl Fixture {
             Executors {
                 claude: ClaudeExecutor::new(upstream_url).unwrap(),
                 devices: Default::default(),
+                openai: Default::default(),
             },
         ));
         rt.publish_policy(policy);

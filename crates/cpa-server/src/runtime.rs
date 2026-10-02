@@ -888,6 +888,7 @@ mod tests {
         let executors = || Executors {
             claude: cpa_exec::claude::ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
             devices: Default::default(),
+            openai: Default::default(),
         };
         // Legacy top-level keys and the canonical routing block both reach the scheduler.
         let rt = Runtime::new(
@@ -915,6 +916,7 @@ mod tests {
             Executors {
                 claude: cpa_exec::claude::ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
                 devices: Default::default(),
+                openai: Default::default(),
             },
         ));
         let lock = rt.store.prepare_lock("a.json");
