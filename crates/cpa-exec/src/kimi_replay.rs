@@ -19,7 +19,10 @@ use futures_util::StreamExt;
 use http::HeaderMap;
 use sha2::{Digest, Sha256};
 
-use crate::kimi_json::{canonical, gstr, join_array, set_raw, set_str, valid};
+use cpa_common::gostr::GoStr;
+use cpa_common::json::{self as gj, Res, canonical};
+
+use crate::meta_codex::go_trim_space;
 
 const TTL: Duration = Duration::from_secs(3600);
 const MAX_ENTRIES: usize = 10240;
@@ -30,7 +33,7 @@ const MAX_TOTAL_BYTES: usize = 256 << 20;
 
 #[derive(Clone)]
 struct Entry {
-    content: Option<Arc<str>>,
+    content: Option<Arc<[u8]>>,
     at: Instant,
     generation: u64,
 }
@@ -106,7 +109,7 @@ impl ReplayCache {
 
     /// Reads the entry, reserving a tombstone when absent so a later write can be
     /// conditional on this read (GetKimiThinkingReplayWithSnapshotRequired).
-    fn get(&self, key: &str, now: Instant) -> (Option<Arc<str>>, Snapshot) {
+    fn get(&self, key: &str, now: Instant) -> (Option<Arc<[u8]>>, Snapshot) {
         let mut inner = self.lock();
         inner.purge(now);
         let expired = inner.entries.get(key).is_some_and(|e| now.duration_since(e.at) > TTL);
@@ -137,11 +140,11 @@ impl ReplayCache {
         )
     }
 
-    fn replace_if_unchanged(&self, key: &str, snapshot: Snapshot, content: &str) -> bool {
+    fn replace_if_unchanged(&self, key: &str, snapshot: Snapshot, content: &[u8]) -> bool {
         self.replace_at(key, snapshot, content, Instant::now())
     }
 
-    fn replace_at(&self, key: &str, snapshot: Snapshot, content: &str, now: Instant) -> bool {
+    fn replace_at(&self, key: &str, snapshot: Snapshot, content: &[u8], now: Instant) -> bool {
         if !valid_content(content) {
             return false;
         }
@@ -193,12 +196,12 @@ impl ReplayCache {
     }
 }
 
-fn valid_content(content: &str) -> bool {
-    if content.is_empty() || content.len() > MAX_BYTES_PER_ENTRY || !valid(content) {
+fn valid_content(content: &[u8]) -> bool {
+    if content.is_empty() || content.len() > MAX_BYTES_PER_ENTRY || !gj::valid(content) {
         return false;
     }
-    let root = gjson::parse(content);
-    root.kind() == gjson::Kind::Array && {
+    let root = gj::parse(content);
+    root.is_array() && {
         let n = root.array().len();
         n > 0 && n <= MAX_BLOCKS_PER_ENTRY
     }
@@ -206,11 +209,16 @@ fn valid_content(content: &str) -> bool {
 
 /// `kimiThinkingReplayModelFamily`: K3 variants share replay state.
 pub(crate) fn model_family(model: &str) -> String {
-    let (base, _) = crate::kimi_thinking::parse_suffix(model.trim());
-    match crate::kimi::normalize_upstream_model(base).as_str() {
+    let base = cpa_common::thinking::parse_suffix(model.trim()).model_name;
+    match crate::kimi::normalize_upstream_model(&base).as_str() {
         "k3" | "k3-256k" => "k3".into(),
         other => other.into(),
     }
+}
+
+/// `strings.TrimSpace(r.String())`, decoded for use in a session key.
+fn text(r: &Res<'_>) -> String {
+    String::from_utf8_lossy(go_trim_space(&r.bytes())).into_owned()
 }
 
 fn header(headers: &HeaderMap, name: &str) -> String {
@@ -224,11 +232,10 @@ fn header(headers: &HeaderMap, name: &str) -> String {
         .to_owned()
 }
 
-fn claude_code_session(payload: &str, headers: &HeaderMap) -> Option<String> {
+fn claude_code_session(payload: &[u8], headers: &HeaderMap) -> Option<String> {
     let mut session = header(headers, "X-Claude-Code-Session-Id");
     if session.is_empty() {
-        let user = gjson::get(payload, "metadata.user_id");
-        let user = gstr(&user);
+        let user = gj::get(payload, "metadata.user_id").str().into_owned();
         if let Some(pos) = user.rfind("_session_") {
             let tail = &user[pos + "_session_".len()..];
             if !tail.is_empty()
@@ -240,7 +247,7 @@ fn claude_code_session(payload: &str, headers: &HeaderMap) -> Option<String> {
             }
         }
         if session.is_empty() && user.starts_with('{') {
-            session = gstr(&gjson::get(&user, "session_id")).trim().to_owned();
+            session = text(&gj::get(user.as_bytes(), "session_id"));
         }
     }
     if session.is_empty() {
@@ -253,32 +260,31 @@ fn claude_code_session(payload: &str, headers: &HeaderMap) -> Option<String> {
     Some(format!("claude:{session}:agent:{agent}"))
 }
 
-fn payload_session(payload: &str) -> Option<String> {
+fn payload_session(payload: &[u8]) -> Option<String> {
     if payload.is_empty() {
         return None;
     }
-    let cache = gjson::get(payload, "prompt_cache_key");
-    if !gstr(&cache).trim().is_empty() {
-        return Some(format!("prompt-cache:{}", gstr(&cache).trim()));
+    let cache = text(&gj::get(payload, "prompt_cache_key"));
+    if !cache.is_empty() {
+        return Some(format!("prompt-cache:{cache}"));
     }
-    let window = gjson::get(payload, "client_metadata.x-codex-window-id");
-    if !gstr(&window).trim().is_empty() {
-        return Some(format!("window:{}", gstr(&window).trim()));
+    let window = text(&gj::get(payload, "client_metadata.x-codex-window-id"));
+    if !window.is_empty() {
+        return Some(format!("window:{window}"));
     }
-    let turn = gjson::get(payload, "client_metadata.x-codex-turn-metadata");
-    turn_session(gstr(&turn).trim())
+    turn_session(&text(&gj::get(payload, "client_metadata.x-codex-turn-metadata")))
 }
 
 fn turn_session(turn: &str) -> Option<String> {
     if turn.is_empty() {
         return None;
     }
-    let cache = gjson::get(turn, "prompt_cache_key");
-    if !gstr(&cache).trim().is_empty() {
-        return Some(format!("prompt-cache:{}", gstr(&cache).trim()));
+    let cache = text(&gj::get(turn.as_bytes(), "prompt_cache_key"));
+    if !cache.is_empty() {
+        return Some(format!("prompt-cache:{cache}"));
     }
-    let window = gjson::get(turn, "window_id");
-    (!gstr(&window).trim().is_empty()).then(|| format!("window:{}", gstr(&window).trim()))
+    let window = text(&gj::get(turn.as_bytes(), "window_id"));
+    (!window.is_empty()).then(|| format!("window:{window}"))
 }
 
 fn header_session(headers: &HeaderMap) -> Option<String> {
@@ -303,7 +309,7 @@ fn header_session(headers: &HeaderMap) -> Option<String> {
 
 /// `codexReasoningReplaySessionKey` for a Claude-format request, isolated per caller key
 /// (`xaiReasoningReplayIsolateSessionKey`). Empty when no session or no client key.
-fn session_key(req: &ExecRequest, payload: &str) -> String {
+fn session_key(req: &ExecRequest, payload: &[u8]) -> String {
     let key = claude_code_session(payload, &req.headers)
         .or_else(|| {
             let execution = req.execution_session.as_deref().map(str::trim).unwrap_or_default();
@@ -342,7 +348,7 @@ impl Scope {
     }
 
     /// Caches complete replayable content, or clears stale content otherwise.
-    pub(crate) fn store(&self, content: &str) {
+    pub(crate) fn store(&self, content: &[u8]) {
         let Some(snapshot) = self.snapshot.filter(|_| self.ready()) else {
             return;
         };
@@ -361,12 +367,9 @@ impl Scope {
 
     /// Caches the `content` array of a buffered Claude response.
     pub(crate) fn store_response(&self, response: &[u8]) {
-        let Ok(text) = std::str::from_utf8(response) else {
-            return;
-        };
-        let content = gjson::get(text, "content");
-        if content.kind() == gjson::Kind::Array {
-            self.store(content.json());
+        let content = gj::get(response, "content");
+        if content.is_array() {
+            self.store(content.raw());
         }
     }
 }
@@ -374,9 +377,8 @@ impl Scope {
 /// `prepareKimiThinkingReplayRequest`: restores cached content into `req.body` when it
 /// matches the latest assistant turn.
 pub(crate) fn prepare(cache: &Arc<ReplayCache>, req: &mut ExecRequest) -> Scope {
-    let payload = std::str::from_utf8(&req.body).unwrap_or_default();
     let family = model_family(&req.model);
-    let session = session_key(req, payload);
+    let session = session_key(req, &req.body);
     let key = if family.trim().is_empty() || session.is_empty() {
         String::new()
     } else {
@@ -394,7 +396,7 @@ pub(crate) fn prepare(cache: &Arc<ReplayCache>, req: &mut ExecRequest) -> Scope 
     let (content, snapshot) = cache.get(&scope.key, Instant::now());
     scope.snapshot = Some(snapshot);
     if let Some(content) = content
-        && let Some(updated) = restore(payload, &content)
+        && let Some(updated) = restore(&req.body, &content)
     {
         req.body = Bytes::from(updated);
         scope.applied = true;
@@ -407,68 +409,78 @@ pub(crate) fn clears_after(error: &ExecError) -> bool {
     matches!(error.status, 400 | 422)
 }
 
-fn replayable(content: &str) -> bool {
-    let root = gjson::parse(content);
-    if root.kind() != gjson::Kind::Array {
+/// `strings.TrimSpace(part.Get(path).String())`.
+fn field(part: &Res<'_>, path: &str) -> Vec<u8> {
+    go_trim_space(&part.get(path).bytes()).to_vec()
+}
+
+fn replayable(content: &[u8]) -> bool {
+    let root = gj::parse(content);
+    if !root.is_array() {
         return false;
     }
     let (mut signed, mut tool) = (false, false);
     for part in root.array() {
-        match gstr(&part.get("type")).trim() {
-            "thinking" if !gstr(&part.get("signature")).trim().is_empty() => signed = true,
-            "tool_use" if !gstr(&part.get("id")).trim().is_empty() => tool = true,
+        match field(&part, "type").as_slice() {
+            b"thinking" if !field(&part, "signature").is_empty() => signed = true,
+            b"tool_use" if !field(&part, "id").is_empty() => tool = true,
             _ => {}
         }
     }
     signed && tool
 }
 
-fn has_thinking(content: &gjson::Value<'_>) -> bool {
-    content.kind() == gjson::Kind::Array
+/// `kimiContentHasThinking`.
+fn has_thinking(content: &Res<'_>) -> bool {
+    content.is_array()
         && content
             .array()
             .iter()
-            .any(|p| matches!(gstr(&p.get("type")).trim(), "thinking" | "redacted_thinking"))
+            .any(|p| matches!(field(p, "type").as_slice(), b"thinking" | b"redacted_thinking"))
 }
 
-/// Canonical non-thinking parts; `None` unless the content is an array with a tool call.
-fn non_thinking_parts(content: &gjson::Value<'_>) -> Option<Vec<String>> {
-    if content.kind() != gjson::Kind::Array {
+/// `kimiNonThinkingContentParts`: canonical non-thinking parts; `None` unless the content
+/// is an array with a tool call.
+fn non_thinking_parts(content: &Res<'_>) -> Option<Vec<Vec<u8>>> {
+    if !content.is_array() {
         return None;
     }
     let mut parts = Vec::new();
     let mut tool = false;
     for part in content.array() {
-        match gstr(&part.get("type")).trim() {
-            "thinking" | "redacted_thinking" => continue,
-            "tool_use" => {
-                if gstr(&part.get("id")).trim().is_empty() {
+        match field(&part, "type").as_slice() {
+            b"thinking" | b"redacted_thinking" => continue,
+            b"tool_use" => {
+                if field(&part, "id").is_empty() {
                     return None;
                 }
                 tool = true;
             }
             _ => {}
         }
-        parts.push(canonical(part.json())?);
+        parts.push(canonical(part.raw())?);
     }
     tool.then_some(parts)
 }
 
 /// `restoreKimiThinkingReplayContent`.
-fn restore(body: &str, cached: &str) -> Option<String> {
-    let cached_value = gjson::parse(cached);
-    let cached_parts = non_thinking_parts(&cached_value)?;
-    let messages = gjson::get(body, "messages");
-    if messages.kind() != gjson::Kind::Array {
+fn restore(body: &[u8], cached: &[u8]) -> Option<Vec<u8>> {
+    let cached_parts = non_thinking_parts(&gj::parse(cached))?;
+    let messages = gj::get(body, "messages");
+    if !messages.is_array() {
         return None;
     }
     let items = messages.array();
     for (index, message) in items.iter().enumerate().rev() {
-        if !gstr(&message.get("role")).trim().eq_ignore_ascii_case("assistant") {
+        let role = String::from_utf8_lossy(&field(message, "role")).into_owned();
+        if !role.go_eq_fold("assistant") {
             continue;
         }
         let current = message.get("content");
-        if canonical(current.json()).is_some_and(|c| Some(c) == canonical(cached)) {
+        // kimiJSONEqual: both sides must canonicalize.
+        if let (Some(left), Some(right)) = (canonical(current.raw()), canonical(cached))
+            && left == right
+        {
             return None;
         }
         if has_thinking(&current) {
@@ -477,18 +489,18 @@ fn restore(body: &str, cached: &str) -> Option<String> {
         if non_thinking_parts(&current).is_none_or(|parts| parts != cached_parts) {
             continue;
         }
-        return set_raw(body, &format!("messages.{index}.content"), cached).ok();
+        return gj::try_set_raw(body, &format!("messages.{index}.content"), cached).ok();
     }
     None
 }
 
 #[derive(Default)]
 struct Block {
-    raw: String,
-    text: Option<String>,
-    thinking: Option<String>,
-    signature: Option<String>,
-    input: Option<String>,
+    raw: Vec<u8>,
+    text: Option<Vec<u8>>,
+    thinking: Option<Vec<u8>>,
+    signature: Option<Vec<u8>>,
+    input: Option<Vec<u8>>,
     finished: bool,
 }
 
@@ -514,22 +526,18 @@ impl Accumulator {
             if payload.is_empty() || payload == b"[DONE]" {
                 continue;
             }
-            let Ok(payload) = std::str::from_utf8(payload) else {
-                self.abandon();
-                continue;
-            };
-            if !valid(payload) {
+            if !gj::valid(payload) {
                 self.abandon();
                 continue;
             }
-            let root = gjson::parse(payload);
-            match gstr(&root.get("type")).as_str() {
-                "message_start" => self.observed = true,
-                "content_block_start" if !self.abandoned => self.start(&root),
-                "content_block_delta" if !self.abandoned => self.delta(&root),
-                "content_block_stop" if !self.abandoned => self.stop(root.get("index").i64()),
-                "message_stop" => self.complete = true,
-                "error" => {
+            let root = gj::parse(payload);
+            match &*root.get("type").bytes() {
+                b"message_start" => self.observed = true,
+                b"content_block_start" if !self.abandoned => self.start(&root),
+                b"content_block_delta" if !self.abandoned => self.delta(&root),
+                b"content_block_stop" if !self.abandoned => self.stop(root.get("index").int()),
+                b"message_stop" => self.complete = true,
+                b"error" => {
                     self.upstream_error = true;
                     self.abandon();
                 }
@@ -553,40 +561,38 @@ impl Accumulator {
         self.used = 0;
     }
 
-    fn start(&mut self, root: &gjson::Value<'_>) {
-        let index = root.get("index").i64();
+    fn start(&mut self, root: &Res<'_>) {
+        let index = root.get("index").int();
         let block = root.get("content_block");
-        if block.kind() != gjson::Kind::Object
-            || self.blocks.len() >= MAX_BLOCKS_PER_ENTRY
-            || self.blocks.contains_key(&index)
-        {
+        if !block.is_object() || self.blocks.len() >= MAX_BLOCKS_PER_ENTRY || self.blocks.contains_key(&index) {
             self.abandon();
             return;
         }
-        if !self.reserve(block.json().len()) {
+        if !self.reserve(block.raw().len()) {
             return;
         }
         self.blocks.insert(
             index,
             Block {
-                raw: block.json().to_owned(),
+                raw: block.raw().to_vec(),
                 ..Block::default()
             },
         );
     }
 
-    fn delta(&mut self, root: &gjson::Value<'_>) {
-        let index = root.get("index").i64();
+    fn delta(&mut self, root: &Res<'_>) {
+        let index = root.get("index").int();
         if !self.blocks.contains_key(&index) {
             self.abandon();
             return;
         }
         let delta = root.get("delta");
-        let (field, value) = match gstr(&delta.get("type")).as_str() {
-            "text_delta" => ("text", gstr(&delta.get("text")).to_owned()),
-            "thinking_delta" => ("thinking", gstr(&delta.get("thinking")).to_owned()),
-            "signature_delta" => ("signature", gstr(&delta.get("signature")).to_owned()),
-            "input_json_delta" => ("input", gstr(&delta.get("partial_json")).to_owned()),
+        let value = |path: &str| delta.get(path).bytes().into_owned();
+        let (field, value) = match &*delta.get("type").bytes() {
+            b"text_delta" => ("text", value("text")),
+            b"thinking_delta" => ("thinking", value("thinking")),
+            b"signature_delta" => ("signature", value("signature")),
+            b"input_json_delta" => ("input", value("partial_json")),
             _ => {
                 self.abandon();
                 return;
@@ -595,7 +601,7 @@ impl Accumulator {
         if field == "input" {
             if self.reserve(value.len()) {
                 let block = self.blocks.get_mut(&index).expect("checked");
-                block.input.get_or_insert_with(String::new).push_str(&value);
+                block.input.get_or_insert_with(Vec::new).extend_from_slice(&value);
             }
             return;
         }
@@ -608,7 +614,7 @@ impl Accumulator {
             }
         };
         if !initialized {
-            let initial = gstr(&gjson::get(&self.blocks[&index].raw, field)).to_owned();
+            let initial = gj::get(&self.blocks[&index].raw, field).bytes().into_owned();
             if !self.reserve(initial.len()) {
                 return;
             }
@@ -627,7 +633,7 @@ impl Accumulator {
                 "thinking" => &mut block.thinking,
                 _ => &mut block.signature,
             };
-            slot.as_mut().expect("initialized").push_str(&value);
+            slot.as_mut().expect("initialized").extend_from_slice(&value);
         }
     }
 
@@ -636,14 +642,14 @@ impl Accumulator {
             self.abandon();
             return;
         };
-        if block.input.as_ref().is_some_and(|input| !valid(input)) {
+        if block.input.as_ref().is_some_and(|input| !gj::valid(input)) {
             self.abandon();
             return;
         }
         block.finished = true;
     }
 
-    fn content(&mut self) -> Option<String> {
+    fn content(&mut self) -> Option<Vec<u8>> {
         if !self.observed || !self.complete || self.upstream_error || self.abandoned {
             return None;
         }
@@ -660,15 +666,15 @@ impl Accumulator {
                 ("signature", &block.signature),
             ] {
                 if let Some(value) = value {
-                    raw = set_str(&raw, path, value).ok()?;
+                    raw = gj::try_set_str(&raw, path, value).ok()?;
                 }
             }
             if let Some(input) = &block.input {
-                raw = set_raw(&raw, "input", input).ok()?;
+                raw = gj::try_set_raw(&raw, "input", input).ok()?;
             }
             parts.push(raw);
         }
-        let content = join_array(&parts);
+        let content = gj::join(&parts);
         if content.len() > MAX_BYTES_PER_ENTRY {
             self.abandon();
             return None;
@@ -736,14 +742,17 @@ mod tests {
     fn restore_replaces_only_the_matching_unsigned_assistant_turn() {
         // Expected shapes from kimi_thinking_replay_test.go.
         let body = r#"{"messages":[{"role":"user","content":"hi"},{"role":"assistant","content":[{"type":"text","text":"Calling."},{"type":"tool_use","id":"toolu_1","name":"read","input":{"path":"a"}}]},{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_1","content":"x"}]}]}"#;
-        let restored = restore(body, CACHED).unwrap();
-        assert_eq!(gjson::get(&restored, "messages.1.content").json(), CACHED);
+        let restored = restore(body.as_bytes(), CACHED.as_bytes()).unwrap();
+        assert_eq!(gj::get(&restored, "messages.1.content").raw(), CACHED.as_bytes());
         // Already carrying thinking: left alone.
-        let with_thinking = set_raw(body, "messages.1.content", CACHED).unwrap();
-        assert!(restore(&with_thinking, CACHED).is_none());
+        let with_thinking = gj::try_set_raw(body.as_bytes(), "messages.1.content", CACHED).unwrap();
+        assert!(restore(&with_thinking, CACHED.as_bytes()).is_none());
         // Different tool input: not the same turn.
         let other = body.replace(r#""path":"a""#, r#""path":"b""#);
-        assert!(restore(&other, CACHED).is_none());
+        assert!(restore(other.as_bytes(), CACHED.as_bytes()).is_none());
+        // Go EqualFold on the role: "ASSISTANT" still matches.
+        let upper = body.replace(r#""role":"assistant""#, r#""role":" ASSISTANT ""#);
+        assert!(restore(upper.as_bytes(), CACHED.as_bytes()).is_some());
     }
 
     #[test]
@@ -753,14 +762,14 @@ mod tests {
         let fx = serde_json::json!({"request": {"body": "{}", "source": "claude", "model": "kimi-k3"}});
         let mut req = crate::kimi_fixture::request(&fx, "");
         req.headers.insert("session_id", "s1".parse().unwrap());
-        assert_eq!(session_key(&req, "{}"), "", "header sessions need a caller key");
+        assert_eq!(session_key(&req, b"{}"), "", "header sessions need a caller key");
         req.execution_session = Some(" e1 ".into());
-        assert_eq!(session_key(&req, "{}"), "execution:e1");
+        assert_eq!(session_key(&req, b"{}"), "execution:e1");
         // A Claude Code session wins over the execution session and is caller-isolated.
         req.headers.insert("X-Claude-Code-Session-Id", "cc".parse().unwrap());
-        assert_eq!(session_key(&req, "{}"), "");
+        assert_eq!(session_key(&req, b"{}"), "");
         req.caller.principal = "k".into();
-        let key = session_key(&req, "{}");
+        let key = session_key(&req, b"{}");
         assert!(
             key.starts_with("caller:") && key.ends_with(":claude:cc:agent:main"),
             "{key}"
@@ -796,7 +805,7 @@ mod tests {
         }
         assert_eq!(
             acc.content().unwrap(),
-            r#"[{"type":"thinking","thinking":"plan","signature":"sig-1"},{"type":"tool_use","id":"toolu_1","name":"read","input":{"path":"a"}}]"#
+            br#"[{"type":"thinking","thinking":"plan","signature":"sig-1"},{"type":"tool_use","id":"toolu_1","name":"read","input":{"path":"a"}}]"#
         );
         let mut acc = Accumulator::default();
         for event in &events[..3] {
@@ -815,10 +824,13 @@ mod tests {
         let now = Instant::now();
         let (_, first) = cache.get("k", now);
         let (_, second) = cache.get("k", now);
-        assert!(cache.replace_if_unchanged("k", second, CACHED));
-        assert!(!cache.replace_if_unchanged("k", first, CACHED), "stale snapshot loses");
+        assert!(cache.replace_if_unchanged("k", second, CACHED.as_bytes()));
+        assert!(
+            !cache.replace_if_unchanged("k", first, CACHED.as_bytes()),
+            "stale snapshot loses"
+        );
         let (content, third) = cache.get("k", now);
-        assert_eq!(content.as_deref(), Some(CACHED));
+        assert_eq!(content.as_deref(), Some(CACHED.as_bytes()));
         assert!(cache.delete_if_unchanged("k", third));
         assert!(cache.get("k", now).0.is_none());
         assert!(cache.get("k", now + TTL + Duration::from_secs(1)).0.is_none());
@@ -827,6 +839,6 @@ mod tests {
         let cache = ReplayCache::default();
         let (_, stale) = cache.get("k", now);
         let late = now + TTL + PURGE_INTERVAL + Duration::from_secs(1);
-        assert!(!cache.replace_at("k", stale, CACHED, late));
+        assert!(!cache.replace_at("k", stale, CACHED.as_bytes(), late));
     }
 }

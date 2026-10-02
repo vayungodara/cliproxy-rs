@@ -17,8 +17,8 @@ use futures_util::future::{BoxFuture, Shared};
 use serde_json::{Map, Value, json};
 
 use crate::kimi_http::{BUILD_VERSION, auth_error, go_arch, go_os, hostname, rfc3339_utc};
-use crate::kimi_json::GoValue;
 use crate::proxy::GoHeaders;
+use cpa_common::json::GoValue;
 
 pub const CLIENT_ID: &str = "17e5f671-d194-4dfb-9706-5516cb48c098";
 pub const DOMAIN_COM: &str = "kimi.com";
@@ -531,7 +531,7 @@ pub fn login_record(provider: &str, tokens: &Tokens, device_id: &str, now_ms: i6
 
 /// Go `json.Encoder` output of a credential map: sorted keys, two-space indent, newline.
 pub(crate) fn encode_credential(metadata: &Map<String, Value>) -> String {
-    GoValue::from_json(&Value::Object(metadata.clone())).encode_indented()
+    String::from_utf8_lossy(&GoValue::from_json(&Value::Object(metadata.clone())).encode_indented()).into_owned()
 }
 
 /// Writes a credential file atomically with mode 0600 in a 0700 directory.

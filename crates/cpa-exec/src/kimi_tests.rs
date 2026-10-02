@@ -180,8 +180,8 @@ async fn claude_delegation_keeps_kimi_owned_wire_parts() {
     assert_eq!(captured[0].target, go.target);
     assert_eq!(captured[0].header("Authorization"), go.header("Authorization"));
     assert_eq!(
-        gjson::get(captured[0].body_text(), "model").str(),
-        gjson::get(go.body_text(), "model").str()
+        gj::get(&captured[0].body, "model").str(),
+        gj::get(&go.body, "model").str()
     );
     assert_eq!(
         down.body.as_deref(),
@@ -436,37 +436,43 @@ fn pure_functions_match_go_vectors() {
         let input = v["in"].as_str().unwrap();
         let want = v["out"].as_str().unwrap();
         let err = v["err"].as_str();
+        let bytes = input.as_bytes();
+        let text = |out: Vec<u8>| String::from_utf8(out).unwrap();
+        let path = || v["path"].as_str().unwrap();
+        let value = || v["value"].as_str().unwrap_or_default();
         let got: Result<String, String> = match v["fn"].as_str().unwrap() {
-            "schema" => Ok(normalize_parameters_schema(input)),
-            "links" => normalize_tool_message_links(input).map_err(|e| String::from_utf8_lossy(&e.body).into_owned()),
-            "temperature" => Ok(normalize_temperature(input)),
-            "responses_input" => Ok(normalize_responses_input(input)),
-            "thinking" => kimi_thinking::apply(
-                input,
-                input,
-                input,
-                v["model"].as_str().unwrap(),
-                v["from"].as_str().unwrap(),
-                v["to"].as_str().unwrap(),
-                "kimi",
-            )
-            .map_err(|e| e.0),
-            "restore_model" => Ok(String::from_utf8(
-                restore_response_model(input.as_bytes(), v["model"].as_str().unwrap()).to_vec(),
-            )
-            .unwrap()),
-            "sjson_delete" => Ok(delete(input, v["path"].as_str().unwrap())),
-            "sjson_set_str" => set_str(
-                input,
-                v["path"].as_str().unwrap(),
-                v["value"].as_str().unwrap_or_default(),
-            ),
-            "sjson_set_raw" => set_raw(
-                input,
-                v["path"].as_str().unwrap(),
-                v["value"].as_str().unwrap_or_default(),
-            ),
-            "gjson_string" => Ok(crate::kimi_json::gstr(&gjson::get(input, "n"))),
+            "schema" => Ok(text(normalize_parameters_schema(bytes))),
+            "links" => normalize_tool_message_links(bytes.to_vec())
+                .map(text)
+                .map_err(|e| String::from_utf8_lossy(&e.body).into_owned()),
+            "temperature" => Ok(text(normalize_temperature(bytes.to_vec()))),
+            "responses_input" => Ok(text(normalize_responses_input(bytes.to_vec()))),
+            "thinking" => {
+                let (from, to) = (v["from"].as_str().unwrap(), v["to"].as_str().unwrap());
+                // Go's registry: only the Codex target registers translators from these.
+                let has_request_transformer = to == "codex" && matches!(from, "openai" | "openai-response");
+                apply_request_thinking(&RequestThinking {
+                    body: bytes,
+                    payload: bytes,
+                    original: bytes,
+                    model: v["model"].as_str().unwrap(),
+                    from,
+                    to,
+                    provider: "kimi",
+                    resolved: None,
+                    has_request_transformer,
+                    updates_changed: false,
+                })
+                .map(text)
+                .map_err(|e| e.message)
+            }
+            "restore_model" => Ok(text(
+                restore_response_model(bytes, v["model"].as_str().unwrap()).to_vec(),
+            )),
+            "sjson_delete" => Ok(text(gj::try_delete(bytes, path()).unwrap_or_else(|_| bytes.to_vec()))),
+            "sjson_set_str" => gj::try_set_str(bytes, path(), value()).map(text),
+            "sjson_set_raw" => gj::try_set_raw(bytes, path(), value()).map(text),
+            "gjson_string" => Ok(text(gj::get(bytes, "n").bytes().into_owned())),
             other => panic!("unknown vector {other}"),
         };
         match err {
@@ -539,12 +545,11 @@ async fn claude_replay_sequence_matches_go() {
     assert_eq!(captured.len(), go_upstream.len());
     for (i, (rust, go)) in captured.iter().zip(go_upstream).enumerate() {
         let go = Captured::from_fixture(go);
-        let content =
-            |c: &Captured| crate::kimi_json::canonical(gjson::get(c.body_text(), "messages.1.content").json());
+        let content = |c: &Captured| gj::canonical(gj::get(&c.body, "messages.1.content").raw());
         assert_eq!(content(rust), content(&go), "step {i}: replayed assistant content");
         assert_eq!(
-            gjson::get(rust.body_text(), "model").str(),
-            gjson::get(go.body_text(), "model").str(),
+            gj::get(&rust.body, "model").str(),
+            gj::get(&go.body, "model").str(),
             "step {i}: model"
         );
     }
