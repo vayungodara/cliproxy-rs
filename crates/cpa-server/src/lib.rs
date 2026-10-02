@@ -5,6 +5,7 @@ mod affinity;
 mod classify;
 mod claude;
 mod codex_alpha;
+mod cooldown_store;
 pub mod dispatch;
 mod errors;
 mod gemini;

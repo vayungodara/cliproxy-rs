@@ -2,7 +2,7 @@
 //! publishes this policy through Runtime::publish_policy.
 
 use std::collections::HashMap;
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime};
 
 use cpa_core::credential::Credential;
 use cpa_core::exec::ExecError;
@@ -39,13 +39,16 @@ pub struct Policy {
     /// routing.session-affinity-ttl: duration string, default 1h.
     pub session_affinity_ttl: Duration,
     pub session_affinity_subagents: bool,
-    /// ponytail: reserved for integration; separate cooldown persistence/restore
-    /// remains M4-0026, not credential JSON write-back.
+    /// routing.cooldown.save-cooldown-status: persist cooldowns as `.cds` files in
+    /// `auth-dir` (cooldown_store.rs), never in credential files.
     pub save_cooldown_status: bool,
     /// routing.force-model-prefix: bool, default false.
     pub force_model_prefix: bool,
-    /// OAuth-only provider overrides; API keys must not inherit these.
-    pub oauth_disable_cooling: HashMap<String, bool>,
+    /// Enabled `openai-compatibility` entries in config order with their
+    /// `disable-cooling` (Go `providerCoolingOverrideForAuth`). Filled from the config on
+    /// every publish ([`compat_cooling`]).
+    pub compat_disable_cooling: Vec<(String, Option<bool>)>,
+    /// OAuth-only `oauth.request-scoped-errors` channels; API keys must not inherit these.
     pub oauth_request_scoped_errors: HashMap<String, Vec<ErrorRule>>,
 }
 
@@ -63,7 +66,7 @@ impl Default for Policy {
             session_affinity_subagents: true,
             save_cooldown_status: false,
             force_model_prefix: false,
-            oauth_disable_cooling: HashMap::new(),
+            compat_disable_cooling: Vec::new(),
             oauth_request_scoped_errors: HashMap::new(),
         }
     }
@@ -271,14 +274,35 @@ impl Policy {
             .unwrap_or(self.request_retry)
     }
 
+    /// Go `quotaCooldownDisabledForAuthWithConfig`: the credential's `disable_cooling`
+    /// metadata, then its OpenAI-compatibility entry's `disable-cooling`, then global.
     pub(crate) fn cooling_disabled(&self, c: &Credential) -> bool {
         boolean(c, "disable_cooling")
-            .or_else(|| {
-                oauth(c)
-                    .then(|| self.oauth_disable_cooling.get(&c.provider).copied())
-                    .flatten()
-            })
+            .or_else(|| self.provider_cooling(c))
             .unwrap_or(self.disable_cooling)
+    }
+
+    /// Go `providerCoolingOverrideForAuth` with `resolveOpenAICompatConfig`: the first
+    /// enabled entry (config order) named by the credential's `compat_name`,
+    /// `provider_key` or provider.
+    fn provider_cooling(&self, c: &Credential) -> Option<bool> {
+        let provider = c.provider.trim().to_lowercase();
+        let attr = |k: &str| c.attributes.get(k).map(|v| v.trim()).unwrap_or_default();
+        let (compat_name, mut provider_key) = (attr("compat_name"), attr("provider_key"));
+        if provider.is_empty()
+            || (provider_key.is_empty() && compat_name.is_empty() && provider != "openai-compatibility")
+        {
+            return None;
+        }
+        if provider_key.is_empty() {
+            provider_key = &provider;
+        }
+        let candidates = [compat_name, provider_key, provider.as_str()];
+        // ponytail: ASCII case folding; Go's EqualFold also folds non-ASCII names.
+        self.compat_disable_cooling
+            .iter()
+            .find(|(name, _)| candidates.iter().any(|c| !c.is_empty() && c.eq_ignore_ascii_case(name)))
+            .and_then(|(_, disable)| *disable)
     }
 
     pub fn error_action(&self, c: &Credential, error: &ExecError) -> ErrorAction {
@@ -367,6 +391,11 @@ pub(crate) struct Cooldown {
     pub quota: bool,
     /// The failure that set it (Go `ModelState.LastError`), for error summaries.
     pub error: String,
+    /// When it was set (Go `ModelState.UpdatedAt`), for `save-cooldown-status`.
+    pub since: SystemTime,
+    /// A model quota inherited from a credential-wide quota (Go reason
+    /// `credential_quota` on sibling model states).
+    pub credential: bool,
 }
 
 #[derive(Default)]
@@ -377,6 +406,34 @@ pub(crate) struct Scheduler {
     pub(crate) cooldowns: HashMap<(String, String), Cooldown>,
     /// Session affinity bindings (Go `SessionAffinitySelector.cache`).
     affinity: crate::affinity::Cache,
+}
+
+/// Go `cfg.OpenAICompatibility` for cooling: enabled entries with a base URL (Go
+/// `SanitizeOpenAICompatibility`), in config order, with their `disable-cooling`.
+pub fn compat_cooling(cfg: &cpa_core::config::Config) -> Vec<(String, Option<bool>)> {
+    cfg.document
+        .get("api-keys")
+        .and_then(|k| k.get("openai-compatibility"))
+        .and_then(serde_yaml_ng::Value::as_sequence)
+        .into_iter()
+        .flatten()
+        .filter(|g| {
+            g.get("base-url")
+                .and_then(serde_yaml_ng::Value::as_str)
+                .is_some_and(|b| !b.trim().is_empty())
+                && g.get("disabled").and_then(serde_yaml_ng::Value::as_bool) != Some(true)
+        })
+        .map(|g| {
+            (
+                g.get("name")
+                    .and_then(serde_yaml_ng::Value::as_str)
+                    .unwrap_or_default()
+                    .trim()
+                    .to_owned(),
+                g.get("disable-cooling").and_then(serde_yaml_ng::Value::as_bool),
+            )
+        })
+        .collect()
 }
 
 /// A selection's affinity keys: the session, and its parent or alias when distinct.
@@ -784,25 +841,44 @@ impl Scheduler {
             return;
         };
         let deadline = prev_live.map_or(next, |p| p.max(next));
-        self.cooldowns.insert(
-            key,
-            Cooldown {
-                deadline,
-                level,
-                status: error.status,
-                quota,
-                error: text,
-            },
-        );
+        let state = |deadline| Cooldown {
+            deadline,
+            level,
+            status: error.status,
+            quota,
+            error: text.clone(),
+            since: SystemTime::now(),
+            credential: false,
+        };
+        self.cooldowns.insert(key, state(deadline));
         if credential_quota {
             self.extend_siblings(c, deadline, now);
+            // Go also records the failing model's own quota state (reason `quota`).
+            if !model.is_empty() {
+                let own = (c.id.clone(), model.to_owned());
+                let own_deadline = self
+                    .cooldowns
+                    .get(&own)
+                    .filter(|s| s.deadline > now)
+                    .map_or(deadline, |s| s.deadline.max(deadline));
+                self.cooldowns.insert(own, state(own_deadline));
+            }
         }
     }
 
+    /// Go's credential-scoped 429: live sibling model states become quota cooldowns
+    /// (`credential_quota`) lasting at least as long as the credential.
     fn extend_siblings(&mut self, c: &Credential, deadline: Instant, now: Instant) {
-        for ((id, _), state) in &mut self.cooldowns {
-            if *id == c.id && state.deadline > now {
+        let level = self
+            .cooldowns
+            .get(&(c.id.clone(), String::new()))
+            .map_or(0, |s| s.level);
+        for ((id, model), state) in &mut self.cooldowns {
+            if *id == c.id && !model.is_empty() && state.deadline > now {
                 state.deadline = state.deadline.max(deadline);
+                state.quota = true;
+                state.credential = true;
+                state.level = level;
             }
         }
     }
@@ -820,6 +896,122 @@ impl Scheduler {
         self.affinity.invalidate(id);
         models.sort();
         models
+    }
+
+    /// Go `cooldownStateRecordsForAuthLocked`: one record per live cooldown of `c`, by
+    /// model (the credential-wide quota is the model-less record).
+    pub fn records(&self, c: &Credential, now: Instant, wall: SystemTime) -> Vec<crate::cooldown_store::Record> {
+        use crate::cooldown_store::{LastError, Quota, Record};
+        let mut out: Vec<Record> = self
+            .cooldowns
+            .iter()
+            .filter(|((id, _), state)| *id == c.id && state.deadline > now)
+            .map(|((_, model), state)| {
+                let at = wall + (state.deadline - now);
+                let reason = match (model.is_empty() || state.credential, state.quota, state.status) {
+                    (true, true, _) => "credential_quota".to_owned(),
+                    (false, true, 429) => "quota".to_owned(),
+                    (false, true, _) => "cloudflare challenge".to_owned(),
+                    (_, false, _) => state.error.clone(),
+                };
+                Record {
+                    provider: c.provider.trim().to_owned(),
+                    auth_id: c.id.clone(),
+                    model: model.clone(),
+                    status: "cooling".into(),
+                    next_retry_after: Some(at),
+                    quota: if state.quota {
+                        Quota {
+                            exceeded: true,
+                            reason: reason.clone(),
+                            next_recover_at: Some(at),
+                            backoff_level: state.level,
+                            observed_at: None,
+                        }
+                    } else {
+                        Quota::default()
+                    },
+                    reason,
+                    last_error: Some(LastError {
+                        message: state.error.clone(),
+                        http_status: u32::from(state.status),
+                        ..LastError::default()
+                    }),
+                    updated_at: Some(state.since),
+                    auth_file: match &c.source {
+                        cpa_core::credential::Source::File(path) => Some(path.clone()),
+                        _ => None,
+                    },
+                }
+            })
+            .collect();
+        out.sort_by(|a, b| a.model.cmp(&b.model));
+        out
+    }
+
+    /// Go `restoreCooldownRecordLocked` for one live record of `c`. A model-less record
+    /// restores the credential-wide quota; other model-less records aggregate the model
+    /// records (Go recomputes them) and apply only when `c` has no model records.
+    pub fn restore(
+        &mut self,
+        c: &Credential,
+        record: &crate::cooldown_store::Record,
+        has_model_records: bool,
+        now: Instant,
+        wall: SystemTime,
+    ) -> bool {
+        let Some(remaining) = record.next_retry_after.and_then(|at| at.duration_since(wall).ok()) else {
+            return false;
+        };
+        if remaining.is_zero() {
+            return false;
+        }
+        let model = record.model.trim();
+        if model.is_empty() && has_model_records && record.quota.reason != "credential_quota" {
+            return false;
+        }
+        let deadline = now + remaining;
+        let error = record.last_error.clone().unwrap_or_default();
+        let status = match error.http_status {
+            0 if record.quota.exceeded => 429,
+            s => u16::try_from(s).unwrap_or(0),
+        };
+        let key = (c.id.clone(), canonical_model(model).to_owned());
+        let deadline = self
+            .cooldowns
+            .get(&key)
+            .filter(|prev| prev.deadline > now)
+            .map_or(deadline, |prev| prev.deadline.max(deadline));
+        self.cooldowns.insert(
+            key,
+            Cooldown {
+                deadline,
+                level: record.quota.backoff_level,
+                status,
+                quota: record.quota.exceeded,
+                error: if error.message.is_empty() {
+                    record.reason.clone()
+                } else {
+                    error.message
+                },
+                since: record.updated_at.unwrap_or(wall),
+                credential: !model.is_empty() && record.quota.reason == "credential_quota",
+            },
+        );
+        true
+    }
+
+    /// Go `clearDisabledCooldownStates`: drops cooldowns of credentials that are disabled
+    /// or whose cooling the policy disables. Returns whether anything was cleared.
+    pub fn clear_disabled(&mut self, credentials: &[std::sync::Arc<Credential>], policy: &Policy) -> bool {
+        let before = self.cooldowns.len();
+        self.cooldowns.retain(|(id, _), _| {
+            credentials
+                .iter()
+                .find(|c| c.id == *id)
+                .is_none_or(|c| !c.disabled && !policy.cooling_disabled(c))
+        });
+        self.cooldowns.len() != before
     }
 
     pub fn reconcile(&mut self, credentials: &[std::sync::Arc<Credential>]) {
@@ -1418,10 +1610,45 @@ mod tests {
             .retry_limit(&cred("b", serde_json::json!({"request_retry":"-1"}))),
             3
         );
-        let mut p = Policy::default();
-        p.oauth_disable_cooling.insert("claude".into(), true);
-        assert!(p.cooling_disabled(&cred("oauth", serde_json::json!({}))));
-        assert!(!p.cooling_disabled(&cred("key", serde_json::json!({"api_key":"fake"}))));
+        // Go `providerCoolingOverrideForAuth`: the first enabled compat entry named by
+        // compat_name, provider_key or provider; credential metadata still wins.
+        let cfg = cpa_core::config::Config::parse(
+            "openai-compatibility:\n  - {name: skipped, base-url: '', disable-cooling: false}\n  - {name: Router, base-url: http://r.invalid, disable-cooling: true}\n  - {name: plain, base-url: http://p.invalid}\n",
+        )
+        .unwrap();
+        let mut p = Policy {
+            compat_disable_cooling: compat_cooling(&cfg),
+            ..Default::default()
+        };
+        assert_eq!(
+            p.compat_disable_cooling,
+            [("Router".to_owned(), Some(true)), ("plain".to_owned(), None)],
+            "legacy openai-compatibility is read through the v8 document"
+        );
+        let compat = |attrs: &[(&str, &str)], meta: Value| {
+            let mut c = cred("compat", meta);
+            c.provider = "openai-compatibility".into();
+            for (k, v) in attrs {
+                c.attributes.insert((*k).into(), (*v).into());
+            }
+            c
+        };
+        assert!(p.cooling_disabled(&compat(&[("compat_name", "router")], serde_json::json!({}))));
+        assert!(p.cooling_disabled(&compat(&[("provider_key", "ROUTER")], serde_json::json!({}))));
+        assert!(!p.cooling_disabled(&compat(
+            &[("compat_name", "router")],
+            serde_json::json!({"disable_cooling": false})
+        )));
+        p.disable_cooling = true;
+        assert!(
+            p.cooling_disabled(&compat(&[("compat_name", "plain")], serde_json::json!({}))),
+            "an entry without disable-cooling defers to global"
+        );
+        p.disable_cooling = false;
+        assert!(
+            !p.cooling_disabled(&cred("claude-file", serde_json::json!({}))),
+            "credentials outside OpenAI compatibility ignore entries"
+        );
         for scope in [FailureScope::Request, FailureScope::Transport] {
             let mut s = Scheduler::default();
             s.record(

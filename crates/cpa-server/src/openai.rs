@@ -597,11 +597,10 @@ fn stream_error_detail(status: u16, text: &str) -> Value {
     detail
 }
 
+/// gjson `Get(text, "sequence_number").Int()`, when present.
 fn sequence_from(text: &str) -> Option<i64> {
-    serde_json::from_str::<Value>(gojson::trim(text))
-        .ok()?
-        .get("sequence_number")?
-        .as_i64()
+    let seq = cpa_common::json::get(text.as_bytes(), "sequence_number");
+    seq.exists().then(|| seq.int())
 }
 
 /// Go `BuildOpenAIResponsesStreamErrorChunk` / `...FailedChunk` as an SSE frame.
@@ -666,7 +665,10 @@ impl ResponsesSse {
             }
     }
 
+    /// Go `repairFrame`: drops private events, rewrites error payloads, records output
+    /// items and restores them into an empty `response.completed` output.
     fn repair(&mut self, frame: Bytes) -> Option<Bytes> {
+        use cpa_common::json;
         let event = respond::event_name(&frame);
         if !event.is_empty() && self.private(&event) {
             return None;
@@ -678,23 +680,18 @@ impl ResponsesSse {
             self.data_frames += 1;
             return Some(frame);
         }
-        let Ok(value) = serde_json::from_slice::<Value>(&payload) else {
+        if !json::valid(&payload) {
             return Some(frame);
-        };
-        let kind = value
-            .get("type")
-            .map(|t| gojson::gjson_string(Some(t)))
-            .unwrap_or_default();
+        }
+        let kind = json::get(&payload, "type").str().into_owned();
         if self.private(&event) || self.private(&kind) {
             return None;
         }
         self.data_frames += 1;
-        let has_error = ["error"].iter().any(|k| value.get(*k).is_some_and(|v| !v.is_null()))
-            || value
-                .get("response")
-                .and_then(|r| r.get("error"))
-                .is_some_and(|v| !v.is_null())
-            || (value.get("code").is_some() && value.get("message").is_some());
+        let has_error = ["error", "response.error"].iter().any(|p| {
+            let r = json::get(&payload, p);
+            r.exists() && r.kind != json::Kind::Null
+        }) || (json::get(&payload, "code").exists() && json::get(&payload, "message").exists());
         let error_event = |t: &str| matches!(t, "response.failed" | "response.error" | "error");
         let terminal = |t: &str| {
             matches!(
@@ -711,7 +708,7 @@ impl ResponsesSse {
             if !kind.is_empty() {
                 self.last_event = kind.clone();
             }
-            return Some(self.error_payload(&value, &payload));
+            return Some(self.error_payload(&payload));
         }
         let event_type = if terminal(&event) || kind.is_empty() {
             event.clone()
@@ -722,51 +719,41 @@ impl ResponsesSse {
             self.last_event = event_type.clone();
         }
         if error_event(&event_type) {
-            return Some(self.error_payload(&value, &payload));
+            return Some(self.error_payload(&payload));
         }
         if terminal(&event_type) {
             self.terminal_event = event_type.clone();
         }
         match event_type.as_str() {
             "response.output_item.done" => {
-                if let Some(item) = value.get("item").filter(|i| {
-                    i.is_object() && i.get("type").is_some_and(|t| !gojson::gjson_string(Some(t)).is_empty())
-                }) {
-                    match value.get("output_index").and_then(Value::as_i64) {
-                        Some(index) => {
-                            self.output.insert(index, item.to_string());
-                        }
-                        None => self.unindexed.push(item.to_string()),
+                let item = json::get(&payload, "item");
+                if item.is_object() && !item.get("type").str().is_empty() {
+                    let raw = String::from_utf8_lossy(item.raw()).into_owned();
+                    let index = json::get(&payload, "output_index");
+                    if index.exists() {
+                        self.output.insert(index.int(), raw);
+                    } else {
+                        self.unindexed.push(raw);
                     }
                 }
             }
             "response.completed" if !self.output.is_empty() || !self.unindexed.is_empty() => {
-                let output = value.get("response").and_then(|r| r.get("output"));
-                if output.is_none_or(|o| o.as_array().is_some_and(Vec::is_empty)) {
-                    let items: Vec<&str> = self
-                        .output
-                        .values()
-                        .map(String::as_str)
-                        .chain(self.unindexed.iter().map(String::as_str))
-                        .collect();
-                    let mut value = value.clone();
-                    if let Some(response) = value.get_mut("response").and_then(Value::as_object_mut) {
-                        response.insert(
-                            "output".into(),
-                            serde_json::from_str(&format!("[{}]", items.join(","))).unwrap_or_default(),
-                        );
-                    }
-                    let mut out = String::new();
-                    for line in String::from_utf8_lossy(&frame).split('\n') {
-                        let line = line.trim_end_matches('\r');
-                        if line.trim().is_empty() || line.trim().starts_with("data:") {
-                            continue;
-                        }
-                        out.push_str(line);
-                        out.push('\n');
-                    }
-                    out.push_str(&format!("data: {value}\n\n"));
-                    return Some(Bytes::from(out));
+                let output = json::get(&payload, "response.output");
+                if output.exists() && (!output.is_array() || !output.array().is_empty()) {
+                    return Some(frame);
+                }
+                let items: Vec<&str> = self
+                    .output
+                    .values()
+                    .map(String::as_str)
+                    .chain(self.unindexed.iter().map(String::as_str))
+                    .collect();
+                let Ok(repaired) = json::try_set_raw(&payload, "response.output", format!("[{}]", items.join(",")))
+                else {
+                    return Some(frame);
+                };
+                if repaired != payload {
+                    return Some(frame_with_data(&frame, &repaired));
                 }
             }
             _ => {}
@@ -774,7 +761,9 @@ impl ResponsesSse {
         Some(frame)
     }
 
-    fn error_payload(&mut self, value: &Value, payload: &[u8]) -> Bytes {
+    /// Go `repairErrorPayload`.
+    fn error_payload(&mut self, payload: &[u8]) -> Bytes {
+        use cpa_common::json;
         let status = [
             "status",
             "status_code",
@@ -784,7 +773,7 @@ impl ResponsesSse {
             "response.error.status_code",
         ]
         .iter()
-        .filter_map(|p| p.split('.').try_fold(value, |v, k| v.get(k)).map(go_int))
+        .map(|p| json::get(payload, p).int())
         .find(|s| (400..=599).contains(s))
         .unwrap_or(502) as u16;
         let text = sanitize_error_text(status, &String::from_utf8_lossy(payload));
@@ -794,13 +783,36 @@ impl ResponsesSse {
         } else {
             "error".into()
         };
-        let seq = value
-            .get("sequence_number")
-            .and_then(Value::as_i64)
-            .or_else(|| sequence_from(&text))
-            .unwrap_or((self.data_frames - 1).max(0));
+        let own = json::get(payload, "sequence_number");
+        let seq = if own.exists() {
+            own.int()
+        } else {
+            sequence_from(&text).unwrap_or((self.data_frames - 1).max(0))
+        };
         stream_error_frame(self.codex, status, &text, seq, false)
     }
+}
+
+/// Go `responsesSSEFrameWithData`: the frame's non-data lines, then the payload's lines
+/// as `data:` lines.
+fn frame_with_data(frame: &[u8], payload: &[u8]) -> Bytes {
+    let mut out = Vec::with_capacity(frame.len() + payload.len());
+    for line in frame.split(|&b| b == b'\n') {
+        let line = line.strip_suffix(b"\r").unwrap_or(line);
+        let trimmed = line.trim_ascii();
+        if trimmed.is_empty() || trimmed.starts_with(b"data:") {
+            continue;
+        }
+        out.extend_from_slice(line);
+        out.push(b'\n');
+    }
+    for line in payload.split(|&b| b == b'\n') {
+        out.extend_from_slice(b"data: ");
+        out.extend_from_slice(line);
+        out.push(b'\n');
+    }
+    out.push(b'\n');
+    Bytes::from(out)
 }
 
 impl Writer for ResponsesSse {
@@ -970,6 +982,22 @@ mod tests {
             "event: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"output\":[{\"type\":\"message\"}]}}\n\n"
         );
         assert_eq!(h.end(), [Bytes::from_static(b"\n")]);
+
+        // Go splices the recorded raw items with sjson: every other byte is kept.
+        let mut k = ResponsesSse::new(false);
+        k.chunk(Bytes::from_static(
+            b"data: {\"type\":\"response.output_item.done\",\"output_index\":\"1\",\"item\":{\"type\": \"message\", \"id\":\"m\\u00e9\"}}\n\n",
+        ));
+        k.chunk(Bytes::from_static(
+            b"data: {\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"type\":\"reasoning\"}}\n\n",
+        ));
+        let done = k.chunk(Bytes::from_static(
+            b"event: response.completed\r\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"r\\u003c1\",\"usage\":{\"x\":1.50}},\"sequence_number\":7}\r\n\r\n",
+        ));
+        assert_eq!(
+            String::from_utf8(done[0].to_vec()).unwrap(),
+            "event: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"r\\u003c1\",\"usage\":{\"x\":1.50},\"output\":[{\"type\":\"reasoning\"},{\"type\": \"message\", \"id\":\"m\\u00e9\"}]},\"sequence_number\":7}\n\n"
+        );
     }
 
     #[test]
