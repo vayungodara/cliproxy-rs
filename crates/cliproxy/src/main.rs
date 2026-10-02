@@ -18,6 +18,9 @@ struct Args {
     /// Configure File Path
     #[arg(long, default_value = "config.yaml")]
     config: PathBuf,
+    /// Log in to Claude using browser OAuth and PKCE.
+    #[arg(long)]
+    claude_login: bool,
 }
 
 /// Go's flag package treats `-name` and `--name` the same; clap needs `--name`.
@@ -65,6 +68,11 @@ async fn main() -> anyhow::Result<()> {
         .init();
     let args = Args::parse_from(go_style_args());
     let config = Config::load(&args.config).with_context(|| format!("reading {}", args.config.display()))?;
+    if args.claude_login {
+        let path = cpa_exec::oauth::login(&config.auth_dir).await?;
+        println!("Claude credentials saved to {}", path.display());
+        return Ok(());
+    }
     if config.api_keys.is_empty() {
         tracing::warn!("access.api-keys is empty: the proxy API is open to anyone who can reach it");
     }
