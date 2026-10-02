@@ -239,7 +239,7 @@ impl CodexExecutor {
         Ok(ExecResponse {
             status: res.status,
             headers: res.headers,
-            body: ResponseBody::Stream(translate_stream(&req, &body, stream)),
+            body: ResponseBody::Stream(client_stream(&req, &body, stream)),
         })
     }
 
@@ -542,6 +542,17 @@ fn non_stream_output(
         out
     };
     Ok(Bytes::from(out))
+}
+
+/// The client stream: translated, and with Go's usage details for OpenAI Responses
+/// clients (`TranslateStreamWithClaudeInputTokens`).
+fn client_stream(req: &ExecRequest, translated: &str, upstream: ExecStream) -> ExecStream {
+    let stream = translate_stream(req, translated, upstream);
+    if req.response_format == Format::OpenAIResponse {
+        stream.map(|chunk| chunk.map(response::ensure_usage_details_chunk)).boxed()
+    } else {
+        stream
+    }
 }
 
 /// Streaming translation for non-Codex clients; identity for Codex/Responses clients.

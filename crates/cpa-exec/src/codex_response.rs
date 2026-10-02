@@ -515,6 +515,50 @@ pub(crate) fn ensure_usage_details(payload: String) -> String {
     if out == trimmed { payload } else { out }
 }
 
+/// `EnsureResponsesUsageDetails` over one stream chunk: a JSON object, or SSE `data:`
+/// lines (Go applies it to every chunk sent to an OpenAI Responses client).
+pub(crate) fn ensure_usage_details_chunk(chunk: Bytes) -> Bytes {
+    let text = String::from_utf8_lossy(&chunk);
+    let trimmed = text.trim();
+    if trimmed.is_empty() {
+        return chunk;
+    }
+    if trimmed.starts_with('{') {
+        let out = ensure_usage_details(trimmed.to_owned());
+        return if out == trimmed { chunk } else { Bytes::from(out) };
+    }
+    if !text.contains("data:") {
+        return chunk;
+    }
+    let mut modified = false;
+    let lines: Vec<String> = text
+        .split('\n')
+        .map(|line| {
+            if !line.trim().starts_with("data:") {
+                return line.to_owned();
+            }
+            let prefix = if line.starts_with("data: ") {
+                "data: "
+            } else if line.starts_with("data:") {
+                "data:"
+            } else {
+                return line.to_owned();
+            };
+            let data = line[prefix.len()..].trim();
+            if !data.starts_with('{') {
+                return line.to_owned();
+            }
+            let updated = ensure_usage_details(data.to_owned());
+            if updated == data {
+                return line.to_owned();
+            }
+            modified = true;
+            format!("{prefix}{updated}")
+        })
+        .collect();
+    if modified { Bytes::from(lines.join("\n")) } else { chunk }
+}
+
 /// Output items seen in `response.output_item.done`, used to patch an empty
 /// `response.completed.response.output` (`collectCodexOutputItemDone`,
 /// `patchCodexCompletedOutput`).

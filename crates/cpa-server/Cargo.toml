@@ -27,4 +27,4 @@ subtle = "2.6"
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }
-wreq.workspace = true
+wreq = { workspace = true, features = ["ws"] }
