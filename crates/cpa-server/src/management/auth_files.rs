@@ -18,7 +18,7 @@ use cpa_core::config::{ConfigDocument, credentials};
 use cpa_core::credential::{Credential, MetadataPatch, Source};
 use serde_json::{Map, Value, json};
 
-use super::{Management, json as respond};
+use super::{Management, json as respond, multipart};
 use crate::runtime::PatchError;
 
 const MODEL_DEFINITIONS: &str = include_str!("model_definitions.json");
@@ -303,6 +303,85 @@ fn recent_requests(activity: &crate::runtime::CredentialActivity) -> Value {
     )
 }
 
+/// Go `authFileBoolValue`: a bool, or a string `strconv.ParseBool` accepts.
+fn go_bool(v: Option<&Value>) -> Option<bool> {
+    match v? {
+        Value::Bool(b) => Some(*b),
+        Value::String(s) => match s.trim() {
+            "1" | "t" | "T" | "TRUE" | "true" | "True" => Some(true),
+            "0" | "f" | "F" | "FALSE" | "false" | "False" => Some(false),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+/// Go's `StatusMessage` for a credential the management API disabled.
+fn status_message(state: &Management, c: &Credential) -> &'static str {
+    let noted = state.disabled_via_api.lock().unwrap_or_else(PoisonError::into_inner);
+    if c.disabled && noted.contains(&c.id) {
+        "disabled via management API"
+    } else {
+        ""
+    }
+}
+
+/// Records a disable/enable through the status or fields endpoints (`None`: the
+/// patched value was not a boolean, so Go leaves the state alone).
+fn note_disabled(state: &Management, id: &str, disabled: Option<bool>) {
+    let mut noted = state.disabled_via_api.lock().unwrap_or_else(PoisonError::into_inner);
+    match disabled {
+        Some(true) => {
+            noted.insert(id.to_owned());
+        }
+        Some(false) => {
+            noted.remove(id);
+        }
+        None => {}
+    }
+}
+
+/// Go `Auth.AuthKind`: `oauth`, `apikey` or unknown.
+fn auth_kind(c: &Credential) -> Option<&'static str> {
+    let normalize = |s: &str| match s.trim().to_lowercase().as_str() {
+        "apikey" | "api_key" | "api-key" => Some("apikey"),
+        "oauth" | "oauth2" => Some("oauth"),
+        _ => None,
+    };
+    let meta = |key: &str| {
+        c.metadata
+            .get(key)
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .unwrap_or_default()
+    };
+    normalize(c.attributes.get("auth_kind").map(String::as_str).unwrap_or_default())
+        .or_else(|| normalize(meta("auth_kind")))
+        .or_else(|| {
+            c.attributes
+                .get("api_key")
+                .is_some_and(|k| !k.trim().is_empty())
+                .then_some("apikey")
+        })
+        .or_else(|| {
+            let keys = [
+                "access_token",
+                "refresh_token",
+                "id_token",
+                "email",
+                "token_type",
+                "expires_at",
+                "expired",
+            ];
+            let token = c
+                .metadata
+                .get("token")
+                .and_then(Value::as_object)
+                .is_some_and(|t| !t.is_empty());
+            (keys.iter().any(|k| !meta(k).is_empty()) || token).then_some("oauth")
+        })
+}
+
 fn int_value(v: &Value) -> Option<i64> {
     match v {
         Value::Number(n) => n.as_i64().or_else(|| n.as_f64().map(|f| f as i64)),
@@ -337,7 +416,7 @@ fn entry(state: &Management, c: &Credential) -> Option<BTreeMap<&'static str, Va
         ("provider", c.provider.trim().into()),
         ("label", c.label.clone().into()),
         ("status", status.into()),
-        ("status_message", "".into()),
+        ("status_message", status_message(state, c).into()),
         ("disabled", c.disabled.into()),
         ("unavailable", unavailable.into()),
         ("runtime_only", false.into()),
@@ -362,11 +441,20 @@ fn entry(state: &Management, c: &Credential) -> Option<BTreeMap<&'static str, Va
     if let Some(project) = meta_str(c, "project_id").map(str::trim).filter(|p| !p.is_empty()) {
         e.insert("project_id", project.into());
     }
-    if c.attributes.get("auth_kind").map(String::as_str) == Some("oauth") {
-        e.insert("account_type", "oauth".into());
-        if !email.is_empty() {
-            e.insert("account", email.into());
+    match auth_kind(c) {
+        Some("oauth") => {
+            e.insert("account_type", "oauth".into());
+            if !email.is_empty() {
+                e.insert("account", email.into());
+            }
         }
+        Some(_) => {
+            e.insert("account_type", "api_key".into());
+            if let Some(key) = c.attributes.get("api_key").map(|k| k.trim()).filter(|k| !k.is_empty()) {
+                e.insert("account", key.into());
+            }
+        }
+        None => {}
     }
     let meta = std::fs::metadata(path);
     let modified = meta.as_ref().ok().and_then(|m| m.modified().ok());
@@ -656,10 +744,8 @@ fn store_file(state: &Management, name: &str, data: &[u8]) -> Result<(), String>
             persisted.entry((*canon).to_owned()).or_insert(v);
         }
     }
-    let disabled = synthesized.as_ref().map_or_else(
-        || persisted.get("disabled").and_then(Value::as_bool).unwrap_or(false),
-        |c| c.disabled,
-    );
+    // Go's fallback auth (no synthesizer claims the file) is registered enabled.
+    let disabled = synthesized.as_ref().is_some_and(|c| c.disabled);
     persisted.insert("disabled".into(), disabled.into());
     let bytes = if persisted == uploaded {
         data.to_vec()
@@ -668,61 +754,16 @@ fn store_file(state: &Management, name: &str, data: &[u8]) -> Result<(), String>
     };
     let _guard = state.disk.lock().unwrap_or_else(PoisonError::into_inner);
     write_file(&dst, &bytes).map_err(|e| format!("failed to write file: {e}"))?;
+    {
+        let mut fallbacks = state.fallbacks.lock().unwrap_or_else(PoisonError::into_inner);
+        if synthesized.is_none() {
+            fallbacks.insert(dst);
+        } else {
+            fallbacks.remove(&dst);
+        }
+    }
     resync(state);
     Ok(())
-}
-
-struct Part {
-    field: String,
-    filename: Option<String>,
-    data: Vec<u8>,
-}
-
-/// Minimal `multipart/form-data` reader (RFC 7578): enough for credential uploads.
-fn multipart(content_type: &str, body: &[u8]) -> Result<Vec<Part>, String> {
-    let boundary = content_type
-        .split(';')
-        .filter_map(|p| p.trim().strip_prefix("boundary="))
-        .next()
-        .map(|b| b.trim_matches('"').to_owned())
-        .filter(|b| !b.is_empty())
-        .ok_or("no multipart boundary param in Content-Type")?;
-    let delimiter = format!("--{boundary}");
-    let find = |hay: &[u8], needle: &[u8], from: usize| -> Option<usize> {
-        hay.get(from..)?
-            .windows(needle.len())
-            .position(|w| w == needle)
-            .map(|i| i + from)
-    };
-    let mut pos = find(body, delimiter.as_bytes(), 0).ok_or("multipart: NextPart: EOF")?;
-    let mut parts = Vec::new();
-    loop {
-        pos += delimiter.len();
-        if body.get(pos..pos + 2) == Some(b"--") {
-            return Ok(parts);
-        }
-        let headers_start = find(body, b"\r\n", pos).ok_or("multipart: NextPart: EOF")? + 2;
-        let headers_end = find(body, b"\r\n\r\n", headers_start - 2).ok_or("malformed MIME header")?;
-        let headers = String::from_utf8_lossy(&body[headers_start..headers_end]).into_owned();
-        let data_start = headers_end + 4;
-        let next = find(body, format!("\r\n{delimiter}").as_bytes(), data_start).ok_or("multipart: NextPart: EOF")?;
-        let disposition = headers
-            .lines()
-            .find(|l| l.to_ascii_lowercase().starts_with("content-disposition:"))
-            .unwrap_or_default();
-        let param = |key: &str| -> Option<String> {
-            disposition.split(';').find_map(|p| {
-                let (k, v) = p.trim().split_once('=')?;
-                (k.trim().eq_ignore_ascii_case(key)).then(|| v.trim().trim_matches('"').to_owned())
-            })
-        };
-        parts.push(Part {
-            field: param("name").unwrap_or_default(),
-            filename: param("filename"),
-            data: body[data_start..next].to_vec(),
-        });
-        pos = next + 2;
-    }
 }
 
 pub(super) async fn upload(
@@ -736,20 +777,13 @@ pub(super) async fn upload(
         .and_then(|v| v.to_str().ok())
         .unwrap_or_default()
         .to_owned();
-    let is_multipart = content_type.split(';').next().unwrap_or_default().trim() == "multipart/form-data";
-    if is_multipart {
-        let mut files = match multipart(&content_type, &body) {
-            Ok(parts) => parts.into_iter().filter(|p| p.filename.is_some()).collect::<Vec<_>>(),
+    if multipart::is_form(&content_type) {
+        let files = match multipart::form_files(&content_type, &body) {
+            Ok(files) => files,
             Err(e) => return fail(StatusCode::BAD_REQUEST, format!("invalid multipart form: {e}")),
         };
-        // gin groups files by sorted form field name.
-        files.sort_by(|a, b| a.field.cmp(&b.field));
-        let store_part = |part: &Part| -> Result<String, (bool, String)> {
-            let raw_name = part.filename.clone().unwrap_or_default();
-            let name = Path::new(raw_name.trim())
-                .file_name()
-                .map(|n| n.to_string_lossy().into_owned())
-                .unwrap_or_default();
+        let store_part = |part: &multipart::FilePart| -> Result<String, (bool, String)> {
+            let name = multipart::go_base(part.filename.trim()).to_owned();
             if !ends_json(&name) {
                 return Err((true, "file must be .json".into()));
             }
@@ -771,10 +805,7 @@ pub(super) async fn upload(
                     match store_part(part) {
                         Ok(name) => uploaded.push(Value::from(name)),
                         Err((_, msg)) => {
-                            let name = Path::new(part.filename.as_deref().unwrap_or_default())
-                                .file_name()
-                                .map(|n| n.to_string_lossy().into_owned())
-                                .unwrap_or_default();
+                            let name = multipart::go_base(&part.filename);
                             failed.push(h([("name", name.into()), ("error", msg.into())]));
                         }
                     }
@@ -976,19 +1007,98 @@ fn patch_error(e: Option<PatchError>) -> Response {
     }
 }
 
+/// Go `syncAuthFileMetadataFields`: attributes that mirror the patched metadata roots.
+/// Used for config-backed credentials, which are not re-synthesized after a patch.
+fn sync_patched_attributes(c: &mut Credential, roots: &[String]) {
+    let touched = |r: &str| roots.iter().any(|x| x == r);
+    let text = |c: &Credential, key: &str| c.metadata.get(key).and_then(Value::as_str).map(|s| s.trim().to_owned());
+    let flag = go_bool;
+    for key in ["prefix", "proxy_url"] {
+        if touched(key)
+            && let Some(v) = text(c, key)
+        {
+            c.attributes.insert(key.into(), v);
+        }
+    }
+    if touched("headers") {
+        c.attributes.retain(|k, _| !k.starts_with("header:"));
+        if let Some(Value::Object(headers)) = c.metadata.get("headers") {
+            let pairs: Vec<(String, String)> = headers
+                .iter()
+                .filter_map(|(k, v)| {
+                    let (k, v) = (k.trim(), v.as_str()?.trim());
+                    (!k.is_empty() && !v.is_empty()).then(|| (format!("header:{k}"), v.to_owned()))
+                })
+                .collect();
+            c.attributes.extend(pairs);
+        }
+    }
+    if touched("priority") {
+        match c.metadata.get("priority").and_then(int_value) {
+            Some(0) => {
+                c.attributes.remove("priority");
+            }
+            Some(p) => {
+                c.attributes.insert("priority".into(), p.to_string());
+            }
+            None => {
+                c.attributes.remove("priority");
+                c.attributes.remove("file_priority");
+            }
+        }
+    }
+    if touched("weight") {
+        match c.metadata.get("weight").map(credentials::parse_weight) {
+            Some(Ok(w)) => {
+                c.attributes.insert("weight".into(), w.to_string());
+            }
+            _ => {
+                c.attributes.remove("weight");
+            }
+        }
+    }
+    if touched("note") {
+        match text(c, "note").filter(|n| !n.is_empty()) {
+            Some(note) => {
+                c.attributes.insert("note".into(), note);
+            }
+            None => {
+                c.attributes.remove("note");
+            }
+        }
+    }
+    if touched("websockets") {
+        match flag(c.metadata.get("websockets")) {
+            Some(w) => {
+                c.attributes.insert("websockets".into(), w.to_string());
+            }
+            None => {
+                c.attributes.remove("websockets");
+            }
+        }
+    }
+    if touched("disabled")
+        && let Some(d) = flag(c.metadata.get("disabled"))
+    {
+        c.disabled = d;
+    }
+}
+
 /// Go `toggleConfigAPIKeyExcludedAll`: a config API key is disabled by adding `*` to
 /// its excluded models. The key's own list is written (group inheritance resolved).
 fn toggle_config_key(state: &Management, id: &str, disabled: bool) -> Result<bool, String> {
-    let cfg = state.rt.config();
+    // Locate the key in the same snapshot that is edited: the file on disk may be
+    // newer than the published config (an external edit the watcher has not seen).
+    let original = std::fs::read_to_string(&state.path).map_err(|e| e.to_string())?;
+    let file_cfg = cpa_core::config::Config::parse(&original).map_err(|e| e.to_string())?;
     let Some(credentials::KeyLocation {
         family,
         group: g,
         key: k,
-    }) = credentials::config_key_location(&cfg, id)
+    }) = credentials::config_key_location(&file_cfg, id)
     else {
         return Ok(false);
     };
-    let original = std::fs::read_to_string(&state.path).map_err(|e| e.to_string())?;
     let mut doc = ConfigDocument::parse(&original).map_err(|e| e.to_string())?;
     let basis = doc.migrated_text(&original).unwrap_or_else(|| original.clone());
     let group = doc.get(&["api-keys", family]).and_then(|v| v.get(g)).cloned();
@@ -1082,6 +1192,7 @@ pub(super) async fn status(State(state): State<Arc<Management>>, body: Bytes) ->
         };
         match state.rt.store().apply_patch(&target.id, target.revision, &patch) {
             Ok(_) => {
+                note_disabled(&state, &target.id, Some(disabled));
                 resync(&state);
                 reply(StatusCode::OK, [("status", "ok".into()), ("disabled", disabled.into())])
             }
@@ -1224,17 +1335,32 @@ pub(super) async fn fields(State(state): State<Arc<Management>>, body: Bytes) ->
     if !changed {
         return fail(StatusCode::BAD_REQUEST, "no fields to update");
     }
+    let mut roots: Vec<String> = fields.iter().map(|(p, _)| root(p)).collect();
+    if retry.is_some() {
+        roots.push("request_retry".into());
+    }
+    let disabled_note = if roots.iter().any(|r| r == "disabled") {
+        go_bool(meta.get("disabled"))
+    } else {
+        None
+    };
+    if matches!(target.source, Source::Config { .. }) {
+        // Go updates config API keys in memory only (no file, no config write).
+        let mut next = Credential::clone(&target);
+        next.metadata = meta;
+        sync_patched_attributes(&mut next, &roots);
+        let result = state.rt.store().replace_config_backed(next, target.revision);
+        return match result {
+            Ok(_) => {
+                note_disabled(&state, &target.id, disabled_note);
+                reply(StatusCode::OK, [("status", "ok".into())])
+            }
+            Err(e) => patch_error(Some(e)),
+        };
+    }
     // Go's file store writes the auth's disabled flag on every save; a patched
     // `disabled` field updates that flag when it parses as a bool.
-    let disabled = match meta.get("disabled") {
-        Some(Value::Bool(b)) => *b,
-        Some(Value::String(s)) => match s.trim() {
-            "1" | "t" | "T" | "TRUE" | "true" | "True" => true,
-            "0" | "f" | "F" | "FALSE" | "false" | "False" => false,
-            _ => target.disabled,
-        },
-        _ => target.disabled,
-    };
+    let disabled = go_bool(meta.get("disabled")).unwrap_or(target.disabled);
     meta.insert("disabled".into(), disabled.into());
     let mut patch = MetadataPatch::default();
     for key in target.metadata.keys() {
@@ -1247,10 +1373,35 @@ pub(super) async fn fields(State(state): State<Arc<Management>>, body: Bytes) ->
             patch.set.insert(key, value);
         }
     }
+    let retyped = patch.set.contains_key("type") || patch.remove.iter().any(|k| k == "type");
     tokio::task::spawn_blocking(move || {
         let _guard = state.disk.lock().unwrap_or_else(PoisonError::into_inner);
+        if retyped {
+            // `type` picks the executor, so the store refuses it in place; Go allows it
+            // and the file's next synthesis picks the new provider. Write the file the
+            // way Go's store does and re-synthesize.
+            // ponytail: no revision check against a concurrent token refresh here.
+            let Some(path) = path_of(&target).map(Path::to_path_buf) else {
+                return patch_error(None);
+            };
+            let mut next = target.metadata.clone();
+            patch.apply(&mut next);
+            let sorted: BTreeMap<&String, &Value> = next.iter().collect();
+            let written = serde_json::to_vec(&sorted)
+                .map_err(|e| e.to_string())
+                .and_then(|bytes| write_file(&path, &bytes).map_err(|e| e.to_string()));
+            return match written {
+                Ok(()) => {
+                    note_disabled(&state, &target.id, disabled_note);
+                    resync(&state);
+                    reply(StatusCode::OK, [("status", "ok".into())])
+                }
+                Err(e) => fail(StatusCode::INTERNAL_SERVER_ERROR, format!("failed to update auth: {e}")),
+            };
+        }
         match state.rt.store().apply_patch(&target.id, target.revision, &patch) {
             Ok(_) => {
+                note_disabled(&state, &target.id, disabled_note);
                 resync(&state);
                 reply(StatusCode::OK, [("status", "ok".into())])
             }
@@ -1558,19 +1709,5 @@ mod tests {
         assert_eq!(go_time(t), "2023-11-14T22:13:20.12Z");
         let t = chrono::Utc.timestamp_opt(1_700_000_000, 0).unwrap();
         assert_eq!(go_time(t), "2023-11-14T22:13:20Z");
-    }
-
-    #[test]
-    fn multipart_reads_files_and_fields() {
-        let body = b"--b\r\nContent-Disposition: form-data; name=\"x\"; filename=\"a.json\"\r\n\r\n{}\r\n--b\r\nContent-Disposition: form-data; name=\"f\"\r\n\r\nv\r\n--b--\r\n";
-        let parts = multipart("multipart/form-data; boundary=b", body).unwrap();
-        assert_eq!(parts.len(), 2);
-        assert_eq!(
-            (parts[0].field.as_str(), parts[0].filename.as_deref()),
-            ("x", Some("a.json"))
-        );
-        assert_eq!(parts[0].data, b"{}");
-        assert!(parts[1].filename.is_none());
-        assert!(multipart("multipart/form-data", body).is_err());
     }
 }

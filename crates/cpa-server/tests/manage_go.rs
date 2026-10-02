@@ -159,7 +159,7 @@ fn config_and_file_credentials_match_go_synthesizers() {
         compared += got.len();
         let _ = std::fs::remove_dir_all(&dir);
     }
-    assert_eq!(compared, 30, "every recorded Go credential was compared");
+    assert_eq!(compared, 32, "every recorded Go credential was compared");
 }
 
 mod access {
@@ -525,7 +525,7 @@ mod config_writes {
             let _ = std::fs::remove_dir_all(&dir);
         }
         assert!(failures.is_empty(), "{}", failures.join("\n"));
-        assert_eq!(compared, 44);
+        assert_eq!(compared, 72);
     }
 }
 
@@ -757,6 +757,6 @@ mod creds {
             server.abort();
             let _ = std::fs::remove_dir_all(&dir);
         }
-        assert_eq!(compared, 51);
+        assert_eq!(compared, 89);
     }
 }

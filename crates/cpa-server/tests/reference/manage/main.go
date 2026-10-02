@@ -716,6 +716,28 @@ func main() {
 		"trusted-proxies: ['']", "trusted-proxies: [' 127.0.0.1']", "trusted-proxies: [nonsense]",
 		"trusted-proxies: [10.0.0.0/33]", "trusted-proxies: ['::1/129']", "trusted-proxies: [fe80::1%eth0]",
 		"server: {trusted-proxies: [127.0.0.1, '::1', 10.0.0.0/8]}", "trusted-proxies: [01.2.3.4]",
+		"credentials: {in-flight: {snapshot-interval: 0s}}", "credentials: {in-flight: {stale-after: 5s}}",
+		"credentials: {in-flight: {staging-retention: x}}", "credentials: {in-flight: {max-part-bytes: 1023}}",
+		"credentials: {in-flight: {max-revision-bytes: 100}}", "credentials: {in-flight: {max-part-count: 63}}",
+		"credentials: {in-flight: {max-aggregate-groups: 0}}", "credentials: {in-flight: {max-details: -1}}",
+		"credentials: {in-flight: {max-string-bytes: 257}}", "credentials: {in-flight: {snapshot-interval: 1.5s, stale-after: 4.5s}}",
+		"credentials: {in-flight: {snapshot-interval: 2, stale-after: 10s}}", "credential-in-flight: {max-details: -1}",
+		"credentials: {in-flight: {snapshot-interval: null, stale-after: 1h1m0.5s}}", "credentials: {in-flight: {snapshot-interval: .5us}}",
+		"credentials: {in-flight: {snapshot-interval: '-1s'}}", "credentials: {in-flight: {snapshot-interval: 1d}}",
+		"oauth: {providers: {codex: {live-media-relay: {enabled: true, max-sessions: -1}}}}",
+		"oauth: {providers: {codex: {live-media-relay: {enabled: true, public-ip: nonsense}}}}",
+		"oauth: {providers: {codex: {live-media-relay: {enabled: true, public-ip: ' 2001:db8::1 '}}}}",
+		"oauth: {providers: {codex: {live-media-relay: {enabled: true, udp-port-min: 10000}}}}",
+		"oauth: {providers: {codex: {live-media-relay: {enabled: true, udp-port-min: 10001, udp-port-max: 10000}}}}",
+		"oauth: {providers: {codex: {live-media-relay: {enabled: true, udp-port-min: 10000, udp-port-max: 10010}}}}",
+		"oauth: {providers: {codex: {live-media-relay: {enabled: true, max-sessions: 2, udp-port-min: 10000, udp-port-max: 10003}}}}",
+		"oauth: {providers: {codex: {live-media-relay: {enabled: true, ice-servers: [{urls: []}]}}}}",
+		"oauth: {providers: {codex: {live-media-relay: {enabled: true, ice-servers: [{urls: ['turn:%zz', 'STUN:x']}, {urls: ['http://x']}]}}}}",
+		"oauth: {providers: {codex: {live-media-relay: {enabled: true, ice-servers: [{urls: ['//x']}]}}}}",
+		"oauth: {providers: {codex: {live-media-relay: {enabled: true, ice-servers: [{urls: ['turn://a b']}]}}}}",
+		"oauth: {providers: {codex: {live-media-relay: {enabled: false, max-sessions: -1, ice-servers: [{urls: []}]}}}}",
+		"oauth: {providers: {codex: {live-media-relay: {allow-private-remote-ips: true, disable-private-remote-ips: true}}}}",
+		"codex: {live-media-relay: {enabled: true, max-sessions: -1}}",
 	} {
 		dir, err := os.MkdirTemp("", "cpa-load-")
 		must(err)
@@ -865,6 +887,8 @@ oauth-excluded-models:
 			"k8-bad-port.json":       `{"type":"kimi-ai","base_url":"https://api.kimi.com:abc/v1"}`,
 			"k9-blank.json":          `{"type":"kimi.ai","domain":"  ","base_url":7}`,
 			"kimi.ai-name.json":      `{"type":"kimi"}`,
+			"k11-bad-escape.json":    `{"type":"kimi","base_url":"https://api.kimi.ai/%zz"}`,
+			"k12-colons.json":        `{"type":"kimi","base_url":"https://api.kimi.ai:1:2/x"}`,
 			"k10-v6.json":            `{"type":"kimi-ai","base_url":"https://[::1]:8080/x","domain":"sub.kimi.com"}`,
 		}},
 		{Name: "invalid_weight", YAML: "claude-api-key:\n  - {api-key: fake, weight: 1000001}\n"},
@@ -926,7 +950,45 @@ func configScenarios() []configScenario {
 	owner := "# Owner config\nhost: \"\"\nport: 8317 # listen\nremote-management:\n  # allow the dashboard\n  allow-remote: true\n  secret-key: \"$HASH\" # hashed\nauth-dir: \"~/.cli-proxy-api\"\napi-keys:\n  - \"sk-fake-owner\"\n# disabled for now\nrequest-retry: 3\nmystery-section:\n  nested: [1, 2]\n"
 	v8 := "config-version: 8\nmanagement:\n  secret-key: '$HASH'\nrouting:\n  strategy: round-robin\n  retry:\n    request-retry: 2\n  cooldown:\n    disable-cooling: true\nserver:\n  mystery-field: 1\n  port: 0\nmystery-section: {a: 1}\n"
 	turn := "config-version: 8\nmanagement:\n  secret-key: '$HASH'\noauth:\n  providers:\n    codex:\n      live-media-relay:\n        ice-servers:\n          - {urls: ['turn:a.example.invalid'], username: fake-user-a, credential: fake-cred-a}\n          - {urls: ['turn:b.example.invalid'], username: fake-user-b, credential: fake-cred-b}\n"
+	nonDefaults := "config-version: 8\nmanagement:\n  secret-key: '$HASH'\n  panel-github-repository: fake/panel\n" +
+		"server:\n  host: 127.0.0.1\n  port: 9999\n  discovery:\n    service-type: _x._tcp\n" +
+		"credentials:\n  in-flight:\n    snapshot-interval: 3s\n    stale-after: 20s\n    staging-retention: 2m\n    max-part-bytes: 524288\n    max-part-count: 63\n    max-revision-bytes: 16777215\n    max-aggregate-groups: 99\n    max-details: 9\n    max-string-bytes: 255\n  concurrency:\n    max-limit: 5\n    busy-retry-min: 1s\n" +
+		"oauth:\n  providers:\n    aistudio:\n      ws-auth: false\n  excluded-models:\n    claude: [opus-x]\n    gemini: [b]\n  model-alias:\n    claude:\n      - {name: a, alias: b}\n" +
+		"observability:\n  logs:\n    error-logs-max-files: 3\n  usage:\n    redis-usage-queue-retention-seconds: 30\n  pprof:\n    addr: 127.0.0.1:1\n" +
+		"multimedia:\n  disable-image-generation: chat\nrouting:\n  retry:\n    request-retry: 4\n"
 	return []configScenario{
+		{Name: "null_writes_take_go_defaults", YAML: nonDefaults, Steps: []configStep{
+			put("/config/oauth/providers/aistudio/ws-auth", `null`),
+			put("/config/observability/logs/error-logs-max-files", `null`),
+			put("/config/observability/usage/redis-usage-queue-retention-seconds", `null`),
+			put("/config/observability/pprof/addr", `null`),
+			put("/config/management/panel-github-repository", `null`),
+			put("/config/server/discovery/service-type", `null`),
+			put("/config/credentials/in-flight/snapshot-interval", `null`),
+			put("/config/credentials/in-flight/max-part-bytes", `null`),
+			put("/config/credentials/in-flight/stale-after", `null`),
+			put("/config/credentials/in-flight/staging-retention", `null`),
+			put("/config/credentials/in-flight/max-part-count", `null`),
+			put("/config/credentials/in-flight/max-revision-bytes", `null`),
+			put("/config/credentials/in-flight/max-aggregate-groups", `null`),
+			put("/config/credentials/in-flight/max-details", `null`),
+			put("/config/credentials/in-flight/max-string-bytes", `null`),
+			put("/config/credentials/concurrency/max-limit", `null`),
+			put("/config/credentials/concurrency/busy-retry-min", `null`),
+			put("/config/multimedia/disable-image-generation", `null`),
+			put("/config/routing/retry/request-retry", `null`),
+			put("/config/server/host", `null`),
+			put("/config/server/port", `null`),
+			patch("/config", `{"server":{"discovery":{"service-type":null}},"oauth":{"providers":{"aistudio":{"ws-auth":null}}}}`),
+		}},
+		{Name: "malformed_oauth_maps_are_rejected_before_sanitizing", YAML: nonDefaults, Steps: []configStep{
+			put("/config/oauth/excluded-models", `{"claude":"opus-*"}`),
+			put("/config/oauth/model-alias", `{"claude":[{"name":["x"],"alias":"y"}]}`),
+			put("/config/oauth/settings", `{"claude":"x"}`),
+			put("/config/oauth/request-scoped-errors/claude", `[{"status":"x"}]`),
+			put("/config/oauth/excluded-models/gemini", `[" B ", "b", "c"]`),
+			patch("/config", `{"oauth":{"model-alias":{"Gemini":[{"name":"m","alias":"n"},{"name":"m2","alias":"N"}]}}}`),
+		}},
 		{Name: "owner_legacy_migrates_on_first_write", YAML: owner, Steps: []configStep{
 			get("/config"), get("/config.yaml"), get("/config/server"), get("/config/nope"),
 			put("/config/routing/strategy", `"fill-first"`), get("/config"),
@@ -1002,6 +1064,12 @@ func credScenarios() []credScenario {
 	multipartBody := "--" + boundary + "\r\nContent-Disposition: form-data; name=\"b\"; filename=\"up2.txt\"\r\nContent-Type: text/plain\r\n\r\nnope\r\n" +
 		"--" + boundary + "\r\nContent-Disposition: form-data; name=\"a\"; filename=\"dir/up1.json\"\r\nContent-Type: application/json\r\n\r\n{\"type\":\"claude\",\"email\":\"u@example.invalid\"}\r\n" +
 		"--" + boundary + "--\r\n"
+	mp := func(ct, body string) credStep {
+		if ct == "" {
+			ct = "multipart/form-data; boundary=b"
+		}
+		return credStep{Method: http.MethodPost, Path: "/credentials", Body: body, ContentType: ct}
+	}
 	return []credScenario{{
 		Name:  "credential_inventory_and_edits",
 		YAML:  "remote-management:\n  secret-key: '$HASH'\nauth-dir: $AUTH\nclaude-api-key:\n  - api-key: fake-cfg-key\n    base-url: https://claude.example.invalid\n",
@@ -1040,10 +1108,51 @@ func credScenarios() []credScenario {
 			call(http.MethodPost, "/credentials?name=../evil.json", `{}`),
 			{Method: http.MethodPost, Path: "/credentials", Body: multipartBody, ContentType: "multipart/form-data; boundary=" + boundary},
 			{Method: http.MethodPost, Path: "/credentials", Body: "--" + boundary + "--\r\n", ContentType: "multipart/form-data; boundary=" + boundary},
+			// Hostile and unusual multipart input, parsed by Go's mime/multipart.
+			mp("", "--b\r\n\r\n{}\r\n--b--\r\n"),
+			mp("", "--b\r\nContent-Disposition: form-data; name=\"f\"; filename=\"mp;semi.json\"\r\n\r\n{\"type\":\"claude\"}\r\n--b--\r\n"),
+			mp("", "--b\r\nContent-Disposition: form-data; name=\"f\"; filename=\"C:\\dir\\mp-win.json\"\r\n\r\n{\"type\":\"claude\"}\r\n--b--\r\n"),
+			mp("", "--b\r\nContent-Disposition: form-data; name=\"f\"; filename*=UTF-8''mp%2Dstar.json\r\n\r\n{\"type\":\"claude\"}\r\n--b--\r\n"),
+			mp("", "preamble\n--b\nContent-Disposition: form-data; name=\"f\"; filename=\"mp-lf.json\"\n\n{\"type\":\"claude\"}\n--b--\n"),
+			mp("", "--b\r\nContent-Disposition: form-data; name=\"f\"; filename=\"mp-cut.json\"\r\n\r\n{\"type\":\"claude\"}"),
+			mp("", "--b\r\nbogus\r\n\r\n{}\r\n--b--\r\n"),
+			mp("", "--b\r\n continued: x\r\n\r\n{}\r\n--b--\r\n"),
+			mp("", "--b\r\nBad Key: x\r\n\r\n{}\r\n--b--\r\n"),
+			mp("", "--b\r\nContent-Disposition: form-data; name=\"f\"; filename=\"mp-hdr.json\""),
+			mp("", "hello"),
+			mp("", ""),
+			mp("", "--b\r\nContent-Disposition: form-data; name=\"f\"; filename=\"\"\r\n\r\n{}\r\n--b--\r\n"),
+			mp("", "--b\r\nContent-Disposition: form-data; filename=\"mp-noname.json\"\r\n\r\n{}\r\n--b--\r\n"),
+			mp("", "--b\r\nContent-Disposition: attachment; name=\"f\"; filename=\"mp-att.json\"\r\n\r\n{}\r\n--b--\r\n"),
+			mp("", "--b\r\nContent-Disposition: form-data; name=\"f\"; filename=\"mp-x.json\"\r\n\r\n{}\r\n--b\r\nX: y\r\n--b--\r\n"),
+			mp("", "--b\r\nContent-Disposition: form-data; name=\"f\"; filename=\"mp-y.json\"\r\n\r\n{}\r\n--bX\r\n--b--\r\n"),
+			mp("", "--b\r\nContent-Disposition: form-data; name=\"z\"; filename=\"mp-z.json\"\r\n\r\n{\"type\":\"claude\"}\r\n--b \t\r\nContent-Disposition: form-data; name=\"a\"; filename=\"mp-a.txt\"\r\n\r\nx\r\n--b--"),
+			mp("multipart/form-data", "--b--\r\n"),
+			mp("multipart/form-data; boundary", "--b--\r\n"),
+			mp("multipart/form-data; boundary=\"\"", "----\r\n"),
+			mp("multipart/form-data; boundary=b; boundary=c", "--b--\r\n"),
+			mp("multipart/form-data;boundary=\"b\";", "--b--\r\n"),
+			mp("Multipart/Form-Data; boundary=b", "--b--\r\n"),
+			mp("multipart/form-data ; boundary=b", "--b\r\nContent-Disposition: form-data; name=\"f\"; filename=\"mp-sp.json\"\r\n\r\n{\"type\":\"claude\"}\r\n--b--\r\n"),
 			get("/credentials?name=new.json"),
 			call(http.MethodPost, "/credentials?name=raw-pretty.json", "{\n  \"type\": \"claude\",\n  \"disabled\": false,\n  \"priority\": 1.0\n}\n"),
 			call(http.MethodPost, "/credentials?name=raw-alias.json", "{\n  \"type\": \"claude\",\n  \"proxy-url\": \"http://p.example.invalid\",\n  \"disabled\": true\n}\n"),
 			call(http.MethodPost, "/credentials?name=raw-flag.json", `{"type":"claude","disabled":"yes"}`),
+			// Files no synthesizer claims are registered as fallback auths until restart.
+			call(http.MethodPost, "/credentials?name=fallback.json", `{"email":"f@example.invalid","disabled":true,"headers":{"X-A":" 1 "},"note":"n"}`),
+			get("/credentials?name=fallback.json"),
+			call(http.MethodPatch, "/credentials/status", `{"name":"fallback.json","disabled":true}`),
+			get("/credentials?name=fallback.json"),
+			call(http.MethodPost, "/credentials?name=gem.json", `{"type":"gemini","email":"g@example.invalid"}`),
+			get("/credentials?name=gem.json"),
+			call(http.MethodDelete, "/credentials?name=fallback.json", ""),
+			get("/credentials?name=fallback.json"),
+			// Config API keys accept field edits in memory; `type` may change on files.
+			call(http.MethodPatch, "/credentials/fields", `{"name":"$CFGID","note":"updated","priority":3,"headers":{"X-B":"2"}}`),
+			call(http.MethodPatch, "/credentials/fields", `{"name":"$CFGID","disabled":"true"}`),
+			call(http.MethodPost, "/credentials?name=retype.json", `{"type":"claude","email":"r@example.invalid"}`),
+			call(http.MethodPatch, "/credentials/fields", `{"name":"retype.json","type":"codex"}`),
+			call(http.MethodDelete, "/credentials?name=retype.json", ""),
 			call(http.MethodDelete, "/credentials?name=new.json", ""),
 			call(http.MethodDelete, "/credentials", `{"names":["up1.json","missing.json"]}`),
 			call(http.MethodDelete, "/credentials", `["../x.json"]`),

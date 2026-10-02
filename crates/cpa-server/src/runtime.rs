@@ -549,6 +549,34 @@ impl CredentialStore {
         Ok(committed)
     }
 
+    /// Replaces a config-backed credential in memory if it is still at
+    /// `expected_revision`: Go's `Manager.Update` never persists config API keys, and
+    /// the next config publish re-synthesizes them. `NotFound` unless `next.id` names
+    /// a config-backed credential. Additive API for the management stream.
+    pub fn replace_config_backed(
+        &self,
+        next: Credential,
+        expected_revision: u64,
+    ) -> Result<Arc<Credential>, PatchError> {
+        let mut inner = self.inner.write().unwrap_or_else(PoisonError::into_inner);
+        let generation = inner.generation + 1;
+        let slot = inner
+            .creds
+            .iter_mut()
+            .find(|c| c.id == next.id && matches!(c.source, Source::Config { .. }))
+            .ok_or(PatchError::NotFound)?;
+        if slot.revision != expected_revision {
+            return Err(PatchError::Stale { current: slot.revision });
+        }
+        let mut next = next;
+        next.source = slot.source.clone();
+        next.revision = generation;
+        *slot = Arc::new(next);
+        let committed = slot.clone();
+        inner.generation = generation;
+        Ok(committed)
+    }
+
     /// Replaces the credential set (watcher reload, management import/delete). Unchanged
     /// credentials keep their revision; new and changed ones get fresh revisions.
     pub fn reconcile(&self, credentials: Vec<Credential>) {

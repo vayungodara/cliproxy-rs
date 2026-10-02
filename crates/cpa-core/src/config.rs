@@ -15,10 +15,12 @@ use serde_yaml_ng::{Mapping, Value};
 
 pub mod credentials;
 mod document;
+mod go_url;
 mod sanitize;
 mod schema;
 mod text;
 mod trusted;
+mod validate;
 pub use document::{ConfigDocument, archive_comments};
 pub use schema::validate as validate_config_fields;
 pub use trusted::{TrustedProxies, go_trim_space};
@@ -222,6 +224,7 @@ impl Config {
             _ => Vec::new(),
         };
         trusted::validate(&trusted_proxies)?;
+        validate::go_custom(document.value())?;
         Ok(Config {
             host,
             port,

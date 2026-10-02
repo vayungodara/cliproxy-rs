@@ -13,7 +13,7 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::{MethodRouter, any, get};
 use axum::{Router, middleware};
 use cpa_core::config::{Config, ConfigDocument, archive_comments, credentials, is_bcrypt};
-use cpa_core::credential::Credential;
+use cpa_core::credential::{Credential, Source};
 use serde_json::{Value, json};
 
 use crate::Runtime;
@@ -21,6 +21,7 @@ use crate::scheduler::{ErrorRule, Policy};
 
 mod access;
 mod auth_files;
+mod multipart;
 pub use access::cors;
 
 pub struct Management {
@@ -29,6 +30,12 @@ pub struct Management {
     // ponytail: one lock for config and auth disk operations; split only if management
     // throughput matters. The watcher shares it, preventing stale disk publication.
     pub(crate) disk: Mutex<()>,
+    /// Uploaded files no synthesizer claims, kept listed until restart like Go's
+    /// fallback auths (see `credentials::upload_fallback`).
+    pub(crate) fallbacks: Mutex<std::collections::BTreeSet<PathBuf>>,
+    /// Credentials disabled through the status or fields endpoints: Go's in-memory
+    /// auth then reports `disabled via management API` until re-enabled.
+    pub(crate) disabled_via_api: Mutex<std::collections::BTreeSet<String>>,
     access: access::Access,
 }
 
@@ -55,6 +62,8 @@ impl Management {
             rt,
             path,
             disk: Mutex::new(()),
+            fallbacks: Mutex::default(),
+            disabled_via_api: Mutex::default(),
         })
     }
 
@@ -65,6 +74,23 @@ impl Management {
     /// settings of a valid config (a rotated or removed secret) always take effect.
     pub(crate) fn publish(&self, cfg: Config, files: Option<Vec<Credential>>) {
         let mut all = files.unwrap_or_else(|| credentials::from_auth_dir(&cfg));
+        // Fallbacks follow their file: gone with it, replaced once a synthesizer
+        // claims it, otherwise rebuilt from its current content.
+        let mut fallbacks = self.fallbacks.lock().unwrap_or_else(PoisonError::into_inner);
+        fallbacks.retain(|path| {
+            let Ok(data) = std::fs::read(path) else { return false };
+            if all.iter().any(|c| matches!(&c.source, Source::File(p) if p == path)) {
+                return false;
+            }
+            match credentials::upload_fallback(&cfg.auth_dir, path, &data) {
+                Some(c) => {
+                    all.push(c);
+                    true
+                }
+                None => false,
+            }
+        });
+        drop(fallbacks);
         all.extend(credentials::from_config(&cfg));
         self.access.config_published(&cfg);
         let policy = policy(&cfg);
@@ -356,6 +382,7 @@ fn config_sync(state: &Management, path: &str, method: Method, body: &[u8]) -> R
         return response;
     }
     let before = doc.clone();
+    let mut written = None;
     if method == Method::DELETE {
         if parts.is_empty() {
             return error(400, "cannot_delete_config");
@@ -380,13 +407,13 @@ fn config_sync(state: &Management, path: &str, method: Method, body: &[u8]) -> R
         if parts.is_empty() && !value.is_mapping() {
             return error(400, "config_must_be_object");
         }
-        if doc.update(&parts, value, method == Method::PATCH).is_err() {
+        if doc.update(&parts, value.clone(), method == Method::PATCH).is_err() {
             return error(400, "invalid_path");
         }
-        doc.typed_projection(&parts);
         if !yaml {
             doc.preserve_turn_secrets(&before);
         }
+        written = Some(value);
     }
     for field in [
         "credentials/concurrency/lifecycle-config-revision",
@@ -410,6 +437,11 @@ fn config_sync(state: &Management, path: &str, method: Method, body: &[u8]) -> R
     }
     if let Err(e) = cpa_core::config::validate_config_fields(doc.value(), true) {
         return invalid_config(StatusCode::BAD_REQUEST, e);
+    }
+    // Go validates the raw candidate, then its saver persists typed values; projecting
+    // only after validation keeps malformed input from being sanitized into success.
+    if let Some(written) = &written {
+        doc.typed_projection(&parts, written, method == Method::PATCH);
     }
     if let Some(secret) = doc
         .get(&["management", "secret-key"])

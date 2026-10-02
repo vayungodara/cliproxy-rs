@@ -139,8 +139,9 @@ fn request_scoped_errors(map: &Value) -> Value {
     })
 }
 
-/// Rewrites the OAuth maps present under `oauth` as Go persists them.
-pub(super) fn oauth_maps(oauth: &mut Value) {
+/// Rewrites the OAuth maps under `oauth` as Go persists them, limited to what a
+/// write touched: one map (`only_map`) or one channel of it (`only_channel`).
+pub(super) fn oauth_maps(oauth: &mut Value, only_map: Option<&str>, only_channel: Option<&str>) {
     let Some(map) = oauth.as_mapping_mut() else { return };
     for (key, f) in [
         ("excluded-models", excluded_models as fn(&Value) -> Value),
@@ -148,10 +149,34 @@ pub(super) fn oauth_maps(oauth: &mut Value) {
         ("settings", settings),
         ("request-scoped-errors", request_scoped_errors),
     ] {
-        if let Some(v) = map.get_mut(key)
-            && v.is_mapping()
-        {
-            *v = f(v);
+        if only_map.is_some_and(|m| m != key) {
+            continue;
+        }
+        let Some(v) = map.get_mut(key).and_then(Value::as_mapping_mut) else {
+            continue;
+        };
+        let Some(channel) = only_channel else {
+            *map.get_mut(key).expect("present") = f(&Value::Mapping(v.clone()));
+            continue;
+        };
+        let Some(entries) = v.get(channel).cloned() else {
+            continue;
+        };
+        let mut single = Mapping::new();
+        single.insert(channel.into(), entries);
+        let clean = f(&Value::Mapping(single));
+        match clean.as_mapping().and_then(|m| m.iter().next()) {
+            // Same key: replace in place so the channel keeps its position.
+            Some((k, cleaned)) if k.as_str() == Some(channel) => {
+                *v.get_mut(channel).expect("present") = cleaned.clone();
+            }
+            Some((k, cleaned)) => {
+                v.remove(channel);
+                v.insert(k.clone(), cleaned.clone());
+            }
+            None => {
+                v.remove(channel);
+            }
         }
     }
 }

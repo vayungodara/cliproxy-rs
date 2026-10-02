@@ -906,6 +906,49 @@ pub fn from_file(cfg: &Config, auth_dir: &Path, path: &Path, data: &[u8]) -> Res
     Ok(Some(cred))
 }
 
+/// Go `buildAuthFromFileData`'s fallback for an uploaded file no synthesizer claims:
+/// provider is the raw `type` (or `unknown`), label the email or provider, and only
+/// `path`, `source` and custom headers as attributes. Go keeps it registered until
+/// restart; the caller decides how long it lives. `None` for invalid JSON.
+pub fn upload_fallback(auth_dir: &Path, path: &Path, data: &[u8]) -> Option<Credential> {
+    let mut meta = serde_json::from_slice::<Map<String, Json>>(data).ok()?;
+    normalize_metadata(&mut meta);
+    let provider = match meta.get("type").and_then(Json::as_str) {
+        Some(t) if !t.is_empty() => t.to_owned(),
+        _ => "unknown".to_owned(),
+    };
+    let label = match meta.get("email").and_then(Json::as_str) {
+        Some(e) if !e.is_empty() => e.to_owned(),
+        _ => provider.clone(),
+    };
+    let full = path.display().to_string();
+    let mut attributes = BTreeMap::from([("path".to_owned(), full.clone()), ("source".to_owned(), full)]);
+    if let Some(Json::Object(h)) = meta.get("headers") {
+        for (k, v) in h {
+            if let (k, Some(v)) = (k.trim(), v.as_str().map(str::trim))
+                && !k.is_empty()
+                && !v.is_empty()
+            {
+                attributes.insert(format!("header:{k}"), v.into());
+            }
+        }
+    }
+    Some(Credential {
+        id: path
+            .strip_prefix(auth_dir)
+            .unwrap_or(path)
+            .to_string_lossy()
+            .into_owned(),
+        provider,
+        source: Source::File(path.to_owned()),
+        disabled: meta.get("disabled").and_then(Json::as_bool).unwrap_or(false),
+        label,
+        attributes,
+        metadata: meta,
+        revision: 0,
+    })
+}
+
 fn oauth_aliases(raw: Option<&Json>) -> Option<String> {
     let mut seen = HashSet::new();
     let clean: Vec<Json> = raw?
@@ -984,43 +1027,15 @@ fn kimi_domain(s: &str) -> Option<&'static str> {
     }
 }
 
-/// Go `isKimiAIHost` / `isKimiComHost`.
+/// Go `isKimiAIHost` / `isKimiComHost`: a URL Go cannot parse classifies as neither.
 fn kimi_url_domain(raw: &str) -> Option<&'static str> {
-    let host = url_hostname(raw)?.to_lowercase();
+    let host = super::go_url::parse(raw.trim())?.hostname().trim().to_lowercase();
     if host == KIMI_AI || host.ends_with(".kimi.ai") {
         Some(KIMI_AI)
     } else if host == KIMI_COM || host.ends_with(".kimi.com") {
         Some(KIMI_COM)
     } else {
         None
-    }
-}
-
-/// `url.Parse(raw).Hostname()` for the URLs auth files carry: an optional scheme,
-/// a `//` authority, userinfo up to the last `@`, an optional numeric port.
-/// ponytail: no percent-decoding or Go's other parse errors in the host.
-fn url_hostname(raw: &str) -> Option<&str> {
-    let raw = raw.trim();
-    let raw = raw.split('#').next().unwrap_or_default();
-    let rest = match raw.split_once(':') {
-        Some((scheme, rest))
-            if scheme.starts_with(|c: char| c.is_ascii_alphabetic())
-                && scheme.chars().all(|c| c.is_ascii_alphanumeric() || "+-.".contains(c)) =>
-        {
-            rest
-        }
-        _ if raw.starts_with(':') => return None,
-        _ => raw,
-    };
-    let authority = rest.strip_prefix("//")?.split(['/', '?']).next().unwrap_or_default();
-    let host_port = authority.rsplit_once('@').map_or(authority, |(_, h)| h);
-    if let Some(v6) = host_port.strip_prefix('[') {
-        let (host, port) = v6.split_once(']')?;
-        return (port.is_empty() || port.strip_prefix(':')?.bytes().all(|b| b.is_ascii_digit())).then_some(host);
-    }
-    match host_port.rsplit_once(':') {
-        Some((host, port)) => port.bytes().all(|b| b.is_ascii_digit()).then_some(host),
-        None => Some(host_port),
     }
 }
 

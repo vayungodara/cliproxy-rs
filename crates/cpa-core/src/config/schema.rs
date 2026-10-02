@@ -150,29 +150,32 @@ fn walk_unknown(value: &mut Value, schema: &Schema, path: &str, out: &mut Vec<(S
     }
 }
 
-/// Go's saver writes the typed value of every existing key: a null on a non-pointer
-/// scalar field becomes its zero value and a number or bool in a string field becomes
-/// a string. Applied to the subtree at `path` only, so the rest of the document stays
-/// as written.
+/// Go's saver writes the typed value of the written keys: a null on a non-pointer
+/// scalar keeps the value Go pre-set before decoding (see [`null_default`]) and a
+/// number or bool in a string field becomes a string. `path` is one path the request
+/// wrote; the rest of the document stays as written.
 pub(super) fn typed_projection(value: &mut Value, path: &[&str]) {
     if path.first().is_none_or(|p| *p == "oauth")
         && let Some(oauth) = value.as_mapping_mut().and_then(|m| m.get_mut("oauth"))
     {
-        super::sanitize::oauth_maps(oauth);
+        super::sanitize::oauth_maps(oauth, path.get(1).copied(), path.get(2).copied());
     }
     // api-keys groups keep null key overrides: they mean "inherit the group value".
     if path.first() == Some(&"api-keys") {
         return;
     }
+    let mut prefix: Vec<String> = Vec::new();
     if path.is_empty() {
         if let Some(map) = value.as_mapping_mut() {
             for (key, child) in map.iter_mut() {
-                if let Some(field) = key
+                if let Some((key, field)) = key
                     .as_str()
                     .filter(|k| *k != "api-keys")
-                    .and_then(|k| SCHEMA["fields"].get(k))
+                    .and_then(|k| Some((k, SCHEMA["fields"].get(k)?)))
                 {
-                    project(child, field);
+                    prefix.push(key.to_owned());
+                    project(child, field, &mut prefix);
+                    prefix.pop();
                 }
             }
         }
@@ -189,17 +192,18 @@ pub(super) fn typed_projection(value: &mut Value, path: &[&str]) {
             return;
         };
         node = child;
+        prefix.push((*part).to_owned());
     }
-    project(node, schema);
+    project(node, schema, &mut prefix);
 }
 
-fn project(value: &mut Value, schema: &Schema) {
+fn project(value: &mut Value, schema: &Schema, path: &mut Vec<String>) {
     if let Some(kind) = schema.as_str() {
         if value.is_null() {
-            if let Some(zero) = zero_of(kind) {
-                *value = zero;
+            if let Some(v) = null_default(&path.join(".")).or_else(|| zero_of(kind)) {
+                *value = v;
             }
-        } else if matches!(kind, "string" | "duration") && (value.is_number() || value.is_bool()) {
+        } else if kind == "string" && (value.is_number() || value.is_bool()) {
             *value = Value::from(super::go_string(value));
         }
         return;
@@ -208,27 +212,61 @@ fn project(value: &mut Value, schema: &Schema) {
         Value::Mapping(map) => {
             let Some(fields) = schema.get("fields") else { return };
             for (key, child) in map.iter_mut() {
-                if let Some(field) = key.as_str().and_then(|k| fields.get(k)) {
-                    project(child, field);
+                if let Some((key, field)) = key.as_str().and_then(|k| Some((k, fields.get(k)?))) {
+                    path.push(key.to_owned());
+                    project(child, field, path);
+                    path.pop();
                 }
             }
         }
         Value::Sequence(items) => {
             if let Some(inner) = schema.get("list") {
+                // List items have no Go defaults; their paths never match a default.
+                path.push("[]".to_owned());
                 for item in items {
-                    project(item, inner);
+                    project(item, inner, path);
                 }
+                path.pop();
             }
         }
         _ => {}
     }
 }
 
+/// The value yaml.v3 leaves in a non-pointer field for an explicit null: what
+/// `ParseConfigBytes` set before decoding (internal/config/parse.go and
+/// `DefaultCredentialInFlightConfig`), after its normalizers. Verified against Go's
+/// handler by the `null_writes_take_go_defaults` replay.
+fn null_default(path: &str) -> Option<Value> {
+    Some(match path {
+        "oauth.providers.aistudio.ws-auth" => Value::Bool(true),
+        "observability.logs.error-logs-max-files" => Value::from(10),
+        "observability.usage.redis-usage-queue-retention-seconds" => Value::from(60),
+        "observability.pprof.addr" => Value::from("127.0.0.1:8316"),
+        "management.panel-github-repository" => {
+            Value::from("https://github.com/router-for-me/Cli-Proxy-API-Management-Center")
+        }
+        "server.discovery.service-type" => Value::from("_ai-gateway._tcp"),
+        "credentials.in-flight.snapshot-interval" => Value::from("2s"),
+        "credentials.in-flight.stale-after" => Value::from("10s"),
+        "credentials.in-flight.staging-retention" => Value::from("1m"),
+        "credentials.in-flight.max-part-bytes" => Value::from(262_144),
+        "credentials.in-flight.max-part-count" => Value::from(64),
+        "credentials.in-flight.max-revision-bytes" => Value::from(16_777_216),
+        "credentials.in-flight.max-aggregate-groups" => Value::from(100_000),
+        "credentials.in-flight.max-details" => Value::from(10_000),
+        "credentials.in-flight.max-string-bytes" => Value::from(256),
+        _ => return None,
+    })
+}
+
 fn zero_of(kind: &str) -> Option<Value> {
     match kind {
         "bool" | "image-mode" => Some(Value::Bool(false)),
         "int" | "port" => Some(Value::from(0)),
-        "string" | "duration" => Some(Value::from("")),
+        "string" => Some(Value::from("")),
+        // Go marshals a zero time.Duration as "0s".
+        "duration" => Some(Value::from("0s")),
         _ => None,
     }
 }

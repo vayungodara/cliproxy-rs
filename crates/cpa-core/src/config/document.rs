@@ -359,11 +359,32 @@ impl ConfigDocument {
         Ok(())
     }
 
-    /// Go's saver persists typed values (zeros for nulls on non-pointer scalars,
-    /// strings for scalars in string fields); do the same within the subtree a write
-    /// touched.
-    pub fn typed_projection(&mut self, parts: &[&str]) {
-        super::schema::typed_projection(&mut self.0, parts);
+    /// Go's saver persists typed values (Go's pre-decode defaults for nulls on
+    /// non-pointer scalars, strings for scalars in string fields); do the same for each
+    /// path a PUT (`written` replaces `parts`) or PATCH (`written` merges into `parts`)
+    /// wrote. A PATCH merges mappings key by key, so only its leaves count.
+    pub fn typed_projection(&mut self, parts: &[&str], written: &Value, patch: bool) {
+        fn leaves(prefix: &mut Vec<String>, value: &Value, patch: bool, out: &mut Vec<Vec<String>>) {
+            match value {
+                Value::Mapping(map) if patch => {
+                    for (key, child) in map {
+                        if let Some(key) = key.as_str() {
+                            prefix.push(key.to_owned());
+                            leaves(prefix, child, patch, out);
+                            prefix.pop();
+                        }
+                    }
+                }
+                _ => out.push(prefix.clone()),
+            }
+        }
+        let mut paths = Vec::new();
+        let mut prefix = parts.iter().map(|p| (*p).to_owned()).collect();
+        leaves(&mut prefix, written, patch, &mut paths);
+        for path in paths {
+            let path: Vec<&str> = path.iter().map(String::as_str).collect();
+            super::schema::typed_projection(&mut self.0, &path);
+        }
     }
 
     /// Go `deleteConfigV8Path`: removes the field, then any ancestor mapping that this
@@ -416,6 +437,11 @@ fn sync_mapping(dst: &yaml_edit::Mapping, src: &Mapping, before: &Mapping) -> an
                     .and_then(Value::as_mapping)
                     .context("config must be a mapping")?,
             )?;
+        } else if let (Some(seq), Value::Sequence(items), Some(Value::Sequence(old))) =
+            (dst.get_sequence(key), value, before.get(key))
+            && sync_sequence(&seq, items, old)?
+        {
+            // Changed mapping items were edited in place; siblings keep their text.
         } else {
             // Nested block values insert correctly; root-level ones are appended by
             // the caller. Empty collections stay `{}`/`[]`.
@@ -435,6 +461,30 @@ fn sync_mapping(dst: &yaml_edit::Mapping, src: &Mapping, before: &Mapping) -> an
         }
     }
     Ok(())
+}
+
+/// Edits a sequence item by item when every changed item is a mapping that stays a
+/// mapping; `false` (nothing touched) otherwise, so the caller replaces the list.
+fn sync_sequence(dst: &yaml_edit::Sequence, src: &[Value], before: &[Value]) -> anyhow::Result<bool> {
+    if src.len() != before.len() || dst.len() != src.len() {
+        return Ok(false);
+    }
+    let mut edits = Vec::new();
+    for (i, (new, old)) in src.iter().zip(before).enumerate() {
+        if new == old {
+            continue;
+        }
+        match (new, old, dst.get(i)) {
+            (Value::Mapping(new), Value::Mapping(old), Some(yaml_edit::YamlNode::Mapping(node))) if !new.is_empty() => {
+                edits.push((node, new, old));
+            }
+            _ => return Ok(false),
+        }
+    }
+    for (node, new, old) in edits {
+        sync_mapping(&node, new, old)?;
+    }
+    Ok(true)
 }
 
 fn merge(dst: &mut Value, src: Value) {
