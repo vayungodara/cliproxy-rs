@@ -22,6 +22,7 @@ import (
 	sdkaccess "github.com/router-for-me/CLIProxyAPI/v8/sdk/access"
 	coreauth "github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/auth"
 	"golang.org/x/crypto/bcrypt"
+	"gopkg.in/yaml.v3"
 )
 
 type step struct {
@@ -188,7 +189,74 @@ func runIPBytes(c ipBytesCase) ipBytesCase {
 	return c
 }
 
+// A ConfigV8 call against a real Go server and the persisted result.
+type configStep struct {
+	Method   string `json:"method"`
+	Path     string `json:"path"`
+	Body     string `json:"body,omitempty"`
+	Status   int    `json:"status"`
+	Response any    `json:"response"`
+	RawResp  string `json:"raw_response,omitempty"`
+	File     any    `json:"file"`
+	Archived bool   `json:"file_has_archive"`
+}
+
+type configScenario struct {
+	Name  string       `json:"name"`
+	YAML  string       `json:"yaml"`
+	Steps []configStep `json:"steps"`
+}
+
+func yamlToJSON(text string) any {
+	var v any
+	if err := yaml.Unmarshal([]byte(text), &v); err != nil {
+		return "unparsable: " + err.Error()
+	}
+	raw, err := json.Marshal(v)
+	must(err)
+	var out any
+	must(json.Unmarshal(raw, &out))
+	return out
+}
+
+func runConfig(s configScenario) configScenario {
+	must(os.Unsetenv("MANAGEMENT_PASSWORD"))
+	dir, err := os.MkdirTemp("", "cpa-config-")
+	must(err)
+	defer os.RemoveAll(dir)
+	path := filepath.Join(dir, "config.yaml")
+	cfg := writeConfig(path, s.YAML)
+	server := api.NewServer(cfg, coreauth.NewManager(nil, nil, nil), sdkaccess.NewManager(), path)
+	for i := range s.Steps {
+		st := &s.Steps[i]
+		req := httptest.NewRequest(st.Method, "/v8/management"+st.Path, strings.NewReader(st.Body))
+		req.RemoteAddr = "127.0.0.1:1"
+		req.Header.Set("Authorization", "Bearer fake-secret")
+		rec := httptest.NewRecorder()
+		server.Handler().ServeHTTP(rec, req)
+		st.Status = rec.Code
+		if strings.HasSuffix(st.Path, "config.yaml") && st.Method == http.MethodGet && rec.Code == 200 {
+			st.Response = yamlToJSON(rec.Body.String())
+			st.RawResp = rec.Body.String()
+		} else if rec.Body.Len() > 0 {
+			var v any
+			if json.Unmarshal(rec.Body.Bytes(), &v) == nil {
+				st.Response = v
+			} else {
+				st.RawResp = rec.Body.String()
+			}
+		}
+		file, errRead := os.ReadFile(path)
+		must(errRead)
+		st.File = yamlToJSON(string(file))
+		st.Archived = strings.Contains(string(file), "# mystery-section")
+	}
+	return s
+}
+
 type output struct {
+	Materialized any              `json:"materialized_defaults"`
+	Config       []configScenario `json:"config_writes"`
 	IPBytes []ipBytesCase   `json:"client_ip_bytes"`
 	Routes []routeScenario  `json:"routes"`
 	Access []accessScenario `json:"access"`
@@ -360,6 +428,13 @@ func main() {
 		{Trusted: nil, Remote: "[fe80::1%eth0]:1", XFF: hx("198.51.100.9")},
 	} {
 		out.IPBytes = append(out.IPBytes, runIPBytes(c))
+	}
+	// Keys Go's saver adds to an otherwise untouched v8 document on any PUT/PATCH.
+	base := runConfig(configScenario{Name: "materialized", YAML: "config-version: 8\nmanagement:\n  secret-key: '$HASH'\n",
+		Steps: []configStep{{Method: http.MethodPatch, Path: "/config", Body: "{}"}}})
+	out.Materialized = base.Steps[0].File
+	for _, s := range configScenarios() {
+		out.Config = append(out.Config, runConfig(s))
 	}
 	for _, s := range routeScenarios() {
 		out.Routes = append(out.Routes, runRoutes(s))
@@ -671,6 +746,70 @@ func routeScenarios() []routeScenario {
 		{Name: "env_secret_survives_reload", YAML: noSecret, Env: "fake-env", Steps: []routeStep{
 			get("/v8/management/config/port", h("Authorization", "Bearer fake-env")),
 			{Update: noSecret, Method: http.MethodGet, Path: "/v8/management/config/port", Remote: "203.0.113.1:1", Headers: h("Authorization", "Bearer fake-env")},
+		}},
+	}
+}
+
+func configScenarios() []configScenario {
+	get := func(path string) configStep { return configStep{Method: http.MethodGet, Path: path} }
+	put := func(path, body string) configStep { return configStep{Method: http.MethodPut, Path: path, Body: body} }
+	patch := func(path, body string) configStep { return configStep{Method: http.MethodPatch, Path: path, Body: body} }
+	del := func(path string) configStep { return configStep{Method: http.MethodDelete, Path: path} }
+	owner := "# Owner config\nhost: \"\"\nport: 8317 # listen\nremote-management:\n  # allow the dashboard\n  allow-remote: true\n  secret-key: \"$HASH\" # hashed\nauth-dir: \"~/.cli-proxy-api\"\napi-keys:\n  - \"sk-fake-owner\"\n# disabled for now\nrequest-retry: 3\nmystery-section:\n  nested: [1, 2]\n"
+	v8 := "config-version: 8\nmanagement:\n  secret-key: '$HASH'\nrouting:\n  strategy: round-robin\n  retry:\n    request-retry: 2\n  cooldown:\n    disable-cooling: true\nserver:\n  mystery-field: 1\n  port: 0\nmystery-section: {a: 1}\n"
+	turn := "config-version: 8\nmanagement:\n  secret-key: '$HASH'\noauth:\n  providers:\n    codex:\n      live-media-relay:\n        ice-servers:\n          - {urls: ['turn:a.example.invalid'], username: fake-user-a, credential: fake-cred-a}\n          - {urls: ['turn:b.example.invalid'], username: fake-user-b, credential: fake-cred-b}\n"
+	return []configScenario{
+		{Name: "owner_legacy_migrates_on_first_write", YAML: owner, Steps: []configStep{
+			get("/config"), get("/config.yaml"), get("/config/server"), get("/config/nope"),
+			put("/config/routing/strategy", `"fill-first"`), get("/config"),
+		}},
+		{Name: "patch_null_and_delete_prunes_empty_ancestors", YAML: v8, Steps: []configStep{
+			patch("/config", `{"routing":{"cooldown":{"disable-cooling":null}}}`),
+			del("/config/routing/retry/request-retry"),
+			del("/config/routing/cooldown/disable-cooling"),
+			del("/config/routing/strategy"),
+			del("/config/routing/strategy"),
+			del("/config/server/port"),
+		}},
+		{Name: "rejected_writes_leave_the_file", YAML: v8, Steps: []configStep{
+			put("/config/server/port", `"bad"`),
+			put("/config/access", `null`),
+			put("/config/oauth/providers/codex/unknown", `true`),
+			put("/config/credentials/concurrency/lifecycle-config-revision", `5`),
+			put("/config/plugins/auth-revision", `1`),
+			put("/config/access/api-keys/0", `"x"`),
+			put("/config/routing/strategy/x", `"x"`),
+			put("/config", `[]`),
+			put("/config", `{bad`),
+			put("/config", ``),
+			put("/config.yaml", ``),
+			put("/config.yaml", `# only a comment`),
+			put("/config", `{"port": 1}`),
+			put("/config/api-keys/unknown-provider", `[]`),
+			put("/config/config-version", `7`),
+			put("/config/api-keys/claude", `[{"keys":[{"api-key":"fake","base-url":"https://x.invalid"}]}]`),
+			put("/config/api-keys/claude", `[{"keys":[{"api-key":"fake","weight":1000001}]}]`),
+			patch("/config/routing", `{"retry":{"request-retry":"three"}}`),
+			put("/config/routing/session-affinity-ttl", `5`),
+		}},
+		{Name: "accepted_value_writes", YAML: v8, Steps: []configStep{
+			put("/config/api-keys/claude", `[{"name":"team","base-url":"https://claude.example.invalid","priority":3,"keys":[{"api-key":"fake-a"},{"api-key":"fake-b","weight":0,"prefix":null}]}]`),
+			patch("/config/oauth", `{"excluded-models":{"claude":["Opus-*"]},"model-alias":{"claude":[{"name":"claude-sonnet-4-6","alias":"sonnet"}]}}`),
+			put("/config/access/api-keys", `["fake-client-1","fake-client-2"]`),
+			put("/config/requests/payload/default", `[{"models":[{"name":"*","protocol":"openai"}],"params":{"temperature":0.5}}]`),
+			get("/config"),
+			put("/config/management/secret-key", `"fake-rotated"`),
+			get("/config"),
+		}},
+		{Name: "turn_secrets_redacted_and_preserved_by_urls", YAML: turn, Steps: []configStep{
+			get("/config/oauth/providers/codex/live-media-relay"),
+			put("/config/oauth/providers/codex/live-media-relay/ice-servers", `[{"urls":["turn:b.example.invalid"]},{"urls":["turn:c.example.invalid"]},{"urls":["turn:a.example.invalid"],"username":""}]`),
+			get("/config.yaml"),
+		}},
+		{Name: "root_put_and_yaml_put", YAML: v8, Steps: []configStep{
+			put("/config", `{"server":{"port":1},"management":{"secret-key":"fake-secret"}}`),
+			put("/config.yaml", "config-version: 8\nmanagement:\n  secret-key: fake-secret\nserver:\n  port: 2 # yaml\n"),
+			patch("/config.yaml", "{}"),
 		}},
 	}
 }

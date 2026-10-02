@@ -360,3 +360,171 @@ mod routes {
         assert_eq!(compared, 24, "25 recorded steps, minus one trailing-slash redirect");
     }
 }
+
+mod config_writes {
+    use super::*;
+    use cpa_exec::Executors;
+    use cpa_exec::claude::ClaudeExecutor;
+    use cpa_server::Runtime;
+    use cpa_server::management::{Management, Options};
+    use std::sync::Arc;
+
+    /// bcrypt output differs per run; compare its presence, not its bytes.
+    fn normalize(v: &Value) -> Value {
+        match v {
+            Value::String(s) if s.starts_with("$2a$") || s.starts_with("$2b$") => json!("<bcrypt>"),
+            Value::Object(m) => Value::Object(m.iter().map(|(k, v)| (k.clone(), normalize(v))).collect()),
+            Value::Array(a) => Value::Array(a.iter().map(normalize).collect()),
+            other => other.clone(),
+        }
+    }
+
+    /// Go's saver adds default-valued keys to every PUT/PATCH; cliproxy-rs deliberately
+    /// writes only what the request changed (untouched text stays byte-stable). So
+    /// `rust` must equal `go` except for keys Go added whose values are exactly Go's
+    /// materialized defaults at that path.
+    fn same_modulo_defaults(go: &Value, rust: &Value, defaults: &Value, at: &str) -> Result<(), String> {
+        match (go, rust) {
+            (Value::Object(g), Value::Object(r)) => {
+                for (k, rv) in r {
+                    let gv = g.get(k).ok_or(format!("{at}.{k}: only in Rust: {rv}"))?;
+                    same_modulo_defaults(gv, rv, defaults.get(k).unwrap_or(&Value::Null), &format!("{at}.{k}"))?;
+                }
+                for (k, gv) in g {
+                    if !r.contains_key(k) {
+                        only_defaults(gv, defaults.get(k).unwrap_or(&Value::Null), &format!("{at}.{k}"))?;
+                    }
+                }
+                Ok(())
+            }
+            (Value::Array(g), Value::Array(r)) if g.len() == r.len() => {
+                for (i, (gv, rv)) in g.iter().zip(r).enumerate() {
+                    same_modulo_defaults(gv, rv, &Value::Null, &format!("{at}[{i}]"))?;
+                }
+                Ok(())
+            }
+            _ if go == rust => Ok(()),
+            _ => Err(format!("{at}: Go {go} != Rust {rust}")),
+        }
+    }
+
+    /// Go-only keys are acceptable when they are Go's materialized defaults or typed
+    /// zero values its saver writes for struct fields (for example `username: ""` in a
+    /// new list item).
+    fn only_defaults(go: &Value, defaults: &Value, at: &str) -> Result<(), String> {
+        let zero = matches!(go, Value::Null | Value::Bool(false))
+            || go.as_str() == Some("")
+            || go.as_i64() == Some(0)
+            || go.as_array().is_some_and(Vec::is_empty)
+            || go.as_object().is_some_and(serde_json::Map::is_empty);
+        if zero {
+            return Ok(());
+        }
+        match (go, defaults) {
+            (Value::Object(g), Value::Object(d)) => g
+                .iter()
+                .try_for_each(|(k, v)| only_defaults(v, d.get(k).unwrap_or(&Value::Null), &format!("{at}.{k}"))),
+            _ if go == defaults => Ok(()),
+            _ => Err(format!("{at}: Go has {go}, missing in Rust and not a Go default")),
+        }
+    }
+
+    fn rust_yaml_value(text: &str) -> Value {
+        let v: serde_yaml_ng::Value = serde_yaml_ng::from_str(text).unwrap();
+        serde_json::to_value(v).unwrap()
+    }
+
+    #[tokio::test]
+    async fn go_config_v8_writes_replay_value_for_value() {
+        let defaults = normalize(&fixture()["materialized_defaults"]);
+        let hash = bcrypt::hash("fake-secret", 4).unwrap();
+        let client = wreq::Client::new();
+        let mut compared = 0;
+        let mut failures: Vec<String> = Vec::new();
+        for scenario in fixture()["config_writes"].as_array().unwrap() {
+            let name = scenario["name"].as_str().unwrap();
+            let dir = std::env::temp_dir().join(format!("cpa-config-{name}-{}", std::process::id()));
+            std::fs::create_dir_all(&dir).unwrap();
+            let path = dir.join("config.yaml");
+            std::fs::write(&path, scenario["yaml"].as_str().unwrap().replace("$HASH", &hash)).unwrap();
+            let rt = Arc::new(Runtime::new(
+                Config::load(&path).unwrap(),
+                vec![],
+                Executors {
+                    claude: ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
+                },
+            ));
+            let options = Options {
+                management_password: Some(String::new()),
+                ..Options::default()
+            };
+            let (base, server) = super::access::serve(Management::with_options(rt, path.clone(), options)).await;
+            for (i, step) in scenario["steps"].as_array().unwrap().iter().enumerate() {
+                let method: wreq::Method = step["method"].as_str().unwrap().parse().unwrap();
+                let url = format!("{base}/v8/management{}", step["path"].as_str().unwrap());
+                let res = client
+                    .request(method, url)
+                    .header("X-Test-Peer", "127.0.0.1:1")
+                    .bearer_auth("fake-secret")
+                    .body(step["body"].as_str().unwrap_or_default().to_owned())
+                    .send()
+                    .await
+                    .unwrap();
+                let status = res.status().as_u16();
+                let body = res.text().await.unwrap();
+                let at = format!("{name}[{i}] {} {}", step["method"], step["path"]);
+                assert_eq!(status, step["status"], "{at}: {body}");
+                let want = &step["response"];
+                if step["path"] == "/config.yaml" && step["method"] == "GET" && status == 200 {
+                    let got = normalize(&rust_yaml_value(&body));
+                    if let Err(e) = same_modulo_defaults(&normalize(want), &got, &defaults, "yaml view") {
+                        failures.push(format!("{at}: {e}"));
+                    }
+                    let go_archived = step["raw_response"].as_str().unwrap().contains("# mystery-section");
+                    assert_eq!(body.contains("# mystery-section"), go_archived, "{at}: archive in view");
+                } else if want.is_null() {
+                    assert!(body.is_empty(), "{at}: {body}");
+                } else {
+                    let got: Value = serde_json::from_str(&body).unwrap();
+                    if let Some(code) = want.get("error") {
+                        assert_eq!(got["error"], *code, "{at}");
+                        assert_eq!(got.get("field"), want.get("field"), "{at}");
+                        assert_eq!(
+                            got.get("message").is_some(),
+                            want.get("message").is_some(),
+                            "{at}: {got}"
+                        );
+                    } else {
+                        if let Err(e) = same_modulo_defaults(&normalize(want), &normalize(&got), &defaults, "response")
+                        {
+                            failures.push(format!("{at}: {e}"));
+                        }
+                    }
+                }
+                let file = std::fs::read_to_string(&path).unwrap();
+                if let Err(e) = same_modulo_defaults(
+                    &normalize(&step["file"]),
+                    &normalize(&rust_yaml_value(&file)),
+                    &defaults,
+                    "file",
+                ) {
+                    failures.push(format!("{at}: {e}"));
+                }
+                if file.contains("# mystery-section") != step["file_has_archive"].as_bool().unwrap() {
+                    failures.push(format!("{at}: archived section comment presence differs\n{file}"));
+                }
+                // Go keeps the archive in the root foot comment: nothing follows it.
+                if let Some(pos) = file.find("# mystery-section")
+                    && file[pos..].lines().any(|l| !l.trim().is_empty() && !l.starts_with('#'))
+                {
+                    failures.push(format!("{at}: archive is not at the end\n{file}"));
+                }
+                compared += 1;
+            }
+            server.abort();
+            let _ = std::fs::remove_dir_all(&dir);
+        }
+        assert!(failures.is_empty(), "{}", failures.join("\n"));
+        assert_eq!(compared, 44);
+    }
+}

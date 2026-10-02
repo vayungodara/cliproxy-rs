@@ -15,9 +15,11 @@ use serde_yaml_ng::{Mapping, Value};
 
 pub mod credentials;
 mod document;
+mod sanitize;
 mod schema;
+mod text;
 mod trusted;
-pub use document::ConfigDocument;
+pub use document::{ConfigDocument, archive_comments};
 pub use schema::validate as validate_config_fields;
 pub use trusted::{TrustedProxies, go_trim_space};
 
@@ -53,12 +55,19 @@ impl std::fmt::Debug for Config {
     }
 }
 
+/// yaml.v3 decodes any scalar into a Go `string` field; serde would reject numbers.
+fn de_go_string<'de, D: serde::Deserializer<'de>>(d: D) -> Result<String, D::Error> {
+    Ok(go_string(&Value::deserialize(d)?))
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(default, rename_all = "kebab-case")]
 pub struct RoutingConfig {
+    #[serde(deserialize_with = "de_go_string")]
     pub strategy: String,
     pub force_model_prefix: bool,
     pub session_affinity: bool,
+    #[serde(deserialize_with = "de_go_string")]
     pub session_affinity_ttl: String,
     pub session_affinity_subagents: Option<bool>,
     pub retry: RetryConfig,
@@ -86,9 +95,11 @@ pub struct CooldownConfig {
 #[serde(default, rename_all = "kebab-case")]
 pub struct ManagementConfig {
     pub allow_remote: bool,
+    #[serde(deserialize_with = "de_go_string")]
     pub secret_key: String,
     pub disable_control_panel: bool,
     pub disable_auto_update_panel: bool,
+    #[serde(deserialize_with = "de_go_string")]
     pub panel_github_repository: String,
 }
 

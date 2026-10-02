@@ -1,4 +1,3092 @@
 {
+ "materialized_defaults": {
+  "config-version": 8,
+  "credentials": {
+   "concurrency": {
+    "busy-retry-max": "1s",
+    "busy-retry-min": "250ms",
+    "cleanup-interval": "5s",
+    "cpa-cancel-bound": "5s",
+    "cpa-heartbeat-timeout": "3s",
+    "max-limit": 1000000,
+    "reclaim-grace": "5s",
+    "release-flush-interval": "250ms",
+    "release-max-backoff": "2s"
+   },
+   "in-flight": {
+    "max-aggregate-groups": 100000,
+    "max-details": 10000,
+    "max-part-bytes": 262144,
+    "max-part-count": 64,
+    "max-revision-bytes": 16777216,
+    "max-string-bytes": 256,
+    "snapshot-interval": "2s",
+    "staging-retention": "1m",
+    "stale-after": "10s"
+   }
+  },
+  "management": {
+   "secret-key": "$2a$04$k4qCI4NUS0rsjKoUMHkbfeDSqVbcUYDZuf9MXyEwYnh90k4AwuWSq"
+  },
+  "oauth": {
+   "providers": {
+    "aistudio": {
+     "ws-auth": true
+    }
+   }
+  },
+  "observability": {
+   "usage": {
+    "redis-usage-queue-retention-seconds": 60
+   }
+  },
+  "routing": {
+   "cooldown": {
+    "disable-cooling": false
+   },
+   "retry": {
+    "request-retry": 0
+   }
+  },
+  "server": {
+   "discovery": {
+    "service-type": "_ai-gateway._tcp",
+    "subtypes": [
+     "_chat-completions",
+     "_responses",
+     "_messages",
+     "_generate-content",
+     "_interactions"
+    ]
+   }
+  }
+ },
+ "config_writes": [
+  {
+   "name": "owner_legacy_migrates_on_first_write",
+   "yaml": "# Owner config\nhost: \"\"\nport: 8317 # listen\nremote-management:\n  # allow the dashboard\n  allow-remote: true\n  secret-key: \"$HASH\" # hashed\nauth-dir: \"~/.cli-proxy-api\"\napi-keys:\n  - \"sk-fake-owner\"\n# disabled for now\nrequest-retry: 3\nmystery-section:\n  nested: [1, 2]\n",
+   "steps": [
+    {
+     "method": "GET",
+     "path": "/config",
+     "status": 200,
+     "response": {
+      "access": {
+       "api-keys": [
+        "sk-fake-owner"
+       ]
+      },
+      "config-version": 8,
+      "management": {
+       "allow-remote": true,
+       "secret-key": "$2a$04$k4qCI4NUS0rsjKoUMHkbfeDSqVbcUYDZuf9MXyEwYnh90k4AwuWSq"
+      },
+      "oauth": {
+       "auth-dir": "~/.cli-proxy-api"
+      },
+      "routing": {
+       "retry": {
+        "request-retry": 3
+       }
+      },
+      "server": {
+       "host": "",
+       "port": 8317
+      }
+     },
+     "file": {
+      "api-keys": [
+       "sk-fake-owner"
+      ],
+      "auth-dir": "~/.cli-proxy-api",
+      "host": "",
+      "mystery-section": {
+       "nested": [
+        1,
+        2
+       ]
+      },
+      "port": 8317,
+      "remote-management": {
+       "allow-remote": true,
+       "secret-key": "$2a$04$k4qCI4NUS0rsjKoUMHkbfeDSqVbcUYDZuf9MXyEwYnh90k4AwuWSq"
+      },
+      "request-retry": 3
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "GET",
+     "path": "/config.yaml",
+     "status": 200,
+     "response": {
+      "access": {
+       "api-keys": [
+        "sk-fake-owner"
+       ]
+      },
+      "config-version": 8,
+      "management": {
+       "allow-remote": true,
+       "secret-key": "$2a$04$k4qCI4NUS0rsjKoUMHkbfeDSqVbcUYDZuf9MXyEwYnh90k4AwuWSq"
+      },
+      "oauth": {
+       "auth-dir": "~/.cli-proxy-api"
+      },
+      "routing": {
+       "retry": {
+        "request-retry": 3
+       }
+      },
+      "server": {
+       "host": "",
+       "port": 8317
+      }
+     },
+     "raw_response": "access:\n    api-keys:\n        - \"sk-fake-owner\"\nserver:\n    # Owner config\n    host: \"\"\n    port: 8317 # listen\nmanagement:\n    # allow the dashboard\n    allow-remote: true\n    secret-key: \"$2a$04$k4qCI4NUS0rsjKoUMHkbfeDSqVbcUYDZuf9MXyEwYnh90k4AwuWSq\" # hashed\noauth:\n    auth-dir: \"~/.cli-proxy-api\"\nrouting:\n    retry:\n        # disabled for now\n        request-retry: 3\nconfig-version: 8\n\n# mystery-section:\n#     nested: [1, 2]\n",
+     "file": {
+      "api-keys": [
+       "sk-fake-owner"
+      ],
+      "auth-dir": "~/.cli-proxy-api",
+      "host": "",
+      "mystery-section": {
+       "nested": [
+        1,
+        2
+       ]
+      },
+      "port": 8317,
+      "remote-management": {
+       "allow-remote": true,
+       "secret-key": "$2a$04$k4qCI4NUS0rsjKoUMHkbfeDSqVbcUYDZuf9MXyEwYnh90k4AwuWSq"
+      },
+      "request-retry": 3
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "GET",
+     "path": "/config/server",
+     "status": 200,
+     "response": {
+      "host": "",
+      "port": 8317
+     },
+     "file": {
+      "api-keys": [
+       "sk-fake-owner"
+      ],
+      "auth-dir": "~/.cli-proxy-api",
+      "host": "",
+      "mystery-section": {
+       "nested": [
+        1,
+        2
+       ]
+      },
+      "port": 8317,
+      "remote-management": {
+       "allow-remote": true,
+       "secret-key": "$2a$04$k4qCI4NUS0rsjKoUMHkbfeDSqVbcUYDZuf9MXyEwYnh90k4AwuWSq"
+      },
+      "request-retry": 3
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "GET",
+     "path": "/config/nope",
+     "status": 404,
+     "response": {
+      "error": "not_found"
+     },
+     "file": {
+      "api-keys": [
+       "sk-fake-owner"
+      ],
+      "auth-dir": "~/.cli-proxy-api",
+      "host": "",
+      "mystery-section": {
+       "nested": [
+        1,
+        2
+       ]
+      },
+      "port": 8317,
+      "remote-management": {
+       "allow-remote": true,
+       "secret-key": "$2a$04$k4qCI4NUS0rsjKoUMHkbfeDSqVbcUYDZuf9MXyEwYnh90k4AwuWSq"
+      },
+      "request-retry": 3
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "PUT",
+     "path": "/config/routing/strategy",
+     "body": "\"fill-first\"",
+     "status": 200,
+     "response": {
+      "config-version": 8,
+      "status": "ok"
+     },
+     "file": {
+      "access": {
+       "api-keys": [
+        "sk-fake-owner"
+       ]
+      },
+      "config-version": 8,
+      "credentials": {
+       "concurrency": {
+        "busy-retry-max": "1s",
+        "busy-retry-min": "250ms",
+        "cleanup-interval": "5s",
+        "cpa-cancel-bound": "5s",
+        "cpa-heartbeat-timeout": "3s",
+        "max-limit": 1000000,
+        "reclaim-grace": "5s",
+        "release-flush-interval": "250ms",
+        "release-max-backoff": "2s"
+       },
+       "in-flight": {
+        "max-aggregate-groups": 100000,
+        "max-details": 10000,
+        "max-part-bytes": 262144,
+        "max-part-count": 64,
+        "max-revision-bytes": 16777216,
+        "max-string-bytes": 256,
+        "snapshot-interval": "2s",
+        "staging-retention": "1m",
+        "stale-after": "10s"
+       }
+      },
+      "management": {
+       "allow-remote": true,
+       "secret-key": "$2a$04$k4qCI4NUS0rsjKoUMHkbfeDSqVbcUYDZuf9MXyEwYnh90k4AwuWSq"
+      },
+      "oauth": {
+       "auth-dir": "~/.cli-proxy-api",
+       "providers": {
+        "aistudio": {
+         "ws-auth": true
+        }
+       }
+      },
+      "observability": {
+       "usage": {
+        "redis-usage-queue-retention-seconds": 60
+       }
+      },
+      "routing": {
+       "cooldown": {
+        "disable-cooling": false
+       },
+       "retry": {
+        "request-retry": 3
+       },
+       "strategy": "fill-first"
+      },
+      "server": {
+       "discovery": {
+        "service-type": "_ai-gateway._tcp",
+        "subtypes": [
+         "_chat-completions",
+         "_responses",
+         "_messages",
+         "_generate-content",
+         "_interactions"
+        ]
+       },
+       "host": "",
+       "port": 8317
+      }
+     },
+     "file_has_archive": true
+    },
+    {
+     "method": "GET",
+     "path": "/config",
+     "status": 200,
+     "response": {
+      "access": {
+       "api-keys": [
+        "sk-fake-owner"
+       ]
+      },
+      "config-version": 8,
+      "credentials": {
+       "concurrency": {
+        "busy-retry-max": "1s",
+        "busy-retry-min": "250ms",
+        "cleanup-interval": "5s",
+        "cpa-cancel-bound": "5s",
+        "cpa-heartbeat-timeout": "3s",
+        "max-limit": 1000000,
+        "reclaim-grace": "5s",
+        "release-flush-interval": "250ms",
+        "release-max-backoff": "2s"
+       },
+       "in-flight": {
+        "max-aggregate-groups": 100000,
+        "max-details": 10000,
+        "max-part-bytes": 262144,
+        "max-part-count": 64,
+        "max-revision-bytes": 16777216,
+        "max-string-bytes": 256,
+        "snapshot-interval": "2s",
+        "staging-retention": "1m",
+        "stale-after": "10s"
+       }
+      },
+      "management": {
+       "allow-remote": true,
+       "secret-key": "$2a$04$k4qCI4NUS0rsjKoUMHkbfeDSqVbcUYDZuf9MXyEwYnh90k4AwuWSq"
+      },
+      "oauth": {
+       "auth-dir": "~/.cli-proxy-api",
+       "providers": {
+        "aistudio": {
+         "ws-auth": true
+        }
+       }
+      },
+      "observability": {
+       "usage": {
+        "redis-usage-queue-retention-seconds": 60
+       }
+      },
+      "routing": {
+       "cooldown": {
+        "disable-cooling": false
+       },
+       "retry": {
+        "request-retry": 3
+       },
+       "strategy": "fill-first"
+      },
+      "server": {
+       "discovery": {
+        "service-type": "_ai-gateway._tcp",
+        "subtypes": [
+         "_chat-completions",
+         "_responses",
+         "_messages",
+         "_generate-content",
+         "_interactions"
+        ]
+       },
+       "host": "",
+       "port": 8317
+      }
+     },
+     "file": {
+      "access": {
+       "api-keys": [
+        "sk-fake-owner"
+       ]
+      },
+      "config-version": 8,
+      "credentials": {
+       "concurrency": {
+        "busy-retry-max": "1s",
+        "busy-retry-min": "250ms",
+        "cleanup-interval": "5s",
+        "cpa-cancel-bound": "5s",
+        "cpa-heartbeat-timeout": "3s",
+        "max-limit": 1000000,
+        "reclaim-grace": "5s",
+        "release-flush-interval": "250ms",
+        "release-max-backoff": "2s"
+       },
+       "in-flight": {
+        "max-aggregate-groups": 100000,
+        "max-details": 10000,
+        "max-part-bytes": 262144,
+        "max-part-count": 64,
+        "max-revision-bytes": 16777216,
+        "max-string-bytes": 256,
+        "snapshot-interval": "2s",
+        "staging-retention": "1m",
+        "stale-after": "10s"
+       }
+      },
+      "management": {
+       "allow-remote": true,
+       "secret-key": "$2a$04$k4qCI4NUS0rsjKoUMHkbfeDSqVbcUYDZuf9MXyEwYnh90k4AwuWSq"
+      },
+      "oauth": {
+       "auth-dir": "~/.cli-proxy-api",
+       "providers": {
+        "aistudio": {
+         "ws-auth": true
+        }
+       }
+      },
+      "observability": {
+       "usage": {
+        "redis-usage-queue-retention-seconds": 60
+       }
+      },
+      "routing": {
+       "cooldown": {
+        "disable-cooling": false
+       },
+       "retry": {
+        "request-retry": 3
+       },
+       "strategy": "fill-first"
+      },
+      "server": {
+       "discovery": {
+        "service-type": "_ai-gateway._tcp",
+        "subtypes": [
+         "_chat-completions",
+         "_responses",
+         "_messages",
+         "_generate-content",
+         "_interactions"
+        ]
+       },
+       "host": "",
+       "port": 8317
+      }
+     },
+     "file_has_archive": true
+    }
+   ]
+  },
+  {
+   "name": "patch_null_and_delete_prunes_empty_ancestors",
+   "yaml": "config-version: 8\nmanagement:\n  secret-key: '$HASH'\nrouting:\n  strategy: round-robin\n  retry:\n    request-retry: 2\n  cooldown:\n    disable-cooling: true\nserver:\n  mystery-field: 1\n  port: 0\nmystery-section: {a: 1}\n",
+   "steps": [
+    {
+     "method": "PATCH",
+     "path": "/config",
+     "body": "{\"routing\":{\"cooldown\":{\"disable-cooling\":null}}}",
+     "status": 200,
+     "response": {
+      "config-version": 8,
+      "status": "ok"
+     },
+     "file": {
+      "config-version": 8,
+      "credentials": {
+       "concurrency": {
+        "busy-retry-max": "1s",
+        "busy-retry-min": "250ms",
+        "cleanup-interval": "5s",
+        "cpa-cancel-bound": "5s",
+        "cpa-heartbeat-timeout": "3s",
+        "max-limit": 1000000,
+        "reclaim-grace": "5s",
+        "release-flush-interval": "250ms",
+        "release-max-backoff": "2s"
+       },
+       "in-flight": {
+        "max-aggregate-groups": 100000,
+        "max-details": 10000,
+        "max-part-bytes": 262144,
+        "max-part-count": 64,
+        "max-revision-bytes": 16777216,
+        "max-string-bytes": 256,
+        "snapshot-interval": "2s",
+        "staging-retention": "1m",
+        "stale-after": "10s"
+       }
+      },
+      "management": {
+       "secret-key": "$2a$04$k4qCI4NUS0rsjKoUMHkbfeDSqVbcUYDZuf9MXyEwYnh90k4AwuWSq"
+      },
+      "oauth": {
+       "providers": {
+        "aistudio": {
+         "ws-auth": true
+        }
+       }
+      },
+      "observability": {
+       "usage": {
+        "redis-usage-queue-retention-seconds": 60
+       }
+      },
+      "routing": {
+       "cooldown": {
+        "disable-cooling": false
+       },
+       "retry": {
+        "request-retry": 2
+       },
+       "strategy": "round-robin"
+      },
+      "server": {
+       "discovery": {
+        "service-type": "_ai-gateway._tcp",
+        "subtypes": [
+         "_chat-completions",
+         "_responses",
+         "_messages",
+         "_generate-content",
+         "_interactions"
+        ]
+       },
+       "port": 0
+      }
+     },
+     "file_has_archive": true
+    },
+    {
+     "method": "DELETE",
+     "path": "/config/routing/retry/request-retry",
+     "status": 200,
+     "response": {
+      "config-version": 8,
+      "status": "ok"
+     },
+     "file": {
+      "config-version": 8,
+      "credentials": {
+       "concurrency": {
+        "busy-retry-max": "1s",
+        "busy-retry-min": "250ms",
+        "cleanup-interval": "5s",
+        "cpa-cancel-bound": "5s",
+        "cpa-heartbeat-timeout": "3s",
+        "max-limit": 1000000,
+        "reclaim-grace": "5s",
+        "release-flush-interval": "250ms",
+        "release-max-backoff": "2s"
+       },
+       "in-flight": {
+        "max-aggregate-groups": 100000,
+        "max-details": 10000,
+        "max-part-bytes": 262144,
+        "max-part-count": 64,
+        "max-revision-bytes": 16777216,
+        "max-string-bytes": 256,
+        "snapshot-interval": "2s",
+        "staging-retention": "1m",
+        "stale-after": "10s"
+       }
+      },
+      "management": {
+       "secret-key": "$2a$04$k4qCI4NUS0rsjKoUMHkbfeDSqVbcUYDZuf9MXyEwYnh90k4AwuWSq"
+      },
+      "oauth": {
+       "providers": {
+        "aistudio": {
+         "ws-auth": true
+        }
+       }
+      },
+      "observability": {
+       "usage": {
+        "redis-usage-queue-retention-seconds": 60
+       }
+      },
+      "routing": {
+       "cooldown": {
+        "disable-cooling": false
+       },
+       "strategy": "round-robin"
+      },
+      "server": {
+       "discovery": {
+        "service-type": "_ai-gateway._tcp",
+        "subtypes": [
+         "_chat-completions",
+         "_responses",
+         "_messages",
+         "_generate-content",
+         "_interactions"
+        ]
+       },
+       "port": 0
+      }
+     },
+     "file_has_archive": true
+    },
+    {
+     "method": "DELETE",
+     "path": "/config/routing/cooldown/disable-cooling",
+     "status": 200,
+     "response": {
+      "config-version": 8,
+      "status": "ok"
+     },
+     "file": {
+      "config-version": 8,
+      "credentials": {
+       "concurrency": {
+        "busy-retry-max": "1s",
+        "busy-retry-min": "250ms",
+        "cleanup-interval": "5s",
+        "cpa-cancel-bound": "5s",
+        "cpa-heartbeat-timeout": "3s",
+        "max-limit": 1000000,
+        "reclaim-grace": "5s",
+        "release-flush-interval": "250ms",
+        "release-max-backoff": "2s"
+       },
+       "in-flight": {
+        "max-aggregate-groups": 100000,
+        "max-details": 10000,
+        "max-part-bytes": 262144,
+        "max-part-count": 64,
+        "max-revision-bytes": 16777216,
+        "max-string-bytes": 256,
+        "snapshot-interval": "2s",
+        "staging-retention": "1m",
+        "stale-after": "10s"
+       }
+      },
+      "management": {
+       "secret-key": "$2a$04$k4qCI4NUS0rsjKoUMHkbfeDSqVbcUYDZuf9MXyEwYnh90k4AwuWSq"
+      },
+      "oauth": {
+       "providers": {
+        "aistudio": {
+         "ws-auth": true
+        }
+       }
+      },
+      "observability": {
+       "usage": {
+        "redis-usage-queue-retention-seconds": 60
+       }
+      },
+      "routing": {
+       "strategy": "round-robin"
+      },
+      "server": {
+       "discovery": {
+        "service-type": "_ai-gateway._tcp",
+        "subtypes": [
+         "_chat-completions",
+         "_responses",
+         "_messages",
+         "_generate-content",
+         "_interactions"
+        ]
+       },
+       "port": 0
+      }
+     },
+     "file_has_archive": true
+    },
+    {
+     "method": "DELETE",
+     "path": "/config/routing/strategy",
+     "status": 200,
+     "response": {
+      "config-version": 8,
+      "status": "ok"
+     },
+     "file": {
+      "config-version": 8,
+      "credentials": {
+       "concurrency": {
+        "busy-retry-max": "1s",
+        "busy-retry-min": "250ms",
+        "cleanup-interval": "5s",
+        "cpa-cancel-bound": "5s",
+        "cpa-heartbeat-timeout": "3s",
+        "max-limit": 1000000,
+        "reclaim-grace": "5s",
+        "release-flush-interval": "250ms",
+        "release-max-backoff": "2s"
+       },
+       "in-flight": {
+        "max-aggregate-groups": 100000,
+        "max-details": 10000,
+        "max-part-bytes": 262144,
+        "max-part-count": 64,
+        "max-revision-bytes": 16777216,
+        "max-string-bytes": 256,
+        "snapshot-interval": "2s",
+        "staging-retention": "1m",
+        "stale-after": "10s"
+       }
+      },
+      "management": {
+       "secret-key": "$2a$04$k4qCI4NUS0rsjKoUMHkbfeDSqVbcUYDZuf9MXyEwYnh90k4AwuWSq"
+      },
+      "oauth": {
+       "providers": {
+        "aistudio": {
+         "ws-auth": true
+        }
+       }
+      },
+      "observability": {
+       "usage": {
+        "redis-usage-queue-retention-seconds": 60
+       }
+      },
+      "server": {
+       "discovery": {
+        "service-type": "_ai-gateway._tcp",
+        "subtypes": [
+         "_chat-completions",
+         "_responses",
+         "_messages",
+         "_generate-content",
+         "_interactions"
+        ]
+       },
+       "port": 0
+      }
+     },
+     "file_has_archive": true
+    },
+    {
+     "method": "DELETE",
+     "path": "/config/routing/strategy",
+     "status": 404,
+     "response": {
+      "error": "not_found"
+     },
+     "file": {
+      "config-version": 8,
+      "credentials": {
+       "concurrency": {
+        "busy-retry-max": "1s",
+        "busy-retry-min": "250ms",
+        "cleanup-interval": "5s",
+        "cpa-cancel-bound": "5s",
+        "cpa-heartbeat-timeout": "3s",
+        "max-limit": 1000000,
+        "reclaim-grace": "5s",
+        "release-flush-interval": "250ms",
+        "release-max-backoff": "2s"
+       },
+       "in-flight": {
+        "max-aggregate-groups": 100000,
+        "max-details": 10000,
+        "max-part-bytes": 262144,
+        "max-part-count": 64,
+        "max-revision-bytes": 16777216,
+        "max-string-bytes": 256,
+        "snapshot-interval": "2s",
+        "staging-retention": "1m",
+        "stale-after": "10s"
+       }
+      },
+      "management": {
+       "secret-key": "$2a$04$k4qCI4NUS0rsjKoUMHkbfeDSqVbcUYDZuf9MXyEwYnh90k4AwuWSq"
+      },
+      "oauth": {
+       "providers": {
+        "aistudio": {
+         "ws-auth": true
+        }
+       }
+      },
+      "observability": {
+       "usage": {
+        "redis-usage-queue-retention-seconds": 60
+       }
+      },
+      "server": {
+       "discovery": {
+        "service-type": "_ai-gateway._tcp",
+        "subtypes": [
+         "_chat-completions",
+         "_responses",
+         "_messages",
+         "_generate-content",
+         "_interactions"
+        ]
+       },
+       "port": 0
+      }
+     },
+     "file_has_archive": true
+    },
+    {
+     "method": "DELETE",
+     "path": "/config/server/port",
+     "status": 200,
+     "response": {
+      "config-version": 8,
+      "status": "ok"
+     },
+     "file": {
+      "config-version": 8,
+      "credentials": {
+       "concurrency": {
+        "busy-retry-max": "1s",
+        "busy-retry-min": "250ms",
+        "cleanup-interval": "5s",
+        "cpa-cancel-bound": "5s",
+        "cpa-heartbeat-timeout": "3s",
+        "max-limit": 1000000,
+        "reclaim-grace": "5s",
+        "release-flush-interval": "250ms",
+        "release-max-backoff": "2s"
+       },
+       "in-flight": {
+        "max-aggregate-groups": 100000,
+        "max-details": 10000,
+        "max-part-bytes": 262144,
+        "max-part-count": 64,
+        "max-revision-bytes": 16777216,
+        "max-string-bytes": 256,
+        "snapshot-interval": "2s",
+        "staging-retention": "1m",
+        "stale-after": "10s"
+       }
+      },
+      "management": {
+       "secret-key": "$2a$04$k4qCI4NUS0rsjKoUMHkbfeDSqVbcUYDZuf9MXyEwYnh90k4AwuWSq"
+      },
+      "oauth": {
+       "providers": {
+        "aistudio": {
+         "ws-auth": true
+        }
+       }
+      },
+      "observability": {
+       "usage": {
+        "redis-usage-queue-retention-seconds": 60
+       }
+      },
+      "server": {
+       "discovery": {
+        "service-type": "_ai-gateway._tcp",
+        "subtypes": [
+         "_chat-completions",
+         "_responses",
+         "_messages",
+         "_generate-content",
+         "_interactions"
+        ]
+       }
+      }
+     },
+     "file_has_archive": true
+    }
+   ]
+  },
+  {
+   "name": "rejected_writes_leave_the_file",
+   "yaml": "config-version: 8\nmanagement:\n  secret-key: '$HASH'\nrouting:\n  strategy: round-robin\n  retry:\n    request-retry: 2\n  cooldown:\n    disable-cooling: true\nserver:\n  mystery-field: 1\n  port: 0\nmystery-section: {a: 1}\n",
+   "steps": [
+    {
+     "method": "PUT",
+     "path": "/config/server/port",
+     "body": "\"bad\"",
+     "status": 422,
+     "response": {
+      "error": "invalid_config",
+      "message": "parse config payload: yaml: unmarshal errors:\n  line 11: cannot unmarshal !!str `bad` into int"
+     },
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$k4qCI4NUS0rsjKoUMHkbfeDSqVbcUYDZuf9MXyEwYnh90k4AwuWSq"
+      },
+      "mystery-section": {
+       "a": 1
+      },
+      "routing": {
+       "cooldown": {
+        "disable-cooling": true
+       },
+       "retry": {
+        "request-retry": 2
+       },
+       "strategy": "round-robin"
+      },
+      "server": {
+       "mystery-field": 1,
+       "port": 0
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "PUT",
+     "path": "/config/access",
+     "body": "null",
+     "status": 422,
+     "response": {
+      "error": "invalid_config",
+      "message": "access must be a mapping"
+     },
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$k4qCI4NUS0rsjKoUMHkbfeDSqVbcUYDZuf9MXyEwYnh90k4AwuWSq"
+      },
+      "mystery-section": {
+       "a": 1
+      },
+      "routing": {
+       "cooldown": {
+        "disable-cooling": true
+       },
+       "retry": {
+        "request-retry": 2
+       },
+       "strategy": "round-robin"
+      },
+      "server": {
+       "mystery-field": 1,
+       "port": 0
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "PUT",
+     "path": "/config/oauth/providers/codex/unknown",
+     "body": "true",
+     "status": 400,
+     "response": {
+      "error": "invalid_config",
+      "message": "yaml: unmarshal errors:\n  line 3: field oauth not found in type config.legacyConfig"
+     },
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$k4qCI4NUS0rsjKoUMHkbfeDSqVbcUYDZuf9MXyEwYnh90k4AwuWSq"
+      },
+      "mystery-section": {
+       "a": 1
+      },
+      "routing": {
+       "cooldown": {
+        "disable-cooling": true
+       },
+       "retry": {
+        "request-retry": 2
+       },
+       "strategy": "round-robin"
+      },
+      "server": {
+       "mystery-field": 1,
+       "port": 0
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "PUT",
+     "path": "/config/credentials/concurrency/lifecycle-config-revision",
+     "body": "5",
+     "status": 400,
+     "response": {
+      "error": "read_only_field",
+      "field": "credentials/concurrency/lifecycle-config-revision"
+     },
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$k4qCI4NUS0rsjKoUMHkbfeDSqVbcUYDZuf9MXyEwYnh90k4AwuWSq"
+      },
+      "mystery-section": {
+       "a": 1
+      },
+      "routing": {
+       "cooldown": {
+        "disable-cooling": true
+       },
+       "retry": {
+        "request-retry": 2
+       },
+       "strategy": "round-robin"
+      },
+      "server": {
+       "mystery-field": 1,
+       "port": 0
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "PUT",
+     "path": "/config/plugins/auth-revision",
+     "body": "1",
+     "status": 400,
+     "response": {
+      "error": "read_only_field",
+      "field": "plugins/auth-revision"
+     },
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$k4qCI4NUS0rsjKoUMHkbfeDSqVbcUYDZuf9MXyEwYnh90k4AwuWSq"
+      },
+      "mystery-section": {
+       "a": 1
+      },
+      "routing": {
+       "cooldown": {
+        "disable-cooling": true
+       },
+       "retry": {
+        "request-retry": 2
+       },
+       "strategy": "round-robin"
+      },
+      "server": {
+       "mystery-field": 1,
+       "port": 0
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "PUT",
+     "path": "/config/access/api-keys/0",
+     "body": "\"x\"",
+     "status": 422,
+     "response": {
+      "error": "invalid_config",
+      "message": "parse config payload: yaml: unmarshal errors:\n  line 14: cannot unmarshal !!map into []string"
+     },
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$k4qCI4NUS0rsjKoUMHkbfeDSqVbcUYDZuf9MXyEwYnh90k4AwuWSq"
+      },
+      "mystery-section": {
+       "a": 1
+      },
+      "routing": {
+       "cooldown": {
+        "disable-cooling": true
+       },
+       "retry": {
+        "request-retry": 2
+       },
+       "strategy": "round-robin"
+      },
+      "server": {
+       "mystery-field": 1,
+       "port": 0
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "PUT",
+     "path": "/config/routing/strategy/x",
+     "body": "\"x\"",
+     "status": 400,
+     "response": {
+      "error": "invalid_path"
+     },
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$k4qCI4NUS0rsjKoUMHkbfeDSqVbcUYDZuf9MXyEwYnh90k4AwuWSq"
+      },
+      "mystery-section": {
+       "a": 1
+      },
+      "routing": {
+       "cooldown": {
+        "disable-cooling": true
+       },
+       "retry": {
+        "request-retry": 2
+       },
+       "strategy": "round-robin"
+      },
+      "server": {
+       "mystery-field": 1,
+       "port": 0
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "PUT",
+     "path": "/config",
+     "body": "[]",
+     "status": 400,
+     "response": {
+      "error": "config_must_be_object"
+     },
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$k4qCI4NUS0rsjKoUMHkbfeDSqVbcUYDZuf9MXyEwYnh90k4AwuWSq"
+      },
+      "mystery-section": {
+       "a": 1
+      },
+      "routing": {
+       "cooldown": {
+        "disable-cooling": true
+       },
+       "retry": {
+        "request-retry": 2
+       },
+       "strategy": "round-robin"
+      },
+      "server": {
+       "mystery-field": 1,
+       "port": 0
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "PUT",
+     "path": "/config",
+     "body": "{bad",
+     "status": 400,
+     "response": {
+      "error": "invalid_json"
+     },
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$k4qCI4NUS0rsjKoUMHkbfeDSqVbcUYDZuf9MXyEwYnh90k4AwuWSq"
+      },
+      "mystery-section": {
+       "a": 1
+      },
+      "routing": {
+       "cooldown": {
+        "disable-cooling": true
+       },
+       "retry": {
+        "request-retry": 2
+       },
+       "strategy": "round-robin"
+      },
+      "server": {
+       "mystery-field": 1,
+       "port": 0
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "PUT",
+     "path": "/config",
+     "status": 400,
+     "response": {
+      "error": "invalid_json"
+     },
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$k4qCI4NUS0rsjKoUMHkbfeDSqVbcUYDZuf9MXyEwYnh90k4AwuWSq"
+      },
+      "mystery-section": {
+       "a": 1
+      },
+      "routing": {
+       "cooldown": {
+        "disable-cooling": true
+       },
+       "retry": {
+        "request-retry": 2
+       },
+       "strategy": "round-robin"
+      },
+      "server": {
+       "mystery-field": 1,
+       "port": 0
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "PUT",
+     "path": "/config.yaml",
+     "status": 400,
+     "response": {
+      "error": "invalid_body"
+     },
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$k4qCI4NUS0rsjKoUMHkbfeDSqVbcUYDZuf9MXyEwYnh90k4AwuWSq"
+      },
+      "mystery-section": {
+       "a": 1
+      },
+      "routing": {
+       "cooldown": {
+        "disable-cooling": true
+       },
+       "retry": {
+        "request-retry": 2
+       },
+       "strategy": "round-robin"
+      },
+      "server": {
+       "mystery-field": 1,
+       "port": 0
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "PUT",
+     "path": "/config.yaml",
+     "body": "# only a comment",
+     "status": 400,
+     "response": {
+      "error": "invalid_body"
+     },
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$k4qCI4NUS0rsjKoUMHkbfeDSqVbcUYDZuf9MXyEwYnh90k4AwuWSq"
+      },
+      "mystery-section": {
+       "a": 1
+      },
+      "routing": {
+       "cooldown": {
+        "disable-cooling": true
+       },
+       "retry": {
+        "request-retry": 2
+       },
+       "strategy": "round-robin"
+      },
+      "server": {
+       "mystery-field": 1,
+       "port": 0
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "PUT",
+     "path": "/config",
+     "body": "{\"port\": 1}",
+     "status": 400,
+     "response": {
+      "error": "invalid_config",
+      "message": "legacy field port is not accepted by v8; use server.port"
+     },
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$k4qCI4NUS0rsjKoUMHkbfeDSqVbcUYDZuf9MXyEwYnh90k4AwuWSq"
+      },
+      "mystery-section": {
+       "a": 1
+      },
+      "routing": {
+       "cooldown": {
+        "disable-cooling": true
+       },
+       "retry": {
+        "request-retry": 2
+       },
+       "strategy": "round-robin"
+      },
+      "server": {
+       "mystery-field": 1,
+       "port": 0
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "PUT",
+     "path": "/config/api-keys/unknown-provider",
+     "body": "[]",
+     "status": 400,
+     "response": {
+      "error": "invalid_config",
+      "message": "unknown API-key provider unknown-provider"
+     },
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$k4qCI4NUS0rsjKoUMHkbfeDSqVbcUYDZuf9MXyEwYnh90k4AwuWSq"
+      },
+      "mystery-section": {
+       "a": 1
+      },
+      "routing": {
+       "cooldown": {
+        "disable-cooling": true
+       },
+       "retry": {
+        "request-retry": 2
+       },
+       "strategy": "round-robin"
+      },
+      "server": {
+       "mystery-field": 1,
+       "port": 0
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "PUT",
+     "path": "/config/config-version",
+     "body": "7",
+     "status": 422,
+     "response": {
+      "error": "invalid_config",
+      "message": "unsupported config-version (expected 8)"
+     },
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$k4qCI4NUS0rsjKoUMHkbfeDSqVbcUYDZuf9MXyEwYnh90k4AwuWSq"
+      },
+      "mystery-section": {
+       "a": 1
+      },
+      "routing": {
+       "cooldown": {
+        "disable-cooling": true
+       },
+       "retry": {
+        "request-retry": 2
+       },
+       "strategy": "round-robin"
+      },
+      "server": {
+       "mystery-field": 1,
+       "port": 0
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "PUT",
+     "path": "/config/api-keys/claude",
+     "body": "[{\"keys\":[{\"api-key\":\"fake\",\"base-url\":\"https://x.invalid\"}]}]",
+     "status": 422,
+     "response": {
+      "error": "invalid_config",
+      "message": "api-keys.claude: base-url belongs to the group"
+     },
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$k4qCI4NUS0rsjKoUMHkbfeDSqVbcUYDZuf9MXyEwYnh90k4AwuWSq"
+      },
+      "mystery-section": {
+       "a": 1
+      },
+      "routing": {
+       "cooldown": {
+        "disable-cooling": true
+       },
+       "retry": {
+        "request-retry": 2
+       },
+       "strategy": "round-robin"
+      },
+      "server": {
+       "mystery-field": 1,
+       "port": 0
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "PUT",
+     "path": "/config/api-keys/claude",
+     "body": "[{\"keys\":[{\"api-key\":\"fake\",\"weight\":1000001}]}]",
+     "status": 422,
+     "response": {
+      "error": "invalid_config",
+      "message": "api-keys.claude.keys[0].weight: weight must not exceed 1000000"
+     },
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$k4qCI4NUS0rsjKoUMHkbfeDSqVbcUYDZuf9MXyEwYnh90k4AwuWSq"
+      },
+      "mystery-section": {
+       "a": 1
+      },
+      "routing": {
+       "cooldown": {
+        "disable-cooling": true
+       },
+       "retry": {
+        "request-retry": 2
+       },
+       "strategy": "round-robin"
+      },
+      "server": {
+       "mystery-field": 1,
+       "port": 0
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "PATCH",
+     "path": "/config/routing",
+     "body": "{\"retry\":{\"request-retry\":\"three\"}}",
+     "status": 422,
+     "response": {
+      "error": "invalid_config",
+      "message": "parse config payload: yaml: unmarshal errors:\n  line 7: cannot unmarshal !!str `three` into int"
+     },
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$k4qCI4NUS0rsjKoUMHkbfeDSqVbcUYDZuf9MXyEwYnh90k4AwuWSq"
+      },
+      "mystery-section": {
+       "a": 1
+      },
+      "routing": {
+       "cooldown": {
+        "disable-cooling": true
+       },
+       "retry": {
+        "request-retry": 2
+       },
+       "strategy": "round-robin"
+      },
+      "server": {
+       "mystery-field": 1,
+       "port": 0
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "PUT",
+     "path": "/config/routing/session-affinity-ttl",
+     "body": "5",
+     "status": 200,
+     "response": {
+      "config-version": 8,
+      "status": "ok"
+     },
+     "file": {
+      "config-version": 8,
+      "credentials": {
+       "concurrency": {
+        "busy-retry-max": "1s",
+        "busy-retry-min": "250ms",
+        "cleanup-interval": "5s",
+        "cpa-cancel-bound": "5s",
+        "cpa-heartbeat-timeout": "3s",
+        "max-limit": 1000000,
+        "reclaim-grace": "5s",
+        "release-flush-interval": "250ms",
+        "release-max-backoff": "2s"
+       },
+       "in-flight": {
+        "max-aggregate-groups": 100000,
+        "max-details": 10000,
+        "max-part-bytes": 262144,
+        "max-part-count": 64,
+        "max-revision-bytes": 16777216,
+        "max-string-bytes": 256,
+        "snapshot-interval": "2s",
+        "staging-retention": "1m",
+        "stale-after": "10s"
+       }
+      },
+      "management": {
+       "secret-key": "$2a$04$k4qCI4NUS0rsjKoUMHkbfeDSqVbcUYDZuf9MXyEwYnh90k4AwuWSq"
+      },
+      "oauth": {
+       "providers": {
+        "aistudio": {
+         "ws-auth": true
+        }
+       }
+      },
+      "observability": {
+       "usage": {
+        "redis-usage-queue-retention-seconds": 60
+       }
+      },
+      "routing": {
+       "cooldown": {
+        "disable-cooling": true
+       },
+       "retry": {
+        "request-retry": 2
+       },
+       "session-affinity-ttl": "5",
+       "strategy": "round-robin"
+      },
+      "server": {
+       "discovery": {
+        "service-type": "_ai-gateway._tcp",
+        "subtypes": [
+         "_chat-completions",
+         "_responses",
+         "_messages",
+         "_generate-content",
+         "_interactions"
+        ]
+       },
+       "port": 0
+      }
+     },
+     "file_has_archive": true
+    }
+   ]
+  },
+  {
+   "name": "accepted_value_writes",
+   "yaml": "config-version: 8\nmanagement:\n  secret-key: '$HASH'\nrouting:\n  strategy: round-robin\n  retry:\n    request-retry: 2\n  cooldown:\n    disable-cooling: true\nserver:\n  mystery-field: 1\n  port: 0\nmystery-section: {a: 1}\n",
+   "steps": [
+    {
+     "method": "PUT",
+     "path": "/config/api-keys/claude",
+     "body": "[{\"name\":\"team\",\"base-url\":\"https://claude.example.invalid\",\"priority\":3,\"keys\":[{\"api-key\":\"fake-a\"},{\"api-key\":\"fake-b\",\"weight\":0,\"prefix\":null}]}]",
+     "status": 200,
+     "response": {
+      "config-version": 8,
+      "status": "ok"
+     },
+     "file": {
+      "api-keys": {
+       "claude": [
+        {
+         "base-url": "https://claude.example.invalid",
+         "keys": [
+          {
+           "api-key": "fake-a"
+          },
+          {
+           "api-key": "fake-b",
+           "prefix": null,
+           "weight": 0
+          }
+         ],
+         "name": "team",
+         "priority": 3
+        }
+       ]
+      },
+      "config-version": 8,
+      "credentials": {
+       "concurrency": {
+        "busy-retry-max": "1s",
+        "busy-retry-min": "250ms",
+        "cleanup-interval": "5s",
+        "cpa-cancel-bound": "5s",
+        "cpa-heartbeat-timeout": "3s",
+        "max-limit": 1000000,
+        "reclaim-grace": "5s",
+        "release-flush-interval": "250ms",
+        "release-max-backoff": "2s"
+       },
+       "in-flight": {
+        "max-aggregate-groups": 100000,
+        "max-details": 10000,
+        "max-part-bytes": 262144,
+        "max-part-count": 64,
+        "max-revision-bytes": 16777216,
+        "max-string-bytes": 256,
+        "snapshot-interval": "2s",
+        "staging-retention": "1m",
+        "stale-after": "10s"
+       }
+      },
+      "management": {
+       "secret-key": "$2a$04$k4qCI4NUS0rsjKoUMHkbfeDSqVbcUYDZuf9MXyEwYnh90k4AwuWSq"
+      },
+      "oauth": {
+       "providers": {
+        "aistudio": {
+         "ws-auth": true
+        }
+       }
+      },
+      "observability": {
+       "usage": {
+        "redis-usage-queue-retention-seconds": 60
+       }
+      },
+      "routing": {
+       "cooldown": {
+        "disable-cooling": true
+       },
+       "retry": {
+        "request-retry": 2
+       },
+       "strategy": "round-robin"
+      },
+      "server": {
+       "discovery": {
+        "service-type": "_ai-gateway._tcp",
+        "subtypes": [
+         "_chat-completions",
+         "_responses",
+         "_messages",
+         "_generate-content",
+         "_interactions"
+        ]
+       },
+       "port": 0
+      }
+     },
+     "file_has_archive": true
+    },
+    {
+     "method": "PATCH",
+     "path": "/config/oauth",
+     "body": "{\"excluded-models\":{\"claude\":[\"Opus-*\"]},\"model-alias\":{\"claude\":[{\"name\":\"claude-sonnet-4-6\",\"alias\":\"sonnet\"}]}}",
+     "status": 200,
+     "response": {
+      "config-version": 8,
+      "status": "ok"
+     },
+     "file": {
+      "api-keys": {
+       "claude": [
+        {
+         "base-url": "https://claude.example.invalid",
+         "keys": [
+          {
+           "api-key": "fake-a"
+          },
+          {
+           "api-key": "fake-b",
+           "prefix": null,
+           "weight": 0
+          }
+         ],
+         "name": "team",
+         "priority": 3
+        }
+       ]
+      },
+      "config-version": 8,
+      "credentials": {
+       "concurrency": {
+        "busy-retry-max": "1s",
+        "busy-retry-min": "250ms",
+        "cleanup-interval": "5s",
+        "cpa-cancel-bound": "5s",
+        "cpa-heartbeat-timeout": "3s",
+        "max-limit": 1000000,
+        "reclaim-grace": "5s",
+        "release-flush-interval": "250ms",
+        "release-max-backoff": "2s"
+       },
+       "in-flight": {
+        "max-aggregate-groups": 100000,
+        "max-details": 10000,
+        "max-part-bytes": 262144,
+        "max-part-count": 64,
+        "max-revision-bytes": 16777216,
+        "max-string-bytes": 256,
+        "snapshot-interval": "2s",
+        "staging-retention": "1m",
+        "stale-after": "10s"
+       }
+      },
+      "management": {
+       "secret-key": "$2a$04$k4qCI4NUS0rsjKoUMHkbfeDSqVbcUYDZuf9MXyEwYnh90k4AwuWSq"
+      },
+      "oauth": {
+       "excluded-models": {
+        "claude": [
+         "opus-*"
+        ]
+       },
+       "model-alias": {
+        "claude": [
+         {
+          "alias": "sonnet",
+          "name": "claude-sonnet-4-6"
+         }
+        ]
+       },
+       "providers": {
+        "aistudio": {
+         "ws-auth": true
+        }
+       }
+      },
+      "observability": {
+       "usage": {
+        "redis-usage-queue-retention-seconds": 60
+       }
+      },
+      "routing": {
+       "cooldown": {
+        "disable-cooling": true
+       },
+       "retry": {
+        "request-retry": 2
+       },
+       "strategy": "round-robin"
+      },
+      "server": {
+       "discovery": {
+        "service-type": "_ai-gateway._tcp",
+        "subtypes": [
+         "_chat-completions",
+         "_responses",
+         "_messages",
+         "_generate-content",
+         "_interactions"
+        ]
+       },
+       "port": 0
+      }
+     },
+     "file_has_archive": true
+    },
+    {
+     "method": "PUT",
+     "path": "/config/access/api-keys",
+     "body": "[\"fake-client-1\",\"fake-client-2\"]",
+     "status": 200,
+     "response": {
+      "config-version": 8,
+      "status": "ok"
+     },
+     "file": {
+      "access": {
+       "api-keys": [
+        "fake-client-1",
+        "fake-client-2"
+       ]
+      },
+      "api-keys": {
+       "claude": [
+        {
+         "base-url": "https://claude.example.invalid",
+         "keys": [
+          {
+           "api-key": "fake-a"
+          },
+          {
+           "api-key": "fake-b",
+           "prefix": null,
+           "weight": 0
+          }
+         ],
+         "name": "team",
+         "priority": 3
+        }
+       ]
+      },
+      "config-version": 8,
+      "credentials": {
+       "concurrency": {
+        "busy-retry-max": "1s",
+        "busy-retry-min": "250ms",
+        "cleanup-interval": "5s",
+        "cpa-cancel-bound": "5s",
+        "cpa-heartbeat-timeout": "3s",
+        "max-limit": 1000000,
+        "reclaim-grace": "5s",
+        "release-flush-interval": "250ms",
+        "release-max-backoff": "2s"
+       },
+       "in-flight": {
+        "max-aggregate-groups": 100000,
+        "max-details": 10000,
+        "max-part-bytes": 262144,
+        "max-part-count": 64,
+        "max-revision-bytes": 16777216,
+        "max-string-bytes": 256,
+        "snapshot-interval": "2s",
+        "staging-retention": "1m",
+        "stale-after": "10s"
+       }
+      },
+      "management": {
+       "secret-key": "$2a$04$k4qCI4NUS0rsjKoUMHkbfeDSqVbcUYDZuf9MXyEwYnh90k4AwuWSq"
+      },
+      "oauth": {
+       "excluded-models": {
+        "claude": [
+         "opus-*"
+        ]
+       },
+       "model-alias": {
+        "claude": [
+         {
+          "alias": "sonnet",
+          "name": "claude-sonnet-4-6"
+         }
+        ]
+       },
+       "providers": {
+        "aistudio": {
+         "ws-auth": true
+        }
+       }
+      },
+      "observability": {
+       "usage": {
+        "redis-usage-queue-retention-seconds": 60
+       }
+      },
+      "routing": {
+       "cooldown": {
+        "disable-cooling": true
+       },
+       "retry": {
+        "request-retry": 2
+       },
+       "strategy": "round-robin"
+      },
+      "server": {
+       "discovery": {
+        "service-type": "_ai-gateway._tcp",
+        "subtypes": [
+         "_chat-completions",
+         "_responses",
+         "_messages",
+         "_generate-content",
+         "_interactions"
+        ]
+       },
+       "port": 0
+      }
+     },
+     "file_has_archive": true
+    },
+    {
+     "method": "PUT",
+     "path": "/config/requests/payload/default",
+     "body": "[{\"models\":[{\"name\":\"*\",\"protocol\":\"openai\"}],\"params\":{\"temperature\":0.5}}]",
+     "status": 200,
+     "response": {
+      "config-version": 8,
+      "status": "ok"
+     },
+     "file": {
+      "access": {
+       "api-keys": [
+        "fake-client-1",
+        "fake-client-2"
+       ]
+      },
+      "api-keys": {
+       "claude": [
+        {
+         "base-url": "https://claude.example.invalid",
+         "keys": [
+          {
+           "api-key": "fake-a"
+          },
+          {
+           "api-key": "fake-b",
+           "prefix": null,
+           "weight": 0
+          }
+         ],
+         "name": "team",
+         "priority": 3
+        }
+       ]
+      },
+      "config-version": 8,
+      "credentials": {
+       "concurrency": {
+        "busy-retry-max": "1s",
+        "busy-retry-min": "250ms",
+        "cleanup-interval": "5s",
+        "cpa-cancel-bound": "5s",
+        "cpa-heartbeat-timeout": "3s",
+        "max-limit": 1000000,
+        "reclaim-grace": "5s",
+        "release-flush-interval": "250ms",
+        "release-max-backoff": "2s"
+       },
+       "in-flight": {
+        "max-aggregate-groups": 100000,
+        "max-details": 10000,
+        "max-part-bytes": 262144,
+        "max-part-count": 64,
+        "max-revision-bytes": 16777216,
+        "max-string-bytes": 256,
+        "snapshot-interval": "2s",
+        "staging-retention": "1m",
+        "stale-after": "10s"
+       }
+      },
+      "management": {
+       "secret-key": "$2a$04$k4qCI4NUS0rsjKoUMHkbfeDSqVbcUYDZuf9MXyEwYnh90k4AwuWSq"
+      },
+      "oauth": {
+       "excluded-models": {
+        "claude": [
+         "opus-*"
+        ]
+       },
+       "model-alias": {
+        "claude": [
+         {
+          "alias": "sonnet",
+          "name": "claude-sonnet-4-6"
+         }
+        ]
+       },
+       "providers": {
+        "aistudio": {
+         "ws-auth": true
+        }
+       }
+      },
+      "observability": {
+       "usage": {
+        "redis-usage-queue-retention-seconds": 60
+       }
+      },
+      "requests": {
+       "payload": {
+        "default": [
+         {
+          "models": [
+           {
+            "exist": [],
+            "from-protocol": "",
+            "headers": {},
+            "match": [],
+            "name": "*",
+            "not-exist": [],
+            "not-match": [],
+            "protocol": "openai"
+           }
+          ],
+          "params": {
+           "temperature": 0.5
+          }
+         }
+        ]
+       }
+      },
+      "routing": {
+       "cooldown": {
+        "disable-cooling": true
+       },
+       "retry": {
+        "request-retry": 2
+       },
+       "strategy": "round-robin"
+      },
+      "server": {
+       "discovery": {
+        "service-type": "_ai-gateway._tcp",
+        "subtypes": [
+         "_chat-completions",
+         "_responses",
+         "_messages",
+         "_generate-content",
+         "_interactions"
+        ]
+       },
+       "port": 0
+      }
+     },
+     "file_has_archive": true
+    },
+    {
+     "method": "GET",
+     "path": "/config",
+     "status": 200,
+     "response": {
+      "access": {
+       "api-keys": [
+        "fake-client-1",
+        "fake-client-2"
+       ]
+      },
+      "api-keys": {
+       "claude": [
+        {
+         "base-url": "https://claude.example.invalid",
+         "keys": [
+          {
+           "api-key": "fake-a"
+          },
+          {
+           "api-key": "fake-b",
+           "prefix": null,
+           "weight": 0
+          }
+         ],
+         "name": "team",
+         "priority": 3
+        }
+       ]
+      },
+      "config-version": 8,
+      "credentials": {
+       "concurrency": {
+        "busy-retry-max": "1s",
+        "busy-retry-min": "250ms",
+        "cleanup-interval": "5s",
+        "cpa-cancel-bound": "5s",
+        "cpa-heartbeat-timeout": "3s",
+        "max-limit": 1000000,
+        "reclaim-grace": "5s",
+        "release-flush-interval": "250ms",
+        "release-max-backoff": "2s"
+       },
+       "in-flight": {
+        "max-aggregate-groups": 100000,
+        "max-details": 10000,
+        "max-part-bytes": 262144,
+        "max-part-count": 64,
+        "max-revision-bytes": 16777216,
+        "max-string-bytes": 256,
+        "snapshot-interval": "2s",
+        "staging-retention": "1m",
+        "stale-after": "10s"
+       }
+      },
+      "management": {
+       "secret-key": "$2a$04$k4qCI4NUS0rsjKoUMHkbfeDSqVbcUYDZuf9MXyEwYnh90k4AwuWSq"
+      },
+      "oauth": {
+       "excluded-models": {
+        "claude": [
+         "opus-*"
+        ]
+       },
+       "model-alias": {
+        "claude": [
+         {
+          "alias": "sonnet",
+          "name": "claude-sonnet-4-6"
+         }
+        ]
+       },
+       "providers": {
+        "aistudio": {
+         "ws-auth": true
+        }
+       }
+      },
+      "observability": {
+       "usage": {
+        "redis-usage-queue-retention-seconds": 60
+       }
+      },
+      "requests": {
+       "payload": {
+        "default": [
+         {
+          "models": [
+           {
+            "exist": [],
+            "from-protocol": "",
+            "headers": {},
+            "match": [],
+            "name": "*",
+            "not-exist": [],
+            "not-match": [],
+            "protocol": "openai"
+           }
+          ],
+          "params": {
+           "temperature": 0.5
+          }
+         }
+        ]
+       }
+      },
+      "routing": {
+       "cooldown": {
+        "disable-cooling": true
+       },
+       "retry": {
+        "request-retry": 2
+       },
+       "strategy": "round-robin"
+      },
+      "server": {
+       "discovery": {
+        "service-type": "_ai-gateway._tcp",
+        "subtypes": [
+         "_chat-completions",
+         "_responses",
+         "_messages",
+         "_generate-content",
+         "_interactions"
+        ]
+       },
+       "port": 0
+      }
+     },
+     "file": {
+      "access": {
+       "api-keys": [
+        "fake-client-1",
+        "fake-client-2"
+       ]
+      },
+      "api-keys": {
+       "claude": [
+        {
+         "base-url": "https://claude.example.invalid",
+         "keys": [
+          {
+           "api-key": "fake-a"
+          },
+          {
+           "api-key": "fake-b",
+           "prefix": null,
+           "weight": 0
+          }
+         ],
+         "name": "team",
+         "priority": 3
+        }
+       ]
+      },
+      "config-version": 8,
+      "credentials": {
+       "concurrency": {
+        "busy-retry-max": "1s",
+        "busy-retry-min": "250ms",
+        "cleanup-interval": "5s",
+        "cpa-cancel-bound": "5s",
+        "cpa-heartbeat-timeout": "3s",
+        "max-limit": 1000000,
+        "reclaim-grace": "5s",
+        "release-flush-interval": "250ms",
+        "release-max-backoff": "2s"
+       },
+       "in-flight": {
+        "max-aggregate-groups": 100000,
+        "max-details": 10000,
+        "max-part-bytes": 262144,
+        "max-part-count": 64,
+        "max-revision-bytes": 16777216,
+        "max-string-bytes": 256,
+        "snapshot-interval": "2s",
+        "staging-retention": "1m",
+        "stale-after": "10s"
+       }
+      },
+      "management": {
+       "secret-key": "$2a$04$k4qCI4NUS0rsjKoUMHkbfeDSqVbcUYDZuf9MXyEwYnh90k4AwuWSq"
+      },
+      "oauth": {
+       "excluded-models": {
+        "claude": [
+         "opus-*"
+        ]
+       },
+       "model-alias": {
+        "claude": [
+         {
+          "alias": "sonnet",
+          "name": "claude-sonnet-4-6"
+         }
+        ]
+       },
+       "providers": {
+        "aistudio": {
+         "ws-auth": true
+        }
+       }
+      },
+      "observability": {
+       "usage": {
+        "redis-usage-queue-retention-seconds": 60
+       }
+      },
+      "requests": {
+       "payload": {
+        "default": [
+         {
+          "models": [
+           {
+            "exist": [],
+            "from-protocol": "",
+            "headers": {},
+            "match": [],
+            "name": "*",
+            "not-exist": [],
+            "not-match": [],
+            "protocol": "openai"
+           }
+          ],
+          "params": {
+           "temperature": 0.5
+          }
+         }
+        ]
+       }
+      },
+      "routing": {
+       "cooldown": {
+        "disable-cooling": true
+       },
+       "retry": {
+        "request-retry": 2
+       },
+       "strategy": "round-robin"
+      },
+      "server": {
+       "discovery": {
+        "service-type": "_ai-gateway._tcp",
+        "subtypes": [
+         "_chat-completions",
+         "_responses",
+         "_messages",
+         "_generate-content",
+         "_interactions"
+        ]
+       },
+       "port": 0
+      }
+     },
+     "file_has_archive": true
+    },
+    {
+     "method": "PUT",
+     "path": "/config/management/secret-key",
+     "body": "\"fake-rotated\"",
+     "status": 200,
+     "response": {
+      "config-version": 8,
+      "status": "ok"
+     },
+     "file": {
+      "access": {
+       "api-keys": [
+        "fake-client-1",
+        "fake-client-2"
+       ]
+      },
+      "api-keys": {
+       "claude": [
+        {
+         "base-url": "https://claude.example.invalid",
+         "keys": [
+          {
+           "api-key": "fake-a"
+          },
+          {
+           "api-key": "fake-b",
+           "prefix": null,
+           "weight": 0
+          }
+         ],
+         "name": "team",
+         "priority": 3
+        }
+       ]
+      },
+      "config-version": 8,
+      "credentials": {
+       "concurrency": {
+        "busy-retry-max": "1s",
+        "busy-retry-min": "250ms",
+        "cleanup-interval": "5s",
+        "cpa-cancel-bound": "5s",
+        "cpa-heartbeat-timeout": "3s",
+        "max-limit": 1000000,
+        "reclaim-grace": "5s",
+        "release-flush-interval": "250ms",
+        "release-max-backoff": "2s"
+       },
+       "in-flight": {
+        "max-aggregate-groups": 100000,
+        "max-details": 10000,
+        "max-part-bytes": 262144,
+        "max-part-count": 64,
+        "max-revision-bytes": 16777216,
+        "max-string-bytes": 256,
+        "snapshot-interval": "2s",
+        "staging-retention": "1m",
+        "stale-after": "10s"
+       }
+      },
+      "management": {
+       "secret-key": "$2a$10$lUYeGfKzL5e5QAd5OIswFOEG12rT3yQQxG2CSGqN8cagBoaHUtKNC"
+      },
+      "oauth": {
+       "excluded-models": {
+        "claude": [
+         "opus-*"
+        ]
+       },
+       "model-alias": {
+        "claude": [
+         {
+          "alias": "sonnet",
+          "name": "claude-sonnet-4-6"
+         }
+        ]
+       },
+       "providers": {
+        "aistudio": {
+         "ws-auth": true
+        }
+       }
+      },
+      "observability": {
+       "usage": {
+        "redis-usage-queue-retention-seconds": 60
+       }
+      },
+      "requests": {
+       "payload": {
+        "default": [
+         {
+          "models": [
+           {
+            "exist": [],
+            "from-protocol": "",
+            "headers": {},
+            "match": [],
+            "name": "*",
+            "not-exist": [],
+            "not-match": [],
+            "protocol": "openai"
+           }
+          ],
+          "params": {
+           "temperature": 0.5
+          }
+         }
+        ]
+       }
+      },
+      "routing": {
+       "cooldown": {
+        "disable-cooling": true
+       },
+       "retry": {
+        "request-retry": 2
+       },
+       "strategy": "round-robin"
+      },
+      "server": {
+       "discovery": {
+        "service-type": "_ai-gateway._tcp",
+        "subtypes": [
+         "_chat-completions",
+         "_responses",
+         "_messages",
+         "_generate-content",
+         "_interactions"
+        ]
+       },
+       "port": 0
+      }
+     },
+     "file_has_archive": true
+    },
+    {
+     "method": "GET",
+     "path": "/config",
+     "status": 401,
+     "response": {
+      "error": "invalid management key"
+     },
+     "file": {
+      "access": {
+       "api-keys": [
+        "fake-client-1",
+        "fake-client-2"
+       ]
+      },
+      "api-keys": {
+       "claude": [
+        {
+         "base-url": "https://claude.example.invalid",
+         "keys": [
+          {
+           "api-key": "fake-a"
+          },
+          {
+           "api-key": "fake-b",
+           "prefix": null,
+           "weight": 0
+          }
+         ],
+         "name": "team",
+         "priority": 3
+        }
+       ]
+      },
+      "config-version": 8,
+      "credentials": {
+       "concurrency": {
+        "busy-retry-max": "1s",
+        "busy-retry-min": "250ms",
+        "cleanup-interval": "5s",
+        "cpa-cancel-bound": "5s",
+        "cpa-heartbeat-timeout": "3s",
+        "max-limit": 1000000,
+        "reclaim-grace": "5s",
+        "release-flush-interval": "250ms",
+        "release-max-backoff": "2s"
+       },
+       "in-flight": {
+        "max-aggregate-groups": 100000,
+        "max-details": 10000,
+        "max-part-bytes": 262144,
+        "max-part-count": 64,
+        "max-revision-bytes": 16777216,
+        "max-string-bytes": 256,
+        "snapshot-interval": "2s",
+        "staging-retention": "1m",
+        "stale-after": "10s"
+       }
+      },
+      "management": {
+       "secret-key": "$2a$10$lUYeGfKzL5e5QAd5OIswFOEG12rT3yQQxG2CSGqN8cagBoaHUtKNC"
+      },
+      "oauth": {
+       "excluded-models": {
+        "claude": [
+         "opus-*"
+        ]
+       },
+       "model-alias": {
+        "claude": [
+         {
+          "alias": "sonnet",
+          "name": "claude-sonnet-4-6"
+         }
+        ]
+       },
+       "providers": {
+        "aistudio": {
+         "ws-auth": true
+        }
+       }
+      },
+      "observability": {
+       "usage": {
+        "redis-usage-queue-retention-seconds": 60
+       }
+      },
+      "requests": {
+       "payload": {
+        "default": [
+         {
+          "models": [
+           {
+            "exist": [],
+            "from-protocol": "",
+            "headers": {},
+            "match": [],
+            "name": "*",
+            "not-exist": [],
+            "not-match": [],
+            "protocol": "openai"
+           }
+          ],
+          "params": {
+           "temperature": 0.5
+          }
+         }
+        ]
+       }
+      },
+      "routing": {
+       "cooldown": {
+        "disable-cooling": true
+       },
+       "retry": {
+        "request-retry": 2
+       },
+       "strategy": "round-robin"
+      },
+      "server": {
+       "discovery": {
+        "service-type": "_ai-gateway._tcp",
+        "subtypes": [
+         "_chat-completions",
+         "_responses",
+         "_messages",
+         "_generate-content",
+         "_interactions"
+        ]
+       },
+       "port": 0
+      }
+     },
+     "file_has_archive": true
+    }
+   ]
+  },
+  {
+   "name": "turn_secrets_redacted_and_preserved_by_urls",
+   "yaml": "config-version: 8\nmanagement:\n  secret-key: '$HASH'\noauth:\n  providers:\n    codex:\n      live-media-relay:\n        ice-servers:\n          - {urls: ['turn:a.example.invalid'], username: fake-user-a, credential: fake-cred-a}\n          - {urls: ['turn:b.example.invalid'], username: fake-user-b, credential: fake-cred-b}\n",
+   "steps": [
+    {
+     "method": "GET",
+     "path": "/config/oauth/providers/codex/live-media-relay",
+     "status": 200,
+     "response": {
+      "ice-servers": [
+       {
+        "urls": [
+         "turn:a.example.invalid"
+        ]
+       },
+       {
+        "urls": [
+         "turn:b.example.invalid"
+        ]
+       }
+      ]
+     },
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$k4qCI4NUS0rsjKoUMHkbfeDSqVbcUYDZuf9MXyEwYnh90k4AwuWSq"
+      },
+      "oauth": {
+       "providers": {
+        "codex": {
+         "live-media-relay": {
+          "ice-servers": [
+           {
+            "credential": "fake-cred-a",
+            "urls": [
+             "turn:a.example.invalid"
+            ],
+            "username": "fake-user-a"
+           },
+           {
+            "credential": "fake-cred-b",
+            "urls": [
+             "turn:b.example.invalid"
+            ],
+            "username": "fake-user-b"
+           }
+          ]
+         }
+        }
+       }
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "PUT",
+     "path": "/config/oauth/providers/codex/live-media-relay/ice-servers",
+     "body": "[{\"urls\":[\"turn:b.example.invalid\"]},{\"urls\":[\"turn:c.example.invalid\"]},{\"urls\":[\"turn:a.example.invalid\"],\"username\":\"\"}]",
+     "status": 200,
+     "response": {
+      "config-version": 8,
+      "status": "ok"
+     },
+     "file": {
+      "config-version": 8,
+      "credentials": {
+       "concurrency": {
+        "busy-retry-max": "1s",
+        "busy-retry-min": "250ms",
+        "cleanup-interval": "5s",
+        "cpa-cancel-bound": "5s",
+        "cpa-heartbeat-timeout": "3s",
+        "max-limit": 1000000,
+        "reclaim-grace": "5s",
+        "release-flush-interval": "250ms",
+        "release-max-backoff": "2s"
+       },
+       "in-flight": {
+        "max-aggregate-groups": 100000,
+        "max-details": 10000,
+        "max-part-bytes": 262144,
+        "max-part-count": 64,
+        "max-revision-bytes": 16777216,
+        "max-string-bytes": 256,
+        "snapshot-interval": "2s",
+        "staging-retention": "1m",
+        "stale-after": "10s"
+       }
+      },
+      "management": {
+       "secret-key": "$2a$04$k4qCI4NUS0rsjKoUMHkbfeDSqVbcUYDZuf9MXyEwYnh90k4AwuWSq"
+      },
+      "oauth": {
+       "providers": {
+        "aistudio": {
+         "ws-auth": true
+        },
+        "codex": {
+         "live-media-relay": {
+          "ice-servers": [
+           {
+            "credential": "fake-cred-b",
+            "urls": [
+             "turn:b.example.invalid"
+            ],
+            "username": "fake-user-b"
+           },
+           {
+            "credential": "",
+            "urls": [
+             "turn:c.example.invalid"
+            ],
+            "username": ""
+           },
+           {
+            "credential": "fake-cred-a",
+            "urls": [
+             "turn:a.example.invalid"
+            ],
+            "username": ""
+           }
+          ]
+         }
+        }
+       }
+      },
+      "observability": {
+       "usage": {
+        "redis-usage-queue-retention-seconds": 60
+       }
+      },
+      "routing": {
+       "cooldown": {
+        "disable-cooling": false
+       },
+       "retry": {
+        "request-retry": 0
+       }
+      },
+      "server": {
+       "discovery": {
+        "service-type": "_ai-gateway._tcp",
+        "subtypes": [
+         "_chat-completions",
+         "_responses",
+         "_messages",
+         "_generate-content",
+         "_interactions"
+        ]
+       }
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "GET",
+     "path": "/config.yaml",
+     "status": 200,
+     "response": {
+      "config-version": 8,
+      "credentials": {
+       "concurrency": {
+        "busy-retry-max": "1s",
+        "busy-retry-min": "250ms",
+        "cleanup-interval": "5s",
+        "cpa-cancel-bound": "5s",
+        "cpa-heartbeat-timeout": "3s",
+        "max-limit": 1000000,
+        "reclaim-grace": "5s",
+        "release-flush-interval": "250ms",
+        "release-max-backoff": "2s"
+       },
+       "in-flight": {
+        "max-aggregate-groups": 100000,
+        "max-details": 10000,
+        "max-part-bytes": 262144,
+        "max-part-count": 64,
+        "max-revision-bytes": 16777216,
+        "max-string-bytes": 256,
+        "snapshot-interval": "2s",
+        "staging-retention": "1m",
+        "stale-after": "10s"
+       }
+      },
+      "management": {
+       "secret-key": "$2a$04$k4qCI4NUS0rsjKoUMHkbfeDSqVbcUYDZuf9MXyEwYnh90k4AwuWSq"
+      },
+      "oauth": {
+       "providers": {
+        "aistudio": {
+         "ws-auth": true
+        },
+        "codex": {
+         "live-media-relay": {
+          "ice-servers": [
+           {
+            "credential": "fake-cred-b",
+            "urls": [
+             "turn:b.example.invalid"
+            ],
+            "username": "fake-user-b"
+           },
+           {
+            "credential": "",
+            "urls": [
+             "turn:c.example.invalid"
+            ],
+            "username": ""
+           },
+           {
+            "credential": "fake-cred-a",
+            "urls": [
+             "turn:a.example.invalid"
+            ],
+            "username": ""
+           }
+          ]
+         }
+        }
+       }
+      },
+      "observability": {
+       "usage": {
+        "redis-usage-queue-retention-seconds": 60
+       }
+      },
+      "routing": {
+       "cooldown": {
+        "disable-cooling": false
+       },
+       "retry": {
+        "request-retry": 0
+       }
+      },
+      "server": {
+       "discovery": {
+        "service-type": "_ai-gateway._tcp",
+        "subtypes": [
+         "_chat-completions",
+         "_responses",
+         "_messages",
+         "_generate-content",
+         "_interactions"
+        ]
+       }
+      }
+     },
+     "raw_response": "config-version: 8\nmanagement:\n    secret-key: '$2a$04$k4qCI4NUS0rsjKoUMHkbfeDSqVbcUYDZuf9MXyEwYnh90k4AwuWSq'\noauth:\n    providers:\n        codex:\n            live-media-relay:\n                ice-servers:\n                    - \"urls\":\n                        - \"turn:b.example.invalid\"\n                      username: fake-user-b\n                      credential: fake-cred-b\n                    - urls:\n                        - turn:c.example.invalid\n                      username: \"\"\n                      credential: \"\"\n                    - \"urls\":\n                        - \"turn:a.example.invalid\"\n                      \"username\": \"\"\n                      credential: fake-cred-a\n        aistudio:\n            ws-auth: true\ncredentials:\n    concurrency:\n        cpa-heartbeat-timeout: 3s\n        cpa-cancel-bound: 5s\n        reclaim-grace: 5s\n        cleanup-interval: 5s\n        release-flush-interval: 250ms\n        release-max-backoff: 2s\n        busy-retry-min: 250ms\n        busy-retry-max: 1s\n        max-limit: 1000000\n    in-flight:\n        snapshot-interval: 2s\n        stale-after: 10s\n        max-part-bytes: 262144\n        max-part-count: 64\n        max-revision-bytes: 16777216\n        max-aggregate-groups: 100000\n        max-details: 10000\n        max-string-bytes: 256\n        staging-retention: 1m\nserver:\n    discovery:\n        service-type: _ai-gateway._tcp\n        subtypes:\n            - _chat-completions\n            - _responses\n            - _messages\n            - _generate-content\n            - _interactions\nobservability:\n    usage:\n        redis-usage-queue-retention-seconds: 60\nrouting:\n    cooldown:\n        disable-cooling: false\n    retry:\n        request-retry: 0\n",
+     "file": {
+      "config-version": 8,
+      "credentials": {
+       "concurrency": {
+        "busy-retry-max": "1s",
+        "busy-retry-min": "250ms",
+        "cleanup-interval": "5s",
+        "cpa-cancel-bound": "5s",
+        "cpa-heartbeat-timeout": "3s",
+        "max-limit": 1000000,
+        "reclaim-grace": "5s",
+        "release-flush-interval": "250ms",
+        "release-max-backoff": "2s"
+       },
+       "in-flight": {
+        "max-aggregate-groups": 100000,
+        "max-details": 10000,
+        "max-part-bytes": 262144,
+        "max-part-count": 64,
+        "max-revision-bytes": 16777216,
+        "max-string-bytes": 256,
+        "snapshot-interval": "2s",
+        "staging-retention": "1m",
+        "stale-after": "10s"
+       }
+      },
+      "management": {
+       "secret-key": "$2a$04$k4qCI4NUS0rsjKoUMHkbfeDSqVbcUYDZuf9MXyEwYnh90k4AwuWSq"
+      },
+      "oauth": {
+       "providers": {
+        "aistudio": {
+         "ws-auth": true
+        },
+        "codex": {
+         "live-media-relay": {
+          "ice-servers": [
+           {
+            "credential": "fake-cred-b",
+            "urls": [
+             "turn:b.example.invalid"
+            ],
+            "username": "fake-user-b"
+           },
+           {
+            "credential": "",
+            "urls": [
+             "turn:c.example.invalid"
+            ],
+            "username": ""
+           },
+           {
+            "credential": "fake-cred-a",
+            "urls": [
+             "turn:a.example.invalid"
+            ],
+            "username": ""
+           }
+          ]
+         }
+        }
+       }
+      },
+      "observability": {
+       "usage": {
+        "redis-usage-queue-retention-seconds": 60
+       }
+      },
+      "routing": {
+       "cooldown": {
+        "disable-cooling": false
+       },
+       "retry": {
+        "request-retry": 0
+       }
+      },
+      "server": {
+       "discovery": {
+        "service-type": "_ai-gateway._tcp",
+        "subtypes": [
+         "_chat-completions",
+         "_responses",
+         "_messages",
+         "_generate-content",
+         "_interactions"
+        ]
+       }
+      }
+     },
+     "file_has_archive": false
+    }
+   ]
+  },
+  {
+   "name": "root_put_and_yaml_put",
+   "yaml": "config-version: 8\nmanagement:\n  secret-key: '$HASH'\nrouting:\n  strategy: round-robin\n  retry:\n    request-retry: 2\n  cooldown:\n    disable-cooling: true\nserver:\n  mystery-field: 1\n  port: 0\nmystery-section: {a: 1}\n",
+   "steps": [
+    {
+     "method": "PUT",
+     "path": "/config",
+     "body": "{\"server\":{\"port\":1},\"management\":{\"secret-key\":\"fake-secret\"}}",
+     "status": 200,
+     "response": {
+      "config-version": 8,
+      "status": "ok"
+     },
+     "file": {
+      "config-version": 8,
+      "credentials": {
+       "concurrency": {
+        "busy-retry-max": "1s",
+        "busy-retry-min": "250ms",
+        "cleanup-interval": "5s",
+        "cpa-cancel-bound": "5s",
+        "cpa-heartbeat-timeout": "3s",
+        "max-limit": 1000000,
+        "reclaim-grace": "5s",
+        "release-flush-interval": "250ms",
+        "release-max-backoff": "2s"
+       },
+       "in-flight": {
+        "max-aggregate-groups": 100000,
+        "max-details": 10000,
+        "max-part-bytes": 262144,
+        "max-part-count": 64,
+        "max-revision-bytes": 16777216,
+        "max-string-bytes": 256,
+        "snapshot-interval": "2s",
+        "staging-retention": "1m",
+        "stale-after": "10s"
+       }
+      },
+      "management": {
+       "secret-key": "$2a$10$e1TiBpewchg7AGfwphsicOE9.zUbeLxF8mWSe3MrBdKc/gfVFJCum"
+      },
+      "oauth": {
+       "providers": {
+        "aistudio": {
+         "ws-auth": true
+        }
+       }
+      },
+      "observability": {
+       "usage": {
+        "redis-usage-queue-retention-seconds": 60
+       }
+      },
+      "routing": {
+       "cooldown": {
+        "disable-cooling": false
+       },
+       "retry": {
+        "request-retry": 0
+       }
+      },
+      "server": {
+       "discovery": {
+        "service-type": "_ai-gateway._tcp",
+        "subtypes": [
+         "_chat-completions",
+         "_responses",
+         "_messages",
+         "_generate-content",
+         "_interactions"
+        ]
+       },
+       "port": 1
+      }
+     },
+     "file_has_archive": true
+    },
+    {
+     "method": "PUT",
+     "path": "/config.yaml",
+     "body": "config-version: 8\nmanagement:\n  secret-key: fake-secret\nserver:\n  port: 2 # yaml\n",
+     "status": 200,
+     "response": {
+      "config-version": 8,
+      "status": "ok"
+     },
+     "file": {
+      "config-version": 8,
+      "credentials": {
+       "concurrency": {
+        "busy-retry-max": "1s",
+        "busy-retry-min": "250ms",
+        "cleanup-interval": "5s",
+        "cpa-cancel-bound": "5s",
+        "cpa-heartbeat-timeout": "3s",
+        "max-limit": 1000000,
+        "reclaim-grace": "5s",
+        "release-flush-interval": "250ms",
+        "release-max-backoff": "2s"
+       },
+       "in-flight": {
+        "max-aggregate-groups": 100000,
+        "max-details": 10000,
+        "max-part-bytes": 262144,
+        "max-part-count": 64,
+        "max-revision-bytes": 16777216,
+        "max-string-bytes": 256,
+        "snapshot-interval": "2s",
+        "staging-retention": "1m",
+        "stale-after": "10s"
+       }
+      },
+      "management": {
+       "secret-key": "$2a$10$8vDHwkLNbn47iz461M5Nu.iLfUyv7qSV43Qu7YWZI5MuSzSmENKyG"
+      },
+      "oauth": {
+       "providers": {
+        "aistudio": {
+         "ws-auth": true
+        }
+       }
+      },
+      "observability": {
+       "usage": {
+        "redis-usage-queue-retention-seconds": 60
+       }
+      },
+      "routing": {
+       "cooldown": {
+        "disable-cooling": false
+       },
+       "retry": {
+        "request-retry": 0
+       }
+      },
+      "server": {
+       "discovery": {
+        "service-type": "_ai-gateway._tcp",
+        "subtypes": [
+         "_chat-completions",
+         "_responses",
+         "_messages",
+         "_generate-content",
+         "_interactions"
+        ]
+       },
+       "port": 2
+      }
+     },
+     "file_has_archive": true
+    },
+    {
+     "method": "PATCH",
+     "path": "/config.yaml",
+     "body": "{}",
+     "status": 404,
+     "response": null,
+     "file": {
+      "config-version": 8,
+      "credentials": {
+       "concurrency": {
+        "busy-retry-max": "1s",
+        "busy-retry-min": "250ms",
+        "cleanup-interval": "5s",
+        "cpa-cancel-bound": "5s",
+        "cpa-heartbeat-timeout": "3s",
+        "max-limit": 1000000,
+        "reclaim-grace": "5s",
+        "release-flush-interval": "250ms",
+        "release-max-backoff": "2s"
+       },
+       "in-flight": {
+        "max-aggregate-groups": 100000,
+        "max-details": 10000,
+        "max-part-bytes": 262144,
+        "max-part-count": 64,
+        "max-revision-bytes": 16777216,
+        "max-string-bytes": 256,
+        "snapshot-interval": "2s",
+        "staging-retention": "1m",
+        "stale-after": "10s"
+       }
+      },
+      "management": {
+       "secret-key": "$2a$10$8vDHwkLNbn47iz461M5Nu.iLfUyv7qSV43Qu7YWZI5MuSzSmENKyG"
+      },
+      "oauth": {
+       "providers": {
+        "aistudio": {
+         "ws-auth": true
+        }
+       }
+      },
+      "observability": {
+       "usage": {
+        "redis-usage-queue-retention-seconds": 60
+       }
+      },
+      "routing": {
+       "cooldown": {
+        "disable-cooling": false
+       },
+       "retry": {
+        "request-retry": 0
+       }
+      },
+      "server": {
+       "discovery": {
+        "service-type": "_ai-gateway._tcp",
+        "subtypes": [
+         "_chat-completions",
+         "_responses",
+         "_messages",
+         "_generate-content",
+         "_interactions"
+        ]
+       },
+       "port": 2
+      }
+     },
+     "file_has_archive": true
+    }
+   ]
+  }
+ ],
  "client_ip_bytes": [
   {
    "trusted": [
@@ -379,7 +3467,7 @@
       ]
      },
      "status": 200,
-     "resp_body": "{\"config-version\":8,\"management\":{\"secret-key\":\"$2a$04$CCJqN/FR9a.vRl53/GHf2el//wySod.bqD6UQTeOBpsw9PSaFdz3.\"},\"server\":{\"port\":0}}",
+     "resp_body": "{\"config-version\":8,\"management\":{\"secret-key\":\"$2a$04$k4qCI4NUS0rsjKoUMHkbfeDSqVbcUYDZuf9MXyEwYnh90k4AwuWSq\"},\"server\":{\"port\":0}}",
      "resp_headers": {
       "Access-Control-Allow-Headers": "*",
       "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
