@@ -1,6 +1,8 @@
 package executor
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"net/http"
@@ -328,4 +330,111 @@ func TestRSFixKimiReplay(t *testing.T) {
 		down = append(down, d)
 	}
 	rsfixWrite(t, "kimi", rsfixFixture{Name: "claude-replay-sequence", Credential: map[string]any{"type": "kimi", "access_token": "kimi-access-fixture"}, Request: map[string]any{"steps": steps, "session": "sess-1", "api_key": "client-key-1"}, Responses: responses, Upstream: srv.Captured(), Extra: map[string]any{"downstream": down}})
+}
+
+func gzipBody(s string) string {
+	var buf bytes.Buffer
+	w := gzip.NewWriter(&buf)
+	_, _ = w.Write([]byte(s))
+	_ = w.Close()
+	return b64(buf.Bytes())
+}
+
+func TestRSFixKimiTransport(t *testing.T) {
+	rsfixOut(t)
+	buildinfo.Version = "0.1.0"
+	meta := map[string]any{"type": "kimi", "access_token": "kimi-access-fixture", "device_id": "dev-fixture-1"}
+	okJSON := `{"id":"c9","object":"chat.completion","created":9,"model":"k2","choices":[{"index":0,"message":{"role":"assistant","content":"ok"},"finish_reason":"stop"}]}`
+	cases := []struct {
+		name      string
+		attrs     map[string]string
+		client    map[string]string
+		stream    bool
+		body      string
+		responses []rsfixResponse
+	}{
+		{
+			name:      "transport-custom-headers",
+			attrs:     map[string]string{"header:Host": "kimi.internal", "header:Accept-Encoding": "identity", "header:X-Trace": "$X-Client-Trace", "header:Range": "bytes=0-"},
+			client:    map[string]string{"X-Client-Trace": "trace-1"},
+			body:      `{"model":"kimi-k2","messages":[{"role":"user","content":"hi"}]}`,
+			responses: []rsfixResponse{jsonResp(200, okJSON)},
+		},
+		{
+			name:      "transport-redirect-307",
+			body:      `{"model":"kimi-k2","messages":[{"role":"user","content":"hi"}]}`,
+			responses: []rsfixResponse{{Status: 307, Headers: [][2]string{{"Location", "/coding/v1/chat/completions-next"}}}, jsonResp(200, okJSON)},
+		},
+		{
+			name:      "transport-gzip-response",
+			body:      `{"model":"kimi-k2","messages":[{"role":"user","content":"hi"}]}`,
+			responses: []rsfixResponse{{Status: 200, Headers: [][2]string{{"Content-Type", "application/json"}, {"Content-Encoding", "gzip"}}, BodyB64: gzipBody(okJSON)}},
+		},
+		{
+			name:      "transport-explicit-gzip-not-decoded",
+			attrs:     map[string]string{"header:Accept-Encoding": "gzip"},
+			body:      `{"model":"kimi-k2","messages":[{"role":"user","content":"hi"}]}`,
+			responses: []rsfixResponse{{Status: 200, Headers: [][2]string{{"Content-Type", "application/json"}, {"Content-Encoding", "gzip"}}, BodyB64: gzipBody(okJSON)}},
+		},
+		{
+			name:      "transport-json-typed-stream",
+			stream:    true,
+			body:      `{"model":"kimi-k2","stream":true,"messages":[{"role":"user","content":"hi"}]}`,
+			responses: []rsfixResponse{{Status: 200, Headers: [][2]string{{"Content-Type", "application/json"}}, Body: "data: {\"id\":\"c\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"a\\r\\rb\"}}]}\r\n\r\n: keep-alive\n\ndata: [DONE]"}},
+		},
+		{
+			name:   "transport-stream-options-not-object",
+			stream: true,
+			body:   `{"model":"kimi-k2","stream":true,"stream_options":[],"messages":[{"role":"user","content":"hi"}]}`,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			srv := newRSFixServer(t, false, tc.responses...)
+			m := map[string]any{}
+			for k, v := range meta {
+				m[k] = v
+			}
+			m["base_url"] = srv.URL() + "/coding"
+			attrs := map[string]string{}
+			for k, v := range tc.attrs {
+				attrs[k] = v
+			}
+			gin.SetMode(gin.TestMode)
+			ginCtx, _ := gin.CreateTestContext(httptest.NewRecorder())
+			ginCtx.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+			for k, v := range tc.client {
+				ginCtx.Request.Header.Set(k, v)
+			}
+			ctx := context.WithValue(context.Background(), "gin", ginCtx)
+			auth := &cliproxyauth.Auth{ID: "kimi-fixture.json", Provider: "kimi", Attributes: attrs, Metadata: m}
+			req := cliproxyexecutor.Request{Model: "kimi-k2", Payload: []byte(tc.body)}
+			opts := cliproxyexecutor.Options{SourceFormat: sdktranslator.FormatOpenAI, Stream: tc.stream, OriginalRequest: []byte(tc.body), Headers: ginCtx.Request.Header.Clone()}
+			exec := NewKimiExecutor(&config.Config{})
+			var down rsfixDownstream
+			if tc.stream {
+				result, err := exec.ExecuteStream(ctx, auth, req, opts)
+				down.ErrStatus, down.ErrBody = rsfixStatus(err)
+				if result != nil {
+					for chunk := range result.Chunks {
+						if chunk.Err != nil {
+							down.StreamErr = chunk.Err.Error()
+							continue
+						}
+						down.Chunks = append(down.Chunks, string(chunk.Payload))
+					}
+				}
+			} else {
+				resp, err := exec.Execute(ctx, auth, req, opts)
+				down.ErrStatus, down.ErrBody = rsfixStatus(err)
+				down.Body = string(resp.Payload)
+			}
+			var clientHeaders [][2]string
+			for k, v := range tc.client {
+				clientHeaders = append(clientHeaders, [2]string{k, v})
+			}
+			rsfixWrite(t, "kimi", rsfixFixture{Name: tc.name, Credential: map[string]any{"type": "kimi", "access_token": "kimi-access-fixture", "device_id": "dev-fixture-1"}, Attributes: attrs,
+				Request: map[string]any{"source": "openai", "model": "kimi-k2", "stream": tc.stream, "body": tc.body, "headers": clientHeaders}, Responses: tc.responses, Upstream: srv.Captured(), Downstream: down})
+		})
+	}
 }

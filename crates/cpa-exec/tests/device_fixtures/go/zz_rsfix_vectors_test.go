@@ -9,6 +9,8 @@ import (
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/runtime/executor/helps"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/thinking"
 	cliproxyexecutor "github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/executor"
+	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 )
 
 // Pure-function vectors: input -> Go output, for the Rust unit tests.
@@ -20,6 +22,8 @@ func TestRSFixKimiVectors(t *testing.T) {
 		Model string `json:"model,omitempty"`
 		From  string `json:"from,omitempty"`
 		To    string `json:"to,omitempty"`
+		Path  string `json:"path,omitempty"`
+		Value string `json:"value,omitempty"`
 		Out   string `json:"out"`
 		Err   string `json:"err,omitempty"`
 	}
@@ -103,6 +107,47 @@ func TestRSFixKimiVectors(t *testing.T) {
 	} {
 		e := NewKimiExecutor(nil)
 		vectors = append(vectors, vector{Fn: "restore_model", In: tc.in, Model: tc.model, Out: string(e.restoreResponseModel([]byte(tc.in), tc.model))})
+	}
+	for _, tc := range []struct{ fn, in, path, value string }{
+		{"sjson_delete", `{"a": 1, "b": 2, "c": 3}`, "a", ""},
+		{"sjson_delete", `{"a": 1, "b": 2, "c": 3}`, "b", ""},
+		{"sjson_delete", `{"a": 1, "b": 2, "c": 3}`, "c", ""},
+		{"sjson_delete", `{"only":true}`, "only", ""},
+		{"sjson_delete", `[1,2]`, "-1", ""},
+		{"sjson_delete", `{"\"x":1,"y":2}`, `\"x`, ""},
+		{"sjson_delete", `{"t":{"type":"x","effort":"y"}}`, "t.effort", ""},
+		{"sjson_delete", `{"m":[ {"a":1} , {"b":2} ]}`, "m.0", ""},
+		{"sjson_set_str", `{"a":1}`, "model", "k3"},
+		{"sjson_set_str", ` { "a": 1 } `, "b", "x"},
+		{"sjson_set_str", `{}`, "thinking.type", "enabled"},
+		{"sjson_set_str", `{"a":1}`, "b", "é<\"&"},
+		{"sjson_set_str", `{"a":1}`, "b", "plain <tag> & co"},
+		{"sjson_set_str", `[1]`, "3", "x"},
+		{"sjson_set_str", `"scalar"`, "a.b", "x"},
+		{"sjson_set_raw", `{"m":[{"a":1},{"b":2}]}`, "m.1.c", "true"},
+		{"sjson_set_raw", `  `, "a.0", "1"},
+		{"sjson_set_raw", `{"stream_options":[]}`, "stream_options.include_usage", "true"},
+		{"sjson_set_raw", `{"a":[]}`, "a.-1", "5"},
+		{"sjson_set_raw", `{"a":{}}`, "a.x.2", "5"},
+	} {
+		var got []byte
+		var err error
+		switch tc.fn {
+		case "sjson_delete":
+			got, err = sjson.DeleteBytes([]byte(tc.in), tc.path)
+		case "sjson_set_str":
+			got, err = sjson.SetBytes([]byte(tc.in), tc.path, tc.value)
+		default:
+			got, err = sjson.SetRawBytes([]byte(tc.in), tc.path, []byte(tc.value))
+		}
+		v := vector{Fn: tc.fn, In: tc.in, Path: tc.path, Value: tc.value, Out: string(got)}
+		if err != nil {
+			v.Err = err.Error()
+		}
+		vectors = append(vectors, v)
+	}
+	for _, in := range []string{`{"n":1e2}`, `{"n":-12}`, `{"n":0.1}`, `{"n":1.50}`, `{"n":-0}`, `{"n":12345678901234567890}`, `{"n":null}`, `{"n":true}`} {
+		vectors = append(vectors, vector{Fn: "gjson_string", In: in, Out: gjson.Get(in, "n").String()})
 	}
 	raw, _ := json.MarshalIndent(vectors, "", "  ")
 	dir := filepath.Join(out, "kimi")

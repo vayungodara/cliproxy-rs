@@ -11,7 +11,7 @@
 
 use cpa_core::registry::{ModelInfo, ThinkingSupport};
 
-use crate::kimi_json::{delete, set_raw, set_str, valid};
+use crate::kimi_json::{delete, gstr, set_raw, set_str, valid};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 enum Mode {
@@ -315,10 +315,10 @@ fn budget_config(value: i64) -> Config {
 }
 
 fn extract_claude(body: &str) -> Config {
-    let kind = get(body, "thinking.type").str().to_owned();
+    let kind = gstr(&get(body, "thinking.type")).to_owned();
     let effort = || {
         let effort = get(body, "output_config.effort");
-        (effort.kind() == gjson::Kind::String).then(|| effort.str().trim().to_ascii_lowercase())
+        (effort.kind() == gjson::Kind::String).then(|| gstr(&effort).trim().to_ascii_lowercase())
     };
     if kind == "disabled" {
         return Config::none();
@@ -353,7 +353,7 @@ fn extract_gemini(body: &str, provider: &str) -> Config {
         let path = format!("{prefix}.{key}");
         let level = get(body, &path);
         if level.exists() {
-            return level_or_special(level.str());
+            return level_or_special(&gstr(&level));
         }
     }
     for key in ["thinkingBudget", "thinking_budget"] {
@@ -377,7 +377,7 @@ fn extract_interactions(body: &str) -> Config {
     ] {
         let level = get(body, path);
         if level.exists() {
-            return level_or_special(&level.str().trim().to_ascii_lowercase());
+            return level_or_special(&gstr(&level).trim().to_ascii_lowercase());
         }
     }
     for path in [
@@ -401,17 +401,17 @@ fn extract_openai(body: &str) -> Config {
     if !effort.exists() {
         return Config::default();
     }
-    if effort.str() == "none" {
+    if gstr(&effort) == "none" {
         Config::none()
     } else {
-        Config::level(effort.str())
+        Config::level(gstr(&effort))
     }
 }
 
 fn extract_kimi(body: &str) -> Config {
     let kind = get(body, "thinking.type");
     if kind.exists() {
-        match kind.str().trim().to_ascii_lowercase().as_str() {
+        match gstr(&kind).trim().to_ascii_lowercase().as_str() {
             "disabled" => return Config::none(),
             "enabled" if !get(body, "thinking.effort").exists() => return Config::default(),
             _ => {}
@@ -419,7 +419,7 @@ fn extract_kimi(body: &str) -> Config {
     }
     let effort = get(body, "thinking.effort");
     if effort.exists() {
-        let value = effort.str().trim().to_ascii_lowercase();
+        let value = gstr(&effort).trim().to_ascii_lowercase();
         return if value.is_empty() {
             Config::default()
         } else {
@@ -437,10 +437,10 @@ fn extract_codex(body: &str) -> Config {
     if !effort.exists() {
         return Config::default();
     }
-    if effort.str() == "none" {
+    if gstr(&effort) == "none" {
         Config::none()
     } else {
-        Config::level(effort.str())
+        Config::level(gstr(&effort))
     }
 }
 
@@ -462,10 +462,10 @@ fn extract_configuration_update(body: &str) -> Config {
     }
     let mut effort = String::new();
     for item in input.array() {
-        if item.get("type").str() == "configuration_update" {
+        if gstr(&item.get("type")) == "configuration_update" {
             let value = item.get("reasoning.effort");
             if value.kind() == gjson::Kind::String {
-                let normalized = value.str().trim().to_ascii_lowercase();
+                let normalized = gstr(&value).trim().to_ascii_lowercase();
                 if !normalized.is_empty() {
                     effort = normalized;
                 }
@@ -490,13 +490,13 @@ fn strip_configuration_updates(body: &str) -> String {
     let items = input.array();
     let kept: Vec<String> = items
         .iter()
-        .filter(|item| item.get("type").str() != "configuration_update")
+        .filter(|item| gstr(&item.get("type")) != "configuration_update")
         .map(|item| item.json().to_owned())
         .collect();
     if kept.len() == items.len() {
         return body.to_owned();
     }
-    set_raw(body, "input", &format!("[{}]", kept.join(","))).unwrap_or_else(|| body.to_owned())
+    set_raw(body, "input", &format!("[{}]", kept.join(","))).unwrap_or_else(|_| body.to_owned())
 }
 
 fn strip_responses_effort(body: &str) -> String {
@@ -749,9 +749,9 @@ fn apply_kimi(body: &str, config: &Config, info: Option<&ModelInfo>) -> Result<S
     }
     let result = delete(body, "reasoning_effort");
     let result = set_str(&result, "thinking.type", "enabled")
-        .ok_or_else(|| ThinkingError("kimi thinking: failed to set thinking.type".into()))?;
+        .map_err(|e| ThinkingError(format!("kimi thinking: failed to set thinking.type: {e}")))?;
     set_str(&result, "thinking.effort", &effort)
-        .ok_or_else(|| ThinkingError("kimi thinking: failed to set thinking.effort".into()))
+        .map_err(|e| ThinkingError(format!("kimi thinking: failed to set thinking.effort: {e}")))
 }
 
 fn kimi_disabled(body: &str) -> String {
@@ -768,7 +768,7 @@ fn apply_codex(body: &str, config: &Config, info: Option<&ModelInfo>) -> String 
         return body.to_owned();
     }
     let body = if body.is_empty() || !valid(body) { "{}" } else { body };
-    let set_effort = |effort: &str| set_str(body, "reasoning.effort", effort).unwrap_or_else(|| body.to_owned());
+    let set_effort = |effort: &str| set_str(body, "reasoning.effort", effort).unwrap_or_else(|_| body.to_owned());
     if user_defined {
         let effort = match config.mode {
             Mode::Level if config.level.is_empty() => return body.to_owned(),
@@ -859,7 +859,7 @@ fn responses_summary(body: &str, path: &str) -> Option<Summary> {
     }
     match value.kind() {
         gjson::Kind::Null => Some(summary_disabled()),
-        gjson::Kind::String => match value.str().trim().to_ascii_lowercase().as_str() {
+        gjson::Kind::String => match gstr(&value).trim().to_ascii_lowercase().as_str() {
             raw @ ("auto" | "concise" | "detailed") => Some(summary_enabled(raw)),
             "none" => Some(summary_disabled()),
             _ => None,
@@ -873,7 +873,7 @@ fn string_summary(body: &str, path: &str, on: &str, off: &str) -> Option<Summary
     if value.kind() != gjson::Kind::String {
         return None;
     }
-    let raw = value.str().trim().to_ascii_lowercase();
+    let raw = gstr(&value).trim().to_ascii_lowercase();
     if raw == on {
         Some(summary_enabled("auto"))
     } else if raw == off {
@@ -884,7 +884,7 @@ fn string_summary(body: &str, path: &str, on: &str, off: &str) -> Option<Summary
 }
 
 fn claude_accepts_display(body: &str) -> bool {
-    match get(body, "thinking.type").str().trim().to_ascii_lowercase().as_str() {
+    match gstr(&get(body, "thinking.type")).trim().to_ascii_lowercase().as_str() {
         "adaptive" => true,
         "enabled" => {
             let budget = get(body, "thinking.budget_tokens");
@@ -958,7 +958,7 @@ fn extract_summary(body: &str, format: &str) -> Summary {
             if effort.kind() != gjson::Kind::String {
                 return None;
             }
-            match effort.str().trim().to_ascii_lowercase().as_str() {
+            match gstr(&effort).trim().to_ascii_lowercase().as_str() {
                 "" => Some(Summary::default()),
                 "none" => Some(summary_disabled()),
                 _ => Some(summary_enabled("auto")),
@@ -1067,7 +1067,7 @@ fn apply_summary(body: &str, format: &str, summary: Summary) -> String {
         return body.to_owned();
     }
     if summary.mode == SummaryMode::Enabled {
-        let body = set_str(body, "reasoning.summary", summary.detail).unwrap_or_else(|| body.to_owned());
+        let body = set_str(body, "reasoning.summary", summary.detail).unwrap_or_else(|_| body.to_owned());
         return delete(&body, "reasoning.generate_summary");
     }
     let body = delete(body, "reasoning.summary");

@@ -21,7 +21,10 @@ fn cfg() -> Config {
 
 /// Headers whose values depend on the machine or are random per run.
 fn masked(fixture: &serde_json::Value) -> Vec<&'static str> {
-    let mut masked = vec!["Host", "X-Msh-Device-Name", "X-Msh-Device-Model"];
+    let mut masked = vec!["X-Msh-Device-Name", "X-Msh-Device-Model", "Referer"];
+    if fixture["attributes"]["header:Host"].is_null() {
+        masked.push("Host");
+    }
     if fixture["credential"]["device_id"].as_str().is_none_or(str::is_empty) {
         masked.push("X-Msh-Device-Id");
     }
@@ -32,7 +35,8 @@ async fn run(name: &str) -> (serde_json::Value, Vec<Captured>, crate::kimi_fixtu
     let fx = fixture("kimi", name);
     let mock = Mock::start(&fx["responses"]).await;
     let cred = credential("kimi", &fx, Some(("base_url", format!("{}/coding", mock.url))));
-    let result = executor().execute(&claude(), &cred, request(&fx, ""), &cfg()).await;
+    let exec = KimiExecutor::with_client(default_client());
+    let result = exec.execute(&claude(), &cred, request(&fx, ""), &cfg()).await;
     let down = downstream(result).await;
     (fx, mock.captured(), down)
 }
@@ -48,6 +52,12 @@ async fn upstream_requests_match_go_byte_for_byte() {
         "responses-nonstream-reorder-suffix",
         "responses-stream-clamp",
         "responses-compact-rejected",
+        "transport-custom-headers",
+        "transport-redirect-307",
+        "transport-gzip-response",
+        "transport-explicit-gzip-not-decoded",
+        "transport-json-typed-stream",
+        "transport-stream-options-not-object",
     ] {
         let (fx, captured, _) = run(name).await;
         let go: Vec<Captured> = fx["upstream"]
@@ -80,9 +90,20 @@ async fn downstream_results_match_go() {
         "responses-nonstream-reorder-suffix",
         "responses-stream-clamp",
         "responses-compact-rejected",
+        "transport-custom-headers",
+        "transport-redirect-307",
+        "transport-gzip-response",
+        "transport-json-typed-stream",
+        "transport-stream-options-not-object",
     ] {
         let (fx, _, down) = run(name).await;
         let go = &fx["downstream"];
+        // A plain Go error (status -1 in the fixture) is answered with 500 by the handler.
+        if go["err_status"].as_i64() == Some(-1) {
+            assert_eq!(down.err_status, Some(500), "{name}: error status");
+            assert_eq!(down.err_body.as_deref(), go["err_body"].as_str(), "{name}: error body");
+            continue;
+        }
         if let Some(status) = go["err_status"].as_u64() {
             assert_eq!(down.err_status, Some(status as u16), "{name}: error status");
             assert_eq!(down.err_body.as_deref(), go["err_body"].as_str(), "{name}: error body");
@@ -108,6 +129,15 @@ async fn downstream_results_match_go() {
         }
         assert!(down.err_status.is_none(), "{name}: unexpected stream error");
     }
+}
+
+#[tokio::test]
+async fn explicit_accept_encoding_returns_raw_gzip_like_go() {
+    // Go decodes only gzip its transport asked for; a configured Accept-Encoding passes
+    // the compressed bytes through unchanged.
+    let (fx, _, down) = run("transport-explicit-gzip-not-decoded").await;
+    assert_eq!(down.raw, crate::kimi_fixture::response_body(&fx, 0));
+    assert_eq!(&down.raw[..2], &[0x1f, 0x8b]);
 }
 
 #[tokio::test]
@@ -398,6 +428,18 @@ fn pure_functions_match_go_vectors() {
                 restore_response_model(input.as_bytes(), v["model"].as_str().unwrap()).to_vec(),
             )
             .unwrap()),
+            "sjson_delete" => Ok(delete(input, v["path"].as_str().unwrap())),
+            "sjson_set_str" => set_str(
+                input,
+                v["path"].as_str().unwrap(),
+                v["value"].as_str().unwrap_or_default(),
+            ),
+            "sjson_set_raw" => set_raw(
+                input,
+                v["path"].as_str().unwrap(),
+                v["value"].as_str().unwrap_or_default(),
+            ),
+            "gjson_string" => Ok(crate::kimi_json::gstr(&gjson::get(input, "n"))),
             other => panic!("unknown vector {other}"),
         };
         match err {
@@ -477,4 +519,17 @@ async fn claude_replay_sequence_matches_go() {
             "step {i}: model"
         );
     }
+}
+
+#[tokio::test]
+async fn redirect_hop_carries_previous_url_as_referer() {
+    let (_, captured, _) = run("transport-redirect-307").await;
+    assert_eq!(captured.len(), 2);
+    let host = captured[0].header("Host").unwrap();
+    assert_eq!(captured[1].target, "/coding/v1/chat/completions-next");
+    assert_eq!(
+        captured[1].header("Referer"),
+        Some(format!("http://{host}/coding/v1/chat/completions").as_str())
+    );
+    assert_eq!(captured[1].body, captured[0].body, "307 resends the body");
 }

@@ -252,5 +252,178 @@
     "in": "data: {\"type\":\"ping\"}",
     "model": "kimi-k3",
     "out": "data: {\"type\":\"ping\"}"
+  },
+  {
+    "fn": "sjson_delete",
+    "in": "{\"a\": 1, \"b\": 2, \"c\": 3}",
+    "path": "a",
+    "out": "{ \"b\": 2, \"c\": 3}"
+  },
+  {
+    "fn": "sjson_delete",
+    "in": "{\"a\": 1, \"b\": 2, \"c\": 3}",
+    "path": "b",
+    "out": "{\"a\": 1, \"c\": 3}"
+  },
+  {
+    "fn": "sjson_delete",
+    "in": "{\"a\": 1, \"b\": 2, \"c\": 3}",
+    "path": "c",
+    "out": "{\"a\": 1, \"b\": 2}"
+  },
+  {
+    "fn": "sjson_delete",
+    "in": "{\"only\":true}",
+    "path": "only",
+    "out": "{}"
+  },
+  {
+    "fn": "sjson_delete",
+    "in": "[1,2]",
+    "path": "-1",
+    "out": "[1]"
+  },
+  {
+    "fn": "sjson_delete",
+    "in": "{\"\\\"x\":1,\"y\":2}",
+    "path": "\\\"x",
+    "out": "{\"\\\"x\":,\"y\":2}"
+  },
+  {
+    "fn": "sjson_delete",
+    "in": "{\"t\":{\"type\":\"x\",\"effort\":\"y\"}}",
+    "path": "t.effort",
+    "out": "{\"t\":{\"type\":\"x\"}}"
+  },
+  {
+    "fn": "sjson_delete",
+    "in": "{\"m\":[ {\"a\":1} , {\"b\":2} ]}",
+    "path": "m.0",
+    "out": "{\"m\":[  {\"b\":2} ]}"
+  },
+  {
+    "fn": "sjson_set_str",
+    "in": "{\"a\":1}",
+    "path": "model",
+    "value": "k3",
+    "out": "{\"a\":1,\"model\":\"k3\"}"
+  },
+  {
+    "fn": "sjson_set_str",
+    "in": " { \"a\": 1 } ",
+    "path": "b",
+    "value": "x",
+    "out": "{ \"a\": 1 ,\"b\":\"x\"}"
+  },
+  {
+    "fn": "sjson_set_str",
+    "in": "{}",
+    "path": "thinking.type",
+    "value": "enabled",
+    "out": "{\"thinking\":{\"type\":\"enabled\"}}"
+  },
+  {
+    "fn": "sjson_set_str",
+    "in": "{\"a\":1}",
+    "path": "b",
+    "value": "é\u003c\"\u0026",
+    "out": "{\"a\":1,\"b\":\"é\\u003c\\\"\\u0026\"}"
+  },
+  {
+    "fn": "sjson_set_str",
+    "in": "{\"a\":1}",
+    "path": "b",
+    "value": "plain \u003ctag\u003e \u0026 co",
+    "out": "{\"a\":1,\"b\":\"plain \u003ctag\u003e \u0026 co\"}"
+  },
+  {
+    "fn": "sjson_set_str",
+    "in": "[1]",
+    "path": "3",
+    "value": "x",
+    "out": "[1,null,null,\"x\"]"
+  },
+  {
+    "fn": "sjson_set_str",
+    "in": "\"scalar\"",
+    "path": "a.b",
+    "value": "x",
+    "out": "{\"a\":{\"b\":\"x\"}}"
+  },
+  {
+    "fn": "sjson_set_raw",
+    "in": "{\"m\":[{\"a\":1},{\"b\":2}]}",
+    "path": "m.1.c",
+    "value": "true",
+    "out": "{\"m\":[{\"a\":1},{\"b\":2,\"c\":true}]}"
+  },
+  {
+    "fn": "sjson_set_raw",
+    "in": "  ",
+    "path": "a.0",
+    "value": "1",
+    "out": "{\"a\":[1]}"
+  },
+  {
+    "fn": "sjson_set_raw",
+    "in": "{\"stream_options\":[]}",
+    "path": "stream_options.include_usage",
+    "value": "true",
+    "out": "{\"stream_options\":[]}",
+    "err": "cannot set array element for non-numeric key 'include_usage'"
+  },
+  {
+    "fn": "sjson_set_raw",
+    "in": "{\"a\":[]}",
+    "path": "a.-1",
+    "value": "5",
+    "out": "{\"a\":[5]}"
+  },
+  {
+    "fn": "sjson_set_raw",
+    "in": "{\"a\":{}}",
+    "path": "a.x.2",
+    "value": "5",
+    "out": "{\"a\":{\"x\":[null,null,5]}}"
+  },
+  {
+    "fn": "gjson_string",
+    "in": "{\"n\":1e2}",
+    "out": "100"
+  },
+  {
+    "fn": "gjson_string",
+    "in": "{\"n\":-12}",
+    "out": "-12"
+  },
+  {
+    "fn": "gjson_string",
+    "in": "{\"n\":0.1}",
+    "out": "0.1"
+  },
+  {
+    "fn": "gjson_string",
+    "in": "{\"n\":1.50}",
+    "out": "1.5"
+  },
+  {
+    "fn": "gjson_string",
+    "in": "{\"n\":-0}",
+    "out": "-0"
+  },
+  {
+    "fn": "gjson_string",
+    "in": "{\"n\":12345678901234567890}",
+    "out": "12345678901234567890"
+  },
+  {
+    "fn": "gjson_string",
+    "in": "{\"n\":null}",
+    "out": ""
+  },
+  {
+    "fn": "gjson_string",
+    "in": "{\"n\":true}",
+    "out": "true"
   }
 ]

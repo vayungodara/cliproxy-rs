@@ -229,6 +229,12 @@ pub(crate) fn credential(provider: &str, fixture: &Value, base_key: Option<(&str
     )
     .unwrap();
     c.provider = provider.into();
+    if let Some(attrs) = fixture["attributes"].as_object() {
+        for (k, v) in attrs {
+            c.attributes
+                .insert(k.clone(), v.as_str().unwrap_or_default().to_owned());
+        }
+    }
     c
 }
 
@@ -280,6 +286,16 @@ pub(crate) struct Downstream {
     pub chunks: Vec<String>,
     pub err_status: Option<u16>,
     pub err_body: Option<String>,
+    pub raw: Vec<u8>,
+}
+
+/// The raw body of scripted response `index` (base64 bodies decoded).
+pub(crate) fn response_body(fixture: &Value, index: usize) -> Vec<u8> {
+    let r = &fixture["responses"][index];
+    match r["body_b64"].as_str() {
+        Some(b64) if !b64.is_empty() => STANDARD.decode(b64).unwrap(),
+        _ => r["body"].as_str().unwrap_or_default().as_bytes().to_vec(),
+    }
 }
 
 pub(crate) async fn downstream(result: Result<ExecResponse, cpa_core::exec::ExecError>) -> Downstream {
@@ -292,6 +308,7 @@ pub(crate) async fn downstream(result: Result<ExecResponse, cpa_core::exec::Exec
         Ok(response) => match response.body {
             ResponseBody::Buffered(b) => Downstream {
                 body: Some(String::from_utf8_lossy(&b).into_owned()),
+                raw: b.to_vec(),
                 ..Downstream::default()
             },
             ResponseBody::Stream(mut s) => {

@@ -8,6 +8,7 @@
 use std::collections::HashMap;
 use std::sync::Mutex;
 
+use bytes::Bytes;
 use chrono::{DateTime, SecondsFormat, TimeZone, Utc};
 use cpa_core::config::Config;
 use cpa_core::credential::Credential;
@@ -79,6 +80,7 @@ pub(crate) fn canonical_header(name: &str) -> String {
 /// Headers in the order Go's HTTP/1.1 client writes them: Host, User-Agent, Content-Length,
 /// the remaining request headers sorted by canonical name, then the transport's
 /// Accept-Encoding.
+#[derive(Clone)]
 pub(crate) struct GoHeaders {
     headers: Vec<(String, String)>,
 }
@@ -103,41 +105,318 @@ impl GoHeaders {
         self.headers.iter().find(|(n, _)| *n == name).map(|(_, v)| v.as_str())
     }
 
-    /// Applies the headers to a wreq request with Go's wire order and spelling.
-    pub(crate) fn apply(mut self, builder: wreq::RequestBuilder, accept_encoding: bool) -> wreq::RequestBuilder {
-        if accept_encoding && self.get("Accept-Encoding").is_none() {
-            // net/http adds this after the user headers and then decodes transparently.
-            self.headers.push(("Accept-Encoding".into(), "gzip".into()));
-        }
+    pub(crate) fn take(&mut self, name: &str) -> Option<String> {
+        let name = canonical_header(name);
+        let pos = self.headers.iter().position(|(n, _)| *n == name)?;
+        Some(self.headers.remove(pos).1)
+    }
+
+    /// Applies the headers with Go's wire order and spelling. Returns whether the transport
+    /// asked for gzip itself (no explicit Accept-Encoding or Range), which is the only case
+    /// Go decodes transparently.
+    pub(crate) fn apply(mut self, builder: wreq::RequestBuilder) -> (wreq::RequestBuilder, bool) {
+        let auto_gzip = self.get("Accept-Encoding").is_none() && self.get("Range").is_none();
+        // A custom Host header becomes the request Host (util.applyCustomHeaders).
+        let host = self.take("Host").filter(|h| !h.is_empty());
+        self.take("Content-Length");
         let mut order = wreq::header::OrigHeaderMap::new();
         order.insert("Host");
-        let mut rest: Vec<&(String, String)> = Vec::new();
-        let mut tail = None;
-        for header in &self.headers {
-            match header.0.as_str() {
-                "User-Agent" | "Content-Length" | "Host" => {}
-                "Accept-Encoding" if accept_encoding => tail = Some(header),
-                _ => rest.push(header),
-            }
-        }
         order.insert("User-Agent");
         order.insert("Content-Length");
-        rest.sort_by(|a, b| a.0.cmp(&b.0));
-        for (name, _) in &rest {
+        let mut rest: Vec<&String> = self
+            .headers
+            .iter()
+            .map(|(n, _)| n)
+            .filter(|n| *n != "User-Agent")
+            .collect();
+        rest.sort();
+        for name in rest {
             order.insert(name.clone());
         }
-        if let Some((name, _)) = tail {
-            order.insert(name.clone());
+        if auto_gzip {
+            order.insert("Accept-Encoding");
+            self.headers.push(("Accept-Encoding".into(), "gzip".into()));
         }
         let mut builder = builder.orig_headers(order);
+        if let Some(host) = host {
+            builder = builder.header("Host", host);
+        }
         for (name, value) in self.headers {
-            if name == "Host" || name == "Content-Length" {
-                continue;
-            }
             builder = builder.header(name, value);
         }
-        builder
+        (builder, auto_gzip)
     }
+}
+
+/// An upstream response with Go net/http semantics: the body is decoded only for gzip the
+/// transport requested itself, and is never framed or buffered here.
+pub(crate) struct Upstream {
+    pub status: u16,
+    pub headers: HeaderMap,
+    pub body: futures_util::stream::BoxStream<'static, Result<Bytes, ExecError>>,
+}
+
+/// Largest error body kept from an upstream rejection.
+// ponytail: Go reads error bodies without a bound; 16 MiB keeps a hostile upstream from
+// exhausting a small VPS while covering any real provider error.
+pub(crate) const MAX_ERROR_BODY: usize = 16 << 20;
+
+fn body_error(_: std::io::Error) -> ExecError {
+    ExecError::local(502, FailureScope::Transport, "upstream request failed")
+}
+
+/// POSTs `body` the way Go's `http.Client.Do` does, following redirects itself: up to ten
+/// hops, 301/302/303 turn a POST into a body-less GET, 307/308 resend the body, the initial
+/// headers are copied to every hop (credentials only within the original domain), and the
+/// previous URL becomes `Referer`. `timeout` bounds the whole exchange (auth clients only).
+pub(crate) async fn send(
+    client: &wreq::Client,
+    url: &str,
+    headers: GoHeaders,
+    body: String,
+    timeout: Option<std::time::Duration>,
+) -> Result<Upstream, ExecError> {
+    use futures_util::StreamExt;
+    let initial =
+        url::Url::parse(url).map_err(|_| ExecError::local(500, FailureScope::Request, "invalid upstream URL"))?;
+    let explicit_host = headers.get("Host").map(str::to_owned);
+    let explicit_referer = headers.get("Referer").map(str::to_owned);
+    let mut current = initial.clone();
+    let mut method = wreq::Method::POST;
+    let mut include_body = true;
+    let mut strip_sensitive = false;
+    let mut hop_headers = headers.clone();
+    let mut hops = 0;
+    let response = loop {
+        let mut builder = client.request(method.clone(), current.as_str());
+        if let Some(timeout) = timeout {
+            builder = builder.timeout(timeout);
+        }
+        let (builder, auto_gzip) = hop_headers.clone().apply(builder);
+        let builder = if include_body {
+            builder.body(body.clone())
+        } else {
+            builder
+        };
+        let response = builder.send().await.map_err(crate::upstream::transport_error)?;
+        let status = response.status().as_u16();
+        let location = response
+            .headers()
+            .get(http::header::LOCATION)
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or_default()
+            .to_owned();
+        if !matches!(status, 301 | 302 | 303 | 307 | 308) || location.is_empty() {
+            break (response, auto_gzip);
+        }
+        if hops == 10 {
+            return Err(ExecError::local(
+                500,
+                FailureScope::Transport,
+                "stopped after 10 redirects",
+            ));
+        }
+        hops += 1;
+        let next = current.join(&location).map_err(|_| {
+            ExecError::local(
+                500,
+                FailureScope::Transport,
+                format!("failed to parse Location header {location:?}"),
+            )
+        })?;
+        if (301..=303).contains(&status) {
+            include_body = false;
+            if method != wreq::Method::GET && method != wreq::Method::HEAD {
+                method = wreq::Method::GET;
+            }
+        }
+        if !strip_sensitive && initial.host_str() != next.host_str() {
+            let (sub, parent) = (
+                next.host_str().unwrap_or_default(),
+                initial.host_str().unwrap_or_default(),
+            );
+            let subdomain = !sub.contains([':', '%'])
+                && sub.len() > parent.len()
+                && sub.ends_with(parent)
+                && sub.as_bytes()[sub.len() - parent.len() - 1] == b'.';
+            strip_sensitive = sub != parent && !subdomain;
+        }
+        hop_headers = headers.clone();
+        if strip_sensitive {
+            for name in [
+                "Authorization",
+                "Www-Authenticate",
+                "Cookie",
+                "Cookie2",
+                "Proxy-Authorization",
+                "Proxy-Authenticate",
+            ] {
+                hop_headers.take(name);
+            }
+        }
+        if !include_body {
+            for name in [
+                "Content-Encoding",
+                "Content-Language",
+                "Content-Location",
+                "Content-Type",
+            ] {
+                hop_headers.take(name);
+            }
+        }
+        // A custom Host survives only a relative Location.
+        hop_headers.take("Host");
+        if let Some(host) = &explicit_host
+            && url::Url::parse(&location).is_err()
+        {
+            hop_headers.set("Host", host.clone());
+        }
+        hop_headers.take("Referer");
+        if !(current.scheme() == "https" && next.scheme() == "http") {
+            let referer = explicit_referer.clone().unwrap_or_else(|| {
+                let mut last = current.clone();
+                let _ = last.set_username("");
+                let _ = last.set_password(None);
+                last.to_string()
+            });
+            hop_headers.set("Referer", referer);
+        }
+        current = next;
+    };
+    let (response, auto_gzip) = response;
+    let status = response.status().as_u16();
+    let mut headers = response.headers().clone();
+    let gzip = auto_gzip
+        && headers
+            .get(http::header::CONTENT_ENCODING)
+            .and_then(|v| v.to_str().ok())
+            .is_some_and(|v| v.eq_ignore_ascii_case("gzip"));
+    let stream = response.bytes_stream().map(|r| r.map_err(std::io::Error::other));
+    let body = if gzip {
+        headers.remove(http::header::CONTENT_ENCODING);
+        headers.remove(http::header::CONTENT_LENGTH);
+        let reader = tokio::io::BufReader::new(tokio_util::io::StreamReader::new(stream));
+        let mut decoder = async_compression::tokio::bufread::GzipDecoder::new(reader);
+        decoder.multiple_members(true);
+        tokio_util::io::ReaderStream::new(decoder)
+            .map(|r| r.map_err(body_error))
+            .boxed()
+    } else {
+        stream.map(|r| r.map_err(body_error)).boxed()
+    };
+    Ok(Upstream { status, headers, body })
+}
+
+/// `io.ReadAll` up to `limit` bytes; with `lossy`, a read error keeps what arrived (Go's
+/// error path ignores it).
+pub(crate) async fn read_all(
+    mut body: futures_util::stream::BoxStream<'static, Result<Bytes, ExecError>>,
+    limit: usize,
+    lossy: bool,
+) -> Result<Bytes, ExecError> {
+    use futures_util::StreamExt;
+    let mut out = bytes::BytesMut::new();
+    while out.len() < limit {
+        match body.next().await {
+            Some(Ok(chunk)) => out.extend_from_slice(&chunk[..chunk.len().min(limit - out.len())]),
+            Some(Err(_)) if lossy => break,
+            Some(Err(error)) => return Err(error),
+            None => break,
+        }
+    }
+    Ok(out.freeze())
+}
+
+/// `statusErr{code, msg: body}` with the scheduler hints the shared adapter derives.
+pub(crate) async fn status_error(upstream: Upstream) -> ExecError {
+    let body = read_all(upstream.body, MAX_ERROR_BODY, true).await.unwrap_or_default();
+    let now = std::time::SystemTime::now();
+    let retry_after = upstream
+        .headers
+        .get(http::header::RETRY_AFTER)
+        .and_then(|v| v.to_str().ok())
+        .and_then(|raw| crate::quota::retry_after(raw, now))
+        .and_then(|deadline| deadline.duration_since(now).ok());
+    // Same status-only classification as upstream::scope_for.
+    let scope = match upstream.status {
+        401 | 402 | 403 | 408 | 429 | 500.. => FailureScope::Credential,
+        _ => FailureScope::Request,
+    };
+    ExecError {
+        status: upstream.status,
+        scope,
+        body,
+        headers: Box::new(upstream.headers),
+        retry_after,
+        direct: false,
+    }
+}
+
+/// `bufio.Scanner` with `ScanLines`: one item per line without its `\n`, a trailing `\r`
+/// dropped, the final unterminated line included, and Go's error once a line reaches
+/// `max` bytes without a newline.
+pub(crate) fn lines(
+    body: futures_util::stream::BoxStream<'static, Result<Bytes, ExecError>>,
+    max: usize,
+) -> futures_util::stream::BoxStream<'static, Result<Bytes, ExecError>> {
+    use futures_util::StreamExt;
+    struct State {
+        body: futures_util::stream::BoxStream<'static, Result<Bytes, ExecError>>,
+        buf: bytes::BytesMut,
+        scanned: usize,
+        done: bool,
+    }
+    let drop_cr = |line: &[u8]| Bytes::copy_from_slice(line.strip_suffix(b"\r").unwrap_or(line));
+    futures_util::stream::unfold(
+        State {
+            body,
+            buf: bytes::BytesMut::new(),
+            scanned: 0,
+            done: false,
+        },
+        move |mut st| async move {
+            loop {
+                if let Some(pos) = st.buf[st.scanned..].iter().position(|b| *b == b'\n') {
+                    let line = st.buf.split_to(st.scanned + pos + 1);
+                    st.scanned = 0;
+                    return Some((Ok(drop_cr(&line[..line.len() - 1])), st));
+                }
+                st.scanned = st.buf.len();
+                if st.done {
+                    if st.buf.is_empty() {
+                        return None;
+                    }
+                    let line = st.buf.split();
+                    st.scanned = 0;
+                    return Some((Ok(drop_cr(&line)), st));
+                }
+                if st.buf.len() >= max {
+                    st.done = true;
+                    st.buf.clear();
+                    st.scanned = 0;
+                    return Some((
+                        Err(ExecError::local(
+                            500,
+                            FailureScope::Request,
+                            "bufio.Scanner: token too long",
+                        )),
+                        st,
+                    ));
+                }
+                match st.body.next().await {
+                    Some(Ok(chunk)) => st.buf.extend_from_slice(&chunk),
+                    Some(Err(error)) => {
+                        st.done = true;
+                        st.buf.clear();
+                        st.scanned = 0;
+                        return Some((Err(error), st));
+                    }
+                    None => st.done = true,
+                }
+            }
+        },
+    )
+    .boxed()
 }
 
 /// `util.ApplyCustomHeadersFromAttrs`: `header:<Name>` attributes and the file's `headers`
@@ -260,6 +539,7 @@ impl Clients {
         if let Some(client) = cache.get(proxy) {
             return client.clone();
         }
+        // Redirects are followed by `send`, which reproduces Go's per-hop header rules.
         let builder = wreq::Client::builder().redirect(wreq::redirect::Policy::none());
         let built = if direct {
             builder.no_proxy().build()
@@ -278,6 +558,7 @@ impl Clients {
     }
 }
 
+/// Redirects are followed by [`send`], not by wreq.
 pub(crate) fn default_client() -> wreq::Client {
     wreq::Client::builder()
         .redirect(wreq::redirect::Policy::none())
@@ -412,7 +693,7 @@ fn preferred_interval(credential: &Credential) -> Option<chrono::Duration> {
     ];
     let seconds = KEYS.iter().find_map(|k| match credential.metadata.get(*k)? {
         Value::Number(n) => n.as_f64().filter(|v| *v > 0.0),
-        Value::String(s) => parse_go_duration(s).or_else(|| s.trim().parse::<f64>().ok().filter(|v| *v > 0.0)),
+        Value::String(s) => parse_duration_string(s),
         _ => None,
     });
     let seconds = seconds.or_else(|| {
@@ -428,18 +709,51 @@ fn preferred_interval(credential: &Credential) -> Option<chrono::Duration> {
     chrono::Duration::try_milliseconds((seconds * 1000.0) as i64)
 }
 
-fn parse_go_duration(s: &str) -> Option<f64> {
+/// Go `time.ParseDuration`, in seconds.
+pub(crate) fn parse_go_duration(s: &str) -> Option<f64> {
+    let mut rest = s;
+    let negative = rest.starts_with('-');
+    rest = rest.strip_prefix(['-', '+']).unwrap_or(rest);
+    if rest == "0" {
+        return Some(0.0);
+    }
+    if rest.is_empty() {
+        return None;
+    }
+    let mut total = 0.0;
+    while !rest.is_empty() {
+        let digits = rest
+            .find(|c: char| !c.is_ascii_digit() && c != '.')
+            .unwrap_or(rest.len());
+        let number = &rest[..digits];
+        if number.is_empty() || number == "." || number.matches('.').count() > 1 {
+            return None;
+        }
+        rest = &rest[digits..];
+        let unit_len = rest
+            .find(|c: char| c.is_ascii_digit() || c == '.')
+            .unwrap_or(rest.len());
+        let scale = match &rest[..unit_len] {
+            "ns" => 1e-9,
+            "us" | "\u{b5}s" | "\u{3bc}s" => 1e-6,
+            "ms" => 1e-3,
+            "s" => 1.0,
+            "m" => 60.0,
+            "h" => 3600.0,
+            _ => return None,
+        };
+        rest = &rest[unit_len..];
+        total += number.parse::<f64>().ok()? * scale;
+    }
+    Some(if negative { -total } else { total })
+}
+
+/// `parseDurationString`: a Go duration, else plain seconds; non-positive is absent.
+fn parse_duration_string(s: &str) -> Option<f64> {
     let s = s.trim();
-    let (number, unit) = s.split_at(s.find(|c: char| c.is_ascii_alphabetic())?);
-    let n: f64 = number.parse().ok()?;
-    let scale = match unit {
-        "ms" => 0.001,
-        "s" => 1.0,
-        "m" => 60.0,
-        "h" => 3600.0,
-        _ => return None,
-    };
-    Some(n * scale).filter(|v| *v > 0.0)
+    parse_go_duration(s)
+        .filter(|v| *v > 0.0)
+        .or_else(|| s.parse::<f64>().ok().filter(|v| *v > 0.0))
 }
 
 /// Go `shouldRefresh` timing for one credential (backoff and lifecycle gates belong to the
@@ -536,5 +850,39 @@ mod tests {
             serde_json::json!({"type":"kimi","access_token":"o","expires_in":900,"timestamp":1_789_999_900_000u64}),
         );
         assert!(!refresh_due(&c, lead, now));
+        // refresh_interval accepts Go compound durations and plain seconds.
+        let c = credential(
+            serde_json::json!({"type":"kimi","access_token":"o","refresh_interval":"1h30m","last_refresh":1_790_000_000 - 1200}),
+        );
+        assert!(!refresh_due(&c, lead, now));
+        let c = credential(
+            serde_json::json!({"type":"kimi","access_token":"o","refresh_interval":"600","last_refresh":1_790_000_000 - 1200}),
+        );
+        assert!(refresh_due(&c, lead, now));
+        assert_eq!(parse_go_duration("1h30m"), Some(5400.0));
+        assert_eq!(parse_go_duration("1.5h2.5s"), Some(5402.5));
+        assert_eq!(parse_go_duration("300ms"), Some(0.3));
+        assert_eq!(parse_go_duration("10"), None);
+        assert_eq!(parse_go_duration("h"), None);
+    }
+
+    #[tokio::test]
+    async fn lines_follow_bufio_scanner() {
+        use futures_util::StreamExt;
+        let chunks = ["data: a\r\rdata: b", "\r\n\nfinal", ""];
+        let body = futures_util::stream::iter(chunks.map(|c| Ok(Bytes::from(c)))).boxed();
+        let got: Vec<_> = lines(body, 64).map(|r| r.unwrap()).collect().await;
+        assert_eq!(got, ["data: a\r\rdata: b", "", "final"].map(Bytes::from));
+        let long = futures_util::stream::iter([Ok(Bytes::from(vec![b'x'; 70]))]).boxed();
+        let got: Vec<_> = lines(long, 64).collect().await;
+        assert_eq!(got.len(), 1);
+        assert_eq!(got[0].as_ref().unwrap_err().body, "bufio.Scanner: token too long");
+        let exact =
+            futures_util::stream::iter([Ok(Bytes::from(vec![b'x'; 63])), Ok(Bytes::from_static(b"\n"))]).boxed();
+        assert_eq!(
+            lines(exact, 64).count().await,
+            1,
+            "63 bytes plus newline fit a 64-byte buffer"
+        );
     }
 }

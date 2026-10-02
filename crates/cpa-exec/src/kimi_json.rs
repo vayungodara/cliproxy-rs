@@ -56,6 +56,23 @@ pub(crate) fn go_quote(s: &str) -> String {
     out
 }
 
+/// Byte range of the value at one path component, as gjson's `Result.Index`. Array
+/// elements are found by iteration because gjson copies indexed values.
+fn locate(json: &str, part: &str) -> Option<(usize, usize)> {
+    let root = gjson::parse(json);
+    if root.kind() == Kind::Array {
+        let n = numeric(part)?;
+        let items = root.array();
+        let item = items.get(n)?;
+        return offset(json, item).filter(|&i| i > 0).map(|i| (i, item.json().len()));
+    }
+    let found = gjson::get(json, part);
+    if !found.exists() {
+        return None;
+    }
+    offset(json, &found).filter(|&i| i > 0).map(|i| (i, found.json().len()))
+}
+
 /// Byte offset of `value` inside `json`, when gjson returned a borrowed slice.
 fn offset(json: &str, value: &gjson::Value<'_>) -> Option<usize> {
     let raw = value.json();
@@ -71,56 +88,56 @@ fn numeric(part: &str) -> Option<usize> {
 }
 
 /// sjson deleteTailItem: drop the key (and its leading comma) that precedes a value.
+/// Mirrors Go's index arithmetic exactly, including its escaped-quote skip.
 fn delete_tail_item(buf: &mut String) -> bool {
-    let bytes = buf.as_bytes();
-    let mut i = bytes.len();
-    while i > 0 {
-        i -= 1;
-        match bytes[i] {
+    let b = buf.as_bytes();
+    let at = |i: isize| b[i as usize];
+    let mut i = b.len() as isize - 1;
+    while i >= 0 {
+        match at(i) {
             b'[' => return true,
             b',' => {
-                buf.truncate(i);
+                buf.truncate(i as usize);
                 return false;
             }
             b':' => {
-                // Scan back over the key string to the ',' or '{' before it.
-                let mut j = i;
-                while j > 0 {
-                    j -= 1;
-                    if bytes[j] != b'"' {
-                        continue;
-                    }
-                    while j > 0 {
-                        j -= 1;
-                        if bytes[j] != b'"' {
-                            continue;
-                        }
-                        if j > 0 && bytes[j - 1] == b'\\' {
-                            j -= 1;
-                            continue;
-                        }
-                        while j > 0 {
-                            j -= 1;
-                            match bytes[j] {
-                                b'{' => {
-                                    buf.truncate(j + 1);
-                                    return true;
+                i -= 1;
+                while i >= 0 {
+                    if at(i) == b'"' {
+                        i -= 1;
+                        while i >= 0 {
+                            if at(i) == b'"' {
+                                i -= 1;
+                                if i >= 0 && at(i) == b'\\' {
+                                    i -= 2;
+                                    continue;
                                 }
-                                b',' => {
-                                    buf.truncate(j);
-                                    return false;
+                                while i >= 0 {
+                                    match at(i) {
+                                        b'{' => {
+                                            buf.truncate(i as usize + 1);
+                                            return true;
+                                        }
+                                        b',' => {
+                                            buf.truncate(i as usize);
+                                            return false;
+                                        }
+                                        _ => {}
+                                    }
+                                    i -= 1;
                                 }
-                                _ => {}
                             }
+                            i -= 1;
                         }
-                        return false;
+                        break;
                     }
-                    return false;
+                    i -= 1;
                 }
                 return false;
             }
             _ => {}
         }
+        i -= 1;
     }
     false
 }
@@ -159,7 +176,7 @@ fn append_build(buf: &mut String, array: bool, paths: &[&str], raw: &str, string
 enum Outcome {
     Changed,
     NoChange,
-    Invalid,
+    Invalid(String),
 }
 
 fn append_raw_paths(
@@ -170,11 +187,26 @@ fn append_raw_paths(
     stringify_value: bool,
     del: bool,
 ) -> Outcome {
-    let found = gjson::get(json, paths[0]);
-    if found.exists()
-        && let Some(index) = offset(json, &found).filter(|&i| i > 0)
-    {
-        let end = index + found.json().len();
+    // Deleting "-1" removes the last array element (sjson resolves it to length-1).
+    let last;
+    let lookup = if del && paths[0] == "-1" {
+        let root = gjson::parse(json);
+        let count = if root.kind() == Kind::Array {
+            root.array().len()
+        } else {
+            0
+        };
+        if count > 0 {
+            last = (count - 1).to_string();
+            last.as_str()
+        } else {
+            paths[0]
+        }
+    } else {
+        paths[0]
+    };
+    if let Some((index, len)) = locate(json, lookup) {
+        let end = index + len;
         buf.push_str(&json[..index]);
         if paths.len() > 1 {
             let outcome = append_raw_paths(buf, &json[index..end], &paths[1..], raw, stringify_value, del);
@@ -236,7 +268,7 @@ fn append_raw_paths(
         _ => {
             let Some(n) = index else {
                 if paths[0] != "-1" {
-                    return Outcome::Invalid;
+                    return Outcome::Invalid(format!("cannot set array element for non-numeric key '{}'", paths[0]));
                 }
                 let trimmed = doc.trim_matches(|c: char| c <= ' ');
                 buf.push_str(trimmed.strip_suffix(']').unwrap_or(trimmed));
@@ -265,29 +297,49 @@ fn append_raw_paths(
     }
 }
 
-fn set(json: &str, path: &str, raw: &str, stringify_value: bool, del: bool) -> Option<String> {
+/// An sjson error, with sjson's message.
+pub(crate) type Edit = Result<String, String>;
+
+fn set(json: &str, path: &str, raw: &str, stringify_value: bool, del: bool) -> Edit {
+    if path.is_empty() {
+        return Err("path cannot be empty".into());
+    }
     let paths: Vec<&str> = path.split('.').collect();
     let mut buf = String::with_capacity(json.len() + raw.len() + path.len() + 4);
     match append_raw_paths(&mut buf, json, &paths, raw, stringify_value, del) {
-        Outcome::Changed => Some(buf),
-        Outcome::NoChange => Some(json.to_owned()),
-        Outcome::Invalid => None,
+        Outcome::Changed => Ok(buf),
+        Outcome::NoChange => Ok(json.to_owned()),
+        Outcome::Invalid(message) => Err(message),
     }
 }
 
-/// sjson `SetRawBytes`. `None` mirrors an sjson error (the caller keeps its body).
-pub(crate) fn set_raw(json: &str, path: &str, raw: &str) -> Option<String> {
+/// sjson `SetRawBytes`.
+pub(crate) fn set_raw(json: &str, path: &str, raw: &str) -> Edit {
     set(json, path, raw, false, false)
 }
 
 /// sjson `SetBytes` with a string value.
-pub(crate) fn set_str(json: &str, path: &str, value: &str) -> Option<String> {
+pub(crate) fn set_str(json: &str, path: &str, value: &str) -> Edit {
     set(json, path, value, true, false)
 }
 
 /// sjson `DeleteBytes`; a missing path leaves the body unchanged.
 pub(crate) fn delete(json: &str, path: &str) -> String {
-    set(json, path, "", false, true).unwrap_or_else(|| json.to_owned())
+    set(json, path, "", false, true).unwrap_or_else(|_| json.to_owned())
+}
+
+/// gjson `Result.String()`: integers keep their literal, other numbers use Go's shortest
+/// decimal form without an exponent; null is empty.
+pub(crate) fn gstr(value: &gjson::Value<'_>) -> String {
+    if value.kind() != Kind::Number {
+        return value.str().to_owned();
+    }
+    let raw = value.json();
+    let digits = raw.strip_prefix('-').unwrap_or(raw);
+    if !digits.is_empty() && digits.bytes().all(|b| b.is_ascii_digit()) {
+        return raw.to_owned();
+    }
+    format!("{}", value.f64())
 }
 
 /// A decoded JSON value in Go's `map[string]any` model (decoder.UseNumber()).
@@ -458,6 +510,10 @@ mod tests {
             r#"{"m":[{"a":1},{"b":2,"c":true}]}"#
         );
         assert_eq!(set_raw("  ", "a.0", "1").unwrap(), r#"{"a":[1]}"#);
+        assert_eq!(
+            set_raw(r#"{"stream_options":[]}"#, "stream_options.include_usage", "true"),
+            Err("cannot set array element for non-numeric key 'include_usage'".to_owned())
+        );
         // Non-ASCII and quotes go through encoding/json, which escapes HTML too.
         assert_eq!(stringify("a<b"), "\"a<b\"");
         assert_eq!(stringify("é<\""), "\"é\\u003c\\\"\"");
@@ -471,6 +527,10 @@ mod tests {
         assert_eq!(delete(body, "c"), r#"{"a": 1, "b": 2}"#);
         assert_eq!(delete(r#"{"only":true}"#, "only"), "{}");
         assert_eq!(delete(body, "missing"), body);
+        assert_eq!(delete("[1,2]", "-1"), "[1]");
+        // Go's backward scan skips a byte after an escaped quote and leaves malformed JSON
+        // for a key that itself contains one; parity keeps sjson's exact output.
+        assert_eq!(delete(r#"{"\"x":1,"y":2}"#, "\\\"x"), r#"{"\"x":,"y":2}"#);
         assert_eq!(
             delete(r#"{"t":{"type":"x","effort":"y"}}"#, "t.effort"),
             r#"{"t":{"type":"x"}}"#

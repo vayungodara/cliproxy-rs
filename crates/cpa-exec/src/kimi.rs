@@ -14,7 +14,7 @@
 use std::collections::VecDeque;
 use std::sync::Arc;
 
-use bytes::{Bytes, BytesMut};
+use bytes::Bytes;
 use cpa_core::config::Config;
 use cpa_core::credential::{Credential, MetadataPatch};
 use cpa_core::exec::{ExecError, ExecRequest, ExecResponse, ExecStream, FailureScope, Operation, ResponseBody};
@@ -25,13 +25,12 @@ use futures_util::StreamExt;
 use crate::claude::ClaudeExecutor;
 use crate::kimi_auth::{self, DeviceFlow};
 use crate::kimi_http::{
-    BUILD_VERSION, Clients, GoHeaders, custom_headers, default_client, go_arch, go_os, hostname, proxy_url,
-    refresh_due, rfc3339_local_now,
+    BUILD_VERSION, Clients, GoHeaders, Upstream, custom_headers, default_client, go_arch, go_os, hostname, lines,
+    proxy_url, read_all, refresh_due, rfc3339_local_now, send, status_error,
 };
-use crate::kimi_json::{GoValue, delete, join_array, set_raw, set_str, valid};
+use crate::kimi_json::{GoValue, delete, gstr, join_array, set_raw, set_str, valid};
 use crate::kimi_replay::{self, ReplayCache};
 use crate::kimi_thinking::{self, parse_suffix};
-use crate::upstream::{into_response, transport_error};
 
 const REASONING_UNAVAILABLE: &str = "[reasoning unavailable]";
 
@@ -132,7 +131,7 @@ impl KimiExecutor {
         // model is rewritten here and count_tokens follows its local estimate.
         if let Ok(text) = std::str::from_utf8(&req.body)
             && valid(text)
-            && let Some(updated) = set_str(text, "model", &upstream_model)
+            && let Ok(updated) = set_str(text, "model", &upstream_model)
         {
             req.body = Bytes::from(updated);
         }
@@ -276,6 +275,11 @@ fn request_error(message: impl Into<String>) -> ExecError {
     ExecError::local(400, FailureScope::Request, message)
 }
 
+/// A plain Go error from the executor: the handler answers 500 with its text.
+fn internal_error(message: impl Into<String>) -> ExecError {
+    ExecError::local(500, FailureScope::Request, message)
+}
+
 fn not_registered(what: &str) -> ExecError {
     ExecError::local(
         501,
@@ -288,35 +292,16 @@ fn text(body: &[u8]) -> Result<&str, ExecError> {
     std::str::from_utf8(body).map_err(|_| request_error("request body is not valid UTF-8"))
 }
 
-async fn send(client: &wreq::Client, url: &str, headers: GoHeaders, body: String) -> Result<ExecResponse, ExecError> {
-    let response = headers
-        .apply(client.post(url).redirect(wreq::redirect::Policy::none()), true)
-        .body(body)
-        .send()
-        .await
-        .map_err(transport_error)?;
-    into_response(response).await
-}
+/// Go's bufio.Scanner limits: 1 MiB for Chat Completions lines, 50 MiB for Responses.
+const CHAT_LINE_LIMIT: usize = 1_048_576;
+const RESPONSES_LINE_LIMIT: usize = 52_428_800;
 
-async fn buffered(body: ResponseBody) -> Result<Bytes, ExecError> {
-    match body {
-        ResponseBody::Buffered(bytes) => Ok(bytes),
-        ResponseBody::Stream(mut stream) => {
-            let mut out = BytesMut::new();
-            while let Some(event) = stream.next().await {
-                out.extend_from_slice(&event?);
-            }
-            Ok(out.freeze())
-        }
+async fn post(client: &wreq::Client, url: &str, headers: GoHeaders, body: String) -> Result<Upstream, ExecError> {
+    let upstream = send(client, url, headers, body, None).await?;
+    if !(200..300).contains(&upstream.status) {
+        return Err(status_error(upstream).await);
     }
-}
-
-/// Wraps upstream frames as a stream even when the upstream answered with plain JSON.
-fn as_stream(body: ResponseBody) -> ExecStream {
-    match body {
-        ResponseBody::Stream(stream) => stream,
-        ResponseBody::Buffered(bytes) => futures_util::stream::iter([Ok(bytes)]).boxed(),
-    }
+    Ok(upstream)
 }
 
 /// Chat Completions path (Execute / ExecuteStream for non-Claude, non-Responses clients).
@@ -331,9 +316,9 @@ async fn execute_chat(
     if request_pair.is_none() && req.source_format != Format::OpenAI {
         return Err(not_registered("Kimi request"));
     }
-    if response_pair.is_none() && req.response_format != Format::OpenAI {
+    let Some(response_pair) = response_pair else {
         return Err(not_registered("Kimi response"));
-    }
+    };
     let translated = match request_pair {
         Some(pair) => (pair.request)(
             &RequestCtx {
@@ -348,7 +333,7 @@ async fn execute_chat(
     let translated = String::from_utf8(translated).map_err(|_| request_error("translated body is not UTF-8"))?;
     let upstream_model = normalize_upstream_model(base_model);
     let mut body = set_str(&translated, "model", &upstream_model)
-        .ok_or_else(|| request_error("kimi executor: failed to set model in payload"))?;
+        .map_err(|e| internal_error(format!("kimi executor: failed to set model in payload: {e}")))?;
     body = kimi_thinking::apply(
         &body,
         text(&req.body)?,
@@ -361,59 +346,52 @@ async fn execute_chat(
     .map_err(|e| request_error(e.0))?;
     if req.stream {
         body = set_raw(&body, "stream_options.include_usage", "true")
-            .ok_or_else(|| request_error("kimi executor: failed to set stream_options in payload"))?;
+            .map_err(|e| internal_error(format!("kimi executor: failed to set stream_options in payload: {e}")))?;
     }
     body = normalize_tool_message_links(&body)?;
     body = normalize_tools(&body);
     body = normalize_temperature(&body);
-    let response = send(
+    let upstream = post(
         client,
         &chat_url(credential),
         headers(credential, &req, req.stream),
         body.clone(),
     )
     .await?;
-    let translated_request = Bytes::from(body);
-    respond(req, response, response_pair, translated_request).await
-}
-
-/// Response translation from an OpenAI-family upstream into the client's format.
-async fn respond(
-    req: ExecRequest,
-    mut response: ExecResponse,
-    pair: Option<&'static cpa_translate::Pair>,
-    translated: Bytes,
-) -> Result<ExecResponse, ExecError> {
-    let Some(pair) = pair else {
-        if !req.stream {
-            response.body = ResponseBody::Buffered(buffered(response.body).await?);
-        }
-        return Ok(response);
-    };
+    let translated = Bytes::from(body);
     let ctx = ResponseCtx {
         model: &req.model,
         original_request: &req.original_body,
         translated_request: &translated,
     };
-    if req.stream {
-        let translator = (pair.stream)(&ctx);
-        response.body = ResponseBody::Stream(translate_stream(as_stream(response.body), translator));
+    let body = if req.stream {
+        ResponseBody::Stream(translate_lines(
+            lines(upstream.body, CHAT_LINE_LIMIT),
+            (response_pair.stream)(&ctx),
+        ))
     } else {
-        let body = buffered(response.body).await?;
-        let out =
-            (pair.non_stream)(&ctx, &body).map_err(|e| ExecError::local(502, FailureScope::Request, e.to_string()))?;
-        response.body = ResponseBody::Buffered(Bytes::from(out));
-    }
-    Ok(response)
+        let data = read_all(upstream.body, usize::MAX, false).await?;
+        let out = (response_pair.non_stream)(&ctx, &data)
+            .map_err(|e| ExecError::local(502, FailureScope::Request, e.to_string()))?;
+        ResponseBody::Buffered(Bytes::from(out))
+    };
+    Ok(ExecResponse {
+        status: upstream.status,
+        headers: upstream.headers,
+        body,
+    })
 }
 
-fn translate_stream(upstream: ExecStream, translator: Box<dyn StreamTranslator>) -> ExecStream {
+/// Go's per-line stream loop: each non-empty scanned line goes through the translator;
+/// after the last line (or a scan error) the translator flushes, then the error follows.
+fn translate_lines(upstream: ExecStream, translator: Box<dyn StreamTranslator>) -> ExecStream {
     struct State {
         upstream: ExecStream,
         translator: Box<dyn StreamTranslator>,
-        ready: VecDeque<Bytes>,
+        ready: VecDeque<Result<Bytes, ExecError>>,
         done: bool,
     }
+    let fail = |error: cpa_translate::Error| ExecError::local(502, FailureScope::Request, error.to_string());
     futures_util::stream::unfold(
         State {
             upstream,
@@ -421,30 +399,32 @@ fn translate_stream(upstream: ExecStream, translator: Box<dyn StreamTranslator>)
             ready: VecDeque::new(),
             done: false,
         },
-        |mut st| async move {
+        move |mut st| async move {
             loop {
-                if let Some(event) = st.ready.pop_front() {
-                    return Some((Ok(event), st));
+                if let Some(item) = st.ready.pop_front() {
+                    return Some((item, st));
                 }
                 if st.done {
                     return None;
                 }
-                let result = match st.upstream.next().await {
-                    Some(Ok(event)) => st.translator.event(&event),
-                    Some(Err(error)) => {
+                match st.upstream.next().await {
+                    Some(Ok(line)) if line.is_empty() => {}
+                    Some(Ok(line)) => match st.translator.event(&line) {
+                        Ok(events) => st.ready.extend(events.into_iter().map(Ok)),
+                        Err(error) => {
+                            st.done = true;
+                            st.ready.push_back(Err(fail(error)));
+                        }
+                    },
+                    end => {
                         st.done = true;
-                        return Some((Err(error), st));
-                    }
-                    None => {
-                        st.done = true;
-                        st.translator.finish()
-                    }
-                };
-                match result {
-                    Ok(events) => st.ready.extend(events),
-                    Err(error) => {
-                        st.done = true;
-                        return Some((Err(ExecError::local(502, FailureScope::Request, error.to_string())), st));
+                        match st.translator.finish() {
+                            Ok(events) => st.ready.extend(events.into_iter().map(Ok)),
+                            Err(error) => st.ready.push_back(Err(fail(error))),
+                        }
+                        if let Some(Err(error)) = end {
+                            st.ready.push_back(Err(error));
+                        }
                     }
                 }
             }
@@ -463,7 +443,7 @@ fn set_bool_if_different(body: &str, path: &str, value: bool) -> String {
     if same {
         return body.to_owned();
     }
-    set_raw(body, path, if value { "true" } else { "false" }).unwrap_or_else(|| body.to_owned())
+    set_raw(body, path, if value { "true" } else { "false" }).unwrap_or_else(|_| body.to_owned())
 }
 
 /// Native Responses path (executeResponses / executeResponsesStream).
@@ -491,7 +471,7 @@ async fn execute_responses(
     let upstream_model = normalize_upstream_model(base_model);
     let source = text(&req.body)?;
     let mut body = set_str(source, "model", &upstream_model)
-        .ok_or_else(|| request_error("kimi executor: failed to set model in payload"))?;
+        .map_err(|e| internal_error(format!("kimi executor: failed to set model in payload: {e}")))?;
     body = set_bool_if_different(&body, "stream", req.stream);
     body = kimi_thinking::apply(
         &body,
@@ -506,43 +486,53 @@ async fn execute_responses(
     body = normalize_responses_input(&body);
     body = normalize_tools(&body);
     body = normalize_temperature(&body);
-    let mut response = send(
+    let upstream = post(
         client,
         &responses_url(credential),
         headers(credential, &req, req.stream),
         body.clone(),
     )
     .await?;
-    if response_pair.is_some() {
-        return respond(req, response, response_pair, Bytes::from(body)).await;
-    }
-    response.body = if req.stream {
-        ResponseBody::Stream(go_lines(as_stream(response.body)))
-    } else {
-        ResponseBody::Buffered(buffered(response.body).await?)
+    let translated = Bytes::from(body);
+    let ctx = ResponseCtx {
+        model: &req.model,
+        original_request: &req.original_body,
+        translated_request: &translated,
     };
-    Ok(response)
-}
-
-/// bufio.Scanner line passthrough: every line ends in `\n` and `\r\n` becomes `\n`.
-fn go_lines(stream: ExecStream) -> ExecStream {
-    stream
-        .map(|event| {
-            event.map(|bytes| {
-                let mut out = Vec::with_capacity(bytes.len() + 1);
-                let mut lines = bytes.split(|b| *b == b'\n').peekable();
-                while let Some(line) = lines.next() {
-                    let last = lines.peek().is_none();
-                    if last && line.is_empty() {
-                        break;
-                    }
-                    out.extend_from_slice(line.strip_suffix(b"\r").unwrap_or(line));
-                    out.push(b'\n');
-                }
-                Bytes::from(out)
-            })
-        })
-        .boxed()
+    let out = match (req.stream, response_pair) {
+        (true, Some(pair)) => ResponseBody::Stream(translate_lines(
+            lines(upstream.body, RESPONSES_LINE_LIMIT),
+            (pair.stream)(&ctx),
+        )),
+        // Native Responses clients get every scanned line back with "\n" appended.
+        (true, None) => ResponseBody::Stream(
+            lines(upstream.body, RESPONSES_LINE_LIMIT)
+                .map(|line| {
+                    line.map(|l| {
+                        let mut out = Vec::with_capacity(l.len() + 1);
+                        out.extend_from_slice(&l);
+                        out.push(b'\n');
+                        Bytes::from(out)
+                    })
+                })
+                .boxed(),
+        ),
+        (false, pair) => {
+            let data = read_all(upstream.body, usize::MAX, false).await?;
+            match pair {
+                Some(pair) => ResponseBody::Buffered(Bytes::from(
+                    (pair.non_stream)(&ctx, &data)
+                        .map_err(|e| ExecError::local(502, FailureScope::Request, e.to_string()))?,
+                )),
+                None => ResponseBody::Buffered(data),
+            }
+        }
+    };
+    Ok(ExecResponse {
+        status: upstream.status,
+        headers: upstream.headers,
+        body: out,
+    })
 }
 
 /// `normalizeKimiUpstreamModel`: strip `kimi-` and `[1m]`, map K2.7/K2.8 Code aliases,
@@ -576,20 +566,20 @@ fn usable_reasoning(reasoning: &str) -> bool {
 fn content_part_empty(part: &gjson::Value<'_>) -> bool {
     match part.kind() {
         gjson::Kind::Null => true,
-        gjson::Kind::String => part.str().trim().is_empty(),
+        gjson::Kind::String => gstr(part).trim().is_empty(),
         gjson::Kind::Object => {
             let text = part.get("text");
             if text.exists() {
-                return text.str().trim().is_empty();
+                return gstr(&text).trim().is_empty();
             }
-            part.get("type").str().trim() == "text" || part.json().trim() == "{}"
+            gstr(&part.get("type")).trim() == "text" || part.json().trim() == "{}"
         }
         _ => false,
     }
 }
 
 fn should_drop_assistant(msg: &gjson::Value<'_>) -> bool {
-    if msg.get("role").str().trim() != "assistant" {
+    if gstr(&msg.get("role")).trim() != "assistant" {
         return false;
     }
     let tool_calls = msg.get("tool_calls");
@@ -600,7 +590,7 @@ fn should_drop_assistant(msg: &gjson::Value<'_>) -> bool {
         && !(call.kind() == gjson::Kind::Object && call.json().trim() == "{}");
     let has_reasoning = {
         let r = msg.get("reasoning_content");
-        r.exists() && !r.str().trim().is_empty()
+        r.exists() && !gstr(&r).trim().is_empty()
     };
     if has_tool_calls || has_function_call || has_reasoning {
         return false;
@@ -609,7 +599,7 @@ fn should_drop_assistant(msg: &gjson::Value<'_>) -> bool {
     match content.kind() {
         gjson::Kind::Null => true,
         _ if !content.exists() => true,
-        gjson::Kind::String => content.str().trim().is_empty(),
+        gjson::Kind::String => gstr(&content).trim().is_empty(),
         gjson::Kind::Array => content.array().iter().all(content_part_empty),
         _ => false,
     }
@@ -620,14 +610,14 @@ fn fallback_reasoning(msg: &gjson::Value<'_>, latest: Option<&str>) -> String {
         return latest.to_owned();
     }
     let content = msg.get("content");
-    if content.kind() == gjson::Kind::String && !content.str().trim().is_empty() {
-        return content.str().trim().to_owned();
+    if content.kind() == gjson::Kind::String && !gstr(&content).trim().is_empty() {
+        return gstr(&content).trim().to_owned();
     }
     if content.kind() == gjson::Kind::Array {
         let parts: Vec<String> = content
             .array()
             .iter()
-            .map(|item| item.get("text").str().trim().to_owned())
+            .map(|item| gstr(&item.get("text")).trim().to_owned())
             .filter(|t| !t.is_empty())
             .collect();
         if !parts.is_empty() {
@@ -657,15 +647,15 @@ fn normalize_tool_message_links(body: &str) -> Result<String, ExecError> {
             dropped[index] = true;
             continue;
         }
-        match msg.get("role").str().trim() {
+        match gstr(&msg.get("role")).trim() {
             "assistant" => {
                 let reasoning = msg.get("reasoning_content");
-                if reasoning.exists() && usable_reasoning(reasoning.str()) {
-                    latest = Some(reasoning.str().to_owned());
+                if reasoning.exists() && usable_reasoning(&gstr(&reasoning)) {
+                    latest = Some(gstr(&reasoning).to_owned());
                 }
                 let calls = msg.get("tool_calls");
                 if calls.kind() == gjson::Kind::Array && !calls.array().is_empty() {
-                    if !reasoning.exists() || !usable_reasoning(reasoning.str()) {
+                    if !reasoning.exists() || !usable_reasoning(&gstr(&reasoning)) {
                         patches.push((
                             index,
                             "reasoning_content",
@@ -674,7 +664,7 @@ fn normalize_tool_message_links(body: &str) -> Result<String, ExecError> {
                         ));
                     }
                     for call in calls.array() {
-                        let id = call.get("id").str().trim().to_owned();
+                        let id = gstr(&call.get("id")).trim().to_owned();
                         if !id.is_empty() {
                             pending.push(id);
                         }
@@ -682,9 +672,9 @@ fn normalize_tool_message_links(body: &str) -> Result<String, ExecError> {
                 }
             }
             "tool" => {
-                let mut id = msg.get("tool_call_id").str().trim().to_owned();
+                let mut id = gstr(&msg.get("tool_call_id")).trim().to_owned();
                 if id.is_empty() {
-                    id = msg.get("call_id").str().trim().to_owned();
+                    id = gstr(&msg.get("call_id")).trim().to_owned();
                     if !id.is_empty() {
                         patches.push((
                             index,
@@ -712,7 +702,7 @@ fn normalize_tool_message_links(body: &str) -> Result<String, ExecError> {
     if !any_dropped && patches.len() == 1 {
         let (index, path, value, context) = &patches[0];
         return set_str(body, &format!("messages.{index}.{path}"), value)
-            .ok_or_else(|| request_error(format!("kimi executor: {context}")));
+            .map_err(|e| internal_error(format!("kimi executor: {context}: {e}")));
     }
     let mut items = Vec::with_capacity(msgs.len());
     let mut next = patches.iter().peekable();
@@ -722,12 +712,18 @@ fn normalize_tool_message_links(body: &str) -> Result<String, ExecError> {
         }
         let mut raw = msg.json().to_owned();
         while let Some((_, path, value, context)) = next.next_if(|p| p.0 == index) {
-            raw = set_str(&raw, path, value).ok_or_else(|| request_error(format!("kimi executor: {context}")))?;
+            raw = set_str(&raw, path, value).map_err(|e| internal_error(format!("kimi executor: {context}: {e}")))?;
         }
         items.push(raw);
     }
-    set_raw(body, "messages", &join_array(&items))
-        .ok_or_else(|| request_error("kimi executor: failed to drop empty assistant messages"))
+    set_raw(body, "messages", &join_array(&items)).map_err(|e| {
+        let context = if any_dropped {
+            "failed to drop empty assistant messages"
+        } else {
+            patches[0].3
+        };
+        internal_error(format!("kimi executor: {context}: {e}"))
+    })
 }
 
 /// `normalizeKimiTools`: inline local `$ref`s and default the root schema type.
@@ -764,7 +760,7 @@ fn normalize_tool_list(body: &str, key: &str, is_tools: bool) -> String {
             if params.kind() == gjson::Kind::Object {
                 let normalized = normalize_parameters_schema(params.json());
                 if normalized != params.json()
-                    && let Some(next) = set_raw(&raw, path, &normalized)
+                    && let Ok(next) = set_raw(&raw, path, &normalized)
                 {
                     raw = next;
                     changed = true;
@@ -776,7 +772,7 @@ fn normalize_tool_list(body: &str, key: &str, is_tools: bool) -> String {
     if !changed {
         return body.to_owned();
     }
-    set_raw(body, key, &join_array(&updated)).unwrap_or_else(|| body.to_owned())
+    set_raw(body, key, &join_array(&updated)).unwrap_or_else(|_| body.to_owned())
 }
 
 fn normalize_parameters_schema(raw: &str) -> String {
@@ -843,7 +839,7 @@ fn resolve_refs(root: &GoValue, value: &GoValue, active: &mut std::collections::
 
 fn json_pointer<'a>(root: &'a GoValue, reference: &str) -> Option<&'a GoValue> {
     let mut current = root;
-    for raw in reference.trim_start_matches("#/").split('/') {
+    for raw in reference.strip_prefix("#/").unwrap_or(reference).split('/') {
         let part = raw.replace("~1", "/").replace("~0", "~");
         current = match current {
             GoValue::Object(map) => map.get(&part)?,
@@ -897,7 +893,7 @@ fn normalize_temperature(body: &str) -> String {
     if !temperature.exists() {
         return body.to_owned();
     }
-    let disabled = gjson::get(body, "thinking.type").str().eq_ignore_ascii_case("disabled");
+    let disabled = gstr(&gjson::get(body, "thinking.type")).eq_ignore_ascii_case("disabled");
     let allowed = if disabled { 0.6 } else { 1.0 };
     if temperature.f64() != allowed {
         delete(body, "temperature")
@@ -913,17 +909,17 @@ fn responses_call_id(item: &gjson::Value<'_>) -> String {
             return id;
         }
     }
-    let id = item.get("id").str().trim().to_owned();
+    let id = gstr(&item.get("id")).trim().to_owned();
     if id.starts_with("fco_") { String::new() } else { id }
 }
 
 fn is_tool_call(item: &gjson::Value<'_>) -> bool {
-    matches!(item.get("type").str().trim(), "function_call" | "custom_tool_call")
+    matches!(gstr(&item.get("type")).trim(), "function_call" | "custom_tool_call")
 }
 
 fn is_tool_output(item: &gjson::Value<'_>) -> bool {
     matches!(
-        item.get("type").str().trim(),
+        gstr(&item.get("type")).trim(),
         "function_call_output" | "custom_tool_call_output"
     )
 }
@@ -1011,7 +1007,7 @@ fn normalize_responses_input(body: &str) -> String {
     if !reordered {
         return body.to_owned();
     }
-    set_raw(body, "input", &format!("[{}]", result.join(","))).unwrap_or_else(|| body.to_owned())
+    set_raw(body, "input", &format!("[{}]", result.join(","))).unwrap_or_else(|_| body.to_owned())
 }
 
 /// `restoreClaudeResponseModel`: put the client's model back on a Claude response body or
@@ -1056,7 +1052,7 @@ fn set_model(json: &str, model: &str) -> Option<String> {
     let mut changed = false;
     for path in ["model", "message.model"] {
         if gjson::get(&out, path).exists()
-            && let Some(next) = set_str(&out, path, model)
+            && let Ok(next) = set_str(&out, path, model)
         {
             out = next;
             changed = true;

@@ -19,7 +19,7 @@ use futures_util::StreamExt;
 use http::HeaderMap;
 use sha2::{Digest, Sha256};
 
-use crate::kimi_json::{canonical, join_array, set_raw, set_str, valid};
+use crate::kimi_json::{canonical, gstr, join_array, set_raw, set_str, valid};
 
 const TTL: Duration = Duration::from_secs(3600);
 const MAX_ENTRIES: usize = 10240;
@@ -40,7 +40,11 @@ struct Inner {
     entries: HashMap<String, Entry>,
     total: usize,
     next_generation: u64,
+    last_purge: Option<Instant>,
 }
+
+/// Go's cache cleanup ticker interval (signature_cache.go startCacheCleanup).
+const PURGE_INTERVAL: Duration = Duration::from_secs(600);
 
 /// The replay cache. One per Kimi executor (Go keeps one per process).
 #[derive(Default)]
@@ -58,6 +62,24 @@ impl Inner {
     fn generation(&mut self) -> u64 {
         self.next_generation += 1;
         self.next_generation
+    }
+
+    /// Drops expired entries at most once per cleanup interval, like Go's ticker, so a
+    /// request whose snapshot outlived the TTL cannot write into a purged key.
+    fn purge(&mut self, now: Instant) {
+        let last = *self.last_purge.get_or_insert(now);
+        if now.duration_since(last) < PURGE_INTERVAL {
+            return;
+        }
+        self.last_purge = Some(now);
+        let total = &mut self.total;
+        self.entries.retain(|_, e| {
+            let keep = now.duration_since(e.at) <= TTL;
+            if !keep {
+                *total -= e.content.as_ref().map_or(0, |c| c.len());
+            }
+            keep
+        });
     }
 
     fn enforce_limits(&mut self) {
@@ -86,6 +108,7 @@ impl ReplayCache {
     /// conditional on this read (GetKimiThinkingReplayWithSnapshotRequired).
     fn get(&self, key: &str, now: Instant) -> (Option<Arc<str>>, Snapshot) {
         let mut inner = self.lock();
+        inner.purge(now);
         let expired = inner.entries.get(key).is_some_and(|e| now.duration_since(e.at) > TTL);
         if expired && let Some(old) = inner.entries.remove(key) {
             inner.total -= old.content.map_or(0, |c| c.len());
@@ -115,10 +138,15 @@ impl ReplayCache {
     }
 
     fn replace_if_unchanged(&self, key: &str, snapshot: Snapshot, content: &str) -> bool {
+        self.replace_at(key, snapshot, content, Instant::now())
+    }
+
+    fn replace_at(&self, key: &str, snapshot: Snapshot, content: &str, now: Instant) -> bool {
         if !valid_content(content) {
             return false;
         }
         let mut inner = self.lock();
+        inner.purge(now);
         if inner
             .entries
             .get(key)
@@ -143,6 +171,7 @@ impl ReplayCache {
 
     fn delete_if_unchanged(&self, key: &str, snapshot: Snapshot) -> bool {
         let mut inner = self.lock();
+        inner.purge(Instant::now());
         if inner
             .entries
             .get(key)
@@ -199,7 +228,7 @@ fn claude_code_session(payload: &str, headers: &HeaderMap) -> Option<String> {
     let mut session = header(headers, "X-Claude-Code-Session-Id");
     if session.is_empty() {
         let user = gjson::get(payload, "metadata.user_id");
-        let user = user.str();
+        let user = gstr(&user);
         if let Some(pos) = user.rfind("_session_") {
             let tail = &user[pos + "_session_".len()..];
             if !tail.is_empty()
@@ -211,7 +240,7 @@ fn claude_code_session(payload: &str, headers: &HeaderMap) -> Option<String> {
             }
         }
         if session.is_empty() && user.starts_with('{') {
-            session = gjson::get(user, "session_id").str().trim().to_owned();
+            session = gstr(&gjson::get(&user, "session_id")).trim().to_owned();
         }
     }
     if session.is_empty() {
@@ -229,15 +258,15 @@ fn payload_session(payload: &str) -> Option<String> {
         return None;
     }
     let cache = gjson::get(payload, "prompt_cache_key");
-    if !cache.str().trim().is_empty() {
-        return Some(format!("prompt-cache:{}", cache.str().trim()));
+    if !gstr(&cache).trim().is_empty() {
+        return Some(format!("prompt-cache:{}", gstr(&cache).trim()));
     }
     let window = gjson::get(payload, "client_metadata.x-codex-window-id");
-    if !window.str().trim().is_empty() {
-        return Some(format!("window:{}", window.str().trim()));
+    if !gstr(&window).trim().is_empty() {
+        return Some(format!("window:{}", gstr(&window).trim()));
     }
     let turn = gjson::get(payload, "client_metadata.x-codex-turn-metadata");
-    turn_session(turn.str().trim())
+    turn_session(gstr(&turn).trim())
 }
 
 fn turn_session(turn: &str) -> Option<String> {
@@ -245,11 +274,11 @@ fn turn_session(turn: &str) -> Option<String> {
         return None;
     }
     let cache = gjson::get(turn, "prompt_cache_key");
-    if !cache.str().trim().is_empty() {
-        return Some(format!("prompt-cache:{}", cache.str().trim()));
+    if !gstr(&cache).trim().is_empty() {
+        return Some(format!("prompt-cache:{}", gstr(&cache).trim()));
     }
     let window = gjson::get(turn, "window_id");
-    (!window.str().trim().is_empty()).then(|| format!("window:{}", window.str().trim()))
+    (!gstr(&window).trim().is_empty()).then(|| format!("window:{}", gstr(&window).trim()))
 }
 
 fn header_session(headers: &HeaderMap) -> Option<String> {
@@ -381,9 +410,9 @@ fn replayable(content: &str) -> bool {
     }
     let (mut signed, mut tool) = (false, false);
     for part in root.array() {
-        match part.get("type").str().trim() {
-            "thinking" if !part.get("signature").str().trim().is_empty() => signed = true,
-            "tool_use" if !part.get("id").str().trim().is_empty() => tool = true,
+        match gstr(&part.get("type")).trim() {
+            "thinking" if !gstr(&part.get("signature")).trim().is_empty() => signed = true,
+            "tool_use" if !gstr(&part.get("id")).trim().is_empty() => tool = true,
             _ => {}
         }
     }
@@ -395,7 +424,7 @@ fn has_thinking(content: &gjson::Value<'_>) -> bool {
         && content
             .array()
             .iter()
-            .any(|p| matches!(p.get("type").str().trim(), "thinking" | "redacted_thinking"))
+            .any(|p| matches!(gstr(&p.get("type")).trim(), "thinking" | "redacted_thinking"))
 }
 
 /// Canonical non-thinking parts; `None` unless the content is an array with a tool call.
@@ -406,10 +435,10 @@ fn non_thinking_parts(content: &gjson::Value<'_>) -> Option<Vec<String>> {
     let mut parts = Vec::new();
     let mut tool = false;
     for part in content.array() {
-        match part.get("type").str().trim() {
+        match gstr(&part.get("type")).trim() {
             "thinking" | "redacted_thinking" => continue,
             "tool_use" => {
-                if part.get("id").str().trim().is_empty() {
+                if gstr(&part.get("id")).trim().is_empty() {
                     return None;
                 }
                 tool = true;
@@ -431,7 +460,7 @@ fn restore(body: &str, cached: &str) -> Option<String> {
     }
     let items = messages.array();
     for (index, message) in items.iter().enumerate().rev() {
-        if !message.get("role").str().trim().eq_ignore_ascii_case("assistant") {
+        if !gstr(&message.get("role")).trim().eq_ignore_ascii_case("assistant") {
             continue;
         }
         let current = message.get("content");
@@ -444,7 +473,7 @@ fn restore(body: &str, cached: &str) -> Option<String> {
         if non_thinking_parts(&current).is_none_or(|parts| parts != cached_parts) {
             continue;
         }
-        return set_raw(body, &format!("messages.{index}.content"), cached);
+        return set_raw(body, &format!("messages.{index}.content"), cached).ok();
     }
     None
 }
@@ -490,7 +519,7 @@ impl Accumulator {
                 continue;
             }
             let root = gjson::parse(payload);
-            match root.get("type").str() {
+            match gstr(&root.get("type")).as_str() {
                 "message_start" => self.observed = true,
                 "content_block_start" if !self.abandoned => self.start(&root),
                 "content_block_delta" if !self.abandoned => self.delta(&root),
@@ -549,11 +578,11 @@ impl Accumulator {
             return;
         }
         let delta = root.get("delta");
-        let (field, value) = match delta.get("type").str() {
-            "text_delta" => ("text", delta.get("text").str().to_owned()),
-            "thinking_delta" => ("thinking", delta.get("thinking").str().to_owned()),
-            "signature_delta" => ("signature", delta.get("signature").str().to_owned()),
-            "input_json_delta" => ("input", delta.get("partial_json").str().to_owned()),
+        let (field, value) = match gstr(&delta.get("type")).as_str() {
+            "text_delta" => ("text", gstr(&delta.get("text")).to_owned()),
+            "thinking_delta" => ("thinking", gstr(&delta.get("thinking")).to_owned()),
+            "signature_delta" => ("signature", gstr(&delta.get("signature")).to_owned()),
+            "input_json_delta" => ("input", gstr(&delta.get("partial_json")).to_owned()),
             _ => {
                 self.abandon();
                 return;
@@ -575,7 +604,7 @@ impl Accumulator {
             }
         };
         if !initialized {
-            let initial = gjson::get(&self.blocks[&index].raw, field).str().to_owned();
+            let initial = gstr(&gjson::get(&self.blocks[&index].raw, field)).to_owned();
             if !self.reserve(initial.len()) {
                 return;
             }
@@ -627,11 +656,11 @@ impl Accumulator {
                 ("signature", &block.signature),
             ] {
                 if let Some(value) = value {
-                    raw = set_str(&raw, path, value)?;
+                    raw = set_str(&raw, path, value).ok()?;
                 }
             }
             if let Some(input) = &block.input {
-                raw = set_raw(&raw, "input", input)?;
+                raw = set_raw(&raw, "input", input).ok()?;
             }
             parts.push(raw);
         }
@@ -768,5 +797,11 @@ mod tests {
         assert!(cache.delete_if_unchanged("k", third));
         assert!(cache.get("k", now).0.is_none());
         assert!(cache.get("k", now + TTL + Duration::from_secs(1)).0.is_none());
+
+        // A snapshot that outlives the TTL cannot write after the cleanup purged its key.
+        let cache = ReplayCache::default();
+        let (_, stale) = cache.get("k", now);
+        let late = now + TTL + PURGE_INTERVAL + Duration::from_secs(1);
+        assert!(!cache.replace_at("k", stale, CACHED, late));
     }
 }

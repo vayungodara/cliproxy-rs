@@ -43,7 +43,14 @@ pub fn is_com_domain(domain: &str) -> bool {
 }
 
 fn host_of(raw: &str) -> String {
-    url::Url::parse(raw.trim())
+    let raw = raw.trim();
+    // net/url accepts scheme-relative authorities ("//host/path").
+    let absolute = if raw.starts_with("//") {
+        format!("http:{raw}")
+    } else {
+        raw.to_owned()
+    };
+    url::Url::parse(&absolute)
         .ok()
         .and_then(|u| u.host_str().map(str::to_ascii_lowercase))
         .unwrap_or_default()
@@ -168,8 +175,7 @@ fn device_model() -> String {
 }
 
 /// Device authorization response (RFC 8628).
-#[derive(Debug, Clone, Default, serde::Deserialize)]
-#[serde(default)]
+#[derive(Debug, Clone, Default)]
 pub struct DeviceCode {
     pub device_code: String,
     pub user_code: String,
@@ -177,6 +183,38 @@ pub struct DeviceCode {
     pub verification_uri_complete: String,
     pub expires_in: i64,
     pub interval: i64,
+}
+
+/// Go `json.Unmarshal` into typed fields: missing or null keep the zero value, a wrong
+/// JSON type is an error.
+#[derive(serde::Deserialize, Default)]
+#[serde(default)]
+struct DeviceCodeWire {
+    device_code: Option<String>,
+    user_code: Option<String>,
+    verification_uri: Option<String>,
+    verification_uri_complete: Option<String>,
+    expires_in: Option<i64>,
+    interval: Option<i64>,
+}
+
+#[derive(serde::Deserialize, Default)]
+#[serde(default)]
+struct TokenWire {
+    access_token: Option<String>,
+    refresh_token: Option<String>,
+    token_type: Option<String>,
+    expires_in: Option<f64>,
+    scope: Option<String>,
+}
+
+#[derive(serde::Deserialize, Default)]
+#[serde(default)]
+struct PollWire {
+    error: Option<String>,
+    error_description: Option<String>,
+    #[serde(flatten)]
+    token: TokenWire,
 }
 
 /// Token endpoint result. `expires_at` is Unix seconds, 0 when the server sent none.
@@ -245,24 +283,14 @@ impl DeviceFlow {
         headers.set("X-Msh-Device-Name", hostname().unwrap_or_else(|| "unknown".into()));
         headers.set("X-Msh-Device-Model", device_model());
         headers.set("X-Msh-Device-Id", self.device_id.clone());
-        let request = headers
-            .apply(self.client.post(url).timeout(Duration::from_secs(30)), true)
-            .body(body);
-        let response = request
-            .send()
+        let upstream = crate::kimi_http::send(&self.client, url, headers, body, Some(Duration::from_secs(30)))
             .await
             .map_err(|_| ExecError::local(502, FailureScope::Transport, "kimi: token request failed"))?;
-        let status = response.status().as_u16();
-        let response = crate::upstream::into_response(response).await;
-        let body = match response {
-            Ok(r) => match r.body {
-                cpa_core::exec::ResponseBody::Buffered(b) => b.to_vec(),
-                cpa_core::exec::ResponseBody::Stream(_) => Vec::new(),
-            },
-            Err(e) if e.scope != FailureScope::Transport => e.body.to_vec(),
-            Err(e) => return Err(e),
-        };
-        Ok((status, body))
+        let status = upstream.status;
+        let body = crate::kimi_http::read_all(upstream.body, crate::kimi_http::MAX_ERROR_BODY, false)
+            .await
+            .map_err(|_| ExecError::local(502, FailureScope::Transport, "kimi: failed to read token response"))?;
+        Ok((status, body.to_vec()))
     }
 
     /// Starts the device flow.
@@ -275,7 +303,16 @@ impl DeviceFlow {
                 format!("kimi: device code request failed with status {status}"),
             ));
         }
-        serde_json::from_slice(&body).map_err(|_| auth_error(502, "kimi: failed to parse device code response"))
+        let wire: DeviceCodeWire =
+            serde_json::from_slice(&body).map_err(|_| auth_error(502, "kimi: failed to parse device code response"))?;
+        Ok(DeviceCode {
+            device_code: wire.device_code.unwrap_or_default(),
+            user_code: wire.user_code.unwrap_or_default(),
+            verification_uri: wire.verification_uri.unwrap_or_default(),
+            verification_uri_complete: wire.verification_uri_complete.unwrap_or_default(),
+            expires_in: wire.expires_in.unwrap_or_default(),
+            interval: wire.interval.unwrap_or_default(),
+        })
     }
 
     /// One poll. `Ok(None)` means keep polling (authorization_pending / slow_down).
@@ -286,22 +323,19 @@ impl DeviceFlow {
             ("grant_type", DEVICE_GRANT),
         ]);
         let (_, body) = self.post(&self.token_url(), body).await?;
-        let value: Value =
+        let wire: PollWire =
             serde_json::from_slice(&body).map_err(|_| auth_error(502, "kimi: failed to parse token response"))?;
-        let field = |k: &str| value.get(k).and_then(Value::as_str).unwrap_or_default().to_owned();
-        match field("error").as_str() {
+        match wire.error.as_deref().unwrap_or_default() {
             "" => {}
             "authorization_pending" | "slow_down" => return Ok(None),
             "expired_token" => return Err(auth_error(400, "kimi: device code expired")),
             "access_denied" => return Err(auth_error(403, "kimi: access denied by user")),
             other => {
-                return Err(auth_error(
-                    400,
-                    format!("kimi: OAuth error: {other} - {}", field("error_description")),
-                ));
+                let description = wire.error_description.unwrap_or_default();
+                return Err(auth_error(400, format!("kimi: OAuth error: {other} - {description}")));
             }
         }
-        tokens(&value)
+        tokens(wire.token)
             .map(Some)
             .ok_or_else(|| auth_error(502, "kimi: empty access token in response"))
     }
@@ -378,29 +412,28 @@ impl DeviceFlow {
             // endpoints may echo credentials and this message can reach clients.
             return Err(auth_error(status, format!("kimi: refresh failed with status {status}")));
         }
-        let value: Value =
+        let wire: TokenWire =
             serde_json::from_slice(&body).map_err(|_| auth_error(502, "kimi: failed to parse refresh response"))?;
-        tokens(&value).ok_or_else(|| auth_error(502, "kimi: empty access token in refresh response"))
+        tokens(wire).ok_or_else(|| auth_error(502, "kimi: empty access token in refresh response"))
     }
 }
 
-fn tokens(value: &Value) -> Option<Tokens> {
-    let field = |k: &str| value.get(k).and_then(Value::as_str).unwrap_or_default().to_owned();
-    let access = field("access_token");
+fn tokens(wire: TokenWire) -> Option<Tokens> {
+    let access = wire.access_token.unwrap_or_default();
     if access.is_empty() {
         return None;
     }
-    let expires_in = value.get("expires_in").and_then(Value::as_f64).unwrap_or(0.0);
+    let expires_in = wire.expires_in.unwrap_or(0.0);
     Some(Tokens {
         access_token: access,
-        refresh_token: field("refresh_token"),
-        token_type: field("token_type"),
+        refresh_token: wire.refresh_token.unwrap_or_default(),
+        token_type: wire.token_type.unwrap_or_default(),
         expires_at: if expires_in > 0.0 {
             Utc::now().timestamp() + expires_in as i64
         } else {
             0
         },
-        scope: field("scope"),
+        scope: wire.scope.unwrap_or_default(),
     })
 }
 
@@ -561,12 +594,19 @@ pub(crate) fn open_browser(url: &str) -> bool {
         .is_ok()
 }
 
-/// `--kimi-login` (`provider` "kimi") or `--kimi-ai-login` ("kimi-ai"): device flow, then
-/// the credential file in `auth_dir`.
-pub async fn login(provider: &str, auth_dir: &Path, no_browser: bool) -> Result<PathBuf, ExecError> {
+/// `--kimi-login` (`provider` "kimi") or `--kimi-ai-login` ("kimi-ai"): device flow
+/// through the configured `requests.proxy-url`, then the credential file in `auth-dir`.
+pub async fn login(provider: &str, cfg: &cpa_core::config::Config, no_browser: bool) -> Result<PathBuf, ExecError> {
     let domain = if provider == "kimi" { DOMAIN_COM } else { DOMAIN_AI };
-    let flow = DeviceFlow::new(crate::kimi_http::default_client(), domain, "");
-    login_with(flow, provider, auth_dir, no_browser).await
+    let proxy = cfg
+        .document
+        .get("requests")
+        .and_then(|r| r.get("proxy-url"))
+        .and_then(|v| v.as_str())
+        .unwrap_or_default();
+    let client = crate::kimi_http::Clients::new(crate::kimi_http::default_client()).get(proxy);
+    let flow = DeviceFlow::new(client, domain, "");
+    login_with(flow, provider, &cfg.auth_dir, no_browser).await
 }
 
 pub(crate) async fn login_with(
@@ -645,6 +685,22 @@ mod tests {
         c.attributes.insert("domain".into(), "kimi.ai".into());
         assert_eq!(resolve_domain(&c), DOMAIN_AI, "attributes beat metadata");
         assert!(is_ai_domain(" SUB.Kimi.AI ") && !is_ai_domain("notkimi.ai"));
+    }
+
+    #[test]
+    fn scheme_relative_base_url_resolves_domain() {
+        let c = credential("x.json", "other", json!({"type":"x","base_url":"//api.kimi.ai/coding"}));
+        assert_eq!(resolve_domain(&c), DOMAIN_AI);
+    }
+
+    #[test]
+    fn oauth_fields_decode_with_go_types() {
+        let ok: TokenWire =
+            serde_json::from_str(r#"{"access_token":"a","expires_in":3600.5,"scope":null,"x":1}"#).unwrap();
+        assert_eq!(ok.expires_in, Some(3600.5));
+        assert!(serde_json::from_str::<TokenWire>(r#"{"access_token":"new","expires_in":"3600"}"#).is_err());
+        assert!(serde_json::from_str::<TokenWire>(r#"{"access_token":"new","refresh_token":5}"#).is_err());
+        assert!(serde_json::from_str::<DeviceCodeWire>(r#"{"device_code":"d","interval":1.5}"#).is_err());
     }
 
     #[test]

@@ -89,7 +89,7 @@ async fn main() -> anyhow::Result<()> {
     }
     if args.kimi_login || args.kimi_ai_login {
         let provider = if args.kimi_login { "kimi" } else { "kimi-ai" };
-        cpa_exec::kimi_auth::login(provider, &config.auth_dir, args.no_browser).await?;
+        cpa_exec::kimi_auth::login(provider, &config, args.no_browser).await?;
         return Ok(());
     }
     if config.api_keys.is_empty() {
