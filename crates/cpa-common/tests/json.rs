@@ -203,3 +203,12 @@ fn decode_then_marshal_matches_encoding_json() {
         );
     }
 }
+
+#[test]
+fn std_valid_applies_encoding_json_nesting_limit() {
+    let nested = |n: usize| [vec![b'['; n], vec![b']'; n]].concat();
+    assert!(cpa_common::json::std_valid(&nested(10_000)));
+    assert!(!cpa_common::json::std_valid(&nested(10_001)));
+    assert!(cpa_common::json::std_valid(br#"{"a":"[[[\"]]]"}"#));
+    assert!(!cpa_common::json::std_valid(b"{"));
+}
