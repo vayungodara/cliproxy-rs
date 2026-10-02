@@ -458,59 +458,47 @@ fn translate_lines(upstream: ExecStream, translator: Box<dyn StreamTranslator>) 
 }
 
 /// Native Responses streaming: Go writes every scanned line plus `\n` as one chunk and
-/// the Responses route joins chunks into frames at blank lines.
-///
-/// ponytail: adapter for cpa-translate's Responses joiner (owner: translators thread;
-/// `stream::ResponsesFramer` is private). Joins at blank lines and flushes a final frame
-/// that carries data, which equals Go's responsesSSEFramer for well-formed SSE; its
-/// data-only frame splitting is not reproduced.
+/// the Responses route joins chunks into frames (responses_frames), flushing what is
+/// pending at the end and before a terminal error.
 fn responses_frames(lines: ExecStream) -> ExecStream {
     struct State {
         lines: ExecStream,
-        pending: Vec<u8>,
+        joiner: crate::responses_frames::Joiner,
+        ready: VecDeque<Result<Bytes, ExecError>>,
         done: bool,
     }
-    let has_data = |frame: &[u8]| {
-        frame
-            .split(|b| *b == b'\n')
-            .any(|line| line.trim_ascii_start().starts_with(b"data:"))
-    };
     futures_util::stream::unfold(
         State {
             lines,
-            pending: Vec::new(),
+            joiner: Default::default(),
+            ready: VecDeque::new(),
             done: false,
         },
-        move |mut st| async move {
-            while !st.done {
+        |mut st| async move {
+            loop {
+                if let Some(item) = st.ready.pop_front() {
+                    return Some((item, st));
+                }
+                if st.done {
+                    return None;
+                }
                 match st.lines.next().await {
-                    Some(Ok(line)) if line.trim_ascii().is_empty() => {
-                        if !st.pending.is_empty() {
-                            let mut frame = std::mem::take(&mut st.pending);
-                            frame.push(b'\n');
-                            return Some((Ok(Bytes::from(frame)), st));
-                        }
-                    }
                     Some(Ok(line)) => {
-                        st.pending.extend_from_slice(&line);
-                        st.pending.push(b'\n');
+                        let mut chunk = line.to_vec();
+                        chunk.push(b'\n');
+                        let frames = st.joiner.write(&chunk);
+                        st.ready.extend(frames.into_iter().map(Ok));
                     }
-                    Some(Err(error)) => {
+                    end => {
                         st.done = true;
-                        return Some((Err(error), st));
-                    }
-                    None => {
-                        st.done = true;
-                        let frame = std::mem::take(&mut st.pending);
-                        if has_data(&frame) {
-                            let mut frame = frame;
-                            frame.push(b'\n');
-                            return Some((Ok(Bytes::from(frame)), st));
+                        let frames = st.joiner.flush();
+                        st.ready.extend(frames.into_iter().map(Ok));
+                        if let Some(Err(error)) = end {
+                            st.ready.push_back(Err(error));
                         }
                     }
                 }
             }
-            None
         },
     )
     .boxed()

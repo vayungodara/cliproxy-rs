@@ -59,6 +59,8 @@ func TestRSFixMeta(t *testing.T) {
 			responses: []rsfixResponse{jsonResp(404, `{"error":{"message":"not yet","resets_at":4102444800}}`)}},
 		{name: "stream-error-event", stream: true, body: `{"model":"muse-spark-1.3","input":"hi"}`, meta: apiMeta,
 			responses: []rsfixResponse{sseResp("event: response.created\n" + created + "\n\nevent: error\ndata: {\"type\":\"error\",\"error\":{\"code\":503,\"message\":\"overloaded\"}}\n\n")}},
+		{name: "stream-error-after-data-only", stream: true, body: `{"model":"muse-spark-1.3","input":"hi"}`, meta: apiMeta,
+			responses: []rsfixResponse{sseResp("data: {\"type\":\"response.output_text.delta\",\"delta\":\"x\"}\n\ndata: {\"type\":\"error\",\"error\":{\"code\":503,\"message\":\"overloaded\"}}\n\n")}},
 		{name: "nonstream-response-failed", body: `{"model":"muse-spark-1.3","input":"hi"}`, meta: apiMeta,
 			responses: []rsfixResponse{sseResp(created + "\n" + `data: {"type":"response.failed","response":{"id":"resp_m"},"error":{"code":"server_error","message":"boom"}}` + "\n")}},
 		{name: "nonstream-incomplete-fallback-items", body: `{"model":"muse-spark-1.3","input":"hi"}`, meta: apiMeta,
@@ -224,6 +226,13 @@ func TestRSFixMetaLogin(t *testing.T) {
 				jsonResp(200, `{"access_token":"dca:login-token","token_type":"bearer","expires_in":7200}`),
 				jsonResp(200, `{"api_key":"mk-login","base_url":"https://api.meta.ai/v1","user_email":"Some.User+tag@Example.com","user_full_name":"Some <User>","subs_tier_name":"Free","subs_tier_id":"t0","is_subs_active":false,"has_payment_method":true}`),
 			}},
+		{name: "login-existing-overflow", email: "Some.User+tag@Example.com",
+			stale: `{"type":"meta","disabled":true,"prefix":"p","x":1e400,"x":0}`,
+			responses: []rsfixResponse{
+				jsonResp(200, `{"device_code":"meta-dev-3","user_code":"OV-1","verification_uri":"https://www.meta.ai/device","expires_in":600,"interval":1}`),
+				jsonResp(200, `{"access_token":"dca:ov","token_type":"bearer","expires_in":60}`),
+				jsonResp(200, `{"api_key":"mk-ov","user_email":"Some.User+tag@Example.com"}`),
+			}},
 		{name: "login-no-mint",
 			responses: []rsfixResponse{
 				jsonResp(200, `{"device_code":"meta-dev-2","user_code":"AB-CD","verification_uri":"https://www.meta.ai/device","verification_uri_complete":"https://www.meta.ai/device?code=AB-CD","expires_in":0,"interval":0}`),
@@ -271,6 +280,10 @@ func TestRSFixMetaWriter(t *testing.T) {
 	for _, tc := range []writerCase{
 		{Name: "no-snapshot-inherits-settings", Disk: `{"type":"meta","api_key":"stale","expires_in":10,"expired":"x","custom":"disk","email":"old@x","prefix":"p"}`,
 			Storage: map[string]any{"access_token": "new", "token_type": "bearer", "expires_in": 0, "dca_expires_at": 0, "email": "new@x"}},
+		{Name: "disk-overflow-partial-map", Disk: `{"type":"meta","custom":1e400,"n":1.0,"big":1e21,"small":1.5e-7,"arr":[1e400,2]}`,
+			Storage: map[string]any{"access_token": "a"}},
+		{Name: "disk-overflow-overwritten", Disk: `{"x":1e400,"x":0,"y":3}`,
+			Storage: map[string]any{"access_token": "a"}},
 		{Name: "snapshot-wins-and-deletes", Disk: `{"type":"meta","custom":"disk","prefix":"p"}`,
 			Storage:  map[string]any{"access_token": "new", "api_key": "k", "expires_in": 3600, "dca_expires_at": 1790000000, "base_url": "https://b", "name": "N <&>"},
 			Snapshot: map[string]any{"type": "other", "api_key": "snap-stale", "email": "snap@x", "disabled": false, "headers": map[string]any{"X": "1"}}},

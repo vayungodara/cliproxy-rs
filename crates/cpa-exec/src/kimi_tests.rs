@@ -106,6 +106,7 @@ async fn downstream_results_match_go() {
         "chat-kimi-ai-metadata-base",
         "responses-nonstream-reorder-suffix",
         "responses-stream-clamp",
+        "responses-stream-data-only-frames",
         "responses-compact-rejected",
         "transport-custom-headers",
         "transport-redirect-307",

@@ -592,11 +592,28 @@ pub(crate) fn go_map_from_json(raw: &[u8]) -> Option<(GoMap, bool)> {
     check_valid(raw).ok()?;
     match GoValue::parse(raw)? {
         GoValue::Object(map) => {
-            let mut clean = true;
+            // Go keeps decoding after an overflow and keeps the error even when a later
+            // duplicate key overwrites the value, so every number in the document counts.
+            let mut clean = all_numbers_finite(&gj::parse(raw));
             let map = map.into_iter().map(|(k, v)| (k, as_float64(v, &mut clean))).collect();
             Some((map, clean))
         }
         _ => None,
+    }
+}
+
+fn all_numbers_finite(value: &gj::Res<'_>) -> bool {
+    match value.kind {
+        gj::Kind::Number => go_float(&String::from_utf8_lossy(&value.raw)).is_some(),
+        gj::Kind::Json => {
+            let mut ok = true;
+            value.each(|_, item| {
+                ok = all_numbers_finite(&item);
+                ok
+            });
+            ok
+        }
+        _ => true,
     }
 }
 

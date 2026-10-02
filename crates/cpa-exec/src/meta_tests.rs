@@ -11,6 +11,7 @@ use crate::kimi_fixture::{Captured, Mock, assert_same_request, fixture, request}
 use crate::meta_auth::{
     self, GoMap, MetaAuth, TokenStorage, credential_file_name, encode_token_file, go_map_from_json, login_with,
 };
+use cpa_common::json as gj;
 
 /// A private directory under the system temp dir, removed on drop.
 struct TempDir(std::path::PathBuf);
@@ -195,6 +196,7 @@ async fn execution_matches_go_byte_for_byte() {
         "error-404-model",
         "error-404-resets",
         "stream-error-event",
+        "stream-error-after-data-only",
         "nonstream-response-failed",
         "nonstream-incomplete-fallback-items",
         "nonstream-disconnect-before-completed",
@@ -793,6 +795,49 @@ fn login_merge_skips_an_existing_file_go_cannot_decode() {
         encode_token_file(&storage, None, Some(br#"{"custom":1e400,"n":1.0}"#)),
         "{\n  \"access_token\": \"a\",\n  \"auth_kind\": \"oauth\",\n  \"custom\": null,\n  \"n\": 1,\n  \"type\": \"meta\"\n}\n"
     );
+}
+
+#[tokio::test]
+async fn login_skips_existing_file_with_an_overwritten_overflow() {
+    // Go records the 1e400 decode error even though "x" is overwritten by 0, so
+    // Manager.Login merges nothing from the old file (no disabled, no prefix).
+    let fx = fixture("meta", "login-existing-overflow");
+    let mock = Mock::start(&fx["responses"]).await;
+    let dir = TempDir::new();
+    let go_file = fx["extra"]["file_name"].as_str().unwrap();
+    std::fs::write(dir.path().join(go_file), fx["request"]["stale_file"].as_str().unwrap()).unwrap();
+    let go_raw = fx["extra"]["file_raw"].as_str().unwrap();
+    let now = chrono::DateTime::parse_from_rfc3339(&gj::get(go_raw.as_bytes(), "last_refresh").str())
+        .unwrap()
+        .to_utc();
+    let outcome = login_with(login_auth(&mock.url).with_fixed_now(now), dir.path(), true)
+        .await
+        .unwrap();
+    let written = std::fs::read_to_string(&outcome.path).unwrap();
+    // dca_expired/dca_expires_at derive from the poll time, which differs per run.
+    let strip = |s: &str| {
+        let mut v: Value = serde_json::from_str(s).unwrap();
+        for key in ["dca_expired", "dca_expires_at"] {
+            v.as_object_mut().unwrap().remove(key);
+        }
+        v
+    };
+    assert_eq!(strip(&written), strip(go_raw));
+}
+
+#[test]
+fn strict_error_body_read_surfaces_errors_past_the_kept_prefix() {
+    let chunks: Vec<Result<Bytes, ExecError>> = vec![
+        Ok(Bytes::from_static(b"0123456789")),
+        Ok(Bytes::from_static(b"abcdef")),
+        Err(ExecError::local(502, FailureScope::Transport, "unexpected EOF")),
+    ];
+    let body = futures_util::stream::iter(chunks).boxed();
+    let rt = tokio::runtime::Builder::new_current_thread().build().unwrap();
+    let error = rt.block_on(crate::kimi_http::read_all_strict(body, 4)).unwrap_err();
+    assert_eq!(error.scope, FailureScope::Transport);
+    let ok = futures_util::stream::iter(vec![Ok(Bytes::from_static(b"0123456789"))]).boxed();
+    assert_eq!(rt.block_on(crate::kimi_http::read_all_strict(ok, 4)).unwrap(), "0123");
 }
 
 #[tokio::test]

@@ -29,8 +29,8 @@ use serde_json::Value;
 
 use crate::codex_response::OutputItems;
 use crate::kimi_http::{
-    Clients, GoHeaders, MAX_ERROR_BODY, custom_headers, default_client, lines, proxy_url, read_all, refresh_due,
-    rfc3339_local_now, send,
+    Clients, GoHeaders, MAX_ERROR_BODY, custom_headers, default_client, lines, proxy_url, read_all, read_all_strict,
+    refresh_due, rfc3339_local_now, send,
 };
 use crate::meta_auth::{DEFAULT_API_BASE_URL, MetaAuth, MintedKey};
 use crate::meta_codex::{
@@ -200,7 +200,7 @@ impl MetaExecutor {
         if !(200..300).contains(&upstream.status) {
             let headers = upstream.headers.clone();
             // Go returns a failed error-body read as is, never classified by status.
-            let error_body = read_all(upstream.body, MAX_ERROR_BODY, false).await?;
+            let error_body = read_all_strict(upstream.body, MAX_ERROR_BODY).await?;
             let mut error = upstream_error(upstream.status, &error_body);
             error.headers = Box::new(headers);
             return Err(error);
@@ -588,14 +588,24 @@ fn stream_events(upstream: ExecStream, translator: Box<dyn StreamTranslator>, re
             self.emit(translated);
         }
 
+        /// Ends the stream with `error`. Responses clients first get the frame Go's route
+        /// flushes before writing a terminal error; other routes hold nothing back.
+        fn fail(&mut self, error: ExecError) {
+            self.done = true;
+            if self.responses_client {
+                let flushed = self.translator.finish();
+                self.emit(flushed);
+            }
+            self.done = true;
+            self.ready.push_back(Err(error));
+        }
+
         fn line(&mut self, line: &[u8]) {
             let Some(event) = data_payload(line) else {
                 return self.translate(line.to_vec());
             };
             if let Some(error) = stream_event_error(event) {
-                self.done = true;
-                self.ready.push_back(Err(error));
-                return;
+                return self.fail(error);
             }
             let kind = gj::get(event, "type").bytes().into_owned();
             let event = match kind.as_slice() {
@@ -630,10 +640,7 @@ fn stream_events(upstream: ExecStream, translator: Box<dyn StreamTranslator>, re
                 }
                 match st.upstream.next().await {
                     Some(Ok(line)) => st.line(&line),
-                    Some(Err(error)) => {
-                        st.done = true;
-                        st.ready.push_back(Err(error));
-                    }
+                    Some(Err(error)) => st.fail(error),
                     None => {
                         st.done = true;
                         let finished = st.translator.finish();

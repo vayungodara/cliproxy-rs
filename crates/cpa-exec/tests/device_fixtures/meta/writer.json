@@ -21,6 +21,24 @@
         "out": "{\n  \"access_token\": \"new\",\n  \"auth_kind\": \"oauth\",\n  \"custom\": \"disk\",\n  \"email\": \"new@x\",\n  \"prefix\": \"p\",\n  \"token_type\": \"bearer\",\n  \"type\": \"meta\"\n}\n"
       },
       {
+        "name": "disk-overflow-partial-map",
+        "disk": "{\"type\":\"meta\",\"custom\":1e400,\"n\":1.0,\"big\":1e21,\"small\":1.5e-7,\"arr\":[1e400,2]}",
+        "storage": {
+          "access_token": "a"
+        },
+        "snapshot": null,
+        "out": "{\n  \"access_token\": \"a\",\n  \"arr\": [\n    null,\n    2\n  ],\n  \"auth_kind\": \"oauth\",\n  \"big\": 1e+21,\n  \"custom\": null,\n  \"n\": 1,\n  \"small\": 1.5e-7,\n  \"type\": \"meta\"\n}\n"
+      },
+      {
+        "name": "disk-overflow-overwritten",
+        "disk": "{\"x\":1e400,\"x\":0,\"y\":3}",
+        "storage": {
+          "access_token": "a"
+        },
+        "snapshot": null,
+        "out": "{\n  \"access_token\": \"a\",\n  \"auth_kind\": \"oauth\",\n  \"type\": \"meta\",\n  \"x\": 0,\n  \"y\": 3\n}\n"
+      },
+      {
         "name": "snapshot-wins-and-deletes",
         "disk": "{\"type\":\"meta\",\"custom\":\"disk\",\"prefix\":\"p\"}",
         "storage": {

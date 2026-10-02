@@ -328,6 +328,23 @@ pub(crate) async fn read_all(
     Ok(out.freeze())
 }
 
+/// Go `io.ReadAll` for a body whose read failure must surface: the first `keep` bytes are
+/// kept and the rest is drained, so a read error anywhere in the body is returned.
+// ponytail: Go keeps the whole body; bytes past `keep` are discarded to bound memory.
+pub(crate) async fn read_all_strict(
+    mut body: futures_util::stream::BoxStream<'static, Result<Bytes, ExecError>>,
+    keep: usize,
+) -> Result<Bytes, ExecError> {
+    use futures_util::StreamExt;
+    let mut out = bytes::BytesMut::new();
+    while let Some(chunk) = body.next().await {
+        let chunk = chunk?;
+        let room = keep.saturating_sub(out.len());
+        out.extend_from_slice(&chunk[..chunk.len().min(room)]);
+    }
+    Ok(out.freeze())
+}
+
 /// `statusErr{code, msg: body}`. Go's Kimi errors carry no retry hint (Retry-After is not
 /// read) and are not credential-scoped, so a 429 cools only the model: the scheduler
 /// reserves credential-wide quota cooldowns for credential-scoped 429s.

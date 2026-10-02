@@ -45,6 +45,7 @@ mod openai_compat_http;
 pub mod openai_compat_multipart;
 mod openai_compat_payload;
 mod quota;
+mod responses_frames;
 mod tls;
 mod tokens;
 mod translate;

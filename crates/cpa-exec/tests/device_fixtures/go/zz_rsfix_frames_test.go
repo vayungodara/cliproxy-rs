@@ -2,7 +2,8 @@ package openai
 
 // Fixture post-processor for cliproxy-rs: adds `downstream.frames` to every executor
 // fixture under $RSFIX_OUT/<provider> that recorded stream chunks. Frames are the chunks
-// joined exactly as responsesSSEFramer.WriteChunk/Flush join them, before repairFrame
+// joined exactly as responsesSSEFramer.WriteChunk/Flush join them (Flush also runs
+// before a terminal error), before repairFrame
 // (route-level repair stays with the Rust Responses route). Run after the executor
 // generators.
 
@@ -95,10 +96,9 @@ func TestRSFixResponsesFrames(t *testing.T) {
 			s, _ := c.(string)
 			j.write([]byte(s))
 		}
-		// A stream that ended with an error is not flushed (the route writes the error).
-		if streamErr, _ := down["stream_err"].(string); streamErr == "" {
-			j.flush()
-		}
+		// The route flushes pending data before writing a terminal error too
+		// (forwardResponsesStream writeTerminalError).
+		j.flush()
 		down["frames"] = j.frames
 		out, err := json.MarshalIndent(fixture, "", "  ")
 		if err != nil {
