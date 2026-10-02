@@ -42,6 +42,32 @@ fn doc_range(out: &[u8], data: i64) -> Option<(usize, usize)> {
     None
 }
 
+/// Unix seconds of a `YYYY-MM-DDThh:mm:ss[.frac](Z|±hh:mm)` stamp.
+fn parse_rfc3339(s: &[u8]) -> Option<i64> {
+    let s = std::str::from_utf8(s).ok()?;
+    let num = |r: std::ops::Range<usize>| s.get(r)?.parse::<i64>().ok();
+    let (y, mo, d, h, mi, se) = (
+        num(0..4)?,
+        num(5..7)?,
+        num(8..10)?,
+        num(11..13)?,
+        num(14..16)?,
+        num(17..19)?,
+    );
+    let rest = s.get(19..)?;
+    let rest = rest.trim_start_matches(|c: char| c == '.' || c.is_ascii_digit());
+    let offset = match rest {
+        "Z" => 0,
+        _ => {
+            let sign = if rest.starts_with('-') { -1 } else { 1 };
+            sign * (rest.get(1..3)?.parse::<i64>().ok()? * 3600 + rest.get(4..6)?.parse::<i64>().ok()? * 60)
+        }
+    };
+    let (y, mo) = if mo <= 2 { (y - 1, mo + 12) } else { (y, mo) };
+    let days = 365 * y + y / 4 - y / 100 + y / 400 + (153 * (mo - 3) + 2) / 5 + d - 719_469;
+    Some(days * 86_400 + h * 3600 + mi * 60 + se - offset)
+}
+
 struct Dyn {
     out: usize,
     data: i64,
@@ -72,7 +98,10 @@ fn normalize(outputs: &mut [Vec<u8>], dynamics: &[Dyn], check: Option<(i64, i64)
         }
         if let Some((start, end)) = check {
             if d.time {
-                let n = value.int();
+                let n = match value.kind {
+                    gj::Kind::String => parse_rfc3339(&value.s).unwrap_or(0),
+                    _ => value.int(),
+                };
                 if !((start - 2..=end + 2).contains(&n) || ((start - 2) * 1000..=(end + 2) * 1000).contains(&n)) {
                     errors.push(format!("{} = {n} is not a current timestamp", d.path));
                 }
@@ -136,6 +165,25 @@ fn run(client: Format, upstream: Format, f: &Value, bytes: bool) -> Vec<Vec<u8>>
             out
         }
         other => panic!("unknown fixture path {other}"),
+    }
+}
+
+/// JSON with object keys sorted recursively (for outputs whose Go key order varies).
+fn canonical(raw: &[u8]) -> Vec<u8> {
+    fn sorted(value: Value) -> Value {
+        match value {
+            Value::Object(map) => {
+                let mut entries: Vec<(String, Value)> = map.into_iter().map(|(k, v)| (k, sorted(v))).collect();
+                entries.sort_by(|a, b| a.0.cmp(&b.0));
+                Value::Object(entries.into_iter().collect())
+            }
+            Value::Array(items) => Value::Array(items.into_iter().map(sorted).collect()),
+            other => other,
+        }
+    }
+    match serde_json::from_slice::<Value>(raw) {
+        Ok(value) => serde_json::to_vec(&sorted(value)).unwrap(),
+        Err(_) => raw.to_vec(),
     }
 }
 
@@ -239,6 +287,14 @@ fn reference_goldens() {
                 }
                 out
             };
+            if let Some(variants) = f["variants"].as_array()
+                && let Some(out) = actual.first()
+                && variants.iter().any(|v| canonical(&field(v, bytes)) == canonical(out))
+            {
+                // Go's own output order varies here (map iteration); any order it
+                // produced is accepted.
+                actual = expected.clone();
+            }
             let end = now();
             let mut errors = normalize(&mut actual, &dynamics, Some((start, end)));
             normalize(&mut expected, &dynamics, None);
@@ -449,4 +505,12 @@ fn apply_patch_failures_reach_the_stream_contract() {
     )
     .unwrap_err();
     assert_eq!(err.0, cpa_translate::APPLY_PATCH_UPSTREAM_ERROR);
+}
+
+#[test]
+fn golden_rfc3339_parser_matches_unix_seconds() {
+    assert_eq!(parse_rfc3339(b"1970-01-01T00:00:00Z"), Some(0));
+    assert_eq!(parse_rfc3339(b"2023-11-14T22:13:20Z"), Some(1_700_000_000));
+    assert_eq!(parse_rfc3339(b"2000-02-29T01:00:00+01:00"), Some(951_782_400));
+    assert_eq!(parse_rfc3339(b"2025-08-15T02:52:03.884209Z"), Some(1_755_226_323));
 }

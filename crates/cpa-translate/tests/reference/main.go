@@ -54,8 +54,11 @@ type fixture struct {
 	Outputs    [][]string `json:"outputs"`
 	Finalize   bool       `json:"finalize,omitempty"`
 	ToolError  bool       `json:"tool_error,omitempty"`
-	Dynamic    []dynamic  `json:"dynamic,omitempty"`
-	key        string
+	// Variants are every distinct output of a request whose Go output is not stable
+	// (map iteration order); Rust must match one of them modulo object key order.
+	Variants []string  `json:"variants,omitempty"`
+	Dynamic  []dynamic `json:"dynamic,omitempty"`
+	key      string
 }
 
 type registration struct {
@@ -494,6 +497,13 @@ func walk(a, b gjson.Result, path string, start, end int64, add func(path, prefi
 			return
 		}
 	}
+	if a.Type == gjson.String {
+		// RFC3339 wall-clock stamps (interaction created/updated).
+		if t, err := time.Parse(time.RFC3339Nano, a.String()); err == nil && t.Unix() >= start-2 && t.Unix() <= end+2 {
+			add(path, "", true)
+			return
+		}
+	}
 	if a.Raw != b.Raw {
 		prefix := ""
 		if a.Type == gjson.String && b.Type == gjson.String {
@@ -507,6 +517,19 @@ func record(r registration, f fixture) fixture {
 	start := time.Now().Unix()
 	a := run(r, f)
 	f.ToolError = lastToolError
+	if f.Path == "request" || f.Path == "request_compat" {
+		seen := map[string]bool{a[0][0]: true}
+		variants := []string{a[0][0]}
+		for i := 0; i < 24; i++ {
+			if v := run(r, f)[0][0]; !seen[v] {
+				seen[v] = true
+				variants = append(variants, v)
+			}
+		}
+		if len(variants) > 1 {
+			f.Variants = variants
+		}
+	}
 	time.Sleep(time.Millisecond)
 	b := run(r, f)
 	end := time.Now().Unix()
@@ -539,6 +562,9 @@ func encode(f fixture) fixture {
 	fields := []*string{&f.Input, &f.Original, &f.Translated}
 	for i := range f.Lines {
 		fields = append(fields, &f.Lines[i])
+	}
+	for i := range f.Variants {
+		fields = append(fields, &f.Variants[i])
 	}
 	for i := range f.Outputs {
 		for j := range f.Outputs[i] {
