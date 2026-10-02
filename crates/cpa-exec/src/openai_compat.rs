@@ -564,9 +564,17 @@ struct Frames {
 
 impl Frames {
     fn fail(&mut self, status: u16, message: impl Into<String>) -> bool {
-        self.ready.push_back(Err(status_err(status, message)));
-        self.failed = true;
+        self.terminal(status_err(status, message));
         true
+    }
+
+    /// A terminal error: a Responses client first gets the frame its Go framer would
+    /// flush (`responsesSSEFramer.Flush`), then the error.
+    fn terminal(&mut self, error: ExecError) {
+        let flushed = self.translator.flush_frames();
+        self.ready.extend(flushed.into_iter().map(Ok));
+        self.ready.push_back(Err(error));
+        self.failed = true;
     }
 
     fn translate(&mut self, line: &[u8]) -> bool {
@@ -693,7 +701,7 @@ fn frames(lines: ExecStream, translator: Box<dyn StreamTranslator>, responses: b
                     }
                 }
                 Some(Err(error)) => {
-                    state.ready.push_back(Err(error));
+                    state.terminal(error);
                     ended = true;
                 }
                 None => {

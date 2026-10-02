@@ -390,3 +390,41 @@ fn go_primitive_vectors() {
         );
     }
 }
+
+/// A translator holding one unfinished Responses frame.
+struct Pending;
+
+impl StreamTranslator for Pending {
+    fn event(&mut self, _: &[u8]) -> Result<Vec<Bytes>, cpa_translate::Error> {
+        Ok(vec![])
+    }
+
+    fn finish(&mut self) -> Result<Vec<Bytes>, cpa_translate::Error> {
+        Ok(vec![])
+    }
+
+    fn flush_frames(&mut self) -> Vec<Bytes> {
+        vec![Bytes::from_static(b"event: pending\n\n")]
+    }
+}
+
+#[tokio::test]
+async fn terminal_errors_flush_pending_frames_first() {
+    // Go's responsesSSEFramer flushes before the handler writes a terminal error.
+    for (lines, status) in [
+        (
+            vec![
+                Ok(Bytes::from_static(b"data: {\"error\":{\"status\":429}}")),
+                Ok(Bytes::new()),
+            ],
+            429,
+        ),
+        (vec![Err(ExecError::local(502, FailureScope::Transport, "cut"))], 502),
+    ] {
+        let lines: ExecStream = futures_util::stream::iter(lines).boxed();
+        let out: Vec<_> = frames(lines, Box::new(Pending), true).collect().await;
+        assert_eq!(out.len(), 2);
+        assert_eq!(out[0].as_ref().unwrap(), &Bytes::from_static(b"event: pending\n\n"));
+        assert_eq!(out[1].as_ref().unwrap_err().status, status);
+    }
+}
