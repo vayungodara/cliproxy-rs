@@ -2,7 +2,9 @@
 
 mod access;
 mod claude;
+pub mod management;
 pub mod runtime;
+pub mod watching;
 
 use std::sync::Arc;
 

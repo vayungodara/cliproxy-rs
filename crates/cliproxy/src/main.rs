@@ -36,7 +36,9 @@ fn go_style_args() -> Vec<String> {
 /// no usable IPv6. Other errors, such as the port being in use, are returned.
 fn bind(host: &str, port: u16) -> io::Result<std::net::TcpListener> {
     if !host.is_empty() {
-        return std::net::TcpListener::bind((host, port));
+        let listener = std::net::TcpListener::bind((host, port))?;
+        listener.set_nonblocking(true)?;
+        return Ok(listener);
     }
     match listen(Domain::IPV6, SocketAddr::from((Ipv6Addr::UNSPECIFIED, port)), true) {
         Err(e) if matches!(e.raw_os_error(), Some(libc::EAFNOSUPPORT | libc::EADDRNOTAVAIL)) => {
@@ -79,13 +81,26 @@ async fn main() -> anyhow::Result<()> {
         claude: ClaudeExecutor::new(DEFAULT_BASE_URL)?,
     };
     let rt = Arc::new(Runtime::new(config, credentials, executors));
-    axum::serve(listener, router(rt)).await?;
+    let management = cpa_server::management::Management::new(rt.clone(), args.config);
+    let _watcher = cpa_server::watching::start(&management);
+    let app = router(rt).merge(cpa_server::management::router(management));
+    axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>()).await?;
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn explicit_host_listener_is_nonblocking_for_tokio() {
+        let listener = bind("127.0.0.1", 0).unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let listener = tokio::net::TcpListener::from_std(listener).unwrap();
+        let client = tokio::net::TcpStream::connect((Ipv4Addr::LOCALHOST, port));
+        let (client, accepted) = tokio::join!(client, listener.accept());
+        assert!(client.is_ok() && accepted.is_ok());
+    }
 
     #[test]
     fn empty_host_is_dual_stack_and_port_in_use_is_an_error() {

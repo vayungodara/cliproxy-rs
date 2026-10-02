@@ -67,6 +67,24 @@ Tested against the latest Linux amd64 release **CLIProxyAPI v8.0.10**, published
 
 The integration scripts are deliberately for the disposable backend only. They use the public test management key `orb-dashboard-test-only`; never adapt them to a production server. The API verifier refuses mutations unless the auth directory is `/tmp/cliproxy-backend/auth`. The browser verifier expects empty provider credentials/payload rules and retry value 3. Its optional arguments are page URL, server base URL, and capture directory.
 
+## Rust backend verification
+
+The Rust binary embeds the checked-in production `dist/` at `/management.html`, including fonts, assets, and favicon. Rebuild the UI before compiling Rust when changing UI sources. An existing auth directory may contain `static/` and `logs/`; these do not become credentials, and the embedded panel does not overwrite them.
+
+The current Rust backend is a tested subset, not full Management API parity. It implements v8 config root and mapping-path reads/writes, YAML reads/writes, credential inventory/download/status, and legacy YAML/inventory/download/status reads or updates. Config reads do not persist migration or materialize runtime defaults. Successful v8 writes migrate legacy spellings. Unchanged v8 syntax is preserved; newly inserted mappings use flow syntax. Go's complete saver defaults and migration-comment behavior are not yet reproduced.
+
+`node scripts/browser-check-rust.mjs` checks the running Rust binary at `/management.html`. Its optional arguments are the page URL and capture directory. It requires the public disposable key above, a disabled fake Claude credential with email `operator@example.invalid`, routing strategy `round-robin`, and an empty `requests.payload.default` list. Never use it against production: it adds and removes one payload rule. It makes no OAuth, token-refresh, quota, or provider requests.
+
+Verified on October 2, 2026:
+
+- Overview, Credentials, Client keys, Payload rules, and Configuration load through the real Rust API in both themes without error banners or horizontal overflow.
+- Payload add/remove persists and rereads through Rust; the YAML editor displays a real diff and discards it without writing.
+- Desktop dark Overview, light YAML preview, and the 390px Credentials layout were captured at 2x and inspected. The narrow capture is Chromium viewport emulation, not a real phone or touch test.
+- Management keys remain absent from browser storage. Production JavaScript remains 42,642 bytes gzip; no runtime UI dependency was added.
+- The Impeccable detector reports advisory radius/color differences between existing CSS and DESIGN.md, not blocking findings. The incumbent visual design is unchanged.
+
+OAuth, plugin execution/store, telemetry/logs, model definitions, quota/reset, credential upload/delete/fields/refresh, and most legacy management routes remain unavailable. Unsupported routes return an authenticated 501 rather than fabricated success; unsupported methods on implemented routes return 405. Existing buttons for those operations remain visible and report the server error.
+
 ## Honest parity gaps and unverified paths
 
 - Complex provider fields, mappings, plugin configuration, and nested settings use the generic JSON/visual editors rather than every specialized official form. New omitted settings can be added in JSON/YAML mode; visual mode edits persisted fields only.

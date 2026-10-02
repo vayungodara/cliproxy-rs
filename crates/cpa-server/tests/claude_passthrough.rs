@@ -101,6 +101,7 @@ async fn proxy(dir: &Path, upstream_url: &str) -> String {
         port: 0,
         api_keys: vec!["client-key-1".into()],
         auth_dir: dir.into(),
+        ..Config::default()
     };
     let creds = cpa_core::credential::load_dir(dir).unwrap();
     let executors = Executors {
