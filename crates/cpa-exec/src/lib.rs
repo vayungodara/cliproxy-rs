@@ -12,6 +12,7 @@
 pub mod claude;
 pub mod oauth;
 mod quota;
+mod rawjson;
 mod tls;
 mod tokens;
 mod translate;
@@ -51,6 +52,25 @@ impl Executors {
     pub async fn prepare(&self, credential: &Credential, cfg: &Config) -> Result<MetadataPatch, ExecError> {
         match credential.provider.as_str() {
             "claude" => self.claude.prepare(credential, cfg).await,
+            other => Err(no_executor(other)),
+        }
+    }
+}
+
+impl Executors {
+    /// Whether the background refresh loop should renew `credential` now (provider
+    /// refresh lead). Request acquisition never refreshes; see [`Executors::prepare`].
+    pub fn needs_refresh(&self, credential: &Credential, cfg: &Config) -> bool {
+        match credential.provider.as_str() {
+            "claude" => self.claude.needs_refresh(credential, cfg),
+            _ => false,
+        }
+    }
+
+    /// Renews `credential` and returns the metadata change to commit.
+    pub async fn refresh(&self, credential: &Credential, cfg: &Config) -> Result<MetadataPatch, ExecError> {
+        match credential.provider.as_str() {
+            "claude" => self.claude.refresh(credential, cfg).await,
             other => Err(no_executor(other)),
         }
     }

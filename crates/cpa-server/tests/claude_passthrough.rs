@@ -204,7 +204,7 @@ async fn claude_messages_end_to_end() {
     assert!(
         rest.starts_with(
             r#"event: error
-data: {"type":"error","error":{"type":"api_error","message":"upstream request failed"#
+data: {"type":"error","error":{"type":"api_error","message":"unexpected EOF"#
         ),
         "got {rest:?}"
     );
@@ -220,13 +220,39 @@ data: {"type":"error","error":{"type":"api_error","message":"upstream request fa
         ["Bearer tok-A", "Bearer tok-B"],
         "disabled and non-Claude credentials are never used"
     );
+    // These tokens are not Claude OAuth tokens (no sk-ant-oat) and have no fingerprint
+    // profile, so Go keeps the caller-owned shape: no CLI betas, and the body gets only
+    // Go's normalization (max_tokens from the catalog, a default cache breakpoint on the
+    // last turn, an explicit stream flag). Streams to custom gateways ask for identity.
     for s in &seen {
         assert_eq!(s.uri, "/v1/messages?beta=true");
-        assert!(s.beta.split(',').any(|b| b == "oauth-2025-04-20"));
-        assert_eq!(s.accept_encoding, "identity");
+        assert!(
+            s.beta.is_empty(),
+            "caller-owned shape carries no managed betas: {}",
+            s.beta
+        );
+        let streaming = s.body.windows(13).any(|w| w == br#""stream":true"#);
+        let expected = if streaming {
+            "identity"
+        } else {
+            "gzip, deflate, br, zstd"
+        };
+        assert_eq!(s.accept_encoding, expected);
         assert!(!s.client_key_leaked, "client key must never reach upstream");
     }
-    assert_eq!(seen[0].body, json_body.as_bytes(), "body forwarded byte for byte");
+    let max_tokens = cpa_core::registry::pinned()
+        .channel("claude")
+        .iter()
+        .find(|m| m.id == "claude-opus-5-5")
+        .and_then(|m| m.raw.get("max_completion_tokens").and_then(serde_json::Value::as_i64))
+        .unwrap();
+    assert_eq!(
+        String::from_utf8_lossy(&seen[0].body),
+        format!(
+            r#"{{ "model":"claude-opus-5-5",  "messages":[{{"role":"user","content":[{{"type":"text","text":"hi","cache_control":{{"type":"ephemeral"}}}}]}}] ,"max_tokens":{max_tokens},"stream":false}}"#
+        ),
+        "untouched members keep their bytes; Go's normalizations are appended in place"
+    );
 
     let models: serde_json::Value = client
         .get(format!("{proxy}/v1/models"))

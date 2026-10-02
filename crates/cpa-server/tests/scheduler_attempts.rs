@@ -48,11 +48,13 @@ async fn upstream(State(mock): State<Arc<Mock>>, req: Request) -> Response {
         }
         Mode::BeforeCommit if token == "Bearer fake-a" => {
             use futures_util::StreamExt;
-            // A partial event is not a committed byte: the executor frames SSE.
+            // Headers but no body bytes before the reset. Go's line scanner flushes even
+            // a partial line as a chunk, and its Claude handler commits any non-empty
+            // chunk, so only a fault before the first byte is a pre-commit fault.
             let first = mock.clone();
             let broken = futures_util::stream::once(async move {
                 first.first_chunk.notify_one();
-                Ok::<_, std::io::Error>(Bytes::from_static(b"data: partial"))
+                Ok::<_, std::io::Error>(Bytes::new())
             })
             .chain(futures_util::stream::once(async move {
                 mock.break_stream.notified().await;

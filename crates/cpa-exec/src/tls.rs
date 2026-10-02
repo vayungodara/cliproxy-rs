@@ -1,20 +1,134 @@
-//! Node/OpenSSL inference and compact OAuth TLS options, not browser emulation.
+//! Claude transports (helps/utls_client.go, auth/claude/utls_transport.go).
 //!
-//! ponytail: cold handshakes match the pinned Go uTLS captures after masking
-//! randomness. Session resumption, proxy-scoped caches and lifecycle parity remain
-//! unverified; do not claim full transport parity from a cold ClientHello alone.
+//! First-party Anthropic inference uses the deterministic Node/OpenSSL ClientHello
+//! with HTTP/1.1-only ALPN and a final pre_shared_key extension that stays silent
+//! until a session is cached. Clients are cached per effective proxy URL in a
+//! bounded 64-entry LRU, and each owns its own 32-entry TLS session cache, so
+//! resumption never crosses proxy boundaries. OAuth acquisition has its own compact
+//! profile; custom gateways get a plain client that honours environment proxies.
+//!
+//! ponytail: SOCKS5 proxies need wreq's `socks` feature (new tokio-socks
+//! dependency); until enabled they fail as transport errors instead of bypassing.
 
+use std::net::SocketAddr;
+use std::sync::{Arc, Mutex};
+
+use wreq::tls::session::LruTlsSessionCache;
+use wreq::tls::trust::CertStore;
 use wreq::tls::{AlpnProtocol, ExtensionType, KeyShare, TlsOptions, TlsVersion};
 
-pub(crate) fn client(oauth: bool) -> wreq::Result<wreq::Client> {
-    let builder = wreq::Client::builder();
-    // http1_only forces an ALPN extension even with an empty TLS protocol list.
-    // OAuth's no-ALPN handshake naturally falls back to HTTP/1.1.
-    let builder = if oauth { builder } else { builder.http1_only() };
-    builder
-        .tls_options(options(oauth))
-        .redirect(wreq::redirect::Policy::none())
-        .build()
+pub(crate) const TRANSPORT_CACHE: usize = 64;
+const SESSION_CACHE: usize = 32;
+
+/// Test-only routing: extra trust roots replace the default store, and resolve
+/// overrides pin logical hosts to local addresses while URL, Host and SNI stay
+/// first-party. Production uses [`Hooks::default`].
+#[derive(Clone, Default)]
+pub struct Hooks {
+    pub trust: Option<CertStore>,
+    pub resolve: Vec<(String, SocketAddr)>,
+}
+
+/// Effective proxy for one request (`effectiveProxyURL` + `proxyutil.Parse`).
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(crate) enum Proxy {
+    /// Nothing configured: native/OAuth dial directly, custom gateways inherit env.
+    Inherit,
+    /// `direct` / `none`: bypass every proxy.
+    Direct,
+    Url(String),
+    Invalid,
+}
+
+impl Proxy {
+    pub(crate) fn parse(raw: &str) -> Self {
+        let raw = raw.trim();
+        if raw.is_empty() {
+            return Self::Inherit;
+        }
+        if raw.eq_ignore_ascii_case("direct") || raw.eq_ignore_ascii_case("none") {
+            return Self::Direct;
+        }
+        match url::Url::parse(raw) {
+            Ok(u) if u.has_host() && matches!(u.scheme(), "http" | "https" | "socks5" | "socks5h") => {
+                Self::Url(raw.into())
+            }
+            _ => Self::Invalid,
+        }
+    }
+}
+
+pub(crate) struct Clients {
+    pub native: wreq::Client,
+    pub generic: wreq::Client,
+    pub oauth: wreq::Client,
+}
+
+/// Process-wide transport cache. Construct once per executor set.
+pub struct Transport {
+    hooks: Hooks,
+    cache: Mutex<Vec<(Proxy, Arc<Clients>)>>,
+}
+
+impl Transport {
+    pub fn new(hooks: Hooks) -> Self {
+        Self {
+            hooks,
+            cache: Mutex::default(),
+        }
+    }
+
+    /// Clients for `proxy`, most recently used first; evicts the least recently used.
+    pub(crate) fn clients(&self, proxy: &Proxy) -> wreq::Result<Arc<Clients>> {
+        let mut cache = self.cache.lock().expect("transport cache");
+        if let Some(i) = cache.iter().position(|(p, _)| p == proxy) {
+            let entry = cache.remove(i);
+            let clients = entry.1.clone();
+            cache.insert(0, entry);
+            return Ok(clients);
+        }
+        let clients = Arc::new(Clients {
+            native: self.build(Profile::Native, proxy)?,
+            generic: self.build(Profile::Generic, proxy)?,
+            oauth: self.build(Profile::OAuth, proxy)?,
+        });
+        cache.insert(0, (proxy.clone(), clients.clone()));
+        cache.truncate(TRANSPORT_CACHE);
+        Ok(clients)
+    }
+
+    fn build(&self, profile: Profile, proxy: &Proxy) -> wreq::Result<wreq::Client> {
+        let mut builder = wreq::Client::builder().redirect(wreq::redirect::Policy::none());
+        builder = match profile {
+            Profile::Native => builder
+                .http1_only()
+                .tls_options(options(false))
+                .tls_session_cache(LruTlsSessionCache::new(SESSION_CACHE)),
+            // No ALPN extension on the compact OAuth hello; HTTP/1.1 follows.
+            Profile::OAuth => builder.tls_options(options(true)),
+            Profile::Generic => builder.http1_only(),
+        };
+        // Go logs an unusable proxy and dials as if none were configured.
+        builder = match proxy {
+            Proxy::Url(url) => builder.proxy(wreq::Proxy::all(url.as_str())?),
+            Proxy::Inherit | Proxy::Invalid if profile == Profile::Generic => builder,
+            _ => builder.no_proxy(),
+        };
+        if let Some(trust) = &self.hooks.trust {
+            builder = builder.tls_cert_store(trust.clone());
+        }
+        for (host, addr) in &self.hooks.resolve {
+            builder = builder.resolve(host.clone(), *addr);
+        }
+        builder.build()
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Profile {
+    Native,
+    Generic,
+    OAuth,
 }
 
 pub(crate) fn options(oauth: bool) -> TlsOptions {
@@ -77,14 +191,13 @@ mod tests {
             socket.read_exact(&mut record).await.unwrap();
             record
         });
-        let builder = wreq::Client::builder();
-        let builder = if oauth { builder } else { builder.http1_only() };
-        let client = builder
-            .tls_options(options(oauth))
-            .resolve("claude-capture.test", address)
-            .no_proxy()
-            .build()
-            .unwrap();
+        // The production builder, with only a dial override added.
+        let transport = Transport::new(Hooks {
+            trust: None,
+            resolve: vec![("claude-capture.test".into(), address)],
+        });
+        let clients = transport.clients(&Proxy::Inherit).unwrap();
+        let client = if oauth { &clients.oauth } else { &clients.native };
         // The local listener closes after the ClientHello, so TLS must fail before HTTP.
         assert!(
             client
@@ -180,5 +293,26 @@ mod tests {
                 assert_eq!(ids, [0, 23, 65281, 10, 11, 35, 13, 51, 45, 43]);
             }
         }
+    }
+
+    #[test]
+    fn proxy_parse_and_lru_bound() {
+        assert_eq!(Proxy::parse(" "), Proxy::Inherit);
+        assert_eq!(Proxy::parse("DIRECT"), Proxy::Direct);
+        assert_eq!(Proxy::parse("none"), Proxy::Direct);
+        assert_eq!(Proxy::parse("http://p:1"), Proxy::Url("http://p:1".into()));
+        assert_eq!(Proxy::parse("ftp://p"), Proxy::Invalid);
+        assert_eq!(Proxy::parse("p:1"), Proxy::Invalid);
+        let t = Transport::new(Hooks::default());
+        let first = t.clients(&Proxy::Url("http://p0:1".into())).unwrap();
+        for i in 1..=TRANSPORT_CACHE {
+            t.clients(&Proxy::Url(format!("http://p{i}:1"))).unwrap();
+        }
+        assert_eq!(t.cache.lock().unwrap().len(), TRANSPORT_CACHE);
+        // p0 was least recently used and is rebuilt (a distinct client set).
+        let again = t.clients(&Proxy::Url("http://p0:1".into())).unwrap();
+        assert!(!Arc::ptr_eq(&first, &again));
+        let cached = t.clients(&Proxy::Url("http://p0:1".into())).unwrap();
+        assert!(Arc::ptr_eq(&again, &cached));
     }
 }

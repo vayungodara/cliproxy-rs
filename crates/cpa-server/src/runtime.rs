@@ -121,6 +121,12 @@ impl Runtime {
     }
 
     async fn prepare_credential(&self, id: &str, cfg: &Config) -> Result<Arc<Credential>, ExecError> {
+        self.update_credential(id, cfg, false).await
+    }
+
+    /// Request preparation (`refresh == false`) or a background token refresh. Both use
+    /// the same lock and revision-checked commit.
+    async fn update_credential(&self, id: &str, cfg: &Config, refresh: bool) -> Result<Arc<Credential>, ExecError> {
         let lock = self.store.prepare_lock(id);
         let _guard = lock.lock().await;
         // Another request may have prepared it while we waited.
@@ -131,10 +137,19 @@ impl Runtime {
                 "credential removed or disabled during preparation",
             )
         })?;
-        if !self.executors.needs_prepare(&current, cfg) {
+        let needed = if refresh {
+            self.executors.needs_refresh(&current, cfg)
+        } else {
+            self.executors.needs_prepare(&current, cfg)
+        };
+        if !needed {
             return Ok(current);
         }
-        let patch = self.executors.prepare(&current, cfg).await?;
+        let patch = if refresh {
+            self.executors.refresh(&current, cfg).await?
+        } else {
+            self.executors.prepare(&current, cfg).await?
+        };
         let store = self.store.clone();
         let revision = current.revision;
         let id = id.to_owned();
@@ -153,7 +168,7 @@ impl Runtime {
 
     /// One replaceable refresh loop. Uses the same preparation lock and atomic
     /// revision-checked commit as request acquisition; executors never persist files.
-    /// ponytail: needs_prepare controls eligibility. Unauthorized lifecycle gating
+    /// ponytail: needs_refresh controls eligibility. Unauthorized lifecycle gating
     /// and end-to-end token rotation await executor/lifecycle integration (M4-0027).
     pub fn start_auto_refresh(self: &Arc<Self>) {
         let mut task = self.refresh_task.lock().unwrap_or_else(PoisonError::into_inner);
@@ -177,7 +192,7 @@ impl Runtime {
                     snapshot
                         .iter()
                         .filter(|c| matches!(c.source, Source::File(_)) && !c.disabled)
-                        .filter(|c| rt.executors.needs_prepare(c, &cfg))
+                        .filter(|c| rt.executors.needs_refresh(c, &cfg))
                         .filter(|c| state.reserve(c, Instant::now()))
                         .cloned()
                         .collect()
@@ -189,7 +204,7 @@ impl Runtime {
                         let rt = rt.clone();
                         let cfg = cfg.clone();
                         async move {
-                            let result = rt.prepare_credential(&credential.id, &cfg).await;
+                            let result = rt.update_credential(&credential.id, &cfg, true).await;
                             let Some(current) = rt.store.get(&credential.id) else {
                                 return;
                             };
@@ -204,7 +219,7 @@ impl Runtime {
                             {
                                 return;
                             }
-                            let ineffective = result.is_ok() && rt.executors.needs_prepare(&current, &cfg);
+                            let ineffective = result.is_ok() && rt.executors.needs_refresh(&current, &cfg);
                             rt.refresh_state.lock().unwrap_or_else(PoisonError::into_inner).finish(
                                 &current,
                                 result.as_ref().err(),

@@ -47,7 +47,9 @@ fn shared_rejection(headers: &HeaderMap) -> bool {
         || (status(headers, "") == "rejected" && !overage_only(headers))
 }
 
-pub(crate) fn classify(mut error: ExecError) -> ExecError {
+/// `classifyClaudeUpstreamErrorWithCooling`. With `model_level_cooling` a shared-window
+/// rejection cools only the model, like any other 429.
+pub(crate) fn classify(mut error: ExecError, model_level_cooling: bool) -> ExecError {
     if (400..600).contains(&error.status) {
         error.retry_after = reset(&error.headers, SystemTime::now(), fuzz());
     }
@@ -55,10 +57,11 @@ pub(crate) fn classify(mut error: ExecError) -> ExecError {
         let value: serde_json::Value = serde_json::from_slice(&error.body).unwrap_or_default();
         let message = value["error"]["message"]
             .as_str()
+            .filter(|s| !s.is_empty())
             .map(str::to_owned)
             .unwrap_or_else(|| String::from_utf8_lossy(&error.body).into_owned())
-            .to_ascii_lowercase();
-        error.scope = if shared_rejection(&error.headers) {
+            .to_lowercase();
+        error.scope = if !model_level_cooling && shared_rejection(&error.headers) {
             FailureScope::Credential
         } else if message.contains("fast request rejected")
             || (message.contains("fast")
@@ -171,19 +174,19 @@ mod tests {
     #[test]
     fn model_shared_and_fast_entitlement_scopes() {
         let mut error = ExecError::local(429, FailureScope::Credential, r#"{"error":{"message":"slow down"}}"#);
-        assert_eq!(classify(error.clone()).scope, FailureScope::Model);
+        assert_eq!(classify(error.clone(), false).scope, FailureScope::Model);
         error
             .headers
             .insert("anthropic-ratelimit-unified-5h-status", " Rejected ".parse().unwrap());
-        assert_eq!(classify(error.clone()).scope, FailureScope::Credential);
+        assert_eq!(classify(error.clone(), false).scope, FailureScope::Credential);
         error.body = bytes::Bytes::from_static(br#"{"error":{"message":"Usage credits are required for fast mode"}}"#);
         assert_eq!(
-            classify(error.clone()).scope,
+            classify(error.clone(), false).scope,
             FailureScope::Credential,
             "shared window takes precedence"
         );
         error.headers.clear();
-        assert_eq!(classify(error).scope, FailureScope::Request);
+        assert_eq!(classify(error, false).scope, FailureScope::Request);
     }
 
     #[test]

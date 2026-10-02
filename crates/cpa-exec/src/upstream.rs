@@ -22,6 +22,17 @@ pub(crate) fn transport_error(e: wreq::Error) -> ExecError {
     ExecError::local(502, FailureScope::Transport, "upstream request failed")
 }
 
+/// Status, headers (encoding/length removed) and the decoded body as raw chunks.
+/// The Claude executor reads lines itself, so nothing is framed or buffered here.
+pub(crate) async fn decoded_response(res: wreq::Response) -> Result<(u16, HeaderMap, ExecStream), ExecError> {
+    let status = res.status().as_u16();
+    let mut headers = res.headers().clone();
+    let body = decoded(res.bytes_stream(), &headers).await?;
+    headers.remove(http::header::CONTENT_ENCODING);
+    headers.remove(http::header::CONTENT_LENGTH);
+    Ok((status, headers, body))
+}
+
 /// Non-2xx responses become [`ExecError`]; event streams are framed; anything else is
 /// buffered. Decompression runs before framing and applies to errors too.
 pub(crate) async fn into_response(res: wreq::Response) -> Result<ExecResponse, ExecError> {
@@ -54,7 +65,7 @@ pub(crate) async fn into_response(res: wreq::Response) -> Result<ExecResponse, E
     Ok(ExecResponse { status, headers, body })
 }
 
-async fn read_bounded<S>(mut body: S, limit: usize) -> Result<Bytes, ExecError>
+pub(crate) async fn read_bounded<S>(mut body: S, limit: usize) -> Result<Bytes, ExecError>
 where
     S: Stream<Item = Result<Bytes, ExecError>> + Unpin,
 {
@@ -211,7 +222,7 @@ where
 
 // ponytail: status-only classification. The scheduler port (sdk/cliproxy/auth, custom
 // request-error rules) replaces this with per-provider and per-credential rules.
-fn scope_for(status: u16) -> FailureScope {
+pub(crate) fn scope_for(status: u16) -> FailureScope {
     match status {
         401 | 402 | 403 | 408 | 429 | 500.. => FailureScope::Credential,
         _ => FailureScope::Request,

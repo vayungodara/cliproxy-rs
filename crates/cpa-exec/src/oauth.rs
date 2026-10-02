@@ -1,8 +1,10 @@
 //! Claude OAuth acquisition and metadata preparation. Runtime owns patch publication.
 //!
-//! ponytail: singleflight is shared by clones of one OAuth service, not process-global
-//! across independently constructed services. Runtime must keep its executor alive;
-//! Home KV identity and per-credential proxy transport selection are not ported yet.
+//! Refresh is single-flighted process-wide per (token endpoint, refresh token), so
+//! independently constructed services never rotate the same token twice. Token and
+//! profile calls use the credential's effective proxy through the shared transport.
+//!
+//! ponytail: Home KV identity is not ported (process-local only).
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -21,6 +23,7 @@ use sha2::{Digest, Sha256};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use url::Url;
 
+use crate::tls::{Proxy, Transport};
 use crate::upstream::into_response;
 
 pub const CLIENT_ID: &str = "9d1c250a-e61b-44d9-88ed-5944d1962f5e";
@@ -31,15 +34,27 @@ const PROFILE_URL: &str = "https://api.anthropic.com/api/oauth/profile";
 const ROLES_URL: &str = "https://api.anthropic.com/api/oauth/claude_cli/roles";
 
 type RefreshResult = Shared<BoxFuture<'static, Result<MetadataPatch, ExecError>>>;
-type Refreshes = Arc<Mutex<HashMap<[u8; 32], (Instant, RefreshResult)>>>;
+type Refreshes = Mutex<HashMap<[u8; 32], (Instant, RefreshResult)>>;
+
+/// Process-wide in-flight and recently completed refreshes.
+fn refreshes() -> &'static Refreshes {
+    static REFRESHES: std::sync::OnceLock<Refreshes> = std::sync::OnceLock::new();
+    REFRESHES.get_or_init(Refreshes::default)
+}
+
+#[derive(Clone)]
+enum Source {
+    Fixed(wreq::Client),
+    Transport(Arc<Transport>),
+}
 
 #[derive(Clone)]
 pub struct OAuth {
-    client: wreq::Client,
+    source: Source,
+    proxy: Proxy,
     token_url: String,
     profile_url: String,
     roles_url: String,
-    refreshes: Refreshes,
 }
 
 impl OAuth {
@@ -50,11 +65,32 @@ impl OAuth {
     /// Explicit endpoints for local mocks. Never derive a token endpoint from auth metadata.
     pub fn with_endpoints(client: wreq::Client, token: &str, profile: &str, roles: &str) -> Self {
         Self {
-            client,
+            source: Source::Fixed(client),
+            proxy: Proxy::Inherit,
             token_url: token.into(),
             profile_url: profile.into(),
             roles_url: roles.into(),
-            refreshes: Arc::default(),
+        }
+    }
+
+    /// The compact OAuth TLS profile from the shared, hook-aware transport.
+    pub(crate) fn with_transport(transport: Arc<Transport>) -> Self {
+        Self {
+            source: Source::Transport(transport),
+            proxy: Proxy::Inherit,
+            token_url: TOKEN_URL.into(),
+            profile_url: PROFILE_URL.into(),
+            roles_url: ROLES_URL.into(),
+        }
+    }
+
+    fn client(&self) -> Result<wreq::Client, ExecError> {
+        match &self.source {
+            Source::Fixed(client) => Ok(client.clone()),
+            Source::Transport(t) => t
+                .clients(&self.proxy)
+                .map(|c| c.oauth.clone())
+                .map_err(|_| ExecError::local(502, FailureScope::Transport, "OAuth transport failed")),
         }
     }
 
@@ -82,13 +118,14 @@ impl OAuth {
         }
     }
 
-    fn request(&self, method: wreq::Method, endpoint: &str) -> wreq::RequestBuilder {
+    fn request(&self, method: wreq::Method, endpoint: &str) -> Result<wreq::RequestBuilder, ExecError> {
         let headers = if method == wreq::Method::GET {
             crate::wire::OAUTH_INSPECT
         } else {
             crate::wire::OAUTH_TOKEN
         };
-        self.client
+        Ok(self
+            .client()?
             .request(method, endpoint)
             .redirect(wreq::redirect::Policy::none())
             .orig_headers(crate::wire::order(headers))
@@ -96,12 +133,12 @@ impl OAuth {
             .header("content-type", "application/json")
             .header("user-agent", "axios/1.15.2")
             .header("accept-encoding", "gzip, compress, deflate, br")
-            .header("connection", "close")
+            .header("connection", "close"))
     }
 
     async fn profile(&self, token: &str) -> Result<Value, ExecError> {
         self.json(
-            self.request(wreq::Method::GET, &self.profile_url)
+            self.request(wreq::Method::GET, &self.profile_url)?
                 .header("authorization", format!("Bearer {token}"))
                 .header("cache-control", "no-cache"),
         )
@@ -111,7 +148,7 @@ impl OAuth {
     async fn tokens(&self, body: Vec<u8>, previous_refresh: &str, login: bool) -> Result<MetadataPatch, ExecError> {
         let value = tokio::time::timeout(
             Duration::from_secs(30),
-            self.json(self.request(wreq::Method::POST, &self.token_url).body(body)),
+            self.json(self.request(wreq::Method::POST, &self.token_url)?.body(body)),
         )
         .await
         .map_err(|_| acquisition_error("Claude token acquisition timed out"))??;
@@ -158,14 +195,14 @@ impl OAuth {
             copy_profile(&mut patch, &profile);
         }
         if login {
-            let _ = tokio::time::timeout(
-                Duration::from_secs(10),
+            let _ = tokio::time::timeout(Duration::from_secs(10), async {
                 self.json(
-                    self.request(wreq::Method::GET, &self.roles_url)
+                    self.request(wreq::Method::GET, &self.roles_url)?
                         .header("authorization", format!("Bearer {access}"))
                         .header("cache-control", "no-cache"),
-                ),
-            )
+                )
+                .await
+            })
             .await;
             for field in ["id_token", "email", "refresh_token"] {
                 patch
@@ -182,14 +219,14 @@ impl OAuth {
         if refresh.is_empty() {
             return Err(acquisition_error("refresh token is required"));
         }
-        let key: [u8; 32] = Sha256::digest(refresh.as_bytes()).into();
+        let key: [u8; 32] = Sha256::digest(format!("{}\0{refresh}", self.token_url).as_bytes()).into();
         let result = {
-            let mut refreshes = self.refreshes.lock().expect("refresh state lock");
-            refreshes.retain(|_, (until, _)| *until > Instant::now());
-            if let Some((_, result)) = refreshes.get(&key) {
+            let mut map = refreshes().lock().expect("refresh state lock");
+            map.retain(|_, (until, _)| *until > Instant::now());
+            if let Some((_, result)) = map.get(&key) {
                 result.clone()
             } else {
-                if refreshes.len() >= 64 {
+                if map.len() >= 64 {
                     return Err(acquisition_error("Claude refresh capacity reached"));
                 }
                 let oauth = self.clone();
@@ -206,7 +243,7 @@ impl OAuth {
                             .unwrap_or(Duration::from_secs(5))
                             .clamp(Duration::from_secs(5), Duration::from_secs(300)),
                     };
-                    if let Some((until, _)) = oauth.refreshes.lock().expect("refresh state lock").get_mut(&key) {
+                    if let Some((until, _)) = refreshes().lock().expect("refresh state lock").get_mut(&key) {
                         *until = Instant::now() + retention;
                     }
                     result
@@ -217,7 +254,7 @@ impl OAuth {
                 }
                 .boxed()
                 .shared();
-                refreshes.insert(key, (Instant::now() + Duration::from_secs(300), result.clone()));
+                map.insert(key, (Instant::now() + Duration::from_secs(300), result.clone()));
                 result
             }
         };
@@ -268,20 +305,35 @@ impl OAuth {
         self.tokens(body, "", true).await
     }
 
-    pub async fn prepare(&self, credential: &Credential) -> Result<MetadataPatch, ExecError> {
-        let refreshed = refresh_due(credential, Utc::now());
-        let mut patch = if refreshed {
-            self.refresh(refresh_token(credential)).await?
-        } else {
-            MetadataPatch::default()
-        };
-        let access = patch
-            .set
-            .get("access_token")
-            .and_then(Value::as_str)
-            .or_else(|| credential.str("access_token"))
-            .unwrap_or_default()
-            .to_owned();
+    fn via(&self, proxy: &Proxy) -> Self {
+        Self {
+            proxy: proxy.clone(),
+            ..self.clone()
+        }
+    }
+
+    /// Background refresh (`ClaudeExecutor.Refresh`): rotate the token, then read the
+    /// profile, using the credential's proxy. Never runs on the request path.
+    pub(crate) async fn refresh_credential(
+        &self,
+        credential: &Credential,
+        proxy: &Proxy,
+    ) -> Result<MetadataPatch, ExecError> {
+        let token = refresh_token(credential);
+        if token.is_empty() {
+            return Ok(MetadataPatch::default());
+        }
+        self.via(proxy).refresh(token).await
+    }
+
+    /// Request-path identity (`PrepareRequestAuth`): device pool and account UUID.
+    pub(crate) async fn prepare(&self, credential: &Credential, proxy: &Proxy) -> Result<MetadataPatch, ExecError> {
+        self.via(proxy).prepare_inner(credential).await
+    }
+
+    async fn prepare_inner(&self, credential: &Credential) -> Result<MetadataPatch, ExecError> {
+        let mut patch = MetadataPatch::default();
+        let access = credential.str("access_token").unwrap_or_default().to_owned();
         if access.contains("sk-ant-oat") {
             if !canonical_pool(credential.metadata.get("claude_device_ids")) {
                 let normalized = credential
@@ -302,7 +354,7 @@ impl OAuth {
                 && !patch.set.contains_key("account_uuid")
             {
                 let setup = setup_token(credential);
-                let profile = if setup || refreshed {
+                let profile = if setup {
                     None
                 } else {
                     match tokio::time::timeout(Duration::from_secs(10), self.profile(&access)).await {
@@ -343,11 +395,16 @@ impl OAuth {
     }
 }
 
+/// `ShouldPrepareRequestAuth`: an OAuth token without a canonical device pool or account.
 pub(crate) fn needs_prepare(credential: &Credential) -> bool {
+    credential.str("access_token").is_some_and(|s| s.contains("sk-ant-oat"))
+        && (!canonical_pool(credential.metadata.get("claude_device_ids"))
+            || credential.str("account_uuid").unwrap_or_default().trim().is_empty())
+}
+
+/// The SDK refresh lead: a refresh token and an expiry within four hours.
+pub(crate) fn needs_refresh(credential: &Credential) -> bool {
     refresh_due(credential, Utc::now())
-        || credential.str("access_token").is_some_and(|s| s.contains("sk-ant-oat"))
-            && (!canonical_pool(credential.metadata.get("claude_device_ids"))
-                || credential.str("account_uuid").unwrap_or_default().trim().is_empty())
 }
 
 fn refresh_token(credential: &Credential) -> &str {
@@ -494,8 +551,10 @@ pub async fn login(auth_dir: &Path) -> Result<PathBuf, ExecError> {
     let code = tokio::time::timeout(Duration::from_secs(300), callback(&listener, &state))
         .await
         .map_err(|_| acquisition_error("Claude login callback timed out"))??;
-    let client = crate::tls::client(true).map_err(|_| acquisition_error("cannot create OAuth transport"))?;
-    let patch = OAuth::new(client).exchange(&code, &state, &verifier).await?;
+    let transport = Arc::new(Transport::new(crate::tls::Hooks::default()));
+    let patch = OAuth::with_transport(transport)
+        .exchange(&code, &state, &verifier)
+        .await?;
     let directory = auth_dir.to_owned();
     tokio::task::spawn_blocking(move || write_login(&directory, patch))
         .await
