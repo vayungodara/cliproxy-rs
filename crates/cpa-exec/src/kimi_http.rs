@@ -327,19 +327,14 @@ pub(crate) async fn read_all(
     Ok(out.freeze())
 }
 
-/// `statusErr{code, msg: body}` with the scheduler hints the shared adapter derives.
+/// `statusErr{code, msg: body}`. Go's Kimi errors carry no retry hint (Retry-After is not
+/// read) and are not credential-scoped, so a 429 cools only the model: the scheduler
+/// reserves credential-wide quota cooldowns for credential-scoped 429s.
 pub(crate) async fn status_error(upstream: Upstream) -> ExecError {
     let body = read_all(upstream.body, MAX_ERROR_BODY, true).await.unwrap_or_default();
-    let now = std::time::SystemTime::now();
-    let retry_after = upstream
-        .headers
-        .get(http::header::RETRY_AFTER)
-        .and_then(|v| v.to_str().ok())
-        .and_then(|raw| crate::quota::retry_after(raw, now))
-        .and_then(|deadline| deadline.duration_since(now).ok());
-    // Same status-only classification as upstream::scope_for.
     let scope = match upstream.status {
-        401 | 402 | 403 | 408 | 429 | 500.. => FailureScope::Credential,
+        429 => FailureScope::Model,
+        401 | 402 | 403 | 408 | 500.. => FailureScope::Credential,
         _ => FailureScope::Request,
     };
     ExecError {
@@ -347,7 +342,7 @@ pub(crate) async fn status_error(upstream: Upstream) -> ExecError {
         scope,
         body,
         headers: Box::new(upstream.headers),
-        retry_after,
+        retry_after: None,
         direct: false,
     }
 }

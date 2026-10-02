@@ -80,6 +80,23 @@ async fn upstream_requests_match_go_byte_for_byte() {
 }
 
 #[tokio::test]
+async fn upstream_429_cools_the_model_without_a_retry_hint() {
+    // kimi_executor.go returns statusErr{code, msg} for upstream errors: no retryAfter
+    // (Retry-After is ignored) and not credential-scoped.
+    let fx = fixture("kimi", "chat-error-429-clamped-none");
+    let mock = Mock::start(&fx["responses"]).await;
+    let cred = credential("kimi", &fx, Some(("base_url", format!("{}/coding", mock.url))));
+    let error = executor()
+        .execute(&claude(), &cred, request(&fx, ""), &cfg())
+        .await
+        .err()
+        .unwrap();
+    assert_eq!(error.status, 429);
+    assert_eq!(error.scope, FailureScope::Model);
+    assert_eq!(error.retry_after, None);
+}
+
+#[tokio::test]
 async fn downstream_results_match_go() {
     for name in [
         "chat-nonstream-normalize",
