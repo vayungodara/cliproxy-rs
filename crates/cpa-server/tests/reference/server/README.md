@@ -9,8 +9,14 @@ in-process by `main.go`. It runs real Go code only and opens no sockets:
   `GetAvailableModels` on the real model registry (Go `modelRegistrationAvailability`).
 - `cooldown`: `auth.Manager.MarkResult` sequences on fresh credentials, reported as
   whole seconds until each model's `NextRetryAfter`.
+- `session`: `session.ExtractSessionInfo`, `session.Enrich` and `auth.ExtractSessionID`.
+- `affinity`: scripted `SessionAffinitySelector` runs (`Enrich`, `Pick` over fill-first,
+  `OnResult`).
+- `cooldown_files`: the `.cds` files `FileCooldownStateStore` writes after a
+  `MarkResult` sequence, timestamps masked as `<time>`.
 
-Replayed by `sanitize::tests`, `registry::tests` and `scheduler::tests`.
+Replayed by `sanitize::tests`, `registry::tests`, `scheduler::tests`, `session::tests`
+and `cooldown_store::tests`.
 
 Regenerate with a temporary module inside the reference module's internal-package
 boundary (the reference checkout is not modified):

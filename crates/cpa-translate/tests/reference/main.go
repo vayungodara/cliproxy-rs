@@ -25,6 +25,7 @@ import (
 
 	_ "github.com/router-for-me/CLIProxyAPI/v8/internal/translator"
 	claudechat "github.com/router-for-me/CLIProxyAPI/v8/internal/translator/claude/openai/chat-completions"
+	openaiclaude "github.com/router-for-me/CLIProxyAPI/v8/internal/translator/openai/claude"
 	sdk "github.com/router-for-me/CLIProxyAPI/v8/sdk/translator"
 	"github.com/tidwall/gjson"
 )
@@ -38,23 +39,23 @@ type dynamic struct {
 }
 
 type fixture struct {
-	Name       string      `json:"name"`
-	Path       string      `json:"path"`
-	Model      string      `json:"model"`
-	Stream     bool        `json:"stream,omitempty"`
-	Bytes      bool        `json:"bytes,omitempty"`
-	Input      string      `json:"input,omitempty"`
-	Original   string      `json:"original,omitempty"`
-	Translated string      `json:"translated,omitempty"`
-	Lines      []string    `json:"lines,omitempty"`
-	Count      int64       `json:"count,omitempty"`
-	Outputs    [][]string  `json:"outputs"`
-	Dynamic    []dynamic   `json:"dynamic,omitempty"`
+	Name       string     `json:"name"`
+	Path       string     `json:"path"`
+	Model      string     `json:"model"`
+	Stream     bool       `json:"stream,omitempty"`
+	Bytes      bool       `json:"bytes,omitempty"`
+	Input      string     `json:"input,omitempty"`
+	Original   string     `json:"original,omitempty"`
+	Translated string     `json:"translated,omitempty"`
+	Lines      []string   `json:"lines,omitempty"`
+	Count      int64      `json:"count,omitempty"`
+	Outputs    [][]string `json:"outputs"`
+	Dynamic    []dynamic  `json:"dynamic,omitempty"`
 	key        string
 }
 
 type registration struct {
-	dir, client, upstream                       string
+	dir, client, upstream                  string
 	request, stream, nonStream, tokenCount string
 }
 
@@ -375,7 +376,13 @@ func run(r registration, f fixture) [][]string {
 	case "request":
 		return [][]string{{string(sdk.TranslateRequest(from, to, f.Model, []byte(f.Input), f.Stream))}}
 	case "request_compat":
-		return [][]string{{string(claudechat.ConvertOpenAIRequestToClaudeWithCompat(f.Model, []byte(f.Input), f.Stream))}}
+		switch r.client + ":" + r.upstream {
+		case "openai:claude":
+			return [][]string{{string(claudechat.ConvertOpenAIRequestToClaudeWithCompat(f.Model, []byte(f.Input), f.Stream))}}
+		case "claude:openai":
+			return [][]string{{string(openaiclaude.ConvertClaudeRequestToOpenAIWithCompat(f.Model, []byte(f.Input), f.Stream))}}
+		}
+		panic("no compat request for " + r.client + ":" + r.upstream)
 	case "non_stream":
 		var param any
 		return [][]string{{string(sdk.TranslateNonStream(ctx, to, from, f.Model, orig, req, []byte(f.Input), &param))}}

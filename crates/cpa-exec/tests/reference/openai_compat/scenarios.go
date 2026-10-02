@@ -98,6 +98,19 @@ func scenarios() []scenario {
 			return s
 		}(),
 		func() scenario {
+			s := chat("chat_prompt_cache_key_from_derived_session", "cache-model", "cm", `{"model":"cm","messages":[]}`, jsonOK)
+			s.ConfigAuth = 1
+			s.DerivedSession = " ctx:v1:0123abcd "
+			return s
+		}(),
+		func() scenario {
+			s := chat("chat_execution_session_beats_derived_session", "cache-model", "cm", `{"model":"cm","messages":[]}`, jsonOK)
+			s.ConfigAuth = 1
+			s.ExecutionSession = "ws-session-1"
+			s.DerivedSession = "ctx:v1:0123abcd"
+			return s
+		}(),
+		func() scenario {
 			s := chat("chat_execution_session_without_prompt_cache_support", "acme-chat", "chat", `{"model":"chat","messages":[]}`, jsonOK)
 			s.ExecutionSession = "ws-session-1"
 			return s
@@ -126,7 +139,6 @@ func scenarios() []scenario {
 		func() scenario {
 			s := stream("stream_multiline_data", hi, sse("data: {\"id\":\"m\",\ndata: \"choices\":[]}\n\ndata: [DONE]\n\n"))
 			// Go passes the joined payload, newline included, as one data line.
-			s.Needs = []string{"translator"}
 			return s
 		}(),
 		stream("stream_multiline_with_done", hi, sse("data: "+chunk1+"\ndata: [DONE]\n\n")),
@@ -238,6 +250,15 @@ func scenarios() []scenario {
 		func() scenario {
 			s := chat("needs_thinking_body_level_clamped", "acme-chat", "chat", `{"model":"chat","reasoning_effort":"xhigh","messages":[]}`, jsonOK)
 			s.Needs = []string{"thinking"}
+			return s
+		}(),
+		func() scenario {
+			// A file credential is not configured-model routing: Go binds no capabilities and
+			// the unknown model's effort passes through unclamped.
+			s := chat("thinking_file_credential_not_bound", "acme-chat", "chat", `{"model":"chat","reasoning_effort":"xhigh","messages":[]}`, jsonOK)
+			s.ConfigAuth = -1
+			s.Provider = "openai-compatible-acme"
+			s.Attributes = map[string]string{"base_url": "http://UPSTREAM/v1", "compat_name": "Acme", "provider_key": "openai-compatible-acme", "auth_kind": "oauth"}
 			return s
 		}(),
 		func() scenario {

@@ -15,7 +15,7 @@ const FIXTURE: &str = include_str!("../tests/fixtures/openai_compat_go.json");
 
 /// Shared helpers whose real port has not landed: scenarios that need them are skipped
 /// and listed, so integration can remove an entry and see the scenario run.
-const PENDING: &[&str] = &["thinking", "signature", "translator"];
+const PENDING: &[&str] = &["translator"];
 
 /// One-shot raw HTTP/1.1 capture server answering with the scripted response.
 struct Mock {
@@ -94,18 +94,33 @@ impl Mock {
 
     fn request(&self) -> Option<Vec<u8>> {
         let raw = self.raw.lock().unwrap().clone()?;
-        let encoding = crate::openai_compat_go::GoText::new(&raw).unwrap();
-        let mut text = encoding.text.replace(&self.addr, "UPSTREAM");
+        let mut out = replace(&raw, self.addr.as_bytes(), b"UPSTREAM");
         // Go's multipart writer picks a random 60-hex-digit boundary; so does Rust.
-        let marker = "boundary=";
-        if let Some(i) = text.find(marker)
-            && let Some(boundary) = text.get(i + marker.len()..i + marker.len() + 60)
-            && boundary.bytes().all(|b| b.is_ascii_hexdigit())
+        let marker = b"boundary=";
+        if let Some(i) = out.windows(marker.len()).position(|w| w == marker)
+            && let Some(boundary) = out.get(i + marker.len()..i + marker.len() + 60)
+            && boundary.iter().all(u8::is_ascii_hexdigit)
         {
-            text = text.replace(&boundary.to_owned(), "BOUNDARY");
+            let boundary = boundary.to_vec();
+            out = replace(&out, &boundary, b"BOUNDARY");
         }
-        Some(encoding.bytes(&text))
+        Some(out)
     }
+}
+
+fn replace(haystack: &[u8], from: &[u8], to: &[u8]) -> Vec<u8> {
+    let mut out = Vec::with_capacity(haystack.len());
+    let mut i = 0;
+    while i < haystack.len() {
+        if haystack[i..].starts_with(from) {
+            out.extend_from_slice(to);
+            i += from.len();
+        } else {
+            out.push(haystack[i]);
+            i += 1;
+        }
+    }
+    out
 }
 
 fn credential(s: &Value, cfg: &Config, addr: &str) -> Credential {
@@ -294,10 +309,6 @@ async fn go_reference_scenarios() {
     assert_eq!(
         skipped,
         [
-            "stream_multiline_data",
-            "compact_invalid_encrypted_content",
-            "needs_thinking_suffix_level",
-            "needs_thinking_body_level_clamped",
             "needs_translator_responses_source",
             "needs_translator_responses_eof_without_done",
             "needs_translator_claude_code_prompt_cache",
@@ -343,7 +354,11 @@ fn go_primitive_vectors() {
     }
     for case in v["gjson_int"].as_array().unwrap() {
         let raw = case[0].as_str().unwrap();
-        assert_eq!(Some(go::int(&gjson::parse(raw))), case[1].as_i64(), "gjson Int({raw})");
+        assert_eq!(
+            Some(gj::parse(raw.as_bytes()).int()),
+            case[1].as_i64(),
+            "gjson Int({raw})"
+        );
     }
     for case in v["trim_space"].as_array().unwrap() {
         assert_eq!(go::trim_space(&b64(&case[0])), b64(&case[1]).as_slice());
@@ -365,5 +380,13 @@ fn go_primitive_vectors() {
             MediaType::BadParams(media.to_owned())
         };
         assert_eq!(parse_media_type(input), want, "mime.ParseMediaType({input:?})");
+    }
+    for case in v["token_counts"].as_array().unwrap() {
+        let (model, payload) = (case[0].as_str().unwrap(), case[1].as_str().unwrap());
+        assert_eq!(
+            crate::openai_compat_payload::count_chat_tokens(model, payload.as_bytes()),
+            Ok(case[2].as_i64().unwrap()),
+            "CountOpenAIChatTokens({model:?}, {payload})"
+        );
     }
 }

@@ -18,6 +18,7 @@
 //! Go sends it and recovers on 401.
 
 pub mod claude;
+pub mod claude_login;
 pub mod codex;
 mod codex_json;
 pub mod codex_oauth;
@@ -36,6 +37,10 @@ mod kimi_http;
 mod kimi_json;
 mod kimi_replay;
 mod kimi_thinking;
+pub mod meta;
+pub mod meta_auth;
+mod meta_codex;
+mod meta_wire;
 pub mod oauth;
 pub mod openai_compat;
 mod openai_compat_go;
@@ -45,6 +50,7 @@ mod openai_compat_payload;
 pub mod proxy;
 mod quota;
 mod rawjson;
+mod responses_frames;
 mod tls;
 mod tokens;
 mod translate;
@@ -86,6 +92,7 @@ pub struct OpenAIExecutors {
 #[derive(Default)]
 pub struct DeviceExecutors {
     pub kimi: kimi::KimiExecutor,
+    pub meta: meta::MetaExecutor,
 }
 
 impl Executors {
@@ -99,6 +106,7 @@ impl Executors {
             "claude" => self.claude.execute(credential, req, cfg).await,
             "codex" => self.codex.execute(credential, req, cfg).await,
             p if kimi::PROVIDERS.contains(&p) => self.devices.kimi.execute(&self.claude, credential, req, cfg).await,
+            meta::PROVIDER => self.devices.meta.execute(credential, req, cfg).await,
             p if openai_compat::handles(p) => self.openai.compat.execute(credential, req, cfg).await,
             other => Err(no_executor(other)),
         }
@@ -158,9 +166,24 @@ impl Executors {
     /// Whether an executor serves this provider. Credentials of other providers never
     /// enter selection (Go skips auths whose executor is not registered).
     pub fn supports(&self, provider: &str) -> bool {
-        matches!(provider, "claude" | "codex")
+        matches!(provider, "claude" | "codex" | meta::PROVIDER)
             || kimi::PROVIDERS.contains(&provider)
             || openai_compat::handles(provider)
+    }
+
+    /// Go `authHasRefreshCredential`: whether an upstream 401 on `credential` should be
+    /// followed by one forced [`Self::prepare`] and a retry (Go
+    /// `tryRefreshAfterUnauthorized`). A refresh token qualifies for every provider;
+    /// Meta re-mints its API key from its device token. Providers that recover from a
+    /// 401 another way add an arm here.
+    pub fn has_refresh_credential(&self, credential: &Credential) -> bool {
+        let filled = |v: Option<&str>| v.is_some_and(|v| !v.trim().is_empty());
+        if filled(credential.str("refresh_token")) || filled(credential.str("refreshToken")) {
+            return true;
+        }
+        credential.provider.trim().eq_ignore_ascii_case("meta")
+            && (filled(credential.str("dca_token"))
+                || filled(credential.attributes.get("dca_token").map(String::as_str)))
     }
 
     /// Whether `credential` needs preparation, and whether requests must wait for it.
@@ -172,6 +195,7 @@ impl Executors {
         }
         match credential.provider.as_str() {
             "claude" if oauth::needs_identity(credential) => Readiness::PrepareNow,
+            meta::PROVIDER if self.devices.meta.must_mint(credential) => Readiness::PrepareNow,
             _ => Readiness::RefreshSoon,
         }
     }
@@ -184,6 +208,7 @@ impl Executors {
             "claude" => self.claude.needs_prepare(credential, cfg),
             "codex" => self.codex.needs_prepare(credential, cfg),
             p if kimi::PROVIDERS.contains(&p) => self.devices.kimi.needs_prepare(credential, cfg),
+            meta::PROVIDER => self.devices.meta.needs_prepare(credential, cfg),
             _ => false,
         }
     }
@@ -194,6 +219,7 @@ impl Executors {
             "claude" => self.claude.prepare(credential, cfg).await,
             "codex" => self.codex.prepare(credential, cfg).await,
             p if kimi::PROVIDERS.contains(&p) => self.devices.kimi.prepare(credential, cfg).await,
+            meta::PROVIDER => self.devices.meta.prepare(credential, cfg).await,
             other => Err(no_executor(other)),
         }
     }
@@ -280,5 +306,29 @@ mod readiness_tests {
         for (i, (c, expected)) in cases.iter().enumerate() {
             assert_eq!(executors.readiness(c, &cfg), *expected, "case {i}");
         }
+    }
+
+    /// Go `authHasRefreshCredential`.
+    #[test]
+    fn refresh_credentials_follow_go() {
+        let executors = Executors {
+            claude: claude::ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
+            codex: Default::default(),
+            openai: Default::default(),
+            devices: Default::default(),
+        };
+        let has = |m: serde_json::Value| executors.has_refresh_credential(&credential(m));
+        assert!(has(serde_json::json!({"type": "claude", "refresh_token": "fake"})));
+        assert!(has(serde_json::json!({"type": "kimi", "refreshToken": "fake"})));
+        assert!(!has(serde_json::json!({"type": "claude", "refresh_token": "  "})));
+        assert!(has(serde_json::json!({"type": "meta", "dca_token": "fake"})));
+        assert!(
+            !has(serde_json::json!({"type": "claude", "dca_token": "fake"})),
+            "dca_token is Meta's"
+        );
+        let mut meta = credential(serde_json::json!({"type": "meta"}));
+        assert!(!executors.has_refresh_credential(&meta));
+        meta.attributes.insert("dca_token".into(), "fake".into());
+        assert!(executors.has_refresh_credential(&meta));
     }
 }

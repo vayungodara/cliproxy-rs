@@ -1,5 +1,4 @@
 {
-  "name": "responses-stream-clamp",
   "credential": {
     "access_token": "kimi-access-fixture",
     "base_url": "http://127.0.0.1:42347/coding",
@@ -7,6 +6,25 @@
     "refresh_token": "kimi-refresh-fixture",
     "type": "kimi"
   },
+  "downstream": {
+    "chunks": [
+      "event: response.created\n",
+      "data: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_2\"}}\n",
+      "\n",
+      "event: response.output_text.delta\n",
+      "data: {\"type\":\"response.output_text.delta\",\"delta\":\"hi\"}\n",
+      "\n",
+      "event: response.completed\n",
+      "data: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_2\",\"usage\":{\"input_tokens\":1,\"output_tokens\":1,\"total_tokens\":2}}}\n",
+      "\n"
+    ],
+    "frames": [
+      "event: response.created\ndata: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_2\"}}\n\n",
+      "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"delta\":\"hi\"}\n\n",
+      "event: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_2\",\"usage\":{\"input_tokens\":1,\"output_tokens\":1,\"total_tokens\":2}}}\n\n"
+    ]
+  },
+  "name": "responses-stream-clamp",
   "request": {
     "body": "{\"model\":\"kimi-k3\",\"stream\":true,\"reasoning\":{\"effort\":\"xhigh\"},\"input\":\"hi\"}",
     "model": "kimi-k3",
@@ -15,20 +33,19 @@
   },
   "responses": [
     {
-      "status": 200,
+      "body": "event: response.created\ndata: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_2\"}}\n\nevent: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"delta\":\"hi\"}\n\nevent: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_2\",\"usage\":{\"input_tokens\":1,\"output_tokens\":1,\"total_tokens\":2}}}\n\n",
       "headers": [
         [
           "Content-Type",
           "text/event-stream"
         ]
       ],
-      "body": "event: response.created\ndata: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_2\"}}\n\nevent: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"delta\":\"hi\"}\n\nevent: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_2\",\"usage\":{\"input_tokens\":1,\"output_tokens\":1,\"total_tokens\":2}}}\n\n"
+      "status": 200
     }
   ],
   "upstream": [
     {
-      "method": "POST",
-      "target": "/coding/v1/responses",
+      "body": "{\"model\":\"k3\",\"stream\":true,\"reasoning\":{\"effort\":\"high\"},\"input\":\"hi\"}",
       "headers": [
         [
           "Host",
@@ -79,20 +96,8 @@
           "gzip"
         ]
       ],
-      "body": "{\"model\":\"k3\",\"stream\":true,\"reasoning\":{\"effort\":\"high\"},\"input\":\"hi\"}"
+      "method": "POST",
+      "target": "/coding/v1/responses"
     }
-  ],
-  "downstream": {
-    "chunks": [
-      "event: response.created\n",
-      "data: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_2\"}}\n",
-      "\n",
-      "event: response.output_text.delta\n",
-      "data: {\"type\":\"response.output_text.delta\",\"delta\":\"hi\"}\n",
-      "\n",
-      "event: response.completed\n",
-      "data: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_2\",\"usage\":{\"input_tokens\":1,\"output_tokens\":1,\"total_tokens\":2}}}\n",
-      "\n"
-    ]
-  }
+  ]
 }

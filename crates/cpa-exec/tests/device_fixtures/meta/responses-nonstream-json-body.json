@@ -1,0 +1,80 @@
+{
+  "name": "responses-nonstream-json-body",
+  "credential": {
+    "access_token": "meta-key-fixture",
+    "api_key": "meta-key-fixture",
+    "auth_kind": "oauth",
+    "base_url": "http://127.0.0.1:34689/v1",
+    "dca_token": "dca:fixture",
+    "type": "meta"
+  },
+  "attributes": {
+    "auth_kind": "oauth"
+  },
+  "request": {
+    "body": "{\"model\":\"muse-spark-1.2\",\"input\":[{\"type\":\"message\",\"role\":\"system\",\"content\":[{\"type\":\"input_text\",\"text\":\"sys\"}]},{\"type\":\"function_call\",\"call_id\":\"c1\",\"name\":\"f\",\"arguments\":\" \"}]}",
+    "model": "muse-spark-1.2",
+    "source": "openai-response",
+    "stream": false
+  },
+  "responses": [
+    {
+      "status": 200,
+      "headers": [
+        [
+          "Content-Type",
+          "application/json"
+        ]
+      ],
+      "body": "{\"id\":\"resp_j\",\"object\":\"response\",\"status\":\"completed\",\"output\":[{\"type\":\"message\",\"content\":[{\"type\":\"output_text\",\"text\":\"ok\"}]}],\"usage\":{\"input_tokens\":1,\"output_tokens\":1,\"total_tokens\":2,\"output_tokens_details\":null}}"
+    }
+  ],
+  "upstream": [
+    {
+      "method": "POST",
+      "target": "/v1/responses",
+      "headers": [
+        [
+          "Host",
+          "127.0.0.1:34689"
+        ],
+        [
+          "User-Agent",
+          "muse-build/1.3.0 (interactive; macos-aarch64; build ac7280f2aca67769d1455a8847bb502b617d50f6)"
+        ],
+        [
+          "Content-Length",
+          "304"
+        ],
+        [
+          "Accept",
+          "text/event-stream"
+        ],
+        [
+          "Authorization",
+          "Bearer meta-key-fixture"
+        ],
+        [
+          "Cache-Control",
+          "no-cache"
+        ],
+        [
+          "Content-Type",
+          "application/json"
+        ],
+        [
+          "X-Client-Id",
+          "tbh:tui"
+        ],
+        [
+          "Accept-Encoding",
+          "gzip"
+        ]
+      ],
+      "body": "{\"model\":\"muse-spark-1.2\",\"input\":[{\"type\":\"message\",\"role\":\"developer\",\"content\":[{\"type\":\"input_text\",\"text\":\"sys\"}]},{\"type\":\"function_call\",\"call_id\":\"c1\",\"name\":\"f\",\"arguments\":\"{}\"}],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\"}"
+    }
+  ],
+  "downstream": {
+    "body": "{\"id\":\"resp_j\",\"object\":\"response\",\"status\":\"completed\",\"output\":[{\"type\":\"message\",\"content\":[{\"type\":\"output_text\",\"text\":\"ok\"}]}],\"usage\":{\"input_tokens\":1,\"output_tokens\":1,\"total_tokens\":2,\"output_tokens_details\":{\"reasoning_tokens\":0},\"input_tokens_details\":{\"cached_tokens\":0}}}"
+  }
+}

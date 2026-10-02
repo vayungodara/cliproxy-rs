@@ -62,14 +62,40 @@ try {
       if (page === "overview" && theme === "dark") browser("screenshot", `${output}/rust-dashboard-desktop.png`, "--full");
     }
   }
-  // Unsupported actions are disabled and named, not offered and then failed. Go supports them all.
+  // Each credential action is offered exactly when the server implements it. The expected
+  // answer comes from sending the same side-effect-free probe directly (Go rejects it with
+  // 400; a server without the route answers an empty 404), not from the UI under test.
+  const base = new URL(url).origin + "/v8/management";
+  const implemented = async (method, path) => {
+    const r = await fetch(base + path, {
+      method,
+      headers: { Authorization: "Bearer orb-dashboard-test-only", "Content-Type": "application/json" },
+      body: "{}",
+    });
+    const text = await r.text();
+    return !([404, 405, 501].includes(r.status) && (r.status !== 404 || !text));
+  };
+  const actions = [
+    ["POST", "/credentials", "upload", `document.querySelector('main label.key[aria-disabled]')?.getAttribute('aria-disabled')==='true'`],
+    ["POST", "/credentials/refresh", "token refresh", `[...document.querySelectorAll('main .head button')].find(b=>b.textContent.includes('Refresh tokens')).disabled`],
+    ["PATCH", "/credentials/fields", "editing fields", `document.querySelector('.detail form').inert`],
+    ["POST", "/routing/cooldown/reset", "cooldown reset", `[...document.querySelectorAll('.detail button')].find(b=>b.textContent==='Reset cooldown').disabled`],
+    ["DELETE", "/credentials", "delete", `[...document.querySelectorAll('.detail button')].find(b=>b.textContent==='Delete').disabled`],
+  ];
   browser("click", 'nav a[href="#credentials"]');
   settled();
-  const rust = evaluate("document.querySelector('.top .host')?.textContent.includes('cliproxy-rs')");
-  if (rust) browser("wait", "--text", "Not available on this server");
-  else browser("wait", "1500");
-  assert.equal(evaluate(`[...document.querySelectorAll('main button')].find(b=>b.textContent.includes('Refresh tokens')).disabled`), rust);
-  console.log(`PASS credential actions match server capabilities (${rust ? "Rust: disabled with an explanation" : "Go: enabled"})`);
+  browser("eval", "location.hash='credentials/claude-research.json'");
+  browser("wait", ".detail");
+  browser("wait", "2500");
+  const missingLine = evaluate("[...document.querySelectorAll('main .note')].map(n=>n.textContent).find(t=>t.includes('Not available'))||''");
+  const summary = [];
+  for (const [method, path, name, disabledJs] of actions) {
+    const has = await implemented(method, path);
+    assert.equal(evaluate(disabledJs), !has, `${method} ${path}: UI ${has ? "disables an implemented" : "offers a missing"} action`);
+    assert.equal(missingLine.includes(name), !has, `${method} ${path}: "not available" line ${has ? "names an implemented" : "omits a missing"} action`);
+    summary.push(`${name} ${has ? "on" : "off"}`);
+  }
+  console.log(`PASS credential actions match server capabilities (${summary.join(", ")})`);
 
   // A route the server lacks is read once, not retried in a loop.
   const before = evaluate("window.__calls.length");

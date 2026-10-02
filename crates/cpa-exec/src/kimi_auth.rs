@@ -155,7 +155,7 @@ fn query_escape(s: &str) -> String {
 }
 
 /// Go `url.Values.Encode`: keys sorted.
-fn form(pairs: &[(&str, &str)]) -> String {
+pub(crate) fn form(pairs: &[(&str, &str)]) -> String {
     let mut pairs = pairs.to_vec();
     pairs.sort_by(|a, b| a.0.cmp(b.0));
     pairs

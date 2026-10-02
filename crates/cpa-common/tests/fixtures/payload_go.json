@@ -1,0 +1,308 @@
+{
+  "config": "\ndisable-image-generation: chat\npayload:\n  default:\n    - models: [{name: \"gpt-*\"}]\n      params: {temperature: 0.5}\n    - models: [{name: \"gpt-*\"}]\n      params: {temperature: 0.9}\n    - models: [{name: \"gpt-*\", protocol: openai}]\n      params: {metadata.tags: [\"a\", \"b\"]}\n    - models: [{name: \"gpt-*\", from-protocol: openai-response}]\n      params: {reasoning.effort: \"high\"}\n    - models: [{name: \"claude-*\", headers: {X-Team: \"red-*\"}}]\n      params: {top_k: 40}\n    - models: [{name: \"*-thinking\"}]\n      params: {suffix_hit: true}\n    - models: [{name: \"gpt-*\", match: [{stream: true}]}]\n      params: {stream_options: {include_usage: true, \"\u003ctag\u003e\": 1.25e1}}\n    - models: [{name: \"gpt-*\", not-match: [{n: 2}]}]\n      params: {n_checked: 1}\n    - models: [{name: \"gpt-*\", exist: [user]}]\n      params: {user_seen: \"yes\"}\n    - models: [{name: \"gpt-*\", not-exist: [seed]}]\n      params: {seed: 7}\n  default-raw:\n    - models: [{name: \"gpt-*\"}]\n      params: {response_format: '{\"type\":\"json_object\"}'}\n    - models: [{name: \"gpt-*\"}]\n      params: {broken: '{\"type\":'}\n  override:\n    - models: [{name: \"gpt-*\"}]\n      params: {max_tokens: 100}\n    - models: [{name: \"gpt-*\"}]\n      params: {max_tokens: 200}\n    - models: [{name: \"gpt-*\"}]\n      params: {model_label: \"\u003cb\u003e\u0026\"}\n    - models: [{name: \"gpt-*\"}]\n      params: {big: 1e21}\n    - models: [{name: \"gpt-*\"}]\n      params: {\"messages.#(role==\\\"system\\\").content\": \"rewritten\"}\n    - models: [{name: \"gpt-*\"}]\n      params: {\"tools.#(type==\\\"function\\\")#.strict\": true}\n    - models: [{name: \"gemini-*\"}]\n      params: {generationConfig.maxOutputTokens: 64}\n    - models: [{name: \"gpt-*\"}]\n      params: {nullable: null}\n  override-raw:\n    - models: [{name: \"gpt-*\"}]\n      params: {logit_bias: '{\"1\": -100}'}\n  filter:\n    - models: [{name: \"gpt-*\"}]\n      params: [frequency_penalty, \"messages.#(role==\\\"developer\\\")#\"]\n",
+  "headers": [
+    {
+      "name": "mixed",
+      "attrs": {
+        "api_key": "fake",
+        "header: ": "x",
+        "header:Host": "upstream.invalid",
+        "header:X-Blank": " ",
+        "header:X-Copy": "$X-Claude-Code-Session-Id",
+        "header:X-Embedded": "a-$CPA-SESSION-ID-b",
+        "header:X-Literal": "  plain  ",
+        "header:X-Missing": "$X-Absent",
+        "header:X-Session": "$cpa-session-id"
+      },
+      "client": [
+        [
+          "X-Claude-Code-Session-Id",
+          "client-sid"
+        ]
+      ],
+      "session_id": "header:s1",
+      "out": {
+        "Host": "upstream.invalid",
+        "X-Copy": "client-sid",
+        "X-Embedded": "a-header:s1-b",
+        "X-Literal": "plain",
+        "X-Session": "header:s1"
+      },
+      "host": "upstream.invalid"
+    },
+    {
+      "name": "no_session",
+      "attrs": {
+        "header:X-Embedded": "pre $CPA-SESSION-ID",
+        "header:X-Lit": "v",
+        "header:X-Session": "$CPA-SESSION-ID"
+      },
+      "client": null,
+      "session_id": "",
+      "out": {
+        "X-Lit": "v"
+      },
+      "host": "default.invalid"
+    },
+    {
+      "name": "multi_value",
+      "attrs": {
+        "header:X-Copy": "$x-multi"
+      },
+      "client": [
+        [
+          "X-Multi",
+          "first"
+        ],
+        [
+          "X-Multi",
+          "second"
+        ]
+      ],
+      "session_id": "",
+      "out": {
+        "X-Copy": "first"
+      },
+      "host": "default.invalid"
+    }
+  ],
+  "payload": [
+    {
+      "name": "chat_all_sections",
+      "target": "",
+      "model": "gpt-5",
+      "requested_model": "gpt-5",
+      "protocol": "openai",
+      "from_protocol": "openai",
+      "root": "",
+      "payload": "{\"model\":\"gpt-5\",\"stream\":true, \"user\":\"u1\",\"messages\":[{\"role\":\"system\",\"content\":\"s\"},{\"role\":\"developer\",\"content\":\"d1\"},{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"developer\",\"content\":\"d2\"}],\"tools\":[{\"type\":\"function\",\"name\":\"a\"},{\"type\":\"image_generation\"},{\"type\":\"function\",\"name\":\"b\"}],\"tool_choice\":{\"type\":\"image_generation\"},\"frequency_penalty\":0.5,\"max_tokens\":100,\"n\":1,\"big\":1e21}",
+      "original": "",
+      "request_path": "/v1/chat/completions",
+      "headers": null,
+      "tracked": [
+        "temperature",
+        "messages",
+        "max_tokens",
+        "nope"
+      ],
+      "out": "{\"model\":\"gpt-5\",\"stream\":true, \"user\":\"u1\",\"messages\":[{\"role\":\"system\",\"content\":\"rewritten\"},{\"role\":\"user\",\"content\":\"hi\"}],\"tools\":[{\"type\":\"function\",\"name\":\"a\",\"strict\":true},{\"type\":\"function\",\"name\":\"b\",\"strict\":true}],\"max_tokens\":200,\"n\":1,\"big\":1000000000000000000000,\"temperature\":0.5,\"metadata\":{\"tags\":[\"a\",\"b\"]},\"stream_options\":{\"\\u003ctag\\u003e\":12.5,\"include_usage\":true},\"n_checked\":1,\"user_seen\":\"yes\",\"seed\":7,\"response_format\":{\"type\":\"json_object\"},\"model_label\":\"\u003cb\u003e\u0026\",\"nullable\":null,\"logit_bias\":{\"1\": -100}}",
+      "touched": [
+        "max_tokens",
+        "messages",
+        "temperature"
+      ]
+    },
+    {
+      "name": "defaults_skip_fields_in_original",
+      "target": "",
+      "model": "gpt-5",
+      "requested_model": "",
+      "protocol": "openai",
+      "from_protocol": "",
+      "root": "",
+      "payload": "{\"model\":\"gpt-5\"}",
+      "original": "{\"temperature\":1,\"seed\":3}",
+      "request_path": "",
+      "headers": null,
+      "tracked": null,
+      "out": "{\"model\":\"gpt-5\",\"metadata\":{\"tags\":[\"a\",\"b\"]},\"n_checked\":1,\"response_format\":{\"type\":\"json_object\"},\"max_tokens\":200,\"model_label\":\"\u003cb\u003e\u0026\",\"big\":1000000000000000000000,\"nullable\":null,\"logit_bias\":{\"1\": -100}}",
+      "touched": []
+    },
+    {
+      "name": "responses_from_protocol",
+      "target": "",
+      "model": "gpt-5",
+      "requested_model": "",
+      "protocol": "codex",
+      "from_protocol": "openai-response",
+      "root": "",
+      "payload": "{\"input\":\"x\"}",
+      "original": "",
+      "request_path": "",
+      "headers": null,
+      "tracked": null,
+      "out": "{\"input\":\"x\",\"temperature\":0.5,\"reasoning\":{\"effort\":\"high\"},\"n_checked\":1,\"seed\":7,\"response_format\":{\"type\":\"json_object\"},\"max_tokens\":200,\"model_label\":\"\u003cb\u003e\u0026\",\"big\":1000000000000000000000,\"nullable\":null,\"logit_bias\":{\"1\": -100}}",
+      "touched": []
+    },
+    {
+      "name": "images_path_keeps_image_tool",
+      "target": "",
+      "model": "gpt-image",
+      "requested_model": "",
+      "protocol": "openai",
+      "from_protocol": "",
+      "root": "",
+      "payload": "{\"tools\":[{\"type\":\"image_generation\"}],\"tool_choice\":\"image_generation\"}",
+      "original": "",
+      "request_path": "/v1/images/generations",
+      "headers": null,
+      "tracked": null,
+      "out": "{\"tools\":[{\"type\":\"image_generation\"}],\"tool_choice\":\"image_generation\",\"temperature\":0.5,\"metadata\":{\"tags\":[\"a\",\"b\"]},\"n_checked\":1,\"seed\":7,\"response_format\":{\"type\":\"json_object\"},\"max_tokens\":200,\"model_label\":\"\u003cb\u003e\u0026\",\"big\":1000000000000000000000,\"nullable\":null,\"logit_bias\":{\"1\": -100}}",
+      "touched": []
+    },
+    {
+      "name": "string_tool_choice_stripped",
+      "target": "",
+      "model": "x",
+      "requested_model": "",
+      "protocol": "openai",
+      "from_protocol": "",
+      "root": "",
+      "payload": "{\"tools\":[{\"type\":\"image_generation\"}],\"tool_choice\":\"image_generation\"}",
+      "original": "",
+      "request_path": "/v1/responses",
+      "headers": null,
+      "tracked": null,
+      "out": "{\"tools\":[]}",
+      "touched": []
+    },
+    {
+      "name": "header_gate_hit",
+      "target": "",
+      "model": "claude-sonnet",
+      "requested_model": "",
+      "protocol": "claude",
+      "from_protocol": "",
+      "root": "",
+      "payload": "{\"messages\":[]}",
+      "original": "",
+      "request_path": "",
+      "headers": [
+        [
+          "X-Team",
+          "red-1"
+        ]
+      ],
+      "tracked": null,
+      "out": "{\"messages\":[],\"top_k\":40}",
+      "touched": []
+    },
+    {
+      "name": "header_gate_miss",
+      "target": "",
+      "model": "claude-sonnet",
+      "requested_model": "",
+      "protocol": "claude",
+      "from_protocol": "",
+      "root": "",
+      "payload": "{\"messages\":[]}",
+      "original": "",
+      "request_path": "",
+      "headers": [
+        [
+          "X-Team",
+          "blue"
+        ]
+      ],
+      "tracked": null,
+      "out": "{\"messages\":[]}",
+      "touched": []
+    },
+    {
+      "name": "suffix_candidate",
+      "target": "",
+      "model": "o3",
+      "requested_model": "o3-thinking(high)",
+      "protocol": "openai",
+      "from_protocol": "",
+      "root": "",
+      "payload": "{}",
+      "original": "",
+      "request_path": "",
+      "headers": null,
+      "tracked": null,
+      "out": "{\"suffix_hit\":true}",
+      "touched": []
+    },
+    {
+      "name": "suffix_base_candidate",
+      "target": "",
+      "model": "o3",
+      "requested_model": "gpt-5(high)",
+      "protocol": "openai",
+      "from_protocol": "",
+      "root": "",
+      "payload": "{}",
+      "original": "",
+      "request_path": "",
+      "headers": null,
+      "tracked": null,
+      "out": "{\"temperature\":0.5,\"metadata\":{\"tags\":[\"a\",\"b\"]},\"n_checked\":1,\"seed\":7,\"response_format\":{\"type\":\"json_object\"},\"max_tokens\":200,\"model_label\":\"\u003cb\u003e\u0026\",\"big\":1000000000000000000000,\"nullable\":null,\"logit_bias\":{\"1\": -100}}",
+      "touched": []
+    },
+    {
+      "name": "root_envelope",
+      "target": "",
+      "model": "gemini-2.5-pro",
+      "requested_model": "",
+      "protocol": "gemini",
+      "from_protocol": "",
+      "root": "request",
+      "payload": "{\"request\":{\"contents\":[]}}",
+      "original": "",
+      "request_path": "",
+      "headers": null,
+      "tracked": null,
+      "out": "{\"request\":{\"contents\":[],\"generationConfig\":{\"maxOutputTokens\":64}}}",
+      "touched": []
+    },
+    {
+      "name": "no_model",
+      "target": "",
+      "model": "",
+      "requested_model": "",
+      "protocol": "openai",
+      "from_protocol": "",
+      "root": "",
+      "payload": "{\"a\":1}",
+      "original": "",
+      "request_path": "",
+      "headers": null,
+      "tracked": null,
+      "out": "{\"a\":1}",
+      "touched": []
+    },
+    {
+      "name": "codex_client_integer_tools",
+      "target": "openai",
+      "model": "zz",
+      "requested_model": "",
+      "protocol": "openai",
+      "from_protocol": "",
+      "root": "",
+      "payload": "{\"tools\":[{\"type\":\"function\",\"name\":\"exec_command\",\"parameters\":{\"type\":\"object\",\"properties\":{\"timeout_ms\":{\"type\":\"number\"},\"cmd\":{\"type\":\"string\"},\"yield_time_ms\":{\"type\":[\"number\",\"null\",\"integer\"]}}}},{\"type\":\"function\",\"name\":\"other\",\"parameters\":{\"properties\":{\"timeout_ms\":{\"type\":\"number\"}}}},{\"type\":\"namespace\",\"tools\":[{\"name\":\"collab__wait_agent\",\"input_schema\":{\"properties\":{\"timeout_ms\":{\"type\":\"number\"}}}}]}],\"input\":[{\"type\":\"additional_tools\",\"tools\":[{\"function\":{\"name\":\"functions__sleep\",\"parameters\":{\"properties\":{\"duration_ms\":{\"type\":\"number\"}}}}}]}]}",
+      "original": "",
+      "request_path": "",
+      "headers": [
+        [
+          "User-Agent",
+          "codex_cli_rs/0.50"
+        ]
+      ],
+      "tracked": null,
+      "out": "{\"tools\":[{\"type\":\"function\",\"name\":\"exec_command\",\"parameters\":{\"type\":\"object\",\"properties\":{\"timeout_ms\":{\"type\":\"integer\"},\"cmd\":{\"type\":\"string\"},\"yield_time_ms\":{\"type\":[\"integer\",\"null\"]}}}},{\"type\":\"function\",\"name\":\"other\",\"parameters\":{\"properties\":{\"timeout_ms\":{\"type\":\"number\"}}}},{\"type\":\"namespace\",\"tools\":[{\"name\":\"collab__wait_agent\",\"input_schema\":{\"properties\":{\"timeout_ms\":{\"type\":\"integer\"}}}}]}],\"input\":[{\"type\":\"additional_tools\",\"tools\":[{\"function\":{\"name\":\"functions__sleep\",\"parameters\":{\"properties\":{\"duration_ms\":{\"type\":\"integer\"}}}}}]}]}",
+      "touched": []
+    },
+    {
+      "name": "codex_target_skips_integer_tools",
+      "target": "codex",
+      "model": "zz",
+      "requested_model": "",
+      "protocol": "codex",
+      "from_protocol": "",
+      "root": "",
+      "payload": "{\"tools\":[{\"type\":\"function\",\"name\":\"exec_command\",\"parameters\":{\"properties\":{\"timeout_ms\":{\"type\":\"number\"}}}}]}",
+      "original": "",
+      "request_path": "",
+      "headers": [
+        [
+          "User-Agent",
+          "codex_cli_rs/0.50"
+        ]
+      ],
+      "tracked": null,
+      "out": "{\"tools\":[{\"type\":\"function\",\"name\":\"exec_command\",\"parameters\":{\"properties\":{\"timeout_ms\":{\"type\":\"number\"}}}}]}",
+      "touched": []
+    }
+  ]
+}

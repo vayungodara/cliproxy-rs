@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -21,6 +22,10 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	claudeauth "github.com/router-for-me/CLIProxyAPI/v8/internal/auth/claude"
+	"github.com/router-for-me/CLIProxyAPI/v8/internal/misc"
+	"github.com/router-for-me/CLIProxyAPI/v8/internal/modelconfig"
+	"github.com/router-for-me/CLIProxyAPI/v8/internal/registry"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/config"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/runtime/executor"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/watcher/synthesizer"
@@ -53,6 +58,19 @@ type scenario struct {
 	Reply     reply       `json:"reply"`
 	// ExecutionSession is ExecutionSessionMetadataKey (websocket executions).
 	ExecutionSession string `json:"execution_session,omitempty"`
+	// Source is the client format (default claude); responses use the same format.
+	Source string `json:"source,omitempty"`
+	// Resolved binds the conductor's API-key model capability snapshot
+	// (lookupAPIKeyModelCapability -> modelconfig.ResolveModelInfo + IsCompat).
+	Resolved *resolvedModel `json:"resolved,omitempty"`
+	// RequestedModel is the client's route model when it differs from Model.
+	RequestedModel string `json:"requested_model,omitempty"`
+}
+
+type resolvedModel struct {
+	Name     string                    `json:"name"`
+	Compat   bool                      `json:"compat"`
+	Thinking *registry.ThinkingSupport `json:"thinking,omitempty"`
 }
 
 type upstream struct {
@@ -242,13 +260,22 @@ func run(root string, s scenario) result {
 	if s.ExecutionSession != "" {
 		metadata[cliproxyexecutor.ExecutionSessionMetadataKey] = s.ExecutionSession
 	}
-	req := cliproxyexecutor.Request{Model: s.Model, Payload: []byte(s.Body), Format: sdktranslator.FromString("claude")}
+	source := s.Source
+	if source == "" {
+		source = "claude"
+	}
+	req := cliproxyexecutor.Request{Model: s.Model, Payload: []byte(s.Body), Format: sdktranslator.FromString(source)}
+	if s.Resolved != nil {
+		info := modelconfig.ResolveModelInfo(s.Resolved.Name, "claude", s.Resolved.Thinking)
+		info.IsCompat = s.Resolved.Compat
+		req.Metadata = map[string]any{"cliproxy.resolved_api_key_model_info": info}
+	}
 	opts := cliproxyexecutor.Options{
 		Stream:          s.Stream,
 		Headers:         headers.Clone(),
 		OriginalRequest: []byte(s.Body),
-		SourceFormat:    sdktranslator.FromString("claude"),
-		ResponseFormat:  sdktranslator.FromString("claude"),
+		SourceFormat:    sdktranslator.FromString(source),
+		ResponseFormat:  sdktranslator.FromString(source),
 		Metadata:        metadata,
 	}
 	req, opts = cliproxysession.Enrich(req, opts)
@@ -345,6 +372,117 @@ func sjsonCases() []sjsonCase {
 	return inputs
 }
 
+type loginCase struct {
+	Method      string `json:"method"`
+	Target      string `json:"target"`
+	Status      int    `json:"status"`
+	ContentType string `json:"content_type"`
+	Location    string `json:"location,omitempty"`
+	NoSniff     string `json:"nosniff,omitempty"`
+	Body        string `json:"body"`
+}
+
+// loginServerCases drives the real claude.OAuthServer on a free local port.
+func loginServerCases() []loginCase {
+	probe, err := net.Listen("tcp", "127.0.0.1:0")
+	must(err)
+	port := probe.Addr().(*net.TCPAddr).Port
+	must(probe.Close())
+	server := claudeauth.NewOAuthServer(port)
+	must(server.Start())
+	defer server.Stop(context.Background())
+	client := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	var out []loginCase
+	for _, c := range []loginCase{
+		{Method: "GET", Target: "/callback?code=abc%23frag&state=xyz"},
+		{Method: "GET", Target: "/callback?error=access_denied&error_description=nope"},
+		{Method: "GET", Target: "/callback?state=xyz"},
+		{Method: "GET", Target: "/callback?code=abc"},
+		{Method: "POST", Target: "/callback?code=abc&state=xyz"},
+		{Method: "GET", Target: "/success"},
+		{Method: "GET", Target: "/success?setup_required=true&platform_url=https%3A%2F%2Fplatform.example.invalid%2F"},
+		{Method: "POST", Target: "/success"},
+		{Method: "GET", Target: "/other"},
+	} {
+		req, err := http.NewRequest(c.Method, fmt.Sprintf("http://127.0.0.1:%d%s", port, c.Target), nil)
+		must(err)
+		resp, err := client.Do(req)
+		must(err)
+		body, _ := io.ReadAll(resp.Body)
+		_ = resp.Body.Close()
+		c.Status = resp.StatusCode
+		c.ContentType = resp.Header.Get("Content-Type")
+		c.Location = resp.Header.Get("Location")
+		c.NoSniff = resp.Header.Get("X-Content-Type-Options")
+		c.Body = string(body)
+		out = append(out, c)
+	}
+	return out
+}
+
+type callbackParse struct {
+	Input string `json:"input"`
+	Nil   bool   `json:"nil,omitempty"`
+	Err   string `json:"err,omitempty"`
+	Code  string `json:"code,omitempty"`
+	State string `json:"state,omitempty"`
+	Error string `json:"error,omitempty"`
+	Desc  string `json:"desc,omitempty"`
+}
+
+func callbackParses() []callbackParse {
+	var out []callbackParse
+	for _, input := range []string{
+		"", "   ",
+		"http://localhost:54545/callback?code=c1&state=s1",
+		"localhost:54545/callback?code=c2&state=s2",
+		"?code=c3&state=s3",
+		"code=c4&state=s4",
+		"c5#s5",
+		"http://localhost/callback?code=c6%23s6",
+		"http://localhost/callback#code=c7&state=s7",
+		"http://localhost/callback?code=c8&state=s8#state=ignored&error=e",
+		"http://localhost/callback?error_description=only+desc",
+		"http://localhost/callback?error=denied&error_description=why",
+		"http://localhost/callback?state=s9",
+		"justtext",
+		"http://[::1/bad",
+	} {
+		c := callbackParse{Input: input}
+		parsed, err := misc.ParseOAuthCallback(input)
+		switch {
+		case err != nil:
+			c.Err = err.Error()
+		case parsed == nil:
+			c.Nil = true
+		default:
+			c.Code, c.State, c.Error, c.Desc = parsed.Code, parsed.State, parsed.Error, parsed.ErrorDescription
+		}
+		out = append(out, c)
+	}
+	return out
+}
+
+type fileName struct {
+	Email        string `json:"email"`
+	Organization string `json:"organization"`
+	Account      string `json:"account"`
+	Out          string `json:"out"`
+}
+
+func fileNames() []fileName {
+	var out []fileName
+	for _, c := range []fileName{
+		{Email: "a@example.invalid"},
+		{Email: " a@example.invalid ", Account: "acct-1"},
+		{Email: "a@example.invalid", Organization: " org-1 ", Account: "acct-1"},
+	} {
+		c.Out = claudeauth.CredentialFileName(c.Email, c.Organization, c.Account)
+		out = append(out, c)
+	}
+	return out
+}
+
 func must(err error) {
 	if err != nil {
 		panic(err)
@@ -370,6 +508,13 @@ func main() {
 		"source":    "CLIProxyAPI 6fecc6e ClaudeExecutor, in-process; see tests/reference/claude/README.md",
 		"scenarios": results,
 		"sjson":     sjsonCases(),
+		"login": map[string]any{
+			"server":         loginServerCases(),
+			"callback_parse": callbackParses(),
+			"file_names":     fileNames(),
+			"success_html":   claudeauth.LoginSuccessHtml,
+			"setup_notice":   claudeauth.SetupNoticeHtml,
+		},
 	}
 	encoded, err := json.MarshalIndent(doc, "", " ")
 	must(err)
