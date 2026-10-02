@@ -1,0 +1,83 @@
+{
+  "name": "refresh-500",
+  "credential": {
+    "access_token": "old",
+    "refresh_token": "kimi-refresh-4",
+    "type": "kimi"
+  },
+  "request": {
+    "refresh": true
+  },
+  "responses": [
+    {
+      "status": 500,
+      "headers": [
+        [
+          "Content-Type",
+          "application/json"
+        ]
+      ],
+      "body": "{\"error\":\"boom\"}"
+    }
+  ],
+  "upstream": [
+    {
+      "method": "POST",
+      "target": "/api/oauth/token",
+      "headers": [
+        [
+          "Host",
+          "auth.kimi.com"
+        ],
+        [
+          "User-Agent",
+          "Go-http-client/1.1"
+        ],
+        [
+          "Content-Length",
+          "100"
+        ],
+        [
+          "Accept",
+          "application/json"
+        ],
+        [
+          "Content-Type",
+          "application/x-www-form-urlencoded"
+        ],
+        [
+          "X-Msh-Device-Id",
+          "525862a1-7504-411b-9585-0e9026cfb363"
+        ],
+        [
+          "X-Msh-Device-Model",
+          "Linux amd64"
+        ],
+        [
+          "X-Msh-Device-Name",
+          "e2b.local"
+        ],
+        [
+          "X-Msh-Platform",
+          "CLIProxyAPI"
+        ],
+        [
+          "X-Msh-Version",
+          "0.1.0"
+        ],
+        [
+          "Accept-Encoding",
+          "gzip"
+        ]
+      ],
+      "body": "client_id=17e5f671-d194-4dfb-9706-5516cb48c098\u0026grant_type=refresh_token\u0026refresh_token=kimi-refresh-4"
+    }
+  ],
+  "downstream": {
+    "err_status": -1,
+    "err_body": "kimi: refresh failed with status 500: {\"error\":\"boom\"}"
+  },
+  "extra": {
+    "before_unix": 1790961562
+  }
+}

@@ -1,0 +1,92 @@
+{
+  "name": "transport-json-typed-stream",
+  "credential": {
+    "access_token": "kimi-access-fixture",
+    "device_id": "dev-fixture-1",
+    "type": "kimi"
+  },
+  "request": {
+    "body": "{\"model\":\"kimi-k2\",\"stream\":true,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+    "headers": null,
+    "model": "kimi-k2",
+    "source": "openai",
+    "stream": true
+  },
+  "responses": [
+    {
+      "status": 200,
+      "headers": [
+        [
+          "Content-Type",
+          "application/json"
+        ]
+      ],
+      "body": "data: {\"id\":\"c\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"a\\r\\rb\"}}]}\r\n\r\n: keep-alive\n\ndata: [DONE]"
+    }
+  ],
+  "upstream": [
+    {
+      "method": "POST",
+      "target": "/coding/v1/chat/completions",
+      "headers": [
+        [
+          "Host",
+          "127.0.0.1:46097"
+        ],
+        [
+          "User-Agent",
+          "CLIProxyAPI/0.1.0"
+        ],
+        [
+          "Content-Length",
+          "112"
+        ],
+        [
+          "Accept",
+          "text/event-stream"
+        ],
+        [
+          "Authorization",
+          "Bearer kimi-access-fixture"
+        ],
+        [
+          "Content-Type",
+          "application/json"
+        ],
+        [
+          "X-Msh-Device-Id",
+          "dev-fixture-1"
+        ],
+        [
+          "X-Msh-Device-Model",
+          "linux amd64"
+        ],
+        [
+          "X-Msh-Device-Name",
+          "e2b.local"
+        ],
+        [
+          "X-Msh-Platform",
+          "CLIProxyAPI"
+        ],
+        [
+          "X-Msh-Version",
+          "0.1.0"
+        ],
+        [
+          "Accept-Encoding",
+          "gzip"
+        ]
+      ],
+      "body": "{\"model\":\"k2\",\"stream\":true,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream_options\":{\"include_usage\":true}}"
+    }
+  ],
+  "downstream": {
+    "chunks": [
+      "{\"id\":\"c\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"a\\r\\rb\"}}]}",
+      "",
+      ": keep-alive",
+      ""
+    ]
+  }
+}

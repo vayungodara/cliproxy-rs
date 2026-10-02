@@ -1,0 +1,95 @@
+{
+  "name": "transport-explicit-gzip-not-decoded",
+  "credential": {
+    "access_token": "kimi-access-fixture",
+    "device_id": "dev-fixture-1",
+    "type": "kimi"
+  },
+  "attributes": {
+    "header:Accept-Encoding": "gzip"
+  },
+  "request": {
+    "body": "{\"model\":\"kimi-k2\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+    "headers": null,
+    "model": "kimi-k2",
+    "source": "openai",
+    "stream": false
+  },
+  "responses": [
+    {
+      "status": 200,
+      "headers": [
+        [
+          "Content-Type",
+          "application/json"
+        ],
+        [
+          "Content-Encoding",
+          "gzip"
+        ]
+      ],
+      "body": "",
+      "body_b64": "H4sIAAAAAAAA/xSNwQrCQAwF/+WdFxFvza+ISNyNNrZNSpODUPbfZY/DMMwJbSDUCQX++krNQTPnpfq2r5LqhoJ6CKc00FSweZMVhOU2xOxaJUD3E2pNfqBrwSYR/BHQicNXAYEjNJItR+OWYmPkC3rBW01jfh7C4QZCpO/oj/4PAAD//7EiGsmcAAAA"
+    }
+  ],
+  "upstream": [
+    {
+      "method": "POST",
+      "target": "/coding/v1/chat/completions",
+      "headers": [
+        [
+          "Host",
+          "127.0.0.1:44831"
+        ],
+        [
+          "User-Agent",
+          "CLIProxyAPI/0.1.0"
+        ],
+        [
+          "Content-Length",
+          "58"
+        ],
+        [
+          "Accept",
+          "application/json"
+        ],
+        [
+          "Accept-Encoding",
+          "gzip"
+        ],
+        [
+          "Authorization",
+          "Bearer kimi-access-fixture"
+        ],
+        [
+          "Content-Type",
+          "application/json"
+        ],
+        [
+          "X-Msh-Device-Id",
+          "dev-fixture-1"
+        ],
+        [
+          "X-Msh-Device-Model",
+          "linux amd64"
+        ],
+        [
+          "X-Msh-Device-Name",
+          "e2b.local"
+        ],
+        [
+          "X-Msh-Platform",
+          "CLIProxyAPI"
+        ],
+        [
+          "X-Msh-Version",
+          "0.1.0"
+        ]
+      ],
+      "body": "{\"model\":\"k2\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
+    }
+  ],
+  "downstream": {
+    "body": "\u001f\ufffd\b\u0000\u0000\u0000\u0000\u0000\u0000\ufffd\u0014\ufffd\ufffd\n\ufffd@\f\u0005\ufffd\ufffd\ufffd\u0017\u0011oͯ\ufffdH܍6\ufffdMJ\ufffd\ufffdP\ufffd\ufffde\ufffd\ufffd0\ufffd\tm \ufffd\t\u0005\ufffd\ufffdJ\ufffdA3\ufffd\ufffd\ufffd\ufffd\ufffd\ufffdꆂz\b\ufffd4\ufffdT\ufffdy\ufffd\u0015\ufffd\ufffd6\ufffd\ufffdZ%@\ufffd\u0013jM~\ufffdk\ufffd\u0026\u0011\ufffd\u0011Љ\ufffdW\u0001\ufffd#4\ufffd-G\ufffd\ufffdbc\ufffd\u000bz\ufffd[Mc~\u001e\ufffd\ufffd\u0006B\ufffd\ufffd\ufffd\ufffd\ufffd\u000f\u0000\u0000\ufffd\ufffd\ufffd\"\u001aɜ\u0000\u0000\u0000"
+  }
+}
