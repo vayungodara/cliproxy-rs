@@ -933,12 +933,11 @@ pub fn upload_fallback(auth_dir: &Path, path: &Path, data: &[u8]) -> Option<Cred
             }
         }
     }
+    // Go `authIDForPath`: relative to the absolute auth dir (lexical, no symlinks).
+    let absolute = |p: &Path| std::path::absolute(p).unwrap_or_else(|_| p.to_owned());
+    let (dir, file) = (absolute(auth_dir), absolute(path));
     Some(Credential {
-        id: path
-            .strip_prefix(auth_dir)
-            .unwrap_or(path)
-            .to_string_lossy()
-            .into_owned(),
+        id: file.strip_prefix(&dir).unwrap_or(&file).to_string_lossy().into_owned(),
         provider,
         source: Source::File(path.to_owned()),
         disabled: meta.get("disabled").and_then(Json::as_bool).unwrap_or(false),

@@ -79,7 +79,12 @@ impl Management {
         let mut fallbacks = self.fallbacks.lock().unwrap_or_else(PoisonError::into_inner);
         fallbacks.retain(|path| {
             let Ok(data) = std::fs::read(path) else { return false };
-            if all.iter().any(|c| matches!(&c.source, Source::File(p) if p == path)) {
+            // Uploads record absolute paths; a relative auth-dir scans relative ones.
+            let absolute = |p: &PathBuf| std::path::absolute(p).unwrap_or_else(|_| p.clone());
+            if all
+                .iter()
+                .any(|c| matches!(&c.source, Source::File(p) if absolute(p) == absolute(path)))
+            {
                 return false;
             }
             match credentials::upload_fallback(&cfg.auth_dir, path, &data) {

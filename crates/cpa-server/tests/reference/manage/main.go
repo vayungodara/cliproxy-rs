@@ -1194,5 +1194,19 @@ func credScenarios() []credScenario {
 			call(http.MethodDelete, "/credentials?all=true", ""),
 			get("/credentials"),
 		},
+	}, {
+		// The dashboard's capability probes: Go rejects each with 400 before any I/O.
+		Name: "dashboard_probes", Files: files, YAML: "config-version: 8\nmanagement:\n  secret-key: '$HASH'\noauth:\n  auth-dir: $AUTH\napi-keys:\n  claude:\n    - keys:\n        - api-key: fake-probe\n",
+		Steps: []credStep{
+			{Method: http.MethodPost, Path: "/credentials", Body: "{}", ContentType: "application/json"},
+			{Method: http.MethodPost, Path: "/credentials/refresh", Body: "{}", ContentType: "application/json"},
+			{Method: http.MethodPatch, Path: "/credentials/fields", Body: "{}", ContentType: "application/json"},
+			{Method: http.MethodDelete, Path: "/credentials", Body: "{}", ContentType: "application/json"},
+			{Method: http.MethodPost, Path: "/routing/cooldown/reset", Body: "{}", ContentType: "application/json"},
+			{Method: http.MethodPost, Path: "/requests/api-call", Body: "{}", ContentType: "application/json"},
+			{Method: http.MethodPost, Path: "/oauth/import", Body: "{}", ContentType: "application/json"},
+			get("/oauth/auth-url"),
+			get("/observability/usage/queue?count=0"),
+		},
 	}}
 }

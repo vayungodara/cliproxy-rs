@@ -683,6 +683,9 @@ mod creds {
         let mut compared = 0;
         for scenario in fixture()["credentials"].as_array().unwrap() {
             let name = scenario["name"].as_str().unwrap();
+            if name == "dashboard_probes" {
+                continue;
+            }
             let dir = std::env::temp_dir().join(format!("cpa-creds-{name}-{}", std::process::id()));
             let root = dir.join("fixture-root");
             let auth = root.join("auth");
@@ -840,5 +843,121 @@ mod creds {
             let _ = std::fs::remove_dir_all(&dir);
         }
         assert_eq!(compared, 89);
+    }
+
+    /// Every file in the auth dir and the config, byte for byte.
+    fn disk_snapshot(auth: &std::path::Path, config: &std::path::Path) -> Vec<(String, Vec<u8>)> {
+        let mut out: Vec<(String, Vec<u8>)> = std::fs::read_dir(auth)
+            .unwrap()
+            .map(|e| {
+                let e = e.unwrap();
+                (
+                    e.file_name().to_string_lossy().into_owned(),
+                    std::fs::read(e.path()).unwrap(),
+                )
+            })
+            .collect();
+        out.sort();
+        out.push(("config.yaml".into(), std::fs::read(config).unwrap()));
+        out
+    }
+
+    /// The dashboard probes each action with input Go rejects with 400 before any
+    /// I/O. Implemented routes must answer exactly like Go and leave the disk and the
+    /// cooldown state untouched; routes not built yet must stay an empty 404.
+    #[tokio::test]
+    async fn dashboard_probes_are_rejected_without_side_effects() {
+        const NOT_YET: &[&str] = &[
+            "/requests/api-call",
+            "/oauth/import",
+            "/oauth/auth-url",
+            "/observability/usage/queue",
+        ];
+        let scenario = fixture()["credentials"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|s| s["name"] == "dashboard_probes")
+            .unwrap()
+            .clone();
+        let hash = bcrypt::hash("fake-secret", 4).unwrap();
+        let dir = std::env::temp_dir().join(format!("cpa-probes-{}", std::process::id()));
+        let auth = dir.join("fixture-root").join("auth");
+        std::fs::create_dir_all(&auth).unwrap();
+        for (file, body) in scenario["auth_files"].as_object().unwrap() {
+            std::fs::write(auth.join(file), body.as_str().unwrap()).unwrap();
+        }
+        let path = dir.join("fixture-root").join("config.yaml");
+        let yaml = scenario["yaml"]
+            .as_str()
+            .unwrap()
+            .replace("$HASH", &hash)
+            .replace("$AUTH", &auth.display().to_string());
+        std::fs::write(&path, yaml).unwrap();
+        let cfg = Config::load(&path).unwrap();
+        let rt = Arc::new(Runtime::new(
+            cfg.clone(),
+            credentials::load(&cfg),
+            Executors {
+                claude: ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
+                codex: Default::default(),
+                devices: Default::default(),
+                openai: Default::default(),
+            },
+        ));
+        let options = Options {
+            management_password: Some(String::new()),
+            ..Options::default()
+        };
+        let (base, server) = super::access::serve(Management::with_options(rt.clone(), path.clone(), options)).await;
+        let before = disk_snapshot(&auth, &path);
+        let creds_before: Vec<(String, u64)> = rt
+            .store()
+            .snapshot()
+            .iter()
+            .map(|c| (c.id.clone(), c.revision))
+            .collect();
+        let client = wreq::Client::new();
+        let mut implemented = 0;
+        for step in scenario["steps"].as_array().unwrap() {
+            let at = format!("{} {}", step["method"], step["path"]);
+            let method: wreq::Method = step["method"].as_str().unwrap().parse().unwrap();
+            let mut req = client
+                .request(
+                    method,
+                    format!("{base}/v8/management{}", step["path"].as_str().unwrap()),
+                )
+                .header("X-Test-Peer", "127.0.0.1:1")
+                .bearer_auth("fake-secret");
+            if let Some(body) = step["body"].as_str() {
+                req = req.header("Content-Type", "application/json").body(body.to_owned());
+            }
+            let res = req.send().await.unwrap();
+            let status = res.status().as_u16();
+            let body = res.text().await.unwrap();
+            let route = step["path"].as_str().unwrap().split('?').next().unwrap();
+            if status == 404 && body.is_empty() {
+                assert!(
+                    NOT_YET.contains(&route),
+                    "{at}: implemented routes must answer the probe"
+                );
+            } else {
+                assert!(!NOT_YET.contains(&route), "{at}: now implemented; drop it from NOT_YET");
+                assert_eq!(status, step["status"], "{at}: {body}");
+                assert_eq!(serde_json::from_str::<Value>(&body).unwrap(), step["response"], "{at}");
+                implemented += 1;
+            }
+            assert_eq!(disk_snapshot(&auth, &path), before, "{at}: probe touched the disk");
+            let creds_now: Vec<(String, u64)> = rt
+                .store()
+                .snapshot()
+                .iter()
+                .map(|c| (c.id.clone(), c.revision))
+                .collect();
+            assert_eq!(creds_now, creds_before, "{at}: probe changed credentials");
+        }
+        assert_eq!(implemented, 5);
+        server.abort();
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

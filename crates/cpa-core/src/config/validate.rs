@@ -75,8 +75,14 @@ fn in_flight(section: Option<&Value>) -> Result<()> {
     Ok(())
 }
 
-/// `CodexLiveMediaRelayConfig.Validate`; only an enabled relay is checked.
+/// `CodexLiveMediaRelayConfig.Validate`; only an enabled relay is checked. The UDP
+/// ports are Go `uint16` fields, so decoding rejects out-of-range values first.
 fn live_media_relay(section: Option<&Value>) -> Result<()> {
+    for key in ["udp-port-min", "udp-port-max"] {
+        if !(0..=65_535).contains(&int(section, key, 0)) {
+            bail!("codex.live-media-relay.{key} must be between 0 and 65535");
+        }
+    }
     if !section
         .and_then(|s| s.get("enabled"))
         .and_then(Value::as_bool)
@@ -102,11 +108,10 @@ fn live_media_relay(section: Option<&Value>) -> Result<()> {
     }
     if min != 0 {
         let sessions = if max_sessions > 0 { max_sessions } else { 32 };
-        if max - min + 1 < sessions * 2 {
-            bail!(
-                "codex.live-media-relay UDP range requires at least {} ports for {sessions} sessions",
-                sessions * 2
-            );
+        // Go int arithmetic wraps.
+        let required = sessions.wrapping_mul(2);
+        if max - min + 1 < required {
+            bail!("codex.live-media-relay UDP range requires at least {required} ports for {sessions} sessions");
         }
     }
     let servers = section
@@ -141,6 +146,7 @@ fn live_media_relay(section: Option<&Value>) -> Result<()> {
 
 /// Go `time.ParseDuration` in nanoseconds; `None` where Go returns an error.
 pub(crate) fn parse_duration(s: &str) -> Option<i64> {
+    const LIMIT: u64 = 1 << 63;
     let (neg, mut rest) = match s.as_bytes().first() {
         Some(b'-') => (true, &s[1..]),
         Some(b'+') => (false, &s[1..]),
@@ -152,23 +158,51 @@ pub(crate) fn parse_duration(s: &str) -> Option<i64> {
     if rest.is_empty() {
         return None;
     }
-    let mut total: u128 = 0;
+    let mut total: u64 = 0;
     while !rest.is_empty() {
-        let int_len = rest.bytes().take_while(u8::is_ascii_digit).count();
-        let (int_part, after) = rest.split_at(int_len);
-        let (frac_part, after) = match after.strip_prefix('.') {
-            Some(f) => {
-                let n = f.bytes().take_while(u8::is_ascii_digit).count();
-                f.split_at(n)
-            }
-            None => ("", after),
-        };
-        if int_part.is_empty() && frac_part.is_empty() {
+        if !rest.starts_with(|c: char| c == '.' || c.is_ascii_digit()) {
             return None;
         }
-        let unit_len = after.bytes().take_while(|b| *b != b'.' && !b.is_ascii_digit()).count();
-        let (unit, after) = after.split_at(unit_len);
-        let scale: u128 = match unit {
+        // Go `leadingInt`: overflow past 1<<63 is an error.
+        let int_len = rest.bytes().take_while(u8::is_ascii_digit).count();
+        let mut whole: u64 = 0;
+        for d in rest[..int_len].bytes() {
+            if whole > LIMIT / 10 {
+                return None;
+            }
+            whole = whole * 10 + u64::from(d - b'0');
+            if whole > LIMIT {
+                return None;
+            }
+        }
+        rest = &rest[int_len..];
+        // Go `leadingFraction`: digits past the overflow point are consumed, ignored.
+        let (mut frac, mut scale, mut has_frac) = (0u64, 1f64, false);
+        if let Some(after) = rest.strip_prefix('.') {
+            let n = after.bytes().take_while(u8::is_ascii_digit).count();
+            has_frac = n > 0;
+            let mut overflow = false;
+            for d in after[..n].bytes() {
+                if overflow || frac > (LIMIT - 1) / 10 {
+                    overflow = true;
+                    continue;
+                }
+                let next = frac * 10 + u64::from(d - b'0');
+                if next > LIMIT {
+                    overflow = true;
+                    continue;
+                }
+                frac = next;
+                scale *= 10.0;
+            }
+            rest = &after[n..];
+        }
+        if int_len == 0 && !has_frac {
+            return None;
+        }
+        let unit_len = rest.bytes().take_while(|b| *b != b'.' && !b.is_ascii_digit()).count();
+        let (unit, after) = rest.split_at(unit_len);
+        let unit: u64 = match unit {
             "ns" => 1,
             "us" | "\u{b5}s" | "\u{3bc}s" => 1_000,
             "ms" => 1_000_000,
@@ -177,21 +211,21 @@ pub(crate) fn parse_duration(s: &str) -> Option<i64> {
             "h" => 3_600_000_000_000,
             _ => return None,
         };
-        let whole: u128 = if int_part.is_empty() { 0 } else { int_part.parse().ok()? };
-        total = total.checked_add(whole.checked_mul(scale)?)?;
-        if !frac_part.is_empty() {
-            // Go scales the fraction in float64.
-            let digits = &frac_part[..frac_part.len().min(18)];
-            let frac: f64 = format!("0.{digits}").parse().ok()?;
-            total += (frac * scale as f64) as u128;
-        }
-        if total > 1 << 63 {
+        if whole > LIMIT / unit {
             return None;
         }
+        let mut value = whole * unit;
+        if frac > 0 {
+            value += (frac as f64 * (unit as f64 / scale)) as u64;
+            if value > LIMIT {
+                return None;
+            }
+        }
+        total = total.checked_add(value).filter(|t| *t <= LIMIT)?;
         rest = after;
     }
     if neg {
-        return Some(-(total as i128) as i64);
+        return Some((total as i64).wrapping_neg());
     }
     i64::try_from(total).ok()
 }
@@ -200,13 +234,41 @@ pub(crate) fn parse_duration(s: &str) -> Option<i64> {
 mod tests {
     use super::parse_duration;
 
+    /// Values that overflowed before: Go rejects out-of-range uint16 ports at decode
+    /// and wraps `max-sessions * 2` (here to i64::MIN, so the range check passes).
+    #[test]
+    fn relay_arithmetic_never_overflows() {
+        use crate::config::Config;
+        let relay = |body: &str| {
+            Config::parse(&format!(
+                "oauth: {{providers: {{codex: {{live-media-relay: {body}}}}}}}\n"
+            ))
+        };
+        assert!(relay("{enabled: true, udp-port-min: -1, udp-port-max: 9223372036854775807}").is_err());
+        assert!(relay("{enabled: false, udp-port-min: -64, udp-port-max: -1}").is_err());
+        assert!(relay("{enabled: true, udp-port-min: 1, udp-port-max: 64, max-sessions: 4611686018427387904}").is_ok());
+        assert!(relay("{enabled: true, udp-port-min: 1, udp-port-max: 64, max-sessions: 33}").is_err());
+    }
+
     #[test]
     fn durations_parse_like_go() {
         assert_eq!(parse_duration("1h1m0.5s"), Some(3_660_500_000_000));
         assert_eq!(parse_duration(".5us"), Some(500));
         assert_eq!(parse_duration("-1.5h"), Some(-5_400_000_000_000));
         assert_eq!(parse_duration("0"), Some(0));
-        for bad in ["", "2", "1d", ".s", "1h-1m", "9999999999h"] {
+        assert_eq!(parse_duration("-2562047h47m16.854775808s"), Some(i64::MIN));
+        assert_eq!(parse_duration("9223372036.854775807s"), Some(i64::MAX));
+        for bad in [
+            "",
+            "2",
+            "1d",
+            ".s",
+            "1h-1m",
+            "9999999999h",
+            "9223372036.854775808s",
+            "340282366920938463463374607431768211455.999999999999999999ns1s",
+            "18446744073709551615ns",
+        ] {
             assert_eq!(parse_duration(bad), None, "{bad}");
         }
     }

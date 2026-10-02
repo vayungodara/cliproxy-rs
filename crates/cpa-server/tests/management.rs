@@ -739,3 +739,82 @@ async fn credential_models_come_from_registrations() {
     assert!(models(client, base, id).await.is_empty());
     server.abort();
 }
+
+/// A relative auth-dir: an unclaimed upload is one fallback credential with a
+/// relative ID, and once a field patch makes it claimable it is exactly one
+/// synthesized credential (no leftover absolute-path fallback).
+#[tokio::test]
+async fn fallback_with_relative_auth_dir_is_retired_once_synthesized() {
+    let f = Fixture::from_yaml("relfallback", |auth, hash| {
+        let cwd = std::env::current_dir().unwrap();
+        let up = "../".repeat(cwd.components().count() - 1);
+        let relative = std::path::Path::new(&up).join(auth.strip_prefix("/").unwrap());
+        format!(
+            "config-version: 8\nmanagement:\n  secret-key: '{hash}'\noauth:\n  auth-dir: {}\n",
+            relative.display()
+        )
+    });
+    assert!(f.rt.config().auth_dir.is_relative());
+    let (base, server) = f.server().await;
+    let client = wreq::Client::new();
+    let call = |method: wreq::Method, path: &str, body: &str| {
+        client
+            .request(method, format!("{base}/v8/management{path}"))
+            .bearer_auth("fake-management-only")
+            .body(body.to_owned())
+            .send()
+    };
+    let ids = |f: &Fixture| {
+        f.rt.store()
+            .snapshot()
+            .iter()
+            .map(|c| (c.id.clone(), c.provider.clone()))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(
+        call(wreq::Method::POST, "/credentials?name=a.json", "{}")
+            .await
+            .unwrap()
+            .status(),
+        200
+    );
+    assert_eq!(ids(&f), [("a.json".to_owned(), "unknown".to_owned())]);
+    let r = call(
+        wreq::Method::PATCH,
+        "/credentials/fields",
+        r#"{"name":"a.json","type":"claude"}"#,
+    )
+    .await
+    .unwrap();
+    assert_eq!(r.status(), 200);
+    assert_eq!(ids(&f), [("a.json".to_owned(), "claude".to_owned())]);
+    server.abort();
+}
+
+/// A config-backed field patch invalidates the cached registry: a new prefix is
+/// routable at once.
+#[tokio::test]
+async fn config_key_prefix_patch_refreshes_the_registry() {
+    let f = Fixture::from_yaml("cfgprefix", |auth, hash| {
+        format!(
+            "config-version: 8\nmanagement:\n  secret-key: '{hash}'\noauth:\n  auth-dir: {}\napi-keys:\n  claude:\n    - models: [{{name: claude-sonnet-4-6, alias: sonnet}}]\n      keys:\n        - api-key: fake-k\n",
+            auth.display()
+        )
+    });
+    let id = f.rt.store().snapshot()[0].id.clone();
+    assert!(
+        !f.rt.registry().ids().any(|m| m == "new/sonnet"),
+        "warm cache without the prefix"
+    );
+    let (base, server) = f.server().await;
+    let r = wreq::Client::new()
+        .patch(format!("{base}/v8/management/credentials/fields"))
+        .bearer_auth("fake-management-only")
+        .json(&json!({"name": id, "prefix": "new"}))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(r.status(), 200);
+    assert!(f.rt.registry().ids().any(|m| m == "new/sonnet"));
+    server.abort();
+}

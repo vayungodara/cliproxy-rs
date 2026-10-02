@@ -885,6 +885,9 @@ impl CredentialStore {
         *slot = Arc::new(next);
         let committed = slot.clone();
         inner.generation = generation;
+        // Registrations depend on the credential (prefix, models): invalidate the
+        // registry cache like `apply_patch` does.
+        inner.epoch += 1;
         Ok(committed)
     }
 
