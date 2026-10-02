@@ -1,0 +1,87 @@
+{
+  "name": "writer",
+  "credential": {},
+  "request": {},
+  "responses": null,
+  "upstream": null,
+  "downstream": {},
+  "extra": {
+    "cases": [
+      {
+        "name": "no-snapshot-inherits-settings",
+        "disk": "{\"type\":\"meta\",\"api_key\":\"stale\",\"expires_in\":10,\"expired\":\"x\",\"custom\":\"disk\",\"email\":\"old@x\",\"prefix\":\"p\"}",
+        "storage": {
+          "access_token": "new",
+          "dca_expires_at": 0,
+          "email": "new@x",
+          "expires_in": 0,
+          "token_type": "bearer"
+        },
+        "snapshot": null,
+        "out": "{\n  \"access_token\": \"new\",\n  \"auth_kind\": \"oauth\",\n  \"custom\": \"disk\",\n  \"email\": \"new@x\",\n  \"prefix\": \"p\",\n  \"token_type\": \"bearer\",\n  \"type\": \"meta\"\n}\n"
+      },
+      {
+        "name": "disk-overflow-partial-map",
+        "disk": "{\"type\":\"meta\",\"custom\":1e400,\"n\":1.0,\"big\":1e21,\"small\":1.5e-7,\"arr\":[1e400,2]}",
+        "storage": {
+          "access_token": "a"
+        },
+        "snapshot": null,
+        "out": "{\n  \"access_token\": \"a\",\n  \"arr\": [\n    null,\n    2\n  ],\n  \"auth_kind\": \"oauth\",\n  \"big\": 1e+21,\n  \"custom\": null,\n  \"n\": 1,\n  \"small\": 1.5e-7,\n  \"type\": \"meta\"\n}\n"
+      },
+      {
+        "name": "disk-overflow-overwritten",
+        "disk": "{\"x\":1e400,\"x\":0,\"y\":3}",
+        "storage": {
+          "access_token": "a"
+        },
+        "snapshot": null,
+        "out": "{\n  \"access_token\": \"a\",\n  \"auth_kind\": \"oauth\",\n  \"type\": \"meta\",\n  \"x\": 0,\n  \"y\": 3\n}\n"
+      },
+      {
+        "name": "snapshot-wins-and-deletes",
+        "disk": "{\"type\":\"meta\",\"custom\":\"disk\",\"prefix\":\"p\"}",
+        "storage": {
+          "access_token": "new",
+          "api_key": "k",
+          "base_url": "https://b",
+          "dca_expires_at": 1790000000,
+          "expires_in": 3600,
+          "name": "N \u003c\u0026\u003e"
+        },
+        "snapshot": {
+          "api_key": "snap-stale",
+          "disabled": false,
+          "email": "snap@x",
+          "headers": {
+            "X": "1"
+          },
+          "type": "other"
+        },
+        "out": "{\n  \"access_token\": \"new\",\n  \"api_key\": \"k\",\n  \"auth_kind\": \"oauth\",\n  \"base_url\": \"https://b\",\n  \"dca_expires_at\": 1790000000,\n  \"disabled\": false,\n  \"email\": \"snap@x\",\n  \"expires_in\": 3600,\n  \"headers\": {\n    \"X\": \"1\"\n  },\n  \"name\": \"N \\u003c\\u0026\\u003e\",\n  \"type\": \"meta\"\n}\n"
+      }
+    ],
+    "file_names": [
+      {
+        "email": "Some.User+tag@Example.com",
+        "out": "meta-Some.User_tag_Example.com-ab00440e3dad70d9.json",
+        "sub": ""
+      },
+      {
+        "email": "",
+        "out": "meta-aaa3e659a7fdc4be.json",
+        "sub": "dca:sub"
+      },
+      {
+        "email": "",
+        "out": "meta-oauth.json",
+        "sub": ""
+      },
+      {
+        "email": "ü@x",
+        "out": "meta-__x-258d6ecb7f936d1a.json",
+        "sub": ""
+      }
+    ]
+  }
+}

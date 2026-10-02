@@ -105,7 +105,14 @@ fn run(client: Format, upstream: Format, f: &Value, bytes: bool) -> Vec<Vec<u8>>
     };
     match f["path"].as_str().unwrap() {
         "request" => vec![translate_request(client, upstream, &ctx, &input).unwrap()],
-        "request_compat" => vec![cpa_translate::openai_to_claude_with_compat(&ctx, &input).unwrap()],
+        "request_compat" => vec![
+            match (client, upstream) {
+                (Format::OpenAI, Format::Claude) => cpa_translate::openai_to_claude_with_compat(&ctx, &input),
+                (Format::Claude, Format::OpenAI) => cpa_translate::claude_to_openai_with_compat(&ctx, &input),
+                other => panic!("no compat request for {other:?}"),
+            }
+            .unwrap(),
+        ],
         "non_stream" => vec![(pair.non_stream)(&rctx, &input).unwrap()],
         "token_count" => vec![translate_token_count(
             client,

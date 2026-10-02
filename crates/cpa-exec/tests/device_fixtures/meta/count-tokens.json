@@ -1,0 +1,26 @@
+{
+  "name": "count-tokens",
+  "credential": {
+    "access_token": "meta-key-fixture",
+    "api_key": "meta-key-fixture",
+    "auth_kind": "oauth",
+    "base_url": "http://127.0.0.1:42307/v1",
+    "dca_token": "dca:fixture",
+    "type": "meta"
+  },
+  "attributes": {
+    "auth_kind": "oauth"
+  },
+  "request": {
+    "body": "{\"model\":\"muse-spark-1.3\",\"instructions\":\"Be brief.\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hello world\"}]},{\"type\":\"function_call\",\"name\":\"lookup\",\"arguments\":\"{\\\"q\\\":1}\"},{\"type\":\"function_call_output\",\"output\":\"result text\"}],\"tools\":[{\"type\":\"function\",\"name\":\"lookup\",\"description\":\"Find things\",\"parameters\":{\"type\":\"object\"}}],\"text\":{\"format\":{\"type\":\"json_schema\",\"name\":\"out\",\"schema\":{\"type\":\"object\"}}}}",
+    "count": true,
+    "model": "muse-spark-1.3",
+    "source": "openai-response",
+    "stream": false
+  },
+  "responses": null,
+  "upstream": null,
+  "downstream": {
+    "body": "{\"response\":{\"usage\":{\"input_tokens\":33,\"output_tokens\":0,\"total_tokens\":33}}}"
+  }
+}

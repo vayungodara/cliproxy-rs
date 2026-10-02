@@ -4,11 +4,15 @@
 use std::sync::OnceLock;
 use std::time::{Duration, SystemTime};
 
+use cpa_common::gostr::GoStr;
+use cpa_common::json::{self as gj, Kind, Res};
+use cpa_common::thinking::{ModelCaps, parse_suffix};
 use cpa_core::config::Config;
 use cpa_core::credential::{Credential, Source};
+use cpa_core::registry::ThinkingSupport;
 use http::HeaderMap;
 
-use crate::openai_compat_http::json;
+use crate::openai_compat_go as go;
 
 /// One `api-keys.openai-compatibility[]` entry, the fields the executor reads.
 #[derive(Debug, Clone, Default)]
@@ -23,8 +27,10 @@ pub(crate) struct Compat {
 pub(crate) struct CompatModel {
     pub name: String,
     pub alias: String,
+    pub image: bool,
     pub use_max_completion_tokens: bool,
     pub input_modalities: Vec<String>,
+    pub thinking: Option<ThinkingSupport>,
 }
 
 fn yaml_str(v: Option<&serde_yaml_ng::Value>) -> String {
@@ -38,6 +44,23 @@ fn yaml_str(v: Option<&serde_yaml_ng::Value>) -> String {
 
 fn yaml_bool(v: Option<&serde_yaml_ng::Value>) -> bool {
     v.and_then(serde_yaml_ng::Value::as_bool).unwrap_or(false)
+}
+
+/// A `thinking:` block (`registry.ThinkingSupport` yaml tags).
+fn yaml_thinking(v: Option<&serde_yaml_ng::Value>) -> Option<ThinkingSupport> {
+    let v = v.filter(|v| v.is_mapping())?;
+    let int = |k: &str| v.get(k).and_then(serde_yaml_ng::Value::as_i64).unwrap_or(0);
+    Some(ThinkingSupport {
+        min: int("min"),
+        max: int("max"),
+        zero_allowed: yaml_bool(v.get("zero-allowed")),
+        dynamic_allowed: yaml_bool(v.get("dynamic-allowed")),
+        levels: v
+            .get("levels")
+            .and_then(serde_yaml_ng::Value::as_sequence)
+            .map(|s| s.iter().map(|l| yaml_str(Some(l))).collect())
+            .unwrap_or_default(),
+    })
 }
 
 /// `cfg.OpenAICompatibility` after `SanitizeOpenAICompatibility`: entries without a
@@ -61,12 +84,14 @@ pub(crate) fn compat_entries(cfg: &Config) -> Vec<Compat> {
             .map(|m| CompatModel {
                 name: yaml_str(m.get("name")),
                 alias: yaml_str(m.get("alias")),
+                image: yaml_bool(m.get("image")),
                 use_max_completion_tokens: yaml_bool(m.get("use-max-completion-tokens")),
                 input_modalities: m
                     .get("input-modalities")
                     .and_then(serde_yaml_ng::Value::as_sequence)
                     .map(|s| s.iter().map(|v| yaml_str(Some(v))).collect())
                     .unwrap_or_default(),
+                thinking: yaml_thinking(m.get("thinking")),
             })
             .collect();
         out.push(Compat {
@@ -103,8 +128,8 @@ pub(crate) fn resolve_compat(credential: &Credential, cfg: &Config) -> Option<Co
 }
 
 /// `normalizeOpenAICompatibilityModelName`.
-fn model_name(model: &str) -> &str {
-    crate::openai_compat_http::parse_suffix(model.trim()).0.trim()
+fn model_name(model: &str) -> String {
+    parse_suffix(model.trim()).model_name.trim().to_owned()
 }
 
 /// The configured model matching `model` by name, then by alias.
@@ -116,13 +141,199 @@ pub(crate) fn find_model<'a>(compat: &'a Compat, model: &str) -> Option<&'a Comp
     compat
         .models
         .iter()
-        .find(|m| model.eq_ignore_ascii_case(model_name(&m.name)))
-        .or_else(|| {
-            compat
-                .models
-                .iter()
-                .find(|m| model.eq_ignore_ascii_case(model_name(&m.alias)))
+        .find(|m| model.go_eq_fold(&model_name(&m.name)))
+        .or_else(|| compat.models.iter().find(|m| model.go_eq_fold(&model_name(&m.alias))))
+}
+
+/// The configured model's capabilities bound to this attempt (Go's
+/// `ResolvedAPIKeyModelInfo` for openai-compatibility credentials:
+/// `compileOpenAICompatibleModelCapabilities` then `lookupAPIKeyModelCapability`).
+// ponytail: adapter for the manager's capability binding (Go
+// attachResolvedAPIKeyModelInfo, owner: server thread). The dispatch loop does not put
+// resolved model info on ExecRequest yet, so the executor derives it from the config
+// entry; Home-mode bindings (M6) are not covered.
+pub(crate) fn resolved_model(
+    compat: Option<&Compat>,
+    credential: &Credential,
+    route_model: &str,
+    upstream_model: &str,
+) -> Option<ModelCaps> {
+    if !configured_model_routing(credential) {
+        return None;
+    }
+    let compat = compat?;
+    let mut routes: Vec<(String, &str, &CompatModel)> = Vec::new();
+    for m in &compat.models {
+        let (mut name, mut alias) = (m.name.trim(), m.alias.trim());
+        if name.is_empty() {
+            name = alias;
+        }
+        if alias.is_empty() {
+            alias = name;
+        }
+        if name.is_empty() {
+            continue;
+        }
+        let mut seen: Vec<String> = Vec::new();
+        for candidate in [alias, name].into_iter().flat_map(alias_candidates) {
+            let key = candidate.trim().go_lower();
+            if key.is_empty() || seen.contains(&key) {
+                continue;
+            }
+            seen.push(key.clone());
+            if !routes.iter().any(|(k, up, _)| *k == key && up.go_eq_fold(name)) {
+                routes.push((key, name, m));
+            }
+        }
+    }
+    let requested = cpa_core::registry::dynamic::strip_prefix(route_model.trim(), credential);
+    let mut matches: Vec<(&str, &CompatModel)> = Vec::new();
+    for candidate in alias_candidates(requested) {
+        let key = candidate.trim().go_lower();
+        matches.extend(routes.iter().filter(|(k, ..)| *k == key).map(|(_, up, m)| (*up, *m)));
+    }
+    let selected = upstream_model.trim();
+    let (name, model) = matches
+        .iter()
+        .find(|(up, _)| up.trim().go_eq_fold(selected))
+        .or_else(|| matches.iter().find(|(up, _)| upstream_fallback_matches(up, selected)))?;
+    let support = model.thinking.clone().or_else(|| {
+        (!model.image).then(|| ThinkingSupport {
+            levels: vec!["low".into(), "medium".into(), "high".into()],
+            ..ThinkingSupport::default()
         })
+    });
+    Some(resolve_model_info(name, "openai-compatibility", support))
+}
+
+/// `isConfiguredModelRoutingAuth`: API-key credentials, or config-sourced ones that name a
+/// compatibility provider. Others never bind configured capabilities.
+fn configured_model_routing(credential: &Credential) -> bool {
+    auth_kind(credential) == "apikey"
+        || (auth_source_kind(credential) == "config" && !attribute(credential, "compat_name").is_empty())
+}
+
+fn attribute<'a>(credential: &'a Credential, key: &str) -> &'a str {
+    credential.attributes.get(key).map_or("", |v| v.trim())
+}
+
+/// `normalizeAuthKind`.
+fn normalize_auth_kind(kind: &str) -> &'static str {
+    match kind.trim().go_lower().as_str() {
+        "apikey" | "api_key" | "api-key" => "apikey",
+        "oauth" | "oauth2" => "oauth",
+        _ => "",
+    }
+}
+
+/// `Auth.AuthKind`: explicit kind, then the field-shape fallbacks.
+fn auth_kind(credential: &Credential) -> &'static str {
+    let explicit = normalize_auth_kind(attribute(credential, "auth_kind"));
+    if !explicit.is_empty() {
+        return explicit;
+    }
+    let explicit = normalize_auth_kind(credential.str("auth_kind").unwrap_or_default());
+    if !explicit.is_empty() {
+        return explicit;
+    }
+    if !attribute(credential, "api_key").is_empty() {
+        return "apikey";
+    }
+    let oauth_keys = [
+        "access_token",
+        "refresh_token",
+        "id_token",
+        "email",
+        "token_type",
+        "expires_at",
+        "expired",
+    ];
+    let has_oauth = oauth_keys
+        .iter()
+        .any(|k| credential.str(k).is_some_and(|v| !v.trim().is_empty()))
+        || credential
+            .metadata
+            .get("token")
+            .and_then(serde_json::Value::as_object)
+            .is_some_and(|t| !t.is_empty());
+    if has_oauth { "oauth" } else { "" }
+}
+
+/// `Auth.AuthSourceKind`, the `config` answer only (all validation needs).
+fn auth_source_kind(credential: &Credential) -> &'static str {
+    let normalize = |s: &str| match s.trim().go_lower().as_str() {
+        "config" => "config",
+        "file" | "filesystem" => "file",
+        "git" => "git",
+        "memory" | "runtime" | "runtime_only" => "memory",
+        "objectstore" | "object-store" => "objectstore",
+        "postgres" | "postgresql" | "database" | "db" => "postgres",
+        _ => "",
+    };
+    if attribute(credential, "runtime_only").go_eq_fold("true") {
+        return "memory";
+    }
+    let backend = normalize(attribute(credential, "source_backend"));
+    if !backend.is_empty() {
+        return backend;
+    }
+    let source = attribute(credential, "source");
+    if !source.is_empty() {
+        if source.go_lower().starts_with("config:") {
+            return "config";
+        }
+        let kind = normalize(source);
+        return if kind.is_empty() { "file" } else { kind };
+    }
+    // ponytail: Go then reads the `path` attribute and Auth.FileName; credentials built
+    // without a `source` attribute fall back to how they were loaded.
+    match credential.source {
+        Source::Config { .. } => "config",
+        Source::File(_) => "file",
+    }
+}
+
+/// `modelAliasLookupCandidates`: the model, then its suffix-free name when different.
+fn alias_candidates(model: &str) -> Vec<String> {
+    let model = model.trim();
+    if model.is_empty() {
+        return Vec::new();
+    }
+    let base = parse_suffix(model).model_name;
+    let base = if base.is_empty() { model.to_owned() } else { base };
+    if base == model {
+        vec![base]
+    } else {
+        vec![model.to_owned(), base]
+    }
+}
+
+/// `configuredUpstreamFallbackMatches`.
+fn upstream_fallback_matches(configured: &str, selected: &str) -> bool {
+    let configured = parse_suffix(configured.trim());
+    !configured.has_suffix
+        && configured
+            .model_name
+            .trim()
+            .go_eq_fold(parse_suffix(selected.trim()).model_name.trim())
+}
+
+/// `modelconfig.ResolveModelInfo`: the static definition of the base model, renamed and
+/// typed for the configured route, with configured thinking normalized.
+pub(crate) fn resolve_model_info(name: &str, kind: &str, support: Option<ThinkingSupport>) -> ModelCaps {
+    let name = name.trim();
+    let base = parse_suffix(name).model_name;
+    let mut caps = cpa_core::registry::pinned()
+        .lookup(base.trim())
+        .map(ModelCaps::from)
+        .unwrap_or_default();
+    caps.id = name.to_owned();
+    caps.kind = kind.trim().to_owned();
+    if let Some(support) = support {
+        caps.thinking = Some(cpa_core::registry::dynamic::normalize_thinking(support));
+    }
+    caps.user_defined = false;
+    caps
 }
 
 /// `ShouldUseMaxCompletionTokensForModel`.
@@ -134,36 +345,20 @@ pub(crate) fn uses_max_completion_tokens(compat: Option<&Compat>, upstream: &str
 }
 
 /// `NormalizeOpenAIMaxTokens`.
-pub(crate) fn normalize_max_tokens(payload: String, use_max_completion_tokens: bool) -> String {
-    let max_tokens = gjson::get(&payload, "max_tokens");
-    let max_completion = gjson::get(&payload, "max_completion_tokens");
+pub(crate) fn normalize_max_tokens(mut payload: Vec<u8>, use_max_completion_tokens: bool) -> Vec<u8> {
     let (from, to) = if use_max_completion_tokens {
         ("max_tokens", "max_completion_tokens")
     } else {
         ("max_completion_tokens", "max_tokens")
     };
-    let (has_from, has_to, raw) = if use_max_completion_tokens {
-        (
-            max_tokens.exists(),
-            max_completion.exists(),
-            max_tokens.json().to_owned(),
-        )
-    } else {
-        (
-            max_completion.exists(),
-            max_tokens.exists(),
-            max_completion.json().to_owned(),
-        )
-    };
-    if !has_from && !has_to {
-        return payload;
-    }
-    let mut payload = payload;
+    let source = gj::get(&payload, from);
+    let (has_from, raw) = (source.exists(), source.raw().to_vec());
+    let has_to = gj::get(&payload, to).exists();
     if has_from && !has_to {
-        payload = json::set_raw(&payload, to, &raw);
+        gj::set_raw(&mut payload, to, &raw);
     }
     if has_from {
-        payload = json::delete(&payload, from);
+        gj::delete(&mut payload, from);
     }
     payload
 }
@@ -181,7 +376,7 @@ pub(crate) fn excludes_images(compat: Option<&Compat>, upstream: &str, requested
         }
         let mut text = false;
         for m in modalities {
-            match m.trim().to_ascii_lowercase().as_str() {
+            match m.trim().go_lower().as_str() {
                 "image" => return false,
                 "text" => text = true,
                 _ => {}
@@ -194,17 +389,13 @@ pub(crate) fn excludes_images(compat: Option<&Compat>, upstream: &str, requested
         if model.is_empty() {
             return None;
         }
-        if let Some(m) = compat
-            .models
-            .iter()
-            .find(|m| model.eq_ignore_ascii_case(model_name(&m.name)))
-        {
+        if let Some(m) = compat.models.iter().find(|m| model.go_eq_fold(&model_name(&m.name))) {
             return Some(text_only(&m.input_modalities));
         }
         let aliases: Vec<&CompatModel> = compat
             .models
             .iter()
-            .filter(|m| model.eq_ignore_ascii_case(model_name(&m.alias)))
+            .filter(|m| model.go_eq_fold(&model_name(&m.alias)))
             .collect();
         (!aliases.is_empty()).then(|| aliases.iter().all(|m| text_only(&m.input_modalities)))
     }
@@ -214,83 +405,92 @@ pub(crate) fn excludes_images(compat: Option<&Compat>, upstream: &str, requested
         .unwrap_or(false)
 }
 
-fn is_image_part(item: &gjson::Value<'_>) -> bool {
-    if item.kind() != gjson::Kind::Object {
+fn is_image_part(item: &Res<'_>) -> bool {
+    if !item.is_object() {
         return false;
     }
     matches!(
-        item.get("type").str().trim().to_ascii_lowercase().as_str(),
+        item.get("type").str().trim().go_lower().as_str(),
         "image" | "image_url" | "input_image"
     ) || item.get("image_url").exists()
         || item.get("input_image").exists()
 }
 
-fn part_text(item: &gjson::Value<'_>) -> Option<String> {
-    if item.kind() == gjson::Kind::String {
-        return Some(item.str().to_owned());
+/// `openAIToolResultPartText`.
+fn part_text(item: &Res<'_>) -> Option<Vec<u8>> {
+    if item.kind == Kind::String {
+        return Some(item.bytes().into_owned());
     }
-    if item.kind() == gjson::Kind::Object {
+    if item.is_object() {
         if is_image_part(item) {
-            return Some(IMAGE_OMITTED.to_owned());
+            return Some(IMAGE_OMITTED.into());
         }
         let text = item.get("text");
-        if text.kind() == gjson::Kind::String {
-            return Some(text.str().to_owned());
+        if text.kind == Kind::String {
+            return Some(text.bytes().into_owned());
         }
     }
-    (!item.json().is_empty()).then(|| item.json().to_owned())
+    (!item.raw().is_empty()).then(|| item.raw().to_vec())
 }
 
-fn flatten_tool_content(content: &gjson::Value<'_>) -> String {
-    match content.kind() {
-        gjson::Kind::String => content.str().to_owned(),
-        gjson::Kind::Array => content
-            .array()
-            .iter()
-            .filter_map(part_text)
-            .collect::<Vec<_>>()
-            .join("\n\n"),
-        gjson::Kind::Object if is_image_part(content) => IMAGE_OMITTED.to_owned(),
-        gjson::Kind::Object if content.get("text").kind() == gjson::Kind::String => {
-            content.get("text").str().to_owned()
-        }
-        _ => content.json().to_owned(),
+/// `flattenOpenAIToolResultContent`.
+fn flatten_tool_content(content: &Res<'_>) -> Vec<u8> {
+    if content.kind == Kind::String {
+        return content.bytes().into_owned();
     }
+    if content.is_array() {
+        let parts: Vec<Vec<u8>> = content.array().iter().filter_map(part_text).collect();
+        return parts.join(&b"\n\n"[..]);
+    }
+    if content.is_object() {
+        if is_image_part(content) {
+            return IMAGE_OMITTED.into();
+        }
+        let text = content.get("text");
+        if text.kind == Kind::String {
+            return text.bytes().into_owned();
+        }
+    }
+    content.raw().to_vec()
 }
 
 /// `NormalizeOpenAIToolResultsTextOnly`.
-pub(crate) fn normalize_tool_results_text_only(payload: String) -> String {
-    let messages = gjson::get(&payload, "messages");
-    if messages.kind() != gjson::Kind::Array {
+pub(crate) fn normalize_tool_results_text_only(mut payload: Vec<u8>) -> Vec<u8> {
+    let messages = gj::get(&payload, "messages");
+    if !messages.is_array() {
         return payload;
     }
     let list = messages.array();
     if list.is_empty() {
         return payload;
     }
-    let mut out: Vec<String> = Vec::with_capacity(list.len());
+    let mut out: Vec<Vec<u8>> = Vec::with_capacity(list.len());
     let mut replaced = false;
     for msg in &list {
-        let mut raw = msg.json().to_owned();
-        match msg.get("role").str() {
-            "tool" => {
+        let mut raw = msg.raw().to_vec();
+        match &*msg.get("role").bytes() {
+            b"tool" => {
                 let content = msg.get("content");
-                if content.exists() && content.kind() != gjson::Kind::String {
-                    raw = json::set_str(&raw, "content", &flatten_tool_content(&content));
-                } else if content.kind() == gjson::Kind::String && content.str() == RELAY_PLACEHOLDER {
-                    raw = json::set_str(&raw, "content", IMAGE_OMITTED);
+                if content.exists() && content.kind != Kind::String {
+                    gj::set_str(&mut raw, "content", flatten_tool_content(&content));
+                } else if content.kind == Kind::String
+                    && *content.bytes() == *RELAY_PLACEHOLDER.as_bytes()
+                    && gj::set_str(&mut raw, "content", IMAGE_OMITTED)
+                {
                     replaced = true;
                 }
                 out.push(raw);
             }
-            "user" => {
+            b"user" => {
                 let content = msg.get("content");
-                if content.kind() == gjson::Kind::Array {
+                if content.is_array() {
                     let (mut notice, mut images) = (false, false);
-                    let mut remaining = Vec::new();
+                    let mut remaining: Vec<Vec<u8>> = Vec::new();
                     for part in content.array() {
-                        if part.kind() == gjson::Kind::Object {
-                            if part.get("type").str() == "text" && part.get("text").str() == RELAY_NOTICE {
+                        if part.is_object() {
+                            if *part.get("type").bytes() == *b"text"
+                                && *part.get("text").bytes() == *RELAY_NOTICE.as_bytes()
+                            {
                                 notice = true;
                                 continue;
                             }
@@ -299,28 +499,29 @@ pub(crate) fn normalize_tool_results_text_only(payload: String) -> String {
                                 continue;
                             }
                         }
-                        remaining.push(part.json().to_owned());
+                        remaining.push(part.raw().to_vec());
                     }
                     if notice && images {
+                        // Go walks back from the last message but stops at the first one.
                         if !replaced
                             && let Some(last) = out.last_mut()
-                            && gjson::get(last, "role").str() == "tool"
+                            && *gj::get(last, "role").bytes() == *b"tool"
                         {
-                            let previous = json::string(last, "content");
-                            if !previous.contains(IMAGE_OMITTED) {
+                            let previous = gj::get(last, "content").bytes().into_owned();
+                            if !contains(&previous, IMAGE_OMITTED.as_bytes()) {
                                 let next = if previous.is_empty() {
-                                    IMAGE_OMITTED.to_owned()
+                                    IMAGE_OMITTED.as_bytes().to_vec()
                                 } else {
-                                    format!("{previous}\n\n{IMAGE_OMITTED}")
+                                    [&previous[..], b"\n\n", IMAGE_OMITTED.as_bytes()].concat()
                                 };
-                                *last = json::set_str(last, "content", &next);
+                                gj::set_str(last, "content", next);
                             }
                         }
                         replaced = false;
                         if remaining.is_empty() {
                             continue;
                         }
-                        raw = json::set_raw(&raw, "content", &format!("[{}]", remaining.join(",")));
+                        gj::set_raw(&mut raw, "content", gj::join(&remaining));
                     }
                 }
                 out.push(raw);
@@ -331,7 +532,30 @@ pub(crate) fn normalize_tool_results_text_only(payload: String) -> String {
             }
         }
     }
-    json::set_raw(&payload, "messages", &format!("[{}]", out.join(",")))
+    gj::set_raw(&mut payload, "messages", gj::join(&out));
+    payload
+}
+
+fn contains(haystack: &[u8], needle: &[u8]) -> bool {
+    needle.is_empty() || haystack.windows(needle.len()).any(|w| w == needle)
+}
+
+/// `helps.SetStringIfDifferent`.
+pub(crate) fn set_str_if_different(body: &mut Vec<u8>, path: &str, value: &str) {
+    let current = gj::get(body, path);
+    if current.kind == Kind::String && *current.bytes() == *value.as_bytes() {
+        return;
+    }
+    gj::set_str(body, path, value);
+}
+
+/// `helps.SetBoolIfDifferent`.
+pub(crate) fn set_bool_if_different(body: &mut Vec<u8>, path: &str, value: bool) {
+    let current = gj::get(body, path).kind;
+    if current == if value { Kind::True } else { Kind::False } {
+        return;
+    }
+    gj::set_bool(body, path, value);
 }
 
 /// `uuid.NewSHA1(uuid.NameSpaceOID, identity)`.
@@ -351,10 +575,10 @@ fn header_value(headers: &HeaderMap, name: &str) -> Option<String> {
 }
 
 /// `ClaudeCodePromptCache`: a stable key per Claude Code session, agent and model.
-pub(crate) fn claude_code_prompt_cache(model: &str, payload: &str, headers: &HeaderMap) -> Option<String> {
+pub(crate) fn claude_code_prompt_cache(model: &str, payload: &[u8], headers: &HeaderMap) -> Option<String> {
     let model = model.trim();
     let session = header_value(headers, "x-claude-code-session-id").or_else(|| {
-        let user_id = json::string(payload, "metadata.user_id");
+        let user_id = gj::get(payload, "metadata.user_id").str().into_owned();
         if let Some(pos) = user_id.rfind("_session_") {
             let id = &user_id[pos + "_session_".len()..];
             if !id.is_empty()
@@ -367,7 +591,7 @@ pub(crate) fn claude_code_prompt_cache(model: &str, payload: &str, headers: &Hea
         }
         user_id
             .starts_with('{')
-            .then(|| json::string(&user_id, "session_id").trim().to_owned())
+            .then(|| gj::get(user_id.as_bytes(), "session_id").str().trim().to_owned())
             .filter(|s| !s.is_empty())
     })?;
     if model.is_empty() {
@@ -381,66 +605,54 @@ pub(crate) fn claude_code_prompt_cache(model: &str, payload: &str, headers: &Hea
 
 /// `EnsureResponsesUsageDetails`.
 pub(crate) fn ensure_responses_usage_details(payload: &[u8]) -> Vec<u8> {
-    let Ok(text) = std::str::from_utf8(payload) else {
-        return payload.to_vec();
-    };
-    let trimmed = text.trim_matches(|c: char| c.is_ascii_whitespace());
+    let trimmed = go::trim_space(payload);
     if trimmed.is_empty() {
         return payload.to_vec();
     }
-    let patch = |body: &str| -> Option<String> {
-        if json::string(body, "object") == "response.compaction" {
+    let patch = |body: &[u8]| -> Option<Vec<u8>> {
+        if *gj::get(body, "object").bytes() == *b"response.compaction" {
             return None;
         }
-        let updated = usage_details_at(&usage_details_at(body, "response.usage"), "usage");
+        let updated = usage_details_at(usage_details_at(body.to_vec(), "response.usage"), "usage");
         (updated != body).then_some(updated)
     };
-    if trimmed.starts_with('{') {
-        return patch(trimmed).map_or_else(|| payload.to_vec(), String::into_bytes);
+    if trimmed[0] == b'{' {
+        return patch(trimmed).unwrap_or_else(|| payload.to_vec());
     }
-    if !text.contains("data:") {
+    if !contains(payload, b"data:") {
         return payload.to_vec();
     }
     let mut modified = false;
-    let lines: Vec<String> = text
-        .split('\n')
+    let lines: Vec<Vec<u8>> = payload
+        .split(|&b| b == b'\n')
         .map(|line| {
-            if !line.trim().starts_with("data:") {
-                return line.to_owned();
+            if !go::trim_space(line).starts_with(b"data:") {
+                return line.to_vec();
             }
-            let prefix = if line.starts_with("data: ") {
-                6
-            } else if line.starts_with("data:") {
-                5
-            } else {
-                return line.to_owned();
-            };
-            let data = line[prefix..].trim();
-            if !data.starts_with('{') {
-                return line.to_owned();
+            // Go keeps the 5-byte prefix for an indented `data:` line, which then never
+            // yields a `{` payload.
+            let prefix = if line.starts_with(b"data: ") { 6 } else { 5 };
+            let data = go::trim_space(&line[prefix..]);
+            if data.first() != Some(&b'{') {
+                return line.to_vec();
             }
             match patch(data) {
                 Some(updated) => {
                     modified = true;
-                    format!("{}{updated}", &line[..prefix])
+                    [&line[..prefix], &updated[..]].concat()
                 }
-                None => line.to_owned(),
+                None => line.to_vec(),
             }
         })
         .collect();
-    if modified {
-        lines.join("\n").into_bytes()
-    } else {
-        payload.to_vec()
-    }
+    if modified { lines.join(&b'\n') } else { payload.to_vec() }
 }
 
-fn usage_details_at(body: &str, path: &str) -> String {
-    let usage = gjson::get(body, path);
-    if usage.kind() != gjson::Kind::Object {
-        return body.to_owned();
+/// `ensureUsageDetailsAt`.
+fn usage_details_at(mut body: Vec<u8>, path: &str) -> Vec<u8> {
+    if !gj::get(&body, path).is_object() {
+        return body;
     }
-    let mut body = body.to_owned();
     for (field, leaf, empty) in [
         ("output_tokens_details", "reasoning_tokens", r#"{"reasoning_tokens":0}"#),
         ("input_tokens_details", "cached_tokens", r#"{"cached_tokens":0}"#),
@@ -448,20 +660,22 @@ fn usage_details_at(body: &str, path: &str) -> String {
         let details_path = format!("{path}.{field}");
         let leaf_path = format!("{details_path}.{leaf}");
         let (missing, wrong_type, leaf_missing) = {
-            let details = gjson::get(&body, &details_path);
+            let details = gj::get(&body, &details_path);
             let value = details.get(leaf);
             (
                 !details.exists(),
-                details.kind() != gjson::Kind::Object,
-                !value.exists() || value.kind() == gjson::Kind::Null,
+                !details.is_object(),
+                !value.exists() || value.kind == Kind::Null,
             )
         };
+        // Go assigns sjson's result even on error (a nil body); these paths never fail
+        // on a document whose usage node is an object.
         if missing {
-            body = json::set_raw(&body, &leaf_path, "0");
+            gj::set_int(&mut body, &leaf_path, 0);
         } else if wrong_type {
-            body = json::set_raw(&body, &details_path, empty);
+            gj::set_raw(&mut body, &details_path, empty);
         } else if leaf_missing {
-            body = json::set_raw(&body, &leaf_path, "0");
+            gj::set_int(&mut body, &leaf_path, 0);
         }
     }
     body
@@ -470,92 +684,100 @@ fn usage_details_at(body: &str, path: &str) -> String {
 /// `sanitizeOpenAIResponsesReasoningEncryptedContent` (isCompat false): reasoning
 /// `content` is promoted into an empty summary and cleared, ids without usable
 /// `encrypted_content` are dropped unless `store` is true, invalid signatures are removed.
-pub(crate) fn sanitize_reasoning_encrypted_content(body: String) -> String {
-    let input = gjson::get(&body, "input");
-    if input.kind() != gjson::Kind::Array {
+pub(crate) fn sanitize_reasoning_encrypted_content(body: Vec<u8>) -> Vec<u8> {
+    let input = gj::get(&body, "input");
+    if !input.is_array() {
         return body;
     }
-    let strip_ids = !json::boolean(&gjson::get(&body, "store"));
+    let strip_ids = !gj::get(&body, "store").bool();
     let items = input.array();
-    let mut rebuilt: Option<Vec<String>> = None;
+    let mut rebuilt: Option<Vec<Vec<u8>>> = None;
     for (index, item) in items.iter().enumerate() {
-        let keep = |rebuilt: &mut Option<Vec<String>>, raw: &str| {
+        let keep = |rebuilt: &mut Option<Vec<Vec<u8>>>, raw: &[u8]| {
             if let Some(list) = rebuilt {
-                list.push(raw.to_owned());
+                list.push(raw.to_vec());
             }
         };
-        let edit = |rebuilt: &mut Option<Vec<String>>, raw: String| {
-            let list = rebuilt.get_or_insert_with(|| items[..index].iter().map(|i| i.json().to_owned()).collect());
+        let edit = |rebuilt: &mut Option<Vec<Vec<u8>>>, raw: Vec<u8>| {
+            let list = rebuilt.get_or_insert_with(|| items[..index].iter().map(|i| i.raw().to_vec()).collect());
             list.push(raw);
         };
-        if s(&item.get("type")).trim() != "reasoning" {
-            keep(&mut rebuilt, item.json());
+        if item.get("type").str().trim() != "reasoning" {
+            keep(&mut rebuilt, item.raw());
             continue;
         }
-        let mut next = item.json().to_owned();
+        let mut next = item.raw().to_vec();
         let mut changed = false;
         let content = item.get("content");
-        if content.kind() == gjson::Kind::Array && !content.array().is_empty() {
+        if content.is_array() && !content.array().is_empty() {
             let summary = item.get("summary");
-            let summary_empty = !summary.exists()
-                || summary.kind() == gjson::Kind::Null
-                || (summary.kind() == gjson::Kind::Array && summary.array().is_empty());
+            let summary_empty =
+                !summary.exists() || summary.kind == Kind::Null || (summary.is_array() && summary.array().is_empty());
             if summary_empty {
-                let parts: Vec<String> = content
+                let parts: Vec<Vec<u8>> = content
                     .array()
                     .iter()
-                    .filter(|p| s(&p.get("type")).trim() == "reasoning_text" && !s(&p.get("text")).is_empty())
-                    .map(|p| json::set_str(r#"{"type":"summary_text"}"#, "text", &s(&p.get("text"))))
+                    .filter(|p| p.get("type").str().trim() == "reasoning_text")
+                    .map(|p| p.get("text").bytes().into_owned())
+                    .filter(|text| !text.is_empty())
+                    .map(|text| {
+                        let mut part = br#"{"type":"summary_text"}"#.to_vec();
+                        gj::set_str(&mut part, "text", text);
+                        part
+                    })
                     .collect();
                 if !parts.is_empty() {
-                    next = json::set_raw(&next, "summary", &format!("[{}]", parts.join(",")));
+                    gj::set_raw(&mut next, "summary", gj::join(&parts));
                 }
             }
-            next = json::set_raw(&next, "content", "[]");
-            changed = true;
+            if gj::set_raw(&mut next, "content", "[]") {
+                changed = true;
+            }
         }
         let encrypted = item.get("encrypted_content");
         if !encrypted.exists() {
-            if strip_ids && item.get("id").exists() {
-                next = json::delete(&next, "id");
+            if strip_ids && item.get("id").exists() && gj::delete(&mut next, "id") {
                 changed = true;
             }
             if changed {
                 edit(&mut rebuilt, next);
             } else {
-                keep(&mut rebuilt, item.json());
+                keep(&mut rebuilt, item.raw());
             }
             continue;
         }
-        let invalid = match encrypted.kind() {
-            gjson::Kind::String => {
+        let invalid = match encrypted.kind {
+            Kind::String => {
                 let raw = encrypted.str();
-                raw != raw.trim() || crate::openai_compat_http::inspect_gpt_reasoning_signature(raw).is_err()
+                raw != raw.trim() || cpa_common::signature::inspect_gpt_reasoning_signature(raw.as_bytes()).is_err()
             }
             _ => true,
         };
-        if !invalid {
+        if !invalid || !gj::delete(&mut next, "encrypted_content") {
             if changed {
                 edit(&mut rebuilt, next);
             } else {
-                keep(&mut rebuilt, item.json());
+                keep(&mut rebuilt, item.raw());
             }
             continue;
         }
-        next = json::delete(&next, "encrypted_content");
         if strip_ids && item.get("id").exists() {
-            next = json::delete(&next, "id");
+            gj::delete(&mut next, "id");
         }
         edit(&mut rebuilt, next);
     }
     match rebuilt {
-        Some(list) => json::set_raw(&body, "input", &format!("[{}]", list.join(","))),
+        Some(list) => {
+            let mut body = body;
+            gj::set_raw(&mut body, "input", gj::join(&list));
+            body
+        }
         None => body,
     }
 }
 
 /// Go `TokenizerForModel` + `CountOpenAIChatTokens`.
-pub(crate) fn count_chat_tokens(model: &str, payload: &str) -> Result<i64, String> {
+pub(crate) fn count_chat_tokens(model: &str, payload: &[u8]) -> Result<i64, String> {
     static O200K: OnceLock<Result<tiktoken_rs::CoreBPE, String>> = OnceLock::new();
     static CL100K: OnceLock<Result<tiktoken_rs::CoreBPE, String>> = OnceLock::new();
     let m = model.trim().to_ascii_lowercase();
@@ -575,12 +797,14 @@ pub(crate) fn count_chat_tokens(model: &str, payload: &str) -> Result<i64, Strin
         return Ok(0);
     }
     let mut segments = Vec::new();
-    let root = gjson::parse(payload);
-    for message in root.get("messages").array() {
+    let root = gj::parse(payload);
+    let messages = root.get("messages");
+    for message in messages.is_array().then(|| messages.array()).into_iter().flatten() {
         add(&mut segments, &s(&message.get("role")));
         add(&mut segments, &s(&message.get("name")));
         collect_content(&message.get("content"), &mut segments);
-        for call in message.get("tool_calls").array() {
+        let calls = message.get("tool_calls");
+        for call in calls.is_array().then(|| calls.array()).into_iter().flatten() {
             add(&mut segments, &s(&call.get("id")));
             add(&mut segments, &s(&call.get("type")));
             let function = call.get("function");
@@ -595,21 +819,22 @@ pub(crate) fn count_chat_tokens(model: &str, payload: &str) -> Result<i64, Strin
         }
     }
     let tools = root.get("tools");
-    if tools.kind() == gjson::Kind::Array {
+    if tools.is_array() {
         for tool in tools.array() {
             tool_payload(&tool, &mut segments);
         }
     } else if tools.exists() {
         tool_payload(&tools, &mut segments);
     }
-    for function in root.get("functions").array() {
+    let functions = root.get("functions");
+    for function in functions.is_array().then(|| functions.array()).into_iter().flatten() {
         function_fields(&function, &mut segments, false);
     }
     let choice = root.get("tool_choice");
-    if choice.kind() == gjson::Kind::String {
+    if choice.kind == Kind::String {
         add(&mut segments, &s(&choice));
     } else if choice.exists() {
-        add(&mut segments, choice.json());
+        add(&mut segments, &raw(&choice));
     }
     let format = root.get("response_format");
     if format.exists() {
@@ -618,12 +843,12 @@ pub(crate) fn count_chat_tokens(model: &str, payload: &str) -> Result<i64, Strin
         for key in ["json_schema", "schema"] {
             let schema = format.get(key);
             if schema.exists() {
-                add(&mut segments, schema.json());
+                add(&mut segments, &raw(&schema));
             }
         }
     }
-    add(&mut segments, &json::string(payload, "input"));
-    add(&mut segments, &json::string(payload, "prompt"));
+    add(&mut segments, &s(&root.get("input")));
+    add(&mut segments, &s(&root.get("prompt")));
     let joined = segments.join("\n");
     let joined = joined.trim();
     if joined.is_empty() {
@@ -632,9 +857,14 @@ pub(crate) fn count_chat_tokens(model: &str, payload: &str) -> Result<i64, Strin
     Ok(encoder.encode_ordinary(joined).len() as i64)
 }
 
-/// gjson `Result.String()`.
-fn s(value: &gjson::Value<'_>) -> String {
-    crate::kimi_json::gstr(value)
+/// gjson `Result.String()`, decoded for the tokenizer.
+fn s(value: &Res<'_>) -> String {
+    value.str().into_owned()
+}
+
+/// gjson `Result.Raw`.
+fn raw(value: &Res<'_>) -> String {
+    String::from_utf8_lossy(value.raw()).into_owned()
 }
 
 fn add(segments: &mut Vec<String>, value: &str) {
@@ -644,7 +874,7 @@ fn add(segments: &mut Vec<String>, value: &str) {
     }
 }
 
-fn function_fields(function: &gjson::Value<'_>, segments: &mut Vec<String>, arguments: bool) {
+fn function_fields(function: &Res<'_>, segments: &mut Vec<String>, arguments: bool) {
     add(segments, &s(&function.get("name")));
     add(segments, &s(&function.get("description")));
     if arguments {
@@ -652,11 +882,11 @@ fn function_fields(function: &gjson::Value<'_>, segments: &mut Vec<String>, argu
     }
     let params = function.get("parameters");
     if params.exists() {
-        add(segments, params.json());
+        add(segments, &raw(&params));
     }
 }
 
-fn tool_payload(tool: &gjson::Value<'_>, segments: &mut Vec<String>) {
+fn tool_payload(tool: &Res<'_>, segments: &mut Vec<String>) {
     add(segments, &s(&tool.get("type")));
     add(segments, &s(&tool.get("name")));
     add(segments, &s(&tool.get("description")));
@@ -666,10 +896,10 @@ fn tool_payload(tool: &gjson::Value<'_>, segments: &mut Vec<String>) {
     }
 }
 
-fn collect_content(content: &gjson::Value<'_>, segments: &mut Vec<String>) {
-    match content.kind() {
-        gjson::Kind::String => add(segments, &s(content)),
-        gjson::Kind::Array => {
+fn collect_content(content: &Res<'_>, segments: &mut Vec<String>) {
+    match content.kind {
+        Kind::String => add(segments, &s(content)),
+        Kind::Json if content.is_array() => {
             for part in content.array() {
                 match s(&part.get("type")).as_str() {
                     "text" | "input_text" | "output_text" => add(segments, &s(&part.get("text"))),
@@ -679,13 +909,13 @@ fn collect_content(content: &gjson::Value<'_>, segments: &mut Vec<String>) {
                         add(segments, &s(&part.get("name")));
                         collect_content(&part.get("content"), segments);
                     }
-                    _ if part.kind() == gjson::Kind::Array => collect_content(&part, segments),
-                    _ if part.kind() == gjson::Kind::Object => add(segments, part.json()),
+                    _ if part.is_array() => collect_content(&part, segments),
+                    _ if part.is_object() => add(segments, &raw(&part)),
                     _ => add(segments, &s(&part)),
                 }
             }
         }
-        gjson::Kind::Object => add(segments, content.json()),
+        Kind::Json if content.is_object() => add(segments, &raw(content)),
         _ => {}
     }
 }
@@ -711,9 +941,8 @@ pub(crate) fn retry_after(status: u16, headers: &HeaderMap, body: &[u8], now: Sy
             return Some(deadline.duration_since(now).unwrap_or_default());
         }
     }
-    let body = String::from_utf8_lossy(body);
-    let code = json::string(&body, "error.code").trim().to_lowercase();
-    let message = json::string(&body, "error.message").trim().to_lowercase();
+    let code = gj::get(body, "error.code").str().trim().go_lower();
+    let message = gj::get(body, "error.message").str().trim().go_lower();
     (code.contains("tpmratelimitexceeded")
         || (message.contains("tokens per minute") && message.contains("limit") && message.contains("exceeded")))
     .then_some(Duration::from_secs(60))
@@ -723,24 +952,24 @@ pub(crate) fn retry_after(status: u16, headers: &HeaderMap, body: &[u8], now: Sy
 pub(crate) fn error_event(name: &str) -> bool {
     ["error", "response.error", "response.failed"]
         .iter()
-        .any(|e| name.eq_ignore_ascii_case(e))
+        .any(|e| name.go_eq_fold(e))
 }
 
 /// `openAICompatStreamDataError`: the status to report when a data frame is an error.
-pub(crate) fn stream_data_error(payload: &str, event: &str) -> Option<u16> {
-    if payload.is_empty() || !crate::openai_compat_go::json_valid(payload.as_bytes()) {
+pub(crate) fn stream_data_error(payload: &[u8], event: &str) -> Option<u16> {
+    if payload.is_empty() || !go::json_valid(payload) {
         return None;
     }
     // gjson finds no object keys in an array or scalar; skip parsing hostile nesting.
-    if !payload.starts_with('{') {
+    if payload[0] != b'{' {
         return error_event(event).then_some(502);
     }
-    let kind = json::string(payload, "type");
+    let kind = gj::get(payload, "type").str().into_owned();
     let has_error = ["error", "response.error"].iter().any(|p| {
-        let node = gjson::get(payload, p);
-        node.exists() && node.json() != "null"
+        let node = gj::get(payload, p);
+        node.exists() && node.raw() != b"null"
     });
-    let top_level = gjson::get(payload, "code").exists() && gjson::get(payload, "message").exists();
+    let top_level = gj::get(payload, "code").exists() && gj::get(payload, "message").exists();
     if !has_error && !error_event(&kind) && !error_event(event) && !top_level {
         return None;
     }
@@ -753,7 +982,7 @@ pub(crate) fn stream_data_error(payload: &str, event: &str) -> Option<u16> {
         "response.error.status",
         "response.error.status_code",
     ] {
-        status = crate::openai_compat_go::int(&gjson::get(payload, path));
+        status = gj::get(payload, path).int();
         if (400..=599).contains(&status) {
             break;
         }
@@ -792,29 +1021,29 @@ mod tests {
     #[test]
     fn max_tokens_rewrites_raw_values() {
         assert_eq!(
-            normalize_max_tokens(r#"{"max_tokens":1.50,"x":1}"#.into(), true),
-            r#"{"x":1,"max_completion_tokens":1.50}"#
+            normalize_max_tokens(br#"{"max_tokens":1.50,"x":1}"#.to_vec(), true),
+            br#"{"x":1,"max_completion_tokens":1.50}"#
         );
-        assert_eq!(normalize_max_tokens(r#"{"x":1}"#.into(), true), r#"{"x":1}"#);
+        assert_eq!(normalize_max_tokens(br#"{"x":1}"#.to_vec(), true), br#"{"x":1}"#);
         assert_eq!(
-            normalize_max_tokens(r#"{"max_tokens":2,"max_completion_tokens":3}"#.into(), false),
-            r#"{"max_tokens":2}"#
+            normalize_max_tokens(br#"{"max_tokens":2,"max_completion_tokens":3}"#.to_vec(), false),
+            br#"{"max_tokens":2}"#
         );
     }
 
     #[test]
     fn claude_code_session_from_payload_user_id() {
         let headers = HeaderMap::new();
-        let payload = r#"{"metadata":{"user_id":"user_abc_account__session_0f-9a"}}"#;
+        let payload = br#"{"metadata":{"user_id":"user_abc_account__session_0f-9a"}}"#;
         let a = claude_code_prompt_cache("m", payload, &headers).unwrap();
         let mut h = HeaderMap::new();
         h.insert("x-claude-code-session-id", "0f-9a".parse().unwrap());
-        assert_eq!(claude_code_prompt_cache("m", "{}", &h).unwrap(), a);
-        assert!(claude_code_prompt_cache("m", r#"{"metadata":{"user_id":"x_session_ABC"}}"#, &headers).is_none());
+        assert_eq!(claude_code_prompt_cache("m", b"{}", &h).unwrap(), a);
+        assert!(claude_code_prompt_cache("m", br#"{"metadata":{"user_id":"x_session_ABC"}}"#, &headers).is_none());
         assert_eq!(
             claude_code_prompt_cache(
                 "m",
-                r#"{"metadata":{"user_id":"{\"session_id\":\"0f-9a\"}"}}"#,
+                br#"{"metadata":{"user_id":"{\"session_id\":\"0f-9a\"}"}}"#,
                 &headers
             )
             .unwrap(),

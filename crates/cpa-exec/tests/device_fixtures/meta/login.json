@@ -1,0 +1,188 @@
+{
+  "name": "login",
+  "credential": {},
+  "request": {
+    "login": "meta",
+    "stale_file": "{\"type\":\"meta\",\"api_key\":\"stale\",\"dca_expires_at\":5,\"dca_expired\":\"old\",\"custom_setting\":\"from-disk\",\"prefix\":\"team\",\"disabled\":true,\"api-key\":\"alias-stale\",\"proxy-url\":\"socks5://p\",\"expires_in\":1,\"note\":\"n\"}"
+  },
+  "responses": [
+    {
+      "status": 200,
+      "headers": [
+        [
+          "Content-Type",
+          "application/json"
+        ]
+      ],
+      "body": "{\"device_code\":\"meta-dev-1\",\"user_code\":\"WXYZ-1234\",\"verification_uri\":\"https://www.meta.ai/device\",\"verification_uri_complete\":\"\",\"expires_in\":600,\"interval\":1}"
+    },
+    {
+      "status": 400,
+      "headers": [
+        [
+          "Content-Type",
+          "application/json"
+        ]
+      ],
+      "body": "{\"error\":\"authorization_pending\"}"
+    },
+    {
+      "status": 200,
+      "headers": [
+        [
+          "Content-Type",
+          "application/json"
+        ]
+      ],
+      "body": "{\"access_token\":\"dca:login-token\",\"token_type\":\"bearer\",\"expires_in\":7200}"
+    },
+    {
+      "status": 200,
+      "headers": [
+        [
+          "Content-Type",
+          "application/json"
+        ]
+      ],
+      "body": "{\"api_key\":\"mk-login\",\"base_url\":\"https://api.meta.ai/v1\",\"user_email\":\"Some.User+tag@Example.com\",\"user_full_name\":\"Some \u003cUser\u003e\",\"subs_tier_name\":\"Free\",\"subs_tier_id\":\"t0\",\"is_subs_active\":false,\"has_payment_method\":true}"
+    }
+  ],
+  "upstream": [
+    {
+      "method": "POST",
+      "target": "/oidc/device/authorization/",
+      "headers": [
+        [
+          "Host",
+          "auth.meta.com"
+        ],
+        [
+          "User-Agent",
+          "muse-code/1.0.2"
+        ],
+        [
+          "Content-Length",
+          "26"
+        ],
+        [
+          "Accept",
+          "application/json"
+        ],
+        [
+          "Content-Type",
+          "application/x-www-form-urlencoded"
+        ],
+        [
+          "Accept-Encoding",
+          "gzip"
+        ]
+      ],
+      "body": "client_id=1031625952748946"
+    },
+    {
+      "method": "POST",
+      "target": "/oidc/device/token/",
+      "headers": [
+        [
+          "Host",
+          "auth.meta.com"
+        ],
+        [
+          "User-Agent",
+          "muse-code/1.0.2"
+        ],
+        [
+          "Content-Length",
+          "115"
+        ],
+        [
+          "Accept",
+          "application/json"
+        ],
+        [
+          "Content-Type",
+          "application/x-www-form-urlencoded"
+        ],
+        [
+          "Accept-Encoding",
+          "gzip"
+        ]
+      ],
+      "body": "client_id=1031625952748946\u0026device_code=meta-dev-1\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code"
+    },
+    {
+      "method": "POST",
+      "target": "/oidc/device/token/",
+      "headers": [
+        [
+          "Host",
+          "auth.meta.com"
+        ],
+        [
+          "User-Agent",
+          "muse-code/1.0.2"
+        ],
+        [
+          "Content-Length",
+          "115"
+        ],
+        [
+          "Accept",
+          "application/json"
+        ],
+        [
+          "Content-Type",
+          "application/x-www-form-urlencoded"
+        ],
+        [
+          "Accept-Encoding",
+          "gzip"
+        ]
+      ],
+      "body": "client_id=1031625952748946\u0026device_code=meta-dev-1\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code"
+    },
+    {
+      "method": "POST",
+      "target": "/muse-code/key",
+      "headers": [
+        [
+          "Host",
+          "127.0.0.1:38447"
+        ],
+        [
+          "User-Agent",
+          "muse-code/1.0.2"
+        ],
+        [
+          "Content-Length",
+          "31"
+        ],
+        [
+          "Accept",
+          "application/json"
+        ],
+        [
+          "Authorization",
+          "Bearer dca:login-token"
+        ],
+        [
+          "Content-Type",
+          "application/json"
+        ],
+        [
+          "Accept-Encoding",
+          "gzip"
+        ]
+      ],
+      "body": "{\"dca_token\":\"dca:login-token\"}"
+    }
+  ],
+  "downstream": {},
+  "extra": {
+    "before_unix": 1790974794,
+    "disabled": true,
+    "file_name": "meta-Some.User_tag_Example.com-ab00440e3dad70d9.json",
+    "file_raw": "{\n  \"access_token\": \"mk-login\",\n  \"api_key\": \"mk-login\",\n  \"auth_kind\": \"oauth\",\n  \"base_url\": \"https://api.meta.ai/v1\",\n  \"custom_setting\": \"from-disk\",\n  \"dca_expired\": \"2026-10-02T22:59:56Z\",\n  \"dca_expires_at\": 1790981996,\n  \"dca_token\": \"dca:login-token\",\n  \"disabled\": true,\n  \"email\": \"Some.User+tag@Example.com\",\n  \"expires_in\": 7200,\n  \"has_payment_method\": true,\n  \"is_subs_active\": false,\n  \"last_refresh\": \"2026-10-02T20:59:56Z\",\n  \"name\": \"Some \\u003cUser\\u003e\",\n  \"note\": \"n\",\n  \"prefix\": \"team\",\n  \"proxy_url\": \"socks5://p\",\n  \"subs_tier_id\": \"t0\",\n  \"subs_tier_name\": \"Free\",\n  \"token_type\": \"bearer\",\n  \"type\": \"meta\"\n}\n",
+    "label": "Some.User+tag@Example.com"
+  }
+}

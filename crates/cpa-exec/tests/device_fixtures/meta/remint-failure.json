@@ -1,0 +1,78 @@
+{
+  "name": "remint-failure",
+  "credential": {
+    "base_url": "http://127.0.0.1:44817/v1",
+    "dca_token": "dca:bad",
+    "type": "meta"
+  },
+  "attributes": {
+    "auth_kind": "oauth"
+  },
+  "request": {
+    "body": "{\"model\":\"muse-spark-1.3\",\"input\":\"hi\"}",
+    "model": "muse-spark-1.3",
+    "source": "openai-response",
+    "stream": false
+  },
+  "responses": [
+    {
+      "status": 401,
+      "headers": [
+        [
+          "Content-Type",
+          "application/json"
+        ]
+      ],
+      "body": "{\"error\":\"invalid dca\"}"
+    }
+  ],
+  "upstream": [
+    {
+      "method": "POST",
+      "target": "/muse-code/key",
+      "headers": [
+        [
+          "Host",
+          "127.0.0.1:44817"
+        ],
+        [
+          "User-Agent",
+          "muse-code/1.0.2"
+        ],
+        [
+          "Content-Length",
+          "23"
+        ],
+        [
+          "Accept",
+          "application/json"
+        ],
+        [
+          "Authorization",
+          "Bearer dca:bad"
+        ],
+        [
+          "Content-Type",
+          "application/json"
+        ],
+        [
+          "Accept-Encoding",
+          "gzip"
+        ]
+      ],
+      "body": "{\"dca_token\":\"dca:bad\"}"
+    }
+  ],
+  "downstream": {
+    "err_status": -1,
+    "err_body": "meta executor: mint API key failed: meta auth: mint key failed (HTTP 401): {\"error\":\"invalid dca\"}"
+  },
+  "extra": {
+    "credential_scoped": false,
+    "metadata_after": {
+      "base_url": "http://127.0.0.1:44817/v1",
+      "dca_token": "dca:bad",
+      "type": "meta"
+    }
+  }
+}

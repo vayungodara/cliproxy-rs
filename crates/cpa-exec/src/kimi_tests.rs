@@ -80,6 +80,23 @@ async fn upstream_requests_match_go_byte_for_byte() {
 }
 
 #[tokio::test]
+async fn upstream_429_cools_the_model_without_a_retry_hint() {
+    // kimi_executor.go returns statusErr{code, msg} for upstream errors: no retryAfter
+    // (Retry-After is ignored) and not credential-scoped.
+    let fx = fixture("kimi", "chat-error-429-clamped-none");
+    let mock = Mock::start(&fx["responses"]).await;
+    let cred = credential("kimi", &fx, Some(("base_url", format!("{}/coding", mock.url))));
+    let error = executor()
+        .execute(&claude(), &cred, request(&fx, ""), &cfg())
+        .await
+        .err()
+        .unwrap();
+    assert_eq!(error.status, 429);
+    assert_eq!(error.scope, FailureScope::Model);
+    assert_eq!(error.retry_after, None);
+}
+
+#[tokio::test]
 async fn downstream_results_match_go() {
     for name in [
         "chat-nonstream-normalize",
@@ -89,6 +106,7 @@ async fn downstream_results_match_go() {
         "chat-kimi-ai-metadata-base",
         "responses-nonstream-reorder-suffix",
         "responses-stream-clamp",
+        "responses-stream-data-only-frames",
         "responses-compact-rejected",
         "transport-custom-headers",
         "transport-redirect-307",
@@ -120,12 +138,23 @@ async fn downstream_results_match_go() {
             .map(|c| c.as_str().unwrap().to_owned())
             .collect();
         if fx["request"]["source"] == "openai-response" {
-            // Go emits each upstream line plus "\n"; the concatenation is the wire output.
-            assert_eq!(down.chunks.concat(), chunks.concat(), "{name}: stream bytes");
+            // Go emits each upstream line plus "\n" and its Responses route joins them into
+            // frames (`frames`, recorded from Go's responsesSSEFramer before route repair).
+            let frames: Vec<String> = go["frames"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|c| c.as_str().unwrap().to_owned())
+                .collect();
+            assert_eq!(down.chunks, frames, "{name}: stream frames");
         } else {
-            // Go's handler frames each non-empty translated chunk as one `data:` event.
-            let go_payloads: Vec<String> = chunks.into_iter().filter(|c| !c.is_empty()).collect();
-            assert_eq!(data_payloads(&down.chunks), go_payloads, "{name}: stream payloads");
+            // Go's chat handler writes each non-empty translated chunk as `data: %s\n\n`.
+            let go_frames: Vec<String> = chunks
+                .into_iter()
+                .filter(|c| !c.is_empty())
+                .map(|c| format!("data: {c}\n\n"))
+                .collect();
+            assert_eq!(down.chunks, go_frames, "{name}: stream frames");
         }
         assert!(down.err_status.is_none(), "{name}: unexpected stream error");
     }
