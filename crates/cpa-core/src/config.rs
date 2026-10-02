@@ -45,6 +45,11 @@ pub struct Config {
     pub management: ManagementConfig,
     /// Presence-preserving v8 view, including fields not yet wired into executors.
     pub document: Value,
+    /// v8 `oauth.providers.*` leaf paths present in the source text (Go
+    /// `Config.OAuthOnlyFields`, keyed by v8 path rather than legacy name). They
+    /// apply to OAuth credentials only; see [`Config::for_api_key`]. Settings written
+    /// in the legacy layout stay global, as in Go.
+    pub oauth_only: std::collections::BTreeSet<String>,
 }
 
 impl std::fmt::Debug for Config {
@@ -225,6 +230,7 @@ impl Config {
         };
         trusted::validate(&trusted_proxies)?;
         validate::go_custom(document.value())?;
+        let oauth_only = schema::oauth_only_paths(&Value::Mapping(root.clone()));
         Ok(Config {
             host,
             port,
@@ -234,7 +240,23 @@ impl Config {
             routing,
             management,
             document: document.into_value(),
+            oauth_only,
         })
+    }
+
+    /// Go `Config.ForAPIKey`: the view an API-key credential sees, with the v8
+    /// OAuth-only provider settings set to their typed zero. Borrowed when there are
+    /// none.
+    pub fn for_api_key(&self) -> std::borrow::Cow<'_, Config> {
+        if self.oauth_only.is_empty() {
+            return std::borrow::Cow::Borrowed(self);
+        }
+        let mut view = self.clone();
+        for path in &self.oauth_only {
+            schema::zero_at(&mut view.document, path);
+        }
+        view.oauth_only.clear();
+        std::borrow::Cow::Owned(view)
     }
 }
 

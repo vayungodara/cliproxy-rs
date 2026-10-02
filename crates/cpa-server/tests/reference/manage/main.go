@@ -395,7 +395,14 @@ func runCreds(s credScenario) credScenario {
 	return s
 }
 
+// Go Config.OAuthOnlyFields (legacy names) for a config text.
+type oauthOnlyCase struct {
+	YAML   string   `json:"yaml"`
+	Fields []string `json:"fields"`
+}
+
 type output struct {
+	OAuthOnly    []oauthOnlyCase  `json:"oauth_only"`
 	Credentials  []credScenario   `json:"credentials"`
 	Materialized any              `json:"materialized_defaults"`
 	Config       []configScenario `json:"config_writes"`
@@ -754,6 +761,25 @@ func main() {
 
 	for _, c := range synthCases() {
 		out.Synth = append(out.Synth, runSynth(c))
+	}
+	for _, text := range []string{
+		"codex: {disable-codex-cloaking: true}\nws-auth: true\n",
+		"config-version: 8\noauth: {providers: {codex: {disable-codex-cloaking: true, header-defaults: {user-agent: x}, live-media-relay: {enabled: false, ice-servers: []}}, aistudio: {ws-auth: null}, claude: {claude-code: {}}}}\n",
+		"codex: {model-level-cooling: true}\noauth: {providers: {codex: {stream-bootstrap-buffering: false}}}\n",
+		"flag: &f true\noauth: {providers: {codex: {response-steering: *f, orphan-delegation-compatibility: false}}}\n",
+		"oauth: {providers: {antigravity: {antigravity-credits: true, signature-cache-enabled: false, signature-bypass-strict: true}, xai: {}, devin: {}}}\n",
+		"oauth: {providers: {codex: {}, claude: {disable-claude-cloak-mode: true, header-defaults: {user-agent: y}}}}\n",
+	} {
+		cfg, err := config.ParseConfigBytes([]byte(text))
+		must(err)
+		fields := []string{}
+		for k, v := range cfg.OAuthOnlyFields {
+			if v {
+				fields = append(fields, k)
+			}
+		}
+		sort.Strings(fields)
+		out.OAuthOnly = append(out.OAuthOnly, oauthOnlyCase{YAML: text, Fields: fields})
 	}
 
 	data, err := json.MarshalIndent(out, "", " ")

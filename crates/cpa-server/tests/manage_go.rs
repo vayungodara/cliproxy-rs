@@ -84,6 +84,76 @@ fn trusted_proxy_validation_errors_match_go_text() {
     }
 }
 
+/// Go records OAuth-only fields by legacy name; cliproxy-rs by v8 path. Go's prefix
+/// table for `oauth.providers` (internal/config/config_v8.go buildV8Paths) maps them.
+#[test]
+fn oauth_only_presence_matches_go() {
+    const PREFIXES: &[(&str, &str)] = &[
+        ("ws-auth", "oauth.providers.aistudio.ws-auth"),
+        ("codex", "oauth.providers.codex"),
+        ("codex-header-defaults", "oauth.providers.codex.header-defaults"),
+        ("claude", "oauth.providers.claude"),
+        ("claude-code", "oauth.providers.claude.claude-code"),
+        (
+            "disable-claude-cloak-mode",
+            "oauth.providers.claude.disable-claude-cloak-mode",
+        ),
+        ("claude-header-defaults", "oauth.providers.claude.header-defaults"),
+        ("antigravity", "oauth.providers.antigravity"),
+        (
+            "antigravity-signature-cache-enabled",
+            "oauth.providers.antigravity.signature-cache-enabled",
+        ),
+        (
+            "antigravity-signature-bypass-strict",
+            "oauth.providers.antigravity.signature-bypass-strict",
+        ),
+        (
+            "quota-exceeded.antigravity-credits",
+            "oauth.providers.antigravity.antigravity-credits",
+        ),
+        ("xai", "oauth.providers.xai"),
+        ("devin", "oauth.providers.devin"),
+    ];
+    let to_v8 = |old: &str| {
+        PREFIXES
+            .iter()
+            .find(|(p, _)| old == *p || old.starts_with(&format!("{p}.")))
+            .map(|(p, current)| format!("{current}{}", &old[p.len()..]))
+            .unwrap_or_else(|| panic!("no v8 prefix for {old}"))
+    };
+    let cases = fixture()["oauth_only"].as_array().unwrap().clone();
+    assert_eq!(cases.len(), 6);
+    for case in &cases {
+        let yaml = case["yaml"].as_str().unwrap();
+        let want: std::collections::BTreeSet<String> = case["fields"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|f| to_v8(f.as_str().unwrap()))
+            .collect();
+        assert_eq!(Config::parse(yaml).unwrap().oauth_only, want, "{yaml}");
+    }
+    // Go `ForAPIKey`: those fields read as zero for API-key credentials.
+    let cfg = Config::parse(cases[1]["yaml"].as_str().unwrap()).unwrap();
+    let view = cfg.for_api_key();
+    let codex = &view.document["oauth"]["providers"]["codex"];
+    assert_eq!(codex["disable-codex-cloaking"], serde_yaml_ng::Value::Bool(false));
+    assert_eq!(codex["header-defaults"]["user-agent"], serde_yaml_ng::Value::from(""));
+    assert!(codex["live-media-relay"].get("ice-servers").is_none());
+    assert_eq!(
+        view.document["oauth"]["providers"]["aistudio"]["ws-auth"],
+        serde_yaml_ng::Value::Bool(false)
+    );
+    assert!(view.oauth_only.is_empty());
+    assert_eq!(
+        cfg.document["oauth"]["providers"]["codex"]["disable-codex-cloaking"],
+        serde_yaml_ng::Value::Bool(true)
+    );
+    let legacy = Config::parse(cases[0]["yaml"].as_str().unwrap()).unwrap();
+    assert!(matches!(legacy.for_api_key(), std::borrow::Cow::Borrowed(_)));
+}
+
 /// Go's shape: prefix/proxy_url are Auth fields, hashes are not ported, and the
 /// scheduler-only metadata copies are Rust additions on config-backed credentials.
 fn go_shape(c: &Credential, root: &Path) -> Value {
@@ -460,6 +530,7 @@ mod config_writes {
                     claude: ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
                     codex: Default::default(),
                     devices: Default::default(),
+                    openai: Default::default(),
                 },
             ));
             let options = Options {
@@ -634,6 +705,7 @@ mod creds {
                     claude: ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
                     codex: Default::default(),
                     devices: Default::default(),
+                    openai: Default::default(),
                 },
             ));
             let options = Options {

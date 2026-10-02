@@ -260,6 +260,66 @@ fn null_default(path: &str) -> Option<Value> {
     })
 }
 
+/// Go's OAuth-only scope: every `oauth.providers.*` leaf field (a Go non-struct
+/// field) whose v8 path is present in `source`, a null value included.
+pub(super) fn oauth_only_paths(source: &Value) -> std::collections::BTreeSet<String> {
+    fn walk(node: &Value, schema: &Schema, path: &mut Vec<String>, out: &mut std::collections::BTreeSet<String>) {
+        let schema = schema.get("optional").unwrap_or(schema);
+        let Some(fields) = schema.get("fields").and_then(Schema::as_object) else {
+            out.insert(path.join("."));
+            return;
+        };
+        for (name, field) in fields {
+            if let Some(child) = node.as_mapping().and_then(|m| m.get(name.as_str())) {
+                path.push(name.clone());
+                walk(child, field, path, out);
+                path.pop();
+            }
+        }
+    }
+    let mut out = std::collections::BTreeSet::new();
+    let providers = source.get("oauth").and_then(|o| o.get("providers"));
+    let schema = SCHEMA
+        .pointer("/fields/oauth/fields/providers")
+        .expect("generated schema has oauth.providers");
+    if let Some(node) = providers {
+        walk(node, schema, &mut vec!["oauth".into(), "providers".into()], &mut out);
+    }
+    out
+}
+
+/// Sets the field at the dotted v8 `path` to its Go zero value: scalars by kind,
+/// lists and maps removed (nil).
+pub(super) fn zero_at(doc: &mut Value, path: &str) {
+    let parts: Vec<&str> = path.split('.').collect();
+    let mut schema = &*SCHEMA;
+    for part in &parts {
+        let inner = schema.get("optional").unwrap_or(schema);
+        match inner.get("fields").and_then(|f| f.get(*part)) {
+            Some(next) => schema = next,
+            None => return,
+        }
+    }
+    let Some((last, parents)) = parts.split_last() else {
+        return;
+    };
+    let Some(map) = parents
+        .iter()
+        .try_fold(&mut *doc, |node, part| node.as_mapping_mut()?.get_mut(*part))
+        .and_then(Value::as_mapping_mut)
+    else {
+        return;
+    };
+    match schema.as_str().and_then(zero_of) {
+        Some(zero) if map.contains_key(*last) => {
+            map.insert(Value::from(*last), zero);
+        }
+        _ => {
+            map.remove(*last);
+        }
+    }
+}
+
 fn zero_of(kind: &str) -> Option<Value> {
     match kind {
         "bool" | "image-mode" => Some(Value::Bool(false)),
