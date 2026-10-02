@@ -177,7 +177,8 @@ pub enum ImageGeneration {
     Passthrough,
 }
 
-/// `requests.payload` and `multimedia.disable-image-generation`, parsed once per config.
+/// `requests.payload` and `multimedia.disable-image-generation`. Use [`Rules::of`] to
+/// share one parse per config snapshot.
 #[derive(Debug, Clone, Default)]
 pub struct Rules {
     default: Vec<Rule>,
@@ -189,6 +190,13 @@ pub struct Rules {
 }
 
 impl Rules {
+    /// The rules of one config snapshot, parsed once per snapshot and shared (cached in
+    /// `Config::derived`). Executors call this per request with the `cfg` they were
+    /// given.
+    pub fn of(cfg: &Config) -> std::sync::Arc<Rules> {
+        cfg.derived(Rules::from_config)
+    }
+
     pub fn from_config(cfg: &Config) -> Self {
         let doc = &cfg.document;
         let payload = doc.get("requests").and_then(|r| r.get("payload"));

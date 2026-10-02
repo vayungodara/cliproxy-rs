@@ -512,6 +512,7 @@ async fn claude_replay_sequence_matches_go() {
             session: None,
             execution_session: None,
             derived_session: None,
+            request_path: String::new(),
             headers,
             caller: cpa_core::exec::Caller {
                 principal: "client-key-1".into(),

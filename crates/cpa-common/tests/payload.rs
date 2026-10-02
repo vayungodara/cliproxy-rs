@@ -27,7 +27,15 @@ fn header_map(pairs: &Value) -> HeaderMap {
 fn payload_rules_match_go() {
     let fixture = fixture();
     let cfg = Config::parse(fixture["config"].as_str().unwrap()).unwrap();
-    let rules = payload::Rules::from_config(&cfg);
+    let rules = payload::Rules::of(&cfg);
+    assert!(
+        std::sync::Arc::ptr_eq(&rules, &payload::Rules::of(&cfg)),
+        "parsed once per snapshot"
+    );
+    assert!(
+        !std::sync::Arc::ptr_eq(&rules, &payload::Rules::of(&cfg.clone())),
+        "a clone is a new snapshot"
+    );
     assert_eq!(rules.image_generation, payload::ImageGeneration::Chat);
     let cases = fixture["payload"].as_array().unwrap();
     assert_eq!(cases.len(), 15);

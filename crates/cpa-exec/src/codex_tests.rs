@@ -57,6 +57,7 @@ fn request(case: &Value) -> ExecRequest {
         headers,
         execution_session: None,
         derived_session: None,
+        request_path: String::new(),
         caller: Caller {
             principal: "client-key-FAKE".into(),
             source: "authorization",
@@ -403,6 +404,7 @@ fn plain_request(stream: bool, alt: Option<&str>) -> ExecRequest {
         headers: HeaderMap::new(),
         execution_session: None,
         derived_session: None,
+        request_path: String::new(),
         caller: Caller {
             principal: String::new(),
             source: "authorization",

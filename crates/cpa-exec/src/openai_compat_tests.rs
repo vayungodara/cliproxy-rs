@@ -194,6 +194,7 @@ fn request(s: &Value) -> (ExecRequest, String) {
         session: None,
         execution_session: s["execution_session"].as_str().map(str::to_owned),
         derived_session: s["derived_session"].as_str().map(str::to_owned),
+        request_path: String::new(),
         headers,
         caller: Caller {
             principal: "fake-client-key".into(),

@@ -174,6 +174,7 @@ mod tests {
             session: None,
             execution_session: None,
             derived_session: None,
+            request_path: String::new(),
             headers: Default::default(),
             caller: Caller {
                 principal: "fake-client-key".into(),

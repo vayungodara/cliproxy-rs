@@ -50,6 +50,50 @@ pub struct Config {
     /// apply to OAuth credentials only; see [`Config::for_api_key`]. Settings written
     /// in the legacy layout stay global, as in Go.
     pub oauth_only: std::collections::BTreeSet<String>,
+    /// Values derived from this snapshot, built on first use ([`Config::derived`]).
+    pub derived: Derived,
+}
+
+/// A per-snapshot cache of values computed from a [`Config`] (for example parsed payload
+/// rules), one per type. Everyone holding the same snapshot shares them. A clone starts
+/// empty and the cache never affects equality. Derive from configs that will not be
+/// mutated afterwards; the runtime's published snapshots are immutable.
+#[derive(Default)]
+pub struct Derived(std::sync::Mutex<Vec<std::sync::Arc<dyn std::any::Any + Send + Sync>>>);
+
+impl Clone for Derived {
+    fn clone(&self) -> Self {
+        Self::default()
+    }
+}
+
+impl PartialEq for Derived {
+    fn eq(&self, _: &Self) -> bool {
+        true
+    }
+}
+
+impl Eq for Derived {}
+
+impl Config {
+    /// The value of type `T` derived from this snapshot, computing it with `init` on first
+    /// use. Concurrent first uses may both compute; the first stored value wins.
+    pub fn derived<T: std::any::Any + Send + Sync>(&self, init: impl FnOnce(&Config) -> T) -> std::sync::Arc<T> {
+        let find = |slots: &[std::sync::Arc<dyn std::any::Any + Send + Sync>]| {
+            slots.iter().find_map(|v| v.clone().downcast::<T>().ok())
+        };
+        let lock = || self.derived.0.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        if let Some(found) = find(&lock()) {
+            return found;
+        }
+        let value = std::sync::Arc::new(init(self));
+        let mut slots = lock();
+        if let Some(found) = find(&slots) {
+            return found;
+        }
+        slots.push(value.clone());
+        value
+    }
 }
 
 impl std::fmt::Debug for Config {
@@ -241,6 +285,7 @@ impl Config {
             management,
             document: document.into_value(),
             oauth_only,
+            derived: Derived::default(),
         })
     }
 

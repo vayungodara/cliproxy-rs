@@ -42,6 +42,28 @@ pub struct Call {
     pub selection_model: Option<String>,
     /// Go `execution_session_id`: set by transports with long-lived sessions.
     pub execution_session: Option<String>,
+    /// The matched route ([`route_path`]).
+    pub request_path: String,
+}
+
+/// Go `RequestPathMetadataKey` (gin `FullPath()`): the matched route template in gin's
+/// spelling (`/v1beta/models/*action`), or the URI path when no route matched.
+pub fn route_path(matched: Option<&axum::extract::MatchedPath>, uri: &axum::http::Uri) -> String {
+    let Some(matched) = matched else {
+        return uri.path().to_owned();
+    };
+    matched
+        .as_str()
+        .split('/')
+        .map(
+            |segment| match segment.strip_prefix('{').and_then(|s| s.strip_suffix('}')) {
+                Some(name) if name.starts_with('*') => name.to_owned(),
+                Some(name) => format!(":{name}"),
+                None => segment.to_owned(),
+            },
+        )
+        .collect::<Vec<_>>()
+        .join("/")
 }
 
 pub enum Done {
@@ -506,6 +528,7 @@ pub async fn run(rt: &Arc<Runtime>, call: Call, trace: &Trace) -> Result<Done, R
         session: session.id,
         execution_session: call.execution_session.clone(),
         derived_session: session.derived,
+        request_path: call.request_path.clone(),
         headers: call.headers.clone(),
         caller: call.caller.clone(),
     };

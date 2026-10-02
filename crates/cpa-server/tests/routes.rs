@@ -755,3 +755,36 @@ async fn response_framing_follows_go_net_http() {
     );
     assert_eq!(res.text().await.unwrap(), r#"{"error":"Missing API key"}"#);
 }
+
+/// Go `RequestPathMetadataKey` is gin's `FullPath()`: route templates in gin syntax.
+#[tokio::test]
+async fn route_path_uses_gin_templates() {
+    use axum::extract::{MatchedPath, OriginalUri};
+    let echo = |m: Option<MatchedPath>, OriginalUri(uri): OriginalUri| async move {
+        cpa_server::dispatch::route_path(m.as_ref(), &uri)
+    };
+    let app = axum::Router::new()
+        .route("/v1beta/models/{*action}", axum::routing::post(echo))
+        .route("/v1/videos/{request_id}", axum::routing::post(echo))
+        .route("/v1/images/generations", axum::routing::post(echo));
+    let url = serve(app).await;
+    let client = wreq::Client::new();
+    for (path, expected) in [
+        (
+            "/v1beta/models/gemini-2.5-pro:generateContent",
+            "/v1beta/models/*action",
+        ),
+        ("/v1/videos/abc", "/v1/videos/:request_id"),
+        ("/v1/images/generations?x=1", "/v1/images/generations"),
+    ] {
+        let got = client
+            .post(format!("{url}{path}"))
+            .send()
+            .await
+            .unwrap()
+            .text()
+            .await
+            .unwrap();
+        assert_eq!(got, expected, "{path}");
+    }
+}
