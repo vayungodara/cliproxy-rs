@@ -83,6 +83,26 @@ pub struct RawRouting<'a> {
     pub transient_error_cooldown_seconds: i64,
 }
 
+// ponytail: OAuth-provider disable-cooling and request-scoped-error maps stay empty until
+// the config stream synthesizes provider overrides; per-credential metadata still applies.
+impl From<&cpa_core::config::RoutingConfig> for Policy {
+    fn from(r: &cpa_core::config::RoutingConfig) -> Self {
+        normalize(RawRouting {
+            strategy: &r.strategy,
+            force_model_prefix: r.force_model_prefix,
+            session_affinity: r.session_affinity,
+            session_affinity_ttl: &r.session_affinity_ttl,
+            session_affinity_subagents: r.session_affinity_subagents,
+            request_retry: r.retry.request_retry,
+            max_retry_credentials: r.retry.max_retry_credentials,
+            max_retry_interval: r.retry.max_retry_interval,
+            disable_cooling: r.cooldown.disable_cooling,
+            save_cooldown_status: r.cooldown.save_cooldown_status,
+            transient_error_cooldown_seconds: r.cooldown.transient_error_cooldown_seconds,
+        })
+    }
+}
+
 pub fn normalize(raw: RawRouting<'_>) -> Policy {
     let ttl = go_duration(raw.session_affinity_ttl.trim())
         .filter(|d| *d > 0)

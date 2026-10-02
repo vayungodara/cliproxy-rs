@@ -206,10 +206,12 @@ async fn same_round_failover_preserves_lease_counts_and_last_error() {
     assert_eq!(fixture.seen().len(), 2);
     let response = fixture.request(false).await;
     assert_eq!(response.status().as_u16(), 429);
-    assert_eq!(
-        response.headers()["retry-after"],
-        "10",
-        "floor plus ceil only for scheduler error"
+    // The Claude executor adds Go's 1-30s reset fuzz to the 1s upstream hint
+    // (claude_ratelimit.go), so the cooldown is max(10s floor, 2..=31s), ceiled.
+    let retry_after: u64 = response.headers()["retry-after"].to_str().unwrap().parse().unwrap();
+    assert!(
+        (10..=31).contains(&retry_after),
+        "floor plus ceil only for scheduler error, got {retry_after}"
     );
     assert!(
         response

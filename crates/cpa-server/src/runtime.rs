@@ -34,14 +34,18 @@ pub struct Runtime {
 }
 
 impl Runtime {
+    /// The scheduler policy is derived from `config.routing`.
     pub fn new(config: Config, credentials: Vec<Credential>, executors: Executors) -> Self {
-        Self {
+        let policy = Policy::from(&config.routing);
+        let rt = Self {
             config: RwLock::new(Arc::new(config)),
             store: CredentialStore::new(credentials),
             executors,
             refresh_task: Mutex::default(),
             refresh_state: Mutex::default(),
-        }
+        };
+        rt.publish_policy(policy);
+        rt
     }
 
     /// The config snapshot to use for one whole request.
@@ -49,9 +53,11 @@ impl Runtime {
         self.config.read().unwrap_or_else(PoisonError::into_inner).clone()
     }
 
-    /// Replaces the config. Requests already running keep their snapshot.
+    /// Replaces the config and the scheduler policy derived from it. Requests already
+    /// running keep their snapshot.
     pub fn publish_config(&self, config: Config) {
-        *self.config.write().unwrap_or_else(PoisonError::into_inner) = Arc::new(config);
+        let policy = Policy::from(&config.routing);
+        self.publish_config_and_policy(config, policy);
     }
 
     /// Integration should use this when publishing parsed routing settings too.
@@ -875,6 +881,29 @@ mod tests {
         );
         selection.retry_round = 1;
         assert_eq!(store.retry_wait_at(&selection, &policy, &transport, later), None);
+    }
+
+    #[test]
+    fn config_routing_drives_policy_at_startup_and_on_publish() {
+        let executors = || Executors {
+            claude: cpa_exec::claude::ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
+        };
+        // Legacy top-level keys and the canonical routing block both reach the scheduler.
+        let rt = Runtime::new(
+            Config::parse("request-retry: 2\nrouting:\n  strategy: ff\n  session-affinity-ttl: 250ms\n").unwrap(),
+            Vec::new(),
+            executors(),
+        );
+        let policy = rt.policy();
+        assert_eq!(policy.strategy, crate::scheduler::Strategy::FillFirst);
+        assert_eq!(policy.request_retry, 2);
+        assert_eq!(policy.session_affinity_ttl, Duration::from_secs(1));
+
+        rt.publish_config(Config::parse("routing:\n  strategy: wrr\n").unwrap());
+        let policy = rt.policy();
+        assert_eq!(policy.strategy, crate::scheduler::Strategy::WeightedRoundRobin);
+        assert_eq!(policy.request_retry, 0);
+        assert_eq!(policy.session_affinity_ttl, Duration::from_secs(3600));
     }
 
     #[tokio::test]

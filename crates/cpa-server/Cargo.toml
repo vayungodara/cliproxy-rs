@@ -16,8 +16,11 @@ futures-util.workspace = true
 regex = "1"
 serde.workspace = true
 serde_json.workspace = true
+serde_yaml_ng.workspace = true
 tokio.workspace = true
 tracing.workspace = true
+bcrypt = "0.19"
+subtle = "2.6"
 
 [dev-dependencies]
 wreq.workspace = true

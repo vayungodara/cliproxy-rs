@@ -1,0 +1,1537 @@
+{
+  "fields": {
+    "plugins": {
+      "fields": {
+        "enabled": "bool",
+        "dir": "string",
+        "store-sources": {
+          "list": "string"
+        },
+        "store-auth": {
+          "list": {
+            "fields": {
+              "match": "string",
+              "apply-to": {
+                "list": "string"
+              },
+              "type": "string",
+              "token-env": "string",
+              "username-env": "string",
+              "password-env": "string",
+              "header-name": "string",
+              "header-value-env": "string",
+              "allow-insecure": "bool"
+            }
+          }
+        },
+        "auth-revision": "int",
+        "configs": {
+          "map": {
+            "fields": {
+              "enabled": {
+                "optional": "bool"
+              },
+              "priority": "int"
+            }
+          }
+        }
+      }
+    },
+    "quota-exceeded": {
+      "fields": {
+        "switch-project": "bool",
+        "switch-preview-model": "bool"
+      }
+    },
+    "routing": {
+      "fields": {
+        "strategy": "string",
+        "session-affinity": "bool",
+        "session-affinity-ttl": "string",
+        "session-affinity-subagents": {
+          "optional": "bool"
+        },
+        "force-model-prefix": "bool",
+        "retry": {
+          "fields": {
+            "request-retry": "int",
+            "max-retry-credentials": "int",
+            "max-retry-interval": "int"
+          }
+        },
+        "cooldown": {
+          "fields": {
+            "disable-cooling": "bool",
+            "save-cooldown-status": "bool",
+            "transient-error-cooldown-seconds": "int"
+          }
+        }
+      }
+    },
+    "client": {
+      "fields": {
+        "codex": {
+          "fields": {
+            "optimize-multi-agent-v2": "bool",
+            "enable-apply-patch": "bool"
+          }
+        }
+      }
+    },
+    "server": {
+      "fields": {
+        "host": "string",
+        "port": "int",
+        "trusted-proxies": {
+          "list": "string"
+        },
+        "tls": {
+          "fields": {
+            "enable": "bool",
+            "cert": "string",
+            "key": "string"
+          }
+        },
+        "commercial-mode": "bool",
+        "discovery": {
+          "fields": {
+            "enabled": "bool",
+            "service-name": "string",
+            "service-type": "string",
+            "subtypes": {
+              "list": "string"
+            },
+            "interfaces": {
+              "fields": {
+                "include": {
+                  "list": "string"
+                },
+                "exclude": {
+                  "list": "string"
+                }
+              }
+            },
+            "auth-required": {
+              "optional": "bool"
+            },
+            "advertise-management": "bool"
+          }
+        }
+      }
+    },
+    "management": {
+      "fields": {
+        "allow-remote": "bool",
+        "secret-key": "string",
+        "disable-control-panel": "bool",
+        "disable-auto-update-panel": "bool",
+        "panel-github-repository": "string",
+        "base-url": "string"
+      }
+    },
+    "access": {
+      "fields": {
+        "api-keys": {
+          "list": "string"
+        }
+      }
+    },
+    "credentials": {
+      "fields": {
+        "concurrency": {
+          "fields": {
+            "lifecycle-config-revision": "int",
+            "observation-barrier-revision": "int",
+            "cpa-heartbeat-timeout": "duration",
+            "cpa-cancel-bound": "duration",
+            "reclaim-grace": "duration",
+            "cleanup-interval": "duration",
+            "release-flush-interval": "duration",
+            "release-max-backoff": "duration",
+            "busy-retry-min": "duration",
+            "busy-retry-max": "duration",
+            "max-limit": "int"
+          }
+        },
+        "in-flight": {
+          "fields": {
+            "snapshot-interval": "string",
+            "stale-after": "string",
+            "max-part-bytes": "int",
+            "max-part-count": "int",
+            "max-revision-bytes": "int",
+            "max-aggregate-groups": "int",
+            "max-details": "int",
+            "max-string-bytes": "int",
+            "staging-retention": "string"
+          }
+        }
+      }
+    },
+    "requests": {
+      "fields": {
+        "proxy-url": "string",
+        "passthrough-headers": "bool",
+        "nonstream-keepalive-interval": "int",
+        "streaming": {
+          "fields": {
+            "keepalive-seconds": "int",
+            "bootstrap-retries": "int"
+          }
+        },
+        "payload": {
+          "fields": {
+            "default": {
+              "list": {
+                "fields": {
+                  "models": {
+                    "list": {
+                      "fields": {
+                        "name": "string",
+                        "protocol": "string",
+                        "headers": {
+                          "map": "string"
+                        },
+                        "from-protocol": "string",
+                        "match": {
+                          "list": {
+                            "map": "opaque"
+                          }
+                        },
+                        "not-match": {
+                          "list": {
+                            "map": "opaque"
+                          }
+                        },
+                        "exist": {
+                          "list": "string"
+                        },
+                        "not-exist": {
+                          "list": "string"
+                        }
+                      }
+                    }
+                  },
+                  "params": {
+                    "map": "opaque"
+                  }
+                }
+              }
+            },
+            "default-raw": {
+              "list": {
+                "fields": {
+                  "models": {
+                    "list": {
+                      "fields": {
+                        "name": "string",
+                        "protocol": "string",
+                        "headers": {
+                          "map": "string"
+                        },
+                        "from-protocol": "string",
+                        "match": {
+                          "list": {
+                            "map": "opaque"
+                          }
+                        },
+                        "not-match": {
+                          "list": {
+                            "map": "opaque"
+                          }
+                        },
+                        "exist": {
+                          "list": "string"
+                        },
+                        "not-exist": {
+                          "list": "string"
+                        }
+                      }
+                    }
+                  },
+                  "params": {
+                    "map": "opaque"
+                  }
+                }
+              }
+            },
+            "override": {
+              "list": {
+                "fields": {
+                  "models": {
+                    "list": {
+                      "fields": {
+                        "name": "string",
+                        "protocol": "string",
+                        "headers": {
+                          "map": "string"
+                        },
+                        "from-protocol": "string",
+                        "match": {
+                          "list": {
+                            "map": "opaque"
+                          }
+                        },
+                        "not-match": {
+                          "list": {
+                            "map": "opaque"
+                          }
+                        },
+                        "exist": {
+                          "list": "string"
+                        },
+                        "not-exist": {
+                          "list": "string"
+                        }
+                      }
+                    }
+                  },
+                  "params": {
+                    "map": "opaque"
+                  }
+                }
+              }
+            },
+            "override-raw": {
+              "list": {
+                "fields": {
+                  "models": {
+                    "list": {
+                      "fields": {
+                        "name": "string",
+                        "protocol": "string",
+                        "headers": {
+                          "map": "string"
+                        },
+                        "from-protocol": "string",
+                        "match": {
+                          "list": {
+                            "map": "opaque"
+                          }
+                        },
+                        "not-match": {
+                          "list": {
+                            "map": "opaque"
+                          }
+                        },
+                        "exist": {
+                          "list": "string"
+                        },
+                        "not-exist": {
+                          "list": "string"
+                        }
+                      }
+                    }
+                  },
+                  "params": {
+                    "map": "opaque"
+                  }
+                }
+              }
+            },
+            "filter": {
+              "list": {
+                "fields": {
+                  "models": {
+                    "list": {
+                      "fields": {
+                        "name": "string",
+                        "protocol": "string",
+                        "headers": {
+                          "map": "string"
+                        },
+                        "from-protocol": "string",
+                        "match": {
+                          "list": {
+                            "map": "opaque"
+                          }
+                        },
+                        "not-match": {
+                          "list": {
+                            "map": "opaque"
+                          }
+                        },
+                        "exist": {
+                          "list": "string"
+                        },
+                        "not-exist": {
+                          "list": "string"
+                        }
+                      }
+                    }
+                  },
+                  "params": {
+                    "list": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "oauth": {
+      "fields": {
+        "auth-dir": "string",
+        "auth-auto-refresh-workers": "int",
+        "model-alias": {
+          "map": {
+            "list": {
+              "fields": {
+                "name": "string",
+                "alias": "string",
+                "fork": "bool",
+                "display-name": "string",
+                "force-mapping": "bool"
+              }
+            }
+          }
+        },
+        "excluded-models": {
+          "map": {
+            "list": "string"
+          }
+        },
+        "request-scoped-errors": {
+          "map": {
+            "list": {
+              "fields": {
+                "status": "int",
+                "match": {
+                  "list": "string"
+                },
+                "match-regexr": {
+                  "list": "string"
+                },
+                "action": "string"
+              }
+            }
+          }
+        },
+        "settings": {
+          "map": {
+            "list": {
+              "fields": {
+                "name": "string",
+                "alias": "string",
+                "max-context-length": "int"
+              }
+            }
+          }
+        },
+        "providers": {
+          "fields": {
+            "aistudio": {
+              "fields": {
+                "ws-auth": "bool"
+              }
+            },
+            "codex": {
+              "fields": {
+                "disable-codex-cloaking": "bool",
+                "stream-bootstrap-buffering": "bool",
+                "stream-bootstrap-timeout": "string",
+                "orphan-delegation-compatibility": "bool",
+                "model-level-cooling": "bool",
+                "live-media-relay": {
+                  "fields": {
+                    "enabled": "bool",
+                    "max-sessions": "int",
+                    "disable-private-remote-ips": "bool",
+                    "public-ip": "string",
+                    "udp-port-min": "port",
+                    "udp-port-max": "port",
+                    "ice-servers": {
+                      "list": {
+                        "fields": {
+                          "urls": {
+                            "list": "string"
+                          },
+                          "username": "string",
+                          "credential": "string"
+                        }
+                      }
+                    }
+                  }
+                },
+                "response-steering": "bool",
+                "header-defaults": {
+                  "fields": {
+                    "user-agent": "string",
+                    "beta-features": "string"
+                  }
+                }
+              }
+            },
+            "claude": {
+              "fields": {
+                "model-level-cooling": "bool",
+                "claude-code": {
+                  "fields": {
+                    "disable-cloaking-model-list": "bool"
+                  }
+                },
+                "disable-claude-cloak-mode": "bool",
+                "header-defaults": {
+                  "fields": {
+                    "user-agent": "string",
+                    "package-version": "string",
+                    "runtime-version": "string",
+                    "os": "string",
+                    "arch": "string",
+                    "timeout": "string",
+                    "timezone": "string",
+                    "stabilize-device-profile": {
+                      "optional": "bool"
+                    }
+                  }
+                }
+              }
+            },
+            "antigravity": {
+              "fields": {
+                "sensitive-words": {
+                  "list": "string"
+                },
+                "connection-pool": {
+                  "fields": {
+                    "enabled": {
+                      "optional": "bool"
+                    },
+                    "idle-conn-timeout": "string",
+                    "max-idle-conns-per-host": {
+                      "optional": "int"
+                    }
+                  }
+                },
+                "signature-cache-enabled": {
+                  "optional": "bool"
+                },
+                "signature-bypass-strict": {
+                  "optional": "bool"
+                },
+                "antigravity-credits": "bool"
+              }
+            },
+            "xai": {
+              "fields": {
+                "inject-x-search": "bool"
+              }
+            },
+            "devin": {
+              "fields": {
+                "sensitive-words": {
+                  "list": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "multimedia": {
+      "fields": {
+        "disable-image-generation": "image-mode",
+        "gpt-image-2-base-model": "string",
+        "video-result-auth-cache-ttl": "string"
+      }
+    },
+    "observability": {
+      "fields": {
+        "logs": {
+          "fields": {
+            "debug": "bool",
+            "logging-to-file": "bool",
+            "logs-max-total-size-mb": "int",
+            "request-log": "bool",
+            "error-logs-max-files": "int"
+          }
+        },
+        "usage": {
+          "fields": {
+            "usage-statistics-enabled": "bool",
+            "redis-usage-queue-retention-seconds": "int"
+          }
+        },
+        "pprof": {
+          "fields": {
+            "enable": "bool",
+            "addr": "string"
+          }
+        }
+      }
+    },
+    "api-keys": {
+      "fields": {
+        "gemini": {
+          "list": {
+            "fields": {
+              "name": "string",
+              "base-url": "string",
+              "priority": "int",
+              "prefix": "string",
+              "proxy-url": "string",
+              "headers": {
+                "map": "string"
+              },
+              "models": {
+                "list": {
+                  "fields": {
+                    "name": "string",
+                    "alias": "string",
+                    "display-name": "string",
+                    "max-context-length": "int",
+                    "force-mapping": "bool",
+                    "is-compat": "bool",
+                    "thinking": {
+                      "optional": {
+                        "fields": {
+                          "min": "int",
+                          "max": "int",
+                          "zero-allowed": "bool",
+                          "dynamic-allowed": "bool",
+                          "levels": {
+                            "list": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "excluded-models": {
+                "list": "string"
+              },
+              "disable-cooling": {
+                "optional": "bool"
+              },
+              "request-retry": {
+                "optional": "int"
+              },
+              "request-scoped-errors": {
+                "list": {
+                  "fields": {
+                    "status": "int",
+                    "match": {
+                      "list": "string"
+                    },
+                    "match-regexr": {
+                      "list": "string"
+                    },
+                    "action": "string"
+                  }
+                }
+              },
+              "keys": {
+                "list": {
+                  "fields": {
+                    "api-key": "string",
+                    "priority": "int",
+                    "weight": {
+                      "optional": "int"
+                    },
+                    "prefix": "string",
+                    "proxy-url": "string",
+                    "models": {
+                      "list": {
+                        "fields": {
+                          "name": "string",
+                          "alias": "string",
+                          "display-name": "string",
+                          "max-context-length": "int",
+                          "force-mapping": "bool",
+                          "is-compat": "bool",
+                          "thinking": {
+                            "optional": {
+                              "fields": {
+                                "min": "int",
+                                "max": "int",
+                                "zero-allowed": "bool",
+                                "dynamic-allowed": "bool",
+                                "levels": {
+                                  "list": "string"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "headers": {
+                      "map": "string"
+                    },
+                    "excluded-models": {
+                      "list": "string"
+                    },
+                    "disable-cooling": {
+                      "optional": "bool"
+                    },
+                    "request-retry": {
+                      "optional": "int"
+                    },
+                    "request-scoped-errors": {
+                      "list": {
+                        "fields": {
+                          "status": "int",
+                          "match": {
+                            "list": "string"
+                          },
+                          "match-regexr": {
+                            "list": "string"
+                          },
+                          "action": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "interactions": {
+          "list": {
+            "fields": {
+              "name": "string",
+              "base-url": "string",
+              "priority": "int",
+              "prefix": "string",
+              "proxy-url": "string",
+              "headers": {
+                "map": "string"
+              },
+              "models": {
+                "list": {
+                  "fields": {
+                    "name": "string",
+                    "alias": "string",
+                    "display-name": "string",
+                    "max-context-length": "int",
+                    "force-mapping": "bool",
+                    "is-compat": "bool",
+                    "thinking": {
+                      "optional": {
+                        "fields": {
+                          "min": "int",
+                          "max": "int",
+                          "zero-allowed": "bool",
+                          "dynamic-allowed": "bool",
+                          "levels": {
+                            "list": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "excluded-models": {
+                "list": "string"
+              },
+              "disable-cooling": {
+                "optional": "bool"
+              },
+              "request-retry": {
+                "optional": "int"
+              },
+              "request-scoped-errors": {
+                "list": {
+                  "fields": {
+                    "status": "int",
+                    "match": {
+                      "list": "string"
+                    },
+                    "match-regexr": {
+                      "list": "string"
+                    },
+                    "action": "string"
+                  }
+                }
+              },
+              "keys": {
+                "list": {
+                  "fields": {
+                    "api-key": "string",
+                    "priority": "int",
+                    "weight": {
+                      "optional": "int"
+                    },
+                    "prefix": "string",
+                    "proxy-url": "string",
+                    "models": {
+                      "list": {
+                        "fields": {
+                          "name": "string",
+                          "alias": "string",
+                          "display-name": "string",
+                          "max-context-length": "int",
+                          "force-mapping": "bool",
+                          "is-compat": "bool",
+                          "thinking": {
+                            "optional": {
+                              "fields": {
+                                "min": "int",
+                                "max": "int",
+                                "zero-allowed": "bool",
+                                "dynamic-allowed": "bool",
+                                "levels": {
+                                  "list": "string"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "headers": {
+                      "map": "string"
+                    },
+                    "excluded-models": {
+                      "list": "string"
+                    },
+                    "disable-cooling": {
+                      "optional": "bool"
+                    },
+                    "request-retry": {
+                      "optional": "int"
+                    },
+                    "request-scoped-errors": {
+                      "list": {
+                        "fields": {
+                          "status": "int",
+                          "match": {
+                            "list": "string"
+                          },
+                          "match-regexr": {
+                            "list": "string"
+                          },
+                          "action": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "vertex": {
+          "list": {
+            "fields": {
+              "name": "string",
+              "base-url": "string",
+              "priority": "int",
+              "prefix": "string",
+              "proxy-url": "string",
+              "headers": {
+                "map": "string"
+              },
+              "models": {
+                "list": {
+                  "fields": {
+                    "name": "string",
+                    "alias": "string",
+                    "display-name": "string",
+                    "force-mapping": "bool",
+                    "thinking": {
+                      "optional": {
+                        "fields": {
+                          "min": "int",
+                          "max": "int",
+                          "zero-allowed": "bool",
+                          "dynamic-allowed": "bool",
+                          "levels": {
+                            "list": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "excluded-models": {
+                "list": "string"
+              },
+              "disable-cooling": {
+                "optional": "bool"
+              },
+              "request-retry": {
+                "optional": "int"
+              },
+              "keys": {
+                "list": {
+                  "fields": {
+                    "api-key": "string",
+                    "priority": "int",
+                    "weight": {
+                      "optional": "int"
+                    },
+                    "prefix": "string",
+                    "proxy-url": "string",
+                    "headers": {
+                      "map": "string"
+                    },
+                    "models": {
+                      "list": {
+                        "fields": {
+                          "name": "string",
+                          "alias": "string",
+                          "display-name": "string",
+                          "force-mapping": "bool",
+                          "thinking": {
+                            "optional": {
+                              "fields": {
+                                "min": "int",
+                                "max": "int",
+                                "zero-allowed": "bool",
+                                "dynamic-allowed": "bool",
+                                "levels": {
+                                  "list": "string"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "excluded-models": {
+                      "list": "string"
+                    },
+                    "disable-cooling": {
+                      "optional": "bool"
+                    },
+                    "request-retry": {
+                      "optional": "int"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "codex": {
+          "list": {
+            "fields": {
+              "name": "string",
+              "base-url": "string",
+              "priority": "int",
+              "prefix": "string",
+              "proxy-url": "string",
+              "headers": {
+                "map": "string"
+              },
+              "models": {
+                "list": {
+                  "fields": {
+                    "name": "string",
+                    "alias": "string",
+                    "display-name": "string",
+                    "max-context-length": "int",
+                    "force-mapping": "bool",
+                    "is-compat": "bool",
+                    "support-configuration-update": "bool",
+                    "thinking": {
+                      "optional": {
+                        "fields": {
+                          "min": "int",
+                          "max": "int",
+                          "zero-allowed": "bool",
+                          "dynamic-allowed": "bool",
+                          "levels": {
+                            "list": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "excluded-models": {
+                "list": "string"
+              },
+              "disable-cooling": {
+                "optional": "bool"
+              },
+              "request-retry": {
+                "optional": "int"
+              },
+              "request-scoped-errors": {
+                "list": {
+                  "fields": {
+                    "status": "int",
+                    "match": {
+                      "list": "string"
+                    },
+                    "match-regexr": {
+                      "list": "string"
+                    },
+                    "action": "string"
+                  }
+                }
+              },
+              "keys": {
+                "list": {
+                  "fields": {
+                    "api-key": "string",
+                    "priority": "int",
+                    "weight": {
+                      "optional": "int"
+                    },
+                    "prefix": "string",
+                    "websockets": "bool",
+                    "alpha-search": "bool",
+                    "proxy-url": "string",
+                    "models": {
+                      "list": {
+                        "fields": {
+                          "name": "string",
+                          "alias": "string",
+                          "display-name": "string",
+                          "max-context-length": "int",
+                          "force-mapping": "bool",
+                          "is-compat": "bool",
+                          "support-configuration-update": "bool",
+                          "thinking": {
+                            "optional": {
+                              "fields": {
+                                "min": "int",
+                                "max": "int",
+                                "zero-allowed": "bool",
+                                "dynamic-allowed": "bool",
+                                "levels": {
+                                  "list": "string"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "headers": {
+                      "map": "string"
+                    },
+                    "excluded-models": {
+                      "list": "string"
+                    },
+                    "disable-cooling": {
+                      "optional": "bool"
+                    },
+                    "disable-codex-cloaking": {
+                      "optional": "bool"
+                    },
+                    "request-retry": {
+                      "optional": "int"
+                    },
+                    "request-scoped-errors": {
+                      "list": {
+                        "fields": {
+                          "status": "int",
+                          "match": {
+                            "list": "string"
+                          },
+                          "match-regexr": {
+                            "list": "string"
+                          },
+                          "action": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "claude": {
+          "list": {
+            "fields": {
+              "name": "string",
+              "base-url": "string",
+              "priority": "int",
+              "prefix": "string",
+              "proxy-url": "string",
+              "headers": {
+                "map": "string"
+              },
+              "models": {
+                "list": {
+                  "fields": {
+                    "name": "string",
+                    "alias": "string",
+                    "display-name": "string",
+                    "max-context-length": "int",
+                    "force-mapping": "bool",
+                    "is-compat": "bool",
+                    "thinking": {
+                      "optional": {
+                        "fields": {
+                          "min": "int",
+                          "max": "int",
+                          "zero-allowed": "bool",
+                          "dynamic-allowed": "bool",
+                          "levels": {
+                            "list": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "excluded-models": {
+                "list": "string"
+              },
+              "disable-cooling": {
+                "optional": "bool"
+              },
+              "request-retry": {
+                "optional": "int"
+              },
+              "request-scoped-errors": {
+                "list": {
+                  "fields": {
+                    "status": "int",
+                    "match": {
+                      "list": "string"
+                    },
+                    "match-regexr": {
+                      "list": "string"
+                    },
+                    "action": "string"
+                  }
+                }
+              },
+              "keys": {
+                "list": {
+                  "fields": {
+                    "api-key": "string",
+                    "priority": "int",
+                    "weight": {
+                      "optional": "int"
+                    },
+                    "prefix": "string",
+                    "proxy-url": "string",
+                    "models": {
+                      "list": {
+                        "fields": {
+                          "name": "string",
+                          "alias": "string",
+                          "display-name": "string",
+                          "max-context-length": "int",
+                          "force-mapping": "bool",
+                          "is-compat": "bool",
+                          "thinking": {
+                            "optional": {
+                              "fields": {
+                                "min": "int",
+                                "max": "int",
+                                "zero-allowed": "bool",
+                                "dynamic-allowed": "bool",
+                                "levels": {
+                                  "list": "string"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "headers": {
+                      "map": "string"
+                    },
+                    "excluded-models": {
+                      "list": "string"
+                    },
+                    "rebuild-mid-system-message": "bool",
+                    "disable-cooling": {
+                      "optional": "bool"
+                    },
+                    "request-retry": {
+                      "optional": "int"
+                    },
+                    "request-scoped-errors": {
+                      "list": {
+                        "fields": {
+                          "status": "int",
+                          "match": {
+                            "list": "string"
+                          },
+                          "match-regexr": {
+                            "list": "string"
+                          },
+                          "action": "string"
+                        }
+                      }
+                    },
+                    "cloak": {
+                      "optional": {
+                        "fields": {
+                          "mode": "string",
+                          "strict-mode": "bool",
+                          "sensitive-words": {
+                            "list": "string"
+                          },
+                          "cache-user-id": {
+                            "optional": "bool"
+                          }
+                        }
+                      }
+                    },
+                    "fingerprint-profile": "string",
+                    "experimental-cch-signing": "bool"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "xai": {
+          "list": {
+            "fields": {
+              "name": "string",
+              "base-url": "string",
+              "priority": "int",
+              "prefix": "string",
+              "proxy-url": "string",
+              "headers": {
+                "map": "string"
+              },
+              "models": {
+                "list": {
+                  "fields": {
+                    "name": "string",
+                    "alias": "string",
+                    "display-name": "string",
+                    "max-context-length": "int",
+                    "force-mapping": "bool",
+                    "is-compat": "bool",
+                    "support-configuration-update": "bool",
+                    "thinking": {
+                      "optional": {
+                        "fields": {
+                          "min": "int",
+                          "max": "int",
+                          "zero-allowed": "bool",
+                          "dynamic-allowed": "bool",
+                          "levels": {
+                            "list": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "excluded-models": {
+                "list": "string"
+              },
+              "disable-cooling": {
+                "optional": "bool"
+              },
+              "request-retry": {
+                "optional": "int"
+              },
+              "request-scoped-errors": {
+                "list": {
+                  "fields": {
+                    "status": "int",
+                    "match": {
+                      "list": "string"
+                    },
+                    "match-regexr": {
+                      "list": "string"
+                    },
+                    "action": "string"
+                  }
+                }
+              },
+              "keys": {
+                "list": {
+                  "fields": {
+                    "api-key": "string",
+                    "priority": "int",
+                    "weight": {
+                      "optional": "int"
+                    },
+                    "prefix": "string",
+                    "websockets": "bool",
+                    "alpha-search": "bool",
+                    "proxy-url": "string",
+                    "models": {
+                      "list": {
+                        "fields": {
+                          "name": "string",
+                          "alias": "string",
+                          "display-name": "string",
+                          "max-context-length": "int",
+                          "force-mapping": "bool",
+                          "is-compat": "bool",
+                          "support-configuration-update": "bool",
+                          "thinking": {
+                            "optional": {
+                              "fields": {
+                                "min": "int",
+                                "max": "int",
+                                "zero-allowed": "bool",
+                                "dynamic-allowed": "bool",
+                                "levels": {
+                                  "list": "string"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "headers": {
+                      "map": "string"
+                    },
+                    "excluded-models": {
+                      "list": "string"
+                    },
+                    "disable-cooling": {
+                      "optional": "bool"
+                    },
+                    "disable-codex-cloaking": {
+                      "optional": "bool"
+                    },
+                    "request-retry": {
+                      "optional": "int"
+                    },
+                    "request-scoped-errors": {
+                      "list": {
+                        "fields": {
+                          "status": "int",
+                          "match": {
+                            "list": "string"
+                          },
+                          "match-regexr": {
+                            "list": "string"
+                          },
+                          "action": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "meta": {
+          "list": {
+            "fields": {
+              "name": "string",
+              "base-url": "string",
+              "priority": "int",
+              "prefix": "string",
+              "proxy-url": "string",
+              "headers": {
+                "map": "string"
+              },
+              "models": {
+                "list": {
+                  "fields": {
+                    "name": "string",
+                    "alias": "string",
+                    "display-name": "string",
+                    "max-context-length": "int",
+                    "force-mapping": "bool",
+                    "is-compat": "bool",
+                    "support-configuration-update": "bool",
+                    "thinking": {
+                      "optional": {
+                        "fields": {
+                          "min": "int",
+                          "max": "int",
+                          "zero-allowed": "bool",
+                          "dynamic-allowed": "bool",
+                          "levels": {
+                            "list": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "excluded-models": {
+                "list": "string"
+              },
+              "disable-cooling": {
+                "optional": "bool"
+              },
+              "request-retry": {
+                "optional": "int"
+              },
+              "request-scoped-errors": {
+                "list": {
+                  "fields": {
+                    "status": "int",
+                    "match": {
+                      "list": "string"
+                    },
+                    "match-regexr": {
+                      "list": "string"
+                    },
+                    "action": "string"
+                  }
+                }
+              },
+              "keys": {
+                "list": {
+                  "fields": {
+                    "api-key": "string",
+                    "priority": "int",
+                    "weight": {
+                      "optional": "int"
+                    },
+                    "prefix": "string",
+                    "websockets": "bool",
+                    "alpha-search": "bool",
+                    "proxy-url": "string",
+                    "models": {
+                      "list": {
+                        "fields": {
+                          "name": "string",
+                          "alias": "string",
+                          "display-name": "string",
+                          "max-context-length": "int",
+                          "force-mapping": "bool",
+                          "is-compat": "bool",
+                          "support-configuration-update": "bool",
+                          "thinking": {
+                            "optional": {
+                              "fields": {
+                                "min": "int",
+                                "max": "int",
+                                "zero-allowed": "bool",
+                                "dynamic-allowed": "bool",
+                                "levels": {
+                                  "list": "string"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "headers": {
+                      "map": "string"
+                    },
+                    "excluded-models": {
+                      "list": "string"
+                    },
+                    "disable-cooling": {
+                      "optional": "bool"
+                    },
+                    "disable-codex-cloaking": {
+                      "optional": "bool"
+                    },
+                    "request-retry": {
+                      "optional": "int"
+                    },
+                    "request-scoped-errors": {
+                      "list": {
+                        "fields": {
+                          "status": "int",
+                          "match": {
+                            "list": "string"
+                          },
+                          "match-regexr": {
+                            "list": "string"
+                          },
+                          "action": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "openai-compatibility": {
+          "list": {
+            "fields": {
+              "name": "string",
+              "priority": "int",
+              "disabled": "bool",
+              "prefix": "string",
+              "base-url": "string",
+              "models": {
+                "list": {
+                  "fields": {
+                    "name": "string",
+                    "alias": "string",
+                    "display-name": "string",
+                    "max-context-length": "int",
+                    "force-mapping": "bool",
+                    "image": "bool",
+                    "input-modalities": {
+                      "list": "string"
+                    },
+                    "output-modalities": {
+                      "list": "string"
+                    },
+                    "is-compat": "bool",
+                    "use-max-completion-tokens": "bool",
+                    "thinking": {
+                      "optional": {
+                        "fields": {
+                          "min": "int",
+                          "max": "int",
+                          "zero-allowed": "bool",
+                          "dynamic-allowed": "bool",
+                          "levels": {
+                            "list": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "headers": {
+                "map": "string"
+              },
+              "support-prompt-cache-key": "bool",
+              "disable-cooling": {
+                "optional": "bool"
+              },
+              "request-retry": {
+                "optional": "int"
+              },
+              "request-scoped-errors": {
+                "list": {
+                  "fields": {
+                    "status": "int",
+                    "match": {
+                      "list": "string"
+                    },
+                    "match-regexr": {
+                      "list": "string"
+                    },
+                    "action": "string"
+                  }
+                }
+              },
+              "keys": {
+                "list": {
+                  "fields": {
+                    "api-key": "string",
+                    "weight": {
+                      "optional": "int"
+                    },
+                    "proxy-url": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "config-version": "version"
+  }
+}
