@@ -542,6 +542,11 @@ fn normalize_fingerprint_profile(raw: &str) -> &'static str {
     }
 }
 
+/// The executor keeps bodies as text; shared byte APIs never split UTF-8 they were given.
+fn text(bytes: Vec<u8>) -> String {
+    String::from_utf8(bytes).unwrap_or_else(|e| String::from_utf8_lossy(e.as_bytes()).into_owned())
+}
+
 /// `helps.SetStringIfDifferent`.
 fn set_string_if_different(body: &str, path: &str, value: &str) -> String {
     let current = rawjson::get(body, path);
@@ -587,7 +592,9 @@ fn sanitize_for_upstream(body: &str, base_model: &str, preserve_empty_thinking: 
     use cpa_common::signature::{Provider, provider_from_model_name, sanitize_claude_messages_for_claude_upstream};
     let mut body = body.to_owned();
     if provider_from_model_name(base_model) == Provider::Claude || preserve_empty_thinking {
-        body = sanitize_claude_messages_for_claude_upstream(&body, base_model, preserve_empty_thinking).0;
+        let sanitized =
+            sanitize_claude_messages_for_claude_upstream(body.as_bytes(), base_model, preserve_empty_thinking).0;
+        body = text(sanitized);
     }
     let tools = rawjson::get(&body, "tools").array().len();
     for t in 0..tools {
@@ -722,9 +729,9 @@ impl<'a> Ctx<'a> {
         use cpa_common::thinking::{ModelCaps, RequestThinking, apply_request_thinking};
         let caps = self.resolved.as_ref().map(ModelCaps::from);
         apply_request_thinking(&RequestThinking {
-            body: &body,
-            payload: &String::from_utf8_lossy(&req.body),
-            original: &String::from_utf8_lossy(&req.original_body),
+            body: body.as_bytes(),
+            payload: &req.body,
+            original: &req.original_body,
             model: &req.model,
             from: req.source_format.as_str(),
             to: Format::Claude.as_str(),
@@ -733,6 +740,7 @@ impl<'a> Ctx<'a> {
             has_request_transformer: cpa_translate::pair(req.source_format, Format::Claude).is_some(),
             updates_changed: false,
         })
+        .map(text)
         .map_err(|e| {
             if e.code.is_some() {
                 ExecError::local(e.status(), FailureScope::Request, e.message)
@@ -800,17 +808,9 @@ impl<'a> Ctx<'a> {
         (cloak, strict, words, cache)
     }
 
-    /// `session.Enrich`: a derived identity only without an explicit or execution one.
+    /// Go `derived_session_id` metadata, as the server's `session.Enrich` set it.
     fn derived_session(&self, req: &ExecRequest) -> String {
-        let original = String::from_utf8_lossy(&req.original_body);
-        if session::has_explicit_session(&req.headers, &original) || !self.execution.is_empty() {
-            return String::new();
-        }
-        session::derive_id(
-            req.source_format,
-            &original,
-            &session::caller_scope(&req.caller.principal),
-        )
+        req.derived_session.clone().unwrap_or_default()
     }
 
     fn prepare_messages(
@@ -1122,7 +1122,16 @@ impl<'a> Ctx<'a> {
     ) -> (Vec<(String, String)>, Vec<String>) {
         let original = String::from_utf8_lossy(&req.original_body);
         let derived = self.derived_session(req);
-        let cpa_session = session::canonical(&req.headers, &original, &self.execution, &derived);
+        let cpa_session = session::canonical(
+            &session::Inputs {
+                headers: &req.headers,
+                original: &original,
+                translated: "",
+                derived: &derived,
+                execution: &self.execution,
+            },
+            req.session.as_deref(),
+        );
         let h = headers::build(&headers::Plan {
             api_key: &self.api_key,
             bearer: self.bearer,

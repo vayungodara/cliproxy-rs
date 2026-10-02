@@ -11,7 +11,7 @@ They come with these questions, in this order: is traffic flowing, which credent
 ## Contract
 
 - The data contract is Go CLIProxyAPI's v8 Management API at commit 6fecc6e (v8.0.10). The UI is built to Go's request and response shapes.
-- The server may be the Rust binary, which does not implement every route yet. A route it lacks answers 501, and a method it lacks answers 405. The UI probes routes with `OPTIONS` (no side effects) and shows unsupported actions disabled, with one line naming them. Reads that fail this way show a "not available on this server" state naming the route.
+- The server may be the Rust binary, which does not implement every management route yet. Like Go, it answers a route it lacks with an empty 404. On servers other than Go the UI sends one probe per write action, a request Go rejects with 400 before any side effect, and shows actions the server lacks disabled, with one line naming them. Reads that fail this way show a "not available on this server" state naming the route.
 
 ## Non-negotiables
 

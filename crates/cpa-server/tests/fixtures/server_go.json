@@ -1,4 +1,550 @@
 {
+  "affinity": [
+    {
+      "name": "binding_kept_then_released_on_failure",
+      "subagent_affinity": true,
+      "steps": [
+        {
+          "op": "pick",
+          "headers": [
+            [
+              "X-Session-ID",
+              "s1"
+            ]
+          ],
+          "available": [
+            "b"
+          ],
+          "picked": "b"
+        },
+        {
+          "op": "pick",
+          "headers": [
+            [
+              "X-Session-ID",
+              "s1"
+            ]
+          ],
+          "available": [
+            "a",
+            "b"
+          ],
+          "picked": "b"
+        },
+        {
+          "op": "fail",
+          "headers": [
+            [
+              "X-Session-ID",
+              "s1"
+            ]
+          ],
+          "auth": "b",
+          "status": 500,
+          "message": "boom"
+        },
+        {
+          "op": "pick",
+          "headers": [
+            [
+              "X-Session-ID",
+              "s1"
+            ]
+          ],
+          "available": [
+            "a",
+            "b"
+          ],
+          "picked": "a"
+        }
+      ]
+    },
+    {
+      "name": "request_fault_keeps_binding",
+      "subagent_affinity": true,
+      "steps": [
+        {
+          "op": "pick",
+          "headers": [
+            [
+              "X-Session-ID",
+              "s1"
+            ]
+          ],
+          "available": [
+            "b"
+          ],
+          "picked": "b"
+        },
+        {
+          "op": "fail",
+          "headers": [
+            [
+              "X-Session-ID",
+              "s1"
+            ]
+          ],
+          "auth": "b",
+          "status": 400,
+          "message": "bad request"
+        },
+        {
+          "op": "pick",
+          "headers": [
+            [
+              "X-Session-ID",
+              "s1"
+            ]
+          ],
+          "available": [
+            "a",
+            "b"
+          ],
+          "picked": "b"
+        }
+      ]
+    },
+    {
+      "name": "success_from_other_credential_does_not_rebind",
+      "subagent_affinity": true,
+      "steps": [
+        {
+          "op": "pick",
+          "headers": [
+            [
+              "X-Session-ID",
+              "s1"
+            ]
+          ],
+          "available": [
+            "b"
+          ],
+          "picked": "b"
+        },
+        {
+          "op": "ok",
+          "headers": [
+            [
+              "X-Session-ID",
+              "s1"
+            ]
+          ],
+          "auth": "a"
+        },
+        {
+          "op": "pick",
+          "headers": [
+            [
+              "X-Session-ID",
+              "s1"
+            ]
+          ],
+          "available": [
+            "a",
+            "b"
+          ],
+          "picked": "b"
+        }
+      ]
+    },
+    {
+      "name": "subagent_inherits_parent",
+      "subagent_affinity": true,
+      "steps": [
+        {
+          "op": "pick",
+          "headers": [
+            [
+              "X-Claude-Code-Session-Id",
+              "root"
+            ]
+          ],
+          "available": [
+            "b"
+          ],
+          "picked": "b"
+        },
+        {
+          "op": "pick",
+          "headers": [
+            [
+              "X-Claude-Code-Session-Id",
+              "root"
+            ],
+            [
+              "X-Claude-Code-Agent-Id",
+              "worker"
+            ]
+          ],
+          "available": [
+            "a",
+            "b"
+          ],
+          "picked": "b"
+        },
+        {
+          "op": "pick",
+          "headers": [
+            [
+              "X-Claude-Code-Session-Id",
+              "root"
+            ]
+          ],
+          "available": [
+            "a",
+            "b"
+          ],
+          "picked": "b"
+        }
+      ]
+    },
+    {
+      "name": "subagent_affinity_off",
+      "subagent_affinity": false,
+      "steps": [
+        {
+          "op": "pick",
+          "headers": [
+            [
+              "X-Claude-Code-Session-Id",
+              "root"
+            ]
+          ],
+          "available": [
+            "b"
+          ],
+          "picked": "b"
+        },
+        {
+          "op": "pick",
+          "headers": [
+            [
+              "X-Claude-Code-Session-Id",
+              "root"
+            ],
+            [
+              "X-Claude-Code-Agent-Id",
+              "worker"
+            ]
+          ],
+          "available": [
+            "a",
+            "b"
+          ],
+          "picked": "a"
+        }
+      ]
+    },
+    {
+      "name": "subagent_failure_keeps_parent",
+      "subagent_affinity": true,
+      "steps": [
+        {
+          "op": "pick",
+          "headers": [
+            [
+              "X-Claude-Code-Session-Id",
+              "root"
+            ]
+          ],
+          "available": [
+            "b"
+          ],
+          "picked": "b"
+        },
+        {
+          "op": "pick",
+          "headers": [
+            [
+              "X-Claude-Code-Session-Id",
+              "root"
+            ],
+            [
+              "X-Claude-Code-Agent-Id",
+              "worker"
+            ]
+          ],
+          "available": [
+            "a",
+            "b"
+          ],
+          "picked": "b"
+        },
+        {
+          "op": "fail",
+          "headers": [
+            [
+              "X-Claude-Code-Session-Id",
+              "root"
+            ],
+            [
+              "X-Claude-Code-Agent-Id",
+              "worker"
+            ]
+          ],
+          "auth": "b",
+          "status": 500,
+          "message": "boom"
+        },
+        {
+          "op": "pick",
+          "headers": [
+            [
+              "X-Claude-Code-Session-Id",
+              "root"
+            ]
+          ],
+          "available": [
+            "a",
+            "b"
+          ],
+          "picked": "b"
+        },
+        {
+          "op": "pick",
+          "headers": [
+            [
+              "X-Claude-Code-Session-Id",
+              "root"
+            ],
+            [
+              "X-Claude-Code-Agent-Id",
+              "worker"
+            ]
+          ],
+          "available": [
+            "a",
+            "b"
+          ],
+          "picked": "b"
+        }
+      ]
+    },
+    {
+      "name": "fork_inherits_parent",
+      "subagent_affinity": false,
+      "steps": [
+        {
+          "op": "pick",
+          "headers": [
+            [
+              "Session-Id",
+              "t1"
+            ]
+          ],
+          "available": [
+            "b"
+          ],
+          "picked": "b"
+        },
+        {
+          "op": "pick",
+          "headers": [
+            [
+              "Session-Id",
+              "t1"
+            ],
+            [
+              "X-Codex-Turn-Metadata",
+              "{\"thread_id\":\"t2\",\"forked_from_thread_id\":\"t1\"}"
+            ]
+          ],
+          "available": [
+            "a",
+            "b"
+          ],
+          "picked": "b"
+        },
+        {
+          "op": "fail",
+          "headers": [
+            [
+              "Session-Id",
+              "t1"
+            ]
+          ],
+          "auth": "b",
+          "status": 500,
+          "message": "boom"
+        },
+        {
+          "op": "pick",
+          "headers": [
+            [
+              "Session-Id",
+              "t1"
+            ],
+            [
+              "X-Codex-Turn-Metadata",
+              "{\"thread_id\":\"t2\",\"forked_from_thread_id\":\"t1\"}"
+            ]
+          ],
+          "available": [
+            "a",
+            "b"
+          ],
+          "picked": "b"
+        }
+      ]
+    },
+    {
+      "name": "prompt_cache_conversation_alias",
+      "subagent_affinity": true,
+      "steps": [
+        {
+          "op": "pick",
+          "payload": "{\"prompt_cache_key\":\"p1\",\"conversation\":{\"id\":\"c1\"}}",
+          "available": [
+            "b"
+          ],
+          "picked": "b"
+        },
+        {
+          "op": "pick",
+          "payload": "{\"prompt_cache_key\":\"p2\",\"conversation\":{\"id\":\"c1\"}}",
+          "available": [
+            "a",
+            "b"
+          ],
+          "picked": "b"
+        },
+        {
+          "op": "fail",
+          "payload": "{\"prompt_cache_key\":\"p2\",\"conversation\":{\"id\":\"c1\"}}",
+          "auth": "b",
+          "status": 500,
+          "message": "boom"
+        },
+        {
+          "op": "pick",
+          "payload": "{\"prompt_cache_key\":\"p1\",\"conversation\":{\"id\":\"c1\"}}",
+          "available": [
+            "a",
+            "b"
+          ],
+          "picked": "a"
+        }
+      ]
+    },
+    {
+      "name": "binding_beats_recovered_priority",
+      "subagent_affinity": true,
+      "priorities": {
+        "c": "5"
+      },
+      "steps": [
+        {
+          "op": "pick",
+          "headers": [
+            [
+              "X-Session-ID",
+              "s1"
+            ]
+          ],
+          "available": [
+            "a"
+          ],
+          "picked": "a"
+        },
+        {
+          "op": "pick",
+          "headers": [
+            [
+              "X-Session-ID",
+              "s1"
+            ]
+          ],
+          "available": [
+            "a",
+            "c"
+          ],
+          "picked": "a"
+        },
+        {
+          "op": "pick",
+          "available": [
+            "a",
+            "c"
+          ],
+          "picked": "c"
+        }
+      ]
+    },
+    {
+      "name": "unavailable_binding_rebinds_highest_tier",
+      "subagent_affinity": true,
+      "priorities": {
+        "c": "5"
+      },
+      "steps": [
+        {
+          "op": "pick",
+          "headers": [
+            [
+              "X-Session-ID",
+              "s1"
+            ]
+          ],
+          "available": [
+            "b"
+          ],
+          "picked": "b"
+        },
+        {
+          "op": "pick",
+          "headers": [
+            [
+              "X-Session-ID",
+              "s1"
+            ]
+          ],
+          "available": [
+            "a",
+            "c"
+          ],
+          "picked": "c"
+        },
+        {
+          "op": "pick",
+          "headers": [
+            [
+              "X-Session-ID",
+              "s1"
+            ]
+          ],
+          "available": [
+            "a",
+            "b",
+            "c"
+          ],
+          "picked": "c"
+        }
+      ]
+    },
+    {
+      "name": "derived_identity_survives_new_turns",
+      "subagent_affinity": true,
+      "steps": [
+        {
+          "op": "pick",
+          "payload": "{\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+          "available": [
+            "b"
+          ],
+          "picked": "b"
+        },
+        {
+          "op": "pick",
+          "payload": "{\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":\"hello\"},{\"role\":\"user\",\"content\":\"more\"}]}",
+          "available": [
+            "a",
+            "b"
+          ],
+          "picked": "b"
+        }
+      ]
+    }
+  ],
   "availability": [
     {
       "states": [
@@ -831,6 +1377,1158 @@
     {
       "in": "ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ",
       "out": "ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab a..."
+    }
+  ],
+  "session": [
+    {
+      "name": "claude_header",
+      "headers": [
+        [
+          "X-Claude-Code-Session-Id",
+          "11111111-2222-3333-4444-555555555555"
+        ]
+      ],
+      "payload": "",
+      "execution": "",
+      "format": "openai",
+      "client_key": "",
+      "info": {
+        "session_id": "claude:11111111-2222-3333-4444-555555555555",
+        "agent_name": "main",
+        "client_type": "claude"
+      },
+      "derived": "",
+      "canonical": "claude:11111111-2222-3333-4444-555555555555",
+      "parent": "",
+      "session_id": "claude:11111111-2222-3333-4444-555555555555",
+      "hash_session_id": "claude:11111111-2222-3333-4444-555555555555",
+      "caller_scope": ""
+    },
+    {
+      "name": "claude_header_agent_parent",
+      "headers": [
+        [
+          "X-Claude-Code-Session-Id",
+          "s1"
+        ],
+        [
+          "X-Claude-Code-Agent-Id",
+          "explorer"
+        ],
+        [
+          "X-Claude-Code-Parent-Agent-Id",
+          "planner"
+        ]
+      ],
+      "payload": "",
+      "execution": "",
+      "format": "openai",
+      "client_key": "",
+      "info": {
+        "session_id": "claude:s1:agent:explorer",
+        "parent_session_id": "claude:s1:agent:planner",
+        "agent_name": "explorer",
+        "client_type": "claude"
+      },
+      "derived": "",
+      "canonical": "claude:s1:agent:explorer",
+      "parent": "claude:s1:agent:planner",
+      "session_id": "claude:s1:agent:explorer",
+      "hash_session_id": "claude:s1:agent:explorer",
+      "caller_scope": ""
+    },
+    {
+      "name": "claude_header_body_agent",
+      "headers": [
+        [
+          "X-Claude-Code-Session-Id",
+          "s1"
+        ]
+      ],
+      "payload": "{\"metadata\":{\"agent_id\":\"worker\"},\"parent_session_id\":\"root-1\"}",
+      "execution": "",
+      "format": "openai",
+      "client_key": "",
+      "info": {
+        "session_id": "claude:s1:agent:worker",
+        "parent_session_id": "claude:root-1",
+        "agent_name": "worker",
+        "client_type": "claude"
+      },
+      "derived": "",
+      "canonical": "claude:s1:agent:worker",
+      "parent": "claude:root-1",
+      "session_id": "claude:s1:agent:worker",
+      "hash_session_id": "claude:s1:agent:worker",
+      "caller_scope": ""
+    },
+    {
+      "name": "claude_header_body_parent",
+      "headers": [
+        [
+          "X-Claude-Code-Session-Id",
+          "s1"
+        ]
+      ],
+      "payload": "{\"parent_session_id\":\"root-1\"}",
+      "execution": "",
+      "format": "openai",
+      "client_key": "",
+      "info": {
+        "session_id": "claude:s1",
+        "parent_session_id": "claude:root-1",
+        "agent_name": "subagent",
+        "client_type": "claude"
+      },
+      "derived": "",
+      "canonical": "claude:s1",
+      "parent": "claude:root-1",
+      "session_id": "claude:s1",
+      "hash_session_id": "claude:s1",
+      "caller_scope": ""
+    },
+    {
+      "name": "claude_header_main_agent",
+      "headers": [
+        [
+          "X-Claude-Code-Session-Id",
+          "s1"
+        ],
+        [
+          "X-Claude-Code-Agent-Id",
+          "main"
+        ]
+      ],
+      "payload": "",
+      "execution": "",
+      "format": "openai",
+      "client_key": "",
+      "info": {
+        "session_id": "claude:s1",
+        "agent_name": "main",
+        "client_type": "claude"
+      },
+      "derived": "",
+      "canonical": "claude:s1",
+      "parent": "",
+      "session_id": "claude:s1",
+      "hash_session_id": "claude:s1",
+      "caller_scope": ""
+    },
+    {
+      "name": "claude_user_id_json",
+      "headers": null,
+      "payload": "{\"metadata\":{\"user_id\":\"{\\\"session_id\\\":\\\"sess-9\\\",\\\"parent_session_id\\\":\\\"sess-1\\\",\\\"agent_id\\\":\\\"a7\\\"}\"}}",
+      "execution": "",
+      "format": "openai",
+      "client_key": "",
+      "info": {
+        "session_id": "claude:sess-9:agent:a7",
+        "parent_session_id": "claude:sess-1",
+        "agent_name": "a7",
+        "client_type": "claude"
+      },
+      "derived": "",
+      "canonical": "claude:sess-9:agent:a7",
+      "parent": "claude:sess-1",
+      "session_id": "claude:sess-9:agent:a7",
+      "hash_session_id": "claude:sess-9:agent:a7",
+      "caller_scope": ""
+    },
+    {
+      "name": "claude_user_id_json_no_agent",
+      "headers": null,
+      "payload": "{\"metadata\":{\"user_id\":\"{\\\"session_id\\\":\\\"sess-9\\\",\\\"parent_agent_id\\\":\\\"sess-2\\\"}\"}}",
+      "execution": "",
+      "format": "openai",
+      "client_key": "",
+      "info": {
+        "session_id": "claude:sess-9",
+        "parent_session_id": "claude:sess-2",
+        "agent_name": "subagent",
+        "client_type": "claude"
+      },
+      "derived": "",
+      "canonical": "claude:sess-9",
+      "parent": "claude:sess-2",
+      "session_id": "claude:sess-9",
+      "hash_session_id": "claude:sess-9",
+      "caller_scope": ""
+    },
+    {
+      "name": "claude_user_id_legacy",
+      "headers": null,
+      "payload": "{\"metadata\":{\"user_id\":\"user_abc_account__session_1234-abcd\",\"parent_agent_id\":\"p-1\"}}",
+      "execution": "",
+      "format": "openai",
+      "client_key": "",
+      "info": {
+        "session_id": "claude:1234-abcd",
+        "parent_session_id": "claude:p-1",
+        "agent_name": "subagent",
+        "client_type": "claude"
+      },
+      "derived": "",
+      "canonical": "claude:1234-abcd",
+      "parent": "claude:p-1",
+      "session_id": "claude:1234-abcd",
+      "hash_session_id": "claude:1234-abcd",
+      "caller_scope": ""
+    },
+    {
+      "name": "claude_user_id_legacy_bad",
+      "headers": null,
+      "payload": "{\"metadata\":{\"user_id\":\"user_x_session_zz\"}}",
+      "execution": "",
+      "format": "openai",
+      "client_key": "",
+      "info": {
+        "session_id": "user:user_x_session_zz",
+        "agent_name": "main",
+        "client_type": "generic"
+      },
+      "derived": "",
+      "canonical": "user:user_x_session_zz",
+      "parent": "",
+      "session_id": "user:user_x_session_zz",
+      "hash_session_id": "user:user_x_session_zz",
+      "caller_scope": ""
+    },
+    {
+      "name": "codex_session",
+      "headers": [
+        [
+          "Session-Id",
+          "019a0000-0000-7000-8000-000000000001"
+        ]
+      ],
+      "payload": "",
+      "execution": "",
+      "format": "openai",
+      "client_key": "",
+      "info": {
+        "session_id": "codex:019a0000-0000-7000-8000-000000000001",
+        "agent_name": "main",
+        "client_type": "codex"
+      },
+      "derived": "",
+      "canonical": "codex:019a0000-0000-7000-8000-000000000001",
+      "parent": "",
+      "session_id": "codex:019a0000-0000-7000-8000-000000000001",
+      "hash_session_id": "codex:019a0000-0000-7000-8000-000000000001",
+      "caller_scope": ""
+    },
+    {
+      "name": "codex_session_thread",
+      "headers": [
+        [
+          "Session-Id",
+          "sess"
+        ],
+        [
+          "Thread-Id",
+          "thread"
+        ]
+      ],
+      "payload": "",
+      "execution": "",
+      "format": "openai",
+      "client_key": "",
+      "info": {
+        "session_id": "codex:thread",
+        "parent_session_id": "codex:sess",
+        "agent_name": "subagent",
+        "client_type": "codex",
+        "is_subagent": true
+      },
+      "derived": "",
+      "canonical": "codex:thread",
+      "parent": "codex:sess",
+      "session_id": "codex:thread",
+      "hash_session_id": "codex:thread",
+      "caller_scope": ""
+    },
+    {
+      "name": "codex_turn_metadata",
+      "headers": [
+        [
+          "X-Codex-Turn-Metadata",
+          "{\"session_id\":\"s\",\"thread_id\":\"t\",\"agent_name\":\"/root/explorer\",\"subagent_kind\":\"thread_spawn\"}"
+        ]
+      ],
+      "payload": "",
+      "execution": "",
+      "format": "openai",
+      "client_key": "",
+      "info": {
+        "session_id": "codex:s:agent:explorer",
+        "parent_session_id": "codex:s",
+        "agent_name": "explorer",
+        "client_type": "codex",
+        "is_subagent": true
+      },
+      "derived": "",
+      "canonical": "codex:s:agent:explorer",
+      "parent": "codex:s",
+      "session_id": "codex:s:agent:explorer",
+      "hash_session_id": "codex:s:agent:explorer",
+      "caller_scope": ""
+    },
+    {
+      "name": "codex_turn_fork",
+      "headers": [
+        [
+          "Session-Id",
+          "s"
+        ],
+        [
+          "X-Codex-Turn-Metadata",
+          "{\"thread_id\":\"t2\",\"forked_from_thread_id\":\"t1\"}"
+        ]
+      ],
+      "payload": "",
+      "execution": "",
+      "format": "openai",
+      "client_key": "",
+      "info": {
+        "session_id": "codex:t2",
+        "parent_session_id": "codex:t1",
+        "agent_name": "main",
+        "client_type": "codex",
+        "is_fork": true
+      },
+      "derived": "",
+      "canonical": "codex:t2",
+      "parent": "codex:t1",
+      "session_id": "codex:t2",
+      "hash_session_id": "codex:t2",
+      "caller_scope": ""
+    },
+    {
+      "name": "codex_parent_thread",
+      "headers": [
+        [
+          "Session-Id",
+          "s"
+        ],
+        [
+          "X-Codex-Parent-Thread-Id",
+          "p"
+        ]
+      ],
+      "payload": "",
+      "execution": "",
+      "format": "openai",
+      "client_key": "",
+      "info": {
+        "session_id": "codex:s",
+        "parent_session_id": "codex:p",
+        "agent_name": "subagent",
+        "client_type": "codex",
+        "is_subagent": true
+      },
+      "derived": "",
+      "canonical": "codex:s",
+      "parent": "codex:p",
+      "session_id": "codex:s",
+      "hash_session_id": "codex:s",
+      "caller_scope": ""
+    },
+    {
+      "name": "codex_underscore_body_thread",
+      "headers": [
+        [
+          "Session_id",
+          "s"
+        ]
+      ],
+      "payload": "{\"thread_id\":\"s\"}",
+      "execution": "",
+      "format": "openai",
+      "client_key": "",
+      "info": {
+        "session_id": "codex:s",
+        "agent_name": "main",
+        "client_type": "codex"
+      },
+      "derived": "",
+      "canonical": "codex:s",
+      "parent": "",
+      "session_id": "codex:s",
+      "hash_session_id": "codex:s",
+      "caller_scope": ""
+    },
+    {
+      "name": "codex_openai_subagent",
+      "headers": [
+        [
+          "Session-Id",
+          "s"
+        ],
+        [
+          "X-Openai-Subagent",
+          "true"
+        ]
+      ],
+      "payload": "",
+      "execution": "",
+      "format": "openai",
+      "client_key": "",
+      "info": {
+        "session_id": "codex:s",
+        "agent_name": "subagent",
+        "client_type": "codex",
+        "is_subagent": true
+      },
+      "derived": "",
+      "canonical": "codex:s",
+      "parent": "",
+      "session_id": "codex:s",
+      "hash_session_id": "codex:s",
+      "caller_scope": ""
+    },
+    {
+      "name": "codex_body_parent",
+      "headers": [
+        [
+          "Session-Id",
+          "s"
+        ]
+      ],
+      "payload": "{\"parent_id\":\"root\"}",
+      "execution": "",
+      "format": "openai",
+      "client_key": "",
+      "info": {
+        "session_id": "codex:s",
+        "parent_session_id": "codex:root",
+        "agent_name": "subagent",
+        "client_type": "codex",
+        "is_subagent": true
+      },
+      "derived": "",
+      "canonical": "codex:s",
+      "parent": "codex:root",
+      "session_id": "codex:s",
+      "hash_session_id": "codex:s",
+      "caller_scope": ""
+    },
+    {
+      "name": "agy",
+      "headers": [
+        [
+          "X-Http-Session-Id",
+          "a1"
+        ],
+        [
+          "X-Parent-Session-Id",
+          "a0"
+        ]
+      ],
+      "payload": "",
+      "execution": "",
+      "format": "openai",
+      "client_key": "",
+      "info": {
+        "session_id": "agy:a1",
+        "parent_session_id": "agy:a0",
+        "agent_name": "subagent",
+        "client_type": "agy"
+      },
+      "derived": "",
+      "canonical": "agy:a1",
+      "parent": "agy:a0",
+      "session_id": "agy:a1",
+      "hash_session_id": "agy:a1",
+      "caller_scope": ""
+    },
+    {
+      "name": "generic_session",
+      "headers": [
+        [
+          "X-Session-ID",
+          "g1"
+        ]
+      ],
+      "payload": "",
+      "execution": "",
+      "format": "openai",
+      "client_key": "",
+      "info": {
+        "session_id": "header:g1",
+        "agent_name": "main",
+        "client_type": "generic"
+      },
+      "derived": "",
+      "canonical": "header:g1",
+      "parent": "",
+      "session_id": "header:g1",
+      "hash_session_id": "header:g1",
+      "caller_scope": ""
+    },
+    {
+      "name": "opencode",
+      "headers": [
+        [
+          "X-Session-Affinity",
+          "o1"
+        ],
+        [
+          "X-Parent-Session-Affinity",
+          "o0"
+        ]
+      ],
+      "payload": "",
+      "execution": "",
+      "format": "openai",
+      "client_key": "",
+      "info": {
+        "session_id": "affinity:o1",
+        "parent_session_id": "affinity:o0",
+        "agent_name": "subagent",
+        "client_type": "opencode"
+      },
+      "derived": "",
+      "canonical": "affinity:o1",
+      "parent": "affinity:o0",
+      "session_id": "affinity:o1",
+      "hash_session_id": "affinity:o1",
+      "caller_scope": ""
+    },
+    {
+      "name": "pi_slot",
+      "headers": [
+        [
+          "X-Slot-Session-Id",
+          "slot-1"
+        ]
+      ],
+      "payload": "",
+      "execution": "",
+      "format": "openai",
+      "client_key": "",
+      "info": {
+        "session_id": "slot:slot-1",
+        "agent_name": "slot",
+        "client_type": "pi"
+      },
+      "derived": "",
+      "canonical": "slot:slot-1",
+      "parent": "",
+      "session_id": "slot:slot-1",
+      "hash_session_id": "slot:slot-1",
+      "caller_scope": ""
+    },
+    {
+      "name": "task_header",
+      "headers": [
+        [
+          "X-Task-Id",
+          "t1"
+        ],
+        [
+          "X-Parent-Task-Id",
+          "t0"
+        ]
+      ],
+      "payload": "",
+      "execution": "",
+      "format": "openai",
+      "client_key": "",
+      "info": {
+        "session_id": "task:t1",
+        "parent_session_id": "task:t0",
+        "agent_name": "subagent",
+        "client_type": "task"
+      },
+      "derived": "",
+      "canonical": "task:t1",
+      "parent": "task:t0",
+      "session_id": "task:t1",
+      "hash_session_id": "task:t1",
+      "caller_scope": ""
+    },
+    {
+      "name": "conversation_header",
+      "headers": [
+        [
+          "X-Conversation-Id",
+          "c1"
+        ]
+      ],
+      "payload": "",
+      "execution": "",
+      "format": "openai",
+      "client_key": "",
+      "info": {
+        "session_id": "conv:c1",
+        "agent_name": "main",
+        "client_type": "conv"
+      },
+      "derived": "",
+      "canonical": "conv:c1",
+      "parent": "",
+      "session_id": "conv:c1",
+      "hash_session_id": "conv:c1",
+      "caller_scope": ""
+    },
+    {
+      "name": "thread_header",
+      "headers": [
+        [
+          "X-Thread-Id",
+          "th1"
+        ],
+        [
+          "X-Parent-ID",
+          "th0"
+        ]
+      ],
+      "payload": "",
+      "execution": "",
+      "format": "openai",
+      "client_key": "",
+      "info": {
+        "session_id": "thread:th1",
+        "parent_session_id": "thread:th0",
+        "agent_name": "subagent",
+        "client_type": "openai-thread"
+      },
+      "derived": "",
+      "canonical": "thread:th1",
+      "parent": "thread:th0",
+      "session_id": "thread:th1",
+      "hash_session_id": "thread:th1",
+      "caller_scope": ""
+    },
+    {
+      "name": "client_request",
+      "headers": [
+        [
+          "X-Client-Request-Id",
+          "cr1"
+        ]
+      ],
+      "payload": "",
+      "execution": "",
+      "format": "openai",
+      "client_key": "",
+      "info": {
+        "session_id": "clientreq:cr1",
+        "agent_name": "main",
+        "client_type": "generic"
+      },
+      "derived": "",
+      "canonical": "clientreq:cr1",
+      "parent": "",
+      "session_id": "clientreq:cr1",
+      "hash_session_id": "clientreq:cr1",
+      "caller_scope": ""
+    },
+    {
+      "name": "gemini_cache",
+      "headers": null,
+      "payload": "{\"cachedContent\":\"cachedContents/abc\",\"contents\":[]}",
+      "execution": "",
+      "format": "gemini",
+      "client_key": "",
+      "info": {
+        "session_id": "geminicache:cachedContents/abc",
+        "agent_name": "main",
+        "client_type": "gemini"
+      },
+      "derived": "",
+      "canonical": "geminicache:cachedContents/abc",
+      "parent": "",
+      "session_id": "geminicache:cachedContents/abc",
+      "hash_session_id": "geminicache:cachedContents/abc",
+      "caller_scope": ""
+    },
+    {
+      "name": "nested_request_session",
+      "headers": null,
+      "payload": "{\"request\":{\"session_id\":\"nested\"}}",
+      "execution": "",
+      "format": "antigravity",
+      "client_key": "",
+      "info": {
+        "session_id": "session:nested",
+        "agent_name": "main",
+        "client_type": "generic"
+      },
+      "derived": "",
+      "canonical": "session:nested",
+      "parent": "",
+      "session_id": "session:nested",
+      "hash_session_id": "session:nested",
+      "caller_scope": ""
+    },
+    {
+      "name": "body_thread_child",
+      "headers": null,
+      "payload": "{\"thread_id\":\"t\",\"parent_id\":\"p\"}",
+      "execution": "",
+      "format": "openai",
+      "client_key": "",
+      "info": {
+        "session_id": "thread:t",
+        "parent_session_id": "thread:p",
+        "agent_name": "subagent",
+        "client_type": "openai-thread",
+        "is_subagent": true
+      },
+      "derived": "",
+      "canonical": "thread:t",
+      "parent": "thread:p",
+      "session_id": "thread:t",
+      "hash_session_id": "thread:t",
+      "caller_scope": ""
+    },
+    {
+      "name": "body_thread_fork",
+      "headers": null,
+      "payload": "{\"thread_id\":\"t\",\"parent_id\":\"p\",\"forked_from_id\":\"p\"}",
+      "execution": "",
+      "format": "openai",
+      "client_key": "",
+      "info": {
+        "session_id": "thread:t",
+        "parent_session_id": "thread:p",
+        "agent_name": "main",
+        "client_type": "openai-thread",
+        "is_fork": true
+      },
+      "derived": "",
+      "canonical": "thread:t",
+      "parent": "thread:p",
+      "session_id": "thread:t",
+      "hash_session_id": "thread:t",
+      "caller_scope": ""
+    },
+    {
+      "name": "body_session_agent",
+      "headers": null,
+      "payload": "{\"session_id\":\"s\",\"metadata\":{\"agent_id\":\"helper\"}}",
+      "execution": "",
+      "format": "openai",
+      "client_key": "",
+      "info": {
+        "session_id": "session:s:agent:helper",
+        "parent_session_id": "session:s",
+        "agent_name": "helper",
+        "client_type": "generic"
+      },
+      "derived": "",
+      "canonical": "session:s:agent:helper",
+      "parent": "session:s",
+      "session_id": "session:s:agent:helper",
+      "hash_session_id": "session:s:agent:helper",
+      "caller_scope": ""
+    },
+    {
+      "name": "body_session_numeric",
+      "headers": null,
+      "payload": "{\"session_id\":12345}",
+      "execution": "",
+      "format": "openai",
+      "client_key": "",
+      "info": {
+        "session_id": "session:12345",
+        "agent_name": "main",
+        "client_type": "generic"
+      },
+      "derived": "",
+      "canonical": "session:12345",
+      "parent": "",
+      "session_id": "session:12345",
+      "hash_session_id": "session:12345",
+      "caller_scope": ""
+    },
+    {
+      "name": "body_task",
+      "headers": null,
+      "payload": "{\"task_id\":\"roo-1\"}",
+      "execution": "",
+      "format": "openai",
+      "client_key": "",
+      "info": {
+        "session_id": "task:roo-1",
+        "agent_name": "main",
+        "client_type": "task"
+      },
+      "derived": "",
+      "canonical": "task:roo-1",
+      "parent": "",
+      "session_id": "task:roo-1",
+      "hash_session_id": "task:roo-1",
+      "caller_scope": ""
+    },
+    {
+      "name": "prompt_cache_key",
+      "headers": null,
+      "payload": "{\"prompt_cache_key\":\"pck-1\",\"conversation\":{\"id\":\"conv-1\"}}",
+      "execution": "",
+      "format": "openai-response",
+      "client_key": "",
+      "info": {
+        "session_id": "pck:pck-1",
+        "agent_name": "main",
+        "client_type": "generic"
+      },
+      "derived": "",
+      "canonical": "pck:pck-1",
+      "parent": "",
+      "session_id": "pck:pck-1",
+      "hash_session_id": "pck:pck-1",
+      "caller_scope": ""
+    },
+    {
+      "name": "conversation_string",
+      "headers": null,
+      "payload": "{\"conversation\":\"conv-2\"}",
+      "execution": "",
+      "format": "openai-response",
+      "client_key": "",
+      "info": {
+        "session_id": "conv:conv-2",
+        "agent_name": "main",
+        "client_type": "conv"
+      },
+      "derived": "",
+      "canonical": "conv:conv-2",
+      "parent": "",
+      "session_id": "conv:conv-2",
+      "hash_session_id": "conv:conv-2",
+      "caller_scope": ""
+    },
+    {
+      "name": "plain_user_id",
+      "headers": null,
+      "payload": "{\"metadata\":{\"user_id\":\"u-42\"},\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+      "execution": "",
+      "format": "claude",
+      "client_key": "",
+      "info": {
+        "session_id": "user:u-42",
+        "agent_name": "main",
+        "client_type": "generic"
+      },
+      "derived": "",
+      "canonical": "user:u-42",
+      "parent": "",
+      "session_id": "user:u-42",
+      "hash_session_id": "user:u-42",
+      "caller_scope": ""
+    },
+    {
+      "name": "legacy_conversation_id",
+      "headers": null,
+      "payload": "{\"conversation_id\":\"c-3\"}",
+      "execution": "",
+      "format": "openai",
+      "client_key": "",
+      "info": {
+        "session_id": "conv:c-3",
+        "agent_name": "main",
+        "client_type": "conv"
+      },
+      "derived": "",
+      "canonical": "conv:c-3",
+      "parent": "",
+      "session_id": "conv:c-3",
+      "hash_session_id": "conv:c-3",
+      "caller_scope": ""
+    },
+    {
+      "name": "execution_only",
+      "headers": null,
+      "payload": "",
+      "execution": "ws-123",
+      "format": "openai",
+      "client_key": "",
+      "info": {
+        "session_id": "execution:ws-123",
+        "agent_name": "main",
+        "client_type": "generic"
+      },
+      "derived": "",
+      "canonical": "execution:ws-123",
+      "parent": "",
+      "session_id": "execution:ws-123",
+      "hash_session_id": "execution:ws-123",
+      "caller_scope": ""
+    },
+    {
+      "name": "control_char_rejected",
+      "headers": [
+        [
+          "X-Session-ID",
+          "bad\u0001id"
+        ]
+      ],
+      "payload": "",
+      "execution": "",
+      "format": "openai",
+      "client_key": "",
+      "info": null,
+      "derived": "",
+      "canonical": "",
+      "parent": "",
+      "session_id": "",
+      "hash_session_id": "",
+      "caller_scope": ""
+    },
+    {
+      "name": "unicode_trimmed",
+      "headers": [
+        [
+          "X-Session-ID",
+          " spaced "
+        ]
+      ],
+      "payload": "",
+      "execution": "",
+      "format": "openai",
+      "client_key": "",
+      "info": {
+        "session_id": "header:spaced",
+        "agent_name": "main",
+        "client_type": "generic"
+      },
+      "derived": "",
+      "canonical": "header:spaced",
+      "parent": "",
+      "session_id": "header:spaced",
+      "hash_session_id": "header:spaced",
+      "caller_scope": ""
+    },
+    {
+      "name": "long_bounded",
+      "headers": [
+        [
+          "X-Claude-Code-Session-Id",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaéééééééééééééééééééééééééééééééééééééé"
+        ]
+      ],
+      "payload": "",
+      "execution": "",
+      "format": "openai",
+      "client_key": "",
+      "info": {
+        "session_id": "claude:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaé#ee81443c9a0d613c32b3de1394292e708489c0d81be21e81eb0a3e3aacb50f97",
+        "agent_name": "main",
+        "client_type": "claude"
+      },
+      "derived": "",
+      "canonical": "claude:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaé#ee81443c9a0d613c32b3de1394292e708489c0d81be21e81eb0a3e3aacb50f97",
+      "parent": "",
+      "session_id": "claude:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaé#ee81443c9a0d613c32b3de1394292e708489c0d81be21e81eb0a3e3aacb50f97",
+      "hash_session_id": "claude:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaé#ee81443c9a0d613c32b3de1394292e708489c0d81be21e81eb0a3e3aacb50f97",
+      "caller_scope": ""
+    },
+    {
+      "name": "derived_openai",
+      "headers": null,
+      "payload": "{\"model\":\"m\",\"messages\":[{\"role\":\"system\",\"content\":\"You are \u003chelpful\u003e \u0026 brief\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Hello\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAA\"}}]}]}",
+      "execution": "",
+      "format": "openai",
+      "client_key": "fake-client-key",
+      "info": null,
+      "derived": "ctx:v1:b067c9c8060d147ea7964aee26aa69f016b32e64de8463fa7744c3ed220dda98",
+      "canonical": "",
+      "parent": "",
+      "session_id": "derived:ctx:v1:b067c9c8060d147ea7964aee26aa69f016b32e64de8463fa7744c3ed220dda98",
+      "hash_session_id": "msg:a7e7bc5ad6807761",
+      "caller_scope": "0d0823022afcd863aedc1c457cfeb15dbf2bc08a7154309c6a4abd73a1dc46e8"
+    },
+    {
+      "name": "derived_openai_no_key",
+      "headers": null,
+      "payload": "{\"messages\":[{\"role\":\"user\",\"content\":\"Hello\"},{\"role\":\"assistant\",\"content\":\"Hi there\"}]}",
+      "execution": "",
+      "format": "openai",
+      "client_key": "",
+      "info": null,
+      "derived": "ctx:v1:ed7ddc3d0d163fe610f795cd2153ddfc217ae30f5d0f8f4d269e386ab012ed2e",
+      "canonical": "",
+      "parent": "",
+      "session_id": "derived:ctx:v1:ed7ddc3d0d163fe610f795cd2153ddfc217ae30f5d0f8f4d269e386ab012ed2e",
+      "hash_session_id": "msg:730d58b13acd7efe",
+      "caller_scope": ""
+    },
+    {
+      "name": "derived_claude_system_blocks",
+      "headers": null,
+      "payload": "{\"system\":[{\"type\":\"text\",\"text\":\"Sys one\",\"cache_control\":{\"type\":\"ephemeral\"}},{\"type\":\"text\",\"text\":\"Sys two\"}],\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"image\",\"source\":{\"type\":\"base64\",\"media_type\":\"image/PNG\",\"data\":\"QUJD\"}},{\"type\":\"tool_result\",\"tool_use_id\":\"x\",\"cache_control\":{\"type\":\"ephemeral\"},\"is_error\":false,\"n\":1.50}]}]}",
+      "execution": "",
+      "format": "claude",
+      "client_key": "k",
+      "info": null,
+      "derived": "ctx:v1:17c61966789d269d1336bd37ba305b60c690f752aa8fff15a97161b6032e7063",
+      "canonical": "",
+      "parent": "",
+      "session_id": "derived:ctx:v1:17c61966789d269d1336bd37ba305b60c690f752aa8fff15a97161b6032e7063",
+      "hash_session_id": "",
+      "caller_scope": "e39fef5e899124d5fb00640f2e21062e78f759a99bfe764e343486cff797cb7f"
+    },
+    {
+      "name": "derived_responses",
+      "headers": null,
+      "payload": "{\"instructions\":\"Be terse.\",\"input\":[{\"role\":\"developer\",\"content\":\"dev note\"},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"Question?\"}]}]}",
+      "execution": "",
+      "format": "codex",
+      "client_key": "k",
+      "info": null,
+      "derived": "ctx:v1:1a899386b07cc85b415f5603cbd708891b0ce58e0ef8df92874331c2358ef3a9",
+      "canonical": "",
+      "parent": "",
+      "session_id": "derived:ctx:v1:1a899386b07cc85b415f5603cbd708891b0ce58e0ef8df92874331c2358ef3a9",
+      "hash_session_id": "msg:4ede79aa3ed6329b",
+      "caller_scope": "e39fef5e899124d5fb00640f2e21062e78f759a99bfe764e343486cff797cb7f"
+    },
+    {
+      "name": "derived_responses_string",
+      "headers": null,
+      "payload": "{\"input\":\"just text\"}",
+      "execution": "",
+      "format": "openai-response",
+      "client_key": "",
+      "info": null,
+      "derived": "ctx:v1:4e7f74adf22b8bbb5f1b4950e1a55246b5a0cf3e20ce7168df2041f02841a367",
+      "canonical": "",
+      "parent": "",
+      "session_id": "derived:ctx:v1:4e7f74adf22b8bbb5f1b4950e1a55246b5a0cf3e20ce7168df2041f02841a367",
+      "hash_session_id": "",
+      "caller_scope": ""
+    },
+    {
+      "name": "derived_gemini_envelope",
+      "headers": null,
+      "payload": "{\"request\":{\"systemInstruction\":{\"parts\":[{\"text\":\"sys\"}]},\"contents\":[{\"role\":\"model\",\"parts\":[{\"text\":\"x\"}]},{\"role\":\"USER\",\"parts\":[{\"inlineData\":{\"mimeType\":\"image/jpeg\",\"data\":\"Zm9v\"}},{\"text\":\"look\"}]}]}}",
+      "execution": "",
+      "format": "antigravity",
+      "client_key": "k",
+      "info": null,
+      "derived": "ctx:v1:4bc40f2514b72532f5b9c14e9cc908b7f3b368872a9e293e80775055c252c436",
+      "canonical": "",
+      "parent": "",
+      "session_id": "derived:ctx:v1:4bc40f2514b72532f5b9c14e9cc908b7f3b368872a9e293e80775055c252c436",
+      "hash_session_id": "",
+      "caller_scope": "e39fef5e899124d5fb00640f2e21062e78f759a99bfe764e343486cff797cb7f"
+    },
+    {
+      "name": "derived_interactions_steps",
+      "headers": null,
+      "payload": "{\"system_instruction\":\"sys\",\"input\":[{\"role\":\"user\",\"steps\":[{\"type\":\"text\",\"text\":\"first\"}]}]}",
+      "execution": "",
+      "format": "interactions",
+      "client_key": "",
+      "info": null,
+      "derived": "ctx:v1:5c27db9ba1f5da99e3f592c54edb3ada370fb210119c4d8eefc14fbd2ed51114",
+      "canonical": "",
+      "parent": "",
+      "session_id": "derived:ctx:v1:5c27db9ba1f5da99e3f592c54edb3ada370fb210119c4d8eefc14fbd2ed51114",
+      "hash_session_id": "",
+      "caller_scope": ""
+    },
+    {
+      "name": "derived_interactions_string",
+      "headers": null,
+      "payload": "{\"input\":\"hello there\"}",
+      "execution": "",
+      "format": "interactions",
+      "client_key": "",
+      "info": null,
+      "derived": "ctx:v1:3dc37a9a1221e08c28d6c1ec845f3e2dd0b76ca7b10c142d075f02655def11fc",
+      "canonical": "",
+      "parent": "",
+      "session_id": "derived:ctx:v1:3dc37a9a1221e08c28d6c1ec845f3e2dd0b76ca7b10c142d075f02655def11fc",
+      "hash_session_id": "",
+      "caller_scope": ""
+    },
+    {
+      "name": "no_user_input",
+      "headers": null,
+      "payload": "{\"messages\":[{\"role\":\"system\",\"content\":\"only system\"}]}",
+      "execution": "",
+      "format": "openai",
+      "client_key": "",
+      "info": null,
+      "derived": "",
+      "canonical": "",
+      "parent": "",
+      "session_id": "",
+      "hash_session_id": "",
+      "caller_scope": ""
+    },
+    {
+      "name": "gemini_hash",
+      "headers": null,
+      "payload": "{\"systemInstruction\":{\"parts\":[{\"text\":\"s\"}]},\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"u\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"m\"}]}]}",
+      "execution": "",
+      "format": "gemini",
+      "client_key": "",
+      "info": null,
+      "derived": "ctx:v1:d2fab6b40ce673ba75f029464368644c06dad43012102942b7ecef95663d818f",
+      "canonical": "",
+      "parent": "",
+      "session_id": "derived:ctx:v1:d2fab6b40ce673ba75f029464368644c06dad43012102942b7ecef95663d818f",
+      "hash_session_id": "msg:9af3657696926b03",
+      "caller_scope": ""
+    },
+    {
+      "name": "explicit_missed_by_has_explicit",
+      "headers": null,
+      "payload": "{\"metadata\":{\"sessionID\":\"x\"},\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+      "execution": "",
+      "format": "openai",
+      "client_key": "",
+      "info": {
+        "session_id": "session:x",
+        "agent_name": "main",
+        "client_type": "generic"
+      },
+      "derived": "ctx:v1:1211c3ff60af63a561f0413f04b6c10dc806fc8a96c651902c73d8817f34b327",
+      "canonical": "",
+      "parent": "",
+      "session_id": "session:x",
+      "hash_session_id": "session:x",
+      "caller_scope": ""
+    },
+    {
+      "name": "parent_header_only",
+      "headers": [
+        [
+          "X-Parent-ID",
+          "p"
+        ]
+      ],
+      "payload": "{\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+      "execution": "",
+      "format": "openai",
+      "client_key": "",
+      "info": null,
+      "derived": "",
+      "canonical": "",
+      "parent": "",
+      "session_id": "msg:2f68951593d97234",
+      "hash_session_id": "msg:2f68951593d97234",
+      "caller_scope": ""
+    },
+    {
+      "name": "empty",
+      "headers": null,
+      "payload": "",
+      "execution": "",
+      "format": "openai",
+      "client_key": "",
+      "info": null,
+      "derived": "",
+      "canonical": "",
+      "parent": "",
+      "session_id": "",
+      "hash_session_id": "",
+      "caller_scope": ""
     }
   ]
 }

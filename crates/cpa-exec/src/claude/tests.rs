@@ -52,6 +52,7 @@ fn request(case: &Value) -> ExecRequest {
         alt: None,
         session: None,
         execution_session: None,
+        derived_session: None,
         headers,
         caller: Caller {
             principal: "fixture-client-key".into(),
@@ -68,7 +69,7 @@ fn pipeline_reproduces_go_upstream_captures() {
     let cfg = Config::parse("").unwrap();
     for case in captures["cases"].as_array().unwrap() {
         let name = case["name"].as_str().unwrap();
-        let req = request(case);
+        let req = enrich(request(case));
         let mut ctx = Ctx::new(&executor, &credential, &req, &cfg, Default::default());
         ctx.today = "2026-10-02".into();
         let translated = translate::request(&req, &ctx.base_model).unwrap();
@@ -136,6 +137,7 @@ async fn custom_origin_counts_locally_without_sending_credentials() {
         alt: None,
         session: None,
         execution_session: None,
+        derived_session: None,
         headers: Default::default(),
         caller: Caller {
             principal: "fake-client".into(),
@@ -159,6 +161,27 @@ async fn custom_origin_counts_locally_without_sending_credentials() {
             .await
             .is_err()
     );
+}
+
+/// Go `session.Enrich` + `ExtractSessionID`, as the server applies them before the
+/// executor (crates/cpa-server/src/session.rs, on the shared `cpa_common::session`).
+fn enrich(mut req: ExecRequest) -> ExecRequest {
+    use cpa_common::session::{self as shared, Meta};
+    let scope = shared::caller_scope(&req.caller.principal);
+    req.derived_session = shared::derived_id(
+        req.source_format,
+        &req.headers,
+        &req.original_body,
+        req.execution_session.as_deref(),
+        &scope,
+    );
+    let meta = Meta {
+        execution_session: req.execution_session.as_deref(),
+        derived: req.derived_session.as_deref(),
+    };
+    let id = shared::extract_session_id(&req.headers, &req.original_body, &meta);
+    req.session = (!id.is_empty()).then(|| shared::bound_session_identity(&id));
+    req
 }
 
 /// Replaces values Go and Rust generate independently (random device/session IDs in
@@ -304,12 +327,14 @@ async fn executor_scenarios_match_go() {
             alt: None,
             session: None,
             execution_session: scenario["execution_session"].as_str().map(str::to_owned),
+            derived_session: None,
             headers,
             caller: Caller {
                 principal: scenario["client_key"].as_str().unwrap().into(),
                 source: "authorization",
             },
         };
+        let req = enrich(req);
         let mut ctx = Ctx::new(&executor, &credential, &req, &cfg, Default::default());
         ctx.today = scenario["date"].as_str().unwrap().into();
         let translated = translate::request(&req, &ctx.base_model).unwrap();

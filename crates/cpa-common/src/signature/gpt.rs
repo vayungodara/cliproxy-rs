@@ -2,6 +2,7 @@
 
 use super::wire::{RAW_URL, URL};
 use super::{Error, err, first_invalid_char};
+use crate::gostr::trim_space;
 
 pub const MAX_GPT_REASONING_SIGNATURE_LEN: usize = 32 * 1024 * 1024;
 
@@ -13,14 +14,14 @@ pub struct GptSignatureInfo {
 }
 
 /// `IsValidGPTReasoningSignature`.
-pub fn is_valid_gpt_reasoning_signature(raw: &str) -> bool {
+pub fn is_valid_gpt_reasoning_signature(raw: impl AsRef<[u8]>) -> bool {
     inspect_gpt_reasoning_signature(raw).is_ok()
 }
 
 /// `InspectGPTReasoningSignature`: version 0x80, 8-byte timestamp, 16-byte IV,
 /// AES-block ciphertext and a 32-byte HMAC.
-pub fn inspect_gpt_reasoning_signature(raw: &str) -> Result<GptSignatureInfo, Error> {
-    let sig = raw.trim();
+pub fn inspect_gpt_reasoning_signature(raw: impl AsRef<[u8]>) -> Result<GptSignatureInfo, Error> {
+    let sig = trim_space(raw.as_ref());
     if sig.is_empty() {
         return err("empty GPT reasoning signature");
     }
@@ -29,7 +30,7 @@ pub fn inspect_gpt_reasoning_signature(raw: &str) -> Result<GptSignatureInfo, Er
             "GPT reasoning signature exceeds maximum length ({MAX_GPT_REASONING_SIGNATURE_LEN} bytes)"
         ));
     }
-    if !sig.starts_with("gAAAA") {
+    if !sig.starts_with(b"gAAAA") {
         return err("invalid GPT reasoning signature: expected gAAAA prefix");
     }
     if let Some((index, rune)) = first_invalid_char(sig, b"-_=") {

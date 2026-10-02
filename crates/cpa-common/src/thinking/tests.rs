@@ -105,6 +105,14 @@ fn s(v: &Value) -> &str {
     v.as_str().unwrap_or_else(|| panic!("expected string: {v}"))
 }
 
+fn b(v: &Value) -> Vec<u8> {
+    crate::recorded_bytes(v)
+}
+
+fn enc(bytes: &[u8]) -> Value {
+    crate::recorded_value(bytes)
+}
+
 /// Runs one thinking record; `None` when the record is not a thinking call.
 fn replay(fn_name: &str, input: &Value) -> Option<Value> {
     let out = match fn_name {
@@ -112,8 +120,8 @@ fn replay(fn_name: &str, input: &Value) -> Option<Value> {
             let info = caps(&input["info"]);
             let result = if input["resolved"].as_bool().unwrap() {
                 apply_thinking_with_model_info_and_summary(
-                    s(&input["body"]),
-                    s(&input["source"]),
+                    &b(&input["body"]),
+                    &b(&input["source"]),
                     s(&input["model"]),
                     s(&input["from"]),
                     s(&input["to"]),
@@ -124,8 +132,8 @@ fn replay(fn_name: &str, input: &Value) -> Option<Value> {
                 )
             } else {
                 apply_thinking_with_source_and_summary(
-                    s(&input["body"]),
-                    s(&input["source"]),
+                    &b(&input["body"]),
+                    &b(&input["source"]),
                     s(&input["model"]),
                     s(&input["from"]),
                     s(&input["to"]),
@@ -135,8 +143,8 @@ fn replay(fn_name: &str, input: &Value) -> Option<Value> {
                 )
             };
             match result {
-                Ok(body) => serde_json::json!({"body": body, "err": null}),
-                Err(e) => serde_json::json!({"body": e.body, "err": err_json(&e)}),
+                Ok(body) => serde_json::json!({"body": enc(&body), "err": null}),
+                Err(e) => serde_json::json!({"body": e.body.as_deref().map(enc), "err": err_json(&e)}),
             }
         }
         "validate_config" => {
@@ -152,19 +160,20 @@ fn replay(fn_name: &str, input: &Value) -> Option<Value> {
                 Err(e) => serde_json::json!({"config": null, "err": err_json(&e)}),
             }
         }
-        "extract_summary" => summary_json(&extract_summary_config(s(&input["body"]), s(&input["format"]))),
-        "extract_explicit_summary" => {
-            summary_json(&extract_explicit_summary_config(s(&input["body"]), s(&input["format"])))
-        }
+        "extract_summary" => summary_json(&extract_summary_config(&b(&input["body"]), s(&input["format"]))),
+        "extract_explicit_summary" => summary_json(&extract_explicit_summary_config(
+            &b(&input["body"]),
+            s(&input["format"]),
+        )),
         "extract_translated_summary" => summary_json(&extract_translated_summary_config(
-            s(&input["body"]),
+            &b(&input["body"]),
             s(&input["from"]),
             s(&input["to"]),
         )),
         "apply_summary" => {
             let info = caps(&input["info"]);
-            Value::String(summary::apply_summary_config_for_provider(
-                s(&input["body"]),
+            enc(&summary::apply_summary_config_for_provider(
+                &b(&input["body"]),
                 s(&input["format"]),
                 s(&input["model"]),
                 s(&input["provider"]),
@@ -173,15 +182,15 @@ fn replay(fn_name: &str, input: &Value) -> Option<Value> {
             ))
         }
         "extract_reasoning_effort" => Value::String(extract_reasoning_effort(
-            s(&input["body"]),
+            &b(&input["body"]),
             s(&input["provider"]),
             s(&input["model"]),
         )),
         "extract_translated_reasoning_effort" => Value::String(extract_translated_reasoning_effort(
-            s(&input["body"]),
+            &b(&input["body"]),
             s(&input["provider"]),
         )),
-        "strip_thinking" => Value::String(strip_thinking_config(s(&input["body"]), s(&input["provider"]))),
+        "strip_thinking" => enc(&strip_thinking_config(&b(&input["body"]), s(&input["provider"]))),
         "parse_suffix" => {
             let r = parse_suffix(s(input));
             serde_json::json!({"model_name": r.model_name, "has_suffix": r.has_suffix, "raw_suffix": r.raw_suffix})
@@ -190,20 +199,20 @@ fn replay(fn_name: &str, input: &Value) -> Option<Value> {
             let info = caps(&input["info"]);
             match apply_provider(
                 s(&input["provider"]),
-                s(&input["body"]),
+                &b(&input["body"]),
                 &config(&input["config"]),
                 info.as_ref(),
             )
             .expect("registered applier")
             {
-                Ok(body) => serde_json::json!({"body": body, "err": null}),
+                Ok(body) => serde_json::json!({"body": enc(&body), "err": null}),
                 Err(e) => serde_json::json!({"err": e.message}),
             }
         }
         "translated_summary" => summary_json(&translated_request_summary_config(
-            s(&input["body"]),
-            s(&input["current"]),
-            s(&input["original"]),
+            &b(&input["body"]),
+            &b(&input["current"]),
+            &b(&input["original"]),
             s(&input["model"]),
             s(&input["from"]),
             s(&input["to"]),
@@ -287,7 +296,7 @@ fn kimi_thread_request_vectors() {
     .unwrap();
     let mut count = 0;
     for v in vectors.iter().filter(|v| v["fn"] == "thinking") {
-        let input = s(&v["in"]);
+        let input = s(&v["in"]).as_bytes();
         let (from, to) = (s(&v["from"]), s(&v["to"]));
         // Go's registry: only the Codex target registers translators from these formats.
         let has_request_transformer = to == "codex" && matches!(from, "openai" | "openai-response");
@@ -305,7 +314,7 @@ fn kimi_thread_request_vectors() {
         });
         match v["err"].as_str() {
             Some(want) => assert_eq!(got.unwrap_err().message, want, "{v}"),
-            None => assert_eq!(got.unwrap(), s(&v["out"]), "{v}"),
+            None => assert_eq!(got.unwrap(), s(&v["out"]).as_bytes(), "{v}"),
         }
         count += 1;
     }

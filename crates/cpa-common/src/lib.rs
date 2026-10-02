@@ -15,17 +15,20 @@
 //!   every crate that edits JSON on the wire (owner: translators).
 //! - `codex_client`: executor/helps/codex_multi_agent_v2.go (Codex-client request rewrites
 //!   shared by every executor that serves Codex clients).
-//!
-//! - `gojson`: tidwall/gjson and sjson v1.2.5 semantics for byte-faithful raw JSON edits,
-//!   used by `thinking` and `signature` and available to every executor and translator.
+//! - `session`: sdk/cliproxy/session (session identity, parent/child relationships and the
+//!   derived identity executors key provider sessions on; owner: server).
+//! - `gostr`: Go's `strings.ToLower`, `strings.EqualFold`, `strings.TrimSpace` and
+//!   `strconv.Quote` on Go's own Unicode tables (owner: Google thread).
 //!
 //! The proxy-aware HTTP client (executor/helps/proxy_helpers.go) touches the network and
 //! lives in cpa-exec instead.
 
-pub mod gojson;
 pub mod gostr;
 mod gostr_tables;
 pub mod json;
+#[cfg(test)]
+mod json_go_vectors;
+pub mod session;
 pub mod signature;
 pub mod thinking;
 
@@ -41,4 +44,27 @@ pub(crate) fn go_calls() -> impl Iterator<Item = &'static str> {
         text
     });
     CALLS.lines()
+}
+
+/// A recorded Go string: plain JSON text, or `{"b64": ...}` for bytes that are not UTF-8.
+#[cfg(test)]
+pub(crate) fn recorded_bytes(v: &serde_json::Value) -> Vec<u8> {
+    use base64::Engine;
+    match v {
+        serde_json::Value::String(s) => s.as_bytes().to_vec(),
+        serde_json::Value::Object(m) if m.contains_key("b64") => base64::engine::general_purpose::STANDARD
+            .decode(m["b64"].as_str().unwrap())
+            .unwrap(),
+        other => panic!("not a recorded string: {other}"),
+    }
+}
+
+/// Encodes bytes the way the recorder does, for comparison with recorded outputs.
+#[cfg(test)]
+pub(crate) fn recorded_value(b: &[u8]) -> serde_json::Value {
+    use base64::Engine;
+    match std::str::from_utf8(b) {
+        Ok(s) => serde_json::Value::String(s.into()),
+        Err(_) => serde_json::json!({"b64": base64::engine::general_purpose::STANDARD.encode(b)}),
+    }
 }

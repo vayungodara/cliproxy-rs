@@ -1,13 +1,11 @@
 //! Gemini `thoughtSignature` validation (gemini_validation.go).
 
-use crate::gostr::GoStr;
-use gjson::{Kind, Value};
-
 use super::claude::is_valid_claude_cais_signature;
 use super::gemini_sanitize::{has_normalized_part_signature, part_thought_signature};
 use super::wire::{self, BYTES, FIXED32, FIXED64, RAW_STD, STD, VARINT};
 use super::{Error, err};
-use crate::gojson as json;
+use crate::gostr::{GoStr, lower_bytes, trim_space};
+use crate::json::{self, Res};
 
 pub const MAX_GEMINI_THOUGHT_SIGNATURE_LEN: usize = 32 * 1024 * 1024;
 /// Sentinel Gemini accepts in place of a missing first-functionCall signature.
@@ -55,21 +53,22 @@ pub struct GeminiSignatureInfo {
 }
 
 /// `IsGeminiThoughtSignatureBypass`.
-pub fn is_gemini_bypass(raw: &str) -> bool {
-    matches!(
-        raw.trim(),
-        GEMINI_SKIP_THOUGHT_SIGNATURE_VALIDATOR | GEMINI_CONTEXT_ENGINEERING_BYPASS
-    )
+pub fn is_gemini_bypass(raw: impl AsRef<[u8]>) -> bool {
+    let raw = trim_space(raw.as_ref());
+    raw == GEMINI_SKIP_THOUGHT_SIGNATURE_VALIDATOR.as_bytes() || raw == GEMINI_CONTEXT_ENGINEERING_BYPASS.as_bytes()
 }
 
 /// `IsValidGeminiThoughtSignature`.
-pub fn is_valid_gemini_thought_signature(raw: &str, opt: GeminiValidation) -> bool {
+pub fn is_valid_gemini_thought_signature(raw: impl AsRef<[u8]>, opt: GeminiValidation) -> bool {
     inspect_gemini_thought_signature(raw, opt).is_ok()
 }
 
 /// `InspectGeminiThoughtSignature`.
-pub fn inspect_gemini_thought_signature(raw: &str, opt: GeminiValidation) -> Result<GeminiSignatureInfo, Error> {
-    let sig = raw.trim();
+pub fn inspect_gemini_thought_signature(
+    raw: impl AsRef<[u8]>,
+    opt: GeminiValidation,
+) -> Result<GeminiSignatureInfo, Error> {
+    let sig = trim_space(raw.as_ref());
     if sig.is_empty() {
         return err("empty Gemini thought signature");
     }
@@ -82,7 +81,7 @@ pub fn inspect_gemini_thought_signature(raw: &str, opt: GeminiValidation) -> Res
         }
         return Ok(GeminiSignatureInfo {
             is_bypass_sentinel: true,
-            bypass_sentinel: sig.to_owned(),
+            bypass_sentinel: super::ascii(sig),
             ..Default::default()
         });
     }
@@ -121,7 +120,7 @@ pub fn inspect_gemini_thought_signature(raw: &str, opt: GeminiValidation) -> Res
     Ok(info)
 }
 
-fn decode(sig: &str) -> Result<Vec<u8>, Error> {
+fn decode(sig: &[u8]) -> Result<Vec<u8>, Error> {
     if sig.len() > MAX_GEMINI_THOUGHT_SIGNATURE_LEN {
         return err(format!(
             "Gemini thought signature exceeds maximum length ({MAX_GEMINI_THOUGHT_SIGNATURE_LEN} bytes)"
@@ -138,26 +137,26 @@ fn decode(sig: &str) -> Result<Vec<u8>, Error> {
 }
 
 /// The Gemini part (or `request.` wrapped) contents array and its path.
-pub(crate) fn contents(body: &str) -> (Value<'_>, &'static str) {
-    let contents = gjson::get(body, "contents");
+pub(crate) fn contents(body: &[u8]) -> (Res<'_>, &'static str) {
+    let contents = json::get(body, "contents");
     if contents.exists() {
         return (contents, "contents");
     }
-    (gjson::get(body, "request.contents"), "request.contents")
+    (json::get(body, "request.contents"), "request.contents")
 }
 
 /// `ValidateGeminiThoughtSignatures`.
-pub fn validate_gemini_thought_signatures(body: &str, opt: GeminiValidation) -> Result<(), Error> {
+pub fn validate_gemini_thought_signatures(body: &[u8], opt: GeminiValidation) -> Result<(), Error> {
     let (contents, path) = contents(body);
-    if contents.kind() != Kind::Array {
+    if !contents.is_array() {
         return Ok(());
     }
     for (i, content) in contents.array().iter().enumerate() {
         let parts = content.get("parts");
-        if parts.kind() != Kind::Array {
+        if !parts.is_array() {
             continue;
         }
-        let model_turn = json::go_str(&content.get("role")).trim().go_eq_fold("model");
+        let model_turn = String::from_utf8_lossy(trim_space(&content.get("role").bytes())).go_eq_fold("model");
         let mut first_call_seen = false;
         for (j, part) in parts.array().iter().enumerate() {
             let has_call = part.get("functionCall").exists();
@@ -170,7 +169,7 @@ pub fn validate_gemini_thought_signatures(body: &str, opt: GeminiValidation) -> 
                 continue;
             }
             let part_path = format!("{path}[{i}].parts[{j}]");
-            let raw = raw.trim();
+            let raw = trim_space(&raw);
             if part.get("functionResponse").exists() && has_sig {
                 return err(format!("{part_path}: functionResponse must not carry thoughtSignature"));
             }
@@ -203,14 +202,14 @@ pub fn validate_gemini_thought_signatures(body: &str, opt: GeminiValidation) -> 
 
 /// `ValidateGeminiFunctionCallPairing`: every functionCall group is answered by the
 /// next content with matching functionResponse parts.
-pub fn validate_gemini_function_call_pairing(body: &str) -> Result<(), Error> {
+pub fn validate_gemini_function_call_pairing(body: &[u8]) -> Result<(), Error> {
     struct Call {
-        id: String,
-        name: String,
+        id: Vec<u8>,
+        name: Vec<u8>,
         path: String,
     }
     let (contents, path) = contents(body);
-    if contents.kind() != Kind::Array {
+    if !contents.is_array() {
         return Ok(());
     }
     let mut pending: Vec<Call> = Vec::new();
@@ -220,7 +219,7 @@ pub fn validate_gemini_function_call_pairing(body: &str) -> Result<(), Error> {
         let index = i;
         i += 1;
         let parts = content.get("parts");
-        if parts.kind() != Kind::Array || parts.json() == "[]" || !parts.get("0").exists() {
+        if !parts.is_array() || parts.raw() == b"[]" || !parts.get("0").exists() {
             if !pending.is_empty() {
                 result = err(format!(
                     "{path}[{index}]: content appears before {} pending functionResponse part(s)",
@@ -235,13 +234,13 @@ pub fn validate_gemini_function_call_pairing(body: &str) -> Result<(), Error> {
             let part_path = format!("{path}[{index}].parts[{j}]");
             let call = part.get("functionCall");
             if call.exists() {
-                let name = json::go_str(&call.get("name"));
+                let name = call.get("name").bytes().into_owned();
                 if name.is_empty() {
                     result = err(format!("{part_path}: missing functionCall.name"));
                     return false;
                 }
                 calls.push(Call {
-                    id: json::go_str(&call.get("id")),
+                    id: call.get("id").bytes().into_owned(),
                     name,
                     path: part_path.clone(),
                 });
@@ -249,8 +248,8 @@ pub fn validate_gemini_function_call_pairing(body: &str) -> Result<(), Error> {
             let response = part.get("functionResponse");
             if response.exists() {
                 responses.push((
-                    json::go_str(&response.get("id")),
-                    json::go_str(&response.get("name")),
+                    response.get("id").bytes().into_owned(),
+                    response.get("name").bytes().into_owned(),
                     part_path,
                 ));
             }
@@ -273,7 +272,7 @@ pub fn validate_gemini_function_call_pairing(body: &str) -> Result<(), Error> {
             return true;
         }
         if responses.is_empty() {
-            if !pending.is_empty() && json::go_str(&content.get("role")).trim().go_lower() == "model" {
+            if !pending.is_empty() && lower_bytes(trim_space(&content.get("role").bytes())) == "model" {
                 result = err(format!(
                     "{path}[{index}]: model content appears before {} pending functionResponse part(s)",
                     pending.len()

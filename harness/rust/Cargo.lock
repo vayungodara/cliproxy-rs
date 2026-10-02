@@ -389,7 +389,9 @@ dependencies = [
  "base64 0.22.1",
  "cpa-core",
  "gjson",
+ "http",
  "serde_json",
+ "sha2",
 ]
 
 [[package]]
@@ -460,8 +462,11 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "axum",
+ "base64 0.22.1",
  "bcrypt",
  "bytes",
+ "chrono",
+ "cpa-common",
  "cpa-core",
  "cpa-exec",
  "cpa-translate",
@@ -483,6 +488,7 @@ dependencies = [
  "cpa-common",
  "cpa-core",
  "rand",
+ "serde_json",
  "sha2",
 ]
 
