@@ -15,6 +15,8 @@
 //!   every crate that edits JSON on the wire (owner: translators).
 //! - `codex_client`: executor/helps/codex_multi_agent_v2.go (Codex-client request rewrites
 //!   shared by every executor that serves Codex clients).
+//! - `session`: sdk/cliproxy/session (session identity, parent/child relationships and the
+//!   derived identity executors key provider sessions on; owner: server).
 //!
 //! - `gojson`: tidwall/gjson and sjson v1.2.5 semantics for byte-faithful raw JSON edits,
 //!   used by `thinking` and `signature` and available to every executor and translator.
@@ -26,6 +28,7 @@ pub mod gojson;
 pub mod gostr;
 mod gostr_tables;
 pub mod json;
+pub mod session;
 pub mod signature;
 pub mod thinking;
 

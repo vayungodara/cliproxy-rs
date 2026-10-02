@@ -97,7 +97,7 @@ impl Failure {
         match self {
             Failure::Exec(e) => classify::error_text(e),
             Failure::UnknownModel(model) => {
-                let message = crate::jsonedit::sjson_string(&format!("unknown provider for model {model}"));
+                let message = gojson::sjson_string(&format!("unknown provider for model {model}"));
                 format!(
                     r#"{{"error":{{"message":{message},"type":"invalid_request_error","code":"model_not_found","param":"model"}}}}"#
                 )
@@ -478,11 +478,19 @@ pub async fn run(rt: &Arc<Runtime>, call: Call, trace: &Trace) -> Result<Done, R
     let registry = rt.registry();
     let (providers, model) = route(rt, &registry, &call)?;
     let aliases = registry::global_aliases(&cfg);
-    let session = crate::session::resolve(&call.headers, &call.body);
+    let session = crate::session::resolve(
+        call.entry,
+        &call.headers,
+        &call.body,
+        call.execution_session.as_deref(),
+        &call.caller.principal,
+    );
     let mut selection = Selection {
         providers: providers.clone(),
         model: call.selection_model.clone().unwrap_or_else(|| model.clone()),
-        session: session.clone(),
+        session: session.id.clone(),
+        session_parent: session.parent,
+        session_fork: session.fork,
         ..Selection::default()
     };
     let request = ExecRequest {
@@ -495,8 +503,9 @@ pub async fn run(rt: &Arc<Runtime>, call: Call, trace: &Trace) -> Result<Done, R
         body: call.body.clone(),
         stream: call.stream,
         alt: call.alt.clone(),
-        session,
+        session: session.id,
         execution_session: call.execution_session.clone(),
+        derived_session: session.derived,
         headers: call.headers.clone(),
         caller: call.caller.clone(),
     };

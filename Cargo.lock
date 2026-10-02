@@ -503,7 +503,9 @@ dependencies = [
  "cpa-core",
  "flate2",
  "gjson",
+ "http",
  "serde_json",
+ "sha2",
 ]
 
 [[package]]
@@ -563,6 +565,7 @@ dependencies = [
  "axum",
  "bcrypt",
  "bytes",
+ "cpa-common",
  "cpa-core",
  "cpa-exec",
  "cpa-translate",
