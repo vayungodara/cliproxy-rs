@@ -17,7 +17,13 @@
 //!   aliases, cloak) and see the client's original request and the translated request
 //!   from before those rewrites.
 
+mod claude_chat_request;
+mod claude_chat_response;
+mod json;
+mod openai;
 pub mod sse;
+
+pub use claude_chat_request::request_with_compat as openai_to_claude_with_compat;
 
 use bytes::Bytes;
 use cpa_core::format::Format;
@@ -69,8 +75,9 @@ pub struct Pair {
 /// pair is not registered.
 pub fn pair(client: Format, upstream: Format) -> Option<&'static Pair> {
     // ponytail: static match. Plugin-registered translators (M6) need a runtime table.
-    #[allow(clippy::match_single_binding)] // pairs are added here as match arms
     match (client, upstream) {
+        (Format::OpenAI, Format::OpenAI) => Some(&openai::PAIR),
+        (Format::OpenAI, Format::Claude) => Some(&claude_chat_request::PAIR),
         _ => None,
     }
 }
