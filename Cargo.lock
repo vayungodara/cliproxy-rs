@@ -496,6 +496,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7704b5fdd17b18ae31c4c1da5a2e0305a2bf17b5249300a9ee9ed7b72114c636"
 
 [[package]]
+name = "cpa-common"
+version = "0.1.0"
+dependencies = [
+ "cpa-core",
+ "serde_json",
+]
+
+[[package]]
 name = "cpa-core"
 version = "0.1.0"
 dependencies = [
@@ -522,6 +530,7 @@ dependencies = [
  "base64 0.22.1",
  "bytes",
  "chrono",
+ "cpa-common",
  "cpa-core",
  "cpa-translate",
  "futures-util",
@@ -565,6 +574,7 @@ name = "cpa-translate"
 version = "0.1.0"
 dependencies = [
  "bytes",
+ "cpa-common",
  "cpa-core",
  "gjson",
  "rand",
