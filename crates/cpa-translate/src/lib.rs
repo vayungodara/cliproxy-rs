@@ -31,6 +31,7 @@ mod claude_responses;
 mod claude_responses_response;
 mod codex_responses;
 mod common;
+mod gemini;
 mod openai;
 mod openai_claude;
 mod openai_claude_response;
@@ -114,6 +115,7 @@ fn registered(client: Format, upstream: Format) -> Option<&'static Registered> {
         (Format::OpenAIResponse, Format::Codex) => Some(&codex_responses::PAIR),
         (Format::OpenAIResponse, Format::Claude) => Some(&claude_responses_response::PAIR),
         (Format::Claude, Format::OpenAI) => Some(&openai_claude::PAIR),
+        (Format::Gemini, Format::Gemini) => Some(&gemini::PAIR),
         _ => None,
     }
 }
