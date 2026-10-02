@@ -36,7 +36,8 @@ async fn run(name: &str) -> (serde_json::Value, Vec<Captured>, crate::kimi_fixtu
     let mock = Mock::start(&fx["responses"]).await;
     let cred = credential("kimi", &fx, Some(("base_url", format!("{}/coding", mock.url))));
     let exec = KimiExecutor::with_client(default_client());
-    let result = exec.execute(&claude(), &cred, request(&fx, ""), &cfg()).await;
+    let cfg = Config::parse(fx["request"]["config"].as_str().unwrap_or_default()).unwrap();
+    let result = exec.execute(&claude(), &cred, request(&fx, ""), &cfg).await;
     let down = downstream(result).await;
     (fx, mock.captured(), down)
 }
@@ -51,6 +52,8 @@ async fn upstream_requests_match_go_byte_for_byte() {
         "chat-kimi-ai-metadata-base",
         "responses-nonstream-reorder-suffix",
         "responses-stream-clamp",
+        "chat-payload-rules",
+        "responses-payload-rules",
         "responses-compact-rejected",
         "transport-custom-headers",
         "transport-redirect-307",

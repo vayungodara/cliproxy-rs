@@ -1,0 +1,89 @@
+{
+  "name": "responses-payload-rules",
+  "credential": {
+    "access_token": "kimi-access-fixture",
+    "base_url": "http://127.0.0.1:43717/coding",
+    "device_id": "dev-fixture-1",
+    "refresh_token": "kimi-refresh-fixture",
+    "type": "kimi"
+  },
+  "request": {
+    "body": "{\"model\":\"kimi-k3(high)\",\"input\":\"hi\",\"store\":false}",
+    "config": "payload:\n  default:\n    - models: [{name: \"kimi-*\", protocol: openai}]\n      params: {temperature: 1.0, n: 1, user: \"default-user\"}\n    - models: [{name: \"kimi-*\", protocol: openai-response}]\n      params: {store: true, parallel_tool_calls: false}\n  override:\n    - models: [{name: \"kimi-k3(high)\"}]\n      params: {requested_hit: true}\n    - models: [{name: \"kimi-*\", protocol: codex}]\n      params: {wrong_protocol: true}\n    - models: [{name: \"kimi-*\", from-protocol: openai}]\n      params: {from_openai: true}\n  filter:\n    - models: [{name: \"kimi-*\", protocol: openai}]\n      params: [max_tokens]\n",
+    "model": "kimi-k3(high)",
+    "source": "openai-response",
+    "stream": false
+  },
+  "responses": [
+    {
+      "status": 200,
+      "headers": [
+        [
+          "Content-Type",
+          "application/json"
+        ]
+      ],
+      "body": "{\"id\":\"r\",\"object\":\"response\",\"status\":\"completed\",\"output\":[]}"
+    }
+  ],
+  "upstream": [
+    {
+      "method": "POST",
+      "target": "/coding/v1/responses",
+      "headers": [
+        [
+          "Host",
+          "127.0.0.1:43717"
+        ],
+        [
+          "User-Agent",
+          "CLIProxyAPI/0.1.0"
+        ],
+        [
+          "Content-Length",
+          "135"
+        ],
+        [
+          "Accept",
+          "application/json"
+        ],
+        [
+          "Authorization",
+          "Bearer kimi-access-fixture"
+        ],
+        [
+          "Content-Type",
+          "application/json"
+        ],
+        [
+          "X-Msh-Device-Id",
+          "dev-fixture-1"
+        ],
+        [
+          "X-Msh-Device-Model",
+          "linux amd64"
+        ],
+        [
+          "X-Msh-Device-Name",
+          "e2b.local"
+        ],
+        [
+          "X-Msh-Platform",
+          "CLIProxyAPI"
+        ],
+        [
+          "X-Msh-Version",
+          "0.1.0"
+        ],
+        [
+          "Accept-Encoding",
+          "gzip"
+        ]
+      ],
+      "body": "{\"model\":\"k3\",\"input\":\"hi\",\"store\":false,\"stream\":false,\"reasoning\":{\"effort\":\"high\"},\"parallel_tool_calls\":false,\"requested_hit\":true}"
+    }
+  ],
+  "downstream": {
+    "body": "{\"id\":\"r\",\"object\":\"response\",\"status\":\"completed\",\"output\":[]}"
+  }
+}

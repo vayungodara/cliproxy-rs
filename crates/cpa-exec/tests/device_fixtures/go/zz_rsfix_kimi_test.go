@@ -49,6 +49,8 @@ type rsfixExecCase struct {
 	meta      map[string]any
 	headers   http.Header
 	responses []rsfixResponse
+	// cfg is config.yaml text for the executor (payload rules); empty is a zero config.
+	cfg string
 }
 
 func rsfixRunExecutor(t *testing.T, provider string, exec cliproxyauth.ProviderExecutor, tc rsfixExecCase, baseKey string, basePath string) {
@@ -96,6 +98,9 @@ func rsfixRunExecutor(t *testing.T, provider string, exec cliproxyauth.ProviderE
 		down.Body = string(resp.Payload)
 	}
 	request := map[string]any{"source": tc.source.String(), "model": tc.model, "stream": tc.stream, "body": tc.body}
+	if tc.cfg != "" {
+		request["config"] = tc.cfg
+	}
 	if tc.alt != "" {
 		request["alt"] = tc.alt
 	}
@@ -163,6 +168,16 @@ func TestRSFixKimi(t *testing.T) {
 			responses: []rsfixResponse{sseResp("event: response.created\ndata: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_2\"}}\n\nevent: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"delta\":\"hi\"}\n\nevent: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_2\",\"usage\":{\"input_tokens\":1,\"output_tokens\":1,\"total_tokens\":2}}}\n\n")},
 		},
 		{
+			name: "chat-payload-rules", source: sdktranslator.FormatOpenAI, model: "kimi-k3(high)", stream: true, meta: kimiMeta, cfg: "payload:\n  default:\n    - models: [{name: \"kimi-*\", protocol: openai}]\n      params: {temperature: 1.0, n: 1, user: \"default-user\"}\n    - models: [{name: \"kimi-*\", protocol: openai-response}]\n      params: {store: true, parallel_tool_calls: false}\n  override:\n    - models: [{name: \"kimi-k3(high)\"}]\n      params: {requested_hit: true}\n    - models: [{name: \"kimi-*\", protocol: codex}]\n      params: {wrong_protocol: true}\n    - models: [{name: \"kimi-*\", from-protocol: openai}]\n      params: {from_openai: true}\n  filter:\n    - models: [{name: \"kimi-*\", protocol: openai}]\n      params: [max_tokens]\n",
+			body:      `{"model":"kimi-k3(high)","messages":[{"role":"user","content":"hi"}],"temperature":0.3,"max_tokens":50}`,
+			responses: []rsfixResponse{sseResp("data: {\"id\":\"c\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"k3\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"ok\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n")},
+		},
+		{
+			name: "responses-payload-rules", source: sdktranslator.FormatOpenAIResponse, model: "kimi-k3(high)", meta: kimiMeta, cfg: "payload:\n  default:\n    - models: [{name: \"kimi-*\", protocol: openai}]\n      params: {temperature: 1.0, n: 1, user: \"default-user\"}\n    - models: [{name: \"kimi-*\", protocol: openai-response}]\n      params: {store: true, parallel_tool_calls: false}\n  override:\n    - models: [{name: \"kimi-k3(high)\"}]\n      params: {requested_hit: true}\n    - models: [{name: \"kimi-*\", protocol: codex}]\n      params: {wrong_protocol: true}\n    - models: [{name: \"kimi-*\", from-protocol: openai}]\n      params: {from_openai: true}\n  filter:\n    - models: [{name: \"kimi-*\", protocol: openai}]\n      params: [max_tokens]\n",
+			body:      `{"model":"kimi-k3(high)","input":"hi","store":false}`,
+			responses: []rsfixResponse{jsonResp(200, `{"id":"r","object":"response","status":"completed","output":[]}`)},
+		},
+		{
 			name: "responses-stream-data-only-frames", source: sdktranslator.FormatOpenAIResponse, model: "kimi-k3", stream: true, meta: kimiMeta,
 			body:      `{"model":"kimi-k3","stream":true,"input":"hi"}`,
 			responses: []rsfixResponse{sseResp("data: {\"type\":\"response.output_text.delta\",\"delta\":\"a\"}\ndata: {\"type\":\"response.output_text.delta\",\"delta\":\"b\"}\n\ndata: [DONE]\n: keep\ndata: {\"type\":")},
@@ -189,7 +204,15 @@ func TestRSFixKimi(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			rsfixRunExecutor(t, "kimi", NewKimiExecutor(&config.Config{}), tc, "base_url", "/coding")
+			cfg := &config.Config{}
+			if tc.cfg != "" {
+				parsed, err := config.ParseConfigBytes([]byte(tc.cfg))
+				if err != nil {
+					t.Fatal(err)
+				}
+				cfg = parsed
+			}
+			rsfixRunExecutor(t, "kimi", NewKimiExecutor(cfg), tc, "base_url", "/coding")
 		})
 	}
 }

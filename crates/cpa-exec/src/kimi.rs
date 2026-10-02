@@ -31,7 +31,8 @@ use futures_util::StreamExt;
 use crate::claude::{ClaudeExecutor, Delegation};
 use crate::kimi_auth::{self, DeviceFlow};
 use crate::kimi_http::{
-    BUILD_VERSION, custom_headers, go_arch, go_os, hostname, refresh_due, rfc3339_local_now, status_error,
+    BUILD_VERSION, credential_headers, go_arch, go_os, hostname, payload_rules, refresh_due, rfc3339_local_now,
+    status_error,
 };
 use crate::kimi_replay::{self, ReplayCache};
 use crate::meta_codex::go_trim_space;
@@ -266,7 +267,7 @@ fn headers(credential: &Credential, req: &ExecRequest, stream: bool) -> GoHeader
             "application/json"
         },
     );
-    for (name, value) in custom_headers(credential, &req.headers, req.session.as_deref()) {
+    for (name, value) in credential_headers(credential, req, original(req)) {
         h.set(&name, value);
     }
     h
@@ -320,20 +321,6 @@ fn thinking(body: &[u8], req: &ExecRequest, to: &str) -> Result<Vec<u8>, ExecErr
     .map_err(|e| ExecError::local(e.status(), FailureScope::Request, e.message))
 }
 
-/// ponytail: adapter for `cpa_common::payload` (owner: server thread). Go applies
-/// `requests.payload` rules here (ApplyPayloadConfigWithRequest) to the final provider body;
-/// identity until the shared module lands. `target` and `source` are Go format names.
-fn apply_payload_rules(
-    _cfg: &Config,
-    _model: &str,
-    _target: &str,
-    _source: &str,
-    body: Vec<u8>,
-    _req: &ExecRequest,
-) -> Vec<u8> {
-    body
-}
-
 /// ponytail: adapter for `cpa_common::codex_client` (owner: Codex thread). Go wraps request
 /// translation in TranslateRequestWithCodexMultiAgentV2, which rewrites Codex CLI requests
 /// (integer tool schemas, multi-agent v2 input); identity until the shared module lands.
@@ -367,16 +354,21 @@ async fn execute_chat(
     let Some(response_pair) = cpa_translate::pair(req.response_format, Format::OpenAI) else {
         return Err(not_registered("Kimi response"));
     };
-    let translated = cpa_translate::translate_request(
-        req.source_format,
-        Format::OpenAI,
-        &RequestCtx {
-            model: &base_model,
-            stream: req.stream,
-        },
-        &codex_client_request(&req, &req.body),
-    )
-    .map_err(|e| request_error(e.to_string()))?;
+    let translate = |body: &[u8], stream: bool| {
+        cpa_translate::translate_request(
+            req.source_format,
+            Format::OpenAI,
+            &RequestCtx {
+                model: &base_model,
+                stream,
+            },
+            &codex_client_request(&req, body),
+        )
+        .map_err(|e| request_error(e.to_string()))
+    };
+    let translated = translate(&req.body, req.stream)?;
+    // Go translates the original request too (stream false) for payload-rule defaults.
+    let original_translated = translate(original(&req), false)?;
     let upstream_model = normalize_upstream_model(&base_model);
     let mut body = gj::try_set_str(&translated, "model", &upstream_model)
         .map_err(|e| internal_error(format!("kimi executor: failed to set model in payload: {e}")))?;
@@ -385,7 +377,7 @@ async fn execute_chat(
         body = gj::try_set_raw(&body, "stream_options.include_usage", "true")
             .map_err(|e| internal_error(format!("kimi executor: failed to set stream_options in payload: {e}")))?;
     }
-    body = apply_payload_rules(cfg, &base_model, "openai", req.source_format.as_str(), body, &req);
+    body = payload_rules(cfg, &req, &base_model, "openai", body, &original_translated);
     body = normalize_tool_message_links(body)?;
     body = normalize_tools(body);
     body = normalize_temperature(body);
@@ -556,14 +548,8 @@ async fn execute_responses(
         .map_err(|e| internal_error(format!("kimi executor: failed to set model in payload: {e}")))?;
     body = set_bool_if_different(body, "stream", req.stream);
     body = thinking(&body, &req, "codex")?;
-    body = apply_payload_rules(
-        cfg,
-        &base_model,
-        "openai-response",
-        req.source_format.as_str(),
-        body,
-        &req,
-    );
+    // Go passes req.Payload as the original here, not OriginalRequest.
+    body = payload_rules(cfg, &req, &base_model, "openai-response", body, &req.body);
     body = normalize_responses_input(body);
     body = normalize_tools(body);
     body = normalize_temperature(body);
