@@ -907,9 +907,6 @@
       "source": "openai",
       "stream": true,
       "op": "stream",
-      "needs": [
-        "translator"
-      ],
       "upstream": {
         "status": 200,
         "headers": [

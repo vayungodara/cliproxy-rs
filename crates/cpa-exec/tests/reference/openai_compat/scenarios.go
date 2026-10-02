@@ -139,7 +139,6 @@ func scenarios() []scenario {
 		func() scenario {
 			s := stream("stream_multiline_data", hi, sse("data: {\"id\":\"m\",\ndata: \"choices\":[]}\n\ndata: [DONE]\n\n"))
 			// Go passes the joined payload, newline included, as one data line.
-			s.Needs = []string{"translator"}
 			return s
 		}(),
 		stream("stream_multiline_with_done", hi, sse("data: "+chunk1+"\ndata: [DONE]\n\n")),

@@ -309,7 +309,6 @@ async fn go_reference_scenarios() {
     assert_eq!(
         skipped,
         [
-            "stream_multiline_data",
             "needs_translator_responses_source",
             "needs_translator_responses_eof_without_done",
             "needs_translator_claude_code_prompt_cache",
