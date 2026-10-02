@@ -24,6 +24,8 @@ import (
 	"github.com/gin-gonic/gin"
 	claudeauth "github.com/router-for-me/CLIProxyAPI/v8/internal/auth/claude"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/misc"
+	"github.com/router-for-me/CLIProxyAPI/v8/internal/modelconfig"
+	"github.com/router-for-me/CLIProxyAPI/v8/internal/registry"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/config"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/runtime/executor"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/watcher/synthesizer"
@@ -56,6 +58,19 @@ type scenario struct {
 	Reply     reply       `json:"reply"`
 	// ExecutionSession is ExecutionSessionMetadataKey (websocket executions).
 	ExecutionSession string `json:"execution_session,omitempty"`
+	// Source is the client format (default claude); responses use the same format.
+	Source string `json:"source,omitempty"`
+	// Resolved binds the conductor's API-key model capability snapshot
+	// (lookupAPIKeyModelCapability -> modelconfig.ResolveModelInfo + IsCompat).
+	Resolved *resolvedModel `json:"resolved,omitempty"`
+	// RequestedModel is the client's route model when it differs from Model.
+	RequestedModel string `json:"requested_model,omitempty"`
+}
+
+type resolvedModel struct {
+	Name     string                    `json:"name"`
+	Compat   bool                      `json:"compat"`
+	Thinking *registry.ThinkingSupport `json:"thinking,omitempty"`
 }
 
 type upstream struct {
@@ -245,13 +260,22 @@ func run(root string, s scenario) result {
 	if s.ExecutionSession != "" {
 		metadata[cliproxyexecutor.ExecutionSessionMetadataKey] = s.ExecutionSession
 	}
-	req := cliproxyexecutor.Request{Model: s.Model, Payload: []byte(s.Body), Format: sdktranslator.FromString("claude")}
+	source := s.Source
+	if source == "" {
+		source = "claude"
+	}
+	req := cliproxyexecutor.Request{Model: s.Model, Payload: []byte(s.Body), Format: sdktranslator.FromString(source)}
+	if s.Resolved != nil {
+		info := modelconfig.ResolveModelInfo(s.Resolved.Name, "claude", s.Resolved.Thinking)
+		info.IsCompat = s.Resolved.Compat
+		req.Metadata = map[string]any{"cliproxy.resolved_api_key_model_info": info}
+	}
 	opts := cliproxyexecutor.Options{
 		Stream:          s.Stream,
 		Headers:         headers.Clone(),
 		OriginalRequest: []byte(s.Body),
-		SourceFormat:    sdktranslator.FromString("claude"),
-		ResponseFormat:  sdktranslator.FromString("claude"),
+		SourceFormat:    sdktranslator.FromString(source),
+		ResponseFormat:  sdktranslator.FromString(source),
 		Metadata:        metadata,
 	}
 	req, opts = cliproxysession.Enrich(req, opts)

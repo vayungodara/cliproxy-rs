@@ -72,7 +72,7 @@ fn pipeline_reproduces_go_upstream_captures() {
         let req = enrich(request(case));
         let mut ctx = Ctx::new(&executor, &credential, &req, &cfg, Default::default());
         ctx.today = "2026-10-02".into();
-        let translated = translate::request(&req, &ctx.base_model).unwrap();
+        let translated = translate::request(&req, &ctx.base_model, ctx.is_compat).unwrap();
         let prepared = if req.operation == Operation::CountTokens {
             ctx.prepare_count(&req, &translated).unwrap()
         } else {
@@ -298,6 +298,11 @@ async fn executor_scenarios_match_go() {
             .find(|c| c.provider == "claude")
             .unwrap_or_else(|| panic!("{name}: no claude credential"));
         let body = Bytes::from(scenario["body"].as_str().unwrap().to_owned());
+        let source = match scenario["source"].as_str() {
+            Some("openai") => Format::OpenAI,
+            Some("openai-response") => Format::OpenAIResponse,
+            _ => Format::Claude,
+        };
         let headers: http::HeaderMap = scenario["headers"]
             .as_array()
             .unwrap()
@@ -317,9 +322,13 @@ async fn executor_scenarios_match_go() {
             } else {
                 Operation::Generate
             },
-            source_format: Format::Claude,
-            response_format: Format::Claude,
-            requested_model: scenario["model"].as_str().unwrap().into(),
+            source_format: source,
+            response_format: source,
+            requested_model: scenario["requested_model"]
+                .as_str()
+                .or(scenario["model"].as_str())
+                .unwrap()
+                .into(),
             model: scenario["model"].as_str().unwrap().into(),
             original_body: body.clone(),
             body,
@@ -337,12 +346,27 @@ async fn executor_scenarios_match_go() {
         let req = enrich(req);
         let mut ctx = Ctx::new(&executor, &credential, &req, &cfg, Default::default());
         ctx.today = scenario["date"].as_str().unwrap().into();
-        let translated = translate::request(&req, &ctx.base_model).unwrap();
+        let translated = translate::request(&req, &ctx.base_model, ctx.is_compat).unwrap();
         let prepared = if count {
-            ctx.prepare_count(&req, &translated).unwrap()
+            ctx.prepare_count(&req, &translated)
         } else {
-            ctx.prepare_messages(&req, &translated, stream).unwrap()
+            // generate(): translated clients always stream upstream.
+            ctx.prepare_messages(&req, &translated, stream || source != Format::Claude)
         };
+        if scenario["upstream"].as_array().is_none_or(Vec::is_empty) {
+            // Go failed before sending (thinking validation and the like).
+            let error = prepared
+                .err()
+                .unwrap_or_else(|| panic!("{name}: Go sent nothing, Rust prepared a request"));
+            assert_eq!(error.body, scenario["error"].as_str().unwrap(), "{name}: error");
+            assert_eq!(
+                Some(u64::from(error.status)),
+                scenario["error_status"].as_u64(),
+                "{name}: status"
+            );
+            continue;
+        }
+        let prepared = prepared.unwrap_or_else(|e| panic!("{name}: {e}"));
         let upstream = &scenario["upstream"][0];
         // With execution metadata a new turn takes the continuity store's fresh random
         // prompt ID (uuid.NewString in Go) instead of the deterministic fingerprint one.
@@ -382,6 +406,10 @@ async fn executor_scenarios_match_go() {
             .as_array()
             .map(|o| o.iter().map(|v| v.as_str().unwrap().to_owned()).collect())
             .unwrap_or_default();
+        if source != Format::Claude {
+            // Translated clients: only the upstream request is compared here.
+            continue;
+        }
         let finished = finish_reply(scenario, &ctx, &prepared).await;
         if let Some(info) = scenario["error_info"].as_object() {
             let error = finished

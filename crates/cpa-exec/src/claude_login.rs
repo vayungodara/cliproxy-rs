@@ -68,12 +68,14 @@ pub async fn login(auth_dir: &Path, options: &LoginOptions) -> Result<PathBuf, E
                 print!("{MANUAL_PROMPT}");
                 use std::io::Write;
                 let _ = std::io::stdout().flush();
-                tokio::task::spawn_blocking(|| {
+                // misc.AsyncPrompt: a detached reader, so an unanswered prompt never
+                // keeps the process alive (Tokio waits for blocking-pool tasks).
+                let (tx, rx) = tokio::sync::oneshot::channel();
+                std::thread::spawn(move || {
                     let mut line = String::new();
-                    std::io::stdin().read_line(&mut line).map(|_| line)
-                })
-                .await
-                .map_err(std::io::Error::other)?
+                    let _ = tx.send(std::io::stdin().read_line(&mut line).map(|_| line));
+                });
+                rx.await.map_err(std::io::Error::other)?
             })
         })),
         show_url: Box::new(move |url| show_url(url, port, no_browser)),
@@ -99,8 +101,9 @@ fn show_url(url: &str, port: u16, no_browser: bool) {
     println!("Waiting for Claude authentication callback...");
 }
 
-/// `browser.OpenURL`: the platform opener, if it starts.
+/// `browser.OpenURL`: announces the URL, then starts the platform opener.
 fn open_browser(url: &str) -> bool {
+    println!("Attempting to open URL in browser: {url}");
     let command = match std::env::consts::OS {
         "macos" => "open",
         "windows" => "explorer",

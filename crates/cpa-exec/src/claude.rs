@@ -204,7 +204,7 @@ impl ClaudeExecutor {
 
     async fn generate(&self, ctx: Ctx<'_>, req: ExecRequest) -> Result<ExecResponse, ExecError> {
         let upstream_stream = req.stream || req.response_format != Format::Claude;
-        let translated = translate::request(&req, &ctx.base_model)?;
+        let translated = translate::request(&req, &ctx.base_model, ctx.is_compat)?;
         let prepared = ctx.prepare_messages(&req, &translated, upstream_stream)?;
         let response = self.send(&ctx, &prepared, "/v1/messages").await?;
         let reverse = prepared.reverse.clone();
@@ -292,7 +292,7 @@ impl ClaudeExecutor {
     }
 
     async fn count_tokens(&self, ctx: Ctx<'_>, req: ExecRequest, upstream: bool) -> Result<ExecResponse, ExecError> {
-        let translated = translate::request(&req, &ctx.base_model)?;
+        let translated = translate::request(&req, &ctx.base_model, ctx.is_compat)?;
         // sdktranslator.TranslateTokenCount(to=claude, responseFormat, count, raw).
         let render = |raw: &[u8]| {
             let count = gjson::get(&String::from_utf8_lossy(raw), "input_tokens").i64();
@@ -497,7 +497,7 @@ struct Ctx<'a> {
     /// Normalized execution-session ID (websocket executions), or empty.
     execution: String,
     /// `cliproxyauth.ResolvedModelInfo`: the configured model bound to an API-key attempt.
-    resolved: Option<cpa_core::registry::ModelInfo>,
+    resolved: Option<Resolved>,
     /// `helps.APIKeyModelIsCompat`.
     is_compat: bool,
     /// Real Claude OAuth token (`sk-ant-oat`).
@@ -521,17 +521,66 @@ struct Prepared {
     fast: bool,
 }
 
-/// `cliproxyauth.ResolvedModelInfo` for Claude: the scheduler binds the configured model
-/// definition to API-key attempts whose key lists `models[]`; other attempts look the
-/// model up in the registry.
-fn resolved_model(credential: &Credential, req: &ExecRequest) -> Option<cpa_core::registry::ModelInfo> {
+/// Capabilities bound to an attempt (Go `cliproxyauth.ResolvedModelInfo`).
+struct Resolved {
+    caps: cpa_common::thinking::ModelCaps,
+    is_compat: bool,
+}
+
+/// `lookupAPIKeyModelCapability` over the claude-api-key entry's `models[]`
+/// (`resolveClaudeKeyConfig`, as Go compiles it from config): the route
+/// (requested alias or name, with and without a thinking suffix) and the selected
+/// upstream name pick one entry, whose snapshot is `modelconfig.ResolveModelInfo`
+/// (static capabilities of the suffix-free name, configured thinking, never
+/// user-defined) plus `is-compat`.
+fn resolved_model(credential: &Credential, req: &ExecRequest, settings: &Settings) -> Option<Resolved> {
     use cpa_core::registry::dynamic;
-    if !dynamic::is_api_key(credential) || dynamic::config_models(credential).is_empty() {
+    if !dynamic::is_api_key(credential) {
         return None;
     }
-    [&req.requested_model, &req.model]
-        .into_iter()
-        .find_map(|model| cpa_core::registry::credential_model(&credential.id, &base_model(model)))
+    let attr = |k: &str| credential.attributes.get(k).map(String::as_str).unwrap_or_default();
+    let models = &settings.key_for(attr("api_key"), attr("base_url"))?.models;
+    let candidates = |model: &str| {
+        let model = model.trim();
+        let base = base_model(model);
+        [model.to_lowercase(), base.trim().to_lowercase()]
+    };
+    let route = candidates(dynamic::strip_prefix(req.requested_model.trim(), credential));
+    let routes: Vec<(String, &dynamic::ConfigModel)> = models
+        .iter()
+        .filter_map(|m| {
+            let name = Some(m.name.trim()).filter(|n| !n.is_empty()).unwrap_or(m.alias.trim());
+            let alias = Some(m.alias.trim()).filter(|a| !a.is_empty()).unwrap_or(name);
+            let keys: Vec<String> = [alias, name].into_iter().flat_map(candidates).collect();
+            (!name.is_empty() && keys.iter().any(|k| !k.is_empty() && route.contains(k))).then(|| (name.to_owned(), m))
+        })
+        .collect();
+    let selected = req.model.trim();
+    let (name, entry) = routes
+        .iter()
+        .find(|(name, _)| name.eq_ignore_ascii_case(selected))
+        .or_else(|| {
+            routes.iter().find(|(name, _)| {
+                // configuredUpstreamFallbackMatches
+                !cpa_common::thinking::parse_suffix(name).has_suffix
+                    && name.eq_ignore_ascii_case(base_model(selected).trim())
+            })
+        })?;
+    let static_info = cpa_core::registry::pinned().lookup(base_model(name).trim()).cloned();
+    let mut caps = static_info
+        .as_ref()
+        .map(cpa_common::thinking::ModelCaps::from)
+        .unwrap_or_default();
+    caps.id = name.clone();
+    caps.kind = "claude".into();
+    if let Some(thinking) = entry.thinking.clone() {
+        caps.thinking = Some(dynamic::normalize_thinking(thinking));
+    }
+    caps.user_defined = false;
+    Some(Resolved {
+        caps,
+        is_compat: entry.is_compat,
+    })
 }
 
 /// `config.NormalizeClaudeFingerprintProfile`: unknown values are the default ("").
@@ -679,7 +728,7 @@ impl<'a> Ctx<'a> {
         let api_key_kind = attr("auth_kind") == "apikey";
         let bearer = oauth_token || (!api_key_kind && attr("api_key").trim().is_empty());
         let base = base_model(&req.model);
-        let resolved = resolved_model(credential, req);
+        let resolved = resolved_model(credential, req, &settings);
         Self {
             credential,
             first_party: tokens::first_party(&base_url),
@@ -687,7 +736,7 @@ impl<'a> Ctx<'a> {
             upstream_model: delegation.upstream_model.map_or_else(|| base.clone(), |f| f(&base)),
             kimi: kimi_upstream(&credential.provider, &base_url),
             execution: session::normalize(req.execution_session.as_deref().unwrap_or_default()),
-            is_compat: resolved.as_ref().is_some_and(cpa_core::registry::ModelInfo::is_compat),
+            is_compat: resolved.as_ref().is_some_and(|r| r.is_compat),
             resolved,
             base_model: base,
             cli_profile: oauth_token || profile == "claude-code-cli",
@@ -726,8 +775,7 @@ impl<'a> Ctx<'a> {
 
     /// `helps.ApplyRequestThinking` with provider `claude`.
     fn apply_thinking(&self, req: &ExecRequest, body: String) -> Result<String, ExecError> {
-        use cpa_common::thinking::{ModelCaps, RequestThinking, apply_request_thinking};
-        let caps = self.resolved.as_ref().map(ModelCaps::from);
+        use cpa_common::thinking::{RequestThinking, apply_request_thinking};
         apply_request_thinking(&RequestThinking {
             body: body.as_bytes(),
             payload: &req.body,
@@ -736,7 +784,7 @@ impl<'a> Ctx<'a> {
             from: req.source_format.as_str(),
             to: Format::Claude.as_str(),
             provider: "claude",
-            resolved: self.resolved.as_ref().map(|_| caps.as_ref()),
+            resolved: self.resolved.as_ref().map(|r| Some(&r.caps)),
             has_request_transformer: cpa_translate::pair(req.source_format, Format::Claude).is_some(),
             updates_changed: false,
         })

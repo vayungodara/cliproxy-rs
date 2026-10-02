@@ -30,6 +30,8 @@ pub(crate) struct ClaudeKey {
     pub cloak: Option<Cloak>,
     pub fingerprint_profile: String,
     pub rebuild_mid_system_message: bool,
+    /// `models[]`, for the attempt's capability snapshot.
+    pub models: Vec<cpa_core::registry::dynamic::ConfigModel>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -129,6 +131,13 @@ fn keys(doc: &Value) -> Vec<ClaudeKey> {
                 cloak,
                 fingerprint_profile: text(key.get("fingerprint-profile")),
                 rebuild_mid_system_message: flag(key.get("rebuild-mid-system-message")),
+                models: key
+                    .get("models")
+                    .and_then(Value::as_sequence)
+                    .into_iter()
+                    .flatten()
+                    .filter_map(|m| serde_yaml_ng::from_value(m.clone()).ok())
+                    .collect(),
             });
         }
     }

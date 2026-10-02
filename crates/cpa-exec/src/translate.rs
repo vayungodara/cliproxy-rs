@@ -11,18 +11,38 @@ use futures_util::StreamExt;
 /// sdktranslator.TranslateRequest to Claude for `model` (the base model, without a
 /// thinking suffix): a registered pair with Go's summary pipeline, else Go's top-level
 /// model rewrite. Streaming translation whenever the client is not Claude.
-pub(crate) fn request(req: &ExecRequest, model: &str) -> Result<Bytes, ExecError> {
-    cpa_translate::translate_request(
-        req.source_format,
-        Format::Claude,
-        &RequestCtx {
-            model,
-            stream: req.stream || req.source_format != Format::Claude,
-        },
-        &req.body,
-    )
-    .map(Bytes::from)
-    .map_err(error)
+///
+/// With `is_compat` (an is-compat API-key model), OpenAI Chat and Responses clients use
+/// Go's `...WithCompat` translators, which keep unsigned reasoning history, between the
+/// same summary extraction and application
+/// (`TranslateRequestWithAPIKeyModelCompatibilityForExecutor`).
+// ponytail: the Codex orphan-delegation and multi-agent v2 input rewrites Go applies to
+// compat Responses payloads first are cpa_common::codex_client's (Codex thread).
+pub(crate) fn request(req: &ExecRequest, model: &str, is_compat: bool) -> Result<Bytes, ExecError> {
+    let ctx = RequestCtx {
+        model,
+        stream: req.stream || req.source_format != Format::Claude,
+    };
+    let compat: Option<cpa_translate::RequestFn> = match req.source_format {
+        Format::OpenAI if is_compat => Some(cpa_translate::openai_to_claude_with_compat),
+        Format::OpenAIResponse if is_compat => Some(cpa_translate::responses_to_claude_with_compat),
+        _ => None,
+    };
+    let Some(translate) = compat else {
+        return cpa_translate::translate_request(req.source_format, Format::Claude, &ctx, &req.body)
+            .map(Bytes::from)
+            .map_err(error);
+    };
+    use cpa_common::thinking::{apply_summary_config_for_model, extract_translated_summary_config};
+    let (from, to) = (req.source_format.as_str(), Format::Claude.as_str());
+    let summary = extract_translated_summary_config(&req.body, from, to);
+    let translated = translate(&ctx, &req.body).map_err(error)?;
+    Ok(Bytes::from(apply_summary_config_for_model(
+        &translated,
+        to,
+        model,
+        summary,
+    )))
 }
 
 pub(crate) async fn response(
@@ -261,9 +281,9 @@ mod tests {
         let mut request = req(false, Operation::Generate);
         request.source_format = Format::Claude;
         request.body = Bytes::from_static(br#"{  "model" : "claude", "messages": [] }"#);
-        assert_eq!(super::request(&request, "claude").unwrap(), request.body);
+        assert_eq!(super::request(&request, "claude", false).unwrap(), request.body);
         assert_eq!(
-            super::request(&request, "claude-base").unwrap(),
+            super::request(&request, "claude-base", false).unwrap(),
             br#"{  "model" : "claude-base", "messages": [] }"#.as_slice()
         );
     }
