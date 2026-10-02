@@ -88,7 +88,8 @@ async fn alpha_search_uses_policy_eligible_credential_and_passes_upstream_throug
     // Go selects with the route model: no credential registers this one (auth_not_found).
     let unknown = wreq::Client::new()
         .post(format!("{proxy}/backend-api/codex/alpha/search"))
-        .body(r#"{"id":"s-1","model":"gpt-5.4","query":"q"}"#)
+        // Duplicate `id` must not hide the model from selection (Go keeps both fields).
+        .body(r#"{"id":"s-1","id":"s-1","model":"gpt-5.4","query":"q"}"#)
         .send()
         .await
         .unwrap();

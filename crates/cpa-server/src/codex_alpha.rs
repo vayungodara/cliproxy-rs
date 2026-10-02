@@ -32,6 +32,32 @@ fn error(status: u16, message: &str) -> Response {
     (status, axum::Json(serde_json::json!({ "error": message }))).into_response()
 }
 
+/// `json.Unmarshal(body, &struct{ ID, Model string })`, trimmed: keys match
+/// case-insensitively and the last duplicate wins; a null or non-string value leaves the
+/// field as it was; invalid JSON or a non-object sets nothing.
+fn routing(body: &[u8]) -> (String, String) {
+    let (mut id, mut model) = (String::new(), String::new());
+    let text = String::from_utf8_lossy(body);
+    if !gjson::valid(&text) {
+        return (id, model);
+    }
+    let root = gjson::parse(&text);
+    if root.kind() == gjson::Kind::Object {
+        root.each(|key, value| {
+            let slot = match key.str() {
+                k if k.eq_ignore_ascii_case("id") => &mut id,
+                k if k.eq_ignore_ascii_case("model") => &mut model,
+                _ => return true,
+            };
+            if value.kind() == gjson::Kind::String {
+                *slot = value.str().to_owned();
+            }
+            true
+        });
+    }
+    (id.trim().to_owned(), model.trim().to_owned())
+}
+
 fn with_retry_after(mut response: Response, seconds: Option<u64>) -> Response {
     if let Some(seconds) = seconds {
         response
@@ -97,23 +123,7 @@ async fn alpha_search(
         Ok(body) => body.slice(..body.len().min(MAX_BODY)),
         Err(_) => return error(400, "Failed to read search request"),
     };
-    // `json.Unmarshal` into {id, model}: each string field independently, else empty.
-    #[derive(serde::Deserialize, Default)]
-    struct Routing {
-        #[serde(default)]
-        id: Option<serde_json::Value>,
-        #[serde(default)]
-        model: Option<serde_json::Value>,
-    }
-    let routing: Routing = serde_json::from_slice(&body).unwrap_or_default();
-    let field = |v: &Option<serde_json::Value>| {
-        v.as_ref()
-            .and_then(serde_json::Value::as_str)
-            .unwrap_or_default()
-            .trim()
-            .to_owned()
-    };
-    let (id, model) = (field(&routing.id), field(&routing.model));
+    let (id, model) = routing(&body);
     let (cfg, policy) = rt.request_snapshot();
     // The credential policy narrows selection; disallowed Codex credentials are excluded.
     let exclude = rt
@@ -240,6 +250,26 @@ mod tests {
             c.attributes.insert((*k).into(), (*v).into());
         }
         c
+    }
+
+    /// Go `encoding/json` into `struct{ ID, Model string }`.
+    #[test]
+    fn routing_fields_decode_like_go() {
+        let r = |s: &str| routing(s.as_bytes());
+        let pair = |a: &str, b: &str| (a.to_owned(), b.to_owned());
+        assert_eq!(
+            r(r#"{"id":"s","id":"t","model":"unregistered","query":"q"}"#),
+            pair("t", "unregistered"),
+            "duplicates: last wins, other fields kept"
+        );
+        assert_eq!(r(r#"{"ID":" a ","Model":"m"}"#), pair("a", "m"), "keys fold case");
+        assert_eq!(
+            r(r#"{"id":1,"model":"m","id":null}"#),
+            pair("", "m"),
+            "type errors skip only that field"
+        );
+        assert_eq!(r(r#"{"id":"a","model":"m""#), pair("", ""), "invalid JSON sets nothing");
+        assert_eq!(r("[1]"), pair("", ""));
     }
 
     #[test]

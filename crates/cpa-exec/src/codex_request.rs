@@ -327,14 +327,25 @@ fn translate_request(req: &ExecRequest, call: Call) -> Result<(String, Vec<u8>),
 }
 
 /// `helps.ApplyPayloadConfigWithRequestForExecutor` for the Codex executors.
-fn apply_payload(req: &ExecRequest, settings: &Settings, call: Call, model: &str, body: String, original: &[u8]) -> String {
+fn apply_payload(
+    req: &ExecRequest,
+    settings: &Settings,
+    call: Call,
+    model: &str,
+    body: String,
+    original: &[u8],
+) -> String {
     let requested = if req.requested_model.trim().is_empty() {
         req.model.trim()
     } else {
         req.requested_model.trim()
     };
     let rules = cpa_common::payload::Request {
-        target_executor: if call == Call::Websocket { "codex-websockets" } else { "codex" },
+        target_executor: if call == Call::Websocket {
+            "codex-websockets"
+        } else {
+            "codex"
+        },
         model,
         requested_model: requested,
         protocol: call.target().as_str(),
@@ -1027,13 +1038,7 @@ fn apply_identity(h: &mut HeaderMap, view: &View<'_>, settings: &Settings, clien
 }
 
 /// `applyCodexRoutingHint`: `model=<slug>[;tier=<service_tier>]` for OAuth credentials.
-fn routing_hint(
-    h: &mut HeaderMap,
-    view: &View<'_>,
-    client: &HeaderMap,
-    body: &str,
-    model: &str,
-) {
+fn routing_hint(h: &mut HeaderMap, view: &View<'_>, client: &HeaderMap, body: &str, model: &str) {
     if view.api_key {
         return;
     }

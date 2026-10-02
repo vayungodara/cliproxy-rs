@@ -599,6 +599,8 @@ fn translate_stream(req: &ExecRequest, translated: &str, upstream: ExecStream) -
         upstream: ExecStream,
         translator: Box<dyn cpa_translate::StreamTranslator>,
         ready: std::collections::VecDeque<Bytes>,
+        /// The terminal error, written after the frames it flushed.
+        failed: Option<ExecError>,
         done: bool,
     }
     futures_util::stream::unfold(
@@ -606,12 +608,16 @@ fn translate_stream(req: &ExecRequest, translated: &str, upstream: ExecStream) -
             upstream,
             translator,
             ready: Default::default(),
+            failed: None,
             done: false,
         },
         |mut st| async move {
             loop {
                 if let Some(event) = st.ready.pop_front() {
                     return Some((Ok(event), st));
+                }
+                if let Some(error) = st.failed.take() {
+                    return Some((Err(error), st));
                 }
                 if st.done {
                     return None;
@@ -627,8 +633,11 @@ fn translate_stream(req: &ExecRequest, translated: &str, upstream: ExecStream) -
                 match result {
                     Ok(events) => st.ready.extend(events),
                     Err(error) => {
+                        // Go's responsesSSEFramer flushes the pending client frame before a
+                        // terminal error is written.
+                        st.ready.extend(st.translator.flush_frames());
+                        st.failed = Some(error);
                         st.done = true;
-                        return Some((Err(error), st));
                     }
                 }
             }
