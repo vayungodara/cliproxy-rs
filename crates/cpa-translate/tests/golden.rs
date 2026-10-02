@@ -1,7 +1,9 @@
 //! Replays Go-generated goldens (tests/reference) for every pair in tests/fixtures/pairs.
 use cpa_common::json as gj;
 use cpa_core::format::Format;
-use cpa_translate::{RequestCtx, ResponseCtx, pair, sse::Framer, translate_request, translate_token_count};
+use cpa_translate::{
+    RequestCtx, ResponseCtx, go_stream, pair, sse::Framer, token_count, translate_request, translate_token_count,
+};
 use serde_json::Value;
 use std::{
     collections::HashMap,
@@ -112,7 +114,7 @@ fn run(client: Format, upstream: Format, f: &Value, bytes: bool) -> Vec<Vec<u8>>
             &input,
         )],
         "stream" => {
-            let mut s = (pair.go_stream)(&rctx);
+            let mut s = go_stream(client, upstream).unwrap()(&rctx);
             let mut out = vec![];
             for line in f["lines"].as_array().unwrap() {
                 out.extend(s.line(&field(line, bytes)).unwrap());
@@ -135,12 +137,12 @@ fn reference_goldens() {
         let doc: Value = serde_json::from_str(&std::fs::read_to_string(&file).unwrap()).unwrap();
         let client = Format::parse(doc["client"].as_str().unwrap()).unwrap();
         let upstream = Format::parse(doc["upstream"].as_str().unwrap()).unwrap();
-        let Some(p) = pair(client, upstream) else {
+        if pair(client, upstream).is_none() {
             failures.push(format!("{}: pair not registered", file.display()));
             continue;
-        };
+        }
         assert_eq!(
-            p.token_count.is_some(),
+            token_count(client, upstream).is_some(),
             doc["token_count"].as_bool().unwrap(),
             "{client:?}->{upstream:?}"
         );
@@ -190,7 +192,7 @@ fn reference_goldens() {
                     original_request: &original,
                     translated_request: &translated,
                 };
-                let mut s = (p.go_stream)(&rctx);
+                let mut s = go_stream(client, upstream).unwrap()(&rctx);
                 let mut out = vec![];
                 for (i, line) in f["lines"].as_array().unwrap().iter().enumerate() {
                     let chunks = s.line(&field(line, bytes)).unwrap();
@@ -295,7 +297,7 @@ fn openai_passthrough_is_byte_oriented() {
 fn registration_matches_go() {
     for upstream in [Format::Claude, Format::OpenAI] {
         let p = pair(Format::OpenAI, upstream).unwrap();
-        assert!(p.count_tokens.is_none() && p.token_count.is_none());
+        assert!(p.count_tokens.is_none() && token_count(Format::OpenAI, upstream).is_none());
     }
     assert!(pair(Format::Claude, Format::Claude).is_none());
     // Unregistered pairs fall back to a model rewrite only.

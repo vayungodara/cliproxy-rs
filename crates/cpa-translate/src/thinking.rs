@@ -32,20 +32,6 @@ pub fn convert_level_to_budget(level: &str) -> Option<i64> {
     })
 }
 
-/// thinking.ConvertBudgetToLevel.
-pub fn convert_budget_to_level(budget: i64) -> Option<&'static str> {
-    Some(match budget {
-        b if b < -1 => return None,
-        -1 => "auto",
-        0 => "none",
-        b if b <= 512 => "minimal",
-        b if b <= 1024 => "low",
-        b if b <= 8192 => "medium",
-        b if b <= 24576 => "high",
-        _ => "xhigh",
-    })
-}
-
 /// thinking.HasLevel.
 pub fn has_level(levels: &[String], target: &str) -> bool {
     levels.iter().any(|l| l.trim().eq_ignore_ascii_case(target))
@@ -70,27 +56,6 @@ pub fn parse_suffix(model: &str) -> (&str, Option<&str>) {
         Some(open) if model.ends_with(')') => (&model[..open], Some(&model[open + 1..model.len() - 1])),
         _ => (model, None),
     }
-}
-
-/// thinking.GetThinkingText.
-pub fn thinking_text(part: &gj::Res<'_>) -> Vec<u8> {
-    let text = part.get("text");
-    if text.kind == Kind::String {
-        return text.s.to_vec();
-    }
-    let field = part.get("thinking");
-    if field.kind == Kind::String {
-        return field.s.to_vec();
-    }
-    if field.is_object() {
-        for key in ["text", "thinking"] {
-            let inner = field.get(key);
-            if inner.kind == Kind::String {
-                return inner.s.to_vec();
-            }
-        }
-    }
-    vec![]
 }
 
 // ---------------------------------------------------------------------------------------
@@ -408,11 +373,8 @@ mod tests {
     }
 
     #[test]
-    fn budget_level_round_trip_boundaries() {
-        assert_eq!(convert_budget_to_level(512), Some("minimal"));
-        assert_eq!(convert_budget_to_level(513), Some("low"));
-        assert_eq!(convert_budget_to_level(24577), Some("xhigh"));
-        assert_eq!(convert_budget_to_level(-2), None);
+    fn level_budgets_are_case_insensitive() {
         assert_eq!(convert_level_to_budget("MAX"), Some(128000));
+        assert_eq!(convert_level_to_budget(" high"), None);
     }
 }

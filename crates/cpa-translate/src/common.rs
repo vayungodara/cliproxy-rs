@@ -429,38 +429,6 @@ fn content_parts(content: &Res<'_>) -> Vec<Vec<u8>> {
     parts
 }
 
-/// common.AlignClaudeToolResults: reorders tool_result parts to follow `ids` when every
-/// result can be matched; otherwise returns the content untouched.
-pub fn align_claude_tool_results(content: &Res<'_>, ids: &[Vec<u8>]) -> Option<Vec<u8>> {
-    if !content.is_array() || ids.is_empty() {
-        return None;
-    }
-    let parts = content.array();
-    let results: Vec<(usize, &Res<'_>)> = parts
-        .iter()
-        .enumerate()
-        .filter(|(_, p)| p.get("type").str() == "tool_result")
-        .collect();
-    if results.len() != ids.len() {
-        return None;
-    }
-    let mut used = vec![false; results.len()];
-    let mut reordered = vec![];
-    for id in ids {
-        let matched = results
-            .iter()
-            .enumerate()
-            .position(|(i, (_, r))| !used[i] && !id.is_empty() && *r.get("tool_use_id").bytes() == **id)?;
-        used[matched] = true;
-        reordered.push(results[matched].1);
-    }
-    let mut ordered: Vec<Vec<u8>> = parts.iter().map(|p| p.raw.to_vec()).collect();
-    for (i, (slot, _)) in results.iter().enumerate() {
-        ordered[*slot] = reordered[i].raw.to_vec();
-    }
-    Some(gj::join(&ordered))
-}
-
 // ---------------------------------------------------------------------------------------
 // Tool IDs and names (common/request.go, util/claude_tool_id.go)
 
@@ -681,31 +649,7 @@ pub fn claude_structured_output_instruction(format: &Res<'_>) -> Vec<u8> {
 }
 
 // ---------------------------------------------------------------------------------------
-// SSE and token counts (common/bytes.go)
-
-/// `event: <event>\ndata: <payload>\n\n`.
-pub fn sse_event(event: &str, payload: &[u8]) -> Vec<u8> {
-    let mut out = Vec::with_capacity(event.len() + payload.len() + 16);
-    append_sse_event(&mut out, event, payload, 2);
-    out
-}
-
-pub fn append_sse_event(out: &mut Vec<u8>, event: &str, payload: &[u8], newlines: usize) {
-    out.extend_from_slice(b"event: ");
-    out.extend_from_slice(event.as_bytes());
-    out.extend_from_slice(b"\ndata: ");
-    out.extend_from_slice(payload);
-    out.extend(std::iter::repeat_n(b'\n', newlines));
-}
-
-pub fn claude_input_tokens_json(count: i64) -> Vec<u8> {
-    format!(r#"{{"input_tokens":{count}}}"#).into_bytes()
-}
-
-pub fn gemini_token_count_json(count: i64) -> Vec<u8> {
-    format!(r#"{{"totalTokens":{count},"promptTokensDetails":[{{"modality":"TEXT","tokenCount":{count}}}]}}"#)
-        .into_bytes()
-}
+// Request model (common/request.go)
 
 /// common.RequestModelName: the first non-blank `model` or `request.model` string.
 pub fn request_model_name(original: &[u8], request: &[u8]) -> Vec<u8> {

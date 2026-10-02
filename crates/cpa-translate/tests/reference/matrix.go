@@ -50,7 +50,13 @@ func matrix(r registration, model string) []fixture {
 				Input: `{"messages":[{"role":"assistant","content":"answer","reasoning_content":"reason"},{"role":"assistant","content":"x","reasoning_content":"  "}]}`})
 		}
 	}
+	switch r.client {
+	case "openai-response":
+		out = append(out, responsesRequests(model)...)
+	}
 	switch r.upstream {
+	case "codex":
+		out = append(out, codexResponses()...)
 	case "claude":
 		out = append(out, claudeResponses()...)
 	case "openai":
@@ -229,4 +235,74 @@ func openAIResponses() []fixture {
 		nonStream("passthrough/invalid", "m", `invalid`),
 		nonStream("passthrough/bytes", "m", "{\"x\":\"\xff\"}"),
 	}
+}
+
+func responsesRequests(model string) []fixture {
+	var out []fixture
+	for i, input := range []string{
+		`{"model":"m","input":"plain <b> & é","stream":false,"store":true,"parallel_tool_calls":false}`,
+		`{"input":[{"role":"system","content":[{"type":"input_text","text":"sys <x>"}]},  {"type":"message", "role":"user","content":"u\u2028"}],"stream":"yes","store":null}`,
+		`{"input":[{"role":"system","content":"s"},{"role":"user","content":"x",}],"include":["reasoning.encrypted_content"],"stream":true,"store":false,"parallel_tool_calls":true}`,
+		`{"input":[{"role":"SYSTEM","content":"s"},"text",5],"include":["a","reasoning.encrypted_content"]}`,
+		`{"input":{"role":"system"},"include":"reasoning.encrypted_content"}`,
+		`{"input":[],"include":[],"max_output_tokens":5,"max_completion_tokens":6,"temperature":0.2,"top_p":1,"truncation":"auto","prompt_cache_options":{},"prompt_cache_retention":"24h","user":"u","context_management":[{"type":"compaction"}]}`,
+		`{"input":[{"type":"message","role":"user","content":[{"type":"input_text","text":"a","prompt_cache_breakpoint":{"type":"ephemeral"}},{"type":"input_text","text":"b"}],"prompt_cache_breakpoint":true},{"type":"function_call_output","call_id":"c","output":[{"type":"input_text","text":"o","prompt_cache_breakpoint":1}]},{"type":"function_call","call_id":"c2","name":"f","arguments":"  "},{"type":"function_call","call_id":"c3","name":"f","arguments":""},{"type":"function_call","call_id":"c4","name":"f","arguments":5}]}`,
+		`{"input":"x","note":"mentions \"prompt_cache_breakpoint\" only in text"}`,
+		`{"input":"x","tools":[{"type":"web_search_preview"},{"type":"web_search_preview_2025_03_11","search_context_size":"low"},{"type":"function","name":"f"}],"tool_choice":{"type":"web_search_preview","tools":[{"type":"web_search_preview"}]}}`,
+		`{"input":"x","tools":[{"type":"function","name":"f"}],"tool_choice":"auto"}`,
+		`{"input":"x","reasoning":{"effort":"high","summary":"detailed"}}`,
+		`{"input":"x","reasoning":{"generate_summary":"concise"}}`,
+		`{"input":"x","reasoning":{"summary":null}}`,
+		"{\"input\":\"bad\xff\",\"instructions\":\"\xfe\"}",
+		"{\"input\":[{\"role\":\"system\",\"content\":\"\xff\"}]}",
+		`not json`, ``, `[]`, `{"input":"x"} trailing`,
+	} {
+		for _, tier := range []string{"", `"priority"`, `"fast"`, `" FAST "`, `"ultrafast"`, `"Ultrafast"`, `"flex"`, `5`, `null`} {
+			in := input
+			if tier != "" {
+				if !strings.HasPrefix(strings.TrimSpace(in), "{") || !strings.Contains(in, `"input"`) {
+					continue
+				}
+				in = strings.Replace(in, `{`, `{"service_tier":`+tier+`,`, 1)
+			}
+			out = append(out, req(fmt.Sprintf("responses/%d/tier%s", i, tier), model, in, i%2 == 0))
+		}
+	}
+	return out
+}
+
+func codexResponses() []fixture {
+	const model = "gpt-5.3-codex"
+	created := `data: {"type":"response.created","sequence_number":0,"response":{"id":"resp_1","status":"in_progress"}}`
+	out := []fixture{
+		streamCase("events/basic", model, "event: response.created", created, "", "event: response.in_progress",
+			`data: {"type":"response.in_progress","response":{"id":"resp_1","model":"upstream"}}`, "",
+			`data:{"type":"response.output_text.delta","delta":"<b> é"}`, `data: {"type":"response.completed","response":{"id":"resp_1"}}`, "data: [DONE]"),
+		streamCase("events/no-model", "", created, `{"type":"response.in_progress","response":{}}`, `data: {"type":"response.created"}`,
+			`data: {"type":"response.created","response":"str"}`, "data: not json", ": keepalive",
+			"data: {\"type\":\"response.created\",\"response\":{\"id\":\"\xff\"}}"),
+	}
+	for i, orig := range []string{`{"model":"client-model"}`, `{"model":"  "}`, `{"request":{"model":"nested"}}`, `invalid`, ``} {
+		f := streamCase(fmt.Sprintf("events/original/%d", i), model, created)
+		f.Original = orig
+		f.Translated = `{"model":"translated-model"}`
+		out = append(out, f)
+		g := f
+		g.Name += "/no-translated"
+		g.Translated = ""
+		out = append(out, g)
+	}
+	for i, body := range []string{
+		`{"type":"response.completed","response":{"id":"r","output":[{"type":"message"}],"usage":{"input_tokens":1}}}`,
+		`{"type":"response.incomplete","response":{"id":"r","status":"incomplete"}}`,
+		`{"type":"response.completed"}`,
+		`{"id":"r","output":[],"status":"completed"}`,
+		`{"id":"r","output":{}}`,
+		`{"type":"response.failed","response":{"id":"r"}}`,
+		` {"type":"response.completed","response": {"a" : 1} } `,
+		`invalid`, ``,
+	} {
+		out = append(out, nonStream(fmt.Sprintf("non-stream/%d", i), model, body))
+	}
+	return out
 }

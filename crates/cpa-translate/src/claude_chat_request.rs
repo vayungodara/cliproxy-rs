@@ -2,7 +2,7 @@
 //! (internal/translator/claude/openai/chat-completions/claude_openai_request.go).
 
 use crate::{
-    Error, Pair, RequestCtx, claude_chat_response,
+    Error, Pair, Registered, RequestCtx, claude_chat_response,
     common::{self, trim_space},
     stream, thinking,
 };
@@ -10,11 +10,13 @@ use cpa_common::json::{self as gj, Kind, Res};
 use cpa_core::format::Format;
 use std::collections::{HashMap, HashSet};
 
-pub static PAIR: Pair = Pair {
-    request,
-    non_stream: claude_chat_response::non_stream,
-    stream: |ctx| stream::framed(Format::OpenAI, Format::Claude, claude_chat_response::go_stream(ctx)),
-    count_tokens: None,
+pub static PAIR: Registered = Registered {
+    pair: Pair {
+        request,
+        non_stream: claude_chat_response::non_stream,
+        stream: |ctx| stream::framed(Format::OpenAI, Format::Claude, claude_chat_response::go_stream(ctx)),
+        count_tokens: None,
+    },
     token_count: None,
     go_stream: claude_chat_response::go_stream,
 };

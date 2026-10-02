@@ -14,7 +14,7 @@
 //! - `stream` builds request-local state that turns framed upstream events (see
 //!   [`sse::Framer`]) into zero or more client events, then flushes on `finish`. Output
 //!   bytes are framed the way the client's Go route handler writes them ([`stream::frame`]).
-//! - `token_count` renders an upstream token count in the client's shape (Go's
+//! - [`token_count`] renders an upstream token count in the client's shape (Go's
 //!   TokenCount); `count_tokens` is the older body-based form and stays unset.
 //! - Response transforms run after the executor has reversed provider rewrites (tool
 //!   aliases, cloak) and see the client's original request and the translated request
@@ -26,6 +26,7 @@
 
 mod claude_chat_request;
 mod claude_chat_response;
+mod codex_responses;
 mod common;
 mod openai;
 pub mod sse;
@@ -83,21 +84,42 @@ pub struct Pair {
     pub non_stream: NonStreamFn,
     pub stream: StreamFn,
     pub count_tokens: Option<CountTokensFn>,
+}
+
+/// One Go registration: the public transforms plus what [`token_count`] and
+/// [`go_stream`] expose.
+pub(crate) struct Registered {
+    pub pair: Pair,
     pub token_count: Option<TokenCountFn>,
-    /// The Go-shaped line translator behind `stream`, for golden tests.
-    #[doc(hidden)]
     pub go_stream: GoStreamFn,
+}
+
+fn registered(client: Format, upstream: Format) -> Option<&'static Registered> {
+    // ponytail: static match. Plugin-registered translators (M6) need a runtime table.
+    match (client, upstream) {
+        (Format::OpenAI, Format::OpenAI) => Some(&openai::PAIR),
+        (Format::OpenAI, Format::Claude) => Some(&claude_chat_request::PAIR),
+        (Format::OpenAIResponse, Format::Codex) => Some(&codex_responses::PAIR),
+        _ => None,
+    }
 }
 
 /// Transforms for a client format talking to an upstream format, or `None` when the
 /// pair is not registered.
 pub fn pair(client: Format, upstream: Format) -> Option<&'static Pair> {
-    // ponytail: static match. Plugin-registered translators (M6) need a runtime table.
-    match (client, upstream) {
-        (Format::OpenAI, Format::OpenAI) => Some(&openai::PAIR),
-        (Format::OpenAI, Format::Claude) => Some(&claude_chat_request::PAIR),
-        _ => None,
-    }
+    registered(client, upstream).map(|r| &r.pair)
+}
+
+/// Go's TokenCount for the pair: renders an upstream input-token count in the client's
+/// shape. `None` when Go registers none (the upstream body is then returned as is).
+pub fn token_count(client: Format, upstream: Format) -> Option<TokenCountFn> {
+    registered(client, upstream).and_then(|r| r.token_count)
+}
+
+/// The Go-shaped line translator behind a pair's `stream`, for golden tests.
+#[doc(hidden)]
+pub fn go_stream(client: Format, upstream: Format) -> Option<GoStreamFn> {
+    registered(client, upstream).map(|r| r.go_stream)
 }
 
 /// sdk/translator TranslateRequest. A registered pair runs between summary extraction
@@ -130,7 +152,7 @@ pub fn translate_request(
 /// sdk/translator TranslateTokenCount: the pair's token-count shape, or the upstream body
 /// unchanged when the pair registers none.
 pub fn translate_token_count(client: Format, upstream: Format, count: i64, body: &[u8]) -> Vec<u8> {
-    match pair(client, upstream).and_then(|p| p.token_count) {
+    match token_count(client, upstream) {
         Some(render) => render(count),
         None => body.to_vec(),
     }

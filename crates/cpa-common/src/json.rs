@@ -2188,13 +2188,16 @@ fn set_complex(jstr: &[u8], path: &str, raw: &[u8], stringify: bool) -> Result<V
     Ok(out)
 }
 
+/// Applies an edit in place. False exactly when sjson returns an error; a no-op edit (a
+/// missing delete or complex-path target) is a success, as in Go.
 fn apply(out: &mut Vec<u8>, path: &str, raw: &[u8], stringify: bool, del: bool) -> bool {
     match set_impl(out, path, raw, stringify, del) {
         Ok(next) => {
             *out = next;
             true
         }
-        Err(_) => false,
+        Err(SetError::NoChange) => true,
+        Err(SetError::Invalid(_)) => false,
     }
 }
 
@@ -2222,7 +2225,7 @@ pub fn try_delete(json: &[u8], path: &str) -> Result<Vec<u8>, String> {
 }
 
 /// `sjson.SetBytes(out, path, string)`. Returns false when sjson would return an error
-/// (the document is then unchanged).
+/// (the document is then unchanged), true otherwise.
 pub fn set_str(out: &mut Vec<u8>, path: &str, value: impl AsRef<[u8]>) -> bool {
     apply(out, path, value.as_ref(), true, false)
 }
