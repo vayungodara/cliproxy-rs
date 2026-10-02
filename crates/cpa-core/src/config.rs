@@ -15,7 +15,7 @@ use serde_yaml_ng::{Mapping, Value};
 
 pub mod credentials;
 mod document;
-mod go_url;
+pub mod go_url;
 mod sanitize;
 mod schema;
 mod text;

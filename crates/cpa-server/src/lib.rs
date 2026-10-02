@@ -20,6 +20,7 @@ pub mod runtime;
 mod sanitize;
 pub mod scheduler;
 mod session;
+pub mod usage;
 pub mod watching;
 
 use std::sync::Arc;

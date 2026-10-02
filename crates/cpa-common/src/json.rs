@@ -17,6 +17,42 @@
 
 use std::borrow::Cow;
 
+/// A gjson/sjson path. Go paths are byte strings, so keys taken from documents may not be
+/// UTF-8; text paths work as before.
+pub trait JsonPath {
+    fn as_path(&self) -> &[u8];
+}
+
+impl JsonPath for str {
+    fn as_path(&self) -> &[u8] {
+        self.as_bytes()
+    }
+}
+
+impl JsonPath for String {
+    fn as_path(&self) -> &[u8] {
+        self.as_bytes()
+    }
+}
+
+impl JsonPath for [u8] {
+    fn as_path(&self) -> &[u8] {
+        self
+    }
+}
+
+impl JsonPath for Vec<u8> {
+    fn as_path(&self) -> &[u8] {
+        self
+    }
+}
+
+impl<T: JsonPath + ?Sized> JsonPath for &T {
+    fn as_path(&self) -> &[u8] {
+        (**self).as_path()
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Kind {
     #[default]
@@ -150,7 +186,8 @@ impl<'a> Res<'a> {
         }
     }
 
-    pub fn get(&self, path: &str) -> Res<'a> {
+    pub fn get(&self, path: &(impl JsonPath + ?Sized)) -> Res<'a> {
+        let path = path.as_path();
         let mut r = match &self.raw {
             Cow::Borrowed(b) => get(b, path),
             Cow::Owned(v) => get(v, path).into_owned(),
@@ -1353,8 +1390,8 @@ fn parse_array<'a>(c: &mut Ctx<'a>, mut i: usize, path: &[u8]) -> (usize, bool) 
 }
 
 /// gjson.Get.
-pub fn get<'a>(json: &'a [u8], path: &str) -> Res<'a> {
-    let path = path.as_bytes();
+pub fn get<'a>(json: &'a [u8], path: &(impl JsonPath + ?Sized)) -> Res<'a> {
+    let path = path.as_path();
     if path.len() > 1 && path[0] == b'@' && is_dot_piper(path) {
         let end = path[1..]
             .iter()
@@ -1364,7 +1401,7 @@ pub fn get<'a>(json: &'a [u8], path: &str) -> Res<'a> {
             return Res::default();
         }
         if end < path.len() {
-            let mut res = get(json, &String::from_utf8_lossy(&path[end + 1..]));
+            let mut res = get(json, &path[end + 1..]);
             res.index = 0;
             res.indexes = None;
             return res;
@@ -1386,7 +1423,7 @@ pub fn get<'a>(json: &'a [u8], path: &str) -> Res<'a> {
     if let Some(pipe) = c.pipe {
         // Go pipes before fillIndex, while the left-hand value's index is still zero.
         c.value.index = 0;
-        let mut res = c.value.get(&String::from_utf8_lossy(&pipe));
+        let mut res = c.value.get(&pipe);
         res.index = 0;
         return res;
     }
@@ -1428,25 +1465,118 @@ pub fn parse(json: &[u8]) -> Res<'_> {
 }
 
 /// gjson.Valid.
+/// encoding/json `Valid`: gjson's grammar check plus encoding/json's nesting limit of
+/// 10000 arrays and objects.
+pub fn std_valid(data: &[u8]) -> bool {
+    if !valid(data) {
+        return false;
+    }
+    let (mut depth, mut in_string, mut escaped) = (0usize, false, false);
+    for &c in data {
+        if in_string {
+            if escaped {
+                escaped = false;
+            } else if c == b'\\' {
+                escaped = true;
+            } else if c == b'"' {
+                in_string = false;
+            }
+            continue;
+        }
+        match c {
+            b'"' => in_string = true,
+            b'{' | b'[' => {
+                depth += 1;
+                if depth > 10_000 {
+                    return false;
+                }
+            }
+            b'}' | b']' => depth -= 1,
+            _ => {}
+        }
+    }
+    true
+}
+
 pub fn valid(data: &[u8]) -> bool {
     fn ws(c: u8) -> bool {
         matches!(c, b' ' | b'\t' | b'\n' | b'\r')
     }
+    /// One value starting at or after `i` (leading white space allowed). Containers are
+    /// tracked on an explicit stack: gjson recurses, which Go's growable stacks absorb but
+    /// a fixed native stack does not.
     fn any(d: &[u8], mut i: usize) -> Option<usize> {
-        while i < d.len() {
-            match d[i] {
-                c if ws(c) => i += 1,
-                b'{' => return object(d, i + 1),
-                b'[' => return array(d, i + 1),
-                b'"' => return string(d, i + 1),
-                b'-' | b'0'..=b'9' => return number(d, i + 1),
-                b't' => return lit(d, i + 1, b"rue"),
-                b'f' => return lit(d, i + 1, b"alse"),
-                b'n' => return lit(d, i + 1, b"ull"),
+        #[derive(Clone, Copy)]
+        enum Container {
+            Object,
+            Array,
+        }
+        let mut stack: Vec<Container> = vec![];
+        'value: loop {
+            while i < d.len() && ws(d[i]) {
+                i += 1;
+            }
+            i = match *d.get(i)? {
+                b'{' => {
+                    let at = skip_to(d, i + 1, b"}\"")?;
+                    if d[at] == b'}' {
+                        at + 1
+                    } else {
+                        stack.push(Container::Object);
+                        i = string(d, at + 1)?;
+                        i = skip_to(d, i, b":")? + 1;
+                        continue 'value;
+                    }
+                }
+                b'[' => {
+                    let mut at = i + 1;
+                    while at < d.len() && ws(d[at]) {
+                        at += 1;
+                    }
+                    if *d.get(at)? == b']' {
+                        at + 1
+                    } else {
+                        stack.push(Container::Array);
+                        i = at;
+                        continue 'value;
+                    }
+                }
+                b'"' => string(d, i + 1)?,
+                b'-' | b'0'..=b'9' => number(d, i + 1)?,
+                b't' => lit(d, i + 1, b"rue")?,
+                b'f' => lit(d, i + 1, b"alse")?,
+                b'n' => lit(d, i + 1, b"ull")?,
                 _ => return None,
+            };
+            // A value ended at `i`: close every container it completes.
+            loop {
+                match stack.last() {
+                    None => return Some(i),
+                    Some(Container::Object) => {
+                        i = skip_to(d, i, b",}")?;
+                        if d[i] == b'}' {
+                            i += 1;
+                            stack.pop();
+                            continue;
+                        }
+                        i = skip_to(d, i + 1, b"\"")?;
+                        i = string(d, i + 1)?;
+                        i = skip_to(d, i, b":")? + 1;
+                        continue 'value;
+                    }
+                    Some(Container::Array) => {
+                        i = skip_to(d, i, b",]")?;
+                        if d[i] == b']' {
+                            i += 1;
+                            stack.pop();
+                            continue;
+                        }
+                        i += 1;
+                        continue 'value;
+                    }
+                }
             }
         }
-        None
     }
     fn lit(d: &[u8], i: usize, rest: &[u8]) -> Option<usize> {
         d.get(i..i + rest.len()).filter(|s| *s == rest).map(|_| i + rest.len())
@@ -1462,42 +1592,6 @@ pub fn valid(data: &[u8]) -> bool {
             }
         }
         None
-    }
-    fn object(d: &[u8], i: usize) -> Option<usize> {
-        let mut i = skip_to(d, i, b"}\"")?;
-        if d[i] == b'}' {
-            return Some(i + 1);
-        }
-        loop {
-            i = string(d, i + 1)?;
-            i = skip_to(d, i, b":")? + 1;
-            i = any(d, i)?;
-            i = skip_to(d, i, b",}")?;
-            if d[i] == b'}' {
-                return Some(i + 1);
-            }
-            i = skip_to(d, i + 1, b"\"")?;
-        }
-    }
-    fn array(d: &[u8], i: usize) -> Option<usize> {
-        let mut i = i;
-        while i < d.len() && ws(d[i]) {
-            i += 1;
-        }
-        if i >= d.len() {
-            return None;
-        }
-        if d[i] == b']' {
-            return Some(i + 1);
-        }
-        loop {
-            i = any(d, i)?;
-            i = skip_to(d, i, b",]")?;
-            if d[i] == b']' {
-                return Some(i + 1);
-            }
-            i += 1;
-        }
     }
     fn string(d: &[u8], mut i: usize) -> Option<usize> {
         while i < d.len() {
@@ -2142,7 +2236,7 @@ fn append_raw_paths(
             res = Some(get(jstr, &(count.int() - 1).to_string()));
         }
     }
-    let res = res.unwrap_or_else(|| get(jstr, &String::from_utf8_lossy(&paths[0].gpart)));
+    let res = res.unwrap_or_else(|| get(jstr, &paths[0].gpart));
     if res.index > 0 {
         let end = res.index + res.raw.len();
         if paths.len() > 1 {
@@ -2249,11 +2343,11 @@ fn trim_ws(s: &[u8]) -> &[u8] {
     &s[start..end]
 }
 
-fn set_impl(jstr: &[u8], path: &str, raw: &[u8], stringify: bool, del: bool) -> Result<Vec<u8>, SetError> {
+fn set_impl(jstr: &[u8], path: &[u8], raw: &[u8], stringify: bool, del: bool) -> Result<Vec<u8>, SetError> {
     if path.is_empty() {
         return Err(SetError::Invalid("path cannot be empty".into()));
     }
-    let Some(paths) = split_path(path.as_bytes()) else {
+    let Some(paths) = split_path(path) else {
         if del {
             return Err(SetError::Invalid("cannot delete value from a complex path".into()));
         }
@@ -2264,7 +2358,7 @@ fn set_impl(jstr: &[u8], path: &str, raw: &[u8], stringify: bool, del: bool) -> 
     Ok(buf)
 }
 
-fn set_complex(jstr: &[u8], path: &str, raw: &[u8], stringify: bool) -> Result<Vec<u8>, SetError> {
+fn set_complex(jstr: &[u8], path: &[u8], raw: &[u8], stringify: bool) -> Result<Vec<u8>, SetError> {
     let res = get(jstr, path);
     if !res.exists() || (res.index == 0 && res.indexes.as_ref().is_none_or(Vec::is_empty)) {
         return Err(SetError::NoChange);
@@ -2303,7 +2397,7 @@ fn set_complex(jstr: &[u8], path: &str, raw: &[u8], stringify: bool) -> Result<V
 
 /// Applies an edit in place. False exactly when sjson returns an error; a no-op edit (a
 /// missing delete or complex-path target) is a success, as in Go.
-fn apply(out: &mut Vec<u8>, path: &str, raw: &[u8], stringify: bool, del: bool) -> bool {
+fn apply(out: &mut Vec<u8>, path: &[u8], raw: &[u8], stringify: bool, del: bool) -> bool {
     match set_impl(out, path, raw, stringify, del) {
         Ok(next) => {
             *out = next;
@@ -2314,7 +2408,7 @@ fn apply(out: &mut Vec<u8>, path: &str, raw: &[u8], stringify: bool, del: bool) 
     }
 }
 
-fn checked(json: &[u8], path: &str, raw: &[u8], stringify: bool, del: bool) -> Result<Vec<u8>, String> {
+fn checked(json: &[u8], path: &[u8], raw: &[u8], stringify: bool, del: bool) -> Result<Vec<u8>, String> {
     match set_impl(json, path, raw, stringify, del) {
         Ok(next) => Ok(next),
         Err(SetError::NoChange) => Ok(json.to_vec()),
@@ -2323,58 +2417,69 @@ fn checked(json: &[u8], path: &str, raw: &[u8], stringify: bool, del: bool) -> R
 }
 
 /// `sjson.SetBytes` with a string value, returning sjson's error message.
-pub fn try_set_str(json: &[u8], path: &str, value: impl AsRef<[u8]>) -> Result<Vec<u8>, String> {
+pub fn try_set_str(json: &[u8], path: &(impl JsonPath + ?Sized), value: impl AsRef<[u8]>) -> Result<Vec<u8>, String> {
+    let path = path.as_path();
     checked(json, path, value.as_ref(), true, false)
 }
 
 /// `sjson.SetRawBytes`, returning sjson's error message.
-pub fn try_set_raw(json: &[u8], path: &str, raw: impl AsRef<[u8]>) -> Result<Vec<u8>, String> {
+pub fn try_set_raw(json: &[u8], path: &(impl JsonPath + ?Sized), raw: impl AsRef<[u8]>) -> Result<Vec<u8>, String> {
+    let path = path.as_path();
     checked(json, path, raw.as_ref(), false, false)
 }
 
 /// `sjson.DeleteBytes`, returning sjson's error message.
-pub fn try_delete(json: &[u8], path: &str) -> Result<Vec<u8>, String> {
+pub fn try_delete(json: &[u8], path: &(impl JsonPath + ?Sized)) -> Result<Vec<u8>, String> {
+    let path = path.as_path();
     checked(json, path, b"", false, true)
 }
 
 /// `sjson.SetBytes(out, path, string)`. Returns false when sjson would return an error
 /// (the document is then unchanged), true otherwise.
-pub fn set_str(out: &mut Vec<u8>, path: &str, value: impl AsRef<[u8]>) -> bool {
+pub fn set_str(out: &mut Vec<u8>, path: &(impl JsonPath + ?Sized), value: impl AsRef<[u8]>) -> bool {
+    let path = path.as_path();
     apply(out, path, value.as_ref(), true, false)
 }
 
 /// `sjson.SetRawBytes`.
-pub fn set_raw(out: &mut Vec<u8>, path: &str, raw: impl AsRef<[u8]>) -> bool {
+pub fn set_raw(out: &mut Vec<u8>, path: &(impl JsonPath + ?Sized), raw: impl AsRef<[u8]>) -> bool {
+    let path = path.as_path();
     apply(out, path, raw.as_ref(), false, false)
 }
 
 /// `sjson.SetBytes` with any Go integer type.
-pub fn set_int(out: &mut Vec<u8>, path: &str, value: i64) -> bool {
+pub fn set_int(out: &mut Vec<u8>, path: &(impl JsonPath + ?Sized), value: i64) -> bool {
+    let path = path.as_path();
     apply(out, path, value.to_string().as_bytes(), false, false)
 }
 
 /// `sjson.SetBytes` with a float64 (`strconv.FormatFloat(v, 'f', -1, 64)`).
-pub fn set_f64(out: &mut Vec<u8>, path: &str, value: f64) -> bool {
+pub fn set_f64(out: &mut Vec<u8>, path: &(impl JsonPath + ?Sized), value: f64) -> bool {
+    let path = path.as_path();
     apply(out, path, fmt_float(value).as_bytes(), false, false)
 }
 
-pub fn set_bool(out: &mut Vec<u8>, path: &str, value: bool) -> bool {
+pub fn set_bool(out: &mut Vec<u8>, path: &(impl JsonPath + ?Sized), value: bool) -> bool {
+    let path = path.as_path();
     apply(out, path, if value { b"true" } else { b"false" }, false, false)
 }
 
 /// `sjson.SetBytes` with a `[]string`, which goes through json.Marshal and is therefore
 /// always HTML-escaped.
-pub fn set_strs<S: AsRef<[u8]>>(out: &mut Vec<u8>, path: &str, items: &[S]) -> bool {
+pub fn set_strs<S: AsRef<[u8]>>(out: &mut Vec<u8>, path: &(impl JsonPath + ?Sized), items: &[S]) -> bool {
+    let path = path.as_path();
     apply(out, path, &quote_all(items), false, false)
 }
 
 /// `sjson.DeleteBytes`.
-pub fn delete(out: &mut Vec<u8>, path: &str) -> bool {
+pub fn delete(out: &mut Vec<u8>, path: &(impl JsonPath + ?Sized)) -> bool {
+    let path = path.as_path();
     apply(out, path, b"", false, true)
 }
 
 /// common.SetStringWithoutHTMLEscape: an Encoder with HTML escaping off, set raw.
-pub fn set_str_no_html(out: &mut Vec<u8>, path: &str, value: impl AsRef<[u8]>) -> bool {
+pub fn set_str_no_html(out: &mut Vec<u8>, path: &(impl JsonPath + ?Sized), value: impl AsRef<[u8]>) -> bool {
+    let path = path.as_path();
     let mut raw = vec![];
     marshal_str(&mut raw, value.as_ref(), false);
     set_raw(out, path, raw)
@@ -2396,7 +2501,8 @@ pub fn join<S: AsRef<[u8]>>(items: &[S]) -> Vec<u8> {
 
 /// common.SetRawArrayItems: no-op for no items, an in-place fill of an existing `[]` for
 /// one item, otherwise a raw set of the joined array.
-pub fn set_items<S: AsRef<[u8]>>(out: &mut Vec<u8>, path: &str, items: &[S]) {
+pub fn set_items<S: AsRef<[u8]>>(out: &mut Vec<u8>, path: &(impl JsonPath + ?Sized), items: &[S]) {
+    let path = path.as_path();
     if items.is_empty() {
         return;
     }
@@ -2498,7 +2604,8 @@ impl AnyValue {
     /// own encodings (strings conditionally escaped, floats in `'f'` format), containers
     /// are marshaled. Where Marshal fails (a NaN or infinite number inside a container)
     /// sjson returns nil, so `out` is cleared, as Go's callers end up with.
-    pub fn set(&self, out: &mut Vec<u8>, path: &str) -> bool {
+    pub fn set(&self, out: &mut Vec<u8>, path: &(impl JsonPath + ?Sized)) -> bool {
+        let path = path.as_path();
         match self {
             Self::Null => set_raw(out, path, b"null"),
             Self::Bool(b) => set_bool(out, path, *b),
@@ -2610,18 +2717,29 @@ impl GoValue {
     }
 
     fn write(&self, out: &mut Vec<u8>) {
+        self.write_with(out, true);
+    }
+
+    /// An Encoder with `SetEscapeHTML(false)`, without the trailing newline.
+    pub fn marshal_no_html(&self) -> Vec<u8> {
+        let mut out = vec![];
+        self.write_with(&mut out, false);
+        out
+    }
+
+    fn write_with(&self, out: &mut Vec<u8>, html: bool) {
         match self {
             Self::Null => out.extend_from_slice(b"null"),
             Self::Bool(b) => out.extend_from_slice(if *b { b"true" } else { b"false" }),
             Self::Number(n) => out.extend_from_slice(n.as_bytes()),
-            Self::String(s) => marshal_str(out, s.as_bytes(), true),
+            Self::String(s) => marshal_str(out, s.as_bytes(), html),
             Self::Array(items) => {
                 out.push(b'[');
                 for (i, item) in items.iter().enumerate() {
                     if i > 0 {
                         out.push(b',');
                     }
-                    item.write(out);
+                    item.write_with(out, html);
                 }
                 out.push(b']');
             }
@@ -2631,9 +2749,9 @@ impl GoValue {
                     if i > 0 {
                         out.push(b',');
                     }
-                    marshal_str(out, key.as_bytes(), true);
+                    marshal_str(out, key.as_bytes(), html);
                     out.push(b':');
-                    item.write(out);
+                    item.write_with(out, html);
                 }
                 out.push(b'}');
             }
