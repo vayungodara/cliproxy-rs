@@ -452,8 +452,8 @@ async fn login_matches_go_requests_and_file() {
             std::fs::write(dir.path().join(go_file), stale).unwrap();
         }
         let go_raw = fx["extra"]["file_raw"].as_str().unwrap();
-        let stamp = gjson::get(go_raw, "last_refresh");
-        let now = chrono::DateTime::parse_from_rfc3339(stamp.str()).unwrap().to_utc();
+        let stamp = gj::get(go_raw.as_bytes(), "last_refresh").str().into_owned();
+        let now = chrono::DateTime::parse_from_rfc3339(&stamp).unwrap().to_utc();
         let outcome = login_with(login_auth(&mock.url).with_fixed_now(now), dir.path(), true)
             .await
             .unwrap();
