@@ -98,6 +98,19 @@ func scenarios() []scenario {
 			return s
 		}(),
 		func() scenario {
+			s := chat("chat_prompt_cache_key_from_derived_session", "cache-model", "cm", `{"model":"cm","messages":[]}`, jsonOK)
+			s.ConfigAuth = 1
+			s.DerivedSession = " ctx:v1:0123abcd "
+			return s
+		}(),
+		func() scenario {
+			s := chat("chat_execution_session_beats_derived_session", "cache-model", "cm", `{"model":"cm","messages":[]}`, jsonOK)
+			s.ConfigAuth = 1
+			s.ExecutionSession = "ws-session-1"
+			s.DerivedSession = "ctx:v1:0123abcd"
+			return s
+		}(),
+		func() scenario {
 			s := chat("chat_execution_session_without_prompt_cache_support", "acme-chat", "chat", `{"model":"chat","messages":[]}`, jsonOK)
 			s.ExecutionSession = "ws-session-1"
 			return s

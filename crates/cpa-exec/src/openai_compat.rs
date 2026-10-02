@@ -13,6 +13,7 @@ use cpa_core::format::Format;
 use cpa_translate::{RequestCtx, ResponseCtx, StreamTranslator};
 use futures_util::StreamExt;
 
+use cpa_common::gostr::GoStr;
 use cpa_common::json as gj;
 use cpa_common::thinking::{self, ModelCaps, RequestThinking, parse_suffix};
 
@@ -91,10 +92,6 @@ fn endpoint(base_url: &str, path: &str) -> String {
     format!("{}{path}", base_url.strip_suffix('/').unwrap_or(base_url))
 }
 
-fn not_text() -> ExecError {
-    ExecError::local(400, FailureScope::Request, "request body is not editable JSON text")
-}
-
 fn not_registered(what: &str, from: Format, to: Format) -> ExecError {
     ExecError::local(
         501,
@@ -126,14 +123,10 @@ fn apply_thinking(
     provider: &str,
     resolved: Option<&ModelCaps>,
 ) -> Result<Vec<u8>, ExecError> {
-    // Thinking edits text; invalid UTF-8 rides through as stand-in characters.
-    let text = go::GoText::new(&body).ok_or_else(not_text)?;
-    let payload = String::from_utf8_lossy(&req.body);
-    let original = String::from_utf8_lossy(&req.original_body);
-    let out = thinking::apply_request_thinking(&RequestThinking {
-        body: &text.text,
-        payload: &payload,
-        original: &original,
+    thinking::apply_request_thinking(&RequestThinking {
+        body: &body,
+        payload: &req.body,
+        original: &req.original_body,
         model: &req.model,
         from: req.source_format.as_str(),
         to: target.as_str(),
@@ -142,8 +135,7 @@ fn apply_thinking(
         has_request_transformer: cpa_translate::pair(req.source_format, target).is_some(),
         updates_changed: false,
     })
-    .map_err(|e| ExecError::local(400, FailureScope::Request, e.message))?;
-    Ok(text.bytes(&out))
+    .map_err(|e| ExecError::local(400, FailureScope::Request, e.message))
 }
 
 fn base_headers(api_key: &str, content_type: &str) -> GoHeaders {
@@ -410,34 +402,34 @@ fn prompt_cache_key(
         payload::set_str_if_different(&mut body, "prompt_cache_key", &key);
         return body;
     }
-    // helps.ProviderSessionUUID: the execution session first.
-    // ponytail: Go then falls back to the derived (message-hash) session identity, which
-    // the server does not compute yet (M4-0021); such requests get no key.
-    let Some(execution) = req
-        .execution_session
-        .as_deref()
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-    else {
+    let Some(session) = provider_session_uuid(provider, req) else {
         return body;
     };
-    let provider = provider.trim().to_lowercase();
-    if provider.is_empty() {
-        return body;
-    }
-    let session = uuid::Uuid::new_v5(
-        &uuid::Uuid::NAMESPACE_OID,
-        format!("cli-proxy-api\0{provider}\0execution-session\0{execution}").as_bytes(),
-    )
-    .to_string();
+    let provider = provider.trim().go_lower();
     let identity = format!(
         "cli-proxy-api:openai-compat:prompt-cache\0{provider}\0{}\0{}\0{session}",
-        model.to_lowercase(),
-        req.source_format.as_str().to_lowercase()
+        model.go_lower(),
+        req.source_format.as_str().trim().go_lower()
     );
     let key = uuid::Uuid::new_v5(&uuid::Uuid::NAMESPACE_OID, identity.as_bytes()).to_string();
     payload::set_str_if_different(&mut body, "prompt_cache_key", &key);
     body
+}
+
+/// `helps.ProviderSessionUUID`: the execution session, else the derived session identity,
+/// as a provider-scoped stable UUID.
+fn provider_session_uuid(provider: &str, req: &ExecRequest) -> Option<String> {
+    let nonempty = |s: &Option<String>| s.as_deref().map(str::trim).filter(|s| !s.is_empty()).map(str::to_owned);
+    let (kind, value) = match nonempty(&req.execution_session) {
+        Some(execution) => ("execution-session", execution),
+        None => ("derived-session", nonempty(&req.derived_session)?),
+    };
+    let provider = provider.trim().go_lower();
+    if provider.is_empty() {
+        return None;
+    }
+    let identity = format!("cli-proxy-api\0{provider}\0{kind}\0{value}");
+    Some(uuid::Uuid::new_v5(&uuid::Uuid::NAMESPACE_OID, identity.as_bytes()).to_string())
 }
 
 /// `CountTokens`: a local tiktoken estimate of the translated chat request.

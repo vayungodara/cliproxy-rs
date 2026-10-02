@@ -659,7 +659,7 @@ pub(crate) fn sanitize_reasoning_encrypted_content(body: Vec<u8>) -> Vec<u8> {
         let invalid = match encrypted.kind {
             Kind::String => {
                 let raw = encrypted.str();
-                raw != raw.trim() || cpa_common::signature::inspect_gpt_reasoning_signature(&raw).is_err()
+                raw != raw.trim() || cpa_common::signature::inspect_gpt_reasoning_signature(raw.as_bytes()).is_err()
             }
             _ => true,
         };

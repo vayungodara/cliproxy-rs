@@ -1,6 +1,5 @@
 //! Go standard-library behaviour the executor's byte handling depends on, where Rust's
-//! defaults differ: `encoding/json.Valid`, `bytes.TrimSpace`, `net/http.ParseTime`, and
-//! [`GoText`], which carries bodies that are not valid UTF-8 through text-based helpers.
+//! defaults differ: `encoding/json.Valid`, `bytes.TrimSpace`, and `net/http.ParseTime`.
 
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -396,58 +395,6 @@ pub(crate) fn parse_http_time(raw: &str) -> Option<SystemTime> {
     rfc1123().or_else(rfc850).or_else(ansic)
 }
 
-/// Code points standing in for bytes that are not UTF-8, so sjson-style text edits can
-/// run on Go `[]byte` JSON and every untouched byte comes back unchanged.
-const BYTE_BASE: u32 = 0x10_FF00;
-
-/// Go `[]byte` JSON held as editable text.
-pub(crate) struct GoText {
-    pub text: String,
-    /// The text uses stand-ins for invalid bytes; only then are they converted back.
-    pub mapped: bool,
-}
-
-impl GoText {
-    /// `None` only when invalid input also contains valid stand-in-range characters.
-    pub(crate) fn new(b: &[u8]) -> Option<Self> {
-        if let Ok(s) = std::str::from_utf8(b) {
-            return Some(Self {
-                text: s.to_owned(),
-                mapped: false,
-            });
-        }
-        let mut text = String::with_capacity(b.len() + 8);
-        for chunk in b.utf8_chunks() {
-            if chunk.valid().chars().any(|c| c as u32 >= BYTE_BASE) {
-                return None;
-            }
-            text.push_str(chunk.valid());
-            for byte in chunk.invalid() {
-                text.push(char::from_u32(BYTE_BASE + u32::from(*byte)).expect("valid code point"));
-            }
-        }
-        Some(Self { text, mapped: true })
-    }
-
-    /// The bytes of `text` (an edited copy of this value's text).
-    pub(crate) fn bytes(&self, text: &str) -> Vec<u8> {
-        if !self.mapped {
-            return text.as_bytes().to_vec();
-        }
-        let mut out = Vec::with_capacity(text.len());
-        for c in text.chars() {
-            let code = c as u32;
-            if code >= BYTE_BASE {
-                out.push((code - BYTE_BASE) as u8);
-            } else {
-                let mut buf = [0; 4];
-                out.extend_from_slice(c.encode_utf8(&mut buf).as_bytes());
-            }
-        }
-        out
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -496,16 +443,5 @@ mod tests {
         assert_eq!(t("Sun, 06 Nov 1994 08:49:37 GMT"), Some(784111777));
         assert_eq!(t("Xyz, 06 Nov 1994 08:49:37 GMT"), None);
         assert_eq!(t("Sun, 31 Feb 1994 08:49:37 GMT"), None);
-    }
-
-    #[test]
-    fn go_text_round_trips_bytes_and_keeps_valid_stand_in_characters() {
-        let raw = b"{\"p\":\"\xff\xfe\",\"q\":\"\xc3\xa9\"}";
-        let text = GoText::new(raw).unwrap();
-        assert_eq!(text.bytes(&text.text), raw);
-        let valid = "{\"p\":\"\u{10FF22}\"}";
-        let text = GoText::new(valid.as_bytes()).unwrap();
-        assert_eq!(text.bytes(&text.text), valid.as_bytes());
-        assert!(GoText::new(b"\xff\xf4\x8f\xbc\xa2").is_none());
     }
 }

@@ -284,6 +284,55 @@
       "output": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
     },
     {
+      "name": "chat_prompt_cache_key_from_derived_session",
+      "config": "\napi-keys:\n  openai-compatibility:\n    - name: Acme\n      base-url: http://UPSTREAM/v1\n      headers:\n        X-Static: static-value\n        X-Forward: $X-Client-Trace\n        X-Missing: $X-Not-Sent\n      models:\n        - name: acme-chat\n          alias: chat\n        - name: acme-mct\n          alias: mct\n          use-max-completion-tokens: true\n        - name: acme-text\n          alias: text\n          input-modalities: [text]\n        - name: acme-image\n          alias: img\n          image: true\n        - name: gpt-4o\n          alias: four\n      keys:\n        - api-key: sk-fake-acme\n    - name: cachey\n      base-url: http://UPSTREAM/v2/\n      support-prompt-cache-key: true\n      models:\n        - name: cache-model\n          alias: cm\n      keys:\n        - api-key: sk-fake-cache\n",
+      "config_auth": 1,
+      "provider": "openai-compatible-cachey",
+      "model": "cache-model",
+      "requested_model": "cm",
+      "payload": "{\"model\":\"cm\",\"messages\":[]}",
+      "source": "openai",
+      "op": "execute",
+      "derived_session": " ctx:v1:0123abcd ",
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "application/json"
+          ]
+        ],
+        "body": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
+      },
+      "request": "POST /v2/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 95\r\nAuthorization: Bearer sk-fake-cache\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"cache-model\",\"messages\":[],\"prompt_cache_key\":\"8e54d247-0967-5fa8-a3b5-30978a3cc458\"}",
+      "output": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
+    },
+    {
+      "name": "chat_execution_session_beats_derived_session",
+      "config": "\napi-keys:\n  openai-compatibility:\n    - name: Acme\n      base-url: http://UPSTREAM/v1\n      headers:\n        X-Static: static-value\n        X-Forward: $X-Client-Trace\n        X-Missing: $X-Not-Sent\n      models:\n        - name: acme-chat\n          alias: chat\n        - name: acme-mct\n          alias: mct\n          use-max-completion-tokens: true\n        - name: acme-text\n          alias: text\n          input-modalities: [text]\n        - name: acme-image\n          alias: img\n          image: true\n        - name: gpt-4o\n          alias: four\n      keys:\n        - api-key: sk-fake-acme\n    - name: cachey\n      base-url: http://UPSTREAM/v2/\n      support-prompt-cache-key: true\n      models:\n        - name: cache-model\n          alias: cm\n      keys:\n        - api-key: sk-fake-cache\n",
+      "config_auth": 1,
+      "provider": "openai-compatible-cachey",
+      "model": "cache-model",
+      "requested_model": "cm",
+      "payload": "{\"model\":\"cm\",\"messages\":[]}",
+      "source": "openai",
+      "op": "execute",
+      "execution_session": "ws-session-1",
+      "derived_session": "ctx:v1:0123abcd",
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "application/json"
+          ]
+        ],
+        "body": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
+      },
+      "request": "POST /v2/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 95\r\nAuthorization: Bearer sk-fake-cache\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"cache-model\",\"messages\":[],\"prompt_cache_key\":\"a9ea7ed9-748b-5d59-9515-03bcddeb42fc\"}",
+      "output": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
+    },
+    {
       "name": "chat_execution_session_without_prompt_cache_support",
       "config": "\napi-keys:\n  openai-compatibility:\n    - name: Acme\n      base-url: http://UPSTREAM/v1\n      headers:\n        X-Static: static-value\n        X-Forward: $X-Client-Trace\n        X-Missing: $X-Not-Sent\n      models:\n        - name: acme-chat\n          alias: chat\n        - name: acme-mct\n          alias: mct\n          use-max-completion-tokens: true\n        - name: acme-text\n          alias: text\n          input-modalities: [text]\n        - name: acme-image\n          alias: img\n          image: true\n        - name: gpt-4o\n          alias: four\n      keys:\n        - api-key: sk-fake-acme\n    - name: cachey\n      base-url: http://UPSTREAM/v2/\n      support-prompt-cache-key: true\n      models:\n        - name: cache-model\n          alias: cm\n      keys:\n        - api-key: sk-fake-cache\n",
       "config_auth": 0,

@@ -30,9 +30,9 @@ import (
 	_ "github.com/router-for-me/CLIProxyAPI/v8/internal/translator"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/watcher/synthesizer"
 	cliproxyauth "github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/auth"
-	"github.com/tidwall/gjson"
 	cliproxyexecutor "github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/executor"
 	sdktranslator "github.com/router-for-me/CLIProxyAPI/v8/sdk/translator"
+	"github.com/tidwall/gjson"
 )
 
 type upstream struct {
@@ -64,10 +64,10 @@ type scenario struct {
 	Payload        string            `json:"payload"`
 	// PayloadB64 replaces Payload for bodies that are not valid UTF-8.
 	PayloadB64 string `json:"payload_b64,omitempty"`
-	Original       string            `json:"original,omitempty"`
-	Source         string            `json:"source"`
-	Response       string            `json:"response,omitempty"`
-	Stream         bool              `json:"stream,omitempty"`
+	Original   string `json:"original,omitempty"`
+	Source     string `json:"source"`
+	Response   string `json:"response,omitempty"`
+	Stream     bool   `json:"stream,omitempty"`
 	// Op is execute, stream, count, images or images_stream.
 	Op          string            `json:"op"`
 	Alt         string            `json:"alt,omitempty"`
@@ -77,6 +77,8 @@ type scenario struct {
 	Session     string            `json:"session,omitempty"`
 	// ExecutionSession is opts.Metadata[execution_session_id].
 	ExecutionSession string `json:"execution_session,omitempty"`
+	// DerivedSession is req.Metadata[derived_session_id] (session.Enrich).
+	DerivedSession string `json:"derived_session,omitempty"`
 	// Needs names shared helpers whose real port must land before Rust can match.
 	Needs    []string  `json:"needs,omitempty"`
 	Upstream *upstream `json:"upstream,omitempty"`
@@ -84,9 +86,9 @@ type scenario struct {
 	Request string `json:"request,omitempty"`
 	// RequestB64 holds the capture instead of Request when it is not valid UTF-8.
 	RequestB64 string   `json:"request_b64,omitempty"`
-	Output  string   `json:"output,omitempty"`
-	Chunks  []string `json:"chunks,omitempty"`
-	Error   *errOut  `json:"error,omitempty"`
+	Output     string   `json:"output,omitempty"`
+	Chunks     []string `json:"chunks,omitempty"`
+	Error      *errOut  `json:"error,omitempty"`
 }
 
 var boundaryRe = regexp.MustCompile(`boundary=([0-9a-f]{60})`)
@@ -327,6 +329,9 @@ func run(s *scenario) {
 	}
 	if s.ExecutionSession != "" {
 		opts.Metadata[cliproxyexecutor.ExecutionSessionMetadataKey] = s.ExecutionSession
+	}
+	if s.DerivedSession != "" {
+		req.Metadata[cliproxyexecutor.DerivedSessionIDMetadataKey] = s.DerivedSession
 	}
 	if strings.HasPrefix(s.Op, "images") {
 		opts.SourceFormat = sdktranslator.FromString("openai-image")

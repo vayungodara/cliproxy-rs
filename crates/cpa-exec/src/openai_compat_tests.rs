@@ -94,18 +94,33 @@ impl Mock {
 
     fn request(&self) -> Option<Vec<u8>> {
         let raw = self.raw.lock().unwrap().clone()?;
-        let encoding = crate::openai_compat_go::GoText::new(&raw).unwrap();
-        let mut text = encoding.text.replace(&self.addr, "UPSTREAM");
+        let mut out = replace(&raw, self.addr.as_bytes(), b"UPSTREAM");
         // Go's multipart writer picks a random 60-hex-digit boundary; so does Rust.
-        let marker = "boundary=";
-        if let Some(i) = text.find(marker)
-            && let Some(boundary) = text.get(i + marker.len()..i + marker.len() + 60)
-            && boundary.bytes().all(|b| b.is_ascii_hexdigit())
+        let marker = b"boundary=";
+        if let Some(i) = out.windows(marker.len()).position(|w| w == marker)
+            && let Some(boundary) = out.get(i + marker.len()..i + marker.len() + 60)
+            && boundary.iter().all(u8::is_ascii_hexdigit)
         {
-            text = text.replace(&boundary.to_owned(), "BOUNDARY");
+            let boundary = boundary.to_vec();
+            out = replace(&out, &boundary, b"BOUNDARY");
         }
-        Some(encoding.bytes(&text))
+        Some(out)
     }
+}
+
+fn replace(haystack: &[u8], from: &[u8], to: &[u8]) -> Vec<u8> {
+    let mut out = Vec::with_capacity(haystack.len());
+    let mut i = 0;
+    while i < haystack.len() {
+        if haystack[i..].starts_with(from) {
+            out.extend_from_slice(to);
+            i += from.len();
+        } else {
+            out.push(haystack[i]);
+            i += 1;
+        }
+    }
+    out
 }
 
 fn credential(s: &Value, cfg: &Config, addr: &str) -> Credential {
