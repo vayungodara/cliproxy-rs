@@ -76,7 +76,8 @@ fn pipeline_reproduces_go_upstream_captures() {
         let prepared = if req.operation == Operation::CountTokens {
             ctx.prepare_count(&req, &translated).unwrap()
         } else {
-            ctx.prepare_messages(&req, &translated, req.stream).unwrap()
+            let original = translate::original(&req, &translated, &ctx.base_model, ctx.is_compat).unwrap();
+            ctx.prepare_messages(&req, &translated, &original, req.stream).unwrap()
         };
         assert_eq!(prepared.body, case["upstream_body"].as_str().unwrap(), "{name}: body");
         let go: Vec<(String, String)> = case["upstream_headers"]
@@ -355,7 +356,8 @@ async fn executor_scenarios_match_go() {
             ctx.prepare_count(&req, &translated)
         } else {
             // generate(): translated clients always stream upstream.
-            ctx.prepare_messages(&req, &translated, stream || source != Format::Claude)
+            let original = translate::original(&req, &translated, &ctx.base_model, ctx.is_compat).unwrap();
+            ctx.prepare_messages(&req, &translated, &original, stream || source != Format::Claude)
         };
         if scenario["upstream"].as_array().is_none_or(Vec::is_empty) {
             // Go failed before sending (thinking validation and the like).

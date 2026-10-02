@@ -19,6 +19,31 @@ use futures_util::StreamExt;
 // ponytail: the Codex orphan-delegation and multi-agent v2 input rewrites Go applies to
 // compat Responses payloads first are cpa_common::codex_client's (Codex thread).
 pub(crate) fn request(req: &ExecRequest, model: &str, is_compat: bool) -> Result<Bytes, ExecError> {
+    translate_body(req, &req.body, model, is_compat)
+}
+
+/// Go `originalTranslated` from `TranslateRequestPairWithAPIKeyModelCompatibility`: the
+/// client's original payload translated like the working one (`translated`), which
+/// payload rules read for `original` conditions.
+pub(crate) fn original(
+    req: &ExecRequest,
+    translated: &Bytes,
+    model: &str,
+    is_compat: bool,
+) -> Result<Bytes, ExecError> {
+    // Go reuses the translation when both payloads are the same slice; equal bytes
+    // translate identically.
+    if req.original_body.is_empty() || req.original_body == req.body {
+        return Ok(translated.clone());
+    }
+    translate_body(req, &req.original_body, model, is_compat)
+}
+
+fn translate_body(req: &ExecRequest, body: &[u8], model: &str, is_compat: bool) -> Result<Bytes, ExecError> {
+    // TranslateRequestWithAPIKeyModelCompatibilityForExecutor: Codex clients' integer
+    // tool schemas are normalized before any translation to a non-Codex executor.
+    let normalized = cpa_common::payload::normalize_codex_tool_integer_types(body, &req.headers);
+    let body = normalized.as_slice();
     let ctx = RequestCtx {
         model,
         stream: req.stream || req.source_format != Format::Claude,
@@ -29,14 +54,14 @@ pub(crate) fn request(req: &ExecRequest, model: &str, is_compat: bool) -> Result
         _ => None,
     };
     let Some(translate) = compat else {
-        return cpa_translate::translate_request(req.source_format, Format::Claude, &ctx, &req.body)
+        return cpa_translate::translate_request(req.source_format, Format::Claude, &ctx, body)
             .map(Bytes::from)
             .map_err(error);
     };
     use cpa_common::thinking::{apply_summary_config_for_model, extract_translated_summary_config};
     let (from, to) = (req.source_format.as_str(), Format::Claude.as_str());
-    let summary = extract_translated_summary_config(&req.body, from, to);
-    let translated = translate(&ctx, &req.body).map_err(error)?;
+    let summary = extract_translated_summary_config(body, from, to);
+    let translated = translate(&ctx, body).map_err(error)?;
     Ok(Bytes::from(apply_summary_config_for_model(
         &translated,
         to,

@@ -12,9 +12,11 @@
 //! Thinking (`cpa_common::thinking`), signature sanitizing (`cpa_common::signature`)
 //! and request translation (`cpa_translate::translate_request`) are the shared modules.
 //!
-//! ponytail: not ported here, each with its owner noted in docs/reviews: payload rules
-//! (M4-0031, server thread), Vertex delegation, Home KV identity, usage reporting and
-//! request logs.
+//! Payload rules (`cpa_common::payload`) run after cloaking, as in Go, and
+//! reconcile.rs repairs the cloak's model-specific additions afterwards.
+//!
+//! ponytail: not ported here, each with its owner noted in docs/reviews: Vertex
+//! delegation, Home KV identity, usage reporting and request logs.
 
 mod alias;
 mod betas;
@@ -23,6 +25,7 @@ mod detect;
 mod headers;
 mod identity;
 mod profile;
+mod reconcile;
 mod replay;
 mod session;
 mod settings;
@@ -247,7 +250,8 @@ impl ClaudeExecutor {
     ) -> Result<ExecResponse, ExecError> {
         let upstream_stream = req.stream || req.response_format != Format::Claude;
         let translated = translate::request(&req, &ctx.base_model, ctx.is_compat)?;
-        let prepared = ctx.prepare_messages(&req, &translated, upstream_stream)?;
+        let original_translated = translate::original(&req, &translated, &ctx.base_model, ctx.is_compat)?;
+        let prepared = ctx.prepare_messages(&req, &translated, &original_translated, upstream_stream)?;
         let response = self.send(&ctx, &prepared, "/v1/messages").await?;
         let reverse = prepared.reverse.clone();
         let continuity = prepared.continuity.clone();
@@ -547,6 +551,9 @@ struct Ctx<'a> {
     resolved: Option<Resolved>,
     /// `helps.APIKeyModelIsCompat`.
     is_compat: bool,
+    /// `requests.payload` rules of this config snapshot.
+    // ponytail: parsed per request from the snapshot; the rule section is small.
+    payload_rules: cpa_common::payload::Rules,
     /// Real Claude OAuth token (`sk-ant-oat`).
     oauth_token: bool,
     /// `fp.ProfileClaudeCodeCLI`: OAuth token or `fingerprint-profile: claude-code-cli`.
@@ -784,6 +791,7 @@ impl<'a> Ctx<'a> {
             kimi: kimi_upstream(&credential.provider, &base_url),
             execution: session::normalize(req.execution_session.as_deref().unwrap_or_default()),
             is_compat: resolved.as_ref().is_some_and(|r| r.is_compat),
+            payload_rules: cpa_common::payload::Rules::from_config(cfg),
             resolved,
             base_model: base,
             cli_profile: oauth_token || profile == "claude-code-cli",
@@ -912,6 +920,7 @@ impl<'a> Ctx<'a> {
         &self,
         req: &ExecRequest,
         translated: &[u8],
+        original_translated: &[u8],
         upstream_stream: bool,
     ) -> Result<Prepared, ExecError> {
         let original = String::from_utf8_lossy(&req.original_body).into_owned();
@@ -944,6 +953,7 @@ impl<'a> Ctx<'a> {
         let probe_before = signals::probe_or_helper(&body);
         let mut continuity = session::Continuity::default();
         let mut cloaked = false;
+        let before_cloak = body.clone();
         if cloak {
             if !strict && let Some(message) = cloak::invalid_system_block(&body) {
                 return Err(ExecError::local(400, FailureScope::Request, message));
@@ -1028,21 +1038,72 @@ impl<'a> Ctx<'a> {
                 }
             }
         }
-        // ponytail: payload rules (cpa-common::payload, server thread) run here in Go and
-        // may (de)classify a probe; without them only the post-cloak recheck remains.
+        let placement = reconcile::SystemPlacement::capture(&before_cloak, &body, cloaked);
+        let fable = reconcile::FableState::capture(&before_cloak, &body, cloaked);
+        let (edited, touched) = cpa_common::payload::apply_tracked(
+            &self.payload_rules,
+            &cpa_common::payload::Request {
+                target_executor: "claude",
+                model: &self.base_model,
+                requested_model: &req.requested_model,
+                protocol: Format::Claude.as_str(),
+                from_protocol: req.source_format.as_str(),
+                root: "",
+                original: original_translated,
+                // Go's request-path metadata only gates image-generation stripping on
+                // /v1/images routes, which never reach Claude; "" behaves as any other.
+                request_path: "",
+                headers: Some(&req.headers),
+            },
+            body.into_bytes(),
+            &["context_management", "fallbacks", "thinking.display", "diagnostics"],
+        );
+        body = text(edited);
+        let touched = |path: &str| touched.contains(path);
+        body = placement.reconcile(&body);
+        let was_probe = probe;
         let probe = signals::probe_or_helper(&body);
         if probe {
             diagnostics = session::Continuity::default();
-            if injected_diagnostics {
+            if injected_diagnostics && !touched("diagnostics") {
                 body = rawjson::delete(&body, "diagnostics");
             }
             if cloaked {
                 body = signals::strip_billing_tags(&body);
             }
+            continuity = session::Continuity::default();
+        } else if was_probe && cloaked {
+            // A payload rule declassified the probe: start continuity and diagnostics
+            // now, as cloaking would have.
+            let (existing_prev, existing_prompt) = signals::billing_tags(&body);
+            let (prev, prompt, begun) =
+                self.continuity_tags(&req.headers, &body, &session_id, &existing_prev, &existing_prompt);
+            if begun.initialized {
+                continuity = begun.clone();
+                body = signals::inject_billing_tags(&body, &prev, &prompt);
+                if self.cli_profile && self.first_party {
+                    body = inject_diagnostics(&body, &begun.previous_message_id);
+                    diagnostics = begun;
+                }
+            }
         }
+        body = reconcile::fable(
+            &body,
+            &fable,
+            touched("fallbacks"),
+            touched("thinking.display"),
+            cloaked,
+            probe,
+        );
         body = self.ensure_max_tokens(&body);
         body = disable_thinking_if_tool_choice_forced(&body);
-        body = cloak::reconcile_context_management(&body, eligible, caller_owned_cm, injected_cm);
+        body = cloak::reconcile_context_management(
+            &body,
+            eligible,
+            caller_owned_cm,
+            injected_cm,
+            touched("context_management"),
+        );
         body = normalize_sampling(&body, confirmed);
         let cpa_owns_cache = !confirmed && (cloaked || cloak::count_cache_controls(&body) == 0);
         if cpa_owns_cache {
@@ -1085,7 +1146,7 @@ impl<'a> Ctx<'a> {
         }
         if cch {
             let fallback = if !detection.helper_profile || rawjson::get(&body, "system").exists() {
-                self.fallback_billing(&req.headers, &body, &detection.entrypoint, &diagnostics)
+                self.fallback_billing(&req.headers, &body, &detection.entrypoint, &continuity)
             } else {
                 String::new()
             };
@@ -1215,18 +1276,9 @@ impl<'a> Ctx<'a> {
         session_id: &str,
         cloak: bool,
     ) -> (Vec<(String, String)>, Vec<String>) {
-        let original = String::from_utf8_lossy(&req.original_body);
-        let derived = self.derived_session(req);
-        let cpa_session = session::canonical(
-            &session::Inputs {
-                headers: &req.headers,
-                original: &original,
-                translated: "",
-                derived: &derived,
-                execution: &self.execution,
-            },
-            req.session.as_deref(),
-        );
+        let cpa_session =
+            cpa_common::session::cpa_session_id(&req.headers, &req.original_body, req.execution_session.as_deref())
+                .unwrap_or_default();
         let h = headers::build(&headers::Plan {
             api_key: &self.api_key,
             bearer: self.bearer,

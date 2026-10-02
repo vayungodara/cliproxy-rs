@@ -89,20 +89,6 @@ pub(crate) fn new_v4() -> String {
     uuid::Builder::from_random_bytes(bytes).into_uuid().to_string()
 }
 
-/// The canonical session `$CPA-SESSION-ID` resolves to (`SessionIDFromContext`): the
-/// server's `ExecRequest::session`, else `ExtractSessionID` bounded like Go.
-pub(crate) fn canonical(inputs: &Inputs<'_>, server: Option<&str>) -> String {
-    if let Some(session) = server.filter(|s| !s.is_empty()) {
-        return session.to_owned();
-    }
-    let id = shared::extract_session_id(inputs.headers, inputs.original.as_bytes(), &inputs.meta());
-    if id.is_empty() {
-        id
-    } else {
-        shared::bound_session_identity(&id)
-    }
-}
-
 /// Per-key values renewed for an hour on every use (Go's local session/user ID caches).
 type KeyedCache = Mutex<HashMap<[u8; 32], (String, Instant)>>;
 

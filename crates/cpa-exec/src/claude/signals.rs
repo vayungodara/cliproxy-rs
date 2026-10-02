@@ -215,7 +215,8 @@ fn remove_tags(text: &str) -> String {
             let value = &rest[i + name.len()..];
             match value.find(';') {
                 Some(end) if end > 0 => {
-                    let before = rest[..i].trim_end_matches([' ', '\t', '\n', '\r', '\x0c', '\x0b']);
+                    // RE2 `\s` is [\t\n\f\r ], without \v.
+                    let before = rest[..i].trim_end_matches([' ', '\t', '\n', '\r', '\x0c']);
                     result.push_str(before);
                     rest = &value[end + 1..];
                 }
@@ -229,6 +230,31 @@ fn remove_tags(text: &str) -> String {
         out = result;
     }
     out
+}
+
+/// `InjectClaudeBillingTags`: replaces the billing header's continuity tags.
+pub(crate) fn inject_billing_tags(body: &str, prev: &str, prompt: &str) -> String {
+    let system = rawjson::get(body, "system");
+    if system.kind() != gjson::Kind::Array {
+        return body.to_owned();
+    }
+    let Some(text) = system.array().first().map(|b| b.get("text").str().to_owned()) else {
+        return body.to_owned();
+    };
+    if !text.starts_with(BILLING) {
+        return body.to_owned();
+    }
+    let mut cleaned = remove_tags(&text).trim().to_owned();
+    if !cleaned.ends_with(';') {
+        cleaned.push(';');
+    }
+    if !prev.is_empty() {
+        cleaned.push_str(&format!(" cc_prev_req={prev};"));
+    }
+    if !prompt.is_empty() {
+        cleaned.push_str(&format!(" cc_prompt_id={prompt};"));
+    }
+    rawjson::set_str(body, "system.0.text", &cleaned)
 }
 
 /// `StripClaudeBillingTags` (probe and helper requests carry none).
