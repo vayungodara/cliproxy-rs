@@ -1,5 +1,10 @@
 package main
 
+import (
+	"encoding/base64"
+	"strings"
+)
+
 const baseConfig = `
 api-keys:
   openai-compatibility:
@@ -171,6 +176,35 @@ func scenarios() []scenario {
 		{Name: "images_non_json_non_multipart_passthrough", Config: baseConfig, ConfigAuth: 0, Model: "acme-image", Source: "openai", Op: "images", RequestPath: "/v1/images/edits",
 			ContentType: "text/plain", Payload: "raw body",
 			Upstream: &upstream{Status: 200, Headers: [][2]string{{"Content-Type", "application/json"}}, Body: `{"data":[]}`}},
+		stream("stream_depth_10000_is_valid", hi, sse("data: "+strings.Repeat("[", 10000)+"0"+strings.Repeat("]", 10000)+"\n\ndata: [DONE]\n\n")),
+		stream("stream_depth_10001_is_invalid", hi, sse("data: "+strings.Repeat("[", 10001)+"0"+strings.Repeat("]", 10001)+"\n\n")),
+		stream("stream_unicode_space_line_ends_frame", hi, sse("data: {}\n\u00a0\ndata: [DONE]\n\n")),
+		stream("stream_data_error_fractional_status_string", hi, sse("data: {\"status\":\"429.5\",\"error\":{\"status\":503}}\n\n")),
+		stream("stream_data_error_float_status", hi, sse("data: {\"status\":429.9}\n\n")),
+		chat("error_429_retry_after_inconsistent_weekday", "acme-chat", "chat", hi, &upstream{Status: 429, Headers: [][2]string{{"Retry-After", "Mon, 01 Jan 1970 00:00:00 GMT"}}, Body: `{"error":{"code":"TPMRateLimitExceeded"}}`}),
+		chat("error_429_retry_after_rfc850", "acme-chat", "chat", hi, &upstream{Status: 429, Headers: [][2]string{{"Retry-After", "Sunday, 06-Nov-94 08:49:37 GMT"}}, Body: `{}`}),
+		chat("error_429_retry_after_ansic", "acme-chat", "chat", hi, &upstream{Status: 429, Headers: [][2]string{{"Retry-After", "Sun Nov  6 08:49:37 1994"}}, Body: `{}`}),
+		chat("error_429_retry_after_plus_sign", "acme-chat", "chat", hi, &upstream{Status: 429, Headers: [][2]string{{"Retry-After", "+4"}}, Body: `{}`}),
+		{Name: "compact_reasoning_numeric_text", Config: baseConfig, ConfigAuth: 0, Model: "acme-chat", Source: "openai-response", Op: "execute", Alt: "responses/compact",
+			Payload:  `{"model":"chat","input":[{"type":"reasoning","summary":null,"content":[{"type":"reasoning_text","text":1e3},{"type":"reasoning_text","text":true}]}]}`,
+			Upstream: &upstream{Status: 200, Headers: [][2]string{{"Content-Type", "application/json"}}, Body: `{"object":"response.compaction"}`}},
+		{Name: "count_tokens_numeric_parts", Config: baseConfig, ConfigAuth: 0, Model: "acme-chat", Source: "openai", Op: "count",
+			Payload: `{"model":"chat","messages":[{"role":"user","content":[{"type":"text","text":1e3},12.50,"plain",[{"type":"text","text":"nested"}]]}],"input":{"a":1},"prompt":2.5e-3}`},
+		{Name: "images_multipart_boundary_prefix_in_body", Config: baseConfig, ConfigAuth: 0, Model: "acme-image", Source: "openai", Op: "images", RequestPath: "/v1/images/edits",
+			ContentType: "multipart/form-data; boundary=b",
+			Payload:     "--b\r\nContent-Disposition: form-data; name=\"image\"; filename=\"x.png\"\r\n\r\nA\r\n--bXYZ\r\nB\r\n--b--\r\n",
+			Upstream:    &upstream{Status: 200, Headers: [][2]string{{"Content-Type", "application/json"}}, Body: `{"data":[]}`}},
+		{Name: "images_multipart_rfc2231_filename", Config: baseConfig, ConfigAuth: 0, Model: "acme-image", Source: "openai", Op: "images", RequestPath: "/v1/images/edits",
+			ContentType: "multipart/form-data; boundary=b",
+			Payload:     "--b\r\nContent-Disposition: form-data; name=\"image\"; filename*=utf-8''dir%2F%C3%A9.png\r\nX-Extra: kept\r\n\r\nraw\r\n--b--\r\n",
+			Upstream:    &upstream{Status: 200, Headers: [][2]string{{"Content-Type", "application/json"}}, Body: `{"data":[]}`}},
+		{Name: "images_multipart_bad_final_delimiter", Config: baseConfig, ConfigAuth: 0, Model: "acme-image", Source: "openai", Op: "images", RequestPath: "/v1/images/edits",
+			ContentType: "multipart/form-data; boundary=b",
+			Payload:     "--b\r\nContent-Disposition: form-data; name=\"p\"\r\n\r\nv\r\n--b--garbage\r\n"},
+		{Name: "images_json_non_utf8", Config: baseConfig, ConfigAuth: 0, Model: "acme-image", Source: "openai", Op: "images", RequestPath: "/v1/images/generations",
+			ContentType: "application/json",
+			PayloadB64:  base64.StdEncoding.EncodeToString([]byte("{\"model\":\"old\",\"prompt\":\"\xff\",\"stream\":true}")),
+			Upstream:    &upstream{Status: 200, Headers: [][2]string{{"Content-Type", "application/json"}}, Body: `{"data":[]}`}},
 		func() scenario {
 			s := chat("needs_thinking_suffix_level", "acme-chat(high)", "chat", hi, jsonOK)
 			s.Needs = []string{"thinking"}

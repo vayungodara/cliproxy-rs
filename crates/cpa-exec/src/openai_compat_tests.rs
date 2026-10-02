@@ -92,18 +92,20 @@ impl Mock {
         Self { addr, raw }
     }
 
-    fn request(&self) -> Option<String> {
+    fn request(&self) -> Option<Vec<u8>> {
         let raw = self.raw.lock().unwrap().clone()?;
-        let text = String::from_utf8_lossy(&raw).replace(&self.addr, "UPSTREAM");
+        let mut text = crate::openai_compat_go::bytes_to_text(&raw)
+            .unwrap()
+            .replace(&self.addr, "UPSTREAM");
         // Go's multipart writer picks a random 60-hex-digit boundary; so does Rust.
         let marker = "boundary=";
-        Some(match text.find(marker) {
-            Some(i) if text.len() >= i + marker.len() + 60 => {
-                let boundary = text[i + marker.len()..i + marker.len() + 60].to_owned();
-                text.replace(&boundary, "BOUNDARY")
-            }
-            _ => text,
-        })
+        if let Some(i) = text.find(marker)
+            && let Some(boundary) = text.get(i + marker.len()..i + marker.len() + 60)
+            && boundary.bytes().all(|b| b.is_ascii_hexdigit())
+        {
+            text = text.replace(&boundary.to_owned(), "BOUNDARY");
+        }
+        Some(crate::openai_compat_go::text_to_bytes(&text))
     }
 }
 
@@ -141,7 +143,12 @@ fn request(s: &Value) -> (ExecRequest, String) {
     let source = Format::parse(s["source"].as_str().unwrap()).unwrap();
     let response = s["response"].as_str().and_then(Format::parse).unwrap_or(source);
     let model = s["model"].as_str().unwrap().to_owned();
-    let payload = Bytes::from(s["payload"].as_str().unwrap().to_owned());
+    let payload = match s["payload_b64"].as_str() {
+        Some(b64) => {
+            Bytes::from(base64::engine::Engine::decode(&base64::engine::general_purpose::STANDARD, b64).unwrap())
+        }
+        None => Bytes::from(s["payload"].as_str().unwrap().to_owned()),
+    };
     let original = s["original"]
         .as_str()
         .map(|o| Bytes::from(o.to_owned()))
@@ -186,6 +193,13 @@ fn error_json(e: &ExecError) -> Value {
         "message": String::from_utf8_lossy(&e.body),
         "retry_after_ms": e.retry_after.map_or(-1, |d| d.as_millis() as i64),
     })
+}
+
+fn want_bytes(s: &Value) -> Option<Vec<u8>> {
+    match s["request_b64"].as_str() {
+        Some(b64) => Some(base64::engine::Engine::decode(&base64::engine::general_purpose::STANDARD, b64).unwrap()),
+        None => s["request"].as_str().map(|r| r.as_bytes().to_vec()),
+    }
 }
 
 #[tokio::test]
@@ -244,19 +258,28 @@ async fn go_reference_scenarios() {
             },
         }
         if let Some(mock) = &mock {
-            let want = s["request"].as_str();
-            assert_eq!(mock.request().as_deref(), want, "{name}: upstream request");
+            let want = match s["request_b64"].as_str() {
+                Some(b64) => {
+                    Some(base64::engine::Engine::decode(&base64::engine::general_purpose::STANDARD, b64).unwrap())
+                }
+                None => s["request"].as_str().map(|r| r.as_bytes().to_vec()),
+            };
+            assert_eq!(
+                mock.request().map(|r| String::from_utf8_lossy(&r).into_owned()),
+                want.map(|r| String::from_utf8_lossy(&r).into_owned()),
+                "{name}: upstream request"
+            );
+            assert_eq!(mock.request(), want_bytes(s), "{name}: upstream request bytes");
         }
         assert_eq!(output.as_deref(), s["output"].as_str(), "{name}: output");
-        // Go's chat stream chunks are bare `data:` lines and include `data: [DONE]`; the
-        // Rust translator contract emits complete events and leaves `[DONE]` to the route.
+        // Go's chunks are payloads the route frames as `data: <chunk>\n\n`; the Rust
+        // translator contract emits the framed event.
         let want_chunks: Vec<String> = s["chunks"]
             .as_array()
             .into_iter()
             .flatten()
             .filter_map(Value::as_str)
-            .filter(|c| *c != "data: [DONE]")
-            .map(|c| format!("{c}\n\n"))
+            .map(|c| format!("data: {c}\n\n"))
             .collect();
         assert_eq!(chunks, want_chunks, "{name}: stream chunks");
         let mut want_error = s["error"].clone();

@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -17,10 +18,15 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/config"
+	"github.com/router-for-me/CLIProxyAPI/v8/internal/modelconfig"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/registry"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/runtime/executor"
+	"github.com/router-for-me/CLIProxyAPI/v8/internal/thinking"
+	// Production registers every translator through this package (cmd/server/main.go).
+	_ "github.com/router-for-me/CLIProxyAPI/v8/internal/translator"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/watcher/synthesizer"
 	cliproxyauth "github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/auth"
 	cliproxyexecutor "github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/executor"
@@ -54,6 +60,8 @@ type scenario struct {
 	Model          string            `json:"model"`
 	RequestedModel string            `json:"requested_model,omitempty"`
 	Payload        string            `json:"payload"`
+	// PayloadB64 replaces Payload for bodies that are not valid UTF-8.
+	PayloadB64 string `json:"payload_b64,omitempty"`
 	Original       string            `json:"original,omitempty"`
 	Source         string            `json:"source"`
 	Response       string            `json:"response,omitempty"`
@@ -69,7 +77,9 @@ type scenario struct {
 	Needs    []string  `json:"needs,omitempty"`
 	Upstream *upstream `json:"upstream,omitempty"`
 
-	Request string   `json:"request,omitempty"`
+	Request string `json:"request,omitempty"`
+	// RequestB64 holds the capture instead of Request when it is not valid UTF-8.
+	RequestB64 string   `json:"request_b64,omitempty"`
 	Output  string   `json:"output,omitempty"`
 	Chunks  []string `json:"chunks,omitempty"`
 	Error   *errOut  `json:"error,omitempty"`
@@ -136,41 +146,48 @@ func normalizeRequest(raw, addr string) string {
 	return raw
 }
 
-// compatModelInfo mirrors sdk/cliproxy/service_models.go buildOpenAICompatibilityConfigModels
-// for the one model the conductor binds to an API-key attempt.
-func compatModelInfo(cfg *config.Config, index int, model string) *registry.ModelInfo {
+// compatModelInfo mirrors the conductor's API-key capability binding for
+// openai-compatibility credentials (sdk/cliproxy/auth/api_key_model_capabilities.go
+// compileOpenAICompatibleModelCapabilities and lookupAPIKeyModelCapability): the route
+// is the requested model (alias or name, suffix-insensitive) and the configured upstream
+// must equal the selected model, or match its suffix-free name.
+func compatModelInfo(cfg *config.Config, index int, requested, upstream string) *registry.ModelInfo {
 	if cfg == nil || index < 0 || index >= len(cfg.OpenAICompatibility) {
 		return nil
 	}
-	compat := cfg.OpenAICompatibility[index]
-	for _, m := range compat.Models {
-		if strings.TrimSpace(m.Name) != model && strings.TrimSpace(m.Alias) != model {
-			continue
-		}
-		alias := strings.TrimSpace(m.Alias)
-		if alias == "" {
-			alias = strings.TrimSpace(m.Name)
-		}
-		info := &registry.ModelInfo{ID: alias, Object: "model", OwnedBy: compat.Name, Type: "openai-compatibility", IsCompat: m.IsCompat}
-		if m.Image {
-			info.Type = registry.OpenAIImageModelType
-		}
-		support := m.Thinking
-		if support == nil && !m.Image {
-			support = &registry.ThinkingSupport{Levels: []string{"low", "medium", "high"}}
-		}
-		if support != nil {
-			normalized := *support
-			normalized.Levels = nil
-			for _, level := range support.Levels {
-				level = strings.ToLower(strings.TrimSpace(level))
-				if level != "" {
-					normalized.Levels = append(normalized.Levels, level)
-				}
+	base := func(s string) string { return strings.TrimSpace(thinking.ParseSuffix(strings.TrimSpace(s)).ModelName) }
+	selected := strings.TrimSpace(upstream)
+	for _, exact := range []bool{true, false} {
+		for _, m := range cfg.OpenAICompatibility[index].Models {
+			name, alias := strings.TrimSpace(m.Name), strings.TrimSpace(m.Alias)
+			if name == "" {
+				name = alias
 			}
-			info.Thinking = &normalized
+			if alias == "" {
+				alias = name
+			}
+			if name == "" {
+				continue
+			}
+			route := strings.EqualFold(base(requested), base(alias)) || strings.EqualFold(base(requested), base(name))
+			if !route {
+				continue
+			}
+			matched := strings.EqualFold(name, selected)
+			if !exact {
+				matched = !thinking.ParseSuffix(name).HasSuffix && strings.EqualFold(name, base(selected))
+			}
+			if !matched {
+				continue
+			}
+			support := m.Thinking
+			if support == nil && !m.Image {
+				support = &registry.ThinkingSupport{Levels: []string{"low", "medium", "high"}}
+			}
+			info := modelconfig.ResolveModelInfo(name, "openai-compatibility", support)
+			info.IsCompat = m.IsCompat
+			return info
 		}
-		return info
 	}
 	return nil
 }
@@ -232,7 +249,11 @@ func run(s *scenario) {
 	}
 
 	exec := executor.NewOpenAICompatExecutor(s.Provider, cfg)
-	req := cliproxyexecutor.Request{Model: s.Model, Payload: []byte(s.Payload), Metadata: map[string]any{}}
+	payload := []byte(s.Payload)
+	if s.PayloadB64 != "" {
+		payload, _ = base64.StdEncoding.DecodeString(s.PayloadB64)
+	}
+	req := cliproxyexecutor.Request{Model: s.Model, Payload: payload, Metadata: map[string]any{}}
 	headers := http.Header{}
 	for k, v := range s.Headers {
 		headers.Set(k, v)
@@ -263,7 +284,11 @@ func run(s *scenario) {
 		opts.SourceFormat = sdktranslator.FromString("openai-image")
 	}
 	if index, errIndex := strconv.Atoi(auth.Attributes["config_index"]); errIndex == nil {
-		if info := compatModelInfo(cfg, index, s.Model); info != nil {
+		requested := s.RequestedModel
+		if requested == "" {
+			requested = s.Model
+		}
+		if info := compatModelInfo(cfg, index, requested, s.Model); info != nil {
 			req.Metadata["cliproxy.resolved_api_key_model_info"] = info
 		}
 	}
@@ -312,7 +337,11 @@ func run(s *scenario) {
 	if s.Upstream != nil {
 		select {
 		case raw := <-done:
-			s.Request = normalizeRequest(raw, addr)
+			if normalized := normalizeRequest(raw, addr); utf8.ValidString(normalized) {
+				s.Request = normalized
+			} else {
+				s.RequestB64 = base64.StdEncoding.EncodeToString([]byte(normalized))
+			}
 		case <-time.After(200 * time.Millisecond):
 			// No upstream call was made; the scripted reply is unused.
 		}

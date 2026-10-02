@@ -488,7 +488,7 @@ pub(crate) fn sanitize_reasoning_encrypted_content(body: String) -> String {
             let list = rebuilt.get_or_insert_with(|| items[..index].iter().map(|i| i.json().to_owned()).collect());
             list.push(raw);
         };
-        if item.get("type").str().trim() != "reasoning" {
+        if s(&item.get("type")).trim() != "reasoning" {
             keep(&mut rebuilt, item.json());
             continue;
         }
@@ -504,8 +504,8 @@ pub(crate) fn sanitize_reasoning_encrypted_content(body: String) -> String {
                 let parts: Vec<String> = content
                     .array()
                     .iter()
-                    .filter(|p| p.get("type").str().trim() == "reasoning_text" && !p.get("text").str().is_empty())
-                    .map(|p| json::set_str(r#"{"type":"summary_text"}"#, "text", p.get("text").str()))
+                    .filter(|p| s(&p.get("type")).trim() == "reasoning_text" && !s(&p.get("text")).is_empty())
+                    .map(|p| json::set_str(r#"{"type":"summary_text"}"#, "text", &s(&p.get("text"))))
                     .collect();
                 if !parts.is_empty() {
                     next = json::set_raw(&next, "summary", &format!("[{}]", parts.join(",")));
@@ -577,12 +577,12 @@ pub(crate) fn count_chat_tokens(model: &str, payload: &str) -> Result<i64, Strin
     let mut segments = Vec::new();
     let root = gjson::parse(payload);
     for message in root.get("messages").array() {
-        add(&mut segments, message.get("role").str());
-        add(&mut segments, message.get("name").str());
+        add(&mut segments, &s(&message.get("role")));
+        add(&mut segments, &s(&message.get("name")));
         collect_content(&message.get("content"), &mut segments);
         for call in message.get("tool_calls").array() {
-            add(&mut segments, call.get("id").str());
-            add(&mut segments, call.get("type").str());
+            add(&mut segments, &s(&call.get("id")));
+            add(&mut segments, &s(&call.get("type")));
             let function = call.get("function");
             if function.exists() {
                 function_fields(&function, &mut segments, true);
@@ -590,8 +590,8 @@ pub(crate) fn count_chat_tokens(model: &str, payload: &str) -> Result<i64, Strin
         }
         let call = message.get("function_call");
         if call.exists() {
-            add(&mut segments, call.get("name").str());
-            add(&mut segments, call.get("arguments").str());
+            add(&mut segments, &s(&call.get("name")));
+            add(&mut segments, &s(&call.get("arguments")));
         }
     }
     let tools = root.get("tools");
@@ -607,14 +607,14 @@ pub(crate) fn count_chat_tokens(model: &str, payload: &str) -> Result<i64, Strin
     }
     let choice = root.get("tool_choice");
     if choice.kind() == gjson::Kind::String {
-        add(&mut segments, choice.str());
+        add(&mut segments, &s(&choice));
     } else if choice.exists() {
         add(&mut segments, choice.json());
     }
     let format = root.get("response_format");
     if format.exists() {
-        add(&mut segments, format.get("type").str());
-        add(&mut segments, format.get("name").str());
+        add(&mut segments, &s(&format.get("type")));
+        add(&mut segments, &s(&format.get("name")));
         for key in ["json_schema", "schema"] {
             let schema = format.get(key);
             if schema.exists() {
@@ -632,6 +632,11 @@ pub(crate) fn count_chat_tokens(model: &str, payload: &str) -> Result<i64, Strin
     Ok(encoder.encode_ordinary(joined).len() as i64)
 }
 
+/// gjson `Result.String()`.
+fn s(value: &gjson::Value<'_>) -> String {
+    crate::kimi_json::gstr(value)
+}
+
 fn add(segments: &mut Vec<String>, value: &str) {
     let value = value.trim();
     if !value.is_empty() {
@@ -640,10 +645,10 @@ fn add(segments: &mut Vec<String>, value: &str) {
 }
 
 fn function_fields(function: &gjson::Value<'_>, segments: &mut Vec<String>, arguments: bool) {
-    add(segments, function.get("name").str());
-    add(segments, function.get("description").str());
+    add(segments, &s(&function.get("name")));
+    add(segments, &s(&function.get("description")));
     if arguments {
-        add(segments, function.get("arguments").str());
+        add(segments, &s(&function.get("arguments")));
     }
     let params = function.get("parameters");
     if params.exists() {
@@ -652,9 +657,9 @@ fn function_fields(function: &gjson::Value<'_>, segments: &mut Vec<String>, argu
 }
 
 fn tool_payload(tool: &gjson::Value<'_>, segments: &mut Vec<String>) {
-    add(segments, tool.get("type").str());
-    add(segments, tool.get("name").str());
-    add(segments, tool.get("description").str());
+    add(segments, &s(&tool.get("type")));
+    add(segments, &s(&tool.get("name")));
+    add(segments, &s(&tool.get("description")));
     let function = tool.get("function");
     if function.exists() {
         function_fields(&function, segments, false);
@@ -663,30 +668,26 @@ fn tool_payload(tool: &gjson::Value<'_>, segments: &mut Vec<String>) {
 
 fn collect_content(content: &gjson::Value<'_>, segments: &mut Vec<String>) {
     match content.kind() {
-        gjson::Kind::String => add(segments, content.str()),
+        gjson::Kind::String => add(segments, &s(content)),
         gjson::Kind::Array => {
             for part in content.array() {
-                match part.get("type").str() {
-                    "text" | "input_text" | "output_text" => add(segments, part.get("text").str()),
-                    "image_url" => add(segments, part.get("image_url.url").str()),
-                    "input_audio" | "output_audio" | "audio" => add(segments, part.get("id").str()),
+                match s(&part.get("type")).as_str() {
+                    "text" | "input_text" | "output_text" => add(segments, &s(&part.get("text"))),
+                    "image_url" => add(segments, &s(&part.get("image_url.url"))),
+                    "input_audio" | "output_audio" | "audio" => add(segments, &s(&part.get("id"))),
                     "tool_result" => {
-                        add(segments, part.get("name").str());
+                        add(segments, &s(&part.get("name")));
                         collect_content(&part.get("content"), segments);
                     }
                     _ if part.kind() == gjson::Kind::Array => collect_content(&part, segments),
                     _ if part.kind() == gjson::Kind::Object => add(segments, part.json()),
-                    _ => add(segments, &kimi_string(&part)),
+                    _ => add(segments, &s(&part)),
                 }
             }
         }
         gjson::Kind::Object => add(segments, content.json()),
         _ => {}
     }
-}
-
-fn kimi_string(value: &gjson::Value<'_>) -> String {
-    crate::kimi_json::gstr(value)
 }
 
 /// `openAICompatRetryAfter`: only 429s carry a hint; integer or HTTP-date `Retry-After`,
@@ -706,7 +707,7 @@ pub(crate) fn retry_after(status: u16, headers: &HeaderMap, body: &[u8], now: Sy
         {
             return Some(Duration::from_secs(seconds as u64));
         }
-        if let Ok(deadline) = httpdate::parse_http_date(raw) {
+        if let Some(deadline) = crate::openai_compat_go::parse_http_time(raw) {
             return Some(deadline.duration_since(now).unwrap_or_default());
         }
     }
@@ -727,8 +728,12 @@ pub(crate) fn error_event(name: &str) -> bool {
 
 /// `openAICompatStreamDataError`: the status to report when a data frame is an error.
 pub(crate) fn stream_data_error(payload: &str, event: &str) -> Option<u16> {
-    if payload.is_empty() || !json::valid(payload) {
+    if payload.is_empty() || !crate::openai_compat_go::json_valid(payload.as_bytes()) {
         return None;
+    }
+    // gjson finds no object keys in an array or scalar; skip parsing hostile nesting.
+    if !payload.starts_with('{') {
+        return error_event(event).then_some(502);
     }
     let kind = json::string(payload, "type");
     let has_error = ["error", "response.error"].iter().any(|p| {
@@ -748,7 +753,7 @@ pub(crate) fn stream_data_error(payload: &str, event: &str) -> Option<u16> {
         "response.error.status",
         "response.error.status_code",
     ] {
-        status = gjson::get(payload, path).i64();
+        status = crate::openai_compat_go::int(&gjson::get(payload, path));
         if (400..=599).contains(&status) {
             break;
         }

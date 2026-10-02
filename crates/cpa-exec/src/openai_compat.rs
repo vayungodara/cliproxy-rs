@@ -13,6 +13,7 @@ use cpa_core::format::Format;
 use cpa_translate::{RequestCtx, ResponseCtx, StreamTranslator};
 use futures_util::StreamExt;
 
+use crate::openai_compat_go as go;
 use crate::openai_compat_http::{self as wire, Clients, GoHeaders, ThinkingInput, json};
 use crate::openai_compat_multipart as multipart;
 use crate::openai_compat_payload as payload;
@@ -87,9 +88,8 @@ fn endpoint(base_url: &str, path: &str) -> String {
     format!("{}{path}", base_url.strip_suffix('/').unwrap_or(base_url))
 }
 
-fn utf8(body: &[u8]) -> Result<&str, ExecError> {
-    std::str::from_utf8(body)
-        .map_err(|_| ExecError::local(400, FailureScope::Request, "request body is not valid UTF-8"))
+fn not_text() -> ExecError {
+    ExecError::local(400, FailureScope::Request, "request body is not editable JSON text")
 }
 
 fn not_registered(what: &str, from: Format, to: Format) -> ExecError {
@@ -119,11 +119,11 @@ fn translate_request(req: &ExecRequest, target: Format, model: &str, stream: boo
         }
         // The registry fallback still normalizes `model` (sdk/translator/registry.go).
         None if req.source_format == target => {
-            let body = utf8(&req.body)?;
-            if model.is_empty() || json::string(body, "model") == model {
-                Ok(body.to_owned())
+            let body = go::bytes_to_text(&req.body).ok_or_else(not_text)?;
+            if model.is_empty() || json::string(&body, "model") == model {
+                Ok(body)
             } else {
-                Ok(json::set_str(body, "model", model))
+                Ok(json::set_str(&body, "model", model))
             }
         }
         None => Err(not_registered("request", req.source_format, target)),
@@ -221,7 +221,13 @@ impl OpenAICompatExecutor {
             headers.set("Cache-Control", "no-cache");
         }
         let client = self.clients.for_credential(credential, cfg);
-        let upstream = wire::send(&client, &endpoint(&base_url, path), headers, Bytes::from(body.clone())).await?;
+        let upstream = wire::send(
+            &client,
+            &endpoint(&base_url, path),
+            headers,
+            Bytes::from(go::text_to_bytes(&body)),
+        )
+        .await?;
         if !(200..300).contains(&upstream.status) {
             return Err(upstream_error(upstream, true).await);
         }
@@ -344,10 +350,9 @@ fn prepare_images_payload(
     content_type: &str,
     stream: bool,
 ) -> Result<(Bytes, String), ExecError> {
-    if let Ok(text) = std::str::from_utf8(body)
-        && json::valid(text)
+    if go::json_valid(body)
+        && let Some(mut text) = go::bytes_to_text(body)
     {
-        let mut text = text.to_owned();
         if !model.is_empty() {
             text = json::set_str_if_different(&text, "model", model);
         }
@@ -356,7 +361,7 @@ fn prepare_images_payload(
         } else {
             json::delete(&text, "stream")
         };
-        return Ok((Bytes::from(text), "application/json".into()));
+        return Ok((Bytes::from(go::text_to_bytes(&text)), "application/json".into()));
     }
     let Some(boundary) = multipart::boundary(content_type) else {
         return Ok((Bytes::copy_from_slice(body), content_type.to_owned()));
@@ -455,7 +460,7 @@ impl StreamTranslator for Identity {
 }
 
 fn trim(bytes: &[u8]) -> &[u8] {
-    bytes.trim_ascii()
+    go::trim_space(bytes)
 }
 
 /// The ExecuteStream scan loop: SSE lines grouped into frames, Go's error detection on
@@ -505,10 +510,10 @@ impl Frames {
         if done && payload::error_event(&event) {
             return self.fail(502, "upstream error event ended before [DONE]");
         }
-        let text = String::from_utf8_lossy(payload_bytes).into_owned();
-        if !done && !json::valid(&text) {
+        if !done && !go::json_valid(payload_bytes) {
             return self.fail(502, "upstream stream ended with incomplete SSE data frame");
         }
+        let text = String::from_utf8_lossy(payload_bytes).into_owned();
         if !done && let Some(status) = payload::stream_data_error(&text, &event) {
             return self.fail(status, text);
         }

@@ -144,10 +144,6 @@ pub(crate) fn inspect_gpt_reasoning_signature(_signature: &str) -> Result<(), St
 pub(crate) mod json {
     use crate::kimi_json;
 
-    pub(crate) fn valid(text: &str) -> bool {
-        kimi_json::valid(text)
-    }
-
     pub(crate) fn set_raw(json: &str, path: &str, raw: &str) -> String {
         kimi_json::set_raw(json, path, raw).unwrap_or_else(|_| json.to_owned())
     }

@@ -20,6 +20,7 @@ mod kimi_replay;
 mod kimi_thinking;
 pub mod oauth;
 pub mod openai_compat;
+mod openai_compat_go;
 mod openai_compat_http;
 pub mod openai_compat_multipart;
 mod openai_compat_payload;
