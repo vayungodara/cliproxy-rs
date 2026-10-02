@@ -279,6 +279,7 @@ mod access {
                 codex: Default::default(),
                 devices: Default::default(),
                 openai: Default::default(),
+                google: Default::default(),
             },
         ));
         let options = Options {
@@ -367,6 +368,7 @@ mod routes {
                     codex: Default::default(),
                     devices: Default::default(),
                     openai: Default::default(),
+                    google: Default::default(),
                 },
             ));
             let state = Management::with_options(
@@ -531,6 +533,7 @@ mod config_writes {
                     codex: Default::default(),
                     devices: Default::default(),
                     openai: Default::default(),
+                    google: Default::default(),
                 },
             ));
             let options = Options {
@@ -709,6 +712,7 @@ mod creds {
                     codex: Default::default(),
                     devices: Default::default(),
                     openai: Default::default(),
+                    google: Default::default(),
                 },
             ));
             let options = Options {
@@ -903,6 +907,7 @@ mod creds {
                 codex: Default::default(),
                 devices: Default::default(),
                 openai: Default::default(),
+                google: Default::default(),
             },
         ));
         let options = Options {

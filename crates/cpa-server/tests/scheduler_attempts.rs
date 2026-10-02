@@ -132,6 +132,7 @@ impl Fixture {
                 codex: Default::default(),
                 devices: Default::default(),
                 openai: Default::default(),
+                google: Default::default(),
             },
         ));
         rt.publish_policy(policy);

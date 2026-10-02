@@ -82,6 +82,7 @@ async fn alpha_search_uses_policy_eligible_credential_and_passes_upstream_throug
             codex: executor,
             devices: Default::default(),
             openai: Default::default(),
+            google: Default::default(),
         },
     ));
     let proxy = serve(router(rt)).await;

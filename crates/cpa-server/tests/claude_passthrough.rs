@@ -105,6 +105,7 @@ async fn proxy(dir: &Path, upstream_url: &str) -> String {
         codex: Default::default(),
         devices: Default::default(),
         openai: Default::default(),
+        google: Default::default(),
     };
     let rt = Arc::new(Runtime::new(config, creds, executors));
     // This suite checks wire passthrough, one upstream attempt per request. Scheduler

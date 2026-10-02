@@ -58,6 +58,7 @@ async fn proxy() -> (String, Arc<Seen>) {
         codex: Default::default(),
         devices: Default::default(),
         openai: Default::default(),
+        google: Default::default(),
     };
     let rt = Arc::new(Runtime::new(config, credentials, executors));
     (serve(router(rt)).await, seen)

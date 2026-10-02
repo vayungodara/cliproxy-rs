@@ -26,6 +26,9 @@ mod codex_request;
 mod codex_response;
 #[cfg(test)]
 mod codex_testkit;
+pub mod gemini;
+mod gemini_payload;
+mod gemini_stream;
 pub mod kimi;
 pub mod kimi_auth;
 #[cfg(test)]
@@ -71,6 +74,15 @@ pub struct Executors {
     pub devices: DeviceExecutors,
     /// API-key upstreams speaking OpenAI wire formats (OpenAI-compatible providers, xAI).
     pub openai: OpenAIExecutors,
+    /// Google-family providers (Gemini API keys, native Interactions keys).
+    pub google: GoogleExecutors,
+}
+
+/// Google-family executors, grouped like [`DeviceExecutors`].
+#[derive(Default)]
+pub struct GoogleExecutors {
+    /// `gemini` and `gemini-interactions` API keys.
+    pub gemini: gemini::GeminiExecutor,
 }
 
 /// OpenAI-wire executors, grouped like [`DeviceExecutors`].
@@ -98,6 +110,7 @@ impl Executors {
             "codex" => self.codex.execute(credential, req, cfg).await,
             p if kimi::PROVIDERS.contains(&p) => self.devices.kimi.execute(&self.claude, credential, req, cfg).await,
             p if openai_compat::handles(p) => self.openai.compat.execute(credential, req, cfg).await,
+            p if gemini::handles(p) => self.google.gemini.execute(credential, req, cfg).await,
             other => Err(no_executor(other)),
         }
     }
@@ -124,6 +137,7 @@ impl Executors {
         matches!(provider, "claude" | "codex")
             || kimi::PROVIDERS.contains(&provider)
             || openai_compat::handles(provider)
+            || gemini::handles(provider)
     }
 
     /// Whether `credential` needs preparation, and whether requests must wait for it.
@@ -200,6 +214,7 @@ mod readiness_tests {
             codex: Default::default(),
             devices: Default::default(),
             openai: Default::default(),
+            google: Default::default(),
         };
         let cfg = Config::default();
         let pool = serde_json::json!(["a".repeat(64)]);

@@ -133,6 +133,7 @@ async fn main() -> anyhow::Result<()> {
         codex: cpa_exec::codex::CodexExecutor::new()?,
         devices: Default::default(),
         openai: Default::default(),
+        google: Default::default(),
     };
     let rt = Arc::new(Runtime::new(config, credentials, executors));
     // Translators and thinking validation read model capabilities through the global

@@ -27,6 +27,8 @@ uuid = { version = "1", features = ["v4", "v5"] }
 url = "2"
 httpdate = "1"
 tiktoken-rs = "0.7"
+# Gemini: Go-encoded white PNGs for image aspect-ratio requests.
+flate2 = "1"
 # Codex: raw JSON reads for byte-preserving request edits, config document access, logs.
 gjson = "0.8.1"
 regex = "1"

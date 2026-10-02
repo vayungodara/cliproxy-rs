@@ -29,6 +29,7 @@ impl Fixture {
                 codex: Default::default(),
                 devices: Default::default(),
                 openai: Default::default(),
+                google: Default::default(),
             },
         ));
         let state = Management::new(rt.clone(), path);
@@ -50,6 +51,7 @@ impl Fixture {
                 codex: Default::default(),
                 devices: Default::default(),
                 openai: Default::default(),
+                google: Default::default(),
             },
         ));
         let state = Management::new(rt.clone(), path);

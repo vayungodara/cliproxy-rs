@@ -138,6 +138,7 @@ async fn proxy(config: &str, credentials: Vec<Credential>) -> Proxy {
         codex: Default::default(),
         devices: Default::default(),
         openai: Default::default(),
+        google: Default::default(),
     };
     let rt = Arc::new(Runtime::new(config, credentials, executors));
     let url = serve(router(rt.clone())).await;
@@ -515,6 +516,7 @@ async fn expired_token_is_used_then_refreshed_once_after_401() {
         codex: Default::default(),
         devices: Default::default(),
         openai: Default::default(),
+        google: Default::default(),
     };
     let config = Config::parse("access:\n  api-keys: [client-key]\n").unwrap();
     let rt = Arc::new(Runtime::new(config, vec![credential], executors));
@@ -604,6 +606,7 @@ async fn scripted_proxy(config: &str, tokens: &[&str], replies: Vec<Reply>) -> (
         codex: Default::default(),
         devices: Default::default(),
         openai: Default::default(),
+        google: Default::default(),
     };
     let rt = Arc::new(Runtime::new(config, credentials, executors));
     (serve(router(rt.clone())).await, script, rt)
