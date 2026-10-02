@@ -34,6 +34,27 @@ impl Fixture {
         let state = Management::new(rt.clone(), path);
         Self { dir, state, rt }
     }
+    /// A fixture whose runtime holds the credentials `yaml` synthesizes.
+    fn from_yaml(name: &str, yaml: impl Fn(&std::path::Path, &str) -> String) -> Self {
+        let dir = std::env::temp_dir().join(format!("manage-{name}-{}", std::process::id()));
+        std::fs::create_dir_all(dir.join("auth")).unwrap();
+        let path = dir.join("config.yaml");
+        let hash = bcrypt::hash("fake-management-only", 4).unwrap();
+        std::fs::write(&path, yaml(&dir.join("auth"), &hash)).unwrap();
+        let cfg = Config::load(&path).unwrap();
+        let rt = Arc::new(Runtime::new(
+            cfg.clone(),
+            cpa_core::config::credentials::load(&cfg),
+            Executors {
+                claude: ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
+                codex: Default::default(),
+                devices: Default::default(),
+                openai: Default::default(),
+            },
+        ));
+        let state = Management::new(rt.clone(), path);
+        Self { dir, state, rt }
+    }
     async fn server(&self) -> (String, tokio::task::JoinHandle<()>) {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let base = format!("http://{}", listener.local_addr().unwrap());
@@ -525,5 +546,275 @@ async fn unreadable_auth_dir_never_blocks_secret_rotation_or_removal() {
     watching::reload(&f.state).unwrap();
     let r = get("fake-rotated").await.unwrap();
     assert_eq!((r.status().as_u16(), r.text().await.unwrap()), (404, String::new()));
+    server.abort();
+}
+
+/// Deliberate difference from Go, whose saver re-normalizes every OAuth map and
+/// rewrites every typed value on any write: only what the request wrote is
+/// normalized, so untouched keys stay byte-stable.
+#[tokio::test]
+async fn writes_normalize_only_what_they_touch() {
+    let f = Fixture::new("scoped");
+    let path = f.dir.join("config.yaml");
+    let dirty = "  excluded-models:\n    Claude: [' Opus-X ', opus-x] # dirty\n    gemini: [a]\n  model-alias:\n    claude:\n      - {name: a, alias: a} # self alias\n";
+    let text = f.file().replacen("oauth:\n", &format!("oauth:\n{dirty}"), 1)
+        + "observability:\n  pprof:\n    addr: null # keep\n";
+    std::fs::write(&path, &text).unwrap();
+    let (base, server) = f.server().await;
+    let client = wreq::Client::new();
+    let send = |method, at: &str, body: &str| {
+        client
+            .request(method, format!("{base}/v8/management{at}"))
+            .bearer_auth("fake-management-only")
+            .body(body.to_owned())
+            .send()
+    };
+    let r = send(
+        wreq::Method::PUT,
+        "/config/oauth/excluded-models/gemini",
+        r#"[" B ", "b", "c"]"#,
+    )
+    .await
+    .unwrap();
+    assert_eq!(r.status(), 200);
+    let file = f.file();
+    assert!(file.contains("    Claude: [' Opus-X ', opus-x] # dirty\n"), "{file}");
+    assert!(file.contains("      - {name: a, alias: a} # self alias\n"), "{file}");
+    assert!(file.contains("    addr: null # keep\n"), "{file}");
+    let config: Value = send(wreq::Method::GET, "/config", "")
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(config["oauth"]["excluded-models"]["gemini"], json!(["b", "c"]));
+    let r = send(
+        wreq::Method::PATCH,
+        "/config",
+        r#"{"routing":{"retry":{"request-retry":1}}}"#,
+    )
+    .await
+    .unwrap();
+    assert_eq!(r.status(), 200);
+    let after_patch = f.file();
+    assert!(after_patch.contains("    addr: null # keep\n"), "{after_patch}");
+    assert!(
+        after_patch.contains("    Claude: [' Opus-X ', opus-x] # dirty\n"),
+        "{after_patch}"
+    );
+    let r = send(wreq::Method::PATCH, "/config", "{}").await.unwrap();
+    assert_eq!(r.status(), 200);
+    assert_eq!(f.file(), after_patch, "an empty PATCH writes nothing");
+    server.abort();
+}
+
+/// The status toggle edits only the targeted key, located in the file it edits
+/// (here reordered externally and not yet published), and keeps sibling text.
+#[tokio::test]
+async fn config_key_toggle_edits_only_the_target_key_in_the_current_file() {
+    let groups = |first: &str, second: &str| {
+        format!(
+            "api-keys:\n  claude:\n    - base-url: https://claude.example.invalid # group one\n      keys:\n        {first}\n        {second}\n    - keys:\n        - api-key: fake-c # third\n"
+        )
+    };
+    let (a, b) = ("- api-key: fake-a # first key", "- api-key: fake-b # second key");
+    let f = Fixture::from_yaml("toggle", |auth, hash| {
+        format!(
+            "config-version: 8\nmanagement:\n  secret-key: '{hash}'\noauth:\n  auth-dir: {}\n{}",
+            auth.display(),
+            groups(a, b)
+        )
+    });
+    let cfg = f.rt.config();
+    let ids = cpa_core::config::credentials::from_config(&cfg);
+    let id_b = ids
+        .iter()
+        .find(|c| c.attributes.get("api_key").map(String::as_str) == Some("fake-b"))
+        .unwrap()
+        .id
+        .clone();
+    // External edit: the two keys swap places; the watcher has not published it.
+    let path = f.dir.join("config.yaml");
+    let swapped = f.file().replace(&groups(a, b), &groups(b, a));
+    assert_ne!(swapped, f.file());
+    std::fs::write(&path, &swapped).unwrap();
+    let (base, server) = f.server().await;
+    let r = wreq::Client::new()
+        .patch(format!("{base}/v8/management/credentials/status"))
+        .bearer_auth("fake-management-only")
+        .json(&json!({"name": id_b, "disabled": true}))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(r.status(), 200);
+    let file = f.file();
+    for kept in [
+        "    - base-url: https://claude.example.invalid # group one\n",
+        "        - api-key: fake-a # first key\n",
+        "        - api-key: fake-c # third\n",
+    ] {
+        assert!(file.contains(kept), "lost {kept:?}:\n{file}");
+    }
+    let doc: serde_yaml_ng::Value = serde_yaml_ng::from_str(&file).unwrap();
+    let keys = &doc["api-keys"]["claude"][0]["keys"];
+    assert_eq!(keys[0]["api-key"], "fake-b");
+    assert_eq!(keys[0]["excluded-models"], serde_yaml_ng::Value::from(vec!["*"]));
+    assert!(
+        keys[1].get("excluded-models").is_none(),
+        "fake-a must stay enabled:\n{file}"
+    );
+    server.abort();
+}
+
+/// Go edits config API keys in memory only: attributes follow the patched metadata
+/// and config.yaml is not written.
+#[tokio::test]
+async fn config_key_field_patch_updates_memory_only() {
+    let f = Fixture::from_yaml("cfgfields", |auth, hash| {
+        format!(
+            "config-version: 8\nmanagement:\n  secret-key: '{hash}'\noauth:\n  auth-dir: {}\napi-keys:\n  claude:\n    - keys:\n        - api-key: fake-k\n",
+            auth.display()
+        )
+    });
+    let id = f.rt.store().snapshot()[0].id.clone();
+    let before = f.file();
+    let (base, server) = f.server().await;
+    let r = wreq::Client::new()
+        .patch(format!("{base}/v8/management/credentials/fields"))
+        .bearer_auth("fake-management-only")
+        .json(&json!({"name": id, "note": " updated ", "priority": "3", "headers": {"X-B": "2"}, "disabled": "true"}))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(r.status(), 200);
+    let cred = f.rt.store().snapshot().into_iter().find(|c| c.id == id).unwrap();
+    assert_eq!(cred.attributes.get("note").map(String::as_str), Some("updated"));
+    assert_eq!(cred.attributes.get("priority").map(String::as_str), Some("3"));
+    assert_eq!(cred.attributes.get("header:X-B").map(String::as_str), Some("2"));
+    assert_eq!(cred.attributes.get("api_key").map(String::as_str), Some("fake-k"));
+    assert!(cred.disabled);
+    assert_eq!(f.file(), before, "config.yaml must not change");
+    server.abort();
+}
+
+/// `/credentials/models` reports what the credential registers in the dynamic
+/// registry (Go `GetModelsForClient`): config aliases here, nothing once disabled.
+#[tokio::test]
+async fn credential_models_come_from_registrations() {
+    let f = Fixture::from_yaml("models", |auth, hash| {
+        format!(
+            "config-version: 8\nmanagement:\n  secret-key: '{hash}'\noauth:\n  auth-dir: {}\napi-keys:\n  claude:\n    - models: [{{name: claude-sonnet-4-6, alias: sonnet}}]\n      keys:\n        - api-key: fake-k\n",
+            auth.display()
+        )
+    });
+    let id = f.rt.store().snapshot()[0].id.clone();
+    let (base, server) = f.server().await;
+    let client = wreq::Client::new();
+    let models = |client: wreq::Client, base: String, id: String| async move {
+        let v: Value = client
+            .get(format!("{base}/v8/management/credentials/models?name={id}"))
+            .bearer_auth("fake-management-only")
+            .send()
+            .await
+            .unwrap()
+            .json()
+            .await
+            .unwrap();
+        v["models"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|m| m["id"].as_str().unwrap().to_owned())
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(models(client.clone(), base.clone(), id.clone()).await, ["sonnet"]);
+    let r = client
+        .patch(format!("{base}/v8/management/credentials/fields"))
+        .bearer_auth("fake-management-only")
+        .json(&json!({"name": id, "disabled": true}))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(r.status(), 200);
+    assert!(models(client, base, id).await.is_empty());
+    server.abort();
+}
+
+/// A relative auth-dir: an unclaimed upload is one fallback credential with a
+/// relative ID, and once a field patch makes it claimable it is exactly one
+/// synthesized credential (no leftover absolute-path fallback).
+#[tokio::test]
+async fn fallback_with_relative_auth_dir_is_retired_once_synthesized() {
+    let f = Fixture::from_yaml("relfallback", |auth, hash| {
+        let cwd = std::env::current_dir().unwrap();
+        let up = "../".repeat(cwd.components().count() - 1);
+        let relative = std::path::Path::new(&up).join(auth.strip_prefix("/").unwrap());
+        format!(
+            "config-version: 8\nmanagement:\n  secret-key: '{hash}'\noauth:\n  auth-dir: {}\n",
+            relative.display()
+        )
+    });
+    assert!(f.rt.config().auth_dir.is_relative());
+    let (base, server) = f.server().await;
+    let client = wreq::Client::new();
+    let call = |method: wreq::Method, path: &str, body: &str| {
+        client
+            .request(method, format!("{base}/v8/management{path}"))
+            .bearer_auth("fake-management-only")
+            .body(body.to_owned())
+            .send()
+    };
+    let ids = |f: &Fixture| {
+        f.rt.store()
+            .snapshot()
+            .iter()
+            .map(|c| (c.id.clone(), c.provider.clone()))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(
+        call(wreq::Method::POST, "/credentials?name=a.json", "{}")
+            .await
+            .unwrap()
+            .status(),
+        200
+    );
+    assert_eq!(ids(&f), [("a.json".to_owned(), "unknown".to_owned())]);
+    let r = call(
+        wreq::Method::PATCH,
+        "/credentials/fields",
+        r#"{"name":"a.json","type":"claude"}"#,
+    )
+    .await
+    .unwrap();
+    assert_eq!(r.status(), 200);
+    assert_eq!(ids(&f), [("a.json".to_owned(), "claude".to_owned())]);
+    server.abort();
+}
+
+/// A config-backed field patch invalidates the cached registry: a new prefix is
+/// routable at once.
+#[tokio::test]
+async fn config_key_prefix_patch_refreshes_the_registry() {
+    let f = Fixture::from_yaml("cfgprefix", |auth, hash| {
+        format!(
+            "config-version: 8\nmanagement:\n  secret-key: '{hash}'\noauth:\n  auth-dir: {}\napi-keys:\n  claude:\n    - models: [{{name: claude-sonnet-4-6, alias: sonnet}}]\n      keys:\n        - api-key: fake-k\n",
+            auth.display()
+        )
+    });
+    let id = f.rt.store().snapshot()[0].id.clone();
+    assert!(
+        !f.rt.registry().ids().any(|m| m == "new/sonnet"),
+        "warm cache without the prefix"
+    );
+    let (base, server) = f.server().await;
+    let r = wreq::Client::new()
+        .patch(format!("{base}/v8/management/credentials/fields"))
+        .bearer_auth("fake-management-only")
+        .json(&json!({"name": id, "prefix": "new"}))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(r.status(), 200);
+    assert!(f.rt.registry().ids().any(|m| m == "new/sonnet"));
     server.abort();
 }

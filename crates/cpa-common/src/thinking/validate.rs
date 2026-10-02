@@ -91,7 +91,7 @@ pub fn validate_config(
                 ErrorCode::LevelNotSupported,
                 format!(
                     "level {} not supported, valid levels: {}",
-                    crate::gostr::quote(&config.level.go_lower()),
+                    crate::gostr::quote(config.level.go_lower()),
                     valid.join(", ")
                 ),
             ));

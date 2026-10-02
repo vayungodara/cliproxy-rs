@@ -23,7 +23,9 @@ serde_yaml_ng.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 uuid = { version = "1", features = ["v4"] }
+base64 = "0.22"
 bcrypt = "0.19"
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
 subtle = "2.6"
 
 [dev-dependencies]

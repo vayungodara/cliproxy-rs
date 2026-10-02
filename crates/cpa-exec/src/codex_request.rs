@@ -266,12 +266,10 @@ fn translate_request(req: &ExecRequest, call: Call) -> Result<String, ExecError>
         .map_err(|e| ExecError::local(400, FailureScope::Request, e.to_string()))?;
     let body = String::from_utf8(body)
         .map_err(|_| ExecError::local(400, FailureScope::Request, "request body is not valid UTF-8 JSON"))?;
-    let payload = String::from_utf8_lossy(&req.body);
-    let original = String::from_utf8_lossy(&req.original_body);
-    cpa_common::thinking::apply_request_thinking(&cpa_common::thinking::RequestThinking {
-        body: &body,
-        payload: &payload,
-        original: &original,
+    let thought = cpa_common::thinking::apply_request_thinking(&cpa_common::thinking::RequestThinking {
+        body: body.as_bytes(),
+        payload: &req.body,
+        original: &req.original_body,
         model: &req.model,
         from: req.source_format.as_str(),
         to: target.as_str(),
@@ -280,7 +278,9 @@ fn translate_request(req: &ExecRequest, call: Call) -> Result<String, ExecError>
         has_request_transformer: registered,
         updates_changed: false,
     })
-    .map_err(|e| ExecError::local(e.status(), FailureScope::Request, e.message))
+    .map_err(|e| ExecError::local(e.status(), FailureScope::Request, e.message))?;
+    String::from_utf8(thought)
+        .map_err(|_| ExecError::local(400, FailureScope::Request, "request body is not valid UTF-8 JSON"))
 }
 
 /// Applies the Codex body rules for `call`.
@@ -785,15 +785,18 @@ pub(crate) fn provider_session_uuid(kind: &str, id: &str) -> Option<String> {
     })
 }
 
-/// `ProviderSessionUUID`: the downstream WebSocket connection when there is one, else
-/// the derived session identity.
+/// `ProviderSessionUUID`: the long-lived execution session (the downstream WebSocket
+/// connection) when there is one, else the derived session identity.
 fn session_uuid(req: &ExecRequest, ws_session: Option<&str>) -> Option<String> {
-    match ws_session {
+    let execution = ws_session
+        .or(req.execution_session.as_deref())
+        .filter(|id| !id.trim().is_empty());
+    match execution {
         Some(id) => provider_session_uuid("execution-session", id),
         None => req
-            .session
+            .derived_session
             .as_deref()
-            .and_then(|s| provider_session_uuid("derived-session", s)),
+            .and_then(|id| provider_session_uuid("derived-session", id)),
     }
 }
 

@@ -53,12 +53,18 @@ func matrix(r registration, model string) []fixture {
 	switch r.client {
 	case "openai-response":
 		out = append(out, responsesRequests(model)...)
+		if r.upstream == "claude" {
+			out = append(out, responsesClaudeRequests()...)
+		}
 	}
 	switch r.upstream {
 	case "codex":
 		out = append(out, codexResponses()...)
 	case "claude":
 		out = append(out, claudeResponses()...)
+		if r.client == "openai-response" {
+			out = append(out, claudeToResponses()...)
+		}
 	case "openai":
 		out = append(out, openAIResponses()...)
 	}
@@ -307,6 +313,64 @@ func codexResponses() []fixture {
 		`invalid`, ``,
 	} {
 		out = append(out, nonStream(fmt.Sprintf("non-stream/%d", i), model, body))
+	}
+	return out
+}
+
+const responsesTools = `"tools":[{"type":"function","name":"lookup","description":"<d>","parameters":{"type":"object","properties":{"q":{"type":"string"}}}},{"type":"custom","name":"freeform","description":"raw text"},{"type":"namespace","name":"mcp_srv","tools":[{"type":"function","name":"read","parameters":{}},{"name":"bad name.with/chars"}]},{"type":"web_search","max_uses":3,"filters":{"allowed_domains":["a.com"]},"user_location":{"type":"approximate"}},{"type":"web_search","external_web_access":false,"name":"offline"},{"type":"image_generation"},{"type":"code_interpreter"},{"type":"function","name":"lookup","description":"duplicate loses"},{"type":"mystery","name":"opaque_tool","x":1}]`
+
+func responsesClaudeRequests() []fixture {
+	var out []fixture
+	models := []string{"claude-opus-4-6", "claude-sonnet-4-5-20250929", "claude-fable-5", "kimi-k2.5", "claude-sonnet-4-6"}
+	for i, input := range []string{
+		`{` + responsesTools + `,"tool_choice":{"type":"function","name":"read","namespace":"mcp_srv"},"input":"hi"}`,
+		`{` + responsesTools + `,"tool_choice":"required","input":[{"type":"additional_tools","tools":[{"type":"function","name":"extra"},{"type":"function","name":"lookup"}]},{"role":"user","content":"x"}]}`,
+		`{"tools":[{"type":"custom","name":"apply_patch","description":"Patch. This is a FREEFORM tool, so do not wrap the patch in JSON.","format":{"definition":"start: *** Environment ID: x"}}],"tool_choice":{"type":"custom","custom":{"name":"apply_patch"}},"input":"x"}`,
+		`{"instructions":"be <terse>","input":[{"role":"system","content":"sys"},{"role":"developer","content":[{"type":"input_text","text":"dev","cache_control":{"type":"ephemeral"}},{"type":"input_image"},{"type":""}],"cache_control":{"type":"ephemeral"}},{"role":"user","content":[{"type":"input_text","text":"q","annotations":[{"encrypted_index":"e1","url":"u"},{"url":"no-index"}]},{"type":"input_image","image_url":"data:image/png;base64,QUJD"},{"type":"input_image","url":"https://x/y.png"},{"type":"input_image","image_url":"data:;base64,"},{"type":"input_file","file_data":"data:application/pdf;base64,UERG"},{"type":"input_file","file_data":"raw"}]},{"type":"message","role":"assistant","content":[{"type":"output_text","text":"a"},{"type":"refusal","refusal":"no"}]},{"role":"tool","content":"t"}],"text":{"format":{"type":"json_schema","name":"S","schema":{"type":"object"}}}}`,
+		`{"input":[{"type":"function_call","call_id":"c1","name":"lookup","arguments":"{\"q\":1}"},{"type":"function_call","call_id":"c2","name":"read","namespace":"mcp_srv","arguments":"[]"},{"type":"custom_tool_call","call_id":"c3","name":"freeform","input":"raw <x>"},{"type":"function_call_output","call_id":"c1","output":"r1"},{"type":"function_call_output","call_id":"c1","output":"dup"},{"type":"function_call_output","output":[{"type":"input_text","text":"no id"}]},{"type":"custom_tool_call_output","call_id":"c3","output":[{"type":"input_text","text":"a"},{"type":"input_image","image_url":"https://i"}]},{"type":"function_call_output","call_id":"orphan","output":"  "},{"role":"user","content":"next"}],` + responsesTools + `}`,
+		`{"input":[{"role":"user","content":"q"},{"type":"reasoning","summary":[{"type":"summary_text","text":"think"}],"encrypted_content":"not-a-signature"},{"type":"reasoning","encrypted_content":"claude-redacted-thinking: REDACTED "},{"type":"reasoning","encrypted_content":"claude-redacted-thinking:"},{"type":"web_search_call","id":"ws_srvtoolu_abc.def","action":{"queries":["q2"]},"results":[{"type":"web_search_result","url":"u","encrypted_content":"enc"},{"url":"skip"},{"type":"web_search_tool_result_error","error_code":"x"}]},{"type":"function_call","call_id":"c9","name":"lookup","arguments":""},{"type":"message","role":"assistant","content":[{"type":"output_text","text":"done"}]}],` + responsesTools + `}`,
+		`{"input":[{"type":"agent_message","content":[{"type":"encrypted_content","encrypted_content":"secret <b>"},{"type":"input_text","text":"t"}]},{"type":"function_call","call_id":"x1","name":"lookup"}],"max_output_tokens":999999,"service_tier":"priority","reasoning":{"effort":"xhigh","summary":"auto"}}`,
+		`{"input":[{"role":"user","content":"a"},{"type":"function_call_output","name":"lookup","output":"by name"},{"type":"function_call","call_id":"p1","name":"lookup"},{"type":"function_call","call_id":"p2","name":"read"},{"type":"function_call_output","name":"read","output":"r"},{"type":"function_call_output","output":"o"}],"max_output_tokens":null}`,
+		`{"input":[{"role":"assistant","content":"prefill"}],"reasoning":{"effort":"none"}}`,
+		`{"input":[{"role":"user","content":"x"},{"type":"reasoning","summary":[]}]}`,
+	} {
+		for _, m := range models {
+			out = append(out, req(fmt.Sprintf("responses-claude/%d/%s", i, m), m, input, i%2 == 1))
+		}
+	}
+	return out
+}
+
+func claudeToResponses() []fixture {
+	request := `{"model":"client-model","instructions":"inst","max_output_tokens":5,"max_tool_calls":2,"parallel_tool_calls":true,"previous_response_id":"p","prompt_cache_key":"k","reasoning":{"summary":"auto","effort":"high","effort":"low"},"safety_identifier":"s","service_tier":"auto","store":false,"temperature":0.5,"text":{"format":{"type":"text"}},"tool_choice":"auto","top_logprobs":1,"top_p":1e0,"truncation":"auto","user":"u<","metadata":{"b":1,"a":"<&>"},` + responsesTools + `}`
+	start := `data: {"type":"message_start","message":{"id":"msg_1","usage":{"input_tokens":10,"cache_read_input_tokens":3,"cache_creation_input_tokens":2,"output_tokens":1}}}`
+	cases := [][]string{
+		{start, `data: {"type":"content_block_start","index":0,"content_block":{"type":"thinking","thinking":"","signature":""}}`, `data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"plan <x> é"}}`, `data: {"type":"content_block_delta","index":0,"delta":{"type":"signature_delta","signature":"SIG"}}`, `data: {"type":"content_block_stop","index":0}`,
+			`data: {"type":"content_block_start","index":1,"content_block":{"type":"text","text":""}}`, `data: {"type":"content_block_delta","index":1,"delta":{"type":"text_delta","text":"hello <b>"}}`, `data: {"type":"content_block_delta","index":1,"delta":{"type":"citations_delta","citation":{"type":"web_search_result_location","url":"u","encrypted_index":"e","cited_text":"<c>","n":1.50}}}`, `data: {"type":"content_block_stop","index":1}`,
+			`data: {"type":"content_block_start","index":2,"content_block":{"type":"tool_use","id":"toolu_1","name":"lookup","input":{}}}`, `data: {"type":"content_block_delta","index":2,"delta":{"type":"input_json_delta","partial_json":"{"q":"}}`, `data: {"type":"content_block_delta","index":2,"delta":{"type":"input_json_delta","partial_json":""<x>"}"}}`, `data: {"type":"content_block_stop","index":2}`,
+			`data: {"type":"message_delta","delta":{"stop_reason":"tool_use"},"usage":{"output_tokens":20}}`, `data: {"type":"message_stop"}`, `data: {"type":"message_stop"}`},
+		{start, `data: {"type":"content_block_start","index":0,"content_block":{"type":"server_tool_use","id":"srvtoolu_9","name":"web_search","input":{}}}`, `data: {"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"{"query":" weather "}"}}`, `data: {"type":"content_block_stop","index":0}`,
+			`data: {"type":"content_block_start","index":1,"content_block":{"type":"web_search_tool_result","tool_use_id":"srvtoolu_9","content":[{"type":"web_search_result","url":"https://w","title":"W"},{"type":"other"}]}}`, `data: {"type":"content_block_stop","index":1}`,
+			`data: {"type":"content_block_start","index":2,"content_block":{"type":"server_tool_use","id":"srvtoolu_x","name":"code_execution"}}`,
+			`data: {"type":"content_block_start","index":3,"content_block":{"type":"tool_use","id":"toolu_c","name":"freeform"}}`, `data: {"type":"content_block_delta","index":3,"delta":{"type":"input_json_delta","partial_json":"{"input":"raw\ntext \u00e9"}"}}`, `data: {"type":"content_block_stop","index":3}`,
+			`data: {"type":"content_block_start","index":4,"content_block":{"type":"tool_use","id":"toolu_n","name":"mcp_srv__read"}}`, `data: {"type":"content_block_stop","index":4}`,
+			`data: {"type":"message_delta","delta":{"stop_reason":"max_tokens"}}`, `data: {"type":"message_stop"}`},
+		{start, `data: {"type":"content_block_start","index":0,"content_block":{"type":"redacted_thinking","data":"RED"}}`, `data: {"type":"content_block_stop","index":0}`,
+			`data: {"type":"content_block_delta","index":5,"delta":{"type":"citations_delta","citation":{"url":"early"}}}`, `data: {"type":"content_block_start","index":1,"content_block":{"type":"text","text":""}}`, `data: {"type":"content_block_delta","index":1,"delta":{"type":"text_delta","text":"a"}}`,
+			`data: {"type":"content_block_start","index":2,"content_block":{"type":"text","text":""}}`, `data: {"type":"content_block_delta","index":2,"delta":{"type":"text_delta","text":"b"}}`, `data: {"type":"content_block_start","index":3,"content_block":{"type":"tool_use","id":"","name":""}}`, `data: {"type":"content_block_delta","index":3,"delta":{"type":"input_json_delta","partial_json":"{"input":"trunc"}}`,
+			`data: {"type":"content_block_delta","index":9,"delta":{"type":"input_json_delta","partial_json":"orphan"}}`, `data: {"type":"message_delta","delta":{"stop_reason":"end_turn"}}`, `event: message_stop`, `data: {"type":"message_stop"}`},
+		{`data: {"type":"message_start","message":{"id":"m2"}}`, `data: {"type":"ping"}`, `data: {"type":"message_stop"}`, `data: {"type":"message_start","message":{"id":"after"}}`},
+	}
+	var out []fixture
+	for i, lines := range cases {
+		for j, orig := range []string{request, ``, `{"model":"only-model"}`} {
+			f := streamCase(fmt.Sprintf("claude-responses/%d/%d", i, j), "upstream-model", lines...)
+			f.Original = orig
+			out = append(out, f)
+			n := nonStream(fmt.Sprintf("claude-responses/buffered/%d/%d", i, j), "upstream-model", strings.Join(lines, "\n"))
+			n.Original = orig
+			out = append(out, n)
+		}
 	}
 	return out
 }

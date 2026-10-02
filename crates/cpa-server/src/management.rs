@@ -2,7 +2,6 @@
 //!
 //! Routing follows gin: an unknown path or an unregistered method on a known path is a
 //! bare 404 that never reaches authentication. Access rules live in [`access`].
-use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, PoisonError};
 
@@ -13,14 +12,16 @@ use axum::http::{HeaderValue, Method, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{MethodRouter, any, get};
 use axum::{Router, middleware};
-use cpa_core::config::{Config, ConfigDocument, credentials, is_bcrypt};
-use cpa_core::credential::{Credential, MetadataPatch, Source};
+use cpa_core::config::{Config, ConfigDocument, archive_comments, credentials, is_bcrypt};
+use cpa_core::credential::{Credential, Source};
 use serde_json::{Value, json};
 
 use crate::Runtime;
 use crate::scheduler::{ErrorRule, Policy};
 
 mod access;
+mod auth_files;
+mod multipart;
 pub use access::cors;
 
 pub struct Management {
@@ -29,6 +30,12 @@ pub struct Management {
     // ponytail: one lock for config and auth disk operations; split only if management
     // throughput matters. The watcher shares it, preventing stale disk publication.
     pub(crate) disk: Mutex<()>,
+    /// Uploaded files no synthesizer claims, kept listed until restart like Go's
+    /// fallback auths (see `credentials::upload_fallback`).
+    pub(crate) fallbacks: Mutex<std::collections::BTreeSet<PathBuf>>,
+    /// Credentials disabled through the status or fields endpoints: Go's in-memory
+    /// auth then reports `disabled via management API` until re-enabled.
+    pub(crate) disabled_via_api: Mutex<std::collections::BTreeSet<String>>,
     access: access::Access,
 }
 
@@ -55,6 +62,8 @@ impl Management {
             rt,
             path,
             disk: Mutex::new(()),
+            fallbacks: Mutex::default(),
+            disabled_via_api: Mutex::default(),
         })
     }
 
@@ -65,6 +74,28 @@ impl Management {
     /// settings of a valid config (a rotated or removed secret) always take effect.
     pub(crate) fn publish(&self, cfg: Config, files: Option<Vec<Credential>>) {
         let mut all = files.unwrap_or_else(|| credentials::from_auth_dir(&cfg));
+        // Fallbacks follow their file: gone with it, replaced once a synthesizer
+        // claims it, otherwise rebuilt from its current content.
+        let mut fallbacks = self.fallbacks.lock().unwrap_or_else(PoisonError::into_inner);
+        fallbacks.retain(|path| {
+            let Ok(data) = std::fs::read(path) else { return false };
+            // Uploads record absolute paths; a relative auth-dir scans relative ones.
+            let absolute = |p: &PathBuf| std::path::absolute(p).unwrap_or_else(|_| p.clone());
+            if all
+                .iter()
+                .any(|c| matches!(&c.source, Source::File(p) if absolute(p) == absolute(path)))
+            {
+                return false;
+            }
+            match credentials::upload_fallback(&cfg.auth_dir, path, &data) {
+                Some(c) => {
+                    all.push(c);
+                    true
+                }
+                None => false,
+            }
+        });
+        drop(fallbacks);
         all.extend(credentials::from_config(&cfg));
         self.access.config_published(&cfg);
         let policy = policy(&cfg);
@@ -161,7 +192,14 @@ pub fn router(state: Arc<Management>) -> Router {
     let s = &state;
     let v8 = "/v8/management";
     let v0 = "/v0/management";
-    Router::new()
+    let config_methods = || {
+        methods()
+            .get(guarded!(s, config))
+            .put(guarded!(s, config))
+            .patch(guarded!(s, config))
+            .delete(guarded!(s, config))
+    };
+    let mut router = Router::new()
         .route(
             &format!("{v8}/config"),
             methods()
@@ -173,38 +211,52 @@ pub fn router(state: Arc<Management>) -> Router {
             &format!("{v8}/config.yaml"),
             methods().get(guarded!(s, config)).put(guarded!(s, config)),
         )
+        .route(&format!("{v8}/config/"), config_methods())
+        .route(&format!("{v8}/config/{{*path}}"), config_methods())
+        .route(&format!("{v0}/config.yaml"), methods().get(guarded!(s, legacy_yaml)));
+    // v8 and its deprecated v0 spellings share Go's handlers.
+    for (base, files, definitions) in [
+        (v8, "credentials", "routing/model-definitions"),
+        (v0, "auth-files", "model-definitions"),
+    ] {
+        router = router
+            .route(
+                &format!("{base}/{files}"),
+                methods()
+                    .get(guarded!(s, auth_files::list))
+                    .post(guarded!(s, auth_files::upload))
+                    .delete(guarded!(s, auth_files::delete)),
+            )
+            .route(
+                &format!("{base}/{files}/models"),
+                methods().get(guarded!(s, auth_files::models)),
+            )
+            .route(
+                &format!("{base}/{files}/download"),
+                methods().get(guarded!(s, auth_files::download)),
+            )
+            .route(
+                &format!("{base}/{files}/status"),
+                methods().patch(guarded!(s, auth_files::status)),
+            )
+            .route(
+                &format!("{base}/{files}/fields"),
+                methods().patch(guarded!(s, auth_files::fields)),
+            )
+            .route(
+                &format!("{base}/{files}/refresh"),
+                methods().post(guarded!(s, auth_files::refresh)),
+            )
+            .route(
+                &format!("{base}/{definitions}/{{channel}}"),
+                methods().get(guarded!(s, auth_files::model_definitions)),
+            );
+    }
+    router
         .route(
-            &format!("{v8}/config/"),
-            methods()
-                .get(guarded!(s, config))
-                .put(guarded!(s, config))
-                .patch(guarded!(s, config))
-                .delete(guarded!(s, config)),
+            &format!("{v8}/routing/cooldown/reset"),
+            methods().post(guarded!(s, auth_files::cooldown_reset)),
         )
-        .route(
-            &format!("{v8}/config/{{*path}}"),
-            methods()
-                .get(guarded!(s, config))
-                .put(guarded!(s, config))
-                .patch(guarded!(s, config))
-                .delete(guarded!(s, config)),
-        )
-        .route(&format!("{v8}/credentials"), methods().get(guarded!(s, credentials)))
-        .route(
-            &format!("{v8}/credentials/download"),
-            methods().get(guarded!(s, download)),
-        )
-        .route(
-            &format!("{v8}/credentials/status"),
-            methods().patch(guarded!(s, status)),
-        )
-        .route(&format!("{v0}/config.yaml"), methods().get(guarded!(s, legacy_yaml)))
-        .route(&format!("{v0}/auth-files"), methods().get(guarded!(s, credentials)))
-        .route(
-            &format!("{v0}/auth-files/download"),
-            methods().get(guarded!(s, download)),
-        )
-        .route(&format!("{v0}/auth-files/status"), methods().patch(guarded!(s, status)))
         .route("/management.html", get(panel))
         .route("/assets/{*path}", get(panel))
         .route("/fonts/{*path}", get(panel))
@@ -248,6 +300,27 @@ fn percent_decode(path: &str) -> String {
     String::from_utf8_lossy(&out).into_owned()
 }
 
+/// Root-level comment lines after the last mapping entry.
+fn foot_comments(text: &str) -> String {
+    let lines: Vec<&str> = text.lines().collect();
+    let last = lines
+        .iter()
+        .rposition(|l| !l.trim().is_empty() && !l.starts_with('#'))
+        .map_or(0, |i| i + 1);
+    lines[last..]
+        .iter()
+        .filter(|l| l.starts_with('#'))
+        .map(|l| format!("{l}\n"))
+        .collect()
+}
+
+fn invalid_config(status: StatusCode, err: impl std::fmt::Display) -> Response {
+    json(status, &json!({"error": "invalid_config", "message": err.to_string()}))
+}
+
+/// Go `Handler.ConfigV8`: every call reads the file and migrates it in memory (legacy
+/// layout to v8, unknown sections archived as comments); only successful mutations
+/// persist. The write keeps untouched text byte-stable instead of Go's re-encoding.
 fn config_sync(state: &Management, path: &str, method: Method, body: &[u8]) -> Response {
     let _guard = state.disk.lock().unwrap_or_else(PoisonError::into_inner);
     let original = match std::fs::read_to_string(&state.path) {
@@ -256,8 +329,10 @@ fn config_sync(state: &Management, path: &str, method: Method, body: &[u8]) -> R
     };
     let mut doc = match ConfigDocument::parse(&original) {
         Ok(v) => v,
-        Err(_) => return error(500, "invalid_config"),
+        Err(e) => return invalid_config(StatusCode::INTERNAL_SERVER_ERROR, e),
     };
+    let basis = doc.migrated_text(&original).unwrap_or_else(|| original.clone());
+    let archived = doc.archive_unknown();
     let yaml = path.ends_with("/config.yaml");
     let suffix = path
         .strip_prefix("/v8/management/config/")
@@ -270,16 +345,16 @@ fn config_sync(state: &Management, path: &str, method: Method, body: &[u8]) -> R
     };
     if method == Method::GET {
         if yaml {
-            return match doc.render_preserving(&original) {
+            return match doc.render_preserving(&basis) {
                 Ok(text) => (
                     [
                         (header::CONTENT_TYPE, "application/yaml; charset=utf-8"),
                         (header::CACHE_CONTROL, "no-store"),
                     ],
-                    text,
+                    text + &archive_comments(&archived),
                 )
                     .into_response(),
-                Err(_) => error(500, "encode_failed"),
+                Err(_) => error(500, "decode_failed"),
             };
         }
         let mut result = match serde_json::to_value(doc.value()) {
@@ -311,13 +386,8 @@ fn config_sync(state: &Management, path: &str, method: Method, body: &[u8]) -> R
             .insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
         return response;
     }
-    if ![Method::PUT, Method::PATCH, Method::DELETE].contains(&method) {
-        return error(405, "method_not_allowed");
-    }
-    if yaml && method != Method::PUT {
-        return error(405, "method_not_allowed");
-    }
     let before = doc.clone();
+    let mut written = None;
     if method == Method::DELETE {
         if parts.is_empty() {
             return error(400, "cannot_delete_config");
@@ -326,25 +396,29 @@ fn config_sync(state: &Management, path: &str, method: Method, body: &[u8]) -> R
             return error(404, "not_found");
         }
     } else {
-        let update = if yaml {
-            serde_yaml_ng::from_slice(body)
-        } else {
-            let json = match serde_json::from_slice::<Value>(body) {
-                Ok(v) => v,
-                Err(_) => return error(400, "invalid_json"),
-            };
-            serde_yaml_ng::to_value(json)
-        };
-        let value = match update {
-            Ok(v) => v,
-            Err(_) => return error(400, "invalid_body"),
+        if !yaml && serde_json::from_slice::<serde::de::IgnoredAny>(body).is_err() {
+            return error(400, "invalid_json");
+        }
+        // yaml.v3 yields no document for an empty or comment-only body (an explicit
+        // `null` is a document).
+        let has_document = String::from_utf8_lossy(body).lines().any(|l| {
+            let t = l.trim();
+            !t.is_empty() && !t.starts_with('#') && t != "---" && t != "..."
+        });
+        let value = match serde_yaml_ng::from_slice::<serde_yaml_ng::Value>(body) {
+            Ok(v) if has_document => v,
+            _ => return error(400, "invalid_body"),
         };
         if parts.is_empty() && !value.is_mapping() {
             return error(400, "config_must_be_object");
         }
-        if doc.update(&parts, value, method == Method::PATCH).is_err() {
+        if doc.update(&parts, value.clone(), method == Method::PATCH).is_err() {
             return error(400, "invalid_path");
         }
+        if !yaml {
+            doc.preserve_turn_secrets(&before);
+        }
+        written = Some(value);
     }
     for field in [
         "credentials/concurrency/lifecycle-config-revision",
@@ -353,24 +427,26 @@ fn config_sync(state: &Management, path: &str, method: Method, body: &[u8]) -> R
     ] {
         let parts: Vec<_> = field.split('/').collect();
         if doc.get(&parts) != before.get(&parts) {
-            return error(400, "read_only_field");
+            return json(
+                StatusCode::BAD_REQUEST,
+                &json!({"error": "read_only_field", "field": field}),
+            );
         }
-    }
-    // Secret round-trips need endpoint matching, so reject TURN mutations rather than
-    // accidentally clearing/redelivering somebody else's password.
-    let turn = ["oauth", "providers", "codex", "live-media-relay", "ice-servers"];
-    if !yaml && doc.get(&turn) != before.get(&turn) {
-        return error(501, "not_implemented");
     }
     let text = match doc.yaml() {
         Ok(v) => v,
-        Err(_) => return error(422, "invalid_config"),
+        Err(e) => return invalid_config(StatusCode::BAD_REQUEST, e),
     };
-    if Config::parse(&text).is_err() {
-        return error(422, "invalid_config");
+    if let Err(e) = Config::parse(&text) {
+        return invalid_config(StatusCode::UNPROCESSABLE_ENTITY, e);
     }
-    if cpa_core::config::validate_config_fields(doc.value(), true).is_err() {
-        return error(400, "invalid_config");
+    if let Err(e) = cpa_core::config::validate_config_fields(doc.value(), true) {
+        return invalid_config(StatusCode::BAD_REQUEST, e);
+    }
+    // Go validates the raw candidate, then its saver persists typed values; projecting
+    // only after validation keeps malformed input from being sanitized into success.
+    if let Some(written) = &written {
+        doc.typed_projection(&parts, written, method == Method::PATCH);
     }
     if let Some(secret) = doc
         .get(&["management", "secret-key"])
@@ -378,9 +454,9 @@ fn config_sync(state: &Management, path: &str, method: Method, body: &[u8]) -> R
         && !secret.is_empty()
         && !is_bcrypt(secret)
     {
-        let hash = match bcrypt::hash(secret, 10) {
+        let hash = match bcrypt::hash(secret, bcrypt::DEFAULT_COST) {
             Ok(v) => v,
-            Err(_) => return error(422, "invalid_config"),
+            Err(e) => return invalid_config(StatusCode::UNPROCESSABLE_ENTITY, e),
         };
         if doc.update(&["management", "secret-key"], hash.into(), false).is_err() {
             return error(422, "invalid_config");
@@ -388,110 +464,40 @@ fn config_sync(state: &Management, path: &str, method: Method, body: &[u8]) -> R
     }
     let basis = if yaml {
         match std::str::from_utf8(body) {
-            Ok(v) => v,
+            Ok(v) => v.to_owned(),
             Err(_) => return error(400, "invalid_body"),
         }
     } else {
-        &original
+        basis
     };
-    let text = match doc.render_preserving(basis) {
+    let mut text = match doc.render_preserving(&basis) {
         Ok(v) => v,
-        Err(_) => return error(422, "invalid_config"),
+        Err(e) => return invalid_config(StatusCode::INTERNAL_SERVER_ERROR, e),
     };
+    // Go keeps document-level foot comments (its archive of unknown sections) even
+    // when the root mapping is replaced by a YAML upload.
+    if yaml {
+        text += &foot_comments(&original);
+    }
+    text += &archive_comments(&archived);
     let cfg = match Config::parse(&text) {
         Ok(v) => v,
-        Err(_) => return error(422, "invalid_config"),
+        Err(e) => return invalid_config(StatusCode::UNPROCESSABLE_ENTITY, e),
     };
-    if ConfigDocument::write(&state.path, &text).is_err() {
-        return error(500, "write_failed");
+    if let Err(e) = ConfigDocument::write(&state.path, &text) {
+        return json(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            &json!({"error": "write_failed", "message": e.to_string()}),
+        );
     }
     state.publish(cfg, None);
-    json(StatusCode::OK, &json!({"status":"ok", "config-version":8}))
+    json(StatusCode::OK, &json!({"config-version": 8, "status": "ok"}))
 }
 
 async fn legacy_yaml(State(state): State<Arc<Management>>) -> Response {
     match tokio::fs::read(&state.path).await {
         Ok(bytes) => ([(header::CONTENT_TYPE, "application/yaml; charset=utf-8")], bytes).into_response(),
         Err(_) => error(404, "not_found"),
-    }
-}
-
-async fn credentials(State(state): State<Arc<Management>>) -> Response {
-    // ponytail: interim file-only inventory; the full Go projection (auth_index,
-    // cooldowns, counters, filters, pagination) replaces this in the credentials pass.
-    // Go lists only file-backed and runtime-only auths, never config API keys.
-    let files: Vec<_> = state
-        .rt
-        .store()
-        .snapshot()
-        .iter()
-        .filter(|c| matches!(c.source, Source::File(_)))
-        .map(|c| {
-            json!({
-                "id":c.id, "name":c.id, "auth_index":credentials::auth_index(c), "provider":c.provider,
-                "type":c.provider, "email":c.str("email").unwrap_or_default(), "label":c.label,
-                "disabled":c.disabled, "status":if c.disabled {"disabled"} else {"active"},
-                "runtime_only":false, "unavailable":false, "cooldowns":null
-            })
-        })
-        .collect();
-    json(StatusCode::OK, &json!({"files": files}))
-}
-
-async fn download(
-    State(state): State<Arc<Management>>,
-    axum::extract::Query(query): axum::extract::Query<HashMap<String, String>>,
-) -> Response {
-    let Some(name) = query.get("name") else {
-        return error(400, "invalid name");
-    };
-    // Lookup the store source rather than joining an untrusted filename to auth-dir.
-    let Some(c) = state.rt.store().get(name) else {
-        return error(404, "not_found");
-    };
-    let Source::File(path) = &c.source else {
-        return error(404, "not_found");
-    };
-    match tokio::fs::read(path).await {
-        Ok(bytes) => ([(header::CONTENT_TYPE, "application/json")], bytes).into_response(),
-        Err(_) => error(404, "not_found"),
-    }
-}
-
-async fn status(State(state): State<Arc<Management>>, body: Bytes) -> Response {
-    let value: Value = match serde_json::from_slice(&body) {
-        Ok(v) => v,
-        Err(_) => return error(400, "invalid request body"),
-    };
-    let name = value.get("name").and_then(Value::as_str).unwrap_or_default().trim();
-    if name.is_empty() {
-        return error(400, "name is required");
-    }
-    let Some(disabled) = value.get("disabled").and_then(Value::as_bool) else {
-        return error(400, "disabled is required");
-    };
-    let Some(credential) = state
-        .rt
-        .store()
-        .get(name)
-        .filter(|c| matches!(c.source, Source::File(_)))
-    else {
-        return error(404, "auth file not found");
-    };
-    let id = credential.id.clone();
-    let patch = MetadataPatch {
-        set: serde_json::Map::from_iter([("disabled".into(), disabled.into())]),
-        remove: vec![],
-    };
-    let result = tokio::task::spawn_blocking(move || {
-        let _guard = state.disk.lock().unwrap_or_else(PoisonError::into_inner);
-        state.rt.store().apply_patch(&id, credential.revision, &patch)
-    })
-    .await;
-    match result {
-        Ok(Ok(_)) => json(StatusCode::OK, &json!({"status":"ok", "disabled":disabled})),
-        Ok(Err(crate::runtime::PatchError::Stale { .. })) => error(409, "stale credential"),
-        _ => error(500, "write_failed"),
     }
 }
 

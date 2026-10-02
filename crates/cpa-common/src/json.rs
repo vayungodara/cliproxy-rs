@@ -162,6 +162,53 @@ impl<'a> Res<'a> {
         r
     }
 
+    /// `json.Marshal(r.Value())`: gjson's own decoding (first duplicate key wins, gjson
+    /// unescaping, float64 numbers) re-encoded with sorted keys. `None` where Marshal
+    /// fails (NaN or infinite numbers).
+    pub fn value_json(&self) -> Option<Vec<u8>> {
+        let mut out = vec![];
+        self.write_value(&mut out)?;
+        Some(out)
+    }
+
+    fn write_value(&self, out: &mut Vec<u8>) -> Option<()> {
+        match self.kind {
+            Kind::String => marshal_str(out, &self.s, true),
+            Kind::Number => out.extend_from_slice(json_float(self.num)?.as_bytes()),
+            Kind::True => out.extend_from_slice(b"true"),
+            Kind::False => out.extend_from_slice(b"false"),
+            Kind::Null => out.extend_from_slice(b"null"),
+            Kind::Json => match self.raw.iter().find(|&&c| c > b' ' || c == b'{' || c == b'[') {
+                Some(b'{') => {
+                    let mut pairs = array_or_map(&self.raw, b'{', 0).1;
+                    pairs.sort_by(|a, b| a.0.cmp(&b.0));
+                    out.push(b'{');
+                    for (i, (key, value)) in pairs.iter().enumerate() {
+                        if i > 0 {
+                            out.push(b',');
+                        }
+                        marshal_str(out, key, true);
+                        out.push(b':');
+                        value.write_value(out)?;
+                    }
+                    out.push(b'}');
+                }
+                Some(b'[') => {
+                    out.push(b'[');
+                    for (i, item) in array_or_map(&self.raw, b'[', 0).0.iter().enumerate() {
+                        if i > 0 {
+                            out.push(b',');
+                        }
+                        item.write_value(out)?;
+                    }
+                    out.push(b']');
+                }
+                _ => out.extend_from_slice(b"null"),
+            },
+        }
+        Some(())
+    }
+
     /// Go's `Result.Array()`: null is empty, a non-array is a one-element list.
     pub fn array(&self) -> Vec<Res<'a>> {
         if self.kind == Kind::Null {

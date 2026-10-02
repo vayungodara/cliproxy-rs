@@ -104,8 +104,7 @@ impl Encoding {
     }
 
     /// `Encoding.DecodeString`. `Err` carries Go's error text.
-    pub(crate) fn decode(self, s: &str) -> Result<Vec<u8>, String> {
-        let src = s.as_bytes();
+    pub(crate) fn decode(self, src: &[u8]) -> Result<Vec<u8>, String> {
         let mut out = Vec::with_capacity(src.len() / 4 * 3 + 3);
         let mut si = 0;
         while si < src.len() {
@@ -252,22 +251,22 @@ mod tests {
 
     #[test]
     fn base64_matches_go_rules() {
-        assert_eq!(STD.decode("TWFu").unwrap(), b"Man");
-        assert_eq!(STD.decode("TWE=").unwrap(), b"Ma");
-        assert_eq!(STD.decode("TW\r\nE=").unwrap(), b"Ma", "Go skips CR/LF");
+        assert_eq!(STD.decode(b"TWFu").unwrap(), b"Man");
+        assert_eq!(STD.decode(b"TWE=").unwrap(), b"Ma");
+        assert_eq!(STD.decode(b"TW\r\nE=").unwrap(), b"Ma", "Go skips CR/LF");
         // Go ignores non-zero trailing bits outside Strict mode.
-        assert_eq!(STD.decode("TWF=").unwrap(), b"Ma");
-        assert_eq!(STD.decode("TWE").unwrap_err(), "illegal base64 data at input byte 0");
-        assert_eq!(STD.decode("TWE=x").unwrap_err(), "illegal base64 data at input byte 4");
-        assert_eq!(STD.decode("T===").unwrap_err(), "illegal base64 data at input byte 1");
-        assert_eq!(RAW_STD.decode("TWE").unwrap(), b"Ma");
+        assert_eq!(STD.decode(b"TWF=").unwrap(), b"Ma");
+        assert_eq!(STD.decode(b"TWE").unwrap_err(), "illegal base64 data at input byte 0");
+        assert_eq!(STD.decode(b"TWE=x").unwrap_err(), "illegal base64 data at input byte 4");
+        assert_eq!(STD.decode(b"T===").unwrap_err(), "illegal base64 data at input byte 1");
+        assert_eq!(RAW_STD.decode(b"TWE").unwrap(), b"Ma");
         assert_eq!(
-            RAW_STD.decode("TWE=").unwrap_err(),
+            RAW_STD.decode(b"TWE=").unwrap_err(),
             "illegal base64 data at input byte 3"
         );
-        assert_eq!(RAW_STD.decode("T").unwrap_err(), "illegal base64 data at input byte 0");
-        assert_eq!(RAW_URL.decode("-_8").unwrap(), [0xfb, 0xff]);
-        assert!(STD.decode("-_8=").is_err());
+        assert_eq!(RAW_STD.decode(b"T").unwrap_err(), "illegal base64 data at input byte 0");
+        assert_eq!(RAW_URL.decode(b"-_8").unwrap(), [0xfb, 0xff]);
+        assert!(STD.decode(b"-_8=").is_err());
     }
 
     #[test]

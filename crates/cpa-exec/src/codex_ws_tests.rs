@@ -193,6 +193,7 @@ fn request(body: &str) -> ExecRequest {
         alt: None,
         session: None,
         execution_session: Some("conn-1".into()),
+        derived_session: None,
         headers: HeaderMap::new(),
         caller: Caller {
             principal: "client-key-FAKE".into(),

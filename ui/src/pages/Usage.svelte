@@ -54,7 +54,7 @@
 </script>
 
 <div class="head"><h1>Usage</h1></div>
-<Missing actions={[["GET", "/observability/usage/queue", "the live request view"]]} />
+<Missing actions={[["GET", "/observability/usage/queue?count=0", "the live request view"]]} />
 
 <section class="section">
   <div class="section-head"><h2>Last 200 minutes</h2><span class="legend">Reported by the server · 10-minute buckets</span></div>

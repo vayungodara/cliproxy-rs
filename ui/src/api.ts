@@ -110,23 +110,6 @@ export async function api(
 export const missing = (e: unknown) => e instanceof ApiError && e.missing;
 export const text = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
-/**
- * Ask which methods a route supports without side effects. Go answers OPTIONS with 204 for
- * every route (all supported). Rust answers 405 with an Allow list for routes it serves and
- * 501 for routes it does not. Returns the unsupported methods; empty means unknown or all.
- */
-export async function unsupported(path: string): Promise<string[]> {
-  const all = ["GET", "POST", "PUT", "PATCH", "DELETE"];
-  try {
-    const r = await send(path, "OPTIONS");
-    if (r.status === 501 || (r.status === 404 && !(await r.text()))) return all;
-    const allow = r.headers.get("allow");
-    return r.status === 405 && allow ? all.filter((m) => !allow.toUpperCase().includes(m)) : [];
-  } catch {
-    return [];
-  }
-}
-
 export async function configValue(path: string, fallback: unknown) {
   try {
     return await api(path);

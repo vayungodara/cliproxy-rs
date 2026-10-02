@@ -14,52 +14,52 @@ use super::{
     is_user_defined_model, lookup_model_info, parse_level_suffix, parse_numeric_suffix, parse_special_suffix,
     parse_suffix, strip_configuration_updates, strip_responses_effort, strip_thinking_config,
 };
-use crate::gojson as json;
 use crate::gostr::GoStr;
+use crate::json;
 
 /// `ApplyThinking`: summary intent comes from the target body itself.
-pub fn apply_thinking(body: &str, model: &str, from: &str, to: &str, provider: &str) -> Result<String, Error> {
+pub fn apply_thinking(body: &[u8], model: &str, from: &str, to: &str, provider: &str) -> Result<Vec<u8>, Error> {
     let summary = extract_summary_config(body, to);
-    run(body, "", model, from, to, provider, None, summary, false)
+    run(body, b"", model, from, to, provider, None, summary, false)
 }
 
 /// `ApplyThinkingWithSummary`.
 pub fn apply_thinking_with_summary(
-    body: &str,
+    body: &[u8],
     model: &str,
     from: &str,
     to: &str,
     provider: &str,
     summary: SummaryConfig,
-) -> Result<String, Error> {
-    run(body, "", model, from, to, provider, None, summary, false)
+) -> Result<Vec<u8>, Error> {
+    run(body, b"", model, from, to, provider, None, summary, false)
 }
 
 /// `ApplyThinkingWithSourceAndSummary`.
 #[allow(clippy::too_many_arguments)]
 pub fn apply_thinking_with_source_and_summary(
-    body: &str,
-    source: &str,
+    body: &[u8],
+    source: &[u8],
     model: &str,
     from: &str,
     to: &str,
     provider: &str,
     summary: SummaryConfig,
     updates_changed: bool,
-) -> Result<String, Error> {
+) -> Result<Vec<u8>, Error> {
     run(body, source, model, from, to, provider, None, summary, updates_changed)
 }
 
 /// `ApplyThinkingWithModelInfo`: the exact model definition bound to this attempt.
 pub fn apply_thinking_with_model_info(
-    body: &str,
-    source: &str,
+    body: &[u8],
+    source: &[u8],
     model: &str,
     from: &str,
     to: &str,
     provider: &str,
     info: Option<&ModelCaps>,
-) -> Result<String, Error> {
+) -> Result<Vec<u8>, Error> {
     let summary = if source.is_empty() {
         extract_summary_config(body, to)
     } else {
@@ -71,8 +71,8 @@ pub fn apply_thinking_with_model_info(
 /// `ApplyThinkingWithModelInfoAndSummary`.
 #[allow(clippy::too_many_arguments)]
 pub fn apply_thinking_with_model_info_and_summary(
-    body: &str,
-    source: &str,
+    body: &[u8],
+    source: &[u8],
     model: &str,
     from: &str,
     to: &str,
@@ -80,7 +80,7 @@ pub fn apply_thinking_with_model_info_and_summary(
     info: Option<&ModelCaps>,
     summary: SummaryConfig,
     updates_changed: bool,
-) -> Result<String, Error> {
+) -> Result<Vec<u8>, Error> {
     run(
         body,
         source,
@@ -97,11 +97,11 @@ pub fn apply_thinking_with_model_info_and_summary(
 /// Inputs to `helps.ApplyRequestThinking`.
 pub struct RequestThinking<'a> {
     /// Translated provider body.
-    pub body: &'a str,
+    pub body: &'a [u8],
     /// The request payload that was translated (`req.Payload`).
-    pub payload: &'a str,
+    pub payload: &'a [u8],
     /// The inbound body before interceptors (`opts.OriginalRequest`).
-    pub original: &'a str,
+    pub original: &'a [u8],
     /// Requested model, possibly with a `(suffix)`.
     pub model: &'a str,
     pub from: &'a str,
@@ -117,7 +117,7 @@ pub struct RequestThinking<'a> {
 }
 
 /// `helps.ApplyRequestThinking`.
-pub fn apply_request_thinking(req: &RequestThinking<'_>) -> Result<String, Error> {
+pub fn apply_request_thinking(req: &RequestThinking<'_>) -> Result<Vec<u8>, Error> {
     let original = if req.original.is_empty() {
         req.payload
     } else {
@@ -165,15 +165,15 @@ pub fn apply_request_thinking(req: &RequestThinking<'_>) -> Result<String, Error
 /// `helps.ApplyThinkingWithSourcePayload`.
 #[allow(clippy::too_many_arguments)]
 pub fn apply_thinking_with_source_payload(
-    body: &str,
-    current_source: &str,
-    original_source: &str,
+    body: &[u8],
+    current_source: &[u8],
+    original_source: &[u8],
     model: &str,
     from: &str,
     to: &str,
     provider: &str,
     has_request_transformer: bool,
-) -> Result<String, Error> {
+) -> Result<Vec<u8>, Error> {
     let summary = translated_request_summary_config(
         body,
         current_source,
@@ -190,9 +190,9 @@ pub fn apply_thinking_with_source_payload(
 /// remove or rewrite the summary; the source is consulted only when the body lost the
 /// intent or cannot represent it until the model-aware pass.
 pub fn translated_request_summary_config(
-    body: &str,
-    current_source: &str,
-    original_source: &str,
+    body: &[u8],
+    current_source: &[u8],
+    original_source: &[u8],
     model: &str,
     from: &str,
     to: &str,
@@ -225,8 +225,8 @@ pub fn translated_request_summary_config(
 
 #[allow(clippy::too_many_arguments)]
 fn run(
-    body: &str,
-    source: &str,
+    body: &[u8],
+    source: &[u8],
     model: &str,
     from: &str,
     to: &str,
@@ -234,7 +234,7 @@ fn run(
     resolved: Option<Option<&ModelCaps>>,
     summary: SummaryConfig,
     updates_changed: bool,
-) -> Result<String, Error> {
+) -> Result<Vec<u8>, Error> {
     let mut target = to.trim().go_lower();
     if target == "openai-response" {
         target = "codex".into();
@@ -272,7 +272,7 @@ fn run(
     }
     let response_target = target == "codex" || target == "xai";
     let supports_updates = info.is_some_and(|i| i.support_configuration_update);
-    let mut body = body.to_owned();
+    let mut body = body.to_vec();
     if response_target && !supports_updates {
         body = strip_configuration_updates(&body);
     }
@@ -403,7 +403,7 @@ fn map_configured_high_intent(level: &str, info: &ModelCaps) -> String {
         .map_or(level.clone(), |c| (*c).to_owned())
 }
 
-fn extract_source_thinking_config(body: &str, provider: &str) -> Config {
+fn extract_source_thinking_config(body: &[u8], provider: &str) -> Config {
     let provider = provider.trim().go_lower();
     if provider == "openai-response" {
         return extract_codex_config(body);
@@ -430,7 +430,7 @@ fn parse_suffix_to_config(raw: &str) -> Config {
 
 #[allow(clippy::too_many_arguments)]
 fn apply_user_defined_model(
-    body: &str,
+    body: &[u8],
     info: Option<&ModelCaps>,
     from: &str,
     to: &str,
@@ -439,7 +439,7 @@ fn apply_user_defined_model(
     source_config: Config,
     native_responses: bool,
     summary: SummaryConfig,
-) -> Result<String, Error> {
+) -> Result<Vec<u8>, Error> {
     let model_id = info.map_or(suffix.model_name.as_str(), |i| i.id.as_str()).to_owned();
     let config = if suffix.has_suffix {
         parse_suffix_to_config(&suffix.raw_suffix)
@@ -459,7 +459,7 @@ fn apply_user_defined_model(
         ));
     }
     let Some(apply_fn) = applier(to) else {
-        return Ok(body.to_owned());
+        return Ok(body.to_vec());
     };
     let config = normalize_user_defined_config(config, to);
     let applied = apply_fn(body, &config, info)?;
@@ -482,7 +482,7 @@ fn normalize_user_defined_config(config: Config, to: &str) -> Config {
 }
 
 /// `extractThinkingConfig`: the canonical config a provider body carries.
-pub fn extract_thinking_config(body: &str, provider: &str) -> Config {
+pub fn extract_thinking_config(body: &[u8], provider: &str) -> Config {
     if body.is_empty() || !json::valid(body) {
         return Config::default();
     }
@@ -498,7 +498,7 @@ pub fn extract_thinking_config(body: &str, provider: &str) -> Config {
 }
 
 /// `ExtractReasoningEffort`: the source request's effort for usage reporting.
-pub fn extract_reasoning_effort(body: &str, provider: &str, model: &str) -> String {
+pub fn extract_reasoning_effort(body: &[u8], provider: &str, model: &str) -> String {
     let provider = provider.trim().go_lower();
     if is_responses_format(&provider) {
         let effort = effort_from_config(&extract_configuration_update_config(body));
@@ -521,7 +521,7 @@ pub fn extract_reasoning_effort(body: &str, provider: &str, model: &str) -> Stri
 }
 
 /// `ExtractTranslatedReasoningEffort`: the final provider payload's effort.
-pub fn extract_translated_reasoning_effort(body: &str, provider: &str) -> String {
+pub fn extract_translated_reasoning_effort(body: &[u8], provider: &str) -> String {
     let provider = provider.trim().go_lower();
     let mut config = extract_for_usage(body, &provider);
     if !config.is_set() && (provider == "openai" || provider == "openai-response") {
@@ -533,7 +533,7 @@ pub fn extract_translated_reasoning_effort(body: &str, provider: &str) -> String
     effort_from_config(&config)
 }
 
-fn extract_for_usage(body: &str, provider: &str) -> Config {
+fn extract_for_usage(body: &[u8], provider: &str) -> Config {
     match provider.trim().go_lower().as_str() {
         "codex" | "xai" | "openai-response" => extract_codex_usage_config(body),
         p => extract_thinking_config(body, p),
@@ -570,11 +570,11 @@ fn budget_config(value: i64) -> Config {
 
 /// Claude: `thinking.type` disabled wins, adaptive uses `output_config.effort`, then
 /// `thinking.budget_tokens`, then enabled with effort or auto.
-fn extract_claude_config(body: &str) -> Config {
-    let kind = json::go_str(&gjson::get(body, "thinking.type"));
+fn extract_claude_config(body: &[u8]) -> Config {
+    let kind = json::get(body, "thinking.type").str().into_owned();
     let effort = || {
-        let effort = gjson::get(body, "output_config.effort");
-        (effort.kind() == gjson::Kind::String).then(|| effort.str().trim().go_lower())
+        let effort = json::get(body, "output_config.effort");
+        (effort.kind == json::Kind::String).then(|| effort.str().trim().go_lower())
     };
     if kind == "disabled" {
         return Config::none();
@@ -586,9 +586,9 @@ fn extract_claude_config(body: &str) -> Config {
             None => Config::default(),
         };
     }
-    let budget = gjson::get(body, "thinking.budget_tokens");
+    let budget = json::get(body, "thinking.budget_tokens");
     if budget.exists() {
-        return budget_config(json::go_int(&budget));
+        return budget_config(budget.int());
     }
     if kind == "enabled" {
         if let Some(value) = effort().filter(|v| !v.is_empty()) {
@@ -600,7 +600,7 @@ fn extract_claude_config(body: &str) -> Config {
 }
 
 /// Gemini/Antigravity: `thinkingLevel` (Gemini 3) before `thinkingBudget` (2.5).
-fn extract_gemini_config(body: &str, provider: &str) -> Config {
+fn extract_gemini_config(body: &[u8], provider: &str) -> Config {
     let prefix = if provider == "antigravity" {
         "request.generationConfig.thinkingConfig"
     } else {
@@ -608,22 +608,22 @@ fn extract_gemini_config(body: &str, provider: &str) -> Config {
     };
     for key in ["thinkingLevel", "thinking_level"] {
         let path = format!("{prefix}.{key}");
-        let level = gjson::get(body, &path);
+        let level = json::get(body, &path);
         if level.exists() {
-            return level_or_special(&json::go_str(&level));
+            return level_or_special(&level.str());
         }
     }
     for key in ["thinkingBudget", "thinking_budget"] {
         let path = format!("{prefix}.{key}");
-        let budget = gjson::get(body, &path);
+        let budget = json::get(body, &path);
         if budget.exists() {
-            return budget_config(json::go_int(&budget));
+            return budget_config(budget.int());
         }
     }
     Config::default()
 }
 
-fn extract_interactions_config(body: &str) -> Config {
+fn extract_interactions_config(body: &[u8]) -> Config {
     for path in [
         "generation_config.thinking_level",
         "generation_config.thinkingLevel",
@@ -632,9 +632,9 @@ fn extract_interactions_config(body: &str) -> Config {
         "generation_config.thinkingConfig.thinking_level",
         "generation_config.thinkingConfig.thinkingLevel",
     ] {
-        let level = gjson::get(body, path);
+        let level = json::get(body, path);
         if level.exists() {
-            return level_or_special(&json::go_str(&level).trim().go_lower());
+            return level_or_special(&level.str().trim().go_lower());
         }
     }
     for path in [
@@ -645,20 +645,20 @@ fn extract_interactions_config(body: &str) -> Config {
         "generation_config.thinkingConfig.thinking_budget",
         "generation_config.thinkingConfig.thinkingBudget",
     ] {
-        let budget = gjson::get(body, path);
+        let budget = json::get(body, path);
         if budget.exists() {
-            return budget_config(json::go_int(&budget));
+            return budget_config(budget.int());
         }
     }
     Config::default()
 }
 
-fn extract_openai_config(body: &str) -> Config {
-    let effort = gjson::get(body, "reasoning_effort");
+fn extract_openai_config(body: &[u8]) -> Config {
+    let effort = json::get(body, "reasoning_effort");
     if !effort.exists() {
         return Config::default();
     }
-    let value = json::go_str(&effort);
+    let value = effort.str();
     if value == "none" {
         Config::none()
     } else {
@@ -667,18 +667,18 @@ fn extract_openai_config(body: &str) -> Config {
 }
 
 /// Kimi: native `thinking` fields win over `reasoning_effort`.
-fn extract_kimi_config(body: &str) -> Config {
-    let kind = gjson::get(body, "thinking.type");
+fn extract_kimi_config(body: &[u8]) -> Config {
+    let kind = json::get(body, "thinking.type");
     if kind.exists() {
-        match json::go_str(&kind).trim().go_lower().as_str() {
+        match kind.str().trim().go_lower().as_str() {
             "disabled" => return Config::none(),
-            "enabled" if !gjson::get(body, "thinking.effort").exists() => return Config::default(),
+            "enabled" if !json::get(body, "thinking.effort").exists() => return Config::default(),
             _ => {}
         }
     }
-    let effort = gjson::get(body, "thinking.effort");
+    let effort = json::get(body, "thinking.effort");
     if effort.exists() {
-        let value = json::go_str(&effort).trim().go_lower();
+        let value = effort.str().trim().go_lower();
         return if value.is_empty() {
             Config::default()
         } else {
@@ -691,12 +691,12 @@ fn extract_kimi_config(body: &str) -> Config {
     extract_openai_config(body)
 }
 
-fn extract_codex_config(body: &str) -> Config {
-    let effort = gjson::get(body, "reasoning.effort");
+fn extract_codex_config(body: &[u8]) -> Config {
+    let effort = json::get(body, "reasoning.effort");
     if !effort.exists() {
         return Config::default();
     }
-    let value = json::go_str(&effort);
+    let value = effort.str();
     if value == "none" {
         Config::none()
     } else {
@@ -704,7 +704,7 @@ fn extract_codex_config(body: &str) -> Config {
     }
 }
 
-fn extract_codex_usage_config(body: &str) -> Config {
+fn extract_codex_usage_config(body: &[u8]) -> Config {
     if body.is_empty() || !json::valid(body) {
         return Config::default();
     }

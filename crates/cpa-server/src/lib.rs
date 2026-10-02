@@ -1,6 +1,7 @@
 //! HTTP surface: routes and client-key auth over an axum-independent [`runtime`].
 
 mod access;
+mod affinity;
 mod classify;
 mod claude;
 mod codex_alpha;
@@ -8,7 +9,6 @@ pub mod dispatch;
 mod errors;
 mod gemini;
 mod gojson;
-mod jsonedit;
 pub mod management;
 mod models;
 mod openai;

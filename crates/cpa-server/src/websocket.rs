@@ -589,10 +589,20 @@ impl Connection {
             .map(|c| c.id.clone())
             .collect();
         let body = Bytes::from(request.to_owned());
+        // Go `session.Enrich` with the connection as execution session (dispatch::run).
+        let identity = crate::session::resolve(
+            Format::OpenAIResponse,
+            &self.headers,
+            &body,
+            Some(&self.session),
+            &self.caller.principal,
+        );
         let mut selection = Selection {
             providers: providers.clone(),
             model: resolved.clone(),
-            session: crate::session::resolve(&self.headers, &body),
+            session: identity.id.clone(),
+            session_parent: identity.parent.clone(),
+            session_fork: identity.fork,
             exclude: exclude.clone(),
             ..Selection::default()
         };
@@ -612,6 +622,7 @@ impl Connection {
             alt: None,
             session: selection.session.clone(),
             execution_session: Some(self.session.clone()),
+            derived_session: identity.derived.clone(),
             headers: self.headers.clone(),
             caller: self.caller.clone(),
         };

@@ -1,72 +1,29 @@
-//! Byte-compatible renderings of what Go's `encoding/json` and gjson produce, for the
-//! response bodies CLIProxyAPI builds itself (error envelopes, model lists).
-//!
-//! `json.Marshal` sorts `map[string]any` keys, escapes `<`, `>` and `&` as `\u003c`
-//! style sequences, and escapes U+2028/U+2029. Struct-shaped payloads keep field
-//! order; callers build those with [`Obj`].
+//! Server-side helpers for the bodies CLIProxyAPI builds itself (error envelopes, model
+//! lists): Go struct-ordered objects ([`Obj`]), status texts and durations. Go's JSON
+//! encoding itself comes from `cpa_common::json`.
 
 use serde_json::Value;
 
-/// A Go JSON string literal.
+/// A Go JSON string literal (`json.Marshal(string)`).
 pub fn string(s: &str) -> String {
-    let mut out = String::with_capacity(s.len() + 2);
-    out.push('"');
-    for c in s.chars() {
-        match c {
-            '"' => out.push_str("\\\""),
-            '\\' => out.push_str("\\\\"),
-            '\n' => out.push_str("\\n"),
-            '\r' => out.push_str("\\r"),
-            '\t' => out.push_str("\\t"),
-            '<' => out.push_str("\\u003c"),
-            '>' => out.push_str("\\u003e"),
-            '&' => out.push_str("\\u0026"),
-            '\u{2028}' => out.push_str("\\u2028"),
-            '\u{2029}' => out.push_str("\\u2029"),
-            c if (c as u32) < 0x20 => out.push_str(&format!("\\u{:04x}", c as u32)),
-            c => out.push(c),
-        }
+    String::from_utf8(cpa_common::json::quote(s)).expect("valid UTF-8 in, valid UTF-8 out")
+}
+
+/// sjson's string encoding: plain quoting unless a byte needs escaping, then
+/// `json.Marshal` (which also HTML-escapes).
+pub fn sjson_string(s: &str) -> String {
+    if s.bytes()
+        .any(|b| !(b' '..=0x7f).contains(&b) || b == b'"' || b == b'\\')
+    {
+        string(s)
+    } else {
+        format!("\"{s}\"")
     }
-    out.push('"');
-    out
 }
 
 /// `json.Marshal` of a value decoded into `map[string]any`: object keys sorted.
 pub fn sorted(v: &Value) -> String {
-    let mut out = String::new();
-    write_sorted(&mut out, v);
-    out
-}
-
-fn write_sorted(out: &mut String, v: &Value) {
-    match v {
-        Value::Object(map) => {
-            let mut keys: Vec<&String> = map.keys().collect();
-            keys.sort();
-            out.push('{');
-            for (i, k) in keys.into_iter().enumerate() {
-                if i > 0 {
-                    out.push(',');
-                }
-                out.push_str(&string(k));
-                out.push(':');
-                write_sorted(out, &map[k]);
-            }
-            out.push('}');
-        }
-        Value::Array(items) => {
-            out.push('[');
-            for (i, item) in items.iter().enumerate() {
-                if i > 0 {
-                    out.push(',');
-                }
-                write_sorted(out, item);
-            }
-            out.push(']');
-        }
-        Value::String(s) => out.push_str(&string(s)),
-        other => out.push_str(&other.to_string()),
-    }
+    String::from_utf8(cpa_common::json::GoValue::from_json(v).marshal()).expect("valid UTF-8 in, valid UTF-8 out")
 }
 
 /// An ordered object, for Go structs: fields render in insertion order.
@@ -187,6 +144,8 @@ mod tests {
         );
         let v: Value = serde_json::from_str(r#"{"z":1,"a":{"y":[true,null],"b":"x"}}"#).unwrap();
         assert_eq!(sorted(&v), r#"{"a":{"b":"x","y":[true,null]},"z":1}"#);
+        assert_eq!(sjson_string("q\"é"), r#""q\"é""#);
+        assert_eq!(sjson_string("plain <b>"), r#""plain <b>""#);
         assert_eq!(
             Obj::new().str("message", "m").str("type", "t").finish(),
             r#"{"message":"m","type":"t"}"#

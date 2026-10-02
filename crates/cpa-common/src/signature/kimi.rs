@@ -7,6 +7,7 @@ use super::{
     is_valid_claude_thinking_signature, is_valid_gemini_thought_signature, maybe_self_describing_envelope,
     split_provider_prefix,
 };
+use crate::gostr::trim_space;
 
 pub const KIMI_THINKING_SIGNATURE_NON_STREAMING_LEN: usize = 12946;
 pub const KIMI_THINKING_SIGNATURE_STREAMING_LEN: usize = 4340;
@@ -36,8 +37,9 @@ pub struct KimiSignatureInfo {
 }
 
 /// `InspectKimiThinkingSignature`.
-pub fn inspect_kimi_thinking_signature(raw: &str) -> Result<KimiSignatureInfo, Error> {
-    let sig = raw.trim();
+pub fn inspect_kimi_thinking_signature(raw: impl AsRef<[u8]>) -> Result<KimiSignatureInfo, Error> {
+    let raw = raw.as_ref();
+    let sig = trim_space(raw);
     if sig.is_empty() {
         return err("empty Kimi thinking signature");
     }
@@ -49,7 +51,7 @@ pub fn inspect_kimi_thinking_signature(raw: &str) -> Result<KimiSignatureInfo, E
         KIMI_THINKING_SIGNATURE_STREAMING_LEN => KimiSignatureMode::Streaming,
         len => return err(format!("invalid Kimi thinking signature: unexpected length {len}")),
     };
-    if sig.contains('=') {
+    if sig.contains(&b'=') {
         return err("invalid Kimi thinking signature: expected unpadded standard base64");
     }
     if let Some((index, rune)) = first_invalid_char(sig, b"+/") {
@@ -61,7 +63,7 @@ pub fn inspect_kimi_thinking_signature(raw: &str) -> Result<KimiSignatureInfo, E
         return err("invalid Kimi thinking signature: carries another provider's cache prefix");
     }
     if maybe_self_describing_envelope(sig) {
-        if sig.starts_with("gAAAA") {
+        if sig.starts_with(b"gAAAA") {
             return err("Kimi thinking signature looks like GPT/Codex reasoning signature");
         }
         if is_valid_claude_cais_signature(sig) {
@@ -95,6 +97,6 @@ pub fn inspect_kimi_thinking_signature(raw: &str) -> Result<KimiSignatureInfo, E
 }
 
 /// `IsValidKimiThinkingSignature`.
-pub fn is_valid_kimi_thinking_signature(raw: &str) -> bool {
+pub fn is_valid_kimi_thinking_signature(raw: impl AsRef<[u8]>) -> bool {
     inspect_kimi_thinking_signature(raw).is_ok()
 }

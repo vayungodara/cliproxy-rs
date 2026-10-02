@@ -16,8 +16,9 @@ use futures_util::FutureExt;
 use futures_util::future::{BoxFuture, Shared};
 use serde_json::{Map, Value, json};
 
-use crate::kimi_http::{BUILD_VERSION, GoHeaders, auth_error, go_arch, go_os, hostname, rfc3339_utc};
+use crate::kimi_http::{BUILD_VERSION, auth_error, go_arch, go_os, hostname, rfc3339_utc};
 use crate::kimi_json::GoValue;
+use crate::proxy::GoHeaders;
 
 pub const CLIENT_ID: &str = "17e5f671-d194-4dfb-9706-5516cb48c098";
 pub const DOMAIN_COM: &str = "kimi.com";
@@ -283,11 +284,11 @@ impl DeviceFlow {
         headers.set("X-Msh-Device-Name", hostname().unwrap_or_else(|| "unknown".into()));
         headers.set("X-Msh-Device-Model", device_model());
         headers.set("X-Msh-Device-Id", self.device_id.clone());
-        let upstream = crate::kimi_http::send(&self.client, url, headers, body, Some(Duration::from_secs(30)))
+        let upstream = crate::proxy::send(&self.client, url, headers, body, Some(Duration::from_secs(30)))
             .await
             .map_err(|_| ExecError::local(502, FailureScope::Transport, "kimi: token request failed"))?;
         let status = upstream.status;
-        let body = crate::kimi_http::read_all(upstream.body, crate::kimi_http::MAX_ERROR_BODY, false)
+        let body = crate::proxy::read_all(upstream.body, crate::proxy::MAX_ERROR_BODY, false)
             .await
             .map_err(|_| ExecError::local(502, FailureScope::Transport, "kimi: failed to read token response"))?;
         Ok((status, body.to_vec()))
@@ -604,7 +605,7 @@ pub async fn login(provider: &str, cfg: &cpa_core::config::Config, no_browser: b
         .and_then(|r| r.get("proxy-url"))
         .and_then(|v| v.as_str())
         .unwrap_or_default();
-    let client = crate::kimi_http::Clients::new(crate::kimi_http::default_client()).get(proxy);
+    let client = crate::proxy::GoClients::new(crate::proxy::Hooks::default()).get(&crate::proxy::Proxy::parse(proxy));
     let flow = DeviceFlow::new(client, domain, "");
     login_with(flow, provider, &cfg.auth_dir, no_browser).await
 }

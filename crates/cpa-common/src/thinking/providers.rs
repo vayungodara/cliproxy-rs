@@ -5,10 +5,11 @@ use super::{
     Config, Error, LEVEL_AUTO, LEVEL_HIGH, LEVEL_MAX, LEVEL_NONE, LEVEL_XHIGH, Mode, ModelCaps,
     convert_budget_to_level, has_level, is_user_defined_model,
 };
-use crate::gojson as json;
+use super::{is_empty_object, with_bool, with_int, with_str, without};
 use crate::gostr::GoStr;
+use crate::json;
 
-pub(crate) type ApplyFn = fn(&str, &Config, Option<&ModelCaps>) -> Result<String, Error>;
+pub(crate) type ApplyFn = fn(&[u8], &Config, Option<&ModelCaps>) -> Result<Vec<u8>, Error>;
 
 /// `GetProviderApplier` for the built-in providers.
 pub(crate) fn applier(provider: &str) -> Option<ApplyFn> {
@@ -27,28 +28,28 @@ pub(crate) fn applier(provider: &str) -> Option<ApplyFn> {
 /// Public entry for callers that need one applier directly (Go `GetProviderApplier`).
 pub fn apply_provider(
     provider: &str,
-    body: &str,
+    body: &[u8],
     config: &Config,
     info: Option<&ModelCaps>,
-) -> Option<Result<String, Error>> {
+) -> Option<Result<Vec<u8>, Error>> {
     applier(provider).map(|f| f(body, config, info))
 }
 
-fn object_or_empty(body: &str) -> String {
+fn object_or_empty(body: &[u8]) -> Vec<u8> {
     if body.is_empty() || !json::valid(body) {
-        "{}".into()
+        b"{}".to_vec()
     } else {
-        body.to_owned()
+        body.to_vec()
     }
 }
 
-fn delete_all(body: &str, paths: &[&str]) -> String {
-    paths.iter().fold(body.to_owned(), |acc, path| json::delete(&acc, path))
+fn delete_all(body: &[u8], paths: &[&str]) -> Vec<u8> {
+    paths.iter().fold(body.to_vec(), |acc, path| without(&acc, path))
 }
 
-fn delete_if_empty_object(body: String, path: &str) -> String {
-    if json::is_empty_object(&body, path) {
-        json::delete(&body, path)
+fn delete_if_empty_object(body: Vec<u8>, path: &str) -> Vec<u8> {
+    if is_empty_object(&body, path) {
+        without(&body, path)
     } else {
         body
     }
@@ -58,12 +59,12 @@ fn delete_if_empty_object(body: String, path: &str) -> String {
 
 /// `Apply` of the gemini/antigravity appliers. `prefix` is the thinkingConfig path.
 fn gemini_like(
-    body: &str,
+    body: &[u8],
     config: &Config,
     info: Option<&ModelCaps>,
     prefix: &str,
     antigravity: bool,
-) -> Result<String, Error> {
+) -> Result<Vec<u8>, Error> {
     if is_user_defined_model(info) {
         let body = object_or_empty(body);
         let claude = antigravity && info.is_some_and(|i| i.id.go_lower().contains("claude"));
@@ -77,7 +78,7 @@ fn gemini_like(
     }
     let info_ref = info.expect("user-defined handles None");
     let Some(support) = info_ref.thinking.as_ref() else {
-        return Ok(body.to_owned());
+        return Ok(body.to_vec());
     };
     let body = object_or_empty(body);
     if antigravity {
@@ -97,15 +98,15 @@ fn gemini_like(
     })
 }
 
-fn gemini(body: &str, config: &Config, info: Option<&ModelCaps>) -> Result<String, Error> {
+fn gemini(body: &[u8], config: &Config, info: Option<&ModelCaps>) -> Result<Vec<u8>, Error> {
     gemini_like(body, config, info, "generationConfig.thinkingConfig", false)
 }
 
-fn antigravity(body: &str, config: &Config, info: Option<&ModelCaps>) -> Result<String, Error> {
+fn antigravity(body: &[u8], config: &Config, info: Option<&ModelCaps>) -> Result<Vec<u8>, Error> {
     gemini_like(body, config, info, "request.generationConfig.thinkingConfig", true)
 }
 
-fn gemini_level(body: &str, config: &Config, prefix: &str) -> String {
+fn gemini_level(body: &[u8], config: &Config, prefix: &str) -> Vec<u8> {
     let p = |k: &str| format!("{prefix}.{k}");
     let mut result = delete_all(
         body,
@@ -119,21 +120,21 @@ fn gemini_level(body: &str, config: &Config, prefix: &str) -> String {
     );
     if config.mode == Mode::None {
         if config.budget == 0 && config.level.is_empty() {
-            return json::delete(&result, prefix);
+            return without(&result, prefix);
         }
         if !config.level.is_empty() {
-            result = json::set_str(&result, &p("thinkingLevel"), &config.level);
+            result = with_str(&result, &p("thinkingLevel"), &config.level);
         }
         return include_thoughts(result, body, prefix);
     }
     if config.mode != Mode::Level {
-        return body.to_owned();
+        return body.to_vec();
     }
-    result = json::set_str(&result, &p("thinkingLevel"), &config.level);
+    result = with_str(&result, &p("thinkingLevel"), &config.level);
     include_thoughts(result, body, prefix)
 }
 
-fn gemini_budget(body: &str, config: &Config, info: Option<&ModelCaps>, prefix: &str, claude: bool) -> String {
+fn gemini_budget(body: &[u8], config: &Config, info: Option<&ModelCaps>, prefix: &str, claude: bool) -> Vec<u8> {
     let p = |k: &str| format!("{prefix}.{k}");
     let mut result = delete_all(
         body,
@@ -149,8 +150,8 @@ fn gemini_budget(body: &str, config: &Config, info: Option<&ModelCaps>, prefix: 
     if claude && let Some(info) = info {
         // Antigravity Claude: keep the budget below max output tokens and drop
         // thinking entirely below the model minimum.
-        let (effective_max, from_model) = match gjson::get(&result, "request.generationConfig.maxOutputTokens") {
-            v if v.exists() && json::go_int(&v) > 0 => (json::go_int(&v), false),
+        let (effective_max, from_model) = match json::get(&result, "request.generationConfig.maxOutputTokens") {
+            v if v.exists() && v.int() > 0 => (v.int(), false),
             _ if info.max_completion_tokens > 0 => (info.max_completion_tokens, true),
             _ => (0, false),
         };
@@ -159,27 +160,27 @@ fn gemini_budget(body: &str, config: &Config, info: Option<&ModelCaps>, prefix: 
         }
         let min = info.thinking.as_ref().map_or(0, |t| t.min);
         if min > 0 && budget >= 0 && budget < min {
-            result = json::delete(&result, prefix);
+            result = without(&result, prefix);
             budget = -2;
         } else if from_model && effective_max > 0 {
-            result = json::set_int(&result, "request.generationConfig.maxOutputTokens", effective_max);
+            result = with_int(&result, "request.generationConfig.maxOutputTokens", effective_max);
         }
         // Go signals "drop thinking" with -2, so a caller budget of -2 also skips the field.
         if budget == -2 {
             return include_thoughts(result, body, prefix);
         }
     }
-    result = json::set_int(&result, &p("thinkingBudget"), budget);
+    result = with_int(&result, &p("thinkingBudget"), budget);
     include_thoughts(result, body, prefix)
 }
 
 /// Carries the original `includeThoughts`/`include_thoughts` boolean, canonically.
-fn include_thoughts(result: String, original: &str, prefix: &str) -> String {
+fn include_thoughts(result: Vec<u8>, original: &[u8], prefix: &str) -> Vec<u8> {
     for key in ["includeThoughts", "include_thoughts"] {
         let path = format!("{prefix}.{key}");
-        match gjson::get(original, &path).kind() {
-            gjson::Kind::True => return json::set_bool(&result, &format!("{prefix}.includeThoughts"), true),
-            gjson::Kind::False => return json::set_bool(&result, &format!("{prefix}.includeThoughts"), false),
+        match json::get(original, &path).kind {
+            json::Kind::True => return with_bool(&result, &format!("{prefix}.includeThoughts"), true),
+            json::Kind::False => return with_bool(&result, &format!("{prefix}.includeThoughts"), false),
             _ => {}
         }
     }
@@ -188,7 +189,7 @@ fn include_thoughts(result: String, original: &str, prefix: &str) -> String {
 
 // ---- Interactions ----
 
-fn interactions(body: &str, config: &Config, info: Option<&ModelCaps>) -> Result<String, Error> {
+fn interactions(body: &[u8], config: &Config, info: Option<&ModelCaps>) -> Result<Vec<u8>, Error> {
     let body = object_or_empty(body);
     let result = delete_all(
         &body,
@@ -220,31 +221,31 @@ fn interactions(body: &str, config: &Config, info: Option<&ModelCaps>) -> Result
     })
 }
 
-fn interactions_budget(result: String, original: &str, budget: i64, info: Option<&ModelCaps>) -> String {
+fn interactions_budget(result: Vec<u8>, original: &[u8], budget: i64, info: Option<&ModelCaps>) -> Vec<u8> {
     match convert_budget_to_level(budget) {
         None | Some(LEVEL_NONE) | Some(LEVEL_AUTO) => interactions_summaries(result, original),
         Some(level) => interactions_level(result, original, level, info),
     }
 }
 
-fn interactions_level(mut result: String, original: &str, level: &str, info: Option<&ModelCaps>) -> String {
+fn interactions_level(mut result: Vec<u8>, original: &[u8], level: &str, info: Option<&ModelCaps>) -> Vec<u8> {
     let level = normalize_interactions_level(level, info);
     if !level.is_empty() {
-        result = json::set_str(&result, "generation_config.thinking_level", &level);
+        result = with_str(&result, "generation_config.thinking_level", &level);
     }
     interactions_summaries(result, original)
 }
 
-fn interactions_summaries(result: String, original: &str) -> String {
+fn interactions_summaries(result: Vec<u8>, original: &[u8]) -> Vec<u8> {
     for path in [
         "generation_config.thinking_summaries",
         "generation_config.thinkingSummaries",
     ] {
-        let v = gjson::get(original, path);
-        if v.kind() == gjson::Kind::String {
+        let v = json::get(original, path);
+        if v.kind == json::Kind::String {
             let normalized = v.str().trim().go_lower();
             if normalized == "auto" || normalized == "none" {
-                return json::set_str(&result, "generation_config.thinking_summaries", &normalized);
+                return with_str(&result, "generation_config.thinking_summaries", &normalized);
             }
         }
     }
@@ -254,12 +255,12 @@ fn interactions_summaries(result: String, original: &str) -> String {
         "generation_config.thinkingConfig.include_thoughts",
         "generation_config.thinkingConfig.includeThoughts",
     ] {
-        let value = match gjson::get(original, path).kind() {
-            gjson::Kind::True => "auto",
-            gjson::Kind::False => "none",
+        let value = match json::get(original, path).kind {
+            json::Kind::True => "auto",
+            json::Kind::False => "none",
             _ => continue,
         };
-        return json::set_str(&result, "generation_config.thinking_summaries", value);
+        return with_str(&result, "generation_config.thinking_summaries", value);
     }
     result
 }
@@ -288,36 +289,36 @@ fn normalize_interactions_level(level: &str, info: Option<&ModelCaps>) -> String
 
 // ---- Claude ----
 
-fn claude_disable(body: &str, drop_display: bool) -> String {
-    let mut result = json::set_str(body, "thinking.type", "disabled");
-    result = json::delete(&result, "thinking.budget_tokens");
+fn claude_disable(body: &[u8], drop_display: bool) -> Vec<u8> {
+    let mut result = with_str(body, "thinking.type", "disabled");
+    result = without(&result, "thinking.budget_tokens");
     if drop_display {
-        result = json::delete(&result, "thinking.display");
+        result = without(&result, "thinking.display");
     }
-    result = json::delete(&result, "output_config.effort");
+    result = without(&result, "output_config.effort");
     delete_if_empty_object(result, "output_config")
 }
 
-fn claude_adaptive(body: &str, effort: Option<&str>) -> String {
-    let mut result = json::set_str(body, "thinking.type", "adaptive");
-    result = json::delete(&result, "thinking.budget_tokens");
+fn claude_adaptive(body: &[u8], effort: Option<&str>) -> Vec<u8> {
+    let mut result = with_str(body, "thinking.type", "adaptive");
+    result = without(&result, "thinking.budget_tokens");
     match effort {
-        Some(effort) => json::set_str(&result, "output_config.effort", effort),
-        None => delete_if_empty_object(json::delete(&result, "output_config.effort"), "output_config"),
+        Some(effort) => with_str(&result, "output_config.effort", effort),
+        None => delete_if_empty_object(without(&result, "output_config.effort"), "output_config"),
     }
 }
 
-fn claude_enabled(body: &str, budget: Option<i64>) -> String {
-    let mut result = json::set_str(body, "thinking.type", "enabled");
+fn claude_enabled(body: &[u8], budget: Option<i64>) -> Vec<u8> {
+    let mut result = with_str(body, "thinking.type", "enabled");
     result = match budget {
-        Some(budget) => json::set_int(&result, "thinking.budget_tokens", budget),
-        None => json::delete(&result, "thinking.budget_tokens"),
+        Some(budget) => with_int(&result, "thinking.budget_tokens", budget),
+        None => without(&result, "thinking.budget_tokens"),
     };
-    result = json::delete(&result, "output_config.effort");
+    result = without(&result, "output_config.effort");
     delete_if_empty_object(result, "output_config")
 }
 
-fn claude(body: &str, config: &Config, info: Option<&ModelCaps>) -> Result<String, Error> {
+fn claude(body: &[u8], config: &Config, info: Option<&ModelCaps>) -> Result<Vec<u8>, Error> {
     if is_user_defined_model(info) {
         let body = object_or_empty(body);
         return Ok(match config.mode {
@@ -330,7 +331,7 @@ fn claude(body: &str, config: &Config, info: Option<&ModelCaps>) -> Result<Strin
     }
     let info = info.expect("user-defined handles None");
     let Some(support) = info.thinking.as_ref() else {
-        return Ok(body.to_owned());
+        return Ok(body.to_vec());
     };
     let body = object_or_empty(body);
     let adaptive = !support.levels.is_empty();
@@ -353,20 +354,20 @@ fn claude(body: &str, config: &Config, info: Option<&ModelCaps>) -> Result<Strin
 }
 
 /// Keeps `budget_tokens` below `max_tokens`, filling `max_tokens` from the model.
-fn normalize_claude_budget(mut body: String, budget: i64, info: &ModelCaps) -> String {
+fn normalize_claude_budget(mut body: Vec<u8>, budget: i64, info: &ModelCaps) -> Vec<u8> {
     if budget <= 0 {
         return body;
     }
-    let max_tokens = gjson::get(&body, "max_tokens");
-    let (effective_max, from_model) = if max_tokens.exists() && json::go_int(&max_tokens) > 0 {
-        (json::go_int(&max_tokens), false)
+    let max_tokens = json::get(&body, "max_tokens");
+    let (effective_max, from_model) = if max_tokens.exists() && max_tokens.int() > 0 {
+        (max_tokens.int(), false)
     } else if info.max_completion_tokens > 0 {
         (info.max_completion_tokens, true)
     } else {
         (0, false)
     };
     if from_model && effective_max > 0 {
-        body = json::set_int(&body, "max_tokens", effective_max);
+        body = with_int(&body, "max_tokens", effective_max);
     }
     let mut adjusted = budget;
     if effective_max > 0 && adjusted >= effective_max {
@@ -377,14 +378,14 @@ fn normalize_claude_budget(mut body: String, budget: i64, info: &ModelCaps) -> S
         return body;
     }
     if adjusted != budget {
-        body = json::set_int(&body, "thinking.budget_tokens", adjusted);
+        body = with_int(&body, "thinking.budget_tokens", adjusted);
     }
     body
 }
 
 // ---- OpenAI chat and Codex/xAI Responses share one effort rule. ----
 
-fn effort_applier(body: &str, config: &Config, info: Option<&ModelCaps>, path: &str) -> Result<String, Error> {
+fn effort_applier(body: &[u8], config: &Config, info: Option<&ModelCaps>, path: &str) -> Result<Vec<u8>, Error> {
     if is_user_defined_model(info) {
         let body = object_or_empty(body);
         let effort = match config.mode {
@@ -398,18 +399,18 @@ fn effort_applier(body: &str, config: &Config, info: Option<&ModelCaps>, path: &
                 None => return Ok(body),
             },
         };
-        return Ok(json::set_str(&body, path, &effort));
+        return Ok(with_str(&body, path, &effort));
     }
     let info = info.expect("user-defined handles None");
     let Some(support) = info.thinking.as_ref() else {
-        return Ok(body.to_owned());
+        return Ok(body.to_vec());
     };
     if config.mode != Mode::Level && config.mode != Mode::None {
-        return Ok(body.to_owned());
+        return Ok(body.to_vec());
     }
     let body = object_or_empty(body);
     if config.mode == Mode::Level {
-        return Ok(json::set_str(&body, path, &config.level));
+        return Ok(with_str(&body, path, &config.level));
     }
     let mut effort = String::new();
     if config.budget == 0 && (support.zero_allowed || has_level(&support.levels, LEVEL_NONE)) {
@@ -426,23 +427,23 @@ fn effort_applier(body: &str, config: &Config, info: Option<&ModelCaps>, path: &
     if effort.is_empty() {
         return Ok(body);
     }
-    Ok(json::set_str(&body, path, &effort))
+    Ok(with_str(&body, path, &effort))
 }
 
-fn openai(body: &str, config: &Config, info: Option<&ModelCaps>) -> Result<String, Error> {
+fn openai(body: &[u8], config: &Config, info: Option<&ModelCaps>) -> Result<Vec<u8>, Error> {
     effort_applier(body, config, info, "reasoning_effort")
 }
 
-fn codex(body: &str, config: &Config, info: Option<&ModelCaps>) -> Result<String, Error> {
+fn codex(body: &[u8], config: &Config, info: Option<&ModelCaps>) -> Result<Vec<u8>, Error> {
     effort_applier(body, config, info, "reasoning.effort")
 }
 
 // ---- Kimi ----
 
-fn kimi(body: &str, config: &Config, info: Option<&ModelCaps>) -> Result<String, Error> {
+fn kimi(body: &[u8], config: &Config, info: Option<&ModelCaps>) -> Result<Vec<u8>, Error> {
     let user_defined = is_user_defined_model(info);
     if !user_defined && info.and_then(|i| i.thinking.as_ref()).is_none() {
-        return Ok(body.to_owned());
+        return Ok(body.to_vec());
     }
     let body = object_or_empty(body);
     let effort = match config.mode {
@@ -456,13 +457,13 @@ fn kimi(body: &str, config: &Config, info: Option<&ModelCaps>) -> Result<String,
         },
         Mode::Auto => LEVEL_AUTO.into(),
     };
-    let result = json::delete(&body, "reasoning_effort");
-    let result = json::set_str(&result, "thinking.type", "enabled");
-    Ok(json::set_str(&result, "thinking.effort", &effort))
+    let result = without(&body, "reasoning_effort");
+    let result = with_str(&result, "thinking.type", "enabled");
+    Ok(with_str(&result, "thinking.effort", &effort))
 }
 
-fn kimi_disabled(body: &str) -> String {
-    let result = json::delete(body, "thinking");
-    let result = json::delete(&result, "reasoning_effort");
-    json::set_str(&result, "thinking.type", "disabled")
+fn kimi_disabled(body: &[u8]) -> Vec<u8> {
+    let result = without(body, "thinking");
+    let result = without(&result, "reasoning_effort");
+    with_str(&result, "thinking.type", "disabled")
 }

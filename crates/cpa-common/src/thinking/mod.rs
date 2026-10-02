@@ -23,7 +23,7 @@ pub use validate::validate_config;
 use cpa_core::registry::{ModelInfo, ThinkingSupport};
 use serde_json::Value as Json;
 
-use crate::gojson as json;
+use crate::json;
 
 /// `ThinkingMode`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -61,6 +61,10 @@ pub struct Config {
     pub mode: Mode,
     pub budget: i64,
     /// Free-form like Go's `ThinkingLevel`; validation decides whether it is known.
+    ///
+    /// ponytail: a String, so a level read from invalid UTF-8 is decoded lossily. Go
+    /// writes such bytes back as `\ufffd` escapes, this writes U+FFFD itself: the same
+    /// JSON value with different bytes. Use bytes here if a caller needs exact garbage.
     pub level: String,
 }
 
@@ -131,7 +135,7 @@ pub struct Error {
     pub model: String,
     /// The processed body Go returns alongside the error (ApplyThinking returns the target
     /// with configuration updates already stripped). Go's executors discard it.
-    pub body: Option<String>,
+    pub body: Option<Vec<u8>>,
 }
 
 impl Error {
@@ -327,14 +331,14 @@ pub fn is_user_defined_model(info: Option<&ModelCaps>) -> bool {
 }
 
 /// `GetThinkingText`: a thinking block's text from `text`, `thinking` or a nested object.
-pub fn get_thinking_text(part: &gjson::Value<'_>) -> String {
+pub fn get_thinking_text(part: &json::Res<'_>) -> Vec<u8> {
     crate::signature::thinking_block_text(part)
 }
 
 /// `StripThinkingConfig`: removes the provider's thinking fields.
-pub fn strip_thinking_config(body: &str, provider: &str) -> String {
+pub fn strip_thinking_config(body: &[u8], provider: &str) -> Vec<u8> {
     if body.is_empty() || !json::valid(body) {
-        return body.to_owned();
+        return body.to_vec();
     }
     let paths: &[&str] = match provider {
         "claude" => &["thinking", "output_config.effort"],
@@ -353,16 +357,50 @@ pub fn strip_thinking_config(body: &str, provider: &str) -> String {
         "openai" => &["reasoning_effort", "reasoning"],
         "kimi" | "kimi-ai" | "kimi.ai" | "kimi.com" => &["reasoning_effort", "thinking"],
         "codex" | "xai" => &["reasoning"],
-        _ => return body.to_owned(),
+        _ => return body.to_vec(),
     };
-    let mut result = body.to_owned();
+    let mut result = body.to_vec();
     for path in paths {
-        result = json::delete(&result, path);
+        json::delete(&mut result, path);
     }
-    if provider == "claude" && json::is_empty_object(&result, "output_config") {
-        result = json::delete(&result, "output_config");
+    if provider == "claude" && is_empty_object(&result, "output_config") {
+        json::delete(&mut result, "output_config");
     }
     result
+}
+
+/// `sjson.SetBytes(body, path, string)` on a copy, keeping `body` when sjson errors.
+pub(crate) fn with_str(body: &[u8], path: &str, value: &str) -> Vec<u8> {
+    let mut out = body.to_vec();
+    json::set_str(&mut out, path, value);
+    out
+}
+
+/// `sjson.SetBytes(body, path, int)`.
+pub(crate) fn with_int(body: &[u8], path: &str, value: i64) -> Vec<u8> {
+    let mut out = body.to_vec();
+    json::set_int(&mut out, path, value);
+    out
+}
+
+/// `sjson.SetBytes(body, path, bool)`.
+pub(crate) fn with_bool(body: &[u8], path: &str, value: bool) -> Vec<u8> {
+    let mut out = body.to_vec();
+    json::set_bool(&mut out, path, value);
+    out
+}
+
+/// `sjson.DeleteBytes(body, path)`.
+pub(crate) fn without(body: &[u8], path: &str) -> Vec<u8> {
+    let mut out = body.to_vec();
+    json::delete(&mut out, path);
+    out
+}
+
+/// `result.Exists() && result.IsObject() && len(result.Map()) == 0` at `path`.
+pub(crate) fn is_empty_object(body: &[u8], path: &str) -> bool {
+    let value = json::get(body, path);
+    value.is_object() && value.map().is_empty()
 }
 
 pub(crate) fn is_responses_format(format: &str) -> bool {
@@ -370,19 +408,19 @@ pub(crate) fn is_responses_format(format: &str) -> bool {
 }
 
 /// The last `configuration_update` input item's `reasoning.effort`.
-pub(crate) fn extract_configuration_update_config(body: &str) -> Config {
+pub(crate) fn extract_configuration_update_config(body: &[u8]) -> Config {
     if body.is_empty() || !json::valid(body) {
         return Config::default();
     }
-    let input = gjson::get(body, "input");
-    if input.kind() != gjson::Kind::Array {
+    let input = json::get(body, "input");
+    if !input.is_array() {
         return Config::default();
     }
     let mut effort = String::new();
     input.each(|_, item| {
-        if json::go_str(&item.get("type")) == "configuration_update" {
+        if &*item.get("type").bytes() == b"configuration_update" {
             let value = item.get("reasoning.effort");
-            if value.kind() == gjson::Kind::String {
+            if value.kind == json::Kind::String {
                 let normalized = value.str().trim().go_lower();
                 if !normalized.is_empty() {
                     effort = normalized;
@@ -399,37 +437,45 @@ pub(crate) fn extract_configuration_update_config(body: &str) -> Config {
     }
 }
 
-pub(crate) fn strip_configuration_updates(body: &str) -> String {
+pub(crate) fn strip_configuration_updates(body: &[u8]) -> Vec<u8> {
     if body.is_empty() || !json::valid(body) {
-        return body.to_owned();
+        return body.to_vec();
     }
-    let input = gjson::get(body, "input");
-    if input.kind() != gjson::Kind::Array {
-        return body.to_owned();
+    let input = json::get(body, "input");
+    if !input.is_array() {
+        return body.to_vec();
     }
     let mut kept = Vec::new();
     let mut removed = false;
     input.each(|_, item| {
-        if json::go_str(&item.get("type")) == "configuration_update" {
+        if &*item.get("type").bytes() == b"configuration_update" {
             removed = true;
         } else {
-            kept.push(item.json().to_owned());
+            kept.push(item.raw().to_vec());
         }
         true
     });
     if !removed {
-        return body.to_owned();
+        return body.to_vec();
     }
-    json::set_raw(body, "input", &format!("[{}]", kept.join(",")))
+    let mut out = body.to_vec();
+    json::set_raw(&mut out, "input", json::join(&kept));
+    out
 }
 
-pub(crate) fn strip_responses_effort(body: &str) -> String {
-    if body.is_empty() || !json::valid(body) || !gjson::get(body, "reasoning.effort").exists() {
-        return body.to_owned();
+pub(crate) fn strip_responses_effort(body: &[u8]) -> Vec<u8> {
+    if body.is_empty() || !json::valid(body) || !json::get(body, "reasoning.effort").exists() {
+        return body.to_vec();
     }
-    let mut result = json::delete(body, "reasoning.effort");
-    if json::is_empty_object(&result, "reasoning") {
-        result = json::delete(&result, "reasoning");
+    let mut result = body.to_vec();
+    if json::try_delete(body, "reasoning.effort")
+        .map(|next| result = next)
+        .is_err()
+    {
+        return body.to_vec();
+    }
+    if is_empty_object(&result, "reasoning") {
+        json::delete(&mut result, "reasoning");
     }
     result
 }
