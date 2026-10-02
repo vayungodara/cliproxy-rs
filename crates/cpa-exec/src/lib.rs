@@ -10,6 +10,14 @@
 //! the runtime commits. Executors never write credential files themselves.
 
 pub mod claude;
+pub mod codex;
+mod codex_json;
+pub mod codex_oauth;
+pub mod codex_quota;
+mod codex_request;
+mod codex_response;
+#[cfg(test)]
+mod codex_testkit;
 pub mod kimi;
 pub mod kimi_auth;
 #[cfg(test)]
@@ -32,6 +40,7 @@ use cpa_core::exec::{ExecError, ExecRequest, ExecResponse, FailureScope};
 
 pub struct Executors {
     pub claude: claude::ClaudeExecutor,
+    pub codex: codex::CodexExecutor,
     /// Device-login providers (Kimi, Meta, Devin). `Default` builds production clients.
     pub devices: DeviceExecutors,
 }
@@ -52,6 +61,7 @@ impl Executors {
     ) -> Result<ExecResponse, ExecError> {
         match credential.provider.as_str() {
             "claude" => self.claude.execute(credential, req, cfg).await,
+            "codex" => self.codex.execute(credential, req, cfg).await,
             p if kimi::PROVIDERS.contains(&p) => self.devices.kimi.execute(&self.claude, credential, req, cfg).await,
             other => Err(no_executor(other)),
         }
@@ -61,6 +71,7 @@ impl Executors {
     pub fn needs_prepare(&self, credential: &Credential, cfg: &Config) -> bool {
         match credential.provider.as_str() {
             "claude" => self.claude.needs_prepare(credential, cfg),
+            "codex" => self.codex.needs_prepare(credential, cfg),
             p if kimi::PROVIDERS.contains(&p) => self.devices.kimi.needs_prepare(credential, cfg),
             _ => false,
         }
@@ -70,6 +81,7 @@ impl Executors {
     pub async fn prepare(&self, credential: &Credential, cfg: &Config) -> Result<MetadataPatch, ExecError> {
         match credential.provider.as_str() {
             "claude" => self.claude.prepare(credential, cfg).await,
+            "codex" => self.codex.prepare(credential, cfg).await,
             p if kimi::PROVIDERS.contains(&p) => self.devices.kimi.prepare(credential, cfg).await,
             other => Err(no_executor(other)),
         }

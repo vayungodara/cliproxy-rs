@@ -887,6 +887,7 @@ mod tests {
     fn config_routing_drives_policy_at_startup_and_on_publish() {
         let executors = || Executors {
             claude: cpa_exec::claude::ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
+            codex: Default::default(),
             devices: Default::default(),
         };
         // Legacy top-level keys and the canonical routing block both reach the scheduler.
@@ -914,6 +915,7 @@ mod tests {
             vec![cred("a.json", "claude", false)],
             Executors {
                 claude: cpa_exec::claude::ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
+                codex: Default::default(),
                 devices: Default::default(),
             },
         ));

@@ -102,6 +102,7 @@ async fn proxy(dir: &Path, upstream_url: &str) -> String {
     let creds = cpa_core::credential::load_dir(dir).unwrap();
     let executors = Executors {
         claude: ClaudeExecutor::new(upstream_url).unwrap(),
+        codex: Default::default(),
         devices: Default::default(),
     };
     let rt = Arc::new(Runtime::new(config, creds, executors));

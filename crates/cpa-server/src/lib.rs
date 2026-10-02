@@ -2,6 +2,7 @@
 
 mod access;
 mod claude;
+mod codex_alpha;
 pub mod management;
 mod refresh;
 pub mod runtime;
@@ -25,6 +26,7 @@ pub fn router(rt: Arc<Runtime>) -> Router {
         .route("/v1/messages", post(claude::messages))
         .route("/v1/messages/count_tokens", post(claude::count_tokens))
         .route("/v1/models", get(claude::models))
+        .merge(codex_alpha::routes())
         .layer(middleware::from_fn_with_state(rt.clone(), access::require_client_key));
     Router::new()
         .route("/healthz", get(|| async { Json(serde_json::json!({"status": "ok"})) }))
