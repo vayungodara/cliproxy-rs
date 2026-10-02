@@ -15,7 +15,7 @@ const FIXTURE: &str = include_str!("../tests/fixtures/openai_compat_go.json");
 
 /// Shared helpers whose real port has not landed: scenarios that need them are skipped
 /// and listed, so integration can remove an entry and see the scenario run.
-const PENDING: &[&str] = &["translator"];
+const PENDING: &[&str] = &["translator", "session"];
 
 /// One-shot raw HTTP/1.1 capture server answering with the scripted response.
 struct Mock {
@@ -309,9 +309,9 @@ async fn go_reference_scenarios() {
     assert_eq!(
         skipped,
         [
+            "custom_header_cpa_session_id_absent",
             "needs_translator_responses_source",
             "needs_translator_responses_eof_without_done",
-            "needs_translator_claude_code_prompt_cache",
         ]
     );
 }

@@ -104,15 +104,71 @@ fn not_registered(what: &str, from: Format, to: Format) -> ExecError {
     )
 }
 
-/// `helps.TranslateRequestWithAPIKeyModelCompatibilityAndUpdateIntent` for this executor.
-// ponytail: Go switches to the compat translators (ConvertClaudeRequestToOpenAIWithCompat)
-// when the resolved model sets `is-compat`; cpa-translate has no compat variant for
-// OpenAI targets yet (translator thread). The Codex multi-agent v2 rewrites and their
-// configuration-update intent (owner: Codex thread) are not applied, so the intent is
-// always false.
-fn translate_request(req: &ExecRequest, target: Format, model: &str, stream: bool) -> Result<Vec<u8>, ExecError> {
-    cpa_translate::translate_request(req.source_format, target, &RequestCtx { model, stream }, &req.body)
-        .map_err(|e| ExecError::local(400, FailureScope::Request, e.to_string()))
+/// `helps.TranslateRequestWithAPIKeyModelCompatibilityAndUpdateIntent` for this executor:
+/// Codex clients' integer tool types are normalized first, and an `is-compat` model
+/// takes the compat translator where Go has one.
+// ponytail: the Codex multi-agent v2 rewrites and their configuration-update intent
+// (owner: Codex thread) are not applied, so the intent is always false.
+fn translate_body(
+    req: &ExecRequest,
+    target: Format,
+    model: &str,
+    stream: bool,
+    body: &[u8],
+    is_compat: bool,
+) -> Result<Vec<u8>, ExecError> {
+    let body = cpa_common::payload::normalize_codex_tool_integer_types(body, &req.headers);
+    let ctx = RequestCtx { model, stream };
+    let fail = |e: cpa_translate::Error| ExecError::local(400, FailureScope::Request, e.to_string());
+    if is_compat && req.source_format == Format::Claude && target == Format::OpenAI {
+        let out = cpa_translate::claude_to_openai_with_compat(&ctx, &body).map_err(fail)?;
+        let summary = thinking::extract_translated_summary_config(&body, req.source_format.as_str(), target.as_str());
+        return Ok(thinking::apply_summary_config_for_model(
+            &out,
+            target.as_str(),
+            model,
+            summary,
+        ));
+    }
+    cpa_translate::translate_request(req.source_format, target, &ctx, &body).map_err(fail)
+}
+
+/// `opts.OriginalRequest`, else the payload.
+fn original_payload(req: &ExecRequest) -> &[u8] {
+    if req.original_body.is_empty() {
+        &req.body
+    } else {
+        &req.original_body
+    }
+}
+
+/// `helps.ApplyPayloadConfigWithRequest` (no target executor) on the translated body;
+/// `original` is the translated original request.
+fn apply_payload_rules(
+    cfg: &Config,
+    req: &ExecRequest,
+    model: &str,
+    target: Format,
+    original: &[u8],
+    body: Vec<u8>,
+) -> Vec<u8> {
+    let rules = cpa_common::payload::Rules::from_config(cfg);
+    cpa_common::payload::apply(
+        &rules,
+        &cpa_common::payload::Request {
+            target_executor: "",
+            model,
+            requested_model: route_model(req),
+            protocol: target.as_str(),
+            from_protocol: req.source_format.as_str(),
+            root: "",
+            original,
+            // Chat and Responses routes only; the images path never reaches here.
+            request_path: "",
+            headers: Some(&req.headers),
+        },
+        body,
+    )
 }
 
 /// `helps.ApplyRequestThinking` with the capabilities bound to this attempt.
@@ -148,8 +204,11 @@ fn base_headers(api_key: &str, content_type: &str) -> GoHeaders {
     headers
 }
 
+/// `util.ApplyCustomHeadersFromAttrs` with the client headers and explicit session.
 fn apply_custom(headers: &mut GoHeaders, credential: &Credential, req: &ExecRequest) {
-    for (name, value) in wire::custom_headers(credential, &req.headers, req.session.as_deref()) {
+    let session =
+        cpa_common::session::cpa_session_id(&req.headers, &req.original_body, req.execution_session.as_deref());
+    for (name, value) in cpa_common::headers::custom_headers(&credential.attributes, &req.headers, session.as_deref()) {
         headers.set(&name, value);
     }
 }
@@ -194,9 +253,17 @@ impl OpenAICompatExecutor {
         }
         let compat = payload::resolve_compat(credential, cfg);
         let resolved = payload::resolved_model(compat.as_ref(), credential, route_model(&req), &req.model);
-        let mut body = translate_request(&req, target, &base_model, req.stream)?;
-        body = apply_thinking(body, &req, target, &credential.provider, resolved.as_ref())?;
-        body = wire::apply_payload_rules(body, cfg);
+        let is_compat = resolved.as_ref().is_some_and(|r| r.is_compat);
+        let original = translate_body(&req, target, &base_model, req.stream, original_payload(&req), is_compat)?;
+        let mut body = translate_body(&req, target, &base_model, req.stream, &req.body, is_compat)?;
+        body = apply_thinking(
+            body,
+            &req,
+            target,
+            &credential.provider,
+            resolved.as_ref().map(|r| &r.caps),
+        )?;
+        body = apply_payload_rules(cfg, &req, &base_model, target, &original, body);
         let requested = route_model(&req);
         if payload::excludes_images(compat.as_ref(), &base_model, requested) {
             body = payload::normalize_tool_results_text_only(body);
@@ -437,8 +504,15 @@ fn count_tokens(credential: &Credential, req: &ExecRequest, cfg: &Config) -> Res
     let base_model = parse_suffix(&req.model).model_name;
     let compat = payload::resolve_compat(credential, cfg);
     let resolved = payload::resolved_model(compat.as_ref(), credential, route_model(req), &req.model);
-    let body = translate_request(req, Format::OpenAI, &base_model, false)?;
-    let body = apply_thinking(body, req, Format::OpenAI, &credential.provider, resolved.as_ref())?;
+    let is_compat = resolved.as_ref().is_some_and(|r| r.is_compat);
+    let body = translate_body(req, Format::OpenAI, &base_model, false, &req.body, is_compat)?;
+    let body = apply_thinking(
+        body,
+        req,
+        Format::OpenAI,
+        &credential.provider,
+        resolved.as_ref().map(|r| &r.caps),
+    )?;
     let count = payload::count_chat_tokens(&base_model, &body).map_err(|e| {
         ExecError::local(
             500,

@@ -28,6 +28,7 @@ pub(crate) struct CompatModel {
     pub name: String,
     pub alias: String,
     pub image: bool,
+    pub is_compat: bool,
     pub use_max_completion_tokens: bool,
     pub input_modalities: Vec<String>,
     pub thinking: Option<ThinkingSupport>,
@@ -85,6 +86,7 @@ pub(crate) fn compat_entries(cfg: &Config) -> Vec<Compat> {
                 name: yaml_str(m.get("name")),
                 alias: yaml_str(m.get("alias")),
                 image: yaml_bool(m.get("image")),
+                is_compat: yaml_bool(m.get("is-compat")),
                 use_max_completion_tokens: yaml_bool(m.get("use-max-completion-tokens")),
                 input_modalities: m
                     .get("input-modalities")
@@ -152,12 +154,19 @@ pub(crate) fn find_model<'a>(compat: &'a Compat, model: &str) -> Option<&'a Comp
 // attachResolvedAPIKeyModelInfo, owner: server thread). The dispatch loop does not put
 // resolved model info on ExecRequest yet, so the executor derives it from the config
 // entry; Home-mode bindings (M6) are not covered.
+/// Capabilities Go binds to the attempt, plus the model's `is-compat` flag
+/// (`helps.APIKeyModelIsCompat`).
+pub(crate) struct Resolved {
+    pub caps: ModelCaps,
+    pub is_compat: bool,
+}
+
 pub(crate) fn resolved_model(
     compat: Option<&Compat>,
     credential: &Credential,
     route_model: &str,
     upstream_model: &str,
-) -> Option<ModelCaps> {
+) -> Option<Resolved> {
     if !configured_model_routing(credential) {
         return None;
     }
@@ -203,7 +212,10 @@ pub(crate) fn resolved_model(
             ..ThinkingSupport::default()
         })
     });
-    Some(resolve_model_info(name, "openai-compatibility", support))
+    Some(Resolved {
+        caps: resolve_model_info(name, "openai-compatibility", support),
+        is_compat: model.is_compat,
+    })
 }
 
 /// `isConfiguredModelRoutingAuth`: API-key credentials, or config-sourced ones that name a
