@@ -1,0 +1,23 @@
+# cliproxy-rs
+
+A Rust rewrite of CLIProxyAPI (https://github.com/router-for-me/CLIProxyAPI) targeting full parity and drop-in compatibility: same `config.yaml`, same auth JSON files in `auth-dir`, same HTTP routes and response shapes, same v8 Management API.
+
+## Reference
+
+- A read-only clone of CLIProxyAPI lives at `/home/vayun/projects/.amp/in/CLIProxyAPI` on vayun-core (commit `6fecc6e`). In other environments, clone it at that commit. Cite Go file paths in comments only where behaviour is non-obvious.
+- When Go behaviour and documentation disagree, the Go code wins. Port behaviour, not structure: idiomatic Rust over transliterated Go.
+
+## Layout
+
+- `crates/cpa-core`: config and credential file formats. No networking.
+- `crates/cpa-exec`: one module per upstream provider (wire format, auth headers, HTTP client profile).
+- `crates/cpa-server`: axum routes, client auth, credential selection, management API.
+- `crates/cliproxy`: the binary. Go-style single-dash flags are accepted.
+
+## Rules
+
+- Build and test with `CARGO_BUILD_JOBS=6 nice -n 19 ionice -c3 cargo test --workspace` on vayun-core; it also runs a live Minecraft server.
+- Request bodies are forwarded byte for byte unless a ported rule rewrites them. Never re-serialize JSON just to pass it through.
+- Upstream credentials and client keys must never be logged or forwarded to the wrong side.
+- Tests use local mock upstreams. Never send test traffic to real provider accounts.
+- Mark deliberate simplifications with a `ponytail:` comment naming the ceiling and the upgrade path.

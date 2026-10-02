@@ -1,0 +1,31 @@
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+rust-version = "1.88"
+
+[workspace.dependencies]
+cpa-core = { path = "crates/cpa-core" }
+cpa-exec = { path = "crates/cpa-exec" }
+cpa-server = { path = "crates/cpa-server" }
+
+anyhow = "1"
+axum = "0.8.9"
+bytes = "1"
+clap = { version = "4", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+serde_yaml_ng = "0.10"
+tokio = { version = "1.53", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+wreq = { version = "6.0.0-rc.31", features = ["stream", "json"] }
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true

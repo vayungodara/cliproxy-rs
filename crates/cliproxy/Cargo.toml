@@ -1,0 +1,18 @@
+[package]
+name = "cliproxy"
+description = "CLIProxyAPI rebuilt in Rust: one binary that turns AI subscriptions into standard APIs"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+axum.workspace = true
+clap.workspace = true
+cpa-core.workspace = true
+cpa-exec.workspace = true
+cpa-server.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true

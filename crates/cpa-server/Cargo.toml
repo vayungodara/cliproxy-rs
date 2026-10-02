@@ -1,0 +1,20 @@
+[package]
+name = "cpa-server"
+description = "HTTP surface of cliproxy-rs: routes, client auth and credential selection"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+axum.workspace = true
+bytes.workspace = true
+cpa-core.workspace = true
+cpa-exec.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+tokio.workspace = true
+wreq.workspace = true

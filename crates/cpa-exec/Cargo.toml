@@ -1,0 +1,11 @@
+[package]
+name = "cpa-exec"
+description = "Upstream provider executors for cliproxy-rs"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+bytes.workspace = true
+wreq.workspace = true
