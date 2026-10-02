@@ -47,7 +47,6 @@ pub mod proxy;
 mod quota;
 mod rawjson;
 mod replay;
-mod responses_frames;
 mod tls;
 mod tokens;
 mod translate;

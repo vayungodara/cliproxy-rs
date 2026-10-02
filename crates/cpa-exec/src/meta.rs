@@ -581,15 +581,12 @@ fn stream_events(upstream: ExecStream, translator: Box<dyn StreamTranslator>, re
             self.emit(translated);
         }
 
-        /// Ends the stream with `error`. Responses clients first get the frame Go's route
-        /// flushes before writing a terminal error; other routes hold nothing back.
+        /// Ends the stream with `error`. Go stops translating; the Responses route first
+        /// flushes the frame it is still joining (other routes hold nothing back).
         fn fail(&mut self, error: ExecError) {
             self.done = true;
-            if self.responses_client {
-                let flushed = self.translator.finish();
-                self.emit(flushed);
-            }
-            self.done = true;
+            let flushed = self.translator.flush_frames();
+            self.ready.extend(flushed.into_iter().filter(|f| !f.is_empty()).map(Ok));
             self.ready.push_back(Err(error));
         }
 
