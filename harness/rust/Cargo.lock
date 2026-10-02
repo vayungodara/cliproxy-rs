@@ -482,6 +482,7 @@ dependencies = [
  "cpa-common",
  "cpa-core",
  "rand",
+ "serde_json",
  "sha2",
 ]
 
