@@ -28,7 +28,6 @@ use axum::extract::ws::{CloseFrame, Message, WebSocket, WebSocketUpgrade};
 use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
-use cpa_common::sjson::delete;
 use cpa_core::config::Config;
 use cpa_core::credential::Credential;
 use cpa_core::exec::{Caller, ExecError, ExecRequest, ExecSession, ExecStream, FailureScope, Operation, ResponseBody};
@@ -39,7 +38,7 @@ use futures_util::StreamExt;
 use crate::runtime::{AcquireError, Completing, Lease, Outcome, Runtime, Selection};
 use crate::scheduler::{Policy, canonical_model, execution_model, retry_status};
 use crate::websocket_requests::{
-    self as requests, APPEND, CREATE, Turn, WsError, error_payload, field, payloads_from_chunk,
+    self as requests, APPEND, CREATE, Turn, WsError, delete, error_payload, field, payloads_from_chunk,
 };
 use crate::websocket_tools::{self as tools, Retained, TurnCache};
 

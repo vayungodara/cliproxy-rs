@@ -503,7 +503,6 @@ name = "cpa-common"
 version = "0.1.0"
 dependencies = [
  "cpa-core",
- "gjson",
  "serde_json",
 ]
 
@@ -564,7 +563,6 @@ dependencies = [
  "axum",
  "bcrypt",
  "bytes",
- "cpa-common",
  "cpa-core",
  "cpa-exec",
  "futures-util",

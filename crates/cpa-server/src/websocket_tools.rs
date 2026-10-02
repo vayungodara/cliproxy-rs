@@ -274,7 +274,7 @@ fn repair(key: &str, payload: &str, mut turn: Option<&mut TurnCache>) -> Option<
         return None;
     }
     // ponytail: Go splices the last case-insensitive `input` member; this edits `input`.
-    Some(cpa_common::sjson::set_raw(payload, "input", &marshal(&updated)))
+    Some(crate::websocket_requests::set_raw(payload, "input", &marshal(&updated)))
 }
 
 /// `repairResponsesToolCallItems` with repair enabled.

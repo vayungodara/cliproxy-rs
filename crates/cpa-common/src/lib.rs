@@ -13,9 +13,6 @@
 //!   references copied from the client request).
 //! - `codex_client`: executor/helps/codex_multi_agent_v2.go (Codex-client request rewrites
 //!   shared by every executor that serves Codex clients).
-//! - `sjson`: byte-preserving JSON edits with tidwall/sjson semantics (Codex thread).
 //!
 //! The proxy-aware HTTP client (executor/helps/proxy_helpers.go) touches the network and
 //! lives in cpa-exec instead.
-
-pub mod sjson;

@@ -1,13 +1,16 @@
 //! Request normalization and event helpers for the Responses WebSocket
 //! (openai_responses_websocket_requests.go, _prewarm.go, _forward.go).
 //!
-//! Every edit goes through `cpa_common::sjson`, so untouched request bytes reach the
-//! executor exactly as the client sent them, as in Go.
+//! Every edit goes through the sjson-compatible editor below, so untouched request bytes
+//! reach the executor exactly as the client sent them, as in Go.
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
-use cpa_common::sjson::{delete, go_quote, set_raw, set_str};
 use gjson::Kind;
+
+// ponytail: adapter for `cpa_common::json` (translator thread), which is not on this
+// branch yet; it forwards to the Codex executor's sjson port until then.
+pub(crate) use cpa_exec::codex_json::{delete, go_quote, set_raw, set_str};
 
 pub(crate) const CREATE: &str = "response.create";
 pub(crate) const APPEND: &str = "response.append";

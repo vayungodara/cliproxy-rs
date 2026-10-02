@@ -11,7 +11,8 @@
 
 pub mod claude;
 pub mod codex;
-mod codex_json;
+#[doc(hidden)]
+pub mod codex_json;
 pub mod codex_oauth;
 pub mod codex_quota;
 mod codex_request;
