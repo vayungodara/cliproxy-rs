@@ -127,6 +127,7 @@ impl Fixture {
             credentials,
             Executors {
                 claude: ClaudeExecutor::new(upstream_url).unwrap(),
+                devices: Default::default(),
             },
         ));
         rt.publish_policy(policy);
