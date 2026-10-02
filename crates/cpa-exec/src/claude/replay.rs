@@ -27,6 +27,7 @@ const MAX_BYTES_PER_SESSION: usize = 8 << 20;
 const MAX_TURNS_PER_SESSION: usize = 64;
 const MAX_BLOCKS_PER_TURN: usize = 512;
 const MAX_TOTAL_BYTES: usize = 256 << 20;
+const SWEEP_INTERVAL: Duration = Duration::from_secs(600);
 
 // ponytail: adapter for kimi_replay's shared replay helpers (owner: Kimi/Meta/Devin
 // thread), which Go's Claude replay reuses verbatim: the turn restore, the
@@ -61,6 +62,8 @@ struct Inner {
     entries: HashMap<String, Entry>,
     total: usize,
     next_generation: u64,
+    /// When the last expiry sweep ran (Go's ten-minute cache cleanup ticker).
+    swept: Option<Instant>,
 }
 
 impl Inner {
@@ -79,6 +82,26 @@ impl Inner {
     fn remove(&mut self, key: &str) {
         if let Some(old) = self.entries.remove(key) {
             self.total -= old.bytes();
+        }
+    }
+
+    /// `purgeExpiredClaudeThinkingReplayCache`, run when Go's ten-minute cleanup would
+    /// have: expired entries are removed, so their old generations stop accepting writes.
+    // ponytail: swept lazily on cache access instead of by a background ticker; an idle
+    // cache keeps expired content in memory until the next request.
+    fn sweep(&mut self, now: Instant) {
+        if self.swept.is_some_and(|at| now.duration_since(at) < SWEEP_INTERVAL) {
+            return;
+        }
+        self.swept = Some(now);
+        let expired: Vec<String> = self
+            .entries
+            .iter()
+            .filter(|(_, e)| now.duration_since(e.at) > TTL)
+            .map(|(k, _)| k.clone())
+            .collect();
+        for key in expired {
+            self.remove(&key);
         }
     }
 
@@ -111,6 +134,7 @@ impl ReplayCache {
     /// reserved as deleted so a conditional write can follow.
     fn get(&self, key: &str, now: Instant) -> (Vec<Arc<str>>, Snapshot) {
         let mut inner = self.lock();
+        inner.sweep(now);
         let live = inner
             .entries
             .get(key)
@@ -142,10 +166,15 @@ impl ReplayCache {
 
     /// `ReplaceClaudeThinkingReplayIfUnchanged` with `appendClaudeThinkingReplayContent`.
     fn append_if_unchanged(&self, key: &str, snapshot: Snapshot, content: &str) -> bool {
+        self.append_at(key, snapshot, content, Instant::now())
+    }
+
+    fn append_at(&self, key: &str, snapshot: Snapshot, content: &str, now: Instant) -> bool {
         if !valid_content(content) {
             return false;
         }
         let mut inner = self.lock();
+        inner.sweep(now);
         let Some(entry) = inner.entries.get(key).filter(|e| e.generation == snapshot.0) else {
             return false;
         };
@@ -167,7 +196,7 @@ impl ReplayCache {
             key,
             Entry {
                 contents,
-                at: Instant::now(),
+                at: now,
                 generation,
                 deleted: false,
             },
@@ -328,7 +357,7 @@ pub(crate) struct Gate<'a> {
 pub(crate) fn prepare(cache: &Arc<ReplayCache>, gate: &Gate<'_>, req: &mut ExecRequest) -> Option<Scope> {
     let enabled = req.source_format == cpa_core::format::Format::Claude
         && gate.credential.provider.trim().eq_ignore_ascii_case("claude")
-        && cpa_core::registry::dynamic::is_api_key(gate.credential)
+        && auth_kind_is_api_key(gate.credential)
         && gate.is_compat
         && !gate.api_key.trim().is_empty()
         && !gate.oauth_token;
@@ -360,6 +389,29 @@ pub(crate) fn prepare(cache: &Arc<ReplayCache>, gate: &Gate<'_>, req: &mut ExecR
         snapshot,
         applied,
     })
+}
+
+/// `Auth.AuthKind() == AuthKindAPIKey`: a recognised attribute kind, then a recognised
+/// metadata kind, then a non-empty `api_key` attribute.
+fn auth_kind_is_api_key(credential: &Credential) -> bool {
+    let normalize = |kind: &str| match kind.trim().to_lowercase().as_str() {
+        "apikey" | "api_key" | "api-key" => Some(true),
+        "oauth" | "oauth2" => Some(false),
+        _ => None,
+    };
+    let attribute = credential
+        .attributes
+        .get("auth_kind")
+        .map(String::as_str)
+        .unwrap_or_default();
+    normalize(attribute)
+        .or_else(|| normalize(credential.str("auth_kind").unwrap_or_default()))
+        .unwrap_or_else(|| {
+            credential
+                .attributes
+                .get("api_key")
+                .is_some_and(|k| !k.trim().is_empty())
+        })
 }
 
 /// `shouldClearKimiThinkingReplayAfterError`.
@@ -403,6 +455,55 @@ mod tests {
         // Content without signed thinking plus a tool call clears the session.
         scope(&cache).store(r#"[{"type":"text","text":"done"}]"#);
         assert!(cache.get("k", Instant::now()).0.is_empty());
+    }
+
+    #[test]
+    fn expired_entries_are_swept_and_their_generations_stop_accepting_writes() {
+        let cache = Arc::new(ReplayCache::default());
+        let start = Instant::now();
+        let (_, snapshot) = cache.get("k", start);
+        assert!(cache.append_at("k", snapshot, TURN_A, start));
+        let (_, pending) = cache.get("k", start);
+        // Past the TTL and a sweep interval, a write from the old read is rejected.
+        let later = start + TTL + SWEEP_INTERVAL + Duration::from_secs(1);
+        assert!(!cache.append_at("k", pending, TURN_B, later));
+        assert!(cache.lock().entries.is_empty());
+        assert_eq!(cache.lock().total, 0);
+    }
+
+    #[test]
+    fn the_gate_classifies_credentials_like_go_auth_kind() {
+        let credential = |attrs: &[(&str, &str)], meta: serde_json::Value| {
+            let mut c = Credential::from_file(
+                std::path::Path::new("/a"),
+                std::path::Path::new("/a/c.json"),
+                meta.as_object().unwrap().clone(),
+            )
+            .unwrap();
+            c.attributes = attrs.iter().map(|(k, v)| ((*k).into(), (*v).into())).collect();
+            c
+        };
+
+        assert!(auth_kind_is_api_key(&credential(
+            &[("api_key", "k")],
+            serde_json::json!({"type":"claude"})
+        )));
+        assert!(!auth_kind_is_api_key(&credential(
+            &[("api_key", "k")],
+            serde_json::json!({"type":"claude","auth_kind":"oauth"})
+        )));
+        assert!(auth_kind_is_api_key(&credential(
+            &[("auth_kind", "weird"), ("api_key", "k")],
+            serde_json::json!({"type":"claude"})
+        )));
+        assert!(!auth_kind_is_api_key(&credential(
+            &[("auth_kind", "OAuth2"), ("api_key", "k")],
+            serde_json::json!({"type":"claude"})
+        )));
+        assert!(!auth_kind_is_api_key(&credential(
+            &[],
+            serde_json::json!({"type":"claude","api_key":"meta-only"})
+        )));
     }
 
     #[test]

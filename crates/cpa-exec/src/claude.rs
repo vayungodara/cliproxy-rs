@@ -218,22 +218,32 @@ impl ClaudeExecutor {
             is_compat: ctx.is_compat,
             oauth_token: ctx.oauth_token,
         };
-        let mut scope = replay::prepare(&self.replay, &gate, &mut req);
-        let result = self.generate_with(ctx, req, &mut scope).await;
-        if let (Err(error), Some(scope)) = (&result, &scope)
-            && scope.applied
-            && replay::clears_after(error)
-        {
-            scope.clear();
+        let scope = replay::prepare(&self.replay, &gate, &mut req);
+        let result = self.generate_with(ctx, req, scope.as_ref()).await;
+        match (result, scope) {
+            (Err(error), Some(scope)) => {
+                if scope.applied && replay::clears_after(&error) {
+                    scope.clear();
+                }
+                Err(error)
+            }
+            // wrapClaudeThinkingReplayStream wraps the stream ExecuteStream returns,
+            // after translation.
+            (Ok(mut response), Some(scope)) => {
+                if let ResponseBody::Stream(events) = response.body {
+                    response.body = ResponseBody::Stream(scope.wrap(events));
+                }
+                Ok(response)
+            }
+            (result, None) => result,
         }
-        result
     }
 
     async fn generate_with(
         &self,
         ctx: Ctx<'_>,
         req: ExecRequest,
-        replay: &mut Option<replay::Scope>,
+        replay: Option<&replay::Scope>,
     ) -> Result<ExecResponse, ExecError> {
         let upstream_stream = req.stream || req.response_format != Format::Claude;
         let translated = translate::request(&req, &ctx.base_model, ctx.is_compat)?;
@@ -260,11 +270,7 @@ impl ClaudeExecutor {
                 } else {
                     stream::relay_translated(raw, reverse, done)
                 };
-                let relayed = relayed.map(move |r| r.map_err(|e| fast_request_error(fast, e))).boxed();
-                ResponseBody::Stream(match replay.take() {
-                    Some(scope) => scope.wrap(relayed),
-                    None => relayed,
-                })
+                ResponseBody::Stream(relayed.map(move |r| r.map_err(|e| fast_request_error(fast, e))).boxed())
             }
             ResponseBody::Stream(raw) => {
                 let data = collect(raw).await.map_err(wrap)?;
@@ -289,7 +295,7 @@ impl ClaudeExecutor {
                             )))
                         })?);
                     }
-                    if let Some(scope) = replay.as_ref() {
+                    if let Some(scope) = replay {
                         scope.store_response(&out);
                     }
                     ResponseBody::Buffered(Bytes::from(out))
@@ -305,7 +311,7 @@ impl ClaudeExecutor {
                     );
                     let restored = alias::restore_response(&text, &reverse)
                         .map_err(|m| plain_error(format!("restore Claude OAuth tool name from response: {m}")))?;
-                    if let Some(scope) = replay.as_ref() {
+                    if let Some(scope) = replay {
                         scope.store_response(restored.as_bytes());
                     }
                     ResponseBody::Buffered(Bytes::from(restored))
