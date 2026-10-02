@@ -505,6 +505,7 @@ dependencies = [
  "gjson",
  "http",
  "serde_json",
+ "serde_yaml_ng",
  "sha2",
 ]
 

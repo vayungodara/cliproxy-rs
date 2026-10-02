@@ -8,11 +8,10 @@
 
 use std::sync::Arc;
 
-use axum::Json;
 use axum::extract::{Request, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::middleware::Next;
-use axum::response::{IntoResponse, Response};
+use axum::response::Response;
 use cpa_core::exec::Caller;
 
 use crate::runtime::Runtime;
@@ -21,8 +20,10 @@ pub async fn require_client_key(State(rt): State<Arc<Runtime>>, mut req: Request
     let config = rt.config();
     let caller = match authenticate(&config.api_keys, req.headers(), req.uri().query().unwrap_or_default()) {
         Ok(caller) => caller,
+        // gin `AbortWithStatusJSON(401, gin.H{"error": msg})`.
         Err(message) => {
-            return (StatusCode::UNAUTHORIZED, Json(serde_json::json!({ "error": message }))).into_response();
+            let body = crate::gojson::Obj::new().str("error", message).finish();
+            return crate::respond::gin_json(StatusCode::UNAUTHORIZED.as_u16(), body);
         }
     };
     req.extensions_mut().insert(caller);
