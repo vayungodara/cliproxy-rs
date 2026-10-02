@@ -479,6 +479,7 @@ dependencies = [
  "subtle",
  "tokio",
  "tracing",
+ "wreq",
 ]
 
 [[package]]

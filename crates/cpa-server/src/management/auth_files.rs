@@ -86,11 +86,11 @@ fn h(pairs: impl IntoIterator<Item = (&'static str, Value)>) -> Value {
     Value::Object(sorted.into_iter().map(|(k, v)| (k.to_owned(), v)).collect())
 }
 
-fn reply(status: StatusCode, pairs: impl IntoIterator<Item = (&'static str, Value)>) -> Response {
+pub(super) fn reply(status: StatusCode, pairs: impl IntoIterator<Item = (&'static str, Value)>) -> Response {
     respond(status, &h(pairs))
 }
 
-fn fail(status: StatusCode, message: impl Into<String>) -> Response {
+pub(super) fn fail(status: StatusCode, message: impl Into<String>) -> Response {
     reply(status, [("error", Value::from(message.into()))])
 }
 
@@ -277,7 +277,7 @@ fn cooldown_view(cd: &crate::scheduler::CooldownState) -> Value {
     Value::Object(view)
 }
 
-fn recent_requests(activity: &crate::runtime::CredentialActivity) -> Value {
+pub(super) fn recent_requests(activity: &crate::runtime::CredentialActivity) -> Value {
     use chrono::TimeZone;
     let span = crate::runtime::RECENT_BUCKET_SECONDS;
     let now = chrono::Utc::now().timestamp() / span;
@@ -342,7 +342,7 @@ fn note_disabled(state: &Management, id: &str, disabled: Option<bool>) {
 }
 
 /// Go `Auth.AuthKind`: `oauth`, `apikey` or unknown.
-fn auth_kind(c: &Credential) -> Option<&'static str> {
+pub(super) fn auth_kind(c: &Credential) -> Option<&'static str> {
     let normalize = |s: &str| match s.trim().to_lowercase().as_str() {
         "apikey" | "api_key" | "api-key" => Some("apikey"),
         "oauth" | "oauth2" => Some("oauth"),

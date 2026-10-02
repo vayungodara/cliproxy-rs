@@ -336,3 +336,185 @@ impl stream::GoStream for Passthrough {
         Ok(vec![payload.to_vec()])
     }
 }
+
+// ---------------------------------------------------------------------------------------
+// Shared Gemini content helpers (translator/common/gemini.go, util/claude_tool_result.go)
+
+/// common.ReorderGeminiUserParts: when text follows a function response, text parts move
+/// ahead of the other parts.
+pub(crate) fn reorder_user_parts(parts: Vec<Vec<u8>>) -> Vec<Vec<u8>> {
+    let is_response = |p: &[u8]| gj::get(p, "functionResponse").exists() || gj::get(p, "function_response").exists();
+    let mut seen_response = false;
+    let mut trailing_text = false;
+    for p in &parts {
+        if is_response(p) {
+            seen_response = true;
+        } else if seen_response && gj::get(p, "text").exists() {
+            trailing_text = true;
+            break;
+        }
+    }
+    if !seen_response || !trailing_text {
+        return parts;
+    }
+    let (mut text, other): (Vec<_>, Vec<_>) = parts.into_iter().partition(|p| gj::get(p, "text").exists());
+    text.extend(other);
+    text
+}
+
+/// common.MergeAdjacentGeminiContents: drops contents without parts and merges
+/// consecutive user turns (reordering the merged parts).
+pub(crate) fn merge_adjacent_contents(contents: Vec<Vec<u8>>) -> Vec<Vec<u8>> {
+    if contents.len() <= 1 {
+        return contents;
+    }
+    let mut merged: Vec<Vec<u8>> = vec![];
+    for content in contents {
+        if content.is_empty() {
+            continue;
+        }
+        let role = gj::get(&content, "role").bytes().into_owned();
+        let parts = gj::get(&content, "parts");
+        if !parts.is_array() || parts.array().is_empty() {
+            continue;
+        }
+        if let Some(last) = merged.last_mut()
+            && role == b"user"
+            && gj::get(last, "role").bytes().as_ref() == b"user"
+        {
+            let mut combined: Vec<Vec<u8>> = gj::get(last, "parts").array().iter().map(|p| p.raw.to_vec()).collect();
+            combined.extend(parts.array().iter().map(|p| p.raw.to_vec()));
+            let combined = reorder_user_parts(combined);
+            if let Ok(updated) = gj::try_set_raw(last, "parts", gj::join(&combined)) {
+                *last = updated;
+                continue;
+            }
+        }
+        merged.push(content);
+    }
+    merged
+}
+
+/// common.ContainsJSONRef: any object key `$ref` holding a string, at any depth.
+pub(crate) fn contains_json_ref(value: &Res<'_>) -> bool {
+    if !value.is_object() && !value.is_array() {
+        return false;
+    }
+    let object = value.is_object();
+    let mut found = false;
+    value.each(|key, child| {
+        found = (object && key.bytes().as_ref() == b"$ref" && child.kind == cpa_common::json::Kind::String)
+            || contains_json_ref(&child);
+        !found
+    });
+    found
+}
+
+/// common.SetGeminiFunctionResponseResult: raw JSON, or a string when it holds a
+/// `$ref` (Gemini rejects those inside responses).
+pub(crate) fn set_function_response_result(part: &mut Vec<u8>, path: &str, result: &Res<'_>) {
+    if !result.exists() {
+        gj::set_str(part, path, "");
+    } else if contains_json_ref(result) {
+        let target = if path.ends_with("response") {
+            format!("{path}.result")
+        } else {
+            path.to_owned()
+        };
+        gj::set_str(part, &target, &result.raw);
+    } else {
+        gj::set_raw(part, path, &result.raw);
+    }
+}
+
+/// common.SetGeminiFunctionResponseRaw.
+pub(crate) fn set_function_response_raw(part: &mut Vec<u8>, path: &str, raw: &[u8]) {
+    let trimmed = trim_space(raw);
+    if trimmed.is_empty() {
+        gj::set_str(part, path, "");
+        return;
+    }
+    set_function_response_result(part, path, &gj::parse(trimmed));
+}
+
+/// util.ClaudeToolResult.
+pub(crate) struct ClaudeToolResult {
+    pub result: Vec<u8>,
+    pub raw: bool,
+    /// (MIME type, base64 data) of base64 image blocks.
+    pub images: Vec<(Vec<u8>, Vec<u8>)>,
+}
+
+fn base64_image(block: &Res<'_>) -> Option<Option<(Vec<u8>, Vec<u8>)>> {
+    if block.get("type").bytes().as_ref() != b"image" || block.get("source.type").bytes().as_ref() != b"base64" {
+        return None;
+    }
+    let data = block.get("source.data").bytes().into_owned();
+    Some((!data.is_empty()).then(|| (block.get("source.media_type").bytes().into_owned(), data)))
+}
+
+/// util.ConvertClaudeToolResultContent: strings stay strings, one non-image block is its
+/// raw JSON, several become a raw array, and base64 images are split out.
+pub(crate) fn claude_tool_result(content: &Res<'_>) -> ClaudeToolResult {
+    let empty = || ClaudeToolResult {
+        result: vec![],
+        raw: false,
+        images: vec![],
+    };
+    if content.kind == cpa_common::json::Kind::String {
+        return ClaudeToolResult {
+            result: content.s.to_vec(),
+            ..empty()
+        };
+    }
+    if content.is_array() {
+        let mut images = vec![];
+        let mut count = 0;
+        let mut last = vec![];
+        let mut filtered = b"[]".to_vec();
+        content.each(|_, block| {
+            if let Some(image) = base64_image(&block) {
+                images.extend(image);
+                return true;
+            }
+            count += 1;
+            last = block.raw.to_vec();
+            gj::set_raw(&mut filtered, "-1", &block.raw);
+            true
+        });
+        return match count {
+            0 => ClaudeToolResult { images, ..empty() },
+            1 => ClaudeToolResult {
+                result: last,
+                raw: true,
+                images,
+            },
+            _ => ClaudeToolResult {
+                result: filtered,
+                raw: true,
+                images,
+            },
+        };
+    }
+    if content.is_object() {
+        return match base64_image(content) {
+            Some(image) => ClaudeToolResult {
+                images: image.into_iter().collect(),
+                ..empty()
+            },
+            None => ClaudeToolResult {
+                result: content.raw.to_vec(),
+                raw: true,
+                images: vec![],
+            },
+        };
+    }
+    if !content.raw.is_empty() {
+        return ClaudeToolResult {
+            result: content.raw.to_vec(),
+            raw: true,
+            images: vec![],
+        };
+    }
+    empty()
+}
