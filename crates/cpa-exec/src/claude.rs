@@ -1,6 +1,7 @@
 //! Claude executor: Anthropic Messages with a Claude OAuth token.
 
-use cpa_core::credential::Credential;
+use cpa_core::config::Config;
+use cpa_core::credential::{Credential, MetadataPatch};
 use cpa_core::exec::{ExecError, ExecRequest, ExecResponse, FailureScope, Operation};
 use cpa_core::format::Format;
 
@@ -26,13 +27,7 @@ impl<'a> ClaudeView<'a> {
         let access_token = credential
             .str("access_token")
             .filter(|t| !t.is_empty())
-            .ok_or_else(|| {
-                ExecError::local(
-                    401,
-                    FailureScope::Credential,
-                    "claude credential has no access_token",
-                )
-            })?;
+            .ok_or_else(|| ExecError::local(401, FailureScope::Credential, "claude credential has no access_token"))?;
         Ok(Self {
             access_token,
             email: credential.str("email").unwrap_or_default(),
@@ -47,18 +42,42 @@ pub struct ClaudeExecutor {
 
 impl ClaudeExecutor {
     pub fn new(base_url: impl Into<String>) -> wreq::Result<Self> {
-        Ok(Self {
-            client: wreq::Client::builder().build()?,
+        Ok(Self::with_client(wreq::Client::builder().build()?, base_url))
+    }
+
+    /// Uses a caller-built client. The differential harness passes one with test trust
+    /// roots and dial overrides so the logical URL, Host and SNI stay first-party.
+    pub fn with_client(client: wreq::Client, base_url: impl Into<String>) -> Self {
+        Self {
+            client,
             base_url: base_url.into().trim_end_matches('/').to_owned(),
-        })
+        }
+    }
+
+    // ponytail: never prepares. The OAuth port refreshes near `expired` and creates the
+    // device identity pool (anthropic_auth.go, claude_executor_auth.go) here.
+    pub fn needs_prepare(&self, _credential: &Credential, _cfg: &Config) -> bool {
+        false
+    }
+
+    pub async fn prepare(&self, _credential: &Credential, _cfg: &Config) -> Result<MetadataPatch, ExecError> {
+        Ok(MetadataPatch::default())
     }
 
     pub async fn execute(
         &self,
         credential: &Credential,
         req: ExecRequest,
+        _cfg: &Config,
     ) -> Result<ExecResponse, ExecError> {
         let view = ClaudeView::new(credential)?;
+        if req.alt.as_deref() == Some("responses/compact") {
+            return Err(ExecError::local(
+                501,
+                FailureScope::Request,
+                "/responses/compact not supported",
+            ));
+        }
         if req.source_format != Format::Claude || req.response_format != Format::Claude {
             // Translated traffic arrives with the translator port (cpa-translate pairs).
             return Err(ExecError::local(
@@ -80,8 +99,6 @@ impl ClaudeExecutor {
             .header("content-type", "application/json")
             .header("anthropic-version", ANTHROPIC_VERSION)
             .header("anthropic-beta", BASELINE_BETAS)
-            // ponytail: identity until the wire profile sends Claude Code's
-            // accept-encoding and decodes gzip/br/zstd, including unlabelled bodies.
             .header("accept-encoding", "identity")
             .body(req.body)
             .send()

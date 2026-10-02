@@ -4,8 +4,8 @@ use std::sync::Arc;
 
 use axum::Extension;
 use axum::body::{Body, Bytes};
-use axum::extract::State;
 use axum::extract::rejection::BytesRejection;
+use axum::extract::{OriginalUri, State};
 use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use cpa_core::exec::{Caller, ExecError, ExecRequest, Operation, ResponseBody};
@@ -14,80 +14,121 @@ use futures_util::StreamExt;
 use serde::Deserialize;
 use serde_json::Value;
 
-use crate::runtime::{Completing, Outcome, Runtime};
+use crate::access::query_get;
+use crate::runtime::{AcquireError, Completing, Outcome, Runtime, Selection};
 
 pub async fn messages(
     State(rt): State<Arc<Runtime>>,
     Extension(caller): Extension<Caller>,
+    OriginalUri(uri): OriginalUri,
     headers: HeaderMap,
     body: Result<Bytes, BytesRejection>,
 ) -> Response {
-    handle(rt, caller, headers, body, Operation::Generate).await
+    handle(
+        rt,
+        caller,
+        uri.query().unwrap_or_default(),
+        headers,
+        body,
+        Operation::Generate,
+    )
+    .await
 }
 
 pub async fn count_tokens(
     State(rt): State<Arc<Runtime>>,
     Extension(caller): Extension<Caller>,
+    OriginalUri(uri): OriginalUri,
     headers: HeaderMap,
     body: Result<Bytes, BytesRejection>,
 ) -> Response {
-    handle(rt, caller, headers, body, Operation::CountTokens).await
+    handle(
+        rt,
+        caller,
+        uri.query().unwrap_or_default(),
+        headers,
+        body,
+        Operation::CountTokens,
+    )
+    .await
 }
 
-/// The two fields the handler reads. Like gjson in Go, a body that is not JSON is not
-/// rejected here; upstream decides.
+/// The fields the handler reads, each independent of the others' types. Like gjson in
+/// Go, a body that is not a JSON object is not rejected here; upstream decides. Only
+/// these two values are materialized; the rest of the body is skipped.
 #[derive(Deserialize, Default)]
 struct Peek {
     #[serde(default)]
-    model: String,
+    model: Option<Value>,
     #[serde(default)]
-    stream: bool,
+    stream: Option<Value>,
 }
 
 async fn handle(
     rt: Arc<Runtime>,
     caller: Caller,
+    query: &str,
     headers: HeaderMap,
     body: Result<Bytes, BytesRejection>,
     operation: Operation,
 ) -> Response {
     let body = match body {
         Ok(body) => body,
-        Err(rejection) => {
-            return claude_error(rejection.status().as_u16(), &rejection.body_text(), None);
-        }
+        Err(rejection) => return claude_error(rejection.status().as_u16(), &rejection.body_text()),
     };
     let peek: Peek = serde_json::from_slice(&body).unwrap_or_default();
-    let Some(lease) = rt.store().select("claude") else {
-        let model = if peek.model.is_empty() {
-            "unknown"
-        } else {
-            &peek.model
-        };
-        let message = format!(
-            "auth_not_found: no auth available (providers=claude, model={model}); \
-             check Claude auth/key session and cooldown state via /v0/management/auth-files"
-        );
-        return claude_error(503, &message, None);
+    let model = peek
+        .model
+        .as_ref()
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .trim()
+        .to_owned();
+    let stream = peek.stream == Some(Value::Bool(true)) && operation == Operation::Generate;
+    let alt = query_get(query, "alt")
+        .or_else(|| query_get(query, "$alt"))
+        .map(|v| String::from_utf8_lossy(&v).into_owned());
+    let cfg = rt.config();
+    let selection = Selection {
+        provider: "claude".into(),
+        model: model.clone(),
+        ..Selection::default()
+    };
+    // ponytail: one attempt. Retry rounds and failover across credentials arrive with
+    // the scheduler port (Selection::exclude is where tried credentials go).
+    let lease = match rt.acquire(selection, &cfg).await {
+        Ok(lease) => lease,
+        Err(AcquireError::NoCredential) => {
+            let model = if model.is_empty() { "unknown" } else { &model };
+            let message = format!(
+                "auth_not_found: no auth available (providers=claude, model={model}); \
+                 check Claude auth/key session and cooldown state via /v0/management/auth-files"
+            );
+            return claude_error(503, &message);
+        }
+        Err(AcquireError::Prepare(e)) => return exec_error(&e),
     };
     let req = ExecRequest {
         operation,
         source_format: Format::Claude,
         response_format: Format::Claude,
-        requested_model: peek.model.clone(),
-        model: peek.model,
+        requested_model: model.clone(),
+        model,
         original_body: body.clone(),
         body,
-        stream: peek.stream && operation == Operation::Generate,
+        stream,
+        alt,
+        session: None,
         headers,
         caller,
     };
-    // ponytail: one attempt. Retry rounds and failover across credentials arrive with
-    // the scheduler port.
-    let response = match rt.executors.execute(&lease.credential, req).await {
+    // If the client disconnects here, this future is dropped with the lease, which
+    // reports the attempt as cancelled.
+    let credential = lease.credential.clone();
+    let response = match rt.executors.execute(&credential, req, &cfg).await {
         Ok(response) => response,
         Err(e) => {
-            rt.store().complete(&lease, Outcome::from_error(&e));
+            lease.complete(Outcome::Failure(e.clone()));
             return exec_error(&e);
         }
     };
@@ -96,71 +137,53 @@ async fn handle(
     // arrive with the config port.
     match response.body {
         ResponseBody::Buffered(bytes) => {
-            rt.store().complete(&lease, Outcome::Success);
+            lease.complete(Outcome::Success);
             let status = StatusCode::from_u16(response.status).unwrap_or(StatusCode::OK);
             (status, [(header::CONTENT_TYPE, "application/json")], bytes).into_response()
         }
         ResponseBody::Stream(stream) => {
-            let mut stream = Completing::new(stream, rt.clone(), lease);
+            let mut stream = Completing::new(stream, lease);
             // SSE headers go out only once the first event arrives, so an upstream that
             // fails immediately still gets a proper status and JSON error.
             let first = match stream.next().await {
                 Some(Err(e)) => return exec_error(&e),
-                first => first,
+                first => first.map(Result::unwrap),
             };
-            let rest = stream.scan(false, |failed, item| {
-                let out = match item {
-                    _ if *failed => None,
-                    Ok(event) => Some(event),
-                    Err(e) => {
-                        *failed = true;
-                        Some(Bytes::from(format!(
-                            "event: error\ndata: {}\n\n",
-                            error_json(e.status, &e.body)
-                        )))
-                    }
-                };
-                std::future::ready(out)
+            // `Completing` yields nothing after an error, so the error event is last.
+            let rest = stream.map(|item| match item {
+                Ok(event) => event,
+                Err(e) => Bytes::from(format!("event: error\ndata: {}\n\n", error_json(e.status, &e.body))),
             });
-            let events = futures_util::stream::iter(first.into_iter().flatten()).chain(rest);
-            let mut res =
-                Body::from_stream(events.map(Ok::<_, std::convert::Infallible>)).into_response();
+            let events = futures_util::stream::iter(first).chain(rest);
+            let mut res = Body::from_stream(events.map(Ok::<_, std::convert::Infallible>)).into_response();
             let h = res.headers_mut();
-            h.insert(
-                header::CONTENT_TYPE,
-                HeaderValue::from_static("text/event-stream"),
-            );
+            h.insert(header::CONTENT_TYPE, HeaderValue::from_static("text/event-stream"));
             h.insert(header::CACHE_CONTROL, HeaderValue::from_static("no-cache"));
-            h.insert(
-                header::ACCESS_CONTROL_ALLOW_ORIGIN,
-                HeaderValue::from_static("*"),
-            );
+            h.insert(header::ACCESS_CONTROL_ALLOW_ORIGIN, HeaderValue::from_static("*"));
             res
         }
     }
 }
 
+/// `Retry-After` and other upstream headers are not sent: Go emits `Retry-After` only for
+/// its own scheduler/cooldown errors (SafeResponseHeaders), which arrive with that port.
 fn exec_error(e: &ExecError) -> Response {
-    claude_error(
-        e.status,
-        &String::from_utf8_lossy(&e.body),
-        e.retry_after.map(|d| d.as_secs()),
-    )
+    if e.direct {
+        let status = StatusCode::from_u16(e.status).unwrap_or(StatusCode::BAD_GATEWAY);
+        let content_type = e
+            .headers
+            .get(header::CONTENT_TYPE)
+            .cloned()
+            .unwrap_or(HeaderValue::from_static("application/json"));
+        return (status, [(header::CONTENT_TYPE, content_type)], e.body.clone()).into_response();
+    }
+    claude_error(e.status, &String::from_utf8_lossy(&e.body))
 }
 
-fn claude_error(status: u16, text: &str, retry_after_secs: Option<u64>) -> Response {
+fn claude_error(status: u16, text: &str) -> Response {
     let status = StatusCode::from_u16(status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
-    let mut res = (
-        status,
-        [(header::CONTENT_TYPE, "application/json")],
-        error_json(status.as_u16(), text.as_bytes()),
-    )
-        .into_response();
-    if let Some(secs) = retry_after_secs {
-        res.headers_mut()
-            .insert(header::RETRY_AFTER, HeaderValue::from(secs));
-    }
-    res
+    let body = error_json(status.as_u16(), text.as_bytes());
+    (status, [(header::CONTENT_TYPE, "application/json")], body).into_response()
 }
 
 /// `toClaudeError` + `claudeErrorDetailFromText`: the type comes from the status unless
@@ -190,16 +213,13 @@ fn error_json(status: u16, text: &[u8]) -> String {
                 message = m;
             }
         } else {
-            kind = field(&payload, "type")
-                .filter(|t| t != "error")
-                .unwrap_or(kind);
+            kind = field(&payload, "type").filter(|t| t != "error").unwrap_or(kind);
             if let Some(m) = field(&payload, "message") {
                 message = m;
             }
         }
     }
-    serde_json::json!({ "type": "error", "error": { "type": kind, "message": message } })
-        .to_string()
+    serde_json::json!({ "type": "error", "error": { "type": kind, "message": message } }).to_string()
 }
 
 fn type_for_status(status: u16) -> &'static str {
@@ -273,6 +293,20 @@ mod tests {
         assert_eq!(
             j(503, "[1,2]"),
             r#"{"type":"error","error":{"type":"api_error","message":"[1,2]"}}"#
+        );
+    }
+
+    #[test]
+    fn peek_fields_are_independent() {
+        let peek: Peek = serde_json::from_slice(br#"{"model":" claude-opus-5 ","stream":"yes","x":[1]}"#).unwrap();
+        assert_eq!(
+            peek.model.as_ref().and_then(Value::as_str).map(str::trim),
+            Some("claude-opus-5")
+        );
+        assert_ne!(
+            peek.stream,
+            Some(Value::Bool(true)),
+            "a non-bool stream is not streaming"
         );
     }
 }

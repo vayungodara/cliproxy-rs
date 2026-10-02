@@ -2,6 +2,10 @@
 //!
 //! Transport-neutral on purpose. Executors own their HTTP clients; nothing here knows
 //! about wreq or axum (sdk/cliproxy/executor/types.go).
+//!
+//! Ownership: the executor owns request translation, provider preparation (cloak,
+//! aliases) and response restoration, in that order. Nothing before the executor
+//! translates; nothing after it un-aliases.
 
 use std::fmt;
 use std::time::Duration;
@@ -23,7 +27,7 @@ pub enum Operation {
 /// per-caller state such as Claude tool aliases and must never be sent upstream.
 #[derive(Clone, PartialEq, Eq)]
 pub struct Caller {
-    /// The matched client key, or empty when client auth is disabled.
+    /// The configured client key that matched, or empty when client auth is disabled.
     pub principal: String,
     /// Where the key came from: `authorization`, `x-api-key`, `query-key`, ...
     pub source: &'static str,
@@ -37,29 +41,50 @@ impl fmt::Debug for Caller {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct ExecRequest {
     pub operation: Operation,
     /// Format of the inbound request.
     pub source_format: Format,
     /// Format the client expects back.
     pub response_format: Format,
-    /// Model named by the client.
+    /// Model named by the client, trimmed.
     pub requested_model: String,
     /// Model after alias resolution, sent upstream.
     pub model: String,
-    /// Inbound body before any translation.
+    /// Inbound body exactly as received.
     pub original_body: Bytes,
-    /// Body to send, already translated when formats differ.
+    /// Body in `source_format`, after request-level rewrites (payload rules) but before
+    /// any translation. The executor translates it.
     pub body: Bytes,
     /// The client asked for a stream. The upstream mode is the executor's decision.
     pub stream: bool,
+    /// Alternate operation from `alt` / `$alt` (for example `responses/compact`).
+    pub alt: Option<String>,
+    /// Session key for affinity and provider session identity, when one was derived.
+    pub session: Option<String>,
     /// Inbound headers. Executors forward only what their provider profile allows.
+    /// Contains client credentials: never log or forward wholesale.
     pub headers: HeaderMap,
     pub caller: Caller,
 }
 
-/// One framed unit of a streaming response (for SSE: one complete event, bytes intact).
+impl fmt::Debug for ExecRequest {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ExecRequest")
+            .field("operation", &self.operation)
+            .field("source_format", &self.source_format)
+            .field("response_format", &self.response_format)
+            .field("model", &self.model)
+            .field("stream", &self.stream)
+            .field("alt", &self.alt)
+            .field("body_len", &self.body.len())
+            .finish_non_exhaustive()
+    }
+}
+
+/// One framed unit of a streaming response (for SSE: one complete event).
+/// An `Err` item is terminal: consumers stop polling after it.
 pub type ExecStream = BoxStream<'static, Result<Bytes, ExecError>>;
 
 pub enum ResponseBody {
@@ -89,9 +114,16 @@ pub enum FailureScope {
 pub struct ExecError {
     pub status: u16,
     pub scope: FailureScope,
-    /// Upstream error body, or a message for locally generated errors.
+    /// Upstream error body (bounded), or a message for locally generated errors.
     pub body: Bytes,
+    /// Upstream response headers, for the scheduler and passthrough policy. The server
+    /// never emits these by default. Boxed: errors are the cold path.
+    pub headers: Box<HeaderMap>,
+    /// Scheduler hint parsed from upstream. Not permission to send `Retry-After` downstream.
     pub retry_after: Option<Duration>,
+    /// Send status, body and filtered headers to the client unchanged instead of the
+    /// route's normal error shape (claude_executor_fast_error.go).
+    pub direct: bool,
 }
 
 impl ExecError {
@@ -100,7 +132,9 @@ impl ExecError {
             status,
             scope,
             body: Bytes::from(message.into()),
+            headers: Box::default(),
             retry_after: None,
+            direct: false,
         }
     }
 }

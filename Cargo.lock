@@ -266,6 +266,8 @@ dependencies = [
  "cpa-core",
  "cpa-exec",
  "cpa-server",
+ "libc",
+ "socket2",
  "tokio",
  "tracing",
  "tracing-subscriber",
@@ -309,6 +311,7 @@ dependencies = [
  "cpa-translate",
  "futures-util",
  "http",
+ "tokio",
  "wreq",
 ]
 

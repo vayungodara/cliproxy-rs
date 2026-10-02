@@ -2,8 +2,9 @@
 //! (internal/access/config_access/provider.go, sdk/access/manager.go).
 //!
 //! Candidates, in order: `Authorization` (bearer token or the raw value), `X-Goog-Api-Key`,
-//! `X-Api-Key`, then the first `key` and `auth_token` query values. With no keys
-//! configured the provider is unregistered and access is open.
+//! `X-Api-Key`, then the first `key` and `auth_token` query values. Comparison is on raw
+//! bytes, like Go strings. With no keys configured the provider is unregistered and
+//! access is open.
 
 use std::sync::Arc;
 
@@ -16,24 +17,12 @@ use cpa_core::exec::Caller;
 
 use crate::runtime::Runtime;
 
-pub async fn require_client_key(
-    State(rt): State<Arc<Runtime>>,
-    mut req: Request,
-    next: Next,
-) -> Response {
+pub async fn require_client_key(State(rt): State<Arc<Runtime>>, mut req: Request, next: Next) -> Response {
     let config = rt.config();
-    let caller = match authenticate(
-        &config.api_keys,
-        req.headers(),
-        req.uri().query().unwrap_or_default(),
-    ) {
+    let caller = match authenticate(&config.api_keys, req.headers(), req.uri().query().unwrap_or_default()) {
         Ok(caller) => caller,
         Err(message) => {
-            return (
-                StatusCode::UNAUTHORIZED,
-                Json(serde_json::json!({ "error": message })),
-            )
-                .into_response();
+            return (StatusCode::UNAUTHORIZED, Json(serde_json::json!({ "error": message }))).into_response();
         }
     };
     req.extensions_mut().insert(caller);
@@ -47,64 +36,57 @@ fn authenticate(keys: &[String], headers: &HeaderMap, query: &str) -> Result<Cal
             source: "",
         });
     }
-    let header = |name: &str| {
-        headers
-            .get(name)
-            .and_then(|v| v.to_str().ok())
-            .unwrap_or_default()
-    };
+    let header = |name: &str| headers.get(name).map(|v| v.as_bytes()).unwrap_or_default();
     let authorization = header("authorization");
-    let (google, anthropic) = (header("x-goog-api-key"), header("x-api-key"));
     let query_key = query_get(query, "key").unwrap_or_default();
     let query_token = query_get(query, "auth_token").unwrap_or_default();
+    let bearer = bearer(authorization);
+    let candidates: [(&[u8], &'static str); 5] = [
+        (bearer, "authorization"),
+        (header("x-goog-api-key"), "x-goog-api-key"),
+        (header("x-api-key"), "x-api-key"),
+        (&query_key, "query-key"),
+        (&query_token, "query-auth-token"),
+    ];
     // "Missing" is judged on the raw values, so `Authorization: Bearer ` is invalid, not missing.
-    if [authorization, google, anthropic, &query_key, &query_token]
-        .iter()
-        .all(|v| v.is_empty())
-    {
+    if authorization.is_empty() && candidates[1..].iter().all(|(v, _)| v.is_empty()) {
         return Err("Missing API key");
     }
-    let bearer = bearer(authorization);
-    let candidates = [
-        (bearer.as_str(), "authorization"),
-        (google, "x-goog-api-key"),
-        (anthropic, "x-api-key"),
-        (query_key.as_str(), "query-key"),
-        (query_token.as_str(), "query-auth-token"),
-    ];
     candidates
         .into_iter()
-        .find(|(value, _)| !value.is_empty() && keys.iter().any(|k| k == value))
-        .map(|(value, source)| Caller {
-            principal: value.to_owned(),
-            source,
+        .filter(|(value, _)| !value.is_empty())
+        .find_map(|(value, source)| {
+            keys.iter().find(|k| k.as_bytes() == value).map(|k| Caller {
+                principal: k.clone(),
+                source,
+            })
         })
         .ok_or("Invalid API key")
 }
 
 /// Go's extractBearerToken: "Bearer x" yields "x"; anything else is used verbatim.
-fn bearer(header: &str) -> String {
-    match header.split_once(' ') {
-        Some((scheme, token)) if scheme.eq_ignore_ascii_case("bearer") => token.trim().to_owned(),
-        _ => header.to_owned(),
+fn bearer(header: &[u8]) -> &[u8] {
+    match header.iter().position(|&b| b == b' ') {
+        Some(i) if header[..i].eq_ignore_ascii_case(b"bearer") => header[i + 1..].trim_ascii(),
+        _ => header,
     }
 }
 
-/// `url.ParseQuery(q).Get(name)`: first value whose decoded name matches. Pairs with a
-/// `;` or a malformed escape in the name or value are skipped, as Go does.
-fn query_get(query: &str, name: &str) -> Option<String> {
+/// `url.ParseQuery(q).Get(name)`: the first value whose decoded name matches. Pairs with
+/// a `;` or a malformed escape in the name or value are skipped, as Go does.
+pub(crate) fn query_get(query: &str, name: &str) -> Option<Vec<u8>> {
     query
         .split('&')
         .filter(|p| !p.is_empty() && !p.contains(';'))
         .find_map(|pair| {
             let (k, v) = pair.split_once('=').unwrap_or((pair, ""));
             let (k, v) = (unescape(k)?, unescape(v)?);
-            (k == name).then_some(v)
+            (k == name.as_bytes()).then_some(v)
         })
 }
 
-/// Go's QueryUnescape: `+` is a space, `%XX` must be two hex digits.
-fn unescape(s: &str) -> Option<String> {
+/// Go's QueryUnescape: `+` is a space, `%XX` must be two hex digits, any bytes allowed.
+fn unescape(s: &str) -> Option<Vec<u8>> {
     let bytes = s.as_bytes();
     let mut out = Vec::with_capacity(bytes.len());
     let mut i = 0;
@@ -127,69 +109,73 @@ fn unescape(s: &str) -> Option<String> {
             }
         }
     }
-    Some(String::from_utf8_lossy(&out).into_owned())
+    Some(out)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn auth(query: &str, headers: &[(&'static str, &str)]) -> Result<Caller, &'static str> {
+    fn auth_with(keys: &[&str], query: &str, headers: &[(&'static str, &str)]) -> Result<Caller, &'static str> {
         let mut map = HeaderMap::new();
         for (k, v) in headers {
             map.insert(*k, v.parse().unwrap());
         }
-        authenticate(&["good".to_owned()], &map, query)
+        let keys: Vec<String> = keys.iter().map(|k| (*k).to_owned()).collect();
+        authenticate(&keys, &map, query)
+    }
+
+    fn auth(query: &str, headers: &[(&'static str, &str)]) -> Result<Caller, &'static str> {
+        auth_with(&["good"], query, headers)
     }
 
     #[test]
     fn query_matches_go_parse_query() {
+        let get = |q, n| query_get(q, n).map(|v| String::from_utf8(v).unwrap());
         assert_eq!(
-            query_get("key=wrong&key=good", "key").as_deref(),
+            get("key=wrong&key=good", "key").as_deref(),
             Some("wrong"),
             "first value wins"
         );
+        assert_eq!(get("%6bey=good", "key").as_deref(), Some("good"), "names are decoded");
         assert_eq!(
-            query_get("%6bey=good", "key").as_deref(),
-            Some("good"),
-            "names are decoded"
-        );
-        assert_eq!(
-            query_get("key=%zz&key=good", "key").as_deref(),
+            get("key=%zz&key=good", "key").as_deref(),
             Some("good"),
             "malformed pair skipped"
         );
         assert_eq!(
-            query_get("key=a;b&key=good", "key").as_deref(),
+            get("key=a;b&key=good", "key").as_deref(),
             Some("good"),
             "semicolon pair skipped"
         );
-        assert_eq!(query_get("key=a+b%2Bc", "key").as_deref(), Some("a b+c"));
-        assert_eq!(query_get("key", "key").as_deref(), Some(""));
+        assert_eq!(get("key=a+b%2Bc", "key").as_deref(), Some("a b+c"));
+        assert_eq!(get("key", "key").as_deref(), Some(""));
+        assert_eq!(
+            query_get("key=%FF&key=good", "key"),
+            Some(vec![0xFF]),
+            "invalid UTF-8 still wins first"
+        );
     }
 
     #[test]
     fn candidates_and_errors_match_go() {
         assert_eq!(auth("key=wrong&key=good", &[]), Err("Invalid API key"));
+        assert_eq!(auth("key=%FF&key=good", &[]), Err("Invalid API key"));
         assert_eq!(auth("%6bey=good", &[]).unwrap().source, "query-key");
         assert_eq!(auth("", &[]), Err("Missing API key"));
-        assert_eq!(
-            auth("", &[("authorization", "Bearer ")]),
-            Err("Invalid API key")
-        );
-        assert_eq!(
-            auth("", &[("authorization", "good")]).unwrap().source,
-            "authorization"
-        );
+        assert_eq!(auth("", &[("authorization", "Bearer ")]), Err("Invalid API key"));
+        assert_eq!(auth("", &[("authorization", "good")]).unwrap().source, "authorization");
         let caller = auth("", &[("x-api-key", "nope"), ("x-goog-api-key", "good")]).unwrap();
+        assert_eq!((caller.principal.as_str(), caller.source), ("good", "x-goog-api-key"));
+        assert_eq!(auth_with(&[], "", &[]).unwrap().principal, "", "no keys means open");
+    }
+
+    #[test]
+    fn replacement_char_key_does_not_match_raw_ff() {
+        assert_eq!(auth_with(&["a\u{FFFD}"], "key=a%FF", &[]), Err("Invalid API key"));
         assert_eq!(
-            (caller.principal.as_str(), caller.source),
-            ("good", "x-goog-api-key")
-        );
-        assert_eq!(
-            authenticate(&[], &HeaderMap::new(), "").unwrap().principal,
-            "",
-            "no keys means open"
+            auth_with(&["a\u{FFFD}"], "key=a%EF%BF%BD", &[]).unwrap().principal,
+            "a\u{FFFD}"
         );
     }
 }

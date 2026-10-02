@@ -1,16 +1,21 @@
 //! Translation between wire formats (internal/translator, sdk/translator).
 //!
 //! Executors call [`pair`] to find the transforms for `(client format, upstream format)`.
-//! Same-format traffic needs no pair and is passed through untouched.
+//! When no pair is registered and the formats are equal, traffic passes through
+//! untouched. Same-format pairs may still be registered for normalization (Go registers
+//! OpenAI -> OpenAI).
 //!
 //! Contract for every pair:
 //! - `request` turns a client body into an upstream body.
-//! - `non_stream` turns one buffered upstream body into one client body.
+//! - `non_stream` turns one buffered upstream body into one client body. The input may
+//!   be buffered SSE when the executor streamed upstream for a non-streaming client
+//!   (claude_executor_execute.go asks Claude for SSE whenever formats differ).
 //! - `stream` builds request-local state that turns framed upstream events (see
 //!   [`sse::Framer`]) into zero or more client events, then flushes on `finish`.
-//! - Transforms see the client's original request and the translated request before any
-//!   provider-specific rewriting (tool aliases, cloak), because executors reverse those
-//!   first (internal/runtime/executor/claude_executor_execute.go).
+//! - `count_tokens` turns an upstream token-count body into the client's shape.
+//! - Response transforms run after the executor has reversed provider rewrites (tool
+//!   aliases, cloak) and see the client's original request and the translated request
+//!   from before those rewrites.
 
 pub mod sse;
 
@@ -28,8 +33,14 @@ impl std::fmt::Display for Error {
 
 impl std::error::Error for Error {}
 
+/// Request-scoped inputs available to request transforms.
+pub struct RequestCtx<'a> {
+    pub model: &'a str,
+    pub stream: bool,
+}
+
 /// Request-scoped inputs available to response transforms.
-pub struct Ctx<'a> {
+pub struct ResponseCtx<'a> {
     pub model: &'a str,
     pub original_request: &'a [u8],
     pub translated_request: &'a [u8],
@@ -42,18 +53,20 @@ pub trait StreamTranslator: Send {
     fn finish(&mut self) -> Result<Vec<Bytes>, Error>;
 }
 
-pub type RequestFn = fn(model: &str, body: &[u8], stream: bool) -> Result<Vec<u8>, Error>;
-pub type NonStreamFn = fn(ctx: &Ctx<'_>, body: &[u8]) -> Result<Vec<u8>, Error>;
-pub type StreamFn = fn(ctx: &Ctx<'_>) -> Box<dyn StreamTranslator>;
+pub type RequestFn = fn(ctx: &RequestCtx<'_>, body: &[u8]) -> Result<Vec<u8>, Error>;
+pub type NonStreamFn = fn(ctx: &ResponseCtx<'_>, body: &[u8]) -> Result<Vec<u8>, Error>;
+pub type StreamFn = fn(ctx: &ResponseCtx<'_>) -> Box<dyn StreamTranslator>;
+pub type CountTokensFn = fn(ctx: &ResponseCtx<'_>, body: &[u8]) -> Result<Vec<u8>, Error>;
 
 pub struct Pair {
     pub request: RequestFn,
     pub non_stream: NonStreamFn,
     pub stream: StreamFn,
+    pub count_tokens: Option<CountTokensFn>,
 }
 
 /// Transforms for a client format talking to an upstream format, or `None` when the
-/// pair is not supported. Never called for `from == to`.
+/// pair is not registered.
 pub fn pair(client: Format, upstream: Format) -> Option<&'static Pair> {
     // ponytail: static match. Plugin-registered translators (M6) need a runtime table.
     #[allow(clippy::match_single_binding)] // pairs are added here as match arms

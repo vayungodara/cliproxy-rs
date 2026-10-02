@@ -31,7 +31,8 @@ pub struct Credential {
     pub attributes: BTreeMap<String, String>,
     /// The full credential JSON. Source of truth for provider fields.
     pub metadata: Map<String, Value>,
-    /// Bumped on every accepted change; patches against an old revision are rejected.
+    /// Store-wide monotonic stamp set on every accepted change, never reused even after
+    /// a delete and re-create. Patches against an old revision are rejected.
     pub revision: u64,
 }
 
@@ -56,23 +57,27 @@ impl Credential {
             .unwrap_or(path)
             .to_string_lossy()
             .into_owned();
-        let label = match metadata.get("email").and_then(Value::as_str) {
-            Some(email) if !email.is_empty() => email.to_owned(),
-            _ => provider.clone(),
-        };
-        Some(Self {
+        let mut cred = Self {
             id,
-            disabled: metadata
-                .get("disabled")
-                .and_then(Value::as_bool)
-                .unwrap_or(false),
-            label,
+            disabled: false,
+            label: String::new(),
             provider,
             source: Source::File(path.to_owned()),
             attributes: BTreeMap::new(),
             metadata,
             revision: 0,
-        })
+        };
+        cred.refresh_derived();
+        Some(cred)
+    }
+
+    /// Recomputes the fields derived from `metadata`. Call after every metadata change.
+    pub fn refresh_derived(&mut self) {
+        self.disabled = self.metadata.get("disabled").and_then(Value::as_bool).unwrap_or(false);
+        self.label = match self.str("email") {
+            Some(email) if !email.is_empty() => email.to_owned(),
+            _ => self.provider.clone(),
+        };
     }
 }
 

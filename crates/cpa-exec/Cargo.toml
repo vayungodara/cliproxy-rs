@@ -13,3 +13,6 @@ cpa-translate.workspace = true
 futures-util.workspace = true
 http.workspace = true
 wreq.workspace = true
+
+[dev-dependencies]
+tokio.workspace = true

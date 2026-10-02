@@ -46,10 +46,7 @@ async fn upstream(State(log): State<Log>, req: Request) -> Response {
         authorization: header("authorization"),
         beta: header("anthropic-beta"),
         accept_encoding: header("accept-encoding"),
-        client_key_leaked: parts
-            .headers
-            .values()
-            .any(|v| v.as_bytes() == b"client-key-1"),
+        client_key_leaked: parts.headers.values().any(|v| v.as_bytes() == b"client-key-1"),
         body: body.clone(),
     });
     let has = |marker: &[u8]| body.windows(marker.len()).any(|w| w == marker);
@@ -72,11 +69,7 @@ async fn upstream(State(log): State<Log>, req: Request) -> Response {
             tokio::time::sleep(std::time::Duration::from_millis(100)).await;
             Err(std::io::Error::other("connection reset"))
         }));
-        return (
-            [("content-type", "text/event-stream")],
-            Body::from_stream(chunks),
-        )
-            .into_response();
+        return ([("content-type", "text/event-stream")], Body::from_stream(chunks)).into_response();
     }
     let extra = [("request-id", "req_123"), ("x-secret", "nope")];
     if has(br#""stream":true"#) {
@@ -119,12 +112,7 @@ async fn proxy(dir: &Path, upstream_url: &str) -> String {
 #[tokio::test]
 async fn claude_messages_end_to_end() {
     let log: Log = Arc::default();
-    let upstream_url = serve(
-        axum::Router::new()
-            .fallback(upstream)
-            .with_state(log.clone()),
-    )
-    .await;
+    let upstream_url = serve(axum::Router::new().fallback(upstream).with_state(log.clone())).await;
     let dir = auth_dir(
         "main",
         &[
@@ -140,10 +128,7 @@ async fn claude_messages_end_to_end() {
                 "claude-c.json",
                 r#"{"type":"claude","access_token":"tok-DISABLED","disabled":true}"#,
             ),
-            (
-                "codex-d.json",
-                r#"{"type":"codex","access_token":"tok-CODEX"}"#,
-            ),
+            ("codex-d.json", r#"{"type":"codex","access_token":"tok-CODEX"}"#),
             ("broken.json", "{not json"),
             ("notes.txt", "ignored"),
         ],
@@ -151,21 +136,12 @@ async fn claude_messages_end_to_end() {
     let proxy = proxy(&dir, &upstream_url).await;
     let client = wreq::Client::new();
     let url = format!("{proxy}/v1/messages");
-    let post = |body: &'static str| {
-        client
-            .post(&url)
-            .header("x-api-key", "client-key-1")
-            .body(body)
-            .send()
-    };
+    let post = |body: &'static str| client.post(&url).header("x-api-key", "client-key-1").body(body).send();
 
     // Client auth (sdk/access errors).
     let missing = client.post(&url).body("{}").send().await.unwrap();
     assert_eq!(missing.status().as_u16(), 401);
-    assert_eq!(
-        missing.text().await.unwrap(),
-        r#"{"error":"Missing API key"}"#
-    );
+    assert_eq!(missing.text().await.unwrap(), r#"{"error":"Missing API key"}"#);
     let wrong = client
         .post(format!("{url}?key=nope&key=client-key-1"))
         .body("{}")
@@ -183,8 +159,7 @@ async fn claude_messages_end_to_end() {
     );
 
     // Non-streaming: JSON path, body forwarded byte for byte, upstream headers dropped.
-    let json_body =
-        r#"{ "model":"claude-opus-5-5",  "messages":[{"role":"user","content":"hi"}] }"#;
+    let json_body = r#"{ "model":"claude-opus-5-5",  "messages":[{"role":"user","content":"hi"}] }"#;
     let res = post(json_body).await.unwrap();
     assert_eq!(res.status().as_u16(), 200);
     assert_eq!(res.headers()["content-type"], "application/json");
@@ -206,10 +181,11 @@ async fn claude_messages_end_to_end() {
     assert!(res.headers().get("request-id").is_none());
     assert_eq!(res.text().await.unwrap(), SSE);
 
-    // Upstream error before streaming: Claude error JSON, status and Retry-After kept.
+    // Upstream error before streaming: Claude error JSON and status. Go sends Retry-After
+    // only for its own scheduler/cooldown errors, never a raw upstream one.
     let res = post(r#"{"stream":true,"x":"MODE_429"}"#).await.unwrap();
     assert_eq!(res.status().as_u16(), 429);
-    assert_eq!(res.headers()["retry-after"], "7");
+    assert!(res.headers().get("retry-after").is_none());
     assert_eq!(
         res.text().await.unwrap(),
         r#"{"type":"error","error":{"type":"rate_limit_error","message":"slow down"}}"#
@@ -246,11 +222,7 @@ data: {"type":"error","error":{"type":"api_error","message":"upstream request fa
         assert_eq!(s.accept_encoding, "identity");
         assert!(!s.client_key_leaked, "client key must never reach upstream");
     }
-    assert_eq!(
-        seen[0].body,
-        json_body.as_bytes(),
-        "body forwarded byte for byte"
-    );
+    assert_eq!(seen[0].body, json_body.as_bytes(), "body forwarded byte for byte");
 
     let models: serde_json::Value = client
         .get(format!("{proxy}/v1/models"))

@@ -21,15 +21,9 @@ pub fn router(rt: Arc<Runtime>) -> Router {
         .route("/v1/messages", post(claude::messages))
         .route("/v1/messages/count_tokens", post(claude::count_tokens))
         .route("/v1/models", get(claude::models))
-        .layer(middleware::from_fn_with_state(
-            rt.clone(),
-            access::require_client_key,
-        ));
+        .layer(middleware::from_fn_with_state(rt.clone(), access::require_client_key));
     Router::new()
-        .route(
-            "/healthz",
-            get(|| async { Json(serde_json::json!({"status": "ok"})) }),
-        )
+        .route("/healthz", get(|| async { Json(serde_json::json!({"status": "ok"})) }))
         .merge(api)
         .layer(DefaultBodyLimit::max(MAX_REQUEST_BYTES))
         .with_state(rt)
