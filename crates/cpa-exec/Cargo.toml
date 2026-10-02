@@ -13,7 +13,7 @@ cpa-core.workspace = true
 cpa-translate.workspace = true
 futures-util.workspace = true
 http.workspace = true
-wreq.workspace = true
+wreq = { workspace = true, features = ["socks"] }
 serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true
@@ -29,6 +29,7 @@ httpdate = "1"
 tiktoken-rs = "0.7"
 # Codex: raw JSON reads for byte-preserving request edits, config document access, logs.
 gjson = "0.8.1"
+regex = "1"
 serde_yaml_ng.workspace = true
 tracing.workspace = true
 libc.workspace = true

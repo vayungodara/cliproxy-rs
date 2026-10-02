@@ -7,6 +7,7 @@ use super::{
     is_valid_claude_cais_signature, is_valid_claude_thinking_signature, is_valid_kimi_thinking_signature,
     maybe_self_describing_envelope, split_provider_prefix,
 };
+use crate::gostr::trim_space;
 
 pub const MAX_GROK_ENCRYPTED_CONTENT_LEN: usize = 8 * 1024 * 1024;
 pub const MIN_GROK_ENCRYPTED_CONTENT_DECODED_LEN: usize = 32;
@@ -20,8 +21,9 @@ pub struct GrokContentInfo {
 }
 
 /// `InspectGrokEncryptedContent`.
-pub fn inspect_grok_encrypted_content(raw: &str) -> Result<GrokContentInfo, Error> {
-    let sig = raw.trim();
+pub fn inspect_grok_encrypted_content(raw: impl AsRef<[u8]>) -> Result<GrokContentInfo, Error> {
+    let raw = raw.as_ref();
+    let sig = trim_space(raw);
     if sig.is_empty() {
         return err("empty Grok encrypted_content");
     }
@@ -33,7 +35,7 @@ pub fn inspect_grok_encrypted_content(raw: &str) -> Result<GrokContentInfo, Erro
     if sig != raw {
         return err("Grok encrypted_content has leading or trailing whitespace");
     }
-    if sig.contains('=') {
+    if sig.contains(&b'=') {
         return err("invalid Grok encrypted_content: expected unpadded standard base64");
     }
     if let Some((index, rune)) = first_invalid_char(sig, b"+/") {
@@ -45,7 +47,7 @@ pub fn inspect_grok_encrypted_content(raw: &str) -> Result<GrokContentInfo, Erro
         return err("invalid Grok encrypted_content: carries another provider's cache prefix");
     }
     if maybe_self_describing_envelope(sig) {
-        if sig.starts_with("gAAAA") {
+        if sig.starts_with(b"gAAAA") {
             return err("Grok encrypted_content looks like GPT/Codex reasoning signature");
         }
         if is_valid_claude_thinking_signature(sig, ClaudeValidation::STRICT) {
@@ -87,7 +89,7 @@ pub fn inspect_grok_encrypted_content(raw: &str) -> Result<GrokContentInfo, Erro
 }
 
 /// `IsValidGrokEncryptedContent`.
-pub fn is_valid_grok_encrypted_content(raw: &str) -> bool {
+pub fn is_valid_grok_encrypted_content(raw: impl AsRef<[u8]>) -> bool {
     inspect_grok_encrypted_content(raw).is_ok()
 }
 

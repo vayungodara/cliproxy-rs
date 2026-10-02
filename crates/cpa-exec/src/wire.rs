@@ -1,29 +1,5 @@
-//! Ordered/cased HTTP/1 headers from the pinned native Claude Code captures.
-
-pub(crate) const MESSAGES: &[&str] = &[
-    "Accept",
-    "Authorization",
-    "Content-Type",
-    "User-Agent",
-    "X-Claude-Code-Session-Id",
-    "X-Stainless-Arch",
-    "X-Stainless-Lang",
-    "X-Stainless-OS",
-    "X-Stainless-Package-Version",
-    "X-Stainless-Retry-Count",
-    "X-Stainless-Runtime",
-    "X-Stainless-Runtime-Version",
-    "X-Stainless-Timeout",
-    "anthropic-beta",
-    "anthropic-dangerous-direct-browser-access",
-    "anthropic-version",
-    "x-app",
-    "x-client-request-id",
-    "Connection",
-    "Host",
-    "Accept-Encoding",
-    "Content-Length",
-];
+//! Ordered/cased HTTP/1 headers for Claude OAuth acquisition (auth/claude/utls_transport.go).
+//! The Messages/count_tokens order lives in claude/headers.rs.
 
 pub(crate) const OAUTH_TOKEN: &[&str] = &[
     "Accept",

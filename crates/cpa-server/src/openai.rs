@@ -17,7 +17,7 @@ use crate::claude::{alt, peek, read_failed};
 use crate::dispatch::{self, Call, Done};
 use crate::gojson::{self, Obj};
 use crate::respond::{self, Writer};
-use crate::{Runtime, errors, jsonedit};
+use crate::{Runtime, errors};
 
 struct Request {
     caller: Caller,
@@ -181,10 +181,10 @@ fn completions_to_chat(root: &Value) -> String {
     let model = gojson::gjson_string(root.get("model"));
     let message = Obj::new()
         .str("role", "user")
-        .raw("content", &jsonedit::sjson_string(&prompt))
+        .raw("content", &gojson::sjson_string(&prompt))
         .finish();
     let mut out = Obj::new()
-        .raw("model", &jsonedit::sjson_string(&model))
+        .raw("model", &gojson::sjson_string(&model))
         .raw("messages", &format!("[{message}]"));
     let get = |k: &str| root.get(k);
     if let Some(v) = get("max_tokens") {
@@ -214,13 +214,10 @@ fn completions_to_chat(root: &Value) -> String {
 
 fn completion_head(root: &Value) -> Obj {
     Obj::new()
-        .raw("id", &jsonedit::sjson_string(&gojson::gjson_string(root.get("id"))))
+        .raw("id", &gojson::sjson_string(&gojson::gjson_string(root.get("id"))))
         .str("object", "text_completion")
         .raw("created", &root.get("created").map_or(0, go_int).to_string())
-        .raw(
-            "model",
-            &jsonedit::sjson_string(&gojson::gjson_string(root.get("model"))),
-        )
+        .raw("model", &gojson::sjson_string(&gojson::gjson_string(root.get("model"))))
 }
 
 /// Go `convertChatCompletionsResponseToCompletions`.
@@ -863,7 +860,7 @@ pub async fn compact(
             );
         }
         Some(_) => {
-            if let Some(updated) = jsonedit::delete(&body, "stream") {
+            if let Ok(updated) = cpa_common::json::try_delete(&body, "stream") {
                 body = Bytes::from(updated);
             }
         }

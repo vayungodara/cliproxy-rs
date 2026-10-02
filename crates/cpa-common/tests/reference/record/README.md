@@ -32,9 +32,9 @@ cp matrix_test.go.txt "$copy/test/zz_matrix_test.go"
 cp signature_matrix_test.go.txt "$copy/internal/signature/zz_matrix_test.go"
 cd "$copy"
 out=$(mktemp -d); matrix=$(mktemp -d); sig=$(mktemp -d)
-CPA_RECORD_DIR=$out go test -count=1 -p 1 -parallel 1 ./internal/thinking/... \
+CPA_RECORD_DIR=$out go test -count=1 -p 1 -parallel 1 -skip TestRecord ./internal/thinking/... \
   ./internal/signature/... ./internal/runtime/executor/helps/ ./internal/translator/...
-CPA_RECORD_DIR=$out go test -count=1 -p 1 -parallel 1 -run 'Thinking|Summary|Signature' ./test/
+CPA_RECORD_DIR=$out go test -count=1 -p 1 -parallel 1 -run 'Thinking|Summary|Signature' -skip TestRecord ./test/
 CPA_RECORD_DIR=$matrix go test -count=1 -run TestRecordThinkingMatrix ./test/
 CPA_SIG_CORPUS=$here/signature_corpus.json CPA_RECORD_DIR=$sig \
   go test -count=1 -run TestRecordSignatureMatrix ./internal/signature/
@@ -49,16 +49,21 @@ Two Go tests fail under recording, `TestConvertGeminiRequestToAntigravityBoundsL
 and `TestConvertGeminiRequestToGeminiReusesLargeNormalizedPayload`: they assert allocation
 budgets, and the recorder serializes their 20 MiB payloads. Their behaviour is unaffected.
 
-`merge.py` lists every record it drops. At 6fecc6e that is eight:
+Strings that are not valid UTF-8 are recorded as `{"b64": ...}` and replayed as raw bytes,
+because Go strings are bytes and the Rust API takes `&[u8]`.
+
+`merge.py` lists every record it drops. At 6fecc6e that is four lines over 64 KiB:
 
 - `normalize_claude` and `validate_claude` (32 MiB signatures): the length caps, covered by
   `length_caps_reject_before_decoding`.
 - Two `sanitize_gemini` calls (4 MiB and 20 MiB inline media) that Go returns unchanged,
   rebuilt byte for byte in `large_inline_data_passes_through_like_go`.
-- `decide`, `detect`, `inspect_kimi` and `split_prefix` with non-UTF-8 signature strings.
-  The `&str` API cannot receive them (see the UTF-8 note in `src/json.rs`). Replay normalizes protobuf-go's `proto:` separator: the library
+
+Replay normalizes protobuf-go's `proto:` separator inside error strings only: the library
 picks U+0020 or U+00A0 per binary so nothing depends on it.
 
-`../sjson/main.go` generates `../../fixtures/sjson_go.json` the same way for the
-sjson/gjson port in `src/json.rs` (`go run . > ../../fixtures/sjson_go.json` in a module
-requiring `github.com/tidwall/sjson v1.2.5` and `github.com/tidwall/gjson v1.18.0`).
+`../sjson/main.go` generates `../../fixtures/sjson_go.json` (7,266 sjson edits and 24
+gjson reads) for `src/json.rs`, checked by `src/json_go_vectors.rs`. Run
+`go run . > ../../fixtures/sjson_go.json` in a module requiring
+`github.com/tidwall/sjson v1.2.5` and `github.com/tidwall/gjson v1.18.0`. `../unicode/main.go`
+generates `src/gostr_tables.rs` from Go 1.26's `unicode` and `strconv` tables.

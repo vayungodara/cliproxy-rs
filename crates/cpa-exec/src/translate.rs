@@ -156,6 +156,7 @@ mod tests {
             alt: None,
             session: None,
             execution_session: None,
+            derived_session: None,
             headers: Default::default(),
             caller: Caller {
                 principal: "fake-client-key".into(),

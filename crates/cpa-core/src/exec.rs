@@ -61,7 +61,11 @@ pub struct ExecRequest {
     pub stream: bool,
     /// Alternate operation from `alt` / `$alt` (for example `responses/compact`).
     pub alt: Option<String>,
-    /// Session key for affinity and provider session identity, when one was derived.
+    /// Session key for affinity and provider session identity, when one was derived:
+    /// Go `ExtractSessionID` (see `cpa_common::session`). Explicit client sessions carry
+    /// their family prefix (`claude:`, `codex:`, `header:`, `pck:`, ...); `derived:<id>`
+    /// means Go's `derived_session_id` metadata is `<id>`; `msg:` is the first-messages
+    /// hash.
     pub session: Option<String>,
     /// Go `execution_session_id` metadata: a long-lived execution session that outlives
     /// one HTTP request. Set only by transports that own such a session (the Responses
@@ -69,6 +73,11 @@ pub struct ExecRequest {
     /// Provider replay caches (Codex and Kimi reasoning replay) key on
     /// `execution:<id>` before falling back to payload or header identity.
     pub execution_session: Option<String>,
+    /// Go `derived_session_id` metadata (`ctx:v1:<sha256>`, from
+    /// `cpa_common::session::derive_id`): set only when the request carries no explicit
+    /// session signal and no execution session, exactly when Go's `session.Enrich` sets
+    /// it. Go `helps.ProviderSessionUUID` falls back to it after the execution session.
+    pub derived_session: Option<String>,
     /// Inbound headers. Executors forward only what their provider profile allows.
     /// Contains client credentials: never log or forward wholesale.
     pub headers: HeaderMap,
@@ -85,6 +94,7 @@ impl fmt::Debug for ExecRequest {
             .field("stream", &self.stream)
             .field("alt", &self.alt)
             .field("execution_session", &self.execution_session)
+            .field("derived_session", &self.derived_session)
             .field("body_len", &self.body.len())
             .finish_non_exhaustive()
     }
