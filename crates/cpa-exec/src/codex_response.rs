@@ -150,7 +150,7 @@ fn usage_retry_after(status: u16, body: &str, now: SystemTime) -> Option<Duratio
 }
 
 /// `clienterror.IsRequestFault`: the caller's request is wrong; no credential can help.
-pub fn request_fault(status: u16, body: &str) -> bool {
+pub(crate) fn request_fault(status: u16, body: &str) -> bool {
     if status == 402 || status == 429 {
         return false;
     }

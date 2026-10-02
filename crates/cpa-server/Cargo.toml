@@ -12,6 +12,7 @@ axum = { workspace = true, features = ["ws"] }
 bytes.workspace = true
 cpa-core.workspace = true
 cpa-exec.workspace = true
+cpa-translate.workspace = true
 futures-util.workspace = true
 gjson = "0.8.1"
 regex = "1"
@@ -25,4 +26,5 @@ bcrypt = "0.19"
 subtle = "2.6"
 
 [dev-dependencies]
+tokio = { workspace = true, features = ["test-util"] }
 wreq.workspace = true

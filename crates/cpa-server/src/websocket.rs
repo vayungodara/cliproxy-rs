@@ -30,13 +30,15 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use cpa_core::config::Config;
 use cpa_core::credential::Credential;
-use cpa_core::exec::{Caller, ExecError, ExecRequest, ExecSession, ExecStream, FailureScope, Operation, ResponseBody};
+use cpa_core::exec::{Caller, ExecError, ExecRequest, ExecSession, ExecStream, Operation, ResponseBody};
 use cpa_core::format::Format;
 use cpa_exec::codex::CodexExecutor;
 use futures_util::StreamExt;
 
+use crate::registry::provider_key;
 use crate::runtime::{AcquireError, Completing, Lease, Outcome, Runtime, Selection};
-use crate::scheduler::{Policy, canonical_model, execution_model, retry_status};
+use crate::scheduler::{Policy, canonical_model};
+use crate::{classify, dispatch};
 use crate::websocket_requests::{
     self as requests, APPEND, CREATE, Turn, WsError, delete, error_payload, field, payloads_from_chunk,
 };
@@ -121,6 +123,18 @@ impl Failure {
             text: String::from_utf8_lossy(&e.body).into_owned(),
             payload: None,
             replay: e.is_replay_required(),
+        }
+    }
+
+    fn from_dispatch(failure: &dispatch::Failure) -> Self {
+        match failure {
+            dispatch::Failure::Exec(e) => Self {
+                status: classify::response_status(e),
+                text: classify::error_text(e),
+                payload: None,
+                replay: e.is_replay_required(),
+            },
+            other => Self::local(other.status(), &other.text()),
         }
     }
 
@@ -259,9 +273,9 @@ impl Connection {
         if request_model.is_empty() {
             request_model = field(&self.last_request, "model");
         }
-        self.revalidate_pin(&request_model, &policy);
+        self.revalidate_pin(&request_model);
 
-        let mut use_upstream_ws = self.uses_upstream_websocket(&request_model, &policy);
+        let mut use_upstream_ws = self.uses_upstream_websocket(&request_model);
         if let Some(pinned) = self.credential(&self.pinned)
             && CodexExecutor::upstream_websocket(&pinned)
         {
@@ -287,7 +301,7 @@ impl Connection {
             && match self.credential(&self.pinned) {
                 Some(pinned) => pinned.provider.eq_ignore_ascii_case("codex"),
                 None => {
-                    let available = self.available(&request_model, &policy);
+                    let available = self.available(&request_model);
                     !available.is_empty() && available.iter().all(|c| c.provider.eq_ignore_ascii_case("codex"))
                 }
             };
@@ -384,7 +398,7 @@ impl Connection {
         let forwarded = match started {
             Ok(started) => self.forward(socket, started, &cfg, &mut ctx).await,
             Err(error) => {
-                let failure = Failure::from_exec(&error);
+                let failure = Failure::from_dispatch(&error);
                 if ctx.suppress(failure.status) {
                     Forwarded::Suppressed
                 } else {
@@ -434,75 +448,71 @@ impl Connection {
         self.rt.store().get(id)
     }
 
-    /// `GetProviderName` for this route.
-    // ponytail: adapter for the dynamic model registry (server thread). Only Codex
-    // credentials serve the Responses WebSocket today: a model is routed to Codex unless
-    // the pinned catalog lists it for another provider only.
-    fn providers(&self, model: &str, policy: &Policy) -> Vec<&'static str> {
-        let base = canonical_model(model);
-        if base.is_empty() {
-            return Vec::new();
+    /// `responsesWebsocketProviderSetForModel`: providers that registered the model
+    /// (`auto` resolved, thinking suffix stripped) and the model key.
+    fn providers(&self, model: &str) -> (Vec<String>, String) {
+        let registry = self.rt.registry();
+        let resolved = resolve_auto(&self.rt, &registry, model);
+        let key = canonical_model(&resolved).to_owned();
+        let mut providers = registry.providers(&key);
+        if providers.is_empty() && key != resolved {
+            providers = registry.providers(&resolved);
         }
-        let catalog = cpa_core::registry::pinned();
-        let codex_channel = ["codex-free", "codex-team", "codex-plus", "codex-pro"]
-            .iter()
-            .any(|ch| catalog.channel(ch).iter().any(|m| m.id == base));
-        if !codex_channel && catalog.lookup(base).is_some() {
-            return Vec::new();
-        }
-        let served = self
-            .rt
-            .store()
-            .snapshot()
-            .iter()
-            .any(|c| c.provider == "codex" && !c.disabled && execution_model(c, model, policy).is_some());
-        if served { vec!["codex"] } else { Vec::new() }
+        let key = if key.is_empty() { resolved.trim().to_owned() } else { key };
+        (providers, key)
+    }
+
+    /// `responsesWebsocketAuthAvailableForModel`: enabled and not cooling for the model.
+    fn usable(&self, credential: &Credential, key: &str) -> bool {
+        !credential.disabled && !self.rt.store().blocked(credential, key)
     }
 
     /// `responsesWebsocketAvailableAuthsForModel`.
-    // ponytail: cooling credentials still count as available here; selection skips them.
-    fn available(&self, model: &str, policy: &Policy) -> Vec<Arc<Credential>> {
-        let providers = self.providers(model, policy);
+    fn available(&self, model: &str) -> Vec<Arc<Credential>> {
+        let (providers, key) = self.providers(model);
+        if providers.is_empty() {
+            return Vec::new();
+        }
+        let registry = self.rt.registry();
         self.rt
             .store()
             .snapshot()
             .into_iter()
             .filter(|c| {
-                providers.contains(&c.provider.to_ascii_lowercase().as_str())
-                    && !c.disabled
-                    && execution_model(c, model, policy).is_some()
+                providers.contains(&provider_key(c))
+                    && (key.is_empty() || registry.client_supports(&c.id, &key))
+                    && self.usable(c, &key)
             })
             .collect()
     }
 
     /// `responsesWebsocketUsesUpstreamWebsocketPassthrough`: every credential for the
     /// model keeps upstream state on a socket.
-    fn uses_upstream_websocket(&self, model: &str, policy: &Policy) -> bool {
+    fn uses_upstream_websocket(&self, model: &str) -> bool {
         if model.trim().is_empty() {
             return false;
         }
-        let available = self.available(model, policy);
+        let available = self.available(model);
         !available.is_empty() && available.iter().all(|c| self.rt.executors.session_upstream(c))
     }
 
-    /// `responsesWebsocketPinnedAuthMatchesModel` (manager-visible credentials only).
-    fn pin_matches(&self, credential: &Credential, model: &str, policy: &Policy) -> bool {
-        let providers = self.providers(model, policy);
-        providers.contains(&credential.provider.to_ascii_lowercase().as_str())
-            && !credential.disabled
-            && execution_model(credential, canonical_model(model), policy).is_some()
+    /// `responsesWebsocketPinnedAuthMatchesModel` for credentials the store still holds.
+    fn pin_matches(&self, credential: &Credential, model: &str) -> bool {
+        let (providers, key) = self.providers(model);
+        providers.contains(&provider_key(credential))
+            && self.usable(credential, &key)
+            && self.rt.registry().client_supports(&credential.id, &key)
     }
 
     /// Drops a pin whose credential no longer serves the model, or restores the pin
     /// remembered for the model's only provider.
-    fn revalidate_pin(&mut self, model: &str, policy: &Policy) {
+    fn revalidate_pin(&mut self, model: &str) {
         if let Some(pinned) = self.credential(&self.pinned) {
-            let provider = pinned.provider.to_ascii_lowercase();
             let current = self
                 .pinned_by_provider
-                .get(&provider)
+                .get(&provider_key(&pinned))
                 .is_some_and(|(id, _)| *id == self.pinned);
-            if !current || !self.pin_matches(&pinned, model, policy) {
+            if !current || !self.pin_matches(&pinned, model) {
                 self.pinned.clear();
             }
         } else {
@@ -511,13 +521,12 @@ impl Connection {
         if !self.pinned.is_empty() {
             return;
         }
-        let providers = self.providers(model, policy);
-        if let [provider] = providers.as_slice() {
-            let remembered = self.pinned_by_provider.get(*provider).cloned();
+        if let [provider] = self.providers(model).0.as_slice() {
+            let remembered = self.pinned_by_provider.get(provider).cloned();
             match remembered.and_then(|(id, _)| self.credential(&id).map(|c| (id, c))) {
-                Some((id, c)) if self.pin_matches(&c, model, policy) => self.pinned = id,
+                Some((id, c)) if self.pin_matches(&c, model) => self.pinned = id,
                 _ => {
-                    self.pinned_by_provider.remove(*provider);
+                    self.pinned_by_provider.remove(provider);
                 }
             }
         }
@@ -529,17 +538,18 @@ impl Connection {
             return;
         };
         self.pinned = id.to_owned();
-        let provider = credential.provider.to_ascii_lowercase();
+        let provider = provider_key(&credential);
         if !provider.is_empty() {
-            self.pinned_by_provider
-                .insert(provider, (id.to_owned(), canonical_model(model).to_owned()));
+            let key = self.providers(model).1;
+            self.pinned_by_provider.insert(provider, (id.to_owned(), key));
         }
     }
 
     /// Selection, credential failover and retry rounds until a stream yields its first
-    /// event (`ExecuteStreamWithAuthManager`).
-    // ponytail: mirrors claude.rs's attempt loop; switch to the server thread's shared
-    // dispatch when it lands.
+    /// event (`ExecuteStreamWithAuthManager` with a pinned auth and the execution session).
+    // ponytail: follows dispatch::run (retry rounds, request-scoped rules, 401
+    // refresh-and-retry) but runs `execute_in_session`, honours the pin and reports the
+    // serving credential, which dispatch cannot yet; alias pools use their first model.
     async fn attempt(
         &self,
         request: &str,
@@ -547,171 +557,186 @@ impl Connection {
         cfg: &Config,
         policy: &Arc<Policy>,
         ctx: &mut TurnCtx,
-    ) -> Result<Started, ExecError> {
-        let Some(provider) = self.providers(model, policy).first().copied() else {
-            // `unknown provider for model`: a model_not_found body, so never exposed.
-            return Err(ExecError::local(
-                400,
-                FailureScope::Request,
-                serde_json::json!({"error": {
-                    "message": format!("unknown provider for model {model}"),
-                    "type": "invalid_request_error", "code": "model_not_found", "param": "model"}})
-                .to_string(),
-            ));
-        };
+    ) -> Result<Started, dispatch::Failure> {
+        let registry = self.rt.registry();
+        let aliases = crate::registry::global_aliases(cfg);
+        let (providers, _) = self.providers(model);
+        if providers.is_empty() {
+            return Err(dispatch::Failure::UnknownModel(model.to_owned()));
+        }
+        let resolved = resolve_auto(&self.rt, &registry, model);
         // A pinned credential is the only candidate (`WithPinnedAuthID`).
-        let exclude = if self.pinned.is_empty() {
-            Vec::new()
-        } else {
-            self.rt
-                .store()
-                .snapshot()
-                .iter()
-                .filter(|c| c.id != self.pinned)
-                .map(|c| c.id.clone())
-                .collect()
-        };
+        let pinned_only = |c: &Arc<Credential>| !self.pinned.is_empty() && c.id != self.pinned;
+        let exclude: Vec<String> = self
+            .rt
+            .store()
+            .snapshot()
+            .iter()
+            .filter(|c| pinned_only(c))
+            .map(|c| c.id.clone())
+            .collect();
+        let body = Bytes::from(request.to_owned());
         let mut selection = Selection {
-            provider: provider.into(),
-            model: model.into(),
-            session: None,
+            providers: providers.clone(),
+            model: resolved.clone(),
+            session: crate::session::resolve(&self.headers, &body),
             exclude: exclude.clone(),
-            retry_round: 0,
+            ..Selection::default()
         };
         let session = ExecSession {
             id: self.session.clone(),
             continuation: ctx.native && ctx.requires_current,
         };
-        let body = Bytes::from(request.to_owned());
         let req = ExecRequest {
             operation: Operation::Generate,
             source_format: Format::OpenAIResponse,
             response_format: Format::OpenAIResponse,
-            requested_model: model.into(),
-            model: model.into(),
+            requested_model: resolved.clone(),
+            model: resolved.clone(),
             original_body: body.clone(),
             body,
             stream: true,
             alt: None,
-            session: None,
+            session: selection.session.clone(),
+            execution_session: Some(self.session.clone()),
             headers: self.headers.clone(),
             caller: self.caller.clone(),
         };
-        let mut last_error: Option<ExecError> = None;
+        let mut upstream: Option<ExecError> = None;
         loop {
-            let mut attempted = 0;
-            loop {
-                if policy.max_retry_credentials > 0 && attempted >= policy.max_retry_credentials {
-                    break;
+            let mut last: Option<ExecError> = None;
+            let mut attempted: Vec<String> = Vec::new();
+            let pick_failure = loop {
+                if policy.max_retry_credentials > 0 && attempted.len() >= policy.max_retry_credentials {
+                    break None;
                 }
-                let lease = match self.rt.acquire_with_policy(selection.clone(), cfg, policy.clone()).await {
+                let mut lease = match self.rt.acquire(selection.clone(), cfg, policy.clone(), &registry).await {
                     Ok(lease) => lease,
                     Err(AcquireError::Prepare { id, error }) => {
-                        attempted += 1;
-                        selection.exclude.push(id.clone());
-                        if self
-                            .rt
-                            .store()
-                            .get(&id)
-                            .is_some_and(|c| policy.error_action(&c, &error).stop)
-                        {
-                            return Err(error);
-                        }
-                        last_error = Some(error);
+                        attempted.push(id.clone());
+                        selection.exclude.push(id);
+                        last = Some(error);
                         continue;
                     }
-                    Err(AcquireError::Cooldown { wait }) => {
-                        if last_error.is_none() {
-                            let mut error = ExecError::local(
-                                429,
-                                FailureScope::Model,
-                                format!("All credentials for model {model} are cooling down via provider {provider}"),
-                            );
-                            error.retry_after = Some(wait);
-                            return Err(error);
-                        }
-                        break;
+                    Err(AcquireError::Cooldown { wait, cause }) => {
+                        break Some(dispatch::Failure::Cooldown {
+                            model: selection.model.clone(),
+                            provider: if providers.len() == 1 {
+                                providers[0].clone()
+                            } else {
+                                String::new()
+                            },
+                            wait,
+                            cause,
+                        });
                     }
-                    Err(AcquireError::NoCredential) => {
-                        if last_error.is_none() {
-                            return Err(ExecError::local(
-                                503,
-                                FailureScope::Model,
-                                format!("auth_not_found: no auth available (providers={provider}, model={model})"),
-                            ));
-                        }
-                        break;
+                    Err(AcquireError::Unavailable { retry_after, cause }) => {
+                        break Some(dispatch::Failure::Unavailable {
+                            code: if retry_after.is_some() {
+                                "auth_unavailable"
+                            } else {
+                                "auth_not_found"
+                            },
+                            providers: providers.clone(),
+                            model: resolved.clone(),
+                            cause,
+                            retry_after,
+                        });
                     }
                 };
-                attempted += 1;
                 selection.exclude.push(lease.credential.id.clone());
-                let credential = lease.credential.clone();
+                attempted.push(lease.credential.id.clone());
+                let (models, _) = crate::registry::execution_models(&aliases, &lease.credential, &selection.model);
+                let upstream_model = models.into_iter().next().unwrap_or_else(|| resolved.clone());
+                let selection_model = crate::registry::selection_model(&aliases, &lease.credential, &selection.model);
+                lease.execution_model =
+                    crate::registry::state_model(&selection_model, &selection.model, &upstream_model, false);
                 // `WithSelectedAuthIDCallback`.
+                let credential = lease.credential.clone();
                 ctx.last_attempted.clone_from(&credential.id);
                 ctx.pinned_attempted |= !self.pinned.is_empty() && credential.id == self.pinned;
-                let codex = credential.provider.eq_ignore_ascii_case("codex");
                 ctx.attempted_mode = if self.rt.executors.session_upstream(&credential) {
                     Mode::Websocket
                 } else {
                     Mode::Http
                 };
-                ctx.preserve_output = ctx.native_request && codex;
+                ctx.preserve_output = ctx.native_request && credential.provider.eq_ignore_ascii_case("codex");
                 let mut attempt_req = req.clone();
-                attempt_req.model.clone_from(&lease.execution_model);
-                let response = match self
+                attempt_req.model = upstream_model;
+                let mut executed = self
                     .rt
                     .executors
-                    .execute_in_session(&credential, attempt_req, cfg, &session)
-                    .await
+                    .execute_in_session(&lease.credential, attempt_req.clone(), cfg, &session)
+                    .await;
+                // Go `tryRefreshAfterUnauthorized`: one refresh-and-retry per credential.
+                if let Err(error) = &executed
+                    && classify::is_unauthorized(error)
+                    && let Some(current) = self.rt.refresh_after_unauthorized(&lease.credential, cfg).await
                 {
-                    Ok(response) => response,
-                    Err(e) => {
-                        let action = policy.error_action(&credential, &e);
-                        lease.complete(Outcome::Failure(e.clone()));
-                        if action.stop {
-                            return Err(e);
-                        }
-                        last_error = Some(e);
-                        continue;
-                    }
-                };
-                let mut stream = match response.body {
-                    ResponseBody::Stream(stream) => stream,
-                    ResponseBody::Buffered(bytes) => futures_util::stream::once(async move { Ok(bytes) }).boxed(),
-                };
-                let first = loop {
-                    match stream.next().await {
-                        Some(Ok(bytes)) if bytes.is_empty() => continue,
-                        item => break item,
-                    }
-                };
-                match first {
-                    Some(Err(e)) => {
-                        let action = policy.error_action(&credential, &e);
-                        lease.complete(Outcome::Failure(e.clone()));
-                        if action.stop {
-                            return Err(e);
-                        }
-                        last_error = Some(e);
-                    }
-                    first => {
-                        return Ok(Started {
-                            lease,
-                            first: first.map(Result::unwrap),
-                            stream,
-                        });
-                    }
+                    lease.credential = current;
+                    executed = self
+                        .rt
+                        .executors
+                        .execute_in_session(&lease.credential, attempt_req, cfg, &session)
+                        .await;
                 }
+                let error = match executed {
+                    Ok(response) => match first_event(response.body).await {
+                        Ok((first, stream)) => return Ok(Started { lease, first, stream }),
+                        Err(error) => error,
+                    },
+                    Err(error) => error,
+                };
+                let action = policy.error_action(&lease.credential, &error);
+                let stop = if action.matched {
+                    action.stop
+                } else {
+                    classify::is_request_invalid(&error)
+                };
+                lease.complete(Outcome::Failure(error.clone()));
+                if stop {
+                    return Err(dispatch::Failure::Exec(error));
+                }
+                if classify::upstream_attempted(&error) {
+                    upstream = Some(error.clone());
+                }
+                last = Some(error);
+            };
+            let round: dispatch::Failure = match (last, pick_failure) {
+                (Some(error), _) => dispatch::Failure::Exec(error),
+                (None, Some(failure)) => failure,
+                (None, None) => dispatch::Failure::Unavailable {
+                    code: "auth_not_found",
+                    providers: providers.clone(),
+                    model: resolved.clone(),
+                    cause: None,
+                    retry_after: None,
+                },
+            };
+            let (status, retry_round) = match &round {
+                dispatch::Failure::Exec(e) => (
+                    classify::go_status(e),
+                    classify::is_retry_round(e) && !classify::is_request_invalid(e),
+                ),
+                dispatch::Failure::Cooldown { .. } => (429, true),
+                dispatch::Failure::Unavailable { retry_after: Some(_), .. } => (503, true),
+                _ => (0, false),
+            };
+            let terminal = |round| upstream.clone().map(dispatch::Failure::Exec).unwrap_or(round);
+            if !retry_round {
+                return Err(terminal(round));
             }
-            let error = last_error.clone().expect("an attempt failed");
-            if !retry_status(error.status) && error.scope != FailureScope::Transport {
-                return Err(error);
-            }
-            let Some(wait) = self.rt.store().retry_wait(&selection, policy, &error) else {
-                return Err(error);
+            let wait = {
+                let admit = crate::runtime::admission(&registry, &aliases, &selection, &self.rt.executors);
+                self.rt
+                    .store()
+                    .retry_wait(&selection, policy, status, &attempted, &admit)
+            };
+            let Some(wait) = wait else {
+                return Err(terminal(round));
             };
             if !wait.is_zero() {
-                tokio::time::sleep(wait).await;
+                tokio::time::sleep(dispatch::jitter(wait, policy.max_retry_interval)).await;
             }
             selection.retry_round += 1;
             selection.exclude.clone_from(&exclude);
@@ -811,6 +836,38 @@ impl Connection {
     }
 }
 
+/// Go `getRequestDetails` `auto` resolution, keeping the thinking suffix.
+fn resolve_auto(rt: &Runtime, registry: &crate::registry::Registry, model: &str) -> String {
+    let base = match model.rfind('(') {
+        Some(i) if model.ends_with(')') => &model[..i],
+        _ => model,
+    };
+    if base != "auto" {
+        return model.to_owned();
+    }
+    let first = registry
+        .resolve_auto(|client, m| rt.suspension(client, m))
+        .unwrap_or_else(|| "auto".into());
+    format!("{first}{}", &model[base.len()..])
+}
+
+/// Waits for the first non-empty event so a failed stream can still fail over (Go
+/// conductor_stream.go: an empty stream is a failed attempt).
+async fn first_event(body: ResponseBody) -> Result<(Option<Bytes>, ExecStream), ExecError> {
+    let mut stream = match body {
+        ResponseBody::Stream(stream) => stream,
+        ResponseBody::Buffered(bytes) => futures_util::stream::once(async move { Ok(bytes) }).boxed(),
+    };
+    loop {
+        match stream.next().await {
+            Some(Ok(bytes)) if bytes.is_empty() => continue,
+            Some(Ok(bytes)) => return Ok((Some(bytes), stream)),
+            Some(Err(error)) => return Err(error),
+            None => return Err(classify::empty_stream()),
+        }
+    }
+}
+
 async fn sleep_until(deadline: Option<tokio::time::Instant>) {
     match deadline {
         Some(deadline) => tokio::time::sleep_until(deadline).await,
@@ -878,7 +935,7 @@ fn close_code(failure: &Failure) -> Option<(u16, String)> {
 /// quota and transport failures close silently so the client reconnects and resends.
 // ponytail: Go also exposes terminal upstream-auth errors; no executor reports them yet.
 fn exposed(failure: &Failure) -> bool {
-    cpa_exec::request_fault(failure.status, &failure.text)
+    classify::is_request_fault(failure.status, &failure.text)
 }
 
 /// `closeForUpstreamError` then `writeResponsesWebsocketTerminalError`: a close code,

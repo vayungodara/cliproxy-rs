@@ -2,14 +2,14 @@
 
 ## Direction contract
 
-THESIS: Observatory is a working instrument panel: telemetry, routing, and account health share one readable plane. It refuses nested card grids.
+THESIS: The proxy as a well-made device. Rams-era Braun (ET66, T3) supplies the grammar: a recessed display, round keys, lamps and a perforated grille. It refuses the KPI-card dashboard.
 
-OWN-WORLD: midnight slate and porcelain blue-gray, ice-blue actions, muted mint health, Public Sans typography, fine rules, precise SVG icons. No glow or gradients.
+OWN-WORLD: Warm grey body in light, ET66 black in dark. One accent, Braun yellow, for the primary key and the current page only. Green, orange, red and hollow lamps for state, each with a word. Host Grotesk throughout; system mono only for keys, paths and logs.
 
-STORY: operators see whether requests flow, inspect an account, and change configuration without losing context.
+STORY: The operator sees whether requests flow and which credentials are ready, then connects or fixes one without leaving the list.
 
-FIRST VIEWPORT: compact fixed sidebar, slim connection bar, large Overview heading, horizontal measurement strip, wide traffic chart beside a narrow provider mix, then account-health table. Primary action sits at the top right.
+FIRST VIEWPORT: Key column on the left; a recessed display with a 20 × 5 traffic grille, ready count and success rate; credentials grouped by provider, each row carrying its own 20-hole grille. "Connect account" sits top right.
 
-FORM: chosen C from the saved three-direction Painter comparison, selected by user-authorized judgment. The request explicitly authorizes selecting rather than waiting for approval. Signature interaction: live traffic cursor and crisp, reduced-motion-aware navigation.
+FORM: Instrument, candidate 7 of 7 in the ordered list, seed ed47827c.
 
-FINISH: rendered pages inspected in both themes, API calls verified against the release backend, production size measured, and built design documented. Generated concepts are references, not shipping assets.
+FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance

@@ -565,6 +565,7 @@ dependencies = [
  "bytes",
  "cpa-core",
  "cpa-exec",
+ "cpa-translate",
  "futures-util",
  "gjson",
  "regex",

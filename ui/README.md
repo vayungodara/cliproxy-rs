@@ -1,101 +1,81 @@
 # cliproxy-rs dashboard
 
-A static Svelte 5 dashboard for servers implementing CLIProxyAPI's v8 Management API. No component library, runtime chart library, or server-side rendering. Twelve hash-routed pages, native controls, local typography, and light/dark themes.
+The management dashboard for cliproxy-rs, written in Svelte 5 with plain CSS. It talks to the v8 Management API defined by Go CLIProxyAPI, and it has two outputs built from one source tree:
 
-## Run and embed
+- `dist/` is embedded by the Rust binary (`crates/cpa-server/build.rs`) and served at `/management.html`.
+- `dist-panel/management.html` is one self-contained file for existing Go CLIProxyAPI servers. See [PANEL.md](PANEL.md).
 
-Requires Node 22.12 or newer; Node 26 was used for verification.
+Product rules are in [PRODUCT.md](PRODUCT.md), the visual system in [DESIGN.md](DESIGN.md), the direction contract in [DIRECTION.md](DIRECTION.md), and the concept round in [design/README.md](design/README.md).
+
+## Commands
+
+Requires Node 22.12 or newer.
 
 ```sh
 npm ci
-npm run dev
-npm run check
-npm test
-npm run build
+npm run dev      # Vite on :5173, proxies /v8 to 127.0.0.1:8317 (override with CPA_BACKEND=...)
+npm run check    # svelte-check, 0 errors and 0 warnings expected
+npm test         # unit tests for src/core.ts
+npm run build    # dist/, dist-panel/, then the size budget
 ```
 
-The development server proxies `/v8` and `/healthz` to `127.0.0.1:8317`. Change `vite.config.ts` if your development backend uses another port. A separate server URL can also be entered at login; cross-origin servers must allow the dashboard's origin and expose their version headers.
+`npm run build` runs `vite build`, then `scripts/panel.mjs` (inlines JS, CSS, font and favicon into `dist-panel/management.html`, writes its SHA-256 to `dist-panel/management.html.sha256` and into PANEL.md), then `scripts/size.mjs`, which fails the build if gzip JavaScript exceeds 42,642 B or CSS exceeds 6,853 B. Those ceilings are the sizes of the dashboard this one replaced.
 
-Embed the complete contents of `dist/`, not only `management.html`. Both `dist/index.html` and `dist/management.html` are supplied. Asset, favicon, and font references are relative. Serve the files unchanged at `/management.html`, `/`, or `/some-prefix/management.html`; hash navigation requires no routing fallback. The login defaults to the page origin. When the Management API itself lives under a prefix, enter its server base explicitly, such as `https://proxy.example/prefix`.
+Rebuild the UI before compiling Rust when UI sources change; `ui/dist` is checked in and embedded at compile time.
 
-Configuration writes use direct v8 values, not a `{value: ...}` envelope. Editors preview changes and reread their target before saving. This catches observed stale edits, but is not an atomic compare-and-swap: the API has no revision precondition. YAML validation and normalization happen on the server; a successful write may reorder settings or materialize defaults.
+## Structure
 
-The management key stays in application memory and is cleared on logout. Reloading requires login again. Do not run the dashboard over untrusted HTTP. Downloaded credential files and configuration previews contain sensitive values; treat them accordingly. Browser autofill behavior is controlled by the browser, not the application.
-
-## Development fixtures
-
-```sh
-VITE_DEV_FIXTURES=true npm run dev -- --port 5174
-```
-
-This requires a real management connection. Fixtures supplement real requests only for account health, traffic, and quota views. Their labels and banners are explicit, and sample account actions are disabled. Fixture data is dynamically imported only when both `import.meta.env.DEV` and the explicit flag are true. The production build contains no fixture accounts or traffic, even if the flag is set during build. Empty production telemetry is not represented as zero latency or zero error rate.
-
-Live telemetry is opt-in because `GET /observability/usage/queue` consumes events shared with other consumers. Metrics retain only display fields, never client keys or response bodies. They cover the current browser session, capped at 15 minutes and 10,000 events. Logs use cursor polling every three seconds, retaining 1,500 lines; polling pauses when the document is hidden. A scrolled-up reader is not pulled back to the bottom.
-
-## Endpoint map
-
-All paths below are relative to `/v8/management`. Login uses `GET /config`. Every connected page loads `GET /config` and `GET /credentials`; these common calls are omitted from the table.
-
-| Page | Additional endpoints and operations |
+| Path | Role |
 | --- | --- |
-| Overview | Opt-in `GET /observability/usage/queue?count=500`; periodic `GET /credentials`. RPM, p50 latency, and 15-minute error rate are calculated locally. |
-| Credentials | `POST /credentials` multipart upload; `DELETE /credentials` with names; `GET /credentials/download?name=...`; `GET /credentials/models?name=...`; `PATCH /credentials/status`; `PATCH /credentials/fields`; `POST /credentials/refresh`; `POST /routing/cooldown/reset`. |
-| Connect an account | `GET /plugins`; `GET /oauth/auth-url?provider=...&is_webui=true` with optional provider parameters; `GET /oauth/status?state=...`; `POST /oauth/callback` with full `redirect_url`; `DELETE /oauth/session?state=...`; `POST /oauth/import?provider=vertex` multipart upload. |
-| Providers | `GET /observability/usage/api-keys`; `GET, PUT /config/api-keys/<family>`. Families: claude, codex, gemini, vertex, openai-compatibility, interactions, xai, meta. Unknown group/key fields are retained by the JSON editor. Native per-key enablement uses Credentials; OpenAI-compatible group enablement writes the group list. |
-| Client keys | `GET, PUT /config/access/api-keys`. Generate, copy, reveal, add, remove, and edit the list. |
-| Models | `GET /routing/model-definitions/<channel>`; `GET, PUT /config/oauth/model-alias/<channel>` and `/config/oauth/excluded-models/<channel>`; `GET, PUT /config/oauth` in the full editor. |
-| Payload rules | `GET, PUT /config/requests/payload` and `/config/requests/payload/<kind>`; kinds: default, default-raw, override, override-raw, filter. |
-| Quotas | `GET /plugins`; `POST /requests/api-call` using `authIndex` and server-substituted `$TOKEN$`; `POST /plugins/<id>/quota`; `DELETE /plugins/<id>/quota?auth_index=...`; `POST /routing/cooldown/reset`. Built-in upstream adapters: Claude usage, Codex wham/usage, Kimi usage. Plugin normalized groups/buckets are supported. |
-| Configuration | `GET, PUT /config`; `GET, PUT /config.yaml`; `GET, PUT /config/<section>` for routing, requests, observability, server, client, oauth, and plugins. JSON mode also exposes the entire persisted tree. |
-| Logs | Cursor/limit `GET /observability/logs`; `DELETE /observability/logs`; `GET /observability/logs/errors`; `GET /observability/logs/errors/<name>` download; `GET /observability/logs/requests/<id>` text/download. |
-| Plugins | `GET /plugins`; `GET /plugins/store`; `POST /plugins/store/<id>/install` with optional source query; `DELETE /plugins/<id>`; `GET, PUT /config/plugins` and `/config/plugins/configs/<id>`; `PUT /config/plugins/configs/<id>/enabled`. |
-| System | `GET /server/latest-version`; server version from response headers; persisted routing/observability configuration and real credential counts. It does not invent Rust process uptime or memory statistics. |
+| `src/api.ts` | Fetch wrapper. Holds the management key in memory, reports unimplemented routes (501, 405, Go's empty 404) and probes routes with `OPTIONS`. |
+| `src/store.svelte.ts` | Shared state: session, server kind from version headers, config, credentials, plugins, capabilities, toasts, writes with stale checks. |
+| `src/core.ts` | Pure helpers: credential state, traffic buckets, usage records, quota windows, diffs. Tested in `src/core.test.ts`. |
+| `src/Load.svelte` | Loading, error, not-available and data states for one read. |
+| `src/Missing.svelte` | One line naming actions this server does not implement. |
+| `src/Grille.svelte` | The 20-bucket traffic grille. |
+| `src/Editor.svelte` | JSON or YAML editor with a reviewed diff and a reread before writing. |
+| `src/pages/*.svelte` | One component per screen. |
 
-## Verification
+## Honest states
 
-Tested against the latest Linux amd64 release **CLIProxyAPI v8.0.10**, published October 2, 2026. The backend was downloaded into `/tmp/cliproxy-backend` and started with a disposable local configuration, disabled native plugins, enabled file/request logs, and no real provider credentials.
+Every read renders loading, empty, error, not available, or data. The server kind comes from response headers: Go sends a version with `X-CPA-COMMIT` and `X-CPA-BUILD-DATE`; cliproxy-rs sends `X-CPA-VERSION: cliproxy-rs/<version>`. Go implements the whole v8 API, so it is never probed. Other servers get one `OPTIONS` request per route used by a screen; routes or methods they do not serve render disabled, named in a single line, and reads they do not serve show "Not available on this server" with the route and status code. A write that still meets a 501 or 405 marks that capability off for the session.
 
-- `npm run check`: **0 errors, 0 warnings**.
-- `npm test`: **4 passing tests**, covering URL/path boundaries, structural comparisons, reversible diff reconstruction, telemetry boundaries/sanitization, and quota utilization direction.
-- `node scripts/verify-backend.mjs`: **84 endpoint checks passed**, followed by successful restoration of original disposable settings. Includes mutation/readback, rejected writes, synthetic credential CRUD/status/fields/download/refresh failure, cooldown reset, Claude/Codex OAuth start/poll/error callback/cancel, invalid Vertex import, cursor logs, release/store reads, and upstream-call plumbing.
-- `node scripts/browser-check.mjs`: **all 12 pages in both themes**, successful page read calls, no viewport overflow, no console errors, and no management key in browser storage. Also checks an actual payload add/remove, YAML diff, visual editor, pending OAuth/cancel, store, latest release, and 390px responsive views.
-- The same browser check passed against the **production static build** served at both `/management.html` and `/nested/management.html`. All static assets, font, and favicon resolved. Production empty states were inspected with no fixture notices or fabricated metrics.
-- An independent initial-load measurement at `/management.html` recorded **CLS 0**, with the JS, CSS, font, and favicon all returning HTTP 200. This is a bounded startup measurement, not a guarantee for every future data state.
-- Inspected every page in both themes and expanded/editor/mobile states with the media viewer. Fixed OAuth card stretching, narrow account-table clipping, narrow navigation clipping, stale action toasts, and escaped plugin-description entities.
-- Impeccable detector: **no findings**. Captures and API evidence are in `design/`.
-- Production total JavaScript including inline theme initialization: **42,642 bytes gzip (41.64 KiB)**. One JS chunk. CSS is approximately **6.85 KB gzip**. `npm run build` enforces the 100,000-byte JS ceiling.
+Traffic comes from `recent_requests` in `GET /credentials` and `GET /observability/usage/api-keys` (twenty 10-minute buckets, reported by the server). The live usage view reads `GET /observability/usage/queue`, which removes records for other consumers, so it is opt-in, asks first, and keeps events in the tab only.
 
-The integration scripts are deliberately for the disposable backend only. They use the public test management key `orb-dashboard-test-only`; never adapt them to a production server. The API verifier refuses mutations unless the auth directory is `/tmp/cliproxy-backend/auth`. The browser verifier expects empty provider credentials/payload rules and retry value 3. Its optional arguments are page URL, server base URL, and capture directory.
+## Endpoints
 
-## Rust backend verification
+All paths are under `/v8/management`. Every screen also uses `GET /config` and `GET /credentials`.
 
-The Rust binary embeds the checked-in production `dist/` at `/management.html`, including fonts, assets, and favicon. Rebuild the UI before compiling Rust when changing UI sources. An existing auth directory may contain `static/` and `logs/`; these do not become credentials, and the embedded panel does not overwrite them.
+| Screen | Endpoints |
+| --- | --- |
+| Overview | `GET /credentials` every 10 s while visible |
+| Credentials | `POST /credentials` (upload), `DELETE /credentials`, `GET /credentials/download`, `GET /credentials/models`, `PATCH /credentials/status`, `PATCH /credentials/fields`, `POST /credentials/refresh`, `POST /routing/cooldown/reset` |
+| Connect | `GET /oauth/auth-url`, `GET /oauth/status` every 2 s while waiting, `POST /oauth/callback`, `DELETE /oauth/session`, `POST /oauth/import?provider=vertex`, `GET /plugins` |
+| Providers | `GET /observability/usage/api-keys`; `PUT /config/api-keys/<family>` |
+| Client keys | `PUT /config/access/api-keys` |
+| Models | `GET /routing/model-definitions/<channel>`; `PUT /config/oauth/model-alias/<channel>`, `PUT /config/oauth/excluded-models/<channel>` |
+| Payload rules | `PUT /config/requests/payload/<kind>` |
+| Quotas | `POST /requests/api-call` (Claude, Codex, Kimi usage), `POST /plugins/<id>/quota`, `POST /routing/cooldown/reset` |
+| Usage | `GET /observability/usage/api-keys`, opt-in `GET /observability/usage/queue?count=500` |
+| Logs | `GET /observability/logs` (cursor, every 3 s), `DELETE /observability/logs`, `GET /observability/logs/errors`, `GET /observability/logs/errors/<name>`, `GET /observability/logs/requests/<id>` |
+| Configuration | `GET, PUT /config/<section>`, `GET, PUT /config.yaml` |
+| Plugins | `GET /plugins`, `GET /plugins/store`, `POST /plugins/store/<id>/install`, `DELETE /plugins/<id>`, `PUT /config/plugins/enabled`, `GET, PUT /config/plugins/configs/<id>` |
+| System | `GET /server/latest-version` on request |
 
-The current Rust backend is a tested subset, not full Management API parity. It implements v8 config root and mapping-path reads/writes, YAML reads/writes, credential inventory/download/status, and legacy YAML/inventory/download/status reads or updates. Config reads do not persist migration or materialize runtime defaults. Successful v8 writes migrate legacy spellings. Unchanged v8 syntax is preserved; newly inserted mappings use flow syntax. Go's complete saver defaults and migration-comment behavior are not yet reproduced.
+Config list writes reread the target first and refuse to write if it changed since it was shown. The API has no revision precondition, so this narrows the race window rather than closing it.
 
-`node scripts/browser-check-rust.mjs` checks the running Rust binary at `/management.html`. Its optional arguments are the page URL and capture directory. It requires the public disposable key above, a disabled fake Claude credential with email `operator@example.invalid`, routing strategy `round-robin`, and an empty `requests.payload.default` list. Never use it against production: it adds and removes one payload rule. It makes no OAuth, token-refresh, quota, or provider requests.
+## Verification scripts
 
-Verified on October 2, 2026:
+Both scripts are for disposable servers with fake credentials only: they edit configuration and credential files. Fixture requirements: management key `orb-dashboard-test-only`, a disabled fake Claude credential with email `operator@example.invalid`, routing strategy `round-robin`, and an empty `requests.payload.default`.
 
-- Overview, Credentials, Client keys, Payload rules, and Configuration load through the real Rust API in both themes without error banners or horizontal overflow.
-- Payload add/remove persists and rereads through Rust; the YAML editor displays a real diff and discards it without writing.
-- Desktop dark Overview, light YAML preview, and the 390px Credentials layout were captured at 2x and inspected. The narrow capture is Chromium viewport emulation, not a real phone or touch test.
-- Management keys remain absent from browser storage. Production JavaScript remains 42,642 bytes gzip; no runtime UI dependency was added.
-- The Impeccable detector reports advisory radius/color differences between existing CSS and DESIGN.md, not blocking findings. The incumbent visual design is unchanged.
+- `node scripts/browser-check-rust.mjs [url] [capture-dir]` drives the dashboard with agent-browser against the Rust binary (or Go): nine screens in both themes, unsupported actions disabled on Rust, a payload rule written and removed, a YAML diff discarded, 390 px layout, and no key in storage.
+- `CHROME_PATH=... node scripts/panel-check-go.mjs [url] [capture-dir]` drives the single-file panel with Playwright against Go: all 13 screens in both themes, credential edits, a Codex OAuth start and cancel, config list writes, the section editor, request logs, the live usage view, phone layouts, and asserts that no request leaves the serving origin, Go is never probed, there are no console errors, and the key is not stored. `playwright-core` is a dev dependency for this script only; it downloads no browser.
+- `scripts/verify-backend.mjs` is the API-level verifier for the Go release backend, unchanged from the previous dashboard.
 
-OAuth, plugin execution/store, telemetry/logs, model definitions, quota/reset, credential upload/delete/fields/refresh, and most legacy management routes remain unavailable. Unsupported routes return an authenticated 501 rather than fabricated success; unsupported methods on implemented routes return 405. Existing buttons for those operations remain visible and report the server error.
+## Security
 
-## Honest parity gaps and unverified paths
+The management key lives in `src/api.ts` module memory and is cleared on sign-out; reloading signs out. Only the theme is stored. Plugin store descriptions are decoded as text, never inserted as HTML. Downloaded credential files and configuration previews contain secrets; treat them accordingly. Do not use the dashboard over plain HTTP across a network.
 
-- Complex provider fields, mappings, plugin configuration, and nested settings use the generic JSON/visual editors rather than every specialized official form. New omitted settings can be added in JSON/YAML mode; visual mode edits persisted fields only.
-- Built-in quota parsing covers Claude, Codex, and Kimi. Other providers need a plugin advertising normalized quota; there are no dedicated Gemini/Antigravity/Vertex/etc. adapters or credit-purchase controls.
-- Plugin-defined extension menus are not dynamically rendered. Core discovery, trusted store install/update, deletion, enablement, configuration, and normalized quota actions are implemented.
-- No historical telemetry database, persisted login, locale switcher, usage export/import, or separate full historical-usage page. The overview is session-live rather than a replacement for the official historical analytics tools.
-- Real OAuth credential exchange, successful token refresh, real provider quotas, request-log retrieval for a successful provider request, and native plugin installation/execution could not be validated without real credentials or executing third-party native code. Expected invalid/missing-resource paths and upstream proxy plumbing were verified; fixture screenshots are not evidence of those live operations.
-- Status means the management connection and reported credential health, not an unexposed Rust process-health endpoint. Latest-version check reports the API's release information, not a fabricated Rust release feed.
+## Fonts
 
-## Design and screenshots
-
-Three Painter directions are retained in [`design/directions.png`](design/directions.png): Signal (ink/acid), Workshop (cream/vermilion), and Observatory (slate/ice). Observatory was selected for the strongest readable telemetry hierarchy and calm operator-facing density. `DIRECTION.md` records the choice; `DESIGN.md` documents the shipped tokens and responsive behavior.
-
-All page/theme captures are in `design/screenshots/`. The best views are `overview-dark.png`, `quotas-light.png`, `config-diff-light.png`, and the honest `production-empty-dark.png`. Sample-data screenshots are explicitly labeled in the UI. Public Sans is bundled locally under its SIL Open Font License, included in `public/fonts/OFL.txt`.
+Host Grotesk (SIL Open Font License, `public/fonts/OFL.txt`), subset to Latin and weights 400–650 with fontTools.

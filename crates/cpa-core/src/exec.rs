@@ -63,6 +63,12 @@ pub struct ExecRequest {
     pub alt: Option<String>,
     /// Session key for affinity and provider session identity, when one was derived.
     pub session: Option<String>,
+    /// Go `execution_session_id` metadata: a long-lived execution session that outlives
+    /// one HTTP request. Set only by transports that own such a session (the Responses
+    /// WebSocket uses its connection's session ID); `None` for ordinary HTTP routes.
+    /// Provider replay caches (Codex and Kimi reasoning replay) key on
+    /// `execution:<id>` before falling back to payload or header identity.
+    pub execution_session: Option<String>,
     /// Inbound headers. Executors forward only what their provider profile allows.
     /// Contains client credentials: never log or forward wholesale.
     pub headers: HeaderMap,
@@ -78,6 +84,7 @@ impl fmt::Debug for ExecRequest {
             .field("model", &self.model)
             .field("stream", &self.stream)
             .field("alt", &self.alt)
+            .field("execution_session", &self.execution_session)
             .field("body_len", &self.body.len())
             .finish_non_exhaustive()
     }

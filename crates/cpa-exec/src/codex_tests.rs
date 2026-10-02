@@ -55,6 +55,7 @@ fn request(case: &Value) -> ExecRequest {
         alt: case["alt"].as_str().map(str::to_owned),
         session: None,
         headers,
+        execution_session: None,
         caller: Caller {
             principal: "client-key-FAKE".into(),
             source: "authorization",
@@ -399,6 +400,7 @@ fn plain_request(stream: bool, alt: Option<&str>) -> ExecRequest {
         alt: alt.map(str::to_owned),
         session: None,
         headers: HeaderMap::new(),
+        execution_session: None,
         caller: Caller {
             principal: String::new(),
             source: "authorization",
