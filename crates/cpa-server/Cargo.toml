@@ -25,7 +25,7 @@ base64 = "0.22"
 bcrypt = "0.19"
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
 subtle = "2.6"
+wreq.workspace = true
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }
-wreq.workspace = true

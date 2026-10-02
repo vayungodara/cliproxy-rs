@@ -4,7 +4,7 @@
 
 use std::net::{Ipv4Addr, Ipv6Addr};
 
-pub(crate) struct GoUrl {
+pub struct GoUrl {
     /// Lowercased.
     pub scheme: String,
     /// The unescaped authority host with its port, when the URL has `//authority`.
@@ -12,6 +12,11 @@ pub(crate) struct GoUrl {
 }
 
 impl GoUrl {
+    /// Go `URL.Host`: the unescaped authority host with its port; empty without one.
+    pub fn host(&self) -> &str {
+        self.host.as_deref().unwrap_or_default()
+    }
+
     /// Go `URL.Hostname()`.
     pub fn hostname(&self) -> &str {
         let mut host = self.host.as_deref().unwrap_or_default();
@@ -25,7 +30,7 @@ impl GoUrl {
 }
 
 /// Go `url.Parse`; `None` wherever Go returns an error.
-pub(crate) fn parse(raw: &str) -> Option<GoUrl> {
+pub fn parse(raw: &str) -> Option<GoUrl> {
     let (u, frag) = raw.split_once('#').unwrap_or((raw, ""));
     if u.bytes().any(|b| b < 0x20 || b == 0x7f) {
         return None;

@@ -20,8 +20,10 @@ use crate::Runtime;
 use crate::scheduler::{ErrorRule, Policy};
 
 mod access;
+mod api_call;
 mod auth_files;
 mod multipart;
+pub mod observability;
 pub use access::cors;
 
 pub struct Management {
@@ -36,6 +38,9 @@ pub struct Management {
     /// Credentials disabled through the status or fields endpoints: Go's in-memory
     /// auth then reports `disabled via management API` until re-enabled.
     pub(crate) disabled_via_api: Mutex<std::collections::BTreeSet<String>>,
+    /// Go net/http clients by proxy for `api-call` and the release lookup.
+    pub(crate) clients: cpa_exec::proxy::GoClients,
+    pub(crate) latest_release_url: String,
     access: access::Access,
 }
 
@@ -45,6 +50,8 @@ pub struct Options {
     pub local_password: String,
     /// Overrides the `MANAGEMENT_PASSWORD` environment variable when set.
     pub management_password: Option<String>,
+    /// Overrides [`observability::LATEST_RELEASE_URL`] (tests point it at a local server).
+    pub latest_release_url: Option<String>,
 }
 
 impl Management {
@@ -57,13 +64,21 @@ impl Management {
     pub fn with_options(rt: Arc<Runtime>, path: PathBuf, options: Options) -> Arc<Self> {
         let cfg = rt.config();
         rt.publish_policy(policy(&cfg));
+        let latest_release_url = options
+            .latest_release_url
+            .clone()
+            .unwrap_or_else(|| observability::LATEST_RELEASE_URL.to_owned());
+        let access = access::Access::new(&cfg, options);
+        rt.usage_queue().configure(access.available(), &cfg);
         Arc::new(Self {
-            access: access::Access::new(&cfg, options),
+            access,
             rt,
             path,
             disk: Mutex::new(()),
             fallbacks: Mutex::default(),
             disabled_via_api: Mutex::default(),
+            clients: cpa_exec::proxy::GoClients::new(cpa_exec::proxy::Hooks::default()),
+            latest_release_url,
         })
     }
 
@@ -98,6 +113,7 @@ impl Management {
         drop(fallbacks);
         all.extend(credentials::from_config(&cfg));
         self.access.config_published(&cfg);
+        self.rt.usage_queue().configure(self.access.available(), &cfg);
         let policy = policy(&cfg);
         self.rt.publish_config_and_policy(cfg, policy);
         self.rt.store().reconcile(all);
@@ -252,11 +268,43 @@ pub fn router(state: Arc<Management>) -> Router {
                 methods().get(guarded!(s, auth_files::model_definitions)),
             );
     }
-    router
-        .route(
-            &format!("{v8}/routing/cooldown/reset"),
+    for (path, route) in [
+        (
+            "server/latest-version",
+            methods().get(guarded!(s, observability::latest_version)),
+        ),
+        ("requests/api-call", methods().post(guarded!(s, api_call::api_call))),
+        (
+            "routing/cooldown/reset",
             methods().post(guarded!(s, auth_files::cooldown_reset)),
-        )
+        ),
+        (
+            "observability/usage/api-keys",
+            methods().get(guarded!(s, observability::api_key_usage)),
+        ),
+        (
+            "observability/usage/queue",
+            methods().get(guarded!(s, observability::usage_queue)),
+        ),
+    ] {
+        router = router.route(&format!("{v8}/{path}"), route);
+    }
+    for (path, route) in [
+        (
+            "latest-version",
+            methods().get(guarded!(s, observability::latest_version)),
+        ),
+        ("api-call", methods().post(guarded!(s, api_call::api_call))),
+        ("reset-quota", methods().post(guarded!(s, auth_files::cooldown_reset))),
+        (
+            "api-key-usage",
+            methods().get(guarded!(s, observability::api_key_usage)),
+        ),
+        ("usage-queue", methods().get(guarded!(s, observability::usage_queue))),
+    ] {
+        router = router.route(&format!("{v0}/{path}"), route);
+    }
+    router
         .route("/management.html", get(panel))
         .route("/assets/{*path}", get(panel))
         .route("/fonts/{*path}", get(panel))

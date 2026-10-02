@@ -109,6 +109,7 @@ fn run(client: Format, upstream: Format, f: &Value, bytes: bool) -> Vec<Vec<u8>>
             match (client, upstream) {
                 (Format::OpenAI, Format::Claude) => cpa_translate::openai_to_claude_with_compat(&ctx, &input),
                 (Format::Claude, Format::OpenAI) => cpa_translate::claude_to_openai_with_compat(&ctx, &input),
+                (Format::Claude, Format::Gemini) => cpa_translate::claude_to_gemini_with_compat(&ctx, &input),
                 other => panic!("no compat request for {other:?}"),
             }
             .unwrap(),
@@ -321,4 +322,23 @@ fn registration_matches_go() {
         br#"{"model":"new"}"#
     );
     assert_eq!(translate_token_count(Format::Claude, Format::Claude, 5, b"raw"), b"raw");
+}
+
+#[test]
+fn deeply_nested_client_bodies_translate_without_overflowing() {
+    let depth = 50_000;
+    let schema = [vec![b'['; depth], vec![b']'; depth]].concat();
+    let body = [
+        &br#"{"tools":[{"name":"t","input_schema":{"type":"object","properties":{"x":"#[..],
+        &schema,
+        b"}}}],\"messages\":[{\"role\":\"user\",\"content\":\"x\"}]}",
+    ]
+    .concat();
+    let ctx = RequestCtx {
+        model: "gpt-test",
+        stream: false,
+    };
+    let out = translate_request(Format::Claude, Format::OpenAI, &ctx, &body).unwrap();
+    assert!(out.starts_with(br#"{"model":"gpt-test","messages":"#));
+    assert!(out.windows(depth).any(|w| w.iter().all(|&c| c == b'[')));
 }
