@@ -19,7 +19,6 @@ use crate::codex_json::{delete, set_bool_if_different, set_raw, set_str, set_str
 pub const DEFAULT_BASE_URL: &str = "https://chatgpt.com/backend-api/codex";
 pub(crate) const USER_AGENT: &str = "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)";
 pub(crate) const ORIGINATOR: &str = "codex-tui";
-#[allow(dead_code)] // WebSocket executor, next increment
 pub(crate) const WS_BETA: &str = "responses_websockets=2026-02-06";
 const ROUTING_HINT: &str = "x-codex-routing-hint";
 const LITE_HEADER: &str = "x-openai-internal-codex-responses-lite";
@@ -184,8 +183,7 @@ impl<'a> View<'a> {
     }
 
     /// `codexWebsocketsEnabled`: attribute first, then metadata.
-    #[allow(dead_code)] // WebSocket executor, next increment
-    pub fn websockets(&self) -> bool {
+        pub fn websockets(&self) -> bool {
         match self.attr("websockets").trim() {
             "" => match self.credential.metadata.get("websockets") {
                 Some(serde_json::Value::Bool(b)) => *b,
@@ -1048,7 +1046,6 @@ fn model_header_overrides(h: &mut HeaderMap, model: &str) {
     }
 }
 
-#[allow(dead_code)] // WebSocket executor, next increment
 /// WebSocket handshake headers (`applyCodexPromptCacheHeadersWithContext`,
 /// `applyCodexWebsocketHeaders`, routing hint, model overrides).
 pub(crate) fn ws_headers(

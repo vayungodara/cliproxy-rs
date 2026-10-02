@@ -8,17 +8,20 @@ rust-version.workspace = true
 
 [dependencies]
 anyhow.workspace = true
-axum.workspace = true
+axum = { workspace = true, features = ["ws"] }
 bytes.workspace = true
+cpa-common.workspace = true
 cpa-core.workspace = true
 cpa-exec.workspace = true
 futures-util.workspace = true
+gjson = "0.8.1"
 regex = "1"
 serde.workspace = true
 serde_json.workspace = true
 serde_yaml_ng.workspace = true
 tokio.workspace = true
 tracing.workspace = true
+uuid = { version = "1", features = ["v4"] }
 bcrypt = "0.19"
 subtle = "2.6"
 

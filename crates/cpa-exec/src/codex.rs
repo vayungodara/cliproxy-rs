@@ -11,7 +11,7 @@ use bytes::Bytes;
 use chrono::Utc;
 use cpa_core::config::Config;
 use cpa_core::credential::{Credential, MetadataPatch};
-use cpa_core::exec::{ExecError, ExecRequest, ExecResponse, ExecStream, FailureScope, Operation, ResponseBody};
+use cpa_core::exec::{ExecError, ExecRequest, ExecResponse, ExecSession, ExecStream, FailureScope, Operation, ResponseBody};
 use cpa_core::format::Format;
 use futures_util::StreamExt;
 use http::HeaderMap;
@@ -25,9 +25,11 @@ use crate::upstream::{into_response, transport_error};
 pub use crate::codex_request::DEFAULT_BASE_URL;
 
 pub struct CodexExecutor {
-    client: wreq::Client,
+    pub(crate) client: wreq::Client,
     oauth: CodexOAuth,
     quota: Arc<QuotaSignals>,
+    /// Upstream Responses WebSocket sockets per downstream session.
+    pub(crate) ws: crate::codex_ws::Pool,
     /// Base for OAuth Alpha Search, which Go never derives from credential attributes.
     alpha_base_url: String,
 }
@@ -57,6 +59,7 @@ impl CodexExecutor {
             client,
             oauth,
             quota: Arc::default(),
+            ws: Default::default(),
             alpha_base_url: DEFAULT_BASE_URL.into(),
         }
     }
@@ -70,6 +73,49 @@ impl CodexExecutor {
     /// Passive quota snapshots per credential (M4-0016), for the management API.
     pub fn quota(&self) -> &QuotaSignals {
         &self.quota
+    }
+
+    pub(crate) fn quota_handle(&self) -> Arc<QuotaSignals> {
+        self.quota.clone()
+    }
+
+    /// One turn of a downstream Responses WebSocket session (`CodexAutoExecutor`):
+    /// credentials with `websockets` enabled keep a pooled upstream socket; others run
+    /// the HTTP stream with the session as prompt-cache identity and cannot continue
+    /// upstream state.
+    pub async fn execute_in_session(
+        &self,
+        credential: &Credential,
+        req: ExecRequest,
+        cfg: &Config,
+        session: &ExecSession,
+    ) -> Result<ExecResponse, ExecError> {
+        check_response_format(&req)?;
+        let settings = Settings::from(cfg);
+        let view = View::new(credential);
+        if view.websockets() {
+            return self.stream_ws(&view, &settings, cfg, req, session).await;
+        }
+        if session.continuation {
+            return Err(ExecError::replay_required());
+        }
+        self.stream_with_session(&view, &settings, req, Some(&session.id)).await
+    }
+
+    /// Whether `credential` keeps upstream state on a WebSocket (Go:
+    /// `websocketUpstreamSupportsIncrementalInput`).
+    pub fn upstream_websocket(credential: &Credential) -> bool {
+        View::new(credential).websockets()
+    }
+
+    /// Resolves when the session's upstream socket is lost.
+    pub fn session_closed(&self, id: &str) -> impl std::future::Future<Output = ExecError> + Send + 'static {
+        self.ws.closed(id)
+    }
+
+    /// Releases the session's upstream socket (downstream connection ended).
+    pub fn close_session(&self, id: &str) {
+        self.ws.close(id);
     }
 
     /// Refresh due under Go's 24h Codex lead. Cheap and side-effect free.
