@@ -227,9 +227,9 @@ impl OAuth {
             if let Some((_, result)) = map.get(&key) {
                 result.clone()
             } else {
-                if map.len() >= 64 {
-                    return Err(acquisition_error("Claude refresh capacity reached"));
-                }
+                // ponytail: no admission limit, like Go. Entries expire (five minutes after
+                // success, the backoff after failure), so the map is bounded by the
+                // credentials refreshed in that window.
                 let oauth = self.clone();
                 let refresh = refresh.to_owned();
                 // A canceled caller must not abandon an already-rotated refresh token.

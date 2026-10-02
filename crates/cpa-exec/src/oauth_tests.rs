@@ -352,3 +352,18 @@ async fn raw_oauth_token_and_inspection_header_order_and_case() {
         assert!(body.is_empty());
     }
 }
+
+#[tokio::test]
+async fn retained_refreshes_never_refuse_another_credential() {
+    // Go has no admission limit: completed exchanges retained for stale-snapshot
+    // protection must not block refreshes of unrelated credentials.
+    let mock = Arc::new(Mock::default());
+    let oauth = service(mock.clone()).await;
+    for i in 0..65 {
+        oauth.refresh(&format!("fake-refresh-{i}")).await.unwrap();
+    }
+    assert_eq!(mock.token_calls.load(Ordering::SeqCst), 65);
+    // A retained success is reused, not re-exchanged.
+    oauth.refresh("fake-refresh-0").await.unwrap();
+    assert_eq!(mock.token_calls.load(Ordering::SeqCst), 65);
+}

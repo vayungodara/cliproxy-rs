@@ -75,6 +75,9 @@ struct Relay {
     message_id: String,
     completed: bool,
     finished: bool,
+    /// Translated clients: end on the `message_stop` data line itself, as Go's
+    /// translated loop does, instead of waiting for the event's blank line.
+    eager_terminal: bool,
     done: Option<OnComplete>,
 }
 
@@ -96,6 +99,11 @@ impl Relay {
         };
         self.event.extend_from_slice(&restored);
         self.event.extend_from_slice(b"\n");
+        if self.eager_terminal && self.completed {
+            self.flush();
+            self.finish();
+            return false;
+        }
         if restored.trim_ascii().is_empty() {
             self.flush();
             if self.completed {
@@ -180,6 +188,15 @@ impl Relay {
 /// Relays decoded upstream bytes as whole native SSE events. `done` runs once with
 /// the message ID when the upstream completed with `message_stop`.
 pub(crate) fn relay(body: ExecStream, reverse: Reverse, done: OnComplete) -> ExecStream {
+    relay_with(body, reverse, done, false)
+}
+
+/// [`relay`] for a translated client: the stream ends on the `message_stop` data line.
+pub(crate) fn relay_translated(body: ExecStream, reverse: Reverse, done: OnComplete) -> ExecStream {
+    relay_with(body, reverse, done, true)
+}
+
+fn relay_with(body: ExecStream, reverse: Reverse, done: OnComplete, eager_terminal: bool) -> ExecStream {
     let relay = Relay {
         body,
         reverse,
@@ -189,6 +206,7 @@ pub(crate) fn relay(body: ExecStream, reverse: Reverse, done: OnComplete) -> Exe
         message_id: String::new(),
         completed: false,
         finished: false,
+        eager_terminal,
         done: Some(done),
     };
     futures_util::stream::unfold(relay, |mut st| async move {
@@ -286,6 +304,30 @@ mod tests {
 
     fn chunks(items: Vec<Result<&'static [u8], ExecError>>) -> ExecStream {
         futures_util::stream::iter(items.into_iter().map(|r| r.map(Bytes::from_static))).boxed()
+    }
+
+    #[tokio::test]
+    async fn translated_streams_end_on_the_message_stop_line() {
+        // Go's translated loop breaks right after the message_stop data line; the
+        // native loop waits for the event's blank line. The upstream stays open.
+        let input = b"event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"m\"}}\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n";
+        let open = || {
+            futures_util::stream::iter([Ok(Bytes::from_static(input))])
+                .chain(futures_util::stream::pending())
+                .boxed()
+        };
+        let out: Vec<_> = relay_translated(open(), Reverse::new(), Box::new(|_| {}))
+            .map(Result::unwrap)
+            .collect()
+            .await;
+        assert_eq!(
+            out[1],
+            Bytes::from_static(b"event: message_stop\ndata: {\"type\":\"message_stop\"}\n")
+        );
+        let mut native = relay(open(), Reverse::new(), Box::new(|_| {}));
+        assert!(native.next().await.is_some());
+        let waited = tokio::time::timeout(std::time::Duration::from_millis(50), native.next()).await;
+        assert!(waited.is_err(), "native output waits for the blank line");
     }
 
     #[tokio::test]

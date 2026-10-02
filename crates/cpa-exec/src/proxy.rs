@@ -112,12 +112,103 @@ impl Proxy {
     /// which honours environment proxies when nothing is configured; the Claude uTLS
     /// transports dial directly instead.
     pub(crate) fn apply(&self, builder: wreq::ClientBuilder, inherit_env: bool) -> wreq::Result<wreq::ClientBuilder> {
-        Ok(match self {
-            Proxy::Url(url) => builder.proxy(wreq::Proxy::all(wreq_proxy_url(url).as_str())?),
-            Proxy::Inherit | Proxy::Invalid if inherit_env => builder,
-            _ => builder.no_proxy(),
-        })
+        match self {
+            Proxy::Url(url) => Ok(builder.proxy(wreq::Proxy::all(wreq_proxy_url(url).as_str())?)),
+            Proxy::Inherit | Proxy::Invalid if inherit_env => EnvProxy::current().apply(builder),
+            _ => Ok(builder.no_proxy()),
+        }
     }
+}
+
+/// Go's `http.ProxyFromEnvironment` (golang.org/x/net/http/httpproxy), read once like
+/// Go's `envProxyFunc`: `HTTP_PROXY` for http and `HTTPS_PROXY` for https targets (upper
+/// case first), never `ALL_PROXY`; `localhost` and loopback addresses always bypass;
+/// `NO_PROXY` adds exclusions, and `*` disables both proxies.
+///
+/// ponytail: wreq's exclusion matcher stands in for Go's. Port-specific `NO_PROXY`
+/// entries are dropped (Go bypasses only that port), a leading-dot entry also matches
+/// the bare domain, and the CGI rule ignores `HTTP_PROXY` instead of failing requests.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub(crate) struct EnvProxy {
+    http: Option<String>,
+    https: Option<String>,
+    /// wreq `NoProxy` list including Go's implicit loopback bypass; `None` for `*`.
+    no_proxy: Option<String>,
+}
+
+impl EnvProxy {
+    fn current() -> &'static Self {
+        static ENV: std::sync::OnceLock<EnvProxy> = std::sync::OnceLock::new();
+        ENV.get_or_init(|| Self::from_lookup(|name| std::env::var(name).ok()))
+    }
+
+    /// `FromEnvironment` + `config.init` over a variable lookup.
+    pub(crate) fn from_lookup(get: impl Fn(&str) -> Option<String>) -> Self {
+        let any = |names: [&str; 2]| names.iter().find_map(|n| get(n).filter(|v| !v.is_empty()));
+        let cgi = get("REQUEST_METHOD").is_some_and(|v| !v.is_empty());
+        let http = any(["HTTP_PROXY", "http_proxy"])
+            .filter(|_| !cgi)
+            .and_then(|v| env_proxy_url(&v));
+        let https = any(["HTTPS_PROXY", "https_proxy"]).and_then(|v| env_proxy_url(&v));
+        let mut entries: Vec<String> = ["localhost", "127.0.0.0/8", "::1", "::ffff:127.0.0.0/104"]
+            .map(String::from)
+            .into();
+        let mut all = false;
+        for entry in any(["NO_PROXY", "no_proxy"]).unwrap_or_default().split(',') {
+            let entry = entry.trim().to_lowercase();
+            if entry.is_empty() {
+                continue;
+            }
+            if entry == "*" {
+                all = true;
+                break;
+            }
+            let bare_ip = entry.parse::<std::net::IpAddr>().is_ok() || entry.contains('/');
+            let has_port = !bare_ip
+                && entry
+                    .rsplit_once(':')
+                    .is_some_and(|(_, port)| !port.is_empty() && port.bytes().all(|b| b.is_ascii_digit()));
+            if has_port {
+                continue;
+            }
+            entries.push(
+                entry
+                    .strip_prefix('*')
+                    .filter(|e| e.starts_with('.'))
+                    .unwrap_or(&entry)
+                    .to_owned(),
+            );
+        }
+        Self {
+            http,
+            https,
+            no_proxy: (!all).then(|| entries.join(",")),
+        }
+    }
+
+    fn apply(&self, builder: wreq::ClientBuilder) -> wreq::Result<wreq::ClientBuilder> {
+        let mut builder = builder.no_proxy();
+        let Some(no_proxy) = &self.no_proxy else {
+            return Ok(builder);
+        };
+        let exclusions = || wreq::NoProxy::from_string(no_proxy);
+        if let Some(url) = &self.http {
+            builder = builder.proxy(wreq::Proxy::http(url.as_str())?.no_proxy(exclusions()));
+        }
+        if let Some(url) = &self.https {
+            builder = builder.proxy(wreq::Proxy::https(url.as_str())?.no_proxy(exclusions()));
+        }
+        Ok(builder)
+    }
+}
+
+/// httpproxy `parseProxy`: a value without scheme or host is retried as `http://`.
+fn env_proxy_url(raw: &str) -> Option<String> {
+    let parsed = url::Url::parse(raw)
+        .ok()
+        .filter(|u| u.host_str().is_some_and(|h| !h.is_empty()))
+        .or_else(|| url::Url::parse(&format!("http://{raw}")).ok())?;
+    Some(wreq_proxy_url(parsed.as_str().trim_end_matches('/')))
 }
 
 /// Go's SOCKS5 dialer always sends the hostname to the proxy, so `socks5` resolves
@@ -203,11 +294,13 @@ impl GoClients {
     }
 }
 
-/// A plain client whose redirects are followed by [`send`], not by wreq.
+/// A plain client whose redirects are followed by [`send`], not by wreq, with Go's
+/// environment proxy rules.
 pub fn default_client() -> wreq::Client {
-    wreq::Client::builder()
-        .redirect(wreq::redirect::Policy::none())
-        .build()
+    let builder = wreq::Client::builder().redirect(wreq::redirect::Policy::none());
+    EnvProxy::current()
+        .apply(builder)
+        .and_then(wreq::ClientBuilder::build)
         .expect("default HTTP client")
 }
 
@@ -647,6 +740,75 @@ mod tests {
         c.attributes.clear();
         c.metadata.remove("proxy_url");
         assert_eq!(Proxy::effective(&c, &cfg), Proxy::Url("http://global:1".into()));
+    }
+
+    #[test]
+    fn environment_proxies_follow_go_httpproxy() {
+        let env = |vars: &[(&str, &str)]| {
+            let vars: std::collections::HashMap<String, String> =
+                vars.iter().map(|(k, v)| ((*k).to_owned(), (*v).to_owned())).collect();
+            EnvProxy::from_lookup(|name| vars.get(name).cloned())
+        };
+        let e = env(&[
+            ("ALL_PROXY", "http://all:1"),
+            ("http_proxy", "lower:2"),
+            ("HTTP_PROXY", "upper:3"),
+            ("https_proxy", "socks5://s:4"),
+            ("no_proxy", " Example.com, *.corp.test, 10.0.0.0/8, host:8080, ::2 "),
+        ]);
+        assert_eq!(
+            e.http.as_deref(),
+            Some("http://upper:3"),
+            "upper case first; schemeless is http"
+        );
+        assert_eq!(e.https.as_deref(), Some("socks5h://s:4"));
+        assert_eq!(
+            e.no_proxy.as_deref(),
+            Some("localhost,127.0.0.0/8,::1,::ffff:127.0.0.0/104,example.com,.corp.test,10.0.0.0/8,::2")
+        );
+        assert_eq!(
+            env(&[("ALL_PROXY", "http://all:1")]),
+            env(&[]),
+            "ALL_PROXY is never read"
+        );
+        assert_eq!(env(&[("HTTP_PROXY", "http://p:1"), ("NO_PROXY", "a,*")]).no_proxy, None);
+        assert_eq!(
+            env(&[("HTTP_PROXY", "http://p:1"), ("REQUEST_METHOD", "GET")]).http,
+            None
+        );
+    }
+
+    #[tokio::test]
+    async fn environment_proxy_bypasses_loopback_and_proxies_the_rest() {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        async fn first_line(listener: tokio::net::TcpListener) -> String {
+            let (mut socket, _) = listener.accept().await.unwrap();
+            let mut buf = vec![0; 4096];
+            let n = socket.read(&mut buf).await.unwrap();
+            let _ = socket
+                .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n")
+                .await;
+            String::from_utf8_lossy(&buf[..n]).lines().next().unwrap().to_owned()
+        }
+        let proxy = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let target = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let (proxy_addr, target_addr) = (proxy.local_addr().unwrap(), target.local_addr().unwrap());
+        let env = EnvProxy::from_lookup(|name| (name == "HTTP_PROXY").then(|| format!("http://{proxy_addr}")));
+        let client = env
+            .apply(wreq::Client::builder().redirect(wreq::redirect::Policy::none()))
+            .unwrap()
+            .build()
+            .unwrap();
+        let direct = tokio::spawn(first_line(target));
+        client.post(format!("http://{target_addr}/v1")).send().await.unwrap();
+        assert_eq!(
+            direct.await.unwrap(),
+            "POST /v1 HTTP/1.1",
+            "loopback never uses the proxy"
+        );
+        let proxied = tokio::spawn(first_line(proxy));
+        client.post("http://upstream.invalid/v1").send().await.unwrap();
+        assert_eq!(proxied.await.unwrap(), "POST http://upstream.invalid/v1 HTTP/1.1");
     }
 
     #[test]

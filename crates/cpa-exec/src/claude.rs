@@ -221,8 +221,12 @@ impl ClaudeExecutor {
                         &continuity.prompt_id,
                     );
                 });
-                let relayed =
-                    stream::relay(raw, reverse, done).map(move |r| r.map_err(|e| fast_request_error(fast, e)));
+                let relayed = if req.response_format == Format::Claude {
+                    stream::relay(raw, reverse, done)
+                } else {
+                    stream::relay_translated(raw, reverse, done)
+                };
+                let relayed = relayed.map(move |r| r.map_err(|e| fast_request_error(fast, e)));
                 ResponseBody::Stream(relayed.boxed())
             }
             ResponseBody::Stream(raw) => {
