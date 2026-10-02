@@ -2,7 +2,6 @@
 //!
 //! Routing follows gin: an unknown path or an unregistered method on a known path is a
 //! bare 404 that never reaches authentication. Access rules live in [`access`].
-use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, PoisonError};
 
@@ -14,13 +13,14 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::{MethodRouter, any, get};
 use axum::{Router, middleware};
 use cpa_core::config::{Config, ConfigDocument, archive_comments, credentials, is_bcrypt};
-use cpa_core::credential::{Credential, MetadataPatch, Source};
+use cpa_core::credential::Credential;
 use serde_json::{Value, json};
 
 use crate::Runtime;
 use crate::scheduler::{ErrorRule, Policy};
 
 mod access;
+mod auth_files;
 pub use access::cors;
 
 pub struct Management {
@@ -161,7 +161,14 @@ pub fn router(state: Arc<Management>) -> Router {
     let s = &state;
     let v8 = "/v8/management";
     let v0 = "/v0/management";
-    Router::new()
+    let config_methods = || {
+        methods()
+            .get(guarded!(s, config))
+            .put(guarded!(s, config))
+            .patch(guarded!(s, config))
+            .delete(guarded!(s, config))
+    };
+    let mut router = Router::new()
         .route(
             &format!("{v8}/config"),
             methods()
@@ -173,38 +180,52 @@ pub fn router(state: Arc<Management>) -> Router {
             &format!("{v8}/config.yaml"),
             methods().get(guarded!(s, config)).put(guarded!(s, config)),
         )
+        .route(&format!("{v8}/config/"), config_methods())
+        .route(&format!("{v8}/config/{{*path}}"), config_methods())
+        .route(&format!("{v0}/config.yaml"), methods().get(guarded!(s, legacy_yaml)));
+    // v8 and its deprecated v0 spellings share Go's handlers.
+    for (base, files, definitions) in [
+        (v8, "credentials", "routing/model-definitions"),
+        (v0, "auth-files", "model-definitions"),
+    ] {
+        router = router
+            .route(
+                &format!("{base}/{files}"),
+                methods()
+                    .get(guarded!(s, auth_files::list))
+                    .post(guarded!(s, auth_files::upload))
+                    .delete(guarded!(s, auth_files::delete)),
+            )
+            .route(
+                &format!("{base}/{files}/models"),
+                methods().get(guarded!(s, auth_files::models)),
+            )
+            .route(
+                &format!("{base}/{files}/download"),
+                methods().get(guarded!(s, auth_files::download)),
+            )
+            .route(
+                &format!("{base}/{files}/status"),
+                methods().patch(guarded!(s, auth_files::status)),
+            )
+            .route(
+                &format!("{base}/{files}/fields"),
+                methods().patch(guarded!(s, auth_files::fields)),
+            )
+            .route(
+                &format!("{base}/{files}/refresh"),
+                methods().post(guarded!(s, auth_files::refresh)),
+            )
+            .route(
+                &format!("{base}/{definitions}/{{channel}}"),
+                methods().get(guarded!(s, auth_files::model_definitions)),
+            );
+    }
+    router
         .route(
-            &format!("{v8}/config/"),
-            methods()
-                .get(guarded!(s, config))
-                .put(guarded!(s, config))
-                .patch(guarded!(s, config))
-                .delete(guarded!(s, config)),
+            &format!("{v8}/routing/cooldown/reset"),
+            methods().post(guarded!(s, auth_files::cooldown_reset)),
         )
-        .route(
-            &format!("{v8}/config/{{*path}}"),
-            methods()
-                .get(guarded!(s, config))
-                .put(guarded!(s, config))
-                .patch(guarded!(s, config))
-                .delete(guarded!(s, config)),
-        )
-        .route(&format!("{v8}/credentials"), methods().get(guarded!(s, credentials)))
-        .route(
-            &format!("{v8}/credentials/download"),
-            methods().get(guarded!(s, download)),
-        )
-        .route(
-            &format!("{v8}/credentials/status"),
-            methods().patch(guarded!(s, status)),
-        )
-        .route(&format!("{v0}/config.yaml"), methods().get(guarded!(s, legacy_yaml)))
-        .route(&format!("{v0}/auth-files"), methods().get(guarded!(s, credentials)))
-        .route(
-            &format!("{v0}/auth-files/download"),
-            methods().get(guarded!(s, download)),
-        )
-        .route(&format!("{v0}/auth-files/status"), methods().patch(guarded!(s, status)))
         .route("/management.html", get(panel))
         .route("/assets/{*path}", get(panel))
         .route("/fonts/{*path}", get(panel))
@@ -440,85 +461,6 @@ async fn legacy_yaml(State(state): State<Arc<Management>>) -> Response {
     match tokio::fs::read(&state.path).await {
         Ok(bytes) => ([(header::CONTENT_TYPE, "application/yaml; charset=utf-8")], bytes).into_response(),
         Err(_) => error(404, "not_found"),
-    }
-}
-
-async fn credentials(State(state): State<Arc<Management>>) -> Response {
-    // ponytail: interim file-only inventory; the full Go projection (auth_index,
-    // cooldowns, counters, filters, pagination) replaces this in the credentials pass.
-    // Go lists only file-backed and runtime-only auths, never config API keys.
-    let files: Vec<_> = state
-        .rt
-        .store()
-        .snapshot()
-        .iter()
-        .filter(|c| matches!(c.source, Source::File(_)))
-        .map(|c| {
-            json!({
-                "id":c.id, "name":c.id, "auth_index":credentials::auth_index(c), "provider":c.provider,
-                "type":c.provider, "email":c.str("email").unwrap_or_default(), "label":c.label,
-                "disabled":c.disabled, "status":if c.disabled {"disabled"} else {"active"},
-                "runtime_only":false, "unavailable":false, "cooldowns":null
-            })
-        })
-        .collect();
-    json(StatusCode::OK, &json!({"files": files}))
-}
-
-async fn download(
-    State(state): State<Arc<Management>>,
-    axum::extract::Query(query): axum::extract::Query<HashMap<String, String>>,
-) -> Response {
-    let Some(name) = query.get("name") else {
-        return error(400, "invalid name");
-    };
-    // Lookup the store source rather than joining an untrusted filename to auth-dir.
-    let Some(c) = state.rt.store().get(name) else {
-        return error(404, "not_found");
-    };
-    let Source::File(path) = &c.source else {
-        return error(404, "not_found");
-    };
-    match tokio::fs::read(path).await {
-        Ok(bytes) => ([(header::CONTENT_TYPE, "application/json")], bytes).into_response(),
-        Err(_) => error(404, "not_found"),
-    }
-}
-
-async fn status(State(state): State<Arc<Management>>, body: Bytes) -> Response {
-    let value: Value = match serde_json::from_slice(&body) {
-        Ok(v) => v,
-        Err(_) => return error(400, "invalid request body"),
-    };
-    let name = value.get("name").and_then(Value::as_str).unwrap_or_default().trim();
-    if name.is_empty() {
-        return error(400, "name is required");
-    }
-    let Some(disabled) = value.get("disabled").and_then(Value::as_bool) else {
-        return error(400, "disabled is required");
-    };
-    let Some(credential) = state
-        .rt
-        .store()
-        .get(name)
-        .filter(|c| matches!(c.source, Source::File(_)))
-    else {
-        return error(404, "auth file not found");
-    };
-    let id = credential.id.clone();
-    let patch = MetadataPatch {
-        set: serde_json::Map::from_iter([("disabled".into(), disabled.into())]),
-        remove: vec![],
-    };
-    let result = tokio::task::spawn_blocking(move || {
-        let _guard = state.disk.lock().unwrap_or_else(PoisonError::into_inner);
-        state.rt.store().apply_patch(&id, credential.revision, &patch)
-    })
-    .await;
-    match result {
-        Ok(Ok(_)) => json(StatusCode::OK, &json!({"status":"ok", "disabled":disabled})),
-        Ok(Err(crate::runtime::PatchError::Stale { .. })) => error(409, "stale credential"),
-        _ => error(500, "write_failed"),
     }
 }
 

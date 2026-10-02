@@ -111,6 +111,8 @@ pub fn normalize_excluded(models: &[String]) -> Vec<String> {
 #[derive(Default, Clone)]
 struct Key {
     index: usize,
+    /// `(group, key)` position in `api-keys.<family>` of the v8 document.
+    origin: (usize, usize),
     api_key: String,
     base_url: String,
     priority: i64,
@@ -153,11 +155,17 @@ fn groups<'a>(cfg: &'a Config, family: &str) -> &'a [Value] {
 
 /// `expandV8Groups`: a key inherits the group's base-url and shared fields; a key's
 /// own non-null value wins.
-fn expand(cfg: &Config, family: &str) -> Vec<serde_yaml_ng::Mapping> {
+fn expand(cfg: &Config, family: &str) -> Vec<((usize, usize), serde_yaml_ng::Mapping)> {
     let mut out = Vec::new();
-    for group in groups(cfg, family) {
+    for (g, group) in groups(cfg, family).iter().enumerate() {
         let Some(group) = group.as_mapping() else { continue };
-        for key in group.get("keys").and_then(Value::as_sequence).into_iter().flatten() {
+        for (k, key) in group
+            .get("keys")
+            .and_then(Value::as_sequence)
+            .into_iter()
+            .flatten()
+            .enumerate()
+        {
             let mut item = serde_yaml_ng::Mapping::new();
             for (field, value) in group {
                 let name = field.as_str().unwrap_or_default();
@@ -170,7 +178,7 @@ fn expand(cfg: &Config, family: &str) -> Vec<serde_yaml_ng::Mapping> {
                     item.insert(field.clone(), value.clone());
                 }
             }
-            out.push(item);
+            out.push(((g, k), item));
         }
     }
     out
@@ -180,6 +188,7 @@ fn decode(item: &serde_yaml_ng::Mapping) -> Key {
     let get = |k: &str| item.get(k);
     Key {
         index: 0,
+        origin: (0, 0),
         api_key: text(get("api-key")),
         base_url: text(get("base-url")),
         priority: int(get("priority")).unwrap_or(0),
@@ -210,7 +219,13 @@ fn decode(item: &serde_yaml_ng::Mapping) -> Key {
 
 /// Family sanitizers from `LoadConfig`, returning keys with their runtime index.
 fn sanitized(cfg: &Config, family: &str) -> Vec<Key> {
-    let mut keys: Vec<Key> = expand(cfg, family).iter().map(decode).collect();
+    let mut keys: Vec<Key> = expand(cfg, family)
+        .iter()
+        .map(|(origin, item)| Key {
+            origin: *origin,
+            ..decode(item)
+        })
+        .collect();
     let mut seen = HashSet::new();
     keys.retain_mut(|k| match family {
         "gemini" | "interactions" => {
@@ -325,6 +340,7 @@ fn rules_json(rules: &[Value]) -> Json {
 }
 
 struct Draft {
+    origin: (usize, usize),
     id: String,
     provider: String,
     label: String,
@@ -401,6 +417,7 @@ fn base_draft(ids: &mut Ids, kind: &str, source: &str, k: &Key, parts: &[&str]) 
         attrs.insert(format!("header:{name}"), value.clone());
     }
     Draft {
+        origin: k.origin,
         id,
         provider: String::new(),
         label: String::new(),
@@ -428,8 +445,30 @@ pub fn openai_compat_provider(name: &str) -> String {
 /// Config-backed API-key credentials in Go's synthesis order. Weight bounds are
 /// already enforced by config validation.
 pub fn from_config(cfg: &Config) -> Vec<Credential> {
+    synthesize(cfg).into_iter().map(|(c, _)| c).collect()
+}
+
+/// Where a config-backed credential's key lives in the v8 document:
+/// `api-keys.<family>[group].keys[key]`. `None` for OpenAI-compatibility entries
+/// (Go cannot toggle them per key either) and unknown IDs.
+pub fn config_key_location(cfg: &Config, id: &str) -> Option<KeyLocation> {
+    synthesize(cfg)
+        .into_iter()
+        .find(|(c, _)| c.id == id)
+        .and_then(|(_, origin)| origin)
+}
+
+/// Position of a config API key: `api-keys.<family>[group].keys[key]`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct KeyLocation {
+    pub family: &'static str,
+    pub group: usize,
+    pub key: usize,
+}
+
+fn synthesize(cfg: &Config) -> Vec<(Credential, Option<KeyLocation>)> {
     let mut ids = Ids::default();
-    let mut out = Vec::new();
+    let mut out: Vec<(Credential, Option<KeyLocation>)> = Vec::new();
     for (family, kind, source, label, provider, section) in [
         (
             "gemini",
@@ -459,7 +498,12 @@ pub fn from_config(cfg: &Config) -> Vec<Credential> {
                 d.attrs.insert("base_url".into(), k.base_url.trim().into());
             }
             (d.provider, d.label, d.section) = (provider.into(), label.into(), section);
-            out.push(d.finish(Some(&k.excluded), &k.models));
+            let origin = Some(KeyLocation {
+                family,
+                group: d.origin.0,
+                key: d.origin.1,
+            });
+            out.push((d.finish(Some(&k.excluded), &k.models), origin));
         }
     }
     for k in sanitized(cfg, "claude") {
@@ -489,7 +533,12 @@ pub fn from_config(cfg: &Config) -> Vec<Credential> {
             d.attrs.insert("fingerprint_profile".into(), profile);
         }
         (d.provider, d.label, d.section) = ("claude".into(), "claude-apikey".into(), "claude-api-key");
-        out.push(d.finish(Some(&k.excluded), &k.models));
+        let origin = Some(KeyLocation {
+            family: "claude",
+            group: d.origin.0,
+            key: d.origin.1,
+        });
+        out.push((d.finish(Some(&k.excluded), &k.models), origin));
     }
     for (family, section) in [
         ("codex", "codex-api-key"),
@@ -527,10 +576,15 @@ pub fn from_config(cfg: &Config) -> Vec<Credential> {
                 d.attrs.insert("codex_disable_cloaking".into(), v.to_string());
             }
             (d.provider, d.label, d.section) = (family.into(), format!("{family}-apikey"), section);
-            out.push(d.finish(Some(&k.excluded), &k.models));
+            let origin = Some(KeyLocation {
+                family,
+                group: d.origin.0,
+                key: d.origin.1,
+            });
+            out.push((d.finish(Some(&k.excluded), &k.models), origin));
         }
     }
-    out.extend(openai_compat(cfg, &mut ids));
+    out.extend(openai_compat(cfg, &mut ids).into_iter().map(|c| (c, None)));
     for k in sanitized(cfg, "vertex") {
         let (key, base) = (k.api_key.trim(), k.base_url.trim());
         let (id, token) = ids.next("vertex:apikey", &[key, base, &k.proxy_url]);
@@ -559,6 +613,7 @@ pub fn from_config(cfg: &Config) -> Vec<Credential> {
             meta.insert("request_retry".into(), v.into());
         }
         let d = Draft {
+            origin: k.origin,
             id,
             provider: "vertex".into(),
             label: "vertex-apikey".into(),
@@ -569,7 +624,12 @@ pub fn from_config(cfg: &Config) -> Vec<Credential> {
             attrs,
             meta,
         };
-        out.push(d.finish(Some(&k.excluded), &k.models));
+        let origin = Some(KeyLocation {
+            family: "vertex",
+            group: d.origin.0,
+            key: d.origin.1,
+        });
+        out.push((d.finish(Some(&k.excluded), &k.models), origin));
     }
     out
 }
@@ -800,6 +860,9 @@ pub fn from_file(cfg: &Config, auth_dir: &Path, path: &Path, data: &[u8]) -> Res
     {
         attrs.insert("fingerprint_profile".into(), p);
     }
+    if matches!(provider.as_str(), "kimi" | "kimi-ai" | "kimi.ai" | "kimi.com") {
+        kimi_attributes(&provider, &meta, &mut attrs);
+    }
     if provider == "codex" {
         let plan = meta
             .get("plan_type")
@@ -876,6 +939,91 @@ fn oauth_aliases(raw: Option<&Json>) -> Option<String> {
 }
 
 /// Go `codex.ParseJWTToken(...).GetPlanType()`, defaulting to "free".
+const KIMI_COM: &str = "kimi.com";
+const KIMI_AI: &str = "kimi.ai";
+
+/// Go `FileSynthesizer`'s Kimi branch: keep `domain` and `base_url`, canonicalize
+/// the domain and default the API base URL from the resolved domain.
+fn kimi_attributes(provider: &str, meta: &Map<String, Json>, attrs: &mut BTreeMap<String, String>) {
+    let text = |key: &str| {
+        meta.get(key)
+            .and_then(Json::as_str)
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+    };
+    let (domain, base_url) = (text("domain"), text("base_url"));
+    // Go `ResolveKimiDomainFromAuth`. Its metadata steps repeat the attribute
+    // steps, `type` equals the provider, and every provider that reaches this
+    // branch classifies, so the file-name fallback is unreachable.
+    let resolved = domain
+        .and_then(kimi_domain)
+        .or_else(|| base_url.and_then(kimi_url_domain))
+        .or_else(|| kimi_domain(provider))
+        .unwrap_or(KIMI_COM);
+    let normalized = domain.map_or(resolved, |d| {
+        kimi_domain(d).filter(|d| *d == KIMI_AI).unwrap_or(KIMI_COM)
+    });
+    attrs.insert("domain".into(), normalized.into());
+    let default_base = if resolved == KIMI_AI {
+        "https://api.kimi.ai/coding"
+    } else {
+        "https://api.kimi.com/coding"
+    };
+    attrs.insert("base_url".into(), base_url.unwrap_or(default_base).into());
+}
+
+/// Go `IsKimiAIDomain` / `IsKimiComDomain`.
+fn kimi_domain(s: &str) -> Option<&'static str> {
+    let d = s.trim().to_lowercase();
+    if matches!(d.as_str(), "kimi.ai" | "ai" | "kimi-ai") || d.ends_with(".kimi.ai") {
+        Some(KIMI_AI)
+    } else if matches!(d.as_str(), "kimi.com" | "com" | "kimi") || d.ends_with(".kimi.com") {
+        Some(KIMI_COM)
+    } else {
+        None
+    }
+}
+
+/// Go `isKimiAIHost` / `isKimiComHost`.
+fn kimi_url_domain(raw: &str) -> Option<&'static str> {
+    let host = url_hostname(raw)?.to_lowercase();
+    if host == KIMI_AI || host.ends_with(".kimi.ai") {
+        Some(KIMI_AI)
+    } else if host == KIMI_COM || host.ends_with(".kimi.com") {
+        Some(KIMI_COM)
+    } else {
+        None
+    }
+}
+
+/// `url.Parse(raw).Hostname()` for the URLs auth files carry: an optional scheme,
+/// a `//` authority, userinfo up to the last `@`, an optional numeric port.
+/// ponytail: no percent-decoding or Go's other parse errors in the host.
+fn url_hostname(raw: &str) -> Option<&str> {
+    let raw = raw.trim();
+    let raw = raw.split('#').next().unwrap_or_default();
+    let rest = match raw.split_once(':') {
+        Some((scheme, rest))
+            if scheme.starts_with(|c: char| c.is_ascii_alphabetic())
+                && scheme.chars().all(|c| c.is_ascii_alphanumeric() || "+-.".contains(c)) =>
+        {
+            rest
+        }
+        _ if raw.starts_with(':') => return None,
+        _ => raw,
+    };
+    let authority = rest.strip_prefix("//")?.split(['/', '?']).next().unwrap_or_default();
+    let host_port = authority.rsplit_once('@').map_or(authority, |(_, h)| h);
+    if let Some(v6) = host_port.strip_prefix('[') {
+        let (host, port) = v6.split_once(']')?;
+        return (port.is_empty() || port.strip_prefix(':')?.bytes().all(|b| b.is_ascii_digit())).then_some(host);
+    }
+    match host_port.rsplit_once(':') {
+        Some((host, port)) => port.bytes().all(|b| b.is_ascii_digit()).then_some(host),
+        None => Some(host_port),
+    }
+}
+
 fn codex_plan(token: &str) -> String {
     use base64::Engine;
     let payload = token.split('.').collect::<Vec<_>>();

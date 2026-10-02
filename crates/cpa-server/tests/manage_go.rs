@@ -159,7 +159,7 @@ fn config_and_file_credentials_match_go_synthesizers() {
         compared += got.len();
         let _ = std::fs::remove_dir_all(&dir);
     }
-    assert_eq!(compared, 19, "every recorded Go credential was compared");
+    assert_eq!(compared, 30, "every recorded Go credential was compared");
 }
 
 mod access {
@@ -526,5 +526,237 @@ mod config_writes {
         }
         assert!(failures.is_empty(), "{}", failures.join("\n"));
         assert_eq!(compared, 44);
+    }
+}
+
+mod creds {
+    use super::*;
+    use cpa_exec::Executors;
+    use cpa_exec::claude::ClaudeExecutor;
+    use cpa_server::Runtime;
+    use cpa_server::management::{Management, Options};
+    use std::collections::HashMap;
+    use std::sync::Arc;
+
+    const TIMES: &[&str] = &[
+        "observed_at",
+        "modtime",
+        "created_at",
+        "updated_at",
+        "last_refresh",
+        "retry_at",
+    ];
+
+    /// Per-side values that cannot match: auth indexes (path-derived), timestamps,
+    /// sizes (Go rewrites files with sorted keys) and local bucket labels.
+    fn normalize(v: &Value, names: &HashMap<String, String>) -> Value {
+        match v {
+            Value::Object(m) => Value::Object(
+                m.iter()
+                    .map(|(k, v)| {
+                        let v = match (k.as_str(), v) {
+                            (t, Value::String(_)) if TIMES.contains(&t) => json!("<time>"),
+                            ("size", Value::Number(_)) => json!("<size>"),
+                            ("time", Value::String(_)) => json!("<label>"),
+                            ("auth_index", Value::String(s)) => {
+                                json!(format!(
+                                    "<index:{}>",
+                                    names.get(s).cloned().unwrap_or_else(|| s.clone())
+                                ))
+                            }
+                            _ => normalize(v, names),
+                        };
+                        (k.clone(), v)
+                    })
+                    .collect(),
+            ),
+            Value::Array(a) => Value::Array(a.iter().map(|v| normalize(v, names)).collect()),
+            other => other.clone(),
+        }
+    }
+
+    /// Go decodes JSON numbers as float64, so `1.0` and `1` are the same value.
+    fn go_numbers(v: &Value) -> Value {
+        match v {
+            Value::Number(n) => match n.as_f64() {
+                Some(f) if f.fract() == 0.0 && f.abs() < 9e15 => json!(f as i64),
+                _ => v.clone(),
+            },
+            Value::Object(m) => Value::Object(m.iter().map(|(k, v)| (k.clone(), go_numbers(v))).collect()),
+            Value::Array(a) => Value::Array(a.iter().map(go_numbers).collect()),
+            other => other.clone(),
+        }
+    }
+
+    fn config_credentials(config: &Value) -> Vec<Value> {
+        let yaml = serde_yaml_ng::to_string(config).unwrap();
+        let cfg = Config::parse(&yaml).unwrap();
+        credentials::from_config(&cfg)
+            .iter()
+            .map(|c| json!({"id": c.id, "provider": c.provider, "attributes": c.attributes}))
+            .collect()
+    }
+
+    #[tokio::test]
+    async fn go_credential_management_replay() {
+        let hash = bcrypt::hash("fake-secret", 4).unwrap();
+        let client = wreq::Client::new();
+        let mut compared = 0;
+        for scenario in fixture()["credentials"].as_array().unwrap() {
+            let name = scenario["name"].as_str().unwrap();
+            let dir = std::env::temp_dir().join(format!("cpa-creds-{name}-{}", std::process::id()));
+            let root = dir.join("fixture-root");
+            let auth = root.join("auth");
+            std::fs::create_dir_all(&auth).unwrap();
+            for (file, body) in scenario["auth_files"].as_object().unwrap() {
+                std::fs::write(auth.join(file), body.as_str().unwrap()).unwrap();
+            }
+            let path = root.join("config.yaml");
+            let yaml = scenario["yaml"]
+                .as_str()
+                .unwrap()
+                .replace("$HASH", &hash)
+                .replace("$AUTH", &auth.display().to_string());
+            std::fs::write(&path, yaml).unwrap();
+            let cfg = Config::load(&path).unwrap();
+            let rt = Arc::new(Runtime::new(
+                cfg.clone(),
+                credentials::load(&cfg),
+                Executors {
+                    claude: ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
+                },
+            ));
+            let options = Options {
+                management_password: Some(String::new()),
+                ..Options::default()
+            };
+            let state = Management::with_options(rt.clone(), path.clone(), options);
+            let (base, server) = super::access::serve(state).await;
+            // index -> name, for each side.
+            let go_names: HashMap<String, String> = scenario["indexes"]
+                .as_object()
+                .unwrap()
+                .iter()
+                .map(|(n, i)| (i.as_str().unwrap().to_owned(), n.clone()))
+                .collect();
+            let rust_name = |c: &cpa_core::credential::Credential| match &c.source {
+                Source::File(p) => p.file_name().unwrap().to_string_lossy().into_owned(),
+                Source::Config { .. } => c.id.clone(),
+            };
+            let mut rust_names: HashMap<String, String> = rt
+                .store()
+                .snapshot()
+                .iter()
+                .map(|c| (credentials::auth_index(c), rust_name(c)))
+                .collect();
+            let cfg_id = rt
+                .store()
+                .snapshot()
+                .iter()
+                .find(|c| matches!(c.source, Source::Config { .. }))
+                .unwrap()
+                .id
+                .clone();
+            let resolve = |text: &str, names: &HashMap<String, String>| {
+                let mut text = text.replace("$CFGID", &cfg_id);
+                for (index, name) in names {
+                    text = text.replace(&format!("$INDEX({name})"), index);
+                }
+                text
+            };
+            for (i, step) in scenario["steps"].as_array().unwrap().iter().enumerate() {
+                let at = format!("{name}[{i}] {} {}", step["method"], step["path"]);
+                let method: wreq::Method = step["method"].as_str().unwrap().parse().unwrap();
+                let mut req = client
+                    .request(
+                        method,
+                        format!(
+                            "{base}/v8/management{}",
+                            resolve(step["path"].as_str().unwrap(), &rust_names)
+                        ),
+                    )
+                    .header("X-Test-Peer", "127.0.0.1:1")
+                    .bearer_auth("fake-secret")
+                    .body(resolve(step["body"].as_str().unwrap_or_default(), &rust_names));
+                if let Some(ct) = step["content_type"].as_str() {
+                    req = req.header("Content-Type", ct);
+                }
+                let res = req.send().await.unwrap();
+                let status = res.status().as_u16();
+                let headers: HashMap<String, String> = ["Content-Type", "Content-Disposition"]
+                    .iter()
+                    .filter_map(|h| Some((h.to_string(), res.headers().get(*h)?.to_str().ok()?.to_owned())))
+                    .collect();
+                let body = res
+                    .text()
+                    .await
+                    .unwrap()
+                    .replace(&root.display().to_string(), "/fixture-root");
+                assert_eq!(status, step["status"], "{at}: {body}");
+                // New credentials (uploads) get indexes on both sides.
+                for c in rt.store().snapshot().iter() {
+                    rust_names
+                        .entry(credentials::auth_index(c))
+                        .or_insert_with(|| rust_name(c));
+                }
+                if let Some(raw) = step["raw_response"].as_str() {
+                    assert_eq!(body, raw, "{at}");
+                    let want = step["resp_headers"].as_object().unwrap();
+                    for (h, v) in want {
+                        assert_eq!(headers.get(h).map(String::as_str), v.as_str(), "{at}: header {h}");
+                    }
+                } else {
+                    let got: Value = serde_json::from_str(&body).unwrap();
+                    let mut want = normalize(&step["response"], &go_names);
+                    let got = normalize(&got, &rust_names);
+                    // Go's harness has no model registry, so its cooldown-reset fallback
+                    // list is empty; cliproxy-rs reports the credential's static models.
+                    if step["path"] == "/routing/cooldown/reset" && status == 200 {
+                        assert!(got["models"].as_array().is_some_and(|m| !m.is_empty()), "{at}");
+                        want["models"] = got["models"].clone();
+                    }
+                    if let Some(msg) = want["error"].as_str().filter(|m| m.starts_with("invalid auth file: ")) {
+                        // JSON parser wording differs; the prefix and status are Go's.
+                        assert!(
+                            got["error"].as_str().unwrap().starts_with("invalid auth file: "),
+                            "{at}: {msg}"
+                        );
+                        want["error"] = got["error"].clone();
+                    }
+                    assert_eq!(got, want, "{at}");
+                }
+                // Auth dir contents, as JSON values.
+                let mut files = serde_json::Map::new();
+                for entry in std::fs::read_dir(&auth).unwrap() {
+                    let entry = entry.unwrap();
+                    let data = std::fs::read(entry.path()).unwrap();
+                    let v = serde_json::from_slice::<Value>(&data)
+                        .unwrap_or_else(|_| json!(format!("raw:{}", String::from_utf8_lossy(&data))));
+                    files.insert(entry.file_name().to_string_lossy().into_owned(), v);
+                }
+                assert_eq!(
+                    go_numbers(&Value::Object(files)),
+                    go_numbers(&step["files"]),
+                    "{at}: auth dir"
+                );
+                for (file, raw) in step["raw_files"].as_object().into_iter().flatten() {
+                    let got = std::fs::read_to_string(auth.join(file)).unwrap();
+                    assert_eq!(Some(got.as_str()), raw.as_str(), "{at}: bytes of {file}");
+                }
+                // Config effects, compared through the credentials they synthesize.
+                let file = std::fs::read_to_string(&path).unwrap();
+                let rust_config: Value =
+                    serde_json::to_value(serde_yaml_ng::from_str::<serde_yaml_ng::Value>(&file).unwrap()).unwrap();
+                assert_eq!(
+                    config_credentials(&rust_config),
+                    config_credentials(&step["config"]),
+                    "{at}: config API keys"
+                );
+                compared += 1;
+            }
+            server.abort();
+            let _ = std::fs::remove_dir_all(&dir);
+        }
+        assert_eq!(compared, 51);
     }
 }

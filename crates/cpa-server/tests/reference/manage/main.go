@@ -3,6 +3,8 @@
 package main
 
 import (
+	"context"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -18,8 +20,10 @@ import (
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/api"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/api/handlers/management"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/config"
+	"github.com/router-for-me/CLIProxyAPI/v8/internal/registry"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/watcher/synthesizer"
 	sdkaccess "github.com/router-for-me/CLIProxyAPI/v8/sdk/access"
+	sdkAuth "github.com/router-for-me/CLIProxyAPI/v8/sdk/auth"
 	coreauth "github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/auth"
 	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/yaml.v3"
@@ -254,15 +258,153 @@ func runConfig(s configScenario) configScenario {
 	return s
 }
 
+// Credential management calls against a Go server whose auth manager persists
+// through Go's file token store, with the resulting auth dir and config.
+type credStep struct {
+	Method      string            `json:"method"`
+	Path        string            `json:"path"`
+	Body        string            `json:"body,omitempty"`
+	ContentType string            `json:"content_type,omitempty"`
+	Status      int               `json:"status"`
+	Response    any               `json:"response"`
+	Raw         string            `json:"raw_response,omitempty"`
+	Headers     map[string]string `json:"resp_headers,omitempty"`
+	Files       map[string]any    `json:"files"`
+	RawFiles    map[string]string `json:"raw_files,omitempty"`
+	Config      any               `json:"config"`
+}
+
+type credScenario struct {
+	Name    string            `json:"name"`
+	YAML    string            `json:"yaml"`
+	Files   map[string]string `json:"auth_files"`
+	Indexes map[string]string `json:"indexes"`
+	Steps   []credStep        `json:"steps"`
+}
+
+func snapshotDir(dir string) map[string]any {
+	out := map[string]any{}
+	entries, _ := os.ReadDir(dir)
+	for _, e := range entries {
+		data, err := os.ReadFile(filepath.Join(dir, e.Name()))
+		must(err)
+		var v any
+		if json.Unmarshal(data, &v) == nil {
+			out[e.Name()] = v
+		} else {
+			out[e.Name()] = "raw:" + string(data)
+		}
+	}
+	return out
+}
+
+func runCreds(s credScenario) credScenario {
+	must(os.Unsetenv("MANAGEMENT_PASSWORD"))
+	dir, err := os.MkdirTemp("", "cpa-creds-")
+	must(err)
+	defer os.RemoveAll(dir)
+	root := filepath.Join(dir, "fixture-root")
+	authDir := filepath.Join(root, "auth")
+	must(os.MkdirAll(authDir, 0o700))
+	for name, body := range s.Files {
+		must(os.WriteFile(filepath.Join(authDir, name), []byte(body), 0o600))
+	}
+	path := filepath.Join(root, "config.yaml")
+	cfg := writeConfig(path, strings.ReplaceAll(s.YAML, "$AUTH", authDir))
+	store := sdkAuth.GetTokenStore()
+	if setter, ok := store.(interface{ SetBaseDir(string) }); ok {
+		setter.SetBaseDir(authDir)
+	}
+	manager := coreauth.NewManager(store, nil, nil)
+	ctx := &synthesizer.SynthesisContext{Config: cfg, AuthDir: authDir, Now: time.Now(), IDGenerator: synthesizer.NewStableIDGenerator()}
+	files, err := synthesizer.NewFileSynthesizer().Synthesize(ctx)
+	must(err)
+	configAuths, err := synthesizer.NewConfigSynthesizer().Synthesize(ctx)
+	must(err)
+	cfgID := ""
+	s.Indexes = map[string]string{}
+	for _, a := range append(files, configAuths...) {
+		_, errRegister := manager.Register(coreauth.WithSkipPersist(context.Background()), a)
+		must(errRegister)
+		key := a.FileName
+		if key == "" {
+			key = a.ID
+			cfgID = a.ID
+		}
+		s.Indexes[key] = a.EnsureIndex()
+	}
+	server := api.NewServer(cfg, manager, sdkaccess.NewManager(), path)
+	resolve := func(text string) string {
+		text = strings.ReplaceAll(text, "$CFGID", cfgID)
+		for name, index := range s.Indexes {
+			text = strings.ReplaceAll(text, "$INDEX("+name+")", index)
+		}
+		return text
+	}
+	for i := range s.Steps {
+		st := &s.Steps[i]
+		req := httptest.NewRequest(st.Method, "/v8/management"+resolve(st.Path), strings.NewReader(resolve(st.Body)))
+		req.RemoteAddr = "127.0.0.1:1"
+		req.Header.Set("Authorization", "Bearer fake-secret")
+		if st.ContentType != "" {
+			req.Header.Set("Content-Type", st.ContentType)
+		}
+		rec := httptest.NewRecorder()
+		server.Handler().ServeHTTP(rec, req)
+		st.Status = rec.Code
+		var v any
+		if json.Unmarshal(rec.Body.Bytes(), &v) == nil && !strings.Contains(st.Path, "/download") {
+			st.Response = v
+		} else {
+			st.Raw = rec.Body.String()
+		}
+		st.Headers = map[string]string{}
+		for _, h := range []string{"Content-Type", "Content-Disposition"} {
+			if value := rec.Header().Get(h); value != "" {
+				st.Headers[h] = value
+			}
+		}
+		st.Files = snapshotDir(authDir)
+		// Exact bytes for raw-*.json uploads: Go keeps them when already canonical.
+		st.RawFiles = map[string]string{}
+		if matches, _ := filepath.Glob(filepath.Join(authDir, "raw-*.json")); len(matches) > 0 {
+			for _, m := range matches {
+				data, errRead := os.ReadFile(m)
+				must(errRead)
+				st.RawFiles[filepath.Base(m)] = string(data)
+			}
+		}
+		// Credentials registered by this step (uploads) get indexes too.
+		for _, a := range manager.List() {
+			key := filepath.Base(a.FileName)
+			if a.FileName == "" {
+				key = a.ID
+			}
+			if _, seen := s.Indexes[key]; !seen {
+				s.Indexes[key] = a.EnsureIndex()
+			}
+		}
+		data, errRead := os.ReadFile(path)
+		must(errRead)
+		st.Config = yamlToJSON(string(data))
+	}
+	// Report paths relative to the placeholder root, as the Rust replay does.
+	raw, err := json.Marshal(s.Steps)
+	must(err)
+	must(json.Unmarshal([]byte(strings.ReplaceAll(string(raw), root, fixtureRoot)), &s.Steps))
+	return s
+}
+
 type output struct {
+	Credentials  []credScenario   `json:"credentials"`
 	Materialized any              `json:"materialized_defaults"`
 	Config       []configScenario `json:"config_writes"`
-	IPBytes []ipBytesCase   `json:"client_ip_bytes"`
-	Routes []routeScenario  `json:"routes"`
-	Access []accessScenario `json:"access"`
-	IPs    []ipCase         `json:"client_ip"`
-	Synth  []synthCase      `json:"synth"`
-	Loads  []loadCase       `json:"load_errors"`
+	IPBytes      []ipBytesCase    `json:"client_ip_bytes"`
+	Routes       []routeScenario  `json:"routes"`
+	Access       []accessScenario `json:"access"`
+	IPs          []ipCase         `json:"client_ip"`
+	Synth        []synthCase      `json:"synth"`
+	Loads        []loadCase       `json:"load_errors"`
 }
 
 func must(err error) {
@@ -403,10 +545,18 @@ func h(pairs ...string) map[string][]string {
 
 func main() {
 	gin.SetMode(gin.ReleaseMode)
-	if len(os.Args) != 2 {
-		fmt.Fprintln(os.Stderr, "usage: manage <output.json>")
+	if len(os.Args) != 3 {
+		fmt.Fprintln(os.Stderr, "usage: manage <fixture.json> <model_definitions.json>")
 		os.Exit(2)
 	}
+	// Go's static model definitions per management channel, embedded as data.
+	definitions := map[string]any{}
+	for _, channel := range []string{"claude", "gemini", "gemini-interactions", "vertex", "aistudio", "codex", "kimi", "antigravity", "xai", "devin", "meta"} {
+		definitions[channel] = registry.GetStaticModelDefinitionsByChannel(channel)
+	}
+	defs, errDefs := json.Marshal(definitions)
+	must(errDefs)
+	must(os.WriteFile(os.Args[2], append(defs, '\n'), 0o644))
 	good := h("Authorization", "Bearer fake-secret")
 	wrong := h("Authorization", "Bearer fake-wrong")
 	local := "127.0.0.1:40000"
@@ -433,6 +583,9 @@ func main() {
 	base := runConfig(configScenario{Name: "materialized", YAML: "config-version: 8\nmanagement:\n  secret-key: '$HASH'\n",
 		Steps: []configStep{{Method: http.MethodPatch, Path: "/config", Body: "{}"}}})
 	out.Materialized = base.Steps[0].File
+	for _, s := range credScenarios() {
+		out.Credentials = append(out.Credentials, runCreds(s))
+	}
 	for _, s := range configScenarios() {
 		out.Config = append(out.Config, runConfig(s))
 	}
@@ -701,6 +854,19 @@ oauth-excluded-models:
 			"upper.JSON":     `{"type":"Claude","priority":1.9}`,
 			"weightbad.json": `{"type":"claude","weight":"abc"}`,
 		}},
+		{Name: "kimi_files", YAML: "auth-dir: ./auth\n", Files: map[string]string{
+			"k1-plain.json":          `{"type":"kimi"}`,
+			"k2-type-ai.json":        `{"type":"Kimi-AI"}`,
+			"k3-domain-ai.json":      `{"type":"kimi","domain":" AI "}`,
+			"k4-unknown-domain.json": `{"type":"kimi.ai","domain":"example.org"}`,
+			"k5-base-host.json":      `{"type":"kimi.com","base_url":" https://u:p@API.Kimi.AI:8443/coding "}`,
+			"k6-mixed.json":          `{"type":"kimi","domain":"example.org","base-url":"//sub.kimi.ai/x"}`,
+			"k7-no-scheme.json":      `{"type":"kimi-ai","base_url":"api.kimi.com/coding"}`,
+			"k8-bad-port.json":       `{"type":"kimi-ai","base_url":"https://api.kimi.com:abc/v1"}`,
+			"k9-blank.json":          `{"type":"kimi.ai","domain":"  ","base_url":7}`,
+			"kimi.ai-name.json":      `{"type":"kimi"}`,
+			"k10-v6.json":            `{"type":"kimi-ai","base_url":"https://[::1]:8080/x","domain":"sub.kimi.com"}`,
+		}},
 		{Name: "invalid_weight", YAML: "claude-api-key:\n  - {api-key: fake, weight: 1000001}\n"},
 	}
 }
@@ -753,7 +919,9 @@ func routeScenarios() []routeScenario {
 func configScenarios() []configScenario {
 	get := func(path string) configStep { return configStep{Method: http.MethodGet, Path: path} }
 	put := func(path, body string) configStep { return configStep{Method: http.MethodPut, Path: path, Body: body} }
-	patch := func(path, body string) configStep { return configStep{Method: http.MethodPatch, Path: path, Body: body} }
+	patch := func(path, body string) configStep {
+		return configStep{Method: http.MethodPatch, Path: path, Body: body}
+	}
 	del := func(path string) configStep { return configStep{Method: http.MethodDelete, Path: path} }
 	owner := "# Owner config\nhost: \"\"\nport: 8317 # listen\nremote-management:\n  # allow the dashboard\n  allow-remote: true\n  secret-key: \"$HASH\" # hashed\nauth-dir: \"~/.cli-proxy-api\"\napi-keys:\n  - \"sk-fake-owner\"\n# disabled for now\nrequest-retry: 3\nmystery-section:\n  nested: [1, 2]\n"
 	v8 := "config-version: 8\nmanagement:\n  secret-key: '$HASH'\nrouting:\n  strategy: round-robin\n  retry:\n    request-retry: 2\n  cooldown:\n    disable-cooling: true\nserver:\n  mystery-field: 1\n  port: 0\nmystery-section: {a: 1}\n"
@@ -812,4 +980,84 @@ func configScenarios() []configScenario {
 			patch("/config.yaml", "{}"),
 		}},
 	}
+}
+
+func credScenarios() []credScenario {
+	jwt := func(claims string) string {
+		enc := func(s string) string { return strings.TrimRight(base64.URLEncoding.EncodeToString([]byte(s)), "=") }
+		return enc(`{"alg":"none"}`) + "." + enc(claims) + ".sig"
+	}
+	idToken := jwt(`{"email":"b@example.invalid","https://api.openai.com/auth":{"chatgpt_plan_type":"pro","chatgpt_account_id":"acc-fake"}}`)
+	files := map[string]string{
+		"claude-a.json":   `{"type":"claude","email":"a@example.invalid","priority":"7","note":" hi ","access_token":"fake-at","refresh_token":"fake-rt","expired":"2099-01-01T00:00:00Z","quota_probe":{"kind":"fake"},"zz":{"keep":[1,2]}}`,
+		"codex-b.json":    `{"type":"codex","id_token":"` + idToken + `","access_token":"fake","websockets":"true","request-retry":3,"project_id":" proj "}`,
+		"expired-c.json":  `{"type":"claude","access_token":"x","expired":"2000-01-01T00:00:00Z","weight":2}`,
+		"disabled-d.json": `{"type":"claude","disabled":true,"email":"d@example.invalid"}`,
+		"notype.json":     `{"email":"x@example.invalid"}`,
+		"readme.txt":      "not json",
+	}
+	get := func(path string) credStep { return credStep{Method: http.MethodGet, Path: path} }
+	call := func(method, path, body string) credStep { return credStep{Method: method, Path: path, Body: body} }
+	boundary := "fixtureboundary"
+	multipartBody := "--" + boundary + "\r\nContent-Disposition: form-data; name=\"b\"; filename=\"up2.txt\"\r\nContent-Type: text/plain\r\n\r\nnope\r\n" +
+		"--" + boundary + "\r\nContent-Disposition: form-data; name=\"a\"; filename=\"dir/up1.json\"\r\nContent-Type: application/json\r\n\r\n{\"type\":\"claude\",\"email\":\"u@example.invalid\"}\r\n" +
+		"--" + boundary + "--\r\n"
+	return []credScenario{{
+		Name:  "credential_inventory_and_edits",
+		YAML:  "remote-management:\n  secret-key: '$HASH'\nauth-dir: $AUTH\nclaude-api-key:\n  - api-key: fake-cfg-key\n    base-url: https://claude.example.invalid\n",
+		Files: files,
+		Steps: []credStep{
+			get("/credentials"),
+			get("/credentials?name=claude-a.json"),
+			get("/credentials?auth_index=$INDEX(codex-b.json)"),
+			get("/credentials?name=claude-a.json&auth_index=$INDEX(codex-b.json)"),
+			get("/credentials?page=2&page_size=2"),
+			get("/credentials?page=0"),
+			get("/credentials?page_size=x"),
+			get("/credentials/download?name=notype.json"),
+			get("/credentials/download?name=../x.json"),
+			get("/credentials/download?name=readme.txt"),
+			get("/credentials/download?name=missing.json"),
+			get("/credentials/download"),
+			call(http.MethodPatch, "/credentials/status", `{"name":"claude-a.json","disabled":true}`),
+			call(http.MethodPatch, "/credentials/status", `{"name":"claude-a.json"}`),
+			call(http.MethodPatch, "/credentials/status", `{}`),
+			call(http.MethodPatch, "/credentials/status", `{"name":"nope.json","disabled":true}`),
+			call(http.MethodPatch, "/credentials/status", `{"name":"claude-a.json","auth_index":"$INDEX(codex-b.json)","disabled":false}`),
+			call(http.MethodPatch, "/credentials/status", `not json`),
+			call(http.MethodPatch, "/credentials/status", `{"name":"$CFGID","disabled":true}`),
+			call(http.MethodPatch, "/credentials/fields", `{"name":"codex-b.json","priority":5,"note":"n","headers":{"X-A":"1"},"request_retry":-1,"weight":3,"meta.inner":"v"}`),
+			call(http.MethodPatch, "/credentials/fields", `{"name":"codex-b.json","weight":"x"}`),
+			call(http.MethodPatch, "/credentials/fields", `{"name":"codex-b.json"}`),
+			call(http.MethodPatch, "/credentials/fields", `{"name":"codex-b.json","request_retry.x":1}`),
+			call(http.MethodPatch, "/credentials/fields", `{"name":"codex-b.json","excluded-models":["a"],"excluded_models":["b"],"headers":{"X-A":""}}`),
+			call(http.MethodPatch, "/credentials/fields", `{"priority":1}`),
+			call(http.MethodPatch, "/credentials/fields", `{"name":"missing.json","priority":1}`),
+			get("/credentials?name=codex-b.json"),
+			call(http.MethodPost, "/credentials?name=new.json", `{"type":"claude","email":"n@example.invalid"}`),
+			call(http.MethodPost, "/credentials?name=bad.json", `{`),
+			call(http.MethodPost, "/credentials?name=x.txt", `{}`),
+			call(http.MethodPost, "/credentials?name=../evil.json", `{}`),
+			{Method: http.MethodPost, Path: "/credentials", Body: multipartBody, ContentType: "multipart/form-data; boundary=" + boundary},
+			{Method: http.MethodPost, Path: "/credentials", Body: "--" + boundary + "--\r\n", ContentType: "multipart/form-data; boundary=" + boundary},
+			get("/credentials?name=new.json"),
+			call(http.MethodPost, "/credentials?name=raw-pretty.json", "{\n  \"type\": \"claude\",\n  \"disabled\": false,\n  \"priority\": 1.0\n}\n"),
+			call(http.MethodPost, "/credentials?name=raw-alias.json", "{\n  \"type\": \"claude\",\n  \"proxy-url\": \"http://p.example.invalid\",\n  \"disabled\": true\n}\n"),
+			call(http.MethodPost, "/credentials?name=raw-flag.json", `{"type":"claude","disabled":"yes"}`),
+			call(http.MethodDelete, "/credentials?name=new.json", ""),
+			call(http.MethodDelete, "/credentials", `{"names":["up1.json","missing.json"]}`),
+			call(http.MethodDelete, "/credentials", `["../x.json"]`),
+			call(http.MethodDelete, "/credentials", ``),
+			call(http.MethodPost, "/routing/cooldown/reset", `{"auth_index":"$INDEX(claude-a.json)"}`),
+			call(http.MethodPost, "/routing/cooldown/reset", `{}`),
+			call(http.MethodPost, "/routing/cooldown/reset", `{"auth_index":"nope"}`),
+			get("/routing/model-definitions/claude"),
+			get("/routing/model-definitions/CODEX"),
+			get("/routing/model-definitions/nope"),
+			call(http.MethodPost, "/credentials/refresh", `{}`),
+			call(http.MethodPost, "/credentials/refresh", `{"name":"missing.json"}`),
+			call(http.MethodDelete, "/credentials?all=true", ""),
+			get("/credentials"),
+		},
+	}}
 }
