@@ -419,6 +419,9 @@ pub(crate) fn lines(
     .boxed()
 }
 
+/// ponytail: adapter for `cpa_common::headers` (owner: server thread); swap for the shared
+/// helper when it lands.
+///
 /// `util.ApplyCustomHeadersFromAttrs`: `header:<Name>` attributes and the file's `headers`
 /// map (synthesized into attributes by Go). `$Name` copies an inbound header and
 /// `$CPA-SESSION-ID` the request session; missing sources omit the header.
@@ -483,6 +486,9 @@ fn replace_session(value: &str, session: &str) -> String {
     out
 }
 
+/// ponytail: adapter for crates/cpa-exec/src/proxy.rs (owner: Claude thread), together
+/// with [`Clients`]; build clients through the shared proxy module when it lands.
+///
 /// Effective proxy: credential `proxy_url`, then `requests.proxy-url` (helps.effectiveProxyURL).
 pub(crate) fn proxy_url(credential: &Credential, cfg: &Config) -> String {
     let from_credential = credential

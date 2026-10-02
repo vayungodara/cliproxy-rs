@@ -7,9 +7,10 @@
 //! - OpenAI Responses: native `/v1/responses`, body kept in Responses shape.
 //! - Everything else: translated to OpenAI Chat Completions at `/v1/chat/completions`.
 //!
-//! ponytail: Go's payload rules (requests.payload, M4-0031), the apply_patch Responses
-//! bridge, and Codex CLI multi-agent/integer-tool normalization are not applied; they are
-//! shared stages owned elsewhere. Requests without those features are unaffected.
+//! Shared stages go through adapters named after their owners: thinking (kimi_thinking),
+//! custom headers and proxies (kimi_http), payload rules and Codex-client rewrites (below).
+//! ponytail: the apply_patch Responses bridge (translator common) is not applied; requests
+//! without an apply_patch custom tool are unaffected.
 
 use std::collections::VecDeque;
 use std::sync::Arc;
@@ -108,9 +109,9 @@ impl KimiExecutor {
         }
         let client = self.clients.get(&proxy_url(credential, cfg));
         if req.source_format == Format::OpenAIResponse {
-            return execute_responses(&client, credential, req).await;
+            return execute_responses(&client, credential, req, cfg).await;
         }
-        execute_chat(&client, credential, req).await
+        execute_chat(&client, credential, req, cfg).await
     }
 
     async fn execute_claude(
@@ -292,6 +293,27 @@ fn text(body: &[u8]) -> Result<&str, ExecError> {
     std::str::from_utf8(body).map_err(|_| request_error("request body is not valid UTF-8"))
 }
 
+/// ponytail: adapter for `cpa_common::payload` (owner: server thread). Go applies
+/// `requests.payload` rules here (ApplyPayloadConfigWithRequest) to the final provider body;
+/// identity until the shared module lands. `target` and `source` are Go format names.
+fn apply_payload_rules(
+    _cfg: &Config,
+    _model: &str,
+    _target: &str,
+    _source: &str,
+    body: String,
+    _req: &ExecRequest,
+) -> String {
+    body
+}
+
+/// ponytail: adapter for `cpa_common::codex_client` (owner: Codex thread). Go wraps request
+/// translation in TranslateRequestWithCodexMultiAgentV2, which rewrites Codex CLI requests
+/// (integer tool schemas, multi-agent v2 input); identity until the shared module lands.
+fn codex_client_request(_req: &ExecRequest, body: &[u8]) -> Vec<u8> {
+    body.to_vec()
+}
+
 /// Go's bufio.Scanner limits: 1 MiB for Chat Completions lines, 50 MiB for Responses.
 const CHAT_LINE_LIMIT: usize = 1_048_576;
 const RESPONSES_LINE_LIMIT: usize = 52_428_800;
@@ -309,6 +331,7 @@ async fn execute_chat(
     client: &wreq::Client,
     credential: &Credential,
     req: ExecRequest,
+    cfg: &Config,
 ) -> Result<ExecResponse, ExecError> {
     let (base_model, _) = parse_suffix(&req.model);
     let request_pair = cpa_translate::pair(req.source_format, Format::OpenAI);
@@ -325,10 +348,10 @@ async fn execute_chat(
                 model: base_model,
                 stream: req.stream,
             },
-            &req.body,
+            &codex_client_request(&req, &req.body),
         )
         .map_err(|e| request_error(e.to_string()))?,
-        None => req.body.to_vec(),
+        None => codex_client_request(&req, &req.body),
     };
     let translated = String::from_utf8(translated).map_err(|_| request_error("translated body is not UTF-8"))?;
     let upstream_model = normalize_upstream_model(base_model);
@@ -348,6 +371,7 @@ async fn execute_chat(
         body = set_raw(&body, "stream_options.include_usage", "true")
             .map_err(|e| internal_error(format!("kimi executor: failed to set stream_options in payload: {e}")))?;
     }
+    body = apply_payload_rules(cfg, base_model, "openai", req.source_format.as_str(), body, &req);
     body = normalize_tool_message_links(&body)?;
     body = normalize_tools(&body);
     body = normalize_temperature(&body);
@@ -451,6 +475,7 @@ async fn execute_responses(
     client: &wreq::Client,
     credential: &Credential,
     req: ExecRequest,
+    cfg: &Config,
 ) -> Result<ExecResponse, ExecError> {
     if req.alt.as_deref() == Some("responses/compact") {
         return Err(if req.stream {
@@ -483,6 +508,14 @@ async fn execute_responses(
         "kimi",
     )
     .map_err(|e| request_error(e.0))?;
+    body = apply_payload_rules(
+        cfg,
+        base_model,
+        "openai-response",
+        req.source_format.as_str(),
+        body,
+        &req,
+    );
     body = normalize_responses_input(&body);
     body = normalize_tools(&body);
     body = normalize_temperature(&body);

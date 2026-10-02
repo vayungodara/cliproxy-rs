@@ -1,13 +1,13 @@
-//! Go's canonical thinking pipeline (internal/thinking, helps.ApplyRequestThinking):
-//! model suffix (wins over body), source/target extraction, validation against the
-//! model's capabilities, then the provider applier and summary restoration.
+//! Adapter for `cpa_common::thinking` (Go internal/thinking).
 //!
-//! ponytail: only the `kimi` and `codex` appliers are ported, the targets Kimi (chat
-//! completions and Responses) and Meta (Responses) need. Every other target passes the
-//! body through, as Go does for an unknown applier. Model info comes from the pinned
-//! static catalog (Go's dynamic registry holds the same entries for OAuth credentials);
-//! API-key `models[]` capabilities and Home-resolved model info are not consulted.
-//! Hoist into a shared module when PARITY M2-0032 lands.
+//! ponytail: adapter, owner the Google thread (cpa-common::thinking). Callers use only
+//! [`apply`] (helps.ApplyRequestThinking) and [`parse_suffix`]; replace both with the shared
+//! module and delete this file. It predates the ownership decision, so it is a full Go
+//! port of the paths Kimi and Meta use (kimi and codex appliers, suffix, validation,
+//! summary), checked against Go by the `thinking` entries in
+//! tests/device_fixtures/kimi/vectors.json. Those vectors are the acceptance test for the
+//! shared module. Model capabilities come from the pinned static catalog until the
+//! registry overlay (server thread) exists.
 
 use cpa_core::registry::{ModelInfo, ThinkingSupport};
 
