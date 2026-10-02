@@ -1,0 +1,844 @@
+[
+  {
+    "name": "ws_two_turns",
+    "config": "host: \"\"\n",
+    "client_headers": {
+      "session_id": "sess-ws",
+      "x-codex-turn-state": "ts-1"
+    },
+    "credentials": [
+      {
+        "id": "codex-ws.json",
+        "attributes": {
+          "api_key": "sk-fake-ws",
+          "websockets": "true"
+        },
+        "models": [
+          "gpt-fixture"
+        ]
+      }
+    ],
+    "steps": [
+      {
+        "send": "{\"type\":\"response.create\",\"model\":\"gpt-fixture\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}]}",
+        "read": "completed",
+        "upstream": [
+          {
+            "events": [
+              "{\"type\":\"response.created\",\"response\":{\"id\":\"r1\",\"status\":\"in_progress\",\"output\":[]}}",
+              "{\"type\":\"response.output_text.delta\",\"output_index\":0,\"delta\":\"hel\"}",
+              "{\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"type\":\"message\",\"role\":\"assistant\",\"id\":\"msg_hello\",\"content\":[{\"type\":\"output_text\",\"text\":\"hello\"}]}}",
+              "{\"type\":\"response.completed\",\"response\":{\"id\":\"r1\",\"status\":\"completed\",\"output\":[],\"usage\":{\"input_tokens\":3,\"output_tokens\":2,\"total_tokens\":5}}}"
+            ]
+          }
+        ],
+        "frames": [
+          {
+            "text": "{\"type\":\"response.created\",\"response\":{\"id\":\"r1\",\"status\":\"in_progress\",\"output\":[]}}"
+          },
+          {
+            "text": "{\"type\":\"response.output_text.delta\",\"output_index\":0,\"delta\":\"hel\"}"
+          },
+          {
+            "text": "{\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"type\":\"message\",\"role\":\"assistant\",\"id\":\"msg_hello\",\"content\":[{\"type\":\"output_text\",\"text\":\"hello\"}]}}"
+          },
+          {
+            "text": "{\"type\":\"response.completed\",\"response\":{\"id\":\"r1\",\"status\":\"completed\",\"output\":[{\"type\":\"message\",\"role\":\"assistant\",\"id\":\"msg_hello\",\"content\":[{\"type\":\"output_text\",\"text\":\"hello\"}]}],\"usage\":{\"input_tokens\":3,\"output_tokens\":2,\"total_tokens\":5,\"output_tokens_details\":{\"reasoning_tokens\":0},\"input_tokens_details\":{\"cached_tokens\":0}}}}"
+          }
+        ]
+      },
+      {
+        "send": "{\"type\":\"response.create\",\"previous_response_id\":\"{{last_response_id}}\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"more\"}]}]}",
+        "read": "completed",
+        "upstream": [
+          {
+            "events": [
+              "{\"type\":\"response.created\",\"response\":{\"id\":\"r2\",\"status\":\"in_progress\",\"output\":[]}}",
+              "{\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"type\":\"message\",\"role\":\"assistant\",\"id\":\"msg_more\",\"content\":[{\"type\":\"output_text\",\"text\":\"more\"}]}}",
+              "{\"type\":\"response.completed\",\"response\":{\"id\":\"r2\",\"status\":\"completed\",\"output\":[],\"usage\":{\"input_tokens\":3,\"output_tokens\":2,\"total_tokens\":5}}}"
+            ]
+          }
+        ],
+        "frames": [
+          {
+            "text": "{\"type\":\"response.created\",\"response\":{\"id\":\"r2\",\"status\":\"in_progress\",\"output\":[]}}"
+          },
+          {
+            "text": "{\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"type\":\"message\",\"role\":\"assistant\",\"id\":\"msg_more\",\"content\":[{\"type\":\"output_text\",\"text\":\"more\"}]}}"
+          },
+          {
+            "text": "{\"type\":\"response.completed\",\"response\":{\"id\":\"r2\",\"status\":\"completed\",\"output\":[{\"type\":\"message\",\"role\":\"assistant\",\"id\":\"msg_more\",\"content\":[{\"type\":\"output_text\",\"text\":\"more\"}]}],\"usage\":{\"input_tokens\":3,\"output_tokens\":2,\"total_tokens\":5,\"output_tokens_details\":{\"reasoning_tokens\":0},\"input_tokens_details\":{\"cached_tokens\":0}}}}"
+          }
+        ]
+      }
+    ],
+    "upgrade_turn_state": "ts-1",
+    "upstream": [
+      {
+        "kind": "ws_dial",
+        "headers": {
+          "authorization": "Bearer sk-fake-ws",
+          "connection": "Upgrade",
+          "conversation_id": "4bd06c74-8f1e-5d37-bb4e-ebdcdcf8ab22",
+          "openai-beta": "responses_websockets=2026-02-06",
+          "originator": "codex-tui",
+          "sec-websocket-extensions": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
+          "sec-websocket-key": "Nb4QaEQsev/KSzocE6hm7A==",
+          "sec-websocket-version": "13",
+          "session_id": "4bd06c74-8f1e-5d37-bb4e-ebdcdcf8ab22",
+          "upgrade": "websocket",
+          "user-agent": "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)",
+          "x-codex-turn-state": "ts-1"
+        }
+      },
+      {
+        "kind": "ws_frame",
+        "body": "{\"model\":\"gpt-fixture\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"4bd06c74-8f1e-5d37-bb4e-ebdcdcf8ab22\",\"type\":\"response.create\"}"
+      },
+      {
+        "kind": "ws_frame",
+        "body": "{\"type\":\"response.create\",\"previous_response_id\":\"r1\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"more\"}]}],\"model\":\"gpt-fixture\",\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"4bd06c74-8f1e-5d37-bb4e-ebdcdcf8ab22\"}"
+      }
+    ]
+  },
+  {
+    "name": "http_incremental",
+    "config": "host: \"\"\n",
+    "client_headers": {
+      "session_id": "sess-http"
+    },
+    "credentials": [
+      {
+        "id": "codex-http.json",
+        "attributes": {
+          "api_key": "sk-fake-http"
+        },
+        "models": [
+          "gpt-fixture"
+        ]
+      }
+    ],
+    "steps": [
+      {
+        "send": "{\"type\":\"response.create\",\"model\":\"gpt-fixture\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}]}",
+        "read": "completed",
+        "upstream": [
+          {
+            "events": [
+              "{\"type\":\"response.created\",\"response\":{\"id\":\"r1\",\"status\":\"in_progress\",\"output\":[]}}",
+              "{\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"type\":\"message\",\"role\":\"assistant\",\"id\":\"msg_hello\",\"content\":[{\"type\":\"output_text\",\"text\":\"hello\"}]}}",
+              "{\"type\":\"response.completed\",\"response\":{\"id\":\"r1\",\"status\":\"completed\",\"output\":[],\"usage\":{\"input_tokens\":3,\"output_tokens\":2,\"total_tokens\":5}}}"
+            ]
+          }
+        ],
+        "frames": [
+          {
+            "text": "{\"type\":\"response.created\",\"response\":{\"id\":\"r1\",\"status\":\"in_progress\",\"output\":[],\"model\":\"gpt-fixture\"}}"
+          },
+          {
+            "text": "{\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"type\":\"message\",\"role\":\"assistant\",\"id\":\"msg_hello\",\"content\":[{\"type\":\"output_text\",\"text\":\"hello\"}]}}"
+          },
+          {
+            "text": "{\"type\":\"response.completed\",\"response\":{\"id\":\"r1\",\"status\":\"completed\",\"output\":[{\"type\":\"message\",\"role\":\"assistant\",\"id\":\"msg_hello\",\"content\":[{\"type\":\"output_text\",\"text\":\"hello\"}]}],\"usage\":{\"input_tokens\":3,\"output_tokens\":2,\"total_tokens\":5,\"output_tokens_details\":{\"reasoning_tokens\":0},\"input_tokens_details\":{\"cached_tokens\":0}}}}"
+          }
+        ]
+      },
+      {
+        "send": "{\"type\":\"response.create\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"call a tool\"}]}]}",
+        "read": "completed",
+        "upstream": [
+          {
+            "events": [
+              "{\"type\":\"response.created\",\"response\":{\"id\":\"r2\",\"status\":\"in_progress\",\"output\":[]}}",
+              "{\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"type\":\"function_call\",\"id\":\"fc_1\",\"call_id\":\"call_1\",\"name\":\"lookup\",\"arguments\":\"{\\\"q\\\":1}\"}}",
+              "{\"type\":\"response.completed\",\"response\":{\"id\":\"r2\",\"status\":\"completed\",\"output\":[],\"usage\":{\"input_tokens\":3,\"output_tokens\":2,\"total_tokens\":5}}}"
+            ]
+          }
+        ],
+        "frames": [
+          {
+            "text": "{\"type\":\"response.created\",\"response\":{\"id\":\"r2\",\"status\":\"in_progress\",\"output\":[],\"model\":\"gpt-fixture\"}}"
+          },
+          {
+            "text": "{\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"type\":\"function_call\",\"id\":\"fc_1\",\"call_id\":\"call_1\",\"name\":\"lookup\",\"arguments\":\"{\\\"q\\\":1}\"}}"
+          },
+          {
+            "text": "{\"type\":\"response.completed\",\"response\":{\"id\":\"r2\",\"status\":\"completed\",\"output\":[{\"type\":\"function_call\",\"id\":\"fc_1\",\"call_id\":\"call_1\",\"name\":\"lookup\",\"arguments\":\"{\\\"q\\\":1}\"}],\"usage\":{\"input_tokens\":3,\"output_tokens\":2,\"total_tokens\":5,\"output_tokens_details\":{\"reasoning_tokens\":0},\"input_tokens_details\":{\"cached_tokens\":0}}}}"
+          }
+        ]
+      },
+      {
+        "send": "{\"type\":\"response.append\",\"input\":[{\"type\":\"function_call_output\",\"call_id\":\"call_1\",\"output\":\"42\"}]}",
+        "read": "completed",
+        "upstream": [
+          {
+            "events": [
+              "{\"type\":\"response.created\",\"response\":{\"id\":\"r3\",\"status\":\"in_progress\",\"output\":[]}}",
+              "{\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"type\":\"message\",\"role\":\"assistant\",\"id\":\"msg_done\",\"content\":[{\"type\":\"output_text\",\"text\":\"done\"}]}}",
+              "{\"type\":\"response.completed\",\"response\":{\"id\":\"r3\",\"status\":\"completed\",\"output\":[],\"usage\":{\"input_tokens\":3,\"output_tokens\":2,\"total_tokens\":5}}}"
+            ]
+          }
+        ],
+        "frames": [
+          {
+            "text": "{\"type\":\"response.created\",\"response\":{\"id\":\"r3\",\"status\":\"in_progress\",\"output\":[],\"model\":\"gpt-fixture\"}}"
+          },
+          {
+            "text": "{\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"type\":\"message\",\"role\":\"assistant\",\"id\":\"msg_done\",\"content\":[{\"type\":\"output_text\",\"text\":\"done\"}]}}"
+          },
+          {
+            "text": "{\"type\":\"response.completed\",\"response\":{\"id\":\"r3\",\"status\":\"completed\",\"output\":[{\"type\":\"message\",\"role\":\"assistant\",\"id\":\"msg_done\",\"content\":[{\"type\":\"output_text\",\"text\":\"done\"}]}],\"usage\":{\"input_tokens\":3,\"output_tokens\":2,\"total_tokens\":5,\"output_tokens_details\":{\"reasoning_tokens\":0},\"input_tokens_details\":{\"cached_tokens\":0}}}}"
+          }
+        ]
+      }
+    ],
+    "upstream": [
+      {
+        "kind": "http",
+        "headers": {
+          "accept": "text/event-stream",
+          "accept-encoding": "gzip",
+          "authorization": "Bearer sk-fake-http",
+          "connection": "Keep-Alive",
+          "content-length": "353",
+          "content-type": "application/json",
+          "originator": "codex-tui",
+          "session-id": "7413978a-bc89-5201-aaf0-c9bbf10bba61",
+          "user-agent": "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
+        },
+        "body": "{\"model\":\"gpt-fixture\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"7413978a-bc89-5201-aaf0-c9bbf10bba61\"}"
+      },
+      {
+        "kind": "http",
+        "headers": {
+          "accept": "text/event-stream",
+          "accept-encoding": "gzip",
+          "authorization": "Bearer sk-fake-http",
+          "connection": "Keep-Alive",
+          "content-length": "546",
+          "content-type": "application/json",
+          "originator": "codex-tui",
+          "session-id": "7413978a-bc89-5201-aaf0-c9bbf10bba61",
+          "user-agent": "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
+        },
+        "body": "{\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"message\",\"role\":\"assistant\",\"id\":\"msg_hello\",\"content\":[{\"type\":\"output_text\",\"text\":\"hello\"}]},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"call a tool\"}]}],\"model\":\"gpt-fixture\",\"instructions\":\"be brief\",\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"7413978a-bc89-5201-aaf0-c9bbf10bba61\"}"
+      },
+      {
+        "kind": "http",
+        "headers": {
+          "accept": "text/event-stream",
+          "accept-encoding": "gzip",
+          "authorization": "Bearer sk-fake-http",
+          "connection": "Keep-Alive",
+          "content-length": "707",
+          "content-type": "application/json",
+          "originator": "codex-tui",
+          "session-id": "7413978a-bc89-5201-aaf0-c9bbf10bba61",
+          "user-agent": "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
+        },
+        "body": "{\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"message\",\"role\":\"assistant\",\"id\":\"msg_hello\",\"content\":[{\"type\":\"output_text\",\"text\":\"hello\"}]},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"call a tool\"}]},{\"type\":\"function_call\",\"id\":\"fc_1\",\"call_id\":\"call_1\",\"name\":\"lookup\",\"arguments\":\"{\\\"q\\\":1}\"},{\"type\":\"function_call_output\",\"call_id\":\"call_1\",\"output\":\"42\"}],\"model\":\"gpt-fixture\",\"instructions\":\"be brief\",\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"7413978a-bc89-5201-aaf0-c9bbf10bba61\"}"
+      }
+    ]
+  },
+  {
+    "name": "previous_not_found_then_create",
+    "config": "host: \"\"\n",
+    "credentials": [
+      {
+        "id": "codex-http.json",
+        "attributes": {
+          "api_key": "sk-fake-http"
+        },
+        "models": [
+          "gpt-fixture"
+        ]
+      }
+    ],
+    "steps": [
+      {
+        "send": "{\"type\":\"response.create\",\"model\":\"gpt-fixture\",\"previous_response_id\":\"r0\",\"input\":[]}",
+        "read": "one",
+        "frames": [
+          {
+            "text": "{\"type\":\"error\",\"status\":409,\"error\":{\"message\":\"Previous response is not available on this websocket; resend the full conversation input without previous_response_id\",\"type\":\"invalid_request_error\",\"code\":\"previous_response_not_found\",\"param\":\"previous_response_id\"}}"
+          }
+        ]
+      },
+      {
+        "send": "{\"type\":\"response.bogus\"}",
+        "read": "one",
+        "frames": [
+          {
+            "text": "{\"type\":\"error\",\"status\":400,\"error\":{\"message\":\"unsupported websocket request type: response.bogus\",\"type\":\"invalid_request_error\"}}"
+          }
+        ]
+      },
+      {
+        "send": "{\"type\":\"response.create\",\"model\":\"gpt-fixture\",\"input\":\"text\"}",
+        "read": "one",
+        "frames": [
+          {
+            "text": "{\"type\":\"error\",\"status\":400,\"error\":{\"message\":\"websocket request requires array field: input\",\"type\":\"invalid_request_error\"}}"
+          }
+        ]
+      },
+      {
+        "send": "{\"type\":\"response.create\",\"model\":\"gpt-fixture\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"ok\"}]}]}",
+        "read": "completed",
+        "upstream": [
+          {
+            "events": [
+              "{\"type\":\"response.created\",\"response\":{\"id\":\"r1\",\"status\":\"in_progress\",\"output\":[]}}",
+              "{\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"type\":\"message\",\"role\":\"assistant\",\"id\":\"msg_ok\",\"content\":[{\"type\":\"output_text\",\"text\":\"ok\"}]}}",
+              "{\"type\":\"response.completed\",\"response\":{\"id\":\"r1\",\"status\":\"completed\",\"output\":[],\"usage\":{\"input_tokens\":3,\"output_tokens\":2,\"total_tokens\":5}}}"
+            ]
+          }
+        ],
+        "frames": [
+          {
+            "text": "{\"type\":\"response.created\",\"response\":{\"id\":\"r1\",\"status\":\"in_progress\",\"output\":[],\"model\":\"gpt-fixture\"}}"
+          },
+          {
+            "text": "{\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"type\":\"message\",\"role\":\"assistant\",\"id\":\"msg_ok\",\"content\":[{\"type\":\"output_text\",\"text\":\"ok\"}]}}"
+          },
+          {
+            "text": "{\"type\":\"response.completed\",\"response\":{\"id\":\"r1\",\"status\":\"completed\",\"output\":[{\"type\":\"message\",\"role\":\"assistant\",\"id\":\"msg_ok\",\"content\":[{\"type\":\"output_text\",\"text\":\"ok\"}]}],\"usage\":{\"input_tokens\":3,\"output_tokens\":2,\"total_tokens\":5,\"output_tokens_details\":{\"reasoning_tokens\":0},\"input_tokens_details\":{\"cached_tokens\":0}}}}"
+          }
+        ]
+      }
+    ],
+    "upstream": [
+      {
+        "kind": "http",
+        "headers": {
+          "accept": "text/event-stream",
+          "accept-encoding": "gzip",
+          "authorization": "Bearer sk-fake-http",
+          "connection": "Keep-Alive",
+          "content-length": "345",
+          "content-type": "application/json",
+          "originator": "codex-tui",
+          "session-id": "fa596b43-5798-5d81-bbd2-c89780ad836c",
+          "user-agent": "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
+        },
+        "body": "{\"model\":\"gpt-fixture\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"ok\"}]}],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"fa596b43-5798-5d81-bbd2-c89780ad836c\"}"
+      }
+    ]
+  },
+  {
+    "name": "prewarm_then_followup",
+    "config": "host: \"\"\n",
+    "credentials": [
+      {
+        "id": "codex-http.json",
+        "attributes": {
+          "api_key": "sk-fake-http"
+        },
+        "models": [
+          "gpt-fixture"
+        ]
+      }
+    ],
+    "steps": [
+      {
+        "send": "{\"type\":\"response.create\",\"model\":\"gpt-fixture\",\"generate\":false,\"instructions\":\"warm\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"setup\"}]}]}",
+        "read": "completed",
+        "frames": [
+          {
+            "text": "{\"type\":\"response.created\",\"sequence_number\":0,\"response\":{\"id\":\"resp_prewarm_c2489ca9-f9f6-4778-a48a-6d872c8c4aa9\",\"object\":\"response\",\"created_at\":1790977736,\"status\":\"in_progress\",\"background\":false,\"error\":null,\"output\":[],\"model\":\"gpt-fixture\"}}"
+          },
+          {
+            "text": "{\"type\":\"response.completed\",\"sequence_number\":1,\"response\":{\"id\":\"resp_prewarm_c2489ca9-f9f6-4778-a48a-6d872c8c4aa9\",\"object\":\"response\",\"created_at\":1790977736,\"status\":\"completed\",\"background\":false,\"error\":null,\"output\":[],\"usage\":{\"input_tokens\":0,\"input_tokens_details\":{\"cached_tokens\":0},\"output_tokens\":0,\"output_tokens_details\":{\"reasoning_tokens\":0},\"total_tokens\":0},\"model\":\"gpt-fixture\"}}"
+          }
+        ]
+      },
+      {
+        "send": "{\"type\":\"response.create\",\"previous_response_id\":\"{{last_response_id}}\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"go\"}]}]}",
+        "read": "completed",
+        "upstream": [
+          {
+            "events": [
+              "{\"type\":\"response.created\",\"response\":{\"id\":\"r1\",\"status\":\"in_progress\",\"output\":[]}}",
+              "{\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"type\":\"message\",\"role\":\"assistant\",\"id\":\"msg_went\",\"content\":[{\"type\":\"output_text\",\"text\":\"went\"}]}}",
+              "{\"type\":\"response.completed\",\"response\":{\"id\":\"r1\",\"status\":\"completed\",\"output\":[],\"usage\":{\"input_tokens\":3,\"output_tokens\":2,\"total_tokens\":5}}}"
+            ]
+          }
+        ],
+        "frames": [
+          {
+            "text": "{\"type\":\"response.created\",\"response\":{\"id\":\"r1\",\"status\":\"in_progress\",\"output\":[],\"model\":\"gpt-fixture\"}}"
+          },
+          {
+            "text": "{\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"type\":\"message\",\"role\":\"assistant\",\"id\":\"msg_went\",\"content\":[{\"type\":\"output_text\",\"text\":\"went\"}]}}"
+          },
+          {
+            "text": "{\"type\":\"response.completed\",\"response\":{\"id\":\"r1\",\"status\":\"completed\",\"output\":[{\"type\":\"message\",\"role\":\"assistant\",\"id\":\"msg_went\",\"content\":[{\"type\":\"output_text\",\"text\":\"went\"}]}],\"usage\":{\"input_tokens\":3,\"output_tokens\":2,\"total_tokens\":5,\"output_tokens_details\":{\"reasoning_tokens\":0},\"input_tokens_details\":{\"cached_tokens\":0}}}}"
+          }
+        ]
+      }
+    ],
+    "upstream": [
+      {
+        "kind": "http",
+        "headers": {
+          "accept": "text/event-stream",
+          "accept-encoding": "gzip",
+          "authorization": "Bearer sk-fake-http",
+          "connection": "Keep-Alive",
+          "content-length": "431",
+          "content-type": "application/json",
+          "originator": "codex-tui",
+          "session-id": "eb48f9da-b5b9-5b2e-9883-19feafed8f34",
+          "user-agent": "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
+        },
+        "body": "{\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"setup\"}]},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"go\"}]}],\"model\":\"gpt-fixture\",\"instructions\":\"warm\",\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"eb48f9da-b5b9-5b2e-9883-19feafed8f34\"}"
+      }
+    ]
+  },
+  {
+    "name": "ws_request_fault_exposed",
+    "config": "host: \"\"\n",
+    "credentials": [
+      {
+        "id": "codex-ws.json",
+        "attributes": {
+          "api_key": "sk-fake-ws",
+          "websockets": "true"
+        },
+        "models": [
+          "gpt-fixture"
+        ]
+      }
+    ],
+    "steps": [
+      {
+        "send": "{\"type\":\"response.create\",\"model\":\"gpt-fixture\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"huge\"}]}]}",
+        "read": "close",
+        "upstream": [
+          {
+            "events": [
+              "{\"type\":\"error\",\"status\":400,\"error\":{\"type\":\"invalid_request_error\",\"code\":\"context_length_exceeded\",\"message\":\"too long\"}}"
+            ]
+          }
+        ],
+        "frames": [
+          {
+            "text": "{\"type\":\"error\",\"status\":400,\"error\":{\"type\":\"invalid_request_error\",\"code\":\"context_length_exceeded\",\"message\":\"too long\"}}"
+          },
+          {
+            "close": 1006,
+            "reason": "unexpected EOF"
+          }
+        ]
+      }
+    ],
+    "upstream": [
+      {
+        "kind": "ws_dial",
+        "headers": {
+          "authorization": "Bearer sk-fake-ws",
+          "connection": "Upgrade",
+          "conversation_id": "39ff0e74-8a9b-56d1-a1b5-446cb37c0f76",
+          "openai-beta": "responses_websockets=2026-02-06",
+          "originator": "codex-tui",
+          "sec-websocket-extensions": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
+          "sec-websocket-key": "yVNYgSwr1l4xXNOukiZ3Bg==",
+          "sec-websocket-version": "13",
+          "session_id": "39ff0e74-8a9b-56d1-a1b5-446cb37c0f76",
+          "upgrade": "websocket",
+          "user-agent": "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
+        }
+      },
+      {
+        "kind": "ws_frame",
+        "body": "{\"model\":\"gpt-fixture\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"huge\"}]}],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"39ff0e74-8a9b-56d1-a1b5-446cb37c0f76\",\"type\":\"response.create\"}"
+      }
+    ]
+  },
+  {
+    "name": "ws_quota_silent_close",
+    "config": "host: \"\"\n",
+    "credentials": [
+      {
+        "id": "codex-ws.json",
+        "attributes": {
+          "api_key": "sk-fake-ws",
+          "websockets": "true"
+        },
+        "models": [
+          "gpt-fixture"
+        ]
+      }
+    ],
+    "steps": [
+      {
+        "send": "{\"type\":\"response.create\",\"model\":\"gpt-fixture\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}]}",
+        "read": "close",
+        "upstream": [
+          {
+            "events": [
+              "{\"type\":\"error\",\"status\":429,\"error\":{\"type\":\"usage_limit_reached\",\"message\":\"limit\",\"resets_in_seconds\":60}}"
+            ]
+          }
+        ],
+        "frames": [
+          {
+            "close": 1006,
+            "reason": "unexpected EOF"
+          }
+        ]
+      }
+    ],
+    "upstream": [
+      {
+        "kind": "ws_dial",
+        "headers": {
+          "authorization": "Bearer sk-fake-ws",
+          "connection": "Upgrade",
+          "conversation_id": "b9d38546-7a3b-55ef-8291-d407c9b6feb6",
+          "openai-beta": "responses_websockets=2026-02-06",
+          "originator": "codex-tui",
+          "sec-websocket-extensions": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
+          "sec-websocket-key": "1wThYjn6D0RMbodBNpFlBQ==",
+          "sec-websocket-version": "13",
+          "session_id": "b9d38546-7a3b-55ef-8291-d407c9b6feb6",
+          "upgrade": "websocket",
+          "user-agent": "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
+        }
+      },
+      {
+        "kind": "ws_frame",
+        "body": "{\"model\":\"gpt-fixture\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"b9d38546-7a3b-55ef-8291-d407c9b6feb6\",\"type\":\"response.create\"}"
+      }
+    ]
+  },
+  {
+    "name": "ws_continuation_needs_replay",
+    "config": "host: \"\"\n",
+    "credentials": [
+      {
+        "id": "codex-ws.json",
+        "attributes": {
+          "api_key": "sk-fake-ws",
+          "websockets": "true"
+        },
+        "models": [
+          "gpt-fixture"
+        ]
+      },
+      {
+        "id": "codex-http.json",
+        "attributes": {
+          "api_key": "sk-fake-http"
+        },
+        "models": [
+          "gpt-other"
+        ]
+      }
+    ],
+    "steps": [
+      {
+        "send": "{\"type\":\"response.create\",\"model\":\"gpt-fixture\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}]}",
+        "read": "completed",
+        "upstream": [
+          {
+            "events": [
+              "{\"type\":\"response.created\",\"response\":{\"id\":\"r1\",\"status\":\"in_progress\",\"output\":[]}}",
+              "{\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"type\":\"message\",\"role\":\"assistant\",\"id\":\"msg_hello\",\"content\":[{\"type\":\"output_text\",\"text\":\"hello\"}]}}",
+              "{\"type\":\"response.completed\",\"response\":{\"id\":\"r1\",\"status\":\"completed\",\"output\":[],\"usage\":{\"input_tokens\":3,\"output_tokens\":2,\"total_tokens\":5}}}"
+            ]
+          }
+        ],
+        "frames": [
+          {
+            "text": "{\"type\":\"response.created\",\"response\":{\"id\":\"r1\",\"status\":\"in_progress\",\"output\":[]}}"
+          },
+          {
+            "text": "{\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"type\":\"message\",\"role\":\"assistant\",\"id\":\"msg_hello\",\"content\":[{\"type\":\"output_text\",\"text\":\"hello\"}]}}"
+          },
+          {
+            "text": "{\"type\":\"response.completed\",\"response\":{\"id\":\"r1\",\"status\":\"completed\",\"output\":[{\"type\":\"message\",\"role\":\"assistant\",\"id\":\"msg_hello\",\"content\":[{\"type\":\"output_text\",\"text\":\"hello\"}]}],\"usage\":{\"input_tokens\":3,\"output_tokens\":2,\"total_tokens\":5,\"output_tokens_details\":{\"reasoning_tokens\":0},\"input_tokens_details\":{\"cached_tokens\":0}}}}"
+          }
+        ]
+      },
+      {
+        "send": "{\"type\":\"response.create\",\"model\":\"gpt-other\",\"previous_response_id\":\"{{last_response_id}}\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"switch\"}]}]}",
+        "read": "close",
+        "frames": [
+          {
+            "close": 1012,
+            "reason": "upstream requires HTTP replay"
+          }
+        ]
+      }
+    ],
+    "upstream": [
+      {
+        "kind": "ws_dial",
+        "headers": {
+          "authorization": "Bearer sk-fake-ws",
+          "connection": "Upgrade",
+          "conversation_id": "20c9adb4-6f17-5978-9307-29ee2b001904",
+          "openai-beta": "responses_websockets=2026-02-06",
+          "originator": "codex-tui",
+          "sec-websocket-extensions": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
+          "sec-websocket-key": "ov+BMEchcjqIuQ1Vqn+BSA==",
+          "sec-websocket-version": "13",
+          "session_id": "20c9adb4-6f17-5978-9307-29ee2b001904",
+          "upgrade": "websocket",
+          "user-agent": "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
+        }
+      },
+      {
+        "kind": "ws_frame",
+        "body": "{\"model\":\"gpt-fixture\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"20c9adb4-6f17-5978-9307-29ee2b001904\",\"type\":\"response.create\"}"
+      }
+    ]
+  },
+  {
+    "name": "ws_upstream_closes_between_turns",
+    "config": "host: \"\"\n",
+    "credentials": [
+      {
+        "id": "codex-ws.json",
+        "attributes": {
+          "api_key": "sk-fake-ws",
+          "websockets": "true"
+        },
+        "models": [
+          "gpt-fixture"
+        ]
+      }
+    ],
+    "steps": [
+      {
+        "send": "{\"type\":\"response.create\",\"model\":\"gpt-fixture\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}]}",
+        "read": "completed",
+        "upstream": [
+          {
+            "events": [
+              "{\"type\":\"response.created\",\"response\":{\"id\":\"r1\",\"status\":\"in_progress\",\"output\":[]}}",
+              "{\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"type\":\"message\",\"role\":\"assistant\",\"id\":\"msg_hello\",\"content\":[{\"type\":\"output_text\",\"text\":\"hello\"}]}}",
+              "{\"type\":\"response.completed\",\"response\":{\"id\":\"r1\",\"status\":\"completed\",\"output\":[],\"usage\":{\"input_tokens\":3,\"output_tokens\":2,\"total_tokens\":5}}}"
+            ],
+            "then": "close"
+          }
+        ],
+        "frames": [
+          {
+            "text": "{\"type\":\"response.created\",\"response\":{\"id\":\"r1\",\"status\":\"in_progress\",\"output\":[]}}"
+          },
+          {
+            "text": "{\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"type\":\"message\",\"role\":\"assistant\",\"id\":\"msg_hello\",\"content\":[{\"type\":\"output_text\",\"text\":\"hello\"}]}}"
+          },
+          {
+            "text": "{\"type\":\"response.completed\",\"response\":{\"id\":\"r1\",\"status\":\"completed\",\"output\":[{\"type\":\"message\",\"role\":\"assistant\",\"id\":\"msg_hello\",\"content\":[{\"type\":\"output_text\",\"text\":\"hello\"}]}],\"usage\":{\"input_tokens\":3,\"output_tokens\":2,\"total_tokens\":5,\"output_tokens_details\":{\"reasoning_tokens\":0},\"input_tokens_details\":{\"cached_tokens\":0}}}}"
+          }
+        ]
+      },
+      {
+        "read": "close",
+        "frames": [
+          {
+            "close": 1006,
+            "reason": "unexpected EOF"
+          }
+        ]
+      }
+    ],
+    "upstream": [
+      {
+        "kind": "ws_dial",
+        "headers": {
+          "authorization": "Bearer sk-fake-ws",
+          "connection": "Upgrade",
+          "conversation_id": "1ba6c64c-e794-5420-b8d5-a1255a16f0f8",
+          "openai-beta": "responses_websockets=2026-02-06",
+          "originator": "codex-tui",
+          "sec-websocket-extensions": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
+          "sec-websocket-key": "vf/5JUiRLZ/RJ+K4+6CimQ==",
+          "sec-websocket-version": "13",
+          "session_id": "1ba6c64c-e794-5420-b8d5-a1255a16f0f8",
+          "upgrade": "websocket",
+          "user-agent": "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
+        }
+      },
+      {
+        "kind": "ws_frame",
+        "body": "{\"model\":\"gpt-fixture\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"1ba6c64c-e794-5420-b8d5-a1255a16f0f8\",\"type\":\"response.create\"}"
+      }
+    ]
+  },
+  {
+    "name": "ws_upstream_message_too_big",
+    "config": "host: \"\"\n",
+    "credentials": [
+      {
+        "id": "codex-ws.json",
+        "attributes": {
+          "api_key": "sk-fake-ws",
+          "websockets": "true"
+        },
+        "models": [
+          "gpt-fixture"
+        ]
+      }
+    ],
+    "steps": [
+      {
+        "send": "{\"type\":\"response.create\",\"model\":\"gpt-fixture\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}]}",
+        "read": "close",
+        "upstream": [
+          {
+            "events": [
+              "{\"type\":\"response.created\",\"response\":{\"id\":\"r1\",\"status\":\"in_progress\",\"output\":[]}}"
+            ],
+            "then": "close1009"
+          }
+        ],
+        "frames": [
+          {
+            "text": "{\"type\":\"response.created\",\"response\":{\"id\":\"r1\",\"status\":\"in_progress\",\"output\":[]}}"
+          },
+          {
+            "close": 1009,
+            "reason": "too big"
+          }
+        ]
+      }
+    ],
+    "upstream": [
+      {
+        "kind": "ws_dial",
+        "headers": {
+          "authorization": "Bearer sk-fake-ws",
+          "connection": "Upgrade",
+          "conversation_id": "fc087764-dac8-5f37-aece-8362978e5a8c",
+          "openai-beta": "responses_websockets=2026-02-06",
+          "originator": "codex-tui",
+          "sec-websocket-extensions": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
+          "sec-websocket-key": "T8/Xboh9jfICixRsqhKgoA==",
+          "sec-websocket-version": "13",
+          "session_id": "fc087764-dac8-5f37-aece-8362978e5a8c",
+          "upgrade": "websocket",
+          "user-agent": "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
+        }
+      },
+      {
+        "kind": "ws_frame",
+        "body": "{\"model\":\"gpt-fixture\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"fc087764-dac8-5f37-aece-8362978e5a8c\",\"type\":\"response.create\"}"
+      }
+    ]
+  },
+  {
+    "name": "http_stream_ends_early",
+    "config": "host: \"\"\n",
+    "credentials": [
+      {
+        "id": "codex-http.json",
+        "attributes": {
+          "api_key": "sk-fake-http"
+        },
+        "models": [
+          "gpt-fixture"
+        ]
+      }
+    ],
+    "steps": [
+      {
+        "send": "{\"type\":\"response.create\",\"model\":\"gpt-fixture\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}]}",
+        "read": "close",
+        "upstream": [
+          {
+            "events": [
+              "{\"type\":\"response.created\",\"response\":{\"id\":\"r1\",\"status\":\"in_progress\",\"output\":[]}}",
+              "{\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"type\":\"message\",\"role\":\"assistant\",\"id\":\"msg_partial\",\"content\":[{\"type\":\"output_text\",\"text\":\"partial\"}]}}"
+            ]
+          }
+        ],
+        "frames": [
+          {
+            "text": "{\"type\":\"response.created\",\"response\":{\"id\":\"r1\",\"status\":\"in_progress\",\"output\":[],\"model\":\"gpt-fixture\"}}"
+          },
+          {
+            "text": "{\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"type\":\"message\",\"role\":\"assistant\",\"id\":\"msg_partial\",\"content\":[{\"type\":\"output_text\",\"text\":\"partial\"}]}}"
+          },
+          {
+            "close": 1006,
+            "reason": "unexpected EOF"
+          }
+        ]
+      }
+    ],
+    "upstream": [
+      {
+        "kind": "http",
+        "headers": {
+          "accept": "text/event-stream",
+          "accept-encoding": "gzip",
+          "authorization": "Bearer sk-fake-http",
+          "connection": "Keep-Alive",
+          "content-length": "345",
+          "content-type": "application/json",
+          "originator": "codex-tui",
+          "session-id": "c2a6e805-f779-5390-bbf0-73b22744f10f",
+          "user-agent": "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
+        },
+        "body": "{\"model\":\"gpt-fixture\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"c2a6e805-f779-5390-bbf0-73b22744f10f\"}"
+      }
+    ]
+  },
+  {
+    "name": "http_upstream_400_exposed",
+    "config": "host: \"\"\n",
+    "credentials": [
+      {
+        "id": "codex-http.json",
+        "attributes": {
+          "api_key": "sk-fake-http"
+        },
+        "models": [
+          "gpt-fixture"
+        ]
+      }
+    ],
+    "steps": [
+      {
+        "send": "{\"type\":\"response.create\",\"model\":\"gpt-fixture\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}]}",
+        "read": "close",
+        "upstream": [
+          {
+            "status": 400,
+            "body": "{\"error\":{\"message\":\"bad input\",\"type\":\"invalid_request_error\",\"code\":\"invalid_value\"}}"
+          }
+        ],
+        "frames": [
+          {
+            "text": "{\"type\":\"error\",\"status\":400,\"error\":{\"message\":\"bad input\",\"type\":\"invalid_request_error\",\"code\":\"invalid_value\"}}"
+          },
+          {
+            "close": 1006,
+            "reason": "unexpected EOF"
+          }
+        ]
+      }
+    ],
+    "upstream": [
+      {
+        "kind": "http",
+        "headers": {
+          "accept": "text/event-stream",
+          "accept-encoding": "gzip",
+          "authorization": "Bearer sk-fake-http",
+          "connection": "Keep-Alive",
+          "content-length": "345",
+          "content-type": "application/json",
+          "originator": "codex-tui",
+          "session-id": "ea834534-820b-595d-b591-ecbfaa89495f",
+          "user-agent": "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
+        },
+        "body": "{\"model\":\"gpt-fixture\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"ea834534-820b-595d-b591-ecbfaa89495f\"}"
+      }
+    ]
+  }
+]

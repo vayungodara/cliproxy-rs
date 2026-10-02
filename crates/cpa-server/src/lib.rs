@@ -22,6 +22,9 @@ pub mod scheduler;
 mod session;
 pub mod usage;
 pub mod watching;
+mod websocket;
+mod websocket_requests;
+mod websocket_tools;
 
 use std::sync::Arc;
 
@@ -53,6 +56,7 @@ pub fn router(rt: Arc<Runtime>) -> Router {
         .route("/v1beta/interactions", post(gemini::interactions))
         .route("/v1beta/models/{*action}", post(gemini::action).get(models::gemini_get))
         .merge(codex_alpha::routes())
+        .merge(websocket::routes())
         .layer(auth());
     Router::new()
         .route("/healthz", get(healthz).head(healthz))

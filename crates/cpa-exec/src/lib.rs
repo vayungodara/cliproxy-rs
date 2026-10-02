@@ -27,6 +27,8 @@ mod codex_request;
 mod codex_response;
 #[cfg(test)]
 mod codex_testkit;
+mod codex_tls;
+mod codex_ws;
 pub mod kimi;
 pub mod kimi_auth;
 #[cfg(test)]
@@ -55,7 +57,7 @@ mod wire;
 
 use cpa_core::config::Config;
 use cpa_core::credential::{Credential, MetadataPatch};
-use cpa_core::exec::{ExecError, ExecRequest, ExecResponse, FailureScope};
+use cpa_core::exec::{ExecError, ExecRequest, ExecResponse, ExecSession, FailureScope};
 
 /// What a credential needs before or around use. See the module docs.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -122,6 +124,41 @@ impl Executors {
             p if openai_compat::handles(p) => self.openai.compat.images(credential, req, request_path, cfg).await,
             other => Err(no_executor(other)),
         }
+    }
+
+    /// One turn of a downstream Responses WebSocket session. Codex credentials with
+    /// `websockets` keep a pooled upstream socket per session; every other credential runs
+    /// an ordinary execution and cannot continue upstream state, so a continuation turn
+    /// fails with [`ExecError::replay_required`].
+    pub async fn execute_in_session(
+        &self,
+        credential: &Credential,
+        req: ExecRequest,
+        cfg: &Config,
+        session: &ExecSession,
+    ) -> Result<ExecResponse, ExecError> {
+        match credential.provider.as_str() {
+            "codex" => self.codex.execute_in_session(credential, req, cfg, session).await,
+            _ if session.continuation => Err(ExecError::replay_required()),
+            _ => self.execute(credential, req, cfg).await,
+        }
+    }
+
+    /// Whether `credential` keeps upstream conversation state on a session socket, so
+    /// the next turn may be sent as an incremental continuation.
+    pub fn session_upstream(&self, credential: &Credential) -> bool {
+        credential.provider == "codex" && codex::CodexExecutor::upstream_websocket(credential)
+    }
+
+    /// Resolves when an upstream socket held for session `id` is lost; pending forever
+    /// when no executor holds one.
+    pub fn session_closed(&self, id: &str) -> impl std::future::Future<Output = ExecError> + Send + 'static {
+        self.codex.session_closed(id)
+    }
+
+    /// Releases everything executors hold for session `id`.
+    pub fn close_session(&self, id: &str) {
+        self.codex.close_session(id);
     }
 
     /// Whether an executor serves this provider. Credentials of other providers never

@@ -11,7 +11,9 @@ use bytes::Bytes;
 use chrono::Utc;
 use cpa_core::config::Config;
 use cpa_core::credential::{Credential, MetadataPatch};
-use cpa_core::exec::{ExecError, ExecRequest, ExecResponse, ExecStream, FailureScope, Operation, ResponseBody};
+use cpa_core::exec::{
+    ExecError, ExecRequest, ExecResponse, ExecSession, ExecStream, FailureScope, Operation, ResponseBody,
+};
 use cpa_core::format::Format;
 use futures_util::StreamExt;
 use http::HeaderMap;
@@ -25,9 +27,12 @@ use crate::upstream::{into_response, transport_error};
 pub use crate::codex_request::DEFAULT_BASE_URL;
 
 pub struct CodexExecutor {
-    client: wreq::Client,
+    /// Chrome profile for chatgpt.com, Go's standard transport elsewhere, per proxy.
+    pub(crate) transport: crate::codex_tls::Transport,
     oauth: CodexOAuth,
     quota: Arc<QuotaSignals>,
+    /// Upstream Responses WebSocket sockets per downstream session.
+    pub(crate) ws: crate::codex_ws::Pool,
     /// Base for OAuth Alpha Search, which Go never derives from credential attributes.
     alpha_base_url: String,
 }
@@ -40,23 +45,30 @@ impl Default for CodexExecutor {
 }
 
 impl CodexExecutor {
-    // ponytail: one shared client without the Chrome uTLS profile Go uses for chatgpt.com
-    // or per-credential proxies. Swap in the proxy-aware client (crates/cpa-exec/src/proxy.rs,
-    // owned by the Claude thread) when it lands.
+    /// Production transports: uTLS Chrome for chatgpt.com, Go's standard transport
+    /// elsewhere, both per effective proxy (crate::proxy).
+    // ponytail: OAuth refresh uses the default client (environment proxies); Go routes it
+    // through the credential's or the global proxy (`NewCodexAuthWithProxyURL`).
     pub fn new() -> wreq::Result<Self> {
-        let client = wreq::Client::builder()
-            .redirect(wreq::redirect::Policy::none())
-            .build()?;
-        Ok(Self::with_client(client.clone(), CodexOAuth::new(client)))
+        Ok(Self::with_transport(
+            crate::codex_tls::Transport::new(crate::proxy::Hooks::default()),
+            CodexOAuth::new(crate::proxy::default_client()),
+        ))
     }
 
     /// Caller-built transports. Tests pass a plain client and an OAuth service pointed at
-    /// a local mock so nothing reaches OpenAI.
+    /// a local mock so nothing reaches OpenAI. Unproxied non-chatgpt.com requests use
+    /// `client`.
     pub fn with_client(client: wreq::Client, oauth: CodexOAuth) -> Self {
+        Self::with_transport(crate::codex_tls::Transport::with_default(client), oauth)
+    }
+
+    fn with_transport(transport: crate::codex_tls::Transport, oauth: CodexOAuth) -> Self {
         Self {
-            client,
+            transport,
             oauth,
             quota: Arc::default(),
+            ws: Default::default(),
             alpha_base_url: DEFAULT_BASE_URL.into(),
         }
     }
@@ -70,6 +82,49 @@ impl CodexExecutor {
     /// Passive quota snapshots per credential (M4-0016), for the management API.
     pub fn quota(&self) -> &QuotaSignals {
         &self.quota
+    }
+
+    pub(crate) fn quota_handle(&self) -> Arc<QuotaSignals> {
+        self.quota.clone()
+    }
+
+    /// One turn of a downstream Responses WebSocket session (`CodexAutoExecutor`):
+    /// credentials with `websockets` enabled keep a pooled upstream socket; others run
+    /// the HTTP stream with the session as prompt-cache identity and cannot continue
+    /// upstream state.
+    pub async fn execute_in_session(
+        &self,
+        credential: &Credential,
+        req: ExecRequest,
+        cfg: &Config,
+        session: &ExecSession,
+    ) -> Result<ExecResponse, ExecError> {
+        check_response_format(&req)?;
+        let view = View::for_request(credential, cfg).with_session(explicit_session(&req));
+        let settings = Settings::scoped(cfg, &view);
+        if view.websockets() {
+            return self.stream_ws(&view, &settings, req, session).await;
+        }
+        if session.continuation {
+            return Err(ExecError::replay_required());
+        }
+        self.stream_with_session(&view, &settings, req, Some(&session.id)).await
+    }
+
+    /// Whether `credential` keeps upstream state on a WebSocket (Go:
+    /// `websocketUpstreamSupportsIncrementalInput`).
+    pub fn upstream_websocket(credential: &Credential) -> bool {
+        View::new(credential).websockets()
+    }
+
+    /// Resolves when the session's upstream socket is lost.
+    pub fn session_closed(&self, id: &str) -> impl std::future::Future<Output = ExecError> + Send + 'static {
+        self.ws.closed(id)
+    }
+
+    /// Releases the session's upstream socket (downstream connection ended).
+    pub fn close_session(&self, id: &str) {
+        self.ws.close(id);
     }
 
     /// Refresh due under Go's 24h Codex lead. Cheap and side-effect free.
@@ -115,8 +170,8 @@ impl CodexExecutor {
             ));
         }
         check_response_format(&req)?;
-        let settings = Settings::from(cfg);
-        let view = View::new(credential);
+        let view = View::for_request(credential, cfg).with_session(explicit_session(&req));
+        let settings = Settings::scoped(cfg, &view);
         match (req.alt.as_deref(), req.stream) {
             (Some("responses/compact"), true) => Err(ExecError::local(
                 400,
@@ -138,7 +193,8 @@ impl CodexExecutor {
         body: String,
     ) -> Result<ExecResponse, ExecError> {
         let res = self
-            .client
+            .transport
+            .for_url(&url, &view.proxy)
             .post(url)
             .redirect(wreq::redirect::Policy::none())
             .headers(headers)
@@ -193,7 +249,7 @@ impl CodexExecutor {
         Ok(ExecResponse {
             status: res.status,
             headers: res.headers,
-            body: ResponseBody::Stream(translate_stream(&req, &body, stream)),
+            body: ResponseBody::Stream(client_stream(&req, &body, stream)),
         })
     }
 
@@ -267,8 +323,19 @@ impl CodexExecutor {
         body: &[u8],
         client: &HeaderMap,
         upstream_model: &str,
+        cfg: &Config,
     ) -> Result<ExecResponse, ExecError> {
-        let view = View::new(credential);
+        // Go selects with `X-Session-ID` set from the body's `id`; the request context then
+        // carries that explicit session for `$CPA-SESSION-ID`.
+        let mut selection_headers = client.clone();
+        let id = gjson::get(&String::from_utf8_lossy(body), "id").str().trim().to_owned();
+        if !id.is_empty()
+            && let Ok(value) = http::HeaderValue::from_str(&id)
+        {
+            selection_headers.insert("x-session-id", value);
+        }
+        let session = cpa_common::session::cpa_session_id(&selection_headers, body, None);
+        let view = View::for_request(credential, cfg).with_session(session);
         let mut body = sanitize_alpha_search(body);
         let url = if view.api_key {
             let base = view.attr("base_url").trim();
@@ -308,7 +375,7 @@ impl CodexExecutor {
         if !view.token.trim().is_empty() {
             set("authorization", &format!("Bearer {}", view.token));
         }
-        for (name, value) in request::custom_headers(&view, client, None) {
+        for (name, value) in request::custom_headers(&view, client) {
             if let (Ok(name), Ok(value)) = (
                 http::HeaderName::try_from(name.as_str()),
                 http::HeaderValue::from_str(&value),
@@ -318,7 +385,8 @@ impl CodexExecutor {
         }
         headers.insert("accept-encoding", http::HeaderValue::from_static("gzip"));
         let res = self
-            .client
+            .transport
+            .for_url(&url, &view.proxy)
             .post(url)
             .redirect(wreq::redirect::Policy::none())
             .headers(headers)
@@ -427,6 +495,11 @@ fn rewrite_alpha_search_model(body: Vec<u8>, model: &str) -> Vec<u8> {
     .unwrap_or(body)
 }
 
+/// Go's request-context session for `$CPA-SESSION-ID` headers.
+fn explicit_session(req: &ExecRequest) -> Option<String> {
+    cpa_common::session::cpa_session_id(&req.headers, &req.original_body, req.execution_session.as_deref())
+}
+
 fn check_response_format(req: &ExecRequest) -> Result<(), ExecError> {
     let identity = matches!(req.response_format, Format::Codex | Format::OpenAIResponse);
     if identity || cpa_translate::pair(req.response_format, Format::Codex).is_some() {
@@ -498,6 +571,19 @@ fn non_stream_output(
     Ok(Bytes::from(out))
 }
 
+/// The client stream: translated, and with Go's usage details for OpenAI Responses
+/// clients (`TranslateStreamWithClaudeInputTokens`).
+fn client_stream(req: &ExecRequest, translated: &str, upstream: ExecStream) -> ExecStream {
+    let stream = translate_stream(req, translated, upstream);
+    if req.response_format == Format::OpenAIResponse {
+        stream
+            .map(|chunk| chunk.map(response::ensure_usage_details_chunk))
+            .boxed()
+    } else {
+        stream
+    }
+}
+
 /// Streaming translation for non-Codex clients; identity for Codex/Responses clients.
 fn translate_stream(req: &ExecRequest, translated: &str, upstream: ExecStream) -> ExecStream {
     let Some(pair) = cpa_translate::pair(req.response_format, Format::Codex) else {
@@ -513,6 +599,8 @@ fn translate_stream(req: &ExecRequest, translated: &str, upstream: ExecStream) -
         upstream: ExecStream,
         translator: Box<dyn cpa_translate::StreamTranslator>,
         ready: std::collections::VecDeque<Bytes>,
+        /// The terminal error, written after the frames it flushed.
+        failed: Option<ExecError>,
         done: bool,
     }
     futures_util::stream::unfold(
@@ -520,12 +608,16 @@ fn translate_stream(req: &ExecRequest, translated: &str, upstream: ExecStream) -
             upstream,
             translator,
             ready: Default::default(),
+            failed: None,
             done: false,
         },
         |mut st| async move {
             loop {
                 if let Some(event) = st.ready.pop_front() {
                     return Some((Ok(event), st));
+                }
+                if let Some(error) = st.failed.take() {
+                    return Some((Err(error), st));
                 }
                 if st.done {
                     return None;
@@ -541,8 +633,11 @@ fn translate_stream(req: &ExecRequest, translated: &str, upstream: ExecStream) -
                 match result {
                     Ok(events) => st.ready.extend(events),
                     Err(error) => {
+                        // Go's responsesSSEFramer flushes the pending client frame before a
+                        // terminal error is written.
+                        st.ready.extend(st.translator.flush_frames());
+                        st.failed = Some(error);
                         st.done = true;
-                        return Some((Err(error), st));
                     }
                 }
             }

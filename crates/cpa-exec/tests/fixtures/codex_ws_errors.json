@@ -1,0 +1,97 @@
+[
+  {
+    "payload": "{\"type\":\"error\",\"status\":400,\"error\":{\"type\":\"invalid_request_error\",\"code\":\"context_length_exceeded\",\"message\":\"too long\"}}",
+    "matched": true,
+    "status": 400,
+    "message": "{\"status\":400,\"error\":{\"type\":\"invalid_request_error\",\"code\":\"context_length_exceeded\",\"message\":\"too long\"}}"
+  },
+  {
+    "payload": "{\"type\":\"error\",\"status\":429,\"error\":{\"type\":\"usage_limit_reached\",\"message\":\"limit\",\"resets_in_seconds\":60}}",
+    "matched": true,
+    "status": 429,
+    "message": "{\"status\":429,\"error\":{\"type\":\"usage_limit_reached\",\"message\":\"limit\",\"resets_in_seconds\":60}}",
+    "retry_after_ms": 60000,
+    "credential_scoped": true
+  },
+  {
+    "payload": "{\"type\":\"error\",\"status\":429,\"error\":{\"type\":\"usage_limit_reached\",\"message\":\"limit\",\"resets_in_seconds\":60}}",
+    "model_level_cooling": true,
+    "matched": true,
+    "status": 429,
+    "message": "{\"status\":429,\"error\":{\"type\":\"usage_limit_reached\",\"message\":\"limit\",\"resets_in_seconds\":60}}",
+    "retry_after_ms": 60000
+  },
+  {
+    "payload": "{\"type\":\"error\",\"status_code\":503}",
+    "matched": true,
+    "status": 503,
+    "message": "{\"status\":503,\"error\":{\"type\":\"server_error\",\"message\":\"Service Unavailable\"}}"
+  },
+  {
+    "payload": "{\"type\":\"error\",\"status\":418}",
+    "matched": true,
+    "status": 418,
+    "message": "{\"status\":418,\"error\":{\"type\":\"server_error\",\"message\":\"I'm a teapot\"}}"
+  },
+  {
+    "payload": "{\"type\":\"error\",\"status\":413}",
+    "matched": true,
+    "status": 413,
+    "message": "{\"status\":413,\"error\":{\"type\":\"server_error\",\"message\":\"Request Entity Too Large\"}}"
+  },
+  {
+    "payload": "{\"type\":\"error\",\"status\":429,\"body\":{\"error\":{\"code\":\"rate_limit_exceeded\",\"message\":\"slow\"}},\"headers\":{\"retry-after\":\"7\",\"x-codex-primary-used-percent\":91,\"x-flag\":true,\"x-empty\":\" \",\"x-obj\":{}}}",
+    "matched": true,
+    "status": 429,
+    "message": "{\"status\":429,\"body\":{\"error\":{\"code\":\"rate_limit_exceeded\",\"message\":\"slow\"}},\"error\":{\"code\":\"rate_limit_exceeded\",\"message\":\"slow\"}}",
+    "headers": {
+      "Retry-After": "7",
+      "X-Codex-Primary-Used-Percent": "91",
+      "X-Flag": "true"
+    }
+  },
+  {
+    "payload": "{\"type\":\"error\",\"status\":429,\"body\":{\"detail\":\"no error node\"},\"error\":{\"message\":\"top\"}}",
+    "matched": true,
+    "status": 429,
+    "message": "{\"status\":429,\"body\":{\"detail\":\"no error node\"},\"error\":{\"message\":\"top\"}}"
+  },
+  {
+    "payload": "{\"type\":\"error\",\"status\":429,\"error\":{\"code\":\"websocket_connection_limit_reached\",\"message\":\"too many\"}}",
+    "matched": true,
+    "status": 429,
+    "message": "{\"status\":429,\"error\":{\"code\":\"websocket_connection_limit_reached\",\"message\":\"too many\"}}",
+    "retry_after_ms": 0
+  },
+  {
+    "payload": "{\"type\":\"error\",\"status\":503,\"code\":\"websocket_connection_limit_reached\"}",
+    "matched": true,
+    "status": 503,
+    "message": "{\"status\":503,\"error\":{\"type\":\"server_error\",\"message\":\"Service Unavailable\"}}",
+    "retry_after_ms": 0
+  },
+  {
+    "payload": "{\"type\":\"error\",\"status\":1200,\"error\":{\"message\":\"big status\"}}",
+    "matched": true,
+    "status": 1200,
+    "message": "{\"status\":1200,\"error\":{\"message\":\"big status\"}}"
+  },
+  {
+    "payload": "{\"type\":\"error\",\"status\":0}",
+    "matched": false
+  },
+  {
+    "payload": "{\"type\":\"error\",\"error\":{\"message\":\"no status\"}}",
+    "matched": false
+  },
+  {
+    "payload": "{\"type\":\"response.failed\",\"status\":500}",
+    "matched": false
+  },
+  {
+    "payload": " {\"type\":\" error \",\"status\":\"502\"}",
+    "matched": true,
+    "status": 502,
+    "message": "{\"status\":502,\"error\":{\"type\":\"server_error\",\"message\":\"Bad Gateway\"}}"
+  }
+]

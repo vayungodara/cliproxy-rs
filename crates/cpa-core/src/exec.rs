@@ -171,3 +171,36 @@ impl fmt::Display for ExecError {
 }
 
 impl std::error::Error for ExecError {}
+
+/// A long-lived downstream connection (the Responses WebSocket, `GET /v1/responses`)
+/// whose turns can share upstream state. It travels next to an [`ExecRequest`] in
+/// `cpa_exec::Executors::execute_in_session`. Executors that pool upstream sockets key
+/// them by `id` and release them in `Executors::close_session` when the downstream
+/// connection ends (Go: execution session id and `CloseExecutionSession`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExecSession {
+    /// Stable for the whole downstream connection.
+    pub id: String,
+    /// This turn continues upstream state (`previous_response_id` or `response.append`
+    /// passed through unchanged), so it must run on the session's current upstream socket.
+    /// An executor that cannot honour that fails with [`ExecError::replay_required`]
+    /// instead of opening a fresh connection (Go: `RequiredUpstreamWebsocket`).
+    pub continuation: bool,
+}
+
+impl ExecError {
+    /// Body of the replay signal (Go `UpstreamWebsocketReplayRequiredError`).
+    pub const REPLAY_REQUIRED: &'static str = r#"{"error":{"message":"upstream transport requires full HTTP replay","type":"server_error","code":"upstream_http_replay_required","status":426}}"#;
+
+    /// A continuation turn lost its upstream socket: the client must resend the full
+    /// conversation. Request-scoped: no credential is at fault.
+    pub fn replay_required() -> Self {
+        Self::local(426, FailureScope::Request, Self::REPLAY_REQUIRED)
+    }
+
+    pub fn is_replay_required(&self) -> bool {
+        self.status == 426
+            && self.scope == FailureScope::Request
+            && self.body.as_ref() == Self::REPLAY_REQUIRED.as_bytes()
+    }
+}

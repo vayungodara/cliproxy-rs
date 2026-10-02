@@ -27,6 +27,8 @@ import (
 	cliproxyauth "github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/auth"
 	cliproxyexecutor "github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/executor"
 	sdktranslator "github.com/router-for-me/CLIProxyAPI/v8/sdk/translator"
+	// Built-in translators register in init(), as cmd/server/main.go imports them.
+	_ "github.com/router-for-me/CLIProxyAPI/v8/internal/translator"
 	"github.com/tidwall/sjson"
 )
 
@@ -459,6 +461,15 @@ func executorCases() []execCase {
 		{Name: "oauth_capacity_in_stream_500", Attributes: map[string]string{}, Metadata: oauthMeta, Source: "codex", Headers: map[string]string{},
 			Model: "gpt-5.4", Payload: `{"model":"gpt-5.4","input":[]}`, UpstreamStatus: 500, UpstreamType: "application/json",
 			UpstreamBody: `{"error":{"message":"Selected model is at capacity. Please try a different model."}}`},
+		{Name: "apikey_payload_rules_and_session_headers",
+			Config:     "payload:\n  override:\n    - models:\n        - name: gpt-5.4\n      params:\n        reasoning.effort: low\n  default:\n    - models:\n        - name: \"gpt-*\"\n      params:\n        text.verbosity: low\n        reasoning.effort: minimal\n  filter:\n    - models:\n        - name: gpt-5.4\n      params:\n        - tool_choice\n",
+			Attributes: map[string]string{"api_key": "sk-FAKE", "header:X-Session": "$CPA-SESSION-ID", "header:X-Combo": "s=$cpa-session-id;x"},
+			Source:     "codex", Headers: map[string]string{"Session_id": "sess-FAKE", "User-Agent": "codex_cli_rs/0.150.0"},
+			Model: "gpt-5.4", Payload: native, Stream: true, UpstreamStatus: 200, UpstreamType: "text/event-stream", UpstreamBody: sseOK},
+		{Name: "apikey_session_header_without_session",
+			Attributes: map[string]string{"api_key": "sk-FAKE", "header:X-Session": "$CPA-SESSION-ID", "header:X-Fixed": "v"},
+			Source:     "codex", Headers: map[string]string{},
+			Model: "gpt-5.4", Payload: `{"model":"gpt-5.4","input":[]}`, Stream: true, UpstreamStatus: 200, UpstreamType: "text/event-stream", UpstreamBody: sseOK},
 		{Name: "oauth_bootstrap_overload_failover", Config: "codex:\n  stream-bootstrap-buffering: true\n", Attributes: map[string]string{}, Metadata: oauthMeta,
 			Source: "codex", Headers: map[string]string{}, Model: "gpt-5.4", Payload: `{"model":"gpt-5.4","input":[]}`, Stream: true,
 			UpstreamStatus: 200, UpstreamType: "text/event-stream",

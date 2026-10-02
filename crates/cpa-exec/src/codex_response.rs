@@ -214,13 +214,21 @@ pub(crate) fn request_fault(status: u16, body: &str) -> bool {
 /// credential-wide unless model-level cooling is on; capacity and usage limits are 429.
 pub(crate) fn status_error(status: u16, body: &[u8], headers: HeaderMap, model_level_cooling: bool) -> ExecError {
     let raw = String::from_utf8_lossy(body);
-    let usage = is_usage_limit(&raw);
-    let code = if usage || is_capacity(&raw) { 429 } else { status };
+    let code = if is_usage_limit(&raw) || is_capacity(&raw) {
+        429
+    } else {
+        status
+    };
     let classified = classify(code, &raw);
-    let retry_after = usage_retry_after(code, &classified, SystemTime::now());
-    let scope = if usage && !model_level_cooling {
+    status_error_raw(code, &classified, headers, model_level_cooling)
+}
+
+/// A plain `statusErr{code, msg}` with Go's retry hint and credential scope.
+pub(crate) fn status_error_raw(code: u16, message: &str, headers: HeaderMap, model_level_cooling: bool) -> ExecError {
+    let retry_after = usage_retry_after(code, message, SystemTime::now());
+    let scope = if is_usage_limit(message) && !model_level_cooling {
         FailureScope::Credential
-    } else if request_fault(code, &classified) {
+    } else if request_fault(code, message) {
         FailureScope::Request
     } else {
         match code {
@@ -228,10 +236,10 @@ pub(crate) fn status_error(status: u16, body: &[u8], headers: HeaderMap, model_l
             _ => FailureScope::Credential,
         }
     };
-    let message = if classified.is_empty() {
+    let message = if message.is_empty() {
         format!("status {code}")
     } else {
-        classified
+        message.to_owned()
     };
     ExecError {
         status: code,
@@ -391,7 +399,7 @@ pub(crate) fn bootstrap_overload(body: &str) -> ExecError {
 }
 
 /// `HasMeaningfulCodexOutputDelta`.
-fn meaningful_delta(payload: &str) -> bool {
+pub(crate) fn meaningful_delta(payload: &str) -> bool {
     matches!(
         gjson::get(payload, "type").str(),
         "response.output_text.delta"
@@ -402,7 +410,7 @@ fn meaningful_delta(payload: &str) -> bool {
 }
 
 /// `IsCodexTerminalEmptyIncomplete`: `response.incomplete` with literally zero output.
-fn empty_incomplete(payload: &str, items: usize, saw_delta: bool) -> bool {
+pub(crate) fn empty_incomplete(payload: &str, items: usize, saw_delta: bool) -> bool {
     if gjson::get(payload, "type").str() != "response.incomplete" || saw_delta || items > 0 {
         return false;
     }
@@ -509,6 +517,67 @@ pub(crate) fn ensure_usage_details(payload: String) -> String {
         };
     }
     if out == trimmed { payload } else { out }
+}
+
+/// Go `http.StatusText` (where the `http` crate's reason phrases differ).
+pub(crate) fn go_status_text(status: u16) -> &'static str {
+    match status {
+        103 => "Early Hints",
+        413 => "Request Entity Too Large",
+        414 => "Request URI Too Long",
+        416 => "Requested Range Not Satisfiable",
+        418 => "I'm a teapot",
+        422 => "Unprocessable Entity",
+        425 => "Too Early",
+        s => http::StatusCode::from_u16(s)
+            .ok()
+            .and_then(|s| s.canonical_reason())
+            .unwrap_or_default(),
+    }
+}
+
+/// `EnsureResponsesUsageDetails` over one stream chunk: a JSON object, or SSE `data:`
+/// lines (Go applies it to every chunk sent to an OpenAI Responses client).
+pub(crate) fn ensure_usage_details_chunk(chunk: Bytes) -> Bytes {
+    let text = String::from_utf8_lossy(&chunk);
+    let trimmed = text.trim();
+    if trimmed.is_empty() {
+        return chunk;
+    }
+    if trimmed.starts_with('{') {
+        let out = ensure_usage_details(trimmed.to_owned());
+        return if out == trimmed { chunk } else { Bytes::from(out) };
+    }
+    if !text.contains("data:") {
+        return chunk;
+    }
+    let mut modified = false;
+    let lines: Vec<String> = text
+        .split('\n')
+        .map(|line| {
+            if !line.trim().starts_with("data:") {
+                return line.to_owned();
+            }
+            let prefix = if line.starts_with("data: ") {
+                "data: "
+            } else if line.starts_with("data:") {
+                "data:"
+            } else {
+                return line.to_owned();
+            };
+            let data = line[prefix.len()..].trim();
+            if !data.starts_with('{') {
+                return line.to_owned();
+            }
+            let updated = ensure_usage_details(data.to_owned());
+            if updated == data {
+                return line.to_owned();
+            }
+            modified = true;
+            format!("{prefix}{updated}")
+        })
+        .collect();
+    if modified { Bytes::from(lines.join("\n")) } else { chunk }
 }
 
 /// Output items seen in `response.output_item.done`, used to patch an empty

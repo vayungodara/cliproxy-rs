@@ -32,6 +32,41 @@ fn error(status: u16, message: &str) -> Response {
     (status, axum::Json(serde_json::json!({ "error": message }))).into_response()
 }
 
+/// `json.Unmarshal(body, &struct{ ID, Model string })`, trimmed: keys match
+/// case-insensitively and the last duplicate wins; a null or non-string value leaves the
+/// field as it was; invalid JSON or a non-object sets nothing.
+fn routing(body: &[u8]) -> (String, String) {
+    let (mut id, mut model) = (String::new(), String::new());
+    let text = String::from_utf8_lossy(body);
+    if !gjson::valid(&text) {
+        return (id, model);
+    }
+    let root = gjson::parse(&text);
+    if root.kind() == gjson::Kind::Object {
+        root.each(|key, value| {
+            let slot = match key.str() {
+                k if k.eq_ignore_ascii_case("id") => &mut id,
+                k if k.eq_ignore_ascii_case("model") => &mut model,
+                _ => return true,
+            };
+            if value.kind() == gjson::Kind::String {
+                *slot = value.str().to_owned();
+            }
+            true
+        });
+    }
+    (id.trim().to_owned(), model.trim().to_owned())
+}
+
+fn with_retry_after(mut response: Response, seconds: Option<u64>) -> Response {
+    if let Some(seconds) = seconds {
+        response
+            .headers_mut()
+            .insert(header::RETRY_AFTER, HeaderValue::from(seconds));
+    }
+    response
+}
+
 /// `Auth.AuthKind`: explicit kind, then an API key attribute, then OAuth token metadata.
 fn auth_kind(c: &Credential) -> Option<&'static str> {
     let normalize = |s: &str| match s.trim().to_ascii_lowercase().as_str() {
@@ -88,23 +123,7 @@ async fn alpha_search(
         Ok(body) => body.slice(..body.len().min(MAX_BODY)),
         Err(_) => return error(400, "Failed to read search request"),
     };
-    // `json.Unmarshal` into {id, model}: each string field independently, else empty.
-    #[derive(serde::Deserialize, Default)]
-    struct Routing {
-        #[serde(default)]
-        id: Option<serde_json::Value>,
-        #[serde(default)]
-        model: Option<serde_json::Value>,
-    }
-    let routing: Routing = serde_json::from_slice(&body).unwrap_or_default();
-    let field = |v: &Option<serde_json::Value>| {
-        v.as_ref()
-            .and_then(serde_json::Value::as_str)
-            .unwrap_or_default()
-            .trim()
-            .to_owned()
-    };
-    let (id, model) = (field(&routing.id), field(&routing.model));
+    let (id, model) = routing(&body);
     let (cfg, policy) = rt.request_snapshot();
     // The credential policy narrows selection; disallowed Codex credentials are excluded.
     let exclude = rt
@@ -114,44 +133,78 @@ async fn alpha_search(
         .filter(|c| c.provider == "codex" && !allowed(c))
         .map(|c| c.id.clone())
         .collect();
-    // Selection carries no route model: Go's Alpha Search picks any policy-eligible Codex
-    // credential without registry model admission, then resolves the API-key model.
+    // Go selects with the route model (`pickNextLegacy`: registry admission and per-model
+    // cooldown) and keys session affinity on the explicit session, with `X-Session-ID`
+    // set from the body's `id` and no derived identity.
+    let mut selection_headers = headers.clone();
+    if let Ok(value) = HeaderValue::from_str(&id)
+        && !id.is_empty()
+    {
+        selection_headers.insert("x-session-id", value);
+    }
+    let meta = cpa_common::session::Meta {
+        execution_session: None,
+        derived: None,
+    };
+    let (mut primary, mut parent, fork) = cpa_common::session::explicit_session_ids(&selection_headers, &body, &meta);
+    if primary.is_empty() {
+        (primary, parent) = cpa_common::session::session_ids(&selection_headers, &body, &meta);
+    }
+    let bound = |s: String| (!s.is_empty()).then(|| cpa_common::session::bound_session_identity(&s));
     let selection = Selection {
         provider: "codex".into(),
-        session: (!id.is_empty()).then_some(id),
+        model: model.clone(),
+        session: bound(primary),
+        session_parent: bound(parent),
+        session_fork: fork,
         exclude,
         ..Selection::default()
     };
     // ponytail: one selection, no failover or outcome recording, as in Go; plugin model
-    // routing and Home dispatch are not ported. Selection error texts follow claude.rs.
+    // routing and Home dispatch are not ported.
     let lease = match rt.acquire(selection, &cfg, policy, &rt.registry()).await {
         Ok(lease) => lease,
-        // ponytail: integrator mapping onto the server thread's new AcquireError; the Codex
-        // thread reconciles these texts with dispatch.rs's Go error shapes.
+        // Go answers `gin.H{"error": err.Error()}` with the selector's error text.
         Err(AcquireError::Unavailable { retry_after: None, .. }) => {
             return error(503, "auth_not_found: no auth available");
         }
-        Err(AcquireError::Unavailable { .. }) => return error(503, "auth_unavailable: no auth available"),
-        Err(AcquireError::Cooldown { wait, .. }) => {
-            let mut response = error(
-                429,
-                &format!(
-                    "All credentials for model {} are cooling down via provider codex",
-                    if model.is_empty() { "requested model" } else { &model }
-                ),
-            );
-            let seconds = wait.as_secs() + u64::from(wait.subsec_nanos() > 0);
-            response
-                .headers_mut()
-                .insert(header::RETRY_AFTER, HeaderValue::from(seconds));
-            return response;
+        Err(AcquireError::Unavailable {
+            retry_after: Some(wait),
+            cause,
+        }) => {
+            // `authUnavailableError`: the earliest retry and the last upstream error.
+            let mut text = "auth_unavailable: no auth available".to_owned();
+            if let Some(summary) = cause
+                .as_deref()
+                .map(crate::dispatch::upstream_summary)
+                .filter(|s| !s.is_empty() && !text.contains(s.as_str()))
+            {
+                text.push_str(&format!(" (last upstream error: {summary})"));
+            }
+            let failure = crate::dispatch::Failure::Unavailable {
+                code: "auth_unavailable",
+                providers: vec!["codex".into()],
+                model: model.clone(),
+                cause: None,
+                retry_after: Some(wait),
+            };
+            return with_retry_after(error(503, &text), failure.retry_after());
+        }
+        Err(AcquireError::Cooldown { wait, cause }) => {
+            // `modelCooldownError`: the same JSON the inference routes return, as a string.
+            let failure = crate::dispatch::Failure::Cooldown {
+                model: model.clone(),
+                provider: "codex".into(),
+                wait,
+                cause,
+            };
+            return with_retry_after(error(429, &failure.text()), failure.retry_after());
         }
         Err(AcquireError::Prepare { error: e, .. }) => {
             return error(e.status, &String::from_utf8_lossy(&e.body));
         }
     };
-    // ponytail: integrator port of the old lease.execution_model through the registry's alias
-    // resolution; the Codex thread re-verifies it against Go's API-key model rewrite.
+    // `ResolveExecutionModel`: the first credential-resolved candidate, else the route model.
     let aliases = cpa_core::registry::dynamic::global_aliases(&cfg);
     let execution_model = cpa_core::registry::dynamic::execution_models(&aliases, &lease.credential, &model)
         .0
@@ -161,7 +214,7 @@ async fn alpha_search(
     let result = rt
         .executors
         .codex
-        .alpha_search(&lease.credential, &body, &headers, &execution_model)
+        .alpha_search(&lease.credential, &body, &headers, &execution_model, &cfg)
         .await;
     // Dropping the lease reports `Cancelled`: Go's Alpha Search never marks a result.
     drop(lease);
@@ -197,6 +250,26 @@ mod tests {
             c.attributes.insert((*k).into(), (*v).into());
         }
         c
+    }
+
+    /// Go `encoding/json` into `struct{ ID, Model string }`.
+    #[test]
+    fn routing_fields_decode_like_go() {
+        let r = |s: &str| routing(s.as_bytes());
+        let pair = |a: &str, b: &str| (a.to_owned(), b.to_owned());
+        assert_eq!(
+            r(r#"{"id":"s","id":"t","model":"unregistered","query":"q"}"#),
+            pair("t", "unregistered"),
+            "duplicates: last wins, other fields kept"
+        );
+        assert_eq!(r(r#"{"ID":" a ","Model":"m"}"#), pair("a", "m"), "keys fold case");
+        assert_eq!(
+            r(r#"{"id":1,"model":"m","id":null}"#),
+            pair("", "m"),
+            "type errors skip only that field"
+        );
+        assert_eq!(r(r#"{"id":"a","model":"m""#), pair("", ""), "invalid JSON sets nothing");
+        assert_eq!(r("[1]"), pair("", ""));
     }
 
     #[test]

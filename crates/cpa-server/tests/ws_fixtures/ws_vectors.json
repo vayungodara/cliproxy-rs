@@ -1,0 +1,566 @@
+[
+  {
+    "fn": "normalize",
+    "raw": "{\"type\":\"response.create\",\"model\":\"gpt-fixture\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":\"hi\"}],\"generate\":true}",
+    "out": "{\"model\":\"gpt-fixture\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":\"hi\"}],\"generate\":true,\"stream\":true}",
+    "updated": "{\"model\":\"gpt-fixture\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":\"hi\"}],\"generate\":true,\"stream\":true}"
+  },
+  {
+    "fn": "normalize",
+    "raw": "{\"type\":\"response.create\",\"model\":\"gpt-fixture\"}",
+    "out": "{\"model\":\"gpt-fixture\",\"stream\":true,\"input\":[]}",
+    "updated": "{\"model\":\"gpt-fixture\",\"stream\":true,\"input\":[]}"
+  },
+  {
+    "fn": "normalize",
+    "raw": "{\"type\":\"response.create\",\"input\":[]}",
+    "out": "",
+    "err_status": 400,
+    "err": "missing model in response.create request"
+  },
+  {
+    "fn": "normalize",
+    "raw": "{\"type\":\"response.create\",\"model\":\"m\",\"input\":\"text\"}",
+    "out": "",
+    "err_status": 400,
+    "err": "websocket request requires array field: input"
+  },
+  {
+    "fn": "normalize",
+    "raw": "{\"type\":\"response.cancel\",\"model\":\"m\"}",
+    "out": "",
+    "err_status": 400,
+    "err": "unsupported websocket request type: response.cancel"
+  },
+  {
+    "fn": "normalize",
+    "raw": "{\"type\":\"response.append\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":\"more\"}]}",
+    "out": "",
+    "err_status": 400,
+    "err": "websocket request received before response.create"
+  },
+  {
+    "fn": "normalize",
+    "raw": "{\"type\":\"response.append\",\"input\":[{\"type\":\"function_call_output\",\"call_id\":\"c1\",\"output\":\"ok\"}]}",
+    "last": "{\"model\":\"gpt-fixture\",\"instructions\":\"be brief\",\"stream\":true,\"input\":[{\"type\":\"message\",\"role\":\"user\",\"id\":\"m1\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}]}",
+    "output": "[{\"type\":\"message\",\"role\":\"assistant\",\"id\":\"o1\",\"content\":[{\"type\":\"output_text\",\"text\":\"hello\"}]},{\"type\":\"function_call\",\"call_id\":\"c1\",\"name\":\"f\",\"arguments\":\"{}\",\"id\":\"fc1\"}]",
+    "last_id": "r1",
+    "out": "{\"input\":[{\"type\":\"message\",\"role\":\"user\",\"id\":\"m1\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"message\",\"role\":\"assistant\",\"id\":\"o1\",\"content\":[{\"type\":\"output_text\",\"text\":\"hello\"}]},{\"type\":\"function_call\",\"call_id\":\"c1\",\"name\":\"f\",\"arguments\":\"{}\",\"id\":\"fc1\"},{\"type\":\"function_call_output\",\"call_id\":\"c1\",\"output\":\"ok\"}],\"model\":\"gpt-fixture\",\"instructions\":\"be brief\",\"stream\":true}",
+    "updated": "{\"input\":[{\"type\":\"message\",\"role\":\"user\",\"id\":\"m1\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"message\",\"role\":\"assistant\",\"id\":\"o1\",\"content\":[{\"type\":\"output_text\",\"text\":\"hello\"}]},{\"type\":\"function_call\",\"call_id\":\"c1\",\"name\":\"f\",\"arguments\":\"{}\",\"id\":\"fc1\"},{\"type\":\"function_call_output\",\"call_id\":\"c1\",\"output\":\"ok\"}],\"model\":\"gpt-fixture\",\"instructions\":\"be brief\",\"stream\":true}"
+  },
+  {
+    "fn": "normalize",
+    "raw": "{\"type\":\"response.create\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"id\":\"m2\",\"content\":\"next\"}]}",
+    "last": "{\"model\":\"gpt-fixture\",\"instructions\":\"be brief\",\"stream\":true,\"input\":[{\"type\":\"message\",\"role\":\"user\",\"id\":\"m1\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}]}",
+    "output": "[{\"type\":\"message\",\"role\":\"assistant\",\"id\":\"o1\",\"content\":[{\"type\":\"output_text\",\"text\":\"hello\"}]},{\"type\":\"function_call\",\"call_id\":\"c1\",\"name\":\"f\",\"arguments\":\"{}\",\"id\":\"fc1\"}]",
+    "last_id": "r1",
+    "out": "{\"input\":[{\"type\":\"message\",\"role\":\"user\",\"id\":\"m1\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"message\",\"role\":\"assistant\",\"id\":\"o1\",\"content\":[{\"type\":\"output_text\",\"text\":\"hello\"}]},{\"type\":\"function_call\",\"call_id\":\"c1\",\"name\":\"f\",\"arguments\":\"{}\",\"id\":\"fc1\"},{\"type\":\"message\",\"role\":\"user\",\"id\":\"m2\",\"content\":\"next\"}],\"model\":\"gpt-fixture\",\"instructions\":\"be brief\",\"stream\":true}",
+    "updated": "{\"input\":[{\"type\":\"message\",\"role\":\"user\",\"id\":\"m1\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"message\",\"role\":\"assistant\",\"id\":\"o1\",\"content\":[{\"type\":\"output_text\",\"text\":\"hello\"}]},{\"type\":\"function_call\",\"call_id\":\"c1\",\"name\":\"f\",\"arguments\":\"{}\",\"id\":\"fc1\"},{\"type\":\"message\",\"role\":\"user\",\"id\":\"m2\",\"content\":\"next\"}],\"model\":\"gpt-fixture\",\"instructions\":\"be brief\",\"stream\":true}"
+  },
+  {
+    "fn": "normalize",
+    "raw": "{\"type\":\"response.create\",\"model\":\"other\",\"instructions\":\"new\",\"previous_response_id\":\"r1\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":\"x\"}]}",
+    "last": "{\"model\":\"gpt-fixture\",\"instructions\":\"be brief\",\"stream\":true,\"input\":[{\"type\":\"message\",\"role\":\"user\",\"id\":\"m1\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}]}",
+    "output": "[{\"type\":\"message\",\"role\":\"assistant\",\"id\":\"o1\",\"content\":[{\"type\":\"output_text\",\"text\":\"hello\"}]},{\"type\":\"function_call\",\"call_id\":\"c1\",\"name\":\"f\",\"arguments\":\"{}\",\"id\":\"fc1\"}]",
+    "out": "{\"model\":\"other\",\"instructions\":\"new\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"id\":\"m1\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"message\",\"role\":\"assistant\",\"id\":\"o1\",\"content\":[{\"type\":\"output_text\",\"text\":\"hello\"}]},{\"type\":\"function_call\",\"call_id\":\"c1\",\"name\":\"f\",\"arguments\":\"{}\",\"id\":\"fc1\"},{\"type\":\"message\",\"role\":\"user\",\"content\":\"x\"}],\"stream\":true}",
+    "updated": "{\"model\":\"other\",\"instructions\":\"new\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"id\":\"m1\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"message\",\"role\":\"assistant\",\"id\":\"o1\",\"content\":[{\"type\":\"output_text\",\"text\":\"hello\"}]},{\"type\":\"function_call\",\"call_id\":\"c1\",\"name\":\"f\",\"arguments\":\"{}\",\"id\":\"fc1\"},{\"type\":\"message\",\"role\":\"user\",\"content\":\"x\"}],\"stream\":true}"
+  },
+  {
+    "fn": "normalize",
+    "raw": "{\"type\":\"response.create\",\"input\":[{\"type\":\"message\",\"role\":\"assistant\",\"content\":\"replayed\"},{\"type\":\"message\",\"role\":\"user\",\"content\":\"q\"}]}",
+    "last": "{\"model\":\"gpt-fixture\",\"instructions\":\"be brief\",\"stream\":true,\"input\":[{\"type\":\"message\",\"role\":\"user\",\"id\":\"m1\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}]}",
+    "output": "[{\"type\":\"message\",\"role\":\"assistant\",\"id\":\"o1\",\"content\":[{\"type\":\"output_text\",\"text\":\"hello\"}]},{\"type\":\"function_call\",\"call_id\":\"c1\",\"name\":\"f\",\"arguments\":\"{}\",\"id\":\"fc1\"}]",
+    "out": "{\"input\":[{\"type\":\"message\",\"role\":\"assistant\",\"content\":\"replayed\"},{\"type\":\"message\",\"role\":\"user\",\"content\":\"q\"}],\"model\":\"gpt-fixture\",\"instructions\":\"be brief\",\"stream\":true}",
+    "updated": "{\"input\":[{\"type\":\"message\",\"role\":\"assistant\",\"content\":\"replayed\"},{\"type\":\"message\",\"role\":\"user\",\"content\":\"q\"}],\"model\":\"gpt-fixture\",\"instructions\":\"be brief\",\"stream\":true}"
+  },
+  {
+    "fn": "normalize",
+    "raw": "{\"type\":\"response.create\",\"input\":[{\"type\":\"function_call\",\"call_id\":\"c9\",\"name\":\"g\",\"arguments\":\"{}\"}]}",
+    "last": "{\"model\":\"gpt-fixture\",\"instructions\":\"be brief\",\"stream\":true,\"input\":[{\"type\":\"message\",\"role\":\"user\",\"id\":\"m1\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}]}",
+    "output": "[{\"type\":\"message\",\"role\":\"assistant\",\"id\":\"o1\",\"content\":[{\"type\":\"output_text\",\"text\":\"hello\"}]},{\"type\":\"function_call\",\"call_id\":\"c1\",\"name\":\"f\",\"arguments\":\"{}\",\"id\":\"fc1\"}]",
+    "out": "{\"input\":[{\"type\":\"function_call\",\"call_id\":\"c9\",\"name\":\"g\",\"arguments\":\"{}\"}],\"model\":\"gpt-fixture\",\"instructions\":\"be brief\",\"stream\":true}",
+    "updated": "{\"input\":[{\"type\":\"function_call\",\"call_id\":\"c9\",\"name\":\"g\",\"arguments\":\"{}\"}],\"model\":\"gpt-fixture\",\"instructions\":\"be brief\",\"stream\":true}"
+  },
+  {
+    "fn": "normalize",
+    "raw": "{\"type\":\"response.create\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":\"Another language model started to solve this problem and produced a summary of its thinking process. You also have access to the state of the tools that were used by that language model. Use this to build on the work that has already been done and avoid duplicating work. Here is the summary produced by the other language model, use the information in this summary to assist with your own analysis:\\nsummary text\"}]}",
+    "last": "{\"model\":\"gpt-fixture\",\"instructions\":\"be brief\",\"stream\":true,\"input\":[{\"type\":\"message\",\"role\":\"user\",\"id\":\"m1\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}]}",
+    "output": "[{\"type\":\"message\",\"role\":\"assistant\",\"id\":\"o1\",\"content\":[{\"type\":\"output_text\",\"text\":\"hello\"}]},{\"type\":\"function_call\",\"call_id\":\"c1\",\"name\":\"f\",\"arguments\":\"{}\",\"id\":\"fc1\"}]",
+    "out": "{\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":\"Another language model started to solve this problem and produced a summary of its thinking process. You also have access to the state of the tools that were used by that language model. Use this to build on the work that has already been done and avoid duplicating work. Here is the summary produced by the other language model, use the information in this summary to assist with your own analysis:\\nsummary text\"}],\"model\":\"gpt-fixture\",\"instructions\":\"be brief\",\"stream\":true}",
+    "updated": "{\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":\"Another language model started to solve this problem and produced a summary of its thinking process. You also have access to the state of the tools that were used by that language model. Use this to build on the work that has already been done and avoid duplicating work. Here is the summary produced by the other language model, use the information in this summary to assist with your own analysis:\\nsummary text\"}],\"model\":\"gpt-fixture\",\"instructions\":\"be brief\",\"stream\":true}"
+  },
+  {
+    "fn": "normalize",
+    "raw": "{\"type\":\"response.create\",\"input\":[{\"type\":\"additional_tools\",\"role\":\"developer\",\"tools\":[{\"type\":\"function\",\"name\":\"f\"}]},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"Another language model started to solve this problem and produced a summary of its thinking process. You also have access to the state of the tools that were used by that language model. Use this to build on the work that has already been done and avoid duplicating work. Here is the summary produced by the other language model, use the information in this summary to assist with your own analysis:\\nsummary text\"}]}]}",
+    "last": "{\"model\":\"gpt-fixture\",\"instructions\":\"be brief\",\"stream\":true,\"input\":[{\"type\":\"message\",\"role\":\"user\",\"id\":\"m1\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}]}",
+    "output": "[{\"type\":\"message\",\"role\":\"assistant\",\"id\":\"o1\",\"content\":[{\"type\":\"output_text\",\"text\":\"hello\"}]},{\"type\":\"function_call\",\"call_id\":\"c1\",\"name\":\"f\",\"arguments\":\"{}\",\"id\":\"fc1\"}]",
+    "out": "{\"input\":[{\"type\":\"additional_tools\",\"role\":\"developer\",\"tools\":[{\"type\":\"function\",\"name\":\"f\"}]},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"Another language model started to solve this problem and produced a summary of its thinking process. You also have access to the state of the tools that were used by that language model. Use this to build on the work that has already been done and avoid duplicating work. Here is the summary produced by the other language model, use the information in this summary to assist with your own analysis:\\nsummary text\"}]}],\"model\":\"gpt-fixture\",\"instructions\":\"be brief\",\"stream\":true}",
+    "updated": "{\"input\":[{\"type\":\"additional_tools\",\"role\":\"developer\",\"tools\":[{\"type\":\"function\",\"name\":\"f\"}]},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"Another language model started to solve this problem and produced a summary of its thinking process. You also have access to the state of the tools that were used by that language model. Use this to build on the work that has already been done and avoid duplicating work. Here is the summary produced by the other language model, use the information in this summary to assist with your own analysis:\\nsummary text\"}]}],\"model\":\"gpt-fixture\",\"instructions\":\"be brief\",\"stream\":true}"
+  },
+  {
+    "fn": "normalize",
+    "raw": "{\"type\":\"response.create\",\"input\":[{\"type\":\"compaction\",\"encrypted_content\":\"e\"},{\"type\":\"message\",\"role\":\"user\",\"content\":\"after\"}]}",
+    "last": "{\"model\":\"gpt-fixture\",\"instructions\":\"be brief\",\"stream\":true,\"input\":[{\"type\":\"message\",\"role\":\"user\",\"id\":\"m1\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}]}",
+    "output": "[{\"type\":\"message\",\"role\":\"assistant\",\"id\":\"o1\",\"content\":[{\"type\":\"output_text\",\"text\":\"hello\"}]},{\"type\":\"function_call\",\"call_id\":\"c1\",\"name\":\"f\",\"arguments\":\"{}\",\"id\":\"fc1\"}]",
+    "bypass": true,
+    "out": "{\"input\":[{\"type\":\"compaction\",\"encrypted_content\":\"e\"},{\"type\":\"message\",\"role\":\"user\",\"content\":\"after\"}],\"model\":\"gpt-fixture\",\"instructions\":\"be brief\",\"stream\":true}",
+    "updated": "{\"input\":[{\"type\":\"compaction\",\"encrypted_content\":\"e\"},{\"type\":\"message\",\"role\":\"user\",\"content\":\"after\"}],\"model\":\"gpt-fixture\",\"instructions\":\"be brief\",\"stream\":true}"
+  },
+  {
+    "fn": "normalize",
+    "raw": "{\"type\":\"response.create\",\"input\":[{\"type\":\"compaction\",\"encrypted_content\":\"e\"},{\"type\":\"message\",\"role\":\"user\",\"content\":\"after\"}]}",
+    "last": "{\"model\":\"gpt-fixture\",\"instructions\":\"be brief\",\"stream\":true,\"input\":[{\"type\":\"message\",\"role\":\"user\",\"id\":\"m1\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}]}",
+    "output": "[{\"type\":\"message\",\"role\":\"assistant\",\"id\":\"o1\",\"content\":[{\"type\":\"output_text\",\"text\":\"hello\"}]},{\"type\":\"function_call\",\"call_id\":\"c1\",\"name\":\"f\",\"arguments\":\"{}\",\"id\":\"fc1\"}]",
+    "out": "{\"input\":[{\"type\":\"message\",\"role\":\"user\",\"id\":\"m1\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"message\",\"role\":\"assistant\",\"id\":\"o1\",\"content\":[{\"type\":\"output_text\",\"text\":\"hello\"}]},{\"type\":\"function_call\",\"call_id\":\"c1\",\"name\":\"f\",\"arguments\":\"{}\",\"id\":\"fc1\"},{\"type\":\"message\",\"role\":\"user\",\"content\":\"after\"}],\"model\":\"gpt-fixture\",\"instructions\":\"be brief\",\"stream\":true}",
+    "updated": "{\"input\":[{\"type\":\"message\",\"role\":\"user\",\"id\":\"m1\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"message\",\"role\":\"assistant\",\"id\":\"o1\",\"content\":[{\"type\":\"output_text\",\"text\":\"hello\"}]},{\"type\":\"function_call\",\"call_id\":\"c1\",\"name\":\"f\",\"arguments\":\"{}\",\"id\":\"fc1\"},{\"type\":\"message\",\"role\":\"user\",\"content\":\"after\"}],\"model\":\"gpt-fixture\",\"instructions\":\"be brief\",\"stream\":true}"
+  },
+  {
+    "fn": "normalize",
+    "raw": "{\"type\":\"response.create\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"id\":\"m1\",\"content\":\"dup id\"}]}",
+    "last": "{\"model\":\"gpt-fixture\",\"instructions\":\"be brief\",\"stream\":true,\"input\":[{\"type\":\"message\",\"role\":\"user\",\"id\":\"m1\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}]}",
+    "output": "[{\"type\":\"message\",\"role\":\"assistant\",\"id\":\"o1\",\"content\":[{\"type\":\"output_text\",\"text\":\"hello\"}]},{\"type\":\"function_call\",\"call_id\":\"c1\",\"name\":\"f\",\"arguments\":\"{}\",\"id\":\"fc1\"}]",
+    "out": "{\"input\":[{\"type\":\"message\",\"role\":\"assistant\",\"id\":\"o1\",\"content\":[{\"type\":\"output_text\",\"text\":\"hello\"}]},{\"type\":\"function_call\",\"call_id\":\"c1\",\"name\":\"f\",\"arguments\":\"{}\",\"id\":\"fc1\"},{\"type\":\"message\",\"role\":\"user\",\"id\":\"m1\",\"content\":\"dup id\"}],\"model\":\"gpt-fixture\",\"instructions\":\"be brief\",\"stream\":true}",
+    "updated": "{\"input\":[{\"type\":\"message\",\"role\":\"assistant\",\"id\":\"o1\",\"content\":[{\"type\":\"output_text\",\"text\":\"hello\"}]},{\"type\":\"function_call\",\"call_id\":\"c1\",\"name\":\"f\",\"arguments\":\"{}\",\"id\":\"fc1\"},{\"type\":\"message\",\"role\":\"user\",\"id\":\"m1\",\"content\":\"dup id\"}],\"model\":\"gpt-fixture\",\"instructions\":\"be brief\",\"stream\":true}"
+  },
+  {
+    "fn": "normalize",
+    "raw": "{\"type\":\"response.create\",\"input\":[{\"type\":\"function_call\",\"call_id\":\"c1\",\"name\":\"f\",\"arguments\":\"{}\",\"id\":\"fc2\"},{\"type\":\"function_call_output\",\"call_id\":\"c1\",\"output\":\"r\"}],\"previous_response_id\":\"\"}",
+    "last": "{\"model\":\"gpt-fixture\",\"instructions\":\"be brief\",\"stream\":true,\"input\":[{\"type\":\"message\",\"role\":\"user\",\"id\":\"m1\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}]}",
+    "output": "[{\"type\":\"message\",\"role\":\"assistant\",\"id\":\"o1\",\"content\":[{\"type\":\"output_text\",\"text\":\"hello\"}]},{\"type\":\"function_call\",\"call_id\":\"c1\",\"name\":\"f\",\"arguments\":\"{}\",\"id\":\"fc1\"}]",
+    "out": "{\"input\":[{\"type\":\"function_call\",\"call_id\":\"c1\",\"name\":\"f\",\"arguments\":\"{}\",\"id\":\"fc2\"},{\"type\":\"function_call_output\",\"call_id\":\"c1\",\"output\":\"r\"}],\"model\":\"gpt-fixture\",\"instructions\":\"be brief\",\"stream\":true}",
+    "updated": "{\"input\":[{\"type\":\"function_call\",\"call_id\":\"c1\",\"name\":\"f\",\"arguments\":\"{}\",\"id\":\"fc2\"},{\"type\":\"function_call_output\",\"call_id\":\"c1\",\"output\":\"r\"}],\"model\":\"gpt-fixture\",\"instructions\":\"be brief\",\"stream\":true}"
+  },
+  {
+    "fn": "normalize",
+    "raw": "{\"type\":\"response.append\",\"input\":{\"not\":\"array\"}}",
+    "last": "{\"model\":\"gpt-fixture\",\"instructions\":\"be brief\",\"stream\":true,\"input\":[{\"type\":\"message\",\"role\":\"user\",\"id\":\"m1\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}]}",
+    "out": "",
+    "err_status": 400,
+    "err": "websocket request requires array field: input"
+  },
+  {
+    "fn": "normalize",
+    "raw": "{\"type\":\"response.append\",\"input\":[1, \"two\", null]}",
+    "last": "{\"model\":\"gpt-fixture\",\"instructions\":\"be brief\",\"stream\":true,\"input\":[{\"type\":\"message\",\"role\":\"user\",\"id\":\"m1\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}]}",
+    "output": "[]",
+    "out": "{\"input\":[{\"type\":\"message\",\"role\":\"user\",\"id\":\"m1\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},1,\"two\",null],\"model\":\"gpt-fixture\",\"instructions\":\"be brief\",\"stream\":true}",
+    "updated": "{\"input\":[{\"type\":\"message\",\"role\":\"user\",\"id\":\"m1\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},1,\"two\",null],\"model\":\"gpt-fixture\",\"instructions\":\"be brief\",\"stream\":true}"
+  },
+  {
+    "fn": "normalize",
+    "raw": "{\"type\":\"response.create\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":\"\u0026\u003c\u003e\"}]}",
+    "last": "{\"model\":\"m\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":\"a\"}],\"Input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":\"b\"}]}",
+    "output": "[{\"type\":\"compaction_trigger\"}]",
+    "out": "{\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":\"b\"},{\"type\":\"compaction_trigger\"},{\"type\":\"message\",\"role\":\"user\",\"content\":\"\u0026\u003c\u003e\"}],\"model\":\"m\",\"stream\":true}",
+    "updated": "{\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":\"b\"},{\"type\":\"compaction_trigger\"},{\"type\":\"message\",\"role\":\"user\",\"content\":\"\u0026\u003c\u003e\"}],\"model\":\"m\",\"stream\":true}"
+  },
+  {
+    "fn": "normalize",
+    "raw": "{\"type\":\"response.create\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":\"x\"}]}",
+    "last": "{\"model\":\"m\",\"input\":\"bad\"}",
+    "out": "",
+    "err_status": 400,
+    "err": "invalid previous request input: json: cannot unmarshal string into Go struct field .input of type []json.RawMessage"
+  },
+  {
+    "fn": "normalize",
+    "raw": "{\"type\":\"response.create\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":\"x\"}]}",
+    "last": "{\"model\":\"m\",\"input\":[{\"type\":\"compaction_trigger\"},{\"type\":\"message\",\"role\":\"user\",\"content\":\"a\"}]}",
+    "output": "[{\"type\":\"compaction\",\"encrypted_content\":\"z\"}]",
+    "out": "{\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":\"a\"},{\"type\":\"compaction\",\"encrypted_content\":\"z\"},{\"type\":\"message\",\"role\":\"user\",\"content\":\"x\"}],\"model\":\"m\",\"stream\":true}",
+    "updated": "{\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":\"a\"},{\"type\":\"compaction\",\"encrypted_content\":\"z\"},{\"type\":\"message\",\"role\":\"user\",\"content\":\"x\"}],\"model\":\"m\",\"stream\":true}"
+  },
+  {
+    "fn": "passthrough",
+    "raw": "{\"type\":\"response.create\",\"previous_response_id\":\"r1\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":\"x\"}]}",
+    "model": "gpt-fixture",
+    "out": "{\"type\":\"response.create\",\"previous_response_id\":\"r1\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":\"x\"}],\"model\":\"gpt-fixture\",\"stream\":true}"
+  },
+  {
+    "fn": "passthrough",
+    "raw": "{\"type\":\"response.append\",\"model\":\"m2\",\"input\":[]}",
+    "out": "{\"type\":\"response.append\",\"model\":\"m2\",\"input\":[],\"stream\":true}"
+  },
+  {
+    "fn": "passthrough",
+    "raw": "{\"type\":\"response.create\",\"input\":[]}",
+    "out": "",
+    "err_status": 400,
+    "err": "missing model in response.create request"
+  },
+  {
+    "fn": "passthrough",
+    "raw": "{\"type\":\"response.create\",\"input\":[]",
+    "model": "m",
+    "out": "",
+    "err_status": 400,
+    "err": "invalid websocket request JSON"
+  },
+  {
+    "fn": "passthrough",
+    "raw": "{\"type\":\"other\",\"model\":\"m\"}",
+    "out": "",
+    "err_status": 400,
+    "err": "unsupported websocket request type: other"
+  },
+  {
+    "fn": "prewarm_followup",
+    "raw": "{\"type\":\"response.create\",\"previous_response_id\":\"resp_prewarm_x\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":\"go\"}]}",
+    "last": "{\"model\":\"gpt-fixture\",\"instructions\":\"warm\",\"stream\":true,\"input\":[{\"type\":\"message\",\"role\":\"user\",\"id\":\"w1\",\"content\":\"setup\"}]}",
+    "out": "{\"input\":[{\"type\":\"message\",\"role\":\"user\",\"id\":\"w1\",\"content\":\"setup\"},{\"type\":\"message\",\"role\":\"user\",\"content\":\"go\"}],\"model\":\"gpt-fixture\",\"instructions\":\"warm\",\"stream\":true}",
+    "updated": "{\"input\":[{\"type\":\"message\",\"role\":\"user\",\"id\":\"w1\",\"content\":\"setup\"},{\"type\":\"message\",\"role\":\"user\",\"content\":\"go\"}],\"model\":\"gpt-fixture\",\"instructions\":\"warm\",\"stream\":true}"
+  },
+  {
+    "fn": "prewarm_followup",
+    "raw": "{\"type\":\"response.append\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"id\":\"w1\",\"content\":\"again\"}]}",
+    "last": "{\"model\":\"gpt-fixture\",\"instructions\":\"warm\",\"stream\":true,\"input\":[{\"type\":\"message\",\"role\":\"user\",\"id\":\"w1\",\"content\":\"setup\"}]}",
+    "out": "{\"input\":[{\"type\":\"message\",\"role\":\"user\",\"id\":\"w1\",\"content\":\"again\"}],\"model\":\"gpt-fixture\",\"instructions\":\"warm\",\"stream\":true}",
+    "updated": "{\"input\":[{\"type\":\"message\",\"role\":\"user\",\"id\":\"w1\",\"content\":\"again\"}],\"model\":\"gpt-fixture\",\"instructions\":\"warm\",\"stream\":true}"
+  },
+  {
+    "fn": "prewarm_followup",
+    "raw": "{\"type\":\"response.append\",\"input\":\"x\"}",
+    "last": "{\"model\":\"gpt-fixture\",\"instructions\":\"warm\",\"stream\":true,\"input\":[{\"type\":\"message\",\"role\":\"user\",\"id\":\"w1\",\"content\":\"setup\"}]}",
+    "out": "",
+    "err_status": 400,
+    "err": "websocket request requires array field: input"
+  },
+  {
+    "fn": "prewarm_followup",
+    "raw": "{\"type\":\"bogus\",\"input\":[]}",
+    "last": "{\"model\":\"gpt-fixture\",\"instructions\":\"warm\",\"stream\":true,\"input\":[{\"type\":\"message\",\"role\":\"user\",\"id\":\"w1\",\"content\":\"setup\"}]}",
+    "out": "",
+    "err_status": 400,
+    "err": "unsupported websocket request type: bogus"
+  },
+  {
+    "fn": "prewarm_local",
+    "raw": "{\"type\":\"response.create\",\"generate\":false}",
+    "out": "",
+    "bool": true
+  },
+  {
+    "fn": "prewarm_local",
+    "raw": "{\"type\":\"response.create\",\"generate\":\"FALSE\"}",
+    "out": "",
+    "bool": true
+  },
+  {
+    "fn": "prewarm_local",
+    "raw": "{\"type\":\"response.create\",\"generate\":0}",
+    "out": "",
+    "bool": true
+  },
+  {
+    "fn": "prewarm_local",
+    "raw": "{\"type\":\"response.create\",\"generate\":true}",
+    "out": ""
+  },
+  {
+    "fn": "prewarm_local",
+    "raw": "{\"type\":\"response.create\"}",
+    "out": ""
+  },
+  {
+    "fn": "prewarm_local",
+    "raw": "{\"type\":\"response.append\",\"generate\":false}",
+    "out": ""
+  },
+  {
+    "fn": "chunk",
+    "raw": "event: response.created\ndata: {\"type\":\"response.created\",\"response\":{\"id\":\"r1\"}}\n\n",
+    "out": "",
+    "list": [
+      "{\"type\":\"response.created\",\"response\":{\"id\":\"r1\"}}"
+    ]
+  },
+  {
+    "fn": "chunk",
+    "raw": "data: {\"a\":1}\r\ndata: [DONE]\n\ndata: not json\n",
+    "out": "",
+    "list": [
+      "{\"a\":1}"
+    ]
+  },
+  {
+    "fn": "chunk",
+    "raw": "{\"type\":\"response.completed\"}",
+    "out": "",
+    "list": [
+      "{\"type\":\"response.completed\"}"
+    ]
+  },
+  {
+    "fn": "chunk",
+    "raw": "data:{\"x\":true}",
+    "out": "",
+    "list": [
+      "{\"x\":true}"
+    ]
+  },
+  {
+    "fn": "chunk",
+    "raw": "  \n\n",
+    "out": ""
+  },
+  {
+    "fn": "chunk",
+    "raw": "data: [DONE]",
+    "out": ""
+  },
+  {
+    "fn": "chunk",
+    "raw": "{\"a\":1}\n{\"b\":2}",
+    "out": "",
+    "list": [
+      "{\"a\":1}",
+      "{\"b\":2}"
+    ]
+  },
+  {
+    "fn": "error_payload",
+    "raw": "websocket request requires array field: input",
+    "status": 400,
+    "out": "{\"type\":\"error\",\"status\":400,\"error\":{\"message\":\"websocket request requires array field: input\",\"type\":\"invalid_request_error\"}}"
+  },
+  {
+    "fn": "error_payload",
+    "raw": "{\"error\":{\"message\":\"Previous response is not available\",\"type\":\"invalid_request_error\",\"code\":\"previous_response_not_found\"}}",
+    "status": 409,
+    "out": "{\"type\":\"error\",\"status\":409,\"error\":{\"message\":\"Previous response is not available\",\"type\":\"invalid_request_error\",\"code\":\"previous_response_not_found\"}}"
+  },
+  {
+    "fn": "error_payload",
+    "raw": "bad key \u003cx\u003e",
+    "status": 401,
+    "out": "{\"type\":\"error\",\"status\":401,\"error\":{\"message\":\"bad key \\u003cx\\u003e\",\"type\":\"authentication_error\",\"code\":\"invalid_api_key\"}}"
+  },
+  {
+    "fn": "error_payload",
+    "status": 429,
+    "out": "{\"type\":\"error\",\"status\":429,\"error\":{\"message\":\"Too Many Requests\",\"type\":\"rate_limit_error\",\"code\":\"rate_limit_exceeded\"}}"
+  },
+  {
+    "fn": "error_payload",
+    "raw": "boom",
+    "out": "{\"type\":\"error\",\"status\":500,\"error\":{\"message\":\"boom\",\"type\":\"server_error\",\"code\":\"internal_server_error\"}}"
+  },
+  {
+    "fn": "error_payload",
+    "raw": "stream closed before response.completed",
+    "status": 408,
+    "out": "{\"type\":\"error\",\"status\":408,\"error\":{\"message\":\"stream closed before response.completed\",\"type\":\"server_error\",\"code\":\"request_timeout\"}}"
+  },
+  {
+    "fn": "error_payload",
+    "raw": "{\"detail\":\"upstream\"}",
+    "status": 502,
+    "out": "{\"type\":\"error\",\"status\":502,\"error\":{\"detail\":\"upstream\"}}"
+  },
+  {
+    "fn": "error_payload",
+    "raw": "  ",
+    "status": 404,
+    "out": "{\"type\":\"error\",\"status\":404,\"error\":{\"message\":\"Not Found\",\"type\":\"invalid_request_error\",\"code\":\"model_not_found\"}}"
+  },
+  {
+    "fn": "error_payload",
+    "raw": "[1,2]",
+    "status": 422,
+    "out": "{\"type\":\"error\",\"status\":422,\"error\":[1,2]}"
+  },
+  {
+    "fn": "expose",
+    "raw": "{\"error\":{\"code\":\"context_length_exceeded\",\"message\":\"too long\"}}",
+    "status": 400,
+    "out": "",
+    "bool": true
+  },
+  {
+    "fn": "expose",
+    "raw": "plain",
+    "status": 400,
+    "out": "",
+    "bool": true
+  },
+  {
+    "fn": "expose",
+    "raw": "{\"error\":{\"type\":\"invalid_request_error\"}}",
+    "status": 429,
+    "out": ""
+  },
+  {
+    "fn": "expose",
+    "raw": "{\"error\":{\"code\":\"model_not_found\"}}",
+    "status": 404,
+    "out": ""
+  },
+  {
+    "fn": "expose",
+    "raw": "{\"error\":{\"type\":\"authentication_error\"}}",
+    "status": 401,
+    "out": ""
+  },
+  {
+    "fn": "expose",
+    "raw": "{\"error\":{\"code\":\"previous_response_not_found\"}}",
+    "status": 502,
+    "out": "",
+    "bool": true
+  },
+  {
+    "fn": "expose",
+    "raw": "Item with id 'x' not found. Items are not persisted when `store` is set to false.",
+    "status": 500,
+    "out": "",
+    "bool": true
+  },
+  {
+    "fn": "expose",
+    "raw": "unavailable",
+    "status": 503,
+    "out": ""
+  },
+  {
+    "fn": "expose",
+    "raw": "{\"error\":{\"code\":\"message_too_big\"}}",
+    "status": 413,
+    "out": "",
+    "bool": true
+  },
+  {
+    "fn": "completion",
+    "events": [
+      "{\"type\":\"response.created\",\"response\":{\"id\":\"r1\"}}",
+      "{\"type\":\"response.output_item.done\",\"output_index\":1,\"item\":{\"type\":\"function_call\",\"call_id\":\"c1\",\"name\":\"f\",\"arguments\":\"{\\\"a\\\":1}\"}}",
+      "{\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"a \u003c b\"}]}}",
+      "{\"type\":\"response.output_item.done\",\"item\":{\"type\":\"function_call\",\"call_id\":\"c2\",\"name\":\"g\"}}",
+      "{\"type\":\"response.completed\",\"response\":{\"id\":\"r1\",\"output\":[]}}"
+    ],
+    "out": "c1",
+    "list": [
+      "{\"type\":\"response.completed\",\"response\":{\"id\":\"r1\",\"output\":[{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"a \\u003c b\"}]},{\"type\":\"function_call\",\"call_id\":\"c1\",\"name\":\"f\",\"arguments\":\"{\\\"a\\\":1}\"}]}}",
+      "[{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"a \\u003c b\"}]},{\"type\":\"function_call\",\"call_id\":\"c1\",\"name\":\"f\",\"arguments\":\"{\\\"a\\\":1}\"}]"
+    ]
+  },
+  {
+    "fn": "completion",
+    "events": [
+      "{\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"type\":\"function_call\",\"call_id\":\"c1\",\"name\":\"f\",\"arguments\":\"{\\\"full\\\":true}\"}}",
+      "{\"type\":\"response.completed\",\"response\":{\"id\":\"r2\",\"output\":[{\"type\":\"function_call\",\"call_id\":\"c1\",\"name\":\"f\",\"arguments\":\"\"},{\"type\":\"message\",\"role\":\"assistant\",\"content\":[]}]}}"
+    ],
+    "out": "c1",
+    "list": [
+      "{\"type\":\"response.completed\",\"response\":{\"id\":\"r2\",\"output\":[{\"type\":\"function_call\",\"call_id\":\"c1\",\"name\":\"f\",\"arguments\":\"{\\\"full\\\":true}\"},{\"type\":\"message\",\"role\":\"assistant\",\"content\":[]}]}}",
+      "[{\"type\":\"function_call\",\"call_id\":\"c1\",\"name\":\"f\",\"arguments\":\"{\\\"full\\\":true}\"},{\"type\":\"message\",\"role\":\"assistant\",\"content\":[]}]"
+    ]
+  },
+  {
+    "fn": "completion",
+    "events": [
+      "{\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"type\":\"message\",\"role\":\"assistant\"}}",
+      "{\"type\":\"response.done\",\"response\":{\"id\":\"r3\"}}",
+      "{\"type\":\"response.output_item.done\",\"output_index\":1,\"item\":{\"type\":\"function_call_output\",\"call_id\":\"c1\",\"output\":\"x\"}}"
+    ],
+    "out": "",
+    "list": [
+      "{\"type\":\"response.done\",\"response\":{\"id\":\"r3\",\"output\":[{\"type\":\"message\",\"role\":\"assistant\"}]}}",
+      "[{\"type\":\"message\",\"role\":\"assistant\"}]"
+    ]
+  },
+  {
+    "fn": "completion",
+    "events": [
+      "{\"type\":\"response.completed\",\"response\":{\"id\":\"r4\",\"output\":[{\"type\":\"function_call\",\"call_id\":\"c7\",\"name\":\"f\",\"arguments\":\"{}\"}]}}"
+    ],
+    "out": "c7",
+    "list": [
+      "{\"type\":\"response.completed\",\"response\":{\"id\":\"r4\",\"output\":[{\"type\":\"function_call\",\"call_id\":\"c7\",\"name\":\"f\",\"arguments\":\"{}\"}]}}",
+      "[{\"type\":\"function_call\",\"call_id\":\"c7\",\"name\":\"f\",\"arguments\":\"{}\"}]"
+    ]
+  },
+  {
+    "fn": "repair",
+    "raw": "{\"input\":[{\"type\":\"message\",\"role\":\"user\"},{\"type\":\"function_call\",\"call_id\":\"c1\",\"name\":\"f\",\"arguments\":\"{}\"}]}",
+    "key": "rsfix-repair-session",
+    "out": "{\"input\":[{\"type\":\"message\",\"role\":\"user\"}]}"
+  },
+  {
+    "fn": "repair",
+    "raw": "{\"input\":[{\"type\":\"function_call_output\",\"call_id\":\"c1\",\"output\":\"ok\"}],\"previous_response_id\":\"r\"}",
+    "bypass": true,
+    "key": "rsfix-repair-session",
+    "out": "{\"input\":[{\"type\":\"function_call_output\",\"call_id\":\"c1\",\"output\":\"ok\"}],\"previous_response_id\":\"r\"}"
+  },
+  {
+    "fn": "repair",
+    "raw": "{\"input\":[{\"type\":\"message\",\"role\":\"user\"},{\"type\":\"function_call\",\"call_id\":\"c1\",\"name\":\"f\",\"arguments\":\"{}\"}]}",
+    "key": "rsfix-repair-session",
+    "out": "{\"input\":[{\"type\":\"message\",\"role\":\"user\"},{\"type\":\"function_call\",\"call_id\":\"c1\",\"name\":\"f\",\"arguments\":\"{}\"},{\"type\":\"function_call_output\",\"call_id\":\"c1\",\"output\":\"ok\"}]}"
+  },
+  {
+    "fn": "repair",
+    "raw": "{\"input\":[{\"type\":\"function_call_output\",\"call_id\":\"c2\",\"output\":\"orphan\"}]}",
+    "key": "rsfix-repair-session",
+    "out": "{\"input\":[]}"
+  },
+  {
+    "fn": "repair",
+    "raw": "{\"input\":[{\"type\":\"message\",\"role\":\"user\"}]}",
+    "bypass": true,
+    "events": [
+      "{\"type\":\"response.output_item.done\",\"item\":{\"type\":\"function_call\",\"call_id\":\"c2\",\"name\":\"g\",\"arguments\":\"{}\"}}"
+    ],
+    "key": "rsfix-repair-session",
+    "out": "{\"input\":[{\"type\":\"message\",\"role\":\"user\"}]}"
+  },
+  {
+    "fn": "repair",
+    "raw": "{\"input\":[{\"type\":\"function_call_output\",\"call_id\":\"c2\",\"output\":\"late\"},{\"type\":\"function_call_output\",\"call_id\":\"c2\",\"output\":\"again\"}]}",
+    "key": "rsfix-repair-session",
+    "out": "{\"input\":[{\"type\":\"function_call\",\"call_id\":\"c2\",\"name\":\"g\",\"arguments\":\"{}\"},{\"type\":\"function_call_output\",\"call_id\":\"c2\",\"output\":\"late\"},{\"type\":\"function_call_output\",\"call_id\":\"c2\",\"output\":\"again\"}]}"
+  },
+  {
+    "fn": "repair",
+    "raw": "{\"input\":[{\"type\":\"function_call_output\",\"output\":\"heartbeat\",\"name\":\"hb\"},{\"type\":\"function_call_output\",\"output\":\"nameless\"},{\"type\":\"function_call\",\"name\":\"f\",\"arguments\":\"{}\"}]}",
+    "key": "rsfix-repair-session",
+    "out": "{\"input\":[{\"type\":\"function_call_output\",\"output\":\"heartbeat\",\"name\":\"hb\"}]}"
+  },
+  {
+    "fn": "repair",
+    "raw": "{\"input\":\"text\"}",
+    "key": "rsfix-repair-session",
+    "out": "{\"input\":\"text\"}"
+  },
+  {
+    "fn": "repair",
+    "raw": "{\"input\":[{\"type\":\"function_call\",\"call_id\":\"c1\",\"name\":\"f\",\"arguments\":\"{}\",\"id\":\"x\"},{\"type\":\"message\",\"id\":\"x\"}]}",
+    "out": "{\"input\":[{\"type\":\"message\",\"id\":\"x\"}]}"
+  },
+  {
+    "fn": "truncate",
+    "raw": "upstream requires HTTP replay",
+    "max": 123,
+    "out": "upstream requires HTTP replay"
+  },
+  {
+    "fn": "truncate",
+    "raw": "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+    "max": 123,
+    "out": "ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé"
+  },
+  {
+    "fn": "truncate",
+    "raw": "abc",
+    "out": ""
+  },
+  {
+    "fn": "prewarm_payloads",
+    "raw": "{\"model\":\"gpt-fixture\",\"input\":[]}",
+    "out": "",
+    "list": [
+      "{\"type\":\"response.created\",\"sequence_number\":0,\"response\":{\"id\":\"resp_prewarm_4d8ba5b5-d75d-4e54-8672-fb19867294cc\",\"object\":\"response\",\"created_at\":1790977736,\"status\":\"in_progress\",\"background\":false,\"error\":null,\"output\":[],\"model\":\"gpt-fixture\"}}",
+      "{\"type\":\"response.completed\",\"sequence_number\":1,\"response\":{\"id\":\"resp_prewarm_4d8ba5b5-d75d-4e54-8672-fb19867294cc\",\"object\":\"response\",\"created_at\":1790977736,\"status\":\"completed\",\"background\":false,\"error\":null,\"output\":[],\"usage\":{\"input_tokens\":0,\"input_tokens_details\":{\"cached_tokens\":0},\"output_tokens\":0,\"output_tokens_details\":{\"reasoning_tokens\":0},\"total_tokens\":0},\"model\":\"gpt-fixture\"}}"
+    ]
+  }
+]

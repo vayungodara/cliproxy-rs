@@ -36,3 +36,15 @@ Go writes time-dependent values in two places; tests treat them as shapes: refre
 `expired`/`last_refresh` (recorded as `<time>`) and the random `session_id` Go adds when a
 model's override headers carry a Mac OS User-Agent. Go streams one chunk per SSE line while
 the Rust executor yields whole events, so stream outputs are compared event by event.
+
+## WebSocket error frames
+
+`../../fixtures/codex_ws_errors.json` holds `parseCodexWebsocketErrorWithCooling` results
+(status, message, retry hint, credential scope, headers). The function is unexported, so
+the generator is a test file copied into the reference tree:
+
+```sh
+cp zz_rsfix_ws_errors_test.go "$reference/internal/runtime/executor/"
+RSFIX_OUT=/tmp/rsfix go test -count=1 -run TestRSFixCodexWebsocketErrors ./internal/runtime/executor/
+cp /tmp/rsfix/codex_ws_errors.json ../../fixtures/
+```
