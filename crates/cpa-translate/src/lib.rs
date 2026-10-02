@@ -20,6 +20,7 @@
 mod claude_chat_request;
 mod claude_chat_response;
 mod json;
+pub mod gj;
 mod openai;
 pub mod sse;
 
