@@ -1,0 +1,91 @@
+{
+  "attributes": {
+    "auth_kind": "oauth"
+  },
+  "credential": {
+    "access_token": "meta-key-fixture",
+    "api_key": "meta-key-fixture",
+    "auth_kind": "oauth",
+    "base_url": "http://127.0.0.1:44729/v1",
+    "dca_token": "dca:fixture",
+    "type": "meta"
+  },
+  "downstream": {
+    "chunks": [
+      "data: {\"type\":\"response.output_text.delta\",\"delta\":\"x\"}",
+      ""
+    ],
+    "err_status": 503,
+    "frames": [
+      "data: {\"type\":\"response.output_text.delta\",\"delta\":\"x\"}\n\n"
+    ],
+    "stream_err": "{\"type\":\"error\",\"error\":{\"code\":503,\"message\":\"overloaded\"}}"
+  },
+  "extra": {
+    "credential_scoped": false
+  },
+  "name": "stream-error-after-data-only",
+  "request": {
+    "body": "{\"model\":\"muse-spark-1.3\",\"input\":\"hi\"}",
+    "model": "muse-spark-1.3",
+    "source": "openai-response",
+    "stream": true
+  },
+  "responses": [
+    {
+      "body": "data: {\"type\":\"response.output_text.delta\",\"delta\":\"x\"}\n\ndata: {\"type\":\"error\",\"error\":{\"code\":503,\"message\":\"overloaded\"}}\n\n",
+      "headers": [
+        [
+          "Content-Type",
+          "text/event-stream"
+        ]
+      ],
+      "status": 200
+    }
+  ],
+  "upstream": [
+    {
+      "body": "{\"model\":\"muse-spark-1.3\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\"}",
+      "headers": [
+        [
+          "Host",
+          "127.0.0.1:44729"
+        ],
+        [
+          "User-Agent",
+          "muse-build/1.3.0 (interactive; macos-aarch64; build ac7280f2aca67769d1455a8847bb502b617d50f6)"
+        ],
+        [
+          "Content-Length",
+          "230"
+        ],
+        [
+          "Accept",
+          "text/event-stream"
+        ],
+        [
+          "Authorization",
+          "Bearer meta-key-fixture"
+        ],
+        [
+          "Cache-Control",
+          "no-cache"
+        ],
+        [
+          "Content-Type",
+          "application/json"
+        ],
+        [
+          "X-Client-Id",
+          "tbh:tui"
+        ],
+        [
+          "Accept-Encoding",
+          "gzip"
+        ]
+      ],
+      "method": "POST",
+      "target": "/v1/responses"
+    }
+  ]
+}

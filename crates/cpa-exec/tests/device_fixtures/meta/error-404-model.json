@@ -1,0 +1,86 @@
+{
+  "name": "error-404-model",
+  "credential": {
+    "access_token": "meta-key-fixture",
+    "api_key": "meta-key-fixture",
+    "auth_kind": "oauth",
+    "base_url": "http://127.0.0.1:41857/v1",
+    "dca_token": "dca:fixture",
+    "type": "meta"
+  },
+  "attributes": {
+    "auth_kind": "oauth"
+  },
+  "request": {
+    "body": "{\"model\":\"muse-spark-1.3\",\"input\":\"hi\"}",
+    "model": "muse-spark-1.3",
+    "source": "openai-response",
+    "stream": false
+  },
+  "responses": [
+    {
+      "status": 404,
+      "headers": [
+        [
+          "Content-Type",
+          "application/json"
+        ]
+      ],
+      "body": "{\"error\":{\"message\":\"model not found\"}}"
+    }
+  ],
+  "upstream": [
+    {
+      "method": "POST",
+      "target": "/v1/responses",
+      "headers": [
+        [
+          "Host",
+          "127.0.0.1:41857"
+        ],
+        [
+          "User-Agent",
+          "muse-build/1.3.0 (interactive; macos-aarch64; build ac7280f2aca67769d1455a8847bb502b617d50f6)"
+        ],
+        [
+          "Content-Length",
+          "230"
+        ],
+        [
+          "Accept",
+          "text/event-stream"
+        ],
+        [
+          "Authorization",
+          "Bearer meta-key-fixture"
+        ],
+        [
+          "Cache-Control",
+          "no-cache"
+        ],
+        [
+          "Content-Type",
+          "application/json"
+        ],
+        [
+          "X-Client-Id",
+          "tbh:tui"
+        ],
+        [
+          "Accept-Encoding",
+          "gzip"
+        ]
+      ],
+      "body": "{\"model\":\"muse-spark-1.3\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\"}"
+    }
+  ],
+  "downstream": {
+    "err_status": 404,
+    "err_body": "{\"error\":{\"message\":\"model not found\"}}"
+  },
+  "extra": {
+    "credential_scoped": false,
+    "now_unix": 1790974794,
+    "retry_after_secs": 300
+  }
+}
