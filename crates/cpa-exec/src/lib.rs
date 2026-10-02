@@ -126,6 +126,21 @@ impl Executors {
             || openai_compat::handles(provider)
     }
 
+    /// Go `authHasRefreshCredential`: whether an upstream 401 on `credential` should be
+    /// followed by one forced [`Self::prepare`] and a retry (Go
+    /// `tryRefreshAfterUnauthorized`). A refresh token qualifies for every provider;
+    /// Meta re-mints its API key from its device token. Providers that recover from a
+    /// 401 another way add an arm here.
+    pub fn has_refresh_credential(&self, credential: &Credential) -> bool {
+        let filled = |v: Option<&str>| v.is_some_and(|v| !v.trim().is_empty());
+        if filled(credential.str("refresh_token")) || filled(credential.str("refreshToken")) {
+            return true;
+        }
+        credential.provider.trim().eq_ignore_ascii_case("meta")
+            && (filled(credential.str("dca_token"))
+                || filled(credential.attributes.get("dca_token").map(String::as_str)))
+    }
+
     /// Whether `credential` needs preparation, and whether requests must wait for it.
     /// Must be cheap and side-effect free. Providers without request-time preparation
     /// report `RefreshSoon` whenever `needs_prepare` holds.
@@ -243,5 +258,29 @@ mod readiness_tests {
         for (i, (c, expected)) in cases.iter().enumerate() {
             assert_eq!(executors.readiness(c, &cfg), *expected, "case {i}");
         }
+    }
+
+    /// Go `authHasRefreshCredential`.
+    #[test]
+    fn refresh_credentials_follow_go() {
+        let executors = Executors {
+            claude: claude::ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
+            codex: Default::default(),
+            openai: Default::default(),
+            devices: Default::default(),
+        };
+        let has = |m: serde_json::Value| executors.has_refresh_credential(&credential(m));
+        assert!(has(serde_json::json!({"type": "claude", "refresh_token": "fake"})));
+        assert!(has(serde_json::json!({"type": "kimi", "refreshToken": "fake"})));
+        assert!(!has(serde_json::json!({"type": "claude", "refresh_token": "  "})));
+        assert!(has(serde_json::json!({"type": "meta", "dca_token": "fake"})));
+        assert!(
+            !has(serde_json::json!({"type": "claude", "dca_token": "fake"})),
+            "dca_token is Meta's"
+        );
+        let mut meta = credential(serde_json::json!({"type": "meta"}));
+        assert!(!executors.has_refresh_credential(&meta));
+        meta.attributes.insert("dca_token".into(), "fake".into());
+        assert!(executors.has_refresh_credential(&meta));
     }
 }

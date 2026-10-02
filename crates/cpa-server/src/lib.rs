@@ -63,7 +63,33 @@ pub fn router(rt: Arc<Runtime>) -> Router {
         .route("/devin/callback", get(devin_callback))
         .merge(v1)
         .layer(DefaultBodyLimit::max(MAX_REQUEST_BYTES))
+        .layer(middleware::from_fn(go_framing))
         .with_state(rt)
+}
+
+/// Go net/http framing for handlers that set no Content-Length (gin's `c.JSON` and
+/// `c.Data`): a body over 2048 bytes (`bufferBeforeChunkingSize`) goes out chunked, and
+/// a HEAD response with no body carries neither Content-Length nor Transfer-Encoding.
+async fn go_framing(req: axum::extract::Request, next: middleware::Next) -> Response {
+    use axum::body::{Body, HttpBody};
+    let head = req.method() == Method::HEAD;
+    let res = next.run(req).await;
+    if res.headers().contains_key(header::CONTENT_LENGTH) || res.headers().contains_key(header::TRANSFER_ENCODING) {
+        return res;
+    }
+    // Streams have no exact size and are already chunked.
+    let Some(len) = res.body().size_hint().exact() else {
+        return res;
+    };
+    if len <= 2048 && !(head && len == 0) {
+        return res;
+    }
+    let (parts, body) = res.into_parts();
+    let Ok(bytes) = axum::body::to_bytes(body, usize::MAX).await else {
+        return Response::from_parts(parts, Body::empty());
+    };
+    let chunks = futures_util::stream::iter((!bytes.is_empty()).then_some(Ok::<_, std::convert::Infallible>(bytes)));
+    Response::from_parts(parts, Body::from_stream(chunks))
 }
 
 /// Installs the runtime's model registry as the translators' capability lookup
