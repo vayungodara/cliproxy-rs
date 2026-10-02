@@ -188,6 +188,7 @@ impl Pool {
         }
     }
 
+    #[cfg(test)]
     pub fn len(&self) -> usize {
         self.sessions.lock().expect("sessions").len()
     }
@@ -213,8 +214,13 @@ fn message_too_big(reason: &str) -> ExecError {
 
 /// `buildCodexResponsesWebsocketURL`.
 fn ws_url(http_url: &str) -> Result<String, ExecError> {
-    let mut url = url::Url::parse(http_url.trim())
-        .map_err(|_| ExecError::local(500, FailureScope::Credential, "codex websockets executor: invalid base URL"))?;
+    let mut url = url::Url::parse(http_url.trim()).map_err(|_| {
+        ExecError::local(
+            500,
+            FailureScope::Credential,
+            "codex websockets executor: invalid base URL",
+        )
+    })?;
     let scheme = match url.scheme().to_ascii_lowercase().as_str() {
         "http" => "ws",
         "https" => "wss",
@@ -270,10 +276,13 @@ pub(crate) fn ws_error(payload: &str, model_level_cooling: bool) -> Option<ExecE
     if status == 0 {
         status = gjson::get(payload, "status_code").i64();
     }
-    if !(1..=999).contains(&status) {
+    // Go accepts any positive status; larger than u16 cannot be represented here.
+    let Ok(status) = u16::try_from(status) else {
+        return None;
+    };
+    if status == 0 {
         return None;
     }
-    let status = status as u16;
     let mut out = set_raw("{}", "status", &status.to_string());
     let body = gjson::get(payload, "body");
     let error = gjson::get(payload, "error");
@@ -286,11 +295,7 @@ pub(crate) fn ws_error(payload: &str, model_level_cooling: bool) -> Option<ExecE
         out = set_raw(&out, "error", error.json());
     } else {
         out = set_str(&out, "error.type", "server_error");
-        let text = http::StatusCode::from_u16(status)
-            .ok()
-            .and_then(|s| s.canonical_reason())
-            .unwrap_or_default();
-        out = set_str(&out, "error.message", text);
+        out = set_str(&out, "error.message", response::go_status_text(status));
     }
     let mut headers = HeaderMap::new();
     let raw_headers = gjson::get(payload, "headers");
@@ -580,7 +585,8 @@ impl CodexExecutor {
             "" => {}
             p if p.eq_ignore_ascii_case("direct") || p.eq_ignore_ascii_case("none") => {}
             p => {
-                let proxy = wreq::Proxy::all(p).map_err(|_| transport("codex websockets executor: invalid proxy URL"))?;
+                let proxy =
+                    wreq::Proxy::all(p).map_err(|_| transport("codex websockets executor: invalid proxy URL"))?;
                 builder = builder.proxy(proxy);
             }
         }

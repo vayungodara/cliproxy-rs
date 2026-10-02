@@ -18,9 +18,7 @@ use axum::response::{IntoResponse, Response};
 use cpa_core::config::Config;
 use cpa_exec::Executors;
 use cpa_server::{Runtime, router};
-use futures_util::{SinkExt, StreamExt};
-#[allow(unused_imports)]
-use wreq as _;
+use futures_util::StreamExt;
 use serde_json::Value;
 use wreq::ws::message::Message;
 
@@ -163,9 +161,8 @@ fn config(scenario: &Value, upstream: &str) -> Config {
 
 /// Random values Go and Rust both generate: UUIDs and the prewarm timestamp.
 fn mask(s: &str) -> String {
-    static UUID: LazyLock<regex::Regex> = LazyLock::new(|| {
-        regex::Regex::new(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}").unwrap()
-    });
+    static UUID: LazyLock<regex::Regex> =
+        LazyLock::new(|| regex::Regex::new(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}").unwrap());
     static CREATED: LazyLock<regex::Regex> = LazyLock::new(|| regex::Regex::new(r#""created_at":\d+"#).unwrap());
     let s = UUID.replace_all(s, "<uuid>");
     CREATED.replace_all(&s, r#""created_at":0"#).into_owned()
@@ -247,6 +244,7 @@ async fn run(name: &str) {
         claude: cpa_exec::claude::ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
         codex: cpa_exec::codex::CodexExecutor::new().unwrap(),
         devices: Default::default(),
+        openai: Default::default(),
     };
     let rt = Arc::new(Runtime::new(cfg, credentials, executors));
     let proxy = serve(router(rt)).await;
@@ -326,7 +324,11 @@ async fn run(name: &str) {
     let go: Vec<&Value> = scenario["upstream"].as_array().unwrap().iter().collect();
     let kinds = |c: &[Captured]| c.iter().map(|c| c.kind.clone()).collect::<Vec<_>>();
     let go_kinds: Vec<String> = go.iter().map(|c| c["kind"].as_str().unwrap().to_owned()).collect();
-    assert_eq!(kinds(&captured), go_kinds, "{name}: upstream dials, frames and requests");
+    assert_eq!(
+        kinds(&captured),
+        go_kinds,
+        "{name}: upstream dials, frames and requests"
+    );
     for (i, (rust, go)) in captured.iter().zip(&go).enumerate() {
         assert_eq!(
             mask(&rust.body),

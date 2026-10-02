@@ -11,7 +11,9 @@ use bytes::Bytes;
 use chrono::Utc;
 use cpa_core::config::Config;
 use cpa_core::credential::{Credential, MetadataPatch};
-use cpa_core::exec::{ExecError, ExecRequest, ExecResponse, ExecSession, ExecStream, FailureScope, Operation, ResponseBody};
+use cpa_core::exec::{
+    ExecError, ExecRequest, ExecResponse, ExecSession, ExecStream, FailureScope, Operation, ResponseBody,
+};
 use cpa_core::format::Format;
 use futures_util::StreamExt;
 use http::HeaderMap;
@@ -549,7 +551,9 @@ fn non_stream_output(
 fn client_stream(req: &ExecRequest, translated: &str, upstream: ExecStream) -> ExecStream {
     let stream = translate_stream(req, translated, upstream);
     if req.response_format == Format::OpenAIResponse {
-        stream.map(|chunk| chunk.map(response::ensure_usage_details_chunk)).boxed()
+        stream
+            .map(|chunk| chunk.map(response::ensure_usage_details_chunk))
+            .boxed()
     } else {
         stream
     }

@@ -19,15 +19,14 @@
 
 pub mod claude;
 pub mod codex;
-#[doc(hidden)]
-pub mod codex_json;
+mod codex_json;
 pub mod codex_oauth;
 pub mod codex_quota;
 mod codex_request;
 mod codex_response;
-mod codex_ws;
 #[cfg(test)]
 mod codex_testkit;
+mod codex_ws;
 pub mod kimi;
 pub mod kimi_auth;
 #[cfg(test)]
@@ -152,7 +151,6 @@ impl Executors {
     pub fn close_session(&self, id: &str) {
         self.codex.close_session(id);
     }
-
 
     /// Whether an executor serves this provider. Credentials of other providers never
     /// enter selection (Go skips auths whose executor is not registered).

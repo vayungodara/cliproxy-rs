@@ -566,6 +566,7 @@ dependencies = [
  "axum",
  "bcrypt",
  "bytes",
+ "cpa-common",
  "cpa-core",
  "cpa-exec",
  "cpa-translate",

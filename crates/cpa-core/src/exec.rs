@@ -189,6 +189,8 @@ impl ExecError {
     }
 
     pub fn is_replay_required(&self) -> bool {
-        self.status == 426 && self.scope == FailureScope::Request && self.body.as_ref() == Self::REPLAY_REQUIRED.as_bytes()
+        self.status == 426
+            && self.scope == FailureScope::Request
+            && self.body.as_ref() == Self::REPLAY_REQUIRED.as_bytes()
     }
 }

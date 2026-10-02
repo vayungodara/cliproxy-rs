@@ -27,6 +27,8 @@ import (
 	cliproxyauth "github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/auth"
 	cliproxyexecutor "github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/executor"
 	sdktranslator "github.com/router-for-me/CLIProxyAPI/v8/sdk/translator"
+	// Built-in translators register in init(), as cmd/server/main.go imports them.
+	_ "github.com/router-for-me/CLIProxyAPI/v8/internal/translator"
 	"github.com/tidwall/sjson"
 )
 

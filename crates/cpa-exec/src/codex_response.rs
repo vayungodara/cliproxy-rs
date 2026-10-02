@@ -214,7 +214,11 @@ pub(crate) fn request_fault(status: u16, body: &str) -> bool {
 /// credential-wide unless model-level cooling is on; capacity and usage limits are 429.
 pub(crate) fn status_error(status: u16, body: &[u8], headers: HeaderMap, model_level_cooling: bool) -> ExecError {
     let raw = String::from_utf8_lossy(body);
-    let code = if is_usage_limit(&raw) || is_capacity(&raw) { 429 } else { status };
+    let code = if is_usage_limit(&raw) || is_capacity(&raw) {
+        429
+    } else {
+        status
+    };
     let classified = classify(code, &raw);
     status_error_raw(code, &classified, headers, model_level_cooling)
 }
@@ -513,6 +517,23 @@ pub(crate) fn ensure_usage_details(payload: String) -> String {
         };
     }
     if out == trimmed { payload } else { out }
+}
+
+/// Go `http.StatusText` (where the `http` crate's reason phrases differ).
+pub(crate) fn go_status_text(status: u16) -> &'static str {
+    match status {
+        103 => "Early Hints",
+        413 => "Request Entity Too Large",
+        414 => "Request URI Too Long",
+        416 => "Requested Range Not Satisfiable",
+        418 => "I'm a teapot",
+        422 => "Unprocessable Entity",
+        425 => "Too Early",
+        s => http::StatusCode::from_u16(s)
+            .ok()
+            .and_then(|s| s.canonical_reason())
+            .unwrap_or_default(),
+    }
 }
 
 /// `EnsureResponsesUsageDetails` over one stream chunk: a JSON object, or SSE `data:`

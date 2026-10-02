@@ -559,8 +559,8 @@
     "raw": "{\"model\":\"gpt-fixture\",\"input\":[]}",
     "out": "",
     "list": [
-      "{\"type\":\"response.created\",\"sequence_number\":0,\"response\":{\"id\":\"resp_prewarm_14ea7136-a5fe-4232-ab2b-c06deaea61b5\",\"object\":\"response\",\"created_at\":1790976620,\"status\":\"in_progress\",\"background\":false,\"error\":null,\"output\":[],\"model\":\"gpt-fixture\"}}",
-      "{\"type\":\"response.completed\",\"sequence_number\":1,\"response\":{\"id\":\"resp_prewarm_14ea7136-a5fe-4232-ab2b-c06deaea61b5\",\"object\":\"response\",\"created_at\":1790976620,\"status\":\"completed\",\"background\":false,\"error\":null,\"output\":[],\"usage\":{\"input_tokens\":0,\"input_tokens_details\":{\"cached_tokens\":0},\"output_tokens\":0,\"output_tokens_details\":{\"reasoning_tokens\":0},\"total_tokens\":0},\"model\":\"gpt-fixture\"}}"
+      "{\"type\":\"response.created\",\"sequence_number\":0,\"response\":{\"id\":\"resp_prewarm_4d8ba5b5-d75d-4e54-8672-fb19867294cc\",\"object\":\"response\",\"created_at\":1790977736,\"status\":\"in_progress\",\"background\":false,\"error\":null,\"output\":[],\"model\":\"gpt-fixture\"}}",
+      "{\"type\":\"response.completed\",\"sequence_number\":1,\"response\":{\"id\":\"resp_prewarm_4d8ba5b5-d75d-4e54-8672-fb19867294cc\",\"object\":\"response\",\"created_at\":1790977736,\"status\":\"completed\",\"background\":false,\"error\":null,\"output\":[],\"usage\":{\"input_tokens\":0,\"input_tokens_details\":{\"cached_tokens\":0},\"output_tokens\":0,\"output_tokens_details\":{\"reasoning_tokens\":0},\"total_tokens\":0},\"model\":\"gpt-fixture\"}}"
     ]
   }
 ]

@@ -233,7 +233,7 @@ fn metadata_string(raw: &str) -> String {
 
 /// `repairResponsesWebsocketToolCallsWithCachesMode` without recording. `None` when the
 /// payload stays unchanged.
-fn repair(key: &str, payload: &str, mut turn: Option<&mut TurnCache>) -> Option<String> {
+fn repair(key: &str, payload: &str, turn: Option<&mut TurnCache>) -> Option<String> {
     if !gjson::valid(payload) {
         return None;
     }
@@ -260,13 +260,7 @@ fn repair(key: &str, payload: &str, mut turn: Option<&mut TurnCache>) -> Option<
     let enabled = !key.is_empty();
     let updated = if enabled {
         let caches = caches();
-        repair_items(
-            &caches,
-            key,
-            &items,
-            !metadata_string(&previous).is_empty(),
-            turn.as_deref_mut(),
-        )
+        repair_items(&caches, key, &items, !metadata_string(&previous).is_empty(), turn)
     } else {
         dedupe_ids(items.clone())
     };
@@ -308,8 +302,7 @@ fn repair_items(
             if item.call_id.is_empty() {
                 // Codex sends standalone named results (heartbeats, delegation input).
                 let name = gjson::get(&item.raw, "name");
-                if item.kind == "function_call_output" && name.kind() == Kind::String && !name.str().trim().is_empty()
-                {
+                if item.kind == "function_call_output" && name.kind() == Kind::String && !name.str().trim().is_empty() {
                     filtered.push(item.clone());
                 }
                 continue;
@@ -347,6 +340,7 @@ fn repair_items(
     dedupe_ids(filtered)
 }
 
+// Repair results are checked against Go in websocket_requests_tests.rs.
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -362,10 +356,7 @@ mod tests {
     #[test]
     fn session_key_follows_go_priority() {
         assert_eq!(
-            session_key(&headers(&[
-                ("x-client-request-id", " req "),
-                ("session-id", "s")
-            ])),
+            session_key(&headers(&[("x-client-request-id", " req "), ("session-id", "s")])),
             "req"
         );
         assert_eq!(
@@ -377,39 +368,6 @@ mod tests {
         );
         assert_eq!(session_key(&headers(&[("session_id", "under")])), "under");
         assert_eq!(session_key(&HeaderMap::new()), "");
-    }
-
-    /// Without a session key only duplicate ids are removed, and orphans survive.
-    #[test]
-    fn without_key_only_ids_are_deduped() {
-        let payload = r#"{"input":[{"type":"function_call","call_id":"c1","name":"f","arguments":"{}","id":"x"},{"type":"message","id":"x"}]}"#;
-        let (out, turn) = prepare_fallback_turn("", payload.into());
-        assert!(turn.is_none());
-        assert_eq!(out, r#"{"input":[{"type":"message","id":"x"}]}"#);
-    }
-
-    /// An orphan call is dropped until a committed output for it exists; then the
-    /// output is restored right after the call.
-    #[test]
-    fn orphans_drop_or_restore_from_committed_turns() {
-        let key = "tools-test-orphans";
-        let _held = Retained::new(key.into());
-        let payload = r#"{"input":[{"type":"message","role":"user"},{"type":"function_call","call_id":"c1","name":"f","arguments":"{}"}]}"#;
-        let (out, turn) = prepare_fallback_turn(key, payload.into());
-        assert_eq!(out, r#"{"input":[{"type":"message","role":"user"}]}"#);
-        // An uncommitted turn must not leak into the cache.
-        drop(turn);
-        let (out, _) = prepare_fallback_turn(key, payload.into());
-        assert_eq!(out, r#"{"input":[{"type":"message","role":"user"}]}"#);
-        let with_output = r#"{"input":[{"type":"function_call_output","call_id":"c1","output":"ok"}],"previous_response_id":"r"}"#;
-        let (out, turn) = prepare_fallback_turn(key, with_output.into());
-        assert_eq!(out, with_output, "previous_response_id allows orphan outputs");
-        turn.unwrap().commit();
-        let (out, _) = prepare_fallback_turn(key, payload.into());
-        assert_eq!(
-            out,
-            r#"{"input":[{"type":"message","role":"user"},{"type":"function_call","call_id":"c1","name":"f","arguments":"{}"},{"type":"function_call_output","call_id":"c1","output":"ok"}]}"#
-        );
     }
 
     #[test]

@@ -5,7 +5,6 @@
 
 use std::time::Duration;
 
-use base64::Engine;
 use cpa_core::config::Config;
 use cpa_core::credential::Credential;
 use cpa_core::exec::{ExecError, ExecRequest, FailureScope};
@@ -43,7 +42,6 @@ pub(crate) struct Settings {
     pub bootstrap_timeout: Option<Duration>,
     pub model_level_cooling: bool,
     pub default_user_agent: String,
-    #[allow(dead_code)] // WebSocket handshake headers, next increment
     pub default_beta_features: String,
     pub image_generation: bool,
 }
@@ -183,7 +181,7 @@ impl<'a> View<'a> {
     }
 
     /// `codexWebsocketsEnabled`: attribute first, then metadata.
-        pub fn websockets(&self) -> bool {
+    pub fn websockets(&self) -> bool {
         match self.attr("websockets").trim() {
             "" => match self.credential.metadata.get("websockets") {
                 Some(serde_json::Value::Bool(b)) => *b,
@@ -205,13 +203,8 @@ fn go_bool(s: &str) -> Option<bool> {
 }
 
 /// `thinking.ParseSuffix(model).ModelName`.
-// ponytail: adapter for cpa-common::thinking (Google thread owns ParseSuffix); swap for
-// the shared helper when it lands.
-pub(crate) fn base_model(model: &str) -> &str {
-    match model.rfind('(') {
-        Some(open) if model.ends_with(')') => &model[..open],
-        _ => model,
-    }
+pub(crate) fn base_model(model: &str) -> String {
+    cpa_common::thinking::parse_suffix(model).model_name
 }
 
 pub(crate) fn header<'a>(headers: &'a HeaderMap, name: &str) -> &'a str {
@@ -238,45 +231,65 @@ pub(crate) fn is_native(req: &ExecRequest) -> bool {
         && is_lite(&String::from_utf8_lossy(&req.body), &req.headers)
 }
 
+/// `translateCodexRequestPairWithUpdateIntent` + `helps.ApplyRequestThinking`: the
+/// registered pair (Go's model-rewrite fallback for same-format bodies), then the
+/// thinking pipeline for `codex` (`openai-response` for compact).
+// ponytail: Go translates `opts.OriginalRequest` separately for payload rules and passes
+// the translator's configuration-update intent; payload rules are not applied yet, so
+// only the request payload is translated and `updates_changed` stays false. Resolved
+// API-key model capabilities (`ResolvedModelInfo`) are not bound to the attempt either.
 fn translate_request(req: &ExecRequest, call: Call) -> Result<String, ExecError> {
     let target = if call == Call::Compact {
         Format::OpenAIResponse
     } else {
         Format::Codex
     };
-    let body = match cpa_translate::pair(req.source_format, target) {
-        Some(pair) => (pair.request)(
-            &cpa_translate::RequestCtx {
-                model: base_model(&req.model),
-                stream: matches!(call, Call::Stream | Call::Websocket),
-            },
-            &req.body,
-        )
-        .map_err(|e| ExecError::local(400, FailureScope::Request, e.to_string()))?,
-        // ponytail: same-format passthrough until the OpenAI Responses -> Codex pair
-        // (store/stream/include/service_tier rules) lands in cpa-translate.
-        None if matches!(req.source_format, Format::Codex | Format::OpenAIResponse) => req.body.to_vec(),
-        None => {
-            return Err(ExecError::local(
-                501,
-                FailureScope::Request,
-                format!(
-                    "{} -> codex request translation is not registered",
-                    req.source_format.as_str()
-                ),
-            ));
-        }
+    let registered = cpa_translate::pair(req.source_format, target).is_some();
+    if !registered && !matches!(req.source_format, Format::Codex | Format::OpenAIResponse) {
+        // ponytail: Go forwards an untranslatable body as-is; refusing locally is clearer.
+        return Err(ExecError::local(
+            501,
+            FailureScope::Request,
+            format!(
+                "{} -> {} request translation is not registered",
+                req.source_format.as_str(),
+                target.as_str()
+            ),
+        ));
+    }
+    let model = base_model(&req.model);
+    let ctx = cpa_translate::RequestCtx {
+        model: &model,
+        stream: matches!(call, Call::Stream | Call::Websocket),
     };
-    String::from_utf8(body)
-        .map_err(|_| ExecError::local(400, FailureScope::Request, "request body is not valid UTF-8 JSON"))
+    let body = cpa_translate::translate_request(req.source_format, target, &ctx, &req.body)
+        .map_err(|e| ExecError::local(400, FailureScope::Request, e.to_string()))?;
+    let body = String::from_utf8(body)
+        .map_err(|_| ExecError::local(400, FailureScope::Request, "request body is not valid UTF-8 JSON"))?;
+    let payload = String::from_utf8_lossy(&req.body);
+    let original = String::from_utf8_lossy(&req.original_body);
+    cpa_common::thinking::apply_request_thinking(&cpa_common::thinking::RequestThinking {
+        body: &body,
+        payload: &payload,
+        original: &original,
+        model: &req.model,
+        from: req.source_format.as_str(),
+        to: target.as_str(),
+        provider: "codex",
+        resolved: None,
+        has_request_transformer: registered,
+        updates_changed: false,
+    })
+    .map_err(|e| ExecError::local(e.status(), FailureScope::Request, e.message))
 }
 
 /// Applies the Codex body rules for `call`.
-// ponytail: the thinking pipeline (M2-0032), payload rules (M4-0031), multi-agent v2
-// optimisation (client.codex.optimize-multi-agent-v2, default off) and the Claude-source
-// reasoning replay cache are not applied here yet.
+// ponytail: payload rules (M4-0031), multi-agent v2 optimisation
+// (client.codex.optimize-multi-agent-v2, default off) and the Claude-source reasoning
+// replay cache are not applied here yet.
 pub(crate) fn shape(req: &ExecRequest, view: &View<'_>, settings: &Settings, call: Call) -> Result<String, ExecError> {
     let model = base_model(&req.model);
+    let model = model.as_str();
     let mut body = translate_request(req, call)?;
     match call {
         Call::NonStream => {
@@ -398,26 +411,6 @@ fn normalize_parallel_tool_calls(body: String, headers: &HeaderMap) -> String {
     delete(&body, "parallel_tool_calls")
 }
 
-/// `signature.InspectGPTReasoningSignature`: a Fernet-shaped `gAAAA...` token.
-// ponytail: adapter for cpa-common::signature (Google thread owns internal/signature).
-fn valid_gpt_signature(sig: &str) -> bool {
-    if sig.is_empty() || sig.len() > 32 * 1024 * 1024 || !sig.starts_with("gAAAA") {
-        return false;
-    }
-    if !sig
-        .bytes()
-        .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_' | b'='))
-    {
-        return false;
-    }
-    let decoded = base64::engine::general_purpose::URL_SAFE_NO_PAD
-        .decode(sig)
-        .or_else(|_| base64::engine::general_purpose::URL_SAFE.decode(sig));
-    let Ok(decoded) = decoded else { return false };
-    let cipher = decoded.len() as isize - 1 - 8 - 16 - 32;
-    decoded.len() >= 73 && decoded[0] == 0x80 && cipher > 0 && cipher % 16 == 0
-}
-
 /// `sanitizeOpenAIResponsesReasoningEncryptedContentWithCompat(..., isCompat=false)`.
 // ponytail: per-model `is-compat` (third-party Responses models) is not wired; Codex
 // models are never compat.
@@ -463,7 +456,7 @@ fn sanitize_reasoning(body: String) -> String {
             } else {
                 let valid = encrypted.kind() == Kind::String
                     && encrypted.str() == encrypted.str().trim()
-                    && valid_gpt_signature(encrypted.str());
+                    && cpa_common::signature::is_valid_gpt_reasoning_signature(encrypted.str());
                 if !valid {
                     next = delete(&next, "encrypted_content");
                     changed = true;
@@ -1164,19 +1157,5 @@ mod tests {
         assert_eq!(rational("-0.50"), rational("-5e-1"));
         assert_ne!(rational("8"), rational("80"));
         assert_eq!(rational("0.000"), "0");
-    }
-
-    #[test]
-    fn gpt_signatures_need_fernet_shape() {
-        let mut token = vec![0x80u8];
-        token.extend([0u8; 8 + 16 + 32 + 16]);
-        let good = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(&token);
-        assert!(good.starts_with("gAAAA"));
-        assert!(valid_gpt_signature(&good));
-        token.push(0);
-        assert!(!valid_gpt_signature(
-            &base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(&token)
-        ));
-        assert!(!valid_gpt_signature("enc"));
     }
 }

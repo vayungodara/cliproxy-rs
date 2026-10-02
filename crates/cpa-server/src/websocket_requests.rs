@@ -6,11 +6,38 @@
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
+use cpa_common::json as gj;
 use gjson::Kind;
 
-// ponytail: adapter for `cpa_common::json` (translator thread), which is not on this
-// branch yet; it forwards to the Codex executor's sjson port until then.
-pub(crate) use cpa_exec::codex_json::{delete, go_quote, set_raw, set_str};
+/// `sjson.SetRawBytes` through `cpa_common::json`; an edit sjson rejects keeps the input.
+pub(crate) fn set_raw(json: &str, path: &str, raw: &str) -> String {
+    edited(json, |out| gj::set_raw(out, path, raw))
+}
+
+/// `sjson.SetBytes` with a string value.
+pub(crate) fn set_str(json: &str, path: &str, value: &str) -> String {
+    edited(json, |out| gj::set_str(out, path, value))
+}
+
+/// `sjson.DeleteBytes`.
+pub(crate) fn delete(json: &str, path: &str) -> String {
+    edited(json, |out| gj::delete(out, path))
+}
+
+fn edited(json: &str, edit: impl FnOnce(&mut Vec<u8>) -> bool) -> String {
+    let mut out = json.as_bytes().to_vec();
+    if !edit(&mut out) {
+        return json.to_owned();
+    }
+    String::from_utf8(out).unwrap_or_else(|e| String::from_utf8_lossy(e.as_bytes()).into_owned())
+}
+
+/// encoding/json string encoding (`json.Marshal` escapes HTML).
+fn go_quote(s: &str, escape_html: bool) -> String {
+    let mut out = Vec::with_capacity(s.len() + 2);
+    gj::marshal_str(&mut out, s.as_bytes(), escape_html);
+    String::from_utf8(out).unwrap_or_else(|e| String::from_utf8_lossy(e.as_bytes()).into_owned())
+}
 
 pub(crate) const CREATE: &str = "response.create";
 pub(crate) const APPEND: &str = "response.append";
@@ -323,29 +350,46 @@ pub(crate) fn parse_items(array: &gjson::Value<'_>) -> Vec<Item> {
 }
 
 /// `responsesWebsocketPreviousInputNoCopy`: the remembered request's `input` array.
+/// Errors carry Go's text (`encoding/json` type mismatch on `input`).
 fn previous_input(last_request: &str) -> Result<String, String> {
-    let invalid = || "invalid previous request input".to_owned();
     if !gjson::valid(last_request) {
-        return Err(invalid());
+        return Err("invalid previous request input".into());
     }
     let root = gjson::parse(last_request);
     match root.kind() {
         Kind::Null => return Ok("[]".into()),
         Kind::Object => {}
-        _ => return Err(invalid()),
+        // ponytail: Go reports encoding/json's syntax/type text here; unreachable because
+        // the remembered request is always one this handler normalized.
+        _ => return Err("invalid previous request input".into()),
     }
-    let (mut input, mut bad) = (None::<String>, false);
+    let (mut input, mut bad) = (None::<String>, None::<Kind>);
     root.each(|k, v| {
         if k.str().eq_ignore_ascii_case("input") {
-            bad |= v.kind() != Kind::Null && v.kind() != Kind::Array;
+            if v.kind() != Kind::Null && v.kind() != Kind::Array {
+                bad.get_or_insert(v.kind());
+            }
             input = (v.kind() == Kind::Array).then(|| v.json().to_owned());
         }
         true
     });
-    if bad {
-        return Err(invalid());
+    if let Some(kind) = bad {
+        return Err(unmarshal_error(kind));
     }
     Ok(input.unwrap_or_else(|| "[]".into()))
+}
+
+/// `json.UnmarshalTypeError` for a non-array `input` of the remembered request.
+fn unmarshal_error(kind: Kind) -> String {
+    let value = match kind {
+        Kind::String => "string",
+        Kind::Number => "number",
+        Kind::True | Kind::False => "bool",
+        _ => "object",
+    };
+    format!(
+        "invalid previous request input: json: cannot unmarshal {value} into Go struct field .input of type []json.RawMessage"
+    )
 }
 
 /// `mergeResponsesWebsocketInput`: previous input, then the previous response output,

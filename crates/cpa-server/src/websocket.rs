@@ -38,11 +38,11 @@ use futures_util::StreamExt;
 use crate::registry::provider_key;
 use crate::runtime::{AcquireError, Completing, Lease, Outcome, Runtime, Selection};
 use crate::scheduler::{Policy, canonical_model};
-use crate::{classify, dispatch};
 use crate::websocket_requests::{
     self as requests, APPEND, CREATE, Turn, WsError, delete, error_payload, field, payloads_from_chunk,
 };
 use crate::websocket_tools::{self as tools, Retained, TurnCache};
+use crate::{classify, dispatch};
 
 pub fn routes() -> Router<Arc<Runtime>> {
     Router::new()
@@ -71,7 +71,10 @@ async fn upgrade(
         // gorilla `returnError`: plain status text and the supported version.
         let mut response = (StatusCode::BAD_REQUEST, "Bad Request\n").into_response();
         let h = response.headers_mut();
-        h.insert(header::CONTENT_TYPE, HeaderValue::from_static("text/plain; charset=utf-8"));
+        h.insert(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static("text/plain; charset=utf-8"),
+        );
         h.insert("x-content-type-options", HeaderValue::from_static("nosniff"));
         h.insert(header::SEC_WEBSOCKET_VERSION, HeaderValue::from_static("13"));
         return response;
@@ -458,7 +461,11 @@ impl Connection {
         if providers.is_empty() && key != resolved {
             providers = registry.providers(&resolved);
         }
-        let key = if key.is_empty() { resolved.trim().to_owned() } else { key };
+        let key = if key.is_empty() {
+            resolved.trim().to_owned()
+        } else {
+            key
+        };
         (providers, key)
     }
 
@@ -719,7 +726,9 @@ impl Connection {
                     classify::is_retry_round(e) && !classify::is_request_invalid(e),
                 ),
                 dispatch::Failure::Cooldown { .. } => (429, true),
-                dispatch::Failure::Unavailable { retry_after: Some(_), .. } => (503, true),
+                dispatch::Failure::Unavailable {
+                    retry_after: Some(_), ..
+                } => (503, true),
                 _ => (0, false),
             };
             let terminal = |round| upstream.clone().map(dispatch::Failure::Exec).unwrap_or(round);
@@ -925,7 +934,11 @@ fn close_code(failure: &Failure) -> Option<(u16, String)> {
     }
     if failure.status == 413 && gjson::get(&failure.text, "error.code").str() == "message_too_big" {
         let reason = gjson::get(&failure.text, "error.message").str().trim().to_owned();
-        let reason = if reason.is_empty() { "message too big".into() } else { reason };
+        let reason = if reason.is_empty() {
+            "message too big".into()
+        } else {
+            reason
+        };
         return Some((CLOSE_MESSAGE_TOO_BIG, reason));
     }
     None
