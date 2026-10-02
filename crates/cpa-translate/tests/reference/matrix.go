@@ -61,6 +61,9 @@ func matrix(r registration, model string) []fixture {
 	switch r.client {
 	case "gemini":
 		out = append(out, geminiRequests(model)...)
+		if r.upstream == "codex" {
+			out = append(out, geminiCodexRequests(model)...)
+		}
 	case "claude":
 		out = append(out, claudeRequests(model)...)
 		if r.upstream == "codex" {
@@ -95,6 +98,9 @@ func matrix(r registration, model string) []fixture {
 		}
 		if r.client == "claude" {
 			out = append(out, codexToClaude()...)
+		}
+		if r.client == "gemini" {
+			out = append(out, codexToGemini()...)
 		}
 	case "claude":
 		out = append(out, claudeResponses()...)
@@ -1048,6 +1054,81 @@ func codexToClaude() []fixture {
 		`{"type":"response.created","response":{}}`, `{"type":"response.completed"}`, `not json`, ``,
 	} {
 		n := nonStream(fmt.Sprintf("codex-claude/non-stream/%d", i), "gpt-5.3-codex", body)
+		n.Original = original
+		out = append(out, n)
+	}
+	return out
+}
+
+// geminiCodexRequests exercise ConvertGeminiRequestToCodex: call ID pairing, media
+// parts, thinking configs, tool configs and nested type lowercasing.
+func geminiCodexRequests(model string) []fixture {
+	long := strings.Repeat("f", 70)
+	inputs := map[string]string{
+		"pairing":  `{"contents":[{"role":"model","parts":[{"functionCall":{"name":"a","args":{"x":1}}},{"functionCall":{"name":"b","id":" given "}},{"functionCall":{"name":"c","call_id":"cid"}}]},{"role":"user","parts":[{"functionResponse":{"name":"c","call_id":"cid","response":{"result":"rc"}}},{"functionResponse":{"name":"a","response":{"result":{"k":"<v>"}}}},{"functionResponse":{"name":"b","response":{"other":1}}},{"functionResponse":{"name":"z"}},{"functionResponse":{"name":"y","id":"nope","response":"s"}}]},{"role":"model","parts":[{"thought":true,"text":"hidden"},{"text":"visible","thoughtSignature":"s"},{"functionCall":{"name":"` + long + `","args":"str"}}]}],"tools":[{"functionDeclarations":[{"name":"` + long + `"},{"name":"` + long + `"},{"name":""},{"description":"no name"}]}]}`,
+		"media":    `{"contents":[{"role":"user","parts":[{"inlineData":{"mimeType":"IMAGE/PNG","data":"iVBO"}},{"inline_data":{"mime_type":"audio/x-wav","data":"UklG"}},{"inlineData":{"mimeType":"audio/L16","data":"AA"}},{"inlineData":{"mimeType":"audio/mpeg","data":"AA"}},{"inlineData":{"mimeType":"application/pdf","data":"JVBE"}},{"inlineData":{"mimeType":" Text/CSV ","data":"YQ"}},{"inlineData":{"mimeType":"video/mp4","data":"AA"}},{"inlineData":{"mimeType":"","data":"AA"}},{"inlineData":{"mimeType":"image/png"}},{"fileData":{"mimeType":"image/jpeg","fileUri":"gs://b/i.jpg"}},{"file_data":{"mime_type":"video/webm","file_uri":"https://v"}},{"fileData":{"mimeType":"text/xml","fileUri":"u"}},{"fileData":{"mimeType":"model/gltf","fileUri":"m <x>"}},{"fileData":{"fileUri":"nomime"}},{"fileData":{"mimeType":"image/png"}},{"executableCode":{"code":"x"}}]},{"parts":"notarray"},{"role":"function","parts":[{"text":"fn role"}]}]}`,
+		"system":   `{"systemInstruction":{"parts":[{"text":"s1 <b>"},{"text":"t","thought":true},{"inlineData":{}},{"text":""}]},"system_instruction":{"parts":[{"text":"snake wins"}]},"contents":[]}`,
+		"system2":  `{"systemInstruction":{"parts":[{"text":"camel"}]},"contents":[]}`,
+		"tools":    `{"tools":[{"functionDeclarations":[{"name":"a","description":"d","parameters":{"$schema":"x","type":"OBJECT","properties":{"p":{"type":"STRING","items":{"type":"Number"}}},"additionalProperties":true}},{"name":"b","parametersJsonSchema":{"type":"object","additionalProperties":false}},{"name":"c","parameters":"str"}]},{"googleSearch":{}},{"functionDeclarations":"x"}],"toolConfig":{"functionCallingConfig":{"mode":"ANY","allowedFunctionNames":["` + long + `"]}},"contents":[]}`,
+		"no-tools": `{"toolConfig":{"functionCallingConfig":{"mode":"AUTO"}},"service_tier":" FAST ","contents":[]}`,
+	}
+	var names []string
+	for name := range inputs {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	var out []fixture
+	for _, name := range names {
+		out = append(out, req("gemini-codex/"+name, model, inputs[name], false))
+	}
+	for i, cfg := range []string{`{"mode":"NONE"}`, `{"mode":"AUTO"}`, `{"mode":"ANY"}`, `{"mode":"ANY","allowedFunctionNames":["a","b"]}`, `{"mode":"ANY","allowedFunctionNames":"a"}`, `{"mode":"any"}`, `{}`} {
+		out = append(out, req(fmt.Sprintf("gemini-codex/tool-config/%d", i), model, `{"tools":[{"functionDeclarations":[{"name":"a"}]}],"toolConfig":{"functionCallingConfig":`+cfg+`},"contents":[]}`, false))
+	}
+	for i, gen := range []string{`{"thinkingLevel":" HIGH "}`, `{"thinking_level":"low","thinkingConfig":{"thinkingBudget":0}}`, `{"thinkingLevel":""}`, `{"thinkingConfig":{"thinkingLevel":"Medium"}}`, `{"thinkingConfig":{"thinking_level":"  "}}`, `{"thinkingConfig":{"thinkingBudget":-1}}`, `{"thinkingConfig":{"thinkingBudget":0}}`, `{"thinkingConfig":{"thinking_budget":30000}}`, `{"thinkingConfig":{"thinkingBudget":"5000"}}`, `{"thinkingConfig":"x"}`, `{}`, `null`} {
+		out = append(out, req(fmt.Sprintf("gemini-codex/thinking/%d", i), model, `{"generationConfig":`+gen+`,"contents":[]}`, false))
+	}
+	return out
+}
+
+// codexToGemini exercise ConvertCodexResponseToGemini(NonStream): stored function calls,
+// image dedupe, final-message fallback, created_at and incomplete reasons.
+func codexToGemini() []fixture {
+	ev := func(body string) string { return "data: " + body }
+	long := strings.Repeat("f", 70)
+	cases := map[string][]string{
+		"calls": {ev(`{"type":"response.created","response":{"id":"r1","model":"gpt-5","created_at":1700000000}}`),
+			ev(`{"type":"response.output_item.done","item":{"type":"function_call","name":"` + long[:64] + `","call_id":" c1 ","arguments":"{\"a\":\"<b>\"}"}}`),
+			ev(`{"type":"response.output_item.done","item":{"type":"function_call","name":"second","id":"i2","arguments":"[1]"}}`),
+			ev(`{"type":"response.output_text.delta","delta":"after"}`),
+			ev(`{"type":"response.output_item.done","item":{"type":"message","content":[{"type":"output_text","text":"skipped"}]}}`),
+			ev(`{"type":"response.output_item.done","item":{"type":"function_call","name":"last","arguments":""}}`),
+			ev(`{"type":"response.incomplete","response":{"created_at":-1,"usage":{"input_tokens":3,"output_tokens":"4"},"incomplete_details":{"reason":"content_filter"}}}`)},
+		"fallback": {ev(`{"type":"response.output_item.done","item":{"type":"message","content":[{"type":"output_text","text":"a"},{"type":"refusal","text":"r"},{"type":"output_text","text":""},{"type":"output_text","text":"b"}]}}`),
+			ev(`{"type":"response.output_item.done","item":{"type":"message","content":[{"type":"output_text","text":"again"}]}}`),
+			ev(`{"type":"response.reasoning_summary_text.delta","delta":"th"}`), ev(`{"type":"response.unknown"}`),
+			ev(`{"type":"response.incomplete","response":{"incomplete_details":{"reason":"max_tokens"}}}`)},
+		"images": {ev(`{"type":"response.image_generation_call.partial_image","item_id":"ig","partial_image_b64":"AAA","output_format":"WEBP"}`), ev(`{"type":"response.image_generation_call.partial_image","item_id":"ig","partial_image_b64":"AAA"}`),
+			ev(`{"type":"response.output_item.done","item":{"type":"image_generation_call","id":"ig","result":"AAA"}}`), ev(`{"type":"response.output_item.done","item":{"type":"image_generation_call","id":"ig","result":"BBB","output_format":"image/heic"}}`),
+			ev(`{"type":"response.output_item.done","item":{"type":"image_generation_call","result":"CCC","output_format":"tiff"}}`), ev(`{"type":"response.completed","response":{"created_at":253402300800}}`)},
+	}
+	var names []string
+	for name := range cases {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	original := `{"tools":[{"functionDeclarations":[{"name":"` + long + `"}]}]}`
+	var out []fixture
+	for _, name := range names {
+		f := streamCase("codex-gemini/"+name, "gemini-2.5-pro", cases[name]...)
+		f.Original = original
+		out = append(out, f)
+	}
+	for i, body := range []string{
+		`{"type":"response.completed","response":{"id":"r","created_at":1700000000,"usage":{"input_tokens":5,"output_tokens":7},"output":[{"type":"function_call","name":"` + long[:64] + `","call_id":"c","arguments":"{\"q\":1}"},{"type":"function_call","name":"g","arguments":"5"},{"type":"reasoning","content":[{"text":"r"}]},{"type":"reasoning"},{"type":"message","content":[{"type":"output_text","text":"t"},{"type":"output_text"}]},{"type":"function_call","name":"h","id":"hid"},{"type":"image_generation_call","result":"AAA","output_format":"gif"},{"type":"image_generation_call","result":""}]}}`,
+		`{"type":"response.incomplete","response":{"incomplete_details":{"reason":"max_output_tokens"},"output":[]}}`,
+		`{"type":"response.incomplete"}`, `{"type":"response.created"}`, `not json`,
+	} {
+		n := nonStream(fmt.Sprintf("codex-gemini/non-stream/%d", i), "gemini-2.5-pro", body)
 		n.Original = original
 		out = append(out, n)
 	}

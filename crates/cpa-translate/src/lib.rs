@@ -63,6 +63,7 @@ mod codex_chat_request;
 mod codex_chat_response;
 mod codex_claude;
 mod codex_claude_response;
+mod codex_gemini;
 mod codex_responses;
 mod common;
 mod gemini;
@@ -191,6 +192,7 @@ fn registered(client: Format, upstream: Format) -> Option<&'static Registered> {
         (Format::OpenAI, Format::Codex) => Some(&codex_chat_request::PAIR),
         (Format::OpenAIResponse, Format::Gemini) => Some(&gemini_responses_response::PAIR),
         (Format::Claude, Format::Codex) => Some(&codex_claude::PAIR),
+        (Format::Gemini, Format::Codex) => Some(&codex_gemini::PAIR),
         _ => None,
     }
 }
