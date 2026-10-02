@@ -38,6 +38,7 @@ fn call(req: Request, entry: Format, model: String, body: Bytes, stream: bool, a
         caller: req.caller,
         forced_provider: None,
         selection_model: None,
+        execution_session: None,
     }
 }
 

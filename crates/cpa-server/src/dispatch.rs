@@ -19,7 +19,7 @@ use crate::classify;
 use crate::gojson;
 use crate::registry::{self, AliasResult, Registry};
 use crate::runtime::{AcquireError, Completing, Lease, Outcome, Runtime, Selection};
-use crate::scheduler::Policy;
+use crate::scheduler::{Policy, canonical_model};
 
 /// One client request, already parsed by its route.
 #[derive(Clone)]
@@ -40,6 +40,8 @@ pub struct Call {
     pub forced_provider: Option<String>,
     /// Model used for credential selection when it differs from `model`.
     pub selection_model: Option<String>,
+    /// Go `execution_session_id`: set by transports with long-lived sessions.
+    pub execution_session: Option<String>,
 }
 
 pub enum Done {
@@ -194,9 +196,7 @@ fn ceil_seconds(d: Duration) -> u64 {
     d.as_secs() + u64::from(d.subsec_nanos() > 0)
 }
 
-/// Go `ExtractUpstreamErrorSummary`, minus path redaction.
-// ponytail: Go also redacts URLs, query secrets and filesystem paths in summaries;
-// port SanitizeUpstreamErrorSummary if upstream errors start echoing such values.
+/// Go `ExtractUpstreamErrorSummary`: the upstream error's code and message, sanitized.
 pub fn upstream_summary(raw: &str) -> String {
     let raw = raw.trim();
     if raw.is_empty() {
@@ -239,19 +239,10 @@ pub fn upstream_summary(raw: &str) -> String {
             (true, true) => String::new(),
         };
         if !summary.is_empty() {
-            return truncate(&summary);
+            return crate::sanitize::summary(&summary);
         }
     }
-    truncate(raw)
-}
-
-fn truncate(s: &str) -> String {
-    const LIMIT: usize = 512;
-    if s.chars().count() <= LIMIT {
-        s.to_owned()
-    } else {
-        s.chars().take(LIMIT).collect::<String>() + "..."
-    }
+    crate::sanitize::summary(raw)
 }
 
 const IMAGE_ONLY: [&str; 8] = [
@@ -266,7 +257,7 @@ const IMAGE_ONLY: [&str; 8] = [
 ];
 
 /// Go `getRequestDetails`: resolve `auto`, find the providers, keep the suffix.
-fn route(registry: &Registry, call: &Call) -> Result<(Vec<String>, String), Failure> {
+fn route(rt: &Runtime, registry: &Registry, call: &Call) -> Result<(Vec<String>, String), RunError> {
     if let Some(provider) = &call.forced_provider {
         return Ok((vec![provider.clone()], gojson::trim(&call.model).to_owned()));
     }
@@ -276,7 +267,9 @@ fn route(registry: &Registry, call: &Call) -> Result<(Vec<String>, String), Fail
         _ => model,
     };
     let resolved = if base == "auto" {
-        let first = registry.resolve_auto().unwrap_or_else(|| "auto".into());
+        let first = registry
+            .resolve_auto(|client, model| rt.suspension(client, model))
+            .unwrap_or_else(|| "auto".into());
         format!("{first}{}", &model[base.len()..])
     } else {
         model.to_owned()
@@ -290,14 +283,14 @@ fn route(registry: &Registry, call: &Call) -> Result<(Vec<String>, String), Fail
         .trim()
         .to_lowercase();
     if IMAGE_ONLY.contains(&image.as_str()) {
-        return Err(Failure::ImageOnly(base));
+        return Err(Failure::ImageOnly(base).into());
     }
     let mut providers = registry.providers(&base);
     if providers.is_empty() && base != resolved {
         providers = registry.providers(&resolved);
     }
     if providers.is_empty() {
-        return Err(Failure::UnknownModel(call.model.clone()));
+        return Err(Failure::UnknownModel(call.model.clone()).into());
     }
     // Go `adjustExecutionProvidersForEntryProtocol`.
     match call.entry {
@@ -329,7 +322,7 @@ where
     Fut: std::future::Future<Output = axum::response::Response>,
 {
     let trace = Trace::default();
-    let result = run(rt, call, &trace).await;
+    let result = run_with_bootstrap_retries(rt, call, &trace).await;
     let mut response = render(result).await;
     if let Some(id) = trace.0.lock().unwrap_or_else(std::sync::PoisonError::into_inner).take()
         && let Ok(value) = axum::http::HeaderValue::from_str(&id)
@@ -337,6 +330,60 @@ where
         response.headers_mut().insert("x-cpa-trace-id", value);
     }
     response
+}
+
+/// `requests.streaming.bootstrap-retries` (Go `StreamingBootstrapRetries`).
+fn bootstrap_retries(cfg: &Config) -> usize {
+    cfg.document
+        .get("requests")
+        .and_then(|r| r.get("streaming"))
+        .and_then(|s| s.get("bootstrap-retries"))
+        .and_then(serde_yaml_ng::Value::as_i64)
+        .unwrap_or(0)
+        .max(0) as usize
+}
+
+/// Go handlers_stream.go: a stream that failed before its first payload is retried as a
+/// whole request when the status is statusless, auth, quota, timeout or 5xx.
+async fn run_with_bootstrap_retries(rt: &Arc<Runtime>, call: Call, trace: &Trace) -> Result<Done, Failure> {
+    let max = if call.stream {
+        bootstrap_retries(&rt.config())
+    } else {
+        0
+    };
+    let mut result = run(rt, call.clone(), trace).await;
+    for _ in 0..max {
+        let original = match &result {
+            Err(RunError {
+                failure: Failure::Exec(e),
+                bootstrap: true,
+            }) if bootstrap_eligible(classify::go_status(e)) => e.clone(),
+            _ => break,
+        };
+        result = match run(rt, call.clone(), trace).await {
+            Err(RunError {
+                failure,
+                bootstrap: false,
+            }) if matches!(failure, Failure::Unavailable { .. }) && classify::response_status(&original) >= 500 => {
+                Err(RunError {
+                    failure: Failure::Exec(original),
+                    bootstrap: false,
+                })
+            }
+            Err(RunError {
+                failure,
+                bootstrap: false,
+            }) => {
+                return Err(failure);
+            }
+            other => other,
+        };
+    }
+    result.map_err(|e| e.failure)
+}
+
+fn bootstrap_eligible(status: u16) -> bool {
+    matches!(status, 0 | 401 | 402 | 403 | 408 | 429) || status >= 500
 }
 
 /// The trace ID of the last credential selected for a request.
@@ -392,18 +439,50 @@ pub fn request_id() -> String {
     )
 }
 
-/// Runs one request through selection, execution and retry rounds.
-pub async fn run(rt: &Arc<Runtime>, call: Call, trace: &Trace) -> Result<Done, Failure> {
+/// A terminal failure of [`run`]. `bootstrap` marks a stream that failed before its
+/// first payload (Go `streamBootstrapError`).
+pub struct RunError {
+    pub failure: Failure,
+    pub bootstrap: bool,
+}
+
+impl From<Failure> for RunError {
+    fn from(failure: Failure) -> Self {
+        Self {
+            failure,
+            bootstrap: false,
+        }
+    }
+}
+
+/// One attempt's failure.
+#[derive(Clone)]
+struct Fault {
+    error: ExecError,
+    bootstrap: bool,
+}
+
+impl Fault {
+    fn into_run_error(self) -> RunError {
+        RunError {
+            failure: Failure::Exec(self.error),
+            bootstrap: self.bootstrap,
+        }
+    }
+}
+
+/// Runs one request through selection, execution and retry rounds (Go
+/// `Manager.Execute*`). Selection failures take part in retry rounds too.
+pub async fn run(rt: &Arc<Runtime>, call: Call, trace: &Trace) -> Result<Done, RunError> {
     let (cfg, policy) = rt.request_snapshot();
     let registry = rt.registry();
-    let (providers, model) = route(&registry, &call)?;
+    let (providers, model) = route(rt, &registry, &call)?;
     let aliases = registry::global_aliases(&cfg);
     let session = crate::session::resolve(&call.headers, &call.body);
     let mut selection = Selection {
         providers: providers.clone(),
         model: call.selection_model.clone().unwrap_or_else(|| model.clone()),
         session: session.clone(),
-        forced: call.forced_provider.is_some(),
         ..Selection::default()
     };
     let request = ExecRequest {
@@ -417,35 +496,39 @@ pub async fn run(rt: &Arc<Runtime>, call: Call, trace: &Trace) -> Result<Done, F
         stream: call.stream,
         alt: call.alt.clone(),
         session,
+        execution_session: call.execution_session.clone(),
         headers: call.headers.clone(),
         caller: call.caller.clone(),
     };
     let compact = call.alt.as_deref() == Some("responses/compact");
+    // Go `preferredExecutionAttemptError`: the latest failure that reached upstream wins
+    // over later selection failures.
+    let mut upstream: Option<Fault> = None;
     loop {
-        let mut last_error: Option<ExecError> = None;
-        let mut attempted = 0;
-        let outcome = loop {
-            if policy.max_retry_credentials > 0 && attempted >= policy.max_retry_credentials {
+        let mut last: Option<Fault> = None;
+        let mut attempted: Vec<String> = Vec::new();
+        let pick_failure = loop {
+            if policy.max_retry_credentials > 0 && attempted.len() >= policy.max_retry_credentials {
                 break None;
             }
             let lease = match rt.acquire(selection.clone(), &cfg, policy.clone(), &registry).await {
                 Ok(lease) => lease,
                 Err(AcquireError::Prepare { id, error }) => {
-                    attempted += 1;
+                    attempted.push(id.clone());
                     selection.exclude.push(id);
-                    last_error = Some(error);
+                    last = Some(Fault {
+                        error,
+                        bootstrap: false,
+                    });
                     continue;
                 }
                 Err(AcquireError::Cooldown { wait, cause }) => {
-                    if last_error.is_some() {
-                        break None;
-                    }
                     let provider = if providers.len() == 1 {
                         providers[0].clone()
                     } else {
                         String::new()
                     };
-                    return Err(Failure::Cooldown {
+                    break Some(Failure::Cooldown {
                         model: selection.model.clone(),
                         provider,
                         wait,
@@ -453,10 +536,7 @@ pub async fn run(rt: &Arc<Runtime>, call: Call, trace: &Trace) -> Result<Done, F
                     });
                 }
                 Err(AcquireError::Unavailable { retry_after, cause }) => {
-                    if last_error.is_some() {
-                        break None;
-                    }
-                    return Err(Failure::Unavailable {
+                    break Some(Failure::Unavailable {
                         code: if retry_after.is_some() {
                             "auth_unavailable"
                         } else {
@@ -471,8 +551,19 @@ pub async fn run(rt: &Arc<Runtime>, call: Call, trace: &Trace) -> Result<Done, F
             };
             selection.exclude.push(lease.credential.id.clone());
             trace.selected(&lease.credential);
-            let (models, alias) = registry::execution_models(&aliases, &lease.credential, &selection.model);
+            let (mut models, alias) = registry::execution_models(&aliases, &lease.credential, &selection.model);
             let pooled = models.len() > 1;
+            if pooled {
+                // Go `nextModelPoolOffset`: rotate the alias pool once per selection.
+                let key = format!(
+                    "{}|{}|{}",
+                    lease.credential.id.trim().to_lowercase(),
+                    registry::provider_key(&lease.credential),
+                    canonical_model(registry::strip_prefix(&selection.model, &lease.credential)).to_lowercase()
+                );
+                let offset = rt.next_pool_offset(&key, models.len());
+                models.rotate_left(offset);
+            }
             let selection_model = registry::selection_model(&aliases, &lease.credential, &selection.model);
             let models: Vec<String> = models
                 .into_iter()
@@ -484,50 +575,63 @@ pub async fn run(rt: &Arc<Runtime>, call: Call, trace: &Trace) -> Result<Done, F
             if models.is_empty() {
                 continue;
             }
-            attempted += 1;
-            match attempt(
-                rt,
-                &cfg,
-                &policy,
-                &call,
-                &request,
-                lease,
-                &models,
-                &selection_model,
+            attempted.push(lease.credential.id.clone());
+            let target = Target {
+                models: &models,
+                selection_model: &selection_model,
                 pooled,
-                &alias,
+                alias: &alias,
                 compact,
-            )
-            .await
-            {
-                Attempt::Done(done) => break Some(Ok(done)),
-                Attempt::Stop(error) => break Some(Err(error)),
-                Attempt::Next(error) => last_error = Some(error),
+                keep_model: call.selection_model.is_some(),
+            };
+            match attempt(rt, &cfg, &policy, &call, &request, lease, target).await {
+                Attempt::Done(done) => return Ok(done),
+                Attempt::Stop(fault) => return Err(fault.into_run_error()),
+                Attempt::Next(fault) => {
+                    if classify::upstream_attempted(&fault.error) {
+                        upstream = Some(fault.clone());
+                    }
+                    last = Some(fault);
+                }
             }
         };
-        match outcome {
-            Some(Ok(done)) => return Ok(done),
-            Some(Err(error)) => return Err(Failure::Exec(error)),
-            None => {}
-        }
-        let Some(error) = last_error else {
-            return Err(Failure::Unavailable {
+        // The round's error decides retries: an attempt error when there was one, else
+        // the selection failure. The response reports the latest upstream attempt when
+        // there was one (Go executeMixedOnce, preferredExecutionAttemptError).
+        let round_error: RunError = match (last, pick_failure) {
+            (Some(fault), _) => fault.into_run_error(),
+            (None, Some(failure)) => failure.into(),
+            (None, None) => Failure::Unavailable {
                 code: "auth_not_found",
-                providers,
-                model,
+                providers: providers.clone(),
+                model: model.clone(),
                 cause: None,
                 retry_after: None,
-            });
+            }
+            .into(),
         };
-        if !classify::is_retry_round(&error) || classify::is_request_invalid(&error) {
-            return Err(Failure::Exec(error));
+        // Go `shouldRetryAfterErrorWithAttempted` / `isRequestRetryRoundError`.
+        let (status, retry_round) = match &round_error.failure {
+            Failure::Exec(e) => (
+                classify::go_status(e),
+                classify::is_retry_round(e) && !classify::is_request_invalid(e),
+            ),
+            Failure::Cooldown { .. } => (429, true),
+            Failure::Unavailable {
+                retry_after: Some(_), ..
+            } => (503, true),
+            _ => (0, false),
+        };
+        let terminal = |round_error: RunError| upstream.clone().map(Fault::into_run_error).unwrap_or(round_error);
+        if !retry_round {
+            return Err(terminal(round_error));
         }
         let wait = {
             let admit = crate::runtime::admission(&registry, &aliases, &selection, &rt.executors);
-            rt.store().retry_wait(&selection, &policy, &error, &admit)
+            rt.store().retry_wait(&selection, &policy, status, &attempted, &admit)
         };
         let Some(wait) = wait else {
-            return Err(Failure::Exec(error));
+            return Err(terminal(round_error));
         };
         if !wait.is_zero() {
             tokio::time::sleep(jitter(wait, policy.max_retry_interval)).await;
@@ -561,12 +665,24 @@ pub fn jitter(wait: Duration, max: Duration) -> Duration {
 enum Attempt {
     Done(Done),
     /// Terminal for the whole request.
-    Stop(ExecError),
+    Stop(Fault),
     /// Failed over; try the next credential.
-    Next(ExecError),
+    Next(Fault),
 }
 
-#[allow(clippy::too_many_arguments)]
+/// What one selected credential executes.
+struct Target<'a> {
+    /// Upstream model candidates (more than one is an alias pool).
+    models: &'a [String],
+    selection_model: &'a str,
+    pooled: bool,
+    alias: &'a AliasResult,
+    compact: bool,
+    /// The request model is not the selection model (Interactions agents): execute
+    /// the request model, keep cooldown state on the selection model.
+    keep_model: bool,
+}
+
 async fn attempt(
     rt: &Arc<Runtime>,
     cfg: &Config,
@@ -574,24 +690,34 @@ async fn attempt(
     call: &Call,
     request: &ExecRequest,
     mut lease: Lease,
-    models: &[String],
-    selection_model: &str,
-    pooled: bool,
-    alias: &AliasResult,
-    compact: bool,
+    target: Target<'_>,
 ) -> Attempt {
     let route_model = lease.selection.model.clone();
     let mut last = None;
-    for (i, upstream) in models.iter().enumerate() {
-        let state = registry::state_model(selection_model, &route_model, upstream, pooled);
+    let mut refreshed = false;
+    for (i, upstream) in target.models.iter().enumerate() {
+        let state = registry::state_model(target.selection_model, &route_model, upstream, target.pooled);
         lease.execution_model = state.clone();
         let mut req = request.clone();
-        req.model.clone_from(upstream);
-        let error = match rt.executors.execute(&lease.credential, req, cfg).await {
+        if !target.keep_model {
+            req.model.clone_from(upstream);
+        }
+        let mut executed = rt.executors.execute(&lease.credential, req.clone(), cfg).await;
+        // Go `tryRefreshAfterUnauthorized`: one refresh-and-retry per credential.
+        if let Err(error) = &executed
+            && !refreshed
+            && classify::is_unauthorized(error)
+            && let Some(current) = rt.refresh_after_unauthorized(&lease.credential, cfg).await
+        {
+            refreshed = true;
+            lease.credential = current;
+            executed = rt.executors.execute(&lease.credential, req, cfg).await;
+        }
+        let fault = match executed {
             Ok(response) => match finish(call, response).await {
                 Ok(done) => {
-                    let done = if alias.force_mapping && !alias.original_alias.is_empty() {
-                        rewrite_model(done, &alias.original_alias)
+                    let done = if target.alias.force_mapping && !target.alias.original_alias.is_empty() {
+                        rewrite_model(done, &target.alias.original_alias)
                     } else {
                         done
                     };
@@ -607,14 +733,18 @@ async fn attempt(
                         }
                     });
                 }
-                Err(error) => error,
+                Err(fault) => fault,
             },
-            Err(error) => error,
+            Err(error) => Fault {
+                error,
+                bootstrap: false,
+            },
         };
-        let action = policy.error_action(&lease.credential, &error);
-        let neutral = (compact && classify::is_compact_neutral(&error) && !action.force_cooldown)
+        let error = &fault.error;
+        let action = policy.error_action(&lease.credential, error);
+        let neutral = (target.compact && classify::is_compact_neutral(error) && !action.force_cooldown)
             || (call.operation == Operation::CountTokens
-                && classify::is_count_endpoint_missing(&error, upstream)
+                && classify::is_count_endpoint_missing(error, upstream)
                 && !action.force_cooldown);
         let outcome = if neutral {
             Outcome::Neutral(error.clone())
@@ -624,25 +754,26 @@ async fn attempt(
         let stop = if action.matched {
             action.stop
         } else {
-            (compact && classify::is_compact_fault(&error)) || classify::is_request_invalid(&error)
+            (target.compact && classify::is_compact_fault(error)) || classify::is_request_invalid(error)
         };
         // A credential-wide quota ends this credential's model pool.
-        if stop || i + 1 == models.len() || classify::credential_scoped(&error) {
+        if stop || i + 1 == target.models.len() || classify::credential_scoped(error) {
             lease.complete(outcome);
             return if stop {
-                Attempt::Stop(error)
+                Attempt::Stop(fault)
             } else {
-                Attempt::Next(error)
+                Attempt::Next(fault)
             };
         }
         lease.note(&state, &outcome);
-        last = Some(error);
+        last = Some(fault);
     }
     Attempt::Next(last.expect("at least one model was attempted"))
 }
 
 /// Bootstraps a stream (first event before committing) or buffers a body.
-async fn finish(call: &Call, response: cpa_core::exec::ExecResponse) -> Result<Done, ExecError> {
+async fn finish(call: &Call, response: cpa_core::exec::ExecResponse) -> Result<Done, Fault> {
+    let fault = |error| Fault { error, bootstrap: true };
     match response.body {
         ResponseBody::Buffered(body) => Ok(Done::Buffered {
             headers: response.headers,
@@ -652,21 +783,25 @@ async fn finish(call: &Call, response: cpa_core::exec::ExecResponse) -> Result<D
             let first = loop {
                 match stream.next().await {
                     Some(Ok(bytes)) if bytes.is_empty() => continue,
-                    Some(Ok(bytes)) => break Some(bytes),
-                    Some(Err(error)) => return Err(error),
-                    None => break None,
+                    Some(Ok(bytes)) => break bytes,
+                    Some(Err(error)) => return Err(fault(error)),
+                    // Go conductor_stream.go: an empty stream is a failed attempt.
+                    None => return Err(fault(classify::empty_stream())),
                 }
             };
             Ok(Done::Stream {
                 headers: response.headers,
-                first,
+                first: Some(first),
                 rest: stream,
             })
         }
         ResponseBody::Stream(mut stream) => {
             let mut body = BytesMut::new();
             while let Some(event) = stream.next().await {
-                body.extend_from_slice(&event?);
+                body.extend_from_slice(&event.map_err(|error| Fault {
+                    error,
+                    bootstrap: false,
+                })?);
             }
             Ok(Done::Buffered {
                 headers: response.headers,

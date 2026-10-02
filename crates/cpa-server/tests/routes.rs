@@ -14,6 +14,7 @@ use cpa_core::credential::{Credential, Source};
 use cpa_exec::Executors;
 use cpa_exec::claude::ClaudeExecutor;
 use cpa_server::{Runtime, router};
+use futures_util::StreamExt;
 use serde_json::Value;
 
 const MODEL: &str = "claude-sonnet-4-6";
@@ -134,6 +135,7 @@ async fn proxy(config: &str, credentials: Vec<Credential>) -> Proxy {
     let config = Config::parse(&format!("access:\n  api-keys: [client-key]\n{config}")).unwrap();
     let executors = Executors {
         claude: ClaudeExecutor::new(&upstream_url).unwrap(),
+        devices: Default::default(),
     };
     let rt = Arc::new(Runtime::new(config, credentials, executors));
     let url = serve(router(rt.clone())).await;
@@ -450,4 +452,260 @@ async fn misc_routes_match_go() {
         r#"{"error":{"message":"/responses/compact not supported","type":"server_error","code":"internal_server_error"}}"#
     );
     assert!(p.seen.requests.lock().unwrap().is_empty());
+}
+
+#[derive(Default)]
+struct OAuthMock {
+    calls: Mutex<Vec<String>>,
+}
+
+async fn oauth_upstream(State(mock): State<Arc<OAuthMock>>, req: Request) -> Response {
+    let path = req.uri().path().to_owned();
+    let auth = req
+        .headers()
+        .get("authorization")
+        .map(|v| v.to_str().unwrap().to_owned())
+        .unwrap_or_default();
+    mock.calls.lock().unwrap().push(format!("{path} {auth}"));
+    match (path.as_str(), auth.as_str()) {
+        ("/token", _) => axum::Json(serde_json::json!({
+            "access_token": "sk-ant-oat-new-fake", "refresh_token": "fake-rotated", "expires_in": 3600,
+            "account": {"uuid": "acct-fake", "email_address": "a@example.invalid"}}))
+        .into_response(),
+        ("/v1/messages", "Bearer sk-ant-oat-old-fake") => (
+            StatusCode::UNAUTHORIZED,
+            [("content-type", "application/json")],
+            r#"{"type":"error","error":{"type":"authentication_error","message":"token expired"}}"#,
+        )
+            .into_response(),
+        _ => (
+            [("content-type", "application/json")],
+            r#"{"id":"msg_1","type":"message","role":"assistant","model":"m","content":[],"stop_reason":"end_turn"}"#,
+        )
+            .into_response(),
+    }
+}
+
+/// Go refreshes OAuth tokens in the background (conductor_refresh.go) and recovers a
+/// rejected token with one refresh-and-retry (tryRefreshAfterUnauthorized): an expired
+/// token is sent first, never awaited.
+#[tokio::test]
+async fn expired_token_is_used_then_refreshed_once_after_401() {
+    let mock = Arc::new(OAuthMock::default());
+    let upstream_url = serve(axum::Router::new().fallback(oauth_upstream).with_state(mock.clone())).await;
+    let dir = std::env::temp_dir().join(format!("cpa-routes-401-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("claude.json");
+    let metadata = serde_json::json!({"type":"claude","access_token":"sk-ant-oat-old-fake","refresh_token":"fake-refresh",
+        "expired":"2000-01-01T00:00:00Z","account_uuid":"acct-fake","email":"a@example.invalid",
+        "claude_device_ids":["b".repeat(64)]});
+    std::fs::write(&path, metadata.to_string()).unwrap();
+    let mut credential = Credential::from_file(&dir, &path, metadata.as_object().unwrap().clone()).unwrap();
+    credential.attributes.insert("base_url".into(), upstream_url.clone());
+    let oauth = cpa_exec::oauth::OAuth::with_endpoints(
+        wreq::Client::new(),
+        &format!("{upstream_url}/token"),
+        &format!("{upstream_url}/profile"),
+        &format!("{upstream_url}/roles"),
+    );
+    let executors = Executors {
+        claude: ClaudeExecutor::new(&upstream_url).unwrap().with_oauth(oauth),
+        devices: Default::default(),
+    };
+    let config = Config::parse("access:\n  api-keys: [client-key]\n").unwrap();
+    let rt = Arc::new(Runtime::new(config, vec![credential], executors));
+    let url = serve(router(rt.clone())).await;
+    let (status, _, text) = post(
+        &url,
+        "/v1/messages",
+        &format!(r#"{{"model":"{MODEL}","max_tokens":5,"messages":[]}}"#),
+    )
+    .await;
+    assert_eq!(status, 200, "{text}");
+    let calls = mock.calls.lock().unwrap().clone();
+    assert_eq!(
+        calls.iter().map(|c| c.split(' ').next().unwrap()).collect::<Vec<_>>(),
+        // Claude's refresh also reads the profile (the Go differential run does too).
+        ["/v1/messages", "/token", "/profile", "/v1/messages"],
+        "{calls:?}"
+    );
+    assert!(calls[0].ends_with("sk-ant-oat-old-fake") && calls[3].ends_with("sk-ant-oat-new-fake"));
+    let saved: Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+    assert_eq!(
+        saved["access_token"], "sk-ant-oat-new-fake",
+        "the rotated token is persisted"
+    );
+    assert_eq!(rt.store().stats().success, 1);
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+type Reply = Box<dyn Fn() -> Response + Send + Sync>;
+
+/// Replies in order, one per upstream call; the last repeats.
+struct Script {
+    replies: Vec<Reply>,
+    calls: Mutex<Vec<String>>,
+}
+
+async fn scripted(State(script): State<Arc<Script>>, req: Request) -> Response {
+    let auth = req
+        .headers()
+        .get("authorization")
+        .map(|v| v.to_str().unwrap().to_owned())
+        .unwrap_or_default();
+    let n = {
+        let mut calls = script.calls.lock().unwrap();
+        calls.push(auth);
+        calls.len() - 1
+    };
+    (script.replies[n.min(script.replies.len() - 1)])()
+}
+
+fn status_reply(status: u16) -> Reply {
+    Box::new(move || (StatusCode::from_u16(status).unwrap(), "scripted failure").into_response())
+}
+
+fn sse_reply() -> Reply {
+    Box::new(|| ([("content-type", "text/event-stream")], sse()).into_response())
+}
+
+fn json_reply() -> Reply {
+    Box::new(|| {
+        (
+            [("content-type", "application/json")],
+            r#"{"id":"msg_1","type":"message","role":"assistant","model":"m","content":[],"stop_reason":"end_turn"}"#,
+        )
+            .into_response()
+    })
+}
+
+async fn scripted_proxy(config: &str, tokens: &[&str], replies: Vec<Reply>) -> (String, Arc<Script>, Arc<Runtime>) {
+    let script = Arc::new(Script {
+        replies,
+        calls: Mutex::default(),
+    });
+    let upstream_url = serve(axum::Router::new().fallback(scripted).with_state(script.clone())).await;
+    let credentials = tokens
+        .iter()
+        .enumerate()
+        .map(|(i, t)| {
+            let mut c = oauth(&format!("{i}.json"), t, serde_json::json!({}));
+            c.attributes.insert("base_url".into(), upstream_url.clone());
+            c
+        })
+        .collect();
+    let config = Config::parse(&format!("access:\n  api-keys: [client-key]\n{config}")).unwrap();
+    let executors = Executors {
+        claude: ClaudeExecutor::new(&upstream_url).unwrap(),
+        devices: Default::default(),
+    };
+    let rt = Arc::new(Runtime::new(config, credentials, executors));
+    (serve(router(rt.clone())).await, script, rt)
+}
+
+/// Go conductor_execution.go: a selection failure (every credential cooling) takes part
+/// in retry rounds, so the request waits for the cooldown instead of failing.
+#[tokio::test]
+async fn cooling_selection_waits_for_the_next_retry_round() {
+    let config = "routing:\n  retry:\n    request-retry: 1\n    max-retry-interval: 3\n  cooldown:\n    transient-error-cooldown-seconds: 1\n";
+    let (url, script, _) = scripted_proxy(
+        config,
+        &["fake-a"],
+        vec![status_reply(500), status_reply(500), json_reply()],
+    )
+    .await;
+    let body = format!(r#"{{"model":"{MODEL}","max_tokens":5,"messages":[]}}"#);
+    // Two rounds of 500: the credential ends cooling for one second.
+    let (status, _, _) = post(&url, "/v1/messages", &body).await;
+    assert_eq!(status, 500);
+    assert_eq!(script.calls.lock().unwrap().len(), 2);
+    let started = std::time::Instant::now();
+    let (status, _, text) = post(&url, "/v1/messages", &body).await;
+    assert_eq!(status, 200, "{text}");
+    assert!(
+        started.elapsed() >= std::time::Duration::from_millis(500),
+        "waited for the cooldown"
+    );
+    assert_eq!(script.calls.lock().unwrap().len(), 3);
+}
+
+/// Go conductor_stream.go: a stream that closes before its first payload is a failed
+/// attempt (`empty_stream`) and fails over.
+#[tokio::test]
+async fn empty_stream_fails_over_and_reports_empty_stream() {
+    let empty: Reply = Box::new(|| ([("content-type", "text/event-stream")], "").into_response());
+    let (url, script, rt) = scripted_proxy("", &["fake-a", "fake-b"], vec![empty, sse_reply()]).await;
+    let body = format!(r#"{{"model":"{MODEL}","stream":true,"max_tokens":5,"messages":[]}}"#);
+    let (status, _, text) = post(&url, "/v1/messages", &body).await;
+    assert_eq!(status, 200, "{text}");
+    assert!(text.contains("message_stop"));
+    assert_eq!(script.calls.lock().unwrap().len(), 2);
+    let stats = rt.store().stats();
+    assert_eq!((stats.failure, stats.success), (1, 1));
+
+    let empty: Reply = Box::new(|| ([("content-type", "text/event-stream")], "").into_response());
+    let (url, _, _) = scripted_proxy("", &["fake-a"], vec![empty]).await;
+    let (status, _, text) = post(&url, "/v1/messages", &body).await;
+    assert_eq!(status, 500);
+    assert_eq!(
+        text,
+        r#"{"type":"error","error":{"type":"api_error","message":"empty_stream: upstream stream closed before first payload"}}"#
+    );
+}
+
+/// Go handlers_stream.go: `requests.streaming.bootstrap-retries` re-runs a stream that
+/// failed before its first payload, independently of request-retry.
+#[tokio::test]
+async fn bootstrap_retries_rerun_a_stream_that_broke_before_its_first_payload() {
+    let broken: Reply = Box::new(|| {
+        // A partial frame, then a reset: the executor returns a stream whose first item
+        // is an error (Go: a channel error before the first payload).
+        let body = futures_util::stream::iter([
+            Ok(Bytes::from_static(b"event: message_start\n")),
+            Err::<Bytes, _>(std::io::Error::other("reset")),
+        ])
+        .then(|item| async move {
+            // Let hyper flush the partial frame before the reset.
+            if item.is_err() {
+                tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+            }
+            item
+        });
+        (
+            [("content-type", "text/event-stream")],
+            axum::body::Body::from_stream(body),
+        )
+            .into_response()
+    });
+    let body = format!(r#"{{"model":"{MODEL}","stream":true,"max_tokens":5,"messages":[]}}"#);
+    let config = "requests:\n  streaming:\n    bootstrap-retries: 1\n";
+    let (url, script, _) = scripted_proxy(config, &["fake-a"], vec![broken, sse_reply()]).await;
+    let (status, _, text) = post(&url, "/v1/messages", &body).await;
+    assert_eq!(status, 200, "{text}");
+    assert_eq!(script.calls.lock().unwrap().len(), 2);
+
+    let broken: Reply = Box::new(|| {
+        // A partial frame, then a reset: the executor returns a stream whose first item
+        // is an error (Go: a channel error before the first payload).
+        let body = futures_util::stream::iter([
+            Ok(Bytes::from_static(b"event: message_start\n")),
+            Err::<Bytes, _>(std::io::Error::other("reset")),
+        ])
+        .then(|item| async move {
+            // Let hyper flush the partial frame before the reset.
+            if item.is_err() {
+                tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+            }
+            item
+        });
+        (
+            [("content-type", "text/event-stream")],
+            axum::body::Body::from_stream(body),
+        )
+            .into_response()
+    });
+    let (url, script, _) = scripted_proxy("", &["fake-a"], vec![broken, sse_reply()]).await;
+    let (status, _, _) = post(&url, "/v1/messages", &body).await;
+    assert_eq!(status, 500, "without bootstrap retries the transport fault is final");
+    assert_eq!(script.calls.lock().unwrap().len(), 1);
 }

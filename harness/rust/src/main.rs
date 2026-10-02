@@ -24,6 +24,7 @@ async fn main() -> anyhow::Result<()> {
         .build()?;
     let executors = Executors {
         claude: ClaudeExecutor::with_client(client, DEFAULT_BASE_URL),
+        devices: Default::default(),
     };
     let listener = tokio::net::TcpListener::bind((config.host.as_str(), config.port)).await?;
     let rt = Arc::new(Runtime::new(config, credentials, executors));

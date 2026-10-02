@@ -40,9 +40,9 @@ pub async fn unified(State(rt): State<Arc<Runtime>>, OriginalUri(uri): OriginalU
             .and_then(|c| c.get("disable-cloaking-model-list"))
             .and_then(serde_yaml_ng::Value::as_bool)
             .unwrap_or(false);
-        claude_list(registry.available(), disable_cloaking)
+        claude_list(registry.available_with(|c, m| rt.suspension(c, m)), disable_cloaking)
     } else {
-        openai_list(registry.available())
+        openai_list(registry.available_with(|c, m| rt.suspension(c, m)))
     };
     respond::gin_json(200, body)
 }
@@ -179,7 +179,7 @@ fn gemini_entry(m: &Spec) -> Map<String, Value> {
 pub async fn gemini_list(State(rt): State<Arc<Runtime>>) -> Response {
     let registry = rt.registry();
     let models: Vec<Value> = registry
-        .available()
+        .available_with(|c, m| rt.suspension(c, m))
         .map(|m| {
             let mut entry = gemini_entry(m);
             if let Some(name) = entry.get("name").and_then(Value::as_str).map(str::to_owned)
@@ -207,10 +207,13 @@ pub async fn gemini_list(State(rt): State<Arc<Runtime>>) -> Response {
 pub async fn gemini_get(State(rt): State<Arc<Runtime>>, Path(action): Path<String>) -> Response {
     let action = action.trim_start_matches('/');
     let registry = rt.registry();
-    let found = registry.available().map(gemini_entry).find(|entry| {
-        let name = entry.get("name").and_then(Value::as_str).unwrap_or_default();
-        name == action || name == format!("models/{action}")
-    });
+    let found = registry
+        .available_with(|c, m| rt.suspension(c, m))
+        .map(gemini_entry)
+        .find(|entry| {
+            let name = entry.get("name").and_then(Value::as_str).unwrap_or_default();
+            name == action || name == format!("models/{action}")
+        });
     match found {
         Some(mut entry) => {
             if let Some(name) = entry.get("name").and_then(Value::as_str).map(str::to_owned)

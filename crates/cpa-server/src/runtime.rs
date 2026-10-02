@@ -18,7 +18,7 @@ use bytes::Bytes;
 use cpa_core::config::Config;
 use cpa_core::credential::{Credential, MetadataPatch, Source};
 use cpa_core::exec::{ExecError, ExecStream, FailureScope};
-use cpa_exec::Executors;
+use cpa_exec::{Executors, Readiness};
 use futures_util::{Stream, StreamExt};
 use serde_json::{Map, Value};
 
@@ -38,6 +38,8 @@ pub struct Runtime {
     /// The registry derived from the current config and credential generation.
     registry: Mutex<Option<RegistryCache>>,
     oauth_sink: RwLock<Option<OAuthCallbackSink>>,
+    /// Go `modelPoolOffsets`: rotation cursors for OpenAI-compatible alias pools.
+    pool_offsets: Mutex<HashMap<String, usize>>,
 }
 
 /// An OAuth provider redirect received on the main listener.
@@ -68,6 +70,7 @@ impl Runtime {
             refresh_state: Mutex::default(),
             registry: Mutex::default(),
             oauth_sink: RwLock::default(),
+            pool_offsets: Mutex::default(),
         };
         rt.publish_policy(policy);
         rt
@@ -100,6 +103,35 @@ impl Runtime {
 
     pub fn store(&self) -> &Arc<CredentialStore> {
         &self.store
+    }
+
+    /// Go `nextModelPoolOffset`: the start index for the next pass over a pool.
+    pub fn next_pool_offset(&self, key: &str, size: usize) -> usize {
+        if size <= 1 || key.trim().is_empty() {
+            return 0;
+        }
+        let key = key.trim();
+        let mut offsets = self.pool_offsets.lock().unwrap_or_else(PoisonError::into_inner);
+        // Go never prunes; keys of removed credentials would accumulate here forever.
+        if offsets.len() >= 4096 && !offsets.contains_key(key) {
+            offsets.clear();
+        }
+        let slot = offsets.entry(key.to_owned()).or_default();
+        let offset = if *slot >= 2_147_483_640 { 0 } else { *slot };
+        *slot = offset + 1;
+        offset % size
+    }
+
+    /// One credential's projected state for one registered model (Go
+    /// `clientModelProjectionForAuth`), for listings and `auto`.
+    pub fn suspension(&self, credential_id: &str, model: &str) -> crate::registry::Suspension {
+        use crate::registry::Suspension;
+        let Some(credential) = self.store.get(credential_id) else {
+            return Suspension::None;
+        };
+        let aliases = crate::registry::global_aliases(&self.config());
+        let key = crate::registry::selection_model(&aliases, &credential, model);
+        self.store.suspension(&credential, &key)
     }
 
     /// Wires OAuth callback delivery (management owns pending login sessions).
@@ -143,9 +175,10 @@ impl Runtime {
         *current = Arc::new(policy);
     }
 
-    /// Selects a credential that registered the route model, and prepares it if its
-    /// executor asks to, single-flighted per credential. The returned lease holds the
-    /// committed, prepared snapshot.
+    /// Selects a credential that registered the route model. Waits for preparation only
+    /// when the executor reports [`Readiness::PrepareNow`] (single-flighted per
+    /// credential); token refreshes stay with the background loop. The returned lease
+    /// holds the committed snapshot.
     pub async fn acquire(
         &self,
         selection: Selection,
@@ -157,11 +190,11 @@ impl Runtime {
         let scope = selection.clone();
         let admit = admission(registry, &aliases, &scope, &self.executors);
         let mut lease = self.store.select_with(selection, policy, &admit)?;
-        if !self.executors.needs_prepare(&lease.credential, cfg) {
+        if self.executors.readiness(&lease.credential, cfg) != Readiness::PrepareNow {
             return Ok(lease);
         }
         let id = lease.credential.id.clone();
-        match self.prepare_credential(&id, cfg).await {
+        match self.prepare_credential(&id, cfg, None).await {
             Ok(current) => lease.credential = current,
             Err(error) => {
                 lease.complete(Outcome::Failure(error.clone()));
@@ -171,7 +204,15 @@ impl Runtime {
         Ok(lease)
     }
 
-    async fn prepare_credential(&self, id: &str, cfg: &Config) -> Result<Arc<Credential>, ExecError> {
+    /// Prepares and commits one credential. `failed` is the revision whose token an
+    /// upstream rejected: preparation then runs even when not due, unless another task
+    /// already replaced that revision (Go `refreshAuthForRequest`).
+    async fn prepare_credential(
+        &self,
+        id: &str,
+        cfg: &Config,
+        failed: Option<u64>,
+    ) -> Result<Arc<Credential>, ExecError> {
         let lock = self.store.prepare_lock(id);
         let _guard = lock.lock().await;
         // Another request may have prepared it while we waited.
@@ -182,8 +223,11 @@ impl Runtime {
                 "credential removed or disabled during preparation",
             )
         })?;
-        if !self.executors.needs_prepare(&current, cfg) {
-            return Ok(current);
+        match failed {
+            Some(revision) if current.revision != revision => return Ok(current),
+            Some(_) => {}
+            None if self.executors.readiness(&current, cfg) == Readiness::Ready => return Ok(current),
+            None => {}
         }
         let patch = self.executors.prepare(&current, cfg).await?;
         let store = self.store.clone();
@@ -200,6 +244,24 @@ impl Runtime {
                     format!("committing prepared credential: {e:?}"),
                 )
             })
+    }
+
+    /// Go `tryRefreshAfterUnauthorized`: after an upstream 401 on a credential that can
+    /// refresh, refresh it once and return the committed replacement to retry with.
+    // ponytail: refresh goes through `Executors::prepare`; a provider whose prepare only
+    // refreshes inside its lead (Claude) cannot recover a revoked but unexpired token.
+    pub async fn refresh_after_unauthorized(&self, credential: &Credential, cfg: &Config) -> Option<Arc<Credential>> {
+        let refreshable = ["refresh_token", "refreshToken"]
+            .iter()
+            .any(|k| credential.str(k).is_some_and(|v| !v.trim().is_empty()));
+        if !refreshable {
+            return None;
+        }
+        let refreshed = self
+            .prepare_credential(&credential.id, cfg, Some(credential.revision))
+            .await
+            .ok()?;
+        (refreshed.revision != credential.revision).then_some(refreshed)
     }
 
     /// One replaceable refresh loop. Uses the same preparation lock and atomic
@@ -228,7 +290,7 @@ impl Runtime {
                     snapshot
                         .iter()
                         .filter(|c| matches!(c.source, Source::File(_)) && !c.disabled)
-                        .filter(|c| rt.executors.needs_prepare(c, &cfg))
+                        .filter(|c| rt.executors.readiness(c, &cfg) != Readiness::Ready)
                         .filter(|c| state.reserve(c, Instant::now()))
                         .cloned()
                         .collect()
@@ -236,11 +298,11 @@ impl Runtime {
                 // ponytail: bounded batches, so a slow worker delays the next scan.
                 // Use an independent queue if refresh latency matters for large pools.
                 futures_util::stream::iter(jobs)
-                    .for_each_concurrent(16, |credential| {
+                    .for_each_concurrent(refresh_workers(&cfg), |credential| {
                         let rt = rt.clone();
                         let cfg = cfg.clone();
                         async move {
-                            let result = rt.prepare_credential(&credential.id, &cfg).await;
+                            let result = rt.prepare_credential(&credential.id, &cfg, None).await;
                             let Some(current) = rt.store.get(&credential.id) else {
                                 return;
                             };
@@ -255,7 +317,8 @@ impl Runtime {
                             {
                                 return;
                             }
-                            let ineffective = result.is_ok() && rt.executors.needs_prepare(&current, &cfg);
+                            let ineffective =
+                                result.is_ok() && rt.executors.readiness(&current, &cfg) != Readiness::Ready;
                             rt.refresh_state.lock().unwrap_or_else(PoisonError::into_inner).finish(
                                 &current,
                                 result.as_ref().err(),
@@ -290,6 +353,16 @@ impl Drop for Runtime {
     }
 }
 
+/// `oauth.auth-auto-refresh-workers`: non-positive means Go's default of 16.
+fn refresh_workers(cfg: &Config) -> usize {
+    cfg.document
+        .get("oauth")
+        .and_then(|o| o.get("auth-auto-refresh-workers"))
+        .and_then(serde_yaml_ng::Value::as_i64)
+        .filter(|n| *n > 0)
+        .map_or(16, |n| n as usize)
+}
+
 #[derive(Debug)]
 pub enum AcquireError {
     /// No candidate is ready. `retry_after` is set when candidates exist but are all
@@ -322,8 +395,6 @@ pub struct Selection {
     /// Credential IDs already tried in this request.
     pub exclude: Vec<String>,
     pub retry_round: usize,
-    /// The provider was forced by the route: skip registry admission.
-    pub forced: bool,
 }
 
 impl Selection {
@@ -418,7 +489,7 @@ pub fn admission<'a>(
         }
         let key = crate::registry::selection_model(aliases, c, &selection.model);
         let route = crate::scheduler::canonical_model(&selection.model);
-        if selection.forced || route.is_empty() {
+        if route.is_empty() {
             return Some(key);
         }
         let selection_key = crate::scheduler::canonical_model(&key);
@@ -607,6 +678,30 @@ impl CredentialStore {
         })
     }
 
+    /// The registry projection of this credential's cooldown state for `model`.
+    pub fn suspension(&self, credential: &Credential, model: &str) -> crate::registry::Suspension {
+        use crate::registry::Suspension;
+        let scheduler = self.scheduler.lock().unwrap_or_else(PoisonError::into_inner);
+        let now = Instant::now();
+        let live = |m: &str| {
+            scheduler
+                .cooldowns
+                .get(&(credential.id.clone(), crate::scheduler::canonical_model(m).to_owned()))
+                .filter(|s| s.deadline > now)
+        };
+        if let Some(state) = live(model) {
+            return match (state.quota, state.status) {
+                (true, 429) => Suspension::Quota,
+                (quota_exceeded, _) => Suspension::Other { quota_exceeded },
+            };
+        }
+        if live("").is_some() {
+            // Credential-wide quota: Go reports these models as `credential_quota`.
+            return Suspension::Other { quota_exceeded: false };
+        }
+        Suspension::None
+    }
+
     /// Whether `model` is cooling for this credential right now.
     pub fn blocked(&self, credential: &Credential, model: &str) -> bool {
         let scheduler = self.scheduler.lock().unwrap_or_else(PoisonError::into_inner);
@@ -619,29 +714,30 @@ impl CredentialStore {
         self.scheduler.lock().unwrap_or_else(PoisonError::into_inner).reset(id)
     }
 
-    /// Returns the next round's wait, if any credential still permits that round.
-    /// A wait exceeding the cap is rejected, not shortened (Go conductor_selection.go).
+    /// Returns the next round's wait, if any credential still permits that round
+    /// (Go `closestCooldownWaitWithAttempted`). A wait exceeding the cap is rejected,
+    /// not shortened. `status` is the round error's status; `attempted` the credentials
+    /// that executed this round (they get the 10s quota floor after a 429).
     pub fn retry_wait(
         &self,
         selection: &Selection,
         policy: &Policy,
-        error: &ExecError,
+        status: u16,
+        attempted: &[String],
         admit: &Admit<'_>,
     ) -> Option<Duration> {
-        self.retry_wait_at(selection, policy, error, admit, Instant::now())
+        self.retry_wait_at(selection, policy, status, attempted, admit, Instant::now())
     }
 
     fn retry_wait_at(
         &self,
         selection: &Selection,
         policy: &Policy,
-        error: &ExecError,
+        status: u16,
+        attempted: &[String],
         admit: &Admit<'_>,
         now: Instant,
     ) -> Option<Duration> {
-        if !crate::classify::is_retry_round(error) || crate::classify::is_request_invalid(error) {
-            return None;
-        }
         let inner = self.read();
         let scheduler = self.scheduler.lock().unwrap_or_else(PoisonError::into_inner);
         let wait = inner
@@ -653,7 +749,7 @@ impl CredentialStore {
             .filter(|(c, m)| scheduler.retry_eligible(c, m, now))
             .map(|(c, m)| {
                 let wait = scheduler.wait(c, &m, now).unwrap_or_default();
-                if error.status == 429 && selection.exclude.contains(&c.id) && !policy.cooling_disabled(c) {
+                if status == 429 && attempted.contains(&c.id) && !policy.cooling_disabled(c) {
                     wait.max(Duration::from_secs(10))
                 } else {
                     wait
@@ -1077,33 +1173,37 @@ mod tests {
     }
 
     #[test]
-    fn retry_wait_obeys_exact_cap_request_scope_and_quota_floor() {
+    fn retry_wait_obeys_exact_cap_and_attempted_quota_floor() {
         let store = CredentialStore::new(vec![cred("a.json", "claude", false)]);
         let now = Instant::now();
         let mut selection = sel("claude");
-        selection.exclude.push("a.json".into());
         let admit_all = |_: &Credential| Some(String::new());
+        let tried = ["a.json".to_owned()];
         let mut policy = Policy {
             request_retry: 1,
             ..Policy::default()
         };
-        let transport = ExecError::local(502, FailureScope::Transport, "connection lost");
+        // A transport fault (status 0) retries immediately.
         assert_eq!(
-            store.retry_wait_at(&selection, &policy, &transport, &admit_all, now),
+            store.retry_wait_at(&selection, &policy, 0, &tried, &admit_all, now),
             Some(Duration::ZERO)
         );
-        let request = ExecError::local(503, FailureScope::Request, "request invalid");
+        // An attempted credential after a 429 waits at least 10s, which the default
+        // max-retry-interval of 0 forbids; an untried one may go immediately.
         assert_eq!(
-            store.retry_wait_at(&selection, &policy, &request, &admit_all, now),
+            store.retry_wait_at(&selection, &policy, 429, &tried, &admit_all, now),
             None
         );
-        let quota = ExecError::local(429, FailureScope::Model, "quota");
-        assert_eq!(store.retry_wait_at(&selection, &policy, &quota, &admit_all, now), None);
+        assert_eq!(
+            store.retry_wait_at(&selection, &policy, 429, &[], &admit_all, now),
+            Some(Duration::ZERO)
+        );
         policy.max_retry_interval = Duration::from_secs(10);
         assert_eq!(
-            store.retry_wait_at(&selection, &policy, &quota, &admit_all, now),
+            store.retry_wait_at(&selection, &policy, 429, &tried, &admit_all, now),
             Some(Duration::from_secs(10))
         );
+        let quota = ExecError::local(429, FailureScope::Model, "quota");
         let credential = store.get("a.json").unwrap();
         store.scheduler.lock().unwrap().record(
             &credential,
@@ -1114,12 +1214,12 @@ mod tests {
         );
         let later = now + Duration::from_millis(1);
         assert_eq!(
-            store.retry_wait_at(&selection, &policy, &quota, &admit_all, later),
+            store.retry_wait_at(&selection, &policy, 429, &tried, &admit_all, later),
             Some(Duration::from_secs(10))
         );
         policy.max_retry_interval = Duration::from_secs(9);
         assert_eq!(
-            store.retry_wait_at(&selection, &policy, &quota, &admit_all, later),
+            store.retry_wait_at(&selection, &policy, 429, &tried, &admit_all, later),
             None
         );
         policy.disable_cooling = true;
@@ -1132,12 +1232,13 @@ mod tests {
         );
         policy.max_retry_interval = Duration::ZERO;
         assert_eq!(
-            store.retry_wait_at(&selection, &policy, &quota, &admit_all, later),
-            Some(Duration::ZERO)
+            store.retry_wait_at(&selection, &policy, 429, &tried, &admit_all, later),
+            Some(Duration::ZERO),
+            "disabled cooling has no floor"
         );
         selection.retry_round = 1;
         assert_eq!(
-            store.retry_wait_at(&selection, &policy, &transport, &admit_all, later),
+            store.retry_wait_at(&selection, &policy, 0, &tried, &admit_all, later),
             None
         );
     }
@@ -1166,6 +1267,30 @@ mod tests {
         assert_eq!(policy.session_affinity_ttl, Duration::from_secs(3600));
     }
 
+    /// Go `nextModelPoolOffset` (conductor_models.go): per-key cursor, no advance for
+    /// single-entry pools or blank keys, reset to zero at the int32 guard.
+    #[test]
+    fn pool_offsets_rotate_per_key_like_go() {
+        let rt = Runtime::new(
+            Config::parse("").unwrap(),
+            Vec::new(),
+            Executors {
+                claude: cpa_exec::claude::ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
+                devices: Default::default(),
+            },
+        );
+        let offsets: Vec<usize> = (0..4).map(|_| rt.next_pool_offset("a|openai|m", 3)).collect();
+        assert_eq!(offsets, [0, 1, 2, 0]);
+        assert_eq!(rt.next_pool_offset(" a|openai|m ", 3), 1, "keys are trimmed");
+        assert_eq!(rt.next_pool_offset("b|openai|m", 3), 0, "keys rotate independently");
+        assert_eq!(rt.next_pool_offset("c", 1), 0);
+        assert_eq!(rt.next_pool_offset("c", 2), 0, "a single-entry pool does not advance");
+        assert_eq!(rt.next_pool_offset("  ", 2), 0);
+        rt.pool_offsets.lock().unwrap().insert("d".into(), 2_147_483_641);
+        assert_eq!(rt.next_pool_offset("d", 3), 0, "the guard resets before use");
+        assert_eq!(rt.next_pool_offset("d", 3), 1);
+    }
+
     #[tokio::test]
     async fn preparation_waiter_observes_deletion_and_refresh_loop_is_replaceable() {
         let rt = Arc::new(Runtime::new(
@@ -1180,7 +1305,7 @@ mod tests {
         let guard = lock.lock().await;
         let worker = {
             let rt = rt.clone();
-            tokio::spawn(async move { rt.prepare_credential("a.json", &rt.config()).await })
+            tokio::spawn(async move { rt.prepare_credential("a.json", &rt.config(), None).await })
         };
         tokio::task::yield_now().await;
         assert!(!worker.is_finished());

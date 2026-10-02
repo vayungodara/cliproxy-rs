@@ -52,6 +52,7 @@ pub async fn action(
         caller,
         forced_provider: None,
         selection_model: None,
+        execution_session: None,
     };
     let keepalive = respond::keepalive(&rt.config()).filter(|_| alt.is_none());
     dispatch::serve(&rt, call, |result| async move {
@@ -156,6 +157,7 @@ pub async fn interactions(
         caller,
         forced_provider: forced,
         selection_model: selection,
+        execution_session: None,
     };
     let keepalive = respond::keepalive(&rt.config());
     dispatch::serve(&rt, call, |result| async move {

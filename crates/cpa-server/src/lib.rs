@@ -15,6 +15,7 @@ mod refresh;
 pub mod registry;
 mod respond;
 pub mod runtime;
+mod sanitize;
 pub mod scheduler;
 mod session;
 pub mod watching;

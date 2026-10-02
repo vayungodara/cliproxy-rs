@@ -670,7 +670,9 @@ impl Scheduler {
                     }
                     if disabled {
                         None
-                    } else if let Some(hint) = hint {
+                    } else if let Some(hint) = error.retry_after {
+                        // A present hint, even zero, gets the 10s floor (Go
+                        // minQuotaCooldownFloor); only an absent one backs off.
                         Some(hint.max(Duration::from_secs(10)))
                     } else if let Some(prev) = prev.filter(|s| s.quota && s.deadline > now) {
                         // Go `quotaCooldownAfterFailure`: an active quota deadline is
@@ -1038,6 +1040,62 @@ mod tests {
                 Some(Duration::from_secs(seconds)),
                 "status {status}"
             );
+        }
+    }
+
+    /// Go `Manager.MarkResult` cooldowns: goldens from tests/reference/server/main.go,
+    /// replayed with upstream-shaped errors (headers present, executor scopes).
+    #[test]
+    fn cooldowns_match_go_mark_result() {
+        let fixture: Value = serde_json::from_str(include_str!("../tests/fixtures/server_go.json")).unwrap();
+        let cases = fixture["cooldown"].as_array().unwrap();
+        assert_eq!(cases.len(), 25);
+        let policy = Policy::default();
+        for case in cases {
+            let name = case["name"].as_str().unwrap();
+            let c = cred(&format!("{name}.json"), serde_json::json!({}));
+            let mut s = Scheduler::default();
+            let now = Instant::now();
+            for step in case["steps"].as_array().unwrap() {
+                let status = step["status"].as_u64().unwrap() as u16;
+                let scope = if step["credential_scope"].as_bool().unwrap() {
+                    FailureScope::Credential
+                } else {
+                    match status {
+                        429 => FailureScope::Model,
+                        401..=403 | 408 | 500.. => FailureScope::Credential,
+                        _ => FailureScope::Request,
+                    }
+                };
+                let mut error = ExecError::local(status, scope, step["message"].as_str().unwrap());
+                error
+                    .headers
+                    .insert("content-type", "application/json".parse().unwrap());
+                let hint = step["retry_after_ms"].as_i64().unwrap();
+                error.retry_after = (hint >= 0).then(|| Duration::from_millis(hint as u64));
+                s.record(
+                    &c,
+                    step["model"].as_str().unwrap(),
+                    &Outcome::Failure(error),
+                    &policy,
+                    now,
+                );
+            }
+            for (model, seconds) in case["seconds"].as_object().unwrap() {
+                let wait = s.wait(&c, model, now).unwrap_or_default();
+                assert_eq!(
+                    wait.as_secs_f64().round() as u64,
+                    seconds.as_u64().unwrap(),
+                    "{name} {model} wait"
+                );
+                let quota = case["quota"][model].as_bool().unwrap();
+                // Go keeps `Quota.Exceeded` on an expired state; only a live one matters.
+                assert_eq!(
+                    s.quota_cooling(&c, model, now),
+                    quota && wait > Duration::ZERO,
+                    "{name} {model} quota"
+                );
+            }
         }
     }
 

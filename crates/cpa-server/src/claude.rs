@@ -151,6 +151,7 @@ async fn handle(
         caller,
         forced_provider: None,
         selection_model: None,
+        execution_session: None,
     };
     let keepalive = respond::keepalive(&rt.config());
     dispatch::serve(&rt, call, |result| async move {

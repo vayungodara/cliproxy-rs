@@ -34,6 +34,31 @@ pub fn go_status(e: &ExecError) -> u16 {
     }
 }
 
+/// Go's `empty_stream` error: a stream that ended before its first payload. Statusless,
+/// so it cools the credential like an unclassified failure and renders as 500.
+pub fn empty_stream() -> ExecError {
+    ExecError::local(
+        0,
+        FailureScope::Credential,
+        "empty_stream: upstream stream closed before first payload",
+    )
+}
+
+/// Whether the failure came from an upstream attempt (Go `UpstreamAttempted`): an
+/// upstream response, a connection fault, or a stream that ended empty.
+pub fn upstream_attempted(e: &ExecError) -> bool {
+    !e.headers.is_empty() || e.scope == FailureScope::Transport || e.status == 0
+}
+
+/// Go `isUnauthorizedError` for an attempt that was not an explicit request fault.
+pub fn is_unauthorized(e: &ExecError) -> bool {
+    if explicit_request_scoped(e) {
+        return false;
+    }
+    let raw = error_text(e).to_lowercase();
+    go_status(e) == 401 || raw.contains("status 401") || raw.contains("401 unauthorized")
+}
+
 /// Downstream status for a terminal error. Go answers status-less errors with 500.
 pub fn response_status(e: &ExecError) -> u16 {
     match go_status(e) {

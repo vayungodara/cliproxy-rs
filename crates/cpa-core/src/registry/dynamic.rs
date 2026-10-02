@@ -697,6 +697,23 @@ struct Registration {
     /// Provider registration counts, in first-registration order.
     providers: Vec<(String, usize)>,
     by_provider: HashMap<String, Arc<Spec>>,
+    /// Credentials that registered this model.
+    clients: Vec<String>,
+}
+
+/// A credential's current state for one model, as Go projects it into the registry
+/// (`ClientModelProjection`): quota cooling keeps a model listed, other suspensions
+/// (auth failures, unsupported models, credential-wide quota) hide it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Suspension {
+    None,
+    /// Suspended with reason `quota` (a 429 on this model).
+    Quota,
+    /// Suspended for any other reason; `quota_exceeded` when the state is also marked
+    /// quota-exceeded (Cloudflare challenges).
+    Other {
+        quota_exceeded: bool,
+    },
 }
 
 struct Client {
@@ -745,6 +762,7 @@ impl Registry {
                         None => reg.providers.push((provider.to_owned(), 1)),
                     }
                     reg.by_provider.insert(provider.to_owned(), info);
+                    reg.clients.push(client.to_owned());
                 }
                 None => {
                     self.index.insert(info.id.clone(), self.models.len());
@@ -753,6 +771,7 @@ impl Registry {
                         info: info.clone(),
                         providers: vec![(provider.to_owned(), 1)],
                         by_provider: HashMap::from([(provider.to_owned(), info)]),
+                        clients: vec![client.to_owned()],
                     });
                 }
             }
@@ -830,18 +849,48 @@ impl Registry {
             .cloned()
     }
 
-    /// Registered models in first-registration order.
-    // ponytail: Go hides models whose every client is suspended for a non-quota
-    // cooldown; listings here ignore cooldown state. Wire scheduler projections in if
-    // clients rely on models disappearing during auth failures.
+    /// Registered models in first-registration order, ignoring cooldown state.
     pub fn available(&self) -> impl Iterator<Item = &Spec> {
         self.models.iter().map(|r| r.info.as_ref())
     }
 
-    /// Go `ResolveAutoModel`: the newest available model, or `auto` unchanged.
-    pub fn resolve_auto(&self) -> Option<String> {
+    /// Registered models a client may list or `auto` may pick (Go
+    /// `modelRegistrationAvailability`), given each credential's state per model.
+    // ponytail: Go recomputes projections only when a result or refresh is recorded, so
+    // a model can stay hidden after its cooldown lapses; this reads live state instead.
+    pub fn available_with<'a>(
+        &'a self,
+        state: impl Fn(&str, &str) -> Suspension + 'a,
+    ) -> impl Iterator<Item = &'a Spec> {
+        self.models.iter().filter_map(move |r| {
+            let count = r.clients.len() as i64;
+            let (mut expired, mut cooling, mut other, mut quota_and_other) = (0i64, 0i64, 0i64, 0i64);
+            for client in &r.clients {
+                match state(client, &r.id) {
+                    Suspension::None => {}
+                    Suspension::Quota => {
+                        expired += 1;
+                        cooling += 1;
+                    }
+                    Suspension::Other { quota_exceeded } => {
+                        other += 1;
+                        if quota_exceeded {
+                            expired += 1;
+                            quota_and_other += 1;
+                        }
+                    }
+                }
+            }
+            let effective = count - expired - other + quota_and_other;
+            let available = effective > 0 || (count > 0 && (expired > 0 || cooling > 0) && other == 0);
+            available.then_some(r.info.as_ref())
+        })
+    }
+
+    /// Go `ResolveAutoModel`: the newest available model.
+    pub fn resolve_auto(&self, state: impl Fn(&str, &str) -> Suspension) -> Option<String> {
         let mut best: Option<&Spec> = None;
-        for m in self.available() {
+        for m in self.available_with(state) {
             if best.is_none_or(|b| m.created > b.created) {
                 best = Some(m);
             }
