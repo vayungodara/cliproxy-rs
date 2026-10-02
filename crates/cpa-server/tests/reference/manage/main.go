@@ -266,6 +266,7 @@ type credStep struct {
 	Path        string            `json:"path"`
 	Body        string            `json:"body,omitempty"`
 	ContentType string            `json:"content_type,omitempty"`
+	SleepMs     int               `json:"sleep_ms,omitempty"`
 	Status      int               `json:"status"`
 	Response    any               `json:"response"`
 	Raw         string            `json:"raw_response,omitempty"`
@@ -338,6 +339,10 @@ func snapshotDir(dir string) map[string]any {
 	out := map[string]any{}
 	entries, _ := os.ReadDir(dir)
 	for _, e := range entries {
+		// Callback hand-off files are transient (cliproxy-rs keeps callbacks in memory).
+		if strings.HasPrefix(e.Name(), ".oauth-") {
+			continue
+		}
 		data, err := os.ReadFile(filepath.Join(dir, e.Name()))
 		must(err)
 		var v any
@@ -394,7 +399,9 @@ func runCreds(s credScenario) credScenario {
 		echoURL = echo.URL
 		listener = strings.TrimPrefix(echo.URL, "http://")
 	}
+	lastState := "no-state"
 	resolve := func(text string) string {
+		text = strings.ReplaceAll(text, "$STATE", lastState)
 		text = strings.ReplaceAll(text, "$ECHO", echoURL)
 		text = strings.ReplaceAll(text, "$CFGID", cfgID)
 		for name, index := range s.Indexes {
@@ -404,6 +411,9 @@ func runCreds(s credScenario) credScenario {
 	}
 	for i := range s.Steps {
 		st := &s.Steps[i]
+		if st.SleepMs > 0 {
+			time.Sleep(time.Duration(st.SleepMs) * time.Millisecond)
+		}
 		req := httptest.NewRequest(st.Method, "/v8/management"+resolve(st.Path), strings.NewReader(resolve(st.Body)))
 		req.RemoteAddr = "127.0.0.1:1"
 		req.Header.Set("Authorization", "Bearer fake-secret")
@@ -416,6 +426,11 @@ func runCreds(s credScenario) credScenario {
 		var v any
 		if json.Unmarshal(rec.Body.Bytes(), &v) == nil && !strings.Contains(st.Path, "/download") {
 			st.Response = v
+			if m, ok := v.(map[string]any); ok && strings.HasPrefix(st.Path, "/oauth/auth-url") {
+				if state, ok := m["state"].(string); ok {
+					lastState = state
+				}
+			}
 		} else {
 			st.Raw = rec.Body.String()
 		}
@@ -1298,6 +1313,45 @@ func credScenarios() []credScenario {
 			get("/observability/usage/queue?count=abc"),
 			get("/observability/usage/queue?count=-2"),
 			get("/observability/usage/queue?count=%2B3"),
+		},
+	}, {
+		Name: "oauth_sessions", Files: map[string]string{},
+		YAML: "config-version: 8\nmanagement:\n  secret-key: '$HASH'\noauth:\n  auth-dir: $AUTH\n",
+		Steps: []credStep{
+			get("/oauth/auth-url"),
+			get("/oauth/auth-url?provider=nope"),
+			call(http.MethodPost, "/oauth/import", ``),
+			call(http.MethodPost, "/oauth/import?provider=nope", ``),
+			get("/oauth/status"),
+			get("/oauth/status?state=a/b"),
+			get("/oauth/status?state=unknown-1"),
+			call(http.MethodDelete, "/oauth/session", ``),
+			call(http.MethodDelete, "/oauth/session?state=a..b", ``),
+			call(http.MethodDelete, "/oauth/session?state=unknown-1", ``),
+			call(http.MethodPost, "/oauth/callback", ``),
+			call(http.MethodPost, "/oauth/callback", `[]`),
+			call(http.MethodPost, "/oauth/callback", `{}`),
+			call(http.MethodPost, "/oauth/callback", `{"state":1}`),
+			call(http.MethodPost, "/oauth/callback", `{"state":"x y"}`),
+			call(http.MethodPost, "/oauth/callback", `{"state":"s1"}`),
+			call(http.MethodPost, "/oauth/callback", `{"STATE":"s1","Code":"c"}`),
+			call(http.MethodPost, "/oauth/callback", `{"redirect_url":"http://h.example.invalid/cb?state=s2&code=c"}`),
+			call(http.MethodPost, "/oauth/callback", `{"redirect_url":":bad"}`),
+			get("/oauth/callback?state=s1&error_description=denied"),
+			get("/oauth/callback?code=c"),
+			get("/oauth/auth-url?provider=CLAUDE"),
+			get("/oauth/status?state=$STATE"),
+			call(http.MethodPost, "/oauth/callback", `{"state":"$STATE","provider":"codex","code":"c"}`),
+			call(http.MethodPost, "/oauth/callback", `{"state":"$STATE","provider":"bad_name","code":"c"}`),
+			call(http.MethodPost, "/oauth/callback", `{"redirect_url":"http://localhost:54545/callback?state=$STATE&error=access_denied"}`),
+			{Method: http.MethodGet, Path: "/oauth/status?state=$STATE", SleepMs: 1500},
+			call(http.MethodPost, "/oauth/callback", `{"state":"$STATE","code":"c"}`),
+			call(http.MethodDelete, "/oauth/session?state=$STATE", ``),
+			get("/oauth/auth-url?provider=codex"),
+			get("/oauth/status?state=$STATE"),
+			call(http.MethodDelete, "/oauth/session?state=$STATE", ``),
+			get("/oauth/status?state=$STATE"),
+			call(http.MethodPost, "/oauth/callback", `{"state":"$STATE","code":"c"}`),
 		},
 	}, {
 		// The dashboard's capability probes: Go rejects each with 400 before any I/O.

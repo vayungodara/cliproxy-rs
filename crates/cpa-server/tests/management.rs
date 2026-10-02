@@ -1011,3 +1011,225 @@ async fn api_call_head_does_not_negotiate_gzip() {
     server.abort();
     up.abort();
 }
+
+/// Fake provider login endpoints (Claude, Codex, Kimi) on one local server; records
+/// the form or JSON bodies it receives.
+async fn fake_logins() -> (
+    String,
+    Arc<std::sync::Mutex<Vec<(String, String)>>>,
+    tokio::task::JoinHandle<()>,
+) {
+    use base64::Engine;
+    let seen: Arc<std::sync::Mutex<Vec<(String, String)>>> = Arc::default();
+    let record = seen.clone();
+    let b64 = |v: &Value| base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(v.to_string());
+    let id_token = format!(
+        "{}.{}.sig",
+        b64(&json!({"alg": "none"})),
+        b64(&json!({"email": "c@example.invalid",
+            "https://api.openai.com/auth": {"chatgpt_plan_type": "plus", "chatgpt_account_id": "acc-fake"}}))
+    );
+    let app = axum::Router::new().fallback(move |uri: axum::http::Uri, body: axum::body::Bytes| {
+        let record = record.clone();
+        let id_token = id_token.clone();
+        async move {
+            record
+                .lock()
+                .unwrap()
+                .push((uri.path().to_owned(), String::from_utf8_lossy(&body).into_owned()));
+            let v = match uri.path() {
+                "/oauth/token" => json!({"id_token": id_token, "access_token": "fake-codex-at",
+                    "refresh_token": "fake-codex-rt", "expires_in": 3600}),
+                "/v1/oauth/token" => json!({"access_token": "sk-ant-oat-fake", "refresh_token": "fake-r",
+                    "expires_in": 3600, "account": {"uuid": "acct-1", "email_address": "a@example.invalid"},
+                    "organization": {"uuid": "org-1", "name": "Org"}}),
+                "/api/oauth/profile" => json!({"account": {"uuid": "acct-1", "email": "a@example.invalid"},
+                    "organization": {"uuid": "org-1", "name": "Org"}}),
+                "/api/oauth/device_authorization" => json!({"device_code": "dc", "user_code": "UC-1",
+                    "verification_uri": "https://kimi.example.invalid/device",
+                    "verification_uri_complete": "https://kimi.example.invalid/device?code=UC-1",
+                    "expires_in": 600, "interval": 1}),
+                "/api/oauth/token" => json!({"access_token": "fake-kimi-at", "refresh_token": "fake-kimi-rt",
+                    "token_type": "Bearer", "expires_in": 3600, "scope": "s"}),
+                _ => json!({}),
+            };
+            axum::Json(v)
+        }
+    });
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let base = format!("http://{}", listener.local_addr().unwrap());
+    let handle = tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+    (base, seen, handle)
+}
+
+/// Serves `state` like `Fixture::server` but with login endpoints redirected.
+async fn login_server(f: &Fixture, login_base: &str) -> (String, Arc<Management>, tokio::task::JoinHandle<()>) {
+    let options = management::Options {
+        login_base: Some(login_base.to_owned()),
+        ..Default::default()
+    };
+    let state = Management::with_options(f.rt.clone(), f.dir.join("config.yaml"), options);
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let base = format!("http://{}", listener.local_addr().unwrap());
+    let app = management::router(state.clone());
+    let handle = tokio::spawn(async move {
+        axum::serve(
+            listener,
+            app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+        )
+        .await
+        .unwrap()
+    });
+    (base, state, handle)
+}
+
+async fn oauth_get(base: &str, path: &str) -> Value {
+    wreq::Client::new()
+        .get(format!("{base}/v8/management{path}"))
+        .bearer_auth("fake-management-only")
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap()
+}
+
+/// Polls `/oauth/status` until it leaves `wait` (at most `secs`).
+async fn final_status(base: &str, state: &str, secs: u64) -> Value {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(secs);
+    loop {
+        let v = oauth_get(base, &format!("/oauth/status?state={state}")).await;
+        if v["status"] != "wait" || std::time::Instant::now() > deadline {
+            return v;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+    }
+}
+
+/// Codex: the main listener's `/codex/callback` hands the code to the pending login,
+/// which exchanges it (PKCE verifier, Go's redirect URI) and saves the credential.
+#[tokio::test]
+async fn codex_login_completes_through_the_main_listener_callback() {
+    let (fake, seen, fake_server) = fake_logins().await;
+    let f = Fixture::new("codexlogin");
+    let (base, _state, server) = login_server(&f, &fake).await;
+    let started = oauth_get(&base, "/oauth/auth-url?provider=codex").await;
+    let state = started["state"].as_str().unwrap().to_owned();
+    assert!(
+        started["url"]
+            .as_str()
+            .unwrap()
+            .starts_with("https://auth.openai.com/oauth/authorize?")
+    );
+    let delivered = f.rt.deliver_oauth_callback(&cpa_server::runtime::OAuthCallback {
+        provider: "codex",
+        state: state.clone(),
+        code: "fake-code".into(),
+        error: String::new(),
+    });
+    assert!(delivered);
+    assert_eq!(final_status(&base, &state, 10).await, json!({"status": "ok"}));
+    let token_request = seen
+        .lock()
+        .unwrap()
+        .iter()
+        .find(|(p, _)| p == "/oauth/token")
+        .unwrap()
+        .1
+        .clone();
+    assert!(token_request.contains("code=fake-code"), "{token_request}");
+    assert!(
+        token_request.contains("redirect_uri=http%3A%2F%2Flocalhost%3A1455%2Fauth%2Fcallback"),
+        "{token_request}"
+    );
+    assert!(token_request.contains("code_verifier="), "{token_request}");
+    let creds = f.rt.store().snapshot();
+    let codex = creds
+        .iter()
+        .find(|c| c.provider == "codex")
+        .expect("saved and published");
+    assert_eq!(codex.str("email"), Some("c@example.invalid"));
+    assert!(!f.rt.deliver_oauth_callback(&cpa_server::runtime::OAuthCallback {
+        provider: "codex",
+        state,
+        code: "again".into(),
+        error: String::new(),
+    }));
+    server.abort();
+    fake_server.abort();
+}
+
+/// Claude: a pasted callback URL posted to `/oauth/callback` finishes the login.
+#[tokio::test]
+async fn claude_login_completes_from_a_posted_redirect_url() {
+    let (fake, _seen, fake_server) = fake_logins().await;
+    let f = Fixture::new("claudelogin");
+    let (base, _state, server) = login_server(&f, &fake).await;
+    let started = oauth_get(&base, "/oauth/auth-url?provider=claude").await;
+    let state = started["state"].as_str().unwrap().to_owned();
+    let r: Value = wreq::Client::new()
+        .post(format!("{base}/v8/management/oauth/callback"))
+        .json(&json!({"provider": "claude",
+            "redirect_url": format!("http://localhost:54545/callback?code=fake-code&state={state}")}))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(r, json!({"status": "ok"}), "the callback needs no management key");
+    assert_eq!(final_status(&base, &state, 10).await, json!({"status": "ok"}));
+    let creds = f.rt.store().snapshot();
+    let claude = creds
+        .iter()
+        .find(|c| c.provider == "claude")
+        .expect("saved and published");
+    assert_eq!(claude.str("access_token"), Some("sk-ant-oat-fake"));
+    server.abort();
+    fake_server.abort();
+}
+
+/// Kimi device login saves after authorization; a cancelled one saves nothing.
+#[tokio::test]
+async fn kimi_device_login_saves_and_a_cancelled_one_does_not() {
+    let (fake, _seen, fake_server) = fake_logins().await;
+    let f = Fixture::new("kimilogin");
+    let (base, _state, server) = login_server(&f, &fake).await;
+    let started = oauth_get(&base, "/oauth/auth-url?provider=kimi").await;
+    assert_eq!(started["flow"], "device");
+    assert_eq!(started["user_code"], "UC-1");
+    assert_eq!(started["expires_in"], 600);
+    assert_eq!(started["url"], "https://kimi.example.invalid/device?code=UC-1");
+    let state = started["state"].as_str().unwrap().to_owned();
+    assert!(state.starts_with("kmi-"));
+    let cancelled = oauth_get(&base, "/oauth/auth-url?provider=kimi-ai").await;
+    let other = cancelled["state"].as_str().unwrap().to_owned();
+    let r: Value = wreq::Client::new()
+        .delete(format!("{base}/v8/management/oauth/session?state={other}"))
+        .bearer_auth("fake-management-only")
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(r, json!({"status": "ok", "cancelled": true}));
+    assert_eq!(final_status(&base, &state, 15).await, json!({"status": "ok"}));
+    tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+    let names: Vec<String> = std::fs::read_dir(f.dir.join("auth"))
+        .unwrap()
+        .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+        .collect();
+    assert_eq!(
+        names
+            .iter()
+            .filter(|n| n.starts_with("kimi-") && !n.starts_with("kimi-ai"))
+            .count(),
+        1,
+        "{names:?}"
+    );
+    assert!(!names.iter().any(|n| n.starts_with("kimi-ai")), "{names:?}");
+    server.abort();
+    fake_server.abort();
+}

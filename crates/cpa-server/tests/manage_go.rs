@@ -742,9 +742,8 @@ mod creds {
                 .snapshot()
                 .iter()
                 .rfind(|c| matches!(c.source, Source::Config { .. }))
-                .unwrap()
-                .id
-                .clone();
+                .map(|c| c.id.clone())
+                .unwrap_or_default();
             let (echo_url, echo_server) = if scenario["echo"] == true {
                 let (url, handle) = echo::serve().await;
                 (url, Some(handle))
@@ -758,20 +757,21 @@ mod creds {
                 }
                 text
             };
+            let mut last_state = "no-state".to_owned();
             for (i, step) in scenario["steps"].as_array().unwrap().iter().enumerate() {
                 let at = format!("{name}[{i}] {} {}", step["method"], step["path"]);
+                if let Some(ms) = step["sleep_ms"].as_u64() {
+                    tokio::time::sleep(std::time::Duration::from_millis(ms)).await;
+                }
                 let method: wreq::Method = step["method"].as_str().unwrap().parse().unwrap();
+                let req_path = resolve(step["path"].as_str().unwrap(), &rust_names).replace("$STATE", &last_state);
                 let mut req = client
-                    .request(
-                        method,
-                        format!(
-                            "{base}/v8/management{}",
-                            resolve(step["path"].as_str().unwrap(), &rust_names)
-                        ),
-                    )
+                    .request(method, format!("{base}/v8/management{req_path}"))
                     .header("X-Test-Peer", "127.0.0.1:1")
                     .bearer_auth("fake-secret")
-                    .body(resolve(step["body"].as_str().unwrap_or_default(), &rust_names));
+                    .body(
+                        resolve(step["body"].as_str().unwrap_or_default(), &rust_names).replace("$STATE", &last_state),
+                    );
                 if let Some(ct) = step["content_type"].as_str() {
                     req = req.header("Content-Type", ct);
                 }
@@ -802,8 +802,33 @@ mod creds {
                     }
                 } else {
                     let got: Value = serde_json::from_str(&body).unwrap();
+                    if req_path.starts_with("/oauth/auth-url")
+                        && let Some(state) = got["state"].as_str()
+                    {
+                        last_state = state.to_owned();
+                    }
                     let mut want = normalize(&step["response"], &go_names);
                     let mut got = normalize(&got, &rust_names);
+                    // Random login state and PKCE challenge.
+                    for v in [&mut want, &mut got] {
+                        if let Some(url) = v.get("url").and_then(Value::as_str) {
+                            let mut parsed = url::Url::parse(url).unwrap();
+                            let pairs: Vec<(String, String)> = parsed
+                                .query_pairs()
+                                .map(|(k, val)| {
+                                    let val = if k == "state" || k == "code_challenge" {
+                                        format!("<{k}>")
+                                    } else {
+                                        val.into_owned()
+                                    };
+                                    (k.into_owned(), val)
+                                })
+                                .collect();
+                            parsed.query_pairs_mut().clear().extend_pairs(pairs);
+                            v["url"] = parsed.to_string().into();
+                            v["state"] = "<state>".into();
+                        }
+                    }
                     // api-call relays the upstream's own Date header.
                     for v in [&mut want, &mut got] {
                         if let Some(h) = v.get_mut("header").and_then(Value::as_object_mut) {
@@ -861,7 +886,7 @@ mod creds {
             }
             let _ = std::fs::remove_dir_all(&dir);
         }
-        assert_eq!(compared, 122);
+        assert_eq!(compared, 156);
     }
 
     /// Every file in the auth dir and the config, byte for byte.
@@ -886,7 +911,7 @@ mod creds {
     /// cooldown state untouched; routes not built yet must stay an empty 404.
     #[tokio::test]
     async fn dashboard_probes_are_rejected_without_side_effects() {
-        const NOT_YET: &[&str] = &["/oauth/import", "/oauth/auth-url"];
+        const NOT_YET: &[&str] = &[];
         let scenario = fixture()["credentials"]
             .as_array()
             .unwrap()
@@ -970,7 +995,7 @@ mod creds {
                 .collect();
             assert_eq!(creds_now, creds_before, "{at}: probe changed credentials");
         }
-        assert_eq!(implemented, 7);
+        assert_eq!(implemented, 9);
         server.abort();
         let _ = std::fs::remove_dir_all(&dir);
     }

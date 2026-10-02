@@ -265,6 +265,14 @@ pub(crate) fn not_found() -> Response {
     StatusCode::NOT_FOUND.into_response()
 }
 
+/// Go `managementAvailabilityMiddleware` alone (the OAuth callback routes).
+pub(crate) async fn available(State(state): State<Arc<Management>>, req: Request, next: Next) -> Response {
+    if !state.access.available() {
+        return not_found();
+    }
+    next.run(req).await
+}
+
 /// Availability plus `Handler.Middleware`, applied per matched route and method.
 pub(crate) async fn guard(State(state): State<Arc<Management>>, req: Request, next: Next) -> Response {
     if !state.access.available() {
