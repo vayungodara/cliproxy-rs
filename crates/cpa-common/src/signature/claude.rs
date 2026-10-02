@@ -2,12 +2,10 @@
 //! `R…` (base64 of the `E` form) and CAIS/CAQS `C…` (first byte 0x08)
 //! (claude_validation.go, claude.go).
 
-use gjson::Kind;
-
 use super::wire::{self, BYTES, STD, VARINT, WireError};
-use super::{Error, err};
-use crate::gojson as json;
-use crate::gostr::quote;
+use super::{Error, ascii, err};
+use crate::gostr::{quote, trim_space};
+use crate::json::{self, Res};
 
 pub const MAX_CLAUDE_THINKING_SIGNATURE_LEN: usize = 32 * 1024 * 1024;
 
@@ -48,7 +46,8 @@ pub struct ClaudeSignatureTree {
 }
 
 /// `IsValidClaudeThinkingSignature`.
-pub fn is_valid_claude_thinking_signature(raw: &str, opt: ClaudeValidation) -> bool {
+pub fn is_valid_claude_thinking_signature(raw: impl AsRef<[u8]>, opt: ClaudeValidation) -> bool {
+    let raw = raw.as_ref();
     if opt.prefix_only {
         return has_claude_thinking_signature_prefix(raw);
     }
@@ -59,21 +58,15 @@ pub fn is_valid_claude_thinking_signature(raw: &str, opt: ClaudeValidation) -> b
 }
 
 /// `HasDecodableClaudeThinkingSignature`.
-pub fn has_decodable_claude_thinking_signature(raw: &str) -> bool {
-    let sig = strip_cache_prefix(raw);
+pub fn has_decodable_claude_thinking_signature(raw: impl AsRef<[u8]>) -> bool {
+    let sig = strip_cache_prefix(raw.as_ref());
     if sig.is_empty() || sig.len() > MAX_CLAUDE_THINKING_SIGNATURE_LEN {
         return false;
     }
-    match sig.as_bytes()[0] {
+    match sig[0] {
         b'E' => STD.decode(sig).is_ok_and(|d| !d.is_empty()),
         b'R' => match STD.decode(sig) {
-            Ok(decoded) if decoded.first() == Some(&b'E') => {
-                // Go converts with string(decoded): invalid UTF-8 cannot decode as base64.
-                std::str::from_utf8(&decoded)
-                    .ok()
-                    .and_then(|inner| STD.decode(inner).ok())
-                    .is_some_and(|d| !d.is_empty())
-            }
+            Ok(decoded) if decoded.first() == Some(&b'E') => STD.decode(&decoded).is_ok_and(|d| !d.is_empty()),
             _ => false,
         },
         _ => false,
@@ -81,36 +74,36 @@ pub fn has_decodable_claude_thinking_signature(raw: &str) -> bool {
 }
 
 /// `HasClaudeThinkingSignaturePrefix`.
-pub fn has_claude_thinking_signature_prefix(raw: &str) -> bool {
-    matches!(strip_cache_prefix(raw).as_bytes().first(), Some(b'E' | b'R'))
+pub fn has_claude_thinking_signature_prefix(raw: impl AsRef<[u8]>) -> bool {
+    matches!(strip_cache_prefix(raw.as_ref()).first(), Some(b'E' | b'R'))
 }
 
 /// Everything after the first `#`, trimmed (any prefix, not only known providers).
-pub(crate) fn strip_cache_prefix(raw: &str) -> &str {
-    let sig = raw.trim();
-    match sig.find('#') {
-        Some(i) => sig[i + 1..].trim(),
+pub(crate) fn strip_cache_prefix(raw: &[u8]) -> &[u8] {
+    let sig = trim_space(raw);
+    match sig.iter().position(|b| *b == b'#') {
+        Some(i) => trim_space(&sig[i + 1..]),
         None => sig,
     }
 }
 
 /// `ValidateClaudeThinkingSignatures`.
-pub fn validate_claude_thinking_signatures(body: &str, opt: ClaudeValidation) -> Result<(), Error> {
-    let messages = gjson::get(body, "messages");
-    if messages.kind() != Kind::Array {
+pub fn validate_claude_thinking_signatures(body: &[u8], opt: ClaudeValidation) -> Result<(), Error> {
+    let messages = json::get(body, "messages");
+    if !messages.is_array() {
         return Ok(());
     }
     for (i, message) in messages.array().iter().enumerate() {
         let content = message.get("content");
-        if content.kind() != Kind::Array {
+        if !content.is_array() {
             continue;
         }
         for (j, part) in content.array().iter().enumerate() {
-            if json::go_str(&part.get("type")) != "thinking" {
+            if &*part.get("type").bytes() != b"thinking" {
                 continue;
             }
-            let raw = json::go_str(&part.get("signature"));
-            let raw = raw.trim();
+            let raw = part.get("signature").bytes();
+            let raw = trim_space(&raw);
             if raw.is_empty() {
                 return err(format!("messages[{i}].content[{j}]: missing thinking signature"));
             }
@@ -123,11 +116,11 @@ pub fn validate_claude_thinking_signatures(body: &str, opt: ClaudeValidation) ->
 }
 
 /// Go `%q` of `string(sig[0])`: the first byte converted as a rune (U+0000..U+00FF).
-pub(crate) fn first_char(sig: &str) -> String {
-    quote(&char::from(sig.as_bytes()[0]).to_string())
+pub(crate) fn first_char(sig: &[u8]) -> String {
+    quote(char::from(sig[0]).to_string())
 }
 
-fn check_len(sig: &str) -> Result<(), Error> {
+fn check_len(sig: &[u8]) -> Result<(), Error> {
     if sig.is_empty() {
         return err("empty signature");
     }
@@ -140,17 +133,17 @@ fn check_len(sig: &str) -> Result<(), Error> {
 }
 
 /// `NormalizeClaudeThinkingSignature`: the double-layer `R` form.
-pub fn normalize_claude_thinking_signature(raw: &str, opt: ClaudeValidation) -> Result<String, Error> {
-    let sig = strip_cache_prefix(raw);
+pub fn normalize_claude_thinking_signature(raw: impl AsRef<[u8]>, opt: ClaudeValidation) -> Result<String, Error> {
+    let sig = strip_cache_prefix(raw.as_ref());
     check_len(sig)?;
-    match sig.as_bytes()[0] {
+    match sig[0] {
         b'R' => {
             validate_double_layer(sig, opt)?;
-            Ok(sig.to_owned())
+            Ok(ascii(sig))
         }
         b'E' => {
             validate_single_layer_content(sig, 1, opt)?;
-            Ok(wire::std_encode(sig.as_bytes()))
+            Ok(wire::std_encode(sig))
         }
         _ => err(format!(
             "invalid signature: expected 'E' or 'R' prefix, got {}",
@@ -160,20 +153,23 @@ pub fn normalize_claude_thinking_signature(raw: &str, opt: ClaudeValidation) -> 
 }
 
 /// `NormalizeClaudeProviderNativeThinkingSignature`: the single-layer `E` form.
-pub fn normalize_claude_provider_native_thinking_signature(raw: &str, opt: ClaudeValidation) -> Result<String, Error> {
-    let sig = strip_cache_prefix(raw);
+pub fn normalize_claude_provider_native_thinking_signature(
+    raw: impl AsRef<[u8]>,
+    opt: ClaudeValidation,
+) -> Result<String, Error> {
+    let sig = strip_cache_prefix(raw.as_ref());
     check_len(sig)?;
-    match sig.as_bytes()[0] {
+    match sig[0] {
         b'E' => {
             validate_single_layer_content(sig, 1, opt)?;
-            Ok(sig.to_owned())
+            Ok(ascii(sig))
         }
         b'R' => {
             validate_double_layer(sig, opt)?;
             let decoded = STD
                 .decode(sig)
                 .map_err(|e| Error(format!("invalid double-layer signature: base64 decode failed: {e}")))?;
-            Ok(String::from_utf8_lossy(&decoded).into_owned())
+            Ok(ascii(&decoded))
         }
         _ => err(format!(
             "invalid signature: expected 'E' or 'R' prefix, got {}",
@@ -183,25 +179,25 @@ pub fn normalize_claude_provider_native_thinking_signature(raw: &str, opt: Claud
 }
 
 /// Decodes the outer layer of an `R` signature into its inner `E` text.
-fn double_layer_inner(sig: &str) -> Result<String, Error> {
+fn double_layer_inner(sig: &[u8]) -> Result<Vec<u8>, Error> {
     let decoded = STD
         .decode(sig)
         .map_err(|e| Error(format!("invalid double-layer signature: base64 decode failed: {e}")))?;
     match decoded.first() {
         None => err("invalid double-layer signature: empty after decode"),
-        Some(&b'E') => Ok(String::from_utf8_lossy(&decoded).into_owned()),
+        Some(&b'E') => Ok(decoded),
         Some(b) => err(format!(
             "invalid double-layer signature: inner does not start with 'E', got 0x{b:02x}"
         )),
     }
 }
 
-fn validate_double_layer(sig: &str, opt: ClaudeValidation) -> Result<(), Error> {
+fn validate_double_layer(sig: &[u8], opt: ClaudeValidation) -> Result<(), Error> {
     let inner = double_layer_inner(sig)?;
     validate_single_layer_content(&inner, 2, opt)
 }
 
-fn validate_single_layer_content(sig: &str, layers: i64, opt: ClaudeValidation) -> Result<(), Error> {
+fn validate_single_layer_content(sig: &[u8], layers: i64, opt: ClaudeValidation) -> Result<(), Error> {
     let decoded = STD
         .decode(sig)
         .map_err(|e| Error(format!("invalid single-layer signature: base64 decode failed: {e}")))?;
@@ -221,17 +217,17 @@ fn validate_single_layer_content(sig: &str, layers: i64, opt: ClaudeValidation) 
 }
 
 /// `InspectClaudeDoubleLayerSignature`.
-pub fn inspect_claude_double_layer_signature(sig: &str) -> Result<ClaudeSignatureTree, Error> {
-    let inner = double_layer_inner(sig)?;
+pub fn inspect_claude_double_layer_signature(sig: impl AsRef<[u8]>) -> Result<ClaudeSignatureTree, Error> {
+    let inner = double_layer_inner(sig.as_ref())?;
     inspect_single_layer(&inner, 2)
 }
 
 /// `InspectClaudeSingleLayerSignature`.
-pub fn inspect_claude_single_layer_signature(sig: &str) -> Result<ClaudeSignatureTree, Error> {
-    inspect_single_layer(sig, 1)
+pub fn inspect_claude_single_layer_signature(sig: impl AsRef<[u8]>) -> Result<ClaudeSignatureTree, Error> {
+    inspect_single_layer(sig.as_ref(), 1)
 }
 
-fn inspect_single_layer(sig: &str, layers: i64) -> Result<ClaudeSignatureTree, Error> {
+fn inspect_single_layer(sig: &[u8], layers: i64) -> Result<ClaudeSignatureTree, Error> {
     let decoded = STD
         .decode(sig)
         .map_err(|e| Error(format!("invalid single-layer signature: base64 decode failed: {e}")))?;
@@ -412,15 +408,15 @@ pub struct ClaudeCaisInfo {
 }
 
 /// `IsValidClaudeCAISSignature`.
-pub fn is_valid_claude_cais_signature(raw: &str) -> bool {
+pub fn is_valid_claude_cais_signature(raw: impl AsRef<[u8]>) -> bool {
     inspect_claude_cais_signature(raw).is_ok()
 }
 
 /// `InspectClaudeCAISSignature`.
-pub fn inspect_claude_cais_signature(raw: &str) -> Result<ClaudeCaisInfo, Error> {
-    let sig = strip_cache_prefix(raw);
+pub fn inspect_claude_cais_signature(raw: impl AsRef<[u8]>) -> Result<ClaudeCaisInfo, Error> {
+    let sig = strip_cache_prefix(raw.as_ref());
     check_len(sig)?;
-    if sig.as_bytes()[0] != b'C' {
+    if sig[0] != b'C' {
         return err(format!(
             "invalid Claude CAIS signature: expected 'C' prefix, got {}",
             first_char(sig)
@@ -565,92 +561,96 @@ pub(crate) fn is_canonical_uuid(s: &[u8]) -> bool {
 }
 
 /// `StripInvalidClaudeThinkingBlocks`: drops thinking blocks whose signature fails `opt`.
-pub fn strip_invalid_claude_thinking_blocks(payload: &str, opt: ClaudeValidation) -> String {
-    let messages = gjson::get(payload, "messages");
-    if messages.kind() != Kind::Array {
-        return payload.to_owned();
+pub fn strip_invalid_claude_thinking_blocks(payload: &[u8], opt: ClaudeValidation) -> Vec<u8> {
+    let messages = json::get(payload, "messages");
+    if !messages.is_array() {
+        return payload.to_vec();
     }
     let mut kept_messages = Vec::new();
     let mut modified = false;
     for message in messages.array() {
         let content = message.get("content");
-        if content.kind() != Kind::Array {
-            kept_messages.push(message.json().to_owned());
+        if !content.is_array() {
+            kept_messages.push(message.raw().to_vec());
             continue;
         }
         let mut kept_parts = Vec::new();
         let mut stripped = false;
         for part in content.array() {
-            if json::go_str(&part.get("type")) == "thinking" && should_strip(&part, opt) {
+            if &*part.get("type").bytes() == b"thinking" && should_strip(&part, opt) {
                 stripped = true;
                 continue;
             }
-            kept_parts.push(part.json().to_owned());
+            kept_parts.push(part.raw().to_vec());
         }
         if stripped {
             modified = true;
-            kept_messages.push(json::set_raw(message.json(), "content", &json::join_array(&kept_parts)));
+            let mut updated = message.raw().to_vec();
+            json::set_raw(&mut updated, "content", json::join(&kept_parts));
+            kept_messages.push(updated);
         } else {
-            kept_messages.push(message.json().to_owned());
+            kept_messages.push(message.raw().to_vec());
         }
     }
     if !modified {
-        return payload.to_owned();
+        return payload.to_vec();
     }
-    json::set_raw(payload, "messages", &json::join_array(&kept_messages))
+    let mut out = payload.to_vec();
+    json::set_raw(&mut out, "messages", json::join(&kept_messages));
+    out
 }
 
 /// `StripInvalidClaudeThinkingBlocksAndEmptyMessages`.
-pub fn strip_invalid_claude_thinking_blocks_and_empty_messages(payload: &str, opt: ClaudeValidation) -> String {
-    let stripped = strip_invalid_claude_thinking_blocks(payload, opt);
+pub fn strip_invalid_claude_thinking_blocks_and_empty_messages(payload: &[u8], opt: ClaudeValidation) -> Vec<u8> {
+    let mut stripped = strip_invalid_claude_thinking_blocks(payload, opt);
     if stripped == payload {
         return stripped;
     }
-    let messages = gjson::get(&stripped, "messages");
-    if messages.kind() != Kind::Array {
+    let messages = json::get(&stripped, "messages");
+    if !messages.is_array() {
         return stripped;
     }
-    let kept: Vec<String> = messages
+    let kept: Vec<Vec<u8>> = messages
         .array()
         .iter()
         .filter(|m| {
             let content = m.get("content");
-            !(content.kind() == Kind::Array && content.array().is_empty())
+            !(content.is_array() && content.array().is_empty())
         })
-        .map(|m| m.json().to_owned())
+        .map(|m| m.raw().to_vec())
         .collect();
-    json::set_raw(&stripped, "messages", &json::join_array(&kept))
+    json::set_raw(&mut stripped, "messages", json::join(&kept));
+    stripped
 }
 
-fn should_strip(part: &gjson::Value<'_>, opt: ClaudeValidation) -> bool {
+fn should_strip(part: &Res<'_>, opt: ClaudeValidation) -> bool {
     if opt.allow_empty_signature_with_empty_text && is_empty_thinking_placeholder(part) {
         return false;
     }
-    !is_valid_claude_thinking_signature(&json::go_str(&part.get("signature")), opt)
+    !is_valid_claude_thinking_signature(&*part.get("signature").bytes(), opt)
 }
 
-pub(crate) fn is_empty_thinking_placeholder(part: &gjson::Value<'_>) -> bool {
-    json::go_str(&part.get("signature")).trim().is_empty() && thinking_block_text(part).trim().is_empty()
+pub(crate) fn is_empty_thinking_placeholder(part: &Res<'_>) -> bool {
+    trim_space(&part.get("signature").bytes()).is_empty() && trim_space(&thinking_block_text(part)).is_empty()
 }
 
 /// `claudeThinkingBlockText` (same rules as `thinking.GetThinkingText`).
-pub fn thinking_block_text(part: &gjson::Value<'_>) -> String {
+pub fn thinking_block_text(part: &Res<'_>) -> Vec<u8> {
     let text = part.get("text");
-    if text.kind() == Kind::String {
-        return text.str().to_owned();
+    if text.kind == json::Kind::String {
+        return text.bytes().into_owned();
     }
     let thinking = part.get("thinking");
-    match thinking.kind() {
-        Kind::String => thinking.str().to_owned(),
-        Kind::Object => {
-            for key in ["text", "thinking"] {
-                let inner = thinking.get(key);
-                if inner.kind() == Kind::String {
-                    return inner.str().to_owned();
-                }
-            }
-            String::new()
-        }
-        _ => String::new(),
+    if thinking.kind == json::Kind::String {
+        return thinking.bytes().into_owned();
     }
+    if thinking.is_object() {
+        for key in ["text", "thinking"] {
+            let inner = thinking.get(key);
+            if inner.kind == json::Kind::String {
+                return inner.bytes().into_owned();
+            }
+        }
+    }
+    Vec::new()
 }

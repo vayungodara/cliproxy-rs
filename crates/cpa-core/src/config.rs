@@ -15,9 +15,13 @@ use serde_yaml_ng::{Mapping, Value};
 
 pub mod credentials;
 mod document;
+mod go_url;
+mod sanitize;
 mod schema;
+mod text;
 mod trusted;
-pub use document::ConfigDocument;
+mod validate;
+pub use document::{ConfigDocument, archive_comments};
 pub use schema::validate as validate_config_fields;
 pub use trusted::{TrustedProxies, go_trim_space};
 
@@ -41,6 +45,11 @@ pub struct Config {
     pub management: ManagementConfig,
     /// Presence-preserving v8 view, including fields not yet wired into executors.
     pub document: Value,
+    /// v8 `oauth.providers.*` leaf paths present in the source text (Go
+    /// `Config.OAuthOnlyFields`, keyed by v8 path rather than legacy name). They
+    /// apply to OAuth credentials only; see [`Config::for_api_key`]. Settings written
+    /// in the legacy layout stay global, as in Go.
+    pub oauth_only: std::collections::BTreeSet<String>,
 }
 
 impl std::fmt::Debug for Config {
@@ -53,12 +62,19 @@ impl std::fmt::Debug for Config {
     }
 }
 
+/// yaml.v3 decodes any scalar into a Go `string` field; serde would reject numbers.
+fn de_go_string<'de, D: serde::Deserializer<'de>>(d: D) -> Result<String, D::Error> {
+    Ok(go_string(&Value::deserialize(d)?))
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(default, rename_all = "kebab-case")]
 pub struct RoutingConfig {
+    #[serde(deserialize_with = "de_go_string")]
     pub strategy: String,
     pub force_model_prefix: bool,
     pub session_affinity: bool,
+    #[serde(deserialize_with = "de_go_string")]
     pub session_affinity_ttl: String,
     pub session_affinity_subagents: Option<bool>,
     pub retry: RetryConfig,
@@ -86,9 +102,11 @@ pub struct CooldownConfig {
 #[serde(default, rename_all = "kebab-case")]
 pub struct ManagementConfig {
     pub allow_remote: bool,
+    #[serde(deserialize_with = "de_go_string")]
     pub secret_key: String,
     pub disable_control_panel: bool,
     pub disable_auto_update_panel: bool,
+    #[serde(deserialize_with = "de_go_string")]
     pub panel_github_repository: String,
 }
 
@@ -211,6 +229,8 @@ impl Config {
             _ => Vec::new(),
         };
         trusted::validate(&trusted_proxies)?;
+        validate::go_custom(document.value())?;
+        let oauth_only = schema::oauth_only_paths(&Value::Mapping(root.clone()));
         Ok(Config {
             host,
             port,
@@ -220,7 +240,23 @@ impl Config {
             routing,
             management,
             document: document.into_value(),
+            oauth_only,
         })
+    }
+
+    /// Go `Config.ForAPIKey`: the view an API-key credential sees, with the v8
+    /// OAuth-only provider settings set to their typed zero. Borrowed when there are
+    /// none.
+    pub fn for_api_key(&self) -> std::borrow::Cow<'_, Config> {
+        if self.oauth_only.is_empty() {
+            return std::borrow::Cow::Borrowed(self);
+        }
+        let mut view = self.clone();
+        for path in &self.oauth_only {
+            schema::zero_at(&mut view.document, path);
+        }
+        view.oauth_only.clear();
+        std::borrow::Cow::Owned(view)
     }
 }
 

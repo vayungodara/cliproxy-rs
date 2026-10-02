@@ -9,7 +9,7 @@ Tested against unmodified CLIProxyAPI at commit `6fecc6e` (v8.0.10), both the re
 - Every screen: overview, credentials and account sign-in (OAuth, device codes, callback paste, Vertex import), provider API keys, client keys, models, payload rules, quotas, configuration (JSON and YAML with a reviewed diff), logs, usage, plugins and system.
 - It talks only to the v8 Management API (`/v8/management/...`) of the server that serves it. JavaScript, CSS, the font and the icons are inside the file. It makes no other requests: no CDN, no web fonts, no analytics, no update checks of its own.
 - The management key is kept in the tab's memory only, never in browser storage. Reloading the page signs you out. The theme choice is the only thing stored.
-- It recognises the server from its `X-CPA-VERSION`, `X-CPA-COMMIT` and `X-CPA-BUILD-DATE` headers. On Go it assumes the full v8 API and sends no capability probes.
+- It recognises the server from its `X-CPA-VERSION`, `X-CPA-COMMIT` and `X-CPA-BUILD-DATE` headers. On Go it assumes the full v8 API and sends no capability probes; every request it makes is one you triggered or a read for the screen you are on.
 
 ## What it does not do
 
@@ -55,7 +55,7 @@ No repository or release exists for this dashboard yet. Until one is published, 
 
 SHA-256 of the `dist-panel/management.html` built from this commit:
 
-<!-- sha256 -->`7948f934b1022a2bb8a583d0aaf941ede2cf340c69dd904531409594f0d074b6`<!-- /sha256 -->
+<!-- sha256 -->`275e976c5adf963f279b1cb63e1cf9156cab799b798726fa3829d628281e8f16`<!-- /sha256 -->
 
 ```sh
 sha256sum static/management.html

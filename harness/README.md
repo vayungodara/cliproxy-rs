@@ -11,7 +11,7 @@ The command clones and builds the **unmodified** Go reference at
 regression tests, and starts both proxies against one scripted local TLS upstream.
 No production source or workspace manifest is changed. The Rust driver uses the
 production config loader, credential loader, runtime, routes and Claude executor;
-`ClaudeExecutor::with_client` injects test trust and dial routing only. It is not a
+`ClaudeExecutor::with_hooks` injects test trust and dial routing only. It is not a
 test of the production binary's command-line or listener setup.
 
 ## Prerequisites and safety

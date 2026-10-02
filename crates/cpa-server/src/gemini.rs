@@ -16,7 +16,7 @@ use serde_json::Value;
 use crate::claude::alt;
 use crate::dispatch::{self, Call, Done};
 use crate::respond::{self, Writer};
-use crate::{Runtime, errors, gojson, jsonedit};
+use crate::{Runtime, errors, gojson};
 
 pub async fn action(
     State(rt): State<Arc<Runtime>>,
@@ -133,7 +133,7 @@ pub async fn interactions(
             .unwrap_or(&model)
             .to_owned();
         if normalized != model
-            && let Some(updated) = jsonedit::set_string(&body, "model", &normalized)
+            && let Some(updated) = cpa_common::json::try_set_str(&body, "model", &normalized).ok()
         {
             body = Bytes::from(updated);
         }

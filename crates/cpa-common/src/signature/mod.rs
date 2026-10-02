@@ -5,7 +5,7 @@
 //! cryptography. Detection order and envelope rules follow Go exactly because a wrong
 //! claim either drops valid history or replays a foreign signature upstream (400).
 
-use crate::gostr::GoStr;
+use crate::gostr::{GoStr, lower_bytes, trim_space};
 mod claude;
 mod claude_messages;
 mod gemini;
@@ -162,27 +162,25 @@ pub(crate) fn in_base64_alphabet(b: u8, extra: &[u8]) -> bool {
 
 /// First byte outside the alphabet with the rune Go's `utf8.DecodeRuneInString`
 /// reports there (U+FFFD for an invalid sequence).
-pub(crate) fn first_invalid_char(sig: &str, extra: &[u8]) -> Option<(usize, u32)> {
-    let index = sig.bytes().position(|b| !in_base64_alphabet(b, extra))?;
-    let rune = sig[index..].chars().next().map_or(0xfffd, |c| c as u32);
+pub(crate) fn first_invalid_char(sig: &[u8], extra: &[u8]) -> Option<(usize, u32)> {
+    let index = sig.iter().position(|b| !in_base64_alphabet(*b, extra))?;
+    let rune = crate::json::decode_rune(&sig[index..]).0.map_or(0xfffd, |c| c as u32);
     Some((index, rune))
 }
 
-pub(crate) fn maybe_self_describing_envelope(sig: &str) -> bool {
-    sig.as_bytes()
-        .first()
-        .is_some_and(|b| SELF_DESCRIBING_FIRST_CHARS.contains(b))
+pub(crate) fn maybe_self_describing_envelope(sig: &[u8]) -> bool {
+    sig.first().is_some_and(|b| SELF_DESCRIBING_FIRST_CHARS.contains(b))
 }
 
 /// `DetectSignatureProvider`.
-pub fn detect_provider(raw: &str) -> Provider {
+pub fn detect_provider(raw: impl AsRef<[u8]>) -> Provider {
     detect_provider_for_block(raw, BlockKind::Unknown)
 }
 
 /// `DetectSignatureProviderForBlock`. UUID-shaped payloads are never claimed as
 /// replay-safe; Gemini targets replace them with the bypass sentinel.
-pub fn detect_provider_for_block(raw: &str, block_kind: BlockKind) -> Provider {
-    let sig = raw.trim();
+pub fn detect_provider_for_block(raw: impl AsRef<[u8]>, block_kind: BlockKind) -> Provider {
+    let sig = trim_space(raw.as_ref());
     if sig.is_empty() {
         return Provider::Unknown;
     }
@@ -197,17 +195,17 @@ pub fn detect_provider_for_block(raw: &str, block_kind: BlockKind) -> Provider {
                 Provider::Claude
             }
             Provider::Gpt if is_valid_gpt_reasoning_signature(unprefixed) => Provider::Gpt,
-            Provider::Swe if unprefixed.starts_with("sealed.v1.") => Provider::Swe,
+            Provider::Swe if unprefixed.starts_with(b"sealed.v1.") => Provider::Swe,
             _ => Provider::Unknown,
         };
     }
-    if sig.contains('#') {
+    if sig.contains(&b'#') {
         return Provider::Unknown;
     }
     if is_gemini_bypass(sig) {
         return Provider::GeminiBypass;
     }
-    if sig.starts_with("sealed.v1.") {
+    if sig.starts_with(b"sealed.v1.") {
         return Provider::Swe;
     }
     if maybe_self_describing_envelope(sig) {
@@ -231,12 +229,12 @@ pub fn detect_provider_for_block(raw: &str, block_kind: BlockKind) -> Provider {
 }
 
 /// `IsSignatureCompatibleWithProvider`.
-pub fn is_compatible_with_provider(target: Provider, raw: &str) -> bool {
+pub fn is_compatible_with_provider(target: Provider, raw: impl AsRef<[u8]>) -> bool {
     decide_compatibility(target, raw, BlockKind::Unknown).compatible
 }
 
 /// `DecideSignatureCompatibility`.
-pub fn decide_compatibility(target: Provider, raw: &str, block_kind: BlockKind) -> Decision {
+pub fn decide_compatibility(target: Provider, raw: impl AsRef<[u8]>, block_kind: BlockKind) -> Decision {
     decide_compatibility_for_model(target, "", raw, block_kind)
 }
 
@@ -244,9 +242,10 @@ pub fn decide_compatibility(target: Provider, raw: &str, block_kind: BlockKind) 
 pub fn decide_compatibility_for_model(
     target: Provider,
     target_model: &str,
-    raw: &str,
+    raw: impl AsRef<[u8]>,
     block_kind: BlockKind,
 ) -> Decision {
+    let raw = raw.as_ref();
     let target = normalize_target(target);
     let detected = detect_provider_for_block(raw, block_kind);
     let mut decision = Decision {
@@ -310,17 +309,18 @@ pub fn decide_compatibility_for_model(
 
 /// `SplitSignatureProviderPrefix`: `Some((provider, rest))` for this proxy's
 /// `provider#signature` cache envelope.
-pub fn split_provider_prefix(raw: &str) -> Option<(Provider, &str)> {
-    let (prefix, rest) = raw.trim().split_once('#')?;
-    match provider_from_cache_prefix(prefix) {
+pub fn split_provider_prefix(raw: &[u8]) -> Option<(Provider, &[u8])> {
+    let raw = trim_space(raw);
+    let hash = raw.iter().position(|b| *b == b'#')?;
+    match provider_from_cache_prefix(&raw[..hash]) {
         Provider::Unknown => None,
-        provider => Some((provider, rest.trim())),
+        provider => Some((provider, trim_space(&raw[hash + 1..]))),
     }
 }
 
 /// `SignatureProviderFromCachePrefix`.
-pub fn provider_from_cache_prefix(prefix: &str) -> Provider {
-    match prefix.trim().go_lower().as_str() {
+pub fn provider_from_cache_prefix(prefix: &[u8]) -> Provider {
+    match lower_bytes(trim_space(prefix)).as_str() {
         "claude" | "anthropic" | "cais" | "claude-cais" | "claude_cais" | "ccmax" | "claude-code-max"
         | "claude_code_max" => Provider::Claude,
         "gemini" | "google" => Provider::Gemini,
@@ -331,34 +331,39 @@ pub fn provider_from_cache_prefix(prefix: &str) -> Provider {
 }
 
 /// `SignaturePayloadWithoutProviderPrefix`: the value to replay upstream.
-pub fn payload_without_provider_prefix(raw: &str) -> &str {
+pub fn payload_without_provider_prefix(raw: &[u8]) -> &[u8] {
     match split_provider_prefix(raw) {
         Some((_, rest)) => rest,
-        None => raw.trim(),
+        None => trim_space(raw),
     }
 }
 
 /// `CompatibleSignatureForProvider`.
-pub fn compatible_signature_for_provider(target: Provider, raw: &str) -> Option<String> {
+pub fn compatible_signature_for_provider(target: Provider, raw: impl AsRef<[u8]>) -> Option<String> {
     compatible_signature_for_provider_block(target, raw, BlockKind::Unknown)
 }
 
 /// `CompatibleSignatureForProviderBlock`.
-pub fn compatible_signature_for_provider_block(target: Provider, raw: &str, block_kind: BlockKind) -> Option<String> {
+pub fn compatible_signature_for_provider_block(
+    target: Provider,
+    raw: impl AsRef<[u8]>,
+    block_kind: BlockKind,
+) -> Option<String> {
     let decision = decide_compatibility(target, raw, block_kind);
     (decision.compatible && !decision.normalized_signature.is_empty()).then_some(decision.normalized_signature)
 }
 
 /// `CompatibleAntigravityClaudeThinkingSignature`: the double-layer `R` form, only for
 /// signatures strictly identifiable as Claude.
-pub fn compatible_antigravity_claude_thinking_signature(raw: &str) -> Option<String> {
+pub fn compatible_antigravity_claude_thinking_signature(raw: impl AsRef<[u8]>) -> Option<String> {
+    let raw = raw.as_ref();
     if detect_provider_for_block(raw, BlockKind::ClaudeThinking) != Provider::Claude {
         return None;
     }
     normalize_claude_thinking_signature(payload_without_provider_prefix(raw), ClaudeValidation::STRICT).ok()
 }
 
-fn claude_compatible_reason(target: Provider, raw: &str, target_model: &str) -> String {
+fn claude_compatible_reason(target: Provider, raw: &[u8], target_model: &str) -> String {
     const GENERIC: &str = "signature provider matches target provider";
     if target != Provider::Claude {
         return GENERIC.into();
@@ -400,26 +405,31 @@ fn provider_matches_target(target: Provider, detected: Provider) -> bool {
     }
 }
 
-fn normalize_compatible_signature(target: Provider, raw: &str, block_kind: BlockKind) -> String {
+/// Valid signatures are base64 (plus Go's skipped CR/LF), so they are always ASCII.
+pub(crate) fn ascii(bytes: &[u8]) -> String {
+    String::from_utf8_lossy(bytes).into_owned()
+}
+
+fn normalize_compatible_signature(target: Provider, raw: &[u8], block_kind: BlockKind) -> String {
     let payload = payload_without_provider_prefix(raw);
-    let ok = |valid: bool| if valid { payload.to_owned() } else { String::new() };
+    let ok = |valid: bool| if valid { ascii(payload) } else { String::new() };
     match normalize_target(target) {
         Provider::Claude => {
             if is_valid_claude_cais_signature(payload) {
-                return payload.to_owned();
+                return ascii(payload);
             }
             normalize_claude_provider_native_thinking_signature(payload, ClaudeValidation::default())
                 .unwrap_or_default()
         }
         Provider::Gemini => ok(is_gemini_bypass(payload) || is_recognized_gemini_signature(payload, block_kind)),
         Provider::Gpt => ok(is_valid_gpt_reasoning_signature(payload)),
-        Provider::Swe => ok(payload.starts_with("sealed.v1.")),
+        Provider::Swe => ok(payload.starts_with(b"sealed.v1.")),
         Provider::Kimi => ok(is_valid_kimi_thinking_signature(payload)),
         _ => String::new(),
     }
 }
 
-pub(crate) fn is_recognized_gemini_signature(raw: &str, _block_kind: BlockKind) -> bool {
+pub(crate) fn is_recognized_gemini_signature(raw: &[u8], _block_kind: BlockKind) -> bool {
     if is_valid_claude_cais_signature(raw) {
         return false;
     }
@@ -433,8 +443,8 @@ pub(crate) fn is_recognized_gemini_signature(raw: &str, _block_kind: BlockKind) 
 }
 
 /// `IsRecognizedReasoningSignature`: structurally valid for any known provider.
-pub fn is_recognized_reasoning_signature(raw: &str) -> bool {
-    let sig = raw.trim();
+pub fn is_recognized_reasoning_signature(raw: impl AsRef<[u8]>) -> bool {
+    let sig = trim_space(raw.as_ref());
     if sig.is_empty() {
         return false;
     }

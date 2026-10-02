@@ -11,6 +11,7 @@
     pane = $state<HTMLDivElement>(),
     query = $state(""),
     tail = $state(true),
+    own = $state(false),
     reqId = $state(store.route.arg),
     reqText = $state(""),
     reqError = $state("");
@@ -27,7 +28,10 @@
   logs.load();
   files.load();
   $effect(() => every(3000, async () => tail && store.can("GET", "/observability/logs") && (await logs.load(true))));
-  const shown = $derived((logs.data || []).filter((l) => l.toLowerCase().includes(query.trim().toLowerCase())));
+  // The dashboard's own management calls (including this tail) are hidden unless asked for.
+  const shown = $derived(
+    (logs.data || []).filter((l) => (own || !l.includes("/management/")) && l.toLowerCase().includes(query.trim().toLowerCase())),
+  );
   const parse = (line: string) => line.match(/^\[([^\]]*)\] \[([^\]]*)\] \[(\w+)\s*\] (?:\[[^\]]*\] )?(.*)$/);
   async function inspect(id: string) {
     reqId = id;
@@ -52,17 +56,19 @@
   >
   <button
     class="key quiet danger"
-    disabled={store.busy || !store.can("DELETE", "/observability/logs")}
+    disabled={store.busy || !store.can("GET", "/observability/logs") || !store.can("DELETE", "/observability/logs")}
     onclick={() => store.call("DELETE", "/observability/logs", undefined, "Logs cleared.", "Delete the server’s application logs?", () => ((cursor = ""), logs.load()))}
     >Clear</button
   >
 </div>
-<Missing actions={[["DELETE", "/observability/logs", "clearing logs"]]} />
 
 <Load res={logs} what="Application logs">
   {#snippet children(lines)}
     <section class="section">
-      <label class="search"><svg class="i" aria-hidden="true"><use href="#i-search" /></svg><span class="sr">Filter lines</span><input bind:value={query} placeholder="Filter lines" /></label>
+      <div class="row">
+        <label class="search grow"><svg class="i" aria-hidden="true"><use href="#i-search" /></svg><span class="sr">Filter lines</span><input bind:value={query} placeholder="Filter lines" /></label>
+        <label class="check"><input type="checkbox" checked={own} onchange={(e) => (own = e.currentTarget.checked)} />Management API calls</label>
+      </div>
       <!-- svelte-ignore a11y_no_noninteractive_tabindex: the scrolling log must be reachable by keyboard -->
       <div class="code-window log" bind:this={pane} role="log" aria-label="Application log" tabindex="0">
         {#each shown as line}

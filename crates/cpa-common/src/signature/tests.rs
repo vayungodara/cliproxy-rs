@@ -9,6 +9,14 @@ fn s(v: &Value) -> &str {
     v.as_str().unwrap_or_else(|| panic!("expected string: {v}"))
 }
 
+fn b(v: &Value) -> Vec<u8> {
+    crate::recorded_bytes(v)
+}
+
+fn enc(bytes: &[u8]) -> Value {
+    crate::recorded_value(bytes)
+}
+
 fn provider(v: &str) -> Provider {
     match v {
         "" => Provider::Empty,
@@ -82,25 +90,28 @@ fn tree_result(r: Result<ClaudeSignatureTree, Error>) -> Value {
 
 fn replay(fn_name: &str, input: &Value) -> Option<Value> {
     Some(match fn_name {
-        "detect" => json!(detect_provider_for_block(s(&input["raw"]), block_kind(s(&input["block_kind"]))).as_str()),
+        "detect" => json!(detect_provider_for_block(b(&input["raw"]), block_kind(s(&input["block_kind"]))).as_str()),
         "decide" => decision_json(&decide_compatibility_for_model(
             provider(s(&input["target"])),
             s(&input["model"]),
-            s(&input["raw"]),
+            b(&input["raw"]),
             block_kind(s(&input["block_kind"])),
         )),
         "antigravity_claude" => {
-            let r = compatible_antigravity_claude_thinking_signature(s(input));
+            let r = compatible_antigravity_claude_thinking_signature(b(input));
             json!({"sig": r.clone().unwrap_or_default(), "ok": r.is_some()})
         }
-        "recognized" => json!(is_recognized_reasoning_signature(s(input))),
-        "split_prefix" => match split_provider_prefix(s(input)) {
-            Some((p, rest)) => json!({"provider": p.as_str(), "rest": rest, "ok": true}),
-            None => json!({"provider": "unknown", "rest": s(input), "ok": false}),
-        },
+        "recognized" => json!(is_recognized_reasoning_signature(b(input))),
+        "split_prefix" => {
+            let raw = b(input);
+            match split_provider_prefix(&raw) {
+                Some((p, rest)) => json!({"provider": p.as_str(), "rest": enc(rest), "ok": true}),
+                None => json!({"provider": "unknown", "rest": enc(&raw), "ok": false}),
+            }
+        }
         "provider_from_model" => json!(provider_from_model_name(s(input)).as_str()),
         "inspect_cais" => {
-            let r = inspect_claude_cais_signature(s(input));
+            let r = inspect_claude_cais_signature(b(input));
             let info = r.as_ref().ok().map(|i| {
                 json!({"first_byte": i.first_byte, "envelope_version": i.envelope_version, "channel_id": i.channel_id,
                     "model_text": i.model_text, "block_kind": i.block_kind, "context_id": i.context_id,
@@ -109,33 +120,33 @@ fn replay(fn_name: &str, input: &Value) -> Option<Value> {
             json!({"info": info, "err": err(&r)})
         }
         "normalize_claude" => {
-            let r = normalize_claude_thinking_signature(s(&input["raw"]), claude_opt(&input["opt"]));
+            let r = normalize_claude_thinking_signature(b(&input["raw"]), claude_opt(&input["opt"]));
             json!({"sig": r.clone().unwrap_or_default(), "err": err(&r)})
         }
         "normalize_claude_native" => {
-            let r = normalize_claude_provider_native_thinking_signature(s(&input["raw"]), claude_opt(&input["opt"]));
+            let r = normalize_claude_provider_native_thinking_signature(b(&input["raw"]), claude_opt(&input["opt"]));
             json!({"sig": r.clone().unwrap_or_default(), "err": err(&r)})
         }
         "inspect_claude_payload" => {
-            let payload = wire::STD.decode(s(&input["payload"])).unwrap();
+            let payload = wire::STD.decode(s(&input["payload"]).as_bytes()).unwrap();
             tree_result(inspect_claude_signature_payload(
                 &payload,
                 input["layers"].as_i64().unwrap(),
             ))
         }
-        "inspect_claude_double" => tree_result(inspect_claude_double_layer_signature(s(input))),
-        "inspect_claude_single" => tree_result(inspect_claude_single_layer_signature(s(input))),
+        "inspect_claude_double" => tree_result(inspect_claude_double_layer_signature(b(input))),
+        "inspect_claude_single" => tree_result(inspect_claude_single_layer_signature(b(input))),
         "valid_claude" => json!(is_valid_claude_thinking_signature(
-            s(&input["raw"]),
+            b(&input["raw"]),
             claude_opt(&input["opt"])
         )),
-        "decodable_claude" => json!(has_decodable_claude_thinking_signature(s(input))),
+        "decodable_claude" => json!(has_decodable_claude_thinking_signature(b(input))),
         "validate_claude" => err(&validate_claude_thinking_signatures(
-            s(&input["body"]),
+            &b(&input["body"]),
             claude_opt(&input["opt"]),
         )),
         "inspect_gemini" => {
-            let r = inspect_gemini_thought_signature(s(&input["raw"]), gemini_opt(&input["opt"]));
+            let r = inspect_gemini_thought_signature(b(&input["raw"]), gemini_opt(&input["opt"]));
             let info = r.as_ref().ok().map(|i| {
                 json!({"is_bypass_sentinel": i.is_bypass_sentinel, "bypass_sentinel": i.bypass_sentinel,
                     "decoded_len": i.decoded_len, "first_byte": i.first_byte, "has_observed_marker": i.has_observed_marker,
@@ -145,12 +156,12 @@ fn replay(fn_name: &str, input: &Value) -> Option<Value> {
             json!({"info": info, "err": err(&r)})
         }
         "validate_gemini" => err(&validate_gemini_thought_signatures(
-            s(&input["body"]),
+            &b(&input["body"]),
             gemini_opt(&input["opt"]),
         )),
-        "validate_pairing" => err(&validate_gemini_function_call_pairing(s(input))),
+        "validate_pairing" => err(&validate_gemini_function_call_pairing(&b(input))),
         "inspect_gpt" => {
-            let r = inspect_gpt_reasoning_signature(s(input));
+            let r = inspect_gpt_reasoning_signature(b(input));
             let info = r
                 .as_ref()
                 .ok()
@@ -158,7 +169,7 @@ fn replay(fn_name: &str, input: &Value) -> Option<Value> {
             json!({"info": info, "err": err(&r)})
         }
         "inspect_grok" => {
-            let r = inspect_grok_encrypted_content(s(input));
+            let r = inspect_grok_encrypted_content(b(input));
             let info = r
                 .as_ref()
                 .ok()
@@ -166,25 +177,25 @@ fn replay(fn_name: &str, input: &Value) -> Option<Value> {
             json!({"info": info, "err": err(&r)})
         }
         "inspect_kimi" => {
-            let r = inspect_kimi_thinking_signature(s(input));
+            let r = inspect_kimi_thinking_signature(b(input));
             let info = r
                 .as_ref()
                 .ok()
                 .map(|i| json!({"raw_len": i.raw_len, "decoded_len": i.decoded_len, "mode": i.mode.as_str()}));
             json!({"info": info, "err": err(&r)})
         }
-        "sanitize_gemini" => json!(sanitize_gemini_request_thought_signatures(
-            s(&input["body"]),
-            s(&input["path"])
+        "sanitize_gemini" => enc(&sanitize_gemini_request_thought_signatures(
+            &b(&input["body"]),
+            s(&input["path"]),
         )),
         "gemini_replay" => json!(gemini_replay_signature_or_bypass(
-            s(&input["raw"]),
+            b(&input["raw"]),
             block_kind(s(&input["block_kind"]))
         )),
         "sanitize_claude_messages" => {
             let target = s(&input["target"]);
             let (out, report) = sanitize_claude_messages_signatures_for_target(
-                s(&input["body"]),
+                &b(&input["body"]),
                 &ClaudeMessagesSanitizeOptions {
                     target_provider: provider(target),
                     target_model: s(&input["model"]).into(),
@@ -194,18 +205,18 @@ fn replay(fn_name: &str, input: &Value) -> Option<Value> {
                     preserve_empty_thinking_blocks: input["preserve_empty_thinking_blocks"].as_bool().unwrap(),
                 },
             );
-            json!({"body": out, "target": report.target_provider.as_str(), "preserved": report.preserved,
+            json!({"body": enc(&out), "target": report.target_provider.as_str(), "preserved": report.preserved,
                 "dropped_blocks": report.dropped_blocks, "dropped_signatures": report.dropped_signatures,
                 "replaced_signatures": report.replaced_signatures,
                 "decisions": report.decisions.iter().map(decision_json).collect::<Vec<_>>()})
         }
-        "strip_claude" => json!(strip_invalid_claude_thinking_blocks(
-            s(&input["body"]),
-            claude_opt(&input["opt"])
+        "strip_claude" => enc(&strip_invalid_claude_thinking_blocks(
+            &b(&input["body"]),
+            claude_opt(&input["opt"]),
         )),
-        "strip_claude_empty" => json!(strip_invalid_claude_thinking_blocks_and_empty_messages(
-            s(&input["body"]),
-            claude_opt(&input["opt"])
+        "strip_claude_empty" => enc(&strip_invalid_claude_thinking_blocks_and_empty_messages(
+            &b(&input["body"]),
+            claude_opt(&input["opt"]),
         )),
         _ => return None,
     })
@@ -323,6 +334,9 @@ fn large_inline_data_passes_through_like_go() {
     for (prefix, suffix, total, path) in cases {
         let body = format!("{prefix}{}{suffix}", "A".repeat(total - prefix.len() - suffix.len()));
         assert_eq!(body.len(), total);
-        assert_eq!(sanitize_gemini_request_thought_signatures(&body, path), body);
+        assert_eq!(
+            sanitize_gemini_request_thought_signatures(body.as_bytes(), path),
+            body.as_bytes()
+        );
     }
 }
