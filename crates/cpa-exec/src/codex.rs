@@ -100,7 +100,7 @@ impl CodexExecutor {
         session: &ExecSession,
     ) -> Result<ExecResponse, ExecError> {
         check_response_format(&req)?;
-        let view = View::for_request(credential, cfg);
+        let view = View::for_request(credential, cfg).with_session(explicit_session(&req));
         let settings = Settings::scoped(cfg, &view);
         if view.websockets() {
             return self.stream_ws(&view, &settings, req, session).await;
@@ -170,7 +170,7 @@ impl CodexExecutor {
             ));
         }
         check_response_format(&req)?;
-        let view = View::for_request(credential, cfg);
+        let view = View::for_request(credential, cfg).with_session(explicit_session(&req));
         let settings = Settings::scoped(cfg, &view);
         match (req.alt.as_deref(), req.stream) {
             (Some("responses/compact"), true) => Err(ExecError::local(
@@ -325,7 +325,17 @@ impl CodexExecutor {
         upstream_model: &str,
         cfg: &Config,
     ) -> Result<ExecResponse, ExecError> {
-        let view = View::for_request(credential, cfg);
+        // Go selects with `X-Session-ID` set from the body's `id`; the request context then
+        // carries that explicit session for `$CPA-SESSION-ID`.
+        let mut selection_headers = client.clone();
+        let id = gjson::get(&String::from_utf8_lossy(body), "id").str().trim().to_owned();
+        if !id.is_empty()
+            && let Ok(value) = http::HeaderValue::from_str(&id)
+        {
+            selection_headers.insert("x-session-id", value);
+        }
+        let session = cpa_common::session::cpa_session_id(&selection_headers, body, None);
+        let view = View::for_request(credential, cfg).with_session(session);
         let mut body = sanitize_alpha_search(body);
         let url = if view.api_key {
             let base = view.attr("base_url").trim();
@@ -365,7 +375,7 @@ impl CodexExecutor {
         if !view.token.trim().is_empty() {
             set("authorization", &format!("Bearer {}", view.token));
         }
-        for (name, value) in request::custom_headers(&view, client, None) {
+        for (name, value) in request::custom_headers(&view, client) {
             if let (Ok(name), Ok(value)) = (
                 http::HeaderName::try_from(name.as_str()),
                 http::HeaderValue::from_str(&value),
@@ -483,6 +493,11 @@ fn rewrite_alpha_search_model(body: Vec<u8>, model: &str) -> Vec<u8> {
     })
     .map(String::into_bytes)
     .unwrap_or(body)
+}
+
+/// Go's request-context session for `$CPA-SESSION-ID` headers.
+fn explicit_session(req: &ExecRequest) -> Option<String> {
+    cpa_common::session::cpa_session_id(&req.headers, &req.original_body, req.execution_session.as_deref())
 }
 
 fn check_response_format(req: &ExecRequest) -> Result<(), ExecError> {

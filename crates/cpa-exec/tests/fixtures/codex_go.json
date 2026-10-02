@@ -830,7 +830,7 @@
             "codex-tui"
           ],
           "session_id": [
-            "c11ce154-ffe7-452e-a6bf-f14bd21c48fe"
+            "cf520d8f-753a-468c-ae89-f6e7402876c9"
           ],
           "user-agent": [
             "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
@@ -915,6 +915,140 @@
           "message": "{\"error\":{\"message\":\"Selected model is at capacity. Please try a different model.\"}}",
           "status": 429
         }
+      }
+    },
+    {
+      "name": "apikey_payload_rules_and_session_headers",
+      "config": "payload:\n  override:\n    - models:\n        - name: gpt-5.4\n      params:\n        reasoning.effort: low\n  default:\n    - models:\n        - name: \"gpt-*\"\n      params:\n        text.verbosity: low\n        reasoning.effort: minimal\n  filter:\n    - models:\n        - name: gpt-5.4\n      params:\n        - tool_choice\n",
+      "attributes": {
+        "api_key": "sk-FAKE",
+        "header:X-Combo": "s=$cpa-session-id;x",
+        "header:X-Session": "$CPA-SESSION-ID"
+      },
+      "metadata": null,
+      "source": "codex",
+      "headers": {
+        "Session_id": "sess-FAKE",
+        "User-Agent": "codex_cli_rs/0.150.0"
+      },
+      "model": "gpt-5.4",
+      "payload": "{\"model\":\"gpt-5.4\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}],\"tools\":[{\"type\":\"function\",\"name\":\"shell\",\"parameters\":{\"type\":\"object\",\"properties\":{}}}],\"tool_choice\":\"auto\",\"parallel_tool_calls\":true,\"reasoning\":{\"effort\":\"high\",\"summary\":\"auto\"},\"store\":false,\"stream\":true,\"include\":[\"reasoning.encrypted_content\"],\"prompt_cache_key\":\"pck-FAKE\",\"previous_response_id\":\"resp_0\",\"safety_identifier\":\"sid\",\"prompt_cache_retention\":\"24h\",\"stream_options\":{\"include_obfuscation\":false,\"reasoning_summary_delivery\":\"inline\"},\"service_tier\":\"priority\"}",
+      "stream": true,
+      "upstream_status": 200,
+      "upstream_type": "text/event-stream",
+      "upstream_body": "event: response.created\ndata: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_1\",\"status\":\"in_progress\"}}\n\nevent: response.output_item.done\ndata:{\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"id\":\"msg_1\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"Hi\"}]}}\n\nevent: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_1\",\"status\":\"completed\",\"output\":[],\"usage\":{\"input_tokens\":3,\"output_tokens\":1}}}\n\n",
+      "upstream": {
+        "method": "POST",
+        "path": "/responses",
+        "headers": {
+          "accept": [
+            "text/event-stream"
+          ],
+          "accept-encoding": [
+            "gzip"
+          ],
+          "authorization": [
+            "Bearer sk-FAKE"
+          ],
+          "connection": [
+            "Keep-Alive"
+          ],
+          "content-length": [
+            "559"
+          ],
+          "content-type": [
+            "application/json"
+          ],
+          "originator": [
+            "codex-tui"
+          ],
+          "user-agent": [
+            "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
+          ],
+          "x-combo": [
+            "s=codex:sess-FAKE;x"
+          ],
+          "x-session": [
+            "codex:sess-FAKE"
+          ]
+        },
+        "body": "{\"model\":\"gpt-5.4\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}],\"tools\":[{\"type\":\"function\",\"name\":\"shell\",\"parameters\":{\"type\":\"object\",\"properties\":{}}},{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"parallel_tool_calls\":true,\"reasoning\":{\"effort\":\"low\",\"summary\":\"auto\"},\"store\":false,\"stream\":true,\"include\":[\"reasoning.encrypted_content\"],\"prompt_cache_key\":\"pck-FAKE\",\"service_tier\":\"priority\",\"text\":{\"verbosity\":\"low\"},\"stream_options\":{\"reasoning_summary_delivery\":\"inline\"}}"
+      },
+      "output": {
+        "chunks": [
+          "event: response.created",
+          "data: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_1\",\"status\":\"in_progress\"}}",
+          "",
+          "event: response.output_item.done",
+          "data: {\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"id\":\"msg_1\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"Hi\"}]}}",
+          "",
+          "event: response.completed",
+          "data: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_1\",\"status\":\"completed\",\"output\":[{\"id\":\"msg_1\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"Hi\"}]}],\"usage\":{\"input_tokens\":3,\"output_tokens\":1}}}"
+        ]
+      }
+    },
+    {
+      "name": "apikey_session_header_without_session",
+      "config": "{}\n",
+      "attributes": {
+        "api_key": "sk-FAKE",
+        "header:X-Fixed": "v",
+        "header:X-Session": "$CPA-SESSION-ID"
+      },
+      "metadata": null,
+      "source": "codex",
+      "headers": {},
+      "model": "gpt-5.4",
+      "payload": "{\"model\":\"gpt-5.4\",\"input\":[]}",
+      "stream": true,
+      "upstream_status": 200,
+      "upstream_type": "text/event-stream",
+      "upstream_body": "event: response.created\ndata: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_1\",\"status\":\"in_progress\"}}\n\nevent: response.output_item.done\ndata:{\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"id\":\"msg_1\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"Hi\"}]}}\n\nevent: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_1\",\"status\":\"completed\",\"output\":[],\"usage\":{\"input_tokens\":3,\"output_tokens\":1}}}\n\n",
+      "upstream": {
+        "method": "POST",
+        "path": "/responses",
+        "headers": {
+          "accept": [
+            "text/event-stream"
+          ],
+          "accept-encoding": [
+            "gzip"
+          ],
+          "authorization": [
+            "Bearer sk-FAKE"
+          ],
+          "connection": [
+            "Keep-Alive"
+          ],
+          "content-length": [
+            "108"
+          ],
+          "content-type": [
+            "application/json"
+          ],
+          "originator": [
+            "codex-tui"
+          ],
+          "user-agent": [
+            "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
+          ],
+          "x-fixed": [
+            "v"
+          ]
+        },
+        "body": "{\"model\":\"gpt-5.4\",\"input\":[],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}]}"
+      },
+      "output": {
+        "chunks": [
+          "event: response.created",
+          "data: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_1\",\"status\":\"in_progress\"}}",
+          "",
+          "event: response.output_item.done",
+          "data: {\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"id\":\"msg_1\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"Hi\"}]}}",
+          "",
+          "event: response.completed",
+          "data: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_1\",\"status\":\"completed\",\"output\":[{\"id\":\"msg_1\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"Hi\"}]}],\"usage\":{\"input_tokens\":3,\"output_tokens\":1}}}"
+        ]
       }
     },
     {

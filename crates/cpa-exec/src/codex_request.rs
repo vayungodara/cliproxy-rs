@@ -31,6 +31,17 @@ pub(crate) enum Call {
     Websocket,
 }
 
+impl Call {
+    /// The upstream protocol: compact goes to the OpenAI Responses endpoint.
+    pub fn target(self) -> Format {
+        if self == Call::Compact {
+            Format::OpenAIResponse
+        } else {
+            Format::Codex
+        }
+    }
+}
+
 /// Codex settings read from the config snapshot (v8 paths; legacy keys are already moved).
 #[derive(Debug, Clone, Default)]
 pub(crate) struct Settings {
@@ -41,6 +52,8 @@ pub(crate) struct Settings {
     pub default_user_agent: String,
     pub default_beta_features: String,
     pub image_generation: bool,
+    /// `requests.payload` rules and image-generation mode for this config snapshot.
+    pub payload: cpa_common::payload::Rules,
 }
 
 fn setting<'a>(cfg: &'a Config, path: &[&str]) -> Option<&'a serde_yaml_ng::Value> {
@@ -87,6 +100,7 @@ impl Settings {
             default_user_agent: text(&["oauth", "providers", "codex", "header-defaults", "user-agent"]),
             default_beta_features: text(&["oauth", "providers", "codex", "header-defaults", "beta-features"]),
             image_generation: image_off,
+            payload: cpa_common::payload::Rules::from_config(cfg),
         }
     }
 }
@@ -139,6 +153,8 @@ pub(crate) struct View<'a> {
     pub base_url: &'a str,
     /// Effective proxy (`effectiveProxyURL`): the credential's, then `requests.proxy-url`.
     pub proxy: crate::proxy::Proxy,
+    /// `$CPA-SESSION-ID`: the request's explicit session, never derived fallbacks.
+    pub session: Option<String>,
 }
 
 impl<'a> View<'a> {
@@ -148,6 +164,12 @@ impl<'a> View<'a> {
             proxy: crate::proxy::Proxy::effective(credential, cfg),
             ..Self::new(credential)
         }
+    }
+
+    /// Binds the request's explicit session for `$CPA-SESSION-ID` custom headers.
+    pub fn with_session(mut self, session: Option<String>) -> Self {
+        self.session = session;
+        self
     }
 
     pub fn new(credential: &'a Credential) -> Self {
@@ -170,6 +192,7 @@ impl<'a> View<'a> {
             api_key: is_api_key,
             base_url: base_url.trim_end_matches('/'),
             proxy: crate::proxy::Proxy::Inherit,
+            session: None,
         }
     }
 
@@ -250,17 +273,13 @@ pub(crate) fn is_native(req: &ExecRequest) -> bool {
 
 /// `translateCodexRequestPairWithUpdateIntent` + `helps.ApplyRequestThinking`: the
 /// registered pair (Go's model-rewrite fallback for same-format bodies), then the
-/// thinking pipeline for `codex` (`openai-response` for compact).
-// ponytail: Go translates `opts.OriginalRequest` separately for payload rules and passes
-// the translator's configuration-update intent; payload rules are not applied yet, so
-// only the request payload is translated and `updates_changed` stays false. Resolved
-// API-key model capabilities (`ResolvedModelInfo`) are not bound to the attempt either.
-fn translate_request(req: &ExecRequest, call: Call) -> Result<String, ExecError> {
-    let target = if call == Call::Compact {
-        Format::OpenAIResponse
-    } else {
-        Format::Codex
-    };
+/// thinking pipeline for `codex` (`openai-response` for compact). Also returns the
+/// translated original request, which payload default rules consult.
+// ponytail: the translator's configuration-update intent is not surfaced, so
+// `updates_changed` stays false. Resolved API-key model capabilities
+// (`ResolvedModelInfo`) are not bound to the attempt either.
+fn translate_request(req: &ExecRequest, call: Call) -> Result<(String, Vec<u8>), ExecError> {
+    let target = call.target();
     let registered = cpa_translate::pair(req.source_format, target).is_some();
     if !registered && !matches!(req.source_format, Format::Codex | Format::OpenAIResponse) {
         // ponytail: Go forwards an untranslatable body as-is; refusing locally is clearer.
@@ -279,12 +298,18 @@ fn translate_request(req: &ExecRequest, call: Call) -> Result<String, ExecError>
         model: &model,
         stream: matches!(call, Call::Stream | Call::Websocket),
     };
-    let body = cpa_translate::translate_request(req.source_format, target, &ctx, &req.body)
-        .map_err(|e| ExecError::local(400, FailureScope::Request, e.to_string()))?;
-    let body = String::from_utf8(body)
-        .map_err(|_| ExecError::local(400, FailureScope::Request, "request body is not valid UTF-8 JSON"))?;
+    let translate = |raw: &[u8]| {
+        cpa_translate::translate_request(req.source_format, target, &ctx, raw)
+            .map_err(|e| ExecError::local(400, FailureScope::Request, e.to_string()))
+    };
+    let body = translate(&req.body)?;
+    let original = if req.original_body.is_empty() || req.original_body == req.body {
+        body.clone()
+    } else {
+        translate(&req.original_body)?
+    };
     let thought = cpa_common::thinking::apply_request_thinking(&cpa_common::thinking::RequestThinking {
-        body: body.as_bytes(),
+        body: &body,
         payload: &req.body,
         original: &req.original_body,
         model: &req.model,
@@ -296,8 +321,33 @@ fn translate_request(req: &ExecRequest, call: Call) -> Result<String, ExecError>
         updates_changed: false,
     })
     .map_err(|e| ExecError::local(e.status(), FailureScope::Request, e.message))?;
-    String::from_utf8(thought)
-        .map_err(|_| ExecError::local(400, FailureScope::Request, "request body is not valid UTF-8 JSON"))
+    let body = String::from_utf8(thought)
+        .map_err(|_| ExecError::local(400, FailureScope::Request, "request body is not valid UTF-8 JSON"))?;
+    Ok((body, original))
+}
+
+/// `helps.ApplyPayloadConfigWithRequestForExecutor` for the Codex executors.
+fn apply_payload(req: &ExecRequest, settings: &Settings, call: Call, model: &str, body: String, original: &[u8]) -> String {
+    let requested = if req.requested_model.trim().is_empty() {
+        req.model.trim()
+    } else {
+        req.requested_model.trim()
+    };
+    let rules = cpa_common::payload::Request {
+        target_executor: if call == Call::Websocket { "codex-websockets" } else { "codex" },
+        model,
+        requested_model: requested,
+        protocol: call.target().as_str(),
+        from_protocol: req.source_format.as_str(),
+        root: "",
+        original,
+        // ponytail: ExecRequest carries no route path; it only selects image-generation
+        // `chat` mode for /v1/images routes, which never reach Codex.
+        request_path: "",
+        headers: Some(&req.headers),
+    };
+    let out = cpa_common::payload::apply(&settings.payload, &rules, body.into_bytes());
+    String::from_utf8(out).unwrap_or_else(|e| String::from_utf8_lossy(e.as_bytes()).into_owned())
 }
 
 /// Applies the Codex body rules for `call`.
@@ -307,7 +357,8 @@ fn translate_request(req: &ExecRequest, call: Call) -> Result<String, ExecError>
 pub(crate) fn shape(req: &ExecRequest, view: &View<'_>, settings: &Settings, call: Call) -> Result<String, ExecError> {
     let model = base_model(&req.model);
     let model = model.as_str();
-    let mut body = translate_request(req, call)?;
+    let (body, original) = translate_request(req, call)?;
+    let mut body = apply_payload(req, settings, call, model, body, &original);
     match call {
         Call::NonStream => {
             body = set_str_if_different(body, "model", model);
@@ -497,8 +548,9 @@ fn sanitize_reasoning(body: String) -> String {
 }
 
 /// `helps.NormalizeCodexToolSchemas`: collapse large pure-`const` unions into `enum`.
-// ponytail: adapter for cpa-common::payload (server thread owns codex_tool_schema.go);
-// replace this and its helpers with the shared module. The companion stripIncompatiblePatterns pass (drops `\p{..}` regex patterns by
+/// `helps.NormalizeCodexToolSchemas` (codex_tool_schema.go): only the Codex executors
+/// call it, so it lives here rather than in `cpa_common::payload`.
+// ponytail: the companion stripIncompatiblePatterns pass (drops `\p{..}` regex patterns by
 // re-encoding the schema) is not ported; such schemas pass through unchanged.
 fn normalize_tool_schemas(body: String) -> String {
     let tools = gjson::get(&body, "tools");
@@ -877,45 +929,10 @@ fn ensure_config_first(headers: &mut HeaderMap, client: &HeaderMap, name: &str, 
     }
 }
 
-/// `util.ApplyCustomHeadersFromAttrs`: `header:<Name>` attributes, `$Client-Header`
-/// references and `$CPA-SESSION-ID`. Unresolvable references are omitted.
-// ponytail: adapter for cpa-common::headers (server thread owns header_helpers.go).
-pub(crate) fn custom_headers(view: &View<'_>, client: &HeaderMap, session: Option<&str>) -> Vec<(String, String)> {
-    const SESSION_VAR: &str = "$CPA-SESSION-ID";
-    let mut out = Vec::new();
-    for (key, value) in &view.credential.attributes {
-        let Some(name) = key.strip_prefix("header:").map(str::trim).filter(|n| !n.is_empty()) else {
-            continue;
-        };
-        let value = value.trim();
-        if value.is_empty() {
-            continue;
-        }
-        let resolved = if value.to_ascii_uppercase().contains(SESSION_VAR) {
-            let Some(session) = session.filter(|s| !s.is_empty()) else {
-                continue;
-            };
-            let mut replaced = String::new();
-            let mut rest = value;
-            while let Some(i) = rest.to_ascii_uppercase().find(SESSION_VAR) {
-                replaced.push_str(&rest[..i]);
-                replaced.push_str(session);
-                rest = &rest[i + SESSION_VAR.len()..];
-            }
-            replaced.push_str(rest);
-            replaced
-        } else if let Some(var) = value.strip_prefix('$') {
-            let found = header(client, var.trim());
-            if var.trim().is_empty() || found.is_empty() {
-                continue;
-            }
-            found.to_owned()
-        } else {
-            value.to_owned()
-        };
-        out.push((name.to_owned(), resolved));
-    }
-    out
+/// `util.ApplyCustomHeadersFromAttrs` (`cpa_common::headers`) with the view's explicit
+/// `$CPA-SESSION-ID`.
+pub(crate) fn custom_headers(view: &View<'_>, client: &HeaderMap) -> Vec<(String, String)> {
+    cpa_common::headers::custom_headers(&view.credential.attributes, client, view.session.as_deref())
 }
 
 /// `applyModelHeaderOverrides`: models.json `config.override_header` for the model.
@@ -979,8 +996,8 @@ pub(crate) fn http_headers(
         },
     );
     set(&mut h, "connection", "Keep-Alive");
-    apply_identity(&mut h, view, settings, client, cache_id);
-    routing_hint(&mut h, view, client, body, model, cache_id);
+    apply_identity(&mut h, view, settings, client);
+    routing_hint(&mut h, view, client, body, model);
     model_header_overrides(&mut h, model);
     // Go's transport adds this and decodes the body transparently.
     set(&mut h, "accept-encoding", "gzip");
@@ -988,7 +1005,7 @@ pub(crate) fn http_headers(
 }
 
 /// Originator, account header, operator headers and cloaking, shared by HTTP and WebSocket.
-fn apply_identity(h: &mut HeaderMap, view: &View<'_>, settings: &Settings, client: &HeaderMap, session: Option<&str>) {
+fn apply_identity(h: &mut HeaderMap, view: &View<'_>, settings: &Settings, client: &HeaderMap) {
     let originator = header(client, "originator").trim();
     if !originator.is_empty() {
         set(h, "originator", originator);
@@ -1000,7 +1017,7 @@ fn apply_identity(h: &mut HeaderMap, view: &View<'_>, settings: &Settings, clien
     {
         set(h, "chatgpt-account-id", account.trim());
     }
-    for (name, value) in custom_headers(view, client, session) {
+    for (name, value) in custom_headers(view, client) {
         set(h, &name, &value);
     }
     if !view.cloaking_disabled(settings) {
@@ -1016,13 +1033,12 @@ fn routing_hint(
     client: &HeaderMap,
     body: &str,
     model: &str,
-    session: Option<&str>,
 ) {
     if view.api_key {
         return;
     }
     h.remove(ROUTING_HINT);
-    let operator = custom_headers(view, client, session)
+    let operator = custom_headers(view, client)
         .into_iter()
         .find(|(n, _)| n.eq_ignore_ascii_case(ROUTING_HINT))
         .map(|(_, v)| v);
@@ -1151,8 +1167,8 @@ pub(crate) fn ws_headers(
             }
         }
     }
-    apply_identity(&mut h, view, settings, client, cache_id);
-    routing_hint(&mut h, view, client, body, model, cache_id);
+    apply_identity(&mut h, view, settings, client);
+    routing_hint(&mut h, view, client, body, model);
     model_header_overrides(&mut h, model);
     h
 }
