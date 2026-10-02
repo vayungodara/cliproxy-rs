@@ -1,0 +1,429 @@
+[
+  {
+    "fn": "schema",
+    "in": "{\"properties\":{\"node\":{\"$ref\":\"#/$defs/Node\"}},\"$defs\":{\"Node\":{\"type\":\"object\",\"description\":\"tree\",\"properties\":{\"child\":{\"$ref\":\"#/$defs/Node\"}}}}}",
+    "out": "{\"properties\":{\"node\":{\"description\":\"tree\",\"properties\":{\"child\":{\"description\":\"tree (See: Node)\",\"type\":\"object\"}},\"type\":\"object\"}},\"type\":\"object\"}"
+  },
+  {
+    "fn": "schema",
+    "in": "{\"properties\":{\"a\":{\"$ref\":\"#/definitions/A\",\"description\":\"override \u003cb\u003e\"}},\"definitions\":{\"A\":{\"type\":\"string\",\"enum\":[\"x\",\"é\"],\"maximum\":1.50}}}",
+    "out": "{\"properties\":{\"a\":{\"description\":\"override \\u003cb\\u003e\",\"enum\":[\"x\",\"é\"],\"maximum\":1.50,\"type\":\"string\"}},\"type\":\"object\"}"
+  },
+  {
+    "fn": "schema",
+    "in": "{\"type\":\"object\",\"properties\":{\"list\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/$defs/Item\"}}},\"$defs\":{\"Item\":{\"$ref\":\"#/$defs/Leaf\"},\"Leaf\":{\"type\":\"integer\"}}}",
+    "out": "{\"properties\":{\"list\":{\"items\":{\"type\":\"integer\"},\"type\":\"array\"}},\"type\":\"object\"}"
+  },
+  {
+    "fn": "schema",
+    "in": "{\"properties\":{\"x\":{\"$ref\":\"#/missing\"}}}",
+    "out": "{\"properties\":{\"x\":{\"$ref\":\"#/missing\"}},\"type\":\"object\"}"
+  },
+  {
+    "fn": "schema",
+    "in": "{\"$defs\":{\"a\":1}, \"properties\":{}}",
+    "out": "{ \"properties\":{},\"type\":\"object\"}"
+  },
+  {
+    "fn": "links",
+    "in": "{\"messages\":[{\"role\":\"assistant\",\"content\":\"\",\"reasoning_content\":\"r\",\"tool_calls\":[{\"id\":\"call_1\",\"type\":\"function\",\"function\":{\"name\":\"f\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"x\"}]}",
+    "out": "{\"messages\":[{\"role\":\"assistant\",\"content\":\"\",\"reasoning_content\":\"r\",\"tool_calls\":[{\"id\":\"call_1\",\"type\":\"function\",\"function\":{\"name\":\"f\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"content\":\"x\",\"tool_call_id\":\"call_1\"}]}"
+  },
+  {
+    "fn": "links",
+    "in": "{\"messages\":[{\"role\":\"assistant\",\"reasoning_content\":\"r\",\"tool_calls\":[{\"id\":\"a\"},{\"id\":\"b\"}]},{\"role\":\"tool\",\"content\":\"x\"}]}",
+    "out": "{\"messages\":[{\"role\":\"assistant\",\"reasoning_content\":\"r\",\"tool_calls\":[{\"id\":\"a\"},{\"id\":\"b\"}]},{\"role\":\"tool\",\"content\":\"x\"}]}"
+  },
+  {
+    "fn": "links",
+    "in": "{\"messages\":[{\"role\":\"assistant\",\"content\":\"x\",\"reasoning_content\":\"first\"},{\"role\":\"assistant\",\"content\":\"y\",\"tool_calls\":[{\"id\":\"c\"}]}]}",
+    "out": "{\"messages\":[{\"role\":\"assistant\",\"content\":\"x\",\"reasoning_content\":\"first\"},{\"role\":\"assistant\",\"content\":\"y\",\"tool_calls\":[{\"id\":\"c\"}],\"reasoning_content\":\"first\"}]}"
+  },
+  {
+    "fn": "links",
+    "in": "{\"messages\":[{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\" a \"},{\"type\":\"text\",\"text\":\"b\"}],\"tool_calls\":[{\"id\":\"c\"}]}]}",
+    "out": "{\"messages\":[{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\" a \"},{\"type\":\"text\",\"text\":\"b\"}],\"tool_calls\":[{\"id\":\"c\"}],\"reasoning_content\":\"a\\nb\"}]}"
+  },
+  {
+    "fn": "links",
+    "in": "{\"messages\":[{\"role\":\"user\",\"content\":\"u\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\" \"}]},{\"role\":\"assistant\",\"function_call\":{\"name\":\"f\"}},{\"role\":\"assistant\",\"content\":null},{\"role\":\"assistant\",\"content\":[{}]}]}",
+    "out": "{\"messages\":[{\"role\":\"user\",\"content\":\"u\"},{\"role\":\"assistant\",\"function_call\":{\"name\":\"f\"}}]}"
+  },
+  {
+    "fn": "links",
+    "in": "{\"messages\": [ {\"role\": \"assistant\", \"content\": \"\u003ctag\u003e \u0026 \\\"q\\\"\", \"tool_calls\": [{\"id\": \"t1\"}]}, {\"role\": \"tool\", \"call_id\": \"t1\", \"content\": \"r\"} ]}",
+    "out": "{\"messages\": [{\"role\": \"assistant\", \"content\": \"\u003ctag\u003e \u0026 \\\"q\\\"\", \"tool_calls\": [{\"id\": \"t1\"}],\"reasoning_content\":\"\\u003ctag\\u003e \\u0026 \\\"q\\\"\"},{\"role\": \"tool\", \"call_id\": \"t1\", \"content\": \"r\",\"tool_call_id\":\"t1\"}]}"
+  },
+  {
+    "fn": "links",
+    "in": "{\"messages\":[{\"role\":\"assistant\",\"reasoning_content\":\"[reasoning unavailable]\",\"content\":\"é\",\"tool_calls\":[{\"id\":\"t\"}]}]}",
+    "out": "{\"messages\":[{\"role\":\"assistant\",\"reasoning_content\":\"é\",\"content\":\"é\",\"tool_calls\":[{\"id\":\"t\"}]}]}"
+  },
+  {
+    "fn": "temperature",
+    "in": "{\"temperature\":0.6,\"thinking\":{\"type\":\"disabled\"}}",
+    "out": "{\"temperature\":0.6,\"thinking\":{\"type\":\"disabled\"}}"
+  },
+  {
+    "fn": "temperature",
+    "in": "{\"temperature\":0.6}",
+    "out": "{}"
+  },
+  {
+    "fn": "temperature",
+    "in": "{\"temperature\":1}",
+    "out": "{\"temperature\":1}"
+  },
+  {
+    "fn": "temperature",
+    "in": "{\"temperature\":\"1.0\",\"thinking\":{\"type\":\"enabled\"}}",
+    "out": "{\"temperature\":\"1.0\",\"thinking\":{\"type\":\"enabled\"}}"
+  },
+  {
+    "fn": "temperature",
+    "in": "{ \"a\": 1, \"temperature\": 0.2 }",
+    "out": "{ \"a\": 1 }"
+  },
+  {
+    "fn": "responses_input",
+    "in": "{\"input\":[{\"type\":\"function_call\",\"call_id\":\"a\"},{\"type\":\"message\",\"role\":\"user\"},{\"type\":\"function_call_output\",\"call_id\":\"a\"}]}",
+    "out": "{\"input\":[{\"type\":\"function_call\",\"call_id\":\"a\"},{\"type\":\"function_call_output\",\"call_id\":\"a\"},{\"type\":\"message\",\"role\":\"user\"}]}"
+  },
+  {
+    "fn": "responses_input",
+    "in": "{\"input\":[{\"type\":\"function_call\",\"call_id\":\"a\"},{\"type\":\"message\",\"role\":\"user\"}]}",
+    "out": "{\"input\":[{\"type\":\"function_call\",\"call_id\":\"a\"},{\"type\":\"message\",\"role\":\"user\"}]}"
+  },
+  {
+    "fn": "responses_input",
+    "in": "{\"input\":[{\"type\":\"custom_tool_call\",\"call_id\":\"a\"},{\"type\":\"function_call\",\"id\":\"fco_x\"},{\"type\":\"message\"},{\"type\":\"custom_tool_call_output\",\"call_id\":\"a\"},{\"type\":\"function_call_output\",\"call_id\":\"zzz\"}]}",
+    "out": "{\"input\":[{\"type\":\"custom_tool_call\",\"call_id\":\"a\"},{\"type\":\"function_call\",\"id\":\"fco_x\"},{\"type\":\"custom_tool_call_output\",\"call_id\":\"a\"},{\"type\":\"message\"},{\"type\":\"function_call_output\",\"call_id\":\"zzz\"}]}"
+  },
+  {
+    "fn": "thinking",
+    "in": "{\"model\":\"x\",\"reasoning_effort\":\"low\"}",
+    "model": "kimi-k2.8(max)",
+    "from": "openai",
+    "to": "kimi",
+    "out": "{\"model\":\"x\",\"thinking\":{\"type\":\"enabled\",\"effort\":\"max\"}}"
+  },
+  {
+    "fn": "thinking",
+    "in": "{\"reasoning_effort\":\"none\"}",
+    "model": "kimi-k2.7-code",
+    "from": "openai",
+    "to": "kimi",
+    "out": "{\"thinking\":{\"type\":\"enabled\",\"effort\":\"low\"}}"
+  },
+  {
+    "fn": "thinking",
+    "in": "{\"reasoning_effort\":\"none\"}",
+    "model": "kimi-k2.5",
+    "from": "openai",
+    "to": "kimi",
+    "out": "{\"thinking\":{\"type\":\"disabled\"}}"
+  },
+  {
+    "fn": "thinking",
+    "in": "{\"reasoning_effort\":\"xhigh\"}",
+    "model": "kimi-k2.5",
+    "from": "openai",
+    "to": "kimi",
+    "out": "{\"thinking\":{\"type\":\"enabled\",\"effort\":\"high\"}}"
+  },
+  {
+    "fn": "thinking",
+    "in": "{\"a\":1,\"reasoning_effort\":\"high\"}",
+    "model": "kimi-k2",
+    "from": "openai",
+    "to": "kimi",
+    "out": "{\"a\":1}"
+  },
+  {
+    "fn": "thinking",
+    "in": "{\"reasoning_effort\":\"ultra\"}",
+    "model": "kimi-custom",
+    "from": "openai",
+    "to": "kimi",
+    "out": "{\"thinking\":{\"type\":\"enabled\",\"effort\":\"ultra\"}}"
+  },
+  {
+    "fn": "thinking",
+    "in": "{}",
+    "model": "kimi-k2.5(9000)",
+    "from": "openai",
+    "to": "kimi",
+    "out": "{\"thinking\":{\"type\":\"enabled\",\"effort\":\"high\"}}"
+  },
+  {
+    "fn": "thinking",
+    "in": "{\"thinking\":{\"type\":\"enabled\",\"effort\":\"xhigh\"}}",
+    "model": "kimi-k2.5",
+    "from": "kimi",
+    "to": "kimi",
+    "out": "{\"thinking\":{\"type\":\"enabled\",\"effort\":\"xhigh\"}}",
+    "err": "level \"xhigh\" not supported, valid levels: low, high"
+  },
+  {
+    "fn": "thinking",
+    "in": "{\"reasoning_effort\":null}",
+    "model": "kimi-k2.5",
+    "from": "openai",
+    "to": "kimi",
+    "out": "{\"reasoning_effort\":null}",
+    "err": "level \"\" not supported, valid levels: low, high"
+  },
+  {
+    "fn": "thinking",
+    "in": "{}",
+    "model": "kimi-k2.5(auto)",
+    "from": "openai",
+    "to": "kimi",
+    "out": "{\"thinking\":{\"type\":\"enabled\",\"effort\":\"low\"}}"
+  },
+  {
+    "fn": "thinking",
+    "in": "{}",
+    "model": "kimi-k2.5(-5)",
+    "from": "openai",
+    "to": "kimi",
+    "out": "{}"
+  },
+  {
+    "fn": "thinking",
+    "in": "{\"model\":\"k3\",\"reasoning\":{\"effort\":\"low\",\"summary\":\"auto\"},\"input\":[{\"type\":\"configuration_update\",\"reasoning\":{\"effort\":\"max\"}}]}",
+    "model": "kimi-k3(high)",
+    "from": "openai-response",
+    "to": "codex",
+    "out": "{\"model\":\"k3\",\"reasoning\":{\"effort\":\"high\",\"summary\":\"auto\"},\"input\":[]}"
+  },
+  {
+    "fn": "thinking",
+    "in": "{\"model\":\"k3\",\"reasoning\":{\"effort\":\"xhigh\"},\"input\":\"hi\"}",
+    "model": "kimi-k3",
+    "from": "openai-response",
+    "to": "codex",
+    "out": "{\"model\":\"k3\",\"reasoning\":{\"effort\":\"high\"},\"input\":\"hi\"}"
+  },
+  {
+    "fn": "thinking",
+    "in": "{\"model\":\"k3\",\"reasoning\":{\"summary\":\"detailed\"},\"input\":\"hi\"}",
+    "model": "kimi-k3(none)",
+    "from": "openai-response",
+    "to": "codex",
+    "out": "{\"model\":\"k3\",\"reasoning\":{\"summary\":\"detailed\",\"effort\":\"none\"},\"input\":\"hi\"}"
+  },
+  {
+    "fn": "thinking",
+    "in": "{\"model\":\"k3\",\"reasoning\":{\"effort\":\"none\",\"summary\":\"concise\"}}",
+    "model": "kimi-k3",
+    "from": "openai-response",
+    "to": "codex",
+    "out": "{\"model\":\"k3\",\"reasoning\":{\"effort\":\"none\",\"summary\":\"concise\"}}"
+  },
+  {
+    "fn": "thinking",
+    "in": "{\"model\":\"k\",\"reasoning\":{\"effort\":\"high\"}}",
+    "model": "kimi-k2",
+    "from": "openai-response",
+    "to": "codex",
+    "out": "{\"model\":\"k\"}"
+  },
+  {
+    "fn": "restore_model",
+    "in": "{\"model\":\"k3\",\"x\":1}",
+    "model": "kimi-k3",
+    "out": "{\"model\":\"kimi-k3\",\"x\":1}"
+  },
+  {
+    "fn": "restore_model",
+    "in": "data: {\"type\":\"message_start\",\"message\":{\"model\":\"k3\"}}",
+    "model": "kimi-k3(high)",
+    "out": "data: {\"type\":\"message_start\",\"message\":{\"model\":\"kimi-k3(high)\"}}"
+  },
+  {
+    "fn": "restore_model",
+    "in": "data:{\"type\":\"message_delta\",\"model\":\"k3\",\"message\":{\"model\":\"k3\"}}",
+    "model": "kimi-k3",
+    "out": "data: {\"type\":\"message_delta\",\"model\":\"kimi-k3\",\"message\":{\"model\":\"kimi-k3\"}}"
+  },
+  {
+    "fn": "restore_model",
+    "in": "data: {\"type\":\"ping\"}",
+    "model": "kimi-k3",
+    "out": "data: {\"type\":\"ping\"}"
+  },
+  {
+    "fn": "sjson_delete",
+    "in": "{\"a\": 1, \"b\": 2, \"c\": 3}",
+    "path": "a",
+    "out": "{ \"b\": 2, \"c\": 3}"
+  },
+  {
+    "fn": "sjson_delete",
+    "in": "{\"a\": 1, \"b\": 2, \"c\": 3}",
+    "path": "b",
+    "out": "{\"a\": 1, \"c\": 3}"
+  },
+  {
+    "fn": "sjson_delete",
+    "in": "{\"a\": 1, \"b\": 2, \"c\": 3}",
+    "path": "c",
+    "out": "{\"a\": 1, \"b\": 2}"
+  },
+  {
+    "fn": "sjson_delete",
+    "in": "{\"only\":true}",
+    "path": "only",
+    "out": "{}"
+  },
+  {
+    "fn": "sjson_delete",
+    "in": "[1,2]",
+    "path": "-1",
+    "out": "[1]"
+  },
+  {
+    "fn": "sjson_delete",
+    "in": "{\"\\\"x\":1,\"y\":2}",
+    "path": "\\\"x",
+    "out": "{\"\\\"x\":,\"y\":2}"
+  },
+  {
+    "fn": "sjson_delete",
+    "in": "{\"t\":{\"type\":\"x\",\"effort\":\"y\"}}",
+    "path": "t.effort",
+    "out": "{\"t\":{\"type\":\"x\"}}"
+  },
+  {
+    "fn": "sjson_delete",
+    "in": "{\"m\":[ {\"a\":1} , {\"b\":2} ]}",
+    "path": "m.0",
+    "out": "{\"m\":[  {\"b\":2} ]}"
+  },
+  {
+    "fn": "sjson_set_str",
+    "in": "{\"a\":1}",
+    "path": "model",
+    "value": "k3",
+    "out": "{\"a\":1,\"model\":\"k3\"}"
+  },
+  {
+    "fn": "sjson_set_str",
+    "in": " { \"a\": 1 } ",
+    "path": "b",
+    "value": "x",
+    "out": "{ \"a\": 1 ,\"b\":\"x\"}"
+  },
+  {
+    "fn": "sjson_set_str",
+    "in": "{}",
+    "path": "thinking.type",
+    "value": "enabled",
+    "out": "{\"thinking\":{\"type\":\"enabled\"}}"
+  },
+  {
+    "fn": "sjson_set_str",
+    "in": "{\"a\":1}",
+    "path": "b",
+    "value": "é\u003c\"\u0026",
+    "out": "{\"a\":1,\"b\":\"é\\u003c\\\"\\u0026\"}"
+  },
+  {
+    "fn": "sjson_set_str",
+    "in": "{\"a\":1}",
+    "path": "b",
+    "value": "plain \u003ctag\u003e \u0026 co",
+    "out": "{\"a\":1,\"b\":\"plain \u003ctag\u003e \u0026 co\"}"
+  },
+  {
+    "fn": "sjson_set_str",
+    "in": "[1]",
+    "path": "3",
+    "value": "x",
+    "out": "[1,null,null,\"x\"]"
+  },
+  {
+    "fn": "sjson_set_str",
+    "in": "\"scalar\"",
+    "path": "a.b",
+    "value": "x",
+    "out": "{\"a\":{\"b\":\"x\"}}"
+  },
+  {
+    "fn": "sjson_set_raw",
+    "in": "{\"m\":[{\"a\":1},{\"b\":2}]}",
+    "path": "m.1.c",
+    "value": "true",
+    "out": "{\"m\":[{\"a\":1},{\"b\":2,\"c\":true}]}"
+  },
+  {
+    "fn": "sjson_set_raw",
+    "in": "  ",
+    "path": "a.0",
+    "value": "1",
+    "out": "{\"a\":[1]}"
+  },
+  {
+    "fn": "sjson_set_raw",
+    "in": "{\"stream_options\":[]}",
+    "path": "stream_options.include_usage",
+    "value": "true",
+    "out": "{\"stream_options\":[]}",
+    "err": "cannot set array element for non-numeric key 'include_usage'"
+  },
+  {
+    "fn": "sjson_set_raw",
+    "in": "{\"a\":[]}",
+    "path": "a.-1",
+    "value": "5",
+    "out": "{\"a\":[5]}"
+  },
+  {
+    "fn": "sjson_set_raw",
+    "in": "{\"a\":{}}",
+    "path": "a.x.2",
+    "value": "5",
+    "out": "{\"a\":{\"x\":[null,null,5]}}"
+  },
+  {
+    "fn": "gjson_string",
+    "in": "{\"n\":1e2}",
+    "out": "100"
+  },
+  {
+    "fn": "gjson_string",
+    "in": "{\"n\":-12}",
+    "out": "-12"
+  },
+  {
+    "fn": "gjson_string",
+    "in": "{\"n\":0.1}",
+    "out": "0.1"
+  },
+  {
+    "fn": "gjson_string",
+    "in": "{\"n\":1.50}",
+    "out": "1.5"
+  },
+  {
+    "fn": "gjson_string",
+    "in": "{\"n\":-0}",
+    "out": "-0"
+  },
+  {
+    "fn": "gjson_string",
+    "in": "{\"n\":12345678901234567890}",
+    "out": "12345678901234567890"
+  },
+  {
+    "fn": "gjson_string",
+    "in": "{\"n\":null}",
+    "out": ""
+  },
+  {
+    "fn": "gjson_string",
+    "in": "{\"n\":true}",
+    "out": "true"
+  }
+]

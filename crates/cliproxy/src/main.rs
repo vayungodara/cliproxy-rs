@@ -21,6 +21,15 @@ struct Args {
     /// Log in to Claude using browser OAuth and PKCE.
     #[arg(long)]
     claude_login: bool,
+    /// Don't open browser automatically for OAuth
+    #[arg(long)]
+    no_browser: bool,
+    /// Login to Kimi (.com) using OAuth
+    #[arg(long)]
+    kimi_login: bool,
+    /// Login to Kimi.ai using OAuth
+    #[arg(long)]
+    kimi_ai_login: bool,
     /// Management password accepted from loopback clients only.
     #[arg(long, hide = true, default_value = "")]
     password: String,
@@ -78,6 +87,11 @@ async fn main() -> anyhow::Result<()> {
         println!("Claude credentials saved to {}", path.display());
         return Ok(());
     }
+    if args.kimi_login || args.kimi_ai_login {
+        let provider = if args.kimi_login { "kimi" } else { "kimi-ai" };
+        cpa_exec::kimi_auth::login(provider, &config, args.no_browser).await?;
+        return Ok(());
+    }
     if config.api_keys.is_empty() {
         tracing::warn!("access.api-keys is empty: the proxy API is open to anyone who can reach it");
     }
@@ -90,6 +104,7 @@ async fn main() -> anyhow::Result<()> {
     tracing::info!(addr = %listener.local_addr()?, "listening");
     let executors = Executors {
         claude: ClaudeExecutor::new(DEFAULT_BASE_URL)?,
+        devices: Default::default(),
     };
     let rt = Arc::new(Runtime::new(config, credentials, executors));
     rt.start_auto_refresh();
