@@ -374,3 +374,100 @@ async fn nonlocal_socket_requires_allow_remote_even_with_a_valid_key() {
     assert_eq!(client.get(&url).send().await.unwrap().status(), 401);
     server.abort();
 }
+
+#[tokio::test]
+async fn config_api_keys_become_scheduled_credentials_on_write_and_reload() {
+    use cpa_server::runtime::Selection;
+    let f = Fixture::new("synth");
+    let (base, server) = f.server().await;
+    let client = wreq::Client::new();
+    let put = |path: &str, value: Value| {
+        client
+            .put(format!("{base}/v8/management{path}"))
+            .bearer_auth("fake-management-only")
+            .json(&value)
+    };
+    let r = put(
+        "/config/api-keys/claude",
+        json!([{"name": "team", "base-url": "https://claude.example.invalid", "prefix": "team", "priority": 4,
+                "keys": [{"api-key": "fake-key-a"}, {"api-key": "fake-key-b", "priority": 9, "weight": 0,
+                          "disable-cooling": false, "excluded-models": ["Opus-*"]}]}]),
+    )
+    .send()
+    .await
+    .unwrap();
+    assert_eq!(r.status(), 200);
+    // Published immediately by the write, without waiting for the watcher.
+    let claude: Vec<_> =
+        f.rt.store()
+            .snapshot()
+            .into_iter()
+            .filter(|c| c.provider == "claude")
+            .collect();
+    assert_eq!(claude.len(), 2);
+    let b = claude.iter().find(|c| c.attributes["api_key"] == "fake-key-b").unwrap();
+    assert!(b.id.starts_with("claude:apikey:"));
+    assert_eq!(b.attributes["priority"], "9");
+    assert_eq!(b.attributes["weight"], "0");
+    assert_eq!(b.attributes["prefix"], "team");
+    assert_eq!(b.attributes["base_url"], "https://claude.example.invalid");
+    assert_eq!(b.attributes["excluded_models"], "opus-*");
+    assert_eq!(b.metadata["disable_cooling"], false);
+    // The scheduler honours the synthesized priority and prefix.
+    let sel = |model: &str| Selection {
+        provider: "claude".into(),
+        model: model.into(),
+        ..Selection::default()
+    };
+    let lease = f.rt.store().select(sel("team/claude-sonnet-4-6")).unwrap();
+    assert_eq!(lease.credential.attributes["api_key"], "fake-key-b", "priority 9 wins");
+    assert_eq!(lease.execution_model, "claude-sonnet-4-6");
+    drop(lease);
+    let lease = f.rt.store().select(sel("team/opus-4")).unwrap();
+    assert_eq!(
+        lease.credential.attributes["api_key"], "fake-key-a",
+        "b excludes opus-*"
+    );
+    drop(lease);
+    // Credentials listing never shows config API keys (Go lists files only).
+    let listed: Value = client
+        .get(format!("{base}/v8/management/credentials"))
+        .bearer_auth("fake-management-only")
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(listed["files"], json!([]));
+
+    // OAuth request-scoped rules reach the policy; invalid rules are dropped.
+    let r = put(
+        "/config/oauth/request-scoped-errors",
+        json!({"Claude": [{"status": 400, "match": [" overloaded "], "action": " STOP "},
+                          {"status": 0, "match": ["x"], "action": "stop"}]}),
+    )
+    .send()
+    .await
+    .unwrap();
+    assert_eq!(r.status(), 200);
+    let rules = &f.rt.policy().oauth_request_scoped_errors["claude"];
+    assert_eq!(rules.len(), 1);
+    assert_eq!(
+        (rules[0].r#match[0].as_str(), rules[0].action.as_str()),
+        ("overloaded", "stop")
+    );
+
+    // A hand edit picked up by the watcher replaces the set; removed keys disappear.
+    let text = f.file().replace("fake-key-a", "fake-key-c");
+    std::fs::write(f.dir.join("config.yaml"), text).unwrap();
+    watching::reload(&f.state).unwrap();
+    let keys: Vec<String> =
+        f.rt.store()
+            .snapshot()
+            .iter()
+            .filter_map(|c| c.attributes.get("api_key").cloned())
+            .collect();
+    assert!(keys.contains(&"fake-key-c".to_owned()) && !keys.contains(&"fake-key-a".to_owned()));
+    server.abort();
+}

@@ -1,0 +1,626 @@
+// Generates management/config goldens by calling pinned CLIProxyAPI code in-process.
+// It never opens network connections: gin engines run through httptest recorders.
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/router-for-me/CLIProxyAPI/v8/internal/api"
+	"github.com/router-for-me/CLIProxyAPI/v8/internal/api/handlers/management"
+	"github.com/router-for-me/CLIProxyAPI/v8/internal/config"
+	"github.com/router-for-me/CLIProxyAPI/v8/internal/watcher/synthesizer"
+	sdkaccess "github.com/router-for-me/CLIProxyAPI/v8/sdk/access"
+	coreauth "github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/auth"
+	"golang.org/x/crypto/bcrypt"
+)
+
+type step struct {
+	Remote  string              `json:"remote"`
+	Headers map[string][]string `json:"headers,omitempty"`
+	Status  int                 `json:"status"`
+	Body    string              `json:"body"`
+	// Response headers that Go's management middleware sets.
+	Version string `json:"x_cpa_version"`
+}
+
+type accessScenario struct {
+	Name          string   `json:"name"`
+	Secret        string   `json:"secret,omitempty"`
+	AllowRemote   bool     `json:"allow_remote"`
+	Env           string   `json:"env,omitempty"`
+	LocalPassword string   `json:"local_password,omitempty"`
+	Trusted       []string `json:"trusted"`
+	Steps         []step   `json:"steps"`
+}
+
+type ipCase struct {
+	Trusted []string            `json:"trusted"`
+	Remote  string              `json:"remote"`
+	Headers map[string][]string `json:"headers,omitempty"`
+	IP      string              `json:"ip"`
+}
+
+type authSummary struct {
+	ID         string            `json:"id"`
+	Provider   string            `json:"provider"`
+	Label      string            `json:"label"`
+	Prefix     string            `json:"prefix"`
+	ProxyURL   string            `json:"proxy_url"`
+	Disabled   bool              `json:"disabled"`
+	Status     string            `json:"status"`
+	Index      string            `json:"auth_index"`
+	FileName   string            `json:"file_name,omitempty"`
+	Attributes map[string]string `json:"attributes"`
+	Metadata   map[string]any    `json:"metadata"`
+}
+
+type synthCase struct {
+	Name   string            `json:"name"`
+	YAML   string            `json:"yaml"`
+	Files  map[string]string `json:"files,omitempty"`
+	Error  string            `json:"error,omitempty"`
+	Config []authSummary     `json:"config"`
+	File   []authSummary     `json:"file"`
+}
+
+type loadCase struct {
+	YAML  string `json:"yaml"`
+	Error string `json:"error"`
+}
+
+// A request against a complete in-process Go server. Update, when set, is a config
+// document written to disk and applied with UpdateClients before the request.
+type routeStep struct {
+	Update     string              `json:"update,omitempty"`
+	Method     string              `json:"method"`
+	Path       string              `json:"path"`
+	Remote     string              `json:"remote"`
+	Headers    map[string][]string `json:"headers,omitempty"`
+	Body       string              `json:"body,omitempty"`
+	Status     int                 `json:"status"`
+	RespBody   string              `json:"resp_body"`
+	RespHeader map[string]string   `json:"resp_headers"`
+}
+
+type routeScenario struct {
+	Name          string      `json:"name"`
+	YAML          string      `json:"yaml"`
+	Env           string      `json:"env,omitempty"`
+	LocalPassword string      `json:"local_password,omitempty"`
+	Steps         []routeStep `json:"steps"`
+}
+
+var observedHeaders = []string{"Content-Type", "Cache-Control", "Access-Control-Allow-Origin", "Access-Control-Allow-Methods",
+	"Access-Control-Allow-Headers", "Access-Control-Expose-Headers", "X-CPA-SUPPORT-PLUGIN", "X-CPA-COMMIT", "X-CPA-BUILD-DATE"}
+
+// SecretHash is substituted for $HASH in scenario YAML (bcrypt of "fake-secret").
+var secretHash string
+
+func writeConfig(path, yamlText string) *config.Config {
+	must(os.WriteFile(path, []byte(strings.ReplaceAll(yamlText, "$HASH", secretHash)), 0o600))
+	cfg, err := config.LoadConfig(path)
+	must(err)
+	return cfg
+}
+
+func runRoutes(s routeScenario) routeScenario {
+	if s.Env != "" {
+		must(os.Setenv("MANAGEMENT_PASSWORD", s.Env))
+	} else {
+		must(os.Unsetenv("MANAGEMENT_PASSWORD"))
+	}
+	dir, err := os.MkdirTemp("", "cpa-routes-")
+	must(err)
+	defer os.RemoveAll(dir)
+	path := filepath.Join(dir, "config.yaml")
+	cfg := writeConfig(path, s.YAML)
+	var opts []api.ServerOption
+	if s.LocalPassword != "" {
+		opts = append(opts, api.WithLocalManagementPassword(s.LocalPassword))
+	}
+	server := api.NewServer(cfg, coreauth.NewManager(nil, nil, nil), sdkaccess.NewManager(), path, opts...)
+	for i := range s.Steps {
+		st := &s.Steps[i]
+		if st.Update != "" {
+			server.UpdateClients(writeConfig(path, st.Update))
+		}
+		req := httptest.NewRequest(st.Method, st.Path, strings.NewReader(st.Body))
+		req.RemoteAddr = st.Remote
+		for k, vs := range st.Headers {
+			for _, v := range vs {
+				req.Header.Add(k, v)
+			}
+		}
+		rec := httptest.NewRecorder()
+		server.Handler().ServeHTTP(rec, req)
+		st.Status = rec.Code
+		st.RespBody = rec.Body.String()
+		st.RespHeader = map[string]string{}
+		for _, name := range observedHeaders {
+			if v := rec.Header().Get(name); v != "" {
+				st.RespHeader[name] = v
+			}
+		}
+		if rec.Header().Get("X-CPA-VERSION") != "" {
+			st.RespHeader["X-CPA-VERSION"] = "present"
+		}
+	}
+	must(os.Unsetenv("MANAGEMENT_PASSWORD"))
+	return s
+}
+
+type output struct {
+	Routes []routeScenario  `json:"routes"`
+	Access []accessScenario `json:"access"`
+	IPs    []ipCase         `json:"client_ip"`
+	Synth  []synthCase      `json:"synth"`
+	Loads  []loadCase       `json:"load_errors"`
+}
+
+func must(err error) {
+	if err != nil {
+		panic(err)
+	}
+}
+
+func runAccess(s accessScenario) accessScenario {
+	if s.Env != "" {
+		must(os.Setenv("MANAGEMENT_PASSWORD", s.Env))
+	} else {
+		must(os.Unsetenv("MANAGEMENT_PASSWORD"))
+	}
+	cfg := &config.Config{}
+	cfg.RemoteManagement.AllowRemote = s.AllowRemote
+	if s.Secret != "" {
+		hash, err := bcrypt.GenerateFromPassword([]byte(s.Secret), 4)
+		must(err)
+		cfg.RemoteManagement.SecretKey = string(hash)
+	}
+	h := management.NewHandler(cfg, "", nil)
+	if s.LocalPassword != "" {
+		h.SetLocalPassword(s.LocalPassword)
+	}
+	engine := gin.New()
+	must(engine.SetTrustedProxies(s.Trusted))
+	engine.GET("/v8/management/probe", h.Middleware(), func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"ok": true})
+	})
+	for i := range s.Steps {
+		req := httptest.NewRequest(http.MethodGet, "/v8/management/probe", nil)
+		req.RemoteAddr = s.Steps[i].Remote
+		for k, vs := range s.Steps[i].Headers {
+			for _, v := range vs {
+				req.Header.Add(k, v)
+			}
+		}
+		rec := httptest.NewRecorder()
+		engine.ServeHTTP(rec, req)
+		s.Steps[i].Status = rec.Code
+		s.Steps[i].Body = rec.Body.String()
+		s.Steps[i].Version = rec.Header().Get("X-CPA-VERSION")
+	}
+	must(os.Unsetenv("MANAGEMENT_PASSWORD"))
+	return s
+}
+
+func runIP(c ipCase) ipCase {
+	engine := gin.New()
+	must(engine.SetTrustedProxies(c.Trusted))
+	engine.GET("/", func(ctx *gin.Context) { ctx.String(200, ctx.ClientIP()) })
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.RemoteAddr = c.Remote
+	for k, vs := range c.Headers {
+		for _, v := range vs {
+			req.Header.Add(k, v)
+		}
+	}
+	rec := httptest.NewRecorder()
+	engine.ServeHTTP(rec, req)
+	c.IP = rec.Body.String()
+	return c
+}
+
+func summarize(auths []*coreauth.Auth) []authSummary {
+	out := make([]authSummary, 0, len(auths))
+	for _, a := range auths {
+		meta := map[string]any{}
+		if a.Metadata != nil {
+			raw, err := json.Marshal(a.Metadata)
+			must(err)
+			must(json.Unmarshal(raw, &meta))
+		}
+		attrs := map[string]string{}
+		for k, v := range a.Attributes {
+			attrs[k] = v
+		}
+		out = append(out, authSummary{
+			ID: a.ID, Provider: a.Provider, Label: a.Label, Prefix: a.Prefix, ProxyURL: a.ProxyURL,
+			Disabled: a.Disabled, Status: string(a.Status), Index: a.EnsureIndex(), FileName: a.FileName,
+			Attributes: attrs, Metadata: meta,
+		})
+	}
+	return out
+}
+
+// Auth paths are reported relative to this placeholder so fixtures are portable.
+const fixtureRoot = "/fixture-root"
+
+func runSynth(c synthCase) synthCase {
+	dir, err := os.MkdirTemp("", "cpa-synth-")
+	must(err)
+	defer os.RemoveAll(dir)
+	root := filepath.Join(dir, "fixture-root")
+	must(os.MkdirAll(filepath.Join(root, "auth"), 0o700))
+	path := filepath.Join(root, "config.yaml")
+	must(os.WriteFile(path, []byte(c.YAML), 0o600))
+	for name, body := range c.Files {
+		must(os.WriteFile(filepath.Join(root, "auth", name), []byte(body), 0o600))
+	}
+	cfg, err := config.LoadConfig(path)
+	if err != nil {
+		c.Error = err.Error()
+		return c
+	}
+	ctx := &synthesizer.SynthesisContext{Config: cfg, AuthDir: filepath.Join(root, "auth"), Now: time.Unix(0, 0).UTC(), IDGenerator: synthesizer.NewStableIDGenerator()}
+	auths, err := synthesizer.NewConfigSynthesizer().Synthesize(ctx)
+	if err != nil {
+		c.Error = err.Error()
+		return c
+	}
+	c.Config = summarize(auths)
+	files, err := synthesizer.NewFileSynthesizer().Synthesize(ctx)
+	must(err)
+	// Absolute paths depend on the temp dir; rewrite them to the placeholder and
+	// recompute the index the way Go would for that placeholder path.
+	for _, a := range files {
+		for k, v := range a.Attributes {
+			if rel, errRel := filepath.Rel(root, v); errRel == nil && filepath.IsAbs(v) && rel != "" && rel[0] != '.' {
+				a.Attributes[k] = filepath.Join(fixtureRoot, rel)
+			}
+		}
+		a.Index = ""
+	}
+	sort.Slice(files, func(i, j int) bool { return files[i].ID < files[j].ID })
+	c.File = summarize(files)
+	return c
+}
+
+func h(pairs ...string) map[string][]string {
+	out := map[string][]string{}
+	for i := 0; i+1 < len(pairs); i += 2 {
+		out[pairs[i]] = append(out[pairs[i]], pairs[i+1])
+	}
+	return out
+}
+
+func main() {
+	gin.SetMode(gin.ReleaseMode)
+	if len(os.Args) != 2 {
+		fmt.Fprintln(os.Stderr, "usage: manage <output.json>")
+		os.Exit(2)
+	}
+	good := h("Authorization", "Bearer fake-secret")
+	wrong := h("Authorization", "Bearer fake-wrong")
+	local := "127.0.0.1:40000"
+	var out output
+	hash, errHash := bcrypt.GenerateFromPassword([]byte("fake-secret"), 4)
+	must(errHash)
+	secretHash = string(hash)
+	for _, s := range routeScenarios() {
+		out.Routes = append(out.Routes, runRoutes(s))
+	}
+	scenarios := []accessScenario{
+		{Name: "local_header_forms", Secret: "fake-secret", Steps: []step{
+			{Remote: local, Headers: good},
+			{Remote: local, Headers: h("X-Management-Key", "fake-secret")},
+			{Remote: local, Headers: h("Authorization", "fake-secret")},
+			{Remote: local, Headers: h("Authorization", "bEaReR fake-secret")},
+			{Remote: local, Headers: h("Authorization", "Bearer  fake-secret")},
+			{Remote: local, Headers: h("Authorization", "Basic abc", "X-Management-Key", "fake-secret")},
+			{Remote: local, Headers: h("Authorization", "Bearer ", "X-Management-Key", "fake-secret")},
+			{Remote: local, Headers: h("Authorization", "Bearer fake-secret", "Authorization", "Bearer other")},
+			{Remote: local},
+		}},
+		{Name: "remote_policy_is_exact_loopback_strings", Secret: "fake-secret", Steps: []step{
+			{Remote: "203.0.113.5:1", Headers: good},
+			{Remote: "127.0.0.2:1", Headers: good},
+			{Remote: "[::1]:1", Headers: good},
+			{Remote: "[::ffff:127.0.0.1]:1", Headers: good},
+			{Remote: "[0:0:0:0:0:0:0:1]:1", Headers: good},
+			{Remote: "203.0.113.5:1"},
+		}},
+		{Name: "ban_after_five_failures_including_missing", Secret: "fake-secret", Steps: []step{
+			{Remote: local, Headers: wrong},
+			{Remote: local, Headers: wrong},
+			{Remote: local},
+			{Remote: local, Headers: wrong},
+			{Remote: local, Headers: wrong},
+			{Remote: local, Headers: good},
+			{Remote: "[::1]:2", Headers: good},
+		}},
+		{Name: "success_resets_count", Secret: "fake-secret", Steps: []step{
+			{Remote: local, Headers: wrong}, {Remote: local, Headers: wrong}, {Remote: local, Headers: wrong}, {Remote: local, Headers: wrong},
+			{Remote: local, Headers: good},
+			{Remote: local, Headers: wrong}, {Remote: local, Headers: wrong}, {Remote: local, Headers: wrong}, {Remote: local, Headers: wrong},
+			{Remote: local, Headers: good},
+		}},
+		{Name: "remote_failures_ban_before_policy", Secret: "fake-secret", Steps: []step{
+			{Remote: "203.0.113.7:1", Headers: wrong},
+			{Remote: "203.0.113.7:1", Headers: wrong},
+		}},
+		{Name: "allow_remote_bans_remote_ip", Secret: "fake-secret", AllowRemote: true, Steps: []step{
+			{Remote: "203.0.113.7:1", Headers: good},
+			{Remote: "203.0.113.7:1", Headers: wrong}, {Remote: "203.0.113.7:1", Headers: wrong}, {Remote: "203.0.113.7:1", Headers: wrong},
+			{Remote: "203.0.113.7:1", Headers: wrong}, {Remote: "203.0.113.7:1", Headers: wrong},
+			{Remote: "203.0.113.7:1", Headers: good},
+			{Remote: local, Headers: good},
+		}},
+		{Name: "env_secret_allows_remote", Env: "fake-env", Steps: []step{
+			{Remote: "203.0.113.8:1", Headers: h("Authorization", "Bearer fake-env")},
+			{Remote: "203.0.113.8:1", Headers: wrong},
+			{Remote: local, Headers: h("X-Management-Key", "fake-env")},
+		}},
+		{Name: "env_and_config_secret", Env: "fake-env", Secret: "fake-secret", Steps: []step{
+			{Remote: "203.0.113.8:1", Headers: good},
+			{Remote: "203.0.113.8:1", Headers: h("Authorization", "Bearer fake-env")},
+		}},
+		{Name: "local_password_is_loopback_only", Secret: "fake-secret", AllowRemote: true, LocalPassword: "fake-local", Steps: []step{
+			{Remote: local, Headers: h("Authorization", "Bearer fake-local")},
+			{Remote: "203.0.113.9:1", Headers: h("Authorization", "Bearer fake-local")},
+			{Remote: "[::1]:3", Headers: h("X-Management-Key", "fake-local")},
+		}},
+		{Name: "local_password_without_secret", LocalPassword: "fake-local", Steps: []step{
+			{Remote: local, Headers: h("Authorization", "Bearer fake-local")},
+			{Remote: local},
+		}},
+		{Name: "trusted_loopback_proxy_uses_forwarded_ip", Secret: "fake-secret", Trusted: []string{"127.0.0.1", "::1"}, Steps: []step{
+			{Remote: local, Headers: h("X-Forwarded-For", "203.0.113.9", "Authorization", "Bearer fake-secret")},
+			{Remote: local, Headers: h("X-Forwarded-For", "127.0.0.1", "Authorization", "Bearer fake-secret")},
+			{Remote: local, Headers: h("X-Forwarded-For", "203.0.113.9, 127.0.0.1", "Authorization", "Bearer fake-secret")},
+			{Remote: local, Headers: h("X-Real-IP", "::1", "Authorization", "Bearer fake-secret")},
+			{Remote: local, Headers: h("X-Forwarded-For", "garbage", "X-Real-IP", "203.0.113.4", "Authorization", "Bearer fake-secret")},
+			{Remote: local, Headers: h("X-Forwarded-For", "::ffff:127.0.0.1", "Authorization", "Bearer fake-secret")},
+			{Remote: "203.0.113.5:1", Headers: h("X-Forwarded-For", "127.0.0.1", "Authorization", "Bearer fake-secret")},
+		}},
+		{Name: "untrusted_forwarded_headers_are_ignored", Secret: "fake-secret", Steps: []step{
+			{Remote: "203.0.113.5:1", Headers: h("X-Forwarded-For", "127.0.0.1", "Authorization", "Bearer fake-secret")},
+			{Remote: local, Headers: h("X-Forwarded-For", "203.0.113.9", "Authorization", "Bearer fake-secret")},
+		}},
+		{Name: "forwarded_ip_is_the_ban_key", Secret: "fake-secret", Trusted: []string{"127.0.0.0/8"}, AllowRemote: true, Steps: []step{
+			{Remote: local, Headers: h("X-Forwarded-For", "203.0.113.20", "Authorization", "Bearer x")},
+			{Remote: local, Headers: h("X-Forwarded-For", "203.0.113.20", "Authorization", "Bearer x")},
+			{Remote: local, Headers: h("X-Forwarded-For", "203.0.113.20", "Authorization", "Bearer x")},
+			{Remote: local, Headers: h("X-Forwarded-For", "203.0.113.20", "Authorization", "Bearer x")},
+			{Remote: local, Headers: h("X-Forwarded-For", "203.0.113.20", "Authorization", "Bearer x")},
+			{Remote: local, Headers: h("X-Forwarded-For", "203.0.113.20", "Authorization", "Bearer fake-secret")},
+			{Remote: local, Headers: h("X-Forwarded-For", "203.0.113.21", "Authorization", "Bearer fake-secret")},
+			{Remote: local, Headers: good},
+		}},
+	}
+	for _, s := range scenarios {
+		out.Access = append(out.Access, runAccess(s))
+	}
+
+	trusted := [][]string{nil, {}, {"127.0.0.1"}, {"10.0.0.0/8", "::1"}, {"::ffff:127.0.0.1"}, {"0.0.0.0/0"}}
+	remotes := []string{"127.0.0.1:1", "[::1]:1", "10.1.2.3:1", "[::ffff:10.1.2.3]:1", "198.51.100.1:1"}
+	headerSets := []map[string][]string{
+		nil,
+		h("X-Forwarded-For", "203.0.113.1"),
+		h("X-Forwarded-For", " 203.0.113.1 , 10.9.9.9 "),
+		h("X-Forwarded-For", "10.9.9.9, 127.0.0.1"),
+		h("X-Forwarded-For", "bogus, 203.0.113.1"),
+		h("X-Forwarded-For", "203.0.113.1, bogus"),
+		h("X-Forwarded-For", "", "X-Real-IP", "2001:db8::1"),
+		h("X-Forwarded-For", "203.0.113.1", "X-Forwarded-For", "203.0.113.2"),
+		h("X-Real-IP", "0:0:0:0:0:0:0:1"),
+		h("X-Forwarded-For", "::FFFF:127.0.0.1"),
+		h("X-Forwarded-For", "fe80::1%eth0", "X-Real-IP", "203.0.113.3"),
+		h("X-Forwarded-For", "01.2.3.4"),
+	}
+	for _, t := range trusted {
+		for _, r := range remotes {
+			for _, hs := range headerSets {
+				out.IPs = append(out.IPs, runIP(ipCase{Trusted: t, Remote: r, Headers: hs}))
+			}
+		}
+	}
+
+	for _, entries := range []string{
+		"trusted-proxies: ['']", "trusted-proxies: [' 127.0.0.1']", "trusted-proxies: [nonsense]",
+		"trusted-proxies: [10.0.0.0/33]", "trusted-proxies: ['::1/129']", "trusted-proxies: [fe80::1%eth0]",
+		"server: {trusted-proxies: [127.0.0.1, '::1', 10.0.0.0/8]}", "trusted-proxies: [01.2.3.4]",
+	} {
+		dir, err := os.MkdirTemp("", "cpa-load-")
+		must(err)
+		path := filepath.Join(dir, "config.yaml")
+		must(os.WriteFile(path, []byte(entries+"\n"), 0o600))
+		_, errLoad := config.LoadConfig(path)
+		msg := ""
+		if errLoad != nil {
+			msg = errLoad.Error()
+		}
+		out.Loads = append(out.Loads, loadCase{YAML: entries, Error: msg})
+		_ = os.RemoveAll(dir)
+	}
+
+	for _, c := range synthCases() {
+		out.Synth = append(out.Synth, runSynth(c))
+	}
+
+	data, err := json.MarshalIndent(out, "", " ")
+	must(err)
+	must(os.WriteFile(os.Args[1], append(data, '\n'), 0o644))
+}
+
+func synthCases() []synthCase {
+	return []synthCase{
+		{Name: "legacy_claude_and_overrides", YAML: `
+claude-api-key:
+  - api-key: " fake-claude-1 "
+    base-url: "https://claude.example.invalid/ "
+    priority: 3
+    weight: 0
+    prefix: "/team/"
+    proxy-url: " socks5://proxy.example.invalid:1080 "
+    headers: {X-Extra: " v ", X-Blank: " ", " ": x}
+    excluded-models: [" Claude-Opus-*", claude-opus-*, "", Haiku]
+    disable-cooling: false
+    request-retry: -1
+    request-scoped-errors:
+      - {status: 400, match: ["overloaded"], action: stop}
+    models:
+      - {name: claude-sonnet-4-6, alias: sonnet}
+    rebuild-mid-system-message: true
+    fingerprint-profile: " CLI "
+  - api-key: fake-claude-2
+    weight: -4
+    request-retry: 2
+    prefix: a/b
+  - api-key: ""
+    base-url: ""
+  - api-key: fake-claude-2
+    weight: -4
+    request-retry: 2
+    prefix: a/b
+`},
+		{Name: "v8_groups_inherit_and_override", YAML: `
+config-version: 8
+api-keys:
+  claude:
+    - name: team
+      base-url: https://claude.example.invalid
+      priority: 5
+      prefix: grp
+      disable-cooling: true
+      excluded-models: [group-model]
+      headers: {X-Group: g}
+      keys:
+        - api-key: fake-k1
+        - api-key: fake-k2
+          priority: 9
+          prefix: null
+          disable-cooling: false
+          weight: 7
+          excluded-models: [key-model]
+  codex:
+    - name: c
+      base-url: https://codex.example.invalid
+      keys:
+        - {api-key: fake-codex, websockets: true, alpha-search: true, disable-codex-cloaking: false}
+    - name: no-base
+      keys:
+        - {api-key: fake-codex-dropped}
+  xai:
+    - base-url: https://xai.example.invalid
+      keys: [{api-key: fake-xai, alpha-search: true}]
+  meta:
+    - keys: [{api-key: "dca:fake"}, {api-key: fake-meta}]
+`},
+		{Name: "gemini_vertex_compat", YAML: `
+gemini-api-key:
+  - {api-key: fake-g1, priority: 1}
+  - {api-key: " fake-g1 "}
+  - {api-key: "", base-url: ""}
+  - {api-key: "", base-url: "https://gemini.example.invalid"}
+interactions-api-key:
+  - {api-key: fake-i1, excluded-models: [X]}
+vertex-api-key:
+  - {api-key: "", base-url: https://v.example.invalid}
+  - api-key: fake-v1
+    base-url: https://v.example.invalid
+    weight: 3
+    request-retry: 0
+    models: [{name: m1, alias: a1}, {name: m2, alias: ""}]
+  - {api-key: fake-v1, base-url: https://v.example.invalid}
+openai-compatibility:
+  - name: OpenRouter
+    base-url: https://router.example.invalid
+    priority: 2
+    disable-cooling: true
+    request-retry: 1
+    headers: {X-H: v}
+    api-key-entries:
+      - {api-key: fake-or-1, weight: 4, proxy-url: http://p.example.invalid}
+      - {api-key: fake-or-1}
+  - name: nokeys
+    base-url: https://nokeys.example.invalid
+  - name: off
+    disabled: true
+    base-url: https://off.example.invalid
+    api-key-entries: [{api-key: fake-off}]
+  - name: nobase
+    api-key-entries: [{api-key: fake-nobase}]
+  - name: openai-compatible-pre
+    base-url: https://pre.example.invalid
+    api-key-entries: [{api-key: fake-pre}]
+`},
+		{Name: "oauth_files", YAML: `
+auth-dir: ./auth
+oauth-excluded-models:
+  Claude: [" Opus-X ", opus-x, sonnet-y]
+`, Files: map[string]string{
+			"claude-a.json":  `{"type":"claude","email":"a@example.invalid","priority":"7","weight":2,"excluded_models":["Haiku-Z"],"prefix":"/p/","proxy_url":"http://p.example.invalid","note":" hi ","disabled":true}`,
+			"codex-b.json":   `{"type":"codex","plan_type":" pro "}`,
+			"gemini-c.json":  `{"type":"gemini"}`,
+			"broken.json":    `{"type":`,
+			"notype.json":    `{"email":"x@example.invalid"}`,
+			"upper.JSON":     `{"type":"Claude","priority":1.9}`,
+			"weightbad.json": `{"type":"claude","weight":"abc"}`,
+		}},
+		{Name: "invalid_weight", YAML: "claude-api-key:\n  - {api-key: fake, weight: 1000001}\n"},
+	}
+}
+
+func routeScenarios() []routeScenario {
+	local := "127.0.0.1:40000"
+	key := h("Authorization", "Bearer fake-secret")
+	withSecret := "remote-management:\n  secret-key: '$HASH'\nport: 0\n"
+	noSecret := "remote-management:\n  allow-remote: false\nport: 0\n"
+	get := func(path string, headers map[string][]string) routeStep {
+		return routeStep{Method: http.MethodGet, Path: path, Remote: local, Headers: headers}
+	}
+	return []routeScenario{
+		{Name: "unknown_paths_methods_and_preflight", YAML: withSecret, Steps: []routeStep{
+			get("/v8/management/unknown", nil),
+			get("/v8/management/unknown", key),
+			{Method: http.MethodPost, Path: "/v8/management/config", Remote: local},
+			{Method: http.MethodDelete, Path: "/v8/management/config", Remote: local, Headers: key},
+			{Method: http.MethodHead, Path: "/v8/management/config", Remote: local, Headers: key},
+			{Method: http.MethodOptions, Path: "/v8/management/config", Remote: "203.0.113.1:1"},
+			{Method: http.MethodOptions, Path: "/anything/at/all", Remote: local},
+			get("/v8/management/config", nil),
+			get("/v8/management/config", h("Authorization", "Bearer wrong")),
+			get("/v8/management", key),
+			get("/v8/management/", key),
+			get("/v0/management/unknown", key),
+			get("/v8/management/credentials/status", key),
+			{Method: http.MethodPatch, Path: "/v8/management/credentials/status", Remote: "203.0.113.1:1", Headers: key},
+			get("/v8/management/config/server/port", key),
+			get("/v8/management/config/server/missing", key),
+			get("/v8/management/config/", key),
+		}},
+		{Name: "availability_follows_secret_across_reloads", YAML: noSecret, Steps: []routeStep{
+			get("/v8/management/config", key),
+			{Method: http.MethodOptions, Path: "/v8/management/config", Remote: local},
+			{Update: withSecret, Method: http.MethodGet, Path: "/v8/management/config/port", Remote: local, Headers: key},
+			{Update: noSecret, Method: http.MethodGet, Path: "/v8/management/config", Remote: local, Headers: key},
+		}},
+		{Name: "local_password_only_until_reload", YAML: noSecret, LocalPassword: "fake-local", Steps: []routeStep{
+			get("/v8/management/config", h("Authorization", "Bearer fake-local")),
+			{Update: noSecret, Method: http.MethodGet, Path: "/v8/management/config", Remote: local, Headers: h("Authorization", "Bearer fake-local")},
+		}},
+		{Name: "env_secret_survives_reload", YAML: noSecret, Env: "fake-env", Steps: []routeStep{
+			get("/v8/management/config/port", h("Authorization", "Bearer fake-env")),
+			{Update: noSecret, Method: http.MethodGet, Path: "/v8/management/config/port", Remote: "203.0.113.1:1", Headers: h("Authorization", "Bearer fake-env")},
+		}},
+	}
+}

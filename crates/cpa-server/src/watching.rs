@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use std::sync::{Arc, PoisonError};
 use std::time::{Duration, Instant};
 
-use cpa_core::config::Config;
+use cpa_core::config::{Config, credentials};
 use cpa_core::credential::{Credential, Source};
 
 use crate::management::Management;
@@ -84,7 +84,7 @@ pub fn start(state: &Arc<Management>) -> tokio::task::JoinHandle<()> {
 pub fn reload(state: &Management) -> anyhow::Result<()> {
     let _guard = state.disk.lock().unwrap_or_else(PoisonError::into_inner);
     // A rejected config must not prevent disabled/deleted auth files from taking
-    // effect. Reconcile against the last good auth-dir while retaining the error.
+    // effect. Reconcile against the last good config while retaining the error.
     let (config, config_error) = if std::fs::metadata(&state.path)?.len() == 0 {
         ((*state.rt.config()).clone(), None)
     } else {
@@ -93,25 +93,22 @@ pub fn reload(state: &Management) -> anyhow::Result<()> {
             Err(error) => ((*state.rt.config()).clone(), Some(error)),
         }
     };
-    let mut credentials = cpa_core::credential::load_dir(&config.auth_dir)?;
+    let mut files = credentials::from_auth_dir(&config)?;
     // A malformed in-place auth write is not a deletion. Keep the last good value;
     // actual removal and a valid disabled update are reconciled normally.
     for existing in state.rt.store().snapshot() {
         if let Source::File(path) = &existing.source
             && path.parent() == Some(config.auth_dir.as_path())
             && path.exists()
-            && !credentials.iter().any(|c| c.id == existing.id)
+            && !files.iter().any(|c| c.id == existing.id)
             && std::fs::read(path).ok().is_some_and(|data| {
                 serde_json::from_slice::<serde_json::Map<String, serde_json::Value>>(&data).is_err()
             })
         {
-            credentials.push(Credential::clone(&existing));
+            files.push(Credential::clone(&existing));
         }
     }
-    if *state.rt.config() != config {
-        state.rt.publish_config(config);
-    }
-    state.rt.store().reconcile(credentials);
+    state.publish(config, Some(files))?;
     if let Some(error) = config_error {
         return Err(error);
     }
