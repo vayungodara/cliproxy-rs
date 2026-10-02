@@ -24,7 +24,7 @@ pub struct Part {
 impl Part {
     /// `textproto.MIMEHeader.Get`.
     pub fn header(&self, name: &str) -> Option<&str> {
-        let name = crate::kimi_http::canonical_header(name);
+        let name = crate::proxy::canonical_header(name);
         self.headers.iter().find(|(n, _)| *n == name).map(|(_, v)| v.as_str())
     }
 }
@@ -397,7 +397,7 @@ impl Reader<'_> {
             } else if key.contains(&b' ') {
                 String::from_utf8_lossy(key).into_owned()
             } else {
-                crate::kimi_http::canonical_header(&String::from_utf8_lossy(key))
+                crate::proxy::canonical_header(&String::from_utf8_lossy(key))
             };
             if value.iter().any(|c| *c < 0x20 && *c != b'\t' || *c == 0x7f) {
                 return Err(malformed(trimmed));

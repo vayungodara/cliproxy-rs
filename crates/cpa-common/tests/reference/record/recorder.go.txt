@@ -4,6 +4,7 @@ package recorder
 
 import (
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -56,10 +57,11 @@ func Lookup(model, provider string, info *registry.ModelInfo) {
 	mu.Unlock()
 }
 
-// Str marks byte payloads that are not valid UTF-8 so the replay can skip them.
+// Str records bytes as a JSON string, or as {"b64": ...} when they are not valid UTF-8
+// (encoding/json would replace invalid bytes with U+FFFD).
 func Str(b []byte) any {
 	if !utf8.Valid(b) {
-		return map[string]any{"non_utf8": true}
+		return map[string]any{"b64": base64.StdEncoding.EncodeToString(b)}
 	}
 	return string(b)
 }
@@ -71,24 +73,25 @@ func Err(err error) any {
 	return err.Error()
 }
 
-func invalid(v any) bool {
+// bytesSafe re-encodes every invalid UTF-8 string as {"b64": ...}.
+func bytesSafe(v any) any {
 	switch x := v.(type) {
 	case string:
-		return !utf8.ValidString(x)
+		return Str([]byte(x))
 	case map[string]any:
-		for _, item := range x {
-			if invalid(item) {
-				return true
-			}
+		out := make(map[string]any, len(x))
+		for k, item := range x {
+			out[k] = bytesSafe(item)
 		}
+		return out
 	case []any:
-		for _, item := range x {
-			if invalid(item) {
-				return true
-			}
+		out := make([]any, len(x))
+		for i, item := range x {
+			out[i] = bytesSafe(item)
 		}
+		return out
 	}
-	return false
+	return v
 }
 
 func End(fn string, in, out any) {
@@ -96,9 +99,7 @@ func End(fn string, in, out any) {
 	defer mu.Unlock()
 	start := starts[len(starts)-1]
 	starts = starts[:len(starts)-1]
-	if invalid(in) || invalid(out) {
-		in = map[string]any{"non_utf8": true}
-	}
+	in, out = bytesSafe(in), bytesSafe(out)
 	rec := map[string]any{"fn": fn, "in": in, "out": out, "lookups": append([]map[string]any{}, lookups[start:]...)}
 	line, errMarshal := json.Marshal(rec)
 	if errMarshal != nil {

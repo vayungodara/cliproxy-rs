@@ -375,14 +375,17 @@ def run_case(root, output, upstream, case):
             processes.append(process)
             wait_ready(process, port, working / "process.log" if side == "go" else None)
         if case.get("wait_refresh"):
-            deadline = time.monotonic() + 20
-            while time.monotonic() < deadline:
-                persisted = json.loads((directory / "go/auth/fixture.json").read_text())
-                if persisted["access_token"] != CREDENTIAL["access_token"]:
-                    break
-                time.sleep(0.05)
-            else:
-                raise TimeoutError("Go did not persist the scripted token rotation")
+            # Both proxies refresh in the background; send only after each persisted
+            # the rotation so the case measures refresh, not a race with it.
+            for side in ports:
+                deadline = time.monotonic() + 20
+                while time.monotonic() < deadline:
+                    persisted = json.loads((directory / side / "auth/fixture.json").read_text())
+                    if persisted["access_token"] != CREDENTIAL["access_token"]:
+                        break
+                    time.sleep(0.05)
+                else:
+                    raise TimeoutError(f"{side} did not persist the scripted token rotation")
         for side, port in ports.items():
             replies = [downstream(port, case, turn) for turn in range(case.get("turns", 1))]
             observations[side] = {"downstream": replies}

@@ -10,8 +10,13 @@ import (
 	"strings"
 	"time"
 
+	"net/http"
+
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/registry"
 	"github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/auth"
+	cliproxyexecutor "github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/executor"
+	"github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/session"
+	sdktranslator "github.com/router-for-me/CLIProxyAPI/v8/sdk/translator"
 )
 
 type pair struct {
@@ -239,6 +244,266 @@ func cooldowns() []cooldownCase {
 	return out
 }
 
+// sessionCase is one request: headers as name/value pairs (repeatable), the body, the
+// execution session, the source format and the client key (for the caller scope).
+type sessionCase struct {
+	Name      string     `json:"name"`
+	Headers   [][]string `json:"headers"`
+	Payload   string     `json:"payload"`
+	Execution string     `json:"execution"`
+	Format    string     `json:"format"`
+	ClientKey string     `json:"client_key"`
+
+	Info *session.SessionInfo `json:"info"`
+	// From session.Enrich: the derived identity and canonical/parent session metadata.
+	Derived   string `json:"derived"`
+	Canonical string `json:"canonical"`
+	Parent    string `json:"parent"`
+	// auth.ExtractSessionID with Enrich's metadata, and with only the execution session
+	// (the first-messages hash path when nothing explicit exists).
+	SessionID     string `json:"session_id"`
+	HashSessionID string `json:"hash_session_id"`
+	CallerScope   string `json:"caller_scope"`
+}
+
+func h(pairs ...string) [][]string {
+	var out [][]string
+	for i := 0; i+1 < len(pairs); i += 2 {
+		out = append(out, []string{pairs[i], pairs[i+1]})
+	}
+	return out
+}
+
+var long = strings.Repeat("a", 180) + strings.Repeat("é", 38)
+
+var sessionInputs = []sessionCase{
+	{Name: "claude_header", Headers: h("X-Claude-Code-Session-Id", "11111111-2222-3333-4444-555555555555")},
+	{Name: "claude_header_agent_parent", Headers: h("X-Claude-Code-Session-Id", "s1", "X-Claude-Code-Agent-Id", "explorer", "X-Claude-Code-Parent-Agent-Id", "planner")},
+	{Name: "claude_header_body_agent", Headers: h("X-Claude-Code-Session-Id", "s1"), Payload: `{"metadata":{"agent_id":"worker"},"parent_session_id":"root-1"}`},
+	{Name: "claude_header_body_parent", Headers: h("X-Claude-Code-Session-Id", "s1"), Payload: `{"parent_session_id":"root-1"}`},
+	{Name: "claude_header_main_agent", Headers: h("X-Claude-Code-Session-Id", "s1", "X-Claude-Code-Agent-Id", "main")},
+	{Name: "claude_user_id_json", Payload: `{"metadata":{"user_id":"{\"session_id\":\"sess-9\",\"parent_session_id\":\"sess-1\",\"agent_id\":\"a7\"}"}}`},
+	{Name: "claude_user_id_json_no_agent", Payload: `{"metadata":{"user_id":"{\"session_id\":\"sess-9\",\"parent_agent_id\":\"sess-2\"}"}}`},
+	{Name: "claude_user_id_legacy", Payload: `{"metadata":{"user_id":"user_abc_account__session_1234-abcd","parent_agent_id":"p-1"}}`},
+	{Name: "claude_user_id_legacy_bad", Payload: `{"metadata":{"user_id":"user_x_session_zz"}}`},
+	{Name: "codex_session", Headers: h("Session-Id", "019a0000-0000-7000-8000-000000000001")},
+	{Name: "codex_session_thread", Headers: h("Session-Id", "sess", "Thread-Id", "thread")},
+	{Name: "codex_turn_metadata", Headers: h("X-Codex-Turn-Metadata", `{"session_id":"s","thread_id":"t","agent_name":"/root/explorer","subagent_kind":"thread_spawn"}`)},
+	{Name: "codex_turn_fork", Headers: h("Session-Id", "s", "X-Codex-Turn-Metadata", `{"thread_id":"t2","forked_from_thread_id":"t1"}`)},
+	{Name: "codex_parent_thread", Headers: h("Session-Id", "s", "X-Codex-Parent-Thread-Id", "p")},
+	{Name: "codex_underscore_body_thread", Headers: h("Session_id", "s"), Payload: `{"thread_id":"s"}`},
+	{Name: "codex_openai_subagent", Headers: h("Session-Id", "s", "X-Openai-Subagent", "true")},
+	{Name: "codex_body_parent", Headers: h("Session-Id", "s"), Payload: `{"parent_id":"root"}`},
+	{Name: "agy", Headers: h("X-Http-Session-Id", "a1", "X-Parent-Session-Id", "a0")},
+	{Name: "generic_session", Headers: h("X-Session-ID", "g1")},
+	{Name: "opencode", Headers: h("X-Session-Affinity", "o1", "X-Parent-Session-Affinity", "o0")},
+	{Name: "pi_slot", Headers: h("X-Slot-Session-Id", "slot-1")},
+	{Name: "task_header", Headers: h("X-Task-Id", "t1", "X-Parent-Task-Id", "t0")},
+	{Name: "conversation_header", Headers: h("X-Conversation-Id", "c1")},
+	{Name: "thread_header", Headers: h("X-Thread-Id", "th1", "X-Parent-ID", "th0")},
+	{Name: "client_request", Headers: h("X-Client-Request-Id", "cr1")},
+	{Name: "gemini_cache", Payload: `{"cachedContent":"cachedContents/abc","contents":[]}`, Format: "gemini"},
+	{Name: "nested_request_session", Payload: `{"request":{"session_id":"nested"}}`, Format: "antigravity"},
+	{Name: "body_thread_child", Payload: `{"thread_id":"t","parent_id":"p"}`},
+	{Name: "body_thread_fork", Payload: `{"thread_id":"t","parent_id":"p","forked_from_id":"p"}`},
+	{Name: "body_session_agent", Payload: `{"session_id":"s","metadata":{"agent_id":"helper"}}`},
+	{Name: "body_session_numeric", Payload: `{"session_id":12345}`},
+	{Name: "body_task", Payload: `{"task_id":"roo-1"}`},
+	{Name: "prompt_cache_key", Payload: `{"prompt_cache_key":"pck-1","conversation":{"id":"conv-1"}}`, Format: "openai-response"},
+	{Name: "conversation_string", Payload: `{"conversation":"conv-2"}`, Format: "openai-response"},
+	{Name: "plain_user_id", Payload: `{"metadata":{"user_id":"u-42"},"messages":[{"role":"user","content":"hi"}]}`, Format: "claude"},
+	{Name: "legacy_conversation_id", Payload: `{"conversation_id":"c-3"}`},
+	{Name: "execution_only", Execution: "ws-123"},
+	{Name: "control_char_rejected", Headers: h("X-Session-ID", "bad\u0001id")},
+	{Name: "unicode_trimmed", Headers: h("X-Session-ID", "\u00a0spaced\u00a0")},
+	{Name: "long_bounded", Headers: h("X-Claude-Code-Session-Id", long)},
+	{Name: "derived_openai", Payload: `{"model":"m","messages":[{"role":"system","content":"You are <helpful> & brief"},{"role":"user","content":[{"type":"text","text":"Hello"},{"type":"image_url","image_url":{"url":"data:image/png;base64,AAA"}}]}]}`, Format: "openai", ClientKey: "fake-client-key"},
+	{Name: "derived_openai_no_key", Payload: `{"messages":[{"role":"user","content":"Hello"},{"role":"assistant","content":"Hi there"}]}`, Format: "openai"},
+	{Name: "derived_claude_system_blocks", Payload: `{"system":[{"type":"text","text":"Sys one","cache_control":{"type":"ephemeral"}},{"type":"text","text":"Sys two"}],"messages":[{"role":"user","content":[{"type":"image","source":{"type":"base64","media_type":"image/PNG","data":"QUJD"}},{"type":"tool_result","tool_use_id":"x","cache_control":{"type":"ephemeral"},"is_error":false,"n":1.50}]}]}`, Format: "claude", ClientKey: "k"},
+	{Name: "derived_responses", Payload: `{"instructions":"Be terse.","input":[{"role":"developer","content":"dev note"},{"type":"message","role":"user","content":[{"type":"input_text","text":"Question?"}]}]}`, Format: "codex", ClientKey: "k"},
+	{Name: "derived_responses_string", Payload: `{"input":"just text"}`, Format: "openai-response"},
+	{Name: "derived_gemini_envelope", Payload: `{"request":{"systemInstruction":{"parts":[{"text":"sys"}]},"contents":[{"role":"model","parts":[{"text":"x"}]},{"role":"USER","parts":[{"inlineData":{"mimeType":"image/jpeg","data":"Zm9v"}},{"text":"look"}]}]}}`, Format: "antigravity", ClientKey: "k"},
+	{Name: "derived_interactions_steps", Payload: `{"system_instruction":"sys","input":[{"role":"user","steps":[{"type":"text","text":"first"}]}]}`, Format: "interactions"},
+	{Name: "derived_interactions_string", Payload: `{"input":"hello there"}`, Format: "interactions"},
+	{Name: "no_user_input", Payload: `{"messages":[{"role":"system","content":"only system"}]}`, Format: "openai"},
+	{Name: "gemini_hash", Payload: `{"systemInstruction":{"parts":[{"text":"s"}]},"contents":[{"role":"user","parts":[{"text":"u"}]},{"role":"model","parts":[{"text":"m"}]}]}`, Format: "gemini"},
+	{Name: "explicit_missed_by_has_explicit", Payload: `{"metadata":{"sessionID":"x"},"messages":[{"role":"user","content":"hi"}]}`},
+	{Name: "parent_header_only", Headers: h("X-Parent-ID", "p"), Payload: `{"messages":[{"role":"user","content":"hi"}]}`},
+	{Name: "empty"},
+}
+
+func sessions() []sessionCase {
+	out := make([]sessionCase, len(sessionInputs))
+	for i, c := range sessionInputs {
+		headers := http.Header{}
+		for _, pair := range c.Headers {
+			headers.Add(pair[0], pair[1])
+		}
+		payload := []byte(c.Payload)
+		meta := map[string]any{}
+		if c.Execution != "" {
+			meta[cliproxyexecutor.ExecutionSessionMetadataKey] = c.Execution
+		}
+		if info, ok := session.ExtractSessionInfo(headers, payload, meta); ok {
+			c.Info = &info
+		}
+		c.HashSessionID = auth.ExtractSessionID(headers, payload, meta)
+		format := c.Format
+		if format == "" {
+			format = "openai"
+		}
+		optsMeta := map[string]any{}
+		for k, v := range meta {
+			optsMeta[k] = v
+		}
+		if c.ClientKey != "" {
+			c.CallerScope = session.CallerScope(c.ClientKey)
+			optsMeta[cliproxyexecutor.CallerScopeMetadataKey] = c.CallerScope
+		}
+		_, opts := session.Enrich(
+			cliproxyexecutor.Request{Payload: payload},
+			cliproxyexecutor.Options{Headers: headers, SourceFormat: sdktranslator.Format(format), Metadata: optsMeta},
+		)
+		c.Derived, _ = opts.Metadata[cliproxyexecutor.DerivedSessionIDMetadataKey].(string)
+		c.Canonical, _ = opts.Metadata[cliproxyexecutor.CanonicalSessionIDMetadataKey].(string)
+		c.Parent, _ = opts.Metadata[cliproxyexecutor.ParentSessionIDMetadataKey].(string)
+		c.SessionID = auth.ExtractSessionID(headers, payload, opts.Metadata)
+		c.Format = format
+		out[i] = c
+	}
+	return out
+}
+
+// affinityStep is one Pick (with the available credential IDs) or one OnResult.
+type affinityStep struct {
+	Op        string     `json:"op"` // pick, ok, fail
+	Headers   [][]string `json:"headers,omitempty"`
+	Payload   string     `json:"payload,omitempty"`
+	Available []string   `json:"available,omitempty"`
+	Auth      string     `json:"auth,omitempty"`
+	Status    int        `json:"status,omitempty"`
+	Message   string     `json:"message,omitempty"`
+	Picked    string     `json:"picked,omitempty"`
+}
+
+type affinityCase struct {
+	Name             string            `json:"name"`
+	SubagentAffinity bool              `json:"subagent_affinity"`
+	Priorities       map[string]string `json:"priorities,omitempty"`
+	Steps            []affinityStep    `json:"steps"`
+}
+
+func pick(hs [][]string, payload string, available ...string) affinityStep {
+	return affinityStep{Op: "pick", Headers: hs, Payload: payload, Available: available}
+}
+
+func result(op string, hs [][]string, payload, auth string, status int, message string) affinityStep {
+	return affinityStep{Op: op, Headers: hs, Payload: payload, Auth: auth, Status: status, Message: message}
+}
+
+var (
+	s1      = h("X-Session-ID", "s1")
+	root    = h("X-Claude-Code-Session-Id", "root")
+	worker  = h("X-Claude-Code-Session-Id", "root", "X-Claude-Code-Agent-Id", "worker")
+	thread1 = h("Session-Id", "t1")
+	fork2   = h("Session-Id", "t1", "X-Codex-Turn-Metadata", `{"thread_id":"t2","forked_from_thread_id":"t1"}`)
+	pck1    = `{"prompt_cache_key":"p1","conversation":{"id":"c1"}}`
+	pck2    = `{"prompt_cache_key":"p2","conversation":{"id":"c1"}}`
+	chat1   = `{"messages":[{"role":"user","content":"hi"}]}`
+	chat2   = `{"messages":[{"role":"user","content":"hi"},{"role":"assistant","content":"hello"},{"role":"user","content":"more"}]}`
+)
+
+var affinityInputs = []affinityCase{
+	{Name: "binding_kept_then_released_on_failure", SubagentAffinity: true, Steps: []affinityStep{
+		pick(s1, "", "b"), pick(s1, "", "a", "b"), result("fail", s1, "", "b", 500, "boom"), pick(s1, "", "a", "b"),
+	}},
+	{Name: "request_fault_keeps_binding", SubagentAffinity: true, Steps: []affinityStep{
+		pick(s1, "", "b"), result("fail", s1, "", "b", 400, "bad request"), pick(s1, "", "a", "b"),
+	}},
+	{Name: "success_from_other_credential_does_not_rebind", SubagentAffinity: true, Steps: []affinityStep{
+		pick(s1, "", "b"), result("ok", s1, "", "a", 0, ""), pick(s1, "", "a", "b"),
+	}},
+	{Name: "subagent_inherits_parent", SubagentAffinity: true, Steps: []affinityStep{
+		pick(root, "", "b"), pick(worker, "", "a", "b"), pick(root, "", "a", "b"),
+	}},
+	{Name: "subagent_affinity_off", SubagentAffinity: false, Steps: []affinityStep{
+		pick(root, "", "b"), pick(worker, "", "a", "b"),
+	}},
+	{Name: "subagent_failure_keeps_parent", SubagentAffinity: true, Steps: []affinityStep{
+		pick(root, "", "b"), pick(worker, "", "a", "b"), result("fail", worker, "", "b", 500, "boom"), pick(root, "", "a", "b"), pick(worker, "", "a", "b"),
+	}},
+	{Name: "fork_inherits_parent", SubagentAffinity: false, Steps: []affinityStep{
+		pick(thread1, "", "b"), pick(fork2, "", "a", "b"), result("fail", thread1, "", "b", 500, "boom"), pick(fork2, "", "a", "b"),
+	}},
+	{Name: "prompt_cache_conversation_alias", SubagentAffinity: true, Steps: []affinityStep{
+		pick(nil, pck1, "b"), pick(nil, pck2, "a", "b"), result("fail", nil, pck2, "b", 500, "boom"), pick(nil, pck1, "a", "b"),
+	}},
+	{Name: "binding_beats_recovered_priority", SubagentAffinity: true, Priorities: map[string]string{"c": "5"}, Steps: []affinityStep{
+		pick(s1, "", "a"), pick(s1, "", "a", "c"), pick(nil, "", "a", "c"),
+	}},
+	{Name: "unavailable_binding_rebinds_highest_tier", SubagentAffinity: true, Priorities: map[string]string{"c": "5"}, Steps: []affinityStep{
+		pick(s1, "", "b"), pick(s1, "", "a", "c"), pick(s1, "", "a", "b", "c"),
+	}},
+	{Name: "derived_identity_survives_new_turns", SubagentAffinity: true, Steps: []affinityStep{
+		pick(nil, chat1, "b"), pick(nil, chat2, "a", "b"),
+	}},
+}
+
+func affinities() []affinityCase {
+	ctx := context.Background()
+	out := make([]affinityCase, len(affinityInputs))
+	for i, c := range affinityInputs {
+		subagent := c.SubagentAffinity
+		selector := auth.NewSessionAffinitySelectorWithConfig(auth.SessionAffinityConfig{
+			Fallback:         &auth.FillFirstSelector{},
+			TTL:              time.Hour,
+			SubagentAffinity: &subagent,
+		})
+		auths := map[string]*auth.Auth{}
+		for _, id := range []string{"a", "b", "c"} {
+			attrs := map[string]string{}
+			if p := c.Priorities[id]; p != "" {
+				attrs["priority"] = p
+			}
+			auths[id] = &auth.Auth{ID: id, Provider: "claude", Attributes: attrs}
+		}
+		steps := make([]affinityStep, len(c.Steps))
+		for j, st := range c.Steps {
+			headers := http.Header{}
+			for _, pair := range st.Headers {
+				headers.Add(pair[0], pair[1])
+			}
+			_, opts := session.Enrich(
+				cliproxyexecutor.Request{Payload: []byte(st.Payload)},
+				cliproxyexecutor.Options{Headers: headers, SourceFormat: sdktranslator.Format("openai"), Metadata: map[string]any{}},
+			)
+			switch st.Op {
+			case "pick":
+				var candidates []*auth.Auth
+				for _, id := range st.Available {
+					candidates = append(candidates, auths[id])
+				}
+				picked, err := selector.Pick(ctx, "claude", "m", opts, candidates)
+				if err != nil {
+					panic(err)
+				}
+				st.Picked = picked.ID
+			default:
+				res := auth.Result{AuthID: st.Auth, Provider: "claude", Model: "m", Success: st.Op == "ok", Options: opts}
+				if st.Op == "fail" {
+					res.Error = &auth.Error{HTTPStatus: st.Status, Message: st.Message}
+				}
+				selector.OnResult(res)
+			}
+			steps[j] = st
+		}
+		selector.Stop()
+		c.Steps = steps
+		out[i] = c
+	}
+	return out
+}
+
 func main() {
 	out := map[string]any{}
 	var sanitized, extracted []pair
@@ -252,6 +517,8 @@ func main() {
 	out["extract"] = extracted
 	out["availability"] = modelAvailability()
 	out["cooldown"] = cooldowns()
+	out["session"] = sessions()
+	out["affinity"] = affinities()
 	data, err := json.MarshalIndent(out, "", "  ")
 	if err != nil {
 		panic(err)

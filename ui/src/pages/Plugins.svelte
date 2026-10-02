@@ -4,7 +4,6 @@
   import { readPath, fieldPath, type Data } from "../core";
   import Editor from "../Editor.svelte";
   import Load from "../Load.svelte";
-  import Missing from "../Missing.svelte";
 
   store.plugins.load();
   const market = new Res<Data>(() => api("/plugins/store"));
@@ -40,9 +39,8 @@
       disabled={store.busy}
       onclick={() => store.call("PUT", fieldPath("plugins/enabled"), !on, on ? "Plugins off." : "Plugins on. A restart may be needed.", "", after)}
       ><span class="lamp {on ? 'ok' : 'off'}"></span>{on ? "Plugins on" : "Plugins off"}</button
-    ><button class="key" disabled={market.loading || !store.can("GET", "/plugins/store")} onclick={() => market.load()}>Browse store</button>{/if}
+    ><button class="key" disabled={market.loading || !store.can("GET", "/plugins") || !store.can("GET", "/plugins/store")} onclick={() => market.load()}>Browse store</button>{/if}
 </div>
-<Missing actions={[["GET", "/plugins/store", "the plugin store"]]} />
 
 {#if edit}
   <Editor {...edit} onclose={() => (edit = null)} />

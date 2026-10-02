@@ -1,10 +1,11 @@
 //! Reasoning summary (visibility) intent, kept separate from effort (summary.go).
 
 use crate::gostr::GoStr;
-use gjson::Kind;
+use crate::json::Kind;
 
 use super::{ModelCaps, lookup_model_info, parse_suffix};
-use crate::gojson as json;
+use super::{is_empty_object, with_bool, with_int, with_str, without};
+use crate::json;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum SummaryMode {
@@ -44,7 +45,7 @@ fn supported(format: &str) -> bool {
 }
 
 /// `ExtractSummaryConfig`.
-pub fn extract_summary_config(body: &str, format: &str) -> SummaryConfig {
+pub fn extract_summary_config(body: &[u8], format: &str) -> SummaryConfig {
     let format = format.trim().go_lower();
     if !supported(&format) || body.is_empty() || !json::valid(body) {
         return SummaryConfig::default();
@@ -54,8 +55,8 @@ pub fn extract_summary_config(body: &str, format: &str) -> SummaryConfig {
             if let Some(config) = openai_explicit(body) {
                 return config;
             }
-            let effort = gjson::get(body, "reasoning_effort");
-            if effort.kind() == Kind::String {
+            let effort = json::get(body, "reasoning_effort");
+            if effort.kind == Kind::String {
                 return match effort.str().trim().go_lower().as_str() {
                     "" => SummaryConfig::default(),
                     "none" => SummaryConfig::disabled(),
@@ -72,8 +73,8 @@ pub fn extract_summary_config(body: &str, format: &str) -> SummaryConfig {
         }
         "claude" => {
             if claude_accepts_display(body) {
-                let value = gjson::get(body, "thinking.display");
-                if value.kind() == Kind::String {
+                let value = json::get(body, "thinking.display");
+                if value.kind == Kind::String {
                     match value.str().trim().go_lower().as_str() {
                         "summarized" => return SummaryConfig::enabled("auto"),
                         "omitted" => return SummaryConfig::disabled(),
@@ -114,8 +115,8 @@ pub fn extract_summary_config(body: &str, format: &str) -> SummaryConfig {
                 "generation_config.thinkingSummaries",
                 "reasoning.summary",
             ] {
-                let value = gjson::get(body, path);
-                if value.kind() == Kind::String {
+                let value = json::get(body, path);
+                if value.kind == Kind::String {
                     match value.str().trim().go_lower().as_str() {
                         "auto" => return SummaryConfig::enabled("auto"),
                         "none" => return SummaryConfig::disabled(),
@@ -142,7 +143,7 @@ pub fn extract_summary_config(body: &str, format: &str) -> SummaryConfig {
 
 /// `ExtractExplicitSummaryConfig`: like [`extract_summary_config`] but OpenAI chat
 /// `reasoning_effort` alone does not imply a summary.
-pub fn extract_explicit_summary_config(body: &str, format: &str) -> SummaryConfig {
+pub fn extract_explicit_summary_config(body: &[u8], format: &str) -> SummaryConfig {
     let format = format.trim().go_lower();
     if format != "openai" {
         return extract_summary_config(body, &format);
@@ -154,7 +155,7 @@ pub fn extract_explicit_summary_config(body: &str, format: &str) -> SummaryConfi
 }
 
 /// `ExtractTranslatedSummaryConfig`.
-pub fn extract_translated_summary_config(body: &str, source_format: &str, target_format: &str) -> SummaryConfig {
+pub fn extract_translated_summary_config(body: &[u8], source_format: &str, target_format: &str) -> SummaryConfig {
     let source = source_format.trim().go_lower();
     if target_format.trim().go_lower() == "claude" && source == "openai" {
         return extract_explicit_summary_config(body, &source);
@@ -163,55 +164,55 @@ pub fn extract_translated_summary_config(body: &str, source_format: &str, target
 }
 
 /// `ApplyTranslatedSummaryToClaude`.
-pub fn apply_translated_summary_to_claude(out: &str, source: &str, source_format: &str, model: &str) -> String {
+pub fn apply_translated_summary_to_claude(out: &[u8], source: &[u8], source_format: &str, model: &str) -> Vec<u8> {
     let config = extract_translated_summary_config(source, source_format, "claude");
     if config.mode == SummaryMode::Unspecified {
-        return out.to_owned();
+        return out.to_vec();
     }
     apply_summary_config_for_model(out, "claude", model, config)
 }
 
 /// `ApplySummaryConfig`.
-pub fn apply_summary_config(body: &str, format: &str, config: SummaryConfig) -> String {
+pub fn apply_summary_config(body: &[u8], format: &str, config: SummaryConfig) -> Vec<u8> {
     apply_summary_config_for_model(body, format, "", config)
 }
 
 /// `ApplySummaryConfigForModel`.
-pub fn apply_summary_config_for_model(body: &str, format: &str, model: &str, config: SummaryConfig) -> String {
+pub fn apply_summary_config_for_model(body: &[u8], format: &str, model: &str, config: SummaryConfig) -> Vec<u8> {
     apply_summary_config_for_provider(body, format, model, "", None, config)
 }
 
 pub(crate) fn apply_summary_config_for_provider(
-    body: &str,
+    body: &[u8],
     format: &str,
     model: &str,
     provider: &str,
     info: Option<&ModelCaps>,
     config: SummaryConfig,
-) -> String {
+) -> Vec<u8> {
     let format = format.trim().go_lower();
     if config.mode == SummaryMode::Unspecified || !supported(&format) || body.is_empty() || !json::valid(body) {
-        return body.to_owned();
+        return body.to_vec();
     }
     let enabled = config.mode == SummaryMode::Enabled;
-    let mut body = body.to_owned();
+    let mut body = body.to_vec();
     match format.as_str() {
         "openai" => {
-            if is_openrouter(provider) || json::is_bool(&gjson::get(&body, "reasoning.exclude")) {
-                body = json::set_bool(&body, "reasoning.exclude", !enabled);
+            if is_openrouter(provider) || json::get(&body, "reasoning.exclude").is_bool() {
+                body = with_bool(&body, "reasoning.exclude", !enabled);
             }
-            if json::is_bool(&gjson::get(&body, "include_reasoning")) {
-                body = json::set_bool(&body, "include_reasoning", enabled);
+            if json::get(&body, "include_reasoning").is_bool() {
+                body = with_bool(&body, "include_reasoning", enabled);
             }
         }
         "claude" => {
-            if enabled && !gjson::get(&body, "thinking.type").exists() {
+            if enabled && !json::get(&body, "thinking.type").exists() {
                 body = enable_claude_thinking_for_summary(&body, model, info);
             }
             if !claude_accepts_display(&body) {
                 return body;
             }
-            body = json::set_str(
+            body = with_str(
                 &body,
                 "thinking.display",
                 if enabled { "summarized" } else { "omitted" },
@@ -219,7 +220,7 @@ pub(crate) fn apply_summary_config_for_provider(
         }
         "gemini" | "antigravity" => {
             let prefix = if format == "antigravity" { "request." } else { "" };
-            body = json::set_bool(
+            body = with_bool(
                 &body,
                 &format!("{prefix}generationConfig.thinkingConfig.includeThoughts"),
                 enabled,
@@ -238,26 +239,26 @@ pub(crate) fn apply_summary_config_for_provider(
                 ]
             };
             for path in aliases {
-                body = json::delete(&body, path);
+                body = without(&body, path);
             }
         }
         "interactions" => {
-            body = json::set_str(
+            body = with_str(
                 &body,
                 "generation_config.thinking_summaries",
                 if enabled { "auto" } else { "none" },
             );
-            body = json::delete(&body, "generation_config.thinkingSummaries");
+            body = without(&body, "generation_config.thinkingSummaries");
         }
         "openai-response" | "codex" => {
             if enabled {
-                body = json::set_str(&body, "reasoning.summary", normalized_detail(&config.detail));
-                body = json::delete(&body, "reasoning.generate_summary");
+                body = with_str(&body, "reasoning.summary", normalized_detail(&config.detail));
+                body = without(&body, "reasoning.generate_summary");
             } else {
-                body = json::delete(&body, "reasoning.summary");
-                body = json::delete(&body, "reasoning.generate_summary");
-                if json::is_empty_object(&body, "reasoning") {
-                    body = json::delete(&body, "reasoning");
+                body = without(&body, "reasoning.summary");
+                body = without(&body, "reasoning.generate_summary");
+                if is_empty_object(&body, "reasoning") {
+                    body = without(&body, "reasoning");
                 }
             }
         }
@@ -266,19 +267,15 @@ pub(crate) fn apply_summary_config_for_provider(
     body
 }
 
-fn claude_accepts_display(body: &str) -> bool {
-    match json::go_str(&gjson::get(body, "thinking.type"))
-        .trim()
-        .go_lower()
-        .as_str()
-    {
+fn claude_accepts_display(body: &[u8]) -> bool {
+    match json::get(body, "thinking.type").str().trim().go_lower().as_str() {
         "adaptive" => true,
         "enabled" => {
-            let budget = gjson::get(body, "thinking.budget_tokens");
-            if budget.kind() != Kind::Number {
+            let budget = json::get(body, "thinking.budget_tokens");
+            if budget.kind != Kind::Number {
                 return true;
             }
-            let value = json::go_int(&budget);
+            let value = budget.int();
             value == -1 || value > 0
         }
         _ => false,
@@ -293,7 +290,7 @@ fn is_openrouter(provider: &str) -> bool {
             .any(|part| part == "openrouter")
 }
 
-fn openai_explicit(body: &str) -> Option<SummaryConfig> {
+fn openai_explicit(body: &[u8]) -> Option<SummaryConfig> {
     for path in [
         "extra_body.google.thinking_config.include_thoughts",
         "extra_body.google.thinking_config.includeThoughts",
@@ -326,9 +323,9 @@ fn openai_explicit(body: &str) -> Option<SummaryConfig> {
         ("include_reasoning", false),
         ("reasoning.enabled", false),
     ] {
-        let value = gjson::get(body, path);
-        if json::is_bool(&value) {
-            let on = (value.kind() == Kind::True) != invert;
+        let value = json::get(body, path);
+        if value.is_bool() {
+            let on = (value.kind == Kind::True) != invert;
             return Some(if on {
                 SummaryConfig::enabled("auto")
             } else {
@@ -339,24 +336,24 @@ fn openai_explicit(body: &str) -> Option<SummaryConfig> {
     None
 }
 
-fn first_bool(body: &str, paths: &[&str]) -> Option<SummaryConfig> {
+fn first_bool(body: &[u8], paths: &[&str]) -> Option<SummaryConfig> {
     paths.iter().find_map(|path| bool_config(body, path))
 }
 
-fn bool_config(body: &str, path: &str) -> Option<SummaryConfig> {
-    match gjson::get(body, path).kind() {
+fn bool_config(body: &[u8], path: &str) -> Option<SummaryConfig> {
+    match json::get(body, path).kind {
         Kind::True => Some(SummaryConfig::enabled("auto")),
         Kind::False => Some(SummaryConfig::disabled()),
         _ => None,
     }
 }
 
-fn responses_summary(body: &str, path: &str) -> Option<SummaryConfig> {
-    let value = gjson::get(body, path);
+fn responses_summary(body: &[u8], path: &str) -> Option<SummaryConfig> {
+    let value = json::get(body, path);
     if !value.exists() {
         return None;
     }
-    match value.kind() {
+    match value.kind {
         Kind::Null => Some(SummaryConfig::disabled()),
         Kind::String => match value.str().trim().go_lower().as_str() {
             raw @ ("auto" | "concise" | "detailed") => Some(SummaryConfig::enabled(raw)),
@@ -369,66 +366,63 @@ fn responses_summary(body: &str, path: &str) -> Option<SummaryConfig> {
 
 /// Removes adaptive Claude thinking that only a summary-only request activated, when
 /// the bound model supports manual extended thinking only.
-pub(crate) fn strip_inferred_claude_summary_activation(body: &str, info: Option<&ModelCaps>) -> String {
+pub(crate) fn strip_inferred_claude_summary_activation(body: &[u8], info: Option<&ModelCaps>) -> Vec<u8> {
     let Some(support) = info.and_then(|i| i.thinking.as_ref()) else {
-        return body.to_owned();
+        return body.to_vec();
     };
     if !support.levels.is_empty() || support.min <= 0 {
-        return body.to_owned();
+        return body.to_vec();
     }
-    if !json::go_str(&gjson::get(body, "thinking.type"))
-        .trim()
-        .go_eq_fold("adaptive")
-    {
-        return body.to_owned();
+    if !json::get(body, "thinking.type").str().trim().go_eq_fold("adaptive") {
+        return body.to_vec();
     }
-    let mut body = body.to_owned();
+    let mut body = body.to_vec();
     for path in [
         "thinking.type",
         "thinking.budget_tokens",
         "thinking.display",
         "output_config.effort",
     ] {
-        body = json::delete(&body, path);
+        body = without(&body, path);
     }
     for path in ["thinking", "output_config"] {
-        if json::is_empty_object(&body, path) {
-            body = json::delete(&body, path);
+        if is_empty_object(&body, path) {
+            body = without(&body, path);
         }
     }
     body
 }
 
-fn enable_claude_thinking_for_summary(body: &str, model: &str, resolved: Option<&ModelCaps>) -> String {
+fn enable_claude_thinking_for_summary(body: &[u8], model: &str, resolved: Option<&ModelCaps>) -> Vec<u8> {
     let looked_up;
     let info = match resolved {
         Some(info) => Some(info),
         None => {
             let mut base = parse_suffix(model).model_name;
             if base.is_empty() {
-                base = parse_suffix(&json::go_str(&gjson::get(body, "model"))).model_name;
+                base = parse_suffix(&json::get(body, "model").str()).model_name;
             }
             looked_up = lookup_model_info(&base, "claude");
             looked_up.as_ref()
         }
     };
     let Some(support) = info.and_then(|i| i.thinking.as_ref()) else {
-        return body.to_owned();
+        return body.to_vec();
     };
     if !support.levels.is_empty() {
-        let body = json::set_str(body, "thinking.type", "adaptive");
-        return json::delete(&body, "thinking.budget_tokens");
+        let body = with_str(body, "thinking.type", "adaptive");
+        return without(&body, "thinking.budget_tokens");
     }
     let budget = support.min;
     if budget <= 0 {
-        return body.to_owned();
+        return body.to_vec();
     }
-    let max_tokens = gjson::get(body, "max_tokens");
-    if max_tokens.exists() && json::go_int(&max_tokens) <= budget {
-        return body.to_owned();
+    let max_tokens = json::get(body, "max_tokens");
+    if max_tokens.exists() && max_tokens.int() <= budget {
+        return body.to_vec();
     }
-    let body = json::set_str(body, "thinking.type", "enabled");
-    json::set_int(&body, "thinking.budget_tokens", budget)
+    let body = with_str(body, "thinking.type", "enabled");
+    with_int(&body, "thinking.budget_tokens", budget)
 }
 
 fn normalized_detail(detail: &str) -> &'static str {

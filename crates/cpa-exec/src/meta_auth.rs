@@ -19,8 +19,9 @@ use serde_json::Value;
 use sha2::{Digest, Sha256};
 
 use crate::kimi_auth::{form, open_browser, write_private};
-use crate::kimi_http::{GoHeaders, MAX_ERROR_BODY, read_all, rfc3339_utc, send};
+use crate::kimi_http::rfc3339_utc;
 use crate::meta_wire::{Slot, check_valid, unmarshal};
+use crate::proxy::{GoHeaders, MAX_ERROR_BODY, read_all, send};
 
 pub const DEFAULT_API_BASE_URL: &str = "https://api.meta.ai/v1";
 pub const AUTH_HOST: &str = "https://auth.meta.com";
@@ -867,7 +868,7 @@ pub async fn login(cfg: &cpa_core::config::Config, no_browser: bool) -> Result<P
         .and_then(|r| r.get("proxy-url"))
         .and_then(|v| v.as_str())
         .unwrap_or_default();
-    let client = crate::kimi_http::Clients::new(crate::kimi_http::default_client()).get(proxy);
+    let client = crate::proxy::GoClients::new(crate::proxy::Hooks::default()).get(&crate::proxy::Proxy::parse(proxy));
     let outcome = login_with(MetaAuth::new(client), &cfg.auth_dir, no_browser)
         .await
         .map_err(|e| {

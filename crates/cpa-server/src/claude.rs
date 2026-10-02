@@ -14,7 +14,7 @@ use serde_json::Value;
 
 use crate::dispatch::{self, Call, Done};
 use crate::respond::{self, Writer};
-use crate::{Runtime, errors, gojson, jsonedit};
+use crate::{Runtime, errors, gojson};
 
 const DD_PREFIX: &str = "claude-fable-5-dd-";
 
@@ -132,7 +132,7 @@ async fn handle(
     let raw_model = gojson::gjson_string(fields.get("model"));
     let resolved = resolve_dd(&raw_model);
     if resolved != raw_model
-        && let Some(updated) = jsonedit::set_string(&body, "model", &resolved)
+        && let Some(updated) = cpa_common::json::try_set_str(&body, "model", &resolved).ok()
     {
         body = Bytes::from(updated);
     }

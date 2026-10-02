@@ -28,15 +28,13 @@ use futures_util::StreamExt;
 use serde_json::Value;
 
 use crate::codex_response::OutputItems;
-use crate::kimi_http::{
-    Clients, GoHeaders, MAX_ERROR_BODY, custom_headers, default_client, lines, proxy_url, read_all, read_all_strict,
-    refresh_due, rfc3339_local_now, send,
-};
+use crate::kimi_http::{custom_headers, read_all_strict, refresh_due, rfc3339_local_now};
 use crate::meta_auth::{DEFAULT_API_BASE_URL, MetaAuth, MintedKey};
 use crate::meta_codex::{
     count_codex_input_tokens, go_trim_space, normalize_codex_instructions, normalize_codex_tool_integer_types,
 };
 use crate::openai_compat_payload::{ensure_responses_usage_details, sanitize_reasoning_encrypted_content};
+use crate::proxy::{GoClients, GoHeaders, MAX_ERROR_BODY, Proxy, default_client, lines, read_all, send};
 
 /// Provider string served by this executor.
 pub const PROVIDER: &str = "meta";
@@ -52,7 +50,7 @@ const APPLY_PATCH_ERROR: &str = "Invalid apply_patch tool arguments received fro
 const DISCONNECTED: &str = "meta stream error: stream disconnected before response.completed or response.incomplete";
 
 pub struct MetaExecutor {
-    clients: Clients,
+    clients: GoClients,
     mint_url: Option<String>,
 }
 
@@ -66,7 +64,7 @@ impl MetaExecutor {
     /// Uses a caller-built client (tests point it at local mocks).
     pub fn with_client(client: wreq::Client) -> Self {
         Self {
-            clients: Clients::new(client),
+            clients: GoClients::with_default(client),
             mint_url: None,
         }
     }
@@ -110,7 +108,7 @@ impl MetaExecutor {
                 "meta executor: missing API key or DCA token",
             ));
         };
-        let mut auth = MetaAuth::new(self.clients.get(&proxy_url(credential, cfg)));
+        let mut auth = MetaAuth::new(self.clients.get(&Proxy::effective(credential, cfg)));
         if let Some(url) = &self.mint_url {
             auth = auth.with_mint_url(url);
         }
@@ -194,7 +192,7 @@ impl MetaExecutor {
             ));
         }
         let url = format!("{}/responses", base.strip_suffix('/').unwrap_or(&base));
-        let client = self.clients.get(&proxy_url(&enriched, cfg));
+        let client = self.clients.get(&Proxy::effective(&enriched, cfg));
         let body = Bytes::from(prepared.body);
         let upstream = send(&client, &url, headers(&enriched, &req, &token), body.clone(), None).await?;
         if !(200..300).contains(&upstream.status) {
@@ -330,11 +328,10 @@ fn prepare(req: &ExecRequest, stream: bool) -> Result<Prepared, ExecError> {
         &codex_client_request(req, &req.body),
     )
     .map_err(|e| ExecError::local(400, FailureScope::Request, e.0))?;
-    let text = |b: &[u8]| String::from_utf8_lossy(b).into_owned();
     let thinking = apply_request_thinking(&RequestThinking {
-        body: &text(&body),
-        payload: &text(&req.body),
-        original: &text(original(req)),
+        body: &body,
+        payload: &req.body,
+        original: original(req),
         model: &req.model,
         from: req.source_format.as_str(),
         to: "codex",
@@ -346,7 +343,7 @@ fn prepare(req: &ExecRequest, stream: bool) -> Result<Prepared, ExecError> {
         updates_changed: false,
     })
     .map_err(|e| ExecError::local(e.status(), FailureScope::Request, e.message))?;
-    body = thinking.into_bytes();
+    body = thinking;
     body = apply_payload_rules(body, req, &base_model);
     set_string_if_different(&mut body, "model", &base_model);
     set_bool_if_different(&mut body, "stream", stream);
@@ -360,7 +357,12 @@ fn prepare(req: &ExecRequest, stream: bool) -> Result<Prepared, ExecError> {
         gj::delete(&mut body, key);
     }
     normalize_codex_instructions(&mut body);
-    body = sanitize_reasoning_encrypted_content(text(&body)).into_bytes();
+    // ponytail: the OpenAI-compatible thread's sanitizer edits text; a body that is not
+    // UTF-8 is left as is rather than lossily rewritten.
+    body = match String::from_utf8(body) {
+        Ok(text) => sanitize_reasoning_encrypted_content(text).into_bytes(),
+        Err(raw) => raw.into_bytes(),
+    };
     sanitize_web_search_tools(&mut body);
     body = normalize_codex_tool_integer_types(body, &req.headers);
     Ok(Prepared { body, response })

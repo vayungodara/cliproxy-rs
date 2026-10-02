@@ -10,6 +10,7 @@ rust-version.workspace = true
 anyhow.workspace = true
 axum.workspace = true
 bytes.workspace = true
+cpa-common.workspace = true
 cpa-core.workspace = true
 cpa-exec.workspace = true
 cpa-translate.workspace = true
@@ -20,7 +21,9 @@ serde_json.workspace = true
 serde_yaml_ng.workspace = true
 tokio.workspace = true
 tracing.workspace = true
+base64 = "0.22"
 bcrypt = "0.19"
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
 subtle = "2.6"
 
 [dev-dependencies]
