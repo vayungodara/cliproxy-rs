@@ -31,10 +31,12 @@ async fn main() -> anyhow::Result<()> {
     };
     let executors = Executors {
         claude: ClaudeExecutor::with_hooks(hooks, DEFAULT_BASE_URL),
+        codex: Default::default(),
         devices: Default::default(),
     };
     let listener = tokio::net::TcpListener::bind((config.host.as_str(), config.port)).await?;
     let rt = Arc::new(Runtime::new(config, credentials, executors));
+    cpa_server::install_registry(&rt);
     rt.start_auto_refresh();
     let management = cpa_server::management::Management::with_options(
         rt.clone(),

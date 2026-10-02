@@ -51,6 +51,7 @@ fn request(case: &Value) -> ExecRequest {
         body,
         alt: None,
         session: None,
+        execution_session: None,
         headers,
         caller: Caller {
             principal: "fixture-client-key".into(),
@@ -134,6 +135,7 @@ async fn custom_origin_counts_locally_without_sending_credentials() {
         stream: false,
         alt: None,
         session: None,
+        execution_session: None,
         headers: Default::default(),
         caller: Caller {
             principal: "fake-client".into(),
@@ -255,6 +257,7 @@ async fn executor_scenarios_match_go() {
     let fixture: Value = serde_json::from_str(include_str!("testdata/go_executor.json")).unwrap();
     let root = std::env::temp_dir().join(format!("cpa-claude-go-{}", std::process::id()));
     let executor = ClaudeExecutor::with_client(wreq::Client::new(), DEFAULT_BASE_URL);
+    let prompt_id = regex::Regex::new(r"cc_prompt_id=[0-9a-f-]{36};").unwrap();
     for scenario in fixture["scenarios"].as_array().unwrap() {
         let name = scenario["name"].as_str().unwrap();
         let dir = root.join(name);
@@ -300,6 +303,7 @@ async fn executor_scenarios_match_go() {
             stream,
             alt: None,
             session: None,
+            execution_session: scenario["execution_session"].as_str().map(str::to_owned),
             headers,
             caller: Caller {
                 principal: scenario["client_key"].as_str().unwrap().into(),
@@ -315,9 +319,18 @@ async fn executor_scenarios_match_go() {
             ctx.prepare_messages(&req, &translated, stream).unwrap()
         };
         let upstream = &scenario["upstream"][0];
+        // With execution metadata a new turn takes the continuity store's fresh random
+        // prompt ID (uuid.NewString in Go) instead of the deterministic fingerprint one.
+        let random_prompt = |text: &str| {
+            if scenario["execution_session"].is_string() {
+                prompt_id.replace_all(text, "cc_prompt_id=<random>;").into_owned()
+            } else {
+                text.to_owned()
+            }
+        };
         assert_eq!(
-            normalize_random(&prepared.body),
-            normalize_random(upstream["body"].as_str().unwrap()),
+            random_prompt(&normalize_random(&prepared.body)),
+            random_prompt(&normalize_random(upstream["body"].as_str().unwrap())),
             "{name}: upstream body"
         );
         let mut ours: Vec<(String, String)> = prepared.headers.clone();
@@ -334,7 +347,7 @@ async fn executor_scenarios_match_go() {
             if k.eq_ignore_ascii_case("x-client-request-id") && b != "9b6a3f8e-1c2d-4e5f-8a9b-0c1d2e3f4a5b" {
                 continue;
             }
-            if k == "X-Claude-Code-Session-Id" && name == "apikey-cloak-always" {
+            if k == "X-Claude-Code-Session-Id" && name.starts_with("apikey-cloak") {
                 continue;
             }
             assert_eq!(a, b, "{name}: header {k}");

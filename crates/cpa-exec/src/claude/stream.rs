@@ -158,6 +158,8 @@ impl Relay {
     }
 
     fn end(&mut self, error: Option<ExecError>) {
+        // bufio.Scanner hands an unterminated final line to the split function on EOF
+        // and on read errors alike (atEOF is true once any error is set).
         self.take_partial();
         if self.finished {
             return;

@@ -150,16 +150,6 @@ impl ClaudeExecutor {
         self.oauth.prepare(credential, &Proxy::effective(credential, cfg)).await
     }
 
-    pub fn needs_refresh(&self, credential: &Credential, _cfg: &Config) -> bool {
-        oauth::needs_refresh(credential)
-    }
-
-    pub async fn refresh(&self, credential: &Credential, cfg: &Config) -> Result<MetadataPatch, ExecError> {
-        self.oauth
-            .refresh_credential(credential, &Proxy::effective(credential, cfg))
-            .await
-    }
-
     fn native_client(&self, proxy: &Proxy) -> Result<wreq::Client, ExecError> {
         match &self.native {
             Native::Fixed(client) => Ok(client.clone()),
@@ -486,6 +476,8 @@ struct Ctx<'a> {
     upstream_model: String,
     /// `isKimiMessagesUpstream`.
     kimi: bool,
+    /// Normalized execution-session ID (websocket executions), or empty.
+    execution: String,
     /// Real Claude OAuth token (`sk-ant-oat`).
     oauth_token: bool,
     /// `fp.ProfileClaudeCodeCLI`: OAuth token or `fingerprint-profile: claude-code-cli`.
@@ -744,6 +736,7 @@ impl<'a> Ctx<'a> {
             proxy: Proxy::effective(credential, cfg),
             upstream_model: delegation.upstream_model.map_or_else(|| base.clone(), |f| f(&base)),
             kimi: kimi_upstream(&credential.provider, &base_url),
+            execution: session::normalize(req.execution_session.as_deref().unwrap_or_default()),
             base_model: base,
             cli_profile: oauth_token || profile == "claude-code-cli",
             oauth_token,
@@ -837,9 +830,10 @@ impl<'a> Ctx<'a> {
         (cloak, strict, words, cache)
     }
 
+    /// `session.Enrich`: a derived identity only without an explicit or execution one.
     fn derived_session(&self, req: &ExecRequest) -> String {
         let original = String::from_utf8_lossy(&req.original_body);
-        if session::has_explicit_session(&req.headers, &original) {
+        if session::has_explicit_session(&req.headers, &original) || !self.execution.is_empty() {
             return String::new();
         }
         session::derive_id(
@@ -867,6 +861,7 @@ impl<'a> Ctx<'a> {
                     original: &original,
                     translated: &String::from_utf8_lossy(&req.body),
                     derived: &derived,
+                    execution: &self.execution,
                 },
                 confirmed,
             )
@@ -1074,6 +1069,7 @@ impl<'a> Ctx<'a> {
                     original: &original,
                     translated: &String::from_utf8_lossy(&req.body),
                     derived: &derived,
+                    execution: &self.execution,
                 },
                 confirmed,
             )
@@ -1154,7 +1150,7 @@ impl<'a> Ctx<'a> {
     ) -> (Vec<(String, String)>, Vec<String>) {
         let original = String::from_utf8_lossy(&req.original_body);
         let derived = self.derived_session(req);
-        let cpa_session = session::canonical(&req.headers, &original, &derived);
+        let cpa_session = session::canonical(&req.headers, &original, &self.execution, &derived);
         let h = headers::build(&headers::Plan {
             api_key: &self.api_key,
             bearer: self.bearer,
@@ -1223,15 +1219,15 @@ impl<'a> Ctx<'a> {
                     original: body,
                     translated: body,
                     derived: "",
+                    execution: &self.execution,
                 },
                 false,
             )
         } else {
             session_id.to_owned()
         };
-        // ponytail: execution-session metadata (websocket executions) is not carried
-        // on ExecRequest; HTTP requests never have it in Go either.
-        let has_execution_metadata = false;
+        // ClaudeRequestHasExecutionMetadata.
+        let has_execution_metadata = !self.execution.is_empty();
         let new_turn = signals::new_prompt_turn(body);
         let begun = session::begin(&self.continuity_identity(), &session, new_turn, existing_prompt);
         if begun.key.is_empty() {

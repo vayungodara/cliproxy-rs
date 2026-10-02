@@ -481,6 +481,7 @@ async fn claude_replay_sequence_matches_go() {
             stream: step["stream"].as_bool().unwrap(),
             alt: None,
             session: None,
+            execution_session: None,
             headers,
             caller: cpa_core::exec::Caller {
                 principal: "client-key-1".into(),

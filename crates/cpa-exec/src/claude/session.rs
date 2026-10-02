@@ -9,8 +9,8 @@
 //!
 //! ponytail: only the session *ID* of ExtractSessionInfo is ported (parent/agent
 //! names feed scheduler trees, not this wire). DeriveID covers Messages-shaped
-//! bodies (Claude and OpenAI Chat); Responses/Gemini/Interactions roots and LCP or
-//! execution-metadata identities fall through to the message hash. Home KV mode is
+//! bodies (Claude and OpenAI Chat); Responses/Gemini/Interactions roots and LCP
+//! identities fall through to the message hash. Home KV mode is
 //! not ported; all caches are process-local like Go's non-Home mode.
 
 use std::collections::HashMap;
@@ -789,6 +789,8 @@ pub(crate) struct Inputs<'a> {
     pub translated: &'a str,
     /// `derived:` identity from `session.Enrich` when the caller sent none.
     pub derived: &'a str,
+    /// Execution-session metadata (`ExecutionSessionMetadataKey`), normalized.
+    pub execution: &'a str,
 }
 
 /// `ClaudeAgentSessionUUIDForRequest`: unconfirmed callers cannot choose the
@@ -805,6 +807,9 @@ pub(crate) fn agent_session_uuid(inputs: &Inputs<'_>, confirmed: bool) -> String
         let explicit = explicit_session(&headers, payload);
         if !explicit.is_empty() {
             return explicit;
+        }
+        if !inputs.execution.is_empty() {
+            return bound(format!("execution:{}", inputs.execution));
         }
         let derived = normalize(inputs.derived);
         if !derived.is_empty() {
@@ -847,11 +852,14 @@ pub(crate) fn new_v4() -> String {
 }
 
 /// `CanonicalSessionID` as `$CPA-SESSION-ID` resolves it: the caller's explicit
-/// identity, else the derived one, else the message hash.
-pub(crate) fn canonical(headers: &HeaderMap, original: &str, derived: &str) -> String {
+/// identity, else the execution session, else the derived one, else the message hash.
+pub(crate) fn canonical(headers: &HeaderMap, original: &str, execution: &str, derived: &str) -> String {
     let explicit = explicit_session(headers, original);
     if !explicit.is_empty() {
         return explicit;
+    }
+    if !execution.is_empty() {
+        return bound(format!("execution:{execution}"));
     }
     let derived = normalize(derived);
     if !derived.is_empty() {
@@ -1076,6 +1084,7 @@ mod tests {
             original: body,
             translated: body,
             derived: "",
+            execution: "",
         };
         assert_eq!(
             agent_session_uuid(&inputs, false),

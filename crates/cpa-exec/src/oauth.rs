@@ -313,8 +313,8 @@ impl OAuth {
         }
     }
 
-    /// Background refresh (`ClaudeExecutor.Refresh`): rotate the token, then read the
-    /// profile, using the credential's proxy. Never runs on the request path.
+    /// `ClaudeExecutor.Refresh`: rotate the token, then read the profile, using the
+    /// credential's proxy.
     pub(crate) async fn refresh_credential(
         &self,
         credential: &Credential,
@@ -327,9 +327,17 @@ impl OAuth {
         self.via(proxy).refresh(token).await
     }
 
-    /// Request-path identity (`PrepareRequestAuth`): device pool and account UUID.
+    /// One preparation under the runtime's readiness contract. A credential missing its
+    /// identity gets only that (`PrepareRequestAuth`: device pool and account UUID), so
+    /// a failing refresh never blocks requests. Anything else is a token refresh
+    /// (`Refresh`): inside the refresh lead from the background loop, or on demand after
+    /// an upstream 401 (`refreshAuthForRequest`), when nothing else is due.
     pub(crate) async fn prepare(&self, credential: &Credential, proxy: &Proxy) -> Result<MetadataPatch, ExecError> {
-        self.via(proxy).prepare_inner(credential).await
+        if needs_identity(credential) {
+            self.via(proxy).prepare_inner(credential).await
+        } else {
+            self.refresh_credential(credential, proxy).await
+        }
     }
 
     async fn prepare_inner(&self, credential: &Credential) -> Result<MetadataPatch, ExecError> {
@@ -398,14 +406,15 @@ impl OAuth {
 
 /// `ShouldPrepareRequestAuth`: an OAuth token without a canonical device pool or account.
 pub(crate) fn needs_prepare(credential: &Credential) -> bool {
+    refresh_due(credential, Utc::now()) || needs_identity(credential)
+}
+
+/// Go `ClaudeExecutor.ShouldPrepareRequestAuth`: an OAuth token without a canonical
+/// device pool or account UUID cannot be cloaked, so requests wait for preparation.
+pub(crate) fn needs_identity(credential: &Credential) -> bool {
     credential.str("access_token").is_some_and(|s| s.contains("sk-ant-oat"))
         && (!canonical_pool(credential.metadata.get("claude_device_ids"))
             || credential.str("account_uuid").unwrap_or_default().trim().is_empty())
-}
-
-/// The SDK refresh lead: a refresh token and an expiry within four hours.
-pub(crate) fn needs_refresh(credential: &Credential) -> bool {
-    refresh_due(credential, Utc::now())
 }
 
 fn refresh_token(credential: &Credential) -> &str {

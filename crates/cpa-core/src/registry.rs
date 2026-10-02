@@ -8,6 +8,8 @@
 
 use std::sync::LazyLock;
 
+pub mod dynamic;
+
 use serde::Deserialize;
 use serde_json::{Map, Value};
 
@@ -54,7 +56,13 @@ pub struct ModelInfo {
 }
 
 impl ModelInfo {
-    fn from_raw(raw: Map<String, Value>) -> Result<Self, serde_json::Error> {
+    /// Whether the resolved model is a config entry marked `is-compat` (Go
+    /// `ModelInfo.IsCompat`). Only registry-resolved models carry it.
+    pub fn is_compat(&self) -> bool {
+        self.raw.get("is_compat").and_then(Value::as_bool).unwrap_or(false)
+    }
+
+    pub fn from_raw(raw: Map<String, Value>) -> Result<Self, serde_json::Error> {
         #[derive(Deserialize)]
         struct Typed {
             id: String,
@@ -117,6 +125,46 @@ pub fn pinned() -> &'static Catalog {
     static PINNED: LazyLock<Catalog> =
         LazyLock::new(|| Catalog::parse(MODELS_JSON).expect("embedded models.json is valid"));
     &PINNED
+}
+
+/// The server's dynamic registry, consulted before the pinned catalog.
+pub trait Overlay: Send + Sync {
+    /// A registered model by public ID, preferring `provider`'s registration.
+    fn lookup(&self, id: &str, provider: Option<&str>) -> Option<ModelInfo>;
+    /// The model one credential registered under `model` (config model entries carry
+    /// display names, context limits, thinking and `is_compat`).
+    fn for_credential(&self, credential_id: &str, model: &str) -> Option<ModelInfo>;
+}
+
+static OVERLAY: std::sync::RwLock<Option<std::sync::Arc<dyn Overlay>>> = std::sync::RwLock::new(None);
+
+/// Installs (or removes) the dynamic registry. Wired once at startup.
+pub fn install_overlay(overlay: Option<std::sync::Arc<dyn Overlay>>) {
+    *OVERLAY.write().unwrap_or_else(std::sync::PoisonError::into_inner) = overlay;
+}
+
+fn overlay() -> Option<std::sync::Arc<dyn Overlay>> {
+    OVERLAY
+        .read()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .clone()
+}
+
+/// Go `registry.LookupModelInfo`: registered models first, then the pinned catalog.
+pub fn lookup_model(id: &str, provider: Option<&str>) -> Option<ModelInfo> {
+    let id = id.trim();
+    if id.is_empty() {
+        return None;
+    }
+    overlay()
+        .and_then(|o| o.lookup(id, provider))
+        .or_else(|| pinned().lookup(id).cloned())
+}
+
+/// The model info resolved for one credential and model (Go attaches this to the
+/// execution request), when the registry is installed and the credential registered it.
+pub fn credential_model(credential_id: &str, model: &str) -> Option<ModelInfo> {
+    overlay().and_then(|o| o.for_credential(credential_id, model))
 }
 
 #[cfg(test)]

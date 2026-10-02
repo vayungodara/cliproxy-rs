@@ -115,8 +115,8 @@ async fn refresh_rotation_preserves_identity_on_optional_profile_failure() {
     });
     let oauth = service(mock.clone()).await;
     let mut credential = credential();
-    // Request-path preparation never refreshes, even inside the refresh lead.
-    assert!(needs_refresh(&credential));
+    // Identity preparation never refreshes, even inside the refresh lead.
+    assert!(refresh_due(&credential, Utc::now()));
     let prepared = oauth.prepare(&credential, &crate::proxy::Proxy::Inherit).await.unwrap();
     assert_eq!(prepared.set.keys().collect::<Vec<_>>(), ["claude_device_ids"]);
     prepared.apply(&mut credential.metadata);
@@ -125,7 +125,7 @@ async fn refresh_rotation_preserves_identity_on_optional_profile_failure() {
         .await
         .unwrap();
     patch.apply(&mut credential.metadata);
-    assert!(!needs_refresh(&credential));
+    assert!(!refresh_due(&credential, Utc::now()));
     assert_eq!(credential.str("access_token"), Some("sk-ant-oat-new-fake"));
     assert_eq!(credential.str("refresh_token"), Some("fake-rotated"));
     assert_eq!(credential.str("account_uuid"), Some("old-account"));

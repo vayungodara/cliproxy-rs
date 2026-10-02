@@ -51,6 +51,8 @@ type scenario struct {
 	Stream    bool        `json:"stream"`
 	Count     bool        `json:"count"`
 	Reply     reply       `json:"reply"`
+	// ExecutionSession is ExecutionSessionMetadataKey (websocket executions).
+	ExecutionSession string `json:"execution_session,omitempty"`
 }
 
 type upstream struct {
@@ -236,6 +238,9 @@ func run(root string, s scenario) result {
 	metadata := map[string]any{}
 	if s.ClientKey != "" {
 		metadata[cliproxyexecutor.CallerScopeMetadataKey] = cliproxysession.CallerScope(s.ClientKey)
+	}
+	if s.ExecutionSession != "" {
+		metadata[cliproxyexecutor.ExecutionSessionMetadataKey] = s.ExecutionSession
 	}
 	req := cliproxyexecutor.Request{Model: s.Model, Payload: []byte(s.Body), Format: sdktranslator.FromString("claude")}
 	opts := cliproxyexecutor.Options{
