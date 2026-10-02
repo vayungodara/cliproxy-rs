@@ -151,7 +151,7 @@ pub(crate) fn convert(input: &[u8]) -> Vec<u8> {
         contents.each(|_, content| {
             let role = match fixed_role(&content, &previous) {
                 Some(role) => {
-                    gj::set_str(&mut out, format!("contents.{index}.role"), &role);
+                    gj::set_str(&mut out, &format!("contents.{index}.role"), &role);
                     role
                 }
                 None => content.get("role").bytes().into_owned(),

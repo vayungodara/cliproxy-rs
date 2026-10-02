@@ -98,11 +98,11 @@ fn with_identity(mut item: Vec<u8>, request: &[u8], qualified: &[u8], path: &str
             format!("{path}.{key}")
         }
     };
-    gj::set_str(&mut item, at("name"), name);
+    gj::set_str(&mut item, &at("name"), name);
     if namespace.is_empty() {
-        gj::delete(&mut item, at("namespace"));
+        gj::delete(&mut item, &at("namespace"));
     } else {
-        gj::set_str(&mut item, at("namespace"), namespace);
+        gj::set_str(&mut item, &at("namespace"), namespace);
     }
     item
 }
@@ -1066,7 +1066,7 @@ impl State {
             let mut summary = br#"{"type":"summary_text","text":""}"#.to_vec();
             gj::set_str(&mut summary, "text", &r.text);
             gj::set_items(&mut item, "summary", &[summary]);
-            gj::set_raw(&mut outputs, format!("arr.{}", r.output_index), item);
+            gj::set_raw(&mut outputs, &format!("arr.{}", r.output_index), item);
         }
         for m in &self.message_items {
             let mut item = br#"{"id":"","type":"message","status":"completed","content":[{"type":"output_text","annotations":[],"logprobs":[],"text":""}],"role":"assistant"}"#.to_vec();
@@ -1076,7 +1076,7 @@ impl State {
             if !m.annotations.is_empty() {
                 gj::set_raw(&mut item, "content.0.annotations", annotations_json(&m.annotations));
             }
-            gj::set_raw(&mut outputs, format!("arr.{}", m.output_index), item);
+            gj::set_raw(&mut outputs, &format!("arr.{}", m.output_index), item);
         }
         for w in &self.web {
             let mut rendered = w.render();
@@ -1085,7 +1085,7 @@ impl State {
                 "status",
                 if w.status.is_empty() { "completed" } else { w.status },
             );
-            gj::set_raw(&mut outputs, format!("arr.{}", w.output_index), rendered);
+            gj::set_raw(&mut outputs, &format!("arr.{}", w.output_index), rendered);
         }
         for (&idx, buf) in &self.func_args {
             let status = self.func_item_status.get(&idx).copied().unwrap_or("completed");
@@ -1123,7 +1123,7 @@ impl State {
                 gj::set_str(&mut item, "call_id", &call_id);
                 with_identity(item, &self.request, &name, "")
             };
-            gj::set_raw(&mut outputs, format!("arr.{index}"), item);
+            gj::set_raw(&mut outputs, &format!("arr.{index}"), item);
         }
         if gj::get(&outputs, "arr.#").int() > 0 {
             let arr = gj::get(&outputs, "arr").raw.to_vec();
@@ -1190,17 +1190,17 @@ fn copy_request_fields(out: &mut Vec<u8>, request: &[u8], prefix: &str) {
         }
         match key {
             "max_output_tokens" | "max_tool_calls" | "top_logprobs" => {
-                gj::set_int(out, at(key), v.int());
+                gj::set_int(out, &at(key), v.int());
             }
             "parallel_tool_calls" | "store" => {
-                gj::set_bool(out, at(key), v.bool());
+                gj::set_bool(out, &at(key), v.bool());
             }
             "temperature" | "top_p" => {
-                gj::set_f64(out, at(key), v.float());
+                gj::set_f64(out, &at(key), v.float());
             }
             "reasoning" | "text" | "tool_choice" | "tools" | "user" | "metadata" => set_value(out, &at(key), &v),
             _ => {
-                gj::set_str(out, at(key), v.bytes());
+                gj::set_str(out, &at(key), v.bytes());
             }
         }
     }

@@ -324,10 +324,10 @@ pub fn non_stream(_: &ResponseCtx<'_>, body: &[u8]) -> Result<Vec<u8>, Error> {
     // Go walks indexes 0..=max; negative indexes never appear.
     for tool in tools.range(0..).map(|(_, t)| t) {
         let path = format!("choices.0.message.tool_calls.{count}");
-        gj::set_str(&mut out, format!("{path}.id"), &tool.id);
-        gj::set_str(&mut out, format!("{path}.type"), "function");
-        gj::set_str(&mut out, format!("{path}.function.name"), &tool.name);
-        gj::set_str(&mut out, format!("{path}.function.arguments"), &tool.arguments);
+        gj::set_str(&mut out, &format!("{path}.id"), &tool.id);
+        gj::set_str(&mut out, &format!("{path}.type"), "function");
+        gj::set_str(&mut out, &format!("{path}.function.name"), &tool.name);
+        gj::set_str(&mut out, &format!("{path}.function.arguments"), &tool.arguments);
         count += 1;
     }
     if count > 0 {

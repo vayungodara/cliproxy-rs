@@ -817,7 +817,7 @@ fn convert_refs_to_hints(mut json: Vec<u8>, preserve_siblings: bool) -> Vec<u8> 
         let parent = trim_suffix(&p, b".$ref").to_vec();
         let mut hint = [&b"See: "[..], &name].concat();
         if !preserve_siblings {
-            let existing = gj::get(&json, description_path(&parent)).bytes().into_owned();
+            let existing = gj::get(&json, &description_path(&parent)).bytes().into_owned();
             if !existing.is_empty() {
                 hint = [&existing[..], b" (", &hint, b")"].concat();
             }
@@ -856,7 +856,7 @@ fn convert_enum_values_to_strings(mut json: Vec<u8>, force_string_type: bool) ->
         set_strings(&mut json, &p, &values);
         if force_string_type {
             let parent = trim_suffix(&p, b".enum").to_vec();
-            gj::set_str(&mut json, join_path(&parent, b"type"), "string");
+            gj::set_str(&mut json, &join_path(&parent, b"type"), "string");
         }
     }
     json
@@ -884,7 +884,7 @@ fn drop_ignored_enums_to_hints(mut json: Vec<u8>, options: Options) -> Vec<u8> {
         let parent = trim_suffix(&p, b".enum").to_vec();
         let drop = options.drop_all_enums
             || (options.drop_boolean_enums
-                && gj::get(&json, join_path(&parent, b"type")).bytes().as_ref() == b"boolean");
+                && gj::get(&json, &join_path(&parent, b"type")).bytes().as_ref() == b"boolean");
         if !drop {
             continue;
         }
@@ -993,7 +993,7 @@ fn merge_conditionals(mut json: Vec<u8>) -> Vec<u8> {
         }
     }
     for p in depth_sorted(paths) {
-        let props = gj::get(&json, join_path(&p, b"properties")).into_owned();
+        let props = gj::get(&json, &join_path(&p, b"properties")).into_owned();
         if !props.is_object() {
             continue;
         }
@@ -1154,12 +1154,12 @@ fn flatten_any_of_one_of(mut json: Vec<u8>) -> Vec<u8> {
                     }
                 }
                 if has_null {
-                    gj::set_bool(&mut json, join_path(&parent_path, b"nullable"), true);
+                    gj::set_bool(&mut json, &join_path(&parent_path, b"nullable"), true);
                 }
                 json = delete(json, &p);
                 continue;
             }
-            let parent_desc = gj::get(&json, description_path(&parent_path)).bytes().into_owned();
+            let parent_desc = gj::get(&json, &description_path(&parent_path)).bytes().into_owned();
             let (best, types) = select_best(&items);
             let mut selected = items[best].raw.to_vec();
             if has_null && type_of(&items[best]) != b"null" {
@@ -1222,7 +1222,7 @@ fn flatten_type_arrays(mut json: Vec<u8>, preserve_native_nullable: bool) -> Vec
         }
         if has_null {
             if preserve_native_nullable {
-                gj::set_bool(&mut json, join_path(&parent, b"nullable"), true);
+                gj::set_bool(&mut json, &join_path(&parent, b"nullable"), true);
                 json = append_hint(json, &parent, b"(nullable)");
                 continue;
             }
@@ -1389,12 +1389,12 @@ fn remove_placeholder_fields(mut json: Vec<u8>) -> Vec<u8> {
         let Some(parent) = p.strip_suffix(b".properties.reason") else {
             continue;
         };
-        let props = gj::get(&json, join_path(parent, b"properties"));
+        let props = gj::get(&json, &join_path(parent, b"properties"));
         let distinct: std::collections::HashSet<Vec<u8>> = props.map().into_iter().map(|(k, _)| k).collect();
         if !props.is_object() || distinct.len() != 1 {
             continue;
         }
-        if gj::get(&json, [&p[..], b".description"].concat()).bytes().as_ref() != PLACEHOLDER_REASON_DESCRIPTION {
+        if gj::get(&json, &[&p[..], b".description"].concat()).bytes().as_ref() != PLACEHOLDER_REASON_DESCRIPTION {
             continue;
         }
         gj::delete(&mut json, &p);
@@ -1407,7 +1407,7 @@ fn cleanup_required_fields(mut json: Vec<u8>) -> Vec<u8> {
     for p in find_paths(&json, b"required") {
         let parent = trim_suffix(&p, b".required").to_vec();
         let required = gj::get(&json, &p).into_owned();
-        let props = gj::get(&json, join_path(&parent, b"properties")).into_owned();
+        let props = gj::get(&json, &join_path(&parent, b"properties")).into_owned();
         if !required.is_array() {
             continue;
         }
@@ -1419,7 +1419,7 @@ fn cleanup_required_fields(mut json: Vec<u8>) -> Vec<u8> {
         let valid: Vec<Vec<u8>> = names
             .iter()
             .map(|r| r.bytes().into_owned())
-            .filter(|key| props.get(escape_key(key)).exists())
+            .filter(|key| props.get(&escape_key(key)).exists())
             .collect();
         if valid.len() != names.len() {
             if valid.is_empty() {
@@ -1462,10 +1462,10 @@ fn add_empty_schema_placeholder(mut json: Vec<u8>) -> Vec<u8> {
         let has_required = required.is_array() && !required.array().is_empty();
         if !props.exists() || (props.is_object() && props.map().is_empty()) {
             let reason = join_path(&props_path, b"reason");
-            gj::set_str(&mut json, [&reason[..], b".type"].concat(), "string");
+            gj::set_str(&mut json, &[&reason[..], b".type"].concat(), "string");
             gj::set_str(
                 &mut json,
-                [&reason[..], b".description"].concat(),
+                &[&reason[..], b".description"].concat(),
                 PLACEHOLDER_REASON_DESCRIPTION,
             );
             gj::set_strs(&mut json, &required_path, &["reason"]);
@@ -1477,7 +1477,7 @@ fn add_empty_schema_placeholder(mut json: Vec<u8>) -> Vec<u8> {
             }
             let placeholder = join_path(&props_path, b"_");
             if !gj::get(&json, &placeholder).exists() {
-                gj::set_str(&mut json, [&placeholder[..], b".type"].concat(), "boolean");
+                gj::set_str(&mut json, &[&placeholder[..], b".type"].concat(), "boolean");
             }
             gj::set_strs(&mut json, &required_path, &["_"]);
         }

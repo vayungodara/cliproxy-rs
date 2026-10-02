@@ -17,6 +17,42 @@
 
 use std::borrow::Cow;
 
+/// A gjson/sjson path. Go paths are byte strings, so keys taken from documents may not be
+/// UTF-8; text paths work as before.
+pub trait JsonPath {
+    fn as_path(&self) -> &[u8];
+}
+
+impl JsonPath for str {
+    fn as_path(&self) -> &[u8] {
+        self.as_bytes()
+    }
+}
+
+impl JsonPath for String {
+    fn as_path(&self) -> &[u8] {
+        self.as_bytes()
+    }
+}
+
+impl JsonPath for [u8] {
+    fn as_path(&self) -> &[u8] {
+        self
+    }
+}
+
+impl JsonPath for Vec<u8> {
+    fn as_path(&self) -> &[u8] {
+        self
+    }
+}
+
+impl<T: JsonPath + ?Sized> JsonPath for &T {
+    fn as_path(&self) -> &[u8] {
+        (**self).as_path()
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Kind {
     #[default]
@@ -150,8 +186,8 @@ impl<'a> Res<'a> {
         }
     }
 
-    pub fn get(&self, path: impl AsRef<[u8]>) -> Res<'a> {
-        let path = path.as_ref();
+    pub fn get(&self, path: &(impl JsonPath + ?Sized)) -> Res<'a> {
+        let path = path.as_path();
         let mut r = match &self.raw {
             Cow::Borrowed(b) => get(b, path),
             Cow::Owned(v) => get(v, path).into_owned(),
@@ -1354,8 +1390,8 @@ fn parse_array<'a>(c: &mut Ctx<'a>, mut i: usize, path: &[u8]) -> (usize, bool) 
 }
 
 /// gjson.Get.
-pub fn get<'a>(json: &'a [u8], path: impl AsRef<[u8]>) -> Res<'a> {
-    let path = path.as_ref();
+pub fn get<'a>(json: &'a [u8], path: &(impl JsonPath + ?Sized)) -> Res<'a> {
+    let path = path.as_path();
     if path.len() > 1 && path[0] == b'@' && is_dot_piper(path) {
         let end = path[1..]
             .iter()
@@ -2197,7 +2233,7 @@ fn append_raw_paths(
     if del && paths[0].part == b"-1" && !paths[0].force {
         let count = get(jstr, "#");
         if count.int() > 0 {
-            res = Some(get(jstr, (count.int() - 1).to_string()));
+            res = Some(get(jstr, &(count.int() - 1).to_string()));
         }
     }
     let res = res.unwrap_or_else(|| get(jstr, &paths[0].gpart));
@@ -2381,69 +2417,69 @@ fn checked(json: &[u8], path: &[u8], raw: &[u8], stringify: bool, del: bool) -> 
 }
 
 /// `sjson.SetBytes` with a string value, returning sjson's error message.
-pub fn try_set_str(json: &[u8], path: impl AsRef<[u8]>, value: impl AsRef<[u8]>) -> Result<Vec<u8>, String> {
-    let path = path.as_ref();
+pub fn try_set_str(json: &[u8], path: &(impl JsonPath + ?Sized), value: impl AsRef<[u8]>) -> Result<Vec<u8>, String> {
+    let path = path.as_path();
     checked(json, path, value.as_ref(), true, false)
 }
 
 /// `sjson.SetRawBytes`, returning sjson's error message.
-pub fn try_set_raw(json: &[u8], path: impl AsRef<[u8]>, raw: impl AsRef<[u8]>) -> Result<Vec<u8>, String> {
-    let path = path.as_ref();
+pub fn try_set_raw(json: &[u8], path: &(impl JsonPath + ?Sized), raw: impl AsRef<[u8]>) -> Result<Vec<u8>, String> {
+    let path = path.as_path();
     checked(json, path, raw.as_ref(), false, false)
 }
 
 /// `sjson.DeleteBytes`, returning sjson's error message.
-pub fn try_delete(json: &[u8], path: impl AsRef<[u8]>) -> Result<Vec<u8>, String> {
-    let path = path.as_ref();
+pub fn try_delete(json: &[u8], path: &(impl JsonPath + ?Sized)) -> Result<Vec<u8>, String> {
+    let path = path.as_path();
     checked(json, path, b"", false, true)
 }
 
 /// `sjson.SetBytes(out, path, string)`. Returns false when sjson would return an error
 /// (the document is then unchanged), true otherwise.
-pub fn set_str(out: &mut Vec<u8>, path: impl AsRef<[u8]>, value: impl AsRef<[u8]>) -> bool {
-    let path = path.as_ref();
+pub fn set_str(out: &mut Vec<u8>, path: &(impl JsonPath + ?Sized), value: impl AsRef<[u8]>) -> bool {
+    let path = path.as_path();
     apply(out, path, value.as_ref(), true, false)
 }
 
 /// `sjson.SetRawBytes`.
-pub fn set_raw(out: &mut Vec<u8>, path: impl AsRef<[u8]>, raw: impl AsRef<[u8]>) -> bool {
-    let path = path.as_ref();
+pub fn set_raw(out: &mut Vec<u8>, path: &(impl JsonPath + ?Sized), raw: impl AsRef<[u8]>) -> bool {
+    let path = path.as_path();
     apply(out, path, raw.as_ref(), false, false)
 }
 
 /// `sjson.SetBytes` with any Go integer type.
-pub fn set_int(out: &mut Vec<u8>, path: impl AsRef<[u8]>, value: i64) -> bool {
-    let path = path.as_ref();
+pub fn set_int(out: &mut Vec<u8>, path: &(impl JsonPath + ?Sized), value: i64) -> bool {
+    let path = path.as_path();
     apply(out, path, value.to_string().as_bytes(), false, false)
 }
 
 /// `sjson.SetBytes` with a float64 (`strconv.FormatFloat(v, 'f', -1, 64)`).
-pub fn set_f64(out: &mut Vec<u8>, path: impl AsRef<[u8]>, value: f64) -> bool {
-    let path = path.as_ref();
+pub fn set_f64(out: &mut Vec<u8>, path: &(impl JsonPath + ?Sized), value: f64) -> bool {
+    let path = path.as_path();
     apply(out, path, fmt_float(value).as_bytes(), false, false)
 }
 
-pub fn set_bool(out: &mut Vec<u8>, path: impl AsRef<[u8]>, value: bool) -> bool {
-    let path = path.as_ref();
+pub fn set_bool(out: &mut Vec<u8>, path: &(impl JsonPath + ?Sized), value: bool) -> bool {
+    let path = path.as_path();
     apply(out, path, if value { b"true" } else { b"false" }, false, false)
 }
 
 /// `sjson.SetBytes` with a `[]string`, which goes through json.Marshal and is therefore
 /// always HTML-escaped.
-pub fn set_strs<S: AsRef<[u8]>>(out: &mut Vec<u8>, path: impl AsRef<[u8]>, items: &[S]) -> bool {
-    let path = path.as_ref();
+pub fn set_strs<S: AsRef<[u8]>>(out: &mut Vec<u8>, path: &(impl JsonPath + ?Sized), items: &[S]) -> bool {
+    let path = path.as_path();
     apply(out, path, &quote_all(items), false, false)
 }
 
 /// `sjson.DeleteBytes`.
-pub fn delete(out: &mut Vec<u8>, path: impl AsRef<[u8]>) -> bool {
-    let path = path.as_ref();
+pub fn delete(out: &mut Vec<u8>, path: &(impl JsonPath + ?Sized)) -> bool {
+    let path = path.as_path();
     apply(out, path, b"", false, true)
 }
 
 /// common.SetStringWithoutHTMLEscape: an Encoder with HTML escaping off, set raw.
-pub fn set_str_no_html(out: &mut Vec<u8>, path: impl AsRef<[u8]>, value: impl AsRef<[u8]>) -> bool {
-    let path = path.as_ref();
+pub fn set_str_no_html(out: &mut Vec<u8>, path: &(impl JsonPath + ?Sized), value: impl AsRef<[u8]>) -> bool {
+    let path = path.as_path();
     let mut raw = vec![];
     marshal_str(&mut raw, value.as_ref(), false);
     set_raw(out, path, raw)
@@ -2465,8 +2501,8 @@ pub fn join<S: AsRef<[u8]>>(items: &[S]) -> Vec<u8> {
 
 /// common.SetRawArrayItems: no-op for no items, an in-place fill of an existing `[]` for
 /// one item, otherwise a raw set of the joined array.
-pub fn set_items<S: AsRef<[u8]>>(out: &mut Vec<u8>, path: impl AsRef<[u8]>, items: &[S]) {
-    let path = path.as_ref();
+pub fn set_items<S: AsRef<[u8]>>(out: &mut Vec<u8>, path: &(impl JsonPath + ?Sized), items: &[S]) {
+    let path = path.as_path();
     if items.is_empty() {
         return;
     }
@@ -2568,8 +2604,8 @@ impl AnyValue {
     /// own encodings (strings conditionally escaped, floats in `'f'` format), containers
     /// are marshaled. Where Marshal fails (a NaN or infinite number inside a container)
     /// sjson returns nil, so `out` is cleared, as Go's callers end up with.
-    pub fn set(&self, out: &mut Vec<u8>, path: impl AsRef<[u8]>) -> bool {
-        let path = path.as_ref();
+    pub fn set(&self, out: &mut Vec<u8>, path: &(impl JsonPath + ?Sized)) -> bool {
+        let path = path.as_path();
         match self {
             Self::Null => set_raw(out, path, b"null"),
             Self::Bool(b) => set_bool(out, path, *b),
