@@ -39,6 +39,9 @@ struct Args {
     /// Login to Kimi.ai using OAuth
     #[arg(long)]
     kimi_ai_login: bool,
+    /// Login to xAI using OAuth
+    #[arg(long)]
+    xai_login: bool,
     /// Management password accepted from loopback clients only.
     #[arg(long, hide = true, default_value = "")]
     password: String,
@@ -116,6 +119,13 @@ async fn main() -> anyhow::Result<()> {
     if args.kimi_login || args.kimi_ai_login {
         let provider = if args.kimi_login { "kimi" } else { "kimi-ai" };
         cpa_exec::kimi_auth::login(provider, &config, args.no_browser).await?;
+        return Ok(());
+    }
+    if args.xai_login {
+        // Go DoXAILogin: a failure is logged and the command still exits normally.
+        if let Err(error) = cpa_exec::xai_auth::login(&config, args.no_browser).await {
+            tracing::error!("xAI authentication failed: {}", String::from_utf8_lossy(&error.body));
+        }
         return Ok(());
     }
     if config.api_keys.is_empty() {
