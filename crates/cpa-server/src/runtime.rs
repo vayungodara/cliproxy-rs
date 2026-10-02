@@ -18,12 +18,16 @@ use bytes::Bytes;
 use cpa_core::config::Config;
 use cpa_core::credential::{Credential, MetadataPatch, Source};
 use cpa_core::exec::{ExecError, ExecStream, FailureScope};
-use cpa_exec::Executors;
+use cpa_exec::{Executors, Readiness};
 use futures_util::{Stream, StreamExt};
 use serde_json::{Map, Value};
 
 use crate::refresh::RefreshState;
-use crate::scheduler::{Policy, Scheduler, execution_model, retry_status};
+use crate::registry::Registry;
+use crate::scheduler::{Policy, Scheduler};
+
+/// The config snapshot and credential epoch a registry was built from.
+type RegistryCache = (Arc<Config>, u64, Arc<Registry>);
 
 pub struct Runtime {
     config: RwLock<Arc<Config>>,
@@ -31,18 +35,42 @@ pub struct Runtime {
     pub executors: Executors,
     refresh_task: Mutex<Option<tokio::task::AbortHandle>>,
     refresh_state: Mutex<RefreshState>,
+    /// The registry derived from the current config and credential generation.
+    registry: Mutex<Option<RegistryCache>>,
+    oauth_sink: RwLock<Option<OAuthCallbackSink>>,
+    /// Go `modelPoolOffsets`: rotation cursors for OpenAI-compatible alias pools.
+    pool_offsets: Mutex<HashMap<String, usize>>,
 }
 
+/// An OAuth provider redirect received on the main listener.
+#[derive(Debug, Clone)]
+pub struct OAuthCallback {
+    /// `anthropic`, `codex`, `antigravity` or `devin`.
+    pub provider: &'static str,
+    pub state: String,
+    pub code: String,
+    pub error: String,
+}
+
+/// Hands a callback to a pending management login (Go
+/// `WriteOAuthCallbackFileForPendingSession`); returns false when no login with that
+/// state is pending or the callback could not be recorded.
+pub type OAuthCallbackSink = Arc<dyn Fn(&OAuthCallback) -> bool + Send + Sync>;
+
 impl Runtime {
-    /// The scheduler policy is derived from `config.routing`.
+    /// The scheduler policy is derived from the config (`routing` plus the OAuth
+    /// provider rules), as on every publish.
     pub fn new(config: Config, credentials: Vec<Credential>, executors: Executors) -> Self {
-        let policy = Policy::from(&config.routing);
+        let policy = crate::management::policy(&config);
         let rt = Self {
             config: RwLock::new(Arc::new(config)),
             store: CredentialStore::new(credentials),
             executors,
             refresh_task: Mutex::default(),
             refresh_state: Mutex::default(),
+            registry: Mutex::default(),
+            oauth_sink: RwLock::default(),
+            pool_offsets: Mutex::default(),
         };
         rt.publish_policy(policy);
         rt
@@ -56,7 +84,7 @@ impl Runtime {
     /// Replaces the config and the scheduler policy derived from it. Requests already
     /// running keep their snapshot.
     pub fn publish_config(&self, config: Config) {
-        let policy = Policy::from(&config.routing);
+        let policy = crate::management::policy(&config);
         self.publish_config_and_policy(config, policy);
     }
 
@@ -77,6 +105,62 @@ impl Runtime {
         &self.store
     }
 
+    /// Go `nextModelPoolOffset`: the start index for the next pass over a pool.
+    pub fn next_pool_offset(&self, key: &str, size: usize) -> usize {
+        if size <= 1 || key.trim().is_empty() {
+            return 0;
+        }
+        let key = key.trim();
+        let mut offsets = self.pool_offsets.lock().unwrap_or_else(PoisonError::into_inner);
+        // Go never prunes; keys of removed credentials would accumulate here forever.
+        if offsets.len() >= 4096 && !offsets.contains_key(key) {
+            offsets.clear();
+        }
+        let slot = offsets.entry(key.to_owned()).or_default();
+        let offset = if *slot >= 2_147_483_640 { 0 } else { *slot };
+        *slot = offset + 1;
+        offset % size
+    }
+
+    /// One credential's projected state for one registered model (Go
+    /// `clientModelProjectionForAuth`), for listings and `auto`.
+    pub fn suspension(&self, credential_id: &str, model: &str) -> crate::registry::Suspension {
+        use crate::registry::Suspension;
+        let Some(credential) = self.store.get(credential_id) else {
+            return Suspension::None;
+        };
+        let aliases = crate::registry::global_aliases(&self.config());
+        let key = crate::registry::selection_model(&aliases, &credential, model);
+        self.store.suspension(&credential, &key)
+    }
+
+    /// Wires OAuth callback delivery (management owns pending login sessions).
+    pub fn set_oauth_callback_sink(&self, sink: Option<OAuthCallbackSink>) {
+        *self.oauth_sink.write().unwrap_or_else(PoisonError::into_inner) = sink;
+    }
+
+    pub fn deliver_oauth_callback(&self, callback: &OAuthCallback) -> bool {
+        let sink = self.oauth_sink.read().unwrap_or_else(PoisonError::into_inner).clone();
+        sink.is_some_and(|sink| sink(callback))
+    }
+
+    /// The model registry for the current config and credential set. Rebuilt only when
+    /// either changed, so it is always derived, never separately maintained.
+    pub fn registry(&self) -> Arc<Registry> {
+        let config = self.config();
+        let generation = self.store.epoch();
+        let mut cache = self.registry.lock().unwrap_or_else(PoisonError::into_inner);
+        if let Some((cfg, g, registry)) = cache.as_ref()
+            && Arc::ptr_eq(cfg, &config)
+            && *g == generation
+        {
+            return registry.clone();
+        }
+        let registry = Arc::new(Registry::build(&config, &self.store.snapshot()));
+        *cache = Some((config, generation, registry.clone()));
+        registry
+    }
+
     pub fn policy(&self) -> Arc<Policy> {
         self.store.policy.read().unwrap_or_else(PoisonError::into_inner).clone()
     }
@@ -91,36 +175,44 @@ impl Runtime {
         *current = Arc::new(policy);
     }
 
-    /// Selects a credential and prepares it if its executor asks to, single-flighted per
-    /// credential. The returned lease holds the committed, prepared snapshot.
-    pub async fn acquire(&self, selection: Selection, cfg: &Config) -> Result<Lease, AcquireError> {
-        self.acquire_with_policy(selection, cfg, self.policy()).await
-    }
-
-    pub async fn acquire_with_policy(
+    /// Selects a credential that registered the route model. Waits for preparation only
+    /// when the executor reports [`Readiness::PrepareNow`] (single-flighted per
+    /// credential); token refreshes stay with the background loop. The returned lease
+    /// holds the committed snapshot.
+    pub async fn acquire(
         &self,
         selection: Selection,
         cfg: &Config,
         policy: Arc<Policy>,
+        registry: &Registry,
     ) -> Result<Lease, AcquireError> {
-        let mut lease = self.store.select_with_policy(selection, policy)?;
-        if !self.executors.needs_prepare(&lease.credential, cfg) {
+        let aliases = crate::registry::global_aliases(cfg);
+        let scope = selection.clone();
+        let admit = admission(registry, &aliases, &scope, &self.executors);
+        let mut lease = self.store.select_with(selection, policy, &admit)?;
+        if self.executors.readiness(&lease.credential, cfg) != Readiness::PrepareNow {
             return Ok(lease);
         }
         let id = lease.credential.id.clone();
-        match self.prepare_credential(&id, cfg).await {
+        match self.prepare_credential(&id, cfg, None).await {
             Ok(current) => lease.credential = current,
             Err(error) => {
                 lease.complete(Outcome::Failure(error.clone()));
                 return Err(AcquireError::Prepare { id, error });
             }
         }
-        lease.execution_model = execution_model(&lease.credential, &lease.selection.model, &lease.policy)
-            .ok_or(AcquireError::NoCredential)?;
         Ok(lease)
     }
 
-    async fn prepare_credential(&self, id: &str, cfg: &Config) -> Result<Arc<Credential>, ExecError> {
+    /// Prepares and commits one credential. `failed` is the revision whose token an
+    /// upstream rejected: preparation then runs even when not due, unless another task
+    /// already replaced that revision (Go `refreshAuthForRequest`).
+    async fn prepare_credential(
+        &self,
+        id: &str,
+        cfg: &Config,
+        failed: Option<u64>,
+    ) -> Result<Arc<Credential>, ExecError> {
         let lock = self.store.prepare_lock(id);
         let _guard = lock.lock().await;
         // Another request may have prepared it while we waited.
@@ -131,8 +223,11 @@ impl Runtime {
                 "credential removed or disabled during preparation",
             )
         })?;
-        if !self.executors.needs_prepare(&current, cfg) {
-            return Ok(current);
+        match failed {
+            Some(revision) if current.revision != revision => return Ok(current),
+            Some(_) => {}
+            None if self.executors.readiness(&current, cfg) == Readiness::Ready => return Ok(current),
+            None => {}
         }
         let patch = self.executors.prepare(&current, cfg).await?;
         let store = self.store.clone();
@@ -149,6 +244,24 @@ impl Runtime {
                     format!("committing prepared credential: {e:?}"),
                 )
             })
+    }
+
+    /// Go `tryRefreshAfterUnauthorized`: after an upstream 401 on a credential that can
+    /// refresh, refresh it once and return the committed replacement to retry with.
+    // ponytail: refresh goes through `Executors::prepare`; a provider whose prepare only
+    // refreshes inside its lead (Claude) cannot recover a revoked but unexpired token.
+    pub async fn refresh_after_unauthorized(&self, credential: &Credential, cfg: &Config) -> Option<Arc<Credential>> {
+        let refreshable = ["refresh_token", "refreshToken"]
+            .iter()
+            .any(|k| credential.str(k).is_some_and(|v| !v.trim().is_empty()));
+        if !refreshable {
+            return None;
+        }
+        let refreshed = self
+            .prepare_credential(&credential.id, cfg, Some(credential.revision))
+            .await
+            .ok()?;
+        (refreshed.revision != credential.revision).then_some(refreshed)
     }
 
     /// One replaceable refresh loop. Uses the same preparation lock and atomic
@@ -177,7 +290,7 @@ impl Runtime {
                     snapshot
                         .iter()
                         .filter(|c| matches!(c.source, Source::File(_)) && !c.disabled)
-                        .filter(|c| rt.executors.needs_prepare(c, &cfg))
+                        .filter(|c| rt.executors.readiness(c, &cfg) != Readiness::Ready)
                         .filter(|c| state.reserve(c, Instant::now()))
                         .cloned()
                         .collect()
@@ -185,11 +298,11 @@ impl Runtime {
                 // ponytail: bounded batches, so a slow worker delays the next scan.
                 // Use an independent queue if refresh latency matters for large pools.
                 futures_util::stream::iter(jobs)
-                    .for_each_concurrent(16, |credential| {
+                    .for_each_concurrent(refresh_workers(&cfg), |credential| {
                         let rt = rt.clone();
                         let cfg = cfg.clone();
                         async move {
-                            let result = rt.prepare_credential(&credential.id, &cfg).await;
+                            let result = rt.prepare_credential(&credential.id, &cfg, None).await;
                             let Some(current) = rt.store.get(&credential.id) else {
                                 return;
                             };
@@ -204,7 +317,8 @@ impl Runtime {
                             {
                                 return;
                             }
-                            let ineffective = result.is_ok() && rt.executors.needs_prepare(&current, &cfg);
+                            let ineffective =
+                                result.is_ok() && rt.executors.readiness(&current, &cfg) != Readiness::Ready;
                             rt.refresh_state.lock().unwrap_or_else(PoisonError::into_inner).finish(
                                 &current,
                                 result.as_ref().err(),
@@ -239,17 +353,43 @@ impl Drop for Runtime {
     }
 }
 
+/// `oauth.auth-auto-refresh-workers`: non-positive means Go's default of 16.
+fn refresh_workers(cfg: &Config) -> usize {
+    cfg.document
+        .get("oauth")
+        .and_then(|o| o.get("auth-auto-refresh-workers"))
+        .and_then(serde_yaml_ng::Value::as_i64)
+        .filter(|n| *n > 0)
+        .map_or(16, |n| n as usize)
+}
+
 #[derive(Debug)]
 pub enum AcquireError {
-    NoCredential,
-    Cooldown { wait: Duration },
-    Prepare { id: String, error: ExecError },
+    /// No candidate is ready. `retry_after` is set when candidates exist but are all
+    /// blocked (Go `auth_unavailable`); unset means none is eligible (`auth_not_found`).
+    Unavailable {
+        retry_after: Option<Duration>,
+        cause: Option<String>,
+    },
+    /// Every eligible candidate is quota-cooling for this model.
+    Cooldown {
+        wait: Duration,
+        cause: Option<String>,
+    },
+    Prepare {
+        id: String,
+        error: ExecError,
+    },
 }
 
 /// Route-model state is separate from the lease's resolved execution model.
 #[derive(Debug, Clone, Default)]
 pub struct Selection {
+    /// Provider keys that may serve the model, in preference order.
+    pub providers: Vec<String>,
+    /// Single-provider shorthand, used when `providers` is empty.
     pub provider: String,
+    /// The route model (requested model after `auto` resolution, suffix kept).
     pub model: String,
     pub session: Option<String>,
     /// Credential IDs already tried in this request.
@@ -257,12 +397,106 @@ pub struct Selection {
     pub retry_round: usize,
 }
 
+impl Selection {
+    pub fn new(provider: &str, model: &str) -> Self {
+        Self {
+            providers: vec![provider.to_owned()],
+            model: model.to_owned(),
+            ..Self::default()
+        }
+    }
+
+    /// The provider keys this selection may use.
+    pub fn provider_keys(&self) -> Vec<String> {
+        if self.providers.is_empty() && !self.provider.is_empty() {
+            vec![self.provider.clone()]
+        } else {
+            self.providers.clone()
+        }
+    }
+}
+
+/// Admission without a registry: provider match, prefix, config aliases and the
+/// credential's exclusions (attributes first, then file metadata).
+pub fn standalone_admission<'a>(
+    selection: &'a Selection,
+    policy: &'a Policy,
+) -> impl Fn(&Credential) -> Option<String> + 'a {
+    let providers = selection.provider_keys();
+    move |c| {
+        if !providers.contains(&crate::registry::provider_key(c)) {
+            return None;
+        }
+        let route = selection.model.trim();
+        let prefix = crate::registry::credential_prefix(c);
+        let base = crate::scheduler::canonical_model(route);
+        if !prefix.is_empty()
+            && !base.starts_with(&format!("{prefix}/"))
+            && (policy.force_model_prefix || base.contains('/'))
+        {
+            return None;
+        }
+        let (models, _) = crate::registry::execution_models(&HashMap::new(), c, route);
+        let model = models.into_iter().next().unwrap_or_default();
+        let key = crate::scheduler::canonical_model(&model).to_lowercase();
+        let excluded: Vec<String> = match c.attributes.get("excluded_models").filter(|v| !v.trim().is_empty()) {
+            Some(list) => list.split(',').map(|p| p.trim().to_lowercase()).collect(),
+            None => c
+                .metadata
+                .get("excluded_models")
+                .and_then(serde_json::Value::as_array)
+                .map(|l| {
+                    l.iter()
+                        .filter_map(|v| v.as_str())
+                        .map(|p| p.trim().to_lowercase())
+                        .collect()
+                })
+                .unwrap_or_default(),
+        };
+        if excluded.iter().any(|p| crate::registry::wildcard(p, &key)) {
+            return None;
+        }
+        Some(model)
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum Outcome {
     Success,
     Failure(ExecError),
+    /// A failure that must not change availability (compact request faults, a
+    /// missing count_tokens endpoint).
+    Neutral(ExecError),
     /// The client went away before the response finished.
     Cancelled,
+}
+
+/// Decides which credentials may serve a selection and under which model key their
+/// cooldowns live. `None` rejects the credential.
+pub type Admit<'a> = dyn Fn(&Credential) -> Option<String> + 'a;
+
+/// Registry admission (Go `authSupportsRouteModel`) plus a registered executor.
+pub fn admission<'a>(
+    registry: &'a Registry,
+    aliases: &'a HashMap<String, Vec<crate::registry::OAuthAlias>>,
+    selection: &'a Selection,
+    executors: &'a Executors,
+) -> impl Fn(&Credential) -> Option<String> + 'a {
+    move |c| {
+        let provider = crate::registry::provider_key(c);
+        if !selection.provider_keys().contains(&provider) || !executors.supports(&c.provider) {
+            return None;
+        }
+        let key = crate::registry::selection_model(aliases, c, &selection.model);
+        let route = crate::scheduler::canonical_model(&selection.model);
+        if route.is_empty() {
+            return Some(key);
+        }
+        let selection_key = crate::scheduler::canonical_model(&key);
+        (registry.client_supports(&c.id, route)
+            || (selection_key != route && registry.client_supports(&c.id, selection_key)))
+        .then_some(key)
+    }
 }
 
 /// One attempt with one credential. Not cloneable: it reports exactly one outcome.
@@ -270,6 +504,7 @@ pub struct Lease {
     store: Arc<CredentialStore>,
     pub credential: Arc<Credential>,
     pub selection: Selection,
+    /// The model key the outcome is recorded under (Go `stateModelForExecution`).
     pub execution_model: String,
     pub attempt: u64,
     policy: Arc<Policy>,
@@ -279,6 +514,12 @@ pub struct Lease {
 impl Lease {
     pub fn complete(mut self, outcome: Outcome) {
         self.report(outcome);
+    }
+
+    /// Records an intermediate outcome for one model of a pooled alias without ending
+    /// the lease.
+    pub fn note(&self, model: &str, outcome: &Outcome) {
+        self.store.record_model(self, model, outcome);
     }
 
     fn report(&mut self, outcome: Outcome) {
@@ -329,6 +570,8 @@ struct Inner {
     creds: Vec<Arc<Credential>>,
     /// Last revision handed out. Revisions are never reused.
     generation: u64,
+    /// Bumped on every reconcile and patch, including pure removals.
+    epoch: u64,
 }
 
 pub struct CredentialStore {
@@ -345,6 +588,7 @@ impl CredentialStore {
         let mut inner = Inner {
             creds: Vec::new(),
             generation: 0,
+            epoch: 0,
         };
         for mut cred in credentials {
             inner.generation += 1;
@@ -369,15 +613,20 @@ impl CredentialStore {
         self.read().creds.iter().find(|c| c.id == id).cloned()
     }
 
+    /// Selects among the selection's providers without registry admission (tests and
+    /// callers that already filtered credentials).
     pub fn select(self: &Arc<Self>, selection: Selection) -> Option<Lease> {
         let policy = self.policy.read().unwrap_or_else(PoisonError::into_inner).clone();
-        self.select_with_policy(selection, policy).ok()
+        let scope = selection.clone();
+        let admit = standalone_admission(&scope, &policy);
+        self.select_with(selection, policy.clone(), &admit).ok()
     }
 
-    pub fn select_with_policy(
+    pub fn select_with(
         self: &Arc<Self>,
         selection: Selection,
         policy: Arc<Policy>,
+        admit: &Admit<'_>,
     ) -> Result<Lease, AcquireError> {
         let now = Instant::now();
         let credential = {
@@ -386,28 +635,38 @@ impl CredentialStore {
             let eligible: Vec<_> = inner
                 .creds
                 .iter()
-                .filter(|c| c.provider == selection.provider && !c.disabled && !selection.exclude.contains(&c.id))
+                .filter(|c| !c.disabled && !selection.exclude.contains(&c.id))
                 .filter(|c| policy.retry_limit(c) >= selection.retry_round && scheduler.admits(c, &policy))
-                .filter_map(|c| execution_model(c, &selection.model, &policy).map(|m| (c, m)))
+                .filter_map(|c| admit(c).map(|m| (c, m)))
                 .collect();
             let candidates: Vec<_> = eligible
                 .iter()
                 .filter(|(c, m)| scheduler.wait(c, m, now).is_none())
-                .map(|(c, _)| c.as_ref())
+                .map(|(c, _)| (c.as_ref(), crate::registry::provider_key(c)))
                 .collect();
             if candidates.is_empty() {
-                if !eligible.is_empty()
-                    && eligible.iter().all(|(c, m)| scheduler.quota_cooling(c, m, now))
-                    && let Some(wait) = eligible.iter().filter_map(|(c, m)| scheduler.wait(c, m, now)).min()
-                {
-                    return Err(AcquireError::Cooldown { wait });
+                let cause = eligible
+                    .iter()
+                    .filter_map(|(c, m)| scheduler.last_error(c, m))
+                    .max_by_key(|s| s.deadline)
+                    .map(|s| s.error.clone());
+                let wait = eligible.iter().filter_map(|(c, m)| scheduler.wait(c, m, now)).min();
+                if !eligible.is_empty() && eligible.iter().all(|(c, m)| scheduler.quota_cooling(c, m, now)) {
+                    return Err(AcquireError::Cooldown {
+                        wait: wait.unwrap_or_default(),
+                        cause,
+                    });
                 }
-                return Err(AcquireError::NoCredential);
+                return Err(AcquireError::Unavailable {
+                    retry_after: if eligible.is_empty() { None } else { wait },
+                    cause,
+                });
             }
-            let picked = scheduler.pick(&candidates, &selection, &policy, now).unwrap();
+            let refs: Vec<(&Credential, &str)> = candidates.iter().map(|(c, p)| (*c, p.as_str())).collect();
+            let picked = scheduler.pick(&refs, &selection, &policy, now).unwrap();
             inner.creds.iter().find(|c| c.id == picked.id).unwrap().clone()
         };
-        let execution_model = execution_model(&credential, &selection.model, &policy).unwrap();
+        let execution_model = admit(&credential).unwrap_or_else(|| selection.model.clone());
         Ok(Lease {
             store: self.clone(),
             credential,
@@ -419,36 +678,78 @@ impl CredentialStore {
         })
     }
 
-    /// Returns the next round's wait, if any credential still permits that round.
-    /// A wait exceeding the cap is rejected, not shortened (Go conductor_selection.go).
-    pub fn retry_wait(&self, selection: &Selection, policy: &Policy, error: &ExecError) -> Option<Duration> {
-        self.retry_wait_at(selection, policy, error, Instant::now())
+    /// The registry projection of this credential's cooldown state for `model`.
+    pub fn suspension(&self, credential: &Credential, model: &str) -> crate::registry::Suspension {
+        use crate::registry::Suspension;
+        let scheduler = self.scheduler.lock().unwrap_or_else(PoisonError::into_inner);
+        let now = Instant::now();
+        let live = |m: &str| {
+            scheduler
+                .cooldowns
+                .get(&(credential.id.clone(), crate::scheduler::canonical_model(m).to_owned()))
+                .filter(|s| s.deadline > now)
+        };
+        if let Some(state) = live(model) {
+            return match (state.quota, state.status) {
+                (true, 429) => Suspension::Quota,
+                (quota_exceeded, _) => Suspension::Other { quota_exceeded },
+            };
+        }
+        if live("").is_some() {
+            // Credential-wide quota: Go reports these models as `credential_quota`.
+            return Suspension::Other { quota_exceeded: false };
+        }
+        Suspension::None
+    }
+
+    /// Whether `model` is cooling for this credential right now.
+    pub fn blocked(&self, credential: &Credential, model: &str) -> bool {
+        let scheduler = self.scheduler.lock().unwrap_or_else(PoisonError::into_inner);
+        scheduler.wait(credential, model, Instant::now()).is_some()
+    }
+
+    /// Clears every cooldown and affinity binding of one credential (Go `ResetQuota`).
+    /// Returns the model keys that were cooling.
+    pub fn reset_cooldown(&self, id: &str) -> Vec<String> {
+        self.scheduler.lock().unwrap_or_else(PoisonError::into_inner).reset(id)
+    }
+
+    /// Returns the next round's wait, if any credential still permits that round
+    /// (Go `closestCooldownWaitWithAttempted`). A wait exceeding the cap is rejected,
+    /// not shortened. `status` is the round error's status; `attempted` the credentials
+    /// that executed this round (they get the 10s quota floor after a 429).
+    pub fn retry_wait(
+        &self,
+        selection: &Selection,
+        policy: &Policy,
+        status: u16,
+        attempted: &[String],
+        admit: &Admit<'_>,
+    ) -> Option<Duration> {
+        self.retry_wait_at(selection, policy, status, attempted, admit, Instant::now())
     }
 
     fn retry_wait_at(
         &self,
         selection: &Selection,
         policy: &Policy,
-        error: &ExecError,
+        status: u16,
+        attempted: &[String],
+        admit: &Admit<'_>,
         now: Instant,
     ) -> Option<Duration> {
-        if error.scope == FailureScope::Request
-            || (!retry_status(error.status) && error.scope != FailureScope::Transport)
-        {
-            return None;
-        }
         let inner = self.read();
         let scheduler = self.scheduler.lock().unwrap_or_else(PoisonError::into_inner);
         let wait = inner
             .creds
             .iter()
-            .filter(|c| c.provider == selection.provider && !c.disabled)
+            .filter(|c| !c.disabled)
             .filter(|c| policy.retry_limit(c) > selection.retry_round && scheduler.admits(c, policy))
-            .filter_map(|c| execution_model(c, &selection.model, policy).map(|m| (c, m)))
+            .filter_map(|c| admit(c).map(|m| (c, m)))
             .filter(|(c, m)| scheduler.retry_eligible(c, m, now))
             .map(|(c, m)| {
                 let wait = scheduler.wait(c, &m, now).unwrap_or_default();
-                if error.status == 429 && selection.exclude.contains(&c.id) && !policy.cooling_disabled(c) {
+                if status == 429 && attempted.contains(&c.id) && !policy.cooling_disabled(c) {
                     wait.max(Duration::from_secs(10))
                 } else {
                     wait
@@ -463,9 +764,13 @@ impl CredentialStore {
     }
 
     fn record(&self, lease: &Lease, outcome: &Outcome) {
+        self.record_model(lease, &lease.execution_model, outcome);
+    }
+
+    fn record_model(&self, lease: &Lease, model: &str, outcome: &Outcome) {
         let slot = match outcome {
             Outcome::Success => 0,
-            Outcome::Failure(_) => 1,
+            Outcome::Failure(_) | Outcome::Neutral(_) => 1,
             Outcome::Cancelled => 2,
         };
         self.stats[slot].fetch_add(1, Ordering::Relaxed);
@@ -479,12 +784,17 @@ impl CredentialStore {
         {
             self.scheduler.lock().unwrap_or_else(PoisonError::into_inner).record(
                 &lease.credential,
-                &lease.execution_model,
+                model,
                 outcome,
                 &lease.policy,
                 Instant::now(),
             );
         }
+    }
+
+    /// Changes whenever the credential set or any credential changes.
+    pub fn epoch(&self) -> u64 {
+        self.read().epoch
     }
 
     /// Attempts finished so far, by outcome.
@@ -541,6 +851,7 @@ impl CredentialStore {
         *slot = Arc::new(next);
         let committed = slot.clone();
         inner.generation = generation;
+        inner.epoch += 1;
         Ok(committed)
     }
 
@@ -569,6 +880,7 @@ impl CredentialStore {
             }
         }
         inner.creds = next;
+        inner.epoch += 1;
         self.scheduler
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
@@ -691,6 +1003,39 @@ mod tests {
         for _ in 0..3 {
             assert_eq!(store.select(only.clone()).unwrap().credential.id, "c2.json");
         }
+    }
+
+    #[test]
+    fn standalone_admission_reads_attributes_first() {
+        let mut c = cred("a.json", "claude", false);
+        c.metadata.insert("prefix".into(), "meta".into());
+        c.metadata
+            .insert("excluded_models".into(), serde_json::json!(["claude-sonnet*"]));
+        c.attributes.insert("prefix".into(), "team".into());
+        c.attributes.insert("excluded_models".into(), "claude-opus*".into());
+        let policy = Policy::default();
+        let admit = |model: &str| {
+            let s = Selection::new("claude", model);
+            standalone_admission(&s, &policy)(&c)
+        };
+        assert_eq!(
+            admit("team/claude-sonnet-5(high)").as_deref(),
+            Some("claude-sonnet-5(high)")
+        );
+        assert_eq!(admit("team/claude-opus-5"), None, "attribute exclusions win");
+        assert_eq!(
+            admit("meta/claude-sonnet-5"),
+            None,
+            "metadata prefix is not authoritative"
+        );
+        assert_eq!(admit("claude-sonnet-5").as_deref(), Some("claude-sonnet-5"));
+        let forced = Policy {
+            force_model_prefix: true,
+            ..Policy::default()
+        };
+        let s = Selection::new("claude", "claude-sonnet-5");
+        assert_eq!(standalone_admission(&s, &forced)(&c), None);
+        assert_eq!(standalone_admission(&Selection::new("codex", "x"), &policy)(&c), None);
     }
 
     #[test]
@@ -828,29 +1173,37 @@ mod tests {
     }
 
     #[test]
-    fn retry_wait_obeys_exact_cap_request_scope_and_quota_floor() {
+    fn retry_wait_obeys_exact_cap_and_attempted_quota_floor() {
         let store = CredentialStore::new(vec![cred("a.json", "claude", false)]);
         let now = Instant::now();
         let mut selection = sel("claude");
-        selection.exclude.push("a.json".into());
+        let admit_all = |_: &Credential| Some(String::new());
+        let tried = ["a.json".to_owned()];
         let mut policy = Policy {
             request_retry: 1,
             ..Policy::default()
         };
-        let transport = ExecError::local(502, FailureScope::Transport, "connection lost");
+        // A transport fault (status 0) retries immediately.
         assert_eq!(
-            store.retry_wait_at(&selection, &policy, &transport, now),
+            store.retry_wait_at(&selection, &policy, 0, &tried, &admit_all, now),
             Some(Duration::ZERO)
         );
-        let request = ExecError::local(503, FailureScope::Request, "request invalid");
-        assert_eq!(store.retry_wait_at(&selection, &policy, &request, now), None);
-        let quota = ExecError::local(429, FailureScope::Model, "quota");
-        assert_eq!(store.retry_wait_at(&selection, &policy, &quota, now), None);
+        // An attempted credential after a 429 waits at least 10s, which the default
+        // max-retry-interval of 0 forbids; an untried one may go immediately.
+        assert_eq!(
+            store.retry_wait_at(&selection, &policy, 429, &tried, &admit_all, now),
+            None
+        );
+        assert_eq!(
+            store.retry_wait_at(&selection, &policy, 429, &[], &admit_all, now),
+            Some(Duration::ZERO)
+        );
         policy.max_retry_interval = Duration::from_secs(10);
         assert_eq!(
-            store.retry_wait_at(&selection, &policy, &quota, now),
+            store.retry_wait_at(&selection, &policy, 429, &tried, &admit_all, now),
             Some(Duration::from_secs(10))
         );
+        let quota = ExecError::local(429, FailureScope::Model, "quota");
         let credential = store.get("a.json").unwrap();
         store.scheduler.lock().unwrap().record(
             &credential,
@@ -861,11 +1214,14 @@ mod tests {
         );
         let later = now + Duration::from_millis(1);
         assert_eq!(
-            store.retry_wait_at(&selection, &policy, &quota, later),
+            store.retry_wait_at(&selection, &policy, 429, &tried, &admit_all, later),
             Some(Duration::from_secs(10))
         );
         policy.max_retry_interval = Duration::from_secs(9);
-        assert_eq!(store.retry_wait_at(&selection, &policy, &quota, later), None);
+        assert_eq!(
+            store.retry_wait_at(&selection, &policy, 429, &tried, &admit_all, later),
+            None
+        );
         policy.disable_cooling = true;
         store.scheduler.lock().unwrap().record(
             &credential,
@@ -876,17 +1232,22 @@ mod tests {
         );
         policy.max_retry_interval = Duration::ZERO;
         assert_eq!(
-            store.retry_wait_at(&selection, &policy, &quota, later),
-            Some(Duration::ZERO)
+            store.retry_wait_at(&selection, &policy, 429, &tried, &admit_all, later),
+            Some(Duration::ZERO),
+            "disabled cooling has no floor"
         );
         selection.retry_round = 1;
-        assert_eq!(store.retry_wait_at(&selection, &policy, &transport, later), None);
+        assert_eq!(
+            store.retry_wait_at(&selection, &policy, 0, &tried, &admit_all, later),
+            None
+        );
     }
 
     #[test]
     fn config_routing_drives_policy_at_startup_and_on_publish() {
         let executors = || Executors {
             claude: cpa_exec::claude::ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
+            codex: Default::default(),
             devices: Default::default(),
             openai: Default::default(),
         };
@@ -908,6 +1269,31 @@ mod tests {
         assert_eq!(policy.session_affinity_ttl, Duration::from_secs(3600));
     }
 
+    /// Go `nextModelPoolOffset` (conductor_models.go): per-key cursor, no advance for
+    /// single-entry pools or blank keys, reset to zero at the int32 guard.
+    #[test]
+    fn pool_offsets_rotate_per_key_like_go() {
+        let rt = Runtime::new(
+            Config::parse("").unwrap(),
+            Vec::new(),
+            Executors {
+                claude: cpa_exec::claude::ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
+                codex: Default::default(),
+                devices: Default::default(),
+            },
+        );
+        let offsets: Vec<usize> = (0..4).map(|_| rt.next_pool_offset("a|openai|m", 3)).collect();
+        assert_eq!(offsets, [0, 1, 2, 0]);
+        assert_eq!(rt.next_pool_offset(" a|openai|m ", 3), 1, "keys are trimmed");
+        assert_eq!(rt.next_pool_offset("b|openai|m", 3), 0, "keys rotate independently");
+        assert_eq!(rt.next_pool_offset("c", 1), 0);
+        assert_eq!(rt.next_pool_offset("c", 2), 0, "a single-entry pool does not advance");
+        assert_eq!(rt.next_pool_offset("  ", 2), 0);
+        rt.pool_offsets.lock().unwrap().insert("d".into(), 2_147_483_641);
+        assert_eq!(rt.next_pool_offset("d", 3), 0, "the guard resets before use");
+        assert_eq!(rt.next_pool_offset("d", 3), 1);
+    }
+
     #[tokio::test]
     async fn preparation_waiter_observes_deletion_and_refresh_loop_is_replaceable() {
         let rt = Arc::new(Runtime::new(
@@ -915,6 +1301,7 @@ mod tests {
             vec![cred("a.json", "claude", false)],
             Executors {
                 claude: cpa_exec::claude::ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
+                codex: Default::default(),
                 devices: Default::default(),
                 openai: Default::default(),
             },
@@ -923,7 +1310,7 @@ mod tests {
         let guard = lock.lock().await;
         let worker = {
             let rt = rt.clone();
-            tokio::spawn(async move { rt.prepare_credential("a.json", &rt.config()).await })
+            tokio::spawn(async move { rt.prepare_credential("a.json", &rt.config(), None).await })
         };
         tokio::task::yield_now().await;
         assert!(!worker.is_finished());

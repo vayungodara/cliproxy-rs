@@ -1,22 +1,31 @@
+// Enforces the bundle budget after `vite build`. The ceilings are the sizes of the
+// dashboard this one replaced (2026-10-02); the build fails if either grows past them.
 import { readdirSync, readFileSync, copyFileSync } from "node:fs";
 import { gzipSync } from "node:zlib";
+
+const BUDGET = { js: 42_642, css: 6_853 };
+
 copyFileSync("dist/index.html", "dist/management.html");
-const files = readdirSync("dist/assets").filter((f) => f.endsWith(".js"));
-const inline = [
-  ...readFileSync("dist/index.html", "utf8").matchAll(
-    /<script>([\s\S]*?)<\/script>/g,
-  ),
-]
-  .map((match) => match[1])
-  .join("\n");
-const bytes = files.reduce(
-  (n, file) => n + gzipSync(readFileSync(`dist/assets/${file}`)).length,
-  gzipSync(inline).length,
-);
-console.log(
-  `Total JavaScript gzip: ${bytes} bytes (${(bytes / 1024).toFixed(2)} KiB), ${files.length} file(s)`,
-);
-if (bytes >= 100_000) {
-  console.error("JavaScript exceeds the 100 KB budget.");
+const html = readFileSync("dist/index.html", "utf8");
+const assets = readdirSync("dist/assets");
+const gz = (text) => gzipSync(text).length;
+const inline = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]).join("\n");
+const size = (ext) =>
+  assets.filter((f) => f.endsWith(ext)).reduce((n, f) => n + gz(readFileSync(`dist/assets/${f}`)), 0);
+const total = { js: size(".js") + (inline ? gz(inline) : 0), css: size(".css") };
+
+let failed = false;
+for (const kind of ["js", "css"]) {
+  const over = total[kind] > BUDGET[kind];
+  failed ||= over;
+  console.log(
+    `${kind.toUpperCase().padEnd(3)} ${String(total[kind]).padStart(6)} B gzip  budget ${BUDGET[kind]} B  ${over ? "OVER" : `${BUDGET[kind] - total[kind]} B spare`}`,
+  );
+}
+console.log(`HTML ${gz(html)} B gzip (icon sprite and theme script)`);
+const panel = readFileSync("dist-panel/management.html");
+console.log(`Panel ${gz(panel)} B gzip, ${panel.length} B raw (dist-panel/management.html, font inlined)`);
+if (failed) {
+  console.error("Bundle budget exceeded.");
   process.exitCode = 1;
 }
