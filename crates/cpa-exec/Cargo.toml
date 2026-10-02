@@ -22,10 +22,12 @@ base64 = "0.22"
 chrono = { version = "0.4", default-features = false, features = ["clock", "serde"] }
 getrandom = "0.3"
 sha2 = "0.10"
-uuid = { version = "1", features = ["v5"] }
+uuid = { version = "1", features = ["v4", "v5"] }
 url = "2"
 httpdate = "1"
 tiktoken-rs = "0.7"
+libc.workspace = true
+gjson = "0.8.1"
 
 [dev-dependencies]
 axum.workspace = true

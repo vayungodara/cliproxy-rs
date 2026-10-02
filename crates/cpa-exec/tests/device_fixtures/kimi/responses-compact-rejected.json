@@ -1,0 +1,23 @@
+{
+  "name": "responses-compact-rejected",
+  "credential": {
+    "access_token": "kimi-access-fixture",
+    "base_url": "http://127.0.0.1:44113/coding",
+    "device_id": "dev-fixture-1",
+    "refresh_token": "kimi-refresh-fixture",
+    "type": "kimi"
+  },
+  "request": {
+    "alt": "responses/compact",
+    "body": "{\"model\":\"kimi-k3\",\"input\":\"hi\"}",
+    "model": "kimi-k3",
+    "source": "openai-response",
+    "stream": false
+  },
+  "responses": null,
+  "upstream": null,
+  "downstream": {
+    "err_status": 501,
+    "err_body": "/responses/compact not supported"
+  }
+}

@@ -1,0 +1,77 @@
+{
+  "name": "claude-count-tokens-upstream",
+  "credential": {
+    "access_token": "kimi-access-fixture",
+    "base_url": "http://127.0.0.1:38261/coding",
+    "device_id": "dev-fixture-1",
+    "refresh_token": "kimi-refresh-fixture",
+    "type": "kimi"
+  },
+  "request": {
+    "body": "{\"model\":\"kimi-k2.8\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+    "count": true,
+    "model": "kimi-k2.8",
+    "source": "claude",
+    "stream": false
+  },
+  "responses": [
+    {
+      "status": 200,
+      "headers": [
+        [
+          "Content-Type",
+          "application/json"
+        ]
+      ],
+      "body": "{\"input_tokens\":9}"
+    }
+  ],
+  "upstream": [
+    {
+      "method": "POST",
+      "target": "/coding/v1/messages/count_tokens?beta=true",
+      "headers": [
+        [
+          "Host",
+          "127.0.0.1:38261"
+        ],
+        [
+          "User-Agent",
+          "CLIProxyAPI/0.1.0"
+        ],
+        [
+          "Content-Length",
+          "71"
+        ],
+        [
+          "Accept",
+          "application/json"
+        ],
+        [
+          "Accept-Encoding",
+          "gzip, deflate, br, zstd"
+        ],
+        [
+          "Anthropic-Beta",
+          "token-counting-2024-11-01"
+        ],
+        [
+          "Anthropic-Version",
+          "2023-06-01"
+        ],
+        [
+          "Authorization",
+          "Bearer kimi-access-fixture"
+        ],
+        [
+          "Content-Type",
+          "application/json"
+        ]
+      ],
+      "body": "{\"model\":\"kimi-for-coding\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
+    }
+  ],
+  "downstream": {
+    "body": "{\"input_tokens\":9}"
+  }
+}
