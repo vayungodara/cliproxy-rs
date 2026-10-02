@@ -16,13 +16,12 @@ pub(crate) const REDACTED_THINKING_PREFIX: &[u8] = b"claude-redacted-thinking:";
 const WEB_SEARCH_ID_PREFIX: &[u8] = b"ws_";
 const SERVER_TOOL_ID_PREFIX: &[u8] = b"srvtoolu_";
 
-/// signature.CompatibleSignatureForProvider(Claude, raw).
-// ponytail: adapter. internal/signature belongs to cpa_common::signature (owner: Google
-// thread). Until it lands no signature is recognised as Claude-native, so reasoning items
-// that carry a genuine Claude signature are dropped (Go replays them). Swap the body for
-// the real check; the goldens listed in tests/golden.rs SIGNATURE_PENDING then pass.
-fn compatible_claude_signature(_raw: &[u8]) -> Option<Vec<u8>> {
-    None
+/// signature.CompatibleSignatureForProvider(Claude, raw). Signatures are base64 text, so
+/// bytes that are not UTF-8 are never compatible.
+fn compatible_claude_signature(raw: &[u8]) -> Option<Vec<u8>> {
+    let raw = std::str::from_utf8(raw).ok()?;
+    cpa_common::signature::compatible_signature_for_provider(cpa_common::signature::Provider::Claude, raw)
+        .map(String::into_bytes)
 }
 
 pub(crate) fn convert(model: &str, input: &[u8], stream: bool, preserve_thinking: bool) -> Vec<u8> {
@@ -121,7 +120,10 @@ pub(crate) fn convert(model: &str, input: &[u8], stream: bool, preserve_thinking
     }
     let mut last_result: HashMap<Vec<u8>, Res<'_>> = HashMap::new();
     for item in &items {
-        if matches!(&*item.get("type").bytes(), b"function_call_output" | b"custom_tool_call_output") {
+        if matches!(
+            &*item.get("type").bytes(),
+            b"function_call_output" | b"custom_tool_call_output"
+        ) {
             let id = extract_call_id(item);
             if !id.is_empty() {
                 last_result.insert(id, item.clone());
@@ -213,7 +215,10 @@ pub(crate) fn convert(model: &str, input: &[u8], stream: bool, preserve_thinking
         strip_trailing_thinking(&mut messages);
     }
     messages = repair_tool_pairing(messages);
-    if !preserve_thinking && rejects_assistant_prefill(model) && messages.last().is_some_and(|m| is_role(m, "assistant")) {
+    if !preserve_thinking
+        && rejects_assistant_prefill(model)
+        && messages.last().is_some_and(|m| is_role(m, "assistant"))
+    {
         messages.pop();
     }
     if messages.is_empty() && (!system.is_empty() || had_messages) {
@@ -295,7 +300,11 @@ fn max_completion_tokens(model: &str) -> i64 {
 }
 
 fn default_max_tokens(model: &str) -> i64 {
-    let base = if model.trim().to_lowercase().contains("fable") { 64000 } else { 32000 };
+    let base = if model.trim().to_lowercase().contains("fable") {
+        64000
+    } else {
+        32000
+    };
     let limit = max_completion_tokens(model);
     if limit > 0 && limit < base { limit } else { base }
 }
@@ -324,7 +333,10 @@ fn claude_message(role: &[u8], parts: &[Vec<u8>]) -> Vec<u8> {
 fn set_content(msg: &mut Vec<u8>, parts: &[Vec<u8>]) {
     if parts.len() == 1 {
         let part = gj::parse(&parts[0]);
-        if &*part.get("type").bytes() == b"text" && !part.get("cache_control").exists() && !part.get("citations").exists() {
+        if &*part.get("type").bytes() == b"text"
+            && !part.get("cache_control").exists()
+            && !part.get("citations").exists()
+        {
             let text = part.get("text").bytes().into_owned();
             gj::set_str(msg, "content", text);
             return;
@@ -406,14 +418,22 @@ fn thinking_separator(parts: &[Vec<u8>]) -> Option<Vec<u8>> {
     if gj::get(parts.last()?, "type").str() != "web_search_tool_result" {
         return None;
     }
-    parts.iter().rev().find(|p| gj::get(p, "type").str() == "thinking").cloned()
+    parts
+        .iter()
+        .rev()
+        .find(|p| gj::get(p, "type").str() == "thinking")
+        .cloned()
 }
 
 fn data_url(url: &[u8]) -> (Vec<u8>, Vec<u8>) {
     let trimmed = url.strip_prefix(b"data:").unwrap_or(url);
     match trimmed.windows(8).position(|w| w == b";base64,") {
         Some(i) => {
-            let media = if i == 0 { b"application/octet-stream".to_vec() } else { trimmed[..i].to_vec() };
+            let media = if i == 0 {
+                b"application/octet-stream".to_vec()
+            } else {
+                trimmed[..i].to_vec()
+            };
             (media, trimmed[i + 8..].to_vec())
         }
         None => (b"application/octet-stream".to_vec(), vec![]),
@@ -479,7 +499,11 @@ fn message_parts(item: &Res<'_>) -> (Vec<u8>, Vec<Vec<u8>>) {
                         let p = attach_citations(text_part(&text.bytes()), &part.get("annotations"));
                         parts.push(common::attach_cache_control(p, &part));
                     }
-                    role = if kind == b"input_text" { b"user".to_vec() } else { b"assistant".to_vec() };
+                    role = if kind == b"input_text" {
+                        b"user".to_vec()
+                    } else {
+                        b"assistant".to_vec()
+                    };
                 }
                 b"refusal" => {
                     let refusal = part.get("refusal").bytes();
@@ -489,7 +513,11 @@ fn message_parts(item: &Res<'_>) -> (Vec<u8>, Vec<Vec<u8>>) {
                     role = b"assistant".to_vec();
                 }
                 b"input_image" | b"input_file" => {
-                    let built = if kind == b"input_image" { image_part(&part) } else { file_part(&part) };
+                    let built = if kind == b"input_image" {
+                        image_part(&part)
+                    } else {
+                        file_part(&part)
+                    };
                     if let Some(p) = built {
                         parts.push(common::attach_cache_control(p, &part));
                         if role.is_empty() {
@@ -640,7 +668,12 @@ fn strip_trailing_thinking(messages: &mut Vec<Vec<u8>>) {
     }
     let parts = content.array();
     let mut end = parts.len();
-    while end > 0 && matches!(&*trim_space(&parts[end - 1].get("type").bytes()), b"thinking" | b"redacted_thinking") {
+    while end > 0
+        && matches!(
+            trim_space(&parts[end - 1].get("type").bytes()),
+            b"thinking" | b"redacted_thinking"
+        )
+    {
         end -= 1;
     }
     if end == parts.len() {
@@ -812,7 +845,10 @@ pub(crate) fn extract_call_id(node: &Res<'_>) -> Vec<u8> {
 }
 
 fn is_output_type(item: &Res<'_>) -> bool {
-    matches!(&*item.get("type").bytes(), b"function_call_output" | b"custom_tool_call_output")
+    matches!(
+        &*item.get("type").bytes(),
+        b"function_call_output" | b"custom_tool_call_output"
+    )
 }
 
 /// common.NormalizeResponsesToolCallOutputs: assigns call IDs to outputs that lack one,
@@ -977,7 +1013,10 @@ pub(crate) fn qualify_namespace_name(namespace: &[u8], child: &[u8]) -> Vec<u8> 
 }
 
 fn unsupported_builtin(kind: &[u8]) -> bool {
-    matches!(kind, b"image_generation" | b"file_search" | b"code_interpreter" | b"computer_use_preview")
+    matches!(
+        kind,
+        b"image_generation" | b"file_search" | b"code_interpreter" | b"computer_use_preview"
+    )
 }
 
 pub(crate) fn tool_name(tool: &Res<'_>) -> Vec<u8> {
@@ -1021,7 +1060,14 @@ pub(crate) fn tool_descriptors<'a>(root: &Res<'a>) -> Vec<Descriptor<'a>> {
         });
     }
     let mut out: Vec<Descriptor<'a>> = vec![];
-    let add = |out: &mut Vec<Descriptor<'a>>, tool: Res<'a>, name: Vec<u8>, child: Vec<u8>, ns: Vec<u8>, kind: &[u8], priority: u8, direct: bool| {
+    let add = |out: &mut Vec<Descriptor<'a>>,
+               tool: Res<'a>,
+               name: Vec<u8>,
+               child: Vec<u8>,
+               ns: Vec<u8>,
+               kind: &[u8],
+               priority: u8,
+               direct: bool| {
         if name.is_empty() {
             return;
         }
@@ -1041,8 +1087,26 @@ pub(crate) fn tool_descriptors<'a>(root: &Res<'a>) -> Vec<Descriptor<'a>> {
         tools.each(|_, tool| {
             let kind = trim_space(&tool.get("type").bytes()).to_vec();
             match kind.as_slice() {
-                b"" | b"function" => add(&mut out, tool.clone(), tool_name(&tool), vec![], vec![], b"function", priority, true),
-                b"custom" => add(&mut out, tool.clone(), tool_name(&tool), vec![], vec![], b"custom", priority, true),
+                b"" | b"function" => add(
+                    &mut out,
+                    tool.clone(),
+                    tool_name(&tool),
+                    vec![],
+                    vec![],
+                    b"function",
+                    priority,
+                    true,
+                ),
+                b"custom" => add(
+                    &mut out,
+                    tool.clone(),
+                    tool_name(&tool),
+                    vec![],
+                    vec![],
+                    b"custom",
+                    priority,
+                    true,
+                ),
                 b"namespace" => {
                     let namespace = trim_space(&tool.get("name").bytes()).to_vec();
                     let children = tool.get("tools");
@@ -1059,7 +1123,16 @@ pub(crate) fn tool_descriptors<'a>(root: &Res<'a>) -> Vec<Descriptor<'a>> {
                                 b"custom" => b"custom",
                                 _ => return true,
                             };
-                            add(&mut out, child.clone(), qualified, child_name, namespace.clone(), ckind, priority, false);
+                            add(
+                                &mut out,
+                                child.clone(),
+                                qualified,
+                                child_name,
+                                namespace.clone(),
+                                ckind,
+                                priority,
+                                false,
+                            );
                             true
                         });
                     }
@@ -1073,7 +1146,16 @@ pub(crate) fn tool_descriptors<'a>(root: &Res<'a>) -> Vec<Descriptor<'a>> {
                     if name.is_empty() {
                         name = b"web_search".to_vec();
                     }
-                    add(&mut out, tool.clone(), name, vec![], vec![], b"web_search", priority, true);
+                    add(
+                        &mut out,
+                        tool.clone(),
+                        name,
+                        vec![],
+                        vec![],
+                        b"web_search",
+                        priority,
+                        true,
+                    );
                 }
                 _ => {
                     if !unsupported_builtin(&kind) {
@@ -1113,7 +1195,11 @@ pub(crate) fn tool_winners(descriptors: &[Descriptor<'_>]) -> HashMap<Vec<u8>, u
     winners
 }
 
-fn tool_name_map(descriptors: &[Descriptor<'_>], winners: &HashMap<Vec<u8>, usize>, accepted: &HashSet<Vec<u8>>) -> HashMap<Vec<u8>, Vec<u8>> {
+fn tool_name_map(
+    descriptors: &[Descriptor<'_>],
+    winners: &HashMap<Vec<u8>, usize>,
+    accepted: &HashSet<Vec<u8>>,
+) -> HashMap<Vec<u8>, Vec<u8>> {
     let mut map: HashMap<Vec<u8>, Vec<u8>> = HashMap::new();
     let wins = |d: &Descriptor<'_>| winners.get(&d.name) == Some(&d.order);
     for d in descriptors {
@@ -1139,10 +1225,16 @@ fn tool_description(tool: &Res<'_>) -> Vec<u8> {
 }
 
 fn tool_parameters<'a>(tool: &Res<'a>) -> Option<Res<'a>> {
-    ["parameters", "parametersJsonSchema", "input_schema", "function.parameters", "function.parametersJsonSchema"]
-        .iter()
-        .map(|p| tool.get(p))
-        .find(Res::exists)
+    [
+        "parameters",
+        "parametersJsonSchema",
+        "input_schema",
+        "function.parameters",
+        "function.parametersJsonSchema",
+    ]
+    .iter()
+    .map(|p| tool.get(p))
+    .find(Res::exists)
 }
 
 fn descriptor_to_claude(d: &Descriptor<'_>, claude_name: &[u8]) -> Option<Vec<u8>> {
@@ -1233,7 +1325,10 @@ pub(crate) struct ToolNames {
 }
 
 fn valid_claude_name(name: &[u8]) -> bool {
-    (1..=64).contains(&name.len()) && name.iter().all(|c| c.is_ascii_alphanumeric() || *c == b'_' || *c == b'-')
+    (1..=64).contains(&name.len())
+        && name
+            .iter()
+            .all(|c| c.is_ascii_alphanumeric() || *c == b'_' || *c == b'-')
 }
 
 impl ToolNames {
@@ -1268,7 +1363,10 @@ impl ToolNames {
     }
 
     pub(crate) fn identity(&self, claude_name: &[u8]) -> Vec<u8> {
-        self.from_claude.get(claude_name).cloned().unwrap_or_else(|| claude_name.to_vec())
+        self.from_claude
+            .get(claude_name)
+            .cloned()
+            .unwrap_or_else(|| claude_name.to_vec())
     }
 
     fn assign(&mut self, identity: Vec<u8>, name: Vec<u8>, taken: &mut HashSet<Vec<u8>>) {
@@ -1345,25 +1443,6 @@ fn history_tool_identities(root: &Res<'_>) -> Vec<Vec<u8>> {
         });
     }
     ids
-}
-
-/// Names of custom (freeform) tools in the request, as declared and as sent to Claude.
-pub(crate) fn custom_tool_names(request: &[u8]) -> HashSet<Vec<u8>> {
-    let root = gj::parse(request);
-    let descriptors = tool_descriptors(&root);
-    let winners = tool_winners(&descriptors);
-    let names = ToolNames::build(&root);
-    let mut out = HashSet::new();
-    for (name, &order) in &winners {
-        if descriptors[order].kind == b"custom" {
-            out.insert(name.clone());
-            let claude = names.claude_name(name);
-            if !claude.is_empty() {
-                out.insert(claude);
-            }
-        }
-    }
-    out
 }
 
 /// splitResponsesQualifiedFunctionCallFromRequest: a Claude tool name back to the
@@ -1468,5 +1547,9 @@ fn attach_citations(block: Vec<u8>, annotations: &Res<'_>) -> Vec<u8> {
         return block;
     }
     let mut out = block.clone();
-    if gj::set_raw(&mut out, "citations", gj::join(&citations)) { out } else { block }
+    if gj::set_raw(&mut out, "citations", gj::join(&citations)) {
+        out
+    } else {
+        block
+    }
 }

@@ -7,13 +7,31 @@
 // is random when several are open at once; this port uses ascending block index.
 
 use crate::{
-    Error, ResponseCtx,
-    claude_responses::{REDACTED_THINKING_PREFIX, ToolNames, split_qualified_call, tool_descriptors, tool_winners, web_search_call_id},
+    Error, Pair, Registered, RequestCtx, ResponseCtx,
+    claude_responses::{
+        REDACTED_THINKING_PREFIX, ToolNames, split_qualified_call, tool_descriptors, tool_winners, web_search_call_id,
+    },
     common::{self, now_unix, sse_event, trim_space},
-    stream::GoStream,
+    stream::{self, GoStream},
 };
 use cpa_common::json::{self as gj, Kind, Res};
+use cpa_core::format::Format;
 use std::collections::{BTreeMap, HashMap, HashSet};
+
+pub static PAIR: Registered = Registered {
+    pair: Pair {
+        request,
+        non_stream,
+        stream: |ctx| stream::framed(Format::OpenAIResponse, Format::Claude, go_stream(ctx)),
+        count_tokens: None,
+    },
+    token_count: None,
+    go_stream,
+};
+
+fn request(ctx: &RequestCtx<'_>, body: &[u8]) -> Result<Vec<u8>, Error> {
+    Ok(crate::claude_responses::convert(ctx.model, body, ctx.stream, false))
+}
 
 struct Winner {
     custom: bool,
@@ -73,7 +91,13 @@ fn pick_request<'a>(original: &'a [u8], translated: &'a [u8]) -> &'a [u8] {
 /// common.SetResponsesToolCallIdentity with the request's namespace split.
 fn with_identity(mut item: Vec<u8>, request: &[u8], qualified: &[u8], path: &str) -> Vec<u8> {
     let (name, namespace) = split_qualified_call(request, qualified);
-    let at = |key: &str| if path.is_empty() { key.to_owned() } else { format!("{path}.{key}") };
+    let at = |key: &str| {
+        if path.is_empty() {
+            key.to_owned()
+        } else {
+            format!("{path}.{key}")
+        }
+    };
     gj::set_str(&mut item, &at("name"), name);
     if namespace.is_empty() {
         gj::delete(&mut item, &at("namespace"));
@@ -153,7 +177,9 @@ fn web_search_results(content: &Res<'_>) -> Option<Vec<u8>> {
     }
     let mut results = vec![];
     content.each(|_, entry| {
-        if entry.get("type").str() == "web_search_tool_result_error" || !trim_space(&entry.get("url").bytes()).is_empty() {
+        if entry.get("type").str() == "web_search_tool_result_error"
+            || !trim_space(&entry.get("url").bytes()).is_empty()
+        {
             results.push(entry.raw.to_vec());
         }
         true
@@ -162,7 +188,8 @@ fn web_search_results(content: &Res<'_>) -> Option<Vec<u8>> {
 }
 
 fn web_search_item(tool_use_id: &[u8], query: &[u8], results: Option<&Vec<u8>>) -> Vec<u8> {
-    let mut item = br#"{"id":"","type":"web_search_call","status":"completed","action":{"type":"search","query":""}}"#.to_vec();
+    let mut item =
+        br#"{"id":"","type":"web_search_call","status":"completed","action":{"type":"search","query":""}}"#.to_vec();
     gj::set_str(&mut item, "id", web_search_call_id(tool_use_id));
     gj::set_str(&mut item, "action.query", query);
     if let Some(results) = results.filter(|r| !r.is_empty()) {
@@ -182,7 +209,11 @@ pub(crate) fn unwrap_custom_tool_input(arguments: &[u8]) -> Vec<u8> {
     let trimmed = trim_space(arguments);
     let v = gj::get(trimmed, "input");
     if v.exists() {
-        return if v.kind == Kind::String { v.s.to_vec() } else { v.raw.to_vec() };
+        return if v.kind == Kind::String {
+            v.s.to_vec()
+        } else {
+            v.raw.to_vec()
+        };
     }
     let Some(idx) = trimmed.windows(7).position(|w| w == b"\"input\"") else {
         return arguments.to_vec();
@@ -437,7 +468,8 @@ impl State {
         }
         self.web[i].emitted = true;
         self.web[i].status = status;
-        let mut done = br#"{"type":"response.output_item.done","sequence_number":0,"output_index":0,"item":{}}"#.to_vec();
+        let mut done =
+            br#"{"type":"response.output_item.done","sequence_number":0,"output_index":0,"item":{}}"#.to_vec();
         let seq = self.next_seq();
         gj::set_int(&mut done, "sequence_number", seq);
         gj::set_int(&mut done, "output_index", self.web[i].output_index);
@@ -453,7 +485,11 @@ impl State {
         }
         let name = self.name(idx);
         let mut call_id = self.call_id(idx);
-        if force && name.is_empty() && self.tools.winners.len() == 1 && self.tools.winners.values().any(|w| w.apply_patch) {
+        if force
+            && name.is_empty()
+            && self.tools.winners.len() == 1
+            && self.tools.winners.values().any(|w| w.apply_patch)
+        {
             return Err(Error("apply_patch Responses translation is not supported yet".into()));
         }
         self.tools.check(&[&name])?;
@@ -879,7 +915,12 @@ impl State {
                 self.in_text_block = true;
                 let output_index = self.message_output_index();
                 if self.current_msg_id.is_empty() {
-                    self.current_msg_id = format!("msg_{}_{}", String::from_utf8_lossy(&self.response_id), self.message_items.len()).into_bytes();
+                    self.current_msg_id = format!(
+                        "msg_{}_{}",
+                        String::from_utf8_lossy(&self.response_id),
+                        self.message_items.len()
+                    )
+                    .into_bytes();
                 }
                 if !self.message_open {
                     let mut item = br#"{"type":"response.output_item.added","sequence_number":0,"output_index":0,"item":{"id":"","type":"message","status":"in_progress","content":[],"role":"assistant"}}"#.to_vec();
@@ -953,7 +994,8 @@ impl State {
                 self.reasoning_index = self.allocate();
                 self.reasoning.clear();
                 self.reasoning_signature = reasoning_carrier(&cb);
-                self.reasoning_item_id = format!("rs_{}_{idx}", String::from_utf8_lossy(&self.response_id)).into_bytes();
+                self.reasoning_item_id =
+                    format!("rs_{}_{idx}", String::from_utf8_lossy(&self.response_id)).into_bytes();
                 let mut item = br#"{"type":"response.output_item.added","sequence_number":0,"output_index":0,"item":{"id":"","type":"reasoning","status":"in_progress","encrypted_content":"","summary":[]}}"#.to_vec();
                 let seq = self.next_seq();
                 gj::set_int(&mut item, "sequence_number", seq);
@@ -990,7 +1032,11 @@ impl State {
                 out.extend(self.finalize_web_search(i, status));
             }
         }
-        let event_type = if incomplete(&self.stop_reason) { "response.incomplete" } else { "response.completed" };
+        let event_type = if incomplete(&self.stop_reason) {
+            "response.incomplete"
+        } else {
+            "response.completed"
+        };
         let mut completed = br#"{"type":"","sequence_number":0,"response":{"id":"","object":"response","created_at":0,"status":"","background":false,"error":null}}"#.to_vec();
         gj::set_str(&mut completed, "type", event_type);
         let seq = self.next_seq();
@@ -999,14 +1045,23 @@ impl State {
         gj::set_int(&mut completed, "response.created_at", self.created_at);
         gj::set_str(&mut completed, "response.status", status);
         if incomplete(&self.stop_reason) {
-            gj::set_raw(&mut completed, "response.incomplete_details", r#"{"reason":"max_output_tokens"}"#);
+            gj::set_raw(
+                &mut completed,
+                "response.incomplete_details",
+                r#"{"reason":"max_output_tokens"}"#,
+            );
         }
         copy_request_fields(&mut completed, &self.request, "response.");
         let mut outputs = br#"{"arr":[]}"#.to_vec();
         for r in &self.reasoning_items {
-            let mut item = br#"{"id":"","type":"reasoning","status":"completed","encrypted_content":"","summary":[]}"#.to_vec();
+            let mut item =
+                br#"{"id":"","type":"reasoning","status":"completed","encrypted_content":"","summary":[]}"#.to_vec();
             gj::set_str(&mut item, "id", &r.id);
-            gj::set_str(&mut item, "status", if r.status.is_empty() { "completed" } else { r.status });
+            gj::set_str(
+                &mut item,
+                "status",
+                if r.status.is_empty() { "completed" } else { r.status },
+            );
             gj::set_str(&mut item, "encrypted_content", &r.signature);
             let mut summary = br#"{"type":"summary_text","text":""}"#.to_vec();
             gj::set_str(&mut summary, "text", &r.text);
@@ -1025,13 +1080,21 @@ impl State {
         }
         for w in &self.web {
             let mut rendered = w.render();
-            gj::set_str(&mut rendered, "status", if w.status.is_empty() { "completed" } else { w.status });
+            gj::set_str(
+                &mut rendered,
+                "status",
+                if w.status.is_empty() { "completed" } else { w.status },
+            );
             gj::set_raw(&mut outputs, &format!("arr.{}", w.output_index), rendered);
         }
         for (&idx, buf) in &self.func_args {
             let status = self.func_item_status.get(&idx).copied().unwrap_or("completed");
             let custom = self.func_custom.get(&idx).copied().unwrap_or(false);
-            let mut args: Vec<u8> = if !custom && status == "completed" { b"{}".to_vec() } else { vec![] };
+            let mut args: Vec<u8> = if !custom && status == "completed" {
+                b"{}".to_vec()
+            } else {
+                vec![]
+            };
             if !buf.is_empty() {
                 args = buf.clone();
             }
@@ -1042,14 +1105,18 @@ impl State {
             let name = self.name(idx);
             let index = self.func_output_indices.get(&idx).copied().unwrap_or(0);
             let item = if custom {
-                let mut item = br#"{"id":"","type":"custom_tool_call","status":"completed","input":"","call_id":"","name":""}"#.to_vec();
+                let mut item =
+                    br#"{"id":"","type":"custom_tool_call","status":"completed","input":"","call_id":"","name":""}"#
+                        .to_vec();
                 gj::set_str(&mut item, "id", [&b"ctc_"[..], &call_id].concat());
                 gj::set_str(&mut item, "status", status);
                 gj::set_str(&mut item, "input", unwrap_custom_tool_input(&args));
                 gj::set_str(&mut item, "call_id", &call_id);
                 with_identity(item, &self.request, &name, "")
             } else {
-                let mut item = br#"{"id":"","type":"function_call","status":"completed","arguments":"","call_id":"","name":""}"#.to_vec();
+                let mut item =
+                    br#"{"id":"","type":"function_call","status":"completed","arguments":"","call_id":"","name":""}"#
+                        .to_vec();
                 gj::set_str(&mut item, "id", [&b"fc_"[..], &call_id].concat());
                 gj::set_str(&mut item, "status", status);
                 gj::set_str_no_html(&mut item, "arguments", &args);
@@ -1067,9 +1134,17 @@ impl State {
         if self.usage.present || reasoning_tokens > 0 {
             let (input, output, total, cached) = self.usage.totals();
             gj::set_int(&mut completed, "response.usage.input_tokens", input);
-            gj::set_int(&mut completed, "response.usage.input_tokens_details.cached_tokens", cached);
+            gj::set_int(
+                &mut completed,
+                "response.usage.input_tokens_details.cached_tokens",
+                cached,
+            );
             gj::set_int(&mut completed, "response.usage.output_tokens", output);
-            gj::set_int(&mut completed, "response.usage.output_tokens_details.reasoning_tokens", reasoning_tokens);
+            gj::set_int(
+                &mut completed,
+                "response.usage.output_tokens_details.reasoning_tokens",
+                reasoning_tokens,
+            );
             if total > 0 || self.usage.present {
                 gj::set_int(&mut completed, "response.usage.total_tokens", total);
             }
@@ -1088,9 +1163,26 @@ fn copy_request_fields(out: &mut Vec<u8>, request: &[u8], prefix: &str) {
     let req = gj::parse(request);
     let at = |key: &str| format!("{prefix}{key}");
     for key in [
-        "instructions", "max_output_tokens", "max_tool_calls", "model", "parallel_tool_calls", "previous_response_id", "prompt_cache_key",
-        "reasoning", "safety_identifier", "service_tier", "store", "temperature", "text", "tool_choice", "tools", "top_logprobs", "top_p",
-        "truncation", "user", "metadata",
+        "instructions",
+        "max_output_tokens",
+        "max_tool_calls",
+        "model",
+        "parallel_tool_calls",
+        "previous_response_id",
+        "prompt_cache_key",
+        "reasoning",
+        "safety_identifier",
+        "service_tier",
+        "store",
+        "temperature",
+        "text",
+        "tool_choice",
+        "tools",
+        "top_logprobs",
+        "top_p",
+        "truncation",
+        "user",
+        "metadata",
     ] {
         let v = req.get(key);
         if !v.exists() {
@@ -1106,15 +1198,36 @@ fn copy_request_fields(out: &mut Vec<u8>, request: &[u8], prefix: &str) {
             "temperature" | "top_p" => {
                 gj::set_f64(out, &at(key), v.float());
             }
-            "reasoning" | "text" | "tool_choice" | "tools" | "user" | "metadata" => {
-                // ponytail: Go's sjson leaves the document nil when Marshal fails (NaN);
-                // that case keeps the previous document here.
-                if let Some(json) = v.value_json() {
-                    gj::set_raw(out, &at(key), json);
-                }
-            }
+            "reasoning" | "text" | "tool_choice" | "tools" | "user" | "metadata" => set_value(out, &at(key), &v),
             _ => {
                 gj::set_str(out, &at(key), v.bytes());
+            }
+        }
+    }
+}
+
+/// `sjson.SetBytes(out, path, v.Value())`: scalars take sjson's typed paths (strings set
+/// with conditional escaping, float64 via FormatFloat); maps and slices go through
+/// json.Marshal.
+fn set_value(out: &mut Vec<u8>, path: &str, v: &Res<'_>) {
+    match v.kind {
+        Kind::String => {
+            gj::set_str(out, path, &v.s);
+        }
+        Kind::Number => {
+            gj::set_f64(out, path, v.num);
+        }
+        Kind::True | Kind::False => {
+            gj::set_bool(out, path, v.kind == Kind::True);
+        }
+        Kind::Null => {
+            gj::set_raw(out, path, "null");
+        }
+        // ponytail: Go's sjson leaves the document nil when Marshal fails (NaN inside);
+        // that case keeps the previous document here.
+        Kind::Json => {
+            if let Some(json) = v.value_json() {
+                gj::set_raw(out, path, json);
             }
         }
     }
@@ -1128,7 +1241,6 @@ impl GoStream for State {
 
 #[derive(Default)]
 struct OutputItem {
-    output_index: i64,
     kind: &'static str,
     id: Vec<u8>,
     call_id: Vec<u8>,
@@ -1163,16 +1275,15 @@ pub fn non_stream(ctx: &ResponseCtx<'_>, body: &[u8]) -> Result<Vec<u8>, Error> 
         if ev == b"message_stop" {
             break;
         }
-        let mut new_item = |items: &mut Vec<OutputItem>, by_block: &mut HashMap<i64, usize>, kind: &'static str, idx: i64| {
-            let output_index = items.len() as i64;
-            items.push(OutputItem {
-                output_index,
-                kind,
-                ..OutputItem::default()
-            });
-            by_block.insert(idx, items.len() - 1);
-            items.len() - 1
-        };
+        let new_item =
+            |items: &mut Vec<OutputItem>, by_block: &mut HashMap<i64, usize>, kind: &'static str, idx: i64| {
+                items.push(OutputItem {
+                    kind,
+                    ..OutputItem::default()
+                });
+                by_block.insert(idx, items.len() - 1);
+                items.len() - 1
+            };
         match ev.as_slice() {
             b"message_start" => {
                 let msg = root.get("message");
@@ -1201,7 +1312,8 @@ pub fn non_stream(ctx: &ResponseCtx<'_>, body: &[u8]) -> Result<Vec<u8>, Error> 
                             }
                             None => {
                                 let i = new_item(&mut items, &mut by_block, "message", idx);
-                                items[i].id = format!("msg_{}_{message_count}", String::from_utf8_lossy(&response_id)).into_bytes();
+                                items[i].id = format!("msg_{}_{message_count}", String::from_utf8_lossy(&response_id))
+                                    .into_bytes();
                                 message_count += 1;
                                 i
                             }
@@ -1211,7 +1323,11 @@ pub fn non_stream(ctx: &ResponseCtx<'_>, body: &[u8]) -> Result<Vec<u8>, Error> 
                     }
                     b"tool_use" => {
                         let name = cb.get("name").bytes().into_owned();
-                        let kind = if tools.winner(&name).is_some_and(|w| w.custom) { "custom_tool_call" } else { "function_call" };
+                        let kind = if tools.winner(&name).is_some_and(|w| w.custom) {
+                            "custom_tool_call"
+                        } else {
+                            "function_call"
+                        };
                         let i = match by_block.get(&idx) {
                             Some(&i) => i,
                             None => new_item(&mut items, &mut by_block, kind, idx),
@@ -1225,7 +1341,11 @@ pub fn non_stream(ctx: &ResponseCtx<'_>, body: &[u8]) -> Result<Vec<u8>, Error> 
                         if !call_id.is_empty() {
                             items[i].call_id = call_id;
                         }
-                        let prefix: &[u8] = if items[i].kind == "custom_tool_call" { b"ctc_" } else { b"fc_" };
+                        let prefix: &[u8] = if items[i].kind == "custom_tool_call" {
+                            b"ctc_"
+                        } else {
+                            b"fc_"
+                        };
                         items[i].id = [prefix, &items[i].call_id].concat();
                     }
                     b"server_tool_use" => {
@@ -1269,7 +1389,9 @@ pub fn non_stream(ctx: &ResponseCtx<'_>, body: &[u8]) -> Result<Vec<u8>, Error> 
                             items[item.unwrap()].text.extend_from_slice(&t.bytes());
                         }
                     }
-                    b"input_json_delta" if matches!(kind, Some("function_call" | "custom_tool_call" | "web_search_call")) => {
+                    b"input_json_delta"
+                        if matches!(kind, Some("function_call" | "custom_tool_call" | "web_search_call")) =>
+                    {
                         let pj = d.get("partial_json");
                         if pj.exists() {
                             items[item.unwrap()].args.extend_from_slice(&pj.bytes());
@@ -1323,10 +1445,16 @@ pub fn non_stream(ctx: &ResponseCtx<'_>, body: &[u8]) -> Result<Vec<u8>, Error> 
     let mut outputs = vec![];
     let count = items.len();
     for (i, it) in items.iter().enumerate() {
-        let item_status = if status == "incomplete" && i == count - 1 { "incomplete" } else { "completed" };
+        let item_status = if status == "incomplete" && i == count - 1 {
+            "incomplete"
+        } else {
+            "completed"
+        };
         let item = match it.kind {
             "reasoning" => {
-                let mut item = br#"{"id":"","type":"reasoning","status":"completed","encrypted_content":"","summary":[]}"#.to_vec();
+                let mut item =
+                    br#"{"id":"","type":"reasoning","status":"completed","encrypted_content":"","summary":[]}"#
+                        .to_vec();
                 gj::set_str(&mut item, "id", &it.id);
                 gj::set_str(&mut item, "status", item_status);
                 gj::set_str(&mut item, "encrypted_content", &it.signature);
@@ -1351,7 +1479,9 @@ pub fn non_stream(ctx: &ResponseCtx<'_>, body: &[u8]) -> Result<Vec<u8>, Error> 
                 item
             }
             "custom_tool_call" => {
-                let mut item = br#"{"id":"","type":"custom_tool_call","status":"completed","input":"","call_id":"","name":""}"#.to_vec();
+                let mut item =
+                    br#"{"id":"","type":"custom_tool_call","status":"completed","input":"","call_id":"","name":""}"#
+                        .to_vec();
                 gj::set_str(&mut item, "id", &it.id);
                 gj::set_str(&mut item, "status", item_status);
                 gj::set_str(&mut item, "input", unwrap_custom_tool_input(&it.args));
@@ -1363,7 +1493,9 @@ pub fn non_stream(ctx: &ResponseCtx<'_>, body: &[u8]) -> Result<Vec<u8>, Error> 
                 if args.is_empty() && item_status == "completed" {
                     args = b"{}".to_vec();
                 }
-                let mut item = br#"{"id":"","type":"function_call","status":"completed","arguments":"","call_id":"","name":""}"#.to_vec();
+                let mut item =
+                    br#"{"id":"","type":"function_call","status":"completed","arguments":"","call_id":"","name":""}"#
+                        .to_vec();
                 gj::set_str(&mut item, "id", &it.id);
                 gj::set_str(&mut item, "status", item_status);
                 gj::set_str_no_html(&mut item, "arguments", &args);
@@ -1387,10 +1519,18 @@ pub fn non_stream(ctx: &ResponseCtx<'_>, body: &[u8]) -> Result<Vec<u8>, Error> 
             gj::set_int(&mut out, path, v);
         }
     }
-    let reasoning_len: usize = items.iter().filter(|i| i.kind == "reasoning").map(|i| i.text.len()).sum();
+    let reasoning_len: usize = items
+        .iter()
+        .filter(|i| i.kind == "reasoning")
+        .map(|i| i.text.len())
+        .sum();
     let reasoning_tokens = (reasoning_len / 4) as i64;
     if reasoning_tokens > 0 {
-        gj::set_int(&mut out, "usage.output_tokens_details.reasoning_tokens", reasoning_tokens);
+        gj::set_int(
+            &mut out,
+            "usage.output_tokens_details.reasoning_tokens",
+            reasoning_tokens,
+        );
     }
     Ok(out)
 }

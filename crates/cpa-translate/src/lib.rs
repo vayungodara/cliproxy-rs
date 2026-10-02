@@ -24,10 +24,11 @@
 //! behaviour Go's translators depend on, so malformed bytes, coercions and escaping
 //! match Go.
 
-mod claude_chat_request;
 mod apply_patch;
+mod claude_chat_request;
 mod claude_chat_response;
 mod claude_responses;
+mod claude_responses_response;
 mod codex_responses;
 mod common;
 mod openai;
@@ -36,6 +37,12 @@ pub mod stream;
 mod thinking;
 
 pub use claude_chat_request::request_with_compat as openai_to_claude_with_compat;
+
+/// ConvertOpenAIResponsesRequestToClaudeWithCompat: like the registered Responses ->
+/// Claude request, but unsigned reasoning history is kept for compatibility endpoints.
+pub fn responses_to_claude_with_compat(ctx: &RequestCtx<'_>, body: &[u8]) -> Result<Vec<u8>, Error> {
+    Ok(claude_responses::convert(ctx.model, body, ctx.stream, true))
+}
 
 use bytes::Bytes;
 use cpa_common::json as gj;
@@ -102,6 +109,7 @@ fn registered(client: Format, upstream: Format) -> Option<&'static Registered> {
         (Format::OpenAI, Format::OpenAI) => Some(&openai::PAIR),
         (Format::OpenAI, Format::Claude) => Some(&claude_chat_request::PAIR),
         (Format::OpenAIResponse, Format::Codex) => Some(&codex_responses::PAIR),
+        (Format::OpenAIResponse, Format::Claude) => Some(&claude_responses_response::PAIR),
         _ => None,
     }
 }
