@@ -1,4 +1,170 @@
 {
+ "login": {
+  "callback_parse": [
+   {
+    "input": "",
+    "nil": true
+   },
+   {
+    "input": "   ",
+    "nil": true
+   },
+   {
+    "input": "http://localhost:54545/callback?code=c1\u0026state=s1",
+    "code": "c1",
+    "state": "s1"
+   },
+   {
+    "input": "localhost:54545/callback?code=c2\u0026state=s2",
+    "code": "c2",
+    "state": "s2"
+   },
+   {
+    "input": "?code=c3\u0026state=s3",
+    "code": "c3",
+    "state": "s3"
+   },
+   {
+    "input": "code=c4\u0026state=s4",
+    "code": "c4",
+    "state": "s4"
+   },
+   {
+    "input": "c5#s5",
+    "err": "callback URL missing code"
+   },
+   {
+    "input": "http://localhost/callback?code=c6%23s6",
+    "code": "c6",
+    "state": "s6"
+   },
+   {
+    "input": "http://localhost/callback#code=c7\u0026state=s7",
+    "code": "c7",
+    "state": "s7"
+   },
+   {
+    "input": "http://localhost/callback?code=c8\u0026state=s8#state=ignored\u0026error=e",
+    "code": "c8",
+    "state": "s8",
+    "error": "e"
+   },
+   {
+    "input": "http://localhost/callback?error_description=only+desc",
+    "error": "only desc"
+   },
+   {
+    "input": "http://localhost/callback?error=denied\u0026error_description=why",
+    "error": "denied",
+    "desc": "why"
+   },
+   {
+    "input": "http://localhost/callback?state=s9",
+    "err": "callback URL missing code"
+   },
+   {
+    "input": "justtext",
+    "err": "invalid callback URL"
+   },
+   {
+    "input": "http://[::1/bad",
+    "err": "parse \"http://[::1/bad\": missing ']' in host"
+   }
+  ],
+  "file_names": [
+   {
+    "email": "a@example.invalid",
+    "organization": "",
+    "account": "",
+    "out": "claude-a@example.invalid.json"
+   },
+   {
+    "email": " a@example.invalid ",
+    "organization": "",
+    "account": "acct-1",
+    "out": "claude-ba36a4ed-a@example.invalid.json"
+   },
+   {
+    "email": "a@example.invalid",
+    "organization": " org-1 ",
+    "account": "acct-1",
+    "out": "claude-c24787a7-a@example.invalid.json"
+   }
+  ],
+  "server": [
+   {
+    "method": "GET",
+    "target": "/callback?code=abc%23frag\u0026state=xyz",
+    "status": 302,
+    "content_type": "text/html; charset=utf-8",
+    "location": "/success",
+    "body": "\u003ca href=\"/success\"\u003eFound\u003c/a\u003e.\n\n"
+   },
+   {
+    "method": "GET",
+    "target": "/callback?error=access_denied\u0026error_description=nope",
+    "status": 400,
+    "content_type": "text/plain; charset=utf-8",
+    "nosniff": "nosniff",
+    "body": "OAuth error: access_denied\n"
+   },
+   {
+    "method": "GET",
+    "target": "/callback?state=xyz",
+    "status": 400,
+    "content_type": "text/plain; charset=utf-8",
+    "nosniff": "nosniff",
+    "body": "No authorization code received\n"
+   },
+   {
+    "method": "GET",
+    "target": "/callback?code=abc",
+    "status": 400,
+    "content_type": "text/plain; charset=utf-8",
+    "nosniff": "nosniff",
+    "body": "No state parameter received\n"
+   },
+   {
+    "method": "POST",
+    "target": "/callback?code=abc\u0026state=xyz",
+    "status": 405,
+    "content_type": "text/plain; charset=utf-8",
+    "nosniff": "nosniff",
+    "body": "Method not allowed\n"
+   },
+   {
+    "method": "GET",
+    "target": "/success",
+    "status": 200,
+    "content_type": "text/html; charset=utf-8",
+    "body": "\u003c!DOCTYPE html\u003e\n\u003chtml lang=\"en\"\u003e\n\u003chead\u003e\n    \u003cmeta charset=\"UTF-8\"\u003e\n    \u003cmeta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"\u003e\n    \u003ctitle\u003eAuthentication Successful - Claude\u003c/title\u003e\n    \u003clink rel=\"icon\" type=\"image/svg+xml\" href=\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2310b981'%3E%3Cpath d='M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z'/%3E%3C/svg%3E\"\u003e\n    \u003cstyle\u003e\n        * {\n            box-sizing: border-box;\n        }\n        body {\n            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;\n            display: flex;\n            justify-content: center;\n            align-items: center;\n            min-height: 100vh;\n            margin: 0;\n            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);\n            padding: 1rem;\n        }\n        .container {\n            text-align: center;\n            background: white;\n            padding: 2.5rem;\n            border-radius: 12px;\n            box-shadow: 0 10px 25px rgba(0,0,0,0.1);\n            max-width: 480px;\n            width: 100%;\n            animation: slideIn 0.3s ease-out;\n        }\n        @keyframes slideIn {\n            from {\n                opacity: 0;\n                transform: translateY(-20px);\n            }\n            to {\n                opacity: 1;\n                transform: translateY(0);\n            }\n        }\n        .success-icon {\n            width: 64px;\n            height: 64px;\n            margin: 0 auto 1.5rem;\n            background: #10b981;\n            border-radius: 50%;\n            display: flex;\n            align-items: center;\n            justify-content: center;\n            color: white;\n            font-size: 2rem;\n            font-weight: bold;\n        }\n        h1 {\n            color: #1f2937;\n            margin-bottom: 1rem;\n            font-size: 1.75rem;\n            font-weight: 600;\n        }\n        .subtitle {\n            color: #6b7280;\n            margin-bottom: 1.5rem;\n            font-size: 1rem;\n            line-height: 1.5;\n        }\n        .setup-notice {\n            background: #fef3c7;\n            border: 1px solid #f59e0b;\n            border-radius: 6px;\n            padding: 1rem;\n            margin: 1rem 0;\n        }\n        .setup-notice h3 {\n            color: #92400e;\n            margin: 0 0 0.5rem 0;\n            font-size: 1rem;\n        }\n        .setup-notice p {\n            color: #92400e;\n            margin: 0;\n            font-size: 0.875rem;\n        }\n        .setup-notice a {\n            color: #1d4ed8;\n            text-decoration: none;\n        }\n        .setup-notice a:hover {\n            text-decoration: underline;\n        }\n        .actions {\n            display: flex;\n            gap: 1rem;\n            justify-content: center;\n            flex-wrap: wrap;\n            margin-top: 2rem;\n        }\n        .button {\n            padding: 0.75rem 1.5rem;\n            border-radius: 8px;\n            font-size: 0.875rem;\n            font-weight: 500;\n            text-decoration: none;\n            transition: all 0.2s;\n            cursor: pointer;\n            border: none;\n            display: inline-flex;\n            align-items: center;\n            gap: 0.5rem;\n        }\n        .button-primary {\n            background: #3b82f6;\n            color: white;\n        }\n        .button-primary:hover {\n            background: #2563eb;\n            transform: translateY(-1px);\n        }\n        .button-secondary {\n            background: #f3f4f6;\n            color: #374151;\n            border: 1px solid #d1d5db;\n        }\n        .button-secondary:hover {\n            background: #e5e7eb;\n        }\n        .countdown {\n            color: #9ca3af;\n            font-size: 0.75rem;\n            margin-top: 1rem;\n        }\n        .footer {\n            margin-top: 2rem;\n            padding-top: 1.5rem;\n            border-top: 1px solid #e5e7eb;\n            color: #9ca3af;\n            font-size: 0.75rem;\n        }\n        .footer a {\n            color: #3b82f6;\n            text-decoration: none;\n        }\n        .footer a:hover {\n            text-decoration: underline;\n        }\n    \u003c/style\u003e\n\u003c/head\u003e\n\u003cbody\u003e\n    \u003cdiv class=\"container\"\u003e\n        \u003cdiv class=\"success-icon\"\u003e✓\u003c/div\u003e\n        \u003ch1\u003eAuthentication Successful!\u003c/h1\u003e\n        \u003cp class=\"subtitle\"\u003eYou have successfully authenticated with Claude. You can now close this window and return to your terminal to continue.\u003c/p\u003e\n        \n        \n        \n        \u003cdiv class=\"actions\"\u003e\n            \u003cbutton class=\"button button-primary\" onclick=\"window.close()\"\u003e\n                \u003cspan\u003eClose Window\u003c/span\u003e\n            \u003c/button\u003e\n            \u003ca href=\"https://console.anthropic.com/\" target=\"_blank\" class=\"button button-secondary\"\u003e\n                \u003cspan\u003eOpen Platform\u003c/span\u003e\n                \u003cspan\u003e↗\u003c/span\u003e\n            \u003c/a\u003e\n        \u003c/div\u003e\n        \n        \u003cdiv class=\"countdown\"\u003e\n            This window will close automatically in \u003cspan id=\"countdown\"\u003e10\u003c/span\u003e seconds\n        \u003c/div\u003e\n        \n        \u003cdiv class=\"footer\"\u003e\n            \u003cp\u003ePowered by \u003ca href=\"https://chatgpt.com\" target=\"_blank\"\u003eChatGPT\u003c/a\u003e\u003c/p\u003e\n        \u003c/div\u003e\n    \u003c/div\u003e\n    \n    \u003cscript\u003e\n        let countdown = 10;\n        const countdownElement = document.getElementById('countdown');\n        \n        const timer = setInterval(() =\u003e {\n            countdown--;\n            countdownElement.textContent = countdown;\n            \n            if (countdown \u003c= 0) {\n                clearInterval(timer);\n                window.close();\n            }\n        }, 1000);\n        \n        // Close window when user presses Escape\n        document.addEventListener('keydown', (e) =\u003e {\n            if (e.key === 'Escape') {\n                window.close();\n            }\n        });\n        \n        // Focus the close button for keyboard accessibility\n        document.querySelector('.button-primary').focus();\n    \u003c/script\u003e\n\u003c/body\u003e\n\u003c/html\u003e"
+   },
+   {
+    "method": "GET",
+    "target": "/success?setup_required=true\u0026platform_url=https%3A%2F%2Fplatform.example.invalid%2F",
+    "status": 200,
+    "content_type": "text/html; charset=utf-8",
+    "body": "\u003c!DOCTYPE html\u003e\n\u003chtml lang=\"en\"\u003e\n\u003chead\u003e\n    \u003cmeta charset=\"UTF-8\"\u003e\n    \u003cmeta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"\u003e\n    \u003ctitle\u003eAuthentication Successful - Claude\u003c/title\u003e\n    \u003clink rel=\"icon\" type=\"image/svg+xml\" href=\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2310b981'%3E%3Cpath d='M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z'/%3E%3C/svg%3E\"\u003e\n    \u003cstyle\u003e\n        * {\n            box-sizing: border-box;\n        }\n        body {\n            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;\n            display: flex;\n            justify-content: center;\n            align-items: center;\n            min-height: 100vh;\n            margin: 0;\n            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);\n            padding: 1rem;\n        }\n        .container {\n            text-align: center;\n            background: white;\n            padding: 2.5rem;\n            border-radius: 12px;\n            box-shadow: 0 10px 25px rgba(0,0,0,0.1);\n            max-width: 480px;\n            width: 100%;\n            animation: slideIn 0.3s ease-out;\n        }\n        @keyframes slideIn {\n            from {\n                opacity: 0;\n                transform: translateY(-20px);\n            }\n            to {\n                opacity: 1;\n                transform: translateY(0);\n            }\n        }\n        .success-icon {\n            width: 64px;\n            height: 64px;\n            margin: 0 auto 1.5rem;\n            background: #10b981;\n            border-radius: 50%;\n            display: flex;\n            align-items: center;\n            justify-content: center;\n            color: white;\n            font-size: 2rem;\n            font-weight: bold;\n        }\n        h1 {\n            color: #1f2937;\n            margin-bottom: 1rem;\n            font-size: 1.75rem;\n            font-weight: 600;\n        }\n        .subtitle {\n            color: #6b7280;\n            margin-bottom: 1.5rem;\n            font-size: 1rem;\n            line-height: 1.5;\n        }\n        .setup-notice {\n            background: #fef3c7;\n            border: 1px solid #f59e0b;\n            border-radius: 6px;\n            padding: 1rem;\n            margin: 1rem 0;\n        }\n        .setup-notice h3 {\n            color: #92400e;\n            margin: 0 0 0.5rem 0;\n            font-size: 1rem;\n        }\n        .setup-notice p {\n            color: #92400e;\n            margin: 0;\n            font-size: 0.875rem;\n        }\n        .setup-notice a {\n            color: #1d4ed8;\n            text-decoration: none;\n        }\n        .setup-notice a:hover {\n            text-decoration: underline;\n        }\n        .actions {\n            display: flex;\n            gap: 1rem;\n            justify-content: center;\n            flex-wrap: wrap;\n            margin-top: 2rem;\n        }\n        .button {\n            padding: 0.75rem 1.5rem;\n            border-radius: 8px;\n            font-size: 0.875rem;\n            font-weight: 500;\n            text-decoration: none;\n            transition: all 0.2s;\n            cursor: pointer;\n            border: none;\n            display: inline-flex;\n            align-items: center;\n            gap: 0.5rem;\n        }\n        .button-primary {\n            background: #3b82f6;\n            color: white;\n        }\n        .button-primary:hover {\n            background: #2563eb;\n            transform: translateY(-1px);\n        }\n        .button-secondary {\n            background: #f3f4f6;\n            color: #374151;\n            border: 1px solid #d1d5db;\n        }\n        .button-secondary:hover {\n            background: #e5e7eb;\n        }\n        .countdown {\n            color: #9ca3af;\n            font-size: 0.75rem;\n            margin-top: 1rem;\n        }\n        .footer {\n            margin-top: 2rem;\n            padding-top: 1.5rem;\n            border-top: 1px solid #e5e7eb;\n            color: #9ca3af;\n            font-size: 0.75rem;\n        }\n        .footer a {\n            color: #3b82f6;\n            text-decoration: none;\n        }\n        .footer a:hover {\n            text-decoration: underline;\n        }\n    \u003c/style\u003e\n\u003c/head\u003e\n\u003cbody\u003e\n    \u003cdiv class=\"container\"\u003e\n        \u003cdiv class=\"success-icon\"\u003e✓\u003c/div\u003e\n        \u003ch1\u003eAuthentication Successful!\u003c/h1\u003e\n        \u003cp class=\"subtitle\"\u003eYou have successfully authenticated with Claude. You can now close this window and return to your terminal to continue.\u003c/p\u003e\n        \n        \n        \u003cdiv class=\"setup-notice\"\u003e\n            \u003ch3\u003eAdditional Setup Required\u003c/h3\u003e\n            \u003cp\u003eTo complete your setup, please visit the \u003ca href=\"https://platform.example.invalid/\" target=\"_blank\"\u003eClaude\u003c/a\u003e to configure your account.\u003c/p\u003e\n        \u003c/div\u003e\n        \n        \u003cdiv class=\"actions\"\u003e\n            \u003cbutton class=\"button button-primary\" onclick=\"window.close()\"\u003e\n                \u003cspan\u003eClose Window\u003c/span\u003e\n            \u003c/button\u003e\n            \u003ca href=\"https://platform.example.invalid/\" target=\"_blank\" class=\"button button-secondary\"\u003e\n                \u003cspan\u003eOpen Platform\u003c/span\u003e\n                \u003cspan\u003e↗\u003c/span\u003e\n            \u003c/a\u003e\n        \u003c/div\u003e\n        \n        \u003cdiv class=\"countdown\"\u003e\n            This window will close automatically in \u003cspan id=\"countdown\"\u003e10\u003c/span\u003e seconds\n        \u003c/div\u003e\n        \n        \u003cdiv class=\"footer\"\u003e\n            \u003cp\u003ePowered by \u003ca href=\"https://chatgpt.com\" target=\"_blank\"\u003eChatGPT\u003c/a\u003e\u003c/p\u003e\n        \u003c/div\u003e\n    \u003c/div\u003e\n    \n    \u003cscript\u003e\n        let countdown = 10;\n        const countdownElement = document.getElementById('countdown');\n        \n        const timer = setInterval(() =\u003e {\n            countdown--;\n            countdownElement.textContent = countdown;\n            \n            if (countdown \u003c= 0) {\n                clearInterval(timer);\n                window.close();\n            }\n        }, 1000);\n        \n        // Close window when user presses Escape\n        document.addEventListener('keydown', (e) =\u003e {\n            if (e.key === 'Escape') {\n                window.close();\n            }\n        });\n        \n        // Focus the close button for keyboard accessibility\n        document.querySelector('.button-primary').focus();\n    \u003c/script\u003e\n\u003c/body\u003e\n\u003c/html\u003e"
+   },
+   {
+    "method": "POST",
+    "target": "/success",
+    "status": 200,
+    "content_type": "text/html; charset=utf-8",
+    "body": "\u003c!DOCTYPE html\u003e\n\u003chtml lang=\"en\"\u003e\n\u003chead\u003e\n    \u003cmeta charset=\"UTF-8\"\u003e\n    \u003cmeta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"\u003e\n    \u003ctitle\u003eAuthentication Successful - Claude\u003c/title\u003e\n    \u003clink rel=\"icon\" type=\"image/svg+xml\" href=\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2310b981'%3E%3Cpath d='M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z'/%3E%3C/svg%3E\"\u003e\n    \u003cstyle\u003e\n        * {\n            box-sizing: border-box;\n        }\n        body {\n            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;\n            display: flex;\n            justify-content: center;\n            align-items: center;\n            min-height: 100vh;\n            margin: 0;\n            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);\n            padding: 1rem;\n        }\n        .container {\n            text-align: center;\n            background: white;\n            padding: 2.5rem;\n            border-radius: 12px;\n            box-shadow: 0 10px 25px rgba(0,0,0,0.1);\n            max-width: 480px;\n            width: 100%;\n            animation: slideIn 0.3s ease-out;\n        }\n        @keyframes slideIn {\n            from {\n                opacity: 0;\n                transform: translateY(-20px);\n            }\n            to {\n                opacity: 1;\n                transform: translateY(0);\n            }\n        }\n        .success-icon {\n            width: 64px;\n            height: 64px;\n            margin: 0 auto 1.5rem;\n            background: #10b981;\n            border-radius: 50%;\n            display: flex;\n            align-items: center;\n            justify-content: center;\n            color: white;\n            font-size: 2rem;\n            font-weight: bold;\n        }\n        h1 {\n            color: #1f2937;\n            margin-bottom: 1rem;\n            font-size: 1.75rem;\n            font-weight: 600;\n        }\n        .subtitle {\n            color: #6b7280;\n            margin-bottom: 1.5rem;\n            font-size: 1rem;\n            line-height: 1.5;\n        }\n        .setup-notice {\n            background: #fef3c7;\n            border: 1px solid #f59e0b;\n            border-radius: 6px;\n            padding: 1rem;\n            margin: 1rem 0;\n        }\n        .setup-notice h3 {\n            color: #92400e;\n            margin: 0 0 0.5rem 0;\n            font-size: 1rem;\n        }\n        .setup-notice p {\n            color: #92400e;\n            margin: 0;\n            font-size: 0.875rem;\n        }\n        .setup-notice a {\n            color: #1d4ed8;\n            text-decoration: none;\n        }\n        .setup-notice a:hover {\n            text-decoration: underline;\n        }\n        .actions {\n            display: flex;\n            gap: 1rem;\n            justify-content: center;\n            flex-wrap: wrap;\n            margin-top: 2rem;\n        }\n        .button {\n            padding: 0.75rem 1.5rem;\n            border-radius: 8px;\n            font-size: 0.875rem;\n            font-weight: 500;\n            text-decoration: none;\n            transition: all 0.2s;\n            cursor: pointer;\n            border: none;\n            display: inline-flex;\n            align-items: center;\n            gap: 0.5rem;\n        }\n        .button-primary {\n            background: #3b82f6;\n            color: white;\n        }\n        .button-primary:hover {\n            background: #2563eb;\n            transform: translateY(-1px);\n        }\n        .button-secondary {\n            background: #f3f4f6;\n            color: #374151;\n            border: 1px solid #d1d5db;\n        }\n        .button-secondary:hover {\n            background: #e5e7eb;\n        }\n        .countdown {\n            color: #9ca3af;\n            font-size: 0.75rem;\n            margin-top: 1rem;\n        }\n        .footer {\n            margin-top: 2rem;\n            padding-top: 1.5rem;\n            border-top: 1px solid #e5e7eb;\n            color: #9ca3af;\n            font-size: 0.75rem;\n        }\n        .footer a {\n            color: #3b82f6;\n            text-decoration: none;\n        }\n        .footer a:hover {\n            text-decoration: underline;\n        }\n    \u003c/style\u003e\n\u003c/head\u003e\n\u003cbody\u003e\n    \u003cdiv class=\"container\"\u003e\n        \u003cdiv class=\"success-icon\"\u003e✓\u003c/div\u003e\n        \u003ch1\u003eAuthentication Successful!\u003c/h1\u003e\n        \u003cp class=\"subtitle\"\u003eYou have successfully authenticated with Claude. You can now close this window and return to your terminal to continue.\u003c/p\u003e\n        \n        \n        \n        \u003cdiv class=\"actions\"\u003e\n            \u003cbutton class=\"button button-primary\" onclick=\"window.close()\"\u003e\n                \u003cspan\u003eClose Window\u003c/span\u003e\n            \u003c/button\u003e\n            \u003ca href=\"https://console.anthropic.com/\" target=\"_blank\" class=\"button button-secondary\"\u003e\n                \u003cspan\u003eOpen Platform\u003c/span\u003e\n                \u003cspan\u003e↗\u003c/span\u003e\n            \u003c/a\u003e\n        \u003c/div\u003e\n        \n        \u003cdiv class=\"countdown\"\u003e\n            This window will close automatically in \u003cspan id=\"countdown\"\u003e10\u003c/span\u003e seconds\n        \u003c/div\u003e\n        \n        \u003cdiv class=\"footer\"\u003e\n            \u003cp\u003ePowered by \u003ca href=\"https://chatgpt.com\" target=\"_blank\"\u003eChatGPT\u003c/a\u003e\u003c/p\u003e\n        \u003c/div\u003e\n    \u003c/div\u003e\n    \n    \u003cscript\u003e\n        let countdown = 10;\n        const countdownElement = document.getElementById('countdown');\n        \n        const timer = setInterval(() =\u003e {\n            countdown--;\n            countdownElement.textContent = countdown;\n            \n            if (countdown \u003c= 0) {\n                clearInterval(timer);\n                window.close();\n            }\n        }, 1000);\n        \n        // Close window when user presses Escape\n        document.addEventListener('keydown', (e) =\u003e {\n            if (e.key === 'Escape') {\n                window.close();\n            }\n        });\n        \n        // Focus the close button for keyboard accessibility\n        document.querySelector('.button-primary').focus();\n    \u003c/script\u003e\n\u003c/body\u003e\n\u003c/html\u003e"
+   },
+   {
+    "method": "GET",
+    "target": "/other",
+    "status": 404,
+    "content_type": "text/plain; charset=utf-8",
+    "nosniff": "nosniff",
+    "body": "404 page not found\n"
+   }
+  ],
+  "setup_notice": "\n        \u003cdiv class=\"setup-notice\"\u003e\n            \u003ch3\u003eAdditional Setup Required\u003c/h3\u003e\n            \u003cp\u003eTo complete your setup, please visit the \u003ca href=\"{{PLATFORM_URL}}\" target=\"_blank\"\u003eClaude\u003c/a\u003e to configure your account.\u003c/p\u003e\n        \u003c/div\u003e",
+  "success_html": "\u003c!DOCTYPE html\u003e\n\u003chtml lang=\"en\"\u003e\n\u003chead\u003e\n    \u003cmeta charset=\"UTF-8\"\u003e\n    \u003cmeta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"\u003e\n    \u003ctitle\u003eAuthentication Successful - Claude\u003c/title\u003e\n    \u003clink rel=\"icon\" type=\"image/svg+xml\" href=\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2310b981'%3E%3Cpath d='M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z'/%3E%3C/svg%3E\"\u003e\n    \u003cstyle\u003e\n        * {\n            box-sizing: border-box;\n        }\n        body {\n            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;\n            display: flex;\n            justify-content: center;\n            align-items: center;\n            min-height: 100vh;\n            margin: 0;\n            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);\n            padding: 1rem;\n        }\n        .container {\n            text-align: center;\n            background: white;\n            padding: 2.5rem;\n            border-radius: 12px;\n            box-shadow: 0 10px 25px rgba(0,0,0,0.1);\n            max-width: 480px;\n            width: 100%;\n            animation: slideIn 0.3s ease-out;\n        }\n        @keyframes slideIn {\n            from {\n                opacity: 0;\n                transform: translateY(-20px);\n            }\n            to {\n                opacity: 1;\n                transform: translateY(0);\n            }\n        }\n        .success-icon {\n            width: 64px;\n            height: 64px;\n            margin: 0 auto 1.5rem;\n            background: #10b981;\n            border-radius: 50%;\n            display: flex;\n            align-items: center;\n            justify-content: center;\n            color: white;\n            font-size: 2rem;\n            font-weight: bold;\n        }\n        h1 {\n            color: #1f2937;\n            margin-bottom: 1rem;\n            font-size: 1.75rem;\n            font-weight: 600;\n        }\n        .subtitle {\n            color: #6b7280;\n            margin-bottom: 1.5rem;\n            font-size: 1rem;\n            line-height: 1.5;\n        }\n        .setup-notice {\n            background: #fef3c7;\n            border: 1px solid #f59e0b;\n            border-radius: 6px;\n            padding: 1rem;\n            margin: 1rem 0;\n        }\n        .setup-notice h3 {\n            color: #92400e;\n            margin: 0 0 0.5rem 0;\n            font-size: 1rem;\n        }\n        .setup-notice p {\n            color: #92400e;\n            margin: 0;\n            font-size: 0.875rem;\n        }\n        .setup-notice a {\n            color: #1d4ed8;\n            text-decoration: none;\n        }\n        .setup-notice a:hover {\n            text-decoration: underline;\n        }\n        .actions {\n            display: flex;\n            gap: 1rem;\n            justify-content: center;\n            flex-wrap: wrap;\n            margin-top: 2rem;\n        }\n        .button {\n            padding: 0.75rem 1.5rem;\n            border-radius: 8px;\n            font-size: 0.875rem;\n            font-weight: 500;\n            text-decoration: none;\n            transition: all 0.2s;\n            cursor: pointer;\n            border: none;\n            display: inline-flex;\n            align-items: center;\n            gap: 0.5rem;\n        }\n        .button-primary {\n            background: #3b82f6;\n            color: white;\n        }\n        .button-primary:hover {\n            background: #2563eb;\n            transform: translateY(-1px);\n        }\n        .button-secondary {\n            background: #f3f4f6;\n            color: #374151;\n            border: 1px solid #d1d5db;\n        }\n        .button-secondary:hover {\n            background: #e5e7eb;\n        }\n        .countdown {\n            color: #9ca3af;\n            font-size: 0.75rem;\n            margin-top: 1rem;\n        }\n        .footer {\n            margin-top: 2rem;\n            padding-top: 1.5rem;\n            border-top: 1px solid #e5e7eb;\n            color: #9ca3af;\n            font-size: 0.75rem;\n        }\n        .footer a {\n            color: #3b82f6;\n            text-decoration: none;\n        }\n        .footer a:hover {\n            text-decoration: underline;\n        }\n    \u003c/style\u003e\n\u003c/head\u003e\n\u003cbody\u003e\n    \u003cdiv class=\"container\"\u003e\n        \u003cdiv class=\"success-icon\"\u003e✓\u003c/div\u003e\n        \u003ch1\u003eAuthentication Successful!\u003c/h1\u003e\n        \u003cp class=\"subtitle\"\u003eYou have successfully authenticated with Claude. You can now close this window and return to your terminal to continue.\u003c/p\u003e\n        \n        {{SETUP_NOTICE}}\n        \n        \u003cdiv class=\"actions\"\u003e\n            \u003cbutton class=\"button button-primary\" onclick=\"window.close()\"\u003e\n                \u003cspan\u003eClose Window\u003c/span\u003e\n            \u003c/button\u003e\n            \u003ca href=\"{{PLATFORM_URL}}\" target=\"_blank\" class=\"button button-secondary\"\u003e\n                \u003cspan\u003eOpen Platform\u003c/span\u003e\n                \u003cspan\u003e↗\u003c/span\u003e\n            \u003c/a\u003e\n        \u003c/div\u003e\n        \n        \u003cdiv class=\"countdown\"\u003e\n            This window will close automatically in \u003cspan id=\"countdown\"\u003e10\u003c/span\u003e seconds\n        \u003c/div\u003e\n        \n        \u003cdiv class=\"footer\"\u003e\n            \u003cp\u003ePowered by \u003ca href=\"https://chatgpt.com\" target=\"_blank\"\u003eChatGPT\u003c/a\u003e\u003c/p\u003e\n        \u003c/div\u003e\n    \u003c/div\u003e\n    \n    \u003cscript\u003e\n        let countdown = 10;\n        const countdownElement = document.getElementById('countdown');\n        \n        const timer = setInterval(() =\u003e {\n            countdown--;\n            countdownElement.textContent = countdown;\n            \n            if (countdown \u003c= 0) {\n                clearInterval(timer);\n                window.close();\n            }\n        }, 1000);\n        \n        // Close window when user presses Escape\n        document.addEventListener('keydown', (e) =\u003e {\n            if (e.key === 'Escape') {\n                window.close();\n            }\n        });\n        \n        // Focus the close button for keyboard accessibility\n        document.querySelector('.button-primary').focus();\n    \u003c/script\u003e\n\u003c/body\u003e\n\u003c/html\u003e"
+ },
  "scenarios": [
   {
    "name": "oauth-plain",
@@ -117,7 +283,7 @@
       ],
       [
        "x-client-request-id",
-       "85e680a6-66cf-464b-8020-c6257e73c555"
+       "72e8d583-30e2-4578-a802-f235af39036b"
       ]
      ],
      "body": "{\"model\": \"claude-sonnet-4-6\", \"max_tokens\": 64, \"messages\": [{\"role\": \"user\", \"content\": [{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nAs you answer the user's questions, you can use the following context:\\n# currentDate\\nToday's date is 2026-10-02.\\n\\n      IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.\\n\u003c/system-reminder\u003e\\n\\n\"},{\"type\":\"text\",\"text\":\"Hello there, my friend\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}]}],\"system\":[{\"type\":\"text\",\"text\":\"x-anthropic-billing-header: cc_version=2.1.280.36c; cc_entrypoint=cli; cch=89232; cc_prompt_id=af650718-e09a-413b-8a05-ab2bd9962dd7; cc_turn_origin=human;\"},{\"type\":\"text\",\"text\":\"You are Claude Code, Anthropic's official CLI for Claude.\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}],\"diagnostics\":{\"previous_message_id\":null},\"stream\":false,\"metadata\":{\"user_id\":\"{\\\"device_id\\\":\\\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\\\",\\\"account_uuid\\\":\\\"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee\\\",\\\"session_id\\\":\\\"4e738e9a-e7db-58a4-bf4c-da95e6c67962\\\"}\"}}",
@@ -249,7 +415,7 @@
       ],
       [
        "x-client-request-id",
-       "f395060a-3f7b-4a92-9a84-27300e60fa67"
+       "49344be5-9556-4893-88db-030ebb7a8841"
       ]
      ],
      "body": "{\"model\": \"claude-opus-5-5\", \"max_tokens\": 2048, \"system\": [{\"type\":\"text\",\"text\":\"x-anthropic-billing-header: cc_version=2.1.280.c9f; cc_entrypoint=cli; cch=4f927; cc_prompt_id=b4fd1a0d-12b5-45b5-80c4-0731e17722ee; cc_turn_origin=human;\"},{\"type\":\"text\",\"text\":\"You are Claude Code, Anthropic's official CLI for Claude.\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}], \"tools\": [{\"name\": \"mcp__private_pattern__bunker_lookup\", \"description\": \"Look things up\", \"input_schema\": {\"type\": \"object\", \"properties\": {\"q\": {\"type\": \"string\"}}}},{\"type\": \"web_search_20250305\", \"name\": \"web_search\", \"max_uses\": 2},{ \"name\": \"mcp__private_pattern__era_run_it\", \"input_schema\": {\"type\": \"object\"}},{\"name\": \"mcp__team__deploy\", \"input_schema\": {\"type\": \"object\"}}], \"thinking\": {\"type\": \"adaptive\",\"display\":\"updates\"}, \"tool_choice\": {\"type\": \"auto\"}, \"metadata\": {\"user_id\": \"{\\\"device_id\\\":\\\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\\\",\\\"account_uuid\\\":\\\"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee\\\",\\\"session_id\\\":\\\"0c1f8615-06d0-5a2d-9835-0d35ed183fec\\\"}\"}, \"messages\": [{\"role\": \"user\", \"content\": [{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nAs you answer the user's questions, you can use the following context:\\n# currentDate\\nToday's date is 2026-10-02.\\n\\n      IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.\\n\u003c/system-reminder\u003e\\n\\n\"},{\"type\":\"text\",\"text\":\"Find the thing\"}]},{\"role\":\"system\",\"content\":[{\"type\":\"text\",\"text\":\"Rule one\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}]},{\"role\":\"system\",\"content\":[{\"type\":\"text\",\"text\":\"Rule two \u003cb\u003e\u0026\u003c/b\u003e\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}]},{\"role\": \"assistant\", \"content\": [{\"type\": \"text\", \"text\": \"Looking\"},{\"type\": \"tool_use\", \"id\": \"tu_1\", \"name\": \"mcp__private_pattern__bunker_lookup\", \"input\": {\"q\": \"x\"}}]},{\"role\": \"user\", \"content\": [{\"type\": \"tool_result\", \"tool_use_id\": \"tu_1\", \"content\": \"found\"}, {\"type\": \"text\", \"text\": \"Thanks, now deploy\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}]}],\"fallbacks\":[{\"model\":\"claude-opus-4-8\"}],\"context_management\":{\"edits\":[{\"type\":\"clear_thinking_20251015\",\"keep\":\"all\"}]},\"diagnostics\":{\"previous_message_id\":null},\"stream\":false}",
@@ -377,7 +543,7 @@
       ],
       [
        "x-client-request-id",
-       "1430605f-049f-412b-9998-e2ea21fd1e3e"
+       "1db692e3-300a-4b46-add7-30395575aa4e"
       ]
      ],
      "body": "{\"model\": \"claude-sonnet-4-5\", \"max_tokens\": 100, \"stream\": true, \"system\": [{\"type\":\"text\",\"text\":\"x-anthropic-billing-header: cc_version=2.1.280.3c7; cc_entrypoint=cli; cch=fa9d9; cc_prompt_id=1944279b-c741-4707-b485-97776f04824a; cc_turn_origin=human;\"},{\"type\":\"text\",\"text\":\"You are Claude Code, Anthropic's official CLI for Claude.\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}], \"tools\": [{\"name\": \"mcp__private_pattern__bunker_lookup\", \"description\": \"Look things up\", \"input_schema\": {\"type\": \"object\", \"properties\": {\"q\": {\"type\": \"string\"}}}}], \"messages\": [{\"role\": \"user\", \"content\": [{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nAs you answer the user's questions, you can use the following context:\\n# currentDate\\nToday's date is 2026-10-02.\\n\\n      IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.\\n\u003c/system-reminder\u003e\\n\\n\"},{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nBe terse\\n\u003c/system-reminder\u003e\"},{\"type\": \"text\", \"text\": \"first question here\", \"cache_control\": {\"type\":\"ephemeral\",\"ttl\":\"1h\"}}]}, {\"role\": \"assistant\", \"content\": \"an answer\"}, {\"role\": \"user\", \"content\": [{\"type\": \"text\", \"text\": \"second\", \"cache_control\": {\"type\":\"ephemeral\",\"ttl\":\"1h\"}}]}],\"diagnostics\":{\"previous_message_id\":null},\"metadata\":{\"user_id\":\"{\\\"device_id\\\":\\\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\\\",\\\"account_uuid\\\":\\\"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee\\\",\\\"session_id\\\":\\\"f54c65e0-4cc5-53aa-8460-a0d0d53fa0b5\\\"}\"}}",
@@ -510,7 +676,7 @@
       ],
       [
        "x-client-request-id",
-       "79fbf54a-8311-4832-b69d-c1653eeb0f8a"
+       "490f0b07-08ea-448d-91e5-c671972752da"
       ]
      ],
      "body": "{\"model\": \"claude-sonnet-4-6\", \"max_tokens\": 64, \"system\": [{\"type\":\"text\",\"text\":\"x-anthropic-billing-header: cc_version=2.1.280.d7a; cc_entrypoint=cli; cch=0f2f8; cc_prompt_id=b565f1a1-f545-4c9d-b018-7d6c244dc5d0; cc_turn_origin=human;\"},{\"type\":\"text\",\"text\":\"You are Claude Code, Anthropic's official CLI for Claude.\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}], \"messages\": [{\"role\": \"user\", \"content\": [{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nAs you answer the user's questions, you can use the following context:\\n# currentDate\\nToday's date is 2026-10-02.\\n\\n      IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.\\n\u003c/system-reminder\u003e\\n\\n\"},{\"type\": \"text\", \"text\": \"Tell me the S​ECRET THING about p​roxy servers\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}]}],\"diagnostics\":{\"previous_message_id\":null},\"stream\":false,\"metadata\":{\"user_id\":\"{\\\"device_id\\\":\\\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\\\",\\\"account_uuid\\\":\\\"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee\\\",\\\"session_id\\\":\\\"cb7f6a1c-985c-5958-9ce9-a7dae02e7f88\\\"}\"}}",
@@ -728,7 +894,7 @@
       ],
       [
        "x-client-request-id",
-       "4a3ace6e-00e9-4d63-aa13-74391121670d"
+       "d2c129ed-9150-4883-aae6-f7273eed4d0f"
       ]
      ],
      "body": "{\"model\": \"claude-sonnet-4-6\", \"max_tokens\": 64, \"messages\": [{\"role\": \"user\", \"content\": [{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nAs you answer the user's questions, you can use the following context:\\n# currentDate\\nToday's date is 2026-10-02.\\n\\n      IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.\\n\u003c/system-reminder\u003e\\n\\n\"},{\"type\":\"text\",\"text\":\"Hi from api key\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}]}],\"system\":[{\"type\":\"text\",\"text\":\"x-anthropic-billing-header: cc_version=2.1.280.539; cc_entrypoint=cli; cch=ac2ce; cc_prompt_id=1296f6e4-a049-4bc7-92da-4fe5c8112b45; cc_turn_origin=human;\"},{\"type\":\"text\",\"text\":\"You are Claude Code, Anthropic's official CLI for Claude.\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}],\"diagnostics\":{\"previous_message_id\":null},\"stream\":false,\"metadata\":{\"user_id\":\"{\\\"device_id\\\":\\\"f2b79c7fe2bd2392c8571c1f0615fff58a70ab70defbc48855af6054c2375afa\\\",\\\"account_uuid\\\":\\\"215c2f92-2316-5385-9425-341a59252323\\\",\\\"session_id\\\":\\\"b941807b-c3f4-5940-ab56-a1c0bf3223b1\\\"}\"}}",
@@ -1147,7 +1313,7 @@
       ],
       [
        "x-client-request-id",
-       "b701e221-217e-483e-b90a-952e8cdf3133"
+       "77c3afa9-fa19-48b3-8a3d-214adf53040d"
       ]
      ],
      "body": "{\"model\": \"claude-opus-5-5\", \"tools\": [{\"name\": \"mcp__private_pattern__bunker_lookup\", \"description\": \"Look things up\", \"input_schema\": {\"type\": \"object\", \"properties\": {\"q\": {\"type\": \"string\"}}}},{\"type\": \"web_search_20250305\", \"name\": \"web_search\", \"max_uses\": 2}], \"messages\": [{\"role\": \"user\", \"content\": \"count me\"},{\"role\":\"system\",\"content\":[{\"type\":\"text\",\"text\":\"Count rules\",\"cache_control\":{\"type\":\"ephemeral\"}}]}]}",
@@ -1275,7 +1441,7 @@
       ],
       [
        "x-client-request-id",
-       "525d2292-f6fc-42a3-83d5-be9d9f9e6f48"
+       "056d6e79-b847-4380-883c-dd27628b7714"
       ]
      ],
      "body": "{\"model\": \"claude-sonnet-4-6\", \"max_tokens\": 1, \"messages\": [{\"role\": \"user\", \"content\": [{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nAs you answer the user's questions, you can use the following context:\\n# currentDate\\nToday's date is 2026-10-02.\\n\\n      IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.\\n\u003c/system-reminder\u003e\\n\\n\"},{\"type\":\"text\",\"text\":\"quota\",\"cache_control\":{\"type\":\"ephemeral\"}}]}],\"system\":[{\"type\":\"text\",\"text\":\"x-anthropic-billing-header: cc_version=2.1.280.608; cc_entrypoint=cli; cch=5d9f4;\"},{\"type\":\"text\",\"text\":\"You are Claude Code, Anthropic's official CLI for Claude.\",\"cache_control\":{\"type\":\"ephemeral\"}}],\"stream\":false,\"metadata\":{\"user_id\":\"{\\\"device_id\\\":\\\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\\\",\\\"account_uuid\\\":\\\"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee\\\",\\\"session_id\\\":\\\"e9c7556c-d70e-54f3-86be-d6bdf2a4dc98\\\"}\"}}",
@@ -1403,7 +1569,7 @@
       ],
       [
        "x-client-request-id",
-       "e584b5d6-27a3-40b7-8a53-072cc1a0fd2e"
+       "bccda2c4-873f-471e-a33f-e49a57f3e4fc"
       ]
      ],
      "body": "{\"model\": \"claude-opus-5-5\", \"max_tokens\": 64, \"speed\": \"fast\", \"messages\": [{\"role\": \"user\", \"content\": [{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nAs you answer the user's questions, you can use the following context:\\n# currentDate\\nToday's date is 2026-10-02.\\n\\n      IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.\\n\u003c/system-reminder\u003e\\n\\n\"},{\"type\":\"text\",\"text\":\"fast please\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}]}],\"system\":[{\"type\":\"text\",\"text\":\"x-anthropic-billing-header: cc_version=2.1.280.c9f; cc_entrypoint=cli; cch=5b904; cc_prompt_id=8160cd15-7b7d-4dc4-bcac-8d20602a4b03; cc_turn_origin=human;\"},{\"type\":\"text\",\"text\":\"You are Claude Code, Anthropic's official CLI for Claude.\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}],\"fallbacks\":[{\"model\":\"claude-opus-4-8\"}],\"diagnostics\":{\"previous_message_id\":null},\"stream\":false,\"metadata\":{\"user_id\":\"{\\\"device_id\\\":\\\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\\\",\\\"account_uuid\\\":\\\"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee\\\",\\\"session_id\\\":\\\"3675c4ad-7ea8-5f6d-b512-8aea3e7e4ace\\\"}\"}}",
@@ -1556,7 +1722,7 @@
       ],
       [
        "x-client-request-id",
-       "85d1781a-f817-40a6-a661-6e307c8d2085"
+       "f296c0b7-d0cd-4749-87cc-101fdd96dc1a"
       ]
      ],
      "body": "{\"model\": \"claude-sonnet-4-6\", \"max_tokens\": 64, \"system\": [{\"type\":\"text\",\"text\":\"x-anthropic-billing-header: cc_version=2.1.280.1a7; cc_entrypoint=cli; cch=6b2a5; cc_is_subagent=true; cc_prompt_id=69bf3363-a60c-4715-9c43-10ece9b2a18c;\"},{\"type\":\"text\",\"text\":\"You are Claude Code, Anthropic's official CLI for Claude.\",\"cache_control\":{\"type\":\"ephemeral\"}}], \"messages\": [{\"role\": \"user\", \"content\": [{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nAs you answer the user's questions, you can use the following context:\\n# currentDate\\nToday's date is 2026-10-02.\\n\\n      IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.\\n\u003c/system-reminder\u003e\\n\\n\"},{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nSub system\\n\u003c/system-reminder\u003e\"},{\"type\":\"text\",\"text\":\"sub task\",\"cache_control\":{\"type\":\"ephemeral\"}}]}],\"diagnostics\":{\"previous_message_id\":null},\"stream\":false,\"metadata\":{\"user_id\":\"{\\\"device_id\\\":\\\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\\\",\\\"account_uuid\\\":\\\"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee\\\",\\\"session_id\\\":\\\"2e0204ed-3801-5d99-b3cb-371604e43ec1\\\"}\"}}",
@@ -1678,7 +1844,7 @@
       ],
       [
        "x-client-request-id",
-       "0be851f9-17c3-4772-b96f-8713e4279cf0"
+       "a349b543-8ea0-43df-b05b-71b0efd7005a"
       ]
      ],
      "body": "{\"model\": \"claude-sonnet-4-6\", \"max_tokens\": 64, \"messages\": [{\"role\": \"user\", \"content\": [{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nAs you answer the user's questions, you can use the following context:\\n# currentDate\\nToday's date is 2026-10-02.\\n\\n      IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.\\n\u003c/system-reminder\u003e\\n\\n\"},{\"type\":\"text\",\"text\":\"boom\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}]}],\"system\":[{\"type\":\"text\",\"text\":\"x-anthropic-billing-header: cc_version=2.1.280.d7b; cc_entrypoint=cli; cch=ea1d4; cc_prompt_id=55a0e56a-944e-4616-82e8-93073d2f025b; cc_turn_origin=human;\"},{\"type\":\"text\",\"text\":\"You are Claude Code, Anthropic's official CLI for Claude.\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}],\"diagnostics\":{\"previous_message_id\":null},\"stream\":false,\"metadata\":{\"user_id\":\"{\\\"device_id\\\":\\\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\\\",\\\"account_uuid\\\":\\\"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee\\\",\\\"session_id\\\":\\\"9b75eda6-d88c-569f-aff6-0245d758b7b5\\\"}\"}}",
@@ -1812,7 +1978,7 @@
       ],
       [
        "x-client-request-id",
-       "4059af17-25e0-452f-a32d-aa6360c4cd43"
+       "400e7bbd-3c3f-4ee5-9bc6-201564b830b6"
       ]
      ],
      "body": "{\"model\": \"claude-sonnet-4-6\", \"max_tokens\": 64, \"system\": [{\"type\":\"text\",\"text\":\"x-anthropic-billing-header: cc_version=2.1.280.fbf; cc_entrypoint=cli; cch=b86bd; cc_prompt_id=42db9d24-8eb1-40c1-8da1-1296c8bae56e; cc_turn_origin=human;\"},{\"type\":\"text\",\"text\":\"You are Claude Code, Anthropic's official CLI for Claude.\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}], \"messages\": [{\"role\": \"user\", \"content\": [{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nAs you answer the user's questions, you can use the following context:\\n# currentDate\\nToday's date is 2026-10-02.\\n\\n      IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.\\n\u003c/system-reminder\u003e\\n\\n\"},{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nTurns\\n\u003c/system-reminder\u003e\"},{\"type\":\"text\",\"text\":\"Start the conversation now\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}]}],\"diagnostics\":{\"previous_message_id\":null},\"stream\":false,\"metadata\":{\"user_id\":\"{\\\"device_id\\\":\\\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\\\",\\\"account_uuid\\\":\\\"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee\\\",\\\"session_id\\\":\\\"7bce2dc6-45a9-5c5e-b9cf-6df41c4885c6\\\"}\"}}",
@@ -1940,7 +2106,7 @@
       ],
       [
        "x-client-request-id",
-       "0bcf7831-2729-4151-b7fb-50b9a220b31c"
+       "8a070202-70b5-432f-b059-c7039c32197d"
       ]
      ],
      "body": "{\"model\": \"claude-sonnet-4-6\", \"max_tokens\": 64, \"system\": [{\"type\":\"text\",\"text\":\"x-anthropic-billing-header: cc_version=2.1.280.fbf; cc_entrypoint=cli; cch=a8d85; cc_prompt_id=42db9d24-8eb1-40c1-8da1-1296c8bae56e; cc_turn_origin=human;\"},{\"type\":\"text\",\"text\":\"You are Claude Code, Anthropic's official CLI for Claude.\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}], \"messages\": [{\"role\": \"user\", \"content\": [{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nAs you answer the user's questions, you can use the following context:\\n# currentDate\\nToday's date is 2026-10-02.\\n\\n      IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.\\n\u003c/system-reminder\u003e\\n\\n\"},{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nTurns\\n\u003c/system-reminder\u003e\"},{\"type\":\"text\",\"text\":\"Start the conversation now\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}]}, {\"role\": \"assistant\", \"content\": \"turn one\"}, {\"role\": \"user\", \"content\": [{\"type\":\"text\",\"text\":\"And continue\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}]}],\"diagnostics\":{\"previous_message_id\":null},\"stream\":false,\"metadata\":{\"user_id\":\"{\\\"device_id\\\":\\\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\\\",\\\"account_uuid\\\":\\\"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee\\\",\\\"session_id\\\":\\\"7bce2dc6-45a9-5c5e-b9cf-6df41c4885c6\\\"}\"}}",
@@ -2031,7 +2197,7 @@
       ],
       [
        "X-Claude-Code-Session-Id",
-       "e073c515-3e1b-4e04-b467-4e7912f696ad"
+       "61fb8c2e-a93e-4bfb-9181-96de6c8d4006"
       ],
       [
        "X-Stainless-Arch",
@@ -2066,7 +2232,7 @@
        "600"
       ]
      ],
-     "body": "{\"model\": \"claude-sonnet-4-6\", \"max_tokens\": 64, \"system\": [{\"type\":\"text\",\"text\":\"x-anthropic-billing-header: cc_version=2.1.280.f5f; cc_entrypoint=cli;\"},{\"type\":\"text\",\"text\":\"You are Claude Code, Anthropic's official CLI for Claude.\",\"cache_control\":{\"type\":\"ephemeral\"}}], \"messages\": [{\"role\": \"user\", \"content\": [{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nAs you answer the user's questions, you can use the following context:\\n# currentDate\\nToday's date is 2026-10-02.\\n\\n      IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.\\n\u003c/system-reminder\u003e\\n\\n\"},{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nCloaked\\n\u003c/system-reminder\u003e\"},{\"type\":\"text\",\"text\":\"cloak me\",\"cache_control\":{\"type\":\"ephemeral\"}}]}],\"metadata\":{\"user_id\":\"{\\\"device_id\\\":\\\"0cd34808ec540c1a463e09c38bcdf21bd2966cc7672808f464904972315db511\\\",\\\"account_uuid\\\":\\\"\\\",\\\"session_id\\\":\\\"e073c515-3e1b-4e04-b467-4e7912f696ad\\\"}\"},\"stream\":false}",
+     "body": "{\"model\": \"claude-sonnet-4-6\", \"max_tokens\": 64, \"system\": [{\"type\":\"text\",\"text\":\"x-anthropic-billing-header: cc_version=2.1.280.f5f; cc_entrypoint=cli;\"},{\"type\":\"text\",\"text\":\"You are Claude Code, Anthropic's official CLI for Claude.\",\"cache_control\":{\"type\":\"ephemeral\"}}], \"messages\": [{\"role\": \"user\", \"content\": [{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nAs you answer the user's questions, you can use the following context:\\n# currentDate\\nToday's date is 2026-10-02.\\n\\n      IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.\\n\u003c/system-reminder\u003e\\n\\n\"},{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nCloaked\\n\u003c/system-reminder\u003e\"},{\"type\":\"text\",\"text\":\"cloak me\",\"cache_control\":{\"type\":\"ephemeral\"}}]}],\"metadata\":{\"user_id\":\"{\\\"device_id\\\":\\\"54284317ad3c481465923ad922b11060785013c35613df9e266b6e71e065fc4f\\\",\\\"account_uuid\\\":\\\"\\\",\\\"session_id\\\":\\\"61fb8c2e-a93e-4bfb-9181-96de6c8d4006\\\"}\"},\"stream\":false}",
      "reply": "{\"id\":\"msg_go_fixture\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-sonnet-4-6\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"usage\":{\"input_tokens\":5,\"output_tokens\":2}}"
     }
    ],
@@ -2207,7 +2373,7 @@
       ],
       [
        "x-client-request-id",
-       "b9ab1ab7-b8ac-4dca-8831-5904c679d19f"
+       "915d5c88-3cc8-4b89-9b97-c082c6889999"
       ]
      ],
      "body": "{\"model\": \"claude-opus-5-5\", \"max_tokens\": 64, \"speed\": \"fast\", \"messages\": [{\"role\": \"user\", \"content\": [{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nAs you answer the user's questions, you can use the following context:\\n# currentDate\\nToday's date is 2026-10-02.\\n\\n      IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.\\n\u003c/system-reminder\u003e\\n\\n\"},{\"type\":\"text\",\"text\":\"fast please\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}]}],\"system\":[{\"type\":\"text\",\"text\":\"x-anthropic-billing-header: cc_version=2.1.280.c9f; cc_entrypoint=cli; cch=5b904; cc_prompt_id=8160cd15-7b7d-4dc4-bcac-8d20602a4b03; cc_turn_origin=human;\"},{\"type\":\"text\",\"text\":\"You are Claude Code, Anthropic's official CLI for Claude.\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}],\"fallbacks\":[{\"model\":\"claude-opus-4-8\"}],\"diagnostics\":{\"previous_message_id\":null},\"stream\":false,\"metadata\":{\"user_id\":\"{\\\"device_id\\\":\\\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\\\",\\\"account_uuid\\\":\\\"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee\\\",\\\"session_id\\\":\\\"3675c4ad-7ea8-5f6d-b512-8aea3e7e4ace\\\"}\"}}",
@@ -2368,7 +2534,7 @@
       ],
       [
        "x-client-request-id",
-       "2986c885-1a87-4d60-96b3-8bb5f2fe66fb"
+       "416930da-24fc-4c14-92ca-307f555e1d1e"
       ]
      ],
      "body": "{\"model\": \"claude-opus-5-5\", \"max_tokens\": 64, \"speed\": \"fast\", \"messages\": [{\"role\": \"user\", \"content\": [{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nAs you answer the user's questions, you can use the following context:\\n# currentDate\\nToday's date is 2026-10-02.\\n\\n      IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.\\n\u003c/system-reminder\u003e\\n\\n\"},{\"type\":\"text\",\"text\":\"fast please\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}]}],\"system\":[{\"type\":\"text\",\"text\":\"x-anthropic-billing-header: cc_version=2.1.280.c9f; cc_entrypoint=cli; cch=5b904; cc_prompt_id=8160cd15-7b7d-4dc4-bcac-8d20602a4b03; cc_turn_origin=human;\"},{\"type\":\"text\",\"text\":\"You are Claude Code, Anthropic's official CLI for Claude.\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}],\"fallbacks\":[{\"model\":\"claude-opus-4-8\"}],\"diagnostics\":{\"previous_message_id\":null},\"stream\":false,\"metadata\":{\"user_id\":\"{\\\"device_id\\\":\\\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\\\",\\\"account_uuid\\\":\\\"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee\\\",\\\"session_id\\\":\\\"3675c4ad-7ea8-5f6d-b512-8aea3e7e4ace\\\"}\"}}",
@@ -2529,7 +2695,7 @@
       ],
       [
        "x-client-request-id",
-       "59ad82ad-bddf-405a-a5e6-9fca2061391e"
+       "fee9b4e8-b1e3-4ab8-8d0d-7dfcd7681cd7"
       ]
      ],
      "body": "{\"model\": \"claude-opus-5-5\", \"max_tokens\": 64, \"messages\": [{\"role\": \"user\", \"content\": [{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nAs you answer the user's questions, you can use the following context:\\n# currentDate\\nToday's date is 2026-10-02.\\n\\n      IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.\\n\u003c/system-reminder\u003e\\n\\n\"},{\"type\":\"text\",\"text\":\"slow please\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}]}],\"system\":[{\"type\":\"text\",\"text\":\"x-anthropic-billing-header: cc_version=2.1.280.c9f; cc_entrypoint=cli; cch=9db9a; cc_prompt_id=c761a64b-60fb-40f6-a194-8411638b84e7; cc_turn_origin=human;\"},{\"type\":\"text\",\"text\":\"You are Claude Code, Anthropic's official CLI for Claude.\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}],\"fallbacks\":[{\"model\":\"claude-opus-4-8\"}],\"diagnostics\":{\"previous_message_id\":null},\"stream\":false,\"metadata\":{\"user_id\":\"{\\\"device_id\\\":\\\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\\\",\\\"account_uuid\\\":\\\"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee\\\",\\\"session_id\\\":\\\"24cf35ba-e36f-5331-ac66-eed0cc908927\\\"}\"}}",
@@ -2663,7 +2829,7 @@
       ],
       [
        "x-client-request-id",
-       "3fdd6e55-79b0-45b7-abbe-6f48b8016c88"
+       "7733bda4-1a9e-448e-9b76-45e8cf0346d6"
       ]
      ],
      "body": "{\"model\": \"claude-opus-5-5\", \"max_tokens\": 64, \"messages\": [{\"role\": \"user\", \"content\": [{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nAs you answer the user's questions, you can use the following context:\\n# currentDate\\nToday's date is 2026-10-02.\\n\\n      IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.\\n\u003c/system-reminder\u003e\\n\\n\"},{\"type\":\"text\",\"text\":\"model limit\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}]}],\"system\":[{\"type\":\"text\",\"text\":\"x-anthropic-billing-header: cc_version=2.1.280.b2d; cc_entrypoint=cli; cch=7a394; cc_prompt_id=ac9ea753-1bd9-496a-96db-bf4a3041625d; cc_turn_origin=human;\"},{\"type\":\"text\",\"text\":\"You are Claude Code, Anthropic's official CLI for Claude.\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}],\"fallbacks\":[{\"model\":\"claude-opus-4-8\"}],\"diagnostics\":{\"previous_message_id\":null},\"stream\":false,\"metadata\":{\"user_id\":\"{\\\"device_id\\\":\\\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\\\",\\\"account_uuid\\\":\\\"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee\\\",\\\"session_id\\\":\\\"a0330aa5-080d-55ae-bced-eb07d0456b21\\\"}\"}}",
@@ -2796,7 +2962,7 @@
       ],
       [
        "x-client-request-id",
-       "40bd3300-54e6-4575-b953-d775cc89a551"
+       "4c6f60e7-7bcc-4931-aa6b-2664e2519b4c"
       ]
      ],
      "body": "{\"model\": \"claude-sonnet-4-6\", \"max_tokens\": 64, \"messages\": [{\"role\": \"user\", \"content\": [{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nAs you answer the user's questions, you can use the following context:\\n# currentDate\\nToday's date is 2026-10-02.\\n\\n      IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.\\n\u003c/system-reminder\u003e\\n\\n\"},{\"type\":\"text\",\"text\":\"Hi from api key\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}]}],\"system\":[{\"type\":\"text\",\"text\":\"x-anthropic-billing-header: cc_version=2.1.280.539; cc_entrypoint=cli; cch=ac2ce; cc_prompt_id=1296f6e4-a049-4bc7-92da-4fe5c8112b45; cc_turn_origin=human;\"},{\"type\":\"text\",\"text\":\"You are Claude Code, Anthropic's official CLI for Claude.\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}],\"diagnostics\":{\"previous_message_id\":null},\"stream\":false,\"metadata\":{\"user_id\":\"{\\\"device_id\\\":\\\"f2b79c7fe2bd2392c8571c1f0615fff58a70ab70defbc48855af6054c2375afa\\\",\\\"account_uuid\\\":\\\"215c2f92-2316-5385-9425-341a59252323\\\",\\\"session_id\\\":\\\"b941807b-c3f4-5940-ab56-a1c0bf3223b1\\\"}\"}}",
@@ -2925,7 +3091,7 @@
       ],
       [
        "x-client-request-id",
-       "ff78ac2c-fb52-4e06-8ecb-56d0ef2a5821"
+       "7223d86a-4350-4047-89f4-0ee1dd027314"
       ]
      ],
      "body": "{\"model\": \"claude-sonnet-4-6\", \"max_tokens\": 64, \"messages\": [{\"role\": \"user\", \"content\": [{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nAs you answer the user's questions, you can use the following context:\\n# currentDate\\nToday's date is 2026-10-02.\\n\\n      IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.\\n\u003c/system-reminder\u003e\\n\\n\"},{\"type\":\"text\",\"text\":\"Hello there, my friend\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}]}],\"system\":[{\"type\":\"text\",\"text\":\"x-anthropic-billing-header: cc_version=2.1.280.36c; cc_entrypoint=cli; cch=89232; cc_prompt_id=af650718-e09a-413b-8a05-ab2bd9962dd7; cc_turn_origin=human;\"},{\"type\":\"text\",\"text\":\"You are Claude Code, Anthropic's official CLI for Claude.\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}],\"diagnostics\":{\"previous_message_id\":null},\"stream\":false,\"metadata\":{\"user_id\":\"{\\\"device_id\\\":\\\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\\\",\\\"account_uuid\\\":\\\"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee\\\",\\\"session_id\\\":\\\"4e738e9a-e7db-58a4-bf4c-da95e6c67962\\\"}\"}}",
@@ -3054,7 +3220,7 @@
       ],
       [
        "x-client-request-id",
-       "da9871bd-ee63-4b45-bf4d-7c09ec70a0cf"
+       "0e3bf760-6043-48fe-8a47-dc2f8b280983"
       ]
      ],
      "body": "{\"model\": \"claude-sonnet-4-6\", \"max_tokens\": 64, \"messages\": [{\"role\": \"user\", \"content\": [{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nAs you answer the user's questions, you can use the following context:\\n# currentDate\\nToday's date is 2026-10-02.\\n\\n      IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.\\n\u003c/system-reminder\u003e\\n\\n\"},{\"type\":\"text\",\"text\":\"Hello there, my friend\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}]}],\"system\":[{\"type\":\"text\",\"text\":\"x-anthropic-billing-header: cc_version=2.1.280.36c; cc_entrypoint=cli; cch=89232; cc_prompt_id=af650718-e09a-413b-8a05-ab2bd9962dd7; cc_turn_origin=human;\"},{\"type\":\"text\",\"text\":\"You are Claude Code, Anthropic's official CLI for Claude.\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}],\"diagnostics\":{\"previous_message_id\":null},\"stream\":false,\"metadata\":{\"user_id\":\"{\\\"device_id\\\":\\\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\\\",\\\"account_uuid\\\":\\\"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee\\\",\\\"session_id\\\":\\\"4e738e9a-e7db-58a4-bf4c-da95e6c67962\\\"}\"}}",
@@ -3188,7 +3354,7 @@
       ],
       [
        "x-client-request-id",
-       "edd424fc-36a2-4282-9675-800ff82c2eab"
+       "d13be86b-d492-4144-86a3-be23c5cf0f41"
       ]
      ],
      "body": "{\"model\": \"claude-sonnet-4-6\", \"max_tokens\": 64, \"messages\": [{\"role\": \"user\", \"content\": [{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nAs you answer the user's questions, you can use the following context:\\n# currentDate\\nToday's date is 2026-10-02.\\n\\n      IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.\\n\u003c/system-reminder\u003e\\n\\n\"},{\"type\":\"text\",\"text\":\"Hello there, my friend\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}]}],\"system\":[{\"type\":\"text\",\"text\":\"x-anthropic-billing-header: cc_version=2.1.280.36c; cc_entrypoint=cli; cch=89232; cc_prompt_id=af650718-e09a-413b-8a05-ab2bd9962dd7; cc_turn_origin=human;\"},{\"type\":\"text\",\"text\":\"You are Claude Code, Anthropic's official CLI for Claude.\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}],\"diagnostics\":{\"previous_message_id\":null},\"stream\":false,\"metadata\":{\"user_id\":\"{\\\"device_id\\\":\\\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\\\",\\\"account_uuid\\\":\\\"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee\\\",\\\"session_id\\\":\\\"4e738e9a-e7db-58a4-bf4c-da95e6c67962\\\"}\"}}",
@@ -3323,7 +3489,7 @@
       ],
       [
        "x-client-request-id",
-       "3d27c3a8-ac23-422c-a8da-b8b4da43b81d"
+       "e9e08d00-c50b-46e3-9b84-4a06b667116d"
       ]
      ],
      "body": "{\"model\": \"claude-sonnet-4-6\", \"max_tokens\": 64, \"messages\": [{\"role\": \"user\", \"content\": [{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nAs you answer the user's questions, you can use the following context:\\n# currentDate\\nToday's date is 2026-10-02.\\n\\n      IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.\\n\u003c/system-reminder\u003e\\n\\n\"},{\"type\":\"text\",\"text\":\"Hello there, my friend\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}]}],\"system\":[{\"type\":\"text\",\"text\":\"x-anthropic-billing-header: cc_version=2.1.280.36c; cc_entrypoint=cli; cch=89232; cc_prompt_id=af650718-e09a-413b-8a05-ab2bd9962dd7; cc_turn_origin=human;\"},{\"type\":\"text\",\"text\":\"You are Claude Code, Anthropic's official CLI for Claude.\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}],\"diagnostics\":{\"previous_message_id\":null},\"stream\":false,\"metadata\":{\"user_id\":\"{\\\"device_id\\\":\\\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\\\",\\\"account_uuid\\\":\\\"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee\\\",\\\"session_id\\\":\\\"4e738e9a-e7db-58a4-bf4c-da95e6c67962\\\"}\"}}",
@@ -3458,7 +3624,7 @@
       ],
       [
        "x-client-request-id",
-       "32dfd2d9-e58c-4ea4-af1d-1cee3a9deb27"
+       "3287e173-81ba-4e35-85c5-9df01b5324c0"
       ]
      ],
      "body": "{\"model\": \"claude-opus-5-5\", \"max_tokens\": 64, \"speed\": \"fast\", \"messages\": [{\"role\": \"user\", \"content\": [{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nAs you answer the user's questions, you can use the following context:\\n# currentDate\\nToday's date is 2026-10-02.\\n\\n      IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.\\n\u003c/system-reminder\u003e\\n\\n\"},{\"type\":\"text\",\"text\":\"fast please\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}]}],\"system\":[{\"type\":\"text\",\"text\":\"x-anthropic-billing-header: cc_version=2.1.280.c9f; cc_entrypoint=cli; cch=5b904; cc_prompt_id=8160cd15-7b7d-4dc4-bcac-8d20602a4b03; cc_turn_origin=human;\"},{\"type\":\"text\",\"text\":\"You are Claude Code, Anthropic's official CLI for Claude.\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}],\"fallbacks\":[{\"model\":\"claude-opus-4-8\"}],\"diagnostics\":{\"previous_message_id\":null},\"stream\":false,\"metadata\":{\"user_id\":\"{\\\"device_id\\\":\\\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\\\",\\\"account_uuid\\\":\\\"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee\\\",\\\"session_id\\\":\\\"3675c4ad-7ea8-5f6d-b512-8aea3e7e4ace\\\"}\"}}",
@@ -3593,7 +3759,7 @@
       ],
       [
        "x-client-request-id",
-       "618ffd1d-c890-458c-aab7-c18607a97029"
+       "4b81e03b-572f-4135-a288-196b8183fb02"
       ]
      ],
      "body": "{\"model\": \"claude-opus-5-5\", \"max_tokens\": 64, \"speed\": \"fast\", \"messages\": [{\"role\": \"user\", \"content\": [{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nAs you answer the user's questions, you can use the following context:\\n# currentDate\\nToday's date is 2026-10-02.\\n\\n      IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.\\n\u003c/system-reminder\u003e\\n\\n\"},{\"type\":\"text\",\"text\":\"fast please\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}]}],\"system\":[{\"type\":\"text\",\"text\":\"x-anthropic-billing-header: cc_version=2.1.280.c9f; cc_entrypoint=cli; cch=5b904; cc_prompt_id=8160cd15-7b7d-4dc4-bcac-8d20602a4b03; cc_turn_origin=human;\"},{\"type\":\"text\",\"text\":\"You are Claude Code, Anthropic's official CLI for Claude.\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}],\"fallbacks\":[{\"model\":\"claude-opus-4-8\"}],\"diagnostics\":{\"previous_message_id\":null},\"stream\":false,\"metadata\":{\"user_id\":\"{\\\"device_id\\\":\\\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\\\",\\\"account_uuid\\\":\\\"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee\\\",\\\"session_id\\\":\\\"3675c4ad-7ea8-5f6d-b512-8aea3e7e4ace\\\"}\"}}",
@@ -3735,10 +3901,10 @@
       ],
       [
        "x-client-request-id",
-       "4c91430d-7808-4c3b-b2c6-6d402f3e578b"
+       "01b80ab0-d4d8-479e-a752-e9cbeaf65d71"
       ]
      ],
-     "body": "{\"model\": \"claude-sonnet-4-6\", \"max_tokens\": 64, \"system\": [{\"type\":\"text\",\"text\":\"x-anthropic-billing-header: cc_version=2.1.280.fbf; cc_entrypoint=cli; cch=5f676; cc_prompt_id=b3ae2dd2-2880-4108-8424-1f53ddbf453b; cc_turn_origin=human;\"},{\"type\":\"text\",\"text\":\"You are Claude Code, Anthropic's official CLI for Claude.\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}], \"messages\": [{\"role\": \"user\", \"content\": [{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nAs you answer the user's questions, you can use the following context:\\n# currentDate\\nToday's date is 2026-10-02.\\n\\n      IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.\\n\u003c/system-reminder\u003e\\n\\n\"},{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nTurns\\n\u003c/system-reminder\u003e\"},{\"type\":\"text\",\"text\":\"Start the conversation now\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}]}],\"diagnostics\":{\"previous_message_id\":null},\"stream\":false,\"metadata\":{\"user_id\":\"{\\\"device_id\\\":\\\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\\\",\\\"account_uuid\\\":\\\"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee\\\",\\\"session_id\\\":\\\"301d3765-2947-5ae4-ad6d-216435473fab\\\"}\"}}",
+     "body": "{\"model\": \"claude-sonnet-4-6\", \"max_tokens\": 64, \"system\": [{\"type\":\"text\",\"text\":\"x-anthropic-billing-header: cc_version=2.1.280.fbf; cc_entrypoint=cli; cch=8d7ce; cc_prompt_id=a1ef2f8a-26a4-46b3-bc9b-7a8380f7a601; cc_turn_origin=human;\"},{\"type\":\"text\",\"text\":\"You are Claude Code, Anthropic's official CLI for Claude.\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}], \"messages\": [{\"role\": \"user\", \"content\": [{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nAs you answer the user's questions, you can use the following context:\\n# currentDate\\nToday's date is 2026-10-02.\\n\\n      IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.\\n\u003c/system-reminder\u003e\\n\\n\"},{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nTurns\\n\u003c/system-reminder\u003e\"},{\"type\":\"text\",\"text\":\"Start the conversation now\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}]}],\"diagnostics\":{\"previous_message_id\":null},\"stream\":false,\"metadata\":{\"user_id\":\"{\\\"device_id\\\":\\\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\\\",\\\"account_uuid\\\":\\\"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee\\\",\\\"session_id\\\":\\\"301d3765-2947-5ae4-ad6d-216435473fab\\\"}\"}}",
      "reply": "{\"id\":\"msg_turn_one\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-sonnet-4-6\",\"content\":[{\"type\":\"text\",\"text\":\"turn one\"}],\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"usage\":{\"input_tokens\":5,\"output_tokens\":2}}"
     }
    ],
@@ -3827,7 +3993,7 @@
       ],
       [
        "X-Claude-Code-Session-Id",
-       "e073c515-3e1b-4e04-b467-4e7912f696ad"
+       "61fb8c2e-a93e-4bfb-9181-96de6c8d4006"
       ],
       [
        "X-Stainless-Arch",
@@ -3862,7 +4028,7 @@
        "600"
       ]
      ],
-     "body": "{\"model\": \"claude-sonnet-4-6\", \"max_tokens\": 64, \"system\": [{\"type\":\"text\",\"text\":\"x-anthropic-billing-header: cc_version=2.1.280.f5f; cc_entrypoint=cli;\"},{\"type\":\"text\",\"text\":\"You are Claude Code, Anthropic's official CLI for Claude.\",\"cache_control\":{\"type\":\"ephemeral\"}}], \"messages\": [{\"role\": \"user\", \"content\": [{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nAs you answer the user's questions, you can use the following context:\\n# currentDate\\nToday's date is 2026-10-02.\\n\\n      IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.\\n\u003c/system-reminder\u003e\\n\\n\"},{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nCloaked\\n\u003c/system-reminder\u003e\"},{\"type\":\"text\",\"text\":\"cloak me\",\"cache_control\":{\"type\":\"ephemeral\"}}]}],\"metadata\":{\"user_id\":\"{\\\"device_id\\\":\\\"0cd34808ec540c1a463e09c38bcdf21bd2966cc7672808f464904972315db511\\\",\\\"account_uuid\\\":\\\"\\\",\\\"session_id\\\":\\\"e073c515-3e1b-4e04-b467-4e7912f696ad\\\"}\"},\"stream\":false}",
+     "body": "{\"model\": \"claude-sonnet-4-6\", \"max_tokens\": 64, \"system\": [{\"type\":\"text\",\"text\":\"x-anthropic-billing-header: cc_version=2.1.280.f5f; cc_entrypoint=cli;\"},{\"type\":\"text\",\"text\":\"You are Claude Code, Anthropic's official CLI for Claude.\",\"cache_control\":{\"type\":\"ephemeral\"}}], \"messages\": [{\"role\": \"user\", \"content\": [{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nAs you answer the user's questions, you can use the following context:\\n# currentDate\\nToday's date is 2026-10-02.\\n\\n      IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.\\n\u003c/system-reminder\u003e\\n\\n\"},{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nCloaked\\n\u003c/system-reminder\u003e\"},{\"type\":\"text\",\"text\":\"cloak me\",\"cache_control\":{\"type\":\"ephemeral\"}}]}],\"metadata\":{\"user_id\":\"{\\\"device_id\\\":\\\"54284317ad3c481465923ad922b11060785013c35613df9e266b6e71e065fc4f\\\",\\\"account_uuid\\\":\\\"\\\",\\\"session_id\\\":\\\"61fb8c2e-a93e-4bfb-9181-96de6c8d4006\\\"}\"},\"stream\":false}",
      "reply": "{\"id\":\"msg_go_fixture\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-sonnet-4-6\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"usage\":{\"input_tokens\":5,\"output_tokens\":2}}"
     }
    ],
@@ -3987,7 +4153,7 @@
       ],
       [
        "x-client-request-id",
-       "d820bb2f-48d3-4893-aeea-5abcfa0efd1e"
+       "5b227079-a1cc-4b03-ad91-87a01c5b38ab"
       ]
      ],
      "body": "{\"model\": \"claude-sonnet-4-6\", \"max_tokens\": 32000, \"messages\": [{\"role\": \"user\", \"content\": [{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nAs you answer the user's questions, you can use the following context:\\n# currentDate\\nToday's date is 2026-10-02.\\n\\n      IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.\\n\u003c/system-reminder\u003e\\n\\n\"},{\"type\":\"text\",\"text\":\"think\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}]}],\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":16384},\"system\":[{\"type\":\"text\",\"text\":\"x-anthropic-billing-header: cc_version=2.1.280.346; cc_entrypoint=cli; cch=822be; cc_prompt_id=53bbd560-c580-492c-9c4d-5390ebec88fb; cc_turn_origin=human;\"},{\"type\":\"text\",\"text\":\"You are Claude Code, Anthropic's official CLI for Claude.\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}],\"context_management\":{\"edits\":[{\"type\":\"clear_thinking_20251015\",\"keep\":\"all\"}]},\"diagnostics\":{\"previous_message_id\":null},\"stream\":false,\"metadata\":{\"user_id\":\"{\\\"device_id\\\":\\\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\\\",\\\"account_uuid\\\":\\\"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee\\\",\\\"session_id\\\":\\\"0ae82084-8946-5fd8-afca-f735b1aa2dd0\\\"}\"}}",
@@ -4115,7 +4281,7 @@
       ],
       [
        "x-client-request-id",
-       "d5bab80c-bc79-4550-990a-51462f2af39b"
+       "74807d34-20d7-4a21-8dd7-cdd0ead26ee8"
       ]
      ],
      "body": "{\"model\": \"claude-opus-4-8\", \"max_tokens\": 32000, \"messages\": [{\"role\": \"user\", \"content\": [{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nAs you answer the user's questions, you can use the following context:\\n# currentDate\\nToday's date is 2026-10-02.\\n\\n      IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.\\n\u003c/system-reminder\u003e\\n\\n\"},{\"type\":\"text\",\"text\":\"think hard\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}]}],\"thinking\":{\"type\":\"adaptive\"},\"output_config\":{\"effort\":\"high\"},\"system\":[{\"type\":\"text\",\"text\":\"x-anthropic-billing-header: cc_version=2.1.280.466; cc_entrypoint=cli; cch=1683a; cc_prompt_id=0b35566e-97fb-4514-b25a-da563ead4d7d; cc_turn_origin=human;\"},{\"type\":\"text\",\"text\":\"You are Claude Code, Anthropic's official CLI for Claude.\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}],\"context_management\":{\"edits\":[{\"type\":\"clear_thinking_20251015\",\"keep\":\"all\"}]},\"diagnostics\":{\"previous_message_id\":null},\"stream\":false,\"metadata\":{\"user_id\":\"{\\\"device_id\\\":\\\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\\\",\\\"account_uuid\\\":\\\"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee\\\",\\\"session_id\\\":\\\"e2b8bdd9-4a49-5e62-95c5-fd0c0dc056d0\\\"}\"}}",
@@ -4243,7 +4409,7 @@
       ],
       [
        "x-client-request-id",
-       "b051f03b-d479-42f1-bd81-60b770807bc1"
+       "33027b2a-47f4-4115-98bf-9ddbc789fc45"
       ]
      ],
      "body": "{\"model\": \"claude-opus-5-5\", \"max_tokens\": 32000, \"thinking\": {\"type\": \"adaptive\",\"display\":\"updates\"}, \"output_config\": {\"effort\": \"medium\"}, \"messages\": [{\"role\": \"user\", \"content\": [{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nAs you answer the user's questions, you can use the following context:\\n# currentDate\\nToday's date is 2026-10-02.\\n\\n      IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.\\n\u003c/system-reminder\u003e\\n\\n\"},{\"type\":\"text\",\"text\":\"adaptive\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}]}],\"system\":[{\"type\":\"text\",\"text\":\"x-anthropic-billing-header: cc_version=2.1.280.472; cc_entrypoint=cli; cch=7731a; cc_prompt_id=a0ed1b84-2d80-4518-9a41-ff5b78a2c395; cc_turn_origin=human;\"},{\"type\":\"text\",\"text\":\"You are Claude Code, Anthropic's official CLI for Claude.\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}],\"fallbacks\":[{\"model\":\"claude-opus-4-8\"}],\"context_management\":{\"edits\":[{\"type\":\"clear_thinking_20251015\",\"keep\":\"all\"}]},\"diagnostics\":{\"previous_message_id\":null},\"stream\":false,\"metadata\":{\"user_id\":\"{\\\"device_id\\\":\\\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\\\",\\\"account_uuid\\\":\\\"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee\\\",\\\"session_id\\\":\\\"50a07801-31d7-5f0f-aca2-a5b146fc5214\\\"}\"}}",
@@ -4371,7 +4537,7 @@
       ],
       [
        "x-client-request-id",
-       "1802a230-05db-4678-9c79-3ca512f2736e"
+       "342a8352-adcf-417b-91ba-1ebe27916eb6"
       ]
      ],
      "body": "{\"model\": \"claude-sonnet-4-6\", \"max_tokens\": 64, \"thinking\": {\"type\": \"enabled\", \"budget_tokens\": 2048}, \"messages\": [{\"role\": \"user\", \"content\": [{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nAs you answer the user's questions, you can use the following context:\\n# currentDate\\nToday's date is 2026-10-02.\\n\\n      IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.\\n\u003c/system-reminder\u003e\\n\\n\"},{\"type\":\"text\",\"text\":\"first\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}]},{\"role\": \"assistant\", \"content\": [{\"type\": \"redacted_thinking\", \"data\": \"EmwKAhgBEgyfake\"},{\"type\": \"text\", \"text\": \"calling\"},{\"type\": \"tool_use\", \"id\": \"toolu_1\", \"name\": \"lookup\", \"input\": {\"q\": \"x\"}}]},{\"role\": \"user\", \"content\": [{\"type\": \"tool_result\", \"tool_use_id\": \"toolu_1\", \"content\": \"ok\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}]}],\"system\":[{\"type\":\"text\",\"text\":\"x-anthropic-billing-header: cc_version=2.1.280.6a5; cc_entrypoint=cli; cch=9c830; cc_prompt_id=d8d2045a-783c-4b44-bd83-ae09f7fde9a7; cc_turn_origin=human;\"},{\"type\":\"text\",\"text\":\"You are Claude Code, Anthropic's official CLI for Claude.\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}],\"context_management\":{\"edits\":[{\"type\":\"clear_thinking_20251015\",\"keep\":\"all\"}]},\"diagnostics\":{\"previous_message_id\":null},\"stream\":false,\"metadata\":{\"user_id\":\"{\\\"device_id\\\":\\\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\\\",\\\"account_uuid\\\":\\\"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee\\\",\\\"session_id\\\":\\\"7d40dd1c-90a0-5b2a-87b4-22f8fe0e1b95\\\"}\"}}",
