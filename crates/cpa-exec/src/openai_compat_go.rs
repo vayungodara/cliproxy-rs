@@ -1,6 +1,6 @@
 //! Go standard-library behaviour the executor's byte handling depends on, where Rust's
-//! defaults differ: `encoding/json.Valid`, `bytes.TrimSpace`, gjson's `Int()` coercion,
-//! `net/http.ParseTime`, and byte-exact edits of JSON that is not valid UTF-8.
+//! defaults differ: `encoding/json.Valid`, `bytes.TrimSpace`, `net/http.ParseTime`, and
+//! [`GoText`], which carries bodies that are not valid UTF-8 through text-based helpers.
 
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -190,49 +190,6 @@ fn trailing_char(b: &[u8]) -> Option<(char, usize)> {
         }
     }
     None
-}
-
-/// gjson `parseInt`: optional `-`, decimal digits, wrapping like Go's int64 arithmetic.
-fn gjson_parse_int(s: &str) -> Option<i64> {
-    let (negative, digits) = match s.strip_prefix('-') {
-        Some(rest) => (true, rest),
-        None => (false, s),
-    };
-    if digits.is_empty() {
-        return None;
-    }
-    let mut n: i64 = 0;
-    for c in digits.bytes() {
-        if !c.is_ascii_digit() {
-            return None;
-        }
-        n = n.wrapping_mul(10).wrapping_add(i64::from(c - b'0'));
-    }
-    Some(if negative { n.wrapping_neg() } else { n })
-}
-
-/// gjson `Result.Int()`.
-pub(crate) fn int(value: &gjson::Value<'_>) -> i64 {
-    match value.kind() {
-        gjson::Kind::True => 1,
-        gjson::Kind::String => gjson_parse_int(value.str()).unwrap_or(0),
-        gjson::Kind::Number => {
-            let f = value.f64();
-            // safeInt: truncation inside ±(2^53-1), else the raw literal, else Go's
-            // conversion, which yields i64::MIN out of range on amd64.
-            if (-9_007_199_254_740_991.0..=9_007_199_254_740_991.0).contains(&f) {
-                return f as i64;
-            }
-            gjson_parse_int(value.json()).unwrap_or(
-                if f.is_nan() || !(-9.223_372_036_854_776e18..9.223_372_036_854_776e18).contains(&f) {
-                    i64::MIN
-                } else {
-                    f as i64
-                },
-            )
-        }
-        _ => 0,
-    }
 }
 
 const MONTHS: [&str; 12] = [
@@ -528,16 +485,6 @@ mod tests {
     fn trim_space_is_unicode_aware() {
         assert_eq!(trim_space("\u{a0} x \u{3000}\r".as_bytes()), b"x");
         assert_eq!(trim_space(b"\xff "), b"\xff");
-    }
-
-    #[test]
-    fn int_follows_gjson() {
-        let v = |s: &str| int(&gjson::parse(s));
-        assert_eq!(v("\"429.5\""), 0);
-        assert_eq!(v("\"-7\""), -7);
-        assert_eq!(v("429.9"), 429);
-        assert_eq!(v("4e2"), 400);
-        assert_eq!(v("true"), 1);
     }
 
     #[test]

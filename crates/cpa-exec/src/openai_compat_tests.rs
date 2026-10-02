@@ -15,7 +15,7 @@ const FIXTURE: &str = include_str!("../tests/fixtures/openai_compat_go.json");
 
 /// Shared helpers whose real port has not landed: scenarios that need them are skipped
 /// and listed, so integration can remove an entry and see the scenario run.
-const PENDING: &[&str] = &["thinking", "signature", "translator"];
+const PENDING: &[&str] = &["translator"];
 
 /// One-shot raw HTTP/1.1 capture server answering with the scripted response.
 struct Mock {
@@ -294,9 +294,6 @@ async fn go_reference_scenarios() {
         skipped,
         [
             "stream_multiline_data",
-            "compact_invalid_encrypted_content",
-            "needs_thinking_suffix_level",
-            "needs_thinking_body_level_clamped",
             "needs_translator_responses_source",
             "needs_translator_responses_eof_without_done",
             "needs_translator_claude_code_prompt_cache",
@@ -342,7 +339,11 @@ fn go_primitive_vectors() {
     }
     for case in v["gjson_int"].as_array().unwrap() {
         let raw = case[0].as_str().unwrap();
-        assert_eq!(Some(go::int(&gjson::parse(raw))), case[1].as_i64(), "gjson Int({raw})");
+        assert_eq!(
+            Some(gj::parse(raw.as_bytes()).int()),
+            case[1].as_i64(),
+            "gjson Int({raw})"
+        );
     }
     for case in v["trim_space"].as_array().unwrap() {
         assert_eq!(go::trim_space(&b64(&case[0])), b64(&case[1]).as_slice());
