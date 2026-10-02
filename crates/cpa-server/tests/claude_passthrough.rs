@@ -187,7 +187,7 @@ async fn claude_messages_end_to_end() {
 
     // Upstream error before streaming: Claude error JSON and status. Go sends Retry-After
     // only for its own scheduler/cooldown errors, never a raw upstream one.
-    let res = post(r#"{"stream":true,"x":"MODE_429"}"#).await.unwrap();
+    let res = post(r#"{"model":"claude-opus-5-5","stream":true,"x":"MODE_429"}"#).await.unwrap();
     assert_eq!(res.status().as_u16(), 429);
     assert!(res.headers().get("retry-after").is_none());
     assert_eq!(
@@ -196,7 +196,7 @@ async fn claude_messages_end_to_end() {
     );
 
     // Upstream dies mid-stream: events so far, then a terminal error event.
-    let res = post(r#"{"stream":true,"x":"MODE_BREAK"}"#).await.unwrap();
+    let res = post(r#"{"model":"claude-opus-5-5","stream":true,"x":"MODE_BREAK"}"#).await.unwrap();
     assert_eq!(res.status().as_u16(), 200);
     let text = res.text().await.unwrap();
     let (first, rest) = text.split_at("event: message_start\ndata: {}\n\n".len());
@@ -250,26 +250,36 @@ data: {"type":"error","error":{"type":"api_error","message":"upstream request fa
 }
 
 #[tokio::test]
-async fn no_usable_credential_is_503_with_go_message() {
+async fn unregistered_and_unserved_models_follow_go_error_contracts() {
     let dir = auth_dir(
         "empty",
-        &[(
-            "claude-off.json",
-            r#"{"type":"claude","access_token":"t","disabled":true}"#,
-        )],
+        &[
+            ("claude-off.json", r#"{"type":"claude","access_token":"t","disabled":true}"#),
+            ("codex-a.json", r#"{"type":"codex","access_token":"fake-codex"}"#),
+        ],
     );
     let proxy = proxy(&dir, "http://127.0.0.1:9").await;
-    let res = wreq::Client::new()
-        .post(format!("{proxy}/v1/messages"))
-        .header("x-api-key", "client-key-1")
-        .body(r#"{"model":"claude-opus-5"}"#)
-        .send()
-        .await
-        .unwrap();
+    let post = |body: &'static str| {
+        wreq::Client::new()
+            .post(format!("{proxy}/v1/messages"))
+            .header("x-api-key", "client-key-1")
+            .body(body)
+            .send()
+    };
+    // Go (differential case disabled-credential): a disabled credential registers no
+    // models, so the model has no provider: 400, not auth_not_found.
+    let res = post(r#"{"model":"claude-opus-5"}"#).await.unwrap();
+    assert_eq!(res.status().as_u16(), 400);
+    assert_eq!(
+        res.text().await.unwrap(),
+        r#"{"type":"error","error":{"type":"invalid_request_error","message":"unknown provider for model claude-opus-5"}}"#
+    );
+    // A registered model whose provider has no usable credential is auth_not_found.
+    let res = post(r#"{"model":"gpt-5.5"}"#).await.unwrap();
     assert_eq!(res.status().as_u16(), 503);
     assert_eq!(
         res.text().await.unwrap(),
-        r#"{"type":"error","error":{"type":"api_error","message":"auth_not_found: no auth available (providers=claude, model=claude-opus-5); check Claude auth/key session and cooldown state via /v0/management/auth-files"}}"#
+        r#"{"type":"error","error":{"type":"api_error","message":"auth_not_found: no auth available (providers=codex, model=gpt-5.5)"}}"#
     );
     std::fs::remove_dir_all(dir).unwrap();
 }

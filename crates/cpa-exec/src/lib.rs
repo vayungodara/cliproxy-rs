@@ -39,6 +39,12 @@ impl Executors {
         }
     }
 
+    /// Whether an executor serves this provider. Credentials of other providers never
+    /// enter selection (Go skips auths whose executor is not registered).
+    pub fn supports(&self, provider: &str) -> bool {
+        matches!(provider, "claude")
+    }
+
     /// Whether `credential` must be prepared before use. Must be cheap and side-effect free.
     pub fn needs_prepare(&self, credential: &Credential, cfg: &Config) -> bool {
         match credential.provider.as_str() {
