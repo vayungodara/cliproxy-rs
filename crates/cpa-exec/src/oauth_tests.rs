@@ -1,7 +1,9 @@
 use super::*;
 use axum::extract::{Request, State};
 use axum::response::IntoResponse;
+use std::path::Path;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 #[derive(Default)]
 struct Mock {
@@ -223,49 +225,10 @@ async fn code_exchange_login_layout_and_atomic_permissions() {
         assert!(patch.set[field].is_string(), "{field} must always serialize");
     }
     assert!(canonical_pool(patch.set.get("claude_device_ids")));
-    let directory = std::env::temp_dir().join(format!("cpa-login-test-{}", random_hex(8).unwrap()));
-    let path = write_login(&directory, patch.clone()).unwrap();
-    let mut metadata: Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
-    metadata["unknown"] = json!({"preserve":true});
-    std::fs::write(&path, metadata.to_string()).unwrap();
-    write_login(&directory, patch).unwrap();
-    let metadata: Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
-    assert_eq!(metadata["unknown"], json!({"preserve":true}));
-    assert!(metadata.get("Metadata").is_none());
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        assert_eq!(std::fs::metadata(&path).unwrap().permissions().mode() & 0o777, 0o600);
-    }
-    assert_eq!(
-        std::fs::read_dir(&directory).unwrap().count(),
-        1,
-        "no credential temp files remain"
-    );
-    std::fs::remove_dir_all(directory).unwrap();
 }
 
-#[tokio::test]
-async fn callback_rejects_bad_state_then_accepts_valid_request() {
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let addr = listener.local_addr().unwrap();
-    let waiting = tokio::spawn(async move { callback(&listener, "good-state").await });
-    for (target, expected_status) in [
-        ("/callback?code=fake&state=wrong", "400"),
-        ("/callback?code=fake%23wrong&state=good-state", "400"),
-        ("/callback?code=fake%23good-state&state=good-state", "200"),
-    ] {
-        let mut socket = tokio::net::TcpStream::connect(addr).await.unwrap();
-        socket
-            .write_all(format!("GET {target} HTTP/1.1\r\nHost: localhost\r\n\r\n").as_bytes())
-            .await
-            .unwrap();
-        let mut response = String::new();
-        socket.read_to_string(&mut response).await.unwrap();
-        assert!(response.starts_with(&format!("HTTP/1.1 {expected_status}")));
-        assert!(!response.contains("fake"), "callback must not reflect codes");
-    }
-    assert_eq!(waiting.await.unwrap().unwrap(), "fake#good-state");
+#[test]
+fn pkce_and_authorize_url() {
     let (verifier, challenge) = pkce().unwrap();
     assert_eq!(verifier.len(), 128);
     assert_eq!(challenge.len(), 43);
