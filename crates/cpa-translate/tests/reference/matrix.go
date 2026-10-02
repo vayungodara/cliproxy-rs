@@ -63,7 +63,10 @@ func matrix(r registration, model string) []fixture {
 		out = append(out, geminiRequests(model)...)
 	case "claude":
 		out = append(out, claudeRequests(model)...)
-		if r.upstream == "openai" || r.upstream == "gemini" {
+		if r.upstream == "codex" {
+			out = append(out, claudeCodexRequests(model)...)
+		}
+		if r.upstream == "openai" || r.upstream == "gemini" || r.upstream == "codex" {
 			for _, f := range claudeRequests(model) {
 				if strings.HasPrefix(f.Name, "messages/") || strings.HasPrefix(f.Name, "thinking/") {
 					f.Name = "compat/" + f.Name
@@ -89,6 +92,9 @@ func matrix(r registration, model string) []fixture {
 			out = append(out, codexResponses()...)
 		} else {
 			out = append(out, codexEventStreams()...)
+		}
+		if r.client == "claude" {
+			out = append(out, codexToClaude()...)
 		}
 	case "claude":
 		out = append(out, claudeResponses()...)
@@ -930,6 +936,119 @@ func geminiToResponses() []fixture {
 	} {
 		n := nonStream(fmt.Sprintf("gemini-responses/non-stream/%d", i), "gemini-2.5-pro", b.body)
 		n.Original = b.original
+		out = append(out, n)
+	}
+	return out
+}
+
+// grokContent is high-entropy unpadded base64, shaped like Grok encrypted reasoning.
+func grokContent() string {
+	raw := make([]byte, 64)
+	for i := range raw {
+		raw[i] = byte(i*37 + 11)
+	}
+	return base64.RawStdEncoding.EncodeToString(raw)
+}
+
+// claudeCodexRequests exercise ConvertClaudeRequestToCodex beyond the shared Claude
+// matrix: name shortening, long call IDs, web search tools, service tiers, structured
+// output strictness, documents and Grok reasoning signatures.
+func claudeCodexRequests(model string) []fixture {
+	long := strings.Repeat("x", 70)
+	longID := "toolu " + strings.Repeat("y", 80)
+	grok := grokContent()
+	inputs := map[string]string{
+		"names":       `{"tools":[{"name":"mcp__server_with_a_very_long_name_that_goes_on_and_on__read_file_contents_now"},{"name":"` + long + `"},{"name":"` + long + `b"},{"name":"short"},{"name":"short"},{"type":"custom","name":"c"},{"name":5}],"tool_choice":{"type":"tool","name":"` + long + `"},"messages":[{"role":"assistant","content":[{"type":"tool_use","id":"` + longID + `","name":"` + long + `","input":{"a":1}},{"type":"tool_use","id":"t","name":"unknown_` + long + `","input":"str"}]},{"role":"user","content":[{"type":"tool_result","tool_use_id":"` + longID + `","content":[{"type":"text","text":"r"},{"type":"image","source":{"type":"base64","mime_type":"image/gif","base64":"R0lG"}},{"type":"image","source":{"data":"AA"}},{"type":"document"}]},{"type":"tool_result","tool_use_id":"t","content":[{"type":"other"}]}]}]}`,
+		"web-search":  `{"tools":[{"type":"web_search_20250305","name":"web_search","allowed_domains":["a.com"],"user_location":{"type":"approximate","city":"X"}},{"type":"web_search_20260209","name":"ws2","allowed_domains":"notarray","user_location":"str"},{"name":"f","input_schema":{"type":"object"},"strict":true,"cache_control":{"type":"ephemeral"},"defer_loading":true,"type":"custom"},{"name":"g","input_schema":{"$schema":"x","$id":"y","type":"object","properties":null},"strict":false}],"tool_choice":{"type":"tool","name":"ws2"},"messages":[]}`,
+		"documents":   `{"messages":[{"role":"user","content":[{"type":"document","source":{"type":"base64","media_type":"application/pdf","data":"JVBE"}},{"type":"document","source":{"type":"base64","media_type":" Application/PDF ","base64":"QQ"}},{"type":"document","source":{"type":"url","url":"https://x/a.pdf"}},{"type":"document","source":{"type":"base64","media_type":"text/plain","data":"aGk"}},{"type":"image","source":{"type":"base64","data":"iVBO"}}]}]}`,
+		"format/miss": `{"output_config":{"format":{"type":"json_schema","schema":{"type":"object","properties":{"a":{"type":"string"},"b":{"type":"object","properties":{"c":{}},"required":["c"]}},"required":["a"]}}},"messages":[]}`,
+		"format/full": `{"output_config":{"format":{"type":"json_schema","name":"n<1>","schema":{"type":"object","properties":{"a":{"type":"array","items":{"type":"object","properties":{"z":{}},"required":["z"]}}},"required":["a",5]}}},"messages":[]}`,
+		"format/off":  `{"output_config":{"format":{"type":"json_schema","strict":false,"schema":{"type":"object"}}},"messages":[]}`,
+		"format/deep": `{"output_config":{"format":{"type":"json_schema","strict":"no","schema":{"$defs":{"d":{"properties":{"q":{}}}},"anyOf":[{"properties":{"r":{}},"required":[]}]}}},"messages":[]}`,
+		"format/bad":  `{"output_config":{"format":{"type":"json_schema","schema":[1]}},"messages":[]}`,
+		"grok":        `{"messages":[{"role":"assistant","content":[{"type":"thinking","thinking":"g","signature":"` + grok + `"},{"type":"thinking","thinking":"short","signature":"QUJD"},{"type":"text","text":"t"}]}]}`,
+	}
+	var names []string
+	for name := range inputs {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	var out []fixture
+	for _, name := range names {
+		for _, m := range []string{model, "grok-4.7(high)"} {
+			out = append(out, req("codex-claude/"+name+"@"+m, m, inputs[name], false))
+		}
+	}
+	out = append(out, fixture{Name: "compat/codex-claude/grok", Path: "request_compat", Model: "grok-4.7", Input: inputs["grok"]})
+	for i, tier := range []string{`"service_tier":"fast"`, `"service_tier":" Priority "`, `"service_tier":"flex"`, `"service_tier":5`, `"service_tier":"flex","speed":"fast"`, `"speed":"FAST"`, `"speed":true`} {
+		out = append(out, req(fmt.Sprintf("codex-claude/tier/%d", i), model, `{`+tier+`,"messages":[]}`, false))
+	}
+	return out
+}
+
+// codexToClaude exercise ConvertCodexResponseToClaude(NonStream): reasoning summary parts
+// and signatures, events deferred behind an open function call, terminal-only calls,
+// web search blocks, errors and stop reasons.
+func codexToClaude() []fixture {
+	ev := func(body string) string { return "data: " + body }
+	long := strings.Repeat("x", 70)
+	created := ev(`{"type":"response.created","response":{"id":"resp_c","model":"gpt-5.3-codex"}}`)
+	usage := `"usage":{"input_tokens":20,"output_tokens":5,"input_tokens_details":{"cached_tokens":3,"cache_creation_tokens":4},"output_tokens_details":{"reasoning_tokens":9}}`
+	cases := map[string][]string{
+		"reasoning": {created,
+			ev(`{"type":"response.output_item.added","output_index":0,"item":{"type":"reasoning","encrypted_content":"early"}}`),
+			ev(`{"type":"response.reasoning_summary_part.added","output_index":0}`), ev(`{"type":"response.reasoning_summary_text.delta","delta":"part one <x>"}`), ev(`{"type":"response.reasoning_summary_part.done"}`),
+			ev(`{"type":"response.reasoning_summary_part.added","output_index":0}`), ev(`{"type":"response.reasoning_summary_text.delta","delta":"part two"}`),
+			ev(`{"type":"response.output_item.done","item":{"type":"reasoning","encrypted_content":"final-sig"}}`),
+			ev(`{"type":"response.output_item.added","item":{"type":"reasoning","encrypted_content":"only-sig"}}`), ev(`{"type":"response.output_item.done","item":{"type":"reasoning"}}`),
+			ev(`{"type":"response.output_item.added","item":{"type":"reasoning"}}`), ev(`{"type":"response.output_item.done","item":{"type":"reasoning","encrypted_content":""}}`),
+			ev(`{"type":"response.content_part.added","part":{"type":"output_text"}}`), ev(`{"type":"response.output_text.delta","delta":"Hello é"}`), ev(`{"type":"response.content_part.done","part":{"type":"output_text"}}`),
+			ev(`{"type":"response.output_item.done","item":{"type":"message","content":[{"type":"output_text","text":"ignored"}]}}`),
+			ev(`{"type":"response.completed","response":{"stop_reason":"stop","stop_sequence":"<END>",` + usage + `}}`)},
+		"message-done": {created, ev(`{"type":"response.output_item.done","item":{"type":"message","content":[{"type":"refusal"},{"type":"output_text","text":"a"},{"type":"output_text","text":"b"}]}}`), ev(`{"type":"response.output_item.done","item":{"type":"message","content":"str"}}`), ev(`{"type":"response.completed","response":{"incomplete_details":{"reason":"max_output_tokens"},"usage":{"input_tokens":2,"input_tokens_details":{"cached_tokens":5}}}}`)},
+		"deferred": {created,
+			ev(`{"type":"response.output_item.added","output_index":1,"item":{"id":"fc_1","type":"function_call","call_id":"call 1 ` + long + `","name":"` + long + `"}}`),
+			ev(`{"type":"response.output_text.delta","delta":"while open"}`),
+			ev(`{"type":"response.function_call_arguments.delta","item_id":"fc_1","delta":"{\"a\":"}`),
+			ev(`{"type":"response.output_item.added","output_index":2,"item":{"id":"fc_2","type":"function_call","call_id":"call_2"}}`),
+			ev(`{"type":"response.function_call_arguments.delta","output_index":2,"delta":"{}"}`),
+			ev(`{"type":"response.function_call_arguments.done","item_id":"fc_1","arguments":"{\"a\":1}"}`),
+			ev(`{"type":"response.output_item.done","output_index":1,"item":{"id":"fc_1","type":"function_call","call_id":"call 1 ` + long + `","arguments":"{\"a\":1}"}}`),
+			ev(`{"type":"response.output_item.done","output_index":2,"item":{"id":"fc_2","type":"function_call","call_id":"call_2","name":"mcp__server_with_a_very_long_name_that_goes_on_and_on__read_file_contents_now","arguments":"{\"b\":2}"}}`),
+			ev(`{"type":"response.function_call_arguments.delta","delta":"orphan"}`),
+			ev(`{"type":"response.completed","response":{"output":[{"type":"function_call","call_id":"call_3","name":"late","arguments":"{}"},{"type":"function_call","call_id":"call_4","arguments":"{}"}]}}`)},
+		"terminal-calls": {created, ev(`{"type":"response.output_item.added","output_index":0,"item":{"id":"fc_9","type":"function_call","call_id":"c9"}}`), ev(`{"type":"response.output_text.delta","delta":"held"}`), ev(`{"type":"response.incomplete","response":{"output":{"x":{"type":"function_call","call_id":"c9","name":"named_late","arguments":"{\"k\":1}"}}}}`)},
+		"web-search": {created,
+			ev(`{"type":"response.web_search_call.searching","item_id":"ws_1"}`),
+			ev(`{"type":"response.output_item.done","item":{"id":"ws_1","type":"web_search_call","action":{"type":"search","query":"q <1>"},"results":[{"url":" https://a ","title":""},{"url":""},{"url":"https://b","title":"B"}]}}`),
+			ev(`{"type":"response.output_item.done","item":{"id":"ws_1","type":"web_search_call","action":{"query":"again"}}}`),
+			ev(`{"type":"response.output_item.done","item":{"type":"web_search_call","action":{}}}`),
+			ev(`{"type":"response.output_item.done","item":{"type":"web_search_call"},"query":"root q","results":[]}`),
+			ev(`{"type":"response.completed","response":{"stop_reason":"pause_turn"}}`)},
+		"errors":       {ev(`{"type":"error","error":{"type":"","code":"cyber_policy","message":"  "}}`), ev(`{"type":"error","error_type":"invalid_request","message":"m <x>"}`), ev(`{"type":"error"}`), ev(`{"type":"error","error":{"code":"rate","message":"slow"}}`)},
+		"stop-reasons": {created, ev(`{"type":"response.completed","response":{"stop_reason":"content_filter"}}`), ev(`{"type":"response.completed","response":{"stop_reason":"tool_calls","stop_sequence":""}}`), ev(`{"type":"response.incomplete","response":{"stop_sequence":5,"usage":{"output_tokens":3,"output_tokens_details":{"reasoning_tokens":-1}}}}`), ev(`{"type":"response.completed","response":{"stop_reason":"weird","usage":{"output_tokens":"8","output_tokens_details":{"reasoning_tokens":2.5}}}}`)},
+		"framing":      {"event: x", "", created, "data:{\"type\":\"response.output_text.delta\",\"delta\":\"tight\"}", "data: not json", "data: {\"type\":\"response.output_text.delta\",\"delta\":\"bad\xff\"}", "data: [DONE]"},
+	}
+	var names []string
+	for name := range cases {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	original := `{"tools":[{"name":"` + long + `"},{"name":"mcp__server_with_a_very_long_name_that_goes_on_and_on__read_file_contents_now"},{"name":"late"}],"messages":[]}`
+	var out []fixture
+	for _, name := range names {
+		f := streamCase("codex-claude/"+name, "gpt-5.3-codex", cases[name]...)
+		f.Original = original
+		out = append(out, f)
+	}
+	for i, body := range []string{
+		`{"type":"response.completed","response":{"id":"r1","model":"m",` + usage + `,"stop_reason":"stop","stop_sequence":"\n\n","output":[{"type":"reasoning","encrypted_content":"sig","summary":[{"type":"summary_text","text":"s1"},"s2",{"x":1}]},{"type":"reasoning","summary":"plain summary"},{"type":"reasoning","summary":[],"content":[{"text":"c1"},{"type":"reasoning_text","text":"c2"}]},{"type":"reasoning","content":"str content"},{"type":"reasoning"},{"type":"message","content":[{"type":"output_text","text":"t <1>"},{"type":"output_text","text":""}]},{"type":"message","content":"string message"},{"type":"web_search_call","id":"ws","action":{"query":"q"},"results":[{"url":"https://a"}]},{"type":"web_search_call","id":"ws","action":{"query":"dup"}},{"type":"web_search_call","action":{"query":"no id"}},{"type":"web_search_call","id":"ws2"},{"type":"function_call","call_id":"call id ` + long + `","name":"` + long + `","arguments":"{\"a\":1}  "},{"type":"function_call","call_id":"c2","name":"x","arguments":"[1]"},{"type":"function_call","name":"y","arguments":"not json"}]}}`,
+		`{"type":"response.incomplete","response":{"incomplete_details":{"reason":"content_filter"},"output":[]}}`,
+		`{"type":"response.completed","response":{"output":{"type":"message"}}}`,
+		`{"type":"response.created","response":{}}`, `{"type":"response.completed"}`, `not json`, ``,
+	} {
+		n := nonStream(fmt.Sprintf("codex-claude/non-stream/%d", i), "gpt-5.3-codex", body)
+		n.Original = original
 		out = append(out, n)
 	}
 	return out
