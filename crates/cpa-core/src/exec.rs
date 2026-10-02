@@ -108,6 +108,8 @@ pub enum FailureScope {
     Model,
     /// This credential is unusable right now (auth, quota, upstream fault).
     Credential,
+    /// Connection/transport lifecycle fault: may fail over, must not cool credentials.
+    Transport,
 }
 
 #[derive(Debug, Clone)]

@@ -16,6 +16,7 @@ use serde_json::Value;
 
 use crate::access::query_get;
 use crate::runtime::{AcquireError, Completing, Outcome, Runtime, Selection};
+use crate::scheduler::retry_status;
 
 pub async fn messages(
     State(rt): State<Arc<Runtime>>,
@@ -88,81 +89,170 @@ async fn handle(
     let alt = query_get(query, "alt")
         .or_else(|| query_get(query, "$alt"))
         .map(|v| String::from_utf8_lossy(&v).into_owned());
-    let cfg = rt.config();
-    let selection = Selection {
+    let (cfg, policy) = rt.request_snapshot();
+    // ponytail: explicit Claude header identity only. Full cross-client identity,
+    // message hashes, parent/root relationships and alias groups remain M4-0021.
+    let session = headers
+        .get("x-claude-code-session-id")
+        .and_then(|v| v.to_str().ok())
+        .map(str::trim)
+        .filter(|s| !s.is_empty() && s.len() <= 256 && !s.chars().any(char::is_control))
+        .map(str::to_owned);
+    let mut selection = Selection {
         provider: "claude".into(),
         model: model.clone(),
+        session: session.clone(),
         ..Selection::default()
-    };
-    // ponytail: one attempt. Retry rounds and failover across credentials arrive with
-    // the scheduler port (Selection::exclude is where tried credentials go).
-    let lease = match rt.acquire(selection, &cfg).await {
-        Ok(lease) => lease,
-        Err(AcquireError::NoCredential) => {
-            let model = if model.is_empty() { "unknown" } else { &model };
-            let message = format!(
-                "auth_not_found: no auth available (providers=claude, model={model}); \
-                 check Claude auth/key session and cooldown state via /v0/management/auth-files"
-            );
-            return claude_error(503, &message);
-        }
-        Err(AcquireError::Prepare(e)) => return exec_error(&e),
     };
     let req = ExecRequest {
         operation,
         source_format: Format::Claude,
         response_format: Format::Claude,
         requested_model: model.clone(),
-        model,
+        model: model.clone(),
         original_body: body.clone(),
         body,
         stream,
         alt,
-        session: None,
+        session,
         headers,
         caller,
     };
-    // If the client disconnects here, this future is dropped with the lease, which
-    // reports the attempt as cancelled.
-    let credential = lease.credential.clone();
-    let response = match rt.executors.execute(&credential, req, &cfg).await {
-        Ok(response) => response,
-        Err(e) => {
-            lease.complete(Outcome::Failure(e.clone()));
-            return exec_error(&e);
-        }
-    };
-    // ponytail: upstream headers are never forwarded, CLIProxyAPI's default. The
-    // `passthrough-headers` option and its filter (sdk/api/handlers/header_filter.go)
-    // arrive with the config port.
-    match response.body {
-        ResponseBody::Buffered(bytes) => {
-            lease.complete(Outcome::Success);
-            let status = StatusCode::from_u16(response.status).unwrap_or(StatusCode::OK);
-            (status, [(header::CONTENT_TYPE, "application/json")], bytes).into_response()
-        }
-        ResponseBody::Stream(stream) => {
-            let mut stream = Completing::new(stream, lease);
-            // SSE headers go out only once the first event arrives, so an upstream that
-            // fails immediately still gets a proper status and JSON error.
-            let first = match stream.next().await {
-                Some(Err(e)) => return exec_error(&e),
-                first => first.map(Result::unwrap),
+    let mut last_error = None;
+    loop {
+        let mut attempted = 0;
+        loop {
+            if policy.max_retry_credentials > 0 && attempted >= policy.max_retry_credentials {
+                break;
+            }
+            let lease = match rt.acquire_with_policy(selection.clone(), &cfg, policy.clone()).await {
+                Ok(lease) => lease,
+                Err(AcquireError::Prepare { id, error }) => {
+                    attempted += 1;
+                    selection.exclude.push(id.clone());
+                    if rt
+                        .store()
+                        .get(&id)
+                        .is_some_and(|c| policy.error_action(&c, &error).stop)
+                    {
+                        return exec_error(&error);
+                    }
+                    last_error = Some(error);
+                    continue;
+                }
+                Err(AcquireError::Cooldown { wait }) => {
+                    if last_error.is_none() {
+                        return cooldown_error(&model, wait);
+                    }
+                    break;
+                }
+                Err(AcquireError::NoCredential) => {
+                    if last_error.is_none() {
+                        let model = if model.is_empty() { "unknown" } else { &model };
+                        return claude_error(
+                            503,
+                            &format!(
+                                "auth_not_found: no auth available (providers=claude, model={model}); \
+                             check Claude auth/key session and cooldown state via /v0/management/auth-files"
+                            ),
+                        );
+                    }
+                    break;
+                }
             };
-            // `Completing` yields nothing after an error, so the error event is last.
-            let rest = stream.map(|item| match item {
-                Ok(event) => event,
-                Err(e) => Bytes::from(format!("event: error\ndata: {}\n\n", error_json(e.status, &e.body))),
-            });
-            let events = futures_util::stream::iter(first).chain(rest);
-            let mut res = Body::from_stream(events.map(Ok::<_, std::convert::Infallible>)).into_response();
-            let h = res.headers_mut();
-            h.insert(header::CONTENT_TYPE, HeaderValue::from_static("text/event-stream"));
-            h.insert(header::CACHE_CONTROL, HeaderValue::from_static("no-cache"));
-            h.insert(header::ACCESS_CONTROL_ALLOW_ORIGIN, HeaderValue::from_static("*"));
-            res
+            attempted += 1;
+            selection.exclude.push(lease.credential.id.clone());
+            let mut attempt_req = req.clone();
+            attempt_req.model.clone_from(&lease.execution_model);
+            // Cancellation while executing or bootstrapping drops this guard once.
+            let response = match rt.executors.execute(&lease.credential, attempt_req, &cfg).await {
+                Ok(response) => response,
+                Err(e) => {
+                    let action = policy.error_action(&lease.credential, &e);
+                    lease.complete(Outcome::Failure(e.clone()));
+                    if action.stop {
+                        return exec_error(&e);
+                    }
+                    last_error = Some(e);
+                    continue;
+                }
+            };
+            // ponytail: upstream headers are never forwarded, CLIProxyAPI's default. The
+            // `passthrough-headers` option and its filter (sdk/api/handlers/header_filter.go)
+            // arrive with the config port.
+            match response.body {
+                ResponseBody::Buffered(bytes) => {
+                    lease.complete(Outcome::Success);
+                    let status = StatusCode::from_u16(response.status).unwrap_or(StatusCode::OK);
+                    return (status, [(header::CONTENT_TYPE, "application/json")], bytes).into_response();
+                }
+                ResponseBody::Stream(stream) => {
+                    let mut stream = stream;
+                    // SSE headers go out only once the first event arrives, so an upstream that
+                    // fails immediately still gets a proper status and JSON error.
+                    let first = loop {
+                        match stream.next().await {
+                            Some(Ok(bytes)) if bytes.is_empty() => continue,
+                            item => break item,
+                        }
+                    };
+                    let first = match first {
+                        Some(Err(e)) => {
+                            let action = policy.error_action(&lease.credential, &e);
+                            lease.complete(Outcome::Failure(e.clone()));
+                            if action.stop {
+                                return exec_error(&e);
+                            }
+                            last_error = Some(e);
+                            continue;
+                        }
+                        first => first.map(Result::unwrap),
+                    };
+                    let stream = Completing::new(stream, lease);
+                    // `Completing` yields nothing after an error, so the error event is last.
+                    let rest = stream.map(|item| match item {
+                        Ok(event) => event,
+                        Err(e) => Bytes::from(format!("event: error\ndata: {}\n\n", error_json(e.status, &e.body))),
+                    });
+                    let events = futures_util::stream::iter(first).chain(rest);
+                    let mut res = Body::from_stream(events.map(Ok::<_, std::convert::Infallible>)).into_response();
+                    let h = res.headers_mut();
+                    h.insert(header::CONTENT_TYPE, HeaderValue::from_static("text/event-stream"));
+                    h.insert(header::CACHE_CONTROL, HeaderValue::from_static("no-cache"));
+                    h.insert(header::ACCESS_CONTROL_ALLOW_ORIGIN, HeaderValue::from_static("*"));
+                    return res;
+                }
+            }
         }
+        let error = last_error.as_ref().unwrap();
+        // Only the Go retry-round status set (or transport faults) can replay a round.
+        if !retry_status(error.status) && error.scope != cpa_core::exec::FailureScope::Transport {
+            return exec_error(error);
+        }
+        let Some(wait) = rt.store().retry_wait(&selection, &policy, error) else {
+            return exec_error(error);
+        };
+        if !wait.is_zero() {
+            // ponytail: exact bounded waits; Go's capped anti-stampede jitter is
+            // deferred until a controllable runtime clock/random source is wired.
+            tokio::time::sleep(wait).await;
+        }
+        selection.retry_round += 1;
+        selection.exclude.clear();
     }
+}
+
+fn cooldown_error(model: &str, wait: std::time::Duration) -> Response {
+    let model = if model.is_empty() { "requested model" } else { model };
+    let mut response = claude_error(
+        429,
+        &format!("All credentials for model {model} are cooling down via provider claude"),
+    );
+    let seconds = wait.as_secs() + u64::from(wait.subsec_nanos() > 0);
+    response
+        .headers_mut()
+        .insert(header::RETRY_AFTER, seconds.to_string().parse().unwrap());
+    response
 }
 
 /// `Retry-After` and other upstream headers are not sent: Go emits `Retry-After` only for

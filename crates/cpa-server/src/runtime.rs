@@ -9,9 +9,10 @@ use std::collections::HashMap;
 use std::io::Write;
 use std::path::Path;
 use std::pin::Pin;
-use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, PoisonError, RwLock};
 use std::task::{Context, Poll, ready};
+use std::time::{Duration, Instant};
 
 use bytes::Bytes;
 use cpa_core::config::Config;
@@ -21,10 +22,15 @@ use cpa_exec::Executors;
 use futures_util::{Stream, StreamExt};
 use serde_json::{Map, Value};
 
+use crate::refresh::RefreshState;
+use crate::scheduler::{Policy, Scheduler, execution_model, retry_status};
+
 pub struct Runtime {
     config: RwLock<Arc<Config>>,
     store: Arc<CredentialStore>,
     pub executors: Executors,
+    refresh_task: Mutex<Option<tokio::task::AbortHandle>>,
+    refresh_state: Mutex<RefreshState>,
 }
 
 impl Runtime {
@@ -33,6 +39,8 @@ impl Runtime {
             config: RwLock::new(Arc::new(config)),
             store: CredentialStore::new(credentials),
             executors,
+            refresh_task: Mutex::default(),
+            refresh_state: Mutex::default(),
         }
     }
 
@@ -46,64 +54,193 @@ impl Runtime {
         *self.config.write().unwrap_or_else(PoisonError::into_inner) = Arc::new(config);
     }
 
+    /// Integration should use this when publishing parsed routing settings too.
+    pub fn publish_config_and_policy(&self, config: Config, policy: Policy) {
+        let mut current = self.config.write().unwrap_or_else(PoisonError::into_inner);
+        *current = Arc::new(config);
+        self.publish_policy(policy);
+    }
+
+    /// A coherent config/policy pair for the entire route attempt loop.
+    pub fn request_snapshot(&self) -> (Arc<Config>, Arc<Policy>) {
+        let config = self.config.read().unwrap_or_else(PoisonError::into_inner);
+        (config.clone(), self.policy())
+    }
+
     pub fn store(&self) -> &Arc<CredentialStore> {
         &self.store
+    }
+
+    pub fn policy(&self) -> Arc<Policy> {
+        self.store.policy.read().unwrap_or_else(PoisonError::into_inner).clone()
+    }
+
+    pub fn publish_policy(&self, policy: Policy) {
+        let mut current = self.store.policy.write().unwrap_or_else(PoisonError::into_inner);
+        self.store
+            .scheduler
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .configure(&current, &policy);
+        *current = Arc::new(policy);
     }
 
     /// Selects a credential and prepares it if its executor asks to, single-flighted per
     /// credential. The returned lease holds the committed, prepared snapshot.
     pub async fn acquire(&self, selection: Selection, cfg: &Config) -> Result<Lease, AcquireError> {
-        let mut lease = self.store.select(selection).ok_or(AcquireError::NoCredential)?;
+        self.acquire_with_policy(selection, cfg, self.policy()).await
+    }
+
+    pub async fn acquire_with_policy(
+        &self,
+        selection: Selection,
+        cfg: &Config,
+        policy: Arc<Policy>,
+    ) -> Result<Lease, AcquireError> {
+        let mut lease = self.store.select_with_policy(selection, policy)?;
         if !self.executors.needs_prepare(&lease.credential, cfg) {
             return Ok(lease);
         }
         let id = lease.credential.id.clone();
-        let lock = self.store.prepare_lock(&id);
+        match self.prepare_credential(&id, cfg).await {
+            Ok(current) => lease.credential = current,
+            Err(error) => {
+                lease.complete(Outcome::Failure(error.clone()));
+                return Err(AcquireError::Prepare { id, error });
+            }
+        }
+        lease.execution_model = execution_model(&lease.credential, &lease.selection.model, &lease.policy)
+            .ok_or(AcquireError::NoCredential)?;
+        Ok(lease)
+    }
+
+    async fn prepare_credential(&self, id: &str, cfg: &Config) -> Result<Arc<Credential>, ExecError> {
+        let lock = self.store.prepare_lock(id);
         let _guard = lock.lock().await;
         // Another request may have prepared it while we waited.
-        let current = self.store.get(&id).ok_or(AcquireError::NoCredential)?;
-        if self.executors.needs_prepare(&current, cfg) {
-            let patch = match self.executors.prepare(&current, cfg).await {
-                Ok(patch) => patch,
-                Err(e) => {
-                    lease.complete(Outcome::Failure(e.clone()));
-                    return Err(AcquireError::Prepare(e));
-                }
-            };
-            let store = self.store.clone();
-            let revision = current.revision;
-            let committed = tokio::task::spawn_blocking(move || store.apply_patch(&id, revision, &patch))
-                .await
-                .map_err(|e| PatchError::Io(e.to_string()))
-                .and_then(|r| r);
-            match committed {
-                Ok(cred) => lease.credential = cred,
-                Err(e) => {
-                    let e = ExecError::local(
-                        500,
-                        FailureScope::Credential,
-                        format!("committing prepared credential: {e:?}"),
-                    );
-                    lease.complete(Outcome::Failure(e.clone()));
-                    return Err(AcquireError::Prepare(e));
-                }
-            }
-        } else {
-            lease.credential = current;
+        let current = self.store.get(id).filter(|c| !c.disabled).ok_or_else(|| {
+            ExecError::local(
+                409,
+                FailureScope::Request,
+                "credential removed or disabled during preparation",
+            )
+        })?;
+        if !self.executors.needs_prepare(&current, cfg) {
+            return Ok(current);
         }
-        Ok(lease)
+        let patch = self.executors.prepare(&current, cfg).await?;
+        let store = self.store.clone();
+        let revision = current.revision;
+        let id = id.to_owned();
+        tokio::task::spawn_blocking(move || store.apply_patch(&id, revision, &patch))
+            .await
+            .map_err(|e| PatchError::Io(e.to_string()))
+            .and_then(|r| r)
+            .map_err(|e| {
+                ExecError::local(
+                    500,
+                    FailureScope::Request,
+                    format!("committing prepared credential: {e:?}"),
+                )
+            })
+    }
+
+    /// One replaceable refresh loop. Uses the same preparation lock and atomic
+    /// revision-checked commit as request acquisition; executors never persist files.
+    /// ponytail: needs_prepare controls eligibility. Unauthorized lifecycle gating
+    /// and end-to-end token rotation await executor/lifecycle integration (M4-0027).
+    pub fn start_auto_refresh(self: &Arc<Self>) {
+        let mut task = self.refresh_task.lock().unwrap_or_else(PoisonError::into_inner);
+        if let Some(previous) = task.take() {
+            previous.abort();
+        }
+        let weak = Arc::downgrade(self);
+        let handle = tokio::spawn(async move {
+            let mut interval = tokio::time::interval(Duration::from_secs(5));
+            interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+            loop {
+                interval.tick().await;
+                let Some(rt) = weak.upgrade() else {
+                    break;
+                };
+                let cfg = rt.config();
+                let snapshot = rt.store.snapshot();
+                let jobs: Vec<_> = {
+                    let mut state = rt.refresh_state.lock().unwrap_or_else(PoisonError::into_inner);
+                    state.reconcile(&snapshot);
+                    snapshot
+                        .iter()
+                        .filter(|c| matches!(c.source, Source::File(_)) && !c.disabled)
+                        .filter(|c| rt.executors.needs_prepare(c, &cfg))
+                        .filter(|c| state.reserve(c, Instant::now()))
+                        .cloned()
+                        .collect()
+                };
+                // ponytail: bounded batches, so a slow worker delays the next scan.
+                // Use an independent queue if refresh latency matters for large pools.
+                futures_util::stream::iter(jobs)
+                    .for_each_concurrent(16, |credential| {
+                        let rt = rt.clone();
+                        let cfg = cfg.clone();
+                        async move {
+                            let result = rt.prepare_credential(&credential.id, &cfg).await;
+                            let Some(current) = rt.store.get(&credential.id) else {
+                                return;
+                            };
+                            // A concurrent removal/re-import or management edit must not
+                            // transfer the old refresh failure/backoff to the replacement.
+                            if result.is_err() && current.revision != credential.revision {
+                                return;
+                            }
+                            if result
+                                .as_ref()
+                                .is_ok_and(|prepared| prepared.revision != current.revision)
+                            {
+                                return;
+                            }
+                            let ineffective = result.is_ok() && rt.executors.needs_prepare(&current, &cfg);
+                            rt.refresh_state.lock().unwrap_or_else(PoisonError::into_inner).finish(
+                                &current,
+                                result.as_ref().err(),
+                                ineffective,
+                                Instant::now(),
+                            );
+                        }
+                    })
+                    .await;
+            }
+        });
+        *task = Some(handle.abort_handle());
+    }
+
+    pub fn stop_auto_refresh(&self) {
+        if let Some(task) = self.refresh_task.lock().unwrap_or_else(PoisonError::into_inner).take() {
+            task.abort();
+        }
+    }
+}
+
+impl Drop for Runtime {
+    fn drop(&mut self) {
+        if let Some(task) = self
+            .refresh_task
+            .get_mut()
+            .unwrap_or_else(PoisonError::into_inner)
+            .take()
+        {
+            task.abort();
+        }
     }
 }
 
 #[derive(Debug)]
 pub enum AcquireError {
     NoCredential,
-    Prepare(ExecError),
+    Cooldown { wait: Duration },
+    Prepare { id: String, error: ExecError },
 }
 
-/// What the caller is asking for. The first scheduler ignores everything but
-/// `provider` and `exclude`; the fields exist so the scheduler port does not change the
-/// signature.
+/// Route-model state is separate from the lease's resolved execution model.
 #[derive(Debug, Clone, Default)]
 pub struct Selection {
     pub provider: String,
@@ -111,6 +248,7 @@ pub struct Selection {
     pub session: Option<String>,
     /// Credential IDs already tried in this request.
     pub exclude: Vec<String>,
+    pub retry_round: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -126,7 +264,9 @@ pub struct Lease {
     store: Arc<CredentialStore>,
     pub credential: Arc<Credential>,
     pub selection: Selection,
+    pub execution_model: String,
     pub attempt: u64,
+    policy: Arc<Policy>,
     reported: bool,
 }
 
@@ -187,7 +327,8 @@ struct Inner {
 
 pub struct CredentialStore {
     inner: RwLock<Inner>,
-    cursor: AtomicUsize,
+    policy: RwLock<Arc<Policy>>,
+    scheduler: Mutex<Scheduler>,
     attempts: AtomicU64,
     stats: [AtomicU64; 3],
     prepare_locks: Mutex<HashMap<String, Arc<tokio::sync::Mutex<()>>>>,
@@ -206,7 +347,8 @@ impl CredentialStore {
         }
         Arc::new(Self {
             inner: RwLock::new(inner),
-            cursor: AtomicUsize::new(0),
+            policy: RwLock::new(Arc::new(Policy::default())),
+            scheduler: Mutex::default(),
             attempts: AtomicU64::new(0),
             stats: Default::default(),
             prepare_locks: Mutex::default(),
@@ -221,33 +363,99 @@ impl CredentialStore {
         self.read().creds.iter().find(|c| c.id == id).cloned()
     }
 
-    // ponytail: round-robin over enabled credentials of one provider. Strategies,
-    // priority/weight, session affinity, model support and cooldown are the M4
-    // scheduler port (sdk/cliproxy/auth/conductor*.go).
     pub fn select(self: &Arc<Self>, selection: Selection) -> Option<Lease> {
+        let policy = self.policy.read().unwrap_or_else(PoisonError::into_inner).clone();
+        self.select_with_policy(selection, policy).ok()
+    }
+
+    pub fn select_with_policy(
+        self: &Arc<Self>,
+        selection: Selection,
+        policy: Arc<Policy>,
+    ) -> Result<Lease, AcquireError> {
+        let now = Instant::now();
         let credential = {
             let inner = self.read();
-            let candidates: Vec<&Arc<Credential>> = inner
+            let mut scheduler = self.scheduler.lock().unwrap_or_else(PoisonError::into_inner);
+            let eligible: Vec<_> = inner
                 .creds
                 .iter()
                 .filter(|c| c.provider == selection.provider && !c.disabled && !selection.exclude.contains(&c.id))
+                .filter(|c| policy.retry_limit(c) >= selection.retry_round && scheduler.admits(c, &policy))
+                .filter_map(|c| execution_model(c, &selection.model, &policy).map(|m| (c, m)))
+                .collect();
+            let candidates: Vec<_> = eligible
+                .iter()
+                .filter(|(c, m)| scheduler.wait(c, m, now).is_none())
+                .map(|(c, _)| c.as_ref())
                 .collect();
             if candidates.is_empty() {
-                return None;
+                if !eligible.is_empty()
+                    && eligible.iter().all(|(c, m)| scheduler.quota_cooling(c, m, now))
+                    && let Some(wait) = eligible.iter().filter_map(|(c, m)| scheduler.wait(c, m, now)).min()
+                {
+                    return Err(AcquireError::Cooldown { wait });
+                }
+                return Err(AcquireError::NoCredential);
             }
-            candidates[self.cursor.fetch_add(1, Ordering::Relaxed) % candidates.len()].clone()
+            let picked = scheduler.pick(&candidates, &selection, &policy, now).unwrap();
+            inner.creds.iter().find(|c| c.id == picked.id).unwrap().clone()
         };
-        Some(Lease {
+        let execution_model = execution_model(&credential, &selection.model, &policy).unwrap();
+        Ok(Lease {
             store: self.clone(),
             credential,
             selection,
+            execution_model,
             attempt: self.attempts.fetch_add(1, Ordering::Relaxed),
+            policy,
             reported: false,
         })
     }
 
-    // ponytail: outcomes are only logged. Cooldown, model cooling and retry state
-    // arrive with the scheduler port; the lease carries the model and session they need.
+    /// Returns the next round's wait, if any credential still permits that round.
+    /// A wait exceeding the cap is rejected, not shortened (Go conductor_selection.go).
+    pub fn retry_wait(&self, selection: &Selection, policy: &Policy, error: &ExecError) -> Option<Duration> {
+        self.retry_wait_at(selection, policy, error, Instant::now())
+    }
+
+    fn retry_wait_at(
+        &self,
+        selection: &Selection,
+        policy: &Policy,
+        error: &ExecError,
+        now: Instant,
+    ) -> Option<Duration> {
+        if error.scope == FailureScope::Request
+            || (!retry_status(error.status) && error.scope != FailureScope::Transport)
+        {
+            return None;
+        }
+        let inner = self.read();
+        let scheduler = self.scheduler.lock().unwrap_or_else(PoisonError::into_inner);
+        let wait = inner
+            .creds
+            .iter()
+            .filter(|c| c.provider == selection.provider && !c.disabled)
+            .filter(|c| policy.retry_limit(c) > selection.retry_round && scheduler.admits(c, policy))
+            .filter_map(|c| execution_model(c, &selection.model, policy).map(|m| (c, m)))
+            .filter(|(c, m)| scheduler.retry_eligible(c, m, now))
+            .map(|(c, m)| {
+                let wait = scheduler.wait(c, &m, now).unwrap_or_default();
+                if error.status == 429 && selection.exclude.contains(&c.id) && !policy.cooling_disabled(c) {
+                    wait.max(Duration::from_secs(10))
+                } else {
+                    wait
+                }
+            })
+            .min()?;
+        if wait > policy.max_retry_interval {
+            None
+        } else {
+            Some(wait)
+        }
+    }
+
     fn record(&self, lease: &Lease, outcome: &Outcome) {
         let slot = match outcome {
             Outcome::Success => 0,
@@ -255,13 +463,22 @@ impl CredentialStore {
             Outcome::Cancelled => 2,
         };
         self.stats[slot].fetch_add(1, Ordering::Relaxed);
-        tracing::debug!(
-            credential = %lease.credential.id,
-            model = %lease.selection.model,
-            attempt = lease.attempt,
-            ?outcome,
-            "attempt finished"
-        );
+        let inner = self.read();
+        // Outcomes from credentials deleted/re-created during an attempt must not
+        // poison the replacement. Metadata edits likewise invalidate stale results.
+        if inner
+            .creds
+            .iter()
+            .any(|c| c.id == lease.credential.id && c.revision == lease.credential.revision)
+        {
+            self.scheduler.lock().unwrap_or_else(PoisonError::into_inner).record(
+                &lease.credential,
+                &lease.execution_model,
+                outcome,
+                &lease.policy,
+                Instant::now(),
+            );
+        }
     }
 
     /// Attempts finished so far, by outcome.
@@ -327,10 +544,15 @@ impl CredentialStore {
         let mut inner = self.inner.write().unwrap_or_else(PoisonError::into_inner);
         let mut next = Vec::with_capacity(credentials.len());
         for mut cred in credentials {
-            let same = inner
-                .creds
-                .iter()
-                .find(|c| c.id == cred.id && c.source == cred.source && c.metadata == cred.metadata);
+            let same = inner.creds.iter().find(|c| {
+                c.id == cred.id
+                    && c.source == cred.source
+                    && c.metadata == cred.metadata
+                    && c.attributes == cred.attributes
+                    && c.provider == cred.provider
+                    && c.disabled == cred.disabled
+                    && c.label == cred.label
+            });
             match same {
                 Some(existing) => next.push(existing.clone()),
                 None => {
@@ -341,6 +563,10 @@ impl CredentialStore {
             }
         }
         inner.creds = next;
+        self.scheduler
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .reconcile(&inner.creds);
     }
 
     fn read(&self) -> std::sync::RwLockReadGuard<'_, Inner> {
@@ -550,6 +776,141 @@ mod tests {
         );
     }
 
+    #[test]
+    fn attribute_only_reload_changes_priority_and_rejects_stale_outcome() {
+        let a = cred("a.json", "claude", false);
+        let mut b = cred("b.json", "claude", false);
+        b.attributes.insert("priority".into(), "1".into());
+        let store = CredentialStore::new(vec![a.clone(), b.clone()]);
+        let old = store.select(sel("claude")).unwrap();
+        assert_eq!(old.credential.id, "b.json");
+        let revision = old.credential.revision;
+        b.attributes.insert("priority".into(), "2".into());
+        store.reconcile(vec![a, b]);
+        assert!(store.get("b.json").unwrap().revision > revision);
+        old.complete(Outcome::Failure(ExecError::local(
+            401,
+            FailureScope::Credential,
+            "expired",
+        )));
+        let current = store.select(sel("claude")).unwrap();
+        assert_eq!(
+            current.credential.id, "b.json",
+            "stale outcome must not cool new revision"
+        );
+        assert_eq!(current.credential.attributes["priority"], "2");
+        current.complete(Outcome::Success);
+        assert_eq!(store.stats().failure, 1);
+        assert_eq!(store.stats().success, 1);
+    }
+
+    #[test]
+    fn stale_lease_cannot_poison_deleted_and_recreated_credential() {
+        let credential = cred("a.json", "claude", false);
+        let store = CredentialStore::new(vec![credential.clone()]);
+        let old = store.select(sel("claude")).unwrap();
+        store.reconcile(Vec::new());
+        store.reconcile(vec![credential]);
+        old.complete(Outcome::Failure(ExecError::local(
+            429,
+            FailureScope::Credential,
+            "quota",
+        )));
+        store.select(sel("claude")).unwrap().complete(Outcome::Success);
+        assert_eq!(store.stats().failure, 1);
+        assert_eq!(store.stats().success, 1);
+    }
+
+    #[test]
+    fn retry_wait_obeys_exact_cap_request_scope_and_quota_floor() {
+        let store = CredentialStore::new(vec![cred("a.json", "claude", false)]);
+        let now = Instant::now();
+        let mut selection = sel("claude");
+        selection.exclude.push("a.json".into());
+        let mut policy = Policy {
+            request_retry: 1,
+            ..Policy::default()
+        };
+        let transport = ExecError::local(502, FailureScope::Transport, "connection lost");
+        assert_eq!(
+            store.retry_wait_at(&selection, &policy, &transport, now),
+            Some(Duration::ZERO)
+        );
+        let request = ExecError::local(503, FailureScope::Request, "request invalid");
+        assert_eq!(store.retry_wait_at(&selection, &policy, &request, now), None);
+        let quota = ExecError::local(429, FailureScope::Model, "quota");
+        assert_eq!(store.retry_wait_at(&selection, &policy, &quota, now), None);
+        policy.max_retry_interval = Duration::from_secs(10);
+        assert_eq!(
+            store.retry_wait_at(&selection, &policy, &quota, now),
+            Some(Duration::from_secs(10))
+        );
+        let credential = store.get("a.json").unwrap();
+        store.scheduler.lock().unwrap().record(
+            &credential,
+            &selection.model,
+            &Outcome::Failure(quota.clone()),
+            &policy,
+            now,
+        );
+        let later = now + Duration::from_millis(1);
+        assert_eq!(
+            store.retry_wait_at(&selection, &policy, &quota, later),
+            Some(Duration::from_secs(10))
+        );
+        policy.max_retry_interval = Duration::from_secs(9);
+        assert_eq!(store.retry_wait_at(&selection, &policy, &quota, later), None);
+        policy.disable_cooling = true;
+        store.scheduler.lock().unwrap().record(
+            &credential,
+            &selection.model,
+            &Outcome::Failure(quota.clone()),
+            &policy,
+            later,
+        );
+        policy.max_retry_interval = Duration::ZERO;
+        assert_eq!(
+            store.retry_wait_at(&selection, &policy, &quota, later),
+            Some(Duration::ZERO)
+        );
+        selection.retry_round = 1;
+        assert_eq!(store.retry_wait_at(&selection, &policy, &transport, later), None);
+    }
+
+    #[tokio::test]
+    async fn preparation_waiter_observes_deletion_and_refresh_loop_is_replaceable() {
+        let rt = Arc::new(Runtime::new(
+            Config::parse("").unwrap(),
+            vec![cred("a.json", "claude", false)],
+            Executors {
+                claude: cpa_exec::claude::ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
+            },
+        ));
+        let lock = rt.store.prepare_lock("a.json");
+        let guard = lock.lock().await;
+        let worker = {
+            let rt = rt.clone();
+            tokio::spawn(async move { rt.prepare_credential("a.json", &rt.config()).await })
+        };
+        tokio::task::yield_now().await;
+        assert!(!worker.is_finished());
+        rt.store.reconcile(Vec::new());
+        drop(guard);
+        let error = worker.await.unwrap().unwrap_err();
+        assert_eq!(error.scope, FailureScope::Request);
+        assert!(rt.store.snapshot().is_empty());
+        rt.start_auto_refresh();
+        let first = rt.refresh_task.lock().unwrap().clone().unwrap();
+        rt.start_auto_refresh();
+        tokio::task::yield_now().await;
+        assert!(first.is_finished());
+        let second = rt.refresh_task.lock().unwrap().clone().unwrap();
+        rt.stop_auto_refresh();
+        tokio::task::yield_now().await;
+        assert!(second.is_finished());
+        assert!(rt.refresh_task.lock().unwrap().is_none());
+    }
+
     #[tokio::test]
     async fn every_lease_reports_exactly_once() {
         let store = CredentialStore::new(vec![cred("a.json", "claude", false)]);
@@ -567,7 +928,7 @@ mod tests {
         assert_eq!(store.stats(), stats(1, 0, 1));
 
         // A stream that errors and would then hang forever: the wrapper stops after Err.
-        let err = ExecError::local(502, FailureScope::Credential, "boom");
+        let err = ExecError::local(502, FailureScope::Transport, "boom");
         let inner = futures_util::stream::iter(vec![Ok(Bytes::from_static(b"a")), Err(err)])
             .chain(futures_util::stream::pending())
             .boxed();
