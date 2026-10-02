@@ -32,13 +32,7 @@ pub mod kimi_auth;
 #[cfg(test)]
 mod kimi_fixture;
 mod kimi_http;
-// ponytail: Kimi now uses cpa_common::json and ::thinking. Only openai_compat (as of
-// base 320729c) still imports these two; delete both files at the a90fd01 merge.
-#[allow(dead_code)]
-mod kimi_json;
 mod kimi_replay;
-#[allow(dead_code)]
-mod kimi_thinking;
 pub mod meta;
 pub mod meta_auth;
 mod meta_codex;
