@@ -223,14 +223,31 @@ impl OAuth {
         Ok(patch)
     }
 
-    /// `ClaudeAuth.RefreshTokens`: concurrent refreshes of one token share a single
-    /// exchange; a finished result is never reused, so a forced refresh after an
-    /// upstream 401 always exchanges again. After a 429 the token is blocked until its
-    /// Retry-After; a success clears the block.
+    /// `ClaudeAuth.RefreshTokensWithRetry` with three attempts: each caller owns its
+    /// retry budget and backoff, so a caller that joins a failing exchange late still
+    /// retries, and a canceled caller stops retrying.
     pub async fn refresh(&self, refresh: &str) -> Result<MetadataPatch, ExecError> {
         if refresh.is_empty() {
             return Err(acquisition_error("refresh token is required"));
         }
+        for attempt in 0..3 {
+            if attempt > 0 {
+                tokio::time::sleep(Duration::from_secs(attempt)).await;
+            }
+            // isClaudeRefreshRetryable: 5xx and transport failures; never a 429.
+            match self.refresh_once(refresh).await {
+                Err(error) if error.status >= 500 && attempt < 2 => continue,
+                result => return result,
+            }
+        }
+        unreachable!("third attempt always returns")
+    }
+
+    /// `ClaudeAuth.RefreshTokens`: concurrent attempts for one token share a single
+    /// exchange; a finished result is never reused, so a forced refresh after an
+    /// upstream 401 always exchanges again. After a 429 the token is blocked until its
+    /// Retry-After; a success clears the block.
+    async fn refresh_once(&self, refresh: &str) -> Result<MetadataPatch, ExecError> {
         let key: [u8; 32] = Sha256::digest(format!("{}\0{refresh}", self.token_url).as_bytes()).into();
         let result = {
             let mut state = refreshes();
@@ -251,7 +268,16 @@ impl OAuth {
                 let refresh = refresh.to_owned();
                 // A canceled caller must not abandon an already-rotated refresh token.
                 let task = tokio::spawn(async move {
-                    let result = oauth.refresh_with_retry(&refresh).await;
+                    // Go's map marshaler sorts these four keys lexically.
+                    let body = serde_json::to_vec(&json!({
+                        "client_id": CLIENT_ID, "grant_type": "refresh_token",
+                        "refresh_token": refresh, "scope": SCOPE,
+                    }))
+                    .map_err(|_| acquisition_error("cannot encode OAuth request"));
+                    let result = match body {
+                        Ok(body) => oauth.tokens(body, &refresh, false).await,
+                        Err(error) => Err(error),
+                    };
                     let mut state = refreshes();
                     state.in_flight.remove(&key);
                     match &result {
@@ -277,25 +303,6 @@ impl OAuth {
             }
         };
         result.await
-    }
-
-    async fn refresh_with_retry(&self, refresh: &str) -> Result<MetadataPatch, ExecError> {
-        // Go's map marshaler sorts these four keys lexically.
-        let body = serde_json::to_vec(&json!({
-            "client_id": CLIENT_ID, "grant_type": "refresh_token",
-            "refresh_token": refresh, "scope": SCOPE,
-        }))
-        .map_err(|_| acquisition_error("cannot encode OAuth request"))?;
-        for attempt in 0..3 {
-            if attempt > 0 {
-                tokio::time::sleep(Duration::from_secs(attempt)).await;
-            }
-            match self.tokens(body.clone(), refresh, false).await {
-                Err(error) if error.status >= 500 && attempt < 2 => continue,
-                result => return result,
-            }
-        }
-        unreachable!("third attempt always returns")
     }
 
     pub async fn exchange(&self, code: &str, state: &str, verifier: &str) -> Result<MetadataPatch, ExecError> {
