@@ -70,6 +70,10 @@ enum Act {
     Send(Vec<&'static str>),
     /// Send, then close the socket with this code.
     SendClose(Vec<&'static str>, u16),
+    /// Send one owned text frame (large payloads).
+    SendOwned(String),
+    /// Ping `count` times, `every` apart, without any application message.
+    Pings(Duration, usize),
 }
 
 #[derive(Default)]
@@ -81,6 +85,8 @@ struct Upstream {
     reject: Mutex<Option<(u16, &'static str)>>,
     /// Sockets that ended (closed by either side).
     ended: Mutex<usize>,
+    /// Send a binary message right after the handshake, before any request.
+    binary_first: Mutex<bool>,
 }
 
 async fn handler(State(up): State<Arc<Upstream>>, ws: WebSocketUpgrade, headers: axum::http::HeaderMap) -> Response {
@@ -107,6 +113,9 @@ async fn handler(State(up): State<Arc<Upstream>>, ws: WebSocketUpgrade, headers:
 }
 
 async fn serve_socket(up: Arc<Upstream>, mut socket: AxSocket) {
+    if *up.binary_first.lock().unwrap() {
+        let _ = socket.send(AxMessage::Binary(vec![1u8, 2, 3].into())).await;
+    }
     while let Some(Ok(message)) = socket.recv().await {
         let AxMessage::Text(text) = message else {
             continue;
@@ -116,6 +125,19 @@ async fn serve_socket(up: Arc<Upstream>, mut socket: AxSocket) {
         let (events, close) = match act {
             Some(Act::Send(events)) => (events, None),
             Some(Act::SendClose(events, code)) => (events, Some(code)),
+            Some(Act::SendOwned(text)) => {
+                let _ = socket.send(AxMessage::Text(text.into())).await;
+                continue;
+            }
+            Some(Act::Pings(every, count)) => {
+                for _ in 0..count {
+                    tokio::time::sleep(every).await;
+                    if socket.send(AxMessage::Ping(Bytes::new())).await.is_err() {
+                        break;
+                    }
+                }
+                continue;
+            }
             None => continue,
         };
         for event in events {
@@ -315,4 +337,100 @@ async fn close_1009_is_a_request_scoped_413_and_notifies() {
         .await
         .expect("session notified");
     assert_eq!(notified.status, 413);
+}
+
+/// Go keeps one read deadline per application message: pings answered while waiting do
+/// not extend it, so a stalled upstream that only pings still times out.
+#[tokio::test]
+async fn pings_do_not_extend_the_idle_deadline() {
+    let (_up, url) = upstream(vec![Act::Pings(Duration::from_millis(100), 30)]).await;
+    let mut executor = CodexExecutor::new().unwrap();
+    executor.ws = Pool::with_idle(Duration::from_millis(400));
+    let response = executor
+        .execute_in_session(&credential(&url), request(BODY), &Config::default(), &session(false))
+        .await
+        .unwrap();
+    let events = tokio::time::timeout(Duration::from_secs(2), collect(response))
+        .await
+        .expect("idle deadline fires despite pings");
+    let error = events
+        .last()
+        .unwrap()
+        .as_ref()
+        .expect_err("the turn ends with the timeout");
+    assert_eq!(error.scope, FailureScope::Transport);
+    assert!(String::from_utf8_lossy(&error.body).contains("idle timeout"), "{error}");
+}
+
+/// A reader that fails before the first turn activates (binary message right after the
+/// handshake) must fail that turn instead of leaving it waiting on a dead socket.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn reader_failure_before_the_turn_activates_fails_the_turn() {
+    for _ in 0..20 {
+        let (up, url) = upstream(vec![]).await;
+        *up.binary_first.lock().unwrap() = true;
+        let executor = CodexExecutor::new().unwrap();
+        let (cred, cfg, sess) = (credential(&url), Config::default(), session(false));
+        let turn = executor.execute_in_session(&cred, request(BODY), &cfg, &sess);
+        let outcome = tokio::time::timeout(Duration::from_secs(2), async {
+            match turn.await {
+                Ok(response) => collect(response).await.into_iter().find_map(Result::err),
+                Err(error) => Some(error),
+            }
+        })
+        .await
+        .expect("the turn must not hang on a dead socket");
+        let error = outcome.expect("the turn fails");
+        assert_eq!(error.scope, FailureScope::Transport, "{error}");
+    }
+}
+
+/// With model-level cooling, a usage-limit handshake rejection cools only the model
+/// (`newCodexStatusErrWithCooling`); without it, the whole credential.
+#[tokio::test]
+async fn handshake_usage_limit_honours_model_level_cooling() {
+    const LIMIT: &str = r#"{"error":{"type":"usage_limit_reached","message":"limit","resets_in_seconds":3600}}"#;
+    for (cooling, scope) in [(false, FailureScope::Credential), (true, FailureScope::Model)] {
+        let (up, url) = upstream(vec![]).await;
+        *up.reject.lock().unwrap() = Some((429, LIMIT));
+        let cfg = Config::parse(&format!(
+            "oauth:\n  providers:\n    codex:\n      model-level-cooling: {cooling}\n"
+        ))
+        .unwrap();
+        let error = CodexExecutor::new()
+            .unwrap()
+            .execute_in_session(&credential(&url), request(BODY), &cfg, &session(false))
+            .await
+            .err()
+            .expect("429 handshake");
+        assert_eq!((error.status, error.scope), (429, scope), "cooling {cooling}");
+        assert_eq!(error.retry_after, Some(Duration::from_secs(3600)));
+    }
+}
+
+/// Upstream frames above tungstenite's 16 MiB default reach the client (Go sets no read
+/// limit; the executor allows 64 MiB).
+#[tokio::test]
+async fn large_upstream_frames_are_delivered() {
+    let delta = format!(
+        r#"{{"type":"response.output_text.delta","delta":"{}"}}"#,
+        "a".repeat(17 * 1024 * 1024)
+    );
+    let len = delta.len();
+    let (up, url) = upstream(vec![Act::SendOwned(delta)]).await;
+    up.script.lock().unwrap().push_back(Act::Send(vec![]));
+    let executor = CodexExecutor::new().unwrap();
+    let response = executor
+        .execute_in_session(&credential(&url), request(BODY), &Config::default(), &session(false))
+        .await
+        .unwrap();
+    let ResponseBody::Stream(mut stream) = response.body else {
+        panic!("websocket turns stream");
+    };
+    let first = tokio::time::timeout(Duration::from_secs(10), stream.next())
+        .await
+        .expect("frame arrives")
+        .expect("stream item")
+        .expect("not an error");
+    assert_eq!(first.len(), len);
 }

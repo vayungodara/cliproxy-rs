@@ -60,6 +60,12 @@ const TURN_STATE: &str = "x-codex-turn-state";
 // ponytail: gorilla reads messages of any size; 64 MiB (the HTTP body cap) bounds
 // per-connection memory instead.
 const MAX_MESSAGE: usize = crate::MAX_REQUEST_BYTES;
+/// Bound on a terminal close or error write. Go closes the socket at once when a data
+/// write is still in flight (`closeForUpstreamError`); here the write may have been
+/// interrupted with bytes still queued, and a client that stopped reading would hold the
+/// flush, the connection task and its executor session forever.
+// ponytail: one fixed best-effort bound instead of Go's in-flight-writer check.
+const TERMINAL_WRITE: Duration = Duration::from_secs(1);
 
 async fn upgrade(
     State(rt): State<Arc<Runtime>>,
@@ -918,12 +924,11 @@ async fn send_text(socket: &mut WebSocket, payload: String) -> bool {
 
 async fn close_with_code(socket: &mut WebSocket, code: u16, reason: &str) {
     let reason = requests::truncate_reason(reason, CLOSE_REASON_MAX);
-    let _ = socket
-        .send(Message::Close(Some(CloseFrame {
-            code,
-            reason: reason.into(),
-        })))
-        .await;
+    let close = Message::Close(Some(CloseFrame {
+        code,
+        reason: reason.into(),
+    }));
+    let _ = tokio::time::timeout(TERMINAL_WRITE, socket.send(close)).await;
 }
 
 /// `websocketClosePayloadForUpstreamError`: replay and message-too-big failures map to
@@ -964,7 +969,7 @@ async fn close_for_failure(socket: &mut WebSocket, failure: &Failure) {
             .payload
             .clone()
             .unwrap_or_else(|| error_payload(failure.status, &failure.text));
-        let _ = socket.send(Message::Text(payload.into())).await;
+        let _ = tokio::time::timeout(TERMINAL_WRITE, socket.send(Message::Text(payload.into()))).await;
     }
 }
 
@@ -972,3 +977,7 @@ async fn close_for_failure(socket: &mut WebSocket, failure: &Failure) {
 async fn close_for_upstream_loss(socket: &mut WebSocket, error: &ExecError) {
     close_for_failure(socket, &Failure::from_exec(error)).await;
 }
+
+#[cfg(test)]
+#[path = "websocket_tests.rs"]
+mod tests;

@@ -40,6 +40,10 @@ const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(30);
 const TURN_BUFFER: usize = 4096;
 /// Bound on a handshake rejection body.
 const MAX_HANDSHAKE_BODY: usize = 64 * 1024;
+/// Largest upstream frame or message read.
+// ponytail: Go sets no read limit; 64 MiB (the HTTP body cap) keeps one socket's memory
+// bounded while fitting image-bearing output items.
+const MAX_UPSTREAM_MESSAGE: usize = 64 * 1024 * 1024;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct Target {
@@ -54,25 +58,38 @@ enum Read {
     Failed(ExecError),
 }
 
+/// The reader's hand-off to the turn in progress. One lock covers both fields, so a turn
+/// that activates after the reader exited sees why instead of waiting forever.
+#[derive(Default)]
+struct Link {
+    /// The turn currently reading, if any.
+    active: Option<mpsc::Sender<Read>>,
+    /// Why the reader stopped (`upstreamDisconnectError`); set once when it exits.
+    lost: Option<ExecError>,
+}
+
 struct Upstream {
     target: Target,
     sink: tokio::sync::Mutex<SplitSink<WebSocket, Message>>,
-    /// The turn currently reading, if any.
-    active: Mutex<Option<mpsc::Sender<Read>>>,
+    link: Mutex<Link>,
     reader: Mutex<Option<tokio::task::AbortHandle>>,
-    /// Why the reader stopped (`upstreamDisconnectError`).
-    lost: Mutex<Option<ExecError>>,
 }
 
 impl Upstream {
     fn activate(&self) -> mpsc::Receiver<Read> {
         let (tx, rx) = mpsc::channel(TURN_BUFFER);
-        *self.active.lock().expect("active turn") = Some(tx);
+        let mut link = self.link.lock().expect("link");
+        match &link.lost {
+            Some(error) => {
+                let _ = tx.try_send(Read::Failed(error.clone()));
+            }
+            None => link.active = Some(tx),
+        }
         rx
     }
 
     fn deactivate(&self) {
-        self.active.lock().expect("active turn").take();
+        self.link.lock().expect("link").active.take();
     }
 
     /// `writeCodexWebsocketMessage` + `mapCodexWebsocketWriteError`: a write after the
@@ -80,9 +97,10 @@ impl Upstream {
     async fn send(&self, frame: String) -> Result<(), ExecError> {
         let sent = self.sink.lock().await.send(Message::text(frame)).await;
         sent.map_err(|_| {
-            self.lost
+            self.link
                 .lock()
-                .expect("lost")
+                .expect("link")
+                .lost
                 .clone()
                 .filter(|e| e.status == 413)
                 .unwrap_or_else(|| transport("codex websockets executor: write failed"))
@@ -144,12 +162,30 @@ impl Session {
 }
 
 /// Upstream sockets by downstream session id.
-#[derive(Default)]
 pub(crate) struct Pool {
     sessions: Mutex<HashMap<String, Arc<Session>>>,
+    /// Read deadline for each upstream application message.
+    idle: Duration,
+}
+
+impl Default for Pool {
+    fn default() -> Self {
+        Self {
+            sessions: Mutex::default(),
+            idle: IDLE_TIMEOUT,
+        }
+    }
 }
 
 impl Pool {
+    #[cfg(test)]
+    pub fn with_idle(idle: Duration) -> Self {
+        Self {
+            idle,
+            ..Self::default()
+        }
+    }
+
     fn session(&self, id: &str) -> Arc<Session> {
         self.sessions
             .lock()
@@ -551,6 +587,7 @@ impl CodexExecutor {
         session: &Arc<Session>,
         target: &Target,
         headers: &HeaderMap,
+        model_level_cooling: bool,
     ) -> Result<(Arc<Upstream>, Option<HeaderMap>), ExecError> {
         if let Some(current) = session.current() {
             if current.target == *target {
@@ -564,23 +601,37 @@ impl CodexExecutor {
             drop(slot);
             current.shutdown();
         }
-        let (socket, handshake) = self.dial(target, headers).await?;
+        let (socket, handshake) = self.dial(target, headers, model_level_cooling).await?;
         let (sink, stream) = socket.split();
         let conn = Arc::new(Upstream {
             target: target.clone(),
             sink: tokio::sync::Mutex::new(sink),
-            active: Mutex::default(),
+            link: Mutex::default(),
             reader: Mutex::default(),
-            lost: Mutex::default(),
         });
-        let reader = tokio::spawn(read_loop(stream, Arc::downgrade(session), conn.clone()));
-        *conn.reader.lock().expect("reader handle") = Some(reader.abort_handle());
+        // Publish before the reader runs, so a reader that fails at once still finds its
+        // socket current and invalidates it; holding the handle slot keeps a concurrent
+        // shutdown from missing the abort handle.
+        let mut reader = conn.reader.lock().expect("reader handle");
         *session.conn.lock().expect("session conn") = Some(conn.clone());
+        let task = tokio::spawn(read_loop(stream, Arc::downgrade(session), conn.clone(), self.ws.idle));
+        *reader = Some(task.abort_handle());
+        drop(reader);
         Ok((conn, Some(handshake)))
     }
 
-    async fn dial(&self, target: &Target, headers: &HeaderMap) -> Result<(WebSocket, HeaderMap), ExecError> {
-        let mut builder = self.client.websocket(&target.url).headers(headers.clone());
+    async fn dial(
+        &self,
+        target: &Target,
+        headers: &HeaderMap,
+        model_level_cooling: bool,
+    ) -> Result<(WebSocket, HeaderMap), ExecError> {
+        let mut builder = self
+            .client
+            .websocket(&target.url)
+            .headers(headers.clone())
+            .max_frame_size(MAX_UPSTREAM_MESSAGE)
+            .max_message_size(MAX_UPSTREAM_MESSAGE);
         match target.proxy.as_str() {
             "" => {}
             p if p.eq_ignore_ascii_case("direct") || p.eq_ignore_ascii_case("none") => {}
@@ -613,7 +664,7 @@ impl CodexExecutor {
                     let text = String::from_utf8_lossy(&body).into_owned();
                     return Err(response::status_error_raw(status, &text, handshake, false));
                 }
-                return Err(response::status_error(status, &body, handshake, false));
+                return Err(response::status_error(status, &body, handshake, model_level_cooling));
             }
             let socket = res
                 .into_websocket()
@@ -658,7 +709,8 @@ impl CodexExecutor {
                 None => return Err(ExecError::replay_required()),
             }
         } else {
-            self.ensure(&session, &target, &headers).await?
+            self.ensure(&session, &target, &headers, settings.model_level_cooling)
+                .await?
         };
         let frame = request_frame(body);
         let started = Instant::now();
@@ -675,7 +727,9 @@ impl CodexExecutor {
                 return Err(error);
             }
             // Retry once on a fresh socket: upstream may have closed it between turns.
-            let (fresh, fresh_handshake) = self.ensure(&session, &target, &headers).await?;
+            let (fresh, fresh_handshake) = self
+                .ensure(&session, &target, &headers, settings.model_level_cooling)
+                .await?;
             rx = fresh.activate();
             if let Err(error) = fresh.send(frame).await {
                 session.invalidate(&fresh, &error, true);
@@ -715,33 +769,42 @@ impl CodexExecutor {
 }
 
 /// The socket's single reader. Exits on error, idle timeout, or abort.
-async fn read_loop(mut stream: SplitStream<WebSocket>, session: Weak<Session>, conn: Arc<Upstream>) {
-    let error = loop {
-        let next = match tokio::time::timeout(IDLE_TIMEOUT, stream.next()).await {
-            Err(_) => break transport("codex websockets executor: read idle timeout"),
-            Ok(None) => break transport("codex websockets executor: upstream closed the connection"),
-            Ok(Some(Err(_))) => break transport("codex websockets executor: read failed"),
-            Ok(Some(Ok(message))) => message,
-        };
-        let text = match next {
-            Message::Text(text) => text.as_str().to_owned(),
-            Message::Binary(_) => break transport("codex websockets executor: unexpected binary message"),
-            Message::Close(frame) => {
-                if let Some(frame) = frame.filter(|f| u16::from(f.code.clone()) == 1009) {
-                    break message_too_big(frame.reason.as_str());
+///
+/// Like Go's read deadline, `idle` starts when the read for the next application message
+/// begins; control frames answered meanwhile do not extend it.
+async fn read_loop(mut stream: SplitStream<WebSocket>, session: Weak<Session>, conn: Arc<Upstream>, idle: Duration) {
+    let error = 'read: loop {
+        let deadline = tokio::time::Instant::now() + idle;
+        let text = loop {
+            let message = match tokio::time::timeout_at(deadline, stream.next()).await {
+                Err(_) => break 'read transport("codex websockets executor: read idle timeout"),
+                Ok(None) => break 'read transport("codex websockets executor: upstream closed the connection"),
+                Ok(Some(Err(_))) => break 'read transport("codex websockets executor: read failed"),
+                Ok(Some(Ok(message))) => message,
+            };
+            match message {
+                Message::Text(text) => break text.as_str().to_owned(),
+                Message::Binary(_) => break 'read transport("codex websockets executor: unexpected binary message"),
+                Message::Close(frame) => {
+                    if let Some(frame) = frame.filter(|f| u16::from(f.code.clone()) == 1009) {
+                        break 'read message_too_big(frame.reason.as_str());
+                    }
+                    break 'read transport("codex websockets executor: upstream closed the connection");
                 }
-                break transport("codex websockets executor: upstream closed the connection");
+                Message::Ping(_) | Message::Pong(_) => continue,
             }
-            Message::Ping(_) | Message::Pong(_) => continue,
         };
-        let active = conn.active.lock().expect("active turn").clone();
+        let active = conn.link.lock().expect("link").active.clone();
         if let Some(tx) = active {
             // Waits while the turn is busy: backpressure instead of unbounded queueing.
             let _ = tx.send(Read::Text(text)).await;
         }
     };
-    *conn.lost.lock().expect("lost") = Some(error.clone());
-    let active = conn.active.lock().expect("active turn").clone();
+    let active = {
+        let mut link = conn.link.lock().expect("link");
+        link.lost = Some(error.clone());
+        link.active.clone()
+    };
     if let Some(tx) = active {
         let _ = tx.try_send(Read::Failed(error.clone()));
     }

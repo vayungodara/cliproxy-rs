@@ -82,6 +82,12 @@ pub(crate) fn session_key(headers: &HeaderMap) -> String {
     String::new()
 }
 
+/// Whether an open downstream connection holds `key`'s caches.
+#[cfg(test)]
+pub(crate) fn is_retained(key: &str) -> bool {
+    caches().refs.contains_key(key)
+}
+
 /// Holds the session's caches while a downstream connection is open
 /// (`retainResponsesWebsocketToolCaches` / `releaseResponsesWebsocketToolCaches`).
 pub(crate) struct Retained(String);
