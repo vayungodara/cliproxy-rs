@@ -37,6 +37,7 @@ mod kimi_thinking;
 pub mod meta;
 pub mod meta_auth;
 mod meta_codex;
+mod meta_wire;
 pub mod oauth;
 mod quota;
 mod tls;

@@ -296,3 +296,65 @@ func TestRSFixMetaWriter(t *testing.T) {
 	}
 	rsfixWrite(t, "meta", rsfixFixture{Name: "writer", Credential: map[string]any{}, Request: map[string]any{}, Extra: map[string]any{"cases": cases, "file_names": names}})
 }
+
+// TestRSFixMetaDecode records Go's json.Unmarshal results for the Meta auth wire records:
+// field folding, duplicates, nulls, type errors (first error wins, decoding continues) and
+// syntax errors.
+func TestRSFixMetaDecode(t *testing.T) {
+	rsfixOut(t)
+	inputs := []string{
+		`{"DEVICE_CODE":"d","User_Code":"u","interval":2}`,
+		`{"device_code":"a","device_code":"b","user_code":"u"}`,
+		`{"device_code":"a","Device_Code":"b","DEVICE_CODE":null,"user_code":"u"}`,
+		`{"device_code":null,"user_code":"u","expires_in":null}`,
+		`{"interval":1.5}`, `{"interval":"5"}`, `{"interval":1e3}`, `{"interval":-0}`,
+		`{"interval":99999999999999999999}`, `{"interval":true}`, `{"interval":{}}`, `{"interval":[]}`,
+		`{"device_code":5}`, `{"device_code":true}`, `{"device_code":{"a":1},"user_code":[1],"interval":7}`,
+		`{"TokenEndpoint":"x","-":"y","device_code":"\u00e9\ud83d\ude00"}`,
+		`[1]`, `null`, `"x"`, `5`, `true`, ``, ` `, `{`, `{"a":tru}`, `{"a" 1}`, `nul`, `{"a":1}x`, "{\"a\":\"\x01\"}",
+		`{"a":01}`, `{"a":-}`, `{"a":1.}`, `{"a":1e}`, `{'a':1}`, `{"a":"\q"}`, `{"a":"\u12g4"}`, `{"a":1,}`, `[1,]`,
+		`{"a":[1 2]}`, `{"a":fals}`, `{"a":nulx}`, "{\"a\":\xc3\xa9}", "{\"a\":\x7f}", "{\"a\":\xc2\xa0}", `{"a":1}}`,
+		`{"access_token":"t","ACCESS_TOKEN":"T","Expires_In":5,"expires_at":"x","Error":"slow_down"}`,
+		`{"error":5,"ERROR":"access_denied","error_description":null}`,
+		`{"api_key":"first","api_key":"second"}`, `{"API_KEY":"k","Is_Subs_Active":true,"has_payment_method":null}`,
+		`{"api_key":"k","is_subs_active":"yes"}`, `{"api_key":"k","can_subscribe":1,"require_payment":false}`,
+		`{"ſtatus":1,"api_kKey":"x"}`, "{\"api_\u212aey\":\"kelvin\",\"\u017fubs_tier_name\":\"longs\"}",
+	}
+	type result struct {
+		Value any    `json:"value"`
+		Err   string `json:"err"`
+	}
+	var out []map[string]any
+	for _, in := range inputs {
+		var d metaauth.DeviceCodeResponse
+		errD := json.Unmarshal([]byte(in), &d)
+		var tk metaauth.TokenData
+		errT := json.Unmarshal([]byte(in), &tk)
+		var m metaauth.MintedKeyResponse
+		errM := json.Unmarshal([]byte(in), &m)
+		msg := func(err error) string {
+			if err == nil {
+				return ""
+			}
+			return err.Error()
+		}
+		out = append(out, map[string]any{
+			"input":  in,
+			"device": result{d, msg(errD)},
+			"token":  result{tk, msg(errT)},
+			"mint":   result{m, msg(errM)},
+		})
+	}
+	// quoteChar for every byte: a lone byte where a value must begin.
+	var bytesOut []map[string]any
+	for b := 0; b < 256; b++ {
+		var v map[string]any
+		err := json.Unmarshal([]byte{byte(b)}, &v)
+		msg := ""
+		if err != nil {
+			msg = err.Error()
+		}
+		bytesOut = append(bytesOut, map[string]any{"byte": b, "err": msg})
+	}
+	rsfixWrite(t, "meta", rsfixFixture{Name: "decode", Credential: map[string]any{}, Request: map[string]any{}, Extra: map[string]any{"cases": out, "bytes": bytesOut}})
+}

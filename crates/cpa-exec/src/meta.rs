@@ -204,7 +204,8 @@ impl MetaExecutor {
         .await?;
         if !(200..300).contains(&upstream.status) {
             let headers = upstream.headers.clone();
-            let body = read_all(upstream.body, MAX_ERROR_BODY, true).await.unwrap_or_default();
+            // Go returns a failed error-body read as is, never classified by status.
+            let body = read_all(upstream.body, MAX_ERROR_BODY, false).await?;
             let mut error = upstream_error(upstream.status, &body);
             error.headers = Box::new(headers);
             return Err(error);
@@ -286,7 +287,7 @@ impl ResponseSide {
     fn stream_translator(&self, req: &ExecRequest, translated: &Bytes) -> Box<dyn StreamTranslator> {
         match self {
             Self::Pair(pair) => (pair.stream)(&response_ctx(req, translated)),
-            Self::Responses => Box::new(CodexToResponses::new(&req.model, &req.original_body, translated)),
+            Self::Responses => Box::new(CodexToResponses::new(&req.model, original(req), translated)),
         }
     }
 
@@ -307,8 +308,17 @@ impl ResponseSide {
 fn response_ctx<'a>(req: &'a ExecRequest, translated: &'a Bytes) -> ResponseCtx<'a> {
     ResponseCtx {
         model: &req.model,
-        original_request: &req.original_body,
+        original_request: original(req),
         translated_request: translated,
+    }
+}
+
+/// `opts.OriginalRequest`, falling back to the request payload when empty.
+fn original(req: &ExecRequest) -> &Bytes {
+    if req.original_body.is_empty() {
+        &req.body
+    } else {
+        &req.original_body
     }
 }
 
@@ -376,7 +386,7 @@ fn prepare(req: &ExecRequest, cfg: &Config, stream: bool) -> Result<Prepared, Ex
     body = kimi_thinking::apply(
         &body,
         source,
-        text(&req.original_body)?,
+        text(original(req))?,
         &req.model,
         req.source_format.as_str(),
         "codex",

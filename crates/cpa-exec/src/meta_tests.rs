@@ -248,7 +248,7 @@ async fn error_signals_follow_go_scopes_and_retry_hints() {
 /// The minted key the fixture's mint endpoint answered with.
 fn minted(r: &Run, index: usize) -> MintedKey {
     let body = replace_origin(&r.fx["responses"][index]["body"], &r.origin, &r.url);
-    serde_json::from_str(body.as_str().unwrap()).unwrap()
+    MintedKey::decode(body.as_str().unwrap().as_bytes()).unwrap()
 }
 
 fn assert_metadata_after(r: &Run, name: &str, patch: &MetadataPatch) {
@@ -404,7 +404,7 @@ fn file_names_and_writer_match_go() {
         let storage: TokenStorage = serde_json::from_value(case["storage"].clone()).unwrap();
         let snapshot: Option<GoMap> = case["snapshot"]
             .as_object()
-            .map(|m| go_map_from_json(&serde_json::to_vec(m).unwrap()).unwrap());
+            .map(|m| go_map_from_json(&serde_json::to_vec(m).unwrap()).unwrap().0);
         let disk = case["disk"].as_str().unwrap();
         let out = case["out"].as_str().unwrap();
         assert_eq!(
@@ -557,6 +557,240 @@ async fn device_flow_errors_and_slow_down_follow_go() {
             .await
             .unwrap_err()
             .starts_with("meta device flow: parse response: ")
+    );
+}
+
+#[test]
+fn auth_records_decode_like_go_json_unmarshal() {
+    // Go json.Unmarshal into DeviceCodeResponse, TokenData and MintedKeyResponse.
+    let fx = fixture("meta", "decode");
+    let string = |v: &Value, k: &str| v[k].as_str().unwrap_or_default().to_owned();
+    let int = |v: &Value, k: &str| v[k].as_i64().unwrap_or_default();
+    let boolean = |v: &Value, k: &str| v[k].as_bool().unwrap_or_default();
+    for case in fx["extra"]["cases"].as_array().unwrap() {
+        let input = case["input"].as_str().unwrap();
+        let raw = input.as_bytes();
+        let err = |r: &Value| r["err"].as_str().unwrap().to_owned();
+
+        let go = &case["device"];
+        match crate::meta_auth::DeviceCode::decode_for_test(raw) {
+            Ok(c) => {
+                assert_eq!(err(go), "", "device {input}");
+                let v = &go["value"];
+                assert_eq!(
+                    (
+                        c.device_code,
+                        c.user_code,
+                        c.verification_uri,
+                        c.verification_uri_complete
+                    ),
+                    (
+                        string(v, "device_code"),
+                        string(v, "user_code"),
+                        string(v, "verification_uri"),
+                        string(v, "verification_uri_complete")
+                    ),
+                    "device {input}"
+                );
+                assert_eq!(
+                    (c.expires_in, c.interval),
+                    (int(v, "expires_in"), int(v, "interval")),
+                    "device {input}"
+                );
+            }
+            Err(e) => assert_eq!(e, err(go), "device {input}"),
+        }
+
+        let go = &case["token"];
+        let (t, result) = crate::meta_auth::TokenData::decode_for_test(raw);
+        assert_eq!(result.err().unwrap_or_default(), err(go), "token {input}");
+        let v = &go["value"];
+        assert_eq!(
+            (t.access_token, t.token_type, t.error, t.error_description),
+            (
+                string(v, "access_token"),
+                string(v, "token_type"),
+                string(v, "error"),
+                string(v, "error_description")
+            ),
+            "token {input}"
+        );
+        assert_eq!(
+            (t.expires_in, t.expires_at),
+            (int(v, "expires_in"), int(v, "expires_at")),
+            "token {input}"
+        );
+
+        let go = &case["mint"];
+        match MintedKey::decode(raw) {
+            Ok(m) => {
+                assert_eq!(err(go), "", "mint {input}");
+                let v = &go["value"];
+                assert_eq!(
+                    (
+                        m.api_key,
+                        m.base_url,
+                        m.user_email,
+                        m.user_full_name,
+                        m.subs_tier_name,
+                        m.subs_tier_id
+                    ),
+                    (
+                        string(v, "api_key"),
+                        string(v, "base_url"),
+                        string(v, "user_email"),
+                        string(v, "user_full_name"),
+                        string(v, "subs_tier_name"),
+                        string(v, "subs_tier_id")
+                    ),
+                    "mint {input}"
+                );
+                assert_eq!(
+                    (
+                        m.is_subs_active,
+                        m.has_payment_method,
+                        m.require_payment,
+                        m.can_subscribe
+                    ),
+                    (
+                        boolean(v, "is_subs_active"),
+                        boolean(v, "has_payment_method"),
+                        boolean(v, "require_payment"),
+                        boolean(v, "can_subscribe")
+                    ),
+                    "mint {input}"
+                );
+            }
+            Err(e) => assert_eq!(e, err(go), "mint {input}"),
+        }
+    }
+}
+
+#[test]
+fn syntax_errors_quote_every_byte_like_go() {
+    // json.Unmarshal of each single byte: scanner messages and quoteChar.
+    let fx = fixture("meta", "decode");
+    for case in fx["extra"]["bytes"].as_array().unwrap() {
+        let byte = case["byte"].as_u64().unwrap() as u8;
+        let go = case["err"].as_str().unwrap();
+        let rust = crate::meta_wire::check_valid(&[byte]);
+        if go.starts_with("json: cannot unmarshal") {
+            assert_eq!(rust, Ok(()), "byte {byte}");
+        } else {
+            assert_eq!(rust.unwrap_err(), go, "byte {byte}");
+        }
+    }
+}
+
+#[tokio::test]
+async fn poll_errors_use_go_partial_decoding_and_key_folding() {
+    // `{"error":5,"ERROR":"access_denied"}`: Go records the type error, keeps decoding,
+    // and the folded key still denies access.
+    let device = json!({"status":200,"body":r#"{"DEVICE_CODE":"d","User_Code":"u","interval":1}"#});
+    let mock = Mock::start(&json!([device, {"status":400,"body":r#"{"error":5,"ERROR":"access_denied"}"#}])).await;
+    let auth = login_auth(&mock.url);
+    let code = auth.start_device_flow().await.unwrap();
+    assert_eq!(
+        auth.wait_for_authorization(&code).await.unwrap_err(),
+        "meta auth: access was denied by user"
+    );
+    // A null mint body decodes to an empty record: Go's "missing api_key".
+    let mock = Mock::start(
+        &json!([{"status":200,"body":"null"}, {"status":200,"body":r#"{"api_key":"first","api_key":"second"}"#}]),
+    )
+    .await;
+    let auth = login_auth(&mock.url);
+    assert_eq!(
+        auth.mint_api_key("dca:n").await.unwrap_err().to_string(),
+        "meta auth: mint response missing api_key"
+    );
+    assert_eq!(auth.mint_api_key("dca:d").await.unwrap().api_key, "second");
+}
+
+#[tokio::test]
+async fn failed_error_body_read_is_not_classified_by_status() {
+    // Go returns io.ReadAll's error before wrapMetaUpstreamError: a truncated 429 body
+    // must not become a credential-wide quota cooldown.
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let url = format!("http://{}", listener.local_addr().unwrap());
+    tokio::spawn(async move {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        let (mut socket, _) = listener.accept().await.unwrap();
+        let mut buf = vec![0u8; 65536];
+        let _ = socket.read(&mut buf).await;
+        let body = r#"{"error":{"message":"subscription quota exhausted","resets_at":4102444800}}"#;
+        let head = format!(
+            "HTTP/1.1 429 Too Many Requests\r\nContent-Length: {}\r\n\r\n",
+            body.len() + 100
+        );
+        let _ = socket.write_all(head.as_bytes()).await;
+        let _ = socket.write_all(body.as_bytes()).await;
+    });
+    let fx = fixture("meta", "error-429-subscription-quota");
+    let origin = go_origin(&fx).unwrap();
+    let credential = meta_credential(&fx, &origin, &url);
+    let error = MetaExecutor::with_client(default_client())
+        .execute(&credential, request(&fx, ""), &cfg())
+        .await
+        .err()
+        .unwrap();
+    assert_ne!(error.status, 429);
+    assert_eq!(error.scope, FailureScope::Transport);
+    assert_eq!(error.retry_after, None);
+}
+
+#[tokio::test]
+async fn empty_original_request_falls_back_to_the_payload() {
+    // prepareResponsesRequest: originalPayload is req.Payload when OriginalRequest is empty,
+    // so response.created carries the client model with its suffix.
+    let fx = fixture("meta", "responses-stream");
+    let origin = go_origin(&fx).unwrap();
+    let mock = Mock::start(&json!([{"status":200,"headers":[["Content-Type","text/event-stream"]],"body":"data: {\"type\":\"response.created\",\"response\":{}}\n\n"}])).await;
+    let credential = meta_credential(&fx, &origin, &mock.url);
+    let mut req = request(&fx, "");
+    req.original_body = Bytes::new();
+    let response = MetaExecutor::with_client(default_client())
+        .execute(&credential, req, &cfg())
+        .await
+        .unwrap();
+    let ResponseBody::Stream(mut stream) = response.body else {
+        panic!("stream expected");
+    };
+    let first = stream.next().await.unwrap().unwrap();
+    assert_eq!(
+        String::from_utf8(first.to_vec()).unwrap(),
+        r#"data: {"type":"response.created","response":{"model":"muse-spark-1.3(high)"}}"#
+    );
+}
+
+#[test]
+fn login_merge_skips_an_existing_file_go_cannot_decode() {
+    // Manager.Login ignores an existing file whose map decode fails (float64 overflow);
+    // the standalone writer keeps Go's partial map with null.
+    let dir = TempDir::new();
+    let bundle = meta_auth::Bundle {
+        token: meta_auth::TokenData {
+            access_token: "dca:x".into(),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let name = credential_file_name("", "dca:x");
+    std::fs::write(dir.path().join(&name), r#"{"type":"meta","custom":1e400,"prefix":"p"}"#).unwrap();
+    let now = chrono::DateTime::parse_from_rfc3339("2026-10-02T00:00:00Z")
+        .unwrap()
+        .to_utc();
+    let outcome = meta_auth::save_login(dir.path(), &bundle, now).unwrap();
+    let written = std::fs::read_to_string(&outcome.path).unwrap();
+    assert!(serde_json::from_str::<Value>(&written).is_ok(), "valid JSON: {written}");
+    assert!(!written.contains("prefix") && !written.contains("custom"), "{written}");
+    let storage = TokenStorage {
+        access_token: "a".into(),
+        ..Default::default()
+    };
+    assert_eq!(
+        encode_token_file(&storage, None, Some(br#"{"custom":1e400,"n":1.0}"#)),
+        "{\n  \"access_token\": \"a\",\n  \"auth_kind\": \"oauth\",\n  \"custom\": null,\n  \"n\": 1,\n  \"type\": \"meta\"\n}\n"
     );
 }
 

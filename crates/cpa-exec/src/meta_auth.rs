@@ -20,6 +20,7 @@ use sha2::{Digest, Sha256};
 use crate::kimi_auth::{form, open_browser, write_private};
 use crate::kimi_http::{GoHeaders, MAX_ERROR_BODY, read_all, rfc3339_utc, send};
 use crate::kimi_json::GoValue;
+use crate::meta_wire::{Slot, check_valid, unmarshal};
 
 pub const DEFAULT_API_BASE_URL: &str = "https://api.meta.ai/v1";
 pub const AUTH_HOST: &str = "https://auth.meta.com";
@@ -45,28 +46,30 @@ pub struct DeviceCode {
     pub interval: i64,
 }
 
-/// Go `json.Unmarshal` into typed fields: missing or null keep the zero value, a wrong JSON
-/// type is an error.
-#[derive(serde::Deserialize, Default)]
-#[serde(default)]
-struct DeviceCodeWire {
-    device_code: Option<String>,
-    user_code: Option<String>,
-    verification_uri: Option<String>,
-    verification_uri_complete: Option<String>,
-    expires_in: Option<i64>,
-    interval: Option<i64>,
-}
+impl DeviceCode {
+    #[cfg(test)]
+    pub(crate) fn decode_for_test(raw: &[u8]) -> Result<Self, String> {
+        Self::decode(raw)
+    }
 
-#[derive(serde::Deserialize, Default)]
-#[serde(default)]
-struct TokenWire {
-    access_token: Option<String>,
-    token_type: Option<String>,
-    expires_in: Option<i64>,
-    expires_at: Option<i64>,
-    error: Option<String>,
-    error_description: Option<String>,
+    /// `json.Unmarshal` into DeviceCodeResponse (`TokenEndpoint` is `json:"-"`).
+    fn decode(raw: &[u8]) -> Result<Self, String> {
+        let mut c = Self::default();
+        unmarshal(
+            raw,
+            "meta",
+            "DeviceCodeResponse",
+            &mut [
+                ("device_code", Slot::Str(&mut c.device_code)),
+                ("user_code", Slot::Str(&mut c.user_code)),
+                ("verification_uri", Slot::Str(&mut c.verification_uri)),
+                ("verification_uri_complete", Slot::Str(&mut c.verification_uri_complete)),
+                ("expires_in", Slot::Int(&mut c.expires_in, "int")),
+                ("interval", Slot::Int(&mut c.interval, "int")),
+            ],
+        )?;
+        Ok(c)
+    }
 }
 
 /// The DCA token from the token endpoint. `expires_at` is Unix seconds, 0 when unknown.
@@ -76,41 +79,75 @@ pub struct TokenData {
     pub token_type: String,
     pub expires_in: i64,
     pub expires_at: i64,
+    pub error: String,
+    pub error_description: String,
+}
+
+impl TokenData {
+    #[cfg(test)]
+    pub(crate) fn decode_for_test(raw: &[u8]) -> (Self, Result<(), String>) {
+        Self::decode(raw)
+    }
+
+    /// `json.Unmarshal` into TokenData. Fields decoded before a type error are kept, as
+    /// Go does; the poll loop relies on that for error answers.
+    fn decode(raw: &[u8]) -> (Self, Result<(), String>) {
+        let mut t = Self::default();
+        let result = unmarshal(
+            raw,
+            "meta",
+            "TokenData",
+            &mut [
+                ("access_token", Slot::Str(&mut t.access_token)),
+                ("token_type", Slot::Str(&mut t.token_type)),
+                ("expires_in", Slot::Int(&mut t.expires_in, "int")),
+                ("expires_at", Slot::Int(&mut t.expires_at, "int64")),
+                ("error", Slot::Str(&mut t.error)),
+                ("error_description", Slot::Str(&mut t.error_description)),
+            ],
+        );
+        (t, result)
+    }
 }
 
 /// The mint endpoint's answer (MintedKeyResponse).
-#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Deserialize)]
-#[serde(default)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct MintedKey {
-    #[serde(deserialize_with = "go_string")]
     pub api_key: String,
-    #[serde(deserialize_with = "go_string")]
     pub base_url: String,
-    #[serde(deserialize_with = "go_string")]
     pub user_email: String,
-    #[serde(deserialize_with = "go_string")]
     pub user_full_name: String,
-    #[serde(deserialize_with = "go_string")]
     pub subs_tier_name: String,
-    #[serde(deserialize_with = "go_string")]
     pub subs_tier_id: String,
-    #[serde(deserialize_with = "go_bool")]
     pub is_subs_active: bool,
-    #[serde(deserialize_with = "go_bool")]
     pub has_payment_method: bool,
-    #[serde(deserialize_with = "go_bool")]
     pub require_payment: bool,
-    #[serde(deserialize_with = "go_bool")]
     pub can_subscribe: bool,
 }
 
-/// A Go string field: null leaves "", any other non-string is a decode error.
-fn go_string<'de, D: serde::Deserializer<'de>>(d: D) -> Result<String, D::Error> {
-    Ok(<Option<String> as serde::Deserialize>::deserialize(d)?.unwrap_or_default())
-}
-
-fn go_bool<'de, D: serde::Deserializer<'de>>(d: D) -> Result<bool, D::Error> {
-    Ok(<Option<bool> as serde::Deserialize>::deserialize(d)?.unwrap_or_default())
+impl MintedKey {
+    /// `json.Unmarshal` into MintedKeyResponse.
+    pub fn decode(raw: &[u8]) -> Result<Self, String> {
+        let mut m = Self::default();
+        unmarshal(
+            raw,
+            "meta",
+            "MintedKeyResponse",
+            &mut [
+                ("api_key", Slot::Str(&mut m.api_key)),
+                ("base_url", Slot::Str(&mut m.base_url)),
+                ("user_email", Slot::Str(&mut m.user_email)),
+                ("user_full_name", Slot::Str(&mut m.user_full_name)),
+                ("subs_tier_name", Slot::Str(&mut m.subs_tier_name)),
+                ("subs_tier_id", Slot::Str(&mut m.subs_tier_id)),
+                ("is_subs_active", Slot::Bool(&mut m.is_subs_active)),
+                ("has_payment_method", Slot::Bool(&mut m.has_payment_method)),
+                ("require_payment", Slot::Bool(&mut m.require_payment)),
+                ("can_subscribe", Slot::Bool(&mut m.can_subscribe)),
+            ],
+        )?;
+        Ok(m)
+    }
 }
 
 /// Token data, minted key and user identity from one login (MetaAuthBundle).
@@ -254,16 +291,7 @@ impl MetaAuth {
                 String::from_utf8_lossy(&body).trim()
             ));
         }
-        let wire: DeviceCodeWire =
-            serde_json::from_slice(&body).map_err(|e| format!("meta device flow: parse response: {e}"))?;
-        let code = DeviceCode {
-            device_code: wire.device_code.unwrap_or_default(),
-            user_code: wire.user_code.unwrap_or_default(),
-            verification_uri: wire.verification_uri.unwrap_or_default(),
-            verification_uri_complete: wire.verification_uri_complete.unwrap_or_default(),
-            expires_in: wire.expires_in.unwrap_or_default(),
-            interval: wire.interval.unwrap_or_default(),
-        };
+        let code = DeviceCode::decode(&body).map_err(|e| format!("meta device flow: parse response: {e}"))?;
         if code.device_code.trim().is_empty() || code.user_code.trim().is_empty() {
             return Err("meta device flow: response missing required device_code or user_code".into());
         }
@@ -319,14 +347,8 @@ impl MetaAuth {
                 }
             };
             if status == 200 {
-                let wire: TokenWire =
-                    serde_json::from_slice(&body).map_err(|e| format!("meta auth: parse token response: {e}"))?;
-                let mut token = TokenData {
-                    access_token: wire.access_token.unwrap_or_default(),
-                    token_type: wire.token_type.unwrap_or_default(),
-                    expires_in: wire.expires_in.unwrap_or_default(),
-                    expires_at: wire.expires_at.unwrap_or_default(),
-                };
+                let (mut token, decoded) = TokenData::decode(&body);
+                decoded.map_err(|e| format!("meta auth: parse token response: {e}"))?;
                 if token.access_token.is_empty() {
                     return Err("meta auth: response missing access_token".into());
                 }
@@ -359,9 +381,8 @@ impl MetaAuth {
                 return Ok(bundle);
             }
             // Go ignores decode errors here and keeps whatever fields matched.
-            let parsed: Value = serde_json::from_slice(&body).unwrap_or_default();
-            let text = |key: &str| parsed.get(key).and_then(Value::as_str).unwrap_or_default().to_owned();
-            match text("error").as_str() {
+            let (answer, _) = TokenData::decode(&body);
+            match answer.error.as_str() {
                 "authorization_pending" => {}
                 "slow_down" => {
                     interval += 5;
@@ -373,7 +394,7 @@ impl MetaAuth {
                 other => {
                     return Err(format!(
                         "meta auth: error from authorization server: {other}: {}",
-                        text("error_description")
+                        answer.error_description
                     ));
                 }
             }
@@ -435,8 +456,8 @@ impl MetaAuth {
                 String::from_utf8_lossy(&body).trim().to_owned(),
             ));
         }
-        let minted: MintedKey = serde_json::from_slice(&body)
-            .map_err(|e| MintError::Other(format!("meta auth: parse mint response: {e}")))?;
+        let minted =
+            MintedKey::decode(&body).map_err(|e| MintError::Other(format!("meta auth: parse mint response: {e}")))?;
         if minted.api_key.trim().is_empty() {
             return Err(MintError::Other("meta auth: mint response missing api_key".into()));
         }
@@ -557,40 +578,52 @@ const CREDENTIAL_FIELDS: [&str; 11] = [
 pub(crate) type GoMap = BTreeMap<String, GoValue>;
 
 /// Go `json.Unmarshal` into `map[string]any`: numbers become float64, so they re-encode
-/// in Go's float form (`1.0` -> `1`, `1e21` -> `1e+21`).
-pub(crate) fn go_map_from_json(raw: &[u8]) -> Option<GoMap> {
-    let text = std::str::from_utf8(raw).ok()?;
+/// in Go's float form (`1.0` -> `1`, `1e21` -> `1e+21`). A number that overflows float64
+/// becomes `null` and marks the decode as failed (Go keeps the partial map and returns an
+/// error). `None` when Go leaves the map nil: invalid JSON or a non-object.
+pub(crate) fn go_map_from_json(raw: &[u8]) -> Option<(GoMap, bool)> {
+    check_valid(raw).ok()?;
+    let text = String::from_utf8_lossy(raw);
     match GoValue::parse(text.trim())? {
-        GoValue::Object(map) => Some(map.into_iter().map(|(k, v)| (k, as_float64(v))).collect()),
+        GoValue::Object(map) => {
+            let mut clean = true;
+            let map = map.into_iter().map(|(k, v)| (k, as_float64(v, &mut clean))).collect();
+            Some((map, clean))
+        }
         _ => None,
     }
 }
 
-fn as_float64(value: GoValue) -> GoValue {
+fn as_float64(value: GoValue, clean: &mut bool) -> GoValue {
     match value {
-        GoValue::Number(literal) => GoValue::Number(go_float(&literal)),
-        GoValue::Array(items) => GoValue::Array(items.into_iter().map(as_float64).collect()),
-        GoValue::Object(map) => GoValue::Object(map.into_iter().map(|(k, v)| (k, as_float64(v))).collect()),
+        GoValue::Number(literal) => match go_float(&literal) {
+            Some(number) => GoValue::Number(number),
+            None => {
+                *clean = false;
+                GoValue::Null
+            }
+        },
+        GoValue::Array(items) => GoValue::Array(items.into_iter().map(|v| as_float64(v, clean)).collect()),
+        GoValue::Object(map) => GoValue::Object(map.into_iter().map(|(k, v)| (k, as_float64(v, clean))).collect()),
         other => other,
     }
 }
 
-/// Go's encoding of a float64 decoded from `literal` (strconv 'f' or 'e', shortest).
-fn go_float(literal: &str) -> String {
-    let Ok(f) = literal.parse::<f64>() else {
-        return literal.to_owned();
-    };
+/// Go's encoding of a float64 decoded from `literal` (strconv 'f' or 'e', shortest), or
+/// `None` when the literal overflows float64 (Go: UnmarshalTypeError).
+fn go_float(literal: &str) -> Option<String> {
+    let f = literal.parse::<f64>().ok().filter(|f| f.is_finite())?;
     let abs = f.abs();
     if abs != 0.0 && !(1e-6..1e21).contains(&abs) {
         // strconv's 'e' form with encoding/json's cleanup: 1e+21, 1.5e-7, 1e-10.
         let e = format!("{f:e}");
         let (mantissa, exp) = e.split_once('e').unwrap_or((&e, "0"));
-        return match exp.strip_prefix('-') {
+        return Some(match exp.strip_prefix('-') {
             Some(digits) => format!("{mantissa}e-{digits}"),
             None => format!("{mantissa}e+{exp}"),
-        };
+        });
     }
-    format!("{f}")
+    Some(format!("{f}"))
 }
 
 /// SaveTokenToFile's content. With a `snapshot` (managed saves) its non-credential keys
@@ -626,8 +659,9 @@ pub(crate) fn encode_token_file(storage: &TokenStorage, snapshot: Option<&GoMap>
             GoValue::Number(storage.dca_expires_at.to_string()),
         );
     }
+    // Go ignores the decode error and uses whatever the map holds.
     let from_disk = if snapshot.is_none() {
-        disk.and_then(go_map_from_json)
+        disk.and_then(go_map_from_json).map(|(map, _)| map)
     } else {
         None
     };
@@ -793,8 +827,10 @@ pub fn save_login(auth_dir: &Path, bundle: &Bundle, now: DateTime<Utc>) -> Resul
     let mut metadata = login_metadata(&storage, bundle);
     let path = auth_dir.join(&file_name);
     let mut disabled = false;
+    // Manager.Login merges only a cleanly decoded, non-empty existing file.
     if let Ok(raw) = std::fs::read(&path)
-        && let Some(existing) = go_map_from_json(&raw).filter(|m| !m.is_empty())
+        && let Some((existing, true)) = go_map_from_json(&raw)
+        && !existing.is_empty()
         && let Some(flag) = merge_existing(&mut metadata, &existing, "meta")
     {
         disabled = flag;
@@ -892,18 +928,20 @@ mod tests {
             ("9007199254740993", "9007199254740992"),
             ("123456789012345678901", "123456789012345680000"),
         ] {
-            assert_eq!(go_float(literal), go, "{literal}");
+            assert_eq!(go_float(literal).as_deref(), Some(go), "{literal}");
         }
+        assert_eq!(go_float("1e400"), None, "float64 overflow is a decode error");
     }
 
     #[test]
     fn merge_skips_token_payload_and_meta_key_material() {
         let mut metadata = GoMap::new();
         metadata.insert("email".into(), GoValue::String("new@x".into()));
-        let existing = go_map_from_json(
+        let (existing, clean) = go_map_from_json(
             br#"{"email":"old@x","EXPIRED":"x","api-key":"k","dca_token":"d","prefix":"p","disabled":true}"#,
         )
         .unwrap();
+        assert!(clean);
         assert_eq!(merge_existing(&mut metadata, &existing, "meta"), Some(true));
         let keys: Vec<&str> = metadata.keys().map(String::as_str).collect();
         assert_eq!(keys, ["disabled", "email", "prefix"]);
