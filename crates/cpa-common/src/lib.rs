@@ -8,9 +8,9 @@
 //! - `signature`: internal/signature (thought-signature detection, validation and
 //!   sanitizing for Claude, Gemini, GPT, Grok and Kimi).
 //! - `payload`: executor/helps/payload_helpers.go and codex_tool_schema.go (config payload
-//!   rules applied to the final provider body).
+//!   rules applied to the final provider body; owner: server).
 //! - `headers`: util/header_helpers.go (custom `header:*` attributes and `$Header`
-//!   references copied from the client request).
+//!   references copied from the client request; owner: server).
 //! - `json`: Go-exact tidwall/gjson, tidwall/sjson and encoding/json behaviour, used by
 //!   every crate that edits JSON on the wire (owner: translators).
 //! - `codex_client`: executor/helps/codex_multi_agent_v2.go (Codex-client request rewrites
@@ -28,9 +28,11 @@
 pub mod gemini_schema;
 pub mod gostr;
 mod gostr_tables;
+pub mod headers;
 pub mod json;
 #[cfg(test)]
 mod json_go_vectors;
+pub mod payload;
 pub mod session;
 pub mod signature;
 pub mod thinking;
