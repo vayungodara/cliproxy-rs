@@ -75,6 +75,8 @@ type scenario struct {
 	RequestPath string            `json:"request_path,omitempty"`
 	ContentType string            `json:"content_type,omitempty"`
 	Session     string            `json:"session,omitempty"`
+	// ExecutionSession is opts.Metadata[execution_session_id].
+	ExecutionSession string `json:"execution_session,omitempty"`
 	// Needs names shared helpers whose real port must land before Rust can match.
 	Needs    []string  `json:"needs,omitempty"`
 	Upstream *upstream `json:"upstream,omitempty"`
@@ -322,6 +324,9 @@ func run(s *scenario) {
 	}
 	if s.RequestPath != "" {
 		opts.Metadata[cliproxyexecutor.RequestPathMetadataKey] = s.RequestPath
+	}
+	if s.ExecutionSession != "" {
+		opts.Metadata[cliproxyexecutor.ExecutionSessionMetadataKey] = s.ExecutionSession
 	}
 	if strings.HasPrefix(s.Op, "images") {
 		opts.SourceFormat = sdktranslator.FromString("openai-image")

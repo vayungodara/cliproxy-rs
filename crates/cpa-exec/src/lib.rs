@@ -119,7 +119,9 @@ impl Executors {
     /// Whether an executor serves this provider. Credentials of other providers never
     /// enter selection (Go skips auths whose executor is not registered).
     pub fn supports(&self, provider: &str) -> bool {
-        matches!(provider, "claude" | "codex") || kimi::PROVIDERS.contains(&provider)
+        matches!(provider, "claude" | "codex")
+            || kimi::PROVIDERS.contains(&provider)
+            || openai_compat::handles(provider)
     }
 
     /// Whether `credential` needs preparation, and whether requests must wait for it.
@@ -195,6 +197,7 @@ mod readiness_tests {
             claude: claude::ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
             codex: Default::default(),
             devices: Default::default(),
+            openai: Default::default(),
         };
         let cfg = Config::default();
         let pool = serde_json::json!(["a".repeat(64)]);

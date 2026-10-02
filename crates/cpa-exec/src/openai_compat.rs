@@ -206,7 +206,7 @@ impl OpenAICompatExecutor {
         if !compact {
             let mct = payload::uses_max_completion_tokens(compat.as_ref(), &base_model, requested);
             body = payload::normalize_max_tokens(body, mct);
-            body = prompt_cache_key(compat.as_ref(), &req, &base_model, body);
+            body = prompt_cache_key(compat.as_ref(), &credential.provider, &req, &base_model, body);
         }
         if compact && !req.stream {
             body = json::delete(&body, "stream");
@@ -377,7 +377,13 @@ fn prepare_images_payload(
 }
 
 /// `applyPromptCacheKey`.
-fn prompt_cache_key(compat: Option<&payload::Compat>, req: &ExecRequest, base_model: &str, body: String) -> String {
+fn prompt_cache_key(
+    compat: Option<&payload::Compat>,
+    provider: &str,
+    req: &ExecRequest,
+    base_model: &str,
+    body: String,
+) -> String {
     if !compat.is_some_and(|c| c.support_prompt_cache_key) {
         return body;
     }
@@ -400,10 +406,33 @@ fn prompt_cache_key(compat: Option<&payload::Compat>, req: &ExecRequest, base_mo
     {
         return json::set_str_if_different(&body, "prompt_cache_key", &key);
     }
-    // ponytail: Go's last fallback derives the key from the execution or derived session
-    // (helps.ProviderSessionUUID). ExecRequest carries neither identity yet, so requests
-    // without an explicit key or Claude Code session get none.
-    body
+    // helps.ProviderSessionUUID: the execution session first.
+    // ponytail: Go then falls back to the derived (message-hash) session identity, which
+    // the server does not compute yet (M4-0021); such requests get no key.
+    let Some(execution) = req
+        .execution_session
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+    else {
+        return body;
+    };
+    let provider = provider.trim().to_lowercase();
+    if provider.is_empty() {
+        return body;
+    }
+    let session = uuid::Uuid::new_v5(
+        &uuid::Uuid::NAMESPACE_OID,
+        format!("cli-proxy-api\0{provider}\0execution-session\0{execution}").as_bytes(),
+    )
+    .to_string();
+    let identity = format!(
+        "cli-proxy-api:openai-compat:prompt-cache\0{provider}\0{}\0{}\0{session}",
+        model.to_lowercase(),
+        req.source_format.as_str().to_lowercase()
+    );
+    let key = uuid::Uuid::new_v5(&uuid::Uuid::NAMESPACE_OID, identity.as_bytes()).to_string();
+    json::set_str_if_different(&body, "prompt_cache_key", &key)
 }
 
 /// `CountTokens`: a local tiktoken estimate of the translated chat request.

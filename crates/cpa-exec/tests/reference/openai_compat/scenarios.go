@@ -91,6 +91,17 @@ func scenarios() []scenario {
 			s.ConfigAuth = 1
 			return s
 		}(),
+		func() scenario {
+			s := chat("chat_prompt_cache_key_from_execution_session", "cache-model", "cm", `{"model":"cm","messages":[]}`, jsonOK)
+			s.ConfigAuth = 1
+			s.ExecutionSession = " ws-session-1 "
+			return s
+		}(),
+		func() scenario {
+			s := chat("chat_execution_session_without_prompt_cache_support", "acme-chat", "chat", `{"model":"chat","messages":[]}`, jsonOK)
+			s.ExecutionSession = "ws-session-1"
+			return s
+		}(),
 		chat("chat_prompt_cache_key_not_supported_kept", "acme-chat", "chat", `{"model":"chat","prompt_cache_key":"keep","messages":[]}`, jsonOK),
 		chat("chat_upstream_201_and_extra_fields", "acme-chat", "chat", hi, &upstream{Status: 201, Headers: [][2]string{{"Content-Type", "application/json"}, {"X-Upstream", "1"}}, Body: `{"id":"x","choices":[],"extra":{"nested":[1,2]}}`}),
 		chat("chat_gzip_response", "acme-chat", "chat", hi, &upstream{Status: 200, Headers: [][2]string{{"Content-Type", "application/json"}, {"Content-Encoding", "gzip"}}, Body: `{"id":"gzip"}`, Gzip: true}),

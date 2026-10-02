@@ -177,6 +177,7 @@ fn request(s: &Value) -> (ExecRequest, String) {
         stream: op.ends_with("stream") || s["stream"].as_bool() == Some(true),
         alt: s["alt"].as_str().map(str::to_owned),
         session: None,
+        execution_session: s["execution_session"].as_str().map(str::to_owned),
         headers,
         caller: Caller {
             principal: "fake-client-key".into(),
