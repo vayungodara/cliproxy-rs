@@ -8,7 +8,8 @@
 //! - Everything else: translated to OpenAI Chat Completions at `/v1/chat/completions`.
 //!
 //! Shared stages go through adapters named after their owners: thinking (kimi_thinking),
-//! custom headers and proxies (kimi_http), payload rules and Codex-client rewrites (below).
+//! custom headers (kimi_http), payload rules and Codex-client rewrites (below). Clients
+//! and Go net/http wire behaviour come from the shared proxy module.
 //! ponytail: the apply_patch Responses bridge (translator common) is not applied; requests
 //! without an apply_patch custom tool are unaffected.
 
@@ -23,15 +24,15 @@ use cpa_core::format::Format;
 use cpa_translate::{RequestCtx, ResponseCtx, StreamTranslator};
 use futures_util::StreamExt;
 
-use crate::claude::ClaudeExecutor;
+use crate::claude::{ClaudeExecutor, Delegation};
 use crate::kimi_auth::{self, DeviceFlow};
 use crate::kimi_http::{
-    BUILD_VERSION, Clients, GoHeaders, Upstream, custom_headers, default_client, go_arch, go_os, hostname, lines,
-    proxy_url, read_all, refresh_due, rfc3339_local_now, send, status_error,
+    BUILD_VERSION, custom_headers, go_arch, go_os, hostname, refresh_due, rfc3339_local_now, status_error,
 };
 use crate::kimi_json::{GoValue, delete, gstr, join_array, set_raw, set_str, valid};
 use crate::kimi_replay::{self, ReplayCache};
 use crate::kimi_thinking::{self, parse_suffix};
+use crate::proxy::{GoClients, GoHeaders, Proxy, Upstream, default_client, lines, read_all, send};
 
 const REASONING_UNAVAILABLE: &str = "[reasoning unavailable]";
 
@@ -41,7 +42,7 @@ pub const PROVIDERS: [&str; 4] = ["kimi", "kimi-ai", "kimi.ai", "kimi.com"];
 /// Claude-format traffic goes through the shared [`ClaudeExecutor`] passed to
 /// [`KimiExecutor::execute`]; Go embeds one in the Kimi executor for the same purpose.
 pub struct KimiExecutor {
-    clients: Clients,
+    clients: GoClients,
     oauth_host: Option<String>,
     replay: Arc<ReplayCache>,
 }
@@ -56,7 +57,7 @@ impl KimiExecutor {
     /// Uses a caller-built client (tests point it at local mocks).
     pub fn with_client(client: wreq::Client) -> Self {
         Self {
-            clients: Clients::new(client),
+            clients: GoClients::with_default(client),
             oauth_host: None,
             replay: Arc::default(),
         }
@@ -84,7 +85,7 @@ impl KimiExecutor {
         };
         let domain = kimi_auth::resolve_domain(credential);
         let device_id = credential.str("device_id").unwrap_or_default();
-        let mut flow = DeviceFlow::new(self.clients.get(&proxy_url(credential, cfg)), domain, device_id);
+        let mut flow = DeviceFlow::new(self.clients.get(&Proxy::effective(credential, cfg)), domain, device_id);
         if let Some(host) = &self.oauth_host {
             flow = flow.with_oauth_host(host);
         }
@@ -107,7 +108,7 @@ impl KimiExecutor {
         if req.operation == Operation::CountTokens || req.source_format == Format::Claude {
             return self.execute_claude(claude, credential, req, cfg).await;
         }
-        let client = self.clients.get(&proxy_url(credential, cfg));
+        let client = self.clients.get(&Proxy::effective(credential, cfg));
         if req.source_format == Format::OpenAIResponse {
             return execute_responses(&client, credential, req, cfg).await;
         }
@@ -126,22 +127,18 @@ impl KimiExecutor {
             .attributes
             .insert("base_url".into(), claude_base_url(credential));
         let client_model = req.model.clone();
-        let upstream_model = normalize_upstream_model(parse_suffix(&req.model).0);
-        // ponytail: Go's ClaudeExecutor applies the normalizer itself and forces upstream
-        // count_tokens for Kimi. The Rust Claude executor has neither hook yet, so the
-        // model is rewritten here and count_tokens follows its local estimate.
-        if let Ok(text) = std::str::from_utf8(&req.body)
-            && valid(text)
-            && let Ok(updated) = set_str(text, "model", &upstream_model)
-        {
-            req.body = Bytes::from(updated);
-        }
+        // NewKimiExecutor's embedded ClaudeExecutor: normalized upstream model, and
+        // count_tokens always upstream (KimiExecutor.CountTokens -> countTokensUpstream).
+        let delegation = Delegation {
+            upstream_model: Some(normalize_upstream_model),
+            count_upstream: true,
+        };
         if req.operation == Operation::CountTokens {
-            return claude.execute(&delegated, req, cfg).await;
+            return claude.execute_delegated(&delegated, req, cfg, delegation).await;
         }
         let scope = kimi_replay::prepare(&self.replay, &mut req);
         let streaming = req.stream;
-        let mut response = match claude.execute(&delegated, req, cfg).await {
+        let mut response = match claude.execute_delegated(&delegated, req, cfg, delegation).await {
             Ok(response) => response,
             Err(error) => {
                 if scope.applied && kimi_replay::clears_after(&error) {

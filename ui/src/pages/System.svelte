@@ -8,7 +8,7 @@
   const c = $derived(store.config.data || {});
   const facts = $derived(
     [
-      ["Management API", endpoint()],
+      ["Management API", new URL(endpoint()).pathname],
       [
         "Server",
         store.kind === "go"

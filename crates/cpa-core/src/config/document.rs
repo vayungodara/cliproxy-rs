@@ -2,6 +2,7 @@
 use anyhow::{Context, bail};
 use serde_yaml_ng::{Mapping, Value};
 
+pub use super::text::archive_comments;
 use super::{lookup, validate_shape};
 
 // internal/config/config_v8.go buildV8Paths. Move individual mapping leaves, not
@@ -160,22 +161,157 @@ impl ConfigDocument {
         Ok(serde_yaml_ng::to_string(&self.0)?)
     }
 
+    /// Comment-preserving v8 text of `original`: legacy root entries move under their
+    /// v8 parents with their own lines. `None` when the text form is unsupported or
+    /// would not parse to the migrated value; callers then render from `original`.
+    pub fn migrated_text(&self, original: &str) -> Option<String> {
+        let mut moves = vec![super::text::Move {
+            old: "api-keys",
+            new: "access.api-keys",
+        }];
+        let legacy_client_keys = serde_yaml_ng::from_str::<Value>(original)
+            .ok()?
+            .get("api-keys")
+            .is_some_and(|v| !v.is_mapping());
+        if !legacy_client_keys {
+            moves.clear();
+        }
+        moves.extend(
+            PATHS
+                .iter()
+                .filter(|(old, _)| !old.contains('.'))
+                .map(|(old, new)| super::text::Move { old, new }),
+        );
+        let families: Vec<&str> = FAMILIES.iter().map(|(old, _)| *old).collect();
+        let text = super::text::migrate(original, &moves, &families, &self.0)?;
+        let parsed: Value = serde_yaml_ng::from_str(&text).ok()?;
+        (parsed == self.0).then_some(text)
+    }
+
+    /// Go's read-time migration archives unrecognised sections as comments. Returns
+    /// the removed `(path, value)` pairs; [`ConfigDocument::render_preserving`] callers
+    /// append [`archive_comments`] for them.
+    pub fn archive_unknown(&mut self) -> Vec<(String, Value)> {
+        super::schema::archive_unknown(&mut self.0)
+    }
+
     /// Preserve unaffected comments, key order and scalar styles. Changes are applied
     /// to a private syntax tree and validated again before the destination is touched.
+    /// New or retyped root sections are appended in block style (yaml-edit misindents
+    /// block values at the root); anything the syntax tree cannot express falls back
+    /// to a full block re-emit that keeps the head comment only.
     pub fn render_preserving(&self, original: &str) -> anyhow::Result<String> {
-        let file: yaml_edit::YamlFile = original.parse()?;
-        let doc = file.document().context("config must be a mapping")?;
-        let before: Value = serde_yaml_ng::from_str(original)?;
-        sync_mapping(
-            &doc.as_mapping().context("config must be a mapping")?,
-            self.0.as_mapping().unwrap(),
-            before.as_mapping().context("config must be a mapping")?,
-        )?;
-        let text = file.to_string();
+        if let Some(text) = self.try_render(original)
+            && serde_yaml_ng::from_str::<Value>(&text).ok().as_ref() == Some(&self.0)
+        {
+            return Ok(text);
+        }
+        let mut text: String = original
+            .lines()
+            .take_while(|l| l.trim_start().starts_with('#') || l.trim().is_empty())
+            .map(|l| format!("{l}\n"))
+            .collect();
+        for (key, value) in self.0.as_mapping().context("config must be a mapping")? {
+            text = super::text::append_root(&text, key.as_str().context("config keys must be strings")?, value);
+        }
         if serde_yaml_ng::from_str::<Value>(&text)? != self.0 {
             bail!("edited YAML did not round-trip");
         }
         Ok(text)
+    }
+
+    fn try_render(&self, original: &str) -> Option<String> {
+        let file: yaml_edit::YamlFile = if original.trim().is_empty() {
+            "{}".parse().ok()?
+        } else {
+            original.parse().ok()?
+        };
+        let doc = file.document()?;
+        let root = doc.as_mapping()?;
+        let before: Value = match serde_yaml_ng::from_str(original).ok()? {
+            Value::Null => Value::Mapping(Mapping::new()),
+            v => v,
+        };
+        let src = self.0.as_mapping()?;
+        let before_map = before.as_mapping()?;
+        let mut append = Vec::new();
+        for (key, value) in src {
+            let complex = matches!(value, Value::Mapping(m) if !m.is_empty())
+                || matches!(value, Value::Sequence(s) if !s.is_empty());
+            let fits = matches!(
+                (before_map.get(key), value),
+                (Some(Value::Mapping(_)), Value::Mapping(_))
+            ) || before_map.get(key) == Some(value);
+            if complex && !fits {
+                append.push(key.clone());
+            }
+        }
+        let mut kept = src.clone();
+        for key in &append {
+            kept.remove(key);
+            root.remove(key.as_str()?);
+        }
+        let mut before_kept = before_map.clone();
+        for key in &append {
+            before_kept.remove(key);
+        }
+        sync_mapping(&root, &kept, &before_kept).ok()?;
+        let mut text = file.to_string();
+        if original.trim().is_empty() {
+            text = String::new();
+        }
+        for key in &append {
+            text = super::text::append_root(&text, key.as_str()?, &src[key]);
+        }
+        // Restore the source order for root keys appended at the end.
+        Some(text)
+    }
+
+    /// JSON writes see TURN credentials redacted; keep omitted secrets when a server
+    /// with the same `urls` list is written back (Go `preserveV8TURNSecrets`).
+    pub fn preserve_turn_secrets(&mut self, before: &ConfigDocument) {
+        const PATH: [&str; 5] = ["oauth", "providers", "codex", "live-media-relay", "ice-servers"];
+        let Some(Value::Sequence(previous)) = before.get(&PATH).cloned() else {
+            return;
+        };
+        let mut node = &mut self.0;
+        for part in PATH {
+            let Some(next) = node.as_mapping_mut().and_then(|m| m.get_mut(part)) else {
+                return;
+            };
+            node = next;
+        }
+        let Value::Sequence(next) = node else { return };
+        let urls = |server: &Value| -> Option<Vec<String>> {
+            server
+                .get("urls")?
+                .as_sequence()?
+                .iter()
+                .map(|u| match u {
+                    Value::String(s) => Some(s.clone()),
+                    Value::Number(n) => Some(n.to_string()),
+                    Value::Bool(b) => Some(b.to_string()),
+                    _ => None,
+                })
+                .collect()
+        };
+        let mut matched = vec![false; previous.len()];
+        for server in next.iter_mut() {
+            let Some(want) = urls(server) else { continue };
+            let Some(i) = (0..previous.len()).find(|&i| !matched[i] && urls(&previous[i]).as_ref() == Some(&want))
+            else {
+                continue;
+            };
+            matched[i] = true;
+            let Some(map) = server.as_mapping_mut() else { continue };
+            for name in ["username", "credential"] {
+                if !map.contains_key(name)
+                    && let Some(secret) = previous[i].get(name)
+                {
+                    map.insert(Value::from(name), secret.clone());
+                }
+            }
+        }
     }
 
     /// Go keeps the inode for single-file Docker bind mounts (config_basic.go).
@@ -223,20 +359,59 @@ impl ConfigDocument {
         Ok(())
     }
 
-    pub fn delete(&mut self, parts: &[&str]) -> bool {
-        if parts.is_empty() {
-            return false;
+    /// Go's saver persists typed values (Go's pre-decode defaults for nulls on
+    /// non-pointer scalars, strings for scalars in string fields); do the same for each
+    /// path a PUT (`written` replaces `parts`) or PATCH (`written` merges into `parts`)
+    /// wrote. A PATCH merges mappings key by key, so only its leaves count.
+    pub fn typed_projection(&mut self, parts: &[&str], written: &Value, patch: bool) {
+        fn leaves(prefix: &mut Vec<String>, value: &Value, patch: bool, out: &mut Vec<Vec<String>>) {
+            match value {
+                Value::Mapping(map) if patch => {
+                    for (key, child) in map {
+                        if let Some(key) = key.as_str() {
+                            prefix.push(key.to_owned());
+                            leaves(prefix, child, patch, out);
+                            prefix.pop();
+                        }
+                    }
+                }
+                _ => out.push(prefix.clone()),
+            }
         }
-        let mut dst = &mut self.0;
-        for part in &parts[..parts.len() - 1] {
-            let Some(next) = dst.as_mapping_mut().and_then(|m| m.get_mut(*part)) else {
+        let mut paths = Vec::new();
+        let mut prefix = parts.iter().map(|p| (*p).to_owned()).collect();
+        leaves(&mut prefix, written, patch, &mut paths);
+        for path in paths {
+            let path: Vec<&str> = path.iter().map(String::as_str).collect();
+            super::schema::typed_projection(&mut self.0, &path);
+        }
+    }
+
+    /// Go `deleteConfigV8Path`: removes the field, then any ancestor mapping that this
+    /// removal left empty. Other explicit empty mappings stay.
+    pub fn delete(&mut self, parts: &[&str]) -> bool {
+        fn remove(node: &mut Value, parts: &[&str]) -> bool {
+            let Some(map) = node.as_mapping_mut() else {
                 return false;
             };
-            dst = next;
+            let Some((first, rest)) = parts.split_first() else {
+                return false;
+            };
+            if rest.is_empty() {
+                return map.remove(*first).is_some();
+            }
+            let Some(child) = map.get_mut(*first) else {
+                return false;
+            };
+            if !remove(child, rest) {
+                return false;
+            }
+            if child.as_mapping().is_some_and(serde_yaml_ng::Mapping::is_empty) {
+                map.remove(*first);
+            }
+            true
         }
-        dst.as_mapping_mut()
-            .and_then(|m| m.remove(parts[parts.len() - 1]))
-            .is_some()
+        remove(&mut self.0, parts)
     }
 }
 
@@ -262,14 +437,18 @@ fn sync_mapping(dst: &yaml_edit::Mapping, src: &Mapping, before: &Mapping) -> an
                     .and_then(Value::as_mapping)
                     .context("config must be a mapping")?,
             )?;
+        } else if let (Some(seq), Value::Sequence(items), Some(Value::Sequence(old))) =
+            (dst.get_sequence(key), value, before.get(key))
+            && sync_sequence(&seq, items, old)?
+        {
+            // Changed mapping items were edited in place; siblings keep their text.
         } else {
-            // ponytail: new/replaced mappings use YAML-compatible JSON flow syntax.
-            // yaml-edit misindents new root block mappings; keep existing mappings
-            // byte-stable and revisit block formatting when the library fixes it.
-            let text = if value.is_mapping() {
-                serde_json::to_string(value)?
-            } else {
-                serde_yaml_ng::to_string(value)?
+            // Nested block values insert correctly; root-level ones are appended by
+            // the caller. Empty collections stay `{}`/`[]`.
+            let text = match value {
+                Value::Mapping(m) if !m.is_empty() => super::text::emit_value(value),
+                Value::Sequence(s) if !s.is_empty() => super::text::emit_value(value),
+                _ => serde_yaml_ng::to_string(value)?,
             };
             let parsed: yaml_edit::Document = text.parse()?;
             if let Some(map) = parsed.as_mapping() {
@@ -282,6 +461,30 @@ fn sync_mapping(dst: &yaml_edit::Mapping, src: &Mapping, before: &Mapping) -> an
         }
     }
     Ok(())
+}
+
+/// Edits a sequence item by item when every changed item is a mapping that stays a
+/// mapping; `false` (nothing touched) otherwise, so the caller replaces the list.
+fn sync_sequence(dst: &yaml_edit::Sequence, src: &[Value], before: &[Value]) -> anyhow::Result<bool> {
+    if src.len() != before.len() || dst.len() != src.len() {
+        return Ok(false);
+    }
+    let mut edits = Vec::new();
+    for (i, (new, old)) in src.iter().zip(before).enumerate() {
+        if new == old {
+            continue;
+        }
+        match (new, old, dst.get(i)) {
+            (Value::Mapping(new), Value::Mapping(old), Some(yaml_edit::YamlNode::Mapping(node))) if !new.is_empty() => {
+                edits.push((node, new, old));
+            }
+            _ => return Ok(false),
+        }
+    }
+    for (node, new, old) in edits {
+        sync_mapping(&node, new, old)?;
+    }
+    Ok(true)
 }
 
 fn merge(dst: &mut Value, src: Value) {
@@ -374,16 +577,33 @@ mod tests {
             false,
         )
         .unwrap();
-        let file: yaml_edit::YamlFile = original.parse().unwrap();
-        let before: Value = serde_yaml_ng::from_str(original).unwrap();
-        sync_mapping(
-            &file.document().unwrap().as_mapping().unwrap(),
-            doc.value().as_mapping().unwrap(),
-            before.as_mapping().unwrap(),
-        )
-        .unwrap();
-        let text = file.to_string();
+        let text = doc.render_preserving(original).unwrap();
         assert_eq!(serde_yaml_ng::from_str::<Value>(&text).unwrap(), *doc.value(), "{text}");
+        assert!(text.starts_with("# keep\n") && !text.contains('{'), "{text}");
+    }
+
+    #[test]
+    fn migration_moves_legacy_lines_with_their_comments_and_bytes() {
+        let original = "# head\nhost: \"\" # any\nport: 8317\nremote-management:\n  # why\n  allow-remote: true\n\
+                        auth-dir: '~/.cli-proxy-api'\napi-keys:\n- \"sk-fake\" # client\n# retry note\nrequest-retry: 3\n\
+                        debug: false\nrouting:\n  strategy: fill-first\n";
+        let doc = ConfigDocument::parse(original).unwrap();
+        let text = doc.migrated_text(original).expect("block layout migrates as text");
+        assert_eq!(serde_yaml_ng::from_str::<Value>(&text).unwrap(), *doc.value(), "{text}");
+        for kept in [
+            "  # head\n  host: \"\" # any\n",
+            "  # why\n  allow-remote: true\n",
+            "  auth-dir: '~/.cli-proxy-api'\n",
+            "  - \"sk-fake\" # client\n",
+            "routing:\n  strategy: fill-first\n  retry:\n    # retry note\n    request-retry: 3\n",
+            "observability:\n  logs:\n    debug: false\n",
+        ] {
+            assert!(text.contains(kept), "missing {kept:?} in\n{text}");
+        }
+        // Unsupported syntax declines rather than guessing.
+        let anchored = "defaults: &d {a: 1}\nhost: x\n";
+        let doc = ConfigDocument::parse("host: x\n").unwrap();
+        assert!(doc.migrated_text(anchored).is_none());
     }
 
     #[test]

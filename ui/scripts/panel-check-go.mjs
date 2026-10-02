@@ -41,7 +41,7 @@ try {
   await button("Connect", page).click();
   await main.getByText("operator@example.invalid").first().waitFor();
   await settle();
-  // Go is recognised from its headers, so no OPTIONS capability probes are sent.
+  // Go is recognised from its headers, so no capability probes are sent (they would answer 400).
   await go("#system");
   await main.getByText("(Go)").waitFor();
   pass("server detected as Go from X-CPA headers");
@@ -183,13 +183,13 @@ try {
 
   const foreign = requests.filter((r) => !r.url.startsWith(origin) && !r.url.startsWith("data:"));
   assert.deepEqual(foreign, [], "requests outside the serving origin");
-  assert.equal(requests.filter((r) => r.method === "OPTIONS").length, 0, "Go must not be probed");
+
   const storage = await page.evaluate(() => JSON.stringify({ ...localStorage, ...sessionStorage }));
   assert.ok(!storage.includes(KEY), "management key in storage");
   assert.deepEqual(problems, [], "console errors");
   // The only HTTP errors are reads of config paths that are not set yet (Go: 404 not_found).
   assert.deepEqual(failures.filter((f) => !/^GET \/v8\/management\/config\/\S+ 404$/.test(f)), [], "unexpected HTTP errors");
-  pass(`${requests.length} requests, all to ${origin}; no OPTIONS probes; no console errors; key not stored`);
+  pass(`${requests.length} requests, all to ${origin}; no capability probes; no console errors; key not stored`);
 } finally {
   writeFileSync(`${out}/panel-check-go.json`, JSON.stringify({ url, log, problems, failures }, null, 2));
   await browser.close();

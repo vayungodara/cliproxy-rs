@@ -651,6 +651,17 @@ pub fn claude_structured_output_instruction(format: &Res<'_>) -> Vec<u8> {
 // ---------------------------------------------------------------------------------------
 // Request model (common/request.go)
 
+/// `event: <event>\ndata: <payload>\n\n` (common.SSEEventData).
+pub fn sse_event(event: &str, payload: &[u8]) -> Vec<u8> {
+    let mut out = Vec::with_capacity(event.len() + payload.len() + 16);
+    out.extend_from_slice(b"event: ");
+    out.extend_from_slice(event.as_bytes());
+    out.extend_from_slice(b"\ndata: ");
+    out.extend_from_slice(payload);
+    out.extend_from_slice(b"\n\n");
+    out
+}
+
 /// common.RequestModelName: the first non-blank `model` or `request.model` string.
 pub fn request_model_name(original: &[u8], request: &[u8]) -> Vec<u8> {
     for raw in [original, request] {

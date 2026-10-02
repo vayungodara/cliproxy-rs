@@ -664,19 +664,17 @@ async fn empty_stream_fails_over_and_reports_empty_stream() {
 #[tokio::test]
 async fn bootstrap_retries_rerun_a_stream_that_broke_before_its_first_payload() {
     let broken: Reply = Box::new(|| {
-        // A partial frame, then a reset: the executor returns a stream whose first item
-        // is an error (Go: a channel error before the first payload).
-        let body = futures_util::stream::iter([
-            Ok(Bytes::from_static(b"event: message_start\n")),
-            Err::<Bytes, _>(std::io::Error::other("reset")),
-        ])
-        .then(|item| async move {
-            // Let hyper flush the partial frame before the reset.
-            if item.is_err() {
-                tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-            }
-            item
-        });
+        // A reset before any body byte: the executor's first item is the error (Go: a
+        // channel error before the first payload). Go's Claude stream flushes any bytes
+        // that did arrive, even a partial line, as a payload before the error.
+        let body =
+            futures_util::stream::iter([Err::<Bytes, _>(std::io::Error::other("reset"))]).then(|item| async move {
+                // Let hyper send the response head before the reset.
+                if item.is_err() {
+                    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+                }
+                item
+            });
         (
             [("content-type", "text/event-stream")],
             axum::body::Body::from_stream(body),
@@ -691,19 +689,17 @@ async fn bootstrap_retries_rerun_a_stream_that_broke_before_its_first_payload() 
     assert_eq!(script.calls.lock().unwrap().len(), 2);
 
     let broken: Reply = Box::new(|| {
-        // A partial frame, then a reset: the executor returns a stream whose first item
-        // is an error (Go: a channel error before the first payload).
-        let body = futures_util::stream::iter([
-            Ok(Bytes::from_static(b"event: message_start\n")),
-            Err::<Bytes, _>(std::io::Error::other("reset")),
-        ])
-        .then(|item| async move {
-            // Let hyper flush the partial frame before the reset.
-            if item.is_err() {
-                tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-            }
-            item
-        });
+        // A reset before any body byte: the executor's first item is the error (Go: a
+        // channel error before the first payload). Go's Claude stream flushes any bytes
+        // that did arrive, even a partial line, as a payload before the error.
+        let body =
+            futures_util::stream::iter([Err::<Bytes, _>(std::io::Error::other("reset"))]).then(|item| async move {
+                // Let hyper send the response head before the reset.
+                if item.is_err() {
+                    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+                }
+                item
+            });
         (
             [("content-type", "text/event-stream")],
             axum::body::Body::from_stream(body),

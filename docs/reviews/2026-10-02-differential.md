@@ -1,5 +1,45 @@
 # Local Claude differential findings, 2026-10-02
 
+## Remeasurement on `ultra/claude`, 2026-10-02 21:44 UTC
+
+Branch `ultra/claude` at `6c7e7e3` (merged with master `cc00c27`), against the same
+unmodified Go oracle at `6fecc6e`. The Rust driver now builds the production
+executor with `ClaudeExecutor::with_hooks`: the native Claude Code TLS profile, the
+ordered header writer, session caches and the OAuth refresh transport are the
+production builders, with only the test CA and the dial override injected. Evidence:
+[`harness/evidence/2026-10-02-ultra-claude.json.gz`](../../harness/evidence/2026-10-02-ultra-claude.json.gz)
+(53 cases, both observations, every diff; no keys or logs).
+
+| Measure | Result |
+| --- | --- |
+| Cases | 53, zero capture or downstream transport errors |
+| Downstream status | identical in all 53 |
+| Upstream HTTP requests | 40 in both; request line, header names, order, casing, values and body bytes identical except the per-request random `x-client-request-id` |
+| Upstream TLS | zero differences: cold JA3 `d871d02cecbde59abbf8f4806134addf`, resumed JA3 `ed4714a02bc37b3d8048af114f4d505d`, `session_reused=true` on reconnect, compact OAuth hello |
+| Downstream bodies | identical in 51; `models-openai` and `models-gemini` list different model inventories |
+
+Every Claude finding below is resolved in this measurement: native TLS and
+resumption (M1-0017), ordered headers and betas (M1-0016, M1-0022, M1-0023,
+M1-0026), cloaking, billing/CCH and identity (M1-0013..0015), MCP aliases in both
+directions (M1-0019), refresh with persistence and the OAuth transport (M1-0011,
+M1-0012, M1-0018, M1-0024, M1-0025), compressed responses, CRLF, terminal events and
+`unexpected EOF` (M1-0004, M1-0084), and `status 500` for empty error bodies.
+`upstream-401` now refreshes once and retries as Go does (server dispatch plus the
+executor's on-demand refresh).
+
+Remaining differences, none in the Claude executor:
+
+- Downstream response headers in every case (CORS set, exposed-header list, trace
+  header, casing and order): server middleware.
+- `credential_after/disabled`: Go writes `"disabled":false` into the credential
+  file on persistence; the Rust file store omits it.
+- `models-openai`, `models-gemini`: catalog inventory and order (registry).
+- Wall-clock values (`expired`, `last_refresh` one second apart in
+  `refresh-expired`) and generated request IDs are nondeterministic, not defects.
+
+The sections below record the original baseline (`574c426`) and are kept for history.
+
+
 The baseline is not wire-compatible with the Go reference. All 33 scripted cases
 completed with no capture or downstream transport failures, but every case had
 observable differences. The run recorded 2,980 differing fields, including repeated

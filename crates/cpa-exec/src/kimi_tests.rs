@@ -162,7 +162,6 @@ async fn claude_delegation_keeps_kimi_owned_wire_parts() {
 }
 
 #[tokio::test]
-#[ignore = "needs the Claude executor's Go wire profile for delegated non-Anthropic origins"]
 async fn claude_delegation_full_wire_parity() {
     let (fx, captured, _) = run("claude-nonstream-delegated").await;
     assert_same_request(
@@ -174,7 +173,6 @@ async fn claude_delegation_full_wire_parity() {
 }
 
 #[tokio::test]
-#[ignore = "needs a ClaudeExecutor hook forcing upstream count_tokens for Kimi (Go countTokensUpstream)"]
 async fn count_tokens_goes_upstream_like_go() {
     let (fx, captured, down) = run("claude-count-tokens-upstream").await;
     assert_same_request(
