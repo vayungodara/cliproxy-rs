@@ -1,0 +1,17 @@
+[package]
+name = "cpa-differential-driver"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+# Separate workspace: ordinary workspace tests never require Go or namespaces.
+[workspace]
+
+[dependencies]
+anyhow = "1"
+axum = "0.8.9"
+cpa-core = { path = "../../crates/cpa-core" }
+cpa-exec = { path = "../../crates/cpa-exec" }
+cpa-server = { path = "../../crates/cpa-server" }
+tokio = { version = "1.53", features = ["full"] }
+wreq = { version = "=6.0.0-rc.31", features = ["stream", "json"] }

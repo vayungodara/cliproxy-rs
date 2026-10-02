@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+root=$PWD
+cache=$root/harness/.cache
+mkdir -p "$cache"
+reference=${CPA_GO_REFERENCE:-$cache/CLIProxyAPI}
+for command in go cargo cmake clang perl python3 openssl unshare ip mount; do
+    command -v "$command" >/dev/null || { echo "Missing prerequisite: $command" >&2; exit 2; }
+done
+# Downloads/builds happen before isolation. No provider credentials are used.
+if [[ ! -d "$reference/.git" ]]; then
+    git clone https://github.com/router-for-me/CLIProxyAPI "$reference"
+    git -C "$reference" checkout 6fecc6e5567912661654a4eaf9b8f5436facd1c2
+fi
+[[ $(git -C "$reference" rev-parse HEAD) == 6fecc6e5567912661654a4eaf9b8f5436facd1c2 ]] || {
+    echo 'Go reference must be at 6fecc6e5567912661654a4eaf9b8f5436facd1c2' >&2; exit 2;
+}
+[[ -z $(git -C "$reference" status --porcelain) ]] || {
+    echo 'Go reference has modifications or untracked files' >&2; exit 2;
+}
+(cd "$reference"; GOMAXPROCS=${GOMAXPROCS:-6} go build -o "$cache/go-reference" ./cmd/server)
+CARGO_BUILD_JOBS=${CARGO_BUILD_JOBS:-6} cargo build --locked --manifest-path harness/rust/Cargo.toml
+python3 -m unittest discover -s harness -p 'test_*.py'
+# No fallback: if namespaces/mounts fail, no proxy is started. Never touch host
+# /etc/hosts or its trust store. --kill-child reaps everything if interrupted.
+exec unshare --user --map-root-user --net --mount --pid --fork --kill-child \
+    bash -c 'set -euo pipefail; mount --make-rprivate /; ip link set lo up; exec python3 "$1/harness/differential.py" "$1" "${@:2}"' \
+    harness "$root" "$@"
