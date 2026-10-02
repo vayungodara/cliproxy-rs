@@ -1,0 +1,2949 @@
+{
+  "name": "decode",
+  "credential": {},
+  "request": {},
+  "responses": null,
+  "upstream": null,
+  "downstream": {},
+  "extra": {
+    "bytes": [
+      {
+        "byte": 0,
+        "err": "invalid character '\\x00' looking for beginning of value"
+      },
+      {
+        "byte": 1,
+        "err": "invalid character '\\x01' looking for beginning of value"
+      },
+      {
+        "byte": 2,
+        "err": "invalid character '\\x02' looking for beginning of value"
+      },
+      {
+        "byte": 3,
+        "err": "invalid character '\\x03' looking for beginning of value"
+      },
+      {
+        "byte": 4,
+        "err": "invalid character '\\x04' looking for beginning of value"
+      },
+      {
+        "byte": 5,
+        "err": "invalid character '\\x05' looking for beginning of value"
+      },
+      {
+        "byte": 6,
+        "err": "invalid character '\\x06' looking for beginning of value"
+      },
+      {
+        "byte": 7,
+        "err": "invalid character '\\a' looking for beginning of value"
+      },
+      {
+        "byte": 8,
+        "err": "invalid character '\\b' looking for beginning of value"
+      },
+      {
+        "byte": 9,
+        "err": "unexpected end of JSON input"
+      },
+      {
+        "byte": 10,
+        "err": "unexpected end of JSON input"
+      },
+      {
+        "byte": 11,
+        "err": "invalid character '\\v' looking for beginning of value"
+      },
+      {
+        "byte": 12,
+        "err": "invalid character '\\f' looking for beginning of value"
+      },
+      {
+        "byte": 13,
+        "err": "unexpected end of JSON input"
+      },
+      {
+        "byte": 14,
+        "err": "invalid character '\\x0e' looking for beginning of value"
+      },
+      {
+        "byte": 15,
+        "err": "invalid character '\\x0f' looking for beginning of value"
+      },
+      {
+        "byte": 16,
+        "err": "invalid character '\\x10' looking for beginning of value"
+      },
+      {
+        "byte": 17,
+        "err": "invalid character '\\x11' looking for beginning of value"
+      },
+      {
+        "byte": 18,
+        "err": "invalid character '\\x12' looking for beginning of value"
+      },
+      {
+        "byte": 19,
+        "err": "invalid character '\\x13' looking for beginning of value"
+      },
+      {
+        "byte": 20,
+        "err": "invalid character '\\x14' looking for beginning of value"
+      },
+      {
+        "byte": 21,
+        "err": "invalid character '\\x15' looking for beginning of value"
+      },
+      {
+        "byte": 22,
+        "err": "invalid character '\\x16' looking for beginning of value"
+      },
+      {
+        "byte": 23,
+        "err": "invalid character '\\x17' looking for beginning of value"
+      },
+      {
+        "byte": 24,
+        "err": "invalid character '\\x18' looking for beginning of value"
+      },
+      {
+        "byte": 25,
+        "err": "invalid character '\\x19' looking for beginning of value"
+      },
+      {
+        "byte": 26,
+        "err": "invalid character '\\x1a' looking for beginning of value"
+      },
+      {
+        "byte": 27,
+        "err": "invalid character '\\x1b' looking for beginning of value"
+      },
+      {
+        "byte": 28,
+        "err": "invalid character '\\x1c' looking for beginning of value"
+      },
+      {
+        "byte": 29,
+        "err": "invalid character '\\x1d' looking for beginning of value"
+      },
+      {
+        "byte": 30,
+        "err": "invalid character '\\x1e' looking for beginning of value"
+      },
+      {
+        "byte": 31,
+        "err": "invalid character '\\x1f' looking for beginning of value"
+      },
+      {
+        "byte": 32,
+        "err": "unexpected end of JSON input"
+      },
+      {
+        "byte": 33,
+        "err": "invalid character '!' looking for beginning of value"
+      },
+      {
+        "byte": 34,
+        "err": "unexpected end of JSON input"
+      },
+      {
+        "byte": 35,
+        "err": "invalid character '#' looking for beginning of value"
+      },
+      {
+        "byte": 36,
+        "err": "invalid character '$' looking for beginning of value"
+      },
+      {
+        "byte": 37,
+        "err": "invalid character '%' looking for beginning of value"
+      },
+      {
+        "byte": 38,
+        "err": "invalid character '\u0026' looking for beginning of value"
+      },
+      {
+        "byte": 39,
+        "err": "invalid character '\\'' looking for beginning of value"
+      },
+      {
+        "byte": 40,
+        "err": "invalid character '(' looking for beginning of value"
+      },
+      {
+        "byte": 41,
+        "err": "invalid character ')' looking for beginning of value"
+      },
+      {
+        "byte": 42,
+        "err": "invalid character '*' looking for beginning of value"
+      },
+      {
+        "byte": 43,
+        "err": "invalid character '+' looking for beginning of value"
+      },
+      {
+        "byte": 44,
+        "err": "invalid character ',' looking for beginning of value"
+      },
+      {
+        "byte": 45,
+        "err": "invalid character ' ' in numeric literal"
+      },
+      {
+        "byte": 46,
+        "err": "invalid character '.' looking for beginning of value"
+      },
+      {
+        "byte": 47,
+        "err": "invalid character '/' looking for beginning of value"
+      },
+      {
+        "byte": 48,
+        "err": "json: cannot unmarshal number into Go value of type map[string]interface {}"
+      },
+      {
+        "byte": 49,
+        "err": "json: cannot unmarshal number into Go value of type map[string]interface {}"
+      },
+      {
+        "byte": 50,
+        "err": "json: cannot unmarshal number into Go value of type map[string]interface {}"
+      },
+      {
+        "byte": 51,
+        "err": "json: cannot unmarshal number into Go value of type map[string]interface {}"
+      },
+      {
+        "byte": 52,
+        "err": "json: cannot unmarshal number into Go value of type map[string]interface {}"
+      },
+      {
+        "byte": 53,
+        "err": "json: cannot unmarshal number into Go value of type map[string]interface {}"
+      },
+      {
+        "byte": 54,
+        "err": "json: cannot unmarshal number into Go value of type map[string]interface {}"
+      },
+      {
+        "byte": 55,
+        "err": "json: cannot unmarshal number into Go value of type map[string]interface {}"
+      },
+      {
+        "byte": 56,
+        "err": "json: cannot unmarshal number into Go value of type map[string]interface {}"
+      },
+      {
+        "byte": 57,
+        "err": "json: cannot unmarshal number into Go value of type map[string]interface {}"
+      },
+      {
+        "byte": 58,
+        "err": "invalid character ':' looking for beginning of value"
+      },
+      {
+        "byte": 59,
+        "err": "invalid character ';' looking for beginning of value"
+      },
+      {
+        "byte": 60,
+        "err": "invalid character '\u003c' looking for beginning of value"
+      },
+      {
+        "byte": 61,
+        "err": "invalid character '=' looking for beginning of value"
+      },
+      {
+        "byte": 62,
+        "err": "invalid character '\u003e' looking for beginning of value"
+      },
+      {
+        "byte": 63,
+        "err": "invalid character '?' looking for beginning of value"
+      },
+      {
+        "byte": 64,
+        "err": "invalid character '@' looking for beginning of value"
+      },
+      {
+        "byte": 65,
+        "err": "invalid character 'A' looking for beginning of value"
+      },
+      {
+        "byte": 66,
+        "err": "invalid character 'B' looking for beginning of value"
+      },
+      {
+        "byte": 67,
+        "err": "invalid character 'C' looking for beginning of value"
+      },
+      {
+        "byte": 68,
+        "err": "invalid character 'D' looking for beginning of value"
+      },
+      {
+        "byte": 69,
+        "err": "invalid character 'E' looking for beginning of value"
+      },
+      {
+        "byte": 70,
+        "err": "invalid character 'F' looking for beginning of value"
+      },
+      {
+        "byte": 71,
+        "err": "invalid character 'G' looking for beginning of value"
+      },
+      {
+        "byte": 72,
+        "err": "invalid character 'H' looking for beginning of value"
+      },
+      {
+        "byte": 73,
+        "err": "invalid character 'I' looking for beginning of value"
+      },
+      {
+        "byte": 74,
+        "err": "invalid character 'J' looking for beginning of value"
+      },
+      {
+        "byte": 75,
+        "err": "invalid character 'K' looking for beginning of value"
+      },
+      {
+        "byte": 76,
+        "err": "invalid character 'L' looking for beginning of value"
+      },
+      {
+        "byte": 77,
+        "err": "invalid character 'M' looking for beginning of value"
+      },
+      {
+        "byte": 78,
+        "err": "invalid character 'N' looking for beginning of value"
+      },
+      {
+        "byte": 79,
+        "err": "invalid character 'O' looking for beginning of value"
+      },
+      {
+        "byte": 80,
+        "err": "invalid character 'P' looking for beginning of value"
+      },
+      {
+        "byte": 81,
+        "err": "invalid character 'Q' looking for beginning of value"
+      },
+      {
+        "byte": 82,
+        "err": "invalid character 'R' looking for beginning of value"
+      },
+      {
+        "byte": 83,
+        "err": "invalid character 'S' looking for beginning of value"
+      },
+      {
+        "byte": 84,
+        "err": "invalid character 'T' looking for beginning of value"
+      },
+      {
+        "byte": 85,
+        "err": "invalid character 'U' looking for beginning of value"
+      },
+      {
+        "byte": 86,
+        "err": "invalid character 'V' looking for beginning of value"
+      },
+      {
+        "byte": 87,
+        "err": "invalid character 'W' looking for beginning of value"
+      },
+      {
+        "byte": 88,
+        "err": "invalid character 'X' looking for beginning of value"
+      },
+      {
+        "byte": 89,
+        "err": "invalid character 'Y' looking for beginning of value"
+      },
+      {
+        "byte": 90,
+        "err": "invalid character 'Z' looking for beginning of value"
+      },
+      {
+        "byte": 91,
+        "err": "unexpected end of JSON input"
+      },
+      {
+        "byte": 92,
+        "err": "invalid character '\\\\' looking for beginning of value"
+      },
+      {
+        "byte": 93,
+        "err": "invalid character ']' looking for beginning of value"
+      },
+      {
+        "byte": 94,
+        "err": "invalid character '^' looking for beginning of value"
+      },
+      {
+        "byte": 95,
+        "err": "invalid character '_' looking for beginning of value"
+      },
+      {
+        "byte": 96,
+        "err": "invalid character '`' looking for beginning of value"
+      },
+      {
+        "byte": 97,
+        "err": "invalid character 'a' looking for beginning of value"
+      },
+      {
+        "byte": 98,
+        "err": "invalid character 'b' looking for beginning of value"
+      },
+      {
+        "byte": 99,
+        "err": "invalid character 'c' looking for beginning of value"
+      },
+      {
+        "byte": 100,
+        "err": "invalid character 'd' looking for beginning of value"
+      },
+      {
+        "byte": 101,
+        "err": "invalid character 'e' looking for beginning of value"
+      },
+      {
+        "byte": 102,
+        "err": "invalid character ' ' in literal false (expecting 'a')"
+      },
+      {
+        "byte": 103,
+        "err": "invalid character 'g' looking for beginning of value"
+      },
+      {
+        "byte": 104,
+        "err": "invalid character 'h' looking for beginning of value"
+      },
+      {
+        "byte": 105,
+        "err": "invalid character 'i' looking for beginning of value"
+      },
+      {
+        "byte": 106,
+        "err": "invalid character 'j' looking for beginning of value"
+      },
+      {
+        "byte": 107,
+        "err": "invalid character 'k' looking for beginning of value"
+      },
+      {
+        "byte": 108,
+        "err": "invalid character 'l' looking for beginning of value"
+      },
+      {
+        "byte": 109,
+        "err": "invalid character 'm' looking for beginning of value"
+      },
+      {
+        "byte": 110,
+        "err": "invalid character ' ' in literal null (expecting 'u')"
+      },
+      {
+        "byte": 111,
+        "err": "invalid character 'o' looking for beginning of value"
+      },
+      {
+        "byte": 112,
+        "err": "invalid character 'p' looking for beginning of value"
+      },
+      {
+        "byte": 113,
+        "err": "invalid character 'q' looking for beginning of value"
+      },
+      {
+        "byte": 114,
+        "err": "invalid character 'r' looking for beginning of value"
+      },
+      {
+        "byte": 115,
+        "err": "invalid character 's' looking for beginning of value"
+      },
+      {
+        "byte": 116,
+        "err": "invalid character ' ' in literal true (expecting 'r')"
+      },
+      {
+        "byte": 117,
+        "err": "invalid character 'u' looking for beginning of value"
+      },
+      {
+        "byte": 118,
+        "err": "invalid character 'v' looking for beginning of value"
+      },
+      {
+        "byte": 119,
+        "err": "invalid character 'w' looking for beginning of value"
+      },
+      {
+        "byte": 120,
+        "err": "invalid character 'x' looking for beginning of value"
+      },
+      {
+        "byte": 121,
+        "err": "invalid character 'y' looking for beginning of value"
+      },
+      {
+        "byte": 122,
+        "err": "invalid character 'z' looking for beginning of value"
+      },
+      {
+        "byte": 123,
+        "err": "unexpected end of JSON input"
+      },
+      {
+        "byte": 124,
+        "err": "invalid character '|' looking for beginning of value"
+      },
+      {
+        "byte": 125,
+        "err": "invalid character '}' looking for beginning of value"
+      },
+      {
+        "byte": 126,
+        "err": "invalid character '~' looking for beginning of value"
+      },
+      {
+        "byte": 127,
+        "err": "invalid character '\\x7f' looking for beginning of value"
+      },
+      {
+        "byte": 128,
+        "err": "invalid character '\\u0080' looking for beginning of value"
+      },
+      {
+        "byte": 129,
+        "err": "invalid character '\\u0081' looking for beginning of value"
+      },
+      {
+        "byte": 130,
+        "err": "invalid character '\\u0082' looking for beginning of value"
+      },
+      {
+        "byte": 131,
+        "err": "invalid character '\\u0083' looking for beginning of value"
+      },
+      {
+        "byte": 132,
+        "err": "invalid character '\\u0084' looking for beginning of value"
+      },
+      {
+        "byte": 133,
+        "err": "invalid character '\\u0085' looking for beginning of value"
+      },
+      {
+        "byte": 134,
+        "err": "invalid character '\\u0086' looking for beginning of value"
+      },
+      {
+        "byte": 135,
+        "err": "invalid character '\\u0087' looking for beginning of value"
+      },
+      {
+        "byte": 136,
+        "err": "invalid character '\\u0088' looking for beginning of value"
+      },
+      {
+        "byte": 137,
+        "err": "invalid character '\\u0089' looking for beginning of value"
+      },
+      {
+        "byte": 138,
+        "err": "invalid character '\\u008a' looking for beginning of value"
+      },
+      {
+        "byte": 139,
+        "err": "invalid character '\\u008b' looking for beginning of value"
+      },
+      {
+        "byte": 140,
+        "err": "invalid character '\\u008c' looking for beginning of value"
+      },
+      {
+        "byte": 141,
+        "err": "invalid character '\\u008d' looking for beginning of value"
+      },
+      {
+        "byte": 142,
+        "err": "invalid character '\\u008e' looking for beginning of value"
+      },
+      {
+        "byte": 143,
+        "err": "invalid character '\\u008f' looking for beginning of value"
+      },
+      {
+        "byte": 144,
+        "err": "invalid character '\\u0090' looking for beginning of value"
+      },
+      {
+        "byte": 145,
+        "err": "invalid character '\\u0091' looking for beginning of value"
+      },
+      {
+        "byte": 146,
+        "err": "invalid character '\\u0092' looking for beginning of value"
+      },
+      {
+        "byte": 147,
+        "err": "invalid character '\\u0093' looking for beginning of value"
+      },
+      {
+        "byte": 148,
+        "err": "invalid character '\\u0094' looking for beginning of value"
+      },
+      {
+        "byte": 149,
+        "err": "invalid character '\\u0095' looking for beginning of value"
+      },
+      {
+        "byte": 150,
+        "err": "invalid character '\\u0096' looking for beginning of value"
+      },
+      {
+        "byte": 151,
+        "err": "invalid character '\\u0097' looking for beginning of value"
+      },
+      {
+        "byte": 152,
+        "err": "invalid character '\\u0098' looking for beginning of value"
+      },
+      {
+        "byte": 153,
+        "err": "invalid character '\\u0099' looking for beginning of value"
+      },
+      {
+        "byte": 154,
+        "err": "invalid character '\\u009a' looking for beginning of value"
+      },
+      {
+        "byte": 155,
+        "err": "invalid character '\\u009b' looking for beginning of value"
+      },
+      {
+        "byte": 156,
+        "err": "invalid character '\\u009c' looking for beginning of value"
+      },
+      {
+        "byte": 157,
+        "err": "invalid character '\\u009d' looking for beginning of value"
+      },
+      {
+        "byte": 158,
+        "err": "invalid character '\\u009e' looking for beginning of value"
+      },
+      {
+        "byte": 159,
+        "err": "invalid character '\\u009f' looking for beginning of value"
+      },
+      {
+        "byte": 160,
+        "err": "invalid character '\\u00a0' looking for beginning of value"
+      },
+      {
+        "byte": 161,
+        "err": "invalid character '¡' looking for beginning of value"
+      },
+      {
+        "byte": 162,
+        "err": "invalid character '¢' looking for beginning of value"
+      },
+      {
+        "byte": 163,
+        "err": "invalid character '£' looking for beginning of value"
+      },
+      {
+        "byte": 164,
+        "err": "invalid character '¤' looking for beginning of value"
+      },
+      {
+        "byte": 165,
+        "err": "invalid character '¥' looking for beginning of value"
+      },
+      {
+        "byte": 166,
+        "err": "invalid character '¦' looking for beginning of value"
+      },
+      {
+        "byte": 167,
+        "err": "invalid character '§' looking for beginning of value"
+      },
+      {
+        "byte": 168,
+        "err": "invalid character '¨' looking for beginning of value"
+      },
+      {
+        "byte": 169,
+        "err": "invalid character '©' looking for beginning of value"
+      },
+      {
+        "byte": 170,
+        "err": "invalid character 'ª' looking for beginning of value"
+      },
+      {
+        "byte": 171,
+        "err": "invalid character '«' looking for beginning of value"
+      },
+      {
+        "byte": 172,
+        "err": "invalid character '¬' looking for beginning of value"
+      },
+      {
+        "byte": 173,
+        "err": "invalid character '\\u00ad' looking for beginning of value"
+      },
+      {
+        "byte": 174,
+        "err": "invalid character '®' looking for beginning of value"
+      },
+      {
+        "byte": 175,
+        "err": "invalid character '¯' looking for beginning of value"
+      },
+      {
+        "byte": 176,
+        "err": "invalid character '°' looking for beginning of value"
+      },
+      {
+        "byte": 177,
+        "err": "invalid character '±' looking for beginning of value"
+      },
+      {
+        "byte": 178,
+        "err": "invalid character '²' looking for beginning of value"
+      },
+      {
+        "byte": 179,
+        "err": "invalid character '³' looking for beginning of value"
+      },
+      {
+        "byte": 180,
+        "err": "invalid character '´' looking for beginning of value"
+      },
+      {
+        "byte": 181,
+        "err": "invalid character 'µ' looking for beginning of value"
+      },
+      {
+        "byte": 182,
+        "err": "invalid character '¶' looking for beginning of value"
+      },
+      {
+        "byte": 183,
+        "err": "invalid character '·' looking for beginning of value"
+      },
+      {
+        "byte": 184,
+        "err": "invalid character '¸' looking for beginning of value"
+      },
+      {
+        "byte": 185,
+        "err": "invalid character '¹' looking for beginning of value"
+      },
+      {
+        "byte": 186,
+        "err": "invalid character 'º' looking for beginning of value"
+      },
+      {
+        "byte": 187,
+        "err": "invalid character '»' looking for beginning of value"
+      },
+      {
+        "byte": 188,
+        "err": "invalid character '¼' looking for beginning of value"
+      },
+      {
+        "byte": 189,
+        "err": "invalid character '½' looking for beginning of value"
+      },
+      {
+        "byte": 190,
+        "err": "invalid character '¾' looking for beginning of value"
+      },
+      {
+        "byte": 191,
+        "err": "invalid character '¿' looking for beginning of value"
+      },
+      {
+        "byte": 192,
+        "err": "invalid character 'À' looking for beginning of value"
+      },
+      {
+        "byte": 193,
+        "err": "invalid character 'Á' looking for beginning of value"
+      },
+      {
+        "byte": 194,
+        "err": "invalid character 'Â' looking for beginning of value"
+      },
+      {
+        "byte": 195,
+        "err": "invalid character 'Ã' looking for beginning of value"
+      },
+      {
+        "byte": 196,
+        "err": "invalid character 'Ä' looking for beginning of value"
+      },
+      {
+        "byte": 197,
+        "err": "invalid character 'Å' looking for beginning of value"
+      },
+      {
+        "byte": 198,
+        "err": "invalid character 'Æ' looking for beginning of value"
+      },
+      {
+        "byte": 199,
+        "err": "invalid character 'Ç' looking for beginning of value"
+      },
+      {
+        "byte": 200,
+        "err": "invalid character 'È' looking for beginning of value"
+      },
+      {
+        "byte": 201,
+        "err": "invalid character 'É' looking for beginning of value"
+      },
+      {
+        "byte": 202,
+        "err": "invalid character 'Ê' looking for beginning of value"
+      },
+      {
+        "byte": 203,
+        "err": "invalid character 'Ë' looking for beginning of value"
+      },
+      {
+        "byte": 204,
+        "err": "invalid character 'Ì' looking for beginning of value"
+      },
+      {
+        "byte": 205,
+        "err": "invalid character 'Í' looking for beginning of value"
+      },
+      {
+        "byte": 206,
+        "err": "invalid character 'Î' looking for beginning of value"
+      },
+      {
+        "byte": 207,
+        "err": "invalid character 'Ï' looking for beginning of value"
+      },
+      {
+        "byte": 208,
+        "err": "invalid character 'Ð' looking for beginning of value"
+      },
+      {
+        "byte": 209,
+        "err": "invalid character 'Ñ' looking for beginning of value"
+      },
+      {
+        "byte": 210,
+        "err": "invalid character 'Ò' looking for beginning of value"
+      },
+      {
+        "byte": 211,
+        "err": "invalid character 'Ó' looking for beginning of value"
+      },
+      {
+        "byte": 212,
+        "err": "invalid character 'Ô' looking for beginning of value"
+      },
+      {
+        "byte": 213,
+        "err": "invalid character 'Õ' looking for beginning of value"
+      },
+      {
+        "byte": 214,
+        "err": "invalid character 'Ö' looking for beginning of value"
+      },
+      {
+        "byte": 215,
+        "err": "invalid character '×' looking for beginning of value"
+      },
+      {
+        "byte": 216,
+        "err": "invalid character 'Ø' looking for beginning of value"
+      },
+      {
+        "byte": 217,
+        "err": "invalid character 'Ù' looking for beginning of value"
+      },
+      {
+        "byte": 218,
+        "err": "invalid character 'Ú' looking for beginning of value"
+      },
+      {
+        "byte": 219,
+        "err": "invalid character 'Û' looking for beginning of value"
+      },
+      {
+        "byte": 220,
+        "err": "invalid character 'Ü' looking for beginning of value"
+      },
+      {
+        "byte": 221,
+        "err": "invalid character 'Ý' looking for beginning of value"
+      },
+      {
+        "byte": 222,
+        "err": "invalid character 'Þ' looking for beginning of value"
+      },
+      {
+        "byte": 223,
+        "err": "invalid character 'ß' looking for beginning of value"
+      },
+      {
+        "byte": 224,
+        "err": "invalid character 'à' looking for beginning of value"
+      },
+      {
+        "byte": 225,
+        "err": "invalid character 'á' looking for beginning of value"
+      },
+      {
+        "byte": 226,
+        "err": "invalid character 'â' looking for beginning of value"
+      },
+      {
+        "byte": 227,
+        "err": "invalid character 'ã' looking for beginning of value"
+      },
+      {
+        "byte": 228,
+        "err": "invalid character 'ä' looking for beginning of value"
+      },
+      {
+        "byte": 229,
+        "err": "invalid character 'å' looking for beginning of value"
+      },
+      {
+        "byte": 230,
+        "err": "invalid character 'æ' looking for beginning of value"
+      },
+      {
+        "byte": 231,
+        "err": "invalid character 'ç' looking for beginning of value"
+      },
+      {
+        "byte": 232,
+        "err": "invalid character 'è' looking for beginning of value"
+      },
+      {
+        "byte": 233,
+        "err": "invalid character 'é' looking for beginning of value"
+      },
+      {
+        "byte": 234,
+        "err": "invalid character 'ê' looking for beginning of value"
+      },
+      {
+        "byte": 235,
+        "err": "invalid character 'ë' looking for beginning of value"
+      },
+      {
+        "byte": 236,
+        "err": "invalid character 'ì' looking for beginning of value"
+      },
+      {
+        "byte": 237,
+        "err": "invalid character 'í' looking for beginning of value"
+      },
+      {
+        "byte": 238,
+        "err": "invalid character 'î' looking for beginning of value"
+      },
+      {
+        "byte": 239,
+        "err": "invalid character 'ï' looking for beginning of value"
+      },
+      {
+        "byte": 240,
+        "err": "invalid character 'ð' looking for beginning of value"
+      },
+      {
+        "byte": 241,
+        "err": "invalid character 'ñ' looking for beginning of value"
+      },
+      {
+        "byte": 242,
+        "err": "invalid character 'ò' looking for beginning of value"
+      },
+      {
+        "byte": 243,
+        "err": "invalid character 'ó' looking for beginning of value"
+      },
+      {
+        "byte": 244,
+        "err": "invalid character 'ô' looking for beginning of value"
+      },
+      {
+        "byte": 245,
+        "err": "invalid character 'õ' looking for beginning of value"
+      },
+      {
+        "byte": 246,
+        "err": "invalid character 'ö' looking for beginning of value"
+      },
+      {
+        "byte": 247,
+        "err": "invalid character '÷' looking for beginning of value"
+      },
+      {
+        "byte": 248,
+        "err": "invalid character 'ø' looking for beginning of value"
+      },
+      {
+        "byte": 249,
+        "err": "invalid character 'ù' looking for beginning of value"
+      },
+      {
+        "byte": 250,
+        "err": "invalid character 'ú' looking for beginning of value"
+      },
+      {
+        "byte": 251,
+        "err": "invalid character 'û' looking for beginning of value"
+      },
+      {
+        "byte": 252,
+        "err": "invalid character 'ü' looking for beginning of value"
+      },
+      {
+        "byte": 253,
+        "err": "invalid character 'ý' looking for beginning of value"
+      },
+      {
+        "byte": 254,
+        "err": "invalid character 'þ' looking for beginning of value"
+      },
+      {
+        "byte": 255,
+        "err": "invalid character 'ÿ' looking for beginning of value"
+      }
+    ],
+    "cases": [
+      {
+        "device": {
+          "value": {
+            "device_code": "d",
+            "user_code": "u",
+            "verification_uri": "",
+            "verification_uri_complete": "",
+            "expires_in": 0,
+            "interval": 2
+          },
+          "err": ""
+        },
+        "input": "{\"DEVICE_CODE\":\"d\",\"User_Code\":\"u\",\"interval\":2}",
+        "mint": {
+          "value": {
+            "api_key": "",
+            "base_url": "",
+            "user_email": "",
+            "user_full_name": "",
+            "subs_tier_name": "",
+            "subs_tier_id": "",
+            "is_subs_active": false,
+            "has_payment_method": false,
+            "require_payment": false,
+            "can_subscribe": false
+          },
+          "err": ""
+        },
+        "token": {
+          "value": {
+            "access_token": "",
+            "token_type": ""
+          },
+          "err": ""
+        }
+      },
+      {
+        "device": {
+          "value": {
+            "device_code": "b",
+            "user_code": "u",
+            "verification_uri": "",
+            "verification_uri_complete": "",
+            "expires_in": 0,
+            "interval": 0
+          },
+          "err": ""
+        },
+        "input": "{\"device_code\":\"a\",\"device_code\":\"b\",\"user_code\":\"u\"}",
+        "mint": {
+          "value": {
+            "api_key": "",
+            "base_url": "",
+            "user_email": "",
+            "user_full_name": "",
+            "subs_tier_name": "",
+            "subs_tier_id": "",
+            "is_subs_active": false,
+            "has_payment_method": false,
+            "require_payment": false,
+            "can_subscribe": false
+          },
+          "err": ""
+        },
+        "token": {
+          "value": {
+            "access_token": "",
+            "token_type": ""
+          },
+          "err": ""
+        }
+      },
+      {
+        "device": {
+          "value": {
+            "device_code": "b",
+            "user_code": "u",
+            "verification_uri": "",
+            "verification_uri_complete": "",
+            "expires_in": 0,
+            "interval": 0
+          },
+          "err": ""
+        },
+        "input": "{\"device_code\":\"a\",\"Device_Code\":\"b\",\"DEVICE_CODE\":null,\"user_code\":\"u\"}",
+        "mint": {
+          "value": {
+            "api_key": "",
+            "base_url": "",
+            "user_email": "",
+            "user_full_name": "",
+            "subs_tier_name": "",
+            "subs_tier_id": "",
+            "is_subs_active": false,
+            "has_payment_method": false,
+            "require_payment": false,
+            "can_subscribe": false
+          },
+          "err": ""
+        },
+        "token": {
+          "value": {
+            "access_token": "",
+            "token_type": ""
+          },
+          "err": ""
+        }
+      },
+      {
+        "device": {
+          "value": {
+            "device_code": "",
+            "user_code": "u",
+            "verification_uri": "",
+            "verification_uri_complete": "",
+            "expires_in": 0,
+            "interval": 0
+          },
+          "err": ""
+        },
+        "input": "{\"device_code\":null,\"user_code\":\"u\",\"expires_in\":null}",
+        "mint": {
+          "value": {
+            "api_key": "",
+            "base_url": "",
+            "user_email": "",
+            "user_full_name": "",
+            "subs_tier_name": "",
+            "subs_tier_id": "",
+            "is_subs_active": false,
+            "has_payment_method": false,
+            "require_payment": false,
+            "can_subscribe": false
+          },
+          "err": ""
+        },
+        "token": {
+          "value": {
+            "access_token": "",
+            "token_type": ""
+          },
+          "err": ""
+        }
+      },
+      {
+        "device": {
+          "value": {
+            "device_code": "",
+            "user_code": "",
+            "verification_uri": "",
+            "verification_uri_complete": "",
+            "expires_in": 0,
+            "interval": 0
+          },
+          "err": "json: cannot unmarshal number 1.5 into Go struct field DeviceCodeResponse.interval of type int"
+        },
+        "input": "{\"interval\":1.5}",
+        "mint": {
+          "value": {
+            "api_key": "",
+            "base_url": "",
+            "user_email": "",
+            "user_full_name": "",
+            "subs_tier_name": "",
+            "subs_tier_id": "",
+            "is_subs_active": false,
+            "has_payment_method": false,
+            "require_payment": false,
+            "can_subscribe": false
+          },
+          "err": ""
+        },
+        "token": {
+          "value": {
+            "access_token": "",
+            "token_type": ""
+          },
+          "err": ""
+        }
+      },
+      {
+        "device": {
+          "value": {
+            "device_code": "",
+            "user_code": "",
+            "verification_uri": "",
+            "verification_uri_complete": "",
+            "expires_in": 0,
+            "interval": 0
+          },
+          "err": "json: cannot unmarshal string into Go struct field DeviceCodeResponse.interval of type int"
+        },
+        "input": "{\"interval\":\"5\"}",
+        "mint": {
+          "value": {
+            "api_key": "",
+            "base_url": "",
+            "user_email": "",
+            "user_full_name": "",
+            "subs_tier_name": "",
+            "subs_tier_id": "",
+            "is_subs_active": false,
+            "has_payment_method": false,
+            "require_payment": false,
+            "can_subscribe": false
+          },
+          "err": ""
+        },
+        "token": {
+          "value": {
+            "access_token": "",
+            "token_type": ""
+          },
+          "err": ""
+        }
+      },
+      {
+        "device": {
+          "value": {
+            "device_code": "",
+            "user_code": "",
+            "verification_uri": "",
+            "verification_uri_complete": "",
+            "expires_in": 0,
+            "interval": 0
+          },
+          "err": "json: cannot unmarshal number 1e3 into Go struct field DeviceCodeResponse.interval of type int"
+        },
+        "input": "{\"interval\":1e3}",
+        "mint": {
+          "value": {
+            "api_key": "",
+            "base_url": "",
+            "user_email": "",
+            "user_full_name": "",
+            "subs_tier_name": "",
+            "subs_tier_id": "",
+            "is_subs_active": false,
+            "has_payment_method": false,
+            "require_payment": false,
+            "can_subscribe": false
+          },
+          "err": ""
+        },
+        "token": {
+          "value": {
+            "access_token": "",
+            "token_type": ""
+          },
+          "err": ""
+        }
+      },
+      {
+        "device": {
+          "value": {
+            "device_code": "",
+            "user_code": "",
+            "verification_uri": "",
+            "verification_uri_complete": "",
+            "expires_in": 0,
+            "interval": 0
+          },
+          "err": ""
+        },
+        "input": "{\"interval\":-0}",
+        "mint": {
+          "value": {
+            "api_key": "",
+            "base_url": "",
+            "user_email": "",
+            "user_full_name": "",
+            "subs_tier_name": "",
+            "subs_tier_id": "",
+            "is_subs_active": false,
+            "has_payment_method": false,
+            "require_payment": false,
+            "can_subscribe": false
+          },
+          "err": ""
+        },
+        "token": {
+          "value": {
+            "access_token": "",
+            "token_type": ""
+          },
+          "err": ""
+        }
+      },
+      {
+        "device": {
+          "value": {
+            "device_code": "",
+            "user_code": "",
+            "verification_uri": "",
+            "verification_uri_complete": "",
+            "expires_in": 0,
+            "interval": 0
+          },
+          "err": "json: cannot unmarshal number 99999999999999999999 into Go struct field DeviceCodeResponse.interval of type int"
+        },
+        "input": "{\"interval\":99999999999999999999}",
+        "mint": {
+          "value": {
+            "api_key": "",
+            "base_url": "",
+            "user_email": "",
+            "user_full_name": "",
+            "subs_tier_name": "",
+            "subs_tier_id": "",
+            "is_subs_active": false,
+            "has_payment_method": false,
+            "require_payment": false,
+            "can_subscribe": false
+          },
+          "err": ""
+        },
+        "token": {
+          "value": {
+            "access_token": "",
+            "token_type": ""
+          },
+          "err": ""
+        }
+      },
+      {
+        "device": {
+          "value": {
+            "device_code": "",
+            "user_code": "",
+            "verification_uri": "",
+            "verification_uri_complete": "",
+            "expires_in": 0,
+            "interval": 0
+          },
+          "err": "json: cannot unmarshal bool into Go struct field DeviceCodeResponse.interval of type int"
+        },
+        "input": "{\"interval\":true}",
+        "mint": {
+          "value": {
+            "api_key": "",
+            "base_url": "",
+            "user_email": "",
+            "user_full_name": "",
+            "subs_tier_name": "",
+            "subs_tier_id": "",
+            "is_subs_active": false,
+            "has_payment_method": false,
+            "require_payment": false,
+            "can_subscribe": false
+          },
+          "err": ""
+        },
+        "token": {
+          "value": {
+            "access_token": "",
+            "token_type": ""
+          },
+          "err": ""
+        }
+      },
+      {
+        "device": {
+          "value": {
+            "device_code": "",
+            "user_code": "",
+            "verification_uri": "",
+            "verification_uri_complete": "",
+            "expires_in": 0,
+            "interval": 0
+          },
+          "err": "json: cannot unmarshal object into Go struct field DeviceCodeResponse.interval of type int"
+        },
+        "input": "{\"interval\":{}}",
+        "mint": {
+          "value": {
+            "api_key": "",
+            "base_url": "",
+            "user_email": "",
+            "user_full_name": "",
+            "subs_tier_name": "",
+            "subs_tier_id": "",
+            "is_subs_active": false,
+            "has_payment_method": false,
+            "require_payment": false,
+            "can_subscribe": false
+          },
+          "err": ""
+        },
+        "token": {
+          "value": {
+            "access_token": "",
+            "token_type": ""
+          },
+          "err": ""
+        }
+      },
+      {
+        "device": {
+          "value": {
+            "device_code": "",
+            "user_code": "",
+            "verification_uri": "",
+            "verification_uri_complete": "",
+            "expires_in": 0,
+            "interval": 0
+          },
+          "err": "json: cannot unmarshal array into Go struct field DeviceCodeResponse.interval of type int"
+        },
+        "input": "{\"interval\":[]}",
+        "mint": {
+          "value": {
+            "api_key": "",
+            "base_url": "",
+            "user_email": "",
+            "user_full_name": "",
+            "subs_tier_name": "",
+            "subs_tier_id": "",
+            "is_subs_active": false,
+            "has_payment_method": false,
+            "require_payment": false,
+            "can_subscribe": false
+          },
+          "err": ""
+        },
+        "token": {
+          "value": {
+            "access_token": "",
+            "token_type": ""
+          },
+          "err": ""
+        }
+      },
+      {
+        "device": {
+          "value": {
+            "device_code": "",
+            "user_code": "",
+            "verification_uri": "",
+            "verification_uri_complete": "",
+            "expires_in": 0,
+            "interval": 0
+          },
+          "err": "json: cannot unmarshal number into Go struct field DeviceCodeResponse.device_code of type string"
+        },
+        "input": "{\"device_code\":5}",
+        "mint": {
+          "value": {
+            "api_key": "",
+            "base_url": "",
+            "user_email": "",
+            "user_full_name": "",
+            "subs_tier_name": "",
+            "subs_tier_id": "",
+            "is_subs_active": false,
+            "has_payment_method": false,
+            "require_payment": false,
+            "can_subscribe": false
+          },
+          "err": ""
+        },
+        "token": {
+          "value": {
+            "access_token": "",
+            "token_type": ""
+          },
+          "err": ""
+        }
+      },
+      {
+        "device": {
+          "value": {
+            "device_code": "",
+            "user_code": "",
+            "verification_uri": "",
+            "verification_uri_complete": "",
+            "expires_in": 0,
+            "interval": 0
+          },
+          "err": "json: cannot unmarshal bool into Go struct field DeviceCodeResponse.device_code of type string"
+        },
+        "input": "{\"device_code\":true}",
+        "mint": {
+          "value": {
+            "api_key": "",
+            "base_url": "",
+            "user_email": "",
+            "user_full_name": "",
+            "subs_tier_name": "",
+            "subs_tier_id": "",
+            "is_subs_active": false,
+            "has_payment_method": false,
+            "require_payment": false,
+            "can_subscribe": false
+          },
+          "err": ""
+        },
+        "token": {
+          "value": {
+            "access_token": "",
+            "token_type": ""
+          },
+          "err": ""
+        }
+      },
+      {
+        "device": {
+          "value": {
+            "device_code": "",
+            "user_code": "",
+            "verification_uri": "",
+            "verification_uri_complete": "",
+            "expires_in": 0,
+            "interval": 7
+          },
+          "err": "json: cannot unmarshal object into Go struct field DeviceCodeResponse.device_code of type string"
+        },
+        "input": "{\"device_code\":{\"a\":1},\"user_code\":[1],\"interval\":7}",
+        "mint": {
+          "value": {
+            "api_key": "",
+            "base_url": "",
+            "user_email": "",
+            "user_full_name": "",
+            "subs_tier_name": "",
+            "subs_tier_id": "",
+            "is_subs_active": false,
+            "has_payment_method": false,
+            "require_payment": false,
+            "can_subscribe": false
+          },
+          "err": ""
+        },
+        "token": {
+          "value": {
+            "access_token": "",
+            "token_type": ""
+          },
+          "err": ""
+        }
+      },
+      {
+        "device": {
+          "value": {
+            "device_code": "é😀",
+            "user_code": "",
+            "verification_uri": "",
+            "verification_uri_complete": "",
+            "expires_in": 0,
+            "interval": 0
+          },
+          "err": ""
+        },
+        "input": "{\"TokenEndpoint\":\"x\",\"-\":\"y\",\"device_code\":\"\\u00e9\\ud83d\\ude00\"}",
+        "mint": {
+          "value": {
+            "api_key": "",
+            "base_url": "",
+            "user_email": "",
+            "user_full_name": "",
+            "subs_tier_name": "",
+            "subs_tier_id": "",
+            "is_subs_active": false,
+            "has_payment_method": false,
+            "require_payment": false,
+            "can_subscribe": false
+          },
+          "err": ""
+        },
+        "token": {
+          "value": {
+            "access_token": "",
+            "token_type": ""
+          },
+          "err": ""
+        }
+      },
+      {
+        "device": {
+          "value": {
+            "device_code": "",
+            "user_code": "",
+            "verification_uri": "",
+            "verification_uri_complete": "",
+            "expires_in": 0,
+            "interval": 0
+          },
+          "err": "json: cannot unmarshal array into Go value of type meta.DeviceCodeResponse"
+        },
+        "input": "[1]",
+        "mint": {
+          "value": {
+            "api_key": "",
+            "base_url": "",
+            "user_email": "",
+            "user_full_name": "",
+            "subs_tier_name": "",
+            "subs_tier_id": "",
+            "is_subs_active": false,
+            "has_payment_method": false,
+            "require_payment": false,
+            "can_subscribe": false
+          },
+          "err": "json: cannot unmarshal array into Go value of type meta.MintedKeyResponse"
+        },
+        "token": {
+          "value": {
+            "access_token": "",
+            "token_type": ""
+          },
+          "err": "json: cannot unmarshal array into Go value of type meta.TokenData"
+        }
+      },
+      {
+        "device": {
+          "value": {
+            "device_code": "",
+            "user_code": "",
+            "verification_uri": "",
+            "verification_uri_complete": "",
+            "expires_in": 0,
+            "interval": 0
+          },
+          "err": ""
+        },
+        "input": "null",
+        "mint": {
+          "value": {
+            "api_key": "",
+            "base_url": "",
+            "user_email": "",
+            "user_full_name": "",
+            "subs_tier_name": "",
+            "subs_tier_id": "",
+            "is_subs_active": false,
+            "has_payment_method": false,
+            "require_payment": false,
+            "can_subscribe": false
+          },
+          "err": ""
+        },
+        "token": {
+          "value": {
+            "access_token": "",
+            "token_type": ""
+          },
+          "err": ""
+        }
+      },
+      {
+        "device": {
+          "value": {
+            "device_code": "",
+            "user_code": "",
+            "verification_uri": "",
+            "verification_uri_complete": "",
+            "expires_in": 0,
+            "interval": 0
+          },
+          "err": "json: cannot unmarshal string into Go value of type meta.DeviceCodeResponse"
+        },
+        "input": "\"x\"",
+        "mint": {
+          "value": {
+            "api_key": "",
+            "base_url": "",
+            "user_email": "",
+            "user_full_name": "",
+            "subs_tier_name": "",
+            "subs_tier_id": "",
+            "is_subs_active": false,
+            "has_payment_method": false,
+            "require_payment": false,
+            "can_subscribe": false
+          },
+          "err": "json: cannot unmarshal string into Go value of type meta.MintedKeyResponse"
+        },
+        "token": {
+          "value": {
+            "access_token": "",
+            "token_type": ""
+          },
+          "err": "json: cannot unmarshal string into Go value of type meta.TokenData"
+        }
+      },
+      {
+        "device": {
+          "value": {
+            "device_code": "",
+            "user_code": "",
+            "verification_uri": "",
+            "verification_uri_complete": "",
+            "expires_in": 0,
+            "interval": 0
+          },
+          "err": "json: cannot unmarshal number into Go value of type meta.DeviceCodeResponse"
+        },
+        "input": "5",
+        "mint": {
+          "value": {
+            "api_key": "",
+            "base_url": "",
+            "user_email": "",
+            "user_full_name": "",
+            "subs_tier_name": "",
+            "subs_tier_id": "",
+            "is_subs_active": false,
+            "has_payment_method": false,
+            "require_payment": false,
+            "can_subscribe": false
+          },
+          "err": "json: cannot unmarshal number into Go value of type meta.MintedKeyResponse"
+        },
+        "token": {
+          "value": {
+            "access_token": "",
+            "token_type": ""
+          },
+          "err": "json: cannot unmarshal number into Go value of type meta.TokenData"
+        }
+      },
+      {
+        "device": {
+          "value": {
+            "device_code": "",
+            "user_code": "",
+            "verification_uri": "",
+            "verification_uri_complete": "",
+            "expires_in": 0,
+            "interval": 0
+          },
+          "err": "json: cannot unmarshal bool into Go value of type meta.DeviceCodeResponse"
+        },
+        "input": "true",
+        "mint": {
+          "value": {
+            "api_key": "",
+            "base_url": "",
+            "user_email": "",
+            "user_full_name": "",
+            "subs_tier_name": "",
+            "subs_tier_id": "",
+            "is_subs_active": false,
+            "has_payment_method": false,
+            "require_payment": false,
+            "can_subscribe": false
+          },
+          "err": "json: cannot unmarshal bool into Go value of type meta.MintedKeyResponse"
+        },
+        "token": {
+          "value": {
+            "access_token": "",
+            "token_type": ""
+          },
+          "err": "json: cannot unmarshal bool into Go value of type meta.TokenData"
+        }
+      },
+      {
+        "device": {
+          "value": {
+            "device_code": "",
+            "user_code": "",
+            "verification_uri": "",
+            "verification_uri_complete": "",
+            "expires_in": 0,
+            "interval": 0
+          },
+          "err": "unexpected end of JSON input"
+        },
+        "input": "",
+        "mint": {
+          "value": {
+            "api_key": "",
+            "base_url": "",
+            "user_email": "",
+            "user_full_name": "",
+            "subs_tier_name": "",
+            "subs_tier_id": "",
+            "is_subs_active": false,
+            "has_payment_method": false,
+            "require_payment": false,
+            "can_subscribe": false
+          },
+          "err": "unexpected end of JSON input"
+        },
+        "token": {
+          "value": {
+            "access_token": "",
+            "token_type": ""
+          },
+          "err": "unexpected end of JSON input"
+        }
+      },
+      {
+        "device": {
+          "value": {
+            "device_code": "",
+            "user_code": "",
+            "verification_uri": "",
+            "verification_uri_complete": "",
+            "expires_in": 0,
+            "interval": 0
+          },
+          "err": "unexpected end of JSON input"
+        },
+        "input": " ",
+        "mint": {
+          "value": {
+            "api_key": "",
+            "base_url": "",
+            "user_email": "",
+            "user_full_name": "",
+            "subs_tier_name": "",
+            "subs_tier_id": "",
+            "is_subs_active": false,
+            "has_payment_method": false,
+            "require_payment": false,
+            "can_subscribe": false
+          },
+          "err": "unexpected end of JSON input"
+        },
+        "token": {
+          "value": {
+            "access_token": "",
+            "token_type": ""
+          },
+          "err": "unexpected end of JSON input"
+        }
+      },
+      {
+        "device": {
+          "value": {
+            "device_code": "",
+            "user_code": "",
+            "verification_uri": "",
+            "verification_uri_complete": "",
+            "expires_in": 0,
+            "interval": 0
+          },
+          "err": "unexpected end of JSON input"
+        },
+        "input": "{",
+        "mint": {
+          "value": {
+            "api_key": "",
+            "base_url": "",
+            "user_email": "",
+            "user_full_name": "",
+            "subs_tier_name": "",
+            "subs_tier_id": "",
+            "is_subs_active": false,
+            "has_payment_method": false,
+            "require_payment": false,
+            "can_subscribe": false
+          },
+          "err": "unexpected end of JSON input"
+        },
+        "token": {
+          "value": {
+            "access_token": "",
+            "token_type": ""
+          },
+          "err": "unexpected end of JSON input"
+        }
+      },
+      {
+        "device": {
+          "value": {
+            "device_code": "",
+            "user_code": "",
+            "verification_uri": "",
+            "verification_uri_complete": "",
+            "expires_in": 0,
+            "interval": 0
+          },
+          "err": "invalid character '}' in literal true (expecting 'e')"
+        },
+        "input": "{\"a\":tru}",
+        "mint": {
+          "value": {
+            "api_key": "",
+            "base_url": "",
+            "user_email": "",
+            "user_full_name": "",
+            "subs_tier_name": "",
+            "subs_tier_id": "",
+            "is_subs_active": false,
+            "has_payment_method": false,
+            "require_payment": false,
+            "can_subscribe": false
+          },
+          "err": "invalid character '}' in literal true (expecting 'e')"
+        },
+        "token": {
+          "value": {
+            "access_token": "",
+            "token_type": ""
+          },
+          "err": "invalid character '}' in literal true (expecting 'e')"
+        }
+      },
+      {
+        "device": {
+          "value": {
+            "device_code": "",
+            "user_code": "",
+            "verification_uri": "",
+            "verification_uri_complete": "",
+            "expires_in": 0,
+            "interval": 0
+          },
+          "err": "invalid character '1' after object key"
+        },
+        "input": "{\"a\" 1}",
+        "mint": {
+          "value": {
+            "api_key": "",
+            "base_url": "",
+            "user_email": "",
+            "user_full_name": "",
+            "subs_tier_name": "",
+            "subs_tier_id": "",
+            "is_subs_active": false,
+            "has_payment_method": false,
+            "require_payment": false,
+            "can_subscribe": false
+          },
+          "err": "invalid character '1' after object key"
+        },
+        "token": {
+          "value": {
+            "access_token": "",
+            "token_type": ""
+          },
+          "err": "invalid character '1' after object key"
+        }
+      },
+      {
+        "device": {
+          "value": {
+            "device_code": "",
+            "user_code": "",
+            "verification_uri": "",
+            "verification_uri_complete": "",
+            "expires_in": 0,
+            "interval": 0
+          },
+          "err": "invalid character ' ' in literal null (expecting 'l')"
+        },
+        "input": "nul",
+        "mint": {
+          "value": {
+            "api_key": "",
+            "base_url": "",
+            "user_email": "",
+            "user_full_name": "",
+            "subs_tier_name": "",
+            "subs_tier_id": "",
+            "is_subs_active": false,
+            "has_payment_method": false,
+            "require_payment": false,
+            "can_subscribe": false
+          },
+          "err": "invalid character ' ' in literal null (expecting 'l')"
+        },
+        "token": {
+          "value": {
+            "access_token": "",
+            "token_type": ""
+          },
+          "err": "invalid character ' ' in literal null (expecting 'l')"
+        }
+      },
+      {
+        "device": {
+          "value": {
+            "device_code": "",
+            "user_code": "",
+            "verification_uri": "",
+            "verification_uri_complete": "",
+            "expires_in": 0,
+            "interval": 0
+          },
+          "err": "invalid character 'x' after top-level value"
+        },
+        "input": "{\"a\":1}x",
+        "mint": {
+          "value": {
+            "api_key": "",
+            "base_url": "",
+            "user_email": "",
+            "user_full_name": "",
+            "subs_tier_name": "",
+            "subs_tier_id": "",
+            "is_subs_active": false,
+            "has_payment_method": false,
+            "require_payment": false,
+            "can_subscribe": false
+          },
+          "err": "invalid character 'x' after top-level value"
+        },
+        "token": {
+          "value": {
+            "access_token": "",
+            "token_type": ""
+          },
+          "err": "invalid character 'x' after top-level value"
+        }
+      },
+      {
+        "device": {
+          "value": {
+            "device_code": "",
+            "user_code": "",
+            "verification_uri": "",
+            "verification_uri_complete": "",
+            "expires_in": 0,
+            "interval": 0
+          },
+          "err": "invalid character '\\x01' in string literal"
+        },
+        "input": "{\"a\":\"\u0001\"}",
+        "mint": {
+          "value": {
+            "api_key": "",
+            "base_url": "",
+            "user_email": "",
+            "user_full_name": "",
+            "subs_tier_name": "",
+            "subs_tier_id": "",
+            "is_subs_active": false,
+            "has_payment_method": false,
+            "require_payment": false,
+            "can_subscribe": false
+          },
+          "err": "invalid character '\\x01' in string literal"
+        },
+        "token": {
+          "value": {
+            "access_token": "",
+            "token_type": ""
+          },
+          "err": "invalid character '\\x01' in string literal"
+        }
+      },
+      {
+        "device": {
+          "value": {
+            "device_code": "",
+            "user_code": "",
+            "verification_uri": "",
+            "verification_uri_complete": "",
+            "expires_in": 0,
+            "interval": 0
+          },
+          "err": "invalid character '1' after object key:value pair"
+        },
+        "input": "{\"a\":01}",
+        "mint": {
+          "value": {
+            "api_key": "",
+            "base_url": "",
+            "user_email": "",
+            "user_full_name": "",
+            "subs_tier_name": "",
+            "subs_tier_id": "",
+            "is_subs_active": false,
+            "has_payment_method": false,
+            "require_payment": false,
+            "can_subscribe": false
+          },
+          "err": "invalid character '1' after object key:value pair"
+        },
+        "token": {
+          "value": {
+            "access_token": "",
+            "token_type": ""
+          },
+          "err": "invalid character '1' after object key:value pair"
+        }
+      },
+      {
+        "device": {
+          "value": {
+            "device_code": "",
+            "user_code": "",
+            "verification_uri": "",
+            "verification_uri_complete": "",
+            "expires_in": 0,
+            "interval": 0
+          },
+          "err": "invalid character '}' in numeric literal"
+        },
+        "input": "{\"a\":-}",
+        "mint": {
+          "value": {
+            "api_key": "",
+            "base_url": "",
+            "user_email": "",
+            "user_full_name": "",
+            "subs_tier_name": "",
+            "subs_tier_id": "",
+            "is_subs_active": false,
+            "has_payment_method": false,
+            "require_payment": false,
+            "can_subscribe": false
+          },
+          "err": "invalid character '}' in numeric literal"
+        },
+        "token": {
+          "value": {
+            "access_token": "",
+            "token_type": ""
+          },
+          "err": "invalid character '}' in numeric literal"
+        }
+      },
+      {
+        "device": {
+          "value": {
+            "device_code": "",
+            "user_code": "",
+            "verification_uri": "",
+            "verification_uri_complete": "",
+            "expires_in": 0,
+            "interval": 0
+          },
+          "err": "invalid character '}' after decimal point in numeric literal"
+        },
+        "input": "{\"a\":1.}",
+        "mint": {
+          "value": {
+            "api_key": "",
+            "base_url": "",
+            "user_email": "",
+            "user_full_name": "",
+            "subs_tier_name": "",
+            "subs_tier_id": "",
+            "is_subs_active": false,
+            "has_payment_method": false,
+            "require_payment": false,
+            "can_subscribe": false
+          },
+          "err": "invalid character '}' after decimal point in numeric literal"
+        },
+        "token": {
+          "value": {
+            "access_token": "",
+            "token_type": ""
+          },
+          "err": "invalid character '}' after decimal point in numeric literal"
+        }
+      },
+      {
+        "device": {
+          "value": {
+            "device_code": "",
+            "user_code": "",
+            "verification_uri": "",
+            "verification_uri_complete": "",
+            "expires_in": 0,
+            "interval": 0
+          },
+          "err": "invalid character '}' in exponent of numeric literal"
+        },
+        "input": "{\"a\":1e}",
+        "mint": {
+          "value": {
+            "api_key": "",
+            "base_url": "",
+            "user_email": "",
+            "user_full_name": "",
+            "subs_tier_name": "",
+            "subs_tier_id": "",
+            "is_subs_active": false,
+            "has_payment_method": false,
+            "require_payment": false,
+            "can_subscribe": false
+          },
+          "err": "invalid character '}' in exponent of numeric literal"
+        },
+        "token": {
+          "value": {
+            "access_token": "",
+            "token_type": ""
+          },
+          "err": "invalid character '}' in exponent of numeric literal"
+        }
+      },
+      {
+        "device": {
+          "value": {
+            "device_code": "",
+            "user_code": "",
+            "verification_uri": "",
+            "verification_uri_complete": "",
+            "expires_in": 0,
+            "interval": 0
+          },
+          "err": "invalid character '\\'' looking for beginning of object key string"
+        },
+        "input": "{'a':1}",
+        "mint": {
+          "value": {
+            "api_key": "",
+            "base_url": "",
+            "user_email": "",
+            "user_full_name": "",
+            "subs_tier_name": "",
+            "subs_tier_id": "",
+            "is_subs_active": false,
+            "has_payment_method": false,
+            "require_payment": false,
+            "can_subscribe": false
+          },
+          "err": "invalid character '\\'' looking for beginning of object key string"
+        },
+        "token": {
+          "value": {
+            "access_token": "",
+            "token_type": ""
+          },
+          "err": "invalid character '\\'' looking for beginning of object key string"
+        }
+      },
+      {
+        "device": {
+          "value": {
+            "device_code": "",
+            "user_code": "",
+            "verification_uri": "",
+            "verification_uri_complete": "",
+            "expires_in": 0,
+            "interval": 0
+          },
+          "err": "invalid character 'q' in string escape code"
+        },
+        "input": "{\"a\":\"\\q\"}",
+        "mint": {
+          "value": {
+            "api_key": "",
+            "base_url": "",
+            "user_email": "",
+            "user_full_name": "",
+            "subs_tier_name": "",
+            "subs_tier_id": "",
+            "is_subs_active": false,
+            "has_payment_method": false,
+            "require_payment": false,
+            "can_subscribe": false
+          },
+          "err": "invalid character 'q' in string escape code"
+        },
+        "token": {
+          "value": {
+            "access_token": "",
+            "token_type": ""
+          },
+          "err": "invalid character 'q' in string escape code"
+        }
+      },
+      {
+        "device": {
+          "value": {
+            "device_code": "",
+            "user_code": "",
+            "verification_uri": "",
+            "verification_uri_complete": "",
+            "expires_in": 0,
+            "interval": 0
+          },
+          "err": "invalid character 'g' in \\u hexadecimal character escape"
+        },
+        "input": "{\"a\":\"\\u12g4\"}",
+        "mint": {
+          "value": {
+            "api_key": "",
+            "base_url": "",
+            "user_email": "",
+            "user_full_name": "",
+            "subs_tier_name": "",
+            "subs_tier_id": "",
+            "is_subs_active": false,
+            "has_payment_method": false,
+            "require_payment": false,
+            "can_subscribe": false
+          },
+          "err": "invalid character 'g' in \\u hexadecimal character escape"
+        },
+        "token": {
+          "value": {
+            "access_token": "",
+            "token_type": ""
+          },
+          "err": "invalid character 'g' in \\u hexadecimal character escape"
+        }
+      },
+      {
+        "device": {
+          "value": {
+            "device_code": "",
+            "user_code": "",
+            "verification_uri": "",
+            "verification_uri_complete": "",
+            "expires_in": 0,
+            "interval": 0
+          },
+          "err": "invalid character '}' looking for beginning of object key string"
+        },
+        "input": "{\"a\":1,}",
+        "mint": {
+          "value": {
+            "api_key": "",
+            "base_url": "",
+            "user_email": "",
+            "user_full_name": "",
+            "subs_tier_name": "",
+            "subs_tier_id": "",
+            "is_subs_active": false,
+            "has_payment_method": false,
+            "require_payment": false,
+            "can_subscribe": false
+          },
+          "err": "invalid character '}' looking for beginning of object key string"
+        },
+        "token": {
+          "value": {
+            "access_token": "",
+            "token_type": ""
+          },
+          "err": "invalid character '}' looking for beginning of object key string"
+        }
+      },
+      {
+        "device": {
+          "value": {
+            "device_code": "",
+            "user_code": "",
+            "verification_uri": "",
+            "verification_uri_complete": "",
+            "expires_in": 0,
+            "interval": 0
+          },
+          "err": "invalid character ']' looking for beginning of value"
+        },
+        "input": "[1,]",
+        "mint": {
+          "value": {
+            "api_key": "",
+            "base_url": "",
+            "user_email": "",
+            "user_full_name": "",
+            "subs_tier_name": "",
+            "subs_tier_id": "",
+            "is_subs_active": false,
+            "has_payment_method": false,
+            "require_payment": false,
+            "can_subscribe": false
+          },
+          "err": "invalid character ']' looking for beginning of value"
+        },
+        "token": {
+          "value": {
+            "access_token": "",
+            "token_type": ""
+          },
+          "err": "invalid character ']' looking for beginning of value"
+        }
+      },
+      {
+        "device": {
+          "value": {
+            "device_code": "",
+            "user_code": "",
+            "verification_uri": "",
+            "verification_uri_complete": "",
+            "expires_in": 0,
+            "interval": 0
+          },
+          "err": "invalid character '2' after array element"
+        },
+        "input": "{\"a\":[1 2]}",
+        "mint": {
+          "value": {
+            "api_key": "",
+            "base_url": "",
+            "user_email": "",
+            "user_full_name": "",
+            "subs_tier_name": "",
+            "subs_tier_id": "",
+            "is_subs_active": false,
+            "has_payment_method": false,
+            "require_payment": false,
+            "can_subscribe": false
+          },
+          "err": "invalid character '2' after array element"
+        },
+        "token": {
+          "value": {
+            "access_token": "",
+            "token_type": ""
+          },
+          "err": "invalid character '2' after array element"
+        }
+      },
+      {
+        "device": {
+          "value": {
+            "device_code": "",
+            "user_code": "",
+            "verification_uri": "",
+            "verification_uri_complete": "",
+            "expires_in": 0,
+            "interval": 0
+          },
+          "err": "invalid character '}' in literal false (expecting 'e')"
+        },
+        "input": "{\"a\":fals}",
+        "mint": {
+          "value": {
+            "api_key": "",
+            "base_url": "",
+            "user_email": "",
+            "user_full_name": "",
+            "subs_tier_name": "",
+            "subs_tier_id": "",
+            "is_subs_active": false,
+            "has_payment_method": false,
+            "require_payment": false,
+            "can_subscribe": false
+          },
+          "err": "invalid character '}' in literal false (expecting 'e')"
+        },
+        "token": {
+          "value": {
+            "access_token": "",
+            "token_type": ""
+          },
+          "err": "invalid character '}' in literal false (expecting 'e')"
+        }
+      },
+      {
+        "device": {
+          "value": {
+            "device_code": "",
+            "user_code": "",
+            "verification_uri": "",
+            "verification_uri_complete": "",
+            "expires_in": 0,
+            "interval": 0
+          },
+          "err": "invalid character 'x' in literal null (expecting 'l')"
+        },
+        "input": "{\"a\":nulx}",
+        "mint": {
+          "value": {
+            "api_key": "",
+            "base_url": "",
+            "user_email": "",
+            "user_full_name": "",
+            "subs_tier_name": "",
+            "subs_tier_id": "",
+            "is_subs_active": false,
+            "has_payment_method": false,
+            "require_payment": false,
+            "can_subscribe": false
+          },
+          "err": "invalid character 'x' in literal null (expecting 'l')"
+        },
+        "token": {
+          "value": {
+            "access_token": "",
+            "token_type": ""
+          },
+          "err": "invalid character 'x' in literal null (expecting 'l')"
+        }
+      },
+      {
+        "device": {
+          "value": {
+            "device_code": "",
+            "user_code": "",
+            "verification_uri": "",
+            "verification_uri_complete": "",
+            "expires_in": 0,
+            "interval": 0
+          },
+          "err": "invalid character 'Ã' looking for beginning of value"
+        },
+        "input": "{\"a\":é}",
+        "mint": {
+          "value": {
+            "api_key": "",
+            "base_url": "",
+            "user_email": "",
+            "user_full_name": "",
+            "subs_tier_name": "",
+            "subs_tier_id": "",
+            "is_subs_active": false,
+            "has_payment_method": false,
+            "require_payment": false,
+            "can_subscribe": false
+          },
+          "err": "invalid character 'Ã' looking for beginning of value"
+        },
+        "token": {
+          "value": {
+            "access_token": "",
+            "token_type": ""
+          },
+          "err": "invalid character 'Ã' looking for beginning of value"
+        }
+      },
+      {
+        "device": {
+          "value": {
+            "device_code": "",
+            "user_code": "",
+            "verification_uri": "",
+            "verification_uri_complete": "",
+            "expires_in": 0,
+            "interval": 0
+          },
+          "err": "invalid character '\\x7f' looking for beginning of value"
+        },
+        "input": "{\"a\":}",
+        "mint": {
+          "value": {
+            "api_key": "",
+            "base_url": "",
+            "user_email": "",
+            "user_full_name": "",
+            "subs_tier_name": "",
+            "subs_tier_id": "",
+            "is_subs_active": false,
+            "has_payment_method": false,
+            "require_payment": false,
+            "can_subscribe": false
+          },
+          "err": "invalid character '\\x7f' looking for beginning of value"
+        },
+        "token": {
+          "value": {
+            "access_token": "",
+            "token_type": ""
+          },
+          "err": "invalid character '\\x7f' looking for beginning of value"
+        }
+      },
+      {
+        "device": {
+          "value": {
+            "device_code": "",
+            "user_code": "",
+            "verification_uri": "",
+            "verification_uri_complete": "",
+            "expires_in": 0,
+            "interval": 0
+          },
+          "err": "invalid character 'Â' looking for beginning of value"
+        },
+        "input": "{\"a\": }",
+        "mint": {
+          "value": {
+            "api_key": "",
+            "base_url": "",
+            "user_email": "",
+            "user_full_name": "",
+            "subs_tier_name": "",
+            "subs_tier_id": "",
+            "is_subs_active": false,
+            "has_payment_method": false,
+            "require_payment": false,
+            "can_subscribe": false
+          },
+          "err": "invalid character 'Â' looking for beginning of value"
+        },
+        "token": {
+          "value": {
+            "access_token": "",
+            "token_type": ""
+          },
+          "err": "invalid character 'Â' looking for beginning of value"
+        }
+      },
+      {
+        "device": {
+          "value": {
+            "device_code": "",
+            "user_code": "",
+            "verification_uri": "",
+            "verification_uri_complete": "",
+            "expires_in": 0,
+            "interval": 0
+          },
+          "err": "invalid character '}' after top-level value"
+        },
+        "input": "{\"a\":1}}",
+        "mint": {
+          "value": {
+            "api_key": "",
+            "base_url": "",
+            "user_email": "",
+            "user_full_name": "",
+            "subs_tier_name": "",
+            "subs_tier_id": "",
+            "is_subs_active": false,
+            "has_payment_method": false,
+            "require_payment": false,
+            "can_subscribe": false
+          },
+          "err": "invalid character '}' after top-level value"
+        },
+        "token": {
+          "value": {
+            "access_token": "",
+            "token_type": ""
+          },
+          "err": "invalid character '}' after top-level value"
+        }
+      },
+      {
+        "device": {
+          "value": {
+            "device_code": "",
+            "user_code": "",
+            "verification_uri": "",
+            "verification_uri_complete": "",
+            "expires_in": 5,
+            "interval": 0
+          },
+          "err": ""
+        },
+        "input": "{\"access_token\":\"t\",\"ACCESS_TOKEN\":\"T\",\"Expires_In\":5,\"expires_at\":\"x\",\"Error\":\"slow_down\"}",
+        "mint": {
+          "value": {
+            "api_key": "",
+            "base_url": "",
+            "user_email": "",
+            "user_full_name": "",
+            "subs_tier_name": "",
+            "subs_tier_id": "",
+            "is_subs_active": false,
+            "has_payment_method": false,
+            "require_payment": false,
+            "can_subscribe": false
+          },
+          "err": ""
+        },
+        "token": {
+          "value": {
+            "access_token": "T",
+            "token_type": "",
+            "expires_in": 5,
+            "error": "slow_down"
+          },
+          "err": "json: cannot unmarshal string into Go struct field TokenData.expires_at of type int64"
+        }
+      },
+      {
+        "device": {
+          "value": {
+            "device_code": "",
+            "user_code": "",
+            "verification_uri": "",
+            "verification_uri_complete": "",
+            "expires_in": 0,
+            "interval": 0
+          },
+          "err": ""
+        },
+        "input": "{\"error\":5,\"ERROR\":\"access_denied\",\"error_description\":null}",
+        "mint": {
+          "value": {
+            "api_key": "",
+            "base_url": "",
+            "user_email": "",
+            "user_full_name": "",
+            "subs_tier_name": "",
+            "subs_tier_id": "",
+            "is_subs_active": false,
+            "has_payment_method": false,
+            "require_payment": false,
+            "can_subscribe": false
+          },
+          "err": ""
+        },
+        "token": {
+          "value": {
+            "access_token": "",
+            "token_type": "",
+            "error": "access_denied"
+          },
+          "err": "json: cannot unmarshal number into Go struct field TokenData.error of type string"
+        }
+      },
+      {
+        "device": {
+          "value": {
+            "device_code": "",
+            "user_code": "",
+            "verification_uri": "",
+            "verification_uri_complete": "",
+            "expires_in": 0,
+            "interval": 0
+          },
+          "err": ""
+        },
+        "input": "{\"api_key\":\"first\",\"api_key\":\"second\"}",
+        "mint": {
+          "value": {
+            "api_key": "second",
+            "base_url": "",
+            "user_email": "",
+            "user_full_name": "",
+            "subs_tier_name": "",
+            "subs_tier_id": "",
+            "is_subs_active": false,
+            "has_payment_method": false,
+            "require_payment": false,
+            "can_subscribe": false
+          },
+          "err": ""
+        },
+        "token": {
+          "value": {
+            "access_token": "",
+            "token_type": ""
+          },
+          "err": ""
+        }
+      },
+      {
+        "device": {
+          "value": {
+            "device_code": "",
+            "user_code": "",
+            "verification_uri": "",
+            "verification_uri_complete": "",
+            "expires_in": 0,
+            "interval": 0
+          },
+          "err": ""
+        },
+        "input": "{\"API_KEY\":\"k\",\"Is_Subs_Active\":true,\"has_payment_method\":null}",
+        "mint": {
+          "value": {
+            "api_key": "k",
+            "base_url": "",
+            "user_email": "",
+            "user_full_name": "",
+            "subs_tier_name": "",
+            "subs_tier_id": "",
+            "is_subs_active": true,
+            "has_payment_method": false,
+            "require_payment": false,
+            "can_subscribe": false
+          },
+          "err": ""
+        },
+        "token": {
+          "value": {
+            "access_token": "",
+            "token_type": ""
+          },
+          "err": ""
+        }
+      },
+      {
+        "device": {
+          "value": {
+            "device_code": "",
+            "user_code": "",
+            "verification_uri": "",
+            "verification_uri_complete": "",
+            "expires_in": 0,
+            "interval": 0
+          },
+          "err": ""
+        },
+        "input": "{\"api_key\":\"k\",\"is_subs_active\":\"yes\"}",
+        "mint": {
+          "value": {
+            "api_key": "k",
+            "base_url": "",
+            "user_email": "",
+            "user_full_name": "",
+            "subs_tier_name": "",
+            "subs_tier_id": "",
+            "is_subs_active": false,
+            "has_payment_method": false,
+            "require_payment": false,
+            "can_subscribe": false
+          },
+          "err": "json: cannot unmarshal string into Go struct field MintedKeyResponse.is_subs_active of type bool"
+        },
+        "token": {
+          "value": {
+            "access_token": "",
+            "token_type": ""
+          },
+          "err": ""
+        }
+      },
+      {
+        "device": {
+          "value": {
+            "device_code": "",
+            "user_code": "",
+            "verification_uri": "",
+            "verification_uri_complete": "",
+            "expires_in": 0,
+            "interval": 0
+          },
+          "err": ""
+        },
+        "input": "{\"api_key\":\"k\",\"can_subscribe\":1,\"require_payment\":false}",
+        "mint": {
+          "value": {
+            "api_key": "k",
+            "base_url": "",
+            "user_email": "",
+            "user_full_name": "",
+            "subs_tier_name": "",
+            "subs_tier_id": "",
+            "is_subs_active": false,
+            "has_payment_method": false,
+            "require_payment": false,
+            "can_subscribe": false
+          },
+          "err": "json: cannot unmarshal number into Go struct field MintedKeyResponse.can_subscribe of type bool"
+        },
+        "token": {
+          "value": {
+            "access_token": "",
+            "token_type": ""
+          },
+          "err": ""
+        }
+      },
+      {
+        "device": {
+          "value": {
+            "device_code": "",
+            "user_code": "",
+            "verification_uri": "",
+            "verification_uri_complete": "",
+            "expires_in": 0,
+            "interval": 0
+          },
+          "err": ""
+        },
+        "input": "{\"ſtatus\":1,\"api_kKey\":\"x\"}",
+        "mint": {
+          "value": {
+            "api_key": "",
+            "base_url": "",
+            "user_email": "",
+            "user_full_name": "",
+            "subs_tier_name": "",
+            "subs_tier_id": "",
+            "is_subs_active": false,
+            "has_payment_method": false,
+            "require_payment": false,
+            "can_subscribe": false
+          },
+          "err": ""
+        },
+        "token": {
+          "value": {
+            "access_token": "",
+            "token_type": ""
+          },
+          "err": ""
+        }
+      },
+      {
+        "device": {
+          "value": {
+            "device_code": "",
+            "user_code": "",
+            "verification_uri": "",
+            "verification_uri_complete": "",
+            "expires_in": 0,
+            "interval": 0
+          },
+          "err": ""
+        },
+        "input": "{\"api_Key\":\"kelvin\",\"ſubs_tier_name\":\"longs\"}",
+        "mint": {
+          "value": {
+            "api_key": "kelvin",
+            "base_url": "",
+            "user_email": "",
+            "user_full_name": "",
+            "subs_tier_name": "longs",
+            "subs_tier_id": "",
+            "is_subs_active": false,
+            "has_payment_method": false,
+            "require_payment": false,
+            "can_subscribe": false
+          },
+          "err": ""
+        },
+        "token": {
+          "value": {
+            "access_token": "",
+            "token_type": ""
+          },
+          "err": ""
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "name": "compact-rejected",
+  "credential": {
+    "access_token": "meta-key-fixture",
+    "api_key": "meta-key-fixture",
+    "auth_kind": "oauth",
+    "base_url": "http://127.0.0.1:41835/v1",
+    "dca_token": "dca:fixture",
+    "type": "meta"
+  },
+  "attributes": {
+    "auth_kind": "oauth"
+  },
+  "request": {
+    "alt": "responses/compact",
+    "body": "{\"model\":\"muse-spark-1.3\",\"input\":\"hi\"}",
+    "model": "muse-spark-1.3",
+    "source": "openai-response",
+    "stream": false
+  },
+  "responses": null,
+  "upstream": null,
+  "downstream": {
+    "err_status": 501,
+    "err_body": "/responses/compact not supported"
+  },
+  "extra": {
+    "credential_scoped": false
+  }
+}

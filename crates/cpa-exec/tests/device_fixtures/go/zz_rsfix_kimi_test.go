@@ -163,6 +163,11 @@ func TestRSFixKimi(t *testing.T) {
 			responses: []rsfixResponse{sseResp("event: response.created\ndata: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_2\"}}\n\nevent: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"delta\":\"hi\"}\n\nevent: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_2\",\"usage\":{\"input_tokens\":1,\"output_tokens\":1,\"total_tokens\":2}}}\n\n")},
 		},
 		{
+			name: "responses-stream-data-only-frames", source: sdktranslator.FormatOpenAIResponse, model: "kimi-k3", stream: true, meta: kimiMeta,
+			body:      `{"model":"kimi-k3","stream":true,"input":"hi"}`,
+			responses: []rsfixResponse{sseResp("data: {\"type\":\"response.output_text.delta\",\"delta\":\"a\"}\ndata: {\"type\":\"response.output_text.delta\",\"delta\":\"b\"}\n\ndata: [DONE]\n: keep\ndata: {\"type\":")},
+		},
+		{
 			name: "responses-compact-rejected", source: sdktranslator.FormatOpenAIResponse, model: "kimi-k3", alt: "responses/compact", meta: kimiMeta,
 			body: `{"model":"kimi-k3","input":"hi"}`,
 		},

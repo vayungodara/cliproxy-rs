@@ -1,0 +1,100 @@
+{
+  "credential": {
+    "access_token": "kimi-access-fixture",
+    "base_url": "http://127.0.0.1:40211/coding",
+    "device_id": "dev-fixture-1",
+    "refresh_token": "kimi-refresh-fixture",
+    "type": "kimi"
+  },
+  "downstream": {
+    "chunks": [
+      "data: {\"type\":\"response.output_text.delta\",\"delta\":\"a\"}\n",
+      "data: {\"type\":\"response.output_text.delta\",\"delta\":\"b\"}\n",
+      "\n",
+      "data: [DONE]\n",
+      ": keep\n",
+      "data: {\"type\":\n"
+    ],
+    "frames": [
+      "data: {\"type\":\"response.output_text.delta\",\"delta\":\"a\"}\n\n",
+      "data: {\"type\":\"response.output_text.delta\",\"delta\":\"b\"}\n\n",
+      "data: [DONE]\n: keep\n\n"
+    ]
+  },
+  "name": "responses-stream-data-only-frames",
+  "request": {
+    "body": "{\"model\":\"kimi-k3\",\"stream\":true,\"input\":\"hi\"}",
+    "model": "kimi-k3",
+    "source": "openai-response",
+    "stream": true
+  },
+  "responses": [
+    {
+      "body": "data: {\"type\":\"response.output_text.delta\",\"delta\":\"a\"}\ndata: {\"type\":\"response.output_text.delta\",\"delta\":\"b\"}\n\ndata: [DONE]\n: keep\ndata: {\"type\":",
+      "headers": [
+        [
+          "Content-Type",
+          "text/event-stream"
+        ]
+      ],
+      "status": 200
+    }
+  ],
+  "upstream": [
+    {
+      "body": "{\"model\":\"k3\",\"stream\":true,\"input\":\"hi\"}",
+      "headers": [
+        [
+          "Host",
+          "127.0.0.1:40211"
+        ],
+        [
+          "User-Agent",
+          "CLIProxyAPI/0.1.0"
+        ],
+        [
+          "Content-Length",
+          "41"
+        ],
+        [
+          "Accept",
+          "text/event-stream"
+        ],
+        [
+          "Authorization",
+          "Bearer kimi-access-fixture"
+        ],
+        [
+          "Content-Type",
+          "application/json"
+        ],
+        [
+          "X-Msh-Device-Id",
+          "dev-fixture-1"
+        ],
+        [
+          "X-Msh-Device-Model",
+          "linux amd64"
+        ],
+        [
+          "X-Msh-Device-Name",
+          "e2b.local"
+        ],
+        [
+          "X-Msh-Platform",
+          "CLIProxyAPI"
+        ],
+        [
+          "X-Msh-Version",
+          "0.1.0"
+        ],
+        [
+          "Accept-Encoding",
+          "gzip"
+        ]
+      ],
+      "method": "POST",
+      "target": "/coding/v1/responses"
+    }
+  ]
+}
