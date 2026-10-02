@@ -1,5 +1,29 @@
 # Local Claude differential findings, 2026-10-02
 
+## Remeasurement on `ultra/claude`, 2026-10-02 23:35 UTC
+
+Branch `ultra/claude` at `040badc` (merged with master `61dc0f8`), same Go oracle at
+`6fecc6e` and the same production-builder driver. This run adds payload rules after
+cloaking, the shared custom-header and session modules, Go's per-caller refresh
+retries and Responses frame flushing. Evidence (same format, overwritten):
+[`harness/evidence/2026-10-02-ultra-claude.json.gz`](../../harness/evidence/2026-10-02-ultra-claude.json.gz).
+
+| Measure | Result |
+| --- | --- |
+| Cases | 53, zero capture, transport or infrastructure errors |
+| Downstream status | identical in all 53 |
+| Upstream HTTP requests | 40 in both; request line, header names, order, casing, values and body bytes identical except the random `x-client-request-id` |
+| Upstream TLS | 38 ClientHellos, identical record layout, profile, ALPN and version; the one reconnect resumes in both |
+| `upstream-401` | same sequence in both: Messages 401, token refresh, profile, Messages retry; identical rotated credential file |
+| Downstream headers | identical as sets (ignoring trace ID and `Date`); order and casing differ |
+| Downstream bodies | identical in 51; `models-openai` and `models-gemini` hold the same models in a different order |
+| `credential_after` | identical in all 53 |
+
+The stream body differences listed for `fe24b8f` (`stream-crlf`, `stream-after-stop`,
+`stream-truncated`, `tool-roundtrip`, `tool-stream-roundtrip`) are gone. The
+remaining downstream header order/casing and model-list order belong to the server
+thread; nothing in the Claude executor differs.
+
 ## Remeasurement on `ultra/claude`, 2026-10-02 21:44 UTC
 
 Branch `ultra/claude` at `6c7e7e3` (merged with master `cc00c27`), against the same
