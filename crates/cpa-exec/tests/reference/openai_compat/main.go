@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime"
 	"net"
 	"net/http"
 	"os"
@@ -29,6 +30,7 @@ import (
 	_ "github.com/router-for-me/CLIProxyAPI/v8/internal/translator"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/watcher/synthesizer"
 	cliproxyauth "github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/auth"
+	"github.com/tidwall/gjson"
 	cliproxyexecutor "github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/executor"
 	sdktranslator "github.com/router-for-me/CLIProxyAPI/v8/sdk/translator"
 )
@@ -146,47 +148,88 @@ func normalizeRequest(raw, addr string) string {
 	return raw
 }
 
-// compatModelInfo mirrors the conductor's API-key capability binding for
-// openai-compatibility credentials (sdk/cliproxy/auth/api_key_model_capabilities.go
-// compileOpenAICompatibleModelCapabilities and lookupAPIKeyModelCapability): the route
-// is the requested model (alias or name, suffix-insensitive) and the configured upstream
-// must equal the selected model, or match its suffix-free name.
+type capabilityRoute struct {
+	upstream string
+	info     *registry.ModelInfo
+}
+
+// aliasCandidates is modelAliasLookupCandidates: the model, then its suffix-free name.
+func aliasCandidates(model string) []string {
+	model = strings.TrimSpace(model)
+	if model == "" {
+		return nil
+	}
+	base := thinking.ParseSuffix(model).ModelName
+	if base == "" {
+		base = model
+	}
+	if base != model {
+		return []string{model, base}
+	}
+	return []string{model}
+}
+
+// compatModelInfo reproduces the conductor's API-key capability binding for
+// openai-compatibility credentials (sdk/cliproxy/auth/api_key_model_capabilities.go:
+// compileOpenAICompatibleModelCapabilities, addConfiguredModelCapability and
+// lookupAPIKeyModelCapability), including route-key order and the suffix fallback.
 func compatModelInfo(cfg *config.Config, index int, requested, upstream string) *registry.ModelInfo {
 	if cfg == nil || index < 0 || index >= len(cfg.OpenAICompatibility) {
 		return nil
 	}
-	base := func(s string) string { return strings.TrimSpace(thinking.ParseSuffix(strings.TrimSpace(s)).ModelName) }
+	routes := map[string][]capabilityRoute{}
+	for _, m := range cfg.OpenAICompatibility[index].Models {
+		name, alias := strings.TrimSpace(m.Name), strings.TrimSpace(m.Alias)
+		if name == "" {
+			name = alias
+		}
+		if alias == "" {
+			alias = name
+		}
+		if name == "" {
+			continue
+		}
+		support := m.Thinking
+		if support == nil && !m.Image {
+			support = &registry.ThinkingSupport{Levels: []string{"low", "medium", "high"}}
+		}
+		info := modelconfig.ResolveModelInfo(name, "openai-compatibility", support)
+		info.IsCompat = m.IsCompat
+		seen := map[string]bool{}
+		for _, routeModel := range []string{alias, name} {
+			for _, candidate := range aliasCandidates(routeModel) {
+				key := strings.ToLower(strings.TrimSpace(candidate))
+				if key == "" || seen[key] {
+					continue
+				}
+				seen[key] = true
+				duplicate := false
+				for _, existing := range routes[key] {
+					if strings.EqualFold(existing.upstream, name) {
+						duplicate = true
+						break
+					}
+				}
+				if !duplicate {
+					routes[key] = append(routes[key], capabilityRoute{upstream: name, info: info})
+				}
+			}
+		}
+	}
+	var matched []capabilityRoute
+	for _, candidate := range aliasCandidates(requested) {
+		matched = append(matched, routes[strings.ToLower(strings.TrimSpace(candidate))]...)
+	}
 	selected := strings.TrimSpace(upstream)
-	for _, exact := range []bool{true, false} {
-		for _, m := range cfg.OpenAICompatibility[index].Models {
-			name, alias := strings.TrimSpace(m.Name), strings.TrimSpace(m.Alias)
-			if name == "" {
-				name = alias
-			}
-			if alias == "" {
-				alias = name
-			}
-			if name == "" {
-				continue
-			}
-			route := strings.EqualFold(base(requested), base(alias)) || strings.EqualFold(base(requested), base(name))
-			if !route {
-				continue
-			}
-			matched := strings.EqualFold(name, selected)
-			if !exact {
-				matched = !thinking.ParseSuffix(name).HasSuffix && strings.EqualFold(name, base(selected))
-			}
-			if !matched {
-				continue
-			}
-			support := m.Thinking
-			if support == nil && !m.Image {
-				support = &registry.ThinkingSupport{Levels: []string{"low", "medium", "high"}}
-			}
-			info := modelconfig.ResolveModelInfo(name, "openai-compatibility", support)
-			info.IsCompat = m.IsCompat
-			return info
+	for _, route := range matched {
+		if strings.EqualFold(strings.TrimSpace(route.upstream), selected) {
+			return route.info
+		}
+	}
+	for _, route := range matched {
+		configured := thinking.ParseSuffix(strings.TrimSpace(route.upstream))
+		if !configured.HasSuffix && strings.EqualFold(strings.TrimSpace(configured.ModelName), strings.TrimSpace(thinking.ParseSuffix(selected).ModelName)) {
+			return route.info
 		}
 	}
 	return nil
@@ -357,11 +400,62 @@ func main() {
 	for i := range all {
 		run(&all[i])
 	}
-	data, err := json.MarshalIndent(all, "", "  ")
+	data, err := json.MarshalIndent(map[string]any{"scenarios": all, "vectors": vectors()}, "", "  ")
 	if err != nil {
 		panic(err)
 	}
 	if err := os.WriteFile(os.Args[1], append(data, '\n'), 0o644); err != nil {
 		panic(err)
 	}
+}
+
+// vectors records Go standard-library answers for the primitives the executor ports.
+func vectors() map[string]any {
+	httpTimes := []string{
+		"Fri, 02 Oct 2026 12:00:30 GMT", "Fri,  02 Oct 2026 12:00:30 GMT", "Fri, 02 Oct 2026 12:00:00.500 GMT",
+		"fri, 02 oct 2026 12:00:00 GMT", "Mon, 01 Jan 1970 00:00:00 GMT", "Xyz, 02 Oct 2026 12:00:00 GMT",
+		"Fri, 31 Feb 2026 12:00:00 GMT", "Fri, 2 Oct 2026 12:00:00 GMT", "Fri, 02 Oct 2026 9:00:00 GMT",
+		"Friday, 02-Oct-26 12:00:30 GMT", "Friday, 02-Oct-26 12:00:30 ABCDEF", "Friday, 02-Oct-26 12:00:30 ABCD",
+		"Friday, 02-Oct-26 12:00:30 ABCT", "Friday, 02-Oct-26 12:00:30 GMT+3", "Friday, 02-Oct-26 12:00:30 UTC",
+		"Friday, 02-Oct-69 12:00:30 PST", "Fri Oct  2 12:00:30 2026", "Fri Oct 2 12:00:30 2026",
+		"Fri Oct 12 12:00:30 2026", "2026-10-02T12:00:00Z", "", "Fri, 02 Oct 2026 24:00:00 GMT",
+	}
+	times := []any{}
+	for _, raw := range httpTimes {
+		t, err := http.ParseTime(raw)
+		if err != nil {
+			times = append(times, []any{raw, nil})
+			continue
+		}
+		times = append(times, []any{raw, t.UnixNano()})
+	}
+	jsonInputs := []string{"{}", "[1,-0.5e+3,\"a\\u00e9\",true,null,{\"k\":[]}]", "", "{", "[1,]", "01", "1.", "\"\x01\"", "nul", "[1] x",
+		"{\"a\":\"\xff\"}", strings.Repeat("[", 10000) + strings.Repeat("]", 10000), strings.Repeat("[", 10001) + strings.Repeat("]", 10001),
+		" \t{\"a\" : 1 }\r\n", "{\"a\":1,}", "\"\\x\"", "\"\\u12\"", "-", "1e", "0.1E+5"}
+	valids := []any{}
+	for _, in := range jsonInputs {
+		valids = append(valids, []any{base64.StdEncoding.EncodeToString([]byte(in)), json.Valid([]byte(in))})
+	}
+	ints := []any{}
+	for _, in := range []string{`"429.5"`, `"-7"`, `"+7"`, `429.9`, `4e2`, `true`, `"18446744073709552045"`, `1e300`, `-9007199254740993`, `"x"`, `null`, `"-"`} {
+		ints = append(ints, []any{in, gjson.Parse(in).Int()})
+	}
+	trims := []any{}
+	for _, in := range []string{"\u00a0 x \u3000\r", "\xff ", " \x85y\u2028", "\t\v\f z"} {
+		trims = append(trims, []any{base64.StdEncoding.EncodeToString([]byte(in)), base64.StdEncoding.EncodeToString(bytes.TrimSpace([]byte(in)))})
+	}
+	media := []any{}
+	for _, in := range []string{
+		`multipart/form-data; boundary="a b"`, `multipart/form-data`, `multipart/form-data; boundary=b;`, `multipart/form-data; boundary=`,
+		`form-data; name="a\"b"; filename*0="x"; filename*1*=%41`, `form-data; name="image"; filename*0*=utf-8''%C3; filename*1*=%A9.png`,
+		`form-data; name=x; name=y`, `text/`, `/x`, `form-data; filename="C:\dev\go\foo.txt"`, `Multipart/Mixed ; Boundary = q`,
+	} {
+		mt, params, err := mime.ParseMediaType(in)
+		errText := ""
+		if err != nil {
+			errText = err.Error()
+		}
+		media = append(media, map[string]any{"input": in, "media": mt, "params": params, "error": errText})
+	}
+	return map[string]any{"http_time": times, "json_valid": valids, "gjson_int": ints, "trim_space": trims, "media_type": media}
 }

@@ -192,24 +192,44 @@ fn trailing_char(b: &[u8]) -> Option<(char, usize)> {
     None
 }
 
+/// gjson `parseInt`: optional `-`, decimal digits, wrapping like Go's int64 arithmetic.
+fn gjson_parse_int(s: &str) -> Option<i64> {
+    let (negative, digits) = match s.strip_prefix('-') {
+        Some(rest) => (true, rest),
+        None => (false, s),
+    };
+    if digits.is_empty() {
+        return None;
+    }
+    let mut n: i64 = 0;
+    for c in digits.bytes() {
+        if !c.is_ascii_digit() {
+            return None;
+        }
+        n = n.wrapping_mul(10).wrapping_add(i64::from(c - b'0'));
+    }
+    Some(if negative { n.wrapping_neg() } else { n })
+}
+
 /// gjson `Result.Int()`.
 pub(crate) fn int(value: &gjson::Value<'_>) -> i64 {
-    let parse_int = |s: &str| {
-        let digits = s.strip_prefix('-').unwrap_or(s);
-        (!digits.is_empty() && digits.bytes().all(|c| c.is_ascii_digit()))
-            .then(|| s.parse::<i64>().ok())
-            .flatten()
-    };
     match value.kind() {
         gjson::Kind::True => 1,
-        gjson::Kind::String => parse_int(value.str()).unwrap_or(0),
+        gjson::Kind::String => gjson_parse_int(value.str()).unwrap_or(0),
         gjson::Kind::Number => {
             let f = value.f64();
-            // safeInt: integral and within ±2^53.
-            if f.fract() == 0.0 && f.abs() <= 9_007_199_254_740_991.0 {
+            // safeInt: truncation inside ±(2^53-1), else the raw literal, else Go's
+            // conversion, which yields i64::MIN out of range on amd64.
+            if (-9_007_199_254_740_991.0..=9_007_199_254_740_991.0).contains(&f) {
                 return f as i64;
             }
-            parse_int(value.json()).unwrap_or(f as i64)
+            gjson_parse_int(value.json()).unwrap_or(
+                if f.is_nan() || !(-9.223_372_036_854_776e18..9.223_372_036_854_776e18).contains(&f) {
+                    i64::MIN
+                } else {
+                    f as i64
+                },
+            )
         }
         _ => 0,
     }
@@ -228,12 +248,25 @@ const DAYS: [&str; 7] = [
     "Saturday",
 ];
 
-/// A tiny cursor over Go time layout elements.
+/// A cursor over a value parsed with a Go time layout.
 struct Cursor<'a>(&'a str);
 
 impl Cursor<'_> {
-    fn lit(&mut self, s: &str) -> Option<()> {
-        self.0 = self.0.strip_prefix(s)?;
+    /// Go `skip`: a space in the layout matches one or more spaces (or the end).
+    fn lit(&mut self, layout: &str) -> Option<()> {
+        let mut layout = layout;
+        while let Some(c) = layout.chars().next() {
+            if c == ' ' {
+                if !self.0.is_empty() && !self.0.starts_with(' ') {
+                    return None;
+                }
+                layout = layout.trim_start_matches(' ');
+                self.0 = self.0.trim_start_matches(' ');
+                continue;
+            }
+            self.0 = self.0.strip_prefix(c)?;
+            layout = &layout[c.len_utf8()..];
+        }
         Some(())
     }
 
@@ -241,7 +274,7 @@ impl Cursor<'_> {
     fn name(&mut self, table: &[&str], short: bool) -> Option<usize> {
         for (i, full) in table.iter().enumerate() {
             let name = if short { &full[..3] } else { full };
-            if self.0.len() >= name.len() && self.0[..name.len()].eq_ignore_ascii_case(name) {
+            if self.0.len() >= name.len() && self.0.as_bytes()[..name.len()].eq_ignore_ascii_case(name.as_bytes()) {
                 self.0 = &self.0[name.len()..];
                 return Some(i);
             }
@@ -274,36 +307,86 @@ impl Cursor<'_> {
         s.parse().ok()
     }
 
-    /// `15:04:05` with Go's optional fractional seconds.
-    fn clock(&mut self) -> Option<(u32, u32, u32)> {
+    /// `15:04:05`, plus the fractional seconds Go accepts after `05` (`parseNanoseconds`).
+    fn clock(&mut self) -> Option<(u32, u32, u32, u32)> {
         let h = self.num(false)?;
         self.lit(":")?;
         let m = self.num(true)?;
         self.lit(":")?;
         let s = self.num(true)?;
-        if let Some(rest) = self.0.strip_prefix(['.', ',']) {
-            let n = rest.bytes().take_while(u8::is_ascii_digit).count();
-            if n > 0 {
-                self.0 = &rest[n..];
+        let mut nanos = 0;
+        let b = self.0.as_bytes();
+        if b.len() >= 2 && matches!(b[0], b'.' | b',') && b[1].is_ascii_digit() {
+            let n = 1 + b[1..].iter().take_while(|c| c.is_ascii_digit()).count();
+            let frac = &self.0[1..n.min(10)];
+            let mut scaled: u32 = frac.parse().ok()?;
+            for _ in frac.len()..9 {
+                scaled *= 10;
             }
+            nanos = scaled;
+            self.0 = &self.0[n..];
         }
-        (h < 24 && m < 60 && s < 60).then_some((h, m, s))
+        (h < 24 && m < 60 && s < 60).then_some((h, m, s, nanos))
+    }
+
+    /// Go `parseTimeZone` for `MST`. Abbreviations the host zone does not define get a
+    /// fabricated location that keeps the UTC reading, so every accepted zone (including
+    /// `GMT+3`) leaves the instant unchanged.
+    fn zone(&mut self) -> Option<()> {
+        let v = self.0;
+        if let Some(rest) = v.strip_prefix("UTC") {
+            self.0 = rest;
+            return Some(());
+        }
+        let b = v.as_bytes();
+        if b.len() < 3 {
+            return None;
+        }
+        if v.starts_with("ChST") || v.starts_with("MeST") {
+            self.0 = &v[4..];
+            return Some(());
+        }
+        if let Some(rest) = v.strip_prefix("GMT") {
+            // parseGMT: an optional signed hour offset up to 23.
+            let sign = rest.chars().next().filter(|c| matches!(c, '+' | '-'));
+            let digits = sign.map_or("", |_| &rest[1..]);
+            let n = digits.bytes().take_while(u8::is_ascii_digit).count();
+            let hours_ok = digits[..n].parse::<u32>().is_ok_and(|h| h <= 23);
+            self.0 = if sign.is_some() && n > 0 && hours_ok {
+                &digits[n..]
+            } else {
+                rest
+            };
+            return Some(());
+        }
+        let upper = b.iter().take(6).take_while(|c| c.is_ascii_uppercase()).count();
+        let len = match upper {
+            3 => 3,
+            4 if b[3] == b'T' || v.starts_with("WITA") => 4,
+            5 if b[4] == b'T' => 5,
+            _ => return None,
+        };
+        self.0 = &v[len..];
+        Some(())
     }
 }
 
-fn utc(year: i32, month: usize, day: u32, (h, m, s): (u32, u32, u32)) -> Option<SystemTime> {
+fn instant(year: i32, month: usize, day: u32, (h, m, s, nanos): (u32, u32, u32, u32)) -> Option<SystemTime> {
     let date = chrono::NaiveDate::from_ymd_opt(year, month as u32 + 1, day)?;
     let secs = date.and_hms_opt(h, m, s)?.and_utc().timestamp();
-    if secs >= 0 {
-        UNIX_EPOCH.checked_add(Duration::from_secs(secs as u64))
+    let at = if secs >= 0 {
+        UNIX_EPOCH.checked_add(Duration::from_secs(secs as u64))?
     } else {
-        UNIX_EPOCH.checked_sub(Duration::from_secs(secs.unsigned_abs()))
-    }
+        UNIX_EPOCH.checked_sub(Duration::from_secs(secs.unsigned_abs()))?
+    };
+    at.checked_add(Duration::from_nanos(u64::from(nanos)))
 }
 
-/// `http.ParseTime`: RFC 1123 with `GMT`, RFC 850, then ANSI C. Like Go's `time.Parse`
-/// the weekday must be a valid name but is not checked against the date, and an RFC 850
-/// zone abbreviation is read with a zero offset.
+/// `http.ParseTime`: RFC 1123 with `GMT`, RFC 850, then ANSI C, with Go `time.Parse`
+/// rules: the weekday must be a valid name but is not checked against the date, layout
+/// spaces match runs of spaces, and fractional seconds are kept.
+// ponytail: a zone abbreviation defined by the host's local zone would shift the instant
+// in Go; servers run in UTC, where none does.
 pub(crate) fn parse_http_time(raw: &str) -> Option<SystemTime> {
     let rfc1123 = || {
         let mut c = Cursor(raw);
@@ -318,7 +401,7 @@ pub(crate) fn parse_http_time(raw: &str) -> Option<SystemTime> {
         let clock = c.clock()?;
         c.lit(" GMT")?;
         c.0.is_empty().then_some(())?;
-        utc(year, month, day, clock)
+        instant(year, month, day, clock)
     };
     let rfc850 = || {
         let mut c = Cursor(raw);
@@ -332,11 +415,9 @@ pub(crate) fn parse_http_time(raw: &str) -> Option<SystemTime> {
         c.lit(" ")?;
         let clock = c.clock()?;
         c.lit(" ")?;
-        let zone = c.0.bytes().take_while(u8::is_ascii_uppercase).count();
-        (zone >= 3).then_some(())?;
-        c.0 = &c.0[zone..];
+        c.zone()?;
         c.0.is_empty().then_some(())?;
-        utc(if yy >= 69 { 1900 + yy } else { 2000 + yy }, month, day, clock)
+        instant(if yy >= 69 { 1900 + yy } else { 2000 + yy }, month, day, clock)
     };
     let ansic = || {
         let mut c = Cursor(raw);
@@ -353,7 +434,7 @@ pub(crate) fn parse_http_time(raw: &str) -> Option<SystemTime> {
         c.lit(" ")?;
         let year = c.digits(4)?;
         c.0.is_empty().then_some(())?;
-        utc(year, month, day, clock)
+        instant(year, month, day, clock)
     };
     rfc1123().or_else(rfc850).or_else(ansic)
 }
@@ -362,40 +443,52 @@ pub(crate) fn parse_http_time(raw: &str) -> Option<SystemTime> {
 /// run on Go `[]byte` JSON and every untouched byte comes back unchanged.
 const BYTE_BASE: u32 = 0x10_FF00;
 
-/// Bytes as editable text. `None` only when valid input already uses the stand-in range.
-pub(crate) fn bytes_to_text(b: &[u8]) -> Option<String> {
-    if let Ok(s) = std::str::from_utf8(b) {
-        return Some(s.to_owned());
-    }
-    let mut out = String::with_capacity(b.len() + 8);
-    for chunk in b.utf8_chunks() {
-        if chunk.valid().chars().any(|c| c as u32 >= BYTE_BASE) {
-            return None;
-        }
-        out.push_str(chunk.valid());
-        for byte in chunk.invalid() {
-            out.push(char::from_u32(BYTE_BASE + u32::from(*byte)).expect("valid code point"));
-        }
-    }
-    Some(out)
+/// Go `[]byte` JSON held as editable text.
+pub(crate) struct GoText {
+    pub text: String,
+    /// The text uses stand-ins for invalid bytes; only then are they converted back.
+    pub mapped: bool,
 }
 
-/// Inverse of [`bytes_to_text`].
-pub(crate) fn text_to_bytes(s: &str) -> Vec<u8> {
-    if !s.chars().any(|c| c as u32 >= BYTE_BASE) {
-        return s.as_bytes().to_vec();
-    }
-    let mut out = Vec::with_capacity(s.len());
-    for c in s.chars() {
-        let code = c as u32;
-        if code >= BYTE_BASE {
-            out.push((code - BYTE_BASE) as u8);
-        } else {
-            let mut buf = [0; 4];
-            out.extend_from_slice(c.encode_utf8(&mut buf).as_bytes());
+impl GoText {
+    /// `None` only when invalid input also contains valid stand-in-range characters.
+    pub(crate) fn new(b: &[u8]) -> Option<Self> {
+        if let Ok(s) = std::str::from_utf8(b) {
+            return Some(Self {
+                text: s.to_owned(),
+                mapped: false,
+            });
         }
+        let mut text = String::with_capacity(b.len() + 8);
+        for chunk in b.utf8_chunks() {
+            if chunk.valid().chars().any(|c| c as u32 >= BYTE_BASE) {
+                return None;
+            }
+            text.push_str(chunk.valid());
+            for byte in chunk.invalid() {
+                text.push(char::from_u32(BYTE_BASE + u32::from(*byte)).expect("valid code point"));
+            }
+        }
+        Some(Self { text, mapped: true })
     }
-    out
+
+    /// The bytes of `text` (an edited copy of this value's text).
+    pub(crate) fn bytes(&self, text: &str) -> Vec<u8> {
+        if !self.mapped {
+            return text.as_bytes().to_vec();
+        }
+        let mut out = Vec::with_capacity(text.len());
+        for c in text.chars() {
+            let code = c as u32;
+            if code >= BYTE_BASE {
+                out.push((code - BYTE_BASE) as u8);
+            } else {
+                let mut buf = [0; 4];
+                out.extend_from_slice(c.encode_utf8(&mut buf).as_bytes());
+            }
+        }
+        out
+    }
 }
 
 #[cfg(test)]
@@ -459,9 +552,13 @@ mod tests {
     }
 
     #[test]
-    fn non_utf8_round_trips() {
+    fn go_text_round_trips_bytes_and_keeps_valid_stand_in_characters() {
         let raw = b"{\"p\":\"\xff\xfe\",\"q\":\"\xc3\xa9\"}";
-        let text = bytes_to_text(raw).unwrap();
-        assert_eq!(text_to_bytes(&text), raw);
+        let text = GoText::new(raw).unwrap();
+        assert_eq!(text.bytes(&text.text), raw);
+        let valid = "{\"p\":\"\u{10FF22}\"}";
+        let text = GoText::new(valid.as_bytes()).unwrap();
+        assert_eq!(text.bytes(&text.text), valid.as_bytes());
+        assert!(GoText::new(b"\xff\xf4\x8f\xbc\xa2").is_none());
     }
 }

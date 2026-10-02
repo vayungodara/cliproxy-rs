@@ -205,6 +205,20 @@ func scenarios() []scenario {
 			ContentType: "application/json",
 			PayloadB64:  base64.StdEncoding.EncodeToString([]byte("{\"model\":\"old\",\"prompt\":\"\xff\",\"stream\":true}")),
 			Upstream:    &upstream{Status: 200, Headers: [][2]string{{"Content-Type", "application/json"}}, Body: `{"data":[]}`}},
+		{Name: "images_json_valid_stand_in_range_character", Config: baseConfig, ConfigAuth: 0, Model: "acme-image", Source: "openai", Op: "images", RequestPath: "/v1/images/generations",
+			ContentType: "application/json", Payload: "{\"model\":\"acme-image\",\"prompt\":\"\U0010FF22\"}",
+			Upstream: &upstream{Status: 200, Headers: [][2]string{{"Content-Type", "application/json"}}, Body: `{"data":[]}`}},
+		{Name: "images_multipart_rfc2231_split_utf8", Config: baseConfig, ConfigAuth: 0, Model: "acme-image", Source: "openai", Op: "images", RequestPath: "/v1/images/edits",
+			ContentType: "multipart/form-data; boundary=b",
+			Payload:     "--b\r\nContent-Disposition: form-data; name=\"image\"; filename*0*=utf-8''%C3; filename*1*=%A9.png\r\n\r\nx\r\n--b--\r\n",
+			Upstream:    &upstream{Status: 200, Headers: [][2]string{{"Content-Type", "application/json"}}, Body: `{"data":[]}`}},
+		{Name: "images_multipart_header_name_with_space", Config: baseConfig, ConfigAuth: 0, Model: "acme-image", Source: "openai", Op: "images", RequestPath: "/v1/images/edits",
+			ContentType: "multipart/form-data; boundary=b",
+			Payload:     "--b\r\nContent-Disposition: form-data; name=\"image\"; filename=\"x\"\r\nX Note: ok\r\n\r\nx\r\n--b--\r\n",
+			Upstream:    &upstream{Status: 200, Headers: [][2]string{{"Content-Type", "application/json"}}, Body: `{"data":[]}`}},
+		stream("stream_data_error_overflowing_status_string", hi, sse("data: {\"error\":{},\"status\":\"18446744073709552045\"}\n\n")),
+		chat("error_429_retry_after_double_space_past", "acme-chat", "chat", hi, &upstream{Status: 429, Headers: [][2]string{{"Retry-After", "Fri,  02 Oct 2015 12:00:30 GMT"}}, Body: `{"error":{"code":"TPMRateLimitExceeded"}}`}),
+		chat("error_429_retry_after_bad_zone_falls_back", "acme-chat", "chat", hi, &upstream{Status: 429, Headers: [][2]string{{"Retry-After", "Friday, 02-Oct-15 12:00:30 ABCDEF"}}, Body: `{"error":{"code":"TPMRateLimitExceeded"}}`}),
 		func() scenario {
 			s := chat("needs_thinking_suffix_level", "acme-chat(high)", "chat", hi, jsonOK)
 			s.Needs = []string{"thinking"}

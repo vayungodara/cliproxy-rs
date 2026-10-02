@@ -94,9 +94,8 @@ impl Mock {
 
     fn request(&self) -> Option<Vec<u8>> {
         let raw = self.raw.lock().unwrap().clone()?;
-        let mut text = crate::openai_compat_go::bytes_to_text(&raw)
-            .unwrap()
-            .replace(&self.addr, "UPSTREAM");
+        let encoding = crate::openai_compat_go::GoText::new(&raw).unwrap();
+        let mut text = encoding.text.replace(&self.addr, "UPSTREAM");
         // Go's multipart writer picks a random 60-hex-digit boundary; so does Rust.
         let marker = "boundary=";
         if let Some(i) = text.find(marker)
@@ -105,7 +104,7 @@ impl Mock {
         {
             text = text.replace(&boundary.to_owned(), "BOUNDARY");
         }
-        Some(crate::openai_compat_go::text_to_bytes(&text))
+        Some(encoding.bytes(&text))
     }
 }
 
@@ -204,11 +203,12 @@ fn want_bytes(s: &Value) -> Option<Vec<u8>> {
 
 #[tokio::test]
 async fn go_reference_scenarios() {
-    let scenarios: Vec<Value> = serde_json::from_str(FIXTURE).unwrap();
+    let fixture: Value = serde_json::from_str(FIXTURE).unwrap();
+    let scenarios = fixture["scenarios"].as_array().unwrap();
     assert!(scenarios.len() >= 60, "fixture lost scenarios");
     let executor = OpenAICompatExecutor::default();
     let mut skipped = Vec::new();
-    for s in &scenarios {
+    for s in scenarios {
         let name = s["name"].as_str().unwrap();
         let needs: Vec<&str> = s["needs"]
             .as_array()
@@ -309,4 +309,59 @@ fn provider_keys() {
     assert!(handles("openai-compatible-acme"));
     assert!(!handles("openai"));
     assert!(!handles("codex"));
+}
+
+fn b64(s: &Value) -> Vec<u8> {
+    base64::engine::Engine::decode(&base64::engine::general_purpose::STANDARD, s.as_str().unwrap()).unwrap()
+}
+
+/// Go standard-library answers recorded by the generator (`vectors`).
+#[test]
+fn go_primitive_vectors() {
+    use crate::openai_compat_go as go;
+    use crate::openai_compat_multipart::{MediaType, parse_media_type};
+    let fixture: Value = serde_json::from_str(FIXTURE).unwrap();
+    let v = &fixture["vectors"];
+    for case in v["http_time"].as_array().unwrap() {
+        let raw = case[0].as_str().unwrap();
+        let got = go::parse_http_time(raw).map(|t| match t.duration_since(std::time::UNIX_EPOCH) {
+            Ok(d) => d.as_nanos() as i64,
+            Err(e) => -(e.duration().as_nanos() as i64),
+        });
+        assert_eq!(got, case[1].as_i64(), "http.ParseTime({raw:?})");
+    }
+    for case in v["json_valid"].as_array().unwrap() {
+        let input = b64(&case[0]);
+        assert_eq!(
+            go::json_valid(&input),
+            case[1].as_bool().unwrap(),
+            "json.Valid({:?})",
+            String::from_utf8_lossy(&input[..input.len().min(40)])
+        );
+    }
+    for case in v["gjson_int"].as_array().unwrap() {
+        let raw = case[0].as_str().unwrap();
+        assert_eq!(Some(go::int(&gjson::parse(raw))), case[1].as_i64(), "gjson Int({raw})");
+    }
+    for case in v["trim_space"].as_array().unwrap() {
+        assert_eq!(go::trim_space(&b64(&case[0])), b64(&case[1]).as_slice());
+    }
+    for case in v["media_type"].as_array().unwrap() {
+        let input = case["input"].as_str().unwrap();
+        let (media, error) = (case["media"].as_str().unwrap(), case["error"].as_str().unwrap());
+        let want = if error.is_empty() {
+            let params = case["params"]
+                .as_object()
+                .unwrap()
+                .iter()
+                .map(|(k, v)| (k.clone(), v.as_str().unwrap().to_owned()))
+                .collect();
+            MediaType::Ok(media.to_owned(), params)
+        } else if media.is_empty() {
+            MediaType::Invalid
+        } else {
+            MediaType::BadParams(media.to_owned())
+        };
+        assert_eq!(parse_media_type(input), want, "mime.ParseMediaType({input:?})");
+    }
 }

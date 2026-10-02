@@ -116,8 +116,8 @@ fn unhex(c: u8) -> Option<u8> {
     (c as char).to_digit(16).map(|d| d as u8)
 }
 
-/// `percentHexUnescape`.
-fn percent_unescape(s: &str) -> Option<String> {
+/// `percentHexUnescape`, as bytes.
+fn percent_unescape(s: &str) -> Option<Vec<u8>> {
     let b = s.as_bytes();
     let mut out = Vec::with_capacity(b.len());
     let mut i = 0;
@@ -131,11 +131,11 @@ fn percent_unescape(s: &str) -> Option<String> {
             i += 1;
         }
     }
-    Some(String::from_utf8_lossy(&out).into_owned())
+    Some(out)
 }
 
-/// `decode2231Enc`.
-fn decode_2231(v: &str) -> Option<String> {
+/// `decode2231Enc`, as bytes.
+fn decode_2231(v: &str) -> Option<Vec<u8>> {
     let (charset, rest) = v.split_once('\'')?;
     let (_, value) = rest.split_once('\'')?;
     matches!(charset.to_ascii_lowercase().as_str(), "us-ascii" | "utf-8")
@@ -190,20 +190,22 @@ pub fn parse_media_type(v: &str) -> MediaType {
         map.insert(key, value);
         v = rest;
     }
+    // ponytail: Go keeps parameter bytes as they are; values that are not UTF-8 after
+    // RFC 2231 decoding are stored lossily here.
     for (key, pieces) in continuation {
         if let Some(v) = pieces.get(&format!("{key}*")) {
             if let Some(decoded) = decode_2231(v) {
-                params.insert(key, decoded);
+                params.insert(key, String::from_utf8_lossy(&decoded).into_owned());
             }
             continue;
         }
-        let mut buf = String::new();
+        let mut buf = Vec::new();
         let mut valid = false;
         for n in 0.. {
             let simple = format!("{key}*{n}");
             if let Some(v) = pieces.get(&simple) {
                 valid = true;
-                buf.push_str(v);
+                buf.extend_from_slice(v.as_bytes());
                 continue;
             }
             let Some(v) = pieces.get(&format!("{simple}*")) else {
@@ -212,14 +214,14 @@ pub fn parse_media_type(v: &str) -> MediaType {
             valid = true;
             if n == 0 {
                 if let Some(decoded) = decode_2231(v) {
-                    buf.push_str(&decoded);
+                    buf.extend_from_slice(&decoded);
                 }
             } else {
-                buf.push_str(&percent_unescape(v).unwrap_or_default());
+                buf.extend_from_slice(&percent_unescape(v).unwrap_or_default());
             }
         }
         if valid {
-            params.insert(key, buf);
+            params.insert(key, String::from_utf8_lossy(&buf).into_owned());
         }
     }
     MediaType::Ok(media, params)
@@ -352,37 +354,63 @@ impl Reader<'_> {
 
     /// `textproto.ReadMIMEHeader`, then the body up to the next boundary.
     fn part(&mut self) -> Result<Part, String> {
+        let malformed = |line: &[u8]| format!("malformed MIME header line: {}", String::from_utf8_lossy(line));
         let mut headers: Vec<(String, String)> = Vec::new();
+        let mut first = true;
         loop {
             let (raw, eof) = self.read_line();
-            if eof {
-                return Err("unexpected EOF".into());
+            let line = raw.strip_suffix(b"\n").unwrap_or(&raw);
+            let line = line.strip_suffix(b"\r").unwrap_or(line);
+            if first && matches!(line.first(), Some(b' ' | b'\t')) {
+                return Err(format!(
+                    "malformed MIME header initial line: {}",
+                    String::from_utf8_lossy(line)
+                ));
             }
-            let line = String::from_utf8_lossy(&raw);
-            let line = line.trim_end_matches('\n').trim_end_matches('\r');
+            first = false;
             if line.is_empty() {
+                if eof {
+                    return Err("unexpected EOF".into());
+                }
                 break;
             }
-            if line.starts_with([' ', '\t']) {
+            let trimmed = line.trim_ascii();
+            if matches!(line.first(), Some(b' ' | b'\t')) {
+                // A continuation line folds into the previous value.
                 match headers.last_mut() {
                     Some((_, v)) => {
                         v.push(' ');
-                        v.push_str(line.trim_matches([' ', '\t']));
+                        v.push_str(&String::from_utf8_lossy(trimmed));
                         continue;
                     }
-                    None => return Err(format!("malformed MIME header initial line: {line}")),
+                    None => return Err(malformed(line)),
                 }
             }
-            let (name, value) = line
-                .split_once(':')
-                .ok_or_else(|| format!("malformed MIME header line: {line}"))?;
-            if name.is_empty() || !name.bytes().all(token_char) {
-                return Err(format!("malformed MIME header line: {line}"));
+            let Some(colon) = trimmed.iter().position(|b| *b == b':') else {
+                return Err(malformed(trimmed));
+            };
+            let (key, value) = (&trimmed[..colon], &trimmed[colon + 1..]);
+            // canonicalMIMEHeaderKey: token bytes are canonicalized; keys with spaces are
+            // accepted as they are; anything else is malformed.
+            let key = if key.is_empty() || !key.iter().all(|c| token_char(*c) || *c == b' ') {
+                return Err(malformed(trimmed));
+            } else if key.contains(&b' ') {
+                String::from_utf8_lossy(key).into_owned()
+            } else {
+                crate::kimi_http::canonical_header(&String::from_utf8_lossy(key))
+            };
+            if value.iter().any(|c| *c < 0x20 && *c != b'\t' || *c == 0x7f) {
+                return Err(malformed(trimmed));
             }
-            headers.push((
-                crate::kimi_http::canonical_header(name),
-                value.trim_matches([' ', '\t']).to_owned(),
-            ));
+            let value = value
+                .iter()
+                .skip_while(|c| matches!(c, b' ' | b'\t'))
+                .copied()
+                .collect::<Vec<u8>>();
+            headers.push((key, String::from_utf8_lossy(&value).into_owned()));
+            if eof {
+                return Err("unexpected EOF".into());
+            }
         }
         let body = self.part_body()?;
         let disposition = headers
@@ -628,6 +656,18 @@ mod tests {
         assert!(form(bad_final).is_err());
         let lf_only = b"--b\nContent-Disposition: form-data; name=\"p\"\n\nv\n--b--\n";
         assert_eq!(form(lf_only).unwrap().value("p"), "v");
+    }
+
+    #[test]
+    fn header_names_with_spaces_are_kept_and_controls_rejected() {
+        let body = b"--b\r\nContent-Disposition: form-data; name=\"image\"; filename=\"x\"\r\nX Note: ok\r\n\r\nx\r\n--b--\r\n";
+        let parsed = form(body).unwrap();
+        let part = &parsed.files("image")[0];
+        assert!(part.headers.contains(&("X Note".into(), "ok".into())));
+        let bad = b"--b\r\nContent-Disposition: form-data; name=\"p\"\r\nX-A: a\x01\r\n\r\nx\r\n--b--\r\n";
+        assert!(form(bad).is_err());
+        let split = b"--b\r\nContent-Disposition: form-data; name=\"image\"; filename*0*=utf-8''%C3; filename*1*=%A9.png\r\n\r\nx\r\n--b--\r\n";
+        assert_eq!(form(split).unwrap().files("image")[0].filename, "\u{e9}.png");
     }
 
     #[test]

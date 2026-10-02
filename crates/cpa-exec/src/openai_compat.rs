@@ -109,21 +109,21 @@ fn not_registered(what: &str, from: Format, to: Format) -> ExecError {
 // ponytail: Go switches to the compat translators (ConvertClaudeRequestToOpenAIWithCompat)
 // when the configured model sets `is-compat`; cpa-translate has no compat variant for
 // OpenAI targets yet, so every model uses the regular pair (translator thread).
-fn translate_request(req: &ExecRequest, target: Format, model: &str, stream: bool) -> Result<String, ExecError> {
+fn translate_request(req: &ExecRequest, target: Format, model: &str, stream: bool) -> Result<go::GoText, ExecError> {
     match cpa_translate::pair(req.source_format, target) {
         Some(pair) => {
             let out = (pair.request)(&RequestCtx { model, stream }, &req.body)
                 .map_err(|e| ExecError::local(400, FailureScope::Request, e.to_string()))?;
-            String::from_utf8(out)
-                .map_err(|_| ExecError::local(500, FailureScope::Request, "translated body is not UTF-8"))
+            go::GoText::new(&out).ok_or_else(not_text)
         }
         // The registry fallback still normalizes `model` (sdk/translator/registry.go).
         None if req.source_format == target => {
-            let body = go::bytes_to_text(&req.body).ok_or_else(not_text)?;
-            if model.is_empty() || json::string(&body, "model") == model {
+            let body = go::GoText::new(&req.body).ok_or_else(not_text)?;
+            if model.is_empty() || json::string(&body.text, "model") == model {
                 Ok(body)
             } else {
-                Ok(json::set_str(&body, "model", model))
+                let text = json::set_str(&body.text, "model", model);
+                Ok(go::GoText { text, ..body })
             }
         }
         None => Err(not_registered("request", req.source_format, target)),
@@ -184,7 +184,8 @@ impl OpenAICompatExecutor {
         if response_pair.is_none() && req.response_format != target {
             return Err(not_registered("response", req.response_format, target));
         }
-        let mut body = translate_request(&req, target, &base_model, req.stream)?;
+        let encoding = translate_request(&req, target, &base_model, req.stream)?;
+        let mut body = encoding.text.clone();
         body = wire::apply_thinking(ThinkingInput {
             body,
             model: &req.model,
@@ -225,7 +226,7 @@ impl OpenAICompatExecutor {
             &client,
             &endpoint(&base_url, path),
             headers,
-            Bytes::from(go::text_to_bytes(&body)),
+            Bytes::from(encoding.bytes(&body)),
         )
         .await?;
         if !(200..300).contains(&upstream.status) {
@@ -351,8 +352,9 @@ fn prepare_images_payload(
     stream: bool,
 ) -> Result<(Bytes, String), ExecError> {
     if go::json_valid(body)
-        && let Some(mut text) = go::bytes_to_text(body)
+        && let Some(encoding) = go::GoText::new(body)
     {
+        let mut text = encoding.text.clone();
         if !model.is_empty() {
             text = json::set_str_if_different(&text, "model", model);
         }
@@ -361,7 +363,7 @@ fn prepare_images_payload(
         } else {
             json::delete(&text, "stream")
         };
-        return Ok((Bytes::from(go::text_to_bytes(&text)), "application/json".into()));
+        return Ok((Bytes::from(encoding.bytes(&text)), "application/json".into()));
     }
     let Some(boundary) = multipart::boundary(content_type) else {
         return Ok((Bytes::copy_from_slice(body), content_type.to_owned()));
@@ -407,7 +409,7 @@ fn prompt_cache_key(compat: Option<&payload::Compat>, req: &ExecRequest, base_mo
 /// `CountTokens`: a local tiktoken estimate of the translated chat request.
 fn count_tokens(credential: &Credential, req: &ExecRequest) -> Result<ExecResponse, ExecError> {
     let base_model = wire::parse_suffix(&req.model).0.to_owned();
-    let body = translate_request(req, Format::OpenAI, &base_model, false)?;
+    let body = translate_request(req, Format::OpenAI, &base_model, false)?.text;
     let body = wire::apply_thinking(ThinkingInput {
         body,
         model: &req.model,
