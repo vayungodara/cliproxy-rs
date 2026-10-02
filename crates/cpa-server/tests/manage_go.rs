@@ -456,6 +456,8 @@ mod config_writes {
                 vec![],
                 Executors {
                     claude: ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
+                    codex: Default::default(),
+                    devices: Default::default(),
                 },
             ));
             let options = Options {
@@ -628,6 +630,8 @@ mod creds {
                 credentials::load(&cfg),
                 Executors {
                     claude: ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
+                    codex: Default::default(),
+                    devices: Default::default(),
                 },
             ));
             let options = Options {
@@ -713,11 +717,11 @@ mod creds {
                     let got: Value = serde_json::from_str(&body).unwrap();
                     let mut want = normalize(&step["response"], &go_names);
                     let got = normalize(&got, &rust_names);
-                    // Go's harness has no model registry, so its cooldown-reset fallback
-                    // list is empty; cliproxy-rs reports the credential's static models.
+                    // Go's harness registers no models, so its cooldown-reset fallback list
+                    // is always empty; cliproxy-rs reports the credential's registrations
+                    // (none here: the credential is disabled by this step).
                     if step["path"] == "/routing/cooldown/reset" && status == 200 {
-                        assert!(got["models"].as_array().is_some_and(|m| !m.is_empty()), "{at}");
-                        want["models"] = got["models"].clone();
+                        assert_eq!(want["models"], json!([]), "{at}: harness assumption");
                     }
                     if let Some(msg) = want["error"].as_str().filter(|m| m.starts_with("invalid auth file: ")) {
                         // JSON parser wording differs; the prefix and status are Go's.

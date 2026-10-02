@@ -46,6 +46,8 @@ impl Fixture {
             cpa_core::config::credentials::load(&cfg),
             Executors {
                 claude: ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
+                codex: Default::default(),
+                devices: Default::default(),
             },
         ));
         let state = Management::new(rt.clone(), path);
@@ -690,5 +692,48 @@ async fn config_key_field_patch_updates_memory_only() {
     assert_eq!(cred.attributes.get("api_key").map(String::as_str), Some("fake-k"));
     assert!(cred.disabled);
     assert_eq!(f.file(), before, "config.yaml must not change");
+    server.abort();
+}
+
+/// `/credentials/models` reports what the credential registers in the dynamic
+/// registry (Go `GetModelsForClient`): config aliases here, nothing once disabled.
+#[tokio::test]
+async fn credential_models_come_from_registrations() {
+    let f = Fixture::from_yaml("models", |auth, hash| {
+        format!(
+            "config-version: 8\nmanagement:\n  secret-key: '{hash}'\noauth:\n  auth-dir: {}\napi-keys:\n  claude:\n    - models: [{{name: claude-sonnet-4-6, alias: sonnet}}]\n      keys:\n        - api-key: fake-k\n",
+            auth.display()
+        )
+    });
+    let id = f.rt.store().snapshot()[0].id.clone();
+    let (base, server) = f.server().await;
+    let client = wreq::Client::new();
+    let models = |client: wreq::Client, base: String, id: String| async move {
+        let v: Value = client
+            .get(format!("{base}/v8/management/credentials/models?name={id}"))
+            .bearer_auth("fake-management-only")
+            .send()
+            .await
+            .unwrap()
+            .json()
+            .await
+            .unwrap();
+        v["models"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|m| m["id"].as_str().unwrap().to_owned())
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(models(client.clone(), base.clone(), id.clone()).await, ["sonnet"]);
+    let r = client
+        .patch(format!("{base}/v8/management/credentials/fields"))
+        .bearer_auth("fake-management-only")
+        .json(&json!({"name": id, "disabled": true}))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(r.status(), 200);
+    assert!(models(client, base, id).await.is_empty());
     server.abort();
 }

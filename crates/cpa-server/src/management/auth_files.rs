@@ -1504,61 +1504,29 @@ pub(super) async fn model_definitions(UrlPath(channel): UrlPath<String>) -> Resp
     }
 }
 
-fn wildcard(pattern: &str, model: &str) -> bool {
-    let re = format!("^{}$", regex::escape(pattern).replace("\\*", ".*"));
-    regex::Regex::new(&re).is_ok_and(|re| re.is_match(model))
-}
-
-/// Models a credential serves, approximating Go's per-auth registry registration:
-/// configured model aliases, else the provider's static channel, minus exclusions.
-/// ponytail: Go reads its dynamic registry (OAuth aliases, remote catalogs); the
-/// registry overlay belongs to the routes/registry stream.
-fn models_for(c: &Credential) -> Vec<Value> {
-    let configured: Vec<Value> = c
-        .metadata
-        .get("model_aliases")
-        .and_then(Value::as_array)
-        .filter(|_| matches!(c.source, Source::Config { .. }))
-        .map(|aliases| {
-            aliases
-                .iter()
-                .filter_map(|a| a.get("alias").and_then(Value::as_str))
-                .map(|id| json!({"id": id}))
-                .collect()
-        })
-        .unwrap_or_default();
-    if !configured.is_empty() {
-        return configured;
-    }
-    let channel = match c.provider.as_str() {
-        "codex" => match c.attributes.get("plan_type").map(|p| p.to_lowercase()).as_deref() {
-            Some("free") => "codex-free",
-            Some("team") => "codex-team",
-            Some("plus") => "codex-plus",
-            _ => "codex-pro",
-        },
-        "gemini-interactions" => "gemini",
-        other => other,
-    };
-    let excluded: Vec<String> = c
-        .attributes
-        .get("excluded_models")
-        .map(|s| s.split(',').map(str::to_owned).collect())
-        .unwrap_or_default();
-    cpa_core::registry::pinned()
-        .channel(channel)
-        .iter()
-        .filter(|m| !excluded.iter().any(|p| wildcard(p, &m.id.to_lowercase())))
+/// Go `GetModelsForClient`: the models the credential registers (the dynamic
+/// registry's `models_for`), in registration order, rendered like
+/// `GetAuthFileModels`.
+fn models_for(state: &Management, c: &Credential) -> Vec<Value> {
+    let cfg = state.rt.config();
+    let aliases = crate::registry::global_aliases(&cfg);
+    let now = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .map_or(0, |d| d.as_secs() as i64);
+    let mut seen = std::collections::HashSet::new();
+    crate::registry::models_for(&cfg, &aliases, c, now)
+        .into_iter()
+        .filter(|m| !m.id.is_empty() && seen.insert(m.id.clone()))
         .map(|m| {
             let mut out = Map::new();
-            out.insert("id".into(), m.id.clone().into());
-            for (from, to) in [
-                ("display_name", "display_name"),
-                ("type", "type"),
-                ("owned_by", "owned_by"),
+            out.insert("id".into(), m.id.into());
+            for (key, value) in [
+                ("display_name", m.display_name),
+                ("type", m.kind),
+                ("owned_by", m.owned_by),
             ] {
-                if let Some(v) = m.raw.get(from).and_then(Value::as_str).filter(|v| !v.is_empty()) {
-                    out.insert(to.into(), v.into());
+                if !value.is_empty() {
+                    out.insert(key.into(), value.into());
                 }
             }
             Value::Object(out)
@@ -1576,7 +1544,7 @@ pub(super) async fn models(State(state): State<Arc<Management>>, RawQuery(raw): 
     let models = all
         .iter()
         .find(|c| file_name(c).as_deref() == Some(name.as_str()) || c.id == name)
-        .map(|c| models_for(c))
+        .map(|c| models_for(&state, c))
         .unwrap_or_default();
     reply(StatusCode::OK, [("models", Value::Array(models))])
 }
@@ -1606,7 +1574,7 @@ pub(super) async fn cooldown_reset(State(state): State<Arc<Management>>, body: B
     let mut models = state.rt.store().reset_cooldowns(&target.id);
     if models.is_empty() {
         // Go falls back to the models registered for the credential.
-        models = models_for(&target)
+        models = models_for(&state, &target)
             .iter()
             .filter_map(|m| m.get("id").and_then(Value::as_str).map(str::to_owned))
             .collect();

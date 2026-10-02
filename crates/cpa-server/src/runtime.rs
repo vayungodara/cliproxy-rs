@@ -993,13 +993,12 @@ impl CredentialStore {
 }
 
 impl Runtime {
-    /// Runs the executor's single-flighted preparation now if it is due (management
-    /// refresh). Returns the committed credential.
-    /// ponytail: refresh-if-due only; Go's forced refresh needs a force flag in the
-    /// executor preparation contract.
+    /// Runs the executor's single-flighted preparation now, due or not (management
+    /// refresh, Go `RefreshAuthFile`). Returns the committed credential.
     pub async fn refresh_credential(&self, id: &str) -> Result<Arc<Credential>, ExecError> {
         let cfg = self.config();
-        self.prepare_credential(id, &cfg).await
+        let revision = self.store.get(id).map(|c| c.revision);
+        self.prepare_credential(id, &cfg, revision).await
     }
 }
 
