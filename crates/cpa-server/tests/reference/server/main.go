@@ -6,11 +6,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/fs"
+	"net/http"
 	"os"
+	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
-
-	"net/http"
 
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/registry"
 	"github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/auth"
@@ -504,6 +506,63 @@ func affinities() []affinityCase {
 	return out
 }
 
+var goTimestamp = regexp.MustCompile(`"20\d\d-\d\d-\d\dT[0-9:.]+Z"`)
+
+// cooldownFiles drives MarkResult with a FileCooldownStateStore rooted at a temporary
+// auth dir and returns each .cds file (relative path -> content), with non-zero
+// timestamps replaced by "<time>".
+func cooldownFiles() map[string]string {
+	ctx := context.Background()
+	dir, err := os.MkdirTemp("", "cds")
+	if err != nil {
+		panic(err)
+	}
+	defer os.RemoveAll(dir)
+	m := auth.NewManager(nil, nil, nil)
+	m.SetCooldownStateStore(auth.NewFileCooldownStateStoreWithAuthDir(dir, dir))
+	register := func(id, path string, disabled bool) {
+		attrs := map[string]string{}
+		if path != "" {
+			attrs["path"] = filepath.Join(dir, path)
+		}
+		if _, err := m.Register(ctx, &auth.Auth{ID: id, Provider: "claude", Attributes: attrs, Disabled: disabled, Metadata: map[string]any{"type": "claude"}}); err != nil {
+			panic(err)
+		}
+	}
+	register("claude-a.json", "claude-a.json", false)
+	register("sub/team b.json", "sub/team b.json", false)
+	register("cfg:key/0", "", false)
+	register("off.json", "off.json", true)
+	fail := func(id, model string, status int, message string, retryAfter time.Duration, credential bool) {
+		res := auth.Result{AuthID: id, Provider: "claude", Model: model, CredentialScope: credential, Error: &auth.Error{HTTPStatus: status, Message: message}}
+		if retryAfter > 0 {
+			res.RetryAfter = &retryAfter
+		}
+		m.MarkResult(ctx, res)
+	}
+	fail("claude-a.json", "m1", 429, "rate limited", 30*time.Second, false)
+	fail("claude-a.json", "m2", 401, "unauthorized", 0, false)
+	fail("sub/team b.json", "m2", 500, "boom", 0, false)
+	fail("sub/team b.json", "m1", 429, "credential quota", time.Minute, true)
+	fail("cfg:key/0", "m3", 403, "challenge-platform", 0, false)
+	fail("off.json", "m1", 500, "boom", 0, false)
+	m.PersistCooldownStates(ctx)
+	out := map[string]string{}
+	filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return err
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		rel, _ := filepath.Rel(dir, path)
+		out[filepath.ToSlash(rel)] = goTimestamp.ReplaceAllString(string(data), `"<time>"`)
+		return nil
+	})
+	return out
+}
+
 func main() {
 	out := map[string]any{}
 	var sanitized, extracted []pair
@@ -519,6 +578,7 @@ func main() {
 	out["cooldown"] = cooldowns()
 	out["session"] = sessions()
 	out["affinity"] = affinities()
+	out["cooldown_files"] = cooldownFiles()
 	data, err := json.MarshalIndent(out, "", "  ")
 	if err != nil {
 		panic(err)

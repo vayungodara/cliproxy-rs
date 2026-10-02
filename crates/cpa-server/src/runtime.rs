@@ -61,7 +61,9 @@ impl Runtime {
     /// The scheduler policy is derived from the config (`routing` plus the OAuth
     /// provider rules), as on every publish.
     pub fn new(config: Config, credentials: Vec<Credential>, executors: Executors) -> Self {
-        let policy = crate::management::policy(&config);
+        let mut policy = crate::management::policy(&config);
+        policy.compat_disable_cooling = crate::scheduler::compat_cooling(&config);
+        let cooldown_dir = cooldown_dir(&config, &policy);
         let rt = Self {
             config: RwLock::new(Arc::new(config)),
             store: CredentialStore::new(credentials),
@@ -73,6 +75,7 @@ impl Runtime {
             pool_offsets: Mutex::default(),
         };
         rt.publish_policy(policy);
+        rt.store.configure_cooldown_store(cooldown_dir);
         rt
     }
 
@@ -89,10 +92,12 @@ impl Runtime {
     }
 
     /// Integration should use this when publishing parsed routing settings too.
-    pub fn publish_config_and_policy(&self, config: Config, policy: Policy) {
-        let mut current = self.config.write().unwrap_or_else(PoisonError::into_inner);
-        *current = Arc::new(config);
+    pub fn publish_config_and_policy(&self, config: Config, mut policy: Policy) {
+        policy.compat_disable_cooling = crate::scheduler::compat_cooling(&config);
+        let dir = cooldown_dir(&config, &policy);
+        *self.config.write().unwrap_or_else(PoisonError::into_inner) = Arc::new(config);
         self.publish_policy(policy);
+        self.store.configure_cooldown_store(dir);
     }
 
     /// A coherent config/policy pair for the entire route attempt loop.
@@ -166,13 +171,16 @@ impl Runtime {
     }
 
     pub fn publish_policy(&self, policy: Policy) {
-        let mut current = self.store.policy.write().unwrap_or_else(PoisonError::into_inner);
-        self.store
-            .scheduler
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .configure(&current, &policy);
-        *current = Arc::new(policy);
+        {
+            let mut current = self.store.policy.write().unwrap_or_else(PoisonError::into_inner);
+            self.store
+                .scheduler
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .configure(&current, &policy);
+            *current = Arc::new(policy);
+        }
+        self.store.clear_disabled_cooldowns();
     }
 
     /// Selects a credential that registered the route model. Waits for preparation only
@@ -246,15 +254,13 @@ impl Runtime {
             })
     }
 
-    /// Go `tryRefreshAfterUnauthorized`: after an upstream 401 on a credential that can
-    /// refresh, refresh it once and return the committed replacement to retry with.
+    /// Go `tryRefreshAfterUnauthorized`: after an upstream 401 on a credential whose
+    /// executor reports a refresh credential, prepare it once (due or not) and return the
+    /// committed replacement to retry with.
     // ponytail: refresh goes through `Executors::prepare`; a provider whose prepare only
     // refreshes inside its lead (Claude) cannot recover a revoked but unexpired token.
     pub async fn refresh_after_unauthorized(&self, credential: &Credential, cfg: &Config) -> Option<Arc<Credential>> {
-        let refreshable = ["refresh_token", "refreshToken"]
-            .iter()
-            .any(|k| credential.str(k).is_some_and(|v| !v.trim().is_empty()));
-        if !refreshable {
+        if !self.executors.has_refresh_credential(credential) {
             return None;
         }
         let refreshed = self
@@ -351,6 +357,11 @@ impl Drop for Runtime {
             task.abort();
         }
     }
+}
+
+/// Where cooldowns persist: `auth-dir` while `save-cooldown-status` is on.
+fn cooldown_dir(cfg: &Config, policy: &Policy) -> Option<std::path::PathBuf> {
+    policy.save_cooldown_status.then(|| cfg.auth_dir.clone())
 }
 
 /// `oauth.auth-auto-refresh-workers`: non-positive means Go's default of 16.
@@ -587,7 +598,13 @@ pub struct CredentialStore {
     attempts: AtomicU64,
     stats: [AtomicU64; 3],
     prepare_locks: Mutex<HashMap<String, Arc<tokio::sync::Mutex<()>>>>,
+    /// `auth-dir` while `save-cooldown-status` is on (Go `cooldownStore`).
+    cooldown_dir: RwLock<Option<std::path::PathBuf>>,
+    /// Serializes cooldown snapshots with their writes, so the last write is the newest.
+    cooldown_write: Mutex<()>,
     activity: Mutex<HashMap<String, CredentialActivity>>,
+    /// Credential revisions whose file already holds Go's persisted form.
+    persisted: Mutex<HashMap<String, u64>>,
 }
 
 impl CredentialStore {
@@ -609,8 +626,160 @@ impl CredentialStore {
             attempts: AtomicU64::new(0),
             stats: Default::default(),
             prepare_locks: Mutex::default(),
+            cooldown_dir: RwLock::default(),
+            cooldown_write: Mutex::default(),
             activity: Mutex::default(),
+            persisted: Mutex::default(),
         })
+    }
+
+    /// Go `ApplyConfigWithCooldownStateStore` plus the restore that follows a config
+    /// update: the current state goes to the old store before the swap, and a newly
+    /// enabled store is restored from. `None` disables persistence.
+    pub fn configure_cooldown_store(&self, dir: Option<std::path::PathBuf>) {
+        let old = self.cooldown_dir.read().unwrap_or_else(PoisonError::into_inner).clone();
+        if old == dir {
+            return;
+        }
+        if old.is_some() {
+            self.persist_cooldowns();
+        }
+        *self.cooldown_dir.write().unwrap_or_else(PoisonError::into_inner) = dir.clone();
+        if let Some(dir) = dir {
+            self.restore_cooldowns(&dir);
+        }
+    }
+
+    /// Go `RestoreCooldownStates`: live records of live credentials whose cooling is
+    /// enabled, then a rewrite that drops everything else.
+    fn restore_cooldowns(&self, dir: &std::path::Path) {
+        let records = match crate::cooldown_store::load(dir) {
+            Ok(records) => records,
+            Err(error) => {
+                tracing::warn!(%error, "failed to restore cooldown state");
+                return;
+            }
+        };
+        if !records.is_empty() {
+            let policy = self.policy.read().unwrap_or_else(PoisonError::into_inner).clone();
+            let inner = self.read();
+            let mut scheduler = self.scheduler.lock().unwrap_or_else(PoisonError::into_inner);
+            let (now, wall) = (Instant::now(), std::time::SystemTime::now());
+            for record in &records {
+                let Some(c) = inner.creds.iter().find(|c| c.id == record.auth_id.trim()) else {
+                    continue;
+                };
+                if c.disabled || policy.cooling_disabled(c) {
+                    continue;
+                }
+                let has_models = records
+                    .iter()
+                    .any(|r| r.auth_id.trim() == c.id && !r.model.trim().is_empty());
+                scheduler.restore(c, record, has_models, now, wall);
+            }
+        }
+        self.persist_cooldowns();
+    }
+
+    /// Go `persistCooldownStates`: rewrites the `.cds` files from the live cooldowns.
+    pub fn persist_cooldowns(&self) {
+        let Some(dir) = self.cooldown_dir.read().unwrap_or_else(PoisonError::into_inner).clone() else {
+            return;
+        };
+        let _write = self.cooldown_write.lock().unwrap_or_else(PoisonError::into_inner);
+        let wall = std::time::SystemTime::now();
+        let mut records = {
+            let policy = self.policy.read().unwrap_or_else(PoisonError::into_inner).clone();
+            let inner = self.read();
+            let scheduler = self.scheduler.lock().unwrap_or_else(PoisonError::into_inner);
+            let now = Instant::now();
+            inner
+                .creds
+                .iter()
+                .filter(|c| !c.disabled && !policy.cooling_disabled(c))
+                .flat_map(|c| scheduler.records(c, now, wall))
+                .collect::<Vec<_>>()
+        };
+        records.sort_by(|a, b| (&a.provider, &a.auth_id, &a.model).cmp(&(&b.provider, &b.auth_id, &b.model)));
+        if let Err(error) = crate::cooldown_store::save(&dir, records, wall) {
+            tracing::warn!(%error, "failed to persist cooldown state");
+        }
+    }
+
+    /// Go `Manager.persist` after a result (`FileTokenStore.Save`, metadata branch): the
+    /// file gets `"disabled"` and Go's `json.Marshal` form unless it already holds the
+    /// same JSON. Checked once per revision, so a file is not read on every request.
+    // ponytail: atomic replace instead of Go's in-place truncate, and a removed file is
+    // not recreated (Go recreates one deleted between watcher reloads).
+    fn persist_credential(&self, credential: &Arc<Credential>) {
+        let Source::File(path) = &credential.source else {
+            return;
+        };
+        if credential.disabled
+            || credential
+                .attributes
+                .get("runtime_only")
+                .is_some_and(|v| v.trim().eq_ignore_ascii_case("true"))
+        {
+            return;
+        }
+        {
+            let persisted = self.persisted.lock().unwrap_or_else(PoisonError::into_inner);
+            if persisted.get(&credential.id) == Some(&credential.revision) {
+                return;
+            }
+        }
+        let mut metadata = credential.metadata.clone();
+        metadata.insert("disabled".into(), Value::Bool(credential.disabled));
+        let go = |bytes: &[u8]| cpa_common::json::GoValue::parse_f64(bytes);
+        let target = serde_json::to_vec(&metadata).ok().and_then(|b| go(&b));
+        let Some(target) = target else { return };
+        let existing = match std::fs::read(path) {
+            Ok(bytes) => bytes,
+            Err(_) => return,
+        };
+        if go(&existing).as_ref() != Some(&target) {
+            let bytes = target.marshal();
+            if let Err(error) = write_bytes_atomic(path, &bytes) {
+                tracing::warn!(id = %credential.id, %error, "failed to persist credential");
+                return;
+            }
+            // Same revision: the file now says what memory already meant (absent
+            // `disabled` is false, numbers are float64), so memory takes the written
+            // form and the watcher's reload finds nothing changed.
+            let Ok(written) = serde_json::from_slice::<Map<String, Value>>(&bytes) else {
+                return;
+            };
+            let mut inner = self.inner.write().unwrap_or_else(PoisonError::into_inner);
+            if let Some(slot) = inner
+                .creds
+                .iter_mut()
+                .find(|c| c.id == credential.id && c.revision == credential.revision)
+            {
+                let mut next = Credential::clone(slot);
+                next.metadata = written;
+                *slot = Arc::new(next);
+            }
+        }
+        self.persisted
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .insert(credential.id.clone(), credential.revision);
+    }
+
+    /// Go `clearDisabledCooldownStates` after a policy change.
+    fn clear_disabled_cooldowns(&self) {
+        let policy = self.policy.read().unwrap_or_else(PoisonError::into_inner).clone();
+        let cleared = {
+            let inner = self.read();
+            self.scheduler
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .clear_disabled(&inner.creds, &policy)
+        };
+        if cleared {
+            self.persist_cooldowns();
+        }
     }
 
     pub fn snapshot(&self) -> Vec<Arc<Credential>> {
@@ -719,7 +888,11 @@ impl CredentialStore {
     /// Clears every cooldown and affinity binding of one credential (Go `ResetQuota`).
     /// Returns the model keys that were cooling.
     pub fn reset_cooldown(&self, id: &str) -> Vec<String> {
-        self.scheduler.lock().unwrap_or_else(PoisonError::into_inner).reset(id)
+        let models = self.scheduler.lock().unwrap_or_else(PoisonError::into_inner).reset(id);
+        if !models.is_empty() {
+            self.persist_cooldowns();
+        }
+        models
     }
 
     /// Returns the next round's wait, if any credential still permits that round
@@ -793,10 +966,25 @@ impl CredentialStore {
             .iter()
             .any(|c| c.id == lease.credential.id && c.revision == lease.credential.revision)
         {
-            let now = Instant::now();
+            let (now, wall) = (Instant::now(), std::time::SystemTime::now());
+            let persist = self
+                .cooldown_dir
+                .read()
+                .unwrap_or_else(PoisonError::into_inner)
+                .is_some();
             let mut scheduler = self.scheduler.lock().unwrap_or_else(PoisonError::into_inner);
+            let before = persist.then(|| scheduler.records(&lease.credential, now, wall));
             scheduler.record(&lease.credential, model, outcome, &lease.policy, now);
             scheduler.session_result(&lease.credential, &lease.selection, outcome, &lease.policy, now);
+            // Go MarkResult persists only when this credential's cooldown records changed.
+            let changed = before.is_some_and(|before| before != scheduler.records(&lease.credential, now, wall));
+            drop(scheduler);
+            drop(inner);
+            if changed {
+                self.persist_cooldowns();
+            }
+            // Go persists on every recorded result, a client-cancelled stream included.
+            self.persist_credential(&lease.credential);
         }
     }
 
@@ -855,6 +1043,8 @@ impl CredentialStore {
         patch.apply(&mut next.metadata);
         next.refresh_derived();
         next.revision = generation;
+        // Go `FileTokenStore.Save` always records the disabled state.
+        next.metadata.insert("disabled".into(), Value::Bool(next.disabled));
         write_atomic(path, &next.metadata).map_err(|e| PatchError::Io(e.to_string()))?;
         *slot = Arc::new(next);
         let committed = slot.clone();
@@ -924,6 +1114,9 @@ impl CredentialStore {
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
             .reconcile(&inner.creds);
+        drop(inner);
+        self.clear_disabled_cooldowns();
+        self.persist_cooldowns();
     }
 
     fn read(&self) -> std::sync::RwLockReadGuard<'_, Inner> {
@@ -991,10 +1184,17 @@ impl CredentialStore {
     /// Clears the cooldowns of one credential (Go `Manager.ResetQuota`); returns the
     /// model keys that were cooling.
     pub fn reset_cooldowns(&self, id: &str) -> Vec<String> {
-        self.scheduler
+        let had = !self.cooldowns(id).is_empty();
+        let models = self
+            .scheduler
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
-            .reset_cooldowns(id)
+            .reset_cooldowns(id);
+        if had {
+            // Go `ResetQuota` persists the cleared state.
+            self.persist_cooldowns();
+        }
+        models
     }
 }
 
@@ -1012,10 +1212,15 @@ impl Runtime {
 /// newline) via an exclusively created, uniquely named 0600 sibling and a rename. The
 /// temp name does not end in `.json`, so a crash never leaves a loadable credential.
 fn write_atomic(path: &Path, metadata: &Map<String, Value>) -> std::io::Result<()> {
-    use std::os::unix::fs::OpenOptionsExt;
-    static COUNTER: AtomicU64 = AtomicU64::new(0);
     let mut bytes = serde_json::to_vec(metadata)?;
     bytes.push(b'\n');
+    write_bytes_atomic(path, &bytes)
+}
+
+/// Replaces `path` with `bytes` through an exclusively created 0600 sibling.
+fn write_bytes_atomic(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
+    use std::os::unix::fs::OpenOptionsExt;
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
     let dir = path.parent().unwrap_or(Path::new("."));
     let name = path.file_name().unwrap_or_default().to_string_lossy();
     let (tmp, mut file) = loop {
@@ -1037,7 +1242,7 @@ fn write_atomic(path: &Path, metadata: &Map<String, Value>) -> std::io::Result<(
         }
     };
     let result = file
-        .write_all(&bytes)
+        .write_all(bytes)
         .and_then(|()| file.sync_all())
         .and_then(|()| std::fs::rename(&tmp, path));
     if result.is_err() {
@@ -1411,6 +1616,177 @@ mod tests {
         rt.pool_offsets.lock().unwrap().insert("d".into(), 2_147_483_641);
         assert_eq!(rt.next_pool_offset("d", 3), 0, "the guard resets before use");
         assert_eq!(rt.next_pool_offset("d", 3), 1);
+    }
+
+    /// Go `Manager.persist` after `MarkResult`: the auth file gains `"disabled": false`
+    /// in `json.Marshal` form (sorted keys, float64 numbers, HTML escaping, no newline)
+    /// once, and is not rewritten while it already holds that JSON.
+    #[test]
+    fn first_use_persists_disabled_in_go_marshal_form() {
+        let dir = std::env::temp_dir().join(format!(
+            "persist-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("a.json");
+        let original = "{\"type\":\"claude\",\"email\":\"a<b>@x.invalid\",\"n\":1.50,\"big\":1e3,\"nested\":{\"z\":1,\"a\":[true,null]}}\n";
+        std::fs::write(&path, original).unwrap();
+        let metadata: Map<String, Value> = serde_json::from_str(original).unwrap();
+        let store = CredentialStore::new(vec![Credential::from_file(&dir, &path, metadata).unwrap()]);
+        let revision = store.get("a.json").unwrap().revision;
+        store
+            .select(Selection::new("claude", "m"))
+            .unwrap()
+            .complete(Outcome::Success);
+        let written = std::fs::read_to_string(&path).unwrap();
+        assert_eq!(
+            written,
+            r#"{"big":1000,"disabled":false,"email":"a\u003cb\u003e@x.invalid","n":1.5,"nested":{"a":[true,null],"z":1},"type":"claude"}"#
+        );
+        let current = store.get("a.json").unwrap();
+        assert_eq!(current.revision, revision, "a neutral write keeps the revision");
+        assert_eq!(current.metadata.get("disabled"), Some(&Value::Bool(false)));
+        assert_eq!(current.metadata.get("big"), Some(&Value::from(1000)));
+        // The watcher's reload of the written file changes nothing.
+        let reloaded: Map<String, Value> = serde_json::from_str(&written).unwrap();
+        store.reconcile(vec![Credential::from_file(&dir, &path, reloaded).unwrap()]);
+        assert_eq!(store.get("a.json").unwrap().revision, revision);
+        // Same JSON in another layout is left alone.
+        std::fs::write(&path, "{\"type\":\"claude\", \"disabled\":false}").unwrap();
+        let mut metadata = Map::new();
+        metadata.insert("type".into(), "claude".into());
+        metadata.insert("disabled".into(), false.into());
+        store.reconcile(vec![Credential::from_file(&dir, &path, metadata).unwrap()]);
+        store
+            .select(Selection::new("claude", "m"))
+            .unwrap()
+            .complete(Outcome::Success);
+        assert_eq!(
+            std::fs::read_to_string(&path).unwrap(),
+            "{\"type\":\"claude\", \"disabled\":false}"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// Go `save-cooldown-status`: a cooldown change writes `<auth-dir>/<file>.cds`, a new
+    /// process restores it, reset clears it, and a file Go wrote restores too.
+    #[test]
+    fn cooldowns_persist_restore_and_reset_through_cds_files() {
+        let dir = std::env::temp_dir().join(format!(
+            "cds-rt-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let config = || {
+            Config::parse(&format!(
+                "auth-dir: {}\nrouting:\n  cooldown:\n    save-cooldown-status: true\n",
+                dir.display()
+            ))
+            .unwrap()
+        };
+        let creds = || {
+            let metadata = |p: &str| {
+                let mut m = Map::new();
+                m.insert("type".into(), p.into());
+                m
+            };
+            vec![
+                Credential::from_file(&dir, &dir.join("a.json"), metadata("claude")).unwrap(),
+                Credential::from_file(&dir, &dir.join("b.json"), metadata("claude")).unwrap(),
+            ]
+        };
+        let executors = || Executors {
+            claude: cpa_exec::claude::ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
+            codex: Default::default(),
+            openai: Default::default(),
+            devices: Default::default(),
+        };
+        let rt = Runtime::new(config(), creds(), executors());
+        let mut selection = Selection::new("claude", "m1");
+        selection.exclude.push("b.json".into());
+        let lease = rt.store.select(selection.clone()).unwrap();
+        let mut quota = ExecError::local(429, FailureScope::Model, "rate limited");
+        quota.retry_after = Some(Duration::from_secs(120));
+        lease.complete(Outcome::Failure(quota));
+        let file = dir.join("a.cds");
+        let written = std::fs::read_to_string(&file).expect("cooldown written");
+        assert!(
+            written.contains("\"model\": \"m1\"") && written.contains("\"reason\": \"quota\""),
+            "{written}"
+        );
+        assert!(!dir.join("b.cds").exists());
+        // A successful attempt on another credential changes no cooldown: no rewrite.
+        let modified = std::fs::metadata(&file).unwrap().modified().unwrap();
+        let mut other = Selection::new("claude", "m1");
+        other.exclude.push("a.json".into());
+        rt.store.select(other).unwrap().complete(Outcome::Success);
+        assert_eq!(std::fs::metadata(&file).unwrap().modified().unwrap(), modified);
+
+        // A new process restores the cooldown.
+        drop(rt);
+        let rt = Runtime::new(config(), creds(), executors());
+        let a = rt.store.get("a.json").unwrap();
+        let wait = rt
+            .store
+            .scheduler
+            .lock()
+            .unwrap()
+            .wait(&a, "m1", Instant::now())
+            .unwrap();
+        assert!(
+            wait > Duration::from_secs(100) && wait <= Duration::from_secs(120),
+            "{wait:?}"
+        );
+        assert_eq!(rt.store.reset_cooldown("a.json"), ["m1"]);
+        assert!(!file.exists(), "reset removes the stale file");
+
+        // A file CLIProxyAPI wrote (local time with an offset) restores model and
+        // credential-wide quota records; an expired record is dropped on rewrite.
+        let at = |secs: i64| {
+            (chrono::Utc::now() + chrono::Duration::seconds(secs))
+                .with_timezone(&chrono::FixedOffset::east_opt(7200).unwrap())
+                .to_rfc3339_opts(chrono::SecondsFormat::Nanos, false)
+        };
+        let go = format!(
+            r#"{{"version":1,"auth_id":"b.json","provider":"claude","updated_at":"{now}","records":[
+{{"provider":"claude","auth_id":"b.json","status":"cooling","next_retry_after":"{late}","reason":"credential_quota","quota":{{"exceeded":true,"reason":"credential_quota","next_recover_at":"{late}","observed_at":"0001-01-01T00:00:00Z"}},"last_error":{{"message":"credential quota","retryable":false,"http_status":429}},"updated_at":"{now}"}},
+{{"provider":"claude","auth_id":"b.json","model":"m2","status":"cooling","next_retry_after":"{soon}","reason":"unauthorized","quota":{{"exceeded":false,"next_recover_at":"0001-01-01T00:00:00Z","observed_at":"0001-01-01T00:00:00Z"}},"last_error":{{"message":"unauthorized","retryable":false,"http_status":401}},"updated_at":"{now}"}},
+{{"provider":"claude","auth_id":"b.json","model":"m3","status":"cooling","next_retry_after":"{past}","reason":"boom","quota":{{"exceeded":false,"next_recover_at":"0001-01-01T00:00:00Z","observed_at":"0001-01-01T00:00:00Z"}},"updated_at":"{now}"}},
+{{"provider":"claude","auth_id":"gone.json","model":"m1","status":"cooling","next_retry_after":"{late}","quota":{{"exceeded":false,"next_recover_at":"0001-01-01T00:00:00Z","observed_at":"0001-01-01T00:00:00Z"}},"updated_at":"{now}"}}]}}"#,
+            now = at(0),
+            late = at(600),
+            soon = at(60),
+            past = at(-5),
+        );
+        std::fs::write(dir.join("b.cds"), go).unwrap();
+        drop(rt);
+        let rt = Runtime::new(config(), creds(), executors());
+        let b = rt.store.get("b.json").unwrap();
+        let now = Instant::now();
+        let scheduler = rt.store.scheduler.lock().unwrap();
+        let wait = |m: &str| scheduler.wait(&b, m, now).unwrap_or_default().as_secs();
+        assert!((590..=600).contains(&wait("m9")), "credential quota blocks every model");
+        assert!(scheduler.quota_cooling(&b, "m9", now));
+        let records = scheduler.records(&b, now, std::time::SystemTime::now());
+        drop(scheduler);
+        let models: Vec<&str> = records.iter().map(|r| r.model.as_str()).collect();
+        assert_eq!(models, ["", "m2"], "expired and unknown-credential records are dropped");
+        let rewritten = std::fs::read_to_string(dir.join("b.cds")).unwrap();
+        assert!(!rewritten.contains("gone.json") && !rewritten.contains("\"m3\""));
+
+        // Turning the option off persists the final state and stops writing.
+        rt.publish_config(Config::parse(&format!("auth-dir: {}\n", dir.display())).unwrap());
+        rt.store.reset_cooldown("b.json");
+        assert!(dir.join("b.cds").exists(), "no writes once disabled");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[tokio::test]
