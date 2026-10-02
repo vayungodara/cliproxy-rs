@@ -41,8 +41,8 @@ pub struct Res<'a> {
 }
 
 const MODIFIERS: [&[u8]; 13] = [
-    b"pretty", b"ugly", b"reverse", b"this", b"flatten", b"join", b"valid", b"keys", b"values", b"tostr",
-    b"fromstr", b"group", b"dig",
+    b"pretty", b"ugly", b"reverse", b"this", b"flatten", b"join", b"valid", b"keys", b"values", b"tostr", b"fromstr",
+    b"group", b"dig",
 ];
 
 impl<'a> Res<'a> {
@@ -172,7 +172,11 @@ impl<'a> Res<'a> {
         }
         let mut items = match &self.raw {
             Cow::Borrowed(b) => array_or_map(b, b'[', self.index).0,
-            Cow::Owned(v) => array_or_map(v, b'[', self.index).0.into_iter().map(Res::into_owned).collect(),
+            Cow::Owned(v) => array_or_map(v, b'[', self.index)
+                .0
+                .into_iter()
+                .map(Res::into_owned)
+                .collect(),
         };
         if let Some(indexes) = &self.indexes {
             if indexes.len() != items.len() {
@@ -358,7 +362,7 @@ fn safe_int(f: f64) -> Option<i64> {
 
 /// Go's `int64(f)` on amd64: truncation, and the minimum value when out of range or NaN.
 fn go_f64_to_i64(f: f64) -> i64 {
-    if f.is_nan() || f >= 9.223372036854775807e18 || f < -9.223372036854775808e18 {
+    if f.is_nan() || f >= 9.223_372_036_854_776e18 || f < -9.223_372_036_854_776e18 {
         i64::MIN
     } else {
         f as i64
@@ -369,7 +373,10 @@ fn parse_uint(s: &[u8]) -> Option<u64> {
     if s.is_empty() || !s.iter().all(u8::is_ascii_digit) {
         return None;
     }
-    Some(s.iter().fold(0u64, |n, c| n.wrapping_mul(10).wrapping_add(u64::from(c - b'0'))))
+    Some(
+        s.iter()
+            .fold(0u64, |n, c| n.wrapping_mul(10).wrapping_add(u64::from(c - b'0'))),
+    )
 }
 
 fn parse_int(s: &[u8]) -> Option<i64> {
@@ -385,7 +392,10 @@ fn parse_int(s: &[u8]) -> Option<i64> {
 /// overflow).
 // ponytail: Go also accepts hexadecimal floats ("0x1p-2"); they parse as 0 here.
 pub fn parse_float(s: &[u8]) -> f64 {
-    std::str::from_utf8(s).ok().and_then(|s| s.parse::<f64>().ok()).unwrap_or(0.0)
+    std::str::from_utf8(s)
+        .ok()
+        .and_then(|s| s.parse::<f64>().ok())
+        .unwrap_or(0.0)
 }
 
 /// `strconv.FormatFloat(f, 'f', -1, 64)`.
@@ -457,7 +467,7 @@ fn tostr(json: &[u8]) -> (&[u8], Cow<'_, [u8]>) {
                     continue;
                 }
                 if json[i] == b'"' {
-                    if json[i - 1] == b'\\' && backslashes_before(json, i, 1) % 2 == 0 {
+                    if json[i - 1] == b'\\' && backslashes_before(json, i, 1).is_multiple_of(2) {
                         i += 1;
                         continue;
                     }
@@ -501,7 +511,7 @@ fn squash(json: &[u8]) -> &[u8] {
                         continue;
                     }
                     if json[i] == b'"' {
-                        if json[i - 1] == b'\\' && backslashes_before(json, i, s2) % 2 == 0 {
+                        if json[i - 1] == b'\\' && backslashes_before(json, i, s2).is_multiple_of(2) {
                             i += 1;
                             continue;
                         }
@@ -612,7 +622,7 @@ fn parse_string(json: &[u8], mut i: usize) -> (usize, usize, bool, bool) {
                     continue;
                 }
                 if json[i] == b'"' {
-                    if json[i - 1] == b'\\' && backslashes_before(json, i, 1) % 2 == 0 {
+                    if json[i - 1] == b'\\' && backslashes_before(json, i, 1).is_multiple_of(2) {
                         i += 1;
                         continue;
                     }
@@ -677,7 +687,7 @@ fn parse_squash(json: &[u8], i: usize) -> (usize, usize) {
                     i += 1;
                     continue;
                 }
-                if json[i - 1] == b'\\' && backslashes_before(json, i, s2) % 2 == 0 {
+                if json[i - 1] == b'\\' && backslashes_before(json, i, s2).is_multiple_of(2) {
                     i += 1;
                     continue;
                 }
@@ -765,7 +775,11 @@ fn parse_any(json: &[u8], mut i: usize, hit: bool) -> (usize, Res<'_>, bool) {
                 if !ok {
                     return (next, Res::default(), false);
                 }
-                let res = if hit { string_res(json, start, end, esc) } else { Res::default() };
+                let res = if hit {
+                    string_res(json, start, end, esc)
+                } else {
+                    Res::default()
+                };
                 return (next, res, true);
             }
             b'n' if i + 1 < json.len() && json[i + 1] != b'u' => num = true,
@@ -783,7 +797,11 @@ fn parse_any(json: &[u8], mut i: usize, hit: bool) -> (usize, Res<'_>, bool) {
         if num {
             let start = i;
             let (next, end) = parse_number(json, i);
-            let res = if hit { number_res(json, start, end) } else { Res::default() };
+            let res = if hit {
+                number_res(json, start, end)
+            } else {
+                Res::default()
+            };
             return (next, res, true);
         }
         i += 1;
@@ -935,7 +953,7 @@ fn parse_object<'a>(c: &mut Ctx<'a>, mut i: usize, path: &[u8]) -> (usize, bool)
                                 continue;
                             }
                             if json[i] == b'"' {
-                                if json[i - 1] == b'\\' && backslashes_before(json, i, 1) % 2 == 0 {
+                                if json[i - 1] == b'\\' && backslashes_before(json, i, 1).is_multiple_of(2) {
                                     i += 1;
                                     continue;
                                 }
@@ -1230,7 +1248,7 @@ fn parse_array<'a>(c: &mut Ctx<'a>, mut i: usize, path: &[u8]) -> (usize, bool) 
                                     if ok {
                                         let res = res.get(&key);
                                         if res.exists() {
-                                            if indexes.len() > 0 {
+                                            if !indexes.is_empty() {
                                                 out.push(b',');
                                             }
                                             if res.raw.is_empty() {
@@ -1689,7 +1707,14 @@ pub fn marshal_str(dst: &mut Vec<u8>, s: &[u8], html: bool) {
                 b'\n' => dst.extend_from_slice(b"\\n"),
                 b'\r' => dst.extend_from_slice(b"\\r"),
                 b'\t' => dst.extend_from_slice(b"\\t"),
-                _ => dst.extend_from_slice(&[b'\\', b'u', b'0', b'0', HEX[usize::from(b >> 4)], HEX[usize::from(b & 15)]]),
+                _ => dst.extend_from_slice(&[
+                    b'\\',
+                    b'u',
+                    b'0',
+                    b'0',
+                    HEX[usize::from(b >> 4)],
+                    HEX[usize::from(b & 15)],
+                ]),
             }
             i += 1;
             start = i;
@@ -1715,6 +1740,54 @@ pub fn marshal_str(dst: &mut Vec<u8>, s: &[u8], html: bool) {
     }
     dst.extend_from_slice(&s[start..]);
     dst.push(b'"');
+}
+
+/// encoding/json's compact as `json.Marshal` applies it to `RawMessage` values: drops
+/// whitespace outside strings and, with `html`, escapes `<`, `>`, `&`, U+2028 and U+2029.
+/// Input must already be valid JSON.
+pub fn compact(src: &[u8], html: bool) -> Vec<u8> {
+    let mut out = Vec::with_capacity(src.len());
+    let mut in_string = false;
+    let mut escaped = false;
+    let mut i = 0;
+    while i < src.len() {
+        let c = src[i];
+        if html && matches!(c, b'<' | b'>' | b'&') {
+            out.extend_from_slice(&[
+                b'\\',
+                b'u',
+                b'0',
+                b'0',
+                HEX[usize::from(c >> 4)],
+                HEX[usize::from(c & 15)],
+            ]);
+            i += 1;
+            continue;
+        }
+        if html && c == 0xE2 && i + 2 < src.len() && src[i + 1] == 0x80 && src[i + 2] & !1 == 0xA8 {
+            out.extend_from_slice(b"\\u202");
+            out.push(HEX[usize::from(src[i + 2] & 15)]);
+            i += 3;
+            continue;
+        }
+        if in_string {
+            if escaped {
+                escaped = false;
+            } else if c == b'\\' {
+                escaped = true;
+            } else if c == b'"' {
+                in_string = false;
+            }
+            out.push(c);
+        } else if c == b'"' {
+            in_string = true;
+            out.push(c);
+        } else if !matches!(c, b' ' | b'\t' | b'\n' | b'\r') {
+            out.push(c);
+        }
+        i += 1;
+    }
+    out
 }
 
 /// `json.Marshal(string)`.
@@ -1827,7 +1900,8 @@ fn split_path(path: &[u8]) -> Option<Vec<PathPart>> {
 }
 
 fn must_marshal(s: &[u8]) -> bool {
-    s.iter().any(|&c| c < b' ' || c > 0x7f || c == b'"' || c == b'\\')
+    s.iter()
+        .any(|&c| !(b' '..=0x7f).contains(&c) || c == b'"' || c == b'\\')
 }
 
 fn append_stringify(buf: &mut Vec<u8>, s: &[u8]) {
@@ -1844,7 +1918,12 @@ fn atoui(p: &PathPart) -> (usize, bool) {
     if p.force || !p.part.iter().all(u8::is_ascii_digit) {
         return (0, false);
     }
-    (p.part.iter().fold(0usize, |n, c| n.wrapping_mul(10).wrapping_add(usize::from(c - b'0'))), true)
+    (
+        p.part
+            .iter()
+            .fold(0usize, |n, c| n.wrapping_mul(10).wrapping_add(usize::from(c - b'0'))),
+        true,
+    )
 }
 
 fn append_build(buf: &mut Vec<u8>, array: bool, paths: &[PathPart], raw: &[u8], stringify: bool) {
@@ -1927,7 +2006,8 @@ fn delete_tail_item(buf: &mut Vec<u8>) -> bool {
 
 enum SetError {
     NoChange,
-    Invalid,
+    /// An sjson error, with sjson's message.
+    Invalid(String),
 }
 
 fn append_raw_paths(
@@ -2018,7 +2098,10 @@ fn append_raw_paths(
                     buf.push(b']');
                     return Ok(());
                 }
-                return Err(SetError::Invalid);
+                return Err(SetError::Invalid(format!(
+                    "cannot set array element for non-numeric key '{}'",
+                    String::from_utf8_lossy(&paths[0].part)
+                )));
             }
             buf.push(b'[');
             let items = jsres.array();
@@ -2055,11 +2138,11 @@ fn trim_ws(s: &[u8]) -> &[u8] {
 
 fn set_impl(jstr: &[u8], path: &str, raw: &[u8], stringify: bool, del: bool) -> Result<Vec<u8>, SetError> {
     if path.is_empty() {
-        return Err(SetError::Invalid);
+        return Err(SetError::Invalid("path cannot be empty".into()));
     }
     let Some(paths) = split_path(path.as_bytes()) else {
         if del {
-            return Err(SetError::Invalid);
+            return Err(SetError::Invalid("cannot delete value from a complex path".into()));
         }
         return set_complex(jstr, path, raw, stringify);
     };
@@ -2097,7 +2180,7 @@ fn set_complex(jstr: &[u8], path: &str, raw: &[u8], stringify: bool) -> Result<V
             return Err(SetError::NoChange);
         }
         let mut pairs: Vec<(usize, usize)> = indexes.iter().copied().zip(values).collect();
-        pairs.sort_by(|a, b| b.0.cmp(&a.0));
+        pairs.sort_by_key(|p| std::cmp::Reverse(p.0));
         for (index, len) in pairs {
             replace(&mut out, index, len);
         }
@@ -2113,6 +2196,29 @@ fn apply(out: &mut Vec<u8>, path: &str, raw: &[u8], stringify: bool, del: bool) 
         }
         Err(_) => false,
     }
+}
+
+fn checked(json: &[u8], path: &str, raw: &[u8], stringify: bool, del: bool) -> Result<Vec<u8>, String> {
+    match set_impl(json, path, raw, stringify, del) {
+        Ok(next) => Ok(next),
+        Err(SetError::NoChange) => Ok(json.to_vec()),
+        Err(SetError::Invalid(message)) => Err(message),
+    }
+}
+
+/// `sjson.SetBytes` with a string value, returning sjson's error message.
+pub fn try_set_str(json: &[u8], path: &str, value: impl AsRef<[u8]>) -> Result<Vec<u8>, String> {
+    checked(json, path, value.as_ref(), true, false)
+}
+
+/// `sjson.SetRawBytes`, returning sjson's error message.
+pub fn try_set_raw(json: &[u8], path: &str, raw: impl AsRef<[u8]>) -> Result<Vec<u8>, String> {
+    checked(json, path, raw.as_ref(), false, false)
+}
+
+/// `sjson.DeleteBytes`, returning sjson's error message.
+pub fn try_delete(json: &[u8], path: &str) -> Result<Vec<u8>, String> {
+    checked(json, path, b"", false, true)
 }
 
 /// `sjson.SetBytes(out, path, string)`. Returns false when sjson would return an error
@@ -2192,4 +2298,249 @@ pub fn set_items<S: AsRef<[u8]>>(out: &mut Vec<u8>, path: &str, items: &[S]) {
         }
     }
     set_raw(out, path, join(items));
+}
+
+// ---------------------------------------------------------------------------------------
+// Go's `any` model (encoding/json decode then marshal)
+
+/// A JSON document decoded the way Go decodes into `any`: objects become maps that
+/// marshal with sorted keys (the last duplicate wins), strings are valid UTF-8 (invalid
+/// bytes become U+FFFD) and numbers are either kept literally (`Decoder.UseNumber`) or
+/// round-tripped through float64 (plain `json.Unmarshal`).
+#[derive(Debug, Clone, PartialEq)]
+pub enum GoValue {
+    Null,
+    Bool(bool),
+    /// The number text Marshal writes back.
+    Number(String),
+    String(String),
+    Array(Vec<GoValue>),
+    Object(std::collections::BTreeMap<String, GoValue>),
+}
+
+impl GoValue {
+    /// `Decoder.UseNumber()` then decode: numbers keep their literal text.
+    pub fn parse(text: &[u8]) -> Option<Self> {
+        valid(text).then(|| Self::from_res(&parse(text), false))?
+    }
+
+    /// `json.Unmarshal(text, &any)`: numbers become float64, so `1e3` marshals as `1000`.
+    /// `None` when the text is invalid or a number overflows float64.
+    pub fn parse_f64(text: &[u8]) -> Option<Self> {
+        valid(text).then(|| Self::from_res(&parse(text), true))?
+    }
+
+    fn from_res(r: &Res<'_>, float: bool) -> Option<Self> {
+        Some(match r.kind {
+            Kind::Null => Self::Null,
+            Kind::True => Self::Bool(true),
+            Kind::False => Self::Bool(false),
+            Kind::Number if float => Self::Number(json_float(parse_float(&r.raw))?),
+            Kind::Number => Self::Number(String::from_utf8_lossy(&r.raw).into_owned()),
+            Kind::String => Self::String(String::from_utf8_lossy(&r.s).into_owned()),
+            Kind::Json if r.is_array() => {
+                let mut items = vec![];
+                for item in r.array() {
+                    items.push(Self::from_res(&item, float)?);
+                }
+                Self::Array(items)
+            }
+            Kind::Json => {
+                let mut map = std::collections::BTreeMap::new();
+                let mut ok = true;
+                r.each(|key, value| {
+                    match Self::from_res(&value, float) {
+                        Some(v) => {
+                            map.insert(String::from_utf8_lossy(&key.s).into_owned(), v);
+                        }
+                        None => ok = false,
+                    }
+                    ok
+                });
+                if !ok {
+                    return None;
+                }
+                Self::Object(map)
+            }
+        })
+    }
+
+    /// serde JSON metadata in Go's model (numbers keep their literal text).
+    pub fn from_json(value: &serde_json::Value) -> Self {
+        match value {
+            serde_json::Value::Null => Self::Null,
+            serde_json::Value::Bool(b) => Self::Bool(*b),
+            serde_json::Value::Number(n) => Self::Number(n.to_string()),
+            serde_json::Value::String(s) => Self::String(s.clone()),
+            serde_json::Value::Array(items) => Self::Array(items.iter().map(Self::from_json).collect()),
+            serde_json::Value::Object(map) => {
+                Self::Object(map.iter().map(|(k, v)| (k.clone(), Self::from_json(v))).collect())
+            }
+        }
+    }
+
+    /// `json.Marshal`.
+    pub fn marshal(&self) -> Vec<u8> {
+        let mut out = vec![];
+        self.write(&mut out);
+        out
+    }
+
+    /// A `json.Encoder` with `SetIndent("", "  ")`, including the trailing newline.
+    pub fn encode_indented(&self) -> Vec<u8> {
+        let mut out = vec![];
+        self.write_indented(&mut out, 0);
+        out.push(b'\n');
+        out
+    }
+
+    fn write(&self, out: &mut Vec<u8>) {
+        match self {
+            Self::Null => out.extend_from_slice(b"null"),
+            Self::Bool(b) => out.extend_from_slice(if *b { b"true" } else { b"false" }),
+            Self::Number(n) => out.extend_from_slice(n.as_bytes()),
+            Self::String(s) => marshal_str(out, s.as_bytes(), true),
+            Self::Array(items) => {
+                out.push(b'[');
+                for (i, item) in items.iter().enumerate() {
+                    if i > 0 {
+                        out.push(b',');
+                    }
+                    item.write(out);
+                }
+                out.push(b']');
+            }
+            Self::Object(map) => {
+                out.push(b'{');
+                for (i, (key, item)) in map.iter().enumerate() {
+                    if i > 0 {
+                        out.push(b',');
+                    }
+                    marshal_str(out, key.as_bytes(), true);
+                    out.push(b':');
+                    item.write(out);
+                }
+                out.push(b'}');
+            }
+        }
+    }
+
+    fn write_indented(&self, out: &mut Vec<u8>, depth: usize) {
+        let pad = |out: &mut Vec<u8>, depth: usize| {
+            out.push(b'\n');
+            out.extend(std::iter::repeat_n(b' ', depth * 2));
+        };
+        match self {
+            Self::Array(items) if !items.is_empty() => {
+                out.push(b'[');
+                for (i, item) in items.iter().enumerate() {
+                    if i > 0 {
+                        out.push(b',');
+                    }
+                    pad(out, depth + 1);
+                    item.write_indented(out, depth + 1);
+                }
+                pad(out, depth);
+                out.push(b']');
+            }
+            Self::Object(map) if !map.is_empty() => {
+                out.push(b'{');
+                for (i, (key, item)) in map.iter().enumerate() {
+                    if i > 0 {
+                        out.push(b',');
+                    }
+                    pad(out, depth + 1);
+                    marshal_str(out, key.as_bytes(), true);
+                    out.extend_from_slice(b": ");
+                    item.write_indented(out, depth + 1);
+                }
+                pad(out, depth);
+                out.push(b'}');
+            }
+            _ => self.write(out),
+        }
+    }
+}
+
+/// Go decode-then-marshal of one document with `UseNumber`, for semantic comparisons.
+pub fn canonical(text: &[u8]) -> Option<Vec<u8>> {
+    GoValue::parse(trim_ws(text)).map(|v| v.marshal())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn s(b: Vec<u8>) -> String {
+        String::from_utf8(b).unwrap()
+    }
+
+    // Cases carried over from cpa-exec's kimi_json, each checked against sjson.
+    #[test]
+    fn set_appends_and_replaces_like_sjson() {
+        assert_eq!(
+            s(try_set_str(br#"{"a":1}"#, "model", "k3").unwrap()),
+            r#"{"a":1,"model":"k3"}"#
+        );
+        assert_eq!(
+            s(try_set_str(br#"{"model":"x","a":1}"#, "model", "k3").unwrap()),
+            r#"{"model":"k3","a":1}"#
+        );
+        assert_eq!(
+            s(try_set_str(b"{}", "thinking.type", "enabled").unwrap()),
+            r#"{"thinking":{"type":"enabled"}}"#
+        );
+        assert_eq!(
+            s(try_set_str(br#"{ "a": 1 }"#, "b", "x").unwrap()),
+            r#"{ "a": 1 ,"b":"x"}"#
+        );
+        assert_eq!(
+            s(try_set_raw(br#"{"m":[{"a":1},{"b":2}]}"#, "m.1.c", "true").unwrap()),
+            r#"{"m":[{"a":1},{"b":2,"c":true}]}"#
+        );
+        assert_eq!(s(try_set_raw(b"  ", "a.0", "1").unwrap()), r#"{"a":[1]}"#);
+        assert_eq!(
+            try_set_raw(br#"{"stream_options":[]}"#, "stream_options.include_usage", "true"),
+            Err("cannot set array element for non-numeric key 'include_usage'".to_owned())
+        );
+        // Plain ASCII strings stay raw; anything that needs marshaling is HTML-escaped too.
+        assert_eq!(s(try_set_str(b"{}", "a", "a<b").unwrap()), r#"{"a":"a<b"}"#);
+        assert_eq!(s(try_set_str(b"{}", "a", "é<\"").unwrap()), "{\"a\":\"é\\u003c\\\"\"}");
+    }
+
+    #[test]
+    fn delete_takes_one_neighbouring_comma() {
+        let body: &[u8] = br#"{"a": 1, "b": 2, "c": 3}"#;
+        let del = |b: &[u8], p: &str| s(try_delete(b, p).unwrap());
+        assert_eq!(del(body, "a"), r#"{ "b": 2, "c": 3}"#);
+        assert_eq!(del(body, "b"), r#"{"a": 1, "c": 3}"#);
+        assert_eq!(del(body, "c"), r#"{"a": 1, "b": 2}"#);
+        assert_eq!(del(br#"{"only":true}"#, "only"), "{}");
+        assert_eq!(del(body, "missing"), String::from_utf8_lossy(body));
+        assert_eq!(del(b"[1,2]", "-1"), "[1]");
+        // Go's backward scan skips a byte after an escaped quote and leaves malformed JSON
+        // for a key that itself contains one; parity keeps sjson's exact output.
+        assert_eq!(del(br#"{"\"x":1,"y":2}"#, "\\\"x"), r#"{"\"x":,"y":2}"#);
+        assert_eq!(
+            del(br#"{"t":{"type":"x","effort":"y"}}"#, "t.effort"),
+            r#"{"t":{"type":"x"}}"#
+        );
+    }
+
+    #[test]
+    fn go_marshal_sorts_keys_and_picks_number_mode() {
+        let v = GoValue::parse(br#"{"z":1.50,"a":{"y":"<&>","b":[true,null]},"a":2}"#).unwrap();
+        assert_eq!(s(v.marshal()), r#"{"a":2,"z":1.50}"#);
+        assert_eq!(
+            s(canonical(br#"{"b":"\u2028x","a":1e3}"#).unwrap()),
+            r#"{"a":1e3,"b":"\u2028x"}"#
+        );
+        let f = GoValue::parse_f64(br#"{"n":[1e3,1.50,9007199254740993,1e-7,1e21],"s":"bad\ud800"}"#).unwrap();
+        assert_eq!(
+            s(f.marshal()),
+            r#"{"n":[1000,1.5,9007199254740992,1e-7,1e+21],"s":"bad�"}"#
+        );
+        assert!(GoValue::parse_f64(b"[1e400]").is_none());
+        assert_eq!(quote("<&>\u{1}\u{8}"), br#""\u003c\u0026\u003e\u0001\b""#);
+    }
 }

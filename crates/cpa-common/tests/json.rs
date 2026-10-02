@@ -1,6 +1,6 @@
 //! Differential check of the gjson/sjson port against fixtures produced by the pinned Go
-//! libraries (tests/reference/gj). Byte fields map each byte to the rune of equal value.
-use cpa_translate::gj::{self, Kind, Res};
+//! libraries (tests/reference/json). Byte fields map each byte to the rune of equal value.
+use cpa_common::json::{self as gj, Kind, Res};
 use serde_json::Value;
 
 fn b(v: &Value) -> Vec<u8> {
@@ -33,7 +33,7 @@ fn describe(r: &Res<'_>) -> Vec<String> {
 }
 
 fn fixtures() -> Value {
-    serde_json::from_str(include_str!("fixtures/gj.json")).unwrap()
+    serde_json::from_str(include_str!("fixtures/json.json")).unwrap()
 }
 
 #[test]
@@ -43,7 +43,11 @@ fn get_matches_gjson() {
     for case in all["get"].as_array().unwrap() {
         let json = b(&case["json"]);
         let path = case["path"].as_str().unwrap();
-        let r = if path == "\0parse" { gj::parse(&json) } else { gj::get(&json, path) };
+        let r = if path == "\0parse" {
+            gj::parse(&json)
+        } else {
+            gj::get(&json, path)
+        };
         let mut array = vec![];
         for item in r.array() {
             array.extend(describe(&item));
@@ -90,7 +94,12 @@ fn get_matches_gjson() {
             ));
         }
     }
-    assert!(failures.is_empty(), "{} mismatches:\n{}", failures.len(), failures[..failures.len().min(15)].join("\n"));
+    assert!(
+        failures.is_empty(),
+        "{} mismatches:\n{}",
+        failures.len(),
+        failures[..failures.len().min(15)].join("\n")
+    );
 }
 
 #[test]
@@ -120,7 +129,12 @@ fn set_matches_sjson() {
             ));
         }
     }
-    assert!(failures.is_empty(), "{} mismatches:\n{}", failures.len(), failures[..failures.len().min(15)].join("\n"));
+    assert!(
+        failures.is_empty(),
+        "{} mismatches:\n{}",
+        failures.len(),
+        failures[..failures.len().min(15)].join("\n")
+    );
 }
 
 #[test]
@@ -138,4 +152,31 @@ fn encoding_matches_encoding_json() {
         assert_eq!(gj::fmt_float(f), case["f"].as_str().unwrap(), "{f:e}");
         assert_eq!(gj::json_float(f).unwrap(), case["json"].as_str().unwrap(), "{f:e}");
     }
+}
+
+/// The sjson/gjson vectors the Kimi thread generated from Go (cpa-exec device fixtures).
+#[test]
+fn kimi_device_vectors_match() {
+    let vectors: Vec<Value> =
+        serde_json::from_str(include_str!("../../cpa-exec/tests/device_fixtures/kimi/vectors.json")).unwrap();
+    let mut seen = 0;
+    for v in vectors {
+        let input = v["in"].as_str().unwrap_or_default().as_bytes();
+        let path = v["path"].as_str().unwrap_or_default();
+        let value = v["value"].as_str().unwrap_or_default();
+        let got = match v["fn"].as_str().unwrap() {
+            "sjson_delete" => gj::try_delete(input, path),
+            "sjson_set_str" => gj::try_set_str(input, path, value),
+            "sjson_set_raw" => gj::try_set_raw(input, path, value),
+            "gjson_string" => Ok(gj::get(input, "n").bytes().into_owned()),
+            _ => continue,
+        };
+        seen += 1;
+        let got = got.map(|b| String::from_utf8(b).unwrap());
+        match v["err"].as_str() {
+            Some(message) => assert_eq!(got, Err(message.to_owned()), "{v}"),
+            None => assert_eq!(got.as_deref(), Ok(v["out"].as_str().unwrap()), "{v}"),
+        }
+    }
+    assert!(seen >= 25, "vector extraction lost cases: {seen}");
 }

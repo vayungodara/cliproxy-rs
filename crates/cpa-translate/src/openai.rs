@@ -1,60 +1,51 @@
-use crate::{Error, Pair, RequestCtx, StreamTranslator, json};
-use bytes::Bytes;
+//! OpenAI Chat Completions -> OpenAI Chat Completions normalization
+//! (internal/translator/openai/openai/chat-completions). Byte-oriented: bodies pass
+//! through untouched apart from the model rewrite, whatever bytes they contain.
+
+use crate::{Error, Pair, RequestCtx, ResponseCtx, common::trim_space, stream};
+use cpa_common::json::{self as gj, Kind};
+use cpa_core::format::Format;
 
 pub static PAIR: Pair = Pair {
     request,
     non_stream: |_, body| Ok(body.to_vec()),
-    stream: |_| Box::new(Stream { done: false }),
+    stream: |ctx| stream::framed(Format::OpenAI, Format::OpenAI, go_stream(ctx)),
     count_tokens: None,
+    token_count: None,
+    go_stream,
 };
 
 fn request(ctx: &RequestCtx<'_>, body: &[u8]) -> Result<Vec<u8>, Error> {
-    let input = json::text(body)?;
-    let model = gjson::get(input, "model");
-    if model.kind() == gjson::Kind::String && model.str() == ctx.model {
+    let model = gj::get(body, "model");
+    if model.kind == Kind::String && *model.bytes() == *ctx.model.as_bytes() {
         return Ok(body.to_vec());
     }
-    // sjson rejects a nonnumeric object key at the root of an array.
-    if gjson::parse(input).kind() == gjson::Kind::Array {
-        return Ok(body.to_vec());
-    }
-    let mut out = input.to_owned();
-    json::set_string(&mut out, "model", ctx.model);
-    Ok(out.into_bytes())
+    let mut out = body.to_vec();
+    gj::set_str(&mut out, "model", ctx.model);
+    Ok(out)
 }
 
-struct Stream {
+fn go_stream(_: &ResponseCtx<'_>) -> Box<dyn stream::GoStream> {
+    Box::new(Passthrough { done: false })
+}
+
+struct Passthrough {
     done: bool,
 }
 
-impl StreamTranslator for Stream {
-    fn event(&mut self, event: &[u8]) -> Result<Vec<Bytes>, Error> {
+impl stream::GoStream for Passthrough {
+    fn line(&mut self, line: &[u8]) -> Result<Vec<Vec<u8>>, Error> {
         if self.done {
             return Ok(vec![]);
         }
-        let input = json::text(event)?;
-        let mut out = Vec::new();
-        let lines: Vec<_> = json::data_lines(input).collect();
-        if lines.is_empty() {
-            if input == "[DONE]" {
-                self.done = true;
-                return Ok(vec![]);
-            }
-            // The public contract accepts frames; accept bare JSON too, like Go.
-            out.push(json::frame(input));
-        } else {
-            for payload in lines {
-                if payload == "[DONE]" {
-                    self.done = true;
-                    break;
-                }
-                out.push(json::frame(payload));
-            }
+        let payload = match line.strip_prefix(b"data:") {
+            Some(rest) => trim_space(rest),
+            None => line,
+        };
+        if payload == b"[DONE]" {
+            self.done = true;
+            return Ok(vec![]);
         }
-        Ok(out)
-    }
-
-    fn finish(&mut self) -> Result<Vec<Bytes>, Error> {
-        Ok(vec![])
+        Ok(vec![payload.to_vec()])
     }
 }
