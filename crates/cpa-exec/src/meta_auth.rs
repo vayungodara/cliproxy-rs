@@ -11,6 +11,7 @@ use std::sync::{LazyLock, Mutex};
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
+use cpa_common::json::{self as gj, GoValue};
 use cpa_core::exec::{ExecError, FailureScope};
 use futures_util::FutureExt;
 use futures_util::future::{BoxFuture, Shared};
@@ -19,7 +20,6 @@ use sha2::{Digest, Sha256};
 
 use crate::kimi_auth::{form, open_browser, write_private};
 use crate::kimi_http::{GoHeaders, MAX_ERROR_BODY, read_all, rfc3339_utc, send};
-use crate::kimi_json::GoValue;
 use crate::meta_wire::{Slot, check_valid, unmarshal};
 
 pub const DEFAULT_API_BASE_URL: &str = "https://api.meta.ai/v1";
@@ -256,7 +256,12 @@ impl MetaAuth {
         self
     }
 
-    async fn post(&self, url: &str, headers: GoHeaders, body: String) -> Result<(u16, bytes::Bytes), String> {
+    async fn post(
+        &self,
+        url: &str,
+        headers: GoHeaders,
+        body: impl Into<bytes::Bytes>,
+    ) -> Result<(u16, bytes::Bytes), String> {
         let upstream = send(&self.client, url, headers, body, Some(HTTP_TIMEOUT))
             .await
             .map_err(|e| String::from_utf8_lossy(&e.body).into_owned())?;
@@ -445,7 +450,9 @@ impl MetaAuth {
         headers.set("User-Agent", AUTH_USER_AGENT);
         headers.set("Content-Type", "application/json");
         headers.set("Accept", "application/json");
-        let body = format!(r#"{{"dca_token":{}}}"#, crate::kimi_json::go_quote(dca_token));
+        let mut body = br#"{"dca_token":"#.to_vec();
+        body.extend_from_slice(&gj::quote(dca_token));
+        body.push(b'}');
         let (status, body) = self
             .post(&self.mint_url, headers, body)
             .await
@@ -583,8 +590,7 @@ pub(crate) type GoMap = BTreeMap<String, GoValue>;
 /// error). `None` when Go leaves the map nil: invalid JSON or a non-object.
 pub(crate) fn go_map_from_json(raw: &[u8]) -> Option<(GoMap, bool)> {
     check_valid(raw).ok()?;
-    let text = String::from_utf8_lossy(raw);
-    match GoValue::parse(text.trim())? {
+    match GoValue::parse(raw)? {
         GoValue::Object(map) => {
             let mut clean = true;
             let map = map.into_iter().map(|(k, v)| (k, as_float64(v, &mut clean))).collect();
@@ -609,21 +615,10 @@ fn as_float64(value: GoValue, clean: &mut bool) -> GoValue {
     }
 }
 
-/// Go's encoding of a float64 decoded from `literal` (strconv 'f' or 'e', shortest), or
-/// `None` when the literal overflows float64 (Go: UnmarshalTypeError).
+/// Go's encoding of a float64 decoded from `literal`, or `None` when the literal
+/// overflows float64 (Go: UnmarshalTypeError).
 fn go_float(literal: &str) -> Option<String> {
-    let f = literal.parse::<f64>().ok().filter(|f| f.is_finite())?;
-    let abs = f.abs();
-    if abs != 0.0 && !(1e-6..1e21).contains(&abs) {
-        // strconv's 'e' form with encoding/json's cleanup: 1e+21, 1.5e-7, 1e-10.
-        let e = format!("{f:e}");
-        let (mantissa, exp) = e.split_once('e').unwrap_or((&e, "0"));
-        return Some(match exp.strip_prefix('-') {
-            Some(digits) => format!("{mantissa}e-{digits}"),
-            None => format!("{mantissa}e+{exp}"),
-        });
-    }
-    Some(format!("{f}"))
+    gj::json_float(literal.parse::<f64>().ok()?)
 }
 
 /// SaveTokenToFile's content. With a `snapshot` (managed saves) its non-credential keys
@@ -675,7 +670,7 @@ pub(crate) fn encode_token_file(storage: &TokenStorage, snapshot: Option<&GoMap>
             }
         }
     }
-    GoValue::Object(data).encode_indented()
+    String::from_utf8_lossy(&GoValue::Object(data).encode_indented()).into_owned()
 }
 
 /// SaveTokenToFile: indented JSON plus newline, atomically replaced through a private
@@ -837,7 +832,7 @@ pub fn save_login(auth_dir: &Path, bundle: &Bundle, now: DateTime<Utc>) -> Resul
     }
     normalize_metadata(&mut metadata);
     if let Some(weight) = metadata.get("weight") {
-        let json: Value = serde_json::from_str(&weight.marshal()).unwrap_or(Value::Null);
+        let json: Value = serde_json::from_slice(&weight.marshal()).unwrap_or(Value::Null);
         cpa_core::config::credentials::parse_weight(&json)
             .map_err(|e| format!("auth filestore: invalid metadata weight: {e}"))?;
     }

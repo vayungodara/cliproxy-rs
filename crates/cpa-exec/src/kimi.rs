@@ -457,6 +457,65 @@ fn translate_lines(upstream: ExecStream, translator: Box<dyn StreamTranslator>) 
     .boxed()
 }
 
+/// Native Responses streaming: Go writes every scanned line plus `\n` as one chunk and
+/// the Responses route joins chunks into frames at blank lines.
+///
+/// ponytail: adapter for cpa-translate's Responses joiner (owner: translators thread;
+/// `stream::ResponsesFramer` is private). Joins at blank lines and flushes a final frame
+/// that carries data, which equals Go's responsesSSEFramer for well-formed SSE; its
+/// data-only frame splitting is not reproduced.
+fn responses_frames(lines: ExecStream) -> ExecStream {
+    struct State {
+        lines: ExecStream,
+        pending: Vec<u8>,
+        done: bool,
+    }
+    let has_data = |frame: &[u8]| {
+        frame
+            .split(|b| *b == b'\n')
+            .any(|line| line.trim_ascii_start().starts_with(b"data:"))
+    };
+    futures_util::stream::unfold(
+        State {
+            lines,
+            pending: Vec::new(),
+            done: false,
+        },
+        move |mut st| async move {
+            while !st.done {
+                match st.lines.next().await {
+                    Some(Ok(line)) if line.trim_ascii().is_empty() => {
+                        if !st.pending.is_empty() {
+                            let mut frame = std::mem::take(&mut st.pending);
+                            frame.push(b'\n');
+                            return Some((Ok(Bytes::from(frame)), st));
+                        }
+                    }
+                    Some(Ok(line)) => {
+                        st.pending.extend_from_slice(&line);
+                        st.pending.push(b'\n');
+                    }
+                    Some(Err(error)) => {
+                        st.done = true;
+                        return Some((Err(error), st));
+                    }
+                    None => {
+                        st.done = true;
+                        let frame = std::mem::take(&mut st.pending);
+                        if has_data(&frame) {
+                            let mut frame = frame;
+                            frame.push(b'\n');
+                            return Some((Ok(Bytes::from(frame)), st));
+                        }
+                    }
+                }
+            }
+            None
+        },
+    )
+    .boxed()
+}
+
 /// `SetBoolIfDifferent`.
 fn set_bool_if_different(body: &str, path: &str, value: bool) -> String {
     let current = gjson::get(body, path);
@@ -538,18 +597,7 @@ async fn execute_responses(
             (pair.stream)(&ctx),
         )),
         // Native Responses clients get every scanned line back with "\n" appended.
-        (true, None) => ResponseBody::Stream(
-            lines(upstream.body, RESPONSES_LINE_LIMIT)
-                .map(|line| {
-                    line.map(|l| {
-                        let mut out = Vec::with_capacity(l.len() + 1);
-                        out.extend_from_slice(&l);
-                        out.push(b'\n');
-                        Bytes::from(out)
-                    })
-                })
-                .boxed(),
-        ),
+        (true, None) => ResponseBody::Stream(responses_frames(lines(upstream.body, RESPONSES_LINE_LIMIT))),
         (false, pair) => {
             let data = read_all(upstream.body, usize::MAX, false).await?;
             match pair {

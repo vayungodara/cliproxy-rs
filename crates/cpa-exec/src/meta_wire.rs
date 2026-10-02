@@ -8,7 +8,7 @@
 //! type is skipped, decoding continues, and the first such error is returned. Unknown
 //! keys are ignored. Expected values come from tests/device_fixtures/meta/decode.json.
 
-use gjson::Kind;
+use cpa_common::json::{self as gj, Kind};
 
 /// A destination field (`json:"<tag>"`).
 pub(crate) enum Slot<'a> {
@@ -31,21 +31,20 @@ impl Slot<'_> {
 /// `json.Unmarshal(raw, &v)` for a struct `package.name` with `fields` (tag, slot).
 pub(crate) fn unmarshal(raw: &[u8], package: &str, name: &str, fields: &mut [(&str, Slot<'_>)]) -> Result<(), String> {
     check_valid(raw)?;
-    let text = String::from_utf8_lossy(raw);
-    let root = gjson::parse(&text);
-    match root.kind() {
-        Kind::Null => return Ok(()),
-        Kind::Object => {}
-        other => {
-            return Err(format!(
-                "json: cannot unmarshal {} into Go value of type {package}.{name}",
-                kind_name(other)
-            ));
-        }
+    let root = gj::parse(raw);
+    if root.kind == Kind::Null {
+        return Ok(());
+    }
+    if !root.is_object() {
+        return Err(format!(
+            "json: cannot unmarshal {} into Go value of type {package}.{name}",
+            kind_name(&root)
+        ));
     }
     let mut first_error: Option<String> = None;
     root.each(|key, value| {
-        let key = key.str();
+        let key = gj::go_unquote(&key.raw).unwrap_or_default();
+        let key = key.as_str();
         let index = fields
             .iter()
             .position(|(tag, _)| *tag == key)
@@ -68,15 +67,16 @@ pub(crate) fn unmarshal(raw: &[u8], package: &str, name: &str, fields: &mut [(&s
 }
 
 /// Stores `value` in `slot`; on a type mismatch returns Go's description of the value.
-fn store(slot: &mut Slot<'_>, value: &gjson::Value<'_>) -> Result<(), String> {
-    match (slot, value.kind()) {
+fn store(slot: &mut Slot<'_>, value: &gj::Res<'_>) -> Result<(), String> {
+    match (slot, value.kind) {
         (_, Kind::Null) => Ok(()),
         (Slot::Str(s), Kind::String) => {
-            **s = value.str().to_owned();
+            // Go's unquote: invalid UTF-8 becomes U+FFFD.
+            **s = gj::go_unquote(&value.raw).unwrap_or_default();
             Ok(())
         }
         (Slot::Int(n, _), Kind::Number) => {
-            let literal = value.json();
+            let literal = String::from_utf8_lossy(&value.raw);
             match literal.parse::<i64>() {
                 Ok(parsed) if literal.bytes().all(|b| b.is_ascii_digit() || b == b'-') => {
                     **n = parsed;
@@ -86,20 +86,20 @@ fn store(slot: &mut Slot<'_>, value: &gjson::Value<'_>) -> Result<(), String> {
             }
         }
         (Slot::Bool(b), Kind::True | Kind::False) => {
-            **b = value.kind() == Kind::True;
+            **b = value.kind == Kind::True;
             Ok(())
         }
-        (_, kind) => Err(kind_name(kind).to_owned()),
+        _ => Err(kind_name(value).to_owned()),
     }
 }
 
-fn kind_name(kind: Kind) -> &'static str {
-    match kind {
+fn kind_name(value: &gj::Res<'_>) -> &'static str {
+    match value.kind {
         Kind::String => "string",
         Kind::Number => "number",
         Kind::True | Kind::False => "bool",
-        Kind::Array => "array",
-        Kind::Object => "object",
+        Kind::Json if value.is_array() => "array",
+        Kind::Json => "object",
         Kind::Null => "null",
     }
 }

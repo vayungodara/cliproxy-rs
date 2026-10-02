@@ -1,5 +1,7 @@
 {
-  "name": "stream-plain-json-lines",
+  "attributes": {
+    "auth_kind": "oauth"
+  },
   "credential": {
     "access_token": "meta-key-fixture",
     "api_key": "meta-key-fixture",
@@ -8,9 +10,18 @@
     "dca_token": "dca:fixture",
     "type": "meta"
   },
-  "attributes": {
-    "auth_kind": "oauth"
+  "downstream": {
+    "chunks": [
+      "{\"type\":\"response.created\",\"response\":{\"model\":\"muse-spark-1.3\"}}",
+      "data: {\"type\":\"response.in_progress\",\"response\":{\"id\":\"x\",\"model\":\"muse-spark-1.3\"}}",
+      "data: [DONE]"
+    ],
+    "frames": [
+      "{\"type\":\"response.created\",\"response\":{\"model\":\"muse-spark-1.3\"}}\ndata: {\"type\":\"response.in_progress\",\"response\":{\"id\":\"x\",\"model\":\"muse-spark-1.3\"}}\n\n",
+      "data: [DONE]\n\n"
+    ]
   },
+  "name": "stream-plain-json-lines",
   "request": {
     "body": "{\"model\":\"muse-spark-1.3\",\"input\":\"hi\"}",
     "model": "muse-spark-1.3",
@@ -19,20 +30,19 @@
   },
   "responses": [
     {
-      "status": 200,
+      "body": "{\"type\":\"response.created\",\"response\":{}}\r\ndata:{\"type\":\"response.in_progress\",\"response\":{\"id\":\"x\"}}\ndata: [DONE]",
       "headers": [
         [
           "Content-Type",
           "application/json"
         ]
       ],
-      "body": "{\"type\":\"response.created\",\"response\":{}}\r\ndata:{\"type\":\"response.in_progress\",\"response\":{\"id\":\"x\"}}\ndata: [DONE]"
+      "status": 200
     }
   ],
   "upstream": [
     {
-      "method": "POST",
-      "target": "/v1/responses",
+      "body": "{\"model\":\"muse-spark-1.3\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\"}",
       "headers": [
         [
           "Host",
@@ -71,14 +81,8 @@
           "gzip"
         ]
       ],
-      "body": "{\"model\":\"muse-spark-1.3\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\"}"
+      "method": "POST",
+      "target": "/v1/responses"
     }
-  ],
-  "downstream": {
-    "chunks": [
-      "{\"type\":\"response.created\",\"response\":{\"model\":\"muse-spark-1.3\"}}",
-      "data: {\"type\":\"response.in_progress\",\"response\":{\"id\":\"x\",\"model\":\"muse-spark-1.3\"}}",
-      "data: [DONE]"
-    ]
-  }
+  ]
 }

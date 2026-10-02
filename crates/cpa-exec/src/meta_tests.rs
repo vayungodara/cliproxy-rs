@@ -152,12 +152,13 @@ fn assert_downstream(r: &Run, name: &str) {
     if let Some(body) = down["body"].as_str().filter(|b| !b.is_empty()) {
         assert_eq!(r.body.as_deref(), Some(body), "{name}: response body");
     }
-    // Go emits an empty chunk per blank SSE line; the Responses writer skips them.
-    let go_chunks: Vec<&str> = down["chunks"]
+    // Stream output is client framing: Go's chunks joined by its Responses route
+    // (responsesSSEFramer, before route repair), recorded as `frames`.
+    let go_frames: Vec<&str> = down["frames"]
         .as_array()
-        .map(|c| c.iter().filter_map(Value::as_str).filter(|c| !c.is_empty()).collect())
+        .map(|c| c.iter().filter_map(Value::as_str).collect())
         .unwrap_or_default();
-    assert_eq!(r.chunks, go_chunks, "{name}: stream chunks");
+    assert_eq!(r.chunks, go_frames, "{name}: stream frames");
     let go_error = down["stream_err"].as_str().or(down["err_body"].as_str());
     match (&r.error, down["err_status"].as_i64()) {
         (None, None) => {}
@@ -759,7 +760,7 @@ async fn empty_original_request_falls_back_to_the_payload() {
     let first = stream.next().await.unwrap().unwrap();
     assert_eq!(
         String::from_utf8(first.to_vec()).unwrap(),
-        r#"data: {"type":"response.created","response":{"model":"muse-spark-1.3(high)"}}"#
+        "data: {\"type\":\"response.created\",\"response\":{\"model\":\"muse-spark-1.3(high)\"}}\n\n"
     );
 }
 

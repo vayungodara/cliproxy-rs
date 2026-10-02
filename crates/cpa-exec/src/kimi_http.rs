@@ -173,10 +173,11 @@ pub(crate) async fn send(
     client: &wreq::Client,
     url: &str,
     headers: GoHeaders,
-    body: String,
+    body: impl Into<Bytes>,
     timeout: Option<std::time::Duration>,
 ) -> Result<Upstream, ExecError> {
     use futures_util::StreamExt;
+    let body: Bytes = body.into();
     let initial =
         url::Url::parse(url).map_err(|_| ExecError::local(500, FailureScope::Request, "invalid upstream URL"))?;
     let explicit_host = headers.get("Host").map(str::to_owned);

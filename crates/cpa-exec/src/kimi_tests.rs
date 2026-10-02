@@ -137,12 +137,23 @@ async fn downstream_results_match_go() {
             .map(|c| c.as_str().unwrap().to_owned())
             .collect();
         if fx["request"]["source"] == "openai-response" {
-            // Go emits each upstream line plus "\n"; the concatenation is the wire output.
-            assert_eq!(down.chunks.concat(), chunks.concat(), "{name}: stream bytes");
+            // Go emits each upstream line plus "\n" and its Responses route joins them into
+            // frames (`frames`, recorded from Go's responsesSSEFramer before route repair).
+            let frames: Vec<String> = go["frames"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|c| c.as_str().unwrap().to_owned())
+                .collect();
+            assert_eq!(down.chunks, frames, "{name}: stream frames");
         } else {
-            // Go's handler frames each non-empty translated chunk as one `data:` event.
-            let go_payloads: Vec<String> = chunks.into_iter().filter(|c| !c.is_empty()).collect();
-            assert_eq!(data_payloads(&down.chunks), go_payloads, "{name}: stream payloads");
+            // Go's chat handler writes each non-empty translated chunk as `data: %s\n\n`.
+            let go_frames: Vec<String> = chunks
+                .into_iter()
+                .filter(|c| !c.is_empty())
+                .map(|c| format!("data: {c}\n\n"))
+                .collect();
+            assert_eq!(down.chunks, go_frames, "{name}: stream frames");
         }
         assert!(down.err_status.is_none(), "{name}: unexpected stream error");
     }

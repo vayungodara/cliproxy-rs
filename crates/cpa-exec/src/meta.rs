@@ -6,36 +6,37 @@
 //! (`dca:...`) a key is minted from: by [`MetaExecutor::prepare`] (persisted), or inline
 //! for one request as Go's ensureAuth does when preparation did not run.
 //!
-//! Shared Codex/Responses stages go through adapters named after their owners
-//! (meta_codex, kimi_thinking, kimi_http). ponytail: the apply_patch Responses bridge
-//! (translator common) is not applied, as for Kimi; requests without an apply_patch custom
-//! tool are unaffected.
+//! Translation uses cpa-translate (the registered client <-> Codex pair), thinking
+//! cpa_common::thinking, JSON edits cpa_common::json, and the Codex and OpenAI-compatible
+//! executors' ports of the shared Responses helpers. Stages whose shared module has not
+//! landed go through adapters named after their owners (meta_codex, kimi_http, below).
+//! ponytail: the apply_patch Responses bridge (translator common) is not applied, as for
+//! Kimi; requests without an apply_patch custom tool are unaffected.
 
 use std::collections::VecDeque;
 use std::time::Duration;
 
 use bytes::Bytes;
+use cpa_common::json::{self as gj, Kind};
+use cpa_common::thinking::{RequestThinking, apply_request_thinking, parse_suffix};
 use cpa_core::config::Config;
 use cpa_core::credential::{Credential, MetadataPatch, Source};
 use cpa_core::exec::{ExecError, ExecRequest, ExecResponse, ExecStream, FailureScope, Operation, ResponseBody};
 use cpa_core::format::Format;
 use cpa_translate::{Pair, RequestCtx, ResponseCtx, StreamTranslator};
 use futures_util::StreamExt;
-use gjson::Kind;
 use serde_json::Value;
 
+use crate::codex_response::OutputItems;
 use crate::kimi_http::{
     Clients, GoHeaders, MAX_ERROR_BODY, custom_headers, default_client, lines, proxy_url, read_all, refresh_due,
     rfc3339_local_now, send,
 };
-use crate::kimi_json::{delete, set_raw, set_str};
-use crate::kimi_thinking::{self, parse_suffix};
 use crate::meta_auth::{DEFAULT_API_BASE_URL, MetaAuth, MintedKey};
 use crate::meta_codex::{
-    CodexToResponses, OutputItems, codex_to_responses_non_stream, count_codex_input_tokens,
-    ensure_responses_usage_details, go_trim_space, normalize_codex_instructions, normalize_codex_tool_integer_types,
-    responses_to_codex, sanitize_reasoning_encrypted_content,
+    count_codex_input_tokens, go_trim_space, normalize_codex_instructions, normalize_codex_tool_integer_types,
 };
+use crate::openai_compat_payload::{ensure_responses_usage_details, sanitize_reasoning_encrypted_content};
 
 /// Provider string served by this executor.
 pub const PROVIDER: &str = "meta";
@@ -183,7 +184,7 @@ impl MetaExecutor {
             ));
         }
         let enriched = self.ensure_auth(credential, cfg).await?;
-        let prepared = prepare(&req, cfg, true)?;
+        let prepared = prepare(&req, true)?;
         let (base, token) = creds(&enriched);
         if base.trim().is_empty() {
             return Err(ExecError::local(
@@ -194,46 +195,44 @@ impl MetaExecutor {
         }
         let url = format!("{}/responses", base.strip_suffix('/').unwrap_or(&base));
         let client = self.clients.get(&proxy_url(&enriched, cfg));
-        let upstream = send(
-            &client,
-            &url,
-            headers(&enriched, &req, &token),
-            prepared.body.clone(),
-            None,
-        )
-        .await?;
+        let body = Bytes::from(prepared.body);
+        let upstream = send(&client, &url, headers(&enriched, &req, &token), body.clone(), None).await?;
         if !(200..300).contains(&upstream.status) {
             let headers = upstream.headers.clone();
             // Go returns a failed error-body read as is, never classified by status.
-            let body = read_all(upstream.body, MAX_ERROR_BODY, false).await?;
-            let mut error = upstream_error(upstream.status, &body);
+            let error_body = read_all(upstream.body, MAX_ERROR_BODY, false).await?;
+            let mut error = upstream_error(upstream.status, &error_body);
             error.headers = Box::new(headers);
             return Err(error);
         }
-        let translated = Bytes::from(prepared.body);
+        let ctx = response_ctx(&req, &body);
         let responses_client = req.response_format == Format::OpenAIResponse;
-        let body = if req.stream {
-            let translator = prepared.response.stream_translator(&req, &translated);
+        let out = if req.stream {
             ResponseBody::Stream(stream_events(
                 lines(upstream.body, LINE_LIMIT),
-                translator,
+                (prepared.response.stream)(&ctx),
                 responses_client,
             ))
         } else {
             let data = read_all(upstream.body, usize::MAX, false).await?;
-            let completed = collect_completed(&String::from_utf8_lossy(&data), |event| {
-                prepared.response.non_stream(&req, &translated, event)
+            let completed = collect_completed(&data, |event| {
+                let out = (prepared.response.non_stream)(&ctx, event)
+                    .map_err(|e| ExecError::local(502, FailureScope::Request, e.0))?;
+                if out.is_empty() {
+                    return Err(ExecError::local(502, FailureScope::Request, APPLY_PATCH_ERROR));
+                }
+                Ok(out)
             })?;
             ResponseBody::Buffered(Bytes::from(if responses_client {
-                ensure_responses_usage_details(completed.as_bytes())
+                ensure_responses_usage_details(&completed)
             } else {
-                completed.into_bytes()
+                completed
             }))
         };
         Ok(ExecResponse {
             status: upstream.status,
             headers: upstream.headers,
-            body,
+            body: out,
         })
     }
 
@@ -245,7 +244,7 @@ impl MetaExecutor {
         cfg: &Config,
     ) -> Result<ExecResponse, ExecError> {
         self.ensure_auth(credential, cfg).await?;
-        let prepared = prepare(&req, cfg, false)?;
+        let prepared = prepare(&req, false)?;
         let count = count_codex_input_tokens(&prepared.body).map_err(|e| {
             ExecError::local(
                 500,
@@ -256,18 +255,7 @@ impl MetaExecutor {
         let usage = format!(
             r#"{{"response":{{"usage":{{"input_tokens":{count},"output_tokens":0,"total_tokens":{count}}}}}}}"#
         );
-        let payload = match prepared.response {
-            ResponseSide::Pair(Pair {
-                count_tokens: Some(translate),
-                ..
-            }) => {
-                let translated = Bytes::from(prepared.body);
-                let ctx = response_ctx(&req, &translated);
-                translate(&ctx, usage.as_bytes()).map_err(|e| ExecError::local(500, FailureScope::Request, e.0))?
-            }
-            // TranslateTokenCount without a registered transform returns the usage as is.
-            _ => usage.into_bytes(),
-        };
+        let payload = cpa_translate::translate_token_count(req.response_format, Format::Codex, count, usage.as_bytes());
         Ok(ExecResponse {
             status: 200,
             headers: http::HeaderMap::new(),
@@ -276,36 +264,7 @@ impl MetaExecutor {
     }
 }
 
-/// How upstream Codex events become client events.
-enum ResponseSide {
-    Pair(&'static Pair),
-    /// The openai-response <- codex adapter (meta_codex).
-    Responses,
-}
-
-impl ResponseSide {
-    fn stream_translator(&self, req: &ExecRequest, translated: &Bytes) -> Box<dyn StreamTranslator> {
-        match self {
-            Self::Pair(pair) => (pair.stream)(&response_ctx(req, translated)),
-            Self::Responses => Box::new(CodexToResponses::new(&req.model, original(req), translated)),
-        }
-    }
-
-    fn non_stream(&self, req: &ExecRequest, translated: &Bytes, completed: &str) -> Result<String, ExecError> {
-        let out = match self {
-            Self::Pair(pair) => (pair.non_stream)(&response_ctx(req, translated), completed.as_bytes())
-                .map(|b| String::from_utf8_lossy(&b).into_owned())
-                .map_err(|e| ExecError::local(502, FailureScope::Request, e.0))?,
-            Self::Responses => codex_to_responses_non_stream(completed),
-        };
-        if out.is_empty() {
-            return Err(ExecError::local(502, FailureScope::Request, APPLY_PATCH_ERROR));
-        }
-        Ok(out)
-    }
-}
-
-fn response_ctx<'a>(req: &'a ExecRequest, translated: &'a Bytes) -> ResponseCtx<'a> {
+fn response_ctx<'a>(req: &'a ExecRequest, translated: &'a [u8]) -> ResponseCtx<'a> {
     ResponseCtx {
         model: &req.model,
         original_request: original(req),
@@ -323,12 +282,9 @@ fn original(req: &ExecRequest) -> &Bytes {
 }
 
 struct Prepared {
-    body: String,
-    response: ResponseSide,
-}
-
-fn request_error(message: impl Into<String>) -> ExecError {
-    ExecError::local(400, FailureScope::Request, message)
+    body: Vec<u8>,
+    /// Transforms for the client's response format against the Codex upstream.
+    response: &'static Pair,
 }
 
 fn not_registered(what: &str) -> ExecError {
@@ -339,14 +295,10 @@ fn not_registered(what: &str) -> ExecError {
     )
 }
 
-fn text(body: &[u8]) -> Result<&str, ExecError> {
-    std::str::from_utf8(body).map_err(|_| request_error("request body is not valid UTF-8"))
-}
-
 /// ponytail: adapter for `cpa_common::payload` (owner: server thread). Go applies
 /// `requests.payload` rules here (ApplyPayloadConfigWithRequest, protocol "meta"); identity
 /// until the shared module lands.
-fn apply_payload_rules(_cfg: &Config, _model: &str, _protocol: &str, _source: &str, body: String) -> String {
+fn apply_payload_rules(body: Vec<u8>, _req: &ExecRequest, _model: &str) -> Vec<u8> {
     body
 }
 
@@ -357,45 +309,47 @@ fn codex_client_request(_req: &ExecRequest, body: &[u8]) -> Vec<u8> {
     body.to_vec()
 }
 
-/// prepareResponsesRequest.
-fn prepare(req: &ExecRequest, cfg: &Config, stream: bool) -> Result<Prepared, ExecError> {
-    let response = match cpa_translate::pair(req.response_format, Format::Codex) {
-        Some(pair) => ResponseSide::Pair(pair),
-        None if req.response_format == Format::OpenAIResponse => ResponseSide::Responses,
-        None => return Err(not_registered("Meta response")),
+/// prepareResponsesRequest. Every Go client format has a Codex translator; here the
+/// unregistered ones answer 501 instead of falling back to a model rewrite.
+fn prepare(req: &ExecRequest, stream: bool) -> Result<Prepared, ExecError> {
+    let Some(response) = cpa_translate::pair(req.response_format, Format::Codex) else {
+        return Err(not_registered("Meta response"));
     };
-    let (base_model, _) = parse_suffix(&req.model);
-    let source = text(&req.body)?;
-    let client_body = codex_client_request(req, &req.body);
-    let mut body = match cpa_translate::pair(req.source_format, Format::Codex) {
-        Some(pair) => {
-            let out = (pair.request)(
-                &RequestCtx {
-                    model: base_model,
-                    stream,
-                },
-                &client_body,
-            )
-            .map_err(|e| request_error(e.0))?;
-            String::from_utf8(out).map_err(|_| request_error("translated request is not valid UTF-8"))?
-        }
-        // ponytail: adapter for the openai-response -> codex pair (owner: translators thread).
-        None if req.source_format == Format::OpenAIResponse => responses_to_codex(text(&client_body)?),
-        None => return Err(not_registered("Meta request")),
-    };
-    body = kimi_thinking::apply(
-        &body,
-        source,
-        text(original(req))?,
-        &req.model,
-        req.source_format.as_str(),
-        "codex",
-        PROVIDER,
+    let has_request_transformer = cpa_translate::pair(req.source_format, Format::Codex).is_some();
+    if !has_request_transformer {
+        return Err(not_registered("Meta request"));
+    }
+    let base_model = parse_suffix(&req.model).model_name;
+    let mut body = cpa_translate::translate_request(
+        req.source_format,
+        Format::Codex,
+        &RequestCtx {
+            model: &base_model,
+            stream,
+        },
+        &codex_client_request(req, &req.body),
     )
-    .map_err(|e| request_error(e.0))?;
-    body = apply_payload_rules(cfg, base_model, PROVIDER, req.source_format.as_str(), body);
-    body = set_string_if_different(&body, "model", base_model);
-    body = set_bool_if_different(&body, "stream", stream);
+    .map_err(|e| ExecError::local(400, FailureScope::Request, e.0))?;
+    let text = |b: &[u8]| String::from_utf8_lossy(b).into_owned();
+    let thinking = apply_request_thinking(&RequestThinking {
+        body: &text(&body),
+        payload: &text(&req.body),
+        original: &text(original(req)),
+        model: &req.model,
+        from: req.source_format.as_str(),
+        to: "codex",
+        provider: PROVIDER,
+        // ponytail: API-key model capabilities bound by the scheduler (Go
+        // ResolvedModelInfo) are not on ExecRequest; the registry lookup applies.
+        resolved: None,
+        has_request_transformer,
+        updates_changed: false,
+    })
+    .map_err(|e| ExecError::local(e.status(), FailureScope::Request, e.message))?;
+    body = thinking.into_bytes();
+    body = apply_payload_rules(body, req, &base_model);
+    set_string_if_different(&mut body, "model", &base_model);
+    set_bool_if_different(&mut body, "stream", stream);
     for key in [
         "generate",
         "prompt_cache_retention",
@@ -403,49 +357,49 @@ fn prepare(req: &ExecRequest, cfg: &Config, stream: bool) -> Result<Prepared, Ex
         "stream_options",
         "client_metadata",
     ] {
-        body = delete(&body, key);
+        gj::delete(&mut body, key);
     }
-    body = normalize_codex_instructions(&body);
-    body = sanitize_reasoning_encrypted_content(body);
-    body = sanitize_web_search_tools(&body);
+    normalize_codex_instructions(&mut body);
+    body = sanitize_reasoning_encrypted_content(text(&body)).into_bytes();
+    sanitize_web_search_tools(&mut body);
     body = normalize_codex_tool_integer_types(body, &req.headers);
     Ok(Prepared { body, response })
 }
 
 /// `SetStringIfDifferent`.
-fn set_string_if_different(body: &str, path: &str, value: &str) -> String {
-    let current = gjson::get(body, path);
-    if current.kind() == Kind::String && current.str() == value {
-        return body.to_owned();
+fn set_string_if_different(body: &mut Vec<u8>, path: &str, value: &str) {
+    let current = gj::get(body, path);
+    if current.kind == Kind::String && *current.bytes() == *value.as_bytes() {
+        return;
     }
-    set_str(body, path, value).unwrap_or_else(|_| body.to_owned())
+    gj::set_str(body, path, value);
 }
 
 /// `SetBoolIfDifferent`.
-fn set_bool_if_different(body: &str, path: &str, value: bool) -> String {
-    let kind = gjson::get(body, path).kind();
+fn set_bool_if_different(body: &mut Vec<u8>, path: &str, value: bool) {
+    let kind = gj::get(body, path).kind;
     if (value && kind == Kind::True) || (!value && kind == Kind::False) {
-        return body.to_owned();
+        return;
     }
-    set_raw(body, path, if value { "true" } else { "false" }).unwrap_or_else(|_| body.to_owned())
+    gj::set_bool(body, path, value);
 }
 
 /// `SanitizeMetaWebSearchTools`: Meta rejects `search_content_types` on `web_search` tools,
 /// top level or inside a namespace.
-fn sanitize_web_search_tools(body: &str) -> String {
-    let tools = gjson::get(body, "tools");
-    if tools.kind() != Kind::Array {
-        return body.to_owned();
+fn sanitize_web_search_tools(body: &mut Vec<u8>) {
+    let tools = gj::get(body, "tools");
+    if !tools.is_array() {
+        return;
     }
     let strip =
-        |tool: &gjson::Value<'_>| tool.get("type").str() == "web_search" && tool.get("search_content_types").exists();
+        |tool: &gj::Res<'_>| &*tool.get("type").bytes() == b"web_search" && tool.get("search_content_types").exists();
     let mut paths = Vec::new();
     for (i, tool) in tools.array().iter().enumerate() {
         if strip(tool) {
             paths.push(format!("tools.{i}.search_content_types"));
         }
         let nested = tool.get("tools");
-        if tool.get("type").str() == "namespace" && nested.kind() == Kind::Array {
+        if &*tool.get("type").bytes() == b"namespace" && nested.is_array() {
             for (j, sub) in nested.array().iter().enumerate() {
                 if strip(sub) {
                     paths.push(format!("tools.{i}.tools.{j}.search_content_types"));
@@ -453,7 +407,9 @@ fn sanitize_web_search_tools(body: &str) -> String {
             }
         }
     }
-    paths.iter().fold(body.to_owned(), |body, path| delete(&body, path))
+    for path in paths {
+        gj::delete(body, &path);
+    }
 }
 
 fn headers(c: &Credential, req: &ExecRequest, token: &str) -> GoHeaders {
@@ -476,19 +432,18 @@ fn headers(c: &Credential, req: &ExecRequest, token: &str) -> GoHeaders {
 /// `wrapMetaUpstreamError`, with Go's cooldown semantics as scopes: a 429 or 404 cools
 /// the model on this credential, a subscription-quota 429 the whole credential.
 fn upstream_error(status: u16, body: &[u8]) -> ExecError {
-    let text = String::from_utf8_lossy(body);
     let mut retry_after = None;
     let scope = match status {
         429 => {
-            retry_after = resets_in(&text);
-            if subscription_quota(&text) {
+            retry_after = resets_in(body);
+            if subscription_quota(body) {
                 FailureScope::Credential
             } else {
                 FailureScope::Model
             }
         }
         404 => {
-            retry_after = Some(resets_in(&text).unwrap_or(NOT_FOUND_COOLDOWN));
+            retry_after = Some(resets_in(body).unwrap_or(NOT_FOUND_COOLDOWN));
             FailureScope::Model
         }
         401 | 402 | 403 | 408 | 500.. => FailureScope::Credential,
@@ -505,53 +460,54 @@ fn upstream_error(status: u16, body: &[u8]) -> ExecError {
 }
 
 /// `parseMetaRetryAfter` for a 429/404 body: time until a future `error.resets_at`.
-fn resets_in(body: &str) -> Option<Duration> {
-    let resets_at = gjson::get(body, "error.resets_at").i64();
+fn resets_in(body: &[u8]) -> Option<Duration> {
+    let resets_at = gj::get(body, "error.resets_at").int();
     if resets_at <= 0 {
         return None;
     }
-    let now = std::time::SystemTime::now();
     let at = std::time::UNIX_EPOCH + Duration::from_secs(resets_at as u64);
-    at.duration_since(now).ok().filter(|d| !d.is_zero())
+    at.duration_since(std::time::SystemTime::now())
+        .ok()
+        .filter(|d| !d.is_zero())
 }
 
 /// `isMetaSubscriptionQuota` (status already 429).
-fn subscription_quota(body: &str) -> bool {
+fn subscription_quota(body: &[u8]) -> bool {
     if body.is_empty() {
         return false;
     }
-    let message = gjson::get(body, "error.message").str().to_lowercase();
-    let code = crate::kimi_json::gstr(&gjson::get(body, "error.code")).to_lowercase();
+    let message = gj::get(body, "error.message").str().to_lowercase();
+    let code = gj::get(body, "error.code").str().to_lowercase();
     if message.contains("subscription quota") || message.contains("quota exhausted") {
         return true;
     }
-    (code == "rate_limit_exceeded" || code.contains("quota")) && gjson::get(body, "error.resets_at").exists()
+    (code == "rate_limit_exceeded" || code.contains("quota")) && gj::get(body, "error.resets_at").exists()
 }
 
 /// `metaStreamEventError`: an `error` or `response.failed` event ends the response with
 /// `error.code` as status when it is an HTTP error code, else 502.
-fn stream_event_error(event: &str) -> Option<ExecError> {
-    let kind = gjson::get(event, "type");
-    if kind.str() != "error" && kind.str() != "response.failed" {
+fn stream_event_error(event: &[u8]) -> Option<ExecError> {
+    let kind = gj::get(event, "type").bytes();
+    if &*kind != b"error" && &*kind != b"response.failed" {
         return None;
     }
-    let code = gjson::get(event, "error.code").i64();
+    let code = gj::get(event, "error.code").int();
     let status = if (400..=599).contains(&code) { code as u16 } else { 502 };
-    Some(upstream_error(status, event.as_bytes()))
+    Some(upstream_error(status, event))
 }
 
 /// `metaAsCompletedEvent`: a whole JSON body that is a terminal event or a bare response.
-fn as_completed_event(data: &str) -> Option<String> {
-    let trimmed = std::str::from_utf8(go_trim_space(data.as_bytes())).unwrap_or_default();
-    if !gjson::valid(trimmed) {
+fn as_completed_event(data: &[u8]) -> Option<Vec<u8>> {
+    let trimmed = go_trim_space(data);
+    if !gj::valid(trimmed) {
         return None;
     }
-    let kind = gjson::get(trimmed, "type");
-    if matches!(kind.str(), "response.completed" | "response.incomplete") {
-        return Some(trimmed.to_owned());
+    let kind = gj::get(trimmed, "type").bytes();
+    if &*kind == b"response.completed" || &*kind == b"response.incomplete" {
+        return Some(trimmed.to_vec());
     }
-    if gjson::get(trimmed, "object").str() == "response" || gjson::get(trimmed, "output").exists() {
-        return set_raw(r#"{"type":"response.completed"}"#, "response", trimmed).ok();
+    if &*gj::get(trimmed, "object").bytes() == b"response" || gj::get(trimmed, "output").exists() {
+        return gj::try_set_raw(br#"{"type":"response.completed"}"#, "response", trimmed).ok();
     }
     None
 }
@@ -560,34 +516,47 @@ fn data_payload(line: &[u8]) -> Option<&[u8]> {
     line.strip_prefix(b"data:").map(go_trim_space)
 }
 
+fn lossy(b: &[u8]) -> String {
+    String::from_utf8_lossy(b).into_owned()
+}
+
 /// translateMetaCompleted: the first terminal event of a buffered SSE body, with output
 /// items rebuilt from `response.output_item.done`, then a whole-body JSON fallback.
-fn collect_completed(data: &str, translate: impl Fn(&str) -> Result<String, ExecError>) -> Result<String, ExecError> {
+fn collect_completed(
+    data: &[u8],
+    translate: impl Fn(&[u8]) -> Result<Vec<u8>, ExecError>,
+) -> Result<Vec<u8>, ExecError> {
     let mut items = OutputItems::default();
-    for line in data.split('\n') {
-        let Some(event) = data_payload(line.as_bytes()) else {
+    for line in data.split(|b| *b == b'\n') {
+        let Some(event) = data_payload(line) else {
             continue;
         };
-        let event = String::from_utf8_lossy(event);
-        if let Some(error) = stream_event_error(&event) {
+        if let Some(error) = stream_event_error(event) {
             return Err(error);
         }
-        match gjson::get(&event, "type").str() {
-            "response.output_item.done" => items.collect(&event),
-            "response.completed" | "response.incomplete" => return translate(&items.patch_completed(&event)),
+        let kind = gj::get(event, "type").bytes();
+        match &*kind {
+            b"response.output_item.done" => items.collect(&lossy(event)),
+            b"response.completed" | b"response.incomplete" => {
+                return translate(items.patch(lossy(event)).as_bytes());
+            }
             _ => {}
         }
     }
     if let Some(completed) = as_completed_event(data) {
-        return translate(&items.patch_completed(&completed));
+        return translate(items.patch(lossy(&completed)).as_bytes());
     }
     Err(ExecError::local(408, FailureScope::Credential, DISCONNECTED))
 }
 
-/// The ExecuteStream loop: every scanned line goes through the translator (`data:` lines
-/// normalized to `data: <trimmed>`), terminal events get their collected output, and an
-/// error event or scan error ends the stream. Empty chunks are dropped; Go's Responses
-/// writer ignores them.
+/// The ExecuteStream loop: every scanned line goes through the pair's translator (`data:`
+/// lines normalized to `data: <trimmed>`), terminal events get their collected output, and
+/// an error event or scan error ends the stream. The translator emits frames the way the
+/// client's Go route writes them.
+///
+/// Responses clients get EnsureResponsesUsageDetails per line before translation; Go
+/// applies it to each translated chunk, and the Responses translator only adds
+/// `response.model` to creation events, so the two edits commute.
 fn stream_events(upstream: ExecStream, translator: Box<dyn StreamTranslator>, responses_client: bool) -> ExecStream {
     struct State {
         upstream: ExecStream,
@@ -600,18 +569,7 @@ fn stream_events(upstream: ExecStream, translator: Box<dyn StreamTranslator>, re
     impl State {
         fn emit(&mut self, translated: Result<Vec<Bytes>, cpa_translate::Error>) {
             match translated {
-                Ok(chunks) => {
-                    for chunk in chunks {
-                        let chunk = if self.responses_client {
-                            Bytes::from(ensure_responses_usage_details(&chunk))
-                        } else {
-                            chunk
-                        };
-                        if !chunk.is_empty() {
-                            self.ready.push_back(Ok(chunk));
-                        }
-                    }
-                }
+                Ok(frames) => self.ready.extend(frames.into_iter().filter(|f| !f.is_empty()).map(Ok)),
                 Err(error) => {
                     self.done = true;
                     self.ready
@@ -620,24 +578,37 @@ fn stream_events(upstream: ExecStream, translator: Box<dyn StreamTranslator>, re
             }
         }
 
+        fn translate(&mut self, line: Vec<u8>) {
+            let line = if self.responses_client {
+                ensure_responses_usage_details(&line)
+            } else {
+                line
+            };
+            let translated = self.translator.event(&line);
+            self.emit(translated);
+        }
+
         fn line(&mut self, line: &[u8]) {
             let Some(event) = data_payload(line) else {
-                let translated = self.translator.event(line);
-                return self.emit(translated);
+                return self.translate(line.to_vec());
             };
-            let mut event = String::from_utf8_lossy(event).into_owned();
-            if let Some(error) = stream_event_error(&event) {
+            if let Some(error) = stream_event_error(event) {
                 self.done = true;
                 self.ready.push_back(Err(error));
                 return;
             }
-            match gjson::get(&event, "type").str() {
-                "response.output_item.done" => self.items.collect(&event),
-                "response.completed" | "response.incomplete" => event = self.items.patch_completed(&event),
-                _ => {}
-            }
-            let translated = self.translator.event(format!("data: {event}").as_bytes());
-            self.emit(translated);
+            let kind = gj::get(event, "type").bytes().into_owned();
+            let event = match kind.as_slice() {
+                b"response.output_item.done" => {
+                    self.items.collect(&lossy(event));
+                    event.to_vec()
+                }
+                b"response.completed" | b"response.incomplete" => self.items.patch(lossy(event)).into_bytes(),
+                _ => event.to_vec(),
+            };
+            let mut out = b"data: ".to_vec();
+            out.extend_from_slice(&event);
+            self.translate(out);
         }
     }
     futures_util::stream::unfold(
