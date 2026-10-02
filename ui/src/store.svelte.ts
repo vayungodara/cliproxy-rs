@@ -1,4 +1,4 @@
-import { api, connect, disconnect, unsupported, configValue } from "./api";
+import { api, connect, disconnect, configValue, route } from "./api";
 import { equal, fieldPath, reconcile, type Data } from "./core";
 
 export const pages = [
@@ -116,15 +116,21 @@ class Store {
     this.dirty = false;
   }
   can(method: string, path: string) {
-    return this.caps[`${method} ${path}`] !== false;
+    return this.caps[`${method} ${route(path)}`] !== false;
   }
-  /** Probe routes once per session so unsupported actions render disabled, not broken. */
-  probe(...paths: string[]) {
+  /**
+   * Find unimplemented actions before they are offered. Each probe is a request Go rejects
+   * with 400 during input validation, before any side effect: an empty JSON body, or a GET
+   * without its required parameter. A server lacking the route answers 404 with no body (or
+   * 501/405), which api() records as missing. Go itself is never probed.
+   */
+  probe(actions: [string, string, string][]) {
     if (this.kind === "go") return;
-    for (const path of paths) {
-      if (this.#probed.has(path)) continue;
-      this.#probed.add(path);
-      unsupported(path).then((methods) => methods.forEach((m) => (this.caps[`${m} ${path}`] = false)));
+    for (const [method, path] of actions) {
+      const id = `${method} ${path}`;
+      if (this.#probed.has(id)) continue;
+      this.#probed.add(id);
+      api(path, method, method === "GET" ? undefined : {}).catch(() => {});
     }
   }
   go(hash: string) {
