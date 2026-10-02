@@ -28,6 +28,7 @@ url = "2"
 httpdate = "1"
 tiktoken-rs = "0.7"
 libc.workspace = true
+tracing.workspace = true
 gjson = "0.8.1"
 
 [dev-dependencies]

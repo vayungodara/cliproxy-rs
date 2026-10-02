@@ -18,6 +18,9 @@ mod kimi_http;
 mod kimi_json;
 mod kimi_replay;
 mod kimi_thinking;
+pub mod meta;
+pub mod meta_auth;
+mod meta_codex;
 pub mod oauth;
 mod quota;
 mod tls;
@@ -41,6 +44,7 @@ pub struct Executors {
 #[derive(Default)]
 pub struct DeviceExecutors {
     pub kimi: kimi::KimiExecutor,
+    pub meta: meta::MetaExecutor,
 }
 
 impl Executors {
@@ -53,6 +57,7 @@ impl Executors {
         match credential.provider.as_str() {
             "claude" => self.claude.execute(credential, req, cfg).await,
             p if kimi::PROVIDERS.contains(&p) => self.devices.kimi.execute(&self.claude, credential, req, cfg).await,
+            meta::PROVIDER => self.devices.meta.execute(credential, req, cfg).await,
             other => Err(no_executor(other)),
         }
     }
@@ -62,6 +67,7 @@ impl Executors {
         match credential.provider.as_str() {
             "claude" => self.claude.needs_prepare(credential, cfg),
             p if kimi::PROVIDERS.contains(&p) => self.devices.kimi.needs_prepare(credential, cfg),
+            meta::PROVIDER => self.devices.meta.needs_prepare(credential, cfg),
             _ => false,
         }
     }
@@ -71,6 +77,7 @@ impl Executors {
         match credential.provider.as_str() {
             "claude" => self.claude.prepare(credential, cfg).await,
             p if kimi::PROVIDERS.contains(&p) => self.devices.kimi.prepare(credential, cfg).await,
+            meta::PROVIDER => self.devices.meta.prepare(credential, cfg).await,
             other => Err(no_executor(other)),
         }
     }

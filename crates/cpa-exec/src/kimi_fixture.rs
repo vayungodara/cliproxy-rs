@@ -77,7 +77,13 @@ pub(crate) struct Mock {
 
 impl Mock {
     pub(crate) async fn start(responses: &Value) -> Self {
-        let scripted: Vec<Scripted> = responses
+        Self::start_replacing(responses, None).await
+    }
+
+    /// Like [`Mock::start`], with every occurrence of `go_origin` in the scripted bodies
+    /// replaced by this mock's URL (Go fixtures that answer with their own server URL).
+    pub(crate) async fn start_replacing(responses: &Value, go_origin: Option<&str>) -> Self {
+        let mut scripted: Vec<Scripted> = responses
             .as_array()
             .map(|list| {
                 list.iter()
@@ -101,6 +107,13 @@ impl Mock {
             .unwrap_or_default();
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let url = format!("http://{}", listener.local_addr().unwrap());
+        if let Some(origin) = go_origin {
+            for (_, _, body) in &mut scripted {
+                if let Ok(text) = std::str::from_utf8(body) {
+                    *body = text.replace(origin, &url).into_bytes();
+                }
+            }
+        }
         let captured: Arc<Mutex<Vec<Captured>>> = Arc::default();
         let queue = Arc::new(Mutex::new(std::collections::VecDeque::from(scripted)));
         let sink = captured.clone();
