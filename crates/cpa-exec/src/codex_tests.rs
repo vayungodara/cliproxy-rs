@@ -370,3 +370,144 @@ fn quota_events_and_signals_match_go() {
         .collect();
     assert_eq!(Value::Object(signals), GO["quota"]["signals"]);
 }
+
+fn oauth_credential(base_url: &str) -> Credential {
+    let mut c = Credential::from_file(
+        Path::new("/fake"),
+        Path::new("/fake/codex-o.json"),
+        serde_json::json!({"type":"codex","access_token":"at-FAKE","account_id":"acct"})
+            .as_object()
+            .unwrap()
+            .clone(),
+    )
+    .unwrap();
+    c.attributes.insert("base_url".into(), base_url.into());
+    c
+}
+
+fn plain_request(stream: bool, alt: Option<&str>) -> ExecRequest {
+    let body = Bytes::from_static(br#"{"model":"gpt-5.4","input":[]}"#);
+    ExecRequest {
+        operation: Operation::Generate,
+        source_format: Format::Codex,
+        response_format: Format::Codex,
+        requested_model: "gpt-5.4".into(),
+        model: "gpt-5.4".into(),
+        original_body: body.clone(),
+        body,
+        stream,
+        alt: alt.map(str::to_owned),
+        session: None,
+        headers: HeaderMap::new(),
+        caller: Caller {
+            principal: String::new(),
+            source: "authorization",
+        },
+    }
+}
+
+#[tokio::test]
+async fn compact_failures_follow_gos_availability_neutral_policy() {
+    // Go: compact 404/405/501 and request faults stop the request without cooling;
+    // other failures fail over without cooling; auth and quota keep the normal policy.
+    use crate::codex_testkit::json;
+    let mock = Mock::start().await;
+    let executor = executor();
+    let cfg = Config::default();
+    for (status, body, scope) in [
+        (404, "not here", FailureScope::Request),
+        (405, "", FailureScope::Request),
+        (501, "", FailureScope::Request),
+        (500, "boom", FailureScope::Transport),
+        (503, "busy", FailureScope::Transport),
+        (401, "", FailureScope::Credential),
+        (
+            429,
+            r#"{"error":{"type":"usage_limit_reached"}}"#,
+            FailureScope::Credential,
+        ),
+    ] {
+        mock.script("/responses/compact", vec![json(status, body)]);
+        let error = executor
+            .execute(
+                &oauth_credential(&mock.url),
+                plain_request(false, Some("responses/compact")),
+                &cfg,
+            )
+            .await
+            .err()
+            .expect("compact error");
+        assert_eq!((error.status, error.scope), (status, scope), "compact {status}");
+    }
+    // The same 404 on the ordinary Responses path is a model-support failure.
+    mock.script("/responses", vec![json(404, "not here")]);
+    let error = executor
+        .execute(&oauth_credential(&mock.url), plain_request(false, None), &cfg)
+        .await
+        .err()
+        .expect("responses error");
+    assert_eq!(error.scope, FailureScope::Model);
+}
+
+#[tokio::test]
+async fn truncated_error_body_is_a_transport_failure_not_an_auth_failure() {
+    use axum::response::IntoResponse;
+    let app = axum::Router::new().fallback(|| async {
+        let broken = futures_util::stream::iter([
+            Ok::<_, std::io::Error>(Bytes::from_static(b"{\"error\":")),
+            Err(std::io::Error::other("mock reset mid-body")),
+        ]);
+        (
+            axum::http::StatusCode::UNAUTHORIZED,
+            [("content-type", "application/json")],
+            axum::body::Body::from_stream(broken),
+        )
+            .into_response()
+    });
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let url = format!("http://{}", listener.local_addr().unwrap());
+    tokio::spawn(async move { axum::serve(listener, app).await });
+    let error = executor()
+        .execute(&oauth_credential(&url), plain_request(true, None), &Config::default())
+        .await
+        .err()
+        .expect("transport error");
+    assert_eq!(error.scope, FailureScope::Transport, "{error}");
+    assert_ne!(error.status, 401);
+}
+
+#[tokio::test]
+async fn alpha_search_reads_at_most_32_mib_whatever_the_status() {
+    use crate::codex_testkit::Reply;
+    let mock = Mock::start().await;
+    let big = "x".repeat(ALPHA_SEARCH_MAX_RESPONSE + 4096);
+    let error_body = "e".repeat(100 * 1024);
+    mock.script(
+        "/alpha/search",
+        vec![
+            Reply {
+                status: 200,
+                headers: vec![("content-type".into(), "application/json".into())],
+                body: big,
+            },
+            Reply {
+                status: 500,
+                headers: vec![("content-type".into(), "application/json".into())],
+                body: error_body.clone(),
+            },
+        ],
+    );
+    let executor = executor().with_alpha_base_url(&mock.url);
+    let cred = oauth_credential(&mock.url);
+    for (status, expected) in [(200, ALPHA_SEARCH_MAX_RESPONSE), (500, error_body.len())] {
+        let response = executor
+            .alpha_search(&cred, b"{}", &HeaderMap::new(), "")
+            .await
+            .unwrap();
+        assert_eq!(response.status, status);
+        let ResponseBody::Buffered(body) = response.body else {
+            unreachable!()
+        };
+        assert_eq!(body.len(), expected, "status {status}");
+    }
+}

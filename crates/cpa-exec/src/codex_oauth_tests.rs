@@ -113,7 +113,10 @@ async fn existing_file_keeps_user_fields_but_never_old_tokens() {
     assert_eq!(saved["access_token"], "at-new");
     assert_eq!(saved["prefix"], "team");
     assert_eq!(saved["note"], "mine");
-    assert_eq!(saved["disabled"], false, "Go's record sets disabled explicitly");
+    assert_eq!(
+        saved["disabled"], true,
+        "re-login keeps an explicitly disabled account disabled"
+    );
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
@@ -361,4 +364,71 @@ fn pasted_callbacks_parse_like_go() {
             );
         }
     }
+}
+
+#[tokio::test]
+async fn existing_non_boolean_disabled_is_reset_like_go() {
+    let dir = std::env::temp_dir().join(format!("codex-login-{}", random_state().unwrap()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("codex-u@example.invalid-free.json");
+    std::fs::write(&path, r#"{"disabled":"true"}"#).unwrap();
+    let tokens = Tokens {
+        id_token: String::new(),
+        access_token: "a".into(),
+        refresh_token: "r".into(),
+        account_id: String::new(),
+        email: "u@example.invalid".into(),
+        plan_type: String::new(),
+        expired: "2026-10-12T12:00:00Z".into(),
+    };
+    write_login(&dir, &tokens).unwrap();
+    let saved: Map<String, Value> = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+    assert_eq!(saved["disabled"], false);
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
+#[tokio::test]
+async fn retained_results_never_block_a_new_refresh() {
+    let mock = Mock::start().await;
+    let oauth = oauth(&mock).await;
+    mock.script(
+        "/oauth/token",
+        vec![json(200, &token_body()); MAX_RETAINED_REFRESHES + 1],
+    );
+    for i in 0..MAX_RETAINED_REFRESHES {
+        oauth.refresh(&format!("rt-{i}")).await.unwrap();
+    }
+    oauth
+        .refresh("rt-extra")
+        .await
+        .expect("a 65th distinct token still reaches OAuth");
+    assert_eq!(mock.take().len(), MAX_RETAINED_REFRESHES + 1);
+    assert!(oauth.refreshes.lock().unwrap().len() <= MAX_RETAINED_REFRESHES);
+    // The newest result is still deduplicated.
+    oauth.refresh("rt-extra").await.unwrap();
+    assert!(mock.take().is_empty());
+}
+
+#[test]
+fn abandoned_prompt_does_not_block_runtime_shutdown() {
+    let (done_tx, done_rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let runtime = tokio::runtime::Runtime::new().unwrap();
+        runtime.block_on(async {
+            // A read that never returns, like stdin held open.
+            let blocked = prompt_line("", || {
+                std::thread::park();
+                Ok(String::new())
+            });
+            tokio::select! {
+                _ = blocked => unreachable!(),
+                _ = tokio::time::sleep(Duration::from_millis(10)) => {}
+            }
+        });
+        drop(runtime);
+        done_tx.send(()).unwrap();
+    });
+    done_rx
+        .recv_timeout(Duration::from_secs(5))
+        .expect("runtime shut down without waiting for the prompt");
 }

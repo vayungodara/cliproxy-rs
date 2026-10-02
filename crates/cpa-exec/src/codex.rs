@@ -151,7 +151,9 @@ impl CodexExecutor {
         self.quota.observe(&view.credential.id, &headers);
         match into_response(res).await {
             Ok(response) => Ok(response),
-            Err(error) if !(200..300).contains(&status) => Err(response::status_error(
+            // A non-2xx response that was read completely; a failure to read or decode it
+            // keeps its own (transport) scope instead of the status's credential policy.
+            Err(error) if !(200..300).contains(&status) && !read_failure(&error) => Err(response::status_error(
                 status,
                 &error.body,
                 headers,
@@ -232,13 +234,16 @@ impl CodexExecutor {
         let body = request::sanitize_input_ids(body);
         let headers = request::http_headers(view, settings, &req.headers, &body, &model, cache.as_deref(), false);
         let url = format!("{}/responses/compact", view.base_url);
-        let res = self.send(view, settings, url, headers, body.clone()).await?;
+        let res = self
+            .send(view, settings, url, headers, body.clone())
+            .await
+            .map_err(compact_error)?;
         let data = match res.body {
             ResponseBody::Buffered(bytes) => bytes,
             ResponseBody::Stream(mut stream) => {
                 let mut out = Vec::new();
                 while let Some(event) = stream.next().await {
-                    out.extend_from_slice(&event?);
+                    out.extend_from_slice(&event.map_err(compact_error)?);
                 }
                 Bytes::from(out)
             }
@@ -323,30 +328,7 @@ impl CodexExecutor {
             .map_err(transport_error)?;
         let status = res.status().as_u16();
         let content_type = res.headers().get(http::header::CONTENT_TYPE).cloned();
-        let data = match into_response(res).await {
-            Ok(ExecResponse {
-                body: ResponseBody::Buffered(bytes),
-                ..
-            }) => bytes,
-            Ok(ExecResponse {
-                body: ResponseBody::Stream(mut stream),
-                ..
-            }) => {
-                let mut out = Vec::new();
-                while let Some(chunk) = stream.next().await {
-                    out.extend_from_slice(&chunk?);
-                    if out.len() > 32 << 20 {
-                        out.truncate(32 << 20);
-                        break;
-                    }
-                }
-                Bytes::from(out)
-            }
-            // ponytail: upstream error bodies are read through the shared 64 KiB bound,
-            // not Go's 32 MiB cap.
-            Err(error) if !(200..300).contains(&status) => error.body,
-            Err(error) => return Err(error),
-        };
+        let data = read_bounded_body(res, ALPHA_SEARCH_MAX_RESPONSE).await?;
         let mut headers = HeaderMap::new();
         if let Some(value) = content_type {
             headers.insert(http::header::CONTENT_TYPE, value);
@@ -357,6 +339,60 @@ impl CodexExecutor {
             body: ResponseBody::Buffered(data),
         })
     }
+}
+
+/// Go reads at most 32 MiB of an Alpha Search response, whatever its status.
+const ALPHA_SEARCH_MAX_RESPONSE: usize = 32 << 20;
+
+/// `io.ReadAll(io.LimitReader(resp.Body, limit))` over Go's transparently gunzipped body.
+/// Bytes past the limit are never read off the socket.
+async fn read_bounded_body(res: wreq::Response, limit: usize) -> Result<Bytes, ExecError> {
+    use async_compression::tokio::bufread::GzipDecoder;
+    use tokio::io::AsyncReadExt;
+    let gzip = res
+        .headers()
+        .get(http::header::CONTENT_ENCODING)
+        .and_then(|v| v.to_str().ok())
+        .is_some_and(|v| v.trim().eq_ignore_ascii_case("gzip"));
+    let reader = tokio_util::io::StreamReader::new(res.bytes_stream().map(|r| r.map_err(std::io::Error::other)));
+    let mut out = Vec::new();
+    let read = if gzip {
+        let mut decoder = GzipDecoder::new(tokio::io::BufReader::new(reader));
+        decoder.multiple_members(true);
+        decoder.take(limit as u64).read_to_end(&mut out).await
+    } else {
+        reader.take(limit as u64).read_to_end(&mut out).await
+    };
+    read.map_err(|_| ExecError::local(502, FailureScope::Transport, "Failed to read Codex search response"))?;
+    Ok(Bytes::from(out))
+}
+
+/// `into_response` failed to read or decode the body, as opposed to returning a
+/// completely read non-2xx response.
+fn read_failure(error: &ExecError) -> bool {
+    error.scope == FailureScope::Transport || error.body.starts_with(b"upstream request failed:")
+}
+
+/// Go's compact policy (`isResponsesCompactRequestFaultError`,
+/// `isResponsesCompactAvailabilityNeutralError`): an upstream without compact support must
+/// not cool ordinary Responses traffic. Request faults stop the request; other failures
+/// except auth/payment/quota fail over without cooldown.
+// ponytail: Go also exempts Cloudflare challenges and invalid_grant bodies from both rules;
+// those classifiers are not ported (M4-0024).
+fn compact_error(mut error: ExecError) -> ExecError {
+    let credential_quota = error.status == 429 && error.scope == FailureScope::Credential;
+    if credential_quota || matches!(error.status, 401 | 402 | 403 | 429) || error.scope == FailureScope::Transport {
+        return error;
+    }
+    let body = String::from_utf8_lossy(&error.body);
+    error.scope = if matches!(error.status, 400 | 404 | 405 | 409 | 413 | 422 | 501)
+        || response::request_fault(error.status, &body)
+    {
+        FailureScope::Request
+    } else {
+        FailureScope::Transport
+    };
+    error
 }
 
 /// `sanitizeCodexAlphaSearchBody`: drop prompt-cache fields, re-marshalling only when one

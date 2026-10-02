@@ -183,6 +183,8 @@ struct TokenResponse {
 }
 
 type RefreshResult = Shared<BoxFuture<'static, Result<Tokens, ExecError>>>;
+/// Completed refresh results kept for deduplication and failure backoff.
+const MAX_RETAINED_REFRESHES: usize = 64;
 type Refreshes = Arc<Mutex<HashMap<[u8; 32], (Instant, RefreshResult)>>>;
 
 /// Codex OAuth endpoints and refresh coordination. Clones share the singleflight table.
@@ -300,8 +302,18 @@ impl CodexOAuth {
             if let Some((_, result)) = table.get(&key) {
                 result.clone()
             } else {
-                if table.len() >= 64 {
-                    return Err(oauth_error(503, "codex refresh capacity reached"));
+                // Retained results are a cache, not an admission limit: evict the oldest
+                // completed ones. In-flight entries are bounded by the credential count.
+                while table.len() >= MAX_RETAINED_REFRESHES {
+                    let oldest = table
+                        .iter()
+                        .filter(|(_, (_, result))| result.peek().is_some())
+                        .min_by_key(|(_, (until, _))| *until)
+                        .map(|(k, _)| *k);
+                    match oldest {
+                        Some(k) => table.remove(&k),
+                        None => break,
+                    };
                 }
                 let oauth = self.clone();
                 let token = refresh_token.to_owned();
@@ -665,14 +677,16 @@ fn merge_existing(record: &mut Map<String, Value>, existing: Map<String, Value>)
         "verification_uri",
         "verification_uri_complete",
     ];
-    // The new record always sets `disabled`, so Go keeps the existing value only through
-    // the generic key merge below, which skips keys already present.
+    // Go's fresh login metadata has no `disabled`, so MergeExistingAuthMetadata keeps an
+    // existing boolean and FileStore.Save writes it; anything else becomes false.
+    let disabled = existing.get("disabled").and_then(Value::as_bool).unwrap_or(false);
     for (k, v) in existing {
         if TOKEN_KEYS.contains(&k.trim().to_ascii_lowercase().as_str()) {
             continue;
         }
         record.entry(k).or_insert(v);
     }
+    record.insert("disabled".into(), Value::Bool(disabled));
 }
 
 /// Go `json.NewEncoder(f).Encode(map)`: sorted keys, HTML-escaped strings, final newline.
@@ -837,20 +851,20 @@ pub async fn login(auth_dir: &Path, options: &LoginOptions) -> Result<PathBuf, E
     println!("Visit the following URL to continue authentication:\n{url}");
     println!("Waiting for Codex authentication callback...");
     let manual = async {
-        // Go offers a paste prompt after 15 seconds for remote/headless logins.
+        // Go offers one paste prompt after 15 seconds for remote/headless logins.
         tokio::time::sleep(Duration::from_secs(15)).await;
-        println!("Paste the Codex callback URL (or press Enter to keep waiting): ");
-        loop {
-            let line = tokio::task::spawn_blocking(|| {
+        match prompt_line(
+            "Paste the Codex callback URL (or press Enter to keep waiting): ",
+            || {
                 let mut line = String::new();
                 std::io::stdin().read_line(&mut line).map(|_| line)
-            })
-            .await;
-            match line {
-                Ok(Ok(line)) if line.trim().is_empty() => continue,
-                Ok(Ok(line)) => return parse_manual_callback(&line),
-                _ => std::future::pending::<()>().await,
-            }
+            },
+        )
+        .await
+        {
+            Ok(line) if line.trim().is_empty() => std::future::pending().await,
+            Ok(line) => parse_manual_callback(&line),
+            Err(_) => Err(oauth_error(400, "failed to read callback URL")),
         }
     };
     let callback = tokio::select! {
@@ -873,6 +887,24 @@ pub async fn login(auth_dir: &Path, options: &LoginOptions) -> Result<PathBuf, E
     tokio::task::spawn_blocking(move || write_login(&dir, &tokens))
         .await
         .map_err(|_| oauth_error(500, "credential publication failed"))?
+}
+
+/// One prompt on a detached OS thread (`misc.AsyncPrompt`). Unlike `spawn_blocking`, an
+/// abandoned read never keeps the runtime from shutting down once the callback wins.
+/// EOF yields the partial line, as Go's prompt does.
+async fn prompt_line(
+    prompt: &'static str,
+    read: impl FnOnce() -> std::io::Result<String> + Send + 'static,
+) -> std::io::Result<String> {
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    std::thread::spawn(move || {
+        use std::io::Write;
+        print!("{prompt}");
+        let _ = std::io::stdout().flush();
+        let _ = tx.send(read());
+    });
+    rx.await
+        .unwrap_or_else(|_| Err(std::io::Error::other("prompt thread ended")))
 }
 
 /// Device-code login (`-codex-device-login`).
