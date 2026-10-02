@@ -16,7 +16,6 @@ use std::sync::{Arc, Mutex, Weak};
 use std::time::{Duration, Instant};
 
 use bytes::Bytes;
-use cpa_core::config::Config;
 use cpa_core::exec::{ExecError, ExecRequest, ExecResponse, ExecSession, ExecStream, FailureScope, ResponseBody};
 use futures_util::stream::{SplitSink, SplitStream};
 use futures_util::{SinkExt, StreamExt};
@@ -49,7 +48,7 @@ const MAX_UPSTREAM_MESSAGE: usize = 64 * 1024 * 1024;
 struct Target {
     credential: String,
     url: String,
-    proxy: String,
+    proxy: crate::proxy::Proxy,
 }
 
 enum Read {
@@ -277,24 +276,6 @@ fn ws_url(http_url: &str) -> Result<String, ExecError> {
     }
     url.set_scheme(scheme).expect("ws schemes are valid");
     Ok(url.into())
-}
-
-/// `executionProxyURL`: credential proxy, then the global `requests.proxy-url`.
-// ponytail: adapter for the proxy-aware client (crates/cpa-exec/src/proxy.rs, Claude
-// thread). Only `direct`/`none` and plain proxy URLs are understood; no SOCKS auth
-// redaction or transport cache.
-fn proxy_url(view: &View<'_>, cfg: &Config) -> String {
-    let attr = view.attr("proxy_url").trim();
-    if !attr.is_empty() {
-        return attr.to_owned();
-    }
-    ["requests", "proxy-url"]
-        .iter()
-        .try_fold(&cfg.document, |v, k| v.get(*k))
-        .and_then(|v| v.as_str())
-        .unwrap_or_default()
-        .trim()
-        .to_owned()
 }
 
 /// `buildCodexWebsocketRequestBody`: every turn is a `response.create`.
@@ -626,21 +607,15 @@ impl CodexExecutor {
         headers: &HeaderMap,
         model_level_cooling: bool,
     ) -> Result<(WebSocket, HeaderMap), ExecError> {
-        let mut builder = self
-            .client
+        // `newProxyAwareWebsocketDialer`: Go's standard dialer, environment proxies
+        // included when none is configured.
+        let builder = self
+            .transport
+            .standard(&target.proxy)
             .websocket(&target.url)
             .headers(headers.clone())
             .max_frame_size(MAX_UPSTREAM_MESSAGE)
             .max_message_size(MAX_UPSTREAM_MESSAGE);
-        match target.proxy.as_str() {
-            "" => {}
-            p if p.eq_ignore_ascii_case("direct") || p.eq_ignore_ascii_case("none") => {}
-            p => {
-                let proxy =
-                    wreq::Proxy::all(p).map_err(|_| transport("codex websockets executor: invalid proxy URL"))?;
-                builder = builder.proxy(proxy);
-            }
-        }
         let attempt = async {
             let mut res = builder
                 .send()
@@ -687,7 +662,6 @@ impl CodexExecutor {
         &self,
         view: &View<'_>,
         settings: &Settings,
-        cfg: &Config,
         req: ExecRequest,
         exec_session: &ExecSession,
     ) -> Result<ExecResponse, ExecError> {
@@ -699,7 +673,7 @@ impl CodexExecutor {
         let target = Target {
             credential: view.credential.id.clone(),
             url: ws_url(&format!("{}/responses", view.base_url))?,
-            proxy: proxy_url(view, cfg),
+            proxy: view.proxy.clone(),
         };
         let session = self.ws.session(&exec_session.id);
         let guard = session.turn.clone().lock_owned().await;

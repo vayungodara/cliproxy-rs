@@ -85,13 +85,26 @@ async fn alpha_search_uses_policy_eligible_credential_and_passes_upstream_throug
         },
     ));
     let proxy = serve(router(rt)).await;
+    // Go selects with the route model: no credential registers this one (auth_not_found).
+    let unknown = wreq::Client::new()
+        .post(format!("{proxy}/backend-api/codex/alpha/search"))
+        .body(r#"{"id":"s-1","model":"gpt-5.4","query":"q"}"#)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(unknown.status().as_u16(), 503);
+    assert_eq!(
+        unknown.text().await.unwrap(),
+        r#"{"error":"auth_not_found: no auth available"}"#
+    );
+    assert!(seen.lock().unwrap().is_empty());
     let response = wreq::Client::new()
         .post(format!("{proxy}/backend-api/codex/alpha/search"))
         .header("user-agent", "codex_cli_rs/0.150.0")
         .header("version", "0.150.0")
         .header("session_id", "s-1")
         .header("authorization", "Bearer client-key-not-forwarded")
-        .body(r#"{"id":"s-1","model":"gpt-5.4","query":"rust <ws>","prompt_cache_key":"k","prompt_cache_retention":"24h"}"#)
+        .body(r#"{"id":"s-1","model":"gpt-5.5","query":"rust <ws>","prompt_cache_key":"k","prompt_cache_retention":"24h"}"#)
         .send()
         .await
         .unwrap();
@@ -104,7 +117,7 @@ async fn alpha_search_uses_policy_eligible_credential_and_passes_upstream_throug
     assert_eq!(path, "/backend-api/codex/alpha/search");
     assert_eq!(
         String::from_utf8_lossy(body),
-        r#"{"id":"s-1","model":"gpt-5.4","query":"rust \u003cws\u003e"}"#,
+        r#"{"id":"s-1","model":"gpt-5.5","query":"rust \u003cws\u003e"}"#,
         "prompt cache fields stripped with Go's map re-marshal"
     );
     assert_eq!(headers["authorization"], "Bearer at-FAKE", "client key never forwarded");

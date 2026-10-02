@@ -27,7 +27,8 @@ use crate::upstream::{into_response, transport_error};
 pub use crate::codex_request::DEFAULT_BASE_URL;
 
 pub struct CodexExecutor {
-    pub(crate) client: wreq::Client,
+    /// Chrome profile for chatgpt.com, Go's standard transport elsewhere, per proxy.
+    pub(crate) transport: crate::codex_tls::Transport,
     oauth: CodexOAuth,
     quota: Arc<QuotaSignals>,
     /// Upstream Responses WebSocket sockets per downstream session.
@@ -44,21 +45,27 @@ impl Default for CodexExecutor {
 }
 
 impl CodexExecutor {
-    // ponytail: one shared client without the Chrome uTLS profile Go uses for chatgpt.com
-    // or per-credential proxies. Swap in the proxy-aware client (crates/cpa-exec/src/proxy.rs,
-    // owned by the Claude thread) when it lands.
+    /// Production transports: uTLS Chrome for chatgpt.com, Go's standard transport
+    /// elsewhere, both per effective proxy (crate::proxy).
+    // ponytail: OAuth refresh uses the default client (environment proxies); Go routes it
+    // through the credential's or the global proxy (`NewCodexAuthWithProxyURL`).
     pub fn new() -> wreq::Result<Self> {
-        let client = wreq::Client::builder()
-            .redirect(wreq::redirect::Policy::none())
-            .build()?;
-        Ok(Self::with_client(client.clone(), CodexOAuth::new(client)))
+        Ok(Self::with_transport(
+            crate::codex_tls::Transport::new(crate::proxy::Hooks::default()),
+            CodexOAuth::new(crate::proxy::default_client()),
+        ))
     }
 
     /// Caller-built transports. Tests pass a plain client and an OAuth service pointed at
-    /// a local mock so nothing reaches OpenAI.
+    /// a local mock so nothing reaches OpenAI. Unproxied non-chatgpt.com requests use
+    /// `client`.
     pub fn with_client(client: wreq::Client, oauth: CodexOAuth) -> Self {
+        Self::with_transport(crate::codex_tls::Transport::with_default(client), oauth)
+    }
+
+    fn with_transport(transport: crate::codex_tls::Transport, oauth: CodexOAuth) -> Self {
         Self {
-            client,
+            transport,
             oauth,
             quota: Arc::default(),
             ws: Default::default(),
@@ -93,10 +100,10 @@ impl CodexExecutor {
         session: &ExecSession,
     ) -> Result<ExecResponse, ExecError> {
         check_response_format(&req)?;
-        let settings = Settings::from(cfg);
-        let view = View::new(credential);
+        let view = View::for_request(credential, cfg);
+        let settings = Settings::scoped(cfg, &view);
         if view.websockets() {
-            return self.stream_ws(&view, &settings, cfg, req, session).await;
+            return self.stream_ws(&view, &settings, req, session).await;
         }
         if session.continuation {
             return Err(ExecError::replay_required());
@@ -163,8 +170,8 @@ impl CodexExecutor {
             ));
         }
         check_response_format(&req)?;
-        let settings = Settings::from(cfg);
-        let view = View::new(credential);
+        let view = View::for_request(credential, cfg);
+        let settings = Settings::scoped(cfg, &view);
         match (req.alt.as_deref(), req.stream) {
             (Some("responses/compact"), true) => Err(ExecError::local(
                 400,
@@ -186,7 +193,8 @@ impl CodexExecutor {
         body: String,
     ) -> Result<ExecResponse, ExecError> {
         let res = self
-            .client
+            .transport
+            .for_url(&url, &view.proxy)
             .post(url)
             .redirect(wreq::redirect::Policy::none())
             .headers(headers)
@@ -315,8 +323,9 @@ impl CodexExecutor {
         body: &[u8],
         client: &HeaderMap,
         upstream_model: &str,
+        cfg: &Config,
     ) -> Result<ExecResponse, ExecError> {
-        let view = View::new(credential);
+        let view = View::for_request(credential, cfg);
         let mut body = sanitize_alpha_search(body);
         let url = if view.api_key {
             let base = view.attr("base_url").trim();
@@ -366,7 +375,8 @@ impl CodexExecutor {
         }
         headers.insert("accept-encoding", http::HeaderValue::from_static("gzip"));
         let res = self
-            .client
+            .transport
+            .for_url(&url, &view.proxy)
             .post(url)
             .redirect(wreq::redirect::Policy::none())
             .headers(headers)

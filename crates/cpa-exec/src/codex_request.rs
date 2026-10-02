@@ -32,9 +32,6 @@ pub(crate) enum Call {
 }
 
 /// Codex settings read from the config snapshot (v8 paths; legacy keys are already moved).
-// ponytail: Go scopes `oauth.providers.codex.*` written in v8 form to OAuth credentials
-// only (Config.OAuthOnlyFields). The shared Config does not record that presence yet, so
-// these apply to API keys too, as legacy-layout settings do in Go.
 #[derive(Debug, Clone, Default)]
 pub(crate) struct Settings {
     pub disable_cloaking: bool,
@@ -51,6 +48,16 @@ fn setting<'a>(cfg: &'a Config, path: &[&str]) -> Option<&'a serde_yaml_ng::Valu
 }
 
 impl Settings {
+    /// The settings `view`'s credential sees: API keys get Go's `ForAPIKey` view, where
+    /// `oauth.providers.codex.*` written in v8 form does not apply.
+    pub fn scoped(cfg: &Config, view: &View<'_>) -> Self {
+        if view.api_key {
+            Self::from(&cfg.for_api_key())
+        } else {
+            Self::from(cfg)
+        }
+    }
+
     pub fn from(cfg: &Config) -> Self {
         let codex = |k: &str| setting(cfg, &["oauth", "providers", "codex", k]);
         let flag = |k: &str| codex(k).and_then(|v| v.as_bool()).unwrap_or(false);
@@ -130,9 +137,19 @@ pub(crate) struct View<'a> {
     pub token: &'a str,
     pub api_key: bool,
     pub base_url: &'a str,
+    /// Effective proxy (`effectiveProxyURL`): the credential's, then `requests.proxy-url`.
+    pub proxy: crate::proxy::Proxy,
 }
 
 impl<'a> View<'a> {
+    /// The view one request uses, with its effective proxy.
+    pub fn for_request(credential: &'a Credential, cfg: &Config) -> Self {
+        Self {
+            proxy: crate::proxy::Proxy::effective(credential, cfg),
+            ..Self::new(credential)
+        }
+    }
+
     pub fn new(credential: &'a Credential) -> Self {
         let attr = |k: &str| credential.attributes.get(k).map(String::as_str).unwrap_or_default();
         let api_key = attr("api_key");
@@ -152,6 +169,7 @@ impl<'a> View<'a> {
             token,
             api_key: is_api_key,
             base_url: base_url.trim_end_matches('/'),
+            proxy: crate::proxy::Proxy::Inherit,
         }
     }
 
@@ -173,9 +191,8 @@ impl<'a> View<'a> {
             .unwrap_or(self.attr("plan_type"))
     }
 
-    /// `isCodexCloakingDisabled`: attribute, then the global setting.
-    // ponytail: Go also consults the matching `codex-api-key` config entry; the
-    // synthesizer already copies its value into `codex_disable_cloaking`.
+    /// `isCodexCloakingDisabled`: the attribute (config synthesis copies the matching
+    /// `codex-api-key` entry's `disable-codex-cloaking` into it), then the setting.
     pub fn cloaking_disabled(&self, settings: &Settings) -> bool {
         go_bool(self.attr("codex_disable_cloaking")).unwrap_or(settings.disable_cloaking)
     }

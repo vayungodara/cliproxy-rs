@@ -11,6 +11,7 @@ use std::path::Path;
 use axum::extract::State;
 use axum::extract::ws::{Message as AxMessage, WebSocket as AxSocket, WebSocketUpgrade};
 use axum::response::{IntoResponse, Response};
+use cpa_core::config::Config;
 use cpa_core::credential::Credential;
 use cpa_core::exec::{Caller, Operation};
 use cpa_core::format::Format;
@@ -302,7 +303,8 @@ async fn bootstrap_overload_fails_over_without_disconnect_notice() {
     const FAILED: &str = r#"{"type":"response.failed","response":{"id":"r1","error":{"code":"server_is_overloaded","message":"overloaded"}}}"#;
     let (_up, url) = upstream(vec![Act::Send(vec![CREATED, FAILED])]).await;
     let executor = CodexExecutor::new().unwrap();
-    let cfg = Config::parse("oauth:\n  providers:\n    codex:\n      stream-bootstrap-buffering: true\n").unwrap();
+    // Legacy top-level spelling: global, so it applies to this API key too.
+    let cfg = Config::parse("codex:\n  stream-bootstrap-buffering: true\n").unwrap();
     let error = executor
         .execute_in_session(&credential(&url), request(BODY), &cfg, &session(false))
         .await
@@ -387,24 +389,30 @@ async fn reader_failure_before_the_turn_activates_fails_the_turn() {
 }
 
 /// With model-level cooling, a usage-limit handshake rejection cools only the model
-/// (`newCodexStatusErrWithCooling`); without it, the whole credential.
+/// (`newCodexStatusErrWithCooling`); without it, the whole credential. API keys see
+/// `ForAPIKey`: the v8 `oauth.providers.codex` spelling is OAuth-only, the legacy
+/// top-level `codex` spelling stays global.
 #[tokio::test]
 async fn handshake_usage_limit_honours_model_level_cooling() {
     const LIMIT: &str = r#"{"error":{"type":"usage_limit_reached","message":"limit","resets_in_seconds":3600}}"#;
-    for (cooling, scope) in [(false, FailureScope::Credential), (true, FailureScope::Model)] {
+    for (yaml, scope) in [
+        ("{}\n", FailureScope::Credential),
+        ("codex:\n  model-level-cooling: true\n", FailureScope::Model),
+        (
+            "oauth:\n  providers:\n    codex:\n      model-level-cooling: true\n",
+            FailureScope::Credential,
+        ),
+    ] {
         let (up, url) = upstream(vec![]).await;
         *up.reject.lock().unwrap() = Some((429, LIMIT));
-        let cfg = Config::parse(&format!(
-            "oauth:\n  providers:\n    codex:\n      model-level-cooling: {cooling}\n"
-        ))
-        .unwrap();
+        let cfg = Config::parse(yaml).unwrap();
         let error = CodexExecutor::new()
             .unwrap()
             .execute_in_session(&credential(&url), request(BODY), &cfg, &session(false))
             .await
             .err()
             .expect("429 handshake");
-        assert_eq!((error.status, error.scope), (429, scope), "cooling {cooling}");
+        assert_eq!((error.status, error.scope), (429, scope), "{yaml}");
         assert_eq!(error.retry_after, Some(Duration::from_secs(3600)));
     }
 }

@@ -505,7 +505,7 @@ async fn alpha_search_reads_at_most_32_mib_whatever_the_status() {
     let cred = oauth_credential(&mock.url);
     for (status, expected) in [(200, ALPHA_SEARCH_MAX_RESPONSE), (500, error_body.len())] {
         let response = executor
-            .alpha_search(&cred, b"{}", &HeaderMap::new(), "")
+            .alpha_search(&cred, b"{}", &HeaderMap::new(), "", &Config::default())
             .await
             .unwrap();
         assert_eq!(response.status, status);

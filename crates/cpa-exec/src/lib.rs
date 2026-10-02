@@ -26,6 +26,7 @@ mod codex_request;
 mod codex_response;
 #[cfg(test)]
 mod codex_testkit;
+mod codex_tls;
 mod codex_ws;
 pub mod kimi;
 pub mod kimi_auth;
