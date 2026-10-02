@@ -162,7 +162,7 @@ impl KimiExecutor {
                 let restored = stream
                     .map(move |event| event.map(|e| restore_response_model(&e, &client_model)))
                     .boxed();
-                ResponseBody::Stream(kimi_replay::wrap_stream(restored, scope))
+                ResponseBody::Stream(crate::replay::wrap_stream(restored, scope))
             }
         };
         Ok(response)
