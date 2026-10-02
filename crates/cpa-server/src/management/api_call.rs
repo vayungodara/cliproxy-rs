@@ -15,13 +15,14 @@ use cpa_core::credential::Credential;
 use cpa_exec::proxy::{self, GoHeaders, Proxy, Route};
 use serde_json::{Map, Value, json};
 
-use super::auth_files::fail;
+use super::auth_files::{auth_kind, fail};
 use super::{Management, json as respond};
 
 const TIMEOUT: Duration = Duration::from_secs(60);
 /// ponytail: Go reads the upstream body without a bound; 64 MiB keeps a hostile
 /// upstream from exhausting a small VPS and covers every provider usage endpoint.
 const MAX_BODY: usize = 64 << 20;
+const MAX_HEADERS: usize = 16_384;
 
 /// The request body as Go's `apiCallRequest` decodes it.
 #[derive(Default)]
@@ -34,9 +35,37 @@ struct Request {
     data: String,
 }
 
+/// A top-level JSON object as its members in order, duplicates kept; `None` for null.
+struct Members(Option<Vec<(String, Value)>>);
+
+impl<'de> serde::Deserialize<'de> for Members {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        struct Visit;
+        impl<'de> serde::de::Visitor<'de> for Visit {
+            type Value = Members;
+            fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                f.write_str("an object or null")
+            }
+            fn visit_unit<E>(self) -> Result<Members, E> {
+                Ok(Members(None))
+            }
+            fn visit_map<A: serde::de::MapAccess<'de>>(self, mut map: A) -> Result<Members, A::Error> {
+                let mut out = Vec::new();
+                while let Some(entry) = map.next_entry::<String, Value>()? {
+                    out.push(entry);
+                }
+                Ok(Members(Some(out)))
+            }
+        }
+        d.deserialize_any(Visit)
+    }
+}
+
 /// gin `ShouldBindJSON` into `apiCallRequest`: the first JSON value only (trailing data
-/// is ignored), field names matched exactly first and then case-insensitively in
-/// struct order, a type mismatch anywhere fails the bind.
+/// is ignored); every member applied in order with field names matched exactly first
+/// and then case-insensitively in struct order; null leaves a string as it was, clears
+/// a pointer and nils the header map; a later header object merges into the map; any
+/// type mismatch fails the bind.
 fn decode(body: &[u8]) -> Option<Request> {
     const FIELDS: [&str; 8] = [
         "auth_index",
@@ -48,16 +77,11 @@ fn decode(body: &[u8]) -> Option<Request> {
         "header",
         "data",
     ];
-    let value = serde_json::Deserializer::from_slice(body)
-        .into_iter::<Value>()
+    let Members(members) = serde_json::Deserializer::from_slice(body)
+        .into_iter::<Members>()
         .next()?
         .ok()?;
     let mut req = Request::default();
-    let object = match value {
-        Value::Null => return Some(req),
-        Value::Object(o) => o,
-        _ => return None,
-    };
     let text = |v: &Value, slot: &mut String| -> Option<()> {
         match v {
             Value::String(s) => *slot = s.clone(),
@@ -66,38 +90,41 @@ fn decode(body: &[u8]) -> Option<Request> {
         }
         Some(())
     };
-    for (key, v) in &object {
+    for (key, v) in members.unwrap_or_default() {
         let field = FIELDS
             .iter()
-            .position(|f| f == key)
-            .or_else(|| FIELDS.iter().position(|f| f.eq_ignore_ascii_case(key)));
+            .position(|f| *f == key)
+            .or_else(|| FIELDS.iter().position(|f| f.eq_ignore_ascii_case(&key)));
         match field {
             Some(i @ 0..=2) => {
                 req.auth_index[i] = match v {
-                    Value::String(s) => Some(s.clone()),
+                    Value::String(s) => Some(s),
                     Value::Null => None,
                     _ => return None,
                 }
             }
-            Some(3) => text(v, &mut req.method)?,
-            Some(4) => text(v, &mut req.url)?,
-            Some(5) => text(v, &mut req.proxy_url)?,
-            Some(6) => {
-                req.header = match v {
-                    Value::Null => None,
-                    Value::Object(m) => Some(
-                        m.iter()
-                            .map(|(k, v)| match v {
-                                Value::String(s) => Some((k.clone(), s.clone())),
-                                Value::Null => Some((k.clone(), String::new())),
-                                _ => None,
-                            })
-                            .collect::<Option<_>>()?,
-                    ),
-                    _ => return None,
+            Some(3) => text(&v, &mut req.method)?,
+            Some(4) => text(&v, &mut req.url)?,
+            Some(5) => text(&v, &mut req.proxy_url)?,
+            Some(6) => match v {
+                Value::Null => req.header = None,
+                Value::Object(m) => {
+                    let header = req.header.get_or_insert_with(Vec::new);
+                    for (k, v) in m {
+                        let v = match v {
+                            Value::String(s) => s,
+                            Value::Null => String::new(),
+                            _ => return None,
+                        };
+                        match header.iter_mut().find(|(name, _)| *name == k) {
+                            Some(slot) => slot.1 = v,
+                            None => header.push((k, v)),
+                        }
+                    }
                 }
-            }
-            Some(7) => text(v, &mut req.data)?,
+                _ => return None,
+            },
+            Some(7) => text(&v, &mut req.data)?,
             _ => {}
         }
     }
@@ -142,36 +169,45 @@ fn token_for(c: &Credential) -> String {
         .unwrap_or_default()
 }
 
-/// Go `apiCallTransport`: the request's proxy, else the first usable of the
-/// credential's and the global proxy, else a direct connection (environment proxies
-/// are never used here).
-fn transport(state: &Management, credential: Option<&Credential>, request_proxy: &str) -> Proxy {
+/// Go `apiCallTransport`: the request's proxy (direct if it cannot be built), else
+/// the first buildable of the credential's own proxy, its API-key config entry's proxy
+/// and the global proxy, else a direct connection. Environment proxies are never
+/// used; `None` only if not even a direct client can be built.
+fn client_for(state: &Management, credential: Option<&Credential>, request_proxy: &str) -> Option<wreq::Client> {
+    let direct = || state.clients.try_get(&Proxy::Direct);
+    let build = |raw: &str| match Proxy::parse(raw) {
+        p @ (Proxy::Url(_) | Proxy::Direct) => state.clients.try_get(&p),
+        Proxy::Inherit | Proxy::Invalid => None,
+    };
     if !request_proxy.is_empty() {
-        return Proxy::parse(request_proxy);
+        return build(request_proxy).or_else(direct);
     }
     let cfg = state.rt.config();
-    let own = credential.and_then(|c| {
-        c.attributes
+    let mut candidates: Vec<String> = Vec::new();
+    if let Some(c) = credential {
+        let own = c
+            .attributes
             .get("proxy_url")
             .map(String::as_str)
             .or_else(|| c.str("proxy_url"))
-            .map(str::trim)
-            .filter(|p| !p.is_empty())
-            .map(str::to_owned)
-    });
+            .unwrap_or_default();
+        candidates.push(own.trim().to_owned());
+        if auth_kind(c) == Some("apikey") {
+            candidates.push(credentials::api_key_config_proxy(&cfg, c));
+        }
+    }
     let global = cfg
         .document
         .get("requests")
         .and_then(|r| r.get("proxy-url"))
         .and_then(serde_yaml_ng::Value::as_str)
-        .map(str::trim)
+        .unwrap_or_default();
+    candidates.push(global.trim().to_owned());
+    candidates
+        .iter()
         .filter(|p| !p.is_empty())
-        .map(str::to_owned);
-    own.into_iter()
-        .chain(global)
-        .map(|p| Proxy::parse(&p))
-        .find(|p| matches!(p, Proxy::Url(_) | Proxy::Direct))
-        .unwrap_or(Proxy::Direct)
+        .find_map(|p| build(p))
+        .or_else(direct)
 }
 
 pub(super) async fn api_call(State(state): State<Arc<Management>>, body: Bytes) -> Response {
@@ -247,6 +283,11 @@ pub(super) async fn api_call(State(state): State<Arc<Management>>, body: Bytes) 
     let Ok(method) = axum::http::Method::from_bytes(method.as_bytes()) else {
         return fail(StatusCode::BAD_REQUEST, "failed to build request");
     };
+    // ponytail: `http::HeaderMap` panics past 32768 entries where Go's map would not;
+    // such a request is refused instead of sent.
+    if headers.len() > MAX_HEADERS {
+        return fail(StatusCode::BAD_GATEWAY, "request failed");
+    }
     let mut go_headers = GoHeaders::new();
     for (key, value) in headers {
         if key.eq_ignore_ascii_case("host") {
@@ -258,9 +299,9 @@ pub(super) async fn api_call(State(state): State<Arc<Management>>, body: Bytes) 
         }
         go_headers.set(&key, value);
     }
-    let client = state
-        .clients
-        .get(&transport(&state, credential.as_deref(), &request_proxy));
+    let Some(client) = client_for(&state, credential.as_deref(), &request_proxy) else {
+        return fail(StatusCode::BAD_GATEWAY, "request failed");
+    };
     let body = (!req.data.is_empty()).then(|| Bytes::from(req.data));
     let upstream = proxy::send_request(
         &|_| {
@@ -281,8 +322,18 @@ pub(super) async fn api_call(State(state): State<Arc<Management>>, body: Bytes) 
         Err(_) => return fail(StatusCode::BAD_GATEWAY, "request failed"),
     };
     let status = upstream.status;
+    // Go's transport moves these out of `Response.Header`: `Transfer-Encoding` always,
+    // and a chunked response's `Trailer` declaration.
+    let chunked = upstream
+        .headers
+        .get_all("transfer-encoding")
+        .iter()
+        .any(|v| v.to_str().is_ok_and(|v| v.to_ascii_lowercase().contains("chunked")));
     let mut header: BTreeMap<String, Vec<Value>> = BTreeMap::new();
     for (name, value) in upstream.headers.iter() {
+        if name == "transfer-encoding" || (chunked && name == "trailer") {
+            continue;
+        }
         header
             .entry(proxy::canonical_header(name.as_str()))
             .or_default()
@@ -319,5 +370,24 @@ mod tests {
         assert_eq!(r.auth_index, [None, Some("c".into()), Some("p".into())]);
         assert_eq!(r.header.unwrap(), [("x".to_owned(), String::new())]);
         assert_eq!(decode(b"null").unwrap().method, "");
+        // Go applies every duplicate member: a type error anywhere fails, null keeps a
+        // string, header objects merge.
+        assert!(decode(br#"{"method":1,"method":"GET"}"#).is_none());
+        assert_eq!(decode(br#"{"method":"GET","method":null}"#).unwrap().method, "GET");
+        let merged = decode(br#"{"header":{"a":"1","b":"x"},"header":{"b":"2"}}"#).unwrap();
+        assert_eq!(
+            merged.header.unwrap(),
+            [("a".to_owned(), "1".to_owned()), ("b".to_owned(), "2".to_owned())]
+        );
+        assert!(
+            decode(br#"{"header":{"a":"1"},"header":null}"#)
+                .unwrap()
+                .header
+                .is_none()
+        );
+        assert_eq!(
+            decode(br#"{"auth_index":"x","auth_index":null}"#).unwrap().auth_index[0],
+            None
+        );
     }
 }

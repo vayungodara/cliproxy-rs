@@ -970,3 +970,44 @@ async fn usage_queue_pops_records_in_order() {
     assert_eq!(none, json!([]));
     server.abort();
 }
+
+/// api-call HEAD: Go's transport never asks for gzip on HEAD, so the upstream sees no
+/// Accept-Encoding and a gzip Content-Encoding on the answer is relayed untouched.
+#[tokio::test]
+async fn api_call_head_does_not_negotiate_gzip() {
+    use axum::http::{HeaderMap, HeaderValue};
+    let upstream = axum::Router::new().route(
+        "/h",
+        axum::routing::head(|headers: HeaderMap| async move {
+            let ae = headers
+                .get("accept-encoding")
+                .cloned()
+                .unwrap_or_else(|| HeaderValue::from_static("none"));
+            (
+                [("x-ae", ae), ("content-encoding", HeaderValue::from_static("gzip"))],
+                "",
+            )
+        }),
+    );
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let url = format!("http://{}/h", listener.local_addr().unwrap());
+    let up = tokio::spawn(async move { axum::serve(listener, upstream).await.unwrap() });
+    let f = Fixture::new("apihead");
+    let (base, server) = f.server().await;
+    let r: Value = wreq::Client::new()
+        .post(format!("{base}/v8/management/requests/api-call"))
+        .bearer_auth("fake-management-only")
+        .json(&json!({"method": "HEAD", "url": url}))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(r["status_code"], 200);
+    assert_eq!(r["header"]["X-Ae"], json!(["none"]));
+    assert_eq!(r["header"]["Content-Encoding"], json!(["gzip"]));
+    assert_eq!(r["body"], "");
+    server.abort();
+    up.abort();
+}

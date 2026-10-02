@@ -861,7 +861,7 @@ mod creds {
             }
             let _ = std::fs::remove_dir_all(&dir);
         }
-        assert_eq!(compared, 116);
+        assert_eq!(compared, 122);
     }
 
     /// Every file in the auth dir and the config, byte for byte.
@@ -1002,6 +1002,20 @@ mod echo {
     fn handle(own: &str, method: Method, uri: Uri, headers: HeaderMap, body: Bytes) -> Response {
         match uri.path() {
             "/redirect" => return (StatusCode::FOUND, [(header::LOCATION, "/echo?from=redirect")]).into_response(),
+            "/redirect307" => {
+                return (StatusCode::TEMPORARY_REDIRECT, [(header::LOCATION, "/echo?from=307")]).into_response();
+            }
+            "/chunked" => {
+                let parts = futures_util::stream::iter([
+                    Ok::<_, std::io::Error>(Bytes::from_static(b"part")),
+                    Ok(Bytes::from_static(b"two")),
+                ]);
+                return (
+                    [(header::CONTENT_TYPE, "text/plain"), (header::TRAILER, "X-Foo")],
+                    axum::body::Body::from_stream(parts),
+                )
+                    .into_response();
+            }
             "/status" => {
                 let mut res = (StatusCode::IM_A_TEAPOT, &b"teapot\xff"[..]).into_response();
                 let h = res.headers_mut();

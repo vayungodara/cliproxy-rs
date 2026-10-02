@@ -56,25 +56,25 @@
     "readme.txt": "not json"
    },
    "indexes": {
-    "C:\\dir\\mp-win.json": "9ab35647f055805c",
-    "claude-a.json": "5c088375a5d1a5f9",
+    "C:\\dir\\mp-win.json": "c52b951bf70c10c3",
+    "claude-a.json": "7776577fdc2363e2",
     "claude:apikey:ffd9585b206e": "669139aad0c86188",
-    "codex-b.json": "475bb0cd74676a7a",
-    "disabled-d.json": "dd1f9a56ec39c88d",
-    "expired-c.json": "4ddac557ac6b527f",
-    "fallback.json": "cbd6319ac3bdf655",
-    "gem.json": "8010cfd04dc7364f",
-    "mp-lf.json": "ea8d57358a4dbce0",
-    "mp-sp.json": "a063c2ad9f30a4ac",
-    "mp-star.json": "4b8e81a1c1e327f8",
-    "mp-z.json": "7c9fb6d98bbdcc97",
-    "mp;semi.json": "896df135f5d23e1b",
-    "new.json": "79808b4655cce660",
-    "raw-alias.json": "e4ee5b2b69dfce78",
-    "raw-flag.json": "8fdbfe0973f24978",
-    "raw-pretty.json": "4946735864ee16f7",
-    "retype.json": "c0d30ac8c4c7d5d1",
-    "up1.json": "710df840eb260983"
+    "codex-b.json": "38391a855d773bf0",
+    "disabled-d.json": "88b5ddc9a5329a4e",
+    "expired-c.json": "bbf88fa84bf96945",
+    "fallback.json": "f5f6ea9fc77174ad",
+    "gem.json": "39f87bce6dcb65d4",
+    "mp-lf.json": "5d7a9f576ccf77cb",
+    "mp-sp.json": "eb46c1d4cc826303",
+    "mp-star.json": "aa1ce65751380b53",
+    "mp-z.json": "01d540f9c7d8aad6",
+    "mp;semi.json": "a856ec5b068d1bf3",
+    "new.json": "36058b548b9b8b82",
+    "raw-alias.json": "7ead7bdf0bff4984",
+    "raw-flag.json": "6cb2de9c69574e28",
+    "raw-pretty.json": "77f9b28f5a3eccde",
+    "retype.json": "abd74b22fe78cc0d",
+    "up1.json": "dd984f17988309b4"
    },
    "steps": [
     {
@@ -86,15 +86,15 @@
        {
         "account": "a@example.invalid",
         "account_type": "oauth",
-        "auth_index": "5c088375a5d1a5f9",
+        "auth_index": "7776577fdc2363e2",
         "cooldowns": [],
-        "created_at": "2026-10-02T22:18:06.388628855Z",
+        "created_at": "2026-10-02T22:40:27.507008827Z",
         "disabled": false,
         "email": "a@example.invalid",
         "failed": 0,
         "id": "claude-a.json",
         "label": "a@example.invalid",
-        "modtime": "2026-10-02T22:18:06.384633949Z",
+        "modtime": "2026-10-02T22:40:27.504238858Z",
         "name": "claude-a.json",
         "note": "hi",
         "path": "/fixture-root/auth/claude-a.json",
@@ -110,21 +110,6 @@
          {
           "failed": 0,
           "success": 0,
-          "time": "19:00-19:10"
-         },
-         {
-          "failed": 0,
-          "success": 0,
-          "time": "19:10-19:20"
-         },
-         {
-          "failed": 0,
-          "success": 0,
-          "time": "19:20-19:30"
-         },
-         {
-          "failed": 0,
-          "success": 0,
           "time": "19:30-19:40"
          },
          {
@@ -206,6 +191,21 @@
           "failed": 0,
           "success": 0,
           "time": "22:10-22:20"
+         },
+         {
+          "failed": 0,
+          "success": 0,
+          "time": "22:20-22:30"
+         },
+         {
+          "failed": 0,
+          "success": 0,
+          "time": "22:30-22:40"
+         },
+         {
+          "failed": 0,
+          "success": 0,
+          "time": "22:40-22:50"
          }
         ],
         "runtime_only": false,
@@ -217,13 +217,13 @@
         "supports_quota": true,
         "type": "claude",
         "unavailable": false,
-        "updated_at": "2026-10-02T22:18:06.388785993Z"
+        "updated_at": "2026-10-02T22:40:27.507186129Z"
        },
        {
         "account_type": "oauth",
-        "auth_index": "475bb0cd74676a7a",
+        "auth_index": "38391a855d773bf0",
         "cooldowns": [],
-        "created_at": "2026-10-02T22:18:06.388628855Z",
+        "created_at": "2026-10-02T22:40:27.507008827Z",
         "disabled": false,
         "failed": 0,
         "id": "codex-b.json",
@@ -232,7 +232,7 @@
          "plan_type": "pro"
         },
         "label": "codex",
-        "modtime": "2026-10-02T22:18:06.384633949Z",
+        "modtime": "2026-10-02T22:40:27.504238858Z",
         "name": "codex-b.json",
         "path": "/fixture-root/auth/codex-b.json",
         "project_id": "proj",
@@ -244,21 +244,6 @@
          {
           "failed": 0,
           "success": 0,
-          "time": "19:00-19:10"
-         },
-         {
-          "failed": 0,
-          "success": 0,
-          "time": "19:10-19:20"
-         },
-         {
-          "failed": 0,
-          "success": 0,
-          "time": "19:20-19:30"
-         },
-         {
-          "failed": 0,
-          "success": 0,
           "time": "19:30-19:40"
          },
          {
@@ -340,6 +325,21 @@
           "failed": 0,
           "success": 0,
           "time": "22:10-22:20"
+         },
+         {
+          "failed": 0,
+          "success": 0,
+          "time": "22:20-22:30"
+         },
+         {
+          "failed": 0,
+          "success": 0,
+          "time": "22:30-22:40"
+         },
+         {
+          "failed": 0,
+          "success": 0,
+          "time": "22:40-22:50"
          }
         ],
         "request_retry": 3,
@@ -351,21 +351,21 @@
         "success": 0,
         "type": "codex",
         "unavailable": false,
-        "updated_at": "2026-10-02T22:18:06.38883176Z",
+        "updated_at": "2026-10-02T22:40:27.507220039Z",
         "websockets": true
        },
        {
         "account": "d@example.invalid",
         "account_type": "oauth",
-        "auth_index": "dd1f9a56ec39c88d",
+        "auth_index": "88b5ddc9a5329a4e",
         "cooldowns": [],
-        "created_at": "2026-10-02T22:18:06.388628855Z",
+        "created_at": "2026-10-02T22:40:27.507008827Z",
         "disabled": true,
         "email": "d@example.invalid",
         "failed": 0,
         "id": "disabled-d.json",
         "label": "d@example.invalid",
-        "modtime": "2026-10-02T22:18:06.384633949Z",
+        "modtime": "2026-10-02T22:40:27.504238858Z",
         "name": "disabled-d.json",
         "path": "/fixture-root/auth/disabled-d.json",
         "provider": "claude",
@@ -376,21 +376,6 @@
          {
           "failed": 0,
           "success": 0,
-          "time": "19:00-19:10"
-         },
-         {
-          "failed": 0,
-          "success": 0,
-          "time": "19:10-19:20"
-         },
-         {
-          "failed": 0,
-          "success": 0,
-          "time": "19:20-19:30"
-         },
-         {
-          "failed": 0,
-          "success": 0,
           "time": "19:30-19:40"
          },
          {
@@ -472,6 +457,21 @@
           "failed": 0,
           "success": 0,
           "time": "22:10-22:20"
+         },
+         {
+          "failed": 0,
+          "success": 0,
+          "time": "22:20-22:30"
+         },
+         {
+          "failed": 0,
+          "success": 0,
+          "time": "22:30-22:40"
+         },
+         {
+          "failed": 0,
+          "success": 0,
+          "time": "22:40-22:50"
          }
         ],
         "runtime_only": false,
@@ -482,18 +482,18 @@
         "success": 0,
         "type": "claude",
         "unavailable": false,
-        "updated_at": "2026-10-02T22:18:06.388852638Z"
+        "updated_at": "2026-10-02T22:40:27.507232175Z"
        },
        {
         "account_type": "oauth",
-        "auth_index": "4ddac557ac6b527f",
+        "auth_index": "bbf88fa84bf96945",
         "cooldowns": [],
-        "created_at": "2026-10-02T22:18:06.388628855Z",
+        "created_at": "2026-10-02T22:40:27.507008827Z",
         "disabled": false,
         "failed": 0,
         "id": "expired-c.json",
         "label": "claude",
-        "modtime": "2026-10-02T22:18:06.384633949Z",
+        "modtime": "2026-10-02T22:40:27.504238858Z",
         "name": "expired-c.json",
         "path": "/fixture-root/auth/expired-c.json",
         "provider": "claude",
@@ -501,21 +501,6 @@
          "signals": {}
         },
         "recent_requests": [
-         {
-          "failed": 0,
-          "success": 0,
-          "time": "19:00-19:10"
-         },
-         {
-          "failed": 0,
-          "success": 0,
-          "time": "19:10-19:20"
-         },
-         {
-          "failed": 0,
-          "success": 0,
-          "time": "19:20-19:30"
-         },
          {
           "failed": 0,
           "success": 0,
@@ -600,6 +585,21 @@
           "failed": 0,
           "success": 0,
           "time": "22:10-22:20"
+         },
+         {
+          "failed": 0,
+          "success": 0,
+          "time": "22:20-22:30"
+         },
+         {
+          "failed": 0,
+          "success": 0,
+          "time": "22:30-22:40"
+         },
+         {
+          "failed": 0,
+          "success": 0,
+          "time": "22:40-22:50"
          }
         ],
         "runtime_only": false,
@@ -610,11 +610,11 @@
         "success": 0,
         "type": "claude",
         "unavailable": true,
-        "updated_at": "2026-10-02T22:18:06.388860497Z",
+        "updated_at": "2026-10-02T22:40:27.507239429Z",
         "weight": 2
        }
       ],
-      "observed_at": "2026-10-02T22:18:06.39110587Z"
+      "observed_at": "2026-10-02T22:40:27.509508464Z"
      },
      "resp_headers": {
       "Content-Type": "application/json; charset=utf-8"
@@ -671,7 +671,7 @@
        }
       ],
       "remote-management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       }
      }
     },
@@ -684,15 +684,15 @@
        {
         "account": "a@example.invalid",
         "account_type": "oauth",
-        "auth_index": "5c088375a5d1a5f9",
+        "auth_index": "7776577fdc2363e2",
         "cooldowns": [],
-        "created_at": "2026-10-02T22:18:06.388628855Z",
+        "created_at": "2026-10-02T22:40:27.507008827Z",
         "disabled": false,
         "email": "a@example.invalid",
         "failed": 0,
         "id": "claude-a.json",
         "label": "a@example.invalid",
-        "modtime": "2026-10-02T22:18:06.384633949Z",
+        "modtime": "2026-10-02T22:40:27.504238858Z",
         "name": "claude-a.json",
         "note": "hi",
         "path": "/fixture-root/auth/claude-a.json",
@@ -708,21 +708,6 @@
          {
           "failed": 0,
           "success": 0,
-          "time": "19:00-19:10"
-         },
-         {
-          "failed": 0,
-          "success": 0,
-          "time": "19:10-19:20"
-         },
-         {
-          "failed": 0,
-          "success": 0,
-          "time": "19:20-19:30"
-         },
-         {
-          "failed": 0,
-          "success": 0,
           "time": "19:30-19:40"
          },
          {
@@ -804,6 +789,21 @@
           "failed": 0,
           "success": 0,
           "time": "22:10-22:20"
+         },
+         {
+          "failed": 0,
+          "success": 0,
+          "time": "22:20-22:30"
+         },
+         {
+          "failed": 0,
+          "success": 0,
+          "time": "22:30-22:40"
+         },
+         {
+          "failed": 0,
+          "success": 0,
+          "time": "22:40-22:50"
          }
         ],
         "runtime_only": false,
@@ -815,10 +815,10 @@
         "supports_quota": true,
         "type": "claude",
         "unavailable": false,
-        "updated_at": "2026-10-02T22:18:06.388785993Z"
+        "updated_at": "2026-10-02T22:40:27.507186129Z"
        }
       ],
-      "observed_at": "2026-10-02T22:18:06.39271146Z"
+      "observed_at": "2026-10-02T22:40:27.511164949Z"
      },
      "resp_headers": {
       "Content-Type": "application/json; charset=utf-8"
@@ -875,7 +875,7 @@
        }
       ],
       "remote-management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       }
      }
     },
@@ -887,9 +887,9 @@
       "files": [
        {
         "account_type": "oauth",
-        "auth_index": "475bb0cd74676a7a",
+        "auth_index": "38391a855d773bf0",
         "cooldowns": [],
-        "created_at": "2026-10-02T22:18:06.388628855Z",
+        "created_at": "2026-10-02T22:40:27.507008827Z",
         "disabled": false,
         "failed": 0,
         "id": "codex-b.json",
@@ -898,7 +898,7 @@
          "plan_type": "pro"
         },
         "label": "codex",
-        "modtime": "2026-10-02T22:18:06.384633949Z",
+        "modtime": "2026-10-02T22:40:27.504238858Z",
         "name": "codex-b.json",
         "path": "/fixture-root/auth/codex-b.json",
         "project_id": "proj",
@@ -907,21 +907,6 @@
          "signals": {}
         },
         "recent_requests": [
-         {
-          "failed": 0,
-          "success": 0,
-          "time": "19:00-19:10"
-         },
-         {
-          "failed": 0,
-          "success": 0,
-          "time": "19:10-19:20"
-         },
-         {
-          "failed": 0,
-          "success": 0,
-          "time": "19:20-19:30"
-         },
          {
           "failed": 0,
           "success": 0,
@@ -1006,6 +991,21 @@
           "failed": 0,
           "success": 0,
           "time": "22:10-22:20"
+         },
+         {
+          "failed": 0,
+          "success": 0,
+          "time": "22:20-22:30"
+         },
+         {
+          "failed": 0,
+          "success": 0,
+          "time": "22:30-22:40"
+         },
+         {
+          "failed": 0,
+          "success": 0,
+          "time": "22:40-22:50"
          }
         ],
         "request_retry": 3,
@@ -1017,11 +1017,11 @@
         "success": 0,
         "type": "codex",
         "unavailable": false,
-        "updated_at": "2026-10-02T22:18:06.38883176Z",
+        "updated_at": "2026-10-02T22:40:27.507220039Z",
         "websockets": true
        }
       ],
-      "observed_at": "2026-10-02T22:18:06.394053853Z"
+      "observed_at": "2026-10-02T22:40:27.512539072Z"
      },
      "resp_headers": {
       "Content-Type": "application/json; charset=utf-8"
@@ -1078,7 +1078,7 @@
        }
       ],
       "remote-management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       }
      }
     },
@@ -1088,7 +1088,7 @@
      "status": 200,
      "response": {
       "files": [],
-      "observed_at": "2026-10-02T22:18:06.395440205Z"
+      "observed_at": "2026-10-02T22:40:27.513903279Z"
      },
      "resp_headers": {
       "Content-Type": "application/json; charset=utf-8"
@@ -1145,7 +1145,7 @@
        }
       ],
       "remote-management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       }
      }
     },
@@ -1158,15 +1158,15 @@
        {
         "account": "d@example.invalid",
         "account_type": "oauth",
-        "auth_index": "dd1f9a56ec39c88d",
+        "auth_index": "88b5ddc9a5329a4e",
         "cooldowns": [],
-        "created_at": "2026-10-02T22:18:06.388628855Z",
+        "created_at": "2026-10-02T22:40:27.507008827Z",
         "disabled": true,
         "email": "d@example.invalid",
         "failed": 0,
         "id": "disabled-d.json",
         "label": "d@example.invalid",
-        "modtime": "2026-10-02T22:18:06.384633949Z",
+        "modtime": "2026-10-02T22:40:27.504238858Z",
         "name": "disabled-d.json",
         "path": "/fixture-root/auth/disabled-d.json",
         "provider": "claude",
@@ -1177,21 +1177,6 @@
          {
           "failed": 0,
           "success": 0,
-          "time": "19:00-19:10"
-         },
-         {
-          "failed": 0,
-          "success": 0,
-          "time": "19:10-19:20"
-         },
-         {
-          "failed": 0,
-          "success": 0,
-          "time": "19:20-19:30"
-         },
-         {
-          "failed": 0,
-          "success": 0,
           "time": "19:30-19:40"
          },
          {
@@ -1273,6 +1258,21 @@
           "failed": 0,
           "success": 0,
           "time": "22:10-22:20"
+         },
+         {
+          "failed": 0,
+          "success": 0,
+          "time": "22:20-22:30"
+         },
+         {
+          "failed": 0,
+          "success": 0,
+          "time": "22:30-22:40"
+         },
+         {
+          "failed": 0,
+          "success": 0,
+          "time": "22:40-22:50"
          }
         ],
         "runtime_only": false,
@@ -1283,18 +1283,18 @@
         "success": 0,
         "type": "claude",
         "unavailable": false,
-        "updated_at": "2026-10-02T22:18:06.388852638Z"
+        "updated_at": "2026-10-02T22:40:27.507232175Z"
        },
        {
         "account_type": "oauth",
-        "auth_index": "4ddac557ac6b527f",
+        "auth_index": "bbf88fa84bf96945",
         "cooldowns": [],
-        "created_at": "2026-10-02T22:18:06.388628855Z",
+        "created_at": "2026-10-02T22:40:27.507008827Z",
         "disabled": false,
         "failed": 0,
         "id": "expired-c.json",
         "label": "claude",
-        "modtime": "2026-10-02T22:18:06.384633949Z",
+        "modtime": "2026-10-02T22:40:27.504238858Z",
         "name": "expired-c.json",
         "path": "/fixture-root/auth/expired-c.json",
         "provider": "claude",
@@ -1302,21 +1302,6 @@
          "signals": {}
         },
         "recent_requests": [
-         {
-          "failed": 0,
-          "success": 0,
-          "time": "19:00-19:10"
-         },
-         {
-          "failed": 0,
-          "success": 0,
-          "time": "19:10-19:20"
-         },
-         {
-          "failed": 0,
-          "success": 0,
-          "time": "19:20-19:30"
-         },
          {
           "failed": 0,
           "success": 0,
@@ -1401,6 +1386,21 @@
           "failed": 0,
           "success": 0,
           "time": "22:10-22:20"
+         },
+         {
+          "failed": 0,
+          "success": 0,
+          "time": "22:20-22:30"
+         },
+         {
+          "failed": 0,
+          "success": 0,
+          "time": "22:30-22:40"
+         },
+         {
+          "failed": 0,
+          "success": 0,
+          "time": "22:40-22:50"
          }
         ],
         "runtime_only": false,
@@ -1411,12 +1411,12 @@
         "success": 0,
         "type": "claude",
         "unavailable": true,
-        "updated_at": "2026-10-02T22:18:06.388860497Z",
+        "updated_at": "2026-10-02T22:40:27.507239429Z",
         "weight": 2
        }
       ],
       "has_more": false,
-      "observed_at": "2026-10-02T22:18:06.397636588Z",
+      "observed_at": "2026-10-02T22:40:27.515356212Z",
       "page": 2,
       "page_size": 2,
       "total": 4
@@ -1476,7 +1476,7 @@
        }
       ],
       "remote-management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       }
      }
     },
@@ -1542,7 +1542,7 @@
        }
       ],
       "remote-management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       }
      }
     },
@@ -1608,7 +1608,7 @@
        }
       ],
       "remote-management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       }
      }
     },
@@ -1674,7 +1674,7 @@
        }
       ],
       "remote-management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       }
      }
     },
@@ -1739,7 +1739,7 @@
        }
       ],
       "remote-management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       }
      }
     },
@@ -1804,7 +1804,7 @@
        }
       ],
       "remote-management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       }
      }
     },
@@ -1869,7 +1869,7 @@
        }
       ],
       "remote-management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       }
      }
     },
@@ -1934,7 +1934,7 @@
        }
       ],
       "remote-management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       }
      }
     },
@@ -2003,7 +2003,7 @@
        }
       ],
       "remote-management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       }
      }
     },
@@ -2071,7 +2071,7 @@
        }
       ],
       "remote-management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       }
      }
     },
@@ -2139,7 +2139,7 @@
        }
       ],
       "remote-management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       }
      }
     },
@@ -2207,7 +2207,7 @@
        }
       ],
       "remote-management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       }
      }
     },
@@ -2275,7 +2275,7 @@
        }
       ],
       "remote-management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       }
      }
     },
@@ -2343,7 +2343,7 @@
        }
       ],
       "remote-management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       }
      }
     },
@@ -2448,7 +2448,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -2592,7 +2592,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -2736,7 +2736,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -2880,7 +2880,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -3024,7 +3024,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -3168,7 +3168,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -3312,7 +3312,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -3456,7 +3456,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -3501,9 +3501,9 @@
       "files": [
        {
         "account_type": "oauth",
-        "auth_index": "475bb0cd74676a7a",
+        "auth_index": "38391a855d773bf0",
         "cooldowns": [],
-        "created_at": "2026-10-02T22:18:06.388628855Z",
+        "created_at": "2026-10-02T22:40:27.507008827Z",
         "disabled": false,
         "failed": 0,
         "id": "codex-b.json",
@@ -3512,7 +3512,7 @@
          "plan_type": "pro"
         },
         "label": "codex",
-        "modtime": "2026-10-02T22:18:06.420634476Z",
+        "modtime": "2026-10-02T22:40:27.544239442Z",
         "name": "codex-b.json",
         "note": "n",
         "path": "/fixture-root/auth/codex-b.json",
@@ -3523,21 +3523,6 @@
          "signals": {}
         },
         "recent_requests": [
-         {
-          "failed": 0,
-          "success": 0,
-          "time": "19:00-19:10"
-         },
-         {
-          "failed": 0,
-          "success": 0,
-          "time": "19:10-19:20"
-         },
-         {
-          "failed": 0,
-          "success": 0,
-          "time": "19:20-19:30"
-         },
          {
           "failed": 0,
           "success": 0,
@@ -3622,6 +3607,21 @@
           "failed": 0,
           "success": 0,
           "time": "22:10-22:20"
+         },
+         {
+          "failed": 0,
+          "success": 0,
+          "time": "22:20-22:30"
+         },
+         {
+          "failed": 0,
+          "success": 0,
+          "time": "22:30-22:40"
+         },
+         {
+          "failed": 0,
+          "success": 0,
+          "time": "22:40-22:50"
          }
         ],
         "runtime_only": false,
@@ -3632,12 +3632,12 @@
         "success": 0,
         "type": "codex",
         "unavailable": false,
-        "updated_at": "2026-10-02T22:18:06.425050343Z",
+        "updated_at": "2026-10-02T22:40:27.546657246Z",
         "websockets": true,
         "weight": 3
        }
       ],
-      "observed_at": "2026-10-02T22:18:06.429625341Z"
+      "observed_at": "2026-10-02T22:40:27.551194136Z"
      },
      "resp_headers": {
       "Content-Type": "application/json; charset=utf-8"
@@ -3738,7 +3738,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -3887,7 +3887,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -4036,7 +4036,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -4185,7 +4185,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -4334,7 +4334,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -4499,7 +4499,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -4654,7 +4654,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -4809,7 +4809,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -4968,7 +4968,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -5131,7 +5131,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -5298,7 +5298,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -5469,7 +5469,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -5640,7 +5640,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -5811,7 +5811,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -5982,7 +5982,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -6153,7 +6153,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -6324,7 +6324,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -6495,7 +6495,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -6665,7 +6665,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -6836,7 +6836,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -7007,7 +7007,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -7178,7 +7178,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -7349,7 +7349,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -7520,7 +7520,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -7705,7 +7705,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -7880,7 +7880,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -8055,7 +8055,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -8230,7 +8230,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -8405,7 +8405,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -8580,7 +8580,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -8755,7 +8755,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -8934,7 +8934,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -8980,15 +8980,15 @@
        {
         "account": "n@example.invalid",
         "account_type": "oauth",
-        "auth_index": "79808b4655cce660",
+        "auth_index": "36058b548b9b8b82",
         "cooldowns": [],
-        "created_at": "2026-10-02T22:18:06.431125339Z",
+        "created_at": "2026-10-02T22:40:27.552782555Z",
         "disabled": false,
         "email": "n@example.invalid",
         "failed": 0,
         "id": "new.json",
         "label": "n@example.invalid",
-        "modtime": "2026-10-02T22:18:06.428634592Z",
+        "modtime": "2026-10-02T22:40:27.548239501Z",
         "name": "new.json",
         "path": "/fixture-root/auth/new.json",
         "provider": "claude",
@@ -8996,21 +8996,6 @@
          "signals": {}
         },
         "recent_requests": [
-         {
-          "failed": 0,
-          "success": 0,
-          "time": "19:00-19:10"
-         },
-         {
-          "failed": 0,
-          "success": 0,
-          "time": "19:10-19:20"
-         },
-         {
-          "failed": 0,
-          "success": 0,
-          "time": "19:20-19:30"
-         },
          {
           "failed": 0,
           "success": 0,
@@ -9095,6 +9080,21 @@
           "failed": 0,
           "success": 0,
           "time": "22:10-22:20"
+         },
+         {
+          "failed": 0,
+          "success": 0,
+          "time": "22:20-22:30"
+         },
+         {
+          "failed": 0,
+          "success": 0,
+          "time": "22:30-22:40"
+         },
+         {
+          "failed": 0,
+          "success": 0,
+          "time": "22:40-22:50"
          }
         ],
         "runtime_only": false,
@@ -9105,10 +9105,10 @@
         "success": 0,
         "type": "claude",
         "unavailable": false,
-        "updated_at": "2026-10-02T22:18:06.431174918Z"
+        "updated_at": "2026-10-02T22:40:27.552865063Z"
        }
       ],
-      "observed_at": "2026-10-02T22:18:06.477951045Z"
+      "observed_at": "2026-10-02T22:40:27.607729966Z"
      },
      "resp_headers": {
       "Content-Type": "application/json; charset=utf-8"
@@ -9243,7 +9243,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -9429,7 +9429,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -9621,7 +9621,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -9818,7 +9818,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -10023,7 +10023,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -10069,15 +10069,15 @@
        {
         "account": "f@example.invalid",
         "account_type": "oauth",
-        "auth_index": "cbd6319ac3bdf655",
+        "auth_index": "f5f6ea9fc77174ad",
         "cooldowns": [],
-        "created_at": "2026-10-02T22:18:06.485353345Z",
+        "created_at": "2026-10-02T22:40:27.615388879Z",
         "disabled": false,
         "email": "f@example.invalid",
         "failed": 0,
         "id": "fallback.json",
         "label": "f@example.invalid",
-        "modtime": "2026-10-02T22:18:06.480635352Z",
+        "modtime": "2026-10-02T22:40:27.612240436Z",
         "name": "fallback.json",
         "note": "n",
         "path": "/fixture-root/auth/fallback.json",
@@ -10086,21 +10086,6 @@
          "signals": {}
         },
         "recent_requests": [
-         {
-          "failed": 0,
-          "success": 0,
-          "time": "19:00-19:10"
-         },
-         {
-          "failed": 0,
-          "success": 0,
-          "time": "19:10-19:20"
-         },
-         {
-          "failed": 0,
-          "success": 0,
-          "time": "19:20-19:30"
-         },
          {
           "failed": 0,
           "success": 0,
@@ -10185,6 +10170,21 @@
           "failed": 0,
           "success": 0,
           "time": "22:10-22:20"
+         },
+         {
+          "failed": 0,
+          "success": 0,
+          "time": "22:20-22:30"
+         },
+         {
+          "failed": 0,
+          "success": 0,
+          "time": "22:30-22:40"
+         },
+         {
+          "failed": 0,
+          "success": 0,
+          "time": "22:40-22:50"
          }
         ],
         "runtime_only": false,
@@ -10195,10 +10195,10 @@
         "success": 0,
         "type": "unknown",
         "unavailable": false,
-        "updated_at": "2026-10-02T22:18:06.485384693Z"
+        "updated_at": "2026-10-02T22:40:27.615429398Z"
        }
       ],
-      "observed_at": "2026-10-02T22:18:06.486963997Z"
+      "observed_at": "2026-10-02T22:40:27.617066116Z"
      },
      "resp_headers": {
       "Content-Type": "application/json; charset=utf-8"
@@ -10360,7 +10360,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -10566,7 +10566,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -10612,15 +10612,15 @@
        {
         "account": "f@example.invalid",
         "account_type": "oauth",
-        "auth_index": "cbd6319ac3bdf655",
+        "auth_index": "f5f6ea9fc77174ad",
         "cooldowns": [],
-        "created_at": "2026-10-02T22:18:06.485353345Z",
+        "created_at": "2026-10-02T22:40:27.615388879Z",
         "disabled": true,
         "email": "f@example.invalid",
         "failed": 0,
         "id": "fallback.json",
         "label": "f@example.invalid",
-        "modtime": "2026-10-02T22:18:06.484635411Z",
+        "modtime": "2026-10-02T22:40:27.616240494Z",
         "name": "fallback.json",
         "note": "n",
         "path": "/fixture-root/auth/fallback.json",
@@ -10629,21 +10629,6 @@
          "signals": {}
         },
         "recent_requests": [
-         {
-          "failed": 0,
-          "success": 0,
-          "time": "19:00-19:10"
-         },
-         {
-          "failed": 0,
-          "success": 0,
-          "time": "19:10-19:20"
-         },
-         {
-          "failed": 0,
-          "success": 0,
-          "time": "19:20-19:30"
-         },
          {
           "failed": 0,
           "success": 0,
@@ -10728,6 +10713,21 @@
           "failed": 0,
           "success": 0,
           "time": "22:10-22:20"
+         },
+         {
+          "failed": 0,
+          "success": 0,
+          "time": "22:20-22:30"
+         },
+         {
+          "failed": 0,
+          "success": 0,
+          "time": "22:30-22:40"
+         },
+         {
+          "failed": 0,
+          "success": 0,
+          "time": "22:40-22:50"
          }
         ],
         "runtime_only": false,
@@ -10738,10 +10738,10 @@
         "success": 0,
         "type": "unknown",
         "unavailable": false,
-        "updated_at": "2026-10-02T22:18:06.488559578Z"
+        "updated_at": "2026-10-02T22:40:27.618790576Z"
        }
       ],
-      "observed_at": "2026-10-02T22:18:06.490105389Z"
+      "observed_at": "2026-10-02T22:40:27.620466102Z"
      },
      "resp_headers": {
       "Content-Type": "application/json; charset=utf-8"
@@ -10903,7 +10903,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -11113,7 +11113,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -11159,15 +11159,15 @@
        {
         "account": "g@example.invalid",
         "account_type": "oauth",
-        "auth_index": "8010cfd04dc7364f",
+        "auth_index": "39f87bce6dcb65d4",
         "cooldowns": [],
-        "created_at": "2026-10-02T22:18:06.491704772Z",
+        "created_at": "2026-10-02T22:40:27.622181456Z",
         "disabled": false,
         "email": "g@example.invalid",
         "failed": 0,
         "id": "gem.json",
         "label": "g@example.invalid",
-        "modtime": "2026-10-02T22:18:06.48863547Z",
+        "modtime": "2026-10-02T22:40:27.616240494Z",
         "name": "gem.json",
         "path": "/fixture-root/auth/gem.json",
         "provider": "gemini",
@@ -11175,21 +11175,6 @@
          "signals": {}
         },
         "recent_requests": [
-         {
-          "failed": 0,
-          "success": 0,
-          "time": "19:00-19:10"
-         },
-         {
-          "failed": 0,
-          "success": 0,
-          "time": "19:10-19:20"
-         },
-         {
-          "failed": 0,
-          "success": 0,
-          "time": "19:20-19:30"
-         },
          {
           "failed": 0,
           "success": 0,
@@ -11274,6 +11259,21 @@
           "failed": 0,
           "success": 0,
           "time": "22:10-22:20"
+         },
+         {
+          "failed": 0,
+          "success": 0,
+          "time": "22:20-22:30"
+         },
+         {
+          "failed": 0,
+          "success": 0,
+          "time": "22:30-22:40"
+         },
+         {
+          "failed": 0,
+          "success": 0,
+          "time": "22:40-22:50"
          }
         ],
         "runtime_only": false,
@@ -11284,10 +11284,10 @@
         "success": 0,
         "type": "gemini",
         "unavailable": false,
-        "updated_at": "2026-10-02T22:18:06.491737015Z"
+        "updated_at": "2026-10-02T22:40:27.622234998Z"
        }
       ],
-      "observed_at": "2026-10-02T22:18:06.49327366Z"
+      "observed_at": "2026-10-02T22:40:27.624014866Z"
      },
      "resp_headers": {
       "Content-Type": "application/json; charset=utf-8"
@@ -11454,7 +11454,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -11655,7 +11655,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -11698,7 +11698,7 @@
      "status": 200,
      "response": {
       "files": [],
-      "observed_at": "2026-10-02T22:18:06.496496194Z"
+      "observed_at": "2026-10-02T22:40:27.627353407Z"
      },
      "resp_headers": {
       "Content-Type": "application/json; charset=utf-8"
@@ -11857,7 +11857,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -12059,7 +12059,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -12261,7 +12261,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -12468,7 +12468,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -12675,7 +12675,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -12876,7 +12876,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -13072,7 +13072,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -13274,7 +13274,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -13466,7 +13466,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -13657,7 +13657,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -13700,7 +13700,7 @@
      "body": "{\"auth_index\":\"$INDEX(claude-a.json)\"}",
      "status": 200,
      "response": {
-      "auth_index": "5c088375a5d1a5f9",
+      "auth_index": "7776577fdc2363e2",
       "models": [],
       "status": "ok"
      },
@@ -13851,7 +13851,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -14043,7 +14043,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -14235,7 +14235,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -14882,7 +14882,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -15403,7 +15403,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -15595,7 +15595,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -15787,7 +15787,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -15979,7 +15979,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -16073,7 +16073,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -16116,7 +16116,7 @@
      "status": 200,
      "response": {
       "files": [],
-      "observed_at": "2026-10-02T22:18:06.528709328Z"
+      "observed_at": "2026-10-02T22:40:27.661318189Z"
      },
      "resp_headers": {
       "Content-Type": "application/json; charset=utf-8"
@@ -16167,7 +16167,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth",
@@ -16215,11 +16215,11 @@
     "quote.json": "{\"type\":\"claude\",\"access_token\":\"a\\\"b\u003cc\"}"
    },
    "indexes": {
-    "claude-a.json": "b75ecbc8e03c893a",
+    "claude-a.json": "bb447ffdf875fbec",
     "claude:apikey:359223db5a5c": "0b09d307c25b488e",
-    "empty.json": "2cb7d42a4049dc4e",
+    "empty.json": "9566afb17653a5c8",
     "openai-compatibility:compat-one:011769097d6d": "37c7b4186ec1ea33",
-    "quote.json": "2bea14aa41b9bc33"
+    "quote.json": "7ab3a365705bcbb7"
    },
    "steps": [
     {
@@ -16286,7 +16286,7 @@
       },
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth"
@@ -16358,7 +16358,7 @@
       },
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth"
@@ -16430,7 +16430,7 @@
       },
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth"
@@ -16502,7 +16502,7 @@
       },
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth"
@@ -16574,7 +16574,7 @@
       },
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth"
@@ -16646,7 +16646,7 @@
       },
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth"
@@ -16718,7 +16718,7 @@
       },
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth"
@@ -16790,7 +16790,7 @@
       },
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth"
@@ -16862,7 +16862,7 @@
       },
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth"
@@ -16934,7 +16934,7 @@
       },
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth"
@@ -17006,7 +17006,7 @@
       },
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth"
@@ -17078,7 +17078,7 @@
       },
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth"
@@ -17150,7 +17150,7 @@
       },
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth"
@@ -17172,7 +17172,7 @@
         "application/json"
        ],
        "Date": [
-        "Fri, 02 Oct 2026 22:18:06 GMT"
+        "Fri, 02 Oct 2026 22:40:27 GMT"
        ]
       },
       "status_code": 200
@@ -17234,7 +17234,7 @@
       },
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth"
@@ -17256,7 +17256,7 @@
         "application/json"
        ],
        "Date": [
-        "Fri, 02 Oct 2026 22:18:06 GMT"
+        "Fri, 02 Oct 2026 22:40:27 GMT"
        ]
       },
       "status_code": 200
@@ -17318,7 +17318,7 @@
       },
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth"
@@ -17340,7 +17340,7 @@
         "application/json"
        ],
        "Date": [
-        "Fri, 02 Oct 2026 22:18:06 GMT"
+        "Fri, 02 Oct 2026 22:40:27 GMT"
        ]
       },
       "status_code": 200
@@ -17402,7 +17402,7 @@
       },
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth"
@@ -17424,7 +17424,7 @@
         "application/json"
        ],
        "Date": [
-        "Fri, 02 Oct 2026 22:18:06 GMT"
+        "Fri, 02 Oct 2026 22:40:27 GMT"
        ]
       },
       "status_code": 200
@@ -17486,7 +17486,7 @@
       },
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth"
@@ -17508,7 +17508,7 @@
         "application/json"
        ],
        "Date": [
-        "Fri, 02 Oct 2026 22:18:06 GMT"
+        "Fri, 02 Oct 2026 22:40:27 GMT"
        ]
       },
       "status_code": 200
@@ -17570,7 +17570,7 @@
       },
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth"
@@ -17592,7 +17592,7 @@
         "text/plain"
        ],
        "Date": [
-        "Fri, 02 Oct 2026 22:18:06 GMT"
+        "Fri, 02 Oct 2026 22:40:27 GMT"
        ],
        "X-Multi": [
         "a",
@@ -17658,7 +17658,7 @@
       },
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth"
@@ -17730,7 +17730,7 @@
       },
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth"
@@ -17802,7 +17802,7 @@
       },
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth"
@@ -17824,7 +17824,7 @@
         "application/json"
        ],
        "Date": [
-        "Fri, 02 Oct 2026 22:18:06 GMT"
+        "Fri, 02 Oct 2026 22:40:27 GMT"
        ]
       },
       "status_code": 200
@@ -17886,7 +17886,496 @@
       },
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
+      },
+      "oauth": {
+       "auth-dir": "/fixture-root/auth"
+      }
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/requests/api-call",
+     "body": "{\"method\":1,\"method\":\"GET\",\"url\":\"$ECHO/echo\"}",
+     "status": 400,
+     "response": {
+      "error": "invalid body"
+     },
+     "resp_headers": {
+      "Content-Type": "application/json; charset=utf-8"
+     },
+     "files": {
+      "claude-a.json": {
+       "access_token": "fake-at",
+       "email": "a@example.invalid",
+       "expired": "2099-01-01T00:00:00Z",
+       "note": " hi ",
+       "priority": "7",
+       "quota_probe": {
+        "kind": "fake"
+       },
+       "refresh_token": "fake-rt",
+       "type": "claude",
+       "zz": {
+        "keep": [
+         1,
+         2
+        ]
+       }
+      },
+      "empty.json": {
+       "email": "e@example.invalid",
+       "type": "claude"
+      },
+      "quote.json": {
+       "access_token": "a\"b\u003cc",
+       "type": "claude"
+      }
+     },
+     "config": {
+      "api-keys": {
+       "claude": [
+        {
+         "base-url": "https://claude.example.invalid",
+         "keys": [
+          {
+           "api-key": "fake-usage"
+          }
+         ]
+        }
+       ],
+       "openai-compatibility": [
+        {
+         "base-url": "https://compat.example.invalid/v1",
+         "keys": [
+          {
+           "api-key": "fake-compat"
+          }
+         ],
+         "name": "Compat-One"
+        }
+       ]
+      },
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
+      },
+      "oauth": {
+       "auth-dir": "/fixture-root/auth"
+      }
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/requests/api-call",
+     "body": "{\"method\":\"GET\",\"method\":null,\"url\":\"$ECHO/echo\"}",
+     "status": 200,
+     "response": {
+      "body": "{\"body\":\"\",\"content_length\":0,\"headers\":{\"Accept-Encoding\":[\"gzip\"],\"User-Agent\":[\"Go-http-client/1.1\"]},\"host\":\"\u003clistener\u003e\",\"method\":\"GET\",\"path\":\"/echo\",\"query\":\"\"}\n",
+      "header": {
+       "Content-Length": [
+        "167"
+       ],
+       "Content-Type": [
+        "application/json"
+       ],
+       "Date": [
+        "Fri, 02 Oct 2026 22:40:27 GMT"
+       ]
+      },
+      "status_code": 200
+     },
+     "resp_headers": {
+      "Content-Type": "application/json; charset=utf-8"
+     },
+     "files": {
+      "claude-a.json": {
+       "access_token": "fake-at",
+       "email": "a@example.invalid",
+       "expired": "2099-01-01T00:00:00Z",
+       "note": " hi ",
+       "priority": "7",
+       "quota_probe": {
+        "kind": "fake"
+       },
+       "refresh_token": "fake-rt",
+       "type": "claude",
+       "zz": {
+        "keep": [
+         1,
+         2
+        ]
+       }
+      },
+      "empty.json": {
+       "email": "e@example.invalid",
+       "type": "claude"
+      },
+      "quote.json": {
+       "access_token": "a\"b\u003cc",
+       "type": "claude"
+      }
+     },
+     "config": {
+      "api-keys": {
+       "claude": [
+        {
+         "base-url": "https://claude.example.invalid",
+         "keys": [
+          {
+           "api-key": "fake-usage"
+          }
+         ]
+        }
+       ],
+       "openai-compatibility": [
+        {
+         "base-url": "https://compat.example.invalid/v1",
+         "keys": [
+          {
+           "api-key": "fake-compat"
+          }
+         ],
+         "name": "Compat-One"
+        }
+       ]
+      },
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
+      },
+      "oauth": {
+       "auth-dir": "/fixture-root/auth"
+      }
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/requests/api-call",
+     "body": "{\"method\":\"GET\",\"url\":\"$ECHO/echo\",\"header\":{\"X-Custom\":\"a\",\"Authorization\":\"x\"},\"header\":{\"X-Custom\":\"b\"}}",
+     "status": 200,
+     "response": {
+      "body": "{\"body\":\"\",\"content_length\":0,\"headers\":{\"Accept-Encoding\":[\"gzip\"],\"Authorization\":[\"x\"],\"User-Agent\":[\"Go-http-client/1.1\"],\"X-Custom\":[\"b\"]},\"host\":\"\u003clistener\u003e\",\"method\":\"GET\",\"path\":\"/echo\",\"query\":\"\"}\n",
+      "header": {
+       "Content-Length": [
+        "206"
+       ],
+       "Content-Type": [
+        "application/json"
+       ],
+       "Date": [
+        "Fri, 02 Oct 2026 22:40:27 GMT"
+       ]
+      },
+      "status_code": 200
+     },
+     "resp_headers": {
+      "Content-Type": "application/json; charset=utf-8"
+     },
+     "files": {
+      "claude-a.json": {
+       "access_token": "fake-at",
+       "email": "a@example.invalid",
+       "expired": "2099-01-01T00:00:00Z",
+       "note": " hi ",
+       "priority": "7",
+       "quota_probe": {
+        "kind": "fake"
+       },
+       "refresh_token": "fake-rt",
+       "type": "claude",
+       "zz": {
+        "keep": [
+         1,
+         2
+        ]
+       }
+      },
+      "empty.json": {
+       "email": "e@example.invalid",
+       "type": "claude"
+      },
+      "quote.json": {
+       "access_token": "a\"b\u003cc",
+       "type": "claude"
+      }
+     },
+     "config": {
+      "api-keys": {
+       "claude": [
+        {
+         "base-url": "https://claude.example.invalid",
+         "keys": [
+          {
+           "api-key": "fake-usage"
+          }
+         ]
+        }
+       ],
+       "openai-compatibility": [
+        {
+         "base-url": "https://compat.example.invalid/v1",
+         "keys": [
+          {
+           "api-key": "fake-compat"
+          }
+         ],
+         "name": "Compat-One"
+        }
+       ]
+      },
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
+      },
+      "oauth": {
+       "auth-dir": "/fixture-root/auth"
+      }
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/requests/api-call",
+     "body": "{\"method\":\"GET\",\"url\":\"$ECHO/redirect307\",\"header\":{\"Content-Type\":\"text/plain\"}}",
+     "status": 200,
+     "response": {
+      "body": "{\"body\":\"\",\"content_length\":0,\"headers\":{\"Accept-Encoding\":[\"gzip\"],\"Content-Type\":[\"text/plain\"],\"Referer\":[\"$ECHO/redirect307\"],\"User-Agent\":[\"Go-http-client/1.1\"]},\"host\":\"\u003clistener\u003e\",\"method\":\"GET\",\"path\":\"/echo\",\"query\":\"from=307\"}\n",
+      "header": {
+       "Content-Length": [
+        "254"
+       ],
+       "Content-Type": [
+        "application/json"
+       ],
+       "Date": [
+        "Fri, 02 Oct 2026 22:40:27 GMT"
+       ]
+      },
+      "status_code": 200
+     },
+     "resp_headers": {
+      "Content-Type": "application/json; charset=utf-8"
+     },
+     "files": {
+      "claude-a.json": {
+       "access_token": "fake-at",
+       "email": "a@example.invalid",
+       "expired": "2099-01-01T00:00:00Z",
+       "note": " hi ",
+       "priority": "7",
+       "quota_probe": {
+        "kind": "fake"
+       },
+       "refresh_token": "fake-rt",
+       "type": "claude",
+       "zz": {
+        "keep": [
+         1,
+         2
+        ]
+       }
+      },
+      "empty.json": {
+       "email": "e@example.invalid",
+       "type": "claude"
+      },
+      "quote.json": {
+       "access_token": "a\"b\u003cc",
+       "type": "claude"
+      }
+     },
+     "config": {
+      "api-keys": {
+       "claude": [
+        {
+         "base-url": "https://claude.example.invalid",
+         "keys": [
+          {
+           "api-key": "fake-usage"
+          }
+         ]
+        }
+       ],
+       "openai-compatibility": [
+        {
+         "base-url": "https://compat.example.invalid/v1",
+         "keys": [
+          {
+           "api-key": "fake-compat"
+          }
+         ],
+         "name": "Compat-One"
+        }
+       ]
+      },
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
+      },
+      "oauth": {
+       "auth-dir": "/fixture-root/auth"
+      }
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/requests/api-call",
+     "body": "{\"method\":\"POST\",\"url\":\"$ECHO/redirect307\",\"header\":{\"Content-Type\":\"text/plain\"},\"data\":\"kept\"}",
+     "status": 200,
+     "response": {
+      "body": "{\"body\":\"kept\",\"content_length\":4,\"headers\":{\"Accept-Encoding\":[\"gzip\"],\"Content-Length\":[\"4\"],\"Content-Type\":[\"text/plain\"],\"Referer\":[\"$ECHO/redirect307\"],\"User-Agent\":[\"Go-http-client/1.1\"]},\"host\":\"\u003clistener\u003e\",\"method\":\"POST\",\"path\":\"/echo\",\"query\":\"from=307\"}\n",
+      "header": {
+       "Content-Length": [
+        "282"
+       ],
+       "Content-Type": [
+        "application/json"
+       ],
+       "Date": [
+        "Fri, 02 Oct 2026 22:40:27 GMT"
+       ]
+      },
+      "status_code": 200
+     },
+     "resp_headers": {
+      "Content-Type": "application/json; charset=utf-8"
+     },
+     "files": {
+      "claude-a.json": {
+       "access_token": "fake-at",
+       "email": "a@example.invalid",
+       "expired": "2099-01-01T00:00:00Z",
+       "note": " hi ",
+       "priority": "7",
+       "quota_probe": {
+        "kind": "fake"
+       },
+       "refresh_token": "fake-rt",
+       "type": "claude",
+       "zz": {
+        "keep": [
+         1,
+         2
+        ]
+       }
+      },
+      "empty.json": {
+       "email": "e@example.invalid",
+       "type": "claude"
+      },
+      "quote.json": {
+       "access_token": "a\"b\u003cc",
+       "type": "claude"
+      }
+     },
+     "config": {
+      "api-keys": {
+       "claude": [
+        {
+         "base-url": "https://claude.example.invalid",
+         "keys": [
+          {
+           "api-key": "fake-usage"
+          }
+         ]
+        }
+       ],
+       "openai-compatibility": [
+        {
+         "base-url": "https://compat.example.invalid/v1",
+         "keys": [
+          {
+           "api-key": "fake-compat"
+          }
+         ],
+         "name": "Compat-One"
+        }
+       ]
+      },
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
+      },
+      "oauth": {
+       "auth-dir": "/fixture-root/auth"
+      }
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/requests/api-call",
+     "body": "{\"method\":\"GET\",\"url\":\"$ECHO/chunked\"}",
+     "status": 200,
+     "response": {
+      "body": "parttwo",
+      "header": {
+       "Content-Type": [
+        "text/plain"
+       ],
+       "Date": [
+        "Fri, 02 Oct 2026 22:40:27 GMT"
+       ]
+      },
+      "status_code": 200
+     },
+     "resp_headers": {
+      "Content-Type": "application/json; charset=utf-8"
+     },
+     "files": {
+      "claude-a.json": {
+       "access_token": "fake-at",
+       "email": "a@example.invalid",
+       "expired": "2099-01-01T00:00:00Z",
+       "note": " hi ",
+       "priority": "7",
+       "quota_probe": {
+        "kind": "fake"
+       },
+       "refresh_token": "fake-rt",
+       "type": "claude",
+       "zz": {
+        "keep": [
+         1,
+         2
+        ]
+       }
+      },
+      "empty.json": {
+       "email": "e@example.invalid",
+       "type": "claude"
+      },
+      "quote.json": {
+       "access_token": "a\"b\u003cc",
+       "type": "claude"
+      }
+     },
+     "config": {
+      "api-keys": {
+       "claude": [
+        {
+         "base-url": "https://claude.example.invalid",
+         "keys": [
+          {
+           "api-key": "fake-usage"
+          }
+         ]
+        }
+       ],
+       "openai-compatibility": [
+        {
+         "base-url": "https://compat.example.invalid/v1",
+         "keys": [
+          {
+           "api-key": "fake-compat"
+          }
+         ],
+         "name": "Compat-One"
+        }
+       ]
+      },
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth"
@@ -17905,21 +18394,6 @@
          {
           "failed": 0,
           "success": 0,
-          "time": "19:00-19:10"
-         },
-         {
-          "failed": 0,
-          "success": 0,
-          "time": "19:10-19:20"
-         },
-         {
-          "failed": 0,
-          "success": 0,
-          "time": "19:20-19:30"
-         },
-         {
-          "failed": 0,
-          "success": 0,
           "time": "19:30-19:40"
          },
          {
@@ -18001,6 +18475,21 @@
           "failed": 0,
           "success": 0,
           "time": "22:10-22:20"
+         },
+         {
+          "failed": 0,
+          "success": 0,
+          "time": "22:20-22:30"
+         },
+         {
+          "failed": 0,
+          "success": 0,
+          "time": "22:30-22:40"
+         },
+         {
+          "failed": 0,
+          "success": 0,
+          "time": "22:40-22:50"
          }
         ],
         "success": 0
@@ -18013,21 +18502,6 @@
          {
           "failed": 0,
           "success": 0,
-          "time": "19:00-19:10"
-         },
-         {
-          "failed": 0,
-          "success": 0,
-          "time": "19:10-19:20"
-         },
-         {
-          "failed": 0,
-          "success": 0,
-          "time": "19:20-19:30"
-         },
-         {
-          "failed": 0,
-          "success": 0,
           "time": "19:30-19:40"
          },
          {
@@ -18109,6 +18583,21 @@
           "failed": 0,
           "success": 0,
           "time": "22:10-22:20"
+         },
+         {
+          "failed": 0,
+          "success": 0,
+          "time": "22:20-22:30"
+         },
+         {
+          "failed": 0,
+          "success": 0,
+          "time": "22:30-22:40"
+         },
+         {
+          "failed": 0,
+          "success": 0,
+          "time": "22:40-22:50"
          }
         ],
         "success": 0
@@ -18172,7 +18661,7 @@
       },
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth"
@@ -18241,7 +18730,7 @@
       },
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth"
@@ -18312,7 +18801,7 @@
       },
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth"
@@ -18383,7 +18872,7 @@
       },
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth"
@@ -18452,7 +18941,7 @@
       },
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth"
@@ -18474,11 +18963,11 @@
     "readme.txt": "not json"
    },
    "indexes": {
-    "claude-a.json": "c3c8d2a68d7617b7",
+    "claude-a.json": "007c17e9bdad9182",
     "claude:apikey:0d328561227d": "0f727356b4f9255a",
-    "codex-b.json": "bc49bcc36fd4b416",
-    "disabled-d.json": "8bea829a4c60e0f3",
-    "expired-c.json": "d3bd0cd487adf5cd"
+    "codex-b.json": "e91ab17e17079f01",
+    "disabled-d.json": "b9eb8542f8ead7ce",
+    "expired-c.json": "653b15da20fe5d43"
    },
    "steps": [
     {
@@ -18550,7 +19039,7 @@
       },
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth"
@@ -18626,7 +19115,7 @@
       },
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth"
@@ -18702,7 +19191,7 @@
       },
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth"
@@ -18778,7 +19267,7 @@
       },
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth"
@@ -18854,7 +19343,7 @@
       },
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth"
@@ -18930,7 +19419,7 @@
       },
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth"
@@ -19006,7 +19495,7 @@
       },
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth"
@@ -19080,7 +19569,7 @@
       },
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth"
@@ -19154,7 +19643,7 @@
       },
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "/fixture-root/auth"
@@ -19191,7 +19680,7 @@
    }
   },
   "management": {
-   "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+   "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
   },
   "oauth": {
    "providers": {
@@ -19268,7 +19757,7 @@
       },
       "management": {
        "panel-github-repository": "fake/panel",
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "multimedia": {
        "disable-image-generation": "chat"
@@ -19369,7 +19858,7 @@
       },
       "management": {
        "panel-github-repository": "fake/panel",
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "multimedia": {
        "disable-image-generation": "chat"
@@ -19470,7 +19959,7 @@
       },
       "management": {
        "panel-github-repository": "fake/panel",
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "multimedia": {
        "disable-image-generation": "chat"
@@ -19571,7 +20060,7 @@
       },
       "management": {
        "panel-github-repository": "fake/panel",
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "multimedia": {
        "disable-image-generation": "chat"
@@ -19672,7 +20161,7 @@
       },
       "management": {
        "panel-github-repository": "https://github.com/router-for-me/Cli-Proxy-API-Management-Center",
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "multimedia": {
        "disable-image-generation": "chat"
@@ -19773,7 +20262,7 @@
       },
       "management": {
        "panel-github-repository": "https://github.com/router-for-me/Cli-Proxy-API-Management-Center",
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "multimedia": {
        "disable-image-generation": "chat"
@@ -19874,7 +20363,7 @@
       },
       "management": {
        "panel-github-repository": "https://github.com/router-for-me/Cli-Proxy-API-Management-Center",
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "multimedia": {
        "disable-image-generation": "chat"
@@ -19975,7 +20464,7 @@
       },
       "management": {
        "panel-github-repository": "https://github.com/router-for-me/Cli-Proxy-API-Management-Center",
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "multimedia": {
        "disable-image-generation": "chat"
@@ -20076,7 +20565,7 @@
       },
       "management": {
        "panel-github-repository": "https://github.com/router-for-me/Cli-Proxy-API-Management-Center",
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "multimedia": {
        "disable-image-generation": "chat"
@@ -20177,7 +20666,7 @@
       },
       "management": {
        "panel-github-repository": "https://github.com/router-for-me/Cli-Proxy-API-Management-Center",
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "multimedia": {
        "disable-image-generation": "chat"
@@ -20278,7 +20767,7 @@
       },
       "management": {
        "panel-github-repository": "https://github.com/router-for-me/Cli-Proxy-API-Management-Center",
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "multimedia": {
        "disable-image-generation": "chat"
@@ -20379,7 +20868,7 @@
       },
       "management": {
        "panel-github-repository": "https://github.com/router-for-me/Cli-Proxy-API-Management-Center",
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "multimedia": {
        "disable-image-generation": "chat"
@@ -20480,7 +20969,7 @@
       },
       "management": {
        "panel-github-repository": "https://github.com/router-for-me/Cli-Proxy-API-Management-Center",
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "multimedia": {
        "disable-image-generation": "chat"
@@ -20581,7 +21070,7 @@
       },
       "management": {
        "panel-github-repository": "https://github.com/router-for-me/Cli-Proxy-API-Management-Center",
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "multimedia": {
        "disable-image-generation": "chat"
@@ -20682,7 +21171,7 @@
       },
       "management": {
        "panel-github-repository": "https://github.com/router-for-me/Cli-Proxy-API-Management-Center",
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "multimedia": {
        "disable-image-generation": "chat"
@@ -20783,7 +21272,7 @@
       },
       "management": {
        "panel-github-repository": "https://github.com/router-for-me/Cli-Proxy-API-Management-Center",
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "multimedia": {
        "disable-image-generation": "chat"
@@ -20884,7 +21373,7 @@
       },
       "management": {
        "panel-github-repository": "https://github.com/router-for-me/Cli-Proxy-API-Management-Center",
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "multimedia": {
        "disable-image-generation": "chat"
@@ -20985,7 +21474,7 @@
       },
       "management": {
        "panel-github-repository": "https://github.com/router-for-me/Cli-Proxy-API-Management-Center",
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "multimedia": {
        "disable-image-generation": false
@@ -21086,7 +21575,7 @@
       },
       "management": {
        "panel-github-repository": "https://github.com/router-for-me/Cli-Proxy-API-Management-Center",
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "multimedia": {
        "disable-image-generation": false
@@ -21187,7 +21676,7 @@
       },
       "management": {
        "panel-github-repository": "https://github.com/router-for-me/Cli-Proxy-API-Management-Center",
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "multimedia": {
        "disable-image-generation": false
@@ -21288,7 +21777,7 @@
       },
       "management": {
        "panel-github-repository": "https://github.com/router-for-me/Cli-Proxy-API-Management-Center",
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "multimedia": {
        "disable-image-generation": false
@@ -21389,7 +21878,7 @@
       },
       "management": {
        "panel-github-repository": "https://github.com/router-for-me/Cli-Proxy-API-Management-Center",
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "multimedia": {
        "disable-image-generation": false
@@ -21489,7 +21978,7 @@
       },
       "management": {
        "panel-github-repository": "fake/panel",
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "multimedia": {
        "disable-image-generation": "chat"
@@ -21573,7 +22062,7 @@
       },
       "management": {
        "panel-github-repository": "fake/panel",
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "multimedia": {
        "disable-image-generation": "chat"
@@ -21657,7 +22146,7 @@
       },
       "management": {
        "panel-github-repository": "fake/panel",
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "multimedia": {
        "disable-image-generation": "chat"
@@ -21741,7 +22230,7 @@
       },
       "management": {
        "panel-github-repository": "fake/panel",
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "multimedia": {
        "disable-image-generation": "chat"
@@ -21832,7 +22321,7 @@
       },
       "management": {
        "panel-github-repository": "fake/panel",
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "multimedia": {
        "disable-image-generation": "chat"
@@ -21934,7 +22423,7 @@
       },
       "management": {
        "panel-github-repository": "fake/panel",
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "multimedia": {
        "disable-image-generation": "chat"
@@ -22024,7 +22513,7 @@
       "config-version": 8,
       "management": {
        "allow-remote": true,
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "~/.cli-proxy-api"
@@ -22054,7 +22543,7 @@
       "port": 8317,
       "remote-management": {
        "allow-remote": true,
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "request-retry": 3
      },
@@ -22073,7 +22562,7 @@
       "config-version": 8,
       "management": {
        "allow-remote": true,
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "~/.cli-proxy-api"
@@ -22088,7 +22577,7 @@
        "port": 8317
       }
      },
-     "raw_response": "access:\n    api-keys:\n        - \"sk-fake-owner\"\nserver:\n    # Owner config\n    host: \"\"\n    port: 8317 # listen\nmanagement:\n    # allow the dashboard\n    allow-remote: true\n    secret-key: \"$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6\" # hashed\noauth:\n    auth-dir: \"~/.cli-proxy-api\"\nrouting:\n    retry:\n        # disabled for now\n        request-retry: 3\nconfig-version: 8\n\n# mystery-section:\n#     nested: [1, 2]\n",
+     "raw_response": "access:\n    api-keys:\n        - \"sk-fake-owner\"\nserver:\n    # Owner config\n    host: \"\"\n    port: 8317 # listen\nmanagement:\n    # allow the dashboard\n    allow-remote: true\n    secret-key: \"$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q\" # hashed\noauth:\n    auth-dir: \"~/.cli-proxy-api\"\nrouting:\n    retry:\n        # disabled for now\n        request-retry: 3\nconfig-version: 8\n\n# mystery-section:\n#     nested: [1, 2]\n",
      "file": {
       "api-keys": [
        "sk-fake-owner"
@@ -22104,7 +22593,7 @@
       "port": 8317,
       "remote-management": {
        "allow-remote": true,
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "request-retry": 3
      },
@@ -22133,7 +22622,7 @@
       "port": 8317,
       "remote-management": {
        "allow-remote": true,
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "request-retry": 3
      },
@@ -22161,7 +22650,7 @@
       "port": 8317,
       "remote-management": {
        "allow-remote": true,
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "request-retry": 3
      },
@@ -22209,7 +22698,7 @@
       },
       "management": {
        "allow-remote": true,
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "~/.cli-proxy-api",
@@ -22287,7 +22776,7 @@
       },
       "management": {
        "allow-remote": true,
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "~/.cli-proxy-api",
@@ -22359,7 +22848,7 @@
       },
       "management": {
        "allow-remote": true,
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "auth-dir": "~/.cli-proxy-api",
@@ -22442,7 +22931,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "providers": {
@@ -22516,7 +23005,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "providers": {
@@ -22587,7 +23076,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "providers": {
@@ -22655,7 +23144,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "providers": {
@@ -22719,7 +23208,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "providers": {
@@ -22784,7 +23273,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "providers": {
@@ -22831,7 +23320,7 @@
      "file": {
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "mystery-section": {
        "a": 1
@@ -22864,7 +23353,7 @@
      "file": {
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "mystery-section": {
        "a": 1
@@ -22897,7 +23386,7 @@
      "file": {
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "mystery-section": {
        "a": 1
@@ -22930,7 +23419,7 @@
      "file": {
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "mystery-section": {
        "a": 1
@@ -22963,7 +23452,7 @@
      "file": {
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "mystery-section": {
        "a": 1
@@ -22996,7 +23485,7 @@
      "file": {
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "mystery-section": {
        "a": 1
@@ -23028,7 +23517,7 @@
      "file": {
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "mystery-section": {
        "a": 1
@@ -23060,7 +23549,7 @@
      "file": {
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "mystery-section": {
        "a": 1
@@ -23092,7 +23581,7 @@
      "file": {
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "mystery-section": {
        "a": 1
@@ -23123,7 +23612,7 @@
      "file": {
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "mystery-section": {
        "a": 1
@@ -23154,7 +23643,7 @@
      "file": {
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "mystery-section": {
        "a": 1
@@ -23186,7 +23675,7 @@
      "file": {
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "mystery-section": {
        "a": 1
@@ -23219,7 +23708,7 @@
      "file": {
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "mystery-section": {
        "a": 1
@@ -23252,7 +23741,7 @@
      "file": {
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "mystery-section": {
        "a": 1
@@ -23285,7 +23774,7 @@
      "file": {
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "mystery-section": {
        "a": 1
@@ -23318,7 +23807,7 @@
      "file": {
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "mystery-section": {
        "a": 1
@@ -23351,7 +23840,7 @@
      "file": {
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "mystery-section": {
        "a": 1
@@ -23384,7 +23873,7 @@
      "file": {
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "mystery-section": {
        "a": 1
@@ -23441,7 +23930,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "providers": {
@@ -23542,7 +24031,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "providers": {
@@ -23636,7 +24125,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "excluded-models": {
@@ -23749,7 +24238,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "excluded-models": {
@@ -23862,7 +24351,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "excluded-models": {
@@ -23993,7 +24482,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "excluded-models": {
@@ -24118,7 +24607,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "excluded-models": {
@@ -24254,7 +24743,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$10$UjLCIupd9kmwiUpbRc8AKOzCXUnVJwaOL6/8XWwAp7kDxrr5cqHrC"
+       "secret-key": "$2a$10$scPH.iU4iLeMp8VFh40DGOsuIFAn2KtoVktYyKBFIeXJ.gXRuNJHu"
       },
       "oauth": {
        "excluded-models": {
@@ -24388,7 +24877,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$10$UjLCIupd9kmwiUpbRc8AKOzCXUnVJwaOL6/8XWwAp7kDxrr5cqHrC"
+       "secret-key": "$2a$10$scPH.iU4iLeMp8VFh40DGOsuIFAn2KtoVktYyKBFIeXJ.gXRuNJHu"
       },
       "oauth": {
        "excluded-models": {
@@ -24490,7 +24979,7 @@
      "file": {
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "providers": {
@@ -24555,7 +25044,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "providers": {
@@ -24650,7 +25139,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "providers": {
@@ -24712,7 +25201,7 @@
        }
       }
      },
-     "raw_response": "config-version: 8\nmanagement:\n    secret-key: '$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6'\noauth:\n    providers:\n        codex:\n            live-media-relay:\n                ice-servers:\n                    - \"urls\":\n                        - \"turn:b.example.invalid\"\n                      username: fake-user-b\n                      credential: fake-cred-b\n                    - urls:\n                        - turn:c.example.invalid\n                      username: \"\"\n                      credential: \"\"\n                    - \"urls\":\n                        - \"turn:a.example.invalid\"\n                      \"username\": \"\"\n                      credential: fake-cred-a\n        aistudio:\n            ws-auth: true\ncredentials:\n    concurrency:\n        cpa-heartbeat-timeout: 3s\n        cpa-cancel-bound: 5s\n        reclaim-grace: 5s\n        cleanup-interval: 5s\n        release-flush-interval: 250ms\n        release-max-backoff: 2s\n        busy-retry-min: 250ms\n        busy-retry-max: 1s\n        max-limit: 1000000\n    in-flight:\n        snapshot-interval: 2s\n        stale-after: 10s\n        max-part-bytes: 262144\n        max-part-count: 64\n        max-revision-bytes: 16777216\n        max-aggregate-groups: 100000\n        max-details: 10000\n        max-string-bytes: 256\n        staging-retention: 1m\nserver:\n    discovery:\n        service-type: _ai-gateway._tcp\n        subtypes:\n            - _chat-completions\n            - _responses\n            - _messages\n            - _generate-content\n            - _interactions\nobservability:\n    usage:\n        redis-usage-queue-retention-seconds: 60\nrouting:\n    cooldown:\n        disable-cooling: false\n    retry:\n        request-retry: 0\n",
+     "raw_response": "config-version: 8\nmanagement:\n    secret-key: '$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q'\noauth:\n    providers:\n        codex:\n            live-media-relay:\n                ice-servers:\n                    - \"urls\":\n                        - \"turn:b.example.invalid\"\n                      username: fake-user-b\n                      credential: fake-cred-b\n                    - urls:\n                        - turn:c.example.invalid\n                      username: \"\"\n                      credential: \"\"\n                    - \"urls\":\n                        - \"turn:a.example.invalid\"\n                      \"username\": \"\"\n                      credential: fake-cred-a\n        aistudio:\n            ws-auth: true\ncredentials:\n    concurrency:\n        cpa-heartbeat-timeout: 3s\n        cpa-cancel-bound: 5s\n        reclaim-grace: 5s\n        cleanup-interval: 5s\n        release-flush-interval: 250ms\n        release-max-backoff: 2s\n        busy-retry-min: 250ms\n        busy-retry-max: 1s\n        max-limit: 1000000\n    in-flight:\n        snapshot-interval: 2s\n        stale-after: 10s\n        max-part-bytes: 262144\n        max-part-count: 64\n        max-revision-bytes: 16777216\n        max-aggregate-groups: 100000\n        max-details: 10000\n        max-string-bytes: 256\n        staging-retention: 1m\nserver:\n    discovery:\n        service-type: _ai-gateway._tcp\n        subtypes:\n            - _chat-completions\n            - _responses\n            - _messages\n            - _generate-content\n            - _interactions\nobservability:\n    usage:\n        redis-usage-queue-retention-seconds: 60\nrouting:\n    cooldown:\n        disable-cooling: false\n    retry:\n        request-retry: 0\n",
      "file": {
       "config-version": 8,
       "credentials": {
@@ -24740,7 +25229,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6"
+       "secret-key": "$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q"
       },
       "oauth": {
        "providers": {
@@ -24846,7 +25335,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$10$0iWjkEhBBfuuat.5p.de6.finrKe.i3tmDHP7/FPpc9Hem20ZRoDm"
+       "secret-key": "$2a$10$gPanebAbMXOcQ4dp9CmnXefBLdqUM75P8Q00L.9WXWHFkdaQWRXRq"
       },
       "oauth": {
        "providers": {
@@ -24920,7 +25409,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$10$Docw1hHmvOPeYJFgNead7.5YYngYlnI.vxYf.NbrKErlZFmwPPBI."
+       "secret-key": "$2a$10$/XgUYNKmFhxI11JA8YPbjuQ1UcoZtQjqU72oADTzH.Qj7Kmh9udZ."
       },
       "oauth": {
        "providers": {
@@ -24991,7 +25480,7 @@
        }
       },
       "management": {
-       "secret-key": "$2a$10$Docw1hHmvOPeYJFgNead7.5YYngYlnI.vxYf.NbrKErlZFmwPPBI."
+       "secret-key": "$2a$10$/XgUYNKmFhxI11JA8YPbjuQ1UcoZtQjqU72oADTzH.Qj7Kmh9udZ."
       },
       "oauth": {
        "providers": {
@@ -25412,7 +25901,7 @@
       ]
      },
      "status": 200,
-     "resp_body": "{\"config-version\":8,\"management\":{\"secret-key\":\"$2a$04$mx4.RgjZJhDStT5stBSS4uPsLq1EbV6fXsXszbTfNwlWRbrLFkZ.6\"},\"server\":{\"port\":0}}",
+     "resp_body": "{\"config-version\":8,\"management\":{\"secret-key\":\"$2a$04$C9T2ODjUR1CWQE8CPTPtuOf2GkcjyQYPHA4wy9.TEYPKox5.mjK4q\"},\"server\":{\"port\":0}}",
      "resp_headers": {
       "Access-Control-Allow-Headers": "*",
       "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",

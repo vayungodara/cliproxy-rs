@@ -294,6 +294,19 @@ func echoHandler(listener *string) http.Handler {
 			w.Header().Set("Location", "/echo?from=redirect")
 			w.WriteHeader(http.StatusFound)
 			return
+		case "/redirect307":
+			w.Header().Set("Location", "/echo?from=307")
+			w.WriteHeader(http.StatusTemporaryRedirect)
+			return
+		case "/chunked":
+			w.Header().Set("Trailer", "X-Foo")
+			w.Header().Set("Content-Type", "text/plain")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte("part"))
+			w.(http.Flusher).Flush()
+			_, _ = w.Write([]byte("two"))
+			w.Header().Set("X-Foo", "bar")
+			return
 		case "/status":
 			w.Header().Set("X-Multi", "a")
 			w.Header().Add("X-Multi", "b")
@@ -1274,6 +1287,12 @@ func credScenarios() []credScenario {
 			call(http.MethodPost, "/requests/api-call", `{"method":"GE T","url":"$ECHO/echo"}`),
 			call(http.MethodPost, "/requests/api-call", `{"method":"GET","url":"http://127.0.0.1:1/unreachable"}`),
 			call(http.MethodPost, "/requests/api-call", `{"method":"GET","url":"$ECHO/echo","proxy_url":"direct"} trailing`),
+			call(http.MethodPost, "/requests/api-call", `{"method":1,"method":"GET","url":"$ECHO/echo"}`),
+			call(http.MethodPost, "/requests/api-call", `{"method":"GET","method":null,"url":"$ECHO/echo"}`),
+			call(http.MethodPost, "/requests/api-call", `{"method":"GET","url":"$ECHO/echo","header":{"X-Custom":"a","Authorization":"x"},"header":{"X-Custom":"b"}}`),
+			call(http.MethodPost, "/requests/api-call", `{"method":"GET","url":"$ECHO/redirect307","header":{"Content-Type":"text/plain"}}`),
+			call(http.MethodPost, "/requests/api-call", `{"method":"POST","url":"$ECHO/redirect307","header":{"Content-Type":"text/plain"},"data":"kept"}`),
+			call(http.MethodPost, "/requests/api-call", `{"method":"GET","url":"$ECHO/chunked"}`),
 			get("/observability/usage/api-keys"),
 			get("/observability/usage/queue"),
 			get("/observability/usage/queue?count=abc"),

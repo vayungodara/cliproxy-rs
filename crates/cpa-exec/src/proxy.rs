@@ -267,12 +267,21 @@ impl GoClients {
         if matches!(proxy, Proxy::Invalid) {
             tracing::warn!("unusable proxy configuration; using the default transport");
         }
+        self.try_get(proxy).unwrap_or_else(|| {
+            tracing::warn!(proxy = %match proxy { Proxy::Url(u) => redact(u), _ => String::new() }, "proxy client failed; using the default transport");
+            self.default.clone().unwrap_or_else(default_client)
+        })
+    }
+
+    /// The client for exactly `proxy`, or `None` when it cannot be built; never falls
+    /// back to another transport (management `api-call` applies Go's own fallbacks).
+    pub fn try_get(&self, proxy: &Proxy) -> Option<wreq::Client> {
         let mut cache = self.cache.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         if let Some(i) = cache.iter().position(|(p, _)| p == proxy) {
             let entry = cache.remove(i);
             let client = entry.1.clone();
             cache.insert(0, entry);
-            return client;
+            return Some(client);
         }
         let built = proxy
             .apply(
@@ -281,16 +290,10 @@ impl GoClients {
                 true,
             )
             .and_then(wreq::ClientBuilder::build);
-        let client = match built {
-            Ok(client) => client,
-            Err(_) => {
-                tracing::warn!(proxy = %match proxy { Proxy::Url(u) => redact(u), _ => String::new() }, "proxy client failed; using the default transport");
-                return self.default.clone().unwrap_or_else(default_client);
-            }
-        };
+        let client = built.ok()?;
         cache.insert(0, (proxy.clone(), client.clone()));
         cache.truncate(CACHE_CAPACITY);
-        client
+        Some(client)
     }
 }
 
@@ -377,8 +380,19 @@ impl GoHeaders {
     /// (Claude's ordered request writer); `None` writes Go net/http's order. Returns
     /// whether the transport asked for gzip itself (no explicit Accept-Encoding or
     /// Range), which is the only case Go decodes transparently.
-    pub fn apply(mut self, builder: wreq::RequestBuilder, order: Option<&[String]>) -> (wreq::RequestBuilder, bool) {
-        let auto_gzip = self.get("Accept-Encoding").is_none() && self.get("Range").is_none();
+    pub fn apply(self, builder: wreq::RequestBuilder, order: Option<&[String]>) -> (wreq::RequestBuilder, bool) {
+        self.apply_gzip(builder, order, true)
+    }
+
+    /// [`GoHeaders::apply`]; `gzip_allowed` is false for HEAD, which Go's transport
+    /// never asks to compress.
+    fn apply_gzip(
+        mut self,
+        builder: wreq::RequestBuilder,
+        order: Option<&[String]>,
+        gzip_allowed: bool,
+    ) -> (wreq::RequestBuilder, bool) {
+        let auto_gzip = gzip_allowed && self.get("Accept-Encoding").is_none() && self.get("Range").is_none();
         // A custom Host header becomes the request Host (util.applyCustomHeaders).
         let host = self.take("Host").filter(|h| !h.is_empty());
         self.take("Content-Length");
@@ -499,7 +513,10 @@ pub async fn send_request(
     // req.Host: the custom Host of the current hop, if any.
     let mut host = headers.get("Host").filter(|h| !h.is_empty()).map(str::to_owned);
     let mut method = method;
-    let mut include_body = body.is_some();
+    // Go's redirect `includeBody` says whether a 301/302/303 has dropped the body; it
+    // starts true even for a nil body.
+    let has_body = body.is_some();
+    let mut include_body = true;
     let body = body.unwrap_or_default();
     let mut strip_sensitive = false;
     let mut hop_headers = headers.clone();
@@ -513,8 +530,11 @@ pub async fn send_request(
         if let Some(timeout) = timeout {
             builder = builder.timeout(timeout);
         }
-        let (builder, auto_gzip) = hop_headers.clone().apply(builder, hop.order.as_deref());
-        let builder = if include_body {
+        let (builder, auto_gzip) =
+            hop_headers
+                .clone()
+                .apply_gzip(builder, hop.order.as_deref(), method != wreq::Method::HEAD);
+        let builder = if has_body && include_body {
             builder.body(body.clone())
         } else {
             builder
