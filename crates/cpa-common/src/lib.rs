@@ -13,6 +13,11 @@
 //!   references copied from the client request).
 //! - `codex_client`: executor/helps/codex_multi_agent_v2.go (Codex-client request rewrites
 //!   shared by every executor that serves Codex clients).
+//! - `session`: sdk/cliproxy/session (session identity, parent/child relationships and the
+//!   derived identity executors key provider sessions on). Owner: server.
 //!
 //! The proxy-aware HTTP client (executor/helps/proxy_helpers.go) touches the network and
 //! lives in cpa-exec instead.
+
+mod gojson;
+pub mod session;

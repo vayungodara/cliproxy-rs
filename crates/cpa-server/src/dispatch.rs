@@ -478,11 +478,19 @@ pub async fn run(rt: &Arc<Runtime>, call: Call, trace: &Trace) -> Result<Done, R
     let registry = rt.registry();
     let (providers, model) = route(rt, &registry, &call)?;
     let aliases = registry::global_aliases(&cfg);
-    let session = crate::session::resolve(&call.headers, &call.body);
+    let session = crate::session::resolve(
+        call.entry,
+        &call.headers,
+        &call.body,
+        call.execution_session.as_deref(),
+        &call.caller.principal,
+    );
     let mut selection = Selection {
         providers: providers.clone(),
         model: call.selection_model.clone().unwrap_or_else(|| model.clone()),
-        session: session.clone(),
+        session: session.id.clone(),
+        session_parent: session.parent,
+        session_fork: session.fork,
         ..Selection::default()
     };
     let request = ExecRequest {
@@ -495,7 +503,7 @@ pub async fn run(rt: &Arc<Runtime>, call: Call, trace: &Trace) -> Result<Done, R
         body: call.body.clone(),
         stream: call.stream,
         alt: call.alt.clone(),
-        session,
+        session: session.id,
         execution_session: call.execution_session.clone(),
         headers: call.headers.clone(),
         caller: call.caller.clone(),

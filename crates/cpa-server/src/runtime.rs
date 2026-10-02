@@ -391,7 +391,13 @@ pub struct Selection {
     pub provider: String,
     /// The route model (requested model after `auto` resolution, suffix kept).
     pub model: String,
+    /// The session this request binds to (Go `extractSessionIDs` primary).
     pub session: Option<String>,
+    /// The session's parent, or the conversation alias of a prompt-cache-key session
+    /// (Go fallback ID).
+    pub session_parent: Option<String>,
+    /// The session forked from `session_parent` (inherits its binding).
+    pub session_fork: bool,
     /// Credential IDs already tried in this request.
     pub exclude: Vec<String>,
     pub retry_round: usize,
@@ -782,13 +788,10 @@ impl CredentialStore {
             .iter()
             .any(|c| c.id == lease.credential.id && c.revision == lease.credential.revision)
         {
-            self.scheduler.lock().unwrap_or_else(PoisonError::into_inner).record(
-                &lease.credential,
-                model,
-                outcome,
-                &lease.policy,
-                Instant::now(),
-            );
+            let now = Instant::now();
+            let mut scheduler = self.scheduler.lock().unwrap_or_else(PoisonError::into_inner);
+            scheduler.record(&lease.credential, model, outcome, &lease.policy, now);
+            scheduler.session_result(&lease.credential, &lease.selection, outcome, &lease.policy, now);
         }
     }
 

@@ -61,7 +61,11 @@ pub struct ExecRequest {
     pub stream: bool,
     /// Alternate operation from `alt` / `$alt` (for example `responses/compact`).
     pub alt: Option<String>,
-    /// Session key for affinity and provider session identity, when one was derived.
+    /// Session key for affinity and provider session identity, when one was derived:
+    /// Go `ExtractSessionID` (see `cpa_common::session`). Explicit client sessions carry
+    /// their family prefix (`claude:`, `codex:`, `header:`, `pck:`, ...); `derived:<id>`
+    /// means Go's `derived_session_id` metadata is `<id>`; `msg:` is the first-messages
+    /// hash.
     pub session: Option<String>,
     /// Go `execution_session_id` metadata: a long-lived execution session that outlives
     /// one HTTP request. Set only by transports that own such a session (the Responses

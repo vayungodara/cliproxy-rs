@@ -375,7 +375,29 @@ pub(crate) struct Scheduler {
     /// Mixed-provider round-robin cursors (Go `mixedCursors`).
     cursors: HashMap<(String, String), usize>,
     pub(crate) cooldowns: HashMap<(String, String), Cooldown>,
-    bindings: HashMap<(String, String, String), (String, Instant)>,
+    /// Session affinity bindings (Go `SessionAffinitySelector.cache`).
+    affinity: crate::affinity::Cache,
+}
+
+/// A selection's affinity keys: the session, and its parent or alias when distinct.
+struct SessionKeys {
+    primary: crate::affinity::Key,
+    fallback: Option<crate::affinity::Key>,
+    /// The raw parent/alias session, for Go `isSubagentSession`.
+    parent: String,
+}
+
+fn session_keys(selection: &Selection) -> Option<SessionKeys> {
+    let primary = selection.session.as_deref().filter(|s| !s.is_empty())?;
+    let scope = selection.provider_keys().join(",");
+    let model = canonical_model(&selection.model).to_owned();
+    let parent = selection.session_parent.clone().unwrap_or_default();
+    let fallback = (!parent.is_empty() && parent != primary).then(|| (scope.clone(), model.clone(), parent.clone()));
+    Some(SessionKeys {
+        primary: (scope, model, primary.to_owned()),
+        fallback,
+        parent,
+    })
 }
 
 /// Go `nextQuotaCooldown`: 1s doubling to 30m.
@@ -411,7 +433,7 @@ impl Scheduler {
         {
             self.rotations.clear();
             self.cursors.clear();
-            self.bindings.clear();
+            self.affinity.clear();
         }
     }
 
@@ -454,7 +476,12 @@ impl Scheduler {
         })
     }
 
-    /// Picks among ready candidates, each paired with its provider key.
+    /// Picks among ready candidates, each paired with its provider key (Go
+    /// `SessionAffinitySelector.Pick` over the configured selector).
+    ///
+    /// An established binding outranks credential priority; a session's parent (or
+    /// prompt-cache conversation alias) binding is inherited by forks and, when
+    /// `session-affinity-subagents` allows, by subagents.
     pub fn pick<'a>(
         &mut self,
         candidates: &[(&'a Credential, &str)],
@@ -465,21 +492,83 @@ impl Scheduler {
         if candidates.is_empty() {
             return None;
         }
+        let ttl = policy.session_affinity_ttl;
+        let Some(keys) = policy.session_affinity.then(|| session_keys(selection)).flatten() else {
+            return self.pick_unbound(candidates, selection, policy, now);
+        };
+        self.affinity.sweep(now, ttl);
+        let fork = selection.session_fork;
+        let subagent = !fork && cpa_common::session::is_subagent_session(&keys.primary.2, &keys.parent);
+        let bind_keys = match &keys.fallback {
+            Some(fallback) if !subagent && !fork => vec![keys.primary.clone(), fallback.clone()],
+            _ => vec![keys.primary.clone()],
+        };
+        let find = |id: &str| candidates.iter().find(|(c, _)| c.id == id).map(|(c, _)| *c);
+        let reuse = match self.affinity.get_and_refresh(&keys.primary, now, ttl) {
+            // A bound credential that is no longer available is replaced, not inherited.
+            Some(id) => find(&id),
+            None => keys
+                .fallback
+                .as_ref()
+                .and_then(|fallback| self.affinity.get(fallback, now))
+                .filter(|_| !subagent || policy.session_affinity_subagents)
+                .and_then(|id| find(&id)),
+        };
+        let picked = match reuse {
+            Some(c) => c,
+            None => self.pick_unbound(candidates, selection, policy, now)?,
+        };
+        self.affinity.bind(&picked.id, &bind_keys, now, ttl);
+        Some(picked)
+    }
+
+    /// Go `SessionAffinitySelector.OnResult`: success refreshes the session's bindings to
+    /// this credential, a credential-attributed failure releases them. Request-scoped
+    /// and transport failures leave them alone.
+    pub fn session_result(
+        &mut self,
+        c: &Credential,
+        selection: &Selection,
+        outcome: &Outcome,
+        policy: &Policy,
+        now: Instant,
+    ) {
+        if !policy.session_affinity {
+            return;
+        }
+        let success = match outcome {
+            Outcome::Success => true,
+            Outcome::Failure(error) if policy.error_action(c, error).cooldown => false,
+            _ => return,
+        };
+        let Some(keys) = session_keys(selection) else {
+            return;
+        };
+        let mut targets = vec![keys.primary.clone()];
+        if let Some(fallback) = keys.fallback
+            && !cpa_common::session::is_subagent_session(&keys.primary.2, &keys.parent)
+        {
+            targets.push(fallback);
+        }
+        for key in &targets {
+            if success {
+                self.affinity.touch(key, &c.id, now, policy.session_affinity_ttl);
+            } else {
+                self.affinity.compare_and_delete(key, &c.id);
+            }
+        }
+    }
+
+    fn pick_unbound<'a>(
+        &mut self,
+        candidates: &[(&'a Credential, &str)],
+        selection: &Selection,
+        policy: &Policy,
+        _now: Instant,
+    ) -> Option<&'a Credential> {
         let model = canonical_model(&selection.model).to_owned();
         let provider_keys = selection.provider_keys();
         let providers_key = provider_keys.join(",");
-        self.bindings.retain(|_, (_, deadline)| *deadline > now);
-        let binding_key = selection
-            .session
-            .as_ref()
-            .map(|s| (providers_key.clone(), model.clone(), s.clone()));
-        if policy.session_affinity
-            && let Some((id, deadline)) = binding_key.as_ref().and_then(|key| self.bindings.get_mut(key))
-            && let Some((c, _)) = candidates.iter().find(|(c, _)| c.id == *id)
-        {
-            *deadline = now + policy.session_affinity_ttl;
-            return Some(c);
-        }
         let tier = candidates
             .iter()
             .map(|(c, _)| integer(c, "priority").unwrap_or(0))
@@ -540,17 +629,6 @@ impl Scheduler {
                 }
             }
         };
-        if policy.session_affinity
-            && let Some(key) = binding_key
-        {
-            // ponytail: bounded clear instead of Go's LRU at capacity. Replace with
-            // eviction order when pools approach 65536 simultaneous sessions.
-            if self.bindings.len() >= 65536 {
-                self.bindings.clear();
-            }
-            self.bindings
-                .insert(key, (picked.id.clone(), now + policy.session_affinity_ttl));
-        }
         Some(picked)
     }
 
@@ -739,7 +817,7 @@ impl Scheduler {
             .map(|(_, m)| m.clone())
             .collect();
         self.cooldowns.retain(|(cid, _), _| cid != id);
-        self.bindings.retain(|_, (bound, _)| bound != id);
+        self.affinity.invalidate(id);
         models.sort();
         models
     }
@@ -747,8 +825,7 @@ impl Scheduler {
     pub fn reconcile(&mut self, credentials: &[std::sync::Arc<Credential>]) {
         self.cooldowns
             .retain(|(id, _), _| credentials.iter().any(|c| c.id == *id));
-        self.bindings
-            .retain(|_, (id, _)| credentials.iter().any(|c| c.id == *id));
+        self.affinity.retain(|id| credentials.iter().any(|c| c.id == id));
     }
 }
 
@@ -1099,6 +1176,82 @@ mod tests {
         }
     }
 
+    /// Go `SessionAffinitySelector` (`Enrich`, `Pick` with fill-first, `OnResult`):
+    /// goldens from tests/reference/server/main.go.
+    #[test]
+    fn session_affinity_matches_go_selector() {
+        let fixture: Value = serde_json::from_str(include_str!("../tests/fixtures/server_go.json")).unwrap();
+        let cases = fixture["affinity"].as_array().unwrap();
+        assert_eq!(cases.len(), 11);
+        for case in cases {
+            let name = case["name"].as_str().unwrap();
+            let creds: Vec<Credential> = ["a", "b", "c"]
+                .iter()
+                .map(|id| {
+                    let mut c = cred(id, serde_json::json!({}));
+                    if let Some(p) = case["priorities"][*id].as_str() {
+                        c.attributes.insert("priority".into(), p.into());
+                    }
+                    c
+                })
+                .collect();
+            let policy = Policy {
+                strategy: Strategy::FillFirst,
+                session_affinity: true,
+                session_affinity_subagents: case["subagent_affinity"].as_bool().unwrap(),
+                ..Default::default()
+            };
+            let mut s = Scheduler::default();
+            let now = Instant::now();
+            for (i, step) in case["steps"].as_array().unwrap().iter().enumerate() {
+                let mut headers = axum::http::HeaderMap::new();
+                for pair in step["headers"].as_array().into_iter().flatten() {
+                    headers.append(
+                        axum::http::HeaderName::from_bytes(pair[0].as_str().unwrap().as_bytes()).unwrap(),
+                        pair[1].as_str().unwrap().parse().unwrap(),
+                    );
+                }
+                let payload = step["payload"].as_str().unwrap_or_default().as_bytes();
+                let session = crate::session::resolve(cpa_core::format::Format::OpenAI, &headers, payload, None, "");
+                let sel = Selection {
+                    session: session.id,
+                    session_parent: session.parent,
+                    session_fork: session.fork,
+                    ..selection("m")
+                };
+                let find = |id: &str| creds.iter().find(|c| c.id == id).unwrap();
+                match step["op"].as_str().unwrap() {
+                    "pick" => {
+                        let available: Vec<&Credential> = step["available"]
+                            .as_array()
+                            .unwrap()
+                            .iter()
+                            .map(|id| find(id.as_str().unwrap()))
+                            .collect();
+                        let picked = s.pick(&tag(&available), &sel, &policy, now).unwrap();
+                        assert_eq!(picked.id, step["picked"].as_str().unwrap(), "{name} step {i}");
+                    }
+                    op => {
+                        let outcome = if op == "ok" {
+                            Outcome::Success
+                        } else {
+                            let status = step["status"].as_u64().unwrap() as u16;
+                            let scope = if status >= 500 {
+                                FailureScope::Credential
+                            } else {
+                                FailureScope::Request
+                            };
+                            let mut e = ExecError::local(status, scope, step["message"].as_str().unwrap());
+                            e.headers.insert("content-type", "text/plain".parse().unwrap());
+                            Outcome::Failure(e)
+                        };
+                        s.session_result(find(step["auth"].as_str().unwrap()), &sel, &outcome, &policy, now);
+                    }
+                }
+            }
+        }
+    }
+
     #[test]
     fn policy_change_resets_rotation_and_affinity_but_keeps_cooldowns() {
         let a = cred("a", serde_json::json!({}));
@@ -1123,11 +1276,11 @@ mod tests {
         next.request_retry = 2;
         s.configure(&p, &next);
         assert!(!s.rotations.is_empty(), "retry-only change preserves selector state");
-        assert!(!s.bindings.is_empty());
+        assert!(!s.affinity.is_empty());
         next.session_affinity_ttl = Duration::from_secs(5);
         s.configure(&p, &next);
         assert!(s.rotations.is_empty());
-        assert!(s.bindings.is_empty());
+        assert!(s.affinity.is_empty());
         assert_eq!(s.wait(&a, "other", now), Some(Duration::from_secs(1)));
     }
 
