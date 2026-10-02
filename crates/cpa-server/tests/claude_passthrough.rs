@@ -96,17 +96,21 @@ fn auth_dir(name: &str, files: &[(&str, &str)]) -> PathBuf {
 }
 
 async fn proxy(dir: &Path, upstream_url: &str) -> String {
-    let config = Config {
-        host: String::new(),
-        port: 0,
-        api_keys: vec!["client-key-1".into()],
-        auth_dir: dir.into(),
-    };
+    let mut config = Config::parse("").unwrap();
+    config.api_keys = vec!["client-key-1".into()];
+    config.auth_dir = dir.into();
     let creds = cpa_core::credential::load_dir(dir).unwrap();
     let executors = Executors {
         claude: ClaudeExecutor::new(upstream_url).unwrap(),
     };
-    serve(router(Arc::new(Runtime::new(config, creds, executors)))).await
+    let rt = Arc::new(Runtime::new(config, creds, executors));
+    // This suite checks wire passthrough, one upstream attempt per request. Scheduler
+    // failover/rounds have their own local-upstream integration suite.
+    rt.publish_policy(cpa_server::scheduler::Policy {
+        max_retry_credentials: 1,
+        ..Default::default()
+    });
+    serve(router(rt)).await
 }
 
 #[tokio::test]

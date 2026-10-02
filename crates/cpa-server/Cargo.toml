@@ -13,6 +13,7 @@ bytes.workspace = true
 cpa-core.workspace = true
 cpa-exec.workspace = true
 futures-util.workspace = true
+regex = "1"
 serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true

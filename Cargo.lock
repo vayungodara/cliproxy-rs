@@ -325,6 +325,7 @@ dependencies = [
  "cpa-core",
  "cpa-exec",
  "futures-util",
+ "regex",
  "serde",
  "serde_json",
  "tokio",
