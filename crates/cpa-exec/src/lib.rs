@@ -18,6 +18,14 @@ mod codex_request;
 mod codex_response;
 #[cfg(test)]
 mod codex_testkit;
+pub mod kimi;
+pub mod kimi_auth;
+#[cfg(test)]
+mod kimi_fixture;
+mod kimi_http;
+mod kimi_json;
+mod kimi_replay;
+mod kimi_thinking;
 pub mod oauth;
 mod quota;
 mod tls;
@@ -33,6 +41,15 @@ use cpa_core::exec::{ExecError, ExecRequest, ExecResponse, FailureScope};
 pub struct Executors {
     pub claude: claude::ClaudeExecutor,
     pub codex: codex::CodexExecutor,
+    /// Device-login providers (Kimi, Meta, Devin). `Default` builds production clients.
+    pub devices: DeviceExecutors,
+}
+
+/// Executors for the device-login providers, grouped so adding one does not touch every
+/// [`Executors`] construction site.
+#[derive(Default)]
+pub struct DeviceExecutors {
+    pub kimi: kimi::KimiExecutor,
 }
 
 impl Executors {
@@ -45,6 +62,7 @@ impl Executors {
         match credential.provider.as_str() {
             "claude" => self.claude.execute(credential, req, cfg).await,
             "codex" => self.codex.execute(credential, req, cfg).await,
+            p if kimi::PROVIDERS.contains(&p) => self.devices.kimi.execute(&self.claude, credential, req, cfg).await,
             other => Err(no_executor(other)),
         }
     }
@@ -54,6 +72,7 @@ impl Executors {
         match credential.provider.as_str() {
             "claude" => self.claude.needs_prepare(credential, cfg),
             "codex" => self.codex.needs_prepare(credential, cfg),
+            p if kimi::PROVIDERS.contains(&p) => self.devices.kimi.needs_prepare(credential, cfg),
             _ => false,
         }
     }
@@ -63,6 +82,7 @@ impl Executors {
         match credential.provider.as_str() {
             "claude" => self.claude.prepare(credential, cfg).await,
             "codex" => self.codex.prepare(credential, cfg).await,
+            p if kimi::PROVIDERS.contains(&p) => self.devices.kimi.prepare(credential, cfg).await,
             other => Err(no_executor(other)),
         }
     }
