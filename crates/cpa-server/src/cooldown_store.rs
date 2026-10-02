@@ -243,19 +243,10 @@ pub fn save(dir: &Path, records: Vec<Record>, now: SystemTime) -> Result<(), Str
             updated_at: Some(now),
             records,
         };
-        let parent = path.parent().unwrap_or(dir);
-        create_private_dir(parent)?;
-        let tmp = parent.join(format!(
-            "{}.{}.tmp",
-            path.file_name().unwrap_or_default().to_string_lossy(),
-            std::process::id()
-        ));
-        std::fs::write(&tmp, marshal_indent(&envelope))
-            .and_then(|()| std::fs::rename(&tmp, &path))
-            .map_err(|e| {
-                let _ = std::fs::remove_file(&tmp);
-                format!("replace cooldown state file: {e}")
-            })?;
+        create_private_dir(path.parent().unwrap_or(dir))?;
+        // Go `os.CreateTemp` + rename: an exclusively created 0600 temporary file.
+        crate::runtime::write_bytes_atomic(&path, &marshal_indent(&envelope))
+            .map_err(|e| format!("replace cooldown state file: {e}"))?;
     }
     for path in cds_files(dir) {
         if !groups.contains_key(&path)

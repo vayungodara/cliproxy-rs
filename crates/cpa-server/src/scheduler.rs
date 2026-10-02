@@ -960,7 +960,17 @@ impl Scheduler {
         now: Instant,
         wall: SystemTime,
     ) -> bool {
-        let Some(remaining) = record.next_retry_after.and_then(|at| at.duration_since(wall).ok()) else {
+        // Go blocks until the later of the retry deadline and, for a quota state, the
+        // quota recovery time (`availabilityBlock`); one deadline here.
+        // Go restores only records whose retry deadline is still ahead.
+        let Some(retry) = record.next_retry_after.filter(|at| *at > wall) else {
+            return false;
+        };
+        let at = match record.quota.next_recover_at.filter(|_| record.quota.exceeded) {
+            Some(recover) => retry.max(recover),
+            None => retry,
+        };
+        let Some(remaining) = at.duration_since(wall).ok() else {
             return false;
         };
         if remaining.is_zero() {

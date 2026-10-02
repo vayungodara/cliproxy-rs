@@ -352,6 +352,13 @@ pub fn apply_tracked(
 }
 
 fn edit(rules: &Rules, req: &Request<'_>, mut out: Vec<u8>, mark: &mut dyn FnMut(&str)) -> Vec<u8> {
+    // Go: defaults check the original request, else the body as it entered (after the
+    // Codex normalization, before image-generation stripping).
+    let source = if req.original.is_empty() {
+        out.clone()
+    } else {
+        req.original.to_vec()
+    };
     if strip_image_generation(rules.image_generation, req.request_path) {
         out = remove_tool_type(&out, &build_path(req.root, "tools"), "image_generation");
         out = remove_tool_choice(&out, &build_path(req.root, "tool_choice"), "image_generation");
@@ -361,11 +368,6 @@ fn edit(rules: &Rules, req: &Request<'_>, mut out: Vec<u8>, mark: &mut dyn FnMut
         return out;
     }
     let candidates = model_candidates(model, requested);
-    let source = if req.original.is_empty() {
-        out.clone()
-    } else {
-        req.original.to_vec()
-    };
     let matches = |models: &[ModelRule], out: &[u8]| rules_match(models, req, out, &candidates);
 
     let mut defaulted: HashSet<String> = HashSet::new();
@@ -786,7 +788,7 @@ fn split_logical<'q>(query: &'q str, operator: &str) -> Vec<&'q str> {
             }
         } else if c == b'"' || c == b'\'' {
             quote = c;
-        } else if query[i..].starts_with(operator) {
+        } else if bytes[i..].starts_with(operator.as_bytes()) {
             parts.push(query[start..i].trim());
             i += operator.len();
             start = i;

@@ -1,5 +1,5 @@
 {
-  "config": "\ndisable-image-generation: chat\npayload:\n  default:\n    - models: [{name: \"gpt-*\"}]\n      params: {temperature: 0.5}\n    - models: [{name: \"gpt-*\"}]\n      params: {temperature: 0.9}\n    - models: [{name: \"gpt-*\", protocol: openai}]\n      params: {metadata.tags: [\"a\", \"b\"]}\n    - models: [{name: \"gpt-*\", from-protocol: openai-response}]\n      params: {reasoning.effort: \"high\"}\n    - models: [{name: \"claude-*\", headers: {X-Team: \"red-*\"}}]\n      params: {top_k: 40}\n    - models: [{name: \"*-thinking\"}]\n      params: {suffix_hit: true}\n    - models: [{name: \"gpt-*\", match: [{stream: true}]}]\n      params: {stream_options: {include_usage: true, \"\u003ctag\u003e\": 1.25e1}}\n    - models: [{name: \"gpt-*\", not-match: [{n: 2}]}]\n      params: {n_checked: 1}\n    - models: [{name: \"gpt-*\", exist: [user]}]\n      params: {user_seen: \"yes\"}\n    - models: [{name: \"gpt-*\", not-exist: [seed]}]\n      params: {seed: 7}\n  default-raw:\n    - models: [{name: \"gpt-*\"}]\n      params: {response_format: '{\"type\":\"json_object\"}'}\n    - models: [{name: \"gpt-*\"}]\n      params: {broken: '{\"type\":'}\n  override:\n    - models: [{name: \"gpt-*\"}]\n      params: {max_tokens: 100}\n    - models: [{name: \"gpt-*\"}]\n      params: {max_tokens: 200}\n    - models: [{name: \"gpt-*\"}]\n      params: {model_label: \"\u003cb\u003e\u0026\"}\n    - models: [{name: \"gpt-*\"}]\n      params: {big: 1e21}\n    - models: [{name: \"gpt-*\"}]\n      params: {\"messages.#(role==\\\"system\\\").content\": \"rewritten\"}\n    - models: [{name: \"gpt-*\"}]\n      params: {\"tools.#(type==\\\"function\\\")#.strict\": true}\n    - models: [{name: \"gemini-*\"}]\n      params: {generationConfig.maxOutputTokens: 64}\n    - models: [{name: \"gpt-*\"}]\n      params: {nullable: null}\n  override-raw:\n    - models: [{name: \"gpt-*\"}]\n      params: {logit_bias: '{\"1\": -100}'}\n  filter:\n    - models: [{name: \"gpt-*\"}]\n      params: [frequency_penalty, \"messages.#(role==\\\"developer\\\")#\"]\n",
+  "config": "\ndisable-image-generation: chat\npayload:\n  default:\n    - models: [{name: \"gpt-*\"}]\n      params: {temperature: 0.5}\n    - models: [{name: \"gpt-*\"}]\n      params: {temperature: 0.9}\n    - models: [{name: \"gpt-*\", protocol: openai}]\n      params: {metadata.tags: [\"a\", \"b\"]}\n    - models: [{name: \"gpt-*\", from-protocol: openai-response}]\n      params: {reasoning.effort: \"high\"}\n    - models: [{name: \"claude-*\", headers: {X-Team: \"red-*\"}}]\n      params: {top_k: 40}\n    - models: [{name: \"*-thinking\"}]\n      params: {suffix_hit: true}\n    - models: [{name: \"gpt-*\", match: [{stream: true}]}]\n      params: {stream_options: {include_usage: true, \"\u003ctag\u003e\": 1.25e1}}\n    - models: [{name: \"gpt-*\", not-match: [{n: 2}]}]\n      params: {n_checked: 1}\n    - models: [{name: \"gpt-*\", exist: [user]}]\n      params: {user_seen: \"yes\"}\n    - models: [{name: \"gpt-*\", not-exist: [seed]}]\n      params: {seed: 7}\n    - models: [{name: \"img-*\"}]\n      params: {tool_choice: image_generation}\n  default-raw:\n    - models: [{name: \"gpt-*\"}]\n      params: {response_format: '{\"type\":\"json_object\"}'}\n    - models: [{name: \"gpt-*\"}]\n      params: {broken: '{\"type\":'}\n  override:\n    - models: [{name: \"gpt-*\"}]\n      params: {max_tokens: 100}\n    - models: [{name: \"gpt-*\"}]\n      params: {max_tokens: 200}\n    - models: [{name: \"gpt-*\"}]\n      params: {model_label: \"\u003cb\u003e\u0026\"}\n    - models: [{name: \"gpt-*\"}]\n      params: {big: 1e21}\n    - models: [{name: \"gpt-*\"}]\n      params: {\"messages.#(role==\\\"system\\\").content\": \"rewritten\"}\n    - models: [{name: \"gpt-*\"}]\n      params: {\"tools.#(type==\\\"function\\\")#.strict\": true}\n    - models: [{name: \"gemini-*\"}]\n      params: {generationConfig.maxOutputTokens: 64}\n    - models: [{name: \"gpt-*\"}]\n      params: {nullable: null}\n    - models: [{name: \"uni-*\"}]\n      params: {\"items.#(é==1)#.x\": true}\n  override-raw:\n    - models: [{name: \"gpt-*\"}]\n      params: {logit_bias: '{\"1\": -100}'}\n  filter:\n    - models: [{name: \"gpt-*\"}]\n      params: [frequency_penalty, \"messages.#(role==\\\"developer\\\")#\"]\n",
   "headers": [
     {
       "name": "mixed",
@@ -260,6 +260,38 @@
       "headers": null,
       "tracked": null,
       "out": "{\"a\":1}",
+      "touched": []
+    },
+    {
+      "name": "defaults_see_body_before_image_strip",
+      "target": "",
+      "model": "img-1",
+      "requested_model": "",
+      "protocol": "openai",
+      "from_protocol": "",
+      "root": "",
+      "payload": "{\"tools\":[{\"type\":\"image_generation\"}],\"tool_choice\":\"image_generation\"}",
+      "original": "",
+      "request_path": "/v1/responses",
+      "headers": null,
+      "tracked": null,
+      "out": "{\"tools\":[]}",
+      "touched": []
+    },
+    {
+      "name": "unicode_query_key",
+      "target": "",
+      "model": "uni-1",
+      "requested_model": "",
+      "protocol": "openai",
+      "from_protocol": "",
+      "root": "",
+      "payload": "{\"items\":[{\"é\":1},{\"é\":2},{\"é\":1,\"x\":false}]}",
+      "original": "",
+      "request_path": "",
+      "headers": null,
+      "tracked": null,
+      "out": "{\"items\":[{\"é\":1,\"x\":true},{\"é\":2},{\"é\":1,\"x\":true}]}",
       "touched": []
     },
     {
