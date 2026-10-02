@@ -128,6 +128,8 @@ impl Spec {
         );
         put("support_configuration_update", self.support_configuration_update.into());
         put("is_compat", self.is_compat.into());
+        // Config `models[]` entries: thinking passes through unvalidated (thinking.IsUserDefinedModel).
+        put("user_defined", self.user_defined.into());
         if let Some(t) = &self.thinking {
             let mut m = Map::new();
             for (k, v) in [("min", t.min), ("max", t.max)] {
