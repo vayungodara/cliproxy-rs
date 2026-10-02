@@ -303,7 +303,7 @@ fn header_session(headers: &HeaderMap) -> Option<String> {
 
 /// `codexReasoningReplaySessionKey` for a Claude-format request, isolated per caller key
 /// (`xaiReasoningReplayIsolateSessionKey`). Empty when no session or no client key.
-fn session_key(req: &ExecRequest, payload: &str) -> String {
+pub(crate) fn session_key(req: &ExecRequest, payload: &str) -> String {
     let key = claude_code_session(payload, &req.headers)
         .or_else(|| {
             let execution = req.execution_session.as_deref().map(str::trim).unwrap_or_default();
@@ -407,7 +407,7 @@ pub(crate) fn clears_after(error: &ExecError) -> bool {
     matches!(error.status, 400 | 422)
 }
 
-fn replayable(content: &str) -> bool {
+pub(crate) fn replayable(content: &str) -> bool {
     let root = gjson::parse(content);
     if root.kind() != gjson::Kind::Array {
         return false;
@@ -455,7 +455,7 @@ fn non_thinking_parts(content: &gjson::Value<'_>) -> Option<Vec<String>> {
 }
 
 /// `restoreKimiThinkingReplayContent`.
-fn restore(body: &str, cached: &str) -> Option<String> {
+pub(crate) fn restore(body: &str, cached: &str) -> Option<String> {
     let cached_value = gjson::parse(cached);
     let cached_parts = non_thinking_parts(&cached_value)?;
     let messages = gjson::get(body, "messages");
@@ -494,17 +494,17 @@ struct Block {
 
 /// Rebuilds the complete assistant content from a Claude SSE stream.
 #[derive(Default)]
-struct Accumulator {
+pub(crate) struct Accumulator {
     blocks: BTreeMap<i64, Block>,
     observed: bool,
     complete: bool,
-    upstream_error: bool,
+    pub(crate) upstream_error: bool,
     abandoned: bool,
     used: usize,
 }
 
 impl Accumulator {
-    fn observe(&mut self, chunk: &[u8]) {
+    pub(crate) fn observe(&mut self, chunk: &[u8]) {
         for line in chunk.split(|b| *b == b'\n') {
             let line = line.trim_ascii();
             let Some(payload) = line.strip_prefix(b"data:") else {
@@ -643,7 +643,7 @@ impl Accumulator {
         block.finished = true;
     }
 
-    fn content(&mut self) -> Option<String> {
+    pub(crate) fn content(&mut self) -> Option<String> {
         if !self.observed || !self.complete || self.upstream_error || self.abandoned {
             return None;
         }

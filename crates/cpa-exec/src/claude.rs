@@ -23,6 +23,7 @@ mod detect;
 mod headers;
 mod identity;
 mod profile;
+mod replay;
 mod session;
 mod settings;
 mod signals;
@@ -100,6 +101,7 @@ pub struct ClaudeExecutor {
     go: Arc<GoClients>,
     base_url: String,
     oauth: OAuth,
+    replay: Arc<replay::ReplayCache>,
 }
 
 impl ClaudeExecutor {
@@ -121,6 +123,7 @@ impl ClaudeExecutor {
     fn with_transport(transport: Arc<Transport>, hooks: Hooks, base_url: impl Into<String>) -> Self {
         Self {
             oauth: OAuth::with_transport(transport.clone()),
+            replay: Arc::default(),
             native: Native::Transport(transport),
             go: Arc::new(GoClients::new(hooks)),
             base_url: base_url.into().trim_end_matches('/').to_owned(),
@@ -132,6 +135,7 @@ impl ClaudeExecutor {
     pub fn with_client(client: wreq::Client, base_url: impl Into<String>) -> Self {
         Self {
             oauth: OAuth::new(client.clone()),
+            replay: Arc::default(),
             go: Arc::new(GoClients::with_default(client.clone())),
             native: Native::Fixed(client),
             base_url: base_url.into().trim_end_matches('/').to_owned(),
@@ -202,7 +206,35 @@ impl ClaudeExecutor {
         }
     }
 
-    async fn generate(&self, ctx: Ctx<'_>, req: ExecRequest) -> Result<ExecResponse, ExecError> {
+    /// Execute / ExecuteStream around the compat thinking replay: restore before
+    /// translation, clear applied replay the upstream rejected (400/422).
+    async fn generate(&self, ctx: Ctx<'_>, mut req: ExecRequest) -> Result<ExecResponse, ExecError> {
+        let attr = |k: &str| ctx.credential.attributes.get(k).map(String::as_str).unwrap_or_default();
+        let gate = replay::Gate {
+            credential: ctx.credential,
+            api_key: &ctx.api_key,
+            base_url: attr("base_url"),
+            base_model: &ctx.base_model,
+            is_compat: ctx.is_compat,
+            oauth_token: ctx.oauth_token,
+        };
+        let mut scope = replay::prepare(&self.replay, &gate, &mut req);
+        let result = self.generate_with(ctx, req, &mut scope).await;
+        if let (Err(error), Some(scope)) = (&result, &scope)
+            && scope.applied
+            && replay::clears_after(error)
+        {
+            scope.clear();
+        }
+        result
+    }
+
+    async fn generate_with(
+        &self,
+        ctx: Ctx<'_>,
+        req: ExecRequest,
+        replay: &mut Option<replay::Scope>,
+    ) -> Result<ExecResponse, ExecError> {
         let upstream_stream = req.stream || req.response_format != Format::Claude;
         let translated = translate::request(&req, &ctx.base_model, ctx.is_compat)?;
         let prepared = ctx.prepare_messages(&req, &translated, upstream_stream)?;
@@ -228,8 +260,11 @@ impl ClaudeExecutor {
                 } else {
                     stream::relay_translated(raw, reverse, done)
                 };
-                let relayed = relayed.map(move |r| r.map_err(|e| fast_request_error(fast, e)));
-                ResponseBody::Stream(relayed.boxed())
+                let relayed = relayed.map(move |r| r.map_err(|e| fast_request_error(fast, e))).boxed();
+                ResponseBody::Stream(match replay.take() {
+                    Some(scope) => scope.wrap(relayed),
+                    None => relayed,
+                })
             }
             ResponseBody::Stream(raw) => {
                 let data = collect(raw).await.map_err(wrap)?;
@@ -254,6 +289,9 @@ impl ClaudeExecutor {
                             )))
                         })?);
                     }
+                    if let Some(scope) = replay.as_ref() {
+                        scope.store_response(&out);
+                    }
                     ResponseBody::Buffered(Bytes::from(out))
                 } else {
                     let text = String::from_utf8_lossy(&data).into_owned();
@@ -267,6 +305,9 @@ impl ClaudeExecutor {
                     );
                     let restored = alias::restore_response(&text, &reverse)
                         .map_err(|m| plain_error(format!("restore Claude OAuth tool name from response: {m}")))?;
+                    if let Some(scope) = replay.as_ref() {
+                        scope.store_response(restored.as_bytes());
+                    }
                     ResponseBody::Buffered(Bytes::from(restored))
                 }
             }
