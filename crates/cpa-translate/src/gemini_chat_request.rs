@@ -2,25 +2,21 @@
 //! (internal/translator/gemini/openai/chat-completions/gemini_openai_request.go).
 
 use crate::{
-    Pair, Registered,
+    Registered,
     common::{self, go_lower, sanitize_function_name, trim_space},
     gemini::attach_default_safety_settings,
-    gemini_chat_response as response, stream,
+    gemini_chat_response as response,
 };
 use cpa_common::json::{self as gj, Kind, Res};
-use cpa_core::format::Format;
 use std::collections::{HashMap, HashSet};
 
-pub static PAIR: Registered = Registered {
-    pair: Pair {
-        request: |ctx, body| Ok(convert(ctx.model, body)),
-        non_stream: response::non_stream,
-        stream: |ctx| stream::framed(Format::OpenAI, Format::Gemini, response::go_stream(ctx)),
-        count_tokens: None,
-    },
-    token_count: None,
+pub static PAIR: Registered = registered!(
+    OpenAI -> Gemini,
+    request: |ctx, body| Ok(convert(ctx.model, body)),
+    non_stream: response::non_stream,
     go_stream: response::go_stream,
-};
+    token_count: None,
+);
 
 const SKIP_SIGNATURE: &[u8] = b"skip_thought_signature_validator";
 

@@ -2,24 +2,20 @@
 //! (internal/translator/openai/claude/openai_claude_request.go).
 
 use crate::{
-    Error, Pair, Registered, RequestCtx,
+    Error, Registered, RequestCtx,
     common::{self, go_lower, trim_space},
-    openai_claude_response as response, stream,
+    openai_claude_response as response,
 };
 use cpa_common::json::{self as gj, AnyValue, Kind, Res};
-use cpa_core::format::Format;
 use std::collections::HashMap;
 
-pub static PAIR: Registered = Registered {
-    pair: Pair {
-        request,
-        non_stream: response::non_stream,
-        stream: |ctx| stream::framed(Format::Claude, Format::OpenAI, response::go_stream(ctx)),
-        count_tokens: None,
-    },
-    token_count: Some(claude_input_tokens),
+pub static PAIR: Registered = registered!(
+    Claude -> OpenAI,
+    request: request,
+    non_stream: response::non_stream,
     go_stream: response::go_stream,
-};
+    token_count: Some(claude_input_tokens),
+);
 
 /// common.ClaudeInputTokensJSON (Go's ClaudeTokenCount).
 pub(crate) fn claude_input_tokens(count: i64) -> Vec<u8> {

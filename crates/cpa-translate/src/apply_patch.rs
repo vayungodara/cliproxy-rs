@@ -3,6 +3,10 @@
 //! turn `{"input": "..."}` function arguments back into a freeform custom tool call
 //! (internal/translator/common/apply_patch_{input,events}.go).
 
+// ponytail: the streamed-input decoder and call state wait for the Responses response
+// bridges (OpenAI, Gemini, Interactions); drop this allow when they land.
+#![allow(dead_code)]
+
 use cpa_common::json::{self as gj, Res};
 
 pub(crate) const PARAMETERS: &str = r#"{"type":"object","properties":{"input":{"type":"string","description":"The complete apply_patch patch text."}},"required":["input"],"additionalProperties":false}"#;

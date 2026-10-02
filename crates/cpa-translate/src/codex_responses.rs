@@ -8,20 +8,16 @@
 // ported; Go only installs it when the executor enables apply_patch for the request.
 // Port it with the translator-common apply_patch helpers.
 
-use crate::{Error, Pair, Registered, RequestCtx, ResponseCtx, common, stream};
+use crate::{Error, Registered, RequestCtx, ResponseCtx, common, stream};
 use cpa_common::json::{self as gj, Kind};
-use cpa_core::format::Format;
 
-pub static PAIR: Registered = Registered {
-    pair: Pair {
-        request,
-        non_stream,
-        stream: |ctx| stream::framed(Format::OpenAIResponse, Format::Codex, go_stream(ctx)),
-        count_tokens: None,
-    },
+pub static PAIR: Registered = registered!(
+    OpenAIResponse -> Codex,
+    request: request,
+    non_stream: non_stream,
+    go_stream: go_stream,
     token_count: None,
-    go_stream,
-};
+);
 
 fn request(ctx: &RequestCtx<'_>, body: &[u8]) -> Result<Vec<u8>, Error> {
     let _ = ctx;

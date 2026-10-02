@@ -1,20 +1,16 @@
 //! Gemini -> Gemini (internal/translator/gemini/gemini): a request normalizer, passthrough
 //! responses and Gemini's token-count shape.
 
-use crate::{Error, Pair, Registered, ResponseCtx, common::trim_space, stream};
+use crate::{Error, Registered, ResponseCtx, common::trim_space, stream};
 use cpa_common::json::{self as gj, Res};
-use cpa_core::format::Format;
 
-pub static PAIR: Registered = Registered {
-    pair: Pair {
-        request: |_, body| Ok(convert(body)),
-        non_stream: |_, body| Ok(body.to_vec()),
-        stream: |ctx| stream::framed(Format::Gemini, Format::Gemini, go_stream(ctx)),
-        count_tokens: None,
-    },
+pub static PAIR: Registered = registered!(
+    Gemini -> Gemini,
+    request: |_, body| Ok(convert(body)),
+    non_stream: |_, body| Ok(body.to_vec()),
+    go_stream: go_stream,
     token_count: Some(token_count),
-    go_stream,
-};
+);
 
 /// common.GeminiTokenCountJSON (Go's GeminiTokenCount).
 pub(crate) fn token_count(count: i64) -> Vec<u8> {

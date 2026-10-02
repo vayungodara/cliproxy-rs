@@ -342,3 +342,27 @@ fn deeply_nested_client_bodies_translate_without_overflowing() {
     assert!(out.starts_with(br#"{"model":"gpt-test","messages":"#));
     assert!(out.windows(depth).any(|w| w.iter().all(|&c| c == b'[')));
 }
+
+#[test]
+fn deeply_nested_upstream_bodies_translate_without_overflowing() {
+    let depth = 50_000;
+    let nested = [vec![b'['; depth], vec![b']'; depth]].concat();
+    let rctx = ResponseCtx {
+        model: "m",
+        original_request: b"{}",
+        translated_request: b"{}",
+    };
+    // Non-stream: a Gemini body whose function-call arguments nest deeply.
+    let body = [
+        &br#"{"candidates":[{"content":{"parts":[{"functionCall":{"name":"f","args":{"x":"#[..],
+        &nested,
+        b"}}}]}}]}",
+    ]
+    .concat();
+    let out = (pair(Format::Claude, Format::Gemini).unwrap().non_stream)(&rctx, &body).unwrap();
+    assert!(out.starts_with(br#"{"id":"","type":"message""#));
+    // Stream: the same payload as one upstream event.
+    let mut stream = (pair(Format::OpenAI, Format::Gemini).unwrap().stream)(&rctx);
+    let chunks = stream.event(&[&b"data: "[..], &body, b"\n\n"].concat()).unwrap();
+    assert_eq!(chunks.len(), 1);
+}

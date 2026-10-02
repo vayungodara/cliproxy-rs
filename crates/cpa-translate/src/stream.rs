@@ -298,6 +298,18 @@ impl StreamTranslator for Framed {
     }
 
     fn event(&mut self, event: &[u8]) -> Result<Vec<Bytes>, Error> {
+        crate::deep_stack(event, || self.translate(event))
+    }
+
+    fn finish(&mut self) -> Result<Vec<Bytes>, Error> {
+        let mut out = vec![];
+        self.responses.flush_into(&mut out);
+        Ok(out.into_iter().map(Bytes::from).collect())
+    }
+}
+
+impl Framed {
+    fn translate(&mut self, event: &[u8]) -> Result<Vec<Bytes>, Error> {
         let mut chunks = vec![];
         if self.upstream == Format::OpenAI {
             for line in openai_lines(event) {
@@ -309,12 +321,6 @@ impl StreamTranslator for Framed {
             }
         }
         Ok(self.framed(chunks))
-    }
-
-    fn finish(&mut self) -> Result<Vec<Bytes>, Error> {
-        let mut out = vec![];
-        self.responses.flush_into(&mut out);
-        Ok(out.into_iter().map(Bytes::from).collect())
     }
 }
 

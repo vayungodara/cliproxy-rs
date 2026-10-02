@@ -2,24 +2,19 @@
 //! (internal/translator/codex/openai/chat-completions/codex_openai_request.go).
 
 use crate::{
-    Pair, Registered, apply_patch, codex_chat_response as response,
+    Registered, apply_patch, codex_chat_response as response,
     common::{go_lower, sanitize, trim_space},
-    stream,
 };
 use cpa_common::json::{self as gj, AnyValue, Kind, Res};
-use cpa_core::format::Format;
 use std::collections::{HashMap, HashSet};
 
-pub static PAIR: Registered = Registered {
-    pair: Pair {
-        request: |ctx, body| Ok(convert(ctx.model, body, ctx.stream)),
-        non_stream: response::non_stream,
-        stream: |ctx| stream::framed(Format::OpenAI, Format::Codex, response::go_stream(ctx)),
-        count_tokens: None,
-    },
-    token_count: None,
+pub static PAIR: Registered = registered!(
+    OpenAI -> Codex,
+    request: |ctx, body| Ok(convert(ctx.model, body, ctx.stream)),
+    non_stream: response::non_stream,
     go_stream: response::go_stream,
-};
+    token_count: None,
+);
 
 const NAME_LIMIT: usize = 64;
 

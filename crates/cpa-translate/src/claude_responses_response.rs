@@ -7,27 +7,23 @@
 // is random when several are open at once; this port uses ascending block index.
 
 use crate::{
-    Error, Pair, Registered, RequestCtx, ResponseCtx,
+    Error, Registered, RequestCtx, ResponseCtx,
     claude_responses::{
         REDACTED_THINKING_PREFIX, ToolNames, split_qualified_call, tool_descriptors, tool_winners, web_search_call_id,
     },
     common::{self, now_unix, sse_event, trim_space},
-    stream::{self, GoStream},
+    stream::GoStream,
 };
 use cpa_common::json::{self as gj, Kind, Res};
-use cpa_core::format::Format;
 use std::collections::{BTreeMap, HashMap, HashSet};
 
-pub static PAIR: Registered = Registered {
-    pair: Pair {
-        request,
-        non_stream,
-        stream: |ctx| stream::framed(Format::OpenAIResponse, Format::Claude, go_stream(ctx)),
-        count_tokens: None,
-    },
+pub static PAIR: Registered = registered!(
+    OpenAIResponse -> Claude,
+    request: request,
+    non_stream: non_stream,
+    go_stream: go_stream,
     token_count: None,
-    go_stream,
-};
+);
 
 fn request(ctx: &RequestCtx<'_>, body: &[u8]) -> Result<Vec<u8>, Error> {
     Ok(crate::claude_responses::convert(ctx.model, body, ctx.stream, false))

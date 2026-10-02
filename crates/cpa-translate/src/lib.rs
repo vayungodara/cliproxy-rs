@@ -24,6 +24,36 @@
 //! behaviour Go's translators depend on, so malformed bytes, coercions and escaping
 //! match Go.
 
+/// One Go registration (`translator.Register`). Request and non-stream transforms run
+/// deeply nested bodies on a Go-sized stack ([`deep_stack`]); stream events get the same
+/// protection in [`stream::framed`].
+macro_rules! registered {
+    ($client:ident -> $upstream:ident, request: $request:expr, non_stream: $non_stream:expr, go_stream: $go_stream:expr, token_count: $token_count:expr $(,)?) => {
+        $crate::Registered {
+            pair: $crate::Pair {
+                request: |ctx, body| {
+                    let request: $crate::RequestFn = $request;
+                    $crate::deep_stack(body, || request(ctx, body))
+                },
+                non_stream: |ctx, body| {
+                    let non_stream: $crate::NonStreamFn = $non_stream;
+                    $crate::deep_stack(body, || non_stream(ctx, body))
+                },
+                stream: |ctx| {
+                    $crate::stream::framed(
+                        cpa_core::format::Format::$client,
+                        cpa_core::format::Format::$upstream,
+                        ($go_stream)(ctx),
+                    )
+                },
+                count_tokens: None,
+            },
+            token_count: $token_count,
+            go_stream: $go_stream,
+        }
+    };
+}
+
 mod apply_patch;
 mod claude_chat_request;
 mod claude_chat_response;
@@ -224,15 +254,21 @@ fn nesting_depth(body: &[u8]) -> usize {
 /// the body nests deeply. Go's JSON walkers recurse per nesting level and rely on
 /// growable stacks; the ported walkers do too, so very deep client bodies would otherwise
 /// overflow a native thread stack instead of translating as in Go.
-fn deep_stack<T: Send>(body: &[u8], f: impl FnOnce() -> T + Send) -> T {
+pub(crate) fn deep_stack<T: Send>(body: &[u8], f: impl FnOnce() -> T + Send) -> T {
     const DEEP: usize = 256;
-    if nesting_depth(body) <= DEEP {
+    thread_local! {
+        static ON_DEEP_STACK: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    }
+    if ON_DEEP_STACK.with(std::cell::Cell::get) || nesting_depth(body) <= DEEP {
         return f();
     }
     std::thread::scope(|scope| {
         std::thread::Builder::new()
             .stack_size(1 << 30)
-            .spawn_scoped(scope, f)
+            .spawn_scoped(scope, || {
+                ON_DEEP_STACK.with(|flag| flag.set(true));
+                f()
+            })
             .map(|handle| handle.join())
     })
     .ok()
