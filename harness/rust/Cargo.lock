@@ -479,9 +479,7 @@ dependencies = [
  "bytes",
  "cpa-common",
  "cpa-core",
- "gjson",
  "rand",
- "serde_json",
  "sha2",
 ]
 
