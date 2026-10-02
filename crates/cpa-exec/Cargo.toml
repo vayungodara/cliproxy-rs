@@ -8,6 +8,7 @@ rust-version.workspace = true
 
 [dependencies]
 bytes.workspace = true
+cpa-common.workspace = true
 cpa-core.workspace = true
 cpa-translate.workspace = true
 futures-util.workspace = true
