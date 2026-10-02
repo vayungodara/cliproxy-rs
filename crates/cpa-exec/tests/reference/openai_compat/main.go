@@ -25,14 +25,15 @@ import (
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/modelconfig"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/registry"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/runtime/executor"
+	"github.com/router-for-me/CLIProxyAPI/v8/internal/runtime/executor/helps"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/thinking"
 	// Production registers every translator through this package (cmd/server/main.go).
 	_ "github.com/router-for-me/CLIProxyAPI/v8/internal/translator"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/watcher/synthesizer"
 	cliproxyauth "github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/auth"
-	"github.com/tidwall/gjson"
 	cliproxyexecutor "github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/executor"
 	sdktranslator "github.com/router-for-me/CLIProxyAPI/v8/sdk/translator"
+	"github.com/tidwall/gjson"
 )
 
 type upstream struct {
@@ -64,10 +65,10 @@ type scenario struct {
 	Payload        string            `json:"payload"`
 	// PayloadB64 replaces Payload for bodies that are not valid UTF-8.
 	PayloadB64 string `json:"payload_b64,omitempty"`
-	Original       string            `json:"original,omitempty"`
-	Source         string            `json:"source"`
-	Response       string            `json:"response,omitempty"`
-	Stream         bool              `json:"stream,omitempty"`
+	Original   string `json:"original,omitempty"`
+	Source     string `json:"source"`
+	Response   string `json:"response,omitempty"`
+	Stream     bool   `json:"stream,omitempty"`
 	// Op is execute, stream, count, images or images_stream.
 	Op          string            `json:"op"`
 	Alt         string            `json:"alt,omitempty"`
@@ -77,6 +78,8 @@ type scenario struct {
 	Session     string            `json:"session,omitempty"`
 	// ExecutionSession is opts.Metadata[execution_session_id].
 	ExecutionSession string `json:"execution_session,omitempty"`
+	// DerivedSession is req.Metadata[derived_session_id] (session.Enrich).
+	DerivedSession string `json:"derived_session,omitempty"`
 	// Needs names shared helpers whose real port must land before Rust can match.
 	Needs    []string  `json:"needs,omitempty"`
 	Upstream *upstream `json:"upstream,omitempty"`
@@ -84,9 +87,9 @@ type scenario struct {
 	Request string `json:"request,omitempty"`
 	// RequestB64 holds the capture instead of Request when it is not valid UTF-8.
 	RequestB64 string   `json:"request_b64,omitempty"`
-	Output  string   `json:"output,omitempty"`
-	Chunks  []string `json:"chunks,omitempty"`
-	Error   *errOut  `json:"error,omitempty"`
+	Output     string   `json:"output,omitempty"`
+	Chunks     []string `json:"chunks,omitempty"`
+	Error      *errOut  `json:"error,omitempty"`
 }
 
 var boundaryRe = regexp.MustCompile(`boundary=([0-9a-f]{60})`)
@@ -328,6 +331,9 @@ func run(s *scenario) {
 	if s.ExecutionSession != "" {
 		opts.Metadata[cliproxyexecutor.ExecutionSessionMetadataKey] = s.ExecutionSession
 	}
+	if s.DerivedSession != "" {
+		req.Metadata[cliproxyexecutor.DerivedSessionIDMetadataKey] = s.DerivedSession
+	}
 	if strings.HasPrefix(s.Op, "images") {
 		opts.SourceFormat = sdktranslator.FromString("openai-image")
 	}
@@ -462,5 +468,24 @@ func vectors() map[string]any {
 		}
 		media = append(media, map[string]any{"input": in, "media": mt, "params": params, "error": errText})
 	}
-	return map[string]any{"http_time": times, "json_valid": valids, "gjson_int": ints, "trim_space": trims, "media_type": media}
+	counts := []any{}
+	for _, in := range [][2]string{
+		{"gpt-4", `{"messages":{"content":"a"}}`},
+		{"gpt-4", `{"messages":[{"tool_calls":{"id":"a"}}]}`},
+		{"gpt-4", `{"functions":{"name":"a"}}`},
+		{"gpt-4", `{"tools":{"type":"function","function":{"name":"lookup"}}}`},
+		{"gpt-4o", `{"messages":[{"role":"user","content":[{"type":"text","text":"hi"},["nested",{"k":1}],7,{"type":"tool_result","name":"t","content":"out"}]}],"input":"in","prompt":{"p":1}}`},
+		{"", `{"messages":[{"content":{"type":"x"}}],"tool_choice":{"type":"function"}}`},
+	} {
+		enc, errEnc := helps.TokenizerForModel(in[0])
+		if errEnc != nil {
+			panic(errEnc)
+		}
+		n, errCount := helps.CountOpenAIChatTokens(enc, []byte(in[1]))
+		if errCount != nil {
+			panic(errCount)
+		}
+		counts = append(counts, []any{in[0], in[1], n})
+	}
+	return map[string]any{"http_time": times, "json_valid": valids, "gjson_int": ints, "trim_space": trims, "media_type": media, "token_counts": counts}
 }
