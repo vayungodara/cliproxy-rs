@@ -8,13 +8,11 @@
 use cpa_common::json::{self as gj, Kind};
 use cpa_core::registry::ModelInfo;
 
-/// registry.LookupModelInfo: dynamic registry first, then every static catalog in Go's
-/// search order, by trimmed ID.
-// ponytail: static catalogs only. The dynamic overlay (per-credential registrations,
-// openai-compatibility models, aliases) lands in cpa_core::registry (owner: server
-// thread); call it here first when it exists. `_provider` selects the overlay entry.
-pub fn lookup_model_info(model: &str, _provider: &str) -> Option<&'static ModelInfo> {
-    cpa_core::registry::pinned().lookup(model.trim())
+/// registry.LookupModelInfo: the server's dynamic registry (preferring `provider`'s
+/// registration), then every static catalog in Go's search order, by trimmed ID.
+pub fn lookup_model_info(model: &str, provider: &str) -> Option<ModelInfo> {
+    let provider = provider.trim().to_lowercase();
+    cpa_core::registry::lookup_model(model, (!provider.is_empty()).then_some(provider.as_str()))
 }
 
 /// thinking.ConvertLevelToBudget.
@@ -330,7 +328,7 @@ fn enable_claude_thinking_for_summary(mut body: Vec<u8>, model: &str) -> Vec<u8>
     if base.is_empty() {
         base = parse_suffix(&gj::get(&body, "model").str()).0.to_owned();
     }
-    let Some(support) = lookup_model_info(&base, "claude").and_then(|m| m.thinking.as_ref()) else {
+    let Some(support) = lookup_model_info(&base, "claude").and_then(|m| m.thinking) else {
         return body;
     };
     if !support.levels.is_empty() {
@@ -359,11 +357,7 @@ mod tests {
     fn capabilities_come_from_every_static_catalog() {
         // kimi-k2.5 is not a Claude model; Go still finds its levels through the static
         // lookup, which is why Claude-bound translation uses adaptive thinking for it.
-        let kimi = lookup_model_info(" kimi-k2.5 ", "claude")
-            .unwrap()
-            .thinking
-            .as_ref()
-            .unwrap();
+        let kimi = lookup_model_info(" kimi-k2.5 ", "claude").unwrap().thinking.unwrap();
         assert!(!kimi.levels.is_empty());
         assert!(!has_level(&kimi.levels, "max"));
         assert_eq!(map_to_claude_effort("xhigh", false), Some("high"));

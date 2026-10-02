@@ -41,11 +41,11 @@ fn thinking_config(out: &mut Vec<u8>, root: &Res<'_>, model: &str) {
         return;
     }
     let levels = thinking::lookup_model_info(model, "claude")
-        .and_then(|m| m.thinking.as_ref())
-        .map(|t| t.levels.as_slice())
+        .and_then(|m| m.thinking)
+        .map(|t| t.levels)
         .unwrap_or_default();
     if !levels.is_empty() {
-        let supports_max = thinking::has_level(levels, "max");
+        let supports_max = thinking::has_level(&levels, "max");
         match effort.as_str() {
             "none" | "auto" => {
                 gj::set_str(
