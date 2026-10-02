@@ -454,6 +454,53 @@ fn translate_lines(upstream: ExecStream, translator: Box<dyn StreamTranslator>) 
     .boxed()
 }
 
+/// Native Responses streaming: Go writes every scanned line plus `\n` as one chunk and
+/// the Responses route joins chunks into frames (responses_frames), flushing what is
+/// pending at the end and before a terminal error.
+fn responses_frames(lines: ExecStream) -> ExecStream {
+    struct State {
+        lines: ExecStream,
+        joiner: crate::responses_frames::Joiner,
+        ready: VecDeque<Result<Bytes, ExecError>>,
+        done: bool,
+    }
+    futures_util::stream::unfold(
+        State {
+            lines,
+            joiner: Default::default(),
+            ready: VecDeque::new(),
+            done: false,
+        },
+        |mut st| async move {
+            loop {
+                if let Some(item) = st.ready.pop_front() {
+                    return Some((item, st));
+                }
+                if st.done {
+                    return None;
+                }
+                match st.lines.next().await {
+                    Some(Ok(line)) => {
+                        let mut chunk = line.to_vec();
+                        chunk.push(b'\n');
+                        let frames = st.joiner.write(&chunk);
+                        st.ready.extend(frames.into_iter().map(Ok));
+                    }
+                    end => {
+                        st.done = true;
+                        let frames = st.joiner.flush();
+                        st.ready.extend(frames.into_iter().map(Ok));
+                        if let Some(Err(error)) = end {
+                            st.ready.push_back(Err(error));
+                        }
+                    }
+                }
+            }
+        },
+    )
+    .boxed()
+}
+
 /// `SetBoolIfDifferent`.
 fn set_bool_if_different(body: &str, path: &str, value: bool) -> String {
     let current = gjson::get(body, path);
@@ -535,18 +582,7 @@ async fn execute_responses(
             (pair.stream)(&ctx),
         )),
         // Native Responses clients get every scanned line back with "\n" appended.
-        (true, None) => ResponseBody::Stream(
-            lines(upstream.body, RESPONSES_LINE_LIMIT)
-                .map(|line| {
-                    line.map(|l| {
-                        let mut out = Vec::with_capacity(l.len() + 1);
-                        out.extend_from_slice(&l);
-                        out.push(b'\n');
-                        Bytes::from(out)
-                    })
-                })
-                .boxed(),
-        ),
+        (true, None) => ResponseBody::Stream(responses_frames(lines(upstream.body, RESPONSES_LINE_LIMIT))),
         (false, pair) => {
             let data = read_all(upstream.body, usize::MAX, false).await?;
             match pair {

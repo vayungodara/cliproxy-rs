@@ -1,0 +1,142 @@
+{
+  "name": "remint-from-dca",
+  "credential": {
+    "access_token": "dca:only",
+    "auth_kind": "oauth",
+    "base_url": "http://127.0.0.1:44767/v1",
+    "dca_token": "dca:only",
+    "expired": "2026-01-01T00:00:00Z",
+    "subs_tier_id": "old",
+    "type": "meta"
+  },
+  "attributes": {
+    "auth_kind": "oauth"
+  },
+  "request": {
+    "body": "{\"model\":\"muse-spark-1.1\",\"input\":\"hi\",\"reasoning\":{\"effort\":\"minimal\"}}",
+    "model": "muse-spark-1.1",
+    "source": "openai-response",
+    "stream": false
+  },
+  "responses": [
+    {
+      "status": 200,
+      "headers": [
+        [
+          "Content-Type",
+          "application/json"
+        ]
+      ],
+      "body": "{\"api_key\":\"minted-key\",\"base_url\":\"\",\"user_email\":\"u@example.com\",\"user_full_name\":\"U Ser\",\"subs_tier_name\":\"Plus\",\"subs_tier_id\":\"\",\"is_subs_active\":true,\"has_payment_method\":false}"
+    },
+    {
+      "status": 200,
+      "headers": [
+        [
+          "Content-Type",
+          "text/event-stream"
+        ]
+      ],
+      "body": "event: response.created\ndata: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_m\",\"status\":\"in_progress\"}}\n\nevent: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"id\":\"msg_1\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"hi there\"}]}}\n\nevent: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_m\",\"status\":\"completed\",\"model\":\"muse-spark-1.3\",\"output\":[],\"usage\":{\"input_tokens\":5,\"output_tokens\":2,\"total_tokens\":7}}}\n\n"
+    }
+  ],
+  "upstream": [
+    {
+      "method": "POST",
+      "target": "/muse-code/key",
+      "headers": [
+        [
+          "Host",
+          "127.0.0.1:44767"
+        ],
+        [
+          "User-Agent",
+          "muse-code/1.0.2"
+        ],
+        [
+          "Content-Length",
+          "24"
+        ],
+        [
+          "Accept",
+          "application/json"
+        ],
+        [
+          "Authorization",
+          "Bearer dca:only"
+        ],
+        [
+          "Content-Type",
+          "application/json"
+        ],
+        [
+          "Accept-Encoding",
+          "gzip"
+        ]
+      ],
+      "body": "{\"dca_token\":\"dca:only\"}"
+    },
+    {
+      "method": "POST",
+      "target": "/v1/responses",
+      "headers": [
+        [
+          "Host",
+          "127.0.0.1:44767"
+        ],
+        [
+          "User-Agent",
+          "muse-build/1.3.0 (interactive; macos-aarch64; build ac7280f2aca67769d1455a8847bb502b617d50f6)"
+        ],
+        [
+          "Content-Length",
+          "259"
+        ],
+        [
+          "Accept",
+          "text/event-stream"
+        ],
+        [
+          "Authorization",
+          "Bearer minted-key"
+        ],
+        [
+          "Cache-Control",
+          "no-cache"
+        ],
+        [
+          "Content-Type",
+          "application/json"
+        ],
+        [
+          "X-Client-Id",
+          "tbh:tui"
+        ],
+        [
+          "Accept-Encoding",
+          "gzip"
+        ]
+      ],
+      "body": "{\"model\":\"muse-spark-1.1\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}],\"reasoning\":{\"effort\":\"low\"},\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\"}"
+    }
+  ],
+  "downstream": {
+    "body": "{\"id\":\"resp_m\",\"status\":\"completed\",\"model\":\"muse-spark-1.3\",\"output\":[{\"id\":\"msg_1\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"hi there\"}]}],\"usage\":{\"input_tokens\":5,\"output_tokens\":2,\"total_tokens\":7,\"output_tokens_details\":{\"reasoning_tokens\":0},\"input_tokens_details\":{\"cached_tokens\":0}}}"
+  },
+  "extra": {
+    "metadata_after": {
+      "access_token": "minted-key",
+      "api_key": "minted-key",
+      "auth_kind": "oauth",
+      "base_url": "http://127.0.0.1:44767/v1",
+      "dca_token": "dca:only",
+      "email": "u@example.com",
+      "has_payment_method": false,
+      "is_subs_active": true,
+      "last_refresh": "2026-10-02T20:59:54Z",
+      "name": "U Ser",
+      "subs_tier_name": "Plus",
+      "type": "meta"
+    }
+  }
+}

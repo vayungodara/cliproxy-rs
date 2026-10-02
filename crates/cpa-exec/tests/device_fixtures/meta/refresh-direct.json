@@ -1,0 +1,90 @@
+{
+  "name": "refresh-direct",
+  "credential": {
+    "access_token": "old-key",
+    "api_key": "old-key",
+    "base_url": "http://127.0.0.1:35127/v1",
+    "custom": 1,
+    "dca_token": "dca:refresh",
+    "email": "keep@x",
+    "name": "Keep",
+    "subs_tier_name": "Old",
+    "type": "meta"
+  },
+  "attributes": {
+    "auth_kind": "oauth"
+  },
+  "request": {
+    "body": "",
+    "model": "",
+    "refresh": true,
+    "source": "openai-response",
+    "stream": false
+  },
+  "responses": [
+    {
+      "status": 200,
+      "headers": [
+        [
+          "Content-Type",
+          "application/json"
+        ]
+      ],
+      "body": "{\"api_key\":\"minted-key\",\"base_url\":\"\",\"user_email\":\"u@example.com\",\"user_full_name\":\"U Ser\",\"subs_tier_name\":\"Plus\",\"subs_tier_id\":\"\",\"is_subs_active\":true,\"has_payment_method\":false}"
+    }
+  ],
+  "upstream": [
+    {
+      "method": "POST",
+      "target": "/muse-code/key",
+      "headers": [
+        [
+          "Host",
+          "127.0.0.1:35127"
+        ],
+        [
+          "User-Agent",
+          "muse-code/1.0.2"
+        ],
+        [
+          "Content-Length",
+          "27"
+        ],
+        [
+          "Accept",
+          "application/json"
+        ],
+        [
+          "Authorization",
+          "Bearer dca:refresh"
+        ],
+        [
+          "Content-Type",
+          "application/json"
+        ],
+        [
+          "Accept-Encoding",
+          "gzip"
+        ]
+      ],
+      "body": "{\"dca_token\":\"dca:refresh\"}"
+    }
+  ],
+  "downstream": {},
+  "extra": {
+    "metadata_after": {
+      "access_token": "minted-key",
+      "api_key": "minted-key",
+      "base_url": "http://127.0.0.1:35127/v1",
+      "custom": 1,
+      "dca_token": "dca:refresh",
+      "email": "u@example.com",
+      "has_payment_method": false,
+      "is_subs_active": true,
+      "last_refresh": "2026-10-02T20:59:54Z",
+      "name": "U Ser",
+      "subs_tier_name": "Plus",
+      "type": "meta"
+    }
+  }
+}

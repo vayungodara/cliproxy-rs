@@ -7,7 +7,6 @@
 //! ponytail: Home KV identity is not ported (process-local only).
 
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -20,7 +19,6 @@ use futures_util::future::{BoxFuture, Shared};
 use serde::Serialize;
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use url::Url;
 
 use crate::proxy::Proxy;
@@ -487,7 +485,7 @@ fn canonical_pool(value: Option<&Value>) -> bool {
         .is_some_and(|a| a.len() == 1 && a[0].as_str().is_some_and(valid_device))
 }
 
-fn random_hex(n: usize) -> Result<String, ExecError> {
+pub(crate) fn random_hex(n: usize) -> Result<String, ExecError> {
     let mut bytes = vec![0; n];
     getrandom::fill(&mut bytes).map_err(|_| acquisition_error("secure random source unavailable"))?;
     Ok(bytes.iter().map(|b| format!("{b:02x}")).collect())
@@ -523,7 +521,7 @@ pub fn pkce() -> Result<(String, String), ExecError> {
     Ok((verifier, challenge))
 }
 
-fn authorize_url(state: &str, challenge: &str) -> String {
+pub(crate) fn authorize_url(state: &str, challenge: &str) -> String {
     let mut url = Url::parse("https://claude.ai/oauth/authorize").expect("constant URL");
     // Go url.Values.Encode sorts keys alphabetically.
     url.query_pairs_mut().extend_pairs([
@@ -537,164 +535,6 @@ fn authorize_url(state: &str, challenge: &str) -> String {
         ("state", state),
     ]);
     url.into()
-}
-
-/// Browser login. This is called only by the explicit CLI flag, never during tests.
-pub async fn login(auth_dir: &Path) -> Result<PathBuf, ExecError> {
-    // ponytail: browser callback only; manual paste/no-browser options, Go's success
-    // HTML/redirect and legacy filename migration remain for the complete CLI port.
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:54545")
-        .await
-        .map_err(|_| acquisition_error("cannot bind Claude callback port 54545"))?;
-    let (verifier, challenge) = pkce()?;
-    let state = random_hex(32)?;
-    let url = authorize_url(&state, &challenge);
-    println!("Open this URL to authorize Claude:\n{url}");
-    #[cfg(target_os = "linux")]
-    let _ = std::process::Command::new("xdg-open")
-        .arg(&url)
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .spawn();
-    #[cfg(target_os = "macos")]
-    let _ = std::process::Command::new("open").arg(&url).spawn();
-    let code = tokio::time::timeout(Duration::from_secs(300), callback(&listener, &state))
-        .await
-        .map_err(|_| acquisition_error("Claude login callback timed out"))??;
-    let transport = Arc::new(Transport::new(crate::proxy::Hooks::default()));
-    let patch = OAuth::with_transport(transport)
-        .exchange(&code, &state, &verifier)
-        .await?;
-    let directory = auth_dir.to_owned();
-    tokio::task::spawn_blocking(move || write_login(&directory, patch))
-        .await
-        .map_err(|_| acquisition_error("credential publication failed"))?
-}
-
-async fn callback(listener: &tokio::net::TcpListener, state: &str) -> Result<String, ExecError> {
-    loop {
-        let (mut socket, _) = listener
-            .accept()
-            .await
-            .map_err(|_| acquisition_error("callback listener failed"))?;
-        // ponytail: bounded HTTP/1 callback parser, one request per connection; no general HTTP server.
-        let result = tokio::time::timeout(Duration::from_secs(10), async {
-            let mut header = Vec::new();
-            let mut byte = [0];
-            while header.len() < 8192 && !header.ends_with(b"\r\n\r\n") {
-                if socket.read(&mut byte).await? == 0 { break; }
-                header.push(byte[0]);
-            }
-            let code = parse_callback(&header, state);
-            let (status, body) = if code.is_ok() { ("200 OK", "Authorization received. You can close this window.") }
-                else { ("400 Bad Request", "Invalid OAuth callback.") };
-            socket.write_all(format!("HTTP/1.1 {status}\r\nContent-Type: text/plain\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len()).as_bytes()).await?;
-            Ok::<_, std::io::Error>(code)
-        }).await;
-        if let Ok(Ok(Ok(code))) = result {
-            return Ok(code);
-        }
-    }
-}
-
-fn parse_callback(header: &[u8], state: &str) -> Result<String, ExecError> {
-    let header = std::str::from_utf8(header).map_err(|_| acquisition_error("invalid callback"))?;
-    let mut request = header.lines().next().unwrap_or_default().split_whitespace();
-    if request.next() != Some("GET") {
-        return Err(acquisition_error("invalid callback method"));
-    }
-    let url = Url::parse(&format!("http://localhost{}", request.next().unwrap_or_default()))
-        .map_err(|_| acquisition_error("invalid callback URL"))?;
-    if url.path() != "/callback" {
-        return Err(acquisition_error("invalid callback path"));
-    }
-    let pairs: Vec<_> = url.query_pairs().collect();
-    let get = |name| {
-        pairs
-            .iter()
-            .find(|(key, _)| key == name)
-            .map(|(_, value)| value.as_ref())
-            .unwrap_or_default()
-    };
-    if !get("error").is_empty() || get("state") != state || get("code").is_empty() {
-        return Err(acquisition_error("invalid callback state or code"));
-    }
-    // The fragment is also sent to the exchange. Do not allow it to replace validated state.
-    if get("code")
-        .split('#')
-        .nth(1)
-        .is_some_and(|fragment| !fragment.is_empty() && fragment != state)
-    {
-        return Err(acquisition_error("invalid callback fragment state"));
-    }
-    Ok(get("code").into())
-}
-
-fn write_login(directory: &Path, patch: MetadataPatch) -> Result<PathBuf, ExecError> {
-    let string = |key: &str| patch.set.get(key).and_then(Value::as_str).unwrap_or_default().trim();
-    let email = string("email");
-    if email.contains(['/', '\\']) {
-        return Err(acquisition_error("invalid credential email filename"));
-    }
-    let identity = if string("organization_uuid").is_empty() {
-        string("account_uuid")
-    } else {
-        string("organization_uuid")
-    };
-    let prefix = if identity.is_empty() {
-        "claude".into()
-    } else {
-        let digest = Sha256::digest(identity.as_bytes());
-        format!(
-            "claude-{}",
-            digest[..4].iter().map(|b| format!("{b:02x}")).collect::<String>()
-        )
-    };
-    let path = directory.join(format!("{prefix}-{email}.json"));
-    let mut metadata = match std::fs::read(&path) {
-        Ok(bytes) => {
-            serde_json::from_slice(&bytes).map_err(|_| acquisition_error("invalid existing credential file"))?
-        }
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => serde_json::Map::new(),
-        Err(_) => return Err(acquisition_error("cannot read existing credential file")),
-    };
-    patch.apply(&mut metadata);
-    let publish = || -> std::io::Result<()> {
-        use std::io::Write;
-        let mut directory_options = std::fs::DirBuilder::new();
-        directory_options.recursive(true);
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::DirBuilderExt;
-            directory_options.mode(0o700);
-        }
-        directory_options.create(directory)?;
-        let temporary = directory.join(format!(
-            ".claude-{}.tmp",
-            random_hex(16).map_err(std::io::Error::other)?
-        ));
-        let result = (|| {
-            let mut options = std::fs::OpenOptions::new();
-            options.write(true).create_new(true);
-            #[cfg(unix)]
-            {
-                use std::os::unix::fs::OpenOptionsExt;
-                options.mode(0o600);
-            }
-            let mut file = options.open(&temporary)?;
-            serde_json::to_writer(&mut file, &metadata)?;
-            file.write_all(b"\n")?;
-            file.sync_all()?;
-            std::fs::rename(&temporary, &path)?;
-            std::fs::File::open(directory)?.sync_all()
-        })();
-        if result.is_err() {
-            let _ = std::fs::remove_file(&temporary);
-        }
-        result
-    };
-    publish().map_err(|_| acquisition_error("cannot publish Claude credential"))?;
-    Ok(path)
 }
 
 #[cfg(test)]

@@ -22,8 +22,12 @@ Each executor fixture records:
 ```sh
 git clone https://github.com/router-for-me/CLIProxyAPI && cd CLIProxyAPI
 git checkout 6fecc6e
-cp <cliproxy-rs>/crates/cpa-exec/tests/device_fixtures/go/zz_rsfix_*_test.go internal/runtime/executor/
+G=<cliproxy-rs>/crates/cpa-exec/tests/device_fixtures/go
+cp $G/zz_rsfix_frames_test.go sdk/api/handlers/openai/
+for f in $G/zz_rsfix_*_test.go; do [ $(basename $f) = zz_rsfix_frames_test.go ] || cp $f internal/runtime/executor/; done
 RSFIX_OUT=/tmp/rsfix go test -count=1 -run 'TestRSFix' ./internal/runtime/executor/
+# Adds downstream.frames: Responses-route joining of the recorded stream chunks.
+RSFIX_OUT=/tmp/rsfix go test -count=1 -run 'TestRSFixResponsesFrames' ./sdk/api/handlers/openai/
 cp -r /tmp/rsfix/* <cliproxy-rs>/crates/cpa-exec/tests/device_fixtures/
 ```
 
