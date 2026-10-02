@@ -1335,6 +1335,8 @@ func credScenarios() []credScenario {
 			call(http.MethodPost, "/oauth/callback", `{"state":"x y"}`),
 			call(http.MethodPost, "/oauth/callback", `{"state":"s1"}`),
 			call(http.MethodPost, "/oauth/callback", `{"STATE":"s1","Code":"c"}`),
+			call(http.MethodPost, "/oauth/callback", `{"state":123,"state":"s1","code":"c"}`),
+			call(http.MethodPost, "/oauth/callback", `{"state":"s1","state":null,"code":"c"}`),
 			call(http.MethodPost, "/oauth/callback", `{"redirect_url":"http://h.example.invalid/cb?state=s2&code=c"}`),
 			call(http.MethodPost, "/oauth/callback", `{"redirect_url":":bad"}`),
 			get("/oauth/callback?state=s1&error_description=denied"),

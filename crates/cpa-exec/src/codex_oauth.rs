@@ -247,7 +247,9 @@ impl CodexOAuth {
         Ok((status, body))
     }
 
-    async fn token_request(&self, form: &[(&str, &str)]) -> Result<Tokens, ExecError> {
+    /// `exchange` keeps Go's `ExchangeCodeForTokens` error texts (status and body);
+    /// refreshes keep the sanitized refresh error.
+    async fn token_request(&self, form: &[(&str, &str)], exchange: bool) -> Result<Tokens, ExecError> {
         // url.Values.Encode sorts keys; callers pass them sorted.
         let body = url::form_urlencoded::Serializer::new(String::new())
             .extend_pairs(form)
@@ -255,11 +257,23 @@ impl CodexOAuth {
         let (status, body) = self
             .post(&self.token_url, "application/x-www-form-urlencoded", body.into_bytes())
             .await?;
+        if status != 200 && exchange {
+            let message = format!(
+                "token exchange failed with status {status}: {}",
+                String::from_utf8_lossy(&body)
+            );
+            return Err(oauth_error(status, &message));
+        }
         if status != 200 {
             return Err(token_error(status, &body));
         }
-        let parsed: TokenResponse =
-            serde_json::from_slice(&body).map_err(|_| oauth_error(502, "failed to parse codex token response"))?;
+        let parsed: TokenResponse = serde_json::from_slice(&body).map_err(|e| {
+            if exchange {
+                oauth_error(502, &format!("failed to parse token response: {e}"))
+            } else {
+                oauth_error(502, "failed to parse codex token response")
+            }
+        })?;
         let id_token = parsed.id_token.unwrap_or_default();
         let claims = parse_jwt(&id_token).unwrap_or_default();
         let expires = chrono::TimeDelta::try_seconds(parsed.expires_in.unwrap_or(0)).unwrap_or_default();
@@ -279,13 +293,16 @@ impl CodexOAuth {
         if redirect.trim().is_empty() {
             return Err(oauth_error(400, "redirect URI is required for token exchange"));
         }
-        self.token_request(&[
-            ("client_id", CLIENT_ID),
-            ("code", code),
-            ("code_verifier", verifier),
-            ("grant_type", "authorization_code"),
-            ("redirect_uri", redirect.trim()),
-        ])
+        self.token_request(
+            &[
+                ("client_id", CLIENT_ID),
+                ("code", code),
+                ("code_verifier", verifier),
+                ("grant_type", "authorization_code"),
+                ("redirect_uri", redirect.trim()),
+            ],
+            true,
+        )
         .await
     }
 
@@ -344,12 +361,15 @@ impl CodexOAuth {
             }
             let once = tokio::time::timeout(
                 Duration::from_secs(30),
-                self.token_request(&[
-                    ("client_id", CLIENT_ID),
-                    ("grant_type", "refresh_token"),
-                    ("refresh_token", refresh_token),
-                    ("scope", "openid profile email"),
-                ]),
+                self.token_request(
+                    &[
+                        ("client_id", CLIENT_ID),
+                        ("grant_type", "refresh_token"),
+                        ("refresh_token", refresh_token),
+                        ("scope", "openid profile email"),
+                    ],
+                    false,
+                ),
             )
             .await
             .unwrap_or_else(|_| Err(oauth_error(504, "codex token refresh timed out")));

@@ -1233,3 +1233,46 @@ async fn kimi_device_login_saves_and_a_cancelled_one_does_not() {
     server.abort();
     fake_server.abort();
 }
+
+/// `provider=kimi` honours Go's `domain`/`channel` selectors, and a failed Codex
+/// exchange reports Go's "token exchange failed" text in the session.
+#[tokio::test]
+async fn kimi_channel_selects_kimi_ai_and_codex_exchange_errors_read_like_go() {
+    let (fake, _seen, fake_server) = fake_logins().await;
+    let f = Fixture::new("loginselect");
+    let (base, _state, server) = login_server(&f, &fake).await;
+    let started = oauth_get(&base, "/oauth/auth-url?provider=kimi&channel=ai").await;
+    let state = started["state"].as_str().unwrap().to_owned();
+    assert!(state.starts_with("kmi-ai-"), "{state}");
+    let _ = wreq::Client::new()
+        .delete(format!("{base}/v8/management/oauth/session?state={state}"))
+        .bearer_auth("fake-management-only")
+        .send()
+        .await
+        .unwrap();
+    server.abort();
+
+    // A token endpoint that rejects the code.
+    let rejecting = axum::Router::new()
+        .fallback(|| async { (axum::http::StatusCode::BAD_REQUEST, r#"{"error":"invalid_grant"}"#) });
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let bad = format!("http://{}", listener.local_addr().unwrap());
+    let bad_server = tokio::spawn(async move { axum::serve(listener, rejecting).await.unwrap() });
+    let (base, _state, server) = login_server(&f, &bad).await;
+    let started = oauth_get(&base, "/oauth/auth-url?provider=codex").await;
+    let state = started["state"].as_str().unwrap().to_owned();
+    assert!(f.rt.deliver_oauth_callback(&cpa_server::runtime::OAuthCallback {
+        provider: "codex",
+        state: state.clone(),
+        code: "fake-code".into(),
+        error: String::new(),
+    }));
+    assert_eq!(
+        final_status(&base, &state, 10).await,
+        json!({"status": "error", "error":
+            "Failed to exchange authorization code for tokens: token exchange failed with status 400: {\"error\":\"invalid_grant\"}"})
+    );
+    server.abort();
+    bad_server.abort();
+    fake_server.abort();
+}

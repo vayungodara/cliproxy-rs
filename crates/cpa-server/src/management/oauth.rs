@@ -17,8 +17,8 @@ use std::time::{Duration, Instant, SystemTime};
 
 use axum::body::Bytes;
 use axum::extract::{RawQuery, State};
-use axum::http::{StatusCode, header};
-use axum::response::{IntoResponse, Response};
+use axum::http::StatusCode;
+use axum::response::Response;
 use cpa_core::exec::ExecError;
 use cpa_exec::proxy::Proxy;
 use serde_json::{Value, json};
@@ -217,12 +217,8 @@ fn random_state() -> Option<String> {
     Some(bytes.iter().map(|b| format!("{b:02x}")).collect())
 }
 
-/// The client for login traffic: `requests.proxy-url`, else the environment's
-/// proxies, as Go's auth services use; local endpoints in tests.
-fn login_client(state: &Management) -> wreq::Client {
-    if state.login_base.is_some() {
-        return state.clients.get(&Proxy::Direct);
-    }
+/// `requests.proxy-url`, which Go's auth services use.
+fn global_proxy(state: &Management) -> Proxy {
     let cfg = state.rt.config();
     let global = cfg
         .document
@@ -230,7 +226,16 @@ fn login_client(state: &Management) -> wreq::Client {
         .and_then(|r| r.get("proxy-url"))
         .and_then(serde_yaml_ng::Value::as_str)
         .unwrap_or_default();
-    state.clients.get(&Proxy::parse(global))
+    Proxy::parse(global)
+}
+
+/// The client for login traffic: the global proxy (else the environment's proxies);
+/// local endpoints in tests.
+fn login_client(state: &Management) -> wreq::Client {
+    if state.login_base.is_some() {
+        return state.clients.get(&Proxy::Direct);
+    }
+    state.clients.get(&global_proxy(state))
 }
 
 /// Go `StartOAuthV8`.
@@ -242,10 +247,19 @@ pub(super) async fn auth_url(State(state): State<Arc<Management>>, RawQuery(raw)
     );
     match q.first("provider").trim().to_lowercase().as_str() {
         "" => fail(StatusCode::BAD_REQUEST, "provider is required"),
-        "claude" => start_claude(state, webui),
-        "codex" => start_codex(state, webui),
-        "kimi" => start_kimi(state, false).await,
-        "kimi-ai" => start_kimi(state, true).await,
+        "claude" => start_claude(state, webui).await,
+        "codex" => start_codex(state, webui).await,
+        "kimi" => {
+            // Go `RequestKimiToken`: `domain`, else `channel`, else kimi.com.
+            let domain = [q.first("domain"), q.first("channel")]
+                .into_iter()
+                .map(str::trim)
+                .find(|v| !v.is_empty())
+                .unwrap_or(cpa_exec::kimi_auth::DOMAIN_COM)
+                .to_owned();
+            start_kimi(state, domain).await
+        }
+        "kimi-ai" => start_kimi(state, cpa_exec::kimi_auth::DOMAIN_AI.to_owned()).await,
         "meta" => start_meta(state).await,
         _ => fail(StatusCode::NOT_FOUND, "provider_not_found"),
     }
@@ -270,19 +284,26 @@ enum Outcome {
 /// Saves through `write` only while the session is still pending (Go
 /// `guardOAuthSessionPendingForSave`), then resyncs credentials.
 async fn save_if_pending<T: Send + 'static>(
-    state: &Management,
+    state: &Arc<Management>,
     sid: &str,
     provider: &str,
     value: T,
     write: impl FnOnce(PathBuf, T) -> Result<PathBuf, String> + Send + 'static,
     save_error: &str,
 ) -> Outcome {
-    if !state.oauth.is_pending(sid, provider) {
-        return Outcome::Cancelled;
-    }
     let auth_dir = state.rt.config().auth_dir.clone();
-    match tokio::task::spawn_blocking(move || write(auth_dir, value)).await {
-        Ok(Ok(_)) => Outcome::Saved,
+    let (guard, sid, provider) = (state.clone(), sid.to_owned(), provider.to_owned());
+    let saved = tokio::task::spawn_blocking(move || {
+        // Checked on the blocking thread itself, right before the write.
+        if !guard.oauth.is_pending(&sid, &provider) {
+            return Ok(None);
+        }
+        write(auth_dir, value).map(Some)
+    })
+    .await;
+    match saved {
+        Ok(Ok(Some(_))) => Outcome::Saved,
+        Ok(Ok(None)) => Outcome::Cancelled,
         _ => Outcome::Failed(save_error.to_owned()),
     }
 }
@@ -309,17 +330,20 @@ fn started(url: String, sid: String) -> Response {
 }
 
 /// Go `RequestAnthropicToken`.
-fn start_claude(state: Arc<Management>, webui: bool) -> Response {
+async fn start_claude(state: Arc<Management>, webui: bool) -> Response {
     use cpa_exec::claude_login::ManagedLogin;
     let login = match ManagedLogin::start() {
         Ok(l) => l,
         Err(_) => return fail(StatusCode::INTERNAL_SERVER_ERROR, "failed to generate PKCE codes"),
     };
     state.oauth.register(&login.state, "anthropic");
-    let forwarder = match webui.then(|| start_forwarder(&state, ANTHROPIC_CALLBACK_PORT, "/anthropic/callback")) {
-        Some(Err(message)) => return fail(StatusCode::INTERNAL_SERVER_ERROR, message),
-        Some(Ok(id)) => Some(id),
-        None => None,
+    let forwarder = if webui {
+        match start_forwarder(&state, ANTHROPIC_CALLBACK_PORT, "/anthropic/callback").await {
+            Ok(id) => Some(id),
+            Err(message) => return fail(StatusCode::INTERNAL_SERVER_ERROR, message),
+        }
+    } else {
+        None
     };
     let (url, sid) = (login.url.clone(), login.state.clone());
     let worker = state.clone();
@@ -335,7 +359,7 @@ fn start_claude(state: Arc<Management>, webui: bool) -> Response {
                     );
                     login.exchange_with(&oauth, &code).await
                 }
-                None => login.exchange(&code).await,
+                None => login.exchange(&code, &global_proxy(&worker)).await,
             };
             let outcome = match exchanged {
                 Ok(patch) => {
@@ -360,7 +384,7 @@ fn start_claude(state: Arc<Management>, webui: bool) -> Response {
 }
 
 /// Go `RequestCodexToken`.
-fn start_codex(state: Arc<Management>, webui: bool) -> Response {
+async fn start_codex(state: Arc<Management>, webui: bool) -> Response {
     use cpa_exec::codex_oauth::{CodexOAuth, authorize_url, redirect_uri, write_login};
     let Ok((verifier, challenge)) = cpa_exec::oauth::pkce() else {
         return fail(StatusCode::INTERNAL_SERVER_ERROR, "failed to generate PKCE codes");
@@ -370,10 +394,13 @@ fn start_codex(state: Arc<Management>, webui: bool) -> Response {
     };
     let url = authorize_url(&sid, &challenge, CODEX_CALLBACK_PORT);
     state.oauth.register(&sid, "codex");
-    let forwarder = match webui.then(|| start_forwarder(&state, CODEX_CALLBACK_PORT, "/codex/callback")) {
-        Some(Err(message)) => return fail(StatusCode::INTERNAL_SERVER_ERROR, message),
-        Some(Ok(id)) => Some(id),
-        None => None,
+    let forwarder = if webui {
+        match start_forwarder(&state, CODEX_CALLBACK_PORT, "/codex/callback").await {
+            Ok(id) => Some(id),
+            Err(message) => return fail(StatusCode::INTERNAL_SERVER_ERROR, message),
+        }
+    } else {
+        None
     };
     let worker = state.clone();
     let flow = sid.clone();
@@ -472,15 +499,15 @@ fn device_started(url: String, sid: String, user_code: &str, expires_in: Option<
 }
 
 /// Go `requestKimiTokenWithDomain`.
-async fn start_kimi(state: Arc<Management>, ai: bool) -> Response {
-    use cpa_exec::kimi_auth::{DOMAIN_AI, DOMAIN_COM, DeviceFlow, login_record, write_login};
-    let (provider, prefix, domain) = if ai {
-        ("kimi-ai", "kmi-ai", DOMAIN_AI)
+async fn start_kimi(state: Arc<Management>, domain: String) -> Response {
+    use cpa_exec::kimi_auth::{DeviceFlow, is_ai_domain, login_record, write_login};
+    let (provider, prefix) = if is_ai_domain(&domain) {
+        ("kimi-ai", "kmi-ai")
     } else {
-        ("kimi", "kmi", DOMAIN_COM)
+        ("kimi", "kmi")
     };
     let sid = format!("{prefix}-{}", unix_nanos());
-    let mut flow = DeviceFlow::new(login_client(&state), domain, "");
+    let mut flow = DeviceFlow::new(login_client(&state), &domain, "");
     if let Some(base) = &state.login_base {
         flow = flow.with_oauth_host(base);
     }
@@ -510,12 +537,14 @@ async fn start_kimi(state: Arc<Management>, ai: bool) -> Response {
         };
         let outcome = match polled {
             Ok(tokens) => {
-                let record = login_record(
+                let mut record = login_record(
                     provider,
                     &tokens,
                     flow.device_id(),
                     chrono::Utc::now().timestamp_millis(),
                 );
+                // Go records the requested domain as given.
+                record.metadata.insert("domain".into(), domain.clone().into());
                 let write = |dir: PathBuf, record| write_login(&dir, &record).map_err(|e| exec_text(&e));
                 save_if_pending(
                     &worker,
@@ -594,9 +623,9 @@ pub(crate) struct Forwarder {
 }
 
 /// Go `startCallbackForwarder`: `0.0.0.0:<port>` redirects every request to the
-/// main listener's provider callback, replacing any forwarder on that port.
-/// Errors carry Go's message for the 500 answer.
-fn start_forwarder(state: &Management, port: u16, path: &str) -> Result<u64, &'static str> {
+/// main listener's provider callback. A forwarder already on that port is stopped
+/// (and its listener released) first. Errors carry Go's message for the 500 answer.
+async fn start_forwarder(state: &Management, port: u16, path: &str) -> Result<u64, &'static str> {
     let cfg = state.rt.config();
     if cfg.port == 0 {
         return Err("callback server unavailable");
@@ -616,17 +645,15 @@ fn start_forwarder(state: &Management, port: u16, path: &str) -> Result<u64, &'s
         .remove(&port);
     if let Some(previous) = previous {
         previous.task.abort();
+        let _ = previous.task.await;
     }
-    let listener = std::net::TcpListener::bind(("0.0.0.0", port))
-        .and_then(|l| l.set_nonblocking(true).map(|()| l))
-        .and_then(tokio::net::TcpListener::from_std)
+    let listener = tokio::net::TcpListener::bind(("0.0.0.0", port))
+        .await
         .map_err(|_| "failed to start callback server")?;
-    let app = axum::Router::new().fallback(move |uri: axum::http::Uri| {
-        let target = target.clone();
-        async move { redirect(&target, uri.query()) }
-    });
     let task = tokio::spawn(async move {
-        let _ = axum::serve(listener, app).await;
+        while let Ok((stream, _)) = listener.accept().await {
+            tokio::spawn(forward(stream, target.clone()));
+        }
     });
     static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
     let id = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
@@ -638,29 +665,73 @@ fn start_forwarder(state: &Management, port: u16, path: &str) -> Result<u64, &'s
     Ok(id)
 }
 
-/// The forwarder's answer: Go `http.Redirect` (302, HTML link) plus `no-store`.
-fn redirect(target: &str, query: Option<&str>) -> Response {
+const FORWARD_TIMEOUT: Duration = Duration::from_secs(5);
+const MAX_REQUEST_HEAD: usize = 16 << 10;
+
+/// One forwarder connection with Go's server deadlines (`ReadHeaderTimeout` and
+/// `WriteTimeout`, 5 s each): read the request head, answer with the redirect, close.
+async fn forward(mut stream: tokio::net::TcpStream, target: String) {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    let mut head = Vec::new();
+    let read = tokio::time::timeout(FORWARD_TIMEOUT, async {
+        let mut buf = [0u8; 2048];
+        while !head.windows(4).any(|w| w == b"\r\n\r\n") && head.len() < MAX_REQUEST_HEAD {
+            let n = stream.read(&mut buf).await?;
+            if n == 0 {
+                break;
+            }
+            head.extend_from_slice(&buf[..n]);
+        }
+        Ok::<_, std::io::Error>(())
+    })
+    .await;
+    if !matches!(read, Ok(Ok(()))) || !head.windows(4).any(|w| w == b"\r\n\r\n") {
+        return;
+    }
+    let line = head.split(|b| *b == b'\n').next().unwrap_or_default();
+    let line = String::from_utf8_lossy(line);
+    let mut parts = line.trim_end_matches('\r').split(' ');
+    let response = match (parts.next(), parts.next(), parts.next()) {
+        (Some(method), Some(uri), Some(version)) if version.starts_with("HTTP/") => {
+            redirect_bytes(method, &target, uri.split_once('?').map(|(_, q)| q))
+        }
+        _ => b"HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".to_vec(),
+    };
+    let _ = tokio::time::timeout(FORWARD_TIMEOUT, async {
+        stream.write_all(&response).await?;
+        stream.shutdown().await
+    })
+    .await;
+}
+
+/// The forwarder's answer: Go `http.Redirect` (302; an HTML link body for GET and
+/// HEAD) plus `Cache-Control: no-store`.
+fn redirect_bytes(method: &str, target: &str, query: Option<&str>) -> Vec<u8> {
     let location = match query.filter(|q| !q.is_empty()) {
         Some(q) if target.contains('?') => format!("{target}&{q}"),
         Some(q) => format!("{target}?{q}"),
         None => target.to_owned(),
     };
-    let escaped = location
-        .replace('&', "&amp;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
-        .replace('"', "&#34;")
-        .replace('\'', "&#39;");
-    (
-        StatusCode::FOUND,
-        [
-            (header::LOCATION, location.clone()),
-            (header::CACHE_CONTROL, "no-store".to_owned()),
-            (header::CONTENT_TYPE, "text/html; charset=utf-8".to_owned()),
-        ],
-        format!("<a href=\"{escaped}\">Found</a>.\n\n"),
-    )
-        .into_response()
+    let mut out = format!("HTTP/1.1 302 Found\r\nCache-Control: no-store\r\nLocation: {location}\r\n");
+    let body = if matches!(method, "GET" | "HEAD") {
+        let escaped = location
+            .replace('&', "&amp;")
+            .replace('<', "&lt;")
+            .replace('>', "&gt;")
+            .replace('"', "&#34;")
+            .replace('\'', "&#39;");
+        format!("<a href=\"{escaped}\">Found</a>.\n\n")
+    } else {
+        String::new()
+    };
+    if !body.is_empty() {
+        out.push_str("Content-Type: text/html; charset=utf-8\r\n");
+    }
+    out.push_str(&format!("Content-Length: {}\r\nConnection: close\r\n\r\n", body.len()));
+    if method != "HEAD" {
+        out.push_str(&body);
+    }
+    out.into_bytes()
 }
 
 /// Go `stopCallbackForwarderInstance`: only the forwarder this login started.
@@ -742,17 +813,14 @@ pub(super) async fn callback_get(State(state): State<Arc<Management>>, RawQuery(
 pub(super) async fn callback_post(State(state): State<Arc<Management>>, body: Bytes) -> Response {
     const FIELDS: [&str; 5] = ["provider", "redirect_url", "code", "state", "error"];
     let invalid = || status_error(StatusCode::BAD_REQUEST, "invalid body");
-    let value = match serde_json::Deserializer::from_slice(&body).into_iter::<Value>().next() {
-        Some(Ok(v)) => v,
-        _ => return invalid(),
+    let members = serde_json::Deserializer::from_slice(&body)
+        .into_iter::<super::api_call::Members>()
+        .next();
+    let Some(Ok(super::api_call::Members(members))) = members else {
+        return invalid();
     };
     let mut req = CallbackRequest::default();
-    let map = match value {
-        Value::Null => serde_json::Map::new(),
-        Value::Object(map) => map,
-        _ => return invalid(),
-    };
-    for (key, v) in map {
+    for (key, v) in members.unwrap_or_default() {
         let Some(i) = FIELDS
             .iter()
             .position(|f| *f == key)
@@ -892,12 +960,49 @@ mod tests {
 
     #[test]
     fn forwarder_redirect_keeps_the_query() {
-        let r = redirect("http://127.0.0.1:8317/codex/callback", Some("code=a&state=b"));
-        assert_eq!(r.status(), StatusCode::FOUND);
-        assert_eq!(
-            r.headers()[header::LOCATION],
-            "http://127.0.0.1:8317/codex/callback?code=a&state=b"
+        let r = String::from_utf8(redirect_bytes(
+            "GET",
+            "http://127.0.0.1:8317/codex/callback",
+            Some("code=a&state=b"),
+        ))
+        .unwrap();
+        assert!(r.starts_with("HTTP/1.1 302 Found\r\n"), "{r}");
+        assert!(
+            r.contains("\r\nLocation: http://127.0.0.1:8317/codex/callback?code=a&state=b\r\n"),
+            "{r}"
         );
-        assert_eq!(r.headers()[header::CACHE_CONTROL], "no-store");
+        assert!(r.contains("\r\nCache-Control: no-store\r\n"), "{r}");
+        assert!(r.ends_with("\">Found</a>.\n\n"), "{r}");
+        let post = String::from_utf8(redirect_bytes("POST", "http://h/cb", None)).unwrap();
+        assert!(
+            post.ends_with("Content-Length: 0\r\nConnection: close\r\n\r\n"),
+            "{post}"
+        );
+    }
+
+    /// A client that never finishes its request head is dropped after Go's 5 s
+    /// header deadline; a complete one gets the redirect.
+    #[tokio::test]
+    async fn forwarder_connections_have_go_deadlines() {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        tokio::spawn(async move {
+            while let Ok((s, _)) = listener.accept().await {
+                tokio::spawn(forward(s, "http://127.0.0.1:1/x".into()));
+            }
+        });
+        let mut slow = tokio::net::TcpStream::connect(addr).await.unwrap();
+        slow.write_all(b"GET /?a=1 HTTP/1.1\r\nHost: x\r\n").await.unwrap();
+        let mut buf = Vec::new();
+        let closed = tokio::time::timeout(Duration::from_secs(8), slow.read_to_end(&mut buf)).await;
+        assert!(matches!(closed, Ok(Ok(0))), "dropped without an answer");
+        let mut ok = tokio::net::TcpStream::connect(addr).await.unwrap();
+        ok.write_all(b"GET /cb?code=c HTTP/1.1\r\nHost: x\r\n\r\n")
+            .await
+            .unwrap();
+        let mut out = String::new();
+        ok.read_to_string(&mut out).await.unwrap();
+        assert!(out.contains("Location: http://127.0.0.1:1/x?code=c\r\n"), "{out}");
     }
 }

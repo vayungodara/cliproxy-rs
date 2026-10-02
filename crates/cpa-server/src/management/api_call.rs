@@ -36,7 +36,7 @@ struct Request {
 }
 
 /// A top-level JSON object as its members in order, duplicates kept; `None` for null.
-struct Members(Option<Vec<(String, Value)>>);
+pub(super) struct Members(pub(super) Option<Vec<(String, Value)>>);
 
 impl<'de> serde::Deserialize<'de> for Members {
     fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {

@@ -108,9 +108,9 @@ impl ManagedLogin {
     }
 
     /// Exchanges the callback code (Go drops anything after `#`) through the production
-    /// OAuth transport.
-    pub async fn exchange(&self, code: &str) -> Result<MetadataPatch, ExecError> {
-        let oauth = OAuth::with_transport(Arc::new(Transport::new(crate::proxy::Hooks::default())));
+    /// OAuth transport and `proxy` (Go's Claude auth service uses `requests.proxy-url`).
+    pub async fn exchange(&self, code: &str, proxy: &crate::proxy::Proxy) -> Result<MetadataPatch, ExecError> {
+        let oauth = OAuth::with_transport(Arc::new(Transport::new(crate::proxy::Hooks::default()))).via(proxy);
         self.exchange_with(&oauth, code).await
     }
 

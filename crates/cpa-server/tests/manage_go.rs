@@ -886,7 +886,7 @@ mod creds {
             }
             let _ = std::fs::remove_dir_all(&dir);
         }
-        assert_eq!(compared, 156);
+        assert_eq!(compared, 158);
     }
 
     /// Every file in the auth dir and the config, byte for byte.
