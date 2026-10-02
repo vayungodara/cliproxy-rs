@@ -79,6 +79,9 @@ func matrix(r registration, model string) []fixture {
 		if r.upstream == "claude" {
 			out = append(out, responsesClaudeRequests()...)
 		}
+		if r.upstream == "gemini" {
+			out = append(out, responsesGeminiRequests(model)...)
+		}
 	}
 	switch r.upstream {
 	case "codex":
@@ -94,6 +97,9 @@ func matrix(r registration, model string) []fixture {
 		}
 	case "gemini":
 		out = append(out, geminiUpstreamResponses()...)
+		if r.client == "openai-response" {
+			out = append(out, geminiToResponses()...)
+		}
 	case "openai":
 		out = append(out, openAIResponses()...)
 		if r.client == "claude" {
@@ -789,6 +795,141 @@ func codexEventStreams() []fixture {
 	} {
 		n := nonStream(fmt.Sprintf("codex-events/non-stream/%d", i), "requested-model", body)
 		n.Original = original
+		out = append(out, n)
+	}
+	return out
+}
+
+// geminiSig is a Gemini thought signature from Go's tests; carrier encodes it the way the
+// Gemini Responses translator does.
+const geminiSig = "EjQKMgEMOdbHO0Gd+c9Mxk4ELwPGbpCEcp2mFfYYLix2UVtBH3fL8GECc4+JITVnHF4qZDsA"
+
+func carrier(direction, target, sig string) string {
+	return "cpa-gemini-responses-carrier-v1:" + direction + ":" + target + ":" + base64.RawStdEncoding.EncodeToString([]byte(sig))
+}
+
+// responsesGeminiRequests exercise ConvertOpenAIResponsesRequestToGemini: tool
+// declarations (namespaces, collisions, apply_patch, web search capability), tool choices,
+// system/developer placement, media parts, tool outputs, reasoning carriers and
+// generation settings.
+func responsesGeminiRequests(model string) []fixture {
+	tools := `[{"type":"function","name":"get.weather","description":"d <b>","parameters":{"type":"object","properties":{"city":{"type":"string","format":"city"}},"required":["city"],"additionalProperties":false}},{"type":"function","name":"get_weather"},{"type":"custom","name":"run","description":"r"},{"type":"custom","name":"apply_patch","description":"Use this. This is a FREEFORM tool, so do not wrap the patch in JSON.","format":{"type":"grammar"}},{"type":"namespace","name":"mcp","tools":[{"type":"function","name":"list","parameters":{"type":"object"}},{"type":"custom","name":"exec"},{"type":"web_search"}]},{"type":"namespace","name":"ns__","children":[{"name":"child","function":{"description":"fd","parameters":{"type":"object","properties":{}}}}]},{"type":"web_search","filters":{"allowed_domains":[" a.com ","","b<c>.com"]}},{"type":"file_search"}]`
+	simple := `[{"type":"function","name":"f"},{"type":"custom","name":"run"},{"type":"web_search_preview"}]`
+	sigCarrierPrev := carrier("previous", "text", geminiSig)
+	inputs := map[string]string{
+		"tools/all":                  `{"input":"hi","tools":` + tools + `,"tool_choice":{"type":"function","name":"list","namespace":"mcp"}}`,
+		"tools/additional":           `{"input":[{"type":"additional_tools","tools":[{"type":"function","name":"f","parameters":{"type":"object"}},{"type":"function","name":"g"}]},{"role":"user","content":"x"}],"tools":[{"type":"function","name":"f","description":"top"}]}`,
+		"tools/collide":              `{"input":"x","tools":[{"type":"function","name":"a.b"},{"type":"function","name":"a_b"},{"type":"function","name":"a b"},{"type":"function","name":"` + strings.Repeat("x", 70) + `"},{"type":"function","name":"` + strings.Repeat("x", 69) + `."}]}`,
+		"tools/no-functions-choice":  `{"input":"x","tools":[{"type":"web_search"}],"tool_choice":"required"}`,
+		"tools/search-disallowed":    `{"input":"x","tools":[{"type":"web_search"}],"tool_choice":"none"}`,
+		"messages/system-developer":  `{"instructions":"inst <i>","input":[{"role":"developer","content":[{"type":"input_text","text":"d1"},{"text":"d2"}]},{"role":"system","content":"s"},{"role":"user","content":"u"},{"role":"developer","content":"late dev"},{"role":"system","content":[{"type":"input_text","text":"  "}]},{"role":"Developer","content":["x",{"text":"y"}]},{"role":"user","content":"u2"}]}`,
+		"messages/developer-pending": `{"input":[{"role":"user","content":"u"},{"type":"function_call","call_id":"c1","name":"f","arguments":"{}"},{"role":"developer","content":"while pending"},{"type":"function_call_output","call_id":"c1","output":"ok"},{"role":"user","content":"after"}]}`,
+		"messages/roles":             `{"input":[{"role":"user","content":[{"type":"input_text","text":"a"},{"type":"output_text","text":"b"},{"text":"c"},{"type":"input_text"}]},{"role":"assistant","content":"plain"},{"role":"model","content":"m"},{"role":"tool","content":"t"},{"role":"ASSISTANT","content":[{"type":"output_text","text":"o"}]},{"type":"input_text","text":"flat1"},{"type":"input_image","image_url":"https://x/y.png"},{"type":"text","text":"flat2","role":"user"},{"type":"unknown"},{"role":"user","content":{"type":"input_text","text":"obj"}},{"role":"user","content":"tail"}]}`,
+		"messages/prefill":           `{"input":[{"role":"user","content":"u"},{"role":"assistant","content":[{"type":"output_text","text":"prefill"}]}]}`,
+		"messages/only-prefill":      `{"input":[{"role":"assistant","content":"only"}]}`,
+		"media/images":               `{"input":[{"role":"user","content":[{"type":"input_image","image_url":"data:image/jpeg;base64,/9j/4AAQ"},{"type":"input_image","image_url":{"url":"data:;base64,iVBORw0KGgo="},"filename":"pic.GIF"},{"type":"input_image","image_url":"data:image/png;base64,***"},{"type":"input_image","image_url":"data:image/png,raw"},{"type":"input_image","image_url":"HTTPS://h/a/b.JPG?x=1#f"},{"type":"input_image","image_url":"https://h/%zz.png"},{"type":"input_image","image_url":"gs://bucket/dir/"},{"type":"image","source":{"type":"base64","media_type":"image/webp","data":"UklG"}},{"type":"input_image","data":"AAAA","format":"heic"},{"type":"input_image","file_id":"file-1"},{"type":"input_image","image_url":"relative.bmp","mime_type":"application/octet-stream"}]}]}`,
+		"media/audio-video":          `{"input":[{"role":"user","content":[{"type":"input_audio","input_audio":{"data":"UklGRg==","format":"mp3"}},{"type":"input_audio","audio_url":"data:application/octet-stream;base64,AAAA","filename":"x.flac"},{"type":"audio","audio_url":{"url":"local.WAV"}},{"type":"input_audio","data":"AAAA","mime_type":"audio/ogg"},{"type":"input_audio","source":{"type":"base64","data":"AAAA","media_type":"opus"}},{"type":"input_audio","audio_url":"https://h/a.m4a"},{"type":"input_video","video_url":"data:;base64,AAAA","format":"mov"},{"type":"video","video":{"data":"AAAA","format":"MKV"}},{"type":"video_url","video_url":{"url":"https://h/v.webm"}},{"type":"input_video","url":"clip.3gpp"}]}]}`,
+		"media/files":                `{"input":[{"role":"user","content":[{"type":"input_file","file_data":"data:application/octet-stream;base64,JVBERi0=","filename":"doc.pdf"},{"type":"input_file","file_data":"SGVsbG8=","filename":"a.TXT"},{"type":"input_file","file_url":"https://x/y/report.pdf?x=1"},{"type":"file","file":{"file_data":"AAAA","filename":"data","mime_type":"binary/octet-stream","format":"csv"}},{"type":"input_file","file_id":"file-2"},{"type":"input_file","url":"data:text/plain;BASE64,aGk"},{"type":"input_file","file_url":"https://x/"}]}]}`,
+		"calls/outputs":              `{"tools":[{"type":"function","name":"f"},{"type":"custom","name":"run"},{"type":"namespace","name":"mcp","tools":[{"name":"list"}]}],"input":[{"role":"user","content":"go"},{"type":"function_call","call_id":"c1","name":"f","arguments":"{\"a\":1}"},{"type":"function_call","call_id":"c2","name":"list","namespace":"mcp","arguments":"[1,2]"},{"type":"custom_tool_call","call_id":"c3","name":"run","input":"echo <x>"},{"type":"custom_tool_call","call_id":"c4","name":"run","input":{"k":1}},{"type":"custom_tool_call","call_id":"c5","name":"run"},{"type":"function_call","call_id":"c6","name":"f","arguments":"plain"},{"type":"function_call_output","call_id":"c3","output":"three"},{"type":"function_call_output","call_id":"c1","output":[{"type":"input_text","text":"t1"},{"type":"input_image","image_url":"data:image/png;base64,iVBORw0KGgo="},{"type":"input_text","text":"t2"}]},{"type":"custom_tool_call_output","call_id":"c2","output":[{"type":"x","v":1},"s"]},{"type":"function_call_output","call_id":"c4","output":{"type":"input_image","image_url":"data:image/png;base64,iVBORw0KGgo="}},{"type":"function_call_output","call_id":"c5","output":{"$ref":"#/x","a":1}},{"type":"function_call_output","call_id":"c6","output":"null"},{"type":"function_call_output","call_id":"zz","name":"orph","output":[{"text":"orphan <o>"},{"text":" "}]},{"type":"function_call_output","output":5},{"role":"user","content":"done"}]}`,
+		"calls/interrupted":          `{"input":[{"type":"function_call","call_id":"c1","name":"f","arguments":"{}"},{"type":"function_call","call_id":"c2","name":"g","arguments":"{}"},{"type":"function_call_output","call_id":"c2","output":""},{"role":"user","content":"next"},{"type":"function_call","call_id":"c3","name":"h.i","arguments":"{}"},{"role":"user","content":"again"},{"type":"function_call","name":"noid","arguments":"{}"},{"type":"function_call_output","call_id":"c9","output":true},{"type":"function_call_output","call_id":"c9","output":"dup"}]}`,
+		"reasoning/paired":           `{"input":[{"role":"user","content":"u"},{"type":"reasoning","summary":[{"type":"summary_text","text":"think <t>"}],"encrypted_content":"` + geminiSig + `"},{"type":"function_call","call_id":"c1","name":"f","arguments":"{}"},{"type":"function_call_output","call_id":"c1","output":"ok"},{"type":"reasoning","summary":[{"type":"summary_text","text":"why"}],"encrypted_content":"` + geminiSig + `"},{"type":"message","role":"assistant","content":[{"type":"output_text","text":"answer"}]},{"type":"reasoning","summary":[],"encrypted_content":"garbage"},{"type":"reasoning","summary":[{"type":"summary_text","text":"bypass"}],"encrypted_content":"skip_thought_signature_validator"},{"role":"user","content":"more"}]}`,
+		"reasoning/carriers":         `{"input":[{"role":"user","content":"u"},{"type":"message","role":"assistant","content":[{"type":"output_text","text":"said"}]},{"type":"reasoning","id":"rs_1_detached_after_2","summary":[],"encrypted_content":"` + sigCarrierPrev + `"},{"type":"function_call","call_id":"c1","name":"f","arguments":"{}"},{"type":"reasoning","summary":[],"encrypted_content":"` + carrier("previous", "function", geminiSig) + `"},{"type":"function_call_output","call_id":"c1","output":"ok"},{"type":"reasoning","summary":[],"encrypted_content":"` + carrier("next", "function", geminiSig) + `"},{"type":"function_call","call_id":"c2","name":"f","arguments":"{}"},{"type":"function_call_output","call_id":"c2","output":"ok"},{"type":"reasoning","summary":[{"type":"summary_text","text":"s"}],"encrypted_content":"` + carrier("standalone", "any", geminiSig) + `"},{"type":"reasoning","summary":[],"encrypted_content":"` + carrier("sideways", "text", geminiSig) + `"},{"type":"reasoning","summary":[{"type":"summary_text","text":"bad b64"}],"encrypted_content":"cpa-gemini-responses-carrier-v1:next:text:!!!"},{"type":"reasoning","summary":[],"encrypted_content":"` + carrier("next", "text", "cpa-gemini-responses-carrier-v1:x") + `"},{"role":"user","content":"end"}]}`,
+		"reasoning/internal-fields":  `{"input":[{"role":"user","content":"u"},{"type":"function_call","call_id":"c1","name":"f","arguments":"{}","_cpa_reasoning_signature":"x","z":"<&>","a":{"b": 1},"a":2},{"type":"function_call_output","call_id":"c1","output":"ok","_cpa_reasoning_direction":"next"},{"type":"reasoning","summary":[{"type":"summary_text","text":"r"}],"_cpa_reasoning_target":"text"}]}`,
+		"generation/settings":        `{"input":"x","max_output_tokens":"12","temperature":"0.5","top_p":1e0,"stop_sequences":["a","<b>",1e3],"text":{"format":{"type":"json_schema","schema":{"type":"object"}}},"reasoning":{"effort":" HIGH "}}`,
+		"generation/variants":        `{"input":"x","stop_sequences":[],"text":{"format":{"type":"JSON_SCHEMA","json_schema":{"schema":{"a":1}}}},"reasoning":{"effort":"auto"}}`,
+		"generation/others":          `{"input":"x","stop_sequences":"x","text":{"format":{"type":"json_object"}},"reasoning":{"effort":""},"instructions":""}`,
+		"invalid/number-input":       `{"input":5,"instructions":"i"}`,
+	}
+	var names []string
+	for name := range inputs {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	var out []fixture
+	for _, name := range names {
+		out = append(out, req("responses-gemini/"+name, model, inputs[name], false))
+	}
+	for _, m := range []string{"claude-opus-4-6", "unknown-model", "gemini-3-pro-preview(high)"} {
+		for _, name := range []string{"tools/all", "reasoning/paired", "reasoning/carriers"} {
+			out = append(out, req("responses-gemini/"+name+"@"+m, m, inputs[name], true))
+		}
+	}
+	for i, choice := range []string{`"none"`, `"AUTO"`, `"required"`, `"any"`, `"bogus"`, `{"type":"custom","custom":{"name":"run"}}`, `{"type":"tool","function":{"name":"f","namespace":"n"}}`, `{"type":"allowed_tools","tools":[{"type":"web_search"}]}`, `{"type":"web_search_preview"}`, `{}`, `5`, `{"type":"function"}`, `{"type":"NONE"}`} {
+		out = append(out, req(fmt.Sprintf("responses-gemini/tool-choice/%d", i), model, `{"input":"x","tools":`+simple+`,"tool_choice":`+choice+`}`, false))
+	}
+	return out
+}
+
+// geminiToResponses exercise ConvertGeminiResponseToOpenAIResponses(NonStream): thought
+// signature placement, tool identities, apply_patch input bridging (success, invalid
+// input, conflicts, EOF without a terminator), web search grounding and citations.
+func geminiToResponses() []fixture {
+	usage := `"usageMetadata":{"promptTokenCount":12,"candidatesTokenCount":5,"thoughtsTokenCount":3,"cachedContentTokenCount":4,"totalTokenCount":20}`
+	chunk := func(id, parts, extra string) string {
+		return `data: {"candidates":[{"content":{"role":"model","parts":` + parts + `}` + extra + `}],"responseId":"` + id + `","createTime":"2025-01-01T00:00:00Z"}`
+	}
+	tools := `"tools":[{"type":"function","name":"f"},{"type":"function","name":"a.b"},{"type":"custom","name":"run"},{"type":"custom","name":"apply_patch"},{"type":"namespace","name":"mcp","tools":[{"type":"function","name":"list"}]}]`
+	original := `{"model":"client-model","instructions":"i","input":"q","max_output_tokens":9,"reasoning":{"effort":"high"},"metadata":{"k":"<v>"},` + tools + `}`
+	plain := `{"model":"client-model","input":"q","tools":[{"type":"function","name":"f"}]}`
+	search := `{"model":"client-model","input":[{"role":"user","content":"find <x>"}],"tools":[{"type":"web_search"}]}`
+	patch := `{"input":"*** Begin Patch\n*** Add File: a.txt\n+hi \u00e9 <x>\n*** End Patch"}`
+	stop := `,"finishReason":"STOP"`
+	grounding := func(queries, chunks, supports string) string {
+		return `,"groundingMetadata":{"webSearchQueries":` + queries + `,"groundingChunks":` + chunks + `,"groundingSupports":` + supports + `}`
+	}
+	type sc struct {
+		original string
+		finalize bool
+		lines    []string
+	}
+	cases := map[string]sc{
+		"text":              {original, false, []string{chunk("t1", `[{"text":"Hel"}]`, ``), chunk("t1", `[{"text":"lo <b> \u2028"}]`, ``), `data: {"candidates":[{"content":{"parts":[]},"finishReason":"STOP"}],"responseId":"t1",` + usage + `}`}},
+		"thought-text":      {original, false, []string{chunk("t2", `[{"text":"think","thought":true}]`, ``), chunk("t2", `[{"text":"more","thought":true,"thoughtSignature":"`+geminiSig+`"}]`, ``), chunk("t2", `[{"text":"answer"}]`, ``), chunk("t2", `[{"text":""}]`, stop)}},
+		"trailing-cache":    {original, false, []string{chunk("trail-1", `[{"text":"Hello"}]`, ``), chunk("trail-1", `[{"text":"","thoughtSignature":"`+geminiSig+`"}]`, stop)}},
+		"trailing-detached": {original, false, []string{chunk("t3", `[{"text":"think","thought":true}]`, ``), chunk("t3", `[{"text":"Hi","thoughtSignature":"other-signature-value"}]`, ``), chunk("t3", `[{"functionCall":{"name":"f","args":{"a":1}},"thoughtSignature":"`+geminiSig+`"}]`, ``), chunk("t3", `[{"text":"","thoughtSignature":"sig-two"}]`, stop)}},
+		"tools":             {original, false, []string{chunk("t4", `[{"functionCall":{"name":"f","args":{"q":"<x>&"}}},{"functionCall":{"name":"a_b","args":{}}},{"functionCall":{"name":"run","args":{"input":"ls"}}},{"functionCall":{"name":"mcp__list"}},{"functionCall":{"args":{"x":1}}},{"functionCall":{"name":"unknown_tool","args":[1]}}]`, ``), "data: [DONE]"}},
+		"patch-ok":          {original, false, []string{chunk("p1", `[{"text":"patching"},{"functionCall":{"id":"up-1","name":"apply_patch","args":`+patch+`}}]`, ``), chunk("p1", `[{"functionCall":{"id":"up-1","name":"apply_patch","args":`+patch+`}}]`, stop)}},
+		"patch-invalid":     {original, false, []string{chunk("p2", `[{"functionCall":{"name":"apply_patch","args":{"input":5}}}]`, ``), chunk("p2", `[{"text":"after"}]`, stop)}},
+		"patch-conflict":    {original, false, []string{chunk("p3", `[{"functionCall":{"id":"u","name":"apply_patch","args":{"input":"a"}}}]`, ``), chunk("p3", `[{"functionCall":{"id":"u","name":"apply_patch","args":{"input":"b"}}}]`, stop)}},
+		"patch-nameless":    {original, false, []string{chunk("p4", `[{"functionCall":{"args":{"input":"a"}}}]`, ``), chunk("p4", `[]`, stop)}},
+		"patch-eof":         {original, true, []string{chunk("p5", `[{"text":"no terminator"}]`, ``)}},
+		"plain-eof":         {plain, true, []string{chunk("p6", `[{"text":"no terminator"}]`, ``)}},
+		"search":            {search, false, []string{chunk("s1", `[{"text":"Answer "}]`, ``), chunk("s1", `[{"text":"é text"}]`, grounding(`["q1"]`, `[{"web":{"uri":"https://a","title":""}},{"web":{"uri":"https://b","title":"B"}}]`, `[{"segment":{"startIndex":0,"endIndex":6},"groundingChunkIndices":[0,1]}]`)), chunk("s1", `[]`, grounding(`["q1","q2"]`, `[{"web":{"uri":"https://a","title":"A"}},{"web":{"uri":"https://c"}}]`, `[{"segment":{"partIndex":1,"startIndex":0,"endIndex":7},"groundingChunkIndices":[3]}]`)+stop)}},
+		"search-multi":      {search, false, []string{chunk("s2", `[{"text":"one"}]`, ``), chunk("s2", `[{"text":"t","thought":true}]`, ``), chunk("s2", `[{"text":"two"}]`, grounding(`[]`, `[{"web":{"uri":"https://x","title":"X"}}]`, `[{"segment":{"startIndex":0,"endIndex":3},"groundingChunkIndices":[0,9,-1]}]`)), chunk("s2", `[]`, stop)}},
+		"wrapped":           {"", false, []string{`data: {"response":{"candidates":[{"content":{"parts":[{"text":"w"}]},"finishReason":"STOP"}],"responseId":"resp_w"}}`}},
+		"done-only":         {original, false, []string{"data: [DONE]", chunk("d1", `[{"text":"x"}]`, ``), "data: [DONE]", chunk("d1", `[{"text":"late"}]`, ``)}},
+	}
+	var names []string
+	for name := range cases {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	var out []fixture
+	for _, name := range names {
+		c := cases[name]
+		f := streamCase("gemini-responses/"+name, "gemini-2.5-pro", c.lines...)
+		f.Original = c.original
+		f.Finalize = c.finalize
+		out = append(out, f)
+	}
+	// The trailing signature cached above restores on the next request for this message.
+	out = append(out, req("gemini-responses/trailing-restore", "gemini-2.5-pro", `{"input":[{"role":"user","content":"hi"},{"type":"message","id":"msg_resp_trail-1_0","role":"assistant","content":[{"type":"output_text","text":"Hello"}]},{"type":"reasoning","summary":[],"encrypted_content":"`+carrier("previous", "text", geminiSig)+`"},{"role":"user","content":"next"}]}`, false))
+	body := func(id, parts, extra string) string {
+		return `{"candidates":[{"content":{"role":"model","parts":` + parts + `},"finishReason":"STOP"` + extra + `}],` + usage + `,"modelVersion":"gemini-2.5-pro","responseId":"` + id + `","createTime":"2025-01-01T00:00:00Z"}`
+	}
+	for i, b := range []struct{ original, body string }{
+		{original, body("n1", `[{"text":"think","thought":true},{"text":"Hi","thoughtSignature":"`+geminiSig+`"},{"text":" there"},{"thoughtSignature":"sig-x"},{"functionCall":{"name":"f","args":{"a":"<b>"}},"thoughtSignature":"sig-f"},{"thoughtSignature":"sig-after-call"}]`, ``)},
+		{original, body("n2", `[{"text":"t1","thought":true,"thoughtSignature":"s1"},{"text":"t2","thought":true,"thoughtSignature":"s2"},{"text":"x","thoughtSignature":"s3"},{"text":"y","thoughtSignature":"s3"},{"text":"z","thoughtSignature":"s4"},{"functionCall":{"name":"run","args":{"input":"ls"}}},{"functionCall":{"name":"a_b"}},{"functionCall":{"name":"mcp__list","args":{}}}]`, ``)},
+		{original, body("n3", `[{"functionCall":{"id":"u1","name":"apply_patch","args":`+patch+`}}]`, ``)},
+		{original, body("n4", `[{"functionCall":{"name":"apply_patch","args":{"input":5}}}]`, ``)},
+		{original, body("n5", `[{"functionCall":{"args":{"input":"x"}}}]`, ``)},
+		{search, body("n6", `[{"text":"Answer é"},{"text":" more"}]`, grounding(`[" q "]`, `[{"web":{"uri":"https://a","title":"A"}},{"web":{"uri":"https://a"}}]`, `[{"segment":{"partIndex":1,"startIndex":0,"endIndex":3},"groundingChunkIndices":[0]},{"segment":{"startIndex":0,"endIndex":8},"groundingChunkIndices":[1]}]`))},
+		{`{"input":"no model"}`, `{"candidates":[{"content":{"parts":[{"text":"x"}]}}],"modelVersion":"mv","usageMetadata":{"promptTokenCount":1}}`},
+		{``, `{"response":{"candidates":[{"content":{"parts":[{"text":"x"}]}}],"responseId":"resp_r"},"modelVersion":"outer"}`},
+		{plain, `{"candidates":[{"content":{"parts":[{"thoughtSignature":"lonely"}]}}]}`},
+	} {
+		n := nonStream(fmt.Sprintf("gemini-responses/non-stream/%d", i), "gemini-2.5-pro", b.body)
+		n.Original = b.original
 		out = append(out, n)
 	}
 	return out

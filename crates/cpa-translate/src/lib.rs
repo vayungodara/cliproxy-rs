@@ -68,10 +68,15 @@ mod gemini_chat_request;
 mod gemini_chat_response;
 mod gemini_claude;
 mod gemini_claude_response;
+mod gemini_responses;
+mod gemini_responses_response;
+mod gemini_web_search;
 mod mime;
 mod openai;
 mod openai_claude;
 mod openai_claude_response;
+mod replay_cache;
+mod responses_tools;
 pub mod sse;
 pub mod stream;
 mod thinking;
@@ -125,7 +130,25 @@ pub trait StreamTranslator: Send {
     fn flush_frames(&mut self) -> Vec<Bytes> {
         vec![]
     }
+    /// Go's apply_patch tool-input contract (`ToolInputError`): the upstream sent an
+    /// invalid or conflicting `apply_patch` call. Check after every `event`: write that
+    /// event's frames (they end in `response.failed`), then end the stream with HTTP 502
+    /// and [`APPLY_PATCH_UPSTREAM_ERROR`], as helps.StopApplyPatchStream does.
+    fn tool_input_failed(&self) -> bool {
+        false
+    }
+    /// Go's `FinalizeToolInput` (helps.EndApplyPatchStream): call when the upstream
+    /// transport ends, before any synthetic terminator (`[DONE]`) or `finish`. A stream that
+    /// declared `apply_patch` and ended without its terminator yields `response.failed`;
+    /// then check [`Self::tool_input_failed`].
+    fn finalize_tool_input(&mut self) -> Vec<Bytes> {
+        vec![]
+    }
 }
+
+/// helps.ApplyPatchUpstreamErrorMessage: the 502 message executors return when a
+/// translator rejects upstream apply_patch input (a `non_stream` error carries it too).
+pub const APPLY_PATCH_UPSTREAM_ERROR: &str = apply_patch::UPSTREAM_ERROR_MESSAGE;
 
 pub type RequestFn = fn(ctx: &RequestCtx<'_>, body: &[u8]) -> Result<Vec<u8>, Error>;
 pub type NonStreamFn = fn(ctx: &ResponseCtx<'_>, body: &[u8]) -> Result<Vec<u8>, Error>;
@@ -163,6 +186,7 @@ fn registered(client: Format, upstream: Format) -> Option<&'static Registered> {
         (Format::OpenAI, Format::Gemini) => Some(&gemini_chat_request::PAIR),
         (Format::Claude, Format::Gemini) => Some(&gemini_claude::PAIR),
         (Format::OpenAI, Format::Codex) => Some(&codex_chat_request::PAIR),
+        (Format::OpenAIResponse, Format::Gemini) => Some(&gemini_responses_response::PAIR),
         _ => None,
     }
 }

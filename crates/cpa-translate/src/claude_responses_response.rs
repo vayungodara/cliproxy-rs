@@ -74,7 +74,8 @@ impl Tools {
     }
 }
 
-fn pick_request<'a>(original: &'a [u8], translated: &'a [u8]) -> &'a [u8] {
+/// pickRequestJSON: the original request when valid, else the translated one.
+pub(crate) fn pick_request<'a>(original: &'a [u8], translated: &'a [u8]) -> &'a [u8] {
     if !original.is_empty() && gj::valid(original) {
         original
     } else if !translated.is_empty() && gj::valid(translated) {
@@ -1047,7 +1048,7 @@ impl State {
                 r#"{"reason":"max_output_tokens"}"#,
             );
         }
-        copy_request_fields(&mut completed, &self.request, "response.");
+        copy_request_fields(&mut completed, &self.request, "response.", None);
         let mut outputs = br#"{"arr":[]}"#.to_vec();
         for r in &self.reasoning_items {
             let mut item =
@@ -1152,7 +1153,8 @@ impl State {
 }
 
 /// The request echo Go copies into response.completed and the non-stream response.
-fn copy_request_fields(out: &mut Vec<u8>, request: &[u8], prefix: &str) {
+/// `model_fallback` (Gemini's `modelVersion`) fills `model` when the request has none.
+pub(crate) fn copy_request_fields(out: &mut Vec<u8>, request: &[u8], prefix: &str, model_fallback: Option<&[u8]>) {
     if request.is_empty() {
         return;
     }
@@ -1182,6 +1184,11 @@ fn copy_request_fields(out: &mut Vec<u8>, request: &[u8], prefix: &str) {
     ] {
         let v = req.get(key);
         if !v.exists() {
+            if key == "model"
+                && let Some(fallback) = model_fallback
+            {
+                gj::set_str(out, &at(key), fallback);
+            }
             continue;
         }
         match key {
@@ -1437,7 +1444,7 @@ pub fn non_stream(ctx: &ResponseCtx<'_>, body: &[u8]) -> Result<Vec<u8>, Error> 
     if incomplete(&stop) {
         gj::set_raw(&mut out, "incomplete_details", r#"{"reason":"max_output_tokens"}"#);
     }
-    copy_request_fields(&mut out, request, "");
+    copy_request_fields(&mut out, request, "", None);
     let mut outputs = vec![];
     let count = items.len();
     for (i, it) in items.iter().enumerate() {

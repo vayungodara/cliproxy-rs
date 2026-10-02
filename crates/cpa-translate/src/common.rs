@@ -1112,7 +1112,7 @@ pub fn sanitize_function_name(name: &[u8]) -> Vec<u8> {
 }
 
 /// filepath.Ext: the suffix from the last dot of the final path element.
-fn file_ext(name: &[u8]) -> &[u8] {
+pub(crate) fn file_ext(name: &[u8]) -> &[u8] {
     for i in (0..name.len()).rev() {
         match name[i] {
             b'/' => break,

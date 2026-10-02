@@ -51,6 +51,8 @@ type fixture struct {
 	Lines      []string   `json:"lines,omitempty"`
 	Count      int64      `json:"count,omitempty"`
 	Outputs    [][]string `json:"outputs"`
+	Finalize   bool       `json:"finalize,omitempty"`
+	ToolError  bool       `json:"tool_error,omitempty"`
 	Dynamic    []dynamic  `json:"dynamic,omitempty"`
 	key        string
 }
@@ -363,7 +365,16 @@ func firstNonEmpty(values ...string) string {
 // ---------------------------------------------------------------------------------------
 // Running and dynamic-value detection.
 
+// lastToolError is the ToolInputError state run left behind (Go's apply_patch contract).
+var lastToolError bool
+
+func toolInputFailed(param any) bool {
+	state, ok := param.(interface{ ToolInputError() error })
+	return ok && state.ToolInputError() != nil
+}
+
 func run(r registration, f fixture) [][]string {
+	lastToolError = false
 	ctx := context.Background()
 	from, to := sdk.FromString(r.client), sdk.FromString(r.upstream)
 	var orig, req []byte
@@ -388,7 +399,9 @@ func run(r registration, f fixture) [][]string {
 		panic("no compat request for " + r.client + ":" + r.upstream)
 	case "non_stream":
 		var param any
-		return [][]string{{string(sdk.TranslateNonStream(ctx, to, from, f.Model, orig, req, []byte(f.Input), &param))}}
+		out := sdk.TranslateNonStream(ctx, to, from, f.Model, orig, req, []byte(f.Input), &param)
+		lastToolError = toolInputFailed(param)
+		return [][]string{{string(out)}}
 	case "token_count":
 		return [][]string{{string(sdk.TranslateTokenCount(ctx, to, from, f.Count, []byte(f.Input)))}}
 	case "stream":
@@ -402,6 +415,17 @@ func run(r registration, f fixture) [][]string {
 			}
 			out = append(out, strs)
 		}
+		if f.Finalize {
+			// helps.FinalizeApplyPatchStream at transport EOF.
+			strs := []string{}
+			if state, ok := param.(interface{ FinalizeToolInput() [][]byte }); ok {
+				for _, c := range state.FinalizeToolInput() {
+					strs = append(strs, string(c))
+				}
+			}
+			out = append(out, strs)
+		}
+		lastToolError = toolInputFailed(param)
 		return out
 	}
 	panic("unknown path " + f.Path)
@@ -479,6 +503,7 @@ func walk(a, b gjson.Result, path string, start, end int64, add func(path, prefi
 func record(r registration, f fixture) fixture {
 	start := time.Now().Unix()
 	a := run(r, f)
+	f.ToolError = lastToolError
 	time.Sleep(time.Millisecond)
 	b := run(r, f)
 	end := time.Now().Unix()

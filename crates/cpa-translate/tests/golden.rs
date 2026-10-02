@@ -114,7 +114,12 @@ fn run(client: Format, upstream: Format, f: &Value, bytes: bool) -> Vec<Vec<u8>>
             }
             .unwrap(),
         ],
-        "non_stream" => vec![(pair.non_stream)(&rctx, &input).unwrap()],
+        // Go returns nil (written as "") when the apply_patch bridge rejects the body.
+        "non_stream" => vec![match (pair.non_stream)(&rctx, &input) {
+            Ok(out) => out,
+            Err(e) if e.0 == cpa_translate::APPLY_PATCH_UPSTREAM_ERROR => vec![],
+            Err(e) => panic!("non_stream failed: {e}"),
+        }],
         "token_count" => vec![translate_token_count(
             client,
             upstream,
@@ -202,7 +207,8 @@ fn reference_goldens() {
                 };
                 let mut s = go_stream(client, upstream).unwrap()(&rctx);
                 let mut out = vec![];
-                for (i, line) in f["lines"].as_array().unwrap().iter().enumerate() {
+                let lines = f["lines"].as_array().unwrap();
+                for (i, line) in lines.iter().enumerate() {
                     let chunks = s.line(&field(line, bytes)).unwrap();
                     let want = f["outputs"][i].as_array().unwrap().len();
                     if chunks.len() != want {
@@ -210,9 +216,27 @@ fn reference_goldens() {
                     }
                     out.extend(chunks);
                 }
+                if f["finalize"].as_bool().unwrap_or(false) {
+                    let chunks = s.finalize_tool_input();
+                    let want = f["outputs"][lines.len()].as_array().unwrap().len();
+                    if chunks.len() != want {
+                        failures.push(format!("{name}: finalize produced {} chunks, Go {want}", chunks.len()));
+                    }
+                    out.extend(chunks);
+                }
+                if s.tool_input_failed() != f["tool_error"].as_bool().unwrap_or(false) {
+                    failures.push(format!("{name}: tool input error state differs from Go"));
+                }
                 out
             } else {
-                run(client, upstream, f, bytes)
+                let out = run(client, upstream, f, bytes);
+                if f["path"] == "non_stream"
+                    && out[0].is_empty() != f["tool_error"].as_bool().unwrap_or(false)
+                    && f["tool_error"].as_bool().unwrap_or(false)
+                {
+                    failures.push(format!("{name}: Go rejected the apply_patch body, Rust did not"));
+                }
+                out
             };
             let end = now();
             let mut errors = normalize(&mut actual, &dynamics, Some((start, end)));
@@ -365,4 +389,63 @@ fn deeply_nested_upstream_bodies_translate_without_overflowing() {
     let mut stream = (pair(Format::OpenAI, Format::Gemini).unwrap().stream)(&rctx);
     let chunks = stream.event(&[&b"data: "[..], &body, b"\n\n"].concat()).unwrap();
     assert_eq!(chunks.len(), 1);
+}
+
+#[test]
+fn apply_patch_failures_reach_the_stream_contract() {
+    let original = br#"{"model":"m","input":"q","tools":[{"type":"custom","name":"apply_patch"}]}"#;
+    let ctx = ResponseCtx {
+        model: "gemini-2.5-pro",
+        original_request: original,
+        translated_request: b"{}",
+    };
+    let pair = pair(Format::OpenAIResponse, Format::Gemini).unwrap();
+    let failed = |frame: &bytes::Bytes| frame.starts_with(b"event: response.failed\ndata: ");
+
+    // Invalid patch input: the event's frames end in response.failed, then the executor
+    // stops with the 502 message.
+    let mut stream = (pair.stream)(&ctx);
+    let frames = stream
+        .event(b"data: {\"responseId\":\"r\",\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"hi\"},{\"functionCall\":{\"name\":\"apply_patch\",\"args\":{\"input\":5}}}]}}]}\n\n")
+        .unwrap();
+    assert!(stream.tool_input_failed());
+    assert!(failed(frames.last().unwrap()), "{frames:?}");
+    assert!(frames.iter().filter(|f| failed(f)).count() == 1);
+
+    // A patch-enabled stream that ends without its terminator fails at EOF.
+    let mut stream = (pair.stream)(&ctx);
+    stream
+        .event(b"data: {\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"x\"}]}}]}\n\n")
+        .unwrap();
+    assert!(!stream.tool_input_failed());
+    let frames = stream.finalize_tool_input();
+    assert_eq!(frames.len(), 1);
+    assert!(failed(&frames[0]));
+    assert!(stream.tool_input_failed());
+    assert!(stream.finalize_tool_input().is_empty(), "the failure is reported once");
+
+    // A completed stream, or one without apply_patch, has nothing to finalize.
+    let mut stream = (pair.stream)(&ctx);
+    stream
+        .event(b"data: {\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"x\"}]},\"finishReason\":\"STOP\"}]}\n\n")
+        .unwrap();
+    assert!(stream.finalize_tool_input().is_empty());
+    let plain = ResponseCtx {
+        original_request: br#"{"input":"q"}"#,
+        ..ctx
+    };
+    let mut stream = (pair.stream)(&plain);
+    stream
+        .event(b"data: {\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"x\"}]}}]}\n\n")
+        .unwrap();
+    assert!(stream.finalize_tool_input().is_empty());
+    assert!(!stream.tool_input_failed());
+
+    // Buffered responses report the same failure as an error carrying Go's message.
+    let err = (pair.non_stream)(
+        &ctx,
+        br#"{"candidates":[{"content":{"parts":[{"functionCall":{"name":"apply_patch","args":{"input":5}}}]}}]}"#,
+    )
+    .unwrap_err();
+    assert_eq!(err.0, cpa_translate::APPLY_PATCH_UPSTREAM_ERROR);
 }

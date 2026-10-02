@@ -16,6 +16,14 @@ use cpa_core::format::Format;
 pub trait GoStream: Send {
     /// One upstream line (no terminator) in, zero or more Go chunks out.
     fn line(&mut self, line: &[u8]) -> Result<Vec<Vec<u8>>, Error>;
+    /// Go's `ToolInputError() != nil` on the translator state.
+    fn tool_input_failed(&self) -> bool {
+        false
+    }
+    /// Go's `FinalizeToolInput()`.
+    fn finalize_tool_input(&mut self) -> Vec<Vec<u8>> {
+        vec![]
+    }
 }
 
 /// bufio.ScanLines over one event: split on `\n`, drop one trailing `\r` per line, and
@@ -305,6 +313,15 @@ impl StreamTranslator for Framed {
         let mut out = vec![];
         self.responses.flush_into(&mut out);
         Ok(out.into_iter().map(Bytes::from).collect())
+    }
+
+    fn tool_input_failed(&self) -> bool {
+        self.inner.tool_input_failed()
+    }
+
+    fn finalize_tool_input(&mut self) -> Vec<Bytes> {
+        let chunks = self.inner.finalize_tool_input();
+        self.framed(chunks)
     }
 }
 
