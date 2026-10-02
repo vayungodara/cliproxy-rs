@@ -1,47 +1,53 @@
 # Translator goldens
 
-`../fixtures/go.json` contains outputs produced by CLIProxyAPI at `6fecc6e`.
-The generator extracts constant request inputs and SSE sequences from the Go
-translator tests, then adds asymmetric tool, cache, finish-reason and raw-JSON
-cases. It calls only translator functions. It does not call provider endpoints.
+`../fixtures/pairs/<client>-<upstream>.json` holds outputs produced by CLIProxyAPI at
+`6fecc6e`, built with Go 1.26 (the toolchain upstream releases use; Go 1.27 changes how
+encoding/json writes invalid UTF-8). The generator calls only translator code through
+`sdk/translator`'s registry, the same entry points executors use, and never contacts a
+provider.
 
-Generate using a temporary module whose import path is inside the reference
-module's internal-package boundary. The reference checkout remains unchanged:
+For each requested pair it reads the pair's `init.go` registration, mines converter calls
+and JSON/SSE literals from that pair's Go tests, and adds the shared edge matrices in
+`matrix.go`: model capabilities across every static catalog, conditional string escaping,
+gjson number and array coercions, malformed bytes and JSON, Claude user-ID seeds, and tool
+call/result states. Every case runs twice. JSON leaves that differ between the runs
+(random IDs) or hold the current time are recorded as `dynamic`; the Rust test checks
+their shape (digit-free prefix, timestamp window) and compares them as numbered
+placeholders, so a repeated ID must stay consistent. All other bytes are compared
+exactly, chunk by chunk for streams. Fixtures with invalid UTF-8 set `bytes` and store
+each byte as the character with the same value.
+
+Paths:
+
+- `request`: `sdk/translator.TranslateRequest` (pair plus summary pipeline), compared
+  with `cpa_translate::translate_request`.
+- `request_compat`: `ConvertOpenAIRequestToClaudeWithCompat`.
+- `non_stream`, `token_count`: `TranslateNonStream`, `TranslateTokenCount`.
+- `stream`: `TranslateStream` per input line, compared with the pair's `go_stream`.
+  Event splitting and client framing are covered by unit tests in `src/stream.rs`.
+
+Regenerate with a temporary module whose import path sits inside the reference module's
+internal-package boundary. The reference checkout stays unchanged:
 
 ```sh
 reference=/absolute/path/to/CLIProxyAPI
 crate=/absolute/path/to/cliproxy-rs/crates/cpa-translate
 tmp=$(mktemp -d)
-cp "$crate/tests/reference/main.go" "$tmp/main.go"
+cp "$crate"/tests/reference/*.go "$tmp/"
 (
   cd "$tmp"
   go mod init github.com/router-for-me/CLIProxyAPI/v8/fixture
-  go mod edit -require=github.com/router-for-me/CLIProxyAPI/v8@v8.0.0
+  go mod edit -go=1.26.0 -require=github.com/router-for-me/CLIProxyAPI/v8@v8.0.0
   go mod edit -replace=github.com/router-for-me/CLIProxyAPI/v8="$reference"
   go mod tidy
-  go run . "$reference" "$crate/tests/fixtures/go.json"
+  go run . "$reference" "$crate/tests/fixtures/pairs" openai:claude openai:openai
 )
 rm -rf "$tmp"
 ```
 
-Go synthesizes wall-clock `created` values in Claude Chat conversions and fallback
-tool IDs. Those top-level timestamps are normalized to zero; OpenAI passthrough
-timestamps are never normalized. Exact generated-ID field paths are recorded in
-each fixture and normalized after Rust independently checks their shape, clock
-range and counter. All other bytes are preserved. SSE JSON payloads are
-compared byte for byte; the Rust contract wraps them as complete `data:` events.
-Go's route/executor layers perform this framing outside the translator.
+List every ported pair (`client:upstream`, Go format names) on the command line.
 
-Extraction does not interpret dynamic table expressions, registry mocks,
-or assertions about Go slice backing addresses. Compatibility entry points
-are tested separately from native Claude requests.
-Fixture names retain the original Go test names and source line numbers.
-
-The implemented subset is OpenAI Chat clients with Claude upstreams (request,
-stream, buffered SSE non-stream) and OpenAI-to-OpenAI normalization (request,
-stream, non-stream). Neither pair registers a token-count transform in Go.
-Claude thinking capabilities use the pinned built-in model list, not runtime
-registry overrides. JSON/SSE transforms require UTF-8 input; Go can preserve
-malformed non-UTF-8 bytes. OpenAI non-stream passthrough remains byte-preserving.
-The owned request result cannot
-express Go's matching-model backing-slice reuse optimization.
+Known gaps: the extraction does not interpret dynamic table expressions, registry mocks
+or assertions about Go slice backing addresses, and plugin hooks (M6) are not exercised.
+The dynamic model registry is empty during generation, so capabilities come from the
+static catalogs only.

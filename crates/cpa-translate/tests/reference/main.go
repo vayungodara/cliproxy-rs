@@ -1,4 +1,11 @@
-// Generates byte-level goldens by calling the pinned Go translators, never providers.
+// Generates byte-level translator goldens by running the pinned Go translators through
+// sdk/translator's registry (the path executors use). It never calls a provider.
+//
+// For every requested pair it reads the pair's init.go registration, mines converter
+// calls and JSON/SSE literals from the pair's Go tests, adds the shared edge matrices
+// below, and records Go's output. Each case runs twice; JSON leaves that differ between
+// runs (random IDs) or hold the current time are recorded as dynamic so the Rust test can
+// check their shape instead of their value.
 package main
 
 import (
@@ -10,57 +17,127 @@ import (
 	"go/token"
 	"os"
 	"path/filepath"
-	"regexp"
+	"sort"
 	"strconv"
 	"strings"
+	"time"
+	"unicode/utf8"
 
-	claude "github.com/router-for-me/CLIProxyAPI/v8/internal/translator/claude/openai/chat-completions"
-	openai "github.com/router-for-me/CLIProxyAPI/v8/internal/translator/openai/openai/chat-completions"
+	_ "github.com/router-for-me/CLIProxyAPI/v8/internal/translator"
+	claudechat "github.com/router-for-me/CLIProxyAPI/v8/internal/translator/claude/openai/chat-completions"
+	sdk "github.com/router-for-me/CLIProxyAPI/v8/sdk/translator"
 	"github.com/tidwall/gjson"
-	"github.com/tidwall/sjson"
 )
 
-type fixture struct {
-	Name         string     `json:"name"`
-	Client       string     `json:"client"`
-	Upstream     string     `json:"upstream"`
-	Path         string     `json:"path"`
-	Model        string     `json:"model"`
-	Stream       bool       `json:"stream"`
-	Input        string     `json:"input,omitempty"`
-	Events       []string   `json:"events,omitempty"`
-	Output       string     `json:"output,omitempty"`
-	Chunks       [][]string `json:"chunks,omitempty"`
-	GeneratedIDs []string   `json:"generated_ids,omitempty"`
+type dynamic struct {
+	Out    int    `json:"out"`
+	Data   int    `json:"data"`
+	Path   string `json:"path"`
+	Prefix string `json:"prefix,omitempty"`
+	Time   bool   `json:"time,omitempty"`
 }
 
-func normalize(raw []byte) string {
-	if gjson.GetBytes(raw, "created").Exists() {
-		raw, _ = sjson.SetBytes(raw, "created", 0)
-	}
-	return string(raw)
+type fixture struct {
+	Name       string      `json:"name"`
+	Path       string      `json:"path"`
+	Model      string      `json:"model"`
+	Stream     bool        `json:"stream,omitempty"`
+	Bytes      bool        `json:"bytes,omitempty"`
+	Input      string      `json:"input,omitempty"`
+	Original   string      `json:"original,omitempty"`
+	Translated string      `json:"translated,omitempty"`
+	Lines      []string    `json:"lines,omitempty"`
+	Count      int64       `json:"count,omitempty"`
+	Outputs    [][]string  `json:"outputs"`
+	Dynamic    []dynamic   `json:"dynamic,omitempty"`
+	key        string
 }
+
+type registration struct {
+	dir, client, upstream                       string
+	request, stream, nonStream, tokenCount string
+}
+
+var formats = map[string]string{"OpenAI": "openai", "OpenaiResponse": "openai-response", "Claude": "claude", "Gemini": "gemini",
+	"Codex": "codex", "Antigravity": "antigravity", "Interactions": "interactions"}
+
+func registrations(root string) []registration {
+	var out []registration
+	_ = filepath.Walk(filepath.Join(root, "internal/translator"), func(path string, info os.FileInfo, err error) error {
+		if err != nil || info.Name() != "init.go" {
+			return nil
+		}
+		file, errParse := parser.ParseFile(token.NewFileSet(), path, nil, 0)
+		if errParse != nil {
+			panic(errParse)
+		}
+		ast.Inspect(file, func(n ast.Node) bool {
+			call, ok := n.(*ast.CallExpr)
+			if !ok || len(call.Args) != 4 {
+				return true
+			}
+			sel, ok := call.Fun.(*ast.SelectorExpr)
+			if !ok || sel.Sel.Name != "Register" {
+				return true
+			}
+			r := registration{dir: filepath.Dir(path)}
+			r.client = formats[call.Args[0].(*ast.Ident).Name]
+			r.upstream = formats[call.Args[1].(*ast.Ident).Name]
+			r.request = call.Args[2].(*ast.Ident).Name
+			for _, el := range call.Args[3].(*ast.CompositeLit).Elts {
+				kv := el.(*ast.KeyValueExpr)
+				name := kv.Value.(*ast.Ident).Name
+				switch kv.Key.(*ast.Ident).Name {
+				case "Stream":
+					r.stream = name
+				case "NonStream":
+					r.nonStream = name
+				case "TokenCount":
+					r.tokenCount = name
+				}
+			}
+			out = append(out, r)
+			return true
+		})
+		return nil
+	})
+	return out
+}
+
+// ---------------------------------------------------------------------------------------
+// Literal evaluation over Go test sources.
 
 func eval(expr ast.Expr, env map[string]any) any {
 	switch e := expr.(type) {
 	case *ast.BasicLit:
-		if e.Kind == token.STRING {
+		switch e.Kind {
+		case token.STRING:
 			s, _ := strconv.Unquote(e.Value)
 			return s
+		case token.INT:
+			n, _ := strconv.ParseInt(e.Value, 0, 64)
+			return n
 		}
 	case *ast.Ident:
-		if e.Name == "true" {
+		switch e.Name {
+		case "true":
 			return true
-		}
-		if e.Name == "false" {
+		case "false":
 			return false
+		case "nil":
+			return nil
 		}
 		return env[e.Name]
 	case *ast.ParenExpr:
 		return eval(e.X, env)
 	case *ast.CallExpr:
+		// []byte("..."), string(x)
 		if len(e.Args) == 1 {
-			return eval(e.Args[0], env)
+			switch f := e.Fun.(type) {
+			case *ast.ArrayType, *ast.Ident:
+				_ = f
+				return eval(e.Args[0], env)
+			}
 		}
 	case *ast.BinaryExpr:
 		if e.Op == token.ADD {
@@ -84,251 +161,406 @@ func eval(expr ast.Expr, env map[string]any) any {
 	return nil
 }
 
-func main() {
-	if len(os.Args) != 3 {
-		panic("usage: generate REFERENCE_ROOT OUTPUT.json")
-	}
-	var fixtures []fixture
-	addRequest := func(name, upstream, model, input string, stream bool, compat ...bool) {
-		var output []byte
-		path := "request"
-		if upstream == "claude" && len(compat) > 0 && compat[0] {
-			output = claude.ConvertOpenAIRequestToClaudeWithCompat(model, []byte(input), stream)
-			path = "request_compat"
-		} else if upstream == "claude" {
-			output = claude.ConvertOpenAIRequestToClaude(model, []byte(input), stream)
-		} else {
-			output = openai.ConvertOpenAIRequestToOpenAI(model, []byte(input), stream)
+type mined struct {
+	requests  []fixture
+	streams   []fixture
+	nonStream []fixture
+}
+
+func mentions(body ast.Node, name string) bool {
+	found := false
+	ast.Inspect(body, func(n ast.Node) bool {
+		if id, ok := n.(*ast.Ident); ok && id.Name == name {
+			found = true
 		}
-		f := fixture{Name: name, Client: "openai", Upstream: upstream, Path: path, Model: model, Stream: stream, Input: input, Output: string(output)}
-		known := map[string]bool{}
-		sanitize := regexp.MustCompile(`[^a-zA-Z0-9_-]`)
-		for _, message := range gjson.Get(input, "messages").Array() {
-			id := message.Get("tool_call_id").String()
-			if id != "" {
-				known[sanitize.ReplaceAllString(id, "_")] = true
-			}
-			for _, call := range message.Get("tool_calls").Array() {
-				id := call.Get("id").String()
-				if id != "" {
-					known[sanitize.ReplaceAllString(id, "_")] = true
-				}
-			}
+		return !found
+	})
+	return name != "" && found
+}
+
+func isSSE(s string) bool {
+	t := strings.TrimSpace(s)
+	return strings.HasPrefix(t, "data:") || strings.HasPrefix(t, "event:")
+}
+
+func mine(r registration, defaultModel string) mined {
+	var m mined
+	files, _ := filepath.Glob(filepath.Join(r.dir, "*_test.go"))
+	sort.Strings(files)
+	global := map[string]any{}
+	parsed := map[string]*ast.File{}
+	fset := token.NewFileSet()
+	for _, f := range files {
+		file, err := parser.ParseFile(fset, f, nil, 0)
+		if err != nil {
+			panic(err)
 		}
-		for i, message := range gjson.Get(f.Output, "messages").Array() {
-			for j, part := range message.Get("content").Array() {
-				key := "id"
-				if part.Get("type").String() == "tool_result" {
-					key = "tool_use_id"
-				}
-				id := part.Get(key).String()
-				if strings.HasPrefix(id, "toolu_") && !known[id] {
-					path := fmt.Sprintf("messages.%d.content.%d.%s", i, j, key)
-					f.GeneratedIDs = append(f.GeneratedIDs, path)
-					f.Output, _ = sjson.Set(f.Output, path, "generated")
-				}
+		parsed[f] = file
+		for _, decl := range file.Decls {
+			gen, ok := decl.(*ast.GenDecl)
+			if !ok {
+				continue
 			}
-		}
-		fixtures = append(fixtures, f)
-	}
-	addResponse := func(name, upstream, model string, events []string) {
-		f := fixture{Name: name, Client: "openai", Upstream: upstream, Path: "stream", Model: model, Events: events, Chunks: [][]string{}}
-		var state any
-		for _, event := range events {
-			var chunks [][]byte
-			if upstream == "claude" {
-				chunks = claude.ConvertClaudeResponseToOpenAI(context.Background(), model, nil, nil, []byte(event), &state)
-			} else {
-				chunks = openai.ConvertOpenAIResponseToOpenAI(context.Background(), model, nil, nil, []byte(event), &state)
-			}
-			outputs := []string{}
-			for _, chunk := range chunks {
-				if upstream == "claude" {
-					outputs = append(outputs, normalize(chunk))
-				} else {
-					outputs = append(outputs, string(chunk))
-				}
-			}
-			f.Chunks = append(f.Chunks, outputs)
-		}
-		fixtures = append(fixtures, f)
-		if upstream == "claude" {
-			raw := strings.Join(events, "\n") + "\n"
-			output := claude.ConvertClaudeResponseToOpenAINonStream(context.Background(), model, nil, nil, []byte(raw), nil)
-			fixtures = append(fixtures, fixture{Name: name + "/buffered", Client: "openai", Upstream: upstream, Path: "non_stream", Model: model, Input: raw, Output: normalize(output)})
-		}
-	}
-	for _, directory := range []string{"internal/translator/claude/openai/chat-completions", "internal/translator/openai/openai/chat-completions"} {
-		upstream := "claude"
-		if strings.Contains(directory, "openai/openai") {
-			upstream = "openai"
-		}
-		files, _ := filepath.Glob(filepath.Join(os.Args[1], directory, "*_test.go"))
-		for _, file := range files {
-			fset := token.NewFileSet()
-			parsed, err := parser.ParseFile(fset, file, nil, 0)
-			if err != nil {
-				panic(err)
-			}
-			for _, declaration := range parsed.Decls {
-				function, ok := declaration.(*ast.FuncDecl)
-				if !ok || !strings.HasPrefix(function.Name.Name, "Test") {
+			for _, spec := range gen.Specs {
+				vs, ok := spec.(*ast.ValueSpec)
+				if !ok {
 					continue
 				}
-				env := map[string]any{}
-				requestModel := "claude-opus-5-5"
-				ast.Inspect(function.Body, func(node ast.Node) bool {
-					if call, ok := node.(*ast.CallExpr); ok && len(call.Args) == 3 {
-						if id, ok := call.Fun.(*ast.Ident); ok && strings.HasPrefix(id.Name, "ConvertOpenAIRequest") {
-							if model, ok := eval(call.Args[0], env).(string); ok {
-								requestModel = model
-							}
-						}
+				for i, name := range vs.Names {
+					if i < len(vs.Values) {
+						global[name.Name] = eval(vs.Values[i], global)
 					}
-					return true
-				})
-				var streamEvents []string
-				ast.Inspect(function.Body, func(node ast.Node) bool {
-					if call, ok := node.(*ast.CallExpr); ok && len(call.Args) == 6 {
-						if id, ok := call.Fun.(*ast.Ident); ok && (id.Name == "ConvertClaudeResponseToOpenAI" || id.Name == "ConvertOpenAIResponseToOpenAI") {
-							if event, ok := eval(call.Args[4], env).(string); ok {
-								streamEvents = append(streamEvents, event)
-							}
-						}
-					}
-					assignment, ok := node.(*ast.AssignStmt)
-					if ok {
-						for i, right := range assignment.Rhs {
-							if i < len(assignment.Lhs) {
-								if id, ok := assignment.Lhs[i].(*ast.Ident); ok {
-									env[id.Name] = eval(right, env)
-								}
-							}
-						}
-						for _, right := range assignment.Rhs {
-							call, ok := right.(*ast.CallExpr)
-							if !ok {
-								continue
-							}
-							id, ok := call.Fun.(*ast.Ident)
-							if !ok {
-								continue
-							}
-							if id.Name == "ConvertOpenAIRequestToClaude" || id.Name == "ConvertOpenAIRequestToClaudeWithCompat" || id.Name == "ConvertOpenAIRequestToOpenAI" {
-								model, okM := eval(call.Args[0], env).(string)
-								input, okI := eval(call.Args[1], env).(string)
-								stream, okS := eval(call.Args[2], env).(bool)
-								if okM && okI && okS {
-									addRequest(function.Name.Name+fmt.Sprintf(":%d", fset.Position(call.Pos()).Line), upstream, model, input, stream, id.Name == "ConvertOpenAIRequestToClaudeWithCompat")
-								}
-							}
-							if id.Name == "ConvertClaudeResponseToOpenAINonStream" {
-								input, okI := eval(call.Args[4], env).(string)
-								if okI {
-									output := claude.ConvertClaudeResponseToOpenAINonStream(context.Background(), "", nil, nil, []byte(input), nil)
-									fixtures = append(fixtures, fixture{Name: function.Name.Name, Client: "openai", Upstream: upstream, Path: "non_stream", Input: input, Output: normalize(output)})
-								}
-							}
-						}
-						if events, ok := env["events"].([]string); ok && len(events) > 0 {
-							addResponse(function.Name.Name, upstream, "claude-opus-4-6", events)
-							delete(env, "events")
-						}
-					}
-					return true
-				})
-				if len(streamEvents) > 0 {
-					addResponse(function.Name.Name, upstream, "claude-opus-4-6", streamEvents)
 				}
-				// Request table inputs are literals inside keyed composite fields.
-				ast.Inspect(function.Body, func(node ast.Node) bool {
-					field, ok := node.(*ast.KeyValueExpr)
-					if !ok {
-						return true
-					}
-					key, ok := field.Key.(*ast.Ident)
-					if !ok || !strings.Contains(function.Name.Name, "Request") || (key.Name != "input" && key.Name != "inputJSON" && key.Name != "rawJSON" && key.Name != "body") {
-						return true
-					}
-					input, ok := eval(field.Value, env).(string)
-					if ok && gjson.Valid(input) {
-						addRequest(function.Name.Name+fmt.Sprintf(":%d", fset.Position(field.Pos()).Line), upstream, requestModel, input, false)
-					}
-					return true
-				})
 			}
 		}
 	}
-	for _, effort := range []string{"none", "auto", "minimal", "low", "medium", "high", "xhigh", "max", "invalid"} {
-		for _, model := range []string{"claude-opus-4-6", "claude-sonnet-4-5-20250929", "unknown"} {
-			addRequest("effort/"+model+"/"+effort, "claude", model, `{"reasoning_effort":"`+effort+`","include_reasoning":true,"messages":[{"role":"user","content":"hi"}]}`, false)
+	seen := map[string]bool{}
+	for _, f := range files {
+		for _, decl := range parsed[f].Decls {
+			fn, ok := decl.(*ast.FuncDecl)
+			if !ok || fn.Body == nil || !strings.HasPrefix(fn.Name.Name, "Test") {
+				continue
+			}
+			env := map[string]any{}
+			for k, v := range global {
+				env[k] = v
+			}
+			model := defaultModel
+			streams := map[string][]string{}
+			var streamOrder []string
+			usesRequest := mentions(fn.Body, r.request)
+			usesStream := mentions(fn.Body, r.stream)
+			usesNonStream := mentions(fn.Body, r.nonStream)
+			var literals []string
+			ast.Inspect(fn.Body, func(n ast.Node) bool {
+				switch node := n.(type) {
+				case *ast.AssignStmt:
+					for i, right := range node.Rhs {
+						if i < len(node.Lhs) {
+							if id, ok := node.Lhs[i].(*ast.Ident); ok {
+								env[id.Name] = eval(right, env)
+							}
+						}
+					}
+				case *ast.ValueSpec:
+					for i, name := range node.Names {
+						if i < len(node.Values) {
+							env[name.Name] = eval(node.Values[i], env)
+						}
+					}
+				case *ast.CallExpr:
+					id, ok := node.Fun.(*ast.Ident)
+					if !ok {
+						break
+					}
+					switch {
+					case id.Name == r.request && len(node.Args) == 3:
+						mdl, okM := eval(node.Args[0], env).(string)
+						input, okI := eval(node.Args[1], env).(string)
+						stream, _ := eval(node.Args[2], env).(bool)
+						if okM {
+							model = mdl
+						}
+						if okI {
+							key := "req|" + mdl + "|" + input + "|" + strconv.FormatBool(stream)
+							if !seen[key] {
+								seen[key] = true
+								m.requests = append(m.requests, fixture{Name: fmt.Sprintf("%s:%d", fn.Name.Name, fset.Position(node.Pos()).Line), Path: "request", Model: firstNonEmpty(mdl, model), Stream: stream, Input: input})
+							}
+						}
+					case id.Name == r.stream && len(node.Args) == 6:
+						raw, ok := eval(node.Args[4], env).(string)
+						if !ok {
+							break
+						}
+						key := exprKey(node.Args[5])
+						if _, exists := streams[key]; !exists {
+							streamOrder = append(streamOrder, key)
+						}
+						streams[key] = append(streams[key], raw)
+					case id.Name == r.nonStream && len(node.Args) == 6:
+						raw, ok := eval(node.Args[4], env).(string)
+						if !ok {
+							break
+						}
+						orig, _ := eval(node.Args[2], env).(string)
+						req, _ := eval(node.Args[3], env).(string)
+						key := "ns|" + raw + "|" + orig
+						if !seen[key] {
+							seen[key] = true
+							m.nonStream = append(m.nonStream, fixture{Name: fmt.Sprintf("%s:%d", fn.Name.Name, fset.Position(node.Pos()).Line), Path: "non_stream", Model: model, Input: raw, Original: orig, Translated: req})
+						}
+					}
+				case *ast.BasicLit, *ast.BinaryExpr, *ast.CompositeLit:
+					switch v := eval(node.(ast.Expr), env).(type) {
+					case string:
+						literals = append(literals, v)
+					case []string:
+						if len(v) > 1 && isSSE(v[0]) && usesStream {
+							key := "lit|" + strings.Join(v, "\x00")
+							if !seen[key] {
+								seen[key] = true
+								m.streams = append(m.streams, fixture{Name: fmt.Sprintf("%s:%d:events", fn.Name.Name, fset.Position(node.Pos()).Line), Path: "stream", Model: model, Lines: v})
+							}
+						}
+					}
+				}
+				return true
+			})
+			for _, key := range streamOrder {
+				lines := streams[key]
+				sk := "stream|" + strings.Join(lines, "\x00")
+				if !seen[sk] {
+					seen[sk] = true
+					m.streams = append(m.streams, fixture{Name: fn.Name.Name + ":calls", Path: "stream", Model: model, Lines: lines})
+				}
+			}
+			for _, lit := range literals {
+				trimmed := strings.TrimSpace(lit)
+				if usesRequest && strings.HasPrefix(trimmed, "{") && gjson.Valid(lit) {
+					key := "req|" + model + "|" + lit + "|false"
+					if !seen[key] {
+						seen[key] = true
+						m.requests = append(m.requests, fixture{Name: fn.Name.Name + ":literal", Path: "request", Model: model, Input: lit})
+					}
+				}
+				if usesNonStream && (strings.Contains(lit, "\ndata:") || strings.HasPrefix(trimmed, "data:") || (strings.HasPrefix(trimmed, "{") && gjson.Valid(lit))) {
+					key := "ns|" + lit + "|"
+					if !seen[key] {
+						seen[key] = true
+						m.nonStream = append(m.nonStream, fixture{Name: fn.Name.Name + ":literal", Path: "non_stream", Model: model, Input: lit})
+					}
+				}
+			}
 		}
 	}
-	for i, input := range []string{
-		`{ "model" : "old", "number":1e+09, "model":"duplicate", "opaque": {"z":9007199254740993,"a":"\u0061"} }`,
-		"{ \"model\":\"gpt-test\", \"opaque\":1e+09 }\n",
-		`{ "opaque":1e+09 }`, `{ }`, `[]`, `invalid`, `null`, `{"model":null}`, `{"model":9}`, `{"model":"escaped\u0020model"}`,
-		`{`, `{"opaque":1`, `{"model":`, `{"model":"old"`, `{"model":"old",}`, ` { } trailing`,
-		` {"nested":{"braces":"}\\\"["},"array":[1,{"n":1e+09}]} trailing {}`,
-	} {
-		addRequest(fmt.Sprintf("normalization/raw/%d", i), "openai", "gpt-test", input, true)
+	return m
+}
+
+func exprKey(e ast.Expr) string {
+	switch v := e.(type) {
+	case *ast.UnaryExpr:
+		return exprKey(v.X)
+	case *ast.Ident:
+		return v.Name
+	case *ast.SelectorExpr:
+		return exprKey(v.X) + "." + v.Sel.Name
 	}
-	for _, number := range []string{"0", "-0", "0.75", "1e-7", "1e-6", "1e21", "1.2345678901234567e-9"} {
-		addRequest("top-p/"+number, "claude", "claude-test", `{"top_p":`+number+`,"messages":[{"role":"user","content":"hi"}]}`, false)
-	}
-	for i, parameters := range []string{
-		`{"allOf":[{"type":"\u006fbject","properties":{"n":{"default":9007199254740993}}}]}`,
-		`{"required":["z","a"],"allOf":[{"properties":{"a":{}},"required":"invalid"}]}`,
-		`{"required":["z","a"],"allOf":[{"properties":{"a":{}}}]}`,
-		`{"required":["z","a"],"allOf":[{"required":null}]}`,
-		`{"allOf":[null,{"type":null,"properties":{"ignored":{}}},{"type":["string","object"],"properties":{"a":{"description":"<&>\u2028"}}}]}`,
-	} {
-		addRequest(fmt.Sprintf("schema/edge/%d", i), "claude", "claude-test", `{"tools":[{"type":"function","function":{"name":"f","parameters":`+parameters+`}}]}`, false)
-	}
-	for i, input := range []string{` {"id":"opaque","created":123,"usage":{"n":1e+09}} `, `invalid`} {
-		output := openai.ConvertOpenAIResponseToOpenAINonStream(context.Background(), "m", nil, nil, []byte(input), nil)
-		fixtures = append(fixtures, fixture{Name: fmt.Sprintf("normalization/non-stream/%d", i), Client: "openai", Upstream: "openai", Path: "non_stream", Model: "m", Input: input, Output: string(output)})
-	}
-	for _, choice := range []string{`"auto"`, `"none"`, `"required"`, `"any"`, `{"type":"any"}`, `{"type":"function","function":{"name":"a.b"}}`,
-		`{"type":"allowed_tools","allowed_tools":{"mode":"required","tools":[{"type":"function","function":{"name":"a.b"}}]}}`,
-		`{"type":"allowed_tools","tools":[{"name":"missing"}]}`} {
-		addRequest("choice/"+choice, "claude", "claude-test", `{"tool_choice":`+choice+`,"parallel_tool_calls":false,"tools":[{"type":"function","function":{"name":"a.b","parameters":{"allOf":[{"properties":{"z":{"default":1e+09,"description":"<&>"}},"required":["z"]},{"properties":{"a":{"type":"string"}},"required":["a","z"]}]}}}],"messages":[{"role":"user","content":"test"}]}`, true)
-	}
-	addResponse("normalization/done", "openai", "m", []string{`data: {"id":"x","choices":[]}`, "data: [DONE]", `data: {"choices":[],"cost":"0"}`})
-	addResponse("normalization/bare", "openai", "m", []string{`{"id":"y"}`})
-	addResponse("normalization/bare-done", "openai", "m", []string{"[DONE]", `{"id":"after"}`})
-	addResponse("normalization/timestamp", "openai", "m", []string{`data: {"created":123,"n":1e+09}`, ` {"created":456,"n":9007199254740993} `})
-	addRequest("fallback/random-and-counter", "claude", "claude-test", `{"messages":[{"role":"assistant","tool_calls":[{"type":"function","function":{"name":"a","arguments":"{}"}},{"type":"function","function":{"name":"b","arguments":"[]"}}]},{"role":"tool","content":null},{"role":"tool","content":false}]}`, false)
-	addResponse("parallel/out-of-order", "claude", "requested-model", []string{
-		`data: {"type":"message_start","message":{"id":"msg-x","model":"upstream-model","usage":{"input_tokens":13,"output_tokens":1,"cache_read_input_tokens":22000,"cache_creation_input_tokens":31}}}`,
-		`data: {"type":"content_block_start","index":7,"content_block":{"type":"tool_use","id":"call-a","name":"first","input":{"ignored":true}}}`,
-		`data: {"type":"content_block_start","index":2,"content_block":{"type":"tool_use","id":"call-b","name":"second"}}`,
-		`data: {"type":"content_block_delta","index":7,"delta":{"type":"input_json_delta","partial_json":"{\"n\": "}}`,
-		`data: {"type":"content_block_delta","index":7,"delta":{"type":"input_json_delta","partial_json":"1e+09}"}}`,
-		`data: {"type":"content_block_stop","index":2}`,
-		`data: {"type":"content_block_stop","index":7}`,
-		`data: {"type":"message_delta","delta":{"stop_reason":"tool_use"},"usage":{"output_tokens":4,"cache_read_input_tokens":0}}`,
-		`data: {"type":"message_stop"}`, `data: {"type":"message_stop"}`,
-	})
-	for _, reason := range []string{"end_turn", "max_tokens", "refusal", "sensitive", "stop_sequence", "unknown"} {
-		addResponse("finish/"+reason, "claude", "m", []string{`data: {"type":"message_delta","delta":{"stop_reason":"` + reason + `"},"usage":{"input_tokens":13,"output_tokens":4,"cache_read_input_tokens":22000,"cache_creation_input_tokens":31}}`, `data: {"type":"message_stop"}`})
-	}
-	for _, reason := range []string{"missing", "end_turn", "stop_sequence", "max_tokens", "refusal", "sensitive"} {
-		delta := `{}`
-		if reason != "missing" {
-			delta = `{"stop_reason":"` + reason + `"}`
+	return "?"
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, v := range values {
+		if v != "" {
+			return v
 		}
-		input := `data: {"type":"message_delta","delta":` + delta + `}`
-		output := claude.ConvertClaudeResponseToOpenAINonStream(context.Background(), "", nil, nil, []byte(input), nil)
-		fixtures = append(fixtures, fixture{Name: "TestConvertClaudeResponseToOpenAINonStreamFinishReasons/" + reason, Client: "openai", Upstream: "claude", Path: "non_stream", Input: input, Output: normalize(output)})
 	}
-	addResponse("error-and-empty", "claude", "m", []string{`event: ping`, `data: {"type":"ping"}`, `data: {"type":"error","error":{"type":"overloaded_error","message":"busy"}}`, `data: {"type":"content_block_delta","delta":{"type":"text_delta","text":""}}`})
-	raw, err := json.MarshalIndent(fixtures, "", "  ")
-	if err != nil {
-		panic(err)
+	return ""
+}
+
+// ---------------------------------------------------------------------------------------
+// Running and dynamic-value detection.
+
+func run(r registration, f fixture) [][]string {
+	ctx := context.Background()
+	from, to := sdk.FromString(r.client), sdk.FromString(r.upstream)
+	var orig, req []byte
+	if f.Original != "" {
+		orig = []byte(f.Original)
 	}
-	if err = os.WriteFile(os.Args[2], append(raw, '\n'), 0644); err != nil {
-		panic(err)
+	if f.Translated != "" {
+		req = []byte(f.Translated)
 	}
-	fmt.Printf("wrote %d reference fixtures\n", len(fixtures))
+	switch f.Path {
+	case "request":
+		return [][]string{{string(sdk.TranslateRequest(from, to, f.Model, []byte(f.Input), f.Stream))}}
+	case "request_compat":
+		return [][]string{{string(claudechat.ConvertOpenAIRequestToClaudeWithCompat(f.Model, []byte(f.Input), f.Stream))}}
+	case "non_stream":
+		var param any
+		return [][]string{{string(sdk.TranslateNonStream(ctx, to, from, f.Model, orig, req, []byte(f.Input), &param))}}
+	case "token_count":
+		return [][]string{{string(sdk.TranslateTokenCount(ctx, to, from, f.Count, []byte(f.Input)))}}
+	case "stream":
+		var param any
+		out := [][]string{}
+		for _, line := range f.Lines {
+			chunks := sdk.TranslateStream(ctx, to, from, f.Model, orig, req, []byte(line), &param)
+			strs := []string{}
+			for _, c := range chunks {
+				strs = append(strs, string(c))
+			}
+			out = append(out, strs)
+		}
+		return out
+	}
+	panic("unknown path " + f.Path)
+}
+
+// docs splits one output into its JSON documents: the output itself, or each `data:`
+// payload of an SSE chunk. The index is the line number, or -1 for a bare document.
+func docs(s string) map[int]string {
+	out := map[int]string{}
+	if gjson.Valid(s) {
+		out[-1] = s
+		return out
+	}
+	for i, line := range strings.Split(s, "\n") {
+		if strings.HasPrefix(line, "data:") {
+			payload := strings.TrimSpace(line[5:])
+			if gjson.Valid(payload) {
+				out[i] = payload
+			}
+		}
+	}
+	return out
+}
+
+func escape(key string) string { return gjson.Escape(key) }
+
+func join(path, key string) string {
+	if path == "" {
+		return key
+	}
+	return path + "." + key
+}
+
+func digitFreePrefix(a, b string) string {
+	i := 0
+	for i < len(a) && i < len(b) && a[i] == b[i] && !(a[i] >= '0' && a[i] <= '9') {
+		i++
+	}
+	return a[:i]
+}
+
+func walk(a, b gjson.Result, path string, start, end int64, add func(path, prefix string, isTime bool)) {
+	if a.IsObject() && b.IsObject() {
+		a.ForEach(func(k, v gjson.Result) bool {
+			walk(v, b.Get(escape(k.String())), join(path, escape(k.String())), start, end, add)
+			return true
+		})
+		return
+	}
+	if a.IsArray() && b.IsArray() {
+		aa, bb := a.Array(), b.Array()
+		for i := range aa {
+			if i < len(bb) {
+				walk(aa[i], bb[i], join(path, strconv.Itoa(i)), start, end, add)
+			}
+		}
+		return
+	}
+	if a.Type == gjson.Number {
+		n := a.Int()
+		if (n >= start-2 && n <= end+2) || (n >= (start-2)*1000 && n <= (end+2)*1000) {
+			add(path, "", true)
+			return
+		}
+	}
+	if a.Raw != b.Raw {
+		prefix := ""
+		if a.Type == gjson.String && b.Type == gjson.String {
+			prefix = digitFreePrefix(a.String(), b.String())
+		}
+		add(path, prefix, false)
+	}
+}
+
+func record(r registration, f fixture) fixture {
+	start := time.Now().Unix()
+	a := run(r, f)
+	time.Sleep(time.Millisecond)
+	b := run(r, f)
+	end := time.Now().Unix()
+	f.Outputs = a
+	out := 0
+	for i := range a {
+		for j := range a[i] {
+			da, db := docs(a[i][j]), docs("")
+			if i < len(b) && j < len(b[i]) {
+				db = docs(b[i][j])
+			}
+			keys := []int{}
+			for k := range da {
+				keys = append(keys, k)
+			}
+			sort.Ints(keys)
+			for _, k := range keys {
+				walk(gjson.Parse(da[k]), gjson.Parse(db[k]), "", start, end, func(path, prefix string, isTime bool) {
+					f.Dynamic = append(f.Dynamic, dynamic{Out: out, Data: k, Path: path, Prefix: prefix, Time: isTime})
+				})
+			}
+			out++
+		}
+	}
+	return f
+}
+
+// encode switches every byte field to one rune per byte when any field is not UTF-8.
+func encode(f fixture) fixture {
+	fields := []*string{&f.Input, &f.Original, &f.Translated}
+	for i := range f.Lines {
+		fields = append(fields, &f.Lines[i])
+	}
+	for i := range f.Outputs {
+		for j := range f.Outputs[i] {
+			fields = append(fields, &f.Outputs[i][j])
+		}
+	}
+	valid := true
+	for _, p := range fields {
+		valid = valid && utf8.ValidString(*p)
+	}
+	if valid {
+		return f
+	}
+	f.Bytes = true
+	for _, p := range fields {
+		r := make([]rune, len(*p))
+		for i := 0; i < len(*p); i++ {
+			r[i] = rune((*p)[i])
+		}
+		*p = string(r)
+	}
+	return f
+}
+
+func main() {
+	if len(os.Args) < 4 {
+		panic("usage: generate REFERENCE_ROOT OUTPUT_DIR client:upstream...")
+	}
+	regs := registrations(os.Args[1])
+	for _, want := range os.Args[3:] {
+		var r *registration
+		for i := range regs {
+			if regs[i].client+":"+regs[i].upstream == want {
+				r = &regs[i]
+			}
+		}
+		if r == nil {
+			panic("unregistered pair " + want)
+		}
+		model := defaultModels[r.upstream]
+		m := mine(*r, model)
+		cases := append(append(append([]fixture{}, m.requests...), m.streams...), m.nonStream...)
+		cases = append(cases, matrix(*r, model)...)
+		var out []fixture
+		names := map[string]int{}
+		for _, f := range cases {
+			names[f.Name]++
+			if names[f.Name] > 1 {
+				f.Name = fmt.Sprintf("%s#%d", f.Name, names[f.Name])
+			}
+			out = append(out, encode(record(*r, f)))
+		}
+		raw, err := json.MarshalIndent(map[string]any{"client": r.client, "upstream": r.upstream, "token_count": r.tokenCount != "", "fixtures": out}, "", " ")
+		if err != nil {
+			panic(err)
+		}
+		path := filepath.Join(os.Args[2], r.client+"-"+r.upstream+".json")
+		if err := os.WriteFile(path, append(raw, '\n'), 0o644); err != nil {
+			panic(err)
+		}
+		fmt.Printf("%s: %d fixtures (%d mined requests, %d mined streams, %d mined non-stream)\n", want, len(out), len(m.requests), len(m.streams), len(m.nonStream))
+	}
 }
