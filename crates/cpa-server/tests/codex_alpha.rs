@@ -80,6 +80,7 @@ async fn alpha_search_uses_policy_eligible_credential_and_passes_upstream_throug
         Executors {
             claude: cpa_exec::claude::ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
             codex: executor,
+            devices: Default::default(),
         },
     ));
     let proxy = serve(router(rt)).await;
