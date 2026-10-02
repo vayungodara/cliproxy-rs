@@ -1,0 +1,1946 @@
+{
+  "alpha_search": [
+    {
+      "input": "{\"model\":\"m\",\"prompt_cache_key\":\"k\",\"q\":\"a<b\", \"n\": [1, 2]}",
+      "rewritten": "{\"model\":\"real-model\",\"n\":[1,2],\"q\":\"a\\u003cb\"}",
+      "sanitized": "{\"model\":\"m\",\"n\":[1,2],\"q\":\"a\\u003cb\"}"
+    },
+    {
+      "input": "{\"q\": 1, \"model\":\"m\"}",
+      "rewritten": "{\"model\":\"real-model\",\"q\":1}",
+      "sanitized": "{\"q\": 1, \"model\":\"m\"}"
+    },
+    {
+      "input": "{\"z\":1,\"model\":\"alias\",\"prompt_cache_retention\":\"24h\",\"s\":\"\\u00e9 & \\u2028 <x>\",\"o\":{\"b\" : true , \"a\":null}}",
+      "rewritten": "{\"model\":\"real-model\",\"o\":{\"b\":true,\"a\":null},\"s\":\"\\u00e9 \\u0026 \\u2028 \\u003cx\\u003e\",\"z\":1}",
+      "sanitized": "{\"model\":\"alias\",\"o\":{\"b\":true,\"a\":null},\"s\":\"\\u00e9 \\u0026 \\u2028 \\u003cx\\u003e\",\"z\":1}"
+    },
+    {
+      "input": "{\"model\":\"m\",\"prompt_cache_key\":\"k\",\"model\":\"dup\"}",
+      "rewritten": "{\"model\":\"real-model\"}",
+      "sanitized": "{\"model\":\"dup\"}"
+    },
+    {
+      "input": "[1,2]",
+      "rewritten": "[1,2]",
+      "sanitized": "[1,2]"
+    },
+    {
+      "input": "{\"model\":\"m\",\"prompt_cache_key\":\"k\"} trailing",
+      "rewritten": "{\"model\":\"m\",\"prompt_cache_key\":\"k\"} trailing",
+      "sanitized": "{\"model\":\"m\",\"prompt_cache_key\":\"k\"} trailing"
+    }
+  ],
+  "executor": [
+    {
+      "name": "oauth_stream_native",
+      "config": "{}\n",
+      "attributes": {},
+      "metadata": {
+        "access_token": "at-FAKE",
+        "account_id": "acct-FAKE-1",
+        "email": "user@example.invalid",
+        "type": "codex"
+      },
+      "source": "codex",
+      "headers": {
+        "Authorization": "Bearer client-key-FAKE",
+        "Originator": "codex_cli_rs",
+        "Session_id": "sess-FAKE",
+        "User-Agent": "codex_cli_rs/0.150.0 (Linux; x86_64)",
+        "Version": "0.150.0",
+        "X-Client-Request-Id": "req-FAKE",
+        "X-Codex-Beta-Features": "beta-a",
+        "X-Codex-Turn-Metadata": "{\"turn\":1}"
+      },
+      "model": "gpt-5.4",
+      "payload": "{\"model\":\"gpt-5.4\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}],\"tools\":[{\"type\":\"function\",\"name\":\"shell\",\"parameters\":{\"type\":\"object\",\"properties\":{}}}],\"tool_choice\":\"auto\",\"parallel_tool_calls\":true,\"reasoning\":{\"effort\":\"high\",\"summary\":\"auto\"},\"store\":false,\"stream\":true,\"include\":[\"reasoning.encrypted_content\"],\"prompt_cache_key\":\"pck-FAKE\",\"previous_response_id\":\"resp_0\",\"safety_identifier\":\"sid\",\"prompt_cache_retention\":\"24h\",\"stream_options\":{\"include_obfuscation\":false,\"reasoning_summary_delivery\":\"inline\"},\"service_tier\":\"priority\"}",
+      "stream": true,
+      "upstream_status": 200,
+      "upstream_type": "text/event-stream",
+      "upstream_body": "event: response.created\ndata: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_1\",\"status\":\"in_progress\"}}\n\nevent: response.output_item.done\ndata:{\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"id\":\"msg_1\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"Hi\"}]}}\n\nevent: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_1\",\"status\":\"completed\",\"output\":[],\"usage\":{\"input_tokens\":3,\"output_tokens\":1}}}\n\n",
+      "upstream": {
+        "method": "POST",
+        "path": "/responses",
+        "headers": {
+          "accept": [
+            "text/event-stream"
+          ],
+          "accept-encoding": [
+            "gzip"
+          ],
+          "authorization": [
+            "Bearer at-FAKE"
+          ],
+          "chatgpt-account-id": [
+            "acct-FAKE-1"
+          ],
+          "connection": [
+            "Keep-Alive"
+          ],
+          "content-length": [
+            "554"
+          ],
+          "content-type": [
+            "application/json"
+          ],
+          "originator": [
+            "codex-tui"
+          ],
+          "user-agent": [
+            "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
+          ],
+          "version": [
+            "0.150.0"
+          ],
+          "x-client-request-id": [
+            "req-FAKE"
+          ],
+          "x-codex-beta-features": [
+            "beta-a"
+          ],
+          "x-codex-routing-hint": [
+            "model=gpt-5.4;tier=priority"
+          ],
+          "x-codex-turn-metadata": [
+            "{\"turn\":1}"
+          ]
+        },
+        "body": "{\"model\":\"gpt-5.4\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}],\"tools\":[{\"type\":\"function\",\"name\":\"shell\",\"parameters\":{\"type\":\"object\",\"properties\":{}}},{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"tool_choice\":\"auto\",\"parallel_tool_calls\":true,\"reasoning\":{\"effort\":\"high\",\"summary\":\"auto\"},\"store\":false,\"stream\":true,\"include\":[\"reasoning.encrypted_content\"],\"prompt_cache_key\":\"pck-FAKE\",\"service_tier\":\"priority\",\"stream_options\":{\"reasoning_summary_delivery\":\"inline\"}}"
+      },
+      "output": {
+        "chunks": [
+          "event: response.created",
+          "data: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_1\",\"status\":\"in_progress\"}}",
+          "",
+          "event: response.output_item.done",
+          "data: {\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"id\":\"msg_1\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"Hi\"}]}}",
+          "",
+          "event: response.completed",
+          "data: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_1\",\"status\":\"completed\",\"output\":[{\"id\":\"msg_1\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"Hi\"}]}],\"usage\":{\"input_tokens\":3,\"output_tokens\":1}}}"
+        ]
+      }
+    },
+    {
+      "name": "oauth_nonstream_no_instructions_free_plan",
+      "config": "{}\n",
+      "attributes": {
+        "plan_type": "free"
+      },
+      "metadata": {
+        "access_token": "at-FAKE",
+        "account_id": "acct-FAKE-1",
+        "email": "user@example.invalid",
+        "type": "codex"
+      },
+      "source": "codex",
+      "headers": {},
+      "model": "gpt-5.4",
+      "payload": "{\"model\":\"gpt-5.4\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":\"hi\"}],\"parallel_tool_calls\":true}",
+      "stream": false,
+      "upstream_status": 200,
+      "upstream_type": "text/event-stream",
+      "upstream_body": "event: response.created\ndata: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_1\",\"status\":\"in_progress\"}}\n\nevent: response.output_item.done\ndata:{\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"id\":\"msg_1\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"Hi\"}]}}\n\nevent: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_1\",\"status\":\"completed\",\"output\":[],\"usage\":{\"input_tokens\":3,\"output_tokens\":1}}}\n\n",
+      "upstream": {
+        "method": "POST",
+        "path": "/responses",
+        "headers": {
+          "accept": [
+            "text/event-stream"
+          ],
+          "accept-encoding": [
+            "gzip"
+          ],
+          "authorization": [
+            "Bearer at-FAKE"
+          ],
+          "chatgpt-account-id": [
+            "acct-FAKE-1"
+          ],
+          "connection": [
+            "Keep-Alive"
+          ],
+          "content-length": [
+            "109"
+          ],
+          "content-type": [
+            "application/json"
+          ],
+          "originator": [
+            "codex-tui"
+          ],
+          "user-agent": [
+            "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
+          ],
+          "x-codex-routing-hint": [
+            "model=gpt-5.4"
+          ]
+        },
+        "body": "{\"model\":\"gpt-5.4\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":\"hi\"}],\"stream\":true,\"instructions\":\"\"}"
+      },
+      "output": {
+        "payload": "{\"type\":\"response.completed\",\"response\":{\"id\":\"resp_1\",\"status\":\"completed\",\"output\":[{\"id\":\"msg_1\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"Hi\"}]}],\"usage\":{\"input_tokens\":3,\"output_tokens\":1}}}"
+      }
+    },
+    {
+      "name": "apikey_stream_cloak_disabled_headers",
+      "config": "codex:\n  disable-codex-cloaking: true\n",
+      "attributes": {
+        "api_key": "sk-FAKE",
+        "header:X-Custom": "fixed",
+        "header:X-From-Client": "$X-Client-Thing"
+      },
+      "metadata": {},
+      "source": "codex",
+      "headers": {
+        "User-Agent": "my-client/1.0",
+        "X-Client-Thing": "echoed"
+      },
+      "model": "gpt-5.4-mini",
+      "payload": "{\"model\":\"alias-model\",\"instructions\":null,\"input\":[],\"tools\":[{\"type\":\"image_generation\"}],\"stream_options\":{\"include_obfuscation\":true}}",
+      "stream": true,
+      "upstream_status": 200,
+      "upstream_type": "text/event-stream",
+      "upstream_body": "event: response.created\ndata: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_1\",\"status\":\"in_progress\"}}\n\nevent: response.output_item.done\ndata:{\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"id\":\"msg_1\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"Hi\"}]}}\n\nevent: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_1\",\"status\":\"completed\",\"output\":[],\"usage\":{\"input_tokens\":3,\"output_tokens\":1}}}\n\n",
+      "upstream": {
+        "method": "POST",
+        "path": "/responses",
+        "headers": {
+          "accept": [
+            "text/event-stream"
+          ],
+          "accept-encoding": [
+            "gzip"
+          ],
+          "authorization": [
+            "Bearer sk-FAKE"
+          ],
+          "connection": [
+            "Keep-Alive"
+          ],
+          "content-length": [
+            "91"
+          ],
+          "content-type": [
+            "application/json"
+          ],
+          "user-agent": [
+            "my-client/1.0"
+          ],
+          "x-custom": [
+            "fixed"
+          ],
+          "x-from-client": [
+            "echoed"
+          ]
+        },
+        "body": "{\"model\":\"gpt-5.4-mini\",\"instructions\":\"\",\"input\":[],\"tools\":[{\"type\":\"image_generation\"}]}"
+      },
+      "output": {
+        "chunks": [
+          "event: response.created",
+          "data: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_1\",\"status\":\"in_progress\"}}",
+          "",
+          "event: response.output_item.done",
+          "data: {\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"id\":\"msg_1\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"Hi\"}]}}",
+          "",
+          "event: response.completed",
+          "data: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_1\",\"status\":\"completed\",\"output\":[{\"id\":\"msg_1\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"Hi\"}]}],\"usage\":{\"input_tokens\":3,\"output_tokens\":1}}}"
+        ]
+      }
+    },
+    {
+      "name": "oauth_usage_limit_429",
+      "config": "{}\n",
+      "attributes": {},
+      "metadata": {
+        "access_token": "at-FAKE",
+        "account_id": "acct-FAKE-1",
+        "email": "user@example.invalid",
+        "type": "codex"
+      },
+      "source": "codex",
+      "headers": {},
+      "model": "gpt-5.4",
+      "payload": "{\"model\":\"gpt-5.4\",\"input\":[]}",
+      "stream": true,
+      "upstream_status": 429,
+      "upstream_type": "application/json",
+      "upstream_body": "{\"error\":{\"type\":\"usage_limit_reached\",\"message\":\"The usage limit has been reached\",\"resets_in_seconds\":120}}",
+      "upstream": {
+        "method": "POST",
+        "path": "/responses",
+        "headers": {
+          "accept": [
+            "text/event-stream"
+          ],
+          "accept-encoding": [
+            "gzip"
+          ],
+          "authorization": [
+            "Bearer at-FAKE"
+          ],
+          "chatgpt-account-id": [
+            "acct-FAKE-1"
+          ],
+          "connection": [
+            "Keep-Alive"
+          ],
+          "content-length": [
+            "108"
+          ],
+          "content-type": [
+            "application/json"
+          ],
+          "originator": [
+            "codex-tui"
+          ],
+          "user-agent": [
+            "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
+          ],
+          "x-codex-routing-hint": [
+            "model=gpt-5.4"
+          ]
+        },
+        "body": "{\"model\":\"gpt-5.4\",\"input\":[],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}]}"
+      },
+      "output": {
+        "error": {
+          "credential_scoped": true,
+          "message": "{\"error\":{\"type\":\"usage_limit_reached\",\"message\":\"The usage limit has been reached\",\"resets_in_seconds\":120}}",
+          "retry_after_s": 120,
+          "status": 429
+        }
+      }
+    },
+    {
+      "name": "oauth_context_too_large_400",
+      "config": "{}\n",
+      "attributes": {},
+      "metadata": {
+        "access_token": "at-FAKE",
+        "account_id": "acct-FAKE-1",
+        "email": "user@example.invalid",
+        "type": "codex"
+      },
+      "source": "codex",
+      "headers": {},
+      "model": "gpt-5.4",
+      "payload": "{\"model\":\"gpt-5.4\",\"input\":[]}",
+      "stream": false,
+      "upstream_status": 400,
+      "upstream_type": "application/json",
+      "upstream_body": "{\"error\":{\"message\":\"Your input exceeds the context window of this model.\",\"type\":\"invalid_request_error\"}}",
+      "upstream": {
+        "method": "POST",
+        "path": "/responses",
+        "headers": {
+          "accept": [
+            "text/event-stream"
+          ],
+          "accept-encoding": [
+            "gzip"
+          ],
+          "authorization": [
+            "Bearer at-FAKE"
+          ],
+          "chatgpt-account-id": [
+            "acct-FAKE-1"
+          ],
+          "connection": [
+            "Keep-Alive"
+          ],
+          "content-length": [
+            "122"
+          ],
+          "content-type": [
+            "application/json"
+          ],
+          "originator": [
+            "codex-tui"
+          ],
+          "user-agent": [
+            "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
+          ],
+          "x-codex-routing-hint": [
+            "model=gpt-5.4"
+          ]
+        },
+        "body": "{\"model\":\"gpt-5.4\",\"input\":[],\"stream\":true,\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}]}"
+      },
+      "output": {
+        "error": {
+          "credential_scoped": false,
+          "message": "{\"error\":{\"message\":\"Your input exceeds the context window of this model.\",\"type\":\"invalid_request_error\"}}",
+          "status": 400
+        }
+      }
+    },
+    {
+      "name": "oauth_stream_terminal_failed_in_stream",
+      "config": "{}\n",
+      "attributes": {},
+      "metadata": {
+        "access_token": "at-FAKE",
+        "account_id": "acct-FAKE-1",
+        "email": "user@example.invalid",
+        "type": "codex"
+      },
+      "source": "codex",
+      "headers": {},
+      "model": "gpt-5.4",
+      "payload": "{\"model\":\"gpt-5.4\",\"input\":[]}",
+      "stream": true,
+      "upstream_status": 200,
+      "upstream_type": "text/event-stream",
+      "upstream_body": "data: {\"type\":\"response.created\",\"response\":{\"id\":\"r\"}}\n\ndata: {\"type\":\"response.failed\",\"sequence_number\":4,\"response\":{\"error\":{\"code\":\"rate_limit_exceeded\",\"message\":\"slow down\"}}}\n\n",
+      "upstream": {
+        "method": "POST",
+        "path": "/responses",
+        "headers": {
+          "accept": [
+            "text/event-stream"
+          ],
+          "accept-encoding": [
+            "gzip"
+          ],
+          "authorization": [
+            "Bearer at-FAKE"
+          ],
+          "chatgpt-account-id": [
+            "acct-FAKE-1"
+          ],
+          "connection": [
+            "Keep-Alive"
+          ],
+          "content-length": [
+            "108"
+          ],
+          "content-type": [
+            "application/json"
+          ],
+          "originator": [
+            "codex-tui"
+          ],
+          "user-agent": [
+            "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
+          ],
+          "x-codex-routing-hint": [
+            "model=gpt-5.4"
+          ]
+        },
+        "body": "{\"model\":\"gpt-5.4\",\"input\":[],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}]}"
+      },
+      "output": {
+        "chunks": [
+          "data: {\"type\":\"response.created\",\"response\":{\"id\":\"r\"}}",
+          ""
+        ],
+        "stream_error": {
+          "credential_scoped": false,
+          "message": "{\"error\":{\"code\":\"rate_limit_exceeded\",\"message\":\"slow down\"},\"sequence_number\":4}",
+          "status": 429
+        }
+      }
+    },
+    {
+      "name": "oauth_stream_truncated",
+      "config": "{}\n",
+      "attributes": {},
+      "metadata": {
+        "access_token": "at-FAKE",
+        "account_id": "acct-FAKE-1",
+        "email": "user@example.invalid",
+        "type": "codex"
+      },
+      "source": "codex",
+      "headers": {},
+      "model": "gpt-5.4",
+      "payload": "{\"model\":\"gpt-5.4\",\"input\":[]}",
+      "stream": true,
+      "upstream_status": 200,
+      "upstream_type": "text/event-stream",
+      "upstream_body": "data: {\"type\":\"response.created\",\"response\":{\"id\":\"r\"}}\n\ndata: {\"type\":\"response.output_text.delta\",\"delta\":\"x\"}\n\n",
+      "upstream": {
+        "method": "POST",
+        "path": "/responses",
+        "headers": {
+          "accept": [
+            "text/event-stream"
+          ],
+          "accept-encoding": [
+            "gzip"
+          ],
+          "authorization": [
+            "Bearer at-FAKE"
+          ],
+          "chatgpt-account-id": [
+            "acct-FAKE-1"
+          ],
+          "connection": [
+            "Keep-Alive"
+          ],
+          "content-length": [
+            "108"
+          ],
+          "content-type": [
+            "application/json"
+          ],
+          "originator": [
+            "codex-tui"
+          ],
+          "user-agent": [
+            "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
+          ],
+          "x-codex-routing-hint": [
+            "model=gpt-5.4"
+          ]
+        },
+        "body": "{\"model\":\"gpt-5.4\",\"input\":[],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}]}"
+      },
+      "output": {
+        "chunks": [
+          "data: {\"type\":\"response.created\",\"response\":{\"id\":\"r\"}}",
+          "",
+          "data: {\"type\":\"response.output_text.delta\",\"delta\":\"x\"}",
+          ""
+        ],
+        "stream_error": {
+          "credential_scoped": false,
+          "message": "stream error: stream disconnected before completion: stream closed before response.completed",
+          "request_scoped": true,
+          "status": 408
+        }
+      }
+    },
+    {
+      "name": "oauth_nonstream_empty_incomplete",
+      "config": "{}\n",
+      "attributes": {},
+      "metadata": {
+        "access_token": "at-FAKE",
+        "account_id": "acct-FAKE-1",
+        "email": "user@example.invalid",
+        "type": "codex"
+      },
+      "source": "codex",
+      "headers": {},
+      "model": "gpt-5.4",
+      "payload": "{\"model\":\"gpt-5.4\",\"input\":[]}",
+      "stream": false,
+      "upstream_status": 200,
+      "upstream_type": "text/event-stream",
+      "upstream_body": "data: {\"type\":\"response.incomplete\",\"response\":{\"output\":[],\"usage\":{\"output_tokens\":0}}}\n\n",
+      "upstream": {
+        "method": "POST",
+        "path": "/responses",
+        "headers": {
+          "accept": [
+            "text/event-stream"
+          ],
+          "accept-encoding": [
+            "gzip"
+          ],
+          "authorization": [
+            "Bearer at-FAKE"
+          ],
+          "chatgpt-account-id": [
+            "acct-FAKE-1"
+          ],
+          "connection": [
+            "Keep-Alive"
+          ],
+          "content-length": [
+            "122"
+          ],
+          "content-type": [
+            "application/json"
+          ],
+          "originator": [
+            "codex-tui"
+          ],
+          "user-agent": [
+            "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
+          ],
+          "x-codex-routing-hint": [
+            "model=gpt-5.4"
+          ]
+        },
+        "body": "{\"model\":\"gpt-5.4\",\"input\":[],\"stream\":true,\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}]}"
+      },
+      "output": {
+        "error": {
+          "credential_scoped": false,
+          "message": "stream error: upstream terminated with incomplete empty response (0 tokens)",
+          "request_scoped": true,
+          "status": 502
+        }
+      }
+    },
+    {
+      "name": "oauth_compact",
+      "config": "{}\n",
+      "attributes": {},
+      "metadata": {
+        "access_token": "at-FAKE",
+        "account_id": "acct-FAKE-1",
+        "email": "user@example.invalid",
+        "type": "codex"
+      },
+      "source": "codex",
+      "headers": {
+        "Session_id": "s-1"
+      },
+      "model": "gpt-5.4",
+      "payload": "{\"model\":\"gpt-5.4\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":\"x\"}],\"stream\":true,\"instructions\":\"keep\"}",
+      "stream": false,
+      "alt": "responses/compact",
+      "upstream_status": 200,
+      "upstream_type": "application/json",
+      "upstream_body": "{\"object\":\"response.compaction\",\"output\":[{\"type\":\"compaction\",\"encrypted_content\":\"e\"}]}",
+      "upstream": {
+        "method": "POST",
+        "path": "/responses/compact",
+        "headers": {
+          "accept": [
+            "application/json"
+          ],
+          "accept-encoding": [
+            "gzip"
+          ],
+          "authorization": [
+            "Bearer at-FAKE"
+          ],
+          "chatgpt-account-id": [
+            "acct-FAKE-1"
+          ],
+          "connection": [
+            "Keep-Alive"
+          ],
+          "content-length": [
+            "98"
+          ],
+          "content-type": [
+            "application/json"
+          ],
+          "originator": [
+            "codex-tui"
+          ],
+          "user-agent": [
+            "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
+          ],
+          "x-codex-routing-hint": [
+            "model=gpt-5.4"
+          ]
+        },
+        "body": "{\"model\":\"gpt-5.4\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":\"x\"}],\"instructions\":\"keep\"}"
+      },
+      "output": {
+        "payload": "{\"object\":\"response.compaction\",\"output\":[{\"type\":\"compaction\",\"encrypted_content\":\"e\"}]}"
+      }
+    },
+    {
+      "name": "oauth_execution_session_prompt_cache",
+      "config": "{}\n",
+      "attributes": {},
+      "metadata": {
+        "access_token": "at-FAKE",
+        "account_id": "acct-FAKE-1",
+        "email": "user@example.invalid",
+        "type": "codex"
+      },
+      "source": "codex",
+      "headers": {},
+      "model": "gpt-5.4",
+      "payload": "{\"model\":\"gpt-5.4\",\"input\":[{\"type\":\"function_call\",\"id\":\"call_x\",\"call_id\":\"c1\",\"name\":\"f\",\"arguments\":\"{}\"},{\"type\":\"reasoning\",\"id\":\"rs_yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy\",\"encrypted_content\":\"enc\"},{\"type\":\"message\",\"id\":\"item_zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz\",\"role\":\"user\",\"content\":\"x\"}]}",
+      "stream": true,
+      "exec_metadata": {
+        "execution_session_id": "ws-session-1"
+      },
+      "upstream_status": 200,
+      "upstream_type": "text/event-stream",
+      "upstream_body": "event: response.created\ndata: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_1\",\"status\":\"in_progress\"}}\n\nevent: response.output_item.done\ndata:{\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"id\":\"msg_1\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"Hi\"}]}}\n\nevent: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_1\",\"status\":\"completed\",\"output\":[],\"usage\":{\"input_tokens\":3,\"output_tokens\":1}}}\n\n",
+      "upstream": {
+        "method": "POST",
+        "path": "/responses",
+        "headers": {
+          "accept": [
+            "text/event-stream"
+          ],
+          "accept-encoding": [
+            "gzip"
+          ],
+          "authorization": [
+            "Bearer at-FAKE"
+          ],
+          "chatgpt-account-id": [
+            "acct-FAKE-1"
+          ],
+          "connection": [
+            "Keep-Alive"
+          ],
+          "content-length": [
+            "390"
+          ],
+          "content-type": [
+            "application/json"
+          ],
+          "originator": [
+            "codex-tui"
+          ],
+          "session-id": [
+            "28865bb8-7d56-59d8-8e90-4a420b800588"
+          ],
+          "user-agent": [
+            "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
+          ],
+          "x-codex-routing-hint": [
+            "model=gpt-5.4"
+          ]
+        },
+        "body": "{\"model\":\"gpt-5.4\",\"input\":[{\"type\":\"function_call\",\"id\":\"fc_call_x\",\"call_id\":\"c1\",\"name\":\"f\",\"arguments\":\"{}\"},{\"type\":\"reasoning\"},{\"type\":\"message\",\"id\":\"msg_item_zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz_ee55676c0c4bb66f\",\"role\":\"user\",\"content\":\"x\"}],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"28865bb8-7d56-59d8-8e90-4a420b800588\"}"
+      },
+      "output": {
+        "chunks": [
+          "event: response.created",
+          "data: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_1\",\"status\":\"in_progress\"}}",
+          "",
+          "event: response.output_item.done",
+          "data: {\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"id\":\"msg_1\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"Hi\"}]}}",
+          "",
+          "event: response.completed",
+          "data: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_1\",\"status\":\"completed\",\"output\":[{\"id\":\"msg_1\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"Hi\"}]}],\"usage\":{\"input_tokens\":3,\"output_tokens\":1}}}"
+        ]
+      }
+    },
+    {
+      "name": "oauth_tool_schema_enum_collapse",
+      "config": "{}\n",
+      "attributes": {},
+      "metadata": {
+        "access_token": "at-FAKE",
+        "account_id": "acct-FAKE-1",
+        "email": "user@example.invalid",
+        "type": "codex"
+      },
+      "source": "codex",
+      "headers": {},
+      "model": "gpt-5.4",
+      "payload": "{\"model\":\"gpt-5.4\",\"input\":[],\"tools\":[{\"type\":\"function\",\"name\":\"pick\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"oneOf\":[{\"const\":\"a\"},{\"const\":\"b\"},{\"const\":\"c\"},{\"const\":\"d\"},{\"const\":\"e\"},{\"const\":\"f\"},{\"const\":\"g\"},{\"const\":\"h\",\"title\":\"H\"}]},\"n\":{\"anyOf\":[{\"const\":1},{\"const\":2}]}}}},{\"type\":\"namespace\",\"name\":\"ns\",\"tools\":[{\"type\":\"function\",\"name\":\"inner\",\"parameters\":{\"type\":\"object\",\"properties\":{\"k\":{\"anyOf\":[{\"const\":1},{\"const\":2},{\"const\":3},{\"const\":4},{\"const\":5},{\"const\":6},{\"const\":7},{\"const\":8.0}],\"enum\":[1,2,3,4,5,6,7,8]}}}}]}]}",
+      "stream": true,
+      "upstream_status": 200,
+      "upstream_type": "text/event-stream",
+      "upstream_body": "event: response.created\ndata: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_1\",\"status\":\"in_progress\"}}\n\nevent: response.output_item.done\ndata:{\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"id\":\"msg_1\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"Hi\"}]}}\n\nevent: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_1\",\"status\":\"completed\",\"output\":[],\"usage\":{\"input_tokens\":3,\"output_tokens\":1}}}\n\n",
+      "upstream": {
+        "method": "POST",
+        "path": "/responses",
+        "headers": {
+          "accept": [
+            "text/event-stream"
+          ],
+          "accept-encoding": [
+            "gzip"
+          ],
+          "authorization": [
+            "Bearer at-FAKE"
+          ],
+          "chatgpt-account-id": [
+            "acct-FAKE-1"
+          ],
+          "connection": [
+            "Keep-Alive"
+          ],
+          "content-length": [
+            "430"
+          ],
+          "content-type": [
+            "application/json"
+          ],
+          "originator": [
+            "codex-tui"
+          ],
+          "user-agent": [
+            "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
+          ],
+          "x-codex-routing-hint": [
+            "model=gpt-5.4"
+          ]
+        },
+        "body": "{\"model\":\"gpt-5.4\",\"input\":[],\"tools\":[{\"type\":\"function\",\"name\":\"pick\",\"parameters\":{\"type\":\"object\",\"properties\":{\"c\":{\"enum\":[\"a\",\"b\",\"c\",\"d\",\"e\",\"f\",\"g\",\"h\"]},\"n\":{\"anyOf\":[{\"const\":1},{\"const\":2}]}}}},{\"type\":\"namespace\",\"name\":\"ns\",\"tools\":[{\"type\":\"function\",\"name\":\"inner\",\"parameters\":{\"type\":\"object\",\"properties\":{\"k\":{\"enum\":[1,2,3,4,5,6,7,8]}}}}]},{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"instructions\":\"\"}"
+      },
+      "output": {
+        "chunks": [
+          "event: response.created",
+          "data: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_1\",\"status\":\"in_progress\"}}",
+          "",
+          "event: response.output_item.done",
+          "data: {\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"id\":\"msg_1\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"Hi\"}]}}",
+          "",
+          "event: response.completed",
+          "data: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_1\",\"status\":\"completed\",\"output\":[{\"id\":\"msg_1\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"Hi\"}]}],\"usage\":{\"input_tokens\":3,\"output_tokens\":1}}}"
+        ]
+      }
+    },
+    {
+      "name": "oauth_model_override_header",
+      "config": "{}\n",
+      "attributes": {},
+      "metadata": {
+        "access_token": "at-FAKE",
+        "account_id": "acct-FAKE-1",
+        "email": "user@example.invalid",
+        "type": "codex"
+      },
+      "source": "codex",
+      "headers": {
+        "User-Agent": "other/1"
+      },
+      "model": "gpt-5.6-luna",
+      "payload": "{\"model\":\"gpt-5.6-luna\",\"input\":[]}",
+      "stream": true,
+      "upstream_status": 200,
+      "upstream_type": "text/event-stream",
+      "upstream_body": "event: response.created\ndata: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_1\",\"status\":\"in_progress\"}}\n\nevent: response.output_item.done\ndata:{\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"id\":\"msg_1\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"Hi\"}]}}\n\nevent: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_1\",\"status\":\"completed\",\"output\":[],\"usage\":{\"input_tokens\":3,\"output_tokens\":1}}}\n\n",
+      "upstream": {
+        "method": "POST",
+        "path": "/responses",
+        "headers": {
+          "accept": [
+            "text/event-stream"
+          ],
+          "accept-encoding": [
+            "gzip"
+          ],
+          "authorization": [
+            "Bearer at-FAKE"
+          ],
+          "chatgpt-account-id": [
+            "acct-FAKE-1"
+          ],
+          "connection": [
+            "Keep-Alive"
+          ],
+          "content-length": [
+            "113"
+          ],
+          "content-type": [
+            "application/json"
+          ],
+          "originator": [
+            "codex-tui"
+          ],
+          "session_id": [
+            "c11ce154-ffe7-452e-a6bf-f14bd21c48fe"
+          ],
+          "user-agent": [
+            "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
+          ],
+          "x-codex-routing-hint": [
+            "model=gpt-5.6-luna"
+          ]
+        },
+        "body": "{\"model\":\"gpt-5.6-luna\",\"input\":[],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}]}"
+      },
+      "output": {
+        "chunks": [
+          "event: response.created",
+          "data: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_1\",\"status\":\"in_progress\"}}",
+          "",
+          "event: response.output_item.done",
+          "data: {\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"id\":\"msg_1\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"Hi\"}]}}",
+          "",
+          "event: response.completed",
+          "data: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_1\",\"status\":\"completed\",\"output\":[{\"id\":\"msg_1\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"Hi\"}]}],\"usage\":{\"input_tokens\":3,\"output_tokens\":1}}}"
+        ]
+      }
+    },
+    {
+      "name": "oauth_capacity_in_stream_500",
+      "config": "{}\n",
+      "attributes": {},
+      "metadata": {
+        "access_token": "at-FAKE",
+        "account_id": "acct-FAKE-1",
+        "email": "user@example.invalid",
+        "type": "codex"
+      },
+      "source": "codex",
+      "headers": {},
+      "model": "gpt-5.4",
+      "payload": "{\"model\":\"gpt-5.4\",\"input\":[]}",
+      "stream": false,
+      "upstream_status": 500,
+      "upstream_type": "application/json",
+      "upstream_body": "{\"error\":{\"message\":\"Selected model is at capacity. Please try a different model.\"}}",
+      "upstream": {
+        "method": "POST",
+        "path": "/responses",
+        "headers": {
+          "accept": [
+            "text/event-stream"
+          ],
+          "accept-encoding": [
+            "gzip"
+          ],
+          "authorization": [
+            "Bearer at-FAKE"
+          ],
+          "chatgpt-account-id": [
+            "acct-FAKE-1"
+          ],
+          "connection": [
+            "Keep-Alive"
+          ],
+          "content-length": [
+            "122"
+          ],
+          "content-type": [
+            "application/json"
+          ],
+          "originator": [
+            "codex-tui"
+          ],
+          "user-agent": [
+            "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
+          ],
+          "x-codex-routing-hint": [
+            "model=gpt-5.4"
+          ]
+        },
+        "body": "{\"model\":\"gpt-5.4\",\"input\":[],\"stream\":true,\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}]}"
+      },
+      "output": {
+        "error": {
+          "credential_scoped": false,
+          "message": "{\"error\":{\"message\":\"Selected model is at capacity. Please try a different model.\"}}",
+          "status": 429
+        }
+      }
+    },
+    {
+      "name": "oauth_bootstrap_overload_failover",
+      "config": "codex:\n  stream-bootstrap-buffering: true\n",
+      "attributes": {},
+      "metadata": {
+        "access_token": "at-FAKE",
+        "account_id": "acct-FAKE-1",
+        "email": "user@example.invalid",
+        "type": "codex"
+      },
+      "source": "codex",
+      "headers": {},
+      "model": "gpt-5.4",
+      "payload": "{\"model\":\"gpt-5.4\",\"input\":[]}",
+      "stream": true,
+      "upstream_status": 200,
+      "upstream_type": "text/event-stream",
+      "upstream_body": ": keepalive\n\ndata: {\"type\":\"response.created\",\"response\":{\"id\":\"r\"}}\n\ndata: {\"type\":\"codex.rate_limits\",\"rate_limits\":{}}\n\ndata: {\"type\":\"response.failed\",\"response\":{\"error\":{\"type\":\"service_unavailable_error\",\"code\":\"server_is_overloaded\",\"message\":\"busy\"}}}\n\n",
+      "upstream": {
+        "method": "POST",
+        "path": "/responses",
+        "headers": {
+          "accept": [
+            "text/event-stream"
+          ],
+          "accept-encoding": [
+            "gzip"
+          ],
+          "authorization": [
+            "Bearer at-FAKE"
+          ],
+          "chatgpt-account-id": [
+            "acct-FAKE-1"
+          ],
+          "connection": [
+            "Keep-Alive"
+          ],
+          "content-length": [
+            "108"
+          ],
+          "content-type": [
+            "application/json"
+          ],
+          "originator": [
+            "codex-tui"
+          ],
+          "user-agent": [
+            "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
+          ],
+          "x-codex-routing-hint": [
+            "model=gpt-5.4"
+          ]
+        },
+        "body": "{\"model\":\"gpt-5.4\",\"input\":[],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}]}"
+      },
+      "output": {
+        "error": {
+          "credential_scoped": false,
+          "message": "{\"error\":{\"type\":\"service_unavailable_error\",\"code\":\"server_is_overloaded\",\"message\":\"busy\"}}",
+          "status": 503
+        }
+      }
+    },
+    {
+      "name": "oauth_bootstrap_time_budget_spent",
+      "config": "codex:\n  stream-bootstrap-buffering: true\n  stream-bootstrap-timeout: 1ns\n",
+      "attributes": {},
+      "metadata": {
+        "access_token": "at-FAKE",
+        "account_id": "acct-FAKE-1",
+        "email": "user@example.invalid",
+        "type": "codex"
+      },
+      "source": "codex",
+      "headers": {},
+      "model": "gpt-5.4",
+      "payload": "{\"model\":\"gpt-5.4\",\"input\":[]}",
+      "stream": true,
+      "upstream_status": 200,
+      "upstream_type": "text/event-stream",
+      "upstream_body": "data: {\"type\":\"response.created\",\"response\":{\"id\":\"r\"}}\n\ndata: {\"type\":\"response.failed\",\"response\":{\"error\":{\"type\":\"service_unavailable_error\",\"code\":\"server_is_overloaded\",\"message\":\"busy\"}}}\n\n",
+      "upstream": {
+        "method": "POST",
+        "path": "/responses",
+        "headers": {
+          "accept": [
+            "text/event-stream"
+          ],
+          "accept-encoding": [
+            "gzip"
+          ],
+          "authorization": [
+            "Bearer at-FAKE"
+          ],
+          "chatgpt-account-id": [
+            "acct-FAKE-1"
+          ],
+          "connection": [
+            "Keep-Alive"
+          ],
+          "content-length": [
+            "108"
+          ],
+          "content-type": [
+            "application/json"
+          ],
+          "originator": [
+            "codex-tui"
+          ],
+          "user-agent": [
+            "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
+          ],
+          "x-codex-routing-hint": [
+            "model=gpt-5.4"
+          ]
+        },
+        "body": "{\"model\":\"gpt-5.4\",\"input\":[],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}]}"
+      },
+      "output": {
+        "chunks": [
+          "data: {\"type\":\"response.created\",\"response\":{\"id\":\"r\"}}",
+          ""
+        ],
+        "stream_error": {
+          "credential_scoped": false,
+          "message": "{\"error\":{\"type\":\"service_unavailable_error\",\"code\":\"server_is_overloaded\",\"message\":\"busy\"}}",
+          "status": 502
+        }
+      }
+    },
+    {
+      "name": "oauth_bootstrap_holds_then_releases",
+      "config": "codex:\n  stream-bootstrap-buffering: true\n",
+      "attributes": {},
+      "metadata": {
+        "access_token": "at-FAKE",
+        "account_id": "acct-FAKE-1",
+        "email": "user@example.invalid",
+        "type": "codex"
+      },
+      "source": "codex",
+      "headers": {},
+      "model": "gpt-5.4",
+      "payload": "{\"model\":\"gpt-5.4\",\"input\":[]}",
+      "stream": true,
+      "upstream_status": 200,
+      "upstream_type": "text/event-stream",
+      "upstream_body": "data: {\"type\":\"response.created\",\"response\":{\"id\":\"r\"}}\n\ndata: {\"type\":\"response.output_item.added\",\"output_index\":0,\"item\":{\"type\":\"message\",\"content\":[]}}\n\ndata: {\"type\":\"response.output_text.delta\",\"delta\":\"Hi\"}\n\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"r\",\"output\":[]}}\n\n",
+      "upstream": {
+        "method": "POST",
+        "path": "/responses",
+        "headers": {
+          "accept": [
+            "text/event-stream"
+          ],
+          "accept-encoding": [
+            "gzip"
+          ],
+          "authorization": [
+            "Bearer at-FAKE"
+          ],
+          "chatgpt-account-id": [
+            "acct-FAKE-1"
+          ],
+          "connection": [
+            "Keep-Alive"
+          ],
+          "content-length": [
+            "108"
+          ],
+          "content-type": [
+            "application/json"
+          ],
+          "originator": [
+            "codex-tui"
+          ],
+          "user-agent": [
+            "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
+          ],
+          "x-codex-routing-hint": [
+            "model=gpt-5.4"
+          ]
+        },
+        "body": "{\"model\":\"gpt-5.4\",\"input\":[],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}]}"
+      },
+      "output": {
+        "chunks": [
+          "data: {\"type\":\"response.created\",\"response\":{\"id\":\"r\"}}",
+          "",
+          "data: {\"type\":\"response.output_item.added\",\"output_index\":0,\"item\":{\"type\":\"message\",\"content\":[]}}",
+          "",
+          "data: {\"type\":\"response.output_text.delta\",\"delta\":\"Hi\"}",
+          "",
+          "data: {\"type\":\"response.completed\",\"response\":{\"id\":\"r\",\"output\":[]}}"
+        ]
+      }
+    }
+  ],
+  "oauth": {
+    "auth_file": "{\"access_token\":\"at-\\u003cFAKE\\u003e\\u0026\",\"account_id\":\"acct-FAKE-1\",\"disabled\":false,\"email\":\"user@example.invalid\",\"expired\":\"2026-10-12T12:00:00Z\",\"id_token\":\"eyJhbGciOiJub25lIn0.eyJlbWFpbCI6InVzZXJAZXhhbXBsZS5pbnZhbGlkIiwiYXVkIjpbImFwcF9FTW9hbUVFWjczZjBDa1hhWHA3aHJhbm4iXSwiaHR0cHM6Ly9hcGkub3BlbmFpLmNvbS9hdXRoIjp7ImNoYXRncHRfYWNjb3VudF9pZCI6ImFjY3QtRkFLRS0xIiwiY2hhdGdwdF9wbGFuX3R5cGUiOiJQcm8gUGx1cyIsIm9yZ2FuaXphdGlvbnMiOlt7ImlkIjoib3JnLTEiLCJpc19kZWZhdWx0Ijp0cnVlfV19fQ.sig\",\"last_refresh\":\"2026-10-02T12:00:00Z\",\"plan_type\":\"Pro Plus\",\"refresh_token\":\"rt-FAKE-2\",\"type\":\"codex\"}\n",
+    "auth_url": "https://auth.openai.com/oauth/authorize?client_id=app_EMoamEEZ73f0CkXaXp7hrann&code_challenge=challenge-FAKE&code_challenge_method=S256&codex_cli_simplified_flow=true&id_token_add_organizations=true&prompt=login&redirect_uri=http%3A%2F%2Flocalhost%3A1455%2Fauth%2Fcallback&response_type=code&scope=openid+email+profile+offline_access&state=state-FAKE",
+    "callbacks": [
+      {
+        "code": "abc",
+        "error": "",
+        "input": "http://localhost:1455/auth/callback?code=abc&state=xyz",
+        "ok": true,
+        "state": "xyz"
+      },
+      {
+        "input": "code=abc#xyz",
+        "ok": false
+      },
+      {
+        "code": "abc",
+        "error": "",
+        "input": "?code=abc%23xyz",
+        "ok": true,
+        "state": "xyz"
+      },
+      {
+        "code": "",
+        "error": "nope",
+        "input": "?error_description=nope",
+        "ok": true,
+        "state": ""
+      },
+      {
+        "code": "f",
+        "error": "",
+        "input": "localhost:1455/auth/callback#code=f&state=g",
+        "ok": true,
+        "state": "g"
+      },
+      {
+        "input": "nonsense",
+        "ok": false
+      },
+      {
+        "input": "?state=only",
+        "ok": false
+      },
+      {
+        "input": "  ",
+        "ok": false
+      }
+    ],
+    "exchanges": [
+      {
+        "name": "exchange",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/oauth/token",
+            "headers": {
+              "accept": [
+                "application/json"
+              ],
+              "accept-encoding": [
+                "gzip"
+              ],
+              "content-length": [
+                "172"
+              ],
+              "content-type": [
+                "application/x-www-form-urlencoded"
+              ],
+              "user-agent": [
+                "Go-http-client/1.1"
+              ]
+            },
+            "body": "client_id=app_EMoamEEZ73f0CkXaXp7hrann&code=code-FAKE&code_verifier=verifier-FAKE&grant_type=authorization_code&redirect_uri=http%3A%2F%2Flocalhost%3A1455%2Fauth%2Fcallback"
+          }
+        ],
+        "result": {
+          "access_token": "at-FAKE",
+          "account_id": "acct-FAKE-1",
+          "email": "user@example.invalid",
+          "id_token": "eyJhbGciOiJub25lIn0.eyJlbWFpbCI6InVzZXJAZXhhbXBsZS5pbnZhbGlkIiwiYXVkIjpbImFwcF9FTW9hbUVFWjczZjBDa1hhWHA3aHJhbm4iXSwiaHR0cHM6Ly9hcGkub3BlbmFpLmNvbS9hdXRoIjp7ImNoYXRncHRfYWNjb3VudF9pZCI6ImFjY3QtRkFLRS0xIiwiY2hhdGdwdF9wbGFuX3R5cGUiOiJQcm8gUGx1cyIsIm9yZ2FuaXphdGlvbnMiOlt7ImlkIjoib3JnLTEiLCJpc19kZWZhdWx0Ijp0cnVlfV19fQ.sig",
+          "plan_type": "Pro Plus",
+          "refresh_token": "rt-FAKE-2"
+        }
+      },
+      {
+        "name": "refresh",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/oauth/token",
+            "headers": {
+              "accept": [
+                "application/json"
+              ],
+              "accept-encoding": [
+                "gzip"
+              ],
+              "content-length": [
+                "114"
+              ],
+              "content-type": [
+                "application/x-www-form-urlencoded"
+              ],
+              "user-agent": [
+                "Go-http-client/1.1"
+              ]
+            },
+            "body": "client_id=app_EMoamEEZ73f0CkXaXp7hrann&grant_type=refresh_token&refresh_token=rt-FAKE-1&scope=openid+profile+email"
+          }
+        ],
+        "result": {
+          "access_token": "at-FAKE",
+          "account_id": "acct-FAKE-1",
+          "email": "user@example.invalid",
+          "id_token": "eyJhbGciOiJub25lIn0.eyJlbWFpbCI6InVzZXJAZXhhbXBsZS5pbnZhbGlkIiwiYXVkIjpbImFwcF9FTW9hbUVFWjczZjBDa1hhWHA3aHJhbm4iXSwiaHR0cHM6Ly9hcGkub3BlbmFpLmNvbS9hdXRoIjp7ImNoYXRncHRfYWNjb3VudF9pZCI6ImFjY3QtRkFLRS0xIiwiY2hhdGdwdF9wbGFuX3R5cGUiOiJQcm8gUGx1cyIsIm9yZ2FuaXphdGlvbnMiOlt7ImlkIjoib3JnLTEiLCJpc19kZWZhdWx0Ijp0cnVlfV19fQ.sig",
+          "plan_type": "Pro Plus",
+          "refresh_token": "rt-FAKE-2"
+        }
+      },
+      {
+        "name": "refresh_retry",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/oauth/token",
+            "headers": {
+              "accept": [
+                "application/json"
+              ],
+              "accept-encoding": [
+                "gzip"
+              ],
+              "content-length": [
+                "114"
+              ],
+              "content-type": [
+                "application/x-www-form-urlencoded"
+              ],
+              "user-agent": [
+                "Go-http-client/1.1"
+              ]
+            },
+            "body": "client_id=app_EMoamEEZ73f0CkXaXp7hrann&grant_type=refresh_token&refresh_token=rt-FAKE-1&scope=openid+profile+email"
+          },
+          {
+            "method": "POST",
+            "path": "/oauth/token",
+            "headers": {
+              "accept": [
+                "application/json"
+              ],
+              "accept-encoding": [
+                "gzip"
+              ],
+              "content-length": [
+                "114"
+              ],
+              "content-type": [
+                "application/x-www-form-urlencoded"
+              ],
+              "user-agent": [
+                "Go-http-client/1.1"
+              ]
+            },
+            "body": "client_id=app_EMoamEEZ73f0CkXaXp7hrann&grant_type=refresh_token&refresh_token=rt-FAKE-1&scope=openid+profile+email"
+          }
+        ],
+        "result": {
+          "access_token": "at-FAKE",
+          "account_id": "acct-FAKE-1",
+          "email": "user@example.invalid",
+          "id_token": "eyJhbGciOiJub25lIn0.eyJlbWFpbCI6InVzZXJAZXhhbXBsZS5pbnZhbGlkIiwiYXVkIjpbImFwcF9FTW9hbUVFWjczZjBDa1hhWHA3aHJhbm4iXSwiaHR0cHM6Ly9hcGkub3BlbmFpLmNvbS9hdXRoIjp7ImNoYXRncHRfYWNjb3VudF9pZCI6ImFjY3QtRkFLRS0xIiwiY2hhdGdwdF9wbGFuX3R5cGUiOiJQcm8gUGx1cyIsIm9yZ2FuaXphdGlvbnMiOlt7ImlkIjoib3JnLTEiLCJpc19kZWZhdWx0Ijp0cnVlfV19fQ.sig",
+          "plan_type": "Pro Plus",
+          "refresh_token": "rt-FAKE-2"
+        }
+      },
+      {
+        "name": "refresh_reused",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/oauth/token",
+            "headers": {
+              "accept": [
+                "application/json"
+              ],
+              "accept-encoding": [
+                "gzip"
+              ],
+              "content-length": [
+                "114"
+              ],
+              "content-type": [
+                "application/x-www-form-urlencoded"
+              ],
+              "user-agent": [
+                "Go-http-client/1.1"
+              ]
+            },
+            "body": "client_id=app_EMoamEEZ73f0CkXaXp7hrann&grant_type=refresh_token&refresh_token=rt-FAKE-1&scope=openid+profile+email"
+          }
+        ],
+        "result": null,
+        "error": "token refresh failed with status 400: {\"error\":\"refresh_token_reused\"}"
+      },
+      {
+        "name": "refresh_invalid_grant",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/oauth/token",
+            "headers": {
+              "accept": [
+                "application/json"
+              ],
+              "accept-encoding": [
+                "gzip"
+              ],
+              "content-length": [
+                "114"
+              ],
+              "content-type": [
+                "application/x-www-form-urlencoded"
+              ],
+              "user-agent": [
+                "Go-http-client/1.1"
+              ]
+            },
+            "body": "client_id=app_EMoamEEZ73f0CkXaXp7hrann&grant_type=refresh_token&refresh_token=rt-FAKE-1&scope=openid+profile+email"
+          },
+          {
+            "method": "POST",
+            "path": "/oauth/token",
+            "headers": {
+              "accept": [
+                "application/json"
+              ],
+              "accept-encoding": [
+                "gzip"
+              ],
+              "content-length": [
+                "114"
+              ],
+              "content-type": [
+                "application/x-www-form-urlencoded"
+              ],
+              "user-agent": [
+                "Go-http-client/1.1"
+              ]
+            },
+            "body": "client_id=app_EMoamEEZ73f0CkXaXp7hrann&grant_type=refresh_token&refresh_token=rt-FAKE-1&scope=openid+profile+email"
+          },
+          {
+            "method": "POST",
+            "path": "/oauth/token",
+            "headers": {
+              "accept": [
+                "application/json"
+              ],
+              "accept-encoding": [
+                "gzip"
+              ],
+              "content-length": [
+                "114"
+              ],
+              "content-type": [
+                "application/x-www-form-urlencoded"
+              ],
+              "user-agent": [
+                "Go-http-client/1.1"
+              ]
+            },
+            "body": "client_id=app_EMoamEEZ73f0CkXaXp7hrann&grant_type=refresh_token&refresh_token=rt-FAKE-1&scope=openid+profile+email"
+          }
+        ],
+        "result": null,
+        "error": "token refresh failed after 3 attempts: token refresh failed with status 400: {\"error\":\"invalid_grant\"}"
+      },
+      {
+        "name": "device",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/accounts/deviceauth/usercode",
+            "headers": {
+              "accept": [
+                "application/json"
+              ],
+              "accept-encoding": [
+                "gzip"
+              ],
+              "content-length": [
+                "44"
+              ],
+              "content-type": [
+                "application/json"
+              ],
+              "user-agent": [
+                "Go-http-client/1.1"
+              ]
+            },
+            "body": "{\"client_id\":\"app_EMoamEEZ73f0CkXaXp7hrann\"}"
+          },
+          {
+            "method": "POST",
+            "path": "/api/accounts/deviceauth/token",
+            "headers": {
+              "accept": [
+                "application/json"
+              ],
+              "accept-encoding": [
+                "gzip"
+              ],
+              "content-length": [
+                "53"
+              ],
+              "content-type": [
+                "application/json"
+              ],
+              "user-agent": [
+                "Go-http-client/1.1"
+              ]
+            },
+            "body": "{\"device_auth_id\":\"dev-FAKE\",\"user_code\":\"ABCD-EFGH\"}"
+          },
+          {
+            "method": "POST",
+            "path": "/api/accounts/deviceauth/token",
+            "headers": {
+              "accept": [
+                "application/json"
+              ],
+              "accept-encoding": [
+                "gzip"
+              ],
+              "content-length": [
+                "53"
+              ],
+              "content-type": [
+                "application/json"
+              ],
+              "user-agent": [
+                "Go-http-client/1.1"
+              ]
+            },
+            "body": "{\"device_auth_id\":\"dev-FAKE\",\"user_code\":\"ABCD-EFGH\"}"
+          },
+          {
+            "method": "POST",
+            "path": "/oauth/token",
+            "headers": {
+              "accept": [
+                "application/json"
+              ],
+              "accept-encoding": [
+                "gzip"
+              ],
+              "content-length": [
+                "184"
+              ],
+              "content-type": [
+                "application/x-www-form-urlencoded"
+              ],
+              "user-agent": [
+                "Go-http-client/1.1"
+              ]
+            },
+            "body": "client_id=app_EMoamEEZ73f0CkXaXp7hrann&code=devcode-FAKE&code_verifier=devverifier-FAKE&grant_type=authorization_code&redirect_uri=https%3A%2F%2Fauth.openai.com%2Fdeviceauth%2Fcallback"
+          }
+        ],
+        "result": {
+          "attributes": {
+            "plan_type": "Pro Plus"
+          },
+          "id": "codex-f4bf47c0-user@example.invalid-pro-plus.json",
+          "metadata": {
+            "email": "user@example.invalid",
+            "plan_type": "Pro Plus"
+          }
+        }
+      },
+      {
+        "name": "executor_refresh",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/oauth/token",
+            "headers": {
+              "accept": [
+                "application/json"
+              ],
+              "accept-encoding": [
+                "gzip"
+              ],
+              "content-length": [
+                "114"
+              ],
+              "content-type": [
+                "application/x-www-form-urlencoded"
+              ],
+              "user-agent": [
+                "Go-http-client/1.1"
+              ]
+            },
+            "body": "client_id=app_EMoamEEZ73f0CkXaXp7hrann&grant_type=refresh_token&refresh_token=rt-FAKE-1&scope=openid+profile+email"
+          }
+        ],
+        "result": {
+          "access_token": "at-FAKE",
+          "account_id": "acct-FAKE-1",
+          "custom": "kept",
+          "email": "user@example.invalid",
+          "expired": "<time>",
+          "id_token": "eyJhbGciOiJub25lIn0.eyJlbWFpbCI6InVzZXJAZXhhbXBsZS5pbnZhbGlkIiwiYXVkIjpbImFwcF9FTW9hbUVFWjczZjBDa1hhWHA3aHJhbm4iXSwiaHR0cHM6Ly9hcGkub3BlbmFpLmNvbS9hdXRoIjp7ImNoYXRncHRfYWNjb3VudF9pZCI6ImFjY3QtRkFLRS0xIiwiY2hhdGdwdF9wbGFuX3R5cGUiOiJQcm8gUGx1cyIsIm9yZ2FuaXphdGlvbnMiOlt7ImlkIjoib3JnLTEiLCJpc19kZWZhdWx0Ijp0cnVlfV19fQ.sig",
+          "last_refresh": "<time>",
+          "plan_type": "Pro Plus",
+          "refresh_token": "rt-FAKE-2",
+          "type": "codex"
+        }
+      }
+    ],
+    "file_names": [
+      {
+        "email": "user@example.invalid",
+        "hash": "1a2b3c4d",
+        "out": "codex-1a2b3c4d-user@example.invalid-pro-plus.json",
+        "plan": "Pro Plus"
+      },
+      {
+        "email": "user@example.invalid",
+        "hash": "1a2b3c4d",
+        "out": "codex-1a2b3c4d-user@example.invalid.json",
+        "plan": ""
+      },
+      {
+        "email": " user@example.invalid ",
+        "hash": "",
+        "out": "codex-user@example.invalid-team-enterprise.json",
+        "plan": "team_ENTERPRISE"
+      },
+      {
+        "email": "user@example.invalid",
+        "hash": "",
+        "out": "codex-user@example.invalid.json",
+        "plan": ""
+      },
+      {
+        "email": "user@example.invalid",
+        "hash": "",
+        "out": "codex-user@example.invalid.json",
+        "plan": "--"
+      }
+    ],
+    "id_token": "eyJhbGciOiJub25lIn0.eyJlbWFpbCI6InVzZXJAZXhhbXBsZS5pbnZhbGlkIiwiYXVkIjpbImFwcF9FTW9hbUVFWjczZjBDa1hhWHA3aHJhbm4iXSwiaHR0cHM6Ly9hcGkub3BlbmFpLmNvbS9hdXRoIjp7ImNoYXRncHRfYWNjb3VudF9pZCI6ImFjY3QtRkFLRS0xIiwiY2hhdGdwdF9wbGFuX3R5cGUiOiJQcm8gUGx1cyIsIm9yZ2FuaXphdGlvbnMiOlt7ImlkIjoib3JnLTEiLCJpc19kZWZhdWx0Ijp0cnVlfV19fQ.sig",
+    "jwt": [
+      {
+        "token": "eyJhbGciOiJub25lIn0.eyJlbWFpbCI6InVzZXJAZXhhbXBsZS5pbnZhbGlkIiwiYXVkIjpbImFwcF9FTW9hbUVFWjczZjBDa1hhWHA3aHJhbm4iXSwiaHR0cHM6Ly9hcGkub3BlbmFpLmNvbS9hdXRoIjp7ImNoYXRncHRfYWNjb3VudF9pZCI6ImFjY3QtRkFLRS0xIiwiY2hhdGdwdF9wbGFuX3R5cGUiOiJQcm8gUGx1cyIsIm9yZ2FuaXphdGlvbnMiOlt7ImlkIjoib3JnLTEiLCJpc19kZWZhdWx0Ijp0cnVlfV19fQ.sig",
+        "ok": true,
+        "email": "user@example.invalid",
+        "account_id": "acct-FAKE-1",
+        "plan_type": "Pro Plus"
+      },
+      {
+        "token": "eyJhbGciOiJub25lIn0.eyJlbWFpbCI6ImFAYiIsImh0dHBzOi8vYXBpLm9wZW5haS5jb20vYXV0aCI6eyJjaGF0Z3B0X3BsYW5fdHlwZSI6IiAgIn19.sig",
+        "ok": true,
+        "email": "a@b",
+        "account_id": "",
+        "plan_type": "free"
+      },
+      {
+        "token": "eyJhbGciOiJub25lIn0.eyJlbWFpbCI6ImFAYiIsImF1ZCI6InNpbmdsZS1zdHJpbmctYXVkaWVuY2UifQ.sig",
+        "ok": false,
+        "email": "",
+        "account_id": "",
+        "plan_type": ""
+      },
+      {
+        "token": "eyJhbGciOiJub25lIn0.eyJlbWFpbCI6ImFAYiIsImF1dGhfdGltZSI6MS41fQ.sig",
+        "ok": false,
+        "email": "",
+        "account_id": "",
+        "plan_type": ""
+      },
+      {
+        "token": "eyJhbGciOiJub25lIn0.eyJlbWFpbCI6ImFAYiIsImh0dHBzOi8vYXBpLm9wZW5haS5jb20vYXV0aCI6eyJjaGF0Z3B0X3N1YnNjcmlwdGlvbl9sYXN0X2NoZWNrZWQiOiIyMDI2LTAxLTAxVDAwOjAwOjAwWiIsImNoYXRncHRfYWNjb3VudF9pZCI6IngifX0.sig",
+        "ok": true,
+        "email": "a@b",
+        "account_id": "x",
+        "plan_type": "free"
+      },
+      {
+        "token": "eyJhbGciOiJub25lIn0.eyJlbWFpbCI6ImFAYiIsImh0dHBzOi8vYXBpLm9wZW5haS5jb20vYXV0aCI6eyJjaGF0Z3B0X3N1YnNjcmlwdGlvbl9sYXN0X2NoZWNrZWQiOiJ5ZXN0ZXJkYXkifX0.sig",
+        "ok": false,
+        "email": "",
+        "account_id": "",
+        "plan_type": ""
+      },
+      {
+        "token": "eyJhbGciOiJub25lIn0.eyJlbWFpbCI6bnVsbCwiaHR0cHM6Ly9hcGkub3BlbmFpLmNvbS9hdXRoIjpudWxsfQ.sig",
+        "ok": true,
+        "email": "",
+        "account_id": "",
+        "plan_type": "free"
+      }
+    ]
+  },
+  "quota": {
+    "events": [
+      {
+        "headers": {
+          "X-Codex-Active-Limit": [
+            "codex"
+          ],
+          "X-Codex-Allowed": [
+            "true"
+          ],
+          "X-Codex-Code-Review-Allowed": [
+            "false"
+          ],
+          "X-Codex-Credits-Balance": [
+            "9.5"
+          ],
+          "X-Codex-Credits-Has-Credits": [
+            "true"
+          ],
+          "X-Codex-Credits-Unlimited": [
+            "false"
+          ],
+          "X-Codex-Limit-Reached": [
+            "false"
+          ],
+          "X-Codex-Plan-Type": [
+            "pro"
+          ],
+          "X-Codex-Primary-Reset-After-Seconds": [
+            "100"
+          ],
+          "X-Codex-Primary-Reset-At": [
+            "1760000000"
+          ],
+          "X-Codex-Primary-Used-Percent": [
+            "12.5"
+          ],
+          "X-Codex-Primary-Window-Minutes": [
+            "300"
+          ]
+        },
+        "payload": "{\"type\":\"codex.rate_limits\",\"plan_type\":\"pro\",\"metered_limit_name\":\"codex\",\"rate_limits\":{\"allowed\":true,\"limit_reached\":false,\"primary\":{\"used_percent\":12.5,\"window_minutes\":300,\"reset_after_seconds\":100,\"reset_at\":1760000000},\"secondary\":{\"used_percent\":101,\"window_minutes\":10080,\"reset_at\":1}},\"credits\":{\"has_credits\":true,\"unlimited\":false,\"balance\":\"9.5\"},\"code_review_rate_limits\":{\"allowed\":false}}"
+      },
+      {
+        "headers": {
+          "X-Codex-Additional-Bad-Name-Allowed": [
+            "true"
+          ],
+          "X-Codex-Additional-Bad-Name-Limit-Name": [
+            "bad name"
+          ],
+          "X-Codex-Additional-Gpt-5-Mini-Limit-Name": [
+            "GPT 5 / mini!"
+          ],
+          "X-Codex-Additional-Gpt-5-Mini-Primary-Reset-After-Seconds": [
+            "0"
+          ],
+          "X-Codex-Additional-Gpt-5-Mini-Primary-Used-Percent": [
+            "1"
+          ],
+          "X-Codex-Additional-Gpt-5-Mini-Primary-Window-Minutes": [
+            "60"
+          ]
+        },
+        "payload": "{\"type\":\"codex.rate_limits\",\"additional_rate_limits\":{\"GPT 5 / mini!\":{\"rate_limit\":{\"primary\":{\"used_percent\":1,\"window_minutes\":60,\"reset_after_seconds\":0}}},\"bad name\":{\"allowed\":true},\"x9\":{}}}"
+      },
+      {
+        "headers": {
+          "X-Codex-Additional-A.b-Allowed": [
+            "true"
+          ],
+          "X-Codex-Additional-A.b-Limit-Name": [
+            "a.b"
+          ],
+          "X-Codex-Additional-C_d-Limit-Name": [
+            "c_d"
+          ],
+          "X-Codex-Additional-C_d-Limit-Reached": [
+            "true"
+          ]
+        },
+        "payload": "{\"type\":\"codex.rate_limits\",\"additional_rate_limits\":[{\"limit_name\":\"a.b\",\"allowed\":true},{\"name\":\"c_d\",\"limit_reached\":true},{\"allowed\":true}]}"
+      },
+      {
+        "headers": {
+          "Retry-After": [
+            "7"
+          ],
+          "X-Codex-Plan-Type": [
+            "plus"
+          ],
+          "X-Codex-Primary-Used-Percent": [
+            "100"
+          ],
+          "X-Ratelimit-Remaining-Requests": [
+            "0"
+          ]
+        },
+        "payload": "{\"type\":\"error\",\"status\":429,\"headers\":{\"x-codex-primary-used-percent\":\"100\",\"retry-after\":7,\"x-unrelated\":\"no\",\"x-ratelimit-remaining-requests\":\"0\",\"X-Codex-Plan-Type\":\" plus \"}}"
+      },
+      {
+        "headers": null,
+        "payload": "{\"type\":\"response.created\",\"rate_limits\":{\"allowed\":true}}"
+      },
+      {
+        "headers": null,
+        "payload": "{\"type\":\"codex.rate_limits\",\"rate_limits\":{}}"
+      }
+    ],
+    "signals": {
+      "Retry-After": "30",
+      "X-Codex-Additional-Foo-Allowed": "true",
+      "X-Codex-Plan-Type": "pro",
+      "X-Codex-Primary-Used-Percent": "42",
+      "X-Codex-Secondary-Used-Percent": "2",
+      "X-Ratelimit-Limit-Requests": "100"
+    }
+  },
+  "sjson": [
+    {
+      "op": "delete",
+      "json": "{\"a\":1, \"b\":2}",
+      "path": "b",
+      "out": "{\"a\":1}"
+    },
+    {
+      "op": "delete",
+      "json": "{\"a\":1, \"b\":2}",
+      "path": "a",
+      "out": "{ \"b\":2}"
+    },
+    {
+      "op": "delete",
+      "json": "{\n  \"a\": 1,\n  \"b\": 2\n}",
+      "path": "b",
+      "out": "{\n  \"a\": 1\n}"
+    },
+    {
+      "op": "delete",
+      "json": "{\n  \"a\": 1,\n  \"b\": 2\n}",
+      "path": "a",
+      "out": "{\n  \"b\": 2\n}"
+    },
+    {
+      "op": "delete",
+      "json": "{\"only\":true}",
+      "path": "only",
+      "out": "{}"
+    },
+    {
+      "op": "delete",
+      "json": "{\"a\":1}",
+      "path": "missing",
+      "out": "{\"a\":1}"
+    },
+    {
+      "op": "delete",
+      "json": "{\"x\":{\"a\":1,\"b\":2}}",
+      "path": "x.a",
+      "out": "{\"x\":{\"b\":2}}"
+    },
+    {
+      "op": "delete",
+      "json": "{\"x\":{\"a\":1}}",
+      "path": "x.missing",
+      "out": "{\"x\":{\"a\":1}}"
+    },
+    {
+      "op": "delete",
+      "json": "{\"a\" : 1 ,\"b\":[1,2] , \"c\":3}",
+      "path": "b",
+      "out": "{\"a\" : 1  , \"c\":3}"
+    },
+    {
+      "op": "set_raw",
+      "json": "{\"a\": 1 , \"b\":2}",
+      "path": "a",
+      "value": "true",
+      "out": "{\"a\": true , \"b\":2}"
+    },
+    {
+      "op": "set_raw",
+      "json": "{\"a\":1}",
+      "path": "b",
+      "value": "2",
+      "out": "{\"a\":1,\"b\":2}"
+    },
+    {
+      "op": "set_raw",
+      "json": "{}",
+      "path": "b",
+      "value": "2",
+      "out": "{\"b\":2}"
+    },
+    {
+      "op": "set_raw",
+      "json": "{\"a\":1}\n",
+      "path": "b",
+      "value": "2",
+      "out": "{\"a\":1,\"b\":2}"
+    },
+    {
+      "op": "set_raw",
+      "json": "  {\"a\":1}  ",
+      "path": "b",
+      "value": "2",
+      "out": "{\"a\":1,\"b\":2}"
+    },
+    {
+      "op": "set_raw",
+      "json": "{\"a\":1}",
+      "path": "x.y",
+      "value": "2",
+      "out": "{\"a\":1,\"x\":{\"y\":2}}"
+    },
+    {
+      "op": "set_raw",
+      "json": "{\"t\":[1]}",
+      "path": "t.-1",
+      "value": "2",
+      "out": "{\"t\":[1,2]}"
+    },
+    {
+      "op": "set_raw",
+      "json": "{\"t\":[]}",
+      "path": "t.-1",
+      "value": "2",
+      "out": "{\"t\":[2]}"
+    },
+    {
+      "op": "set_raw",
+      "json": "{\"t\":[ 1 ]}",
+      "path": "t.-1",
+      "value": "2",
+      "out": "{\"t\":[ 1 ,2]}"
+    },
+    {
+      "op": "set_raw",
+      "json": "{\"t\":[1]}",
+      "path": "t.0",
+      "value": "9",
+      "out": "{\"t\":[9]}"
+    },
+    {
+      "op": "set_raw",
+      "json": "{\"t\":[1]}",
+      "path": "t.3",
+      "value": "9",
+      "out": "{\"t\":[1,null,null,9]}"
+    },
+    {
+      "op": "set_raw",
+      "json": "{\"a\":1}",
+      "path": "p.0.q",
+      "value": "2",
+      "out": "{\"a\":1,\"p\":[{\"q\":2}]}"
+    },
+    {
+      "op": "set_raw",
+      "json": "{\"a.b\":1}",
+      "path": "a\\.b",
+      "value": "2",
+      "out": "{\"a.b\":2}"
+    },
+    {
+      "op": "set_raw",
+      "json": "{\"r\":{\"o\":[{\"id\":\"\"},{\"id\":null}]}}",
+      "path": "r.o.1.id",
+      "value": "\"x\"",
+      "out": "{\"r\":{\"o\":[{\"id\":\"\"},{\"id\":\"x\"}]}}"
+    },
+    {
+      "op": "set_raw",
+      "json": "",
+      "path": "a",
+      "value": "1",
+      "out": "{\"a\":1}"
+    },
+    {
+      "op": "set_raw",
+      "json": "\"str\"",
+      "path": "a",
+      "value": "1",
+      "out": "{\"a\":1}"
+    },
+    {
+      "op": "set_str",
+      "json": "{\"a\":1}",
+      "path": "m",
+      "value": "a<b",
+      "out": "{\"a\":1,\"m\":\"a<b\"}"
+    },
+    {
+      "op": "set_str",
+      "json": "{\"a\":1}",
+      "path": "m",
+      "value": "a<b\n",
+      "out": "{\"a\":1,\"m\":\"a\\u003cb\\n\"}"
+    },
+    {
+      "op": "set_str",
+      "json": "{\"a\":1}",
+      "path": "m",
+      "value": "é\u2028",
+      "out": "{\"a\":1,\"m\":\"é\\u2028\"}"
+    },
+    {
+      "op": "set_str",
+      "json": "{\"a\":1}",
+      "path": "m",
+      "value": "\u0001\b\f\"\\",
+      "out": "{\"a\":1,\"m\":\"\\u0001\\b\\f\\\"\\\\\"}"
+    },
+    {
+      "op": "set_str",
+      "json": "{\"model\":\"old\"}",
+      "path": "model",
+      "value": "gpt-5",
+      "out": "{\"model\":\"gpt-5\"}"
+    }
+  ]
+}

@@ -13,7 +13,7 @@ async fn main() -> anyhow::Result<()> {
     let args: Vec<String> = std::env::args().collect();
     anyhow::ensure!(args.len() == 3, "usage: driver CONFIG TEST_CA");
     let config = Config::load(Path::new(&args[1]))?;
-    let credentials = cpa_core::credential::load_dir(&config.auth_dir)?;
+    let credentials = cpa_core::config::credentials::load(&config);
     let trust = CertStore::from_pem_stack(std::fs::read(&args[2])?)?;
     // Dial routing changes neither the logical origin nor TLS/HTTP profile settings.
     let client = wreq::Client::builder()
@@ -24,8 +24,14 @@ async fn main() -> anyhow::Result<()> {
         .build()?;
     let executors = Executors {
         claude: ClaudeExecutor::with_client(client, DEFAULT_BASE_URL),
+        codex: Default::default(),
+        devices: Default::default(),
     };
     let listener = tokio::net::TcpListener::bind((config.host.as_str(), config.port)).await?;
-    axum::serve(listener, router(Arc::new(Runtime::new(config, credentials, executors)))).await?;
+    let rt = Arc::new(Runtime::new(config, credentials, executors));
+    cpa_server::install_registry(&rt);
+    // Same global middleware as the production binary (crates/cliproxy/src/main.rs).
+    let app = router(rt).layer(axum::middleware::from_fn(cpa_server::management::cors));
+    axum::serve(listener, app).await?;
     Ok(())
 }
