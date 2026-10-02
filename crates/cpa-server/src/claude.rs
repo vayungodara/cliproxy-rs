@@ -51,7 +51,15 @@ pub async fn messages(
     headers: HeaderMap,
     body: Result<Bytes, BytesRejection>,
 ) -> Response {
-    handle(rt, caller, uri.query().unwrap_or_default(), headers, body, Operation::Generate).await
+    handle(
+        rt,
+        caller,
+        uri.query().unwrap_or_default(),
+        headers,
+        body,
+        Operation::Generate,
+    )
+    .await
 }
 
 pub async fn count_tokens(
@@ -61,7 +69,15 @@ pub async fn count_tokens(
     headers: HeaderMap,
     body: Result<Bytes, BytesRejection>,
 ) -> Response {
-    handle(rt, caller, uri.query().unwrap_or_default(), headers, body, Operation::CountTokens).await
+    handle(
+        rt,
+        caller,
+        uri.query().unwrap_or_default(),
+        headers,
+        body,
+        Operation::CountTokens,
+    )
+    .await
 }
 
 /// Go `GetAlt`: `alt`, else `$alt`; `sse` means none.
@@ -93,7 +109,11 @@ pub fn peek(body: &[u8]) -> serde_json::Map<String, Value> {
 
 /// gin `GetRawData` failure: 400 `Invalid request: ...`.
 pub fn read_failed(rejection: &BytesRejection) -> Response {
-    respond::error_detail(400, &format!("Invalid request: {}", rejection.body_text()), "invalid_request_error")
+    respond::error_detail(
+        400,
+        &format!("Invalid request: {}", rejection.body_text()),
+        "invalid_request_error",
+    )
 }
 
 async fn handle(
@@ -133,11 +153,14 @@ async fn handle(
         selection_model: None,
     };
     let keepalive = respond::keepalive(&rt.config());
-    match dispatch::run(&rt, call).await {
-        Err(failure) => errors::claude(&failure),
-        Ok(Done::Buffered { body, .. }) => respond::json(200, "application/json", body),
-        Ok(Done::Stream { first, rest, .. }) => respond::sse(respond::stream(first, rest, ClaudeSse, keepalive)),
-    }
+    dispatch::serve(&rt, call, |result| async move {
+        match result {
+            Err(failure) => errors::claude(&failure),
+            Ok(Done::Buffered { body, .. }) => respond::json(200, "application/json", body),
+            Ok(Done::Stream { first, rest, .. }) => respond::sse(respond::stream(first, rest, ClaudeSse, keepalive)),
+        }
+    })
+    .await
 }
 
 struct ClaudeSse;

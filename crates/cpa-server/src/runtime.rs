@@ -26,6 +26,9 @@ use crate::refresh::RefreshState;
 use crate::registry::Registry;
 use crate::scheduler::{Policy, Scheduler};
 
+/// The config snapshot and credential epoch a registry was built from.
+type RegistryCache = (Arc<Config>, u64, Arc<Registry>);
+
 pub struct Runtime {
     config: RwLock<Arc<Config>>,
     store: Arc<CredentialStore>,
@@ -33,7 +36,7 @@ pub struct Runtime {
     refresh_task: Mutex<Option<tokio::task::AbortHandle>>,
     refresh_state: Mutex<RefreshState>,
     /// The registry derived from the current config and credential generation.
-    registry: Mutex<Option<(Arc<Config>, u64, Arc<Registry>)>>,
+    registry: Mutex<Option<RegistryCache>>,
     oauth_sink: RwLock<Option<OAuthCallbackSink>>,
 }
 
@@ -113,7 +116,7 @@ impl Runtime {
     /// either changed, so it is always derived, never separately maintained.
     pub fn registry(&self) -> Arc<Registry> {
         let config = self.config();
-        let generation = self.store.generation();
+        let generation = self.store.epoch();
         let mut cache = self.registry.lock().unwrap_or_else(PoisonError::into_inner);
         if let Some((cfg, g, registry)) = cache.as_ref()
             && Arc::ptr_eq(cfg, &config)
@@ -344,7 +347,10 @@ impl Selection {
 
 /// Admission without a registry: provider match, prefix, config aliases and the
 /// credential's exclusions (attributes first, then file metadata).
-pub fn standalone_admission<'a>(selection: &'a Selection, policy: &'a Policy) -> impl Fn(&Credential) -> Option<String> + 'a {
+pub fn standalone_admission<'a>(
+    selection: &'a Selection,
+    policy: &'a Policy,
+) -> impl Fn(&Credential) -> Option<String> + 'a {
     let providers = selection.provider_keys();
     move |c| {
         if !providers.contains(&crate::registry::provider_key(c)) {
@@ -353,7 +359,10 @@ pub fn standalone_admission<'a>(selection: &'a Selection, policy: &'a Policy) ->
         let route = selection.model.trim();
         let prefix = crate::registry::credential_prefix(c);
         let base = crate::scheduler::canonical_model(route);
-        if !prefix.is_empty() && !base.starts_with(&format!("{prefix}/")) && (policy.force_model_prefix || base.contains('/')) {
+        if !prefix.is_empty()
+            && !base.starts_with(&format!("{prefix}/"))
+            && (policy.force_model_prefix || base.contains('/'))
+        {
             return None;
         }
         let (models, _) = crate::registry::execution_models(&HashMap::new(), c, route);
@@ -365,7 +374,12 @@ pub fn standalone_admission<'a>(selection: &'a Selection, policy: &'a Policy) ->
                 .metadata
                 .get("excluded_models")
                 .and_then(serde_json::Value::as_array)
-                .map(|l| l.iter().filter_map(|v| v.as_str()).map(|p| p.trim().to_lowercase()).collect())
+                .map(|l| {
+                    l.iter()
+                        .filter_map(|v| v.as_str())
+                        .map(|p| p.trim().to_lowercase())
+                        .collect()
+                })
                 .unwrap_or_default(),
         };
         if excluded.iter().any(|p| crate::registry::wildcard(p, &key)) {
@@ -607,7 +621,13 @@ impl CredentialStore {
 
     /// Returns the next round's wait, if any credential still permits that round.
     /// A wait exceeding the cap is rejected, not shortened (Go conductor_selection.go).
-    pub fn retry_wait(&self, selection: &Selection, policy: &Policy, error: &ExecError, admit: &Admit<'_>) -> Option<Duration> {
+    pub fn retry_wait(
+        &self,
+        selection: &Selection,
+        policy: &Policy,
+        error: &ExecError,
+        admit: &Admit<'_>,
+    ) -> Option<Duration> {
         self.retry_wait_at(selection, policy, error, admit, Instant::now())
     }
 
@@ -677,7 +697,7 @@ impl CredentialStore {
     }
 
     /// Changes whenever the credential set or any credential changes.
-    pub fn generation(&self) -> u64 {
+    pub fn epoch(&self) -> u64 {
         self.read().epoch
     }
 
@@ -893,7 +913,8 @@ mod tests {
     fn standalone_admission_reads_attributes_first() {
         let mut c = cred("a.json", "claude", false);
         c.metadata.insert("prefix".into(), "meta".into());
-        c.metadata.insert("excluded_models".into(), serde_json::json!(["claude-sonnet*"]));
+        c.metadata
+            .insert("excluded_models".into(), serde_json::json!(["claude-sonnet*"]));
         c.attributes.insert("prefix".into(), "team".into());
         c.attributes.insert("excluded_models".into(), "claude-opus*".into());
         let policy = Policy::default();
@@ -901,9 +922,16 @@ mod tests {
             let s = Selection::new("claude", model);
             standalone_admission(&s, &policy)(&c)
         };
-        assert_eq!(admit("team/claude-sonnet-5(high)").as_deref(), Some("claude-sonnet-5(high)"));
+        assert_eq!(
+            admit("team/claude-sonnet-5(high)").as_deref(),
+            Some("claude-sonnet-5(high)")
+        );
         assert_eq!(admit("team/claude-opus-5"), None, "attribute exclusions win");
-        assert_eq!(admit("meta/claude-sonnet-5"), None, "metadata prefix is not authoritative");
+        assert_eq!(
+            admit("meta/claude-sonnet-5"),
+            None,
+            "metadata prefix is not authoritative"
+        );
         assert_eq!(admit("claude-sonnet-5").as_deref(), Some("claude-sonnet-5"));
         let forced = Policy {
             force_model_prefix: true,
@@ -1065,7 +1093,10 @@ mod tests {
             Some(Duration::ZERO)
         );
         let request = ExecError::local(503, FailureScope::Request, "request invalid");
-        assert_eq!(store.retry_wait_at(&selection, &policy, &request, &admit_all, now), None);
+        assert_eq!(
+            store.retry_wait_at(&selection, &policy, &request, &admit_all, now),
+            None
+        );
         let quota = ExecError::local(429, FailureScope::Model, "quota");
         assert_eq!(store.retry_wait_at(&selection, &policy, &quota, &admit_all, now), None);
         policy.max_retry_interval = Duration::from_secs(10);
@@ -1087,7 +1118,10 @@ mod tests {
             Some(Duration::from_secs(10))
         );
         policy.max_retry_interval = Duration::from_secs(9);
-        assert_eq!(store.retry_wait_at(&selection, &policy, &quota, &admit_all, later), None);
+        assert_eq!(
+            store.retry_wait_at(&selection, &policy, &quota, &admit_all, later),
+            None
+        );
         policy.disable_cooling = true;
         store.scheduler.lock().unwrap().record(
             &credential,
@@ -1102,7 +1136,10 @@ mod tests {
             Some(Duration::ZERO)
         );
         selection.retry_round = 1;
-        assert_eq!(store.retry_wait_at(&selection, &policy, &transport, &admit_all, later), None);
+        assert_eq!(
+            store.retry_wait_at(&selection, &policy, &transport, &admit_all, later),
+            None
+        );
     }
 
     #[test]

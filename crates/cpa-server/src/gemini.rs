@@ -4,7 +4,7 @@
 use std::sync::Arc;
 
 use axum::Extension;
-use axum::body::{Body, Bytes};
+use axum::body::Bytes;
 use axum::extract::rejection::BytesRejection;
 use axum::extract::{OriginalUri, Path, State};
 use axum::http::HeaderMap;
@@ -54,15 +54,18 @@ pub async fn action(
         selection_model: None,
     };
     let keepalive = respond::keepalive(&rt.config()).filter(|_| alt.is_none());
-    match dispatch::run(&rt, call).await {
-        Err(failure) => errors::openai(&failure),
-        Ok(Done::Buffered { body, .. }) => respond::json(200, "application/json", body),
-        Ok(Done::Stream { first, rest, .. }) => {
-            let raw = alt.is_some();
-            let body = respond::stream(first, rest, GeminiSse { raw }, keepalive);
-            if raw { Body::from(body).into_response() } else { respond::sse(body) }
+    dispatch::serve(&rt, call, |result| async move {
+        match result {
+            Err(failure) => errors::openai(&failure),
+            Ok(Done::Buffered { body, .. }) => respond::json(200, "application/json", body),
+            Ok(Done::Stream { first, rest, .. }) => {
+                let raw = alt.is_some();
+                let body = respond::stream(first, rest, GeminiSse { raw }, keepalive);
+                if raw { body.into_response() } else { respond::sse(body) }
+            }
         }
-    }
+    })
+    .await
 }
 
 /// Gemini streaming: SSE `data:` frames, or raw payloads when `alt` is set.
@@ -71,18 +74,19 @@ struct GeminiSse {
 }
 
 impl Writer for GeminiSse {
+    /// The Gemini executor emits exact client bytes for the requested `alt`.
     fn chunk(&mut self, event: Bytes) -> Vec<Bytes> {
-        let frame = respond::ensure_frame(event);
-        if !self.raw {
-            return vec![frame];
-        }
-        respond::data_payload(&frame).map(Bytes::from).into_iter().collect()
+        vec![event]
     }
 
     fn error(&mut self, error: &ExecError) -> Vec<Bytes> {
         let status = crate::classify::response_status(error);
         let body = errors::openai_body(status, &crate::classify::error_text(error));
-        vec![if self.raw { Bytes::from(body) } else { Bytes::from(format!("event: error\ndata: {body}\n\n")) }]
+        vec![if self.raw {
+            Bytes::from(body)
+        } else {
+            Bytes::from(format!("event: error\ndata: {body}\n\n"))
+        }]
     }
 
     fn end(&mut self) -> Vec<Bytes> {
@@ -122,7 +126,11 @@ pub async fn interactions(
         Some(_) => return invalid("stream must be a boolean"),
     };
     let (target, forced, selection) = if agent.is_empty() {
-        let normalized = model.strip_prefix("models/").filter(|m| !m.is_empty()).unwrap_or(&model).to_owned();
+        let normalized = model
+            .strip_prefix("models/")
+            .filter(|m| !m.is_empty())
+            .unwrap_or(&model)
+            .to_owned();
         if normalized != model
             && let Some(updated) = jsonedit::set_string(&body, "model", &normalized)
         {
@@ -130,7 +138,11 @@ pub async fn interactions(
         }
         (normalized, None, None)
     } else {
-        (agent, Some("gemini-interactions".to_owned()), Some(AGENT_SELECTION_MODEL.to_owned()))
+        (
+            agent,
+            Some("gemini-interactions".to_owned()),
+            Some(AGENT_SELECTION_MODEL.to_owned()),
+        )
     };
     let call = Call {
         entry: Format::Interactions,
@@ -146,11 +158,16 @@ pub async fn interactions(
         selection_model: selection,
     };
     let keepalive = respond::keepalive(&rt.config());
-    match dispatch::run(&rt, call).await {
-        Err(failure) => errors::openai(&failure),
-        Ok(Done::Buffered { body, .. }) => respond::json(200, "application/json", body),
-        Ok(Done::Stream { first, rest, .. }) => respond::sse(respond::stream(first, rest, InteractionsSse, keepalive)),
-    }
+    dispatch::serve(&rt, call, |result| async move {
+        match result {
+            Err(failure) => errors::openai(&failure),
+            Ok(Done::Buffered { body, .. }) => respond::json(200, "application/json", body),
+            Ok(Done::Stream { first, rest, .. }) => {
+                respond::sse(respond::stream(first, rest, InteractionsSse, keepalive))
+            }
+        }
+    })
+    .await
 }
 
 struct InteractionsSse;

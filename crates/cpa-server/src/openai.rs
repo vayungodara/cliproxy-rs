@@ -62,7 +62,9 @@ pub async fn chat_completions(
         let ctx = cpa_translate::RequestCtx { model: &model, stream };
         if let Ok(converted) = (pair.request)(&ctx, &body) {
             body = Bytes::from(converted);
-            stream = peek(&body).get("stream").is_some_and(|v| v.as_bool() == Some(true) || truthy(v));
+            stream = peek(&body)
+                .get("stream")
+                .is_some_and(|v| v.as_bool() == Some(true) || truthy(v));
         }
     }
     let model = gojson::gjson_string(peek(&body).get("model"));
@@ -70,11 +72,20 @@ pub async fn chat_completions(
     let req = Request { caller, query, headers };
     let alt = alt(&req.query);
     let keepalive = respond::keepalive(&rt.config());
-    match dispatch::run(&rt, call(req, Format::OpenAI, model, body, stream, alt)).await {
-        Err(failure) => errors::openai(&failure),
-        Ok(Done::Buffered { body, .. }) => respond::json(200, "application/json", body),
-        Ok(Done::Stream { first, rest, .. }) => respond::sse(respond::stream(first, rest, ChatSse { completions: false }, keepalive)),
-    }
+    dispatch::serve(
+        &rt,
+        call(req, Format::OpenAI, model, body, stream, alt),
+        |result| async move {
+            match result {
+                Err(failure) => errors::openai(&failure),
+                Ok(Done::Buffered { body, .. }) => respond::json(200, "application/json", body),
+                Ok(Done::Stream { first, rest, .. }) => {
+                    respond::sse(respond::stream(first, rest, ChatSse { completions: false }, keepalive))
+                }
+            }
+        },
+    )
+    .await
 }
 
 /// gjson `Bool()` on a non-boolean value.
@@ -119,14 +130,23 @@ pub async fn completions(
         headers,
     };
     let keepalive = respond::keepalive(&rt.config());
-    match dispatch::run(&rt, call(req, Format::OpenAI, model, Bytes::from(chat), stream, None)).await {
-        Err(failure) => errors::openai(&failure),
-        Ok(Done::Buffered { body, .. }) => {
-            let chat: Value = serde_json::from_slice(&body).unwrap_or(Value::Null);
-            respond::json(200, "application/json", chat_to_completions(&chat))
-        }
-        Ok(Done::Stream { first, rest, .. }) => respond::sse(respond::stream(first, rest, ChatSse { completions: true }, keepalive)),
-    }
+    dispatch::serve(
+        &rt,
+        call(req, Format::OpenAI, model, Bytes::from(chat), stream, None),
+        |result| async move {
+            match result {
+                Err(failure) => errors::openai(&failure),
+                Ok(Done::Buffered { body, .. }) => {
+                    let chat: Value = serde_json::from_slice(&body).unwrap_or(Value::Null);
+                    respond::json(200, "application/json", chat_to_completions(&chat))
+                }
+                Ok(Done::Stream { first, rest, .. }) => {
+                    respond::sse(respond::stream(first, rest, ChatSse { completions: true }, keepalive))
+                }
+            }
+        },
+    )
+    .await
 }
 
 /// strconv.FormatFloat(f, 'f', -1, 64).
@@ -158,8 +178,13 @@ fn completions_to_chat(root: &Value) -> String {
         prompt = "Complete this:".into();
     }
     let model = gojson::gjson_string(root.get("model"));
-    let message = Obj::new().str("role", "user").raw("content", &jsonedit::sjson_string(&prompt)).finish();
-    let mut out = Obj::new().raw("model", &jsonedit::sjson_string(&model)).raw("messages", &format!("[{message}]"));
+    let message = Obj::new()
+        .str("role", "user")
+        .raw("content", &jsonedit::sjson_string(&prompt))
+        .finish();
+    let mut out = Obj::new()
+        .raw("model", &jsonedit::sjson_string(&model))
+        .raw("messages", &format!("[{message}]"));
     let get = |k: &str| root.get(k);
     if let Some(v) = get("max_tokens") {
         out = out.raw("max_tokens", &go_int(v).to_string());
@@ -191,7 +216,10 @@ fn completion_head(root: &Value) -> Obj {
         .raw("id", &jsonedit::sjson_string(&gojson::gjson_string(root.get("id"))))
         .str("object", "text_completion")
         .raw("created", &root.get("created").map_or(0, go_int).to_string())
-        .raw("model", &jsonedit::sjson_string(&gojson::gjson_string(root.get("model"))))
+        .raw(
+            "model",
+            &jsonedit::sjson_string(&gojson::gjson_string(root.get("model"))),
+        )
 }
 
 /// Go `convertChatCompletionsResponseToCompletions`.
@@ -212,7 +240,11 @@ fn chat_to_completions(root: &Value) -> String {
         }
         choices.push(Value::Object(c));
     }
-    let choices = if choices.is_empty() { "[]".into() } else { gojson::sorted(&Value::Array(choices)) };
+    let choices = if choices.is_empty() {
+        "[]".into()
+    } else {
+        gojson::sorted(&Value::Array(choices))
+    };
     let mut out = completion_head(root).raw("choices", &choices);
     if let Some(usage) = root.get("usage") {
         out = out.raw("usage", &usage.to_string());
@@ -224,7 +256,10 @@ fn chat_to_completions(root: &Value) -> String {
 fn chat_chunk_to_completions(root: &Value) -> Option<String> {
     let chat_choices = root.get("choices").and_then(Value::as_array);
     let has_content = chat_choices.into_iter().flatten().any(|choice| {
-        let text = choice.get("delta").and_then(|d| d.get("content")).map(|c| gojson::gjson_string(Some(c)));
+        let text = choice
+            .get("delta")
+            .and_then(|d| d.get("content"))
+            .map(|c| gojson::gjson_string(Some(c)));
         let reason = choice.get("finish_reason").map(|r| gojson::gjson_string(Some(r)));
         text.is_some_and(|t| !t.is_empty()) || reason.is_some_and(|r| !r.is_empty() && r != "null")
     });
@@ -241,7 +276,11 @@ fn chat_chunk_to_completions(root: &Value) -> Option<String> {
             .map(|c| gojson::gjson_string(Some(c)))
             .unwrap_or_default();
         c.insert("text".into(), text.into());
-        if let Some(reason) = choice.get("finish_reason").map(|r| gojson::gjson_string(Some(r))).filter(|r| r != "null") {
+        if let Some(reason) = choice
+            .get("finish_reason")
+            .map(|r| gojson::gjson_string(Some(r)))
+            .filter(|r| r != "null")
+        {
             c.insert("finish_reason".into(), reason.into());
         }
         if let Some(logprobs) = choice.get("logprobs") {
@@ -249,7 +288,11 @@ fn chat_chunk_to_completions(root: &Value) -> Option<String> {
         }
         choices.push(Value::Object(c));
     }
-    let choices = if choices.is_empty() { "[]".into() } else { gojson::sorted(&Value::Array(choices)) };
+    let choices = if choices.is_empty() {
+        "[]".into()
+    } else {
+        gojson::sorted(&Value::Array(choices))
+    };
     let mut out = completion_head(root).raw("choices", &choices);
     if let Some(usage) = root.get("usage") {
         out = out.raw("usage", &usage.to_string());
@@ -312,72 +355,106 @@ pub async fn responses(
         headers,
     };
     let keepalive = respond::keepalive(&rt.config());
-    match dispatch::run(&rt, call(req, Format::OpenAIResponse, model, body, stream, None)).await {
-        Err(failure) if stream => {
-            let mut failure = failure;
-            // Go sanitizes initial streaming errors unless they are direct responses.
-            if failure.direct().is_none() {
-                let status = failure.status();
-                let text = sanitize_error_text(status, &failure.text());
-                failure = dispatch::Failure::Exec(ExecError::local(status, cpa_core::exec::FailureScope::Request, text));
-            }
-            errors::openai(&failure)
-        }
-        Err(failure) => errors::openai(&failure),
-        Ok(Done::Buffered { body, .. }) => respond::json(200, "application/json", body),
-        Ok(Done::Stream { first, mut rest, .. }) => {
-            // Go commits only once a data frame (or a terminal error) is ready.
-            let mut framer = ResponsesSse::new(codex_client);
-            let mut ready = first.map(|f| framer.chunk(f)).unwrap_or_default();
-            while framer.data_frames == 0 && framer.terminal_error.is_none() {
-                match futures_util::StreamExt::next(&mut rest).await {
-                    Some(Ok(event)) => ready.extend(framer.chunk(event)),
-                    Some(Err(error)) => {
-                        let status = crate::classify::response_status(&error);
-                        let text = sanitize_error_text(status, &crate::classify::error_text(&error));
-                        let failure = dispatch::Failure::Exec(ExecError::local(status, cpa_core::exec::FailureScope::Request, text));
-                        return errors::openai(&failure);
-                    }
-                    None => {
-                        let failure = dispatch::Failure::Exec(ExecError::local(
-                            502,
+    dispatch::serve(
+        &rt,
+        call(req, Format::OpenAIResponse, model, body, stream, None),
+        |result| async move {
+            match result {
+                Err(failure) if stream => {
+                    let mut failure = failure;
+                    // Go sanitizes initial streaming errors unless they are direct responses.
+                    if failure.direct().is_none() {
+                        let status = failure.status();
+                        let text = sanitize_error_text(status, &failure.text());
+                        failure = dispatch::Failure::Exec(ExecError::local(
+                            status,
                             cpa_core::exec::FailureScope::Request,
-                            "upstream stream closed before first payload",
+                            text,
                         ));
-                        return errors::openai(&failure);
                     }
+                    errors::openai(&failure)
+                }
+                Err(failure) => errors::openai(&failure),
+                Ok(Done::Buffered { body, .. }) => respond::json(200, "application/json", body),
+                Ok(Done::Stream { first, mut rest, .. }) => {
+                    // Go commits only once a data frame (or a terminal error) is ready.
+                    let mut framer = ResponsesSse::new(codex_client);
+                    let mut ready = first.map(|f| framer.chunk(f)).unwrap_or_default();
+                    while framer.data_frames == 0 && framer.terminal_error.is_none() {
+                        match futures_util::StreamExt::next(&mut rest).await {
+                            Some(Ok(event)) => ready.extend(framer.chunk(event)),
+                            Some(Err(error)) => {
+                                let status = crate::classify::response_status(&error);
+                                let text = sanitize_error_text(status, &crate::classify::error_text(&error));
+                                let failure = dispatch::Failure::Exec(ExecError::local(
+                                    status,
+                                    cpa_core::exec::FailureScope::Request,
+                                    text,
+                                ));
+                                return errors::openai(&failure);
+                            }
+                            None => {
+                                let failure = dispatch::Failure::Exec(ExecError::local(
+                                    502,
+                                    cpa_core::exec::FailureScope::Request,
+                                    "upstream stream closed before first payload",
+                                ));
+                                return errors::openai(&failure);
+                            }
+                        }
+                    }
+                    let finished = framer.stopped();
+                    respond::sse(respond::resume(ready, finished, rest, framer, keepalive))
                 }
             }
-            let finished = framer.stopped();
-            respond::sse(respond::resume(ready, finished, rest, framer, keepalive))
-        }
-    }
+        },
+    )
+    .await
 }
 
 /// Go `isCodexResponsesClientRequest`.
 fn codex_client(headers: &HeaderMap) -> bool {
-    let get = |k: &str| headers.get(k).and_then(|v| v.to_str().ok()).unwrap_or_default().trim().to_owned();
+    let get = |k: &str| {
+        headers
+            .get(k)
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or_default()
+            .trim()
+            .to_owned()
+    };
     let ua = get("user-agent");
-    if ua.starts_with("Codex Desktop/") || ua.starts_with("codex-tui/") || ua == "codex_cli_rs" || ua.starts_with("codex_cli_rs/") || ua.starts_with("codex_exec/") {
+    if ua.starts_with("Codex Desktop/")
+        || ua.starts_with("codex-tui/")
+        || ua == "codex_cli_rs"
+        || ua.starts_with("codex_cli_rs/")
+        || ua.starts_with("codex_exec/")
+    {
         return true;
     }
     let originator = get("originator").to_lowercase();
     matches!(originator.as_str(), "codex desktop" | "codex-tui" | "codex_cli_rs")
-        || ["codex desktop/", "codex-tui/", "codex_cli_rs/"].iter().any(|p| originator.starts_with(p))
+        || ["codex desktop/", "codex-tui/", "codex_cli_rs/"]
+            .iter()
+            .any(|p| originator.starts_with(p))
 }
 
 /// Go `responsesStreamErrorText`: sensitive values redacted, long text truncated, JSON
 /// errors reduced to their `error` object.
 fn sanitize_error_text(status: u16, text: &str) -> String {
     let trimmed = gojson::trim(text);
-    let trimmed = if trimmed.is_empty() { gojson::status_text(status) } else { trimmed };
+    let trimmed = if trimmed.is_empty() {
+        gojson::status_text(status)
+    } else {
+        trimmed
+    };
     let Ok(Value::Object(root)) = serde_json::from_str::<Value>(trimmed) else {
         return truncate(&redact(trimmed), 2048);
     };
-    let error = root
-        .get("error")
-        .filter(|e| e.is_object())
-        .or_else(|| root.get("response").and_then(|r| r.get("error")).filter(|e| e.is_object()));
+    let error = root.get("error").filter(|e| e.is_object()).or_else(|| {
+        root.get("response")
+            .and_then(|r| r.get("error"))
+            .filter(|e| e.is_object())
+    });
     if let Some(error) = error {
         let mut out = serde_json::Map::new();
         out.insert("error".into(), sanitize_node(error));
@@ -391,13 +468,32 @@ fn sanitize_error_text(status: u16, text: &str) -> String {
 
 fn sensitive_key(key: &str) -> bool {
     let k = key.trim().to_lowercase().replace('-', "_");
-    if ["tokens", "token_count", "token_limit", "token_usage"].iter().any(|s| k.contains(s)) {
+    if ["tokens", "token_count", "token_limit", "token_usage"]
+        .iter()
+        .any(|s| k.contains(s))
+    {
         return false;
     }
     matches!(
         k.as_str(),
-        "authorization" | "secret" | "password" | "passwd" | "api_key" | "apikey" | "token" | "access_token" | "refresh_token" | "id_token" | "auth_token" | "session_token" | "api_token" | "client_secret" | "client_key"
-    ) || ["_secret", "_password", "_api_key", "_token"].iter().any(|s| k.ends_with(s))
+        "authorization"
+            | "secret"
+            | "password"
+            | "passwd"
+            | "api_key"
+            | "apikey"
+            | "token"
+            | "access_token"
+            | "refresh_token"
+            | "id_token"
+            | "auth_token"
+            | "session_token"
+            | "api_token"
+            | "client_secret"
+            | "client_key"
+    ) || ["_secret", "_password", "_api_key", "_token"]
+        .iter()
+        .any(|s| k.ends_with(s))
 }
 
 fn sanitize_node(v: &Value) -> Value {
@@ -405,7 +501,16 @@ fn sanitize_node(v: &Value) -> Value {
         Value::String(s) => Value::String(truncate(&redact(s), 2048)),
         Value::Object(m) => Value::Object(
             m.iter()
-                .map(|(k, v)| (k.clone(), if sensitive_key(k) { "[REDACTED]".into() } else { sanitize_node(v) }))
+                .map(|(k, v)| {
+                    (
+                        k.clone(),
+                        if sensitive_key(k) {
+                            "[REDACTED]".into()
+                        } else {
+                            sanitize_node(v)
+                        },
+                    )
+                })
                 .collect(),
         ),
         Value::Array(a) => Value::Array(a.iter().map(sanitize_node).collect()),
@@ -415,7 +520,10 @@ fn sanitize_node(v: &Value) -> Value {
 
 fn redact(text: &str) -> String {
     static VALUE: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
-        regex::Regex::new(r#"(?i)((?:"?(?:api[_-]?key|access[_-]?token|token|authorization|secret)"?)\s*[=:]\s*"?)([^\s"&,;}]+)"#).unwrap()
+        regex::Regex::new(
+            r#"(?i)((?:"?(?:api[_-]?key|access[_-]?token|token|authorization|secret)"?)\s*[=:]\s*"?)([^\s"&,;}]+)"#,
+        )
+        .unwrap()
     });
     static BEARER: std::sync::LazyLock<regex::Regex> =
         std::sync::LazyLock::new(|| regex::Regex::new(r"(?i)\bBearer\s+[A-Za-z0-9._~+/=-]+").unwrap());
@@ -451,7 +559,9 @@ fn stream_error_detail(status: u16, text: &str) -> Value {
     if message.is_empty() {
         message = gojson::status_text(status).into();
     }
-    let payload = serde_json::from_str::<Value>(gojson::trim(text)).ok().filter(Value::is_object);
+    let payload = serde_json::from_str::<Value>(gojson::trim(text))
+        .ok()
+        .filter(Value::is_object);
     let code_owned;
     if let Some(p) = &payload {
         if let Some(e) = p.get("error").filter(|e| e.is_object()) {
@@ -460,7 +570,11 @@ fn stream_error_detail(status: u16, text: &str) -> Value {
         if let Some(e) = p.get("response").and_then(|r| r.get("error")).filter(|e| e.is_object()) {
             return e.clone();
         }
-        if let Some(m) = p.get("message").and_then(Value::as_str).filter(|m| !m.trim().is_empty()) {
+        if let Some(m) = p
+            .get("message")
+            .and_then(Value::as_str)
+            .filter(|m| !m.trim().is_empty())
+        {
             message = m.trim().to_owned();
         }
         if let Some(c) = p.get("code").filter(|c| !c.is_null()) {
@@ -470,7 +584,12 @@ fn stream_error_detail(status: u16, text: &str) -> Value {
     }
     let mut detail = serde_json::json!({"type": kind, "code": code, "message": message, "param": null});
     if let Some(p) = &payload {
-        if let Some(t) = p.get("type").and_then(Value::as_str).map(str::trim).filter(|t| !t.is_empty() && *t != "error") {
+        if let Some(t) = p
+            .get("type")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|t| !t.is_empty() && *t != "error")
+        {
             detail["type"] = t.into();
         }
         if let Some(param) = p.get("param") {
@@ -481,7 +600,10 @@ fn stream_error_detail(status: u16, text: &str) -> Value {
 }
 
 fn sequence_from(text: &str) -> Option<i64> {
-    serde_json::from_str::<Value>(gojson::trim(text)).ok()?.get("sequence_number")?.as_i64()
+    serde_json::from_str::<Value>(gojson::trim(text))
+        .ok()?
+        .get("sequence_number")?
+        .as_i64()
 }
 
 /// Go `BuildOpenAIResponsesStreamErrorChunk` / `...FailedChunk` as an SSE frame.
@@ -491,10 +613,18 @@ fn stream_error_frame(codex: bool, status: u16, text: &str, seq: i64, lead: bool
     let lead = if lead { "\n" } else { "" };
     if codex {
         let response = Obj::new().str("status", "failed").raw("error", &detail).finish();
-        let chunk = Obj::new().str("type", "response.failed").raw("sequence_number", &seq.to_string()).raw("response", &response).finish();
+        let chunk = Obj::new()
+            .str("type", "response.failed")
+            .raw("sequence_number", &seq.to_string())
+            .raw("response", &response)
+            .finish();
         Bytes::from(format!("{lead}event: response.failed\ndata: {chunk}\n\n"))
     } else {
-        let chunk = Obj::new().str("type", "error").raw("error", &detail).raw("sequence_number", &seq.to_string()).finish();
+        let chunk = Obj::new()
+            .str("type", "error")
+            .raw("error", &detail)
+            .raw("sequence_number", &seq.to_string())
+            .finish();
         Bytes::from(format!("{lead}event: error\ndata: {chunk}\n\n"))
     }
 }
@@ -530,7 +660,12 @@ impl ResponsesSse {
         if name.is_empty() || matches!(name, "response.failed" | "response.error" | "error") {
             return false;
         }
-        name.starts_with("responsesapi.") || if self.codex { name == "codex.rate_limits" } else { name.starts_with("codex.") }
+        name.starts_with("responsesapi.")
+            || if self.codex {
+                name == "codex.rate_limits"
+            } else {
+                name.starts_with("codex.")
+            }
     }
 
     fn repair(&mut self, frame: Bytes) -> Option<Bytes> {
@@ -548,23 +683,43 @@ impl ResponsesSse {
         let Ok(value) = serde_json::from_slice::<Value>(&payload) else {
             return Some(frame);
         };
-        let kind = value.get("type").map(|t| gojson::gjson_string(Some(t))).unwrap_or_default();
+        let kind = value
+            .get("type")
+            .map(|t| gojson::gjson_string(Some(t)))
+            .unwrap_or_default();
         if self.private(&event) || self.private(&kind) {
             return None;
         }
         self.data_frames += 1;
         let has_error = ["error"].iter().any(|k| value.get(*k).is_some_and(|v| !v.is_null()))
-            || value.get("response").and_then(|r| r.get("error")).is_some_and(|v| !v.is_null())
+            || value
+                .get("response")
+                .and_then(|r| r.get("error"))
+                .is_some_and(|v| !v.is_null())
             || (value.get("code").is_some() && value.get("message").is_some());
         let error_event = |t: &str| matches!(t, "response.failed" | "response.error" | "error");
-        let terminal = |t: &str| matches!(t, "response.completed" | "response.incomplete" | "response.failed" | "response.done" | "response.error" | "error");
+        let terminal = |t: &str| {
+            matches!(
+                t,
+                "response.completed"
+                    | "response.incomplete"
+                    | "response.failed"
+                    | "response.done"
+                    | "response.error"
+                    | "error"
+            )
+        };
         if error_event(&kind) || has_error {
             if !kind.is_empty() {
                 self.last_event = kind.clone();
             }
             return Some(self.error_payload(&value, &payload));
         }
-        let event_type = if terminal(&event) || kind.is_empty() { event.clone() } else { kind.clone() };
+        let event_type = if terminal(&event) || kind.is_empty() {
+            event.clone()
+        } else {
+            kind.clone()
+        };
         if !event_type.is_empty() {
             self.last_event = event_type.clone();
         }
@@ -576,7 +731,9 @@ impl ResponsesSse {
         }
         match event_type.as_str() {
             "response.output_item.done" => {
-                if let Some(item) = value.get("item").filter(|i| i.is_object() && i.get("type").is_some_and(|t| !gojson::gjson_string(Some(t)).is_empty())) {
+                if let Some(item) = value.get("item").filter(|i| {
+                    i.is_object() && i.get("type").is_some_and(|t| !gojson::gjson_string(Some(t)).is_empty())
+                }) {
                     match value.get("output_index").and_then(Value::as_i64) {
                         Some(index) => {
                             self.output.insert(index, item.to_string());
@@ -588,10 +745,18 @@ impl ResponsesSse {
             "response.completed" if !self.output.is_empty() || !self.unindexed.is_empty() => {
                 let output = value.get("response").and_then(|r| r.get("output"));
                 if output.is_none_or(|o| o.as_array().is_some_and(Vec::is_empty)) {
-                    let items: Vec<&str> = self.output.values().map(String::as_str).chain(self.unindexed.iter().map(String::as_str)).collect();
+                    let items: Vec<&str> = self
+                        .output
+                        .values()
+                        .map(String::as_str)
+                        .chain(self.unindexed.iter().map(String::as_str))
+                        .collect();
                     let mut value = value.clone();
                     if let Some(response) = value.get_mut("response").and_then(Value::as_object_mut) {
-                        response.insert("output".into(), serde_json::from_str(&format!("[{}]", items.join(","))).unwrap_or_default());
+                        response.insert(
+                            "output".into(),
+                            serde_json::from_str(&format!("[{}]", items.join(","))).unwrap_or_default(),
+                        );
                     }
                     let mut out = String::new();
                     for line in String::from_utf8_lossy(&frame).split('\n') {
@@ -612,14 +777,25 @@ impl ResponsesSse {
     }
 
     fn error_payload(&mut self, value: &Value, payload: &[u8]) -> Bytes {
-        let status = ["status", "status_code", "error.status", "error.status_code", "response.error.status", "response.error.status_code"]
-            .iter()
-            .filter_map(|p| p.split('.').try_fold(value, |v, k| v.get(k)).map(|v| go_int(v)))
-            .find(|s| (400..=599).contains(s))
-            .unwrap_or(502) as u16;
+        let status = [
+            "status",
+            "status_code",
+            "error.status",
+            "error.status_code",
+            "response.error.status",
+            "response.error.status_code",
+        ]
+        .iter()
+        .filter_map(|p| p.split('.').try_fold(value, |v, k| v.get(k)).map(go_int))
+        .find(|s| (400..=599).contains(s))
+        .unwrap_or(502) as u16;
         let text = sanitize_error_text(status, &String::from_utf8_lossy(payload));
         self.terminal_error = Some((status, text.clone()));
-        self.terminal_event = if self.codex { "response.failed".into() } else { "error".into() };
+        self.terminal_event = if self.codex {
+            "response.failed".into()
+        } else {
+            "error".into()
+        };
         let seq = value
             .get("sequence_number")
             .and_then(Value::as_i64)
@@ -656,7 +832,11 @@ impl Writer for ResponsesSse {
         if self.terminal_error.is_some() || !self.terminal_event.is_empty() {
             return vec![Bytes::from_static(b"\n")];
         }
-        let last = if self.last_event.is_empty() { "none" } else { &self.last_event };
+        let last = if self.last_event.is_empty() {
+            "none"
+        } else {
+            &self.last_event
+        };
         let text = format!("upstream stream closed before a terminal event (last event: {last})");
         vec![stream_error_frame(self.codex, 502, &text, self.data_frames, true)]
     }
@@ -675,7 +855,11 @@ pub async fn compact(
     let fields = peek(&body);
     match fields.get("stream") {
         Some(Value::Bool(true)) => {
-            return respond::error_detail(400, "Streaming not supported for compact responses", "invalid_request_error");
+            return respond::error_detail(
+                400,
+                "Streaming not supported for compact responses",
+                "invalid_request_error",
+            );
         }
         Some(_) => {
             if let Some(updated) = jsonedit::delete(&body, "stream") {
@@ -690,12 +874,22 @@ pub async fn compact(
         query: String::new(),
         headers,
     };
-    let call = call(req, Format::OpenAIResponse, model, body, false, Some("responses/compact".into()));
-    match dispatch::run(&rt, call).await {
-        Err(failure) => errors::openai(&failure),
-        Ok(Done::Buffered { body, .. }) => respond::json(200, "application/json", body),
-        Ok(Done::Stream { .. }) => unreachable!("non-stream calls are buffered"),
-    }
+    let call = call(
+        req,
+        Format::OpenAIResponse,
+        model,
+        body,
+        false,
+        Some("responses/compact".into()),
+    );
+    dispatch::serve(&rt, call, |result| async move {
+        match result {
+            Err(failure) => errors::openai(&failure),
+            Ok(Done::Buffered { body, .. }) => respond::json(200, "application/json", body),
+            Ok(Done::Stream { .. }) => unreachable!("non-stream calls are buffered"),
+        }
+    })
+    .await
 }
 
 #[cfg(test)]
@@ -726,7 +920,10 @@ mod tests {
             chat_to_completions(&chat),
             r#"{"id":"c1","object":"text_completion","created":7,"model":"m","choices":[{"finish_reason":"stop","index":0,"text":"ok"}],"usage":{"total_tokens":3}}"#
         );
-        let role_only: Value = serde_json::from_str(r#"{"id":"c","choices":[{"index":0,"delta":{"role":"assistant"},"finish_reason":null}]}"#).unwrap();
+        let role_only: Value = serde_json::from_str(
+            r#"{"id":"c","choices":[{"index":0,"delta":{"role":"assistant"},"finish_reason":null}]}"#,
+        )
+        .unwrap();
         assert_eq!(chat_chunk_to_completions(&role_only), None);
         let delta: Value = serde_json::from_str(r#"{"id":"c","created":1,"model":"m","choices":[{"index":0,"delta":{"content":"x"},"finish_reason":null}]}"#).unwrap();
         assert_eq!(
@@ -738,23 +935,38 @@ mod tests {
     #[test]
     fn responses_framer_repairs_errors_and_requires_terminal_events() {
         let mut f = ResponsesSse::new(false);
-        assert!(f.chunk(Bytes::from_static(b"event: codex.rate_limits\ndata: {}\n\n")).is_empty());
-        let out = f.chunk(Bytes::from_static(b"event: response.created\ndata: {\"type\":\"response.created\"}\n\n"));
+        assert!(
+            f.chunk(Bytes::from_static(b"event: codex.rate_limits\ndata: {}\n\n"))
+                .is_empty()
+        );
+        let out = f.chunk(Bytes::from_static(
+            b"event: response.created\ndata: {\"type\":\"response.created\"}\n\n",
+        ));
         assert_eq!(out.len(), 1);
-        let out = f.chunk(Bytes::from_static(b"data: {\"type\":\"error\",\"error\":{\"message\":\"bad\",\"code\":\"x\"},\"sequence_number\":4}\n\n"));
+        let out = f.chunk(Bytes::from_static(
+            b"data: {\"type\":\"error\",\"error\":{\"message\":\"bad\",\"code\":\"x\"},\"sequence_number\":4}\n\n",
+        ));
         assert_eq!(
             String::from_utf8(out[0].to_vec()).unwrap(),
             "event: error\ndata: {\"type\":\"error\",\"error\":{\"code\":\"x\",\"message\":\"bad\"},\"sequence_number\":4}\n\n"
         );
         assert!(f.stopped());
         let mut g = ResponsesSse::new(true);
-        g.chunk(Bytes::from_static(b"data: {\"type\":\"response.output_text.delta\"}\n\n"));
+        g.chunk(Bytes::from_static(
+            b"data: {\"type\":\"response.output_text.delta\"}\n\n",
+        ));
         let end = String::from_utf8(g.end()[0].to_vec()).unwrap();
         assert!(end.starts_with("\nevent: response.failed\n"), "{end}");
-        assert!(end.contains("upstream stream closed before a terminal event (last event: response.output_text.delta)"));
+        assert!(
+            end.contains("upstream stream closed before a terminal event (last event: response.output_text.delta)")
+        );
         let mut h = ResponsesSse::new(false);
-        h.chunk(Bytes::from_static(b"data: {\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"type\":\"message\"}}\n\n"));
-        let done = h.chunk(Bytes::from_static(b"event: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"output\":[]}}\n\n"));
+        h.chunk(Bytes::from_static(
+            b"data: {\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"type\":\"message\"}}\n\n",
+        ));
+        let done = h.chunk(Bytes::from_static(
+            b"event: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"output\":[]}}\n\n",
+        ));
         assert_eq!(
             String::from_utf8(done[0].to_vec()).unwrap(),
             "event: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"output\":[{\"type\":\"message\"}]}}\n\n"
@@ -765,7 +977,10 @@ mod tests {
     #[test]
     fn stream_error_sanitizing_redacts_and_reduces() {
         assert_eq!(
-            sanitize_error_text(401, r#"{"error":{"message":"bad Bearer abc.def","api_key":"k"},"other":1}"#),
+            sanitize_error_text(
+                401,
+                r#"{"error":{"message":"bad Bearer abc.def","api_key":"k"},"other":1}"#
+            ),
             r#"{"error":{"api_key":"[REDACTED]","message":"bad Bearer [REDACTED]"}}"#
         );
         assert_eq!(sanitize_error_text(500, "token=abc rest"), "token=[REDACTED] rest");

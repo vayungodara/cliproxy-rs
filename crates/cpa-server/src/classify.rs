@@ -27,7 +27,11 @@ fn explicit_request_scoped(e: &ExecError) -> bool {
 
 /// The Go status of an error: transport faults have none.
 pub fn go_status(e: &ExecError) -> u16 {
-    if e.scope == FailureScope::Transport { 0 } else { e.status }
+    if e.scope == FailureScope::Transport {
+        0
+    } else {
+        e.status
+    }
 }
 
 /// Downstream status for a terminal error. Go answers status-less errors with 500.
@@ -49,7 +53,12 @@ const REQUEST_FAULT_CODES: [&str; 9] = [
     "invalid_request_error",
     "previous_response_not_found",
 ];
-const REQUEST_FAULT_TYPES: [&str; 4] = ["invalid_request", "invalid_request_error", "bad_request_error", "invalid_prompt"];
+const REQUEST_FAULT_TYPES: [&str; 4] = [
+    "invalid_request",
+    "invalid_request_error",
+    "bad_request_error",
+    "invalid_prompt",
+];
 
 fn json_body(text: &str) -> Option<Value> {
     serde_json::from_str(text.trim()).ok()
@@ -79,7 +88,9 @@ pub fn is_request_fault(status: u16, text: &str) -> bool {
         if status == 401 && any_path(body, &TYPE_PATHS, |t| t == "authentication_error") {
             return false;
         }
-        if any_path(body, &CODE_PATHS, |c| c == "model_not_found" || c == "model_not_found_error") {
+        if any_path(body, &CODE_PATHS, |c| {
+            c == "model_not_found" || c == "model_not_found_error"
+        }) {
             return false;
         }
         if any_path(body, &CODE_PATHS, |c| REQUEST_FAULT_CODES.contains(&c))
@@ -119,8 +130,7 @@ fn model_support_message(text: &str) -> bool {
 
 /// `isModelSupportError`.
 pub fn is_model_support(status: u16, text: &str) -> bool {
-    explicit_model_not_found(text, "")
-        || (matches!(status, 400 | 404 | 422) && model_support_message(text))
+    explicit_model_not_found(text, "") || (matches!(status, 400 | 404 | 422) && model_support_message(text))
 }
 
 /// `isInvalidGrantError`.
@@ -379,19 +389,35 @@ mod tests {
     #[test]
     fn request_faults_follow_go_status_and_body_rules() {
         // Anthropic's invalid_request_error envelope is a request fault even on 500.
-        assert!(is_request_invalid(&upstream(500, r#"{"type":"error","error":{"type":"invalid_request_error"}}"#)));
+        assert!(is_request_invalid(&upstream(
+            500,
+            r#"{"type":"error","error":{"type":"invalid_request_error"}}"#
+        )));
         // 429/402 stay credential failures whatever the body says.
-        assert!(!is_request_invalid(&upstream(429, r#"{"error":{"type":"invalid_request_error"}}"#)));
+        assert!(!is_request_invalid(&upstream(
+            429,
+            r#"{"error":{"type":"invalid_request_error"}}"#
+        )));
         // 401 authentication_error is a credential failure.
-        assert!(!is_request_invalid(&upstream(401, r#"{"error":{"type":"authentication_error"}}"#)));
+        assert!(!is_request_invalid(&upstream(
+            401,
+            r#"{"error":{"type":"authentication_error"}}"#
+        )));
         // An upstream 404 marked Request by the executor is not a request fault in Go.
         assert!(!is_request_invalid(&upstream(404, "not found")));
         assert!(is_request_invalid(&upstream(422, "bad")));
         // Model-not-found is a capability mismatch, even on 400.
-        assert!(!is_request_invalid(&upstream(400, r#"{"error":{"code":"model_not_found"}}"#)));
+        assert!(!is_request_invalid(&upstream(
+            400,
+            r#"{"error":{"code":"model_not_found"}}"#
+        )));
         assert!(!is_request_invalid(&upstream(400, "invalid_grant")));
         // A local Request error (no upstream headers) is explicit.
-        assert!(is_request_invalid(&ExecError::local(501, FailureScope::Request, "not supported")));
+        assert!(is_request_invalid(&ExecError::local(
+            501,
+            FailureScope::Request,
+            "not supported"
+        )));
         let transport = ExecError::local(502, FailureScope::Transport, "reset");
         assert!(!is_request_invalid(&transport) && is_retry_round(&transport));
         assert_eq!(response_status(&transport), 500);
@@ -401,10 +427,22 @@ mod tests {
     fn special_classifiers_match_go() {
         assert!(is_model_support(404, "The model is not supported for this account"));
         assert!(!is_model_support(500, "model not supported"));
-        assert!(is_model_support(500, r#"{"error":{"type":"not_found_error","message":"model: claude-x"}}"#) == false);
-        assert!(explicit_model_not_found(r#"{"type":"error","error":{"type":"not_found_error","message":"model: claude-x"}}"#, "claude-x"));
-        assert!(explicit_model_not_found(r#"{"error":{"message":"The model `gpt-9` does not exist"}}"#, "gpt-9"));
-        assert!(!explicit_model_not_found(r#"{"error":{"message":"model field missing in request body"}}"#, ""));
+        assert!(!is_model_support(
+            500,
+            r#"{"error":{"type":"not_found_error","message":"model: claude-x"}}"#
+        ));
+        assert!(explicit_model_not_found(
+            r#"{"type":"error","error":{"type":"not_found_error","message":"model: claude-x"}}"#,
+            "claude-x"
+        ));
+        assert!(explicit_model_not_found(
+            r#"{"error":{"message":"The model `gpt-9` does not exist"}}"#,
+            "gpt-9"
+        ));
+        assert!(!explicit_model_not_found(
+            r#"{"error":{"message":"model field missing in request body"}}"#,
+            ""
+        ));
         assert!(is_invalid_grant(400, r#"{"error":"invalid_grant"}"#));
         assert!(!is_invalid_grant(403, "invalid_grant"));
         assert!(is_cloudflare(403, "<title>Just a moment...</title> cloudflare"));

@@ -15,7 +15,12 @@ use futures_util::StreamExt;
 /// A JSON response with an explicit Content-Type.
 pub fn json(status: u16, content_type: &'static str, body: impl Into<Body>) -> Response {
     let status = StatusCode::from_u16(status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
-    (status, [(header::CONTENT_TYPE, HeaderValue::from_static(content_type))], body.into()).into_response()
+    (
+        status,
+        [(header::CONTENT_TYPE, HeaderValue::from_static(content_type))],
+        body.into(),
+    )
+        .into_response()
 }
 
 /// gin `c.JSON`: compact JSON with the charset parameter.
@@ -25,7 +30,10 @@ pub fn gin_json(status: u16, body: String) -> Response {
 
 /// gin `c.JSON(status, ErrorResponse{Error: ErrorDetail{Message, Type}})`.
 pub fn error_detail(status: u16, message: &str, kind: &str) -> Response {
-    let detail = crate::gojson::Obj::new().str("message", message).str("type", kind).finish();
+    let detail = crate::gojson::Obj::new()
+        .str("message", message)
+        .str("type", kind)
+        .finish();
     gin_json(status, crate::gojson::Obj::new().raw("error", &detail).finish())
 }
 
@@ -218,18 +226,34 @@ mod tests {
     #[tokio::test]
     async fn forwards_then_ends_or_errors_and_beats_while_idle() {
         let rest = futures_util::stream::iter([Ok(Bytes::from_static(b"b"))]).boxed();
-        assert_eq!(collect(stream(Some(Bytes::from_static(b"a")), rest, Plain, None)).await, "abEND");
+        assert_eq!(
+            collect(stream(Some(Bytes::from_static(b"a")), rest, Plain, None)).await,
+            "abEND"
+        );
         let err = cpa_core::exec::ExecError::local(502, cpa_core::exec::FailureScope::Transport, "x");
-        let rest = futures_util::stream::iter([Err(err)]).chain(futures_util::stream::pending()).boxed();
-        assert_eq!(collect(stream(Some(Bytes::from_static(b"a")), rest, Plain, None)).await, "aERR");
-        assert_eq!(collect(stream(None, futures_util::stream::pending().boxed(), Plain, None)).await, "END");
+        let rest = futures_util::stream::iter([Err(err)])
+            .chain(futures_util::stream::pending())
+            .boxed();
+        assert_eq!(
+            collect(stream(Some(Bytes::from_static(b"a")), rest, Plain, None)).await,
+            "aERR"
+        );
+        assert_eq!(
+            collect(stream(None, futures_util::stream::pending().boxed(), Plain, None)).await,
+            "END"
+        );
         tokio::time::pause();
         let slow = futures_util::stream::once(async {
             tokio::time::sleep(Duration::from_millis(250)).await;
             Ok(Bytes::from_static(b"z"))
         })
         .boxed();
-        let body = stream(Some(Bytes::from_static(b"a")), slow, Plain, Some(Duration::from_millis(100)));
+        let body = stream(
+            Some(Bytes::from_static(b"a")),
+            slow,
+            Plain,
+            Some(Duration::from_millis(100)),
+        );
         assert_eq!(collect(body).await, "a: keep-alive\n\n: keep-alive\n\nzEND");
     }
 
@@ -237,8 +261,14 @@ mod tests {
     fn frames_and_payloads() {
         assert_eq!(ensure_frame(Bytes::from_static(b"{}")), "data: {}\n\n");
         assert_eq!(ensure_frame(Bytes::from_static(b"data: {}\n")), "data: {}\n\n");
-        assert_eq!(data_payload(b"event: x\r\ndata: {\"a\":1}\r\n\r\n").unwrap(), b"{\"a\":1}");
-        assert_eq!(event_name(b"event: response.completed\ndata: {}\n\n"), "response.completed");
+        assert_eq!(
+            data_payload(b"event: x\r\ndata: {\"a\":1}\r\n\r\n").unwrap(),
+            b"{\"a\":1}"
+        );
+        assert_eq!(
+            event_name(b"event: response.completed\ndata: {}\n\n"),
+            "response.completed"
+        );
         assert!(data_payload(b": ping\n\n").is_none());
     }
 }

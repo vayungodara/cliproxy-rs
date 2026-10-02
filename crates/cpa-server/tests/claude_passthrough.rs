@@ -187,7 +187,9 @@ async fn claude_messages_end_to_end() {
 
     // Upstream error before streaming: Claude error JSON and status. Go sends Retry-After
     // only for its own scheduler/cooldown errors, never a raw upstream one.
-    let res = post(r#"{"model":"claude-opus-5-5","stream":true,"x":"MODE_429"}"#).await.unwrap();
+    let res = post(r#"{"model":"claude-opus-5-5","stream":true,"x":"MODE_429"}"#)
+        .await
+        .unwrap();
     assert_eq!(res.status().as_u16(), 429);
     assert!(res.headers().get("retry-after").is_none());
     assert_eq!(
@@ -196,7 +198,9 @@ async fn claude_messages_end_to_end() {
     );
 
     // Upstream dies mid-stream: events so far, then a terminal error event.
-    let res = post(r#"{"model":"claude-opus-5-5","stream":true,"x":"MODE_BREAK"}"#).await.unwrap();
+    let res = post(r#"{"model":"claude-opus-5-5","stream":true,"x":"MODE_BREAK"}"#)
+        .await
+        .unwrap();
     assert_eq!(res.status().as_u16(), 200);
     let text = res.text().await.unwrap();
     let (first, rest) = text.split_at("event: message_start\ndata: {}\n\n".len());
@@ -254,7 +258,10 @@ async fn unregistered_and_unserved_models_follow_go_error_contracts() {
     let dir = auth_dir(
         "empty",
         &[
-            ("claude-off.json", r#"{"type":"claude","access_token":"t","disabled":true}"#),
+            (
+                "claude-off.json",
+                r#"{"type":"claude","access_token":"t","disabled":true}"#,
+            ),
             ("codex-a.json", r#"{"type":"codex","access_token":"fake-codex"}"#),
         ],
     );

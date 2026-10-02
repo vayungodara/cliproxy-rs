@@ -102,7 +102,10 @@ impl Failure {
             }
             Failure::ImageOnly(model) => {
                 let base = model.rsplit('/').next().filter(|s| !s.is_empty()).unwrap_or(model);
-                format!("model {} is only supported on /v1/images/generations and /v1/images/edits", base.trim())
+                format!(
+                    "model {} is only supported on /v1/images/generations and /v1/images/edits",
+                    base.trim()
+                )
             }
             Failure::Unavailable {
                 code,
@@ -111,8 +114,16 @@ impl Failure {
                 cause,
                 ..
             } => {
-                let providers = if providers.is_empty() { "unknown".into() } else { providers.join(",") };
-                let model = if gojson::trim(model).is_empty() { "unknown" } else { gojson::trim(model) };
+                let providers = if providers.is_empty() {
+                    "unknown".into()
+                } else {
+                    providers.join(",")
+                };
+                let model = if gojson::trim(model).is_empty() {
+                    "unknown"
+                } else {
+                    gojson::trim(model)
+                };
                 let mut detail = match cause.as_deref().map(upstream_summary).filter(|s| !s.is_empty()) {
                     Some(summary) => format!(
                         "no auth available (providers={providers}, model={model}; last upstream error: {summary})"
@@ -217,7 +228,11 @@ pub fn upstream_summary(raw: &str) -> String {
             message = s(v.get("message"));
         }
         let summary = match (code.is_empty(), message.is_empty()) {
-            (false, false) if code.eq_ignore_ascii_case(&message) || message.to_lowercase().contains(&code.to_lowercase()) => message,
+            (false, false)
+                if code.eq_ignore_ascii_case(&message) || message.to_lowercase().contains(&code.to_lowercase()) =>
+            {
+                message
+            }
             (false, false) => format!("{code}: {message}"),
             (true, false) => message,
             (false, true) => code,
@@ -267,7 +282,13 @@ fn route(registry: &Registry, call: &Call) -> Result<(Vec<String>, String), Fail
         model.to_owned()
     };
     let base = gojson::trim(canonical_model_raw(&resolved)).to_owned();
-    let image = base.rsplit('/').next().filter(|s| !s.is_empty()).unwrap_or(&base).trim().to_lowercase();
+    let image = base
+        .rsplit('/')
+        .next()
+        .filter(|s| !s.is_empty())
+        .unwrap_or(&base)
+        .trim()
+        .to_lowercase();
     if IMAGE_ONLY.contains(&image.as_str()) {
         return Err(Failure::ImageOnly(base));
     }
@@ -300,8 +321,79 @@ fn canonical_model_raw(model: &str) -> &str {
     }
 }
 
+/// Runs `call` and renders the result, adding Go's `X-CPA-TRACE-ID` (selection time,
+/// the selected credential's auth index and a request ID) once a credential was picked.
+pub async fn serve<F, Fut>(rt: &Arc<Runtime>, call: Call, render: F) -> axum::response::Response
+where
+    F: FnOnce(Result<Done, Failure>) -> Fut,
+    Fut: std::future::Future<Output = axum::response::Response>,
+{
+    let trace = Trace::default();
+    let result = run(rt, call, &trace).await;
+    let mut response = render(result).await;
+    if let Some(id) = trace.0.lock().unwrap_or_else(std::sync::PoisonError::into_inner).take()
+        && let Ok(value) = axum::http::HeaderValue::from_str(&id)
+    {
+        response.headers_mut().insert("x-cpa-trace-id", value);
+    }
+    response
+}
+
+/// The trace ID of the last credential selected for a request.
+#[derive(Default)]
+pub struct Trace(std::sync::Mutex<Option<String>>, std::sync::OnceLock<String>);
+
+impl Trace {
+    fn selected(&self, credential: &cpa_core::credential::Credential) {
+        let index = cpa_core::config::credentials::auth_index(credential);
+        if index.is_empty() {
+            return;
+        }
+        let request = self.1.get_or_init(request_id);
+        // ponytail: UTC; Go formats the selection time in the process time zone.
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default();
+        let stamp: String = crate::models::rfc3339(now.as_secs() as i64)
+            .chars()
+            .filter(char::is_ascii_digit)
+            .collect();
+        *self.0.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = Some(format!("{stamp}-{index}-{request}"));
+    }
+}
+
+/// A UUIDv7 request ID (Go `logging.GenerateRequestID`).
+pub fn request_id() -> String {
+    use std::hash::{BuildHasher, Hasher};
+    let random = || {
+        let mut h = std::collections::hash_map::RandomState::new().build_hasher();
+        h.write_u128(
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_nanos(),
+        );
+        h.finish()
+    };
+    let millis = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64;
+    let (a, b) = (random(), random());
+    let hi = (millis << 16) | 0x7000 | (a & 0x0fff);
+    let lo = (b & 0x3fff_ffff_ffff_ffff) | 0x8000_0000_0000_0000;
+    format!(
+        "{:08x}-{:04x}-{:04x}-{:04x}-{:012x}",
+        hi >> 32,
+        (hi >> 16) & 0xffff,
+        hi & 0xffff,
+        lo >> 48,
+        lo & 0xffff_ffff_ffff
+    )
+}
+
 /// Runs one request through selection, execution and retry rounds.
-pub async fn run(rt: &Arc<Runtime>, call: Call) -> Result<Done, Failure> {
+pub async fn run(rt: &Arc<Runtime>, call: Call, trace: &Trace) -> Result<Done, Failure> {
     let (cfg, policy) = rt.request_snapshot();
     let registry = rt.registry();
     let (providers, model) = route(&registry, &call)?;
@@ -348,7 +440,11 @@ pub async fn run(rt: &Arc<Runtime>, call: Call) -> Result<Done, Failure> {
                     if last_error.is_some() {
                         break None;
                     }
-                    let provider = if providers.len() == 1 { providers[0].clone() } else { String::new() };
+                    let provider = if providers.len() == 1 {
+                        providers[0].clone()
+                    } else {
+                        String::new()
+                    };
                     return Err(Failure::Cooldown {
                         model: selection.model.clone(),
                         provider,
@@ -361,7 +457,11 @@ pub async fn run(rt: &Arc<Runtime>, call: Call) -> Result<Done, Failure> {
                         break None;
                     }
                     return Err(Failure::Unavailable {
-                        code: if retry_after.is_some() { "auth_unavailable" } else { "auth_not_found" },
+                        code: if retry_after.is_some() {
+                            "auth_unavailable"
+                        } else {
+                            "auth_not_found"
+                        },
                         providers: providers.clone(),
                         model: model.clone(),
                         cause,
@@ -370,6 +470,7 @@ pub async fn run(rt: &Arc<Runtime>, call: Call) -> Result<Done, Failure> {
                 }
             };
             selection.exclude.push(lease.credential.id.clone());
+            trace.selected(&lease.credential);
             let (models, alias) = registry::execution_models(&aliases, &lease.credential, &selection.model);
             let pooled = models.len() > 1;
             let selection_model = registry::selection_model(&aliases, &lease.credential, &selection.model);
@@ -384,7 +485,21 @@ pub async fn run(rt: &Arc<Runtime>, call: Call) -> Result<Done, Failure> {
                 continue;
             }
             attempted += 1;
-            match attempt(rt, &cfg, &policy, &call, &request, lease, &models, &selection_model, pooled, &alias, compact).await {
+            match attempt(
+                rt,
+                &cfg,
+                &policy,
+                &call,
+                &request,
+                lease,
+                &models,
+                &selection_model,
+                pooled,
+                &alias,
+                compact,
+            )
+            .await
+            {
                 Attempt::Done(done) => break Some(Ok(done)),
                 Attempt::Stop(error) => break Some(Err(error)),
                 Attempt::Next(error) => last_error = Some(error),
@@ -434,7 +549,12 @@ pub fn jitter(wait: Duration, max: Duration) -> Duration {
     }
     use std::hash::{BuildHasher, Hasher};
     let mut hasher = std::collections::hash_map::RandomState::new().build_hasher();
-    hasher.write_u128(std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_nanos());
+    hasher.write_u128(
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos(),
+    );
     wait + Duration::from_nanos(hasher.finish() % range.as_nanos().max(1) as u64)
 }
 
@@ -509,7 +629,11 @@ async fn attempt(
         // A credential-wide quota ends this credential's model pool.
         if stop || i + 1 == models.len() || classify::credential_scoped(&error) {
             lease.complete(outcome);
-            return if stop { Attempt::Stop(error) } else { Attempt::Next(error) };
+            return if stop {
+                Attempt::Stop(error)
+            } else {
+                Attempt::Next(error)
+            };
         }
         lease.note(&state, &outcome);
         last = Some(error);
@@ -573,7 +697,13 @@ fn rewrite_model(done: Done, target: &str) -> Done {
     }
 }
 
-const MODEL_PATHS: [&str; 5] = ["model", "modelVersion", "response.model", "response.modelVersion", "message.model"];
+const MODEL_PATHS: [&str; 5] = [
+    "model",
+    "modelVersion",
+    "response.model",
+    "response.modelVersion",
+    "message.model",
+];
 
 fn rewrite_json(data: &str, target: &str) -> Option<String> {
     let mut value: serde_json::Value = serde_json::from_str(data).ok()?;
@@ -597,7 +727,9 @@ fn rewrite_payload(payload: &Bytes, target: &str) -> Bytes {
         return payload.clone();
     };
     if text.trim_start().starts_with('{') {
-        return rewrite_json(text, target).map(Bytes::from).unwrap_or_else(|| payload.clone());
+        return rewrite_json(text, target)
+            .map(Bytes::from)
+            .unwrap_or_else(|| payload.clone());
     }
     let mut changed = false;
     let lines: Vec<String> = text
@@ -608,7 +740,11 @@ fn rewrite_payload(payload: &Bytes, target: &str) -> Bytes {
             };
             let data = rest.trim_start();
             let prefix = &line[..line.len() - data.len()];
-            match data.starts_with('{').then(|| rewrite_json(data.trim_end_matches('\r'), target)).flatten() {
+            match data
+                .starts_with('{')
+                .then(|| rewrite_json(data.trim_end_matches('\r'), target))
+                .flatten()
+            {
                 Some(json) => {
                     changed = true;
                     format!("{prefix}{json}{}", if data.ends_with('\r') { "\r" } else { "" })
@@ -617,7 +753,11 @@ fn rewrite_payload(payload: &Bytes, target: &str) -> Bytes {
             }
         })
         .collect();
-    if changed { Bytes::from(lines.join("\n")) } else { payload.clone() }
+    if changed {
+        Bytes::from(lines.join("\n"))
+    } else {
+        payload.clone()
+    }
 }
 
 #[cfg(test)]
@@ -641,7 +781,10 @@ mod tests {
             r#"{"error":{"code":"model_cooldown","last_upstream_error":"rate_limit_error: slow down","message":"All credentials for model m are cooling down via provider claude (last error: rate_limit_error: slow down)","model":"m","provider":"claude","reset_seconds":60,"reset_time":"59s"}}"#
         );
         assert_eq!(cooldown.retry_after(), Some(60));
-        assert_eq!((cooldown.status(), Failure::UnknownModel(String::new()).status()), (429, 400));
+        assert_eq!(
+            (cooldown.status(), Failure::UnknownModel(String::new()).status()),
+            (429, 400)
+        );
         let none = Failure::Unavailable {
             code: "auth_not_found",
             providers: vec!["claude".into()],
@@ -680,14 +823,23 @@ mod tests {
             let capped = jitter(Duration::from_secs(20), Duration::from_secs(21));
             assert!(capped >= Duration::from_secs(20) && capped < Duration::from_secs(21));
         }
-        assert_eq!(jitter(Duration::from_secs(5), Duration::from_secs(5)), Duration::from_secs(5));
+        assert_eq!(
+            jitter(Duration::from_secs(5), Duration::from_secs(5)),
+            Duration::from_secs(5)
+        );
         assert_eq!(jitter(Duration::ZERO, Duration::ZERO), Duration::ZERO);
     }
 
     #[test]
     fn summaries_follow_go_extract() {
-        assert_eq!(upstream_summary(r#"{"error":{"code":"x","message":"boom"}}"#), "x: boom");
-        assert_eq!(upstream_summary(r#"{"error":{"type":"overloaded","message":"overloaded now"}}"#), "overloaded now");
+        assert_eq!(
+            upstream_summary(r#"{"error":{"code":"x","message":"boom"}}"#),
+            "x: boom"
+        );
+        assert_eq!(
+            upstream_summary(r#"{"error":{"type":"overloaded","message":"overloaded now"}}"#),
+            "overloaded now"
+        );
         assert_eq!(upstream_summary(r#"{"error":"flat"}"#), "flat");
         assert_eq!(upstream_summary("plain text"), "plain text");
         assert_eq!(upstream_summary("status 500: {\"message\":\"m\"}"), "m");

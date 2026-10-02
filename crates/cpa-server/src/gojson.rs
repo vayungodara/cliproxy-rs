@@ -181,7 +181,10 @@ mod tests {
     #[test]
     fn strings_and_maps_match_go_marshal() {
         // Values checked against Go 1.26 json.Marshal.
-        assert_eq!(string("a<b>&\"\u{2028}\u{1}"), r#""a\u003cb\u003e\u0026\"\u2028\u0001""#);
+        assert_eq!(
+            string("a<b>&\"\u{2028}\u{1}"),
+            r#""a\u003cb\u003e\u0026\"\u2028\u0001""#
+        );
         let v: Value = serde_json::from_str(r#"{"z":1,"a":{"y":[true,null],"b":"x"}}"#).unwrap();
         assert_eq!(sorted(&v), r#"{"a":{"b":"x","y":[true,null]},"z":1}"#);
         assert_eq!(
@@ -211,7 +214,10 @@ mod tests {
     fn gjson_string_matches_result_string() {
         let v: Value = serde_json::from_str(r#"{"a":"x","b":5,"c":true,"d":null,"e":{"k":1}}"#).unwrap();
         let get = |k| gjson_string(v.get(k));
-        assert_eq!((get("a"), get("b"), get("c"), get("d")), ("x".into(), "5".into(), "true".into(), String::new()));
+        assert_eq!(
+            (get("a"), get("b"), get("c"), get("d")),
+            ("x".into(), "5".into(), "true".into(), String::new())
+        );
         assert_eq!(get("e"), r#"{"k":1}"#);
         assert_eq!(get("missing"), "");
     }

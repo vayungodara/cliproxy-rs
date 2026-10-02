@@ -11,14 +11,22 @@ use crate::gojson::{self, Obj};
 /// Go `WriteErrorResponse`'s text: the error text trimmed, else the status text.
 fn text_for(status: u16, text: &str) -> String {
     let v = gojson::trim(text);
-    if v.is_empty() { gojson::status_text(status).to_owned() } else { v.to_owned() }
+    if v.is_empty() {
+        gojson::status_text(status).to_owned()
+    } else {
+        v.to_owned()
+    }
 }
 
 /// Go `BuildErrorResponseBody`: valid JSON passes through trimmed, anything else is
 /// wrapped in an OpenAI error envelope typed by status.
 pub fn openai_body(status: u16, text: &str) -> String {
     let status = if status == 0 { 500 } else { status };
-    let text = if gojson::trim(text).is_empty() { gojson::status_text(status) } else { text };
+    let text = if gojson::trim(text).is_empty() {
+        gojson::status_text(status)
+    } else {
+        text
+    };
     let trimmed = gojson::trim(text);
     if !trimmed.is_empty() && serde_json::from_str::<Value>(trimmed).is_ok() {
         return trimmed.to_owned();
@@ -135,7 +143,10 @@ mod tests {
     #[test]
     fn claude_envelope_matches_go_detail_rules() {
         assert_eq!(
-            claude_body(429, r#"{"type":"error","error":{"type":"rate_limit_error","message":"slow down"}}"#),
+            claude_body(
+                429,
+                r#"{"type":"error","error":{"type":"rate_limit_error","message":"slow down"}}"#
+            ),
             r#"{"type":"error","error":{"type":"rate_limit_error","message":"slow down"}}"#
         );
         assert_eq!(

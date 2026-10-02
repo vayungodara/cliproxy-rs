@@ -28,6 +28,8 @@ async fn main() -> anyhow::Result<()> {
     let listener = tokio::net::TcpListener::bind((config.host.as_str(), config.port)).await?;
     let rt = Arc::new(Runtime::new(config, credentials, executors));
     cpa_server::install_registry(&rt);
-    axum::serve(listener, router(rt)).await?;
+    // Same global middleware as the production binary (crates/cliproxy/src/main.rs).
+    let app = router(rt).layer(axum::middleware::from_fn(cpa_server::management::cors));
+    axum::serve(listener, app).await?;
     Ok(())
 }

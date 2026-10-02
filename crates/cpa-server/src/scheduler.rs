@@ -350,19 +350,7 @@ fn weight(c: &Credential) -> i64 {
     value.filter(|n| *n <= 1_000_000).unwrap_or(0).max(0)
 }
 
-/// Go `canonicalModelKey`: the model without its terminal `(thinking)` suffix.
-pub fn canonical_model(model: &str) -> &str {
-    let model = model.trim();
-    if model.ends_with(')') {
-        model
-            .rsplit_once('(')
-            .map(|(base, _)| base.trim())
-            .filter(|base| !base.is_empty())
-            .unwrap_or(model)
-    } else {
-        model
-    }
-}
+pub use cpa_core::registry::dynamic::canonical_model;
 
 #[derive(Default)]
 struct Rotation {
@@ -504,7 +492,11 @@ impl Scheduler {
         ready.sort_by(|a, b| a.0.id.cmp(&b.0.id));
         // Providers that have ready candidates, in the request's provider order.
         let mut groups: Vec<(&str, Vec<&Credential>)> = Vec::new();
-        for provider in provider_keys.iter().map(String::as_str).chain(ready.iter().map(|(_, p)| *p)) {
+        for provider in provider_keys
+            .iter()
+            .map(String::as_str)
+            .chain(ready.iter().map(|(_, p)| *p))
+        {
             if groups.iter().any(|(p, _)| *p == provider) {
                 continue;
             }
@@ -562,12 +554,22 @@ impl Scheduler {
         Some(picked)
     }
 
-    fn pick_within<'a>(&mut self, scope: &str, model: &str, members: &[&'a Credential], strategy: Strategy) -> &'a Credential {
+    fn pick_within<'a>(
+        &mut self,
+        scope: &str,
+        model: &str,
+        members: &[&'a Credential],
+        strategy: Strategy,
+    ) -> &'a Credential {
         let state = self.rotations.entry((scope.to_owned(), model.to_owned())).or_default();
         match strategy {
             Strategy::FillFirst => members[0],
             Strategy::RoundRobin => {
-                let picked = members.iter().find(|c| c.id > state.last).copied().unwrap_or(members[0]);
+                let picked = members
+                    .iter()
+                    .find(|c| c.id > state.last)
+                    .copied()
+                    .unwrap_or(members[0]);
                 state.last.clone_from(&picked.id);
                 picked
             }
@@ -896,7 +898,12 @@ mod tests {
         let now = Instant::now();
         let mut s = Scheduler::default();
         let picks: Vec<_> = (0..7)
-            .map(|_| s.pick(&tag(&[&a, &b, &c]), &selection("m"), &p, now).unwrap().id.clone())
+            .map(|_| {
+                s.pick(&tag(&[&a, &b, &c]), &selection("m"), &p, now)
+                    .unwrap()
+                    .id
+                    .clone()
+            })
             .collect();
         assert_eq!(picks, ["a", "a", "b", "a", "c", "a", "a"]);
         let mut s = Scheduler::default();
@@ -947,7 +954,9 @@ mod tests {
             "b"
         );
         assert_eq!(
-            s.pick(&tag(&[&low]), &sel, &p, now + Duration::from_secs(16)).unwrap().id,
+            s.pick(&tag(&[&low]), &sel, &p, now + Duration::from_secs(16))
+                .unwrap()
+                .id,
             "a"
         );
         assert_eq!(s.pick(&tag(&[&low, &high]), &selection("m"), &p, now).unwrap().id, "b");
@@ -1083,7 +1092,11 @@ mod tests {
                 &Policy::default(),
                 now,
             );
-            assert_eq!(s.wait(&c, "m", now), Some(Duration::from_secs(seconds)), "status {status}");
+            assert_eq!(
+                s.wait(&c, "m", now),
+                Some(Duration::from_secs(seconds)),
+                "status {status}"
+            );
         }
         // With transient cooldowns disabled, the forced cooldown falls back to one minute.
         let c = cred(
@@ -1101,7 +1114,11 @@ mod tests {
         let plain = Outcome::Failure(ExecError::local(503, FailureScope::Credential, "plain"));
         let mut s = Scheduler::default();
         s.record(&c, "m", &plain, &no_transient, now);
-        assert_eq!(s.wait(&c, "m", now), None, "negative transient seconds disable 503 cooldowns");
+        assert_eq!(
+            s.wait(&c, "m", now),
+            None,
+            "negative transient seconds disable 503 cooldowns"
+        );
         let c = cred("a", serde_json::json!({}));
         let p = Policy::default();
         let mut s = Scheduler::default();

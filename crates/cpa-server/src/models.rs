@@ -17,7 +17,11 @@ const CLAUDE_MAX_OUTPUT: i64 = 64_000;
 /// `GET /v1/models`: Anthropic clients (an `Anthropic-Version` header or a `claude-cli`
 /// User-Agent) get the Anthropic catalog, everyone else the OpenAI one.
 pub async fn unified(State(rt): State<Arc<Runtime>>, OriginalUri(uri): OriginalUri, headers: HeaderMap) -> Response {
-    let header = |name: &str| headers.get(name).map(|v| String::from_utf8_lossy(v.as_bytes()).into_owned());
+    let header = |name: &str| {
+        headers
+            .get(name)
+            .map(|v| String::from_utf8_lossy(v.as_bytes()).into_owned())
+    };
     // ponytail: Go serves Grok Shell (`grok-shell` User-Agent) and Codex
     // (`client_version` query) their own catalog formats; both fall back to the OpenAI
     // list here until the xAI and Codex client catalogs are ported.
@@ -64,8 +68,16 @@ pub fn openai_list<'a>(models: impl Iterator<Item = &'a Spec>) -> String {
 pub fn claude_list<'a>(models: impl Iterator<Item = &'a Spec>, disable_cloaking: bool) -> String {
     let mut data: Vec<(String, String, Value)> = models
         .map(|m| {
-            let id = if disable_cloaking { m.id.clone() } else { crate::claude::ensure_dd(&m.id) };
-            let display = if m.display_name.is_empty() { m.id.clone() } else { m.display_name.clone() };
+            let id = if disable_cloaking {
+                m.id.clone()
+            } else {
+                crate::claude::ensure_dd(&m.id)
+            };
+            let display = if m.display_name.is_empty() {
+                m.id.clone()
+            } else {
+                m.display_name.clone()
+            };
             let mut entry = Map::new();
             entry.insert("id".into(), id.clone().into());
             entry.insert("object".into(), "model".into());
@@ -75,8 +87,16 @@ pub fn claude_list<'a>(models: impl Iterator<Item = &'a Spec>, disable_cloaking:
             }
             entry.insert("type".into(), "model".into());
             entry.insert("display_name".into(), display.clone().into());
-            let input = if m.context_length > 0 { m.context_length } else { CLAUDE_MAX_INPUT };
-            let output = if m.max_completion_tokens > 0 { m.max_completion_tokens } else { CLAUDE_MAX_OUTPUT };
+            let input = if m.context_length > 0 {
+                m.context_length
+            } else {
+                CLAUDE_MAX_INPUT
+            };
+            let output = if m.max_completion_tokens > 0 {
+                m.max_completion_tokens
+            } else {
+                CLAUDE_MAX_OUTPUT
+            };
             entry.insert("max_input_tokens".into(), input.into());
             entry.insert("max_tokens".into(), output.into());
             (display, id, Value::Object(entry))
@@ -114,7 +134,15 @@ pub fn rfc3339(seconds: i64) -> String {
 /// Go `convertModelToMap(model, "gemini")`.
 fn gemini_entry(m: &Spec) -> Map<String, Value> {
     let mut entry = Map::new();
-    entry.insert("name".into(), if m.name.is_empty() { m.id.clone() } else { m.name.clone() }.into());
+    entry.insert(
+        "name".into(),
+        if m.name.is_empty() {
+            m.id.clone()
+        } else {
+            m.name.clone()
+        }
+        .into(),
+    );
     let mut put = |k: &str, v: Value, keep: bool| {
         if keep {
             entry.insert(k.into(), v);
@@ -124,7 +152,11 @@ fn gemini_entry(m: &Spec) -> Map<String, Value> {
     put("displayName", m.display_name.clone().into(), !m.display_name.is_empty());
     put("description", m.description.clone().into(), !m.description.is_empty());
     put("inputTokenLimit", m.input_token_limit.into(), m.input_token_limit > 0);
-    put("outputTokenLimit", m.output_token_limit.into(), m.output_token_limit > 0);
+    put(
+        "outputTokenLimit",
+        m.output_token_limit.into(),
+        m.output_token_limit > 0,
+    );
     put(
         "supportedGenerationMethods",
         m.supported_generation_methods.clone().into(),

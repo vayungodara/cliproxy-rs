@@ -79,7 +79,10 @@ fn skip_value(body: &[u8], i: usize) -> Option<usize> {
         }
         _ => {
             let mut j = i;
-            while body.get(j).is_some_and(|b| !matches!(b, b',' | b'}' | b']') && !b.is_ascii_whitespace()) {
+            while body
+                .get(j)
+                .is_some_and(|b| !matches!(b, b',' | b'}' | b']') && !b.is_ascii_whitespace())
+            {
                 j += 1;
             }
             (j > i).then_some(j)
@@ -90,7 +93,9 @@ fn skip_value(body: &[u8], i: usize) -> Option<usize> {
 /// sjson's string encoding: plain quoting unless a byte needs escaping, then
 /// `json.Marshal` (which also HTML-escapes).
 pub fn sjson_string(s: &str) -> String {
-    if s.bytes().any(|b| b < b' ' || b > 0x7f || b == b'"' || b == b'\\') {
+    if s.bytes()
+        .any(|b| !(b' '..=0x7f).contains(&b) || b == b'"' || b == b'\\')
+    {
         crate::gojson::string(s)
     } else {
         format!("\"{s}\"")
@@ -108,7 +113,10 @@ pub fn set_raw(body: &[u8], key: &str, raw: &str) -> Option<Vec<u8>> {
     }
     let close = body.iter().rposition(|&b| b == b'}')?;
     let head = &body[..close];
-    let empty = head.iter().rposition(|b| !b.is_ascii_whitespace()).is_some_and(|i| head[i] == b'{');
+    let empty = head
+        .iter()
+        .rposition(|b| !b.is_ascii_whitespace())
+        .is_some_and(|i| head[i] == b'{');
     let mut out = head.to_vec();
     if !empty {
         out.push(b',');
@@ -133,7 +141,11 @@ pub fn delete(body: &[u8], key: &str) -> Option<Vec<u8>> {
         (start, after + 1)
     } else {
         let before = body[..start].iter().rposition(|b| !b.is_ascii_whitespace())?;
-        if body[before] == b',' { (before, end) } else { (start, end) }
+        if body[before] == b',' {
+            (before, end)
+        } else {
+            (start, end)
+        }
     };
     let mut out = body[..cut_start].to_vec();
     out.extend_from_slice(&body[cut_end..]);
@@ -155,9 +167,18 @@ mod tests {
             String::from_utf8(set_string(body, "model", "b<c").unwrap()).unwrap(),
             r#"{ "model" : "b<c", "stream":true , "x":{"stream":1} }"#
         );
-        assert_eq!(String::from_utf8(set_raw(b"{}", "k", "1").unwrap()).unwrap(), r#"{"k":1}"#);
-        assert_eq!(String::from_utf8(set_raw(br#"{"a":1}"#, "k", "2").unwrap()).unwrap(), r#"{"a":1,"k":2}"#);
-        assert_eq!(String::from_utf8(delete(br#"{"a":1,"stream":true}"#, "stream").unwrap()).unwrap(), r#"{"a":1}"#);
+        assert_eq!(
+            String::from_utf8(set_raw(b"{}", "k", "1").unwrap()).unwrap(),
+            r#"{"k":1}"#
+        );
+        assert_eq!(
+            String::from_utf8(set_raw(br#"{"a":1}"#, "k", "2").unwrap()).unwrap(),
+            r#"{"a":1,"k":2}"#
+        );
+        assert_eq!(
+            String::from_utf8(delete(br#"{"a":1,"stream":true}"#, "stream").unwrap()).unwrap(),
+            r#"{"a":1}"#
+        );
         assert!(delete(b"[1]", "a").is_none());
         assert_eq!(sjson_string("q\"é"), r#""q\"é""#);
     }

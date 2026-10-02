@@ -8,6 +8,8 @@
 
 use std::sync::LazyLock;
 
+pub mod dynamic;
+
 use serde::Deserialize;
 use serde_json::{Map, Value};
 
@@ -142,7 +144,10 @@ pub fn install_overlay(overlay: Option<std::sync::Arc<dyn Overlay>>) {
 }
 
 fn overlay() -> Option<std::sync::Arc<dyn Overlay>> {
-    OVERLAY.read().unwrap_or_else(std::sync::PoisonError::into_inner).clone()
+    OVERLAY
+        .read()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .clone()
 }
 
 /// Go `registry.LookupModelInfo`: registered models first, then the pinned catalog.

@@ -1,8 +1,8 @@
 //! HTTP surface: routes and client-key auth over an axum-independent [`runtime`].
 
 mod access;
-mod claude;
 mod classify;
+mod claude;
 pub mod dispatch;
 mod errors;
 mod gemini;
@@ -86,7 +86,10 @@ const CALLBACK_HTML: &str = r#"<html><head><meta charset="utf-8"><title>Authenti
 
 fn html() -> Response {
     (
-        [(header::CONTENT_TYPE, HeaderValue::from_static("text/html; charset=utf-8"))],
+        [(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static("text/html; charset=utf-8"),
+        )],
         CALLBACK_HTML,
     )
         .into_response()
@@ -134,7 +137,10 @@ async fn devin_callback(State(rt): State<Arc<Runtime>>, OriginalUri(uri): Origin
         res
     };
     if code.is_empty() && error.is_empty() {
-        return no_store(respond::gin_json(400, r#"{"error":"code or error is required"}"#.into()));
+        return no_store(respond::gin_json(
+            400,
+            r#"{"error":"code or error is required"}"#.into(),
+        ));
     }
     let delivered = rt.deliver_oauth_callback(&runtime::OAuthCallback {
         provider: "devin",
@@ -143,7 +149,10 @@ async fn devin_callback(State(rt): State<Arc<Runtime>>, OriginalUri(uri): Origin
         error: error.to_owned(),
     });
     if !delivered {
-        return no_store(respond::gin_json(400, r#"{"error":"invalid or expired OAuth callback"}"#.into()));
+        return no_store(respond::gin_json(
+            400,
+            r#"{"error":"invalid or expired OAuth callback"}"#.into(),
+        ));
     }
     no_store(html())
 }
