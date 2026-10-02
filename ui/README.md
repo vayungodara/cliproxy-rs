@@ -27,7 +27,7 @@ Rebuild the UI before compiling Rust when UI sources change; `ui/dist` is checke
 
 | Path | Role |
 | --- | --- |
-| `src/api.ts` | Fetch wrapper. Holds the management key in memory, reports unimplemented routes (501, 405, Go's empty 404) and probes routes with `OPTIONS`. |
+| `src/api.ts` | Fetch wrapper. Holds the management key in memory and reports unimplemented routes (Go-style empty 404, 501, 405). |
 | `src/store.svelte.ts` | Shared state: session, server kind from version headers, config, credentials, plugins, capabilities, toasts, writes with stale checks. |
 | `src/core.ts` | Pure helpers: credential state, traffic buckets, usage records, quota windows, diffs. Tested in `src/core.test.ts`. |
 | `src/Load.svelte` | Loading, error, not-available and data states for one read. |
@@ -38,7 +38,9 @@ Rebuild the UI before compiling Rust when UI sources change; `ui/dist` is checke
 
 ## Honest states
 
-Every read renders loading, empty, error, not available, or data. The server kind comes from response headers: Go sends a version with `X-CPA-COMMIT` and `X-CPA-BUILD-DATE`; cliproxy-rs sends `X-CPA-VERSION: cliproxy-rs/<version>`. Go implements the whole v8 API, so it is never probed. Other servers get one `OPTIONS` request per route used by a screen; routes or methods they do not serve render disabled, named in a single line, and reads they do not serve show "Not available on this server" with the route and status code. A write that still meets a 501 or 405 marks that capability off for the session.
+Every read renders loading, empty, error, not available, or data. The server kind comes from response headers: cliproxy-rs sends `X-CPA-VERSION: cliproxy-rs-<version>`; Go sends its version with `X-CPA-COMMIT` and `X-CPA-BUILD-DATE`. Go implements the whole v8 API, so it is never probed.
+
+Other servers are probed once per session for the write actions a screen offers. A route that does not exist answers with gin's empty 404 (or 501/405), and the UI cannot tell that apart from a real route without asking, because `OPTIONS` returns 204 everywhere. Each probe is therefore a request Go rejects with 400 during input validation, before any side effect: an empty JSON body to `POST /credentials`, `POST /credentials/refresh`, `PATCH /credentials/fields`, `DELETE /credentials`, `POST /routing/cooldown/reset`, `POST /requests/api-call` and `POST /oauth/import`; `GET /oauth/auth-url` without a provider; `GET /observability/usage/queue?count=0`. Each was checked against Go 6fecc6e to return 400 with the auth directory and config unchanged. Actions whose probe meets an empty 404 render disabled and are named in one line; reads the server lacks show "Not available on this server" with the route and status code. `DELETE /observability/logs` cannot be probed safely, so Clear is disabled when the log read is unavailable and otherwise marks itself off after a first empty 404.
 
 Traffic comes from `recent_requests` in `GET /credentials` and `GET /observability/usage/api-keys` (twenty 10-minute buckets, reported by the server). The live usage view reads `GET /observability/usage/queue`, which removes records for other consumers, so it is opt-in, asks first, and keeps events in the tab only.
 

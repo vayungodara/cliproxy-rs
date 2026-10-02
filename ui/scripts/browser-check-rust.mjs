@@ -17,6 +17,12 @@ const settled = () => {
   browser("eval", "document.fonts.ready.then(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))))");
 };
 const results = [];
+// Capability probes Go rejects with 400 before any side effect (see store.probe).
+const probes = new Set([
+  "POST /v8/management/credentials", "POST /v8/management/credentials/refresh", "PATCH /v8/management/credentials/fields",
+  "DELETE /v8/management/credentials", "POST /v8/management/routing/cooldown/reset", "POST /v8/management/requests/api-call",
+  "POST /v8/management/oauth/import", "GET /v8/management/oauth/auth-url", "GET /v8/management/observability/usage/queue",
+]);
 try {
   browser("open", url);
   browser("set", "viewport", "1440", "1000", "2");
@@ -47,7 +53,10 @@ try {
       assert.equal(state.overflow, false, `${page}: viewport overflow`);
       // Reads succeed, or the route is honestly reported as not implemented (501/405).
       for (const c of state.calls)
-        assert.ok(c.status < 400 || [404, 405, 501].includes(c.status), `${page}: ${c.method} ${c.path} → ${c.status}`);
+        assert.ok(
+          c.status < 400 || [404, 405, 501].includes(c.status) || (c.status === 400 && probes.has(`${c.method} ${c.path}`)),
+          `${page}: ${c.method} ${c.path} → ${c.status}`,
+        );
       results.push(state);
       console.log(`PASS ${theme} ${page}: no error banner or overflow; ${state.missing} not-available state(s)`);
       if (page === "overview" && theme === "dark") browser("screenshot", `${output}/rust-dashboard-desktop.png`, "--full");
