@@ -25,7 +25,9 @@
 //! match Go.
 
 mod claude_chat_request;
+mod apply_patch;
 mod claude_chat_response;
+mod claude_responses;
 mod codex_responses;
 mod common;
 mod openai;

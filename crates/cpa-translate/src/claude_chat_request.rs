@@ -32,7 +32,12 @@ pub fn request_with_compat(ctx: &RequestCtx<'_>, body: &[u8]) -> Result<Vec<u8>,
 }
 
 fn thinking_config(out: &mut Vec<u8>, root: &Res<'_>, model: &str) {
-    let v = root.get("reasoning_effort");
+    apply_effort(out, &root.get("reasoning_effort"), model);
+}
+
+/// The reasoning-effort mapping shared by the Chat and Responses converters: adaptive
+/// thinking with an output effort when the model has levels, a budget otherwise.
+pub(crate) fn apply_effort(out: &mut Vec<u8>, v: &Res<'_>, model: &str) {
     if !v.exists() {
         return;
     }
@@ -80,7 +85,7 @@ fn thinking_config(out: &mut Vec<u8>, root: &Res<'_>, model: &str) {
     }
 }
 
-fn text_part(text: &[u8]) -> Vec<u8> {
+pub(crate) fn text_part(text: &[u8]) -> Vec<u8> {
     let mut part = br#"{"type":"text","text":""}"#.to_vec();
     gj::set_str(&mut part, "text", text);
     part
