@@ -1,20 +1,78 @@
-//! Node/OpenSSL inference and compact OAuth TLS options, not browser emulation.
+//! Claude transports (helps/utls_client.go, auth/claude/utls_transport.go).
 //!
-//! ponytail: cold handshakes match the pinned Go uTLS captures after masking
-//! randomness. Session resumption, proxy-scoped caches and lifecycle parity remain
-//! unverified; do not claim full transport parity from a cold ClientHello alone.
+//! First-party Anthropic inference uses the deterministic Node/OpenSSL ClientHello
+//! with HTTP/1.1-only ALPN and a final pre_shared_key extension that stays silent
+//! until a session is cached. Clients are cached per effective proxy in a bounded
+//! 64-entry LRU, and each owns its own 32-entry TLS session cache, so resumption
+//! never crosses proxy boundaries. OAuth acquisition has its own compact profile.
+//! Every other origin uses Go's standard transport from [`crate::proxy`].
 
+use std::sync::{Arc, Mutex};
+
+use crate::proxy::{Hooks, Proxy};
+use wreq::tls::session::LruTlsSessionCache;
 use wreq::tls::{AlpnProtocol, ExtensionType, KeyShare, TlsOptions, TlsVersion};
 
-pub(crate) fn client(oauth: bool) -> wreq::Result<wreq::Client> {
-    let builder = wreq::Client::builder();
-    // http1_only forces an ALPN extension even with an empty TLS protocol list.
-    // OAuth's no-ALPN handshake naturally falls back to HTTP/1.1.
-    let builder = if oauth { builder } else { builder.http1_only() };
-    builder
-        .tls_options(options(oauth))
-        .redirect(wreq::redirect::Policy::none())
-        .build()
+pub(crate) const TRANSPORT_CACHE: usize = crate::proxy::CACHE_CAPACITY;
+const SESSION_CACHE: usize = 32;
+
+pub(crate) struct Clients {
+    pub native: wreq::Client,
+    pub oauth: wreq::Client,
+}
+
+/// Process-wide transport cache. Construct once per executor set.
+pub struct Transport {
+    hooks: Hooks,
+    cache: Mutex<Vec<(Proxy, Arc<Clients>)>>,
+}
+
+impl Transport {
+    pub fn new(hooks: Hooks) -> Self {
+        Self {
+            hooks,
+            cache: Mutex::default(),
+        }
+    }
+
+    /// Clients for `proxy`, most recently used first; evicts the least recently used.
+    pub(crate) fn clients(&self, proxy: &Proxy) -> wreq::Result<Arc<Clients>> {
+        let mut cache = self.cache.lock().expect("transport cache");
+        if let Some(i) = cache.iter().position(|(p, _)| p == proxy) {
+            let entry = cache.remove(i);
+            let clients = entry.1.clone();
+            cache.insert(0, entry);
+            return Ok(clients);
+        }
+        let clients = Arc::new(Clients {
+            native: self.build(Profile::Native, proxy)?,
+            oauth: self.build(Profile::OAuth, proxy)?,
+        });
+        cache.insert(0, (proxy.clone(), clients.clone()));
+        cache.truncate(TRANSPORT_CACHE);
+        Ok(clients)
+    }
+
+    fn build(&self, profile: Profile, proxy: &Proxy) -> wreq::Result<wreq::Client> {
+        let mut builder = wreq::Client::builder().redirect(wreq::redirect::Policy::none());
+        builder = match profile {
+            Profile::Native => builder
+                .http1_only()
+                .tls_options(options(false))
+                .tls_session_cache(LruTlsSessionCache::new(SESSION_CACHE)),
+            // No ALPN extension on the compact OAuth hello; HTTP/1.1 follows.
+            Profile::OAuth => builder.tls_options(options(true)),
+        };
+        // uTLS dialers never inherit environment proxies; an unusable proxy is logged
+        // by Go and dialled as if none were configured.
+        proxy.apply(self.hooks.apply(builder), false)?.build()
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Profile {
+    Native,
+    OAuth,
 }
 
 pub(crate) fn options(oauth: bool) -> TlsOptions {
@@ -77,14 +135,13 @@ mod tests {
             socket.read_exact(&mut record).await.unwrap();
             record
         });
-        let builder = wreq::Client::builder();
-        let builder = if oauth { builder } else { builder.http1_only() };
-        let client = builder
-            .tls_options(options(oauth))
-            .resolve("claude-capture.test", address)
-            .no_proxy()
-            .build()
-            .unwrap();
+        // The production builder, with only a dial override added.
+        let transport = Transport::new(Hooks {
+            trust: None,
+            resolve: vec![("claude-capture.test".into(), address)],
+        });
+        let clients = transport.clients(&Proxy::Inherit).unwrap();
+        let client = if oauth { &clients.oauth } else { &clients.native };
         // The local listener closes after the ClientHello, so TLS must fail before HTTP.
         assert!(
             client
@@ -180,5 +237,20 @@ mod tests {
                 assert_eq!(ids, [0, 23, 65281, 10, 11, 35, 13, 51, 45, 43]);
             }
         }
+    }
+
+    #[test]
+    fn transport_lru_bound() {
+        let t = Transport::new(Hooks::default());
+        let first = t.clients(&Proxy::Url("http://p0:1".into())).unwrap();
+        for i in 1..=TRANSPORT_CACHE {
+            t.clients(&Proxy::Url(format!("http://p{i}:1"))).unwrap();
+        }
+        assert_eq!(t.cache.lock().unwrap().len(), TRANSPORT_CACHE);
+        // p0 was least recently used and is rebuilt (a distinct client set).
+        let again = t.clients(&Proxy::Url("http://p0:1".into())).unwrap();
+        assert!(!Arc::ptr_eq(&first, &again));
+        let cached = t.clients(&Proxy::Url("http://p0:1".into())).unwrap();
+        assert!(Arc::ptr_eq(&again, &cached));
     }
 }

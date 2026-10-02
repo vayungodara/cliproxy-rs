@@ -135,6 +135,9 @@ async fn main() -> anyhow::Result<()> {
         openai: Default::default(),
     };
     let rt = Arc::new(Runtime::new(config, credentials, executors));
+    // Translators and thinking validation read model capabilities through the global
+    // overlay; without it they see only the static catalog.
+    cpa_server::install_registry(&rt);
     rt.start_auto_refresh();
     let options = cpa_server::management::Options {
         local_password: args.password,

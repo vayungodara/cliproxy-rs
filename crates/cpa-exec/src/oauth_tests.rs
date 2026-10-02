@@ -115,8 +115,17 @@ async fn refresh_rotation_preserves_identity_on_optional_profile_failure() {
     });
     let oauth = service(mock.clone()).await;
     let mut credential = credential();
-    let patch = oauth.prepare(&credential).await.unwrap();
+    // Identity preparation never refreshes, even inside the refresh lead.
+    assert!(refresh_due(&credential, Utc::now()));
+    let prepared = oauth.prepare(&credential, &crate::proxy::Proxy::Inherit).await.unwrap();
+    assert_eq!(prepared.set.keys().collect::<Vec<_>>(), ["claude_device_ids"]);
+    prepared.apply(&mut credential.metadata);
+    let patch = oauth
+        .refresh_credential(&credential, &crate::proxy::Proxy::Inherit)
+        .await
+        .unwrap();
     patch.apply(&mut credential.metadata);
+    assert!(!refresh_due(&credential, Utc::now()));
     assert_eq!(credential.str("access_token"), Some("sk-ant-oat-new-fake"));
     assert_eq!(credential.str("refresh_token"), Some("fake-rotated"));
     assert_eq!(credential.str("account_uuid"), Some("old-account"));
@@ -342,4 +351,19 @@ async fn raw_oauth_token_and_inspection_header_order_and_case() {
         assert!(headers.contains("Authorization: Bearer fake-access\r\n"));
         assert!(body.is_empty());
     }
+}
+
+#[tokio::test]
+async fn retained_refreshes_never_refuse_another_credential() {
+    // Go has no admission limit: completed exchanges retained for stale-snapshot
+    // protection must not block refreshes of unrelated credentials.
+    let mock = Arc::new(Mock::default());
+    let oauth = service(mock.clone()).await;
+    for i in 0..65 {
+        oauth.refresh(&format!("fake-refresh-{i}")).await.unwrap();
+    }
+    assert_eq!(mock.token_calls.load(Ordering::SeqCst), 65);
+    // A retained success is reused, not re-exchanged.
+    oauth.refresh("fake-refresh-0").await.unwrap();
+    assert_eq!(mock.token_calls.load(Ordering::SeqCst), 65);
 }
