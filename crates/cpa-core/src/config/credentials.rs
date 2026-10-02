@@ -815,10 +815,10 @@ pub fn from_file(cfg: &Config, auth_dir: &Path, path: &Path, data: &[u8]) -> Res
             attrs.insert("plan_type".into(), plan);
         }
     }
+    // Always present for files, even empty: routing must not fall back to a raw
+    // metadata prefix that Go's normalization rejected (for example "a/b").
     let prefix = meta.get("prefix").and_then(Json::as_str).map(normalize_prefix);
-    if let Some(prefix) = prefix.filter(|p| !p.is_empty()) {
-        attrs.insert("prefix".into(), prefix);
-    }
+    attrs.insert("prefix".into(), prefix.unwrap_or_default());
     if let Some(proxy) = meta.get("proxy_url").and_then(Json::as_str)
         && !proxy.is_empty()
     {
@@ -923,15 +923,20 @@ pub fn oauth_excluded(cfg: &Config) -> HashMap<String, Vec<String>> {
 }
 
 /// Every auth-dir JSON file (case-insensitive extension, top level only), sorted by ID.
-pub fn from_auth_dir(cfg: &Config) -> std::io::Result<Vec<Credential>> {
+/// Like Go's `FileSynthesizer`, an unreadable or missing directory is an empty set:
+/// it must never block publishing the rest of a valid config.
+pub fn from_auth_dir(cfg: &Config) -> Vec<Credential> {
     let entries = match std::fs::read_dir(&cfg.auth_dir) {
         Ok(entries) => entries,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
-        Err(e) => return Err(e),
+        Err(e) => {
+            if e.kind() != std::io::ErrorKind::NotFound {
+                tracing::warn!(dir = %cfg.auth_dir.display(), error = %e, "cannot read auth dir");
+            }
+            return Vec::new();
+        }
     };
     let mut out = Vec::new();
-    for entry in entries {
-        let entry = entry?;
+    for entry in entries.flatten() {
         let path: PathBuf = entry.path();
         if entry.file_type().is_ok_and(|t| t.is_dir())
             || !entry.file_name().to_string_lossy().to_lowercase().ends_with(".json")
@@ -946,14 +951,14 @@ pub fn from_auth_dir(cfg: &Config) -> std::io::Result<Vec<Credential>> {
         }
     }
     out.sort_by(|a, b| a.id.cmp(&b.id));
-    Ok(out)
+    out
 }
 
 /// All runtime credentials for a config: auth files, then config API keys.
-pub fn load(cfg: &Config) -> std::io::Result<Vec<Credential>> {
-    let mut all = from_auth_dir(cfg)?;
+pub fn load(cfg: &Config) -> Vec<Credential> {
+    let mut all = from_auth_dir(cfg);
     all.extend(from_config(cfg));
-    Ok(all)
+    all
 }
 
 /// Go `Auth.EnsureIndex`: 16 hex chars of sha256 over a stable identity seed.

@@ -18,7 +18,7 @@ use axum::extract::{ConnectInfo, Request, State};
 use axum::http::{HeaderMap, HeaderValue, Method, StatusCode, header};
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
-use cpa_core::config::{Config, TrustedProxies};
+use cpa_core::config::{Config, TrustedProxies, go_trim_space};
 use subtle::ConstantTimeEq;
 
 use super::{Management, json_error};
@@ -56,22 +56,29 @@ struct Attempts {
 }
 
 pub(crate) struct Access {
-    env_secret: String,
+    /// Raw bytes, as Go keeps arbitrary environment strings.
+    env_secret: Vec<u8>,
     local_password: String,
     /// Startup-only, as gin's `SetTrustedProxies` is called once in `NewServer`.
     trusted: TrustedProxies,
     enabled: AtomicBool,
     attempts: Mutex<Attempts>,
+    warned_untrusted_forwarding: AtomicBool,
 }
 
 impl Access {
     pub(crate) fn new(cfg: &Config, options: super::Options) -> Self {
         // Go: os.LookupEnv + TrimSpace; empty means unset.
-        let env_secret = options
-            .management_password
-            .unwrap_or_else(|| std::env::var("MANAGEMENT_PASSWORD").unwrap_or_default())
-            .trim()
-            .to_owned();
+        let raw: Vec<u8> = match options.management_password {
+            Some(value) => value.into_bytes(),
+            None => {
+                use std::os::unix::ffi::OsStringExt;
+                std::env::var_os("MANAGEMENT_PASSWORD")
+                    .map(OsStringExt::into_vec)
+                    .unwrap_or_default()
+            }
+        };
+        let env_secret = go_trim_space(&raw).to_vec();
         let local_password = options.local_password;
         let enabled = !cfg.management.secret_key.is_empty() || !env_secret.is_empty() || !local_password.is_empty();
         Self {
@@ -83,6 +90,7 @@ impl Access {
                 by_ip: HashMap::new(),
                 last_purge: Instant::now(),
             }),
+            warned_untrusted_forwarding: AtomicBool::new(false),
         }
     }
 
@@ -99,9 +107,24 @@ impl Access {
     }
 
     pub(crate) fn client_ip(&self, peer: Option<SocketAddr>, headers: &HeaderMap) -> String {
-        self.trusted.client_ip(peer.map(|p| p.ip()), |name| {
-            headers.get(name).and_then(|v| v.to_str().ok())
-        })
+        let ip = self
+            .trusted
+            .client_ip(peer, |name| headers.get(name).map(HeaderValue::as_bytes));
+        // Go trusts no proxy by default, so a local reverse proxy or tunnel (for example
+        // cloudflared on loopback) makes every client local. Keep Go's decision but say
+        // so once; the fix is `server.trusted-proxies: [127.0.0.1, "::1"]` and a restart.
+        if (ip == "127.0.0.1" || ip == "::1")
+            && ["X-Forwarded-For", "X-Real-IP", "CF-Connecting-IP"]
+                .iter()
+                .any(|h| headers.contains_key(*h))
+            && !self.warned_untrusted_forwarding.swap(true, Ordering::Relaxed)
+        {
+            tracing::warn!(
+                "management request from a loopback proxy carries forwarding headers; it is treated as \
+                 local. Set server.trusted-proxies to the proxy address and restart to use the client address"
+            );
+        }
+        ip
     }
 
     fn attempts(&self) -> std::sync::MutexGuard<'_, Attempts> {
@@ -174,8 +197,8 @@ impl Access {
             self.fail(ip);
             return Err((StatusCode::UNAUTHORIZED, "missing management key".into()));
         }
-        let matches = |want: &str| !want.is_empty() && bool::from(want.as_bytes().ct_eq(provided));
-        if (local && matches(&self.local_password)) || matches(&self.env_secret) {
+        let matches = |want: &[u8]| !want.is_empty() && bool::from(want.ct_eq(provided));
+        if (local && matches(self.local_password.as_bytes())) || matches(&self.env_secret) {
             self.reset(ip);
             return Ok(());
         }

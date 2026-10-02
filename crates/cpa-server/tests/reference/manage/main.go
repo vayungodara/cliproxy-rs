@@ -3,6 +3,7 @@
 package main
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -158,7 +159,37 @@ func runRoutes(s routeScenario) routeScenario {
 	return s
 }
 
+// Header values as hex so arbitrary bytes (invalid UTF-8) survive JSON.
+type ipBytesCase struct {
+	Trusted []string `json:"trusted"`
+	Remote  string   `json:"remote"`
+	XFF     string   `json:"xff_hex"`
+	RealIP  string   `json:"x_real_ip_hex,omitempty"`
+	IP      string   `json:"ip"`
+}
+
+func runIPBytes(c ipBytesCase) ipBytesCase {
+	engine := gin.New()
+	must(engine.SetTrustedProxies(c.Trusted))
+	engine.GET("/", func(ctx *gin.Context) { ctx.String(200, ctx.ClientIP()) })
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.RemoteAddr = c.Remote
+	xff, err := hex.DecodeString(c.XFF)
+	must(err)
+	req.Header["X-Forwarded-For"] = []string{string(xff)}
+	if c.RealIP != "" {
+		real, errReal := hex.DecodeString(c.RealIP)
+		must(errReal)
+		req.Header["X-Real-Ip"] = []string{string(real)}
+	}
+	rec := httptest.NewRecorder()
+	engine.ServeHTTP(rec, req)
+	c.IP = rec.Body.String()
+	return c
+}
+
 type output struct {
+	IPBytes []ipBytesCase   `json:"client_ip_bytes"`
 	Routes []routeScenario  `json:"routes"`
 	Access []accessScenario `json:"access"`
 	IPs    []ipCase         `json:"client_ip"`
@@ -315,6 +346,21 @@ func main() {
 	hash, errHash := bcrypt.GenerateFromPassword([]byte("fake-secret"), 4)
 	must(errHash)
 	secretHash = string(hash)
+	hx := func(s string) string { return hex.EncodeToString([]byte(s)) }
+	for _, c := range []ipBytesCase{
+		{Trusted: []string{"127.0.0.1"}, Remote: local, XFF: hx("\u00e9t\u00e9, 198.51.100.9")},
+		{Trusted: []string{"127.0.0.1"}, Remote: local, XFF: hx("\xff\xfe, 198.51.100.9")},
+		{Trusted: []string{"127.0.0.1"}, Remote: local, XFF: hx("\u00a0198.51.100.9\u2003")},
+		{Trusted: []string{"127.0.0.1"}, Remote: local, XFF: hx("198.51.100.9 \u0085")},
+		{Trusted: []string{"127.0.0.1"}, Remote: local, XFF: hx("198.51.100.9, \xff"), RealIP: hx("203.0.113.5")},
+		{Trusted: []string{"127.0.0.1"}, Remote: local, XFF: hx("198.51.100.9\xff")},
+		{Trusted: []string{"127.0.0.1"}, Remote: local, XFF: hx("\xff198.51.100.9")},
+		{Trusted: []string{"::1"}, Remote: "[::1]:1", XFF: hx("x\x80y, ::1, 2001:db8::7")},
+		{Trusted: []string{"fe80::/10"}, Remote: "[fe80::1%eth0]:1", XFF: hx("198.51.100.9")},
+		{Trusted: nil, Remote: "[fe80::1%eth0]:1", XFF: hx("198.51.100.9")},
+	} {
+		out.IPBytes = append(out.IPBytes, runIPBytes(c))
+	}
 	for _, s := range routeScenarios() {
 		out.Routes = append(out.Routes, runRoutes(s))
 	}
@@ -394,6 +440,10 @@ func main() {
 		{Name: "untrusted_forwarded_headers_are_ignored", Secret: "fake-secret", Steps: []step{
 			{Remote: "203.0.113.5:1", Headers: h("X-Forwarded-For", "127.0.0.1", "Authorization", "Bearer fake-secret")},
 			{Remote: local, Headers: h("X-Forwarded-For", "203.0.113.9", "Authorization", "Bearer fake-secret")},
+		}},
+		{Name: "forwarded_junk_cannot_make_remote_local", Secret: "fake-secret", Trusted: []string{"127.0.0.1"}, Steps: []step{
+			{Remote: local, Headers: h("X-Forwarded-For", "\u00e9t\u00e9, 198.51.100.9", "Authorization", "Bearer fake-secret")},
+			{Remote: local, Headers: h("X-Forwarded-For", "\u00e9t\u00e9, 127.0.0.1", "Authorization", "Bearer fake-secret")},
 		}},
 		{Name: "forwarded_ip_is_the_ban_key", Secret: "fake-secret", Trusted: []string{"127.0.0.0/8"}, AllowRemote: true, Steps: []step{
 			{Remote: local, Headers: h("X-Forwarded-For", "203.0.113.20", "Authorization", "Bearer x")},

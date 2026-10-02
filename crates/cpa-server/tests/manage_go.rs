@@ -21,7 +21,7 @@ fn strings(v: &Value) -> Vec<String> {
         .unwrap_or_default()
 }
 
-fn first_header<'a>(headers: &'a Value, name: &str) -> Option<&'a str> {
+fn first_header<'a>(headers: &'a Value, name: &str) -> Option<&'a [u8]> {
     headers
         .as_object()?
         .iter()
@@ -30,6 +30,7 @@ fn first_header<'a>(headers: &'a Value, name: &str) -> Option<&'a str> {
         .as_array()?
         .first()?
         .as_str()
+        .map(str::as_bytes)
 }
 
 #[test]
@@ -39,7 +40,37 @@ fn client_ip_matches_gin_for_every_trusted_remote_and_header_combination() {
     for case in cases {
         let trusted = TrustedProxies::new(&strings(&case["trusted"]));
         let remote: SocketAddr = case["remote"].as_str().unwrap().parse().unwrap();
-        let got = trusted.client_ip(Some(remote.ip()), |name| first_header(&case["headers"], name));
+        let got = trusted.client_ip(Some(remote), |name| first_header(&case["headers"], name));
+        assert_eq!(got, case["ip"].as_str().unwrap(), "{case}");
+    }
+}
+
+fn unhex(text: &str) -> Vec<u8> {
+    (0..text.len())
+        .step_by(2)
+        .map(|i| u8::from_str_radix(&text[i..i + 2], 16).unwrap())
+        .collect()
+}
+
+#[test]
+fn forwarded_header_bytes_and_zoned_peers_match_gin() {
+    let cases = fixture()["client_ip_bytes"].as_array().unwrap();
+    assert_eq!(cases.len(), 10);
+    for case in cases {
+        let trusted = TrustedProxies::new(&strings(&case["trusted"]));
+        let remote = case["remote"].as_str().unwrap();
+        // Go's zone text has no Rust parse form; a nonzero scope is the same fact.
+        let peer: SocketAddr = match remote.split_once('%') {
+            Some((ip, _)) => std::net::SocketAddrV6::new(ip.trim_start_matches('[').parse().unwrap(), 1, 0, 2).into(),
+            None => remote.parse().unwrap(),
+        };
+        let xff = unhex(case["xff_hex"].as_str().unwrap());
+        let real = case["x_real_ip_hex"].as_str().map(unhex);
+        let got = trusted.client_ip(Some(peer), |name| match name {
+            "X-Forwarded-For" => Some(xff.as_slice()),
+            "X-Real-IP" => real.as_deref(),
+            _ => None,
+        });
         assert_eq!(got, case["ip"].as_str().unwrap(), "{case}");
     }
 }
@@ -120,7 +151,6 @@ fn config_and_file_credentials_match_go_synthesizers() {
         assert_eq!(got, want, "{name}: config credentials");
         compared += got.len();
         let got: Vec<Value> = credentials::from_auth_dir(&cfg)
-            .unwrap()
             .iter()
             .map(|c| go_shape(c, &root))
             .collect();
@@ -210,7 +240,9 @@ mod access {
                     .header("X-Test-Peer", step["remote"].as_str().unwrap());
                 for (k, values) in step["headers"].as_object().into_iter().flatten() {
                     for v in values.as_array().unwrap() {
-                        req = req.header(k.as_str(), v.as_str().unwrap());
+                        // Raw bytes, so non-ASCII values travel as obs-text like Go's.
+                        let value = wreq::header::HeaderValue::from_bytes(v.as_str().unwrap().as_bytes()).unwrap();
+                        req = req.header(k.as_str(), value);
                     }
                 }
                 let res = req.send().await.unwrap();
@@ -227,7 +259,7 @@ mod access {
             server.abort();
             let _ = std::fs::remove_dir_all(&dir);
         }
-        assert_eq!(steps, 68, "69 recorded steps, one not wire-representable");
+        assert_eq!(steps, 70, "71 recorded steps, one not wire-representable");
     }
 }
 

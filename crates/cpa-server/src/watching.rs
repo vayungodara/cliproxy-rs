@@ -20,14 +20,18 @@ fn fingerprint(state: &Management) -> std::io::Result<Fingerprint> {
         auth: BTreeMap::new(),
     };
     let dir = state.rt.config().auth_dir.clone();
-    let entries = match std::fs::read_dir(dir) {
-        Ok(entries) => entries,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(result),
-        Err(e) => return Err(e),
+    // An unreadable auth dir is an empty set (as in reload); config edits must still
+    // be noticed.
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return Ok(result);
     };
     for entry in entries {
         let path = entry?.path();
-        if path.is_file() && path.extension().is_some_and(|ext| ext == "json") {
+        // Go matches the extension case-insensitively.
+        let json = path
+            .file_name()
+            .is_some_and(|n| n.to_string_lossy().to_lowercase().ends_with(".json"));
+        if path.is_file() && json {
             result.auth.insert(path.clone(), std::fs::read(path)?);
         }
     }
@@ -93,7 +97,7 @@ pub fn reload(state: &Management) -> anyhow::Result<()> {
             Err(error) => ((*state.rt.config()).clone(), Some(error)),
         }
     };
-    let mut files = credentials::from_auth_dir(&config)?;
+    let mut files = credentials::from_auth_dir(&config);
     // A malformed in-place auth write is not a deletion. Keep the last good value;
     // actual removal and a valid disabled update are reconciled normally.
     for existing in state.rt.store().snapshot() {
@@ -108,7 +112,7 @@ pub fn reload(state: &Management) -> anyhow::Result<()> {
             files.push(Credential::clone(&existing));
         }
     }
-    state.publish(config, Some(files))?;
+    state.publish(config, Some(files));
     if let Some(error) = config_error {
         return Err(error);
     }

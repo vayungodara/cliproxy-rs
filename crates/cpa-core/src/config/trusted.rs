@@ -4,9 +4,30 @@
 //!
 //! Go keeps IPv4 as 4 bytes and everything else as 16 bytes when matching, and a
 //! bare IPv4-mapped IPv6 entry becomes a `/32` IPv6 prefix. Both are reproduced.
-use std::net::IpAddr;
+use std::net::{IpAddr, SocketAddr};
 
 use anyhow::bail;
+
+/// Go `bytes.TrimSpace`: trims Unicode white space runes at both ends; an invalid
+/// UTF-8 sequence is not white space and stops trimming.
+pub fn go_trim_space(mut b: &[u8]) -> &[u8] {
+    fn edge(b: &[u8], front: bool) -> Option<(char, usize)> {
+        (1..=b.len().min(4)).find_map(|n| {
+            let part = if front { &b[..n] } else { &b[b.len() - n..] };
+            let s = std::str::from_utf8(part).ok()?;
+            let c = if front { s.chars().next() } else { s.chars().next_back() }?;
+            Some((c, n))
+        })
+    }
+    while let Some((c, n)) = edge(b, true).filter(|(c, _)| c.is_whitespace()) {
+        let _ = c;
+        b = &b[n..];
+    }
+    while let Some((_, n)) = edge(b, false).filter(|(c, _)| c.is_whitespace()) {
+        b = &b[..b.len() - n];
+    }
+    b
+}
 
 /// One parsed `net.IPNet`, already reduced the way `networkNumberAndMask` reduces it.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -132,35 +153,40 @@ impl TrustedProxies {
         self.0.iter().any(|net| net.contains(ip))
     }
 
-    /// gin `Context.ClientIP`. `header` returns the first value of a request header.
-    /// The result is the peer's canonical text, or a validated forwarded entry verbatim
-    /// (after trimming), exactly as Go compares it against "127.0.0.1" and "::1".
-    pub fn client_ip<'a>(&self, peer: Option<IpAddr>, header: impl Fn(&str) -> Option<&'a str>) -> String {
-        let Some(peer) = peer else {
-            return String::new();
+    /// gin `Context.ClientIP`. `header` returns the raw bytes of a request header's
+    /// first value. The result is the peer's canonical text, or a validated forwarded
+    /// entry verbatim (after trimming), exactly as Go compares it against
+    /// "127.0.0.1" and "::1". A zoned peer (`fe80::1%eth0`) fails Go's `ParseIP` and
+    /// yields an empty client IP without consulting forwarded headers.
+    pub fn client_ip<'a>(&self, peer: Option<SocketAddr>, header: impl Fn(&str) -> Option<&'a [u8]>) -> String {
+        let peer = match peer {
+            Some(SocketAddr::V6(v6)) if v6.scope_id() != 0 => return String::new(),
+            Some(peer) => peer.ip().to_canonical(),
+            None => return String::new(),
         };
-        let peer = peer.to_canonical();
         if self.contains(peer) {
             for name in REMOTE_IP_HEADERS {
                 if let Some(ip) = header(name).and_then(|v| self.forwarded(v)) {
-                    return ip.to_owned();
+                    return ip;
                 }
             }
         }
         peer.to_string()
     }
 
-    /// gin `validateHeader`: walk right to left, skipping trusted hops.
-    fn forwarded<'v>(&self, value: &'v str) -> Option<&'v str> {
+    /// gin `validateHeader` over raw bytes: walk right to left, skipping trusted
+    /// hops. Entries left of the answer are never examined, so junk there (including
+    /// non-ASCII or invalid UTF-8) cannot invalidate a valid rightmost address.
+    fn forwarded(&self, value: &[u8]) -> Option<String> {
         if value.is_empty() {
             return None;
         }
-        let items: Vec<&str> = value.split(',').collect();
+        let items: Vec<&[u8]> = value.split(|&b| b == b',').collect();
         for (i, item) in items.iter().enumerate().rev() {
-            let text = item.trim();
+            let text = std::str::from_utf8(go_trim_space(item)).ok()?;
             let ip = parse_ip(text)?;
             if i == 0 || !self.contains(ip) {
-                return Some(text);
+                return Some(text.to_owned());
             }
         }
         None

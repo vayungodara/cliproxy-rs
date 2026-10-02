@@ -61,18 +61,15 @@ impl Management {
     /// Publishes a config and everything Go derives from it on reload: scheduler
     /// policy, management availability, and the credential set (auth-dir files plus
     /// config API keys). `files` replaces the auth-dir scan when the caller already
-    /// has a reconciled list. Callers hold `disk`.
-    pub(crate) fn publish(&self, cfg: Config, files: Option<Vec<Credential>>) -> std::io::Result<()> {
-        let mut all = match files {
-            Some(files) => files,
-            None => credentials::from_auth_dir(&cfg)?,
-        };
+    /// has a reconciled list. Callers hold `disk`. Infallible on purpose: access
+    /// settings of a valid config (a rotated or removed secret) always take effect.
+    pub(crate) fn publish(&self, cfg: Config, files: Option<Vec<Credential>>) {
+        let mut all = files.unwrap_or_else(|| credentials::from_auth_dir(&cfg));
         all.extend(credentials::from_config(&cfg));
         self.access.config_published(&cfg);
         let policy = policy(&cfg);
         self.rt.publish_config_and_policy(cfg, policy);
         self.rt.store().reconcile(all);
-        Ok(())
     }
 }
 
@@ -408,9 +405,7 @@ fn config_sync(state: &Management, path: &str, method: Method, body: &[u8]) -> R
     if ConfigDocument::write(&state.path, &text).is_err() {
         return error(500, "write_failed");
     }
-    if let Err(e) = state.publish(cfg, None) {
-        tracing::warn!(error = %e, "config saved; auth-dir scan failed, keeping current credentials");
-    }
+    state.publish(cfg, None);
     json(StatusCode::OK, &json!({"status":"ok", "config-version":8}))
 }
 

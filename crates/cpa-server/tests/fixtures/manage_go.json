@@ -1,4 +1,85 @@
 {
+ "client_ip_bytes": [
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "127.0.0.1:40000",
+   "xff_hex": "c3a974c3a92c203139382e35312e3130302e39",
+   "ip": "198.51.100.9"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "127.0.0.1:40000",
+   "xff_hex": "fffe2c203139382e35312e3130302e39",
+   "ip": "198.51.100.9"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "127.0.0.1:40000",
+   "xff_hex": "c2a03139382e35312e3130302e39e28083",
+   "ip": "198.51.100.9"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "127.0.0.1:40000",
+   "xff_hex": "3139382e35312e3130302e3920c285",
+   "ip": "198.51.100.9"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "127.0.0.1:40000",
+   "xff_hex": "3139382e35312e3130302e392c20ff",
+   "x_real_ip_hex": "3230332e302e3131332e35",
+   "ip": "203.0.113.5"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "127.0.0.1:40000",
+   "xff_hex": "3139382e35312e3130302e39ff",
+   "ip": "127.0.0.1"
+  },
+  {
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "remote": "127.0.0.1:40000",
+   "xff_hex": "ff3139382e35312e3130302e39",
+   "ip": "127.0.0.1"
+  },
+  {
+   "trusted": [
+    "::1"
+   ],
+   "remote": "[::1]:1",
+   "xff_hex": "7880792c203a3a312c20323030313a6462383a3a37",
+   "ip": "2001:db8::7"
+  },
+  {
+   "trusted": [
+    "fe80::/10"
+   ],
+   "remote": "[fe80::1%eth0]:1",
+   "xff_hex": "3139382e35312e3130302e39",
+   "ip": ""
+  },
+  {
+   "trusted": null,
+   "remote": "[fe80::1%eth0]:1",
+   "xff_hex": "3139382e35312e3130302e39",
+   "ip": ""
+  }
+ ],
  "routes": [
   {
    "name": "unknown_paths_methods_and_preflight",
@@ -298,7 +379,7 @@
       ]
      },
      "status": 200,
-     "resp_body": "{\"config-version\":8,\"management\":{\"secret-key\":\"$2a$04$nqJQas.0EAqz.CoaE./r4umW7.S4r2qY62l00HMV9iLYk9hAvkFAG\"},\"server\":{\"port\":0}}",
+     "resp_body": "{\"config-version\":8,\"management\":{\"secret-key\":\"$2a$04$CCJqN/FR9a.vRl53/GHf2el//wySod.bqD6UQTeOBpsw9PSaFdz3.\"},\"server\":{\"port\":0}}",
      "resp_headers": {
       "Access-Control-Allow-Headers": "*",
       "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
@@ -1280,6 +1361,44 @@
       ],
       "X-Forwarded-For": [
        "203.0.113.9"
+      ]
+     },
+     "status": 200,
+     "body": "{\"ok\":true}",
+     "x_cpa_version": "dev"
+    }
+   ]
+  },
+  {
+   "name": "forwarded_junk_cannot_make_remote_local",
+   "secret": "fake-secret",
+   "allow_remote": false,
+   "trusted": [
+    "127.0.0.1"
+   ],
+   "steps": [
+    {
+     "remote": "127.0.0.1:40000",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-secret"
+      ],
+      "X-Forwarded-For": [
+       "été, 198.51.100.9"
+      ]
+     },
+     "status": 403,
+     "body": "{\"error\":\"remote management disabled\"}",
+     "x_cpa_version": "dev"
+    },
+    {
+     "remote": "127.0.0.1:40000",
+     "headers": {
+      "Authorization": [
+       "Bearer fake-secret"
+      ],
+      "X-Forwarded-For": [
+       "été, 127.0.0.1"
       ]
      },
      "status": 200,

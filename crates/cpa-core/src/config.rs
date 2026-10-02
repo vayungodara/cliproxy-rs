@@ -19,7 +19,7 @@ mod schema;
 mod trusted;
 pub use document::ConfigDocument;
 pub use schema::validate as validate_config_fields;
-pub use trusted::TrustedProxies;
+pub use trusted::{TrustedProxies, go_trim_space};
 
 /// Default port used only where CLIProxyAPI falls back to it (management base URL).
 /// The loader itself leaves an omitted port at 0, as Go does.

@@ -82,8 +82,7 @@ async fn main() -> anyhow::Result<()> {
         tracing::warn!("access.api-keys is empty: the proxy API is open to anyone who can reach it");
     }
     // Auth-dir files and config API keys, synthesized as Go's watcher does.
-    let credentials = cpa_core::config::credentials::load(&config)
-        .with_context(|| format!("reading auth dir {}", config.auth_dir.display()))?;
+    let credentials = cpa_core::config::credentials::load(&config);
     tracing::info!(credentials = credentials.len(), "credentials loaded");
     let listener =
         bind(&config.host, config.port).with_context(|| format!("binding {}:{}", config.host, config.port))?;
