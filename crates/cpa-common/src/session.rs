@@ -924,6 +924,13 @@ fn finalize(mut info: SessionInfo) -> Option<SessionInfo> {
     Some(info)
 }
 
+/// Go `$CPA-SESSION-ID` for custom headers (`resolveCPASessionID` after the handler's
+/// `EnrichContextWithSessionHierarchy`): the request's explicit session, never a derived
+/// or message-hash fallback. `body` is the client's original request body.
+pub fn cpa_session_id(headers: &HeaderMap, body: &[u8], execution_session: Option<&str>) -> Option<String> {
+    extract_session_info(headers, body, execution_session).map(|info| info.session_id)
+}
+
 /// Go metadata the session fallbacks read.
 #[derive(Debug, Clone, Default)]
 pub struct Meta<'a> {
