@@ -442,8 +442,9 @@ pub fn generate_claude_tool_call_id() -> Vec<u8> {
     out
 }
 
-/// Replaces every rune outside `[a-zA-Z0-9_-]` (each invalid byte counts as one) with `_`.
-fn sanitize(s: &[u8]) -> Vec<u8> {
+/// Replaces every rune outside `[a-zA-Z0-9_-]` (each invalid byte counts as one) with `_`
+/// (also Codex's sanitizeToolName).
+pub fn sanitize(s: &[u8]) -> Vec<u8> {
     let mut out = Vec::with_capacity(s.len());
     let mut i = 0;
     while i < s.len() {
