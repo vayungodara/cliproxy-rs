@@ -37,10 +37,10 @@ use cpa_core::format::Format;
 use futures_util::StreamExt;
 
 use crate::oauth::{self, OAuth};
-use crate::proxy::{GoClients, GoHeaders, Proxy};
+use crate::proxy::{GoClients, GoHeaders, Proxy, Route};
 use crate::rawjson;
 use crate::tls::Transport;
-use crate::upstream::{decode_upstream, decoded_response, transport_error};
+use crate::upstream::{Decoded, decode_upstream};
 use crate::{quota, tokens, translate};
 use settings::Settings;
 
@@ -231,7 +231,9 @@ impl ClaudeExecutor {
                         &continuity.prompt_id,
                     );
                 });
-                ResponseBody::Stream(stream::relay(raw, reverse, done))
+                let relayed =
+                    stream::relay(raw, reverse, done).map(move |r| r.map_err(|e| fast_request_error(fast, e)));
+                ResponseBody::Stream(relayed.boxed())
             }
             ResponseBody::Stream(raw) => {
                 let data = collect(raw).await.map_err(wrap)?;
@@ -251,11 +253,9 @@ impl ClaudeExecutor {
                             out.push(b'\n');
                         }
                         out.extend(stream::restore_line(line, &reverse).map_err(|m| {
-                            wrap(ExecError::local(
-                                500,
-                                FailureScope::Request,
-                                format!("restore Claude OAuth tool name from streaming response: {m}"),
-                            ))
+                            wrap(plain_error(format!(
+                                "restore Claude OAuth tool name from streaming response: {m}"
+                            )))
                         })?);
                     }
                     ResponseBody::Buffered(Bytes::from(out))
@@ -269,13 +269,8 @@ impl ClaudeExecutor {
                         &request_id,
                         &continuity.prompt_id,
                     );
-                    let restored = alias::restore_response(&text, &reverse).map_err(|m| {
-                        ExecError::local(
-                            500,
-                            FailureScope::Request,
-                            format!("restore Claude OAuth tool name from response: {m}"),
-                        )
-                    })?;
+                    let restored = alias::restore_response(&text, &reverse)
+                        .map_err(|m| plain_error(format!("restore Claude OAuth tool name from response: {m}")))?;
                     ResponseBody::Buffered(Bytes::from(restored))
                 }
             }
@@ -328,58 +323,73 @@ impl ClaudeExecutor {
     async fn send(&self, ctx: &Ctx<'_>, prepared: &Prepared, path: &str) -> Result<RawResponse, ExecError> {
         let url = format!("{}{path}?beta=true", ctx.base_url);
         let fast = ctx.first_party && prepared.fast;
-        let exchange = async {
-            Ok(if ctx.first_party {
-                let client = self.native_client(&ctx.proxy)?;
-                let mut order = wreq::header::OrigHeaderMap::new();
-                for name in &prepared.order {
-                    order.insert(name.clone());
+        let mut headers = GoHeaders::new();
+        for (name, value) in &prepared.headers {
+            headers.add_raw(name, value.as_str());
+        }
+        // Go's fallbackRoundTripper, per hop: the native Claude Code transport and
+        // ordered writer for Anthropic, http.DefaultTransport (or the proxy transport)
+        // for every other origin, behind one redirect-following http.Client.
+        let route = |hop: &url::Url| {
+            Ok(if tokens::first_party(hop.as_str()) {
+                Route {
+                    client: self.native_client(&ctx.proxy)?,
+                    order: Some(prepared.order.clone()),
                 }
-                let mut request = client
-                    .post(&url)
-                    .redirect(wreq::redirect::Policy::none())
-                    .orig_headers(order)
-                    .default_headers(false);
-                for (name, value) in &prepared.headers {
-                    request = request.header(name.as_str(), value.as_str());
-                }
-                let res = request
-                    .body(prepared.body.clone())
-                    .send()
-                    .await
-                    .map_err(transport_error)?;
-                decoded_response(res).await?
             } else {
-                // Go's fallback round tripper: http.DefaultTransport (or the proxy
-                // transport) behind an http.Client that follows redirects.
-                let mut headers = GoHeaders::new();
-                for (name, value) in &prepared.headers {
-                    headers.add_raw(name, value.as_str());
+                Route {
+                    client: self.go.get(&ctx.proxy),
+                    order: None,
                 }
-                let client = self.go.get(&ctx.proxy);
-                let upstream = crate::proxy::send(&client, &url, headers, prepared.body.clone(), None).await?;
-                decode_upstream(upstream).await?
             })
         };
-        let (status, headers, body) = exchange.await.map_err(|e| fast_request_error(fast, e))?;
-        if !(200..300).contains(&status) {
-            let data = crate::upstream::read_bounded(body, crate::upstream::MAX_ERROR_BODY)
-                .await
-                .map_err(|e| fast_request_error(fast, e))?;
-            return Err(upstream_error(
-                status,
-                headers,
-                data,
-                fast,
-                ctx.settings.model_level_cooling,
-            ));
-        }
-        Ok(RawResponse {
+        let upstream = crate::proxy::send_routed(&route, &url, headers, Bytes::from(prepared.body.clone()), None)
+            .await
+            .map_err(|e| fast_request_error(fast, e))?;
+        finish(decode_upstream(upstream).await, fast, ctx.settings.model_level_cooling).await
+    }
+}
+
+/// The response half of Go's Execute, ExecuteStream and countTokensUpstream: the
+/// decoded 2xx body, or the error Go builds from a non-2xx answer. An undecodable or
+/// unreadable error body keeps the upstream status and says why.
+async fn finish(decoded: Decoded, fast: bool, model_level_cooling: bool) -> Result<RawResponse, ExecError> {
+    let Decoded { status, headers, body } = decoded;
+    if (200..300).contains(&status) {
+        let body = body.map_err(|m| fast_request_error(fast, plain_error(m)))?;
+        return Ok(RawResponse {
             status,
             headers,
             body: ResponseBody::Stream(body),
-        })
+        });
     }
+    let data = match body {
+        Err(m) => {
+            let message = format!("failed to decode error response body: {m}");
+            let error = upstream_error(status, headers, Bytes::from(message), false, model_level_cooling);
+            return Err(fast_request_error(fast, error));
+        }
+        Ok(mut body) => {
+            // ponytail: Go reads error bodies without a bound; 16 MiB covers any real
+            // provider error without letting a hostile upstream exhaust a small VPS.
+            let mut data = BytesMut::new();
+            loop {
+                match body.next().await {
+                    Some(Ok(chunk)) if data.len() < crate::proxy::MAX_ERROR_BODY => data.extend_from_slice(&chunk),
+                    Some(Ok(_)) | None => break data.freeze(),
+                    Some(Err(e)) => {
+                        let reason = if e.scope == FailureScope::Transport {
+                            "unexpected EOF".into()
+                        } else {
+                            String::from_utf8_lossy(&e.body).into_owned()
+                        };
+                        break Bytes::from(format!("failed to read error response body: {reason}"));
+                    }
+                }
+            }
+        }
+    };
+    Err(upstream_error(status, headers, data, fast, model_level_cooling))
 }
 
 struct RawResponse {
@@ -442,11 +452,22 @@ fn upstream_error(
     quota::classify(error, model_level_cooling)
 }
 
+/// A Go error with no status or scope (`fmt.Errorf`): the handler answers 500, and the
+/// conductor neither cools the credential nor treats the request as unservable.
+pub(crate) fn plain_error(message: impl Into<String>) -> ExecError {
+    ExecError::local(500, FailureScope::Transport, message)
+}
+
 /// `wrapClaudeFastRequestError`: any other failure of a fast request stops at the
-/// caller instead of failing over, unless it is already credential-scoped.
+/// caller instead of failing over. Only a cause that is explicitly credential-scoped
+/// (a classified shared-window 429) keeps that scope; status-derived scope does not.
 fn fast_request_error(fast: bool, mut error: ExecError) -> ExecError {
-    if fast && error.scope != FailureScope::Credential {
-        error.scope = FailureScope::Request;
+    if fast {
+        let shared_window =
+            error.scope == FailureScope::Credential && error.status == 429 && quota::shared_rejection(&error.headers);
+        if !shared_window {
+            error.scope = FailureScope::Request;
+        }
     }
     error
 }
@@ -484,6 +505,14 @@ struct Prepared {
     reverse: alias::Reverse,
     continuity: session::Continuity,
     fast: bool,
+}
+
+/// `config.NormalizeClaudeFingerprintProfile`: unknown values are the default ("").
+fn normalize_fingerprint_profile(raw: &str) -> &'static str {
+    match raw.trim().to_lowercase().as_str() {
+        "claude-code-cli" | "oauth-cli" => "claude-code-cli",
+        _ => "",
+    }
 }
 
 /// `helps.SetStringIfDifferent`.
@@ -687,26 +716,24 @@ impl<'a> Ctx<'a> {
             attr("base_url").trim_end_matches('/').to_owned()
         };
         let oauth_token = api_key.contains("sk-ant-oat");
-        let profile = {
-            let own = attr("fingerprint_profile").trim().to_lowercase();
-            let own = if own.is_empty() {
+        // claudeFingerprintProfileFromConfig: the credential's own value, else the key's.
+        let own = Some(attr("fingerprint_profile"))
+            .filter(|s| !s.trim().is_empty())
+            .or_else(|| {
                 ["fingerprint_profile", "fingerprint-profile"]
                     .iter()
                     .filter_map(|k| credential.str(k))
-                    .map(|s| s.trim().to_lowercase())
-                    .find(|s| !s.is_empty())
-                    .unwrap_or_default()
-            } else {
-                own
-            };
-            if own.is_empty() {
-                settings
-                    .key_for(&api_key, attr("base_url"))
-                    .map(|k| k.fingerprint_profile.trim().to_lowercase())
-                    .unwrap_or_default()
-            } else {
-                own
-            }
+                    .find(|s| !s.trim().is_empty())
+            })
+            .map(normalize_fingerprint_profile)
+            .unwrap_or_default();
+        let profile = if own.is_empty() {
+            settings
+                .key_for(&api_key, attr("base_url"))
+                .map(|k| normalize_fingerprint_profile(&k.fingerprint_profile))
+                .unwrap_or_default()
+        } else {
+            own
         };
         let api_key_kind = attr("auth_kind") == "apikey";
         let bearer = oauth_token || (!api_key_kind && attr("api_key").trim().is_empty());

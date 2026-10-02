@@ -170,17 +170,11 @@ fn normalize_random(text: &str) -> String {
     cch.replace_all(&text, "cch=<cch>;").into_owned()
 }
 
-/// The error Rust builds from the scenario's upstream reply matches what Go's conductor
-/// and handlers read from its error: scope, retry hint, and the direct response.
-fn assert_go_error(
-    name: &str,
-    scenario: &Value,
-    info: &serde_json::Map<String, Value>,
-    ctx: &Ctx<'_>,
-    prepared: &Prepared,
-) {
+/// Runs the scenario's upstream reply through the executor's response half (decoding,
+/// error-body reading and classification) exactly as `send` does after the exchange.
+async fn finish_reply(scenario: &Value, ctx: &Ctx<'_>, prepared: &Prepared) -> Result<RawResponse, ExecError> {
+    use base64::Engine;
     let reply = &scenario["reply"];
-    let status = reply["status"].as_u64().unwrap() as u16;
     let mut headers = http::HeaderMap::new();
     headers.insert(
         http::header::CONTENT_TYPE,
@@ -192,29 +186,46 @@ fn assert_go_error(
             kv[1].as_str().unwrap().parse().unwrap(),
         );
     }
-    let body = Bytes::from(reply["body"].as_str().unwrap().to_owned());
+    let body = match reply["body_b64"].as_str() {
+        Some(b64) => base64::engine::general_purpose::STANDARD.decode(b64).unwrap(),
+        None => scenario["upstream"][0]["reply"].as_str().unwrap().as_bytes().to_vec(),
+    };
+    let upstream = crate::proxy::Upstream {
+        status: reply["status"].as_u64().unwrap() as u16,
+        headers,
+        body: futures_util::stream::iter([Ok(Bytes::from(body))]).boxed(),
+    };
     let fast = ctx.first_party && prepared.fast;
-    let error = upstream_error(status, headers, body, fast, ctx.settings.model_level_cooling);
+    finish(decode_upstream(upstream).await, fast, ctx.settings.model_level_cooling).await
+}
+
+/// The error Rust builds from the scenario's upstream reply matches what Go's conductor
+/// and handlers read from its error: scope, retry hint, and the direct response.
+fn assert_go_error(name: &str, scenario: &Value, info: &serde_json::Map<String, Value>, error: ExecError) {
+    let status = scenario["error_status"]
+        .as_u64()
+        .or(info.get("direct_status").and_then(Value::as_u64))
+        .map(|s| s as u16);
     let flag = |k: &str| info[k].as_bool().unwrap();
     let scope = if flag("request_scoped") {
         FailureScope::Request
     } else if flag("credential_scoped") {
         FailureScope::Credential
-    } else if status == 429 {
+    } else if error.status == 429 {
         FailureScope::Model
+    } else if status.is_none() {
+        // A plain Go error: no status, scope or retry semantics.
+        FailureScope::Transport
     } else {
-        crate::upstream::scope_for(status)
+        crate::upstream::scope_for(error.status)
     };
     assert_eq!(error.scope, scope, "{name}: scope");
     assert_eq!(error.retry_after.is_some(), flag("retry_after"), "{name}: retry hint");
     assert_eq!(error.direct, flag("direct"), "{name}: direct response");
-    assert_eq!(error.status, status, "{name}: status");
+    if let Some(status) = status {
+        assert_eq!(error.status, status, "{name}: status");
+    }
     if error.direct {
-        assert_eq!(
-            info["direct_status"].as_u64(),
-            Some(u64::from(status)),
-            "{name}: direct status"
-        );
         assert_eq!(error.body, info["direct_body"].as_str().unwrap(), "{name}: direct body");
         let mut ours: Vec<(String, String)> = error
             .headers
@@ -235,8 +246,7 @@ fn assert_go_error(
             .collect();
         assert_eq!(ours, theirs, "{name}: direct headers");
     } else {
-        let message = scenario["error"].as_str().unwrap();
-        assert_eq!(error.body, message, "{name}: error message");
+        assert_eq!(error.body, scenario["error"].as_str().unwrap(), "{name}: error message");
     }
 }
 
@@ -334,8 +344,24 @@ async fn executor_scenarios_match_go() {
             .as_array()
             .map(|o| o.iter().map(|v| v.as_str().unwrap().to_owned()).collect())
             .unwrap_or_default();
+        let finished = finish_reply(scenario, &ctx, &prepared).await;
         if let Some(info) = scenario["error_info"].as_object() {
-            assert_go_error(name, scenario, info, &ctx, &prepared);
+            let error = finished
+                .err()
+                .unwrap_or_else(|| panic!("{name}: Go failed, Rust succeeded"));
+            assert_go_error(name, scenario, info, error);
+            continue;
+        }
+        if scenario["reply"]["body_b64"].is_string() {
+            let Ok(RawResponse {
+                body: ResponseBody::Stream(raw),
+                ..
+            }) = finished
+            else {
+                panic!("{name}: Rust failed where Go succeeded");
+            };
+            let decoded = collect(raw).await.unwrap();
+            assert_eq!(decoded, output[0].as_bytes(), "{name}: decoded body");
             continue;
         }
         let request_id = scenario["reply"]["headers"]

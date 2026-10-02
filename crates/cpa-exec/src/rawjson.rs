@@ -42,6 +42,8 @@ fn marshal(s: &str, html: bool) -> String {
             '\n' => out.push_str("\\n"),
             '\r' => out.push_str("\\r"),
             '\t' => out.push_str("\\t"),
+            '\u{8}' => out.push_str("\\b"),
+            '\u{c}' => out.push_str("\\f"),
             '<' | '>' | '&' if html => out.push_str(&format!("\\u{:04x}", c as u32)),
             '\u{2028}' | '\u{2029}' => out.push_str(&format!("\\u{:04x}", c as u32)),
             c if (c as u32) < 0x20 => out.push_str(&format!("\\u{:04x}", c as u32)),

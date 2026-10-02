@@ -280,38 +280,48 @@ impl GoHeaders {
         first
     }
 
-    /// Applies the headers with Go's wire order and spelling. Returns whether the
-    /// transport asked for gzip itself (no explicit Accept-Encoding or Range), which is
-    /// the only case Go decodes transparently.
-    pub fn apply(mut self, builder: wreq::RequestBuilder) -> (wreq::RequestBuilder, bool) {
+    /// Applies the headers with their wire spelling. `order` is an exact header order
+    /// (Claude's ordered request writer); `None` writes Go net/http's order. Returns
+    /// whether the transport asked for gzip itself (no explicit Accept-Encoding or
+    /// Range), which is the only case Go decodes transparently.
+    pub fn apply(mut self, builder: wreq::RequestBuilder, order: Option<&[String]>) -> (wreq::RequestBuilder, bool) {
         let auto_gzip = self.get("Accept-Encoding").is_none() && self.get("Range").is_none();
         // A custom Host header becomes the request Host (util.applyCustomHeaders).
         let host = self.take("Host").filter(|h| !h.is_empty());
         self.take("Content-Length");
-        let mut order = wreq::header::OrigHeaderMap::new();
-        order.insert("Host");
-        order.insert("User-Agent");
-        order.insert("Content-Length");
         if self.get("User-Agent").is_none() {
             // ponytail: Go says Go-http-client/2.0 on HTTP/2; this is the HTTP/1.1 value.
             self.headers.push(("User-Agent".into(), "Go-http-client/1.1".into()));
         }
-        let mut rest: Vec<&String> = self
-            .headers
-            .iter()
-            .map(|(n, _)| n)
-            .filter(|n| *n != "User-Agent")
-            .collect();
-        rest.sort();
-        rest.dedup();
-        for name in rest {
-            order.insert(name.clone());
+        let mut wire = wreq::header::OrigHeaderMap::new();
+        match order {
+            Some(order) => {
+                for name in order {
+                    wire.insert(name.clone());
+                }
+            }
+            None => {
+                wire.insert("Host");
+                wire.insert("User-Agent");
+                wire.insert("Content-Length");
+                let mut rest: Vec<&String> = self
+                    .headers
+                    .iter()
+                    .map(|(n, _)| n)
+                    .filter(|n| *n != "User-Agent")
+                    .collect();
+                rest.sort();
+                rest.dedup();
+                for name in rest {
+                    wire.insert(name.clone());
+                }
+            }
         }
         if auto_gzip {
-            order.insert("Accept-Encoding");
+            wire.insert("Accept-Encoding");
             self.headers.push(("Accept-Encoding".into(), "gzip".into()));
         }
-        let mut builder = builder.orig_headers(order).default_headers(false);
+        let mut builder = builder.orig_headers(wire).default_headers(false);
         if let Some(host) = host {
             builder = builder.header("Host", host);
         }
@@ -320,6 +330,14 @@ impl GoHeaders {
         }
         (builder, auto_gzip)
     }
+}
+
+/// How one request hop is sent: its client, and an exact header order for Claude's
+/// native transport (`None` is Go net/http's order). Go's `http.Client` picks the
+/// round tripper per hop, so a redirect can change both.
+pub struct Route {
+    pub client: wreq::Client,
+    pub order: Option<Vec<String>>,
 }
 
 /// A response with Go net/http semantics: the body is decoded only for gzip the
@@ -339,10 +357,11 @@ fn body_error(_: std::io::Error) -> ExecError {
     ExecError::local(502, FailureScope::Transport, "upstream request failed")
 }
 
-/// POSTs `body` the way Go's `http.Client.Do` does, following redirects itself: up to
-/// ten hops, 301/302/303 turn a POST into a body-less GET, 307/308 resend the body, the
-/// initial headers are copied to every hop (credentials only within the original
-/// domain), and the previous URL becomes `Referer`. `timeout` bounds the exchange.
+/// POSTs `body` the way Go's `http.Client.Do` does, following redirects itself: at
+/// most ten requests, 301/302/303 turn a POST into a body-less GET, 307/308 resend the
+/// body, the initial headers are copied to every hop (credentials only within the
+/// original domain), a custom Host survives only relative redirects, and the previous
+/// URL becomes `Referer`. `timeout` bounds the exchange.
 pub async fn send(
     client: &wreq::Client,
     url: &str,
@@ -350,31 +369,51 @@ pub async fn send(
     body: impl Into<Bytes>,
     timeout: Option<std::time::Duration>,
 ) -> Result<Upstream, ExecError> {
-    let body: Bytes = body.into();
+    let route = |_: &url::Url| {
+        Ok(Route {
+            client: client.clone(),
+            order: None,
+        })
+    };
+    send_routed(&route, url, headers, body.into(), timeout).await
+}
+
+/// [`send`] with the client and header order chosen per hop.
+pub async fn send_routed(
+    route: &(dyn Fn(&url::Url) -> Result<Route, ExecError> + Sync),
+    url: &str,
+    headers: GoHeaders,
+    body: Bytes,
+    timeout: Option<std::time::Duration>,
+) -> Result<Upstream, ExecError> {
     let initial =
         url::Url::parse(url).map_err(|_| ExecError::local(500, FailureScope::Request, "invalid upstream URL"))?;
-    let explicit_host = headers.get("Host").map(str::to_owned);
     let explicit_referer = headers.get("Referer").map(str::to_owned);
     let mut current = initial.clone();
+    // req.Host: the custom Host of the current hop, if any.
+    let mut host = headers.get("Host").filter(|h| !h.is_empty()).map(str::to_owned);
     let mut method = wreq::Method::POST;
     let mut include_body = true;
     let mut strip_sensitive = false;
     let mut hop_headers = headers.clone();
-    let mut hops = 0;
+    let mut sent = 0;
     let (response, auto_gzip) = loop {
-        let mut builder = client
+        let hop = route(&current)?;
+        let mut builder = hop
+            .client
             .request(method.clone(), current.as_str())
             .redirect(wreq::redirect::Policy::none());
         if let Some(timeout) = timeout {
             builder = builder.timeout(timeout);
         }
-        let (builder, auto_gzip) = hop_headers.clone().apply(builder);
+        let (builder, auto_gzip) = hop_headers.clone().apply(builder, hop.order.as_deref());
         let builder = if include_body {
             builder.body(body.clone())
         } else {
             builder
         };
         let response = builder.send().await.map_err(crate::upstream::transport_error)?;
+        sent += 1;
         let status = response.status().as_u16();
         let location = response
             .headers()
@@ -385,14 +424,6 @@ pub async fn send(
         if !matches!(status, 301 | 302 | 303 | 307 | 308) || location.is_empty() {
             break (response, auto_gzip);
         }
-        if hops == 10 {
-            return Err(ExecError::local(
-                500,
-                FailureScope::Transport,
-                "stopped after 10 redirects",
-            ));
-        }
-        hops += 1;
         let next = current.join(&location).map_err(|_| {
             ExecError::local(
                 500,
@@ -400,6 +431,14 @@ pub async fn send(
                 format!("failed to parse Location header {location:?}"),
             )
         })?;
+        // defaultCheckRedirect: len(via) >= 10.
+        if sent >= 10 {
+            return Err(ExecError::local(
+                500,
+                FailureScope::Transport,
+                "stopped after 10 redirects",
+            ));
+        }
         if (301..=303).contains(&status) {
             include_body = false;
             if method != wreq::Method::GET && method != wreq::Method::HEAD {
@@ -440,11 +479,10 @@ pub async fn send(
                 hop_headers.take(name);
             }
         }
-        // A custom Host survives only a relative Location.
+        // Only a relative Location keeps the current hop's custom Host (go.dev/issue/22233).
         hop_headers.take("Host");
-        if let Some(host) = &explicit_host
-            && url::Url::parse(&location).is_err()
-        {
+        host = host.filter(|_| url::Url::parse(&location).is_err());
+        if let Some(host) = &host {
             hop_headers.set("Host", host.clone());
         }
         hop_headers.take("Referer");

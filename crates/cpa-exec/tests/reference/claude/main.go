@@ -7,6 +7,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -35,6 +36,7 @@ type reply struct {
 	Status      int         `json:"status"`
 	ContentType string      `json:"content_type"`
 	Body        string      `json:"body"`
+	BodyB64     string      `json:"body_b64,omitempty"`
 	Headers     [][2]string `json:"headers,omitempty"`
 }
 
@@ -123,6 +125,11 @@ func (c *capture) RoundTrip(r *http.Request) (*http.Response, error) {
 	}
 	sort.Slice(headers, func(i, j int) bool { return headers[i][0] < headers[j][0] })
 	replyBody := substitute(c.reply.Body, string(body))
+	if c.reply.BodyB64 != "" {
+		raw, err := base64.StdEncoding.DecodeString(c.reply.BodyB64)
+		must(err)
+		replyBody = string(raw)
+	}
 	c.requests = append(c.requests, upstream{URL: r.URL.String(), Headers: headers, Body: string(body), Reply: replyBody})
 	h := http.Header{}
 	h.Set("Content-Type", c.reply.ContentType)
@@ -312,6 +319,7 @@ func sjsonCases() []sjsonCase {
 		{Op: "string", JSON: `{"a":1}`, Path: "t", Value: "x<y"},
 		{Op: "string", JSON: `{"a":1}`, Path: "t", Value: "é<&>\u2028\x01\"\\\n"},
 		{Op: "string", JSON: `{"a":"old"}`, Path: "a", Value: "new"},
+		{Op: "string", JSON: `{"a":1}`, Path: "t", Value: "b\bf\fu\x0b"},
 	}
 	for i, c := range inputs {
 		var out []byte

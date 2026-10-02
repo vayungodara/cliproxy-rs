@@ -88,11 +88,9 @@ impl Relay {
         let restored = match restore_line(line, &self.reverse) {
             Ok(restored) => restored,
             Err(message) => {
-                self.fail(ExecError::local(
-                    500,
-                    FailureScope::Request,
-                    format!("restore Claude OAuth tool name from streaming response: {message}"),
-                ));
+                self.fail(super::plain_error(format!(
+                    "restore Claude OAuth tool name from streaming response: {message}"
+                )));
                 return false;
             }
         };
@@ -155,11 +153,7 @@ impl Relay {
             }
         }
         if self.line.len() > MAX_LINE {
-            self.fail(ExecError::local(
-                500,
-                FailureScope::Request,
-                "bufio.Scanner: token too long",
-            ));
+            self.fail(super::plain_error("bufio.Scanner: token too long"));
         }
     }
 
