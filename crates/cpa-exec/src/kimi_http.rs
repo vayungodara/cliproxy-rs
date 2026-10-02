@@ -50,6 +50,54 @@ pub(crate) fn hostname() -> Option<String> {
     Some(String::from_utf8_lossy(&buf[..end]).into_owned())
 }
 
+/// Go `ApplyPayloadConfigWithRequest` (no target executor) for the device providers:
+/// `requests.payload` rules for `model`, `protocol` the target format, `original` the
+/// client's original request translated to that target.
+// ponytail: the rules are parsed per request (the runtime has no per-snapshot slot), and
+// ExecRequest has no inbound route path, so path-gated image-generation rules see "".
+pub(crate) fn payload_rules(
+    cfg: &cpa_core::config::Config,
+    req: &cpa_core::exec::ExecRequest,
+    model: &str,
+    protocol: &str,
+    body: Vec<u8>,
+    original: &[u8],
+) -> Vec<u8> {
+    use cpa_common::payload;
+    let rules = payload::Rules::from_config(cfg);
+    // PayloadRequestedModel: the client's model, else req.Model.
+    let requested = match req.requested_model.trim() {
+        "" => req.model.trim(),
+        requested => requested,
+    };
+    payload::apply(
+        &rules,
+        &payload::Request {
+            target_executor: "",
+            model,
+            requested_model: requested,
+            protocol,
+            from_protocol: req.source_format.as_str(),
+            root: "",
+            original,
+            request_path: "",
+            headers: Some(&req.headers),
+        },
+        body,
+    )
+}
+
+/// `util.ApplyCustomHeadersFromAttrs` through cpa_common::headers, with Go's
+/// `$CPA-SESSION-ID`: the request's explicit session only.
+pub(crate) fn credential_headers(
+    credential: &Credential,
+    req: &cpa_core::exec::ExecRequest,
+    original: &[u8],
+) -> Vec<(String, String)> {
+    let session = cpa_common::session::cpa_session_id(&req.headers, original, req.execution_session.as_deref());
+    cpa_common::headers::custom_headers(&credential.attributes, &req.headers, session.as_deref())
+}
+
 /// Version reported where Go sends `buildinfo.Version`.
 pub(crate) const BUILD_VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -93,8 +141,8 @@ pub(crate) async fn read_all_strict(
     Ok(out.freeze())
 }
 
-/// ponytail: adapter for `cpa_common::headers` (owner: server thread); swap for the shared
-/// helper when it lands.
+/// ponytail: superseded by `cpa_common::headers` (Kimi and Meta use it). Only
+/// openai_compat_http still calls this copy; delete it when that file switches.
 ///
 /// `util.ApplyCustomHeadersFromAttrs`: `header:<Name>` attributes and the file's `headers`
 /// map (synthesized into attributes by Go). `$Name` copies an inbound header and

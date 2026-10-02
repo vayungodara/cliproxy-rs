@@ -44,6 +44,7 @@ func TestRSFixMeta(t *testing.T) {
 		mint      bool
 		responses []rsfixResponse
 		dynamic   func(url string) []rsfixResponse
+		cfg       string
 	}{
 		{name: "responses-nonstream-collected", body: body, meta: apiMeta, responses: []rsfixResponse{sseResp(stream)}},
 		{name: "responses-stream", stream: true, body: body, meta: apiMeta, responses: []rsfixResponse{sseResp(stream)}},
@@ -75,6 +76,9 @@ func TestRSFixMeta(t *testing.T) {
 			attrs:   map[string]string{"api_key": "cfg-key", "source": "config:meta[abc]", "header:X-Team": "blue", "header:X-Fwd": "$X-Client-Req", "header:X-Missing": "$X-Absent"},
 			headers: http.Header{"X-Client-Req": {"r1"}},
 			meta:    map[string]any{}, responses: []rsfixResponse{sseResp(stream)}},
+		{name: "payload-rules-and-headers", body: `{"model":"muse-spark-1.3(high)","input":"hi","temperature":0.2}`, cfg: "payload:\n  default:\n    - models: [{name: \"muse-*\", protocol: meta}]\n      params: {temperature: 0.7, store: true, metadata_hint: \"d\"}\n    - models: [{name: \"muse-*\", protocol: codex}]\n      params: {wrong_protocol: true}\n  override:\n    - models: [{name: \"muse-spark-1.3(high)\", protocol: meta}]\n      params: {requested_hit: true}\n  filter:\n    - models: [{name: \"muse-*\", from-protocol: openai-response}]\n      params: [parallel_tool_calls]\n",
+			attrs: map[string]string{"auth_kind": "oauth", "header:X-Sess": "$CPA-SESSION-ID", "header:X-Tag": "t-$CPA-SESSION-ID", "header:X-Plain": "p"},
+			meta:  apiMeta, responses: []rsfixResponse{sseResp(stream)}},
 		{name: "config-apikey-dca-only", body: `{"model":"muse-spark-1.3","input":"hi"}`,
 			attrs: map[string]string{"api_key": "dca:cfg", "source": "config:meta[abc]"}, meta: map[string]any{}},
 		{name: "remint-from-dca", body: `{"model":"muse-spark-1.1","input":"hi","reasoning":{"effort":"minimal"}}`, mint: true,
@@ -130,7 +134,15 @@ func TestRSFixMeta(t *testing.T) {
 			auth := &cliproxyauth.Auth{ID: "meta-fixture.json", Provider: "meta", Attributes: attrs, Metadata: meta}
 			req := cliproxyexecutor.Request{Model: modelOf(tc.body), Payload: []byte(tc.body)}
 			opts := cliproxyexecutor.Options{SourceFormat: sdktranslator.FormatOpenAIResponse, Stream: tc.stream, Alt: tc.alt, OriginalRequest: []byte(tc.body), Headers: tc.headers}
-			exec := NewMetaExecutor(&config.Config{})
+			cfg := &config.Config{}
+			if tc.cfg != "" {
+				parsed, err := config.ParseConfigBytes([]byte(tc.cfg))
+				if err != nil {
+					t.Fatal(err)
+				}
+				cfg = parsed
+			}
+			exec := NewMetaExecutor(cfg)
 			ctx := context.Background()
 			var down rsfixDownstream
 			var execErr error
@@ -183,6 +195,9 @@ func TestRSFixMeta(t *testing.T) {
 			request := map[string]any{"source": "openai-response", "model": modelOf(tc.body), "stream": tc.stream, "body": tc.body}
 			if tc.alt != "" {
 				request["alt"] = tc.alt
+			}
+			if tc.cfg != "" {
+				request["config"] = tc.cfg
 			}
 			if tc.count {
 				request["count"] = true

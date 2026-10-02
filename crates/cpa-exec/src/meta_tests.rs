@@ -108,7 +108,8 @@ async fn run(name: &str) -> Run {
     let credential = meta_credential(&fx, &origin, &mock.url);
     let exec = MetaExecutor::with_client(default_client()).with_mint_url(&format!("{}/muse-code/key", mock.url));
     let (mut body, mut chunks, mut error) = (None, Vec::new(), None);
-    match exec.execute(&credential, request(&fx, ""), &cfg()).await {
+    let cfg = Config::parse(fx["request"]["config"].as_str().unwrap_or_default()).unwrap();
+    match exec.execute(&credential, request(&fx, ""), &cfg).await {
         Err(e) => error = Some(e),
         Ok(response) => match response.body {
             ResponseBody::Buffered(b) => body = Some(String::from_utf8(b.to_vec()).unwrap()),
@@ -204,6 +205,7 @@ async fn execution_matches_go_byte_for_byte() {
         "compact-rejected",
         "count-tokens",
         "config-apikey-headers",
+        "payload-rules-and-headers",
         "config-apikey-dca-only",
         "remint-from-dca",
         "remint-access-token-dca-minted-base",

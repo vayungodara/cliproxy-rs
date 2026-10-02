@@ -32,9 +32,7 @@ pub mod kimi_auth;
 #[cfg(test)]
 mod kimi_fixture;
 mod kimi_http;
-mod kimi_json;
 mod kimi_replay;
-mod kimi_thinking;
 pub mod meta;
 pub mod meta_auth;
 mod meta_codex;
@@ -48,6 +46,7 @@ mod openai_compat_payload;
 pub mod proxy;
 mod quota;
 mod rawjson;
+mod replay;
 mod responses_frames;
 mod tls;
 mod tokens;

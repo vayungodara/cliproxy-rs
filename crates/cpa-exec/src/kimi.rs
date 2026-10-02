@@ -7,9 +7,10 @@
 //! - OpenAI Responses: native `/v1/responses`, body kept in Responses shape.
 //! - Everything else: translated to OpenAI Chat Completions at `/v1/chat/completions`.
 //!
-//! Shared stages go through adapters named after their owners: thinking (kimi_thinking),
-//! custom headers (kimi_http), payload rules and Codex-client rewrites (below). Clients
-//! and Go net/http wire behaviour come from the shared proxy module.
+//! JSON reads and edits use cpa_common::json, thinking cpa_common::thinking, request
+//! translation cpa_translate, and clients and Go net/http wire behaviour the shared proxy
+//! module. Stages whose shared module has not landed go through adapters named after their
+//! owners: custom headers (kimi_http), payload rules and Codex-client rewrites (below).
 //! ponytail: the apply_patch Responses bridge (translator common) is not applied; requests
 //! without an apply_patch custom tool are unaffected.
 
@@ -17,6 +18,9 @@ use std::collections::VecDeque;
 use std::sync::Arc;
 
 use bytes::Bytes;
+use cpa_common::gostr::GoStr;
+use cpa_common::json::{self as gj, GoValue, Kind, Res};
+use cpa_common::thinking::{RequestThinking, apply_request_thinking, parse_suffix};
 use cpa_core::config::Config;
 use cpa_core::credential::{Credential, MetadataPatch};
 use cpa_core::exec::{ExecError, ExecRequest, ExecResponse, ExecStream, FailureScope, Operation, ResponseBody};
@@ -27,11 +31,11 @@ use futures_util::StreamExt;
 use crate::claude::{ClaudeExecutor, Delegation};
 use crate::kimi_auth::{self, DeviceFlow};
 use crate::kimi_http::{
-    BUILD_VERSION, custom_headers, go_arch, go_os, hostname, refresh_due, rfc3339_local_now, status_error,
+    BUILD_VERSION, credential_headers, go_arch, go_os, hostname, payload_rules, refresh_due, rfc3339_local_now,
+    status_error,
 };
-use crate::kimi_json::{GoValue, delete, gstr, join_array, set_raw, set_str, valid};
 use crate::kimi_replay::{self, ReplayCache};
-use crate::kimi_thinking::{self, parse_suffix};
+use crate::meta_codex::go_trim_space;
 use crate::proxy::{GoClients, GoHeaders, Proxy, Upstream, default_client, lines, read_all, send};
 
 const REASONING_UNAVAILABLE: &str = "[reasoning unavailable]";
@@ -159,7 +163,7 @@ impl KimiExecutor {
                 let restored = stream
                     .map(move |event| event.map(|e| restore_response_model(&e, &client_model)))
                     .boxed();
-                ResponseBody::Stream(kimi_replay::wrap_stream(restored, scope))
+                ResponseBody::Stream(crate::replay::wrap_stream(restored, scope))
             }
         };
         Ok(response)
@@ -263,7 +267,7 @@ fn headers(credential: &Credential, req: &ExecRequest, stream: bool) -> GoHeader
             "application/json"
         },
     );
-    for (name, value) in custom_headers(credential, &req.headers, req.session.as_deref()) {
+    for (name, value) in credential_headers(credential, req, original(req)) {
         h.set(&name, value);
     }
     h
@@ -286,22 +290,35 @@ fn not_registered(what: &str) -> ExecError {
     )
 }
 
-fn text(body: &[u8]) -> Result<&str, ExecError> {
-    std::str::from_utf8(body).map_err(|_| request_error("request body is not valid UTF-8"))
+/// `opts.OriginalRequest`, falling back to the request payload when empty.
+fn original(req: &ExecRequest) -> &Bytes {
+    if req.original_body.is_empty() {
+        &req.body
+    } else {
+        &req.original_body
+    }
 }
 
-/// ponytail: adapter for `cpa_common::payload` (owner: server thread). Go applies
-/// `requests.payload` rules here (ApplyPayloadConfigWithRequest) to the final provider body;
-/// identity until the shared module lands. `target` and `source` are Go format names.
-fn apply_payload_rules(
-    _cfg: &Config,
-    _model: &str,
-    _target: &str,
-    _source: &str,
-    body: String,
-    _req: &ExecRequest,
-) -> String {
-    body
+/// `helps.ApplyRequestThinking` for Kimi. `to` is Go's target format name: `kimi` for
+/// Chat Completions (no translator targets it) and `codex` for native Responses.
+fn thinking(body: &[u8], req: &ExecRequest, to: &str) -> Result<Vec<u8>, ExecError> {
+    let has_request_transformer =
+        Format::parse(to).is_some_and(|t| cpa_translate::pair(req.source_format, t).is_some());
+    apply_request_thinking(&RequestThinking {
+        body,
+        payload: &req.body,
+        original: original(req),
+        model: &req.model,
+        from: req.source_format.as_str(),
+        to,
+        provider: "kimi",
+        // ponytail: API-key model capabilities bound by the scheduler (Go
+        // ResolvedModelInfo) are not on ExecRequest; the registry lookup applies.
+        resolved: None,
+        has_request_transformer,
+        updates_changed: false,
+    })
+    .map_err(|e| ExecError::local(e.status(), FailureScope::Request, e.message))
 }
 
 /// ponytail: adapter for `cpa_common::codex_client` (owner: Codex thread). Go wraps request
@@ -315,7 +332,7 @@ fn codex_client_request(_req: &ExecRequest, body: &[u8]) -> Vec<u8> {
 const CHAT_LINE_LIMIT: usize = 1_048_576;
 const RESPONSES_LINE_LIMIT: usize = 52_428_800;
 
-async fn post(client: &wreq::Client, url: &str, headers: GoHeaders, body: String) -> Result<Upstream, ExecError> {
+async fn post(client: &wreq::Client, url: &str, headers: GoHeaders, body: Vec<u8>) -> Result<Upstream, ExecError> {
     let upstream = send(client, url, headers, body, None).await?;
     if !(200..300).contains(&upstream.status) {
         return Err(status_error(upstream).await);
@@ -330,48 +347,40 @@ async fn execute_chat(
     req: ExecRequest,
     cfg: &Config,
 ) -> Result<ExecResponse, ExecError> {
-    let (base_model, _) = parse_suffix(&req.model);
-    let request_pair = cpa_translate::pair(req.source_format, Format::OpenAI);
-    let response_pair = cpa_translate::pair(req.response_format, Format::OpenAI);
-    if request_pair.is_none() && req.source_format != Format::OpenAI {
+    let base_model = parse_suffix(&req.model).model_name;
+    if cpa_translate::pair(req.source_format, Format::OpenAI).is_none() {
         return Err(not_registered("Kimi request"));
     }
-    let Some(response_pair) = response_pair else {
+    let Some(response_pair) = cpa_translate::pair(req.response_format, Format::OpenAI) else {
         return Err(not_registered("Kimi response"));
     };
-    let translated = match request_pair {
-        Some(pair) => (pair.request)(
+    let translate = |body: &[u8], stream: bool| {
+        cpa_translate::translate_request(
+            req.source_format,
+            Format::OpenAI,
             &RequestCtx {
-                model: base_model,
-                stream: req.stream,
+                model: &base_model,
+                stream,
             },
-            &codex_client_request(&req, &req.body),
+            &codex_client_request(&req, body),
         )
-        .map_err(|e| request_error(e.to_string()))?,
-        None => codex_client_request(&req, &req.body),
+        .map_err(|e| request_error(e.to_string()))
     };
-    let translated = String::from_utf8(translated).map_err(|_| request_error("translated body is not UTF-8"))?;
-    let upstream_model = normalize_upstream_model(base_model);
-    let mut body = set_str(&translated, "model", &upstream_model)
+    let translated = translate(&req.body, req.stream)?;
+    // Go translates the original request too (stream false) for payload-rule defaults.
+    let original_translated = translate(original(&req), false)?;
+    let upstream_model = normalize_upstream_model(&base_model);
+    let mut body = gj::try_set_str(&translated, "model", &upstream_model)
         .map_err(|e| internal_error(format!("kimi executor: failed to set model in payload: {e}")))?;
-    body = kimi_thinking::apply(
-        &body,
-        text(&req.body)?,
-        text(&req.original_body)?,
-        &req.model,
-        req.source_format.as_str(),
-        "kimi",
-        "kimi",
-    )
-    .map_err(|e| request_error(e.0))?;
+    body = thinking(&body, &req, "kimi")?;
     if req.stream {
-        body = set_raw(&body, "stream_options.include_usage", "true")
+        body = gj::try_set_raw(&body, "stream_options.include_usage", "true")
             .map_err(|e| internal_error(format!("kimi executor: failed to set stream_options in payload: {e}")))?;
     }
-    body = apply_payload_rules(cfg, base_model, "openai", req.source_format.as_str(), body, &req);
-    body = normalize_tool_message_links(&body)?;
-    body = normalize_tools(&body);
-    body = normalize_temperature(&body);
+    body = payload_rules(cfg, &req, &base_model, "openai", body, &original_translated);
+    body = normalize_tool_message_links(body)?;
+    body = normalize_tools(body);
+    body = normalize_temperature(body);
     let upstream = post(
         client,
         &chat_url(credential),
@@ -382,7 +391,7 @@ async fn execute_chat(
     let translated = Bytes::from(body);
     let ctx = ResponseCtx {
         model: &req.model,
-        original_request: &req.original_body,
+        original_request: original(&req),
         translated_request: &translated,
     };
     let body = if req.stream {
@@ -502,16 +511,13 @@ fn responses_frames(lines: ExecStream) -> ExecStream {
 }
 
 /// `SetBoolIfDifferent`.
-fn set_bool_if_different(body: &str, path: &str, value: bool) -> String {
-    let current = gjson::get(body, path);
-    let same = matches!(
-        (current.kind(), value),
-        (gjson::Kind::True, true) | (gjson::Kind::False, false)
-    );
-    if same {
-        return body.to_owned();
+fn set_bool_if_different(mut body: Vec<u8>, path: &str, value: bool) -> Vec<u8> {
+    let kind = gj::get(&body, path).kind;
+    if (value && kind == Kind::True) || (!value && kind == Kind::False) {
+        return body;
     }
-    set_raw(body, path, if value { "true" } else { "false" }).unwrap_or_else(|_| body.to_owned())
+    gj::set_bool(&mut body, path, value);
+    body
 }
 
 /// Native Responses path (executeResponses / executeResponsesStream).
@@ -536,33 +542,17 @@ async fn execute_responses(
     if response_pair.is_none() && req.response_format != Format::OpenAIResponse {
         return Err(not_registered("Kimi Responses"));
     }
-    let (base_model, _) = parse_suffix(&req.model);
-    let upstream_model = normalize_upstream_model(base_model);
-    let source = text(&req.body)?;
-    let mut body = set_str(source, "model", &upstream_model)
+    let base_model = parse_suffix(&req.model).model_name;
+    let upstream_model = normalize_upstream_model(&base_model);
+    let mut body = gj::try_set_str(&req.body, "model", &upstream_model)
         .map_err(|e| internal_error(format!("kimi executor: failed to set model in payload: {e}")))?;
-    body = set_bool_if_different(&body, "stream", req.stream);
-    body = kimi_thinking::apply(
-        &body,
-        source,
-        text(&req.original_body)?,
-        &req.model,
-        req.source_format.as_str(),
-        "codex",
-        "kimi",
-    )
-    .map_err(|e| request_error(e.0))?;
-    body = apply_payload_rules(
-        cfg,
-        base_model,
-        "openai-response",
-        req.source_format.as_str(),
-        body,
-        &req,
-    );
-    body = normalize_responses_input(&body);
-    body = normalize_tools(&body);
-    body = normalize_temperature(&body);
+    body = set_bool_if_different(body, "stream", req.stream);
+    body = thinking(&body, &req, "codex")?;
+    // Go passes req.Payload as the original here, not OriginalRequest.
+    body = payload_rules(cfg, &req, &base_model, "openai-response", body, &req.body);
+    body = normalize_responses_input(body);
+    body = normalize_tools(body);
+    body = normalize_temperature(body);
     let upstream = post(
         client,
         &responses_url(credential),
@@ -573,7 +563,7 @@ async fn execute_responses(
     let translated = Bytes::from(body);
     let ctx = ResponseCtx {
         model: &req.model,
-        original_request: &req.original_body,
+        original_request: original(&req),
         translated_request: &translated,
     };
     let out = match (req.stream, response_pair) {
@@ -581,7 +571,7 @@ async fn execute_responses(
             lines(upstream.body, RESPONSES_LINE_LIMIT),
             (pair.stream)(&ctx),
         )),
-        // Native Responses clients get every scanned line back with "\n" appended.
+        // Native Responses clients get every scanned line back, joined into frames.
         (true, None) => ResponseBody::Stream(responses_frames(lines(upstream.body, RESPONSES_LINE_LIMIT))),
         (false, pair) => {
             let data = read_all(upstream.body, usize::MAX, false).await?;
@@ -601,12 +591,21 @@ async fn execute_responses(
     })
 }
 
+/// `stripKimiPrefix`.
+fn strip_kimi_prefix(model: &str) -> &str {
+    let model = model.trim();
+    if model.go_lower().starts_with("kimi-") {
+        &model[5..]
+    } else {
+        model
+    }
+}
+
 /// `normalizeKimiUpstreamModel`: strip `kimi-` and `[1m]`, map K2.7/K2.8 Code aliases,
 /// keep a thinking suffix.
 pub(crate) fn normalize_upstream_model(model: &str) -> String {
-    let model = model.trim();
-    let (name, suffix) = parse_suffix(model);
-    let mut base = name.trim().to_ascii_lowercase();
+    let parsed = parse_suffix(model.trim());
+    let mut base = parsed.model_name.trim().go_lower();
     if let Some(stripped) = base.strip_suffix("[1m]") {
         base = stripped.to_owned();
     }
@@ -616,11 +615,12 @@ pub(crate) fn normalize_upstream_model(model: &str) -> String {
         "kimi-k2.7-code-highspeed" | "k2.7-code-highspeed" | "kimi-for-coding-highspeed" | "for-coding-highspeed" => {
             "kimi-for-coding-highspeed".to_owned()
         }
-        _ => base.trim().strip_prefix("kimi-").unwrap_or(base.trim()).to_owned(),
+        _ => strip_kimi_prefix(&base).to_owned(),
     };
-    match suffix {
-        Some(raw) => format!("{normalized}({raw})"),
-        None => normalized,
+    if parsed.has_suffix {
+        format!("{normalized}({})", parsed.raw_suffix)
+    } else {
+        normalized
     }
 }
 
@@ -629,99 +629,107 @@ fn usable_reasoning(reasoning: &str) -> bool {
     !trimmed.is_empty() && trimmed != REASONING_UNAVAILABLE
 }
 
-fn content_part_empty(part: &gjson::Value<'_>) -> bool {
-    match part.kind() {
-        gjson::Kind::Null => true,
-        gjson::Kind::String => gstr(part).trim().is_empty(),
-        gjson::Kind::Object => {
+/// `strings.TrimSpace(r.String())`, as bytes.
+fn trimmed(r: &Res<'_>) -> Vec<u8> {
+    go_trim_space(&r.bytes()).to_vec()
+}
+
+fn is_empty_object(r: &Res<'_>) -> bool {
+    go_trim_space(r.raw()) == b"{}"
+}
+
+fn content_part_empty(part: &Res<'_>) -> bool {
+    match part.kind {
+        Kind::Null => true,
+        Kind::String => trimmed(part).is_empty(),
+        Kind::Json if part.is_object() => {
             let text = part.get("text");
             if text.exists() {
-                return gstr(&text).trim().is_empty();
+                return trimmed(&text).is_empty();
             }
-            gstr(&part.get("type")).trim() == "text" || part.json().trim() == "{}"
+            trimmed(&part.get("type")) == b"text" || is_empty_object(part)
         }
         _ => false,
     }
 }
 
-fn should_drop_assistant(msg: &gjson::Value<'_>) -> bool {
-    if gstr(&msg.get("role")).trim() != "assistant" {
+fn should_drop_assistant(msg: &Res<'_>) -> bool {
+    if trimmed(&msg.get("role")) != b"assistant" {
         return false;
     }
     let tool_calls = msg.get("tool_calls");
-    let has_tool_calls = tool_calls.kind() == gjson::Kind::Array && !tool_calls.array().is_empty();
+    let has_tool_calls = tool_calls.is_array() && !tool_calls.array().is_empty();
     let call = msg.get("function_call");
-    let has_function_call = call.exists()
-        && call.kind() != gjson::Kind::Null
-        && !(call.kind() == gjson::Kind::Object && call.json().trim() == "{}");
+    let has_function_call = call.exists() && call.kind != Kind::Null && !(call.is_object() && is_empty_object(&call));
     let has_reasoning = {
         let r = msg.get("reasoning_content");
-        r.exists() && !gstr(&r).trim().is_empty()
+        r.exists() && !trimmed(&r).is_empty()
     };
     if has_tool_calls || has_function_call || has_reasoning {
         return false;
     }
     let content = msg.get("content");
-    match content.kind() {
-        gjson::Kind::Null => true,
+    match content.kind {
         _ if !content.exists() => true,
-        gjson::Kind::String => gstr(&content).trim().is_empty(),
-        gjson::Kind::Array => content.array().iter().all(content_part_empty),
+        Kind::Null => true,
+        Kind::String => trimmed(&content).is_empty(),
+        Kind::Json if content.is_array() => content.array().iter().all(content_part_empty),
         _ => false,
     }
 }
 
-fn fallback_reasoning(msg: &gjson::Value<'_>, latest: Option<&str>) -> String {
-    if let Some(latest) = latest.filter(|l| usable_reasoning(l)) {
-        return latest.to_owned();
+fn fallback_reasoning(msg: &Res<'_>, latest: Option<&[u8]>) -> Vec<u8> {
+    if let Some(latest) = latest.filter(|l| usable_reasoning(&String::from_utf8_lossy(l))) {
+        return latest.to_vec();
     }
     let content = msg.get("content");
-    if content.kind() == gjson::Kind::String && !gstr(&content).trim().is_empty() {
-        return gstr(&content).trim().to_owned();
+    if content.kind == Kind::String && !trimmed(&content).is_empty() {
+        return trimmed(&content);
     }
-    if content.kind() == gjson::Kind::Array {
-        let parts: Vec<String> = content
+    if content.is_array() {
+        let parts: Vec<Vec<u8>> = content
             .array()
             .iter()
-            .map(|item| gstr(&item.get("text")).trim().to_owned())
+            .map(|item| trimmed(&item.get("text")))
             .filter(|t| !t.is_empty())
             .collect();
         if !parts.is_empty() {
-            return parts.join("\n");
+            return parts.join(&b'\n');
         }
     }
-    REASONING_UNAVAILABLE.to_owned()
+    REASONING_UNAVAILABLE.as_bytes().to_vec()
 }
 
 /// `normalizeKimiToolMessageLinks`: drop empty assistant turns, repair tool_call_id links
 /// and give tool-calling assistant turns reasoning_content.
-fn normalize_tool_message_links(body: &str) -> Result<String, ExecError> {
-    if body.is_empty() || !valid(body) {
-        return Ok(body.to_owned());
+fn normalize_tool_message_links(body: Vec<u8>) -> Result<Vec<u8>, ExecError> {
+    if body.is_empty() || !gj::valid(&body) {
+        return Ok(body);
     }
-    let messages = gjson::get(body, "messages");
-    if messages.kind() != gjson::Kind::Array {
-        return Ok(body.to_owned());
+    let messages = gj::get(&body, "messages");
+    if !messages.is_array() {
+        return Ok(body);
     }
     let msgs = messages.array();
     let mut dropped = vec![false; msgs.len()];
-    let mut patches: Vec<(usize, &str, String, &str)> = Vec::new();
-    let mut pending: Vec<String> = Vec::new();
-    let mut latest: Option<String> = None;
+    let mut patches: Vec<(usize, &str, Vec<u8>, &str)> = Vec::new();
+    let mut pending: Vec<Vec<u8>> = Vec::new();
+    let mut latest: Option<Vec<u8>> = None;
     for (index, msg) in msgs.iter().enumerate() {
         if should_drop_assistant(msg) {
             dropped[index] = true;
             continue;
         }
-        match gstr(&msg.get("role")).trim() {
-            "assistant" => {
+        match trimmed(&msg.get("role")).as_slice() {
+            b"assistant" => {
                 let reasoning = msg.get("reasoning_content");
-                if reasoning.exists() && usable_reasoning(&gstr(&reasoning)) {
-                    latest = Some(gstr(&reasoning).to_owned());
+                let usable = reasoning.exists() && usable_reasoning(&reasoning.str());
+                if usable {
+                    latest = Some(reasoning.bytes().into_owned());
                 }
                 let calls = msg.get("tool_calls");
-                if calls.kind() == gjson::Kind::Array && !calls.array().is_empty() {
-                    if !reasoning.exists() || !usable_reasoning(&gstr(&reasoning)) {
+                if calls.is_array() && !calls.array().is_empty() {
+                    if !usable {
                         patches.push((
                             index,
                             "reasoning_content",
@@ -730,17 +738,17 @@ fn normalize_tool_message_links(body: &str) -> Result<String, ExecError> {
                         ));
                     }
                     for call in calls.array() {
-                        let id = gstr(&call.get("id")).trim().to_owned();
+                        let id = trimmed(&call.get("id"));
                         if !id.is_empty() {
                             pending.push(id);
                         }
                     }
                 }
             }
-            "tool" => {
-                let mut id = gstr(&msg.get("tool_call_id")).trim().to_owned();
+            b"tool" => {
+                let mut id = trimmed(&msg.get("tool_call_id"));
                 if id.is_empty() {
-                    id = gstr(&msg.get("call_id")).trim().to_owned();
+                    id = trimmed(&msg.get("call_id"));
                     if !id.is_empty() {
                         patches.push((
                             index,
@@ -763,11 +771,11 @@ fn normalize_tool_message_links(body: &str) -> Result<String, ExecError> {
     }
     let any_dropped = dropped.iter().any(|d| *d);
     if !any_dropped && patches.is_empty() {
-        return Ok(body.to_owned());
+        return Ok(body);
     }
     if !any_dropped && patches.len() == 1 {
         let (index, path, value, context) = &patches[0];
-        return set_str(body, &format!("messages.{index}.{path}"), value)
+        return gj::try_set_str(&body, &format!("messages.{index}.{path}"), value)
             .map_err(|e| internal_error(format!("kimi executor: {context}: {e}")));
     }
     let mut items = Vec::with_capacity(msgs.len());
@@ -776,13 +784,14 @@ fn normalize_tool_message_links(body: &str) -> Result<String, ExecError> {
         if dropped[index] {
             continue;
         }
-        let mut raw = msg.json().to_owned();
+        let mut raw = msg.raw().to_vec();
         while let Some((_, path, value, context)) = next.next_if(|p| p.0 == index) {
-            raw = set_str(&raw, path, value).map_err(|e| internal_error(format!("kimi executor: {context}: {e}")))?;
+            raw = gj::try_set_str(&raw, path, value)
+                .map_err(|e| internal_error(format!("kimi executor: {context}: {e}")))?;
         }
         items.push(raw);
     }
-    set_raw(body, "messages", &join_array(&items)).map_err(|e| {
+    gj::try_set_raw(&body, "messages", gj::join(&items)).map_err(|e| {
         let context = if any_dropped {
             "failed to drop empty assistant messages"
         } else {
@@ -793,27 +802,27 @@ fn normalize_tool_message_links(body: &str) -> Result<String, ExecError> {
 }
 
 /// `normalizeKimiTools`: inline local `$ref`s and default the root schema type.
-fn normalize_tools(body: &str) -> String {
+fn normalize_tools(body: Vec<u8>) -> Vec<u8> {
     if body.is_empty() {
-        return body.to_owned();
+        return body;
     }
     let body = normalize_tool_list(body, "tools", true);
-    normalize_tool_list(&body, "functions", false)
+    normalize_tool_list(body, "functions", false)
 }
 
-fn normalize_tool_list(body: &str, key: &str, is_tools: bool) -> String {
-    let items = gjson::get(body, key);
-    if items.kind() != gjson::Kind::Array {
-        return body.to_owned();
+fn normalize_tool_list(body: Vec<u8>, key: &str, is_tools: bool) -> Vec<u8> {
+    let items = gj::get(&body, key);
+    if !items.is_array() {
+        return body;
     }
     let items = items.array();
     if items.is_empty() {
-        return body.to_owned();
+        return body;
     }
     let mut changed = false;
     let mut updated = Vec::with_capacity(items.len());
     for item in &items {
-        let mut raw = item.json().to_owned();
+        let mut raw = item.raw().to_vec();
         let path = if is_tools && item.get("function.parameters").exists() {
             Some("function.parameters")
         } else if item.get("parameters").exists() {
@@ -823,10 +832,10 @@ fn normalize_tool_list(body: &str, key: &str, is_tools: bool) -> String {
         };
         if let Some(path) = path {
             let params = item.get(path);
-            if params.kind() == gjson::Kind::Object {
-                let normalized = normalize_parameters_schema(params.json());
-                if normalized != params.json()
-                    && let Ok(next) = set_raw(&raw, path, &normalized)
+            if params.is_object() {
+                let normalized = normalize_parameters_schema(params.raw());
+                if normalized != params.raw()
+                    && let Ok(next) = gj::try_set_raw(&raw, path, &normalized)
                 {
                     raw = next;
                     changed = true;
@@ -836,35 +845,35 @@ fn normalize_tool_list(body: &str, key: &str, is_tools: bool) -> String {
         updated.push(raw);
     }
     if !changed {
-        return body.to_owned();
+        return body;
     }
-    set_raw(body, key, &join_array(&updated)).unwrap_or_else(|_| body.to_owned())
+    gj::try_set_raw(&body, key, gj::join(&updated)).unwrap_or(body)
 }
 
-fn normalize_parameters_schema(raw: &str) -> String {
-    if raw.trim().is_empty() {
-        return raw.to_owned();
+fn normalize_parameters_schema(raw: &[u8]) -> Vec<u8> {
+    if go_trim_space(raw).is_empty() {
+        return raw.to_vec();
     }
     let mut params = inline_local_refs(raw);
     for container in ["$defs", "definitions"] {
-        if gjson::get(&params, container).exists() {
-            params = delete(&params, container);
+        if gj::get(&params, container).exists() {
+            gj::delete(&mut params, container);
         }
     }
-    if !gjson::get(&params, "type").exists() {
-        params = set_str(&params, "type", "object").unwrap_or(params);
+    if !gj::get(&params, "type").exists() {
+        gj::set_str(&mut params, "type", "object");
     }
     params
 }
 
 /// `util.InlineLocalRefs`: expand `#/` JSON pointers against the original schema; sibling
 /// keywords override the target and cycles become a "See: <name>" hint.
-pub(crate) fn inline_local_refs(raw: &str) -> String {
-    if !raw.contains("\"$ref\"") {
-        return raw.to_owned();
+pub(crate) fn inline_local_refs(raw: &[u8]) -> Vec<u8> {
+    if !raw.windows(6).any(|w| w == b"\"$ref\"") {
+        return raw.to_vec();
     }
-    let Some(root) = GoValue::parse(raw.trim()) else {
-        return raw.to_owned();
+    let Some(root) = GoValue::parse(go_trim_space(raw)) else {
+        return raw.to_vec();
     };
     let mut active = std::collections::HashSet::new();
     resolve_refs(&root, &root, &mut active).marshal()
@@ -954,68 +963,70 @@ fn cyclic_fallback(node: &std::collections::BTreeMap<String, GoValue>, target: &
 }
 
 /// `normalizeKimiTemperature`: Kimi accepts only 0.6 without thinking and 1.0 with it.
-fn normalize_temperature(body: &str) -> String {
-    let temperature = gjson::get(body, "temperature");
+fn normalize_temperature(mut body: Vec<u8>) -> Vec<u8> {
+    let temperature = gj::get(&body, "temperature");
     if !temperature.exists() {
-        return body.to_owned();
+        return body;
     }
-    let disabled = gstr(&gjson::get(body, "thinking.type")).eq_ignore_ascii_case("disabled");
+    let disabled = gj::get(&body, "thinking.type").str().go_eq_fold("disabled");
     let allowed = if disabled { 0.6 } else { 1.0 };
-    if temperature.f64() != allowed {
-        delete(body, "temperature")
-    } else {
-        body.to_owned()
+    if temperature.float() != allowed {
+        gj::delete(&mut body, "temperature");
     }
+    body
 }
 
-fn responses_call_id(item: &gjson::Value<'_>) -> String {
+fn responses_call_id(item: &Res<'_>) -> Vec<u8> {
     for key in ["call_id", "tool_call_id", "callId"] {
-        let id = item.get(key).str().trim().to_owned();
+        let id = trimmed(&item.get(key));
         if !id.is_empty() {
             return id;
         }
     }
-    let id = gstr(&item.get("id")).trim().to_owned();
-    if id.starts_with("fco_") { String::new() } else { id }
+    let id = trimmed(&item.get("id"));
+    if id.starts_with(b"fco_") { Vec::new() } else { id }
 }
 
-fn is_tool_call(item: &gjson::Value<'_>) -> bool {
-    matches!(gstr(&item.get("type")).trim(), "function_call" | "custom_tool_call")
-}
-
-fn is_tool_output(item: &gjson::Value<'_>) -> bool {
+fn is_tool_call(item: &Res<'_>) -> bool {
     matches!(
-        gstr(&item.get("type")).trim(),
-        "function_call_output" | "custom_tool_call_output"
+        trimmed(&item.get("type")).as_slice(),
+        b"function_call" | b"custom_tool_call"
+    )
+}
+
+fn is_tool_output(item: &Res<'_>) -> bool {
+    matches!(
+        trimmed(&item.get("type")).as_slice(),
+        b"function_call_output" | b"custom_tool_call_output"
     )
 }
 
 /// `NormalizeKimiResponsesInput`: tool outputs must follow their parallel calls directly;
 /// items in between move after the outputs.
-fn normalize_responses_input(body: &str) -> String {
-    if body.is_empty() || !valid(body) {
-        return body.to_owned();
+fn normalize_responses_input(body: Vec<u8>) -> Vec<u8> {
+    if body.is_empty() || !gj::valid(&body) {
+        return body;
     }
-    let input = gjson::get(body, "input");
-    if input.kind() != gjson::Kind::Array {
-        return body.to_owned();
+    let input = gj::get(&body, "input");
+    if !input.is_array() {
+        return body;
     }
     let items = input.array();
     if items.is_empty() {
-        return body.to_owned();
+        return body;
     }
     let mut reordered = false;
-    let mut result: Vec<&str> = Vec::with_capacity(items.len());
+    let mut result: Vec<&[u8]> = Vec::with_capacity(items.len());
     let mut i = 0;
     while i < items.len() {
         if !is_tool_call(&items[i]) {
-            result.push(items[i].json());
+            result.push(items[i].raw());
             i += 1;
             continue;
         }
         let start = i;
         let mut end = i;
-        let mut ids: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+        let mut ids: std::collections::HashMap<Vec<u8>, usize> = std::collections::HashMap::new();
         let mut count = 0;
         while end < items.len() && is_tool_call(&items[end]) {
             let id = responses_call_id(&items[end]);
@@ -1025,7 +1036,7 @@ fn normalize_responses_input(body: &str) -> String {
             }
             end += 1;
         }
-        result.extend(items[start..end].iter().map(|v| v.json()));
+        result.extend(items[start..end].iter().map(|v| v.raw()));
         if count == 0 {
             i = end;
             continue;
@@ -1056,11 +1067,11 @@ fn normalize_responses_input(body: &str) -> String {
                         let id = responses_call_id(item);
                         if let Some(n) = consumed.get_mut(&id).filter(|n| **n > 0) {
                             *n -= 1;
-                            outputs.push(item.json());
+                            outputs.push(item.raw());
                             continue;
                         }
                     }
-                    between.push(item.json());
+                    between.push(item.raw());
                 }
                 reordered |= !between.is_empty();
                 result.extend(outputs);
@@ -1071,9 +1082,10 @@ fn normalize_responses_input(body: &str) -> String {
         }
     }
     if !reordered {
-        return body.to_owned();
+        return body;
     }
-    set_raw(body, "input", &format!("[{}]", result.join(","))).unwrap_or_else(|_| body.to_owned())
+    let joined = gj::join(&result);
+    gj::try_set_raw(&body, "input", joined).unwrap_or(body)
 }
 
 /// `restoreClaudeResponseModel`: put the client's model back on a Claude response body or
@@ -1082,45 +1094,41 @@ fn restore_response_model(payload: &[u8], model: &str) -> Bytes {
     if model.trim().is_empty() {
         return Bytes::copy_from_slice(payload);
     }
-    let Ok(text) = std::str::from_utf8(payload) else {
-        return Bytes::copy_from_slice(payload);
-    };
-    if let Some(updated) = set_model(text, model) {
+    if let Some(updated) = set_model(payload, model) {
         return Bytes::from(updated);
     }
     let mut changed = false;
-    let lines: Vec<String> = text
-        .split('\n')
+    let lines: Vec<Vec<u8>> = payload
+        .split(|b| *b == b'\n')
         .map(|line| {
-            let trimmed = line.trim_end_matches('\r');
-            if let Some(json) = trimmed.strip_prefix("data:")
-                && let Some(updated) = set_model(json.trim(), model)
+            let (content, cr) = match line.strip_suffix(b"\r") {
+                Some(content) => (content, &b"\r"[..]),
+                None => (line, &b""[..]),
+            };
+            if let Some(json) = content.strip_prefix(b"data:")
+                && let Some(updated) = set_model(go_trim_space(json), model)
             {
                 changed = true;
-                let cr = if line.ends_with('\r') { "\r" } else { "" };
-                return format!("data: {updated}{cr}");
+                return [&b"data: "[..], &updated, cr].concat();
             }
-            line.to_owned()
+            line.to_vec()
         })
         .collect();
     if changed {
-        Bytes::from(lines.join("\n"))
+        Bytes::from(lines.join(&b'\n'))
     } else {
         Bytes::copy_from_slice(payload)
     }
 }
 
-fn set_model(json: &str, model: &str) -> Option<String> {
-    if !valid(json) {
+fn set_model(json: &[u8], model: &str) -> Option<Vec<u8>> {
+    if !gj::valid(json) {
         return None;
     }
-    let mut out = json.to_owned();
+    let mut out = json.to_vec();
     let mut changed = false;
     for path in ["model", "message.model"] {
-        if gjson::get(&out, path).exists()
-            && let Ok(next) = set_str(&out, path, model)
-        {
-            out = next;
+        if gj::get(&out, path).exists() && gj::set_str(&mut out, path, model) {
             changed = true;
         }
     }

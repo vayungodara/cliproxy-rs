@@ -28,11 +28,9 @@ use futures_util::StreamExt;
 use serde_json::Value;
 
 use crate::codex_response::OutputItems;
-use crate::kimi_http::{custom_headers, read_all_strict, refresh_due, rfc3339_local_now};
+use crate::kimi_http::{credential_headers, payload_rules, read_all_strict, refresh_due, rfc3339_local_now};
 use crate::meta_auth::{DEFAULT_API_BASE_URL, MetaAuth, MintedKey};
-use crate::meta_codex::{
-    count_codex_input_tokens, go_trim_space, normalize_codex_instructions, normalize_codex_tool_integer_types,
-};
+use crate::meta_codex::{count_codex_input_tokens, go_trim_space, normalize_codex_instructions};
 use crate::openai_compat_payload::{ensure_responses_usage_details, sanitize_reasoning_encrypted_content};
 use crate::proxy::{GoClients, GoHeaders, MAX_ERROR_BODY, Proxy, default_client, lines, read_all, send};
 
@@ -182,7 +180,7 @@ impl MetaExecutor {
             ));
         }
         let enriched = self.ensure_auth(credential, cfg).await?;
-        let prepared = prepare(&req, true)?;
+        let prepared = prepare(&req, cfg, true)?;
         let (base, token) = creds(&enriched);
         if base.trim().is_empty() {
             return Err(ExecError::local(
@@ -242,7 +240,7 @@ impl MetaExecutor {
         cfg: &Config,
     ) -> Result<ExecResponse, ExecError> {
         self.ensure_auth(credential, cfg).await?;
-        let prepared = prepare(&req, false)?;
+        let prepared = prepare(&req, cfg, false)?;
         let count = count_codex_input_tokens(&prepared.body).map_err(|e| {
             ExecError::local(
                 500,
@@ -293,13 +291,6 @@ fn not_registered(what: &str) -> ExecError {
     )
 }
 
-/// ponytail: adapter for `cpa_common::payload` (owner: server thread). Go applies
-/// `requests.payload` rules here (ApplyPayloadConfigWithRequest, protocol "meta"); identity
-/// until the shared module lands.
-fn apply_payload_rules(body: Vec<u8>, _req: &ExecRequest, _model: &str) -> Vec<u8> {
-    body
-}
-
 /// ponytail: adapter for `cpa_common::codex_client` (owner: Codex thread). Go translates
 /// through TranslateRequestWithCodexMultiAgentV2, which rewrites Codex CLI requests;
 /// identity until the shared module lands.
@@ -309,7 +300,7 @@ fn codex_client_request(_req: &ExecRequest, body: &[u8]) -> Vec<u8> {
 
 /// prepareResponsesRequest. Every Go client format has a Codex translator; here the
 /// unregistered ones answer 501 instead of falling back to a model rewrite.
-fn prepare(req: &ExecRequest, stream: bool) -> Result<Prepared, ExecError> {
+fn prepare(req: &ExecRequest, cfg: &Config, stream: bool) -> Result<Prepared, ExecError> {
     let Some(response) = cpa_translate::pair(req.response_format, Format::Codex) else {
         return Err(not_registered("Meta response"));
     };
@@ -318,16 +309,21 @@ fn prepare(req: &ExecRequest, stream: bool) -> Result<Prepared, ExecError> {
         return Err(not_registered("Meta request"));
     }
     let base_model = parse_suffix(&req.model).model_name;
-    let mut body = cpa_translate::translate_request(
-        req.source_format,
-        Format::Codex,
-        &RequestCtx {
-            model: &base_model,
-            stream,
-        },
-        &codex_client_request(req, &req.body),
-    )
-    .map_err(|e| ExecError::local(400, FailureScope::Request, e.0))?;
+    let translate = |body: &[u8]| {
+        cpa_translate::translate_request(
+            req.source_format,
+            Format::Codex,
+            &RequestCtx {
+                model: &base_model,
+                stream,
+            },
+            &codex_client_request(req, body),
+        )
+        .map_err(|e| ExecError::local(400, FailureScope::Request, e.0))
+    };
+    let mut body = translate(&req.body)?;
+    // Go translates the original request too, for payload-rule defaults.
+    let original_translated = translate(original(req))?;
     let thinking = apply_request_thinking(&RequestThinking {
         body: &body,
         payload: &req.body,
@@ -344,7 +340,7 @@ fn prepare(req: &ExecRequest, stream: bool) -> Result<Prepared, ExecError> {
     })
     .map_err(|e| ExecError::local(e.status(), FailureScope::Request, e.message))?;
     body = thinking;
-    body = apply_payload_rules(body, req, &base_model);
+    body = payload_rules(cfg, req, &base_model, PROVIDER, body, &original_translated);
     set_string_if_different(&mut body, "model", &base_model);
     set_bool_if_different(&mut body, "stream", stream);
     for key in [
@@ -359,7 +355,7 @@ fn prepare(req: &ExecRequest, stream: bool) -> Result<Prepared, ExecError> {
     normalize_codex_instructions(&mut body);
     body = sanitize_reasoning_encrypted_content(body);
     sanitize_web_search_tools(&mut body);
-    body = normalize_codex_tool_integer_types(body, &req.headers);
+    body = cpa_common::payload::normalize_codex_tool_integer_types(&body, &req.headers);
     Ok(Prepared { body, response })
 }
 
@@ -420,7 +416,7 @@ fn headers(c: &Credential, req: &ExecRequest, token: &str) -> GoHeaders {
     // Meta always streams upstream.
     h.set("Accept", "text/event-stream");
     h.set("Cache-Control", "no-cache");
-    for (name, value) in custom_headers(c, &req.headers, req.session.as_deref()) {
+    for (name, value) in credential_headers(c, req, original(req)) {
         h.set(&name, value);
     }
     h

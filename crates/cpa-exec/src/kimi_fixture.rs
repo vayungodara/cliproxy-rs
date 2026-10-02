@@ -60,10 +60,6 @@ impl Captured {
             .find(|(n, _)| n.eq_ignore_ascii_case(name))
             .map(|(_, v)| v.as_str())
     }
-
-    pub(crate) fn body_text(&self) -> &str {
-        std::str::from_utf8(&self.body).unwrap()
-    }
 }
 
 /// One scripted upstream answer: status, ordered headers, body.

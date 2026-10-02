@@ -4,7 +4,6 @@
 //! acceptance test.
 
 use cpa_common::json::{self as gj, Kind};
-use http::HeaderMap;
 
 /// Go `bytes.TrimSpace`: leading and trailing runes with `unicode.IsSpace` (the same set as
 /// Rust's `char::is_whitespace`); an invalid UTF-8 sequence is not space and stops trimming.
@@ -123,13 +122,6 @@ pub(crate) fn count_codex_input_tokens(body: &[u8]) -> Result<i64, String> {
         .as_ref()
         .map_err(Clone::clone)?;
     Ok(encoder.encode_ordinary(&text).len() as i64)
-}
-
-/// ponytail: adapter, owner the server thread (cpa-common::payload
-/// `NormalizeCodexToolIntegerTypes`). Identity until it lands: Go only rewrites tool
-/// schemas for Codex CLI User-Agents.
-pub(crate) fn normalize_codex_tool_integer_types(body: Vec<u8>, _headers: &HeaderMap) -> Vec<u8> {
-    body
 }
 
 #[cfg(test)]
