@@ -87,6 +87,12 @@ pub trait StreamTranslator: Send {
     fn event(&mut self, event: &[u8]) -> Result<Vec<Bytes>, Error>;
     /// Upstream ended cleanly; emit any closing events.
     fn finish(&mut self) -> Result<Vec<Bytes>, Error>;
+    /// Before a terminal error is written to a Responses client: the client-side frame
+    /// still being joined, if it is complete enough to send (Go's responsesSSEFramer.Flush).
+    /// Other clients have nothing pending.
+    fn flush_frames(&mut self) -> Vec<Bytes> {
+        vec![]
+    }
 }
 
 pub type RequestFn = fn(ctx: &RequestCtx<'_>, body: &[u8]) -> Result<Vec<u8>, Error>;
@@ -157,14 +163,16 @@ pub fn translate_request(
     body: &[u8],
 ) -> Result<Vec<u8>, Error> {
     if let Some(pair) = pair(client, upstream) {
-        let summary = thinking::extract_translated_summary(body, client.as_str(), upstream.as_str());
-        let out = (pair.request)(ctx, body)?;
-        return Ok(thinking::apply_summary_for_model(
-            out,
-            upstream.as_str(),
-            ctx.model,
-            summary,
-        ));
+        return deep_stack(body, || {
+            let summary = thinking::extract_translated_summary(body, client.as_str(), upstream.as_str());
+            let out = (pair.request)(ctx, body)?;
+            Ok(thinking::apply_summary_for_model(
+                out,
+                upstream.as_str(),
+                ctx.model,
+                summary,
+            ))
+        });
     }
     let mut out = body.to_vec();
     if !ctx.model.is_empty() && *gj::get(body, "model").bytes() != *ctx.model.as_bytes() {
@@ -180,4 +188,51 @@ pub fn translate_token_count(client: Format, upstream: Format, count: i64, body:
         Some(render) => render(count),
         None => body.to_vec(),
     }
+}
+
+/// Nesting depth (arrays and objects) of a JSON body, ignoring brackets inside strings.
+fn nesting_depth(body: &[u8]) -> usize {
+    let (mut depth, mut max, mut in_string, mut escaped) = (0usize, 0usize, false, false);
+    for &c in body {
+        if in_string {
+            if escaped {
+                escaped = false;
+            } else if c == b'\\' {
+                escaped = true;
+            } else if c == b'"' {
+                in_string = false;
+            }
+            continue;
+        }
+        match c {
+            b'"' => in_string = true,
+            b'{' | b'[' => {
+                depth += 1;
+                max = max.max(depth);
+            }
+            b'}' | b']' => depth = depth.saturating_sub(1),
+            _ => {}
+        }
+    }
+    max
+}
+
+/// Runs `f` on a thread with Go's maximum goroutine stack (1 GiB, reserved lazily) when
+/// the body nests deeply. Go's JSON walkers recurse per nesting level and rely on
+/// growable stacks; the ported walkers do too, so very deep client bodies would otherwise
+/// overflow a native thread stack instead of translating as in Go.
+fn deep_stack<T: Send>(body: &[u8], f: impl FnOnce() -> T + Send) -> T {
+    const DEEP: usize = 256;
+    if nesting_depth(body) <= DEEP {
+        return f();
+    }
+    std::thread::scope(|scope| {
+        std::thread::Builder::new()
+            .stack_size(1 << 30)
+            .spawn_scoped(scope, f)
+            .map(|handle| handle.join())
+    })
+    .ok()
+    .and_then(Result::ok)
+    .expect("deep JSON translation thread")
 }

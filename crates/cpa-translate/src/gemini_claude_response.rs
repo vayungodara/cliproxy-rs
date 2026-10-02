@@ -139,7 +139,7 @@ impl State {
             self.index
         )
         .into_bytes();
-        gj::set_str(&mut data, &format!("delta.{field}"), value);
+        gj::set_str(&mut data, format!("delta.{field}"), value);
         data
     }
 

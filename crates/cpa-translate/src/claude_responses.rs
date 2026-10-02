@@ -975,16 +975,16 @@ fn normalize_codex_agent_messages(payload: &[u8]) -> Vec<u8> {
                     continue;
                 }
                 let path = format!("{item_path}.content.{part_index}");
-                if !gj::set_str(&mut updated, &format!("{path}.type"), "input_text")
-                    || !gj::set_str(&mut updated, &format!("{path}.text"), &enc.s)
-                    || !gj::delete(&mut updated, &format!("{path}.encrypted_content"))
+                if !gj::set_str(&mut updated, format!("{path}.type"), "input_text")
+                    || !gj::set_str(&mut updated, format!("{path}.text"), &enc.s)
+                    || !gj::delete(&mut updated, format!("{path}.encrypted_content"))
                 {
                     return payload.to_vec();
                 }
             }
         }
-        if !gj::set_str(&mut updated, &format!("{item_path}.role"), "user")
-            || !gj::set_str(&mut updated, &format!("{item_path}.type"), "message")
+        if !gj::set_str(&mut updated, format!("{item_path}.role"), "user")
+            || !gj::set_str(&mut updated, format!("{item_path}.type"), "message")
         {
             return payload.to_vec();
         }

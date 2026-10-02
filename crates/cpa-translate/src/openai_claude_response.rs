@@ -38,13 +38,13 @@ fn usage_tokens(usage: &Res<'_>) -> (i64, i64, i64, i64) {
 }
 
 fn set_usage(out: &mut Vec<u8>, prefix: &str, (input, output, cached, write): (i64, i64, i64, i64)) {
-    gj::set_int(out, &format!("{prefix}input_tokens"), input);
-    gj::set_int(out, &format!("{prefix}output_tokens"), output);
+    gj::set_int(out, format!("{prefix}input_tokens"), input);
+    gj::set_int(out, format!("{prefix}output_tokens"), output);
     if cached > 0 {
-        gj::set_int(out, &format!("{prefix}cache_read_input_tokens"), cached);
+        gj::set_int(out, format!("{prefix}cache_read_input_tokens"), cached);
     }
     if write > 0 {
-        gj::set_int(out, &format!("{prefix}cache_creation_input_tokens"), write);
+        gj::set_int(out, format!("{prefix}cache_creation_input_tokens"), write);
     }
 }
 

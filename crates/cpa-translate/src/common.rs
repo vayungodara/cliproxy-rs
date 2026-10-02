@@ -310,7 +310,7 @@ pub fn attach_tool_message_cache_control(msg: Vec<u8>, src: &Res<'_>) -> Vec<u8>
             return msg;
         };
         let mut out = msg.clone();
-        if gj::set_raw(&mut out, &format!("content.{target}.cache_control"), &raw_cc) {
+        if gj::set_raw(&mut out, format!("content.{target}.cache_control"), &raw_cc) {
             return out;
         }
     }
