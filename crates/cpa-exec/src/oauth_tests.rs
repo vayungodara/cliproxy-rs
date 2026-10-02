@@ -117,11 +117,11 @@ async fn refresh_rotation_preserves_identity_on_optional_profile_failure() {
     let mut credential = credential();
     // Request-path preparation never refreshes, even inside the refresh lead.
     assert!(needs_refresh(&credential));
-    let prepared = oauth.prepare(&credential, &crate::tls::Proxy::Inherit).await.unwrap();
+    let prepared = oauth.prepare(&credential, &crate::proxy::Proxy::Inherit).await.unwrap();
     assert_eq!(prepared.set.keys().collect::<Vec<_>>(), ["claude_device_ids"]);
     prepared.apply(&mut credential.metadata);
     let patch = oauth
-        .refresh_credential(&credential, &crate::tls::Proxy::Inherit)
+        .refresh_credential(&credential, &crate::proxy::Proxy::Inherit)
         .await
         .unwrap();
     patch.apply(&mut credential.metadata);

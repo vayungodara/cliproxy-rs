@@ -5,10 +5,14 @@
 //! cache policy, betas, MCP aliases, credential identity, CCH signing, headers, and
 //! the native transport. Responses restore aliases and record billing continuity.
 //!
+//! First-party Anthropic gets the native Claude Code transport (tls.rs); every other
+//! origin gets Go's standard transport (proxy.rs), exactly as Go's fallback round
+//! tripper does. Delegating executors (Kimi) pass a [`Delegation`].
+//!
 //! ponytail: not ported here, each with its owner noted in docs/reviews:
 //! payload rules (M4-0031) and thinking-suffix application inside the executor,
 //! thinking-signature validation (M1-0020; tool-use signature fields are stripped),
-//! Kimi/Vertex delegated providers, Home KV identity, usage reporting and request logs.
+//! Vertex delegation, Home KV identity, usage reporting and request logs.
 
 mod alias;
 mod betas;
@@ -33,9 +37,10 @@ use cpa_core::format::Format;
 use futures_util::StreamExt;
 
 use crate::oauth::{self, OAuth};
+use crate::proxy::{GoClients, GoHeaders, Proxy};
 use crate::rawjson;
-use crate::tls::{self, Proxy, Transport};
-use crate::upstream::{decoded_response, transport_error};
+use crate::tls::Transport;
+use crate::upstream::{decode_upstream, decoded_response, transport_error};
 use crate::{quota, tokens, translate};
 use settings::Settings;
 
@@ -44,7 +49,7 @@ pub const ANTHROPIC_VERSION: &str = "2023-06-01";
 /// Advertised in `CLIProxyAPI/<version>` when a caller-owned request has no User-Agent.
 pub(crate) const PROXY_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-pub use tls::Hooks;
+pub use crate::proxy::Hooks;
 
 /// The fields of a `"type": "claude"` credential this executor needs.
 pub struct ClaudeView<'a> {
@@ -69,15 +74,28 @@ impl<'a> ClaudeView<'a> {
     }
 }
 
-enum Clients {
-    /// Production or harness: native/generic/OAuth profiles per effective proxy.
+/// The first-party Anthropic transport.
+enum Native {
+    /// Production or harness: native and OAuth profiles per effective proxy.
     Transport(Arc<Transport>),
     /// Unit tests against plain HTTP mocks.
     Fixed(wreq::Client),
 }
 
+/// What a delegating executor changes in the Claude pipeline. Go embeds a
+/// `ClaudeExecutor` configured this way (`NewKimiExecutor`).
+#[derive(Clone, Copy, Default)]
+pub struct Delegation {
+    /// `upstreamModelNormalizer`: the model sent upstream, given the base model.
+    pub upstream_model: Option<fn(&str) -> String>,
+    /// `countTokensUpstream`: count on the upstream for every origin and credential.
+    pub count_upstream: bool,
+}
+
 pub struct ClaudeExecutor {
-    clients: Clients,
+    native: Native,
+    /// Go standard-transport clients for every other origin.
+    go: Arc<GoClients>,
     base_url: String,
     oauth: OAuth,
 }
@@ -87,6 +105,7 @@ impl ClaudeExecutor {
     pub fn new(base_url: impl Into<String>) -> wreq::Result<Self> {
         Ok(Self::with_transport(
             Arc::new(Transport::new(Hooks::default())),
+            Hooks::default(),
             base_url,
         ))
     }
@@ -94,22 +113,25 @@ impl ClaudeExecutor {
     /// The production profile with test trust roots and dial overrides (harness).
     /// OAuth refresh uses the same transport, so it cannot escape the hooks.
     pub fn with_hooks(hooks: Hooks, base_url: impl Into<String>) -> Self {
-        Self::with_transport(Arc::new(Transport::new(hooks)), base_url)
+        Self::with_transport(Arc::new(Transport::new(hooks.clone())), hooks, base_url)
     }
 
-    fn with_transport(transport: Arc<Transport>, base_url: impl Into<String>) -> Self {
+    fn with_transport(transport: Arc<Transport>, hooks: Hooks, base_url: impl Into<String>) -> Self {
         Self {
             oauth: OAuth::with_transport(transport.clone()),
-            clients: Clients::Transport(transport),
+            native: Native::Transport(transport),
+            go: Arc::new(GoClients::new(hooks)),
             base_url: base_url.into().trim_end_matches('/').to_owned(),
         }
     }
 
-    /// A caller-built client for every request (plain mocks); not the native profile.
+    /// A caller-built client for every unproxied request (plain mocks). First-party
+    /// requests keep the native header order on it, but not the native TLS profile.
     pub fn with_client(client: wreq::Client, base_url: impl Into<String>) -> Self {
         Self {
             oauth: OAuth::new(client.clone()),
-            clients: Clients::Fixed(client),
+            go: Arc::new(GoClients::with_default(client.clone())),
+            native: Native::Fixed(client),
             base_url: base_url.into().trim_end_matches('/').to_owned(),
         }
     }
@@ -125,7 +147,7 @@ impl ClaudeExecutor {
     }
 
     pub async fn prepare(&self, credential: &Credential, cfg: &Config) -> Result<MetadataPatch, ExecError> {
-        self.oauth.prepare(credential, &proxy_for(credential, cfg)).await
+        self.oauth.prepare(credential, &Proxy::effective(credential, cfg)).await
     }
 
     pub fn needs_refresh(&self, credential: &Credential, _cfg: &Config) -> bool {
@@ -134,23 +156,17 @@ impl ClaudeExecutor {
 
     pub async fn refresh(&self, credential: &Credential, cfg: &Config) -> Result<MetadataPatch, ExecError> {
         self.oauth
-            .refresh_credential(credential, &proxy_for(credential, cfg))
+            .refresh_credential(credential, &Proxy::effective(credential, cfg))
             .await
     }
 
-    fn client(&self, proxy: &Proxy, first_party: bool) -> Result<wreq::Client, ExecError> {
-        match &self.clients {
-            Clients::Fixed(client) => Ok(client.clone()),
-            Clients::Transport(t) => {
-                let clients = t
-                    .clients(proxy)
-                    .map_err(|_| ExecError::local(502, FailureScope::Transport, "upstream request failed"))?;
-                Ok(if first_party {
-                    clients.native.clone()
-                } else {
-                    clients.generic.clone()
-                })
-            }
+    fn native_client(&self, proxy: &Proxy) -> Result<wreq::Client, ExecError> {
+        match &self.native {
+            Native::Fixed(client) => Ok(client.clone()),
+            Native::Transport(t) => t
+                .clients(proxy)
+                .map(|clients| clients.native.clone())
+                .map_err(|_| ExecError::local(502, FailureScope::Transport, "upstream request failed")),
         }
     }
 
@@ -159,6 +175,18 @@ impl ClaudeExecutor {
         credential: &Credential,
         req: ExecRequest,
         cfg: &Config,
+    ) -> Result<ExecResponse, ExecError> {
+        self.execute_delegated(credential, req, cfg, Delegation::default())
+            .await
+    }
+
+    /// [`Self::execute`] on behalf of a delegating executor.
+    pub async fn execute_delegated(
+        &self,
+        credential: &Credential,
+        req: ExecRequest,
+        cfg: &Config,
+        delegation: Delegation,
     ) -> Result<ExecResponse, ExecError> {
         ClaudeView::new(credential)?;
         if req.alt.as_deref() == Some("responses/compact") {
@@ -175,10 +203,10 @@ impl ClaudeExecutor {
                 "Claude response translation pair is not registered",
             ));
         }
-        let ctx = Ctx::new(self, credential, &req, cfg);
+        let ctx = Ctx::new(self, credential, &req, cfg, delegation);
         match req.operation {
             Operation::Generate => self.generate(ctx, req).await,
-            Operation::CountTokens => self.count_tokens(ctx, req).await,
+            Operation::CountTokens => self.count_tokens(ctx, req, delegation.count_upstream).await,
         }
     }
 
@@ -270,9 +298,9 @@ impl ClaudeExecutor {
         translate::response(req, translated, response).await
     }
 
-    async fn count_tokens(&self, ctx: Ctx<'_>, req: ExecRequest) -> Result<ExecResponse, ExecError> {
+    async fn count_tokens(&self, ctx: Ctx<'_>, req: ExecRequest, upstream: bool) -> Result<ExecResponse, ExecError> {
         let translated = translate::request(&req)?;
-        if ctx.api_key.trim().is_empty() || !ctx.first_party {
+        if !upstream && (ctx.api_key.trim().is_empty() || !ctx.first_party) {
             let body = sanitize_for_upstream(&String::from_utf8_lossy(&translated), &ctx.base_model);
             let response = ExecResponse {
                 status: 200,
@@ -297,26 +325,38 @@ impl ClaudeExecutor {
 
     async fn send(&self, ctx: &Ctx<'_>, prepared: &Prepared, path: &str) -> Result<RawResponse, ExecError> {
         let url = format!("{}{path}?beta=true", ctx.base_url);
-        let client = self.client(&ctx.proxy, ctx.first_party)?;
-        let mut order = wreq::header::OrigHeaderMap::new();
-        for name in &prepared.order {
-            order.insert(name.clone());
-        }
-        let mut request = client
-            .post(&url)
-            .redirect(wreq::redirect::Policy::none())
-            .orig_headers(order)
-            .default_headers(false);
-        for (name, value) in &prepared.headers {
-            request = request.header(name.as_str(), value.as_str());
-        }
-        let res = request
-            .body(prepared.body.clone())
-            .send()
-            .await
-            .map_err(transport_error)?;
+        let (status, headers, body) = if ctx.first_party {
+            let client = self.native_client(&ctx.proxy)?;
+            let mut order = wreq::header::OrigHeaderMap::new();
+            for name in &prepared.order {
+                order.insert(name.clone());
+            }
+            let mut request = client
+                .post(&url)
+                .redirect(wreq::redirect::Policy::none())
+                .orig_headers(order)
+                .default_headers(false);
+            for (name, value) in &prepared.headers {
+                request = request.header(name.as_str(), value.as_str());
+            }
+            let res = request
+                .body(prepared.body.clone())
+                .send()
+                .await
+                .map_err(transport_error)?;
+            decoded_response(res).await?
+        } else {
+            // Go's fallback round tripper: http.DefaultTransport (or the proxy
+            // transport) behind an http.Client that follows redirects.
+            let mut headers = GoHeaders::new();
+            for (name, value) in &prepared.headers {
+                headers.add_raw(name, value.as_str());
+            }
+            let client = self.go.get(&ctx.proxy);
+            let upstream = crate::proxy::send(&client, &url, headers, prepared.body.clone(), None).await?;
+            decode_upstream(upstream).await?
+        };
         let fast = ctx.first_party && prepared.fast;
-        let (status, headers, body) = decoded_response(res).await?;
         if !(200..300).contains(&status) {
             let data = crate::upstream::read_bounded(body, crate::upstream::MAX_ERROR_BODY).await?;
             if fast {
@@ -379,25 +419,6 @@ fn fast_direct_error(status: u16, headers: http::HeaderMap, body: Bytes) -> Exec
     }
 }
 
-/// Effective proxy: credential `proxy_url`, then `requests.proxy-url`.
-fn proxy_for(credential: &Credential, cfg: &Config) -> Proxy {
-    let own = credential
-        .attributes
-        .get("proxy_url")
-        .map(|s| s.trim())
-        .unwrap_or_default();
-    if !own.is_empty() {
-        return Proxy::parse(own);
-    }
-    let global = cfg
-        .document
-        .get("requests")
-        .and_then(|r| r.get("proxy-url"))
-        .and_then(serde_yaml_ng::Value::as_str)
-        .unwrap_or_default();
-    Proxy::parse(global)
-}
-
 /// Request facts shared by every stage.
 struct Ctx<'a> {
     credential: &'a Credential,
@@ -407,6 +428,11 @@ struct Ctx<'a> {
     first_party: bool,
     proxy: Proxy,
     base_model: String,
+    /// The model sent upstream (`upstreamModel`): the base model unless a delegating
+    /// executor normalizes it.
+    upstream_model: String,
+    /// `isKimiMessagesUpstream`.
+    kimi: bool,
     /// Real Claude OAuth token (`sk-ant-oat`).
     oauth_token: bool,
     /// `fp.ProfileClaudeCodeCLI`: OAuth token or `fingerprint-profile: claude-code-cli`.
@@ -426,6 +452,39 @@ struct Prepared {
     reverse: alias::Reverse,
     continuity: session::Continuity,
     fast: bool,
+}
+
+/// `helps.SetStringIfDifferent`.
+fn set_string_if_different(body: &str, path: &str, value: &str) -> String {
+    let current = rawjson::get(body, path);
+    if current.kind() == gjson::Kind::String && current.str() == value {
+        return body.to_owned();
+    }
+    rawjson::set_str(body, path, value)
+}
+
+/// `isKimiMessagesUpstream`: a Kimi credential, or Kimi's API host.
+fn kimi_upstream(provider: &str, base_url: &str) -> bool {
+    let provider = provider.trim().to_lowercase();
+    if matches!(provider.as_str(), "kimi" | "kimi-ai" | "kimi.ai" | "kimi.com") {
+        return true;
+    }
+    url::Url::parse(base_url.trim()).is_ok_and(|u| {
+        u.host_str()
+            .is_some_and(|h| h.eq_ignore_ascii_case("api.kimi.com") || h.eq_ignore_ascii_case("api.kimi.ai"))
+    })
+}
+
+/// `helps.ClaudeCLIAuthIdentitySeed`.
+// ponytail: Go falls back to the auth index and file name when the ID is empty; every
+// loaded or synthesized credential here has an ID.
+fn identity_seed(credential: &Credential) -> String {
+    let id = credential.id.trim();
+    if id.is_empty() {
+        String::new()
+    } else {
+        format!("auth-id|{id}")
+    }
 }
 
 /// `thinking.ParseSuffix`: `model(level)` → `model`.
@@ -576,7 +635,13 @@ fn extract_betas(body: &str) -> (Vec<String>, String) {
 }
 
 impl<'a> Ctx<'a> {
-    fn new(exec: &ClaudeExecutor, credential: &'a Credential, req: &ExecRequest, cfg: &Config) -> Self {
+    fn new(
+        exec: &ClaudeExecutor,
+        credential: &'a Credential,
+        req: &ExecRequest,
+        cfg: &Config,
+        delegation: Delegation,
+    ) -> Self {
         let settings = Settings::for_credential(cfg, credential);
         let attr = |k: &str| credential.attributes.get(k).map(String::as_str).unwrap_or_default();
         let api_key = if attr("api_key").is_empty() {
@@ -613,11 +678,14 @@ impl<'a> Ctx<'a> {
         };
         let api_key_kind = attr("auth_kind") == "apikey";
         let bearer = oauth_token || (!api_key_kind && attr("api_key").trim().is_empty());
+        let base = base_model(&req.model);
         Self {
             credential,
             first_party: tokens::first_party(&base_url),
-            proxy: proxy_for(credential, cfg),
-            base_model: base_model(&req.model),
+            proxy: Proxy::effective(credential, cfg),
+            upstream_model: delegation.upstream_model.map_or_else(|| base.clone(), |f| f(&base)),
+            kimi: kimi_upstream(&credential.provider, &base_url),
+            base_model: base,
             cli_profile: oauth_token || profile == "claude-code-cli",
             oauth_token,
             bearer,
@@ -747,9 +815,7 @@ impl<'a> Ctx<'a> {
             String::new()
         };
         let mut body = translated;
-        if rawjson::string(&body, "model") != self.base_model || !rawjson::get(&body, "model").exists() {
-            body = rawjson::set_str(&body, "model", &self.base_model);
-        }
+        body = set_string_if_different(&body, "model", &self.upstream_model);
         if self.rebuild_mid_system() {
             body = rebuild_mid_system(&body);
         }
@@ -906,6 +972,10 @@ impl<'a> Ctx<'a> {
             body = signing::finalize(&body, &fallback)
                 .map_err(|e| ExecError::local(500, FailureScope::Request, format!("finalize Claude CCH: {e}")))?;
         }
+        if self.kimi && !self.cli_profile {
+            // stripDefaultKimiClaudeCodeAttribution: Kimi reads the block as prompt text.
+            body = strip_attribution_system(&body);
+        }
         validate_mid_system(&body, confirmed, self.first_party)?;
         let fast = betas::uses_fast_mode(&body, &betas::requested("", &[]));
         let (headers, order) = self.headers(
@@ -952,9 +1022,7 @@ impl<'a> Ctx<'a> {
             String::new()
         };
         let mut body = String::from_utf8_lossy(translated).into_owned();
-        if rawjson::string(&body, "model") != self.base_model || !rawjson::get(&body, "model").exists() {
-            body = rawjson::set_str(&body, "model", &self.base_model);
-        }
+        body = set_string_if_different(&body, "model", &self.upstream_model);
         if self.rebuild_mid_system() {
             body = rebuild_mid_system(&body);
         }
@@ -1181,7 +1249,14 @@ impl<'a> Ctx<'a> {
 
     fn apply_identity(&self, body: &str, session_id: &str) -> Result<String, ExecError> {
         let synthesize = self.cli_profile && !self.oauth_token;
-        let (device, account) = identity::wire_identity(self.credential, &self.api_key, synthesize);
+        // Delegated providers seed from the stable auth identity, so a token rotation
+        // does not rotate the device fingerprint.
+        let seed = if self.kimi {
+            identity_seed(self.credential)
+        } else {
+            self.api_key.clone()
+        };
+        let (device, account) = identity::wire_identity(self.credential, &seed, synthesize);
         identity::apply(body, &device, &account, session_id).map_err(|e| {
             let status = if e.contains("account UUID is empty") || e.contains("session ID is empty") {
                 500

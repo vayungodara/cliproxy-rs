@@ -68,7 +68,7 @@ fn pipeline_reproduces_go_upstream_captures() {
     for case in captures["cases"].as_array().unwrap() {
         let name = case["name"].as_str().unwrap();
         let req = request(case);
-        let mut ctx = Ctx::new(&executor, &credential, &req, &cfg);
+        let mut ctx = Ctx::new(&executor, &credential, &req, &cfg, Default::default());
         ctx.today = "2026-10-02".into();
         let translated = translate::request(&req).unwrap();
         let prepared = if req.operation == Operation::CountTokens {
@@ -226,7 +226,7 @@ async fn executor_scenarios_match_go() {
                 source: "authorization",
             },
         };
-        let mut ctx = Ctx::new(&executor, &credential, &req, &cfg);
+        let mut ctx = Ctx::new(&executor, &credential, &req, &cfg, Default::default());
         ctx.today = scenario["date"].as_str().unwrap().into();
         let translated = translate::request(&req).unwrap();
         let prepared = if count {

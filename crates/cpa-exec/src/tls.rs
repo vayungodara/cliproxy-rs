@@ -2,65 +2,22 @@
 //!
 //! First-party Anthropic inference uses the deterministic Node/OpenSSL ClientHello
 //! with HTTP/1.1-only ALPN and a final pre_shared_key extension that stays silent
-//! until a session is cached. Clients are cached per effective proxy URL in a
-//! bounded 64-entry LRU, and each owns its own 32-entry TLS session cache, so
-//! resumption never crosses proxy boundaries. OAuth acquisition has its own compact
-//! profile; custom gateways get a plain client that honours environment proxies.
-//!
-//! ponytail: SOCKS5 proxies need wreq's `socks` feature (new tokio-socks
-//! dependency); until enabled they fail as transport errors instead of bypassing.
+//! until a session is cached. Clients are cached per effective proxy in a bounded
+//! 64-entry LRU, and each owns its own 32-entry TLS session cache, so resumption
+//! never crosses proxy boundaries. OAuth acquisition has its own compact profile.
+//! Every other origin uses Go's standard transport from [`crate::proxy`].
 
-use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 
+use crate::proxy::{Hooks, Proxy};
 use wreq::tls::session::LruTlsSessionCache;
-use wreq::tls::trust::CertStore;
 use wreq::tls::{AlpnProtocol, ExtensionType, KeyShare, TlsOptions, TlsVersion};
 
-pub(crate) const TRANSPORT_CACHE: usize = 64;
+pub(crate) const TRANSPORT_CACHE: usize = crate::proxy::CACHE_CAPACITY;
 const SESSION_CACHE: usize = 32;
-
-/// Test-only routing: extra trust roots replace the default store, and resolve
-/// overrides pin logical hosts to local addresses while URL, Host and SNI stay
-/// first-party. Production uses [`Hooks::default`].
-#[derive(Clone, Default)]
-pub struct Hooks {
-    pub trust: Option<CertStore>,
-    pub resolve: Vec<(String, SocketAddr)>,
-}
-
-/// Effective proxy for one request (`effectiveProxyURL` + `proxyutil.Parse`).
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub(crate) enum Proxy {
-    /// Nothing configured: native/OAuth dial directly, custom gateways inherit env.
-    Inherit,
-    /// `direct` / `none`: bypass every proxy.
-    Direct,
-    Url(String),
-    Invalid,
-}
-
-impl Proxy {
-    pub(crate) fn parse(raw: &str) -> Self {
-        let raw = raw.trim();
-        if raw.is_empty() {
-            return Self::Inherit;
-        }
-        if raw.eq_ignore_ascii_case("direct") || raw.eq_ignore_ascii_case("none") {
-            return Self::Direct;
-        }
-        match url::Url::parse(raw) {
-            Ok(u) if u.has_host() && matches!(u.scheme(), "http" | "https" | "socks5" | "socks5h") => {
-                Self::Url(raw.into())
-            }
-            _ => Self::Invalid,
-        }
-    }
-}
 
 pub(crate) struct Clients {
     pub native: wreq::Client,
-    pub generic: wreq::Client,
     pub oauth: wreq::Client,
 }
 
@@ -89,7 +46,6 @@ impl Transport {
         }
         let clients = Arc::new(Clients {
             native: self.build(Profile::Native, proxy)?,
-            generic: self.build(Profile::Generic, proxy)?,
             oauth: self.build(Profile::OAuth, proxy)?,
         });
         cache.insert(0, (proxy.clone(), clients.clone()));
@@ -106,28 +62,16 @@ impl Transport {
                 .tls_session_cache(LruTlsSessionCache::new(SESSION_CACHE)),
             // No ALPN extension on the compact OAuth hello; HTTP/1.1 follows.
             Profile::OAuth => builder.tls_options(options(true)),
-            Profile::Generic => builder.http1_only(),
         };
-        // Go logs an unusable proxy and dials as if none were configured.
-        builder = match proxy {
-            Proxy::Url(url) => builder.proxy(wreq::Proxy::all(url.as_str())?),
-            Proxy::Inherit | Proxy::Invalid if profile == Profile::Generic => builder,
-            _ => builder.no_proxy(),
-        };
-        if let Some(trust) = &self.hooks.trust {
-            builder = builder.tls_cert_store(trust.clone());
-        }
-        for (host, addr) in &self.hooks.resolve {
-            builder = builder.resolve(host.clone(), *addr);
-        }
-        builder.build()
+        // uTLS dialers never inherit environment proxies; an unusable proxy is logged
+        // by Go and dialled as if none were configured.
+        proxy.apply(self.hooks.apply(builder), false)?.build()
     }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Profile {
     Native,
-    Generic,
     OAuth,
 }
 
@@ -296,13 +240,7 @@ mod tests {
     }
 
     #[test]
-    fn proxy_parse_and_lru_bound() {
-        assert_eq!(Proxy::parse(" "), Proxy::Inherit);
-        assert_eq!(Proxy::parse("DIRECT"), Proxy::Direct);
-        assert_eq!(Proxy::parse("none"), Proxy::Direct);
-        assert_eq!(Proxy::parse("http://p:1"), Proxy::Url("http://p:1".into()));
-        assert_eq!(Proxy::parse("ftp://p"), Proxy::Invalid);
-        assert_eq!(Proxy::parse("p:1"), Proxy::Invalid);
+    fn transport_lru_bound() {
         let t = Transport::new(Hooks::default());
         let first = t.clients(&Proxy::Url("http://p0:1".into())).unwrap();
         for i in 1..=TRANSPORT_CACHE {

@@ -23,7 +23,8 @@ use sha2::{Digest, Sha256};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use url::Url;
 
-use crate::tls::{Proxy, Transport};
+use crate::proxy::Proxy;
+use crate::tls::Transport;
 use crate::upstream::into_response;
 
 pub const CLIENT_ID: &str = "9d1c250a-e61b-44d9-88ed-5944d1962f5e";
@@ -551,7 +552,7 @@ pub async fn login(auth_dir: &Path) -> Result<PathBuf, ExecError> {
     let code = tokio::time::timeout(Duration::from_secs(300), callback(&listener, &state))
         .await
         .map_err(|_| acquisition_error("Claude login callback timed out"))??;
-    let transport = Arc::new(Transport::new(crate::tls::Hooks::default()));
+    let transport = Arc::new(Transport::new(crate::proxy::Hooks::default()));
     let patch = OAuth::with_transport(transport)
         .exchange(&code, &state, &verifier)
         .await?;

@@ -1,8 +1,9 @@
 //! Only test wiring. Mirrors crates/cliproxy/src/main.rs (config, credential synthesis,
 //! auto-refresh, routes, management and CORS) except the listener and two hooks: the
 //! ephemeral test CA replaces the trust store, and the logical first-party hosts are
-//! dialed at 127.0.0.3. The executor still builds its production native, generic and
-//! OAuth clients (TLS profile, header order, session caches), including for refresh.
+//! dialed at 127.0.0.3. The executor still builds its production native and OAuth
+//! clients (TLS profile, header order, session caches), including for refresh, and its
+//! Go standard-transport clients for other origins.
 use std::net::SocketAddr;
 use std::path::Path;
 use std::sync::Arc;
@@ -30,6 +31,7 @@ async fn main() -> anyhow::Result<()> {
     };
     let executors = Executors {
         claude: ClaudeExecutor::with_hooks(hooks, DEFAULT_BASE_URL),
+        devices: Default::default(),
     };
     let listener = tokio::net::TcpListener::bind((config.host.as_str(), config.port)).await?;
     let rt = Arc::new(Runtime::new(config, credentials, executors));

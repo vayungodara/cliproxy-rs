@@ -1,0 +1,93 @@
+{
+  "name": "chat-error-429-clamped-none",
+  "credential": {
+    "access_token": "kimi-access-fixture",
+    "base_url": "http://127.0.0.1:33969/coding",
+    "device_id": "dev-fixture-1",
+    "refresh_token": "kimi-refresh-fixture",
+    "type": "kimi"
+  },
+  "request": {
+    "body": "{\"model\":\"kimi-k2.7-code\",\"reasoning_effort\":\"none\",\"temperature\":0.6,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+    "model": "kimi-k2.7-code",
+    "source": "openai",
+    "stream": false
+  },
+  "responses": [
+    {
+      "status": 429,
+      "headers": [
+        [
+          "Content-Type",
+          "application/json"
+        ],
+        [
+          "Retry-After",
+          "7"
+        ]
+      ],
+      "body": "{\"error\":{\"message\":\"rate limited\",\"type\":\"rate_limit_error\"}}"
+    }
+  ],
+  "upstream": [
+    {
+      "method": "POST",
+      "target": "/coding/v1/chat/completions",
+      "headers": [
+        [
+          "Host",
+          "127.0.0.1:33969"
+        ],
+        [
+          "User-Agent",
+          "CLIProxyAPI/0.1.0"
+        ],
+        [
+          "Content-Length",
+          "116"
+        ],
+        [
+          "Accept",
+          "application/json"
+        ],
+        [
+          "Authorization",
+          "Bearer kimi-access-fixture"
+        ],
+        [
+          "Content-Type",
+          "application/json"
+        ],
+        [
+          "X-Msh-Device-Id",
+          "dev-fixture-1"
+        ],
+        [
+          "X-Msh-Device-Model",
+          "linux amd64"
+        ],
+        [
+          "X-Msh-Device-Name",
+          "e2b.local"
+        ],
+        [
+          "X-Msh-Platform",
+          "CLIProxyAPI"
+        ],
+        [
+          "X-Msh-Version",
+          "0.1.0"
+        ],
+        [
+          "Accept-Encoding",
+          "gzip"
+        ]
+      ],
+      "body": "{\"model\":\"kimi-for-coding\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"thinking\":{\"type\":\"enabled\",\"effort\":\"low\"}}"
+    }
+  ],
+  "downstream": {
+    "err_status": 429,
+    "err_body": "{\"error\":{\"message\":\"rate limited\",\"type\":\"rate_limit_error\"}}"
+  }
+}

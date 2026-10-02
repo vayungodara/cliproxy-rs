@@ -1,0 +1,88 @@
+{
+  "name": "responses-nonstream-reorder-suffix",
+  "credential": {
+    "access_token": "kimi-access-fixture",
+    "base_url": "http://127.0.0.1:42961/coding",
+    "device_id": "dev-fixture-1",
+    "refresh_token": "kimi-refresh-fixture",
+    "type": "kimi"
+  },
+  "request": {
+    "body": "{\"model\":\"kimi-k3(high)\",\"temperature\":0.5,\"reasoning\":{\"effort\":\"low\",\"summary\":\"auto\"},\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"function_call\",\"call_id\":\"call_a\",\"name\":\"f\",\"arguments\":\"{}\"},{\"type\":\"function_call\",\"call_id\":\"call_b\",\"name\":\"f\",\"arguments\":\"{}\"},{\"type\":\"message\",\"role\":\"developer\",\"content\":[{\"type\":\"input_text\",\"text\":\"interjection\"}]},{\"type\":\"function_call_output\",\"call_id\":\"call_a\",\"output\":\"A\"},{\"type\":\"function_call_output\",\"call_id\":\"call_b\",\"output\":\"B\"}],\"tools\":[{\"type\":\"function\",\"name\":\"f\",\"parameters\":{\"properties\":{\"x\":{\"$ref\":\"#/definitions/X\"}},\"definitions\":{\"X\":{\"type\":\"integer\"}}}}]}",
+    "model": "kimi-k3(high)",
+    "source": "openai-response",
+    "stream": false
+  },
+  "responses": [
+    {
+      "status": 200,
+      "headers": [
+        [
+          "Content-Type",
+          "application/json"
+        ]
+      ],
+      "body": "{\"id\":\"resp_1\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"k3\",\"output\":[{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"hello\"}]}],\"usage\":{\"input_tokens\":6,\"output_tokens\":4,\"total_tokens\":10}}"
+    }
+  ],
+  "upstream": [
+    {
+      "method": "POST",
+      "target": "/coding/v1/responses",
+      "headers": [
+        [
+          "Host",
+          "127.0.0.1:42961"
+        ],
+        [
+          "User-Agent",
+          "CLIProxyAPI/0.1.0"
+        ],
+        [
+          "Content-Length",
+          "641"
+        ],
+        [
+          "Accept",
+          "application/json"
+        ],
+        [
+          "Authorization",
+          "Bearer kimi-access-fixture"
+        ],
+        [
+          "Content-Type",
+          "application/json"
+        ],
+        [
+          "X-Msh-Device-Id",
+          "dev-fixture-1"
+        ],
+        [
+          "X-Msh-Device-Model",
+          "linux amd64"
+        ],
+        [
+          "X-Msh-Device-Name",
+          "e2b.local"
+        ],
+        [
+          "X-Msh-Platform",
+          "CLIProxyAPI"
+        ],
+        [
+          "X-Msh-Version",
+          "0.1.0"
+        ],
+        [
+          "Accept-Encoding",
+          "gzip"
+        ]
+      ],
+      "body": "{\"model\":\"k3\",\"reasoning\":{\"effort\":\"high\",\"summary\":\"auto\"},\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"function_call\",\"call_id\":\"call_a\",\"name\":\"f\",\"arguments\":\"{}\"},{\"type\":\"function_call\",\"call_id\":\"call_b\",\"name\":\"f\",\"arguments\":\"{}\"},{\"type\":\"function_call_output\",\"call_id\":\"call_a\",\"output\":\"A\"},{\"type\":\"function_call_output\",\"call_id\":\"call_b\",\"output\":\"B\"},{\"type\":\"message\",\"role\":\"developer\",\"content\":[{\"type\":\"input_text\",\"text\":\"interjection\"}]}],\"tools\":[{\"type\":\"function\",\"name\":\"f\",\"parameters\":{\"properties\":{\"x\":{\"type\":\"integer\"}},\"type\":\"object\"}}],\"stream\":false}"
+    }
+  ],
+  "downstream": {
+    "body": "{\"id\":\"resp_1\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"k3\",\"output\":[{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"hello\"}]}],\"usage\":{\"input_tokens\":6,\"output_tokens\":4,\"total_tokens\":10}}"
+  }
+}

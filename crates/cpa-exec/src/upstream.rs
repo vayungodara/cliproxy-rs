@@ -27,10 +27,21 @@ pub(crate) fn transport_error(e: wreq::Error) -> ExecError {
 pub(crate) async fn decoded_response(res: wreq::Response) -> Result<(u16, HeaderMap, ExecStream), ExecError> {
     let status = res.status().as_u16();
     let mut headers = res.headers().clone();
-    let body = decoded(res.bytes_stream(), &headers).await?;
+    let body = decoded(res.bytes_stream().map(|r| r.map_err(std::io::Error::other)), &headers).await?;
     headers.remove(http::header::CONTENT_ENCODING);
     headers.remove(http::header::CONTENT_LENGTH);
     Ok((status, headers, body))
+}
+
+/// [`decoded_response`] for a Go standard-transport exchange ([`crate::proxy::send`]).
+pub(crate) async fn decode_upstream(
+    upstream: crate::proxy::Upstream,
+) -> Result<(u16, HeaderMap, ExecStream), ExecError> {
+    let mut headers = upstream.headers;
+    let body = decoded(upstream.body.map(|r| r.map_err(std::io::Error::other)), &headers).await?;
+    headers.remove(http::header::CONTENT_ENCODING);
+    headers.remove(http::header::CONTENT_LENGTH);
+    Ok((upstream.status, headers, body))
 }
 
 /// Non-2xx responses become [`ExecError`]; event streams are framed; anything else is
@@ -38,7 +49,7 @@ pub(crate) async fn decoded_response(res: wreq::Response) -> Result<(u16, Header
 pub(crate) async fn into_response(res: wreq::Response) -> Result<ExecResponse, ExecError> {
     let status = res.status().as_u16();
     let mut headers = res.headers().clone();
-    let body = decoded(res.bytes_stream(), &headers).await?;
+    let body = decoded(res.bytes_stream().map(|r| r.map_err(std::io::Error::other)), &headers).await?;
     headers.remove(http::header::CONTENT_ENCODING);
     headers.remove(http::header::CONTENT_LENGTH);
     if !(200..300).contains(&status) {
@@ -82,9 +93,9 @@ where
 
 async fn decoded<S>(body: S, headers: &HeaderMap) -> Result<ExecStream, ExecError>
 where
-    S: Stream<Item = wreq::Result<Bytes>> + Send + Unpin + 'static,
+    S: Stream<Item = std::io::Result<Bytes>> + Send + Unpin + 'static,
 {
-    let reader = StreamReader::new(body.map(|r| r.map_err(std::io::Error::other)));
+    let reader = StreamReader::new(body);
     let mut reader = BufReader::new(reader);
     // Sniff across arbitrary TCP fragmentation, not only the first chunk.
     let mut prefix = Vec::new();
@@ -151,10 +162,15 @@ where
 }
 
 fn read_error(error: std::io::Error) -> ExecError {
-    if error.get_ref().is_some_and(|inner| inner.is::<wreq::Error>()) {
-        ExecError::local(502, FailureScope::Transport, "upstream request failed")
-    } else {
-        decode_error()
+    match error.get_ref() {
+        Some(inner) if inner.is::<wreq::Error>() => {
+            ExecError::local(502, FailureScope::Transport, "upstream request failed")
+        }
+        Some(inner) => match inner.downcast_ref::<ExecError>() {
+            Some(error) => error.clone(),
+            None => decode_error(),
+        },
+        None => decode_error(),
     }
 }
 
@@ -240,7 +256,9 @@ fn retry_after(headers: &HeaderMap) -> Option<Duration> {
 mod tests {
     use super::*;
 
-    fn chunks(items: Vec<wreq::Result<Bytes>>) -> impl Stream<Item = wreq::Result<Bytes>> + Send + Unpin + 'static {
+    fn chunks(
+        items: Vec<std::io::Result<Bytes>>,
+    ) -> impl Stream<Item = std::io::Result<Bytes>> + Send + Unpin + 'static {
         futures_util::stream::iter(items)
     }
 
@@ -338,11 +356,19 @@ mod tests {
         let error = wreq::Client::new().get("not a URL").send().await.unwrap_err();
         assert_eq!(transport_error(error).scope, FailureScope::Transport);
         let error = wreq::Client::new().get("not a URL").send().await.unwrap_err();
-        let body = chunks(vec![Ok(Bytes::from_static(b"data: ok\n\n")), Err(error)]);
+        let body = chunks(vec![
+            Ok(Bytes::from_static(b"data: ok\n\n")),
+            Err(std::io::Error::other(error)),
+        ]);
         let stream = decoded(body, &HeaderMap::new()).await.unwrap();
         let items: Vec<_> = framed(stream).collect().await;
         assert_eq!(items.len(), 2);
         assert_eq!(items[0].as_ref().unwrap(), b"data: ok\n\n".as_slice());
         assert_eq!(items[1].as_ref().unwrap_err().scope, FailureScope::Transport);
+        // A Go-transport body error keeps its own classification through decoding.
+        let failed = ExecError::local(502, FailureScope::Transport, "upstream request failed");
+        let body = chunks(vec![Err(std::io::Error::other(failed))]);
+        let error = decoded(body, &HeaderMap::new()).await.err().unwrap();
+        assert_eq!(error.scope, FailureScope::Transport);
     }
 }

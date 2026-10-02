@@ -1,0 +1,88 @@
+{
+  "name": "refresh-ai-keeps-refresh",
+  "credential": {
+    "access_token": "old",
+    "refresh_token": "kimi-refresh-2",
+    "type": "kimi-ai"
+  },
+  "request": {
+    "refresh": true
+  },
+  "responses": [
+    {
+      "status": 200,
+      "headers": [
+        [
+          "Content-Type",
+          "application/json"
+        ]
+      ],
+      "body": "{\"access_token\":\"new-access-2\",\"token_type\":\"Bearer\",\"expires_in\":0}"
+    }
+  ],
+  "upstream": [
+    {
+      "method": "POST",
+      "target": "/api/oauth/token",
+      "headers": [
+        [
+          "Host",
+          "auth.kimi.ai"
+        ],
+        [
+          "User-Agent",
+          "Go-http-client/1.1"
+        ],
+        [
+          "Content-Length",
+          "100"
+        ],
+        [
+          "Accept",
+          "application/json"
+        ],
+        [
+          "Content-Type",
+          "application/x-www-form-urlencoded"
+        ],
+        [
+          "X-Msh-Device-Id",
+          "e7f6b2ae-83fa-473e-be2c-bea7f08feae6"
+        ],
+        [
+          "X-Msh-Device-Model",
+          "Linux amd64"
+        ],
+        [
+          "X-Msh-Device-Name",
+          "e2b.local"
+        ],
+        [
+          "X-Msh-Platform",
+          "CLIProxyAPI"
+        ],
+        [
+          "X-Msh-Version",
+          "0.1.0"
+        ],
+        [
+          "Accept-Encoding",
+          "gzip"
+        ]
+      ],
+      "body": "client_id=17e5f671-d194-4dfb-9706-5516cb48c098\u0026grant_type=refresh_token\u0026refresh_token=kimi-refresh-2"
+    }
+  ],
+  "downstream": {},
+  "extra": {
+    "before_unix": 1790961562,
+    "metadata": {
+      "access_token": "new-access-2",
+      "base_url": "https://api.kimi.ai/coding",
+      "domain": "kimi.ai",
+      "last_refresh": "2026-10-02T17:19:22Z",
+      "refresh_token": "kimi-refresh-2",
+      "type": "kimi-ai"
+    }
+  }
+}

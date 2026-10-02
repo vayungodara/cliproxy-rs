@@ -584,8 +584,8 @@ fn replace_ci(value: &str, target: &str, replacement: &str) -> String {
     out
 }
 
-/// Final `(name, value)` pairs in wire order and casing, excluding Host and
-/// Content-Length, which the transport writes at the positions given by `order`.
+/// Final `(name, value)` pairs in wire order and casing, excluding Content-Length,
+/// which the transport writes at the position given by `order`.
 pub(crate) fn wire(mut h: GoHeader, first_party: bool, count_tokens: bool) -> (Vec<(String, String)>, Vec<String>) {
     if first_party {
         for (from, to) in WIRE_CASING {
@@ -621,7 +621,8 @@ pub(crate) fn wire(mut h: GoHeader, first_party: bool, count_tokens: bool) -> (V
     };
     let mut pairs = Vec::new();
     for name in &order {
-        if name.eq_ignore_ascii_case("host") || name.eq_ignore_ascii_case("content-length") {
+        // Host appears only when a custom header set it (Go mirrors it into req.Host).
+        if name.eq_ignore_ascii_case("content-length") {
             continue;
         }
         if let Some((_, values)) = h.entries().iter().find(|(k, _)| k.eq_ignore_ascii_case(name)) {
