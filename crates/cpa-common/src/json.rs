@@ -166,47 +166,7 @@ impl<'a> Res<'a> {
     /// unescaping, float64 numbers) re-encoded with sorted keys. `None` where Marshal
     /// fails (NaN or infinite numbers).
     pub fn value_json(&self) -> Option<Vec<u8>> {
-        let mut out = vec![];
-        self.write_value(&mut out)?;
-        Some(out)
-    }
-
-    fn write_value(&self, out: &mut Vec<u8>) -> Option<()> {
-        match self.kind {
-            Kind::String => marshal_str(out, &self.s, true),
-            Kind::Number => out.extend_from_slice(json_float(self.num)?.as_bytes()),
-            Kind::True => out.extend_from_slice(b"true"),
-            Kind::False => out.extend_from_slice(b"false"),
-            Kind::Null => out.extend_from_slice(b"null"),
-            Kind::Json => match self.raw.iter().find(|&&c| c > b' ' || c == b'{' || c == b'[') {
-                Some(b'{') => {
-                    let mut pairs = array_or_map(&self.raw, b'{', 0).1;
-                    pairs.sort_by(|a, b| a.0.cmp(&b.0));
-                    out.push(b'{');
-                    for (i, (key, value)) in pairs.iter().enumerate() {
-                        if i > 0 {
-                            out.push(b',');
-                        }
-                        marshal_str(out, key, true);
-                        out.push(b':');
-                        value.write_value(out)?;
-                    }
-                    out.push(b'}');
-                }
-                Some(b'[') => {
-                    out.push(b'[');
-                    for (i, item) in array_or_map(&self.raw, b'[', 0).0.iter().enumerate() {
-                        if i > 0 {
-                            out.push(b',');
-                        }
-                        item.write_value(out)?;
-                    }
-                    out.push(b']');
-                }
-                _ => out.extend_from_slice(b"null"),
-            },
-        }
-        Some(())
+        AnyValue::from_res(self).marshal()
     }
 
     /// Go's `Result.Array()`: null is empty, a non-array is a one-element list.
@@ -2454,6 +2414,105 @@ pub fn set_items<S: AsRef<[u8]>>(out: &mut Vec<u8>, path: &str, items: &[S]) {
         }
     }
     set_raw(out, path, join(items));
+}
+
+// ---------------------------------------------------------------------------------------
+// gjson's `any` model (`Result.Value()`)
+
+/// What gjson's `Result.Value()` returns, as Go code then edits and marshals it: objects
+/// keep the first duplicate key, strings keep gjson's unescaped bytes (invalid UTF-8
+/// marshals as `\ufffd`), numbers are float64 and non-container JSON is nil.
+#[derive(Debug, Clone, PartialEq)]
+pub enum AnyValue {
+    Null,
+    Bool(bool),
+    Number(f64),
+    String(Vec<u8>),
+    Array(Vec<AnyValue>),
+    Object(std::collections::BTreeMap<Vec<u8>, AnyValue>),
+}
+
+impl AnyValue {
+    pub fn from_res(r: &Res<'_>) -> Self {
+        match r.kind {
+            Kind::Null => Self::Null,
+            Kind::True => Self::Bool(true),
+            Kind::False => Self::Bool(false),
+            Kind::Number => Self::Number(r.num),
+            Kind::String => Self::String(r.s.to_vec()),
+            Kind::Json => match r.raw.iter().find(|&&c| c > b' ' || c == b'{' || c == b'[') {
+                Some(b'{') => {
+                    let mut map = std::collections::BTreeMap::new();
+                    for (key, value) in array_or_map(&r.raw, b'{', 0).1 {
+                        map.entry(key).or_insert_with(|| Self::from_res(&value));
+                    }
+                    Self::Object(map)
+                }
+                Some(b'[') => Self::Array(array_or_map(&r.raw, b'[', 0).0.iter().map(Self::from_res).collect()),
+                _ => Self::Null,
+            },
+        }
+    }
+
+    /// `json.Marshal`: sorted keys, HTML-escaped strings. `None` for NaN or infinite
+    /// numbers, which Marshal rejects.
+    pub fn marshal(&self) -> Option<Vec<u8>> {
+        let mut out = vec![];
+        self.write(&mut out)?;
+        Some(out)
+    }
+
+    fn write(&self, out: &mut Vec<u8>) -> Option<()> {
+        match self {
+            Self::Null => out.extend_from_slice(b"null"),
+            Self::Bool(b) => out.extend_from_slice(if *b { b"true" } else { b"false" }),
+            Self::Number(n) => out.extend_from_slice(json_float(*n)?.as_bytes()),
+            Self::String(s) => marshal_str(out, s, true),
+            Self::Array(items) => {
+                out.push(b'[');
+                for (i, item) in items.iter().enumerate() {
+                    if i > 0 {
+                        out.push(b',');
+                    }
+                    item.write(out)?;
+                }
+                out.push(b']');
+            }
+            Self::Object(map) => {
+                out.push(b'{');
+                for (i, (key, value)) in map.iter().enumerate() {
+                    if i > 0 {
+                        out.push(b',');
+                    }
+                    marshal_str(out, key, true);
+                    out.push(b':');
+                    value.write(out)?;
+                }
+                out.push(b'}');
+            }
+        }
+        Some(())
+    }
+
+    /// `out, _ = sjson.SetBytes(out, path, value)` for this value: scalars use sjson's
+    /// own encodings (strings conditionally escaped, floats in `'f'` format), containers
+    /// are marshaled. Where Marshal fails (a NaN or infinite number inside a container)
+    /// sjson returns nil, so `out` is cleared, as Go's callers end up with.
+    pub fn set(&self, out: &mut Vec<u8>, path: &str) -> bool {
+        match self {
+            Self::Null => set_raw(out, path, b"null"),
+            Self::Bool(b) => set_bool(out, path, *b),
+            Self::Number(n) => set_f64(out, path, *n),
+            Self::String(s) => set_str(out, path, s),
+            Self::Array(_) | Self::Object(_) => match self.marshal() {
+                Some(raw) => set_raw(out, path, raw),
+                None => {
+                    out.clear();
+                    false
+                }
+            },
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------------------

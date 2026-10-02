@@ -32,11 +32,14 @@ mod claude_responses_response;
 mod codex_responses;
 mod common;
 mod openai;
+mod openai_claude;
+mod openai_claude_response;
 pub mod sse;
 pub mod stream;
 mod thinking;
 
 pub use claude_chat_request::request_with_compat as openai_to_claude_with_compat;
+pub use openai_claude::request_with_compat as claude_to_openai_with_compat;
 
 /// ConvertOpenAIResponsesRequestToClaudeWithCompat: like the registered Responses ->
 /// Claude request, but unsigned reasoning history is kept for compatibility endpoints.
@@ -110,6 +113,7 @@ fn registered(client: Format, upstream: Format) -> Option<&'static Registered> {
         (Format::OpenAI, Format::Claude) => Some(&claude_chat_request::PAIR),
         (Format::OpenAIResponse, Format::Codex) => Some(&codex_responses::PAIR),
         (Format::OpenAIResponse, Format::Claude) => Some(&claude_responses_response::PAIR),
+        (Format::Claude, Format::OpenAI) => Some(&openai_claude::PAIR),
         _ => None,
     }
 }

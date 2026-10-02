@@ -5,7 +5,7 @@ use cpa_common::json::{self as gj, Kind, Res};
 use rand::Rng;
 use sha2::{Digest, Sha256};
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, HashMap, HashSet},
     sync::atomic::{AtomicU64, Ordering},
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -677,6 +677,411 @@ pub fn request_model_name(original: &[u8], request: &[u8]) -> Vec<u8> {
         }
     }
     vec![]
+}
+
+// ---------------------------------------------------------------------------------------
+// Go string helpers on bytes
+
+/// strings.TrimLeftFunc(s, unicode.IsSpace).
+pub fn trim_left_space(s: &[u8]) -> &[u8] {
+    let mut start = 0;
+    while start < s.len() {
+        match gj::decode_rune(&s[start..]) {
+            (Some(c), n) if c.is_whitespace() => start += n,
+            _ => break,
+        }
+    }
+    &s[start..]
+}
+
+/// Each rune of `s` as Go's `range` and `[]rune` see it: invalid bytes are U+FFFD, one
+/// per byte.
+pub fn go_runes(s: &[u8]) -> impl Iterator<Item = char> + '_ {
+    let mut i = 0;
+    std::iter::from_fn(move || {
+        if i >= s.len() {
+            return None;
+        }
+        let (c, n) = gj::decode_rune(&s[i..]);
+        i += n.max(1);
+        Some(c.unwrap_or(char::REPLACEMENT_CHARACTER))
+    })
+}
+
+/// strings.ToLower: Go's simple case mapping, and invalid bytes become U+FFFD once any
+/// rune is not ASCII.
+pub fn go_lower(s: &[u8]) -> Vec<u8> {
+    if s.is_ascii() {
+        return s.to_ascii_lowercase();
+    }
+    let mut out = Vec::with_capacity(s.len());
+    let mut buf = [0; 4];
+    for c in go_runes(s) {
+        out.extend_from_slice(cpa_common::gostr::to_lower_rune(c).encode_utf8(&mut buf).as_bytes());
+    }
+    out
+}
+
+/// util.IsClaudeCodeAttributionSystemText: Claude Code's billing header line.
+pub fn is_claude_code_attribution_text(text: &[u8]) -> bool {
+    trim_left_space(text).starts_with(b"x-anthropic-billing-header:")
+}
+
+/// util.HasUnsupportedUnicodePropertyEscape: `\p{`, `\P{` or `\0` outside an escaped
+/// backslash.
+pub fn has_unsupported_unicode_property_escape(pattern: &[u8]) -> bool {
+    let mut i = 0;
+    while i < pattern.len() {
+        if pattern[i] != b'\\' {
+            i += 1;
+            continue;
+        }
+        let Some(&next) = pattern.get(i + 1) else { break };
+        if matches!(next, b'p' | b'P') && pattern.get(i + 2) == Some(&b'{') {
+            return true;
+        }
+        if next == b'0' {
+            return true;
+        }
+        i += 2;
+    }
+    false
+}
+
+/// util.SchemaMapKeywords: keywords whose values map names to subschemas.
+pub const SCHEMA_MAP_KEYWORDS: [&[u8]; 6] = [
+    b"properties",
+    b"$defs",
+    b"definitions",
+    b"patternProperties",
+    b"dependentSchemas",
+    b"dependencies",
+];
+
+/// util.SchemaValueKeywords: keywords holding one subschema or a list of them.
+pub const SCHEMA_VALUE_KEYWORDS: [&[u8]; 16] = [
+    b"items",
+    b"prefixItems",
+    b"contains",
+    b"additionalProperties",
+    b"propertyNames",
+    b"unevaluatedProperties",
+    b"unevaluatedItems",
+    b"additionalItems",
+    b"contentSchema",
+    b"anyOf",
+    b"oneOf",
+    b"allOf",
+    b"not",
+    b"if",
+    b"then",
+    b"else",
+];
+
+/// util.FixJSON: converts single-quoted strings to double-quoted ones. Go walks `[]rune`,
+/// so invalid bytes come out as U+FFFD.
+pub fn fix_json(input: &[u8]) -> Vec<u8> {
+    let runes: Vec<char> = go_runes(input).collect();
+    let mut out = Vec::with_capacity(input.len());
+    let mut buf = [0; 4];
+    let mut put = |out: &mut Vec<u8>, c: char| out.extend_from_slice(c.encode_utf8(&mut buf).as_bytes());
+    let (mut in_double, mut in_single, mut escaped) = (false, false, false);
+    let mut i = 0;
+    while i < runes.len() {
+        let r = runes[i];
+        if in_double {
+            put(&mut out, r);
+            if escaped {
+                escaped = false;
+            } else if r == '\\' {
+                escaped = true;
+            } else if r == '"' {
+                in_double = false;
+            }
+        } else if in_single {
+            if escaped {
+                escaped = false;
+                match r {
+                    'n' | 'r' | 't' | 'b' | 'f' | '/' | '"' => {
+                        out.push(b'\\');
+                        put(&mut out, r);
+                    }
+                    '\\' => out.extend_from_slice(b"\\\\"),
+                    '\'' => out.push(b'\''),
+                    'u' => {
+                        out.extend_from_slice(b"\\u");
+                        for _ in 0..4 {
+                            match runes.get(i + 1) {
+                                Some(&p) if p.is_ascii_hexdigit() => {
+                                    put(&mut out, p);
+                                    i += 1;
+                                }
+                                _ => break,
+                            }
+                        }
+                    }
+                    _ => {
+                        out.push(b'\\');
+                        put(&mut out, r);
+                    }
+                }
+            } else if r == '\\' {
+                escaped = true;
+            } else if r == '\'' {
+                out.push(b'"');
+                in_single = false;
+            } else if r == '"' {
+                out.extend_from_slice(b"\\\"");
+            } else {
+                put(&mut out, r);
+            }
+        } else if r == '"' {
+            in_double = true;
+            put(&mut out, r);
+        } else if r == '\'' {
+            in_single = true;
+            out.push(b'"');
+        } else {
+            put(&mut out, r);
+        }
+        i += 1;
+    }
+    if in_single {
+        out.push(b'"');
+    }
+    out
+}
+
+/// util.CanonicalToolName: trimmed, leading underscores dropped, lowercased.
+fn canonical_tool_name(name: &[u8]) -> Vec<u8> {
+    let trimmed = trim_space(name);
+    let start = trimmed.iter().position(|&c| c != b'_').unwrap_or(trimmed.len());
+    go_lower(&trimmed[start..])
+}
+
+/// util.ToolNameMapFromClaudeRequest: canonical name -> declared name for the request's
+/// tools, first declaration winning. `None` when the request is invalid or names none.
+pub fn tool_name_map_from_claude_request(raw: &[u8]) -> Option<HashMap<Vec<u8>, Vec<u8>>> {
+    if raw.is_empty() || !gj::valid(raw) {
+        return None;
+    }
+    let tools = gj::get(raw, "tools");
+    if !tools.exists() || !tools.is_array() {
+        return None;
+    }
+    let mut out = HashMap::new();
+    tools.each(|_, tool| {
+        let mut name = trim_space(&tool.get("name").bytes()).to_vec();
+        if name.is_empty() {
+            name = trim_space(&tool.get("function.name").bytes()).to_vec();
+        }
+        let key = canonical_tool_name(&name);
+        if !name.is_empty() && !key.is_empty() {
+            out.entry(key).or_insert(name);
+        }
+        true
+    });
+    (!out.is_empty()).then_some(out)
+}
+
+/// util.MapToolName: the declared spelling of `name`, or `name` unchanged.
+pub fn map_tool_name(map: Option<&HashMap<Vec<u8>, Vec<u8>>>, name: &[u8]) -> Vec<u8> {
+    if let (false, Some(map)) = (name.is_empty(), map)
+        && let Some(mapped) = map.get(&canonical_tool_name(name))
+        && !mapped.is_empty()
+    {
+        return mapped.clone();
+    }
+    name.to_vec()
+}
+
+/// thinking.GetThinkingText on bytes: `text`, then `thinking` as a string or an object
+/// holding `text` or `thinking`.
+// ponytail: cpa_common::thinking::get_thinking_text takes a UTF-8 gjson value; this keeps
+// Go's byte handling for translator inputs.
+pub fn thinking_text(part: &Res<'_>) -> Vec<u8> {
+    let text = part.get("text");
+    if text.kind == Kind::String {
+        return text.s.to_vec();
+    }
+    let thinking = part.get("thinking");
+    if thinking.kind == Kind::String {
+        return thinking.s.to_vec();
+    }
+    if thinking.is_object() {
+        for key in ["text", "thinking"] {
+            let inner = thinking.get(key);
+            if inner.kind == Kind::String {
+                return inner.s.to_vec();
+            }
+        }
+    }
+    vec![]
+}
+
+// ---------------------------------------------------------------------------------------
+// Claude system text (common/claude_system.go)
+
+/// `<system-reminder>\n{text}\n</system-reminder>` (common.SystemReminderText).
+pub fn system_reminder_text(text: &[u8]) -> Vec<u8> {
+    [&b"<system-reminder>\n"[..], text, b"\n</system-reminder>"].concat()
+}
+
+/// common.ClaudeMessageSystemReminderText: a Claude `system`-role message's text parts
+/// (attribution lines dropped) joined with newlines and wrapped as a reminder.
+pub fn claude_message_system_reminder_text(content: &Res<'_>) -> Option<Vec<u8>> {
+    let mut parts: Vec<Vec<u8>> = vec![];
+    let mut keep = |text: Vec<u8>| {
+        if !text.is_empty() && !is_claude_code_attribution_text(&text) {
+            parts.push(text);
+        }
+    };
+    if content.kind == Kind::String {
+        keep(content.s.to_vec());
+    } else if content.is_array() {
+        content.each(|_, item| {
+            if item.get("type").bytes().as_ref() == b"text" {
+                keep(item.get("text").bytes().into_owned());
+            }
+            true
+        });
+    }
+    let text = parts.join(&b'\n');
+    (!parts.is_empty() && !trim_space(&text).is_empty()).then(|| system_reminder_text(&text))
+}
+
+/// common.AlignClaudeToolResults: when a user turn answers exactly the pending tool uses,
+/// its tool_result parts are reordered (in their own slots) to follow the tool_use order.
+pub fn align_claude_tool_results<'a>(parts: Vec<Res<'a>>, tool_use_ids: &[Vec<u8>]) -> Vec<Res<'a>> {
+    if tool_use_ids.is_empty() {
+        return parts;
+    }
+    let slots: Vec<usize> = (0..parts.len())
+        .filter(|&i| parts[i].get("type").bytes().as_ref() == b"tool_result")
+        .collect();
+    if slots.len() != tool_use_ids.len() {
+        return parts;
+    }
+    let mut used = vec![false; slots.len()];
+    let mut order = Vec::with_capacity(slots.len());
+    for id in tool_use_ids {
+        let found = slots.iter().enumerate().position(|(n, &slot)| {
+            !used[n] && !id.is_empty() && parts[slot].get("tool_use_id").bytes().as_ref() == id.as_slice()
+        });
+        let Some(n) = found else { return parts };
+        used[n] = true;
+        order.push(slots[n]);
+    }
+    let mut out = parts.clone();
+    for (slot, from) in slots.iter().zip(order) {
+        out[*slot] = parts[from].clone();
+    }
+    out
+}
+
+// ---------------------------------------------------------------------------------------
+// OpenAI tool-call ordering (common/openai_tools.go)
+
+/// common.AlignOpenAIToolCallMessages: moves each `tool` reply directly after the
+/// assistant message that made the call, when every call ID of that assistant message is
+/// unambiguous and answered exactly once later on.
+pub fn align_openai_tool_call_messages(messages: Vec<Vec<u8>>) -> Vec<Vec<u8>> {
+    if messages.len() <= 1 {
+        return messages;
+    }
+    struct Assistant {
+        index: usize,
+        call_ids: Vec<Vec<u8>>,
+        has_empty: bool,
+    }
+    let mut assistants = vec![];
+    let mut assistant_by_call: HashMap<Vec<u8>, usize> = HashMap::new();
+    let mut ambiguous: HashSet<Vec<u8>> = HashSet::new();
+    let mut tools_by_call: HashMap<Vec<u8>, Vec<usize>> = HashMap::new();
+    for (i, raw) in messages.iter().enumerate() {
+        match gj::get(raw, "role").bytes().as_ref() {
+            b"assistant" => {
+                let calls = gj::get(raw, "tool_calls");
+                if !calls.is_array() {
+                    continue;
+                }
+                let calls = calls.array();
+                if calls.is_empty() {
+                    continue;
+                }
+                let mut call_ids = vec![];
+                let mut has_empty = false;
+                for call in &calls {
+                    let id = call.get("id").bytes().into_owned();
+                    if id.is_empty() {
+                        ambiguous.insert(vec![]);
+                        has_empty = true;
+                        continue;
+                    }
+                    if assistant_by_call.insert(id.clone(), i).is_some() {
+                        ambiguous.insert(id.clone());
+                    }
+                    call_ids.push(id);
+                }
+                if !call_ids.is_empty() || has_empty {
+                    assistants.push(Assistant {
+                        index: i,
+                        call_ids,
+                        has_empty,
+                    });
+                }
+            }
+            b"tool" => {
+                let id = gj::get(raw, "tool_call_id").bytes().into_owned();
+                if id.is_empty() {
+                    ambiguous.insert(vec![]);
+                } else {
+                    let indexes = tools_by_call.entry(id.clone()).or_default();
+                    indexes.push(i);
+                    if indexes.len() > 1 {
+                        ambiguous.insert(id);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    let mut groups: HashMap<usize, Vec<usize>> = HashMap::new();
+    'assistants: for a in &assistants {
+        if a.has_empty {
+            continue;
+        }
+        let mut matched = vec![];
+        for id in &a.call_ids {
+            match tools_by_call.get(id).map(Vec::as_slice) {
+                Some(&[tool]) if !ambiguous.contains(id) && tool > a.index => matched.push(tool),
+                _ => continue 'assistants,
+            }
+        }
+        matched.sort_unstable();
+        if matched
+            .iter()
+            .enumerate()
+            .any(|(offset, &tool)| tool != a.index + offset + 1)
+        {
+            groups.insert(a.index, matched);
+        }
+    }
+    if groups.is_empty() {
+        return messages;
+    }
+    let moved: HashSet<usize> = groups.values().flatten().copied().collect();
+    let mut out = Vec::with_capacity(messages.len());
+    for (i, message) in messages.iter().enumerate() {
+        if moved.contains(&i) {
+            continue;
+        }
+        out.push(message.clone());
+        if let Some(tools) = groups.get(&i) {
+            out.extend(tools.iter().map(|&t| messages[t].clone()));
+        }
+    }
+    out
 }
 
 #[cfg(test)]
