@@ -30,7 +30,7 @@ It started from a post on X by @maria_rcks on 2 October 2026: "why hasnt anyone 
 ## The dashboard
 
 - A new design, built for this project in Svelte 5. It shows traffic per account for the last 200 minutes, account health and cooldowns, and covers connecting accounts, provider keys, client keys, models, payload rules, quotas, the full configuration (with a reviewed diff before saving), logs, usage, plugins and system information.
-- Small: 46.6 KB of gzipped JavaScript and 4.7 KB of gzipped CSS. The build fails past 47,200 B and 6,853 B.
+- Small: 46.9 KB of gzipped JavaScript and 4.7 KB of gzipped CSS. The build fails past 47,200 B and 6,853 B.
 - Made for first-time users without getting in the way of everyone else: a three-step start that shows only until an account and a client key exist, a Use with tools page that tests your key and gives ready-to-copy settings for Claude Code, Codex CLI, Cursor and the OpenAI and Anthropic SDKs, account limits on the overview when known, and sign-in errors that say what to change.
 - No external requests: no CDN, web fonts or analytics. The management key stays in the tab's memory and is never written to browser storage.
 - When the server lacks a feature, the dashboard says so instead of showing an error or hiding the screen.
