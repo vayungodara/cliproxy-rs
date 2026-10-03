@@ -24,6 +24,7 @@ use crate::codex_request::{self as request, Call, Settings, View};
 use crate::codex_response::{self as response, Bootstrap, Processor};
 
 pub use crate::codex_request::DEFAULT_BASE_URL;
+pub use crate::codex_ws::SteeringInput;
 
 pub struct CodexExecutor {
     /// Chrome profile for chatgpt.com, Go's standard transport elsewhere, per proxy.
@@ -119,6 +120,30 @@ impl CodexExecutor {
     /// `websocketUpstreamSupportsIncrementalInput`).
     pub fn upstream_websocket(credential: &Credential) -> bool {
         View::new(credential).websockets()
+    }
+
+    /// `codex.response-steering` as the Responses WebSocket handler reads it (Go
+    /// `SDKConfig.CodexResponseSteering`): the configured value, OAuth-only scope ignored.
+    pub fn response_steering_configured(cfg: &Config) -> bool {
+        request::response_steering(cfg)
+    }
+
+    /// Whether WebSocket turns on `credential` run full duplex: the executor's view of
+    /// `response-steering`, where API keys see Go's `ForAPIKey` (the v8 OAuth-only form
+    /// does not apply to them).
+    pub fn response_steering(credential: &Credential, cfg: &Config) -> bool {
+        if View::new(credential).api_key {
+            request::response_steering(&cfg.for_api_key())
+        } else {
+            request::response_steering(cfg)
+        }
+    }
+
+    /// Binds a downstream connection's later client frames to its session (Go
+    /// `WithWebsocketInput` and `WithWebsocketAuthCheck`). A steering turn on that session
+    /// reads them after its first `response.created`; [`Self::close_session`] releases them.
+    pub fn attach_steering(&self, session: &str, input: SteeringInput) {
+        self.ws.attach_steering(session, input);
     }
 
     /// Resolves when the session's upstream socket is lost.

@@ -130,11 +130,17 @@ struct Session {
     conn: Mutex<Option<Arc<Upstream>>>,
     /// Set once when the session's socket is lost (`notifyUpstreamDisconnect`).
     closed: watch::Sender<Option<ExecError>>,
+    /// The downstream connection's client frames when response steering is configured.
+    steering: Mutex<Option<Arc<SteeringInput>>>,
 }
 
 impl Session {
     fn current(&self) -> Option<Arc<Upstream>> {
         self.conn.lock().expect("session conn").clone()
+    }
+
+    fn steering(&self) -> Option<Arc<SteeringInput>> {
+        self.steering.lock().expect("session steering").clone()
     }
 
     /// `invalidateUpstreamConn`: only the session's current socket is dropped, so a stale
@@ -195,9 +201,15 @@ impl Pool {
                     turn: Arc::default(),
                     conn: Mutex::default(),
                     closed: watch::channel(None).0,
+                    steering: Mutex::default(),
                 })
             })
             .clone()
+    }
+
+    /// `WithWebsocketInput`: binds the downstream connection's frames to its session.
+    pub fn attach_steering(&self, id: &str, input: SteeringInput) {
+        *self.session(id).steering.lock().expect("session steering") = Some(Arc::new(input));
     }
 
     /// `CloseExecutionSession`: the downstream connection ended.
@@ -423,15 +435,7 @@ impl Turn {
         if payload.is_empty() {
             return Frame::Skip;
         }
-        if let Some(headers) = codex_quota::event_headers(payload) {
-            codex_quota::merge(&mut self.observed, &headers);
-            self.quota.observe(&self.credential, &self.model, &self.observed);
-        }
-        if self.usage.enabled() {
-            // Go observes the payload before restoring collaboration names.
-            self.usage
-                .response_line(cpa_core::format::Format::Codex, payload.as_bytes());
-        }
+        self.observe(payload);
         let raw_len = payload.len();
         let payload = response::restore(payload, self.restore);
         let payload = payload.as_ref();
@@ -484,6 +488,19 @@ impl Turn {
             out: Bytes::from(response::ensure_usage_details(out)),
             bufferable,
             terminal,
+        }
+    }
+
+    /// Quota headers and usage from one upstream event, observed before collaboration
+    /// names are restored (as Go does).
+    fn observe(&mut self, payload: &str) {
+        if let Some(headers) = codex_quota::event_headers(payload) {
+            codex_quota::merge(&mut self.observed, &headers);
+            self.quota.observe(&self.credential, &self.model, &self.observed);
+        }
+        if self.usage.enabled() {
+            self.usage
+                .response_line(cpa_core::format::Format::Codex, payload.as_bytes());
         }
     }
 
@@ -693,6 +710,12 @@ impl CodexExecutor {
             proxy: view.proxy.clone(),
         };
         let session = self.ws.session(&exec_session.id);
+        // `WebsocketInputFromContext(ctx) != nil && cfg.Codex.ResponseSteering`.
+        let steering = settings
+            .response_steering
+            .then(|| session.steering())
+            .flatten()
+            .map(|input| (input, duplex::Prepared::new(&body, &req.original_body, restore, native)));
         let guard = session.turn.clone().lock_owned().await;
         let (mut conn, mut handshake) = if exec_session.continuation {
             match session.current().filter(|c| c.target == target) {
@@ -749,6 +772,15 @@ impl CodexExecutor {
             usage: req.usage.clone(),
             model: model.clone(),
         };
+        if let Some((input, initial)) = steering {
+            // The socket now belongs to this connection; bootstrap buffering does not apply.
+            let stream = duplex::Duplex::start(turn, input, initial, req, view, settings, &exec_session.id).await;
+            return Ok(ExecResponse {
+                status: 200,
+                headers: handshake.unwrap_or_default(),
+                body: ResponseBody::Stream(stream),
+            });
+        }
         let stream = if settings.bootstrap_buffering {
             bootstrap(turn, settings.bootstrap_timeout, started).await?
         } else {
@@ -807,6 +839,10 @@ async fn read_loop(mut stream: SplitStream<WebSocket>, session: Weak<Session>, c
         None => conn.deactivate(),
     }
 }
+
+#[path = "codex_duplex.rs"]
+mod duplex;
+pub use duplex::SteeringInput;
 
 #[cfg(test)]
 #[path = "codex_ws_tests.rs"]
