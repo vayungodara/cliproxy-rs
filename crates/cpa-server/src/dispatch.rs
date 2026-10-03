@@ -44,6 +44,15 @@ pub struct Call {
     pub execution_session: Option<String>,
     /// The matched route ([`route_path`]).
     pub request_path: String,
+    /// The downstream peer (Go `Request.RemoteAddr`), when the listener provides it.
+    pub peer: Option<std::net::SocketAddr>,
+}
+
+/// The downstream peer address, as the listener records it (`ConnectInfo`).
+pub type Peer = Option<axum::Extension<axum::extract::ConnectInfo<std::net::SocketAddr>>>;
+
+pub fn peer(peer: Peer) -> Option<std::net::SocketAddr> {
+    peer.map(|axum::Extension(axum::extract::ConnectInfo(addr))| addr)
 }
 
 /// Go `RequestPathMetadataKey` (gin `FullPath()`): the matched route template in gin's
@@ -413,6 +422,11 @@ fn bootstrap_eligible(status: u16) -> bool {
 pub struct Trace(std::sync::Mutex<Option<String>>, std::sync::OnceLock<String>);
 
 impl Trace {
+    /// The request ID (Go `logging.GetRequestID`), created on first use.
+    fn request_id(&self) -> String {
+        self.1.get_or_init(request_id).clone()
+    }
+
     fn selected(&self, credential: &cpa_core::credential::Credential) {
         let index = cpa_core::config::credentials::auth_index(credential);
         if index.is_empty() {
@@ -507,6 +521,17 @@ pub async fn run(rt: &Arc<Runtime>, call: Call, trace: &Trace) -> Result<Done, R
         call.execution_session.as_deref(),
         &call.caller.principal,
     );
+    // Go's usage reporter: one record per Generate attempt while the queue accepts.
+    let usage = (call.operation == Operation::Generate && rt.usage_queue().accepts()).then(|| {
+        Arc::new(crate::usage_record::Facts::new(
+            usage_client(&cfg, &call, trace, &session),
+            call.entry,
+            call.response,
+            &call.model,
+            &call.body,
+            call.stream,
+        ))
+    });
     let mut selection = Selection {
         providers: providers.clone(),
         model: call.selection_model.clone().unwrap_or_else(|| model.clone()),
@@ -618,7 +643,7 @@ pub async fn run(rt: &Arc<Runtime>, call: Call, trace: &Trace) -> Result<Done, R
                 compact,
                 keep_model: call.selection_model.is_some(),
             };
-            match attempt(rt, &cfg, &policy, &call, &request, lease, target).await {
+            match attempt(rt, &cfg, &policy, &call, &request, usage.as_ref(), lease, target).await {
                 Attempt::Done(done) => return Ok(done),
                 Attempt::Stop(fault) => return Err(fault.into_run_error()),
                 Attempt::Next(fault) => {
@@ -717,12 +742,14 @@ struct Target<'a> {
     keep_model: bool,
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn attempt(
     rt: &Arc<Runtime>,
     cfg: &Config,
     policy: &Policy,
     call: &Call,
     request: &ExecRequest,
+    usage: Option<&Arc<crate::usage_record::Facts>>,
     mut lease: Lease,
     target: Target<'_>,
 ) -> Attempt {
@@ -732,7 +759,7 @@ async fn attempt(
     for (i, upstream) in target.models.iter().enumerate() {
         let state = registry::state_model(target.selection_model, &route_model, upstream, target.pooled);
         lease.execution_model = state.clone();
-        let req = attempt_request(
+        let mut req = attempt_request(
             request,
             cfg,
             &lease.credential,
@@ -740,6 +767,14 @@ async fn attempt(
             upstream,
             target.keep_model,
         );
+        let start = |credential: &cpa_core::credential::Credential, req: &mut ExecRequest| {
+            usage.map(|facts| {
+                let tracker = crate::usage_record::Tracker::start(rt, facts, credential, upstream);
+                req.usage = tracker.sink();
+                tracker
+            })
+        };
+        let mut tracker = start(&lease.credential, &mut req);
         let mut executed = rt.executors.execute(&lease.credential, req.clone(), cfg).await;
         // Go `tryRefreshAfterUnauthorized`: one refresh-and-retry per credential.
         if let Err(error) = &executed
@@ -748,12 +783,20 @@ async fn attempt(
             && let Some(current) = rt.refresh_after_unauthorized(&lease.credential, cfg).await
         {
             refreshed = true;
+            if let Some(t) = tracker.take() {
+                t.fail(error);
+            }
             lease.credential = current;
+            tracker = start(&lease.credential, &mut req);
             executed = rt.executors.execute(&lease.credential, req, cfg).await;
+        }
+        if let (Ok(response), Some(t)) = (&executed, tracker.as_mut()) {
+            t.arrived(&response.headers);
         }
         let fault = match executed {
             Ok(response) => match finish(call, response).await {
                 Ok(done) => {
+                    let done = track_usage(done, tracker.take());
                     let done = if target.alias.force_mapping && !target.alias.original_alias.is_empty() {
                         rewrite_model(done, &target.alias.original_alias)
                     } else {
@@ -771,12 +814,22 @@ async fn attempt(
                         }
                     });
                 }
-                Err(fault) => fault,
+                Err(fault) => {
+                    if let Some(t) = tracker.take() {
+                        t.fail(&fault.error);
+                    }
+                    fault
+                }
             },
-            Err(error) => Fault {
-                error,
-                bootstrap: false,
-            },
+            Err(error) => {
+                if let Some(t) = tracker.take() {
+                    t.fail(&error);
+                }
+                Fault {
+                    error,
+                    bootstrap: false,
+                }
+            }
         };
         let error = &fault.error;
         let action = policy.error_action(&lease.credential, error);
@@ -807,6 +860,104 @@ async fn attempt(
         last = Some(fault);
     }
     Attempt::Next(last.expect("at least one model was attempted"))
+}
+
+/// Go's client request metadata for usage records (handlers.go `GetContextWithCancel`
+/// and `syncMetadataSessionToContext`).
+// ponytail: `server.trusted-proxies` is read from the request's config snapshot; Go
+// applies it at startup only.
+fn usage_client(
+    cfg: &Config,
+    call: &Call,
+    trace: &Trace,
+    session: &crate::session::Session,
+) -> crate::usage_record::Client {
+    let trusted = cfg.derived(|c| cpa_core::config::TrustedProxies::new(&c.trusted_proxies));
+    let text = |v: &axum::http::HeaderValue| String::from_utf8_lossy(v.as_bytes()).into_owned();
+    let forwarded: Vec<String> = call.headers.get_all("x-forwarded-for").iter().map(text).collect();
+    crate::usage_record::Client {
+        client_ip: call.peer.map(|p| p.ip().to_string()).unwrap_or_default(),
+        resolved_client_ip: trusted
+            .client_ip(call.peer, |name| call.headers.get(name).map(|v| v.as_bytes()))
+            .trim()
+            .to_owned(),
+        x_forwarded_for: forwarded.join(", ").trim().to_owned(),
+        user_agent: call
+            .headers
+            .get("user-agent")
+            .map(text)
+            .unwrap_or_default()
+            .trim()
+            .to_owned(),
+        session_id: session.id.clone().unwrap_or_default(),
+        parent_session_id: session.parent.clone().unwrap_or_default(),
+        is_fork: session.fork,
+        request_id: trace.request_id(),
+        endpoint: format!("POST {}", call.request_path),
+        api_key: call.caller.principal.clone(),
+    }
+}
+
+/// Feeds a finished attempt's client-format response to its usage record: a buffered
+/// body publishes now, a stream when it ends, fails or is dropped.
+fn track_usage(done: Done, tracker: Option<crate::usage_record::Tracker>) -> Done {
+    let Some(mut tracker) = tracker else { return done };
+    match done {
+        Done::Buffered { headers, body } => {
+            tracker.body(&body);
+            tracker.succeed();
+            Done::Buffered { headers, body }
+        }
+        Done::Stream { headers, first, rest } => {
+            if let Some(first) = &first {
+                tracker.event(first);
+            }
+            Done::Stream {
+                headers,
+                first,
+                rest: Tracked {
+                    inner: rest,
+                    tracker: Some(tracker),
+                }
+                .boxed(),
+            }
+        }
+    }
+}
+
+/// A client stream that reports its events to the attempt's usage record.
+struct Tracked {
+    inner: ExecStream,
+    tracker: Option<crate::usage_record::Tracker>,
+}
+
+impl futures_util::Stream for Tracked {
+    type Item = Result<Bytes, ExecError>;
+
+    fn poll_next(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Option<Self::Item>> {
+        let item = std::task::ready!(self.inner.poll_next_unpin(cx));
+        match &item {
+            Some(Ok(event)) => {
+                if let Some(t) = self.tracker.as_mut() {
+                    t.event(event);
+                }
+            }
+            Some(Err(error)) => {
+                if let Some(t) = self.tracker.take() {
+                    t.fail(error);
+                }
+            }
+            None => {
+                if let Some(t) = self.tracker.take() {
+                    t.succeed();
+                }
+            }
+        }
+        std::task::Poll::Ready(item)
+    }
 }
 
 /// The request one upstream model attempt executes: the upstream model (unless the

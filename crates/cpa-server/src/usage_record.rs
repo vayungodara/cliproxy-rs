@@ -142,7 +142,14 @@ fn partial_subset(input: i64, cache_read: i64, cache_write: i64, output: i64, re
 }
 
 /// Go `NewIndependentTokenBreakdown`: every bucket separate.
-fn independent(uncached: i64, cache_read: i64, cache_write: i64, non_reasoning: i64, reasoning: i64, total: i64) -> Breakdown {
+fn independent(
+    uncached: i64,
+    cache_read: i64,
+    cache_write: i64,
+    non_reasoning: i64,
+    reasoning: i64,
+    total: i64,
+) -> Breakdown {
     let input = sum(&[uncached, cache_read, cache_write]);
     let output = sum(&[non_reasoning, reasoning]);
     let expected = sum(&[input.unwrap_or(0), output.unwrap_or(0)]);
@@ -162,7 +169,14 @@ fn independent(uncached: i64, cache_read: i64, cache_write: i64, non_reasoning: 
 }
 
 /// Go `NewSeparateReasoningTokenBreakdown`: cache inside input, reasoning separate.
-fn separate_reasoning(input: i64, cache_read: i64, cache_write: i64, non_reasoning: i64, reasoning: i64, total: i64) -> Breakdown {
+fn separate_reasoning(
+    input: i64,
+    cache_read: i64,
+    cache_write: i64,
+    non_reasoning: i64,
+    reasoning: i64,
+    total: i64,
+) -> Breakdown {
     let Some(cache) = sum(&[cache_read, cache_write]).filter(|c| input >= 0 && *c <= input) else {
         return inconsistent(total, 0);
     };
@@ -245,9 +259,18 @@ fn semantics(provider: &str, executor_type: &str) -> Semantics {
     {
         return Semantics::SeparateReasoning;
     }
-    if ["openai", "codex", "xai", "grok", "kimi", "qwen", "deepseek", "openrouter"]
-        .iter()
-        .any(|m| value.contains(m))
+    if [
+        "openai",
+        "codex",
+        "xai",
+        "grok",
+        "kimi",
+        "qwen",
+        "deepseek",
+        "openrouter",
+    ]
+    .iter()
+    .any(|m| value.contains(m))
     {
         return Semantics::Subset;
     }
@@ -351,11 +374,7 @@ fn json_payload(line: &[u8]) -> Option<&[u8]> {
 }
 
 fn first<'a>(root: &Res<'a>, paths: &[&str]) -> Res<'a> {
-    paths
-        .iter()
-        .map(|p| root.get(*p))
-        .find(Res::exists)
-        .unwrap_or_default()
+    paths.iter().map(|p| root.get(*p)).find(Res::exists).unwrap_or_default()
 }
 
 /// Go `extractResponseServiceTierFromValidJSON`.
@@ -409,7 +428,13 @@ fn parse_openai_node(node: &Res<'_>) -> Detail {
         total: node.get("total_tokens").int(),
         ..Detail::default()
     };
-    let cached = first(node, &["prompt_tokens_details.cached_tokens", "input_tokens_details.cached_tokens"]);
+    let cached = first(
+        node,
+        &[
+            "prompt_tokens_details.cached_tokens",
+            "input_tokens_details.cached_tokens",
+        ],
+    );
     if cached.exists() {
         d.cached = cached.int();
         d.cache_read = cached.int();
@@ -428,7 +453,10 @@ fn parse_openai_node(node: &Res<'_>) -> Detail {
     }
     let reasoning = first(
         node,
-        &["completion_tokens_details.reasoning_tokens", "output_tokens_details.reasoning_tokens"],
+        &[
+            "completion_tokens_details.reasoning_tokens",
+            "output_tokens_details.reasoning_tokens",
+        ],
     );
     if reasoning.exists() {
         d.reasoning = reasoning.int();
@@ -611,7 +639,10 @@ pub fn parse_gemini(body: &[u8]) -> Detail {
 fn parse_gemini_stream(line: &[u8]) -> Option<Detail> {
     let payload = json_payload(line).filter(|p| gj::valid(p))?;
     let root = gj::parse(payload);
-    let finish = first(&root, &["candidates.0.finishReason", "response.candidates.0.finishReason"]);
+    let finish = first(
+        &root,
+        &["candidates.0.finishReason", "response.candidates.0.finishReason"],
+    );
     if !(finish.exists() && !finish.str().trim().is_empty()) {
         return None;
     }
@@ -628,7 +659,12 @@ fn parse_interactions_node(node: &Res<'_>) -> Detail {
     let cache_read = first(node, &["cache_read_tokens", "cacheReadTokens"]);
     let tool_use = first(
         node,
-        &["tool_use_tokens", "total_tool_use_tokens", "toolUseTokens", "totalToolUseTokens"],
+        &[
+            "tool_use_tokens",
+            "total_tool_use_tokens",
+            "toolUseTokens",
+            "totalToolUseTokens",
+        ],
     )
     .int();
     let input = safe_sum(&[
@@ -638,13 +674,26 @@ fn parse_interactions_node(node: &Res<'_>) -> Detail {
     let mut d = Detail {
         input: input.unwrap_or(0),
         output: first(node, &["output_tokens", "completion_tokens", "total_output_tokens"]).int(),
-        reasoning: first(node, &["reasoning_tokens", "thoughtsTokenCount", "total_thought_tokens"]).int(),
+        reasoning: first(
+            node,
+            &["reasoning_tokens", "thoughtsTokenCount", "total_thought_tokens"],
+        )
+        .int(),
         total: first(node, &["total_tokens", "totalTokenCount"]).int(),
-        cached: first(node, &["cached_tokens", "cachedContentTokenCount", "total_cached_tokens"]).int(),
+        cached: first(
+            node,
+            &["cached_tokens", "cachedContentTokenCount", "total_cached_tokens"],
+        )
+        .int(),
         cache_read: cache_read.int(),
         cache_creation: first(
             node,
-            &["cache_creation_tokens", "cacheCreationTokens", "cache_write_tokens", "cacheWriteTokens"],
+            &[
+                "cache_creation_tokens",
+                "cacheCreationTokens",
+                "cache_write_tokens",
+                "cacheWriteTokens",
+            ],
         )
         .int(),
         ..Detail::default()
@@ -971,7 +1020,10 @@ fn generic_response_model(data: &[u8]) -> (String, bool) {
     }
     if let Some(m) = string_at(data, "response.model").and_then(bounded) {
         let kind = gj::get(data, "type").str().into_owned();
-        let terminal = matches!(kind.as_str(), "response.completed" | "response.done" | "response.incomplete");
+        let terminal = matches!(
+            kind.as_str(),
+            "response.completed" | "response.done" | "response.incomplete"
+        );
         return (m, terminal);
     }
     if let Some(m) = string_at(data, "interaction.model").and_then(bounded) {
@@ -1000,7 +1052,10 @@ fn generic_response_model(data: &[u8]) -> (String, bool) {
     }
     let kind = event_type(data);
     let status = gj::get(data, "interaction.status").str().into_owned();
-    (String::new(), interactions_terminal(&kind, &status) || kind == "message_stop")
+    (
+        String::new(),
+        interactions_terminal(&kind, &status) || kind == "message_stop",
+    )
 }
 
 /// Go `UsageReporter.ObserveResponseModel` state.
@@ -1151,7 +1206,11 @@ pub fn queued(record: &Record, client: &Client) -> Vec<u8> {
     let detail = ensure_breakdown(record.detail.clone(), &record.provider, &record.executor_type);
     let b = detail.breakdown.unwrap_or_else(|| unclassified(0));
     let (fail_status, fail_body) = if record.failed {
-        let status = if record.fail_status > 0 { record.fail_status } else { 500 };
+        let status = if record.fail_status > 0 {
+            record.fail_status
+        } else {
+            500
+        };
         (status, record.fail_body.trim().to_owned())
     } else {
         (200, String::new())
@@ -1250,6 +1309,292 @@ pub fn queued(record: &Record, client: &Client) -> Vec<u8> {
     w.0
 }
 
+// ---- per-attempt tracking ------------------------------------------------------
+
+/// Request-level facts shared by every attempt of one request (Go's handler context:
+/// client metadata, requested alias, reasoning effort, service tier, generate, stream).
+#[derive(Debug, Clone)]
+pub struct Facts {
+    pub client: Client,
+    /// Client response format, for parsing the client-visible response.
+    pub format: Format,
+    pub alias: String,
+    pub reasoning_effort: String,
+    pub service_tier: String,
+    pub generate: bool,
+    pub stream: bool,
+}
+
+impl Facts {
+    /// Go `setReasoningEffortMetadata`, `setServiceTierMetadata` and
+    /// `setGenerateMetadata` over the client body; the alias is the client's model.
+    pub fn new(client: Client, entry: Format, response: Format, model: &str, body: &[u8], stream: bool) -> Self {
+        let tier = gj::get(body, "service_tier");
+        let tier = tier.str().trim().to_owned();
+        let generate = gj::get(body, "generate");
+        Self {
+            client,
+            format: response,
+            alias: model.trim().to_owned(),
+            reasoning_effort: cpa_common::thinking::extract_reasoning_effort(body, entry.as_str(), model),
+            service_tier: if tier.is_empty() { "auto".into() } else { tier },
+            generate: !(generate.is_bool() && !generate.bool()),
+            stream,
+        }
+    }
+}
+
+/// Go executor identity for a credential's provider: `Identifier()` and the
+/// executor's type name (both reach the record and pick the token semantics).
+// ponytail: Codex attempts over the upstream WebSocket report `CodexExecutor`; Go
+// names them `CodexWebsocketsExecutor`.
+fn executor_identity(c: &cpa_core::credential::Credential) -> (String, &'static str) {
+    let provider = c.provider.trim().to_lowercase();
+    let executor = match provider.as_str() {
+        "claude" => "ClaudeExecutor",
+        "codex" => "CodexExecutor",
+        "gemini" | "gemini-interactions" => "GeminiExecutor",
+        "vertex" => "GeminiVertexExecutor",
+        "aistudio" => "AIStudioExecutor",
+        "antigravity" => "AntigravityExecutor",
+        "kimi" => "KimiExecutor",
+        "meta" => "MetaExecutor",
+        "xai" => "XAIExecutor",
+        "devin" => "DevinExecutor",
+        _ => {
+            return (cpa_core::registry::dynamic::provider_key(c), "OpenAICompatExecutor");
+        }
+    };
+    (provider, executor)
+}
+
+/// What an executor reported through `ExecRequest::usage`.
+#[derive(Default)]
+struct Reported {
+    seen: bool,
+    body: Option<Detail>,
+    stream: StreamUsage,
+    model: ResponseModel,
+    effort: Option<String>,
+}
+
+/// The executor-facing observer; `provider` picks the response-model extractor.
+struct Observer {
+    provider: String,
+    state: std::sync::Mutex<Reported>,
+}
+
+impl Observer {
+    fn lock(&self) -> std::sync::MutexGuard<'_, Reported> {
+        self.state.lock().unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+}
+
+impl cpa_core::exec::UsageObserver for Observer {
+    fn response_body(&self, format: Format, body: &[u8]) {
+        let mut r = self.lock();
+        r.seen = true;
+        r.body = Some(parse_body(format, body));
+        r.model.observe(body, &self.provider);
+    }
+
+    fn response_line(&self, format: Format, line: &[u8]) {
+        let mut r = self.lock();
+        r.seen = true;
+        r.stream.line(format, line);
+        r.model.observe(line, &self.provider);
+    }
+
+    fn request(&self, format: Format, payload: &[u8]) {
+        self.lock().effort = Some(cpa_common::thinking::extract_translated_reasoning_effort(
+            payload,
+            format.as_str(),
+        ));
+    }
+}
+
+/// One upstream attempt's record in progress. It publishes exactly once: on
+/// success, on failure, or when dropped mid-stream (Go's deferred publish).
+pub struct Tracker {
+    queue: std::sync::Arc<crate::Runtime>,
+    facts: std::sync::Arc<Facts>,
+    record: Record,
+    started: std::time::Instant,
+    observer: std::sync::Arc<Observer>,
+    stream: StreamUsage,
+    body: Option<Detail>,
+    model: ResponseModel,
+    first: Option<std::time::Duration>,
+    published: bool,
+}
+
+impl Tracker {
+    /// Starts the record for one attempt of `credential` on `upstream_model`.
+    pub fn start(
+        rt: &std::sync::Arc<crate::Runtime>,
+        facts: &std::sync::Arc<Facts>,
+        credential: &cpa_core::credential::Credential,
+        upstream_model: &str,
+    ) -> Self {
+        let (provider, executor_type) = executor_identity(credential);
+        let record = Record {
+            timestamp: go_timestamp(&chrono::Local::now()),
+            execution_id: uuid::Uuid::new_v4().to_string(),
+            executor_type: executor_type.to_owned(),
+            model: cpa_common::thinking::parse_suffix(upstream_model).model_name,
+            alias: facts.alias.clone(),
+            source: source(credential, &facts.client.api_key),
+            auth_index: cpa_core::config::credentials::auth_index(credential),
+            access_token_sha256: access_token_sha256(credential),
+            auth_type: cpa_core::registry::dynamic::auth_kind(credential)
+                .unwrap_or_default()
+                .to_owned(),
+            reasoning_effort: facts.reasoning_effort.clone(),
+            service_tier: facts.service_tier.clone(),
+            generate: facts.generate,
+            stream: facts.stream,
+            provider: provider.clone(),
+            ..Record::default()
+        };
+        Self {
+            queue: rt.clone(),
+            facts: facts.clone(),
+            record,
+            started: std::time::Instant::now(),
+            observer: std::sync::Arc::new(Observer {
+                provider,
+                state: std::sync::Mutex::default(),
+            }),
+            stream: StreamUsage::default(),
+            body: None,
+            model: ResponseModel::default(),
+            first: None,
+            published: false,
+        }
+    }
+
+    /// The sink to hand the executor.
+    pub fn sink(&self) -> cpa_core::exec::UsageSink {
+        cpa_core::exec::UsageSink::new(self.observer.clone())
+    }
+
+    /// The upstream answered; its headers are the record's `response_headers`.
+    // ponytail: TTFT is measured to the executor's response (buffered) or first event
+    // (streams); Go measures to the first upstream body byte.
+    pub fn arrived(&mut self, headers: &axum::http::HeaderMap) {
+        self.first.get_or_insert_with(|| self.started.elapsed());
+        self.record.response_headers = go_headers(headers);
+    }
+
+    /// The buffered client-format body (or the joined events of a stream the client
+    /// did not ask to stream).
+    pub fn body(&mut self, body: &[u8]) {
+        if body.trim_ascii_start().first() == Some(&b'{') {
+            self.body = Some(parse_body(self.facts.format, body));
+            self.model.observe(body, &self.observer.provider);
+        } else {
+            for line in body.split(|b| *b == b'\n') {
+                self.line(line);
+            }
+        }
+    }
+
+    /// One client-format stream event.
+    pub fn event(&mut self, event: &[u8]) {
+        self.first.get_or_insert_with(|| self.started.elapsed());
+        for line in event.split(|b| *b == b'\n') {
+            self.line(line);
+        }
+    }
+
+    fn line(&mut self, line: &[u8]) {
+        if line.trim_ascii().is_empty() {
+            return;
+        }
+        self.stream.line(self.facts.format, line);
+        self.model.observe(line, &self.observer.provider);
+    }
+
+    pub fn succeed(mut self) {
+        self.publish();
+    }
+
+    /// Go `PublishFailure`: the error's status and body, and any usage seen so far.
+    pub fn fail(mut self, error: &cpa_core::exec::ExecError) {
+        self.record.failed = true;
+        self.record.fail_status = i64::from(crate::classify::go_status(error));
+        self.record.fail_body = crate::classify::error_text(error);
+        if self.record.response_headers.is_empty() {
+            self.record.response_headers = go_headers(&error.headers);
+        }
+        self.publish();
+    }
+
+    fn publish(&mut self) {
+        if std::mem::replace(&mut self.published, true) {
+            return;
+        }
+        let queue = self.queue.usage_queue();
+        if !queue.accepts() {
+            return;
+        }
+        let reported = std::mem::take(&mut *self.observer.lock());
+        let (detail, model) = if reported.seen {
+            let detail = reported.body.or_else(|| reported.stream.detail().cloned());
+            (detail, reported.model.get().to_owned())
+        } else {
+            let detail = self.body.take().or_else(|| self.stream.detail().cloned());
+            (detail, self.model.get().to_owned())
+        };
+        let mut record = std::mem::take(&mut self.record);
+        record.detail = detail.unwrap_or_default();
+        record.response_model = model;
+        if let Some(effort) = reported.effort {
+            record.reasoning_effort = effort;
+        }
+        record.latency_ms = self.started.elapsed().as_millis() as i64;
+        record.ttft_ms = self.first.map_or(0, |d| d.as_millis() as i64);
+        queue.enqueue(queued(&record, &self.facts.client));
+    }
+}
+
+impl Drop for Tracker {
+    fn drop(&mut self) {
+        self.publish();
+    }
+}
+
+/// Go's `http.Header` view of upstream headers: canonical names, values in order.
+fn go_headers(headers: &axum::http::HeaderMap) -> Vec<(String, Vec<String>)> {
+    let mut out: Vec<(String, Vec<String>)> = Vec::new();
+    for name in headers.keys() {
+        let values = headers
+            .get_all(name)
+            .iter()
+            .map(|v| String::from_utf8_lossy(v.as_bytes()).into_owned())
+            .collect();
+        out.push((canonical_header(name.as_str()), values));
+    }
+    out
+}
+
+/// Go `textproto.CanonicalMIMEHeaderKey` for a valid token: upper-case the first
+/// letter and each letter after `-`, lower-case the rest.
+fn canonical_header(name: &str) -> String {
+    let mut upper = true;
+    name.chars()
+        .map(|c| {
+            let out = if upper {
+                c.to_ascii_uppercase()
+            } else {
+                c.to_ascii_lowercase()
+            };
+            upper = c == '-';
+            out
+        })
+        .collect()
+}
+
 /// Go `resolveUsageSource`: a Vertex project, the account (OAuth email or API key),
 /// the metadata email or `api_key` attribute, else the client key.
 pub fn source(c: &cpa_core::credential::Credential, client_key: &str) -> String {
@@ -1279,7 +1624,12 @@ pub fn access_token_sha256(c: &cpa_core::credential::Credential) -> String {
     let pick = |m: &serde_json::Map<String, serde_json::Value>| {
         ["access_token", "accessToken"]
             .iter()
-            .find_map(|k| m.get(*k).and_then(serde_json::Value::as_str).map(str::trim).filter(|v| !v.is_empty()))
+            .find_map(|k| {
+                m.get(*k)
+                    .and_then(serde_json::Value::as_str)
+                    .map(str::trim)
+                    .filter(|v| !v.is_empty())
+            })
             .map(str::to_owned)
     };
     let token = pick(&c.metadata).or_else(|| {
@@ -1288,7 +1638,10 @@ pub fn access_token_sha256(c: &cpa_core::credential::Credential) -> String {
             .find_map(|k| c.metadata.get(*k).and_then(serde_json::Value::as_object).and_then(pick))
     });
     token.map_or_else(String::new, |t| {
-        Sha256::digest(t.as_bytes()).iter().map(|b| format!("{b:02x}")).collect()
+        Sha256::digest(t.as_bytes())
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect()
     })
 }
 
@@ -1331,7 +1684,10 @@ mod tests {
         let t = t + chrono::Duration::nanoseconds(123_456_000);
         assert_eq!(go_timestamp(&t), "2026-10-03T08:00:00.123456Z");
         let east = chrono::FixedOffset::east_opt(5 * 3600 + 1800).unwrap();
-        assert_eq!(go_timestamp(&t.with_timezone(&east)), "2026-10-03T13:30:00.123456+05:30");
+        assert_eq!(
+            go_timestamp(&t.with_timezone(&east)),
+            "2026-10-03T13:30:00.123456+05:30"
+        );
     }
 
     /// Records from Go's real parsers, `UsageReporter` and `usageQueuePlugin`
@@ -1345,7 +1701,12 @@ mod tests {
             let name = case["name"].as_str().unwrap();
             let s = |k: &str| case[k].as_str().unwrap_or_default().to_owned();
             let format = Format::parse(&s("format")).unwrap();
-            let lines: Vec<&str> = case["lines"].as_array().unwrap().iter().map(|l| l.as_str().unwrap()).collect();
+            let lines: Vec<&str> = case["lines"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|l| l.as_str().unwrap())
+                .collect();
             let detail = if case["stream"].as_bool().unwrap() {
                 let mut stream = StreamUsage::default();
                 for line in &lines {
@@ -1374,7 +1735,11 @@ mod tests {
             }
             credential.attributes = case["attributes"]
                 .as_object()
-                .map(|a| a.iter().map(|(k, v)| (k.clone(), v.as_str().unwrap().to_owned())).collect())
+                .map(|a| {
+                    a.iter()
+                        .map(|(k, v)| (k.clone(), v.as_str().unwrap().to_owned()))
+                        .collect()
+                })
                 .unwrap_or_default();
             let reasoning = if s("translated_payload").is_empty() {
                 s("reasoning_effort")
