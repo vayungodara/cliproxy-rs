@@ -29,6 +29,8 @@ struct Upstream {
     five_hour_out: Mutex<String>,
     /// An account that answers 429 (its quota ran out).
     exhausted: Mutex<String>,
+    /// An account whose answers carry quota signals but no weekly reset.
+    no_reset: Mutex<String>,
 }
 
 fn epoch(after: u64) -> String {
@@ -65,6 +67,16 @@ async fn upstream(State(up): State<Arc<Upstream>>, req: Request) -> Response {
     } else {
         "allowed"
     };
+    if *up.no_reset.lock().unwrap() == key {
+        return (
+            [
+                ("content-type", "application/json".to_owned()),
+                ("anthropic-ratelimit-unified-5h-status", five_hour.to_owned()),
+            ],
+            r#"{"id":"msg_1","type":"message","role":"assistant","content":[],"model":"m","stop_reason":"end_turn","usage":{"input_tokens":1,"output_tokens":1}}"#,
+        )
+            .into_response();
+    }
     (
         [
             ("content-type", "application/json".to_owned()),
@@ -97,18 +109,25 @@ struct Proxy {
     _dir: std::path::PathBuf,
 }
 
-fn yaml(base: &str, strategy: &str) -> String {
+/// A private `auth-dir`: without one, credential loading reads the user's real
+/// `~/.cli-proxy-api`.
+fn yaml(base: &str, strategy: &str, auth_dir: &std::path::Path) -> String {
     format!(
-        "api-keys:\n  - client-key\nrouting:\n  strategy: {strategy}\nclaude-api-key:\n  - api-key: sk-fake-1\n    base-url: {base}\n  - api-key: sk-fake-2\n    base-url: {base}\n"
+        "auth-dir: {}\napi-keys:\n  - client-key\nrouting:\n  strategy: {strategy}\nclaude-api-key:\n  - api-key: sk-fake-1\n    base-url: {base}\n  - api-key: sk-fake-2\n    base-url: {base}\n",
+        auth_dir.display()
     )
 }
 
 async fn proxy(name: &str, strategy: &str) -> Proxy {
     let up = Arc::new(Upstream::default());
     let base = serve(axum::Router::new().fallback(upstream).with_state(up.clone())).await;
-    let yaml = yaml(&base, strategy);
+    let dir = std::env::temp_dir().join(format!("cpa-soonest-{name}-{}", std::process::id()));
+    let auth_dir = dir.join("auths");
+    std::fs::create_dir_all(&auth_dir).unwrap();
+    let yaml = yaml(&base, strategy, &auth_dir);
     let config = Config::parse(&yaml).unwrap();
     let mut credentials = cpa_core::config::credentials::load(&config);
+    assert_eq!(credentials.len(), 2, "only the two config keys");
     credentials.sort_by(|a, b| a.id.cmp(&b.id));
     let key = |i: usize| credentials[i].attributes["api_key"].clone();
     let (x, y) = (key(0), key(1));
@@ -123,8 +142,6 @@ async fn proxy(name: &str, strategy: &str) -> Proxy {
             google: Default::default(),
         },
     ));
-    let dir = std::env::temp_dir().join(format!("cpa-soonest-{name}-{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
     let path = dir.join("config.yaml");
     std::fs::write(&path, &yaml).unwrap();
     let options = Options {
@@ -166,7 +183,11 @@ impl Proxy {
         }
         self.up.keys.lock().unwrap()[before..]
             .iter()
-            .map(|k| if *k == self.x { "x" } else { "y" })
+            .map(|k| match k {
+                k if *k == self.x => "x",
+                k if *k == self.y => "y",
+                other => panic!("unexpected upstream key {other:?}"),
+            })
             .collect()
     }
 
@@ -207,6 +228,16 @@ async fn soonest_weekly_reset_is_used_up_first_then_the_next() {
     assert_eq!(p.route(2).await, ["y", "y"]);
 }
 
+/// An account whose answers carry quota signals but never a weekly reset gets one
+/// probe; its later answers (each a newer observation) do not re-arm it.
+#[tokio::test]
+async fn answers_without_a_reset_do_not_re_arm_the_probe() {
+    let p = proxy("noreset", "soonest-reset").await;
+    *p.up.soon.lock().unwrap() = p.y.clone();
+    *p.up.no_reset.lock().unwrap() = p.x.clone();
+    assert_eq!(p.route(5).await, ["x", "y", "y", "y", "y"]);
+}
+
 /// A probed account that resets later than the known one gets its one request, then
 /// the traffic goes back.
 #[tokio::test]
@@ -244,7 +275,7 @@ async fn management_api_and_reload_switch_the_strategy() {
     let (_, got) = p.management("GET", "/v0/management/routing/strategy", None).await;
     assert_eq!(got, json!({"strategy": "soonest-reset"}));
     // A reloaded config (the file watcher's publish) switches back to spreading.
-    p.rt.publish_config(Config::parse(&yaml(&p.base, "round-robin")).unwrap());
+    p.rt.publish_config(Config::parse(&yaml(&p.base, "round-robin", &p._dir.join("auths"))).unwrap());
     assert_eq!(p.rt.policy().strategy, Strategy::RoundRobin);
     let spread = p.route(2).await;
     assert!(spread.contains(&"x") && spread.contains(&"y"), "{spread:?}");

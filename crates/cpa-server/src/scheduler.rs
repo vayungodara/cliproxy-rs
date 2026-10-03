@@ -32,31 +32,49 @@ pub enum Strategy {
 pub struct Windows {
     /// When the long (weekly) window resets, while that is still ahead.
     pub weekly_reset: Option<SystemTime>,
+    /// The long window's reset once it has passed: the window rolled over, so what was
+    /// learned about it is stale and the credential may be probed again.
+    pub rolled_over: Option<SystemTime>,
     /// A window (Claude 5-hour or 7-day, Codex primary or secondary) is used up and has
     /// not reset yet: upstream would refuse until it does.
     pub exhausted: bool,
-    /// When the snapshot these come from was observed (`None`: never).
-    pub observed: Option<SystemTime>,
 }
 
-/// One usage window read from quota signals.
+/// How long a used-up window without a usable reset or length is assumed to hold.
+const FALLBACK_WINDOW: Duration = Duration::from_secs(5 * 3600);
+
+/// One usage window read from quota signals; each part may be missing.
 #[derive(Debug, Clone, Copy, Default)]
 struct Window {
     used_up: bool,
     reset: Option<SystemTime>,
-    minutes: Option<f64>,
+    /// The window length, when one was reported and can be represented.
+    length: Option<Duration>,
 }
 
 impl Window {
-    /// Still used up at `now`: its reset is ahead (an unknown reset holds for the window
-    /// length, or five hours, after the observation).
-    fn exhausted(&self, observed_at: SystemTime, now: SystemTime) -> bool {
-        let until = self.reset.unwrap_or_else(|| {
-            let minutes = self.minutes.filter(|m| *m > 0.0).unwrap_or(300.0);
-            observed_at + Duration::from_secs_f64(minutes * 60.0)
-        });
-        self.used_up && until > now
+    /// Until when a used-up window holds: its reset, else its length (or five hours)
+    /// after the observation. `None` when it is not used up.
+    fn exhausted_until(&self, observed_at: SystemTime) -> Option<SystemTime> {
+        if !self.used_up {
+            return None;
+        }
+        self.reset.or_else(|| {
+            self.length
+                .and_then(|l| observed_at.checked_add(l))
+                .or_else(|| observed_at.checked_add(FALLBACK_WINDOW))
+        })
     }
+}
+
+/// A window length in minutes, when positive and representable as a deadline from
+/// `observed_at`; otherwise the missing-length policy applies.
+fn window_length(minutes: f64, observed_at: SystemTime) -> Option<Duration> {
+    if !minutes.is_finite() || minutes <= 0.0 {
+        return None;
+    }
+    let length = Duration::try_from_secs_f64(minutes * 60.0).ok()?;
+    observed_at.checked_add(length).map(|_| length)
 }
 
 /// A reset signal: epoch seconds (fractions allowed) or an RFC 3339 time.
@@ -87,65 +105,79 @@ impl Windows {
                 .map(|(_, v)| v.trim())
         };
         let number = |name: &str| get(name).and_then(|v| v.parse::<f64>().ok()).filter(|n| n.is_finite());
+        let codex = provider.trim().eq_ignore_ascii_case("codex");
         let (long, short) = match provider.trim().to_ascii_lowercase().as_str() {
             "claude" => {
-                let window = |label: &str| Window {
+                let window = |label: &str, minutes: f64| Window {
                     used_up: get(&format!("anthropic-ratelimit-unified-{label}-status"))
                         .is_some_and(|s| s.eq_ignore_ascii_case("rejected"))
                         || number(&format!("anthropic-ratelimit-unified-{label}-utilization"))
                             .is_some_and(|u| u >= 1.0),
                     reset: get(&format!("anthropic-ratelimit-unified-{label}-reset")).and_then(reset_time),
-                    minutes: Some(if label == "7d" { 7.0 * 24.0 * 60.0 } else { 300.0 }),
+                    length: window_length(minutes, observed_at),
                 };
-                (Some(window("7d")), Some(window("5h")))
+                (Some(window("7d", 7.0 * 24.0 * 60.0)), Some(window("5h", 300.0)))
             }
             "codex" => {
+                // Usage, reset and length are read independently; a window exists when
+                // any of them was reported.
                 let window = |label: &str| {
                     let p = format!("x-codex-{label}-");
-                    let used = number(&format!("{p}used-percent"))?;
+                    let used = number(&format!("{p}used-percent"));
                     let reset = get(&format!("{p}reset-at")).and_then(reset_time).or_else(|| {
                         let after = number(&format!("{p}reset-after-seconds")).filter(|s| *s >= 0.0)?;
                         observed_at.checked_add(Duration::try_from_secs_f64(after).ok()?)
                     });
-                    Some(Window {
-                        used_up: used >= 100.0,
+                    let length = number(&format!("{p}window-minutes")).and_then(|m| window_length(m, observed_at));
+                    (used.is_some() || reset.is_some() || length.is_some()).then_some(Window {
+                        used_up: used.is_some_and(|u| u >= 100.0),
                         reset,
-                        minutes: number(&format!("{p}window-minutes")),
+                        length,
                     })
                 };
-                let day = 24.0 * 60.0;
+                let day = Duration::from_secs(24 * 3600);
                 match (window("primary"), window("secondary")) {
                     // The longer window is the weekly one, whichever header carries it;
                     // without lengths, secondary is weekly.
-                    (Some(p), Some(s)) if p.minutes.unwrap_or(0.0) > s.minutes.unwrap_or(f64::MAX) => {
+                    (Some(p), Some(s)) if p.length.unwrap_or(Duration::ZERO) > s.length.unwrap_or(Duration::MAX) => {
                         (Some(p), Some(s))
                     }
                     (Some(p), Some(s)) => (Some(s), Some(p)),
-                    (Some(p), None) if p.minutes.is_some_and(|m| m >= day) => (Some(p), None),
-                    (None, Some(s)) if s.minutes.is_none_or(|m| m >= day) => (Some(s), None),
+                    (Some(p), None) if p.length.is_some_and(|l| l >= day) => (Some(p), None),
+                    (None, Some(s)) if s.length.is_none_or(|l| l >= day) => (Some(s), None),
                     (only, None) | (None, only) => (None, only),
                 }
             }
             _ => (None, None),
         };
-        let limit_reached = provider.trim().eq_ignore_ascii_case("codex")
-            && get("x-codex-limit-reached").is_some_and(|v| v.eq_ignore_ascii_case("true"))
-            && observed_at + Duration::from_secs(300 * 60) > now;
+        let windows = [long, short];
+        let until = windows
+            .iter()
+            .flatten()
+            .filter_map(|w| w.exhausted_until(observed_at))
+            .max();
+        // `X-Codex-Limit-Reached` lasts as long as the used-up windows do; when none is
+        // used up, until the soonest reset any window reports; with no reset at all,
+        // five hours from the observation.
+        let flag_until = (codex && get("x-codex-limit-reached").is_some_and(|v| v.eq_ignore_ascii_case("true")))
+            .then(|| {
+                until
+                    .or_else(|| windows.iter().flatten().filter_map(|w| w.reset).min())
+                    .or_else(|| observed_at.checked_add(FALLBACK_WINDOW))
+            })
+            .flatten();
+        let long_reset = long.and_then(|w| w.reset);
         Self {
-            weekly_reset: long.and_then(|w| w.reset).filter(|r| *r > now),
-            exhausted: limit_reached
-                || [long, short]
-                    .into_iter()
-                    .flatten()
-                    .any(|w| w.exhausted(observed_at, now)),
-            observed: Some(observed_at),
+            weekly_reset: long_reset.filter(|r| *r > now),
+            rolled_over: long_reset.filter(|r| *r <= now),
+            exhausted: until.max(flag_until).is_some_and(|u| u > now),
         }
     }
 
     /// `soonest-reset` order. Usable accounts come before used-up ones. Among them, an
-    /// account without a known reset (never observed, or its reset has passed) first
-    /// gets one probe request to learn it, then known resets go earliest first, then
-    /// accounts the probe taught nothing.
+    /// account without a known reset that has not been probed since its long window
+    /// last rolled over gets one probe request, then known resets go earliest first,
+    /// then accounts whose probe taught nothing.
     fn order(&self, probed: bool) -> (bool, u8, Option<SystemTime>) {
         let class = match (self.weekly_reset, probed) {
             (Some(_), _) => 1,
@@ -153,6 +185,17 @@ impl Windows {
             (None, true) => 2,
         };
         (self.exhausted, class, self.weekly_reset)
+    }
+}
+
+/// Whether a credential was already probed for what it reports now. A probe holds
+/// until the long window rolls over after it: a reset that passed and is later than
+/// the rollover the probe was made for (`None`: a probe with no rollover known).
+fn probed(record: Option<&Option<SystemTime>>, rolled_over: Option<SystemTime>) -> bool {
+    match (record, rolled_over) {
+        (None, _) => false,
+        (Some(_), None) => true,
+        (Some(at), Some(rollover)) => at.is_some_and(|at| at >= rollover),
     }
 }
 
@@ -545,8 +588,9 @@ pub(crate) struct Scheduler {
     pub(crate) cooldowns: HashMap<(String, String), Cooldown>,
     /// Session affinity bindings (Go `SessionAffinitySelector.cache`).
     affinity: crate::affinity::Cache,
-    /// `soonest-reset` probes: the observation (by time) each credential without a known
-    /// reset had when it was sent its probe request.
+    /// `soonest-reset` probes, reserved when the probe request is picked (under the
+    /// scheduler lock, so concurrent picks never probe twice): the long-window rollover
+    /// each credential was probed for (`None`: none known). See [`probed`].
     probes: HashMap<String, Option<SystemTime>>,
 }
 
@@ -868,22 +912,22 @@ impl Scheduler {
                     .iter()
                     .map(|c| {
                         let windows = ranks(c);
-                        // Probed while its observation was the current one.
-                        let probed = probes.get(&c.id) == Some(&windows.observed);
-                        (windows.order(probed), windows.observed, *c)
+                        let order = windows.order(probed(probes.get(&c.id), windows.rolled_over));
+                        (order, windows.rolled_over, *c)
                     })
                     .collect();
                 let best = ranked.iter().map(|(order, ..)| *order).min().expect("members");
                 // Equal ranks take turns.
                 let tied: Vec<_> = ranked.iter().filter(|(o, ..)| *o == best).collect();
-                let (order, observed, picked) = *tied
+                let (order, rolled_over, picked) = *tied
                     .iter()
                     .find(|(.., c)| c.id > state.last)
                     .copied()
                     .unwrap_or(tied[0]);
                 if order.1 == 0 {
-                    // Its one probe: the next pick ranks it by what the answer reports.
-                    probes.insert(picked.id.clone(), observed);
+                    // Its one probe, spent whatever the answer: the next pick ranks it
+                    // by what the answer reports, if anything.
+                    probes.insert(picked.id.clone(), rolled_over);
                 }
                 state.last.clone_from(&picked.id);
                 picked
@@ -1262,6 +1306,8 @@ impl Scheduler {
             .collect();
         models.sort();
         self.cooldowns.retain(|(cid, _), _| cid != id);
+        // A reset credential is probed again under `soonest-reset`; affinity is kept.
+        self.probes.remove(id);
         models
     }
 }
@@ -2191,7 +2237,10 @@ mod tests {
             epoch(now - Duration::from_secs(60)),
         )]);
         let w = Windows::observed("claude", &stale, now, now);
-        assert_eq!((w.weekly_reset, w.exhausted, w.observed), (None, false, Some(now)));
+        assert_eq!(
+            (w.weekly_reset, w.rolled_over.map(epoch), w.exhausted),
+            (None, Some(epoch(now - Duration::from_secs(60))), false)
+        );
         // Utilization 1.0 exhausts the 5-hour window until its reset.
         let full = map(&[
             ("Anthropic-Ratelimit-Unified-5h-Utilization", "1.0".into()),
@@ -2235,5 +2284,246 @@ mod tests {
         // Another provider's headers mean nothing here.
         let w = Windows::observed("gemini", &codex, now, now);
         assert_eq!((w.weekly_reset, w.exhausted), (None, false));
+    }
+
+    // ---- soonest-reset review fixes ----
+
+    fn signals(pairs: &[(&str, String)]) -> std::collections::BTreeMap<String, String> {
+        pairs.iter().map(|(k, v)| ((*k).to_owned(), v.clone())).collect()
+    }
+
+    /// P1: an account answering with quota signals but no weekly reset is probed once;
+    /// each new answer (a newer observation) must not re-arm the probe, or it would take
+    /// every request ahead of an account with a known reset.
+    #[test]
+    fn soonest_reset_answers_without_a_reset_do_not_re_arm_the_probe() {
+        let wall = SystemTime::now();
+        let (a, b) = (cred("a", serde_json::json!({})), cred("b", serde_json::json!({})));
+        let policy = soonest();
+        let mut s = Scheduler::default();
+        let now = Instant::now();
+        let b_known = claude(wall, 2 * DAY, "allowed", wall + Duration::from_secs(3600));
+        let mut picks = Vec::new();
+        for i in 0..5u64 {
+            // `a` has answered `i` times, each time with a fresh 5-hour status only.
+            let a_seen = (i > 0).then(|| {
+                let seen = wall + Duration::from_secs(i);
+                Windows::observed(
+                    "claude",
+                    &signals(&[("Anthropic-Ratelimit-Unified-5h-Status", "allowed".into())]),
+                    seen,
+                    seen,
+                )
+            });
+            let ranks = |x: &Credential| {
+                if x.id == "a" {
+                    a_seen.unwrap_or_default()
+                } else {
+                    b_known
+                }
+            };
+            picks.push(
+                s.pick_ranked(&tag(&[&a, &b]), &selection("m"), &policy, &ranks, now)
+                    .unwrap()
+                    .id
+                    .clone(),
+            );
+        }
+        assert_eq!(picks, ["a", "b", "b", "b", "b"]);
+    }
+
+    /// The probe is reserved when picked: one that fails before any header arrives (no
+    /// new observation) is spent, so the next picks go to the known reset.
+    #[test]
+    fn soonest_reset_a_probe_that_fails_before_headers_is_spent() {
+        let wall = SystemTime::now();
+        let (a, b) = (cred("a", serde_json::json!({})), cred("b", serde_json::json!({})));
+        let b_known = claude(wall, 2 * DAY, "allowed", wall + Duration::from_secs(3600));
+        let ranks = |x: &Credential| if x.id == "a" { Windows::default() } else { b_known };
+        let mut s = Scheduler::default();
+        let now = Instant::now();
+        let mut pick = || {
+            s.pick_ranked(&tag(&[&a, &b]), &selection("m"), &soonest(), &ranks, now)
+                .unwrap()
+                .id
+                .clone()
+        };
+        assert_eq!(pick(), "a", "the probe");
+        assert_eq!([pick(), pick()], ["b", "b"]);
+    }
+
+    /// A known reset that passes rolls the window over and re-arms exactly one probe.
+    #[test]
+    fn soonest_reset_re_arms_only_on_a_rollover() {
+        let wall = SystemTime::now();
+        let (a, b) = (cred("a", serde_json::json!({})), cred("b", serde_json::json!({})));
+        let b_known = claude(wall, 2 * DAY, "allowed", wall + Duration::from_secs(3600));
+        let a_reset = wall + Duration::from_secs(60);
+        // `a` reported a weekly reset in 60 s; read 61 s later it has rolled over.
+        let a_rolled = |seen: SystemTime| {
+            Windows::observed(
+                "claude",
+                &signals(&[("Anthropic-Ratelimit-Unified-7d-Reset", epoch(a_reset))]),
+                seen,
+                wall + Duration::from_secs(61),
+            )
+        };
+        let mut s = Scheduler::default();
+        let now = Instant::now();
+        let mut picks = Vec::new();
+        for i in 0..3u64 {
+            let a_now = a_rolled(wall + Duration::from_secs(i));
+            let ranks = |x: &Credential| if x.id == "a" { a_now } else { b_known };
+            picks.push(
+                s.pick_ranked(&tag(&[&a, &b]), &selection("m"), &soonest(), &ranks, now)
+                    .unwrap()
+                    .id
+                    .clone(),
+            );
+        }
+        assert_eq!(picks, ["a", "b", "b"], "one probe per rollover");
+        // A later rollover re-arms it once more.
+        let later = Windows::observed(
+            "claude",
+            &signals(&[(
+                "Anthropic-Ratelimit-Unified-7d-Reset",
+                epoch(a_reset + Duration::from_secs(1)),
+            )]),
+            wall,
+            wall + Duration::from_secs(62),
+        );
+        let ranks = |x: &Credential| if x.id == "a" { later } else { b_known };
+        let mut pick = || {
+            s.pick_ranked(&tag(&[&a, &b]), &selection("m"), &soonest(), &ranks, now)
+                .unwrap()
+                .id
+                .clone()
+        };
+        assert_eq!([pick(), pick()], ["a", "b"]);
+    }
+
+    /// P2: a management reset clears the probe record (the account is probed again) and
+    /// leaves session affinity alone.
+    #[test]
+    fn soonest_reset_management_reset_re_arms_the_probe_and_keeps_affinity() {
+        let wall = SystemTime::now();
+        let (a, b) = (cred("a", serde_json::json!({})), cred("b", serde_json::json!({})));
+        let b_known = claude(wall, 2 * DAY, "allowed", wall + Duration::from_secs(3600));
+        let ranks = |x: &Credential| if x.id == "a" { Windows::default() } else { b_known };
+        let policy = Policy {
+            session_affinity: true,
+            ..soonest()
+        };
+        let mut s = Scheduler::default();
+        let now = Instant::now();
+        let mut thread = selection("m");
+        thread.session = Some("claude:thread-1".into());
+        let mut pick = |sel: &Selection, set: &[&Credential]| {
+            s.pick_ranked(&tag(set), sel, &policy, &ranks, now).unwrap().id.clone()
+        };
+        // The thread starts on `a` while it is the only account: that was `a`'s probe.
+        assert_eq!(pick(&thread, &[&a]), "a");
+        let fresh = selection("m");
+        assert_eq!(pick(&fresh, &[&a, &b]), "b");
+        s.reset_cooldowns("a");
+        let mut pick = |sel: &Selection, set: &[&Credential]| {
+            s.pick_ranked(&tag(set), sel, &policy, &ranks, now).unwrap().id.clone()
+        };
+        assert_eq!(pick(&fresh, &[&a, &b]), "a", "probed again");
+        assert_eq!(pick(&fresh, &[&a, &b]), "b");
+        assert_eq!(pick(&thread, &[&a, &b]), "a", "the pin is kept");
+    }
+
+    /// P2: an oversized finite window length neither panics nor holds a used-up window
+    /// past the missing-length policy (five hours).
+    #[test]
+    fn windows_survive_unrepresentable_window_lengths() {
+        let now = SystemTime::now();
+        for (used, exhausted) in [("0", false), ("100", true)] {
+            let huge = signals(&[
+                ("X-Codex-Primary-Used-Percent", used.into()),
+                ("X-Codex-Primary-Window-Minutes", "1e308".into()),
+            ]);
+            assert_eq!(
+                Windows::observed("codex", &huge, now, now).exhausted,
+                exhausted,
+                "{used}%"
+            );
+            let later = now + Duration::from_secs(5 * 3600 + 1);
+            assert!(
+                !Windows::observed("codex", &huge, now, later).exhausted,
+                "{used}% after five hours"
+            );
+        }
+        // Long but representable lengths still count.
+        let long = signals(&[
+            ("X-Codex-Primary-Used-Percent", "100".into()),
+            ("X-Codex-Primary-Window-Minutes", "1e9".into()),
+        ]);
+        assert!(Windows::observed("codex", &long, now, now + Duration::from_secs(DAY)).exhausted);
+    }
+
+    /// P2: `X-Codex-Limit-Reached` ends with the used-up window's own reset; the
+    /// five-hour fallback applies only when no window reports a reset.
+    #[test]
+    fn codex_limit_reached_expires_with_the_window_reset() {
+        let now = SystemTime::now();
+        let flagged = signals(&[
+            ("X-Codex-Limit-Reached", "true".into()),
+            ("X-Codex-Primary-Used-Percent", "100".into()),
+            ("X-Codex-Primary-Window-Minutes", "300".into()),
+            ("X-Codex-Primary-Reset-At", epoch(now + Duration::from_secs(60))),
+        ]);
+        assert!(Windows::observed("codex", &flagged, now, now).exhausted);
+        assert!(!Windows::observed("codex", &flagged, now, now + Duration::from_secs(61)).exhausted);
+        // No window used up: the flag holds until the soonest reported reset.
+        let below = signals(&[
+            ("X-Codex-Limit-Reached", "true".into()),
+            ("X-Codex-Primary-Used-Percent", "40".into()),
+            ("X-Codex-Primary-Reset-At", epoch(now + Duration::from_secs(600))),
+        ]);
+        assert!(Windows::observed("codex", &below, now, now + Duration::from_secs(599)).exhausted);
+        assert!(!Windows::observed("codex", &below, now, now + Duration::from_secs(601)).exhausted);
+        // No reset anywhere: five hours.
+        let bare = signals(&[("X-Codex-Limit-Reached", "true".into())]);
+        assert!(Windows::observed("codex", &bare, now, now + Duration::from_secs(5 * 3600 - 1)).exhausted);
+        assert!(!Windows::observed("codex", &bare, now, now + Duration::from_secs(5 * 3600 + 1)).exhausted);
+    }
+
+    /// P2: Codex usage, reset and length are parsed independently, so a window whose
+    /// usage is missing still reports its reset.
+    #[test]
+    fn codex_windows_parse_usage_reset_and_length_independently() {
+        let now = SystemTime::now();
+        let weekly = now + Duration::from_secs(3 * DAY);
+        let no_usage = signals(&[
+            ("X-Codex-Secondary-Window-Minutes", "10080".into()),
+            ("X-Codex-Secondary-Reset-At", epoch(weekly)),
+        ]);
+        let w = Windows::observed("codex", &no_usage, now, now);
+        assert_eq!((w.weekly_reset.map(epoch), w.exhausted), (Some(epoch(weekly)), false));
+        // Reset only, no usage or length: secondary is weekly.
+        let reset_only = signals(&[("X-Codex-Secondary-Reset-After-Seconds", "7200".into())]);
+        let w = Windows::observed("codex", &reset_only, now, now);
+        assert_eq!(w.weekly_reset.map(epoch), Some(epoch(now + Duration::from_secs(7200))));
+    }
+
+    /// Both Codex windows, the primary the longer one: the primary is weekly.
+    #[test]
+    fn codex_primary_longer_than_secondary_is_the_weekly_window() {
+        let now = SystemTime::now();
+        let weekly = now + Duration::from_secs(3 * DAY);
+        let both = signals(&[
+            ("X-Codex-Primary-Used-Percent", "51".into()),
+            ("X-Codex-Primary-Window-Minutes", "10080".into()),
+            ("X-Codex-Primary-Reset-At", epoch(weekly)),
+            ("X-Codex-Secondary-Used-Percent", "100".into()),
+            ("X-Codex-Secondary-Window-Minutes", "300".into()),
+            ("X-Codex-Secondary-Reset-After-Seconds", "3600".into()),
+        ]);
+        let w = Windows::observed("codex", &both, now, now);
+        assert_eq!((w.weekly_reset.map(epoch), w.exhausted), (Some(epoch(weekly)), true));
+        let w = Windows::observed("codex", &both, now, now + Duration::from_secs(3601));
+        assert_eq!((w.weekly_reset.map(epoch), w.exhausted), (Some(epoch(weekly)), false));
     }
 }

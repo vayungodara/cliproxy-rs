@@ -68,8 +68,12 @@ async fn proxy_keys(keys: &[&str]) -> (String, Arc<Seen>) {
     let keys: String = keys.iter().map(|k| format!("        - api-key: {k}\n")).collect();
     let seen = Arc::new(Seen::default());
     let upstream_url = serve(axum::Router::new().fallback(upstream).with_state(seen.clone())).await;
+    // A private auth-dir: without one, credential loading reads the real ~/.cli-proxy-api.
+    let auth_dir = std::env::temp_dir().join(format!("cpa-compat-auths-{}", std::process::id()));
+    std::fs::create_dir_all(&auth_dir).unwrap();
     let config = Config::parse(&format!(
-        "access:\n  api-keys: [client-key]\napi-keys:\n  openai-compatibility:\n    - name: Acme\n      base-url: {upstream_url}/v1\n      models:\n        - name: up-model\n          alias: fast\n      keys:\n{keys}"
+        "auth-dir: {}\naccess:\n  api-keys: [client-key]\napi-keys:\n  openai-compatibility:\n    - name: Acme\n      base-url: {upstream_url}/v1\n      models:\n        - name: up-model\n          alias: fast\n      keys:\n{keys}",
+        auth_dir.display()
     ))
     .unwrap();
     let credentials = cpa_core::config::credentials::load(&config);
