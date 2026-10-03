@@ -104,6 +104,9 @@ def owner_for(text):
     paths = re.findall(r"(?:internal|sdk|cmd|test|pkg)/[A-Za-z0-9_\-/.]+", text)
     joined = " ".join(paths).lower() or text.lower()
     rules = [
+        ("codex/live", "ultra/realtime"),
+        ("realtime", "ultra/realtime"),
+        ("/live", "ultra/realtime"),
         ("internal/translator", "ultra/translate"),
         ("sdk/translator", "ultra/translate"),
         ("internal/thinking", "ultra/google"),
@@ -124,18 +127,17 @@ def owner_for(text):
         ("openai-compat", "ultra/openai-xai"),
         ("codex", "ultra/codex"),
         ("websocket", "ultra/codex"),
-        ("realtime", "ultra/codex"),
-        ("/live", "ultra/codex"),
         ("management", "ultra/manage"),
         ("internal/config", "ultra/manage"),
         ("internal/usage", "ultra/server"),
-        ("pluginabi", "unassigned (M6 plugins)"),
-        ("pluginhost", "unassigned (M6 plugins)"),
-        ("plugin", "unassigned (M6 plugins)"),
-        ("internal/tui", "unassigned (M6 TUI)"),
-        ("internal/home", "unassigned (M6 Home)"),
-        ("discovery", "unassigned (M6 discovery)"),
-        ("cmd/", "integrator (binary)"),
+        ("pluginabi", "ultra/plugins"),
+        ("pluginhost", "ultra/plugins"),
+        ("plugin", "ultra/plugins"),
+        ("internal/tui", "ultra/tui"),
+        ("internal/home", "ultra/home"),
+        ("internal/store", "ultra/home"),
+        ("discovery", "ultra/tui"),
+        ("cmd/", "ultra/tui"),
     ]
     for key, owner in rules:
         if key in joined:
@@ -221,6 +223,88 @@ def judge_route(item, routes, tests):
     return ("partial", f"probe: {key} -> {hit['status']}; no test requests this path")
 
 
+# Provider families with no executor in Rust: their keys are accepted and never used.
+NO_EXECUTOR = {"vertex": "ultra/google", "antigravity": "ultra/google", "aistudio": "ultra/google",
+               "xai": "ultra/openai-xai", "devin": "ultra/device-providers"}
+FAMILY_OWNER = {"claude": "ultra/claude", "codex": "ultra/codex", "gemini": "ultra/google", "interactions": "ultra/google",
+                "meta": "ultra/device-providers", "kimi": "ultra/device-providers", "openai-compatibility": "ultra/openai-xai",
+                **NO_EXECUTOR}
+SECTION_OWNER = [("management.", "ultra/manage"), ("config-version", "ultra/manage"), ("plugins.", "ultra/plugins"),
+                 ("server.discovery", "ultra/tui"), ("credentials.", "ultra/home"),
+                 ("client.codex", "ultra/codex"), ("multimedia.", "ultra/openai-xai")]
+CONFIG_ONLY = ("config/schema.rs", "config/document.rs", "config/validate.rs", "config/generate_schema.py")
+
+
+GENERIC_LEAVES = {"name", "alias", "api-key", "base-url", "headers", "prefix", "proxy-url", "models", "disabled", "image",
+                  "priority", "weight", "display-name", "excluded-models", "websockets", "alpha-search", "force-mapping"}
+
+
+def config_family(key):
+    parts = key.replace("[]", "").split(".")
+    if parts[0] == "api-keys" and len(parts) > 1:
+        return parts[1]
+    if parts[0] == "oauth" and len(parts) > 2 and parts[1] == "providers":
+        return parts[2]
+    return None
+
+
+def config_owner(key):
+    if ".live-media-relay" in key or "aistudio.ws-auth" in key:
+        return "ultra/realtime" if ".live-media-relay" in key else "ultra/google"
+    family = config_family(key)
+    if family in FAMILY_OWNER:
+        return FAMILY_OWNER[family]
+    for prefix, owner in SECTION_OWNER:
+        if key.startswith(prefix):
+            return owner
+    return "ultra/server"
+
+
+def config_sources():
+    readers, tests = {}, {}
+    for rel, text in scan_files():
+        is_test = "/tests/" in rel or rel.endswith("_tests.rs") or "/testdata/" in rel
+        if rel.endswith(".rs") and not is_test and not rel.endswith(CONFIG_ONLY):
+            body = text.split("#[cfg(test)]")[0]
+            readers[rel] = body
+            if "#[cfg(test)]" in text:
+                tests[rel] = text[text.index("#[cfg(test)]"):]
+        elif is_test:
+            tests[rel] = text
+    return readers, tests
+
+
+def judge_config(item, sources):
+    m = re.match(r"`([^`]+)`", item["text"])
+    if not m:
+        return None
+    key = m.group(1)
+    family = config_family(key)
+    owner = config_owner(key)
+    if family in NO_EXECUTOR:
+        return ("missing", f"no {family} executor in crates/cpa-exec", owner, "")
+    leaf = key.replace("[]", "").split(".")[-1]
+    if "{" in leaf:
+        leaf = key.replace("[]", "").split(".")[-2].strip("{}")
+    readers, tests = sources
+    lit = f'"{leaf}"'
+    if leaf in GENERIC_LEAVES and family:
+        # Shared credential fields: synthesized for every API-key family.
+        used = [rel for rel in readers if rel.endswith(("config/credentials.rs", "config/sanitize.rs")) and lit in readers[rel]]
+    else:
+        used = [rel for rel, text in readers.items() if lit in text]
+    if not used:
+        return ("missing", f"accepted by the config schema; no runtime code reads {lit}", owner, "")
+    if leaf == "max-context-length":
+        return ("partial", f"parsed in {short(used)}", "ultra/codex", "Its consumer, the Codex client model catalog, is not ported.")
+    family_token = {"interactions": "interactions", "openai-compatibility": "openai-compat"}.get(family, family)
+    set_in = [rel for rel, text in tests.items()
+              if (f"{leaf}:" in text or lit in text) and (not family_token or family_token in text)]
+    if set_in:
+        return ("covered", f"read in {short(used)}; set in {short(set_in)}", owner, "heuristic: key name match")
+    return ("partial", f"read in {short(used)}; no test sets it", owner, "heuristic: key name match")
+
+
 def main():
     only = None
     if "--milestones" in sys.argv:
@@ -230,17 +314,22 @@ def main():
     routes_path = os.path.join(HERE, "routes.json")
     routes = json.load(open(routes_path)) if os.path.exists(routes_path) else {}
     tests = test_texts()
+    sources = config_sources()
     rows = []
     for item in items():
         if only and item["ms"] not in only:
             continue
-        status, evidence, note = "", "", ""
+        status, evidence, note, auto_owner = "", "", "", ""
         if "test-suite" in item["section"]:
             status, evidence, note = judge_test_suite(item, index)
         else:
             routed = judge_route(item, routes, tests)
             if routed:
                 status, evidence = routed
+            elif item["section"].startswith("5. Config"):
+                judged = judge_config(item, sources)
+                if judged:
+                    status, evidence, auto_owner, note = judged
         man = manual.get(item["id"])
         if man:
             status = man["status"] or status
@@ -248,7 +337,7 @@ def main():
             note = man["note"] or note
         owner = ""
         if status != "covered":
-            owner = (man and man["owner"]) or owner_for(item["text"])
+            owner = (man and man["owner"]) or auto_owner or owner_for(item["text"])
         rows.append({**item, "status": status or "unjudged", "evidence": evidence, "owner": owner, "note": note})
     json.dump(rows, open(os.path.join(HERE, "status.json"), "w"), indent=1)
     counts = defaultdict(lambda: defaultdict(int))
@@ -260,7 +349,7 @@ def main():
 
 
 # Milestones whose rows have been reviewed by hand; the others are not rendered yet.
-AUDITED = ["M1", "M2"]
+AUDITED = ["M1", "M2", "M3"]
 BASE = "c78bb56"
 
 
@@ -294,7 +383,9 @@ def render(rows):
     w("- **partial**: implemented in part, or implemented without tests that pin Go's behaviour. For Go test suites: the behaviour exists and is exercised, but not every Go case is ported.")
     w("- **missing**: not implemented.")
     w("")
-    w("Gap owner names the thread that should close a partial or missing item (`ultra/<thread>`; `integrator (binary)` for crates/cliproxy; `unassigned (M6 …)` where no thread owns the area yet).")
+    w("Gap owner names the thread that should close a partial or missing item. Threads: ultra/claude, ultra/codex, ultra/google, ultra/device-providers (Kimi, Meta, Devin), "
+      "ultra/openai-xai, ultra/server, ultra/manage, ultra/dashboard, ultra/translate, ultra/realtime (\"Realtime and Live\"), ultra/plugins (\"Plugins\"), "
+      "ultra/home (\"Home control plane, credential concurrency, storage\") and ultra/tui (\"TUI and LAN discovery\", also crates/cliproxy startup).")
     w("")
     w("Method: `docs/parity-audit/audit.py` regenerates this file. Routes come from `probe.py`, which starts the binary and requests every listed method and path "
       "without credentials (routed pairs answer from the auth guard or handler, unrouted ones 404/405). A route counts as covered when a test requests it. "
