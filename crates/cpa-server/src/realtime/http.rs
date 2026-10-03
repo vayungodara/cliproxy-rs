@@ -70,8 +70,11 @@ pub(super) fn written(status: u16, headers: HeaderMap, body: Vec<u8>) -> Respons
     tracked(status, headers, body, None)
 }
 
-/// [`written`], calling `on_failure` when the body is dropped before it reached the
-/// connection (the client went away first): Go's failed `c.Writer.Write`.
+/// [`written`], calling `on_failure` when the body is dropped before hyper took it (the
+/// client went away first): part of Go's failed `c.Writer.Write`.
+// ponytail: hyper takes the frame into its write buffer before the socket write, so a
+// write that fails after that is not seen here and such a call lives until its sideband,
+// hangup or expiry. Full parity needs a transport-level write result.
 pub(super) fn tracked(
     status: u16,
     mut headers: HeaderMap,
@@ -87,7 +90,7 @@ pub(super) fn tracked(
     response
 }
 
-/// A one-frame body that knows whether its frame was taken. Up to 2048 bytes it has an
+/// A one-frame body that knows whether hyper took its frame. Up to 2048 bytes it has an
 /// exact size (Content-Length); past that none, so it goes out chunked, as Go's
 /// `bufferBeforeChunkingSize` does, without the framing layer buffering it.
 struct TrackedBody {
@@ -236,8 +239,8 @@ pub(super) async fn call(
         Err(ShapeError::Invalid(message)) => return fail(400, &message),
         Err(ShapeError::NilMap) => return panic_response(),
     };
-    let cfg = rt.config();
-    let relay = match live_state.relays.current(&cfg) {
+    let (cfg, relay) = live_state.relays.snapshot(|| rt.config());
+    let relay = match relay {
         Ok(relay) => relay,
         Err(message) => return fail(503, &message),
     };

@@ -6,7 +6,7 @@
 //! forwarded between them; anything else is dropped. Data channel messages over 256 KiB,
 //! a failed or remotely closed peer, or a failed data channel end the session.
 //!
-//! ponytail: three pion behaviours have no webrtc-rs 0.21 equivalent. (1) Upstream proxies:
+//! ponytail: pion behaviours webrtc-rs 0.21 lacks (more at `ice_url`, `advertise`). (1) Upstream proxies:
 //! Go tunnels the upstream media over TCP through the credential's proxy (tcp_proxy.go);
 //! here a proxied credential fails the call (502) rather than sending media around the
 //! proxy. (2) `disable-private-remote-ips` filters the client's offered candidates, not
@@ -31,8 +31,8 @@ use webrtc::media_stream::track_local::static_rtp::TrackLocalStaticRTP;
 use webrtc::media_stream::track_remote::{TrackRemote, TrackRemoteEvent};
 use webrtc::peer_connection::{
     MediaEngine, PeerConnection, PeerConnectionBuilder, PeerConnectionEventHandler, RTCConfigurationBuilder,
-    RTCIceCandidateType, RTCIceGatheringState, RTCIceServer, RTCPeerConnectionState, RTCSessionDescription, Registry,
-    SettingEngineBuilder, register_default_interceptors,
+    RTCIceGatheringState, RTCIceServer, RTCPeerConnectionState, RTCSessionDescription, Registry, SettingEngineBuilder,
+    register_default_interceptors,
 };
 use webrtc::rtp_transceiver::RtpSender;
 
@@ -59,6 +59,19 @@ pub(super) struct Relay {
 
 impl Relay {
     pub fn new(config: &RelayConfig, limiter: Arc<Limiter>) -> Result<Self, String> {
+        let skipped = ungathered_ice_urls(config);
+        if !skipped.is_empty() {
+            // ponytail: webrtc-rs 0.21 gathers relay candidates over UDP TURN only; pion
+            // also uses TURN over TCP and TLS. Those servers are skipped with this warning.
+            tracing::warn!(
+                urls = ?skipped,
+                "codex.live-media-relay: TURN over TCP or TLS is not supported by this build; these ICE servers are skipped"
+            );
+        }
+        if !config.public_ip.trim().is_empty() && config.public_ip.trim().parse::<Ipv4Addr>().is_err() {
+            // ponytail: host candidates are IPv4 only, so only an IPv4 public-ip applies.
+            tracing::warn!("codex.live-media-relay.public-ip is not IPv4; host candidates keep their addresses");
+        }
         Ok(Self {
             config: config.clone(),
             limiter,
@@ -115,10 +128,6 @@ impl Relay {
         let registry = register_default_interceptors(Registry::new(), &mut media)
             .map_err(|e| format!("register WebRTC interceptors: {e}"))?;
         let mut settings = SettingEngineBuilder::new();
-        let public_ip = self.config.public_ip.trim();
-        if !public_ip.is_empty() {
-            settings = settings.with_nat_1to1_ips(vec![public_ip.to_owned()], RTCIceCandidateType::Host);
-        }
         if addr.ip().is_loopback() {
             settings = settings.with_include_loopback_candidate(true);
         }
@@ -130,7 +139,7 @@ impl Relay {
             .ice_servers
             .iter()
             .map(|s| RTCIceServer {
-                urls: s.urls.iter().map(|u| u.trim().to_owned()).collect(),
+                urls: s.urls.iter().map(|u| ice_url(u.trim())).collect(),
                 username: s.username.clone(),
                 credential: s.credential.clone(),
             })
@@ -154,21 +163,18 @@ impl Relay {
 
     async fn start(&self, offer: String, shared: &Arc<Shared>) -> Result<String, RelayError> {
         let fail = |what: &str, e: &dyn std::fmt::Display| RelayError::new(format!("{what}: {e}"));
+        // Each peer is registered the moment it exists, so a cancelled or failed setup
+        // closes whatever was created (webrtc-rs peers only stop on an explicit close).
         let down = self
             .peer(Side::Down, shared)
             .await
             .map_err(|e| fail("create downstream PeerConnection", &e))?;
+        shared.register(&down);
         let up = self
             .peer(Side::Up, shared)
             .await
-            .map_err(|e| fail("create upstream PeerConnection", &e));
-        let up = match up {
-            Ok(up) => up,
-            Err(e) => {
-                let _ = down.close().await;
-                return Err(e);
-            }
-        };
+            .map_err(|e| fail("create upstream PeerConnection", &e))?;
+        shared.register(&up);
         let _ = shared.pcs.set([down.clone(), up.clone()]);
         let offer = if self.config.disable_private_remote_ips {
             public_candidates_only(&offer)
@@ -214,7 +220,7 @@ impl Relay {
             .await
             .map_err(|e| fail("gather upstream WebRTC candidates", &e))?;
         match up.local_description().await {
-            Some(local) if !local.sdp.trim().is_empty() => Ok(local.sdp),
+            Some(local) if !local.sdp.trim().is_empty() => Ok(advertise(&local.sdp, &self.config.public_ip)),
             _ => Err(RelayError::new("upstream WebRTC offer is empty")),
         }
     }
@@ -240,16 +246,26 @@ impl MediaRelay for Relay {
                 .limiter
                 .acquire()
                 .ok_or_else(|| RelayError::new("Codex live media relay capacity exhausted"))?;
-            let shared = Shared::new(slot, route);
+            let shared = Shared::new(slot, route, self.config.public_ip.clone());
             tracing::info!(media_session_id = %shared.id, "codex live WebRTC media session created");
-            match self.start(offer, &shared).await {
-                Ok(sdp) => Ok((Arc::new(Session(shared)) as Arc<dyn MediaSession>, sdp)),
-                Err(e) => {
-                    shared.close("closed");
-                    Err(e)
-                }
-            }
+            // Closes the session if setup fails or this future is dropped (the request
+            // went away mid-negotiation), as Go's `Close` on those paths.
+            let mut guard = SetupGuard(Some(shared.clone()));
+            let sdp = self.start(offer, &shared).await?;
+            guard.0 = None;
+            Ok((Arc::new(Session(shared)) as Arc<dyn MediaSession>, sdp))
         })
+    }
+}
+
+/// Closes a session whose setup did not finish.
+struct SetupGuard(Option<Arc<Shared>>);
+
+impl Drop for SetupGuard {
+    fn drop(&mut self) {
+        if let Some(shared) = self.0.take() {
+            shared.close("closed");
+        }
     }
 }
 
@@ -335,6 +351,75 @@ impl Output {
     }
 }
 
+/// An ICE server URL with the default port Go's parser supplies (3478, or 5349 for the
+/// TLS schemes); webrtc-rs needs it explicit. `turn:host?transport=tcp` keeps its query.
+fn ice_url(url: &str) -> String {
+    let Some((scheme, rest)) = url.split_once(':') else {
+        return url.to_owned();
+    };
+    let default = match scheme.to_ascii_lowercase().as_str() {
+        "stun" | "turn" => 3478,
+        "stuns" | "turns" => 5349,
+        _ => return url.to_owned(),
+    };
+    let (host, query) = match rest.split_once('?') {
+        Some((host, query)) => (host, Some(query)),
+        None => (rest, None),
+    };
+    let has_port = match host.rfind(']') {
+        Some(bracket) => host[bracket..].contains(':'),
+        None => host.contains(':'),
+    };
+    let host = if has_port {
+        host.to_owned()
+    } else {
+        format!("{host}:{default}")
+    };
+    match query {
+        Some(query) => format!("{scheme}:{host}?{query}"),
+        None => format!("{scheme}:{host}"),
+    }
+}
+
+/// URLs webrtc-rs 0.21 accepts but never gathers from: TURN over TCP and TURN over TLS.
+fn ungathered_ice_urls(config: &RelayConfig) -> Vec<String> {
+    config
+        .ice_servers
+        .iter()
+        .flat_map(|s| s.urls.iter())
+        .map(|u| u.trim())
+        .filter(|u| {
+            let lower = u.to_ascii_lowercase();
+            lower.starts_with("turns:") || (lower.starts_with("turn:") && lower.contains("transport=tcp"))
+        })
+        .map(str::to_owned)
+        .collect()
+}
+
+/// pion's `SetNAT1To1IPs(public-ip, host)`: IPv4 host candidates advertise the public
+/// address (the socket stays bound locally). webrtc-rs keeps the setting but never applies
+/// it, so the gathered SDP is rewritten.
+fn advertise(sdp: &str, public_ip: &str) -> String {
+    let public_ip = public_ip.trim();
+    if public_ip.parse::<Ipv4Addr>().is_err() {
+        return sdp.to_owned();
+    }
+    sdp.split_inclusive('\n')
+        .map(|line| {
+            let Some(rest) = line.strip_prefix("a=candidate:") else {
+                return line.to_owned();
+            };
+            let mut fields: Vec<&str> = rest.split(' ').collect();
+            let host = fields.get(6) == Some(&"typ") && fields.get(7).is_some_and(|t| t.trim_end() == "host");
+            if host && fields.get(4).is_some_and(|a| a.parse::<Ipv4Addr>().is_ok()) {
+                fields[4] = public_ip;
+                return format!("a=candidate:{}", fields.join(" "));
+            }
+            line.to_owned()
+        })
+        .collect()
+}
+
 /// `isPublicRemoteIP` (net.IP semantics: IPv4-mapped addresses count as IPv4).
 pub(super) fn is_public_remote_ip(ip: IpAddr) -> bool {
     match ip.to_canonical() {
@@ -392,11 +477,16 @@ struct Shared {
     queues: [mpsc::Sender<RTCDataChannelMessage>; 2],
     receivers: [Mutex<Option<mpsc::Receiver<RTCDataChannelMessage>>>; 2],
     tasks: Mutex<Vec<AbortHandle>>,
+    /// The two peers once both exist, for negotiation.
     pcs: OnceLock<[Arc<dyn PeerConnection>; 2]>,
+    /// Every peer created so far, closed with the session.
+    created: Mutex<Vec<Arc<dyn PeerConnection>>>,
+    /// `public-ip`, advertised in place of host candidate addresses.
+    public_ip: String,
 }
 
 impl Shared {
-    fn new(slot: Slot, route: Route) -> Arc<Self> {
+    fn new(slot: Slot, route: Route, public_ip: String) -> Arc<Self> {
         let (down_tx, down_rx) = mpsc::channel(QUEUE);
         let (up_tx, up_rx) = mpsc::channel(QUEUE);
         Arc::new(Self {
@@ -416,20 +506,36 @@ impl Shared {
             receivers: [Mutex::new(Some(down_rx)), Mutex::new(Some(up_rx))],
             tasks: Mutex::default(),
             pcs: OnceLock::new(),
+            created: Mutex::default(),
+            public_ip,
         })
+    }
+
+    /// Registers a new peer; one created after the session closed is closed at once.
+    fn register(&self, pc: &Arc<dyn PeerConnection>) {
+        let mut created = self.created.lock().unwrap_or_else(PoisonError::into_inner);
+        if self.closed.load(Ordering::SeqCst) {
+            let pc = pc.clone();
+            tokio::spawn(async move {
+                let _ = pc.close().await;
+            });
+            return;
+        }
+        created.push(pc.clone());
     }
 
     fn lock(&self) -> std::sync::MutexGuard<'_, State> {
         self.state.lock().unwrap_or_else(PoisonError::into_inner)
     }
 
+    /// Runs a relay task until the session closes. The closed check and the registration
+    /// happen under the task-list lock that `close` drains, so none escapes.
     fn spawn(&self, task: impl std::future::Future<Output = ()> + Send + 'static) {
-        let handle = tokio::spawn(task).abort_handle();
+        let mut tasks = self.tasks.lock().unwrap_or_else(PoisonError::into_inner);
         if self.closed.load(Ordering::SeqCst) {
-            handle.abort();
             return;
         }
-        self.tasks.lock().unwrap_or_else(PoisonError::into_inner).push(handle);
+        tasks.push(tokio::spawn(task).abort_handle());
     }
 
     async fn gathered(&self, side: Side) -> Result<(), String> {
@@ -515,7 +621,9 @@ impl Shared {
             task.abort();
         }
         let channels: Vec<_> = self.channels.iter().filter_map(|c| c.get().cloned()).collect();
-        let pcs: Vec<_> = self.pcs.get().map(|p| p.to_vec()).unwrap_or_default();
+        let pcs = std::mem::take(&mut *self.created.lock().unwrap_or_else(PoisonError::into_inner));
+        // The slot is released only after both peers closed and freed their ports.
+        let slot = self.lock().slot.take();
         if let Ok(runtime) = tokio::runtime::Handle::try_current() {
             runtime.spawn(async move {
                 for channel in channels {
@@ -524,9 +632,9 @@ impl Shared {
                 for pc in pcs {
                     let _ = pc.close().await;
                 }
+                drop(slot);
             });
         }
-        drop(self.lock().slot.take());
     }
 }
 
@@ -681,7 +789,7 @@ impl MediaSession for Session {
                 .await
                 .map_err(|e| fail("gather downstream WebRTC candidates", &e))?;
             match down.local_description().await {
-                Some(local) if !local.sdp.trim().is_empty() => Ok(local.sdp),
+                Some(local) if !local.sdp.trim().is_empty() => Ok(advertise(&local.sdp, &self.0.public_ip)),
                 _ => Err(RelayError::new("downstream WebRTC answer is empty")),
             }
         })

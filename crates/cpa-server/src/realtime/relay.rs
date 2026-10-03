@@ -212,13 +212,35 @@ struct Current {
 impl Relays {
     /// The relay to use for a new call: `None` when disabled, `Err` with Go's message when
     /// it could not be built (every call then answers 503).
+    #[cfg(test)]
     pub fn current(&self, cfg: &Config) -> Result<Option<Arc<dyn MediaRelay>>, String> {
+        let state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
+        self.current_locked(state, cfg)
+    }
+
+    /// The config snapshot and its relay, read together under the relay lock
+    /// (`Handler.currentRuntime`): a request holding an older snapshot can no longer
+    /// rebuild an older relay over a newer one.
+    pub fn snapshot(
+        &self,
+        config: impl FnOnce() -> Arc<Config>,
+    ) -> (Arc<Config>, Result<Option<Arc<dyn MediaRelay>>, String>) {
+        let state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
+        let cfg = config();
+        let relay = self.current_locked(state, &cfg);
+        (cfg, relay)
+    }
+
+    fn current_locked(
+        &self,
+        mut state: std::sync::MutexGuard<'_, Option<Current>>,
+        cfg: &Config,
+    ) -> Result<Option<Arc<dyn MediaRelay>>, String> {
         #[cfg(test)]
         if let Some(fixed) = &self.fixed {
             return Ok(Some(fixed.clone()));
         }
         let config = RelayConfig::from_config(cfg);
-        let mut state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
         if let Some(current) = state.as_ref()
             && current.config == config
         {
