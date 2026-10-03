@@ -33,8 +33,14 @@ pub struct Windows {
     /// When the long (weekly) window resets, while that is still ahead.
     pub weekly_reset: Option<SystemTime>,
     /// The long window's reset once it has passed: the window rolled over, so what was
-    /// learned about it is stale and the credential may be probed again.
+    /// learned about it is stale and the credential may be probed again. Only a reset
+    /// upstream stated (an absolute time, or a delay above zero) identifies a rollover;
+    /// a zero delay would make every answer's observation time a new one.
     pub rolled_over: Option<SystemTime>,
+    /// How far apart two rollovers must be to count as different ones: half the long
+    /// window (five hours when its length is unknown), which absorbs the rounding of
+    /// relative resets around a boundary.
+    pub rollover_gap: Duration,
     /// A window (Claude 5-hour or 7-day, Codex primary or secondary) is used up and has
     /// not reset yet: upstream would refuse until it does.
     pub exhausted: bool,
@@ -48,6 +54,8 @@ const FALLBACK_WINDOW: Duration = Duration::from_secs(5 * 3600);
 struct Window {
     used_up: bool,
     reset: Option<SystemTime>,
+    /// `reset` when it can identify a rollover (not synthesized from a zero delay).
+    stated_reset: Option<SystemTime>,
     /// The window length, when one was reported and can be represented.
     length: Option<Duration>,
 }
@@ -114,6 +122,7 @@ impl Windows {
                         || number(&format!("anthropic-ratelimit-unified-{label}-utilization"))
                             .is_some_and(|u| u >= 1.0),
                     reset: get(&format!("anthropic-ratelimit-unified-{label}-reset")).and_then(reset_time),
+                    stated_reset: get(&format!("anthropic-ratelimit-unified-{label}-reset")).and_then(reset_time),
                     length: window_length(minutes, observed_at),
                 };
                 (Some(window("7d", 7.0 * 24.0 * 60.0)), Some(window("5h", 300.0)))
@@ -124,14 +133,18 @@ impl Windows {
                 let window = |label: &str| {
                     let p = format!("x-codex-{label}-");
                     let used = number(&format!("{p}used-percent"));
-                    let reset = get(&format!("{p}reset-at")).and_then(reset_time).or_else(|| {
-                        let after = number(&format!("{p}reset-after-seconds")).filter(|s| *s >= 0.0)?;
-                        observed_at.checked_add(Duration::try_from_secs_f64(after).ok()?)
-                    });
+                    let absolute = get(&format!("{p}reset-at")).and_then(reset_time);
+                    let after = number(&format!("{p}reset-after-seconds")).filter(|s| *s >= 0.0);
+                    let relative = after.and_then(|a| observed_at.checked_add(Duration::try_from_secs_f64(a).ok()?));
+                    let reset = absolute.or(relative);
+                    // A zero delay still ends an exhausted window now, but its time is
+                    // just the observation's, so it names no rollover.
+                    let stated_reset = absolute.or(relative.filter(|_| after.is_some_and(|a| a > 0.0)));
                     let length = number(&format!("{p}window-minutes")).and_then(|m| window_length(m, observed_at));
                     (used.is_some() || reset.is_some() || length.is_some()).then_some(Window {
                         used_up: used.is_some_and(|u| u >= 100.0),
                         reset,
+                        stated_reset,
                         length,
                     })
                 };
@@ -169,7 +182,8 @@ impl Windows {
         let long_reset = long.and_then(|w| w.reset);
         Self {
             weekly_reset: long_reset.filter(|r| *r > now),
-            rolled_over: long_reset.filter(|r| *r <= now),
+            rolled_over: long.and_then(|w| w.stated_reset).filter(|r| *r <= now),
+            rollover_gap: long.and_then(|w| w.length).unwrap_or(FALLBACK_WINDOW) / 2,
             exhausted: until.max(flag_until).is_some_and(|u| u > now),
         }
     }
@@ -189,13 +203,14 @@ impl Windows {
 }
 
 /// Whether a credential was already probed for what it reports now. A probe holds
-/// until the long window rolls over after it: a reset that passed and is later than
-/// the rollover the probe was made for (`None`: a probe with no rollover known).
-fn probed(record: Option<&Option<SystemTime>>, rolled_over: Option<SystemTime>) -> bool {
+/// until the long window rolls over after it: a reset that passed and is more than
+/// `gap` later than the rollover the probe was made for (`None`: a probe with no
+/// rollover known).
+fn probed(record: Option<&Option<SystemTime>>, rolled_over: Option<SystemTime>, gap: Duration) -> bool {
     match (record, rolled_over) {
         (None, _) => false,
         (Some(_), None) => true,
-        (Some(at), Some(rollover)) => at.is_some_and(|at| at >= rollover),
+        (Some(at), Some(rollover)) => at.is_some_and(|at| at.checked_add(gap).is_none_or(|limit| rollover <= limit)),
     }
 }
 
@@ -912,7 +927,7 @@ impl Scheduler {
                     .iter()
                     .map(|c| {
                         let windows = ranks(c);
-                        let order = windows.order(probed(probes.get(&c.id), windows.rolled_over));
+                        let order = windows.order(probed(probes.get(&c.id), windows.rolled_over, windows.rollover_gap));
                         (order, windows.rolled_over, *c)
                     })
                     .collect();
@@ -2382,15 +2397,13 @@ mod tests {
             );
         }
         assert_eq!(picks, ["a", "b", "b"], "one probe per rollover");
-        // A later rollover re-arms it once more.
+        // The next weekly rollover re-arms it once more.
+        let next = a_reset + Duration::from_secs(7 * DAY);
         let later = Windows::observed(
             "claude",
-            &signals(&[(
-                "Anthropic-Ratelimit-Unified-7d-Reset",
-                epoch(a_reset + Duration::from_secs(1)),
-            )]),
+            &signals(&[("Anthropic-Ratelimit-Unified-7d-Reset", epoch(next))]),
             wall,
-            wall + Duration::from_secs(62),
+            next + Duration::from_secs(1),
         );
         let ranks = |x: &Credential| if x.id == "a" { later } else { b_known };
         let mut pick = || {
@@ -2400,6 +2413,99 @@ mod tests {
                 .clone()
         };
         assert_eq!([pick(), pick()], ["a", "b"]);
+    }
+
+    /// Codex answers with `Reset-After-Seconds: 0` and no `Reset-At`: the reset is the
+    /// observation time itself, which must not count as a new rollover on every answer.
+    #[test]
+    fn soonest_reset_zero_relative_resets_do_not_re_arm_the_probe() {
+        let wall = SystemTime::now();
+        let (a, b) = (cred("a", serde_json::json!({})), cred("b", serde_json::json!({})));
+        let b_known = claude(wall, 2 * DAY, "allowed", wall + Duration::from_secs(3600));
+        let zero = signals(&[
+            ("X-Codex-Secondary-Used-Percent", "0".into()),
+            ("X-Codex-Secondary-Window-Minutes", "10080".into()),
+            ("X-Codex-Secondary-Reset-After-Seconds", "0".into()),
+        ]);
+        let mut s = Scheduler::default();
+        let now = Instant::now();
+        let mut picks = Vec::new();
+        for i in 0..4u64 {
+            // `a` has answered `i` times, each identical answer observed a second later
+            // and read a second after that.
+            let a_now = (i > 0).then(|| {
+                let seen = wall + Duration::from_secs(2 * i);
+                Windows::observed("codex", &zero, seen, seen + Duration::from_secs(1))
+            });
+            let ranks = |x: &Credential| {
+                if x.id == "a" {
+                    a_now.unwrap_or_default()
+                } else {
+                    b_known
+                }
+            };
+            picks.push(
+                s.pick_ranked(&tag(&[&a, &b]), &selection("m"), &soonest(), &ranks, now)
+                    .unwrap()
+                    .id
+                    .clone(),
+            );
+        }
+        assert_eq!(picks, ["a", "b", "b", "b"]);
+        // The zero delay still ends a used-up window now.
+        let used_up = signals(&[
+            ("X-Codex-Primary-Used-Percent", "100".into()),
+            ("X-Codex-Primary-Reset-After-Seconds", "0".into()),
+        ]);
+        assert!(!Windows::observed("codex", &used_up, wall, wall).exhausted);
+    }
+
+    /// Relative resets read around a boundary differ by rounding; rollovers less than
+    /// half a window apart are the same one, so they never re-arm the probe twice.
+    #[test]
+    fn soonest_reset_rollovers_within_half_a_window_are_one_rollover() {
+        let wall = SystemTime::now();
+        let (a, b) = (cred("a", serde_json::json!({})), cred("b", serde_json::json!({})));
+        let b_known = claude(wall, 2 * DAY, "allowed", wall + Duration::from_secs(3600));
+        // `a` reports its weekly reset `after` seconds from an observation at `seen`.
+        let codex = |seen: SystemTime, after: u64, read: SystemTime| {
+            Windows::observed(
+                "codex",
+                &signals(&[
+                    ("X-Codex-Secondary-Window-Minutes", "10080".into()),
+                    ("X-Codex-Secondary-Reset-After-Seconds", after.to_string()),
+                ]),
+                seen,
+                read,
+            )
+        };
+        let mut s = Scheduler::default();
+        let now = Instant::now();
+        let mut pick = |a_now: Windows| {
+            let ranks = |x: &Credential| if x.id == "a" { a_now } else { b_known };
+            s.pick_ranked(&tag(&[&a, &b]), &selection("m"), &soonest(), &ranks, now)
+                .unwrap()
+                .id
+                .clone()
+        };
+        let boundary = wall + Duration::from_secs(600);
+        // Reset reached: probed once.
+        assert_eq!(pick(codex(wall, 600, boundary + Duration::from_secs(1))), "a");
+        // Lagging answers keep reporting one second left, each from a later observation.
+        for i in 1..4u64 {
+            let seen = boundary + Duration::from_secs(i);
+            assert_eq!(pick(codex(seen, 1, seen + Duration::from_secs(2))), "b", "answer {i}");
+        }
+        // A week later the window really rolls over again: one more probe.
+        let next = boundary + Duration::from_secs(7 * DAY);
+        assert_eq!(
+            pick(codex(next - Duration::from_secs(5), 5, next + Duration::from_secs(1))),
+            "a"
+        );
+        assert_eq!(
+            pick(codex(next - Duration::from_secs(5), 5, next + Duration::from_secs(1))),
+            "b"
+        );
     }
 
     /// P2: a management reset clears the probe record (the account is probed again) and
