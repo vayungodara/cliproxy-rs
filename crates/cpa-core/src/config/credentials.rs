@@ -125,6 +125,8 @@ struct Key {
     request_retry: Option<i64>,
     rules: Vec<Value>,
     models: Vec<(String, String)>,
+    /// The `models` entries as configured (every field), for the registry.
+    raw_models: Vec<Json>,
     websockets: bool,
     alpha_search: bool,
     disable_codex_cloaking: Option<bool>,
@@ -209,6 +211,7 @@ fn decode(item: &serde_yaml_ng::Mapping) -> Key {
             .flatten()
             .map(|m| (text(m.get("name")), text(m.get("alias"))))
             .collect(),
+        raw_models: raw_models(get("models")),
         websockets: boolean(get("websockets")).unwrap_or(false),
         alpha_search: boolean(get("alpha-search")).unwrap_or(false),
         disable_codex_cloaking: boolean(get("disable-codex-cloaking")),
@@ -261,6 +264,11 @@ fn sanitized(cfg: &Config, family: &str) -> Vec<Key> {
                 .map(|(n, a)| (n.trim().to_owned(), a.trim().to_owned()))
                 .filter(|(n, a)| !n.is_empty() && !a.is_empty())
                 .collect();
+            // SanitizeVertexCompatKeys drops models without both a name and an alias.
+            k.raw_models.retain(|m| {
+                let t = |key: &str| m.get(key).and_then(Json::as_str).is_some_and(|v| !v.trim().is_empty());
+                t("name") && t("alias")
+            });
             seen.insert(format!("{}|{}", k.api_key, k.base_url))
         }
         "codex" | "xai" => {
@@ -353,7 +361,7 @@ struct Draft {
 }
 
 impl Draft {
-    fn finish(mut self, excluded: Option<&[String]>, models: &[(String, String)]) -> Credential {
+    fn finish(mut self, excluded: Option<&[String]>, models: &[(String, String)], raw_models: &[Json]) -> Credential {
         if let Some(list) = excluded {
             let combined = excluded_union(&[list]);
             if !combined.is_empty() {
@@ -369,6 +377,11 @@ impl Draft {
             .collect();
         if !aliases.is_empty() {
             self.meta.insert("model_aliases".into(), aliases.into());
+        }
+        // Go's registry reads the entry's whole `models` list from config by index
+        // (name-only entries register under their name).
+        if !raw_models.is_empty() {
+            self.meta.insert("models".into(), raw_models.to_vec().into());
         }
         if !self.prefix.is_empty() {
             self.attrs.insert("prefix".into(), self.prefix);
@@ -503,7 +516,7 @@ fn synthesize(cfg: &Config) -> Vec<(Credential, Option<KeyLocation>)> {
                 group: d.origin.0,
                 key: d.origin.1,
             });
-            out.push((d.finish(Some(&k.excluded), &k.models), origin));
+            out.push((d.finish(Some(&k.excluded), &k.models, &k.raw_models), origin));
         }
     }
     for k in sanitized(cfg, "claude") {
@@ -538,7 +551,7 @@ fn synthesize(cfg: &Config) -> Vec<(Credential, Option<KeyLocation>)> {
             group: d.origin.0,
             key: d.origin.1,
         });
-        out.push((d.finish(Some(&k.excluded), &k.models), origin));
+        out.push((d.finish(Some(&k.excluded), &k.models, &k.raw_models), origin));
     }
     for (family, section) in [
         ("codex", "codex-api-key"),
@@ -581,7 +594,7 @@ fn synthesize(cfg: &Config) -> Vec<(Credential, Option<KeyLocation>)> {
                 group: d.origin.0,
                 key: d.origin.1,
             });
-            out.push((d.finish(Some(&k.excluded), &k.models), origin));
+            out.push((d.finish(Some(&k.excluded), &k.models, &k.raw_models), origin));
         }
     }
     out.extend(openai_compat(cfg, &mut ids).into_iter().map(|c| (c, None)));
@@ -629,7 +642,7 @@ fn synthesize(cfg: &Config) -> Vec<(Credential, Option<KeyLocation>)> {
             group: d.origin.0,
             key: d.origin.1,
         });
-        out.push((d.finish(Some(&k.excluded), &k.models), origin));
+        out.push((d.finish(Some(&k.excluded), &k.models, &k.raw_models), origin));
     }
     out
 }
@@ -676,6 +689,7 @@ fn openai_compat(cfg: &Config, ids: &mut Ids) -> Vec<Credential> {
             .flatten()
             .map(|m| (text(m.get("name")), text(m.get("alias"))))
             .collect();
+        let group_raw_models = raw_models(g.get("models"));
         let kind = format!("openai-compatibility:{provider_name}");
         let entries: Vec<&Value> = g
             .get("keys")
@@ -707,7 +721,7 @@ fn openai_compat(cfg: &Config, ids: &mut Ids) -> Vec<Credential> {
                 d.attrs.insert("api_key".into(), key.into());
             }
             (d.provider, d.label, d.section) = (provider.clone(), name.clone(), "openai-compatibility");
-            out.push(d.finish(None, &models));
+            out.push(d.finish(None, &models, &group_raw_models));
         };
         if entries.is_empty() {
             push(None);
@@ -717,6 +731,95 @@ fn openai_compat(cfg: &Config, ids: &mut Ids) -> Vec<Credential> {
         }
     }
     out
+}
+
+/// One sanitized `api-keys.<family>` entry (Go `cfg.GeminiKey[i]`, `cfg.CodexKey[i]`,
+/// ...), as `LoadConfig` leaves it. `index` is its position, which config-backed
+/// credentials carry as the `config_index` attribute.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ApiKeyEntry {
+    pub index: usize,
+    pub api_key: String,
+    pub base_url: String,
+    pub prefix: String,
+    pub proxy_url: String,
+    pub headers: BTreeMap<String, String>,
+    pub excluded_models: Vec<String>,
+    /// The entry's `models` as configured (config field names, every field).
+    pub models: Vec<Json>,
+}
+
+/// The sanitized entries of one family, index-aligned with `config_index`.
+/// `family` is the section under `api-keys`: `gemini`, `interactions`, `vertex`,
+/// `claude`, `codex`, `xai` or `meta` (OpenAI compatibility has its own shape).
+pub fn api_key_entries(cfg: &Config, family: &str) -> Vec<ApiKeyEntry> {
+    if !matches!(
+        family,
+        "gemini" | "interactions" | "vertex" | "claude" | "codex" | "xai" | "meta"
+    ) {
+        return Vec::new();
+    }
+    sanitized(cfg, family)
+        .into_iter()
+        .map(|k| ApiKeyEntry {
+            index: k.index,
+            api_key: k.api_key,
+            base_url: k.base_url,
+            prefix: k.prefix,
+            proxy_url: k.proxy_url,
+            headers: k.headers,
+            excluded_models: k.excluded,
+            models: k.raw_models,
+        })
+        .collect()
+}
+
+/// Go `resolveAPIKeyConfig` (sdk/cliproxy/auth/conductor_models.go): the entry a
+/// credential binds to. A config-backed credential takes the entry at its
+/// `config_index` when that entry still matches its key and base URL; otherwise the
+/// first entry matching credentials, prefix and proxy, then credentials alone, then
+/// the key alone. Comparisons are trimmed and case-insensitive like Go's.
+pub fn resolve_api_key_entry(cfg: &Config, family: &str, c: &Credential) -> Option<ApiKeyEntry> {
+    let mut entries = api_key_entries(cfg, family);
+    if entries.is_empty() {
+        return None;
+    }
+    let attr = |k: &str| c.attributes.get(k).map(|v| v.trim()).unwrap_or_default();
+    let fold = |a: &str, b: &str| a.trim().to_lowercase() == b.trim().to_lowercase();
+    let (key, base) = (attr("api_key"), attr("base_url"));
+    let matches = |e: &ApiKeyEntry| {
+        let (k, b) = (e.api_key.trim(), e.base_url.trim());
+        if !key.is_empty() && !base.is_empty() {
+            fold(k, key) && fold(b, base)
+        } else if !key.is_empty() {
+            fold(k, key) && (b.is_empty() || fold(b, base))
+        } else {
+            !base.is_empty() && fold(b, base)
+        }
+    };
+    let take = |entries: &mut Vec<ApiKeyEntry>, i: usize| Some(entries.swap_remove(i));
+    if matches!(c.source, Source::Config { .. })
+        && let Ok(i) = attr("config_index").parse::<usize>()
+        && entries.get(i).is_some_and(matches)
+    {
+        return take(&mut entries, i);
+    }
+    let (prefix, proxy) = (attr("prefix"), attr("proxy_url"));
+    if let Some(i) = entries
+        .iter()
+        .position(|e| matches(e) && fold(&e.prefix, prefix) && fold(&e.proxy_url, proxy))
+    {
+        return take(&mut entries, i);
+    }
+    if let Some(i) = entries.iter().position(matches) {
+        return take(&mut entries, i);
+    }
+    if !key.is_empty()
+        && let Some(i) = entries.iter().position(|e| fold(&e.api_key, key))
+    {
+        return take(&mut entries, i);
+    }
+    None
 }
 
 /// Go `proxyURLFromAPIKeyConfig` (management `api-call`): the `proxy-url` of the first
@@ -784,6 +887,16 @@ pub fn api_key_config_proxy(cfg: &Config, c: &Credential) -> String {
             .flatten()
     });
     matched.map(|e| e.proxy_url.trim().to_owned()).unwrap_or_default()
+}
+
+/// A `models` YAML sequence as JSON entries (mappings only).
+fn raw_models(v: Option<&Value>) -> Vec<Json> {
+    v.and_then(Value::as_sequence)
+        .into_iter()
+        .flatten()
+        .filter(|m| m.is_mapping())
+        .filter_map(|m| serde_json::to_value(m).ok())
+        .collect()
 }
 
 /// Go `NormalizeCredentialMetadata`: config-style aliases become snake_case unless the
@@ -1264,6 +1377,59 @@ fn clean(path: &Path) -> PathBuf {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Go `buildCodexConfigModels`: name-only entries register under their name, an
+    /// alias with its display name; vertex keeps only entries with both (its sanitizer).
+    #[test]
+    fn config_models_reach_the_registry_like_go() {
+        let cfg = Config::parse(
+            "api-keys:\n  codex:\n    - base-url: https://c.example.invalid\n      models: [{name: gpt-name-only}, {name: gpt-real, alias: friendly, display-name: Friendly}]\n      keys: [{api-key: k}]\n  vertex:\n    - base-url: https://v.example.invalid\n      models: [{name: v-only}, {name: v1, alias: va}]\n      keys: [{api-key: vk}]\n",
+        )
+        .unwrap();
+        let creds = from_config(&cfg);
+        let aliases = crate::registry::dynamic::global_aliases(&cfg);
+        let ids = |provider: &str| -> Vec<(String, String)> {
+            let c = creds.iter().find(|c| c.provider == provider).unwrap();
+            crate::registry::dynamic::models_for(&cfg, &aliases, c, 0)
+                .into_iter()
+                .map(|m| (m.id, m.display_name))
+                .collect()
+        };
+        assert_eq!(
+            ids("codex"),
+            [
+                ("gpt-name-only".to_owned(), "gpt-name-only".to_owned()),
+                ("friendly".to_owned(), "Friendly".to_owned())
+            ]
+        );
+        assert_eq!(
+            ids("vertex").iter().map(|(id, _)| id.as_str()).collect::<Vec<_>>(),
+            ["va"]
+        );
+    }
+
+    /// Go `resolveAPIKeyConfig`: `config_index` binds exactly even when an earlier
+    /// entry has the same key and base URL (differing only by headers), and a stale
+    /// index falls back to matching.
+    #[test]
+    fn resolve_api_key_entry_prefers_the_matching_config_index() {
+        let cfg = Config::parse(
+            "api-keys:\n  gemini:\n    - base-url: https://g.example.invalid\n      headers: {X-A: one}\n      models: [{name: first}]\n      keys: [{api-key: same}]\n    - base-url: https://g.example.invalid\n      headers: {X-A: two}\n      models: [{name: second}]\n      keys: [{api-key: same}]\n",
+        )
+        .unwrap();
+        let entries = api_key_entries(&cfg, "gemini");
+        assert_eq!(entries.iter().map(|e| e.index).collect::<Vec<_>>(), [0, 1]);
+        let creds = from_config(&cfg);
+        assert_eq!(creds.len(), 2);
+        let second = &creds[1];
+        assert_eq!(second.attributes["config_index"], "1");
+        let bound = resolve_api_key_entry(&cfg, "gemini", second).unwrap();
+        assert_eq!((bound.index, bound.models[0]["name"].as_str()), (1, Some("second")));
+        let mut stale = second.clone();
+        stale.attributes.insert("config_index".into(), "9".into());
+        assert_eq!(resolve_api_key_entry(&cfg, "gemini", &stale).unwrap().index, 0);
+        assert!(api_key_entries(&cfg, "openai-compatibility").is_empty());
+    }
 
     /// Go `proxyURLFromAPIKeyConfig`: the first matching entry wins, so a repeated key
     /// takes the earlier entry's `direct`, and compat keys match by name then key.

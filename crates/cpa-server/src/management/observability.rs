@@ -22,7 +22,7 @@ const LATEST_RELEASE_USER_AGENT: &str = "cliproxy-rs";
 
 /// Go `GetLatestVersion`: one GET through `requests.proxy-url` (or the environment
 /// proxies), 10 s timeout.
-pub(super) async fn latest_version(State(state): State<Arc<Management>>) -> Response {
+pub(crate) async fn latest_version(State(state): State<Arc<Management>>) -> Response {
     let url = state.latest_release_url.clone();
     if url.is_empty() {
         return reply(
@@ -118,7 +118,7 @@ fn gateway(error: &str, message: String) -> Response {
 
 /// Go `GetAPIKeyUsage`: API-key credentials grouped by provider (the OpenAI-compatible
 /// name when set) and keyed by `base_url|api_key`, with summed counters.
-pub(super) async fn api_key_usage(State(state): State<Arc<Management>>) -> Response {
+pub(crate) async fn api_key_usage(State(state): State<Arc<Management>>) -> Response {
     let store = state.rt.store();
     let mut out: BTreeMap<String, BTreeMap<String, (u64, u64, Value)>> = BTreeMap::new();
     for c in store.snapshot().iter() {
@@ -189,7 +189,7 @@ fn merge_buckets(dst: &mut Value, src: &Value) {
 
 /// Go `GetUsageQueue`: pops up to `count` (default 1) queued usage records. A record
 /// that is valid JSON is embedded as is, anything else as a JSON string.
-pub(super) async fn usage_queue(State(state): State<Arc<Management>>, RawQuery(raw): RawQuery) -> Response {
+pub(crate) async fn usage_queue(State(state): State<Arc<Management>>, RawQuery(raw): RawQuery) -> Response {
     let q = Query::parse(raw);
     let value = q.first("count").trim();
     let count = if value.is_empty() {

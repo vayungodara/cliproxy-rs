@@ -257,10 +257,12 @@ func needs(s *scenario, upstreamFormat string, payload []byte, countBody []byte)
 	}
 	base := thinking.ParseSuffix(s.Model).ModelName
 	skipRequest := upstreamFormat == "interactions" && s.Source == "interactions"
-	if !skipRequest {
+	// Unregistered pairs are Go's fallback (model rewrite, passthrough response), which
+	// needs no translator.
+	if !skipRequest && sdktranslator.HasRequestTransformer(from, to) {
 		if s.Source != upstreamFormat {
 			add("pair:" + s.Source + "->" + upstreamFormat)
-		} else if sdktranslator.HasRequestTransformer(from, to) {
+		} else {
 			translated := sdktranslator.TranslateRequest(from, to, base, bytes.Clone(payload), s.Op == "stream")
 			if !bytes.Equal(translated, fallbackRequest(base, bytes.Clone(payload))) {
 				add("pair:" + s.Source + "->" + upstreamFormat)
@@ -275,7 +277,7 @@ func needs(s *scenario, upstreamFormat string, payload []byte, countBody []byte)
 		if !bytes.Equal(translated, countBody) {
 			add("token_count:" + response + "->" + upstreamFormat)
 		}
-	} else if response != upstreamFormat {
+	} else if response != upstreamFormat && sdktranslator.HasResponseTransformer(sdktranslator.FromString(response), to) {
 		add("pair:" + response + "->" + upstreamFormat)
 	}
 	return out
