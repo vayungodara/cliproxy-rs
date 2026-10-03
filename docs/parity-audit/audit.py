@@ -235,7 +235,7 @@ SECTION_OWNER = [("management.", "ultra/manage"), ("config-version", "ultra/mana
 CONFIG_ONLY = ("config/schema.rs", "config/document.rs", "config/validate.rs", "config/generate_schema.py")
 
 
-GENERIC_LEAVES = {"name", "alias", "api-key", "base-url", "headers", "prefix", "proxy-url", "models", "disabled", "image",
+GENERIC_LEAVES = {"name", "alias", "api-key", "base-url", "headers", "prefix", "proxy-url", "models", "disabled",
                   "priority", "weight", "display-name", "excluded-models", "websockets", "alpha-search", "force-mapping"}
 
 
@@ -350,7 +350,7 @@ def main():
 
 # Milestones whose rows have been reviewed by hand; the others are not rendered yet.
 AUDITED = ["M1", "M2", "M3"]
-BASE = "c78bb56"
+BASE = "d48b9e0"
 
 
 def title(r):
