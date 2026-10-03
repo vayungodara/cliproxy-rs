@@ -254,11 +254,6 @@ pub(crate) struct Accumulator {
 }
 
 impl Accumulator {
-    /// The stream carried an upstream `error` event.
-    pub(crate) fn upstream_error(&self) -> bool {
-        self.upstream_error
-    }
-
     pub(crate) fn observe(&mut self, chunk: &[u8]) {
         for line in chunk.split(|b| *b == b'\n') {
             let line = line.trim_ascii();
