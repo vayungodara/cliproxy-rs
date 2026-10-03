@@ -384,6 +384,8 @@ struct Turn {
     credential: String,
     /// Handshake headers plus quota headers from this turn's events.
     observed: HeaderMap,
+    /// The request renamed the `collaboration` namespace (multi-agent v2).
+    restore: bool,
 }
 
 impl Drop for Turn {
@@ -421,6 +423,9 @@ impl Turn {
             codex_quota::merge(&mut self.observed, &headers);
             self.quota.observe(&self.credential, &self.observed);
         }
+        let raw_len = payload.len();
+        let payload = response::restore(payload, self.restore);
+        let payload = payload.as_ref();
         if let Some(error) = ws_error(payload, self.cooling) {
             return Frame::Failed {
                 error,
@@ -466,7 +471,7 @@ impl Turn {
             }
         }
         Frame::Event {
-            raw_len: payload.len(),
+            raw_len,
             out: Bytes::from(response::ensure_usage_details(out)),
             bufferable,
             terminal,
@@ -666,7 +671,7 @@ impl CodexExecutor {
         exec_session: &ExecSession,
     ) -> Result<ExecResponse, ExecError> {
         let model = request::base_model(&req.model).to_owned();
-        let body = request::shape(&req, view, settings, Call::Websocket)?;
+        let (body, restore) = request::shape(&req, view, settings, Call::Websocket)?;
         let (body, cache) = request::prompt_cache(&req, body, Some(&exec_session.id), true);
         let native = request::is_native(&req);
         let headers = request::ws_headers(view, settings, &req.headers, &body, &model, cache.as_deref(), native);
@@ -728,6 +733,7 @@ impl CodexExecutor {
             quota: self.quota_handle(),
             credential: view.credential.id.clone(),
             observed,
+            restore,
         };
         let stream = if settings.bootstrap_buffering {
             bootstrap(turn, settings.bootstrap_timeout, started).await?

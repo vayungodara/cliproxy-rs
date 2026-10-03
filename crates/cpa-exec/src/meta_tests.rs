@@ -870,3 +870,47 @@ async fn mint_errors_follow_go() {
         "meta auth: missing dca token"
     );
 }
+
+#[tokio::test]
+async fn apply_patch_failures_end_meta_streams_like_go() {
+    // Go's Meta loop: StopApplyPatchStream after each translated line; at EOF only the
+    // translator's flush (no FinalizeApplyPatchStream, no [DONE]).
+    async fn run(lines: Vec<&'static str>, fail_on_finalize: bool) -> (Vec<String>, Vec<String>) {
+        let log = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        let translator = Box::new(crate::kimi_fixture::PatchProbe {
+            failed: false,
+            fail_on_finalize,
+            log: log.clone(),
+        });
+        let upstream =
+            futures_util::stream::iter(lines.into_iter().map(|l| Ok(Bytes::from_static(l.as_bytes())))).boxed();
+        let out: Vec<String> = stream_events(upstream, translator, false)
+            .map(|item| match item {
+                Ok(b) => String::from_utf8(b.to_vec()).unwrap(),
+                Err(e) => format!("ERR {} {}", e.status, String::from_utf8_lossy(&e.body)),
+            })
+            .collect()
+            .await;
+        let log = log.lock().unwrap().clone();
+        (out, log)
+    }
+    let patch = format!("ERR 502 {}", cpa_translate::APPLY_PATCH_UPSTREAM_ERROR);
+    let (out, log) = run(
+        vec!["data: {\"a\":1}", "data: {\"BAD_PATCH\":1}", "data: {\"c\":1}"],
+        false,
+    )
+    .await;
+    assert_eq!(
+        out,
+        [
+            "frame data: {\"a\":1}",
+            "frame data: {\"BAD_PATCH\":1}",
+            "flushed",
+            patch.as_str()
+        ]
+    );
+    assert_eq!(log.len(), 2);
+    let (out, log) = run(vec!["data: {\"a\":1}"], true).await;
+    assert_eq!(out, ["frame data: {\"a\":1}", "finished"]);
+    assert_eq!(log, ["event data: {\"a\":1}", "finish"]);
+}

@@ -9,7 +9,7 @@ mock, so nothing reaches OpenAI.
   exposure, completion output restoration, pending tool calls, tool-call repair against
   the shared caches, close-reason truncation). Replayed by
   `src/websocket_requests_tests.rs`.
-- `ws_e2e.json`: eleven scenarios through Go's real `ResponsesWebsocket` handler, auth
+- `ws_e2e.json`: thirteen scenarios through Go's real `ResponsesWebsocket` handler, auth
   manager, built-in translators and `CodexAutoExecutor`, against a scripted upstream that
   speaks both WebSocket and HTTP SSE. It records the frames and close codes the client
   saw, what upstream received (WebSocket dials and frames, HTTP requests) and the upgrade

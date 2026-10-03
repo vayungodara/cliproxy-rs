@@ -202,6 +202,16 @@ fn normalize_random(text: &str) -> String {
     cch.replace_all(&text, "cch=<cch>;").into_owned()
 }
 
+/// [`normalize_random`] plus the values a cloaked request derives from the wall clock
+/// and a fresh fake user ID.
+fn normalize_replay(text: &str) -> String {
+    let date = regex::Regex::new(r"Today's date is \d{4}-\d{2}-\d{2}").unwrap();
+    let user = regex::Regex::new(r#"("user_id":")(?:[^"\\]|\\.)*""#).unwrap();
+    let text = normalize_random(text);
+    let text = date.replace_all(&text, "Today's date is <date>");
+    user.replace_all(&text, "${1}<user>\"").into_owned()
+}
+
 /// Runs the scenario's upstream reply through the executor's response half (decoding,
 /// error-body reading and classification) exactly as `send` does after the exchange.
 async fn finish_reply(scenario: &Value, ctx: &Ctx<'_>, prepared: &Prepared) -> Result<RawResponse, ExecError> {
@@ -500,10 +510,17 @@ async fn compat_replay_sequence_matches_go() {
         .iter()
         .filter(|s| s["name"].as_str().unwrap().starts_with("replay-"))
         .collect();
-    assert_eq!(steps.len(), 2);
-    let replies: Vec<String> = steps
+    assert_eq!(steps.len(), 6);
+    // Replies in the order requests reach upstream (steps Go failed locally send none).
+    let replies: Vec<(u16, String)> = steps
         .iter()
-        .map(|s| s["reply"]["body"].as_str().unwrap().to_owned())
+        .filter(|s| s["upstream"].as_array().is_some_and(|u| !u.is_empty()))
+        .map(|s| {
+            (
+                s["reply"]["status"].as_u64().unwrap() as u16,
+                s["reply"]["body"].as_str().unwrap().to_owned(),
+            )
+        })
         .collect();
     let captured: Arc<std::sync::Mutex<Vec<String>>> = Arc::default();
     let seen = captured.clone();
@@ -512,9 +529,14 @@ async fn compat_replay_sequence_matches_go() {
         let replies = replies.clone();
         async move {
             let mut seen = seen.lock().unwrap();
-            let reply = replies[seen.len()].clone();
+            let (status, reply) = replies[seen.len()].clone();
             seen.push(body);
-            ([(http::header::CONTENT_TYPE, "application/json")], reply).into_response()
+            (
+                http::StatusCode::from_u16(status).unwrap(),
+                [(http::header::CONTENT_TYPE, "application/json")],
+                reply,
+            )
+                .into_response()
         }
     });
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -573,11 +595,21 @@ async fn compat_replay_sequence_matches_go() {
                 source: "authorization",
             },
         });
-        let response = executor.execute(&credential, req, &cfg).await.unwrap();
-        assert_eq!(response.status, 200);
-        let rust = captured.lock().unwrap()[step].clone();
-        let go = scenario["upstream"][0]["body"].as_str().unwrap();
-        assert_eq!(normalize_random(&rust), normalize_random(go), "step {step}");
+        let sent = captured.lock().unwrap().len();
+        let result = executor.execute(&credential, req, &cfg).await;
+        match scenario["error_status"].as_u64() {
+            Some(status) => match result {
+                Err(error) => assert_eq!(u64::from(error.status), status, "step {step}"),
+                Ok(_) => panic!("step {step}: Go failed with {status}"),
+            },
+            None => assert_eq!(result.map(|r| r.status).unwrap(), 200, "step {step}"),
+        }
+        let go = scenario["upstream"][0]["body"].as_str();
+        let rust = captured.lock().unwrap().get(sent).cloned();
+        assert_eq!(rust.is_some(), go.is_some(), "step {step}: upstream request");
+        if let (Some(rust), Some(go)) = (rust, go) {
+            assert_eq!(normalize_replay(&rust), normalize_replay(go), "step {step}");
+        }
     }
     let _ = std::fs::remove_dir_all(root);
 }
