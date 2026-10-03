@@ -1,0 +1,71 @@
+{
+  "name": "chat-nonstream-trailer-credit",
+  "credential": {
+    "api_key": "devin-session-token$fixture",
+    "base_url": "http://127.0.0.1:43075",
+    "device_seed": "seed-1",
+    "session_token": "devin-session-token$fixture",
+    "type": "devin"
+  },
+  "request": {
+    "body": "{\"model\":\"swe-2\",\"messages\":[{\"role\":\"system\",\"content\":\"You are helpful.\\nYou are Claude Code, Anthropic's official CLI for Claude.\\nKeep it short.\"},{\"role\":\"user\",\"content\":\"What's the weather in Paris? chat-nonstream-trailer-credit\"},{\"role\":\"assistant\",\"content\":\"Checking.\",\"tool_calls\":[{\"id\":\"call_a\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"{\\\"city\\\":\\\"Paris\\\"}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"call_a\",\"content\":\"sunny\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Thanks \u003cb\u003e\u0026\u003c/b\u003e\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/webp;base64,UklGRg==\"}}]}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"Get weather\",\"parameters\":{\"type\":\"object\",\"properties\":{\"city\":{\"type\":\"string\"}}}}},{\"type\":\"function\",\"function\":{\"name\":\"exec_command\",\"description\":\"Runs a command, returning output or a session ID for ongoing interaction.\",\"parameters\":{\"type\":\"object\"}}}],\"temperature\":0.3,\"max_tokens\":500}",
+    "model": "swe-2",
+    "source": "openai",
+    "stream": false
+  },
+  "responses": [
+    {
+      "status": 200,
+      "headers": [
+        [
+          "Content-Type",
+          "application/connect+proto"
+        ]
+      ],
+      "body": "",
+      "body_b64": "AAAAAAMaAXgCAAAATXsiZXJyb3IiOnsiY29kZSI6ImZhaWxlZF9wcmVjb25kaXRpb24iLCJtZXNzYWdlIjoiQ3JlZGl0IGJhbGFuY2UgZXhoYXVzdGVkIn19"
+    }
+  ],
+  "upstream": [
+    {
+      "method": "POST",
+      "target": "/exa.api_server_pb.ApiServerService/GetChatMessage",
+      "headers": [
+        [
+          "Host",
+          "127.0.0.1:43075"
+        ],
+        [
+          "Content-Length",
+          "1554"
+        ],
+        [
+          "Accept",
+          "*/*"
+        ],
+        [
+          "Authorization",
+          "Basic devin-session-token$fixture-devin-session-token$fixture"
+        ],
+        [
+          "Connect-Protocol-Version",
+          "1"
+        ],
+        [
+          "Content-Type",
+          "application/connect+proto"
+        ],
+        [
+          "Sentry-Trace",
+          "9f0664fdddae14dcc099e35b16c5c369-92a35d17423cb47e-1"
+        ]
+      ],
+      "body": "",
+      "body_b64": "AAAABg0KsAYKBmNoaXNlbBIKMzAwMC4xMC4yMRobZGV2aW4tc2Vzc2lvbi10b2tlbiRmaXh0dXJlIgJlbioFbGludXg6CjMwMDAuMTAuMjFiBmNoaXNlbPoB3AVkMzU3MTg4YTU3NGM3MmVjMjZhYWU3ODVhZjJhZDhhMjMzZWQzYjAzYjEyNDI1MTljOWFhMTZkOTg2ZjA3NWY3ZjdkMTA4NTk3MmM4MGMzOTVhMWUwYWFjYmYyYjM3Y2ZkMDkzYTQ1M2M0YWU4ZDczYTM5NDUxZjNhMzliZjk0NmM1YTJmMDI4NTBhYmUwOGE1NTYwNWEwY2Q3MzJhYWZjNTg0ZmYzOTA3NjkyM2MxYzQ4ZjIyMzZmMTRlMzg0Yzk0YmUyZjA0NDc5NGEyYzc5MGQ5ZTA4ZTY3NmU0NTExYzdlMzJjMWMzODI3ZjNiNDI2MmY5YTJhNzliZGU5Y2UyMmEwMjBjOWY3MTgxM2Q2OGQ1YTA1MjZjMTdiZDEyZWRmYTY4Y2FiNzA4NjYyMjI1YTVhMTEzZTMyNTVkYzdjYmNkNDJkOGE3Njg0NjM4ZTRkM2ZhNTBhMGVjNTJiNGQ2NTE5N2U3YzdmYzdjNjE4OWVkY2YzNWRkOWI0ZDQzODYyOWVkODYzZGM4NDllNDAyNjExMGEwZGY2MTI1ZDU0MmM0ODMxNDRiZTgzN2VjZjgyMDE2ZjFhYTc1ZTM5YmFlNWRjMGMwMWUyMjJkMGUwNjU1NTdmMWVlZTc3ZWEwMmU1NDBiZjM0ZmYyOWMxNWQ1MjkzYzA0ZmVmNTJhOGVjZjI5N2RjMDNkNGVmOGM5YWRlYmJhMTIxZWM4Nzg1MGU2MzA4OWE4ZGI0NjczNzNjMjNhZmZiMWM0MzU5MGZjNTVlMzFlNDA2Y2M4ZmE2ZDgyZjM5ZGIxZDE0NzU4ZDU2OWYyNjM4YTQ0MTE5YTNhZGZlYTU0YmRkOWE2MDljMTc4OWQwOTNjODU3MDc3ZTQwYzkyZmNlYTFlNGIwYzhhYzRiNjk1MmYxODUzNTY0ZjM5ODc4YzdmYmU2YWExMmM4OTllNTYxMzRhYTBlMTgzYmY2NTgwZGI5OTQ5NGUSH1lvdSBhcmUgaGVscGZ1bC4KS2VlcCBpdCBzaG9ydC4aZAokY2ZjMWE5YzYtYTAwNi00ZTA0LTk4MWItODVjZjg3YTc4ODgxEAEaOldoYXQncyB0aGUgd2VhdGhlciBpbiBQYXJpcz8gY2hhdC1ub25zdHJlYW0tdHJhaWxlci1jcmVkaXQaXAokYjBkMWNkMzAtNTdiYi00Y2Q0LTk3MDUtZGVkYTZjNmViN2I0EAIaCUNoZWNraW5nLjInCgZjYWxsX2ESC2dldF93ZWF0aGVyGhB7ImNpdHkiOiJQYXJpcyJ9GjcKJDU3OWIzODUyLTY3ZmItNDI5MS1hYThjLWFkOTQ5ZDFiZjg3ORAEGgVzdW5ueToGY2FsbF9hGnEKJDE0M2MxNDBkLTNjMzgtNGMzMi1hOWM0LTg5NDUxNjFjYjMzNRABGi9bSW1hZ2UgMTogcGFzdGVkX2ltYWdlXzEud2VicF0KClRoYW5rcyA8Yj4mPC9iPlIWCghVa2xHUmc9PRIKaW1hZ2Uvd2VicDgFQhwIARD0AxiQAykzMzMzMzPTPzgoQQAAAGBmZu4/UlUKC2dldF93ZWF0aGVyEgtHZXQgd2VhdGhlcho5eyJ0eXBlIjoib2JqZWN0IiwicHJvcGVydGllcyI6eyJjaXR5Ijp7InR5cGUiOiJzdHJpbmcifX19Um0KDGV4ZWNfY29tbWFuZBJKUnVucyBhIGNvbW1hbmQsIHJldHVybmluZyBvdXRwdXQgb3IgYW4gc2Vzc2lvbiBJRCBmb3Igb25nb2luZyBpbnRlcmFjdGlvbi4aEXsidHlwZSI6Im9iamVjdCJ9eioKJGM2M2ExMGMyLWVmMjUtNWUzZi1iNjFmLTUwODIyYTUzOWM1ZBgEIA6CASRjNjNhMTBjMi1lZjI1LTVlM2YtYjYxZi01MDgyMmE1MzljNWSgAQGqAQpzd2UtMi1oaWdo"
+    }
+  ],
+  "downstream": {
+    "err_status": 429,
+    "err_body": "devin upstream error (failed_precondition): Credit balance exhausted"
+  }
+}

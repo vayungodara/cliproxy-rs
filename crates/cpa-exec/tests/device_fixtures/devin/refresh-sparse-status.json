@@ -1,0 +1,71 @@
+{
+  "name": "refresh-sparse-status",
+  "credential": {
+    "session_token": "tok-only",
+    "type": "devin"
+  },
+  "request": {
+    "refresh": true
+  },
+  "responses": [
+    {
+      "status": 200,
+      "headers": [
+        [
+          "Content-Type",
+          "application/proto"
+        ]
+      ],
+      "body": "",
+      "body_b64": "CgIaAA=="
+    }
+  ],
+  "upstream": [
+    {
+      "method": "POST",
+      "target": "/exa.seat_management_pb.SeatManagementService/GetUserStatus",
+      "headers": [
+        [
+          "Host",
+          "127.0.0.1:37145"
+        ],
+        [
+          "Content-Length",
+          "800"
+        ],
+        [
+          "Accept",
+          "*/*"
+        ],
+        [
+          "Authorization",
+          "Basic tok-only-tok-only"
+        ],
+        [
+          "Connect-Protocol-Version",
+          "1"
+        ],
+        [
+          "Content-Type",
+          "application/proto"
+        ]
+      ],
+      "body": "",
+      "body_b64": "Cp0GCgZjaGlzZWwSCjMwMDAuMTAuMjEaCHRvay1vbmx5IgJlbioFbGludXg6CjMwMDAuMTAuMjFiBmNoaXNlbPoB3AVhMjBmYTBjN2RkMzFhZTk0MjJmMzNhZDJhODViNzFlOWQ3ZjNlNTczZjFjMTYxZTRkZGVmYjRiZmRiYzA0ZjFjMDA2MTJhYzdjMzU4ZmI1NTdlYjk1NTc2ZTQyZmZiN2ExMGIwNGE3NzhhMDE1NDMxZWExYmIzYjJiMGMwMzhlZmVlYzY4YjY1MWRhZGJkZWE2M2E2MTVmNjQ2YmRhNDkwNjdlNWJkOTVlMGE3N2VjYWE3NmZhOWU5MTczODFhYmZkZmM3MGVlNGU5YjYyNDU1ZTEwZmVjMzI1ODM3OTdlZGY0NzhmZGYxZWU3M2M1YWZkZmZmODhiOWE2MjU3OTg5MTM5MmJlZWRmN2VkZGI2NmM0MTM1YjAxZjQxNmY4NmM3MTk1NDhmYTY4N2E3ZDZiM2NkNDY1YjQwODUzY2EzMDk5MmUwNmFhYTY0Zjc2NTRkNTJhZjMyZmQyYzdjMmY4ZGZmZTE1NzFlYjdiNzY0YTdmNTkzZjQ1OGJiY2NhYWUxYmY1ZmVjZThkNGY4MmMzZTE4MzA3Mzc4NTc0ZWQ1ZjkxNjI1MGY2OTdlNTcyMTI2OWVjMGRlMzU1YjRkNzRlM2JkOGRlZDBjMjM3YjRjMmVlMTg0OTIxMjJlMmMwNTI4ODdjMjE0NTQ5ODhiOWVjNWQzOGMwZWQ3ZDZjMzkxNDMwMjg0MjU1OWMwYjU5YWUxNjg5N2I3MGJlZTgxMjNhNDU1ZDM2M2QyZDRlNDUyZTVlN2EzNjAzMzQxN2UzNjQwOWJiMTE4NzcxM2NmOTUzNWY1NmYwZTFlMmE0YTc0N2U4NTRmY2FmMWU3MDE3ODc0YTU3YzllZDBlZjI3N2QwYjBjZmVmMTMyYmMyNmIwYWUyODNmZGVhOWE1ODlkMGI2NjYyNzFiMmFkMzlmNjVlMjk5ZTNlOTRkNDhlNzdhOGI2NWZjZDBiZTAzYTlkMDdmNjYwZDQ2ZDBkNDk="
+    }
+  ],
+  "downstream": {},
+  "extra": {
+    "attributes_after": {},
+    "metadata_after": {
+      "session_token": "tok-only",
+      "type": "devin"
+    },
+    "quota_before": null,
+    "quota_signals": {
+      "daily_quota_remaining_percent": "0%",
+      "weekly_quota_remaining_percent": "0%"
+    },
+    "same_auth": false
+  }
+}

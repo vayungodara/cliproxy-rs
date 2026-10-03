@@ -1,0 +1,115 @@
+{
+  "name": "record-unsafe-name",
+  "credential": null,
+  "request": {
+    "exchange": "",
+    "token": "eyJx"
+  },
+  "responses": [
+    {
+      "status": 200,
+      "headers": [
+        [
+          "Content-Type",
+          "application/json"
+        ]
+      ],
+      "body": "{\"user_name\":\"../evil name\",\"user_id\":\"u\"}"
+    },
+    {
+      "status": 500,
+      "headers": null,
+      "body": "x"
+    }
+  ],
+  "upstream": [
+    {
+      "method": "GET",
+      "target": "/v3/self",
+      "headers": [
+        [
+          "Host",
+          "127.0.0.1:38355"
+        ],
+        [
+          "User-Agent",
+          "Go-http-client/1.1"
+        ],
+        [
+          "Accept",
+          "application/json"
+        ],
+        [
+          "Authorization",
+          "Bearer devin-session-token$eyJx"
+        ],
+        [
+          "Accept-Encoding",
+          "gzip"
+        ]
+      ],
+      "body": ""
+    },
+    {
+      "method": "POST",
+      "target": "/exa.seat_management_pb.SeatManagementService/GetUserStatus",
+      "headers": [
+        [
+          "Host",
+          "127.0.0.1:38355"
+        ],
+        [
+          "Content-Length",
+          "816"
+        ],
+        [
+          "Accept",
+          "*/*"
+        ],
+        [
+          "Authorization",
+          "Basic devin-session-token$eyJx-devin-session-token$eyJx"
+        ],
+        [
+          "Connect-Protocol-Version",
+          "1"
+        ],
+        [
+          "Content-Type",
+          "application/proto"
+        ],
+        [
+          "Accept-Encoding",
+          "gzip"
+        ]
+      ],
+      "body": "",
+      "body_b64": "Cq0GCgZjaGlzZWwSCjMwMDAuMTAuMjEaGGRldmluLXNlc3Npb24tdG9rZW4kZXlKeCICZW4qBWxpbnV4OgozMDAwLjEwLjIxYgZjaGlzZWz6AdwFODIzMDY0ZjA5NDViNzZkN2U2ZDE1MWRkOTUwYzUzNWVlMjhmOGViOGViN2U1ODY4YjNmNzVmYmFmNDY5Y2FkYWIxM2RmNTExZGFjZTg3YTNkMWEwOGQ4MDJmODBiOWIyNWJmZDg5OGNkOTJhOWM1ZmFkY2RiZTJhMmI5MTkxNTAxMWU4NjFlM2I0Y2I5NTZlY2VkNDBlODkxNzFmNWU2YzU5YmU3Y2NlMDExYWEwZTRlYzgzNDQ2YzIyMTRiNDljZGMyN2YzYWY2ZWNkZDM0Mzg5M2MwOWYzYTZhNjExNzI0Y2QzMzAyM2RkYjE3OTk2OGIyYjU4ODE0YmYyN2UwYjgxNWNhNGNmM2QwMGY0MjlhYTBiOTg4MzViNmEwZjgwNjQ1ZmY2NjhkOTliNThkNjJkYTQ0ODM5ZDI4MDdmMmIyYjNmMmYxNDQ1ZmQzMWFlNzYyMmVmZmRkNTJhOTc1NmUzMWI4ZmE2ZGQ3YzdlMjMwNzQ4M2U3ZTczNDMyNjQ5MzE2ZDAzNzI3NDg0YThlYWQ1ZDhjNDkyNzNiMGFhMjFhZTc4NjBiN2UzYmVjY2UyYmQ3ZDBhNWRmOGNhMjU0ODQ3NTcwN2Q3NmJmM2ViYzBhMTAzYjA0MDYyYzY1MjM3OTczZjg4MGE4ZDJjZjQzZmUyY2M3MzQ0ZDI5MTU3MmY5N2NhNGUwYjk2ZTA3YzRkOWIxMGY1MzY2ZWU5NDdiODVlNWM4MTg0ZWIzZDI3OGNmNmUzNTdlZDhkNTg3ZjYxMTMwZDc2ZjBkZWI0NDkwNGE5MmJmMjZlMjU4ODUyMmNiNDcwYmFmN2M4M2M5NGQ2MTg4YjE1ZjI4MTcyNTFkZjg3MzcyZmE2OTc3OWI3OTY3Mjk4YzJlNDgyZmI3OTQ1MmRjZGZjZDNiMzRhN2JhNWE0ZmMxYThhOWJlMGFjZDUyMWYwNDc0N2I2NmJlYjJhNmNjYTMyMGI2NjNl"
+    }
+  ],
+  "downstream": {},
+  "extra": {
+    "attributes": {
+      "api_key": "devin-session-token$eyJx",
+      "auth_kind": "oauth",
+      "base_url": "https://server.codeium.com",
+      "org_id": "",
+      "session_token": "devin-session-token$eyJx",
+      "user_id": "u",
+      "user_name": "../evil name"
+    },
+    "file_name": "devin-user-3d49faefb83a6000.json",
+    "id": "devin-user-3d49faefb83a6000.json",
+    "label": "Devin (../evil name)",
+    "metadata": {
+      "api_key": "devin-session-token$eyJx",
+      "auth_kind": "oauth",
+      "org_id": "",
+      "session_token": "devin-session-token$eyJx",
+      "type": "devin",
+      "user_id": "u",
+      "user_name": "../evil name"
+    },
+    "quota_signals": {}
+  }
+}

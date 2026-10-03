@@ -1,0 +1,76 @@
+{
+  "name": "chat-stream-trailer-after-content",
+  "credential": {
+    "api_key": "devin-session-token$fixture",
+    "base_url": "http://127.0.0.1:45705",
+    "device_seed": "seed-1",
+    "session_token": "devin-session-token$fixture",
+    "type": "devin"
+  },
+  "request": {
+    "body": "{\"model\":\"swe-2\",\"messages\":[{\"role\":\"system\",\"content\":\"You are helpful.\\nYou are Claude Code, Anthropic's official CLI for Claude.\\nKeep it short.\"},{\"role\":\"user\",\"content\":\"What's the weather in Paris? chat-stream-trailer-after-content\"},{\"role\":\"assistant\",\"content\":\"Checking.\",\"tool_calls\":[{\"id\":\"call_a\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"{\\\"city\\\":\\\"Paris\\\"}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"call_a\",\"content\":\"sunny\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Thanks \u003cb\u003e\u0026\u003c/b\u003e\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/webp;base64,UklGRg==\"}}]}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"Get weather\",\"parameters\":{\"type\":\"object\",\"properties\":{\"city\":{\"type\":\"string\"}}}}},{\"type\":\"function\",\"function\":{\"name\":\"exec_command\",\"description\":\"Runs a command, returning output or a session ID for ongoing interaction.\",\"parameters\":{\"type\":\"object\"}}}],\"temperature\":0.3,\"max_tokens\":500}",
+    "model": "swe-2",
+    "source": "openai",
+    "stream": true
+  },
+  "responses": [
+    {
+      "status": 200,
+      "headers": [
+        [
+          "Content-Type",
+          "application/connect+proto"
+        ]
+      ],
+      "body": "",
+      "body_b64": "AAAAAAkaB3BhcnRpYWwCAAAASnsiZXJyb3IiOnsiY29kZSI6InBlcm1pc3Npb25fZGVuaWVkIiwibWVzc2FnZSI6Ik1vZGVsIHVuZGVyIGhpZ2ggZGVtYW5kIn19"
+    }
+  ],
+  "upstream": [
+    {
+      "method": "POST",
+      "target": "/exa.api_server_pb.ApiServerService/GetChatMessage",
+      "headers": [
+        [
+          "Host",
+          "127.0.0.1:45705"
+        ],
+        [
+          "Content-Length",
+          "1558"
+        ],
+        [
+          "Accept",
+          "*/*"
+        ],
+        [
+          "Authorization",
+          "Basic devin-session-token$fixture-devin-session-token$fixture"
+        ],
+        [
+          "Connect-Protocol-Version",
+          "1"
+        ],
+        [
+          "Content-Type",
+          "application/connect+proto"
+        ],
+        [
+          "Sentry-Trace",
+          "3837971a4922aa0fd04a02e4a7918bea-45bc4d660ac8099b-1"
+        ]
+      ],
+      "body": "",
+      "body_b64": "AAAABhEKsAYKBmNoaXNlbBIKMzAwMC4xMC4yMRobZGV2aW4tc2Vzc2lvbi10b2tlbiRmaXh0dXJlIgJlbioFbGludXg6CjMwMDAuMTAuMjFiBmNoaXNlbPoB3AVkMzU3MTg4YTU3NGM3MmVjMjZhYWU3ODVhZjJhZDhhMjMzZWQzYjAzYjEyNDI1MTljOWFhMTZkOTg2ZjA3NWY3ZjdkMTA4NTk3MmM4MGMzOTVhMWUwYWFjYmYyYjM3Y2ZkMDkzYTQ1M2M0YWU4ZDczYTM5NDUxZjNhMzliZjk0NmM1YTJmMDI4NTBhYmUwOGE1NTYwNWEwY2Q3MzJhYWZjNTg0ZmYzOTA3NjkyM2MxYzQ4ZjIyMzZmMTRlMzg0Yzk0YmUyZjA0NDc5NGEyYzc5MGQ5ZTA4ZTY3NmU0NTExYzdlMzJjMWMzODI3ZjNiNDI2MmY5YTJhNzliZGU5Y2UyMmEwMjBjOWY3MTgxM2Q2OGQ1YTA1MjZjMTdiZDEyZWRmYTY4Y2FiNzA4NjYyMjI1YTVhMTEzZTMyNTVkYzdjYmNkNDJkOGE3Njg0NjM4ZTRkM2ZhNTBhMGVjNTJiNGQ2NTE5N2U3YzdmYzdjNjE4OWVkY2YzNWRkOWI0ZDQzODYyOWVkODYzZGM4NDllNDAyNjExMGEwZGY2MTI1ZDU0MmM0ODMxNDRiZTgzN2VjZjgyMDE2ZjFhYTc1ZTM5YmFlNWRjMGMwMWUyMjJkMGUwNjU1NTdmMWVlZTc3ZWEwMmU1NDBiZjM0ZmYyOWMxNWQ1MjkzYzA0ZmVmNTJhOGVjZjI5N2RjMDNkNGVmOGM5YWRlYmJhMTIxZWM4Nzg1MGU2MzA4OWE4ZGI0NjczNzNjMjNhZmZiMWM0MzU5MGZjNTVlMzFlNDA2Y2M4ZmE2ZDgyZjM5ZGIxZDE0NzU4ZDU2OWYyNjM4YTQ0MTE5YTNhZGZlYTU0YmRkOWE2MDljMTc4OWQwOTNjODU3MDc3ZTQwYzkyZmNlYTFlNGIwYzhhYzRiNjk1MmYxODUzNTY0ZjM5ODc4YzdmYmU2YWExMmM4OTllNTYxMzRhYTBlMTgzYmY2NTgwZGI5OTQ5NGUSH1lvdSBhcmUgaGVscGZ1bC4KS2VlcCBpdCBzaG9ydC4aaAokNmZmNmEzN2YtMjI1Yi00OWIxLTkwNTgtYjk1MzBhYjI5NWYzEAEaPldoYXQncyB0aGUgd2VhdGhlciBpbiBQYXJpcz8gY2hhdC1zdHJlYW0tdHJhaWxlci1hZnRlci1jb250ZW50GlwKJDEzN2YxN2Q5LTdlMTgtNGU4NC1iZDNiLTE4OGMxNWM1YzdlNBACGglDaGVja2luZy4yJwoGY2FsbF9hEgtnZXRfd2VhdGhlchoQeyJjaXR5IjoiUGFyaXMifRo3CiQ2MGI5ZTJkOS00YzAyLTRmNjItOGM3ZS05ODJiMDEzNThjYjQQBBoFc3Vubnk6BmNhbGxfYRpxCiRjYTcwY2M0My02NTIyLTQ2MDctODllYi04NWUzZDAwZGYwN2QQARovW0ltYWdlIDE6IHBhc3RlZF9pbWFnZV8xLndlYnBdCgpUaGFua3MgPGI+JjwvYj5SFgoIVWtsR1JnPT0SCmltYWdlL3dlYnA4BUIcCAEQ9AMYkAMpMzMzMzMz0z84KEEAAABgZmbuP1JVCgtnZXRfd2VhdGhlchILR2V0IHdlYXRoZXIaOXsidHlwZSI6Im9iamVjdCIsInByb3BlcnRpZXMiOnsiY2l0eSI6eyJ0eXBlIjoic3RyaW5nIn19fVJtCgxleGVjX2NvbW1hbmQSSlJ1bnMgYSBjb21tYW5kLCByZXR1cm5pbmcgb3V0cHV0IG9yIGFuIHNlc3Npb24gSUQgZm9yIG9uZ29pbmcgaW50ZXJhY3Rpb24uGhF7InR5cGUiOiJvYmplY3QifXoqCiRkMWIzMDkyYy0wNzk3LTUyNTQtYWVjMi1lN2Y5MzEzNjlkOWMYBCAOggEkZDFiMzA5MmMtMDc5Ny01MjU0LWFlYzItZTdmOTMxMzY5ZDljoAEBqgEKc3dlLTItaGlnaA=="
+    }
+  ],
+  "downstream": {
+    "chunks": [
+      "{\"id\":\"interaction_64c2546e-6ab\",\"object\":\"chat.completion.chunk\",\"created\":1791014377,\"model\":\"swe-2\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\"},\"finish_reason\":null}]}",
+      "{\"id\":\"interaction_64c2546e-6ab\",\"object\":\"chat.completion.chunk\",\"created\":1791014377,\"model\":\"swe-2\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"partial\"},\"finish_reason\":null}]}",
+      "{\"error\":{\"message\":\"devin upstream error (permission_denied): Model under high demand\",\"type\":\"server_error\",\"code\":\"429\"}}"
+    ],
+    "err_status": 429,
+    "stream_err": "devin upstream error (permission_denied): Model under high demand"
+  }
+}

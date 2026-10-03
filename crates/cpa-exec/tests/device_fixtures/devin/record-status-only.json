@@ -1,0 +1,132 @@
+{
+  "name": "record-status-only",
+  "credential": null,
+  "request": {
+    "exchange": "",
+    "token": "devin-session-token$abc"
+  },
+  "responses": [
+    {
+      "status": 500,
+      "headers": [
+        [
+          "Content-Type",
+          "application/json"
+        ]
+      ],
+      "body": "{\"user_name\":\"ignored\"}"
+    },
+    {
+      "status": 200,
+      "headers": [
+        [
+          "Content-Type",
+          "application/proto"
+        ]
+      ],
+      "body": "",
+      "body_b64": "CnMaCGRldi51c2VyKgZ0ZWFtLTk6D2RldkBleGFtcGxlLmNvbWpACiASCVRlYW1zIFByb4oCEiIGb3JnLTc3QghBY21lIE9yZxIGCIDy1soGGgYIgNnb2QZwP3gAiAGA98TVBpgBBaICCHVzZXItMTIzwAIBEgdpZ25vcmVk"
+    }
+  ],
+  "upstream": [
+    {
+      "method": "GET",
+      "target": "/v3/self",
+      "headers": [
+        [
+          "Host",
+          "127.0.0.1:39437"
+        ],
+        [
+          "User-Agent",
+          "Go-http-client/1.1"
+        ],
+        [
+          "Accept",
+          "application/json"
+        ],
+        [
+          "Authorization",
+          "Bearer devin-session-token$abc"
+        ],
+        [
+          "Accept-Encoding",
+          "gzip"
+        ]
+      ],
+      "body": ""
+    },
+    {
+      "method": "POST",
+      "target": "/exa.seat_management_pb.SeatManagementService/GetUserStatus",
+      "headers": [
+        [
+          "Host",
+          "127.0.0.1:39437"
+        ],
+        [
+          "Content-Length",
+          "815"
+        ],
+        [
+          "Accept",
+          "*/*"
+        ],
+        [
+          "Authorization",
+          "Basic devin-session-token$abc-devin-session-token$abc"
+        ],
+        [
+          "Connect-Protocol-Version",
+          "1"
+        ],
+        [
+          "Content-Type",
+          "application/proto"
+        ],
+        [
+          "Accept-Encoding",
+          "gzip"
+        ]
+      ],
+      "body": "",
+      "body_b64": "CqwGCgZjaGlzZWwSCjMwMDAuMTAuMjEaF2RldmluLXNlc3Npb24tdG9rZW4kYWJjIgJlbioFbGludXg6CjMwMDAuMTAuMjFiBmNoaXNlbPoB3AUwZWE5YTBkMGE4ZmE5NjFmNWY4NTZlNTUxYTIxOTE0MTFjNTE1NmU2YWEyNGQwY2EyNTQ4Yjk3YmJlZjQyNjk0MzE4ODYzNzM2MTljMjUwZTY1NjYyNjJjNjNlNGUxNDQyZGE5ZTc1MDY3ZjNjZDdlNTY2ZmUzYWRkNjQ3ZDc0ZGRkMzRiYThhOTExNzUwMTdiZDk5OTY5YmQxYTQxOTVjNTYwODJlYTczNmMwODJjM2IzYmQ2Y2NmMmJlYjMwNWJiZTFlM2U3ZWRkNGY3ZTRhMjFkZTFhMTlmMjBjNzJjZWRjZjI5YTJjNjJmNWVhOGM4MGFiNzRhMWJiNjlhOTZkOWQ5MGVmZWZjMzE3OGNkYjk2MDJjNmZlYzM3MDE5YWU2MTFiYzVmYjlkNTYyMjhhOTEyMjY2YzFmMzdmNWMyZDRjZmZmZDEzZDQzNWIyZWI2YmQxODI2NDI2ZjI2OTViODg1MDEzZjk4NDRlYjY0OTExZmQ4ZTZkZDA5NzRiNjZmOWIwZTJjNmIxMjYxYWNmYjBkMDhjYjdhNzlmZjMzODg5NWZiMjExNmFjZTJiYTI0OGI3YjBlMDk2ZWI4MmZhNTljODE4ODUyZmVmMzU5NTdmNmYyYjMzZjZmMzM0NzlkODMwOTIyZDA4M2RmZmZhY2ZmZDVlYWJjODAyYzI5YjZiOTVmZWUwYzBjMzk1OTg1MzQ5ZDk3MjA5MjQ3NmZhY2M4MzMxNWEzZjdjN2IyM2Q1ODgxNjZjNTYyYjMyZGIxZTkyMjIzN2RiODMxNGE5MzYwYTY5ZmM0ODhkM2VmYzA1YWYyMTE3MjE4MDgyNzAyYWQxYzE2N2M4M2I2MWZhYTZhNTYwNDI5ZTI2YjdhM2RlMGI2OTExNjc2MWNjNDVmZWY4NTZkMzI5YmU2YzdhYTFmMTU3NWZmYTIwMDJiMTM2N2QwYjQzNWE5YzA2M2YwODU0YjhhODEwZDU="
+    }
+  ],
+  "downstream": {},
+  "extra": {
+    "attributes": {
+      "api_key": "devin-session-token$abc",
+      "auth_kind": "oauth",
+      "base_url": "https://server.codeium.com",
+      "email": "dev@example.com",
+      "org_id": "org-77",
+      "plan": "Teams Pro",
+      "session_token": "devin-session-token$abc",
+      "user_id": "user-123",
+      "user_name": "dev.user"
+    },
+    "file_name": "devin-dev.user.json",
+    "id": "devin-dev.user.json",
+    "label": "Devin (dev.user - dev@example.com)",
+    "metadata": {
+      "api_key": "devin-session-token$abc",
+      "auth_kind": "oauth",
+      "email": "dev@example.com",
+      "org_id": "org-77",
+      "plan": "Teams Pro",
+      "session_token": "devin-session-token$abc",
+      "type": "devin",
+      "user_id": "user-123",
+      "user_name": "dev.user"
+    },
+    "quota_signals": {
+      "daily_quota_remaining_percent": "63%",
+      "daily_quota_reset_at": "2026-09-21T14:13:20Z",
+      "plan": "Teams Pro",
+      "plan_end": "2027-01-01T00:00:00Z",
+      "plan_start": "2026-01-01T00:00:00Z",
+      "weekly_quota_remaining_percent": "0%"
+    }
+  }
+}

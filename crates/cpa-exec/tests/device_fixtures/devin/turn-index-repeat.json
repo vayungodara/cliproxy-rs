@@ -1,0 +1,118 @@
+{
+  "name": "turn-index-repeat",
+  "credential": {
+    "api_key": "devin-session-token$fixture",
+    "base_url": "http://127.0.0.1:37075",
+    "device_seed": "seed-1",
+    "session_token": "devin-session-token$fixture",
+    "type": "devin"
+  },
+  "request": {
+    "body": "{\"model\":\"devin/swe-2\",\"session_id\":\"0f8fad5b-d9cb-469f-a165-70867728950b\",\"system_instruction\":\"Be helpful turn-index-repeat\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"hello\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"}],\"signature\":\"gpt#gAAAAB\"},{\"type\":\"thought\",\"content\":[{\"type\":\"text\",\"text\":\"pondering\"}]},{\"type\":\"function_call\",\"name\":\"run\",\"id\":\"fc_1\",\"arguments\":{\"cmd\":\"ls\"}},{\"type\":\"function_result\",\"call_id\":\"fc_1\",\"result\":[{\"type\":\"text\",\"text\":\"a.txt\"}]},{\"type\":\"function_result\",\"call_id\":\"orphan_9\",\"result\":\"lost\"},{\"type\":\"function_result\",\"call_id\":\"\",\"result\":{}},{\"type\":\"user_input\",\"content\":\"next\"}],\"generation_config\":{\"temperature\":0.7,\"max_output_tokens\":999999,\"thinking_level\":\"fast\"},\"tools\":[{\"type\":\"function\",\"name\":\"run\",\"description\":\"Run\",\"parameters\":{\"type\":\"object\"}},{\"function_declarations\":[{\"name\":\"decl_a\",\"description\":\"Takes a task_id parameter identifying the task\",\"parametersJsonSchema\":{\"type\":\"object\"}}]},{\"type\":\"namespace\",\"name\":\"mcp__codex_app\",\"tools\":[{\"name\":\"automation_update\",\"description\":\"x\"},{\"name\":\"open\",\"description\":\"Open\"}]}]}",
+    "model": "devin/swe-1-6",
+    "repeat": 2,
+    "source": "interactions",
+    "stream": false
+  },
+  "responses": [
+    {
+      "status": 200,
+      "headers": [
+        [
+          "Content-Type",
+          "application/connect+proto"
+        ]
+      ],
+      "body": "",
+      "body_b64": "AAAAAAMaAWEAAAAABxoFIG1vcmUAAAAAKzonEAUYAiAAKABCGwoMeC1yZXF1ZXN0LWlkEgtyZXFfZml4dHVyZUoAKAICAAAAAnt9"
+    },
+    {
+      "status": 200,
+      "headers": [
+        [
+          "Content-Type",
+          "application/connect+proto"
+        ]
+      ],
+      "body": "",
+      "body_b64": "AAAAAAMaAWIAAAAABxoFIG1vcmUAAAAAKzonEAUYAiAAKABCGwoMeC1yZXF1ZXN0LWlkEgtyZXFfZml4dHVyZUoAKAICAAAAAnt9"
+    }
+  ],
+  "upstream": [
+    {
+      "method": "POST",
+      "target": "/exa.api_server_pb.ApiServerService/GetChatMessage",
+      "headers": [
+        [
+          "Host",
+          "127.0.0.1:37075"
+        ],
+        [
+          "Content-Length",
+          "1456"
+        ],
+        [
+          "Accept",
+          "*/*"
+        ],
+        [
+          "Authorization",
+          "Basic devin-session-token$fixture-devin-session-token$fixture"
+        ],
+        [
+          "Connect-Protocol-Version",
+          "1"
+        ],
+        [
+          "Content-Type",
+          "application/connect+proto"
+        ],
+        [
+          "Sentry-Trace",
+          "d24abcd2c52539a6b103d43a60f30898-3c113a39fb5b83d6-1"
+        ]
+      ],
+      "body": "",
+      "body_b64": "AAAABasKsAYKBmNoaXNlbBIKMzAwMC4xMC4yMRobZGV2aW4tc2Vzc2lvbi10b2tlbiRmaXh0dXJlIgJlbioFbGludXg6CjMwMDAuMTAuMjFiBmNoaXNlbPoB3AVkMzU3MTg4YTU3NGM3MmVjMjZhYWU3ODVhZjJhZDhhMjMzZWQzYjAzYjEyNDI1MTljOWFhMTZkOTg2ZjA3NWY3ZjdkMTA4NTk3MmM4MGMzOTVhMWUwYWFjYmYyYjM3Y2ZkMDkzYTQ1M2M0YWU4ZDczYTM5NDUxZjNhMzliZjk0NmM1YTJmMDI4NTBhYmUwOGE1NTYwNWEwY2Q3MzJhYWZjNTg0ZmYzOTA3NjkyM2MxYzQ4ZjIyMzZmMTRlMzg0Yzk0YmUyZjA0NDc5NGEyYzc5MGQ5ZTA4ZTY3NmU0NTExYzdlMzJjMWMzODI3ZjNiNDI2MmY5YTJhNzliZGU5Y2UyMmEwMjBjOWY3MTgxM2Q2OGQ1YTA1MjZjMTdiZDEyZWRmYTY4Y2FiNzA4NjYyMjI1YTVhMTEzZTMyNTVkYzdjYmNkNDJkOGE3Njg0NjM4ZTRkM2ZhNTBhMGVjNTJiNGQ2NTE5N2U3YzdmYzdjNjE4OWVkY2YzNWRkOWI0ZDQzODYyOWVkODYzZGM4NDllNDAyNjExMGEwZGY2MTI1ZDU0MmM0ODMxNDRiZTgzN2VjZjgyMDE2ZjFhYTc1ZTM5YmFlNWRjMGMwMWUyMjJkMGUwNjU1NTdmMWVlZTc3ZWEwMmU1NDBiZjM0ZmYyOWMxNWQ1MjkzYzA0ZmVmNTJhOGVjZjI5N2RjMDNkNGVmOGM5YWRlYmJhMTIxZWM4Nzg1MGU2MzA4OWE4ZGI0NjczNzNjMjNhZmZiMWM0MzU5MGZjNTVlMzFlNDA2Y2M4ZmE2ZDgyZjM5ZGIxZDE0NzU4ZDU2OWYyNjM4YTQ0MTE5YTNhZGZlYTU0YmRkOWE2MDljMTc4OWQwOTNjODU3MDc3ZTQwYzkyZmNlYTFlNGIwYzhhYzRiNjk1MmYxODUzNTY0ZjM5ODc4YzdmYmU2YWExMmM4OTllNTYxMzRhYTBlMTgzYmY2NTgwZGI5OTQ5NGUSHEJlIGhlbHBmdWwgdHVybi1pbmRleC1yZXBlYXQaLwokZTQyOWMwYjMtMTVmMi00ODMxLWIxOGQtODE0YjcwOTU4ZWI3EAEaBWhlbGxvGmMKJGYzMTVkMGRkLTJmZDktNDMxYS04YzA5LTIzYzE1NjczZDFmNxACGgJoaTIZCgRmY18xEgNydW4aDHsiY21kIjoibHMifVoJcG9uZGVyaW5nYgZnQUFBQUKSAQZvcGVuYWkaNQokMmYxNDFhZTItYTBiOC00NWY1LWI1YzktZGViYWZhOWQ5MGIyEAQaBWEudHh0OgRmY18xGi4KJDIzNmZmMDc4LWNhMDgtNDNkOS1iZWRmLTcyNWRmMTNlY2IwMRABGgRsb3N0GiwKJGQ5YzZmYjk4LTE2ZTgtNGU5ZS1hMDM0LTViNTU0ZmM2YjJhMxABGgJ7fRouCiQyZjRiMmFkMy00NmQyLTRkNDAtYjVmOS03N2E1MzRjMzIzNzIQARoEbmV4dDgFQh0IARC/hD0YkAMpZmZmZmZm5j84KEEAAABgZmbuP1IdCgNydW4SA1J1bhoReyJ0eXBlIjoib2JqZWN0In1SSgoGZGVjbF9hEi1UYWtlcyBhIHRhc2tJZCBwYXJhbWV0ZXIgaWRlbnRpZnlpbmcgdGhlIHRhc2saEXsidHlwZSI6Im9iamVjdCJ9UgwKBG9wZW4SBE9wZW56KgokMGY4ZmFkNWItZDljYi00NjlmLWExNjUtNzA4Njc3Mjg5NTBiGAQgDoIBJDBmOGZhZDViLWQ5Y2ItNDY5Zi1hMTY1LTcwODY3NzI4OTUwYqABAaoBDHN3ZS0xLTYtZmFzdA=="
+    },
+    {
+      "method": "POST",
+      "target": "/exa.api_server_pb.ApiServerService/GetChatMessage",
+      "headers": [
+        [
+          "Host",
+          "127.0.0.1:37075"
+        ],
+        [
+          "Content-Length",
+          "1456"
+        ],
+        [
+          "Accept",
+          "*/*"
+        ],
+        [
+          "Authorization",
+          "Basic devin-session-token$fixture-devin-session-token$fixture"
+        ],
+        [
+          "Connect-Protocol-Version",
+          "1"
+        ],
+        [
+          "Content-Type",
+          "application/connect+proto"
+        ],
+        [
+          "Sentry-Trace",
+          "b10b2c3a50f553d67e2ccbfce7025416-5e2d8805c2f0bf03-1"
+        ]
+      ],
+      "body": "",
+      "body_b64": "AAAABasKsAYKBmNoaXNlbBIKMzAwMC4xMC4yMRobZGV2aW4tc2Vzc2lvbi10b2tlbiRmaXh0dXJlIgJlbioFbGludXg6CjMwMDAuMTAuMjFiBmNoaXNlbPoB3AVkMzU3MTg4YTU3NGM3MmVjMjZhYWU3ODVhZjJhZDhhMjMzZWQzYjAzYjEyNDI1MTljOWFhMTZkOTg2ZjA3NWY3ZjdkMTA4NTk3MmM4MGMzOTVhMWUwYWFjYmYyYjM3Y2ZkMDkzYTQ1M2M0YWU4ZDczYTM5NDUxZjNhMzliZjk0NmM1YTJmMDI4NTBhYmUwOGE1NTYwNWEwY2Q3MzJhYWZjNTg0ZmYzOTA3NjkyM2MxYzQ4ZjIyMzZmMTRlMzg0Yzk0YmUyZjA0NDc5NGEyYzc5MGQ5ZTA4ZTY3NmU0NTExYzdlMzJjMWMzODI3ZjNiNDI2MmY5YTJhNzliZGU5Y2UyMmEwMjBjOWY3MTgxM2Q2OGQ1YTA1MjZjMTdiZDEyZWRmYTY4Y2FiNzA4NjYyMjI1YTVhMTEzZTMyNTVkYzdjYmNkNDJkOGE3Njg0NjM4ZTRkM2ZhNTBhMGVjNTJiNGQ2NTE5N2U3YzdmYzdjNjE4OWVkY2YzNWRkOWI0ZDQzODYyOWVkODYzZGM4NDllNDAyNjExMGEwZGY2MTI1ZDU0MmM0ODMxNDRiZTgzN2VjZjgyMDE2ZjFhYTc1ZTM5YmFlNWRjMGMwMWUyMjJkMGUwNjU1NTdmMWVlZTc3ZWEwMmU1NDBiZjM0ZmYyOWMxNWQ1MjkzYzA0ZmVmNTJhOGVjZjI5N2RjMDNkNGVmOGM5YWRlYmJhMTIxZWM4Nzg1MGU2MzA4OWE4ZGI0NjczNzNjMjNhZmZiMWM0MzU5MGZjNTVlMzFlNDA2Y2M4ZmE2ZDgyZjM5ZGIxZDE0NzU4ZDU2OWYyNjM4YTQ0MTE5YTNhZGZlYTU0YmRkOWE2MDljMTc4OWQwOTNjODU3MDc3ZTQwYzkyZmNlYTFlNGIwYzhhYzRiNjk1MmYxODUzNTY0ZjM5ODc4YzdmYmU2YWExMmM4OTllNTYxMzRhYTBlMTgzYmY2NTgwZGI5OTQ5NGUSHEJlIGhlbHBmdWwgdHVybi1pbmRleC1yZXBlYXQaLwokM2JkYzJhOGQtZjJjZS00YzljLTgzN2QtNWUzNGFlMjU2ZWM4EAEaBWhlbGxvGmMKJDViZWRlZDRlLTg0NzctNDlkZS1iY2JmLTQwNjlhY2Y2Y2NmNxACGgJoaTIZCgRmY18xEgNydW4aDHsiY21kIjoibHMifVoJcG9uZGVyaW5nYgZnQUFBQUKSAQZvcGVuYWkaNQokMGE0ZjEwZTAtZjM1Ny00Zjk3LTg1M2YtYWY2NDJjMDJhMTRjEAQaBWEudHh0OgRmY18xGi4KJDNjNjVmMzQxLWMwMjEtNGQxMy05M2YzLWZmMDEyZDkwODBkYRABGgRsb3N0GiwKJDUzYTg3ZjJmLTZkOWQtNDNmNC04OGIyLWI1OTA1YWE3Yjc3NRABGgJ7fRouCiQxM2YxMGJiZC1iMmI1LTRmOWUtYTgzZi05YzVmZTMyMTI0YTQQARoEbmV4dDgFQh0IARC/hD0YkAMpZmZmZmZm5j84KEEAAABgZmbuP1IdCgNydW4SA1J1bhoReyJ0eXBlIjoib2JqZWN0In1SSgoGZGVjbF9hEi1UYWtlcyBhIHRhc2tJZCBwYXJhbWV0ZXIgaWRlbnRpZnlpbmcgdGhlIHRhc2saEXsidHlwZSI6Im9iamVjdCJ9UgwKBG9wZW4SBE9wZW56KgokMGY4ZmFkNWItZDljYi00NjlmLWExNjUtNzA4Njc3Mjg5NTBiEAEYBIIBJDBmOGZhZDViLWQ5Y2ItNDY5Zi1hMTY1LTcwODY3NzI4OTUwYqABAaoBDHN3ZS0xLTYtZmFzdA=="
+    }
+  ],
+  "downstream": {
+    "body": "{\"id\":\"interaction_5db5e241-8f7\",\"model\":\"devin/swe-1-6\",\"status\":\"completed\",\"steps\":[{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b more\"}]}],\"usage\":{\"total_input_tokens\":5,\"total_output_tokens\":2,\"total_cached_tokens\":0,\"total_tokens\":7}}"
+  }
+}

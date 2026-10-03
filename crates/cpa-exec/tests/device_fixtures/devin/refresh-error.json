@@ -1,0 +1,65 @@
+{
+  "name": "refresh-error",
+  "credential": {
+    "api_key": "devin-session-token$fixture",
+    "type": "devin"
+  },
+  "request": {
+    "refresh": true
+  },
+  "responses": [
+    {
+      "status": 403,
+      "headers": null,
+      "body": "forbidden seat"
+    }
+  ],
+  "upstream": [
+    {
+      "method": "POST",
+      "target": "/exa.seat_management_pb.SeatManagementService/GetUserStatus",
+      "headers": [
+        [
+          "Host",
+          "127.0.0.1:35137"
+        ],
+        [
+          "Content-Length",
+          "819"
+        ],
+        [
+          "Accept",
+          "*/*"
+        ],
+        [
+          "Authorization",
+          "Basic devin-session-token$fixture-devin-session-token$fixture"
+        ],
+        [
+          "Connect-Protocol-Version",
+          "1"
+        ],
+        [
+          "Content-Type",
+          "application/proto"
+        ]
+      ],
+      "body": "",
+      "body_b64": "CrAGCgZjaGlzZWwSCjMwMDAuMTAuMjEaG2RldmluLXNlc3Npb24tdG9rZW4kZml4dHVyZSICZW4qBWxpbnV4OgozMDAwLjEwLjIxYgZjaGlzZWz6AdwFOTA4ZjNmZGExOGNkYjcwZDI3MTc4Y2ZjMzZmYzE4NzFlZTc3OWNhZGI0NmU4NmYxZDBjYWYwNWU4YWViZjkxOGEyMmI0NDdhYTBhNmVkYmU2YTZlNjRmZDY1YWUxYjc2MDVkNGViOThmOTM0YmFlZDhiZDIzYWY0OTg4ZjNhZTY4OGQ5M2IxNjA4YTdiNzk4ZDI1MmE4MDI0MGVkYWRjNTgwODIwODk0ZmYxMDdmY2NhMzQ3N2YyMjI4MDlkNmQ4YzQ5MDE1NWU1NmE1YmU0NDEzYzg2NDZjZDkzM2VjNTc3M2I0ZGQ1ZmQwODE4ZmExMWU5Y2YzNDUwMDg4Y2E4MGFlNTM2NmUwOWRhYWZlMGNmNjVlYjg0NTQ3ZjY4YjkxNjVmNDE2MDkxYzQ0MTE3MGM4MDBhZDU2ZGFjZTlkYjIxOGRhMWJkMTM4YTAwOTU3NDBiMzgyYjNkYzVjMjk0MDk0MjJjNmViZDYxNDkzM2E2YTFkZjQ5YTIwMmZlNTgzM2FiZjI1NTA0NTllZGJjMzUwNWVjZTA4ZWZiMDY4OGZhZmVkY2NhMDhmNzAzMzRmNzI2OWRiZmY1MWNlYzc5YzdhNDI2ODg0N2ExYmI0ZGVkODVhZmZiZWE2MzU2Nzg0MGEwZDQ2ZTU5ZDI0ZjJmYjUwNjcwNzgxMWMyMzVmMzA4ZjM1OGUzMjkxZGY2ZDgwODFmOTYxODYzZDU4NGUzZjY2NWVhNTIzMWUzNzY1NWQ1ZGFmMDcyYjk5ZDE0NmJlZGMwOTdiOTc4YzE3NTExMGQ4N2I2YjVkMTc4YmE0YjJhOTM1MjFmYjQyZjI0ZDZlYTY1ZmM4NjAxZGYzMzJlZDgzZjNjMzNkM2I0NDJlZDU3OGNkZGJmYWI4MTVkYzNlMDUxMmMyZTQ2ODEyMGYyYjM4OGE2ZTI1ZDUxMDA5YWQ0MDUxNjg3YzExZWZhMDlmODkzNDNjNTllZDA1"
+    }
+  ],
+  "downstream": {
+    "err_status": -1,
+    "err_body": "devin seat management error (status 403): forbidden seat"
+  },
+  "extra": {
+    "attributes_after": {},
+    "metadata_after": {
+      "api_key": "devin-session-token$fixture",
+      "type": "devin"
+    },
+    "quota_before": null,
+    "quota_signals": null,
+    "same_auth": true
+  }
+}

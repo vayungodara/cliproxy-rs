@@ -683,8 +683,8 @@ pub fn models_for(cfg: &Config, aliases: &HashMap<String, Vec<OAuthAlias>>, c: &
         "kimi" | "kimi-ai" | "kimi.ai" | "kimi.com" => channel("kimi"),
         "xai" => with_config(channel("xai"), "xai", "xai"),
         "meta" => with_config(channel("meta"), "meta", "meta"),
-        // ponytail: Devin's catalog is not in the pinned models.json; add it with the
-        // Devin provider port.
+        // Go `registry.GetDevinModels()`: the live Devin catalog, never config models.
+        "devin" => super::devin::models().iter().map(Spec::from_static).collect(),
         _ => Vec::new(),
     };
     let models = apply_excluded(models, &excluded);

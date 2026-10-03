@@ -1,0 +1,123 @@
+{
+  "credential": {
+    "api_key": "devin-session-token$fixture",
+    "base_url": "http://127.0.0.1:39263",
+    "device_seed": "seed-1",
+    "session_token": "devin-session-token$fixture",
+    "type": "devin"
+  },
+  "downstream": {
+    "chunks": [
+      "event: response.created\ndata: {\"type\":\"response.created\",\"response\":{\"id\":\"interaction_a83c0657-02a\",\"object\":\"response\",\"status\":\"in_progress\",\"model\":\"glm-5-3\",\"output\":[]},\"sequence_number\":1}\n\n",
+      "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"output_index\":0,\"item\":{\"id\":\"item_0\",\"type\":\"reasoning\",\"status\":\"in_progress\",\"encrypted_content\":\"\",\"summary\":[]},\"sequence_number\":2}\n\n",
+      "event: response.reasoning_summary_text.delta\ndata: {\"type\":\"response.reasoning_summary_text.delta\",\"output_index\":0,\"delta\":\"Let me th\",\"sequence_number\":3}\n\n",
+      "event: response.reasoning_summary_text.delta\ndata: {\"type\":\"response.reasoning_summary_text.delta\",\"output_index\":0,\"delta\":\"ink caf\",\"sequence_number\":4}\n\n",
+      "event: response.reasoning_summary_text.delta\ndata: {\"type\":\"response.reasoning_summary_text.delta\",\"output_index\":0,\"delta\":\"é.\",\"sequence_number\":5}\n\n",
+      "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"id\":\"item_0\",\"type\":\"reasoning\",\"encrypted_content\":\"\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"Let me th\"},{\"type\":\"summary_text\",\"text\":\"ink caf\"},{\"type\":\"summary_text\",\"text\":\"é.\"}]},\"sequence_number\":6}\n\n",
+      "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"output_index\":1,\"item\":{\"id\":\"item_1\",\"type\":\"message\",\"status\":\"in_progress\",\"role\":\"assistant\",\"content\":[]},\"sequence_number\":7}\n\n",
+      "event: response.content_part.added\ndata: {\"type\":\"response.content_part.added\",\"output_index\":1,\"content_index\":0,\"item_id\":\"item_1\",\"part\":{\"type\":\"output_text\",\"text\":\"\"},\"sequence_number\":8}\n\n",
+      "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"output_index\":1,\"content_index\":0,\"item_id\":\"item_1\",\"delta\":\"Answer: \",\"sequence_number\":9}\n\n",
+      "event: response.output_text.done\ndata: {\"type\":\"response.output_text.done\",\"output_index\":1,\"content_index\":0,\"item_id\":\"item_1\",\"text\":\"Answer: \",\"logprobs\":[],\"sequence_number\":10}\n\n",
+      "event: response.content_part.done\ndata: {\"type\":\"response.content_part.done\",\"output_index\":1,\"content_index\":0,\"item_id\":\"item_1\",\"part\":{\"type\":\"output_text\",\"text\":\"Answer: \"},\"sequence_number\":11}\n\n",
+      "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":1,\"item\":{\"id\":\"item_1\",\"type\":\"message\",\"status\":\"completed\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"Answer: \"}]},\"sequence_number\":12}\n\n",
+      "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"item\":{\"status\":\"in_progress\",\"type\":\"function_call\",\"arguments\":\"\",\"id\":\"call_1\",\"call_id\":\"call_1\",\"name\":\"get_weather\"},\"sequence_number\":13,\"output_index\":2}\n\n",
+      "event: response.function_call_arguments.delta\ndata: {\"type\":\"response.function_call_arguments.delta\",\"output_index\":2,\"item_id\":\"call_1\",\"delta\":\"{\\\"city\\\":\",\"sequence_number\":14}\n\n",
+      "event: response.function_call_arguments.delta\ndata: {\"type\":\"response.function_call_arguments.delta\",\"output_index\":2,\"item_id\":\"call_1\",\"delta\":\"\\\"Paris\\\"}\",\"sequence_number\":15}\n\n",
+      "event: response.function_call_arguments.done\ndata: {\"type\":\"response.function_call_arguments.done\",\"output_index\":2,\"item_id\":\"call_1\",\"arguments\":\"{\\\"city\\\":\\\"Paris\\\"}\",\"sequence_number\":16}\n\n",
+      "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":2,\"item\":{\"id\":\"call_1\",\"type\":\"function_call\",\"call_id\":\"call_1\",\"name\":\"get_weather\",\"arguments\":\"{\\\"city\\\":\\\"Paris\\\"}\",\"status\":\"completed\"},\"sequence_number\":17}\n\n",
+      "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"output_index\":3,\"item\":{\"id\":\"item_3\",\"type\":\"message\",\"status\":\"in_progress\",\"role\":\"assistant\",\"content\":[]},\"sequence_number\":18}\n\n",
+      "event: response.content_part.added\ndata: {\"type\":\"response.content_part.added\",\"output_index\":3,\"content_index\":0,\"item_id\":\"item_3\",\"part\":{\"type\":\"output_text\",\"text\":\"\"},\"sequence_number\":19}\n\n",
+      "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"output_index\":3,\"content_index\":0,\"item_id\":\"item_3\",\"delta\":\"Done.\",\"sequence_number\":20}\n\n",
+      "event: response.output_text.done\ndata: {\"type\":\"response.output_text.done\",\"output_index\":3,\"content_index\":0,\"item_id\":\"item_3\",\"text\":\"Done.\",\"logprobs\":[],\"sequence_number\":21}\n\n",
+      "event: response.content_part.done\ndata: {\"type\":\"response.content_part.done\",\"output_index\":3,\"content_index\":0,\"item_id\":\"item_3\",\"part\":{\"type\":\"output_text\",\"text\":\"Done.\"},\"sequence_number\":22}\n\n",
+      "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":3,\"item\":{\"id\":\"item_3\",\"type\":\"message\",\"status\":\"completed\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"Done.\"}]},\"sequence_number\":23}\n\n",
+      "event: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"interaction_a83c0657-02a\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"glm-5-3\",\"output\":[{\"id\":\"item_0\",\"type\":\"reasoning\",\"encrypted_content\":\"\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"Let me th\"},{\"type\":\"summary_text\",\"text\":\"ink caf\"},{\"type\":\"summary_text\",\"text\":\"é.\"}]},{\"id\":\"item_1\",\"type\":\"message\",\"status\":\"completed\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"Answer: \"}]},{\"id\":\"call_1\",\"type\":\"function_call\",\"call_id\":\"call_1\",\"name\":\"get_weather\",\"arguments\":\"{\\\"city\\\":\\\"Paris\\\"}\",\"status\":\"completed\"},{\"id\":\"item_3\",\"type\":\"message\",\"status\":\"completed\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"Done.\"}]}],\"usage\":{\"input_tokens\":14,\"output_tokens\":7,\"total_tokens\":21,\"input_tokens_details\":{\"cached_tokens\":3},\"output_tokens_details\":{\"reasoning_tokens\":0}}},\"sequence_number\":24}\n\n",
+      "data: [DONE]"
+    ],
+    "frames": [
+      "event: response.created\ndata: {\"type\":\"response.created\",\"response\":{\"id\":\"interaction_a83c0657-02a\",\"object\":\"response\",\"status\":\"in_progress\",\"model\":\"glm-5-3\",\"output\":[]},\"sequence_number\":1}\n\n",
+      "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"output_index\":0,\"item\":{\"id\":\"item_0\",\"type\":\"reasoning\",\"status\":\"in_progress\",\"encrypted_content\":\"\",\"summary\":[]},\"sequence_number\":2}\n\n",
+      "event: response.reasoning_summary_text.delta\ndata: {\"type\":\"response.reasoning_summary_text.delta\",\"output_index\":0,\"delta\":\"Let me th\",\"sequence_number\":3}\n\n",
+      "event: response.reasoning_summary_text.delta\ndata: {\"type\":\"response.reasoning_summary_text.delta\",\"output_index\":0,\"delta\":\"ink caf\",\"sequence_number\":4}\n\n",
+      "event: response.reasoning_summary_text.delta\ndata: {\"type\":\"response.reasoning_summary_text.delta\",\"output_index\":0,\"delta\":\"é.\",\"sequence_number\":5}\n\n",
+      "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"id\":\"item_0\",\"type\":\"reasoning\",\"encrypted_content\":\"\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"Let me th\"},{\"type\":\"summary_text\",\"text\":\"ink caf\"},{\"type\":\"summary_text\",\"text\":\"é.\"}]},\"sequence_number\":6}\n\n",
+      "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"output_index\":1,\"item\":{\"id\":\"item_1\",\"type\":\"message\",\"status\":\"in_progress\",\"role\":\"assistant\",\"content\":[]},\"sequence_number\":7}\n\n",
+      "event: response.content_part.added\ndata: {\"type\":\"response.content_part.added\",\"output_index\":1,\"content_index\":0,\"item_id\":\"item_1\",\"part\":{\"type\":\"output_text\",\"text\":\"\"},\"sequence_number\":8}\n\n",
+      "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"output_index\":1,\"content_index\":0,\"item_id\":\"item_1\",\"delta\":\"Answer: \",\"sequence_number\":9}\n\n",
+      "event: response.output_text.done\ndata: {\"type\":\"response.output_text.done\",\"output_index\":1,\"content_index\":0,\"item_id\":\"item_1\",\"text\":\"Answer: \",\"logprobs\":[],\"sequence_number\":10}\n\n",
+      "event: response.content_part.done\ndata: {\"type\":\"response.content_part.done\",\"output_index\":1,\"content_index\":0,\"item_id\":\"item_1\",\"part\":{\"type\":\"output_text\",\"text\":\"Answer: \"},\"sequence_number\":11}\n\n",
+      "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":1,\"item\":{\"id\":\"item_1\",\"type\":\"message\",\"status\":\"completed\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"Answer: \"}]},\"sequence_number\":12}\n\n",
+      "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"item\":{\"status\":\"in_progress\",\"type\":\"function_call\",\"arguments\":\"\",\"id\":\"call_1\",\"call_id\":\"call_1\",\"name\":\"get_weather\"},\"sequence_number\":13,\"output_index\":2}\n\n",
+      "event: response.function_call_arguments.delta\ndata: {\"type\":\"response.function_call_arguments.delta\",\"output_index\":2,\"item_id\":\"call_1\",\"delta\":\"{\\\"city\\\":\",\"sequence_number\":14}\n\n",
+      "event: response.function_call_arguments.delta\ndata: {\"type\":\"response.function_call_arguments.delta\",\"output_index\":2,\"item_id\":\"call_1\",\"delta\":\"\\\"Paris\\\"}\",\"sequence_number\":15}\n\n",
+      "event: response.function_call_arguments.done\ndata: {\"type\":\"response.function_call_arguments.done\",\"output_index\":2,\"item_id\":\"call_1\",\"arguments\":\"{\\\"city\\\":\\\"Paris\\\"}\",\"sequence_number\":16}\n\n",
+      "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":2,\"item\":{\"id\":\"call_1\",\"type\":\"function_call\",\"call_id\":\"call_1\",\"name\":\"get_weather\",\"arguments\":\"{\\\"city\\\":\\\"Paris\\\"}\",\"status\":\"completed\"},\"sequence_number\":17}\n\n",
+      "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"output_index\":3,\"item\":{\"id\":\"item_3\",\"type\":\"message\",\"status\":\"in_progress\",\"role\":\"assistant\",\"content\":[]},\"sequence_number\":18}\n\n",
+      "event: response.content_part.added\ndata: {\"type\":\"response.content_part.added\",\"output_index\":3,\"content_index\":0,\"item_id\":\"item_3\",\"part\":{\"type\":\"output_text\",\"text\":\"\"},\"sequence_number\":19}\n\n",
+      "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"output_index\":3,\"content_index\":0,\"item_id\":\"item_3\",\"delta\":\"Done.\",\"sequence_number\":20}\n\n",
+      "event: response.output_text.done\ndata: {\"type\":\"response.output_text.done\",\"output_index\":3,\"content_index\":0,\"item_id\":\"item_3\",\"text\":\"Done.\",\"logprobs\":[],\"sequence_number\":21}\n\n",
+      "event: response.content_part.done\ndata: {\"type\":\"response.content_part.done\",\"output_index\":3,\"content_index\":0,\"item_id\":\"item_3\",\"part\":{\"type\":\"output_text\",\"text\":\"Done.\"},\"sequence_number\":22}\n\n",
+      "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":3,\"item\":{\"id\":\"item_3\",\"type\":\"message\",\"status\":\"completed\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"Done.\"}]},\"sequence_number\":23}\n\n",
+      "event: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"interaction_a83c0657-02a\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"glm-5-3\",\"output\":[{\"id\":\"item_0\",\"type\":\"reasoning\",\"encrypted_content\":\"\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"Let me th\"},{\"type\":\"summary_text\",\"text\":\"ink caf\"},{\"type\":\"summary_text\",\"text\":\"é.\"}]},{\"id\":\"item_1\",\"type\":\"message\",\"status\":\"completed\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"Answer: \"}]},{\"id\":\"call_1\",\"type\":\"function_call\",\"call_id\":\"call_1\",\"name\":\"get_weather\",\"arguments\":\"{\\\"city\\\":\\\"Paris\\\"}\",\"status\":\"completed\"},{\"id\":\"item_3\",\"type\":\"message\",\"status\":\"completed\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"Done.\"}]}],\"usage\":{\"input_tokens\":14,\"output_tokens\":7,\"total_tokens\":21,\"input_tokens_details\":{\"cached_tokens\":3},\"output_tokens_details\":{\"reasoning_tokens\":0}}},\"sequence_number\":24}\n\n",
+      "data: [DONE]\n\n"
+    ]
+  },
+  "name": "responses-stream",
+  "request": {
+    "body": "{\"model\":\"glm-5-3\",\"instructions\":\"Be concise.\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"Hi responses-stream\"}]}],\"reasoning\":{\"effort\":\"medium\"},\"tools\":[{\"type\":\"function\",\"name\":\"get_weather\",\"description\":\"Look up\",\"parameters\":{\"type\":\"object\",\"properties\":{\"city\":{\"type\":\"string\"}}}}],\"max_output_tokens\":2000}",
+    "model": "glm-5-3",
+    "source": "openai-response",
+    "stream": true
+  },
+  "responses": [
+    {
+      "body": "",
+      "body_b64": "AAAAABgKBW91dF8xEIDiz6oGSglMZXQgbWUgdGgAAAAACkoIaW5rIGNhZsMAAAAAEEoCqS5SCnNpZy1wYXJ0LTEAAAAAI1ILfHNpZy1wYXJ0LTKqAQlhbnRocm9waWMaCEFuc3dlcjogAAAAACEyHwoGY2FsbF8xEgtnZXRfd2VhdGhlchoIeyJjaXR5IjoAAAAADDIKGggiUGFyaXMifQAAAAARGgVEb25lLpoGB3Vua25vd24AAAAAOzo3EAsYByACKANCGwoMeC1yZXF1ZXN0LWlkEgtyZXFfZml4dHVyZUoQdXBzdHJlYW0tbW9kZWwteCgKAgAAAAJ7fQ==",
+      "headers": [
+        [
+          "Content-Type",
+          "application/connect+proto"
+        ]
+      ],
+      "status": 200
+    }
+  ],
+  "upstream": [
+    {
+      "body": "",
+      "body_b64": "AAAABFcKsAYKBmNoaXNlbBIKMzAwMC4xMC4yMRobZGV2aW4tc2Vzc2lvbi10b2tlbiRmaXh0dXJlIgJlbioFbGludXg6CjMwMDAuMTAuMjFiBmNoaXNlbPoB3AVkMzU3MTg4YTU3NGM3MmVjMjZhYWU3ODVhZjJhZDhhMjMzZWQzYjAzYjEyNDI1MTljOWFhMTZkOTg2ZjA3NWY3ZjdkMTA4NTk3MmM4MGMzOTVhMWUwYWFjYmYyYjM3Y2ZkMDkzYTQ1M2M0YWU4ZDczYTM5NDUxZjNhMzliZjk0NmM1YTJmMDI4NTBhYmUwOGE1NTYwNWEwY2Q3MzJhYWZjNTg0ZmYzOTA3NjkyM2MxYzQ4ZjIyMzZmMTRlMzg0Yzk0YmUyZjA0NDc5NGEyYzc5MGQ5ZTA4ZTY3NmU0NTExYzdlMzJjMWMzODI3ZjNiNDI2MmY5YTJhNzliZGU5Y2UyMmEwMjBjOWY3MTgxM2Q2OGQ1YTA1MjZjMTdiZDEyZWRmYTY4Y2FiNzA4NjYyMjI1YTVhMTEzZTMyNTVkYzdjYmNkNDJkOGE3Njg0NjM4ZTRkM2ZhNTBhMGVjNTJiNGQ2NTE5N2U3YzdmYzdjNjE4OWVkY2YzNWRkOWI0ZDQzODYyOWVkODYzZGM4NDllNDAyNjExMGEwZGY2MTI1ZDU0MmM0ODMxNDRiZTgzN2VjZjgyMDE2ZjFhYTc1ZTM5YmFlNWRjMGMwMWUyMjJkMGUwNjU1NTdmMWVlZTc3ZWEwMmU1NDBiZjM0ZmYyOWMxNWQ1MjkzYzA0ZmVmNTJhOGVjZjI5N2RjMDNkNGVmOGM5YWRlYmJhMTIxZWM4Nzg1MGU2MzA4OWE4ZGI0NjczNzNjMjNhZmZiMWM0MzU5MGZjNTVlMzFlNDA2Y2M4ZmE2ZDgyZjM5ZGIxZDE0NzU4ZDU2OWYyNjM4YTQ0MTE5YTNhZGZlYTU0YmRkOWE2MDljMTc4OWQwOTNjODU3MDc3ZTQwYzkyZmNlYTFlNGIwYzhhYzRiNjk1MmYxODUzNTY0ZjM5ODc4YzdmYmU2YWExMmM4OTllNTYxMzRhYTBlMTgzYmY2NTgwZGI5OTQ5NGUSC0JlIGNvbmNpc2UuGj0KJDA3OGYzOWI4LTAxYjktNDMwZC1hZGQzLWRkMDRiOGFiNDFhMRABGhNIaSByZXNwb25zZXMtc3RyZWFtOAVCHAgBENAPGJADKQAAAAAAAPA/OChBAAAAYGZm7j9SUQoLZ2V0X3dlYXRoZXISB0xvb2sgdXAaOXsidHlwZSI6Im9iamVjdCIsInByb3BlcnRpZXMiOnsiY2l0eSI6eyJ0eXBlIjoic3RyaW5nIn19fXoqCiQxNDFhYjFkZC0wZmFhLTUwNjQtOWIzZC1lM2VmMWYyMWFhOGIYBCAOggEkMTQxYWIxZGQtMGZhYS01MDY0LTliM2QtZTNlZjFmMjFhYThioAEBqgEMZ2xtLTUtMy1oaWdo",
+      "headers": [
+        [
+          "Host",
+          "127.0.0.1:39263"
+        ],
+        [
+          "Content-Length",
+          "1116"
+        ],
+        [
+          "Accept",
+          "*/*"
+        ],
+        [
+          "Authorization",
+          "Basic devin-session-token$fixture-devin-session-token$fixture"
+        ],
+        [
+          "Connect-Protocol-Version",
+          "1"
+        ],
+        [
+          "Content-Type",
+          "application/connect+proto"
+        ],
+        [
+          "Sentry-Trace",
+          "1d701e908a0b16ae2a56735dd31acb71-8a8f2e0ede518f2b-1"
+        ]
+      ],
+      "method": "POST",
+      "target": "/exa.api_server_pb.ApiServerService/GetChatMessage"
+    }
+  ]
+}

@@ -1,0 +1,76 @@
+{
+  "name": "chat-stream-premature-eof",
+  "credential": {
+    "api_key": "devin-session-token$fixture",
+    "base_url": "http://127.0.0.1:45887",
+    "device_seed": "seed-1",
+    "session_token": "devin-session-token$fixture",
+    "type": "devin"
+  },
+  "request": {
+    "body": "{\"model\":\"swe-2\",\"messages\":[{\"role\":\"system\",\"content\":\"You are helpful.\\nYou are Claude Code, Anthropic's official CLI for Claude.\\nKeep it short.\"},{\"role\":\"user\",\"content\":\"What's the weather in Paris? chat-stream-premature-eof\"},{\"role\":\"assistant\",\"content\":\"Checking.\",\"tool_calls\":[{\"id\":\"call_a\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"{\\\"city\\\":\\\"Paris\\\"}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"call_a\",\"content\":\"sunny\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Thanks \u003cb\u003e\u0026\u003c/b\u003e\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/webp;base64,UklGRg==\"}}]}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"Get weather\",\"parameters\":{\"type\":\"object\",\"properties\":{\"city\":{\"type\":\"string\"}}}}},{\"type\":\"function\",\"function\":{\"name\":\"exec_command\",\"description\":\"Runs a command, returning output or a session ID for ongoing interaction.\",\"parameters\":{\"type\":\"object\"}}}],\"temperature\":0.3,\"max_tokens\":500}",
+    "model": "swe-2",
+    "source": "openai",
+    "stream": true
+  },
+  "responses": [
+    {
+      "status": 200,
+      "headers": [
+        [
+          "Content-Type",
+          "application/connect+proto"
+        ]
+      ],
+      "body": "",
+      "body_b64": "AAAAAAUaA2N1dA=="
+    }
+  ],
+  "upstream": [
+    {
+      "method": "POST",
+      "target": "/exa.api_server_pb.ApiServerService/GetChatMessage",
+      "headers": [
+        [
+          "Host",
+          "127.0.0.1:45887"
+        ],
+        [
+          "Content-Length",
+          "1550"
+        ],
+        [
+          "Accept",
+          "*/*"
+        ],
+        [
+          "Authorization",
+          "Basic devin-session-token$fixture-devin-session-token$fixture"
+        ],
+        [
+          "Connect-Protocol-Version",
+          "1"
+        ],
+        [
+          "Content-Type",
+          "application/connect+proto"
+        ],
+        [
+          "Sentry-Trace",
+          "015740466e799170b940e30a35ddf2a6-63062dcdec0ae7ec-1"
+        ]
+      ],
+      "body": "",
+      "body_b64": "AAAABgkKsAYKBmNoaXNlbBIKMzAwMC4xMC4yMRobZGV2aW4tc2Vzc2lvbi10b2tlbiRmaXh0dXJlIgJlbioFbGludXg6CjMwMDAuMTAuMjFiBmNoaXNlbPoB3AVkMzU3MTg4YTU3NGM3MmVjMjZhYWU3ODVhZjJhZDhhMjMzZWQzYjAzYjEyNDI1MTljOWFhMTZkOTg2ZjA3NWY3ZjdkMTA4NTk3MmM4MGMzOTVhMWUwYWFjYmYyYjM3Y2ZkMDkzYTQ1M2M0YWU4ZDczYTM5NDUxZjNhMzliZjk0NmM1YTJmMDI4NTBhYmUwOGE1NTYwNWEwY2Q3MzJhYWZjNTg0ZmYzOTA3NjkyM2MxYzQ4ZjIyMzZmMTRlMzg0Yzk0YmUyZjA0NDc5NGEyYzc5MGQ5ZTA4ZTY3NmU0NTExYzdlMzJjMWMzODI3ZjNiNDI2MmY5YTJhNzliZGU5Y2UyMmEwMjBjOWY3MTgxM2Q2OGQ1YTA1MjZjMTdiZDEyZWRmYTY4Y2FiNzA4NjYyMjI1YTVhMTEzZTMyNTVkYzdjYmNkNDJkOGE3Njg0NjM4ZTRkM2ZhNTBhMGVjNTJiNGQ2NTE5N2U3YzdmYzdjNjE4OWVkY2YzNWRkOWI0ZDQzODYyOWVkODYzZGM4NDllNDAyNjExMGEwZGY2MTI1ZDU0MmM0ODMxNDRiZTgzN2VjZjgyMDE2ZjFhYTc1ZTM5YmFlNWRjMGMwMWUyMjJkMGUwNjU1NTdmMWVlZTc3ZWEwMmU1NDBiZjM0ZmYyOWMxNWQ1MjkzYzA0ZmVmNTJhOGVjZjI5N2RjMDNkNGVmOGM5YWRlYmJhMTIxZWM4Nzg1MGU2MzA4OWE4ZGI0NjczNzNjMjNhZmZiMWM0MzU5MGZjNTVlMzFlNDA2Y2M4ZmE2ZDgyZjM5ZGIxZDE0NzU4ZDU2OWYyNjM4YTQ0MTE5YTNhZGZlYTU0YmRkOWE2MDljMTc4OWQwOTNjODU3MDc3ZTQwYzkyZmNlYTFlNGIwYzhhYzRiNjk1MmYxODUzNTY0ZjM5ODc4YzdmYmU2YWExMmM4OTllNTYxMzRhYTBlMTgzYmY2NTgwZGI5OTQ5NGUSH1lvdSBhcmUgaGVscGZ1bC4KS2VlcCBpdCBzaG9ydC4aYAokMjg1YzAzYzEtNjU5OS00YTEyLTlhMWEtMDdiMzdkNDJkYzA4EAEaNldoYXQncyB0aGUgd2VhdGhlciBpbiBQYXJpcz8gY2hhdC1zdHJlYW0tcHJlbWF0dXJlLWVvZhpcCiQwMGE2YjQ3ZS1lNDgwLTQxYWUtYTUwMS1iZDAxMDQ5ZGEwNDgQAhoJQ2hlY2tpbmcuMicKBmNhbGxfYRILZ2V0X3dlYXRoZXIaEHsiY2l0eSI6IlBhcmlzIn0aNwokOTk4ZjljMzItNmI4MS00NjlmLTliOTYtNzk2Y2JjYjViZGIxEAQaBXN1bm55OgZjYWxsX2EacQokZDlkYWY3ZTktNzZjOC00NTU2LThmNWYtYjhkMmUxOGU5OTkyEAEaL1tJbWFnZSAxOiBwYXN0ZWRfaW1hZ2VfMS53ZWJwXQoKVGhhbmtzIDxiPiY8L2I+UhYKCFVrbEdSZz09EgppbWFnZS93ZWJwOAVCHAgBEPQDGJADKTMzMzMzM9M/OChBAAAAYGZm7j9SVQoLZ2V0X3dlYXRoZXISC0dldCB3ZWF0aGVyGjl7InR5cGUiOiJvYmplY3QiLCJwcm9wZXJ0aWVzIjp7ImNpdHkiOnsidHlwZSI6InN0cmluZyJ9fX1SbQoMZXhlY19jb21tYW5kEkpSdW5zIGEgY29tbWFuZCwgcmV0dXJuaW5nIG91dHB1dCBvciBhbiBzZXNzaW9uIElEIGZvciBvbmdvaW5nIGludGVyYWN0aW9uLhoReyJ0eXBlIjoib2JqZWN0In16KgokM2ZiYjgzZGQtZTI2ZS01ZTM5LTk3MmQtNTE3NTA4MzBmNDExGAQgDoIBJDNmYmI4M2RkLWUyNmUtNWUzOS05NzJkLTUxNzUwODMwZjQxMaABAaoBCnN3ZS0yLWhpZ2g="
+    }
+  ],
+  "downstream": {
+    "chunks": [
+      "{\"id\":\"interaction_4f7d5097-c91\",\"object\":\"chat.completion.chunk\",\"created\":1791014377,\"model\":\"swe-2\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\"},\"finish_reason\":null}]}",
+      "{\"id\":\"interaction_4f7d5097-c91\",\"object\":\"chat.completion.chunk\",\"created\":1791014377,\"model\":\"swe-2\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"cut\"},\"finish_reason\":null}]}",
+      "{\"error\":{\"message\":\"devin stream terminated prematurely before EOS trailer\",\"type\":\"server_error\",\"code\":\"stream_truncated\"}}"
+    ],
+    "err_status": -1,
+    "stream_err": "devin stream terminated prematurely before EOS trailer"
+  }
+}
