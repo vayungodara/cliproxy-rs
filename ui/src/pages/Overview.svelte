@@ -49,7 +49,9 @@
       action: "Use with tools",
     },
   ]);
-  const setup = $derived(store.config.data && store.creds.data && steps.some((s) => !s.done));
+  // Shown only while an account or a client key is missing; with both in place the overview
+  // looks as it always did, and the third step lives in the "No requests yet" line.
+  const setup = $derived(store.config.data && store.creds.data && !(steps[0].done && steps[1].done));
   const next = $derived(steps.findIndex((s) => !s.done));
   const createKey = () =>
     store.act(() => store.replace("access/api-keys", keys, [...keys, newKey()]), "Client key created.");
@@ -122,7 +124,7 @@
             ></strong
           >
           <span class="legend"
-            >{!traffic ? "Not reported" : total ? `${fmt(failed)} failed` : "No requests yet"}</span
+            >{!traffic ? "Not reported" : total ? `${fmt(failed)} failed` : "No requests yet"}{#if traffic && !total}{" · "}<a href="#use">Set up a tool</a>{/if}</span
           >
         </div>
         <p class="routing legend">
@@ -135,6 +137,9 @@
       <section class="section">
         <div class="section-head">
           <h2>Credentials</h2>
+          {#if checkable}<button class="key quiet small" disabled={checking} onclick={checkLimits}
+              >{checking ? "Checking limits…" : "Check limits"}</button
+            >{/if}
           <a class="key quiet small" href="#credentials">Manage <svg class="i" width="14" height="14" aria-hidden="true"><use href="#i-chevron" /></svg></a>
         </div>
         <ul class="list creds">
@@ -160,15 +165,9 @@
         </ul>
       </section>
 
-      {#if limited.length || checkable}
+      {#if limited.length}
         <section class="section">
-          <div class="section-head">
-            <h2>Limits</h2>
-            {#if checkable}<button class="key quiet small" disabled={checking} onclick={checkLimits}
-                >{checking ? "Checking…" : "Check all"}</button
-              >{/if}
-          </div>
-          {#if limited.length}
+          <div class="section-head"><h2>Limits</h2></div>
             <ul class="list limits">
               {#each limited as x (`${x.a.name}\u0000${x.a.auth_index}`)}
                 <li class="item">
@@ -179,7 +178,6 @@
                 </li>
               {/each}
             </ul>
-          {:else}<p class="muted">Check all asks each provider how much of its 5-hour and weekly limits is used, with the account’s own token.</p>{/if}
         </section>
       {/if}
     {/if}

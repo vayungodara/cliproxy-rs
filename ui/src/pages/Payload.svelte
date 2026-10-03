@@ -35,7 +35,6 @@
   <h1>Payload rules</h1>
   <a class="key" href="#config"><svg class="i" aria-hidden="true"><use href="#i-edit" /></svg>Edit in Configuration</a>
 </div>
-<p class="muted">Payload rules change the request body before it goes upstream, for example to set a default temperature for one model.</p>
 
   <div class="seg" role="group" aria-label="Rule type">
     {#each kinds as [k]}<button aria-pressed={kind === k} onclick={() => (kind = k)}>{k}<b>{(payload[k] || []).length || ""}</b></button>{/each}

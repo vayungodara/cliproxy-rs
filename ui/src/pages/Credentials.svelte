@@ -165,7 +165,6 @@
   >
   <a class="key primary" href="#connect"><svg class="i" aria-hidden="true"><use href="#i-plus" /></svg>Connect account</a>
 </div>
-<p class="muted">Every account and API key the proxy can send requests with, and how each is doing. Open one for details.</p>
 
 <Missing
   actions={[

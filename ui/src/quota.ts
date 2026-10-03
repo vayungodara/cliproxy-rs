@@ -15,8 +15,10 @@ const usageURL: Record<string, string> = {
 const plugin = (p: string) =>
   (store.plugins.data || []).find((x) => x.supports_quota && (x.quota_provider || x.id) === p);
 export const quotaKey = (a: Data) => a.auth_index || a.name;
-export const canCheck = (a: Data) =>
-  !a.disabled && (!!plugin(provider(a)) || (!!usageURL[provider(a)] && store.can("POST", "/requests/api-call")));
+/** The provider has a usage endpoint or quota plugin this server can call. */
+export const hasSource = (a: Data) =>
+  !!plugin(provider(a)) || (!!usageURL[provider(a)] && store.can("POST", "/requests/api-call"));
+export const canCheck = (a: Data) => !a.disabled && hasSource(a);
 
 /** What is known about one credential's limits: a live check in this tab, else passive signals. */
 export function limits(a: Data): { windows: Window[]; at: number } | { error: string } | null {

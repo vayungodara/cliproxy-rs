@@ -39,7 +39,7 @@ try {
   assert.equal(evaluate(`document.querySelector('main').textContent.includes('operator@example.invalid')`), true);
   for (const theme of ["dark", "light"]) {
     evaluate(`(()=>{if(document.documentElement.dataset.theme!=='${theme}')document.querySelector('[aria-label^="Use "]').click();return true})()`);
-    for (const page of ["overview", "credentials", "providers", "keys", "models", "payload", "config", "logs", "system"]) {
+    for (const page of ["overview", "use", "credentials", "providers", "keys", "models", "payload", "config", "logs", "system"]) {
       const before = evaluate("window.__calls.length");
       browser("click", `nav a[href="#${page}"]`);
       browser("wait", "800");

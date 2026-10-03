@@ -42,7 +42,6 @@
   <a class="key" href="#config"><svg class="i" aria-hidden="true"><use href="#i-edit" /></svg>Edit in Configuration</a>
 </div>
 
-<p class="muted">API keys from the providers’ developer platforms, and any OpenAI-compatible service. They are billed per request.</p>
 <div class="seg" role="group" aria-label="Provider">
   {#each families as f}<button aria-pressed={family === f} onclick={() => (family = f)}
       >{label(f)}<b>{readPath(store.config.data || {}, `api-keys/${f}`, []).length || ""}</b></button
@@ -86,7 +85,10 @@
       {:else}
         <div class="state">
           <div class="row"><span class="lamp off"></span>No {label(family)} API keys</div>
-          <p>A group is one endpoint with one or more keys, used in turn by weight.</p>
+          <p>
+            API keys from the provider’s developer platform, billed per request. A group is one endpoint with one or more keys,
+            used in turn by weight.
+          </p>
         </div>
       {/if}
       {#if usage.error}<p class="note"><span class="lamp {missing(usage.error) ? 'off' : 'bad'}"></span>{missing(usage.error) ? "Per-key traffic is not reported by this server." : text(usage.error)}</p>{/if}

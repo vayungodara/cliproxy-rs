@@ -29,7 +29,7 @@
     <section class="section">
       <p class="muted">
         Client keys are passwords your tools send to this proxy, as a Bearer token or <code>x-api-key</code>. They are not your
-        management key. <a href="#use">Set up a tool</a>
+        management key.
       </p>
       {#if keys.length}
         <ul class="list">

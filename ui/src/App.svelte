@@ -124,9 +124,8 @@
         >
       </div>
       <p class="small muted">
-        The management key is <code>management.secret-key</code> from the server’s config.yaml, or the
-        <code>MANAGEMENT_PASSWORD</code> it was started with. Not set yet? Add one and restart the server. The key stays in this
-        tab’s memory only; reloading signs you out.
+        Use <code>management.secret-key</code> from the server’s config.yaml. It stays in this tab’s memory only; reloading
+        signs you out.
       </p>
     </form>
   </main>

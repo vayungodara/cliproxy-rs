@@ -66,6 +66,7 @@ body {
 }
 ::selection { background: var(--accent); color: #1c1b19; }
 h1, h2, h3, p { margin: 0; }
+p { text-wrap: pretty; }
 h1 { font-size: 24px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.2; }
 h2 { font-size: 17px; font-weight: 600; letter-spacing: -0.01em; }
 h3 { font-size: 14px; font-weight: 600; }

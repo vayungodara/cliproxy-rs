@@ -1,7 +1,7 @@
 <script lang="ts">
   import { store, every } from "../store.svelte";
   import { credState, credName, provider, label, ago } from "../core";
-  import { check, checkAll, canCheck, limits } from "../quota";
+  import { check, checkAll, canCheck, hasSource, limits } from "../quota";
   import Load from "../Load.svelte";
   import Missing from "../Missing.svelte";
   import Meter from "../Meter.svelte";
@@ -24,8 +24,8 @@
 </div>
 <Missing actions={[["POST", "/requests/api-call", "live quota checks"], ["POST", "/routing/cooldown/reset", "cooldown reset"]]} />
 <p class="muted">
-  How much of each account’s usage limit is left. Some providers report it with every response; for the others, Check asks
-  the provider with the account’s own token. Resetting a cooldown only clears the proxy’s own pause, not the provider’s limit.
+  Signals come from recent provider responses. Checking asks the provider with the credential’s token.
+  Resetting a cooldown clears local routing state only.
 </p>
 
 <Load res={store.creds} what="Credentials">
@@ -55,7 +55,7 @@
               {#each signals as [k, v]}<span class="chip">{k}: {v}</span>{/each}
               <span class="legend">observed {ago(a.quota.observed_at)}</span>
             </div>{/if}
-          {#if !q && !signals.length && !canCheck(a)}<p class="legend">
+          {#if !q && !signals.length && !hasSource(a)}<p class="legend">
               No quota source for {label(provider(a))}. A plugin can add one.
             </p>{/if}
         </li>
