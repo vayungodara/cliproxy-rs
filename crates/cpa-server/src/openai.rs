@@ -43,6 +43,7 @@ fn call(req: Request, entry: Format, model: String, body: Bytes, stream: bool, a
         execution_session: None,
         request_path: req.path,
         peer: req.peer,
+        turn: None,
     }
 }
 
@@ -362,8 +363,11 @@ pub async fn responses(
         Ok(body) => body,
         Err(rejection) => return read_failed(&rejection),
     };
-    // ponytail: Go's Codex multi-agent-v2 tool preparation and orphan-delegation
-    // repair (client.codex.*) are not applied; they belong with the Codex port.
+    // Go `prepareCodexMultiAgentV2Tools` then `prepareCodexOrphanDelegation`.
+    let settings = cpa_common::codex_client::Settings::for_responses_handler(&rt.config());
+    let body = Bytes::from(cpa_common::codex_client::prepare_responses_request(
+        &headers, &body, &settings,
+    ));
     let fields = peek(&body);
     let stream = fields.get("stream") == Some(&Value::Bool(true));
     let model = gojson::gjson_string(fields.get("model"));
@@ -880,10 +884,17 @@ pub async fn compact(
     headers: HeaderMap,
     body: Result<Bytes, BytesRejection>,
 ) -> Response {
-    let mut body = match body {
+    let body = match body {
         Ok(body) => body,
         Err(rejection) => return read_failed(&rejection),
     };
+    // Go `prepareCodexOrphanDelegation` (compact skips the multi-agent tool step).
+    let settings = cpa_common::codex_client::Settings::for_responses_handler(&rt.config());
+    let mut body = Bytes::from(cpa_common::codex_client::rewrite_orphan_delegation_input(
+        &headers,
+        &body,
+        settings.orphan_delegation,
+    ));
     let fields = peek(&body);
     match fields.get("stream") {
         Some(Value::Bool(true)) => {

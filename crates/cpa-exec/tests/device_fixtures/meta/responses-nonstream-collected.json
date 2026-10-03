@@ -4,7 +4,7 @@
     "access_token": "meta-key-fixture",
     "api_key": "meta-key-fixture",
     "auth_kind": "oauth",
-    "base_url": "http://127.0.0.1:44459/v1",
+    "base_url": "http://127.0.0.1:45287/v1",
     "dca_token": "dca:fixture",
     "type": "meta"
   },
@@ -36,7 +36,7 @@
       "headers": [
         [
           "Host",
-          "127.0.0.1:44459"
+          "127.0.0.1:45287"
         ],
         [
           "User-Agent",
@@ -76,5 +76,20 @@
   ],
   "downstream": {
     "body": "{\"id\":\"resp_m\",\"status\":\"completed\",\"model\":\"muse-spark-1.3\",\"output\":[{\"id\":\"msg_1\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"hi there\"}]}],\"usage\":{\"input_tokens\":5,\"output_tokens\":2,\"total_tokens\":7,\"output_tokens_details\":{\"reasoning_tokens\":0},\"input_tokens_details\":{\"cached_tokens\":0}}}"
+  },
+  "extra": {
+    "usage": [
+      {
+        "cached_tokens": 0,
+        "failed": false,
+        "input_tokens": 5,
+        "model": "muse-spark-1.3",
+        "output_tokens": 2,
+        "reasoning_effort": "high",
+        "reasoning_tokens": 0,
+        "response_model": "muse-spark-1.3",
+        "total_tokens": 7
+      }
+    ]
   }
 }

@@ -23,6 +23,48 @@ mod trusted;
 mod validate;
 pub use document::{ConfigDocument, archive_comments};
 pub use schema::validate as validate_config_fields;
+pub use schema::{coerce_typed_bools, written_bool_spelling};
+
+/// Go `expandConfigAliases` plus yaml.v3's merge rules: `<<` keys expand bottom-up
+/// (nested merges first); explicit keys win, then earlier merged mappings. A merge
+/// value that is not a mapping or a list of mappings is yaml.v3's decode error.
+/// (Aliases are already expanded by the parser.)
+pub fn expand_merges(value: &mut Value) -> anyhow::Result<()> {
+    const NOT_MAPS: &str = "map merge requires map or sequence of maps as the value";
+    match value {
+        Value::Mapping(map) => {
+            for (_, child) in map.iter_mut() {
+                expand_merges(child)?;
+            }
+            if let Some(merge) = map.shift_remove("<<") {
+                let sources: Vec<Mapping> = match merge {
+                    Value::Mapping(m) => vec![m],
+                    Value::Sequence(items) => items
+                        .into_iter()
+                        .map(|item| match item {
+                            Value::Mapping(m) => Ok(m),
+                            _ => Err(anyhow::anyhow!(NOT_MAPS)),
+                        })
+                        .collect::<anyhow::Result<_>>()?,
+                    _ => bail!(NOT_MAPS),
+                };
+                for source in sources {
+                    for (key, item) in source {
+                        map.entry(key).or_insert(item);
+                    }
+                }
+            }
+        }
+        Value::Sequence(items) => {
+            for item in items {
+                expand_merges(item)?;
+            }
+        }
+        Value::Tagged(tagged) => expand_merges(&mut tagged.value)?,
+        _ => {}
+    }
+    Ok(())
+}
 pub use trusted::{TrustedProxies, go_trim_space};
 pub use validate::parse_duration;
 
@@ -232,13 +274,17 @@ impl Config {
     }
 
     pub fn parse(text: &str) -> anyhow::Result<Self> {
-        let root = match serde_yaml_ng::from_str::<Value>(text)? {
+        let mut parsed = serde_yaml_ng::from_str::<Value>(text)?;
+        // Before any migration, as Go expands aliases first.
+        expand_merges(&mut parsed)?;
+        let root = match parsed {
             Value::Null if text.trim().is_empty() => Mapping::new(),
             Value::Mapping(m) => m,
             _ => bail!("config must be a mapping"),
         };
         validate_shape(&root)?;
-        let document = ConfigDocument::from_mapping(root.clone())?;
+        let mut document = ConfigDocument::from_mapping(root.clone())?;
+        document.coerce_typed_bools();
         schema::validate(document.value(), false)?;
         let canonical = document.value().as_mapping().expect("document is a mapping");
         let routing = decode_section::<RoutingConfig>(canonical, "routing")?;
@@ -371,6 +417,8 @@ fn string_or_empty(value: Option<&Value>, name: &str) -> anyhow::Result<String> 
     match value {
         None | Some(Value::Null) => Ok(String::new()),
         Some(Value::String(s)) => Ok(s.clone()),
+        // yaml.v3 decodes any scalar into a Go string field as its text.
+        Some(v @ (Value::Number(_) | Value::Bool(_))) => Ok(go_string(v)),
         Some(_) => bail!("{name} must be a string"),
     }
 }

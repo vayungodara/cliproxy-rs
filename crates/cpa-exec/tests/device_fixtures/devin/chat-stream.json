@@ -1,0 +1,96 @@
+{
+  "name": "chat-stream",
+  "credential": {
+    "api_key": "devin-session-token$fixture",
+    "base_url": "http://127.0.0.1:34921",
+    "device_seed": "seed-1",
+    "session_token": "devin-session-token$fixture",
+    "type": "devin"
+  },
+  "request": {
+    "body": "{\"model\":\"swe-2\",\"messages\":[{\"role\":\"system\",\"content\":\"You are helpful.\\nYou are Claude Code, Anthropic's official CLI for Claude.\\nKeep it short.\"},{\"role\":\"user\",\"content\":\"What's the weather in Paris? chat-stream\"},{\"role\":\"assistant\",\"content\":\"Checking.\",\"tool_calls\":[{\"id\":\"call_a\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"{\\\"city\\\":\\\"Paris\\\"}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"call_a\",\"content\":\"sunny\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Thanks \u003cb\u003e\u0026\u003c/b\u003e\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/webp;base64,UklGRg==\"}}]}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"Get weather\",\"parameters\":{\"type\":\"object\",\"properties\":{\"city\":{\"type\":\"string\"}}}}},{\"type\":\"function\",\"function\":{\"name\":\"exec_command\",\"description\":\"Runs a command, returning output or a session ID for ongoing interaction.\",\"parameters\":{\"type\":\"object\"}}}],\"temperature\":0.3,\"max_tokens\":500}",
+    "model": "swe-2",
+    "source": "openai",
+    "stream": true
+  },
+  "responses": [
+    {
+      "status": 200,
+      "headers": [
+        [
+          "Content-Type",
+          "application/connect+proto"
+        ]
+      ],
+      "body": "",
+      "body_b64": "AAAAABgKBW91dF8xEIDiz6oGSglMZXQgbWUgdGgAAAAACkoIaW5rIGNhZsMAAAAAEEoCqS5SCnNpZy1wYXJ0LTEAAAAAI1ILfHNpZy1wYXJ0LTKqAQlhbnRocm9waWMaCEFuc3dlcjogAAAAACEyHwoGY2FsbF8xEgtnZXRfd2VhdGhlchoIeyJjaXR5IjoAAAAADDIKGggiUGFyaXMifQAAAAARGgVEb25lLpoGB3Vua25vd24AAAAAOzo3EAsYByACKANCGwoMeC1yZXF1ZXN0LWlkEgtyZXFfZml4dHVyZUoQdXBzdHJlYW0tbW9kZWwteCgKAgAAAAJ7fQ=="
+    }
+  ],
+  "upstream": [
+    {
+      "method": "POST",
+      "target": "/exa.api_server_pb.ApiServerService/GetChatMessage",
+      "headers": [
+        [
+          "Host",
+          "127.0.0.1:34921"
+        ],
+        [
+          "Content-Length",
+          "1536"
+        ],
+        [
+          "Accept",
+          "*/*"
+        ],
+        [
+          "Authorization",
+          "Basic devin-session-token$fixture-devin-session-token$fixture"
+        ],
+        [
+          "Connect-Protocol-Version",
+          "1"
+        ],
+        [
+          "Content-Type",
+          "application/connect+proto"
+        ],
+        [
+          "Sentry-Trace",
+          "a1181c7f74ef915d3c29032bf55b573a-e2ff1d5d2f8e965a-1"
+        ]
+      ],
+      "body": "",
+      "body_b64": "AAAABfsKsAYKBmNoaXNlbBIKMzAwMC4xMC4yMRobZGV2aW4tc2Vzc2lvbi10b2tlbiRmaXh0dXJlIgJlbioFbGludXg6CjMwMDAuMTAuMjFiBmNoaXNlbPoB3AVkMzU3MTg4YTU3NGM3MmVjMjZhYWU3ODVhZjJhZDhhMjMzZWQzYjAzYjEyNDI1MTljOWFhMTZkOTg2ZjA3NWY3ZjdkMTA4NTk3MmM4MGMzOTVhMWUwYWFjYmYyYjM3Y2ZkMDkzYTQ1M2M0YWU4ZDczYTM5NDUxZjNhMzliZjk0NmM1YTJmMDI4NTBhYmUwOGE1NTYwNWEwY2Q3MzJhYWZjNTg0ZmYzOTA3NjkyM2MxYzQ4ZjIyMzZmMTRlMzg0Yzk0YmUyZjA0NDc5NGEyYzc5MGQ5ZTA4ZTY3NmU0NTExYzdlMzJjMWMzODI3ZjNiNDI2MmY5YTJhNzliZGU5Y2UyMmEwMjBjOWY3MTgxM2Q2OGQ1YTA1MjZjMTdiZDEyZWRmYTY4Y2FiNzA4NjYyMjI1YTVhMTEzZTMyNTVkYzdjYmNkNDJkOGE3Njg0NjM4ZTRkM2ZhNTBhMGVjNTJiNGQ2NTE5N2U3YzdmYzdjNjE4OWVkY2YzNWRkOWI0ZDQzODYyOWVkODYzZGM4NDllNDAyNjExMGEwZGY2MTI1ZDU0MmM0ODMxNDRiZTgzN2VjZjgyMDE2ZjFhYTc1ZTM5YmFlNWRjMGMwMWUyMjJkMGUwNjU1NTdmMWVlZTc3ZWEwMmU1NDBiZjM0ZmYyOWMxNWQ1MjkzYzA0ZmVmNTJhOGVjZjI5N2RjMDNkNGVmOGM5YWRlYmJhMTIxZWM4Nzg1MGU2MzA4OWE4ZGI0NjczNzNjMjNhZmZiMWM0MzU5MGZjNTVlMzFlNDA2Y2M4ZmE2ZDgyZjM5ZGIxZDE0NzU4ZDU2OWYyNjM4YTQ0MTE5YTNhZGZlYTU0YmRkOWE2MDljMTc4OWQwOTNjODU3MDc3ZTQwYzkyZmNlYTFlNGIwYzhhYzRiNjk1MmYxODUzNTY0ZjM5ODc4YzdmYmU2YWExMmM4OTllNTYxMzRhYTBlMTgzYmY2NTgwZGI5OTQ5NGUSH1lvdSBhcmUgaGVscGZ1bC4KS2VlcCBpdCBzaG9ydC4aUgokOGYzNjQ1N2MtMTk0ZC00MzU1LWI1MWEtYWI0ZTU2NzI2MDJjEAEaKFdoYXQncyB0aGUgd2VhdGhlciBpbiBQYXJpcz8gY2hhdC1zdHJlYW0aXAokMDNiYjc5NzctYjMxMS00ZDgyLWFlZGItYTRmODY3YWNjNjRlEAIaCUNoZWNraW5nLjInCgZjYWxsX2ESC2dldF93ZWF0aGVyGhB7ImNpdHkiOiJQYXJpcyJ9GjcKJDNkZGQ0Mjc1LThmMjEtNDcwZi05YzA1LWEzMzc1MDFmNWYxNxAEGgVzdW5ueToGY2FsbF9hGnEKJDY3YzQxODk1LWM0ZjQtNDJlOS05NmQxLTYzMjc4YzA4NmExNxABGi9bSW1hZ2UgMTogcGFzdGVkX2ltYWdlXzEud2VicF0KClRoYW5rcyA8Yj4mPC9iPlIWCghVa2xHUmc9PRIKaW1hZ2Uvd2VicDgFQhwIARD0AxiQAykzMzMzMzPTPzgoQQAAAGBmZu4/UlUKC2dldF93ZWF0aGVyEgtHZXQgd2VhdGhlcho5eyJ0eXBlIjoib2JqZWN0IiwicHJvcGVydGllcyI6eyJjaXR5Ijp7InR5cGUiOiJzdHJpbmcifX19Um0KDGV4ZWNfY29tbWFuZBJKUnVucyBhIGNvbW1hbmQsIHJldHVybmluZyBvdXRwdXQgb3IgYW4gc2Vzc2lvbiBJRCBmb3Igb25nb2luZyBpbnRlcmFjdGlvbi4aEXsidHlwZSI6Im9iamVjdCJ9eioKJDkxOWI2OWU5LTQyYTQtNTljMS05NzJmLWU4MzU4MzExZmVjNhgEIA6CASQ5MTliNjllOS00MmE0LTU5YzEtOTcyZi1lODM1ODMxMWZlYzagAQGqAQpzd2UtMi1oaWdo"
+    }
+  ],
+  "downstream": {
+    "chunks": [
+      "{\"id\":\"interaction_10e3d79f-0b5\",\"object\":\"chat.completion.chunk\",\"created\":1791017278,\"model\":\"swe-2\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\"},\"finish_reason\":null}]}",
+      "{\"id\":\"interaction_10e3d79f-0b5\",\"object\":\"chat.completion.chunk\",\"created\":1791017278,\"model\":\"swe-2\",\"choices\":[{\"index\":0,\"delta\":{\"reasoning_content\":\"Let me th\"},\"finish_reason\":null}]}",
+      "{\"id\":\"interaction_10e3d79f-0b5\",\"object\":\"chat.completion.chunk\",\"created\":1791017278,\"model\":\"swe-2\",\"choices\":[{\"index\":0,\"delta\":{\"reasoning_content\":\"ink caf\"},\"finish_reason\":null}]}",
+      "{\"id\":\"interaction_10e3d79f-0b5\",\"object\":\"chat.completion.chunk\",\"created\":1791017278,\"model\":\"swe-2\",\"choices\":[{\"index\":0,\"delta\":{\"reasoning_content\":\"é.\"},\"finish_reason\":null}]}",
+      "{\"id\":\"interaction_10e3d79f-0b5\",\"object\":\"chat.completion.chunk\",\"created\":1791017278,\"model\":\"swe-2\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"Answer: \"},\"finish_reason\":null}]}",
+      "{\"id\":\"interaction_10e3d79f-0b5\",\"object\":\"chat.completion.chunk\",\"created\":1791017278,\"model\":\"swe-2\",\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"call_1\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"\"}}]},\"finish_reason\":null}]}",
+      "{\"id\":\"interaction_10e3d79f-0b5\",\"object\":\"chat.completion.chunk\",\"created\":1791017278,\"model\":\"swe-2\",\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":\"{\\\"city\\\":\"}}]},\"finish_reason\":null}]}",
+      "{\"id\":\"interaction_10e3d79f-0b5\",\"object\":\"chat.completion.chunk\",\"created\":1791017278,\"model\":\"swe-2\",\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":\"\\\"Paris\\\"}\"}}]},\"finish_reason\":null}]}",
+      "{\"id\":\"interaction_10e3d79f-0b5\",\"object\":\"chat.completion.chunk\",\"created\":1791017278,\"model\":\"swe-2\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"Done.\"},\"finish_reason\":null}]}",
+      "{\"id\":\"interaction_10e3d79f-0b5\",\"object\":\"chat.completion.chunk\",\"created\":1791017278,\"model\":\"swe-2\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"tool_calls\"}],\"usage\":{\"prompt_tokens\":14,\"completion_tokens\":7,\"total_tokens\":21,\"prompt_tokens_details\":{\"cached_tokens\":3}}}"
+    ]
+  },
+  "extra": {
+    "usage": [
+      {
+        "cached_tokens": 3,
+        "failed": false,
+        "input_tokens": 14,
+        "model": "swe-2",
+        "output_tokens": 7,
+        "reasoning_effort": "",
+        "reasoning_tokens": 0,
+        "response_model": "upstream-model-x",
+        "total_tokens": 21
+      }
+    ]
+  }
+}

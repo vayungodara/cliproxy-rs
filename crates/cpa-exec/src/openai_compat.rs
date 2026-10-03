@@ -42,12 +42,20 @@ pub struct OpenAICompatExecutor {
     clients: Clients,
 }
 
-/// Same status-only classification as the other API-key executors.
+/// Go's plain `statusErr`: never credential-scoped, so a 429 cools only the model
+/// (`IsCredentialScoped` is false); other failures by status.
 pub(crate) fn scope_for(status: u16) -> FailureScope {
     match status {
-        401 | 402 | 403 | 408 | 429 | 500.. => FailureScope::Credential,
+        429 => FailureScope::Model,
+        401 | 402 | 403 | 408 | 500.. => FailureScope::Credential,
         _ => FailureScope::Request,
     }
+}
+
+/// A plain Go error (no status code): no status, scope or retry semantics, which the
+/// server models as a transport fault; Go's handler answers 500 with its text.
+pub(crate) fn plain_err(message: impl Into<String>) -> ExecError {
+    ExecError::local(500, FailureScope::Transport, message)
 }
 
 /// `statusErr{code, msg}`: an empty message reads `status N`.
@@ -104,33 +112,22 @@ fn not_registered(what: &str, from: Format, to: Format) -> ExecError {
     )
 }
 
-/// `helps.TranslateRequestWithAPIKeyModelCompatibilityAndUpdateIntent` for this executor:
-/// Codex clients' integer tool types are normalized first, and an `is-compat` model
-/// takes the compat translator where Go has one.
-// ponytail: the Codex multi-agent v2 rewrites and their configuration-update intent
-// (owner: Codex thread) are not applied, so the intent is always false.
+/// `helps.TranslateRequestWithAPIKeyModelCompatibilityAndUpdateIntent` for this executor
+/// (no target executor): Codex-client rewrites, then the pair or its compat variant.
+// ponytail: the configuration-update intent is not exposed by crate::codex_client
+// (owner: Codex thread), so thinking always sees `updates_changed: false`.
 fn translate_body(
     req: &ExecRequest,
+    cfg: &Config,
     target: Format,
     model: &str,
     stream: bool,
     body: &[u8],
     is_compat: bool,
 ) -> Result<Vec<u8>, ExecError> {
-    let body = cpa_common::payload::normalize_codex_tool_integer_types(body, &req.headers);
-    let ctx = RequestCtx { model, stream };
-    let fail = |e: cpa_translate::Error| ExecError::local(400, FailureScope::Request, e.to_string());
-    if is_compat && req.source_format == Format::Claude && target == Format::OpenAI {
-        let out = cpa_translate::claude_to_openai_with_compat(&ctx, &body).map_err(fail)?;
-        let summary = thinking::extract_translated_summary_config(&body, req.source_format.as_str(), target.as_str());
-        return Ok(thinking::apply_summary_config_for_model(
-            &out,
-            target.as_str(),
-            model,
-            summary,
-        ));
-    }
-    cpa_translate::translate_request(req.source_format, target, &ctx, &body).map_err(fail)
+    let client = crate::codex_client::Client::new(&req.headers, cfg, "", is_compat);
+    crate::codex_client::translate_request(req.source_format, target, &RequestCtx { model, stream }, body, &client)
+        .map_err(|e| ExecError::local(400, FailureScope::Request, e.to_string()))
 }
 
 /// `opts.OriginalRequest`, else the payload.
@@ -250,17 +247,19 @@ impl OpenAICompatExecutor {
             return Err(not_registered("response", req.response_format, target));
         }
         let compat = payload::resolve_compat(credential, cfg);
-        let resolved = payload::resolved_model(compat.as_ref(), credential, route_model(&req), &req.model);
-        let is_compat = resolved.as_ref().is_some_and(|r| r.is_compat);
-        let original = translate_body(&req, target, &base_model, req.stream, original_payload(&req), is_compat)?;
-        let mut body = translate_body(&req, target, &base_model, req.stream, &req.body, is_compat)?;
-        body = apply_thinking(
-            body,
+        let caps = req.resolved_model.as_ref().map(|r| ModelCaps::from(&r.info));
+        let is_compat = req.resolved_model.as_ref().is_some_and(|r| r.is_compat());
+        let original = translate_body(
             &req,
+            cfg,
             target,
-            &credential.provider,
-            resolved.as_ref().map(|r| &r.caps),
+            &base_model,
+            req.stream,
+            original_payload(&req),
+            is_compat,
         )?;
+        let mut body = translate_body(&req, cfg, target, &base_model, req.stream, &req.body, is_compat)?;
+        body = apply_thinking(body, &req, target, &credential.provider, caps.as_ref())?;
         body = apply_payload_rules(cfg, &req, &base_model, target, &original, body);
         let requested = route_model(&req);
         if payload::excludes_images(compat.as_ref(), &base_model, requested) {
@@ -277,6 +276,9 @@ impl OpenAICompatExecutor {
         }
         if req.stream {
             payload::set_bool_if_different(&mut body, "stream_options.include_usage", true);
+        }
+        if req.usage.enabled() {
+            req.usage.request(target, &body);
         }
         let mut headers = base_headers(&api_key, "application/json");
         apply_custom(&mut headers, credential, &req);
@@ -304,11 +306,19 @@ impl OpenAICompatExecutor {
                 }),
                 None => Box::new(Identity),
             };
-            let stream = frames(
-                wire::lines(upstream, MAX_LINE),
-                translator,
-                req.response_format == Format::OpenAIResponse,
-            );
+            let mut lines = wire::lines(upstream, MAX_LINE);
+            if req.usage.enabled() {
+                // ObserveResponseModel and StreamUsageBuffer.ObserveOpenAIStream per line.
+                let usage = req.usage.clone();
+                lines = lines
+                    .inspect(move |line| {
+                        if let Ok(line) = line {
+                            usage.response_line(Format::OpenAI, line);
+                        }
+                    })
+                    .boxed();
+            }
+            let stream = frames(lines, translator, req.response_format == Format::OpenAIResponse);
             return Ok(ExecResponse {
                 status: 200,
                 headers: response_headers,
@@ -316,6 +326,10 @@ impl OpenAICompatExecutor {
             });
         }
         let raw = wire::read_all(upstream).await?;
+        // ObserveResponseModel(body) and Publish(ParseOpenAIUsage(body)).
+        if req.usage.enabled() {
+            req.usage.response_body(target, &raw);
+        }
         let mut out = match response_pair {
             Some(pair) => (pair.non_stream)(
                 &ResponseCtx {
@@ -374,6 +388,10 @@ impl OpenAICompatExecutor {
         } else {
             IMAGES_GENERATIONS
         };
+        // SetTranslatedReasoningEffort(payload, "openai").
+        if req.usage.enabled() {
+            req.usage.request(Format::OpenAI, &body);
+        }
         let mut headers = base_headers(&api_key, &content_type);
         if req.stream {
             headers.set("Accept", "text/event-stream");
@@ -393,10 +411,14 @@ impl OpenAICompatExecutor {
                 body: ResponseBody::Stream(upstream.body),
             });
         }
+        let data = wire::read_all(upstream).await?;
+        if req.usage.enabled() {
+            req.usage.response_body(Format::OpenAI, &data);
+        }
         Ok(ExecResponse {
             status: 200,
             headers,
-            body: ResponseBody::Buffered(wire::read_all(upstream).await?),
+            body: ResponseBody::Buffered(data),
         })
     }
 }
@@ -424,9 +446,9 @@ fn prepare_images_payload(
         return Ok((Bytes::copy_from_slice(body), content_type.to_owned()));
     };
     // Go returns a plain error here; the handler answers 500.
-    let boundary = boundary.map_err(|e| ExecError::local(500, FailureScope::Request, e))?;
-    let form = multipart::read_form(body, &boundary)
-        .map_err(|e| ExecError::local(500, FailureScope::Request, format!("read multipart form failed: {e}")))?;
+    let boundary = boundary.map_err(plain_err)?;
+    let form =
+        multipart::read_form(body, &boundary).map_err(|e| plain_err(format!("read multipart form failed: {e}")))?;
     let (out, content_type) = multipart::rewrite_images_form(&form, model, stream, false);
     Ok((Bytes::from(out), content_type))
 }
@@ -500,17 +522,10 @@ fn provider_session_uuid(provider: &str, req: &ExecRequest) -> Option<String> {
 /// `CountTokens`: a local tiktoken estimate of the translated chat request.
 fn count_tokens(credential: &Credential, req: &ExecRequest, cfg: &Config) -> Result<ExecResponse, ExecError> {
     let base_model = parse_suffix(&req.model).model_name;
-    let compat = payload::resolve_compat(credential, cfg);
-    let resolved = payload::resolved_model(compat.as_ref(), credential, route_model(req), &req.model);
-    let is_compat = resolved.as_ref().is_some_and(|r| r.is_compat);
-    let body = translate_body(req, Format::OpenAI, &base_model, false, &req.body, is_compat)?;
-    let body = apply_thinking(
-        body,
-        req,
-        Format::OpenAI,
-        &credential.provider,
-        resolved.as_ref().map(|r| &r.caps),
-    )?;
+    let caps = req.resolved_model.as_ref().map(|r| ModelCaps::from(&r.info));
+    let is_compat = req.resolved_model.as_ref().is_some_and(|r| r.is_compat());
+    let body = translate_body(req, cfg, Format::OpenAI, &base_model, false, &req.body, is_compat)?;
+    let body = apply_thinking(body, req, Format::OpenAI, &credential.provider, caps.as_ref())?;
     let count = payload::count_chat_tokens(&base_model, &body).map_err(|e| {
         ExecError::local(
             500,

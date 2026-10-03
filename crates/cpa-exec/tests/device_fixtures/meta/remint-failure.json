@@ -1,7 +1,7 @@
 {
   "name": "remint-failure",
   "credential": {
-    "base_url": "http://127.0.0.1:44817/v1",
+    "base_url": "http://127.0.0.1:41011/v1",
     "dca_token": "dca:bad",
     "type": "meta"
   },
@@ -33,7 +33,7 @@
       "headers": [
         [
           "Host",
-          "127.0.0.1:44817"
+          "127.0.0.1:41011"
         ],
         [
           "User-Agent",
@@ -70,9 +70,10 @@
   "extra": {
     "credential_scoped": false,
     "metadata_after": {
-      "base_url": "http://127.0.0.1:44817/v1",
+      "base_url": "http://127.0.0.1:41011/v1",
       "dca_token": "dca:bad",
       "type": "meta"
-    }
+    },
+    "usage": null
   }
 }

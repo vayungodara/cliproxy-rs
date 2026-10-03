@@ -161,7 +161,7 @@ fn open_browser(url: &str) -> bool {
 // ponytail: Go asks four public IP services for the address first; this prints the
 // outbound interface address (no packet is sent), Go's second choice, without
 // announcing the login to third parties.
-fn print_ssh_tunnel_instructions(port: u16) {
+pub(crate) fn print_ssh_tunnel_instructions(port: u16) {
     let ip = std::net::UdpSocket::bind("0.0.0.0:0")
         .and_then(|s| s.connect("8.8.8.8:80").and_then(|()| s.local_addr()))
         .map(|a| a.ip().to_string())
