@@ -222,6 +222,9 @@ async fn execution_matches_go_byte_for_byte() {
         "apply-patch-eof-stream",
         "stream-completed-then-error",
         "stream-done-only",
+        "apply-patch-stream-event-lines",
+        "stream-tier-merge",
+        "stream-nbsp-data",
     ] {
         let r = run(name).await;
         assert_upstream(&r, name);
@@ -494,6 +497,34 @@ async fn login_matches_go_requests_and_file() {
 }
 
 #[tokio::test]
+async fn failed_login_mint_logs_no_response_body() {
+    // login-no-mint's flow, with a mint endpoint whose error body carries key material.
+    let fx = fixture("meta", "login-no-mint");
+    let mut responses = fx["responses"].clone();
+    let secret = "sk-mint-SECRET-0123456789";
+    responses[2]["body"] = json!(format!(r#"{{"error":"bad","api_key":"{secret}"}}"#));
+    let mock = Mock::start(&responses).await;
+    let dir = TempDir::new();
+    let capture = crate::kimi_fixture::LogCapture::default();
+    let guard = tracing::subscriber::set_default(capture.clone());
+    let outcome = login_with(login_auth(&mock.url), dir.path(), true).await;
+    drop(guard);
+    assert!(outcome.is_ok(), "a failed mint does not fail the login");
+    let logs = capture.0.lock().unwrap().clone();
+    assert!(
+        logs.iter()
+            .any(|l| l.contains("could not mint api_key from dca_token: meta auth: mint key failed (HTTP 500)")),
+        "the mint failure is logged: {logs:?}"
+    );
+    for line in &logs {
+        assert!(
+            !line.contains(secret) && !line.contains("\"bad\""),
+            "body logged: {line}"
+        );
+    }
+}
+
+#[tokio::test]
 async fn device_flow_errors_and_slow_down_follow_go() {
     let device = json!({"status":200,"body":r#"{"device_code":"d","user_code":"u","interval":1,"expires_in":600}"#});
     let poll = |status: u16, body: &str| json!({"status":status,"body":body});
@@ -562,9 +593,10 @@ async fn device_flow_errors_and_slow_down_follow_go() {
     ]))
     .await;
     let auth = login_auth(&mock.url);
-    assert_eq!(
-        auth.start_device_flow().await.unwrap_err(),
-        "meta device flow failed (HTTP 400): nope"
+    crate::kimi_fixture::assert_go_message_without_body(
+        "device flow 400",
+        &auth.start_device_flow().await.unwrap_err(),
+        "meta device flow failed (HTTP 400): nope",
     );
     assert_eq!(
         auth.start_device_flow().await.unwrap_err(),
@@ -875,9 +907,16 @@ async fn mint_errors_follow_go() {
             .to_string()
             .starts_with("meta auth: parse mint response: ")
     );
+    // Go: "meta auth: mint key failed (HTTP 403): denied"; the body is withheld, in every
+    // formatting of the error.
     let e = auth.mint_api_key("dca:3").await.unwrap_err();
-    assert_eq!(e.to_string(), "meta auth: mint key failed (HTTP 403): denied");
-    assert_eq!(e.redacted(), "meta auth: mint key failed (HTTP 403)");
+    crate::kimi_fixture::assert_go_message_without_body(
+        "mint 403",
+        &e.to_string(),
+        "meta auth: mint key failed (HTTP 403): denied",
+    );
+    assert_eq!(e.redacted(), e.to_string());
+    assert!(!format!("{e:?}").contains("denied"));
     assert_eq!(
         auth.mint_api_key("  ").await.unwrap_err().to_string(),
         "meta auth: missing dca token"
@@ -948,6 +987,9 @@ async fn usage_reports_match_go_records() {
         "apply-patch-eof-stream",
         "stream-completed-then-error",
         "stream-done-only",
+        "apply-patch-stream-event-lines",
+        "stream-tier-merge",
+        "stream-nbsp-data",
     ] {
         let r = run(name).await;
         crate::kimi_fixture::assert_usage_like_go(name, &r.fx, &r.usage);

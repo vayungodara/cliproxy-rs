@@ -356,54 +356,135 @@ pub(crate) fn refresh_due(credential: &Credential, lead: Option<chrono::Duration
 pub(crate) enum UsageRule {
     /// Kimi chat (`StreamUsageBuffer.ObserveOpenAIStream` on every line).
     OpenAIStream,
-    /// Kimi native Responses: terminal events, Codex usage with tokens, else the
-    /// top-level OpenAI usage with tokens; the latest wins.
+    /// Kimi native Responses: terminal `data:` events, Codex usage with tokens, else the
+    /// top-level OpenAI usage with tokens.
     KimiResponses,
-    /// Meta: `response.completed` / `response.incomplete` with Codex usage (or a tier);
-    /// the latest wins.
+    /// Meta: `response.completed` / `response.incomplete` `data:` events with Codex usage
+    /// (or a tier).
     MetaResponses,
 }
 
-/// An upstream usage line and the format it is reported in.
-type HeldLine = (cpa_core::format::Format, Vec<u8>);
+/// Go's `StreamUsageBuffer` for the Responses rules: the merged detail as the usage node
+/// it was parsed from (and that node's format) plus the response service tier.
+#[derive(Default)]
+struct Merged {
+    ok: bool,
+    usage: Option<(cpa_core::format::Format, Vec<u8>)>,
+    tier: String,
+}
+
+impl Merged {
+    /// `StreamUsageBuffer.Observe(detail, true)`: a detail with tokens (or without a tier)
+    /// replaces the buffer, keeping the old tier when it has none; a tier-only detail
+    /// updates just the tier.
+    fn observe(&mut self, usage: Option<(cpa_core::format::Format, Vec<u8>)>, tier: String, nonzero: bool) {
+        if tier.is_empty() || nonzero {
+            self.usage = usage;
+            if !tier.is_empty() {
+                self.tier = tier;
+            }
+        } else {
+            self.tier = tier;
+        }
+        self.ok = true;
+    }
+
+    /// The merged detail as one payload of its format, without a response model.
+    fn payload(&self) -> Option<(cpa_core::format::Format, Vec<u8>)> {
+        use cpa_core::format::Format;
+        if !self.ok {
+            return None;
+        }
+        let (format, node) = match &self.usage {
+            Some((format, node)) => (*format, Some(node.as_slice())),
+            None => (Format::Codex, None),
+        };
+        let mut body = b"{".to_vec();
+        if let Some(node) = node {
+            body.extend_from_slice(b"\"usage\":");
+            body.extend_from_slice(node);
+        }
+        if !self.tier.is_empty() {
+            if node.is_some() {
+                body.push(b',');
+            }
+            body.extend_from_slice(b"\"service_tier\":");
+            body.extend_from_slice(serde_json::to_string(&self.tier).unwrap_or_default().as_bytes());
+        }
+        body.push(b'}');
+        let payload = match format {
+            Format::OpenAI => body,
+            _ => [&b"{\"type\":\"response.completed\",\"response\":"[..], &body, b"}"].concat(),
+        };
+        Some((format, payload))
+    }
+}
+
+#[derive(Default)]
+struct Held {
+    /// Kimi chat: the usage and tier lines, in order, without their response models.
+    lines: Vec<(cpa_core::format::Format, Vec<u8>)>,
+    /// The Responses rules' merged buffer.
+    merged: Merged,
+}
 
 /// Usage held back until the response completes (Go's deferred `StreamUsageBuffer.Publish`;
 /// a failure publishes no usage, `PublishFailure` uses an empty detail). Call [`Self::commit`]
-/// exactly when the stream ends without an error.
+/// exactly when the stream ends without an error. Committed payloads carry no response
+/// model, so they never replace the model observed live.
 #[derive(Clone, Default)]
 pub(crate) struct DeferredUsage {
     sink: cpa_core::exec::UsageSink,
-    pending: std::sync::Arc<std::sync::Mutex<Vec<HeldLine>>>,
+    held: std::sync::Arc<std::sync::Mutex<Held>>,
 }
 
 impl DeferredUsage {
-    /// Reports the held usage lines, in order.
+    /// Reports the held usage.
     pub(crate) fn commit(&self) {
-        let pending = std::mem::take(&mut *self.pending.lock().unwrap_or_else(std::sync::PoisonError::into_inner));
-        for (format, line) in pending {
-            self.sink.response_line(format, &line);
+        let held = std::mem::take(&mut *self.held.lock().unwrap_or_else(std::sync::PoisonError::into_inner));
+        for (format, payload) in held.lines.into_iter().chain(held.merged.payload()) {
+            self.sink.response_line(format, &[&b"data: "[..], &payload].concat());
         }
     }
 }
 
-/// The JSON payload of a `data:` line (or a bare JSON line), trimmed.
+/// Go `jsonPayload`: the JSON payload of a `data:` line (or a bare JSON line), trimmed
+/// with `bytes.TrimSpace`.
 fn line_payload(line: &[u8]) -> Option<&[u8]> {
-    let trimmed = line.trim_ascii();
-    let payload = trimmed.strip_prefix(b"data:").map_or(trimmed, <[u8]>::trim_ascii);
+    use cpa_common::gostr::trim_space;
+    let trimmed = trim_space(line);
+    let payload = trimmed.strip_prefix(b"data:").map_or(trimmed, trim_space);
     (payload.first() == Some(&b'{')).then_some(payload)
 }
 
 /// A payload without its usage and service tier, so reporting it only feeds the
 /// response model (Go `ObserveResponseModel`).
 pub(crate) fn model_only(payload: &[u8]) -> Vec<u8> {
+    strip_paths(
+        payload,
+        &[
+            "usage",
+            "service_tier",
+            "response.usage",
+            "response.service_tier",
+            "interaction.service_tier",
+        ],
+    )
+}
+
+/// The model fields Go's generic response-model extractor reads.
+const MODEL_PATHS: [&str; 6] = [
+    "response.model",
+    "interaction.model",
+    "modelVersion",
+    "response.modelVersion",
+    "message.model",
+    "model",
+];
+
+fn strip_paths(payload: &[u8], paths: &[&str]) -> Vec<u8> {
     let mut out = payload.to_vec();
-    for path in [
-        "usage",
-        "service_tier",
-        "response.usage",
-        "response.service_tier",
-        "interaction.service_tier",
-    ] {
+    for path in paths {
         if cpa_common::json::get(&out, path).exists() {
             cpa_common::json::delete(&mut out, path);
         }
@@ -419,20 +500,49 @@ pub(crate) fn usage_has_tokens(node: &cpa_common::json::Res<'_>) -> bool {
     if !node.is_object() {
         return false;
     }
-    let pick = |a: &str, b: &str| {
-        let n = node.get(a);
-        if n.exists() { n.int() } else { node.get(b).int() }
-    };
     let total = node.get("total_tokens").int();
-    let input = pick("prompt_tokens", "input_tokens");
-    let output = pick("completion_tokens", "output_tokens");
+    let input = pick(node, &["prompt_tokens", "input_tokens"]);
+    let output = pick(node, &["completion_tokens", "output_tokens"]);
     total > 0 || input > 0 || (total == 0 && input == 0 && output > 0)
 }
 
-/// Go `ParseCodexUsage(..)` `ok`: a `response.usage` with token fields, or a tier.
-fn codex_usage_ok(payload: &[u8]) -> bool {
-    let node = cpa_common::json::get(payload, "response.usage");
-    let has_fields = node.is_object()
+/// The first existing path's integer (Go's `Exists()` fallbacks in parseOpenAIStyleUsageNode).
+fn pick(node: &cpa_common::json::Res<'_>, paths: &[&str]) -> i64 {
+    paths
+        .iter()
+        .map(|p| node.get(p))
+        .find(|r| r.exists())
+        .map_or(0, |r| r.int())
+}
+
+/// Go `hasNonZeroTokenUsage` for the detail parsed from `node`.
+fn usage_nonzero(node: &cpa_common::json::Res<'_>) -> bool {
+    [
+        &["prompt_tokens", "input_tokens"][..],
+        &["completion_tokens", "output_tokens"],
+        &["total_tokens"],
+        &[
+            "prompt_tokens_details.cached_tokens",
+            "input_tokens_details.cached_tokens",
+        ],
+        &[
+            "input_tokens_details.cache_creation_tokens",
+            "input_tokens_details.cache_write_tokens",
+            "prompt_tokens_details.cache_creation_tokens",
+            "prompt_tokens_details.cache_write_tokens",
+        ],
+        &[
+            "completion_tokens_details.reasoning_tokens",
+            "output_tokens_details.reasoning_tokens",
+        ],
+    ]
+    .iter()
+    .any(|paths| pick(node, paths) != 0)
+}
+
+/// Go `hasOpenAIStyleUsageTokenFields`.
+fn usage_has_fields(node: &cpa_common::json::Res<'_>) -> bool {
+    node.is_object()
         && [
             "total_tokens",
             "prompt_tokens",
@@ -449,11 +559,41 @@ fn codex_usage_ok(payload: &[u8]) -> bool {
             "output_tokens_details.reasoning_tokens",
         ]
         .iter()
-        .any(|f| node.get(f).exists());
-    has_fields
-        || ["response.service_tier", "service_tier", "interaction.service_tier"]
-            .iter()
-            .any(|p| !cpa_common::json::get(payload, p).str().trim().is_empty())
+        .any(|f| node.get(f).exists())
+}
+
+/// Go `extractResponseServiceTier`: the first non-blank tier of a valid payload.
+pub(crate) fn response_tier(payload: &[u8]) -> String {
+    if !cpa_common::json::valid(payload) {
+        return String::new();
+    }
+    ["response.service_tier", "service_tier", "interaction.service_tier"]
+        .iter()
+        .map(|p| cpa_common::json::get(payload, p).str().into_owned())
+        .map(|t| String::from_utf8_lossy(cpa_common::gostr::trim_space(t.as_bytes())).into_owned())
+        .find(|t| !t.is_empty())
+        .unwrap_or_default()
+}
+
+/// One `StreamUsageBuffer.Observe` of Go `ParseCodexUsage(payload)` (format Codex) or
+/// `ParseOpenAIUsage(payload)` (format OpenAI); false when Go's `ok` is false.
+fn observe_parsed(merged: &mut Merged, format: cpa_core::format::Format, payload: &[u8]) -> bool {
+    let path = if format == cpa_core::format::Format::OpenAI {
+        "usage"
+    } else {
+        "response.usage"
+    };
+    let node = cpa_common::json::get(payload, path);
+    let tier = response_tier(payload);
+    if !usage_has_fields(&node) {
+        if tier.is_empty() {
+            return false;
+        }
+        merged.observe(None, tier, false);
+        return true;
+    }
+    merged.observe(Some((format, node.raw().to_vec())), tier, usage_nonzero(&node));
+    true
 }
 
 /// Taps the upstream lines for usage the way `rule`'s Go executor observes them: each
@@ -468,7 +608,7 @@ pub(crate) fn defer_usage(
     use futures_util::StreamExt;
     let deferred = DeferredUsage {
         sink: usage.clone(),
-        pending: Default::default(),
+        held: Default::default(),
     };
     if !usage.enabled() {
         return (lines, deferred);
@@ -492,13 +632,18 @@ pub(crate) fn defer_usage(
             let mut model_line = b"data: ".to_vec();
             model_line.extend_from_slice(&model_only(payload));
             sink.response_line(model_format, &model_line);
-            let mut pending = held.pending.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+            let mut held = held.held.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
             let kind = cpa_common::json::get(payload, "type").bytes().into_owned();
             match rule {
                 UsageRule::OpenAIStream => {
                     let has = |n: &[u8]| payload.windows(n.len()).any(|w| w == n);
                     if has(b"\"usage\"") || has(b"\"service_tier\"") {
-                        pending.push((Format::OpenAI, line.to_vec()));
+                        let payload = if cpa_common::json::valid(payload) {
+                            strip_paths(payload, &MODEL_PATHS)
+                        } else {
+                            payload.to_vec()
+                        };
+                        held.lines.push((Format::OpenAI, payload));
                     }
                 }
                 UsageRule::KimiResponses => {
@@ -510,17 +655,16 @@ pub(crate) fn defer_usage(
                     {
                         return;
                     }
-                    if codex_usage_ok(payload) && usage_has_tokens(&cpa_common::json::get(payload, "response.usage")) {
-                        *pending = vec![(Format::Codex, line.to_vec())];
+                    // Only details with tokens are observed, so each replaces the buffer.
+                    if usage_has_tokens(&cpa_common::json::get(payload, "response.usage")) {
+                        observe_parsed(&mut held.merged, Format::Codex, payload);
                     } else if usage_has_tokens(&cpa_common::json::get(payload, "usage")) {
-                        *pending = vec![(Format::OpenAI, line.to_vec())];
+                        observe_parsed(&mut held.merged, Format::OpenAI, payload);
                     }
                 }
                 UsageRule::MetaResponses => {
-                    if matches!(kind.as_slice(), b"response.completed" | b"response.incomplete")
-                        && codex_usage_ok(payload)
-                    {
-                        *pending = vec![(Format::Codex, line.to_vec())];
+                    if matches!(kind.as_slice(), b"response.completed" | b"response.incomplete") {
+                        observe_parsed(&mut held.merged, Format::Codex, payload);
                     }
                 }
             }

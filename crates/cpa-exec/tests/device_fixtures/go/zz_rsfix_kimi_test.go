@@ -238,6 +238,23 @@ func TestRSFixKimi(t *testing.T) {
 				"{\"type\":\"response.completed\",\"response\":{\"id\":\"r\",\"usage\":{\"input_tokens\":50,\"output_tokens\":50,\"total_tokens\":100}}}\n\n")},
 		},
 		{
+			name: "responses-apply-patch-stream-event-lines", source: sdktranslator.FormatOpenAIResponse, model: "kimi-k3", stream: true, meta: kimiMeta,
+			body:      rsfixKimiPatchBody,
+			responses: []rsfixResponse{sseResp(rsfixPatchSSEMixed("k3"))},
+		},
+		{
+			name: "responses-stream-tier-merge", source: sdktranslator.FormatOpenAIResponse, model: "kimi-k3", stream: true, meta: kimiMeta,
+			body: `{"model":"kimi-k3","stream":true,"input":"hi"}`,
+			responses: []rsfixResponse{sseResp(`data: {"type":"response.incomplete","response":{"id":"r","service_tier":"priority","usage":{"input_tokens":3,"output_tokens":1,"total_tokens":4}}}` + "\n\n" +
+				`data: {"type":"response.completed","response":{"id":"r","usage":{"input_tokens":7,"output_tokens":2,"total_tokens":9}}}` + "\n\n")},
+		},
+		{
+			name: "chat-stream-usage-then-model", source: sdktranslator.FormatOpenAI, model: "kimi-k2", stream: true, meta: kimiMeta,
+			body: `{"model":"kimi-k2","stream":true,"messages":[{"role":"user","content":"hi"}]}`,
+			responses: []rsfixResponse{sseResp(`data: {"id":"c","object":"chat.completion.chunk","created":1,"model":"m1","choices":[],"usage":{"prompt_tokens":3,"completion_tokens":0}}` + "\n\n" +
+				`data: {"id":"c","object":"chat.completion.chunk","created":1,"model":"m2","choices":[]}` + "\n\ndata: [DONE]\n\n")},
+		},
+		{
 			name: "responses-compact-rejected", source: sdktranslator.FormatOpenAIResponse, model: "kimi-k3", alt: "responses/compact", meta: kimiMeta,
 			body: `{"model":"kimi-k3","input":"hi"}`,
 		},

@@ -18,6 +18,7 @@ import (
 	cliproxyauth "github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/auth"
 	cliproxyexecutor "github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/executor"
 	sdktranslator "github.com/router-for-me/CLIProxyAPI/v8/sdk/translator"
+	"github.com/tidwall/gjson"
 )
 
 func TestRSFixMeta(t *testing.T) {
@@ -84,6 +85,11 @@ func TestRSFixMeta(t *testing.T) {
 			responses: []rsfixResponse{sseResp(created + "\n\n" + completedEmpty + "\n\nevent: error\ndata: {\"type\":\"error\",\"error\":{\"code\":503,\"message\":\"overloaded\"}}\n\n")}},
 		{name: "stream-done-only", stream: true, body: `{"model":"muse-spark-1.3","input":"hi"}`, meta: apiMeta,
 			responses: []rsfixResponse{sseResp(created + "\n\n" + `data: {"type":"response.done","response":{"id":"resp_m","status":"completed","model":"muse-spark-1.3-done","output":[],"usage":{"input_tokens":3,"output_tokens":1,"total_tokens":4}}}` + "\n\n")}},
+		{name: "apply-patch-stream-event-lines", stream: true, body: patchBody, meta: apiMeta, responses: []rsfixResponse{sseResp(rsfixPatchSSEMixed("muse-spark-1.3"))}},
+		{name: "stream-tier-merge", stream: true, body: `{"model":"muse-spark-1.3","input":"hi"}`, meta: apiMeta,
+			responses: []rsfixResponse{sseResp(`data: {"type":"response.completed","response":{"id":"r","model":"muse-spark-1.3","service_tier":"priority","output":[],"usage":{"input_tokens":3,"output_tokens":1,"total_tokens":4}}}` + "\n\n" + `data: {"type":"response.incomplete","response":{"id":"r","service_tier":"flex"}}` + "\n\n")}},
+		{name: "stream-nbsp-data", stream: true, body: `{"model":"muse-spark-1.3","input":"hi"}`, meta: apiMeta,
+			responses: []rsfixResponse{sseResp(`data: {"type":"response.created","response":{"id":"r","model":"m1"}}` + "\n\n" + "data:\u00a0" + `{"type":"response.completed","response":{"id":"r","model":"m2","output":[],"usage":{"input_tokens":7,"output_tokens":0}}}` + "\n\n")}},
 		{name: "compact-rejected", alt: "responses/compact", body: `{"model":"muse-spark-1.3","input":"hi"}`, meta: apiMeta},
 		{name: "count-tokens", count: true, body: `{"model":"muse-spark-1.3","instructions":"Be brief.","input":[{"type":"message","role":"user","content":[{"type":"input_text","text":"hello world"}]},{"type":"function_call","name":"lookup","arguments":"{\"q\":1}"},{"type":"function_call_output","output":"result text"}],"tools":[{"type":"function","name":"lookup","description":"Find things","parameters":{"type":"object"}}],"text":{"format":{"type":"json_schema","name":"out","schema":{"type":"object"}}}}`, meta: apiMeta},
 		{name: "config-apikey-headers", body: `{"model":"muse-spark-1.3","input":"hi"}`, noBase: true,
@@ -431,4 +437,19 @@ func rsfixPatchSSE(model string, valid bool) string {
 func rsfixPatchEOF() string {
 	return "data: " + `{"type":"response.output_item.added","output_index":0,"item":{"type":"function_call","id":"fc1","call_id":"c1","name":"apply_patch","arguments":"","status":"in_progress"}}` + "\n\n" +
 		"data: " + `{"type":"response.function_call_arguments.delta","item_id":"fc1","output_index":0,"delta":"{\"input\":\"*** Begin"}` + "\n\n"
+}
+
+// rsfixPatchSSEMixed is rsfixPatchSSE with event: lines on some events: the converted
+// output_item.done has none and is followed by an event-named completion.
+func rsfixPatchSSEMixed(model string) string {
+	var b strings.Builder
+	for _, frame := range strings.Split(strings.TrimSuffix(rsfixPatchSSE(model, true), "\n\n"), "\n\n") {
+		data := strings.TrimPrefix(frame, "data: ")
+		kind := gjson.Get(data, "type").String()
+		if kind != "response.output_item.done" && kind != "response.created" {
+			b.WriteString("event: " + kind + "\n")
+		}
+		b.WriteString(frame + "\n\n")
+	}
+	return b.String()
 }
