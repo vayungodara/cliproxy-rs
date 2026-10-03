@@ -1,6 +1,6 @@
 # cliproxy-rs
 
-cliproxy-rs is a Rust rewrite of [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI). It runs one local server that accepts OpenAI, Anthropic and Gemini API requests and serves them with the accounts and API keys you connect: Claude and ChatGPT (Codex) subscriptions signed in through OAuth, Kimi, Meta, xAI and Devin accounts, Gemini API keys, and any OpenAI-compatible upstream. Coding tools such as Claude Code and Amp, and clients built on the OpenAI, Anthropic or Gemini SDKs, point at it as if it were the provider.
+cliproxy-rs is a Rust rewrite of [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI). It runs one local server that accepts OpenAI, Anthropic and Gemini API requests and serves them with the accounts and API keys you connect: Claude and ChatGPT (Codex) subscriptions signed in through OAuth, Kimi, Meta, xAI and Devin accounts, Gemini API keys, Vertex AI service accounts, and any OpenAI-compatible upstream. Coding tools such as Claude Code and Amp, and clients built on the OpenAI, Anthropic or Gemini SDKs, point at it as if it were the provider.
 
 It reads the same `config.yaml` and the same credential files as CLIProxyAPI v8, and serves the same HTTP routes and v8 Management API. A Go user can stop the Go binary, start this one on the same directory, and keep their accounts. It ships as a single binary with the management dashboard built in.
 
@@ -15,7 +15,7 @@ Works today:
 - Client APIs: `POST /v1/messages` and `/v1/messages/count_tokens` (Anthropic), `POST /v1/chat/completions`, `/v1/completions`, `/v1/responses` and `/v1/responses/compact` (OpenAI), `/v1beta/models/...` and `/v1beta/interactions` (Gemini), `GET /v1/models`, and the Codex paths under `/backend-api/codex/`. Streaming (SSE) and non-streaming, with format translation between the three protocols.
 - WebSocket: the Responses WebSocket on `GET /v1/responses` and `GET /backend-api/codex/responses`, used by Codex clients.
 - Realtime and live through a Codex account: `/v1/realtime` (WebSocket and WebRTC calls), `/v1/live`, call sidebands and local ephemeral keys (`/v1/realtime/client_secrets`).
-- Providers: Claude (OAuth and API keys), Codex (OAuth and API keys), Kimi, Meta, xAI, Devin, Gemini API keys and Gemini Interactions, and OpenAI-compatible upstreams such as OpenRouter.
+- Providers: Claude (OAuth and API keys), Codex (OAuth and API keys), Kimi, Meta, xAI, Devin, Gemini API keys and Gemini Interactions, Vertex AI (service accounts imported with `-vertex-import`, and API keys), and OpenAI-compatible upstreams such as OpenRouter.
 - Account sign-in from the command line or the dashboard: Claude, Codex (browser or device code), Kimi, Meta, xAI and Devin.
 - Routing: round-robin, weighted and fill-first selection, retries, cooldowns, session affinity, model aliases and exclusions, payload rules, per-credential and global proxies.
 - The v8 Management API for configuration, credentials, OAuth sign-in, quota checks (`/requests/api-call`), usage counters, logs and model catalogs, plus the dashboard at `/management.html`.
@@ -24,7 +24,7 @@ Works today:
 
 Not yet supported (at the time of writing):
 
-- Providers: Antigravity, AI Studio, Vertex.
+- Providers: Antigravity and AI Studio. Vertex service accounts can be imported from the command line, not yet from the dashboard.
 - Image and video endpoints, and Responses WebSocket steering.
 - The WebRTC media relay for live calls is an optional build feature and is not in the release binaries.
 - Request log files, an access log, plugins, the terminal UI (`-tui`) and the Home control plane (`-home-jwt`).

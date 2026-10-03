@@ -6,7 +6,7 @@ Plain facts about cliproxy-rs for anyone writing about it. Each number says wher
 
 cliproxy-rs is a Rust rewrite of [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI), the Go proxy by router-for-me. It follows CLIProxyAPI v8.0.10 (commit `6fecc6e`).
 
-It is one local server. Tools send it OpenAI, Anthropic or Gemini API requests, and it serves them with the accounts and keys the user has connected: Claude and ChatGPT (Codex) subscriptions signed in through OAuth, Kimi, Meta, xAI and Devin accounts, Claude, Codex and Gemini API keys, and OpenAI-compatible upstreams such as OpenRouter. It translates between the three API formats, spreads requests across accounts, and moves on to another account when one is rate-limited.
+It is one local server. Tools send it OpenAI, Anthropic or Gemini API requests, and it serves them with the accounts and keys the user has connected: Claude and ChatGPT (Codex) subscriptions signed in through OAuth, Kimi, Meta, xAI and Devin accounts, Vertex AI service accounts, Claude, Codex and Gemini API keys, and OpenAI-compatible upstreams such as OpenRouter. It translates between the three API formats, spreads requests across accounts, and moves on to another account when one is rate-limited.
 
 It started from a post on X by @maria_rcks on 2 October 2026: "why hasnt anyone built cliproxyapi but: rust, nice ui, support stuff like websockets".
 
@@ -45,7 +45,7 @@ From [BENCHMARKS.md](BENCHMARKS.md): commit `4abce40` against the Go v8.0.10 rel
 
 ## Gaps today
 
-- Providers not supported yet: Antigravity, AI Studio, Vertex.
+- Providers not supported yet: Antigravity and AI Studio.
 - No image or video endpoints, no Responses WebSocket steering.
 - The WebRTC media relay for live calls is an optional build feature, not in the release binaries.
 - No request log files, no access log lines, no plugins, no terminal UI, no Home control plane, no pprof.

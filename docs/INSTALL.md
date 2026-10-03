@@ -91,7 +91,7 @@ docker exec -it cliproxy cliproxy --config /data/config.yaml --codex-device-logi
 
 1. Write `config.yaml`. The [README](../README.md#quick-start) has a minimal one, and every setting in CLIProxyAPI's [`config.example.yaml`](https://github.com/router-for-me/CLIProxyAPI/blob/main/config.example.yaml) is accepted, although settings for features listed as not yet supported have no effect.
 2. Start the server: `cliproxy --config config.yaml`. With no `--config`, it reads `config.yaml` in the current directory.
-3. Connect accounts with `--claude-login`, `--codex-login`, `--codex-device-login`, `--kimi-login`, `--kimi-ai-login`, `--meta-login`, `--xai-login` or `--devin-login`, or from the dashboard at `/management.html`. Add `--no-browser` on a machine without a browser.
+3. Connect accounts with `--claude-login`, `--codex-login`, `--codex-device-login`, `--kimi-login`, `--kimi-ai-login`, `--meta-login`, `--xai-login` or `--devin-login`, import a Vertex AI service account with `--vertex-import key.json`, or connect accounts from the dashboard at `/management.html`. Add `--no-browser` on a machine without a browser.
 
 Go-style single-dash flags such as `-config config.yaml` work too.
 
