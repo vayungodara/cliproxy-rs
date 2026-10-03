@@ -645,7 +645,7 @@ checksum = "1c133bc6a41be0d194c306b5506d15e6feeea7b1d6604bd3f8310dfb2ca96486"
 
 [[package]]
 name = "cliproxy"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "axum",
@@ -738,7 +738,7 @@ checksum = "7704b5fdd17b18ae31c4c1da5a2e0305a2bf17b5249300a9ee9ed7b72114c636"
 
 [[package]]
 name = "cpa-common"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "base64 0.22.1",
  "cpa-core",
@@ -752,7 +752,7 @@ dependencies = [
 
 [[package]]
 name = "cpa-core"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -770,7 +770,7 @@ dependencies = [
 
 [[package]]
 name = "cpa-exec"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "async-compression",
  "axum",
@@ -808,7 +808,7 @@ dependencies = [
 
 [[package]]
 name = "cpa-home"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -829,7 +829,7 @@ dependencies = [
 
 [[package]]
 name = "cpa-plugin"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "base64 0.22.1",
  "bytes",
@@ -853,7 +853,7 @@ dependencies = [
 
 [[package]]
 name = "cpa-server"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "async-compression",
@@ -898,7 +898,7 @@ dependencies = [
 
 [[package]]
 name = "cpa-store"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "axum",
@@ -921,7 +921,7 @@ dependencies = [
 
 [[package]]
 name = "cpa-translate"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "base64 0.22.1",
  "bytes",
