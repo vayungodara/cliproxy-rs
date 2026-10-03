@@ -160,7 +160,7 @@ The workspace is `crates/cpa-core` (config and credential formats), `crates/cpa-
 cargo test --workspace
 ```
 
-This project was written with AI coding agents in [Amp](https://ampcode.com), working in parallel threads against the Go source as the reference, under the maintainer's direction.
+Built with some help from AI.
 
 ## License
 

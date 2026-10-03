@@ -58,7 +58,7 @@ Using subscription accounts outside the providers' own apps may break their term
 
 ## How it was made
 
-cliproxy-rs was written with AI coding agents in [Amp](https://ampcode.com), working in parallel threads against the Go source as the reference, under the maintainer's direction. Behaviour is checked against Go with recorded Go outputs and a harness that sends the same requests to both servers.
+Built with some help from AI. Behaviour is checked against Go with recorded Go outputs and a harness that sends the same requests to both servers.
 
 ## License and status
 
