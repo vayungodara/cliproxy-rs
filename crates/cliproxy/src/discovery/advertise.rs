@@ -80,6 +80,9 @@ fn start(spec: &ServiceSpec) -> Result<Responder, String> {
 
 #[derive(Default)]
 struct State {
+    /// Whether the listener actually serves TLS; the TXT `tls` record and the scheme
+    /// clients build follow the real transport, not `server.tls.enable` alone.
+    tls: bool,
     running: Option<(Responder, ServiceSpec)>,
     /// Host, port and TLS of the first apply; the listener never changes on reload.
     bound: Option<(String, u16, bool)>,
@@ -98,13 +101,7 @@ impl State {
 
     /// Go `applyContext`; returns whether refreshing should continue.
     async fn apply(&mut self, cfg: &Config, changed: bool) -> bool {
-        let tls = cfg
-            .document
-            .get("server")
-            .and_then(|s| s.get("tls"))
-            .and_then(|t| t.get("enable"))
-            .and_then(serde_yaml_ng::Value::as_bool)
-            .unwrap_or(false);
+        let tls = self.tls;
         let (host, port, tls) = self.bound.get_or_insert((cfg.host.clone(), cfg.port, tls)).clone();
         if changed {
             self.last_error = None;
@@ -164,11 +161,15 @@ pub struct Advertiser {
 }
 
 impl Advertiser {
-    /// Starts advertising for whatever `config` publishes.
-    pub fn spawn(config: impl Fn() -> Arc<Config> + Send + 'static) -> Self {
+    /// Starts advertising for whatever `config` publishes; `tls` says whether the
+    /// listener serves TLS (Go passes `cfg.TLS.Enable`, which its listener honours).
+    pub fn spawn(config: impl Fn() -> Arc<Config> + Send + 'static, tls: bool) -> Self {
         let (stop, mut stopped) = oneshot::channel();
         let task = tokio::spawn(async move {
-            let mut state = State::default();
+            let mut state = State {
+                tls,
+                ..State::default()
+            };
             let mut current = config();
             let mut refreshing = state.apply(&current, true).await;
             let mut next_refresh = tokio::time::Instant::now() + REFRESH;

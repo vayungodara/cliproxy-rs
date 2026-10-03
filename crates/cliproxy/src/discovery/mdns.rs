@@ -1,7 +1,7 @@
 //! mDNS on UDP 5353, following libp2p/zeroconf v2.2.0 (Go's dependency): the browse
 //! client loop and the `RegisterProxy` responder with its probe, announcement, answer
 //! and goodbye packets.
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::io;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::time::Duration;
@@ -11,7 +11,8 @@ use tokio::net::UdpSocket;
 use tokio::time::{Instant, sleep_until};
 
 use super::dns::{
-    CLASS_FLUSH, CLASS_IN, FLAGS_AUTHORITATIVE_RESPONSE, FLAGS_RESPONSE, Message, Question, RData, Record, TYPE_PTR,
+    CLASS_FLUSH, CLASS_IN, FLAGS_AUTHORITATIVE_RESPONSE, FLAGS_RESPONSE, Message, Question, RData, Record, TYPE_A,
+    TYPE_AAAA, TYPE_PTR, TYPE_SRV,
 };
 use super::iface::Iface;
 use super::{DiscoveredService, Entry, PRODUCT_CPA, ServiceSpec, entry_to_discovered, entry_within_limits};
@@ -147,7 +148,18 @@ struct Browser {
     service: String,
     domain: String,
     service_name: String,
-    sent: HashSet<String>,
+    /// Emitted entries and their expiry (zeroconf `sentEntries`).
+    sent: HashMap<String, std::time::Instant>,
+}
+
+/// zeroconf `cleanupFreq`.
+const CLEANUP: Duration = Duration::from_secs(10);
+
+impl Browser {
+    /// zeroconf's cleanup tick: forget expired entries so they can be emitted again.
+    fn sweep(&mut self, now: std::time::Instant) {
+        self.sent.retain(|_, expiry| now <= *expiry);
+    }
 }
 
 impl Browser {
@@ -179,7 +191,19 @@ impl Browser {
         };
         for rr in &records {
             let expiry = now + Duration::from_secs(rr.ttl.into());
-            let key = match &rr.data {
+            // miekg's zero-value records for empty RDATA.
+            let empty_srv = RData::Srv {
+                priority: 0,
+                weight: 0,
+                port: 0,
+                target: String::new(),
+            };
+            let data = match &rr.data {
+                RData::Empty(TYPE_PTR) => &RData::Ptr(String::new()),
+                RData::Empty(TYPE_SRV) => &empty_srv,
+                data => data,
+            };
+            let key = match data {
                 RData::Ptr(ptr) if rr.name == self.service_name => {
                     slot(&mut entries, &mut order, ptr, ptr.replace(&rr.name, ""));
                     ptr
@@ -196,7 +220,7 @@ impl Browser {
                 _ => continue,
             };
             let e = entries.get_mut(key).expect("slot inserted");
-            match &rr.data {
+            match data {
                 RData::Srv { port, target, .. } => {
                     e.0.host.clone_from(target);
                     e.0.port = (*port).into();
@@ -207,6 +231,12 @@ impl Browser {
             e.1 = expiry;
         }
         for rr in &records {
+            if let RData::Empty(TYPE_A | TYPE_AAAA) = rr.data {
+                for (e, _) in entries.values_mut() {
+                    e.nil_addr |= e.host == rr.name;
+                }
+                continue;
+            }
             let Some(addr) = ip(&rr.data) else { continue };
             for (e, _) in entries.values_mut() {
                 if e.host == rr.name {
@@ -224,10 +254,10 @@ impl Browser {
                 self.sent.remove(&key);
                 continue;
             }
-            if self.sent.contains(&key) || (e.ipv4.is_empty() && e.ipv6.is_empty()) {
+            if self.sent.contains_key(&key) || (e.ipv4.is_empty() && e.ipv6.is_empty() && !e.nil_addr) {
                 continue;
             }
-            self.sent.insert(key);
+            self.sent.insert(key, expiry);
             out.push(e);
         }
         out
@@ -298,10 +328,11 @@ pub async fn browse(service_type: &str, ifaces: &[Iface], timeout: Duration) -> 
         service,
         domain: super::DEFAULT_DOMAIN.into(),
         service_name,
-        sent: HashSet::new(),
+        sent: HashMap::new(),
     };
     let mut collector = Collector::default();
     let start = Instant::now();
+    let mut cleanup = tokio::time::interval_at(start + CLEANUP, CLEANUP);
     let deadline = start + timeout;
     let mut interval = Duration::from_secs(4);
     let mut next = start + interval;
@@ -310,6 +341,10 @@ pub async fn browse(service_type: &str, ifaces: &[Iface], timeout: Duration) -> 
     loop {
         let packet = tokio::select! {
             _ = sleep_until(deadline) => break,
+            t = cleanup.tick() => {
+                browser.sweep(t.into_std());
+                continue;
+            }
             _ = sleep_until(next) => {
                 multicast(Some(&v4), Some(&v6), ifaces, &query).await;
                 let max = Duration::from_secs(60);
@@ -637,7 +672,7 @@ mod tests {
             service: "_ai-gateway._tcp".into(),
             domain: "local.".into(),
             service_name: "_ai-gateway._tcp.local.".into(),
-            sent: HashSet::new(),
+            sent: HashMap::new(),
         };
         let entries = browser.handle(&Message::decode(&wire).unwrap());
         assert_eq!(entries.len(), 1);
@@ -676,7 +711,7 @@ mod tests {
             service: "_ai-gateway._tcp".into(),
             domain: "local.".into(),
             service_name: "_ai-gateway._tcp.local.".into(),
-            sent: HashSet::new(),
+            sent: HashMap::new(),
         };
         let entries = browser.handle(&decode("answer"));
         assert_eq!(entries.len(), 1);
@@ -691,6 +726,40 @@ mod tests {
         // Our own encoding of the same announcement decodes to the same records.
         let announce = decode("announce");
         assert_eq!(Message::decode(&announce.encode().unwrap()).unwrap(), announce);
+    }
+
+    #[test]
+    fn expired_entries_are_swept_and_emitted_again() {
+        let svc = service();
+        let mut resp = Message::default();
+        svc.browsing(&mut resp);
+        let wire = Message::decode(&resp.encode().unwrap()).unwrap();
+        let mut browser = Browser {
+            service: "_ai-gateway._tcp".into(),
+            domain: "local.".into(),
+            service_name: "_ai-gateway._tcp.local.".into(),
+            sent: HashMap::new(),
+        };
+        assert_eq!(browser.handle(&wire).len(), 1);
+        browser.sweep(std::time::Instant::now());
+        assert!(browser.handle(&wire).is_empty(), "TTL 3200 has not expired");
+        browser.sweep(std::time::Instant::now() + Duration::from_secs(3201));
+        assert_eq!(browser.handle(&wire).len(), 1);
+        // A zero-length A record resolves the entry (Go's nil IP) without an address.
+        let mut nil_only = wire.clone();
+        nil_only
+            .additional
+            .retain(|r| !matches!(r.data, RData::A(_) | RData::Aaaa(_)));
+        nil_only.additional.push(Record {
+            name: "box.local.".into(),
+            class: CLASS_IN,
+            ttl: 120,
+            data: RData::Empty(TYPE_A),
+        });
+        browser.sent.clear();
+        let entries = browser.handle(&nil_only);
+        assert!(entries[0].nil_addr && entries[0].ipv4.is_empty());
+        assert!(entry_to_discovered(&entries[0]).ipv4.is_empty());
     }
 
     #[test]

@@ -34,6 +34,9 @@ pub enum RData {
         target: String,
     },
     Txt(Vec<String>),
+    /// A zero-length A, AAAA, PTR or SRV: miekg keeps these as zero-value records
+    /// (nil IP, empty target) instead of rejecting the message.
+    Empty(u16),
     Other(u16, Vec<u8>),
 }
 
@@ -45,7 +48,7 @@ impl RData {
             RData::Ptr(_) => TYPE_PTR,
             RData::Srv { .. } => TYPE_SRV,
             RData::Txt(_) => TYPE_TXT,
-            RData::Other(t, _) => *t,
+            RData::Empty(t) | RData::Other(t, _) => *t,
         }
     }
 }
@@ -192,29 +195,37 @@ impl Reader<'_> {
         if end > self.msg.len() {
             return None;
         }
+        // miekg decodes RDATA against the message cut at this record's end, so a
+        // compression pointer cannot reach into the following records.
+        let mut rd = Reader {
+            msg: &self.msg[..end],
+            off: self.off,
+        };
         let data = match rtype {
+            TYPE_A | TYPE_AAAA | TYPE_PTR | TYPE_SRV if len == 0 => RData::Empty(rtype),
             TYPE_A if len == 4 => {
-                let b = self.bytes(4)?;
+                let b = rd.bytes(4)?;
                 RData::A(Ipv4Addr::new(b[0], b[1], b[2], b[3]))
             }
-            TYPE_AAAA if len == 16 => RData::Aaaa(Ipv6Addr::from(<[u8; 16]>::try_from(self.bytes(16)?).ok()?)),
-            TYPE_PTR => RData::Ptr(self.name()?),
+            TYPE_AAAA if len == 16 => RData::Aaaa(Ipv6Addr::from(<[u8; 16]>::try_from(rd.bytes(16)?).ok()?)),
+            TYPE_PTR => RData::Ptr(rd.name()?),
             TYPE_SRV => RData::Srv {
-                priority: self.u16()?,
-                weight: self.u16()?,
-                port: self.u16()?,
-                target: self.name()?,
+                priority: rd.u16()?,
+                weight: rd.u16()?,
+                port: rd.u16()?,
+                target: rd.name()?,
             },
             TYPE_TXT => {
                 let mut strings = Vec::new();
-                while self.off < end {
-                    strings.push(self.txt_string()?);
+                while rd.off < end {
+                    strings.push(rd.txt_string()?);
                 }
                 RData::Txt(strings)
             }
             TYPE_A | TYPE_AAAA => return None,
-            other => RData::Other(other, self.bytes(len)?.to_vec()),
+            other => RData::Other(other, rd.bytes(len)?.to_vec()),
         };
+        self.off = rd.off;
         (self.off == end).then_some(Record { name, class, ttl, data })
     }
 }
@@ -290,8 +301,7 @@ impl Message {
                     out.extend(port.to_be_bytes());
                     pack_name(&mut out, target)?;
                 }
-                // miekg packs an empty TXT as a single zero-length string.
-                RData::Txt(strings) if strings.is_empty() => out.push(0),
+                // An empty TXT has no strings at all (miekg 1.1.43 `packTxt`).
                 RData::Txt(strings) => {
                     for s in strings {
                         let bytes = unescape(s);
@@ -299,6 +309,7 @@ impl Message {
                         out.extend(bytes);
                     }
                 }
+                RData::Empty(_) => {}
                 RData::Other(_, bytes) => out.extend(bytes),
             }
             let len = u16::try_from(out.len() - at - 2).ok()?;
@@ -456,6 +467,32 @@ mod tests {
             Message::decode(&bad_a).unwrap().answers[0].data,
             RData::A(Ipv4Addr::new(1, 2, 3, 4))
         );
+    }
+
+    #[test]
+    fn rdata_stays_inside_its_record_and_empty_rdata_is_kept() {
+        // Answer 1: PTR whose 2-byte RDATA points forward into answer 2's owner name.
+        let mut wire = vec![0, 0, 0x84, 0, 0, 0, 0, 2, 0, 0, 0, 0];
+        wire.extend(b"\x01a\x00");
+        wire.extend([0, 12, 0, 1, 0, 0, 0, 1, 0, 2, 0xC0, 27]);
+        wire.extend(b"\x01b\x00");
+        wire.extend([0, 1, 0, 1, 0, 0, 0, 1, 0, 4, 10, 0, 0, 1]);
+        assert_eq!(wire[27], 1, "offset 27 is answer 2's name");
+        assert!(Message::decode(&wire).is_none(), "miekg rejects the forward reference");
+        // Zero-length A/PTR/SRV keep the message; zero-length TXT is an empty list.
+        for rtype in [TYPE_A, TYPE_AAAA, TYPE_PTR, TYPE_SRV, TYPE_TXT] {
+            let mut wire = vec![0, 0, 0x84, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, b'x', 0];
+            wire.extend(rtype.to_be_bytes());
+            wire.extend([0, 1, 0, 0, 0, 1, 0, 0]);
+            let msg = Message::decode(&wire).unwrap();
+            let want = if rtype == TYPE_TXT {
+                RData::Txt(vec![])
+            } else {
+                RData::Empty(rtype)
+            };
+            assert_eq!(msg.answers[0].data, want);
+            assert_eq!(msg.encode().unwrap(), wire, "re-encodes with RDLENGTH 0");
+        }
     }
 
     #[test]

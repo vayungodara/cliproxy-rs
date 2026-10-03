@@ -599,6 +599,9 @@ pub struct Entry {
     pub ipv4: Vec<IpAddr>,
     pub ipv6: Vec<IpAddr>,
     pub text: Vec<String>,
+    /// A zero-length A/AAAA matched this host: zeroconf appends a nil IP, which counts
+    /// as "resolved" for emission but is dropped by `filterUsableIPs`.
+    pub nil_addr: bool,
 }
 
 /// Go `browseEntryWithinLimits`.

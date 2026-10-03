@@ -8,7 +8,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::Context;
-use clap::{ArgAction, Parser};
+use clap::{ArgAction, CommandFactory, Parser};
 use cpa_core::config::Config;
 use cpa_exec::Executors;
 use cpa_exec::claude::{ClaudeExecutor, DEFAULT_BASE_URL};
@@ -74,7 +74,7 @@ struct Args {
     #[arg(long)]
     discover: bool,
     /// Timeout in seconds for LAN discovery (default 3s)
-    #[arg(long, default_value_t = 3, allow_negative_numbers = true)]
+    #[arg(long, default_value_t = 3, value_parser = go_int)]
     discover_timeout: i64,
     /// Output discovered gateways in JSON format
     #[arg(long)]
@@ -122,7 +122,7 @@ struct Args {
 #[command(name = "discover")]
 struct DiscoverArgs {
     /// Discovery timeout in seconds
-    #[arg(long, default_value_t = 3, allow_negative_numbers = true)]
+    #[arg(long, default_value_t = 3, value_parser = go_int)]
     timeout: i64,
     /// Output in JSON format
     #[arg(long)]
@@ -141,15 +141,106 @@ struct DiscoverArgs {
     exclude: Vec<String>,
 }
 
-/// Go's flag package treats `-name` and `--name` the same; clap needs `--name`.
-fn go_style_args(args: impl IntoIterator<Item = String>) -> Vec<String> {
-    args.into_iter()
-        .enumerate()
-        .map(|(i, a)| {
-            let single_dash_long = i > 0 && a.len() > 2 && a.starts_with('-') && !a.starts_with("--");
-            if single_dash_long { format!("-{a}") } else { a }
-        })
-        .collect()
+/// Rewrites a command line parsed by Go's `flag` package into clap's form. Go decides
+/// which token is a value (a non-boolean flag takes the next token even when it starts
+/// with `-`), booleans accept `=value`, a repeated scalar keeps its last value, and
+/// parsing stops at the first operand or `--`; Go ignores everything after that.
+/// Unknown or malformed flags are passed on for clap to report.
+fn go_flags(cmd: &clap::Command, args: impl IntoIterator<Item = String>) -> Vec<String> {
+    let mut args = args.into_iter();
+    let mut out: Vec<String> = args.next().into_iter().collect();
+    let args: Vec<String> = args.collect();
+    let mut bools: Vec<(String, bool)> = Vec::new();
+    let mut scalars: Vec<(String, String)> = Vec::new();
+    let mut appended: Vec<String> = Vec::new();
+    let mut tail = None;
+    let mut i = 0;
+    while i < args.len() {
+        let arg = &args[i];
+        i += 1;
+        if arg == "--" || arg.len() < 2 || !arg.starts_with('-') {
+            break;
+        }
+        let bare = arg.strip_prefix("--").unwrap_or(&arg[1..]);
+        let (name, value) = match bare.split_once('=') {
+            Some((n, v)) => (n, Some(v)),
+            None => (bare, None),
+        };
+        let known = cmd.get_arguments().find(|a| a.get_long() == Some(name));
+        let Some(flag) = known.filter(|_| !name.is_empty() && !name.starts_with(['-', '='])) else {
+            tail = Some(if matches!(name, "h" | "help") {
+                "--help".to_owned()
+            } else {
+                format!("--{bare}")
+            });
+            break;
+        };
+        if !flag.get_action().takes_values() {
+            match value.map(go_parse_bool) {
+                None => upsert(&mut bools, name, true),
+                Some(Some(b)) => upsert(&mut bools, name, b),
+                Some(None) => {
+                    tail = Some(format!("--{bare}"));
+                    break;
+                }
+            }
+            continue;
+        }
+        let value = match value {
+            Some(v) => v.to_owned(),
+            None if i < args.len() => {
+                i += 1;
+                args[i - 1].clone()
+            }
+            None => {
+                tail = Some(format!("--{name}"));
+                break;
+            }
+        };
+        if matches!(flag.get_action(), ArgAction::Append) {
+            appended.push(format!("--{name}={value}"));
+        } else {
+            upsert(&mut scalars, name, value);
+        }
+    }
+    out.extend(bools.into_iter().filter(|(_, on)| *on).map(|(n, _)| format!("--{n}")));
+    out.extend(scalars.into_iter().map(|(n, v)| format!("--{n}={v}")));
+    out.extend(appended);
+    out.extend(tail);
+    out
+}
+
+fn upsert<T>(list: &mut Vec<(String, T)>, name: &str, value: T) {
+    match list.iter_mut().find(|(n, _)| n == name) {
+        Some(slot) => slot.1 = value,
+        None => list.push((name.to_owned(), value)),
+    }
+}
+
+/// Go `strconv.ParseInt(s, 0, 64)`, as `flag.Int` parses: sign, `0x`/`0o`/`0b`/`0`
+/// prefixes and digit-separating underscores.
+fn go_int(s: &str) -> Result<i64, String> {
+    let err = || format!("invalid value {s:?}: parse error");
+    let (neg, digits) = match s.as_bytes().first() {
+        Some(b'-') => (true, &s[1..]),
+        Some(b'+') => (false, &s[1..]),
+        _ => (false, s),
+    };
+    let lower = digits.to_ascii_lowercase();
+    // A base prefix (or the leading 0 of an octal literal) counts as a digit before an
+    // underscore, as in strconv's underscoreOK.
+    let (radix, body, prefixed) = match lower.as_bytes() {
+        [b'0', b'x', ..] => (16, &lower[2..], true),
+        [b'0', b'o', ..] => (8, &lower[2..], true),
+        [b'0', b'b', ..] => (2, &lower[2..], true),
+        [b'0', _, ..] => (8, &lower[1..], true),
+        _ => (10, lower.as_str(), false),
+    };
+    if body.is_empty() || (body.starts_with('_') && !prefixed) || body.ends_with('_') || body.contains("__") {
+        return Err(err());
+    }
+    let magnitude = i128::from_str_radix(&body.replace('_', ""), radix).map_err(|_| err())?;
+    i64::try_from(if neg { -magnitude } else { magnitude }).map_err(|_| err())
 }
 
 /// Go `strconv.ParseBool`.
@@ -257,22 +348,23 @@ async fn shutdown_signal() {
     let _ = tokio::signal::ctrl_c().await;
 }
 
-/// Go `LoadConfigOptional`: in cloud deploy mode a missing, empty or unparsable file
+/// Go `LoadConfigOptional`: in cloud deploy mode a missing, empty or undecodable file
 /// is an empty config (the server then stands by).
 fn load_config(path: &Path, optional: bool) -> anyhow::Result<Config> {
-    if optional {
-        let empty = match std::fs::read(path) {
-            Err(e) => matches!(e.kind(), io::ErrorKind::NotFound | io::ErrorKind::IsADirectory),
-            Ok(bytes) => {
-                String::from_utf8_lossy(&bytes).trim().is_empty()
-                    || serde_yaml_ng::from_slice::<serde_yaml_ng::Value>(&bytes).is_err()
+    let loaded = Config::load(path).with_context(|| format!("failed to load config {}", path.display()));
+    match loaded {
+        Err(e) if optional => {
+            let missing = std::fs::read(path).map_or(true, |b| String::from_utf8_lossy(&b).trim().is_empty());
+            if !missing {
+                // ponytail: Go stays fatal for its post-decode validations (trusted
+                // proxies, weights, in-flight); cpa-core reports both kinds alike, so
+                // cloud mode stands by on every load error and logs it.
+                tracing::error!("{e:#}");
             }
-        };
-        if empty {
-            return Config::parse("");
+            Config::parse("")
         }
+        other => other,
     }
-    Config::load(path).with_context(|| format!("failed to load config {}", path.display()))
 }
 
 /// Go's cloud-deploy check of the config file (main.go, `isCloudDeploy`).
@@ -346,7 +438,7 @@ fn main() -> anyhow::Result<()> {
         .init();
     let raw: Vec<String> = std::env::args().collect();
     if raw.get(1).map(String::as_str) == Some("discover") {
-        let args = DiscoverArgs::parse_from(go_style_args(raw.into_iter().skip(1)));
+        let args = DiscoverArgs::parse_from(go_flags(&DiscoverArgs::command(), raw.into_iter().skip(1)));
         if !args.json {
             eprintln!("{}", banner());
         }
@@ -357,7 +449,7 @@ fn main() -> anyhow::Result<()> {
     if !argv_enables_bool_flag(&raw[1..], "discover-json") {
         println!("{}", banner());
     }
-    let args = Args::parse_from(go_style_args(raw));
+    let args = Args::parse_from(go_flags(&Args::command(), raw));
     if args.discover || args.discover_json {
         let cli = (csv_flags(&args.discover_include), csv_flags(&args.discover_exclude));
         let opts = discover_options(
@@ -502,7 +594,9 @@ async fn serve(config: Config, config_path: PathBuf, password: String, local_mod
     let _watcher = cpa_server::watching::start(&management);
     let advertiser = {
         let rt = rt.clone();
-        discovery::advertise::Advertiser::spawn(move || rt.config())
+        // The listener above is plain TCP: advertise `tls=0` even if server.tls.enable
+        // is set, so discovered clients are not sent to an https:// URL that fails.
+        discovery::advertise::Advertiser::spawn(move || rt.config(), false)
     };
     // Go applies its CORS middleware to every route, not only management.
     let app = router(rt)
@@ -540,7 +634,12 @@ mod tests {
 
     #[test]
     fn every_go_flag_parses_in_single_and_double_dash_form() {
-        let argv = |a: &[&str]| go_style_args(std::iter::once("cliproxy").chain(a.iter().copied()).map(String::from));
+        let argv = |a: &[&str]| {
+            go_flags(
+                &Args::command(),
+                std::iter::once("cliproxy").chain(a.iter().copied()).map(String::from),
+            )
+        };
         let args = Args::try_parse_from(argv(&[
             "-discover",
             "-discover-timeout",
@@ -577,17 +676,73 @@ mod tests {
         assert_eq!(args.discover_timeout, -2);
         assert_eq!(csv_flags(&args.discover_include), ["eth0", "en0", "wl*"]);
         assert_eq!(args.management_base_url, "https://x");
-        let sub = DiscoverArgs::try_parse_from(go_style_args(
-            [
-                "discover", "-timeout", "5", "-json", "-include", "a,b", "-include", "a", "-config", "x.yaml",
-            ]
-            .map(String::from),
-        ))
+        let sub = |a: &[&str]| {
+            DiscoverArgs::try_parse_from(go_flags(
+                &DiscoverArgs::command(),
+                std::iter::once("discover").chain(a.iter().copied()).map(String::from),
+            ))
+        };
+        let parsed = sub(&[
+            "-timeout", "5", "-json", "-include", "a,b", "-include", "a", "-config", "x.yaml",
+        ])
         .unwrap();
         assert_eq!(
-            (sub.timeout, sub.json, csv_flags(&sub.include)),
+            (parsed.timeout, parsed.json, csv_flags(&parsed.include)),
             (5, true, vec!["a".into(), "b".into(), "a".into()])
         );
+        // Go flag rules that plain clap rejects (oracle review).
+        let parsed = sub(&[
+            "--json=true",
+            "-timeout",
+            "2",
+            "-timeout",
+            "-10",
+            "-config",
+            "-local.yaml",
+        ])
+        .unwrap();
+        assert_eq!(
+            (parsed.json, parsed.timeout, parsed.config.as_str()),
+            (true, -10, "-local.yaml")
+        );
+        assert!(!sub(&["--json=false"]).unwrap().json);
+        assert!(!sub(&["-json", "-json=0"]).unwrap().json);
+        assert_eq!(sub(&["-timeout=0x10"]).unwrap().timeout, 16);
+        // Parsing stops at the first operand; Go ignores the rest.
+        let parsed = sub(&["-json", "extra", "-timeout", "9"]).unwrap();
+        assert_eq!((parsed.json, parsed.timeout), (true, 3));
+        assert!(sub(&["-json=maybe"]).is_err());
+        assert!(sub(&["-nope"]).is_err());
+        assert!(sub(&["-timeout"]).is_err());
+        assert!(sub(&["-timeout", "1.5"]).is_err());
+        assert!(sub(&["---x"]).is_err());
+    }
+
+    #[test]
+    fn go_int_matches_strconv_base_zero() {
+        for (s, want) in [
+            ("3", Some(3)),
+            ("-10", Some(-10)),
+            ("+7", Some(7)),
+            ("0x1f", Some(31)),
+            ("010", Some(8)),
+        ] {
+            assert_eq!(go_int(s).ok(), want, "{s}");
+        }
+        for (s, want) in [
+            ("0b101", Some(5)),
+            ("0o17", Some(15)),
+            ("1_000", Some(1000)),
+            ("0_10", Some(8)),
+            ("", None),
+        ] {
+            assert_eq!(go_int(s).ok(), want, "{s}");
+        }
+        for bad in ["9223372036854775808", "_1", "1_", "1__0", "0x", "1.5", "0x_"] {
+            assert!(go_int(bad).is_err(), "{bad}");
+        }
+        assert_eq!(go_int("0x_1f").ok(), Some(31));
+        assert_eq!(go_int("-9223372036854775808").ok(), Some(i64::MIN));
     }
 
     #[test]
@@ -598,10 +753,12 @@ mod tests {
         assert_eq!(load_config(&missing, true).unwrap().port, 0);
         assert!(load_config(&missing, false).is_err());
         assert_eq!(load_config(&dir, true).unwrap().port, 0, "a directory is standby too");
-        let broken = dir.join("broken.yaml");
-        std::fs::write(&broken, "port: [\n").unwrap();
-        assert_eq!(load_config(&broken, true).unwrap().port, 0);
-        assert!(load_config(&broken, false).is_err());
+        for text in ["port: [\n", "port: wrong\n", "- a\n- b\n"] {
+            let broken = dir.join("broken.yaml");
+            std::fs::write(&broken, text).unwrap();
+            assert_eq!(load_config(&broken, true).unwrap().port, 0, "{text}");
+            assert!(load_config(&broken, false).is_err(), "{text}");
+        }
         let good = dir.join("good.yaml");
         std::fs::write(&good, "port: 9\n").unwrap();
         let cfg = load_config(&good, true).unwrap();

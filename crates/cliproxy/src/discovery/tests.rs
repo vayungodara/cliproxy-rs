@@ -164,6 +164,7 @@ fn discovered_entries_and_merges_match_go() {
             ipv4: ips(&case["ipv4"]),
             ipv6: ips(&case["ipv6"]),
             text: list(&case["text"]),
+            nil_addr: false,
         };
         assert_eq!(
             entry_within_limits(&e),
