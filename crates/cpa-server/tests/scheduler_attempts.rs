@@ -121,10 +121,14 @@ impl Fixture {
                 let mut metadata = extra.as_object().unwrap().clone();
                 metadata.insert("type".into(), "claude".into());
                 metadata.insert("access_token".into(), format!("fake-{id}").into());
-                Credential::from_file(Path::new("/mock"), &Path::new("/mock").join(id.to_string()), metadata).unwrap()
+                // The Claude executor below is built on the mock.
+                cpa_server::testing::local(
+                    Credential::from_file(Path::new("/mock"), &Path::new("/mock").join(id.to_string()), metadata)
+                        .unwrap(),
+                )
             })
             .collect();
-        let rt = Arc::new(Runtime::new(
+        let rt = Arc::new(cpa_server::testing::runtime(
             Config::parse("").unwrap(),
             credentials,
             Executors {

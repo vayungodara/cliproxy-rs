@@ -160,30 +160,27 @@ pub struct Bundle {
     pub name: String,
 }
 
-/// Why minting failed. `Display` is Go's message including the upstream body, for the
-/// operator's terminal only; [`MintError::redacted`] is safe to return to API clients.
+/// Why minting failed: Go's message without the mint endpoint's response body. Go appends
+/// the body, which can carry key material, and the message reaches logs and API clients;
+/// it is never kept here, so no formatting of this error can leak it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MintError {
-    Status(u16, String),
+    /// A non-2xx answer (its HTTP status).
+    Status(u16),
     Other(String),
 }
 
 impl MintError {
-    /// Go's message without the upstream body.
-    // ponytail: Go returns the mint endpoint's body inside the executor error, which then
-    // reaches API clients; it is withheld here as for Kimi refresh errors.
+    /// The message, safe for logs and API clients.
     pub fn redacted(&self) -> String {
-        match self {
-            Self::Status(status, _) => format!("meta auth: mint key failed (HTTP {status})"),
-            Self::Other(message) => message.clone(),
-        }
+        self.to_string()
     }
 }
 
 impl std::fmt::Display for MintError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Status(status, body) => write!(f, "meta auth: mint key failed (HTTP {status}): {body}"),
+            Self::Status(status) => write!(f, "meta auth: mint key failed (HTTP {status})"),
             Self::Other(message) => f.write_str(message),
         }
     }
@@ -292,10 +289,8 @@ impl MetaAuth {
             .await
             .map_err(|e| format!("meta device flow: request failed: {e}"))?;
         if !(200..300).contains(&status) {
-            return Err(format!(
-                "meta device flow failed (HTTP {status}): {}",
-                String::from_utf8_lossy(&body).trim()
-            ));
+            // Go appends the response body; it is withheld from logs and clients.
+            return Err(format!("meta device flow failed (HTTP {status})"));
         }
         let code = DeviceCode::decode(&body).map_err(|e| format!("meta device flow: parse response: {e}"))?;
         if code.device_code.trim().is_empty() || code.user_code.trim().is_empty() {
@@ -373,7 +368,7 @@ impl MetaAuth {
                         ))
                     });
                 match minted {
-                    Err(e) => tracing::warn!("meta auth: could not mint api_key from dca_token: {e}"),
+                    Err(e) => tracing::warn!("meta auth: could not mint api_key from dca_token: {}", e.redacted()),
                     Ok(minted) => {
                         if !minted.user_email.is_empty() {
                             bundle.email = minted.user_email.clone();
@@ -459,10 +454,7 @@ impl MetaAuth {
             .await
             .map_err(|e| MintError::Other(format!("meta auth: mint request failed: {e}")))?;
         if !(200..300).contains(&status) {
-            return Err(MintError::Status(
-                status,
-                String::from_utf8_lossy(&body).trim().to_owned(),
-            ));
+            return Err(MintError::Status(status));
         }
         let minted =
             MintedKey::decode(&body).map_err(|e| MintError::Other(format!("meta auth: parse mint response: {e}")))?;
