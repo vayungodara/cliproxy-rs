@@ -216,7 +216,7 @@ def judge_route(item, routes, tests):
     literal = re.split(r"[:*]", path)[0]
     if literal != "/" and literal.endswith("/") and len(literal) > 1:
         literal = literal
-    pattern = re.compile(re.escape(literal) + (r'["?/ ]' if not literal.endswith("/") else ""))
+    pattern = re.compile(re.escape(literal) + (r'["?/ {]' if not literal.endswith("/") else ""))
     users = [rel for rel, text in tests.items() if pattern.search(text)]
     if users:
         return ("covered", f"probe: {key} -> {hit['status']}; tests: {short(users)}")
