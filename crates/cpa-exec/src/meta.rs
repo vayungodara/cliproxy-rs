@@ -183,6 +183,7 @@ impl MetaExecutor {
         }
         let enriched = self.ensure_auth(credential, cfg).await?;
         let prepared = prepare(&req, cfg, true)?;
+        req.usage.request(Format::Codex, &prepared.body);
         let (base, token) = creds(&enriched);
         if base.trim().is_empty() {
             return Err(ExecError::local(
@@ -199,6 +200,10 @@ impl MetaExecutor {
             let headers = upstream.headers.clone();
             // Go returns a failed error-body read as is, never classified by status.
             let error_body = read_all_strict(upstream.body, MAX_ERROR_BODY).await?;
+            // Go observes the response model on every non-stream body, errors included.
+            if !req.stream {
+                req.usage.response_line(Format::Codex, &error_body);
+            }
             let mut error = upstream_error(upstream.status, &error_body);
             error.headers = Box::new(headers);
             return Err(error);
@@ -206,14 +211,23 @@ impl MetaExecutor {
         let ctx = response_ctx(&req, &body);
         let responses_client = req.response_format == Format::OpenAIResponse;
         let out = if req.stream {
+            // Go observes `data:` lines only: their response model and terminal usage.
+            let tapped =
+                crate::kimi_http::report_lines(lines(upstream.body, LINE_LIMIT), &req.usage, Format::Codex, |line| {
+                    line.starts_with(b"data:")
+                });
             ResponseBody::Stream(stream_events(
-                lines(upstream.body, LINE_LIMIT),
+                tapped,
                 (prepared.response.stream)(&ctx),
                 responses_client,
             ))
         } else {
             let data = read_all(upstream.body, usize::MAX, false).await?;
+            req.usage.response_line(Format::Codex, &data);
+            let source = std::cell::RefCell::new(Vec::new());
             let completed = collect_completed(&data, |event| {
+                source.borrow_mut().clear();
+                source.borrow_mut().extend_from_slice(event);
                 // A translator error or empty output is Go's apply_patch 502.
                 (prepared.response.non_stream)(&ctx, event)
                     .ok()
@@ -222,6 +236,8 @@ impl MetaExecutor {
                         ExecError::local(502, FailureScope::Request, cpa_translate::APPLY_PATCH_UPSTREAM_ERROR)
                     })
             })?;
+            // The terminal event Go reads model and Codex usage from, once translated.
+            req.usage.response_line(Format::Codex, &source.into_inner());
             ResponseBody::Buffered(Bytes::from(if responses_client {
                 ensure_responses_usage_details(&completed)
             } else {

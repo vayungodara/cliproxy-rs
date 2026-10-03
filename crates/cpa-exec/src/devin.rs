@@ -489,7 +489,14 @@ impl DevinExecutor {
                 response_format,
                 req.original_body.clone(),
             );
-            let stream = DevinStream::new(req.model.clone(), response_format, translator, claude, reader);
+            let stream = DevinStream::new(
+                req.model.clone(),
+                response_format,
+                translator,
+                claude,
+                reader,
+                req.usage.clone(),
+            );
             return Ok(ExecResponse {
                 status: upstream.status,
                 headers: upstream.headers,
@@ -497,7 +504,10 @@ impl DevinExecutor {
             });
         }
         let interactions = match consume_frames(reader, &req.model, &ctx_original).await {
-            Ok(json) => json,
+            Ok((json, usage_model)) => {
+                report_response_model(&req.usage, &usage_model);
+                json
+            }
             Err(_) if apply_patch_requested(&ctx_original) => return Err(apply_patch_error()),
             Err(e) => return Err(e),
         };
@@ -506,8 +516,12 @@ impl DevinExecutor {
                 .ok()
                 .filter(|out| !out.is_empty())
                 .ok_or_else(apply_patch_error)?,
-            None => interactions,
+            None => interactions.clone(),
         };
+        if req.usage.enabled() {
+            req.usage
+                .response_body(Format::Interactions, &usage_payload(&interactions, "model"));
+        }
         let out = if response_format == Format::OpenAIResponse {
             ensure_responses_usage_details(&out)
         } else {
@@ -538,6 +552,25 @@ fn headers(credential: &Credential, req: &ExecRequest, key: &str) -> GoHeaders {
         h.set(&name, value);
     }
     h
+}
+
+/// Go's `SetResponseModel(usage model)`: the server's usage record reads the response
+/// model from reported payloads, so the upstream usage model goes out as its own line.
+fn report_response_model(usage: &cpa_core::exec::UsageSink, model: &[u8]) {
+    if !usage.enabled() || model.is_empty() {
+        return;
+    }
+    let mut line = br#"{"interaction":{"model":""}}"#.to_vec();
+    gj::set_str(&mut line, "interaction.model", model);
+    usage.response_line(Format::Interactions, &line);
+}
+
+/// The Interactions payload Go parses usage from, without the client-facing model (Go
+/// sets the response model only from upstream usage).
+fn usage_payload(payload: &[u8], model_path: &str) -> Vec<u8> {
+    let mut out = payload.to_vec();
+    gj::delete(&mut out, model_path);
+    out
 }
 
 fn interaction_id() -> String {
@@ -630,7 +663,12 @@ struct ToolBuilder {
 }
 
 /// `consumeDevinFramesToInteractions`: one Interactions response from every frame.
-async fn consume_frames(mut reader: FrameReader, model: &str, original: &[u8]) -> Result<Vec<u8>, ExecError> {
+/// Also returns the upstream usage model name (empty when none was reported).
+async fn consume_frames(
+    mut reader: FrameReader,
+    model: &str,
+    original: &[u8],
+) -> Result<(Vec<u8>, Vec<u8>), ExecError> {
     let (mut pre_tool, mut post_tool, mut thinking) = (Vec::new(), Vec::new(), Vec::new());
     let (mut has_pre, mut has_post, mut has_thinking) = (false, false, false);
     let mut builders: Vec<ToolBuilder> = Vec::new();
@@ -792,7 +830,7 @@ async fn consume_frames(mut reader: FrameReader, model: &str, original: &[u8]) -
     if let Some(u) = &usage {
         set_usage(&mut out, "usage", u);
     }
-    Ok(out)
+    Ok((out, usage.map(|u| u.model_name).unwrap_or_default()))
 }
 
 /// A tool call slot opened by the stream (`devinActiveToolSlot`).
@@ -836,6 +874,7 @@ struct DevinStream {
     created_sent: bool,
     translation_failed: bool,
     ended: bool,
+    usage_sink: cpa_core::exec::UsageSink,
 }
 
 /// `{"event_type":"step.stop","index":N}`.
@@ -875,6 +914,7 @@ impl DevinStream {
         translator: Option<Box<dyn StreamTranslator>>,
         claude: ClaudeInputTokens,
         reader: FrameReader,
+        usage_sink: cpa_core::exec::UsageSink,
     ) -> Self {
         Self {
             reader: Some(reader),
@@ -901,6 +941,7 @@ impl DevinStream {
             created_sent: false,
             translation_failed: false,
             ended: false,
+            usage_sink,
         }
     }
 
@@ -1209,6 +1250,9 @@ impl DevinStream {
             self.stop_reason = frame.stop_reason;
         }
         merge_usage(&mut self.usage, frame.usage.as_ref(), &frame.dimension_groups);
+        if let Some(u) = &frame.usage {
+            report_response_model(&self.usage_sink, &u.model_name);
+        }
         if !frame.thinking.is_empty() {
             if !self.pending.is_empty() && !self.flush_pending() {
                 return;
@@ -1340,9 +1384,17 @@ impl DevinStream {
         if let Some(u) = self.usage.clone() {
             set_usage(&mut completed, "interaction.usage", &u);
         }
+        let reported = self
+            .usage_sink
+            .enabled()
+            .then(|| usage_payload(&completed, "interaction.model"));
         if !self.emit(completed) {
             self.ended = true;
             return;
+        }
+        // Go publishes ParseInteractionsStreamUsage(completed event) once it is sent.
+        if let Some(payload) = reported {
+            self.usage_sink.response_line(Format::Interactions, &payload);
         }
         self.ended = true;
         if self.response_format == Format::Interactions {

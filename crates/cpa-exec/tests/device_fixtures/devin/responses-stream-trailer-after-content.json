@@ -1,34 +1,49 @@
 {
   "credential": {
     "api_key": "devin-session-token$fixture",
-    "base_url": "http://127.0.0.1:45825",
+    "base_url": "http://127.0.0.1:37277",
     "device_seed": "seed-1",
     "session_token": "devin-session-token$fixture",
     "type": "devin"
   },
   "downstream": {
     "chunks": [
-      "event: response.created\ndata: {\"type\":\"response.created\",\"response\":{\"id\":\"interaction_83986497-888\",\"object\":\"response\",\"status\":\"in_progress\",\"model\":\"glm-5-3\",\"output\":[]},\"sequence_number\":1}\n\n",
+      "event: response.created\ndata: {\"type\":\"response.created\",\"response\":{\"id\":\"interaction_a540eda2-852\",\"object\":\"response\",\"status\":\"in_progress\",\"model\":\"glm-5-3\",\"output\":[]},\"sequence_number\":1}\n\n",
       "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"output_index\":0,\"item\":{\"id\":\"item_0\",\"type\":\"message\",\"status\":\"in_progress\",\"role\":\"assistant\",\"content\":[]},\"sequence_number\":2}\n\n",
       "event: response.content_part.added\ndata: {\"type\":\"response.content_part.added\",\"output_index\":0,\"content_index\":0,\"item_id\":\"item_0\",\"part\":{\"type\":\"output_text\",\"text\":\"\"},\"sequence_number\":3}\n\n",
       "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"output_index\":0,\"content_index\":0,\"item_id\":\"item_0\",\"delta\":\"partial\",\"sequence_number\":4}\n\n",
       "event: response.output_text.done\ndata: {\"type\":\"response.output_text.done\",\"output_index\":0,\"content_index\":0,\"item_id\":\"item_0\",\"text\":\"partial\",\"logprobs\":[],\"sequence_number\":5}\n\n",
       "event: response.content_part.done\ndata: {\"type\":\"response.content_part.done\",\"output_index\":0,\"content_index\":0,\"item_id\":\"item_0\",\"part\":{\"type\":\"output_text\",\"text\":\"partial\"},\"sequence_number\":6}\n\n",
       "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"id\":\"item_0\",\"type\":\"message\",\"status\":\"completed\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"partial\"}]},\"sequence_number\":7}\n\n",
-      "event: response.failed\ndata: {\"type\":\"response.failed\",\"response\":{\"id\":\"interaction_83986497-888\",\"object\":\"response\",\"status\":\"failed\",\"model\":\"glm-5-3\",\"output\":[],\"error\":{\"message\":\"devin upstream error (permission_denied): Model under high demand\",\"code\":\"429\",\"type\":\"server_error\"}},\"sequence_number\":8}\n\n"
+      "event: response.failed\ndata: {\"type\":\"response.failed\",\"response\":{\"id\":\"interaction_a540eda2-852\",\"object\":\"response\",\"status\":\"failed\",\"model\":\"glm-5-3\",\"output\":[],\"error\":{\"message\":\"devin upstream error (permission_denied): Model under high demand\",\"code\":\"429\",\"type\":\"server_error\"}},\"sequence_number\":8}\n\n"
     ],
     "err_status": 429,
     "frames": [
-      "event: response.created\ndata: {\"type\":\"response.created\",\"response\":{\"id\":\"interaction_83986497-888\",\"object\":\"response\",\"status\":\"in_progress\",\"model\":\"glm-5-3\",\"output\":[]},\"sequence_number\":1}\n\n",
+      "event: response.created\ndata: {\"type\":\"response.created\",\"response\":{\"id\":\"interaction_a540eda2-852\",\"object\":\"response\",\"status\":\"in_progress\",\"model\":\"glm-5-3\",\"output\":[]},\"sequence_number\":1}\n\n",
       "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"output_index\":0,\"item\":{\"id\":\"item_0\",\"type\":\"message\",\"status\":\"in_progress\",\"role\":\"assistant\",\"content\":[]},\"sequence_number\":2}\n\n",
       "event: response.content_part.added\ndata: {\"type\":\"response.content_part.added\",\"output_index\":0,\"content_index\":0,\"item_id\":\"item_0\",\"part\":{\"type\":\"output_text\",\"text\":\"\"},\"sequence_number\":3}\n\n",
       "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"output_index\":0,\"content_index\":0,\"item_id\":\"item_0\",\"delta\":\"partial\",\"sequence_number\":4}\n\n",
       "event: response.output_text.done\ndata: {\"type\":\"response.output_text.done\",\"output_index\":0,\"content_index\":0,\"item_id\":\"item_0\",\"text\":\"partial\",\"logprobs\":[],\"sequence_number\":5}\n\n",
       "event: response.content_part.done\ndata: {\"type\":\"response.content_part.done\",\"output_index\":0,\"content_index\":0,\"item_id\":\"item_0\",\"part\":{\"type\":\"output_text\",\"text\":\"partial\"},\"sequence_number\":6}\n\n",
       "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"id\":\"item_0\",\"type\":\"message\",\"status\":\"completed\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"partial\"}]},\"sequence_number\":7}\n\n",
-      "event: response.failed\ndata: {\"type\":\"response.failed\",\"response\":{\"id\":\"interaction_83986497-888\",\"object\":\"response\",\"status\":\"failed\",\"model\":\"glm-5-3\",\"output\":[],\"error\":{\"message\":\"devin upstream error (permission_denied): Model under high demand\",\"code\":\"429\",\"type\":\"server_error\"}},\"sequence_number\":8}\n\n"
+      "event: response.failed\ndata: {\"type\":\"response.failed\",\"response\":{\"id\":\"interaction_a540eda2-852\",\"object\":\"response\",\"status\":\"failed\",\"model\":\"glm-5-3\",\"output\":[],\"error\":{\"message\":\"devin upstream error (permission_denied): Model under high demand\",\"code\":\"429\",\"type\":\"server_error\"}},\"sequence_number\":8}\n\n"
     ],
     "stream_err": "devin upstream error (permission_denied): Model under high demand"
+  },
+  "extra": {
+    "usage": [
+      {
+        "cached_tokens": 0,
+        "failed": true,
+        "input_tokens": 0,
+        "model": "glm-5-3",
+        "output_tokens": 0,
+        "reasoning_effort": "",
+        "reasoning_tokens": 0,
+        "response_model": "",
+        "total_tokens": 0
+      }
+    ]
   },
   "name": "responses-stream-trailer-after-content",
   "request": {
@@ -53,11 +68,11 @@
   "upstream": [
     {
       "body": "",
-      "body_b64": "AAAABG0KsAYKBmNoaXNlbBIKMzAwMC4xMC4yMRobZGV2aW4tc2Vzc2lvbi10b2tlbiRmaXh0dXJlIgJlbioFbGludXg6CjMwMDAuMTAuMjFiBmNoaXNlbPoB3AVkMzU3MTg4YTU3NGM3MmVjMjZhYWU3ODVhZjJhZDhhMjMzZWQzYjAzYjEyNDI1MTljOWFhMTZkOTg2ZjA3NWY3ZjdkMTA4NTk3MmM4MGMzOTVhMWUwYWFjYmYyYjM3Y2ZkMDkzYTQ1M2M0YWU4ZDczYTM5NDUxZjNhMzliZjk0NmM1YTJmMDI4NTBhYmUwOGE1NTYwNWEwY2Q3MzJhYWZjNTg0ZmYzOTA3NjkyM2MxYzQ4ZjIyMzZmMTRlMzg0Yzk0YmUyZjA0NDc5NGEyYzc5MGQ5ZTA4ZTY3NmU0NTExYzdlMzJjMWMzODI3ZjNiNDI2MmY5YTJhNzliZGU5Y2UyMmEwMjBjOWY3MTgxM2Q2OGQ1YTA1MjZjMTdiZDEyZWRmYTY4Y2FiNzA4NjYyMjI1YTVhMTEzZTMyNTVkYzdjYmNkNDJkOGE3Njg0NjM4ZTRkM2ZhNTBhMGVjNTJiNGQ2NTE5N2U3YzdmYzdjNjE4OWVkY2YzNWRkOWI0ZDQzODYyOWVkODYzZGM4NDllNDAyNjExMGEwZGY2MTI1ZDU0MmM0ODMxNDRiZTgzN2VjZjgyMDE2ZjFhYTc1ZTM5YmFlNWRjMGMwMWUyMjJkMGUwNjU1NTdmMWVlZTc3ZWEwMmU1NDBiZjM0ZmYyOWMxNWQ1MjkzYzA0ZmVmNTJhOGVjZjI5N2RjMDNkNGVmOGM5YWRlYmJhMTIxZWM4Nzg1MGU2MzA4OWE4ZGI0NjczNzNjMjNhZmZiMWM0MzU5MGZjNTVlMzFlNDA2Y2M4ZmE2ZDgyZjM5ZGIxZDE0NzU4ZDU2OWYyNjM4YTQ0MTE5YTNhZGZlYTU0YmRkOWE2MDljMTc4OWQwOTNjODU3MDc3ZTQwYzkyZmNlYTFlNGIwYzhhYzRiNjk1MmYxODUzNTY0ZjM5ODc4YzdmYmU2YWExMmM4OTllNTYxMzRhYTBlMTgzYmY2NTgwZGI5OTQ5NGUSC0JlIGNvbmNpc2UuGlMKJDk5YmE2ODE3LTUwYzUtNGMxYi05OGM3LTFhNTliZjk4MjJmNhABGilIaSByZXNwb25zZXMtc3RyZWFtLXRyYWlsZXItYWZ0ZXItY29udGVudDgFQhwIARDQDxiQAykAAAAAAADwPzgoQQAAAGBmZu4/UlEKC2dldF93ZWF0aGVyEgdMb29rIHVwGjl7InR5cGUiOiJvYmplY3QiLCJwcm9wZXJ0aWVzIjp7ImNpdHkiOnsidHlwZSI6InN0cmluZyJ9fX16KgokMWJhOWYwNDEtYzRjMy01OGUyLTlkMGUtNThiZGVlMDBhZGI2GAQgDoIBJDFiYTlmMDQxLWM0YzMtNThlMi05ZDBlLTU4YmRlZTAwYWRiNqABAaoBDGdsbS01LTMtaGlnaA==",
+      "body_b64": "AAAABG0KsAYKBmNoaXNlbBIKMzAwMC4xMC4yMRobZGV2aW4tc2Vzc2lvbi10b2tlbiRmaXh0dXJlIgJlbioFbGludXg6CjMwMDAuMTAuMjFiBmNoaXNlbPoB3AVkMzU3MTg4YTU3NGM3MmVjMjZhYWU3ODVhZjJhZDhhMjMzZWQzYjAzYjEyNDI1MTljOWFhMTZkOTg2ZjA3NWY3ZjdkMTA4NTk3MmM4MGMzOTVhMWUwYWFjYmYyYjM3Y2ZkMDkzYTQ1M2M0YWU4ZDczYTM5NDUxZjNhMzliZjk0NmM1YTJmMDI4NTBhYmUwOGE1NTYwNWEwY2Q3MzJhYWZjNTg0ZmYzOTA3NjkyM2MxYzQ4ZjIyMzZmMTRlMzg0Yzk0YmUyZjA0NDc5NGEyYzc5MGQ5ZTA4ZTY3NmU0NTExYzdlMzJjMWMzODI3ZjNiNDI2MmY5YTJhNzliZGU5Y2UyMmEwMjBjOWY3MTgxM2Q2OGQ1YTA1MjZjMTdiZDEyZWRmYTY4Y2FiNzA4NjYyMjI1YTVhMTEzZTMyNTVkYzdjYmNkNDJkOGE3Njg0NjM4ZTRkM2ZhNTBhMGVjNTJiNGQ2NTE5N2U3YzdmYzdjNjE4OWVkY2YzNWRkOWI0ZDQzODYyOWVkODYzZGM4NDllNDAyNjExMGEwZGY2MTI1ZDU0MmM0ODMxNDRiZTgzN2VjZjgyMDE2ZjFhYTc1ZTM5YmFlNWRjMGMwMWUyMjJkMGUwNjU1NTdmMWVlZTc3ZWEwMmU1NDBiZjM0ZmYyOWMxNWQ1MjkzYzA0ZmVmNTJhOGVjZjI5N2RjMDNkNGVmOGM5YWRlYmJhMTIxZWM4Nzg1MGU2MzA4OWE4ZGI0NjczNzNjMjNhZmZiMWM0MzU5MGZjNTVlMzFlNDA2Y2M4ZmE2ZDgyZjM5ZGIxZDE0NzU4ZDU2OWYyNjM4YTQ0MTE5YTNhZGZlYTU0YmRkOWE2MDljMTc4OWQwOTNjODU3MDc3ZTQwYzkyZmNlYTFlNGIwYzhhYzRiNjk1MmYxODUzNTY0ZjM5ODc4YzdmYmU2YWExMmM4OTllNTYxMzRhYTBlMTgzYmY2NTgwZGI5OTQ5NGUSC0JlIGNvbmNpc2UuGlMKJDZmNGJlYzNmLTNkNjctNDkxMS1hNjNmLTg1MDBkNTc1OTIzNBABGilIaSByZXNwb25zZXMtc3RyZWFtLXRyYWlsZXItYWZ0ZXItY29udGVudDgFQhwIARDQDxiQAykAAAAAAADwPzgoQQAAAGBmZu4/UlEKC2dldF93ZWF0aGVyEgdMb29rIHVwGjl7InR5cGUiOiJvYmplY3QiLCJwcm9wZXJ0aWVzIjp7ImNpdHkiOnsidHlwZSI6InN0cmluZyJ9fX16KgokMWJhOWYwNDEtYzRjMy01OGUyLTlkMGUtNThiZGVlMDBhZGI2GAQgDoIBJDFiYTlmMDQxLWM0YzMtNThlMi05ZDBlLTU4YmRlZTAwYWRiNqABAaoBDGdsbS01LTMtaGlnaA==",
       "headers": [
         [
           "Host",
-          "127.0.0.1:45825"
+          "127.0.0.1:37277"
         ],
         [
           "Content-Length",
@@ -81,7 +96,7 @@
         ],
         [
           "Sentry-Trace",
-          "7f3c6e6a1add00c3ac6e44b2abc0d45d-e944087949a086f5-1"
+          "35dbbc17ad94a3bf9b9fc73dc5c6e178-470a85cbc3afda0f-1"
         ]
       ],
       "method": "POST",

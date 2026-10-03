@@ -2,7 +2,7 @@
   "name": "interactions-stream-ordering",
   "credential": {
     "api_key": "devin-session-token$fixture",
-    "base_url": "http://127.0.0.1:45703",
+    "base_url": "http://127.0.0.1:32901",
     "device_seed": "seed-1",
     "session_token": "devin-session-token$fixture",
     "type": "devin"
@@ -33,7 +33,7 @@
       "headers": [
         [
           "Host",
-          "127.0.0.1:45703"
+          "127.0.0.1:32901"
         ],
         [
           "Content-Length",
@@ -57,16 +57,16 @@
         ],
         [
           "Sentry-Trace",
-          "35bbcc5e4ff5bd121b6944a4f516deb1-dd1b7f6eb4192b94-1"
+          "9cce56c8d836efb1e5f61f918bc90577-0d899764df193164-1"
         ]
       ],
       "body": "",
-      "body_b64": "AAAABbQKsAYKBmNoaXNlbBIKMzAwMC4xMC4yMRobZGV2aW4tc2Vzc2lvbi10b2tlbiRmaXh0dXJlIgJlbioFbGludXg6CjMwMDAuMTAuMjFiBmNoaXNlbPoB3AVkMzU3MTg4YTU3NGM3MmVjMjZhYWU3ODVhZjJhZDhhMjMzZWQzYjAzYjEyNDI1MTljOWFhMTZkOTg2ZjA3NWY3ZjdkMTA4NTk3MmM4MGMzOTVhMWUwYWFjYmYyYjM3Y2ZkMDkzYTQ1M2M0YWU4ZDczYTM5NDUxZjNhMzliZjk0NmM1YTJmMDI4NTBhYmUwOGE1NTYwNWEwY2Q3MzJhYWZjNTg0ZmYzOTA3NjkyM2MxYzQ4ZjIyMzZmMTRlMzg0Yzk0YmUyZjA0NDc5NGEyYzc5MGQ5ZTA4ZTY3NmU0NTExYzdlMzJjMWMzODI3ZjNiNDI2MmY5YTJhNzliZGU5Y2UyMmEwMjBjOWY3MTgxM2Q2OGQ1YTA1MjZjMTdiZDEyZWRmYTY4Y2FiNzA4NjYyMjI1YTVhMTEzZTMyNTVkYzdjYmNkNDJkOGE3Njg0NjM4ZTRkM2ZhNTBhMGVjNTJiNGQ2NTE5N2U3YzdmYzdjNjE4OWVkY2YzNWRkOWI0ZDQzODYyOWVkODYzZGM4NDllNDAyNjExMGEwZGY2MTI1ZDU0MmM0ODMxNDRiZTgzN2VjZjgyMDE2ZjFhYTc1ZTM5YmFlNWRjMGMwMWUyMjJkMGUwNjU1NTdmMWVlZTc3ZWEwMmU1NDBiZjM0ZmYyOWMxNWQ1MjkzYzA0ZmVmNTJhOGVjZjI5N2RjMDNkNGVmOGM5YWRlYmJhMTIxZWM4Nzg1MGU2MzA4OWE4ZGI0NjczNzNjMjNhZmZiMWM0MzU5MGZjNTVlMzFlNDA2Y2M4ZmE2ZDgyZjM5ZGIxZDE0NzU4ZDU2OWYyNjM4YTQ0MTE5YTNhZGZlYTU0YmRkOWE2MDljMTc4OWQwOTNjODU3MDc3ZTQwYzkyZmNlYTFlNGIwYzhhYzRiNjk1MmYxODUzNTY0ZjM5ODc4YzdmYmU2YWExMmM4OTllNTYxMzRhYTBlMTgzYmY2NTgwZGI5OTQ5NGUSJ0JlIGhlbHBmdWwgaW50ZXJhY3Rpb25zLXN0cmVhbS1vcmRlcmluZxovCiQ5ODJjY2U3MS1iYjk4LTRiMzgtOGNkZC1lNTczMTY1N2VmZGYQARoFaGVsbG8aYwokZGFkNzViMDgtN2M2YS00YzVhLTliZmUtNGU4MTk5Yzc4NjQxEAIaAmhpMhkKBGZjXzESA3J1bhoMeyJjbWQiOiJscyJ9Wglwb25kZXJpbmdiBmdBQUFBQpIBBm9wZW5haRo1CiQxZTQzNTM3My0yOTM1LTRjY2UtODY2NC1kNzllOGMzNDY4MDkQBBoFYS50eHQ6BGZjXzEaLgokNGM4YzIwNTctOTBjNy00Y2MyLWFkODctZTczMGYzY2IyZGUxEAEaBGxvc3QaLAokYmExY2MyODMtOTczZC00YzAzLTk3ODQtMTVhMDUzNTUxNzE3EAEaAnt9Gi4KJGVhOGQ1YzE4LWNhMjgtNDI5ZS1iYWY2LTM2YmVjOTJkZDBhNRABGgRuZXh0OAVCHQgBEIDoBxiQAylmZmZmZmbmPzgoQQAAAGBmZu4/Uh0KA3J1bhIDUnVuGhF7InR5cGUiOiJvYmplY3QifVJKCgZkZWNsX2ESLVRha2VzIGEgdGFza0lkIHBhcmFtZXRlciBpZGVudGlmeWluZyB0aGUgdGFzaxoReyJ0eXBlIjoib2JqZWN0In1SDAoEb3BlbhIET3BlbnoqCiQwZjhmYWQ1Yi1kOWNiLTQ2OWYtYTE2NS03MDg2NzcyODk1MGMYBCAOggEkMGY4ZmFkNWItZDljYi00NjlmLWExNjUtNzA4Njc3Mjg5NTBjoAEBqgEKc3dlLTItaGlnaA=="
+      "body_b64": "AAAABbQKsAYKBmNoaXNlbBIKMzAwMC4xMC4yMRobZGV2aW4tc2Vzc2lvbi10b2tlbiRmaXh0dXJlIgJlbioFbGludXg6CjMwMDAuMTAuMjFiBmNoaXNlbPoB3AVkMzU3MTg4YTU3NGM3MmVjMjZhYWU3ODVhZjJhZDhhMjMzZWQzYjAzYjEyNDI1MTljOWFhMTZkOTg2ZjA3NWY3ZjdkMTA4NTk3MmM4MGMzOTVhMWUwYWFjYmYyYjM3Y2ZkMDkzYTQ1M2M0YWU4ZDczYTM5NDUxZjNhMzliZjk0NmM1YTJmMDI4NTBhYmUwOGE1NTYwNWEwY2Q3MzJhYWZjNTg0ZmYzOTA3NjkyM2MxYzQ4ZjIyMzZmMTRlMzg0Yzk0YmUyZjA0NDc5NGEyYzc5MGQ5ZTA4ZTY3NmU0NTExYzdlMzJjMWMzODI3ZjNiNDI2MmY5YTJhNzliZGU5Y2UyMmEwMjBjOWY3MTgxM2Q2OGQ1YTA1MjZjMTdiZDEyZWRmYTY4Y2FiNzA4NjYyMjI1YTVhMTEzZTMyNTVkYzdjYmNkNDJkOGE3Njg0NjM4ZTRkM2ZhNTBhMGVjNTJiNGQ2NTE5N2U3YzdmYzdjNjE4OWVkY2YzNWRkOWI0ZDQzODYyOWVkODYzZGM4NDllNDAyNjExMGEwZGY2MTI1ZDU0MmM0ODMxNDRiZTgzN2VjZjgyMDE2ZjFhYTc1ZTM5YmFlNWRjMGMwMWUyMjJkMGUwNjU1NTdmMWVlZTc3ZWEwMmU1NDBiZjM0ZmYyOWMxNWQ1MjkzYzA0ZmVmNTJhOGVjZjI5N2RjMDNkNGVmOGM5YWRlYmJhMTIxZWM4Nzg1MGU2MzA4OWE4ZGI0NjczNzNjMjNhZmZiMWM0MzU5MGZjNTVlMzFlNDA2Y2M4ZmE2ZDgyZjM5ZGIxZDE0NzU4ZDU2OWYyNjM4YTQ0MTE5YTNhZGZlYTU0YmRkOWE2MDljMTc4OWQwOTNjODU3MDc3ZTQwYzkyZmNlYTFlNGIwYzhhYzRiNjk1MmYxODUzNTY0ZjM5ODc4YzdmYmU2YWExMmM4OTllNTYxMzRhYTBlMTgzYmY2NTgwZGI5OTQ5NGUSJ0JlIGhlbHBmdWwgaW50ZXJhY3Rpb25zLXN0cmVhbS1vcmRlcmluZxovCiQzNWRjM2YxYS1jZmYwLTRlZjQtOGMwYi01MzQ1ZTA2MzYzMjcQARoFaGVsbG8aYwokYjA4ZTRiNTEtMzJiNy00OTI2LWJiOTMtZTc0MGRjMmUzNmY1EAIaAmhpMhkKBGZjXzESA3J1bhoMeyJjbWQiOiJscyJ9Wglwb25kZXJpbmdiBmdBQUFBQpIBBm9wZW5haRo1CiQ0MGEwMWNhYy03ODViLTQzMDMtYThjMC04YWVlNzZkY2ExZDQQBBoFYS50eHQ6BGZjXzEaLgokNmVhYzU4YTgtNWQ4Mi00YTQ4LWIxNjAtMjQwZGJhY2U0NzFjEAEaBGxvc3QaLAokOTUzOWY5ZjEtYzM1MS00ZDBlLWFlNjAtNjQ5ZjU3NGZjZGIzEAEaAnt9Gi4KJGJmYmQ0OWMxLTc0NjEtNDRhMC1hODUzLTk3MzVjYmUyM2M1MRABGgRuZXh0OAVCHQgBEIDoBxiQAylmZmZmZmbmPzgoQQAAAGBmZu4/Uh0KA3J1bhIDUnVuGhF7InR5cGUiOiJvYmplY3QifVJKCgZkZWNsX2ESLVRha2VzIGEgdGFza0lkIHBhcmFtZXRlciBpZGVudGlmeWluZyB0aGUgdGFzaxoReyJ0eXBlIjoib2JqZWN0In1SDAoEb3BlbhIET3BlbnoqCiQwZjhmYWQ1Yi1kOWNiLTQ2OWYtYTE2NS03MDg2NzcyODk1MGMYBCAOggEkMGY4ZmFkNWItZDljYi00NjlmLWExNjUtNzA4Njc3Mjg5NTBjoAEBqgEKc3dlLTItaGlnaA=="
     }
   ],
   "downstream": {
     "chunks": [
-      "data: {\"event_type\":\"interaction.created\",\"interaction\":{\"id\":\"interaction_76a0e674-c43\",\"model\":\"devin/swe-2\"}}\n\n",
+      "data: {\"event_type\":\"interaction.created\",\"interaction\":{\"id\":\"interaction_c7abc0ff-3c2\",\"model\":\"devin/swe-2\"}}\n\n",
       "data: {\"event_type\":\"step.start\",\"index\":0,\"step\":{\"type\":\"thought\"}}\n\n",
       "data: {\"event_type\":\"step.delta\",\"index\":0,\"delta\":{\"type\":\"thought_summary\",\"text\":\"plan\",\"content\":{\"type\":\"text\",\"text\":\"plan\"}}}\n\n",
       "data: {\"event_type\":\"step.delta\",\"index\":0,\"delta\":{\"type\":\"thought_signature\",\"signature\":\"sig-late\",\"signature_type\":\"openai\"}}\n\n",
@@ -88,8 +88,23 @@
       "data: {\"event_type\":\"step.start\",\"index\":5,\"step\":{\"type\":\"model_output\"}}\n\n",
       "data: {\"event_type\":\"step.delta\",\"index\":5,\"delta\":{\"type\":\"text\",\"text\":\"end\"}}\n\n",
       "data: {\"event_type\":\"step.stop\",\"index\":5}\n\n",
-      "data: {\"event_type\":\"interaction.completed\",\"interaction\":{\"id\":\"interaction_76a0e674-c43\",\"model\":\"devin/swe-2\",\"status\":\"completed\",\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":4,\"total_cached_tokens\":0,\"total_tokens\":7}}}\n\n",
+      "data: {\"event_type\":\"interaction.completed\",\"interaction\":{\"id\":\"interaction_c7abc0ff-3c2\",\"model\":\"devin/swe-2\",\"status\":\"completed\",\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":4,\"total_cached_tokens\":0,\"total_tokens\":7}}}\n\n",
       "data: [DONE]\n\n"
+    ]
+  },
+  "extra": {
+    "usage": [
+      {
+        "cached_tokens": 0,
+        "failed": false,
+        "input_tokens": 3,
+        "model": "devin/swe-2",
+        "output_tokens": 4,
+        "reasoning_effort": "",
+        "reasoning_tokens": 0,
+        "response_model": "m",
+        "total_tokens": 7
+      }
     ]
   }
 }

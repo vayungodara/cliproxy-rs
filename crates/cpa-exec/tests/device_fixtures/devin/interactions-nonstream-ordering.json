@@ -2,7 +2,7 @@
   "name": "interactions-nonstream-ordering",
   "credential": {
     "api_key": "devin-session-token$fixture",
-    "base_url": "http://127.0.0.1:37933",
+    "base_url": "http://127.0.0.1:41365",
     "device_seed": "seed-1",
     "session_token": "devin-session-token$fixture",
     "type": "devin"
@@ -33,7 +33,7 @@
       "headers": [
         [
           "Host",
-          "127.0.0.1:37933"
+          "127.0.0.1:41365"
         ],
         [
           "Content-Length",
@@ -57,14 +57,29 @@
         ],
         [
           "Sentry-Trace",
-          "90085f79f4db5333006d8abe5b6a3431-b7a3bd2233a821ce-1"
+          "8c06d769a002eb07f9dd60747d7a54bb-cf7385193376bd76-1"
         ]
       ],
       "body": "",
-      "body_b64": "AAAABbcKsAYKBmNoaXNlbBIKMzAwMC4xMC4yMRobZGV2aW4tc2Vzc2lvbi10b2tlbiRmaXh0dXJlIgJlbioFbGludXg6CjMwMDAuMTAuMjFiBmNoaXNlbPoB3AVkMzU3MTg4YTU3NGM3MmVjMjZhYWU3ODVhZjJhZDhhMjMzZWQzYjAzYjEyNDI1MTljOWFhMTZkOTg2ZjA3NWY3ZjdkMTA4NTk3MmM4MGMzOTVhMWUwYWFjYmYyYjM3Y2ZkMDkzYTQ1M2M0YWU4ZDczYTM5NDUxZjNhMzliZjk0NmM1YTJmMDI4NTBhYmUwOGE1NTYwNWEwY2Q3MzJhYWZjNTg0ZmYzOTA3NjkyM2MxYzQ4ZjIyMzZmMTRlMzg0Yzk0YmUyZjA0NDc5NGEyYzc5MGQ5ZTA4ZTY3NmU0NTExYzdlMzJjMWMzODI3ZjNiNDI2MmY5YTJhNzliZGU5Y2UyMmEwMjBjOWY3MTgxM2Q2OGQ1YTA1MjZjMTdiZDEyZWRmYTY4Y2FiNzA4NjYyMjI1YTVhMTEzZTMyNTVkYzdjYmNkNDJkOGE3Njg0NjM4ZTRkM2ZhNTBhMGVjNTJiNGQ2NTE5N2U3YzdmYzdjNjE4OWVkY2YzNWRkOWI0ZDQzODYyOWVkODYzZGM4NDllNDAyNjExMGEwZGY2MTI1ZDU0MmM0ODMxNDRiZTgzN2VjZjgyMDE2ZjFhYTc1ZTM5YmFlNWRjMGMwMWUyMjJkMGUwNjU1NTdmMWVlZTc3ZWEwMmU1NDBiZjM0ZmYyOWMxNWQ1MjkzYzA0ZmVmNTJhOGVjZjI5N2RjMDNkNGVmOGM5YWRlYmJhMTIxZWM4Nzg1MGU2MzA4OWE4ZGI0NjczNzNjMjNhZmZiMWM0MzU5MGZjNTVlMzFlNDA2Y2M4ZmE2ZDgyZjM5ZGIxZDE0NzU4ZDU2OWYyNjM4YTQ0MTE5YTNhZGZlYTU0YmRkOWE2MDljMTc4OWQwOTNjODU3MDc3ZTQwYzkyZmNlYTFlNGIwYzhhYzRiNjk1MmYxODUzNTY0ZjM5ODc4YzdmYmU2YWExMmM4OTllNTYxMzRhYTBlMTgzYmY2NTgwZGI5OTQ5NGUSKkJlIGhlbHBmdWwgaW50ZXJhY3Rpb25zLW5vbnN0cmVhbS1vcmRlcmluZxovCiQ2NWY4YzMyOS05MTQ3LTRhODItOWZkOS1lOWM4NzAyYzkxNTgQARoFaGVsbG8aYwokY2U2YTFmOGMtMjE4MC00MTE0LWE2YWYtOGM1NTkwNzQ0ZDJiEAIaAmhpMhkKBGZjXzESA3J1bhoMeyJjbWQiOiJscyJ9Wglwb25kZXJpbmdiBmdBQUFBQpIBBm9wZW5haRo1CiRjY2U2NzY3OS0xMWUwLTRhYTAtYWFjYy02NmRhMGQ2MzRmOWYQBBoFYS50eHQ6BGZjXzEaLgokMWE5ODA4ZjUtNWJiNC00M2FjLTljZTQtMmJlYTU2YmYwNTY3EAEaBGxvc3QaLAokNzhjNDllZjMtNzJhYi00ZmY1LWI5NDEtNjJhMjkzNTBkNzlhEAEaAnt9Gi4KJGIxYWJlMWJkLTI2YTAtNDYwMy1hODdhLTk2ZTAwYWM2MjE1NxABGgRuZXh0OAVCHQgBEIDoBxiQAylmZmZmZmbmPzgoQQAAAGBmZu4/Uh0KA3J1bhIDUnVuGhF7InR5cGUiOiJvYmplY3QifVJKCgZkZWNsX2ESLVRha2VzIGEgdGFza0lkIHBhcmFtZXRlciBpZGVudGlmeWluZyB0aGUgdGFzaxoReyJ0eXBlIjoib2JqZWN0In1SDAoEb3BlbhIET3BlbnoqCiQwZjhmYWQ1Yi1kOWNiLTQ2OWYtYTE2NS03MDg2NzcyODk1MGUYBCAOggEkMGY4ZmFkNWItZDljYi00NjlmLWExNjUtNzA4Njc3Mjg5NTBloAEBqgEKc3dlLTItaGlnaA=="
+      "body_b64": "AAAABbcKsAYKBmNoaXNlbBIKMzAwMC4xMC4yMRobZGV2aW4tc2Vzc2lvbi10b2tlbiRmaXh0dXJlIgJlbioFbGludXg6CjMwMDAuMTAuMjFiBmNoaXNlbPoB3AVkMzU3MTg4YTU3NGM3MmVjMjZhYWU3ODVhZjJhZDhhMjMzZWQzYjAzYjEyNDI1MTljOWFhMTZkOTg2ZjA3NWY3ZjdkMTA4NTk3MmM4MGMzOTVhMWUwYWFjYmYyYjM3Y2ZkMDkzYTQ1M2M0YWU4ZDczYTM5NDUxZjNhMzliZjk0NmM1YTJmMDI4NTBhYmUwOGE1NTYwNWEwY2Q3MzJhYWZjNTg0ZmYzOTA3NjkyM2MxYzQ4ZjIyMzZmMTRlMzg0Yzk0YmUyZjA0NDc5NGEyYzc5MGQ5ZTA4ZTY3NmU0NTExYzdlMzJjMWMzODI3ZjNiNDI2MmY5YTJhNzliZGU5Y2UyMmEwMjBjOWY3MTgxM2Q2OGQ1YTA1MjZjMTdiZDEyZWRmYTY4Y2FiNzA4NjYyMjI1YTVhMTEzZTMyNTVkYzdjYmNkNDJkOGE3Njg0NjM4ZTRkM2ZhNTBhMGVjNTJiNGQ2NTE5N2U3YzdmYzdjNjE4OWVkY2YzNWRkOWI0ZDQzODYyOWVkODYzZGM4NDllNDAyNjExMGEwZGY2MTI1ZDU0MmM0ODMxNDRiZTgzN2VjZjgyMDE2ZjFhYTc1ZTM5YmFlNWRjMGMwMWUyMjJkMGUwNjU1NTdmMWVlZTc3ZWEwMmU1NDBiZjM0ZmYyOWMxNWQ1MjkzYzA0ZmVmNTJhOGVjZjI5N2RjMDNkNGVmOGM5YWRlYmJhMTIxZWM4Nzg1MGU2MzA4OWE4ZGI0NjczNzNjMjNhZmZiMWM0MzU5MGZjNTVlMzFlNDA2Y2M4ZmE2ZDgyZjM5ZGIxZDE0NzU4ZDU2OWYyNjM4YTQ0MTE5YTNhZGZlYTU0YmRkOWE2MDljMTc4OWQwOTNjODU3MDc3ZTQwYzkyZmNlYTFlNGIwYzhhYzRiNjk1MmYxODUzNTY0ZjM5ODc4YzdmYmU2YWExMmM4OTllNTYxMzRhYTBlMTgzYmY2NTgwZGI5OTQ5NGUSKkJlIGhlbHBmdWwgaW50ZXJhY3Rpb25zLW5vbnN0cmVhbS1vcmRlcmluZxovCiQyMDY4Nzk4Mi04MDM5LTRjYjctYTQ3MC04NTFjMDU1NTU2ZDcQARoFaGVsbG8aYwokNjcxMGUxOWUtYjdkNy00MDFiLTkwYTYtNjNhZDdiYTRjNGI1EAIaAmhpMhkKBGZjXzESA3J1bhoMeyJjbWQiOiJscyJ9Wglwb25kZXJpbmdiBmdBQUFBQpIBBm9wZW5haRo1CiQwMTA3NmEzNy00ZmNhLTQ1OTktODM4MS1hNWI4NzdjOWIwMWYQBBoFYS50eHQ6BGZjXzEaLgokYTMwOTk3ZDctZTM5Ni00OGRhLTlhYWUtM2QwOTFkZTFmMmE1EAEaBGxvc3QaLAokMDgzZWU3YzgtZjg3NS00Y2NjLWIwY2MtMmU2M2RkOGNkNDk4EAEaAnt9Gi4KJDdmNjM1ZGE2LTg2YjYtNDEzNi1iZGM3LTUwMzdkMzUxZWQ2YxABGgRuZXh0OAVCHQgBEIDoBxiQAylmZmZmZmbmPzgoQQAAAGBmZu4/Uh0KA3J1bhIDUnVuGhF7InR5cGUiOiJvYmplY3QifVJKCgZkZWNsX2ESLVRha2VzIGEgdGFza0lkIHBhcmFtZXRlciBpZGVudGlmeWluZyB0aGUgdGFzaxoReyJ0eXBlIjoib2JqZWN0In1SDAoEb3BlbhIET3BlbnoqCiQwZjhmYWQ1Yi1kOWNiLTQ2OWYtYTE2NS03MDg2NzcyODk1MGUYBCAOggEkMGY4ZmFkNWItZDljYi00NjlmLWExNjUtNzA4Njc3Mjg5NTBloAEBqgEKc3dlLTItaGlnaA=="
     }
   ],
   "downstream": {
-    "body": "{\"id\":\"interaction_8bed6897-de9\",\"model\":\"devin/swe-2\",\"status\":\"completed\",\"steps\":[{\"type\":\"thought\",\"content\":[{\"type\":\"text\",\"text\":\"planmore\"}],\"signature\":\"sig-late\",\"thought_signature\":\"sig-late\"},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"Hi\"}]},{\"type\":\"function_call\",\"name\":\"fn\",\"id\":\"c1\",\"call_id\":\"c1\",\"arguments\":{\"a\":1}},{\"type\":\"function_call\",\"name\":\"g\",\"id\":\"c2\",\"call_id\":\"c2\",\"arguments\":\"bad{\"},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"end\"}]}],\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":4,\"total_cached_tokens\":0,\"total_tokens\":7}}"
+    "body": "{\"id\":\"interaction_9c8c81ad-173\",\"model\":\"devin/swe-2\",\"status\":\"completed\",\"steps\":[{\"type\":\"thought\",\"content\":[{\"type\":\"text\",\"text\":\"planmore\"}],\"signature\":\"sig-late\",\"thought_signature\":\"sig-late\"},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"Hi\"}]},{\"type\":\"function_call\",\"name\":\"fn\",\"id\":\"c1\",\"call_id\":\"c1\",\"arguments\":{\"a\":1}},{\"type\":\"function_call\",\"name\":\"g\",\"id\":\"c2\",\"call_id\":\"c2\",\"arguments\":\"bad{\"},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"end\"}]}],\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":4,\"total_cached_tokens\":0,\"total_tokens\":7}}"
+  },
+  "extra": {
+    "usage": [
+      {
+        "cached_tokens": 0,
+        "failed": false,
+        "input_tokens": 3,
+        "model": "devin/swe-2",
+        "output_tokens": 4,
+        "reasoning_effort": "",
+        "reasoning_tokens": 0,
+        "response_model": "m",
+        "total_tokens": 7
+      }
+    ]
   }
 }

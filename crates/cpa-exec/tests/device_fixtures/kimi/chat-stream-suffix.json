@@ -2,7 +2,7 @@
   "name": "chat-stream-suffix",
   "credential": {
     "access_token": "kimi-access-fixture",
-    "base_url": "http://127.0.0.1:45805/coding",
+    "base_url": "http://127.0.0.1:40765/coding",
     "device_id": "dev-fixture-1",
     "refresh_token": "kimi-refresh-fixture",
     "type": "kimi"
@@ -32,7 +32,7 @@
       "headers": [
         [
           "Host",
-          "127.0.0.1:45805"
+          "127.0.0.1:40765"
         ],
         [
           "User-Agent",
@@ -90,6 +90,21 @@
       "",
       "{\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"kimi-for-coding\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"lo\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":2,\"total_tokens\":5}}",
       ""
+    ]
+  },
+  "extra": {
+    "usage": [
+      {
+        "cached_tokens": 0,
+        "failed": false,
+        "input_tokens": 3,
+        "model": "kimi-k2.8",
+        "output_tokens": 2,
+        "reasoning_effort": "max",
+        "reasoning_tokens": 0,
+        "response_model": "kimi-for-coding",
+        "total_tokens": 5
+      }
     ]
   }
 }

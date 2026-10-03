@@ -2,7 +2,7 @@
   "name": "count-tokens",
   "credential": {
     "api_key": "devin-session-token$fixture",
-    "base_url": "http://127.0.0.1:43545",
+    "base_url": "http://127.0.0.1:36079",
     "device_seed": "seed-1",
     "session_token": "devin-session-token$fixture",
     "type": "devin"
@@ -18,5 +18,8 @@
   "upstream": null,
   "downstream": {
     "body": "{\"total_tokens\":239,\"input_tokens\":239}"
+  },
+  "extra": {
+    "usage": null
   }
 }

@@ -264,6 +264,7 @@ func TestRSFixDevin(t *testing.T) {
 			}
 			exec := NewDevinExecutor(cfg)
 			ctx := context.Background()
+			rsfixResetUsage()
 			var down rsfixDownstream
 			var execErr error
 			runs := tc.repeat
@@ -301,7 +302,7 @@ func TestRSFixDevin(t *testing.T) {
 					down.Body = string(resp.Payload)
 				}
 			}
-			extra := map[string]any{}
+			extra := map[string]any{"usage": rsfixTakeUsage()}
 			if execErr != nil {
 				type retryAfter interface{ RetryAfter() *time.Duration }
 				var ra retryAfter

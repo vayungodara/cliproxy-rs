@@ -2,7 +2,7 @@
   "name": "chat-stream-premature-eof",
   "credential": {
     "api_key": "devin-session-token$fixture",
-    "base_url": "http://127.0.0.1:34703",
+    "base_url": "http://127.0.0.1:41633",
     "device_seed": "seed-1",
     "session_token": "devin-session-token$fixture",
     "type": "devin"
@@ -33,7 +33,7 @@
       "headers": [
         [
           "Host",
-          "127.0.0.1:34703"
+          "127.0.0.1:41633"
         ],
         [
           "Content-Length",
@@ -57,20 +57,35 @@
         ],
         [
           "Sentry-Trace",
-          "64604cb2a995438a6a83e7d3a266e2c6-402f7fa8a93db4ba-1"
+          "a4f3f1b3f76d2e14763d5350039391e4-64429cc4e761524f-1"
         ]
       ],
       "body": "",
-      "body_b64": "AAAABgkKsAYKBmNoaXNlbBIKMzAwMC4xMC4yMRobZGV2aW4tc2Vzc2lvbi10b2tlbiRmaXh0dXJlIgJlbioFbGludXg6CjMwMDAuMTAuMjFiBmNoaXNlbPoB3AVkMzU3MTg4YTU3NGM3MmVjMjZhYWU3ODVhZjJhZDhhMjMzZWQzYjAzYjEyNDI1MTljOWFhMTZkOTg2ZjA3NWY3ZjdkMTA4NTk3MmM4MGMzOTVhMWUwYWFjYmYyYjM3Y2ZkMDkzYTQ1M2M0YWU4ZDczYTM5NDUxZjNhMzliZjk0NmM1YTJmMDI4NTBhYmUwOGE1NTYwNWEwY2Q3MzJhYWZjNTg0ZmYzOTA3NjkyM2MxYzQ4ZjIyMzZmMTRlMzg0Yzk0YmUyZjA0NDc5NGEyYzc5MGQ5ZTA4ZTY3NmU0NTExYzdlMzJjMWMzODI3ZjNiNDI2MmY5YTJhNzliZGU5Y2UyMmEwMjBjOWY3MTgxM2Q2OGQ1YTA1MjZjMTdiZDEyZWRmYTY4Y2FiNzA4NjYyMjI1YTVhMTEzZTMyNTVkYzdjYmNkNDJkOGE3Njg0NjM4ZTRkM2ZhNTBhMGVjNTJiNGQ2NTE5N2U3YzdmYzdjNjE4OWVkY2YzNWRkOWI0ZDQzODYyOWVkODYzZGM4NDllNDAyNjExMGEwZGY2MTI1ZDU0MmM0ODMxNDRiZTgzN2VjZjgyMDE2ZjFhYTc1ZTM5YmFlNWRjMGMwMWUyMjJkMGUwNjU1NTdmMWVlZTc3ZWEwMmU1NDBiZjM0ZmYyOWMxNWQ1MjkzYzA0ZmVmNTJhOGVjZjI5N2RjMDNkNGVmOGM5YWRlYmJhMTIxZWM4Nzg1MGU2MzA4OWE4ZGI0NjczNzNjMjNhZmZiMWM0MzU5MGZjNTVlMzFlNDA2Y2M4ZmE2ZDgyZjM5ZGIxZDE0NzU4ZDU2OWYyNjM4YTQ0MTE5YTNhZGZlYTU0YmRkOWE2MDljMTc4OWQwOTNjODU3MDc3ZTQwYzkyZmNlYTFlNGIwYzhhYzRiNjk1MmYxODUzNTY0ZjM5ODc4YzdmYmU2YWExMmM4OTllNTYxMzRhYTBlMTgzYmY2NTgwZGI5OTQ5NGUSH1lvdSBhcmUgaGVscGZ1bC4KS2VlcCBpdCBzaG9ydC4aYAokYmFlMzcxNWUtZDI2NC00MzExLTkwNGItZjgyYzg1ZDRhNmYzEAEaNldoYXQncyB0aGUgd2VhdGhlciBpbiBQYXJpcz8gY2hhdC1zdHJlYW0tcHJlbWF0dXJlLWVvZhpcCiQ3NjgyZTZiNC1lNTBkLTRiMzgtYjM0Yi02YjQ3YzVjODIxNTEQAhoJQ2hlY2tpbmcuMicKBmNhbGxfYRILZ2V0X3dlYXRoZXIaEHsiY2l0eSI6IlBhcmlzIn0aNwokMzZmZTAyM2UtZjI2NS00Y2U0LWIzMWItMzlmMGI0M2FjMjgzEAQaBXN1bm55OgZjYWxsX2EacQokM2I0ODMxYmUtOTZmMS00YmIxLWFhODctY2Q4MDk4MjRkMjgzEAEaL1tJbWFnZSAxOiBwYXN0ZWRfaW1hZ2VfMS53ZWJwXQoKVGhhbmtzIDxiPiY8L2I+UhYKCFVrbEdSZz09EgppbWFnZS93ZWJwOAVCHAgBEPQDGJADKTMzMzMzM9M/OChBAAAAYGZm7j9SVQoLZ2V0X3dlYXRoZXISC0dldCB3ZWF0aGVyGjl7InR5cGUiOiJvYmplY3QiLCJwcm9wZXJ0aWVzIjp7ImNpdHkiOnsidHlwZSI6InN0cmluZyJ9fX1SbQoMZXhlY19jb21tYW5kEkpSdW5zIGEgY29tbWFuZCwgcmV0dXJuaW5nIG91dHB1dCBvciBhbiBzZXNzaW9uIElEIGZvciBvbmdvaW5nIGludGVyYWN0aW9uLhoReyJ0eXBlIjoib2JqZWN0In16KgokM2ZiYjgzZGQtZTI2ZS01ZTM5LTk3MmQtNTE3NTA4MzBmNDExGAQgDoIBJDNmYmI4M2RkLWUyNmUtNWUzOS05NzJkLTUxNzUwODMwZjQxMaABAaoBCnN3ZS0yLWhpZ2g="
+      "body_b64": "AAAABgkKsAYKBmNoaXNlbBIKMzAwMC4xMC4yMRobZGV2aW4tc2Vzc2lvbi10b2tlbiRmaXh0dXJlIgJlbioFbGludXg6CjMwMDAuMTAuMjFiBmNoaXNlbPoB3AVkMzU3MTg4YTU3NGM3MmVjMjZhYWU3ODVhZjJhZDhhMjMzZWQzYjAzYjEyNDI1MTljOWFhMTZkOTg2ZjA3NWY3ZjdkMTA4NTk3MmM4MGMzOTVhMWUwYWFjYmYyYjM3Y2ZkMDkzYTQ1M2M0YWU4ZDczYTM5NDUxZjNhMzliZjk0NmM1YTJmMDI4NTBhYmUwOGE1NTYwNWEwY2Q3MzJhYWZjNTg0ZmYzOTA3NjkyM2MxYzQ4ZjIyMzZmMTRlMzg0Yzk0YmUyZjA0NDc5NGEyYzc5MGQ5ZTA4ZTY3NmU0NTExYzdlMzJjMWMzODI3ZjNiNDI2MmY5YTJhNzliZGU5Y2UyMmEwMjBjOWY3MTgxM2Q2OGQ1YTA1MjZjMTdiZDEyZWRmYTY4Y2FiNzA4NjYyMjI1YTVhMTEzZTMyNTVkYzdjYmNkNDJkOGE3Njg0NjM4ZTRkM2ZhNTBhMGVjNTJiNGQ2NTE5N2U3YzdmYzdjNjE4OWVkY2YzNWRkOWI0ZDQzODYyOWVkODYzZGM4NDllNDAyNjExMGEwZGY2MTI1ZDU0MmM0ODMxNDRiZTgzN2VjZjgyMDE2ZjFhYTc1ZTM5YmFlNWRjMGMwMWUyMjJkMGUwNjU1NTdmMWVlZTc3ZWEwMmU1NDBiZjM0ZmYyOWMxNWQ1MjkzYzA0ZmVmNTJhOGVjZjI5N2RjMDNkNGVmOGM5YWRlYmJhMTIxZWM4Nzg1MGU2MzA4OWE4ZGI0NjczNzNjMjNhZmZiMWM0MzU5MGZjNTVlMzFlNDA2Y2M4ZmE2ZDgyZjM5ZGIxZDE0NzU4ZDU2OWYyNjM4YTQ0MTE5YTNhZGZlYTU0YmRkOWE2MDljMTc4OWQwOTNjODU3MDc3ZTQwYzkyZmNlYTFlNGIwYzhhYzRiNjk1MmYxODUzNTY0ZjM5ODc4YzdmYmU2YWExMmM4OTllNTYxMzRhYTBlMTgzYmY2NTgwZGI5OTQ5NGUSH1lvdSBhcmUgaGVscGZ1bC4KS2VlcCBpdCBzaG9ydC4aYAokMzY3NzU2MDQtNjgxOC00ZmFhLTlhYjctMWZjYjJmNGE1ZGVmEAEaNldoYXQncyB0aGUgd2VhdGhlciBpbiBQYXJpcz8gY2hhdC1zdHJlYW0tcHJlbWF0dXJlLWVvZhpcCiQyN2M4NDUxNi0zOTZhLTRlNmMtYTY3ZC0zMTY0ZmQ5MWRmODgQAhoJQ2hlY2tpbmcuMicKBmNhbGxfYRILZ2V0X3dlYXRoZXIaEHsiY2l0eSI6IlBhcmlzIn0aNwokMjk0MzFkNzctMmNmOS00ZmVhLTk2MzItOGQ1NDI2OWJlZTM3EAQaBXN1bm55OgZjYWxsX2EacQokZDQ4ZGRlNzAtNGNiNi00ZTUxLTk1NjYtMDU5ZjJhZWU5YWQ2EAEaL1tJbWFnZSAxOiBwYXN0ZWRfaW1hZ2VfMS53ZWJwXQoKVGhhbmtzIDxiPiY8L2I+UhYKCFVrbEdSZz09EgppbWFnZS93ZWJwOAVCHAgBEPQDGJADKTMzMzMzM9M/OChBAAAAYGZm7j9SVQoLZ2V0X3dlYXRoZXISC0dldCB3ZWF0aGVyGjl7InR5cGUiOiJvYmplY3QiLCJwcm9wZXJ0aWVzIjp7ImNpdHkiOnsidHlwZSI6InN0cmluZyJ9fX1SbQoMZXhlY19jb21tYW5kEkpSdW5zIGEgY29tbWFuZCwgcmV0dXJuaW5nIG91dHB1dCBvciBhbiBzZXNzaW9uIElEIGZvciBvbmdvaW5nIGludGVyYWN0aW9uLhoReyJ0eXBlIjoib2JqZWN0In16KgokM2ZiYjgzZGQtZTI2ZS01ZTM5LTk3MmQtNTE3NTA4MzBmNDExGAQgDoIBJDNmYmI4M2RkLWUyNmUtNWUzOS05NzJkLTUxNzUwODMwZjQxMaABAaoBCnN3ZS0yLWhpZ2g="
     }
   ],
   "downstream": {
     "chunks": [
-      "{\"id\":\"interaction_116f5746-df8\",\"object\":\"chat.completion.chunk\",\"created\":1791016481,\"model\":\"swe-2\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\"},\"finish_reason\":null}]}",
-      "{\"id\":\"interaction_116f5746-df8\",\"object\":\"chat.completion.chunk\",\"created\":1791016481,\"model\":\"swe-2\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"cut\"},\"finish_reason\":null}]}",
+      "{\"id\":\"interaction_39eec8f8-d0e\",\"object\":\"chat.completion.chunk\",\"created\":1791017280,\"model\":\"swe-2\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\"},\"finish_reason\":null}]}",
+      "{\"id\":\"interaction_39eec8f8-d0e\",\"object\":\"chat.completion.chunk\",\"created\":1791017280,\"model\":\"swe-2\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"cut\"},\"finish_reason\":null}]}",
       "{\"error\":{\"message\":\"devin stream terminated prematurely before EOS trailer\",\"type\":\"server_error\",\"code\":\"stream_truncated\"}}"
     ],
     "err_status": -1,
     "stream_err": "devin stream terminated prematurely before EOS trailer"
+  },
+  "extra": {
+    "usage": [
+      {
+        "cached_tokens": 0,
+        "failed": false,
+        "input_tokens": 0,
+        "model": "swe-2",
+        "output_tokens": 0,
+        "reasoning_effort": "",
+        "reasoning_tokens": 0,
+        "response_model": "",
+        "total_tokens": 0
+      }
+    ]
   }
 }

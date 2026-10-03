@@ -477,14 +477,18 @@ async fn check_executor_fixture(name: &str) {
     let exec = DevinExecutor::with_client(default_client());
     let runs = fx["request"]["repeat"].as_u64().unwrap_or(1);
     let (mut down, mut retry_after) = (None, None);
+    let mut usage = std::sync::Arc::new(crate::kimi_fixture::UsageLog::default());
     for _ in 0..runs {
+        usage = std::sync::Arc::new(crate::kimi_fixture::UsageLog::default());
         let mut req = request(&fx, "");
+        req.usage = usage.sink();
         bind_session(&mut req);
         let result = exec.execute(&cred, req, &cfg).await;
         retry_after = result.as_ref().err().and_then(|e| e.retry_after);
         down = Some(downstream(result).await);
     }
     let down = down.unwrap();
+    crate::kimi_fixture::assert_usage_like_go(name, &fx, &usage);
     // Upstream requests.
     let go: Vec<Captured> = fx["upstream"]
         .as_array()
