@@ -783,6 +783,7 @@ dependencies = [
  "getrandom 0.3.4",
  "gjson",
  "http",
+ "http2",
  "httpdate",
  "libc",
  "regex",

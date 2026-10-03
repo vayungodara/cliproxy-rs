@@ -1005,7 +1005,7 @@ impl Registry {
     }
 
     /// Go `GetModelProviders`: most registrations first, then by name.
-    fn model_providers(&self, model: &str) -> Vec<String> {
+    pub fn model_providers(&self, model: &str) -> Vec<String> {
         let Some(&i) = self.index.get(model) else {
             return Vec::new();
         };

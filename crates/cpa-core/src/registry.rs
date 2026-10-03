@@ -284,6 +284,11 @@ pub trait Overlay: Send + Sync {
     fn available(&self) -> Vec<ModelInfo> {
         Vec::new()
     }
+    /// Go `GetModelProviders`: the providers that registered exactly `model`, most
+    /// registrations first. Defaults to none.
+    fn model_providers(&self, _model: &str) -> Vec<String> {
+        Vec::new()
+    }
 }
 
 static OVERLAY: std::sync::RwLock<Option<std::sync::Arc<dyn Overlay>>> = std::sync::RwLock::new(None);
@@ -309,6 +314,17 @@ pub fn lookup_model(id: &str, provider: Option<&str>) -> Option<ModelInfo> {
     overlay()
         .and_then(|o| o.lookup(id, provider))
         .or_else(|| pinned().lookup(id).cloned())
+}
+
+/// Go `GetGlobalRegistry().GetModelProviders(id)`; empty without an installed registry.
+pub fn model_providers(id: &str) -> Vec<String> {
+    overlay().map(|o| o.model_providers(id)).unwrap_or_default()
+}
+
+/// Go `GetGlobalRegistry().GetModelInfo(id, provider)`: registered models only, without
+/// the pinned catalog fallback of [`lookup_model`].
+pub fn registered_model(id: &str, provider: Option<&str>) -> Option<ModelInfo> {
+    overlay().and_then(|o| o.lookup(id, provider))
 }
 
 /// Go `GetGlobalRegistry().GetAvailableModelsByProvider(provider)`; empty without an
