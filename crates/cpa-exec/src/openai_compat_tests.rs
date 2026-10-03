@@ -211,6 +211,7 @@ fn request(s: &Value) -> (ExecRequest, String) {
         execution_session: s["execution_session"].as_str().map(str::to_owned),
         derived_session: s["derived_session"].as_str().map(str::to_owned),
         resolved_model: None,
+        usage: Default::default(),
         request_path: String::new(),
         headers,
         caller: Caller {

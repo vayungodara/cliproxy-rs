@@ -18,9 +18,11 @@ use crate::dispatch::{self, Call, Done};
 use crate::respond::{self, Writer};
 use crate::{Runtime, errors, gojson};
 
+#[allow(clippy::too_many_arguments)]
 pub async fn action(
     State(rt): State<Arc<Runtime>>,
     Extension(caller): Extension<Caller>,
+    peer: dispatch::Peer,
     matched: Option<MatchedPath>,
     OriginalUri(uri): OriginalUri,
     Path(action): Path<String>,
@@ -55,6 +57,8 @@ pub async fn action(
         selection_model: None,
         execution_session: None,
         request_path: dispatch::route_path(matched.as_ref(), &uri),
+        peer: dispatch::peer(peer),
+        turn: None,
     };
     let keepalive = respond::keepalive(&rt.config()).filter(|_| alt.is_none());
     dispatch::serve(&rt, call, |result| async move {
@@ -103,6 +107,7 @@ const AGENT_SELECTION_MODEL: &str = "gemini-2.5-flash";
 pub async fn interactions(
     State(rt): State<Arc<Runtime>>,
     Extension(caller): Extension<Caller>,
+    peer: dispatch::Peer,
     matched: Option<MatchedPath>,
     OriginalUri(uri): OriginalUri,
     headers: HeaderMap,
@@ -162,6 +167,8 @@ pub async fn interactions(
         selection_model: selection,
         execution_session: None,
         request_path: dispatch::route_path(matched.as_ref(), &uri),
+        peer: dispatch::peer(peer),
+        turn: None,
     };
     let keepalive = respond::keepalive(&rt.config());
     dispatch::serve(&rt, call, |result| async move {

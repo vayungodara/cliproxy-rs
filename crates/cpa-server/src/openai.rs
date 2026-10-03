@@ -21,6 +21,7 @@ use crate::{Runtime, errors};
 
 struct Request {
     caller: Caller,
+    peer: Option<std::net::SocketAddr>,
     query: String,
     headers: HeaderMap,
     path: String,
@@ -41,12 +42,15 @@ fn call(req: Request, entry: Format, model: String, body: Bytes, stream: bool, a
         selection_model: None,
         execution_session: None,
         request_path: req.path,
+        peer: req.peer,
+        turn: None,
     }
 }
 
 pub async fn chat_completions(
     State(rt): State<Arc<Runtime>>,
     Extension(caller): Extension<Caller>,
+    peer: dispatch::Peer,
     matched: Option<MatchedPath>,
     OriginalUri(uri): OriginalUri,
     headers: HeaderMap,
@@ -76,6 +80,7 @@ pub async fn chat_completions(
     let path = dispatch::route_path(matched.as_ref(), &uri);
     let req = Request {
         caller,
+        peer: dispatch::peer(peer),
         query,
         headers,
         path,
@@ -123,6 +128,7 @@ fn responses_shaped(body: &[u8]) -> bool {
 pub async fn completions(
     State(rt): State<Arc<Runtime>>,
     Extension(caller): Extension<Caller>,
+    peer: dispatch::Peer,
     matched: Option<MatchedPath>,
     original: OriginalUri,
     headers: HeaderMap,
@@ -138,6 +144,7 @@ pub async fn completions(
     let model = gojson::gjson_string(root.get("model"));
     let req = Request {
         caller,
+        peer: dispatch::peer(peer),
         query: String::new(),
         headers,
         path: dispatch::route_path(matched.as_ref(), &original.0),
@@ -346,6 +353,7 @@ impl Writer for ChatSse {
 pub async fn responses(
     State(rt): State<Arc<Runtime>>,
     Extension(caller): Extension<Caller>,
+    peer: dispatch::Peer,
     matched: Option<MatchedPath>,
     original: OriginalUri,
     headers: HeaderMap,
@@ -355,14 +363,18 @@ pub async fn responses(
         Ok(body) => body,
         Err(rejection) => return read_failed(&rejection),
     };
-    // ponytail: Go's Codex multi-agent-v2 tool preparation and orphan-delegation
-    // repair (client.codex.*) are not applied; they belong with the Codex port.
+    // Go `prepareCodexMultiAgentV2Tools` then `prepareCodexOrphanDelegation`.
+    let settings = cpa_common::codex_client::Settings::for_responses_handler(&rt.config());
+    let body = Bytes::from(cpa_common::codex_client::prepare_responses_request(
+        &headers, &body, &settings,
+    ));
     let fields = peek(&body);
     let stream = fields.get("stream") == Some(&Value::Bool(true));
     let model = gojson::gjson_string(fields.get("model"));
     let codex_client = codex_client(&headers);
     let req = Request {
         caller,
+        peer: dispatch::peer(peer),
         query: String::new(),
         headers,
         path: dispatch::route_path(matched.as_ref(), &original.0),
@@ -866,15 +878,23 @@ impl Writer for ResponsesSse {
 pub async fn compact(
     State(rt): State<Arc<Runtime>>,
     Extension(caller): Extension<Caller>,
+    peer: dispatch::Peer,
     matched: Option<MatchedPath>,
     original: OriginalUri,
     headers: HeaderMap,
     body: Result<Bytes, BytesRejection>,
 ) -> Response {
-    let mut body = match body {
+    let body = match body {
         Ok(body) => body,
         Err(rejection) => return read_failed(&rejection),
     };
+    // Go `prepareCodexOrphanDelegation` (compact skips the multi-agent tool step).
+    let settings = cpa_common::codex_client::Settings::for_responses_handler(&rt.config());
+    let mut body = Bytes::from(cpa_common::codex_client::rewrite_orphan_delegation_input(
+        &headers,
+        &body,
+        settings.orphan_delegation,
+    ));
     let fields = peek(&body);
     match fields.get("stream") {
         Some(Value::Bool(true)) => {
@@ -894,6 +914,7 @@ pub async fn compact(
     let model = gojson::gjson_string(fields.get("model"));
     let req = Request {
         caller,
+        peer: dispatch::peer(peer),
         query: String::new(),
         headers,
         path: dispatch::route_path(matched.as_ref(), &original.0),

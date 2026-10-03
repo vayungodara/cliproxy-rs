@@ -35,6 +35,7 @@ fn request(v: &Value) -> ExecRequest {
         derived_session: None,
         request_path: String::new(),
         resolved_model: None,
+        usage: Default::default(),
         caller: Caller {
             principal: "client-key-FAKE".into(),
             source: "authorization",
