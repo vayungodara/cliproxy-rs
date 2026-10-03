@@ -28,8 +28,8 @@ const IMAGES_GENERATIONS: &str = "/images/generations";
 const IMAGES_EDITS: &str = "/images/edits";
 /// `scanner.Buffer(nil, 52_428_800)`.
 const MAX_LINE: usize = 52_428_800;
-/// helps.ApplyPatchUpstreamErrorMessage: Go's error for an empty translated response.
-const EMPTY_TRANSLATION: &str = "Invalid apply_patch tool arguments received from upstream.";
+/// helps.ApplyPatchUpstreamErrorMessage: Go's error for an empty or rejected translation.
+const EMPTY_TRANSLATION: &str = cpa_translate::APPLY_PATCH_UPSTREAM_ERROR;
 
 /// Providers this executor serves: `openai-compatibility` and `openai-compatible-<name>`
 /// (util.OpenAICompatibleProviderKey).
@@ -614,6 +614,10 @@ impl Frames {
         if self.translate(&line) {
             return true;
         }
+        // helps.ApplyPatchTranslationError: the frame's chunks go out, then the 502.
+        if self.translator.tool_input_failed() {
+            return self.fail(502, EMPTY_TRANSLATION);
+        }
         if done {
             self.seen_done = true;
         }
@@ -637,12 +641,24 @@ impl Frames {
         false
     }
 
+    /// `helps.EndApplyPatchStream` when the transport ends: the translator's closing
+    /// apply_patch frames, then the 502 when its tool input failed. True ends the stream.
+    fn end_tool_input(&mut self) -> bool {
+        let out = self.translator.finalize_tool_input();
+        self.ready.extend(out.into_iter().map(Ok));
+        if self.translator.tool_input_failed() {
+            self.terminal(status_err(502, EMPTY_TRANSLATION));
+            return true;
+        }
+        false
+    }
+
     /// Clean EOF: flush a pending frame, then Go's terminal rule per client format.
     fn eof(&mut self) {
         if !self.seen_done && !self.failed && !self.data.is_empty() {
             self.frame();
         }
-        if self.failed {
+        if self.failed || self.end_tool_input() {
             return;
         }
         if !self.seen_done {
@@ -692,14 +708,17 @@ fn frames(lines: ExecStream, translator: Box<dyn StreamTranslator>, responses: b
             match lines.next().await {
                 Some(Ok(line)) => {
                     if state.line(&line) {
-                        if !state.failed {
+                        if !state.failed && !state.end_tool_input() {
                             state.finish();
                         }
                         ended = true;
                     }
                 }
                 Some(Err(error)) => {
-                    state.terminal(error);
+                    // Go ends apply_patch input before reporting the scan error.
+                    if !state.end_tool_input() {
+                        state.terminal(error);
+                    }
                     ended = true;
                 }
                 None => {

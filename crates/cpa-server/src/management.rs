@@ -352,7 +352,7 @@ pub fn router(state: Arc<Management>) -> Router {
         .with_state(state)
 }
 
-async fn config(
+pub(crate) async fn config(
     State(state): State<Arc<Management>>,
     OriginalUri(uri): OriginalUri,
     method: Method,
@@ -408,7 +408,7 @@ fn invalid_config(status: StatusCode, err: impl std::fmt::Display) -> Response {
 /// Go `Handler.ConfigV8`: every call reads the file and migrates it in memory (legacy
 /// layout to v8, unknown sections archived as comments); only successful mutations
 /// persist. The write keeps untouched text byte-stable instead of Go's re-encoding.
-fn config_sync(state: &Management, path: &str, method: Method, body: &[u8]) -> Response {
+pub(crate) fn config_sync(state: &Management, path: &str, method: Method, body: &[u8]) -> Response {
     let _guard = state.disk.lock().unwrap_or_else(PoisonError::into_inner);
     let original = match std::fs::read_to_string(&state.path) {
         Ok(v) => v,

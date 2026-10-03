@@ -210,7 +210,7 @@ fn client_for(state: &Management, credential: Option<&Credential>, request_proxy
         .or_else(direct)
 }
 
-pub(super) async fn api_call(State(state): State<Arc<Management>>, body: Bytes) -> Response {
+pub(crate) async fn api_call(State(state): State<Arc<Management>>, body: Bytes) -> Response {
     let Some(mut req) = decode(&body) else {
         return fail(StatusCode::BAD_REQUEST, "invalid body");
     };

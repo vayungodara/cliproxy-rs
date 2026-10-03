@@ -55,11 +55,11 @@ async fn upstream_loss_while_the_client_stalls_releases_the_session() {
         "codex-api-key:\n  - api-key: sk-FAKE\n    base-url: http://{upstream}\n    websockets: true\n    models:\n      - name: gpt-fixture\n"
     ))
     .unwrap();
-    let mut credentials = cpa_core::config::credentials::from_config(&cfg);
-    // ponytail: config synthesis does not carry `models` into metadata yet (see ws_e2e.rs).
-    credentials[0]
-        .metadata
-        .insert("models".into(), serde_json::json!([{ "name": "gpt-fixture" }]));
+    let credentials = cpa_core::config::credentials::from_config(&cfg);
+    assert_eq!(
+        credentials[0].metadata["models"],
+        serde_json::json!([{ "name": "gpt-fixture" }])
+    );
     let executors = Executors {
         claude: cpa_exec::claude::ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
         codex: cpa_exec::codex::CodexExecutor::new().unwrap(),
