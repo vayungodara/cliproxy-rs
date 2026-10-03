@@ -47,6 +47,9 @@ async fn upstream_requests_match_go_byte_for_byte() {
     for name in [
         "chat-nonstream-normalize",
         "chat-stream-suffix",
+        "chat-stream-gemini-client",
+        "chat-stream-interactions-client",
+        "chat-nonstream-gemini-client",
         "chat-error-429-clamped-none",
         "chat-disabled-thinking-temperature",
         "chat-kimi-ai-metadata-base",
@@ -99,11 +102,39 @@ async fn upstream_429_cools_the_model_without_a_retry_hint() {
     assert_eq!(error.retry_after, None);
 }
 
+/// Replaces RFC 3339 UTC timestamps (`2026-10-03T07:27:50Z`) that translators stamp with
+/// the current time.
+fn mask_timestamps(text: &str) -> String {
+    let b = text.as_bytes();
+    let mut out = String::with_capacity(text.len());
+    let mut i = 0;
+    let shape = b"dddd-dd-ddTdd:dd:ddZ";
+    while i < b.len() {
+        let fits = i + shape.len() <= b.len()
+            && shape.iter().zip(&b[i..]).all(|(s, c)| match s {
+                b'd' => c.is_ascii_digit(),
+                s => s == c,
+            });
+        if fits {
+            out.push_str("<time>");
+            i += shape.len();
+        } else {
+            let ch = text[i..].chars().next().unwrap();
+            out.push(ch);
+            i += ch.len_utf8();
+        }
+    }
+    out
+}
+
 #[tokio::test]
 async fn downstream_results_match_go() {
     for name in [
         "chat-nonstream-normalize",
         "chat-stream-suffix",
+        "chat-stream-gemini-client",
+        "chat-stream-interactions-client",
+        "chat-nonstream-gemini-client",
         "chat-error-429-clamped-none",
         "chat-disabled-thinking-temperature",
         "chat-kimi-ai-metadata-base",
@@ -151,13 +182,15 @@ async fn downstream_results_match_go() {
                 .collect();
             assert_eq!(down.chunks, frames, "{name}: stream frames");
         } else {
-            // Go's chat handler writes each non-empty translated chunk as `data: %s\n\n`.
+            // Each non-empty translated chunk as the client's Go route writes it.
+            let client = crate::kimi_fixture::format(fx["request"]["source"].as_str().unwrap());
             let go_frames: Vec<String> = chunks
-                .into_iter()
-                .filter(|c| !c.is_empty())
-                .map(|c| format!("data: {c}\n\n"))
+                .iter()
+                .filter_map(|c| cpa_translate::stream::frame(client, c.as_bytes()))
+                .map(|f| mask_timestamps(&String::from_utf8(f).unwrap()))
                 .collect();
-            assert_eq!(down.chunks, go_frames, "{name}: stream frames");
+            let rust: Vec<String> = down.chunks.iter().map(|c| mask_timestamps(c)).collect();
+            assert_eq!(rust, go_frames, "{name}: stream frames");
         }
         assert!(down.err_status.is_none(), "{name}: unexpected stream error");
     }
@@ -570,4 +603,61 @@ async fn redirect_hop_carries_previous_url_as_referer() {
         Some(format!("http://{host}/coding/v1/chat/completions").as_str())
     );
     assert_eq!(captured[1].body, captured[0].body, "307 resends the body");
+}
+
+use crate::kimi_fixture::PatchProbe;
+
+async fn probe(
+    lines: Vec<Result<&'static str, ()>>,
+    end: StreamEnd,
+    fail_on_finalize: bool,
+) -> (Vec<String>, Vec<String>) {
+    let log = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+    let translator = Box::new(PatchProbe {
+        failed: false,
+        fail_on_finalize,
+        log: log.clone(),
+    });
+    let upstream = futures_util::stream::iter(lines.into_iter().map(|l| match l {
+        Ok(text) => Ok(Bytes::from_static(text.as_bytes())),
+        Err(()) => Err(ExecError::local(502, FailureScope::Transport, "scan failed")),
+    }))
+    .boxed();
+    let out: Vec<String> = translate_lines(upstream, translator, end)
+        .map(|item| match item {
+            Ok(b) => String::from_utf8(b.to_vec()).unwrap(),
+            Err(e) => format!("ERR {} {}", e.status, String::from_utf8_lossy(&e.body)),
+        })
+        .collect()
+        .await;
+    let log = log.lock().unwrap().clone();
+    (out, log)
+}
+
+#[tokio::test]
+async fn apply_patch_failures_end_streams_like_go() {
+    let patch = format!("ERR 502 {}", cpa_translate::APPLY_PATCH_UPSTREAM_ERROR);
+    // StopApplyPatchStream: the rejected line's frames, the route's flush, then a 502;
+    // nothing after (no [DONE], no finish).
+    let (out, log) = probe(vec![Ok("a"), Ok("BAD_PATCH"), Ok("c")], StreamEnd::Chat, false).await;
+    assert_eq!(out, ["frame a", "frame BAD_PATCH", "flushed", patch.as_str()]);
+    assert_eq!(log, ["event a", "event BAD_PATCH"]);
+    // EndApplyPatchStream: finalize before [DONE]; a failure there stops with a 502.
+    let (out, log) = probe(vec![Ok("a")], StreamEnd::Chat, true).await;
+    assert_eq!(out, ["frame a", "response.failed", "flushed", patch.as_str()]);
+    assert_eq!(log, ["event a", "finalize"]);
+    // Clean Chat end: finalize, a synthetic [DONE], then finish.
+    let (out, log) = probe(vec![Ok("a")], StreamEnd::Chat, false).await;
+    assert_eq!(out, ["frame a", "frame [DONE]", "finished"]);
+    assert_eq!(log, ["event a", "finalize", "event [DONE]", "finish"]);
+    // A scan error still gets [DONE] first (Go's loop just ends), then flush and the error.
+    let (out, _) = probe(vec![Ok("a"), Err(())], StreamEnd::Chat, false).await;
+    assert_eq!(
+        out,
+        ["frame a", "frame [DONE]", "finished", "flushed", "ERR 502 scan failed"]
+    );
+    // Native Responses translated for another client: no finalize and no [DONE].
+    let (out, log) = probe(vec![Ok("a")], StreamEnd::Responses, true).await;
+    assert_eq!(out, ["frame a", "finished"]);
+    assert_eq!(log, ["event a", "finish"]);
 }

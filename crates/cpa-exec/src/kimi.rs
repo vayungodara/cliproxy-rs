@@ -11,7 +11,9 @@
 //! translation cpa_translate, and clients and Go net/http wire behaviour the shared proxy
 //! module. Stages whose shared module has not landed go through adapters named after their
 //! owners: custom headers (kimi_http), payload rules and Codex-client rewrites (below).
-//! ponytail: the apply_patch Responses bridge (translator common) is not applied; requests
+//! Translator apply_patch failures end streams with Go's 502. ponytail: Go's native
+//! Responses path also runs NormalizeApplyPatchResponsesRequest and ApplyPatchResponsesState
+//! (translator common and executor helps), which are not ported (no owner yet); requests
 //! without an apply_patch custom tool are unaffected.
 
 use std::collections::VecDeque;
@@ -36,6 +38,7 @@ use crate::kimi_http::{
 };
 use crate::kimi_replay::{self, ReplayCache};
 use crate::meta_codex::go_trim_space;
+use crate::openai_compat_payload::ensure_responses_usage_details;
 use crate::proxy::{GoClients, GoHeaders, Proxy, Upstream, default_client, lines, read_all, send};
 
 const REASONING_UNAVAILABLE: &str = "[reasoning unavailable]";
@@ -398,12 +401,20 @@ async fn execute_chat(
         ResponseBody::Stream(translate_lines(
             lines(upstream.body, CHAT_LINE_LIMIT),
             (response_pair.stream)(&ctx),
+            StreamEnd::Chat,
         ))
     } else {
         let data = read_all(upstream.body, usize::MAX, false).await?;
+        // A translator error or empty output is Go's apply_patch 502.
         let out = (response_pair.non_stream)(&ctx, &data)
-            .map_err(|e| ExecError::local(502, FailureScope::Request, e.to_string()))?;
-        ResponseBody::Buffered(Bytes::from(out))
+            .ok()
+            .filter(|out| !out.is_empty())
+            .ok_or_else(apply_patch_error)?;
+        ResponseBody::Buffered(Bytes::from(if req.response_format == Format::OpenAIResponse {
+            ensure_responses_usage_details(&out)
+        } else {
+            out
+        }))
     };
     Ok(ExecResponse {
         status: upstream.status,
@@ -412,22 +423,82 @@ async fn execute_chat(
     })
 }
 
-/// Go's per-line stream loop: each non-empty scanned line goes through the translator;
-/// after the last line (or a scan error) the translator flushes, then the error follows.
-fn translate_lines(upstream: ExecStream, translator: Box<dyn StreamTranslator>) -> ExecStream {
+/// How the Go loop ends a translated stream.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum StreamEnd {
+    /// Chat Completions (executeStream): EndApplyPatchStream, then a synthetic `[DONE]`.
+    Chat,
+    /// Native Responses translated for another client (executeResponsesStream): neither.
+    Responses,
+}
+
+/// The 502 Go returns when a translator rejects upstream apply_patch input.
+fn apply_patch_error() -> ExecError {
+    ExecError::local(502, FailureScope::Request, cpa_translate::APPLY_PATCH_UPSTREAM_ERROR)
+}
+
+/// Go's per-line stream loop: each non-empty scanned line goes through the translator.
+/// A translator that rejects apply_patch input ends the stream after that line's frames
+/// with a 502 (StopApplyPatchStream). At the end Chat streams finalize tool input
+/// (EndApplyPatchStream) and translate a synthetic `[DONE]`, even after a scan error; the
+/// scan error follows. Before any terminal error the Responses route flushes the frame it
+/// is still joining.
+fn translate_lines(upstream: ExecStream, translator: Box<dyn StreamTranslator>, end: StreamEnd) -> ExecStream {
     struct State {
         upstream: ExecStream,
         translator: Box<dyn StreamTranslator>,
         ready: VecDeque<Result<Bytes, ExecError>>,
         done: bool,
+        end: StreamEnd,
     }
-    let fail = |error: cpa_translate::Error| ExecError::local(502, FailureScope::Request, error.to_string());
+    impl State {
+        fn fail(&mut self, error: ExecError) {
+            self.done = true;
+            let flushed = self.translator.flush_frames();
+            self.ready.extend(flushed.into_iter().map(Ok));
+            self.ready.push_back(Err(error));
+        }
+
+        /// One translated line; false when the stream has ended.
+        fn translate(&mut self, line: &[u8]) -> bool {
+            match self.translator.event(line) {
+                Ok(events) => self.ready.extend(events.into_iter().map(Ok)),
+                Err(error) => {
+                    self.fail(translate_error(error));
+                    return false;
+                }
+            }
+            true
+        }
+
+        fn finish(&mut self, end: Option<Result<Bytes, ExecError>>) {
+            self.done = true;
+            if self.end == StreamEnd::Chat {
+                let finalized = self.translator.finalize_tool_input();
+                self.ready.extend(finalized.into_iter().map(Ok));
+                if self.translator.tool_input_failed() {
+                    return self.fail(apply_patch_error());
+                }
+                if !self.translate(b"[DONE]") {
+                    return;
+                }
+            }
+            match self.translator.finish() {
+                Ok(events) => self.ready.extend(events.into_iter().map(Ok)),
+                Err(error) => return self.fail(translate_error(error)),
+            }
+            if let Some(Err(error)) = end {
+                self.fail(error);
+            }
+        }
+    }
     futures_util::stream::unfold(
         State {
             upstream,
             translator,
             ready: VecDeque::new(),
             done: false,
+            end,
         },
         move |mut st| async move {
             loop {
@@ -439,31 +510,21 @@ fn translate_lines(upstream: ExecStream, translator: Box<dyn StreamTranslator>) 
                 }
                 match st.upstream.next().await {
                     Some(Ok(line)) if line.is_empty() => {}
-                    Some(Ok(line)) => match st.translator.event(&line) {
-                        Ok(events) => st.ready.extend(events.into_iter().map(Ok)),
-                        Err(error) => {
-                            st.done = true;
-                            st.ready.push_back(Err(fail(error)));
-                        }
-                    },
-                    end => {
-                        st.done = true;
-                        // Go translates a final [DONE] even after a scan error.
-                        match st.translator.finish() {
-                            Ok(events) => st.ready.extend(events.into_iter().map(Ok)),
-                            Err(error) => st.ready.push_back(Err(fail(error))),
-                        }
-                        if let Some(Err(error)) = end {
-                            // The Responses route flushes pending frames before the error.
-                            st.ready.extend(st.translator.flush_frames().into_iter().map(Ok));
-                            st.ready.push_back(Err(error));
+                    Some(Ok(line)) => {
+                        if st.translate(&line) && st.translator.tool_input_failed() {
+                            st.fail(apply_patch_error());
                         }
                     }
+                    end => st.finish(end),
                 }
             }
         },
     )
     .boxed()
+}
+
+fn translate_error(error: cpa_translate::Error) -> ExecError {
+    ExecError::local(502, FailureScope::Request, error.to_string())
 }
 
 /// Native Responses streaming: Go writes every scanned line plus `\n` as one chunk and
@@ -573,6 +634,7 @@ async fn execute_responses(
         (true, Some(pair)) => ResponseBody::Stream(translate_lines(
             lines(upstream.body, RESPONSES_LINE_LIMIT),
             (pair.stream)(&ctx),
+            StreamEnd::Responses,
         )),
         // Native Responses clients get every scanned line back, joined into frames.
         (true, None) => ResponseBody::Stream(responses_frames(lines(upstream.body, RESPONSES_LINE_LIMIT))),
@@ -581,7 +643,9 @@ async fn execute_responses(
             match pair {
                 Some(pair) => ResponseBody::Buffered(Bytes::from(
                     (pair.non_stream)(&ctx, &data)
-                        .map_err(|e| ExecError::local(502, FailureScope::Request, e.to_string()))?,
+                        .ok()
+                        .filter(|out| !out.is_empty())
+                        .ok_or_else(apply_patch_error)?,
                 )),
                 None => ResponseBody::Buffered(data),
             }
