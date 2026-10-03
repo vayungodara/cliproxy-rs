@@ -948,7 +948,13 @@ fn delete_one(state: &Management, name: &str) -> Result<String, (StatusCode, Str
         .and_then(|c| path_of(c).map(Path::to_path_buf))
         .unwrap_or_else(|| cfg.auth_dir.join(&base));
     match std::fs::remove_file(&target) {
-        Ok(()) => Ok(base),
+        Ok(()) => {
+            // Go `deleteTokenRecord`: remote stores record the removal explicitly.
+            state
+                .store_delete(&target)
+                .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))?;
+            Ok(base)
+        }
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
             Err((StatusCode::NOT_FOUND, "auth file not found".into()))
         }
@@ -984,6 +990,9 @@ fn delete_sync(state: &Management, q: &Query, body: &[u8]) -> Response {
         for entry in entries.flatten() {
             let is_json = entry.file_name().to_string_lossy().to_lowercase().ends_with(".json");
             if entry.file_type().is_ok_and(|t| !t.is_dir()) && is_json && std::fs::remove_file(entry.path()).is_ok() {
+                if let Err(error) = state.store_delete(&entry.path()) {
+                    return fail(StatusCode::INTERNAL_SERVER_ERROR, error);
+                }
                 deleted += 1;
             }
         }
