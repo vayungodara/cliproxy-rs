@@ -174,7 +174,7 @@ async fn handle(
         media: None,
     };
     let keepalive = respond::keepalive(&rt.config());
-    dispatch::serve(&rt, call, |result| async move {
+    dispatch::serve(&rt, call, move |result| async move {
         match result {
             Err(failure) => errors::claude(&failure),
             Ok(Done::Buffered { body, .. }) => respond::json(200, "application/json", body),

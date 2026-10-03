@@ -322,6 +322,10 @@ async fn executor_matches_go_on_every_fixture_case() {
         }
         let snapshot = executor.quota().snapshot("codex-fixture.json").expect("quota observed");
         assert_eq!(snapshot.signals["X-Codex-Primary-Used-Percent"], "42");
+        // Go observes the same headers into the model's state (`model_quotas`).
+        let model = cpa_common::thinking::parse_suffix(case["model"].as_str().unwrap()).model_name;
+        let models = executor.quota().model_snapshots("codex-fixture.json");
+        assert_eq!(models.get(&model), Some(&snapshot), "{name}: model quota");
     }
 }
 
@@ -626,5 +630,86 @@ async fn alpha_search_reads_at_most_32_mib_whatever_the_status() {
             unreachable!()
         };
         assert_eq!(body.len(), expected, "status {status}");
+    }
+}
+
+/// Records what the executor reports to the attempt's usage record.
+#[derive(Default)]
+struct Recorded(std::sync::Mutex<Vec<(&'static str, Format, String)>>);
+
+impl cpa_core::exec::UsageObserver for Recorded {
+    fn response_body(&self, format: Format, body: &[u8]) {
+        self.0
+            .lock()
+            .unwrap()
+            .push(("body", format, String::from_utf8_lossy(body).into_owned()));
+    }
+    fn response_line(&self, format: Format, line: &[u8]) {
+        self.0
+            .lock()
+            .unwrap()
+            .push(("line", format, String::from_utf8_lossy(line).into_owned()));
+    }
+    fn request(&self, format: Format, payload: &[u8]) {
+        self.0
+            .lock()
+            .unwrap()
+            .push(("request", format, String::from_utf8_lossy(payload).into_owned()));
+    }
+}
+
+/// Usage records see the upstream side, as Go's reporter does: the translated request
+/// (`SetTranslatedReasoningEffort`, before the prompt-cache key is added) and every
+/// upstream event in Codex format, or the compaction body in OpenAI Responses format,
+/// whatever the client speaks. Expected payloads come from the Go fixture.
+#[tokio::test]
+async fn usage_records_see_upstream_payloads() {
+    let executor = executor();
+    for name in [
+        "apikey_claude_not_compat",
+        "oauth_nonstream_no_instructions_free_plan",
+        "oauth_compact",
+    ] {
+        let case = GO["executor"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|c| c["name"] == name)
+            .unwrap();
+        let mock = Mock::start().await;
+        let compact = case["alt"] == "responses/compact";
+        mock.script(
+            if compact { "/responses/compact" } else { "/responses" },
+            vec![reply(case)],
+        );
+        let credential = credential(case, &mock.url);
+        let cfg = Config::parse(case["config"].as_str().filter(|s| !s.trim().is_empty()).unwrap_or("{}")).unwrap();
+        let recorded = Arc::new(Recorded::default());
+        let mut req = request(case);
+        req.usage = cpa_core::exec::UsageSink::new(recorded.clone());
+        match executor.execute(&credential, req, &cfg).await.unwrap().body {
+            ResponseBody::Stream(mut stream) => while stream.next().await.is_some() {},
+            ResponseBody::Buffered(_) => {}
+        }
+        let reports = recorded.0.lock().unwrap().clone();
+        let upstream_format = if compact { Format::OpenAIResponse } else { Format::Codex };
+        let mut sent = case["upstream"]["body"].as_str().unwrap().as_bytes().to_vec();
+        cpa_common::json::delete(&mut sent, "prompt_cache_key");
+        assert_eq!(
+            reports[0],
+            ("request", upstream_format, String::from_utf8(sent).unwrap()),
+            "{name}: translated request"
+        );
+        let upstream = case["upstream_body"].as_str().unwrap();
+        let expected: Vec<(&str, Format, String)> = if compact {
+            vec![("body", Format::OpenAIResponse, upstream.to_owned())]
+        } else {
+            upstream
+                .lines()
+                .filter_map(|l| l.strip_prefix("data:"))
+                .map(|d| ("line", Format::Codex, d.trim().to_owned()))
+                .collect()
+        };
+        assert_eq!(reports[1..], expected[..], "{name}: upstream payloads");
     }
 }

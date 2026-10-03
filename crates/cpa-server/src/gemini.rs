@@ -62,7 +62,7 @@ pub async fn action(
         media: None,
     };
     let keepalive = respond::keepalive(&rt.config()).filter(|_| alt.is_none());
-    dispatch::serve(&rt, call, |result| async move {
+    dispatch::serve(&rt, call, move |result| async move {
         match result {
             Err(failure) => errors::openai(&failure),
             Ok(Done::Buffered { body, .. }) => respond::json(200, "application/json", body),
@@ -173,7 +173,7 @@ pub async fn interactions(
         media: None,
     };
     let keepalive = respond::keepalive(&rt.config());
-    dispatch::serve(&rt, call, |result| async move {
+    dispatch::serve(&rt, call, move |result| async move {
         match result {
             Err(failure) => errors::openai(&failure),
             Ok(Done::Buffered { body, .. }) => respond::json(200, "application/json", body),

@@ -8,6 +8,13 @@
 //	caps: a,b,c            rpcCapabilities flags to declare
 //	schema: <n>            schema_version to declare (default 6)
 //	fail: register         answer plugin.register with an error envelope
+//	inputs: a,b            executor_input_formats (default chat-completions)
+//	outputs: a,b           executor_output_formats (default chat-completions)
+//	scope: <scope>         executor_model_scope (default both)
+//
+// Any other method is answered from <record>/respond/<label>/<method>.json when that
+// file exists: the file is the complete response envelope, written by the test before
+// the call.
 //
 // A management.handle request whose body is {"calls":[{"method":...,"request":{...}}]}
 // makes those host callbacks (with host_callback_id filled in when absent) and returns
@@ -83,12 +90,15 @@ import (
 )
 
 var (
-	mu     sync.Mutex
-	label  = "unlabeled"
-	caps   = map[string]bool{}
-	schema = pluginabi.SchemaVersion
-	fail   = ""
-	dir    = ""
+	mu      sync.Mutex
+	label   = "unlabeled"
+	caps    = map[string]bool{}
+	schema  = pluginabi.SchemaVersion
+	fail    = ""
+	dir     = ""
+	inputs  = []string{"chat-completions"}
+	outputs = []string{"chat-completions"}
+	scope   = "both"
 )
 
 type envelope struct {
@@ -160,6 +170,9 @@ func configure(raw []byte) {
 	caps = map[string]bool{}
 	schema = pluginabi.SchemaVersion
 	fail = ""
+	inputs = []string{"chat-completions"}
+	outputs = []string{"chat-completions"}
+	scope = "both"
 	for _, line := range strings.Split(string(req.ConfigYAML), "\n") {
 		key, value, ok := strings.Cut(strings.TrimSpace(line), ":")
 		if !ok {
@@ -183,8 +196,43 @@ func configure(raw []byte) {
 			fail = value
 		case "record":
 			dir = value
+		case "inputs":
+			inputs = splitList(value)
+		case "outputs":
+			outputs = splitList(value)
+		case "scope":
+			scope = value
 		}
 	}
+}
+
+func splitList(value string) []string {
+	out := []string{}
+	for _, item := range strings.Split(value, ",") {
+		if item = strings.TrimSpace(item); item != "" {
+			out = append(out, item)
+		}
+	}
+	return out
+}
+
+// canned returns the envelope the test stored for this method, if any.
+func canned(label, method string) ([]byte, int, bool) {
+	mu.Lock()
+	base := dir
+	mu.Unlock()
+	if base == "" {
+		return nil, 0, false
+	}
+	raw, err := os.ReadFile(filepath.Join(base, "respond", label, method+".json"))
+	if err != nil {
+		return nil, 0, false
+	}
+	var env envelope
+	if json.Unmarshal(raw, &env) == nil && env.OK {
+		return raw, 0, true
+	}
+	return raw, 1, true
 }
 
 func record(method string, request []byte) {
@@ -217,19 +265,25 @@ func failure(code, message string, status int) ([]byte, int) {
 func handle(method string, request []byte) ([]byte, int) {
 	mu.Lock()
 	name, declared, version, failing := label, caps, schema, fail
+	ins, outs, modelScope := inputs, outputs, scope
 	mu.Unlock()
+	if method != pluginabi.MethodPluginRegister && method != pluginabi.MethodPluginReconfigure {
+		if raw, rc, found := canned(name, method); found {
+			return raw, rc
+		}
+	}
 	switch method {
 	case pluginabi.MethodPluginRegister, pluginabi.MethodPluginReconfigure:
 		if failing == "register" {
 			return failure("register_failed", "recorder told to fail", 0)
 		}
-		capabilities := map[string]any{"executor_model_scope": "both"}
+		capabilities := map[string]any{"executor_model_scope": modelScope}
 		for capName := range declared {
 			capabilities[capName] = true
 		}
 		if declared["executor"] {
-			capabilities["executor_input_formats"] = []string{"chat-completions"}
-			capabilities["executor_output_formats"] = []string{"chat-completions"}
+			capabilities["executor_input_formats"] = ins
+			capabilities["executor_output_formats"] = outs
 		}
 		return ok(map[string]any{
 			"schema_version": version,

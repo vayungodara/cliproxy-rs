@@ -58,10 +58,15 @@ struct Seen {
 }
 
 async fn upstream(State(seen): State<Arc<Seen>>, req: Request) -> Response {
-    let token = req.headers()["authorization"].to_str().unwrap().to_owned();
+    let mut token = req.headers()["authorization"].to_str().unwrap().to_owned();
     let bytes = axum::body::to_bytes(req.into_body(), usize::MAX).await.unwrap();
     let body: Value = serde_json::from_slice(&bytes).unwrap_or(Value::Null);
     seen.requests.lock().unwrap().push((token.clone(), body.clone()));
+    // `fake-slow-<token>` answers like `fake-<token>` after 1.5 s.
+    if let Some(rest) = token.strip_prefix("Bearer fake-slow-") {
+        tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
+        token = format!("Bearer fake-{rest}");
+    }
     match token.as_str() {
         "Bearer fake-fail" => (StatusCode::INTERNAL_SERVER_ERROR, "boom").into_response(),
         "Bearer fake-bad" => (
@@ -190,6 +195,74 @@ async fn chat_completions_translate_and_stream_upstream_for_non_stream_clients()
     assert!(text.starts_with("data: {"), "{text}");
     assert!(text.ends_with("data: [DONE]\n\n"), "{text}");
     assert!(text.contains(r#""content":"hi""#));
+}
+
+/// Go `StartNonStreamingKeepAlive` (M2-0036), expectations from the Go golden
+/// `nonstream_keepalive` (tests/reference/server/main.go): a result within one interval
+/// is untouched; a slower one commits 200 `application/json` with a `\n` per interval,
+/// then the rendered body, even when it is an error.
+#[tokio::test]
+async fn nonstream_keepalive_commits_like_go() {
+    let fixture: Value = serde_json::from_str(include_str!("fixtures/server_go.json")).unwrap();
+    let golden = |name: &str| {
+        fixture["nonstream_keepalive"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|c| c["name"] == name)
+            .unwrap()
+            .clone()
+    };
+    let config = "requests:\n  nonstream-keepalive-interval: 1\n";
+    let proxy_for = |token: &'static str| proxy(config, vec![oauth("a.json", token, serde_json::json!({}))]);
+    let (fast_ok, slow_ok, fast_bad, slow_bad, slow_count) = tokio::join!(
+        proxy_for("fake-ok"),
+        proxy_for("fake-slow-ok"),
+        proxy_for("fake-bad"),
+        proxy_for("fake-slow-bad"),
+        proxy_for("fake-slow-ok"),
+    );
+    let body = format!(r#"{{"model":"{MODEL}","max_tokens":5,"messages":[{{"role":"user","content":"hi"}}]}}"#);
+    let (fast_ok, slow_ok, fast_bad, slow_bad, slow_count) = tokio::join!(
+        post(&fast_ok.url, "/v1/messages", &body),
+        post(&slow_ok.url, "/v1/chat/completions", &body),
+        post(&fast_bad.url, "/v1/messages", &body),
+        post(&slow_bad.url, "/v1/messages", &body),
+        post(&slow_count.url, "/v1/messages/count_tokens", &body),
+    );
+    // Splits the keep-alive newlines from the rendered body.
+    let split = |text: &str| {
+        let rest = text.trim_start_matches('\n');
+        (text.len() - rest.len(), rest.to_owned())
+    };
+
+    for (got, want) in [(&fast_ok, golden("fast_ok")), (&fast_bad, golden("fast_error"))] {
+        assert_eq!(u64::from(got.0), want["status"].as_u64().unwrap(), "{}", got.2);
+        assert_eq!(got.1["content-type"], want["content_type"].as_str().unwrap());
+        assert_eq!(split(&got.2).0, 0, "{:?}", got.2);
+    }
+    assert_eq!(fast_bad.2, golden("fast_error")["body"].as_str().unwrap());
+
+    for (got, want) in [(&slow_ok, golden("slow_ok")), (&slow_bad, golden("slow_error"))] {
+        assert_eq!(u64::from(got.0), want["status"].as_u64().unwrap(), "{}", got.2);
+        assert_eq!(got.1["content-type"], want["content_type"].as_str().unwrap());
+        assert!(got.1.get("content-length").is_none(), "{:?}", got.1);
+        // Go flushed with the selected credential already traced.
+        assert!(got.1.get("x-cpa-trace-id").is_some(), "{:?}", got.1);
+        let (newlines, _) = split(want["body"].as_str().unwrap());
+        assert_eq!(newlines, 1);
+        assert!(split(&got.2).0 >= 1, "{:?}", got.2);
+    }
+    let reply: Value = serde_json::from_str(&split(&slow_ok.2).1).unwrap();
+    assert_eq!(reply["choices"][0]["message"]["content"], "hi");
+    assert_eq!(
+        split(&slow_bad.2).1,
+        split(golden("slow_error")["body"].as_str().unwrap()).1
+    );
+
+    // Go's count_tokens handler starts no keep-alive.
+    assert_eq!(slow_count.0, 200, "{}", slow_count.2);
+    assert_eq!(split(&slow_count.2).0, 0, "{:?}", slow_count.2);
 }
 
 #[tokio::test]
