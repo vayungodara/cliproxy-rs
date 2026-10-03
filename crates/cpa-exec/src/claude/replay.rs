@@ -120,6 +120,12 @@ struct Snapshot(u64);
 #[derive(Default)]
 pub(crate) struct ReplayCache(Mutex<Inner>);
 
+/// The process's cache, shared by every executor like Go's package-level cache.
+pub(crate) fn shared() -> Arc<ReplayCache> {
+    static SHARED: std::sync::OnceLock<Arc<ReplayCache>> = std::sync::OnceLock::new();
+    SHARED.get_or_init(Arc::default).clone()
+}
+
 impl ReplayCache {
     fn lock(&self) -> std::sync::MutexGuard<'_, Inner> {
         self.0.lock().unwrap_or_else(std::sync::PoisonError::into_inner)

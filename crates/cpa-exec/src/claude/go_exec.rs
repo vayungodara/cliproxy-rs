@@ -292,6 +292,9 @@ pub(super) fn normalize(text: &str) -> String {
             (r"cch=[0-9a-f]{5};", "cch=<cch>;"),
             (r"Today's date is \d{4}-\d{2}-\d{2}", "Today's date is <date>"),
             (r"user_[0-9a-f]{64}_account_", "user_<hex64>_account_"),
+            // Translators stamp responses with the wall clock.
+            (r#""(created|created_at)":\d+"#, r#""$1":<unix>"#),
+            (r#""createTime":"[0-9T:.Z-]+""#, r#""createTime":"<time>""#),
         ]
         .into_iter()
         .map(|(re, to)| (regex::Regex::new(re).unwrap(), to))
@@ -347,26 +350,77 @@ fn resolved(metadata: &Value) -> Option<ResolvedModel> {
 #[derive(Debug, PartialEq)]
 struct Outcome {
     payload: String,
-    error: Option<(u16, bool, String)>,
+    error: Option<Failure>,
 }
 
-fn go_error(info: &Value) -> Option<(u16, bool, String)> {
+/// What a client and the scheduler see of an executor error.
+#[derive(Debug, PartialEq)]
+struct Failure {
+    /// Go's `StatusCode()`; a missing or zero status answers 500.
+    status: u16,
+    /// Go's `IsRequestScoped()`, when the error implements it (plain upstream status
+    /// errors do not; the conductor classifies those by status).
+    request_scoped: Option<bool>,
+    /// The client-visible text: a direct answer's body, else the error message.
+    message: String,
+}
+
+fn go_error(info: &Value) -> Option<Failure> {
     let message = info.get("message")?.as_str()?.to_owned();
-    let status = info["status"].as_u64().unwrap_or(500) as u16;
-    let request_scoped = info["request_scoped"].as_bool().unwrap_or(false);
-    Some((status, request_scoped, normalize(&message)))
+    let status = info["status"].as_u64().filter(|s| *s != 0).unwrap_or(500) as u16;
+    // claudeFastDirectResponseError: the client receives the upstream status and body.
+    let (status, message) = match info.get("direct_status").and_then(Value::as_u64) {
+        Some(direct) => (direct as u16, text(&bytes(&info["direct_body"]))),
+        None => (status, message),
+    };
+    Some(Failure {
+        status,
+        request_scoped: info["request_scoped"].as_bool(),
+        message: normalize(&message),
+    })
 }
 
-fn rust_error(error: &ExecError) -> (u16, bool, String) {
-    (
-        error.status,
-        error.scope == cpa_core::exec::FailureScope::Request,
-        normalize(&text(&error.body)),
-    )
+fn rust_error(error: &ExecError, go: Option<&Failure>) -> Failure {
+    Failure {
+        status: error.status,
+        request_scoped: go
+            .and_then(|g| g.request_scoped)
+            .map(|_| error.scope == cpa_core::exec::FailureScope::Request),
+        message: normalize(&text(&error.body)),
+    }
 }
+
+/// Go's OpenAI Chat stream chunks are bare JSON objects (the handler frames them); the
+/// Rust executor yields the framed events.
+fn unframe_chat(stream: &str) -> String {
+    stream
+        .lines()
+        .filter_map(|l| l.strip_prefix("data: "))
+        .filter(|d| *d != "[DONE]")
+        .collect()
+}
+
+/// Go tests whose upstream body key order comes from Go's random map iteration (several
+/// payload-rule params in one Go map): their bodies compare as JSON values.
+const GO_MAP_ORDER: &[&str] = &["TestClaudeExecutorPayloadOverrideDisabledThinking"];
+
+/// Go tests whose recorded exchange a replay cannot reproduce, with the reason.
+const NOT_REPLAYABLE: &[(&str, &str)] = &[
+    (
+        "TestClaudeExecutor_ExecuteStreamOAuthCancellationIsRequestScoped",
+        "cancels the request context while the upstream holds the stream open",
+    ),
+    (
+        "TestClaudeExecutor_ExecuteStreamOAuthStartupCancellationIsRequestScoped",
+        "cancels the request context before the upstream answers",
+    ),
+];
 
 /// Replays one recorded executor call; `Err` lists how Rust differs from Go.
-pub(super) async fn replay(record: &Value) -> Result<(), String> {
+pub(super) async fn replay(test: &str, record: &Value) -> Result<(), String> {
+    if NOT_REPLAYABLE.iter().any(|(name, _)| *name == test) {
+        return Ok(());
+    }
     let exchanges = record["exchanges"]["exchanges"].as_array().cloned().unwrap_or_default();
     let go_origins = regex::Regex::new(r"http://127\.0\.0\.1:\d+").unwrap();
     let mut hosts: Vec<String> = [
@@ -496,11 +550,26 @@ pub(super) async fn replay(record: &Value) -> Result<(), String> {
             source: "authorization",
         },
     };
+    let chat = req.response_format == Format::OpenAI && kind == "execute_stream";
     let result = executor.execute(&credential, req, &cfg).await;
+    let recorded = &record["result"];
+    let go = if kind == "execute_stream" && recorded["error"].is_null() {
+        let chunks = record["exchanges"]["chunks"].as_array().cloned().unwrap_or_default();
+        let payload: Vec<u8> = chunks.iter().flat_map(|c| bytes(&c["payload"])).collect();
+        Outcome {
+            payload: normalize(&text(&payload)),
+            error: chunks.iter().find_map(|c| go_error(&c["error"])),
+        }
+    } else {
+        Outcome {
+            payload: normalize(&text(&bytes(&recorded["payload"]))),
+            error: go_error(&recorded["error"]),
+        }
+    };
     let rust = match result {
         Err(error) => Outcome {
             payload: String::new(),
-            error: Some(rust_error(&error)),
+            error: Some(rust_error(&error, go.error.as_ref())),
         },
         Ok(response) => match response.body {
             ResponseBody::Buffered(body) => Outcome {
@@ -513,31 +582,18 @@ pub(super) async fn replay(record: &Value) -> Result<(), String> {
                     match event {
                         Ok(chunk) => payload.extend_from_slice(&chunk),
                         Err(e) => {
-                            error = Some(rust_error(&e));
+                            error = Some(rust_error(&e, go.error.as_ref()));
                             break;
                         }
                     }
                 }
+                let payload = normalize(&text(&payload));
                 Outcome {
-                    payload: normalize(&text(&payload)),
+                    payload: if chat { unframe_chat(&payload) } else { payload },
                     error,
                 }
             }
         },
-    };
-    let result = &record["result"];
-    let go = if kind == "execute_stream" && result["error"].is_null() {
-        let chunks = record["exchanges"]["chunks"].as_array().cloned().unwrap_or_default();
-        let payload: Vec<u8> = chunks.iter().flat_map(|c| bytes(&c["payload"])).collect();
-        Outcome {
-            payload: normalize(&text(&payload)),
-            error: chunks.iter().find_map(|c| go_error(&c["error"])),
-        }
-    } else {
-        Outcome {
-            payload: normalize(&text(&bytes(&result["payload"]))),
-            error: go_error(&result["error"]),
-        }
     };
     let mut diffs = Vec::new();
     if rust != go {
@@ -594,12 +650,18 @@ pub(super) async fn replay(record: &Value) -> Result<(), String> {
         if got != want {
             let only_rust: Vec<_> = got.iter().filter(|(k, v)| want.get(*k) != Some(v)).collect();
             let only_go: Vec<_> = want.iter().filter(|(k, v)| got.get(*k) != Some(v)).collect();
-            diffs.push(format!(
-                "exchange {i} headers:\n   rust: {only_rust:?}\n     go: {only_go:?}"
-            ));
+            diffs.push(
+                format!("exchange {i} headers:\n   rust: {only_rust:?}\n     go: {only_go:?}")
+                    .replace("sk-ant-", "<sk>-"),
+            );
         }
         let (rust_body, go_body) = (normalize(&text(&rust.body)), normalize(&text(&bytes(&go["body"]))));
-        if rust_body != go_body {
+        let as_json = |b: &str| serde_json::from_str::<Value>(b).ok();
+        let same = rust_body == go_body
+            || (GO_MAP_ORDER.contains(&test)
+                && as_json(&rust_body).is_some()
+                && as_json(&rust_body) == as_json(&go_body));
+        if !same {
             diffs.push(format!("exchange {i} body:\n   rust: {rust_body}\n     go: {go_body}"));
         }
     }

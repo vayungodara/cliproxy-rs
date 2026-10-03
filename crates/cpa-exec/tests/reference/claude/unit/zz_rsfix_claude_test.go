@@ -24,6 +24,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/router-for-me/CLIProxyAPI/v8/internal/config"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/registry"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/runtime/executor/helps"
 	cliproxyauth "github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/auth"
@@ -292,7 +293,8 @@ func rsfixBegin(kind string, e *ClaudeExecutor, ctx context.Context, auth *clipr
 		authRecord = map[string]any{
 			"id": auth.ID, "provider": auth.Provider, "label": auth.Label, "prefix": auth.Prefix,
 			"proxy_url": auth.ProxyURL, "disabled": auth.Disabled,
-			"attributes": auth.Attributes, "metadata": rsfixJSON(auth.Metadata),
+			// Copied now: tests mutate the credential between calls.
+			"attributes": rsfixJSON(auth.Attributes), "metadata": rsfixJSON(auth.Metadata),
 		}
 	}
 	record := map[string]any{
@@ -325,8 +327,16 @@ func rsfixBegin(kind string, e *ClaudeExecutor, ctx context.Context, auth *clipr
 // rsfixConfigYAML is the test's config struct as YAML without zero-valued leaves.
 // Go's tests build config.Config literals whose zero fields the executor reads as
 // unset; written out, zeros such as snapshot-interval: 0 would be rejected by a loader.
-func rsfixConfigYAML(cfg any) string {
-	raw, err := yaml.Marshal(cfg)
+func rsfixConfigYAML(cfg *config.Config) string {
+	copied := *cfg
+	copied.Payload = config.PayloadConfig{
+		Default:     rsfixPayloadRules(cfg.Payload.Default, false),
+		DefaultRaw:  rsfixPayloadRules(cfg.Payload.DefaultRaw, true),
+		Override:    rsfixPayloadRules(cfg.Payload.Override, false),
+		OverrideRaw: rsfixPayloadRules(cfg.Payload.OverrideRaw, true),
+		Filter:      cfg.Payload.Filter,
+	}
+	raw, err := yaml.Marshal(&copied)
 	if err != nil {
 		return "unmarshalable: " + err.Error()
 	}
@@ -340,6 +350,40 @@ func rsfixConfigYAML(cfg any) string {
 	}
 	out, _ := yaml.Marshal(pruned)
 	return string(out)
+}
+
+// rsfixPayloadRules copies payload rules with JSON byte values written the way a config
+// file holds them: text for raw rules, and for the others the JSON value that sjson
+// writes for a json.RawMessage.
+func rsfixPayloadRules(rules []config.PayloadRule, raw bool) []config.PayloadRule {
+	out := make([]config.PayloadRule, len(rules))
+	for i, rule := range rules {
+		out[i] = rule
+		out[i].Params = map[string]any{}
+		for key, value := range rule.Params {
+			var data []byte
+			switch v := value.(type) {
+			case json.RawMessage:
+				data = v
+			case []byte:
+				data = v
+			default:
+				out[i].Params[key] = value
+				continue
+			}
+			if raw {
+				out[i].Params[key] = string(data)
+				continue
+			}
+			var decoded any
+			if json.Unmarshal(data, &decoded) == nil {
+				out[i].Params[key] = decoded
+			} else {
+				out[i].Params[key] = string(data)
+			}
+		}
+	}
+	return out
 }
 
 func rsfixPrune(v any) (any, bool) {

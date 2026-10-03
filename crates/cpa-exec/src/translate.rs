@@ -8,6 +8,8 @@ use cpa_core::format::Format;
 use cpa_translate::{Pair, RequestCtx, ResponseCtx, StreamTranslator};
 use futures_util::StreamExt;
 
+use crate::openai_compat_payload::ensure_responses_usage_details;
+
 /// `TranslateRequestWithAPIKeyModelCompatibilityForExecutor` to Claude for `model` (the
 /// base model, without a thinking suffix), through the shared Codex client rewrites
 /// ([`crate::codex_client::translate_request`]): Codex integer tool types, the Responses
@@ -94,9 +96,20 @@ async fn transform(
         original_request: &req.original_body,
         translated_request: &translated,
     };
+    // EnsureResponsesUsageDetails on every translated Responses payload.
+    let responses = req.response_format == Format::OpenAIResponse && req.operation == Operation::Generate;
     if req.stream && req.operation == Operation::Generate {
         match body {
-            ResponseBody::Stream(stream) => Ok(ResponseBody::Stream(streaming(stream, (pair.stream)(&context)))),
+            ResponseBody::Stream(stream) => {
+                let events = streaming(stream, (pair.stream)(&context));
+                Ok(ResponseBody::Stream(if responses {
+                    events
+                        .map(|event| event.map(|e| Bytes::from(ensure_responses_usage_details(&e))))
+                        .boxed()
+                } else {
+                    events
+                }))
+            }
             ResponseBody::Buffered(_) => Err(ExecError::local(
                 502,
                 FailureScope::Request,
@@ -121,9 +134,12 @@ async fn transform(
         } else {
             pair.non_stream
         };
-        Ok(ResponseBody::Buffered(Bytes::from(
-            transform(&context, &body).map_err(error)?,
-        )))
+        let out = transform(&context, &body).map_err(error)?;
+        Ok(ResponseBody::Buffered(Bytes::from(if responses {
+            ensure_responses_usage_details(&out)
+        } else {
+            out
+        })))
     }
 }
 

@@ -41,10 +41,10 @@ fn reverse(value: &Value) -> alias::Reverse {
 }
 
 /// Replays one recorded call; `Err` describes how Rust differs from Go.
-async fn replay(record: &Value) -> Result<(), String> {
+async fn replay(test: &str, record: &Value) -> Result<(), String> {
     let field = |name: &str| &record[name];
     match field("fn").as_str().unwrap() {
-        "execute" | "execute_stream" | "count_tokens" => super::go_exec::replay(record).await,
+        "execute" | "execute_stream" | "count_tokens" => super::go_exec::replay(test, record).await,
         "remap" => {
             let (out, map) = alias::remap(&text(field("body")), field("secret").as_str().unwrap());
             check("body", &out, &text(field("out")))?;
@@ -108,7 +108,7 @@ async fn replay_file(file: &str) {
     for (test, records) in tests {
         for (i, record) in records.as_array().unwrap().iter().enumerate() {
             count += 1;
-            if let Err(why) = replay(record).await {
+            if let Err(why) = replay(test, record).await {
                 failures.push(format!("{test} call {i} ({}): {why}", record["fn"]));
             }
         }

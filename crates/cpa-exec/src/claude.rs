@@ -126,7 +126,7 @@ impl ClaudeExecutor {
     fn with_transport(transport: Arc<Transport>, hooks: Hooks, base_url: impl Into<String>) -> Self {
         Self {
             oauth: OAuth::with_transport(transport.clone()),
-            replay: Arc::default(),
+            replay: replay::shared(),
             native: Native::Transport(transport),
             go: Arc::new(GoClients::new(hooks)),
             base_url: base_url.into().trim_end_matches('/').to_owned(),
@@ -138,7 +138,7 @@ impl ClaudeExecutor {
     pub fn with_client(client: wreq::Client, base_url: impl Into<String>) -> Self {
         Self {
             oauth: OAuth::new(client.clone()),
-            replay: Arc::default(),
+            replay: replay::shared(),
             go: Arc::new(GoClients::with_default(client.clone())),
             native: Native::Fixed(client),
             base_url: base_url.into().trim_end_matches('/').to_owned(),
@@ -187,7 +187,8 @@ impl ClaudeExecutor {
         cfg: &Config,
         delegation: Delegation,
     ) -> Result<ExecResponse, ExecError> {
-        ClaudeView::new(credential)?;
+        // Go never checks for a token here: an empty key counts locally, or reaches the
+        // upstream unauthenticated and gets its answer.
         if req.alt.as_deref() == Some("responses/compact") {
             return Err(ExecError::local(
                 501,
@@ -1069,8 +1070,9 @@ impl<'a> Ctx<'a> {
             body = cloak::strip_ttl(&body);
         }
         body = cloak::normalize_ttl(&body);
+        // Execute only: ExecuteStream forwards the body's own `stream` field.
         let stream_field = rawjson::get(&body, "stream");
-        if !detection.helper_profile || stream_field.exists() || upstream_stream {
+        if !req.stream && (!detection.helper_profile || stream_field.exists() || upstream_stream) {
             let want = if upstream_stream { "true" } else { "false" };
             if stream_field.json() != want {
                 body = rawjson::set_raw(&body, "stream", want);
@@ -1389,37 +1391,45 @@ impl<'a> Ctx<'a> {
             self.api_key.clone()
         };
         let (device, account) = identity::wire_identity(self.credential, &seed, synthesize);
+        // applyClaudeCLIIdentity wraps every ApplyClaudeCredentialMetadata error once more.
         identity::apply(body, &device, &account, session_id).map_err(|e| {
-            let status = if e.contains("account UUID is empty") || e.contains("session ID is empty") {
-                500
+            let message = format!("apply Claude credential metadata: {e}");
+            if e.contains("account UUID is empty") || e.contains("session ID is empty") {
+                // Plain Go errors: no status, no request scope.
+                plain_error(message)
             } else {
-                400
-            };
-            ExecError::local(status, FailureScope::Request, e)
+                // claudeCredentialMetadataRequestError: 400, request-scoped.
+                ExecError::local(400, FailureScope::Request, message)
+            }
         })
     }
 
-    /// `ensureModelMaxTokens` against the pinned Claude catalog.
+    /// `ensureModelMaxTokens`: only a model some Claude credential registered gets a
+    /// default `max_tokens`, its registered completion limit or 1024.
     fn ensure_max_tokens(&self, body: &str) -> String {
-        if !gjson::valid(body) || rawjson::get(body, "max_tokens").exists() {
+        let model = self.base_model.trim();
+        if !gjson::valid(body)
+            || rawjson::get(body, "max_tokens").exists()
+            || !cpa_core::registry::model_providers(model)
+                .iter()
+                .any(|p| p.eq_ignore_ascii_case("claude"))
+        {
             return body.to_owned();
         }
-        let Some(info) = cpa_core::registry::pinned()
-            .channel("claude")
-            .iter()
-            .find(|m| m.id == self.base_model.trim())
-        else {
-            return body.to_owned();
-        };
-        let max = info
-            .raw
-            .get("max_completion_tokens")
-            .and_then(serde_json::Value::as_i64)
+        let max = cpa_core::registry::registered_model(model, Some("claude"))
+            .and_then(|info| {
+                info.raw
+                    .get("max_completion_tokens")
+                    .and_then(serde_json::Value::as_i64)
+            })
             .filter(|n| *n > 0)
-            .unwrap_or(1024);
+            .unwrap_or(DEFAULT_MAX_TOKENS);
         rawjson::set_raw(body, "max_tokens", &max.to_string())
     }
 }
+
+/// `defaultModelMaxTokens`.
+const DEFAULT_MAX_TOKENS: i64 = 1024;
 
 /// Fill `thinking.display: updates` for progress-display models with active thinking.
 fn cloak_thinking_display(body: &str) -> String {
