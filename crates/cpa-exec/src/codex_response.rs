@@ -54,7 +54,7 @@ pub(crate) fn is_capacity(body: &str) -> bool {
 }
 
 /// `codexStatusErrorClassification`.
-fn classification(status: u16, body: &str) -> Option<(&'static str, &'static str)> {
+pub(crate) fn classification(status: u16, body: &str) -> Option<(&'static str, &'static str)> {
     let mut message = lower(&gjson::get(body, "error.message"));
     if message.is_empty() {
         message = lower(&gjson::get(body, "message"));
@@ -666,6 +666,9 @@ pub(crate) struct Processor {
     pub completed: Option<String>,
     /// The request renamed the `collaboration` namespace (multi-agent v2).
     restore: bool,
+    /// Claude clients' reasoning replay: cached from completed turns, cleared on an
+    /// invalid-signature failure.
+    replay: Option<(std::sync::Arc<crate::codex_replay::Cache>, crate::codex_replay::Scope)>,
 }
 
 impl Processor {
@@ -678,6 +681,29 @@ impl Processor {
             last_bufferable: true,
             completed: None,
             restore: false,
+            replay: None,
+        }
+    }
+
+    /// Caches completed turns and clears on invalid signatures for this replay scope.
+    pub fn replaying(
+        mut self,
+        cache: std::sync::Arc<crate::codex_replay::Cache>,
+        scope: crate::codex_replay::Scope,
+    ) -> Self {
+        self.replay = Some((cache, scope));
+        self
+    }
+
+    fn replay_failure(&self, status: u16, body: &str) {
+        if let Some((cache, scope)) = &self.replay {
+            crate::codex_replay::clear_on_invalid_signature(cache, scope, status, body.as_bytes());
+        }
+    }
+
+    fn replay_completed(&self, payload: &str) {
+        if let Some((cache, scope)) = &self.replay {
+            crate::codex_replay::cache_completed(cache, scope, payload.as_bytes());
         }
     }
 
@@ -706,6 +732,7 @@ impl Processor {
             let payload = restore(data.trim(), self.restore);
             let payload = payload.as_ref();
             if let Some((error, body)) = terminal_failure(payload, self.model_level_cooling) {
+                self.replay_failure(error.status, &body);
                 return Step::Fail {
                     error,
                     body: Some(body),
@@ -724,11 +751,15 @@ impl Processor {
             let mut payload = payload.to_owned();
             match gjson::get(&payload, "type").str() {
                 "response.output_item.done" => self.items.collect(&payload),
-                "response.completed" | "response.incomplete" | "response.done" => {
+                kind @ ("response.completed" | "response.incomplete" | "response.done") => {
+                    let incomplete = kind == "response.incomplete";
                     terminal = true;
                     payload = normalize_completion(payload);
                     if !self.preserve_native {
                         payload = self.items.patch(payload);
+                    }
+                    if !incomplete {
+                        self.replay_completed(&payload);
                     }
                     self.completed = Some(payload.clone());
                 }
@@ -760,16 +791,21 @@ impl Processor {
             if meaningful_delta(payload) {
                 self.saw_delta = true;
             }
-            if let Some((error, _)) = terminal_failure(payload, self.model_level_cooling) {
+            if let Some((error, body)) = terminal_failure(payload, self.model_level_cooling) {
+                self.replay_failure(error.status, &body);
                 return Err(error);
             }
             match gjson::get(payload, "type").str() {
                 "response.output_item.done" => self.items.collect(payload),
-                "response.completed" | "response.incomplete" => {
+                kind @ ("response.completed" | "response.incomplete") => {
                     if empty_incomplete(payload, self.items.len(), self.saw_delta) {
                         return Err(request_scoped(502, EMPTY_INCOMPLETE_MESSAGE));
                     }
-                    return Ok(Some(self.items.patch(payload.to_owned())));
+                    let completed = self.items.patch(payload.to_owned());
+                    if kind == "response.completed" {
+                        self.replay_completed(&completed);
+                    }
+                    return Ok(Some(completed));
                 }
                 _ => {}
             }

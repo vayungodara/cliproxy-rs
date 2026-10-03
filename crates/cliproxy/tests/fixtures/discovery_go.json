@@ -1,0 +1,1101 @@
+{
+  "endpoint_paths": [
+    {
+      "in": "/v1",
+      "out": "/v1"
+    },
+    {
+      "in": " /v1beta ",
+      "out": "/v1beta"
+    },
+    {
+      "in": "v1",
+      "out": ""
+    },
+    {
+      "in": "//evil",
+      "out": ""
+    },
+    {
+      "in": "/a\\b",
+      "out": ""
+    },
+    {
+      "in": "/http://x",
+      "out": ""
+    },
+    {
+      "in": "/a/../b",
+      "out": ""
+    },
+    {
+      "in": "/ok",
+      "out": ""
+    },
+    {
+      "in": "/ok path",
+      "out": "/ok path"
+    },
+    {
+      "in": "",
+      "out": ""
+    }
+  ],
+  "entries": [
+    {
+      "instance": "CPA-8F3B",
+      "service": "_ai-gateway._tcp",
+      "domain": "local.",
+      "host": "box.local.",
+      "port": 8317,
+      "ipv4": [
+        "192.168.1.5",
+        "127.0.0.1",
+        "0.0.0.0"
+      ],
+      "ipv6": [
+        "fe80::1",
+        "::1",
+        "2001:db8::5"
+      ],
+      "text": [
+        "version=1",
+        "product=cliproxyapi",
+        "instance_id=8F3B",
+        "tls=0",
+        "auth_required=true",
+        "api_openai=/v1",
+        "api_anthropic=/v1",
+        "api_gemini=/v1beta",
+        "management=false",
+        "auth_methods=api_key",
+        "protocols=chat-completions,responses,messages,generate-content,interactions",
+        "node_role=standalone",
+        "features=chat,responses,messages,generate_content,interactions"
+      ],
+      "within_limits": true,
+      "out": {
+        "instance_name": "CPA-8F3B",
+        "service_type": "_ai-gateway._tcp",
+        "domain": "local.",
+        "host": "box.local.",
+        "port": 8317,
+        "ipv4": [
+          "192.168.1.5"
+        ],
+        "ipv6": [
+          "fe80::1",
+          "2001:db8::5"
+        ],
+        "protocols": [
+          "chat-completions",
+          "responses",
+          "messages",
+          "generate-content",
+          "interactions"
+        ],
+        "features": [
+          "chat",
+          "responses",
+          "messages",
+          "generate_content",
+          "interactions"
+        ],
+        "product": "cliproxyapi",
+        "auth_required": true,
+        "auth_methods": [
+          "api_key"
+        ],
+        "endpoints": {
+          "anthropic": "/v1",
+          "gemini": "/v1beta",
+          "openai": "/v1"
+        },
+        "node_role": "standalone",
+        "version": "1",
+        "raw_txt": {
+          "api_anthropic": "/v1",
+          "api_gemini": "/v1beta",
+          "api_openai": "/v1",
+          "auth_methods": "api_key",
+          "auth_required": "true",
+          "features": "chat,responses,messages,generate_content,interactions",
+          "instance_id": "8F3B",
+          "management": "false",
+          "node_role": "standalone",
+          "product": "cliproxyapi",
+          "protocols": "chat-completions,responses,messages,generate-content,interactions",
+          "tls": "0",
+          "version": "1"
+        }
+      }
+    },
+    {
+      "instance": "other",
+      "service": "_ai-gateway._tcp",
+      "domain": "local.",
+      "host": "x.local.",
+      "port": 70000,
+      "ipv4": [
+        "10.0.0.9"
+      ],
+      "ipv6": null,
+      "text": [
+        "auth_required=TRUE",
+        "api_openai=//evil",
+        "api_gemini=/g",
+        "protocols=a,,a,b",
+        "product=other"
+      ],
+      "within_limits": true,
+      "out": {
+        "instance_name": "other",
+        "service_type": "_ai-gateway._tcp",
+        "domain": "local.",
+        "host": "x.local.",
+        "port": 0,
+        "ipv4": [
+          "10.0.0.9"
+        ],
+        "ipv6": [],
+        "protocols": [
+          "a",
+          "b"
+        ],
+        "product": "other",
+        "auth_required": false,
+        "endpoints": {
+          "gemini": "/g"
+        },
+        "raw_txt": {
+          "api_gemini": "/g",
+          "api_openai": "//evil",
+          "auth_required": "TRUE",
+          "product": "other",
+          "protocols": "a,,a,b"
+        }
+      }
+    },
+    {
+      "instance": "big",
+      "service": "_ai-gateway._tcp",
+      "domain": "local.",
+      "host": "",
+      "port": 1,
+      "ipv4": null,
+      "ipv6": null,
+      "text": [
+        "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"
+      ],
+      "within_limits": false,
+      "out": {
+        "instance_name": "big",
+        "service_type": "_ai-gateway._tcp",
+        "domain": "local.",
+        "host": "",
+        "port": 1,
+        "ipv4": [],
+        "ipv6": [],
+        "auth_required": false,
+        "raw_txt": {
+          "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk": ""
+        }
+      }
+    }
+  ],
+  "instance_names": [
+    {
+      "name": "",
+      "id": "8f3b",
+      "out": "CPA-8F3B"
+    },
+    {
+      "name": "CPA-8F3B",
+      "id": "8F3B",
+      "out": "CPA-8F3B"
+    },
+    {
+      "name": "cpa-8f3b",
+      "id": "8F3B",
+      "out": "CPA-8F3B"
+    },
+    {
+      "name": "office",
+      "id": "8F3B",
+      "out": "office-8F3B"
+    },
+    {
+      "name": "office-8f3b",
+      "id": "8F3B",
+      "out": "office-8F3B"
+    },
+    {
+      "name": "office-8F3B",
+      "id": "8F3B",
+      "out": "office-8F3B"
+    },
+    {
+      "name": "  spaced  ",
+      "id": "ABCD",
+      "out": "spaced-ABCD"
+    },
+    {
+      "name": "bad\u0001ctl",
+      "id": "ABCD",
+      "out": "badctl-ABCD"
+    },
+    {
+      "name": "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn",
+      "id": "ABCD",
+      "out": "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn-ABCD"
+    },
+    {
+      "name": "éééééééééééééééééééééééééééééééééééééééé",
+      "id": "ABCD",
+      "out": "ééééééééééééééééééééééééééééé-ABCD"
+    },
+    {
+      "name": "office",
+      "id": "zz",
+      "out": "office-0001"
+    },
+    {
+      "name": "office",
+      "id": "",
+      "out": "office-0001"
+    },
+    {
+      "name": "-8F3B",
+      "id": "8F3B",
+      "out": "CPA-8F3B"
+    },
+    {
+      "name": "My Server.home",
+      "id": "0A0B",
+      "out": "My Server.home-0A0B"
+    },
+    {
+      "name": "中中中中中中中中中中中中中中中中中中中中-0A0B",
+      "id": "0A0B",
+      "out": "中中中中中中中中中中中中中中中中中中中-0A0B"
+    }
+  ],
+  "interfaces": [
+    {
+      "name": "eth0",
+      "include": null,
+      "exclude": null,
+      "virtual": false,
+      "physical": true,
+      "in_include": false,
+      "in_exclude": false
+    },
+    {
+      "name": "en0",
+      "include": null,
+      "exclude": null,
+      "virtual": false,
+      "physical": true,
+      "in_include": false,
+      "in_exclude": false
+    },
+    {
+      "name": "wlan0",
+      "include": [
+        "WLAN*"
+      ],
+      "exclude": null,
+      "virtual": false,
+      "physical": true,
+      "in_include": true,
+      "in_exclude": false
+    },
+    {
+      "name": "docker0",
+      "include": [
+        "docker0"
+      ],
+      "exclude": null,
+      "virtual": true,
+      "physical": false,
+      "in_include": true,
+      "in_exclude": false
+    },
+    {
+      "name": "br-1234",
+      "include": null,
+      "exclude": [
+        "br-*"
+      ],
+      "virtual": true,
+      "physical": false,
+      "in_include": false,
+      "in_exclude": true
+    },
+    {
+      "name": "tailscale0",
+      "include": null,
+      "exclude": null,
+      "virtual": true,
+      "physical": false,
+      "in_include": false,
+      "in_exclude": false
+    },
+    {
+      "name": "bond0",
+      "include": null,
+      "exclude": null,
+      "virtual": false,
+      "physical": true,
+      "in_include": false,
+      "in_exclude": false
+    },
+    {
+      "name": "enp3s0",
+      "include": [
+        " ",
+        "en*"
+      ],
+      "exclude": [
+        "enp3s0"
+      ],
+      "virtual": false,
+      "physical": true,
+      "in_include": true,
+      "in_exclude": true
+    },
+    {
+      "name": "lo",
+      "include": null,
+      "exclude": null,
+      "virtual": false,
+      "physical": false,
+      "in_include": false,
+      "in_exclude": false
+    },
+    {
+      "name": "wi-fi",
+      "include": null,
+      "exclude": null,
+      "virtual": false,
+      "physical": true,
+      "in_include": false,
+      "in_exclude": false
+    },
+    {
+      "name": "ethernet 2",
+      "include": null,
+      "exclude": null,
+      "virtual": false,
+      "physical": true,
+      "in_include": false,
+      "in_exclude": false
+    },
+    {
+      "name": "vethabc",
+      "include": null,
+      "exclude": null,
+      "virtual": true,
+      "physical": false,
+      "in_include": false,
+      "in_exclude": false
+    },
+    {
+      "name": "awdl0",
+      "include": null,
+      "exclude": null,
+      "virtual": true,
+      "physical": false,
+      "in_include": false,
+      "in_exclude": false
+    },
+    {
+      "name": "utun3",
+      "include": null,
+      "exclude": null,
+      "virtual": true,
+      "physical": false,
+      "in_include": false,
+      "in_exclude": false
+    },
+    {
+      "name": "ix0",
+      "include": null,
+      "exclude": null,
+      "virtual": false,
+      "physical": true,
+      "in_include": false,
+      "in_exclude": false
+    },
+    {
+      "name": "re0",
+      "include": null,
+      "exclude": null,
+      "virtual": false,
+      "physical": true,
+      "in_include": false,
+      "in_exclude": false
+    },
+    {
+      "name": "em1",
+      "include": null,
+      "exclude": null,
+      "virtual": false,
+      "physical": true,
+      "in_include": false,
+      "in_exclude": false
+    },
+    {
+      "name": "igb0",
+      "include": null,
+      "exclude": null,
+      "virtual": false,
+      "physical": true,
+      "in_include": false,
+      "in_exclude": false
+    },
+    {
+      "name": "wg0",
+      "include": null,
+      "exclude": null,
+      "virtual": true,
+      "physical": false,
+      "in_include": false,
+      "in_exclude": false
+    },
+    {
+      "name": "tap0",
+      "include": null,
+      "exclude": null,
+      "virtual": true,
+      "physical": false,
+      "in_include": false,
+      "in_exclude": false
+    },
+    {
+      "name": "x*",
+      "include": [
+        "*"
+      ],
+      "exclude": null,
+      "virtual": false,
+      "physical": false,
+      "in_include": true,
+      "in_exclude": false
+    }
+  ],
+  "merged": {
+    "instance_name": "CPA-8F3B",
+    "service_type": "_ai-gateway._tcp",
+    "domain": "local.",
+    "host": "box.local.",
+    "port": 8317,
+    "ipv4": [
+      "192.168.1.5",
+      "10.0.0.9"
+    ],
+    "ipv6": [
+      "fe80::1",
+      "2001:db8::5"
+    ],
+    "protocols": [
+      "chat-completions",
+      "responses",
+      "messages",
+      "generate-content",
+      "interactions",
+      "a",
+      "b"
+    ],
+    "features": [
+      "chat",
+      "responses",
+      "messages",
+      "generate_content",
+      "interactions"
+    ],
+    "product": "other",
+    "auth_required": false,
+    "auth_methods": [
+      "api_key"
+    ],
+    "endpoints": {
+      "anthropic": "/v1",
+      "gemini": "/g",
+      "openai": "/v1"
+    },
+    "node_role": "standalone",
+    "version": "1",
+    "raw_txt": {
+      "api_anthropic": "/v1",
+      "api_gemini": "/g",
+      "api_openai": "//evil",
+      "auth_methods": "api_key",
+      "auth_required": "false",
+      "features": "chat,responses,messages,generate_content,interactions",
+      "instance_id": "8F3B",
+      "management": "false",
+      "node_role": "standalone",
+      "product": "other",
+      "protocols": "a,,a,b",
+      "tls": "0",
+      "version": "1"
+    }
+  },
+  "parse_txt": [
+    {
+      "in": [
+        "version=1",
+        "Product=cliproxyapi",
+        "a=b=c",
+        "flag",
+        "=x",
+        " k =v",
+        "",
+        "dup=1",
+        "DUP=2"
+      ],
+      "out": {
+        "a": "b=c",
+        "dup": "2",
+        "flag": "",
+        "k": "v",
+        "product": "cliproxyapi",
+        "version": "1"
+      }
+    },
+    {
+      "in": [
+        "tls=1",
+        "api_openai=/v1"
+      ],
+      "out": {
+        "api_openai": "/v1",
+        "tls": "1"
+      }
+    }
+  ],
+  "sanitize_instance_name": [
+    {
+      "in": "plain",
+      "out": "plain"
+    },
+    {
+      "in": " pad ",
+      "out": "pad"
+    },
+    {
+      "in": "a\u0000b\u001fcd",
+      "out": "abcd"
+    },
+    {
+      "in": "éééééééééééééééééééééééééééééééééééééééé",
+      "out": "ééééééééééééééééééééééééééééééé"
+    }
+  ],
+  "service_types": [
+    {
+      "in": "_ai-gateway._tcp",
+      "out": ""
+    },
+    {
+      "in": "",
+      "out": "service type cannot be empty"
+    },
+    {
+      "in": "  ",
+      "out": "service type cannot be empty"
+    },
+    {
+      "in": "_ai-gateway._udp",
+      "out": "service type \"_ai-gateway._udp\" must end with ._tcp"
+    },
+    {
+      "in": "ai-gateway._tcp",
+      "out": "service type \"ai-gateway._tcp\" must start with an underscore"
+    },
+    {
+      "in": "_._tcp",
+      "out": "service name \"\" must be between 1 and 15 characters (RFC 6335)"
+    },
+    {
+      "in": "_aaaaaaaaaaaaaaaa._tcp",
+      "out": "service name \"aaaaaaaaaaaaaaaa\" must be between 1 and 15 characters (RFC 6335)"
+    },
+    {
+      "in": "_a_b._tcp",
+      "out": "service type contains invalid character '_' (RFC 6335)"
+    },
+    {
+      "in": "_-ab._tcp",
+      "out": "service name cannot start or end with a hyphen"
+    },
+    {
+      "in": "_ab-._tcp",
+      "out": "service name cannot start or end with a hyphen"
+    },
+    {
+      "in": "_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa._tcp",
+      "out": "service type \"_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa._tcp\" exceeds 63 characters"
+    },
+    {
+      "in": "_ok-1._tcp",
+      "out": ""
+    },
+    {
+      "in": " _ai-gateway._tcp ",
+      "out": ""
+    }
+  ],
+  "spec_errors": [
+    {
+      "in": "discovery:\n  enabled: true\n  service-type: _bad\n",
+      "out": "discovery: invalid service-type: service type \"_bad\" must end with ._tcp"
+    },
+    {
+      "in": "discovery:\n  enabled: true\n  interfaces:\n    include: [definitely-missing0]\n",
+      "out": "discovery: no qualified physical interfaces found matching filters (refusing fallback to all interfaces)"
+    },
+    {
+      "in": "port 0",
+      "out": "discovery: invalid service port 0 (must be between 1 and 65535)"
+    }
+  ],
+  "subtypes": [
+    {
+      "in": "_responses",
+      "out": "_responses"
+    },
+    {
+      "in": "responses",
+      "out": "_responses"
+    },
+    {
+      "in": " _messages ",
+      "out": "_messages"
+    },
+    {
+      "in": "",
+      "out": ""
+    },
+    {
+      "in": "_",
+      "out": ""
+    },
+    {
+      "in": "_-bad",
+      "out": ""
+    },
+    {
+      "in": "_bad-",
+      "out": ""
+    },
+    {
+      "in": "_a.b",
+      "out": ""
+    },
+    {
+      "in": "_x._sub",
+      "out": ""
+    },
+    {
+      "in": "_under_score",
+      "out": ""
+    },
+    {
+      "in": "_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "out": "_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    {
+      "in": "_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "out": ""
+    },
+    {
+      "in": "_Mixed-9",
+      "out": "_Mixed-9"
+    }
+  ],
+  "txt": [
+    {
+      "opts": {
+        "Version": "1",
+        "Product": "cliproxyapi",
+        "Protocols": [
+          "chat-completions",
+          "responses",
+          "messages",
+          "generate-content",
+          "interactions"
+        ],
+        "Features": [
+          "chat",
+          "responses",
+          "messages",
+          "generate_content",
+          "interactions"
+        ],
+        "APIPathOpenAI": "/v1",
+        "APIPathAnthropic": "/v1",
+        "APIPathGemini": "/v1beta",
+        "TLS": false,
+        "AuthRequired": true,
+        "AuthMethods": [
+          "api_key"
+        ],
+        "InstanceID": "",
+        "NodeRole": "standalone",
+        "AdvertiseManagement": false
+      },
+      "records": [
+        "version=1",
+        "product=cliproxyapi",
+        "tls=0",
+        "auth_required=true",
+        "api_openai=/v1",
+        "api_anthropic=/v1",
+        "api_gemini=/v1beta",
+        "management=false",
+        "auth_methods=api_key",
+        "protocols=chat-completions,responses,messages,generate-content,interactions",
+        "node_role=standalone",
+        "features=chat,responses,messages,generate_content,interactions"
+      ]
+    },
+    {
+      "opts": {
+        "Version": "1",
+        "Product": "cliproxyapi",
+        "Protocols": [
+          "chat-completions",
+          "responses",
+          "messages",
+          "generate-content",
+          "interactions"
+        ],
+        "Features": [
+          "chat",
+          "responses",
+          "messages",
+          "generate_content",
+          "interactions"
+        ],
+        "APIPathOpenAI": "/v1",
+        "APIPathAnthropic": "/v1",
+        "APIPathGemini": "/v1beta",
+        "TLS": false,
+        "AuthRequired": true,
+        "AuthMethods": [
+          "api_key"
+        ],
+        "InstanceID": "8F3B",
+        "NodeRole": "standalone",
+        "AdvertiseManagement": false
+      },
+      "records": [
+        "version=1",
+        "product=cliproxyapi",
+        "instance_id=8F3B",
+        "tls=0",
+        "auth_required=true",
+        "api_openai=/v1",
+        "api_anthropic=/v1",
+        "api_gemini=/v1beta",
+        "management=false",
+        "auth_methods=api_key",
+        "protocols=chat-completions,responses,messages,generate-content,interactions",
+        "node_role=standalone",
+        "features=chat,responses,messages,generate_content,interactions"
+      ]
+    },
+    {
+      "opts": {
+        "Version": "1",
+        "Product": "cliproxyapi",
+        "Protocols": [
+          "chat-completions",
+          "responses",
+          "messages",
+          "generate-content",
+          "interactions"
+        ],
+        "Features": [
+          "chat",
+          "responses",
+          "messages",
+          "generate_content",
+          "interactions"
+        ],
+        "APIPathOpenAI": "/v1",
+        "APIPathAnthropic": "/v1",
+        "APIPathGemini": "/v1beta",
+        "TLS": true,
+        "AuthRequired": false,
+        "AuthMethods": [
+          "api_key"
+        ],
+        "InstanceID": "8F3B",
+        "NodeRole": "standalone",
+        "AdvertiseManagement": true
+      },
+      "records": [
+        "version=1",
+        "product=cliproxyapi",
+        "instance_id=8F3B",
+        "tls=1",
+        "auth_required=false",
+        "api_openai=/v1",
+        "api_anthropic=/v1",
+        "api_gemini=/v1beta",
+        "management=true",
+        "auth_methods=api_key",
+        "protocols=chat-completions,responses,messages,generate-content,interactions",
+        "node_role=standalone",
+        "features=chat,responses,messages,generate_content,interactions"
+      ]
+    },
+    {
+      "opts": {
+        "Version": " 2\u0000é ",
+        "Product": "\t",
+        "Protocols": [
+          "chat-completions",
+          "responses",
+          "messages",
+          "generate-content",
+          "interactions"
+        ],
+        "Features": [
+          "chat",
+          "responses",
+          "messages",
+          "generate_content",
+          "interactions"
+        ],
+        "APIPathOpenAI": "/v1",
+        "APIPathAnthropic": "/v1",
+        "APIPathGemini": "/v1beta",
+        "TLS": false,
+        "AuthRequired": true,
+        "AuthMethods": [
+          "api_key",
+          "bearer"
+        ],
+        "InstanceID": "8F3B",
+        "NodeRole": "standalone",
+        "AdvertiseManagement": false
+      },
+      "records": [
+        "version=2",
+        "instance_id=8F3B",
+        "tls=0",
+        "auth_required=true",
+        "api_openai=/v1",
+        "api_anthropic=/v1",
+        "api_gemini=/v1beta",
+        "management=false",
+        "auth_methods=api_key,bearer",
+        "protocols=chat-completions,responses,messages,generate-content,interactions",
+        "node_role=standalone",
+        "features=chat,responses,messages,generate_content,interactions"
+      ]
+    },
+    {
+      "opts": {
+        "Version": "1",
+        "Product": "cliproxyapi",
+        "Protocols": [
+          "chat-completions",
+          "responses",
+          "messages",
+          "generate-content",
+          "interactions"
+        ],
+        "Features": [
+          "chat",
+          "responses",
+          "messages",
+          "generate_content",
+          "interactions"
+        ],
+        "APIPathOpenAI": "/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "APIPathAnthropic": "/v1",
+        "APIPathGemini": "/v1beta",
+        "TLS": false,
+        "AuthRequired": true,
+        "AuthMethods": [
+          "api_key"
+        ],
+        "InstanceID": "8F3B",
+        "NodeRole": "standalone",
+        "AdvertiseManagement": false
+      },
+      "records": [
+        "version=1",
+        "product=cliproxyapi",
+        "instance_id=8F3B",
+        "tls=0",
+        "auth_required=true",
+        "api_anthropic=/v1",
+        "api_gemini=/v1beta",
+        "management=false",
+        "auth_methods=api_key",
+        "protocols=chat-completions,responses,messages,generate-content,interactions",
+        "node_role=standalone",
+        "features=chat,responses,messages,generate_content,interactions"
+      ]
+    },
+    {
+      "opts": {
+        "Version": "1",
+        "Product": "cliproxyapi",
+        "Protocols": [
+          "feature-",
+          "feature-f",
+          "feature-ff",
+          "feature-fff",
+          "feature-ffff",
+          "feature-fffff",
+          "feature-ffffff",
+          "feature-",
+          "feature-f",
+          "feature-ff",
+          "feature-fff",
+          "feature-ffff",
+          "feature-fffff",
+          "feature-ffffff",
+          "feature-",
+          "feature-f",
+          "feature-ff",
+          "feature-fff",
+          "feature-ffff",
+          "feature-fffff"
+        ],
+        "Features": [
+          "feature-",
+          "feature-f",
+          "feature-ff",
+          "feature-fff",
+          "feature-ffff",
+          "feature-fffff",
+          "feature-ffffff",
+          "feature-",
+          "feature-f",
+          "feature-ff",
+          "feature-fff",
+          "feature-ffff",
+          "feature-fffff",
+          "feature-ffffff",
+          "feature-",
+          "feature-f",
+          "feature-ff",
+          "feature-fff",
+          "feature-ffff",
+          "feature-fffff",
+          "feature-ffffff",
+          "feature-",
+          "feature-f",
+          "feature-ff",
+          "feature-fff",
+          "feature-ffff",
+          "feature-fffff",
+          "feature-ffffff",
+          "feature-",
+          "feature-f",
+          "feature-ff",
+          "feature-fff",
+          "feature-ffff",
+          "feature-fffff",
+          "feature-ffffff",
+          "feature-",
+          "feature-f",
+          "feature-ff",
+          "feature-fff",
+          "feature-ffff"
+        ],
+        "APIPathOpenAI": "/v1",
+        "APIPathAnthropic": "/v1",
+        "APIPathGemini": "/v1beta",
+        "TLS": false,
+        "AuthRequired": true,
+        "AuthMethods": [
+          "api_key"
+        ],
+        "InstanceID": "8F3B",
+        "NodeRole": "standalone",
+        "AdvertiseManagement": false
+      },
+      "records": [
+        "version=1",
+        "product=cliproxyapi",
+        "instance_id=8F3B",
+        "tls=0",
+        "auth_required=true",
+        "api_openai=/v1",
+        "api_anthropic=/v1",
+        "api_gemini=/v1beta",
+        "management=false",
+        "auth_methods=api_key",
+        "node_role=standalone"
+      ]
+    },
+    {
+      "opts": {
+        "Version": "",
+        "Product": "",
+        "Protocols": null,
+        "Features": null,
+        "APIPathOpenAI": "",
+        "APIPathAnthropic": "",
+        "APIPathGemini": "",
+        "TLS": false,
+        "AuthRequired": false,
+        "AuthMethods": null,
+        "InstanceID": "",
+        "NodeRole": "",
+        "AdvertiseManagement": false
+      },
+      "records": [
+        "version=1",
+        "product=cliproxyapi",
+        "tls=0",
+        "auth_required=false",
+        "api_openai=/v1",
+        "api_anthropic=/v1",
+        "api_gemini=/v1beta",
+        "management=false"
+      ]
+    }
+  ],
+  "txt_lists": [
+    {
+      "in": "a,b,a",
+      "out": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "in": " x , ,y,",
+      "out": [
+        "x",
+        "y"
+      ]
+    },
+    {
+      "in": "",
+      "out": null
+    },
+    {
+      "in": "p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,",
+      "out": [
+        "p"
+      ]
+    },
+    {
+      "in": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz,ok",
+      "out": [
+        "ok"
+      ]
+    }
+  ]
+}

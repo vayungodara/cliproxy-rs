@@ -145,7 +145,7 @@ fn live_media_relay(section: Option<&Value>) -> Result<()> {
 }
 
 /// Go `time.ParseDuration` in nanoseconds; `None` where Go returns an error.
-pub(crate) fn parse_duration(s: &str) -> Option<i64> {
+pub fn parse_duration(s: &str) -> Option<i64> {
     const LIMIT: u64 = 1 << 63;
     let (neg, mut rest) = match s.as_bytes().first() {
         Some(b'-') => (true, &s[1..]),

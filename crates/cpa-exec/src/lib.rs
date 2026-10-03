@@ -24,6 +24,7 @@ mod codex_client;
 mod codex_json;
 pub mod codex_oauth;
 pub mod codex_quota;
+mod codex_replay;
 mod codex_request;
 mod codex_response;
 #[cfg(test)]

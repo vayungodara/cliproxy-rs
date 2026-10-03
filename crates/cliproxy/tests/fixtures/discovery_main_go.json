@@ -1,0 +1,461 @@
+{
+  "argv": [
+    {
+      "args": [
+        "-discover-json"
+      ],
+      "discover_json": true,
+      "discover": false,
+      "config_path": "default.yaml"
+    },
+    {
+      "args": [
+        "--discover-json=false"
+      ],
+      "discover_json": false,
+      "discover": false,
+      "config_path": "default.yaml"
+    },
+    {
+      "args": [
+        "-discover-json=FALSE",
+        "-discover"
+      ],
+      "discover_json": false,
+      "discover": true,
+      "config_path": "default.yaml"
+    },
+    {
+      "args": [
+        "-discover-json=maybe"
+      ],
+      "discover_json": false,
+      "discover": false,
+      "config_path": "default.yaml"
+    },
+    {
+      "args": [
+        "-config",
+        "-discover-json"
+      ],
+      "discover_json": false,
+      "discover": false,
+      "config_path": "-discover-json"
+    },
+    {
+      "args": [
+        "-config=-discover-json",
+        "-discover"
+      ],
+      "discover_json": false,
+      "discover": true,
+      "config_path": "-discover-json"
+    },
+    {
+      "args": [
+        "-tui",
+        "-discover-json"
+      ],
+      "discover_json": true,
+      "discover": false,
+      "config_path": "default.yaml"
+    },
+    {
+      "args": [
+        "x",
+        "-discover-json"
+      ],
+      "discover_json": false,
+      "discover": false,
+      "config_path": "default.yaml"
+    },
+    {
+      "args": [
+        "--",
+        "-discover-json"
+      ],
+      "discover_json": false,
+      "discover": false,
+      "config_path": "default.yaml"
+    },
+    {
+      "args": [
+        "-",
+        "-discover-json"
+      ],
+      "discover_json": false,
+      "discover": false,
+      "config_path": "default.yaml"
+    },
+    {
+      "args": [
+        "-config"
+      ],
+      "discover_json": false,
+      "discover": false,
+      "config_path": "default.yaml"
+    },
+    {
+      "args": [
+        "-password",
+        "p",
+        "--discover"
+      ],
+      "discover_json": false,
+      "discover": true,
+      "config_path": "default.yaml"
+    },
+    {
+      "args": [
+        "-discover-timeout",
+        "5",
+        "-discover"
+      ],
+      "discover_json": false,
+      "discover": true,
+      "config_path": "default.yaml"
+    },
+    {
+      "args": [
+        "--discover=1"
+      ],
+      "discover_json": false,
+      "discover": true,
+      "config_path": "default.yaml"
+    },
+    {
+      "args": [
+        "-discover=t"
+      ],
+      "discover_json": false,
+      "discover": true,
+      "config_path": "default.yaml"
+    },
+    {
+      "args": [
+        "--config=a.yaml"
+      ],
+      "discover_json": false,
+      "discover": false,
+      "config_path": "a.yaml"
+    },
+    {
+      "args": [
+        "-config",
+        "b.yaml",
+        "--config",
+        "c.yaml"
+      ],
+      "discover_json": false,
+      "discover": false,
+      "config_path": "b.yaml"
+    },
+    {
+      "args": [],
+      "discover_json": false,
+      "discover": false,
+      "config_path": "default.yaml"
+    }
+  ],
+  "catalog_plans": [
+    {
+      "Local": false,
+      "Home": false,
+      "Models": true,
+      "CodexClient": true,
+      "Devin": true
+    },
+    {
+      "Local": false,
+      "Home": true,
+      "Models": false,
+      "CodexClient": true,
+      "Devin": true
+    },
+    {
+      "Local": true,
+      "Home": false,
+      "Models": false,
+      "CodexClient": false,
+      "Devin": false
+    },
+    {
+      "Local": true,
+      "Home": true,
+      "Models": false,
+      "CodexClient": false,
+      "Devin": false
+    }
+  ],
+  "dotenv": [
+    {
+      "in": "A=1\nB=2\n",
+      "out": {
+        "A": "1",
+        "B": "2"
+      },
+      "err": ""
+    },
+    {
+      "in": "export A=1",
+      "out": {
+        "A": "1"
+      },
+      "err": ""
+    },
+    {
+      "in": "exportA=1",
+      "out": {
+        "exportA": "1"
+      },
+      "err": ""
+    },
+    {
+      "in": "  A = spaced value  \n",
+      "out": {
+        "A": "spaced value"
+      },
+      "err": ""
+    },
+    {
+      "in": "A=x # comment\nB=y#notcomment",
+      "out": {
+        "A": "x",
+        "B": "y#notcomment"
+      },
+      "err": ""
+    },
+    {
+      "in": "A=a #b #c",
+      "out": {
+        "A": "a #b"
+      },
+      "err": ""
+    },
+    {
+      "in": "# only comment\n\nA=1",
+      "out": {
+        "A": "1"
+      },
+      "err": ""
+    },
+    {
+      "in": "A='single $A \\n'",
+      "out": {
+        "A": "single $A \\n"
+      },
+      "err": ""
+    },
+    {
+      "in": "A=\"double \\n \\r \\t \\\\ \\$A\"",
+      "out": {
+        "A": "double \n \r t \\ $A"
+      },
+      "err": ""
+    },
+    {
+      "in": "A=1\nB=${A}-$A-$(A)-\\$A-${A",
+      "out": {
+        "A": "1",
+        "B": "1-1-1)-$A-1"
+      },
+      "err": ""
+    },
+    {
+      "in": "B=$lower $ ${}",
+      "out": {
+        "B": "$lower $ ${}"
+      },
+      "err": ""
+    },
+    {
+      "in": "A=\"unterminated",
+      "out": {},
+      "err": "unterminated quoted value \"unterminated"
+    },
+    {
+      "in": "A=1\nB",
+      "out": {
+        "": "B",
+        "A": "1"
+      },
+      "err": ""
+    },
+    {
+      "in": "B",
+      "out": {
+        "": "B"
+      },
+      "err": ""
+    },
+    {
+      "in": "Ü=1",
+      "out": {},
+      "err": "unexpected character \"\\u009c\" in variable name near \"Ü=1\""
+    },
+    {
+      "in": "é=1",
+      "out": {},
+      "err": "unexpected character \"©\" in variable name near \"é=1\""
+    },
+    {
+      "in": "A.B=1\nC_D=2",
+      "out": {
+        "A.B": "1",
+        "C_D": "2"
+      },
+      "err": ""
+    },
+    {
+      "in": "A:yaml",
+      "out": {
+        "A": "yaml"
+      },
+      "err": ""
+    },
+    {
+      "in": "A=\"q\\\"uoted\"",
+      "out": {
+        "A": "q\"uoted"
+      },
+      "err": ""
+    },
+    {
+      "in": "A=''",
+      "out": {
+        "A": ""
+      },
+      "err": ""
+    },
+    {
+      "in": "A=\"\"\"x\"",
+      "out": {
+        "A": ""
+      },
+      "err": "unexpected character \"\\\"\" in variable name near \"\\\"x\\\"\""
+    },
+    {
+      "in": "A=1\r\nB=2\r\n",
+      "out": {
+        "A": "1",
+        "B": "2"
+      },
+      "err": ""
+    },
+    {
+      "in": "A=\"x\" trailing",
+      "out": {
+        "": "trailing",
+        "A": "x"
+      },
+      "err": ""
+    },
+    {
+      "in": "A=1\nA=2\nB=$A",
+      "out": {
+        "A": "2",
+        "B": "2"
+      },
+      "err": ""
+    },
+    {
+      "in": "A=\"multi\nline\"",
+      "out": {
+        "A": "multi\nline"
+      },
+      "err": ""
+    },
+    {
+      "in": "A B=1",
+      "out": {
+        "A B": "1"
+      },
+      "err": ""
+    },
+    {
+      "in": "A= v ",
+      "out": {
+        "A": "v"
+      },
+      "err": ""
+    },
+    {
+      "in": " A=1",
+      "out": {
+        "A": "1"
+      },
+      "err": ""
+    },
+    {
+      "in": "A=$A$A",
+      "out": {
+        "A": ""
+      },
+      "err": ""
+    },
+    {
+      "in": "A='a\\'b'",
+      "out": {
+        "A": "a\\'b"
+      },
+      "err": ""
+    },
+    {
+      "in": "",
+      "out": {},
+      "err": ""
+    },
+    {
+      "in": "   \n\t",
+      "out": {},
+      "err": ""
+    },
+    {
+      "in": "A=\"$(B)\"\nB=2\nC=$(B)",
+      "out": {
+        "A": ")",
+        "B": "2",
+        "C": "2)"
+      },
+      "err": ""
+    }
+  ],
+  "management_base_url": [
+    {
+      "flag": "",
+      "remote": "",
+      "port": 0,
+      "out": "http://127.0.0.1:8317"
+    },
+    {
+      "flag": " https://x ",
+      "remote": "http://y",
+      "port": 9,
+      "out": "https://x"
+    },
+    {
+      "flag": "",
+      "remote": " http://y ",
+      "port": 9,
+      "out": "http://y"
+    },
+    {
+      "flag": "",
+      "remote": "",
+      "port": 9,
+      "out": "http://127.0.0.1:9"
+    },
+    {
+      "flag": "",
+      "remote": "",
+      "port": -1,
+      "out": "http://127.0.0.1:8317"
+    },
+    {
+      "flag": "",
+      "remote": "",
+      "port": 0,
+      "out": "http://127.0.0.1:8317"
+    }
+  ]
+}
