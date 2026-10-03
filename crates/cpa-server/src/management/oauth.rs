@@ -261,6 +261,8 @@ pub(crate) async fn auth_url(State(state): State<Arc<Management>>, RawQuery(raw)
         }
         "kimi-ai" => start_kimi(state, cpa_exec::kimi_auth::DOMAIN_AI.to_owned()).await,
         "meta" => start_meta(state).await,
+        "xai" => start_xai(state).await,
+        "devin" => start_devin(state).await,
         _ => fail(StatusCode::NOT_FOUND, "provider_not_found"),
     }
 }
@@ -445,8 +447,9 @@ async fn start_codex(state: Arc<Management>, webui: bool) -> Response {
 }
 
 /// Go's callback wait: every 500 ms for up to five minutes, until the callback
-/// arrives, the session stops being pending, or the deadline passes. Returns the code.
-async fn wait_for_callback(state: &Management, sid: &str, provider: &str, bad_request: &str) -> Option<String> {
+/// arrives, the session stops being pending, or the deadline passes (recorded as the
+/// session's error).
+async fn next_callback(state: &Management, sid: &str, provider: &str) -> Option<Callback> {
     let deadline = Instant::now() + CALLBACK_WAIT;
     loop {
         if !state.oauth.is_pending(sid, provider) {
@@ -457,18 +460,92 @@ async fn wait_for_callback(state: &Management, sid: &str, provider: &str, bad_re
             return None;
         }
         if let Some(cb) = state.oauth.take_callback(sid) {
-            if !cb.error.is_empty() {
-                state.oauth.set_error(sid, bad_request);
-                return None;
-            }
-            if cb.state != sid {
-                state.oauth.set_error(sid, "State code error");
-                return None;
-            }
-            return Some(cb.code);
+            return Some(cb);
         }
         tokio::time::sleep(Duration::from_millis(500)).await;
     }
+}
+
+/// [`next_callback`] with the Claude and Codex checks: an error first, then the state.
+/// Returns the code.
+async fn wait_for_callback(state: &Management, sid: &str, provider: &str, bad_request: &str) -> Option<String> {
+    let cb = next_callback(state, sid, provider).await?;
+    if !cb.error.is_empty() {
+        state.oauth.set_error(sid, bad_request);
+        return None;
+    }
+    if cb.state != sid {
+        state.oauth.set_error(sid, "State code error");
+        return None;
+    }
+    Some(cb.code)
+}
+
+/// Go `RequestDevinToken`: PKCE login whose callback reaches the main listener's
+/// `/callback` (Devin only accepts `http://127.0.0.1:<port>/callback`).
+async fn start_devin(state: Arc<Management>) -> Response {
+    use cpa_exec::devin_auth::{DevinAuth, generate_pkce, save_record};
+    let port = state.rt.config().port;
+    if port == 0 {
+        return fail(StatusCode::INTERNAL_SERVER_ERROR, "callback server unavailable");
+    }
+    let redirect = format!("http://127.0.0.1:{port}/callback");
+    let Ok(pkce) = generate_pkce() else {
+        return fail(StatusCode::INTERNAL_SERVER_ERROR, "failed to generate PKCE codes");
+    };
+    let Some(sid) = random_state() else {
+        return fail(StatusCode::INTERNAL_SERVER_ERROR, "failed to generate state parameter");
+    };
+    let mut auth = DevinAuth::new(login_client(&state));
+    if let Some(base) = &state.login_base {
+        auth = auth.with_app_base(base).with_api_base(base).with_server_base(base);
+    }
+    let url = auth.build_authorization_url(&redirect, &pkce.challenge, &sid);
+    state.oauth.register(&sid, "devin");
+    let worker = state.clone();
+    let flow = sid.clone();
+    tokio::spawn(async move {
+        let Some(cb) = next_callback(&worker, &flow, "devin").await else {
+            return;
+        };
+        let fail = |message: &str| {
+            if worker.oauth.is_pending(&flow, "devin") {
+                settle(&worker, &flow, Outcome::Failed(message.into()));
+            }
+        };
+        if cb.state != flow {
+            return fail("State code error");
+        }
+        if !cb.error.is_empty() {
+            return fail("Devin authorization denied");
+        }
+        if cb.code.trim().is_empty() {
+            return fail("Missing authorization code");
+        }
+        // Upstream errors can carry tokens or codes: only Go's fixed messages surface.
+        let token = match auth.exchange_code(&cb.code, &pkce.verifier).await {
+            Ok(token) if !token.trim().is_empty() => token,
+            _ => return fail("Failed to exchange authorization code for tokens"),
+        };
+        if !worker.oauth.is_pending(&flow, "devin") {
+            return;
+        }
+        let Ok(record) = auth.create_auth_record(&token).await else {
+            return fail("Failed to create Devin authentication record");
+        };
+        let write = |dir: PathBuf, record| save_record(&dir, &record);
+        let outcome = save_if_pending(
+            &worker,
+            &flow,
+            "devin",
+            record,
+            write,
+            "Failed to save authentication tokens",
+        )
+        .await;
+        settle(&worker, &flow, outcome);
+    });
+    started(url, sid)
 }
 
 /// Go `watchOAuthSessionCancel`: resolves once the session stops being pending.
@@ -609,6 +686,68 @@ async fn start_meta(state: Arc<Management>) -> Response {
             Ok(bundle) => {
                 let write = move |dir: PathBuf, bundle| save_login(&dir, &bundle, now).map(|o| o.path);
                 save_if_pending(&worker, &sid, "meta", bundle, write, "Failed to save token to file").await
+            }
+        };
+        settle(&worker, &sid, outcome);
+    });
+    response
+}
+
+/// Go `RequestXAIToken`: device flow; the poller saves the credential file.
+async fn start_xai(state: Arc<Management>) -> Response {
+    use cpa_exec::xai_auth::{LoginRecord, MAX_POLL_DURATION, XaiAuth, login_record, saved_document};
+    let sid = format!("xai-{}", unix_nanos());
+    let mut auth = XaiAuth::new(login_client(&state));
+    if let Some(base) = &state.login_base {
+        auth = auth
+            .with_issuer_origin(base)
+            .with_min_poll_interval(std::time::Duration::from_millis(10));
+    }
+    let Ok(code) = auth.start_device_flow().await else {
+        return fail(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "failed to start device authorization flow",
+        );
+    };
+    let url = match code.verification_uri_complete.trim() {
+        "" => code.verification_uri.trim().to_owned(),
+        u => u.to_owned(),
+    };
+    state.oauth.register(&sid, "xai");
+    let expires = if code.expires_in > 0 {
+        code.expires_in
+    } else {
+        MAX_POLL_DURATION.as_secs() as i64
+    };
+    let response = device_started(url, sid.clone(), &code.user_code, Some(expires));
+    // Go `saveTokenRecord` through the file token store: merged with an existing file.
+    fn save_login(dir: &std::path::Path, record: LoginRecord) -> Result<PathBuf, String> {
+        let path = dir.join(&record.file_name);
+        let existing = std::fs::read(&path).ok().filter(|raw| !raw.is_empty());
+        let document = saved_document(record.metadata, existing.as_deref())?;
+        let text = cpa_common::json::GoValue::Object(document).encode_indented();
+        std::fs::create_dir_all(dir)
+            .and_then(|()| super::auth_files::write_file(&path, &text))
+            .map_err(|e| e.to_string())?;
+        Ok(path)
+    }
+    let worker = state.clone();
+    tokio::spawn(async move {
+        let waited = tokio::select! {
+            t = auth.poll(&code) => t,
+            () = cancelled(&worker, &sid, "xai") => return,
+        };
+        let now = chrono::Utc::now();
+        let outcome = match waited {
+            _ if !worker.oauth.is_pending(&sid, "xai") => Outcome::Cancelled,
+            Err(e) => Outcome::Failed(with_cause("Authentication failed", &exec_text(&e))),
+            Ok(tokens) if tokens.access_token.trim().is_empty() => Outcome::Failed("Failed to exchange token".into()),
+            Ok(tokens) => {
+                // Go `WaitForAuthorization`: RFC 3339 seconds in UTC.
+                let last_refresh = now.format("%Y-%m-%dT%H:%M:%SZ").to_string();
+                let record = login_record(&tokens, &last_refresh, &code.token_endpoint, now.timestamp_millis());
+                let write = |dir: PathBuf, record| save_login(&dir, record);
+                save_if_pending(&worker, &sid, "xai", record, write, "Failed to save token to file").await
             }
         };
         settle(&worker, &sid, outcome);
