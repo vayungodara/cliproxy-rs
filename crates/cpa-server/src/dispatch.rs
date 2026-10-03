@@ -46,7 +46,27 @@ pub struct Call {
     pub request_path: String,
     /// The downstream peer (Go `Request.RemoteAddr`), when the listener provides it.
     pub peer: Option<std::net::SocketAddr>,
+    /// A turn of a long-lived downstream session (the Responses WebSocket), `None` for
+    /// ordinary HTTP requests.
+    pub turn: Option<Arc<SessionTurn>>,
 }
+
+/// How a session transport runs one turn through [`run`] (Go
+/// `ExecuteStreamWithAuthManager` with `WithPinnedAuthID`,
+/// `WithSelectedAuthIDCallback` and the execution session).
+pub struct SessionTurn {
+    /// Passed to [`cpa_exec::Executors::execute_in_session`] for every attempt.
+    pub session: cpa_core::exec::ExecSession,
+    /// Only this credential may serve the turn (`WithPinnedAuthID`); every retry round
+    /// excludes all others.
+    pub pinned: Option<String>,
+    /// Called with each credential right before it is attempted
+    /// (`WithSelectedAuthIDCallback`); the last call before success is the serving one.
+    pub on_selected: Option<OnSelected>,
+}
+
+/// The [`SessionTurn::on_selected`] callback.
+pub type OnSelected = Box<dyn Fn(&cpa_core::credential::Credential) + Send + Sync>;
 
 /// The downstream peer address, as the listener records it (`ConnectInfo`).
 pub type Peer = Option<axum::Extension<axum::extract::ConnectInfo<std::net::SocketAddr>>>;
@@ -532,12 +552,24 @@ pub async fn run(rt: &Arc<Runtime>, call: Call, trace: &Trace) -> Result<Done, R
             call.stream,
         ))
     });
+    // `WithPinnedAuthID`: every other credential is excluded in every round.
+    let pinned_exclusion: Vec<String> = match call.turn.as_ref().and_then(|t| t.pinned.as_deref()) {
+        Some(pinned) if !pinned.is_empty() => rt
+            .store()
+            .snapshot()
+            .iter()
+            .filter(|c| c.id != pinned)
+            .map(|c| c.id.clone())
+            .collect(),
+        _ => Vec::new(),
+    };
     let mut selection = Selection {
         providers: providers.clone(),
         model: call.selection_model.clone().unwrap_or_else(|| model.clone()),
         session: session.id.clone(),
         session_parent: session.parent,
         session_fork: session.fork,
+        exclude: pinned_exclusion.clone(),
         ..Selection::default()
     };
     let request = ExecRequest {
@@ -696,7 +728,7 @@ pub async fn run(rt: &Arc<Runtime>, call: Call, trace: &Trace) -> Result<Done, R
             tokio::time::sleep(jitter(wait, policy.max_retry_interval)).await;
         }
         selection.retry_round += 1;
-        selection.exclude.clear();
+        selection.exclude.clone_from(&pinned_exclusion);
     }
 }
 
@@ -775,7 +807,20 @@ async fn attempt(
             })
         };
         let mut tracker = start(&lease.credential, &mut req);
-        let mut executed = rt.executors.execute(&lease.credential, req.clone(), cfg).await;
+        if let Some(on_selected) = call.turn.as_ref().and_then(|t| t.on_selected.as_ref()) {
+            on_selected(&lease.credential);
+        }
+        let execute = |credential: Arc<cpa_core::credential::Credential>, req: ExecRequest| async move {
+            match call.turn.as_ref() {
+                Some(turn) => {
+                    rt.executors
+                        .execute_in_session(&credential, req, cfg, &turn.session)
+                        .await
+                }
+                None => rt.executors.execute(&credential, req, cfg).await,
+            }
+        };
+        let mut executed = execute(lease.credential.clone(), req.clone()).await;
         // Go `tryRefreshAfterUnauthorized`: one refresh-and-retry per credential.
         if let Err(error) = &executed
             && !refreshed
@@ -788,7 +833,7 @@ async fn attempt(
             }
             lease.credential = current;
             tracker = start(&lease.credential, &mut req);
-            executed = rt.executors.execute(&lease.credential, req, cfg).await;
+            executed = execute(lease.credential.clone(), req).await;
         }
         if let (Ok(response), Some(t)) = (&executed, tracker.as_mut()) {
             t.arrived(&response.headers);
@@ -893,7 +938,12 @@ fn usage_client(
         parent_session_id: session.parent.clone().unwrap_or_default(),
         is_fork: session.fork,
         request_id: trace.request_id(),
-        endpoint: format!("POST {}", call.request_path),
+        // Session turns arrive on the WebSocket upgrade (a GET).
+        endpoint: format!(
+            "{} {}",
+            if call.turn.is_some() { "GET" } else { "POST" },
+            call.request_path
+        ),
         api_key: call.caller.principal.clone(),
     }
 }
