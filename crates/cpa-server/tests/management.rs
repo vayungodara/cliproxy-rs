@@ -612,6 +612,64 @@ async fn nonlocal_socket_requires_allow_remote_even_with_a_valid_key() {
     server.abort();
 }
 
+/// The binary's composition (`cpa_server::app`): API routes first, management and its
+/// NoRoute behind them. The API keeps gin's NoRoute rules (bare 404, no `Allow`, HEAD on
+/// `/healthz` only); management keeps its own HEAD handling, so a HEAD under
+/// `/v0/management` reaches the guard on the way to plugin routes.
+#[tokio::test]
+async fn served_app_keeps_api_and_management_no_route_rules() {
+    let f = Fixture::new("served-app");
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let base = format!("http://{}", listener.local_addr().unwrap());
+    let app = cpa_server::app(f.rt.clone(), management::router(f.state.clone()));
+    let server = tokio::spawn(async move {
+        axum::serve(
+            listener,
+            app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+        )
+        .await
+        .unwrap()
+    });
+    let client = wreq::Client::new();
+    let send = |method: wreq::Method, path: &str, key: Option<&str>| {
+        let mut req = client.request(method, format!("{base}{path}"));
+        if let Some(key) = key {
+            req = req.bearer_auth(key);
+        }
+        async move { req.send().await.unwrap() }
+    };
+    let get = wreq::Method::GET;
+    let head = wreq::Method::HEAD;
+    assert_eq!(
+        send(get.clone(), "/v8/management/config", Some("fake-management-only"))
+            .await
+            .status(),
+        200
+    );
+    assert_eq!(send(get.clone(), "/v1/models", None).await.status(), 401);
+    assert_eq!(send(get.clone(), "/v1/models", Some("fake-client")).await.status(), 200);
+    for (method, path) in [
+        (get.clone(), "/v1/chat/completions"),
+        (head.clone(), "/v1/models"),
+        (get.clone(), "/v2/nothing"),
+        (head.clone(), "/v2/nothing"),
+    ] {
+        let res = send(method.clone(), path, Some("fake-client")).await;
+        assert_eq!(res.status(), 404, "{method} {path}");
+        assert!(
+            res.headers().get("allow").is_none(),
+            "{method} {path}: {:?}",
+            res.headers()
+        );
+    }
+    assert_eq!(send(head.clone(), "/healthz", None).await.status(), 200);
+    // Go's NoRoute guards /v0/management before looking for a plugin route.
+    assert_eq!(send(head.clone(), "/v0/management/nothing", None).await.status(), 401);
+    let res = send(head, "/v0/management/nothing", Some("fake-management-only")).await;
+    assert_eq!(res.status(), 404);
+    server.abort();
+}
+
 #[tokio::test]
 async fn config_api_keys_become_scheduled_credentials_on_write_and_reload() {
     use cpa_server::runtime::Selection;

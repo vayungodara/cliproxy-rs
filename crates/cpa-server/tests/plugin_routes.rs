@@ -31,11 +31,12 @@ impl Dirs {
     }
 }
 
-/// The management router with every request coming from `127.0.0.1:40000`.
-async fn serve(state: Arc<Management>) -> String {
+/// The binary's app (API routes, then management and its NoRoute) with every request
+/// coming from `127.0.0.1:40000`.
+async fn serve(rt: Arc<cpa_server::Runtime>, state: Arc<Management>) -> String {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let base = format!("http://{}", listener.local_addr().unwrap());
-    let app = management::router(state).layer(axum::middleware::from_fn(
+    let app = cpa_server::app(rt, management::router(state)).layer(axum::middleware::from_fn(
         |mut req: axum::extract::Request, next: axum::middleware::Next| async move {
             let peer: SocketAddr = "127.0.0.1:40000".parse().unwrap();
             req.extensions_mut().insert(axum::extract::ConnectInfo(peer));
@@ -62,7 +63,7 @@ async fn start(dirs: &Dirs, yaml: &str) -> String {
     ));
     let state = Management::with_options(rt.clone(), dirs.config.clone(), Options::default());
     cpa_server::plugins::start(&rt).await;
-    serve(state).await
+    serve(rt, state).await
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

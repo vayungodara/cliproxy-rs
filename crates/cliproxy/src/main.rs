@@ -12,7 +12,7 @@ use clap::{ArgAction, CommandFactory, Parser};
 use cpa_core::config::Config;
 use cpa_exec::Executors;
 use cpa_exec::claude::{ClaudeExecutor, DEFAULT_BASE_URL};
-use cpa_server::{Runtime, router};
+use cpa_server::Runtime;
 use socket2::{Domain, Socket, Type};
 
 /// Same strings as the management `X-CPA-*` headers.
@@ -684,8 +684,7 @@ async fn serve(
         discovery::advertise::Advertiser::spawn(move || rt.config(), tls.is_some())
     };
     // Go applies its CORS middleware to every route, not only management.
-    let app = router(rt.clone())
-        .merge(cpa_server::management::router(management))
+    let app = cpa_server::app(rt.clone(), cpa_server::management::router(management))
         .layer(axum::middleware::from_fn(cpa_server::management::cors));
     let app = cpa_server::observability::router(&rt, app);
     let mut server = Box::pin(cpa_server::listener::serve(listener, app, tls));
