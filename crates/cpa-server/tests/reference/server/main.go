@@ -5,6 +5,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/fs"
 	"net/http"
@@ -17,6 +18,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/config"
+	"github.com/router-for-me/CLIProxyAPI/v8/internal/interfaces"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/logging"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/redisqueue"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/registry"
@@ -1161,8 +1163,52 @@ func authKinds() []authKindCase {
 	return cases
 }
 
+type keepAliveCase struct {
+	Name        string `json:"name"`
+	DelayMillis int    `json:"delay_ms"`
+	Status      int    `json:"status"`
+	ContentType string `json:"content_type"`
+	Body        string `json:"body"`
+}
+
+// nonStreamKeepAlives runs a non-stream handler's tail (code_handlers.go
+// handleNonStreamingResponse) with nonstream-keepalive-interval 1: Content-Type,
+// StartNonStreamingKeepAlive, a result after the delay, then the body or
+// WriteErrorResponse.
+func nonStreamKeepAlives() []keepAliveCase {
+	gin.SetMode(gin.ReleaseMode)
+	h := handlers.NewBaseAPIHandlers(&config.SDKConfig{NonStreamKeepAliveInterval: 1}, nil)
+	upstreamErr := `{"type":"error","error":{"type":"invalid_request_error","message":"bad input"}}`
+	okBody := `{"id":"msg_1","type":"message"}`
+	cases := []keepAliveCase{
+		{Name: "fast_ok"},
+		{Name: "slow_ok", DelayMillis: 1500},
+		{Name: "fast_error"},
+		{Name: "slow_error", DelayMillis: 1500},
+	}
+	for i := range cases {
+		rec := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(rec)
+		c.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+		c.Header("Content-Type", "application/json")
+		stop := h.StartNonStreamingKeepAlive(c, context.Background())
+		time.Sleep(time.Duration(cases[i].DelayMillis) * time.Millisecond)
+		stop()
+		if strings.HasSuffix(cases[i].Name, "_error") {
+			h.WriteErrorResponse(c, &interfaces.ErrorMessage{StatusCode: http.StatusBadRequest, Error: errors.New(upstreamErr)})
+		} else {
+			_, _ = c.Writer.Write([]byte(okBody))
+		}
+		cases[i].Status = rec.Code
+		cases[i].ContentType = rec.Header().Get("Content-Type")
+		cases[i].Body = rec.Body.String()
+	}
+	return cases
+}
+
 func main() {
 	out := map[string]any{}
+	out["nonstream_keepalive"] = nonStreamKeepAlives()
 	out["alt"] = alts()
 	out["auth_kind"] = authKinds()
 	out["by_provider"] = byProvider()

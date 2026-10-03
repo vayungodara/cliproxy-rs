@@ -192,8 +192,7 @@ fn walk_unknown(value: &mut Value, schema: &Schema, path: &str, out: &mut Vec<(S
     };
     let unknown: Vec<Value> = map
         .keys()
-        // Merge keys are YAML structure, not settings: loads expand them.
-        .filter(|k| k.as_str().is_none_or(|k| k != "<<" && fields.get(k).is_none()))
+        .filter(|k| k.as_str().is_none_or(|k| fields.get(k).is_none()))
         .cloned()
         .collect();
     for key in unknown {

@@ -25,7 +25,8 @@ use super::{Management, json_error};
 
 const MAX_FAILURES: u32 = 5;
 const BAN: Duration = Duration::from_secs(30 * 60);
-const PURGE_EVERY: Duration = Duration::from_secs(3600);
+/// Go `attemptCleanupInterval`.
+pub(super) const PURGE_EVERY: Duration = Duration::from_secs(3600);
 const MAX_IDLE: Duration = Duration::from_secs(2 * 3600);
 
 pub const VERSION: &str = concat!("cliproxy-rs-", env!("CARGO_PKG_VERSION"));
@@ -52,7 +53,6 @@ struct Attempt {
 
 struct Attempts {
     by_ip: HashMap<String, Attempt>,
-    last_purge: Instant,
 }
 
 pub(crate) struct Access {
@@ -64,6 +64,23 @@ pub(crate) struct Access {
     enabled: AtomicBool,
     attempts: Mutex<Attempts>,
     warned_untrusted_forwarding: AtomicBool,
+}
+
+/// Go `startAttemptCleanup`: an hourly purge for as long as the management state
+/// lives. Without a Tokio runtime (synchronous callers) there is no timer.
+pub(super) fn start_purge(state: &std::sync::Arc<Management>) {
+    let Ok(runtime) = tokio::runtime::Handle::try_current() else {
+        return;
+    };
+    let state = std::sync::Arc::downgrade(state);
+    runtime.spawn(async move {
+        let mut ticks = tokio::time::interval_at(tokio::time::Instant::now() + PURGE_EVERY, PURGE_EVERY);
+        loop {
+            ticks.tick().await;
+            let Some(state) = state.upgrade() else { return };
+            state.access.purge_stale(Instant::now());
+        }
+    });
 }
 
 impl Access {
@@ -86,10 +103,7 @@ impl Access {
             local_password,
             trusted: TrustedProxies::new(&cfg.trusted_proxies),
             enabled: AtomicBool::new(enabled),
-            attempts: Mutex::new(Attempts {
-                by_ip: HashMap::new(),
-                last_purge: Instant::now(),
-            }),
+            attempts: Mutex::new(Attempts { by_ip: HashMap::new() }),
             warned_untrusted_forwarding: AtomicBool::new(false),
         }
     }
@@ -131,15 +145,17 @@ impl Access {
         self.attempts.lock().unwrap_or_else(PoisonError::into_inner)
     }
 
+    /// Go `purgeStaleAttempts`: drops records idle longer than two hours unless still
+    /// banned. Runs from the hourly timer [`start_purge`] installs.
+    pub(super) fn purge_stale(&self, now: Instant) {
+        self.attempts().by_ip.retain(|_, a| {
+            a.blocked_until.is_some_and(|until| now < until) || now.duration_since(a.last_activity) <= MAX_IDLE
+        });
+    }
+
     fn fail(&self, ip: &str) {
         let now = Instant::now();
         let mut attempts = self.attempts();
-        if now.duration_since(attempts.last_purge) >= PURGE_EVERY {
-            attempts.last_purge = now;
-            attempts.by_ip.retain(|_, a| {
-                a.blocked_until.is_some_and(|until| now < until) || now.duration_since(a.last_activity) <= MAX_IDLE
-            });
-        }
         let entry = attempts.by_ip.entry(ip.to_owned()).or_insert(Attempt {
             count: 0,
             blocked_until: None,
@@ -318,6 +334,40 @@ pub async fn cors(req: Request, next: Next) -> Response {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn failures_only_expire_through_the_hourly_purge() {
+        let cfg = Config::parse(
+            "management:\n  secret-key: '$2a$04$aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'\n",
+        )
+        .unwrap();
+        let access = Access::new(&cfg, super::super::Options::default());
+        for _ in 0..4 {
+            access.fail("203.0.113.9");
+        }
+        access.fail("203.0.113.10");
+        for _ in 0..5 {
+            access.fail("198.51.100.1");
+        }
+        let count = |ip: &str| access.attempts().by_ip.get(ip).map(|a| a.count);
+        // A purge within two hours of the last failure keeps every record.
+        access.purge_stale(Instant::now() + MAX_IDLE - Duration::from_secs(60));
+        assert_eq!(count("203.0.113.9"), Some(4));
+        // Past the idle limit, idle records go; a ban still running stays.
+        access.attempts().by_ip.get_mut("198.51.100.1").unwrap().blocked_until =
+            Some(Instant::now() + MAX_IDLE + Duration::from_secs(600));
+        access.purge_stale(Instant::now() + MAX_IDLE + Duration::from_secs(1));
+        assert_eq!(count("203.0.113.9"), None);
+        assert_eq!(count("203.0.113.10"), None);
+        assert!(
+            access.attempts().by_ip.contains_key("198.51.100.1"),
+            "banned until +30m"
+        );
+        // The forgiven client starts a fresh count: no ban on its next failure.
+        access.fail("203.0.113.9");
+        assert_eq!(count("203.0.113.9"), Some(1));
+        assert!(access.attempts().by_ip["203.0.113.9"].blocked_until.is_none());
+    }
 
     #[test]
     fn go_duration_rounds_half_up_to_seconds() {

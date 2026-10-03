@@ -30,14 +30,14 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use cpa_core::config::Config;
 use cpa_core::credential::Credential;
-use cpa_core::exec::{Caller, ExecError, ExecRequest, ExecSession, ExecStream, Operation, ResponseBody};
+use cpa_core::exec::{Caller, ExecError, ExecSession, ExecStream, Operation};
 use cpa_core::format::Format;
 use cpa_exec::codex::CodexExecutor;
 use futures_util::StreamExt;
 
 use crate::registry::provider_key;
-use crate::runtime::{AcquireError, Completing, Lease, Outcome, Runtime, Selection};
-use crate::scheduler::{Policy, canonical_model};
+use crate::runtime::Runtime;
+use crate::scheduler::canonical_model;
 use crate::websocket_requests::{
     self as requests, APPEND, CREATE, Turn, WsError, delete, error_payload, field, payloads_from_chunk,
 };
@@ -70,6 +70,7 @@ const TERMINAL_WRITE: Duration = Duration::from_secs(1);
 async fn upgrade(
     State(rt): State<Arc<Runtime>>,
     Extension(caller): Extension<Caller>,
+    peer: dispatch::Peer,
     matched: axum::extract::MatchedPath,
     headers: HeaderMap,
     ws: Result<WebSocketUpgrade, WebSocketUpgradeRejection>,
@@ -96,6 +97,7 @@ async fn upgrade(
     let mut connection = Connection::new(rt, caller, headers);
     // Go `request_path` metadata: gin FullPath of the upgrade route.
     connection.request_path = matched.as_str().to_owned();
+    connection.peer = dispatch::peer(peer);
     let mut response = ws
         .max_message_size(MAX_MESSAGE)
         .max_frame_size(MAX_MESSAGE)
@@ -166,6 +168,8 @@ struct Connection {
     headers: HeaderMap,
     /// Go `request_path` metadata for payload rules.
     request_path: String,
+    /// The downstream peer (usage records).
+    peer: Option<std::net::SocketAddr>,
     /// Execution session id (`passthroughSessionID`).
     session: String,
     /// Tool-cache key (`websocketDownstreamSessionKey`).
@@ -184,9 +188,8 @@ struct Connection {
     upstream_auth: String,
 }
 
-/// What one successful attempt selected.
+/// A turn's stream once its first event arrived.
 struct Started {
-    lease: Lease,
     first: Option<Bytes>,
     stream: ExecStream,
 }
@@ -228,6 +231,7 @@ impl Connection {
             caller,
             headers,
             request_path: String::new(),
+            peer: None,
             session: uuid::Uuid::new_v4().to_string(),
             last_request: String::new(),
             last_output: "[]".into(),
@@ -279,7 +283,7 @@ impl Connection {
     }
 
     async fn turn(&mut self, socket: &mut WebSocket, payload: String) -> Flow {
-        let (cfg, policy) = self.rt.request_snapshot();
+        let cfg = self.rt.config();
         let explicit_model = field(&payload, "model");
         let mut request_model = explicit_model.clone();
         if request_model.is_empty() {
@@ -415,7 +419,7 @@ impl Connection {
             request.clone()
         };
         let model = gjson::get(&request, "model").str().to_owned();
-        let started = self.attempt(&request, &model, &cfg, &policy, &mut ctx).await;
+        let started = self.attempt(&request, &model, &mut ctx).await;
         let forwarded = match started {
             Ok(started) => self.forward(socket, started, &cfg, &mut ctx).await,
             Err(error) => {
@@ -570,226 +574,85 @@ impl Connection {
         }
     }
 
-    /// Selection, credential failover and retry rounds until a stream yields its first
-    /// event (`ExecuteStreamWithAuthManager` with a pinned auth and the execution session).
-    // ponytail: follows dispatch::run (retry rounds, request-scoped rules, 401
-    // refresh-and-retry) but runs `execute_in_session`, honours the pin and reports the
-    // serving credential, which dispatch cannot yet; alias pools use their first model.
-    async fn attempt(
-        &self,
-        request: &str,
-        model: &str,
-        cfg: &Config,
-        policy: &Arc<Policy>,
-        ctx: &mut TurnCtx,
-    ) -> Result<Started, dispatch::Failure> {
-        let registry = self.rt.registry();
-        let aliases = crate::registry::global_aliases(cfg);
-        let (providers, _) = self.providers(model);
-        if providers.is_empty() {
-            return Err(dispatch::Failure::UnknownModel(model.to_owned()));
+    /// One turn through the shared dispatch loop (`ExecuteStreamWithAuthManager` with the
+    /// pinned auth, the selected-auth callback and the execution session), including
+    /// bootstrap retries. Returns once the stream yielded its first event.
+    async fn attempt(&self, request: &str, model: &str, ctx: &mut TurnCtx) -> Result<Started, dispatch::Failure> {
+        /// What `WithSelectedAuthIDCallback` learned; the last call is the serving one.
+        struct Selected {
+            last: String,
+            pinned_attempted: bool,
+            mode: Mode,
+            preserve_output: bool,
         }
-        let resolved = resolve_auto(&self.rt, &registry, model);
-        // A pinned credential is the only candidate (`WithPinnedAuthID`).
-        let pinned_only = |c: &Arc<Credential>| !self.pinned.is_empty() && c.id != self.pinned;
-        let exclude: Vec<String> = self
-            .rt
-            .store()
-            .snapshot()
-            .iter()
-            .filter(|c| pinned_only(c))
-            .map(|c| c.id.clone())
-            .collect();
-        let body = Bytes::from(request.to_owned());
-        // Go `session.Enrich` with the connection as execution session (dispatch::run).
-        let identity = crate::session::resolve(
-            Format::OpenAIResponse,
-            &self.headers,
-            &body,
-            Some(&self.session),
-            &self.caller.principal,
-        );
-        let mut selection = Selection {
-            providers: providers.clone(),
-            model: resolved.clone(),
-            session: identity.id.clone(),
-            session_parent: identity.parent.clone(),
-            session_fork: identity.fork,
-            exclude: exclude.clone(),
-            ..Selection::default()
-        };
-        let session = ExecSession {
-            id: self.session.clone(),
-            continuation: ctx.native && ctx.requires_current,
-        };
-        let req = ExecRequest {
-            operation: Operation::Generate,
-            source_format: Format::OpenAIResponse,
-            response_format: Format::OpenAIResponse,
-            requested_model: resolved.clone(),
-            model: resolved.clone(),
-            original_body: body.clone(),
-            body,
-            stream: true,
-            alt: None,
-            session: selection.session.clone(),
-            execution_session: Some(self.session.clone()),
-            derived_session: identity.derived.clone(),
-            resolved_model: None,
-            usage: Default::default(),
-            request_path: self.request_path.clone(),
-            headers: self.headers.clone(),
-            caller: self.caller.clone(),
-        };
-        let mut upstream: Option<ExecError> = None;
-        loop {
-            let mut last: Option<ExecError> = None;
-            let mut attempted: Vec<String> = Vec::new();
-            let pick_failure = loop {
-                if policy.max_retry_credentials > 0 && attempted.len() >= policy.max_retry_credentials {
-                    break None;
-                }
-                let mut lease = match self.rt.acquire(selection.clone(), cfg, policy.clone(), &registry).await {
-                    Ok(lease) => lease,
-                    Err(AcquireError::Prepare { id, error }) => {
-                        attempted.push(id.clone());
-                        selection.exclude.push(id);
-                        last = Some(error);
-                        continue;
-                    }
-                    Err(AcquireError::Cooldown { wait, cause }) => {
-                        break Some(dispatch::Failure::Cooldown {
-                            model: selection.model.clone(),
-                            provider: if providers.len() == 1 {
-                                providers[0].clone()
-                            } else {
-                                String::new()
-                            },
-                            wait,
-                            cause,
-                        });
-                    }
-                    Err(AcquireError::Unavailable { retry_after, cause }) => {
-                        break Some(dispatch::Failure::Unavailable {
-                            code: if retry_after.is_some() {
-                                "auth_unavailable"
-                            } else {
-                                "auth_not_found"
-                            },
-                            providers: providers.clone(),
-                            model: resolved.clone(),
-                            cause,
-                            retry_after,
-                        });
-                    }
-                };
-                selection.exclude.push(lease.credential.id.clone());
-                attempted.push(lease.credential.id.clone());
-                let (models, _) = crate::registry::execution_models(&aliases, &lease.credential, &selection.model);
-                let upstream_model = models.into_iter().next().unwrap_or_else(|| resolved.clone());
-                let selection_model = crate::registry::selection_model(&aliases, &lease.credential, &selection.model);
-                lease.execution_model =
-                    crate::registry::state_model(&selection_model, &selection.model, &upstream_model, false);
-                // `WithSelectedAuthIDCallback`.
-                let credential = lease.credential.clone();
-                ctx.last_attempted.clone_from(&credential.id);
-                ctx.pinned_attempted |= !self.pinned.is_empty() && credential.id == self.pinned;
-                ctx.attempted_mode = if self.rt.executors.session_upstream(&credential) {
+        let selected = Arc::new(std::sync::Mutex::new(Selected {
+            last: ctx.last_attempted.clone(),
+            pinned_attempted: false,
+            mode: ctx.attempted_mode,
+            preserve_output: ctx.preserve_output,
+        }));
+        let on_selected: dispatch::OnSelected = {
+            let (selected, rt, pinned) = (selected.clone(), self.rt.clone(), self.pinned.clone());
+            let native_request = ctx.native_request;
+            Box::new(move |credential: &Credential| {
+                let mut s = selected.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+                s.last.clone_from(&credential.id);
+                s.pinned_attempted |= !pinned.is_empty() && credential.id == pinned;
+                s.mode = if rt.executors.session_upstream(credential) {
                     Mode::Websocket
                 } else {
                     Mode::Http
                 };
-                ctx.preserve_output = ctx.native_request && credential.provider.eq_ignore_ascii_case("codex");
-                let mut attempt_req = req.clone();
-                attempt_req.model = upstream_model;
-                let mut executed = self
-                    .rt
-                    .executors
-                    .execute_in_session(&lease.credential, attempt_req.clone(), cfg, &session)
-                    .await;
-                // Go `tryRefreshAfterUnauthorized`: one refresh-and-retry per credential.
-                if let Err(error) = &executed
-                    && classify::is_unauthorized(error)
-                    && let Some(current) = self.rt.refresh_after_unauthorized(&lease.credential, cfg).await
-                {
-                    lease.credential = current;
-                    executed = self
-                        .rt
-                        .executors
-                        .execute_in_session(&lease.credential, attempt_req, cfg, &session)
-                        .await;
-                }
-                let error = match executed {
-                    Ok(response) => match first_event(response.body).await {
-                        Ok((first, stream)) => return Ok(Started { lease, first, stream }),
-                        Err(error) => error,
-                    },
-                    Err(error) => error,
-                };
-                let action = policy.error_action(&lease.credential, &error);
-                let stop = if action.matched {
-                    action.stop
-                } else {
-                    classify::is_request_invalid(&error)
-                };
-                lease.complete(Outcome::Failure(error.clone()));
-                if stop {
-                    return Err(dispatch::Failure::Exec(error));
-                }
-                if classify::upstream_attempted(&error) {
-                    upstream = Some(error.clone());
-                }
-                last = Some(error);
-            };
-            let round: dispatch::Failure = match (last, pick_failure) {
-                (Some(error), _) => dispatch::Failure::Exec(error),
-                (None, Some(failure)) => failure,
-                (None, None) => dispatch::Failure::Unavailable {
-                    code: "auth_not_found",
-                    providers: providers.clone(),
-                    model: resolved.clone(),
-                    cause: None,
-                    retry_after: None,
-                },
-            };
-            let (status, retry_round) = match &round {
-                dispatch::Failure::Exec(e) => (
-                    classify::go_status(e),
-                    classify::is_retry_round(e) && !classify::is_request_invalid(e),
-                ),
-                dispatch::Failure::Cooldown { .. } => (429, true),
-                dispatch::Failure::Unavailable {
-                    retry_after: Some(_), ..
-                } => (503, true),
-                _ => (0, false),
-            };
-            let terminal = |round| upstream.clone().map(dispatch::Failure::Exec).unwrap_or(round);
-            if !retry_round {
-                return Err(terminal(round));
-            }
-            let wait = {
-                let admit = crate::runtime::admission(&registry, &aliases, &selection, &self.rt.executors);
-                self.rt
-                    .store()
-                    .retry_wait(&selection, policy, status, &attempted, &admit)
-            };
-            let Some(wait) = wait else {
-                return Err(terminal(round));
-            };
-            if !wait.is_zero() {
-                tokio::time::sleep(dispatch::jitter(wait, policy.max_retry_interval)).await;
-            }
-            selection.retry_round += 1;
-            selection.exclude.clone_from(&exclude);
+                s.preserve_output = native_request && credential.provider.eq_ignore_ascii_case("codex");
+            })
+        };
+        let turn = Arc::new(dispatch::SessionTurn {
+            session: ExecSession {
+                id: self.session.clone(),
+                continuation: ctx.native && ctx.requires_current,
+            },
+            pinned: (!self.pinned.is_empty()).then(|| self.pinned.clone()),
+            on_selected: Some(on_selected),
+        });
+        let call = dispatch::Call {
+            entry: Format::OpenAIResponse,
+            response: Format::OpenAIResponse,
+            operation: Operation::Generate,
+            model: model.to_owned(),
+            body: Bytes::from(request.to_owned()),
+            stream: true,
+            alt: None,
+            headers: self.headers.clone(),
+            caller: self.caller.clone(),
+            forced_provider: None,
+            selection_model: None,
+            execution_session: Some(self.session.clone()),
+            request_path: self.request_path.clone(),
+            peer: self.peer,
+            turn: Some(turn),
+        };
+        let result = dispatch::run_with_bootstrap_retries(&self.rt, call, &dispatch::Trace::default()).await;
+        {
+            let s = selected.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+            ctx.last_attempted.clone_from(&s.last);
+            ctx.pinned_attempted = s.pinned_attempted;
+            ctx.attempted_mode = s.mode;
+            ctx.preserve_output = s.preserve_output;
+        }
+        match result? {
+            dispatch::Done::Stream { first, rest, .. } => Ok(Started { first, stream: rest }),
+            dispatch::Done::Buffered { body, .. } => Ok(Started {
+                first: Some(body),
+                stream: futures_util::stream::empty().boxed(),
+            }),
         }
     }
 
     /// `forwardResponsesWebsocket`.
     async fn forward(&self, socket: &mut WebSocket, started: Started, cfg: &Config, ctx: &mut TurnCtx) -> Forwarded {
-        let Started { lease, first, stream } = started;
-        let mut stream = futures_util::stream::iter(first.map(Ok))
-            .chain(Completing::new(stream, lease))
-            .boxed();
+        let Started { first, stream } = started;
+        // `stream` completes its lease as it ends (dispatch).
+        let mut stream = futures_util::stream::iter(first.map(Ok)).chain(stream).boxed();
         let keepalive = keepalive_interval(cfg);
         let mut deadline = keepalive.map(|k| tokio::time::Instant::now() + k);
         let mut turn = Turn::default();
@@ -890,23 +753,6 @@ fn resolve_auto(rt: &Runtime, registry: &crate::registry::Registry, model: &str)
         .resolve_auto(|client, m| rt.suspension(client, m))
         .unwrap_or_else(|| "auto".into());
     format!("{first}{}", &model[base.len()..])
-}
-
-/// Waits for the first non-empty event so a failed stream can still fail over (Go
-/// conductor_stream.go: an empty stream is a failed attempt).
-async fn first_event(body: ResponseBody) -> Result<(Option<Bytes>, ExecStream), ExecError> {
-    let mut stream = match body {
-        ResponseBody::Stream(stream) => stream,
-        ResponseBody::Buffered(bytes) => futures_util::stream::once(async move { Ok(bytes) }).boxed(),
-    };
-    loop {
-        match stream.next().await {
-            Some(Ok(bytes)) if bytes.is_empty() => continue,
-            Some(Ok(bytes)) => return Ok((Some(bytes), stream)),
-            Some(Err(error)) => return Err(error),
-            None => return Err(classify::empty_stream()),
-        }
-    }
 }
 
 async fn sleep_until(deadline: Option<tokio::time::Instant>) {

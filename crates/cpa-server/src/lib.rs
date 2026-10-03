@@ -6,6 +6,7 @@ pub mod capabilities;
 mod classify;
 mod claude;
 mod codex_alpha;
+mod codex_models;
 pub mod cooldown_store;
 pub mod dispatch;
 mod errors;
