@@ -191,9 +191,13 @@ pub async fn call(host: &Host, args: &Value) -> Value {
                 None => Value::Null,
             }
         }
-        "parse_auths" => outcome(host.parse_auths(decode(req)).await, |auths: &Vec<PluginAuth>| {
-            Value::Array(auths.iter().map(auth_json).collect())
-        }),
+        "parse_auths" => {
+            let res = host.parse_auths(decode(req)).await;
+            let resp = res
+                .handled
+                .then(|| Value::Array(res.auths.iter().map(auth_json).collect()));
+            json!({"resp": resp, "handled": res.handled, "error": res.error.map(|e| e.to_string()).unwrap_or_default()})
+        }
         "start_login" => {
             let metadata = decode(args.get("metadata").unwrap_or(&Value::Null));
             outcome(

@@ -40,15 +40,19 @@ pub struct ResponseTransform<'a> {
 }
 
 impl Host {
+    /// Records with a hook; each call rechecks [`Host::live`].
     fn hook_records(&self, has: impl Fn(&Record) -> bool) -> Vec<Record> {
         self.active_records()
             .into_iter()
-            .filter(|r| has(r) && !self.is_fused(&r.id) && self.record_current(r))
+            .filter(|r| has(r) && !self.is_fused(&r.id))
             .collect()
     }
 
     /// A transform call: the plugin's body when it answered with one.
     async fn transform<R: crate::gojson::GoStruct>(&self, record: &Record, method: &str, req: &R) -> Option<Bytes> {
+        if !self.live(record) {
+            return None;
+        }
         match self.call::<PayloadResponse, _>(record, method, req).await {
             Ok(resp) if !resp.body.is_empty() => Some(resp.body),
             _ => None,
@@ -220,6 +224,10 @@ impl Host {
             let host = self.clone();
             let record = record.clone();
             tokio::spawn(async move {
+                // Go `currentUsagePlugin`: the plugin as it is when the record arrives.
+                let Some(plugin) = host.record(&plugin.id).filter(|r| r.plugin.caps.usage_plugin) else {
+                    return;
+                };
                 if let Err(e) = host.call::<Empty, _>(&plugin, method::USAGE_HANDLE, &record).await {
                     tracing::debug!("pluginhost: usage.handle to {} failed: {e}", plugin.id);
                 }

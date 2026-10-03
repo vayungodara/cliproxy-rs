@@ -82,16 +82,20 @@ pub fn auth_id_for_path(path: &str, auth_dir: &str) -> String {
     if path.is_empty() {
         return String::new();
     }
-    let mut id = std::path::PathBuf::from(path);
     let auth_dir = auth_dir.trim();
-    if !auth_dir.is_empty()
-        && let Ok(rel) = std::path::Path::new(path).strip_prefix(crate::platform::clean(std::path::Path::new(auth_dir)))
-        && !rel.as_os_str().is_empty()
-    {
-        id = rel.to_owned();
+    let id = match crate::platform::rel(auth_dir, path) {
+        Some(rel) if !auth_dir.is_empty() && !rel.is_empty() && !rel.starts_with("..") => rel,
+        _ => path.to_owned(),
+    };
+    let id = crate::platform::clean(std::path::Path::new(&id))
+        .to_string_lossy()
+        .into_owned();
+    // Go `filepath.ToSlash` only rewrites the OS separator.
+    if cfg!(windows) {
+        id.replace('\\', "/").to_lowercase()
+    } else {
+        id
     }
-    let id = crate::platform::clean(&id).to_string_lossy().replace('\\', "/");
-    if cfg!(windows) { id.to_lowercase() } else { id }
 }
 
 fn first_non_empty(values: &[&str]) -> String {
@@ -354,13 +358,12 @@ impl Host {
         self.auth_provider_record(provider).is_some()
     }
 
-    /// Go `ParseAuths`: `Ok(None)` when no plugin handled the material. With a provider,
-    /// only that provider's plugin is asked; otherwise every auth provider in order until
-    /// one handles it or fails.
-    pub async fn parse_auths(&self, req: AuthParseRequest) -> Result<Option<Vec<PluginAuth>>, CallError> {
+    /// Go `ParseAuths`. With a provider, only that provider's plugin is asked; otherwise
+    /// every auth provider in order until one handles the material or fails.
+    pub async fn parse_auths(&self, req: AuthParseRequest) -> ParseAuthsResult {
         if !req.provider.trim().is_empty() {
             let Some(record) = self.auth_provider_record(&req.provider) else {
-                return Ok(None);
+                return ParseAuthsResult::default();
             };
             return self.call_parse_auths(&record, req).await;
         }
@@ -368,21 +371,19 @@ impl Host {
             if !record.plugin.caps.auth_provider || self.is_fused(&record.id) {
                 continue;
             }
-            match self.call_parse_auths(&record, req.clone()).await {
-                Ok(None) => continue,
-                other => return other,
+            let result = self.call_parse_auths(&record, req.clone()).await;
+            if result.error.is_some() || result.handled {
+                return result;
             }
         }
-        Ok(None)
+        ParseAuthsResult::default()
     }
 
-    async fn call_parse_auths(
-        &self,
-        record: &Record,
-        mut req: AuthParseRequest,
-    ) -> Result<Option<Vec<PluginAuth>>, CallError> {
-        if !self.record_current(record) {
-            return Ok(None);
+    /// Go `callParseAuths`: an RPC failure is not handled; invalid auth data in a handled
+    /// answer is.
+    async fn call_parse_auths(&self, record: &Record, mut req: AuthParseRequest) -> ParseAuthsResult {
+        if self.is_fused(&record.id) || !self.record_current(record) {
+            return ParseAuthsResult::default();
         }
         if req.host.auth_dir.is_empty() {
             req.host = self.host_config_summary();
@@ -392,9 +393,12 @@ impl Host {
         if req.provider.is_empty() {
             req.provider = identifier.clone();
         }
-        let resp: AuthParseResponse = self.call(record, method::AUTH_PARSE, &req).await?;
+        let resp: AuthParseResponse = match self.call(record, method::AUTH_PARSE, &req).await {
+            Ok(resp) => resp,
+            Err(e) => return ParseAuthsResult::failed(false, e),
+        };
         if !resp.handled {
-            return Ok(None);
+            return ParseAuthsResult::default();
         }
         let datas = if resp.auths.is_empty() {
             vec![resp.auth]
@@ -411,16 +415,22 @@ impl Host {
                 data.provider = identifier.clone();
             }
             if normalize_provider(&data.provider).is_empty() {
-                return Err(CallError::Other(format!(
-                    "auth provider {} returned auth without provider",
-                    record.id
-                )));
+                let message = format!("auth provider {} returned auth without provider", record.id);
+                return ParseAuthsResult::failed(true, CallError::Other(message));
             }
-            let parsed = PluginAuth::from_auth_data(data, &req.path, &req.file_name, &auth_dir)
-                .ok_or_else(|| CallError::Other(format!("auth provider {} returned invalid auth data", record.id)))?;
-            auths.push(parsed);
+            match PluginAuth::from_auth_data(data, &req.path, &req.file_name, &auth_dir) {
+                Some(parsed) => auths.push(parsed),
+                None => {
+                    let message = format!("auth provider {} returned invalid auth data", record.id);
+                    return ParseAuthsResult::failed(true, CallError::Other(message));
+                }
+            }
         }
-        Ok(Some(auths))
+        ParseAuthsResult {
+            auths,
+            handled: true,
+            error: None,
+        }
     }
 
     /// Go `StartLogin`: `Ok(None)` when no plugin owns `provider`.
@@ -571,6 +581,24 @@ impl Host {
     }
 }
 
+/// Go `ParseAuths`' `([]*Auth, handled, error)`.
+#[derive(Debug, Default)]
+pub struct ParseAuthsResult {
+    pub auths: Vec<PluginAuth>,
+    pub handled: bool,
+    pub error: Option<CallError>,
+}
+
+impl ParseAuthsResult {
+    fn failed(handled: bool, error: CallError) -> Self {
+        Self {
+            auths: Vec::new(),
+            handled,
+            error: Some(error),
+        }
+    }
+}
+
 /// A frontend request a plugin accepted (Go `sdkaccess.Result`).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FrontendAuthOutcome {
@@ -608,6 +636,32 @@ mod tests {
             br#"{"base_url":"u","email":"e","priority":1,"token":"t","type":"plugin-x"}"#
         );
         assert!(PluginAuth::from_auth_data(AuthData::default(), "", "", "").is_none());
-        assert_eq!(auth_id_for_path("/elsewhere/x.json", "/auth"), "/elsewhere/x.json");
+        // Expected values printed by Go's authIDForPath (filepath.Rel, Clean, ToSlash).
+        for (path, dir, want) in [
+            ("/auth/sub/a.json", "/auth", "sub/a.json"),
+            ("/auth/../other/t.json", "/auth", "/other/t.json"),
+            ("/elsewhere/x.json", "/auth", "/elsewhere/x.json"),
+            ("/auth", "/auth", "."),
+            ("/auth/", "/auth/", "."),
+            ("rel/a.json", "rel", "a.json"),
+            ("rel/a.json", "/auth", "rel/a.json"),
+            ("/auth/..x/a.json", "/auth", "/auth/..x/a.json"),
+            ("/auth/a\\b.json", "/auth", "a\\b.json"),
+            ("/auth//x/./y.json", "/auth/", "x/y.json"),
+            ("a.json", "", "a.json"),
+            ("/a/b/c", "/a/x/y", "/a/b/c"),
+            ("x/y", ".", "x/y"),
+            ("../q", ".", "../q"),
+        ] {
+            assert_eq!(auth_id_for_path(path, dir), want, "{path} in {dir}");
+        }
+        for (targ, base, want) in [
+            ("/a/b/c", "/a/x/y", Some("../../b/c")),
+            ("rel/a.json", "/auth", None),
+            ("/auth/../other/t.json", "/auth", Some("../other/t.json")),
+            ("x/y", ".", Some("x/y")),
+        ] {
+            assert_eq!(crate::platform::rel(base, targ).as_deref(), want, "{targ} from {base}");
+        }
     }
 }

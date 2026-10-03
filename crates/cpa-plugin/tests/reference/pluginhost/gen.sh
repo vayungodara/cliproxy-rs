@@ -2,6 +2,9 @@
 # Regenerates ../../fixtures/pluginhost_go.json from the Go plugin host.
 # Usage: gen.sh /absolute/path/to/CLIProxyAPI   (checkout at 6fecc6e; not modified)
 set -eu
+# Offline: no toolchain download, modules from the local cache only. Run `go mod download`
+# in the reference checkout and in tests/goplugins once beforehand.
+export GOTOOLCHAIN=local GOPROXY=off
 reference=${1:?usage: gen.sh /path/to/CLIProxyAPI}
 here=$(cd "$(dirname "$0")" && pwd)
 crate=$(cd "$here/../../.." && pwd)

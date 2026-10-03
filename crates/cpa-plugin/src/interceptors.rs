@@ -40,11 +40,12 @@ pub fn merge_headers(current: &Header, updates: &Header, clear: &[String]) -> He
 }
 
 impl Host {
+    /// Records with a hook, except `skip`; each call rechecks [`Host::live`].
     fn interceptor_records(&self, skip: &str, has: impl Fn(&Record) -> bool) -> Vec<Record> {
         let skip = skip.trim();
         self.active_records()
             .into_iter()
-            .filter(|r| has(r) && !self.is_fused(&r.id) && r.id != skip)
+            .filter(|r| has(r) && r.id != skip)
             .collect()
     }
 
@@ -86,7 +87,7 @@ impl Host {
         let mut body = req.body.clone();
         let mut body_modified = false;
         for record in self.interceptor_records(skip, |r| r.plugin.caps.request_interceptor) {
-            if !self.record_current(&record) {
+            if !self.live(&record) {
                 continue;
             }
             let mut next = req.clone();
@@ -129,7 +130,7 @@ impl Host {
     /// plugin; delivery never blocks the response.
     pub fn complete_request(&self, completion: RequestCompletion, skip: &str, scope: &RequestScope) {
         for record in self.interceptor_records(skip, |r| r.plugin.caps.request_lifecycle_plugin) {
-            if !self.record_current(&record) {
+            if !self.live(&record) {
                 continue;
             }
             let host = self.clone();
@@ -159,7 +160,7 @@ impl Host {
             ..Default::default()
         };
         for record in self.interceptor_records(skip, |r| r.plugin.caps.response_interceptor) {
-            if !self.record_current(&record) {
+            if !self.live(&record) {
                 continue;
             }
             let mut next = req.clone();
@@ -204,7 +205,7 @@ impl Host {
             if current.drop_chunk {
                 break;
             }
-            if !self.record_current(&record) {
+            if !self.live(&record) {
                 continue;
             }
             let schema = record.plugin.schema_version;
@@ -249,7 +250,7 @@ impl Host {
         scope: &RequestScope,
     ) {
         for record in self.interceptor_records(skip, |r| r.plugin.caps.websocket_response_observer) {
-            if !self.record_current(&record) {
+            if !self.live(&record) {
                 continue;
             }
             let result: Result<Empty, _> = self

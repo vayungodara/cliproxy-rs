@@ -1232,7 +1232,8 @@
       "args": {
         "recorder-a.so": "recorder",
         "recorder-b.so": "recorder",
-        "recorder-c.so": "recorder"
+        "recorder-c.so": "recorder",
+        "recorder-d.so": "recorder"
       },
       "result": null
     },
@@ -1264,8 +1265,17 @@
       "result": null
     },
     {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"ok\":true,\"result\":{\"identifier\":\"\"}}",
+        "label": "d",
+        "method": "auth.identifier"
+      },
+      "result": null
+    },
+    {
       "op": "apply",
-      "args": "auth-dir: RECORDDIR/auths\nplugins:\n  enabled: true\n  dir: PLUGINDIR\n  configs:\n    recorder-a:\n      enabled: true\n      priority: 5\n      record: RECORDDIR\n      label: a\n      caps: request_interceptor,response_interceptor,response_stream_interceptor,request_lifecycle_plugin,websocket_response_observer,scheduler,model_router,request_normalizer,request_translator,response_translator,response_before_translator,response_after_translator,thinking_applier,auth_provider,frontend_auth_provider,quota_provider,model_provider,command_line_plugin\n    recorder-b:\n      enabled: true\n      priority: 5\n      record: RECORDDIR\n      label: b\n      schema: 5\n      caps: request_interceptor,response_interceptor,response_stream_interceptor,request_lifecycle_plugin,request_normalizer,response_before_translator,frontend_auth_provider,quota_provider,thinking_applier,model_registrar,command_line_plugin\n    recorder-c:\n      enabled: true\n      priority: 1\n      record: RECORDDIR\n      label: c\n      scope: static\n      caps: executor,model_registrar,model_router,command_line_plugin,auth_provider\n",
+      "args": "auth-dir: RECORDDIR/auths\nplugins:\n  enabled: true\n  dir: PLUGINDIR\n  configs:\n    recorder-a:\n      enabled: true\n      priority: 5\n      record: RECORDDIR\n      label: a\n      caps: request_interceptor,response_interceptor,response_stream_interceptor,request_lifecycle_plugin,websocket_response_observer,scheduler,model_router,request_normalizer,request_translator,response_translator,response_before_translator,response_after_translator,thinking_applier,auth_provider,frontend_auth_provider,quota_provider,model_provider,command_line_plugin\n    recorder-b:\n      enabled: true\n      priority: 5\n      record: RECORDDIR\n      label: b\n      schema: 5\n      caps: request_interceptor,response_interceptor,response_stream_interceptor,request_lifecycle_plugin,request_normalizer,response_before_translator,frontend_auth_provider,quota_provider,thinking_applier,model_registrar,command_line_plugin\n    recorder-c:\n      enabled: true\n      priority: 1\n      record: RECORDDIR\n      label: c\n      scope: static\n      caps: executor,model_registrar,model_router,command_line_plugin,auth_provider\n    recorder-d:\n      enabled: true\n      priority: 0\n      record: RECORDDIR\n      label: d\n      caps: auth_provider\n",
       "result": [
         {
           "id": "recorder-a",
@@ -1314,6 +1324,23 @@
           },
           "supports_oauth": true,
           "oauth_provider": "rec-c",
+          "supports_quota": false,
+          "quota_provider": "",
+          "menus": []
+        },
+        {
+          "id": "recorder-d",
+          "priority": 0,
+          "metadata": {
+            "Author": "cliproxy-rs tests",
+            "ConfigFields": null,
+            "GitHubRepository": "https://example.invalid/recorder",
+            "Logo": "",
+            "Name": "d",
+            "Version": "1.0.0"
+          },
+          "supports_oauth": true,
+          "oauth_provider": "",
           "supports_quota": false,
           "quota_provider": "",
           "menus": []
@@ -1386,6 +1413,17 @@
         "c": [
           {
             "config_yaml": "enabled: true\npriority: 1\nrecord: RECORDDIR\nlabel: c\nscope: static\ncaps: executor,model_registrar,model_router,command_line_plugin,auth_provider\n",
+            "method": "plugin.register",
+            "request": "{\"config_yaml\":\"\u003cconfig_yaml\u003e\",\"schema_version\":6}"
+          },
+          {
+            "method": "auth.identifier",
+            "request": "{}"
+          }
+        ],
+        "d": [
+          {
+            "config_yaml": "enabled: true\npriority: 0\nrecord: RECORDDIR\nlabel: d\ncaps: auth_provider\n",
             "method": "plugin.register",
             "request": "{\"config_yaml\":\"\u003cconfig_yaml\u003e\",\"schema_version\":6}"
           },
@@ -2620,6 +2658,124 @@
       }
     },
     {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"error\":{\"code\":\"parse_failed\",\"message\":\"bad material\"},\"ok\":false}",
+        "label": "a",
+        "method": "auth.parse"
+      },
+      "result": null
+    },
+    {
+      "op": "call",
+      "args": {
+        "fn": "parse_auths",
+        "req": {
+          "Provider": "a"
+        }
+      },
+      "result": {
+        "error": "bad material",
+        "handled": false,
+        "resp": null
+      }
+    },
+    {
+      "op": "call",
+      "args": {
+        "fn": "parse_auths",
+        "req": {
+          "Path": "/auth/any.json"
+        }
+      },
+      "result": {
+        "error": "bad material",
+        "handled": false,
+        "resp": null
+      }
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"ok\":true,\"result\":{\"Handled\":false}}",
+        "label": "a",
+        "method": "auth.parse"
+      },
+      "result": null
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"ok\":true,\"result\":{\"Auths\":[{\"Provider\":\" \"}],\"Handled\":true}}",
+        "label": "c",
+        "method": "auth.parse"
+      },
+      "result": null
+    },
+    {
+      "op": "call",
+      "args": {
+        "fn": "parse_auths",
+        "req": {
+          "Provider": "rec-c"
+        }
+      },
+      "result": {
+        "error": "",
+        "handled": true,
+        "resp": [
+          {
+            "attributes": {},
+            "disabled": false,
+            "file_name": "",
+            "id": "",
+            "label": "",
+            "metadata": {
+              "type": "rec-c"
+            },
+            "next_refresh_after": "0001-01-01T00:00:00Z",
+            "prefix": "",
+            "provider": "rec-c",
+            "proxy_url": "",
+            "status": "active",
+            "storage": "{\"type\":\"rec-c\"}"
+          }
+        ]
+      }
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"ok\":true,\"result\":{\"Handled\":false}}",
+        "label": "c",
+        "method": "auth.parse"
+      },
+      "result": null
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"ok\":true,\"result\":{\"Handled\":true}}",
+        "label": "d",
+        "method": "auth.parse"
+      },
+      "result": null
+    },
+    {
+      "op": "call",
+      "args": {
+        "fn": "parse_auths",
+        "req": {
+          "Path": "/auth/any.json"
+        }
+      },
+      "result": {
+        "error": "auth provider recorder-d returned auth without provider",
+        "handled": true,
+        "resp": []
+      }
+    },
+    {
       "op": "call",
       "args": {
         "fn": "parse_auths",
@@ -2803,6 +2959,18 @@
             "request": "{\"Provider\":\"a\",\"Path\":\"\",\"FileName\":\"\",\"RawJSON\":null,\"Host\":{\"AuthDir\":\"RECORDDIR/auths\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null}}"
           },
           {
+            "method": "auth.parse",
+            "request": "{\"Provider\":\"a\",\"Path\":\"\",\"FileName\":\"\",\"RawJSON\":null,\"Host\":{\"AuthDir\":\"RECORDDIR/auths\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null}}"
+          },
+          {
+            "method": "auth.parse",
+            "request": "{\"Provider\":\"a\",\"Path\":\"/auth/any.json\",\"FileName\":\"\",\"RawJSON\":null,\"Host\":{\"AuthDir\":\"RECORDDIR/auths\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null}}"
+          },
+          {
+            "method": "auth.parse",
+            "request": "{\"Provider\":\"a\",\"Path\":\"/auth/any.json\",\"FileName\":\"\",\"RawJSON\":null,\"Host\":{\"AuthDir\":\"RECORDDIR/auths\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null}}"
+          },
+          {
             "method": "auth.login.start",
             "request": "{\"Provider\":\"a\",\"BaseURL\":\"http://127.0.0.1:8317\",\"Host\":{\"AuthDir\":\"RECORDDIR/auths\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"Metadata\":{\"m\":\"v\"},\"host_callback_id\":\"26\"}"
           },
@@ -2813,12 +2981,26 @@
         ],
         "c": [
           {
+            "method": "auth.parse",
+            "request": "{\"Provider\":\"rec-c\",\"Path\":\"\",\"FileName\":\"\",\"RawJSON\":null,\"Host\":{\"AuthDir\":\"RECORDDIR/auths\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null}}"
+          },
+          {
+            "method": "auth.parse",
+            "request": "{\"Provider\":\"rec-c\",\"Path\":\"/auth/any.json\",\"FileName\":\"\",\"RawJSON\":null,\"Host\":{\"AuthDir\":\"RECORDDIR/auths\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null}}"
+          },
+          {
             "method": "auth.refresh",
             "request": "{\"AuthID\":\"c1\",\"AuthProvider\":\"rec-c\",\"StorageJSON\":\"eyJwcmlvcml0eSI6MywidG9rZW4iOiJ0IiwidHlwZSI6InJlYy1jIn0=\",\"Metadata\":{\"priority\":3,\"type\":\"rec-c\"},\"Attributes\":{\"file_priority\":\"true\",\"path\":\"/auth/c1.json\",\"priority\":\"9\",\"source\":\"/auth/c1.json\",\"source_backend\":\"file\"},\"Host\":{\"AuthDir\":\"RECORDDIR/auths\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"host_callback_id\":\"28\"}"
           },
           {
             "method": "auth.refresh",
             "request": "{\"AuthID\":\"c1\",\"AuthProvider\":\"rec-c\",\"StorageJSON\":\"eyJ0eXBlIjoicmVjLWMifQ==\",\"Metadata\":{\"type\":\"rec-c\"},\"Attributes\":null,\"Host\":{\"AuthDir\":\"RECORDDIR/auths\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"host_callback_id\":\"29\"}"
+          }
+        ],
+        "d": [
+          {
+            "method": "auth.parse",
+            "request": "{\"Provider\":\"\",\"Path\":\"/auth/any.json\",\"FileName\":\"\",\"RawJSON\":null,\"Host\":{\"AuthDir\":\"RECORDDIR/auths\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null}}"
           }
         ]
       }
@@ -3471,6 +3653,12 @@
           }
         ],
         "c": [
+          {
+            "method": "\u003cshutdown\u003e",
+            "request": ""
+          }
+        ],
+        "d": [
           {
             "method": "\u003cshutdown\u003e",
             "request": ""

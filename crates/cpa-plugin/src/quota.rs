@@ -13,7 +13,7 @@ use crate::api::{
 use crate::auth::AuthView;
 use crate::callbacks::RequestScope;
 use crate::gojson::{DecodeError, GoJson, Node};
-use crate::host::{Host, Record, normalize_provider};
+use crate::host::{Host, Record, Snapshot, normalize_provider};
 use crate::rpc::CallError;
 
 /// Go `RegisteredQuotaProviderInfo`.
@@ -44,10 +44,18 @@ impl GoJson for FetchWire {
 }
 
 impl Host {
+    /// Current quota providers; callers that await between records recheck fusion.
     fn quota_records(&self) -> Vec<Record> {
-        self.active_records()
+        self.quota_records_in(&self.snapshot())
             .into_iter()
-            .filter(|r| r.plugin.caps.quota_provider && !self.is_fused(&r.id))
+            .filter(|r| !self.is_fused(&r.id))
+            .collect()
+    }
+
+    fn quota_records_in(&self, snapshot: &Snapshot) -> Vec<Record> {
+        self.current_records(snapshot)
+            .into_iter()
+            .filter(|r| r.plugin.caps.quota_provider)
             .collect()
     }
 
@@ -78,9 +86,9 @@ impl Host {
         self.call(record, method::QUOTA_DESCRIBE, &req).await.map(Some)
     }
 
-    /// Go `cachedQuotaSupportedProviders`: described once per snapshot.
-    async fn supported_providers(&self, record: &Record) -> Vec<String> {
-        let snapshot = self.snapshot();
+    /// Go `cachedQuotaSupportedProviders`: described once per snapshot. The caller passes
+    /// the snapshot its records came from, so one lookup uses one cache throughout.
+    async fn supported_providers(&self, snapshot: &Snapshot, record: &Record) -> Vec<String> {
         if let Some(cached) = crate::host::lock(&snapshot.quota_supported).get(&record.id) {
             return cached.clone();
         }
@@ -95,6 +103,9 @@ impl Host {
     pub async fn quota_providers(&self) -> Vec<QuotaProviderInfo> {
         let mut out = Vec::new();
         for record in self.quota_records() {
+            if self.is_fused(&record.id) {
+                continue;
+            }
             let mut identifier = Self::quota_identifier(&record);
             if identifier.is_empty() {
                 identifier = normalize_provider(&record.id);
@@ -132,8 +143,12 @@ impl Host {
 
     /// Go `QuotaSupportedProvidersSet`.
     pub async fn quota_supported_providers(&self) -> BTreeSet<String> {
+        let snapshot = self.snapshot();
         let mut out = BTreeSet::new();
-        for record in self.quota_records() {
+        for record in self.quota_records_in(&snapshot) {
+            if self.is_fused(&record.id) {
+                continue;
+            }
             let id = Self::quota_identifier(&record);
             if !id.is_empty() {
                 out.insert(id);
@@ -148,7 +163,7 @@ impl Host {
                     out.insert(auth);
                 }
             }
-            for p in self.supported_providers(&record).await {
+            for p in self.supported_providers(&snapshot, &record).await {
                 let p = normalize_provider(&p);
                 if !p.is_empty() {
                     out.insert(p);
@@ -164,8 +179,12 @@ impl Host {
         if provider.is_empty() {
             return None;
         }
-        let records = self.quota_records();
+        let snapshot = self.snapshot();
+        let records = self.quota_records_in(&snapshot);
         for record in &records {
+            if self.is_fused(&record.id) {
+                continue;
+            }
             if Self::quota_identifier(record) == provider
                 || normalize_provider(&record.id) == provider
                 || (record.plugin.caps.auth_provider && normalize_provider(&record.plugin.auth_identifier) == provider)
@@ -174,8 +193,11 @@ impl Host {
             }
         }
         for record in &records {
+            if self.is_fused(&record.id) {
+                continue;
+            }
             if self
-                .supported_providers(record)
+                .supported_providers(&snapshot, record)
                 .await
                 .iter()
                 .any(|p| normalize_provider(p) == provider)

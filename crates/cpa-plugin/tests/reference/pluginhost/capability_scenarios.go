@@ -31,6 +31,12 @@ plugins:
       label: c
       scope: static
       caps: executor,model_registrar,model_router,command_line_plugin,auth_provider
+    recorder-d:
+      enabled: true
+      priority: 0
+      record: RECORDDIR
+      label: d
+      caps: auth_provider
 `
 
 func ok(v any) string {
@@ -59,11 +65,12 @@ func (r *runner) clear() {
 
 func capabilityScenarios(r *runner) {
 	r.clear()
-	r.files(map[string]string{"recorder-a.so": "recorder", "recorder-b.so": "recorder", "recorder-c.so": "recorder"})
+	r.files(map[string]string{"recorder-a.so": "recorder", "recorder-b.so": "recorder", "recorder-c.so": "recorder", "recorder-d.so": "recorder"})
 	// Identifiers asked at registration or refresh.
 	r.respond("b", "thinking.identifier", ok(map[string]string{"identifier": "Claude"}))
 	r.respond("c", "auth.identifier", ok(map[string]string{"identifier": " Rec-C "}))
 	r.respond("b", "quota.identifier", ok(map[string]string{"identifier": "A"}))
+	r.respond("d", "auth.identifier", ok(map[string]string{"identifier": ""}))
 	r.apply(capConfig)
 	r.call(callArgs{Fn: "has"})
 	r.records()
@@ -162,6 +169,16 @@ func capabilityScenarios(r *runner) {
 	r.call(callArgs{Fn: "parse_auths", Req: raw(`{"Provider":"a","Path":"/auth/f.json"}`)})
 	r.respond("a", "auth.parse", ok(map[string]any{"Handled": false}))
 	r.call(callArgs{Fn: "parse_auths", Req: raw(`{"Provider":"a"}`)})
+	// An RPC error is not handled; a handled answer with invalid auth data is.
+	r.respond("a", "auth.parse", fail("parse_failed", "bad material"))
+	r.call(callArgs{Fn: "parse_auths", Req: raw(`{"Provider":"a"}`)})
+	r.call(callArgs{Fn: "parse_auths", Req: raw(`{"Path":"/auth/any.json"}`)})
+	r.respond("a", "auth.parse", ok(map[string]any{"Handled": false}))
+	r.respond("c", "auth.parse", ok(map[string]any{"Handled": true, "Auths": []map[string]any{{"Provider": " "}}}))
+	r.call(callArgs{Fn: "parse_auths", Req: raw(`{"Provider":"rec-c"}`)})
+	r.respond("c", "auth.parse", ok(map[string]any{"Handled": false}))
+	r.respond("d", "auth.parse", ok(map[string]any{"Handled": true}))
+	r.call(callArgs{Fn: "parse_auths", Req: raw(`{"Path":"/auth/any.json"}`)})
 	r.call(callArgs{Fn: "parse_auths", Req: raw(`{"Provider":"nobody"}`)})
 	r.respond("a", "auth.login.start", ok(map[string]any{"URL": "https://login.invalid/a", "State": "s1", "ExpiresAt": "2026-10-03T00:00:00Z"}))
 	r.call(callArgs{Fn: "start_login", Provider: " A ", BaseURL: "http://127.0.0.1:8317", Metadata: map[string]any{"m": "v"}})

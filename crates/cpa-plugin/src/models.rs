@@ -39,7 +39,8 @@ pub struct ClientChanges {
 pub struct ExecutorChanges {
     /// Provider to the plugin that executes it, in registration order.
     pub register: Vec<(String, String)>,
-    /// Providers whose plugin executor went away.
+    /// Providers whose plugin executor went away. The caller removes each only if the
+    /// executor registered for it is still a plugin executor (Go `ownsExecutor`).
     pub unregister: Vec<String>,
     pub clients: ClientChanges,
 }
@@ -399,7 +400,6 @@ impl Host {
         state.provider_models = provider_models;
         let mut stale: Vec<String> = state.executor_providers.difference(&next_providers).cloned().collect();
         stale.sort();
-        changes.unregister = stale;
         state.executor_providers = next_providers;
         let mut stale_clients: Vec<String> = state
             .executor_model_client_ids
@@ -409,6 +409,11 @@ impl Host {
         stale_clients.sort();
         changes.clients.unregister = stale_clients;
         state.executor_model_client_ids = next_clients;
+        drop(state);
+        // Go removes a stale provider only while the manager still holds this host's
+        // adapter; a built-in executor that replaced it stays.
+        stale.retain(|provider| !native_provider(provider));
+        changes.unregister = stale;
         changes
     }
 

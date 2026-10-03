@@ -287,7 +287,7 @@ fn same(go: &Value, rust: &Value) -> bool {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn rust_host_matches_go_host() {
-    let Some(built) = support::built_plugins() else {
+    let Some(built) = support::built_plugins_for("go_host::rust_host_matches_go_host") else {
         return;
     };
     let fixture: Value = serde_json::from_str(include_str!("fixtures/pluginhost_go.json")).unwrap();

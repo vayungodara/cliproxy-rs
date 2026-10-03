@@ -249,13 +249,23 @@ impl Host {
     /// Records still current: a record whose plugin was unloaded or replaced since the
     /// snapshot was taken is skipped (Go `activeRecordsFromSnapshot`).
     pub fn active_records(&self) -> Vec<Record> {
-        let snapshot = self.snapshot();
+        self.current_records(&self.snapshot())
+    }
+
+    /// Go `activeRecordsFromSnapshot`: the snapshot's records that are still current.
+    pub fn current_records(&self, snapshot: &Snapshot) -> Vec<Record> {
         snapshot
             .records
             .iter()
             .filter(|r| self.record_current(r))
             .cloned()
             .collect()
+    }
+
+    /// Whether a record may be called right now: not fused and still current. Go checks
+    /// this at every call, after earlier plugins in the same loop have run.
+    pub fn live(&self, record: &Record) -> bool {
+        !self.is_fused(&record.id) && self.record_current(record)
     }
 
     /// Go `recordCurrent` / `pluginIdentityCurrent`.
@@ -278,9 +288,11 @@ impl Host {
     /// Go `fusePlugin`: a host-side panic while serving the plugin disables it until its
     /// file changes.
     pub fn fuse(&self, id: &str, what: &str, panic: &str) {
-        self.state()
-            .fused
-            .insert(id.to_owned(), format!("{what} panic: {panic}"));
+        let mut state = self.state();
+        state.fused.insert(id.to_owned(), format!("{what} panic: {panic}"));
+        // Go `thinking.UnregisterPluginProviders`.
+        state.thinking_providers.retain(|_, owner| owner != id);
+        drop(state);
         tracing::error!(plugin_id = %id, method = %what, "pluginhost: plugin panic recovered: {panic}");
     }
 
