@@ -366,6 +366,9 @@ requests:
         params: {"a.b": "{not json", "c": "  ", "d": " {\"x\":1} ", "e": "[1,2]"}
       - models: [{name: "m"}]
         params: {}
+    default:
+      - models: [{name: "*"}]
+        params: {n: 1.0, f: 0.5, big: 12345678901, obj: {z: 1, a: {y: 2.0, b: [3.0]}}}
 api-keys:
   claude:
     - name: c
@@ -473,6 +476,27 @@ func keyListWrites(r string) []step {
 	)
 }
 
+// decoderEdges exercises encoding/json corners: integer tokens, skipped members,
+// string repair, EqualFold field names and Go's nesting limit.
+func decoderEdges() []step {
+	r := "/gemini-api-key"
+	deep := strings.Repeat("[", 300) + strings.Repeat("]", 300)
+	return steps(
+		patch(r, `{"index":0,"value":{"weight":-0}}`), patch(r, `{"index":0,"value":{"weight":1e400}}`),
+		patch(r, `{"index":0,"value":{"weight":1e2}}`), patch(r, `{"index":0,"value":{"weight": 4 }}`),
+		patch(r, `{"index":0,"value":{"disable-cooling": true }}`),
+		put(r, `[{"api-key":"k","unknown":1e400}]`),
+		put(r, `[{"api-key":"k\ud800x","base-url":"https://\u00e9.example.invalid"}]`),
+		put(r, `[{"api-key":"k","pr\u0131ority":7,"excluded-model\u017f":["X"]}]`),
+		put(r, `[{"api-key":"k","x":`+deep+`}]`),
+		put(r, `[{"api-key":"k","priority":01}]`), put(r, `[{"api-key":"k","prefix":"a\'b"}]`),
+		patch(r, `{"index":0,"value":{"headers":{"A":"1"}},"index":"x"}`),
+		patch(r, `{"match":"k","value":{"priority":2},"value":{"prefix":"p"}}`),
+		put("/oauth-model-alias", `{"codex":[{"name":"\u017f","alias":"s"},{"name":"K","alias":"\u212a"},{"name":"i","alias":"\u0131"}]}`),
+		get(r), get("/oauth-model-alias"),
+	)
+}
+
 func claudeWrites() []step {
 	r := "/claude-api-key"
 	return steps(
@@ -566,7 +590,8 @@ func scalarWrites() []step {
 		put("/logs-max-total-size-mb", `{"value":-5}`), put("/logs-max-total-size-mb", `{"value":250}`),
 		put("/logs-max-total-size-mb", `{"value":1.5}`), put("/logs-max-total-size-mb", `{"value":"7"}`),
 		put("/error-logs-max-files", `{"value":-1}`), put("/error-logs-max-files", `{"value":0}`),
-		put("/request-retry", `{"value":-2}`), put("/request-retry", `{"value":7}`),
+		put("/request-retry", `{"value":-2}`), put("/request-retry", `{"value":7}`), put("/request-retry", `{"value":-0}`),
+		put("/request-retry", `{"VALU\u0117":3}`), put("/debug", `{"valu\u0435":true}`),
 		put("/max-retry-credentials", `{"value":4}`), patch("/max-retry-interval", `{"value":12}`),
 		put("/proxy-url", `{"value":"  http://p.example.invalid:1  "}`), put("/proxy-url", `{"value":5}`),
 		del("/proxy-url"),
@@ -585,6 +610,8 @@ func apiKeyWrites() []step {
 		put("/api-keys", `{"items":7,"items":["replacement"]}`), put("/api-keys", `{"ITEMS":["replacement"]}`),
 		put("/api-keys", `{"items":["replacement"],"ITEMS":null}`), put("/api-keys", `["a",null]`),
 		put("/api-keys", `{"items":["a",1]}`), put("/api-keys", `[1]`),
+		put("/api-keys", `{"items":["a","b"],"items":[null]}`), put("/api-keys", `{"item\u017f":["s1","s2"]}`),
+		del("/api-keys?index=%C2%A00"), del("/api-keys?index=%0A0"), del("/api-keys?index=%0B1"),
 		patch("/api-keys", `{"index":0,"value":"k0"}`), patch("/api-keys", `{"index":9,"value":"k9"}`),
 		patch("/api-keys", `{"old":"k0","new":"k00"}`), patch("/api-keys", `{"old":"missing","new":"k-new"}`),
 		patch("/api-keys", `{"old":"k00"}`), patch("/api-keys", `{"old":null,"new":"k-null"}`),
@@ -611,6 +638,7 @@ func main() {
 		{Name: "scalars-legacy", YAML: legacyFull, Steps: scalarWrites()},
 		{Name: "api-keys", YAML: v8Full, Steps: apiKeyWrites()},
 		{Name: "gemini-writes", YAML: writesV8, Steps: keyListWrites("/gemini-api-key")},
+		{Name: "decoder-edges", YAML: writesV8, Steps: decoderEdges()},
 		{Name: "interactions-writes", YAML: writesV8, Steps: keyListWrites("/interactions-api-key")},
 		{Name: "claude-writes", YAML: writesV8, Steps: cat(keyListWrites("/claude-api-key"))},
 		{Name: "claude-cloak", YAML: writesV8, Steps: claudeWrites()},

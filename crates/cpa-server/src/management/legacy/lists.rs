@@ -11,14 +11,27 @@ use axum::http::{Method, StatusCode};
 use axum::response::Response;
 use serde_json::{Map, Value, json};
 
-use super::decode::{self, Raw};
+use super::decode;
 use super::view::{self, Shape};
-use super::{Management, bad, go_json, go_trim, keys, ok, query_first, remove, sscanf_int, write};
+use super::{Management, go_json, go_trim, keys, query_first, remove, sscanf_int, touch, write};
 
 const META_BASE_URL: &str = "https://api.meta.ai/v1";
 
-fn not_found(message: &str) -> Response {
-    go_json(StatusCode::NOT_FOUND, &json!({ "error": message }))
+/// A Go error answer: its status and `error` text.
+struct Fail(StatusCode, String);
+
+impl Fail {
+    fn bad(message: impl Into<String>) -> Self {
+        Fail(StatusCode::BAD_REQUEST, message.into())
+    }
+
+    fn not_found(message: &str) -> Self {
+        Fail(StatusCode::NOT_FOUND, message.into())
+    }
+
+    fn response(self) -> Response {
+        go_json(self.0, &json!({ "error": self.1 }))
+    }
 }
 
 fn text(o: &Map<String, Value>, k: &str) -> String {
@@ -129,51 +142,25 @@ fn groups(family: &str, list: &[Value]) -> Value {
     Value::Array(groups.collect())
 }
 
-/// Go's sanitizer, then the save: nothing is written when the list is unchanged.
+/// Go's sanitizer, then the save. An unchanged family keeps its groups but is still
+/// saved, so a failing disk fails the request as Go's `persistLocked` does.
 async fn persist_list(state: Arc<Management>, family: &str, old: &Value, new: Value) -> Response {
     let new = keys::sanitize(family, &new);
     let shape = view::field(family);
-    if yaml(shape, &new) == yaml(shape, old) {
-        return ok();
-    }
     let path = format!("api-keys/{}", v8_family(family));
+    if yaml(shape, &new) == yaml(shape, old) {
+        return touch(state, path).await;
+    }
     match &new {
         Value::Array(list) => write(state, path, groups(family, list)).await,
         _ => remove(state, path).await,
     }
 }
 
-/// Go's PUT bodies: `json.Unmarshal` into the collection, else into
-/// `struct { Items T }`. List PUTs also require a non-empty `items`.
-fn put_body(shape: &Shape, body: &[u8], need_items: bool) -> Option<Value> {
-    let raw = Raw::parse(body)?;
-    if let Some(v) = decode::decode(shape, &raw, Value::Null) {
-        return Some(v);
-    }
-    let wrapper = decode::record(vec![Shape {
-        json: "items".into(),
-        ..shape.clone()
-    }]);
-    let mut obj = decode::decode(&wrapper, &raw, view::zero(&wrapper))?;
-    let items = obj.get_mut("items").map(Value::take).unwrap_or_default();
-    if need_items && items.as_array().is_none_or(Vec::is_empty) {
-        return None;
-    }
-    Some(items)
-}
-
-/// gin `ShouldBindJSON` into a request struct.
-fn bind(shape: &Shape, body: &[u8]) -> Option<Map<String, Value>> {
-    match decode::decode(shape, &Raw::first(body)?, view::zero(shape))? {
-        Value::Object(o) => Some(o),
-        _ => None,
-    }
-}
-
 /// Go `rejectInvalidCredentialWeight` (`credentialweight.Normalize`).
-fn check_weight(field: &str, weight: Option<&Value>) -> Result<(), Response> {
+fn check_weight(field: &str, weight: Option<&Value>) -> Result<(), Fail> {
     match weight.and_then(Value::as_i64) {
-        Some(w) if w > 1_000_000 => Err(bad(&format!("{field}: weight must not exceed 1000000"))),
+        Some(w) if w > 1_000_000 => Err(Fail::bad(format!("{field}: weight must not exceed 1000000"))),
         _ => Ok(()),
     }
 }
@@ -188,11 +175,11 @@ fn fingerprint_profile(raw: &str) -> (&'static str, bool) {
 }
 
 /// Go `rejectInvalidFingerprintProfile`.
-fn check_profile(field: &str, raw: &str) -> Result<(), Response> {
+fn check_profile(field: &str, raw: &str) -> Result<(), Fail> {
     if fingerprint_profile(raw).1 {
         return Ok(());
     }
-    Err(bad(&format!(
+    Err(Fail::bad(format!(
         "{field}: unsupported fingerprint-profile {} (supported: \"claude-code-cli\" or empty)",
         cpa_common::gostr::quote(go_trim(raw))
     )))
@@ -307,9 +294,9 @@ fn cloak_mode(o: &Map<String, Value>) -> Option<String> {
 }
 
 /// PUT: the replacement list (before the sanitizer), or Go's 400.
-fn put(family: &str, old: &Value, body: &[u8]) -> Result<Value, Response> {
-    let Some(list) = put_body(view::field(family), body, true) else {
-        return Err(bad("invalid body"));
+fn put(family: &str, old: &Value, body: &[u8]) -> Result<Value, Fail> {
+    let Some(list) = decode::put_collection(view::field(family), body, true) else {
+        return Err(Fail::bad("invalid body"));
     };
     let nil = list.is_null();
     let mut list = entries(&list);
@@ -372,7 +359,7 @@ fn put(family: &str, old: &Value, body: &[u8]) -> Result<Value, Response> {
             for (i, e) in list.iter_mut().enumerate() {
                 normalize(family, e);
                 if text(e, "api-key").is_empty() {
-                    return Err(bad(&format!("vertex-api-key[{i}].api-key is required")));
+                    return Err(Fail::bad(format!("vertex-api-key[{i}].api-key is required")));
                 }
                 weight(i, e)?;
             }
@@ -539,30 +526,26 @@ fn patch_shape(family: &str) -> Shape {
 }
 
 /// Go `parseCredentialWeightPatch`.
-fn weight_patch(raw: &str) -> Result<Value, Response> {
+fn weight_patch(raw: &str) -> Result<Value, Fail> {
     if go_trim(raw) == "null" {
         return Ok(Value::Null);
     }
-    match Raw::parse(raw.as_bytes()) {
-        Some(Raw::Num(n)) if n.as_i64().is_some() => {
-            let w = n.as_i64().unwrap_or_default();
-            if w > 1_000_000 {
-                return Err(bad("weight must not exceed 1000000"));
-            }
-            Ok(w.into())
-        }
-        _ => Err(bad("weight must be an integer")),
+    match decode::whole(raw.as_bytes()).and_then(decode::int_token) {
+        Some(w) if w > 1_000_000 => Err(Fail::bad("weight must not exceed 1000000")),
+        Some(w) => Ok(w.into()),
+        None => Err(Fail::bad("weight must be an integer")),
     }
 }
 
 /// Go `applyDisableCoolingPatch` / `applyDisableCodexCloakingPatch`.
-fn bool_patch(name: &str, raw: &str) -> Result<Value, Response> {
+fn bool_patch(name: &str, raw: &str) -> Result<Value, Fail> {
     if go_trim(raw) == "null" {
         return Ok(Value::Null);
     }
-    match Raw::parse(raw.as_bytes()) {
-        Some(Raw::Bool(b)) => Ok(Value::Bool(b)),
-        _ => Err(bad(&format!("{name} must be a boolean or null"))),
+    match raw {
+        "true" => Ok(Value::Bool(true)),
+        "false" => Ok(Value::Bool(false)),
+        _ => Err(Fail::bad(format!("{name} must be a boolean or null"))),
     }
 }
 
@@ -573,16 +556,16 @@ fn cloak_patch(
     old: &Map<String, Value>,
     raw: &str,
     identity_changed: bool,
-) -> Result<(), Response> {
+) -> Result<(), Fail> {
     if go_trim(raw) == "null" {
         e.insert("cloak".into(), Value::Null);
         return Ok(());
     }
     let cloak = view::nested("claude-api-key", "cloak").expect("cloak shape");
     let shape = decode::record(cloak.fields.iter().map(|f| decode::pointer_to(&f.json, f)).collect());
-    let patch = Raw::parse(raw.as_bytes()).and_then(|r| decode::decode(&shape, &r, view::zero(&shape)));
+    let patch = decode::whole(raw.as_bytes()).and_then(|r| decode::decode(&shape, r, view::zero(&shape)));
     let Some(Value::Object(p)) = patch else {
-        return Err(bad("invalid cloak config"));
+        return Err(Fail::bad("invalid cloak config"));
     };
     let given = |k: &str| p.get(k).filter(|v| !v.is_null());
     let mut c = match e.get("cloak") {
@@ -615,7 +598,7 @@ enum Patched {
 }
 
 /// One entry patched as Go's `Patch*Key` does, or removed where Go removes it.
-fn apply(family: &str, old: &Map<String, Value>, p: &Map<String, Value>) -> Result<Patched, Response> {
+fn apply(family: &str, old: &Map<String, Value>, p: &Map<String, Value>) -> Result<Patched, Fail> {
     let given = |k: &str| p.get(k).filter(|v| !v.is_null());
     let trim_given = |k: &str| given(k).map(|v| go_trim(v.as_str().unwrap_or_default()).to_owned());
     let identity_changed = family == "claude-api-key"
@@ -688,7 +671,7 @@ fn patch_target(
     list: &[Map<String, Value>],
     body: &Map<String, Value>,
     query: Option<&str>,
-) -> Result<Option<usize>, Response> {
+) -> Result<Option<usize>, Fail> {
     let compat = family == "openai-compatibility";
     let lookup = if compat { "name" } else { "match" };
     let Some(wanted) = body.get(lookup).and_then(Value::as_str).map(|m| go_trim(m).to_owned()) else {
@@ -705,7 +688,7 @@ fn patch_target(
                 .filter(|&i| base.as_ref().is_none_or(|b| trimmed(&list[i], "base-url") == *b))
                 .collect();
             if hits.len() > 1 {
-                return Err(bad("multiple items match; index is required"));
+                return Err(Fail::bad("multiple items match; index is required"));
             }
             Ok(hits.first().copied())
         }
@@ -717,12 +700,12 @@ fn patch_target(
     }
 }
 
-fn patch(family: &str, old: &Value, query: Option<&str>, body: &[u8]) -> Result<Value, Response> {
-    let Some(b) = bind(&patch_shape(family), body) else {
-        return Err(bad("invalid body"));
+fn patch(family: &str, old: &Value, query: Option<&str>, body: &[u8]) -> Result<Value, Fail> {
+    let Some(b) = decode::bind(&patch_shape(family), body) else {
+        return Err(Fail::bad("invalid body"));
     };
     let Some(Value::Object(p)) = b.get("value") else {
-        return Err(bad("invalid body"));
+        return Err(Fail::bad("invalid body"));
     };
     let mut list = entries(old);
     let index = b
@@ -735,7 +718,7 @@ fn patch(family: &str, old: &Value, query: Option<&str>, body: &[u8]) -> Result<
         None => patch_target(family, &list, &b, query)?,
     };
     let Some(target) = target else {
-        return Err(not_found("item not found"));
+        return Err(Fail::not_found("item not found"));
     };
     match apply(family, &list[target], p)? {
         Patched::Remove => {
@@ -746,7 +729,7 @@ fn patch(family: &str, old: &Value, query: Option<&str>, body: &[u8]) -> Result<
     Ok(array(list))
 }
 
-fn delete(family: &str, old: &Value, query: Option<&str>) -> Result<Value, Response> {
+fn delete(family: &str, old: &Value, query: Option<&str>) -> Result<Value, Fail> {
     let mut list = entries(old);
     let missing = if family == "openai-compatibility" {
         if let Some(name) = query_first(query, "name").filter(|n| !n.is_empty()) {
@@ -764,10 +747,10 @@ fn delete(family: &str, old: &Value, query: Option<&str>) -> Result<Value, Respo
             if let Some(base) = query_first(query, "base-url").map(|b| go_trim(&b).to_owned()) {
                 hits.retain(|&i| trimmed(&list[i], "base-url") == base);
                 if strict && hits.is_empty() {
-                    return Err(not_found("item not found"));
+                    return Err(Fail::not_found("item not found"));
                 }
                 if strict && hits.len() > 1 {
-                    return Err(bad("multiple items match; index is required"));
+                    return Err(Fail::bad("multiple items match; index is required"));
                 }
                 // Go rebuilds the list (`make([]T, 0)`), so a nil list becomes empty.
                 for &i in hits.iter().rev() {
@@ -776,10 +759,10 @@ fn delete(family: &str, old: &Value, query: Option<&str>) -> Result<Value, Respo
                 return Ok(array(list));
             }
             if strict && hits.is_empty() {
-                return Err(not_found("item not found"));
+                return Err(Fail::not_found("item not found"));
             }
             if hits.len() > 1 {
-                return Err(bad("multiple items match api-key; base-url is required"));
+                return Err(Fail::bad("multiple items match api-key; base-url is required"));
             }
             return match hits.first() {
                 Some(&i) => {
@@ -800,7 +783,7 @@ fn delete(family: &str, old: &Value, query: Option<&str>) -> Result<Value, Respo
         list.remove(i as usize);
         return Ok(array(list));
     }
-    Err(bad(missing))
+    Err(Fail::bad(missing))
 }
 
 /// v8 path of an OAuth map route.
@@ -827,7 +810,7 @@ fn sanitize_map(route: &str, v: &Value) -> Value {
 }
 
 /// The OAuth map after a PUT, PATCH or DELETE, or Go's error.
-fn map_change(route: &str, old: &Value, method: &Method, query: Option<&str>, body: &[u8]) -> Result<Value, Response> {
+fn map_change(route: &str, old: &Value, method: &Method, query: Option<&str>, body: &[u8]) -> Result<Value, Fail> {
     let shape = view::field(route);
     let excluded = route == "oauth-excluded-models";
     let (what, missing_entry) = if excluded {
@@ -837,9 +820,9 @@ fn map_change(route: &str, old: &Value, method: &Method, query: Option<&str>, bo
     };
     let key = match *method {
         Method::PUT => {
-            return match put_body(shape, body, false) {
+            return match decode::put_collection(shape, body, false) {
                 Some(entries) => Ok(sanitize_map(route, &entries)),
-                None => Err(bad("invalid body")),
+                None => Err(Fail::bad("invalid body")),
             };
         }
         Method::PATCH => {
@@ -856,8 +839,8 @@ fn map_change(route: &str, old: &Value, method: &Method, query: Option<&str>, bo
                 json: list.into(),
                 ..shape.elem.as_deref().expect("map element").clone()
             });
-            let Some(b) = bind(&decode::record(fields), body) else {
-                return Err(bad("invalid body"));
+            let Some(b) = decode::bind(&decode::record(fields), body) else {
+                return Err(Fail::bad("invalid body"));
             };
             let raw = match (
                 b.get("channel").and_then(Value::as_str),
@@ -865,12 +848,12 @@ fn map_change(route: &str, old: &Value, method: &Method, query: Option<&str>, bo
             ) {
                 (Some(c), _) => c,
                 (None, Some(p)) => p,
-                (None, None) if excluded => return Err(bad("invalid body")),
+                (None, None) if excluded => return Err(Fail::bad("invalid body")),
                 (None, None) => "",
             };
             let key = keys::lower(go_trim(raw));
             if key.is_empty() {
-                return Err(bad(&format!("invalid {what}")));
+                return Err(Fail::bad(format!("invalid {what}")));
             }
             let normalized = if excluded {
                 keys::normalize_excluded(&b[list])
@@ -892,7 +875,7 @@ fn map_change(route: &str, old: &Value, method: &Method, query: Option<&str>, bo
                 key = query_key("provider");
             }
             if key.is_empty() {
-                return Err(bad(&format!("missing {what}")));
+                return Err(Fail::bad(format!("missing {what}")));
             }
             key
         }
@@ -900,7 +883,7 @@ fn map_change(route: &str, old: &Value, method: &Method, query: Option<&str>, bo
     // A PATCH that leaves nothing, or a DELETE: the entry must exist.
     let mut map = old.as_object().cloned().unwrap_or_default();
     if map.shift_remove(&key).is_none() {
-        return Err(not_found(missing_entry));
+        return Err(Fail::not_found(missing_entry));
     }
     Ok(if map.is_empty() {
         Value::Null
@@ -922,11 +905,11 @@ pub(super) async fn change(
     if route.starts_with("oauth-") {
         let new = match map_change(route, &old, &method, query, body) {
             Ok(v) => v,
-            Err(res) => return res,
+            Err(fail) => return fail.response(),
         };
         let shape = view::field(route);
         if yaml(shape, &new) == yaml(shape, &old) {
-            return ok();
+            return touch(state, map_path(route).into()).await;
         }
         return match new {
             Value::Object(_) => write(state, map_path(route).into(), yaml(shape, &new)).await,
@@ -940,7 +923,7 @@ pub(super) async fn change(
     };
     match new {
         Ok(new) => persist_list(state, route, &old, new).await,
-        Err(res) => res,
+        Err(fail) => fail.response(),
     }
 }
 

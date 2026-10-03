@@ -276,9 +276,26 @@ fn go_duration(s: &str) -> Option<i64> {
     i64::try_from(d).ok()
 }
 
-/// A YAML value as generic JSON (Go `any` fields).
+/// A YAML value as Go's `json.Marshal` prints an `any` decoded by yaml.v3: map keys
+/// sorted at every level, and a float with no fraction printed as an integer.
+/// ponytail: other floats use serde's shortest form, which differs from Go's
+/// `strconv` form only for exponents (`1e21` vs `1e+21`, `1e16` vs `10000000000000000`).
 fn any_json(v: &Yaml) -> Value {
-    serde_json::to_value(v).unwrap_or(Value::Null)
+    fn go(v: Value) -> Value {
+        match v {
+            Value::Number(n) if n.is_f64() => match n.as_f64() {
+                Some(f) if f.fract() == 0.0 && f.abs() < 9.2e18 => Value::from(f as i64),
+                _ => Value::Number(n),
+            },
+            Value::Array(a) => Value::Array(a.into_iter().map(go).collect()),
+            Value::Object(o) => {
+                let sorted: BTreeMap<String, Value> = o.into_iter().map(|(k, v)| (k, go(v))).collect();
+                Value::Object(sorted.into_iter().collect())
+            }
+            v => v,
+        }
+    }
+    go(serde_json::to_value(v).unwrap_or(Value::Null))
 }
 
 /// Go's zero value of a shape, as `json.Marshal` prints it.

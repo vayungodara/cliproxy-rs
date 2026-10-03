@@ -4,6 +4,7 @@
 //! their YAML shape: the tags coincide for these structs.
 use std::collections::{BTreeMap, HashMap, HashSet};
 
+use cpa_common::gostr::GoStr;
 use serde_json::{Map, Value};
 use sha2::{Digest, Sha256};
 
@@ -310,7 +311,7 @@ pub(super) fn oauth_alias(v: &Value) -> Value {
                     go_trim(&text(e, "name")).to_owned(),
                     go_trim(&text(e, "alias")).to_owned(),
                 );
-                if name.is_empty() || alias.is_empty() || lower(&name) == lower(&alias) || !seen.insert(lower(&alias)) {
+                if name.is_empty() || alias.is_empty() || name.go_eq_fold(&alias) || !seen.insert(lower(&alias)) {
                     return None;
                 }
                 let mut o = e.clone();

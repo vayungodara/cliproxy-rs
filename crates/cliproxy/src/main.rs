@@ -607,8 +607,7 @@ async fn serve(config: Config, config_path: PathBuf, password: String, local_mod
     let app = router(rt)
         .merge(cpa_server::management::router(management))
         .layer(axum::middleware::from_fn(cpa_server::management::cors));
-    let server = cpa_server::listener::serve(listener, app, tls);
-    tokio::pin!(server);
+    let mut server = Box::pin(cpa_server::listener::serve(listener, app, tls));
     let served = tokio::select! {
         r = &mut server => r,
         _ = shutdown_signal() => Ok(()),

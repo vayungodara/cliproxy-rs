@@ -15,7 +15,6 @@ use axum::response::{IntoResponse, Response};
 use cpa_core::credential::Source;
 use serde_json::{Value, json};
 
-use super::api_call::Members;
 use super::{Management, json_error};
 
 mod decode;
@@ -222,27 +221,33 @@ fn routing_strategy(s: &str) -> Option<&'static str> {
     }
 }
 
-/// gin `ShouldBindJSON` into `struct { Value *T }`: the first JSON value, members in
-/// order with case-insensitive names; a type mismatch fails, null leaves it unset.
+/// gin `ShouldBindJSON` into `struct { Value *T }`; `None` (also for a null value) is
+/// Go's 400.
 fn bind_value(body: &[u8], kind: Kind) -> Option<Value> {
-    let Members(members) = serde_json::Deserializer::from_slice(body)
-        .into_iter::<Members>()
-        .next()?
-        .ok()?;
-    let mut value = None;
-    for (key, v) in members.unwrap_or_default() {
-        if !key.eq_ignore_ascii_case("value") {
-            continue;
-        }
-        value = match (kind, v) {
-            (_, Value::Null) => None,
-            (Kind::Bool, v @ Value::Bool(_)) => Some(v),
-            (Kind::Int, Value::Number(n)) => Some(Value::from(n.as_i64()?)),
-            (Kind::Str, v @ Value::String(_)) => Some(v),
-            _ => return None,
-        };
+    let kind = match kind {
+        Kind::Bool => "bool",
+        Kind::Int => "int",
+        Kind::Str => "string",
+    };
+    let shape = decode::record(vec![decode::field("value", kind, true, None)]);
+    decode::bind(&shape, body)?.remove("value").filter(|v| !v.is_null())
+}
+
+/// Go `persistLocked`'s failure body for a save the shared writer could not make.
+async fn save_error(res: Response) -> Response {
+    if res.status() != StatusCode::INTERNAL_SERVER_ERROR {
+        return res;
     }
-    value
+    let bytes = axum::body::to_bytes(res.into_body(), 1 << 20).await.unwrap_or_default();
+    let body: Value = serde_json::from_slice(&bytes).unwrap_or_default();
+    let detail = body["message"]
+        .as_str()
+        .or(body["error"].as_str())
+        .unwrap_or("internal_error");
+    go_json(
+        StatusCode::INTERNAL_SERVER_ERROR,
+        &json!({ "error": format!("failed to save config: {detail}") }),
+    )
 }
 
 /// Writes one v8 path through the shared config writer; Go's v0 success body.
@@ -252,7 +257,26 @@ async fn write(state: Arc<Management>, v8: String, value: Value) -> Response {
     let res = tokio::task::spawn_blocking(move || super::config_sync(&state, &path, Method::PUT, &body))
         .await
         .unwrap_or_else(|_| json_error(StatusCode::INTERNAL_SERVER_ERROR, "internal_error"));
-    if res.status() == StatusCode::OK { ok() } else { res }
+    if res.status() == StatusCode::OK {
+        ok()
+    } else {
+        save_error(res).await
+    }
+}
+
+/// Saves one v8 path unchanged, as Go saves after a handler that changed nothing.
+/// ponytail: a path absent from the document is not saved at all; Go would still
+/// rewrite the file (and fail on a read-only disk).
+async fn touch(state: Arc<Management>, v8: String) -> Response {
+    let cfg = state.rt.config();
+    let current = v8
+        .split('/')
+        .try_fold(&cfg.document, |v, k| v.get(k))
+        .and_then(|v| serde_json::to_value(v).ok());
+    match current {
+        Some(value) => write(state, v8, value).await,
+        None => ok(),
+    }
 }
 
 /// Deletes one v8 path through the shared config writer (absent counts as done).
@@ -263,7 +287,7 @@ async fn remove(state: Arc<Management>, v8: String) -> Response {
         .unwrap_or_else(|_| json_error(StatusCode::INTERNAL_SERVER_ERROR, "internal_error"));
     match res.status() {
         StatusCode::OK | StatusCode::NOT_FOUND => ok(),
-        _ => res,
+        _ => save_error(res).await,
     }
 }
 
@@ -308,9 +332,24 @@ pub(crate) async fn field_route(
     write(state, f.v8.into(), value).await
 }
 
-/// Go `fmt.Sscanf(s, "%d", &n)`: an optionally signed decimal prefix after spaces.
+/// Go `fmt.Sscanf(s, "%d", &n)`: an optionally signed decimal prefix after Go's
+/// scanner spaces; a newline before it fails, as Sscanf does not treat it as space.
 fn sscanf_int(s: &str) -> Option<i64> {
-    let s = s.trim_start_matches([' ', '\t', '\r']);
+    // fmt's `space` table.
+    let space = |c: char| {
+        matches!(c, '\u{9}'..='\u{d}' | ' ' | '\u{85}' | '\u{a0}' | '\u{1680}' | '\u{2000}'..='\u{200a}')
+            || matches!(c, '\u{2028}' | '\u{2029}' | '\u{202f}' | '\u{205f}' | '\u{3000}')
+    };
+    let mut s = s;
+    loop {
+        let mut chars = s.chars();
+        match chars.next() {
+            Some('\n') => return None,
+            Some('\r') if chars.as_str().starts_with('\n') => return None,
+            Some(c) if space(c) => s = chars.as_str(),
+            _ => break,
+        }
+    }
     let digits_from = usize::from(s.starts_with(['+', '-']));
     let end = s[digits_from..]
         .find(|c: char| !c.is_ascii_digit())
@@ -356,32 +395,6 @@ fn unescape(s: &str) -> Option<String> {
     String::from_utf8(out).ok()
 }
 
-fn strings(v: Value) -> Option<Option<Vec<String>>> {
-    serde_json::from_value::<Option<Vec<Option<String>>>>(v)
-        .ok()
-        .map(|l| l.map(|l| l.into_iter().map(Option::unwrap_or_default).collect()))
-}
-
-/// Go `putStringList` body: `json.Unmarshal` into `[]string` (null is a nil list),
-/// else into `struct { Items []string }` with case-folded member names, every
-/// occurrence decoded in order (one bad occurrence fails it) and a non-empty result
-/// required. `None` is Go's 400.
-fn put_string_list(body: &[u8]) -> Option<Option<Vec<String>>> {
-    if let Ok(v) = serde_json::from_slice::<Value>(body)
-        && let Some(list) = strings(v.clone()).filter(|_| !v.is_object())
-    {
-        return Some(list);
-    }
-    let Members(members) = serde_json::from_slice::<Members>(body).ok()?;
-    let mut items = None;
-    for (k, v) in members.unwrap_or_default() {
-        if k.eq_ignore_ascii_case("items") {
-            items = Some(strings(v)?);
-        }
-    }
-    items.flatten().filter(|l| !l.is_empty()).map(Some)
-}
-
 /// Go's `api-keys` routes (`putStringList`, `patchStringList`, `deleteFromStringList`).
 pub(crate) async fn api_keys(
     State(state): State<Arc<Management>>,
@@ -396,46 +409,28 @@ pub(crate) async fn api_keys(
     match method {
         Method::GET => go_json(StatusCode::OK, &json!({"api-keys": cfg["api-keys"]})),
         Method::PUT => {
-            let Some(list) = put_string_list(&body) else {
+            // Go `putStringList`.
+            let Some(list) = decode::put_collection(view::field("api-keys"), &body, true) else {
                 return bad("invalid body");
             };
             // Go copies with append([]string(nil), v...): an empty list becomes nil.
-            let list = list.filter(|l| !l.is_empty());
-            write(state, v8, list.map_or(Value::Null, Value::from)).await
+            let list = list.as_array().filter(|l| !l.is_empty()).cloned();
+            write(state, v8, list.map_or(Value::Null, Value::Array)).await
         }
         Method::PATCH => {
-            let Some(Members(members)) = serde_json::Deserializer::from_slice(&body)
-                .into_iter::<Members>()
-                .next()
-                .and_then(Result::ok)
-            else {
+            // Go `patchStringList`: `{old, new, index, value}`, all pointers.
+            let shape = decode::record(vec![
+                decode::field("old", "string", true, None),
+                decode::field("new", "string", true, None),
+                decode::field("index", "int", true, None),
+                decode::field("value", "string", true, None),
+            ]);
+            let Some(b) = decode::bind(&shape, &body) else {
                 return bad("invalid body");
             };
-            let (mut old, mut new, mut index, mut value) = (None, None, None, None);
-            for (k, v) in members.unwrap_or_default() {
-                let slot = match k.to_ascii_lowercase().as_str() {
-                    "old" => &mut old,
-                    "new" => &mut new,
-                    "value" => &mut value,
-                    "index" => {
-                        index = match v {
-                            Value::Null => None,
-                            Value::Number(n) => match n.as_i64() {
-                                Some(i) => Some(i),
-                                None => return bad("invalid body"),
-                            },
-                            _ => return bad("invalid body"),
-                        };
-                        continue;
-                    }
-                    _ => continue,
-                };
-                *slot = match v {
-                    Value::Null => None,
-                    Value::String(s) => Some(s),
-                    _ => return bad("invalid body"),
-                };
-            }
+            let text = |k: &str| b.get(k).and_then(Value::as_str).map(str::to_owned);
+            let (old, new, value) = (text("old"), text("new"), text("value"));
+            let index = b.get("index").and_then(Value::as_i64);
             if let (Some(i), Some(v)) = (index, &value)
                 && i >= 0
                 && (i as usize) < keys.len()
@@ -549,16 +544,19 @@ mod tests {
         assert_eq!(bind_value(br#"{"value":1.5}"#, Kind::Int), None);
         assert_eq!(bind_value(br#"{"value":7,"value":null}"#, Kind::Int), None);
         assert_eq!(bind_value(br#"{"value":-3}"#, Kind::Int), Some(json!(-3)));
+        assert_eq!(bind_value(br#"{"value":-0}"#, Kind::Int), Some(json!(0)));
         assert_eq!(bind_value(b"", Kind::Bool), None);
         assert_eq!(bind_value(b"null", Kind::Bool), None);
     }
 
     #[test]
     fn put_string_list_follows_go_unmarshal() {
-        let list = |b: &str| put_string_list(b.as_bytes());
-        assert_eq!(list(r#"["a",null]"#), Some(Some(vec!["a".into(), String::new()])));
-        assert_eq!(list("null"), Some(None));
-        assert_eq!(list(r#"{"ITEMS":["r"]}"#), Some(Some(vec!["r".into()])));
+        let list = |b: &str| decode::put_collection(view::field("api-keys"), b.as_bytes(), true);
+        assert_eq!(list(r#"["a",null]"#), Some(json!(["a", ""])));
+        assert_eq!(list("null"), Some(Value::Null));
+        assert_eq!(list(r#"{"ITEMS":["r"]}"#), Some(json!(["r"])));
+        assert_eq!(list(r#"{"item\u017f":["r"]}"#), Some(json!(["r"])));
+        assert_eq!(list(r#"{"items":["a"],"items":[null]}"#), Some(json!(["a"])));
         assert_eq!(list(r#"{"items":7,"items":["r"]}"#), None);
         assert_eq!(list(r#"{"items":["r"],"ITEMS":null}"#), None);
         assert_eq!(list(r#"{"items":[]}"#), None);
@@ -572,5 +570,8 @@ mod tests {
         assert_eq!(sscanf_int(" -2x"), Some(-2));
         assert_eq!(sscanf_int("x"), None);
         assert_eq!(sscanf_int("+"), None);
+        assert_eq!(sscanf_int("\u{a0}\u{3000}\u{b}3"), Some(3));
+        assert_eq!(sscanf_int("\r\n3"), None);
+        assert_eq!(sscanf_int("\r3"), Some(3));
     }
 }

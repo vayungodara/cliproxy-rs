@@ -320,3 +320,59 @@ async fn v0_aliases_match_v8_and_lists_carry_live_auth_indexes() {
     server.abort();
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// Go's `persistLocked` saves after every write handler, even one that changed
+/// nothing, and answers a failed save with `failed to save config: <error>`. An
+/// unchanged family keeps its v8 groups and their comments.
+#[tokio::test]
+async fn v0_saves_like_go_persist_locked() {
+    use std::os::unix::fs::PermissionsExt;
+    let hash = bcrypt::hash("fake-secret", 4).unwrap();
+    let dir = std::env::temp_dir().join(format!("cpa-legacy-save-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("config.yaml");
+    std::fs::write(
+        &path,
+        format!(
+            "config-version: 8\nmanagement:\n  secret-key: '{hash}'\napi-keys:\n  claude:\n    # keep this comment\n    - name: c\n      base-url: https://c.example.invalid\n      keys: [{{api-key: fake-1}}, {{api-key: fake-2}}]\n"
+        ),
+    )
+    .unwrap();
+    let (base, server) = serve(&path).await;
+    let client = wreq::Client::new();
+    let send = |method: &str, route: &str, body: &str| {
+        client
+            .request(method.parse().unwrap(), format!("{base}/v0/management{route}"))
+            .bearer_auth("fake-secret")
+            .body(body.to_owned())
+            .send()
+    };
+    let res = send("DELETE", "/claude-api-key?api-key=missing", "").await.unwrap();
+    assert_eq!(res.status().as_u16(), 200);
+    assert_eq!(res.text().await.unwrap(), r#"{"status":"ok"}"#);
+    let saved = std::fs::read_to_string(&path).unwrap();
+    assert!(
+        saved.contains("# keep this comment") && saved.contains("name: c"),
+        "{saved}"
+    );
+
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o400)).unwrap();
+    std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o500)).unwrap();
+    // Root ignores the modes; there is nothing to check then.
+    if std::fs::OpenOptions::new().append(true).open(&path).is_err() {
+        for (method, route, body) in [
+            ("PATCH", "/claude-api-key", r#"{"index":0,"value":{}}"#),
+            ("PATCH", "/claude-api-key", r#"{"index":0,"value":{"priority":3}}"#),
+            ("PUT", "/debug", r#"{"value":true}"#),
+        ] {
+            let res = send(method, route, body).await.unwrap();
+            assert_eq!(res.status().as_u16(), 500, "{method} {route} {body}");
+            let text = res.text().await.unwrap();
+            assert!(text.starts_with(r#"{"error":"failed to save config: "#), "{text}");
+        }
+    }
+    std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700)).unwrap();
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).unwrap();
+    server.abort();
+    let _ = std::fs::remove_dir_all(&dir);
+}
