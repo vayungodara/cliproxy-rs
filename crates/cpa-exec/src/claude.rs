@@ -105,6 +105,8 @@ pub struct ClaudeExecutor {
     base_url: String,
     oauth: OAuth,
     replay: Arc<replay::ReplayCache>,
+    /// Passive quota snapshots per credential, for the management credential entry.
+    quota: Arc<crate::quota::Observations>,
 }
 
 impl ClaudeExecutor {
@@ -127,6 +129,7 @@ impl ClaudeExecutor {
         Self {
             oauth: OAuth::with_transport(transport.clone()),
             replay: replay::shared(),
+            quota: Arc::default(),
             native: Native::Transport(transport),
             go: Arc::new(GoClients::new(hooks)),
             base_url: base_url.into().trim_end_matches('/').to_owned(),
@@ -139,10 +142,17 @@ impl ClaudeExecutor {
         Self {
             oauth: OAuth::new(client.clone()),
             replay: replay::shared(),
+            quota: Arc::default(),
             go: Arc::new(GoClients::with_default(client.clone())),
             native: Native::Fixed(client),
             base_url: base_url.into().trim_end_matches('/').to_owned(),
         }
+    }
+
+    /// The latest quota signals each Claude credential's responses carried (Go
+    /// `QuotaState.ObserveResponseHeadersForProvider`).
+    pub fn quota(&self) -> &crate::quota::Observations {
+        &self.quota
     }
 
     /// Overrides the OAuth service (local token/profile mocks).
@@ -251,7 +261,16 @@ impl ClaudeExecutor {
         if req.usage.enabled() {
             req.usage.request(Format::Claude, prepared.body.as_bytes());
         }
-        let response = self.send(&ctx, &prepared, "/v1/messages").await.inspect_err(|error| {
+        let response = self.send(&ctx, &prepared, "/v1/messages").await;
+        // MarkResult observes every Messages response's headers for Claude credentials
+        // (count_tokens results skip observation in Go's conductor).
+        if ctx.credential.provider.trim().eq_ignore_ascii_case("claude") {
+            match &response {
+                Ok(raw) => self.quota.observe(&ctx.credential.id, &raw.headers),
+                Err(error) => self.quota.observe(&ctx.credential.id, &error.headers),
+            }
+        }
+        let response = response.inspect_err(|error| {
             // shouldClearKimiThinkingReplayAfterError: an upstream rejection of applied replay.
             if let Some(scope) = replay.filter(|s| s.applied)
                 && replay::upstream_rejects(error)

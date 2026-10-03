@@ -170,6 +170,107 @@ async fn custom_origin_counts_locally_without_sending_credentials() {
     );
 }
 
+/// Go's conductor observes the quota headers of every Messages response (success or
+/// upstream error) for Claude credentials; count_tokens results skip observation.
+#[tokio::test]
+async fn messages_responses_record_the_quota_snapshot() {
+    use axum::response::IntoResponse;
+    let replies = Arc::new(std::sync::Mutex::new(std::collections::VecDeque::from([
+        (200u16, "allowed"),
+        (429, "rejected"),
+        (200, "count-must-not-observe"),
+    ])));
+    let router = axum::Router::new().fallback(move || {
+        let replies = replies.clone();
+        async move {
+            let (status, value) = replies.lock().unwrap().pop_front().unwrap();
+            let body = if status == 200 {
+                r#"{"id":"msg_q","type":"message","role":"assistant","model":"m","content":[],"stop_reason":"end_turn","usage":{"input_tokens":1,"output_tokens":1},"input_tokens":3}"#
+            } else {
+                r#"{"type":"error","error":{"type":"rate_limit_error","message":"limited"}}"#
+            };
+            (
+                http::StatusCode::from_u16(status).unwrap(),
+                [
+                    ("content-type", "application/json"),
+                    ("anthropic-ratelimit-unified-status", value),
+                    ("anthropic-workspace-id", "ws-not-a-signal"),
+                ],
+                body,
+            )
+                .into_response()
+        }
+    });
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let base = format!("http://{}", listener.local_addr().unwrap());
+    tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
+    let executor = ClaudeExecutor::with_client(wreq::Client::new(), DEFAULT_BASE_URL);
+    let mut credential = Credential::from_file(
+        Path::new("/fake"),
+        Path::new("/fake/claude.json"),
+        serde_json::json!({"type":"claude"}).as_object().unwrap().clone(),
+    )
+    .unwrap();
+    credential
+        .attributes
+        .insert("api_key".into(), "fake-gateway-key".into());
+    credential.attributes.insert("base_url".into(), base);
+    let request = |operation| {
+        let body = Bytes::from_static(br#"{"model":"m","max_tokens":8,"messages":[{"role":"user","content":"hi"}]}"#);
+        ExecRequest {
+            operation,
+            source_format: Format::Claude,
+            response_format: Format::Claude,
+            requested_model: "m".into(),
+            model: "m".into(),
+            original_body: body.clone(),
+            body,
+            stream: false,
+            alt: None,
+            session: None,
+            execution_session: None,
+            derived_session: None,
+            resolved_model: None,
+            usage: Default::default(),
+            request_path: String::new(),
+            headers: Default::default(),
+            caller: Caller {
+                principal: "fake-client".into(),
+                source: "x-api-key",
+            },
+        }
+    };
+    let cfg = Config::parse("").unwrap();
+    let signal = |executor: &ClaudeExecutor| {
+        let snapshot = executor.quota().snapshot(&credential.id).unwrap();
+        assert_eq!(snapshot.signals.len(), 1, "only quota headers are signals");
+        snapshot.signals["Anthropic-Ratelimit-Unified-Status"].clone()
+    };
+    assert!(executor.quota().snapshot(&credential.id).is_none());
+    executor
+        .execute(&credential, request(Operation::Generate), &cfg)
+        .await
+        .unwrap();
+    assert_eq!(signal(&executor), "allowed");
+    let error = executor
+        .execute(&credential, request(Operation::Generate), &cfg)
+        .await
+        .err()
+        .unwrap();
+    assert_eq!(error.status, 429);
+    assert_eq!(signal(&executor), "rejected");
+    // A custom origin counts locally; Delegation's upstream count still never observes.
+    let count = Delegation {
+        count_upstream: true,
+        ..Default::default()
+    };
+    executor
+        .execute_delegated(&credential, request(Operation::CountTokens), &cfg, count)
+        .await
+        .unwrap();
+    assert_eq!(signal(&executor), "rejected");
+}
+
 /// Go `session.Enrich` + `ExtractSessionID`, as the server applies them before the
 /// executor (crates/cpa-server/src/session.rs, on the shared `cpa_common::session`).
 fn enrich(mut req: ExecRequest) -> ExecRequest {

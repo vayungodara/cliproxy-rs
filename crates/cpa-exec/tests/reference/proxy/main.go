@@ -95,14 +95,17 @@ type step struct {
 }
 
 type hop struct {
-	Method        string `json:"method"`
-	Path          string `json:"path"`
-	Host          string `json:"host"`
-	Referer       string `json:"referer"`
-	Authorization string `json:"authorization"`
-	ContentType   string `json:"content_type"`
-	ContentLength string `json:"content_length"`
-	Body          string `json:"body"`
+	UserAgent      string `json:"user_agent"`
+	HasUserAgent   bool   `json:"has_user_agent"`
+	AcceptEncoding string `json:"accept_encoding"`
+	Method         string `json:"method"`
+	Path           string `json:"path"`
+	Host           string `json:"host"`
+	Referer        string `json:"referer"`
+	Authorization  string `json:"authorization"`
+	ContentType    string `json:"content_type"`
+	ContentLength  string `json:"content_length"`
+	Body           string `json:"body"`
 }
 
 type redirectCase struct {
@@ -116,6 +119,10 @@ type redirectCase struct {
 	Hops   []hop           `json:"hops"`
 	Status int             `json:"status"`
 	Error  bool            `json:"error"`
+	// Start is the first request's path (default /start), sent as written.
+	Start string `json:"start"`
+	// DisableCompression uses a transport with DisableCompression set.
+	DisableCompression bool `json:"disable_compression"`
 }
 
 type recorder struct {
@@ -128,15 +135,19 @@ type recorder struct {
 func (r *recorder) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	body, _ := io.ReadAll(req.Body)
 	r.mu.Lock()
+	_, hasUserAgent := req.Header["User-Agent"]
 	r.hops = append(r.hops, hop{
-		Method:        req.Method,
-		Path:          req.URL.Path,
-		Host:          req.Host,
-		Referer:       req.Header.Get("Referer"),
-		Authorization: req.Header.Get("Authorization"),
-		ContentType:   req.Header.Get("Content-Type"),
-		ContentLength: strings.Join(req.Header.Values("Content-Length"), ","),
-		Body:          string(body),
+		UserAgent:      req.Header.Get("User-Agent"),
+		HasUserAgent:   hasUserAgent,
+		AcceptEncoding: req.Header.Get("Accept-Encoding"),
+		Method:         req.Method,
+		Path:           req.RequestURI,
+		Host:           req.Host,
+		Referer:        req.Header.Get("Referer"),
+		Authorization:  req.Header.Get("Authorization"),
+		ContentType:    req.Header.Get("Content-Type"),
+		ContentLength:  strings.Join(req.Header.Values("Content-Length"), ","),
+		Body:           string(body),
 	})
 	s, ok := r.script[req.URL.Path]
 	r.mu.Unlock()
@@ -165,7 +176,10 @@ func runRedirect(c redirectCase) redirectCase {
 	if c.Body != nil {
 		body = strings.NewReader(*c.Body)
 	}
-	req, _ := http.NewRequest(c.Method, base+"/start", body)
+	if c.Start == "" {
+		c.Start = "/start"
+	}
+	req, _ := http.NewRequest(c.Method, base+c.Start, body)
 	for k, v := range c.Headers {
 		if k == "Host" {
 			// Go reads a custom Host from req.Host only (GoHeaders' "Host").
@@ -174,7 +188,11 @@ func runRedirect(c redirectCase) redirectCase {
 		}
 		req.Header.Set(k, v)
 	}
-	resp, err := (&http.Client{}).Do(req)
+	client := &http.Client{}
+	if c.DisableCompression {
+		client.Transport = &http.Transport{DisableCompression: true}
+	}
+	resp, err := client.Do(req)
 	if err != nil {
 		c.Error = true
 	} else {
@@ -238,6 +256,13 @@ func main() {
 		{Name: "post-empty-body-302", Method: "POST", Body: str(""), Headers: form, Script: map[string]step{
 			"/start": {302, "/b"}}},
 		{Name: "post-nil-body", Method: "POST", Headers: auth},
+		{Name: "get-empty-user-agent", Method: "GET", Headers: map[string]string{"User-Agent": "", "Accept": "application/json"}},
+		{Name: "get-custom-user-agent", Method: "GET", Headers: map[string]string{"User-Agent": "cli/1.0"}},
+		{Name: "get-disable-compression", Method: "GET", Headers: auth, DisableCompression: true},
+		{Name: "get-accept-encoding-explicit", Method: "GET", Headers: map[string]string{"Accept-Encoding": "br"}},
+		{Name: "get-dot-segments-exact", Method: "GET", Headers: auth, Start: "/videos/..", Script: map[string]step{
+			"/videos/..": {302, "./b/../c"}}},
+		{Name: "get-dot-escaped-exact", Method: "GET", Headers: auth, Start: "/videos/%2E%2E/x?q=a%20b"},
 		{Name: "put-empty-body", Method: "PUT", Body: str(""), Headers: auth},
 		{Name: "delete-nil-body", Method: "DELETE", Headers: auth},
 		{Name: "patch-empty-body-307", Method: "PATCH", Body: str(""), Headers: form, Script: map[string]step{

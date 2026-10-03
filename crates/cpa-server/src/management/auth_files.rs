@@ -121,8 +121,9 @@ fn local(t: SystemTime) -> String {
 fn quota_observation(state: &Management, c: &Credential) -> Value {
     let snapshot = match c.provider.trim().to_lowercase().as_str() {
         "codex" => state.rt.executors.codex.quota().snapshot(&c.id),
-        // ponytail: Go also observes claude and devin response headers; their
-        // executors keep no snapshots yet, so they report none.
+        "claude" => state.rt.executors.claude.quota().snapshot(&c.id),
+        // ponytail: Go also observes devin response headers; that executor's snapshots
+        // are not wired here yet, so it reports none.
         _ => None,
     };
     match snapshot {

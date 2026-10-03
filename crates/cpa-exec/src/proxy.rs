@@ -338,6 +338,8 @@ pub struct GoHeaders {
     headers: Vec<(String, String)>,
     /// Go `http.Transport.DisableCompression`: the transport never asks for gzip.
     compression_disabled: bool,
+    /// Send the first request's target exactly as the caller wrote the URL.
+    exact_target: bool,
 }
 
 impl GoHeaders {
@@ -362,6 +364,15 @@ impl GoHeaders {
     /// `Accept-Encoding: gzip`, so responses are never decoded transparently.
     pub fn disable_compression(&mut self) {
         self.compression_disabled = true;
+    }
+
+    /// Go's `URL.RequestURI()`: the first request's target is the caller's URL as
+    /// written, so `.` and `..` segments and the caller's escaping reach the upstream
+    /// (Go's `PathEscape` output). Without it the URL is normalized as WHATWG parses it.
+    /// A relative redirect from that request resolves against the path as written, as
+    /// Go's `ResolveReference` does.
+    pub fn exact_target(&mut self) {
+        self.exact_target = true;
     }
 
     pub fn get(&self, name: &str) -> Option<&str> {
@@ -539,6 +550,10 @@ pub async fn send_request(
     let initial =
         url::Url::parse(url).map_err(|_| ExecError::local(500, FailureScope::Request, "invalid upstream URL"))?;
     let explicit_referer = headers.get("Referer").map(str::to_owned);
+    // The caller's URL as written, for the first request only (GoHeaders::exact_target);
+    // a URL with user info falls back to the parsed form (Go strips it from Referer).
+    let exact =
+        (headers.exact_target && initial.username().is_empty() && initial.password().is_none()).then(|| url.to_owned());
     let mut current = initial.clone();
     // req.Host: the custom Host of the current hop, if any.
     let mut host = headers.get("Host").filter(|h| !h.is_empty()).map(str::to_owned);
@@ -555,7 +570,10 @@ pub async fn send_request(
         let hop = route(&current)?;
         let mut builder = hop
             .client
-            .request(method.clone(), current.as_str())
+            .request(
+                method.clone(),
+                exact.as_deref().filter(|_| sent == 0).unwrap_or(current.as_str()),
+            )
             .redirect(wreq::redirect::Policy::none());
         if let Some(timeout) = timeout {
             builder = builder.timeout(timeout);
@@ -586,7 +604,12 @@ pub async fn send_request(
         if !matches!(status, 301 | 302 | 303 | 307 | 308) || location.is_empty() {
             break (response, auto_gzip);
         }
-        let next = current.join(&location).map_err(|_| {
+        let from_exact = exact.as_deref().filter(|_| sent == 1);
+        let next = match from_exact {
+            Some(raw) => resolve_exact(raw, &location, &current),
+            None => current.join(&location),
+        }
+        .map_err(|_| {
             ExecError::local(
                 500,
                 FailureScope::Transport,
@@ -649,12 +672,15 @@ pub async fn send_request(
         }
         hop_headers.take("Referer");
         if !(current.scheme() == "https" && next.scheme() == "http") {
-            let referer = explicit_referer.clone().unwrap_or_else(|| {
-                let mut last = current.clone();
-                let _ = last.set_username("");
-                let _ = last.set_password(None);
-                last.to_string()
-            });
+            let referer = explicit_referer
+                .clone()
+                .or_else(|| from_exact.map(str::to_owned))
+                .unwrap_or_else(|| {
+                    let mut last = current.clone();
+                    let _ = last.set_username("");
+                    let _ = last.set_password(None);
+                    last.to_string()
+                });
             hop_headers.set("Referer", referer);
         }
         current = next;
@@ -680,6 +706,26 @@ pub async fn send_request(
         stream.map(|r| r.map_err(body_error)).boxed()
     };
     Ok(Upstream { status, headers, body })
+}
+
+/// Go `URL.ResolveReference` from a base URL kept as written: a relative-path reference
+/// merges with the base path as written (dot segments included), then dot segments are
+/// removed; every other reference resolves as usual.
+// ponytail: a query-only or fragment-only reference resolves against the parsed base,
+// whose dot segments are already removed.
+fn resolve_exact(raw: &str, location: &str, current: &url::Url) -> Result<url::Url, url::ParseError> {
+    let relative_path =
+        !location.is_empty() && url::Url::parse(location).is_err() && !location.starts_with(['/', '?', '#']);
+    if !relative_path {
+        return current.join(location);
+    }
+    let after_scheme = raw.find("://").map_or(0, |i| i + 3);
+    let path = raw[after_scheme..]
+        .find('/')
+        .map_or("/", |start| &raw[after_scheme + start..]);
+    let path = &path[..path.find(['?', '#']).unwrap_or(path.len())];
+    let directory = &path[..=path.rfind('/').unwrap_or(0)];
+    current.join(&format!("{directory}{location}"))
 }
 
 /// `io.ReadAll` up to `limit` bytes; with `lossy`, a read error keeps what arrived
@@ -982,9 +1028,13 @@ mod tests {
                     .join(",")
             };
             let path = parts.uri.path().to_owned();
+            let target = parts.uri.path_and_query().map_or("/", |p| p.as_str()).to_owned();
             hops.lock().unwrap().push(serde_json::json!({
+                "user_agent": header("user-agent"),
+                "has_user_agent": parts.headers.contains_key("user-agent"),
+                "accept_encoding": header("accept-encoding"),
                 "method": parts.method.as_str(),
-                "path": path,
+                "path": target,
                 "host": header("host"),
                 "referer": header("referer"),
                 "authorization": header("authorization"),
@@ -1002,8 +1052,17 @@ mod tests {
             }
             (status, [(http::header::LOCATION, location)]).into_response()
         }
-        for case in go_fixture()["redirects"].as_array().unwrap() {
-            let name = case["name"].as_str().unwrap();
+        let fixture = go_fixture();
+        let cases = fixture["redirects"].as_array().unwrap();
+        // Go always sends the URL as written; Rust does with exact_target, and normalizes
+        // otherwise, which only dot segments and escaping can tell apart.
+        let runs = cases.iter().flat_map(|case| {
+            let start = case["start"].as_str().unwrap();
+            let both = start == "/start";
+            [(case, true)].into_iter().chain(both.then_some((case, false)))
+        });
+        for (case, exact) in runs {
+            let name = format!("{} (exact: {exact})", case["name"].as_str().unwrap());
             let main = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
             let second = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
             let (main_addr, other_port) = (main.local_addr().unwrap(), second.local_addr().unwrap().port());
@@ -1021,13 +1080,19 @@ mod tests {
             for (k, v) in case["headers"].as_object().unwrap() {
                 headers.set(k, v.as_str().unwrap());
             }
+            if exact {
+                headers.exact_target();
+            }
+            if case["disable_compression"].as_bool().unwrap() {
+                headers.disable_compression();
+            }
             let base = format!("http://{main_addr}");
             let method = wreq::Method::from_bytes(case["method"].as_str().unwrap().as_bytes()).unwrap();
             let body = case["body"].as_str().map(|b| Bytes::from(b.to_owned()));
             let result = request(
                 &default_client(),
                 method,
-                &format!("{base}/start"),
+                &format!("{base}{}", case["start"].as_str().unwrap()),
                 headers,
                 body,
                 Some(std::time::Duration::from_secs(10)),
