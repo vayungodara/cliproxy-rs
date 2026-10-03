@@ -272,8 +272,9 @@ struct Framed {
 }
 
 /// geminiInteractionsSSEPayload (gemini_executor.go): a JSON frame as is, else its
-/// non-empty, non-`[DONE]` `data:` payloads joined with newlines.
-fn interactions_frame_payload(frame: &[u8]) -> Vec<u8> {
+/// non-empty, non-`[DONE]` `data:` payloads joined with newlines. Public for the Gemini
+/// executor's usage reporting, which observes the same payload per frame.
+pub fn interactions_frame_payload(frame: &[u8]) -> Vec<u8> {
     let trimmed = crate::common::trim_space(frame);
     if trimmed.starts_with(b"{") {
         return trimmed.to_vec();

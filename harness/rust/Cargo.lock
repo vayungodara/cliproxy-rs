@@ -436,6 +436,7 @@ dependencies = [
  "async-compression",
  "base64 0.22.1",
  "brotli-decompressor",
+ "btls",
  "bytes",
  "chrono",
  "cpa-common",
@@ -480,14 +481,18 @@ dependencies = [
  "futures-util",
  "getrandom 0.3.4",
  "gjson",
+ "hyper",
+ "hyper-util",
  "regex",
  "serde",
  "serde_json",
  "serde_yaml_ng",
  "sha2",
+ "socket2",
  "subtle",
  "tokio",
  "tokio-btls",
+ "tower-service",
  "tracing",
  "tracing-subscriber",
  "uuid",
@@ -784,6 +789,25 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e4eba85ea1d0a966a983acd07deee566e67395d2d96b6fb39e62b5a833f1eb0b"
 
 [[package]]
+name = "h2"
+version = "0.4.19"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ef8e5e5a340588f4452631496976cf8636d4a7ecf600239fdc27615d2530bc16"
+dependencies = [
+ "atomic-waker",
+ "bytes",
+ "fnv",
+ "futures-core",
+ "futures-sink",
+ "http",
+ "indexmap",
+ "slab",
+ "tokio",
+ "tokio-util",
+ "tracing",
+]
+
+[[package]]
 name = "hashbrown"
 version = "0.14.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -881,6 +905,7 @@ dependencies = [
  "bytes",
  "futures-channel",
  "futures-core",
+ "h2",
  "http",
  "http-body",
  "httparse",

@@ -15,6 +15,7 @@ cpa-exec = { path = "crates/cpa-exec" }
 cpa-home = { path = "crates/cpa-home" }
 cpa-plugin = { path = "crates/cpa-plugin" }
 cpa-server = { path = "crates/cpa-server" }
+cpa-store = { path = "crates/cpa-store" }
 cpa-translate = { path = "crates/cpa-translate" }
 
 anyhow = "1"

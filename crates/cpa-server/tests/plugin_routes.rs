@@ -10,7 +10,6 @@ use std::sync::Arc;
 use cpa_core::config::Config;
 use cpa_exec::Executors;
 use cpa_exec::claude::ClaudeExecutor;
-use cpa_server::Runtime;
 use cpa_server::management::{self, Management, Options};
 use serde_json::Value;
 
@@ -50,7 +49,7 @@ async fn serve(state: Arc<Management>) -> String {
 async fn start(dirs: &Dirs, yaml: &str) -> String {
     let hash = bcrypt::hash("fake-secret", 4).unwrap();
     std::fs::write(&dirs.config, dirs.placeholders(yaml).replace("$HASH", &hash)).unwrap();
-    let rt = Arc::new(Runtime::new(
+    let rt = Arc::new(cpa_server::testing::runtime(
         Config::load(&dirs.config).unwrap(),
         vec![],
         Executors {
