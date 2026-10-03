@@ -152,6 +152,11 @@ pub trait Overlay: Send + Sync {
     fn available_by_provider(&self, _provider: &str) -> Vec<ModelInfo> {
         Vec::new()
     }
+    /// Go `GetAvailableModels("openai")`: every model some credential can serve now, in
+    /// registry order (Codex `spawn_agent` descriptions list them). Defaults to none.
+    fn available(&self) -> Vec<ModelInfo> {
+        Vec::new()
+    }
 }
 
 static OVERLAY: std::sync::RwLock<Option<std::sync::Arc<dyn Overlay>>> = std::sync::RwLock::new(None);
@@ -183,6 +188,12 @@ pub fn lookup_model(id: &str, provider: Option<&str>) -> Option<ModelInfo> {
 /// installed registry.
 pub fn available_models_by_provider(provider: &str) -> Vec<ModelInfo> {
     overlay().map(|o| o.available_by_provider(provider)).unwrap_or_default()
+}
+
+/// Go `GetGlobalRegistry().GetAvailableModels("openai")`; empty without an installed
+/// registry.
+pub fn available_models() -> Vec<ModelInfo> {
+    overlay().map(|o| o.available()).unwrap_or_default()
 }
 
 /// The model info resolved for one credential and model (Go attaches this to the

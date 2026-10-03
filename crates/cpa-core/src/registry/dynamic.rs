@@ -69,6 +69,8 @@ pub struct Spec {
     pub supported_output_modalities: Vec<String>,
     pub thinking: Option<ThinkingSupport>,
     pub support_configuration_update: bool,
+    /// Go `SupportsWebSearch` (Antigravity models whose upstream lists web search).
+    pub supports_web_search: bool,
     #[serde(skip)]
     pub is_compat: bool,
     #[serde(skip)]
@@ -127,37 +129,77 @@ impl Spec {
             self.supported_output_modalities.clone().into(),
         );
         put("support_configuration_update", self.support_configuration_update.into());
+        put("supports_web_search", self.supports_web_search.into());
         put("is_compat", self.is_compat.into());
         // Config `models[]` entries: thinking passes through unvalidated (thinking.IsUserDefinedModel).
         put("user_defined", self.user_defined.into());
         if let Some(t) = &self.thinking {
-            let mut m = Map::new();
-            for (k, v) in [("min", t.min), ("max", t.max)] {
-                if v != 0 {
-                    m.insert(k.into(), v.into());
-                }
-            }
-            if t.zero_allowed {
-                m.insert("zero_allowed".into(), true.into());
-            }
-            if t.dynamic_allowed {
-                m.insert("dynamic_allowed".into(), true.into());
-            }
-            if !t.levels.is_empty() {
-                m.insert("levels".into(), t.levels.clone().into());
-            }
-            raw.insert("thinking".into(), Value::Object(m));
+            raw.insert("thinking".into(), thinking_value(t));
         }
         ModelInfo::from_raw(raw).expect("spec renders a valid model")
     }
 }
 
-/// `auth.AuthKind()`: config API keys are `apikey`, everything else `oauth`.
-pub fn is_api_key(c: &Credential) -> bool {
-    match c.attributes.get("auth_kind").map(|s| s.trim().to_lowercase()) {
-        Some(kind) if !kind.is_empty() => matches!(kind.as_str(), "apikey" | "api_key" | "api-key"),
-        _ => c.attributes.contains_key("api_key") || c.str("api_key").is_some_and(|k| !k.is_empty()),
+/// Go's JSON for a `ThinkingSupport` (`omitempty` on every field).
+pub fn thinking_value(t: &ThinkingSupport) -> Value {
+    let mut m = Map::new();
+    for (k, v) in [("min", t.min), ("max", t.max)] {
+        if v != 0 {
+            m.insert(k.into(), v.into());
+        }
     }
+    if t.zero_allowed {
+        m.insert("zero_allowed".into(), true.into());
+    }
+    if t.dynamic_allowed {
+        m.insert("dynamic_allowed".into(), true.into());
+    }
+    if !t.levels.is_empty() {
+        m.insert("levels".into(), t.levels.clone().into());
+    }
+    Value::Object(m)
+}
+
+/// Go `Auth.AuthKind()` (sdk/cliproxy/auth/classification.go): a recognised
+/// `auth_kind` attribute, then a recognised `auth_kind` metadata string, then a
+/// non-empty `api_key` attribute (`apikey`), then OAuth token metadata (`oauth`).
+/// Unrecognised kinds fall through to the next source.
+pub fn auth_kind(c: &Credential) -> Option<&'static str> {
+    let normalize = |s: &str| match s.trim().to_lowercase().as_str() {
+        "apikey" | "api_key" | "api-key" => Some("apikey"),
+        "oauth" | "oauth2" => Some("oauth"),
+        _ => None,
+    };
+    if let Some(kind) = c.attributes.get("auth_kind").and_then(|s| normalize(s)) {
+        return Some(kind);
+    }
+    if let Some(kind) = c.str("auth_kind").and_then(normalize) {
+        return Some(kind);
+    }
+    if c.attributes.get("api_key").is_some_and(|k| !k.trim().is_empty()) {
+        return Some("apikey");
+    }
+    let oauth = [
+        "access_token",
+        "refresh_token",
+        "id_token",
+        "email",
+        "token_type",
+        "expires_at",
+        "expired",
+    ]
+    .iter()
+    .any(|k| c.str(k).is_some_and(|v| !v.trim().is_empty()))
+        || c.metadata
+            .get("token")
+            .and_then(Value::as_object)
+            .is_some_and(|t| !t.is_empty());
+    oauth.then_some("oauth")
+}
+
+/// `auth.AuthKind() == AuthKindAPIKey`.
+pub fn is_api_key(c: &Credential) -> bool {
+    auth_kind(c) == Some("apikey")
 }
 
 fn openai_compat(c: &Credential) -> bool {
@@ -718,6 +760,32 @@ pub enum Suspension {
     },
 }
 
+/// Go's listing rule over the registering credentials' states
+/// (`modelRegistrationAvailability`, `GetAvailableModelsByProvider`): listed while any
+/// credential is usable, or when every unusable one is only quota-cooling.
+fn listable(states: impl Iterator<Item = Suspension>) -> bool {
+    let (mut count, mut expired, mut cooling, mut other, mut quota_and_other) = (0i64, 0i64, 0i64, 0i64, 0i64);
+    for state in states {
+        count += 1;
+        match state {
+            Suspension::None => {}
+            Suspension::Quota => {
+                expired += 1;
+                cooling += 1;
+            }
+            Suspension::Other { quota_exceeded } => {
+                other += 1;
+                if quota_exceeded {
+                    expired += 1;
+                    quota_and_other += 1;
+                }
+            }
+        }
+    }
+    let effective = count - expired - other + quota_and_other;
+    effective > 0 || (count > 0 && (expired > 0 || cooling > 0) && other == 0)
+}
+
 struct Client {
     provider: String,
     models: HashMap<String, Arc<Spec>>,
@@ -747,7 +815,9 @@ impl Registry {
         registry
     }
 
-    fn register(&mut self, client: &str, provider: &str, models: Vec<Spec>) {
+    /// Go `RegisterClient` for a client not yet registered: duplicate IDs keep the
+    /// first definition. `provider` is the lowercased provider key.
+    pub fn register(&mut self, client: &str, provider: &str, models: Vec<Spec>) {
         let mut infos = HashMap::new();
         for model in models {
             if model.id.is_empty() || infos.contains_key(&model.id) {
@@ -758,12 +828,23 @@ impl Registry {
             match self.index.get(&info.id) {
                 Some(&i) => {
                     let reg = &mut self.models[i];
-                    reg.info = info.clone();
+                    // Go keeps the latest registration's info, with `SupportsWebSearch`
+                    // set when any registering credential (of that provider) has it.
+                    let with_search = |seen: bool| {
+                        if !seen || info.supports_web_search {
+                            return info.clone();
+                        }
+                        let mut spec = (*info).clone();
+                        spec.supports_web_search = true;
+                        Arc::new(spec)
+                    };
+                    reg.info = with_search(reg.info.supports_web_search);
                     match reg.providers.iter_mut().find(|(p, _)| p == provider) {
                         Some((_, n)) => *n += 1,
                         None => reg.providers.push((provider.to_owned(), 1)),
                     }
-                    reg.by_provider.insert(provider.to_owned(), info);
+                    let seen = reg.by_provider.get(provider).is_some_and(|s| s.supports_web_search);
+                    reg.by_provider.insert(provider.to_owned(), with_search(seen));
                     reg.clients.push(client.to_owned());
                 }
                 None => {
@@ -865,28 +946,35 @@ impl Registry {
         state: impl Fn(&str, &str) -> Suspension + 'a,
     ) -> impl Iterator<Item = &'a Spec> {
         self.models.iter().filter_map(move |r| {
-            let count = r.clients.len() as i64;
-            let (mut expired, mut cooling, mut other, mut quota_and_other) = (0i64, 0i64, 0i64, 0i64);
-            for client in &r.clients {
-                match state(client, &r.id) {
-                    Suspension::None => {}
-                    Suspension::Quota => {
-                        expired += 1;
-                        cooling += 1;
-                    }
-                    Suspension::Other { quota_exceeded } => {
-                        other += 1;
-                        if quota_exceeded {
-                            expired += 1;
-                            quota_and_other += 1;
-                        }
-                    }
-                }
-            }
-            let effective = count - expired - other + quota_and_other;
-            let available = effective > 0 || (count > 0 && (expired > 0 || cooling > 0) && other == 0);
-            available.then_some(r.info.as_ref())
+            let states = r.clients.iter().map(|client| state(client, &r.id));
+            listable(states).then_some(r.info.as_ref())
         })
+    }
+
+    /// Go `GetAvailableModelsByProvider`: the models `provider`'s credentials
+    /// registered that are still listable counting only that provider's credentials,
+    /// each with the first such credential's model info. Registration order (Go's is
+    /// map order).
+    pub fn available_by_provider(&self, provider: &str, state: impl Fn(&str, &str) -> Suspension) -> Vec<Arc<Spec>> {
+        let provider = provider.trim().to_lowercase();
+        if provider.is_empty() {
+            return Vec::new();
+        }
+        let mut out = Vec::new();
+        for r in &self.models {
+            let mut clients = r
+                .clients
+                .iter()
+                .filter_map(|id| Some((id, self.clients.get(id).filter(|c| c.provider == provider)?)))
+                .peekable();
+            let Some(info) = clients.peek().and_then(|(_, c)| c.models.get(&r.id)).cloned() else {
+                continue;
+            };
+            if listable(clients.map(|(id, _)| state(id, &r.id))) {
+                out.push(info);
+            }
+        }
+        out
     }
 
     /// Go `ResolveAutoModel`: the newest available model.
