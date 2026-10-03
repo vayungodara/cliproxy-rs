@@ -1,0 +1,115 @@
+# Formatting, lints, the full test suite and the harness build on every push and pull
+# request, plus a Windows compile check. release.yml calls this workflow too, so a tagged
+# release runs the same checks before it builds anything.
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-ci
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+
+jobs:
+  linux:
+    name: fmt, clippy, tests and harness (Linux)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build tools
+        # BoringSSL (through btls-sys) needs cmake, clang and perl; bindgen needs libclang.
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends cmake clang libclang-dev perl
+      - name: Rust
+        run: rustup toolchain install stable --profile minimal --component rustfmt,clippy && rustup default stable
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/master' }}
+      # The plugin tests build Go plugins (cgo, c-shared) from this module. Without Go 1.26
+      # they would skip; the last step fails the job on any skip.
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: crates/cpa-plugin/tests/goplugins/go.mod
+          cache-dependency-path: crates/cpa-plugin/tests/goplugins/go.sum
+      # The store tests start a private PostgreSQL cluster from these binaries. With
+      # CPA_TEST_PG_BIN set they run or fail; they never skip.
+      - name: PostgreSQL server binaries
+        run: |
+          newest() { find /usr/lib/postgresql -mindepth 2 -maxdepth 2 -name bin -type d 2>/dev/null | sort -V | tail -n 1; }
+          bin=$(newest)
+          if [ -z "$bin" ] || [ ! -x "$bin/initdb" ]; then
+            sudo apt-get install -y --no-install-recommends postgresql
+            bin=$(newest)
+          fi
+          "$bin/initdb" --version
+          echo "CPA_TEST_PG_BIN=$bin" >> "$GITHUB_ENV"
+      - name: Format
+        run: cargo fmt --all --check
+      - name: Fetch dependencies
+        run: |
+          cargo fetch --locked
+          cargo fetch --locked --manifest-path harness/rust/Cargo.toml
+          cd crates/cpa-plugin/tests/goplugins && go mod download
+      - name: Clippy
+        env:
+          CARGO_NET_OFFLINE: "true"
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - name: Harness
+        env:
+          CARGO_NET_OFFLINE: "true"
+        run: cargo check --locked --manifest-path harness/rust/Cargo.toml --target-dir target
+      - name: Test, with external network denied
+        # A loopback-only network namespace, as the project's merge gates use, so a test
+        # that tries to reach a real provider fails instead of sending anything. The tests
+        # run as the runner user inside it, so file-permission tests behave as usual.
+        run: |
+          sudo env "PATH=$PATH" "HOME=$HOME" \
+            "CARGO_HOME=${CARGO_HOME:-$HOME/.cargo}" "RUSTUP_HOME=${RUSTUP_HOME:-$HOME/.rustup}" \
+            "GOMODCACHE=$(go env GOMODCACHE)" "GOCACHE=$(go env GOCACHE)" \
+            "CPA_TEST_PG_BIN=$CPA_TEST_PG_BIN" \
+            CARGO_NET_OFFLINE=true CARGO_TERM_COLOR=always CARGO_INCREMENTAL=0 \
+            GOTOOLCHAIN=local GOPROXY=off \
+            unshare --net -- sh -c 'ip link set lo up && exec setpriv --reuid="$1" --regid="$2" --init-groups -- bash -o pipefail -c "cargo test --workspace --locked 2>&1 | tee test.log"' \
+            sh "$(id -u)" "$(id -g)"
+      - name: No skipped tests
+        run: |
+          if grep -E '^(SKIPPED|skipping):' test.log; then
+            echo "::error::some tests skipped instead of running; see the lines above"
+            exit 1
+          fi
+          grep -E '^test result:' test.log | awk '{ passed += $4; failed += $6; ignored += $8 } END { printf "%d passed, %d failed, %d ignored\n", passed, failed, ignored }'
+
+  windows:
+    name: cargo check (Windows)
+    runs-on: windows-2025
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+      # btls-sys keeps BoringSSL's assembly on a native MSVC build, and BoringSSL assembles
+      # x86_64 Windows code with NASM, which the image lacks. bindgen needs libclang.
+      - name: NASM and libclang
+        run: |
+          choco install nasm --no-progress -y
+          printf '%s\n' 'C:\Program Files\NASM' >> "$GITHUB_PATH"
+          printf 'LIBCLANG_PATH=%s\n' 'C:\Program Files\LLVM\bin' >> "$GITHUB_ENV"
+      - name: Rust
+        run: rustup toolchain install stable --profile minimal --target x86_64-pc-windows-msvc && rustup default stable
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/master' }}
+      - name: Check
+        run: cargo check --workspace --locked --target x86_64-pc-windows-msvc
