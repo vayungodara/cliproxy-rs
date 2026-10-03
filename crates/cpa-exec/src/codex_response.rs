@@ -669,6 +669,8 @@ pub(crate) struct Processor {
     /// Claude clients' reasoning replay: cached from completed turns, cleared on an
     /// invalid-signature failure.
     replay: Option<(std::sync::Arc<crate::codex_replay::Cache>, crate::codex_replay::Scope)>,
+    /// Usage records see every upstream payload in Codex format (`observeCodexTokenEvent`).
+    usage: cpa_core::exec::UsageSink,
 }
 
 impl Processor {
@@ -682,7 +684,14 @@ impl Processor {
             completed: None,
             restore: false,
             replay: None,
+            usage: Default::default(),
         }
+    }
+
+    /// Reports each upstream payload to the attempt's usage record.
+    pub fn reporting(mut self, usage: cpa_core::exec::UsageSink) -> Self {
+        self.usage = usage;
+        self
     }
 
     /// Caches completed turns and clears on invalid signatures for this replay scope.
@@ -731,6 +740,10 @@ impl Processor {
             };
             let payload = restore(data.trim(), self.restore);
             let payload = payload.as_ref();
+            if self.usage.enabled() {
+                self.usage
+                    .response_line(cpa_core::format::Format::Codex, payload.as_bytes());
+            }
             if let Some((error, body)) = terminal_failure(payload, self.model_level_cooling) {
                 self.replay_failure(error.status, &body);
                 return Step::Fail {
@@ -788,6 +801,10 @@ impl Processor {
             };
             let payload = restore(data.trim(), self.restore);
             let payload = payload.as_ref();
+            if self.usage.enabled() {
+                self.usage
+                    .response_line(cpa_core::format::Format::Codex, payload.as_bytes());
+            }
             if meaningful_delta(payload) {
                 self.saw_delta = true;
             }

@@ -22,10 +22,12 @@ pub async fn unified(State(rt): State<Arc<Runtime>>, OriginalUri(uri): OriginalU
             .get(name)
             .map(|v| String::from_utf8_lossy(v.as_bytes()).into_owned())
     };
-    // ponytail: Go serves Grok Shell (`grok-shell` User-Agent) and Codex
-    // (`client_version` query) their own catalog formats; both fall back to the OpenAI
-    // list here until the xAI and Codex client catalogs are ported.
-    let _ = uri;
+    // ponytail: Go serves Grok Shell (`grok-shell` User-Agent) its own catalog format;
+    // it falls back to the OpenAI list here until the xAI client catalog is ported.
+    // Codex clients (any `client_version` query key) get the Codex client catalog.
+    if let Some(version) = query_value(&uri, "client_version") {
+        return crate::codex_models::response(&rt, &version);
+    }
     let anthropic = header("anthropic-version").is_some_and(|v| !v.is_empty())
         || header("user-agent").is_some_and(|ua| ua.starts_with("claude-cli"));
     let registry = rt.registry();
@@ -45,6 +47,12 @@ pub async fn unified(State(rt): State<Arc<Runtime>>, OriginalUri(uri): OriginalU
         openai_list(registry.available_with(|c, m| rt.suspension(c, m)))
     };
     respond::gin_json(200, body)
+}
+
+/// Go `c.Request.URL.Query()[key]` present, with `c.Query(key)`'s first value.
+fn query_value(uri: &axum::http::Uri, key: &str) -> Option<String> {
+    let axum::extract::Query(pairs) = axum::extract::Query::<Vec<(String, String)>>::try_from_uri(uri).ok()?;
+    pairs.into_iter().find(|(k, _)| k == key).map(|(_, v)| v)
 }
 
 /// Go `OpenAIModels`: id, object, created and owned_by only.

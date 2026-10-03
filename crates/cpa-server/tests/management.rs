@@ -40,8 +40,8 @@ async fn codex_passive_quota_snapshots_appear_in_credential_entries() {
     headers.insert("x-unrelated", "1".parse().unwrap());
     // Signals recorded for another provider's credential never surface (Go keys
     // observation by provider).
-    f.rt.executors.codex.quota().observe(&codex, &headers);
-    f.rt.executors.codex.quota().observe(&claude, &headers);
+    f.rt.executors.codex.quota().observe(&codex, "", &headers);
+    f.rt.executors.codex.quota().observe(&claude, "", &headers);
     let (base, server) = f.server().await;
     let listed: Value = wreq::Client::new()
         .get(format!("{base}/v8/management/credentials"))
@@ -369,6 +369,63 @@ async fn remote_policy_does_not_trust_forwarded_headers_and_key_hashing_preserve
         text.contains("remote-management:"),
         "startup must not migrate legacy source"
     );
+}
+
+#[test]
+fn plaintext_secret_loads_from_a_read_only_config_and_inherited_keys() {
+    use std::os::unix::fs::PermissionsExt;
+    let dir = std::env::temp_dir().join(format!("manage-readonly-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("config.yaml");
+    let text = "port: 8317\nremote-management:\n  secret-key: fake-plain-secret\n";
+    std::fs::write(&path, text).unwrap();
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o444)).unwrap();
+    std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o555)).unwrap();
+    let loaded = Config::load(&path);
+    std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o755)).unwrap();
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644)).unwrap();
+    // Go: hashed in memory, persistence failure ignored.
+    let cfg = loaded.expect("read-only config must load");
+    assert!(bcrypt::verify("fake-plain-secret", &cfg.management.secret_key).unwrap());
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), text, "file untouched");
+    // A key inherited through a merge loads too (not persisted, ponytail).
+    std::fs::write(&path, "<<: {remote-management: {secret-key: fake-merged-secret}}\n").unwrap();
+    let cfg = Config::load(&path).unwrap();
+    assert!(bcrypt::verify("fake-merged-secret", &cfg.management.secret_key).unwrap());
+    // A writable plain layout is persisted as a hash, comments kept.
+    std::fs::write(&path, "# keep\nmanagement:\n  secret-key: fake-v8-secret # note\n").unwrap();
+    let cfg = Config::load(&path).unwrap();
+    let file = std::fs::read_to_string(&path).unwrap();
+    assert!(file.contains("# keep") && file.contains("# note") && !file.contains("fake-v8-secret"));
+    assert!(file.contains(&cfg.management.secret_key));
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[tokio::test]
+async fn management_bodies_are_unbounded_but_the_open_callback_is_not() {
+    let f = Fixture::new("body-limit");
+    let (base, server) = f.server().await;
+    let client = wreq::Client::new();
+    let note = "x".repeat(3 * 1024 * 1024);
+    let r = client
+        .post(format!("{base}/v8/management/credentials?name=large.json"))
+        .bearer_auth("fake-management-only")
+        .header("Content-Type", "application/json")
+        .body(format!(r#"{{"type":"codex","note":"{note}"}}"#))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(r.status(), 200, "{}", r.text().await.unwrap());
+    assert!(f.dir.join("auth/large.json").metadata().unwrap().len() > 3 * 1024 * 1024);
+    let r = client
+        .post(format!("{base}/v8/management/oauth/callback"))
+        .header("Content-Type", "application/json")
+        .body(format!(r#"{{"state":"s","code":"{note}"}}"#))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(r.status(), 413);
+    server.abort();
 }
 
 /// Waits up to four seconds for `done`.
@@ -1135,9 +1192,15 @@ async fn fake_logins() -> (
         b64(&json!({"email": "c@example.invalid",
             "https://api.openai.com/auth": {"chatgpt_plan_type": "plus", "chatgpt_account_id": "acc-fake"}}))
     );
+    let xai_id_token = format!(
+        "{}.{}.sig",
+        b64(&json!({"alg": "none"})),
+        b64(&json!({"email": "x@example.invalid", "sub": "xai-user-1"}))
+    );
     let app = axum::Router::new().fallback(move |uri: axum::http::Uri, body: axum::body::Bytes| {
         let record = record.clone();
         let id_token = id_token.clone();
+        let xai_id_token = xai_id_token.clone();
         async move {
             record
                 .lock()
@@ -1157,6 +1220,20 @@ async fn fake_logins() -> (
                     "expires_in": 600, "interval": 1}),
                 "/api/oauth/token" => json!({"access_token": "fake-kimi-at", "refresh_token": "fake-kimi-rt",
                     "token_type": "Bearer", "expires_in": 3600, "scope": "s"}),
+                // xAI: discovery names auth.x.ai endpoints, which the test seam redirects here.
+                "/.well-known/openid-configuration" => json!({
+                    "device_authorization_endpoint": "https://auth.x.ai/oauth2/device/code",
+                    "token_endpoint": "https://auth.x.ai/oauth2/token"}),
+                "/oauth2/device/code" => json!({"device_code": "xdc", "user_code": "XU-1",
+                    "verification_uri": "https://accounts.x.ai/device",
+                    "verification_uri_complete": "https://accounts.x.ai/device?user_code=XU-1",
+                    "expires_in": 600, "interval": 1}),
+                "/oauth2/token" => json!({"access_token": "fake-xai-at", "refresh_token": "fake-xai-rt",
+                    "id_token": xai_id_token, "token_type": "Bearer", "expires_in": 3600}),
+                // Devin: code exchange and profile (the user-status RPC gets `{}` and fails,
+                // which the login tolerates).
+                "/auth/cli/token" => json!({"token": "fake-devin-session"}),
+                "/v3/self" => json!({"user_name": "dev-user", "user_id": "u-1", "org_id": "o-1"}),
                 _ => json!({}),
             };
             axum::Json(v)
@@ -1211,6 +1288,151 @@ async fn final_status(base: &str, state: &str, secs: u64) -> Value {
         }
         tokio::time::sleep(std::time::Duration::from_millis(200)).await;
     }
+}
+
+/// xAI: Go `RequestXAIToken` answers with the device URL and code, and the poller
+/// saves the credential through the file store and publishes it.
+#[tokio::test]
+async fn xai_login_polls_the_device_flow_and_saves_the_credential() {
+    let (fake, seen, fake_server) = fake_logins().await;
+    let f = Fixture::new("xailogin");
+    let (base, _state, server) = login_server(&f, &fake).await;
+    let started = oauth_get(&base, "/oauth/auth-url?provider=xai").await;
+    let state = started["state"].as_str().unwrap().to_owned();
+    assert!(state.starts_with("xai-"), "{state}");
+    assert_eq!(started["status"], "ok");
+    assert_eq!(started["flow"], "device");
+    assert_eq!(started["url"], "https://accounts.x.ai/device?user_code=XU-1");
+    assert_eq!(started["user_code"], "XU-1");
+    assert_eq!(started["expires_in"], 600);
+    assert_eq!(final_status(&base, &state, 10).await, json!({"status": "ok"}));
+    let auth = f.dir.join("auth");
+    let names: Vec<String> = std::fs::read_dir(&auth)
+        .unwrap()
+        .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+        .filter(|n| n.starts_with("xai-"))
+        .collect();
+    assert_eq!(names.len(), 1, "{names:?}");
+    let path = auth.join(&names[0]);
+    let saved: Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+    for (key, want) in [
+        ("type", json!("xai")),
+        ("access_token", json!("fake-xai-at")),
+        ("refresh_token", json!("fake-xai-rt")),
+        ("email", json!("x@example.invalid")),
+        ("sub", json!("xai-user-1")),
+        ("base_url", json!("https://api.x.ai/v1")),
+        ("token_endpoint", json!("https://auth.x.ai/oauth2/token")),
+        ("auth_kind", json!("oauth")),
+        ("expires_in", json!(3600)),
+        ("disabled", json!(false)),
+    ] {
+        assert_eq!(saved[key], want, "{key}");
+    }
+    let last_refresh = saved["last_refresh"].as_str().unwrap();
+    assert!(chrono::DateTime::parse_from_rfc3339(last_refresh).is_ok() && last_refresh.ends_with('Z'));
+    use std::os::unix::fs::PermissionsExt;
+    assert_eq!(std::fs::metadata(&path).unwrap().permissions().mode() & 0o777, 0o600);
+    let forms = seen.lock().unwrap().clone();
+    let device = forms.iter().find(|(p, _)| p == "/oauth2/device/code").unwrap();
+    assert!(
+        device.1.contains("client_id=b1a00492-073a-47ea-816f-4c329264a828"),
+        "{}",
+        device.1
+    );
+    let token = forms.iter().find(|(p, _)| p == "/oauth2/token").unwrap();
+    assert!(token.1.contains("device_code=xdc"), "{}", token.1);
+    assert!(f.rt.store().snapshot().iter().any(|c| c.provider == "xai"), "published");
+    server.abort();
+    fake_server.abort();
+}
+
+/// Devin: Go `RequestDevinToken` needs the listener port for its fixed loopback
+/// redirect; the main listener's `/callback` completes the login.
+#[tokio::test]
+async fn devin_login_completes_through_the_main_listener_callback() {
+    let (fake, seen, fake_server) = fake_logins().await;
+    // Port 0: no redirect URI can be built.
+    let f = Fixture::new("devinlogin-noport");
+    let (base, _state, server) = login_server(&f, &fake).await;
+    let r = oauth_get(&base, "/oauth/auth-url?provider=devin").await;
+    assert_eq!(r, json!({"error": "callback server unavailable"}));
+    server.abort();
+
+    let f = Fixture::from_yaml("devinlogin", |auth, hash| {
+        format!(
+            "config-version: 8\nserver:\n  port: 18999\nmanagement:\n  secret-key: '{hash}'\noauth:\n  auth-dir: {}\n",
+            auth.display()
+        )
+    });
+    let (base, _state, server) = login_server(&f, &fake).await;
+    let deliver = |state: &str, code: &str, error: &str| {
+        f.rt.deliver_oauth_callback(&cpa_server::runtime::OAuthCallback {
+            provider: "devin",
+            state: state.to_owned(),
+            code: code.to_owned(),
+            error: error.to_owned(),
+        })
+    };
+    // A denied authorization ends the session with Go's message.
+    let started = oauth_get(&base, "/oauth/auth-url?provider=devin").await;
+    let denied = started["state"].as_str().unwrap().to_owned();
+    assert!(deliver(&denied, "", "access_denied"));
+    assert_eq!(
+        final_status(&base, &denied, 5).await,
+        json!({"status": "error", "error": "Devin authorization denied"})
+    );
+    // A callback for another provider or an unknown state is not delivered.
+    let started = oauth_get(&base, "/oauth/auth-url?provider=devin").await;
+    assert_eq!(started["status"], "ok");
+    let state = started["state"].as_str().unwrap().to_owned();
+    assert_eq!(state.len(), 32, "Go misc.GenerateRandomState");
+    let url = url::Url::parse(started["url"].as_str().unwrap()).unwrap();
+    let query: std::collections::HashMap<String, String> = url.query_pairs().into_owned().collect();
+    assert_eq!(query["redirect_uri"], "http://127.0.0.1:18999/callback");
+    assert_eq!(query["state"], state);
+    assert!(!deliver("unknown-state", "c", ""));
+    assert!(!f.rt.deliver_oauth_callback(&cpa_server::runtime::OAuthCallback {
+        provider: "codex",
+        state: state.clone(),
+        code: "c".into(),
+        error: String::new(),
+    }));
+    assert!(deliver(&state, "fake-devin-code", ""));
+    assert_eq!(final_status(&base, &state, 10).await, json!({"status": "ok"}));
+    let path = f.dir.join("auth/devin-dev-user.json");
+    let saved: Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+    for (key, want) in [
+        ("type", "devin"),
+        ("api_key", "fake-devin-session"),
+        ("session_token", "fake-devin-session"),
+        ("user_name", "dev-user"),
+        ("user_id", "u-1"),
+        ("org_id", "o-1"),
+        ("auth_kind", "oauth"),
+    ] {
+        assert_eq!(saved[key], want, "{key}");
+    }
+    assert_eq!(saved["disabled"], false);
+    let exchange = seen
+        .lock()
+        .unwrap()
+        .iter()
+        .find(|(p, _)| p == "/auth/cli/token")
+        .unwrap()
+        .1
+        .clone();
+    let exchange: Value = serde_json::from_str(&exchange).unwrap();
+    assert_eq!(exchange["code"], "fake-devin-code");
+    let verifier = exchange["code_verifier"].as_str().unwrap();
+    // The challenge sent to the browser is S256(verifier).
+    use base64::Engine;
+    use sha2::Digest;
+    let challenge = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(sha2::Sha256::digest(verifier.as_bytes()));
+    assert_eq!(query["code_challenge"], challenge);
+    assert!(f.rt.store().get("devin-dev-user.json").is_some(), "published");
+    server.abort();
+    fake_server.abort();
 }
 
 /// Codex: the main listener's `/codex/callback` hands the code to the pending login,

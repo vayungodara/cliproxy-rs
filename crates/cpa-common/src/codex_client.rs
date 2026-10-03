@@ -28,8 +28,8 @@ const OPTIMIZED_NAME_PREFIX: &str = "collaboration-optimize__";
 const OPTIMIZED_DOT_PREFIX: &str = "collaboration-optimize.";
 const MESSAGE_TOOLS: [&str; 3] = ["spawn_agent", "send_message", "followup_task"];
 
-/// The Codex client model catalog (Go embeds `models/codex_client_models.json`).
-// ponytail: the remote catalog refresh (codex_client_models_updater.go) is not ported.
+/// The embedded Codex client model catalog (Go embeds `models/codex_client_models.json`);
+/// [`crate::codex_catalog`] serves it until a remote refresh replaces it.
 pub const CLIENT_MODELS_JSON: &str = include_str!("codex_client_models.json");
 
 /// The two settings these rewrites read from one config snapshot.
@@ -578,11 +578,12 @@ fn from_template(id: &str, template: &Res<'_>) -> SpawnModel {
     }
 }
 
-/// `codexSpawnAgentModelsFromTemplates` over the embedded catalog: catalog models by
+/// `codexSpawnAgentModelsFromTemplates` over the current catalog: catalog models by
 /// priority, then other served models by display name with the `gpt-5.5` template's
 /// reasoning efforts (or the registry's thinking levels) and no service tiers.
 fn spawn_models(available: &[AvailableModel], lookup: &dyn Fn(&str) -> Option<ModelFacts>) -> Vec<SpawnModel> {
-    let catalog = gj::get(CLIENT_MODELS_JSON.as_bytes(), "models");
+    let (raw, _) = crate::codex_catalog::snapshot();
+    let catalog = gj::get(raw.as_slice(), "models");
     let mut templates: HashMap<String, Res<'_>> = HashMap::new();
     if catalog.is_array() {
         for model in catalog.array() {
