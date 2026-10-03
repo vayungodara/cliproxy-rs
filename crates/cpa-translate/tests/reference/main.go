@@ -56,9 +56,13 @@ type fixture struct {
 	ToolError  bool       `json:"tool_error,omitempty"`
 	// Variants are every distinct output of a request whose Go output is not stable
 	// (map iteration order); Rust must match one of them modulo object key order.
-	Variants []string  `json:"variants,omitempty"`
-	Dynamic  []dynamic `json:"dynamic,omitempty"`
-	key      string
+	Variants []string `json:"variants,omitempty"`
+	// Unordered streams emit in Go map order; every distinct output over 25 runs is
+	// recorded in StreamVariants (JSON-encoded output lists).
+	Unordered      bool      `json:"unordered,omitempty"`
+	StreamVariants []string  `json:"stream_variants,omitempty"`
+	Dynamic        []dynamic `json:"dynamic,omitempty"`
+	key            string
 }
 
 type registration struct {
@@ -517,6 +521,18 @@ func record(r registration, f fixture) fixture {
 	start := time.Now().Unix()
 	a := run(r, f)
 	f.ToolError = lastToolError
+	if f.Unordered {
+		seen := map[string]bool{}
+		for i := 0; i < 25; i++ {
+			raw, _ := json.Marshal(run(r, f))
+			if !seen[string(raw)] {
+				seen[string(raw)] = true
+				f.StreamVariants = append(f.StreamVariants, string(raw))
+			}
+		}
+		f.Outputs = a
+		return f
+	}
 	if f.Path == "request" || f.Path == "request_compat" {
 		seen := map[string]bool{a[0][0]: true}
 		variants := []string{a[0][0]}

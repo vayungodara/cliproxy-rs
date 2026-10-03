@@ -296,6 +296,18 @@ fn reference_goldens() {
                 actual = expected.clone();
             }
             let end = now();
+            if let Some(variants) = f["stream_variants"].as_array() {
+                // Go's output order varies (map iteration); any order it produced is
+                // accepted.
+                let produced = variants.iter().any(|v| {
+                    let lists: Vec<Vec<String>> = serde_json::from_str(v.as_str().unwrap()).unwrap();
+                    let flat: Vec<Vec<u8>> = lists.into_iter().flatten().map(String::into_bytes).collect();
+                    flat == actual
+                });
+                if produced {
+                    actual = expected.clone();
+                }
+            }
             let mut errors = normalize(&mut actual, &dynamics, Some((start, end)));
             normalize(&mut expected, &dynamics, None);
             if actual != expected {

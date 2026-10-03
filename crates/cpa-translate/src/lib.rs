@@ -79,6 +79,7 @@ mod mime;
 mod openai;
 mod openai_claude;
 mod openai_claude_response;
+mod openai_gemini;
 mod openai_responses;
 mod openai_responses_response;
 mod replay_cache;
@@ -198,6 +199,7 @@ fn registered(client: Format, upstream: Format) -> Option<&'static Registered> {
         (Format::Gemini, Format::Codex) => Some(&codex_gemini::PAIR),
         (Format::Interactions, Format::Codex) => Some(&codex_interactions::PAIR),
         (Format::OpenAIResponse, Format::OpenAI) => Some(&openai_responses_response::PAIR),
+        (Format::Gemini, Format::OpenAI) => Some(&openai_gemini::PAIR),
         _ => None,
     }
 }

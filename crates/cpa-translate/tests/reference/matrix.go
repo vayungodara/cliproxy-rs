@@ -63,6 +63,9 @@ func matrix(r registration, model string) []fixture {
 		out = append(out, interactionsRequests(model)...)
 	case "gemini":
 		out = append(out, geminiRequests(model)...)
+		if r.upstream == "openai" {
+			out = append(out, geminiOpenAIRequests(model)...)
+		}
 		if r.upstream == "codex" {
 			out = append(out, geminiCodexRequests(model)...)
 		}
@@ -127,6 +130,9 @@ func matrix(r registration, model string) []fixture {
 		}
 		if r.client == "openai-response" {
 			out = append(out, openAIToResponses()...)
+		}
+		if r.client == "gemini" {
+			out = append(out, openAIToGemini()...)
 		}
 	}
 	if r.tokenCount != "" {
@@ -1315,6 +1321,79 @@ func openAIToResponses() []fixture {
 		n.Original = b.original
 		n.Translated = b.translated
 		out = append(out, n)
+	}
+	return out
+}
+
+// geminiOpenAIRequests exercise ConvertGeminiRequestToOpenAI: generation config, call ID
+// pairing (explicit, queued by name, deterministic), media parts and tool config.
+func geminiOpenAIRequests(model string) []fixture {
+	inputs := map[string]string{
+		"config":  `{"generationConfig":{"temperature":"0.5","maxOutputTokens":1e3,"topP":1,"topK":"40","stopSequences":["a","<b>",5],"candidateCount":2,"responseModalities":[" TEXT ","Image","audio","video"],"thinkingConfig":{"thinkingLevel":" HIGH "}},"service_tier":"flex","contents":[]}`,
+		"config2": `{"generationConfig":{"stopSequences":[],"responseModalities":["x"],"thinkingConfig":{"thinking_budget":0}},"service_tier":5,"contents":[]}`,
+		"config3": `{"generationConfig":{"thinkingConfig":{"thinkingLevel":"","thinkingBudget":30000}},"contents":[]}`,
+		"config4": `{"generationConfig":{"thinkingConfig":{"thinking_budget":-1}},"contents":[]}`,
+		"system":  `{"systemInstruction":{"parts":[{"text":"s <1>"},{"text":"t","thought":true},{"inlineData":{"mimeType":"image/png","data":"iVBO"}},{"fileData":{"mimeType":"text/plain","fileUri":"gs://f"}}]},"system_instruction":{"parts":[{"text":"ignored"}]},"contents":[]}`,
+		"system2": `{"system_instruction":{"parts":[{"thought":true,"text":"only thought"}]},"contents":[{"role":"user","parts":[{"text":"x"}]}]}`,
+		"pairing": `{"contents":[{"role":"user","parts":[{"text":"go"}]},{"role":"model","parts":[{"text":"calling"},{"functionCall":{"name":"f","args":{"a":"<x>"}}},{"functionCall":{"name":"f","args":{"a":2}}},{"functionCall":{"name":"g","id":" gid "}},{"functionCall":{"name":"h"}}]},{"role":"user","parts":[{"functionResponse":{"name":"g","id":"gid","response":{"content":"c <1>"}}},{"functionResponse":{"name":"f","response":{"result":1}}},{"functionResponse":{"name":"f","callId":"nope","response":{}}},{"functionResponse":{"name":"f"}},{"functionResponse":{"name":"z","response":"str"}}]},{"role":"model","parts":[{"thought":true,"text":"t"}]},{"role":"model","parts":[{"thought":true,"text":"t"},{"text":"kept"}]},{"parts":"notarray"},{"role":"tool","parts":[]}]}`,
+		"media":   `{"contents":[{"role":"user","parts":[{"text":"a"},{"inlineData":{"data":"AA"}},{"inline_data":{"mime_type":"Audio/X-WAV","data":"UklG"}},{"inlineData":{"mimeType":"audio/l16","data":"AA"}},{"inlineData":{"mimeType":"video/mp4","data":"AA"}},{"inlineData":{"mimeType":"application/pdf","data":"JV"}},{"inlineData":{"mimeType":"image/png"}},{"fileData":{"mimeType":"image/jpeg","fileUri":"gs://i"}},{"file_data":{"mime_type":"video/webm","file_uri":"gs://v"}},{"fileData":{"mimeType":"text/csv","fileUri":"gs://c"}},{"fileData":{"mimeType":"model/x","fileUri":"m <x>"}},{"fileData":{"fileUri":"nomime"}},{"text":"b","inlineData":{"mimeType":"image/gif","data":"R0"}}]},{"role":"user","parts":[{"text":"only "},{"text":"text"}]}]}`,
+		"tools":   `{"tools":[{"functionDeclarations":[{"name":"a","description":"<d>","parameters":{"type":"object"}},{"name":"b","parametersJsonSchema":{"type":"object","properties":{}}},{"description":"no name"}]},{"googleSearch":{}},{"functionDeclarations":[]}],"contents":[]}`,
+	}
+	var names []string
+	for name := range inputs {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	var out []fixture
+	for i, name := range names {
+		out = append(out, req("gemini-openai/"+name, model, inputs[name], i%2 == 0))
+	}
+	for i, cfg := range []string{`{"mode":"NONE"}`, `{"mode":"AUTO"}`, `{"mode":"ANY"}`, `{"mode":"ANY","allowedFunctionNames":["x<1>"]}`, `{"mode":"ANY","allowedFunctionNames":["a","b"]}`, `{"mode":"any"}`, `{}`} {
+		out = append(out, req(fmt.Sprintf("gemini-openai/tool-config/%d", i), model, `{"toolConfig":{"functionCallingConfig":`+cfg+`},"contents":[]}`, false))
+	}
+	out = append(out, req("gemini-openai/tool-config/none", model, `{"toolConfig":{},"contents":[]}`, false))
+	return out
+}
+
+// openAIToGemini exercise ConvertOpenAIResponseToGemini(NonStream): reasoning shapes,
+// tool call accumulation, tolerant argument recovery and usage.
+func openAIToGemini() []fixture {
+	chunk := func(choices string) string {
+		return `data: {"id":"c","object":"chat.completion.chunk","model":"gpt-x","choices":[` + choices + `]}`
+	}
+	args := []string{
+		`{"a":1}`, `[1,2]`, `"str"`, ``, `  {}  `, `{"a":1,`, `{"a": "x", "b": tru}`, `x {"k": "v", "n": 1e3, "u": 18446744073709551615, "big": 1e400, "h": 0x1p4, "neg": -0, "plus": +5} y`,
+		`{"s": "unterminated`, `{"o": {"x": [1, "}"]}, "bad": {x}, "arr": [1, 2`, `{"esc\"key": 1, "dot.key": 2, "back\\slash": 3, "*": 4, "": 5}`, `{nokey, "after": 1}`, `{"a" 1}`, `{"nan": nan, "inf": inf, "t": true , "nul": null}`, "{\"bad\xff\": \"v\xfe\"}", `{"a":"\u00e9<"}`,
+	}
+	var lines []string
+	for i, a := range args {
+		escaped := strings.ReplaceAll(strings.ReplaceAll(a, `\`, `\\`), `"`, `\"`)
+		lines = append(lines, chunk(fmt.Sprintf(`{"index":0,"delta":{"tool_calls":[{"index":0,"id":"call_%d","type":"function","function":{"name":"f%d","arguments":"%s"}}]}}`, i, i, escaped)), chunk(`{"index":0,"delta":{},"finish_reason":"tool_calls"}`))
+	}
+	cases := map[string][]string{
+		"text":      {chunk(`{"index":0,"delta":{"role":"assistant","content":""}}`), chunk(`{"index":0,"delta":{"reasoning_content":["a",{"text":"b"},{"x":1},5,["c"]]}}`), chunk(`{"index":0,"delta":{"reasoning_content":"r","content":"Hello <b>"}}`), chunk(`{"index":0,"delta":{"content":"x"},"finish_reason":"stop"}`), chunk(`{"index":0,"delta":{},"finish_reason":"length"}`), chunk(`{"index":0,"delta":{},"finish_reason":null}`), `data: {"choices":[],"usage":{"prompt_tokens":3,"completion_tokens":4,"completion_tokens_details":{"reasoning_tokens":2},"prompt_tokens_details":{"cached_tokens":1}},"model":"m"}`, `data: {"choices":[],"usage":{"input_tokens":5}}`, `data: {"choices":[]}`, "data: [DONE]"},
+		"tools":     {chunk(`{"index":0,"delta":{"tool_calls":[{"index":0,"id":"c1","type":"function","function":{"name":"lookup","arguments":"{\"q\":"}},{"index":1,"type":"custom","function":{"name":"x"}},{"index":2}]}}`), chunk(`{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"1}"}}]}}`), chunk(`{"index":0,"delta":{"tool_calls":[]},"finish_reason":"stop"}`), chunk(`{"index":0,"delta":{},"finish_reason":"content_filter"}`), chunk(`{"index":0,"delta":{},"usage":{"total_tokens":9}}`)},
+		"multi":     {chunk(`{"index":0,"delta":{"content":"a"}},{"index":1,"delta":{"content":"b"},"finish_reason":"stop"}`), "{\"choices\":[{\"delta\":{\"content\":\"bare\"}}]}", "data: not json"},
+		"arguments": lines,
+	}
+	var names []string
+	for name := range cases {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	var out []fixture
+	for _, name := range names {
+		out = append(out, streamCase("openai-gemini/"+name, "gpt-x", cases[name]...))
+	}
+	// Two calls: Go emits them in map order, so every order it produced is recorded.
+	unordered := streamCase("openai-gemini/two-calls", "gpt-x", chunk(`{"index":0,"delta":{"tool_calls":[{"index":0,"id":"c0","function":{"name":"first","arguments":"{}"}},{"index":1,"id":"c1","function":{"name":"second","arguments":"{\"b\":1}"}}]}}`), chunk(`{"index":0,"delta":{},"finish_reason":"tool_calls"}`))
+	unordered.Unordered = true
+	out = append(out, unordered)
+	for i, body := range []string{
+		`{"id":"x","model":"gpt-x","choices":[{"index":0,"message":{"role":"assistant","reasoning_content":["r1",{"text":"r2"}],"content":"hi <b>","tool_calls":[{"id":"t1","type":"function","function":{"name":"f","arguments":"{\"a\":1}"}},{"type":"function","function":{"name":"g","arguments":"{\"broken\": 1,"}},{"type":"custom","function":{"name":"skip"}}]},"finish_reason":"tool_calls"},{"index":3,"message":{"role":"user","content":"overlay"},"finish_reason":"length"}],"usage":{"prompt_tokens":1,"output_tokens":2,"input_tokens_details":{"cached_tokens":3},"output_tokens_details":{"reasoning_tokens":4}}}`,
+		`{"choices":[{"message":{"content":""},"finish_reason":null}]}`, `{"choices":[]}`, `{}`, `not json`,
+	} {
+		out = append(out, nonStream(fmt.Sprintf("openai-gemini/non-stream/%d", i), "gpt-x", body))
 	}
 	return out
 }
