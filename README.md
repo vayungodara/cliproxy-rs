@@ -2,30 +2,23 @@
 
 [![CI](https://github.com/vayungodara/cliproxy-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/vayungodara/cliproxy-rs/actions/workflows/ci.yml)
 
-<!--
-  Launch hero slot. When the launch video is ready, replace the <picture> below with a
-  5 to 8 second loop of its best part (docs/img/hero.gif, or an MP4 uploaded as a GitHub
-  attachment), under 10 MB, and add a link to the full video under it, for example:
-    <a href="FULL_VIDEO_URL"><img src="docs/img/hero.gif" alt="..." width="880"></a>
-    <br><a href="FULL_VIDEO_URL">Watch the full video</a>
-  If the shipped video keeps its current track, also uncomment the credit line below.
-  Until then the dashboard screenshots stand in.
--->
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/img/overview-dark.png">
-    <img src="docs/img/overview-light.png" alt="The cliproxy-rs dashboard: requests over the last 200 minutes, ready accounts, success rate, and each account's plan limits" width="880">
-  </picture>
+  <a href="https://x.com/vayungodara/status/2106492049490899062"><img src="docs/img/hero.gif" alt="cliproxy-rs: one local endpoint for Claude, Codex, Gemini, xAI, Kimi, Meta, Devin and OpenRouter" width="880"></a>
+  <br><sub><a href="https://x.com/vayungodara/status/2106492049490899062">Watch the launch film</a></sub>
 </p>
-<!-- Music credit for the launch video, pending the final track:
-<p align="center"><sub>Music: "Voxel Revolution" by Kevin MacLeod (<a href="https://incompetech.com">incompetech.com</a>), licensed under <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>.</sub></p>
--->
 
 ## What is this?
 
 cliproxy-rs is a small server you run on your own computer. It lets your coding tools, such as Claude Code, Codex CLI or Cursor, use the AI subscriptions and API keys you already have, like a Claude Max plan or a ChatGPT plan, through one local address. A dashboard built into it shows which accounts work, how much of each plan's limits is left, and how to connect each tool.
 
 It is a Rust rewrite of [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI). It reads the same `config.yaml` and the same account files, so you can switch between the two in either direction.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/img/overview-dark.png">
+    <img src="docs/img/overview-light.png" alt="The cliproxy-rs dashboard: requests over the last 200 minutes, ready accounts, success rate, and each account's plan limits" width="880">
+  </picture>
+</p>
 
 ## Why would I want it?
 
