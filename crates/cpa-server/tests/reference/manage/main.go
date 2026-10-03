@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/router-for-me/CLIProxyAPI/v8/internal/pluginhost"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -134,7 +135,7 @@ func runRoutes(s routeScenario) routeScenario {
 	if s.LocalPassword != "" {
 		opts = append(opts, api.WithLocalManagementPassword(s.LocalPassword))
 	}
-	server := api.NewServer(cfg, coreauth.NewManager(nil, nil, nil), sdkaccess.NewManager(), path, opts...)
+	server := api.NewServer(cfg, coreauth.NewManager(nil, nil, nil), sdkaccess.NewManager(), path, append(opts, api.WithPluginHost(pluginhost.New()))...)
 	for i := range s.Steps {
 		st := &s.Steps[i]
 		if st.Update != "" {
@@ -231,7 +232,7 @@ func runConfig(s configScenario) configScenario {
 	defer os.RemoveAll(dir)
 	path := filepath.Join(dir, "config.yaml")
 	cfg := writeConfig(path, s.YAML)
-	server := api.NewServer(cfg, coreauth.NewManager(nil, nil, nil), sdkaccess.NewManager(), path)
+	server := api.NewServer(cfg, coreauth.NewManager(nil, nil, nil), sdkaccess.NewManager(), path, api.WithPluginHost(pluginhost.New()))
 	for i := range s.Steps {
 		st := &s.Steps[i]
 		req := httptest.NewRequest(st.Method, "/v8/management"+st.Path, strings.NewReader(st.Body))
@@ -440,7 +441,7 @@ func runCreds(s credScenario) credScenario {
 		must(os.Setenv("WRITABLE_PATH", root))
 		defer os.Unsetenv("WRITABLE_PATH")
 	}
-	server := api.NewServer(cfg, manager, sdkaccess.NewManager(), path)
+	server := api.NewServer(cfg, manager, sdkaccess.NewManager(), path, api.WithPluginHost(pluginhost.New()))
 	echoURL := "http://echo.invalid"
 	if s.Echo {
 		listener := ""

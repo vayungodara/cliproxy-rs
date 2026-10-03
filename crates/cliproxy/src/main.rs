@@ -597,6 +597,8 @@ async fn serve(config: Config, config_path: PathBuf, password: String, local_mod
         ..Default::default()
     };
     let management = cpa_server::management::Management::with_options(rt.clone(), config_path, options);
+    // Go applies the plugin config before serving; later publishes resync the host.
+    cpa_server::plugins::start(&rt).await;
     let _watcher = cpa_server::watching::start(&management);
     let advertiser = {
         let rt = rt.clone();

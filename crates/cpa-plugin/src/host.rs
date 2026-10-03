@@ -68,7 +68,7 @@ impl Loader for NativeLoader {
 
 /// Go `SupportPluginHeaderValue`: `1` when this build can load native plugins.
 pub fn support_plugin_header_value() -> &'static str {
-    if cfg!(unix) { "1" } else { "0" }
+    crate::SUPPORT_PLUGIN
 }
 
 pub(crate) struct LoadedPlugin {

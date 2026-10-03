@@ -26,6 +26,7 @@ mod logs;
 mod multipart;
 mod oauth;
 pub mod observability;
+mod plugins;
 pub use access::cors;
 
 pub struct Management {
@@ -237,10 +238,12 @@ macro_rules! open {
     };
 }
 
-/// gin answers HEAD and unregistered methods on a known path with NoRoute's 404 and
-/// no `Allow` header; starting from `any` keeps axum from adding one.
+/// gin answers HEAD and unregistered methods on a known path with NoRoute (no `Allow`
+/// header; starting from `any` keeps axum from adding one). Go's NoRoute serves
+/// plugin routes, so those requests go to [`plugins::no_route`].
 fn methods() -> MethodRouter<Arc<Management>> {
-    any(|| async { access::not_found() }).head(|| async { access::not_found() })
+    // An explicit HEAD keeps axum from answering HEAD with the GET handler.
+    any(plugins::no_route).head(plugins::no_route)
 }
 
 /// The OAuth callback POST needs no key, so unlike Go it keeps a bound: legitimate
@@ -383,7 +386,30 @@ pub fn router(state: Arc<Management>) -> Router {
     ] {
         router = router.route(&format!("{v0}/{path}"), route);
     }
+    // Plugin routes: v8 and the v0 spellings Go keeps (internal/api/server_management.go,
+    // server_management_v8.go); the v0 config, enable and v8 store routes share them.
+    for (path, route) in [
+        ("plugins", methods().get(guarded!(s, plugins::list))),
+        ("plugins/{id}", methods().delete(guarded!(s, plugins::delete))),
+    ] {
+        router = router
+            .route(&format!("{v8}/{path}"), route.clone())
+            .route(&format!("{v0}/{path}"), route);
+    }
+    router = router
+        .route(
+            &format!("{v0}/plugins/{{id}}/enabled"),
+            methods().patch(guarded!(s, plugins::patch_enabled)),
+        )
+        .route(
+            &format!("{v0}/plugins/{{id}}/config"),
+            methods()
+                .get(guarded!(s, plugins::get_config))
+                .put(guarded!(s, plugins::put_config))
+                .patch(guarded!(s, plugins::patch_config)),
+        );
     router
+        .fallback(plugins::no_route)
         .route("/management.html", get(panel))
         .route("/assets/{*path}", get(panel))
         .route("/fonts/{*path}", get(panel))

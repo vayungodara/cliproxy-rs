@@ -25,4 +25,9 @@ chrono = { version = "0.4", default-features = false, features = ["clock", "std"
 sha2 = "0.10"
 url = "2"
 
+[features]
+# Builds the Go test plugins for this crate's and the server's tests.
+test-support = []
+
 [dev-dependencies]
+cpa-plugin = { path = ".", features = ["test-support"] }

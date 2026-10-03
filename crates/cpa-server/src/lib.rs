@@ -18,6 +18,7 @@ pub mod management;
 pub mod model_updater;
 mod models;
 mod openai;
+pub mod plugins;
 mod realtime;
 mod refresh;
 pub mod registry;
