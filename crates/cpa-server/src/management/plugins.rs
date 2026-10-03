@@ -150,10 +150,8 @@ fn store_desired_version(raw: &Yaml) -> String {
     let Some(store) = raw.get("store").filter(|s| s.is_mapping()) else {
         return String::new();
     };
-    let scalar = |key: &str| match store.get(key) {
-        Some(v @ (Yaml::String(_) | Yaml::Number(_) | Yaml::Bool(_))) => pcfg::yaml_string(v),
-        _ => String::new(),
-    };
+    // Go reads the scalar's text whatever its tag; containers give "".
+    let scalar = |key: &str| store.get(key).map(pcfg::yaml_string).unwrap_or_default();
     let version = normalize(&scalar("version"));
     if !version.is_empty() {
         return version;
@@ -776,7 +774,12 @@ pub(crate) async fn no_route(State(state): State<Arc<Management>>, req: Request)
 
 async fn serve_management(State(state): State<Arc<Management>>, req: Request) -> Response {
     let (parts, body) = req.into_parts();
-    // Go reads the whole body (no cap) and answers 400 when that fails.
+    let host = state.rt.plugins();
+    if !host.has_management_route(parts.method.as_str(), &super::percent_decode(parts.uri.path())) {
+        return access::not_found();
+    }
+    // Go reads the whole body (no cap) once a route matches, and answers 400 when that
+    // fails.
     let body = match axum::body::to_bytes(body, usize::MAX).await {
         Ok(body) => body,
         Err(_) => {
@@ -787,7 +790,7 @@ async fn serve_management(State(state): State<Arc<Management>>, req: Request) ->
         }
     };
     let inbound = inbound(&parts, body);
-    reply(state.rt.plugins().serve_management(inbound).await)
+    reply(host.serve_management(inbound).await)
 }
 
 fn inbound(parts: &axum::http::request::Parts, body: Bytes) -> cpa_plugin::management::Inbound {
