@@ -14,7 +14,7 @@ use base64::Engine;
 use base64::engine::{DecodePaddingMode, GeneralPurpose, GeneralPurposeConfig};
 use chrono::{DateTime, Local, SecondsFormat, Utc};
 use cpa_core::credential::{Credential, MetadataPatch};
-use cpa_core::exec::{ExecError, FailureScope, ResponseBody};
+use cpa_core::exec::{ExecError, FailureScope};
 use futures_util::FutureExt;
 use futures_util::future::{BoxFuture, Shared};
 use serde::Deserialize;
@@ -221,30 +221,27 @@ impl CodexOAuth {
         self
     }
 
-    /// Posts a form or JSON body. Returns the status and a bounded body; transport faults
-    /// never echo URLs or payloads.
+    /// The same endpoints and refresh table over another client: Go builds the refresh
+    /// client per credential from its effective proxy (`NewCodexAuthWithProxyURL`).
+    pub fn with_client(&self, client: wreq::Client) -> Self {
+        Self { client, ..self.clone() }
+    }
+
+    /// Posts a form or JSON body as Go's `http.Client.Do` does (Go net/http headers,
+    /// redirects followed, transparent gzip). Returns the status and a bounded body;
+    /// transport faults never echo URLs or payloads.
     async fn post(&self, url: &str, content_type: &str, body: Vec<u8>) -> Result<(u16, bytes::Bytes), ExecError> {
-        let response = self
-            .client
-            .post(url)
-            .redirect(wreq::redirect::Policy::none())
-            .header("content-type", content_type)
-            .header("accept", "application/json")
-            .header("user-agent", "Go-http-client/1.1")
-            .header("accept-encoding", "gzip")
-            .body(body)
-            .send()
+        let failed = || ExecError::local(502, FailureScope::Transport, "codex oauth request failed");
+        let mut headers = crate::proxy::GoHeaders::new();
+        headers.set("Content-Type", content_type);
+        headers.set("Accept", "application/json");
+        let upstream = crate::proxy::send(&self.client, url, headers, body, None)
             .await
-            .map_err(|_| ExecError::local(502, FailureScope::Transport, "codex oauth request failed"))?;
-        let status = response.status().as_u16();
-        let body = match crate::upstream::into_response(response).await {
-            Ok(response) => match response.body {
-                ResponseBody::Buffered(body) => body,
-                ResponseBody::Stream(_) => bytes::Bytes::new(),
-            },
-            Err(error) => error.body,
-        };
-        Ok((status, body))
+            .map_err(|_| failed())?;
+        let body = crate::proxy::read_all(upstream.body, crate::proxy::MAX_ERROR_BODY, false)
+            .await
+            .map_err(|_| failed())?;
+        Ok((upstream.status, body))
     }
 
     /// `exchange` keeps Go's `ExchangeCodeForTokens` error texts (status and body);

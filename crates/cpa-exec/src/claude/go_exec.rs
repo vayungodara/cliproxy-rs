@@ -489,6 +489,7 @@ pub(super) async fn replay(record: &Value) -> Result<(), String> {
         derived_session: None,
         request_path: metadata["request_path"].as_str().unwrap_or_default().to_owned(),
         resolved_model: resolved(&request["metadata"]),
+        usage: Default::default(),
         headers,
         caller: Caller {
             principal: record["caller"].as_str().unwrap_or_default().to_owned(),

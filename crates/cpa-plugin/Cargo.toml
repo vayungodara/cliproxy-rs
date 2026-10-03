@@ -1,0 +1,27 @@
+[package]
+name = "cpa-plugin"
+description = "Native plugin host: CLIProxyAPI C ABI 1, registration schema 6, capabilities, host callbacks and the plugin store"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+bytes.workspace = true
+cpa-common.workspace = true
+cpa-core.workspace = true
+cpa-exec.workspace = true
+futures-util.workspace = true
+http.workspace = true
+libc.workspace = true
+serde_json.workspace = true
+serde_yaml_ng.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+wreq.workspace = true
+base64 = "0.22"
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+sha2 = "0.10"
+url = "2"
+
+[dev-dependencies]

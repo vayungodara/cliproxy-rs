@@ -24,6 +24,7 @@ mod validate;
 pub use document::{ConfigDocument, archive_comments};
 pub use schema::validate as validate_config_fields;
 pub use trusted::{TrustedProxies, go_trim_space};
+pub use validate::parse_duration;
 
 /// Default port used only where CLIProxyAPI falls back to it (management base URL).
 /// The loader itself leaves an omitted port at 0, as Go does.
@@ -357,7 +358,7 @@ fn lookup<'a>(root: &'a Mapping, path: &str) -> Option<&'a Value> {
 }
 
 /// A YAML scalar decoded into a Go `string` field (yaml.v3 accepts numbers/bools).
-fn go_string(value: &Value) -> String {
+pub fn go_string(value: &Value) -> String {
     match value {
         Value::String(s) => s.clone(),
         Value::Number(n) => n.to_string(),

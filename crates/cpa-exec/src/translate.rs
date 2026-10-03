@@ -202,6 +202,7 @@ mod tests {
             execution_session: None,
             derived_session: None,
             resolved_model: None,
+            usage: Default::default(),
             request_path: String::new(),
             headers: Default::default(),
             caller: Caller {

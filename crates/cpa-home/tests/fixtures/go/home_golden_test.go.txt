@@ -1,0 +1,281 @@
+package home
+
+// Golden generator for cliproxy-rs. Run with RUST_GOLDEN=<file> go test -run TestRustGolden ./internal/home/
+
+import (
+	"context"
+	"encoding/base64"
+	"encoding/json"
+	"net/http"
+	"net/url"
+	"os"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/router-for-me/CLIProxyAPI/v8/internal/config"
+)
+
+type goldenCase map[string]any
+
+func TestRustGolden(t *testing.T) {
+	out := os.Getenv("RUST_GOLDEN")
+	if out == "" {
+		t.Skip("RUST_GOLDEN not set")
+	}
+	doc := map[string]any{}
+
+	// Auth dispatch request JSON (exact bytes, used as the RPOP key).
+	excluded := []string{"auth-a", "auth-b"}
+	empty := []string{}
+	round2 := 2
+	headers := http.Header{"Authorization": {" Bearer x "}, "X-Multi": {"a", " b"}, "X-Node-Kind": {"subagent"}, "X-Empty": {}}
+	var dispatch []goldenCase
+	addDispatch := func(name string, req authDispatchRequest) {
+		raw, _ := json.Marshal(&req)
+		dispatch = append(dispatch, goldenCase{"name": name, "json": string(raw)})
+	}
+	addDispatch("basic", newAuthDispatchRequest("gpt-5.4", " s1 ", "", nil, 2, "", nil, ""))
+	addDispatch("zero_count", newAuthDispatchRequest("gpt-5.4", "", "", nil, 0, "", nil, ""))
+	addDispatch("headers", newAuthDispatchRequest("m<x>&", "s", " parent ", headers, 1, " codex_alpha_search_v1 ", nil, " pin "))
+	addDispatch("excluded", newAuthDispatchRequest("gpt", "", "", nil, 3, "", &excluded, ""))
+	addDispatch("excluded_empty", newAuthDispatchRequest("gpt", "", "", nil, 3, "", &empty, ""))
+	addDispatch("retry_round", newAuthDispatchRequestWithRetryRound("gpt", "", "", nil, 1, "", 2, &excluded, "pin"))
+	addDispatch("retry_round_negative", newAuthDispatchRequestWithRetryRound("gpt", "", "", nil, 1, "", -5, nil, ""))
+	addDispatch("lower_node_kind", newAuthDispatchRequest("gpt", "", "", http.Header{"x-node-kind": {" lower "}}, 1, "", nil, ""))
+	_ = round2
+	doc["dispatch_requests"] = dispatch
+
+	// Models request key.
+	modelsReq := modelsRequest{Type: "models", Headers: headersToLowerMap(http.Header{"User-Agent": {"grok-shell/1.0"}, "Authorization": {"Bearer k"}}), Query: queryToLowerMap(url.Values{"Key": {" v "}, "b": {"1", "2"}})}
+	rawModels, _ := json.Marshal(&modelsReq)
+	doc["models_request"] = string(rawModels)
+	refreshReq := refreshRequest{Type: "refresh", AuthIndex: "idx", ObservedAccessTokenSHA256: "abc"}
+	rawRefresh, _ := json.Marshal(&refreshReq)
+	doc["refresh_request"] = string(rawRefresh)
+
+	// KV SET argument building.
+	var kvArgs []goldenCase
+	for _, tc := range []struct {
+		name string
+		key  string
+		opts KVSetOptions
+	}{
+		{"plain", "k", KVSetOptions{}},
+		{"ex_ceil", "k", KVSetOptions{EX: 1500 * time.Millisecond}},
+		{"px_ceil", "k", KVSetOptions{PX: 1500 * time.Microsecond}},
+		{"nx_xx", "k", KVSetOptions{NX: true, XX: true}},
+		{"ex_px", "k", KVSetOptions{EX: time.Second, PX: time.Second}},
+		{"negative", "k", KVSetOptions{EX: -time.Second}},
+		{"empty_key", "  ", KVSetOptions{}},
+		{"ex_nx", " k ", KVSetOptions{EX: 2 * time.Second, NX: true}},
+		{"px_xx", "k", KVSetOptions{PX: 250 * time.Millisecond, XX: true}},
+	} {
+		args, err := buildKVSetArgs(tc.key, []byte("v"), tc.opts)
+		entry := goldenCase{"name": tc.name}
+		if err != nil {
+			entry["error"] = err.Error()
+		} else {
+			var parts []string
+			for _, a := range args {
+				switch v := a.(type) {
+				case string:
+					parts = append(parts, v)
+				case []byte:
+					parts = append(parts, string(v))
+				case int64:
+					parts = append(parts, strings.TrimSpace(strings.Repeat(" ", 0))+itoa(v))
+				}
+			}
+			entry["args"] = parts
+		}
+		kvArgs = append(kvArgs, entry)
+	}
+	doc["kv_set_args"] = kvArgs
+
+	// JWT claims.
+	enc := func(payload string) string {
+		return "h." + base64.RawURLEncoding.EncodeToString([]byte(payload)) + ".s"
+	}
+	full := `{"certificate_id":" cert-1 ","cluster_id":"c","ca_fingerprint":"AB:cd ef","enrollment_secret":"s","ip":" 10.0.0.1 ","port":8443,"iat":1700000000}`
+	var jwts []goldenCase
+	for _, tc := range []struct{ name, raw string }{
+		{"valid", enc(full)},
+		{"valid_padded", "h." + base64.URLEncoding.EncodeToString([]byte(full)) + ".s"},
+		{"two_parts", "a.b"},
+		{"bad_base64", "h.!!!.s"},
+		{"bad_json", enc(`[1]`)},
+		{"no_cert", enc(`{"cluster_id":"c"}`)},
+		{"no_cluster", enc(`{"certificate_id":"x"}`)},
+		{"no_fp", enc(`{"certificate_id":"x","cluster_id":"c","ca_fingerprint":" : "}`)},
+		{"no_secret", enc(`{"certificate_id":"x","cluster_id":"c","ca_fingerprint":"ab"}`)},
+		{"no_ip", enc(`{"certificate_id":"x","cluster_id":"c","ca_fingerprint":"ab","enrollment_secret":"s","port":1}`)},
+		{"zero_port", enc(`{"certificate_id":"x","cluster_id":"c","ca_fingerprint":"ab","enrollment_secret":"s","ip":"h","port":0}`)},
+		{"whitespace", "  " + enc(full) + "\n"},
+	} {
+		claims, err := parseHomeJWTClaims(tc.raw)
+		entry := goldenCase{"name": tc.name, "raw": tc.raw}
+		if err != nil {
+			entry["error"] = err.Error()
+		} else {
+			entry["claims"] = claims
+		}
+		jwts = append(jwts, entry)
+	}
+	doc["jwt"] = jwts
+	doc["fingerprint_normalize"] = []string{normalizeFingerprint(" AB:CD ef 01 "), normalizeFingerprint("")}
+
+	// Cluster node parsing and ordering.
+	nodes, errNodes := parseClusterNodesPayload([]byte(`{"ok":true,"nodes":[{"ip":"10.0.0.3","port":1,"client_count":5},{"ip":" ","port":2,"client_count":0},{"ip":"10.0.0.1","port":0},{"ip":" 10.0.0.2 ","port":3,"client_count":-4,"is_master":true},{"ip":"10.0.0.4","port":4,"client_count":5}]}`))
+	if errNodes != nil {
+		t.Fatal(errNodes)
+	}
+	doc["cluster_nodes"] = nodes
+
+	// Subscription parameters per recovery state.
+	var subs []goldenCase
+	for _, revision := range []int64{0, 7} {
+		for _, legacy := range []bool{false, true} {
+			for state := recoveryStateStable; state <= recoveryStateSwitchingTakeover; state++ {
+				c := New(config.HomeConfig{Enabled: true})
+				c.instanceID = "11111111-2222-3333-4444-555555555555"
+				c.legacyMembership = legacy
+				c.recoveryState.Store(uint32(state))
+				if revision > 0 {
+					cfg := config.CredentialConcurrencyConfig{LifecycleConfigRevision: revision, CPAHeartbeatTimeout: 9 * time.Second}
+					if err := c.SetLifecycleConfig(cfg); err != nil {
+						t.Fatal(err)
+					}
+				}
+				args, timeout := c.subscriptionParameters()
+				subs = append(subs, goldenCase{"revision": revision, "legacy": legacy, "state": int(state), "args": args, "timeout_ms": timeout.Milliseconds()})
+			}
+		}
+	}
+	doc["subscription_parameters"] = subs
+
+	// Exact RESP commands per client operation.
+	type op struct {
+		name string
+		run  func(c *Client) (any, error)
+		resp func(args []string) string
+	}
+	ctx := context.Background()
+	bulk := func(s string) string { return "$" + itoa(int64(len(s))) + "\r\n" + s + "\r\n" }
+	ops := []op{
+		{"get_config", func(c *Client) (any, error) { r, e := c.GetConfig(ctx); return string(r), e }, func([]string) string { return bulk("port: 1\n") }},
+		{"get_config_missing", func(c *Client) (any, error) { r, e := c.GetConfig(ctx); return string(r), e }, func([]string) string { return "$-1\r\n" }},
+		{"get_config_empty", func(c *Client) (any, error) { r, e := c.GetConfig(ctx); return string(r), e }, func([]string) string { return "$0\r\n\r\n" }},
+		{"kv_get", func(c *Client) (any, error) { r, f, e := c.KVGet(ctx, "cpa:k"); return []any{string(r), f}, e }, func([]string) string { return bulk("v") }},
+		{"kv_get_miss", func(c *Client) (any, error) { r, f, e := c.KVGet(ctx, "cpa:k"); return []any{string(r), f}, e }, func([]string) string { return "$-1\r\n" }},
+		{"kv_set", func(c *Client) (any, error) { return c.KVSet(ctx, "k", []byte("v\x00"), KVSetOptions{EX: 1500 * time.Millisecond, NX: true}) }, func([]string) string { return "+OK\r\n" }},
+		{"kv_set_unmet", func(c *Client) (any, error) { return c.KVSet(ctx, "k", []byte("v"), KVSetOptions{XX: true}) }, func([]string) string { return "$-1\r\n" }},
+		{"kv_setnx", func(c *Client) (any, error) { return c.KVSetNX(ctx, "k", []byte("v"), 2*time.Second) }, func([]string) string { return "+OK\r\n" }},
+		{"kv_setnx_nottl", func(c *Client) (any, error) { return c.KVSetNX(ctx, "k", []byte("v"), 0) }, func([]string) string { return "+OK\r\n" }},
+		{"kv_cas", func(c *Client) (any, error) {
+			return c.KVCompareAndSwap(ctx, "k", []byte("old"), true, []byte("new"), 1500*time.Microsecond)
+		}, func([]string) string { return ":1\r\n" }},
+		{"kv_cas_nottl", func(c *Client) (any, error) { return c.KVCompareAndSwap(ctx, "k", nil, false, []byte("new"), 0) }, func([]string) string { return ":0\r\n" }},
+		{"kv_cas_unsupported", func(c *Client) (any, error) {
+			_, e1 := c.KVCompareAndSwap(ctx, "k", nil, false, []byte("new"), 0)
+			r, e2 := c.KVCompareAndSwap(ctx, "k", nil, false, []byte("new"), 0)
+			if e1 == nil {
+				return r, nil
+			}
+			return []any{e1.Error(), r}, e2
+		}, func([]string) string { return "-ERR unknown command 'CAS'\r\n" }},
+		{"kv_del", func(c *Client) (any, error) { return c.KVDel(ctx, "a", "b") }, func([]string) string { return ":2\r\n" }},
+		{"kv_expire", func(c *Client) (any, error) { return c.KVExpire(ctx, "k", 2500*time.Millisecond) }, func([]string) string { return ":1\r\n" }},
+		{"kv_expire_subsecond", func(c *Client) (any, error) { return c.KVExpire(ctx, "k", 300*time.Millisecond) }, func([]string) string { return ":1\r\n" }},
+		{"kv_ttl", func(c *Client) (any, error) { d, f, e := c.KVTTL(ctx, "k"); return []any{d.Milliseconds(), f}, e }, func([]string) string { return ":42\r\n" }},
+		{"kv_ttl_missing", func(c *Client) (any, error) { d, f, e := c.KVTTL(ctx, "k"); return []any{d.Milliseconds(), f}, e }, func([]string) string { return ":-2\r\n" }},
+		{"kv_ttl_persistent", func(c *Client) (any, error) { d, f, e := c.KVTTL(ctx, "k"); return []any{d.Milliseconds(), f}, e }, func([]string) string { return ":-1\r\n" }},
+		{"kv_incrby", func(c *Client) (any, error) { return c.KVIncrBy(ctx, "k", -3) }, func([]string) string { return ":7\r\n" }},
+		{"kv_mget", func(c *Client) (any, error) {
+			v, f, e := c.KVMGet(ctx, "a", "b", "c")
+			strs := []string{}
+			for _, x := range v {
+				strs = append(strs, string(x))
+			}
+			return []any{strs, f}, e
+		}, func([]string) string { return "*3\r\n$1\r\nx\r\n$-1\r\n$0\r\n\r\n" }},
+		{"kv_mset", func(c *Client) (any, error) { return nil, c.KVMSet(ctx, map[string][]byte{"b": []byte("2"), "a": []byte("1")}) }, func([]string) string { return "+OK\r\n" }},
+		{"lpush_usage", func(c *Client) (any, error) { return nil, c.LPushUsage(ctx, []byte(`{"u":1}`)) }, func([]string) string { return ":1\r\n" }},
+		{"lpush_usage_empty", func(c *Client) (any, error) { return nil, c.LPushUsage(ctx, nil) }, func([]string) string { return ":1\r\n" }},
+		{"lpush_inflight", func(c *Client) (any, error) { return nil, c.LPushInFlightSnapshot(ctx, []byte(`{"kind":"part"}`)) }, func([]string) string { return ":1\r\n" }},
+		{"rpush_request_log", func(c *Client) (any, error) { return nil, c.RPushRequestLog(ctx, []byte("r")) }, func([]string) string { return ":1\r\n" }},
+		{"rpush_app_log", func(c *Client) (any, error) { return nil, c.RPushAppLog(ctx, []byte("a")) }, func([]string) string { return ":1\r\n" }},
+		{"rpush_plugin_status", func(c *Client) (any, error) { return nil, c.RPushPluginStatus(ctx, []byte("p")) }, func([]string) string { return ":1\r\n" }},
+		{"get_plugin_tasks", func(c *Client) (any, error) { return c.GetPluginTasks(ctx) }, func([]string) string {
+			return bulk(`[{"id":3,"operation":"install","plugin_id":"p","created_at":"2026-01-02T03:04:05Z","updated_at":"2026-01-02T03:04:05Z"}]`)
+		}},
+		{"get_refresh_auth", func(c *Client) (any, error) { r, e := c.GetRefreshAuth(ctx, " idx ", " sha "); return string(r), e }, func([]string) string { return bulk(`{"id":"a"}`) }},
+		{"get_refresh_auth_missing", func(c *Client) (any, error) { r, e := c.GetRefreshAuth(ctx, "idx", ""); return string(r), e }, func([]string) string { return "$-1\r\n" }},
+		{"get_models", func(c *Client) (any, error) {
+			r, e := c.GetModels(ctx, http.Header{"User-Agent": {"ua"}}, url.Values{"key": {"k"}})
+			return string(r), e
+		}, func([]string) string { return bulk(`{"data":[]}`) }},
+		{"rpop_auth", func(c *Client) (any, error) {
+			r, e := c.RPopAuthWithSessionHierarchy(ctx, "gpt", "s", "p", http.Header{"X-Node-Kind": {"k"}}, 2, "pol", &round2, []string{"x"}, "")
+			return string(r), e
+		}, func(args []string) string {
+			if strings.EqualFold(args[0], "PING") {
+				return "+PONG\r\n"
+			}
+			return bulk(`{"auth":{"id":"a"}}`)
+		}},
+		{"rpop_auth_not_found", func(c *Client) (any, error) { r, e := c.RPopAuth(ctx, "gpt", "", nil, 1); return string(r), e }, func(args []string) string {
+			if strings.EqualFold(args[0], "PING") {
+				return "+PONG\r\n"
+			}
+			return "$-1\r\n"
+		}},
+		{"rpop_auth_server_error", func(c *Client) (any, error) { r, e := c.RPopAuth(ctx, "gpt", "", nil, 1); return string(r), e }, func(args []string) string {
+			if strings.EqualFold(args[0], "PING") {
+				return "+PONG\r\n"
+			}
+			return "-ERR dispatch denied\r\n"
+		}},
+		{"concurrency_release", func(c *Client) (any, error) {
+			return nil, c.PushConcurrencyRelease(ctx, ConcurrencyReleaseFrame{CredentialID: "cred-1", Model: "gpt", ReleaseSeq: 3})
+		}, func([]string) string { return ":1\r\n" }},
+	}
+	var commands []goldenCase
+	for _, o := range ops {
+		client, log := newRedisCommandTestClient(t, func(args []string) string {
+			if len(args) > 0 && (strings.EqualFold(args[0], "HELLO") || strings.EqualFold(args[0], "CLIENT")) {
+				return "-ERR unknown command\r\n"
+			}
+			return o.resp(args)
+		})
+		// Concurrency release dials its own client from homeCfg; point it at the same listener.
+		result, err := o.run(client)
+		entry := goldenCase{"name": o.name, "result": result}
+		if err != nil {
+			entry["error"] = err.Error()
+		}
+		var cmds [][]string
+		for _, c := range log.All() {
+			if len(c) > 0 && (strings.EqualFold(c[0], "HELLO") || strings.EqualFold(c[0], "CLIENT")) {
+				continue
+			}
+			cmds = append(cmds, c)
+		}
+		entry["commands"] = cmds
+		commands = append(commands, entry)
+	}
+	doc["commands"] = commands
+
+	raw, err := json.MarshalIndent(doc, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(out, append(raw, '\n'), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func itoa(v int64) string {
+	b, _ := json.Marshal(v)
+	return string(b)
+}

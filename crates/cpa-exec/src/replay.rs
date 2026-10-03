@@ -41,7 +41,7 @@ fn header(headers: &HeaderMap, name: &str) -> String {
         .to_owned()
 }
 
-fn claude_code_session(payload: &[u8], headers: &HeaderMap) -> Option<String> {
+pub(crate) fn claude_code_session(payload: &[u8], headers: &HeaderMap) -> Option<String> {
     let mut session = header(headers, "X-Claude-Code-Session-Id");
     if session.is_empty() {
         let user = gj::get(payload, "metadata.user_id").str().into_owned();
@@ -69,7 +69,7 @@ fn claude_code_session(payload: &[u8], headers: &HeaderMap) -> Option<String> {
     Some(format!("claude:{session}:agent:{agent}"))
 }
 
-fn payload_session(payload: &[u8]) -> Option<String> {
+pub(crate) fn payload_session(payload: &[u8]) -> Option<String> {
     if payload.is_empty() {
         return None;
     }
@@ -96,7 +96,7 @@ fn turn_session(turn: &str) -> Option<String> {
     (!window.is_empty()).then(|| format!("window:{window}"))
 }
 
-fn header_session(headers: &HeaderMap) -> Option<String> {
+pub(crate) fn header_session(headers: &HeaderMap) -> Option<String> {
     if let Some(key) = turn_session(&header(headers, "X-Codex-Turn-Metadata")) {
         return Some(key);
     }

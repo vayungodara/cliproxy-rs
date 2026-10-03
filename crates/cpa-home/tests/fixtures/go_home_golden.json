@@ -1,0 +1,811 @@
+{
+  "cluster_nodes": [
+    {
+      "ip": "10.0.0.2",
+      "port": 3,
+      "client_count": 0,
+      "is_master": true,
+      "last_seen_at": "0001-01-01T00:00:00Z"
+    },
+    {
+      "ip": "10.0.0.3",
+      "port": 1,
+      "client_count": 5,
+      "is_master": false,
+      "last_seen_at": "0001-01-01T00:00:00Z"
+    },
+    {
+      "ip": "10.0.0.4",
+      "port": 4,
+      "client_count": 5,
+      "is_master": false,
+      "last_seen_at": "0001-01-01T00:00:00Z"
+    }
+  ],
+  "commands": [
+    {
+      "commands": [
+        [
+          "get",
+          "config"
+        ]
+      ],
+      "name": "get_config",
+      "result": "port: 1\n"
+    },
+    {
+      "commands": [
+        [
+          "get",
+          "config"
+        ]
+      ],
+      "error": "home config not found",
+      "name": "get_config_missing",
+      "result": ""
+    },
+    {
+      "commands": [
+        [
+          "get",
+          "config"
+        ]
+      ],
+      "error": "home returned empty response",
+      "name": "get_config_empty",
+      "result": ""
+    },
+    {
+      "commands": [
+        [
+          "get",
+          "cpa:k"
+        ]
+      ],
+      "name": "kv_get",
+      "result": [
+        "v",
+        true
+      ]
+    },
+    {
+      "commands": [
+        [
+          "get",
+          "cpa:k"
+        ]
+      ],
+      "name": "kv_get_miss",
+      "result": [
+        "",
+        false
+      ]
+    },
+    {
+      "commands": [
+        [
+          "SET",
+          "k",
+          "v\u0000",
+          "EX",
+          "2",
+          "NX"
+        ]
+      ],
+      "name": "kv_set",
+      "result": true
+    },
+    {
+      "commands": [
+        [
+          "SET",
+          "k",
+          "v",
+          "XX"
+        ]
+      ],
+      "name": "kv_set_unmet",
+      "result": false
+    },
+    {
+      "commands": [
+        [
+          "SET",
+          "k",
+          "v",
+          "EX",
+          "2",
+          "NX"
+        ]
+      ],
+      "name": "kv_setnx",
+      "result": true
+    },
+    {
+      "commands": [
+        [
+          "SET",
+          "k",
+          "v",
+          "NX"
+        ]
+      ],
+      "name": "kv_setnx_nottl",
+      "result": true
+    },
+    {
+      "commands": [
+        [
+          "CAS",
+          "k",
+          "1",
+          "old",
+          "new",
+          "PX",
+          "2"
+        ]
+      ],
+      "name": "kv_cas",
+      "result": true
+    },
+    {
+      "commands": [
+        [
+          "CAS",
+          "k",
+          "0",
+          "",
+          "new"
+        ]
+      ],
+      "name": "kv_cas_nottl",
+      "result": false
+    },
+    {
+      "commands": [
+        [
+          "CAS",
+          "k",
+          "0",
+          "",
+          "new"
+        ]
+      ],
+      "error": "home compare-and-swap is unsupported",
+      "name": "kv_cas_unsupported",
+      "result": [
+        "home compare-and-swap is unsupported",
+        false
+      ]
+    },
+    {
+      "commands": [
+        [
+          "del",
+          "a",
+          "b"
+        ]
+      ],
+      "name": "kv_del",
+      "result": 2
+    },
+    {
+      "commands": [
+        [
+          "expire",
+          "k",
+          "2"
+        ]
+      ],
+      "name": "kv_expire",
+      "result": true
+    },
+    {
+      "commands": [
+        [
+          "expire",
+          "k",
+          "1"
+        ]
+      ],
+      "name": "kv_expire_subsecond",
+      "result": true
+    },
+    {
+      "commands": [
+        [
+          "ttl",
+          "k"
+        ]
+      ],
+      "name": "kv_ttl",
+      "result": [
+        42000,
+        true
+      ]
+    },
+    {
+      "commands": [
+        [
+          "ttl",
+          "k"
+        ]
+      ],
+      "name": "kv_ttl_missing",
+      "result": [
+        0,
+        true
+      ]
+    },
+    {
+      "commands": [
+        [
+          "ttl",
+          "k"
+        ]
+      ],
+      "name": "kv_ttl_persistent",
+      "result": [
+        0,
+        true
+      ]
+    },
+    {
+      "commands": [
+        [
+          "incrby",
+          "k",
+          "-3"
+        ]
+      ],
+      "name": "kv_incrby",
+      "result": 7
+    },
+    {
+      "commands": [
+        [
+          "mget",
+          "a",
+          "b",
+          "c"
+        ]
+      ],
+      "name": "kv_mget",
+      "result": [
+        [
+          "x",
+          "",
+          ""
+        ],
+        [
+          true,
+          false,
+          true
+        ]
+      ]
+    },
+    {
+      "commands": [
+        [
+          "MSET",
+          "a",
+          "1",
+          "b",
+          "2"
+        ]
+      ],
+      "name": "kv_mset",
+      "result": null
+    },
+    {
+      "commands": [
+        [
+          "lpush",
+          "usage",
+          "{\"u\":1}"
+        ]
+      ],
+      "name": "lpush_usage",
+      "result": null
+    },
+    {
+      "commands": null,
+      "name": "lpush_usage_empty",
+      "result": null
+    },
+    {
+      "commands": [
+        [
+          "lpush",
+          "in-flight-snapshot",
+          "{\"kind\":\"part\"}"
+        ]
+      ],
+      "name": "lpush_inflight",
+      "result": null
+    },
+    {
+      "commands": [
+        [
+          "rpush",
+          "request-log",
+          "r"
+        ]
+      ],
+      "name": "rpush_request_log",
+      "result": null
+    },
+    {
+      "commands": [
+        [
+          "rpush",
+          "app-log",
+          "a"
+        ]
+      ],
+      "name": "rpush_app_log",
+      "result": null
+    },
+    {
+      "commands": [
+        [
+          "rpush",
+          "plugin-status",
+          "p"
+        ]
+      ],
+      "name": "rpush_plugin_status",
+      "result": null
+    },
+    {
+      "commands": [
+        [
+          "get",
+          "plugin-tasks"
+        ]
+      ],
+      "name": "get_plugin_tasks",
+      "result": [
+        {
+          "id": 3,
+          "operation": "install",
+          "plugin_id": "p",
+          "created_at": "2026-01-02T03:04:05Z",
+          "updated_at": "2026-01-02T03:04:05Z"
+        }
+      ]
+    },
+    {
+      "commands": [
+        [
+          "get",
+          "{\"type\":\"refresh\",\"auth_index\":\"idx\",\"access_token_sha256\":\"sha\"}"
+        ]
+      ],
+      "name": "get_refresh_auth",
+      "result": "{\"id\":\"a\"}"
+    },
+    {
+      "commands": [
+        [
+          "get",
+          "{\"type\":\"refresh\",\"auth_index\":\"idx\"}"
+        ]
+      ],
+      "error": "home auth not found",
+      "name": "get_refresh_auth_missing",
+      "result": ""
+    },
+    {
+      "commands": [
+        [
+          "get",
+          "{\"type\":\"models\",\"headers\":{\"user-agent\":\"ua\"},\"query\":{\"key\":\"k\"}}"
+        ]
+      ],
+      "name": "get_models",
+      "result": "{\"data\":[]}"
+    },
+    {
+      "commands": [
+        [
+          "ping"
+        ],
+        [
+          "rpop",
+          "{\"type\":\"auth\",\"model\":\"gpt\",\"count\":1,\"concurrency_protocol\":1,\"session_id\":\"s\",\"parent_session_id\":\"p\",\"node_kind\":\"k\",\"headers\":{\"x-node-kind\":\"k\"},\"credential_policy\":\"pol\",\"retry_round\":2,\"excluded_auth_ids\":[\"x\"]}"
+        ]
+      ],
+      "name": "rpop_auth",
+      "result": "{\"auth\":{\"id\":\"a\"}}"
+    },
+    {
+      "commands": [
+        [
+          "ping"
+        ],
+        [
+          "rpop",
+          "{\"type\":\"auth\",\"model\":\"gpt\",\"count\":1,\"concurrency_protocol\":1}"
+        ]
+      ],
+      "error": "home auth not found",
+      "name": "rpop_auth_not_found",
+      "result": ""
+    },
+    {
+      "commands": [
+        [
+          "ping"
+        ],
+        [
+          "rpop",
+          "{\"type\":\"auth\",\"model\":\"gpt\",\"count\":1,\"concurrency_protocol\":1}"
+        ]
+      ],
+      "error": "ERR dispatch denied",
+      "name": "rpop_auth_server_error",
+      "result": ""
+    },
+    {
+      "commands": [
+        [
+          "LPUSH",
+          "concurrency-release",
+          "{\"credential_id\":\"cred-1\",\"model\":\"gpt\",\"release_seq\":3}"
+        ]
+      ],
+      "name": "concurrency_release",
+      "result": null
+    }
+  ],
+  "dispatch_requests": [
+    {
+      "json": "{\"type\":\"auth\",\"model\":\"gpt-5.4\",\"count\":2,\"concurrency_protocol\":1,\"session_id\":\"s1\"}",
+      "name": "basic"
+    },
+    {
+      "json": "{\"type\":\"auth\",\"model\":\"gpt-5.4\",\"count\":1,\"concurrency_protocol\":1}",
+      "name": "zero_count"
+    },
+    {
+      "json": "{\"type\":\"auth\",\"model\":\"m\\u003cx\\u003e\\u0026\",\"count\":1,\"concurrency_protocol\":1,\"session_id\":\"s\",\"parent_session_id\":\"parent\",\"node_kind\":\"subagent\",\"headers\":{\"authorization\":\"Bearer x\",\"x-empty\":\"\",\"x-multi\":\"a, b\",\"x-node-kind\":\"subagent\"},\"credential_policy\":\"codex_alpha_search_v1\",\"pinned_auth_id\":\"pin\"}",
+      "name": "headers"
+    },
+    {
+      "json": "{\"type\":\"auth\",\"model\":\"gpt\",\"count\":1,\"concurrency_protocol\":1,\"excluded_auth_ids\":[\"auth-a\",\"auth-b\"]}",
+      "name": "excluded"
+    },
+    {
+      "json": "{\"type\":\"auth\",\"model\":\"gpt\",\"count\":1,\"concurrency_protocol\":1,\"excluded_auth_ids\":[]}",
+      "name": "excluded_empty"
+    },
+    {
+      "json": "{\"type\":\"auth\",\"model\":\"gpt\",\"count\":1,\"concurrency_protocol\":1,\"retry_round\":2,\"excluded_auth_ids\":[\"auth-a\",\"auth-b\"],\"pinned_auth_id\":\"pin\"}",
+      "name": "retry_round"
+    },
+    {
+      "json": "{\"type\":\"auth\",\"model\":\"gpt\",\"count\":1,\"concurrency_protocol\":1,\"retry_round\":0}",
+      "name": "retry_round_negative"
+    },
+    {
+      "json": "{\"type\":\"auth\",\"model\":\"gpt\",\"count\":1,\"concurrency_protocol\":1,\"headers\":{\"x-node-kind\":\"lower\"}}",
+      "name": "lower_node_kind"
+    }
+  ],
+  "fingerprint_normalize": [
+    "abcdef01",
+    ""
+  ],
+  "jwt": [
+    {
+      "claims": {
+        "certificate_id": " cert-1 ",
+        "cluster_id": "c",
+        "ca_fingerprint": "AB:cd ef",
+        "enrollment_secret": "s",
+        "ip": " 10.0.0.1 ",
+        "port": 8443,
+        "iat": 1700000000
+      },
+      "name": "valid",
+      "raw": "h.eyJjZXJ0aWZpY2F0ZV9pZCI6IiBjZXJ0LTEgIiwiY2x1c3Rlcl9pZCI6ImMiLCJjYV9maW5nZXJwcmludCI6IkFCOmNkIGVmIiwiZW5yb2xsbWVudF9zZWNyZXQiOiJzIiwiaXAiOiIgMTAuMC4wLjEgIiwicG9ydCI6ODQ0MywiaWF0IjoxNzAwMDAwMDAwfQ.s"
+    },
+    {
+      "claims": {
+        "certificate_id": " cert-1 ",
+        "cluster_id": "c",
+        "ca_fingerprint": "AB:cd ef",
+        "enrollment_secret": "s",
+        "ip": " 10.0.0.1 ",
+        "port": 8443,
+        "iat": 1700000000
+      },
+      "name": "valid_padded",
+      "raw": "h.eyJjZXJ0aWZpY2F0ZV9pZCI6IiBjZXJ0LTEgIiwiY2x1c3Rlcl9pZCI6ImMiLCJjYV9maW5nZXJwcmludCI6IkFCOmNkIGVmIiwiZW5yb2xsbWVudF9zZWNyZXQiOiJzIiwiaXAiOiIgMTAuMC4wLjEgIiwicG9ydCI6ODQ0MywiaWF0IjoxNzAwMDAwMDAwfQ==.s"
+    },
+    {
+      "error": "home jwt is invalid",
+      "name": "two_parts",
+      "raw": "a.b"
+    },
+    {
+      "error": "illegal base64 data at input byte 0",
+      "name": "bad_base64",
+      "raw": "h.!!!.s"
+    },
+    {
+      "error": "json: cannot unmarshal array into Go value of type home.homeJWTClaims",
+      "name": "bad_json",
+      "raw": "h.WzFd.s"
+    },
+    {
+      "error": "home jwt certificate_id is required",
+      "name": "no_cert",
+      "raw": "h.eyJjbHVzdGVyX2lkIjoiYyJ9.s"
+    },
+    {
+      "error": "home jwt cluster_id is required",
+      "name": "no_cluster",
+      "raw": "h.eyJjZXJ0aWZpY2F0ZV9pZCI6IngifQ.s"
+    },
+    {
+      "error": "home jwt ca_fingerprint is required",
+      "name": "no_fp",
+      "raw": "h.eyJjZXJ0aWZpY2F0ZV9pZCI6IngiLCJjbHVzdGVyX2lkIjoiYyIsImNhX2ZpbmdlcnByaW50IjoiIDogIn0.s"
+    },
+    {
+      "error": "home jwt enrollment_secret is required",
+      "name": "no_secret",
+      "raw": "h.eyJjZXJ0aWZpY2F0ZV9pZCI6IngiLCJjbHVzdGVyX2lkIjoiYyIsImNhX2ZpbmdlcnByaW50IjoiYWIifQ.s"
+    },
+    {
+      "error": "home jwt target address is invalid",
+      "name": "no_ip",
+      "raw": "h.eyJjZXJ0aWZpY2F0ZV9pZCI6IngiLCJjbHVzdGVyX2lkIjoiYyIsImNhX2ZpbmdlcnByaW50IjoiYWIiLCJlbnJvbGxtZW50X3NlY3JldCI6InMiLCJwb3J0IjoxfQ.s"
+    },
+    {
+      "error": "home jwt target address is invalid",
+      "name": "zero_port",
+      "raw": "h.eyJjZXJ0aWZpY2F0ZV9pZCI6IngiLCJjbHVzdGVyX2lkIjoiYyIsImNhX2ZpbmdlcnByaW50IjoiYWIiLCJlbnJvbGxtZW50X3NlY3JldCI6InMiLCJpcCI6ImgiLCJwb3J0IjowfQ.s"
+    },
+    {
+      "claims": {
+        "certificate_id": " cert-1 ",
+        "cluster_id": "c",
+        "ca_fingerprint": "AB:cd ef",
+        "enrollment_secret": "s",
+        "ip": " 10.0.0.1 ",
+        "port": 8443,
+        "iat": 1700000000
+      },
+      "name": "whitespace",
+      "raw": "  h.eyJjZXJ0aWZpY2F0ZV9pZCI6IiBjZXJ0LTEgIiwiY2x1c3Rlcl9pZCI6ImMiLCJjYV9maW5nZXJwcmludCI6IkFCOmNkIGVmIiwiZW5yb2xsbWVudF9zZWNyZXQiOiJzIiwiaXAiOiIgMTAuMC4wLjEgIiwicG9ydCI6ODQ0MywiaWF0IjoxNzAwMDAwMDAwfQ.s\n"
+    }
+  ],
+  "kv_set_args": [
+    {
+      "args": [
+        "k",
+        "v"
+      ],
+      "name": "plain"
+    },
+    {
+      "args": [
+        "k",
+        "v",
+        "EX",
+        "2"
+      ],
+      "name": "ex_ceil"
+    },
+    {
+      "args": [
+        "k",
+        "v",
+        "PX",
+        "2"
+      ],
+      "name": "px_ceil"
+    },
+    {
+      "error": "home kv: NX and XX are mutually exclusive",
+      "name": "nx_xx"
+    },
+    {
+      "error": "home kv: EX and PX are mutually exclusive",
+      "name": "ex_px"
+    },
+    {
+      "error": "home kv: ttl must not be negative",
+      "name": "negative"
+    },
+    {
+      "error": "home kv: key is empty",
+      "name": "empty_key"
+    },
+    {
+      "args": [
+        "k",
+        "v",
+        "EX",
+        "2",
+        "NX"
+      ],
+      "name": "ex_nx"
+    },
+    {
+      "args": [
+        "k",
+        "v",
+        "PX",
+        "250",
+        "XX"
+      ],
+      "name": "px_xx"
+    }
+  ],
+  "models_request": "{\"type\":\"models\",\"headers\":{\"authorization\":\"Bearer k\",\"user-agent\":\"grok-shell/1.0\"},\"query\":{\"b\":\"1, 2\",\"key\":\"v\"}}",
+  "refresh_request": "{\"type\":\"refresh\",\"auth_index\":\"idx\",\"access_token_sha256\":\"abc\"}",
+  "subscription_parameters": [
+    {
+      "args": [
+        "config"
+      ],
+      "legacy": false,
+      "revision": 0,
+      "state": 0,
+      "timeout_ms": 3000
+    },
+    {
+      "args": [
+        "config"
+      ],
+      "legacy": false,
+      "revision": 0,
+      "state": 1,
+      "timeout_ms": 3000
+    },
+    {
+      "args": [
+        "config"
+      ],
+      "legacy": false,
+      "revision": 0,
+      "state": 2,
+      "timeout_ms": 3000
+    },
+    {
+      "args": [
+        "config"
+      ],
+      "legacy": false,
+      "revision": 0,
+      "state": 3,
+      "timeout_ms": 3000
+    },
+    {
+      "args": [
+        "config"
+      ],
+      "legacy": true,
+      "revision": 0,
+      "state": 0,
+      "timeout_ms": 3000
+    },
+    {
+      "args": [
+        "config"
+      ],
+      "legacy": true,
+      "revision": 0,
+      "state": 1,
+      "timeout_ms": 3000
+    },
+    {
+      "args": [
+        "config"
+      ],
+      "legacy": true,
+      "revision": 0,
+      "state": 2,
+      "timeout_ms": 3000
+    },
+    {
+      "args": [
+        "config"
+      ],
+      "legacy": true,
+      "revision": 0,
+      "state": 3,
+      "timeout_ms": 3000
+    },
+    {
+      "args": [
+        "config",
+        "7",
+        "11111111-2222-3333-4444-555555555555"
+      ],
+      "legacy": false,
+      "revision": 7,
+      "state": 0,
+      "timeout_ms": 9000
+    },
+    {
+      "args": [
+        "config",
+        "7",
+        "takeover",
+        "11111111-2222-3333-4444-555555555555"
+      ],
+      "legacy": false,
+      "revision": 7,
+      "state": 1,
+      "timeout_ms": 9000
+    },
+    {
+      "args": [
+        "config",
+        "7",
+        "11111111-2222-3333-4444-555555555555"
+      ],
+      "legacy": false,
+      "revision": 7,
+      "state": 2,
+      "timeout_ms": 9000
+    },
+    {
+      "args": [
+        "config",
+        "7",
+        "takeover",
+        "11111111-2222-3333-4444-555555555555"
+      ],
+      "legacy": false,
+      "revision": 7,
+      "state": 3,
+      "timeout_ms": 9000
+    },
+    {
+      "args": [
+        "config",
+        "7"
+      ],
+      "legacy": true,
+      "revision": 7,
+      "state": 0,
+      "timeout_ms": 9000
+    },
+    {
+      "args": [
+        "config",
+        "7"
+      ],
+      "legacy": true,
+      "revision": 7,
+      "state": 1,
+      "timeout_ms": 9000
+    },
+    {
+      "args": [
+        "config",
+        "7"
+      ],
+      "legacy": true,
+      "revision": 7,
+      "state": 2,
+      "timeout_ms": 9000
+    },
+    {
+      "args": [
+        "config",
+        "7"
+      ],
+      "legacy": true,
+      "revision": 7,
+      "state": 3,
+      "timeout_ms": 9000
+    }
+  ]
+}

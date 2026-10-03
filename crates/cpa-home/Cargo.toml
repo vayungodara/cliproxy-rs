@@ -1,0 +1,31 @@
+[package]
+name = "cpa-home"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[features]
+# The fake Home RESP server, for tests in other crates.
+fake = []
+
+[dependencies]
+anyhow.workspace = true
+cpa-common.workspace = true
+cpa-core.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+serde_yaml_ng.workspace = true
+tokio.workspace = true
+tokio-util = "0.7"
+tracing.workspace = true
+base64 = "0.22"
+# BoringSSL, already in the graph through wreq: Home mTLS, RSA keys and CSRs.
+btls = "0.5.6"
+tokio-btls = "0.5.6"
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+sha2 = "0.10"
+uuid = { version = "1", features = ["v4"] }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util"] }
