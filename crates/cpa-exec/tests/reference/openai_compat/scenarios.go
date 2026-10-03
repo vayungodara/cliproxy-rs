@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"strings"
 )
 
@@ -89,6 +90,25 @@ requests:
 `
 
 const claudeThinking = `{"model":"cc","max_tokens":10,"messages":[{"role":"user","content":"hi"},{"role":"assistant","content":[{"type":"thinking","thinking":"plan it","signature":"sig-not-gpt"},{"type":"text","text":"ok"}]},{"role":"user","content":"go"}]}`
+
+// applyPatchRequest declares the apply_patch custom tool (apply_patch_bridge_test.go).
+const applyPatchRequest = `{"model":"chat","input":[{"role":"user","content":"edit a.txt"}],"tools":[{"type":"custom","name":"apply_patch","format":{"type":"grammar","syntax":"lark","definition":"start: patch"}}]}`
+
+func applyPatchReply(arguments string) *upstream {
+	body, _ := json.Marshal(arguments)
+	return &upstream{Status: 200, Headers: [][2]string{{"Content-Type", "application/json"}}, Body: `{"id":"r1","object":"chat.completion","created":1,"model":"acme-chat","choices":[{"index":0,"message":{"role":"assistant","tool_calls":[{"id":"c1","type":"function","function":{"name":"apply_patch","arguments":` + string(body) + `}}]},"finish_reason":"tool_calls"}]}`}
+}
+
+func applyPatchStream(arguments string, done bool) *upstream {
+	args, _ := json.Marshal(arguments)
+	head := `{"id":"r1","object":"chat.completion.chunk","created":1,"model":"acme-chat","choices":[{"index":0,"delta":{"role":"assistant","tool_calls":[{"index":0,"id":"c1","type":"function","function":{"name":"apply_patch","arguments":""}}]},"finish_reason":null}]}`
+	part := `{"id":"r1","object":"chat.completion.chunk","created":1,"model":"acme-chat","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":` + string(args) + `}}]},"finish_reason":null}]}`
+	body := "data: " + head + "\n\ndata: " + part + "\n\n"
+	if done {
+		body += `data: {"id":"r1","object":"chat.completion.chunk","created":1,"model":"acme-chat","choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}]}` + "\n\ndata: [DONE]\n\n"
+	}
+	return sse(body)
+}
 
 var jsonOK = &upstream{Status: 200, Headers: [][2]string{{"Content-Type", "application/json"}}, Body: `{"id":"chatcmpl_1","object":"chat.completion","created":1,"model":"acme-chat","choices":[{"index":0,"message":{"role":"assistant","content":"ok"},"finish_reason":"stop"}],"usage":{"prompt_tokens":3,"completion_tokens":1,"total_tokens":4}}`}
 
@@ -350,6 +370,44 @@ func scenarios() []scenario {
 			// Codex clients get integer parameter types restored before translation.
 			s := chat("codex_user_agent_tool_integers", "acme-chat", "chat", `{"model":"chat","messages":[],"tools":[{"type":"function","function":{"name":"exec_command","parameters":{"type":"object","properties":{"timeout_ms":{"type":"number"},"cmd":{"type":"string"}}}}}]}`, jsonOK)
 			s.Headers = map[string]string{"User-Agent": "codex_cli_rs/0.50.0"}
+			return s
+		}(),
+		func() scenario {
+			s := chat("apply_patch_valid_call", "acme-chat", "chat", applyPatchRequest, applyPatchReply(`{"input":"*** Begin Patch\n*** Add File: a.txt\n+hello\n*** End Patch\n"}`))
+			s.Source = "openai-response"
+			return s
+		}(),
+		func() scenario {
+			s := chat("apply_patch_invalid_arguments", "acme-chat", "chat", applyPatchRequest, applyPatchReply(`{"input":"x","extra":"RAW_SECRET"}`))
+			s.Source = "openai-response"
+			return s
+		}(),
+		func() scenario {
+			s := chat("apply_patch_stream_valid", "acme-chat", "chat", applyPatchRequest, applyPatchStream(`{"input":"*** Begin Patch\n*** End Patch\n"}`, true))
+			s.Source, s.Op, s.Stream = "openai-response", "stream", true
+			return s
+		}(),
+		func() scenario {
+			s := chat("apply_patch_stream_invalid_arguments", "acme-chat", "chat", applyPatchRequest, applyPatchStream(`{"input":7}`, true))
+			s.Source, s.Op, s.Stream = "openai-response", "stream", true
+			return s
+		}(),
+		func() scenario {
+			// The failing frame ends the stream with 502 before the later error frame.
+			up := applyPatchStream(`{"input":7}`, false)
+			up.Body += `data: {"id":"r1","object":"chat.completion.chunk","created":1,"model":"acme-chat","choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}]}` + "\n\n" + `data: {"error":{"message":"late","status":429}}` + "\n\n"
+			s := chat("apply_patch_stream_failure_stops_before_later_frames", "acme-chat", "chat", applyPatchRequest, up)
+			s.Source, s.Op, s.Stream = "openai-response", "stream", true
+			return s
+		}(),
+		func() scenario {
+			s := chat("apply_patch_stream_truncated", "acme-chat", "chat", applyPatchRequest, applyPatchStream(`{"input":"unfinished"`, false))
+			s.Source, s.Op, s.Stream = "openai-response", "stream", true
+			return s
+		}(),
+		func() scenario {
+			s := chat("apply_patch_stream_chat_client_ignores_bridge", "acme-chat", "chat", `{"model":"chat","messages":[{"role":"user","content":"x"}],"tools":[{"type":"function","function":{"name":"apply_patch","parameters":{"type":"object"}}}]}`, applyPatchStream(`{"input":7}`, true))
+			s.Op, s.Stream = "stream", true
 			return s
 		}(),
 		func() scenario {
