@@ -27,6 +27,7 @@ import (
 	claudechat "github.com/router-for-me/CLIProxyAPI/v8/internal/translator/claude/openai/chat-completions"
 	codexclaude "github.com/router-for-me/CLIProxyAPI/v8/internal/translator/codex/claude"
 	geminiclaude "github.com/router-for-me/CLIProxyAPI/v8/internal/translator/gemini/claude"
+	interactionsclaude "github.com/router-for-me/CLIProxyAPI/v8/internal/translator/interactions/claude"
 	openaiclaude "github.com/router-for-me/CLIProxyAPI/v8/internal/translator/openai/claude"
 	sdk "github.com/router-for-me/CLIProxyAPI/v8/sdk/translator"
 	"github.com/tidwall/gjson"
@@ -405,6 +406,8 @@ func run(r registration, f fixture) [][]string {
 			return [][]string{{string(geminiclaude.ConvertClaudeRequestToGeminiWithCompat(f.Model, []byte(f.Input), f.Stream))}}
 		case "claude:codex":
 			return [][]string{{string(codexclaude.ConvertClaudeRequestToCodexWithCompat(f.Model, []byte(f.Input), f.Stream))}}
+		case "claude:interactions":
+			return [][]string{{string(interactionsclaude.ConvertClaudeRequestToInteractionsWithCompat(f.Model, []byte(f.Input), f.Stream))}}
 		}
 		panic("no compat request for " + r.client + ":" + r.upstream)
 	case "non_stream":

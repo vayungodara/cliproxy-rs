@@ -57,6 +57,7 @@ macro_rules! registered {
 mod apply_patch;
 mod claude_chat_request;
 mod claude_chat_response;
+mod claude_interactions;
 mod claude_responses;
 mod claude_responses_response;
 mod codex_chat_request;
@@ -77,6 +78,7 @@ mod gemini_interactions_response;
 mod gemini_responses;
 mod gemini_responses_response;
 mod gemini_web_search;
+mod interactions_claude;
 mod mime;
 mod openai;
 mod openai_claude;
@@ -97,6 +99,7 @@ mod thinking;
 pub use claude_chat_request::request_with_compat as openai_to_claude_with_compat;
 pub use codex_claude::request_with_compat as claude_to_codex_with_compat;
 pub use gemini_claude::request_with_compat as claude_to_gemini_with_compat;
+pub use interactions_claude::request_with_compat as claude_to_interactions_with_compat;
 pub use openai_claude::request_with_compat as claude_to_openai_with_compat;
 
 /// ConvertOpenAIResponsesRequestToClaudeWithCompat: like the registered Responses ->
@@ -213,6 +216,8 @@ fn registered(client: Format, upstream: Format) -> Option<&'static Registered> {
         (Format::Interactions, Format::OpenAI) => Some(&openai_interactions::INTERACTIONS_TO_OPENAI),
         (Format::OpenAIResponse, Format::Interactions) => Some(&responses_interactions::RESPONSES_TO_INTERACTIONS),
         (Format::Interactions, Format::OpenAIResponse) => Some(&responses_interactions::INTERACTIONS_TO_RESPONSES),
+        (Format::Interactions, Format::Claude) => Some(&claude_interactions::PAIR),
+        (Format::Claude, Format::Interactions) => Some(&interactions_claude::PAIR),
         _ => None,
     }
 }

@@ -140,6 +140,9 @@ fn run(client: Format, upstream: Format, f: &Value, bytes: bool) -> Vec<Vec<u8>>
                 (Format::Claude, Format::OpenAI) => cpa_translate::claude_to_openai_with_compat(&ctx, &input),
                 (Format::Claude, Format::Gemini) => cpa_translate::claude_to_gemini_with_compat(&ctx, &input),
                 (Format::Claude, Format::Codex) => cpa_translate::claude_to_codex_with_compat(&ctx, &input),
+                (Format::Claude, Format::Interactions) => {
+                    cpa_translate::claude_to_interactions_with_compat(&ctx, &input)
+                }
                 other => panic!("no compat request for {other:?}"),
             }
             .unwrap(),
