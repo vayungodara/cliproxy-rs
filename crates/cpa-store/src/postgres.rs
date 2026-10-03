@@ -56,11 +56,7 @@ fn mkdir_0700(path: &Path) -> std::io::Result<()> {
 }
 
 fn db_error(context: &str, error: tokio_postgres::Error) -> anyhow::Error {
-    // tokio-postgres hides the server message behind `source()`.
-    match error.as_db_error() {
-        Some(db) => anyhow!("{context}: ERROR: {} (SQLSTATE {})", db.message(), db.code().code()),
-        None => anyhow!("{context}: {error}"),
-    }
+    anyhow!("{context}: {}", crate::pgconn::error_text(&error))
 }
 
 impl PostgresStore {
@@ -82,8 +78,7 @@ impl PostgresStore {
         } else {
             cfg.spool_dir.clone()
         };
-        let spool_root =
-            std::path::absolute(&spool).map_err(|e| anyhow!("postgres store: resolve spool directory: {e}"))?;
+        let spool_root = crate::go_abs(&spool).map_err(|e| anyhow!("postgres store: resolve spool directory: {e}"))?;
         let config_dir = spool_root.join("config");
         let auth_dir = spool_root.join("auths");
         mkdir_0700(&config_dir).map_err(|e| anyhow!("postgres store: create config directory: {e}"))?;
@@ -623,8 +618,9 @@ impl cpa_server::persist::StorePersister for PostgresPersister {
         Box::pin(async move { self.0.persist_auth_files(&paths).await })
     }
 
-    fn delete_auth(&self, path: PathBuf) -> BoxFuture<'_, Result<()>> {
-        Box::pin(async move { self.0.delete(&path).await })
+    fn delete_auth(&self, path: PathBuf) -> Result<()> {
+        // The request runs on the runtime's reactor; this thread only waits for it.
+        tokio::runtime::Handle::current().block_on(self.0.delete(&path))
     }
 
     fn auth_dir(&self) -> PathBuf {

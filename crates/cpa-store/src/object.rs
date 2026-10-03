@@ -79,6 +79,18 @@ struct S3Error {
     status: u16,
     code: String,
     message: String,
+    /// `<Region>` or `x-amz-bucket-region`.
+    region: String,
+    /// The `Server` header.
+    server: String,
+}
+
+/// An HTTP answer with the headers the store reads.
+struct Reply {
+    status: u16,
+    body: Vec<u8>,
+    server: String,
+    bucket_region: String,
 }
 
 impl std::fmt::Display for S3Error {
@@ -248,7 +260,7 @@ impl ObjectStore {
         if cfg.endpoint.contains('/') {
             bail!("object store: create client: Endpoint url cannot have fully qualified paths.");
         }
-        let root = std::path::absolute(&cfg.local_root).context("object store: resolve spool directory")?;
+        let root = crate::go_abs(&cfg.local_root).context("object store: resolve spool directory")?;
         let config_dir = root.join("config");
         let auth_dir = root.join("auths");
         mkdir_0700(&config_dir).context("object store: create config directory")?;
@@ -287,7 +299,7 @@ impl ObjectStore {
         body: Vec<u8>,
         content_type: Option<&str>,
         region: &str,
-    ) -> Result<(u16, Vec<u8>)> {
+    ) -> Result<Reply> {
         let mut path = format!("/{}", self.cfg.bucket);
         if let Some(key) = key {
             path.push('/');
@@ -334,38 +346,73 @@ impl ObjectStore {
         }
         let response = builder.body(body).send().await.map_err(|e| anyhow!("{e}"))?;
         let status = response.status().as_u16();
-        let bytes = response.bytes().await.map_err(|e| anyhow!("{e}"))?.to_vec();
-        Ok((status, bytes))
+        let header = |name: &str| {
+            response
+                .headers()
+                .get(name)
+                .and_then(|v| v.to_str().ok())
+                .unwrap_or_default()
+                .to_owned()
+        };
+        let (server, bucket_region) = (header("server"), header("x-amz-bucket-region"));
+        let body = response.bytes().await.map_err(|e| anyhow!("{e}"))?.to_vec();
+        Ok(Reply {
+            status,
+            body,
+            server,
+            bucket_region,
+        })
     }
 
-    fn error(status: u16, body: &[u8]) -> anyhow::Error {
-        let text = String::from_utf8_lossy(body);
+    /// minio-go `httpRespToErrorResponse`: the XML error, else a code from the status;
+    /// the region from `<Region>`, else `x-amz-bucket-region`.
+    fn error(reply: &Reply) -> anyhow::Error {
+        let text = String::from_utf8_lossy(&reply.body);
+        let status = reply.status;
         let code = xml_text(&text, "Code").unwrap_or_else(|| match status {
             404 => "NoSuchKey".into(),
             403 => "AccessDenied".into(),
             _ => format!("HTTP{status}"),
         });
         let message = xml_text(&text, "Message").unwrap_or_default();
-        anyhow::Error::new(S3Error { status, code, message })
+        let region = xml_text(&text, "Region")
+            .filter(|r| !r.is_empty())
+            .unwrap_or_else(|| reply.bucket_region.clone());
+        anyhow::Error::new(S3Error {
+            status,
+            code,
+            message,
+            region,
+            server: reply.server.clone(),
+        })
     }
 
-    /// minio-go `getBucketLocation`: `us-east-1` when empty or not readable.
+    /// minio-go `getBucketLocation` / `processBucketLocationResponse`, cached once found.
     async fn region(&self) -> Result<String> {
         self.region
             .get_or_try_init(|| async {
                 let query = [("location".to_owned(), String::new())];
-                let (status, body) = self.send("GET", None, &query, Vec::new(), None, DEFAULT_REGION).await?;
-                if status == 200 {
-                    let location = xml_text(&String::from_utf8_lossy(&body), "LocationConstraint").unwrap_or_default();
-                    return Ok(match location.trim() {
-                        "" => DEFAULT_REGION.to_owned(),
-                        "EU" => "eu-west-1".to_owned(),
-                        region => region.to_owned(),
+                let reply = self.send("GET", None, &query, Vec::new(), None, DEFAULT_REGION).await?;
+                if reply.status == 200 {
+                    let location =
+                        xml_text(&String::from_utf8_lossy(&reply.body), "LocationConstraint").unwrap_or_default();
+                    return Ok(if location.is_empty() {
+                        DEFAULT_REGION.to_owned()
+                    } else {
+                        location
                     });
                 }
-                let error = Self::error(status, &body);
-                match error.downcast_ref::<S3Error>().map(|e| e.code.as_str()) {
-                    Some("AccessDenied") => Ok(DEFAULT_REGION.to_owned()),
+                let error = Self::error(&reply);
+                let Some(e) = error.downcast_ref::<S3Error>() else {
+                    return Err(error);
+                };
+                match (e.code.as_str(), e.server.as_str()) {
+                    ("NotImplemented", "AmazonSnowball") => Ok("snowball".to_owned()),
+                    ("NotImplemented", "cloudflare") => Ok(DEFAULT_REGION.to_owned()),
+                    ("AuthorizationHeaderMalformed" | "InvalidRegion" | "AccessDenied", _) if e.region.is_empty() => {
+                        Ok(DEFAULT_REGION.to_owned())
+                    }
+                    ("AuthorizationHeaderMalformed" | "InvalidRegion" | "AccessDenied", _) => Ok(e.region.clone()),
                     _ => Err(error),
                 }
             })
@@ -382,11 +429,11 @@ impl ObjectStore {
         content_type: Option<&str>,
     ) -> Result<Vec<u8>> {
         let region = self.region().await?;
-        let (status, bytes) = self.send(method, key, query, body, content_type, &region).await?;
-        if (200..300).contains(&status) {
-            return Ok(bytes);
+        let reply = self.send(method, key, query, body, content_type, &region).await?;
+        if (200..300).contains(&reply.status) {
+            return Ok(reply.body);
         }
-        Err(Self::error(status, &bytes))
+        Err(Self::error(&reply))
     }
 
     /// Go `ensureBucket`.
@@ -398,9 +445,9 @@ impl ObjectStore {
         };
         if !exists {
             // MakeBucket in us-east-1 sends no location constraint.
-            let (status, body) = self.send("PUT", None, &[], Vec::new(), None, DEFAULT_REGION).await?;
-            if !(200..300).contains(&status) {
-                return Err(Self::error(status, &body).context("object store: create bucket"));
+            let reply = self.send("PUT", None, &[], Vec::new(), None, DEFAULT_REGION).await?;
+            if !(200..300).contains(&reply.status) {
+                return Err(Self::error(&reply).context("object store: create bucket"));
             }
         }
         Ok(())
@@ -511,7 +558,11 @@ impl ObjectStore {
         }
     }
 
+    /// Go `filepath.Rel(authDir, path)` on cleaned paths.
+    // ponytail: Go would upload a path outside the mirror as `auths/../<name>`; it is
+    // refused here instead.
     fn auth_key(&self, path: &Path) -> Result<String> {
+        let path = crate::clean(path);
         let rel = path.strip_prefix(&self.auth_dir).map_err(|_| {
             anyhow!(
                 "object store: resolve auth relative path: {} is outside the mirror",
@@ -581,8 +632,9 @@ impl cpa_server::persist::StorePersister for ObjectPersister {
         Box::pin(async move { self.0.persist_auth_files(&paths).await })
     }
 
-    fn delete_auth(&self, path: PathBuf) -> BoxFuture<'_, Result<()>> {
-        Box::pin(async move { self.0.delete(&path).await })
+    fn delete_auth(&self, path: PathBuf) -> Result<()> {
+        // The request runs on the runtime's reactor; this thread only waits for it.
+        tokio::runtime::Handle::current().block_on(self.0.delete(&path))
     }
 
     fn auth_dir(&self) -> PathBuf {
@@ -632,7 +684,7 @@ mod tests {
         assert_eq!(normalize_line_endings(b"a\r\nb\rc\n"), b"a\nb\nc\n");
     }
 
-    use crate::fake_s3::{ACCESS, FakeS3, SECRET};
+    use crate::fake_s3::{ACCESS, FakeS3, Location, SECRET};
     use std::os::unix::fs::PermissionsExt;
 
     pub(crate) fn scratch(name: &str) -> PathBuf {
@@ -663,7 +715,7 @@ mod tests {
 
     #[tokio::test]
     async fn bootstrap_creates_the_bucket_and_uploads_the_template() {
-        let s3 = FakeS3::start("us-east-1", false, 1000).await;
+        let s3 = FakeS3::start("us-east-1", Location::Answer, 1000).await;
         let dir = scratch("obj-seed");
         let example = dir.join("config.example.yaml");
         std::fs::write(&example, "port: 8317\r\n").unwrap();
@@ -687,7 +739,7 @@ mod tests {
     async fn bootstrap_mirrors_the_bucket_without_wiping_local_files() {
         // A regional bucket and two keys per page: the store must find the region and
         // follow continuation tokens.
-        let s3 = FakeS3::start("eu-central-1", false, 2).await;
+        let s3 = FakeS3::start("eu-central-1", Location::Answer, 2).await;
         s3.put("tokens", "config/config.yaml", b"a: 1\r\nb: 2\r");
         s3.put("tokens", "auths/x.json", b"{\"x\":1}");
         s3.put("tokens", "auths/sub/y.json", b"{\"y\":1}");
@@ -718,7 +770,7 @@ mod tests {
 
     #[tokio::test]
     async fn persist_and_delete_follow_the_mirror() {
-        let s3 = FakeS3::start("us-east-1", true, 1000).await;
+        let s3 = FakeS3::start("us-east-1", Location::DeniedBare, 1000).await;
         let dir = scratch("obj-persist");
         let store = store(&s3, &dir);
         store.bootstrap(Path::new("")).await.unwrap();
@@ -762,9 +814,37 @@ mod tests {
         assert!(store.persist_auth_files(&[outside]).await.is_err());
     }
 
+    /// minio-go's discovery recovery: a regional bucket whose location cannot be read
+    /// still works when the error names the region (header or XML).
+    #[tokio::test]
+    async fn regions_come_from_location_errors_like_minio() {
+        for location in [Location::Denied, Location::Malformed] {
+            let s3 = FakeS3::start("eu-central-1", location, 1000).await;
+            s3.put("tokens", "config/config.yaml", b"port: 2\n");
+            s3.put("tokens", "auths/x.json", b"{}");
+            let dir = scratch("obj-region");
+            let store = store(&s3, &dir);
+            store.bootstrap(Path::new("")).await.unwrap();
+            assert_eq!(std::fs::read(store.config_path()).unwrap(), b"port: 2\n");
+            assert!(store.auth_dir().join("x.json").exists());
+        }
+        // Without a region in the denial, minio falls back to us-east-1, which the
+        // regional bucket rejects (a HEAD reply carries no error body).
+        let s3 = FakeS3::start("eu-central-1", Location::DeniedBare, 1000).await;
+        s3.put("tokens", "config/config.yaml", b"port: 2\n");
+        let error = format!(
+            "{:#}",
+            store(&s3, &scratch("obj-noregion"))
+                .bootstrap(Path::new(""))
+                .await
+                .unwrap_err()
+        );
+        assert!(error.starts_with("object store: check bucket: "), "{error}");
+    }
+
     #[tokio::test]
     async fn wrong_credentials_surface_the_s3_error() {
-        let s3 = FakeS3::start("us-east-1", false, 1000).await;
+        let s3 = FakeS3::start("us-east-1", Location::Answer, 1000).await;
         let dir = scratch("obj-denied");
         let store = ObjectStore::new(ObjectConfig {
             endpoint: s3.addr.to_string(),

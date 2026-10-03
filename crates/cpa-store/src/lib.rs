@@ -74,6 +74,11 @@ pub(crate) fn clean(path: &Path) -> PathBuf {
     out.iter().collect()
 }
 
+/// Go `filepath.Abs`: joined with the working directory, then cleaned.
+pub(crate) fn go_abs(path: &Path) -> std::io::Result<PathBuf> {
+    std::path::absolute(path).map(|p| clean(&p))
+}
+
 /// Go main's `lookupEnv`: the first key holding a non-blank value, trimmed.
 fn lookup(env: &dyn Fn(&str) -> Option<String>, keys: &[&str]) -> Option<String> {
     keys.iter()

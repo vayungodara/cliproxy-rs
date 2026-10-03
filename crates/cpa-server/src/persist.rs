@@ -13,7 +13,9 @@ pub trait StorePersister: Send + Sync + 'static {
     /// Go `PersistAuthFiles`. `message` is `Sync auth <name>` or `Remove auth <name>`.
     fn persist_auth_files(&self, message: String, paths: Vec<PathBuf>) -> BoxFuture<'_, anyhow::Result<()>>;
     /// Go `Store.Delete`: an explicit removal (management), unlike a file event.
-    fn delete_auth(&self, path: PathBuf) -> BoxFuture<'_, anyhow::Result<()>>;
+    /// Blocking: called on a blocking thread that holds the management disk lock, so
+    /// it must not wait for another blocking-pool task.
+    fn delete_auth(&self, path: PathBuf) -> anyhow::Result<()>;
     /// The mirrored auth directory; every config load uses it instead of `auth-dir`.
     fn auth_dir(&self) -> PathBuf;
 }

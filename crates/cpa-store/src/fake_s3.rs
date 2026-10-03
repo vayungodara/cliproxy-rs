@@ -17,12 +17,24 @@ pub(crate) const SECRET: &str = "fake/secret+key";
 
 pub(crate) struct State {
     pub region: String,
-    /// `GET ?location` answers 403, as for a key without `s3:GetBucketLocation`.
-    pub location_forbidden: bool,
+    pub location: Location,
     pub page_size: usize,
     pub buckets: Mutex<HashMap<String, BTreeMap<String, Vec<u8>>>>,
     /// `METHOD /path?query` per request.
     pub log: Mutex<Vec<String>>,
+}
+
+/// How `GET ?location` answers.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Location {
+    Answer,
+    /// 403 `AccessDenied` with `x-amz-bucket-region`, as AWS answers a key without
+    /// `s3:GetBucketLocation`.
+    Denied,
+    /// 403 `AccessDenied` with no region at all.
+    DeniedBare,
+    /// 400 `AuthorizationHeaderMalformed` naming the region in the XML body.
+    Malformed,
 }
 
 pub(crate) struct FakeS3 {
@@ -54,10 +66,10 @@ fn xml_escape(text: &str) -> String {
 }
 
 impl FakeS3 {
-    pub(crate) async fn start(region: &str, location_forbidden: bool, page_size: usize) -> Self {
+    pub(crate) async fn start(region: &str, location: Location, page_size: usize) -> Self {
         let state = Arc::new(State {
             region: region.to_owned(),
-            location_forbidden,
+            location,
             page_size,
             buckets: Mutex::default(),
             log: Mutex::default(),
@@ -175,8 +187,23 @@ fn handle(state: &State, method: Method, uri: Uri, headers: HeaderMap, body: Byt
         .collect();
     let mut buckets = state.buckets.lock().unwrap();
     if key.is_empty() && method == Method::GET && query.contains_key("location") {
-        if state.location_forbidden {
-            return error(StatusCode::FORBIDDEN, "AccessDenied");
+        match state.location {
+            Location::Answer => {}
+            Location::DeniedBare => return error(StatusCode::FORBIDDEN, "AccessDenied"),
+            Location::Denied => {
+                let mut response = error(StatusCode::FORBIDDEN, "AccessDenied");
+                response
+                    .headers_mut()
+                    .insert("x-amz-bucket-region", state.region.parse().unwrap());
+                return response;
+            }
+            Location::Malformed => {
+                let body = format!(
+                    "<Error><Code>AuthorizationHeaderMalformed</Code><Message>wrong region</Message><Region>{}</Region></Error>",
+                    state.region
+                );
+                return (StatusCode::BAD_REQUEST, body).into_response();
+            }
         }
         if !buckets.contains_key(&bucket) {
             return error(StatusCode::NOT_FOUND, "NoSuchBucket");

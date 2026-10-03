@@ -21,8 +21,9 @@ use tokio_postgres::{Client, Socket};
 /// A job may not hold the worker longer than this; the connection is then replaced.
 const JOB_TIMEOUT: Duration = Duration::from_secs(60);
 
-/// Keys tokio-postgres accepts as they are.
-const KNOWN_KEYS: &[&str] = &[
+/// Keys pgx consumes that tokio-postgres takes as they are. `dbname` stands for pgx's
+/// `database`.
+const NATIVE_KEYS: &[&str] = &[
     "user",
     "password",
     "dbname",
@@ -30,17 +31,28 @@ const KNOWN_KEYS: &[&str] = &[
     "application_name",
     "sslnegotiation",
     "host",
-    "hostaddr",
     "port",
     "connect_timeout",
-    "tcp_user_timeout",
-    "keepalives",
-    "keepalives_idle",
-    "keepalives_interval",
-    "keepalives_retries",
     "target_session_attrs",
     "channel_binding",
-    "load_balance_hosts",
+];
+
+/// pgx `notRuntimeParams` (and pgx.ParseConfig's own keys) tokio-postgres cannot
+/// express; dropped with a warning.
+// ponytail: no .pgpass, service files, Kerberos, encrypted keys or protocol bounds.
+const UNSUPPORTED_KEYS: &[&str] = &[
+    "passfile",
+    "sslpassword",
+    "sslsni",
+    "krbspn",
+    "krbsrvname",
+    "service",
+    "servicefile",
+    "min_protocol_version",
+    "max_protocol_version",
+    "statement_cache_capacity",
+    "description_cache_capacity",
+    "default_query_exec_mode",
 ];
 
 /// Keys handled here because tokio-postgres knows only disable/prefer/require.
@@ -179,25 +191,34 @@ impl Dsn {
     pub(crate) fn parse(raw: &str, env: &dyn Fn(&str) -> Option<String>) -> Result<Dsn> {
         let raw = raw.trim();
         let mut tls = TlsFiles::default();
+        // pgx sends every other key to the server as a startup parameter (`search_path`
+        // picks the tables when PGSTORE_SCHEMA is unset); here they travel as `-c`.
+        let mut runtime: Vec<(String, String)> = Vec::new();
         let mut keep = |key: &str, value: String| -> bool {
+            let key = if key == "database" { "dbname" } else { key };
             if TLS_KEYS.contains(&key) {
                 tls.set(key, value);
                 false
-            } else if KNOWN_KEYS.contains(&key) {
+            } else if NATIVE_KEYS.contains(&key) {
                 true
-            } else {
+            } else if UNSUPPORTED_KEYS.contains(&key) {
                 tracing::warn!(key, "postgres store: ignoring unsupported connection parameter");
+                false
+            } else {
+                runtime.push((key.to_owned(), value));
                 false
             }
         };
         let stripped = if raw.starts_with("postgres://") || raw.starts_with("postgresql://") {
             let (base, query) = raw.split_once('?').unwrap_or((raw, ""));
-            let kept: Vec<&str> = query
+            let kept: Vec<String> = query
                 .split('&')
                 .filter(|pair| !pair.is_empty())
-                .filter(|pair| {
+                .filter_map(|pair| {
                     let (key, value) = pair.split_once('=').unwrap_or((pair, ""));
-                    keep(&percent_decode(key), percent_decode(value))
+                    let key = percent_decode(key);
+                    let key = if key == "database" { "dbname".to_owned() } else { key };
+                    keep(&key, percent_decode(value)).then(|| format!("{key}={value}"))
                 })
                 .collect();
             if kept.is_empty() {
@@ -208,12 +229,37 @@ impl Dsn {
         } else {
             keyword_pairs(raw)?
                 .into_iter()
-                .filter_map(|(key, value)| keep(&key, value.clone()).then(|| format!("{key}={}", quote(&value))))
+                .filter_map(|(key, value)| {
+                    let key = if key == "database" { "dbname".to_owned() } else { key };
+                    keep(&key, value.clone()).then(|| format!("{key}={}", quote(&value)))
+                })
                 .collect::<Vec<_>>()
                 .join(" ")
         };
         let mut config: tokio_postgres::Config = stripped.parse().map_err(|e| anyhow!("cannot parse dsn: {e}"))?;
         let env = |key: &str| env(key).filter(|v| !v.is_empty());
+        if config.get_options().is_none()
+            && let Some(options) = env("PGOPTIONS")
+        {
+            config.options(options);
+        }
+        if config.get_application_name().is_none()
+            && let Some(name) = env("PGAPPNAME")
+        {
+            config.application_name(name);
+        }
+        if !runtime.is_empty() {
+            let mut options = config.get_options().unwrap_or_default().to_owned();
+            for (key, value) in &runtime {
+                // The server splits `options` on spaces; `\` escapes them.
+                let escape = |text: &str| text.replace('\\', "\\\\").replace(' ', "\\ ");
+                if !options.is_empty() {
+                    options.push(' ');
+                }
+                options.push_str(&format!("-c {}={}", escape(key), escape(value)));
+            }
+            config.options(options);
+        }
         if config.get_hosts().is_empty() {
             let hosts = env("PGHOST").unwrap_or_else(default_host);
             for host in hosts.split(',') {
@@ -300,13 +346,22 @@ impl Dsn {
             .config
             .connect(self.tls.clone())
             .await
-            .map_err(|e| anyhow!("{e}"))?;
+            .map_err(|e| anyhow!("{}", error_text(&e)))?;
         tokio::spawn(async move {
             if let Err(error) = connection.await {
                 tracing::warn!("postgres store: connection closed: {error}");
             }
         });
         Ok(client)
+    }
+}
+
+/// pgx `PgError.Error()` for server errors (tokio-postgres hides the message behind
+/// `source()`), the client error text otherwise.
+pub(crate) fn error_text(error: &tokio_postgres::Error) -> String {
+    match error.as_db_error() {
+        Some(db) => format!("{}: {} (SQLSTATE {})", db.severity(), db.message(), db.code().code()),
+        None => error.to_string(),
     }
 }
 
@@ -470,6 +525,11 @@ impl Pg {
     {
         let (tx, rx) = tokio::sync::oneshot::channel();
         self.submit(move |client| async move {
+            // Go's expired context never starts its statement: a caller that gave up
+            // while this waited in the queue must not write stale data later.
+            if tx.is_closed() {
+                return;
+            }
             let result = match client {
                 Ok(client) => f(client).await,
                 Err(error) => Err(error),
@@ -551,6 +611,30 @@ mod tests {
         // Unix sockets never use TLS.
         let dsn = Dsn::parse("host=/run/postgresql user=u sslmode=require", &no_env).unwrap();
         assert_eq!(dsn.config.get_ssl_mode(), SslMode::Disable);
+    }
+
+    #[test]
+    fn other_keys_travel_as_runtime_parameters_like_pgx() {
+        let dsn = Dsn::parse(
+            r"host=db user=u options='-c work_mem=4MB' search_path='a b,c\\d' statement_cache_capacity=0",
+            &no_env,
+        )
+        .unwrap();
+        assert_eq!(
+            dsn.config.get_options(),
+            Some(r"-c work_mem=4MB -c search_path=a\ b,c\\d"),
+            "pgx's own keys are consumed, the rest reach the server"
+        );
+        let dsn = Dsn::parse("postgres://u@db/app?search_path=tenant&database=other", &no_env).unwrap();
+        assert_eq!(dsn.config.get_options(), Some("-c search_path=tenant"));
+        assert_eq!(dsn.config.get_dbname(), Some("other"));
+        // PGOPTIONS only when the DSN has no options.
+        let env = |key: &str| (key == "PGOPTIONS").then(|| "-c statement_timeout=5s".to_owned());
+        let dsn = Dsn::parse("host=db search_path=t", &env).unwrap();
+        assert_eq!(
+            dsn.config.get_options(),
+            Some("-c statement_timeout=5s -c search_path=t")
+        );
     }
 
     #[test]

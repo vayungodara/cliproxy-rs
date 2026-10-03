@@ -129,15 +129,13 @@ impl Management {
     }
 
     /// Go `deleteTokenRecord`: tells the store about an explicit removal. Blocking;
-    /// call from blocking code inside the runtime.
+    /// call from a blocking thread.
     pub(crate) fn store_delete(&self, path: &std::path::Path) -> Result<(), String> {
         let Some(store) = self.store.clone() else {
             return Ok(());
         };
         let path = std::path::absolute(path).unwrap_or_else(|_| path.to_path_buf());
-        tokio::runtime::Handle::current()
-            .block_on(store.delete_auth(path))
-            .map_err(|e| e.to_string())
+        store.delete_auth(path).map_err(|e| format!("{e:#}"))
     }
 
     /// Publishes a config and everything Go derives from it on reload: scheduler

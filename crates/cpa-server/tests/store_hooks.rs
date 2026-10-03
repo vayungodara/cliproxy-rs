@@ -39,15 +39,12 @@ impl StorePersister for Recorder {
         Box::pin(async { Ok(()) })
     }
 
-    fn delete_auth(&self, path: PathBuf) -> BoxFuture<'_, anyhow::Result<()>> {
+    fn delete_auth(&self, path: PathBuf) -> anyhow::Result<()> {
         self.calls.lock().unwrap().push(Call::Delete(path));
-        let fail = self.fail_delete;
-        Box::pin(async move {
-            if fail {
-                anyhow::bail!("postgres store: delete auth record: connection refused")
-            }
-            Ok(())
-        })
+        if self.fail_delete {
+            anyhow::bail!("postgres store: delete auth record: connection refused")
+        }
+        Ok(())
     }
 
     fn auth_dir(&self) -> PathBuf {

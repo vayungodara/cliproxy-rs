@@ -224,3 +224,33 @@ fn credentials_never_appear_in_errors() {
     let basic = base64::engine::general_purpose::STANDARD.encode("user:tok-s3cret");
     assert!(!error.contains(&basic), "{error}");
 }
+
+/// The management delete runs on a blocking thread holding the disk lock; the store
+/// must finish it there. With one blocking thread, a delete that queued another
+/// blocking task would never complete.
+#[test]
+fn explicit_delete_needs_no_second_blocking_thread() {
+    use cpa_server::persist::StorePersister;
+    let dir = scratch("delete-pool");
+    let remote = bare_remote(&dir);
+    let store = std::sync::Arc::new(GitStore::new(&remote, "", "", "main", &dir.join("a")));
+    store.ensure_repository().unwrap();
+    let path = store.auth_dir().join("a.json");
+    std::fs::write(&path, "{}").unwrap();
+    store
+        .persist_auth_files("Sync auth a.json", std::slice::from_ref(&path))
+        .unwrap();
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .max_blocking_threads(1)
+        .enable_all()
+        .build()
+        .unwrap();
+    let persister = cpa_store::GitPersister(store);
+    let deleted = runtime.block_on(async move {
+        let task = tokio::task::spawn_blocking(move || persister.delete_auth(path));
+        tokio::time::timeout(std::time::Duration::from_secs(20), task).await
+    });
+    deleted.expect("delete deadlocked").unwrap().unwrap();
+    assert!(remote_file(&remote, "main", "auths/a.json").is_none());
+}

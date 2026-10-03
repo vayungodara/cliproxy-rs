@@ -104,7 +104,7 @@ fn split_nul(bytes: &[u8]) -> Vec<String> {
 impl GitStore {
     /// Go `NewGitTokenStore` + `SetBaseDir(<root>/auths)`.
     pub fn new(remote: &str, username: &str, password: &str, branch: &str, root: &Path) -> Self {
-        let repo = std::path::absolute(root).unwrap_or_else(|_| root.to_path_buf());
+        let repo = crate::go_abs(root).unwrap_or_else(|_| root.to_path_buf());
         Self {
             remote: remote.to_owned(),
             branch: branch.trim().to_owned(),
@@ -553,7 +553,7 @@ impl GitStore {
     }
 
     fn relative(&self, path: &Path) -> Result<String> {
-        let path = std::path::absolute(path).unwrap_or_else(|_| path.to_path_buf());
+        let path = crate::go_abs(path).unwrap_or_else(|_| path.to_path_buf());
         let rel = path
             .strip_prefix(&self.repo)
             .map_err(|_| anyhow!("git token store: path outside repository"))?;
@@ -652,9 +652,9 @@ impl cpa_server::persist::StorePersister for GitPersister {
         Box::pin(async move { blocking(move || store.persist_auth_files(&message, &paths)).await })
     }
 
-    fn delete_auth(&self, path: PathBuf) -> BoxFuture<'_, Result<()>> {
-        let store = self.0.clone();
-        Box::pin(async move { blocking(move || store.delete(&path)).await })
+    fn delete_auth(&self, path: PathBuf) -> Result<()> {
+        // Inline on the caller's blocking thread: no second blocking-pool slot.
+        self.0.delete(&path)
     }
 
     fn auth_dir(&self) -> PathBuf {

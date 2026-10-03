@@ -211,10 +211,14 @@ async fn postgres_store_round_trips_config_auth_and_cooldowns() {
     assert_eq!(ids, vec!["a.json", "team/b.json"]);
 
     // A second node mirrors the table and replaces whatever its auth dir held.
-    let second_spool = dir.join("node2/pgstore");
+    // The spool path has a `..` segment (PGSTORE_LOCAL_PATH=../state): Go's
+    // filepath.Abs cleans it, so rows still land inside the mirror.
+    std::fs::create_dir_all(dir.join("node2/tmp")).unwrap();
+    let second_spool = dir.join("node2/tmp/../pgstore");
     std::fs::create_dir_all(second_spool.join("auths")).unwrap();
     std::fs::write(second_spool.join("auths/stale.json"), "{}").unwrap();
     let second = store(&cluster, schema, &second_spool).await;
+    assert_eq!(second.auth_dir(), dir.join("node2/pgstore/auths"));
     second.bootstrap(&example).await.unwrap();
     let mirrored = second.auth_dir();
     // jsonb's canonical text: keys sorted by length then bytes, one space after colons.
@@ -346,4 +350,94 @@ async fn postgres_store_reports_go_errors() {
     assert!(error.starts_with("postgres store: ping database: "), "{error}");
     assert!(!error.contains("pw-s3cret"), "{error}");
     assert!(dir.join("pgstore/config").is_dir() && dir.join("pgstore/auths").is_dir());
+}
+
+/// pgx sends `search_path` to the server, so without PGSTORE_SCHEMA the unqualified
+/// tables resolve in that schema rather than in `public`.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn search_path_in_the_dsn_selects_the_tables() {
+    let Some(cluster) = Cluster::start() else { return };
+    let sql = cluster.client().await;
+    sql.batch_execute(
+        "CREATE SCHEMA tenant;
+         CREATE TABLE public.config_store (id TEXT PRIMARY KEY, content TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
+         INSERT INTO public.config_store (id, content) VALUES ('config', 'port: 1\n');
+         CREATE TABLE tenant.config_store (id TEXT PRIMARY KEY, content TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
+         INSERT INTO tenant.config_store (id, content) VALUES ('config', 'port: 2\n');",
+    )
+    .await
+    .unwrap();
+    let dir = scratch("search-path");
+    let store = PostgresStore::connect(PostgresConfig {
+        dsn: format!("{}&search_path=tenant&application_name=cpa%20store", cluster.dsn()),
+        schema: String::new(),
+        spool_dir: dir.join("pgstore"),
+    })
+    .await
+    .unwrap();
+    store.bootstrap(Path::new("")).await.unwrap();
+    assert_eq!(std::fs::read(store.config_path()).unwrap(), b"port: 2\n");
+    // The auth and cooldown tables were created next to the tenant's config.
+    let tables: i64 = sql
+        .query_one(
+            "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'tenant'",
+            &[],
+        )
+        .await
+        .unwrap()
+        .get(0);
+    assert_eq!(tables, 3);
+    // An unknown runtime parameter fails like pgx's startup message does.
+    let error = PostgresStore::connect(PostgresConfig {
+        dsn: format!("{}&pool_max_conns=4", cluster.dsn()),
+        schema: String::new(),
+        spool_dir: dir.join("other"),
+    })
+    .await
+    .err()
+    .unwrap()
+    .to_string();
+    assert!(
+        error.contains("FATAL: unrecognized configuration parameter \"pool_max_conns\" (SQLSTATE 42704)"),
+        "{error}"
+    );
+}
+
+/// A write whose caller gave up while it waited for the connection never runs later
+/// (Go's expired context), so it cannot overwrite a newer row from another node.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn abandoned_queued_writes_never_run() {
+    let Some(cluster) = Cluster::start() else { return };
+    let dir = scratch("abandoned");
+    let store = store(&cluster, "", &dir.join("pgstore")).await;
+    store.bootstrap(Path::new("")).await.unwrap();
+    let auth = store.auth_dir();
+    for name in ["a.json", "b.json", "c.json"] {
+        std::fs::write(auth.join(name), format!(r#"{{"name":"{name}"}}"#)).unwrap();
+    }
+    // Another session holds the table, so the worker blocks on the first write.
+    let locker = cluster.client().await;
+    locker
+        .batch_execute("BEGIN; LOCK TABLE \"auth_store\" IN ACCESS EXCLUSIVE MODE")
+        .await
+        .unwrap();
+    let short = Duration::from_millis(300);
+    let first = tokio::time::timeout(short, store.persist_auth_files(&[auth.join("a.json")])).await;
+    assert!(first.is_err(), "the first write must be blocked by the lock");
+    let queued = tokio::time::timeout(short, store.persist_auth_files(&[auth.join("b.json")])).await;
+    assert!(queued.is_err(), "the second write waits behind the first");
+    locker.batch_execute("COMMIT").await.unwrap();
+    // The worker drains its queue; a later write proves it got past the abandoned one.
+    store.persist_auth_files(&[auth.join("c.json")]).await.unwrap();
+    let sql = cluster.client().await;
+    let ids: Vec<String> = sql
+        .query("SELECT id FROM \"auth_store\" ORDER BY id", &[])
+        .await
+        .unwrap()
+        .iter()
+        .map(|r| r.get(0))
+        .collect();
+    // The statement already sent before the timeout completes, as a cancelled Go
+    // ExecContext may too; the queued one never starts.
+    assert_eq!(ids, vec!["a.json", "c.json"]);
 }
