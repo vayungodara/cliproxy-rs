@@ -307,6 +307,7 @@ ul.plain { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .steps li { display: grid; gap: 12px; padding-left: 6px; }
 .code-big { font-size: 28px; letter-spacing: 0.08em; font-weight: 500; }
 pre.code-window { margin: 0; }
+.picks { max-width: 640px; }
 /* First run */
 .first h2 small { margin-left: 12px; font-size: 13px; font-weight: 400; color: var(--ink-2); }
 .checklist { list-style: none; padding: 0; gap: 18px; width: 100%; }

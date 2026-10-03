@@ -8,7 +8,7 @@ use std::sync::Arc;
 use cpa_core::config::Config;
 use cpa_exec::Executors;
 use cpa_exec::claude::{ClaudeExecutor, DEFAULT_BASE_URL};
-use cpa_server::{Runtime, router};
+use cpa_server::router;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -25,7 +25,8 @@ async fn main() -> anyhow::Result<()> {
         openai: Default::default(),
         google: Default::default(),
     };
-    let rt = Arc::new(Runtime::new(config, credentials, executors));
+    // The deny-all test runtime: a credential that is not local cannot leave the machine.
+    let rt = Arc::new(cpa_server::testing::runtime(config, credentials, executors));
     cpa_server::install_registry(&rt);
     let options = cpa_server::management::Options { login_base: Some(login_base), ..Default::default() };
     let management = cpa_server::management::Management::with_options(rt.clone(), path, options);

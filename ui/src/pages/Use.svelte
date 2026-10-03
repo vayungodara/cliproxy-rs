@@ -68,7 +68,7 @@
           cloud services such as Cursor need a public HTTPS address.
         </p>{/if}
       {#if keys.length}
-        {#if keys.length > 1 || models.length}<div class="form">
+        {#if keys.length > 1 || models.length}<div class="form picks">
             {#if keys.length > 1}<label class="field"
                 >Client key<select bind:value={pick}>{#each keys as k, i}<option value={i}>{mask(k)}</option>{/each}</select></label
               >{/if}
