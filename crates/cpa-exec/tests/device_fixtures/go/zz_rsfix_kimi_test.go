@@ -168,6 +168,21 @@ func TestRSFixKimi(t *testing.T) {
 			responses: []rsfixResponse{sseResp("event: response.created\ndata: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_2\"}}\n\nevent: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"delta\":\"hi\"}\n\nevent: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_2\",\"usage\":{\"input_tokens\":1,\"output_tokens\":1,\"total_tokens\":2}}}\n\n")},
 		},
 		{
+			name: "chat-stream-gemini-client", source: sdktranslator.FormatGemini, model: "kimi-k2", stream: true, meta: kimiMeta,
+			body:      `{"contents":[{"role":"user","parts":[{"text":"hi"}]}]}`,
+			responses: []rsfixResponse{sseResp("data: {\"id\":\"g1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"k2\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"he\"}}]}\n\ndata: {\"id\":\"g1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"k2\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"y\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":2,\"completion_tokens\":2,\"total_tokens\":4}}\n\n")},
+		},
+		{
+			name: "chat-stream-interactions-client", source: sdktranslator.FormatInteractions, model: "kimi-k2", stream: true, meta: kimiMeta,
+			body:      `{"model":"kimi-k2","input":"hi"}`,
+			responses: []rsfixResponse{sseResp("data: {\"id\":\"i1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"k2\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"yo\"},\"finish_reason\":\"stop\"}]}\n\n")},
+		},
+		{
+			name: "chat-nonstream-gemini-client", source: sdktranslator.FormatGemini, model: "kimi-k2", meta: kimiMeta,
+			body:      `{"contents":[{"role":"user","parts":[{"text":"hi"}]}]}`,
+			responses: []rsfixResponse{jsonResp(200, `{"id":"g2","object":"chat.completion","created":2,"model":"k2","choices":[{"index":0,"message":{"role":"assistant","content":"hey"},"finish_reason":"stop"}],"usage":{"prompt_tokens":2,"completion_tokens":1,"total_tokens":3}}`)},
+		},
+		{
 			name: "chat-payload-rules", source: sdktranslator.FormatOpenAI, model: "kimi-k3(high)", stream: true, meta: kimiMeta, cfg: "payload:\n  default:\n    - models: [{name: \"kimi-*\", protocol: openai}]\n      params: {temperature: 1.0, n: 1, user: \"default-user\"}\n    - models: [{name: \"kimi-*\", protocol: openai-response}]\n      params: {store: true, parallel_tool_calls: false}\n  override:\n    - models: [{name: \"kimi-k3(high)\"}]\n      params: {requested_hit: true}\n    - models: [{name: \"kimi-*\", protocol: codex}]\n      params: {wrong_protocol: true}\n    - models: [{name: \"kimi-*\", from-protocol: openai}]\n      params: {from_openai: true}\n  filter:\n    - models: [{name: \"kimi-*\", protocol: openai}]\n      params: [max_tokens]\n",
 			body:      `{"model":"kimi-k3(high)","messages":[{"role":"user","content":"hi"}],"temperature":0.3,"max_tokens":50}`,
 			responses: []rsfixResponse{sseResp("data: {\"id\":\"c\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"k3\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"ok\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n")},

@@ -161,13 +161,7 @@ impl CodexExecutor {
         cfg: &Config,
     ) -> Result<ExecResponse, ExecError> {
         if req.operation == Operation::CountTokens {
-            // ponytail: Go counts Codex input tokens locally with tiktoken
-            // (codex_executor_tokens.go); port with the Claude -> Codex translator.
-            return Err(ExecError::local(
-                501,
-                FailureScope::Request,
-                "codex token counting is not supported yet",
-            ));
+            return count_tokens(&req, cfg);
         }
         check_response_format(&req)?;
         let view = View::for_request(credential, cfg).with_session(explicit_session(&req));
@@ -229,7 +223,7 @@ impl CodexExecutor {
         ws_session: Option<&str>,
     ) -> Result<ExecResponse, ExecError> {
         let model = request::base_model(&req.model).to_owned();
-        let body = request::shape(&req, view, settings, Call::Stream)?;
+        let (body, restore) = request::shape(&req, view, settings, Call::Stream)?;
         let (body, cache) = request::prompt_cache(&req, body, ws_session, false);
         let body = request::sanitize_input_ids(body);
         let headers = request::http_headers(view, settings, &req.headers, &body, &model, cache.as_deref(), true);
@@ -237,7 +231,7 @@ impl CodexExecutor {
         let started = Instant::now();
         let res = self.send(view, settings, url, headers, body.clone()).await?;
         let upstream = events(res.body);
-        let processor = Processor::new(request::is_native(&req), settings.model_level_cooling);
+        let processor = Processor::new(request::is_native(&req), settings.model_level_cooling).restoring(restore);
         let stream = if settings.bootstrap_buffering {
             match response::bootstrap(upstream, processor, settings.bootstrap_timeout, started).await {
                 Bootstrap::Reject(error) => return Err(error),
@@ -260,14 +254,14 @@ impl CodexExecutor {
         req: ExecRequest,
     ) -> Result<ExecResponse, ExecError> {
         let model = request::base_model(&req.model).to_owned();
-        let body = request::shape(&req, view, settings, Call::NonStream)?;
+        let (body, restore) = request::shape(&req, view, settings, Call::NonStream)?;
         let (body, cache) = request::prompt_cache(&req, body, None, false);
         let body = request::sanitize_input_ids(body);
         let headers = request::http_headers(view, settings, &req.headers, &body, &model, cache.as_deref(), true);
         let url = format!("{}/responses", view.base_url);
         let res = self.send(view, settings, url, headers, body.clone()).await?;
         let mut upstream = events(res.body);
-        let mut processor = Processor::new(false, settings.model_level_cooling);
+        let mut processor = Processor::new(false, settings.model_level_cooling).restoring(restore);
         while let Some(event) = upstream.next().await {
             let Ok(event) = event else {
                 break;
@@ -285,7 +279,7 @@ impl CodexExecutor {
 
     async fn compact(&self, view: &View<'_>, settings: &Settings, req: ExecRequest) -> Result<ExecResponse, ExecError> {
         let model = request::base_model(&req.model).to_owned();
-        let body = request::shape(&req, view, settings, Call::Compact)?;
+        let (body, restore) = request::shape(&req, view, settings, Call::Compact)?;
         let (body, cache) = request::prompt_cache(&req, body, None, false);
         let body = request::sanitize_input_ids(body);
         let headers = request::http_headers(view, settings, &req.headers, &body, &model, cache.as_deref(), false);
@@ -305,6 +299,7 @@ impl CodexExecutor {
             }
         };
         let text = String::from_utf8_lossy(&data);
+        let text = response::restore(&text, restore);
         Ok(ExecResponse {
             status: res.status,
             headers: res.headers,
@@ -411,6 +406,69 @@ impl CodexExecutor {
             body: ResponseBody::Buffered(data),
         })
     }
+}
+
+/// `CountTokens` (codex_executor_tokens.go): the request shaped as for Codex, counted
+/// locally with the model's tiktoken encoding; nothing is sent upstream.
+fn count_tokens(req: &ExecRequest, cfg: &Config) -> Result<ExecResponse, ExecError> {
+    use crate::codex_json::{delete, set_bool_if_different, set_str, set_str_if_different};
+    let model = request::base_model(&req.model);
+    // ponytail: Go reads is-compat only from the attempt's ResolvedModelInfo here
+    // (APIKeyModelIsCompat), which ExecRequest does not carry yet.
+    let client = crate::codex_client::Client::new(&req.headers, cfg, "codex", false);
+    let ctx = cpa_translate::RequestCtx {
+        model: &model,
+        stream: false,
+    };
+    let body = crate::codex_client::translate_request(req.source_format, Format::Codex, &ctx, &req.body, &client)
+        .map_err(|e| ExecError::local(400, FailureScope::Request, e.to_string()))?;
+    let body = cpa_common::thinking::apply_request_thinking(&cpa_common::thinking::RequestThinking {
+        body: &body,
+        payload: &req.body,
+        original: &req.original_body,
+        model: &req.model,
+        from: req.source_format.as_str(),
+        to: Format::Codex.as_str(),
+        provider: "codex",
+        resolved: None,
+        has_request_transformer: cpa_translate::pair(req.source_format, Format::Codex).is_some(),
+        updates_changed: false,
+    })
+    .map_err(|e| ExecError::local(e.status(), FailureScope::Request, e.message))?;
+    let mut body = String::from_utf8_lossy(&body).into_owned();
+    body = set_str_if_different(body, "model", &model);
+    for key in [
+        "previous_response_id",
+        "generate",
+        "prompt_cache_retention",
+        "safety_identifier",
+        "stream_options",
+    ] {
+        body = delete(&body, key);
+    }
+    body = set_bool_if_different(body, "stream", false);
+    if !request::is_native(req) {
+        let instructions = gjson::get(&body, "instructions");
+        if !instructions.exists() || instructions.kind() == gjson::Kind::Null {
+            body = set_str(&body, "instructions", "");
+        }
+    }
+    let encoding = crate::codex_tokens::encoding_for_model(&model);
+    let count = crate::codex_tokens::count_input_tokens(encoding, body.as_bytes()).map_err(|e| {
+        ExecError::local(
+            500,
+            FailureScope::Request,
+            format!("codex executor: tokenizer init failed: {e}"),
+        )
+    })?;
+    let usage =
+        format!(r#"{{"response":{{"usage":{{"input_tokens":{count},"output_tokens":0,"total_tokens":{count}}}}}}}"#);
+    let payload = cpa_translate::translate_token_count(req.response_format, Format::Codex, count, usage.as_bytes());
+    Ok(ExecResponse {
+        status: 200,
+        headers: HeaderMap::new(),
+        body: ResponseBody::Buffered(Bytes::from(payload)),
+    })
 }
 
 /// Go reads at most 32 MiB of an Alpha Search response, whatever its status.

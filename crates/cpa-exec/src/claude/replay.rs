@@ -15,71 +15,32 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use bytes::Bytes;
+use cpa_common::json as gj;
 use cpa_core::credential::Credential;
-use cpa_core::exec::{ExecError, ExecRequest, ExecStream};
-use futures_util::StreamExt;
+use cpa_core::exec::{ExecRequest, ExecStream};
 use sha2::{Digest, Sha256};
 
 const TTL: Duration = Duration::from_secs(3600);
 const MAX_ENTRIES: usize = 10240;
 const EVICT_BATCH: usize = 128;
-const MAX_BYTES_PER_SESSION: usize = 8 << 20;
+const MAX_BYTES_PER_SESSION: usize = MAX_BYTES_PER_ENTRY;
 const MAX_TURNS_PER_SESSION: usize = 64;
-const MAX_BLOCKS_PER_TURN: usize = 512;
 const MAX_TOTAL_BYTES: usize = 256 << 20;
 const SWEEP_INTERVAL: Duration = Duration::from_secs(600);
 
-// Go's Claude replay reuses the provider-neutral helpers in crate::replay verbatim: the
-// turn restore, the replayable-content check, the session key and the SSE accumulator.
-mod shared {
-    use cpa_core::exec::ExecRequest;
+use crate::replay::{Accumulator, MAX_BLOCKS_PER_ENTRY, MAX_BYTES_PER_ENTRY, ReplayTarget};
 
-    // ponytail: integrator shim from this module's &str API onto crate::replay's byte API
-    // (owner: Claude thread); move the cache to bytes and call crate::replay directly.
-    pub(super) fn session_key(req: &ExecRequest, payload: &str) -> String {
-        crate::replay::session_key(req, payload.as_bytes())
-    }
-
-    pub(super) fn replayable(content: &str) -> bool {
-        crate::replay::replayable(content.as_bytes())
-    }
-
-    pub(super) fn restore(body: &str, cached: &str) -> Option<String> {
-        crate::replay::restore_turn(body.as_bytes(), cached.as_bytes())
-            .map(|out| String::from_utf8(out).unwrap_or_else(|e| String::from_utf8_lossy(e.as_bytes()).into_owned()))
-    }
-
-    #[derive(Default)]
-    pub(super) struct Accumulator(crate::replay::Accumulator);
-
-    impl Accumulator {
-        pub(super) fn observe(&mut self, chunk: &[u8]) {
-            self.0.observe(chunk);
-        }
-
-        pub(super) fn content(&mut self) -> Option<String> {
-            self.0.content().map(|v| String::from_utf8_lossy(&v).into_owned())
-        }
-
-        pub(super) fn upstream_error(&self) -> bool {
-            self.0.upstream_error()
-        }
-    }
-
-    pub(super) fn json_equal(left: &str, right: &str) -> bool {
-        match (
-            cpa_common::json::canonical(left.as_bytes()),
-            cpa_common::json::canonical(right.as_bytes()),
-        ) {
-            (Some(a), Some(b)) => a == b,
-            _ => left == right,
-        }
+/// `claudeThinkingReplayJSONEqual`: both decode, and their Go encodings are equal.
+fn json_equal(left: &[u8], right: &[u8]) -> bool {
+    match (cpa_common::json::canonical(left), cpa_common::json::canonical(right)) {
+        (Some(a), Some(b)) => a == b,
+        _ => false,
     }
 }
 
 #[derive(Clone)]
 struct Entry {
-    contents: Vec<Arc<str>>,
+    contents: Vec<Arc<[u8]>>,
     at: Instant,
     generation: u64,
     deleted: bool,
@@ -166,7 +127,7 @@ impl ReplayCache {
 
     /// `GetClaudeThinkingReplayWithSnapshotRequired`: a missing or expired entry is
     /// reserved as deleted so a conditional write can follow.
-    fn get(&self, key: &str, now: Instant) -> (Vec<Arc<str>>, Snapshot) {
+    fn get(&self, key: &str, now: Instant) -> (Vec<Arc<[u8]>>, Snapshot) {
         let mut inner = self.lock();
         inner.sweep(now);
         let live = inner
@@ -199,11 +160,11 @@ impl ReplayCache {
     }
 
     /// `ReplaceClaudeThinkingReplayIfUnchanged` with `appendClaudeThinkingReplayContent`.
-    fn append_if_unchanged(&self, key: &str, snapshot: Snapshot, content: &str) -> bool {
+    fn append_if_unchanged(&self, key: &str, snapshot: Snapshot, content: &[u8]) -> bool {
         self.append_at(key, snapshot, content, Instant::now())
     }
 
-    fn append_at(&self, key: &str, snapshot: Snapshot, content: &str, now: Instant) -> bool {
+    fn append_at(&self, key: &str, snapshot: Snapshot, content: &[u8], now: Instant) -> bool {
         if !valid_content(content) {
             return false;
         }
@@ -217,7 +178,7 @@ impl ReplayCache {
         } else {
             entry.contents.clone()
         };
-        if !contents.iter().any(|existing| shared::json_equal(existing, content)) {
+        if !contents.iter().any(|existing| json_equal(existing, content)) {
             contents.push(Arc::from(content));
             while contents.len() > MAX_TURNS_PER_SESSION
                 || contents.iter().map(|c| c.len()).sum::<usize>() > MAX_BYTES_PER_SESSION
@@ -260,12 +221,12 @@ impl ReplayCache {
 }
 
 /// `validClaudeThinkingReplayContent`.
-fn valid_content(content: &str) -> bool {
-    if content.is_empty() || content.len() > MAX_BYTES_PER_SESSION || !gjson::valid(content) {
+fn valid_content(content: &[u8]) -> bool {
+    if content.is_empty() || content.len() > MAX_BYTES_PER_SESSION || !gj::valid(content) {
         return false;
     }
-    let root = gjson::parse(content);
-    root.kind() == gjson::Kind::Array && (1..=MAX_BLOCKS_PER_TURN).contains(&root.array().len())
+    let root = gj::parse(content);
+    root.is_array() && (1..=MAX_BLOCKS_PER_ENTRY).contains(&root.array().len())
 }
 
 /// One request's replay scope (Go `claudeThinkingReplayScope`).
@@ -278,8 +239,8 @@ pub(crate) struct Scope {
 
 impl Scope {
     /// `cacheClaudeThinkingReplayContent`: append replayable content, else clear.
-    fn store(&self, content: &str) {
-        if shared::replayable(content) {
+    fn store(&self, content: &[u8]) {
+        if crate::replay::replayable(content) {
             self.cache.append_if_unchanged(&self.key, self.snapshot, content);
         } else {
             self.clear();
@@ -294,65 +255,35 @@ impl Scope {
     /// `cacheClaudeThinkingReplayResponse`: the `content` array of a buffered message,
     /// else the content a buffered SSE body completes.
     pub(crate) fn store_response(&self, response: &[u8]) {
-        let text = String::from_utf8_lossy(response);
-        let content = gjson::get(&text, "content");
-        if content.kind() == gjson::Kind::Array {
-            self.store(content.json());
+        let content = gj::get(response, "content");
+        if content.is_array() {
+            self.store(content.raw());
             return;
         }
-        let mut accumulator = shared::Accumulator::default();
+        let mut accumulator = Accumulator::default();
         accumulator.observe(response);
         if let Some(content) = accumulator.content() {
             self.store(&content);
         }
     }
 
-    /// `wrapThinkingReplayStream`: forwards every event; after a clean end caches the
-    /// completed content, or clears applied replay the upstream rejected in-stream.
+    /// `wrapClaudeThinkingReplayStream`.
     pub(crate) fn wrap(self, stream: ExecStream) -> ExecStream {
-        struct State {
-            stream: ExecStream,
-            scope: Scope,
-            accumulator: shared::Accumulator,
-            failed: bool,
-            done: bool,
-        }
-        futures_util::stream::unfold(
-            State {
-                stream,
-                scope: self,
-                accumulator: shared::Accumulator::default(),
-                failed: false,
-                done: false,
-            },
-            |mut st| async move {
-                if st.done {
-                    return None;
-                }
-                match st.stream.next().await {
-                    Some(Ok(event)) => {
-                        st.accumulator.observe(&event);
-                        Some((Ok(event), st))
-                    }
-                    Some(Err(error)) => {
-                        st.failed = true;
-                        Some((Err(error), st))
-                    }
-                    None => {
-                        st.done = true;
-                        if !st.failed {
-                            if let Some(content) = st.accumulator.content() {
-                                st.scope.store(&content);
-                            } else if st.accumulator.upstream_error() && st.scope.applied {
-                                st.scope.clear();
-                            }
-                        }
-                        None
-                    }
-                }
-            },
-        )
-        .boxed()
+        crate::replay::wrap_stream(stream, self)
+    }
+}
+
+impl ReplayTarget for Scope {
+    fn store(&self, content: &[u8]) {
+        Scope::store(self, content);
+    }
+
+    fn clear(&self) {
+        Scope::clear(self);
+    }
+
+    fn applied(&self) -> bool {
+        self.applied
     }
 }
 
@@ -399,22 +330,20 @@ pub(crate) fn prepare(cache: &Arc<ReplayCache>, gate: &Gate<'_>, req: &mut ExecR
         return None;
     }
     let family = model_family(gate.credential, gate.api_key, gate.base_url, gate.base_model);
-    let payload = String::from_utf8_lossy(&req.body).into_owned();
-    let session = shared::session_key(req, &payload);
+    let session = crate::replay::session_key(req, &req.body);
     if family.is_empty() || session.trim().is_empty() {
         return None;
     }
     let key = format!("claude-thinking-replay\0{family}\0{}", session.trim());
     let (contents, snapshot) = cache.get(&key, Instant::now());
-    let mut body = payload;
-    let mut applied = false;
+    let mut body: Option<Vec<u8>> = None;
     for cached in &contents {
-        if let Some(updated) = shared::restore(&body, cached) {
-            body = updated;
-            applied = true;
+        if let Some(updated) = crate::replay::restore_turn(body.as_deref().unwrap_or(&req.body), cached) {
+            body = Some(updated);
         }
     }
-    if applied {
+    let applied = body.is_some();
+    if let Some(body) = body {
         req.body = Bytes::from(body);
     }
     Some(Scope {
@@ -448,9 +377,13 @@ fn auth_kind_is_api_key(credential: &Credential) -> bool {
         })
 }
 
-/// `shouldClearKimiThinkingReplayAfterError`.
-pub(crate) fn clears_after(error: &ExecError) -> bool {
-    crate::kimi_replay::clears_after(error)
+/// `shouldClearKimiThinkingReplayAfterError`: only an upstream 400 or 422 classified as
+/// Go's plain `statusErr` rejects applied replay. Callers ask this of upstream responses
+/// only: local validation errors are other Go types, and a Fast request's direct answer
+/// (`claudeFastDirectResponseError`) unwraps to `RequestTerminatedError`, so both keep
+/// the cache.
+pub(crate) fn upstream_rejects(error: &cpa_core::exec::ExecError) -> bool {
+    !error.direct && matches!(error.status, 400 | 422)
 }
 
 #[cfg(test)]
@@ -474,20 +407,23 @@ mod tests {
     fn sessions_keep_distinct_turns_and_writes_need_the_read_generation() {
         let cache = Arc::new(ReplayCache::default());
         let first = scope(&cache);
-        first.store(TURN_A);
+        first.store(TURN_A.as_bytes());
         // A stale scope (read before the write) cannot append or clear.
-        first.store(TURN_B);
+        first.store(TURN_B.as_bytes());
         first.clear();
         assert_eq!(cache.get("k", Instant::now()).0.len(), 1);
-        scope(&cache).store(TURN_B);
+        scope(&cache).store(TURN_B.as_bytes());
         // An equal turn (key order differs) is not appended twice.
         scope(&cache).store(
-            r#"[{"signature":"sig-a","type":"thinking","thinking":"a"},{"type":"tool_use","name":"read","id":"toolu_a","input":{"path":"a"}}]"#,
+            br#"[{"signature":"sig-a","type":"thinking","thinking":"a"},{"type":"tool_use","name":"read","id":"toolu_a","input":{"path":"a"}}]"#,
         );
         let contents = cache.get("k", Instant::now()).0;
-        assert_eq!(contents.iter().map(|c| &**c).collect::<Vec<_>>(), [TURN_A, TURN_B]);
+        assert_eq!(
+            contents.iter().map(|c| &**c).collect::<Vec<_>>(),
+            [TURN_A.as_bytes(), TURN_B.as_bytes()]
+        );
         // Content without signed thinking plus a tool call clears the session.
-        scope(&cache).store(r#"[{"type":"text","text":"done"}]"#);
+        scope(&cache).store(br#"[{"type":"text","text":"done"}]"#);
         assert!(cache.get("k", Instant::now()).0.is_empty());
     }
 
@@ -496,11 +432,11 @@ mod tests {
         let cache = Arc::new(ReplayCache::default());
         let start = Instant::now();
         let (_, snapshot) = cache.get("k", start);
-        assert!(cache.append_at("k", snapshot, TURN_A, start));
+        assert!(cache.append_at("k", snapshot, TURN_A.as_bytes(), start));
         let (_, pending) = cache.get("k", start);
         // Past the TTL and a sweep interval, a write from the old read is rejected.
         let later = start + TTL + SWEEP_INTERVAL + Duration::from_secs(1);
-        assert!(!cache.append_at("k", pending, TURN_B, later));
+        assert!(!cache.append_at("k", pending, TURN_B.as_bytes(), later));
         assert!(cache.lock().entries.is_empty());
         assert_eq!(cache.lock().total, 0);
     }
@@ -541,14 +477,31 @@ mod tests {
     }
 
     #[test]
+    fn only_classified_upstream_rejections_clear() {
+        use cpa_core::exec::{ExecError, FailureScope};
+        let classified = |status| ExecError::local(status, FailureScope::Request, "rejected");
+        assert!(upstream_rejects(&classified(400)));
+        assert!(upstream_rejects(&classified(422)));
+        assert!(!upstream_rejects(&classified(429)));
+        assert!(!upstream_rejects(&classified(500)));
+        // A Fast request's direct 400 is answered as sent and keeps the cache.
+        let mut direct = classified(400);
+        direct.direct = true;
+        assert!(!upstream_rejects(&direct));
+    }
+
+    #[test]
     fn a_session_keeps_at_most_64_turns() {
         let cache = Arc::new(ReplayCache::default());
         for i in 0..70 {
-            scope(&cache).store(&TURN_A.replace("toolu_a", &format!("toolu_{i}")));
+            scope(&cache).store(TURN_A.replace("toolu_a", &format!("toolu_{i}")).as_bytes());
         }
         let contents = cache.get("k", Instant::now()).0;
         assert_eq!(contents.len(), MAX_TURNS_PER_SESSION);
-        assert!(contents[0].contains("toolu_6\""), "the oldest turns are dropped first");
+        assert!(
+            String::from_utf8_lossy(&contents[0]).contains("toolu_6\""),
+            "the oldest turns are dropped first"
+        );
     }
 
     #[test]

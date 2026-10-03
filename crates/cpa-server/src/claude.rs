@@ -75,11 +75,12 @@ pub async fn count_tokens(
     .await
 }
 
-/// Go `GetAlt`: `alt`, else `$alt`; `sse` means none.
+/// Go `GetAlt`: `alt` when present (even empty), else `$alt`; `sse` and the empty
+/// string both mean none, as Go's `""`.
 pub fn alt(query: &str) -> Option<String> {
     let value = crate::access::query_get(query, "alt").or_else(|| crate::access::query_get(query, "$alt"))?;
     let value = String::from_utf8_lossy(&value).into_owned();
-    (value != "sse").then_some(value)
+    (!value.is_empty() && value != "sse").then_some(value)
 }
 
 /// Reads the top-level fields a route needs without materializing the rest.
@@ -186,6 +187,21 @@ impl Writer for ClaudeSse {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Go `GetAlt` goldens (tests/reference/server/main.go `alts`): an empty `alt`
+    /// stops the `$alt` fallback and means none.
+    #[test]
+    fn alt_matches_go() {
+        let fixture: Value = serde_json::from_str(include_str!("../tests/fixtures/server_go.json")).unwrap();
+        let cases = fixture["alt"].as_array().unwrap();
+        assert_eq!(cases.len(), 13);
+        for case in cases {
+            let want = case["out"].as_str().unwrap();
+            let got = alt(case["in"].as_str().unwrap());
+            assert_eq!(got.as_deref().unwrap_or(""), want, "query {}", case["in"]);
+            assert_eq!(got.is_some(), !want.is_empty());
+        }
+    }
 
     #[test]
     fn dd_model_ids_round_trip_like_go() {
