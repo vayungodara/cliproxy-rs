@@ -268,6 +268,7 @@ impl CodexExecutor {
         let res = self.send(view, settings, url, headers, body.clone(), &scope).await?;
         let upstream = events(res.body);
         let processor = Processor::new(request::is_native(&req), settings.model_level_cooling)
+            .grok_keepalive(&req.headers)
             .restoring(restore)
             .replaying(self.replay.clone(), scope)
             .reporting(req.usage.clone());

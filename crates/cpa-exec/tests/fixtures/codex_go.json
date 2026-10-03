@@ -830,7 +830,7 @@
             "codex-tui"
           ],
           "session_id": [
-            "07bcd28e-88c0-4418-99b6-ff31fb8e6bc7"
+            "86f4e1de-5d1e-4e71-80ea-2f3be32ac6a0"
           ],
           "user-agent": [
             "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
@@ -1229,7 +1229,7 @@
             "codex-tui"
           ],
           "referer": [
-            "http://127.0.0.1:38687/responses"
+            "http://127.0.0.1:40049/responses"
           ],
           "user-agent": [
             "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
@@ -1307,7 +1307,7 @@
               "codex-tui"
             ],
             "referer": [
-              "http://127.0.0.1:38687/responses"
+              "http://127.0.0.1:40049/responses"
             ],
             "user-agent": [
               "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
@@ -1368,7 +1368,7 @@
             "codex-tui"
           ],
           "referer": [
-            "http://127.0.0.1:46225/responses"
+            "http://127.0.0.1:37125/responses"
           ],
           "user-agent": [
             "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
@@ -1428,7 +1428,7 @@
               "codex-tui"
             ],
             "referer": [
-              "http://127.0.0.1:46225/responses"
+              "http://127.0.0.1:37125/responses"
             ],
             "user-agent": [
               "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
@@ -1670,6 +1670,219 @@
           "message": "Invalid apply_patch tool arguments received from upstream.",
           "status": 502
         }
+      }
+    },
+    {
+      "name": "oauth_grok_client_keepalive",
+      "config": "{}\n",
+      "attributes": {},
+      "metadata": {
+        "access_token": "at-FAKE",
+        "account_id": "acct-FAKE-1",
+        "email": "user@example.invalid",
+        "type": "codex"
+      },
+      "source": "codex",
+      "headers": {
+        "User-Agent": "Grok-Shell/1.2"
+      },
+      "model": "gpt-5.4",
+      "payload": "{\"model\":\"gpt-5.4\",\"input\":[]}",
+      "stream": true,
+      "upstream_status": 200,
+      "upstream_type": "text/event-stream",
+      "upstream_body": "event: keepalive\ndata: {\"type\":\"keepalive\"}\n\ndata: {\"type\":\"response.created\",\"response\":{\"id\":\"r\"}}\n\n: ping\ndata:  {\"type\":\"keepalive\",\"n\":1} \n\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"r\",\"output\":[]}}\n\n",
+      "upstream": {
+        "method": "POST",
+        "path": "/responses",
+        "headers": {
+          "accept": [
+            "text/event-stream"
+          ],
+          "accept-encoding": [
+            "gzip"
+          ],
+          "authorization": [
+            "Bearer at-FAKE"
+          ],
+          "chatgpt-account-id": [
+            "acct-FAKE-1"
+          ],
+          "connection": [
+            "Keep-Alive"
+          ],
+          "content-length": [
+            "108"
+          ],
+          "content-type": [
+            "application/json"
+          ],
+          "originator": [
+            "codex-tui"
+          ],
+          "user-agent": [
+            "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
+          ],
+          "x-codex-routing-hint": [
+            "model=gpt-5.4"
+          ]
+        },
+        "body": "{\"model\":\"gpt-5.4\",\"input\":[],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}]}"
+      },
+      "output": {
+        "chunks": [
+          ": keepalive\n\n",
+          ": keepalive\n\n",
+          "",
+          "data: {\"type\":\"response.created\",\"response\":{\"id\":\"r\"}}",
+          "",
+          ": ping",
+          ": keepalive\n\n",
+          "",
+          "data: {\"type\":\"response.completed\",\"response\":{\"id\":\"r\",\"output\":[]}}"
+        ]
+      }
+    },
+    {
+      "name": "oauth_non_grok_keepalive",
+      "config": "{}\n",
+      "attributes": {},
+      "metadata": {
+        "access_token": "at-FAKE",
+        "account_id": "acct-FAKE-1",
+        "email": "user@example.invalid",
+        "type": "codex"
+      },
+      "source": "codex",
+      "headers": {
+        "User-Agent": "codex_cli_rs/0.150.0"
+      },
+      "model": "gpt-5.4",
+      "payload": "{\"model\":\"gpt-5.4\",\"input\":[]}",
+      "stream": true,
+      "upstream_status": 200,
+      "upstream_type": "text/event-stream",
+      "upstream_body": "event: keepalive\ndata: {\"type\":\"keepalive\"}\n\ndata: {\"type\":\"response.created\",\"response\":{\"id\":\"r\"}}\n\n: ping\ndata:  {\"type\":\"keepalive\",\"n\":1} \n\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"r\",\"output\":[]}}\n\n",
+      "upstream": {
+        "method": "POST",
+        "path": "/responses",
+        "headers": {
+          "accept": [
+            "text/event-stream"
+          ],
+          "accept-encoding": [
+            "gzip"
+          ],
+          "authorization": [
+            "Bearer at-FAKE"
+          ],
+          "chatgpt-account-id": [
+            "acct-FAKE-1"
+          ],
+          "connection": [
+            "Keep-Alive"
+          ],
+          "content-length": [
+            "108"
+          ],
+          "content-type": [
+            "application/json"
+          ],
+          "originator": [
+            "codex-tui"
+          ],
+          "user-agent": [
+            "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
+          ],
+          "x-codex-routing-hint": [
+            "model=gpt-5.4"
+          ]
+        },
+        "body": "{\"model\":\"gpt-5.4\",\"input\":[],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}]}"
+      },
+      "output": {
+        "chunks": [
+          "event: keepalive",
+          "data: {\"type\":\"keepalive\"}",
+          "",
+          "data: {\"type\":\"response.created\",\"response\":{\"id\":\"r\"}}",
+          "",
+          ": ping",
+          "data: {\"type\":\"keepalive\",\"n\":1}",
+          "",
+          "data: {\"type\":\"response.completed\",\"response\":{\"id\":\"r\",\"output\":[]}}"
+        ]
+      }
+    },
+    {
+      "name": "oauth_grok_keepalive_bootstrap",
+      "config": "codex:\n  stream-bootstrap-buffering: true\n",
+      "attributes": {},
+      "metadata": {
+        "access_token": "at-FAKE",
+        "account_id": "acct-FAKE-1",
+        "email": "user@example.invalid",
+        "type": "codex"
+      },
+      "source": "codex",
+      "headers": {
+        "User-Agent": "grok-pager"
+      },
+      "model": "gpt-5.4",
+      "payload": "{\"model\":\"gpt-5.4\",\"input\":[]}",
+      "stream": true,
+      "upstream_status": 200,
+      "upstream_type": "text/event-stream",
+      "upstream_body": "event: keepalive\ndata: {\"type\":\"keepalive\"}\n\ndata: {\"type\":\"response.created\",\"response\":{\"id\":\"r\"}}\n\n: ping\ndata:  {\"type\":\"keepalive\",\"n\":1} \n\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"r\",\"output\":[]}}\n\n",
+      "upstream": {
+        "method": "POST",
+        "path": "/responses",
+        "headers": {
+          "accept": [
+            "text/event-stream"
+          ],
+          "accept-encoding": [
+            "gzip"
+          ],
+          "authorization": [
+            "Bearer at-FAKE"
+          ],
+          "chatgpt-account-id": [
+            "acct-FAKE-1"
+          ],
+          "connection": [
+            "Keep-Alive"
+          ],
+          "content-length": [
+            "108"
+          ],
+          "content-type": [
+            "application/json"
+          ],
+          "originator": [
+            "codex-tui"
+          ],
+          "user-agent": [
+            "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
+          ],
+          "x-codex-routing-hint": [
+            "model=gpt-5.4"
+          ]
+        },
+        "body": "{\"model\":\"gpt-5.4\",\"input\":[],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}]}"
+      },
+      "output": {
+        "chunks": [
+          ": keepalive\n\n",
+          ": keepalive\n\n",
+          "",
+          "data: {\"type\":\"response.created\",\"response\":{\"id\":\"r\"}}",
+          "",
+          ": ping",
+          ": keepalive\n\n",
+          "",
+          "data: {\"type\":\"response.completed\",\"response\":{\"id\":\"r\",\"output\":[]}}"
+        ]
       }
     },
     {

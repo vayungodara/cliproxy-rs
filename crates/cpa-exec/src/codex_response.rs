@@ -671,6 +671,8 @@ pub(crate) struct Processor {
     replay: Option<(std::sync::Arc<crate::codex_replay::Cache>, crate::codex_replay::Scope)>,
     /// Usage records see every upstream payload in Codex format (`observeCodexTokenEvent`).
     usage: cpa_core::exec::UsageSink,
+    /// Grok Build clients get keepalive events as SSE comments (`grokbuild`).
+    grok_keepalive: bool,
 }
 
 impl Processor {
@@ -685,7 +687,15 @@ impl Processor {
             restore: false,
             replay: None,
             usage: Default::default(),
+            grok_keepalive: false,
         }
+    }
+
+    /// `grokbuild.TransformKeepaliveSSELine` for a Grok Build client (`User-Agent` with
+    /// `grok-pager` or `grok-shell`).
+    pub fn grok_keepalive(mut self, headers: &http::HeaderMap) -> Self {
+        self.grok_keepalive = is_grok_client(headers);
+        self
     }
 
     /// Reports each upstream payload to the attempt's usage record.
@@ -729,9 +739,19 @@ impl Processor {
         let text = String::from_utf8_lossy(event);
         let mut lines = Vec::new();
         let mut terminal = false;
+        // Go writes each keepalive comment as its own SSE frame.
+        let mut after_comment = false;
         self.last_bufferable = true;
         for line in text.split('\n').map(|l| l.strip_suffix('\r').unwrap_or(l)) {
             if line.is_empty() {
+                continue;
+            }
+            if after_comment {
+                lines.push(String::new());
+            }
+            after_comment = self.grok_keepalive && is_keepalive_line(line);
+            if after_comment {
+                lines.push(": keepalive".to_owned());
                 continue;
             }
             let Some(data) = line.strip_prefix("data:") else {
@@ -829,6 +849,25 @@ impl Processor {
         }
         Ok(None)
     }
+}
+
+/// `grokbuild.IsGrokClientHeaders`: any `User-Agent` value naming Grok Pager or Shell.
+pub(crate) fn is_grok_client(headers: &http::HeaderMap) -> bool {
+    headers.get_all(http::header::USER_AGENT).iter().any(|v| {
+        let ua = String::from_utf8_lossy(v.as_bytes()).to_lowercase();
+        ua.contains("grok-pager") || ua.contains("grok-shell")
+    })
+}
+
+/// `grokbuild.IsKeepaliveSSELine`: `event: keepalive` or a `keepalive` data payload.
+fn is_keepalive_line(line: &str) -> bool {
+    let trimmed = line.trim();
+    if let Some(name) = trimmed.strip_prefix("event:") {
+        return name.trim() == "keepalive";
+    }
+    trimmed
+        .strip_prefix("data:")
+        .is_some_and(|data| gjson::get(data.trim(), "type").str() == "keepalive")
 }
 
 /// `RestoreCodexMultiAgentV2Response` on one upstream payload when the request was

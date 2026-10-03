@@ -427,6 +427,10 @@ func executorCases() []execCase {
 		"Session_id": "sess-FAKE", "X-Codex-Turn-Metadata": `{"turn":1}`, "X-Client-Request-Id": "req-FAKE",
 		"Authorization": "Bearer client-key-FAKE", "X-Codex-Beta-Features": "beta-a",
 	}
+	grokKeepalive := "event: keepalive\ndata: {\"type\":\"keepalive\"}\n\n" +
+		"data: {\"type\":\"response.created\",\"response\":{\"id\":\"r\"}}\n\n" +
+		": ping\ndata:  {\"type\":\"keepalive\",\"n\":1} \n\n" +
+		"data: {\"type\":\"response.completed\",\"response\":{\"id\":\"r\",\"output\":[]}}\n\n"
 	claudeThinking := `{"model":"claude-x","max_tokens":64,"messages":[{"role":"user","content":"hi"},{"role":"assistant","content":[{"type":"thinking","thinking":"plan","signature":""},{"type":"text","text":"ok"}]},{"role":"user","content":"go"}],"thinking":{"type":"enabled","budget_tokens":2048}}`
 	native := `{"model":"gpt-5.4","instructions":"be brief","input":[{"type":"message","role":"user","content":[{"type":"input_text","text":"hi"}]}],"tools":[{"type":"function","name":"shell","parameters":{"type":"object","properties":{}}}],"tool_choice":"auto","parallel_tool_calls":true,"reasoning":{"effort":"high","summary":"auto"},"store":false,"stream":true,"include":["reasoning.encrypted_content"],"prompt_cache_key":"pck-FAKE","previous_response_id":"resp_0","safety_identifier":"sid","prompt_cache_retention":"24h","stream_options":{"include_obfuscation":false,"reasoning_summary_delivery":"inline"},"service_tier":"priority"}`
 	return []execCase{
@@ -511,6 +515,15 @@ func executorCases() []execCase {
 		{Name: "oauth_claude_nonstream_empty_translation", Attributes: map[string]string{}, Metadata: oauthMeta, Source: "claude", Headers: map[string]string{},
 			Model: "gpt-5.4", Payload: `{"model":"claude-x","max_tokens":64,"messages":[{"role":"user","content":"hi"}]}`,
 			UpstreamStatus: 200, UpstreamType: "text/event-stream", UpstreamBody: "data: {\"type\":\"response.completed\"}\n\n"},
+		{Name: "oauth_grok_client_keepalive", Attributes: map[string]string{}, Metadata: oauthMeta, Source: "codex",
+			Headers: map[string]string{"User-Agent": "Grok-Shell/1.2"}, Model: "gpt-5.4", Payload: `{"model":"gpt-5.4","input":[]}`, Stream: true,
+			UpstreamStatus: 200, UpstreamType: "text/event-stream", UpstreamBody: grokKeepalive},
+		{Name: "oauth_non_grok_keepalive", Attributes: map[string]string{}, Metadata: oauthMeta, Source: "codex",
+			Headers: map[string]string{"User-Agent": "codex_cli_rs/0.150.0"}, Model: "gpt-5.4", Payload: `{"model":"gpt-5.4","input":[]}`, Stream: true,
+			UpstreamStatus: 200, UpstreamType: "text/event-stream", UpstreamBody: grokKeepalive},
+		{Name: "oauth_grok_keepalive_bootstrap", Config: "codex:\n  stream-bootstrap-buffering: true\n", Attributes: map[string]string{}, Metadata: oauthMeta, Source: "codex",
+			Headers: map[string]string{"User-Agent": "grok-pager"}, Model: "gpt-5.4", Payload: `{"model":"gpt-5.4","input":[]}`, Stream: true,
+			UpstreamStatus: 200, UpstreamType: "text/event-stream", UpstreamBody: grokKeepalive},
 		{Name: "oauth_bootstrap_holds_then_releases", Config: "codex:\n  stream-bootstrap-buffering: true\n", Attributes: map[string]string{}, Metadata: oauthMeta,
 			Source: "codex", Headers: map[string]string{}, Model: "gpt-5.4", Payload: `{"model":"gpt-5.4","input":[]}`, Stream: true,
 			UpstreamStatus: 200, UpstreamType: "text/event-stream",
