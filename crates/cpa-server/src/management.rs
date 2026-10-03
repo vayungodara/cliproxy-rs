@@ -464,7 +464,7 @@ pub(crate) fn config_sync(state: &Management, path: &str, method: Method, body: 
     let basis = doc.migrated_text(&original).unwrap_or_else(|| original.clone());
     let archived = doc.archive_unknown();
     // Go keys this on the matched route: `/config/config.yaml` is a key lookup.
-    let yaml = path.ends_with("/management/config.yaml");
+    let yaml = matches!(path, "/v8/management/config.yaml" | "/v0/management/config.yaml");
     let suffix = path
         .strip_prefix("/v8/management/config/")
         .unwrap_or_default()

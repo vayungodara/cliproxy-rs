@@ -178,10 +178,43 @@ fn normalize_callback_provider(provider: &str) -> Option<String> {
 
 /// Go `oauthSessionErrorWithCause`.
 fn with_cause(message: &str, cause: &str) -> String {
-    match cause.trim() {
+    match redact_upstream(cause).trim() {
         "" => message.to_owned(),
         detail => format!("{message}: {detail}"),
     }
+}
+
+/// Cuts upstream-supplied text from a login failure cause: a response body after its
+/// status, and an OAuth error description after its error code. Go keeps them, but
+/// they can carry tokens and session errors are readable by anyone holding the state
+/// (the key-less callback); the fixed message, status and error code remain.
+fn redact_upstream(cause: &str) -> String {
+    for marker in ["with status ", "(HTTP "] {
+        if let Some(i) = cause.find(marker) {
+            let start = i + marker.len();
+            let mut end = start + cause[start..].bytes().take_while(u8::is_ascii_digit).count();
+            if marker == "(HTTP " && cause[end..].starts_with(')') {
+                end += 1;
+            }
+            return cause[..end].to_owned();
+        }
+    }
+    for marker in [
+        "error from authorization server: ",
+        "device token error: ",
+        "OAuth error: ",
+    ] {
+        if let Some(i) = cause.find(marker) {
+            let start = i + marker.len();
+            let code: String = cause[start..]
+                .chars()
+                .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
+                .take(64)
+                .collect();
+            return format!("{}{code}", &cause[..start]);
+        }
+    }
+    cause.to_owned()
 }
 
 fn exec_text(e: &ExecError) -> String {
@@ -505,6 +538,8 @@ async fn start_devin(state: Arc<Management>) -> Response {
     let worker = state.clone();
     let flow = sid.clone();
     tokio::spawn(async move {
+        // Go runs the whole flow under one five-minute context.
+        let deadline = tokio::time::Instant::now() + CALLBACK_WAIT;
         let Some(cb) = next_callback(&worker, &flow, "devin").await else {
             return;
         };
@@ -523,14 +558,24 @@ async fn start_devin(state: Arc<Management>) -> Response {
             return fail("Missing authorization code");
         }
         // Upstream errors can carry tokens or codes: only Go's fixed messages surface.
-        let token = match auth.exchange_code(&cb.code, &pkce.verifier).await {
-            Ok(token) if !token.trim().is_empty() => token,
+        let exchanged = tokio::select! {
+            r = auth.exchange_code(&cb.code, &pkce.verifier) => r.ok(),
+            () = tokio::time::sleep_until(deadline) => None,
+            () = cancelled(&worker, &flow, "devin") => return,
+        };
+        let token = match exchanged {
+            Some(token) if !token.trim().is_empty() => token,
             _ => return fail("Failed to exchange authorization code for tokens"),
         };
         if !worker.oauth.is_pending(&flow, "devin") {
             return;
         }
-        let Ok(record) = auth.create_auth_record(&token).await else {
+        let created = tokio::select! {
+            r = auth.create_auth_record(&token) => r.ok(),
+            () = tokio::time::sleep_until(deadline) => None,
+            () = cancelled(&worker, &flow, "devin") => return,
+        };
+        let Some(record) = created else {
             return fail("Failed to create Devin authentication record");
         };
         let write = |dir: PathBuf, record| save_record(&dir, &record);
@@ -1061,6 +1106,41 @@ fn redirect_query(raw: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn session_causes_drop_upstream_bodies_and_descriptions() {
+        for (cause, want) in [
+            (
+                r#"xai device token request failed with status 500: {"access_token":"sentinel"}"#,
+                "xai device token request failed with status 500",
+            ),
+            (
+                "xai device token error: invalid_grant: sentinel-description",
+                "xai device token error: invalid_grant",
+            ),
+            ("xai device token error: weird", "xai device token error: weird"),
+            (
+                "meta device flow failed (HTTP 401): sentinel-body",
+                "meta device flow failed (HTTP 401)",
+            ),
+            (
+                "meta auth: error from authorization server: server_error: sentinel",
+                "meta auth: error from authorization server: server_error",
+            ),
+            ("kimi: OAuth error: bad_code - sentinel", "kimi: OAuth error: bad_code"),
+            ("kimi: OAuth error: sentinel$token!", "kimi: OAuth error: sentinel"),
+            ("xai device code expired", "xai device code expired"),
+        ] {
+            assert_eq!(redact_upstream(cause), want);
+        }
+        assert_eq!(
+            with_cause(
+                "Authentication failed",
+                "kimi: device code request failed with status 400: body"
+            ),
+            "Authentication failed: kimi: device code request failed with status 400"
+        );
+    }
 
     #[test]
     fn states_and_providers_follow_go() {
