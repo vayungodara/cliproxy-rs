@@ -64,6 +64,7 @@ mod antigravity_gemini;
 mod antigravity_interactions;
 mod antigravity_responses;
 mod apply_patch;
+pub mod apply_patch_responses;
 mod claude_chat_request;
 mod claude_chat_response;
 mod claude_gemini;
@@ -106,6 +107,12 @@ pub mod sse;
 pub mod stream;
 mod thinking;
 
+#[doc(hidden)]
+pub use codex_responses::go_stream_with_bridge as codex_responses_go_stream_with_bridge;
+pub use codex_responses::{
+    non_stream_with_bridge as codex_responses_non_stream_with_bridge,
+    stream_with_bridge as codex_responses_stream_with_bridge,
+};
 pub use replay_cache::set_signature_cache_config as set_antigravity_signature_cache_config;
 
 // Go's `...WithCompat` request converters, exported beside the registered pairs for

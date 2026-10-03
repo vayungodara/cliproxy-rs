@@ -273,7 +273,20 @@ impl InputDecoder {
             return Err(self.fail(&err));
         }
         if fresh.phase != Phase::Complete {
-            return Err(self.fail("decode apply_patch arguments"));
+            // applypatch.UnwrapInput's json.Decoder.Token error for truncated arguments:
+            // `EOF` at a token boundary, `unexpected EOF` inside a token.
+            // ponytail: other malformed arguments fail with this decoder's own messages,
+            // not encoding/json's syntax-error wording. The text is internal: executors
+            // answer with the fixed APPLY_PATCH_UPSTREAM_ERROR.
+            let message = match fresh.phase {
+                Phase::BeforeObject => "decode apply_patch arguments object: EOF",
+                Phase::BeforeKey => "decode apply_patch input key: EOF",
+                Phase::InKey => "decode apply_patch input key: unexpected EOF",
+                Phase::BeforeColon | Phase::BeforeValue => "decode apply_patch input value: EOF",
+                Phase::InValue => "decode apply_patch input value: unexpected EOF",
+                Phase::AfterValue | Phase::Complete => "decode apply_patch arguments closing brace: EOF",
+            };
+            return Err(self.fail(message));
         }
         let input = fresh.input;
         if self.finished {

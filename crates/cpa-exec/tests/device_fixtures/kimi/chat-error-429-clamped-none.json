@@ -2,7 +2,7 @@
   "name": "chat-error-429-clamped-none",
   "credential": {
     "access_token": "kimi-access-fixture",
-    "base_url": "http://127.0.0.1:33969/coding",
+    "base_url": "http://127.0.0.1:40957/coding",
     "device_id": "dev-fixture-1",
     "refresh_token": "kimi-refresh-fixture",
     "type": "kimi"
@@ -36,7 +36,7 @@
       "headers": [
         [
           "Host",
-          "127.0.0.1:33969"
+          "127.0.0.1:40957"
         ],
         [
           "User-Agent",
@@ -89,5 +89,20 @@
   "downstream": {
     "err_status": 429,
     "err_body": "{\"error\":{\"message\":\"rate limited\",\"type\":\"rate_limit_error\"}}"
+  },
+  "extra": {
+    "usage": [
+      {
+        "cached_tokens": 0,
+        "failed": true,
+        "input_tokens": 0,
+        "model": "kimi-k2.7-code",
+        "output_tokens": 0,
+        "reasoning_effort": "low",
+        "reasoning_tokens": 0,
+        "response_model": "",
+        "total_tokens": 0
+      }
+    ]
   }
 }
