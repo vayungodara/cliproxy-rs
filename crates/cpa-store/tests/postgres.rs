@@ -462,3 +462,59 @@ async fn abandoned_queued_writes_never_run() {
     // ExecContext may too; the queued one never starts.
     assert_eq!(ids, vec!["a.json", "c.json"]);
 }
+
+/// Go `TestPostgresCooldownStateStore_MergesConcurrentInstances` and the `Save(nil)`
+/// step of `_SaveLoad`, against a real server: instances only clear rows they saw,
+/// and a stale instance cannot resurrect or remove a newer row.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn cooldown_instances_merge_like_go() {
+    let Some(cluster) = Cluster::start() else { return };
+    let dir = scratch("merge");
+    let store = store(&cluster, "", &dir.join("pgstore")).await;
+    store.ensure_schema().await.unwrap();
+    let (a, b, stale) = (
+        store.cooldown_backend(),
+        store.cooldown_backend(),
+        store.cooldown_backend(),
+    );
+    let resurrect = store.cooldown_backend();
+    let reader = store.cooldown_backend();
+    tokio::task::spawn_blocking(move || {
+        let updated = SystemTime::now() - Duration::from_secs(60);
+        let rec = |auth: &str, model: &str, at: SystemTime| Record {
+            auth_id: auth.into(),
+            model: model.into(),
+            updated_at: Some(at),
+            ..Default::default()
+        };
+        a.load().unwrap();
+        b.load().unwrap();
+        let now = SystemTime::now();
+        a.save(vec![rec("account-a", "model-a", updated)], now).unwrap();
+        b.save(vec![rec("account-b", "model-b", updated)], now).unwrap();
+        assert_eq!(stale.load().unwrap().len(), 2, "both instances' rows survive");
+
+        a.save(
+            vec![rec("account-a", "model-a", updated + Duration::from_secs(3600))],
+            now,
+        )
+        .unwrap();
+        // The stale instance saw account-a's older row; dropping it must not delete the
+        // newer one.
+        stale.save(vec![rec("account-b", "model-b", updated)], now).unwrap();
+        let active = resurrect.load().unwrap();
+        assert_eq!(active.len(), 2, "{active:?}");
+
+        a.save(vec![], SystemTime::now()).unwrap();
+        resurrect.save(active, SystemTime::now()).unwrap();
+        let loaded = reader.load().unwrap();
+        assert_eq!(loaded.len(), 1, "{loaded:?}");
+        assert_eq!(loaded[0].auth_id, "account-b");
+
+        // Save(nil) from an instance that saw everything clears it.
+        reader.save(vec![], SystemTime::now()).unwrap();
+        assert_eq!(reader.load().unwrap(), Vec::<Record>::new());
+    })
+    .await
+    .unwrap();
+}
