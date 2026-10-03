@@ -1,0 +1,1424 @@
+{
+ "DELETE /v0/management/api-keys": {
+  "body": "",
+  "id": "M5-0134",
+  "routed": false,
+  "status": 404
+ },
+ "DELETE /v0/management/auth-files": {
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
+  "id": "M5-0212",
+  "routed": true,
+  "status": 403
+ },
+ "DELETE /v0/management/claude-api-key": {
+  "body": "",
+  "id": "M5-0174",
+  "routed": false,
+  "status": 404
+ },
+ "DELETE /v0/management/codex-api-key": {
+  "body": "",
+  "id": "M5-0178",
+  "routed": false,
+  "status": 404
+ },
+ "DELETE /v0/management/gemini-api-key": {
+  "body": "",
+  "id": "M5-0140",
+  "routed": false,
+  "status": 404
+ },
+ "DELETE /v0/management/interactions-api-key": {
+  "body": "",
+  "id": "M5-0144",
+  "routed": false,
+  "status": 404
+ },
+ "DELETE /v0/management/logs": {
+  "body": "",
+  "id": "M5-0146",
+  "routed": false,
+  "status": 404
+ },
+ "DELETE /v0/management/meta-api-key": {
+  "body": "",
+  "id": "M5-0186",
+  "routed": false,
+  "status": 404
+ },
+ "DELETE /v0/management/oauth-excluded-models": {
+  "body": "",
+  "id": "M5-0198",
+  "routed": false,
+  "status": 404
+ },
+ "DELETE /v0/management/oauth-model-alias": {
+  "body": "",
+  "id": "M5-0202",
+  "routed": false,
+  "status": 404
+ },
+ "DELETE /v0/management/oauth-request-scoped-errors": {
+  "body": "",
+  "id": "M5-0206",
+  "routed": false,
+  "status": 404
+ },
+ "DELETE /v0/management/oauth-session": {
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
+  "id": "M5-0226",
+  "routed": true,
+  "status": 403
+ },
+ "DELETE /v0/management/openai-compatibility": {
+  "body": "",
+  "id": "M5-0190",
+  "routed": false,
+  "status": 404
+ },
+ "DELETE /v0/management/plugins/:id": {
+  "body": "",
+  "id": "M5-0092",
+  "routed": false,
+  "status": 404
+ },
+ "DELETE /v0/management/plugins/:id/quota": {
+  "body": "",
+  "id": "M5-0099",
+  "routed": false,
+  "status": 404
+ },
+ "DELETE /v0/management/proxy-url": {
+  "body": "",
+  "id": "M5-0119",
+  "routed": false,
+  "status": 404
+ },
+ "DELETE /v0/management/vertex-api-key": {
+  "body": "",
+  "id": "M5-0194",
+  "routed": false,
+  "status": 404
+ },
+ "DELETE /v0/management/xai-api-key": {
+  "body": "",
+  "id": "M5-0182",
+  "routed": false,
+  "status": 404
+ },
+ "DELETE /v8/management/config/*path": {
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
+  "id": "M5-0052",
+  "routed": true,
+  "status": 403
+ },
+ "DELETE /v8/management/credentials": {
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
+  "id": "M5-0066",
+  "routed": true,
+  "status": 403
+ },
+ "DELETE /v8/management/oauth/session": {
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
+  "id": "M5-0075",
+  "routed": true,
+  "status": 403
+ },
+ "DELETE /v8/management/observability/logs": {
+  "body": "",
+  "id": "M5-0058",
+  "routed": false,
+  "status": 404
+ },
+ "DELETE /v8/management/plugins/:id": {
+  "body": "",
+  "id": "M5-0077",
+  "routed": false,
+  "status": 404
+ },
+ "DELETE /v8/management/plugins/:id/quota": {
+  "body": "",
+  "id": "M5-0082",
+  "routed": false,
+  "status": 404
+ },
+ "GET /": {
+  "body": "{\"endpoints\":[\"POST /v1/chat/completions\",\"POST /v1/completions\",\"GET /v1/models",
+  "id": "M1-0006",
+  "routed": true,
+  "status": 200
+ },
+ "GET /anthropic/callback": {
+  "body": "<html><head><meta charset=\"utf-8\"><title>Authentication successful</title><scrip",
+  "id": "M1-0007",
+  "routed": true,
+  "status": 200
+ },
+ "GET /antigravity/callback": {
+  "body": "<html><head><meta charset=\"utf-8\"><title>Authentication successful</title><scrip",
+  "id": "M3-0014",
+  "routed": true,
+  "status": 200
+ },
+ "GET /backend-api/codex/responses": {
+  "body": "{\"error\":\"Invalid API key\"}",
+  "id": "M5-0019",
+  "routed": true,
+  "status": 401
+ },
+ "GET /callback": {
+  "body": "{\"error\":\"code or error is required\"}",
+  "id": "M3-0015",
+  "routed": true,
+  "status": 400
+ },
+ "GET /codex/callback": {
+  "body": "<html><head><meta charset=\"utf-8\"><title>Authentication successful</title><scrip",
+  "id": "M3-0013",
+  "routed": true,
+  "status": 200
+ },
+ "GET /devin/callback": {
+  "body": "{\"error\":\"code or error is required\"}",
+  "id": "M3-0016",
+  "routed": true,
+  "status": 400
+ },
+ "GET /healthz": {
+  "body": "{\"status\":\"ok\"}",
+  "id": "M1-0001",
+  "routed": true,
+  "status": 200
+ },
+ "GET /management.html": {
+  "body": "<!doctype html>\n<html lang=\"en\" data-theme=\"dark\">\n  <head>\n    <meta charset=\"U",
+  "id": "M5-0001",
+  "routed": true,
+  "status": 200
+ },
+ "GET /openai/v1/videos/:video_id": {
+  "body": "",
+  "id": "M3-0011",
+  "routed": false,
+  "status": 404
+ },
+ "GET /openai/v1/videos/:video_id/content": {
+  "body": "",
+  "id": "M3-0010",
+  "routed": false,
+  "status": 404
+ },
+ "GET /v0/management/anthropic-auth-url": {
+  "body": "",
+  "id": "M5-0217",
+  "routed": false,
+  "status": 404
+ },
+ "GET /v0/management/antigravity-auth-url": {
+  "body": "",
+  "id": "M5-0219",
+  "routed": false,
+  "status": 404
+ },
+ "GET /v0/management/api-key-usage": {
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
+  "id": "M5-0135",
+  "routed": true,
+  "status": 403
+ },
+ "GET /v0/management/api-keys": {
+  "body": "",
+  "id": "M5-0131",
+  "routed": false,
+  "status": 404
+ },
+ "GET /v0/management/auth-files": {
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
+  "id": "M5-0207",
+  "routed": true,
+  "status": 403
+ },
+ "GET /v0/management/auth-files/download": {
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
+  "id": "M5-0210",
+  "routed": true,
+  "status": 403
+ },
+ "GET /v0/management/auth-files/models": {
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
+  "id": "M5-0208",
+  "routed": true,
+  "status": 403
+ },
+ "GET /v0/management/claude-api-key": {
+  "body": "",
+  "id": "M5-0171",
+  "routed": false,
+  "status": 404
+ },
+ "GET /v0/management/codex-api-key": {
+  "body": "",
+  "id": "M5-0175",
+  "routed": false,
+  "status": 404
+ },
+ "GET /v0/management/codex-auth-url": {
+  "body": "",
+  "id": "M5-0218",
+  "routed": false,
+  "status": 404
+ },
+ "GET /v0/management/config": {
+  "body": "",
+  "id": "M5-0085",
+  "routed": false,
+  "status": 404
+ },
+ "GET /v0/management/config.yaml": {
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
+  "id": "M5-0086",
+  "routed": true,
+  "status": 403
+ },
+ "GET /v0/management/debug": {
+  "body": "",
+  "id": "M5-0101",
+  "routed": false,
+  "status": 404
+ },
+ "GET /v0/management/devin-auth-url": {
+  "body": "",
+  "id": "M5-0223",
+  "routed": false,
+  "status": 404
+ },
+ "GET /v0/management/error-logs-max-files": {
+  "body": "",
+  "id": "M5-0110",
+  "routed": false,
+  "status": 404
+ },
+ "GET /v0/management/force-model-prefix": {
+  "body": "",
+  "id": "M5-0165",
+  "routed": false,
+  "status": 404
+ },
+ "GET /v0/management/gemini-api-key": {
+  "body": "",
+  "id": "M5-0137",
+  "routed": false,
+  "status": 404
+ },
+ "GET /v0/management/get-auth-status": {
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
+  "id": "M5-0225",
+  "routed": true,
+  "status": 403
+ },
+ "GET /v0/management/interactions-api-key": {
+  "body": "",
+  "id": "M5-0141",
+  "routed": false,
+  "status": 404
+ },
+ "GET /v0/management/kimi-ai-auth-url": {
+  "body": "",
+  "id": "M5-0221",
+  "routed": false,
+  "status": 404
+ },
+ "GET /v0/management/kimi-auth-url": {
+  "body": "",
+  "id": "M5-0220",
+  "routed": false,
+  "status": 404
+ },
+ "GET /v0/management/latest-version": {
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
+  "id": "M5-0088",
+  "routed": true,
+  "status": 403
+ },
+ "GET /v0/management/logging-to-file": {
+  "body": "",
+  "id": "M5-0104",
+  "routed": false,
+  "status": 404
+ },
+ "GET /v0/management/logs": {
+  "body": "",
+  "id": "M5-0145",
+  "routed": false,
+  "status": 404
+ },
+ "GET /v0/management/logs-max-total-size-mb": {
+  "body": "",
+  "id": "M5-0107",
+  "routed": false,
+  "status": 404
+ },
+ "GET /v0/management/max-retry-credentials": {
+  "body": "",
+  "id": "M5-0159",
+  "routed": false,
+  "status": 404
+ },
+ "GET /v0/management/max-retry-interval": {
+  "body": "",
+  "id": "M5-0162",
+  "routed": false,
+  "status": 404
+ },
+ "GET /v0/management/meta-api-key": {
+  "body": "",
+  "id": "M5-0183",
+  "routed": false,
+  "status": 404
+ },
+ "GET /v0/management/meta-auth-url": {
+  "body": "",
+  "id": "M5-0224",
+  "routed": false,
+  "status": 404
+ },
+ "GET /v0/management/model-definitions/:channel": {
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
+  "id": "M5-0209",
+  "routed": true,
+  "status": 403
+ },
+ "GET /v0/management/oauth-callback": {
+  "body": "{\"status\":\"error\",\"error\":\"state is required\"}",
+  "id": "M5-0084",
+  "routed": true,
+  "status": 400
+ },
+ "GET /v0/management/oauth-excluded-models": {
+  "body": "",
+  "id": "M5-0195",
+  "routed": false,
+  "status": 404
+ },
+ "GET /v0/management/oauth-model-alias": {
+  "body": "",
+  "id": "M5-0199",
+  "routed": false,
+  "status": 404
+ },
+ "GET /v0/management/oauth-request-scoped-errors": {
+  "body": "",
+  "id": "M5-0203",
+  "routed": false,
+  "status": 404
+ },
+ "GET /v0/management/openai-compatibility": {
+  "body": "",
+  "id": "M5-0187",
+  "routed": false,
+  "status": 404
+ },
+ "GET /v0/management/plugin-store": {
+  "body": "",
+  "id": "M5-0090",
+  "routed": false,
+  "status": 404
+ },
+ "GET /v0/management/plugins": {
+  "body": "",
+  "id": "M5-0089",
+  "routed": false,
+  "status": 404
+ },
+ "GET /v0/management/plugins/:id/config": {
+  "body": "",
+  "id": "M5-0094",
+  "routed": false,
+  "status": 404
+ },
+ "GET /v0/management/plugins/:id/quota": {
+  "body": "",
+  "id": "M5-0097",
+  "routed": false,
+  "status": 404
+ },
+ "GET /v0/management/proxy-url": {
+  "body": "",
+  "id": "M5-0116",
+  "routed": false,
+  "status": 404
+ },
+ "GET /v0/management/quota-exceeded/switch-preview-model": {
+  "body": "",
+  "id": "M5-0124",
+  "routed": false,
+  "status": 404
+ },
+ "GET /v0/management/quota-exceeded/switch-project": {
+  "body": "",
+  "id": "M5-0121",
+  "routed": false,
+  "status": 404
+ },
+ "GET /v0/management/quota/providers": {
+  "body": "",
+  "id": "M5-0128",
+  "routed": false,
+  "status": 404
+ },
+ "GET /v0/management/request-error-logs": {
+  "body": "",
+  "id": "M5-0147",
+  "routed": false,
+  "status": 404
+ },
+ "GET /v0/management/request-error-logs/:name": {
+  "body": "",
+  "id": "M5-0148",
+  "routed": false,
+  "status": 404
+ },
+ "GET /v0/management/request-log": {
+  "body": "",
+  "id": "M5-0150",
+  "routed": false,
+  "status": 404
+ },
+ "GET /v0/management/request-log-by-id/:id": {
+  "body": "",
+  "id": "M5-0149",
+  "routed": false,
+  "status": 404
+ },
+ "GET /v0/management/request-retry": {
+  "body": "",
+  "id": "M5-0156",
+  "routed": false,
+  "status": 404
+ },
+ "GET /v0/management/routing/strategy": {
+  "body": "",
+  "id": "M5-0168",
+  "routed": false,
+  "status": 404
+ },
+ "GET /v0/management/usage-queue": {
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
+  "id": "M5-0136",
+  "routed": true,
+  "status": 403
+ },
+ "GET /v0/management/usage-statistics-enabled": {
+  "body": "",
+  "id": "M5-0113",
+  "routed": false,
+  "status": 404
+ },
+ "GET /v0/management/vertex-api-key": {
+  "body": "",
+  "id": "M5-0191",
+  "routed": false,
+  "status": 404
+ },
+ "GET /v0/management/ws-auth": {
+  "body": "",
+  "id": "M5-0153",
+  "routed": false,
+  "status": 404
+ },
+ "GET /v0/management/xai-api-key": {
+  "body": "",
+  "id": "M5-0179",
+  "routed": false,
+  "status": 404
+ },
+ "GET /v0/management/xai-auth-url": {
+  "body": "",
+  "id": "M5-0222",
+  "routed": false,
+  "status": 404
+ },
+ "GET /v1/live/:call_id": {
+  "body": "",
+  "id": "M5-0004",
+  "routed": false,
+  "status": 404
+ },
+ "GET /v1/models": {
+  "body": "{\"error\":\"Invalid API key\"}",
+  "id": "M1-0003",
+  "routed": true,
+  "status": 401
+ },
+ "GET /v1/realtime": {
+  "body": "",
+  "id": "M5-0005",
+  "routed": false,
+  "status": 404
+ },
+ "GET /v1/realtime/calls/:call_id": {
+  "body": "",
+  "id": "M5-0008",
+  "routed": false,
+  "status": 404
+ },
+ "GET /v1/realtime/translations": {
+  "body": "",
+  "id": "M5-0012",
+  "routed": false,
+  "status": 404
+ },
+ "GET /v1/responses": {
+  "body": "{\"error\":\"Invalid API key\"}",
+  "id": "M5-0002",
+  "routed": true,
+  "status": 401
+ },
+ "GET /v1/videos/:request_id": {
+  "body": "",
+  "id": "M3-0007",
+  "routed": false,
+  "status": 404
+ },
+ "GET /v1beta/models": {
+  "body": "{\"error\":\"Invalid API key\"}",
+  "id": "M2-0007",
+  "routed": true,
+  "status": 401
+ },
+ "GET /v1beta/models/*action": {
+  "body": "{\"error\":\"Invalid API key\"}",
+  "id": "M2-0010",
+  "routed": true,
+  "status": 401
+ },
+ "GET /v8/management/config": {
+  "body": "{\"error\":\"invalid management key\"}",
+  "id": "M5-0044",
+  "routed": true,
+  "status": 401
+ },
+ "GET /v8/management/config.yaml": {
+  "body": "{\"error\":\"invalid management key\"}",
+  "id": "M5-0047",
+  "routed": true,
+  "status": 401
+ },
+ "GET /v8/management/config/*path": {
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
+  "id": "M5-0049",
+  "routed": true,
+  "status": 403
+ },
+ "GET /v8/management/credentials": {
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
+  "id": "M5-0064",
+  "routed": true,
+  "status": 403
+ },
+ "GET /v8/management/credentials/download": {
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
+  "id": "M5-0068",
+  "routed": true,
+  "status": 403
+ },
+ "GET /v8/management/credentials/models": {
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
+  "id": "M5-0067",
+  "routed": true,
+  "status": 403
+ },
+ "GET /v8/management/oauth/auth-url": {
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
+  "id": "M5-0073",
+  "routed": true,
+  "status": 403
+ },
+ "GET /v8/management/oauth/callback": {
+  "body": "{\"status\":\"error\",\"error\":\"state is required\"}",
+  "id": "M5-0042",
+  "routed": true,
+  "status": 400
+ },
+ "GET /v8/management/oauth/status": {
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
+  "id": "M5-0074",
+  "routed": true,
+  "status": 403
+ },
+ "GET /v8/management/observability/logs": {
+  "body": "",
+  "id": "M5-0057",
+  "routed": false,
+  "status": 404
+ },
+ "GET /v8/management/observability/logs/errors": {
+  "body": "",
+  "id": "M5-0059",
+  "routed": false,
+  "status": 404
+ },
+ "GET /v8/management/observability/logs/errors/:name": {
+  "body": "",
+  "id": "M5-0060",
+  "routed": false,
+  "status": 404
+ },
+ "GET /v8/management/observability/logs/requests/:id": {
+  "body": "",
+  "id": "M5-0061",
+  "routed": false,
+  "status": 404
+ },
+ "GET /v8/management/observability/usage/api-keys": {
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
+  "id": "M5-0062",
+  "routed": true,
+  "status": 403
+ },
+ "GET /v8/management/observability/usage/queue": {
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
+  "id": "M5-0063",
+  "routed": true,
+  "status": 403
+ },
+ "GET /v8/management/plugins": {
+  "body": "",
+  "id": "M5-0076",
+  "routed": false,
+  "status": 404
+ },
+ "GET /v8/management/plugins/:id/quota": {
+  "body": "",
+  "id": "M5-0080",
+  "routed": false,
+  "status": 404
+ },
+ "GET /v8/management/plugins/store": {
+  "body": "",
+  "id": "M5-0078",
+  "routed": false,
+  "status": 404
+ },
+ "GET /v8/management/routing/model-definitions/:channel": {
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
+  "id": "M5-0056",
+  "routed": true,
+  "status": 403
+ },
+ "GET /v8/management/server/latest-version": {
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
+  "id": "M5-0053",
+  "routed": true,
+  "status": 403
+ },
+ "HEAD /healthz": {
+  "body": "",
+  "id": "M1-0002",
+  "routed": true,
+  "status": 200
+ },
+ "PATCH /v0/management/api-keys": {
+  "body": "",
+  "id": "M5-0133",
+  "routed": false,
+  "status": 404
+ },
+ "PATCH /v0/management/auth-files/fields": {
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
+  "id": "M5-0214",
+  "routed": true,
+  "status": 403
+ },
+ "PATCH /v0/management/auth-files/status": {
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
+  "id": "M5-0213",
+  "routed": true,
+  "status": 403
+ },
+ "PATCH /v0/management/claude-api-key": {
+  "body": "",
+  "id": "M5-0173",
+  "routed": false,
+  "status": 404
+ },
+ "PATCH /v0/management/codex-api-key": {
+  "body": "",
+  "id": "M5-0177",
+  "routed": false,
+  "status": 404
+ },
+ "PATCH /v0/management/debug": {
+  "body": "",
+  "id": "M5-0103",
+  "routed": false,
+  "status": 404
+ },
+ "PATCH /v0/management/error-logs-max-files": {
+  "body": "",
+  "id": "M5-0112",
+  "routed": false,
+  "status": 404
+ },
+ "PATCH /v0/management/force-model-prefix": {
+  "body": "",
+  "id": "M5-0167",
+  "routed": false,
+  "status": 404
+ },
+ "PATCH /v0/management/gemini-api-key": {
+  "body": "",
+  "id": "M5-0139",
+  "routed": false,
+  "status": 404
+ },
+ "PATCH /v0/management/interactions-api-key": {
+  "body": "",
+  "id": "M5-0143",
+  "routed": false,
+  "status": 404
+ },
+ "PATCH /v0/management/logging-to-file": {
+  "body": "",
+  "id": "M5-0106",
+  "routed": false,
+  "status": 404
+ },
+ "PATCH /v0/management/logs-max-total-size-mb": {
+  "body": "",
+  "id": "M5-0109",
+  "routed": false,
+  "status": 404
+ },
+ "PATCH /v0/management/max-retry-credentials": {
+  "body": "",
+  "id": "M5-0161",
+  "routed": false,
+  "status": 404
+ },
+ "PATCH /v0/management/max-retry-interval": {
+  "body": "",
+  "id": "M5-0164",
+  "routed": false,
+  "status": 404
+ },
+ "PATCH /v0/management/meta-api-key": {
+  "body": "",
+  "id": "M5-0185",
+  "routed": false,
+  "status": 404
+ },
+ "PATCH /v0/management/oauth-excluded-models": {
+  "body": "",
+  "id": "M5-0197",
+  "routed": false,
+  "status": 404
+ },
+ "PATCH /v0/management/oauth-model-alias": {
+  "body": "",
+  "id": "M5-0201",
+  "routed": false,
+  "status": 404
+ },
+ "PATCH /v0/management/oauth-request-scoped-errors": {
+  "body": "",
+  "id": "M5-0205",
+  "routed": false,
+  "status": 404
+ },
+ "PATCH /v0/management/openai-compatibility": {
+  "body": "",
+  "id": "M5-0189",
+  "routed": false,
+  "status": 404
+ },
+ "PATCH /v0/management/plugins/:id/config": {
+  "body": "",
+  "id": "M5-0096",
+  "routed": false,
+  "status": 404
+ },
+ "PATCH /v0/management/plugins/:id/enabled": {
+  "body": "",
+  "id": "M5-0093",
+  "routed": false,
+  "status": 404
+ },
+ "PATCH /v0/management/proxy-url": {
+  "body": "",
+  "id": "M5-0118",
+  "routed": false,
+  "status": 404
+ },
+ "PATCH /v0/management/quota-exceeded/switch-preview-model": {
+  "body": "",
+  "id": "M5-0126",
+  "routed": false,
+  "status": 404
+ },
+ "PATCH /v0/management/quota-exceeded/switch-project": {
+  "body": "",
+  "id": "M5-0123",
+  "routed": false,
+  "status": 404
+ },
+ "PATCH /v0/management/request-log": {
+  "body": "",
+  "id": "M5-0152",
+  "routed": false,
+  "status": 404
+ },
+ "PATCH /v0/management/request-retry": {
+  "body": "",
+  "id": "M5-0158",
+  "routed": false,
+  "status": 404
+ },
+ "PATCH /v0/management/routing/strategy": {
+  "body": "",
+  "id": "M5-0170",
+  "routed": false,
+  "status": 404
+ },
+ "PATCH /v0/management/usage-statistics-enabled": {
+  "body": "",
+  "id": "M5-0115",
+  "routed": false,
+  "status": 404
+ },
+ "PATCH /v0/management/vertex-api-key": {
+  "body": "",
+  "id": "M5-0193",
+  "routed": false,
+  "status": 404
+ },
+ "PATCH /v0/management/ws-auth": {
+  "body": "",
+  "id": "M5-0155",
+  "routed": false,
+  "status": 404
+ },
+ "PATCH /v0/management/xai-api-key": {
+  "body": "",
+  "id": "M5-0181",
+  "routed": false,
+  "status": 404
+ },
+ "PATCH /v8/management/config": {
+  "body": "{\"error\":\"invalid management key\"}",
+  "id": "M5-0046",
+  "routed": true,
+  "status": 401
+ },
+ "PATCH /v8/management/config/*path": {
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
+  "id": "M5-0051",
+  "routed": true,
+  "status": 403
+ },
+ "PATCH /v8/management/credentials/fields": {
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
+  "id": "M5-0070",
+  "routed": true,
+  "status": 403
+ },
+ "PATCH /v8/management/credentials/status": {
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
+  "id": "M5-0069",
+  "routed": true,
+  "status": 403
+ },
+ "POST /backend-api/codex/alpha/search": {
+  "body": "{\"error\":\"Invalid API key\"}",
+  "id": "M3-0012",
+  "routed": true,
+  "status": 401
+ },
+ "POST /backend-api/codex/responses": {
+  "body": "{\"error\":\"Invalid API key\"}",
+  "id": "M2-0005",
+  "routed": true,
+  "status": 401
+ },
+ "POST /backend-api/codex/responses/compact": {
+  "body": "{\"error\":\"Invalid API key\"}",
+  "id": "M2-0006",
+  "routed": true,
+  "status": 401
+ },
+ "POST /openai/v1/videos": {
+  "body": "",
+  "id": "M3-0009",
+  "routed": false,
+  "status": 404
+ },
+ "POST /v0/management/api-call": {
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
+  "id": "M5-0120",
+  "routed": true,
+  "status": 403
+ },
+ "POST /v0/management/auth-files": {
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
+  "id": "M5-0211",
+  "routed": true,
+  "status": 403
+ },
+ "POST /v0/management/auth-files/refresh": {
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
+  "id": "M5-0215",
+  "routed": true,
+  "status": 403
+ },
+ "POST /v0/management/oauth-callback": {
+  "body": "{\"status\":\"error\",\"error\":\"state is required\"}",
+  "id": "M5-0083",
+  "routed": true,
+  "status": 400
+ },
+ "POST /v0/management/plugin-store/:id/install": {
+  "body": "",
+  "id": "M5-0091",
+  "routed": false,
+  "status": 404
+ },
+ "POST /v0/management/plugins/:id/quota": {
+  "body": "",
+  "id": "M5-0098",
+  "routed": false,
+  "status": 404
+ },
+ "POST /v0/management/plugins/:id/quota/reset": {
+  "body": "",
+  "id": "M5-0100",
+  "routed": false,
+  "status": 404
+ },
+ "POST /v0/management/quota/fetch": {
+  "body": "",
+  "id": "M5-0129",
+  "routed": false,
+  "status": 404
+ },
+ "POST /v0/management/quota/reset": {
+  "body": "",
+  "id": "M5-0130",
+  "routed": false,
+  "status": 404
+ },
+ "POST /v0/management/reset-quota": {
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
+  "id": "M5-0127",
+  "routed": true,
+  "status": 403
+ },
+ "POST /v0/management/vertex/import": {
+  "body": "",
+  "id": "M5-0216",
+  "routed": false,
+  "status": 404
+ },
+ "POST /v1/alpha/search": {
+  "body": "{\"error\":\"Invalid API key\"}",
+  "id": "M3-0008",
+  "routed": true,
+  "status": 401
+ },
+ "POST /v1/chat/completions": {
+  "body": "{\"error\":\"Invalid API key\"}",
+  "id": "M2-0001",
+  "routed": true,
+  "status": 401
+ },
+ "POST /v1/completions": {
+  "body": "{\"error\":\"Invalid API key\"}",
+  "id": "M2-0002",
+  "routed": true,
+  "status": 401
+ },
+ "POST /v1/images/edits": {
+  "body": "",
+  "id": "M3-0002",
+  "routed": false,
+  "status": 404
+ },
+ "POST /v1/images/generations": {
+  "body": "",
+  "id": "M3-0001",
+  "routed": false,
+  "status": 404
+ },
+ "POST /v1/live": {
+  "body": "",
+  "id": "M5-0003",
+  "routed": false,
+  "status": 404
+ },
+ "POST /v1/messages": {
+  "body": "{\"error\":\"Invalid API key\"}",
+  "id": "M1-0004",
+  "routed": true,
+  "status": 401
+ },
+ "POST /v1/messages/count_tokens": {
+  "body": "{\"error\":\"Invalid API key\"}",
+  "id": "M1-0005",
+  "routed": true,
+  "status": 401
+ },
+ "POST /v1/realtime": {
+  "body": "",
+  "id": "M5-0006",
+  "routed": false,
+  "status": 404
+ },
+ "POST /v1/realtime/calls": {
+  "body": "",
+  "id": "M5-0007",
+  "routed": false,
+  "status": 404
+ },
+ "POST /v1/realtime/calls/:call_id/accept": {
+  "body": "",
+  "id": "M5-0016",
+  "routed": false,
+  "status": 404
+ },
+ "POST /v1/realtime/calls/:call_id/hangup": {
+  "body": "",
+  "id": "M5-0015",
+  "routed": false,
+  "status": 404
+ },
+ "POST /v1/realtime/calls/:call_id/refer": {
+  "body": "",
+  "id": "M5-0018",
+  "routed": false,
+  "status": 404
+ },
+ "POST /v1/realtime/calls/:call_id/reject": {
+  "body": "",
+  "id": "M5-0017",
+  "routed": false,
+  "status": 404
+ },
+ "POST /v1/realtime/client_secrets": {
+  "body": "",
+  "id": "M5-0009",
+  "routed": false,
+  "status": 404
+ },
+ "POST /v1/realtime/sessions": {
+  "body": "",
+  "id": "M5-0010",
+  "routed": false,
+  "status": 404
+ },
+ "POST /v1/realtime/transcription_sessions": {
+  "body": "",
+  "id": "M5-0011",
+  "routed": false,
+  "status": 404
+ },
+ "POST /v1/realtime/translations": {
+  "body": "",
+  "id": "M5-0013",
+  "routed": false,
+  "status": 404
+ },
+ "POST /v1/realtime/translations/client_secrets": {
+  "body": "",
+  "id": "M5-0014",
+  "routed": false,
+  "status": 404
+ },
+ "POST /v1/responses": {
+  "body": "{\"error\":\"Invalid API key\"}",
+  "id": "M2-0003",
+  "routed": true,
+  "status": 401
+ },
+ "POST /v1/responses/compact": {
+  "body": "{\"error\":\"Invalid API key\"}",
+  "id": "M2-0004",
+  "routed": true,
+  "status": 401
+ },
+ "POST /v1/videos": {
+  "body": "",
+  "id": "M3-0003",
+  "routed": false,
+  "status": 404
+ },
+ "POST /v1/videos/edits": {
+  "body": "",
+  "id": "M3-0005",
+  "routed": false,
+  "status": 404
+ },
+ "POST /v1/videos/extensions": {
+  "body": "",
+  "id": "M3-0006",
+  "routed": false,
+  "status": 404
+ },
+ "POST /v1/videos/generations": {
+  "body": "",
+  "id": "M3-0004",
+  "routed": false,
+  "status": 404
+ },
+ "POST /v1beta/interactions": {
+  "body": "{\"error\":\"Invalid API key\"}",
+  "id": "M2-0008",
+  "routed": true,
+  "status": 401
+ },
+ "POST /v1beta/models/*action": {
+  "body": "{\"error\":\"Invalid API key\"}",
+  "id": "M2-0009",
+  "routed": true,
+  "status": 401
+ },
+ "POST /v8/management/credentials": {
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
+  "id": "M5-0065",
+  "routed": true,
+  "status": 403
+ },
+ "POST /v8/management/credentials/refresh": {
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
+  "id": "M5-0071",
+  "routed": true,
+  "status": 403
+ },
+ "POST /v8/management/oauth/callback": {
+  "body": "{\"status\":\"error\",\"error\":\"state is required\"}",
+  "id": "M5-0043",
+  "routed": true,
+  "status": 400
+ },
+ "POST /v8/management/oauth/import": {
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
+  "id": "M5-0072",
+  "routed": true,
+  "status": 403
+ },
+ "POST /v8/management/plugins/:id/quota": {
+  "body": "",
+  "id": "M5-0081",
+  "routed": false,
+  "status": 404
+ },
+ "POST /v8/management/plugins/store/:id/install": {
+  "body": "",
+  "id": "M5-0079",
+  "routed": false,
+  "status": 404
+ },
+ "POST /v8/management/requests/api-call": {
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
+  "id": "M5-0054",
+  "routed": true,
+  "status": 403
+ },
+ "POST /v8/management/routing/cooldown/reset": {
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
+  "id": "M5-0055",
+  "routed": true,
+  "status": 403
+ },
+ "PUT /v0/management/api-keys": {
+  "body": "",
+  "id": "M5-0132",
+  "routed": false,
+  "status": 404
+ },
+ "PUT /v0/management/claude-api-key": {
+  "body": "",
+  "id": "M5-0172",
+  "routed": false,
+  "status": 404
+ },
+ "PUT /v0/management/codex-api-key": {
+  "body": "",
+  "id": "M5-0176",
+  "routed": false,
+  "status": 404
+ },
+ "PUT /v0/management/config.yaml": {
+  "body": "",
+  "id": "M5-0087",
+  "routed": false,
+  "status": 404
+ },
+ "PUT /v0/management/debug": {
+  "body": "",
+  "id": "M5-0102",
+  "routed": false,
+  "status": 404
+ },
+ "PUT /v0/management/error-logs-max-files": {
+  "body": "",
+  "id": "M5-0111",
+  "routed": false,
+  "status": 404
+ },
+ "PUT /v0/management/force-model-prefix": {
+  "body": "",
+  "id": "M5-0166",
+  "routed": false,
+  "status": 404
+ },
+ "PUT /v0/management/gemini-api-key": {
+  "body": "",
+  "id": "M5-0138",
+  "routed": false,
+  "status": 404
+ },
+ "PUT /v0/management/interactions-api-key": {
+  "body": "",
+  "id": "M5-0142",
+  "routed": false,
+  "status": 404
+ },
+ "PUT /v0/management/logging-to-file": {
+  "body": "",
+  "id": "M5-0105",
+  "routed": false,
+  "status": 404
+ },
+ "PUT /v0/management/logs-max-total-size-mb": {
+  "body": "",
+  "id": "M5-0108",
+  "routed": false,
+  "status": 404
+ },
+ "PUT /v0/management/max-retry-credentials": {
+  "body": "",
+  "id": "M5-0160",
+  "routed": false,
+  "status": 404
+ },
+ "PUT /v0/management/max-retry-interval": {
+  "body": "",
+  "id": "M5-0163",
+  "routed": false,
+  "status": 404
+ },
+ "PUT /v0/management/meta-api-key": {
+  "body": "",
+  "id": "M5-0184",
+  "routed": false,
+  "status": 404
+ },
+ "PUT /v0/management/oauth-excluded-models": {
+  "body": "",
+  "id": "M5-0196",
+  "routed": false,
+  "status": 404
+ },
+ "PUT /v0/management/oauth-model-alias": {
+  "body": "",
+  "id": "M5-0200",
+  "routed": false,
+  "status": 404
+ },
+ "PUT /v0/management/oauth-request-scoped-errors": {
+  "body": "",
+  "id": "M5-0204",
+  "routed": false,
+  "status": 404
+ },
+ "PUT /v0/management/openai-compatibility": {
+  "body": "",
+  "id": "M5-0188",
+  "routed": false,
+  "status": 404
+ },
+ "PUT /v0/management/plugins/:id/config": {
+  "body": "",
+  "id": "M5-0095",
+  "routed": false,
+  "status": 404
+ },
+ "PUT /v0/management/proxy-url": {
+  "body": "",
+  "id": "M5-0117",
+  "routed": false,
+  "status": 404
+ },
+ "PUT /v0/management/quota-exceeded/switch-preview-model": {
+  "body": "",
+  "id": "M5-0125",
+  "routed": false,
+  "status": 404
+ },
+ "PUT /v0/management/quota-exceeded/switch-project": {
+  "body": "",
+  "id": "M5-0122",
+  "routed": false,
+  "status": 404
+ },
+ "PUT /v0/management/request-log": {
+  "body": "",
+  "id": "M5-0151",
+  "routed": false,
+  "status": 404
+ },
+ "PUT /v0/management/request-retry": {
+  "body": "",
+  "id": "M5-0157",
+  "routed": false,
+  "status": 404
+ },
+ "PUT /v0/management/routing/strategy": {
+  "body": "",
+  "id": "M5-0169",
+  "routed": false,
+  "status": 404
+ },
+ "PUT /v0/management/usage-statistics-enabled": {
+  "body": "",
+  "id": "M5-0114",
+  "routed": false,
+  "status": 404
+ },
+ "PUT /v0/management/vertex-api-key": {
+  "body": "",
+  "id": "M5-0192",
+  "routed": false,
+  "status": 404
+ },
+ "PUT /v0/management/ws-auth": {
+  "body": "",
+  "id": "M5-0154",
+  "routed": false,
+  "status": 404
+ },
+ "PUT /v0/management/xai-api-key": {
+  "body": "",
+  "id": "M5-0180",
+  "routed": false,
+  "status": 404
+ },
+ "PUT /v8/management/config": {
+  "body": "{\"error\":\"invalid management key\"}",
+  "id": "M5-0045",
+  "routed": true,
+  "status": 401
+ },
+ "PUT /v8/management/config.yaml": {
+  "body": "{\"error\":\"invalid management key\"}",
+  "id": "M5-0048",
+  "routed": true,
+  "status": 401
+ },
+ "PUT /v8/management/config/*path": {
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
+  "id": "M5-0050",
+  "routed": true,
+  "status": 403
+ }
+}
