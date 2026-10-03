@@ -35,8 +35,12 @@ regex = "1"
 serde_yaml_ng.workspace = true
 tracing.workspace = true
 libc.workspace = true
+# Vertex: RS256 service-account JWTs with the BoringSSL bindings wreq already uses.
+btls = "0.5.6"
 # Codex: brotli certificate decompression for the Chrome TLS profile (already in the graph).
 brotli-decompressor = "6"
 
 [dev-dependencies]
 axum = { workspace = true, features = ["ws"] }
+# Vertex tests: a local TLS endpoint for *.googleapis.com (already in the graph via wreq).
+tokio-btls = "0.5.6"

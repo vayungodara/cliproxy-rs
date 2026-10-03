@@ -44,6 +44,9 @@ pub struct Runtime {
     usage: crate::usage::UsageQueue,
     /// `--local-model`: embedded model catalogs only, no remote catalog refresh.
     local_model: std::sync::atomic::AtomicBool,
+    /// Set only by [`crate::testing::runtime`]: executor calls get credentials that
+    /// cannot leave the machine.
+    pub(crate) deny_external: std::sync::atomic::AtomicBool,
 }
 
 /// An OAuth provider redirect received on the main listener.
@@ -81,6 +84,7 @@ impl Runtime {
             pool_offsets: Mutex::default(),
             usage: crate::usage::UsageQueue::default(),
             local_model: Default::default(),
+            deny_external: Default::default(),
         };
         rt.publish_policy(policy);
         rt.store.configure_cooldown_store(cooldown_dir);
@@ -97,6 +101,12 @@ impl Runtime {
     /// model catalog updaters must not start when set (additive API).
     pub fn set_local_model(&self, on: bool) {
         self.local_model.store(on, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    /// Persists cooldowns to `backend` instead of `.cds` files (PGSTORE's cooldown
+    /// table; additive API). Call before serving.
+    pub fn set_cooldown_backend(&self, backend: Arc<dyn crate::cooldown_store::Backend>) {
+        self.store.set_cooldown_backend(backend);
     }
 
     /// Whether `--local-model` was given.
@@ -174,6 +184,16 @@ impl Runtime {
     pub fn deliver_oauth_callback(&self, callback: &OAuthCallback) -> bool {
         let sink = self.oauth_sink.read().unwrap_or_else(PoisonError::into_inner).clone();
         sink.is_some_and(|sink| sink(callback))
+    }
+
+    /// The credential an executor call receives: the stored one, or in a test runtime
+    /// ([`crate::testing`]) a copy that cannot leave the machine.
+    pub(crate) fn for_executor(&self, credential: &Arc<Credential>) -> Arc<Credential> {
+        if self.deny_external.load(std::sync::atomic::Ordering::Relaxed) {
+            crate::testing::guarded(credential)
+        } else {
+            credential.clone()
+        }
     }
 
     /// The model registry for the current config and credential set. Rebuilt only when
@@ -266,7 +286,7 @@ impl Runtime {
             None if self.executors.readiness(&current, cfg) == Readiness::Ready => return Ok(current),
             None => {}
         }
-        let patch = self.executors.prepare(&current, cfg).await?;
+        let patch = self.executors.prepare(&self.for_executor(&current), cfg).await?;
         let store = self.store.clone();
         let revision = current.revision;
         let id = id.to_owned();
@@ -629,6 +649,8 @@ pub struct CredentialStore {
     prepare_locks: Mutex<HashMap<String, Arc<tokio::sync::Mutex<()>>>>,
     /// `auth-dir` while `save-cooldown-status` is on (Go `cooldownStore`).
     cooldown_dir: RwLock<Option<std::path::PathBuf>>,
+    /// Replaces the `.cds` files while set (Go's token-store cooldown provider).
+    cooldown_backend: RwLock<Option<Arc<dyn crate::cooldown_store::Backend>>>,
     /// Serializes cooldown snapshots with their writes, so the last write is the newest.
     cooldown_write: Mutex<()>,
     activity: Mutex<HashMap<String, CredentialActivity>>,
@@ -656,6 +678,7 @@ impl CredentialStore {
             stats: Default::default(),
             prepare_locks: Mutex::default(),
             cooldown_dir: RwLock::default(),
+            cooldown_backend: RwLock::default(),
             cooldown_write: Mutex::default(),
             activity: Mutex::default(),
             persisted: Mutex::default(),
@@ -679,10 +702,31 @@ impl CredentialStore {
         }
     }
 
+    /// Go's builder taking the token store's `CooldownStateStore`: cooldowns go to
+    /// `backend` instead of `.cds` files, restored from it now when persistence is on.
+    pub fn set_cooldown_backend(&self, backend: Arc<dyn crate::cooldown_store::Backend>) {
+        *self.cooldown_backend.write().unwrap_or_else(PoisonError::into_inner) = Some(backend);
+        let dir = self.cooldown_dir.read().unwrap_or_else(PoisonError::into_inner).clone();
+        if let Some(dir) = dir {
+            self.restore_cooldowns(&dir);
+        }
+    }
+
+    fn cooldown_backend(&self) -> Option<Arc<dyn crate::cooldown_store::Backend>> {
+        self.cooldown_backend
+            .read()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone()
+    }
+
     /// Go `RestoreCooldownStates`: live records of live credentials whose cooling is
     /// enabled, then a rewrite that drops everything else.
     fn restore_cooldowns(&self, dir: &std::path::Path) {
-        let records = match crate::cooldown_store::load(dir) {
+        let loaded = match self.cooldown_backend() {
+            Some(backend) => backend.load(),
+            None => crate::cooldown_store::load(dir),
+        };
+        let records = match loaded {
             Ok(records) => records,
             Err(error) => {
                 tracing::warn!(%error, "failed to restore cooldown state");
@@ -730,7 +774,11 @@ impl CredentialStore {
                 .collect::<Vec<_>>()
         };
         records.sort_by(|a, b| (&a.provider, &a.auth_id, &a.model).cmp(&(&b.provider, &b.auth_id, &b.model)));
-        if let Err(error) = crate::cooldown_store::save(&dir, records, wall) {
+        let saved = match self.cooldown_backend() {
+            Some(backend) => backend.save(records, wall),
+            None => crate::cooldown_store::save(&dir, records, wall),
+        };
+        if let Err(error) = saved {
             tracing::warn!(%error, "failed to persist cooldown state");
         }
     }
@@ -1644,7 +1692,7 @@ mod tests {
             google: Default::default(),
         };
         // Legacy top-level keys and the canonical routing block both reach the scheduler.
-        let rt = Runtime::new(
+        let rt = crate::testing::runtime(
             Config::parse("request-retry: 2\nrouting:\n  strategy: ff\n  session-affinity-ttl: 250ms\n").unwrap(),
             Vec::new(),
             executors(),
@@ -1665,7 +1713,7 @@ mod tests {
     /// single-entry pools or blank keys, reset to zero at the int32 guard.
     #[test]
     fn pool_offsets_rotate_per_key_like_go() {
-        let rt = Runtime::new(
+        let rt = crate::testing::runtime(
             Config::parse("").unwrap(),
             Vec::new(),
             Executors {
@@ -1808,7 +1856,7 @@ mod tests {
             google: Default::default(),
             devices: Default::default(),
         };
-        let rt = Runtime::new(config(), creds(), executors());
+        let rt = crate::testing::runtime(config(), creds(), executors());
         let mut selection = Selection::new("claude", "m1");
         selection.exclude.push("b.json".into());
         let lease = rt.store.select(selection.clone()).unwrap();
@@ -1836,7 +1884,7 @@ mod tests {
 
         // A new process restores the cooldown.
         drop(rt);
-        let rt = Runtime::new(config(), creds(), executors());
+        let rt = crate::testing::runtime(config(), creds(), executors());
         let a = rt.store.get("a.json").unwrap();
         let wait = rt
             .store
@@ -1874,7 +1922,7 @@ mod tests {
         );
         std::fs::write(dir.join("b.cds"), go).unwrap();
         drop(rt);
-        let rt = Runtime::new(config(), creds(), executors());
+        let rt = crate::testing::runtime(config(), creds(), executors());
         let b = rt.store.get("b.json").unwrap();
         let now = Instant::now();
         let scheduler = rt.store.scheduler.lock().unwrap();
@@ -1911,7 +1959,7 @@ mod tests {
 
     #[tokio::test]
     async fn preparation_waiter_observes_deletion_and_refresh_loop_is_replaceable() {
-        let rt = Arc::new(Runtime::new(
+        let rt = Arc::new(crate::testing::runtime(
             Config::parse("").unwrap(),
             vec![cred("a.json", "claude", false)],
             Executors {

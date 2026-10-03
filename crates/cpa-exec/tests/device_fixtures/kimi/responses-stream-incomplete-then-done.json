@@ -1,0 +1,118 @@
+{
+  "credential": {
+    "access_token": "kimi-access-fixture",
+    "base_url": "http://127.0.0.1:41263/coding",
+    "device_id": "dev-fixture-1",
+    "refresh_token": "kimi-refresh-fixture",
+    "type": "kimi"
+  },
+  "downstream": {
+    "chunks": [
+      "data: {\"type\":\"response.incomplete\",\"response\":{\"id\":\"r\",\"model\":\"k3-a\",\"usage\":{\"input_tokens\":2,\"output_tokens\":1,\"total_tokens\":3}}}\n",
+      "\n",
+      "data: {\"type\":\"response.done\",\"usage\":{\"prompt_tokens\":0,\"completion_tokens\":4,\"total_tokens\":0}}\n",
+      "\n",
+      "data: {\"type\":\"response.completed\",\"response\":{\"id\":\"r\",\"usage\":{\"input_tokens\":0,\"output_tokens\":0,\"total_tokens\":0}}}\n",
+      "\n",
+      "{\"type\":\"response.completed\",\"response\":{\"id\":\"r\",\"usage\":{\"input_tokens\":50,\"output_tokens\":50,\"total_tokens\":100}}}\n",
+      "\n"
+    ],
+    "frames": [
+      "data: {\"type\":\"response.incomplete\",\"response\":{\"id\":\"r\",\"model\":\"k3-a\",\"usage\":{\"input_tokens\":2,\"output_tokens\":1,\"total_tokens\":3}}}\n\n",
+      "data: {\"type\":\"response.done\",\"usage\":{\"prompt_tokens\":0,\"completion_tokens\":4,\"total_tokens\":0}}\n\n",
+      "data: {\"type\":\"response.completed\",\"response\":{\"id\":\"r\",\"usage\":{\"input_tokens\":0,\"output_tokens\":0,\"total_tokens\":0}}}\n\n",
+      "{\"type\":\"response.completed\",\"response\":{\"id\":\"r\",\"usage\":{\"input_tokens\":50,\"output_tokens\":50,\"total_tokens\":100}}}\n\n"
+    ]
+  },
+  "extra": {
+    "usage": [
+      {
+        "cached_tokens": 0,
+        "failed": false,
+        "input_tokens": 0,
+        "model": "kimi-k3",
+        "output_tokens": 4,
+        "reasoning_effort": "",
+        "reasoning_tokens": 0,
+        "response_model": "k3-a",
+        "total_tokens": 4
+      }
+    ]
+  },
+  "name": "responses-stream-incomplete-then-done",
+  "request": {
+    "body": "{\"model\":\"kimi-k3\",\"stream\":true,\"input\":\"hi\"}",
+    "model": "kimi-k3",
+    "source": "openai-response",
+    "stream": true
+  },
+  "responses": [
+    {
+      "body": "data: {\"type\":\"response.incomplete\",\"response\":{\"id\":\"r\",\"model\":\"k3-a\",\"usage\":{\"input_tokens\":2,\"output_tokens\":1,\"total_tokens\":3}}}\n\ndata: {\"type\":\"response.done\",\"usage\":{\"prompt_tokens\":0,\"completion_tokens\":4,\"total_tokens\":0}}\n\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"r\",\"usage\":{\"input_tokens\":0,\"output_tokens\":0,\"total_tokens\":0}}}\n\n{\"type\":\"response.completed\",\"response\":{\"id\":\"r\",\"usage\":{\"input_tokens\":50,\"output_tokens\":50,\"total_tokens\":100}}}\n\n",
+      "headers": [
+        [
+          "Content-Type",
+          "text/event-stream"
+        ]
+      ],
+      "status": 200
+    }
+  ],
+  "upstream": [
+    {
+      "body": "{\"model\":\"k3\",\"stream\":true,\"input\":\"hi\"}",
+      "headers": [
+        [
+          "Host",
+          "127.0.0.1:41263"
+        ],
+        [
+          "User-Agent",
+          "CLIProxyAPI/0.1.0"
+        ],
+        [
+          "Content-Length",
+          "41"
+        ],
+        [
+          "Accept",
+          "text/event-stream"
+        ],
+        [
+          "Authorization",
+          "Bearer kimi-access-fixture"
+        ],
+        [
+          "Content-Type",
+          "application/json"
+        ],
+        [
+          "X-Msh-Device-Id",
+          "dev-fixture-1"
+        ],
+        [
+          "X-Msh-Device-Model",
+          "linux amd64"
+        ],
+        [
+          "X-Msh-Device-Name",
+          "e2b.local"
+        ],
+        [
+          "X-Msh-Platform",
+          "CLIProxyAPI"
+        ],
+        [
+          "X-Msh-Version",
+          "0.1.0"
+        ],
+        [
+          "Accept-Encoding",
+          "gzip"
+        ]
+      ],
+      "method": "POST",
+      "target": "/coding/v1/responses"
+    }
+  ]
+}
