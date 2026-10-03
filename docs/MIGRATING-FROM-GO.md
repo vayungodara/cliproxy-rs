@@ -78,6 +78,7 @@ Where cliproxy-rs has a feature, it aims to behave as Go does. These differences
 - Logs: structured fields that Go does not define are printed after Go's known fields.
 - Config writes: when the Management API changes one setting, the rest of `config.yaml` stays byte for byte as it was. Go re-encodes the file, which turns YAML 1.1 booleans such as `yes` and `on` into `true`.
 - Watcher: when a config change moves `auth-dir`, cliproxy-rs starts watching the new directory. Go keeps watching the old one until it restarts.
+- OAuth callback: the unauthenticated `POST /v8/management/oauth/callback` (and the v0 `oauth-callback`) accepts a body of at most 64 KiB. Go reads it without a limit. Real callbacks are a few hundred bytes; the limit protects servers reachable from the internet.
 - WebRTC media relay for Codex live calls (`oauth.providers.codex.live-media-relay`): every Go build includes it, and the config turns it on. In cliproxy-rs it is an optional build feature (`cargo build --release -p cliproxy --features cpa-server/media-relay`); the release binaries and the Docker image are built without it, so calls negotiate media directly with the upstream.
 
 ## Switching back

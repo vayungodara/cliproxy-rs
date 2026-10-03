@@ -33,6 +33,15 @@ It started from a post on X by @maria_rcks on 2 October 2026: "why hasnt anyone 
 - When the server lacks a feature, the dashboard says so instead of showing an error or hiding the screen.
 - It also ships as a single `management.html` (169 KB, 66 KB gzipped) that Go CLIProxyAPI servers can use in place of their own panel. It was tested against an unmodified Go 6fecc6e server.
 
+## Measured numbers
+
+From [BENCHMARKS.md](BENCHMARKS.md): commit `4abce40` against the Go v8.0.10 release binary, same config, a 2-vCPU virtual machine, a local fake upstream, median of three runs.
+
+- Memory at idle: 13.8 MB (Go: 44.6 MB). Under load: 22 to 23 MB (Go: 57 to 79 MB). With 256 slow streams open: 42 MB (Go: 104 MB).
+- Startup to first answered request: 15 ms (Go: 82 ms).
+- Binary: 29.6 MB, 12.6 MB as a release archive (Go: 69.1 MB and 22.9 MB).
+- Throughput: Go handled about 20% more non-streaming requests per second (1,677 against 1,402) and more fast streams (989 against 627 per second). cliproxy-rs handled slightly more translated Anthropic-format streams (640 against 607) with lower CPU per request. Do not describe cliproxy-rs as faster than Go overall.
+
 ## Gaps today
 
 - Providers not supported yet: Antigravity, AI Studio, Vertex. xAI and Devin can be signed in from the command line only.

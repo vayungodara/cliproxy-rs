@@ -134,7 +134,7 @@ The same dashboard also works with the Go server as a drop-in `management.html`.
 - Set `access.api-keys`. With an empty list the proxy accepts requests from anyone who can reach it and spends your accounts' quota for them. The server logs a warning at start when the list is empty.
 - Keep `server.host` on `127.0.0.1` unless other machines need access. The default empty host listens on every interface.
 - The management API is off until `management.secret-key` (or the `MANAGEMENT_PASSWORD` environment variable) is set. With `management.allow-remote: false`, only requests from `127.0.0.1` or `::1` are accepted. Five wrong keys from one address block it for 30 minutes.
-- Behind a tunnel or reverse proxy on the same machine (cloudflared, Tailscale Funnel, Caddy, nginx), every request arrives from `127.0.0.1`. The server then treats all internet clients as local, so `allow-remote: false` no longer keeps them out of the management API. Set `server.trusted-proxies` to the proxy's address, for example `[127.0.0.1, "::1"]`, and restart. The server then takes the client address from `X-Forwarded-For` and similar headers sent by that proxy only. It logs a warning the first time a forwarded management request arrives without this setting. If you do not need remote management, also consider leaving `management.secret-key` empty on an exposed server.
+- Behind a tunnel or reverse proxy on the same machine (cloudflared, Tailscale Funnel, Caddy, nginx), every request arrives from `127.0.0.1`, so the server treats every internet client as local. Then `allow-remote: false` no longer keeps them out of the management API, a local-only `--password` is accepted from the internet, and five wrong keys from anyone ban the tunnel's address, which locks everyone out. Set `server.trusted-proxies` to the proxy's address, for example `[127.0.0.1, "::1"]` for a local cloudflared, and restart. The server then takes the client address from `X-Forwarded-For` and similar headers sent by that proxy only. This applies to the Go server in the same way. cliproxy-rs logs a warning the first time a forwarded management request arrives without the setting. If you do not need remote management, also consider leaving `management.secret-key` empty on an exposed server.
 - Do not send client keys or the management key over plain HTTP across a network. Terminate TLS in the tunnel or reverse proxy, or serve HTTPS directly with `server.tls` (`enable: true` plus `cert` and `key` file paths).
 - Credential files in `auth-dir` hold OAuth refresh tokens. Anyone who can read them can use the accounts. Keep the directory private (the server writes them with mode 0600) and treat downloaded credential files and config backups the same way.
 
@@ -150,7 +150,7 @@ The same files work for both servers. [docs/MIGRATING-FROM-GO.md](docs/MIGRATING
 
 ## Performance
 
-[docs/BENCHMARKS.md](docs/BENCHMARKS.md) compares binary size and memory with the Go server on the same configuration and a scripted load against a local fake upstream.
+On a 2-vCPU test machine with a local fake upstream, cliproxy-rs used 14 MB of memory at idle against Go's 45 MB, and 22 to 42 MB under load against 57 to 104 MB. Go handled about 20% more non-streaming requests per second, and more fast streams. The release binary is 29.6 MB against Go's 69.1 MB. [docs/BENCHMARKS.md](docs/BENCHMARKS.md) has the method, every number and the caveats.
 
 ## Development
 
