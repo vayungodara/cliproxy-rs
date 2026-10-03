@@ -119,14 +119,46 @@ impl PluginsView {
         Self { enabled, dir, configs }
     }
 
+    /// Go `pluginStoreDesiredVersions`: discovery then drops versions it rejects.
     fn desired_versions(&self) -> BTreeMap<String, String> {
-        let items = self
-            .configs
+        self.configs
             .iter()
-            .map(|(id, (item, _))| (id.clone(), item.clone()))
-            .collect();
-        pcfg::desired_versions(&items)
+            .filter_map(|(id, (_, raw))| {
+                let version = store_desired_version(raw);
+                (!id.trim().is_empty() && !version.is_empty()).then(|| (id.trim().to_owned(), version))
+            })
+            .collect()
     }
+}
+
+/// Go `pluginStoreDesiredVersion`: `store.version`, else `store.release-tag`, with one
+/// leading `v` dropped; empty unless it starts with a digit.
+fn store_desired_version(raw: &Yaml) -> String {
+    let normalize = |v: &str| {
+        let v = v.trim();
+        let v = if v.len() > 1 && v.starts_with(['v', 'V']) {
+            &v[1..]
+        } else {
+            v
+        };
+        if v.starts_with(|c: char| c.is_ascii_digit()) {
+            v.to_owned()
+        } else {
+            String::new()
+        }
+    };
+    let Some(store) = raw.get("store").filter(|s| s.is_mapping()) else {
+        return String::new();
+    };
+    let scalar = |key: &str| match store.get(key) {
+        Some(v @ (Yaml::String(_) | Yaml::Number(_) | Yaml::Bool(_))) => pcfg::yaml_string(v),
+        _ => String::new(),
+    };
+    let version = normalize(&scalar("version"));
+    if !version.is_empty() {
+        return version;
+    }
+    normalize(&scalar("release-tag"))
 }
 
 fn resolved_dir(dir: &str) -> Res<std::path::PathBuf> {
@@ -368,6 +400,13 @@ fn save(state: &Management, edit: impl FnOnce(&mut ConfigDocument) -> Res<()>) -
     let mut doc = ConfigDocument::parse(&original).map_err(|e| failed(&e))?;
     let basis = doc.migrated_text(&original).unwrap_or_else(|| original.clone());
     let archived = doc.archive_unknown();
+    // Go `NormalizePluginsConfig` gives a nil configs map a value before the edit.
+    for path in [&["plugins"][..], &["plugins", "configs"][..]] {
+        if doc.get(path).is_some_and(Yaml::is_null) {
+            doc.update(path, Yaml::Mapping(Mapping::new()), false)
+                .map_err(|e| failed(&e))?;
+        }
+    }
     edit(&mut doc).map_err(Fail::Response)?;
     // Go's saver writes each plugin config through `MarshalYAML`: a null entry (never
     // unmarshalled) becomes an empty mapping.
@@ -456,27 +495,41 @@ fn config_object(body: &[u8]) -> Res<Vec<(String, Node)>> {
     ))
 }
 
-/// Go `yamlNodeFromJSONValue`.
-fn json_to_yaml(v: &Node) -> Yaml {
-    match v {
+/// Go `yamlNodeFromJSONValue`: numbers stay integers when `ParseInt` takes them, else
+/// floats; a float out of range is `invalid number`.
+fn json_to_yaml(v: &Node) -> Result<Yaml, String> {
+    Ok(match v {
         Node::Null => Yaml::Null,
         Node::Bool(b) => (*b).into(),
         Node::Number(n) => match n.parse::<i64>() {
             Ok(i) => i.into(),
-            Err(_) => n.parse::<f64>().map(Yaml::from).unwrap_or(Yaml::Null),
+            // Go `json.Number.Float64` is `strconv.ParseFloat`: out of range fails.
+            Err(_) => match cpa_plugin::cli::parse_float(n) {
+                Some(f) => f.into(),
+                None => return Err(format!("invalid number {}", crate::gojson::string(n))),
+            },
         },
         Node::String(s) => s.clone().into(),
-        Node::Array(items) => Yaml::Sequence(items.iter().map(json_to_yaml).collect()),
-        Node::Object(fields) => Yaml::Mapping(object_to_yaml(fields)),
-    }
+        Node::Array(items) => Yaml::Sequence(items.iter().map(json_to_yaml).collect::<Result<_, _>>()?),
+        Node::Object(fields) => Yaml::Mapping(object_to_yaml(fields)?),
+    })
 }
 
-/// Go `yamlNodeFromJSONObject`: keys sorted; for duplicates the last value wins.
-fn object_to_yaml(fields: &[(String, Node)]) -> Mapping {
-    let last: BTreeMap<&str, &Node> = fields.iter().map(|(k, v)| (k.as_str(), v)).collect();
-    last.into_iter()
-        .map(|(k, v)| (Yaml::from(k), json_to_yaml(v)))
+/// Go's `map[string]any` of an object: the last duplicate wins.
+fn collapse(fields: &[(String, Node)]) -> BTreeMap<&str, &Node> {
+    fields.iter().map(|(k, v)| (k.as_str(), v)).collect()
+}
+
+/// Go `yamlNodeFromJSONObject`: keys sorted; an error names its key.
+fn object_to_yaml(fields: &[(String, Node)]) -> Result<Mapping, String> {
+    collapse(fields)
+        .into_iter()
+        .map(|(k, v)| Ok((Yaml::from(k), json_to_yaml(v).map_err(|e| format!("{k}: {e}"))?)))
         .collect()
+}
+
+fn invalid_body(e: &str) -> Response {
+    error(StatusCode::BAD_REQUEST, "invalid_body", e)
 }
 
 fn invalid_config(e: String) -> Response {
@@ -531,10 +584,13 @@ pub(crate) async fn put_config(
         Ok(f) => f,
         Err(r) => return *r,
     };
+    let node = match object_to_yaml(&fields) {
+        Ok(node) => node,
+        Err(e) => return invalid_body(&e),
+    };
     if let Err(e) = pcfg::check_json_item(&fields) {
         return invalid_config(e);
     }
-    let node = object_to_yaml(&fields);
     save_and_answer(state, move |doc| set_node(doc, &id, node)).await
 }
 
@@ -552,18 +608,35 @@ pub(crate) async fn patch_config(
         Ok(f) => f,
         Err(r) => return *r,
     };
-    let set: Vec<(String, Node)> = fields.iter().filter(|(_, v)| !v.is_null()).cloned().collect();
+    // Go decodes into a map (the last duplicate wins), then walks the sorted keys:
+    // `null` deletes, anything else converts or fails the request.
+    let mut changes: Vec<(String, Option<Yaml>)> = Vec::new();
+    for (key, value) in collapse(&fields) {
+        if value.is_null() {
+            changes.push((key.to_owned(), None));
+            continue;
+        }
+        match json_to_yaml(value) {
+            Ok(v) => changes.push((key.to_owned(), Some(v))),
+            Err(e) => return invalid_body(&e),
+        }
+    }
+    let set: Vec<(String, Node)> = collapse(&fields)
+        .into_iter()
+        .filter(|(_, v)| !v.is_null())
+        .map(|(k, v)| (k.to_owned(), v.clone()))
+        .collect();
     if let Err(e) = pcfg::check_json_item(&set) {
         return invalid_config(e);
     }
-    let last: BTreeMap<String, Node> = fields.into_iter().collect();
     save_and_answer(state, move |doc| {
         let mut node = current_node(doc, &id);
-        for (key, value) in &last {
-            if value.is_null() {
-                node.remove(Yaml::from(key.as_str()));
-            } else {
-                set_key(&mut node, key, json_to_yaml(value));
+        for (key, value) in changes {
+            match value {
+                None => {
+                    node.remove(Yaml::from(key.as_str()));
+                }
+                Some(value) => set_key(&mut node, &key, value),
             }
         }
         set_node(doc, &id, node)
@@ -676,24 +749,17 @@ pub(crate) async fn delete(State(state): State<Arc<Management>>, UrlPath(raw): U
 
 /// Go `pluginManagementNoRoute`: unknown paths (and unregistered methods on known ones)
 /// under `/v0/management` go to plugin routes after the management guard; plugin
-/// resources are public unless Home is enabled; anything else is a bare 404.
+/// resources are public; anything else is a bare 404.
 /// ponytail: Go's plugin OAuth `auth-url` handling (`ServePluginAuthURL`) joins with
 /// the plugin auth-file login flow.
 pub(crate) async fn no_route(State(state): State<Arc<Management>>, req: Request) -> Response {
-    let path = req.uri().path().to_owned();
+    // gin matches NoRoute prefixes on the decoded path.
+    let path = super::percent_decode(req.uri().path());
     if path.starts_with("/v0/resource/plugins/") {
-        let home = state
-            .rt
-            .config()
-            .document
-            .get("home")
-            .and_then(|h| h.get("enabled"))
-            .and_then(pcfg::yaml_bool)
-            .unwrap_or(false);
-        if home {
-            return access::not_found();
-        }
-        let inbound = inbound(req).await;
+        // Go also refuses resources in Home mode, which this server never runs in
+        // (`-home-jwt` is refused at startup); `home` in the YAML is ignored, as in Go.
+        let (parts, _) = req.into_parts();
+        let inbound = inbound(&parts, Bytes::new());
         return reply(state.rt.plugins().serve_resource(inbound).await);
     }
     if path != "/v0/management" && !path.starts_with("/v0/management/") {
@@ -709,12 +775,22 @@ pub(crate) async fn no_route(State(state): State<Arc<Management>>, req: Request)
 }
 
 async fn serve_management(State(state): State<Arc<Management>>, req: Request) -> Response {
-    let inbound = inbound(req).await;
+    let (parts, body) = req.into_parts();
+    // Go reads the whole body (no cap) and answers 400 when that fails.
+    let body = match axum::body::to_bytes(body, usize::MAX).await {
+        Ok(body) => body,
+        Err(_) => {
+            return reply(Some(cpa_plugin::management::Reply::error(
+                400,
+                "failed to read plugin management request body",
+            )));
+        }
+    };
+    let inbound = inbound(&parts, body);
     reply(state.rt.plugins().serve_management(inbound).await)
 }
 
-async fn inbound(req: Request) -> cpa_plugin::management::Inbound {
-    let (parts, body) = req.into_parts();
+fn inbound(parts: &axum::http::request::Parts, body: Bytes) -> cpa_plugin::management::Inbound {
     let mut headers = pjson::Header::new();
     for (name, value) in &parts.headers {
         headers
@@ -728,9 +804,6 @@ async fn inbound(req: Request) -> cpa_plugin::management::Inbound {
     for (k, v) in url::form_urlencoded::parse(parts.uri.query().unwrap_or_default().as_bytes()) {
         query.entry(k.into_owned()).or_default().push(v.into_owned());
     }
-    let body = axum::body::to_bytes(body, crate::MAX_REQUEST_BYTES)
-        .await
-        .unwrap_or_default();
     cpa_plugin::management::Inbound {
         method: parts.method.as_str().to_owned(),
         path: super::percent_decode(parts.uri.path()),

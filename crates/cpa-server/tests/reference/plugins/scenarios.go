@@ -24,7 +24,8 @@ plugins:
     recorder-d:
       enabled: false
       store:
-        version: 1.0.0
+        version: 1_bad
+        release-tag: 1.0.0
     ghost:
       enabled: true
 `
@@ -71,7 +72,17 @@ func scenarios(r *runner) {
 	r.settle()
 	r.plugins()
 
+	// Number overflow and duplicate keys.
+	r.http(httpArgs{Method: "PUT", Path: v0 + "/new-one/config", Body: `{"z":{"x":1e400},"a":1}`})
+	r.http(httpArgs{Method: "PUT", Path: v0 + "/new-one/config", Body: `{"a":[1,1e400]}`})
+	r.http(httpArgs{Method: "PATCH", Path: v0 + "/new-one/config", Body: `{"q":-1e400,"enabled":"bad"}`})
+	r.http(httpArgs{Method: "PATCH", Path: v0 + "/new-one/config", Body: `{"enabled":"bad","enabled":null,"p":1e300}`})
+	r.settle()
+	r.plugins()
+	get(v0 + "/new-one/config")
+
 	// Plugin-declared routes and resources through NoRoute.
+	get("/v0/%6danagement/rec/c")
 	get("/v0/management/rec/c")
 	r.http(httpArgs{Method: "GET", Path: "/v0/management/rec/c", NoKey: true})
 	r.http(httpArgs{Method: "POST", Path: "/v0/management/rec/c/calls", Body: `{"calls":[]}`})

@@ -136,8 +136,13 @@ impl Runtime {
         cpa_translate::set_antigravity_signature_cache_config(enabled, strict);
         let dir = cooldown_dir(&config, &policy);
         let config = Arc::new(config);
-        *self.config.write().unwrap_or_else(PoisonError::into_inner) = config.clone();
-        self.plugins.config_published(config);
+        {
+            // The plugin worker is told under the same lock, so concurrent publishes
+            // reach it in the order they replaced the config.
+            let mut current = self.config.write().unwrap_or_else(PoisonError::into_inner);
+            *current = config.clone();
+            self.plugins.config_published(config);
+        }
         self.publish_policy(policy);
         self.store.configure_cooldown_store(dir);
     }

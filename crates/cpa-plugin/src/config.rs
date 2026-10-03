@@ -97,7 +97,7 @@ pub fn check_json_item(fields: &[(String, crate::gojson::Node)]) -> Result<(), S
             J::Null => return "!!null".to_owned(),
         };
         let text = if text.len() > 10 {
-            format!("{}...", &text[..7])
+            format!("{}...", go_lossy(&text.as_bytes()[..7]))
         } else {
             text.to_owned()
         };
@@ -130,6 +130,28 @@ pub fn check_json_item(fields: &[(String, crate::gojson::Node)]) -> Result<(), S
         }
     }
     Ok(())
+}
+
+/// Bytes as Go's JSON encoder reads them: each byte of an invalid or cut UTF-8
+/// sequence becomes U+FFFD.
+fn go_lossy(bytes: &[u8]) -> String {
+    let mut out = String::new();
+    let mut rest = bytes;
+    while !rest.is_empty() {
+        match std::str::from_utf8(rest) {
+            Ok(s) => {
+                out.push_str(s);
+                break;
+            }
+            Err(e) => {
+                let (valid, bad) = rest.split_at(e.valid_up_to());
+                out.push_str(std::str::from_utf8(valid).expect("valid prefix"));
+                out.push('\u{fffd}');
+                rest = &bad[1..];
+            }
+        }
+    }
+    out
 }
 
 /// yaml.v3 decoding of a scalar into a Go `string`.
@@ -338,6 +360,11 @@ mod tests {
                 Some(line("priority", "!!float `9999999...` into int")),
             ),
             (r#"{"enabled":1,"enabled":true}"#, None),
+            // A cut UTF-8 sequence: Go's encoder writes U+FFFD for the stray byte.
+            (
+                r#"{"enabled":"éééééé"}"#,
+                Some(line("enabled", "!!str `ééé\u{fffd}...` into bool")),
+            ),
         ] {
             let crate::gojson::Node::Object(fields) = crate::gojson::parse(body.as_bytes()).unwrap() else {
                 panic!("object");
