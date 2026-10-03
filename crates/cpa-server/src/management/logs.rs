@@ -25,6 +25,9 @@ const MAX_LINE: usize = 8 * 1024 * 1024;
 
 type IoResult<T> = std::io::Result<T>;
 
+/// The zone log line timestamps are read in: Go's `time.Local` when `None`.
+pub(crate) type Zone = Option<chrono::FixedOffset>;
+
 fn not_found(e: &std::io::Error) -> bool {
     e.kind() == std::io::ErrorKind::NotFound
 }
@@ -39,8 +42,8 @@ fn setting(state: &Management, key: &str) -> bool {
         .unwrap_or(false)
 }
 
-/// `[2006-01-02 15:04:05` at the start of a line, in local time; 0 otherwise.
-pub(crate) fn parse_timestamp(line: &str) -> i64 {
+/// `[2006-01-02 15:04:05` at the start of a line, in `zone`; 0 otherwise.
+pub(crate) fn parse_timestamp(line: &str, zone: Zone) -> i64 {
     let b = line.as_bytes();
     let b = b.strip_prefix(b"[").unwrap_or(b);
     if b.len() < 19 {
@@ -59,9 +62,13 @@ pub(crate) fn parse_timestamp(line: &str) -> i64 {
         let date = chrono::NaiveDate::from_ymd_opt(digits(0..4)? as i32, digits(5..7)?, digits(8..10)?)?;
         let time = chrono::NaiveTime::from_hms_opt(digits(11..13)?, digits(14..16)?, digits(17..19)?)?;
         use chrono::TimeZone;
-        chrono::Local.from_local_datetime(&date.and_time(time)).earliest()
+        let at = date.and_time(time);
+        match zone {
+            Some(fixed) => fixed.from_local_datetime(&at).earliest().map(|t| t.timestamp()),
+            None => chrono::Local.from_local_datetime(&at).earliest().map(|t| t.timestamp()),
+        }
     })();
-    parsed.map_or(0, |t| t.timestamp())
+    parsed.unwrap_or(0)
 }
 
 /// Go `rotationOrder`: `main.log.N` orders by N; lumberjack's
@@ -344,7 +351,7 @@ fn line_too_long() -> std::io::Error {
 }
 
 /// Go `readCompleteLogLines`: newline-terminated lines in `[offset, max)`.
-fn read_complete(path: &Path, offset: i64, max: i64, limit: usize) -> IoResult<LineRead> {
+fn read_complete(path: &Path, offset: i64, max: i64, limit: usize, zone: Zone) -> IoResult<LineRead> {
     let mut file = std::fs::File::open(path)?;
     let meta = file.metadata()?;
     if meta.is_dir() || offset < 0 {
@@ -369,7 +376,7 @@ fn read_complete(path: &Path, offset: i64, max: i64, limit: usize) -> IoResult<L
         }
         let text = String::from_utf8_lossy(&data[start..start + i]);
         let text = text.trim_end_matches('\r').to_owned();
-        out.latest = out.latest.max(parse_timestamp(&text));
+        out.latest = out.latest.max(parse_timestamp(&text, zone));
         out.lines.push(text);
         start += i + 1;
         out.end_offset = offset + start as i64;
@@ -439,7 +446,7 @@ struct Output {
 }
 
 /// Go `tailLogFiles`.
-fn tail(files: &[PathBuf], limit: usize, fallback: i64) -> IoResult<Output> {
+fn tail(files: &[PathBuf], limit: usize, fallback: i64, zone: Zone) -> IoResult<Output> {
     let mut out = Output {
         latest: fallback,
         ..Output::default()
@@ -459,7 +466,7 @@ fn tail(files: &[PathBuf], limit: usize, fallback: i64) -> IoResult<Output> {
                 return Ok(LineRead::default());
             }
             let start = tail_start(path, boundary, remaining)?;
-            read_complete(path, start, boundary, remaining)
+            read_complete(path, start, boundary, remaining, zone)
         })();
         let read = match read {
             Err(e) if not_found(&e) => continue,
@@ -490,7 +497,7 @@ fn cursor_for_latest(files: &[PathBuf], latest: i64) -> IoResult<String> {
 }
 
 /// Go `readLogFilesFromCursor`: `(output, reset)`.
-fn read_from_cursor(dir: &Path, files: &[PathBuf], raw: &str, limit: usize) -> IoResult<(Output, bool)> {
+fn read_from_cursor(dir: &Path, files: &[PathBuf], raw: &str, limit: usize, zone: Zone) -> IoResult<(Output, bool)> {
     let Some(c) = decode_cursor(raw) else {
         return Ok((Output::default(), true));
     };
@@ -516,7 +523,7 @@ fn read_from_cursor(dir: &Path, files: &[PathBuf], raw: &str, limit: usize) -> I
             0
         };
         let offset = if i == start { c.offset } else { 0 };
-        let read = match read_complete(path, offset, -1, remaining) {
+        let read = match read_complete(path, offset, -1, remaining, zone) {
             Err(e) if not_found(&e) => return Ok((out, true)),
             r => r?,
         };
@@ -570,13 +577,13 @@ pub(crate) async fn get_logs(State(state): State<Arc<Management>>, RawQuery(raw)
         q.first("after").to_owned(),
         q.first("limit").trim().to_owned(),
     );
-    let dir = state.log_dir.clone();
-    tokio::task::spawn_blocking(move || get_logs_sync(&dir, &cursor, &after, &limit))
+    let (dir, zone) = (state.log_dir.clone(), state.log_zone);
+    tokio::task::spawn_blocking(move || get_logs_sync(&dir, &cursor, &after, &limit, zone))
         .await
         .unwrap_or_else(|_| fail(StatusCode::INTERNAL_SERVER_ERROR, "internal error"))
 }
 
-fn get_logs_sync(dir: &Path, cursor: &str, after: &str, limit: &str) -> Response {
+fn get_logs_sync(dir: &Path, cursor: &str, after: &str, limit: &str, zone: Zone) -> Response {
     let files = match collect_log_files(dir) {
         Ok(f) => f,
         Err(e) if not_found(&e) => {
@@ -610,9 +617,9 @@ fn get_logs_sync(dir: &Path, cursor: &str, after: &str, limit: &str) -> Response
         )
     };
     if !cursor.is_empty() {
-        return match read_from_cursor(dir, &files, cursor, limit) {
+        return match read_from_cursor(dir, &files, cursor, limit, zone) {
             Err(e) => read_error(e),
-            Ok((out, true)) => match tail(&files, limit, out.latest) {
+            Ok((out, true)) => match tail(&files, limit, out.latest, zone) {
                 Ok(t) => {
                     let n = t.lines.len();
                     logs_response(t.lines, n, t.latest, t.next, true)
@@ -626,7 +633,7 @@ fn get_logs_sync(dir: &Path, cursor: &str, after: &str, limit: &str) -> Response
         };
     }
     if cutoff == 0 && limit > 0 {
-        return match tail(&files, limit, 0) {
+        return match tail(&files, limit, 0, zone) {
             Ok(t) => {
                 let n = t.lines.len();
                 logs_response(t.lines, n, t.latest, t.next, false)
@@ -661,7 +668,7 @@ fn get_logs_sync(dir: &Path, cursor: &str, after: &str, limit: &str) -> Response
             let text = String::from_utf8_lossy(part);
             let line = text.trim_end_matches('\r').to_owned();
             total += 1;
-            let ts = parse_timestamp(&line);
+            let ts = parse_timestamp(&line, zone);
             latest = latest.max(ts);
             if ts > 0 {
                 include = cutoff == 0 || ts > cutoff;
@@ -1071,10 +1078,10 @@ mod tests {
         assert!(rotation_order("main-2026-10-02T10-20-30.log.gz").is_some());
         assert_eq!(rotation_order("main-2026-13-02T10-20-30.log"), None);
         assert_eq!(rotation_order("other.log"), None);
-        assert!(parse_timestamp("[2026-10-02 10:20:30] [--------] [info ] x") > 0);
-        assert_eq!(parse_timestamp("[2026-02-30 10:20:30] x"), 0);
-        assert_eq!(parse_timestamp("short"), 0);
-        assert_eq!(parse_timestamp("[2026-10-02 1é:20:30] x"), 0);
+        assert!(parse_timestamp("[2026-10-02 10:20:30] [--------] [info ] x", None) > 0);
+        assert_eq!(parse_timestamp("[2026-02-30 10:20:30] x", None), 0);
+        assert_eq!(parse_timestamp("short", None), 0);
+        assert_eq!(parse_timestamp("[2026-10-02 1é:20:30] x", None), 0);
     }
 
     #[test]

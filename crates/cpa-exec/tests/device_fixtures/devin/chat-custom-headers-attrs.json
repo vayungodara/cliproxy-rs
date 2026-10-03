@@ -1,0 +1,95 @@
+{
+  "name": "chat-custom-headers-attrs",
+  "credential": {
+    "api_key": "devin-session-token$fixture",
+    "device_seed": "seed-1",
+    "session_token": "devin-session-token$fixture",
+    "type": "devin"
+  },
+  "attributes": {
+    "api_key": "attr-key",
+    "base_url": "http://127.0.0.1:46743",
+    "device_seed": "attr-seed",
+    "header:Sentry-Trace": "fixed-trace-1",
+    "header:X-Extra": "e1"
+  },
+  "request": {
+    "body": "{\"model\":\"swe-2\",\"messages\":[{\"role\":\"system\",\"content\":\"You are helpful.\\nYou are Claude Code, Anthropic's official CLI for Claude.\\nKeep it short.\"},{\"role\":\"user\",\"content\":\"What's the weather in Paris? chat-custom-headers-attrs\"},{\"role\":\"assistant\",\"content\":\"Checking.\",\"tool_calls\":[{\"id\":\"call_a\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"{\\\"city\\\":\\\"Paris\\\"}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"call_a\",\"content\":\"sunny\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Thanks \u003cb\u003e\u0026\u003c/b\u003e\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/webp;base64,UklGRg==\"}}]}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"Get weather\",\"parameters\":{\"type\":\"object\",\"properties\":{\"city\":{\"type\":\"string\"}}}}},{\"type\":\"function\",\"function\":{\"name\":\"exec_command\",\"description\":\"Runs a command, returning output or a session ID for ongoing interaction.\",\"parameters\":{\"type\":\"object\"}}}],\"temperature\":0.3,\"max_tokens\":500}",
+    "model": "devin/claude-opus-4-6:low",
+    "source": "openai",
+    "stream": false
+  },
+  "responses": [
+    {
+      "status": 200,
+      "headers": [
+        [
+          "Content-Type",
+          "application/connect+proto"
+        ]
+      ],
+      "body": "",
+      "body_b64": "AAAAAAQaAmhpAAAAAAcaBSBtb3JlAAAAACs6JxAFGAIgACgAQhsKDHgtcmVxdWVzdC1pZBILcmVxX2ZpeHR1cmVKACgCAgAAAAJ7fQ=="
+    }
+  ],
+  "upstream": [
+    {
+      "method": "POST",
+      "target": "/exa.api_server_pb.ApiServerService/GetChatMessage",
+      "headers": [
+        [
+          "Host",
+          "127.0.0.1:46743"
+        ],
+        [
+          "Content-Length",
+          "1545"
+        ],
+        [
+          "Accept",
+          "*/*"
+        ],
+        [
+          "Authorization",
+          "Basic attr-key-attr-key"
+        ],
+        [
+          "Connect-Protocol-Version",
+          "1"
+        ],
+        [
+          "Content-Type",
+          "application/connect+proto"
+        ],
+        [
+          "Sentry-Trace",
+          "fixed-trace-1"
+        ],
+        [
+          "X-Extra",
+          "e1"
+        ]
+      ],
+      "body": "",
+      "body_b64": "AAAABgQKnQYKBmNoaXNlbBIKMzAwMC4xMC4yMRoIYXR0ci1rZXkiAmVuKgVsaW51eDoKMzAwMC4xMC4yMWIGY2hpc2Vs+gHcBTY5MTMzNzk0M2ZjMzg0NDViZTRkMWQ4NWYwZWExZmQzZDQyN2UzNThjYTgwNjUxOTJlYzhkMmIwYzgyZDA3YWJhNDM2ZmIxNDlhNzZhZDVkMjg4MjQ4OWEzYjU1MDE1MzY5ODNmNzJkOTllY2Q5YzQwYmMwNjE4ZTU5ZmZhMTRjNGJjMjIxN2U0MDdkY2FhNWZiOTFiODc2NDJjYmI5ZTQwMWVjYWJhNjM3YmUwZmU3NjNjYThlMmI2MGI3YTlmOGU3OTE1ODRjZTljNjQ3MThhZmYwM2NiZTE2NzQyNTIxNmEzY2FmY2Q5N2Y5NTdjMTJkZTZjMjk4ZDVhYWNhOGY0OWMxNjMwOTE2MWQwZTQ4ZDE5ZDA3NmVlNzY2NzY1YWRhYjY3NTJiMDllZTc2ZGNmZmRiYmEzMjE0YmQ5ZGJhOGVlZDlhNGIwMjNiNzdjODA4NDllOTBjMWNjNWRmYjNjMGY2NGI5ODM3OTljZjIzMDMxZGI3MDE5ZjMzY2FmZTU3ZmE5OWVkNTA2NTA3YjdlN2Y1OTg4MTkyZmJjZDI3OWEyMDNmOGUyMDlhZjkwYWY4MjQwNWEwMjA3YTYxNmFmNDg2ZmJlZGJmN2ZiM2YyNTQ5OGY2NTVhYWI5YmJiOTZkMDQ5OTcyZDM1MjBlYjIzODNlMTY2MDE4ODkzMDEzYjI5ODk3ZTViYmEwMWZmNzRhMzUyZWNjOWYyYWMwZDE4NWRkOGQ4Y2MwZGUyZWUwNzA2Y2MzZGQ5ZTU0MjkwNzBkNTNkYmQ5NDJkMDcyYzczNmIzYmIzYWYxYWU1Y2EwYTNlY2MyNTkyMWVjOWI4NTNkMmU1MDExMjFhMTdmMTllYjNlMTczYzcxMTg2YWYwMTQ3ODNjOTcwYzlmOGQ4MWE3ODk4NGY5ZjNmOWMxNDQ0MmQ3NzBhOTViYzNhMTE0OGE5ZWUyYWJjNDM0NWUwNmI5ZmU2YTExMjMwNBIfWW91IGFyZSBoZWxwZnVsLgpLZWVwIGl0IHNob3J0LhpgCiQ5Yjc3MTUyNC1kZTQ0LTQ3MjAtODQ0Mi1jMGQ2NjI3YTZkMzcQARo2V2hhdCdzIHRoZSB3ZWF0aGVyIGluIFBhcmlzPyBjaGF0LWN1c3RvbS1oZWFkZXJzLWF0dHJzGlwKJDMwZWFlMmJmLTBhZjQtNGI3Yi05MzVhLWU4NzA4YTEwMTJjNxACGglDaGVja2luZy4yJwoGY2FsbF9hEgtnZXRfd2VhdGhlchoQeyJjaXR5IjoiUGFyaXMifRo3CiRjNzQzMjA5OC04YWU2LTQ2YjktYmNmNy01MzNjNzIyMWU5ZjMQBBoFc3Vubnk6BmNhbGxfYRpxCiQyMGI3MDVmOC0zYTNiLTQ2YWMtODg0ZC05ZThjNjQ2NWQzNjkQARovW0ltYWdlIDE6IHBhc3RlZF9pbWFnZV8xLndlYnBdCgpUaGFua3MgPGI+JjwvYj5SFgoIVWtsR1JnPT0SCmltYWdlL3dlYnA4BUIcCAEQ9AMYkAMpMzMzMzMz0z84KEEAAABgZmbuP1JVCgtnZXRfd2VhdGhlchILR2V0IHdlYXRoZXIaOXsidHlwZSI6Im9iamVjdCIsInByb3BlcnRpZXMiOnsiY2l0eSI6eyJ0eXBlIjoic3RyaW5nIn19fVJtCgxleGVjX2NvbW1hbmQSSlJ1bnMgYSBjb21tYW5kLCByZXR1cm5pbmcgb3V0cHV0IG9yIGFuIHNlc3Npb24gSUQgZm9yIG9uZ29pbmcgaW50ZXJhY3Rpb24uGhF7InR5cGUiOiJvYmplY3QifXoqCiQyY2M3YTBjYi1hNWI5LTVjYmItODZlOC02ODVmYjM5Y2MwMzAYBCAOggEkMmNjN2EwY2ItYTViOS01Y2JiLTg2ZTgtNjg1ZmIzOWNjMDMwoAEBqgEYY2xhdWRlLW9wdXMtNC02LXRoaW5raW5n"
+    }
+  ],
+  "downstream": {
+    "body": "{\"id\":\"interaction_95e686e1-54e\",\"object\":\"chat.completion\",\"created\":1791017281,\"model\":\"devin/claude-opus-4-6:low\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"hi more\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":5,\"completion_tokens\":2,\"total_tokens\":7,\"prompt_tokens_details\":{\"cached_tokens\":0}}}"
+  },
+  "extra": {
+    "usage": [
+      {
+        "cached_tokens": 0,
+        "failed": false,
+        "input_tokens": 5,
+        "model": "devin/claude-opus-4-6:low",
+        "output_tokens": 2,
+        "reasoning_effort": "",
+        "reasoning_tokens": 0,
+        "response_model": "",
+        "total_tokens": 7
+      }
+    ]
+  }
+}

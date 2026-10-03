@@ -2,7 +2,7 @@
   "name": "chat-nonstream-normalize",
   "credential": {
     "access_token": "kimi-access-fixture",
-    "base_url": "http://127.0.0.1:44323/coding",
+    "base_url": "http://127.0.0.1:37201/coding",
     "device_id": "dev-fixture-1",
     "refresh_token": "kimi-refresh-fixture",
     "type": "kimi"
@@ -32,7 +32,7 @@
       "headers": [
         [
           "Host",
-          "127.0.0.1:44323"
+          "127.0.0.1:37201"
         ],
         [
           "User-Agent",
@@ -84,5 +84,20 @@
   ],
   "downstream": {
     "body": "{\"id\":\"chatcmpl-1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"kimi-k2.5\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"done\",\"reasoning_content\":\"thought\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":5,\"completion_tokens\":2,\"total_tokens\":7}}"
+  },
+  "extra": {
+    "usage": [
+      {
+        "cached_tokens": 0,
+        "failed": false,
+        "input_tokens": 5,
+        "model": "kimi-k2.5",
+        "output_tokens": 2,
+        "reasoning_effort": "high",
+        "reasoning_tokens": 0,
+        "response_model": "kimi-k2.5",
+        "total_tokens": 7
+      }
+    ]
   }
 }

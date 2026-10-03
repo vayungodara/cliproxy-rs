@@ -6,10 +6,9 @@ use std::time::{Duration, SystemTime};
 
 use cpa_common::gostr::GoStr;
 use cpa_common::json::{self as gj, Kind, Res};
-use cpa_common::thinking::{ModelCaps, parse_suffix};
+use cpa_common::thinking::parse_suffix;
 use cpa_core::config::Config;
 use cpa_core::credential::{Credential, Source};
-use cpa_core::registry::ThinkingSupport;
 use http::HeaderMap;
 
 use crate::openai_compat_go as go;
@@ -27,11 +26,8 @@ pub(crate) struct Compat {
 pub(crate) struct CompatModel {
     pub name: String,
     pub alias: String,
-    pub image: bool,
-    pub is_compat: bool,
     pub use_max_completion_tokens: bool,
     pub input_modalities: Vec<String>,
-    pub thinking: Option<ThinkingSupport>,
 }
 
 fn yaml_str(v: Option<&serde_yaml_ng::Value>) -> String {
@@ -45,23 +41,6 @@ fn yaml_str(v: Option<&serde_yaml_ng::Value>) -> String {
 
 fn yaml_bool(v: Option<&serde_yaml_ng::Value>) -> bool {
     v.and_then(serde_yaml_ng::Value::as_bool).unwrap_or(false)
-}
-
-/// A `thinking:` block (`registry.ThinkingSupport` yaml tags).
-fn yaml_thinking(v: Option<&serde_yaml_ng::Value>) -> Option<ThinkingSupport> {
-    let v = v.filter(|v| v.is_mapping())?;
-    let int = |k: &str| v.get(k).and_then(serde_yaml_ng::Value::as_i64).unwrap_or(0);
-    Some(ThinkingSupport {
-        min: int("min"),
-        max: int("max"),
-        zero_allowed: yaml_bool(v.get("zero-allowed")),
-        dynamic_allowed: yaml_bool(v.get("dynamic-allowed")),
-        levels: v
-            .get("levels")
-            .and_then(serde_yaml_ng::Value::as_sequence)
-            .map(|s| s.iter().map(|l| yaml_str(Some(l))).collect())
-            .unwrap_or_default(),
-    })
 }
 
 /// `cfg.OpenAICompatibility` after `SanitizeOpenAICompatibility`: entries without a
@@ -85,15 +64,12 @@ pub(crate) fn compat_entries(cfg: &Config) -> Vec<Compat> {
             .map(|m| CompatModel {
                 name: yaml_str(m.get("name")),
                 alias: yaml_str(m.get("alias")),
-                image: yaml_bool(m.get("image")),
-                is_compat: yaml_bool(m.get("is-compat")),
                 use_max_completion_tokens: yaml_bool(m.get("use-max-completion-tokens")),
                 input_modalities: m
                     .get("input-modalities")
                     .and_then(serde_yaml_ng::Value::as_sequence)
                     .map(|s| s.iter().map(|v| yaml_str(Some(v))).collect())
                     .unwrap_or_default(),
-                thinking: yaml_thinking(m.get("thinking")),
             })
             .collect();
         out.push(Compat {
@@ -147,84 +123,6 @@ pub(crate) fn find_model<'a>(compat: &'a Compat, model: &str) -> Option<&'a Comp
         .or_else(|| compat.models.iter().find(|m| model.go_eq_fold(&model_name(&m.alias))))
 }
 
-/// The configured model's capabilities bound to this attempt (Go's
-/// `ResolvedAPIKeyModelInfo` for openai-compatibility credentials:
-/// `compileOpenAICompatibleModelCapabilities` then `lookupAPIKeyModelCapability`).
-// ponytail: adapter for the manager's capability binding (Go
-// attachResolvedAPIKeyModelInfo, owner: server thread). The dispatch loop does not put
-// resolved model info on ExecRequest yet, so the executor derives it from the config
-// entry; Home-mode bindings (M6) are not covered.
-/// Capabilities Go binds to the attempt, plus the model's `is-compat` flag
-/// (`helps.APIKeyModelIsCompat`).
-pub(crate) struct Resolved {
-    pub caps: ModelCaps,
-    pub is_compat: bool,
-}
-
-pub(crate) fn resolved_model(
-    compat: Option<&Compat>,
-    credential: &Credential,
-    route_model: &str,
-    upstream_model: &str,
-) -> Option<Resolved> {
-    if !configured_model_routing(credential) {
-        return None;
-    }
-    let compat = compat?;
-    let mut routes: Vec<(String, &str, &CompatModel)> = Vec::new();
-    for m in &compat.models {
-        let (mut name, mut alias) = (m.name.trim(), m.alias.trim());
-        if name.is_empty() {
-            name = alias;
-        }
-        if alias.is_empty() {
-            alias = name;
-        }
-        if name.is_empty() {
-            continue;
-        }
-        let mut seen: Vec<String> = Vec::new();
-        for candidate in [alias, name].into_iter().flat_map(alias_candidates) {
-            let key = candidate.trim().go_lower();
-            if key.is_empty() || seen.contains(&key) {
-                continue;
-            }
-            seen.push(key.clone());
-            if !routes.iter().any(|(k, up, _)| *k == key && up.go_eq_fold(name)) {
-                routes.push((key, name, m));
-            }
-        }
-    }
-    let requested = cpa_core::registry::dynamic::strip_prefix(route_model.trim(), credential);
-    let mut matches: Vec<(&str, &CompatModel)> = Vec::new();
-    for candidate in alias_candidates(requested) {
-        let key = candidate.trim().go_lower();
-        matches.extend(routes.iter().filter(|(k, ..)| *k == key).map(|(_, up, m)| (*up, *m)));
-    }
-    let selected = upstream_model.trim();
-    let (name, model) = matches
-        .iter()
-        .find(|(up, _)| up.trim().go_eq_fold(selected))
-        .or_else(|| matches.iter().find(|(up, _)| upstream_fallback_matches(up, selected)))?;
-    let support = model.thinking.clone().or_else(|| {
-        (!model.image).then(|| ThinkingSupport {
-            levels: vec!["low".into(), "medium".into(), "high".into()],
-            ..ThinkingSupport::default()
-        })
-    });
-    Some(Resolved {
-        caps: resolve_model_info(name, "openai-compatibility", support),
-        is_compat: model.is_compat,
-    })
-}
-
-/// `isConfiguredModelRoutingAuth`: API-key credentials, or config-sourced ones that name a
-/// compatibility provider. Others never bind configured capabilities.
-fn configured_model_routing(credential: &Credential) -> bool {
-    auth_kind(credential) == "apikey"
-        || (auth_source_kind(credential) == "config" && !attribute(credential, "compat_name").is_empty())
-}
-
 fn attribute<'a>(credential: &'a Credential, key: &str) -> &'a str {
     credential.attributes.get(key).map_or("", |v| v.trim())
 }
@@ -239,7 +137,7 @@ fn normalize_auth_kind(kind: &str) -> &'static str {
 }
 
 /// `Auth.AuthKind`: explicit kind, then the field-shape fallbacks.
-fn auth_kind(credential: &Credential) -> &'static str {
+pub(crate) fn auth_kind(credential: &Credential) -> &'static str {
     let explicit = normalize_auth_kind(attribute(credential, "auth_kind"));
     if !explicit.is_empty() {
         return explicit;
@@ -269,83 +167,6 @@ fn auth_kind(credential: &Credential) -> &'static str {
             .and_then(serde_json::Value::as_object)
             .is_some_and(|t| !t.is_empty());
     if has_oauth { "oauth" } else { "" }
-}
-
-/// `Auth.AuthSourceKind`, the `config` answer only (all validation needs).
-fn auth_source_kind(credential: &Credential) -> &'static str {
-    let normalize = |s: &str| match s.trim().go_lower().as_str() {
-        "config" => "config",
-        "file" | "filesystem" => "file",
-        "git" => "git",
-        "memory" | "runtime" | "runtime_only" => "memory",
-        "objectstore" | "object-store" => "objectstore",
-        "postgres" | "postgresql" | "database" | "db" => "postgres",
-        _ => "",
-    };
-    if attribute(credential, "runtime_only").go_eq_fold("true") {
-        return "memory";
-    }
-    let backend = normalize(attribute(credential, "source_backend"));
-    if !backend.is_empty() {
-        return backend;
-    }
-    let source = attribute(credential, "source");
-    if !source.is_empty() {
-        if source.go_lower().starts_with("config:") {
-            return "config";
-        }
-        let kind = normalize(source);
-        return if kind.is_empty() { "file" } else { kind };
-    }
-    // ponytail: Go then reads the `path` attribute and Auth.FileName; credentials built
-    // without a `source` attribute fall back to how they were loaded.
-    match credential.source {
-        Source::Config { .. } => "config",
-        Source::File(_) => "file",
-    }
-}
-
-/// `modelAliasLookupCandidates`: the model, then its suffix-free name when different.
-fn alias_candidates(model: &str) -> Vec<String> {
-    let model = model.trim();
-    if model.is_empty() {
-        return Vec::new();
-    }
-    let base = parse_suffix(model).model_name;
-    let base = if base.is_empty() { model.to_owned() } else { base };
-    if base == model {
-        vec![base]
-    } else {
-        vec![model.to_owned(), base]
-    }
-}
-
-/// `configuredUpstreamFallbackMatches`.
-fn upstream_fallback_matches(configured: &str, selected: &str) -> bool {
-    let configured = parse_suffix(configured.trim());
-    !configured.has_suffix
-        && configured
-            .model_name
-            .trim()
-            .go_eq_fold(parse_suffix(selected.trim()).model_name.trim())
-}
-
-/// `modelconfig.ResolveModelInfo`: the static definition of the base model, renamed and
-/// typed for the configured route, with configured thinking normalized.
-pub(crate) fn resolve_model_info(name: &str, kind: &str, support: Option<ThinkingSupport>) -> ModelCaps {
-    let name = name.trim();
-    let base = parse_suffix(name).model_name;
-    let mut caps = cpa_core::registry::pinned()
-        .lookup(base.trim())
-        .map(ModelCaps::from)
-        .unwrap_or_default();
-    caps.id = name.to_owned();
-    caps.kind = kind.trim().to_owned();
-    if let Some(support) = support {
-        caps.thinking = Some(cpa_core::registry::dynamic::normalize_thinking(support));
-    }
-    caps.user_defined = false;
-    caps
 }
 
 /// `ShouldUseMaxCompletionTokensForModel`.

@@ -1,7 +1,7 @@
 {
   "credential": {
     "access_token": "kimi-access-fixture",
-    "base_url": "http://127.0.0.1:42347/coding",
+    "base_url": "http://127.0.0.1:42435/coding",
     "device_id": "dev-fixture-1",
     "refresh_token": "kimi-refresh-fixture",
     "type": "kimi"
@@ -22,6 +22,21 @@
       "event: response.created\ndata: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_2\"}}\n\n",
       "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"delta\":\"hi\"}\n\n",
       "event: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_2\",\"usage\":{\"input_tokens\":1,\"output_tokens\":1,\"total_tokens\":2}}}\n\n"
+    ]
+  },
+  "extra": {
+    "usage": [
+      {
+        "cached_tokens": 0,
+        "failed": false,
+        "input_tokens": 1,
+        "model": "kimi-k3",
+        "output_tokens": 1,
+        "reasoning_effort": "",
+        "reasoning_tokens": 0,
+        "response_model": "",
+        "total_tokens": 2
+      }
     ]
   },
   "name": "responses-stream-clamp",
@@ -49,7 +64,7 @@
       "headers": [
         [
           "Host",
-          "127.0.0.1:42347"
+          "127.0.0.1:42435"
         ],
         [
           "User-Agent",

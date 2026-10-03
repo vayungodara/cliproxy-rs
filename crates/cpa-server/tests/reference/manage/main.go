@@ -541,7 +541,115 @@ type oauthOnlyCase struct {
 	Fields []string `json:"fields"`
 }
 
+// yaml.v3's YAML 1.1 bool compatibility: a spelling written raw into a typed bool,
+// an optional (*bool) field and a string field, loaded with config.LoadConfig.
+type yamlBoolCase struct {
+	Spelling string `json:"spelling"`
+	Field    string `json:"field"`
+	Error    bool   `json:"error"`
+	Value    any    `json:"value"`
+}
+
+// A config using anchors and merge keys, and the values Go loads from it.
+type yamlMergeCase struct {
+	Name   string         `json:"name"`
+	YAML   string         `json:"yaml"`
+	Error  bool           `json:"error"`
+	Values map[string]any `json:"values,omitempty"`
+}
+
+func loadText(dir, text string) (*config.Config, error) {
+	path := filepath.Join(dir, "config.yaml")
+	must(os.WriteFile(path, []byte(text), 0o600))
+	return config.LoadConfig(path)
+}
+
+func yamlBoolCases() []yamlBoolCase {
+	dir, err := os.MkdirTemp("", "cpa-bools-")
+	must(err)
+	defer os.RemoveAll(dir)
+	spellings := []string{"y", "Y", "yes", "Yes", "YES", "on", "On", "ON", "n", "N", "no", "No", "NO", "off", "Off", "OFF",
+		"yEs", "oN", "nO", "true", "True", "TRUE", "tRue", "false", "False", "FALSE", `"yes"`, `'off'`, `"true"`, `'False'`,
+		"!!str yes", "!!bool true", "1", "0", "t", "f", "~", "null", `""`}
+	templates := map[string]string{
+		"observability.logs.debug":                      "config-version: 8\nobservability:\n  logs:\n    debug: %s\n",
+		"plugins.configs.x.enabled":                     "config-version: 8\nplugins:\n  configs:\n    x:\n      enabled: %s\n",
+		"server.host":                                   "config-version: 8\nserver:\n  host: %s\n",
+		"credentials.concurrency.cpa-heartbeat-timeout": "config-version: 8\ncredentials:\n  concurrency:\n    cpa-heartbeat-timeout: %s\n",
+	}
+	durations := []string{"3s", `"250ms"`, "1h2m3.5s", "0", "0s", "-1s", "5", "banana", "1d", `""`, "~", "yes"}
+	var out []yamlBoolCase
+	for _, field := range []string{"observability.logs.debug", "plugins.configs.x.enabled", "server.host", "credentials.concurrency.cpa-heartbeat-timeout"} {
+		list := spellings
+		if strings.HasPrefix(field, "credentials.") {
+			list = durations
+		}
+		for _, spelling := range list {
+			cfg, errLoad := loadText(dir, fmt.Sprintf(templates[field], spelling))
+			c := yamlBoolCase{Spelling: spelling, Field: field, Error: errLoad != nil}
+			if errLoad == nil {
+				switch field {
+				case "observability.logs.debug":
+					c.Value = cfg.Debug
+				case "plugins.configs.x.enabled":
+					if item, ok := cfg.Plugins.Configs["x"]; ok && item.Enabled != nil {
+						c.Value = *item.Enabled
+					}
+				case "server.host":
+					c.Value = cfg.Host
+				default:
+					c.Value = cfg.CredentialConcurrency.CPAHeartbeatTimeout.String()
+				}
+			}
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
+func yamlMergeCases() []yamlMergeCase {
+	dir, err := os.MkdirTemp("", "cpa-merges-")
+	must(err)
+	defer os.RemoveAll(dir)
+	cases := []yamlMergeCase{
+		{Name: "anchors_and_merges", YAML: "config-version: 8\n" +
+			"routing:\n  retry: &r\n    request-retry: 4\n    max-retry-interval: 9\n" +
+			"api-keys:\n  claude:\n    - base-url: https://a.example.invalid\n      keys:\n" +
+			"        - &k\n          api-key: fake-1\n          priority: 3\n" +
+			"        - <<: *k\n          api-key: fake-2\n" +
+			"        - <<: [{api-key: fake-3, priority: 7}, *k]\n" +
+			"observability:\n  logs:\n    <<: [{debug: true, request-log: false}, {debug: false, request-log: true}]\n    logging-to-file: false\n"},
+		{Name: "nested_merge_in_merged_mapping", YAML: "config-version: 8\n" +
+			"routing:\n  retry:\n    <<: {<<: {request-retry: 6}, max-retry-interval: 2}\n"},
+		{Name: "legacy_layout_merge", YAML: "request-retry: &n 5\nmax-retry-interval: *n\n" +
+			"claude-api-key:\n  - &c {api-key: fake-l1, priority: 2}\n  - <<: *c\n    api-key: fake-l2\n"},
+		{Name: "scalar_merge", YAML: "config-version: 8\nrouting:\n  retry:\n    <<: 5\n    request-retry: 1\n"},
+		{Name: "scalar_in_merge_list", YAML: "config-version: 8\nrouting:\n  retry:\n    <<: [5]\n    request-retry: 1\n"},
+	}
+	for i := range cases {
+		cfg, errLoad := loadText(dir, cases[i].YAML)
+		cases[i].Error = errLoad != nil
+		if errLoad != nil {
+			continue
+		}
+		keys := []any{}
+		for _, k := range cfg.ClaudeKey {
+			keys = append(keys, map[string]any{"api-key": k.APIKey, "priority": k.Priority})
+		}
+		cases[i].Values = map[string]any{
+			"request-retry":      cfg.RequestRetry,
+			"max-retry-interval": cfg.MaxRetryInterval,
+			"debug":              cfg.Debug,
+			"request-log":        cfg.RequestLog,
+			"claude":             keys,
+		}
+	}
+	return cases
+}
+
 type output struct {
+	YAMLBools    []yamlBoolCase   `json:"yaml_bools"`
+	YAMLMerges   []yamlMergeCase  `json:"yaml_merges"`
 	OAuthOnly    []oauthOnlyCase  `json:"oauth_only"`
 	Credentials  []credScenario   `json:"credentials"`
 	Materialized any              `json:"materialized_defaults"`
@@ -730,6 +838,8 @@ func main() {
 	base := runConfig(configScenario{Name: "materialized", YAML: "config-version: 8\nmanagement:\n  secret-key: '$HASH'\n",
 		Steps: []configStep{{Method: http.MethodPatch, Path: "/config", Body: "{}"}}})
 	out.Materialized = base.Steps[0].File
+	out.YAMLBools = yamlBoolCases()
+	out.YAMLMerges = yamlMergeCases()
 	for _, s := range credScenarios() {
 		out.Credentials = append(out.Credentials, runCreds(s))
 	}
@@ -1195,6 +1305,19 @@ func configScenarios() []configScenario {
 			put("/config/requests/payload/default", `[{"models":[{"name":"*","protocol":"openai"}],"params":{"temperature":0.5}}]`),
 			get("/config"),
 			put("/config/management/secret-key", `"fake-rotated"`),
+			get("/config"),
+		}},
+		// YAML 1.1 bool spellings and merge keys in the loaded file, and bool spellings
+		// written as JSON strings (Go's typed saver persists booleans).
+		{Name: "yaml_bools_and_merges", YAML: "config-version: 8\nmanagement:\n  secret-key: '$HASH'\n" +
+			"routing:\n  session-affinity: yes\n  retry: &r\n    request-retry: 2\n" +
+			"observability:\n  logs:\n    <<: {debug: on, request-log: Off}\n    logging-to-file: false\n", Steps: []configStep{
+			get("/config"),
+			put("/config/routing/retry/request-retry", `3`),
+			put("/config/routing/session-affinity-subagents", `"off"`),
+			put("/config/observability/logs/request-log", `"YES"`),
+			put("/config/routing/force-model-prefix", `"yEs"`),
+			put("/config/routing/force-model-prefix", `"true"`),
 			get("/config"),
 		}},
 		{Name: "turn_secrets_redacted_and_preserved_by_urls", YAML: turn, Steps: []configStep{

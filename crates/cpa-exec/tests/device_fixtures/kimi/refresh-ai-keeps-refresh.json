@@ -47,7 +47,7 @@
         ],
         [
           "X-Msh-Device-Id",
-          "e7f6b2ae-83fa-473e-be2c-bea7f08feae6"
+          "39f7d689-f2e3-44e3-a595-5366cc57d90d"
         ],
         [
           "X-Msh-Device-Model",
@@ -75,12 +75,12 @@
   ],
   "downstream": {},
   "extra": {
-    "before_unix": 1790961562,
+    "before_unix": 1791017365,
     "metadata": {
       "access_token": "new-access-2",
       "base_url": "https://api.kimi.ai/coding",
       "domain": "kimi.ai",
-      "last_refresh": "2026-10-02T17:19:22Z",
+      "last_refresh": "2026-10-03T08:49:25Z",
       "refresh_token": "kimi-refresh-2",
       "type": "kimi-ai"
     }

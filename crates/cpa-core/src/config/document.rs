@@ -154,6 +154,10 @@ impl ConfigDocument {
     pub fn value(&self) -> &Value {
         &self.0
     }
+    /// yaml.v3's decoding of YAML 1.1 bool spellings into typed bool fields.
+    pub(super) fn coerce_typed_bools(&mut self) {
+        super::schema::coerce_typed_bools(&mut self.0);
+    }
     pub fn into_value(self) -> Value {
         self.0
     }

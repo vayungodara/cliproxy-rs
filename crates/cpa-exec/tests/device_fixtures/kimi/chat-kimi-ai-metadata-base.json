@@ -2,7 +2,7 @@
   "name": "chat-kimi-ai-metadata-base",
   "credential": {
     "access_token": "kimi-ai-access",
-    "base_url": "http://127.0.0.1:39121/coding",
+    "base_url": "http://127.0.0.1:45805/coding",
     "domain": "kimi.ai",
     "type": "kimi-ai"
   },
@@ -31,7 +31,7 @@
       "headers": [
         [
           "Host",
-          "127.0.0.1:39121"
+          "127.0.0.1:45805"
         ],
         [
           "User-Agent",
@@ -83,5 +83,20 @@
   ],
   "downstream": {
     "body": "{\"id\":\"c3\",\"object\":\"chat.completion\",\"created\":3,\"model\":\"kimi-k2\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}]}"
+  },
+  "extra": {
+    "usage": [
+      {
+        "cached_tokens": 0,
+        "failed": false,
+        "input_tokens": 0,
+        "model": "kimi-k2",
+        "output_tokens": 0,
+        "reasoning_effort": "",
+        "reasoning_tokens": 0,
+        "response_model": "kimi-k2",
+        "total_tokens": 0
+      }
+    ]
   }
 }
