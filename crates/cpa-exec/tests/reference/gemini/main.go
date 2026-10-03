@@ -32,6 +32,7 @@ import (
 	cliproxyexecutor "github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/executor"
 	cliproxysession "github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/session"
 	sdktranslator "github.com/router-for-me/CLIProxyAPI/v8/sdk/translator"
+	coreusage "github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/usage"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 )
@@ -81,6 +82,49 @@ type scenario struct {
 	Output  string   `json:"output,omitempty"`
 	Chunks  []string `json:"chunks,omitempty"`
 	Error   *errOut  `json:"error,omitempty"`
+	// Usage is the record the executor's UsageReporter published, if any.
+	Usage *usageOut `json:"usage,omitempty"`
+}
+
+// usageOut is the part of a published usage.Record the executor decides: the parsed
+// upstream usage, the observed response model and the translated reasoning effort.
+type usageOut struct {
+	InputTokens         int64  `json:"input_tokens"`
+	OutputTokens        int64  `json:"output_tokens"`
+	ReasoningTokens     int64  `json:"reasoning_tokens"`
+	CachedTokens        int64  `json:"cached_tokens"`
+	CacheReadTokens     int64  `json:"cache_read_tokens"`
+	CacheCreationTokens int64  `json:"cache_creation_tokens"`
+	TotalTokens         int64  `json:"total_tokens"`
+	ResponseModel       string `json:"response_model"`
+	ReasoningEffort     string `json:"reasoning_effort"`
+	Failed              bool   `json:"failed"`
+}
+
+// usageCapture receives every record the default usage manager dispatches.
+type usageCapture chan coreusage.Record
+
+func (c usageCapture) HandleUsage(_ context.Context, record coreusage.Record) { c <- record }
+
+var captured = make(usageCapture, 16)
+
+// awaitUsage returns the scenario's record (its trace ID is the scenario name), or nil
+// when the executor published none.
+func awaitUsage(name string) *usageOut {
+	select {
+	case r := <-captured:
+		if r.TraceID != name {
+			panic(fmt.Sprintf("%s: usage record of %q", name, r.TraceID))
+		}
+		d := r.Detail
+		return &usageOut{
+			InputTokens: d.InputTokens, OutputTokens: d.OutputTokens, ReasoningTokens: d.ReasoningTokens,
+			CachedTokens: d.CachedTokens, CacheReadTokens: d.CacheReadTokens, CacheCreationTokens: d.CacheCreationTokens,
+			TotalTokens: d.TotalTokens, ResponseModel: r.ResponseModel, ReasoningEffort: r.ReasoningEffort, Failed: r.Failed,
+		}
+	case <-time.After(300 * time.Millisecond):
+		return nil
+	}
 }
 
 // capture serves one connection: records the raw request and replies with the script.
@@ -440,7 +484,7 @@ func run(s *scenario) {
 	if canonical = strings.TrimSpace(canonical); canonical != "" {
 		s.Session = cliproxysession.BoundSessionIdentity(canonical)
 	}
-	ctx := util.WithSessionID(context.Background(), s.Session)
+	ctx := coreusage.WithTraceID(util.WithSessionID(context.Background(), s.Session), s.Name)
 
 	switch s.Op {
 	case "execute":
@@ -473,6 +517,7 @@ func run(s *scenario) {
 	default:
 		panic(s.Op)
 	}
+	s.Usage = awaitUsage(s.Name)
 	if s.Upstream != nil {
 		select {
 		case raw := <-done:
@@ -492,6 +537,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, "usage: generator OUTPUT.json")
 		os.Exit(2)
 	}
+	coreusage.RegisterPlugin(captured)
 	all := scenarios()
 	for i := range all {
 		run(&all[i])

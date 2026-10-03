@@ -314,10 +314,9 @@ struct RawLines(Output);
 
 impl LineState for RawLines {
     fn line(&mut self, line: &[u8]) -> Emit {
-        let mut event = Vec::with_capacity(line.len() + 1);
-        event.extend_from_slice(line);
-        event.push(b'\n');
-        self.0.translate(&event)
+        // Go's reporter sees each raw line (model and usage, unfiltered).
+        self.0.usage.response_line(Format::Gemini, line);
+        self.0.translate(&g::line_event(line))
     }
 
     fn end(&mut self) -> Emit {
@@ -436,6 +435,7 @@ impl VertexExecutor {
             (false, None) => {}
         }
         body = payload::delete(body, "session_id");
+        req.usage.request(Format::Gemini, &body);
         let headers = self.headers(credential, req, cfg, auth).await?;
         let upstream = proxy::send(&self.client(credential, cfg), &url, headers, body.clone(), None).await?;
         if !(200..300).contains(&upstream.status) {
@@ -444,6 +444,10 @@ impl VertexExecutor {
         let response_headers = upstream.headers.clone();
         if !req.stream {
             let mut data = proxy::read_all(upstream.body, usize::MAX, false).await?.to_vec();
+            // ponytail: Go observes the response model on the raw body but parses usage
+            // after the Imagen conversion, whose usageMetadata is all zeros; Imagen
+            // predict responses carry no usageMetadata, so the raw body gives the same.
+            req.usage.response_body(Format::Gemini, &data);
             if imagen_wire {
                 data = imagen_response(&data, &base_model);
             }

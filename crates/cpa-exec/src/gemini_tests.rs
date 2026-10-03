@@ -27,6 +27,49 @@ pub(crate) fn resolved_model(s: &Value) -> Option<cpa_core::exec::ResolvedModel>
     })
 }
 
+/// What an executor reported to its usage sink: the reasoning effort of the last
+/// translated request (Go `SetTranslatedReasoningEffort`) and how many response reports
+/// arrived. Token and response-model parity is checked through the router against Go's
+/// published records (cpa-server tests/gemini_routes.rs `usage_records_match_go`).
+#[derive(Default)]
+pub(crate) struct UsageReports {
+    effort: Mutex<Option<String>>,
+    responses: Mutex<usize>,
+}
+
+impl UsageReports {
+    pub(crate) fn sink(self: &Arc<Self>) -> cpa_core::exec::UsageSink {
+        cpa_core::exec::UsageSink::new(self.clone())
+    }
+
+    /// Checks the reports against the record Go's reporter published (the fixture's
+    /// `usage`): Go's record keeps an empty effort unless the executor set one.
+    pub(crate) fn check(&self, s: &Value) {
+        let name = s["name"].as_str().unwrap();
+        let effort = self.effort.lock().unwrap().clone().unwrap_or_default();
+        match s.get("usage").filter(|u| !u.is_null()) {
+            Some(want) => assert_eq!(effort, want["reasoning_effort"].as_str().unwrap(), "{name}: reasoning effort"),
+            // No record: Go failed before its reporter existed, so nothing was sent.
+            None => assert_eq!(*self.responses.lock().unwrap(), 0, "{name}: no reporter in Go"),
+        }
+    }
+}
+
+impl cpa_core::exec::UsageObserver for UsageReports {
+    fn response_body(&self, _: Format, _: &[u8]) {
+        *self.responses.lock().unwrap() += 1;
+    }
+
+    fn response_line(&self, _: Format, _: &[u8]) {
+        *self.responses.lock().unwrap() += 1;
+    }
+
+    fn request(&self, format: Format, payload: &[u8]) {
+        let effort = cpa_common::thinking::extract_translated_reasoning_effort(payload, format.as_str());
+        *self.effort.lock().unwrap() = Some(effort);
+    }
+}
+
 const FIXTURE: &str = include_str!("../tests/fixtures/gemini_go.json");
 
 fn fixture() -> &'static Value {
@@ -279,7 +322,9 @@ async fn go_reference_scenarios() {
         let addr = mock.as_ref().map_or("127.0.0.1:9".to_owned(), |m| m.addr.clone());
         let cfg = Config::parse(&s["config"].as_str().unwrap_or_default().replace("UPSTREAM", &addr)).unwrap();
         let cred = credential(s, &cfg, &addr);
-        let req = request(s);
+        let mut req = request(s);
+        let reports = Arc::new(UsageReports::default());
+        req.usage = reports.sink();
         let (client, alt) = (req.response_format, req.alt.as_deref().is_some_and(|a| !a.is_empty()));
         let mut output = None;
         let mut streamed = Vec::new();
@@ -326,6 +371,7 @@ async fn go_reference_scenarios() {
         );
         let request = mock.as_ref().and_then(Mock::request);
         assert_eq!(request.as_deref(), s["request"].as_str(), "{name}: upstream request");
+        reports.check(s);
         ran += 1;
     }
     eprintln!("gemini scenarios: {ran} ran, {} wait for translators:", skipped.len());
@@ -499,6 +545,7 @@ async fn pending_responses_frame_is_flushed_before_terminal_error() {
             Format::OpenAIResponse,
             Bytes::new(),
         ),
+        usage: Default::default(),
     };
     let lines = futures_util::stream::iter([
         Ok(Bytes::from_static(br#"data: {"a":1}"#)),
@@ -565,6 +612,7 @@ async fn apply_patch_hooks_follow_go_order() {
             client: Format::OpenAI,
             raw: false,
             claude: ClaudeInputTokens::new(Format::OpenAI, Format::Gemini, Format::OpenAI, Bytes::new()),
+            usage: Default::default(),
         };
         let lines = futures_util::stream::iter([
             Ok(Bytes::from_static(br#"data: {"a":1}"#)),

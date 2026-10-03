@@ -66,7 +66,19 @@
         "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
       },
       "request": "POST /v1beta/models/gemini-2.5-flash:generateContent HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 417\r\nContent-Type: application/json\r\nX-Forward: trace-1\r\nX-Goog-Api-Key: AIza-fake-gemini-1\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}",
-      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}",
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 4,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "",
+        "failed": false
+      }
     },
     {
       "name": "gen_alt_json",
@@ -129,7 +141,19 @@
         "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
       },
       "request": "POST /v1beta/models/gemini-2.5-flash:generateContent?$alt=json HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 417\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-gemini-1\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}",
-      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}",
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 4,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "",
+        "failed": false
+      }
     },
     {
       "name": "gen_model_written_when_missing_needs_normalizer",
@@ -194,7 +218,19 @@
         "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
       },
       "request": "POST /v1beta/models/gemini-2.5-flash:generateContent HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 417\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-gemini-1\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"model\":\"gemini-2.5-flash\"}",
-      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}",
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 4,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "",
+        "failed": false
+      }
     },
     {
       "name": "gen_boundary_user_turns",
@@ -256,7 +292,19 @@
         "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
       },
       "request": "POST /v1beta/models/gemini-2.5-flash:generateContent HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 578\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-gemini-1\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"earlier\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"q\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}",
-      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}",
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 4,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "",
+        "failed": false
+      }
     },
     {
       "name": "gen_trailing_function_response_kept",
@@ -318,7 +366,19 @@
         "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
       },
       "request": "POST /v1beta/models/gemini-2.5-flash:generateContent HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 496\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-gemini-1\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"q\"}]},{\"role\":\"model\",\"parts\":[{\"functionResponse\":{\"name\":\"f\",\"response\":{\"x\":1}}}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}",
-      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}",
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 4,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "",
+        "failed": false
+      }
     },
     {
       "name": "gen_cap_max_output_tokens",
@@ -380,7 +440,19 @@
         "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
       },
       "request": "POST /v1beta/models/gemini-2.5-flash:generateContent HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 480\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-gemini-1\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"generationConfig\":{\"maxOutputTokens\":65536,\"temperature\":0.5}}",
-      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}",
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 4,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "",
+        "failed": false
+      }
     },
     {
       "name": "gen_cap_uses_max_completion_tokens",
@@ -407,7 +479,19 @@
         "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
       },
       "request": "POST /v1beta/models/gemini-3.7-flash:generateContent HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 462\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-gemini-1\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-3.7-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"generationConfig\":{\"maxOutputTokens\":65536}}",
-      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}",
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 4,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "",
+        "failed": false
+      }
     },
     {
       "name": "gen_cap_keeps_small_and_string",
@@ -469,7 +553,19 @@
         "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
       },
       "request": "POST /v1beta/models/gemini-2.5-flash:generateContent HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 465\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-gemini-1\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"generationConfig\":{\"maxOutputTokens\":\"100000\"}}",
-      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}",
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 4,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "",
+        "failed": false
+      }
     },
     {
       "name": "gen_cap_unknown_model",
@@ -496,7 +592,19 @@
         "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
       },
       "request": "POST /v1beta/models/gemini-unknown-x:generateContent HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 463\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-gemini-1\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-unknown-x\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"generationConfig\":{\"maxOutputTokens\":100000}}",
-      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}",
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 4,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "",
+        "failed": false
+      }
     },
     {
       "name": "gen_image_aspect_ratio_white_image",
@@ -523,7 +631,19 @@
         "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
       },
       "request": "POST /v1beta/models/gemini-2.5-flash-image-preview:generateContent HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 7217\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-gemini-1\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-2.5-flash-image-preview\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\": \"Based on the following requirements, create an image within the uploaded picture. The new content *MUST* completely cover the entire area of the original picture, maintaining its exact proportions, and *NO* blank areas should appear.\"},{\"inlineData\":{\"mime_type\":\"image/png\",\"data\":\"iVBORw0KGgoAAAANSUhEUgAABUAAAAMACAIAAABq7Fo6AAAShElEQVR4nOzXQQ0AIRDAwMsF/5YXCTyhyYyCfrtm5gMAAADe9t8OAAAAAM4MPAAAAAQYeAAAAAgw8AAAABBg4AEAACDAwAMAAECAgQcAAIAAAw8AAAABBh4AAAACDDwAAAAEGHgAAAAIMPAAAAAQYOABAAAgwMADAABAgIEHAACAAAMPAAAAAQYeAAAAAgw8AAAABBh4AAAACDDwAAAAEGDgAQAAIMDAAwAAQICBBwAAgAADDwAAAAEGHgAAAAIMPAAAAAQYeAAAAAgw8AAAABBg4AEAACDAwAMAAECAgQcAAIAAAw8AAAABBh4AAAACDDwAAAAEGHgAAAAIMPAAAAAQYOABAAAgwMADAABAgIEHAACAAAMPAAAAAQYeAAAAAgw8AAAABBh4AAAACDDwAAAAEGDgAQAAIMDAAwAAQICBBwAAgAADDwAAAAEGHgAAAAIMPAAAAAQYeAAAAAgw8AAAABBg4AEAACDAwAMAAECAgQcAAIAAAw8AAAABBh4AAAACDDwAAAAEGHgAAAAIMPAAAAAQYOABAAAgwMADAABAgIEHAACAAAMPAAAAAQYeAAAAAgw8AAAABBh4AAAACDDwAAAAEGDgAQAAIMDAAwAAQICBBwAAgAADDwAAAAEGHgAAAAIMPAAAAAQYeAAAAAgw8AAAABBg4AEAACDAwAMAAECAgQcAAIAAAw8AAAABBh4AAAACDDwAAAAEGHgAAAAIMPAAAAAQYOABAAAgwMADAABAgIEHAACAAAMPAAAAAQYeAAAAAgw8AAAABBh4AAAACDDwAAAAEGDgAQAAIMDAAwAAQICBBwAAgAADDwAAAAEGHgAAAAIMPAAAAAQYeAAAAAgw8AAAABBg4AEAACDAwAMAAECAgQcAAIAAAw8AAAABBh4AAAACDDwAAAAEGHgAAAAIMPAAAAAQYOABAAAgwMADAABAgIEHAACAAAMPAAAAAQYeAAAAAgw8AAAABBh4AAAACDDwAAAAEGDgAQAAIMDAAwAAQICBBwAAgAADDwAAAAEGHgAAAAIMPAAAAAQYeAAAAAgw8AAAABBg4AEAACDAwAMAAECAgQcAAIAAAw8AAAABBh4AAAACDDwAAAAEGHgAAAAIMPAAAAAQYOABAAAgwMADAABAgIEHAACAAAMPAAAAAQYeAAAAAgw8AAAABBh4AAAACDDwAAAAEGDgAQAAIMDAAwAAQICBBwAAgAADDwAAAAEGHgAAAAIMPAAAAAQYeAAAAAgw8AAAABBg4AEAACDAwAMAAECAgQcAAIAAAw8AAAABBh4AAAACDDwAAAAEGHgAAAAIMPAAAAAQYOABAAAgwMADAABAgIEHAACAAAMPAAAAAQYeAAAAAgw8AAAABBh4AAAACDDwAAAAEGDgAQAAIMDAAwAAQICBBwAAgAADDwAAAAEGHgAAAAIMPAAAAAQYeAAAAAgw8AAAABBg4AEAACDAwAMAAECAgQcAAIAAAw8AAAABBh4AAAACDDwAAAAEGHgAAAAIMPAAAAAQYOABAAAgwMADAABAgIEHAACAAAMPAAAAAQYeAAAAAgw8AAAABBh4AAAACDDwAAAAEGDgAQAAIMDAAwAAQICBBwAAgAADDwAAAAEGHgAAAAIMPAAAAAQYeAAAAAgw8AAAABBg4AEAACDAwAMAAECAgQcAAIAAAw8AAAABBh4AAAACDDwAAAAEGHgAAAAIMPAAAAAQYOABAAAgwMADAABAgIEHAACAAAMPAAAAAQYeAAAAAgw8AAAABBh4AAAACDDwAAAAEGDgAQAAIMDAAwAAQICBBwAAgAADDwAAAAEGHgAAAAIMPAAAAAQYeAAAAAgw8AAAABBg4AEAACDAwAMAAECAgQcAAIAAAw8AAAABBh4AAAACDDwAAAAEGHgAAAAIMPAAAAAQYOABAAAgwMADAABAgIEHAACAAAMPAAAAAQYeAAAAAgw8AAAABBh4AAAACDDwAAAAEGDgAQAAIMDAAwAAQICBBwAAgAADDwAAAAEGHgAAAAIMPAAAAAQYeAAAAAgw8AAAABBg4AEAACDAwAMAAECAgQcAAIAAAw8AAAABBh4AAAACDDwAAAAEGHgAAAAIMPAAAAAQYOABAAAgwMADAABAgIEHAACAAAMPAAAAAQYeAAAAAgw8AAAABBh4AAAACDDwAAAAEGDgAQAAIMDAAwAAQICBBwAAgAADDwAAAAEGHgAAAAIMPAAAAAQYeAAAAAgw8AAAABBg4AEAACDAwAMAAECAgQcAAIAAAw8AAAABBh4AAAACDDwAAAAEGHgAAAAIMPAAAAAQYOABAAAgwMADAABAgIEHAACAAAMPAAAAAQYeAAAAAgw8AAAABBh4AAAACDDwAAAAEGDgAQAAIMDAAwAAQICBBwAAgAADDwAAAAEGHgAAAAIMPAAAAAQYeAAAAAgw8AAAABBg4AEAACDAwAMAAECAgQcAAIAAAw8AAAABBh4AAAACDDwAAAAEGHgAAAAIMPAAAAAQYOABAAAgwMADAABAgIEHAACAAAMPAAAAAQYeAAAAAgw8AAAABBh4AAAACDDwAAAAEGDgAQAAIMDAAwAAQICBBwAAgAADDwAAAAEGHgAAAAIMPAAAAAQYeAAAAAgw8AAAABBg4AEAACDAwAMAAECAgQcAAIAAAw8AAAABBh4AAAACDDwAAAAEGHgAAAAIMPAAAAAQYOABAAAgwMADAABAgIEHAACAAAMPAAAAAQYeAAAAAgw8AAAABBh4AAAACDDwAAAAEGDgAQAAIMDAAwAAQICBBwAAgAADDwAAAAEGHgAAAAIMPAAAAAQYeAAAAAgw8AAAABBg4AEAACDAwAMAAECAgQcAAIAAAw8AAAABBh4AAAACDDwAAAAEGHgAAAAIMPAAAAAQYOABAAAgwMADAABAgIEHAACAAAMPAAAAAQYeAAAAAgw8AAAABBh4AAAACDDwAAAAEGDgAQAAIMDAAwAAQICBBwAAgAADDwAAAAEGHgAAAAIMPAAAAAQYeAAAAAgw8AAAABBg4AEAACDAwAMAAECAgQcAAIAAAw8AAAABBh4AAAACDDwAAAAEGHgAAAAIMPAAAAAQYOABAAAgwMADAABAgIEHAACAAAMPAAAAAQYeAAAAAgw8AAAABBh4AAAACDDwAAAAEGDgAQAAIMDAAwAAQICBBwAAgAADDwAAAAEGHgAAAAIMPAAAAAQYeAAAAAgw8AAAABBg4AEAACDAwAMAAECAgQcAAIAAAw8AAAABBh4AAAACDDwAAAAEGHgAAAAIMPAAAAAQYOABAAAgwMADAABAgIEHAACAAAMPAAAAAQYeAAAAAgw8AAAABBh4AAAACDDwAAAAEGDgAQAAIMDAAwAAQICBBwAAgAADDwAAAAEGHgAAAAIMPAAAAAQYeAAAAAgw8AAAABBg4AEAACDAwAMAAECAgQcAAIAAAw8AAAABBh4AAAACDDwAAAAEGHgAAAAIMPAAAAAQYOABAAAgwMADAABAgIEHAACAAAMPAAAAAQYeAAAAAgw8AAAABBh4AAAACDDwAAAAEGDgAQAAIMDAAwAAQICBBwAAgAADDwAAAAEGHgAAAAIMPAAAAAQYeAAAAAgw8AAAABBg4AEAACDAwAMAAECAgQcAAIAAAw8AAAABBh4AAAACDDwAAAAEGHgAAAAIMPAAAAAQYOABAAAgwMADAABAgIEHAACAAAMPAAAAAQYeAAAAAgw8AAAABBh4AAAACDDwAAAAEGDgAQAAIMDAAwAAQICBBwAAgAADDwAAAAEGHgAAAAIMPAAAAAQYeAAAAAgw8AAAABBg4AEAACDAwAMAAECAgQcAAIAAAw8AAAABBh4AAAACDDwAAAAEGHgAAAAIMPAAAAAQYOABAAAgwMADAABAgIEHAACAAAMPAAAAAQYeAAAAAgw8AAAABBh4AAAACDDwAAAAEGDgAQAAIMDAAwAAQICBBwAAgAADDwAAAAEGHgAAAAIMPAAAAAQYeAAAAAgw8AAAABBg4AEAACDAwAMAAECAgQcAAIAAAw8AAAABBh4AAAACDDwAAAAEGHgAAAAIMPAAAAAQYOABAAAgwMADAABAgIEHAACAAAMPAAAAAQYeAAAAAgw8AAAABBh4AAAACDDwAAAAEGDgAQAAIMDAAwAAQICBBwAAgAADDwAAAAEGHgAAAAIMPAAAAAQYeAAAAAgw8AAAABBg4AEAACDAwAMAAECAgQcAAIAAAw8AAAABBh4AAAACDDwAAAAEGHgAAAAIMPAAAAAQYOABAAAgwMADAABAgIEHAACAAAMPAAAAAQYeAAAAAgw8AAAABBh4AAAACDDwAAAAEGDgAQAAIMDAAwAAQICBBwAAgAADDwAAAAEGHgAAAAIMPAAAAAQYeAAAAAgw8AAAABBg4AEAACDAwAMAAECAgQcAAIAAAw8AAAABBh4AAAACDDwAAAAEGHgAAAAIMPAAAAAQYOABAAAgwMADAABAgIEHAACAAAMPAAAAAQYeAAAAAgw8AAAABBh4AAAACDDwAAAAEGDgAQAAIMDAAwAAQICBBwAAgAADDwAAAAEGHgAAAAIMPAAAAAQYeAAAAAgw8AAAABBg4AEAACDAwAMAAECAgQcAAIAAAw8AAAABBh4AAAACDDwAAAAEGHgAAAAIMPAAAAAQYOABAAAgwMADAABAgIEHAACAAAMPAAAAAQYeAAAAAgw8AAAABBh4AAAACDDwAAAAEGDgAQAAIMDAAwAAQICBBwAAgAADDwAAAAEGHgAAAAIMPAAAAAQYeAAAAAgw8AAAABBg4AEAACDAwAMAAECAgQcAAIAAAw8AAAABBh4AAAACDDwAAAAEGHgAAAAIMPAAAAAQYOABAAAgwMADAABAgIEHAACAAAMPAAAAAQYeAAAAAgw8AAAABBh4AAAACDDwAAAAEGDgAQAAIMDAAwAAQICBBwAAgAADDwAAAAEGHgAAAAIMPAAAAAQYeAAAAAgw8AAAABBg4AEAACDAwAMAAECAgQcAAIAAAw8AAAABBh4AAAACDDwAAAAEGHgAAAAIMPAAAAAQYOABAAAgwMADAABAgIEHAACAAAMPAAAAAQYeAAAAAgw8AAAABBh4AAAACDDwAAAAEGDgAQAAIMDAAwAAQICBBwAAgAADDwAAAAEGHgAAAAIMPAAAAAQYeAAAAAgw8AAAABBg4AEAACDAwAMAAECAgQcAAIAAAw8AAAABBh4AAAACDDwAAAAEGHgAAAAIMPAAAAAQYOABAAAgwMADAABAgIEHAACAAAMPAAAAAQYeAAAAAgw8AAAABBh4AAAACDDwAAAAEGDgAQAAIMDAAwAAQICBBwAAgAADDwAAAAEGHgAAAAIMPAAAAAQYeAAAAAgw8AAAABBg4AEAACDAwAMAAECAgQcAAIAAAw8AAAABBh4AAAACDDwAAAAEGHgAAAAIMPAAAAAQYOABAAAgwMADAABAgIEHAACAAAMPAAAAAQYeAAAAAgw8AAAABBh4AAAACDDwAAAAEGDgAQAAIMDAAwAAQICBBwAAgAADDwAAAAEGHgAAAAIMPAAAAAQYeAAAAAgw8AAAABBg4AEAACDAwAMAAECAgQcAAIAAAw8AAAABBh4AAAACDDwAAAAEGHgAAAAIMPAAAAAQYOABAAAgwMADAABAgIEHAACAAAMPAAAAAQYeAAAAAgw8AAAABBh4AAAACDDwAAAAEGDgAQAAIMDAAwAAQICBBwAAgAADDwAAAAEGHgAAAAIMPAAAAAQYeAAAAAgw8AAAABBg4AEAACDAwAMAAECAgQcAAIAAAw8AAAABBh4AAAACDDwAAAAEGHgAAAAIMPAAAAAQYOABAAAgwMADAABAgIEHAACAAAMPAAAAAQYeAAAAAgw8AAAABBh4AAAACDDwAAAAEGDgAQAAIMDAAwAAQICBBwAAgAADDwAAAAEGHgAAAAIMPAAAAAQYeAAAAAgw8AAAABBg4AEAACDAwAMAAECAgQcAAIAAAw8AAAABBh4AAAACDDwAAAAEGHgAAAAIMPAAAAAQYOABAAAgwMADAABAgIEHAACAAAMPAAAAAQYeAAAAAgw8AAAABBh4AAAACDDwAAAAEGDgAQAAIMDAAwAAQICBBwAAgAADDwAAAAEGHgAAAAIMPAAAAAQYeAAAAAgw8AAAABBg4AEAACDAwAMAAECAgQcAAIAAAw8AAAABBh4AAAACDDwAAAAEGHgAAAAIMPAAAAAQYOABAAAgwMADAABAgIEHAACAAAMPAAAAAQYeAAAAAgw8AAAABBh4AAAACDDwAAAAEGDgAQAAIMDAAwAAQICBBwAAgIAdAAD//95FCQAznZMPAAAAAElFTkSuQmCC\"}},{\"text\":\"draw\"},{\"text\":\"cat\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"generationConfig\":{\"temperature\":1,\"responseModalities\":[\"IMAGE\", \"TEXT\"]}}",
-      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}",
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 4,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "",
+        "failed": false
+      }
     },
     {
       "name": "gen_image_aspect_ratio_unknown",
@@ -550,7 +670,19 @@
         "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
       },
       "request": "POST /v1beta/models/gemini-2.5-flash-image-preview:generateContent HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 7908\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-gemini-1\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-2.5-flash-image-preview\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\": \"Based on the following requirements, create an image within the uploaded picture. The new content *MUST* completely cover the entire area of the original picture, maintaining its exact proportions, and *NO* blank areas should appear.\"},{\"inlineData\":{\"mime_type\":\"image/png\",\"data\":\"iVBORw0KGgoAAAANSUhEUgAABAAAAAQACAIAAADwf7zUAAAUoklEQVR4nOzXMREAIBDAMI7Dv+XHBQxNFHTtmZkFAAA07N8BAADAOwYAAABCDAAAAIQYAAAACDEAAAAQYgAAACDEAAAAQIgBAACAEAMAAAAhBgAAAEIMAAAAhBgAAAAIMQAAABBiAAAAIMQAAABAiAEAAIAQAwAAACEGAAAAQgwAAACEGAAAAAgxAAAAEGIAAAAgxAAAAECIAQAAgBADAAAAIQYAAABCDAAAAIQYAAAACDEAAAAQYgAAACDEAAAAQIgBAACAEAMAAAAhBgAAAEIMAAAAhBgAAAAIMQAAABBiAAAAIMQAAABAiAEAAIAQAwAAACEGAAAAQgwAAACEGAAAAAgxAAAAEGIAAAAgxAAAAECIAQAAgBADAAAAIQYAAABCDAAAAIQYAAAACDEAAAAQYgAAACDEAAAAQIgBAACAEAMAAAAhBgAAAEIMAAAAhBgAAAAIMQAAABBiAAAAIMQAAABAiAEAAIAQAwAAACEGAAAAQgwAAACEGAAAAAgxAAAAEGIAAAAgxAAAAECIAQAAgBADAAAAIQYAAABCDAAAAIQYAAAACDEAAAAQYgAAACDEAAAAQIgBAACAEAMAAAAhBgAAAEIMAAAAhBgAAAAIMQAAABBiAAAAIMQAAABAiAEAAIAQAwAAACEGAAAAQgwAAACEGAAAAAgxAAAAEGIAAAAgxAAAAECIAQAAgBADAAAAIQYAAABCDAAAAIQYAAAACDEAAAAQYgAAACDEAAAAQIgBAACAEAMAAAAhBgAAAEIMAAAAhBgAAAAIMQAAABBiAAAAIMQAAABAiAEAAIAQAwAAACEGAAAAQgwAAACEGAAAAAgxAAAAEGIAAAAgxAAAAECIAQAAgBADAAAAIQYAAABCDAAAAIQYAAAACDEAAAAQYgAAACDEAAAAQIgBAACAEAMAAAAhBgAAAEIMAAAAhBgAAAAIMQAAABBiAAAAIMQAAABAiAEAAIAQAwAAACEGAAAAQgwAAACEGAAAAAgxAAAAEGIAAAAgxAAAAECIAQAAgBADAAAAIQYAAABCDAAAAIQYAAAACDEAAAAQYgAAACDEAAAAQIgBAACAEAMAAAAhBgAAAEIMAAAAhBgAAAAIMQAAABBiAAAAIMQAAABAiAEAAIAQAwAAACEGAAAAQgwAAACEGAAAAAgxAAAAEGIAAAAgxAAAAECIAQAAgBADAAAAIQYAAABCDAAAAIQYAAAACDEAAAAQYgAAACDEAAAAQIgBAACAEAMAAAAhBgAAAEIMAAAAhBgAAAAIMQAAABBiAAAAIMQAAABAiAEAAIAQAwAAACEGAAAAQgwAAACEGAAAAAgxAAAAEGIAAAAgxAAAAECIAQAAgBADAAAAIQYAAABCDAAAAIQYAAAACDEAAAAQYgAAACDEAAAAQIgBAACAEAMAAAAhBgAAAEIMAAAAhBgAAAAIMQAAABBiAAAAIMQAAABAiAEAAIAQAwAAACEGAAAAQgwAAACEGAAAAAgxAAAAEGIAAAAgxAAAAECIAQAAgBADAAAAIQYAAABCDAAAAIQYAAAACDEAAAAQYgAAACDEAAAAQIgBAACAEAMAAAAhBgAAAEIMAAAAhBgAAAAIMQAAABBiAAAAIMQAAABAiAEAAIAQAwAAACEGAAAAQgwAAACEGAAAAAgxAAAAEGIAAAAgxAAAAECIAQAAgBADAAAAIQYAAABCDAAAAIQYAAAACDEAAAAQYgAAACDEAAAAQIgBAACAEAMAAAAhBgAAAEIMAAAAhBgAAAAIMQAAABBiAAAAIMQAAABAiAEAAIAQAwAAACEGAAAAQgwAAACEGAAAAAgxAAAAEGIAAAAgxAAAAECIAQAAgBADAAAAIQYAAABCDAAAAIQYAAAACDEAAAAQYgAAACDEAAAAQIgBAACAEAMAAAAhBgAAAEIMAAAAhBgAAAAIMQAAABBiAAAAIMQAAABAiAEAAIAQAwAAACEGAAAAQgwAAACEGAAAAAgxAAAAEGIAAAAgxAAAAECIAQAAgBADAAAAIQYAAABCDAAAAIQYAAAACDEAAAAQYgAAACDEAAAAQIgBAACAEAMAAAAhBgAAAEIMAAAAhBgAAAAIMQAAABBiAAAAIMQAAABAiAEAAIAQAwAAACEGAAAAQgwAAACEGAAAAAgxAAAAEGIAAAAgxAAAAECIAQAAgBADAAAAIQYAAABCDAAAAIQYAAAACDEAAAAQYgAAACDEAAAAQIgBAACAEAMAAAAhBgAAAEIMAAAAhBgAAAAIMQAAABBiAAAAIMQAAABAiAEAAIAQAwAAACEGAAAAQgwAAACEGAAAAAgxAAAAEGIAAAAgxAAAAECIAQAAgBADAAAAIQYAAABCDAAAAIQYAAAACDEAAAAQYgAAACDEAAAAQIgBAACAEAMAAAAhBgAAAEIMAAAAhBgAAAAIMQAAABBiAAAAIMQAAABAiAEAAIAQAwAAACEGAAAAQgwAAACEGAAAAAgxAAAAEGIAAAAgxAAAAECIAQAAgBADAAAAIQYAAABCDAAAAIQYAAAACDEAAAAQYgAAACDEAAAAQIgBAACAEAMAAAAhBgAAAEIMAAAAhBgAAAAIMQAAABBiAAAAIMQAAABAiAEAAIAQAwAAACEGAAAAQgwAAACEGAAAAAgxAAAAEGIAAAAgxAAAAECIAQAAgBADAAAAIQYAAABCDAAAAIQYAAAACDEAAAAQYgAAACDEAAAAQIgBAACAEAMAAAAhBgAAAEIMAAAAhBgAAAAIMQAAABBiAAAAIMQAAABAiAEAAIAQAwAAACEGAAAAQgwAAACEGAAAAAgxAAAAEGIAAAAgxAAAAECIAQAAgBADAAAAIQYAAABCDAAAAIQYAAAACDEAAAAQYgAAACDEAAAAQIgBAACAEAMAAAAhBgAAAEIMAAAAhBgAAAAIMQAAABBiAAAAIMQAAABAiAEAAIAQAwAAACEGAAAAQgwAAACEGAAAAAgxAAAAEGIAAAAgxAAAAECIAQAAgBADAAAAIQYAAABCDAAAAIQYAAAACDEAAAAQYgAAACDEAAAAQIgBAACAEAMAAAAhBgAAAEIMAAAAhBgAAAAIMQAAABBiAAAAIMQAAABAiAEAAIAQAwAAACEGAAAAQgwAAACEGAAAAAgxAAAAEGIAAAAgxAAAAECIAQAAgBADAAAAIQYAAABCDAAAAIQYAAAACDEAAAAQYgAAACDEAAAAQIgBAACAEAMAAAAhBgAAAEIMAAAAhBgAAAAIMQAAABBiAAAAIMQAAABAiAEAAIAQAwAAACEGAAAAQgwAAACEGAAAAAgxAAAAEGIAAAAgxAAAAECIAQAAgBADAAAAIQYAAABCDAAAAIQYAAAACDEAAAAQYgAAACDEAAAAQIgBAACAEAMAAAAhBgAAAEIMAAAAhBgAAAAIMQAAABBiAAAAIMQAAABAiAEAAIAQAwAAACEGAAAAQgwAAACEGAAAAAgxAAAAEGIAAAAgxAAAAECIAQAAgBADAAAAIQYAAABCDAAAAIQYAAAACDEAAAAQYgAAACDEAAAAQIgBAACAEAMAAAAhBgAAAEIMAAAAhBgAAAAIMQAAABBiAAAAIMQAAABAiAEAAIAQAwAAACEGAAAAQgwAAACEGAAAAAgxAAAAEGIAAAAgxAAAAECIAQAAgBADAAAAIQYAAABCDAAAAIQYAAAACDEAAAAQYgAAACDEAAAAQIgBAACAEAMAAAAhBgAAAEIMAAAAhBgAAAAIMQAAABBiAAAAIMQAAABAiAEAAIAQAwAAACEGAAAAQgwAAACEGAAAAAgxAAAAEGIAAAAgxAAAAECIAQAAgBADAAAAIQYAAABCDAAAAIQYAAAACDEAAAAQYgAAACDEAAAAQIgBAACAEAMAAAAhBgAAAEIMAAAAhBgAAAAIMQAAABBiAAAAIMQAAABAiAEAAIAQAwAAACEGAAAAQgwAAACEGAAAAAgxAAAAEGIAAAAgxAAAAECIAQAAgBADAAAAIQYAAABCDAAAAIQYAAAACDEAAAAQYgAAACDEAAAAQIgBAACAEAMAAAAhBgAAAEIMAAAAhBgAAAAIMQAAABBiAAAAIMQAAABAiAEAAIAQAwAAACEGAAAAQgwAAACEGAAAAAgxAAAAEGIAAAAgxAAAAECIAQAAgBADAAAAIQYAAABCDAAAAIQYAAAACDEAAAAQYgAAACDEAAAAQIgBAACAEAMAAAAhBgAAAEIMAAAAhBgAAAAIMQAAABBiAAAAIMQAAABAiAEAAIAQAwAAACEGAAAAQgwAAACEGAAAAAgxAAAAEGIAAAAgxAAAAECIAQAAgBADAAAAIQYAAABCDAAAAIQYAAAACDEAAAAQYgAAACDEAAAAQIgBAACAEAMAAAAhBgAAAEIMAAAAhBgAAAAIMQAAABBiAAAAIMQAAABAiAEAAIAQAwAAACEGAAAAQgwAAACEGAAAAAgxAAAAEGIAAAAgxAAAAECIAQAAgBADAAAAIQYAAABCDAAAAIQYAAAACDEAAAAQYgAAACDEAAAAQIgBAACAEAMAAAAhBgAAAEIMAAAAhBgAAAAIMQAAABBiAAAAIMQAAABAiAEAAIAQAwAAACEGAAAAQgwAAACEGAAAAAgxAAAAEGIAAAAgxAAAAECIAQAAgBADAAAAIQYAAABCDAAAAIQYAAAACDEAAAAQYgAAACDEAAAAQIgBAACAEAMAAAAhBgAAAEIMAAAAhBgAAAAIMQAAABBiAAAAIMQAAABAiAEAAIAQAwAAACEGAAAAQgwAAACEGAAAAAgxAAAAEGIAAAAgxAAAAECIAQAAgBADAAAAIQYAAABCDAAAAIQYAAAACDEAAAAQYgAAACDEAAAAQIgBAACAEAMAAAAhBgAAAEIMAAAAhBgAAAAIMQAAABBiAAAAIMQAAABAiAEAAIAQAwAAACEGAAAAQgwAAACEGAAAAAgxAAAAEGIAAAAgxAAAAECIAQAAgBADAAAAIQYAAABCDAAAAIQYAAAACDEAAAAQYgAAACDEAAAAQIgBAACAEAMAAAAhBgAAAEIMAAAAhBgAAAAIMQAAABBiAAAAIMQAAABAiAEAAIAQAwAAACEGAAAAQgwAAACEGAAAAAgxAAAAEGIAAAAgxAAAAECIAQAAgBADAAAAIQYAAABCDAAAAIQYAAAACDEAAAAQYgAAACDEAAAAQIgBAACAEAMAAAAhBgAAAEIMAAAAhBgAAAAIMQAAABBiAAAAIMQAAABAiAEAAIAQAwAAACEGAAAAQgwAAACEGAAAAAgxAAAAEGIAAAAgxAAAAECIAQAAgBADAAAAIQYAAABCDAAAAIQYAAAACDEAAAAQYgAAACDEAAAAQIgBAACAEAMAAAAhBgAAAEIMAAAAhBgAAAAIMQAAABBiAAAAIMQAAABAiAEAAIAQAwAAACEGAAAAQgwAAACEGAAAAAgxAAAAEGIAAAAgxAAAAECIAQAAgBADAAAAIQYAAABCDAAAAIQYAAAACDEAAAAQYgAAACDEAAAAQIgBAACAEAMAAAAhBgAAAEIMAAAAhBgAAAAIMQAAABBiAAAAIMQAAABAiAEAAIAQAwAAACEGAAAAQgwAAACEGAAAAAgxAAAAEGIAAAAgxAAAAECIAQAAgBADAAAAIQYAAABCDAAAAIQYAAAACDEAAAAQYgAAACDEAAAAQIgBAACAEAMAAAAhBgAAAEIMAAAAhBgAAAAIMQAAABBiAAAAIMQAAABAiAEAAIAQAwAAACEGAAAAQgwAAACEGAAAAAgxAAAAEGIAAAAgxAAAAECIAQAAgBADAAAAIQYAAABCDAAAAIQYAAAACDEAAAAQYgAAACDEAAAAQIgBAACAEAMAAAAhBgAAAEIMAAAAhBgAAAAIMQAAABBiAAAAIMQAAABAiAEAAIAQAwAAACEGAAAAQgwAAACEGAAAAAgxAAAAEGIAAAAgxAAAAECIAQAAgBADAAAAIQYAAABCDAAAAIQYAAAACDEAAAAQYgAAACDEAAAAQIgBAACAEAMAAAAhBgAAAEIMAAAAhBgAAAAIMQAAABBiAAAAIMQAAABAiAEAAIAQAwAAACEGAAAAQgwAAACEGAAAAAgxAAAAEGIAAAAgxAAAAECIAQAAgBADAAAAIQYAAABCDAAAAIQYAAAACDEAAAAQYgAAACDEAAAAQIgBAACAEAMAAAAhBgAAAEIMAAAAhBgAAAAIMQAAABBiAAAAIMQAAABAiAEAAIAQAwAAACEGAAAAQgwAAACEGAAAAAgxAAAAEGIAAAAgxAAAAECIAQAAgBADAAAAIQYAAABCDAAAAIQYAAAACDEAAAAQYgAAACDEAAAAQIgBAACAEAMAAAAhBgAAAEIMAAAAhBgAAAAIMQAAABBiAAAAIMQAAABAiAEAAIAQAwAAACEGAAAAQgwAAACEGAAAAAgxAAAAEGIAAAAgxAAAAECIAQAAgBADAAAAIQYAAABCDAAAAIQYAAAACDEAAAAQYgAAACDEAAAAQIgBAACAEAMAAAAhBgAAAEIMAAAAhBgAAAAIMQAAABBiAAAAIMQAAABAiAEAAIAQAwAAACEGAAAAQgwAAACEGAAAAAgxAAAAEGIAAAAgxAAAAECIAQAAgBADAAAAIQYAAABCDAAAAIQYAAAACDEAAAAQYgAAACDEAAAAQIgBAACAEAMAAAAhBgAAAEIMAAAAhBgAAAAIMQAAABBiAAAAIMQAAABAiAEAAIAQAwAAACEGAAAAQgwAAACEGAAAAAgxAAAAEGIAAAAgxAAAAECIAQAAgBADAAAAIQYAAABCDAAAAIQYAAAACDEAAAAQYgAAACDEAAAAQIgBAACAEAMAAAAhBgAAAEIMAAAAhBgAAAAIMQAAABBiAAAAIMQAAABAiAEAAIAQAwAAACEGAAAAQgwAAACEGAAAAAgxAAAAEGIAAAAgxAAAAECIAQAAgBADAAAAIQYAAABCDAAAAIQYAAAACDEAAAAQYgAAACDEAAAAQIgBAACAEAMAAAAhBgAAAEIMAAAAhBgAAAAIMQAAABBiAAAAIMQAAABAyA0AAP//s5cLAJhtrNcAAAAASUVORK5CYII=\"}},{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"generationConfig\":{\"responseModalities\":[\"IMAGE\", \"TEXT\"]}}",
-      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}",
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 4,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "",
+        "failed": false
+      }
     },
     {
       "name": "gen_image_aspect_ratio_with_inline_data",
@@ -577,7 +709,19 @@
         "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
       },
       "request": "POST /v1beta/models/gemini-2.5-flash-image-preview:generateContent HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 509\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-gemini-1\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-2.5-flash-image-preview\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"edit\"},{\"inlineData\":{\"mimeType\":\"image/png\",\"data\":\"AAAA\"}}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"generationConfig\":{}}",
-      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}",
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 4,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "",
+        "failed": false
+      }
     },
     {
       "name": "gen_thinking_budget_suffix",
@@ -639,7 +783,19 @@
         "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
       },
       "request": "POST /v1beta/models/gemini-2.5-flash:generateContent HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 479\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-gemini-1\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"generationConfig\":{\"thinkingConfig\":{\"thinkingBudget\":8192}}}",
-      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}",
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 4,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "medium",
+        "failed": false
+      }
     },
     {
       "name": "gen_thinking_none_suffix",
@@ -701,7 +857,19 @@
         "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
       },
       "request": "POST /v1beta/models/gemini-2.5-flash:generateContent HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 499\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-gemini-1\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"generationConfig\":{\"thinkingConfig\":{\"thinkingBudget\":0,\"includeThoughts\":true}}}",
-      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}",
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 4,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "none",
+        "failed": false
+      }
     },
     {
       "name": "gen_thinking_level_suffix",
@@ -728,7 +896,19 @@
         "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
       },
       "request": "POST /v1beta/models/gemini-3-pro-preview:generateContent HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 484\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-gemini-1\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-3-pro-preview\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"generationConfig\":{\"thinkingConfig\":{\"thinkingLevel\":\"high\"}}}",
-      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}",
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 4,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "high",
+        "failed": false
+      }
     },
     {
       "name": "gen_thinking_level_to_budget",
@@ -791,7 +971,19 @@
         "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
       },
       "request": "POST /v1beta/models/gemini-2.5-pro:generateContent HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 478\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-gemini-1\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-2.5-pro\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"generationConfig\":{\"thinkingConfig\":{\"thinkingLevel\":\"high\"}}}",
-      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}",
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 4,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "high",
+        "failed": false
+      }
     },
     {
       "name": "gen_thinking_body_config",
@@ -855,6 +1047,18 @@
       "error": {
         "status": 400,
         "message": "budget 99999999 out of range [0,24576]"
+      },
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 0,
+        "response_model": "",
+        "reasoning_effort": "",
+        "failed": true
       }
     },
     {
@@ -917,7 +1121,19 @@
         "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
       },
       "request": "POST /v1beta/models/gemini-2.5-flash:generateContent HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 417\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-gemini-1\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}",
-      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}",
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 4,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "",
+        "failed": false
+      }
     },
     {
       "name": "gen_thinking_resolved_config_levels",
@@ -983,6 +1199,18 @@
       "error": {
         "status": 400,
         "message": "level \"medium\" not supported, valid levels: low, high"
+      },
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 0,
+        "response_model": "",
+        "reasoning_effort": "",
+        "failed": true
       }
     },
     {
@@ -1047,7 +1275,19 @@
         "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
       },
       "request": "POST /v1beta/models/gemini-2.5-pro:generateContent HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 478\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-gemini-1\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-2.5-pro\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"generationConfig\":{\"thinkingConfig\":{\"thinkingLevel\":\"high\"}}}",
-      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}",
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 4,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "high",
+        "failed": false
+      }
     },
     {
       "name": "gen_upstream_429",
@@ -1112,6 +1352,18 @@
       "error": {
         "status": 429,
         "message": "{\"error\":{\"code\":429,\"message\":\"Resource has been exhausted\",\"status\":\"RESOURCE_EXHAUSTED\",\"details\":[{\"@type\":\"type.googleapis.com/google.rpc.RetryInfo\",\"retryDelay\":\"7s\"}]}}"
+      },
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 0,
+        "response_model": "",
+        "reasoning_effort": "",
+        "failed": true
       }
     },
     {
@@ -1174,6 +1426,18 @@
       "error": {
         "status": 500,
         "message": "{\"error\":{\"code\":500,\"message\":\"internal\"}}"
+      },
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 0,
+        "response_model": "",
+        "reasoning_effort": "",
+        "failed": true
       }
     },
     {
@@ -1237,7 +1501,19 @@
         "gzip": true
       },
       "request": "POST /v1beta/models/gemini-2.5-flash:generateContent HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 417\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-gemini-1\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}",
-      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}",
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 4,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "",
+        "failed": false
+      }
     },
     {
       "name": "gen_empty_body_is_502",
@@ -1292,6 +1568,18 @@
       "error": {
         "status": 502,
         "message": "Invalid apply_patch tool arguments received from upstream."
+      },
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 0,
+        "response_model": "",
+        "reasoning_effort": "",
+        "failed": true
       }
     },
     {
@@ -1370,7 +1658,19 @@
         "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
       },
       "request": "POST /v1beta/models/gemini-2.5-flash:generateContent HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 417\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-gemini-2\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}",
-      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}",
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 4,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "",
+        "failed": false
+      }
     },
     {
       "name": "gen_attributes_without_key",
@@ -1400,7 +1700,19 @@
         "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
       },
       "request": "POST /v-custom/v1beta/models/gemini-2.5-flash:generateContent HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 417\r\nContent-Type: application/json\r\nX-Attr: attr-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}",
-      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}",
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 4,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "",
+        "failed": false
+      }
     },
     {
       "name": "gen_original_differs",
@@ -1463,7 +1775,19 @@
         "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
       },
       "request": "POST /v1beta/models/gemini-2.5-flash:generateContent HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 417\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-gemini-1\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}",
-      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}",
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 4,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "",
+        "failed": false
+      }
     },
     {
       "name": "gen_payload_rules",
@@ -1490,7 +1814,19 @@
         "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
       },
       "request": "POST /v1beta/models/gemini-2.5-flash-lite:generateContent HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 482\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-gemini-1\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-2.5-flash-lite\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"generationConfig\":{\"topP\":0.9,\"topK\":3,\"temperature\":0.25}}",
-      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}",
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 4,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "",
+        "failed": false
+      }
     },
     {
       "name": "stream_payload_rules",
@@ -1516,7 +1852,19 @@
       "chunks": [
         "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"he\"}]},\"index\":0}],\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\",\"cpaUsageMetadata\":{\"promptTokenCount\":3,\"totalTokenCount\":3}}",
         "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"llo\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":2,\"totalTokenCount\":5},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
-      ]
+      ],
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 2,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 5,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "",
+        "failed": false
+      }
     },
     {
       "name": "count_payload_rules_not_applied",
@@ -1598,6 +1946,18 @@
       "error": {
         "status": 400,
         "message": "level \"medium\" not supported, valid levels: low"
+      },
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 0,
+        "response_model": "",
+        "reasoning_effort": "",
+        "failed": true
       }
     },
     {
@@ -1664,7 +2024,19 @@
         "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
       },
       "request": "POST /v1beta/models/gemini-2.5-flash:generateContent HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 479\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-gemini-3\r\nX-Session: sess-header:client-session-1\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"generationConfig\":{\"thinkingConfig\":{\"thinkingBudget\":1024}}}",
-      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}",
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 4,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "low",
+        "failed": false
+      }
     },
     {
       "name": "gen_session_header_derived",
@@ -1727,7 +2099,19 @@
         "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
       },
       "request": "POST /v1beta/models/gemini-2.5-flash:generateContent HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 424\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-gemini-3\r\nX-Session: sess-derived:ctx:v1:4ce120e7546ca63b366edbb97ff199e0e4148621de1a7ac8e5da9918ea7529ab\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"derive me\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}",
-      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}",
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 4,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "",
+        "failed": false
+      }
     },
     {
       "name": "stream_basic",
@@ -1788,7 +2172,19 @@
       "chunks": [
         "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"he\"}]},\"index\":0}],\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\",\"cpaUsageMetadata\":{\"promptTokenCount\":3,\"totalTokenCount\":3}}",
         "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"llo\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":2,\"totalTokenCount\":5},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
-      ]
+      ],
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 2,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 5,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "",
+        "failed": false
+      }
     },
     {
       "name": "stream_alt_json",
@@ -1849,7 +2245,19 @@
       "request": "POST /v1beta/models/gemini-2.5-flash:streamGenerateContent?$alt=json HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 417\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-gemini-1\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}",
       "chunks": [
         "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"llo\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":2,\"totalTokenCount\":5},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
-      ]
+      ],
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 2,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 5,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "",
+        "failed": false
+      }
     },
     {
       "name": "stream_boundary_user_turns",
@@ -1909,7 +2317,19 @@
       "chunks": [
         "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"he\"}]},\"index\":0}],\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\",\"cpaUsageMetadata\":{\"promptTokenCount\":3,\"totalTokenCount\":3}}",
         "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"llo\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":2,\"totalTokenCount\":5},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
-      ]
+      ],
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 2,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 5,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "",
+        "failed": false
+      }
     },
     {
       "name": "stream_usage_trace_id",
@@ -1971,7 +2391,19 @@
         "{\"traceId\":\"gem-t1\",\"candidates\":[{\"finishReason\":\"STOP\"}]}",
         "{\"traceId\":\"gem-t1\",\"usageMetadata\":{\"totalTokenCount\":9}}",
         "{\"traceId\":\"gem-t2\",\"response\":{\"cpaUsageMetadata\":{\"x\":1}},\"cpaUsageMetadata\":{\"totalTokenCount\":1}}"
-      ]
+      ],
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 9,
+        "response_model": "",
+        "reasoning_effort": "",
+        "failed": false
+      }
     },
     {
       "name": "stream_unterminated_last_line",
@@ -2032,7 +2464,19 @@
       "chunks": [
         "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"he\"}]},\"index\":0}],\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\",\"cpaUsageMetadata\":{\"promptTokenCount\":3,\"totalTokenCount\":3}}",
         "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"llo\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":2,\"totalTokenCount\":5},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
-      ]
+      ],
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 2,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 5,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "",
+        "failed": false
+      }
     },
     {
       "name": "stream_upstream_400",
@@ -2093,6 +2537,18 @@
       "error": {
         "status": 400,
         "message": "{\"error\":{\"code\":400,\"message\":\"bad\",\"status\":\"INVALID_ARGUMENT\"}}"
+      },
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 0,
+        "response_model": "",
+        "reasoning_effort": "",
+        "failed": true
       }
     },
     {
@@ -2153,6 +2609,18 @@
       "error": {
         "status": 400,
         "message": "budget -7 out of range [0,24576]"
+      },
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 0,
+        "response_model": "",
+        "reasoning_effort": "",
+        "failed": true
       }
     },
     {
@@ -2214,7 +2682,19 @@
       "chunks": [
         "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"he\"}]},\"index\":0}],\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\",\"cpaUsageMetadata\":{\"promptTokenCount\":3,\"totalTokenCount\":3}}",
         "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"llo\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":2,\"totalTokenCount\":5},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
-      ]
+      ],
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 2,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 5,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "",
+        "failed": false
+      }
     },
     {
       "name": "stream_compact_alt_rejected",
@@ -2551,7 +3031,19 @@
         "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
       },
       "request": "POST /v1beta/models/gemini-2.5-flash:generateContent HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 593\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-gemini-1\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"model\":\"gemini-2.5-flash\",\"generationConfig\":{\"thinkingConfig\":{\"thinkingBudget\":24576,\"includeThoughts\":true},\"maxOutputTokens\":65536},\"systemInstruction\":{\"role\":\"user\",\"parts\":[{\"text\":\"be brief\"}]},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}",
-      "output": "{\"id\":\"r1\",\"object\":\"chat.completion\",\"created\":1790856000,\"model\":\"gemini-2.5-flash\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\",\"reasoning_content\":null,\"tool_calls\":null},\"finish_reason\":\"stop\",\"native_finish_reason\":\"stop\"}],\"usage\":{\"completion_tokens\":1,\"total_tokens\":4,\"prompt_tokens\":3}}"
+      "output": "{\"id\":\"r1\",\"object\":\"chat.completion\",\"created\":1790856000,\"model\":\"gemini-2.5-flash\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\",\"reasoning_content\":null,\"tool_calls\":null},\"finish_reason\":\"stop\",\"native_finish_reason\":\"stop\"}],\"usage\":{\"completion_tokens\":1,\"total_tokens\":4,\"prompt_tokens\":3}}",
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 4,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "high",
+        "failed": false
+      }
     },
     {
       "name": "openai_chat_stream_to_gemini",
@@ -2615,7 +3107,19 @@
       "chunks": [
         "{\"id\":\"r1\",\"object\":\"chat.completion.chunk\",\"created\":1790856000,\"model\":\"gemini-2.5-flash\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"he\",\"reasoning_content\":null,\"tool_calls\":null},\"finish_reason\":null,\"native_finish_reason\":null}]}",
         "{\"id\":\"r1\",\"object\":\"chat.completion.chunk\",\"created\":1790856000,\"model\":\"gemini-2.5-flash\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"llo\",\"reasoning_content\":null,\"tool_calls\":null},\"finish_reason\":\"stop\",\"native_finish_reason\":\"stop\"}],\"usage\":{\"completion_tokens\":2,\"total_tokens\":5,\"prompt_tokens\":3}}"
-      ]
+      ],
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 2,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 5,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "",
+        "failed": false
+      }
     },
     {
       "name": "claude_stream_to_gemini",
@@ -2680,7 +3184,19 @@
         "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"r1\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[],\"model\":\"gemini-2.5-flash\",\"stop_reason\":null,\"stop_sequence\":null,\"usage\":{\"input_tokens\":7,\"output_tokens\":0}}}\n\n\nevent: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\n\nevent: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"he\"}}\n\n\n",
         "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"llo\"}}\n\n\nevent: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\",\"stop_sequence\":null},\"usage\":{\"input_tokens\":3,\"output_tokens\":2}}\n\n\n",
         "event: message_stop\ndata: {\"type\":\"message_stop\"}\n\n\n"
-      ]
+      ],
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 2,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 5,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "",
+        "failed": false
+      }
     },
     {
       "name": "claude_to_gemini",
@@ -2747,7 +3263,19 @@
         "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
       },
       "request": "POST /v1beta/models/gemini-2.5-flash:generateContent HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 528\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-gemini-1\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"t\",\"thought\":true},{\"text\":\"a\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"again\"}]}],\"model\":\"gemini-2.5-flash\",\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}",
-      "output": "{\"id\":\"r1\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"gemini-2.5-flash\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"usage\":{\"input_tokens\":3,\"output_tokens\":1}}"
+      "output": "{\"id\":\"r1\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"gemini-2.5-flash\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"usage\":{\"input_tokens\":3,\"output_tokens\":1}}",
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 4,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "",
+        "failed": false
+      }
     },
     {
       "name": "claude_count_to_gemini",
@@ -2875,7 +3403,19 @@
         "event: response.content_part.done\ndata: {\"type\":\"response.content_part.done\",\"sequence_number\":8,\"item_id\":\"msg_resp_r1_0\",\"output_index\":0,\"content_index\":0,\"part\":{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"hello\"}}\n\n",
         "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"sequence_number\":9,\"output_index\":0,\"item\":{\"id\":\"msg_resp_r1_0\",\"type\":\"message\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"hello\"}],\"role\":\"assistant\"}}\n\n",
         "event: response.completed\ndata: {\"type\":\"response.completed\",\"sequence_number\":10,\"response\":{\"id\":\"resp_r1\",\"object\":\"response\",\"created_at\":1790856000,\"status\":\"completed\",\"background\":false,\"error\":null,\"model\":\"gemini-2.5-flash\",\"output\":[{\"id\":\"msg_resp_r1_0\",\"type\":\"message\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"hello\"}],\"role\":\"assistant\"}],\"usage\":{\"input_tokens\":3,\"input_tokens_details\":{\"cached_tokens\":0},\"output_tokens\":2,\"output_tokens_details\":{\"reasoning_tokens\":0},\"total_tokens\":5}}}\n\n"
-      ]
+      ],
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 2,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 5,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "",
+        "failed": false
+      }
     },
     {
       "name": "interactions_client_on_gemini_upstream",
@@ -2937,15 +3477,27 @@
       },
       "request": "POST /v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 81\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-gemini-1\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}]}",
       "chunks": [
-        "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1791016446573408314\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-2.5-flash\"},\"event_type\":\"interaction.created\"}\n\n",
-        "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1791016446573408314\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
+        "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1791017635743242823\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-2.5-flash\"},\"event_type\":\"interaction.created\"}\n\n",
+        "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1791017635743242823\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
         "event: step.start\ndata: {\"index\":0,\"step\":{\"type\":\"model_output\"},\"event_type\":\"step.start\"}\n\n",
         "event: step.delta\ndata: {\"index\":0,\"delta\":{\"text\":\"he\",\"type\":\"text\"},\"event_type\":\"step.delta\"}\n\n",
         "event: step.delta\ndata: {\"index\":0,\"delta\":{\"text\":\"llo\",\"type\":\"text\"},\"event_type\":\"step.delta\"}\n\n",
         "event: step.stop\ndata: {\"index\":0,\"event_type\":\"step.stop\"}\n\n",
-        "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"interaction_1791016446573408314\",\"status\":\"completed\",\"usage\":{\"total_tokens\":5,\"total_input_tokens\":3,\"input_tokens_by_modality\":[{\"modality\":\"text\",\"tokens\":3}],\"total_cached_tokens\":0,\"total_output_tokens\":2,\"total_tool_use_tokens\":0,\"total_thought_tokens\":0},\"created\":\"2026-10-03T08:34:06Z\",\"updated\":\"2026-10-03T08:34:06Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"gemini-2.5-flash\"},\"event_type\":\"interaction.completed\"}\n\n",
+        "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"interaction_1791017635743242823\",\"status\":\"completed\",\"usage\":{\"total_tokens\":5,\"total_input_tokens\":3,\"input_tokens_by_modality\":[{\"modality\":\"text\",\"tokens\":3}],\"total_cached_tokens\":0,\"total_output_tokens\":2,\"total_tool_use_tokens\":0,\"total_thought_tokens\":0},\"created\":\"2026-10-03T08:53:55Z\",\"updated\":\"2026-10-03T08:53:55Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"gemini-2.5-flash\"},\"event_type\":\"interaction.completed\"}\n\n",
         "event: done\ndata: [DONE]\n\n"
-      ]
+      ],
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 2,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 5,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "",
+        "failed": false
+      }
     },
     {
       "name": "gemini_natural_body_stream",
@@ -3008,7 +3560,19 @@
       "chunks": [
         "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"he\"}]},\"index\":0}],\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\",\"cpaUsageMetadata\":{\"promptTokenCount\":3,\"totalTokenCount\":3}}",
         "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"llo\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":2,\"totalTokenCount\":5},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
-      ]
+      ],
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 2,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 5,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "",
+        "failed": false
+      }
     },
     {
       "name": "int_basic",
@@ -3073,7 +3637,19 @@
         "body": "{\"id\":\"int_1\",\"model\":\"gemini-3-pro-preview\",\"status\":\"completed\",\"outputs\":[{\"type\":\"text\",\"text\":\"ok\"}],\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":1,\"total_tokens\":4}}"
       },
       "request": "POST /v1beta/interactions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 358\r\nApi-Revision: 2026-05-20\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-int-1\r\nX-Static: static-int\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-3-pro-preview\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"},{\"type\":\"text\",\"text\":\"there\"}]},{\"type\":\"function_call\",\"name\":\"f\",\"arguments\":{},\"id\":\"c1\"},{\"type\":\"function_call\",\"id\":\"c2\",\"name\":\"g\",\"arguments\":{}},{\"type\":\"function_result\",\"call_id\":\"c1\",\"result\":\"x\",\"content\":\"not-array\"},{\"type\":\"model_output\"}]}",
-      "output": "{\"id\":\"int_1\",\"model\":\"gemini-3-pro-preview\",\"status\":\"completed\",\"outputs\":[{\"type\":\"text\",\"text\":\"ok\"}],\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":1,\"total_tokens\":4}}"
+      "output": "{\"id\":\"int_1\",\"model\":\"gemini-3-pro-preview\",\"status\":\"completed\",\"outputs\":[{\"type\":\"text\",\"text\":\"ok\"}],\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":1,\"total_tokens\":4}}",
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 4,
+        "response_model": "gemini-3-pro-preview",
+        "reasoning_effort": "",
+        "failed": false
+      }
     },
     {
       "name": "int_client_revision",
@@ -3132,7 +3708,19 @@
         "body": "{\"id\":\"int_1\",\"model\":\"gemini-3-pro-preview\",\"status\":\"completed\",\"outputs\":[{\"type\":\"text\",\"text\":\"ok\"}],\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":1,\"total_tokens\":4}}"
       },
       "request": "POST /v1beta/interactions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 45\r\nApi-Revision: 2030-02-02\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-int-1\r\nX-Static: static-int\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-3-pro-preview\",\"input\":\"hi\"}",
-      "output": "{\"id\":\"int_1\",\"model\":\"gemini-3-pro-preview\",\"status\":\"completed\",\"outputs\":[{\"type\":\"text\",\"text\":\"ok\"}],\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":1,\"total_tokens\":4}}"
+      "output": "{\"id\":\"int_1\",\"model\":\"gemini-3-pro-preview\",\"status\":\"completed\",\"outputs\":[{\"type\":\"text\",\"text\":\"ok\"}],\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":1,\"total_tokens\":4}}",
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 4,
+        "response_model": "gemini-3-pro-preview",
+        "reasoning_effort": "",
+        "failed": false
+      }
     },
     {
       "name": "int_config_header_revision_wins",
@@ -3152,7 +3740,19 @@
         "body": "{\"id\":\"int_1\",\"model\":\"gemini-3-pro-preview\",\"status\":\"completed\",\"outputs\":[{\"type\":\"text\",\"text\":\"ok\"}],\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":1,\"total_tokens\":4}}"
       },
       "request": "POST /v1beta/interactions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 45\r\nApi-Revision: 2099-01-01\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-int-2\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-3-pro-preview\",\"input\":\"hi\"}",
-      "output": "{\"id\":\"int_1\",\"model\":\"gemini-3-pro-preview\",\"status\":\"completed\",\"outputs\":[{\"type\":\"text\",\"text\":\"ok\"}],\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":1,\"total_tokens\":4}}"
+      "output": "{\"id\":\"int_1\",\"model\":\"gemini-3-pro-preview\",\"status\":\"completed\",\"outputs\":[{\"type\":\"text\",\"text\":\"ok\"}],\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":1,\"total_tokens\":4}}",
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 4,
+        "response_model": "gemini-3-pro-preview",
+        "reasoning_effort": "",
+        "failed": false
+      }
     },
     {
       "name": "int_model_rewritten_to_base",
@@ -3208,7 +3808,19 @@
         "body": "{\"id\":\"int_1\",\"model\":\"gemini-3-pro-preview\",\"status\":\"completed\",\"outputs\":[{\"type\":\"text\",\"text\":\"ok\"}],\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":1,\"total_tokens\":4}}"
       },
       "request": "POST /v1beta/interactions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 90\r\nApi-Revision: 2026-05-20\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-int-1\r\nX-Static: static-int\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-3-pro-preview\",\"input\":\"hi\",\"generation_config\":{\"thinking_level\":\"low\"}}",
-      "output": "{\"id\":\"int_1\",\"model\":\"gemini-3-pro-preview\",\"status\":\"completed\",\"outputs\":[{\"type\":\"text\",\"text\":\"ok\"}],\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":1,\"total_tokens\":4}}"
+      "output": "{\"id\":\"int_1\",\"model\":\"gemini-3-pro-preview\",\"status\":\"completed\",\"outputs\":[{\"type\":\"text\",\"text\":\"ok\"}],\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":1,\"total_tokens\":4}}",
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 4,
+        "response_model": "gemini-3-pro-preview",
+        "reasoning_effort": "",
+        "failed": false
+      }
     },
     {
       "name": "int_agent_without_model",
@@ -3225,7 +3837,19 @@
         "body": "{\"id\":\"int_1\",\"model\":\"gemini-3-pro-preview\",\"status\":\"completed\",\"outputs\":[{\"type\":\"text\",\"text\":\"ok\"}],\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":1,\"total_tokens\":4}}"
       },
       "request": "POST /v1beta/interactions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 38\r\nApi-Revision: 2026-05-20\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-int-1\r\nX-Static: static-int\r\nAccept-Encoding: gzip\r\n\r\n{\"agent\":\"deep-research\",\"input\":\"hi\"}",
-      "output": "{\"id\":\"int_1\",\"model\":\"gemini-3-pro-preview\",\"status\":\"completed\",\"outputs\":[{\"type\":\"text\",\"text\":\"ok\"}],\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":1,\"total_tokens\":4}}"
+      "output": "{\"id\":\"int_1\",\"model\":\"gemini-3-pro-preview\",\"status\":\"completed\",\"outputs\":[{\"type\":\"text\",\"text\":\"ok\"}],\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":1,\"total_tokens\":4}}",
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 4,
+        "response_model": "gemini-3-pro-preview",
+        "reasoning_effort": "",
+        "failed": false
+      }
     },
     {
       "name": "int_thinking_level",
@@ -3281,7 +3905,19 @@
         "body": "{\"id\":\"int_1\",\"model\":\"gemini-3-pro-preview\",\"status\":\"completed\",\"outputs\":[{\"type\":\"text\",\"text\":\"ok\"}],\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":1,\"total_tokens\":4}}"
       },
       "request": "POST /v1beta/interactions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 107\r\nApi-Revision: 2026-05-20\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-int-1\r\nX-Static: static-int\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-3-pro-preview\",\"input\":\"hi\",\"generation_config\":{\"temperature\":1,\"thinking_level\":\"high\"}}",
-      "output": "{\"id\":\"int_1\",\"model\":\"gemini-3-pro-preview\",\"status\":\"completed\",\"outputs\":[{\"type\":\"text\",\"text\":\"ok\"}],\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":1,\"total_tokens\":4}}"
+      "output": "{\"id\":\"int_1\",\"model\":\"gemini-3-pro-preview\",\"status\":\"completed\",\"outputs\":[{\"type\":\"text\",\"text\":\"ok\"}],\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":1,\"total_tokens\":4}}",
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 4,
+        "response_model": "gemini-3-pro-preview",
+        "reasoning_effort": "",
+        "failed": false
+      }
     },
     {
       "name": "int_thinking_invalid",
@@ -3337,7 +3973,19 @@
         "body": "{\"id\":\"int_1\",\"model\":\"gemini-3-pro-preview\",\"status\":\"completed\",\"outputs\":[{\"type\":\"text\",\"text\":\"ok\"}],\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":1,\"total_tokens\":4}}"
       },
       "request": "POST /v1beta/interactions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 45\r\nApi-Revision: 2026-05-20\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-int-1\r\nX-Static: static-int\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-3-pro-preview\",\"input\":\"hi\"}",
-      "output": "{\"id\":\"int_1\",\"model\":\"gemini-3-pro-preview\",\"status\":\"completed\",\"outputs\":[{\"type\":\"text\",\"text\":\"ok\"}],\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":1,\"total_tokens\":4}}"
+      "output": "{\"id\":\"int_1\",\"model\":\"gemini-3-pro-preview\",\"status\":\"completed\",\"outputs\":[{\"type\":\"text\",\"text\":\"ok\"}],\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":1,\"total_tokens\":4}}",
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 4,
+        "response_model": "gemini-3-pro-preview",
+        "reasoning_effort": "",
+        "failed": false
+      }
     },
     {
       "name": "int_error_status",
@@ -3402,6 +4050,18 @@
       "error": {
         "status": 400,
         "message": "{\"error\":{\"code\":400,\"message\":\"Invalid revision\",\"status\":\"INVALID_ARGUMENT\"}}"
+      },
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 0,
+        "response_model": "",
+        "reasoning_effort": "",
+        "failed": true
       }
     },
     {
@@ -3473,7 +4133,19 @@
         "data: {\"event_type\":\"interaction.completed\",\"interaction\":{\"id\":\"int_1\",\"status\":\"completed\",\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":2}}}\n\n",
         "event: done\ndata: [DONE]\n\n",
         "event: trailing\ndata: {\"event_type\":\"after\"}\n\n"
-      ]
+      ],
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 2,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 5,
+        "response_model": "gemini-3-pro-preview",
+        "reasoning_effort": "",
+        "failed": false
+      }
     },
     {
       "name": "int_stream_ids",
@@ -3544,7 +4216,19 @@
         "data: {\"event_type\":\"interaction.completed\",\"interaction\":{\"id\":\"int_1\",\"status\":\"completed\",\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":2}}}\n\n",
         "event: done\ndata: [DONE]\n\n",
         "event: trailing\ndata: {\"event_type\":\"after\"}\n\n"
-      ]
+      ],
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 2,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 5,
+        "response_model": "gemini-3-pro-preview",
+        "reasoning_effort": "",
+        "failed": false
+      }
     },
     {
       "name": "int_stream_error",
@@ -3610,6 +4294,18 @@
       "error": {
         "status": 503,
         "message": "{\"error\":{\"code\":503,\"message\":\"overloaded\"}}"
+      },
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 0,
+        "response_model": "",
+        "reasoning_effort": "",
+        "failed": true
       }
     },
     {
@@ -3682,7 +4378,19 @@
         "body": "{\"id\":\"int_1\",\"model\":\"gemini-3-pro-preview\",\"status\":\"completed\",\"outputs\":[{\"type\":\"text\",\"text\":\"ok\"}],\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":1,\"total_tokens\":4}}"
       },
       "request": "POST /v1beta/interactions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 78\r\nApi-Revision: 2026-05-20\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-int-1\r\nX-Static: static-int\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-3.1-pro-preview\",\"input\":\"hi\",\"generation_config\":{\"seed\":7}}",
-      "output": "{\"id\":\"int_1\",\"model\":\"gemini-3-pro-preview\",\"status\":\"completed\",\"outputs\":[{\"type\":\"text\",\"text\":\"ok\"}],\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":1,\"total_tokens\":4}}"
+      "output": "{\"id\":\"int_1\",\"model\":\"gemini-3-pro-preview\",\"status\":\"completed\",\"outputs\":[{\"type\":\"text\",\"text\":\"ok\"}],\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":1,\"total_tokens\":4}}",
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 4,
+        "response_model": "gemini-3-pro-preview",
+        "reasoning_effort": "",
+        "failed": false
+      }
     },
     {
       "name": "int_count_uses_count_tokens",
@@ -3813,7 +4521,19 @@
         "data: {\"event_type\":\"interaction.completed\",\"interaction\":{\"id\":\"int_1\",\"status\":\"completed\",\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":2}}}\n\n",
         "event: done\ndata: [DONE]\n\n",
         "event: trailing\ndata: {\"event_type\":\"after\"}\n\n"
-      ]
+      ],
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 2,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 5,
+        "response_model": "gemini-3-pro-preview",
+        "reasoning_effort": "",
+        "failed": false
+      }
     },
     {
       "name": "int_gemini_client_stream",
@@ -3882,7 +4602,19 @@
         "{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"hi\"}],\"role\":\"model\"},\"index\":0}],\"modelVersion\":\"gemini-3-pro-preview\",\"responseId\":\"int_1\"}",
         "{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"!\"}],\"role\":\"model\"},\"index\":0}],\"modelVersion\":\"gemini-3-pro-preview\",\"responseId\":\"int_1\"}",
         "{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"\"}],\"role\":\"model\"},\"index\":0,\"finishReason\":\"STOP\"}],\"modelVersion\":\"gemini-3-pro-preview\",\"responseId\":\"int_1\",\"usageMetadata\":{\"promptTokenCount\":3,\"promptTokensDetails\":[{\"modality\":\"TEXT\",\"tokenCount\":3}],\"candidatesTokenCount\":2,\"totalTokenCount\":5}}"
-      ]
+      ],
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 2,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 5,
+        "response_model": "gemini-3-pro-preview",
+        "reasoning_effort": "",
+        "failed": false
+      }
     },
     {
       "name": "int_openai_client",
@@ -3941,7 +4673,19 @@
         "body": "{\"id\":\"int_1\",\"model\":\"gemini-3-pro-preview\",\"status\":\"completed\",\"outputs\":[{\"type\":\"text\",\"text\":\"ok\"}],\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":1,\"total_tokens\":4}}"
       },
       "request": "POST /v1beta/interactions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 104\r\nApi-Revision: 2026-05-20\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-int-1\r\nX-Static: static-int\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-3-pro-preview\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"}]}]}",
-      "output": "{\"id\":\"int_1\",\"object\":\"chat.completion\",\"created\":1791016446,\"model\":\"gemini-3-pro-preview\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
+      "output": "{\"id\":\"int_1\",\"object\":\"chat.completion\",\"created\":1791017636,\"model\":\"gemini-3-pro-preview\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}",
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 4,
+        "response_model": "gemini-3-pro-preview",
+        "reasoning_effort": "",
+        "failed": false
+      }
     },
     {
       "name": "int_claude_client_stream",
@@ -4014,7 +4758,19 @@
         "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\n\n",
         "event: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\",\"stop_sequence\":null},\"usage\":{\"input_tokens\":3,\"output_tokens\":2}}\n\n\n",
         "event: message_stop\ndata: {\"type\":\"message_stop\"}\n\n\n"
-      ]
+      ],
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 2,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 5,
+        "response_model": "gemini-3-pro-preview",
+        "reasoning_effort": "",
+        "failed": false
+      }
     },
     {
       "name": "int_responses_client_stream",
@@ -4085,7 +4841,19 @@
         "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"output_index\":0,\"content_index\":0,\"item_id\":\"\",\"delta\":\"!\",\"sequence_number\":3}\n\n",
         "event: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"int_1\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"gemini-3-pro-preview\",\"output\":[],\"usage\":{\"input_tokens\":3,\"output_tokens\":2,\"total_tokens\":5,\"output_tokens_details\":{\"reasoning_tokens\":0},\"input_tokens_details\":{\"cached_tokens\":0}}},\"sequence_number\":4}\n\n",
         "data: [DONE]"
-      ]
+      ],
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 2,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 5,
+        "response_model": "gemini-3-pro-preview",
+        "reasoning_effort": "",
+        "failed": false
+      }
     },
     {
       "name": "int_codex_source_uses_generate_content",
@@ -4151,7 +4919,560 @@
         "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
       },
       "request": "POST /v1beta/models/gemini-3-pro-preview:generateContent HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 45\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-int-1\r\nX-Static: static-int\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-3-pro-preview\",\"input\":\"hi\"}",
-      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}",
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 4,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "",
+        "failed": false
+      }
+    },
+    {
+      "name": "int_stream_cr_lines",
+      "config": "\nrequests:\n  payload:\n    default:\n      - models:\n          - name: gemini-2.5-flash-lite\n            protocol: gemini\n        params:\n          generationConfig.temperature: 0.25\n          generationConfig.topP: 0.5\n    override:\n      - models:\n          - name: gemini-2.5-flash-lite\n            from-protocol: gemini\n        params:\n          generationConfig.topK: 3\n      - models:\n          - name: gemini-3.1-pro-preview\n            protocol: interactions\n        params:\n          generation_config.seed: 7\n    filter:\n      - models:\n          - name: gemini-2.5-flash-lite\n        params:\n          - generationConfig.stopSequences\napi-keys:\n  gemini:\n    - name: g1\n      base-url: http://UPSTREAM/\n      headers:\n        X-Static: static-value\n        X-Forward: $X-Client-Trace\n        X-Missing: $X-Not-Sent\n      models:\n        - name: gemini-2.5-flash\n          alias: flash\n        - name: gemini-2.5-pro\n          alias: pro-levels\n          thinking:\n            levels: [low, high]\n        - name: gemini-2.5-flash\n          alias: flash-compat\n          is-compat: true\n      keys:\n        - api-key: AIza-fake-gemini-1\n    - name: g2\n      base-url: http://UPSTREAM///\n      keys:\n        - api-key: AIza-fake-gemini-2\n    - name: g3\n      base-url: http://UPSTREAM\n      prefix: team\n      headers:\n        X-Session: \"sess-$CPA-SESSION-ID\"\n      models:\n        - name: gemini-2.5-pro\n          alias: pro-team\n          thinking:\n            levels: [low]\n        - alias: gemini-2.5-flash\n      keys:\n        - api-key: AIza-fake-gemini-3\n  interactions:\n    - name: i1\n      base-url: http://UPSTREAM\n      headers:\n        X-Static: static-int\n      models:\n        - name: gemini-3-pro-preview\n          alias: native-pro\n      keys:\n        - api-key: AIza-fake-int-1\n    - name: i2\n      base-url: http://UPSTREAM/\n      headers:\n        Api-Revision: 2099-01-01\n      keys:\n        - api-key: AIza-fake-int-2\n",
+      "provider": "gemini-interactions",
+      "config_auth": 0,
+      "model": "gemini-3-pro-preview",
+      "payload": "{\"model\":\"gemini-3-pro-preview\",\"input\":\"hi\"}",
+      "source": "interactions",
+      "op": "stream",
+      "session": "derived:ctx:v1:50f40ff090573d922a41698341526bdc93c6d4c5056809c8ca8bc16327d9ddb7",
+      "resolved": {
+        "info": {
+          "id": "gemini-3-pro-preview",
+          "object": "model",
+          "created": 1737158400,
+          "owned_by": "google",
+          "type": "interactions",
+          "display_name": "Gemini 3 Pro Preview",
+          "name": "models/gemini-3-pro-preview",
+          "version": "3.0",
+          "description": "Gemini 3 Pro Preview",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "min": 128,
+            "max": 32768,
+            "dynamic_allowed": true,
+            "levels": [
+              "low",
+              "high"
+            ]
+          }
+        }
+      },
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "text/event-stream"
+          ]
+        ],
+        "body": "event: step.delta\r\r\ndata: {\"event_type\":\"step.delta\",\"index\":0,\"delta\":{\"type\":\"text\",\"text\":\"hi\"}}\r\r\n\r\r\nevent: done\r\r\ndata: [DONE]\r\r\n\r\n"
+      },
+      "request": "POST /v1beta/interactions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 59\r\nApi-Revision: 2026-05-20\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-int-1\r\nX-Static: static-int\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-3-pro-preview\",\"input\":\"hi\",\"stream\":true}",
+      "chunks": [
+        "event: step.delta\r\ndata: {\"event_type\":\"step.delta\",\"index\":0,\"delta\":{\"type\":\"text\",\"text\":\"hi\"}}\n\n",
+        "event: done\r\ndata: [DONE]\n\n"
+      ],
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 0,
+        "response_model": "",
+        "reasoning_effort": "",
+        "failed": false
+      }
+    },
+    {
+      "name": "stream_codex_client_cr_lines",
+      "config": "\nrequests:\n  payload:\n    default:\n      - models:\n          - name: gemini-2.5-flash-lite\n            protocol: gemini\n        params:\n          generationConfig.temperature: 0.25\n          generationConfig.topP: 0.5\n    override:\n      - models:\n          - name: gemini-2.5-flash-lite\n            from-protocol: gemini\n        params:\n          generationConfig.topK: 3\n      - models:\n          - name: gemini-3.1-pro-preview\n            protocol: interactions\n        params:\n          generation_config.seed: 7\n    filter:\n      - models:\n          - name: gemini-2.5-flash-lite\n        params:\n          - generationConfig.stopSequences\napi-keys:\n  gemini:\n    - name: g1\n      base-url: http://UPSTREAM/\n      headers:\n        X-Static: static-value\n        X-Forward: $X-Client-Trace\n        X-Missing: $X-Not-Sent\n      models:\n        - name: gemini-2.5-flash\n          alias: flash\n        - name: gemini-2.5-pro\n          alias: pro-levels\n          thinking:\n            levels: [low, high]\n        - name: gemini-2.5-flash\n          alias: flash-compat\n          is-compat: true\n      keys:\n        - api-key: AIza-fake-gemini-1\n    - name: g2\n      base-url: http://UPSTREAM///\n      keys:\n        - api-key: AIza-fake-gemini-2\n    - name: g3\n      base-url: http://UPSTREAM\n      prefix: team\n      headers:\n        X-Session: \"sess-$CPA-SESSION-ID\"\n      models:\n        - name: gemini-2.5-pro\n          alias: pro-team\n          thinking:\n            levels: [low]\n        - alias: gemini-2.5-flash\n      keys:\n        - api-key: AIza-fake-gemini-3\n  interactions:\n    - name: i1\n      base-url: http://UPSTREAM\n      headers:\n        X-Static: static-int\n      models:\n        - name: gemini-3-pro-preview\n          alias: native-pro\n      keys:\n        - api-key: AIza-fake-int-1\n    - name: i2\n      base-url: http://UPSTREAM/\n      headers:\n        Api-Revision: 2099-01-01\n      keys:\n        - api-key: AIza-fake-int-2\n",
+      "provider": "gemini",
+      "config_auth": 0,
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"input\":\"hi\"}",
+      "source": "codex",
+      "op": "stream",
+      "session": "derived:ctx:v1:774d701e7a037fafde5f2aac0359a00a0072308fa6aa25feebfc521c7dd52440",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "gemini",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "text/event-stream"
+          ]
+        ],
+        "body": "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"he\"}]},\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"totalTokenCount\":3},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}\r\r\n\r\r\ndata: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"llo\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":2,\"totalTokenCount\":5},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}\r\n\r\n"
+      },
+      "request": "POST /v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 41\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-gemini-1\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-2.5-flash\",\"input\":\"hi\"}",
+      "chunks": [
+        "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"he\"}]},\"index\":0}],\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\",\"cpaUsageMetadata\":{\"promptTokenCount\":3,\"totalTokenCount\":3}}",
+        "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"llo\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":2,\"totalTokenCount\":5},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}",
+        "[DONE]"
+      ],
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 2,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 5,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "",
+        "failed": false
+      }
+    },
+    {
+      "name": "usage_openai_execute_effort",
+      "config": "\napi-keys:\n  gemini:\n    - base-url: http://UPSTREAM\n      models:\n        - name: gemini-2.5-flash\n          alias: u-flash\n      keys:\n        - api-key: AIza-fake-usage\n  interactions:\n    - base-url: http://UPSTREAM\n      models:\n        - name: gemini-3-pro-preview\n          alias: u-pro\n      keys:\n        - api-key: AIza-fake-usage-int\n",
+      "provider": "gemini",
+      "config_auth": 0,
+      "model": "gemini-2.5-flash",
+      "requested_model": "u-flash",
+      "payload": "{\"model\":\"u-flash\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"reasoning_effort\":\"low\"}",
+      "source": "openai",
+      "op": "execute",
+      "session": "derived:ctx:v1:1211c3ff60af63a561f0413f04b6c10dc806fc8a96c651902c73d8817f34b327",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "gemini",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
+      "needs": [
+        "pair:openai-\u003egemini"
+      ],
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "application/json"
+          ]
+        ],
+        "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":40,\"candidatesTokenCount\":60,\"thoughtsTokenCount\":10,\"cachedContentTokenCount\":8,\"totalTokenCount\":110},\"modelVersion\":\"gemini-2.5-flash-002\"}"
+      },
+      "request": "POST /v1beta/models/gemini-2.5-flash:generateContent HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 502\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-usage\r\nAccept-Encoding: gzip\r\n\r\n{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"model\":\"gemini-2.5-flash\",\"generationConfig\":{\"thinkingConfig\":{\"thinkingBudget\":1024,\"includeThoughts\":true}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}",
+      "output": "{\"id\":\"\",\"object\":\"chat.completion\",\"created\":0,\"model\":\"gemini-2.5-flash-002\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\",\"reasoning_content\":null,\"tool_calls\":null},\"finish_reason\":\"stop\",\"native_finish_reason\":\"stop\"}],\"usage\":{\"completion_tokens\":70,\"total_tokens\":110,\"prompt_tokens\":40,\"completion_tokens_details\":{\"reasoning_tokens\":10},\"prompt_tokens_details\":{\"cached_tokens\":8}}}",
+      "usage": {
+        "input_tokens": 40,
+        "output_tokens": 60,
+        "reasoning_tokens": 10,
+        "cached_tokens": 8,
+        "cache_read_tokens": 8,
+        "cache_creation_tokens": 0,
+        "total_tokens": 110,
+        "response_model": "gemini-2.5-flash-002",
+        "reasoning_effort": "low",
+        "failed": false
+      }
+    },
+    {
+      "name": "usage_claude_stream_non_terminal_usage",
+      "config": "\napi-keys:\n  gemini:\n    - base-url: http://UPSTREAM\n      models:\n        - name: gemini-2.5-flash\n          alias: u-flash\n      keys:\n        - api-key: AIza-fake-usage\n  interactions:\n    - base-url: http://UPSTREAM\n      models:\n        - name: gemini-3-pro-preview\n          alias: u-pro\n      keys:\n        - api-key: AIza-fake-usage-int\n",
+      "provider": "gemini",
+      "config_auth": 0,
+      "model": "gemini-2.5-flash",
+      "requested_model": "u-flash",
+      "payload": "{\"model\":\"u-flash\",\"max_tokens\":64,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":true}",
+      "source": "claude",
+      "op": "stream",
+      "session": "derived:ctx:v1:8ed3d00f709e2db65d288213eec043173a48ad204192530b3fbef5d5729599c8",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "gemini",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
+      "needs": [
+        "pair:claude-\u003egemini"
+      ],
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "text/event-stream"
+          ]
+        ],
+        "body": "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"he\"}]},\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":5,\"candidatesTokenCount\":7,\"totalTokenCount\":12},\"modelVersion\":\"gemini-2.5-flash-003\"}\n\ndata: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"llo\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"modelVersion\":\"gemini-2.5-flash-003\"}\n\n"
+      },
+      "request": "POST /v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 417\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-usage\r\nAccept-Encoding: gzip\r\n\r\n{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"model\":\"gemini-2.5-flash\",\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}",
+      "chunks": [
+        "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_1nZdL29xx5MUA1yADyHTEsnR8uuvGzszyY\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[],\"model\":\"gemini-2.5-flash-003\",\"stop_reason\":null,\"stop_sequence\":null,\"usage\":{\"input_tokens\":3,\"output_tokens\":0}}}\n\n\nevent: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\n\nevent: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"he\"}}\n\n\n",
+        "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"llo\"}}\n\n\n",
+        "event: message_stop\ndata: {\"type\":\"message_stop\"}\n\n\n"
+      ],
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 0,
+        "response_model": "gemini-2.5-flash-003",
+        "reasoning_effort": "",
+        "failed": false
+      }
+    },
+    {
+      "name": "usage_claude_stream_terminal_usage",
+      "config": "\napi-keys:\n  gemini:\n    - base-url: http://UPSTREAM\n      models:\n        - name: gemini-2.5-flash\n          alias: u-flash\n      keys:\n        - api-key: AIza-fake-usage\n  interactions:\n    - base-url: http://UPSTREAM\n      models:\n        - name: gemini-3-pro-preview\n          alias: u-pro\n      keys:\n        - api-key: AIza-fake-usage-int\n",
+      "provider": "gemini",
+      "config_auth": 0,
+      "model": "gemini-2.5-flash",
+      "requested_model": "u-flash",
+      "payload": "{\"model\":\"u-flash\",\"max_tokens\":64,\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":2048},\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":true}",
+      "source": "claude",
+      "op": "stream",
+      "session": "derived:ctx:v1:8ed3d00f709e2db65d288213eec043173a48ad204192530b3fbef5d5729599c8",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "gemini",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
+      "needs": [
+        "pair:claude-\u003egemini"
+      ],
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "text/event-stream"
+          ]
+        ],
+        "body": "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"he\"}]},\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":5,\"candidatesTokenCount\":7,\"totalTokenCount\":12},\"modelVersion\":\"gemini-2.5-flash-003\"}\n\ndata: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"llo\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":5,\"candidatesTokenCount\":9,\"thoughtsTokenCount\":2,\"cachedContentTokenCount\":3,\"totalTokenCount\":16},\"modelVersion\":\"gemini-2.5-flash-003\"}\n\n"
+      },
+      "request": "POST /v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 479\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-usage\r\nAccept-Encoding: gzip\r\n\r\n{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"model\":\"gemini-2.5-flash\",\"generationConfig\":{\"thinkingConfig\":{\"thinkingBudget\":2048}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}",
+      "chunks": [
+        "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_1nZdL29xx5MUA1yADyHTEsnR8uuvGzszyY\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[],\"model\":\"gemini-2.5-flash-003\",\"stop_reason\":null,\"stop_sequence\":null,\"usage\":{\"input_tokens\":3,\"output_tokens\":0}}}\n\n\nevent: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\n\nevent: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"he\"}}\n\n\n",
+        "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"llo\"}}\n\n\nevent: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\",\"stop_sequence\":null},\"usage\":{\"input_tokens\":2,\"output_tokens\":11,\"cache_read_input_tokens\":3}}\n\n\n",
+        "event: message_stop\ndata: {\"type\":\"message_stop\"}\n\n\n"
+      ],
+      "usage": {
+        "input_tokens": 5,
+        "output_tokens": 9,
+        "reasoning_tokens": 2,
+        "cached_tokens": 3,
+        "cache_read_tokens": 3,
+        "cache_creation_tokens": 0,
+        "total_tokens": 16,
+        "response_model": "gemini-2.5-flash-003",
+        "reasoning_effort": "medium",
+        "failed": false
+      }
+    },
+    {
+      "name": "usage_openai_stream_interactions",
+      "config": "\napi-keys:\n  gemini:\n    - base-url: http://UPSTREAM\n      models:\n        - name: gemini-2.5-flash\n          alias: u-flash\n      keys:\n        - api-key: AIza-fake-usage\n  interactions:\n    - base-url: http://UPSTREAM\n      models:\n        - name: gemini-3-pro-preview\n          alias: u-pro\n      keys:\n        - api-key: AIza-fake-usage-int\n",
+      "provider": "gemini-interactions",
+      "config_auth": 0,
+      "model": "gemini-3-pro-preview",
+      "requested_model": "u-pro",
+      "payload": "{\"model\":\"u-pro\",\"stream\":true,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"reasoning_effort\":\"high\"}",
+      "source": "openai",
+      "op": "stream",
+      "session": "derived:ctx:v1:1211c3ff60af63a561f0413f04b6c10dc806fc8a96c651902c73d8817f34b327",
+      "resolved": {
+        "info": {
+          "id": "gemini-3-pro-preview",
+          "object": "model",
+          "created": 1737158400,
+          "owned_by": "google",
+          "type": "interactions",
+          "display_name": "Gemini 3 Pro Preview",
+          "name": "models/gemini-3-pro-preview",
+          "version": "3.0",
+          "description": "Gemini 3 Pro Preview",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "min": 128,
+            "max": 32768,
+            "dynamic_allowed": true,
+            "levels": [
+              "low",
+              "high"
+            ]
+          }
+        }
+      },
+      "needs": [
+        "pair:openai-\u003einteractions"
+      ],
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "text/event-stream"
+          ]
+        ],
+        "body": "event: interaction.created\ndata: {\"event_type\":\"interaction.created\",\"interaction\":{\"id\":\"int_9\",\"model\":\"gemini-3-pro-preview-0901\"}}\n\nevent: step.delta\ndata: {\"event_type\":\"step.delta\",\"index\":0,\"delta\":{\"type\":\"text\",\"text\":\"hi\"}}\n\ndata: {\"event_type\":\"interaction.completed\",\ndata: \"interaction\":{\"id\":\"int_9\",\"status\":\"completed\",\"usage\":{\"total_input_tokens\":11,\"total_output_tokens\":22,\"total_thought_tokens\":4,\"total_cached_tokens\":2,\"total_tokens\":39}}}\n\nevent: done\ndata: [DONE]\n\n"
+      },
+      "request": "POST /v1beta/interactions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 192\r\nApi-Revision: 2026-05-20\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-usage-int\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-3-pro-preview\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"}]}],\"stream\":true,\"generation_config\":{\"thinking_level\":\"high\",\"thinking_summaries\":\"auto\"}}",
+      "chunks": [
+        "{\"id\":\"int_9\",\"object\":\"chat.completion.chunk\",\"created\":1791017636,\"model\":\"gemini-3-pro-preview-0901\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\"},\"finish_reason\":null}]}",
+        "{\"id\":\"int_9\",\"object\":\"chat.completion.chunk\",\"created\":1791017636,\"model\":\"gemini-3-pro-preview-0901\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"hi\"},\"finish_reason\":null}]}",
+        "{\"id\":\"int_9\",\"object\":\"chat.completion.chunk\",\"created\":1791017636,\"model\":\"gemini-3-pro-preview-0901\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":11,\"completion_tokens\":22,\"total_tokens\":39,\"prompt_tokens_details\":{\"cached_tokens\":2},\"completion_tokens_details\":{\"reasoning_tokens\":4}}}"
+      ],
+      "usage": {
+        "input_tokens": 11,
+        "output_tokens": 22,
+        "reasoning_tokens": 4,
+        "cached_tokens": 2,
+        "cache_read_tokens": 2,
+        "cache_creation_tokens": 0,
+        "total_tokens": 39,
+        "response_model": "gemini-3-pro-preview-0901",
+        "reasoning_effort": "",
+        "failed": false
+      }
+    },
+    {
+      "name": "usage_responses_execute_interactions",
+      "config": "\napi-keys:\n  gemini:\n    - base-url: http://UPSTREAM\n      models:\n        - name: gemini-2.5-flash\n          alias: u-flash\n      keys:\n        - api-key: AIza-fake-usage\n  interactions:\n    - base-url: http://UPSTREAM\n      models:\n        - name: gemini-3-pro-preview\n          alias: u-pro\n      keys:\n        - api-key: AIza-fake-usage-int\n",
+      "provider": "gemini-interactions",
+      "config_auth": 0,
+      "model": "gemini-3-pro-preview",
+      "requested_model": "u-pro",
+      "payload": "{\"model\":\"u-pro\",\"input\":\"hi\"}",
+      "source": "openai-response",
+      "op": "execute",
+      "session": "derived:ctx:v1:a7c6eb144606fcd71939d5a8db03a966b2429b779fb62683e8144e1887f311ec",
+      "resolved": {
+        "info": {
+          "id": "gemini-3-pro-preview",
+          "object": "model",
+          "created": 1737158400,
+          "owned_by": "google",
+          "type": "interactions",
+          "display_name": "Gemini 3 Pro Preview",
+          "name": "models/gemini-3-pro-preview",
+          "version": "3.0",
+          "description": "Gemini 3 Pro Preview",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "min": 128,
+            "max": 32768,
+            "dynamic_allowed": true,
+            "levels": [
+              "low",
+              "high"
+            ]
+          }
+        }
+      },
+      "needs": [
+        "pair:openai-response-\u003einteractions"
+      ],
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "application/json"
+          ]
+        ],
+        "body": "{\"id\":\"int_8\",\"model\":\"gemini-3-pro-preview-0902\",\"status\":\"completed\",\"outputs\":[{\"type\":\"text\",\"text\":\"ok\"}],\"usage\":{\"total_input_tokens\":20,\"total_output_tokens\":30,\"total_thought_tokens\":5,\"total_cached_tokens\":4,\"total_tokens\":55}}"
+      },
+      "request": "POST /v1beta/interactions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 104\r\nApi-Revision: 2026-05-20\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-usage-int\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-3-pro-preview\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"}]}]}",
+      "output": "{\"id\":\"int_8\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"gemini-3-pro-preview\",\"output\":[],\"usage\":{\"input_tokens\":20,\"output_tokens\":30,\"total_tokens\":55,\"input_tokens_details\":{\"cached_tokens\":4},\"output_tokens_details\":{\"reasoning_tokens\":5}}}",
+      "usage": {
+        "input_tokens": 20,
+        "output_tokens": 30,
+        "reasoning_tokens": 5,
+        "cached_tokens": 4,
+        "cache_read_tokens": 4,
+        "cache_creation_tokens": 0,
+        "total_tokens": 55,
+        "response_model": "gemini-3-pro-preview-0902",
+        "reasoning_effort": "",
+        "failed": false
+      }
     }
   ],
   "vectors": {

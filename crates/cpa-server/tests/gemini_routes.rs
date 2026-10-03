@@ -219,3 +219,120 @@ async fn vertex_api_key_routes_alias() {
     assert_eq!(key.as_deref(), Some("vk-fake"));
     assert!(body.contains(r#""model":"gemini-2.5-flash""#), "{body}");
 }
+
+/// Replays one scripted upstream answer (status, headers, body) to every request.
+async fn scripted(reply: &serde_json::Value) -> String {
+    let status = reply["status"].as_u64().unwrap() as u16;
+    let headers: Vec<(String, String)> = reply["headers"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .map(|h| (h[0].as_str().unwrap().to_owned(), h[1].as_str().unwrap().to_owned()))
+        .collect();
+    let body = reply["body"].as_str().unwrap().to_owned();
+    let app = axum::Router::new().fallback(move || {
+        let (headers, body) = (headers.clone(), body.clone());
+        async move {
+            let mut response = Response::new(axum::body::Body::from(body));
+            *response.status_mut() = axum::http::StatusCode::from_u16(status).unwrap();
+            for (name, value) in headers {
+                response.headers_mut().append(
+                    axum::http::HeaderName::from_bytes(name.as_bytes()).unwrap(),
+                    value.parse().unwrap(),
+                );
+            }
+            response
+        }
+    });
+    serve(app).await
+}
+
+/// The `usage_*` scenarios of the Go executor fixtures through the real router: the
+/// record the usage queue stores must carry the tokens, response model and translated
+/// reasoning effort Go's `UsageReporter` published for the same upstream answer. The
+/// executors report upstream payloads (`ExecRequest::usage`); without them the server
+/// would parse the translated client response instead.
+#[tokio::test]
+async fn usage_records_match_go() {
+    let fixtures = [
+        include_str!("../../cpa-exec/tests/fixtures/gemini_go.json"),
+        include_str!("../../cpa-exec/tests/fixtures/vertex_go.json"),
+    ];
+    let mut ran = 0;
+    for fixture in fixtures {
+        let fixture: serde_json::Value = serde_json::from_str(fixture).unwrap();
+        for s in fixture["scenarios"].as_array().unwrap() {
+            let name = s["name"].as_str().unwrap();
+            if !name.starts_with("usage_") {
+                continue;
+            }
+            let reply = s.get("upstream").unwrap_or_else(|| &s["replies"][0]);
+            let up = scripted(reply).await;
+            let config = format!(
+                "access:\n  api-keys: [client-key]\n{}",
+                s["config"].as_str().unwrap().replace("UPSTREAM", up.trim_start_matches("http://"))
+            );
+            let config = Config::parse(&config).unwrap();
+            let credentials = cpa_core::config::credentials::load(&config);
+            let executors = Executors {
+                claude: ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
+                codex: Default::default(),
+                devices: Default::default(),
+                openai: Default::default(),
+                google: Default::default(),
+            };
+            let rt = Arc::new(Runtime::new(config, credentials, executors));
+            let queue = rt.usage_queue();
+            queue.configure(
+                true,
+                &Config::parse("observability: {usage: {usage-statistics-enabled: true}}\n").unwrap(),
+            );
+            let url = serve(router(rt.clone())).await;
+            let path = match s["source"].as_str().unwrap() {
+                "openai" => "/v1/chat/completions",
+                "claude" => "/v1/messages",
+                "openai-response" => "/v1/responses",
+                other => panic!("{name}: no route for {other}"),
+            };
+            let (status, _, text) = post(&url, path, s["payload"].as_str().unwrap()).await;
+            assert_eq!(status, 200, "{name}: {text}");
+            let mut records = Vec::new();
+            for _ in 0..50 {
+                records = queue.pop_oldest(10);
+                if !records.is_empty() {
+                    break;
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+            }
+            assert_eq!(records.len(), 1, "{name}: one attempt");
+            let got: serde_json::Value = serde_json::from_slice(&records[0]).unwrap();
+            let want = &s["usage"];
+            for field in [
+                "input_tokens",
+                "output_tokens",
+                "reasoning_tokens",
+                "cached_tokens",
+                "cache_read_tokens",
+                "cache_creation_tokens",
+                "total_tokens",
+            ] {
+                assert_eq!(got["tokens"][field], want[field], "{name}: {field}");
+            }
+            let text = |v: &serde_json::Value| v.as_str().unwrap_or_default().to_owned();
+            assert_eq!(text(&got["response_model"]), text(&want["response_model"]), "{name}: response_model");
+            assert_eq!(got["failed"], want["failed"], "{name}: failed");
+            // Go's Interactions paths never set a translated effort: the record keeps the
+            // conductor's context value (the client's effort), which the executor-level
+            // generator does not bind. The Gemini and Vertex paths replace it.
+            if s["provider"].as_str() != Some("gemini-interactions") {
+                assert_eq!(
+                    text(&got["reasoning_effort"]),
+                    text(&want["reasoning_effort"]),
+                    "{name}: reasoning_effort"
+                );
+            }
+            ran += 1;
+        }
+    }
+    assert_eq!(ran, 7, "usage scenarios in the Go fixtures");
+}

@@ -83,6 +83,24 @@ func key(name, op, model, requested, payload string, replies ...reply) scenario 
 	return scenario{Name: name, Config: keyConfig, ConfigAuth: 0, Model: model, RequestedModel: requested, Payload: payload, Source: "gemini", Op: op, Via: "plain", Replies: replies}
 }
 
+// usageKeyConfig has a single Vertex key so the usage_* scenarios also replay through
+// the Rust router (cpa-server tests/gemini_routes.rs), which compares the queued usage
+// record with the one Go's reporter published.
+const usageKeyConfig = `
+api-keys:
+  vertex:
+    - base-url: http://UPSTREAM/api
+      models:
+        - name: gemini-2.5-flash
+          alias: u-vflash
+      keys:
+        - api-key: vk-fake-usage
+`
+
+func usageKey(name, source, op, payload string, replies ...reply) scenario {
+	return scenario{Name: name, Config: usageKeyConfig, ConfigAuth: 0, Model: "gemini-2.5-flash", RequestedModel: "u-vflash", Payload: payload, Source: source, Op: op, Via: "plain", Replies: replies}
+}
+
 func with(s scenario, edit func(*scenario)) scenario {
 	edit(&s)
 	return s
@@ -160,6 +178,15 @@ func scenarios() []scenario {
 		with(key("key_responses_stream", "stream", "gemini-2.5-flash", "", `{"model":"gemini-2.5-flash","input":"hi","stream":true}`, sseOK), func(s *scenario) { s.Source = "openai-response" }),
 		with(key("key_claude_count", "count", "gemini-2.5-flash", "", `{"model":"gemini-2.5-flash","messages":[{"role":"user","content":"hi"}]}`, countOK), func(s *scenario) { s.Source = "claude" }),
 		with(key("key_codex_client_passthrough", "execute", "gemini-2.5-flash", "", `{"model":"gemini-2.5-flash","input":"hi"}`, jsonOK), func(s *scenario) { s.Source = "codex" }),
+		// A line ending in "\r\r\n" keeps one "\r" through Go's scanner.
+		with(key("key_codex_stream_cr_lines", "stream", "gemini-2.5-flash", "", `{"model":"gemini-2.5-flash","input":"hi"}`, reply{Status: 200, Body: "data: " + chunk1 + "\r\r\n\r\r\ndata: " + chunk2 + "\r\n\r\n"}), func(s *scenario) { s.Source = "codex" }),
+		with(key("key_openai_stream_cr_lines", "stream", "gemini-2.5-flash", "", `{"model":"gemini-2.5-flash","stream":true,"messages":[{"role":"user","content":"hi"}]}`, reply{Status: 200, Body: "data: " + chunk1 + "\r\r\n\r\r\ndata: " + chunk2 + "\r\n\r\n"}), func(s *scenario) { s.Source = "openai" }),
+		// Vertex reports every raw line to the usage reporter: usage on a non-terminal
+		// chunk counts (the Gemini executor filters it out).
+		usageKey("usage_key_openai_stream_raw_usage", "openai", "stream", `{"model":"u-vflash","stream":true,"messages":[{"role":"user","content":"hi"}],"reasoning_effort":"medium"}`,
+			reply{Status: 200, Body: "data: " + `{"candidates":[{"content":{"role":"model","parts":[{"text":"he"}]},"index":0}],"usageMetadata":{"promptTokenCount":7,"candidatesTokenCount":1,"totalTokenCount":8},"modelVersion":"gemini-2.5-flash-004"}` + "\n\ndata: " + `{"candidates":[{"content":{"role":"model","parts":[{"text":"llo"}]},"finishReason":"STOP","index":0}],"modelVersion":"gemini-2.5-flash-004"}` + "\n\n"}),
+		usageKey("usage_key_claude_execute_thinking", "claude", "execute", `{"model":"u-vflash","max_tokens":64,"thinking":{"type":"enabled","budget_tokens":2048},"messages":[{"role":"user","content":"hi"}]}`,
+			reply{Status: 200, Headers: [][2]string{{"Content-Type", "application/json"}}, Body: `{"candidates":[{"content":{"role":"model","parts":[{"text":"ok"}]},"finishReason":"STOP","index":0}],"usageMetadata":{"promptTokenCount":30,"candidatesTokenCount":12,"thoughtsTokenCount":6,"cachedContentTokenCount":9,"totalTokenCount":48},"modelVersion":"gemini-2.5-flash-005"}`}),
 		with(key("key_codex_tool_integer_types", "execute", "gemini-2.5-flash", "", `{"model":"gemini-2.5-flash","input":[{"type":"message","role":"user","content":[{"type":"input_text","text":"hi"}]}],"tools":[{"type":"function","name":"shell","parameters":{"type":"object","properties":{"timeout_ms":{"type":"number"}}}}]}`, jsonOK), func(s *scenario) {
 			s.Source = "openai-response"
 			s.Headers = map[string]string{"User-Agent": "codex_cli_rs/0.50.0 (Mac OS 15.0)"}

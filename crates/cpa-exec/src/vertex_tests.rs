@@ -230,7 +230,9 @@ async fn go_reference_scenarios() {
         if let Some(iat) = recorded_iat(s) {
             NOW.store(iat + 10, Ordering::SeqCst);
         }
-        let req = request(s);
+        let mut req = request(s);
+        let reports = std::sync::Arc::new(crate::gemini::tests::UsageReports::default());
+        req.usage = reports.sink();
         let (client, alt) = (req.response_format, req.alt.as_deref().is_some_and(|a| !a.is_empty()));
         let mut output = None;
         let mut streamed = Vec::new();
@@ -293,6 +295,7 @@ async fn go_reference_scenarios() {
             .map(|r| r.as_str().unwrap().to_owned())
             .collect();
         assert_eq!(got, want, "{name}: upstream requests");
+        reports.check(s);
         plain.task.abort();
         proxy.task.abort();
     }

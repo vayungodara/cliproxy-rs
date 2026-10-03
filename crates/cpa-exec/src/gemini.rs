@@ -18,7 +18,9 @@ use cpa_common::json as gj;
 use cpa_common::thinking::{self, RequestThinking, parse_suffix};
 use cpa_core::config::Config;
 use cpa_core::credential::Credential;
-use cpa_core::exec::{ExecError, ExecRequest, ExecResponse, ExecStream, FailureScope, Operation, ResponseBody};
+use cpa_core::exec::{
+    ExecError, ExecRequest, ExecResponse, ExecStream, FailureScope, Operation, ResponseBody, UsageSink,
+};
 use cpa_core::format::Format;
 use cpa_translate::{RequestCtx, ResponseCtx, StreamTranslator};
 use futures_util::StreamExt;
@@ -444,6 +446,7 @@ impl GeminiExecutor {
             None => {}
         }
         body = payload::delete(body, "session_id");
+        req.usage.request(to, &body);
         let headers = request_headers(credential, req);
         let upstream = proxy::send(&self.client(credential, cfg), &url, headers, body.clone(), None).await?;
         if !(200..300).contains(&upstream.status) {
@@ -452,6 +455,7 @@ impl GeminiExecutor {
         let response_headers = upstream.headers.clone();
         if !req.stream {
             let data = proxy::read_all(upstream.body, usize::MAX, false).await?;
+            req.usage.response_body(to, &data);
             let out = translate_non_stream(req, to, &body, &data)?;
             return Ok(ExecResponse {
                 status: 200,
@@ -514,6 +518,7 @@ impl GeminiExecutor {
         let upstream = proxy::send(&self.client(credential, cfg), &url, headers, body.clone(), None).await?;
         if !req.stream {
             let (response_headers, data) = read_then_check(upstream).await?;
+            req.usage.response_body(to, &data);
             let out = translate_non_stream(req, to, &body, &data)?;
             return Ok(ExecResponse {
                 status: 200,
@@ -588,12 +593,12 @@ impl Emit {
 /// Go's `TranslateStream` without a registered transform: the payload as one chunk.
 /// Only Gemini upstreams reach it (a Codex client); every client format that takes the
 /// native Interactions path has a registered Interactions pair. Executors that pass
-/// scanned lines as `line\n` events get the line back without its newline.
+/// scanned lines as [`line_event`]s get the line back without the terminator.
 struct Unregistered;
 
 impl StreamTranslator for Unregistered {
     fn event(&mut self, event: &[u8]) -> Result<Vec<Bytes>, cpa_translate::Error> {
-        let line = event.strip_suffix(b"\n").unwrap_or(event);
+        let line = event.strip_suffix(LINE_END).unwrap_or(event);
         Ok(vec![Bytes::copy_from_slice(line)])
     }
 
@@ -609,6 +614,8 @@ pub(crate) struct Output {
     /// A Gemini client asked for `alt`: chunks are written bare.
     raw: bool,
     claude: ClaudeInputTokens,
+    /// The attempt's usage reporter; stream loops feed it what Go's reporter sees.
+    pub(crate) usage: UsageSink,
 }
 
 impl Output {
@@ -627,6 +634,7 @@ impl Output {
             client,
             raw: alt(req).is_some(),
             claude: ClaudeInputTokens::new(req.source_format, upstream, client, original_request(req).clone()),
+            usage: req.usage.clone(),
         }
     }
 
@@ -788,6 +796,10 @@ struct GeminiLines(Output);
 impl LineState for GeminiLines {
     fn line(&mut self, line: &[u8]) -> Emit {
         let filtered = sse::filter_sse_usage_metadata(line);
+        // Go observes the response model on the raw line and usage on the filtered
+        // payload; the filter only drops non-terminal usageMetadata, which the model
+        // reader ignores.
+        self.0.usage.response_line(Format::Gemini, &filtered);
         match sse::json_payload(&filtered) {
             Some(payload) => self.0.translate(payload),
             None => Emit::default(),
@@ -807,35 +819,71 @@ fn gemini_lines(lines: ExecStream, output: Output) -> ExecStream {
     drive(lines, GeminiLines(output))
 }
 
+/// The terminator executors append to a scanned line to pass it as one translator
+/// event. The translators split events like bufio.ScanLines, which drops one `\r`
+/// before each `\n`, so `\r\n` hands them the line exactly as Go's scanner returned it
+/// (including a trailing `\r` of its own).
+pub(crate) const LINE_END: &[u8] = b"\r\n";
+
+pub(crate) fn line_event(line: &[u8]) -> Vec<u8> {
+    [line, LINE_END].concat()
+}
+
 /// The Interactions stream loop. The translator groups the lines into SSE frames at
 /// blank lines (`stream::Framed`): Interactions clients get each frame as sent, others
 /// its translated payload. At EOF the pending frame is emitted (Go's final emitFrame),
-/// then the tool-input finalization.
-struct InteractionsLines(Output);
+/// then the tool-input finalization. With usage reporting on, the loop also keeps Go's
+/// frame so each frame's payload reaches the reporter (Go's emitFrame observation).
+struct InteractionsLines {
+    output: Output,
+    frame: Option<Vec<u8>>,
+}
+
+impl InteractionsLines {
+    /// emitFrame's `ObserveResponseModel(payload)` and `ParseInteractionsStreamUsage`.
+    fn report_frame(&mut self) {
+        if let Some(frame) = &mut self.frame {
+            let payload = cpa_translate::stream::interactions_frame_payload(frame);
+            frame.clear();
+            if !payload.is_empty() {
+                self.output.usage.response_line(Format::Interactions, &payload);
+            }
+        }
+    }
+}
 
 impl LineState for InteractionsLines {
     fn line(&mut self, line: &[u8]) -> Emit {
-        let mut event = Vec::with_capacity(line.len() + 1);
-        event.extend_from_slice(line);
-        event.push(b'\n');
-        self.0.translate(&event)
+        if self.frame.is_some() {
+            if line.trim_ascii().is_empty() {
+                self.report_frame();
+            } else if let Some(frame) = &mut self.frame {
+                if !frame.is_empty() {
+                    frame.push(b'\n');
+                }
+                frame.extend_from_slice(line);
+            }
+        }
+        self.output.translate(&line_event(line))
     }
 
     fn end(&mut self) -> Emit {
-        let mut emit = self.0.translate(b"\n");
-        if emit.stop.is_none() && !emit.then(self.0.finalize()) {
-            emit.then(self.0.finish());
+        self.report_frame();
+        let mut emit = self.output.translate(b"\n");
+        if emit.stop.is_none() && !emit.then(self.output.finalize()) {
+            emit.then(self.output.finish());
         }
         emit
     }
 
     fn flush(&mut self) -> Vec<Bytes> {
-        self.0.flush_frames()
+        self.output.flush_frames()
     }
 }
 
 fn interactions_lines(lines: ExecStream, output: Output) -> ExecStream {
-    drive(lines, InteractionsLines(output))
+    let frame = output.usage.enabled().then(Vec::new);
+    drive(lines, InteractionsLines { output, frame })
 }
 
 #[cfg(test)]
