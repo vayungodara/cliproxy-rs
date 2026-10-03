@@ -1,0 +1,1293 @@
+{
+ "files": {
+  "claude_executor_request_remap_test.go": {
+   "TestRemapKeepsReverseMapEmptyWhenOnlyCallerMCPToolsArePresent": [
+    {
+     "body": "{\"tools\":[{\"name\":\"mcp__context7__query-docs\"},{\"type\":\"web_search_20250305\",\"name\":\"web_search\"}]}",
+     "fn": "remap",
+     "out": "{\"tools\":[{\"name\":\"mcp__context7__query-docs\"},{\"type\":\"web_search_20250305\",\"name\":\"web_search\"}]}",
+     "reverse": {},
+     "secret": "no-proxied-tools"
+    }
+   ],
+   "TestRemapOAuthToolNamesWithBatchedEditsMatchesLegacyBytes": [
+    {
+     "body": "{\"model\":\"claude-opus-5\",\"tools\":[{\"name\":\"search_web\",\"input_schema\":{\"type\":\"object\"}},{\"name\":\"Search_Web\",\"input_schema\":{\"type\":\"object\"}}],\"tool_choice\":{\"type\":\"tool\",\"name\":\"search_web\"},\"messages\":[{\"role\":\"assistant\",\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"search_web\",\"input\":{}},{\"type\":\"tool_reference\",\"tool_name\":\"Search_Web\"},{\"type\":\"tool_result\",\"tool_use_id\":\"toolu_1\",\"content\":[{\"type\":\"tool_reference\",\"tool_name\":\"search_web\"}]},{\"type\":\"tool_use\",\"id\":\"toolu_unknown\",\"name\":\"not_declared\",\"input\":{}}]}]}",
+     "fn": "remap",
+     "legacy": true,
+     "out": "{\"model\":\"claude-opus-5\",\"tools\":[{\"name\":\"mcp__embark_cruel__wheat_search_web\",\"input_schema\":{\"type\":\"object\"}},{\"name\":\"mcp__embark_cruel__taste_Search_Web\",\"input_schema\":{\"type\":\"object\"}}],\"tool_choice\":{\"type\":\"tool\",\"name\":\"mcp__embark_cruel__wheat_search_web\"},\"messages\":[{\"role\":\"assistant\",\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__embark_cruel__wheat_search_web\",\"input\":{}},{\"type\":\"tool_reference\",\"tool_name\":\"mcp__embark_cruel__taste_Search_Web\"},{\"type\":\"tool_result\",\"tool_use_id\":\"toolu_1\",\"content\":[{\"type\":\"tool_reference\",\"tool_name\":\"mcp__embark_cruel__wheat_search_web\"}]},{\"type\":\"tool_use\",\"id\":\"toolu_unknown\",\"name\":\"not_declared\",\"input\":{}}]}]}",
+     "reverse": {
+      "mcp__embark_cruel__taste_Search_Web": "Search_Web",
+      "mcp__embark_cruel__wheat_search_web": "search_web"
+     },
+     "secret": "differential-caller"
+    },
+    {
+     "body": "{\"model\":\"claude-opus-5\",\"tools\":[{\"name\":\"search_web\",\"input_schema\":{\"type\":\"object\"}},{\"name\":\"Search_Web\",\"input_schema\":{\"type\":\"object\"}}],\"tool_choice\":{\"type\":\"tool\",\"name\":\"search_web\"},\"messages\":[{\"role\":\"assistant\",\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"search_web\",\"input\":{}},{\"type\":\"tool_reference\",\"tool_name\":\"Search_Web\"},{\"type\":\"tool_result\",\"tool_use_id\":\"toolu_1\",\"content\":[{\"type\":\"tool_reference\",\"tool_name\":\"search_web\"}]},{\"type\":\"tool_use\",\"id\":\"toolu_unknown\",\"name\":\"not_declared\",\"input\":{}}]}]}",
+     "fn": "remap_batched",
+     "ok": true,
+     "out": "{\"model\":\"claude-opus-5\",\"tools\":[{\"name\":\"mcp__embark_cruel__wheat_search_web\",\"input_schema\":{\"type\":\"object\"}},{\"name\":\"mcp__embark_cruel__taste_Search_Web\",\"input_schema\":{\"type\":\"object\"}}],\"tool_choice\":{\"type\":\"tool\",\"name\":\"mcp__embark_cruel__wheat_search_web\"},\"messages\":[{\"role\":\"assistant\",\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__embark_cruel__wheat_search_web\",\"input\":{}},{\"type\":\"tool_reference\",\"tool_name\":\"mcp__embark_cruel__taste_Search_Web\"},{\"type\":\"tool_result\",\"tool_use_id\":\"toolu_1\",\"content\":[{\"type\":\"tool_reference\",\"tool_name\":\"mcp__embark_cruel__wheat_search_web\"}]},{\"type\":\"tool_use\",\"id\":\"toolu_unknown\",\"name\":\"not_declared\",\"input\":{}}]}]}",
+     "reverse": {
+      "mcp__embark_cruel__taste_Search_Web": "Search_Web",
+      "mcp__embark_cruel__wheat_search_web": "search_web"
+     },
+     "secret": "differential-caller"
+    },
+    {
+     "body": "{\"tools\":[{\"type\":\"custom\",\"name\":\"client_custom\",\"input_schema\":{\"type\":\"object\"}},{\"type\":\"web_search_20250305\",\"name\":\"web_search\"},{\"name\":\"mcp__context7__query-docs\"},{\"name\":\"client_custom\"}],\"messages\":[{\"role\":\"assistant\",\"content\":[{\"type\":\"tool_use\",\"name\":\"client_custom\",\"id\":\"toolu_1\",\"input\":{}},{\"type\":\"tool_reference\",\"tool_name\":\"web_search\"},{\"type\":\"tool_reference\",\"tool_name\":\"mcp__context7__query-docs\"}]}]}",
+     "fn": "remap",
+     "legacy": true,
+     "out": "{\"tools\":[{\"name\":\"mcp__embark_cruel__creek_client_custom\",\"input_schema\":{\"type\":\"object\"}},{\"type\":\"web_search_20250305\",\"name\":\"web_search\"},{\"name\":\"mcp__context7__query-docs\"},{\"name\":\"mcp__embark_cruel__creek_client_custom\"}],\"messages\":[{\"role\":\"assistant\",\"content\":[{\"type\":\"tool_use\",\"name\":\"mcp__embark_cruel__creek_client_custom\",\"id\":\"toolu_1\",\"input\":{}},{\"type\":\"tool_reference\",\"tool_name\":\"web_search\"},{\"type\":\"tool_reference\",\"tool_name\":\"mcp__context7__query-docs\"}]}]}",
+     "reverse": {
+      "mcp__context7__query-docs": "mcp__context7__query-docs",
+      "mcp__embark_cruel__creek_client_custom": "client_custom"
+     },
+     "secret": "differential-caller"
+    },
+    {
+     "body": "{\"tools\":[{\"type\":\"custom\",\"name\":\"client_custom\",\"input_schema\":{\"type\":\"object\"}},{\"type\":\"web_search_20250305\",\"name\":\"web_search\"},{\"name\":\"mcp__context7__query-docs\"},{\"name\":\"client_custom\"}],\"messages\":[{\"role\":\"assistant\",\"content\":[{\"type\":\"tool_use\",\"name\":\"client_custom\",\"id\":\"toolu_1\",\"input\":{}},{\"type\":\"tool_reference\",\"tool_name\":\"web_search\"},{\"type\":\"tool_reference\",\"tool_name\":\"mcp__context7__query-docs\"}]}]}",
+     "fn": "remap_batched",
+     "ok": true,
+     "out": "{\"tools\":[{\"name\":\"mcp__embark_cruel__creek_client_custom\",\"input_schema\":{\"type\":\"object\"}},{\"type\":\"web_search_20250305\",\"name\":\"web_search\"},{\"name\":\"mcp__context7__query-docs\"},{\"name\":\"mcp__embark_cruel__creek_client_custom\"}],\"messages\":[{\"role\":\"assistant\",\"content\":[{\"type\":\"tool_use\",\"name\":\"mcp__embark_cruel__creek_client_custom\",\"id\":\"toolu_1\",\"input\":{}},{\"type\":\"tool_reference\",\"tool_name\":\"web_search\"},{\"type\":\"tool_reference\",\"tool_name\":\"mcp__context7__query-docs\"}]}]}",
+     "reverse": {
+      "mcp__context7__query-docs": "mcp__context7__query-docs",
+      "mcp__embark_cruel__creek_client_custom": "client_custom"
+     },
+     "secret": "differential-caller"
+    },
+    {
+     "body": "{\"tools\":[{\"name\":\"mcp__embark_cruel__always_fetch_url\"},{\"name\":\"fetch_url\"}],\"tool_choice\":{\"type\":\"tool\",\"name\":\"fetch_url\"}}",
+     "fn": "remap",
+     "legacy": true,
+     "out": "{\"tools\":[{\"name\":\"mcp__embark_cruel__always_fetch_url\"},{\"name\":\"mcp__embark_cruel__amateur_fetch_url\"}],\"tool_choice\":{\"type\":\"tool\",\"name\":\"mcp__embark_cruel__amateur_fetch_url\"}}",
+     "reverse": {
+      "mcp__embark_cruel__always_fetch_url": "mcp__embark_cruel__always_fetch_url",
+      "mcp__embark_cruel__amateur_fetch_url": "fetch_url"
+     },
+     "secret": "differential-caller"
+    },
+    {
+     "body": "{\"tools\":[{\"name\":\"mcp__embark_cruel__always_fetch_url\"},{\"name\":\"fetch_url\"}],\"tool_choice\":{\"type\":\"tool\",\"name\":\"fetch_url\"}}",
+     "fn": "remap_batched",
+     "ok": true,
+     "out": "{\"tools\":[{\"name\":\"mcp__embark_cruel__always_fetch_url\"},{\"name\":\"mcp__embark_cruel__amateur_fetch_url\"}],\"tool_choice\":{\"type\":\"tool\",\"name\":\"mcp__embark_cruel__amateur_fetch_url\"}}",
+     "reverse": {
+      "mcp__embark_cruel__always_fetch_url": "mcp__embark_cruel__always_fetch_url",
+      "mcp__embark_cruel__amateur_fetch_url": "fetch_url"
+     },
+     "secret": "differential-caller"
+    },
+    {
+     "body": "{\"messages\":[{\"content\":[{\"name\":\"读取_very_long_tool_name_very_long_tool_name_very_long_tool_name_very_long_tool_name_very_long_tool_name_very_long_tool_name_very_long_tool_name_very_long_tool_name_\",\"type\":\"tool_use\"},{\"tool_name\":\"read_file\",\"type\":\"tool_reference\"}]}],\"tools\":[{\"name\":\"读取_very_long_tool_name_very_long_tool_name_very_long_tool_name_very_long_tool_name_very_long_tool_name_very_long_tool_name_very_long_tool_name_very_long_tool_name_\"},{\"name\":\"read_file\"}]}",
+     "fn": "remap",
+     "legacy": true,
+     "out": "{\"messages\":[{\"content\":[{\"name\":\"mcp__embark_cruel__doll_very_long_tool_name_very_long_tool_name\",\"type\":\"tool_use\"},{\"tool_name\":\"mcp__embark_cruel__short_read_file\",\"type\":\"tool_reference\"}]}],\"tools\":[{\"name\":\"mcp__embark_cruel__doll_very_long_tool_name_very_long_tool_name\"},{\"name\":\"mcp__embark_cruel__short_read_file\"}]}",
+     "reverse": {
+      "mcp__embark_cruel__doll_very_long_tool_name_very_long_tool_name": "读取_very_long_tool_name_very_long_tool_name_very_long_tool_name_very_long_tool_name_very_long_tool_name_very_long_tool_name_very_long_tool_name_very_long_tool_name_",
+      "mcp__embark_cruel__short_read_file": "read_file"
+     },
+     "secret": "differential-caller"
+    },
+    {
+     "body": "{\"messages\":[{\"content\":[{\"name\":\"读取_very_long_tool_name_very_long_tool_name_very_long_tool_name_very_long_tool_name_very_long_tool_name_very_long_tool_name_very_long_tool_name_very_long_tool_name_\",\"type\":\"tool_use\"},{\"tool_name\":\"read_file\",\"type\":\"tool_reference\"}]}],\"tools\":[{\"name\":\"读取_very_long_tool_name_very_long_tool_name_very_long_tool_name_very_long_tool_name_very_long_tool_name_very_long_tool_name_very_long_tool_name_very_long_tool_name_\"},{\"name\":\"read_file\"}]}",
+     "fn": "remap_batched",
+     "ok": true,
+     "out": "{\"messages\":[{\"content\":[{\"name\":\"mcp__embark_cruel__doll_very_long_tool_name_very_long_tool_name\",\"type\":\"tool_use\"},{\"tool_name\":\"mcp__embark_cruel__short_read_file\",\"type\":\"tool_reference\"}]}],\"tools\":[{\"name\":\"mcp__embark_cruel__doll_very_long_tool_name_very_long_tool_name\"},{\"name\":\"mcp__embark_cruel__short_read_file\"}]}",
+     "reverse": {
+      "mcp__embark_cruel__doll_very_long_tool_name_very_long_tool_name": "读取_very_long_tool_name_very_long_tool_name_very_long_tool_name_very_long_tool_name_very_long_tool_name_very_long_tool_name_very_long_tool_name_very_long_tool_name_",
+      "mcp__embark_cruel__short_read_file": "read_file"
+     },
+     "secret": "differential-caller"
+    },
+    {
+     "body": "{\n  \"messages\" : [ { \"content\" : [ { \"name\" : \"fetch\\u005furl\", \"input\":{}, \"type\" : \"tool_use\" } ], \"role\" : \"assistant\" } ],\n  \"unknown\" : {\"number\":1.2300,\"escaped\":\"a\\/b\\n<>&\"},\n  \"tool_choice\" : { \"name\" : \"fetch\\u005furl\", \"type\" : \"tool\" },\n  \"tools\" : [ { \"description\" : \"keep \\\"bytes\\\"\", \"name\" : \"fetch\\u005furl\", \"input_schema\" : { \"type\" : \"object\" } } ]\n}",
+     "fn": "remap",
+     "legacy": true,
+     "out": "{\n  \"messages\" : [ { \"content\" : [ { \"name\" : \"mcp__embark_cruel__always_fetch_url\", \"input\":{}, \"type\" : \"tool_use\" } ], \"role\" : \"assistant\" } ],\n  \"unknown\" : {\"number\":1.2300,\"escaped\":\"a\\/b\\n<>&\"},\n  \"tool_choice\" : { \"name\" : \"mcp__embark_cruel__always_fetch_url\", \"type\" : \"tool\" },\n  \"tools\" : [{ \"description\" : \"keep \\\"bytes\\\"\", \"name\" : \"mcp__embark_cruel__always_fetch_url\", \"input_schema\" : { \"type\" : \"object\" } }]\n}",
+     "reverse": {
+      "mcp__embark_cruel__always_fetch_url": "fetch_url"
+     },
+     "secret": "differential-caller"
+    },
+    {
+     "body": "{\n  \"messages\" : [ { \"content\" : [ { \"name\" : \"fetch\\u005furl\", \"input\":{}, \"type\" : \"tool_use\" } ], \"role\" : \"assistant\" } ],\n  \"unknown\" : {\"number\":1.2300,\"escaped\":\"a\\/b\\n<>&\"},\n  \"tool_choice\" : { \"name\" : \"fetch\\u005furl\", \"type\" : \"tool\" },\n  \"tools\" : [ { \"description\" : \"keep \\\"bytes\\\"\", \"name\" : \"fetch\\u005furl\", \"input_schema\" : { \"type\" : \"object\" } } ]\n}",
+     "fn": "remap_batched",
+     "ok": true,
+     "out": "{\n  \"messages\" : [ { \"content\" : [ { \"name\" : \"mcp__embark_cruel__always_fetch_url\", \"input\":{}, \"type\" : \"tool_use\" } ], \"role\" : \"assistant\" } ],\n  \"unknown\" : {\"number\":1.2300,\"escaped\":\"a\\/b\\n<>&\"},\n  \"tool_choice\" : { \"name\" : \"mcp__embark_cruel__always_fetch_url\", \"type\" : \"tool\" },\n  \"tools\" : [{ \"description\" : \"keep \\\"bytes\\\"\", \"name\" : \"mcp__embark_cruel__always_fetch_url\", \"input_schema\" : { \"type\" : \"object\" } }]\n}",
+     "reverse": {
+      "mcp__embark_cruel__always_fetch_url": "fetch_url"
+     },
+     "secret": "differential-caller"
+    },
+    {
+     "body": "{\"tools\":[{\"name\":42}],\"tool_choice\":{\"type\":\"tool\",\"name\":42},\"messages\":[{\"content\":[{\"type\":\"tool_reference\",\"tool_name\":42}]}]}",
+     "fn": "remap",
+     "legacy": true,
+     "out": "{\"tools\":[{\"name\":\"mcp__embark_cruel__allow_42\"}],\"tool_choice\":{\"type\":\"tool\",\"name\":\"mcp__embark_cruel__allow_42\"},\"messages\":[{\"content\":[{\"type\":\"tool_reference\",\"tool_name\":\"mcp__embark_cruel__allow_42\"}]}]}",
+     "reverse": {
+      "mcp__embark_cruel__allow_42": "42"
+     },
+     "secret": "differential-caller"
+    },
+    {
+     "body": "{\"tools\":[{\"name\":42}],\"tool_choice\":{\"type\":\"tool\",\"name\":42},\"messages\":[{\"content\":[{\"type\":\"tool_reference\",\"tool_name\":42}]}]}",
+     "fn": "remap_batched",
+     "ok": true,
+     "out": "{\"tools\":[{\"name\":\"mcp__embark_cruel__allow_42\"}],\"tool_choice\":{\"type\":\"tool\",\"name\":\"mcp__embark_cruel__allow_42\"},\"messages\":[{\"content\":[{\"type\":\"tool_reference\",\"tool_name\":\"mcp__embark_cruel__allow_42\"}]}]}",
+     "reverse": {
+      "mcp__embark_cruel__allow_42": "42"
+     },
+     "secret": "differential-caller"
+    },
+    {
+     "body": "{\"tools\":[{\"type\":\"web_search_20250305\",\"name\":\"web_search\"},{\"name\":\"mcp__server__existing\"}],\"messages\":[{\"content\":[{\"type\":\"tool_reference\",\"tool_name\":\"unknown\"}]}]}",
+     "fn": "remap",
+     "legacy": true,
+     "out": "{\"tools\":[{\"type\":\"web_search_20250305\",\"name\":\"web_search\"},{\"name\":\"mcp__server__existing\"}],\"messages\":[{\"content\":[{\"type\":\"tool_reference\",\"tool_name\":\"unknown\"}]}]}",
+     "reverse": {},
+     "secret": "differential-caller"
+    },
+    {
+     "body": "{\"tools\":[{\"type\":\"web_search_20250305\",\"name\":\"web_search\"},{\"name\":\"mcp__server__existing\"}],\"messages\":[{\"content\":[{\"type\":\"tool_reference\",\"tool_name\":\"unknown\"}]}]}",
+     "fn": "remap_batched",
+     "ok": true,
+     "out": "{\"tools\":[{\"type\":\"web_search_20250305\",\"name\":\"web_search\"},{\"name\":\"mcp__server__existing\"}],\"messages\":[{\"content\":[{\"type\":\"tool_reference\",\"tool_name\":\"unknown\"}]}]}",
+     "reverse": {},
+     "secret": "differential-caller"
+    },
+    {
+     "body": "{\"tools\":[{\"name\":\"read_file\",\"input_schema\":{\"type\":\"object\"}},{\"name\":\"lookup_notes\",\"input_schema\":{\"type\":\"object\"},\"defer_loading\":true},{\"type\":\"web_search_20250305\",\"name\":\"web_search\"}],\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"read_file\",\"input\":{}}]},{\"role\":\"system\",\"content\":[{\"type\":\"text\",\"text\":\"tools changed\"},{\"type\":\"tool_addition\",\"tool\":{\"type\":\"tool_reference\",\"name\":\"lookup_notes\"}},{\"type\":\"tool_removal\",\"tool\":{\"type\":\"tool_reference\",\"name\":\"read_file\"}},{\"type\":\"tool_addition\",\"tool\":{\"type\":\"tool_reference\",\"name\":\"web_search\"}},{\"type\":\"tool_addition\",\"tool\":{\"type\":\"tool_definition\",\"definition\":{\"name\":\"lookup_notes\",\"input_schema\":{\"type\":\"object\"}}}},{\"type\":\"tool_addition\",\"tool\":{\"type\":\"tool_definition\",\"definition\":{\"name\":\"db_query\",\"input_schema\":{\"type\":\"object\"}}}},{\"type\":\"tool_removal\",\"tool\":{\"type\":\"mcp_tool_reference\",\"server_name\":\"docs\",\"name\":\"read_file\"}},{\"type\":\"tool_removal\",\"tool\":\"read_file\"}]}]}",
+     "fn": "remap",
+     "legacy": true,
+     "out": "{\"tools\":[{\"name\":\"mcp__embark_cruel__short_read_file\",\"input_schema\":{\"type\":\"object\"}},{\"name\":\"mcp__embark_cruel__major_lookup_notes\",\"input_schema\":{\"type\":\"object\"},\"defer_loading\":true},{\"type\":\"web_search_20250305\",\"name\":\"web_search\"}],\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__embark_cruel__short_read_file\",\"input\":{}}]},{\"role\":\"system\",\"content\":[{\"type\":\"text\",\"text\":\"tools changed\"},{\"type\":\"tool_addition\",\"tool\":{\"type\":\"tool_reference\",\"name\":\"mcp__embark_cruel__major_lookup_notes\"}},{\"type\":\"tool_removal\",\"tool\":{\"type\":\"tool_reference\",\"name\":\"mcp__embark_cruel__short_read_file\"}},{\"type\":\"tool_addition\",\"tool\":{\"type\":\"tool_reference\",\"name\":\"web_search\"}},{\"type\":\"tool_addition\",\"tool\":{\"type\":\"tool_definition\",\"definition\":{\"name\":\"mcp__embark_cruel__major_lookup_notes\",\"input_schema\":{\"type\":\"object\"}}}},{\"type\":\"tool_addition\",\"tool\":{\"type\":\"tool_definition\",\"definition\":{\"name\":\"db_query\",\"input_schema\":{\"type\":\"object\"}}}},{\"type\":\"tool_removal\",\"tool\":{\"type\":\"mcp_tool_reference\",\"server_name\":\"docs\",\"name\":\"read_file\"}},{\"type\":\"tool_removal\",\"tool\":\"read_file\"}]}]}",
+     "reverse": {
+      "mcp__embark_cruel__major_lookup_notes": "lookup_notes",
+      "mcp__embark_cruel__short_read_file": "read_file"
+     },
+     "secret": "differential-caller"
+    },
+    {
+     "body": "{\"tools\":[{\"name\":\"read_file\",\"input_schema\":{\"type\":\"object\"}},{\"name\":\"lookup_notes\",\"input_schema\":{\"type\":\"object\"},\"defer_loading\":true},{\"type\":\"web_search_20250305\",\"name\":\"web_search\"}],\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"read_file\",\"input\":{}}]},{\"role\":\"system\",\"content\":[{\"type\":\"text\",\"text\":\"tools changed\"},{\"type\":\"tool_addition\",\"tool\":{\"type\":\"tool_reference\",\"name\":\"lookup_notes\"}},{\"type\":\"tool_removal\",\"tool\":{\"type\":\"tool_reference\",\"name\":\"read_file\"}},{\"type\":\"tool_addition\",\"tool\":{\"type\":\"tool_reference\",\"name\":\"web_search\"}},{\"type\":\"tool_addition\",\"tool\":{\"type\":\"tool_definition\",\"definition\":{\"name\":\"lookup_notes\",\"input_schema\":{\"type\":\"object\"}}}},{\"type\":\"tool_addition\",\"tool\":{\"type\":\"tool_definition\",\"definition\":{\"name\":\"db_query\",\"input_schema\":{\"type\":\"object\"}}}},{\"type\":\"tool_removal\",\"tool\":{\"type\":\"mcp_tool_reference\",\"server_name\":\"docs\",\"name\":\"read_file\"}},{\"type\":\"tool_removal\",\"tool\":\"read_file\"}]}]}",
+     "fn": "remap_batched",
+     "ok": true,
+     "out": "{\"tools\":[{\"name\":\"mcp__embark_cruel__short_read_file\",\"input_schema\":{\"type\":\"object\"}},{\"name\":\"mcp__embark_cruel__major_lookup_notes\",\"input_schema\":{\"type\":\"object\"},\"defer_loading\":true},{\"type\":\"web_search_20250305\",\"name\":\"web_search\"}],\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__embark_cruel__short_read_file\",\"input\":{}}]},{\"role\":\"system\",\"content\":[{\"type\":\"text\",\"text\":\"tools changed\"},{\"type\":\"tool_addition\",\"tool\":{\"type\":\"tool_reference\",\"name\":\"mcp__embark_cruel__major_lookup_notes\"}},{\"type\":\"tool_removal\",\"tool\":{\"type\":\"tool_reference\",\"name\":\"mcp__embark_cruel__short_read_file\"}},{\"type\":\"tool_addition\",\"tool\":{\"type\":\"tool_reference\",\"name\":\"web_search\"}},{\"type\":\"tool_addition\",\"tool\":{\"type\":\"tool_definition\",\"definition\":{\"name\":\"mcp__embark_cruel__major_lookup_notes\",\"input_schema\":{\"type\":\"object\"}}}},{\"type\":\"tool_addition\",\"tool\":{\"type\":\"tool_definition\",\"definition\":{\"name\":\"db_query\",\"input_schema\":{\"type\":\"object\"}}}},{\"type\":\"tool_removal\",\"tool\":{\"type\":\"mcp_tool_reference\",\"server_name\":\"docs\",\"name\":\"read_file\"}},{\"type\":\"tool_removal\",\"tool\":\"read_file\"}]}]}",
+     "reverse": {
+      "mcp__embark_cruel__major_lookup_notes": "lookup_notes",
+      "mcp__embark_cruel__short_read_file": "read_file"
+     },
+     "secret": "differential-caller"
+    }
+   ],
+   "TestRemapOAuthToolNamesWithBatchedEditsReturnsOriginalSliceWithoutEdits": [
+    {
+     "body": "{\"tools\":[{\"type\":\"web_search_20250305\",\"name\":\"web_search\"}]}",
+     "fn": "remap_batched",
+     "ok": true,
+     "out": "{\"tools\":[{\"type\":\"web_search_20250305\",\"name\":\"web_search\"}]}",
+     "reverse": {},
+     "secret": "no-edits"
+    }
+   ],
+   "TestRemapOAuthToolNamesWithOptionsFallsBackForMalformedJSON": [
+    {
+     "body": "{\"tools\":[{\"name\":\"search_web\"}],\"messages\":[",
+     "fn": "remap_batched",
+     "ok": false,
+     "out": null,
+     "reverse": null,
+     "secret": "malformed"
+    },
+    {
+     "body": "{\"tools\":[{\"name\":\"search_web\"}],\"messages\":[",
+     "fn": "remap",
+     "legacy": true,
+     "out": "{\"tools\":[{\"name\":\"mcp__wool_table__fancy_search_web\"}],\"messages\":[",
+     "reverse": {
+      "mcp__wool_table__fancy_search_web": "search_web"
+     },
+     "secret": "malformed"
+    },
+    {
+     "body": "{\"tools\":[{\"name\":\"search_web\"}],\"messages\":[",
+     "fn": "remap",
+     "out": "{\"tools\":[{\"name\":\"mcp__wool_table__fancy_search_web\"}],\"messages\":[",
+     "reverse": {
+      "mcp__wool_table__fancy_search_web": "search_web"
+     },
+     "secret": "malformed"
+    }
+   ],
+   "TestRemapOAuthToolNames_MidConversationToolChanges": [
+    {
+     "body": "{\"model\":\"claude-opus-5-5\",\"max_tokens\":64,\"tools\":[{\"name\":\"read_file\",\"description\":\"Read a file\",\"input_schema\":{\"type\":\"object\",\"properties\":{}}},{\"name\":\"lookup_notes\",\"description\":\"Look up notes\",\"input_schema\":{\"type\":\"object\",\"properties\":{}},\"defer_loading\":true},{\"type\":\"web_search_20250305\",\"name\":\"web_search\"},{\"name\":\"mcp__context7__query-docs\",\"input_schema\":{\"type\":\"object\"}}],\"messages\":[{\"role\":\"user\",\"content\":\"Reply with exactly: ok\"},{\"role\":\"system\",\"content\":[{\"type\":\"tool_addition\",\"tool\":{\"type\":\"tool_reference\",\"name\":\"lookup_notes\"}}]}]}",
+     "fn": "remap",
+     "legacy": true,
+     "out": "{\"model\":\"claude-opus-5-5\",\"max_tokens\":64,\"tools\":[{\"name\":\"mcp__world_jaguar__record_read_file\",\"description\":\"Read a file\",\"input_schema\":{\"type\":\"object\",\"properties\":{}}},{\"name\":\"mcp__world_jaguar__obvious_lookup_notes\",\"description\":\"Look up notes\",\"input_schema\":{\"type\":\"object\",\"properties\":{}},\"defer_loading\":true},{\"type\":\"web_search_20250305\",\"name\":\"web_search\"},{\"name\":\"mcp__context7__query-docs\",\"input_schema\":{\"type\":\"object\"}}],\"messages\":[{\"role\":\"user\",\"content\":\"Reply with exactly: ok\"},{\"role\":\"system\",\"content\":[{\"type\":\"tool_addition\",\"tool\":{\"type\":\"tool_reference\",\"name\":\"mcp__world_jaguar__obvious_lookup_notes\"}}]}]}",
+     "reverse": {
+      "mcp__context7__query-docs": "mcp__context7__query-docs",
+      "mcp__world_jaguar__obvious_lookup_notes": "lookup_notes",
+      "mcp__world_jaguar__record_read_file": "read_file"
+     },
+     "secret": "tool-change-caller"
+    },
+    {
+     "body": "{\"model\":\"claude-opus-5-5\",\"max_tokens\":64,\"tools\":[{\"name\":\"read_file\",\"description\":\"Read a file\",\"input_schema\":{\"type\":\"object\",\"properties\":{}}},{\"name\":\"lookup_notes\",\"description\":\"Look up notes\",\"input_schema\":{\"type\":\"object\",\"properties\":{}},\"defer_loading\":true},{\"type\":\"web_search_20250305\",\"name\":\"web_search\"},{\"name\":\"mcp__context7__query-docs\",\"input_schema\":{\"type\":\"object\"}}],\"messages\":[{\"role\":\"user\",\"content\":\"Reply with exactly: ok\"},{\"role\":\"system\",\"content\":[{\"type\":\"tool_addition\",\"tool\":{\"type\":\"tool_reference\",\"name\":\"lookup_notes\"}}]}]}",
+     "fn": "remap_batched",
+     "ok": true,
+     "out": "{\"model\":\"claude-opus-5-5\",\"max_tokens\":64,\"tools\":[{\"name\":\"mcp__world_jaguar__record_read_file\",\"description\":\"Read a file\",\"input_schema\":{\"type\":\"object\",\"properties\":{}}},{\"name\":\"mcp__world_jaguar__obvious_lookup_notes\",\"description\":\"Look up notes\",\"input_schema\":{\"type\":\"object\",\"properties\":{}},\"defer_loading\":true},{\"type\":\"web_search_20250305\",\"name\":\"web_search\"},{\"name\":\"mcp__context7__query-docs\",\"input_schema\":{\"type\":\"object\"}}],\"messages\":[{\"role\":\"user\",\"content\":\"Reply with exactly: ok\"},{\"role\":\"system\",\"content\":[{\"type\":\"tool_addition\",\"tool\":{\"type\":\"tool_reference\",\"name\":\"mcp__world_jaguar__obvious_lookup_notes\"}}]}]}",
+     "reverse": {
+      "mcp__context7__query-docs": "mcp__context7__query-docs",
+      "mcp__world_jaguar__obvious_lookup_notes": "lookup_notes",
+      "mcp__world_jaguar__record_read_file": "read_file"
+     },
+     "secret": "tool-change-caller"
+    },
+    {
+     "body": "{\"model\":\"claude-opus-5-5\",\"max_tokens\":64,\"tools\":[{\"name\":\"read_file\",\"description\":\"Read a file\",\"input_schema\":{\"type\":\"object\",\"properties\":{}}},{\"name\":\"lookup_notes\",\"description\":\"Look up notes\",\"input_schema\":{\"type\":\"object\",\"properties\":{}},\"defer_loading\":true},{\"type\":\"web_search_20250305\",\"name\":\"web_search\"},{\"name\":\"mcp__context7__query-docs\",\"input_schema\":{\"type\":\"object\"}}],\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"system\",\"content\":[{\"type\":\"tool_removal\",\"tool\":{\"type\":\"tool_reference\",\"name\":\"read_file\"}}]}]}",
+     "fn": "remap",
+     "legacy": true,
+     "out": "{\"model\":\"claude-opus-5-5\",\"max_tokens\":64,\"tools\":[{\"name\":\"mcp__world_jaguar__record_read_file\",\"description\":\"Read a file\",\"input_schema\":{\"type\":\"object\",\"properties\":{}}},{\"name\":\"mcp__world_jaguar__obvious_lookup_notes\",\"description\":\"Look up notes\",\"input_schema\":{\"type\":\"object\",\"properties\":{}},\"defer_loading\":true},{\"type\":\"web_search_20250305\",\"name\":\"web_search\"},{\"name\":\"mcp__context7__query-docs\",\"input_schema\":{\"type\":\"object\"}}],\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"system\",\"content\":[{\"type\":\"tool_removal\",\"tool\":{\"type\":\"tool_reference\",\"name\":\"mcp__world_jaguar__record_read_file\"}}]}]}",
+     "reverse": {
+      "mcp__context7__query-docs": "mcp__context7__query-docs",
+      "mcp__world_jaguar__obvious_lookup_notes": "lookup_notes",
+      "mcp__world_jaguar__record_read_file": "read_file"
+     },
+     "secret": "tool-change-caller"
+    },
+    {
+     "body": "{\"model\":\"claude-opus-5-5\",\"max_tokens\":64,\"tools\":[{\"name\":\"read_file\",\"description\":\"Read a file\",\"input_schema\":{\"type\":\"object\",\"properties\":{}}},{\"name\":\"lookup_notes\",\"description\":\"Look up notes\",\"input_schema\":{\"type\":\"object\",\"properties\":{}},\"defer_loading\":true},{\"type\":\"web_search_20250305\",\"name\":\"web_search\"},{\"name\":\"mcp__context7__query-docs\",\"input_schema\":{\"type\":\"object\"}}],\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"system\",\"content\":[{\"type\":\"tool_removal\",\"tool\":{\"type\":\"tool_reference\",\"name\":\"read_file\"}}]}]}",
+     "fn": "remap_batched",
+     "ok": true,
+     "out": "{\"model\":\"claude-opus-5-5\",\"max_tokens\":64,\"tools\":[{\"name\":\"mcp__world_jaguar__record_read_file\",\"description\":\"Read a file\",\"input_schema\":{\"type\":\"object\",\"properties\":{}}},{\"name\":\"mcp__world_jaguar__obvious_lookup_notes\",\"description\":\"Look up notes\",\"input_schema\":{\"type\":\"object\",\"properties\":{}},\"defer_loading\":true},{\"type\":\"web_search_20250305\",\"name\":\"web_search\"},{\"name\":\"mcp__context7__query-docs\",\"input_schema\":{\"type\":\"object\"}}],\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"system\",\"content\":[{\"type\":\"tool_removal\",\"tool\":{\"type\":\"tool_reference\",\"name\":\"mcp__world_jaguar__record_read_file\"}}]}]}",
+     "reverse": {
+      "mcp__context7__query-docs": "mcp__context7__query-docs",
+      "mcp__world_jaguar__obvious_lookup_notes": "lookup_notes",
+      "mcp__world_jaguar__record_read_file": "read_file"
+     },
+     "secret": "tool-change-caller"
+    },
+    {
+     "body": "{\"model\":\"claude-opus-5-5\",\"max_tokens\":64,\"tools\":[{\"name\":\"read_file\",\"description\":\"Read a file\",\"input_schema\":{\"type\":\"object\",\"properties\":{}}},{\"name\":\"lookup_notes\",\"description\":\"Look up notes\",\"input_schema\":{\"type\":\"object\",\"properties\":{}},\"defer_loading\":true},{\"type\":\"web_search_20250305\",\"name\":\"web_search\"},{\"name\":\"mcp__context7__query-docs\",\"input_schema\":{\"type\":\"object\"}}],\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"read_file\",\"input\":{}}]},{\"role\":\"user\",\"content\":[{\"type\":\"tool_result\",\"tool_use_id\":\"toolu_1\",\"content\":\"ok\"}]},{\"role\":\"system\",\"content\":[{\"type\":\"text\",\"text\":\"Tools changed.\"},{\"type\":\"tool_removal\",\"tool\":{\"type\":\"tool_reference\",\"name\":\"read_file\"}},{\"type\":\"tool_addition\",\"tool\":{\"type\":\"tool_reference\",\"name\":\"lookup_notes\"}}]}]}",
+     "fn": "remap",
+     "legacy": true,
+     "out": "{\"model\":\"claude-opus-5-5\",\"max_tokens\":64,\"tools\":[{\"name\":\"mcp__world_jaguar__record_read_file\",\"description\":\"Read a file\",\"input_schema\":{\"type\":\"object\",\"properties\":{}}},{\"name\":\"mcp__world_jaguar__obvious_lookup_notes\",\"description\":\"Look up notes\",\"input_schema\":{\"type\":\"object\",\"properties\":{}},\"defer_loading\":true},{\"type\":\"web_search_20250305\",\"name\":\"web_search\"},{\"name\":\"mcp__context7__query-docs\",\"input_schema\":{\"type\":\"object\"}}],\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__world_jaguar__record_read_file\",\"input\":{}}]},{\"role\":\"user\",\"content\":[{\"type\":\"tool_result\",\"tool_use_id\":\"toolu_1\",\"content\":\"ok\"}]},{\"role\":\"system\",\"content\":[{\"type\":\"text\",\"text\":\"Tools changed.\"},{\"type\":\"tool_removal\",\"tool\":{\"type\":\"tool_reference\",\"name\":\"mcp__world_jaguar__record_read_file\"}},{\"type\":\"tool_addition\",\"tool\":{\"type\":\"tool_reference\",\"name\":\"mcp__world_jaguar__obvious_lookup_notes\"}}]}]}",
+     "reverse": {
+      "mcp__context7__query-docs": "mcp__context7__query-docs",
+      "mcp__world_jaguar__obvious_lookup_notes": "lookup_notes",
+      "mcp__world_jaguar__record_read_file": "read_file"
+     },
+     "secret": "tool-change-caller"
+    },
+    {
+     "body": "{\"model\":\"claude-opus-5-5\",\"max_tokens\":64,\"tools\":[{\"name\":\"read_file\",\"description\":\"Read a file\",\"input_schema\":{\"type\":\"object\",\"properties\":{}}},{\"name\":\"lookup_notes\",\"description\":\"Look up notes\",\"input_schema\":{\"type\":\"object\",\"properties\":{}},\"defer_loading\":true},{\"type\":\"web_search_20250305\",\"name\":\"web_search\"},{\"name\":\"mcp__context7__query-docs\",\"input_schema\":{\"type\":\"object\"}}],\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"read_file\",\"input\":{}}]},{\"role\":\"user\",\"content\":[{\"type\":\"tool_result\",\"tool_use_id\":\"toolu_1\",\"content\":\"ok\"}]},{\"role\":\"system\",\"content\":[{\"type\":\"text\",\"text\":\"Tools changed.\"},{\"type\":\"tool_removal\",\"tool\":{\"type\":\"tool_reference\",\"name\":\"read_file\"}},{\"type\":\"tool_addition\",\"tool\":{\"type\":\"tool_reference\",\"name\":\"lookup_notes\"}}]}]}",
+     "fn": "remap_batched",
+     "ok": true,
+     "out": "{\"model\":\"claude-opus-5-5\",\"max_tokens\":64,\"tools\":[{\"name\":\"mcp__world_jaguar__record_read_file\",\"description\":\"Read a file\",\"input_schema\":{\"type\":\"object\",\"properties\":{}}},{\"name\":\"mcp__world_jaguar__obvious_lookup_notes\",\"description\":\"Look up notes\",\"input_schema\":{\"type\":\"object\",\"properties\":{}},\"defer_loading\":true},{\"type\":\"web_search_20250305\",\"name\":\"web_search\"},{\"name\":\"mcp__context7__query-docs\",\"input_schema\":{\"type\":\"object\"}}],\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__world_jaguar__record_read_file\",\"input\":{}}]},{\"role\":\"user\",\"content\":[{\"type\":\"tool_result\",\"tool_use_id\":\"toolu_1\",\"content\":\"ok\"}]},{\"role\":\"system\",\"content\":[{\"type\":\"text\",\"text\":\"Tools changed.\"},{\"type\":\"tool_removal\",\"tool\":{\"type\":\"tool_reference\",\"name\":\"mcp__world_jaguar__record_read_file\"}},{\"type\":\"tool_addition\",\"tool\":{\"type\":\"tool_reference\",\"name\":\"mcp__world_jaguar__obvious_lookup_notes\"}}]}]}",
+     "reverse": {
+      "mcp__context7__query-docs": "mcp__context7__query-docs",
+      "mcp__world_jaguar__obvious_lookup_notes": "lookup_notes",
+      "mcp__world_jaguar__record_read_file": "read_file"
+     },
+     "secret": "tool-change-caller"
+    },
+    {
+     "body": "{\"model\":\"claude-opus-5-5\",\"max_tokens\":64,\"tools\":[{\"name\":\"read_file\",\"description\":\"Read a file\",\"input_schema\":{\"type\":\"object\",\"properties\":{}}},{\"name\":\"lookup_notes\",\"description\":\"Look up notes\",\"input_schema\":{\"type\":\"object\",\"properties\":{}},\"defer_loading\":true},{\"type\":\"web_search_20250305\",\"name\":\"web_search\"},{\"name\":\"mcp__context7__query-docs\",\"input_schema\":{\"type\":\"object\"}}],\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"system\",\"content\":[{\"type\":\"tool_addition\",\"tool\":{\"type\":\"tool_reference\",\"name\":\"Bash\"}},{\"type\":\"tool_addition\",\"tool\":{\"type\":\"tool_reference\",\"name\":\"web_search\"}},{\"type\":\"tool_removal\",\"tool\":{\"type\":\"tool_reference\",\"name\":\"mcp__context7__query-docs\"}}]}]}",
+     "fn": "remap",
+     "legacy": true,
+     "out": "{\"model\":\"claude-opus-5-5\",\"max_tokens\":64,\"tools\":[{\"name\":\"mcp__world_jaguar__record_read_file\",\"description\":\"Read a file\",\"input_schema\":{\"type\":\"object\",\"properties\":{}}},{\"name\":\"mcp__world_jaguar__obvious_lookup_notes\",\"description\":\"Look up notes\",\"input_schema\":{\"type\":\"object\",\"properties\":{}},\"defer_loading\":true},{\"type\":\"web_search_20250305\",\"name\":\"web_search\"},{\"name\":\"mcp__context7__query-docs\",\"input_schema\":{\"type\":\"object\"}}],\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"system\",\"content\":[{\"type\":\"tool_addition\",\"tool\":{\"type\":\"tool_reference\",\"name\":\"Bash\"}},{\"type\":\"tool_addition\",\"tool\":{\"type\":\"tool_reference\",\"name\":\"web_search\"}},{\"type\":\"tool_removal\",\"tool\":{\"type\":\"tool_reference\",\"name\":\"mcp__context7__query-docs\"}}]}]}",
+     "reverse": {
+      "mcp__context7__query-docs": "mcp__context7__query-docs",
+      "mcp__world_jaguar__obvious_lookup_notes": "lookup_notes",
+      "mcp__world_jaguar__record_read_file": "read_file"
+     },
+     "secret": "tool-change-caller"
+    },
+    {
+     "body": "{\"model\":\"claude-opus-5-5\",\"max_tokens\":64,\"tools\":[{\"name\":\"read_file\",\"description\":\"Read a file\",\"input_schema\":{\"type\":\"object\",\"properties\":{}}},{\"name\":\"lookup_notes\",\"description\":\"Look up notes\",\"input_schema\":{\"type\":\"object\",\"properties\":{}},\"defer_loading\":true},{\"type\":\"web_search_20250305\",\"name\":\"web_search\"},{\"name\":\"mcp__context7__query-docs\",\"input_schema\":{\"type\":\"object\"}}],\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"system\",\"content\":[{\"type\":\"tool_addition\",\"tool\":{\"type\":\"tool_reference\",\"name\":\"Bash\"}},{\"type\":\"tool_addition\",\"tool\":{\"type\":\"tool_reference\",\"name\":\"web_search\"}},{\"type\":\"tool_removal\",\"tool\":{\"type\":\"tool_reference\",\"name\":\"mcp__context7__query-docs\"}}]}]}",
+     "fn": "remap_batched",
+     "ok": true,
+     "out": "{\"model\":\"claude-opus-5-5\",\"max_tokens\":64,\"tools\":[{\"name\":\"mcp__world_jaguar__record_read_file\",\"description\":\"Read a file\",\"input_schema\":{\"type\":\"object\",\"properties\":{}}},{\"name\":\"mcp__world_jaguar__obvious_lookup_notes\",\"description\":\"Look up notes\",\"input_schema\":{\"type\":\"object\",\"properties\":{}},\"defer_loading\":true},{\"type\":\"web_search_20250305\",\"name\":\"web_search\"},{\"name\":\"mcp__context7__query-docs\",\"input_schema\":{\"type\":\"object\"}}],\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"system\",\"content\":[{\"type\":\"tool_addition\",\"tool\":{\"type\":\"tool_reference\",\"name\":\"Bash\"}},{\"type\":\"tool_addition\",\"tool\":{\"type\":\"tool_reference\",\"name\":\"web_search\"}},{\"type\":\"tool_removal\",\"tool\":{\"type\":\"tool_reference\",\"name\":\"mcp__context7__query-docs\"}}]}]}",
+     "reverse": {
+      "mcp__context7__query-docs": "mcp__context7__query-docs",
+      "mcp__world_jaguar__obvious_lookup_notes": "lookup_notes",
+      "mcp__world_jaguar__record_read_file": "read_file"
+     },
+     "secret": "tool-change-caller"
+    },
+    {
+     "body": "{\"model\":\"claude-opus-5-5\",\"max_tokens\":64,\"tools\":[{\"name\":\"read_file\",\"description\":\"Read a file\",\"input_schema\":{\"type\":\"object\",\"properties\":{}}},{\"name\":\"lookup_notes\",\"description\":\"Look up notes\",\"input_schema\":{\"type\":\"object\",\"properties\":{}},\"defer_loading\":true},{\"type\":\"web_search_20250305\",\"name\":\"web_search\"},{\"name\":\"mcp__context7__query-docs\",\"input_schema\":{\"type\":\"object\"}}],\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"system\",\"content\":[{\"type\":\"tool_addition\",\"tool\":{\"type\":\"mcp_tool_reference\",\"server_name\":\"docs\",\"name\":\"read_file\"}},{\"type\":\"tool_removal\",\"tool\":{\"type\":\"mcp_toolset_reference\",\"server_name\":\"read_file\"}}]}]}",
+     "fn": "remap",
+     "legacy": true,
+     "out": "{\"model\":\"claude-opus-5-5\",\"max_tokens\":64,\"tools\":[{\"name\":\"mcp__world_jaguar__record_read_file\",\"description\":\"Read a file\",\"input_schema\":{\"type\":\"object\",\"properties\":{}}},{\"name\":\"mcp__world_jaguar__obvious_lookup_notes\",\"description\":\"Look up notes\",\"input_schema\":{\"type\":\"object\",\"properties\":{}},\"defer_loading\":true},{\"type\":\"web_search_20250305\",\"name\":\"web_search\"},{\"name\":\"mcp__context7__query-docs\",\"input_schema\":{\"type\":\"object\"}}],\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"system\",\"content\":[{\"type\":\"tool_addition\",\"tool\":{\"type\":\"mcp_tool_reference\",\"server_name\":\"docs\",\"name\":\"read_file\"}},{\"type\":\"tool_removal\",\"tool\":{\"type\":\"mcp_toolset_reference\",\"server_name\":\"read_file\"}}]}]}",
+     "reverse": {
+      "mcp__context7__query-docs": "mcp__context7__query-docs",
+      "mcp__world_jaguar__obvious_lookup_notes": "lookup_notes",
+      "mcp__world_jaguar__record_read_file": "read_file"
+     },
+     "secret": "tool-change-caller"
+    },
+    {
+     "body": "{\"model\":\"claude-opus-5-5\",\"max_tokens\":64,\"tools\":[{\"name\":\"read_file\",\"description\":\"Read a file\",\"input_schema\":{\"type\":\"object\",\"properties\":{}}},{\"name\":\"lookup_notes\",\"description\":\"Look up notes\",\"input_schema\":{\"type\":\"object\",\"properties\":{}},\"defer_loading\":true},{\"type\":\"web_search_20250305\",\"name\":\"web_search\"},{\"name\":\"mcp__context7__query-docs\",\"input_schema\":{\"type\":\"object\"}}],\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"system\",\"content\":[{\"type\":\"tool_addition\",\"tool\":{\"type\":\"mcp_tool_reference\",\"server_name\":\"docs\",\"name\":\"read_file\"}},{\"type\":\"tool_removal\",\"tool\":{\"type\":\"mcp_toolset_reference\",\"server_name\":\"read_file\"}}]}]}",
+     "fn": "remap_batched",
+     "ok": true,
+     "out": "{\"model\":\"claude-opus-5-5\",\"max_tokens\":64,\"tools\":[{\"name\":\"mcp__world_jaguar__record_read_file\",\"description\":\"Read a file\",\"input_schema\":{\"type\":\"object\",\"properties\":{}}},{\"name\":\"mcp__world_jaguar__obvious_lookup_notes\",\"description\":\"Look up notes\",\"input_schema\":{\"type\":\"object\",\"properties\":{}},\"defer_loading\":true},{\"type\":\"web_search_20250305\",\"name\":\"web_search\"},{\"name\":\"mcp__context7__query-docs\",\"input_schema\":{\"type\":\"object\"}}],\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"system\",\"content\":[{\"type\":\"tool_addition\",\"tool\":{\"type\":\"mcp_tool_reference\",\"server_name\":\"docs\",\"name\":\"read_file\"}},{\"type\":\"tool_removal\",\"tool\":{\"type\":\"mcp_toolset_reference\",\"server_name\":\"read_file\"}}]}]}",
+     "reverse": {
+      "mcp__context7__query-docs": "mcp__context7__query-docs",
+      "mcp__world_jaguar__obvious_lookup_notes": "lookup_notes",
+      "mcp__world_jaguar__record_read_file": "read_file"
+     },
+     "secret": "tool-change-caller"
+    },
+    {
+     "body": "{\"model\":\"claude-opus-5-5\",\"max_tokens\":64,\"tools\":[{\"name\":\"read_file\",\"description\":\"Read a file\",\"input_schema\":{\"type\":\"object\",\"properties\":{}}},{\"name\":\"lookup_notes\",\"description\":\"Look up notes\",\"input_schema\":{\"type\":\"object\",\"properties\":{}},\"defer_loading\":true},{\"type\":\"web_search_20250305\",\"name\":\"web_search\"},{\"name\":\"mcp__context7__query-docs\",\"input_schema\":{\"type\":\"object\"}}],\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"system\",\"content\":[{\"type\":\"tool_addition\",\"tool\":{\"type\":\"tool_definition\",\"definition\":{\"name\":\"lookup_notes\",\"description\":\"v2\",\"input_schema\":{\"type\":\"object\"}}}}]}]}",
+     "fn": "remap",
+     "legacy": true,
+     "out": "{\"model\":\"claude-opus-5-5\",\"max_tokens\":64,\"tools\":[{\"name\":\"mcp__world_jaguar__record_read_file\",\"description\":\"Read a file\",\"input_schema\":{\"type\":\"object\",\"properties\":{}}},{\"name\":\"mcp__world_jaguar__obvious_lookup_notes\",\"description\":\"Look up notes\",\"input_schema\":{\"type\":\"object\",\"properties\":{}},\"defer_loading\":true},{\"type\":\"web_search_20250305\",\"name\":\"web_search\"},{\"name\":\"mcp__context7__query-docs\",\"input_schema\":{\"type\":\"object\"}}],\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"system\",\"content\":[{\"type\":\"tool_addition\",\"tool\":{\"type\":\"tool_definition\",\"definition\":{\"name\":\"mcp__world_jaguar__obvious_lookup_notes\",\"description\":\"v2\",\"input_schema\":{\"type\":\"object\"}}}}]}]}",
+     "reverse": {
+      "mcp__context7__query-docs": "mcp__context7__query-docs",
+      "mcp__world_jaguar__obvious_lookup_notes": "lookup_notes",
+      "mcp__world_jaguar__record_read_file": "read_file"
+     },
+     "secret": "tool-change-caller"
+    },
+    {
+     "body": "{\"model\":\"claude-opus-5-5\",\"max_tokens\":64,\"tools\":[{\"name\":\"read_file\",\"description\":\"Read a file\",\"input_schema\":{\"type\":\"object\",\"properties\":{}}},{\"name\":\"lookup_notes\",\"description\":\"Look up notes\",\"input_schema\":{\"type\":\"object\",\"properties\":{}},\"defer_loading\":true},{\"type\":\"web_search_20250305\",\"name\":\"web_search\"},{\"name\":\"mcp__context7__query-docs\",\"input_schema\":{\"type\":\"object\"}}],\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"system\",\"content\":[{\"type\":\"tool_addition\",\"tool\":{\"type\":\"tool_definition\",\"definition\":{\"name\":\"lookup_notes\",\"description\":\"v2\",\"input_schema\":{\"type\":\"object\"}}}}]}]}",
+     "fn": "remap_batched",
+     "ok": true,
+     "out": "{\"model\":\"claude-opus-5-5\",\"max_tokens\":64,\"tools\":[{\"name\":\"mcp__world_jaguar__record_read_file\",\"description\":\"Read a file\",\"input_schema\":{\"type\":\"object\",\"properties\":{}}},{\"name\":\"mcp__world_jaguar__obvious_lookup_notes\",\"description\":\"Look up notes\",\"input_schema\":{\"type\":\"object\",\"properties\":{}},\"defer_loading\":true},{\"type\":\"web_search_20250305\",\"name\":\"web_search\"},{\"name\":\"mcp__context7__query-docs\",\"input_schema\":{\"type\":\"object\"}}],\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"system\",\"content\":[{\"type\":\"tool_addition\",\"tool\":{\"type\":\"tool_definition\",\"definition\":{\"name\":\"mcp__world_jaguar__obvious_lookup_notes\",\"description\":\"v2\",\"input_schema\":{\"type\":\"object\"}}}}]}]}",
+     "reverse": {
+      "mcp__context7__query-docs": "mcp__context7__query-docs",
+      "mcp__world_jaguar__obvious_lookup_notes": "lookup_notes",
+      "mcp__world_jaguar__record_read_file": "read_file"
+     },
+     "secret": "tool-change-caller"
+    },
+    {
+     "body": "{\"model\":\"claude-opus-5-5\",\"max_tokens\":64,\"tools\":[{\"name\":\"read_file\",\"description\":\"Read a file\",\"input_schema\":{\"type\":\"object\",\"properties\":{}}},{\"name\":\"lookup_notes\",\"description\":\"Look up notes\",\"input_schema\":{\"type\":\"object\",\"properties\":{}},\"defer_loading\":true},{\"type\":\"web_search_20250305\",\"name\":\"web_search\"},{\"name\":\"mcp__context7__query-docs\",\"input_schema\":{\"type\":\"object\"}}],\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"system\",\"content\":[{\"type\":\"tool_addition\",\"tool\":{\"type\":\"tool_definition\",\"definition\":{\"name\":\"db_query\",\"input_schema\":{\"type\":\"object\"}}}},{\"type\":\"tool_addition\",\"tool\":{\"type\":\"tool_definition\",\"definition\":{\"type\":\"web_search_20260209\",\"name\":\"read_file\"}}},{\"type\":\"tool_addition\",\"tool\":{\"type\":\"tool_definition\",\"definition\":{\"type\":\"mcp_toolset\",\"mcp_server_name\":\"calendar\"}}}]}]}",
+     "fn": "remap",
+     "legacy": true,
+     "out": "{\"model\":\"claude-opus-5-5\",\"max_tokens\":64,\"tools\":[{\"name\":\"mcp__world_jaguar__record_read_file\",\"description\":\"Read a file\",\"input_schema\":{\"type\":\"object\",\"properties\":{}}},{\"name\":\"mcp__world_jaguar__obvious_lookup_notes\",\"description\":\"Look up notes\",\"input_schema\":{\"type\":\"object\",\"properties\":{}},\"defer_loading\":true},{\"type\":\"web_search_20250305\",\"name\":\"web_search\"},{\"name\":\"mcp__context7__query-docs\",\"input_schema\":{\"type\":\"object\"}}],\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"system\",\"content\":[{\"type\":\"tool_addition\",\"tool\":{\"type\":\"tool_definition\",\"definition\":{\"name\":\"db_query\",\"input_schema\":{\"type\":\"object\"}}}},{\"type\":\"tool_addition\",\"tool\":{\"type\":\"tool_definition\",\"definition\":{\"type\":\"web_search_20260209\",\"name\":\"read_file\"}}},{\"type\":\"tool_addition\",\"tool\":{\"type\":\"tool_definition\",\"definition\":{\"type\":\"mcp_toolset\",\"mcp_server_name\":\"calendar\"}}}]}]}",
+     "reverse": {
+      "mcp__context7__query-docs": "mcp__context7__query-docs",
+      "mcp__world_jaguar__obvious_lookup_notes": "lookup_notes",
+      "mcp__world_jaguar__record_read_file": "read_file"
+     },
+     "secret": "tool-change-caller"
+    },
+    {
+     "body": "{\"model\":\"claude-opus-5-5\",\"max_tokens\":64,\"tools\":[{\"name\":\"read_file\",\"description\":\"Read a file\",\"input_schema\":{\"type\":\"object\",\"properties\":{}}},{\"name\":\"lookup_notes\",\"description\":\"Look up notes\",\"input_schema\":{\"type\":\"object\",\"properties\":{}},\"defer_loading\":true},{\"type\":\"web_search_20250305\",\"name\":\"web_search\"},{\"name\":\"mcp__context7__query-docs\",\"input_schema\":{\"type\":\"object\"}}],\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"system\",\"content\":[{\"type\":\"tool_addition\",\"tool\":{\"type\":\"tool_definition\",\"definition\":{\"name\":\"db_query\",\"input_schema\":{\"type\":\"object\"}}}},{\"type\":\"tool_addition\",\"tool\":{\"type\":\"tool_definition\",\"definition\":{\"type\":\"web_search_20260209\",\"name\":\"read_file\"}}},{\"type\":\"tool_addition\",\"tool\":{\"type\":\"tool_definition\",\"definition\":{\"type\":\"mcp_toolset\",\"mcp_server_name\":\"calendar\"}}}]}]}",
+     "fn": "remap_batched",
+     "ok": true,
+     "out": "{\"model\":\"claude-opus-5-5\",\"max_tokens\":64,\"tools\":[{\"name\":\"mcp__world_jaguar__record_read_file\",\"description\":\"Read a file\",\"input_schema\":{\"type\":\"object\",\"properties\":{}}},{\"name\":\"mcp__world_jaguar__obvious_lookup_notes\",\"description\":\"Look up notes\",\"input_schema\":{\"type\":\"object\",\"properties\":{}},\"defer_loading\":true},{\"type\":\"web_search_20250305\",\"name\":\"web_search\"},{\"name\":\"mcp__context7__query-docs\",\"input_schema\":{\"type\":\"object\"}}],\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"system\",\"content\":[{\"type\":\"tool_addition\",\"tool\":{\"type\":\"tool_definition\",\"definition\":{\"name\":\"db_query\",\"input_schema\":{\"type\":\"object\"}}}},{\"type\":\"tool_addition\",\"tool\":{\"type\":\"tool_definition\",\"definition\":{\"type\":\"web_search_20260209\",\"name\":\"read_file\"}}},{\"type\":\"tool_addition\",\"tool\":{\"type\":\"tool_definition\",\"definition\":{\"type\":\"mcp_toolset\",\"mcp_server_name\":\"calendar\"}}}]}]}",
+     "reverse": {
+      "mcp__context7__query-docs": "mcp__context7__query-docs",
+      "mcp__world_jaguar__obvious_lookup_notes": "lookup_notes",
+      "mcp__world_jaguar__record_read_file": "read_file"
+     },
+     "secret": "tool-change-caller"
+    },
+    {
+     "body": "{\"model\":\"claude-opus-5-5\",\"max_tokens\":64,\"tools\":[{\"name\":\"read_file\",\"description\":\"Read a file\",\"input_schema\":{\"type\":\"object\",\"properties\":{}}},{\"name\":\"lookup_notes\",\"description\":\"Look up notes\",\"input_schema\":{\"type\":\"object\",\"properties\":{}},\"defer_loading\":true},{\"type\":\"web_search_20250305\",\"name\":\"web_search\"},{\"name\":\"mcp__context7__query-docs\",\"input_schema\":{\"type\":\"object\"}}],\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"system\",\"content\":[{\"type\":\"tool_addition\"},{\"type\":\"tool_addition\",\"tool\":\"lookup_notes\"},{\"type\":\"tool_addition\",\"tool\":{\"name\":\"lookup_notes\"}},{\"type\":\"tool_addition\",\"tool\":{\"type\":\"tool_reference\",\"tool_name\":\"lookup_notes\"}},{\"type\":\"tool_removal\",\"tool\":{\"type\":\"tool_definition\",\"definition\":{\"name\":\"lookup_notes\"}}},{\"type\":\"tool_addition\",\"tool\":{\"type\":\"tool_reference\",\"name\":\"\"}}]}]}",
+     "fn": "remap",
+     "legacy": true,
+     "out": "{\"model\":\"claude-opus-5-5\",\"max_tokens\":64,\"tools\":[{\"name\":\"mcp__world_jaguar__record_read_file\",\"description\":\"Read a file\",\"input_schema\":{\"type\":\"object\",\"properties\":{}}},{\"name\":\"mcp__world_jaguar__obvious_lookup_notes\",\"description\":\"Look up notes\",\"input_schema\":{\"type\":\"object\",\"properties\":{}},\"defer_loading\":true},{\"type\":\"web_search_20250305\",\"name\":\"web_search\"},{\"name\":\"mcp__context7__query-docs\",\"input_schema\":{\"type\":\"object\"}}],\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"system\",\"content\":[{\"type\":\"tool_addition\"},{\"type\":\"tool_addition\",\"tool\":\"lookup_notes\"},{\"type\":\"tool_addition\",\"tool\":{\"name\":\"lookup_notes\"}},{\"type\":\"tool_addition\",\"tool\":{\"type\":\"tool_reference\",\"tool_name\":\"lookup_notes\"}},{\"type\":\"tool_removal\",\"tool\":{\"type\":\"tool_definition\",\"definition\":{\"name\":\"lookup_notes\"}}},{\"type\":\"tool_addition\",\"tool\":{\"type\":\"tool_reference\",\"name\":\"\"}}]}]}",
+     "reverse": {
+      "mcp__context7__query-docs": "mcp__context7__query-docs",
+      "mcp__world_jaguar__obvious_lookup_notes": "lookup_notes",
+      "mcp__world_jaguar__record_read_file": "read_file"
+     },
+     "secret": "tool-change-caller"
+    },
+    {
+     "body": "{\"model\":\"claude-opus-5-5\",\"max_tokens\":64,\"tools\":[{\"name\":\"read_file\",\"description\":\"Read a file\",\"input_schema\":{\"type\":\"object\",\"properties\":{}}},{\"name\":\"lookup_notes\",\"description\":\"Look up notes\",\"input_schema\":{\"type\":\"object\",\"properties\":{}},\"defer_loading\":true},{\"type\":\"web_search_20250305\",\"name\":\"web_search\"},{\"name\":\"mcp__context7__query-docs\",\"input_schema\":{\"type\":\"object\"}}],\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"system\",\"content\":[{\"type\":\"tool_addition\"},{\"type\":\"tool_addition\",\"tool\":\"lookup_notes\"},{\"type\":\"tool_addition\",\"tool\":{\"name\":\"lookup_notes\"}},{\"type\":\"tool_addition\",\"tool\":{\"type\":\"tool_reference\",\"tool_name\":\"lookup_notes\"}},{\"type\":\"tool_removal\",\"tool\":{\"type\":\"tool_definition\",\"definition\":{\"name\":\"lookup_notes\"}}},{\"type\":\"tool_addition\",\"tool\":{\"type\":\"tool_reference\",\"name\":\"\"}}]}]}",
+     "fn": "remap_batched",
+     "ok": true,
+     "out": "{\"model\":\"claude-opus-5-5\",\"max_tokens\":64,\"tools\":[{\"name\":\"mcp__world_jaguar__record_read_file\",\"description\":\"Read a file\",\"input_schema\":{\"type\":\"object\",\"properties\":{}}},{\"name\":\"mcp__world_jaguar__obvious_lookup_notes\",\"description\":\"Look up notes\",\"input_schema\":{\"type\":\"object\",\"properties\":{}},\"defer_loading\":true},{\"type\":\"web_search_20250305\",\"name\":\"web_search\"},{\"name\":\"mcp__context7__query-docs\",\"input_schema\":{\"type\":\"object\"}}],\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"system\",\"content\":[{\"type\":\"tool_addition\"},{\"type\":\"tool_addition\",\"tool\":\"lookup_notes\"},{\"type\":\"tool_addition\",\"tool\":{\"name\":\"lookup_notes\"}},{\"type\":\"tool_addition\",\"tool\":{\"type\":\"tool_reference\",\"tool_name\":\"lookup_notes\"}},{\"type\":\"tool_removal\",\"tool\":{\"type\":\"tool_definition\",\"definition\":{\"name\":\"lookup_notes\"}}},{\"type\":\"tool_addition\",\"tool\":{\"type\":\"tool_reference\",\"name\":\"\"}}]}]}",
+     "reverse": {
+      "mcp__context7__query-docs": "mcp__context7__query-docs",
+      "mcp__world_jaguar__obvious_lookup_notes": "lookup_notes",
+      "mcp__world_jaguar__record_read_file": "read_file"
+     },
+     "secret": "tool-change-caller"
+    }
+   ],
+   "TestRemapOAuthToolNames_ToolSearchResultInMessageHistory": [
+    {
+     "body": "{\n\t\t\"tools\": [\n\t\t\t{\"name\": \"task_list\", \"input_schema\": {\"type\": \"object\"}},\n\t\t\t{\"type\": \"advisor_20260301\", \"name\": \"advisor\", \"model\": \"claude-haiku-4-5-20251001\"},\n\t\t\t{\"type\": \"agent_toolset_20260401\"}\n\t\t],\n\t\t\"messages\": [\n\t\t\t{\n\t\t\t\t\"role\": \"assistant\",\n\t\t\t\t\"content\": [\n\t\t\t\t\t{\n\t\t\t\t\t\t\"type\": \"tool_search_tool_result\",\n\t\t\t\t\t\t\"tool_use_id\": \"srvtoolu_01\",\n\t\t\t\t\t\t\"content\": {\n\t\t\t\t\t\t\t\"type\": \"tool_search_tool_search_result\",\n\t\t\t\t\t\t\t\"tool_references\": [\n\t\t\t\t\t\t\t\t{\"type\": \"tool_reference\", \"tool_name\": \"task_list\"}\n\t\t\t\t\t\t\t]\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n\t\t\t\t]\n\t\t\t}\n\t\t]\n\t}",
+     "fn": "remap",
+     "out": "{\n\t\t\"tools\": [{\"name\": \"mcp__glove_describe__crouch_task_list\", \"input_schema\": {\"type\": \"object\"}},{\"type\": \"advisor_20260301\", \"name\": \"advisor\", \"model\": \"claude-haiku-4-5-20251001\"},{\"type\": \"agent_toolset_20260401\"}],\n\t\t\"messages\": [\n\t\t\t{\n\t\t\t\t\"role\": \"assistant\",\n\t\t\t\t\"content\": [\n\t\t\t\t\t{\n\t\t\t\t\t\t\"type\": \"tool_search_tool_result\",\n\t\t\t\t\t\t\"tool_use_id\": \"srvtoolu_01\",\n\t\t\t\t\t\t\"content\": {\n\t\t\t\t\t\t\t\"type\": \"tool_search_tool_search_result\",\n\t\t\t\t\t\t\t\"tool_references\": [\n\t\t\t\t\t\t\t\t{\"type\": \"tool_reference\", \"tool_name\": \"mcp__glove_describe__crouch_task_list\"}\n\t\t\t\t\t\t\t]\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n\t\t\t\t]\n\t\t\t}\n\t\t]\n\t}",
+     "reverse": {
+      "mcp__glove_describe__crouch_task_list": "task_list"
+     },
+     "secret": "history-caller"
+    }
+   ],
+   "TestReverseRemapOAuthToolNamesFailsOpenOnTrailingMarkup": [
+    {
+     "body": "{\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__hmzqrngkulqv__xuo7jlxlpzee_clear_thinking</parameter>\\n<parameter name=\\\"merge\\\"\",\"input\":{}}]}",
+     "fn": "restore",
+     "out": "{\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__hmzqrngkulqv__xuo7jlxlpzee_clear_thinking</parameter>\\n<parameter name=\\\"merge\\\"\",\"input\":{}}]}",
+     "reverse": {
+      "mcp__hmzqrngkulqv__xuo7jlxlpzee_clear_thinking": "clear_thinking"
+     }
+    },
+    {
+     "fn": "restore_line",
+     "line": "data: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__hmzqrngkulqv__xuo7jlxlpzee_clear_thinking</parameter>\\n<parameter name=\\\"merge\\\"\",\"input\":{}}}",
+     "out": "data: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__hmzqrngkulqv__xuo7jlxlpzee_clear_thinking</parameter>\\n<parameter name=\\\"merge\\\"\",\"input\":{}}}",
+     "reverse": {
+      "mcp__hmzqrngkulqv__xuo7jlxlpzee_clear_thinking": "clear_thinking"
+     }
+    }
+   ],
+   "TestReverseRemapOAuthToolNamesFromStreamLine_ToolSearchResult_Stream": [
+    {
+     "body": "{\"tools\":[{\"name\":\"task_list\",\"input_schema\":{\"type\":\"object\"}}]}",
+     "fn": "remap",
+     "out": "{\"tools\":[{\"name\":\"mcp__fade_apple__muffin_task_list\",\"input_schema\":{\"type\":\"object\"}}]}",
+     "reverse": {
+      "mcp__fade_apple__muffin_task_list": "task_list"
+     },
+     "secret": "tool-search-stream-caller"
+    },
+    {
+     "fn": "restore_line",
+     "line": "data: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_search_tool_result\",\"tool_use_id\":\"srvtoolu_01\",\"content\":{\"type\":\"tool_search_tool_search_result\",\"tool_references\":[{\"type\":\"tool_reference\",\"tool_name\":\"mcp__fade_apple__muffin_task_list\"}]}}}",
+     "out": "data: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_search_tool_result\",\"tool_use_id\":\"srvtoolu_01\",\"content\":{\"type\":\"tool_search_tool_search_result\",\"tool_references\":[{\"type\":\"tool_reference\",\"tool_name\":\"task_list\"}]}}}",
+     "reverse": {
+      "mcp__fade_apple__muffin_task_list": "task_list"
+     }
+    }
+   ],
+   "TestReverseRemapOAuthToolNamesHybridPassthroughPrecedenceAndAmbiguity": [
+    {
+     "body": "{\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__ripple_middle__Bash\",\"input\":{}}]}",
+     "fn": "restore",
+     "out": "{\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"Bash\",\"input\":{}}]}",
+     "reverse": {
+      "mcp__ripple_middle__blanket_Bash": "Bash",
+      "mcp__shell__Bash": "mcp__shell__Bash"
+     }
+    },
+    {
+     "body": "{\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__ripple_middle__query\",\"input\":{}}]}",
+     "error": "cannot restore Claude OAuth MCP tool alias \"mcp__ripple_middle__query\": passthrough tool suffix matches multiple declared tools",
+     "fn": "restore",
+     "out": "{\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__ripple_middle__query\",\"input\":{}}]}",
+     "request_scoped": true,
+     "reverse": {
+      "mcp__ripple_middle__blanket_other": "other",
+      "mcp__srv1__query": "mcp__srv1__query",
+      "mcp__srv2__query": "mcp__srv2__query"
+     }
+    }
+   ],
+   "TestReverseRemapOAuthToolNamesPreservesUnrelatedMCPName": [
+    {
+     "body": "{\"tools\":[{\"name\":\"glob\"}]}",
+     "fn": "remap",
+     "out": "{\"tools\":[{\"name\":\"mcp__become_donor__execute_glob\"}]}",
+     "reverse": {
+      "mcp__become_donor__execute_glob": "glob"
+     },
+     "secret": "unrelated-mcp-caller"
+    },
+    {
+     "body": "{\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__external__query\",\"input\":{}}]}",
+     "fn": "restore",
+     "out": "{\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__external__query\",\"input\":{}}]}",
+     "reverse": {
+      "mcp__become_donor__execute_glob": "glob"
+     }
+    }
+   ],
+   "TestReverseRemapOAuthToolNamesRecoversMalformedToolIDBySemanticSuffix": [
+    {
+     "body": "{\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__hmzqrngkulqv__xuo7jlxlpze_Bash\",\"input\":{}}]}",
+     "fn": "restore",
+     "out": "{\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"Bash\",\"input\":{}}]}",
+     "reverse": {
+      "mcp__hmzqrngkulqv__xuo7jlxlpzee_Bash": "Bash"
+     }
+    },
+    {
+     "fn": "restore_line",
+     "line": "data: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__hmzqrngkulqv__xuo7jlxlpze_Bash\",\"input\":{}}}",
+     "out": "data: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"Bash\",\"input\":{}}}",
+     "reverse": {
+      "mcp__hmzqrngkulqv__xuo7jlxlpzee_Bash": "Bash"
+     }
+    },
+    {
+     "body": "{\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__hmzqrngkulqv__xuo7jlxlpzeea_Bash\",\"input\":{}}]}",
+     "fn": "restore",
+     "out": "{\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"Bash\",\"input\":{}}]}",
+     "reverse": {
+      "mcp__hmzqrngkulqv__xuo7jlxlpzee_Bash": "Bash"
+     }
+    },
+    {
+     "fn": "restore_line",
+     "line": "data: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__hmzqrngkulqv__xuo7jlxlpzeea_Bash\",\"input\":{}}}",
+     "out": "data: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"Bash\",\"input\":{}}}",
+     "reverse": {
+      "mcp__hmzqrngkulqv__xuo7jlxlpzee_Bash": "Bash"
+     }
+    },
+    {
+     "body": "{\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__hmzqrngkulqv__xuo7jlxlpze0_Bash\",\"input\":{}}]}",
+     "fn": "restore",
+     "out": "{\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"Bash\",\"input\":{}}]}",
+     "reverse": {
+      "mcp__hmzqrngkulqv__xuo7jlxlpzee_Bash": "Bash"
+     }
+    },
+    {
+     "fn": "restore_line",
+     "line": "data: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__hmzqrngkulqv__xuo7jlxlpze0_Bash\",\"input\":{}}}",
+     "out": "data: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"Bash\",\"input\":{}}}",
+     "reverse": {
+      "mcp__hmzqrngkulqv__xuo7jlxlpzee_Bash": "Bash"
+     }
+    },
+    {
+     "body": "{\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__hmzqrngkulqv__auo7jlxlpzee_Bash\",\"input\":{}}]}",
+     "fn": "restore",
+     "out": "{\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"Bash\",\"input\":{}}]}",
+     "reverse": {
+      "mcp__hmzqrngkulqv__xuo7jlxlpzee_Bash": "Bash"
+     }
+    },
+    {
+     "fn": "restore_line",
+     "line": "data: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__hmzqrngkulqv__auo7jlxlpzee_Bash\",\"input\":{}}}",
+     "out": "data: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"Bash\",\"input\":{}}}",
+     "reverse": {
+      "mcp__hmzqrngkulqv__xuo7jlxlpzee_Bash": "Bash"
+     }
+    },
+    {
+     "body": "{\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__hmzqrngkulqv__hmzqrngkulqv__xuo7jlxlpze_Bash\",\"input\":{}}]}",
+     "fn": "restore",
+     "out": "{\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"Bash\",\"input\":{}}]}",
+     "reverse": {
+      "mcp__hmzqrngkulqv__xuo7jlxlpzee_Bash": "Bash"
+     }
+    },
+    {
+     "fn": "restore_line",
+     "line": "data: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__hmzqrngkulqv__hmzqrngkulqv__xuo7jlxlpze_Bash\",\"input\":{}}}",
+     "out": "data: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"Bash\",\"input\":{}}}",
+     "reverse": {
+      "mcp__hmzqrngkulqv__xuo7jlxlpzee_Bash": "Bash"
+     }
+    }
+   ],
+   "TestReverseRemapOAuthToolNamesRecoversMangledAliases": [
+    {
+     "body": "{\"tools\":[{\"name\":\"glob\",\"input_schema\":{\"type\":\"object\"}},{\"name\":\"read\",\"input_schema\":{\"type\":\"object\"}}]}",
+     "fn": "remap",
+     "out": "{\"tools\":[{\"name\":\"mcp__pattern_movie__humor_glob\",\"input_schema\":{\"type\":\"object\"}},{\"name\":\"mcp__pattern_movie__glimpse_read\",\"input_schema\":{\"type\":\"object\"}}]}",
+     "reverse": {
+      "mcp__pattern_movie__glimpse_read": "read",
+      "mcp__pattern_movie__humor_glob": "glob"
+     },
+     "secret": "mangled-alias-caller"
+    },
+    {
+     "fn": "parse_alias",
+     "name": "mcp__pattern_movie__humor_glob",
+     "ok": true,
+     "semantic": "glob",
+     "server": "pattern_movie",
+     "tool_id": "humor"
+    },
+    {
+     "fn": "parse_alias",
+     "name": "mcp__pattern_movie__glimpse_read",
+     "ok": true,
+     "semantic": "read",
+     "server": "pattern_movie",
+     "tool_id": "glimpse"
+    },
+    {
+     "body": "{\"content\":[\n\t\t{\"type\":\"tool_use\",\"id\":\"toolu_glob\",\"name\":\"mcp__pattern_movie__mcp__pattern_movie__humor_glob\",\"input\":{}},\n\t\t{\"type\":\"tool_reference\",\"tool_name\":\"mcp__pattern_movie__humor_read\"},\n\t\t{\"type\":\"tool_result\",\"tool_use_id\":\"toolu_read\",\"content\":[{\"type\":\"tool_reference\",\"tool_name\":\"mcp__pattern_movie__humor_read\"}]}\n\t]}",
+     "fn": "restore",
+     "out": "{\"content\":[\n\t\t{\"type\":\"tool_use\",\"id\":\"toolu_glob\",\"name\":\"glob\",\"input\":{}},\n\t\t{\"type\":\"tool_reference\",\"tool_name\":\"read\"},\n\t\t{\"type\":\"tool_result\",\"tool_use_id\":\"toolu_read\",\"content\":[{\"type\":\"tool_reference\",\"tool_name\":\"read\"}]}\n\t]}",
+     "reverse": {
+      "mcp__pattern_movie__glimpse_read": "read",
+      "mcp__pattern_movie__humor_glob": "glob"
+     }
+    },
+    {
+     "fn": "restore_line",
+     "line": "data: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_glob\",\"name\":\"mcp__pattern_movie__mcp__pattern_movie__humor_glob\",\"input\":{}}}",
+     "out": "data: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_glob\",\"name\":\"glob\",\"input\":{}}}",
+     "reverse": {
+      "mcp__pattern_movie__glimpse_read": "read",
+      "mcp__pattern_movie__humor_glob": "glob"
+     }
+    },
+    {
+     "fn": "restore_line",
+     "line": "data: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_reference\",\"tool_name\":\"mcp__pattern_movie__humor_read\"}}",
+     "out": "data: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_reference\",\"tool_name\":\"read\"}}",
+     "reverse": {
+      "mcp__pattern_movie__glimpse_read": "read",
+      "mcp__pattern_movie__humor_glob": "glob"
+     }
+    }
+   ],
+   "TestReverseRemapOAuthToolNamesRecoversRepeatedServerAliases": [
+    {
+     "body": "{\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__hmzqrngkulqv__hmzqrngkulqv__xuo7jlxlpzee_Bash\",\"input\":{}}]}",
+     "fn": "restore",
+     "out": "{\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"Bash\",\"input\":{}}]}",
+     "reverse": {
+      "mcp__hmzqrngkulqv__aaaaaaaaaaaa_Bash": "OtherBash",
+      "mcp__hmzqrngkulqv__xuo7jlxlpzee_Bash": "Bash"
+     }
+    },
+    {
+     "fn": "restore_line",
+     "line": "data: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__hmzqrngkulqv__hmzqrngkulqv__xuo7jlxlpzee_Bash\",\"input\":{}}}",
+     "out": "data: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"Bash\",\"input\":{}}}",
+     "reverse": {
+      "mcp__hmzqrngkulqv__aaaaaaaaaaaa_Bash": "OtherBash",
+      "mcp__hmzqrngkulqv__xuo7jlxlpzee_Bash": "Bash"
+     }
+    },
+    {
+     "body": "{\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__hmzqrngkulqv__hmzqrngkulqv__hmzqrngkulqv__xuo7jlxlpzee_Bash\",\"input\":{}}]}",
+     "fn": "restore",
+     "out": "{\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"Bash\",\"input\":{}}]}",
+     "reverse": {
+      "mcp__hmzqrngkulqv__aaaaaaaaaaaa_Bash": "OtherBash",
+      "mcp__hmzqrngkulqv__xuo7jlxlpzee_Bash": "Bash"
+     }
+    },
+    {
+     "fn": "restore_line",
+     "line": "data: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__hmzqrngkulqv__hmzqrngkulqv__hmzqrngkulqv__xuo7jlxlpzee_Bash\",\"input\":{}}}",
+     "out": "data: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"Bash\",\"input\":{}}}",
+     "reverse": {
+      "mcp__hmzqrngkulqv__aaaaaaaaaaaa_Bash": "OtherBash",
+      "mcp__hmzqrngkulqv__xuo7jlxlpzee_Bash": "Bash"
+     }
+    }
+   ],
+   "TestReverseRemapOAuthToolNamesRejectsUnsafeMangledAliases": [
+    {
+     "body": "{\"tools\":[{\"name\":\"tool.name\"},{\"name\":\"tool/name\"}]}",
+     "fn": "remap",
+     "out": "{\"tools\":[{\"name\":\"mcp__will_arctic__army_tool_name\"},{\"name\":\"mcp__will_arctic__visual_tool_name\"}]}",
+     "reverse": {
+      "mcp__will_arctic__army_tool_name": "tool.name",
+      "mcp__will_arctic__visual_tool_name": "tool/name"
+     },
+     "secret": "ambiguous-alias-caller"
+    },
+    {
+     "fn": "parse_alias",
+     "name": "mcp__will_arctic__army_tool_name",
+     "ok": true,
+     "semantic": "tool_name",
+     "server": "will_arctic",
+     "tool_id": "army"
+    },
+    {
+     "fn": "parse_alias",
+     "name": "mcp__will_arctic__visual_tool_name",
+     "ok": true,
+     "semantic": "tool_name",
+     "server": "will_arctic",
+     "tool_id": "visual"
+    },
+    {
+     "body": "{\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__will_arctic__aaaaaaaaaaaa_tool_name\",\"input\":{}}]}",
+     "error": "cannot restore Claude OAuth MCP tool alias \"mcp__will_arctic__aaaaaaaaaaaa_tool_name\": semantic suffix matches multiple declared tools",
+     "fn": "restore",
+     "out": "{\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__will_arctic__aaaaaaaaaaaa_tool_name\",\"input\":{}}]}",
+     "request_scoped": true,
+     "reverse": {
+      "mcp__will_arctic__army_tool_name": "tool.name",
+      "mcp__will_arctic__visual_tool_name": "tool/name"
+     }
+    },
+    {
+     "error": "cannot restore Claude OAuth MCP tool alias \"mcp__will_arctic__aaaaaaaaaaaa_tool_name\": semantic suffix matches multiple declared tools",
+     "fn": "restore_line",
+     "line": "data: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__will_arctic__aaaaaaaaaaaa_tool_name\",\"input\":{}}}",
+     "out": "data: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__will_arctic__aaaaaaaaaaaa_tool_name\",\"input\":{}}}",
+     "request_scoped": true,
+     "reverse": {
+      "mcp__will_arctic__army_tool_name": "tool.name",
+      "mcp__will_arctic__visual_tool_name": "tool/name"
+     }
+    },
+    {
+     "body": "{\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__will_arctic__aaaaaaaaaaa_tool_name\",\"input\":{}}]}",
+     "error": "cannot restore Claude OAuth MCP tool alias \"mcp__will_arctic__aaaaaaaaaaa_tool_name\": semantic suffix matches multiple declared tools",
+     "fn": "restore",
+     "out": "{\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__will_arctic__aaaaaaaaaaa_tool_name\",\"input\":{}}]}",
+     "request_scoped": true,
+     "reverse": {
+      "mcp__will_arctic__army_tool_name": "tool.name",
+      "mcp__will_arctic__visual_tool_name": "tool/name"
+     }
+    },
+    {
+     "error": "cannot restore Claude OAuth MCP tool alias \"mcp__will_arctic__aaaaaaaaaaa_tool_name\": semantic suffix matches multiple declared tools",
+     "fn": "restore_line",
+     "line": "data: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__will_arctic__aaaaaaaaaaa_tool_name\",\"input\":{}}}",
+     "out": "data: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__will_arctic__aaaaaaaaaaa_tool_name\",\"input\":{}}}",
+     "request_scoped": true,
+     "reverse": {
+      "mcp__will_arctic__army_tool_name": "tool.name",
+      "mcp__will_arctic__visual_tool_name": "tool/name"
+     }
+    },
+    {
+     "body": "{\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__will_arctic__aaaaaaaaaaaa_missing_tool\",\"input\":{}}]}",
+     "fn": "restore",
+     "out": "{\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__will_arctic__aaaaaaaaaaaa_missing_tool\",\"input\":{}}]}",
+     "reverse": {
+      "mcp__will_arctic__army_tool_name": "tool.name",
+      "mcp__will_arctic__visual_tool_name": "tool/name"
+     }
+    },
+    {
+     "fn": "restore_line",
+     "line": "data: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__will_arctic__aaaaaaaaaaaa_missing_tool\",\"input\":{}}}",
+     "out": "data: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__will_arctic__aaaaaaaaaaaa_missing_tool\",\"input\":{}}}",
+     "reverse": {
+      "mcp__will_arctic__army_tool_name": "tool.name",
+      "mcp__will_arctic__visual_tool_name": "tool/name"
+     }
+    }
+   ],
+   "TestReverseRemapOAuthToolNamesRestoresHybridPassthroughMCPTools": [
+    {
+     "body": "{\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__ripple_middle__link_pull_request\",\"input\":{}}]}",
+     "fn": "restore",
+     "out": "{\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__acme__link_pull_request\",\"input\":{}}]}",
+     "reverse": {
+      "mcp__acme__link_pull_request": "mcp__acme__link_pull_request",
+      "mcp__acme__list_threads": "mcp__acme__list_threads",
+      "mcp__ripple_middle__blanket_Bash": "Bash",
+      "mcp__ripple_middle__brand_Read": "Read"
+     }
+    },
+    {
+     "fn": "restore_line",
+     "line": "data: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__ripple_middle__link_pull_request\",\"input\":{}}}",
+     "out": "data: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__acme__link_pull_request\",\"input\":{}}}",
+     "reverse": {
+      "mcp__acme__link_pull_request": "mcp__acme__link_pull_request",
+      "mcp__acme__list_threads": "mcp__acme__list_threads",
+      "mcp__ripple_middle__blanket_Bash": "Bash",
+      "mcp__ripple_middle__brand_Read": "Read"
+     }
+    },
+    {
+     "body": "{\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__ripple_middle__acme__link_pull_request\",\"input\":{}}]}",
+     "fn": "restore",
+     "out": "{\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__acme__link_pull_request\",\"input\":{}}]}",
+     "reverse": {
+      "mcp__acme__link_pull_request": "mcp__acme__link_pull_request",
+      "mcp__acme__list_threads": "mcp__acme__list_threads",
+      "mcp__ripple_middle__blanket_Bash": "Bash",
+      "mcp__ripple_middle__brand_Read": "Read"
+     }
+    },
+    {
+     "fn": "restore_line",
+     "line": "data: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__ripple_middle__acme__link_pull_request\",\"input\":{}}}",
+     "out": "data: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__acme__link_pull_request\",\"input\":{}}}",
+     "reverse": {
+      "mcp__acme__link_pull_request": "mcp__acme__link_pull_request",
+      "mcp__acme__list_threads": "mcp__acme__list_threads",
+      "mcp__ripple_middle__blanket_Bash": "Bash",
+      "mcp__ripple_middle__brand_Read": "Read"
+     }
+    }
+   ],
+   "TestReverseRemapOAuthToolNamesWithBIP39Aliases": [
+    {
+     "body": "{\"tools\":[{\"name\":\"Bash\",\"input_schema\":{\"type\":\"object\"}},{\"name\":\"fetch_url\",\"input_schema\":{\"type\":\"object\"}}]}",
+     "fn": "remap",
+     "out": "{\"tools\":[{\"name\":\"mcp__gate_timber__boost_Bash\",\"input_schema\":{\"type\":\"object\"}},{\"name\":\"mcp__gate_timber__dress_fetch_url\",\"input_schema\":{\"type\":\"object\"}}]}",
+     "reverse": {
+      "mcp__gate_timber__boost_Bash": "Bash",
+      "mcp__gate_timber__dress_fetch_url": "fetch_url"
+     },
+     "secret": "bip39-caller"
+    },
+    {
+     "fn": "parse_alias",
+     "name": "mcp__gate_timber__boost_Bash",
+     "ok": true,
+     "semantic": "Bash",
+     "server": "gate_timber",
+     "tool_id": "boost"
+    },
+    {
+     "body": "{\"content\":[\n\t\t{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__gate_timber__boost_Bash\",\"input\":{}},\n\t\t{\"type\":\"tool_use\",\"id\":\"toolu_2\",\"name\":\"mcp__gate_timber__gate_timber__boost_Bash\",\"input\":{}},\n\t\t{\"type\":\"tool_reference\",\"tool_name\":\"mcp__gate_timber__corruptedword_Bash\"},\n\t\t{\"type\":\"tool_use\",\"id\":\"toolu_3\",\"name\":\"mcp__gate_timber__boost_boost_Bash\",\"input\":{}},\n\t\t{\"type\":\"tool_use\",\"id\":\"toolu_4\",\"name\":\"mcp__gate_timber__boost_cabin_Bash\",\"input\":{}}\n\t]}",
+     "fn": "restore",
+     "out": "{\"content\":[\n\t\t{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"Bash\",\"input\":{}},\n\t\t{\"type\":\"tool_use\",\"id\":\"toolu_2\",\"name\":\"Bash\",\"input\":{}},\n\t\t{\"type\":\"tool_reference\",\"tool_name\":\"Bash\"},\n\t\t{\"type\":\"tool_use\",\"id\":\"toolu_3\",\"name\":\"Bash\",\"input\":{}},\n\t\t{\"type\":\"tool_use\",\"id\":\"toolu_4\",\"name\":\"Bash\",\"input\":{}}\n\t]}",
+     "reverse": {
+      "mcp__gate_timber__boost_Bash": "Bash",
+      "mcp__gate_timber__dress_fetch_url": "fetch_url"
+     }
+    }
+   ],
+   "TestReverseRemapOAuthToolNames_OverlappingSemanticSuffix": [
+    {
+     "body": "{\"tools\":[{\"name\":\"file\"},{\"name\":\"read_file\"}]}",
+     "fn": "remap",
+     "out": "{\"tools\":[{\"name\":\"mcp__beach_meat__horse_file\"},{\"name\":\"mcp__beach_meat__debate_read_file\"}]}",
+     "reverse": {
+      "mcp__beach_meat__debate_read_file": "read_file",
+      "mcp__beach_meat__horse_file": "file"
+     },
+     "secret": "overlapping-caller"
+    },
+    {
+     "fn": "parse_alias",
+     "name": "mcp__beach_meat__debate_read_file",
+     "ok": true,
+     "semantic": "read_file",
+     "server": "beach_meat",
+     "tool_id": "debate"
+    },
+    {
+     "body": "{\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__beach_meat__debate_debate_read_file\",\"input\":{}}]}",
+     "fn": "restore",
+     "out": "{\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"read_file\",\"input\":{}}]}",
+     "reverse": {
+      "mcp__beach_meat__debate_read_file": "read_file",
+      "mcp__beach_meat__horse_file": "file"
+     }
+    },
+    {
+     "body": "{\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_2\",\"name\":\"mcp__beach_meat__horse_file\",\"input\":{}}]}",
+     "fn": "restore",
+     "out": "{\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_2\",\"name\":\"file\",\"input\":{}}]}",
+     "reverse": {
+      "mcp__beach_meat__debate_read_file": "read_file",
+      "mcp__beach_meat__horse_file": "file"
+     }
+    }
+   ],
+   "TestReverseRemapOAuthToolNames_ToolSearchResult_NonStream": [
+    {
+     "body": "{\"tools\":[{\"name\":\"task_list\",\"input_schema\":{\"type\":\"object\"}},{\"name\":\"fetch_url\",\"input_schema\":{\"type\":\"object\"}}]}",
+     "fn": "remap",
+     "out": "{\"tools\":[{\"name\":\"mcp__vessel_bind__require_task_list\",\"input_schema\":{\"type\":\"object\"}},{\"name\":\"mcp__vessel_bind__void_fetch_url\",\"input_schema\":{\"type\":\"object\"}}]}",
+     "reverse": {
+      "mcp__vessel_bind__require_task_list": "task_list",
+      "mcp__vessel_bind__void_fetch_url": "fetch_url"
+     },
+     "secret": "tool-search-caller"
+    },
+    {
+     "body": "{\n\t\t\"id\": \"msg_01HczuyKgD1KCUuVzvZEH3WN\",\n\t\t\"type\": \"message\",\n\t\t\"role\": \"assistant\",\n\t\t\"content\": [\n\t\t\t{\n\t\t\t\t\"type\": \"tool_search_tool_result\",\n\t\t\t\t\"tool_use_id\": \"srvtoolu_01HczuyKgD1KCUuVzvZEH3WN\",\n\t\t\t\t\"content\": {\n\t\t\t\t\t\"type\": \"tool_search_tool_search_result\",\n\t\t\t\t\t\"tool_references\": [\n\t\t\t\t\t\t{\"type\": \"tool_reference\", \"tool_name\": \"mcp__vessel_bind__require_task_list\"},\n\t\t\t\t\t\t{\"type\": \"tool_reference\", \"tool_name\": \"mcp__vessel_bind__void_fetch_url\"}\n\t\t\t\t\t]\n\t\t\t\t}\n\t\t\t},\n\t\t\t{\n\t\t\t\t\"type\": \"tool_use\",\n\t\t\t\t\"id\": \"toolu_01\",\n\t\t\t\t\"name\": \"mcp__vessel_bind__require_task_list\",\n\t\t\t\t\"input\": {\"action\": \"list\"}\n\t\t\t}\n\t\t]\n\t}",
+     "fn": "restore",
+     "out": "{\n\t\t\"id\": \"msg_01HczuyKgD1KCUuVzvZEH3WN\",\n\t\t\"type\": \"message\",\n\t\t\"role\": \"assistant\",\n\t\t\"content\": [\n\t\t\t{\n\t\t\t\t\"type\": \"tool_search_tool_result\",\n\t\t\t\t\"tool_use_id\": \"srvtoolu_01HczuyKgD1KCUuVzvZEH3WN\",\n\t\t\t\t\"content\": {\n\t\t\t\t\t\"type\": \"tool_search_tool_search_result\",\n\t\t\t\t\t\"tool_references\": [\n\t\t\t\t\t\t{\"type\": \"tool_reference\", \"tool_name\": \"task_list\"},\n\t\t\t\t\t\t{\"type\": \"tool_reference\", \"tool_name\": \"fetch_url\"}\n\t\t\t\t\t]\n\t\t\t\t}\n\t\t\t},\n\t\t\t{\n\t\t\t\t\"type\": \"tool_use\",\n\t\t\t\t\"id\": \"toolu_01\",\n\t\t\t\t\"name\": \"task_list\",\n\t\t\t\t\"input\": {\"action\": \"list\"}\n\t\t\t}\n\t\t]\n\t}",
+     "reverse": {
+      "mcp__vessel_bind__require_task_list": "task_list",
+      "mcp__vessel_bind__void_fetch_url": "fetch_url"
+     }
+    },
+    {
+     "body": "{\n\t\t\"id\": \"msg_02\",\n\t\t\"type\": \"message\",\n\t\t\"role\": \"assistant\",\n\t\t\"content\": [\n\t\t\t{\n\t\t\t\t\"type\": \"tool_search_tool_result\",\n\t\t\t\t\"tool_use_id\": \"srvtoolu_02\",\n\t\t\t\t\"content\": {\n\t\t\t\t\t\"type\": \"tool_search_tool_result_error\",\n\t\t\t\t\t\"error_code\": \"regex_compilation_failed\"\n\t\t\t\t}\n\t\t\t}\n\t\t]\n\t}",
+     "fn": "restore",
+     "out": "{\n\t\t\"id\": \"msg_02\",\n\t\t\"type\": \"message\",\n\t\t\"role\": \"assistant\",\n\t\t\"content\": [\n\t\t\t{\n\t\t\t\t\"type\": \"tool_search_tool_result\",\n\t\t\t\t\"tool_use_id\": \"srvtoolu_02\",\n\t\t\t\t\"content\": {\n\t\t\t\t\t\"type\": \"tool_search_tool_result_error\",\n\t\t\t\t\t\"error_code\": \"regex_compilation_failed\"\n\t\t\t\t}\n\t\t\t}\n\t\t]\n\t}",
+     "reverse": {
+      "mcp__vessel_bind__require_task_list": "task_list",
+      "mcp__vessel_bind__void_fetch_url": "fetch_url"
+     }
+    }
+   ],
+   "TestReverseRemapOAuthToolNames_UndeclaredToolFailsOpen": [
+    {
+     "body": "{\"tools\":[{\"name\":\"terminal\",\"input_schema\":{\"type\":\"object\"}}]}",
+     "fn": "remap",
+     "out": "{\"tools\":[{\"name\":\"mcp__decline_naive__catch_terminal\",\"input_schema\":{\"type\":\"object\"}}]}",
+     "reverse": {
+      "mcp__decline_naive__catch_terminal": "terminal"
+     },
+     "secret": "undeclared-tool-caller"
+    },
+    {
+     "fn": "parse_alias",
+     "name": "mcp__decline_naive__catch_terminal",
+     "ok": true,
+     "semantic": "terminal",
+     "server": "decline_naive",
+     "tool_id": "catch"
+    },
+    {
+     "body": "{\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__decline_naive__tiny_terminap\",\"input\":{}}]}",
+     "fn": "restore",
+     "out": "{\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__decline_naive__tiny_terminap\",\"input\":{}}]}",
+     "reverse": {
+      "mcp__decline_naive__catch_terminal": "terminal"
+     }
+    },
+    {
+     "fn": "restore_line",
+     "line": "data: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__decline_naive__tiny_terminap\",\"input\":{}}}",
+     "out": "data: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__decline_naive__tiny_terminap\",\"input\":{}}}",
+     "reverse": {
+      "mcp__decline_naive__catch_terminal": "terminal"
+     }
+    }
+   ],
+   "TestReverseRemapPassesThroughCallerMCPToolsOnVirtualServerCollision": [
+    {
+     "body": "{\"tools\":[{\"name\":\"read_file\",\"input_schema\":{\"type\":\"object\"}},{\"name\":\"mcp__clever_brave__read_file\"},{\"name\":\"mcp__clever_brave__grep_read_file\"},{\"name\":\"mcp__clever_brave__write_file\"}]}",
+     "fn": "remap",
+     "out": "{\"tools\":[{\"name\":\"mcp__clever_brave__mind_read_file\",\"input_schema\":{\"type\":\"object\"}},{\"name\":\"mcp__clever_brave__read_file\"},{\"name\":\"mcp__clever_brave__grep_read_file\"},{\"name\":\"mcp__clever_brave__write_file\"}]}",
+     "reverse": {
+      "mcp__clever_brave__grep_read_file": "mcp__clever_brave__grep_read_file",
+      "mcp__clever_brave__mind_read_file": "read_file",
+      "mcp__clever_brave__read_file": "mcp__clever_brave__read_file",
+      "mcp__clever_brave__write_file": "mcp__clever_brave__write_file"
+     },
+     "secret": "virtual-server-collision"
+    },
+    {
+     "body": "{\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__clever_brave__read_file\",\"input\":{}}]}",
+     "fn": "restore",
+     "out": "{\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__clever_brave__read_file\",\"input\":{}}]}",
+     "reverse": {
+      "mcp__clever_brave__grep_read_file": "mcp__clever_brave__grep_read_file",
+      "mcp__clever_brave__mind_read_file": "read_file",
+      "mcp__clever_brave__read_file": "mcp__clever_brave__read_file",
+      "mcp__clever_brave__write_file": "mcp__clever_brave__write_file"
+     }
+    },
+    {
+     "fn": "restore_line",
+     "line": "data: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__clever_brave__read_file\",\"input\":{}}}",
+     "out": "data: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__clever_brave__read_file\",\"input\":{}}}",
+     "reverse": {
+      "mcp__clever_brave__grep_read_file": "mcp__clever_brave__grep_read_file",
+      "mcp__clever_brave__mind_read_file": "read_file",
+      "mcp__clever_brave__read_file": "mcp__clever_brave__read_file",
+      "mcp__clever_brave__write_file": "mcp__clever_brave__write_file"
+     }
+    },
+    {
+     "body": "{\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__clever_brave__grep_read_file\",\"input\":{}}]}",
+     "fn": "restore",
+     "out": "{\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__clever_brave__grep_read_file\",\"input\":{}}]}",
+     "reverse": {
+      "mcp__clever_brave__grep_read_file": "mcp__clever_brave__grep_read_file",
+      "mcp__clever_brave__mind_read_file": "read_file",
+      "mcp__clever_brave__read_file": "mcp__clever_brave__read_file",
+      "mcp__clever_brave__write_file": "mcp__clever_brave__write_file"
+     }
+    },
+    {
+     "fn": "restore_line",
+     "line": "data: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__clever_brave__grep_read_file\",\"input\":{}}}",
+     "out": "data: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__clever_brave__grep_read_file\",\"input\":{}}}",
+     "reverse": {
+      "mcp__clever_brave__grep_read_file": "mcp__clever_brave__grep_read_file",
+      "mcp__clever_brave__mind_read_file": "read_file",
+      "mcp__clever_brave__read_file": "mcp__clever_brave__read_file",
+      "mcp__clever_brave__write_file": "mcp__clever_brave__write_file"
+     }
+    },
+    {
+     "body": "{\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__clever_brave__write_file\",\"input\":{}}]}",
+     "fn": "restore",
+     "out": "{\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__clever_brave__write_file\",\"input\":{}}]}",
+     "reverse": {
+      "mcp__clever_brave__grep_read_file": "mcp__clever_brave__grep_read_file",
+      "mcp__clever_brave__mind_read_file": "read_file",
+      "mcp__clever_brave__read_file": "mcp__clever_brave__read_file",
+      "mcp__clever_brave__write_file": "mcp__clever_brave__write_file"
+     }
+    },
+    {
+     "fn": "restore_line",
+     "line": "data: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__clever_brave__write_file\",\"input\":{}}}",
+     "out": "data: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__clever_brave__write_file\",\"input\":{}}}",
+     "reverse": {
+      "mcp__clever_brave__grep_read_file": "mcp__clever_brave__grep_read_file",
+      "mcp__clever_brave__mind_read_file": "read_file",
+      "mcp__clever_brave__read_file": "mcp__clever_brave__read_file",
+      "mcp__clever_brave__write_file": "mcp__clever_brave__write_file"
+     }
+    },
+    {
+     "body": "{\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__clever_brave__mind_read_file\",\"input\":{}}]}",
+     "fn": "restore",
+     "out": "{\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"read_file\",\"input\":{}}]}",
+     "reverse": {
+      "mcp__clever_brave__grep_read_file": "mcp__clever_brave__grep_read_file",
+      "mcp__clever_brave__mind_read_file": "read_file",
+      "mcp__clever_brave__read_file": "mcp__clever_brave__read_file",
+      "mcp__clever_brave__write_file": "mcp__clever_brave__write_file"
+     }
+    },
+    {
+     "body": "{\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__clever_brave__clever_brave__mind_read_file\",\"input\":{}}]}",
+     "fn": "restore",
+     "out": "{\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"read_file\",\"input\":{}}]}",
+     "reverse": {
+      "mcp__clever_brave__grep_read_file": "mcp__clever_brave__grep_read_file",
+      "mcp__clever_brave__mind_read_file": "read_file",
+      "mcp__clever_brave__read_file": "mcp__clever_brave__read_file",
+      "mcp__clever_brave__write_file": "mcp__clever_brave__write_file"
+     }
+    },
+    {
+     "body": "{\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__clever_brave__abandon_read_file\",\"input\":{}}]}",
+     "fn": "restore",
+     "out": "{\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"read_file\",\"input\":{}}]}",
+     "reverse": {
+      "mcp__clever_brave__grep_read_file": "mcp__clever_brave__grep_read_file",
+      "mcp__clever_brave__mind_read_file": "read_file",
+      "mcp__clever_brave__read_file": "mcp__clever_brave__read_file",
+      "mcp__clever_brave__write_file": "mcp__clever_brave__write_file"
+     }
+    }
+   ]
+  },
+  "claude_executor_test.go": {
+   "TestPrepareClaudeOAuthToolNamesForUpstream_AllCustomToolsWithHistory": [
+    {
+     "body": "{\"tools\":[{\"name\":\"Bash\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"cmd\":{\"type\":\"string\"}}}},{\"name\":\"glob\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"filePattern\":{\"type\":\"string\"}}}}],\"messages\":[{\"role\":\"assistant\",\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_01\",\"name\":\"Bash\",\"input\":{}},{\"type\":\"tool_use\",\"id\":\"toolu_02\",\"name\":\"glob\",\"input\":{}}]}]}",
+     "fn": "remap",
+     "out": "{\"tools\":[{\"name\":\"mcp__jungle_orange__copper_Bash\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"cmd\":{\"type\":\"string\"}}}},{\"name\":\"mcp__jungle_orange__suggest_glob\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"filePattern\":{\"type\":\"string\"}}}}],\"messages\":[{\"role\":\"assistant\",\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_01\",\"name\":\"mcp__jungle_orange__copper_Bash\",\"input\":{}},{\"type\":\"tool_use\",\"id\":\"toolu_02\",\"name\":\"mcp__jungle_orange__suggest_glob\",\"input\":{}}]}]}",
+     "reverse": {
+      "mcp__jungle_orange__copper_Bash": "Bash",
+      "mcp__jungle_orange__suggest_glob": "glob"
+     },
+     "secret": "mixed-case-caller"
+    }
+   ],
+   "TestPrepareClaudeOAuthToolNamesForUpstream_PreservesMCPConvention": [
+    {
+     "body": "{\"tools\":[\n\t\t{\"name\":\"search_web\",\"input_schema\":{\"type\":\"object\"}},\n\t\t{\"name\":\"mcp__context7__query-docs\",\"input_schema\":{\"type\":\"object\"}},\n\t\t{\"name\":\"bash\",\"input_schema\":{\"type\":\"object\"}}\n\t],\"tool_choice\":{\"type\":\"tool\",\"name\":\"search_web\"}}",
+     "fn": "remap",
+     "out": "{\"tools\":[{\"name\":\"mcp__useful_begin__cycle_search_web\",\"input_schema\":{\"type\":\"object\"}},{\"name\":\"mcp__context7__query-docs\",\"input_schema\":{\"type\":\"object\"}},{\"name\":\"mcp__useful_begin__giggle_bash\",\"input_schema\":{\"type\":\"object\"}}],\"tool_choice\":{\"type\":\"tool\",\"name\":\"mcp__useful_begin__cycle_search_web\"}}",
+     "reverse": {
+      "mcp__context7__query-docs": "mcp__context7__query-docs",
+      "mcp__useful_begin__cycle_search_web": "search_web",
+      "mcp__useful_begin__giggle_bash": "bash"
+     },
+     "secret": "credential-secret"
+    }
+   ],
+   "TestRemapOAuthToolNames_AllClientNamesUseMCPAliases": [
+    {
+     "body": "{\"tools\":[{\"name\":\"Bash\",\"description\":\"Run a client tool\",\"input_schema\":{\"type\":\"object\"}}]}",
+     "fn": "remap",
+     "out": "{\"tools\":[{\"name\":\"mcp__select_sight__term_Bash\",\"description\":\"Run a client tool\",\"input_schema\":{\"type\":\"object\"}}]}",
+     "reverse": {
+      "mcp__select_sight__term_Bash": "Bash"
+     },
+     "secret": "cpa-claude-mcp-default-caller"
+    },
+    {
+     "body": "{\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_01\",\"name\":\"mcp__select_sight__term_Bash\",\"input\":{}}]}",
+     "fn": "restore",
+     "out": "{\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_01\",\"name\":\"Bash\",\"input\":{}}]}",
+     "reverse": {
+      "mcp__select_sight__term_Bash": "Bash"
+     }
+    },
+    {
+     "body": "{\"tools\":[{\"name\":\"bash\",\"description\":\"Run a client tool\",\"input_schema\":{\"type\":\"object\"}}]}",
+     "fn": "remap",
+     "out": "{\"tools\":[{\"name\":\"mcp__select_sight__change_bash\",\"description\":\"Run a client tool\",\"input_schema\":{\"type\":\"object\"}}]}",
+     "reverse": {
+      "mcp__select_sight__change_bash": "bash"
+     },
+     "secret": "cpa-claude-mcp-default-caller"
+    },
+    {
+     "body": "{\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_01\",\"name\":\"mcp__select_sight__change_bash\",\"input\":{}}]}",
+     "fn": "restore",
+     "out": "{\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_01\",\"name\":\"bash\",\"input\":{}}]}",
+     "reverse": {
+      "mcp__select_sight__change_bash": "bash"
+     }
+    },
+    {
+     "body": "{\"tools\":[{\"name\":\"Glob\",\"description\":\"Run a client tool\",\"input_schema\":{\"type\":\"object\"}}]}",
+     "fn": "remap",
+     "out": "{\"tools\":[{\"name\":\"mcp__select_sight__check_Glob\",\"description\":\"Run a client tool\",\"input_schema\":{\"type\":\"object\"}}]}",
+     "reverse": {
+      "mcp__select_sight__check_Glob": "Glob"
+     },
+     "secret": "cpa-claude-mcp-default-caller"
+    },
+    {
+     "body": "{\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_01\",\"name\":\"mcp__select_sight__check_Glob\",\"input\":{}}]}",
+     "fn": "restore",
+     "out": "{\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_01\",\"name\":\"Glob\",\"input\":{}}]}",
+     "reverse": {
+      "mcp__select_sight__check_Glob": "Glob"
+     }
+    },
+    {
+     "body": "{\"tools\":[{\"name\":\"glob\",\"description\":\"Run a client tool\",\"input_schema\":{\"type\":\"object\"}}]}",
+     "fn": "remap",
+     "out": "{\"tools\":[{\"name\":\"mcp__select_sight__daughter_glob\",\"description\":\"Run a client tool\",\"input_schema\":{\"type\":\"object\"}}]}",
+     "reverse": {
+      "mcp__select_sight__daughter_glob": "glob"
+     },
+     "secret": "cpa-claude-mcp-default-caller"
+    },
+    {
+     "body": "{\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_01\",\"name\":\"mcp__select_sight__daughter_glob\",\"input\":{}}]}",
+     "fn": "restore",
+     "out": "{\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_01\",\"name\":\"glob\",\"input\":{}}]}",
+     "reverse": {
+      "mcp__select_sight__daughter_glob": "glob"
+     }
+    }
+   ],
+   "TestRemapOAuthToolNames_AllClientToolsAsMCP": [
+    {
+     "body": "{\n\t\t\"tools\":[\n\t\t\t{\"type\":\"web_search_20250305\",\"name\":\"web_search\",\"max_uses\":2},\n\t\t\t{\"name\":\"bash\",\"description\":\"client shell tool\",\"input_schema\":{\"type\":\"object\"}},\n\t\t\t{\"name\":\"Read\",\"description\":\"client read tool\",\"input_schema\":{\"type\":\"object\"}},\n\t\t\t{\"name\":\"mcp__context7__query-docs\",\"description\":\"existing MCP tool\",\"input_schema\":{\"type\":\"object\"}},\n\t\t\t{\"name\":\"search_web\",\"description\":\"unknown one\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"q\":{\"type\":\"string\"}},\"required\":[\"q\"]}},\n\t\t\t{\"name\":\"Search_Web\",\"description\":\"case-distinct unknown\",\"input_schema\":{\"type\":\"object\"}},\n\t\t\t{\"name\":\"search_web\",\"description\":\"repeated declaration\",\"input_schema\":{\"type\":\"object\"}}\n\t\t],\n\t\t\"tool_choice\":{\"type\":\"tool\",\"name\":\"search_web\"},\n\t\t\"messages\":[\n\t\t\t{\"role\":\"assistant\",\"content\":[\n\t\t\t\t{\"type\":\"tool_use\",\"id\":\"toolu_unknown\",\"name\":\"search_web\",\"input\":{\"q\":\"go\"}},\n\t\t\t\t{\"type\":\"tool_reference\",\"tool_name\":\"Search_Web\"}\n\t\t\t]},\n\t\t\t{\"role\":\"user\",\"content\":[\n\t\t\t\t{\"type\":\"tool_result\",\"tool_use_id\":\"toolu_unknown\",\"content\":[{\"type\":\"tool_reference\",\"tool_name\":\"search_web\"}]}\n\t\t\t]}\n\t\t]\n\t}",
+     "fn": "remap",
+     "out": "{\n\t\t\"tools\":[{\"type\":\"web_search_20250305\",\"name\":\"web_search\",\"max_uses\":2},{\"name\":\"mcp__useful_begin__giggle_bash\",\"description\":\"client shell tool\",\"input_schema\":{\"type\":\"object\"}},{\"name\":\"mcp__useful_begin__boss_Read\",\"description\":\"client read tool\",\"input_schema\":{\"type\":\"object\"}},{\"name\":\"mcp__context7__query-docs\",\"description\":\"existing MCP tool\",\"input_schema\":{\"type\":\"object\"}},{\"name\":\"mcp__useful_begin__cycle_search_web\",\"description\":\"unknown one\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"q\":{\"type\":\"string\"}},\"required\":[\"q\"]}},{\"name\":\"mcp__useful_begin__surge_Search_Web\",\"description\":\"case-distinct unknown\",\"input_schema\":{\"type\":\"object\"}},{\"name\":\"mcp__useful_begin__cycle_search_web\",\"description\":\"repeated declaration\",\"input_schema\":{\"type\":\"object\"}}],\n\t\t\"tool_choice\":{\"type\":\"tool\",\"name\":\"mcp__useful_begin__cycle_search_web\"},\n\t\t\"messages\":[\n\t\t\t{\"role\":\"assistant\",\"content\":[\n\t\t\t\t{\"type\":\"tool_use\",\"id\":\"toolu_unknown\",\"name\":\"mcp__useful_begin__cycle_search_web\",\"input\":{\"q\":\"go\"}},\n\t\t\t\t{\"type\":\"tool_reference\",\"tool_name\":\"mcp__useful_begin__surge_Search_Web\"}\n\t\t\t]},\n\t\t\t{\"role\":\"user\",\"content\":[\n\t\t\t\t{\"type\":\"tool_result\",\"tool_use_id\":\"toolu_unknown\",\"content\":[{\"type\":\"tool_reference\",\"tool_name\":\"mcp__useful_begin__cycle_search_web\"}]}\n\t\t\t]}\n\t\t]\n\t}",
+     "reverse": {
+      "mcp__context7__query-docs": "mcp__context7__query-docs",
+      "mcp__useful_begin__boss_Read": "Read",
+      "mcp__useful_begin__cycle_search_web": "search_web",
+      "mcp__useful_begin__giggle_bash": "bash",
+      "mcp__useful_begin__surge_Search_Web": "Search_Web"
+     },
+     "secret": "credential-secret"
+    },
+    {
+     "body": "{\"content\":[\n\t\t{\"type\":\"tool_use\",\"id\":\"toolu_unknown\",\"name\":\"mcp__useful_begin__cycle_search_web\",\"input\":{}},\n\t\t{\"type\":\"tool_reference\",\"tool_name\":\"mcp__useful_begin__surge_Search_Web\"},\n\t\t{\"type\":\"tool_result\",\"tool_use_id\":\"toolu_unknown\",\"content\":[{\"type\":\"tool_reference\",\"tool_name\":\"mcp__useful_begin__cycle_search_web\"}]}\n\t]}",
+     "fn": "restore",
+     "out": "{\"content\":[\n\t\t{\"type\":\"tool_use\",\"id\":\"toolu_unknown\",\"name\":\"search_web\",\"input\":{}},\n\t\t{\"type\":\"tool_reference\",\"tool_name\":\"Search_Web\"},\n\t\t{\"type\":\"tool_result\",\"tool_use_id\":\"toolu_unknown\",\"content\":[{\"type\":\"tool_reference\",\"tool_name\":\"search_web\"}]}\n\t]}",
+     "reverse": {
+      "mcp__context7__query-docs": "mcp__context7__query-docs",
+      "mcp__useful_begin__boss_Read": "Read",
+      "mcp__useful_begin__cycle_search_web": "search_web",
+      "mcp__useful_begin__giggle_bash": "bash",
+      "mcp__useful_begin__surge_Search_Web": "Search_Web"
+     }
+    },
+    {
+     "fn": "restore_line",
+     "line": "data: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_unknown\",\"name\":\"mcp__useful_begin__cycle_search_web\",\"input\":{}}}",
+     "out": "data: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_unknown\",\"name\":\"search_web\",\"input\":{}}}",
+     "reverse": {
+      "mcp__context7__query-docs": "mcp__context7__query-docs",
+      "mcp__useful_begin__boss_Read": "Read",
+      "mcp__useful_begin__cycle_search_web": "search_web",
+      "mcp__useful_begin__giggle_bash": "bash",
+      "mcp__useful_begin__surge_Search_Web": "Search_Web"
+     }
+    }
+   ],
+   "TestRemapOAuthToolNames_MCPAliasAvoidsClientCollision": [
+    {
+     "body": "{\"tools\":[\n\t\t{\"name\":\"mcp__useful_begin__sketch_fetch_url\",\"input_schema\":{\"type\":\"object\"}},\n\t\t{\"name\":\"fetch_url\",\"input_schema\":{\"type\":\"object\"}}\n\t]}",
+     "fn": "remap",
+     "out": "{\"tools\":[{\"name\":\"mcp__useful_begin__sketch_fetch_url\",\"input_schema\":{\"type\":\"object\"}},{\"name\":\"mcp__useful_begin__ski_fetch_url\",\"input_schema\":{\"type\":\"object\"}}]}",
+     "reverse": {
+      "mcp__useful_begin__sketch_fetch_url": "mcp__useful_begin__sketch_fetch_url",
+      "mcp__useful_begin__ski_fetch_url": "fetch_url"
+     },
+     "secret": "credential-secret"
+    }
+   ],
+   "TestRemapOAuthToolNames_MCPAliasIsMandatory": [
+    {
+     "body": "{\"tools\":[{\"name\":\"search_web\",\"input_schema\":{\"type\":\"object\"}}]}",
+     "fn": "remap",
+     "out": "{\"tools\":[{\"name\":\"mcp__select_sight__one_search_web\",\"input_schema\":{\"type\":\"object\"}}]}",
+     "reverse": {
+      "mcp__select_sight__one_search_web": "search_web"
+     },
+     "secret": "cpa-claude-mcp-default-caller"
+    }
+   ],
+   "TestRemapOAuthToolNames_MixedCaseNamesRemainDistinct": [
+    {
+     "body": "{\"tools\":[{\"name\":\"Bash\",\"input_schema\":{\"type\":\"object\"}},{\"name\":\"bash\",\"input_schema\":{\"type\":\"object\"}}]}",
+     "fn": "remap",
+     "out": "{\"tools\":[{\"name\":\"mcp__select_sight__term_Bash\",\"input_schema\":{\"type\":\"object\"}},{\"name\":\"mcp__select_sight__change_bash\",\"input_schema\":{\"type\":\"object\"}}]}",
+     "reverse": {
+      "mcp__select_sight__change_bash": "bash",
+      "mcp__select_sight__term_Bash": "Bash"
+     },
+     "secret": "cpa-claude-mcp-default-caller"
+    }
+   ],
+   "TestRemapOAuthToolNames_SemanticAliasRestoresLongOriginal": [
+    {
+     "body": "{\"tools\":[{\"name\":\"Read.file/with a very long semantic name and Unicode 网页内容 that exceeds the wire limit\",\"input_schema\":{\"type\":\"object\"}}]}",
+     "fn": "remap",
+     "out": "{\"tools\":[{\"name\":\"mcp__bullet_tired__entire_Read_file_with_a_very_long_semantic_na\",\"input_schema\":{\"type\":\"object\"}}]}",
+     "reverse": {
+      "mcp__bullet_tired__entire_Read_file_with_a_very_long_semantic_na": "Read.file/with a very long semantic name and Unicode 网页内容 that exceeds the wire limit"
+     },
+     "secret": "stable-caller"
+    },
+    {
+     "body": "{\"tools\":[{\"name\":\"Read.file/with a very long semantic name and Unicode 网页内容 that exceeds the wire limit\",\"input_schema\":{\"type\":\"object\"}}]}",
+     "fn": "remap",
+     "out": "{\"tools\":[{\"name\":\"mcp__bullet_tired__entire_Read_file_with_a_very_long_semantic_na\",\"input_schema\":{\"type\":\"object\"}}]}",
+     "reverse": {
+      "mcp__bullet_tired__entire_Read_file_with_a_very_long_semantic_na": "Read.file/with a very long semantic name and Unicode 网页内容 that exceeds the wire limit"
+     },
+     "secret": "stable-caller"
+    },
+    {
+     "body": "{\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"mcp__bullet_tired__entire_Read_file_with_a_very_long_semantic_na\",\"input\":{}}]}",
+     "fn": "restore",
+     "out": "{\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"Read.file/with a very long semantic name and Unicode 网页内容 that exceeds the wire limit\",\"input\":{}}]}",
+     "reverse": {
+      "mcp__bullet_tired__entire_Read_file_with_a_very_long_semantic_na": "Read.file/with a very long semantic name and Unicode 网页内容 that exceeds the wire limit"
+     }
+    }
+   ],
+   "TestRemapOAuthToolNames_TypedCustomUsesMCPAlias": [
+    {
+     "body": "{\n\t\t\"tools\":[\n\t\t\t{\"type\":\"custom\",\"name\":\"client_custom\",\"description\":\"keep\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"value\":{\"type\":\"string\"}}}},\n\t\t\t{\"type\":\"web_search_20250305\",\"name\":\"web_search\",\"max_uses\":2},\n\t\t\t{\"type\":\"client_extension_v1\",\"name\":\"client_extension\",\"description\":\"extension\",\"input_schema\":{\"type\":\"object\"}}\n\t\t],\n\t\t\"tool_choice\":{\"type\":\"tool\",\"name\":\"client_custom\"},\n\t\t\"messages\":[{\"role\":\"assistant\",\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_custom\",\"name\":\"client_custom\",\"input\":{}}]}]\n\t}",
+     "fn": "remap",
+     "out": "{\n\t\t\"tools\":[{\"name\":\"mcp__aspect_evil__april_client_custom\",\"description\":\"keep\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"value\":{\"type\":\"string\"}}}},{\"type\":\"web_search_20250305\",\"name\":\"web_search\",\"max_uses\":2},{\"name\":\"mcp__aspect_evil__deposit_client_extension\",\"description\":\"extension\",\"input_schema\":{\"type\":\"object\"}}],\n\t\t\"tool_choice\":{\"type\":\"tool\",\"name\":\"mcp__aspect_evil__april_client_custom\"},\n\t\t\"messages\":[{\"role\":\"assistant\",\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_custom\",\"name\":\"mcp__aspect_evil__april_client_custom\",\"input\":{}}]}]\n\t}",
+     "reverse": {
+      "mcp__aspect_evil__april_client_custom": "client_custom",
+      "mcp__aspect_evil__deposit_client_extension": "client_extension"
+     },
+     "secret": "caller-secret"
+    }
+   ],
+   "TestReverseRemapOAuthToolNamesFromStreamLine_HonorsPerRequestMap": [
+    {
+     "fn": "restore_line",
+     "line": "data: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_01\",\"name\":\"Bash\",\"input\":{}}}",
+     "out": "data: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_01\",\"name\":\"Bash\",\"input\":{}}}",
+     "reverse": {
+      "Glob": "glob"
+     }
+    },
+    {
+     "fn": "restore_line",
+     "line": "data: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_02\",\"name\":\"Glob\",\"input\":{}}}",
+     "out": "data: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_02\",\"name\":\"glob\",\"input\":{}}}",
+     "reverse": {
+      "Glob": "glob"
+     }
+    }
+   ]
+  }
+ },
+ "go_failures": [],
+ "source": "CLIProxyAPI 6fecc6e, Go's own tests in internal/runtime/executor"
+}

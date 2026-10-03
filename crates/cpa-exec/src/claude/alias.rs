@@ -6,13 +6,11 @@
 //! history. Responses are restored with the request-local inverse map, in buffered
 //! JSON and per SSE event. Server tools and names already shaped like MCP tools are
 //! never renamed.
-//!
-//! ponytail: Go falls back to a legacy sjson rewrite when gjson offsets are not
-//! usable (malformed JSON). Here such bodies pass through unaliased.
 
 use std::collections::{HashMap, HashSet};
 use std::sync::OnceLock;
 
+use cpa_common::json as gj;
 use sha2::{Digest, Sha256};
 
 use crate::rawjson;
@@ -132,44 +130,73 @@ fn allocate(secret: &str, original: &str, reserved: &HashSet<String>) -> Option<
 /// Inverse map: alias → original (passthrough MCP names map to themselves).
 pub(crate) type Reverse = HashMap<String, String>;
 
-/// `remapOAuthToolNamesWithBatchedEdits`.
+/// One rename: the JSON path and either a raw replacement (the rebuilt `tools` array) or
+/// an alias string.
+enum Edit {
+    Raw(String, String),
+    Alias(String, String),
+}
+
+/// `remapOAuthToolNamesWithOptions`: every declared client tool gets an MCP alias in
+/// declarations, `tool_choice` and history. Valid bodies are edited in one copy at the
+/// values' offsets (`remapOAuthToolNamesWithBatchedEdits`); a body whose offsets are not
+/// usable, such as malformed JSON, gets the same renames by path through sjson
+/// (`remapOAuthToolNamesWithOptionsLegacy`), as Go does.
 pub(crate) fn remap(body: &str, secret: &str) -> (String, Reverse) {
-    let mut reverse = Reverse::new();
-    if !gjson::valid(body) {
-        return (body.to_owned(), reverse);
+    let (edits, reverse) = plan(body.as_bytes(), secret);
+    if gj::valid(body.as_bytes())
+        && let Some(out) = apply_at_offsets(body, &edits)
+    {
+        return (out, reverse);
     }
-    let tools = rawjson::get(body, "tools");
-    let tool_list = if tools.kind() == gjson::Kind::Array {
+    let mut out = body.as_bytes().to_vec();
+    for edit in &edits {
+        let updated = match edit {
+            Edit::Raw(path, raw) => gj::try_set_raw(&out, path.as_str(), raw),
+            Edit::Alias(path, alias) => gj::try_set_str(&out, path.as_str(), alias),
+        };
+        if let Ok(updated) = updated {
+            out = updated;
+        }
+    }
+    (String::from_utf8_lossy(&out).into_owned(), reverse)
+}
+
+/// The renames of [`remap`] and the inverse map, read with Go's gjson semantics (which
+/// also read malformed JSON the way Go does).
+fn plan(body: &[u8], secret: &str) -> (Vec<Edit>, Reverse) {
+    let mut reverse = Reverse::new();
+    let record = |reverse: &mut Reverse, original: &str, renamed: &str| {
+        reverse.entry(renamed.to_owned()).or_insert_with(|| original.to_owned());
+    };
+    let tools = gj::get(body, "tools");
+    let tool_list = if tools.exists() && tools.is_array() {
         tools.array()
     } else {
         Vec::new()
     };
-    let mut forward: HashMap<String, String> = HashMap::new();
-    let mut protected = HashSet::new();
+    let name_of = |tool: &gj::Res<'_>| tool.get("name").str().into_owned();
+    let type_of = |tool: &gj::Res<'_>| tool.get("type").str().into_owned();
+    // AugmentClaudeBuiltinToolRegistry, then every declared name.
     let mut reserved: HashSet<String> = ["web_search", "code_execution", "text_editor", "computer"]
         .into_iter()
         .map(str::to_owned)
         .collect();
+    let mut protected = HashSet::new();
     for tool in &tool_list {
-        let name = tool.get("name").str().to_owned();
-        let server_tool = is_server_tool_type(tool.get("type").str());
+        let name = name_of(tool);
         if !name.is_empty() {
             reserved.insert(name.clone());
         }
-        if server_tool {
+        if is_server_tool_type(&type_of(tool)) {
             protected.insert(name);
         }
     }
-    let record = |reverse: &mut Reverse, original: &str, renamed: &str| {
-        reverse.entry(renamed.to_owned()).or_insert_with(|| original.to_owned());
-    };
+    let mut forward: HashMap<String, String> = HashMap::new();
     let mut passthrough = Vec::new();
     for tool in &tool_list {
-        if is_server_tool_type(tool.get("type").str()) {
-            continue;
-        }
-        let name = tool.get("name").str().to_owned();
-        if name.is_empty() {
+        let name = name_of(tool);
+        if is_server_tool_type(&type_of(tool)) || name.is_empty() {
             continue;
         }
         if is_mcp_name(&name) {
@@ -184,6 +211,7 @@ pub(crate) fn remap(body: &str, secret: &str) -> (String, Reverse) {
             forward.insert(name, alias);
         }
     }
+    // recordPassthroughMCPTools: only when something was aliased.
     if !forward.is_empty() {
         for name in &passthrough {
             record(&mut reverse, name, name);
@@ -195,122 +223,137 @@ pub(crate) fn remap(body: &str, secret: &str) -> (String, Reverse) {
         }
         forward.get(name).filter(|a| a.as_str() != name).cloned()
     };
-    let mut edits: Vec<(usize, usize, String)> = Vec::new();
-    let mut ok = true;
-    let mut edit = |edits: &mut Vec<_>, path: &str, replacement: String| {
-        let v = rawjson::get(body, path);
-        match rawjson::offset(body, &v) {
-            Some(start) => edits.push((start, start + v.json().len(), replacement)),
-            None => ok = false,
-        }
-    };
+    let mut edits = Vec::new();
+    // 1. tools[]: typed declarations lose `type`, client names become aliases.
     let needs_tools_rewrite = tool_list.iter().any(|t| {
-        let kind = t.get("type").str().to_owned();
-        !is_server_tool_type(&kind) && (!kind.trim().is_empty() || rewrite(t.get("name").str()).is_some())
+        let kind = type_of(t);
+        !is_server_tool_type(&kind) && (!kind.trim().is_empty() || rewrite(&name_of(t)).is_some())
     });
     if needs_tools_rewrite {
         let mut rebuilt = Vec::new();
         for tool in &tool_list {
-            if is_server_tool_type(tool.get("type").str()) {
-                rebuilt.push(tool.json().to_owned());
+            let raw = String::from_utf8_lossy(tool.raw()).into_owned();
+            if is_server_tool_type(&type_of(tool)) {
+                rebuilt.push(raw);
                 continue;
             }
-            let name = tool.get("name").str().to_owned();
-            let mut raw = tool.json().to_owned();
-            if !tool.get("type").str().trim().is_empty() {
+            let mut raw = raw;
+            if !type_of(tool).trim().is_empty() {
                 raw = rawjson::delete(&raw, "type");
             }
+            let name = name_of(tool);
             if let Some(alias) = rewrite(&name) {
                 raw = rawjson::set_str(&raw, "name", &alias);
                 record(&mut reverse, &name, &alias);
             }
             rebuilt.push(raw);
         }
-        edit(&mut edits, "tools", format!("[{}]", rebuilt.join(",")));
+        edits.push(Edit::Raw("tools".into(), format!("[{}]", rebuilt.join(","))));
     }
-    if rawjson::get(body, "tool_choice.type").str() == "tool" {
-        let name = rawjson::string(body, "tool_choice.name");
+    // 2. tool_choice naming a declared client tool.
+    if gj::get(body, "tool_choice.type").str() == "tool" {
+        let name = gj::get(body, "tool_choice.name").str().into_owned();
         if let Some(alias) = rewrite(&name) {
-            edit(&mut edits, "tool_choice.name", format!("\"{alias}\""));
             record(&mut reverse, &name, &alias);
+            edits.push(Edit::Alias("tool_choice.name".into(), alias));
         }
     }
-    let messages = rawjson::get(body, "messages");
-    if messages.kind() == gjson::Kind::Array {
+    // 3. History references.
+    let messages = gj::get(body, "messages");
+    if messages.exists() && messages.is_array() {
         for (m, msg) in messages.array().iter().enumerate() {
             let content = msg.get("content");
-            if content.kind() != gjson::Kind::Array {
+            if !content.exists() || !content.is_array() {
                 continue;
             }
             for (i, part) in content.array().iter().enumerate() {
-                let base = format!("messages.{m}.content.{i}");
-                let mut names: Vec<String> = Vec::new();
-                match part.get("type").str() {
-                    "tool_use" => names.push(format!("{base}.name")),
-                    "tool_reference" => names.push(format!("{base}.tool_name")),
-                    "tool_result" => {
-                        let nested = part.get("content");
-                        if nested.kind() == gjson::Kind::Array {
-                            for (n, np) in nested.array().iter().enumerate() {
-                                if np.get("type").str() == "tool_reference" {
-                                    names.push(format!("{base}.content.{n}.tool_name"));
-                                }
-                            }
-                        }
-                    }
-                    "tool_search_tool_result" => {
-                        let refs = part.get("content.tool_references");
-                        if refs.kind() == gjson::Kind::Array {
-                            for (n, rp) in refs.array().iter().enumerate() {
-                                if rp.get("type").str() == "tool_reference" {
-                                    names.push(format!("{base}.content.tool_references.{n}.tool_name"));
-                                }
-                            }
-                        }
-                    }
-                    "tool_addition" | "tool_removal" => {
-                        let path = match part.get("tool.type").str() {
-                            "tool_reference" => Some("tool.name"),
-                            "tool_definition"
-                                if part.get("type").str() == "tool_addition"
-                                    && !is_server_tool_type(part.get("tool.definition.type").str()) =>
-                            {
-                                Some("tool.definition.name")
-                            }
-                            _ => None,
-                        };
-                        if let Some(path) = path {
-                            names.push(format!("{base}.{path}"));
-                        }
-                    }
-                    _ => {}
-                }
-                for path in names {
-                    let name = rawjson::string(body, &path);
+                for path in reference_paths(part) {
+                    let name = part.get(path.as_str()).str().into_owned();
                     if let Some(alias) = rewrite(&name) {
-                        edit(&mut edits, &path, format!("\"{alias}\""));
                         record(&mut reverse, &name, &alias);
+                        edits.push(Edit::Alias(format!("messages.{m}.content.{i}.{path}"), alias));
                     }
                 }
             }
         }
     }
-    if !ok {
-        return (body.to_owned(), Reverse::new());
+    (edits, reverse)
+}
+
+/// Paths, relative to one message content part, of the tool names it references.
+fn reference_paths(part: &gj::Res<'_>) -> Vec<String> {
+    let mut paths = Vec::new();
+    match &*part.get("type").str() {
+        "tool_use" => paths.push("name".into()),
+        "tool_reference" => paths.push("tool_name".into()),
+        "tool_result" => {
+            let nested = part.get("content");
+            if nested.exists() && nested.is_array() {
+                for (n, np) in nested.array().iter().enumerate() {
+                    if np.get("type").str() == "tool_reference" {
+                        paths.push(format!("content.{n}.tool_name"));
+                    }
+                }
+            }
+        }
+        "tool_search_tool_result" => {
+            let refs = part.get("content.tool_references");
+            if refs.exists() && refs.is_array() {
+                for (n, rp) in refs.array().iter().enumerate() {
+                    if rp.get("type").str() == "tool_reference" {
+                        paths.push(format!("content.tool_references.{n}.tool_name"));
+                    }
+                }
+            }
+        }
+        // claudeToolChangeNamePath.
+        "tool_addition" | "tool_removal" => match &*part.get("tool.type").str() {
+            "tool_reference" => paths.push("tool.name".into()),
+            "tool_definition"
+                if part.get("type").str() == "tool_addition"
+                    && !is_server_tool_type(&part.get("tool.definition.type").str()) =>
+            {
+                paths.push("tool.definition.name".into());
+            }
+            _ => {}
+        },
+        _ => {}
     }
-    edits.sort_by_key(|e| e.0);
+    paths
+}
+
+/// `applyClaudeRawJSONEdits` at the values' gjson offsets; `None` when an offset does
+/// not point at the value or edits overlap (Go then takes the legacy path).
+fn apply_at_offsets(body: &str, edits: &[Edit]) -> Option<String> {
+    let bytes = body.as_bytes();
+    let mut spans = Vec::with_capacity(edits.len());
+    for edit in edits {
+        let (path, replacement) = match edit {
+            Edit::Raw(path, raw) => (path, raw.clone()),
+            // Generated aliases only use [A-Za-z0-9_-]: quoting is sjson's encoding.
+            Edit::Alias(path, alias) => (path, format!("\"{alias}\"")),
+        };
+        let value = gj::get(bytes, path.as_str());
+        let (start, raw) = (value.index, value.raw());
+        let end = start + raw.len();
+        if raw.is_empty() || end > bytes.len() || &bytes[start..end] != raw || !body.is_char_boundary(start) {
+            return None;
+        }
+        spans.push((start, end, replacement));
+    }
+    spans.sort_by_key(|span| span.0);
     let mut out = String::with_capacity(body.len());
     let mut cursor = 0;
-    for (start, end, replacement) in edits {
-        if start < cursor {
-            return (body.to_owned(), Reverse::new());
+    for (start, end, replacement) in spans {
+        if start < cursor || !body.is_char_boundary(end) {
+            return None;
         }
         out.push_str(&body[cursor..start]);
         out.push_str(&replacement);
         cursor = end;
     }
     out.push_str(&body[cursor..]);
-    (out, reverse)
+    Some(out)
 }
 
 struct Parts {
@@ -318,13 +361,18 @@ struct Parts {
     semantic: String,
 }
 
-fn parse_alias(name: &str) -> Option<Parts> {
+/// `parseClaudeMCPAlias`: (server, tool ID, semantic suffix).
+pub(super) fn alias_parts(name: &str) -> Option<(&str, &str, &str)> {
     if !is_mcp_name(name) {
         return None;
     }
     let (server, tool) = name.strip_prefix("mcp__")?.split_once("__")?;
     let (tool_id, semantic) = tool.split_once('_')?;
-    (!server.is_empty() && !tool_id.is_empty() && !semantic.is_empty()).then(|| Parts {
+    (!server.is_empty() && !tool_id.is_empty() && !semantic.is_empty()).then_some((server, tool_id, semantic))
+}
+
+fn parse_alias(name: &str) -> Option<Parts> {
+    alias_parts(name).map(|(server, _, semantic)| Parts {
         server: server.into(),
         semantic: semantic.into(),
     })
