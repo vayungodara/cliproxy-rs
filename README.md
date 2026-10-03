@@ -4,7 +4,7 @@ cliproxy-rs is a Rust rewrite of [CLIProxyAPI](https://github.com/router-for-me/
 
 It reads the same `config.yaml` and the same credential files as CLIProxyAPI v8, and serves the same HTTP routes and v8 Management API. A Go user can stop the Go binary, start this one on the same directory, and keep their accounts. It ships as a single binary with the management dashboard built in.
 
-![The dashboard overview, light theme](docs/img/dashboard-overview-light.png)
+![The cliproxy-rs dashboard overview](docs/img/overview-dark.png)
 
 ## Status
 
