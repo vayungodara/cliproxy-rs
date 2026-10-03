@@ -10,10 +10,10 @@
 //! cpa_common::thinking, JSON edits cpa_common::json, and the Codex and OpenAI-compatible
 //! executors' ports of the shared Responses helpers. Stages whose shared module has not
 //! landed go through adapters named after their owners (meta_codex, kimi_http, below).
-//! Translator apply_patch failures end streams with Go's 502. ponytail: Go's
-//! ApplyPatchResponsesState (executor helps) and the translator-common Responses bridge
-//! around the Codex stream are not ported (no owner yet), so a custom `apply_patch` tool is
-//! sent upstream as declared; requests without one are unaffected.
+//! Translator apply_patch failures end streams with Go's 502. Go's apply_patch Responses
+//! bridge (cpa_translate::apply_patch_responses) runs around the Codex wire: a client's
+//! custom `apply_patch` tool goes upstream as a JSON function and its calls come back as
+//! the custom tool.
 
 use std::collections::VecDeque;
 use std::time::Duration;
@@ -25,13 +25,16 @@ use cpa_core::config::Config;
 use cpa_core::credential::{Credential, MetadataPatch, Source};
 use cpa_core::exec::{ExecError, ExecRequest, ExecResponse, ExecStream, FailureScope, Operation, ResponseBody};
 use cpa_core::format::Format;
-use cpa_translate::{Pair, RequestCtx, ResponseCtx, StreamTranslator};
+use cpa_translate::{Pair, RequestCtx, ResponseCtx, StreamTranslator, apply_patch_responses};
 use futures_util::StreamExt;
 use serde_json::Value;
 
 use crate::codex_response::OutputItems;
 use crate::codex_tokens::{Encoding, count_input_tokens};
-use crate::kimi_http::{credential_headers, payload_rules, read_all_strict, refresh_due, rfc3339_local_now};
+use crate::kimi_http::{
+    DeferredUsage, UsageRule, credential_headers, defer_usage, payload_rules, read_all_strict, refresh_due,
+    report_model, rfc3339_local_now,
+};
 use crate::meta_auth::{DEFAULT_API_BASE_URL, MetaAuth, MintedKey};
 use crate::meta_codex::go_trim_space;
 use crate::openai_compat_payload::{ensure_responses_usage_details, sanitize_reasoning_encrypted_content};
@@ -80,6 +83,8 @@ impl MetaExecutor {
     pub fn needs_prepare(&self, credential: &Credential, _cfg: &Config) -> bool {
         self.must_mint(credential)
             || (!is_config_api_key(credential)
+                // Go's refresh loop never schedules API-key-kind credentials.
+                && !cpa_core::registry::dynamic::is_api_key(credential)
                 && dca_token(credential).is_some()
                 && refresh_due(credential, None, chrono::Utc::now()))
     }
@@ -202,7 +207,7 @@ impl MetaExecutor {
             let error_body = read_all_strict(upstream.body, MAX_ERROR_BODY).await?;
             // Go observes the response model on every non-stream body, errors included.
             if !req.stream {
-                req.usage.response_line(Format::Codex, &error_body);
+                report_model(&req.usage, Format::Codex, &error_body);
             }
             let mut error = upstream_error(upstream.status, &error_body);
             error.headers = Box::new(headers);
@@ -211,21 +216,21 @@ impl MetaExecutor {
         let ctx = response_ctx(&req, &body);
         let responses_client = req.response_format == Format::OpenAIResponse;
         let out = if req.stream {
-            // Go observes `data:` lines only: their response model and terminal usage.
-            let tapped =
-                crate::kimi_http::report_lines(lines(upstream.body, LINE_LIMIT), &req.usage, Format::Codex, |line| {
-                    line.starts_with(b"data:")
-                });
+            // Go observes `data:` lines: their response model, and usage once completed.
+            let (tapped, usage) = defer_usage(lines(upstream.body, LINE_LIMIT), &req.usage, UsageRule::MetaResponses);
             ResponseBody::Stream(stream_events(
                 tapped,
                 (prepared.response.stream)(&ctx),
                 responses_client,
+                prepared.apply_patch,
+                usage,
             ))
         } else {
             let data = read_all(upstream.body, usize::MAX, false).await?;
-            req.usage.response_line(Format::Codex, &data);
+            report_model(&req.usage, Format::Codex, &data);
             let source = std::cell::RefCell::new(Vec::new());
-            let completed = collect_completed(&data, |event| {
+            let mut apply_patch = prepared.apply_patch;
+            let completed = collect_completed(&data, &mut apply_patch, |event| {
                 source.borrow_mut().clear();
                 source.borrow_mut().extend_from_slice(event);
                 // A translator error or empty output is Go's apply_patch 502.
@@ -300,6 +305,8 @@ struct Prepared {
     body: Vec<u8>,
     /// Transforms for the client's response format against the Codex upstream.
     response: &'static Pair,
+    /// Go's `ApplyPatchResponsesState` for this request.
+    apply_patch: apply_patch_responses::State,
 }
 
 fn not_registered(what: &str) -> ExecError {
@@ -368,11 +375,18 @@ fn prepare(req: &ExecRequest, cfg: &Config, stream: bool) -> Result<Prepared, Ex
     ] {
         gj::delete(&mut body, key);
     }
+    let apply_patch = apply_patch_responses::State::new(req.source_format, original(req), &original_translated);
+    body = apply_patch_responses::normalize_executor_request(&body, Some(original(req)))
+        .map_err(|e| ExecError::local(500, FailureScope::Request, e))?;
     normalize_codex_instructions(&mut body);
     body = sanitize_reasoning_encrypted_content(body);
     sanitize_web_search_tools(&mut body);
     body = cpa_common::payload::normalize_codex_tool_integer_types(&body, &req.headers);
-    Ok(Prepared { body, response })
+    Ok(Prepared {
+        body,
+        response,
+        apply_patch,
+    })
 }
 
 /// `SetStringIfDifferent`.
@@ -530,11 +544,14 @@ fn lossy(b: &[u8]) -> String {
 }
 
 /// translateMetaCompleted: the first terminal event of a buffered SSE body, with output
-/// items rebuilt from `response.output_item.done`, then a whole-body JSON fallback.
+/// items rebuilt from `response.output_item.done`, then a whole-body JSON fallback. Every
+/// event goes through the apply_patch bridge first; a bridge failure is the 502.
 fn collect_completed(
     data: &[u8],
+    apply_patch: &mut apply_patch_responses::State,
     translate: impl Fn(&[u8]) -> Result<Vec<u8>, ExecError>,
 ) -> Result<Vec<u8>, ExecError> {
+    let bridge_error = || ExecError::local(502, FailureScope::Request, cpa_translate::APPLY_PATCH_UPSTREAM_ERROR);
     let mut items = OutputItems::default();
     for line in data.split(|b| *b == b'\n') {
         let Some(event) = data_payload(line) else {
@@ -543,66 +560,108 @@ fn collect_completed(
         if let Some(error) = stream_event_error(event) {
             return Err(error);
         }
-        let kind = gj::get(event, "type").bytes();
-        match &*kind {
-            b"response.output_item.done" => items.collect(&lossy(event)),
-            b"response.completed" | b"response.incomplete" => {
-                return translate(items.patch(lossy(event)).as_bytes());
+        let (events, error) = apply_patch.transform(event);
+        if error.is_some() {
+            return Err(bridge_error());
+        }
+        for event in events {
+            let kind = gj::get(&event, "type").bytes();
+            match &*kind {
+                b"response.output_item.done" => items.collect(&lossy(&event)),
+                b"response.completed" | b"response.incomplete" => {
+                    return translate(items.patch(lossy(&event)).as_bytes());
+                }
+                _ => {}
             }
-            _ => {}
         }
     }
     if let Some(completed) = as_completed_event(data) {
-        return translate(items.patch(lossy(&completed)).as_bytes());
+        let patched = items.patch(lossy(&completed));
+        let bridged = apply_patch
+            .bridge
+            .transform_non_stream(patched.as_bytes())
+            .map_err(|_| bridge_error())?;
+        return translate(&bridged);
+    }
+    if apply_patch.finish().is_err() {
+        return Err(bridge_error());
     }
     Err(ExecError::local(408, FailureScope::Credential, DISCONNECTED))
 }
 
-/// The ExecuteStream loop: every scanned line goes through the pair's translator (`data:`
-/// lines normalized to `data: <trimmed>`), terminal events get their collected output, and
-/// an error event or scan error ends the stream. The translator emits frames the way the
-/// client's Go route writes them.
+/// The ExecuteStream loop: every scanned line goes through the apply_patch bridge and then
+/// the pair's translator (`data:` lines normalized to `data: <trimmed>`), terminal events get
+/// their collected output, and an error event, a bridge failure or a scan error ends the
+/// stream. At EOF the bridge's `finish_stream` runs before a scan error is reported. The
+/// translator emits frames the way the client's Go route writes them; usage is committed
+/// only when the stream ends cleanly.
 ///
 /// Responses clients get EnsureResponsesUsageDetails per line before translation; Go
 /// applies it to each translated chunk, and the Responses translator only adds
 /// `response.model` to creation events, so the two edits commute.
-fn stream_events(upstream: ExecStream, translator: Box<dyn StreamTranslator>, responses_client: bool) -> ExecStream {
+fn stream_events(
+    upstream: ExecStream,
+    translator: Box<dyn StreamTranslator>,
+    responses_client: bool,
+    bridge: apply_patch_responses::State,
+    usage: DeferredUsage,
+) -> ExecStream {
     struct State {
         upstream: ExecStream,
         translator: Box<dyn StreamTranslator>,
+        bridge: apply_patch_responses::State,
+        usage: DeferredUsage,
         items: OutputItems,
         ready: VecDeque<Result<Bytes, ExecError>>,
         done: bool,
         responses_client: bool,
     }
+    fn bridge_error() -> ExecError {
+        ExecError::local(502, FailureScope::Request, cpa_translate::APPLY_PATCH_UPSTREAM_ERROR)
+    }
     impl State {
-        fn emit(&mut self, translated: Result<Vec<Bytes>, cpa_translate::Error>) {
-            match translated {
-                Ok(frames) => self.ready.extend(frames.into_iter().filter(|f| !f.is_empty()).map(Ok)),
-                Err(error) => {
-                    self.done = true;
-                    self.ready
-                        .push_back(Err(ExecError::local(502, FailureScope::Request, error.0)));
+        /// Translates bridge output lines; false when a translator error ended the stream.
+        fn translate_all(&mut self, lines: Vec<Vec<u8>>) -> bool {
+            for line in lines {
+                // Bridge frames end in a blank line; Go hands the translator the whole
+                // chunk, which it trims, and a Responses route's framer ends the frame at
+                // that blank line.
+                let complete = line.ends_with(b"\n\n");
+                let line = line.strip_suffix(b"\n\n").unwrap_or(&line);
+                let line = if self.responses_client {
+                    ensure_responses_usage_details(line)
+                } else {
+                    line.to_vec()
+                };
+                match self.translator.event(&line) {
+                    Ok(mut frames) => {
+                        if complete && self.responses_client {
+                            frames.extend(self.translator.flush_frames());
+                        }
+                        self.ready.extend(frames.into_iter().filter(|f| !f.is_empty()).map(Ok));
+                    }
+                    Err(error) => {
+                        self.done = true;
+                        self.ready
+                            .push_back(Err(ExecError::local(502, FailureScope::Request, error.0)));
+                        return false;
+                    }
                 }
             }
+            true
         }
 
-        fn translate(&mut self, line: Vec<u8>) {
-            let line = if self.responses_client {
-                ensure_responses_usage_details(&line)
-            } else {
-                line
-            };
-            let translated = self.translator.event(&line);
-            self.emit(translated);
+        /// emitTranslatedLine: the bridge, the translator, StopApplyPatchStream, then the
+        /// bridge's own failure.
+        fn emit(&mut self, line: Vec<u8>) {
+            let (lines, bridge_failed) = self.bridge.stream(&line);
+            if !self.translate_all(lines) {
+                return;
+            }
             // StopApplyPatchStream: the rejected call's frames, then a 502. Go's Meta loop
             // does not finalize tool input at EOF.
-            if !self.done && self.translator.tool_input_failed() {
-                self.fail(ExecError::local(
-                    502,
-                    FailureScope::Request,
-                    cpa_translate::APPLY_PATCH_UPSTREAM_ERROR,
-                ));
+            if self.translator.tool_input_failed() || bridge_failed.is_some() {
+                self.fail(bridge_error());
             }
         }
 
@@ -617,7 +676,7 @@ fn stream_events(upstream: ExecStream, translator: Box<dyn StreamTranslator>, re
 
         fn line(&mut self, line: &[u8]) {
             let Some(event) = data_payload(line) else {
-                return self.translate(line.to_vec());
+                return self.emit(line.to_vec());
             };
             if let Some(error) = stream_event_error(event) {
                 return self.fail(error);
@@ -633,13 +692,39 @@ fn stream_events(upstream: ExecStream, translator: Box<dyn StreamTranslator>, re
             };
             let mut out = b"data: ".to_vec();
             out.extend_from_slice(&event);
-            self.translate(out);
+            self.emit(out);
+        }
+
+        /// The end of the upstream lines: `FinishStream`, then the scan error or a clean end.
+        fn end(&mut self, scan_error: Option<ExecError>) {
+            self.done = true;
+            let (events, bridge_failed) = self.bridge.finish_stream();
+            if !self.translate_all(events) {
+                return;
+            }
+            if bridge_failed.is_some() {
+                return self.fail(bridge_error());
+            }
+            if let Some(error) = scan_error {
+                return self.fail(error);
+            }
+            match self.translator.finish() {
+                Ok(frames) => self.ready.extend(frames.into_iter().filter(|f| !f.is_empty()).map(Ok)),
+                Err(error) => {
+                    self.ready
+                        .push_back(Err(ExecError::local(502, FailureScope::Request, error.0)));
+                    return;
+                }
+            }
+            self.usage.commit();
         }
     }
     futures_util::stream::unfold(
         State {
             upstream,
             translator,
+            bridge,
+            usage,
             items: OutputItems::default(),
             ready: VecDeque::new(),
             done: false,
@@ -655,12 +740,8 @@ fn stream_events(upstream: ExecStream, translator: Box<dyn StreamTranslator>, re
                 }
                 match st.upstream.next().await {
                     Some(Ok(line)) => st.line(&line),
-                    Some(Err(error)) => st.fail(error),
-                    None => {
-                        st.done = true;
-                        let finished = st.translator.finish();
-                        st.emit(finished);
-                    }
+                    Some(Err(error)) => st.end(Some(error)),
+                    None => st.end(None),
                 }
             }
         },

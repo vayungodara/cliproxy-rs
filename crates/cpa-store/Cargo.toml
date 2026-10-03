@@ -1,0 +1,30 @@
+[package]
+name = "cpa-store"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+bytes.workspace = true
+cpa-server.workspace = true
+futures-util.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+wreq.workspace = true
+base64 = "0.22"
+# BoringSSL, already in the graph through wreq: Postgres sslmode TLS.
+btls = "0.5.6"
+tokio-btls = "0.5.6"
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+sha2 = "0.10"
+url = "2"
+# Postgres wire client for PGSTORE_* (Go uses pgx).
+tokio-postgres = { version = "0.7.18", default-features = false, features = ["runtime", "with-chrono-0_4"] }
+
+[dev-dependencies]
+axum.workspace = true
+tokio = { workspace = true, features = ["test-util"] }

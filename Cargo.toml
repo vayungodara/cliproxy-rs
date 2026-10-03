@@ -14,6 +14,7 @@ cpa-core = { path = "crates/cpa-core" }
 cpa-exec = { path = "crates/cpa-exec" }
 cpa-home = { path = "crates/cpa-home" }
 cpa-server = { path = "crates/cpa-server" }
+cpa-store = { path = "crates/cpa-store" }
 cpa-translate = { path = "crates/cpa-translate" }
 
 anyhow = "1"

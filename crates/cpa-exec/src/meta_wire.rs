@@ -1,6 +1,7 @@
 //! Go `encoding/json` decoding for the small, flat auth records Meta (and later Devin)
 //! read from auth servers: `json.Unmarshal(body, &record)` with string, int and bool
-//! fields.
+//! fields. Vertex decodes Google key files and token responses with it too, using the
+//! check-only time, string-slice and nested-struct slots.
 //!
 //! Go semantics reproduced: syntax errors with Go's scanner messages; keys matched to
 //! field tags exactly, else case-insensitively (Go's fold, including `ſ` and the Kelvin
@@ -16,6 +17,16 @@ pub(crate) enum Slot<'a> {
     /// Go `int` or `int64`; the name is used in error messages.
     Int(&'a mut i64, &'static str),
     Bool(&'a mut bool),
+    /// `time.Time`, checked only: a JSON string holding a strict RFC 3339 time
+    /// (`Time.UnmarshalJSON` reads the raw string body without unescaping).
+    // ponytail: Go reports a bad time with Time.UnmarshalJSON's own message, and it
+    // aborts decoding there; the generic type message is used instead.
+    Time,
+    /// `[]string`, checked only; `null` elements are allowed.
+    Strs,
+    /// A nested struct or struct pointer, checked only: an object.
+    // ponytail: the nested struct's own fields are not type-checked.
+    Object,
 }
 
 impl Slot<'_> {
@@ -24,6 +35,9 @@ impl Slot<'_> {
             Self::Str(_) => "string",
             Self::Int(_, name) => name,
             Self::Bool(_) => "bool",
+            Self::Time => "time.Time",
+            Self::Strs => "[]string",
+            Self::Object => "struct",
         }
     }
 }
@@ -89,8 +103,56 @@ fn store(slot: &mut Slot<'_>, value: &gj::Res<'_>) -> Result<(), String> {
             **b = value.kind == Kind::True;
             Ok(())
         }
+        (Slot::Time, Kind::String) if go_rfc3339(&value.raw[1..value.raw.len() - 1]) => Ok(()),
+        (Slot::Strs, Kind::Json)
+            if value.is_array()
+                && value
+                    .array()
+                    .iter()
+                    .all(|item| matches!(item.kind, Kind::String | Kind::Null)) =>
+        {
+            Ok(())
+        }
+        (Slot::Object, Kind::Json) if value.is_object() => Ok(()),
         _ => Err(kind_name(value).to_owned()),
     }
+}
+
+/// Go's strict RFC 3339 parse (`time.parseStrictRFC3339`): `YYYY-MM-DDThh:mm:ss`, an
+/// optional `.` fraction, then `Z` or `±hh:mm`, every field in range.
+pub(crate) fn go_rfc3339(s: &[u8]) -> bool {
+    let num = |digits: &[u8], min: u32, max: u32| -> bool {
+        digits.iter().all(u8::is_ascii_digit)
+            && (min..=max).contains(&digits.iter().fold(0u32, |x, c| x * 10 + u32::from(c - b'0')))
+    };
+    if s.len() < 19 || !(s[4] == b'-' && s[7] == b'-' && s[10] == b'T' && s[13] == b':' && s[16] == b':') {
+        return false;
+    }
+    if !(num(&s[0..4], 0, 9999) && num(&s[5..7], 1, 12)) {
+        return false;
+    }
+    let year = s[0..4].iter().fold(0u32, |x, c| x * 10 + u32::from(c - b'0'));
+    let leap = year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
+    let days = match &s[5..7] {
+        b"02" if leap => 29,
+        b"02" => 28,
+        b"04" | b"06" | b"09" | b"11" => 30,
+        _ => 31,
+    };
+    if !(num(&s[8..10], 1, days) && num(&s[11..13], 0, 23) && num(&s[14..16], 0, 59) && num(&s[17..19], 0, 59)) {
+        return false;
+    }
+    let mut rest = &s[19..];
+    if rest.len() >= 2 && rest[0] == b'.' && rest[1].is_ascii_digit() {
+        let n = 1 + rest[1..].iter().take_while(|c| c.is_ascii_digit()).count();
+        rest = &rest[n..];
+    }
+    rest == b"Z"
+        || (rest.len() == 6
+            && matches!(rest[0], b'+' | b'-')
+            && rest[3] == b':'
+            && num(&rest[1..3], 0, 23)
+            && num(&rest[4..6], 0, 59))
 }
 
 pub(crate) fn kind_name(value: &gj::Res<'_>) -> &'static str {

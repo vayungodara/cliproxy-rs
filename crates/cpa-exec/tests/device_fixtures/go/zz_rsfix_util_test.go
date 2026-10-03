@@ -286,6 +286,7 @@ func rsfixTakeUsage() []map[string]any {
 			"reasoning_effort": r.ReasoningEffort,
 			"model":            r.Model,
 			"failed":           r.Failed,
+			"service_tier":     r.ResponseServiceTier,
 		})
 	}
 	rsfixUsage.records = nil

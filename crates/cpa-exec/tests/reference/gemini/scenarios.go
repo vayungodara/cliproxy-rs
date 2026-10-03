@@ -136,6 +136,65 @@ func i(name, op, model, payload string, up *upstream) scenario {
 
 const interactionsInput = `{"model":"gemini-3-pro-preview","input":[{"type":"user_input","id":"s1","content":[{"type":"text","text":"hi","id":"p1"},{"type":"text","text":"there"}]},{"type":"function_call","call_id":"c1","name":"f","arguments":{}},{"type":"function_call","id":"c2","call_id":"c2x","name":"g","arguments":{}},{"type":"function_result","id":"r1","call_id":"c1","result":"x","content":"not-array"},{"type":"model_output","id":7}]}`
 
+// usageConfig has one credential per upstream so the usage_* scenarios also replay
+// through the Rust router (cpa-server tests/gemini_routes.rs), which compares the queued
+// usage record with the one Go's reporter published.
+const usageConfig = `
+api-keys:
+  gemini:
+    - base-url: http://UPSTREAM
+      models:
+        - name: gemini-2.5-flash
+          alias: u-flash
+      keys:
+        - api-key: AIza-fake-usage
+  interactions:
+    - base-url: http://UPSTREAM
+      models:
+        - name: gemini-3-pro-preview
+          alias: u-pro
+      keys:
+        - api-key: AIza-fake-usage-int
+`
+
+func u(name, provider, source, op, model, requested, payload string, up *upstream) scenario {
+	return scenario{Name: name, Config: usageConfig, Provider: provider, ConfigAuth: 0, Model: model, RequestedModel: requested, Payload: payload, Source: source, Op: op, Upstream: up}
+}
+
+func usageScenarios() []scenario {
+	json := func(body string) *upstream {
+		return &upstream{Status: 200, Headers: [][2]string{{"Content-Type", "application/json"}}, Body: body}
+	}
+	const nonTerminal = `{"candidates":[{"content":{"role":"model","parts":[{"text":"he"}]},"index":0}],"usageMetadata":{"promptTokenCount":5,"candidatesTokenCount":7,"totalTokenCount":12},"modelVersion":"gemini-2.5-flash-003"}`
+	const terminalBare = `{"candidates":[{"content":{"role":"model","parts":[{"text":"llo"}]},"finishReason":"STOP","index":0}],"modelVersion":"gemini-2.5-flash-003"}`
+	const terminalUsage = `{"candidates":[{"content":{"role":"model","parts":[{"text":"llo"}]},"finishReason":"STOP","index":0}],"usageMetadata":{"promptTokenCount":5,"candidatesTokenCount":9,"thoughtsTokenCount":2,"cachedContentTokenCount":3,"totalTokenCount":16},"modelVersion":"gemini-2.5-flash-003"}`
+	interactionsStream := sse(strings.Join([]string{
+		"event: interaction.created\ndata: {\"event_type\":\"interaction.created\",\"interaction\":{\"id\":\"int_9\",\"model\":\"gemini-3-pro-preview-0901\"}}\n\n",
+		"event: step.delta\ndata: {\"event_type\":\"step.delta\",\"index\":0,\"delta\":{\"type\":\"text\",\"text\":\"hi\"}}\n\n",
+		"data: {\"event_type\":\"interaction.completed\",\n",
+		"data: \"interaction\":{\"id\":\"int_9\",\"status\":\"completed\",\"usage\":{\"total_input_tokens\":11,\"total_output_tokens\":22,\"total_thought_tokens\":4,\"total_cached_tokens\":2,\"total_tokens\":39}}}\n\n",
+		"event: done\ndata: [DONE]\n\n",
+	}, ""))
+	return []scenario{
+		u("usage_openai_execute_effort", "gemini", "openai", "execute", "gemini-2.5-flash", "u-flash",
+			`{"model":"u-flash","messages":[{"role":"user","content":"hi"}],"reasoning_effort":"low"}`,
+			json(`{"candidates":[{"content":{"role":"model","parts":[{"text":"ok"}]},"finishReason":"STOP","index":0}],"usageMetadata":{"promptTokenCount":40,"candidatesTokenCount":60,"thoughtsTokenCount":10,"cachedContentTokenCount":8,"totalTokenCount":110},"modelVersion":"gemini-2.5-flash-002"}`)),
+		// FilterSSEUsageMetadata hides usage on non-terminal chunks from the reporter.
+		u("usage_claude_stream_non_terminal_usage", "gemini", "claude", "stream", "gemini-2.5-flash", "u-flash",
+			`{"model":"u-flash","max_tokens":64,"messages":[{"role":"user","content":"hi"}],"stream":true}`,
+			sse("data: "+nonTerminal+"\n\ndata: "+terminalBare+"\n\n")),
+		u("usage_claude_stream_terminal_usage", "gemini", "claude", "stream", "gemini-2.5-flash", "u-flash",
+			`{"model":"u-flash","max_tokens":64,"thinking":{"type":"enabled","budget_tokens":2048},"messages":[{"role":"user","content":"hi"}],"stream":true}`,
+			sse("data: "+nonTerminal+"\n\ndata: "+terminalUsage+"\n\n")),
+		u("usage_openai_stream_interactions", "gemini-interactions", "openai", "stream", "gemini-3-pro-preview", "u-pro",
+			`{"model":"u-pro","stream":true,"messages":[{"role":"user","content":"hi"}],"reasoning_effort":"high"}`,
+			interactionsStream),
+		u("usage_responses_execute_interactions", "gemini-interactions", "openai-response", "execute", "gemini-3-pro-preview", "u-pro",
+			`{"model":"u-pro","input":"hi"}`,
+			json(`{"id":"int_8","model":"gemini-3-pro-preview-0902","status":"completed","outputs":[{"type":"text","text":"ok"}],"usage":{"total_input_tokens":20,"total_output_tokens":30,"total_thought_tokens":5,"total_cached_tokens":4,"total_tokens":55}}`)),
+	}
+}
+
 func scenarios() []scenario {
 	geminiErr := &upstream{Status: 429, Headers: [][2]string{{"Content-Type", "application/json"}, {"Retry-After", "7"}}, Body: `{"error":{"code":429,"message":"Resource has been exhausted","status":"RESOURCE_EXHAUSTED","details":[{"@type":"type.googleapis.com/google.rpc.RetryInfo","retryDelay":"7s"}]}}`}
 	out := []scenario{
@@ -248,7 +307,14 @@ func scenarios() []scenario {
 		with(i("int_responses_client_stream", "stream", "gemini-3-pro-preview", `{"model":"gemini-3-pro-preview","input":"hi","stream":true}`, interactionsSSE), func(s *scenario) { s.Source = "openai-response" }),
 		// A non-native source on an Interactions credential takes generateContent.
 		with(i("int_codex_source_uses_generate_content", "execute", "gemini-3-pro-preview", `{"model":"gemini-3-pro-preview","input":"hi"}`, jsonOK), func(s *scenario) { s.Source = "codex" }),
+
+		// A line ending in "\r\r\n" keeps one "\r" through Go's scanner: Interactions
+		// clients get it back inside the frame, Codex clients (no pair) in the chunk.
+		i("int_stream_cr_lines", "stream", "gemini-3-pro-preview", `{"model":"gemini-3-pro-preview","input":"hi"}`,
+			sse("event: step.delta\r\r\ndata: {\"event_type\":\"step.delta\",\"index\":0,\"delta\":{\"type\":\"text\",\"text\":\"hi\"}}\r\r\n\r\r\nevent: done\r\r\ndata: [DONE]\r\r\n\r\n")),
+		with(g("stream_codex_client_cr_lines", "stream", "gemini-2.5-flash", "", `{"model":"gemini-2.5-flash","input":"hi"}`, sse("data: "+sseChunk1+"\r\r\n\r\r\ndata: "+sseChunk2+"\r\n\r\n")), func(s *scenario) { s.Source = "codex" }),
 	}
+	out = append(out, usageScenarios()...)
 	for i := range out {
 		if out[i].Name == "gen_original_differs" {
 			out[i].Original = gem("gemini-2.5-flash", `[{"role":"user","parts":[{"text":"original"}]}]`, "")
