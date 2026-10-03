@@ -22,6 +22,7 @@ use crate::scheduler::{ErrorRule, Policy};
 mod access;
 mod api_call;
 mod auth_files;
+mod legacy;
 mod logs;
 mod multipart;
 mod oauth;
@@ -411,6 +412,62 @@ pub fn router(state: Arc<Management>) -> Router {
     ] {
         router = router.route(&format!("{v0}/{path}"), route);
     }
+    // Go's remaining v0 routes, adapted over the v8 handlers (management/legacy.rs).
+    router = router.route(&format!("{v0}/config"), methods().get(guarded!(s, legacy::config)));
+    for path in legacy::FIELD_ROUTES {
+        let mut route = methods()
+            .get(guarded!(s, legacy::field_route))
+            .put(guarded!(s, legacy::field_route))
+            .patch(guarded!(s, legacy::field_route));
+        if path == "proxy-url" {
+            route = route.delete(guarded!(s, legacy::field_route));
+        }
+        router = router.route(&format!("{v0}/{path}"), route);
+    }
+    router = router.route(
+        &format!("{v0}/api-keys"),
+        methods()
+            .get(guarded!(s, legacy::api_keys))
+            .put(guarded!(s, legacy::api_keys))
+            .patch(guarded!(s, legacy::api_keys))
+            .delete(guarded!(s, legacy::api_keys)),
+    );
+    for path in legacy::LIST_ROUTES {
+        router = router.route(
+            &format!("{v0}/{path}"),
+            methods()
+                .get(guarded!(s, legacy::list_route))
+                .put(guarded!(s, legacy::list_route))
+                .patch(guarded!(s, legacy::list_route))
+                .delete(guarded!(s, legacy::list_route)),
+        );
+    }
+    for (path, _) in legacy::AUTH_URL_ROUTES {
+        router = router.route(&format!("{v0}/{path}"), methods().get(guarded!(s, legacy::auth_url)));
+    }
+    router = router
+        .route(
+            &format!("{v0}/vertex/import"),
+            methods().post(guarded!(s, legacy::vertex_import)),
+        )
+        .route(
+            &format!("{v0}/logs"),
+            methods()
+                .get(guarded!(s, logs::get_logs))
+                .delete(guarded!(s, logs::delete_logs)),
+        )
+        .route(
+            &format!("{v0}/request-error-logs"),
+            methods().get(guarded!(s, logs::error_logs)),
+        )
+        .route(
+            &format!("{v0}/request-error-logs/{{name}}"),
+            methods().get(guarded!(s, logs::download_error_log)),
+        )
+        .route(
+            &format!("{v0}/request-log-by-id/{{id}}"),
+            methods().get(guarded!(s, logs::request_log)),
+        );
     router
         .route("/management.html", get(panel))
         .route("/assets/{*path}", get(panel))

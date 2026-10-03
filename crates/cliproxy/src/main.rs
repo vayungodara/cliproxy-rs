@@ -685,15 +685,17 @@ async fn serve(
     let app = router(rt)
         .merge(cpa_server::management::router(management))
         .layer(axum::middleware::from_fn(cpa_server::management::cors));
-    let server = cpa_server::listener::serve(listener, app, tls);
-    // Go's Shutdown closes the HTTP server without draining (`Server.Stop` calls
-    // `http.Server.Close`); dropping the server future here does the same.
-    tokio::select! {
-        r = server => r?,
-        _ = shutdown_signal() => {}
-    }
+    let mut server = Box::pin(cpa_server::listener::serve(listener, app, tls));
+    let served = tokio::select! {
+        r = &mut server => r,
+        _ = shutdown_signal() => Ok(()),
+    };
+    // Go's Service.Shutdown sends the mDNS goodbye (shutdownDiscovery) before
+    // Server.Stop, which closes the HTTP server without draining (`http.Server.Close`);
+    // dropping the server future afterwards does the same.
     advertiser.shutdown().await;
-    Ok(())
+    drop(server);
+    Ok(served?)
 }
 
 #[cfg(test)]
