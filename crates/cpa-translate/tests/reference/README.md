@@ -74,7 +74,39 @@ rm -rf "$tmp"
 The pair list (`client:upstream`, Go format names) is every registered pair; the generator
 panics on a pair Go does not register.
 
-Known gaps: the extraction does not interpret dynamic table expressions, registry mocks
-or assertions about Go slice backing addresses, and plugin hooks (M6) are not exercised.
+## Harvested inputs
+
+Static mining cannot evaluate table-driven tests or inputs built by helpers, so
+`harvest/main.go` records them at run time. It instruments a scratch copy of the reference
+(never the checkout itself): every converter registered in `internal/translator/**/init.go`,
+the exported `...WithCompat` request converters and sdk/translator's
+`TranslateRequest`/`TranslateStream`/`TranslateNonStream` get a same-signature wrapper that
+logs calls made directly from a `_test.go` file, with the enclosing Test function and call
+line. With `HARVEST_JSONL` set, the generator appends one fixture per recorded request or
+non-stream call, and one per stream (calls sharing a `param` pointer within a test), named
+`Test:line`, unless an existing fixture already has the same input and test name. Inputs
+over 256 KiB are skipped, and a test contributes at most 24 fixtures per path. Outputs
+still come from `run()` through the registry, so harvested fixtures differ from mined
+ones only in where their input came from.
+
+```sh
+scratch=$(mktemp -d)
+(cd "$reference" && tar --exclude=.git -cf - .) | tar -xf - -C "$scratch"
+tool=$(mktemp -d)
+cp "$crate"/tests/reference/harvest/main.go "$tool/"
+(cd "$tool" && go mod init harvesttool && go run . "$scratch")
+(cd "$scratch" && go mod download && HARVEST_OUT="$scratch/calls.jsonl" \
+  go test -count=1 ./internal/translator/... ./sdk/translator/... ./test/...)
+# Then run the pair generation above with HARVEST_JSONL="$scratch/calls.jsonl".
+```
+
+Two allocation-bound Go tests (`...BoundsLargePayloadCopies`,
+`...ReusesLargeNormalizedPayload`) fail in the instrumented copy because the recorder
+copies their multi-MiB payloads; that is expected. Run the tests with external network
+denied.
+
+Known gaps: the extraction does not interpret registry mocks or assertions about Go slice
+backing addresses, tests that call internal helpers rather than converters are not
+harvested, and plugin hooks (M6) are not exercised.
 The dynamic model registry is empty during generation, so capabilities come from the
 static catalogs only.

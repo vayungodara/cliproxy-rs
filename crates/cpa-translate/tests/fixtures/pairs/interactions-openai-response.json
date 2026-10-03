@@ -1648,6 +1648,461 @@
      "{\"id\":\"\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-2.5-pro\",\"steps\":[]}"
     ]
    ]
+  },
+  {
+   "name": "TestConvertOpenAIResponsesResponseToInteractionsNonStreamFunctionCall:352#2",
+   "path": "non_stream",
+   "model": "gpt-test",
+   "input": "{\"id\":\"resp_1\",\"output\":[{\"type\":\"function_call\",\"name\":\"lookup\",\"call_id\":\"call_1\",\"arguments\":{\"q\":\"x\"}}],\"usage\":{\"input_tokens\":1,\"output_tokens\":2,\"total_tokens\":3}}",
+   "outputs": [
+    [
+     "{\"id\":\"resp_1\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gpt-test\",\"steps\":[{\"type\":\"function_call\",\"name\":\"lookup\",\"arguments\":{\"q\":\"x\"},\"call_id\":\"call_1\"}],\"usage\":{\"input_tokens\":1,\"total_input_tokens\":1,\"output_tokens\":2,\"total_output_tokens\":2,\"total_tokens\":3}}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertOpenAIResponsesResponseToInteractionsNonStreamFunctionCallStringArgs:366#2",
+   "path": "non_stream",
+   "model": "gpt-test",
+   "input": "{\"id\":\"resp_1\",\"output\":[{\"type\":\"function_call\",\"name\":\"lookup\",\"call_id\":\"call_1\",\"arguments\":\"{\\\"q\\\":\\\"x\\\"}\"}],\"usage\":{\"input_tokens\":1,\"output_tokens\":2,\"total_tokens\":3}}",
+   "outputs": [
+    [
+     "{\"id\":\"resp_1\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gpt-test\",\"steps\":[{\"type\":\"function_call\",\"name\":\"lookup\",\"arguments\":{\"q\":\"x\"},\"call_id\":\"call_1\"}],\"usage\":{\"input_tokens\":1,\"total_input_tokens\":1,\"output_tokens\":2,\"total_output_tokens\":2,\"total_tokens\":3}}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertOpenAIResponsesResponseToInteractionsNonStreamUsageDetails:377#2",
+   "path": "non_stream",
+   "model": "gpt-test",
+   "input": "{\"id\":\"resp_1\",\"output\":[{\"type\":\"message\",\"content\":[{\"type\":\"output_text\",\"text\":\"ok\"}]}],\"usage\":{\"input_tokens\":11,\"output_tokens\":13,\"total_tokens\":24,\"input_tokens_details\":{\"cached_tokens\":5},\"output_tokens_details\":{\"reasoning_tokens\":7}}}",
+   "outputs": [
+    [
+     "{\"id\":\"resp_1\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gpt-test\",\"steps\":[{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}]}],\"usage\":{\"input_tokens\":11,\"total_input_tokens\":11,\"output_tokens\":13,\"total_output_tokens\":13,\"total_tokens\":24,\"cached_tokens\":5,\"total_cached_tokens\":5,\"reasoning_tokens\":7,\"total_thought_tokens\":7}}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertOpenAIResponsesResponseToInteractionsIncompleteTerminal:603#2",
+   "path": "non_stream",
+   "model": "gpt-test",
+   "input": "{\"id\":\"resp_1\",\"status\":\"incomplete\",\"output\":[{\"type\":\"message\",\"content\":[{\"type\":\"output_text\",\"text\":\"partial\"}]}],\"usage\":{\"input_tokens\":1,\"output_tokens\":2,\"total_tokens\":3}}",
+   "outputs": [
+    [
+     "{\"id\":\"resp_1\",\"object\":\"interaction\",\"status\":\"incomplete\",\"model\":\"gpt-test\",\"steps\":[{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"partial\"}]}],\"usage\":{\"input_tokens\":1,\"total_input_tokens\":1,\"output_tokens\":2,\"total_output_tokens\":2,\"total_tokens\":3}}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertOpenAIResponsesResponseToInteractionsIncompleteTerminal:648#2",
+   "path": "non_stream",
+   "model": "gpt-test",
+   "input": "{\"id\":\"resp_1\",\"status\":\"completed\",\"output\":[],\"usage\":{\"input_tokens\":1,\"output_tokens\":2,\"total_tokens\":3}}",
+   "outputs": [
+    [
+     "{\"id\":\"resp_1\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gpt-test\",\"steps\":[],\"usage\":{\"input_tokens\":1,\"total_input_tokens\":1,\"output_tokens\":2,\"total_output_tokens\":2,\"total_tokens\":3}}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertOpenAIResponsesResponseToInteractionsStreamFunctionCallCallID:398:stream",
+   "path": "stream",
+   "model": "gpt-test",
+   "lines": [
+    "{\"type\":\"response.output_item.done\",\"item\":{\"type\":\"function_call\",\"id\":\"fc_1\",\"call_id\":\"call_stream_1\",\"name\":\"lookup\",\"arguments\":\"{\\\"q\\\":\\\"x\\\"}\"}}"
+   ],
+   "outputs": [
+    [
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1791031652517373544\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gpt-test\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1791031652517373544\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
+     "event: step.start\ndata: {\"index\":0,\"step\":{\"type\":\"function_call\",\"id\":\"call_stream_1\",\"call_id\":\"call_stream_1\",\"name\":\"lookup\",\"arguments\":{}},\"event_type\":\"step.start\"}\n\n",
+     "event: step.delta\ndata: {\"index\":0,\"delta\":{\"arguments\":\"{\\\"q\\\":\\\"x\\\"}\",\"type\":\"arguments_delta\"},\"event_type\":\"step.delta\"}\n\n",
+     "event: step.stop\ndata: {\"index\":0,\"event_type\":\"step.stop\"}\n\n"
+    ]
+   ],
+   "dynamic": [
+    {
+     "out": 0,
+     "data": 1,
+     "path": "interaction.id",
+     "prefix": "interaction_"
+    },
+    {
+     "out": 1,
+     "data": 1,
+     "path": "interaction_id",
+     "prefix": "interaction_"
+    }
+   ]
+  },
+  {
+   "name": "TestConvertOpenAIResponsesResponseToInteractionsStreamSkipsDoneArgumentsAfterDelta:415:stream",
+   "path": "stream",
+   "model": "gpt-test",
+   "lines": [
+    "{\"type\":\"response.function_call_arguments.delta\",\"output_index\":0,\"item_id\":\"fc_1\",\"call_id\":\"call_1\",\"delta\":\"{\\\"q\\\":\\\"x\\\"}\"}",
+    "{\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"type\":\"function_call\",\"id\":\"fc_1\",\"call_id\":\"call_1\",\"name\":\"lookup\",\"arguments\":\"{\\\"q\\\":\\\"x\\\"}\"}}"
+   ],
+   "outputs": [
+    [
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1791031652518643761\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gpt-test\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1791031652518643761\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
+     "event: step.start\ndata: {\"index\":0,\"step\":{\"type\":\"function_call\",\"id\":\"call_1\",\"call_id\":\"call_1\",\"name\":\"\",\"arguments\":{}},\"event_type\":\"step.start\"}\n\n",
+     "event: step.delta\ndata: {\"index\":0,\"delta\":{\"arguments\":\"{\\\"q\\\":\\\"x\\\"}\",\"type\":\"arguments_delta\"},\"event_type\":\"step.delta\"}\n\n"
+    ],
+    [
+     "event: step.stop\ndata: {\"index\":0,\"event_type\":\"step.stop\"}\n\n"
+    ]
+   ],
+   "dynamic": [
+    {
+     "out": 0,
+     "data": 1,
+     "path": "interaction.id",
+     "prefix": "interaction_"
+    },
+    {
+     "out": 1,
+     "data": 1,
+     "path": "interaction_id",
+     "prefix": "interaction_"
+    }
+   ]
+  },
+  {
+   "name": "TestConvertOpenAIResponsesResponseToInteractionsStreamSkipsDoneTextAfterDelta:437:stream",
+   "path": "stream",
+   "model": "gpt-test",
+   "lines": [
+    "{\"type\":\"response.output_text.delta\",\"item_id\":\"msg_1\",\"output_index\":0,\"content_index\":0,\"delta\":\"hi\"}",
+    "{\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"type\":\"message\",\"id\":\"msg_1\",\"content\":[{\"type\":\"output_text\",\"text\":\"hi\"}]}}"
+   ],
+   "outputs": [
+    [
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1791031652519857430\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gpt-test\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1791031652519857430\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
+     "event: step.start\ndata: {\"index\":0,\"step\":{\"type\":\"model_output\"},\"event_type\":\"step.start\"}\n\n",
+     "event: step.delta\ndata: {\"index\":0,\"delta\":{\"text\":\"hi\",\"type\":\"text\"},\"event_type\":\"step.delta\"}\n\n"
+    ],
+    [
+     "event: step.stop\ndata: {\"index\":0,\"event_type\":\"step.stop\"}\n\n"
+    ]
+   ],
+   "dynamic": [
+    {
+     "out": 0,
+     "data": 1,
+     "path": "interaction.id",
+     "prefix": "interaction_"
+    },
+    {
+     "out": 1,
+     "data": 1,
+     "path": "interaction_id",
+     "prefix": "interaction_"
+    }
+   ]
+  },
+  {
+   "name": "TestConvertOpenAIResponsesResponseToInteractionsStreamSkipsDoneTextAfterUnkeyedDelta:456:stream",
+   "path": "stream",
+   "model": "gpt-test",
+   "lines": [
+    "{\"type\":\"response.output_text.delta\",\"item_id\":\"msg_1\",\"output_index\":0,\"delta\":\"hi\"}",
+    "{\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"type\":\"message\",\"id\":\"msg_1\",\"content\":[{\"type\":\"output_text\",\"text\":\"hi\"}]}}"
+   ],
+   "outputs": [
+    [
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1791031652521102095\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gpt-test\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1791031652521102095\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
+     "event: step.start\ndata: {\"index\":0,\"step\":{\"type\":\"model_output\"},\"event_type\":\"step.start\"}\n\n",
+     "event: step.delta\ndata: {\"index\":0,\"delta\":{\"text\":\"hi\",\"type\":\"text\"},\"event_type\":\"step.delta\"}\n\n"
+    ],
+    [
+     "event: step.stop\ndata: {\"index\":0,\"event_type\":\"step.stop\"}\n\n"
+    ]
+   ],
+   "dynamic": [
+    {
+     "out": 0,
+     "data": 1,
+     "path": "interaction.id",
+     "prefix": "interaction_"
+    },
+    {
+     "out": 1,
+     "data": 1,
+     "path": "interaction_id",
+     "prefix": "interaction_"
+    }
+   ]
+  },
+  {
+   "name": "TestConvertOpenAIResponsesResponseToInteractionsStreamCompletedOutputFallback:475:stream",
+   "path": "stream",
+   "model": "gpt-test",
+   "lines": [
+    "{\"type\":\"response.completed\",\"response\":{\"output\":[{\"type\":\"message\",\"id\":\"msg_1\",\"content\":[{\"type\":\"output_text\",\"text\":\"final\"}]}],\"usage\":{\"input_tokens\":1,\"output_tokens\":2,\"total_tokens\":3}}}"
+   ],
+   "outputs": [
+    [
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1791031652522369739\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gpt-test\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1791031652522369739\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
+     "event: step.start\ndata: {\"index\":0,\"step\":{\"type\":\"model_output\"},\"event_type\":\"step.start\"}\n\n",
+     "event: step.delta\ndata: {\"index\":0,\"delta\":{\"text\":\"final\",\"type\":\"text\"},\"event_type\":\"step.delta\"}\n\n",
+     "event: step.stop\ndata: {\"index\":0,\"event_type\":\"step.stop\"}\n\n",
+     "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"interaction_1791031652522369739\",\"status\":\"completed\",\"usage\":{\"input_tokens\":1,\"total_input_tokens\":1,\"output_tokens\":2,\"total_output_tokens\":2,\"total_tokens\":3},\"created\":\"2026-10-03T12:47:32Z\",\"updated\":\"2026-10-03T12:47:32Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"gpt-test\"},\"event_type\":\"interaction.completed\"}\n\n",
+     "event: done\ndata: [DONE]\n\n"
+    ]
+   ],
+   "dynamic": [
+    {
+     "out": 0,
+     "data": 1,
+     "path": "interaction.id",
+     "prefix": "interaction_"
+    },
+    {
+     "out": 1,
+     "data": 1,
+     "path": "interaction_id",
+     "prefix": "interaction_"
+    },
+    {
+     "out": 5,
+     "data": 1,
+     "path": "interaction.id",
+     "prefix": "interaction_"
+    },
+    {
+     "out": 5,
+     "data": 1,
+     "path": "interaction.created",
+     "time": true
+    },
+    {
+     "out": 5,
+     "data": 1,
+     "path": "interaction.updated",
+     "time": true
+    }
+   ]
+  },
+  {
+   "name": "TestConvertOpenAIResponsesResponseToInteractionsStreamEmitsDone:491:stream",
+   "path": "stream",
+   "model": "gpt-test",
+   "lines": [
+    "{\"type\":\"response.completed\",\"response\":{\"output\":[],\"usage\":{\"input_tokens\":1,\"output_tokens\":2,\"total_tokens\":3}}}",
+    "data: [DONE]"
+   ],
+   "outputs": [
+    [
+     "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"\",\"status\":\"completed\",\"usage\":{\"input_tokens\":1,\"total_input_tokens\":1,\"output_tokens\":2,\"total_output_tokens\":2,\"total_tokens\":3},\"created\":\"2026-10-03T12:47:32Z\",\"updated\":\"2026-10-03T12:47:32Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"gpt-test\"},\"event_type\":\"interaction.completed\"}\n\n",
+     "event: done\ndata: [DONE]\n\n"
+    ],
+    []
+   ],
+   "dynamic": [
+    {
+     "out": 0,
+     "data": 1,
+     "path": "interaction.created",
+     "time": true
+    },
+    {
+     "out": 0,
+     "data": 1,
+     "path": "interaction.updated",
+     "time": true
+    }
+   ]
+  },
+  {
+   "name": "TestConvertOpenAIResponsesResponseToInteractionsStreamCreatedThenDelta:542:stream",
+   "path": "stream",
+   "model": "gpt-test",
+   "lines": [
+    "{\"type\":\"response.created\",\"response\":{\"id\":\"resp_1\",\"model\":\"gpt-test\"}}",
+    "{\"type\":\"response.output_text.delta\",\"item_id\":\"msg_1\",\"output_index\":0,\"content_index\":0,\"delta\":\"hi\"}"
+   ],
+   "outputs": [
+    [
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"resp_1\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gpt-test\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"resp_1\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n"
+    ],
+    [
+     "event: step.start\ndata: {\"index\":0,\"step\":{\"type\":\"model_output\"},\"event_type\":\"step.start\"}\n\n",
+     "event: step.delta\ndata: {\"index\":0,\"delta\":{\"text\":\"hi\",\"type\":\"text\"},\"event_type\":\"step.delta\"}\n\n"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertOpenAIResponsesResponseToInteractionsStreamCompletesAfterSteps:564:stream",
+   "path": "stream",
+   "model": "gpt-test",
+   "lines": [
+    "{\"type\":\"response.output_text.delta\",\"item_id\":\"msg_1\",\"output_index\":0,\"content_index\":0,\"delta\":\"我将调用工具。\"}",
+    "{\"type\":\"response.output_item.done\",\"output_index\":1,\"item\":{\"type\":\"function_call\",\"id\":\"fc_1\",\"call_id\":\"call_1\",\"name\":\"lookup\",\"arguments\":\"{\\\"q\\\":\\\"weather\\\"}\"}}",
+    "{\"type\":\"response.completed\",\"response\":{\"output\":[],\"usage\":{\"input_tokens\":1,\"output_tokens\":2,\"total_tokens\":3}}}"
+   ],
+   "outputs": [
+    [
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1791031652526151373\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gpt-test\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1791031652526151373\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
+     "event: step.start\ndata: {\"index\":0,\"step\":{\"type\":\"model_output\"},\"event_type\":\"step.start\"}\n\n",
+     "event: step.delta\ndata: {\"index\":0,\"delta\":{\"text\":\"我将调用工具。\",\"type\":\"text\"},\"event_type\":\"step.delta\"}\n\n"
+    ],
+    [
+     "event: step.stop\ndata: {\"index\":0,\"event_type\":\"step.stop\"}\n\n",
+     "event: step.start\ndata: {\"index\":1,\"step\":{\"type\":\"function_call\",\"id\":\"call_1\",\"call_id\":\"call_1\",\"name\":\"lookup\",\"arguments\":{}},\"event_type\":\"step.start\"}\n\n",
+     "event: step.delta\ndata: {\"index\":1,\"delta\":{\"arguments\":\"{\\\"q\\\":\\\"weather\\\"}\",\"type\":\"arguments_delta\"},\"event_type\":\"step.delta\"}\n\n",
+     "event: step.stop\ndata: {\"index\":1,\"event_type\":\"step.stop\"}\n\n"
+    ],
+    [
+     "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"interaction_1791031652526151373\",\"status\":\"completed\",\"usage\":{\"input_tokens\":1,\"total_input_tokens\":1,\"output_tokens\":2,\"total_output_tokens\":2,\"total_tokens\":3},\"created\":\"2026-10-03T12:47:32Z\",\"updated\":\"2026-10-03T12:47:32Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"gpt-test\"},\"event_type\":\"interaction.completed\"}\n\n",
+     "event: done\ndata: [DONE]\n\n"
+    ]
+   ],
+   "dynamic": [
+    {
+     "out": 0,
+     "data": 1,
+     "path": "interaction.id",
+     "prefix": "interaction_"
+    },
+    {
+     "out": 1,
+     "data": 1,
+     "path": "interaction_id",
+     "prefix": "interaction_"
+    },
+    {
+     "out": 8,
+     "data": 1,
+     "path": "interaction.id",
+     "prefix": "interaction_"
+    },
+    {
+     "out": 8,
+     "data": 1,
+     "path": "interaction.created",
+     "time": true
+    },
+    {
+     "out": 8,
+     "data": 1,
+     "path": "interaction.updated",
+     "time": true
+    }
+   ]
+  },
+  {
+   "name": "TestConvertOpenAIResponsesResponseToInteractionsStreamSkipsCompletedTextAfterUnkeyedDelta:581:stream",
+   "path": "stream",
+   "model": "gpt-test",
+   "lines": [
+    "{\"type\":\"response.output_text.delta\",\"item_id\":\"msg_1\",\"output_index\":0,\"delta\":\"final\"}",
+    "{\"type\":\"response.completed\",\"response\":{\"output\":[{\"type\":\"message\",\"id\":\"msg_1\",\"content\":[{\"type\":\"output_text\",\"text\":\"final\"}]}],\"usage\":{\"input_tokens\":1,\"output_tokens\":2,\"total_tokens\":3}}}"
+   ],
+   "outputs": [
+    [
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1791031652527523243\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gpt-test\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1791031652527523243\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
+     "event: step.start\ndata: {\"index\":0,\"step\":{\"type\":\"model_output\"},\"event_type\":\"step.start\"}\n\n",
+     "event: step.delta\ndata: {\"index\":0,\"delta\":{\"text\":\"final\",\"type\":\"text\"},\"event_type\":\"step.delta\"}\n\n"
+    ],
+    [
+     "event: step.stop\ndata: {\"index\":0,\"event_type\":\"step.stop\"}\n\n",
+     "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"interaction_1791031652527523243\",\"status\":\"completed\",\"usage\":{\"input_tokens\":1,\"total_input_tokens\":1,\"output_tokens\":2,\"total_output_tokens\":2,\"total_tokens\":3},\"created\":\"2026-10-03T12:47:32Z\",\"updated\":\"2026-10-03T12:47:32Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"gpt-test\"},\"event_type\":\"interaction.completed\"}\n\n",
+     "event: done\ndata: [DONE]\n\n"
+    ]
+   ],
+   "dynamic": [
+    {
+     "out": 0,
+     "data": 1,
+     "path": "interaction.id",
+     "prefix": "interaction_"
+    },
+    {
+     "out": 1,
+     "data": 1,
+     "path": "interaction_id",
+     "prefix": "interaction_"
+    },
+    {
+     "out": 5,
+     "data": 1,
+     "path": "interaction.id",
+     "prefix": "interaction_"
+    },
+    {
+     "out": 5,
+     "data": 1,
+     "path": "interaction.created",
+     "time": true
+    },
+    {
+     "out": 5,
+     "data": 1,
+     "path": "interaction.updated",
+     "time": true
+    }
+   ]
+  },
+  {
+   "name": "TestConvertOpenAIResponsesResponseToInteractionsIncompleteTerminal:618:stream",
+   "path": "stream",
+   "model": "gpt-test",
+   "lines": [
+    "{\"type\":\"response.incomplete\",\"response\":{\"id\":\"resp_1\",\"status\":\"incomplete\",\"output\":[{\"type\":\"message\",\"id\":\"msg_1\",\"content\":[{\"type\":\"output_text\",\"text\":\"partial\"}]}],\"usage\":{\"input_tokens\":1,\"output_tokens\":2,\"total_tokens\":3}}}",
+    "data: [DONE]"
+   ],
+   "outputs": [
+    [
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1791031652528786991\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gpt-test\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1791031652528786991\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
+     "event: step.start\ndata: {\"index\":0,\"step\":{\"type\":\"model_output\"},\"event_type\":\"step.start\"}\n\n",
+     "event: step.delta\ndata: {\"index\":0,\"delta\":{\"text\":\"partial\",\"type\":\"text\"},\"event_type\":\"step.delta\"}\n\n",
+     "event: step.stop\ndata: {\"index\":0,\"event_type\":\"step.stop\"}\n\n",
+     "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"interaction_1791031652528786991\",\"status\":\"incomplete\",\"usage\":{\"input_tokens\":1,\"total_input_tokens\":1,\"output_tokens\":2,\"total_output_tokens\":2,\"total_tokens\":3},\"created\":\"2026-10-03T12:47:32Z\",\"updated\":\"2026-10-03T12:47:32Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"gpt-test\"},\"event_type\":\"interaction.completed\"}\n\n",
+     "event: done\ndata: [DONE]\n\n"
+    ],
+    []
+   ],
+   "dynamic": [
+    {
+     "out": 0,
+     "data": 1,
+     "path": "interaction.id",
+     "prefix": "interaction_"
+    },
+    {
+     "out": 1,
+     "data": 1,
+     "path": "interaction_id",
+     "prefix": "interaction_"
+    },
+    {
+     "out": 5,
+     "data": 1,
+     "path": "interaction.id",
+     "prefix": "interaction_"
+    },
+    {
+     "out": 5,
+     "data": 1,
+     "path": "interaction.created",
+     "time": true
+    },
+    {
+     "out": 5,
+     "data": 1,
+     "path": "interaction.updated",
+     "time": true
+    }
+   ]
   }
  ],
  "token_count": false,
