@@ -486,6 +486,7 @@ async fn executor_scenarios_match_go() {
                         &continuity.prompt_id,
                     )
                 }),
+                Default::default(),
             )
             .map(|e| String::from_utf8(e.unwrap().to_vec()).unwrap())
             .collect()
@@ -558,6 +559,7 @@ async fn compat_replay_sequence_matches_go() {
         .build()
         .unwrap();
     let executor = ClaudeExecutor::with_client(client, DEFAULT_BASE_URL);
+    let usage = Arc::new(Usage::default());
     let root = std::env::temp_dir().join(format!("cpa-claude-replay-{}", std::process::id()));
     std::fs::create_dir_all(&root).unwrap();
     for (step, scenario) in steps.iter().enumerate() {
@@ -596,7 +598,7 @@ async fn compat_replay_sequence_matches_go() {
             execution_session: None,
             derived_session: None,
             resolved_model: resolved(scenario),
-            usage: Default::default(),
+            usage: cpa_core::exec::UsageSink::new(usage.clone()),
             request_path: String::new(),
             headers,
             caller: Caller {
@@ -604,6 +606,7 @@ async fn compat_replay_sequence_matches_go() {
                 source: "authorization",
             },
         });
+        usage.0.lock().unwrap().clear();
         let sent = captured.lock().unwrap().len();
         let result = executor.execute(&credential, req, &cfg).await;
         match scenario["error_status"].as_u64() {
@@ -616,9 +619,40 @@ async fn compat_replay_sequence_matches_go() {
         let go = scenario["upstream"][0]["body"].as_str();
         let rust = captured.lock().unwrap().get(sent).cloned();
         assert_eq!(rust.is_some(), go.is_some(), "step {step}: upstream request");
-        if let (Some(rust), Some(go)) = (rust, go) {
+        if let (Some(rust), Some(go)) = (rust.clone(), go) {
             assert_eq!(normalize_replay(&rust), normalize_replay(go), "step {step}");
         }
+        // Go's usage reporter reads the body sent upstream (SetTranslatedReasoningEffort)
+        // and the upstream reply as received (ParseClaudeUsage, ObserveResponseModel).
+        let reports = usage.0.lock().unwrap().clone();
+        let mut want = Vec::new();
+        if let Some(sent) = rust {
+            want.push(("request", Format::Claude, sent));
+            if scenario["error_status"].is_null() {
+                let reply = scenario["reply"]["body"].as_str().unwrap().to_owned();
+                want.push(("body", Format::Claude, reply));
+            }
+        }
+        assert_eq!(reports, want, "step {step}: usage reports");
     }
     let _ = std::fs::remove_dir_all(root);
+}
+
+/// Records what the executor reports to the usage queue.
+#[derive(Default)]
+pub(super) struct Usage(pub std::sync::Mutex<Vec<(&'static str, Format, String)>>);
+
+impl cpa_core::exec::UsageObserver for Usage {
+    fn response_body(&self, format: Format, body: &[u8]) {
+        let body = String::from_utf8_lossy(body).into_owned();
+        self.0.lock().unwrap().push(("body", format, body));
+    }
+    fn response_line(&self, format: Format, line: &[u8]) {
+        let line = String::from_utf8_lossy(line).into_owned();
+        self.0.lock().unwrap().push(("line", format, line));
+    }
+    fn request(&self, format: Format, payload: &[u8]) {
+        let payload = String::from_utf8_lossy(payload).into_owned();
+        self.0.lock().unwrap().push(("request", format, payload));
+    }
 }

@@ -246,6 +246,10 @@ impl ClaudeExecutor {
         let translated = translate::request(&req, ctx.codex, &ctx.base_model, ctx.is_compat)?;
         let original_translated = translate::original(&req, &translated, ctx.codex, &ctx.base_model, ctx.is_compat)?;
         let prepared = ctx.prepare_messages(&req, &translated, &original_translated, upstream_stream)?;
+        // reporter.SetTranslatedReasoningEffort on the body sent upstream.
+        if req.usage.enabled() {
+            req.usage.request(Format::Claude, prepared.body.as_bytes());
+        }
         let response = self.send(&ctx, &prepared, "/v1/messages").await.inspect_err(|error| {
             // shouldClearKimiThinkingReplayAfterError: an upstream rejection of applied replay.
             if let Some(scope) = replay.filter(|s| s.applied)
@@ -271,9 +275,9 @@ impl ClaudeExecutor {
                     );
                 });
                 let relayed = if req.response_format == Format::Claude {
-                    stream::relay(raw, reverse, done)
+                    stream::relay(raw, reverse, done, req.usage.clone())
                 } else {
-                    stream::relay_translated(raw, reverse, done)
+                    stream::relay_translated(raw, reverse, done, req.usage.clone())
                 };
                 ResponseBody::Stream(relayed.map(move |r| r.map_err(|e| fast_request_error(fast, e))).boxed())
             }
@@ -294,6 +298,8 @@ impl ClaudeExecutor {
                         if i > 0 {
                             out.push(b'\n');
                         }
+                        // ObserveResponseModel and ObserveClaudeStream, before restore.
+                        req.usage.response_line(Format::Claude, line);
                         out.extend(stream::restore_line(line, &reverse).map_err(|m| {
                             wrap(plain_error(format!(
                                 "restore Claude OAuth tool name from streaming response: {m}"
@@ -305,6 +311,8 @@ impl ClaudeExecutor {
                     }
                     ResponseBody::Buffered(Bytes::from(out))
                 } else {
+                    // ObserveResponseModel and ParseClaudeUsage of the upstream body.
+                    req.usage.response_body(Format::Claude, &data);
                     let text = String::from_utf8_lossy(&data).into_owned();
                     let id = rawjson::string(&text, "id").trim().to_owned();
                     session::commit(
