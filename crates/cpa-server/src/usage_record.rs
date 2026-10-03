@@ -1411,6 +1411,12 @@ impl cpa_core::exec::UsageObserver for Observer {
             format.as_str(),
         ));
     }
+
+    fn failed(&self) {
+        let mut r = self.lock();
+        r.seen = true;
+        r.body = Some(Detail::default());
+    }
 }
 
 /// One upstream attempt's record in progress. It publishes exactly once: on
@@ -1688,6 +1694,31 @@ mod tests {
             go_timestamp(&t.with_timezone(&east)),
             "2026-10-03T13:30:00.123456+05:30"
         );
+    }
+
+    /// Go's `PublishFailure(err)` after usage was observed (an apply_patch rejection):
+    /// an empty detail wins over the reported body and lines, the response model stays.
+    #[test]
+    fn executor_failure_report_drops_tokens_keeps_model() {
+        use cpa_core::exec::UsageObserver;
+        let observer = Observer {
+            provider: "claude".into(),
+            state: std::sync::Mutex::default(),
+        };
+        observer.response_line(
+            Format::Claude,
+            br#"data: {"type":"message_start","message":{"model":"claude-upstream","usage":{"input_tokens":9,"cache_creation_input_tokens":4}}}"#,
+        );
+        observer.response_body(
+            Format::Claude,
+            br#"{"model":"claude-upstream","usage":{"input_tokens":9,"output_tokens":2}}"#,
+        );
+        assert_ne!(observer.lock().body, Some(Detail::default()), "the body parsed tokens");
+        observer.failed();
+        let reported = std::mem::take(&mut *observer.lock());
+        assert!(reported.seen);
+        assert_eq!(reported.body, Some(Detail::default()));
+        assert_eq!(reported.model.get(), "claude-upstream");
     }
 
     /// Records from Go's real parsers, `UsageReporter` and `usageQueuePlugin`

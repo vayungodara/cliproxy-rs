@@ -64,6 +64,8 @@ pub mod proxy;
 mod quota;
 mod rawjson;
 mod replay;
+#[cfg(test)]
+mod test_tls;
 mod tls;
 mod tokens;
 mod translate;

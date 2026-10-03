@@ -135,8 +135,9 @@ func rsfixParseAlias(name string) (claudeMCPAliasParts, bool) {
 
 // rsfixBuffer collects a body while the executor reads it.
 type rsfixBuffer struct {
-	mu  sync.Mutex
-	buf bytes.Buffer
+	mu        sync.Mutex
+	buf       bytes.Buffer
+	readError string
 }
 
 func (b *rsfixBuffer) MarshalJSON() ([]byte, error) {
@@ -154,6 +155,11 @@ func (t *rsfixTee) Read(p []byte) (int, error) {
 	n, err := t.body.Read(p)
 	t.buf.mu.Lock()
 	t.buf.buf.Write(p[:n])
+	// The first body read error other than EOF: the replay ends its body the same way
+	// (a short Content-Length body or an unterminated chunked one).
+	if err != nil && err != io.EOF && t.buf.readError == "" {
+		t.buf.readError = err.Error()
+	}
 	t.buf.mu.Unlock()
 	return n, err
 }
@@ -170,6 +176,18 @@ type rsfixExchange struct {
 	ResponseHeaders map[string][]string `json:"response_headers"`
 	ResponseBody    *rsfixBuffer        `json:"response_body"`
 	Error           string              `json:"error,omitempty"`
+}
+
+// MarshalJSON adds the body read error (read_error) to the exchange's fields.
+func (e *rsfixExchange) MarshalJSON() ([]byte, error) {
+	type plain rsfixExchange
+	e.ResponseBody.mu.Lock()
+	readError := e.ResponseBody.readError
+	e.ResponseBody.mu.Unlock()
+	return json.Marshal(struct {
+		*plain
+		ReadError string `json:"read_error,omitempty"`
+	}{(*plain)(e), readError})
 }
 
 type rsfixCall struct {
@@ -485,8 +503,12 @@ func rsfixExecuteStream(e rsfixStreamExecutor, ctx context.Context, auth *clipro
 		return result, err
 	}
 	out := make(chan cliproxyexecutor.StreamChunk)
+	// The executor's cancellation chunk is a non-blocking send: it lands only while
+	// someone receives, so the forwarder must be running before the caller proceeds.
+	ready := make(chan struct{})
 	go func() {
 		defer close(out)
+		close(ready)
 		for chunk := range result.Chunks {
 			call.mu.Lock()
 			call.chunks = append(call.chunks, map[string]any{"payload": rsfixBytes(chunk.Payload), "error": rsfixErrorInfo(chunk.Err)})
@@ -494,6 +516,7 @@ func rsfixExecuteStream(e rsfixStreamExecutor, ctx context.Context, auth *clipro
 			out <- chunk
 		}
 	}()
+	<-ready
 	return &cliproxyexecutor.StreamResult{Headers: result.Headers, Chunks: out}, nil
 }
 

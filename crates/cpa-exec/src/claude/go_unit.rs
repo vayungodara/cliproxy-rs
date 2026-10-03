@@ -8,6 +8,7 @@ use std::sync::OnceLock;
 
 use serde_json::Value;
 
+use super::go_exec::Verdict;
 use super::{alias, stream};
 
 fn fixture() -> &'static Value {
@@ -41,10 +42,10 @@ fn reverse(value: &Value) -> alias::Reverse {
 }
 
 /// Replays one recorded call; `Err` describes how Rust differs from Go.
-async fn replay(test: &str, record: &Value) -> Result<(), String> {
+async fn replay(test: &str, record: &Value) -> Result<Verdict, String> {
     let field = |name: &str| &record[name];
-    match field("fn").as_str().unwrap() {
-        "execute" | "execute_stream" | "count_tokens" => super::go_exec::replay(test, record).await,
+    let checked = match field("fn").as_str().unwrap() {
+        "execute" | "execute_stream" | "count_tokens" => return super::go_exec::replay(test, record).await,
         "remap" => {
             let (out, map) = alias::remap(&text(field("body")), field("secret").as_str().unwrap());
             check("body", &out, &text(field("out")))?;
@@ -55,7 +56,8 @@ async fn replay(test: &str, record: &Value) -> Result<(), String> {
         "remap_batched" => {
             let body = text(field("body"));
             if !field("ok").as_bool().unwrap() {
-                return check("valid JSON", &cpa_common::json::valid(body.as_bytes()), &false);
+                return check("valid JSON", &cpa_common::json::valid(body.as_bytes()), &false)
+                    .map(|()| Verdict::Matched);
             }
             let (out, map) = alias::remap(&body, field("secret").as_str().unwrap());
             check("body", &out, &text(field("out")))?;
@@ -87,7 +89,8 @@ async fn replay(test: &str, record: &Value) -> Result<(), String> {
             check("parts", &alias::alias_parts(name), &want)
         }
         other => Err(format!("no Rust replay for recorded function {other:?}")),
-    }
+    };
+    checked.map(|()| Verdict::Matched)
 }
 
 fn check<T: PartialEq + std::fmt::Debug>(what: &str, got: &T, want: &T) -> Result<(), String> {
@@ -108,8 +111,17 @@ async fn replay_file(file: &str) {
     for (test, records) in tests {
         for (i, record) in records.as_array().unwrap().iter().enumerate() {
             count += 1;
-            if let Err(why) = replay(test, record).await {
-                failures.push(format!("{test} call {i} ({}): {why}", record["fn"]));
+            match replay(test, record).await {
+                Ok(Verdict::Matched) => {}
+                // Not a pass: listed in the test output and in UNVERIFIED below.
+                Ok(Verdict::Unverified(why)) => {
+                    eprintln!("UNVERIFIED {file}: {test} call {i}: {why}");
+                    assert!(
+                        UNVERIFIED.contains(&test.as_str()),
+                        "{test}: unverified but not listed in UNVERIFIED"
+                    );
+                }
+                Err(why) => failures.push(format!("{test} call {i} ({}): {why}", record["fn"])),
             }
         }
     }
@@ -120,6 +132,24 @@ async fn replay_file(file: &str) {
         failures.len(),
         failures.join("\n")
     );
+}
+
+/// Go executor tests the replay cannot reproduce (context cancellation mid-call); their
+/// behaviour is covered by Rust tests of the same contract instead.
+const UNVERIFIED: &[&str] = &[
+    "TestClaudeExecutor_ExecuteStreamOAuthCancellationIsRequestScoped",
+    "TestClaudeExecutor_ExecuteStreamOAuthStartupCancellationIsRequestScoped",
+];
+
+/// Listed so cargo's summary counts them: Go cancels the request context mid-call and
+/// expects a request-scoped cancellation error. A Rust caller cancels by dropping the
+/// stream, so no error result reaches the scheduler at all.
+#[test]
+#[ignore = "unverified: Go cancels the request context mid-call (see UNVERIFIED)"]
+fn unverified_go_cancellation_cases() {
+    for test in UNVERIFIED {
+        assert!(fixture()["files"]["claude_executor_test.go"][test].is_array(), "{test}");
+    }
 }
 
 #[test]

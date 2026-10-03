@@ -170,14 +170,16 @@ async fn custom_origin_counts_locally_without_sending_credentials() {
     );
 }
 
-/// Go's conductor observes the quota headers of every Messages response (success or
-/// upstream error) for Claude credentials; count_tokens results skip observation.
+/// Go's conductor observes the quota headers of every Messages response (success,
+/// undecodable success or upstream error) for Claude credentials; count_tokens results
+/// skip observation.
 #[tokio::test]
 async fn messages_responses_record_the_quota_snapshot() {
     use axum::response::IntoResponse;
     let replies = Arc::new(std::sync::Mutex::new(std::collections::VecDeque::from([
         (200u16, "allowed"),
         (429, "rejected"),
+        (200, "undecodable"),
         (200, "count-must-not-observe"),
     ])));
     let router = axum::Router::new().fallback(move || {
@@ -189,10 +191,13 @@ async fn messages_responses_record_the_quota_snapshot() {
             } else {
                 r#"{"type":"error","error":{"type":"rate_limit_error","message":"limited"}}"#
             };
+            // A 2xx whose gzip body cannot be decoded still observes the headers.
+            let encoding = if value == "undecodable" { "gzip" } else { "identity" };
             (
                 http::StatusCode::from_u16(status).unwrap(),
                 [
                     ("content-type", "application/json"),
+                    ("content-encoding", encoding),
                     ("anthropic-ratelimit-unified-status", value),
                     ("anthropic-workspace-id", "ws-not-a-signal"),
                 ],
@@ -259,6 +264,13 @@ async fn messages_responses_record_the_quota_snapshot() {
         .unwrap();
     assert_eq!(error.status, 429);
     assert_eq!(signal(&executor), "rejected");
+    assert!(
+        executor
+            .execute(&credential, request(Operation::Generate), &cfg)
+            .await
+            .is_err()
+    );
+    assert_eq!(signal(&executor), "undecodable");
     // A custom origin counts locally; Delegation's upstream count still never observes.
     let count = Delegation {
         count_upstream: true,
@@ -268,7 +280,7 @@ async fn messages_responses_record_the_quota_snapshot() {
         .execute_delegated(&credential, request(Operation::CountTokens), &cfg, count)
         .await
         .unwrap();
-    assert_eq!(signal(&executor), "rejected");
+    assert_eq!(signal(&executor), "undecodable");
 }
 
 /// Go `session.Enrich` + `ExtractSessionID`, as the server applies them before the
@@ -609,6 +621,75 @@ async fn executor_scenarios_match_go() {
     let _ = std::fs::remove_dir_all(root);
 }
 
+/// Go's non-stream native path: a reply whose OAuth tool alias cannot be restored
+/// returns before ParseClaudeUsage, so the deferred TrackFailure publishes no tokens
+/// even though the upstream body (and its model) was observed.
+#[tokio::test]
+async fn unrestorable_tool_alias_publishes_no_tokens() {
+    use axum::response::IntoResponse;
+    let router = axum::Router::new().fallback(|body: String| async move {
+        // The client tool `other` went upstream as mcp__<virtual server>__<word>_other;
+        // `query` under that server matches both passthrough MCP tools.
+        let sent: Value = serde_json::from_str(&body).unwrap();
+        let alias = sent["tools"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|t| t["name"].as_str())
+            .find(|n| n.ends_with("_other"))
+            .unwrap()
+            .to_owned();
+        let server = alias.split("__").nth(1).unwrap();
+        let reply = serde_json::json!({
+            "id": "msg_r", "type": "message", "role": "assistant", "model": "claude-upstream",
+            "content": [{"type": "tool_use", "id": "toolu_1", "name": format!("mcp__{server}__query"), "input": {}}],
+            "stop_reason": "tool_use", "usage": {"input_tokens": 11, "output_tokens": 3},
+        });
+        ([(http::header::CONTENT_TYPE, "application/json")], reply.to_string()).into_response()
+    });
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let base = format!("http://{}", listener.local_addr().unwrap());
+    tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
+    let executor = ClaudeExecutor::with_client(wreq::Client::new(), DEFAULT_BASE_URL);
+    let mut credential = harness_credential();
+    credential.attributes.insert("base_url".into(), base);
+    let body = Bytes::from_static(
+        br#"{"model":"claude-sonnet-4-6","max_tokens":8,"messages":[{"role":"user","content":"hi"}],"tools":[{"name":"mcp__srv1__query","input_schema":{"type":"object"}},{"name":"mcp__srv2__query","input_schema":{"type":"object"}},{"name":"other","input_schema":{"type":"object"}}]}"#,
+    );
+    let usage = Arc::new(Usage::default());
+    let req = enrich(ExecRequest {
+        operation: Operation::Generate,
+        source_format: Format::Claude,
+        response_format: Format::Claude,
+        requested_model: "claude-sonnet-4-6".into(),
+        model: "claude-sonnet-4-6".into(),
+        original_body: body.clone(),
+        body,
+        stream: false,
+        alt: None,
+        session: None,
+        execution_session: None,
+        derived_session: None,
+        resolved_model: None,
+        usage: cpa_core::exec::UsageSink::new(usage.clone()),
+        request_path: String::new(),
+        headers: Default::default(),
+        caller: Caller {
+            principal: "fake-client".into(),
+            source: "authorization",
+        },
+    });
+    let cfg = Config::parse("").unwrap();
+    let error = executor.execute(&credential, req, &cfg).await.err().unwrap();
+    let message = String::from_utf8_lossy(&error.body).into_owned();
+    assert!(
+        message.starts_with("restore Claude OAuth tool name from response: "),
+        "{message}"
+    );
+    let kinds: Vec<_> = usage.0.lock().unwrap().iter().map(|(kind, _, _)| *kind).collect();
+    assert_eq!(kinds, ["request", "body", "failed"]);
+}
+
 /// Go's in-process compat replay across two requests (store, then restore), replayed
 /// through `execute()` against a local upstream that answers like Go's capture.
 #[tokio::test]
@@ -755,5 +836,8 @@ impl cpa_core::exec::UsageObserver for Usage {
     fn request(&self, format: Format, payload: &[u8]) {
         let payload = String::from_utf8_lossy(payload).into_owned();
         self.0.lock().unwrap().push(("request", format, payload));
+    }
+    fn failed(&self) {
+        self.0.lock().unwrap().push(("failed", Format::Claude, String::new()));
     }
 }

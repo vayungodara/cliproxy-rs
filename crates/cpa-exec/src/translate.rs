@@ -104,6 +104,7 @@ async fn transform(
                 stream,
                 (pair.stream)(&context),
                 responses,
+                req.usage.clone(),
             ))),
             ResponseBody::Buffered(_) => Err(ExecError::local(
                 502,
@@ -130,11 +131,15 @@ async fn transform(
                 transform(&context, &body).map_err(error)?,
             )));
         }
-        // ApplyPatchTranslationError or an empty translation: Go's sanitized 502.
+        // ApplyPatchTranslationError or an empty translation: Go's sanitized 502, whose
+        // deferred TrackFailure publishes no tokens.
         let out = (pair.non_stream)(&context, &body)
             .ok()
             .filter(|out| !out.is_empty())
-            .ok_or_else(apply_patch_error)?;
+            .ok_or_else(|| {
+                req.usage.failed();
+                apply_patch_error()
+            })?;
         Ok(ResponseBody::Buffered(Bytes::from(if responses {
             ensure_responses_usage_details(&out)
         } else {
@@ -143,9 +148,14 @@ async fn transform(
     }
 }
 
-/// helps.ApplyPatchUpstreamErrorMessage with Go's 502 `statusErr`.
+/// helps.ApplyPatchUpstreamErrorMessage with Go's 502 `statusErr`: a plain status error,
+/// so the conductor classifies it by status (it is not request-scoped) and fails over.
 fn apply_patch_error() -> ExecError {
-    ExecError::local(502, FailureScope::Request, cpa_translate::APPLY_PATCH_UPSTREAM_ERROR)
+    ExecError::local(
+        502,
+        crate::upstream::scope_for(502),
+        cpa_translate::APPLY_PATCH_UPSTREAM_ERROR,
+    )
 }
 
 /// Go's translated stream loop (claude_executor_stream.go): each upstream event goes
@@ -153,11 +163,19 @@ fn apply_patch_error() -> ExecError {
 /// failed, and a failure ends the stream with a 502 after that event's frames
 /// (StopApplyPatchStream). When the transport ends, cleanly or not, tool input is
 /// finalized first (EndApplyPatchStream); a failure there replaces any transport error.
-fn streaming(upstream: ExecStream, translator: Box<dyn StreamTranslator>, responses: bool) -> ExecStream {
+/// An apply_patch failure publishes no tokens (RecordApplyPatchStreamFailure); other
+/// failures keep the stream usage seen so far.
+fn streaming(
+    upstream: ExecStream,
+    translator: Box<dyn StreamTranslator>,
+    responses: bool,
+    usage: cpa_core::exec::UsageSink,
+) -> ExecStream {
     struct State {
         upstream: ExecStream,
         translator: Box<dyn StreamTranslator>,
         responses: bool,
+        usage: cpa_core::exec::UsageSink,
         ready: VecDeque<Bytes>,
         error: Option<ExecError>,
         done: bool,
@@ -189,6 +207,7 @@ fn streaming(upstream: ExecStream, translator: Box<dyn StreamTranslator>, respon
             let finalized = self.translator.finalize_tool_input();
             self.emit(finalized);
             if self.translator.tool_input_failed() {
+                self.usage.failed();
                 return self.fail(apply_patch_error());
             }
             if let Some(error) = transport {
@@ -205,6 +224,7 @@ fn streaming(upstream: ExecStream, translator: Box<dyn StreamTranslator>, respon
             upstream,
             translator,
             responses,
+            usage,
             ready: VecDeque::new(),
             error: None,
             done: false,
@@ -225,6 +245,7 @@ fn streaming(upstream: ExecStream, translator: Box<dyn StreamTranslator>, respon
                         Ok(events) => {
                             state.emit(events);
                             if state.translator.tool_input_failed() {
+                                state.usage.failed();
                                 state.error = Some(apply_patch_error());
                                 state.done = true;
                             }
@@ -240,9 +261,10 @@ fn streaming(upstream: ExecStream, translator: Box<dyn StreamTranslator>, respon
     .boxed()
 }
 
-/// A response translator rejecting upstream data: a bad gateway, never the client's fault.
+/// A response translator rejecting upstream data: a bad gateway, never the client's fault,
+/// classified by status like Go's plain `statusErr`.
 fn stream_error(error: cpa_translate::Error) -> ExecError {
-    ExecError::local(502, FailureScope::Request, error.to_string())
+    ExecError::local(502, crate::upstream::scope_for(502), error.to_string())
 }
 
 fn error(error: cpa_translate::Error) -> ExecError {
@@ -364,7 +386,9 @@ mod tests {
         let result: Vec<_> = result.map(Result::unwrap).collect().await;
         assert_eq!(result, ["first", "one", "finished"]);
         let pending = stream(&[b"bad"]).chain(futures_util::stream::pending()).boxed();
-        let result: Vec<_> = streaming(pending, Box::new(Translator), false).collect().await;
+        let result: Vec<_> = streaming(pending, Box::new(Translator), false, Default::default())
+            .collect()
+            .await;
         assert_eq!(
             result.len(),
             1,
@@ -400,17 +424,164 @@ mod tests {
         ])
         .chain(futures_util::stream::pending())
         .boxed();
-        let result: Vec<_> = streaming(failing, Box::<Framer>::default(), false).collect().await;
-        assert_eq!(result.len(), 2);
-        assert_eq!(result[0].as_ref().unwrap(), "frame");
-        assert_eq!(result[1].as_ref().unwrap_err().status, 502);
-        // A translator error flushes the same way.
-        let result: Vec<_> = streaming(stream(&[b"frame", b"bad"]), Box::<Framer>::default(), false)
+        let result: Vec<_> = streaming(failing, Box::<Framer>::default(), false, Default::default())
             .collect()
             .await;
         assert_eq!(result.len(), 2);
         assert_eq!(result[0].as_ref().unwrap(), "frame");
+        assert_eq!(result[1].as_ref().unwrap_err().status, 502);
+        // A translator error flushes the same way.
+        let result: Vec<_> = streaming(
+            stream(&[b"frame", b"bad"]),
+            Box::<Framer>::default(),
+            false,
+            Default::default(),
+        )
+        .collect()
+        .await;
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0].as_ref().unwrap(), "frame");
         assert!(result[1].is_err());
+    }
+
+    /// Fails apply_patch tool input on the event `patch`.
+    #[derive(Default)]
+    struct PatchFail(bool);
+    impl StreamTranslator for PatchFail {
+        fn event(&mut self, event: &[u8]) -> Result<Vec<Bytes>, cpa_translate::Error> {
+            if event == b"bad" {
+                return Err(cpa_translate::Error("malformed event".into()));
+            }
+            self.0 |= event == b"patch";
+            Ok(vec![Bytes::copy_from_slice(event)])
+        }
+        fn finish(&mut self) -> Result<Vec<Bytes>, cpa_translate::Error> {
+            Ok(Vec::new())
+        }
+        fn tool_input_failed(&self) -> bool {
+            self.0
+        }
+    }
+
+    /// Counts `UsageObserver::failed` reports.
+    #[derive(Default)]
+    struct Failures(std::sync::atomic::AtomicUsize);
+    impl cpa_core::exec::UsageObserver for Failures {
+        fn response_body(&self, _: Format, _: &[u8]) {}
+        fn response_line(&self, _: Format, _: &[u8]) {}
+        fn request(&self, _: Format, _: &[u8]) {}
+        fn failed(&self) {
+            self.0.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        }
+    }
+    impl Failures {
+        fn sink() -> (std::sync::Arc<Self>, cpa_core::exec::UsageSink) {
+            let failures = std::sync::Arc::new(Self::default());
+            (failures.clone(), cpa_core::exec::UsageSink::new(failures))
+        }
+        fn count(&self) -> usize {
+            self.0.load(std::sync::atomic::Ordering::SeqCst)
+        }
+    }
+
+    /// Go returns these as plain 502 `statusErr`s, not request-scoped errors: the
+    /// conductor fails over to the next credential instead of answering the caller.
+    /// Only the apply_patch rejection publishes its usage as empty
+    /// (RecordApplyPatchStreamFailure); a transport error keeps the stream's usage.
+    #[tokio::test]
+    async fn apply_patch_and_translator_failures_are_not_request_scoped() {
+        let (failures, usage) = Failures::sink();
+        let pending = stream(&[b"patch"]).chain(futures_util::stream::pending()).boxed();
+        let result: Vec<_> = streaming(pending, Box::<PatchFail>::default(), false, usage)
+            .collect()
+            .await;
+        assert_eq!(result.len(), 2, "the failing event's frames, then the error");
+        let error = result[1].as_ref().unwrap_err();
+        assert_eq!(error.status, 502);
+        assert_eq!(error.body, cpa_translate::APPLY_PATCH_UPSTREAM_ERROR);
+        assert_eq!(error.scope, FailureScope::Credential);
+        assert_eq!(failures.count(), 1);
+        let (failures, usage) = Failures::sink();
+        let result: Vec<_> = streaming(stream(&[b"bad"]), Box::<PatchFail>::default(), false, usage)
+            .collect()
+            .await;
+        assert_eq!(result[0].as_ref().unwrap_err().scope, FailureScope::Credential);
+        assert_eq!(apply_patch_error().scope, FailureScope::Credential);
+        assert_eq!(failures.count(), 0);
+        let (failures, usage) = Failures::sink();
+        let reset = futures_util::stream::iter(vec![
+            Ok(Bytes::from_static(b"frame")),
+            Err(ExecError::local(502, FailureScope::Transport, "upstream reset")),
+        ])
+        .boxed();
+        let result: Vec<_> = streaming(reset, Box::<PatchFail>::default(), false, usage)
+            .collect()
+            .await;
+        assert_eq!(result[1].as_ref().unwrap_err().scope, FailureScope::Transport);
+        assert_eq!(failures.count(), 0);
+    }
+
+    /// Finalizing tool input at EOF can fail too; that failure replaces the transport
+    /// error and publishes no tokens.
+    #[tokio::test]
+    async fn apply_patch_failure_at_eof_replaces_transport_error() {
+        #[derive(Default)]
+        struct FailsAtEnd(bool);
+        impl StreamTranslator for FailsAtEnd {
+            fn event(&mut self, event: &[u8]) -> Result<Vec<Bytes>, cpa_translate::Error> {
+                Ok(vec![Bytes::copy_from_slice(event)])
+            }
+            fn finish(&mut self) -> Result<Vec<Bytes>, cpa_translate::Error> {
+                Ok(Vec::new())
+            }
+            fn finalize_tool_input(&mut self) -> Vec<Bytes> {
+                self.0 = true;
+                vec![Bytes::from_static(b"finalized")]
+            }
+            fn tool_input_failed(&self) -> bool {
+                self.0
+            }
+        }
+        let (failures, usage) = Failures::sink();
+        let reset = futures_util::stream::iter(vec![
+            Ok(Bytes::from_static(b"frame")),
+            Err(ExecError::local(502, FailureScope::Transport, "upstream reset")),
+        ])
+        .boxed();
+        let result: Vec<_> = streaming(reset, Box::<FailsAtEnd>::default(), false, usage)
+            .collect()
+            .await;
+        assert_eq!(result.len(), 3);
+        assert_eq!(result[1].as_ref().unwrap(), "finalized");
+        let error = result[2].as_ref().unwrap_err();
+        assert_eq!(error.body, cpa_translate::APPLY_PATCH_UPSTREAM_ERROR);
+        assert_eq!(error.scope, FailureScope::Credential);
+        assert_eq!(failures.count(), 1);
+    }
+
+    #[tokio::test]
+    async fn nonstream_apply_patch_rejection_publishes_no_tokens() {
+        static REJECTS: Pair = Pair {
+            request: |_, _| unreachable!(),
+            non_stream: |_, _| Ok(Vec::new()),
+            stream: |_| unreachable!(),
+            count_tokens: None,
+        };
+        let (failures, usage) = Failures::sink();
+        let mut request = req(false, Operation::Generate);
+        request.usage = usage;
+        let error = transform(
+            &REJECTS,
+            request,
+            Bytes::new(),
+            ResponseBody::Buffered(Bytes::from_static(b"{}")),
+        )
+        .await
+        .err()
+        .unwrap();
+        assert_eq!(error.status, 502);
+        assert_eq!(error.scope, FailureScope::Credential);
+        assert_eq!(failures.count(), 1);
     }
 
     #[test]

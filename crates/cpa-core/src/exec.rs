@@ -113,6 +113,11 @@ pub trait UsageObserver: Send + Sync {
     /// The translated payload sent upstream in `format` (Go
     /// `SetTranslatedReasoningEffort`: the record's `reasoning_effort`).
     fn request(&self, format: Format, payload: &[u8]);
+    /// The attempt failed after its usage was reported, and Go publishes the failure
+    /// with an empty detail (`reporter.PublishFailure(err)`, e.g. an apply_patch
+    /// rejection): the record carries no tokens but keeps the observed response model.
+    /// The default ignores it, for observers that never record a detail.
+    fn failed(&self) {}
 }
 
 /// A handle executors report usage through; cloning shares the observer.
@@ -144,6 +149,13 @@ impl UsageSink {
     pub fn request(&self, format: Format, payload: &[u8]) {
         if let Some(o) = &self.0 {
             o.request(format, payload);
+        }
+    }
+
+    /// See [`UsageObserver::failed`].
+    pub fn failed(&self) {
+        if let Some(o) = &self.0 {
+            o.failed();
         }
     }
 }

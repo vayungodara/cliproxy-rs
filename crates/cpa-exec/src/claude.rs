@@ -197,6 +197,14 @@ impl ClaudeExecutor {
         cfg: &Config,
         delegation: Delegation,
     ) -> Result<ExecResponse, ExecError> {
+        // Go executorForAuth: an API-key credential runs with cfg.ForAPIKey(), which
+        // zeroes the v8 OAuth-only provider settings.
+        let scoped = if cpa_core::registry::dynamic::auth_kind(credential) == Some("apikey") {
+            cfg.for_api_key()
+        } else {
+            std::borrow::Cow::Borrowed(cfg)
+        };
+        let cfg = &*scoped;
         // Go never checks for a token here: an empty key counts locally, or reaches the
         // upstream unauthenticated and gets its answer.
         if req.alt.as_deref() == Some("responses/compact") {
@@ -262,14 +270,6 @@ impl ClaudeExecutor {
             req.usage.request(Format::Claude, prepared.body.as_bytes());
         }
         let response = self.send(&ctx, &prepared, "/v1/messages").await;
-        // MarkResult observes every Messages response's headers for Claude credentials
-        // (count_tokens results skip observation in Go's conductor).
-        if ctx.credential.provider.trim().eq_ignore_ascii_case("claude") {
-            match &response {
-                Ok(raw) => self.quota.observe(&ctx.credential.id, &raw.headers),
-                Err(error) => self.quota.observe(&ctx.credential.id, &error.headers),
-            }
-        }
         let response = response.inspect_err(|error| {
             // shouldClearKimiThinkingReplayAfterError: an upstream rejection of applied replay.
             if let Some(scope) = replay.filter(|s| s.applied)
@@ -342,8 +342,14 @@ impl ClaudeExecutor {
                         &request_id,
                         &continuity.prompt_id,
                     );
-                    let restored = alias::restore_response(&text, &reverse)
-                        .map_err(|m| plain_error(format!("restore Claude OAuth tool name from response: {m}")))?;
+                    // A failed restore returns before ParseClaudeUsage: Go's deferred
+                    // TrackFailure publishes no tokens.
+                    let restored = alias::restore_response(&text, &reverse).map_err(|m| {
+                        req.usage.failed();
+                        wrap(plain_error(format!(
+                            "restore Claude OAuth tool name from response: {m}"
+                        )))
+                    })?;
                     if let Some(scope) = replay {
                         scope.store_response(restored.as_bytes());
                     }
@@ -434,6 +440,12 @@ impl ClaudeExecutor {
         let upstream = crate::proxy::send_routed(&route, &url, headers, Bytes::from(prepared.body.clone()), None)
             .await
             .map_err(|e| fast_request_error(fast, e))?;
+        // MarkResult observes the headers of every upstream answer to a Messages request
+        // from a Claude credential, whatever its status or body (Go records them before
+        // reading the body); count_tokens results skip observation in Go's conductor.
+        if path == "/v1/messages" && ctx.credential.provider.trim().eq_ignore_ascii_case("claude") {
+            self.quota.observe(&ctx.credential.id, &upstream.headers);
+        }
         finish(decode_upstream(upstream).await, fast, ctx.settings.model_level_cooling).await
     }
 }
@@ -715,7 +727,7 @@ impl<'a> Ctx<'a> {
         cfg: &Config,
         delegation: Delegation,
     ) -> Self {
-        let settings = Settings::for_credential(cfg, credential);
+        let settings = Settings::from_config(cfg);
         let attr = |k: &str| credential.attributes.get(k).map(String::as_str).unwrap_or_default();
         let api_key = if attr("api_key").is_empty() {
             credential.str("access_token").unwrap_or_default().to_owned()
@@ -1411,15 +1423,13 @@ impl<'a> Ctx<'a> {
         };
         let (device, account) = identity::wire_identity(self.credential, &seed, synthesize);
         // applyClaudeCLIIdentity wraps every ApplyClaudeCredentialMetadata error once more.
-        identity::apply(body, &device, &account, session_id).map_err(|e| {
-            let message = format!("apply Claude credential metadata: {e}");
-            if e.contains("account UUID is empty") || e.contains("session ID is empty") {
-                // Plain Go errors: no status, no request scope.
-                plain_error(message)
-            } else {
-                // claudeCredentialMetadataRequestError: 400, request-scoped.
-                ExecError::local(400, FailureScope::Request, message)
-            }
+        identity::apply(body, &device, &account, session_id).map_err(|e| match e {
+            identity::ApplyError::Plain(e) => plain_error(format!("apply Claude credential metadata: {e}")),
+            identity::ApplyError::Request(e) => ExecError::local(
+                400,
+                FailureScope::Request,
+                format!("apply Claude credential metadata: {e}"),
+            ),
         })
     }
 

@@ -975,12 +975,23 @@ async fn responses_route_prepares_codex_orphan_delegation() {
     assert_eq!(send(p.url.clone(), body.clone()).await, 200);
     let upstream = p.seen.requests.lock().unwrap()[0].1.to_string();
     assert!(upstream.contains(rewritten), "{upstream}");
-    // Written in v8 form it is OAuth-only and the handler leaves the input alone.
-    let p = proxy(
-        "oauth:\n  providers:\n    codex:\n      orphan-delegation-compatibility: true\n",
-        vec![oauth("a.json", "fake-ok", serde_json::json!({}))],
+    // Written in v8 form it is OAuth-only: the handler leaves the input alone, but an
+    // OAuth credential's executor still sees it (Go's executor translation runs
+    // RewriteCodexOrphanDelegationInputForConfig with the unscoped config).
+    let v8 = "oauth:\n  providers:\n    codex:\n      orphan-delegation-compatibility: true\n";
+    let p = proxy(v8, vec![oauth("a.json", "fake-ok", serde_json::json!({}))]).await;
+    assert_eq!(send(p.url.clone(), body.clone()).await, 200);
+    let upstream = p.seen.requests.lock().unwrap()[0].1.to_string();
+    assert!(upstream.contains(rewritten), "{upstream}");
+    // An API-key credential runs with cfg.ForAPIKey() (executorForAuth): nobody rewrites.
+    let mut key = Credential::from_file(
+        Path::new("/fake"),
+        &Path::new("/fake").join("key.json"),
+        serde_json::json!({"type": "claude"}).as_object().unwrap().clone(),
     )
-    .await;
+    .unwrap();
+    key.attributes.insert("api_key".into(), "fake-ok".into());
+    let p = proxy(v8, vec![key]).await;
     assert_eq!(send(p.url.clone(), body).await, 200);
     let upstream = p.seen.requests.lock().unwrap()[0].1.to_string();
     assert!(!upstream.contains("Tool output from"), "{upstream}");

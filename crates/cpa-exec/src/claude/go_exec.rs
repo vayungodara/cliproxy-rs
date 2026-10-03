@@ -33,7 +33,24 @@ struct Seen {
 
 /// A recorded Go response; `None` closes the connection unanswered (Go saw a
 /// transport error).
-type Reply = Option<(u16, Vec<(String, String)>, Vec<u8>)>;
+type Reply = Option<Answer>;
+
+struct Answer {
+    status: u16,
+    headers: Vec<(String, String)>,
+    body: Vec<u8>,
+    end: End,
+}
+
+/// How the recorded body ended for Go's client.
+enum End {
+    Complete,
+    /// The response declared this Content-Length and closed after a shorter body.
+    Short(usize),
+    /// A body read failed without a declared length: a chunked body that stops
+    /// without its terminating chunk.
+    Abort,
+}
 
 #[derive(Default)]
 struct Script {
@@ -112,14 +129,21 @@ async fn serve<S: AsyncRead + AsyncWrite + Unpin>(mut stream: S, script: Arc<Mut
             body,
         });
         script.replies.pop_front().unwrap_or_else(|| {
-            Some((
-                599,
-                vec![("Content-Type".into(), "text/plain".into())],
-                b"no recorded Go response for this request".to_vec(),
-            ))
+            Some(Answer {
+                status: 599,
+                headers: vec![("Content-Type".into(), "text/plain".into())],
+                body: b"no recorded Go response for this request".to_vec(),
+                end: End::Complete,
+            })
         })
     };
-    let Some((status, reply_headers, reply_body)) = reply else {
+    let Some(Answer {
+        status,
+        headers: reply_headers,
+        body: reply_body,
+        end,
+    }) = reply
+    else {
         return;
     };
     let reason = http::StatusCode::from_u16(status)
@@ -135,72 +159,30 @@ async fn serve<S: AsyncRead + AsyncWrite + Unpin>(mut stream: S, script: Arc<Mut
             out.push_str(&format!("{name}: {value}\r\n"));
         }
     }
-    out.push_str(&format!(
-        "Content-Length: {}\r\nConnection: close\r\n\r\n",
-        reply_body.len()
-    ));
-    let _ = stream.write_all(out.as_bytes()).await;
-    let _ = stream.write_all(&reply_body).await;
-    let _ = stream.shutdown().await;
-}
-
-/// A throwaway CA and a leaf for `hosts`: (CA PEM, acceptor).
-fn tls(hosts: &[String]) -> (Vec<u8>, btls::ssl::SslAcceptor) {
-    use btls::asn1::Asn1Time;
-    use btls::bn::BigNum;
-    use btls::ec::{EcGroup, EcKey};
-    use btls::hash::MessageDigest;
-    use btls::nid::Nid;
-    use btls::pkey::PKey;
-    use btls::ssl::{SslAcceptor, SslMethod};
-    use btls::x509::extension::{BasicConstraints, SubjectAlternativeName};
-    use btls::x509::{X509, X509NameBuilder};
-    let group = EcGroup::from_curve_name(Nid::X9_62_PRIME256V1).unwrap();
-    let key = |_: ()| PKey::from_ec_key(EcKey::generate(&group).unwrap()).unwrap();
-    let name = |cn: &str| {
-        let mut n = X509NameBuilder::new().unwrap();
-        n.append_entry_by_text("CN", cn).unwrap();
-        n.build()
+    let body = match end {
+        End::Complete => {
+            out.push_str(&format!("Content-Length: {}\r\n", reply_body.len()));
+            reply_body
+        }
+        End::Short(declared) => {
+            out.push_str(&format!("Content-Length: {declared}\r\n"));
+            reply_body
+        }
+        End::Abort => {
+            out.push_str("Transfer-Encoding: chunked\r\n");
+            let mut chunked = Vec::new();
+            if !reply_body.is_empty() {
+                chunked.extend_from_slice(format!("{:x}\r\n", reply_body.len()).as_bytes());
+                chunked.extend_from_slice(&reply_body);
+                chunked.extend_from_slice(b"\r\n");
+            }
+            chunked
+        }
     };
-    let (ca_key, leaf_key) = (key(()), key(()));
-    let ca_name = name("cliproxy-rs Go replay CA");
-    let mut ca = X509::builder().unwrap();
-    ca.set_version(2).unwrap();
-    ca.set_serial_number(&BigNum::from_u32(1).unwrap().to_asn1_integer().unwrap())
-        .unwrap();
-    ca.set_subject_name(&ca_name).unwrap();
-    ca.set_issuer_name(&ca_name).unwrap();
-    ca.set_pubkey(&ca_key).unwrap();
-    ca.set_not_before(&Asn1Time::days_from_now(0).unwrap()).unwrap();
-    ca.set_not_after(&Asn1Time::days_from_now(2).unwrap()).unwrap();
-    ca.append_extension(&BasicConstraints::new().critical().ca().build().unwrap())
-        .unwrap();
-    ca.sign(&ca_key, MessageDigest::sha256()).unwrap();
-    let ca = ca.build();
-    let mut leaf = X509::builder().unwrap();
-    leaf.set_version(2).unwrap();
-    leaf.set_serial_number(&BigNum::from_u32(2).unwrap().to_asn1_integer().unwrap())
-        .unwrap();
-    leaf.set_subject_name(&name(&hosts[0])).unwrap();
-    leaf.set_issuer_name(&ca_name).unwrap();
-    leaf.set_pubkey(&leaf_key).unwrap();
-    leaf.set_not_before(&Asn1Time::days_from_now(0).unwrap()).unwrap();
-    leaf.set_not_after(&Asn1Time::days_from_now(2).unwrap()).unwrap();
-    let mut san = SubjectAlternativeName::new();
-    for host in hosts {
-        san.dns(host);
-    }
-    let san = san.build(&leaf.x509v3_context(Some(&ca), None)).unwrap();
-    leaf.append_extension(&san).unwrap();
-    leaf.sign(&ca_key, MessageDigest::sha256()).unwrap();
-    let leaf = leaf.build();
-    let mut acceptor = SslAcceptor::mozilla_intermediate_v5(SslMethod::tls()).unwrap();
-    acceptor.set_private_key(&leaf_key).unwrap();
-    acceptor.set_certificate(&leaf).unwrap();
-    acceptor.set_alpn_select_callback(|_, client| {
-        btls::ssl::select_next_proto(b"\x08http/1.1", client).ok_or(btls::ssl::AlpnError::NOACK)
-    });
-    (ca.to_pem().unwrap(), acceptor.build())
+    out.push_str("Connection: close\r\n\r\n");
+    let _ = stream.write_all(out.as_bytes()).await;
+    let _ = stream.write_all(&body).await;
+    let _ = stream.shutdown().await;
 }
 
 /// A plain and a TLS listener sharing one script.
@@ -220,7 +202,7 @@ impl Upstream {
         let plain = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let secure = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let (plain_addr, tls_addr) = (plain.local_addr().unwrap(), secure.local_addr().unwrap());
-        let (ca, acceptor) = tls(hosts);
+        let (ca, acceptor) = crate::test_tls::acceptor(hosts, b"\x08http/1.1");
         let acceptor = Arc::new(acceptor);
         let shared = script.clone();
         tokio::spawn(async move {
@@ -278,20 +260,15 @@ fn header_pairs(value: &Value) -> Vec<(String, String)> {
         .collect()
 }
 
-/// Values that are random or wall-clock dependent in both implementations.
-pub(super) fn normalize(text: &str) -> String {
+/// Wall-clock values and the body-dependent CCH, which differ in both implementations
+/// whenever the body carries a random identifier.
+fn normalize(text: &str) -> String {
     use std::sync::OnceLock;
     static RULES: OnceLock<Vec<(regex::Regex, &'static str)>> = OnceLock::new();
     let rules = RULES.get_or_init(|| {
         [
-            (r"[0-9a-f]{64}", "<hex64>"),
-            (
-                r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
-                "<uuid>",
-            ),
             (r"cch=[0-9a-f]{5};", "cch=<cch>;"),
             (r"Today's date is \d{4}-\d{2}-\d{2}", "Today's date is <date>"),
-            (r"user_[0-9a-f]{64}_account_", "user_<hex64>_account_"),
             // Translators stamp responses with the wall clock.
             (r#""(created|created_at)":\d+"#, r#""$1":<unix>"#),
             (r#""createTime":"[0-9T:.Z-]+""#, r#""createTime":"<time>""#),
@@ -305,6 +282,61 @@ pub(super) fn normalize(text: &str) -> String {
         out = re.replace_all(&out, *to).into_owned();
     }
     out
+}
+
+/// UUID- and 64-hex-shaped identifiers.
+fn id_pattern() -> &'static regex::Regex {
+    use std::sync::OnceLock;
+    static RE: OnceLock<regex::Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        regex::Regex::new(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|[0-9a-f]{64}").unwrap()
+    })
+}
+
+fn ids<'a>(texts: impl IntoIterator<Item = &'a str>) -> std::collections::HashSet<String> {
+    texts
+        .into_iter()
+        .flat_map(|t| id_pattern().find_iter(t).map(|m| m.as_str().to_owned()))
+        .collect()
+}
+
+/// Masks the identifiers only one implementation produced (random session, device and
+/// prompt IDs), numbered by first appearance so that reuse still has to line up. An
+/// identifier from the recorded inputs, or one both implementations produced, stays
+/// verbatim: a wrong account UUID or device ID shows.
+// ponytail: a derived identifier that both implementations compute but get different
+// is masked like a random one; the derivations have their own unit tests.
+struct Masker<'a> {
+    keep: &'a std::collections::HashSet<String>,
+    numbered: std::collections::HashMap<String, usize>,
+}
+
+impl<'a> Masker<'a> {
+    fn new(keep: &'a std::collections::HashSet<String>) -> Self {
+        Self {
+            keep,
+            numbered: Default::default(),
+        }
+    }
+
+    fn apply(&mut self, text: &str) -> String {
+        let text = normalize(text);
+        let mut out = String::with_capacity(text.len());
+        let mut last = 0;
+        for m in id_pattern().find_iter(&text) {
+            out.push_str(&text[last..m.start()]);
+            if self.keep.contains(m.as_str()) {
+                out.push_str(m.as_str());
+            } else {
+                let next = self.numbered.len() + 1;
+                let n = *self.numbered.entry(m.as_str().to_owned()).or_insert(next);
+                out.push_str(&format!("<id{n}>"));
+            }
+            last = m.end();
+        }
+        out.push_str(&text[last..]);
+        out
+    }
 }
 
 fn text(b: &[u8]) -> String {
@@ -346,7 +378,7 @@ fn resolved(metadata: &Value) -> Option<ResolvedModel> {
         .or_else(|| pick("cliproxy.resolved_codex_oauth_model_info", ResolvedSource::CodexOAuth))
 }
 
-/// The outcome both implementations report, normalized for comparison.
+/// The outcome both implementations report.
 #[derive(Debug, PartialEq)]
 struct Outcome {
     payload: String,
@@ -358,35 +390,61 @@ struct Outcome {
 struct Failure {
     /// Go's `StatusCode()`; a missing or zero status answers 500.
     status: u16,
-    /// Go's `IsRequestScoped()`, when the error implements it (plain upstream status
-    /// errors do not; the conductor classifies those by status).
-    request_scoped: Option<bool>,
+    /// How the conductor treats the failure: `request` (answer the caller),
+    /// `credential` (`IsCredentialScoped`) or `not-request` (fail over). A Go error
+    /// without `IsRequestScoped` is classified by its status, as the Rust scheduler's
+    /// status rule does.
+    scope: &'static str,
     /// The client-visible text: a direct answer's body, else the error message.
     message: String,
+}
+
+impl Outcome {
+    fn masked(&self, masker: &mut Masker<'_>) -> Self {
+        Self {
+            payload: masker.apply(&self.payload),
+            error: self.error.as_ref().map(|e| Failure {
+                status: e.status,
+                scope: e.scope,
+                message: masker.apply(&e.message),
+            }),
+        }
+    }
 }
 
 fn go_error(info: &Value) -> Option<Failure> {
     let message = info.get("message")?.as_str()?.to_owned();
     let status = info["status"].as_u64().filter(|s| *s != 0).unwrap_or(500) as u16;
+    let scope = if info["request_scoped"].as_bool() == Some(true) {
+        "request"
+    } else if info["credential_scoped"].as_bool() == Some(true) {
+        "credential"
+    } else if info["request_scoped"].is_null()
+        && crate::upstream::scope_for(status) == cpa_core::exec::FailureScope::Request
+    {
+        "request"
+    } else {
+        "not-request"
+    };
     // claudeFastDirectResponseError: the client receives the upstream status and body.
     let (status, message) = match info.get("direct_status").and_then(Value::as_u64) {
         Some(direct) => (direct as u16, text(&bytes(&info["direct_body"]))),
         None => (status, message),
     };
-    Some(Failure {
-        status,
-        request_scoped: info["request_scoped"].as_bool(),
-        message: normalize(&message),
-    })
+    Some(Failure { status, scope, message })
 }
 
 fn rust_error(error: &ExecError, go: Option<&Failure>) -> Failure {
+    use cpa_core::exec::FailureScope;
+    let scope = match error.scope {
+        FailureScope::Request => "request",
+        FailureScope::Credential if go.is_some_and(|g| g.scope == "credential") => "credential",
+        _ => "not-request",
+    };
     Failure {
         status: error.status,
-        request_scoped: go
-            .and_then(|g| g.request_scoped)
-            .map(|_| error.scope == cpa_core::exec::FailureScope::Request),
-        message: normalize(&text(&error.body)),
+        scope,
+        message: text(&error.body),
     }
 }
 
@@ -416,10 +474,17 @@ const NOT_REPLAYABLE: &[(&str, &str)] = &[
     ),
 ];
 
+/// A replay's verdict when Rust matches Go.
+pub(super) enum Verdict {
+    Matched,
+    /// Not replayed, for this reason (see [`NOT_REPLAYABLE`]).
+    Unverified(&'static str),
+}
+
 /// Replays one recorded executor call; `Err` lists how Rust differs from Go.
-pub(super) async fn replay(test: &str, record: &Value) -> Result<(), String> {
-    if NOT_REPLAYABLE.iter().any(|(name, _)| *name == test) {
-        return Ok(());
+pub(super) async fn replay(test: &str, record: &Value) -> Result<Verdict, String> {
+    if let Some((_, why)) = NOT_REPLAYABLE.iter().find(|(name, _)| *name == test) {
+        return Ok(Verdict::Unverified(why));
     }
     let exchanges = record["exchanges"]["exchanges"].as_array().cloned().unwrap_or_default();
     let go_origins = regex::Regex::new(r"http://127\.0\.0\.1:\d+").unwrap();
@@ -446,11 +511,23 @@ pub(super) async fn replay(test: &str, record: &Value) -> Result<(), String> {
         .iter()
         .map(|e| {
             (e["error"].as_str().is_none()).then(|| {
-                (
-                    e["status"].as_u64().unwrap_or(200) as u16,
-                    header_pairs(&e["response_headers"]),
-                    bytes(&e["response_body"]),
-                )
+                let headers = header_pairs(&e["response_headers"]);
+                let body = bytes(&e["response_body"]);
+                let declared = headers
+                    .iter()
+                    .find(|(k, _)| k.eq_ignore_ascii_case("content-length"))
+                    .and_then(|(_, v)| v.parse::<usize>().ok());
+                let end = match declared {
+                    Some(declared) if declared > body.len() => End::Short(declared),
+                    _ if e["read_error"].as_str().is_some() => End::Abort,
+                    _ => End::Complete,
+                };
+                Answer {
+                    status: e["status"].as_u64().unwrap_or(200) as u16,
+                    headers,
+                    body,
+                    end,
+                }
             })
         })
         .collect();
@@ -559,12 +636,12 @@ pub(super) async fn replay(test: &str, record: &Value) -> Result<(), String> {
         let chunks = record["exchanges"]["chunks"].as_array().cloned().unwrap_or_default();
         let payload: Vec<u8> = chunks.iter().flat_map(|c| bytes(&c["payload"])).collect();
         Outcome {
-            payload: normalize(&text(&payload)),
+            payload: text(&payload),
             error: chunks.iter().find_map(|c| go_error(&c["error"])),
         }
     } else {
         Outcome {
-            payload: normalize(&text(&bytes(&recorded["payload"]))),
+            payload: text(&bytes(&recorded["payload"])),
             error: go_error(&recorded["error"]),
         }
     };
@@ -575,7 +652,7 @@ pub(super) async fn replay(test: &str, record: &Value) -> Result<(), String> {
         },
         Ok(response) => match response.body {
             ResponseBody::Buffered(body) => Outcome {
-                payload: normalize(&text(&body)),
+                payload: text(&body),
                 error: None,
             },
             ResponseBody::Stream(mut events) => {
@@ -589,7 +666,7 @@ pub(super) async fn replay(test: &str, record: &Value) -> Result<(), String> {
                         }
                     }
                 }
-                let payload = normalize(&text(&payload));
+                let payload = text(&payload);
                 Outcome {
                     payload: if chat { unframe_chat(&payload) } else { payload },
                     error,
@@ -598,9 +675,6 @@ pub(super) async fn replay(test: &str, record: &Value) -> Result<(), String> {
         },
     };
     let mut diffs = Vec::new();
-    if rust != go {
-        diffs.push(format!("result:\n   rust: {rust:?}\n     go: {go:?}"));
-    }
     let seen = upstream.script.lock().unwrap().seen.clone();
     if seen.len() != exchanges.len() {
         diffs.push(format!(
@@ -614,6 +688,12 @@ pub(super) async fn replay(test: &str, record: &Value) -> Result<(), String> {
                 .collect::<Vec<_>>()
         ));
     }
+    // Each exchange as both sides sent it: headers Go's executor set (the transport adds
+    // Host, Content-Length, Accept-Encoding and its default User-Agent), then the body.
+    type Headers = BTreeMap<String, Vec<String>>;
+    /// Rust's headers, Go's headers, Rust's body, Go's body.
+    type Sent = (Headers, Headers, String, String);
+    let mut sent: Vec<Sent> = Vec::new();
     for (i, (rust, go)) in seen.iter().zip(&exchanges).enumerate() {
         let url = url::Url::parse(go["url"].as_str().unwrap_or_default()).unwrap();
         let go_target = match url.query() {
@@ -626,15 +706,13 @@ pub(super) async fn replay(test: &str, record: &Value) -> Result<(), String> {
                 rust.method, rust.target, go["method"]
             ));
         }
-        // Go's recorded header map is what the executor set; the transport adds
-        // Host, Content-Length, Accept-Encoding and its default User-Agent.
         let transport = ["host", "content-length", "accept-encoding", "user-agent", "connection"];
-        let value = |v: &str| normalize(&version.replace(v, "CLIProxyAPI/<version>"));
-        let mut want: BTreeMap<String, Vec<String>> = BTreeMap::new();
+        let value = |v: &str| version.replace(v, "CLIProxyAPI/<version>").into_owned();
+        let mut want = Headers::new();
         for (k, v) in header_pairs(&go["headers"]) {
             want.entry(k.to_lowercase()).or_default().push(value(&v));
         }
-        let mut got: BTreeMap<String, Vec<String>> = BTreeMap::new();
+        let mut got = Headers::new();
         for (k, v) in &rust.headers {
             let k = k.to_lowercase();
             if want.contains_key(&k) || !transport.contains(&k.as_str()) {
@@ -647,6 +725,47 @@ pub(super) async fn replay(test: &str, record: &Value) -> Result<(), String> {
             want.remove(random);
             got.remove(random);
         }
+        sent.push((got, want, text(&rust.body), text(&bytes(&go["body"]))));
+    }
+    // Identifiers to keep verbatim: the recorded inputs (config, credential, request,
+    // upstream replies) and whatever both implementations produced.
+    let mut inputs = record.clone();
+    if let Some(object) = inputs.as_object_mut() {
+        object.remove("result");
+        object.remove("exchanges");
+    }
+    let replies: Vec<String> = exchanges
+        .iter()
+        .flat_map(|e| [e["response_headers"].to_string(), text(&bytes(&e["response_body"]))])
+        .collect();
+    let outputs = |outcome: &Outcome, side: fn(&Sent) -> (&Headers, &String)| {
+        let mut texts = vec![outcome.payload.clone()];
+        texts.extend(outcome.error.iter().map(|e| e.message.clone()));
+        for exchange in &sent {
+            let (headers, body) = side(exchange);
+            texts.extend(headers.values().flatten().cloned());
+            texts.push(body.clone());
+        }
+        ids(texts.iter().map(String::as_str))
+    };
+    let rust_ids = outputs(&rust, |(got, _, body, _)| (got, body));
+    let go_ids = outputs(&go, |(_, want, _, body)| (want, body));
+    let input_text = inputs.to_string();
+    let mut keep = ids(std::iter::once(input_text.as_str()).chain(replies.iter().map(String::as_str)));
+    keep.extend(rust_ids.intersection(&go_ids).cloned());
+    let (mut rust_mask, mut go_mask) = (Masker::new(&keep), Masker::new(&keep));
+    let (rust, go) = (rust.masked(&mut rust_mask), go.masked(&mut go_mask));
+    if rust != go {
+        diffs.push(format!("result:\n   rust: {rust:?}\n     go: {go:?}"));
+    }
+    for (i, (got, want, rust_body, go_body)) in sent.iter().enumerate() {
+        let mask = |headers: &Headers, masker: &mut Masker<'_>| -> Headers {
+            headers
+                .iter()
+                .map(|(k, vs)| (k.clone(), vs.iter().map(|v| masker.apply(v)).collect()))
+                .collect()
+        };
+        let (got, want) = (mask(got, &mut rust_mask), mask(want, &mut go_mask));
         if got != want {
             let only_rust: Vec<_> = got.iter().filter(|(k, v)| want.get(*k) != Some(v)).collect();
             let only_go: Vec<_> = want.iter().filter(|(k, v)| got.get(*k) != Some(v)).collect();
@@ -655,7 +774,7 @@ pub(super) async fn replay(test: &str, record: &Value) -> Result<(), String> {
                     .replace("sk-ant-", "<sk>-"),
             );
         }
-        let (rust_body, go_body) = (normalize(&text(&rust.body)), normalize(&text(&bytes(&go["body"]))));
+        let (rust_body, go_body) = (rust_mask.apply(rust_body), go_mask.apply(go_body));
         let as_json = |b: &str| serde_json::from_str::<Value>(b).ok();
         let same = rust_body == go_body
             || (GO_MAP_ORDER.contains(&test)
@@ -666,7 +785,7 @@ pub(super) async fn replay(test: &str, record: &Value) -> Result<(), String> {
         }
     }
     if diffs.is_empty() {
-        Ok(())
+        Ok(Verdict::Matched)
     } else {
         Err(diffs.join("\n"))
     }
