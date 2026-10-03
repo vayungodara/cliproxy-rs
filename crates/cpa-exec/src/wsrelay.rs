@@ -490,6 +490,11 @@ impl Relay {
     }
 }
 
+/// Resolves once `closed` reports the session ended.
+pub async fn wait_closed(closed: &mut watch::Receiver<bool>) {
+    let _ = closed.wait_for(|c| *c).await;
+}
+
 /// One connected browser (`wsrelay.session`).
 pub struct Session {
     provider: String,
@@ -585,7 +590,7 @@ impl Session {
         let mut closed = self.closed();
         tokio::select! {
             _ = tx.send(msg) => {}
-            _ = closed.wait_for(|c| *c) => {}
+            _ = wait_closed(&mut closed) => {}
         }
         // A terminal message closes the request: its receiver sees the end after it.
         if last {

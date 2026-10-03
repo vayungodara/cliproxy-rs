@@ -22,6 +22,7 @@ pub mod persist;
 mod realtime;
 mod refresh;
 pub mod registry;
+mod relay;
 mod respond;
 pub mod runtime;
 mod sanitize;
@@ -78,6 +79,7 @@ pub fn router(rt: Arc<Runtime>) -> Router {
         .route("/devin/callback", get(devin_callback))
         .merge(v1)
         .merge(realtime::routes(&rt))
+        .merge(relay::routes(&rt))
         .layer(DefaultBodyLimit::max(MAX_REQUEST_BYTES))
         .layer(middleware::from_fn(go_framing))
         .with_state(rt)

@@ -67,6 +67,20 @@ const MAX_MESSAGE: usize = crate::MAX_REQUEST_BYTES;
 // ponytail: one fixed best-effort bound instead of Go's in-flight-writer check.
 const TERMINAL_WRITE: Duration = Duration::from_secs(1);
 
+/// gorilla `returnError` for a request that is not a websocket handshake: plain status
+/// text and the supported version.
+pub(crate) fn upgrade_rejected() -> Response {
+    let mut response = (StatusCode::BAD_REQUEST, "Bad Request\n").into_response();
+    let h = response.headers_mut();
+    h.insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static("text/plain; charset=utf-8"),
+    );
+    h.insert("x-content-type-options", HeaderValue::from_static("nosniff"));
+    h.insert(header::SEC_WEBSOCKET_VERSION, HeaderValue::from_static("13"));
+    response
+}
+
 async fn upgrade(
     State(rt): State<Arc<Runtime>>,
     Extension(caller): Extension<Caller>,
@@ -76,16 +90,7 @@ async fn upgrade(
     ws: Result<WebSocketUpgrade, WebSocketUpgradeRejection>,
 ) -> Response {
     let Ok(ws) = ws else {
-        // gorilla `returnError`: plain status text and the supported version.
-        let mut response = (StatusCode::BAD_REQUEST, "Bad Request\n").into_response();
-        let h = response.headers_mut();
-        h.insert(
-            header::CONTENT_TYPE,
-            HeaderValue::from_static("text/plain; charset=utf-8"),
-        );
-        h.insert("x-content-type-options", HeaderValue::from_static("nosniff"));
-        h.insert(header::SEC_WEBSOCKET_VERSION, HeaderValue::from_static("13"));
-        return response;
+        return upgrade_rejected();
     };
     // `websocketUpgradeHeaders`: keep sticky turn state across reconnects.
     let turn_state = headers

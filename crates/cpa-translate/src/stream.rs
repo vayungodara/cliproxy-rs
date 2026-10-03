@@ -272,6 +272,9 @@ struct Framed {
     options: StreamOptions,
 }
 
+/// A transform applied to each translated chunk ([`StreamOptions::chunk`]).
+pub type ChunkHook = fn(&[u8]) -> Vec<u8>;
+
 /// How a Go executor drives a pair's stream translator beyond reading lines; see
 /// [`crate::stream_with`].
 #[derive(Clone, Copy, Default)]
@@ -282,7 +285,7 @@ pub struct StreamOptions {
     /// Applied to every chunk the translator returns for an event, before the client's
     /// framing (AI Studio's `ensureColonSpacedJSON`). The tool-input finalization is
     /// written without it, as Go's `EndApplyPatchStream` does.
-    pub chunk: Option<fn(&[u8]) -> Vec<u8>>,
+    pub chunk: Option<ChunkHook>,
 }
 
 /// geminiInteractionsSSEPayload (gemini_executor.go): a JSON frame as is, else its
