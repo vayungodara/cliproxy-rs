@@ -81,8 +81,9 @@ pub fn router(rt: Arc<Runtime>) -> Router {
         .route("/v1beta/models/{*action}", post(gemini::action).get(models::gemini_get))
         .merge(codex_alpha::routes())
         .merge(websocket::routes())
-        .layer(auth());
-    Router::new()
+        // Only matched routes: gin's NoRoute runs no group middleware.
+        .route_layer(auth());
+    let api = Router::new()
         .route("/healthz", get(healthz).head(healthz))
         .route("/", get(root))
         .route("/anthropic/callback", get(callback))
@@ -92,9 +93,28 @@ pub fn router(rt: Arc<Runtime>) -> Router {
         .route("/devin/callback", get(devin_callback))
         .merge(v1)
         .merge(realtime::routes(&rt))
+        .method_not_allowed_fallback(|| async { StatusCode::NOT_FOUND })
         .layer(DefaultBodyLimit::max(MAX_REQUEST_BYTES))
         .layer(middleware::from_fn(go_framing))
-        .with_state(rt)
+        .with_state(rt);
+    // Around the whole router: axum sets `Allow` outside per-route layers.
+    Router::new()
+        .fallback_service(api)
+        .layer(middleware::from_fn(gin_no_method))
+}
+
+/// gin runs without `HandleMethodNotAllowed`: an unregistered method on a known path
+/// is NoRoute, whose handler aborts with a bare 404 (no 405, no `Allow`), and HEAD is
+/// registered for `/healthz` only, so it never falls back to GET.
+async fn gin_no_method(req: axum::extract::Request, next: middleware::Next) -> Response {
+    if req.method() == Method::HEAD && req.uri().path() != "/healthz" {
+        return StatusCode::NOT_FOUND.into_response();
+    }
+    let mut res = next.run(req).await;
+    if res.status() == StatusCode::NOT_FOUND {
+        res.headers_mut().remove(header::ALLOW);
+    }
+    res
 }
 
 /// Go net/http framing for handlers that set no Content-Length (gin's `c.JSON` and
