@@ -33,6 +33,11 @@ mod codex_testkit;
 mod codex_tls;
 mod codex_tokens;
 mod codex_ws;
+pub mod devin;
+pub mod devin_auth;
+pub mod devin_models;
+mod devin_request;
+mod devin_wire;
 pub mod gemini;
 mod gemini_payload;
 mod gemini_stream;
@@ -117,6 +122,7 @@ pub struct OpenAIExecutors {
 pub struct DeviceExecutors {
     pub kimi: kimi::KimiExecutor,
     pub meta: meta::MetaExecutor,
+    pub devin: devin::DevinExecutor,
 }
 
 impl Executors {
@@ -131,6 +137,7 @@ impl Executors {
             "codex" => self.codex.execute(credential, req, cfg).await,
             p if kimi::PROVIDERS.contains(&p) => self.devices.kimi.execute(&self.claude, credential, req, cfg).await,
             meta::PROVIDER => self.devices.meta.execute(credential, req, cfg).await,
+            devin::PROVIDER => self.devices.devin.execute(credential, req, cfg).await,
             p if openai_compat::handles(p) => self.openai.compat.execute(credential, req, cfg).await,
             p if gemini::handles(p) => self.google.gemini.execute(credential, req, cfg).await,
             xai::PROVIDER => self.openai.xai.execute(credential, req, cfg, false).await,
@@ -210,7 +217,7 @@ impl Executors {
     /// Whether an executor serves this provider. Credentials of other providers never
     /// enter selection (Go skips auths whose executor is not registered).
     pub fn supports(&self, provider: &str) -> bool {
-        matches!(provider, "claude" | "codex" | meta::PROVIDER | xai::PROVIDER)
+        matches!(provider, "claude" | "codex" | meta::PROVIDER | xai::PROVIDER | devin::PROVIDER)
             || kimi::PROVIDERS.contains(&provider)
             || openai_compat::handles(provider)
             || gemini::handles(provider)
@@ -255,6 +262,7 @@ impl Executors {
             p if kimi::PROVIDERS.contains(&p) => self.devices.kimi.needs_prepare(credential, cfg),
             meta::PROVIDER => self.devices.meta.needs_prepare(credential, cfg),
             xai::PROVIDER => self.openai.xai.needs_prepare(credential, cfg),
+            devin::PROVIDER => self.devices.devin.needs_prepare(credential, cfg),
             _ => false,
         }
     }
@@ -267,6 +275,7 @@ impl Executors {
             p if kimi::PROVIDERS.contains(&p) => self.devices.kimi.prepare(credential, cfg).await,
             meta::PROVIDER => self.devices.meta.prepare(credential, cfg).await,
             xai::PROVIDER => self.openai.xai.prepare(credential, cfg).await,
+            devin::PROVIDER => self.devices.devin.prepare(credential, cfg).await,
             other => Err(no_executor(other)),
         }
     }

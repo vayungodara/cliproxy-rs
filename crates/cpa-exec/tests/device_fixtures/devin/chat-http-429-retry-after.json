@@ -1,0 +1,90 @@
+{
+  "name": "chat-http-429-retry-after",
+  "credential": {
+    "api_key": "devin-session-token$fixture",
+    "base_url": "http://127.0.0.1:42033",
+    "device_seed": "seed-1",
+    "session_token": "devin-session-token$fixture",
+    "type": "devin"
+  },
+  "request": {
+    "body": "{\"model\":\"swe-2\",\"messages\":[{\"role\":\"system\",\"content\":\"You are helpful.\\nYou are Claude Code, Anthropic's official CLI for Claude.\\nKeep it short.\"},{\"role\":\"user\",\"content\":\"What's the weather in Paris? chat-http-429-retry-after\"},{\"role\":\"assistant\",\"content\":\"Checking.\",\"tool_calls\":[{\"id\":\"call_a\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"{\\\"city\\\":\\\"Paris\\\"}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"call_a\",\"content\":\"sunny\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Thanks \u003cb\u003e\u0026\u003c/b\u003e\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/webp;base64,UklGRg==\"}}]}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"Get weather\",\"parameters\":{\"type\":\"object\",\"properties\":{\"city\":{\"type\":\"string\"}}}}},{\"type\":\"function\",\"function\":{\"name\":\"exec_command\",\"description\":\"Runs a command, returning output or a session ID for ongoing interaction.\",\"parameters\":{\"type\":\"object\"}}}],\"temperature\":0.3,\"max_tokens\":500}",
+    "model": "swe-2",
+    "source": "openai",
+    "stream": false
+  },
+  "responses": [
+    {
+      "status": 429,
+      "headers": [
+        [
+          "Retry-After",
+          "7"
+        ],
+        [
+          "Content-Type",
+          "application/json"
+        ]
+      ],
+      "body": "{\"code\":\"resource_exhausted\",\"message\":\"slow down\"}"
+    }
+  ],
+  "upstream": [
+    {
+      "method": "POST",
+      "target": "/exa.api_server_pb.ApiServerService/GetChatMessage",
+      "headers": [
+        [
+          "Host",
+          "127.0.0.1:42033"
+        ],
+        [
+          "Content-Length",
+          "1550"
+        ],
+        [
+          "Accept",
+          "*/*"
+        ],
+        [
+          "Authorization",
+          "Basic devin-session-token$fixture-devin-session-token$fixture"
+        ],
+        [
+          "Connect-Protocol-Version",
+          "1"
+        ],
+        [
+          "Content-Type",
+          "application/connect+proto"
+        ],
+        [
+          "Sentry-Trace",
+          "0a237e212257883c0726e7a0af077a42-7c483ddac1493105-1"
+        ]
+      ],
+      "body": "",
+      "body_b64": "AAAABgkKsAYKBmNoaXNlbBIKMzAwMC4xMC4yMRobZGV2aW4tc2Vzc2lvbi10b2tlbiRmaXh0dXJlIgJlbioFbGludXg6CjMwMDAuMTAuMjFiBmNoaXNlbPoB3AVkMzU3MTg4YTU3NGM3MmVjMjZhYWU3ODVhZjJhZDhhMjMzZWQzYjAzYjEyNDI1MTljOWFhMTZkOTg2ZjA3NWY3ZjdkMTA4NTk3MmM4MGMzOTVhMWUwYWFjYmYyYjM3Y2ZkMDkzYTQ1M2M0YWU4ZDczYTM5NDUxZjNhMzliZjk0NmM1YTJmMDI4NTBhYmUwOGE1NTYwNWEwY2Q3MzJhYWZjNTg0ZmYzOTA3NjkyM2MxYzQ4ZjIyMzZmMTRlMzg0Yzk0YmUyZjA0NDc5NGEyYzc5MGQ5ZTA4ZTY3NmU0NTExYzdlMzJjMWMzODI3ZjNiNDI2MmY5YTJhNzliZGU5Y2UyMmEwMjBjOWY3MTgxM2Q2OGQ1YTA1MjZjMTdiZDEyZWRmYTY4Y2FiNzA4NjYyMjI1YTVhMTEzZTMyNTVkYzdjYmNkNDJkOGE3Njg0NjM4ZTRkM2ZhNTBhMGVjNTJiNGQ2NTE5N2U3YzdmYzdjNjE4OWVkY2YzNWRkOWI0ZDQzODYyOWVkODYzZGM4NDllNDAyNjExMGEwZGY2MTI1ZDU0MmM0ODMxNDRiZTgzN2VjZjgyMDE2ZjFhYTc1ZTM5YmFlNWRjMGMwMWUyMjJkMGUwNjU1NTdmMWVlZTc3ZWEwMmU1NDBiZjM0ZmYyOWMxNWQ1MjkzYzA0ZmVmNTJhOGVjZjI5N2RjMDNkNGVmOGM5YWRlYmJhMTIxZWM4Nzg1MGU2MzA4OWE4ZGI0NjczNzNjMjNhZmZiMWM0MzU5MGZjNTVlMzFlNDA2Y2M4ZmE2ZDgyZjM5ZGIxZDE0NzU4ZDU2OWYyNjM4YTQ0MTE5YTNhZGZlYTU0YmRkOWE2MDljMTc4OWQwOTNjODU3MDc3ZTQwYzkyZmNlYTFlNGIwYzhhYzRiNjk1MmYxODUzNTY0ZjM5ODc4YzdmYmU2YWExMmM4OTllNTYxMzRhYTBlMTgzYmY2NTgwZGI5OTQ5NGUSH1lvdSBhcmUgaGVscGZ1bC4KS2VlcCBpdCBzaG9ydC4aYAokYTFjYzgzOGYtZTEzZi00OGJlLWFkMzQtOGZhYjc4ZGU0ODYzEAEaNldoYXQncyB0aGUgd2VhdGhlciBpbiBQYXJpcz8gY2hhdC1odHRwLTQyOS1yZXRyeS1hZnRlchpcCiQyNmJhMjZlZi0yMDdiLTRkODctYWJjMy05N2U2YjdlM2Q0MTkQAhoJQ2hlY2tpbmcuMicKBmNhbGxfYRILZ2V0X3dlYXRoZXIaEHsiY2l0eSI6IlBhcmlzIn0aNwokNTkwYmU3YmMtYmQ3Yi00YzliLWI3OGYtYTRmYTI0ZTI0ZDg4EAQaBXN1bm55OgZjYWxsX2EacQokZTQ0MDA2NGYtMzM1NC00ZWU2LWE1YTQtMzUxODMyYjAxZDJjEAEaL1tJbWFnZSAxOiBwYXN0ZWRfaW1hZ2VfMS53ZWJwXQoKVGhhbmtzIDxiPiY8L2I+UhYKCFVrbEdSZz09EgppbWFnZS93ZWJwOAVCHAgBEPQDGJADKTMzMzMzM9M/OChBAAAAYGZm7j9SVQoLZ2V0X3dlYXRoZXISC0dldCB3ZWF0aGVyGjl7InR5cGUiOiJvYmplY3QiLCJwcm9wZXJ0aWVzIjp7ImNpdHkiOnsidHlwZSI6InN0cmluZyJ9fX1SbQoMZXhlY19jb21tYW5kEkpSdW5zIGEgY29tbWFuZCwgcmV0dXJuaW5nIG91dHB1dCBvciBhbiBzZXNzaW9uIElEIGZvciBvbmdvaW5nIGludGVyYWN0aW9uLhoReyJ0eXBlIjoib2JqZWN0In16KgokYzU4MjZkYWQtNGMyYS01MmY2LWIzMGYtYWU3MWYxMGI3ZDg5GAQgDoIBJGM1ODI2ZGFkLTRjMmEtNTJmNi1iMzBmLWFlNzFmMTBiN2Q4OaABAaoBCnN3ZS0yLWhpZ2g="
+    }
+  ],
+  "downstream": {
+    "err_status": 429,
+    "err_body": "{\"code\":\"resource_exhausted\",\"message\":\"slow down\"}"
+  },
+  "extra": {
+    "retry_after_secs": 7,
+    "usage": [
+      {
+        "cached_tokens": 0,
+        "failed": true,
+        "input_tokens": 0,
+        "model": "swe-2",
+        "output_tokens": 0,
+        "reasoning_effort": "",
+        "reasoning_tokens": 0,
+        "response_model": "",
+        "total_tokens": 0
+      }
+    ]
+  }
+}

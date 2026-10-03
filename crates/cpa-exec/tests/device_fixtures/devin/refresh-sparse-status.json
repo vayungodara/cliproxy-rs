@@ -1,0 +1,71 @@
+{
+  "name": "refresh-sparse-status",
+  "credential": {
+    "session_token": "tok-only",
+    "type": "devin"
+  },
+  "request": {
+    "refresh": true
+  },
+  "responses": [
+    {
+      "status": 200,
+      "headers": [
+        [
+          "Content-Type",
+          "application/proto"
+        ]
+      ],
+      "body": "",
+      "body_b64": "CgIaAA=="
+    }
+  ],
+  "upstream": [
+    {
+      "method": "POST",
+      "target": "/exa.seat_management_pb.SeatManagementService/GetUserStatus",
+      "headers": [
+        [
+          "Host",
+          "127.0.0.1:46827"
+        ],
+        [
+          "Content-Length",
+          "800"
+        ],
+        [
+          "Accept",
+          "*/*"
+        ],
+        [
+          "Authorization",
+          "Basic tok-only-tok-only"
+        ],
+        [
+          "Connect-Protocol-Version",
+          "1"
+        ],
+        [
+          "Content-Type",
+          "application/proto"
+        ]
+      ],
+      "body": "",
+      "body_b64": "Cp0GCgZjaGlzZWwSCjMwMDAuMTAuMjEaCHRvay1vbmx5IgJlbioFbGludXg6CjMwMDAuMTAuMjFiBmNoaXNlbPoB3AU4YWFiMjQ5NDBkYmY4MzM4Mzc0NWYzM2RkNzM1NzY0YjdiMmNiMGQzNWZmNWUwY2NjODJkZTljMWE4MmQzZDQwNjk4NTVjNDg5MDI3Mzg4OTBiOWEzMGZmZGE5NGRjNjEzYTRiODQwYzdmZmU4NGFkODE5ZWE4NmEwMjI4Y2UwMTkzZGY0N2Q5MzNkNmQxYTdhZjQxMDRkNzcyYzQ1MTRiNDI0Y2I0NTVmYWRjOTNhYjA4NzAxMmY4YTlmZTJkNDUyOGZiYzFkNjdmYzUwMTUyNTU2ZWFmOTFhZThhYWY0MTY2NzQyNjQ3ZjZjZmFjZmM4MjVhNzkxNTkwOTc1OTUxMDE0YzU3YzlmMTZkYjNkYTEzNTZjMTgyOTY1NDllYTFlMjlhOGVlZDE0MjM1NDczMzUyMjczZGY2YmJlNjNjOTRkYzE2MWQ1MDhhZGI0MzRmMDgyYzE0YTYwNGQ5M2YxYTQ0YjE2YzVlMDFmN2FhMjVmMzJlMWQxMzdjNWZkZDYwOTZiNGM2YjM2OWEyOWJiZmMzNmZkYmZmNGQwZjkxNTU5OWQ2ODc1NGRmYTFiYjc2YTYwZmM5ZjhjOGQ2NDc0Mzc1NjVkNzNlYTMwN2IwMzllNjZiNmEwZjlhZmNmMDAwMmIxNWM1Y2FiOWI0ZjA3MzIxNWUyOTQ1M2Q4NDUzYzE2N2JkNzk4ODZjYzMyZWUxZTI0MDRkOTIzYWUwZmMzZDJlNDYwY2U4ODIzYjdiZGY0YjMzYWI1ZWRkMjYwY2M0MWM2NzQ3NTFiMWE5YzViYTNiMDBjZGE2NmJhZDViZTUxYTM2ZTVkNTBkMjhjMzMzZTE4ZTE1OWY5NTRlMmYwMDBjODRhN2M5OGU0YzVhNDA4YjFkYTFhMzFkMTgxNWE4MDY4MmVjNDk3NTVlNTk1M2E4NzgzODMzN2NmOGJmMTNkZGQ4OTAwMTU0OTA5MTVmZWM5MzYwM2JkZGE="
+    }
+  ],
+  "downstream": {},
+  "extra": {
+    "attributes_after": {},
+    "metadata_after": {
+      "session_token": "tok-only",
+      "type": "devin"
+    },
+    "quota_before": null,
+    "quota_signals": {
+      "daily_quota_remaining_percent": "0%",
+      "weekly_quota_remaining_percent": "0%"
+    },
+    "same_auth": false
+  }
+}
