@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from "svelte";
   import { store, every } from "../store.svelte";
   import { buckets, sumBuckets, sum, credState, credName, provider, label, readPath, newKey, ago, type Data } from "../core";
   import { checkAll, canCheck, limits } from "../quota";
@@ -53,8 +54,14 @@
   // looks as it always did, and the third step lives in the "No requests yet" line.
   const setup = $derived(store.config.data && store.creds.data && !(steps[0].done && steps[1].done));
   const next = $derived(steps.findIndex((s) => !s.done));
-  const createKey = () =>
-    store.act(() => store.replace("access/api-keys", keys, [...keys, newKey()]), "Client key created.");
+  async function createKey() {
+    if (!(await store.act(() => store.replace("access/api-keys", keys, [...keys, newKey()]), "Client key created."))) return;
+    // The button is gone now; continue at the next step unless the user already moved on.
+    await tick();
+    if (document.activeElement !== document.body) return;
+    const next = [...document.querySelectorAll<HTMLElement>(".checklist .key.primary, .reading .hint a")].find((e) => e.offsetParent);
+    (next ?? document.getElementById("main"))?.focus();
+  }
 
   const limited = $derived(rows.map((r) => ({ a: r.a, l: limits(r.a) })).filter((x) => x.l));
   const checkable = $derived(rows.some((r) => canCheck(r.a)));

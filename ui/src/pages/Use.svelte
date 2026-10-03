@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from "svelte";
   import { store } from "../store.svelte";
   import { base } from "../api";
   import { readPath, mask, newKey, tools, snippet, type Data, type Lamp } from "../core";
@@ -45,8 +46,12 @@
   $effect(() => {
     if (key) check();
   });
-  const create = () =>
-    store.act(() => store.replace("access/api-keys", keys, [...keys, newKey()]), "Client key created.");
+  async function create() {
+    if (!(await store.act(() => store.replace("access/api-keys", keys, [...keys, newKey()]), "Client key created."))) return;
+    // The button is gone now; continue at the tool choice unless the user already moved on.
+    await tick();
+    if (document.activeElement === document.body) document.querySelector<HTMLElement>('.seg button[aria-pressed="true"]')?.focus();
+  }
 </script>
 
 <div class="head"><h1>Use with tools</h1></div>

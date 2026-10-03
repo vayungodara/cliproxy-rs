@@ -51,7 +51,7 @@
             {#each q.windows as w}<Meter {w} />{:else}<p class="legend">The provider answered without usage windows.</p>{/each}
             <span class="legend">{q.at ? `Checked ${ago(q.at)}` : ""}</span>
           {:else if q}<p class="note error"><span class="lamp bad"></span>{q.error}</p>{/if}
-          {#if signals.length && !q}<div class="chips">
+          {#if signals.length}<div class="chips">
               {#each signals as [k, v]}<span class="chip">{k}: {v}</span>{/each}
               <span class="legend">observed {ago(a.quota.observed_at)}</span>
             </div>{/if}

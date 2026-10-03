@@ -84,10 +84,32 @@ try {
   }
   pass("fresh server: Get started shows 0 of 3 in both themes, desktop and phone, without overflow");
 
-  // 3. Step 2 first: one click creates a client key.
-  await start.getByRole("button", { name: "Create a client key" }).click();
+  // 3. Step 2 first, by keyboard. Both places that create a key remove the pressed button,
+  //    so focus must move on to the next action. Use with tools first, then reset the key
+  //    list and do it again from Get started.
+  const focused = (selector) => page.waitForFunction((s) => document.activeElement?.matches(s), selector, { timeout: 10_000 });
+  await page.evaluate(() => (location.hash = "#use"));
+  await main.getByRole("button", { name: "Create a client key" }).focus();
+  await page.keyboard.press("Enter");
+  await focused('.seg button[aria-pressed="true"]');
+  pass("Use with tools: Enter on Create a client key adds a key and focus moves to the tool choice");
+  await page.evaluate(async (s) => {
+    const r = await fetch("./v8/management/config/access/api-keys", {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${s}`, "Content-Type": "application/json" },
+      body: "[]",
+    });
+    if (!r.ok) throw new Error(`reset api-keys: HTTP ${r.status}`);
+  }, secret);
+  await page.reload();
+  await signIn(page);
+  await start.getByText("0 of 3 done").waitFor();
+  await start.getByRole("button", { name: "Create a client key" }).focus();
+  await page.keyboard.press("Enter");
   await start.getByText("1 of 3 done").waitFor();
-  pass("Create a client key: added to access.api-keys, list now 1 of 3");
+  await focused(".checklist a.key.primary");
+  assert.equal(await page.evaluate(() => document.activeElement.textContent.trim()), "Connect account");
+  pass("Get started: Enter on Create a client key adds it (1 of 3) and focus moves to Connect account");
 
   // 4. Use with tools before any account: the key works, no models yet.
   await page.evaluate(() => (location.hash = "#use"));
