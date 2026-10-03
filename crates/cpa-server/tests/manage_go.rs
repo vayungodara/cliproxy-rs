@@ -33,6 +33,38 @@ fn first_header<'a>(headers: &'a Value, name: &str) -> Option<&'a [u8]> {
         .map(str::as_bytes)
 }
 
+/// Go's key order (map keys sorted, struct fields as declared) against ours, wherever
+/// both objects have the same keys; values may differ (times, indexes). Both sides are
+/// parsed with insertion order kept.
+fn same_key_order(go: &Value, rs: &Value, at: &str) -> Result<(), String> {
+    match (go, rs) {
+        (Value::Object(g), Value::Object(r)) => {
+            let (gk, rk): (Vec<&String>, Vec<&String>) = (g.keys().collect(), r.keys().collect());
+            let mut gs = gk.clone();
+            let mut rsorted = rk.clone();
+            gs.sort();
+            rsorted.sort();
+            if gs != rsorted {
+                return Ok(());
+            }
+            if gk != rk {
+                return Err(format!("{at}: key order go {gk:?} rs {rk:?}"));
+            }
+            for (k, v) in g {
+                same_key_order(v, &r[k.as_str()], &format!("{at}.{k}"))?;
+            }
+            Ok(())
+        }
+        (Value::Array(g), Value::Array(r)) if g.len() == r.len() => {
+            for (i, (gv, rv)) in g.iter().zip(r).enumerate() {
+                same_key_order(gv, rv, &format!("{at}[{i}]"))?;
+            }
+            Ok(())
+        }
+        _ => Ok(()),
+    }
+}
+
 /// The config text for one `yaml_bools` fixture case (same templates as Go's).
 fn scalar_case_yaml(field: &str, spelling: &str) -> String {
     match field {
@@ -68,7 +100,16 @@ fn yaml_bool_spellings_and_durations_load_like_go() {
         };
         let got = match field {
             "observability.logs.debug" => json!(flag(&["observability", "logs", "debug"])),
-            "plugins.configs.x.enabled" => json!(flag(&["plugins", "configs", "x", "enabled"])),
+            // Plugin entries stay raw (Go `PluginInstanceConfig.Raw`); Go's typed
+            // `Enabled` decodes the YAML 1.1 spellings from them.
+            "plugins.configs.x.enabled" => {
+                let raw = cfg.document["plugins"]["configs"]["x"]["enabled"].clone();
+                json!(match &raw {
+                    serde_yaml_ng::Value::Bool(b) => *b,
+                    serde_yaml_ng::Value::String(s) => cpa_core::config::go_bool(s).unwrap_or(false),
+                    _ => false,
+                })
+            }
             // ponytail: serde resolves the YAML 1.2 bool spellings without keeping their
             // text, so a string field reads `True`/`TRUE` as `true` where Go keeps it.
             "server.host" if ["True", "TRUE", "False", "FALSE"].contains(&spelling) => {
@@ -80,6 +121,48 @@ fn yaml_bool_spellings_and_durations_load_like_go() {
             _ => continue,
         };
         assert_eq!(got, case["value"], "{at}");
+    }
+}
+
+/// Go's typed decoding and raw plugin views (`typed_scalars` in the fixture): load
+/// errors match; int fields truncate floats; plugin entries keep their raw scalars in
+/// the live document, from which `go_bool`/`go_int` give Go's typed values.
+#[test]
+fn typed_scalars_and_raw_plugin_entries_load_like_go() {
+    let hash = bcrypt::hash("fake-secret", 4).unwrap();
+    let cases = fixture()["typed_scalars"].as_array().unwrap();
+    assert_eq!(cases.len(), 12);
+    for case in cases {
+        let name = case["name"].as_str().unwrap();
+        let parsed = Config::parse(&case["yaml"].as_str().unwrap().replace("$HASH", &hash));
+        assert_eq!(
+            parsed.is_err(),
+            case["error"] == true,
+            "{name}: {:?}",
+            parsed.as_ref().err()
+        );
+        let Ok(cfg) = parsed else { continue };
+        assert_eq!(json!(cfg.routing.retry.request_retry), case["request_retry"], "{name}");
+        let Some(raw_view) = case.get("raw_view") else { continue };
+        let entry = cfg.document["plugins"]["configs"].get("x").cloned().unwrap();
+        // Go's raw view of a null entry is `{}`.
+        let raw: Value = match &entry {
+            serde_yaml_ng::Value::Null => json!({}),
+            other => serde_json::to_value(other).unwrap(),
+        };
+        assert_eq!(raw, raw_view["body"], "{name}: raw view");
+        let enabled = entry.get("enabled").and_then(|v| match v {
+            serde_yaml_ng::Value::Bool(b) => Some(*b),
+            serde_yaml_ng::Value::String(s) => cpa_core::config::go_bool(s),
+            _ => None,
+        });
+        let priority = entry.get("priority").and_then(cpa_core::config::go_int);
+        assert_eq!(
+            json!(enabled.unwrap_or(false)),
+            case["enabled"],
+            "{name}: typed enabled"
+        );
+        assert_eq!(json!(priority.unwrap_or(0)), case["priority"], "{name}: typed priority");
     }
 }
 
@@ -610,13 +693,35 @@ mod config_writes {
         serde_json::to_value(v).unwrap()
     }
 
-    /// YAML 1.1 bool spellings in typed bool fields as booleans. Go's saver re-encodes
-    /// them on its first write; cliproxy-rs keeps untouched text as written, so files
-    /// are compared by what they load as.
+    /// Typed scalars as Go loads them (YAML 1.1 bools, truncated floats), and null
+    /// plugin entries as the `{}` Go's saver writes. Go re-encodes these on its first
+    /// write; cliproxy-rs keeps untouched text as written, so files compare by what
+    /// they load as.
     fn typed_bools(v: &Value) -> Value {
         let mut yaml = serde_yaml_ng::to_value(v).unwrap();
-        cpa_core::config::coerce_typed_bools(&mut yaml);
-        serde_json::to_value(yaml).unwrap()
+        cpa_core::config::coerce_typed_scalars(&mut yaml);
+        let mut json = serde_json::to_value(yaml).unwrap();
+        if let Some(entries) = json.pointer_mut("/plugins/configs").and_then(Value::as_object_mut) {
+            for entry in entries.values_mut().filter(|e| e.is_null()) {
+                *entry = json!({});
+            }
+        }
+        json
+    }
+
+    /// [`typed_bools`] for the value at a `/config/...` sub-path.
+    fn typed_at(path: &str, v: &Value) -> Value {
+        let parts: Vec<&str> = path
+            .trim_start_matches("/config")
+            .split('/')
+            .filter(|p| !p.is_empty())
+            .collect();
+        let mut doc = v.clone();
+        for part in parts.iter().rev() {
+            doc = json!({ *part: doc });
+        }
+        let typed = typed_bools(&doc);
+        parts.iter().fold(&typed, |node, part| &node[*part]).clone()
     }
 
     #[tokio::test]
@@ -625,6 +730,7 @@ mod config_writes {
         let hash = bcrypt::hash("fake-secret", 4).unwrap();
         let client = wreq::Client::new();
         let mut compared = 0;
+        let mut bytes_compared = 0;
         let mut failures: Vec<String> = Vec::new();
         for scenario in fixture()["config_writes"].as_array().unwrap() {
             let name = scenario["name"].as_str().unwrap();
@@ -675,6 +781,19 @@ mod config_writes {
                     assert!(body.is_empty(), "{at}: {body}");
                 } else {
                     let got: Value = serde_json::from_str(&body).unwrap();
+                    // gin's exact bytes wherever the values agree exactly; key order always.
+                    if let Some(raw) = step["raw_json"].as_str() {
+                        if got == *want {
+                            bytes_compared += 1;
+                            if body != raw {
+                                failures.push(format!("{at}: bytes differ\n go: {raw}\n rs: {body}"));
+                            }
+                        }
+                        let go_raw: Value = serde_json::from_str(raw).unwrap();
+                        if let Err(e) = same_key_order(&go_raw, &got, &at) {
+                            failures.push(e);
+                        }
+                    }
                     if let Some(code) = want.get("error") {
                         assert_eq!(got["error"], *code, "{at}");
                         assert_eq!(got.get("field"), want.get("field"), "{at}");
@@ -684,9 +803,10 @@ mod config_writes {
                             "{at}: {got}"
                         );
                     } else {
-                        // A full-config read is compared like the file it reflects.
-                        let (want, got) = if step["path"] == "/config" {
-                            (typed_bools(want), typed_bools(&got))
+                        // Config reads are compared like the file they reflect.
+                        let path = step["path"].as_str().unwrap();
+                        let (want, got) = if path == "/config" || path.starts_with("/config/") {
+                            (typed_at(path, want), typed_at(path, &got))
                         } else {
                             (want.clone(), got)
                         };
@@ -720,7 +840,9 @@ mod config_writes {
             let _ = std::fs::remove_dir_all(&dir);
         }
         assert!(failures.is_empty(), "{}", failures.join("\n"));
-        assert_eq!(compared, 89);
+        assert_eq!(compared, 98);
+        eprintln!("config writes: {bytes_compared} of {compared} steps compared byte for byte");
+        assert!(bytes_compared >= 40, "only {bytes_compared} byte comparisons");
     }
 }
 
@@ -797,6 +919,7 @@ mod creds {
         let hash = bcrypt::hash("fake-secret", 4).unwrap();
         let client = wreq::Client::new();
         let mut compared = 0;
+        let mut bytes_compared = 0;
         for scenario in fixture()["credentials"].as_array().unwrap() {
             let name = scenario["name"].as_str().unwrap();
             if name == "dashboard_probes" {
@@ -932,6 +1055,15 @@ mod creds {
                     }
                 } else {
                     let got: Value = serde_json::from_str(&body).unwrap();
+                    // gin's exact bytes wherever the values agree exactly; key order always.
+                    if let Some(raw) = step["raw_json"].as_str() {
+                        if got == step["response"] {
+                            assert_eq!(body, raw, "{at}: bytes");
+                            bytes_compared += 1;
+                        }
+                        let go_raw: Value = serde_json::from_str(raw).unwrap();
+                        same_key_order(&go_raw, &got, &at).unwrap();
+                    }
                     if req_path.starts_with("/oauth/auth-url")
                         && let Some(state) = got["state"].as_str()
                     {
@@ -1033,6 +1165,8 @@ mod creds {
             let _ = std::fs::remove_dir_all(&dir);
         }
         assert_eq!(compared, 184);
+        eprintln!("credentials: {bytes_compared} of {compared} steps compared byte for byte");
+        assert!(bytes_compared >= 80, "only {bytes_compared} byte comparisons");
     }
 
     /// Writes or appends a fixture log file and sets Go's fixed mtime

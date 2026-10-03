@@ -171,7 +171,8 @@ pub(crate) async fn api_key_usage(State(state): State<Arc<Management>>) -> Respo
             (provider, Value::Object(keys))
         })
         .collect();
-    respond(StatusCode::OK, &Value::Object(body))
+    // apiKeyUsageEntry and RecentRequestBucket structs in sorted maps.
+    super::json_ordered(StatusCode::OK, &Value::Object(body))
 }
 
 /// Go `mergeRecentRequestBuckets`: counts add up index by index.
@@ -210,7 +211,8 @@ pub(crate) async fn usage_queue(State(state): State<Arc<Management>>, RawQuery(r
                 .unwrap_or_else(|_| Value::String(String::from_utf8_lossy(&payload).into_owned()))
         })
         .collect();
-    respond(StatusCode::OK, &Value::Array(records))
+    // Records are embedded as stored (usageQueueRecord.MarshalJSON).
+    super::json_ordered(StatusCode::OK, &Value::Array(records))
 }
 
 #[cfg(test)]

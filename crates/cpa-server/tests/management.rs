@@ -404,6 +404,8 @@ async fn remote_policy_does_not_trust_forwarded_headers_and_key_hashing_preserve
     );
 }
 
+/// Unix only: the read-only case needs Unix directory permissions.
+#[cfg(unix)]
 #[test]
 fn plaintext_secret_loads_from_a_read_only_config_and_inherited_keys() {
     use std::os::unix::fs::PermissionsExt;
@@ -1379,8 +1381,11 @@ async fn xai_login_polls_the_device_flow_and_saves_the_credential() {
     }
     let last_refresh = saved["last_refresh"].as_str().unwrap();
     assert!(chrono::DateTime::parse_from_rfc3339(last_refresh).is_ok() && last_refresh.ends_with('Z'));
-    use std::os::unix::fs::PermissionsExt;
-    assert_eq!(std::fs::metadata(&path).unwrap().permissions().mode() & 0o777, 0o600);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        assert_eq!(std::fs::metadata(&path).unwrap().permissions().mode() & 0o777, 0o600);
+    }
     let forms = seen.lock().unwrap().clone();
     let device = forms.iter().find(|(p, _)| p == "/oauth2/device/code").unwrap();
     assert!(

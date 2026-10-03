@@ -203,6 +203,8 @@ type configStep struct {
 	Status   int    `json:"status"`
 	Response any    `json:"response"`
 	RawResp  string `json:"raw_response,omitempty"`
+	// RawJSON is the exact JSON body gin wrote, for byte comparison.
+	RawJSON  string `json:"raw_json,omitempty"`
 	File     any    `json:"file"`
 	Archived bool   `json:"file_has_archive"`
 }
@@ -248,6 +250,7 @@ func runConfig(s configScenario) configScenario {
 			var v any
 			if json.Unmarshal(rec.Body.Bytes(), &v) == nil {
 				st.Response = v
+				st.RawJSON = rec.Body.String()
 			} else {
 				st.RawResp = rec.Body.String()
 			}
@@ -271,6 +274,7 @@ type credStep struct {
 	Status      int               `json:"status"`
 	Response    any               `json:"response"`
 	Raw         string            `json:"raw_response,omitempty"`
+	RawJSON     string            `json:"raw_json,omitempty"`
 	Headers     map[string]string `json:"resp_headers,omitempty"`
 	Files       map[string]any    `json:"files"`
 	RawFiles    map[string]string `json:"raw_files,omitempty"`
@@ -482,6 +486,7 @@ func runCreds(s credScenario) credScenario {
 		var v any
 		if json.Unmarshal(rec.Body.Bytes(), &v) == nil && !strings.Contains(st.Path, "/download") {
 			st.Response = v
+			st.RawJSON = rec.Body.String()
 			if m, ok := v.(map[string]any); ok && strings.HasPrefix(st.Path, "/oauth/auth-url") {
 				if state, ok := m["state"].(string); ok {
 					lastState = state
@@ -648,19 +653,86 @@ func yamlMergeCases() []yamlMergeCase {
 	return cases
 }
 
+// A plugins.configs entry or int field as Go loads it: the typed values Go's config
+// holds and the raw view GET /v0/management/plugins/x/config answers.
+type typedScalarCase struct {
+	Name     string `json:"name"`
+	YAML     string `json:"yaml"`
+	Error    bool   `json:"error"`
+	Enabled  *bool  `json:"enabled,omitempty"`
+	Priority *int   `json:"priority,omitempty"`
+	Retry    *int   `json:"request_retry,omitempty"`
+	RawView  any    `json:"raw_view,omitempty"`
+}
+
+func typedScalarCases() []typedScalarCase {
+	must(os.Unsetenv("MANAGEMENT_PASSWORD"))
+	dir, err := os.MkdirTemp("", "cpa-typed-")
+	must(err)
+	defer os.RemoveAll(dir)
+	head := "config-version: 8\nmanagement:\n  secret-key: '$HASH'\n"
+	plugin := func(entry string) string { return head + "plugins:\n  configs:\n    x:" + entry + "\n" }
+	retry := func(v string) string { return head + "routing:\n  retry:\n    request-retry: " + v + "\n" }
+	cases := []typedScalarCase{
+		{Name: "null_entry", YAML: plugin("")},
+		{Name: "float_priority", YAML: plugin(" {enabled: true, priority: 5.7}")},
+		{Name: "negative_float_priority", YAML: plugin(" {priority: -1.5}")},
+		{Name: "quoted_yes", YAML: plugin(" {enabled: \"yes\"}")},
+		{Name: "plain_yes", YAML: plugin(" {enabled: yes, extra: on}")},
+		{Name: "invalid_enabled", YAML: plugin(" {enabled: maybe}")},
+		{Name: "string_priority", YAML: plugin(" {priority: \"5\"}")},
+		{Name: "retry_float", YAML: retry("2.9")},
+		{Name: "retry_negative_float", YAML: retry("-1.5")},
+		{Name: "retry_exponent", YAML: retry("1e3")},
+		{Name: "retry_hex", YAML: retry("0x10")},
+		{Name: "retry_quoted", YAML: retry("\"5\"")},
+	}
+	for i := range cases {
+		c := &cases[i]
+		path := filepath.Join(dir, "config.yaml")
+		must(os.WriteFile(path, []byte(strings.ReplaceAll(c.YAML, "$HASH", secretHash)), 0o600))
+		cfg, errLoad := config.LoadConfig(path)
+		c.Error = errLoad != nil
+		if errLoad != nil {
+			continue
+		}
+		retryValue := cfg.RequestRetry
+		c.Retry = &retryValue
+		item, ok := cfg.Plugins.Configs["x"]
+		if !ok {
+			continue
+		}
+		enabled := item.Enabled != nil && *item.Enabled
+		priority := item.Priority
+		c.Enabled, c.Priority = &enabled, &priority
+		server := api.NewServer(cfg, coreauth.NewManager(nil, nil, nil), sdkaccess.NewManager(), path)
+		req := httptest.NewRequest(http.MethodGet, "/v0/management/plugins/x/config", nil)
+		req.RemoteAddr = "127.0.0.1:1"
+		req.Header.Set("Authorization", "Bearer fake-secret")
+		rec := httptest.NewRecorder()
+		server.Handler().ServeHTTP(rec, req)
+		var v any
+		if json.Unmarshal(rec.Body.Bytes(), &v) == nil {
+			c.RawView = map[string]any{"status": rec.Code, "body": v}
+		}
+	}
+	return cases
+}
+
 type output struct {
-	YAMLBools    []yamlBoolCase   `json:"yaml_bools"`
-	YAMLMerges   []yamlMergeCase  `json:"yaml_merges"`
-	OAuthOnly    []oauthOnlyCase  `json:"oauth_only"`
-	Credentials  []credScenario   `json:"credentials"`
-	Materialized any              `json:"materialized_defaults"`
-	Config       []configScenario `json:"config_writes"`
-	IPBytes      []ipBytesCase    `json:"client_ip_bytes"`
-	Routes       []routeScenario  `json:"routes"`
-	Access       []accessScenario `json:"access"`
-	IPs          []ipCase         `json:"client_ip"`
-	Synth        []synthCase      `json:"synth"`
-	Loads        []loadCase       `json:"load_errors"`
+	TypedScalars []typedScalarCase `json:"typed_scalars"`
+	YAMLBools    []yamlBoolCase    `json:"yaml_bools"`
+	YAMLMerges   []yamlMergeCase   `json:"yaml_merges"`
+	OAuthOnly    []oauthOnlyCase   `json:"oauth_only"`
+	Credentials  []credScenario    `json:"credentials"`
+	Materialized any               `json:"materialized_defaults"`
+	Config       []configScenario  `json:"config_writes"`
+	IPBytes      []ipBytesCase     `json:"client_ip_bytes"`
+	Routes       []routeScenario   `json:"routes"`
+	Access       []accessScenario  `json:"access"`
+	IPs          []ipCase          `json:"client_ip"`
+	Synth        []synthCase       `json:"synth"`
+	Loads        []loadCase        `json:"load_errors"`
 }
 
 func must(err error) {
@@ -841,6 +913,7 @@ func main() {
 	out.Materialized = base.Steps[0].File
 	out.YAMLBools = yamlBoolCases()
 	out.YAMLMerges = yamlMergeCases()
+	out.TypedScalars = typedScalarCases()
 	for _, s := range credScenarios() {
 		out.Credentials = append(out.Credentials, runCreds(s))
 	}
@@ -1330,6 +1403,24 @@ func configScenarios() []configScenario {
 			put("/config", `{"server":{"port":1},"management":{"secret-key":"fake-secret"}}`),
 			put("/config.yaml", "config-version: 8\nmanagement:\n  secret-key: fake-secret\nserver:\n  port: 2 # yaml\n"),
 			patch("/config.yaml", "{}"),
+		}},
+		// Plugin entries keep their raw scalars through writes; floats in Go int fields
+		// truncate (the typed saver writes ints back outside plugin entries).
+		{Name: "plugin_entries_and_float_ints", YAML: "config-version: 8\nmanagement:\n  secret-key: '$HASH'\n" +
+			"routing:\n  retry:\n    request-retry: 2.9\nplugins:\n  configs:\n    x:\n      enabled: \"yes\"\n      priority: 5.7\n    y:\n", Steps: []configStep{
+			get("/config/plugins"),
+			patch("/config/routing", `{"strategy":"fill-first"}`),
+			patch("/config/plugins/configs/x", `{"priority":6.5}`),
+			patch("/config/plugins/configs/x", `{"enabled":"on"}`),
+			get("/config/plugins"),
+		}},
+		// gin's c.JSON escapes <, > and & (and U+2028/U+2029) in every string.
+		{Name: "html_escaping_in_json", YAML: "config-version: 8\nmanagement:\n  secret-key: '$HASH'\n" +
+			"server:\n  host: \"a<b>&c\\u2028d\\u2029\"\n", Steps: []configStep{
+			get("/config/server/host"),
+			get("/config/server"),
+			patch("/config/server", `{"host":"<x&y>"}`),
+			get("/config/server/host"),
 		}},
 		// Settings inherited through merge keys survive edits next to them (Go expands
 		// aliases before editing); /config/config.yaml is a key lookup, not the YAML

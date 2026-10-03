@@ -495,14 +495,19 @@ fn load_normalize(cfg: &mut Value) {
                 *entry = Value::Object(Map::new());
             }
             let o = entry.as_object_mut().expect("object");
+            // Plugin entries stay raw in the live document (Go `PluginInstanceConfig.Raw`);
+            // the typed config decodes `enabled` (YAML 1.1 spellings) and truncates a
+            // float `priority`, as yaml.v3 does.
             let priority = o.shift_remove("priority");
-            let enabled = o
-                .shift_remove("enabled")
-                .filter(Value::is_boolean)
-                .unwrap_or(Value::Bool(false));
-            o.insert("enabled".into(), enabled);
+            let enabled = match o.shift_remove("enabled") {
+                Some(Value::Bool(b)) => b,
+                Some(Value::String(s)) => cpa_core::config::go_bool(&s).unwrap_or(false),
+                _ => false,
+            };
+            o.insert("enabled".into(), enabled.into());
             if let Some(p) = priority {
-                o.insert("priority".into(), p);
+                let typed = p.as_i64().or_else(|| p.as_f64().map(|f| f.trunc() as i64));
+                o.insert("priority".into(), typed.map_or(p, Value::from));
             }
         }
     }
