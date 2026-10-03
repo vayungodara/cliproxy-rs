@@ -1,6 +1,5 @@
 //! Stream helpers of the Gemini-family executors: Go's usage filtering for Gemini event
-//! lines (helps.FilterSSEUsageMetadata, JSONPayload), Interactions SSE frame parsing
-//! (gemini_executor.go) and the Claude `message_start` input-token estimate every
+//! lines (helps.FilterSSEUsageMetadata, JSONPayload) and the Claude `message_start` input-token estimate every
 //! non-Claude upstream applies for Claude clients (helps/claude_input_tokens.go).
 
 use std::collections::HashMap;
@@ -196,57 +195,6 @@ pub(crate) fn json_payload(line: &[u8]) -> Option<&[u8]> {
         trimmed = trim_space(rest);
     }
     (trimmed.first() == Some(&b'{')).then_some(trimmed)
-}
-
-/// `geminiInteractionsSSEPayload`: a bare JSON frame, or its `data:` lines joined by
-/// newlines (`[DONE]` and empty data skipped).
-pub(crate) fn interactions_sse_payload(frame: &[u8]) -> Option<Vec<u8>> {
-    let trimmed = trim_space(frame);
-    if trimmed.is_empty() {
-        return None;
-    }
-    if trimmed.starts_with(b"{") {
-        return Some(trimmed.to_vec());
-    }
-    let mut payload: Vec<u8> = Vec::new();
-    for line in frame.split(|b| *b == b'\n') {
-        let line = line.strip_suffix(b"\r").unwrap_or(line);
-        if !trim_space(line).starts_with(b"data:") {
-            continue;
-        }
-        let at = find(line, b"data:").unwrap_or(0);
-        let data = trim_space(&line[at + 5..]);
-        if data.is_empty() || data == b"[DONE]" {
-            continue;
-        }
-        if !payload.is_empty() {
-            payload.push(b'\n');
-        }
-        payload.extend_from_slice(data);
-    }
-    (!payload.is_empty()).then_some(payload)
-}
-
-/// `geminiInteractionsSSEDone`: a `[DONE]` frame, a `data: [DONE]` line or an
-/// `event: done` line.
-pub(crate) fn interactions_sse_done(frame: &[u8]) -> bool {
-    if trim_space(frame) == b"[DONE]" {
-        return true;
-    }
-    let mut saw_done_event = false;
-    for line in frame.split(|b| *b == b'\n') {
-        let line = trim_space(line.strip_suffix(b"\r").unwrap_or(line));
-        if line.eq_ignore_ascii_case(b"event: done") {
-            saw_done_event = true;
-            continue;
-        }
-        if let Some(data) = line.strip_prefix(b"data:")
-            && trim_space(data) == b"[DONE]"
-        {
-            return true;
-        }
-    }
-    saw_done_event
 }
 
 /// `ClaudeInputTokenState`: for Claude clients of a non-Claude upstream, the first
