@@ -21,6 +21,7 @@ use crate::{Runtime, errors};
 
 struct Request {
     caller: Caller,
+    peer: Option<std::net::SocketAddr>,
     query: String,
     headers: HeaderMap,
     path: String,
@@ -41,12 +42,14 @@ fn call(req: Request, entry: Format, model: String, body: Bytes, stream: bool, a
         selection_model: None,
         execution_session: None,
         request_path: req.path,
+        peer: req.peer,
     }
 }
 
 pub async fn chat_completions(
     State(rt): State<Arc<Runtime>>,
     Extension(caller): Extension<Caller>,
+    peer: dispatch::Peer,
     matched: Option<MatchedPath>,
     OriginalUri(uri): OriginalUri,
     headers: HeaderMap,
@@ -76,6 +79,7 @@ pub async fn chat_completions(
     let path = dispatch::route_path(matched.as_ref(), &uri);
     let req = Request {
         caller,
+        peer: dispatch::peer(peer),
         query,
         headers,
         path,
@@ -123,6 +127,7 @@ fn responses_shaped(body: &[u8]) -> bool {
 pub async fn completions(
     State(rt): State<Arc<Runtime>>,
     Extension(caller): Extension<Caller>,
+    peer: dispatch::Peer,
     matched: Option<MatchedPath>,
     original: OriginalUri,
     headers: HeaderMap,
@@ -138,6 +143,7 @@ pub async fn completions(
     let model = gojson::gjson_string(root.get("model"));
     let req = Request {
         caller,
+        peer: dispatch::peer(peer),
         query: String::new(),
         headers,
         path: dispatch::route_path(matched.as_ref(), &original.0),
@@ -346,6 +352,7 @@ impl Writer for ChatSse {
 pub async fn responses(
     State(rt): State<Arc<Runtime>>,
     Extension(caller): Extension<Caller>,
+    peer: dispatch::Peer,
     matched: Option<MatchedPath>,
     original: OriginalUri,
     headers: HeaderMap,
@@ -363,6 +370,7 @@ pub async fn responses(
     let codex_client = codex_client(&headers);
     let req = Request {
         caller,
+        peer: dispatch::peer(peer),
         query: String::new(),
         headers,
         path: dispatch::route_path(matched.as_ref(), &original.0),
@@ -866,6 +874,7 @@ impl Writer for ResponsesSse {
 pub async fn compact(
     State(rt): State<Arc<Runtime>>,
     Extension(caller): Extension<Caller>,
+    peer: dispatch::Peer,
     matched: Option<MatchedPath>,
     original: OriginalUri,
     headers: HeaderMap,
@@ -894,6 +903,7 @@ pub async fn compact(
     let model = gojson::gjson_string(fields.get("model"));
     let req = Request {
         caller,
+        peer: dispatch::peer(peer),
         query: String::new(),
         headers,
         path: dispatch::route_path(matched.as_ref(), &original.0),

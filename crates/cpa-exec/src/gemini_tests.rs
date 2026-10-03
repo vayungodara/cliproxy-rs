@@ -172,6 +172,7 @@ fn request(s: &Value) -> ExecRequest {
         execution_session: None,
         derived_session: None,
         resolved_model: resolved_model(s),
+        usage: Default::default(),
         request_path: String::new(),
         headers,
         caller: Caller {
