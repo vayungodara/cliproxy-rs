@@ -1,0 +1,1796 @@
+{
+  "dispatch_errors": [
+    {
+      "code": "credential_concurrency_exceeded",
+      "kind": "busy",
+      "message": "limit",
+      "raw": "{\"error\":{\"type\":\"credential_concurrency_exceeded\",\"message\":\"limit\",\"retryable\":true,\"retry_after_ms\":750}}",
+      "retry_after_header": "1",
+      "retry_after_ms": 750,
+      "retryable": true,
+      "status": 429
+    },
+    {
+      "code": "credential_model_concurrency_exceeded",
+      "kind": "busy",
+      "message": "home returned error",
+      "raw": "{\"error\":{\"type\":\"credential_model_concurrency_exceeded\",\"retry_after_ms\":0}}",
+      "retryable": false,
+      "status": 429
+    },
+    {
+      "code": "model_cooldown",
+      "kind": "cooldown",
+      "message": "wait",
+      "raw": "{\"error\":{\"code\":\"model_cooldown\",\"message\":\" wait \",\"retry_after_ms\":1500,\"request_retry\":2}}",
+      "request_retry": 2,
+      "retry_after_header": "2",
+      "retry_after_ms": 1500,
+      "retryable": false,
+      "status": 429
+    },
+    {
+      "code": "model_cooldown",
+      "kind": "cooldown",
+      "message": "home returned error",
+      "raw": "{\"error\":{\"type\":\"model_cooldown\",\"retry_after_ms\":-5,\"request_retry\":-1}}",
+      "retryable": false,
+      "status": 429
+    },
+    {
+      "code": "MODEL_NOT_FOUND",
+      "kind": "plain",
+      "message": "home returned error",
+      "raw": "{\"error\":{\"type\":\"MODEL_NOT_FOUND\"}}",
+      "retryable": false,
+      "status": 404
+    },
+    {
+      "code": "unauthorized",
+      "kind": "plain",
+      "message": "home returned error",
+      "raw": "{\"error\":{\"type\":\"unauthorized\"}}",
+      "retryable": false,
+      "status": 401
+    },
+    {
+      "code": "user_credits_insufficient",
+      "kind": "plain",
+      "message": "home returned error",
+      "raw": "{\"error\":{\"type\":\"user_credits_insufficient\"}}",
+      "retryable": false,
+      "status": 402
+    },
+    {
+      "code": "user_period_limit_exceeded",
+      "kind": "plain",
+      "message": "home returned error",
+      "raw": "{\"error\":{\"type\":\"user_period_limit_exceeded\"}}",
+      "retryable": false,
+      "status": 429
+    },
+    {
+      "code": "refresh_temporarily_unavailable",
+      "kind": "plain",
+      "message": "home returned error",
+      "raw": "{\"error\":{\"type\":\"refresh_temporarily_unavailable\"}}",
+      "retryable": false,
+      "status": 503
+    },
+    {
+      "code": "concurrency_protocol_required",
+      "kind": "plain",
+      "message": "home returned error",
+      "raw": "{\"error\":{\"type\":\"concurrency_protocol_required\"}}",
+      "retryable": false,
+      "status": 503
+    },
+    {
+      "code": "request_retry_exceeded",
+      "kind": "plain",
+      "message": "x",
+      "raw": "{\"error\":{\"type\":\"request_retry_exceeded\",\"message\":\"x\"}}",
+      "retryable": false,
+      "status": 502
+    },
+    {
+      "code": "auth_not_found",
+      "kind": "plain",
+      "message": "home returned error",
+      "raw": "{\"error\":{\"type\":\" \",\"code\":\" auth_not_found \"}}",
+      "retryable": false,
+      "status": 503
+    },
+    {
+      "code": "invalid_auth",
+      "kind": "plain",
+      "message": "home returned malformed error payload",
+      "raw": "{\"error\":{\"message\":\"no code\"}}",
+      "retryable": false,
+      "status": 502
+    },
+    {
+      "code": "invalid_auth",
+      "kind": "plain",
+      "message": "home returned malformed error payload",
+      "raw": "{\"error\":null}",
+      "retryable": false,
+      "status": 502
+    },
+    {
+      "code": "invalid_auth",
+      "kind": "plain",
+      "message": "home returned malformed error payload",
+      "raw": "{\"error\":\"text\"}",
+      "retryable": false,
+      "status": 502
+    },
+    {
+      "code": "invalid_auth",
+      "kind": "plain",
+      "message": "home returned malformed error payload",
+      "raw": "{\"error\":{\"type\":5}}",
+      "retryable": false,
+      "status": 502
+    },
+    {
+      "raw": "{\"auth\":{\"id\":\"a\"}}"
+    },
+    {
+      "raw": "not json"
+    }
+  ],
+  "envelopes": [
+    {
+      "ok": true,
+      "present": true,
+      "raw": "{\"concurrency\":{\"accounted\":true,\"credential_id\":\"c\",\"model\":\"gpt\"}}",
+      "tuple": {
+        "accounted": true,
+        "credential_id": "c",
+        "model": "gpt"
+      }
+    },
+    {
+      "ok": false,
+      "present": true,
+      "raw": "{\"concurrency\":{\"accounted\":false,\"credential_id\":\"c\",\"model\":\"gpt\"}}"
+    },
+    {
+      "ok": false,
+      "present": true,
+      "raw": "{\"concurrency\":{\"accounted\":true,\"credential_id\":\" c\",\"model\":\"gpt\"}}"
+    },
+    {
+      "ok": false,
+      "present": true,
+      "raw": "{\"concurrency\":{\"accounted\":true,\"credential_id\":\"c\",\"model\":\"GPT\"}}"
+    },
+    {
+      "ok": false,
+      "present": true,
+      "raw": "{\"concurrency\":{\"accounted\":true,\"credential_id\":\"c\",\"model\":\"gpt(high)\"}}"
+    },
+    {
+      "ok": false,
+      "present": true,
+      "raw": "{\"concurrency\":null}"
+    },
+    {
+      "ok": false,
+      "present": true,
+      "raw": "{\"concurrency\":\"x\"}"
+    },
+    {
+      "ok": true,
+      "present": false,
+      "raw": "{\"auth\":{}}"
+    },
+    {
+      "ok": false,
+      "present": false,
+      "raw": "[1]"
+    },
+    {
+      "ok": false,
+      "present": false,
+      "raw": "\ufffd"
+    }
+  ],
+  "inflight": [
+    {
+      "barrier": 11,
+      "cfg": {
+        "max_part_bytes": 262144,
+        "max_part_count": 64,
+        "max_revision_bytes": 16777216,
+        "max_aggregate_groups": 100000,
+        "max_details": 10000,
+        "max_string_bytes": 256
+      },
+      "frames": [
+        "{\"kind\":\"part\",\"revision\":7,\"observed_at\":\"2026-07-21T12:00:00.12Z\",\"barrier_revision\":11,\"part_index\":0,\"part_count\":1}"
+      ],
+      "name": "empty",
+      "observations": null,
+      "observed_unix_nano": 1784635200120000000,
+      "revision": 7
+    },
+    {
+      "barrier": 11,
+      "cfg": {
+        "max_part_bytes": 262144,
+        "max_part_count": 64,
+        "max_revision_bytes": 16777216,
+        "max_aggregate_groups": 100000,
+        "max_details": 10000,
+        "max_string_bytes": 256
+      },
+      "frames": [
+        "{\"kind\":\"part\",\"revision\":7,\"observed_at\":\"2026-07-21T12:00:00.12Z\",\"barrier_revision\":11,\"part_index\":0,\"part_count\":1,\"aggregates\":[{\"credential_id\":\"cred-a\",\"model\":\"gpt-5\",\"status\":\"accounted\",\"count\":2},{\"credential_id\":\"cred-a\",\"model\":\"gpt-5\",\"status\":\"unaccounted\",\"count\":1}],\"details\":[{\"request_id\":\"req-1\",\"credential_id\":\"cred-a\",\"model\":\"gpt-5\",\"request_kind\":\"sse\",\"started_at\":\"2026-07-21T11:59:58Z\"},{\"request_id\":\"req-3\",\"credential_id\":\"cred-a\",\"model\":\"gpt-5\",\"request_kind\":\"http\",\"started_at\":\"2026-07-21T11:59:58.123456789Z\"},{\"request_id\":\"req-2\",\"credential_id\":\"cred-a\",\"model\":\"gpt-5\",\"request_kind\":\"http\",\"started_at\":\"2026-07-21T11:59:59Z\"}]}"
+      ],
+      "name": "fixture_like",
+      "observations": [
+        {
+          "request_id": "req-1",
+          "credential_id": "cred-a",
+          "model": "gpt-5",
+          "request_kind": "sse",
+          "started_unix_nano": 1784635198000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-2",
+          "credential_id": "cred-a",
+          "model": "gpt-5",
+          "request_kind": "http",
+          "started_unix_nano": 1784635199000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-3",
+          "credential_id": "cred-a",
+          "model": "GPT-5(high)",
+          "request_kind": "http",
+          "started_unix_nano": 1784635198123456789,
+          "accounted": false
+        }
+      ],
+      "observed_unix_nano": 1784635200120000000,
+      "revision": 7
+    },
+    {
+      "barrier": 11,
+      "cfg": {
+        "max_part_bytes": 1024,
+        "max_part_count": 4,
+        "max_revision_bytes": 4096,
+        "max_aggregate_groups": 100000,
+        "max_details": 10000,
+        "max_string_bytes": 256
+      },
+      "frames": [
+        "{\"kind\":\"part\",\"revision\":7,\"observed_at\":\"2026-07-21T12:00:00.12Z\",\"barrier_revision\":11,\"part_index\":0,\"part_count\":4,\"details_truncated\":true,\"aggregates\":[{\"credential_id\":\"cred-0\",\"model\":\"model-\\u003cx\\u003e\\u0026\",\"status\":\"accounted\",\"count\":7},{\"credential_id\":\"cred-0\",\"model\":\"model-\\u003cx\\u003e\\u0026\",\"status\":\"unaccounted\",\"count\":7},{\"credential_id\":\"cred-1\",\"model\":\"model-\\u003cx\\u003e\\u0026\",\"status\":\"accounted\",\"count\":6},{\"credential_id\":\"cred-1\",\"model\":\"model-\\u003cx\\u003e\\u0026\",\"status\":\"unaccounted\",\"count\":7},{\"credential_id\":\"cred-2\",\"model\":\"model-\\u003cx\\u003e\\u0026\",\"status\":\"accounted\",\"count\":7},{\"credential_id\":\"cred-2\",\"model\":\"model-\\u003cx\\u003e\\u0026\",\"status\":\"unaccounted\",\"count\":6}],\"details\":[{\"request_id\":\"req-0000\",\"credential_id\":\"cred-0\",\"model\":\"model-\\u003cx\\u003e\\u0026\",\"request_kind\":\"http\",\"started_at\":\"2026-07-21T11:59:58Z\"}]}",
+        "{\"kind\":\"part\",\"revision\":7,\"observed_at\":\"2026-07-21T12:00:00.12Z\",\"barrier_revision\":11,\"part_index\":1,\"part_count\":4,\"details_truncated\":true,\"details\":[{\"request_id\":\"req-0005\",\"credential_id\":\"cred-2\",\"model\":\"model-\\u003cx\\u003e\\u0026\",\"request_kind\":\"websocket\",\"started_at\":\"2026-07-21T11:59:58Z\"},{\"request_id\":\"req-0010\",\"credential_id\":\"cred-0\",\"model\":\"model-\\u003cx\\u003e\\u0026\",\"request_kind\":\"http\",\"started_at\":\"2026-07-21T11:59:58Z\"},{\"request_id\":\"req-0015\",\"credential_id\":\"cred-1\",\"model\":\"model-\\u003cx\\u003e\\u0026\",\"request_kind\":\"stream\",\"started_at\":\"2026-07-21T11:59:58Z\"},{\"request_id\":\"req-0020\",\"credential_id\":\"cred-2\",\"model\":\"model-\\u003cx\\u003e\\u0026\",\"request_kind\":\"websocket\",\"started_at\":\"2026-07-21T11:59:58Z\"},{\"request_id\":\"req-0025\",\"credential_id\":\"cred-0\",\"model\":\"model-\\u003cx\\u003e\\u0026\",\"request_kind\":\"http\",\"started_at\":\"2026-07-21T11:59:58Z\"}]}",
+        "{\"kind\":\"part\",\"revision\":7,\"observed_at\":\"2026-07-21T12:00:00.12Z\",\"barrier_revision\":11,\"part_index\":2,\"part_count\":4,\"details_truncated\":true,\"details\":[{\"request_id\":\"req-0030\",\"credential_id\":\"cred-1\",\"model\":\"model-\\u003cx\\u003e\\u0026\",\"request_kind\":\"stream\",\"started_at\":\"2026-07-21T11:59:58Z\"},{\"request_id\":\"req-0035\",\"credential_id\":\"cred-2\",\"model\":\"model-\\u003cx\\u003e\\u0026\",\"request_kind\":\"websocket\",\"started_at\":\"2026-07-21T11:59:58Z\"},{\"request_id\":\"req-0004\",\"credential_id\":\"cred-0\",\"model\":\"model-\\u003cx\\u003e\\u0026\",\"request_kind\":\"http\",\"started_at\":\"2026-07-21T11:59:59.5Z\"},{\"request_id\":\"req-0009\",\"credential_id\":\"cred-1\",\"model\":\"model-\\u003cx\\u003e\\u0026\",\"request_kind\":\"stream\",\"started_at\":\"2026-07-21T11:59:59.5Z\"},{\"request_id\":\"req-0014\",\"credential_id\":\"cred-2\",\"model\":\"model-\\u003cx\\u003e\\u0026\",\"request_kind\":\"websocket\",\"started_at\":\"2026-07-21T11:59:59.5Z\"}]}",
+        "{\"kind\":\"part\",\"revision\":7,\"observed_at\":\"2026-07-21T12:00:00.12Z\",\"barrier_revision\":11,\"part_index\":3,\"part_count\":4,\"details_truncated\":true,\"details\":[{\"request_id\":\"req-0019\",\"credential_id\":\"cred-0\",\"model\":\"model-\\u003cx\\u003e\\u0026\",\"request_kind\":\"http\",\"started_at\":\"2026-07-21T11:59:59.5Z\"},{\"request_id\":\"req-0024\",\"credential_id\":\"cred-1\",\"model\":\"model-\\u003cx\\u003e\\u0026\",\"request_kind\":\"stream\",\"started_at\":\"2026-07-21T11:59:59.5Z\"},{\"request_id\":\"req-0029\",\"credential_id\":\"cred-2\",\"model\":\"model-\\u003cx\\u003e\\u0026\",\"request_kind\":\"websocket\",\"started_at\":\"2026-07-21T11:59:59.5Z\"},{\"request_id\":\"req-0034\",\"credential_id\":\"cred-0\",\"model\":\"model-\\u003cx\\u003e\\u0026\",\"request_kind\":\"http\",\"started_at\":\"2026-07-21T11:59:59.5Z\"},{\"request_id\":\"req-0039\",\"credential_id\":\"cred-1\",\"model\":\"model-\\u003cx\\u003e\\u0026\",\"request_kind\":\"stream\",\"started_at\":\"2026-07-21T11:59:59.5Z\"}]}"
+      ],
+      "name": "multipart_truncated",
+      "observations": [
+        {
+          "request_id": "req-0000",
+          "credential_id": "cred-0",
+          "model": "model-\u003cx\u003e\u0026",
+          "request_kind": "http",
+          "started_unix_nano": 1784635198000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0039",
+          "credential_id": "cred-1",
+          "model": "model-\u003cx\u003e\u0026",
+          "request_kind": "stream",
+          "started_unix_nano": 1784635199500000000,
+          "accounted": false
+        },
+        {
+          "request_id": "req-0038",
+          "credential_id": "cred-2",
+          "model": "model-\u003cx\u003e\u0026",
+          "request_kind": "websocket",
+          "started_unix_nano": 1784635201000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0037",
+          "credential_id": "cred-0",
+          "model": "model-\u003cx\u003e\u0026",
+          "request_kind": "http",
+          "started_unix_nano": 1784635202500000000,
+          "accounted": false
+        },
+        {
+          "request_id": "req-0036",
+          "credential_id": "cred-1",
+          "model": "model-\u003cx\u003e\u0026",
+          "request_kind": "stream",
+          "started_unix_nano": 1784635204000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0035",
+          "credential_id": "cred-2",
+          "model": "model-\u003cx\u003e\u0026",
+          "request_kind": "websocket",
+          "started_unix_nano": 1784635198000000000,
+          "accounted": false
+        },
+        {
+          "request_id": "req-0034",
+          "credential_id": "cred-0",
+          "model": "model-\u003cx\u003e\u0026",
+          "request_kind": "http",
+          "started_unix_nano": 1784635199500000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0033",
+          "credential_id": "cred-1",
+          "model": "model-\u003cx\u003e\u0026",
+          "request_kind": "stream",
+          "started_unix_nano": 1784635201000000000,
+          "accounted": false
+        },
+        {
+          "request_id": "req-0032",
+          "credential_id": "cred-2",
+          "model": "model-\u003cx\u003e\u0026",
+          "request_kind": "websocket",
+          "started_unix_nano": 1784635202500000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0031",
+          "credential_id": "cred-0",
+          "model": "model-\u003cx\u003e\u0026",
+          "request_kind": "http",
+          "started_unix_nano": 1784635204000000000,
+          "accounted": false
+        },
+        {
+          "request_id": "req-0030",
+          "credential_id": "cred-1",
+          "model": "model-\u003cx\u003e\u0026",
+          "request_kind": "stream",
+          "started_unix_nano": 1784635198000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0029",
+          "credential_id": "cred-2",
+          "model": "model-\u003cx\u003e\u0026",
+          "request_kind": "websocket",
+          "started_unix_nano": 1784635199500000000,
+          "accounted": false
+        },
+        {
+          "request_id": "req-0028",
+          "credential_id": "cred-0",
+          "model": "model-\u003cx\u003e\u0026",
+          "request_kind": "http",
+          "started_unix_nano": 1784635201000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0027",
+          "credential_id": "cred-1",
+          "model": "model-\u003cx\u003e\u0026",
+          "request_kind": "stream",
+          "started_unix_nano": 1784635202500000000,
+          "accounted": false
+        },
+        {
+          "request_id": "req-0026",
+          "credential_id": "cred-2",
+          "model": "model-\u003cx\u003e\u0026",
+          "request_kind": "websocket",
+          "started_unix_nano": 1784635204000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0025",
+          "credential_id": "cred-0",
+          "model": "model-\u003cx\u003e\u0026",
+          "request_kind": "http",
+          "started_unix_nano": 1784635198000000000,
+          "accounted": false
+        },
+        {
+          "request_id": "req-0024",
+          "credential_id": "cred-1",
+          "model": "model-\u003cx\u003e\u0026",
+          "request_kind": "stream",
+          "started_unix_nano": 1784635199500000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0023",
+          "credential_id": "cred-2",
+          "model": "model-\u003cx\u003e\u0026",
+          "request_kind": "websocket",
+          "started_unix_nano": 1784635201000000000,
+          "accounted": false
+        },
+        {
+          "request_id": "req-0022",
+          "credential_id": "cred-0",
+          "model": "model-\u003cx\u003e\u0026",
+          "request_kind": "http",
+          "started_unix_nano": 1784635202500000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0021",
+          "credential_id": "cred-1",
+          "model": "model-\u003cx\u003e\u0026",
+          "request_kind": "stream",
+          "started_unix_nano": 1784635204000000000,
+          "accounted": false
+        },
+        {
+          "request_id": "req-0020",
+          "credential_id": "cred-2",
+          "model": "model-\u003cx\u003e\u0026",
+          "request_kind": "websocket",
+          "started_unix_nano": 1784635198000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0019",
+          "credential_id": "cred-0",
+          "model": "model-\u003cx\u003e\u0026",
+          "request_kind": "http",
+          "started_unix_nano": 1784635199500000000,
+          "accounted": false
+        },
+        {
+          "request_id": "req-0018",
+          "credential_id": "cred-1",
+          "model": "model-\u003cx\u003e\u0026",
+          "request_kind": "stream",
+          "started_unix_nano": 1784635201000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0017",
+          "credential_id": "cred-2",
+          "model": "model-\u003cx\u003e\u0026",
+          "request_kind": "websocket",
+          "started_unix_nano": 1784635202500000000,
+          "accounted": false
+        },
+        {
+          "request_id": "req-0016",
+          "credential_id": "cred-0",
+          "model": "model-\u003cx\u003e\u0026",
+          "request_kind": "http",
+          "started_unix_nano": 1784635204000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0015",
+          "credential_id": "cred-1",
+          "model": "model-\u003cx\u003e\u0026",
+          "request_kind": "stream",
+          "started_unix_nano": 1784635198000000000,
+          "accounted": false
+        },
+        {
+          "request_id": "req-0014",
+          "credential_id": "cred-2",
+          "model": "model-\u003cx\u003e\u0026",
+          "request_kind": "websocket",
+          "started_unix_nano": 1784635199500000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0013",
+          "credential_id": "cred-0",
+          "model": "model-\u003cx\u003e\u0026",
+          "request_kind": "http",
+          "started_unix_nano": 1784635201000000000,
+          "accounted": false
+        },
+        {
+          "request_id": "req-0012",
+          "credential_id": "cred-1",
+          "model": "model-\u003cx\u003e\u0026",
+          "request_kind": "stream",
+          "started_unix_nano": 1784635202500000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0011",
+          "credential_id": "cred-2",
+          "model": "model-\u003cx\u003e\u0026",
+          "request_kind": "websocket",
+          "started_unix_nano": 1784635204000000000,
+          "accounted": false
+        },
+        {
+          "request_id": "req-0010",
+          "credential_id": "cred-0",
+          "model": "model-\u003cx\u003e\u0026",
+          "request_kind": "http",
+          "started_unix_nano": 1784635198000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0009",
+          "credential_id": "cred-1",
+          "model": "model-\u003cx\u003e\u0026",
+          "request_kind": "stream",
+          "started_unix_nano": 1784635199500000000,
+          "accounted": false
+        },
+        {
+          "request_id": "req-0008",
+          "credential_id": "cred-2",
+          "model": "model-\u003cx\u003e\u0026",
+          "request_kind": "websocket",
+          "started_unix_nano": 1784635201000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0007",
+          "credential_id": "cred-0",
+          "model": "model-\u003cx\u003e\u0026",
+          "request_kind": "http",
+          "started_unix_nano": 1784635202500000000,
+          "accounted": false
+        },
+        {
+          "request_id": "req-0006",
+          "credential_id": "cred-1",
+          "model": "model-\u003cx\u003e\u0026",
+          "request_kind": "stream",
+          "started_unix_nano": 1784635204000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0005",
+          "credential_id": "cred-2",
+          "model": "model-\u003cx\u003e\u0026",
+          "request_kind": "websocket",
+          "started_unix_nano": 1784635198000000000,
+          "accounted": false
+        },
+        {
+          "request_id": "req-0004",
+          "credential_id": "cred-0",
+          "model": "model-\u003cx\u003e\u0026",
+          "request_kind": "http",
+          "started_unix_nano": 1784635199500000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0003",
+          "credential_id": "cred-1",
+          "model": "model-\u003cx\u003e\u0026",
+          "request_kind": "stream",
+          "started_unix_nano": 1784635201000000000,
+          "accounted": false
+        },
+        {
+          "request_id": "req-0002",
+          "credential_id": "cred-2",
+          "model": "model-\u003cx\u003e\u0026",
+          "request_kind": "websocket",
+          "started_unix_nano": 1784635202500000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0001",
+          "credential_id": "cred-0",
+          "model": "model-\u003cx\u003e\u0026",
+          "request_kind": "http",
+          "started_unix_nano": 1784635204000000000,
+          "accounted": false
+        }
+      ],
+      "observed_unix_nano": 1784635200120000000,
+      "revision": 7
+    },
+    {
+      "barrier": 11,
+      "cfg": {
+        "max_part_bytes": 1024,
+        "max_part_count": 2,
+        "max_revision_bytes": 2048,
+        "max_aggregate_groups": 100000,
+        "max_details": 10000,
+        "max_string_bytes": 256
+      },
+      "frames": [
+        "{\"kind\":\"part\",\"revision\":7,\"observed_at\":\"2026-07-21T12:00:00.12Z\",\"barrier_revision\":11,\"part_index\":0,\"part_count\":2,\"details_truncated\":true,\"aggregates\":[{\"credential_id\":\"c0\",\"model\":\"m\",\"status\":\"accounted\",\"count\":15},{\"credential_id\":\"c1\",\"model\":\"m\",\"status\":\"accounted\",\"count\":15}],\"details\":[{\"request_id\":\"req-0000\",\"credential_id\":\"c0\",\"model\":\"m\",\"request_kind\":\"http\",\"started_at\":\"2026-07-21T11:59:58Z\"},{\"request_id\":\"req-0005\",\"credential_id\":\"c1\",\"model\":\"m\",\"request_kind\":\"stream\",\"started_at\":\"2026-07-21T11:59:58Z\"},{\"request_id\":\"req-0010\",\"credential_id\":\"c0\",\"model\":\"m\",\"request_kind\":\"websocket\",\"started_at\":\"2026-07-21T11:59:58Z\"},{\"request_id\":\"req-0015\",\"credential_id\":\"c1\",\"model\":\"m\",\"request_kind\":\"http\",\"started_at\":\"2026-07-21T11:59:58Z\"},{\"request_id\":\"req-0020\",\"credential_id\":\"c0\",\"model\":\"m\",\"request_kind\":\"stream\",\"started_at\":\"2026-07-21T11:59:58Z\"},{\"request_id\":\"req-0025\",\"credential_id\":\"c1\",\"model\":\"m\",\"request_kind\":\"websocket\",\"started_at\":\"2026-07-21T11:59:58Z\"}]}",
+        "{\"kind\":\"part\",\"revision\":7,\"observed_at\":\"2026-07-21T12:00:00.12Z\",\"barrier_revision\":11,\"part_index\":1,\"part_count\":2,\"details_truncated\":true,\"details\":[{\"request_id\":\"req-0004\",\"credential_id\":\"c0\",\"model\":\"m\",\"request_kind\":\"websocket\",\"started_at\":\"2026-07-21T11:59:59.5Z\"},{\"request_id\":\"req-0009\",\"credential_id\":\"c1\",\"model\":\"m\",\"request_kind\":\"http\",\"started_at\":\"2026-07-21T11:59:59.5Z\"},{\"request_id\":\"req-0014\",\"credential_id\":\"c0\",\"model\":\"m\",\"request_kind\":\"stream\",\"started_at\":\"2026-07-21T11:59:59.5Z\"},{\"request_id\":\"req-0019\",\"credential_id\":\"c1\",\"model\":\"m\",\"request_kind\":\"websocket\",\"started_at\":\"2026-07-21T11:59:59.5Z\"},{\"request_id\":\"req-0024\",\"credential_id\":\"c0\",\"model\":\"m\",\"request_kind\":\"http\",\"started_at\":\"2026-07-21T11:59:59.5Z\"},{\"request_id\":\"req-0029\",\"credential_id\":\"c1\",\"model\":\"m\",\"request_kind\":\"stream\",\"started_at\":\"2026-07-21T11:59:59.5Z\"},{\"request_id\":\"req-0003\",\"credential_id\":\"c1\",\"model\":\"m\",\"request_kind\":\"http\",\"started_at\":\"2026-07-21T12:00:01Z\"}]}"
+      ],
+      "name": "part_count_limit",
+      "observations": [
+        {
+          "request_id": "req-0000",
+          "credential_id": "c0",
+          "model": "m",
+          "request_kind": "http",
+          "started_unix_nano": 1784635198000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0029",
+          "credential_id": "c1",
+          "model": "m",
+          "request_kind": "stream",
+          "started_unix_nano": 1784635199500000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0028",
+          "credential_id": "c0",
+          "model": "m",
+          "request_kind": "websocket",
+          "started_unix_nano": 1784635201000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0027",
+          "credential_id": "c1",
+          "model": "m",
+          "request_kind": "http",
+          "started_unix_nano": 1784635202500000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0026",
+          "credential_id": "c0",
+          "model": "m",
+          "request_kind": "stream",
+          "started_unix_nano": 1784635204000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0025",
+          "credential_id": "c1",
+          "model": "m",
+          "request_kind": "websocket",
+          "started_unix_nano": 1784635198000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0024",
+          "credential_id": "c0",
+          "model": "m",
+          "request_kind": "http",
+          "started_unix_nano": 1784635199500000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0023",
+          "credential_id": "c1",
+          "model": "m",
+          "request_kind": "stream",
+          "started_unix_nano": 1784635201000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0022",
+          "credential_id": "c0",
+          "model": "m",
+          "request_kind": "websocket",
+          "started_unix_nano": 1784635202500000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0021",
+          "credential_id": "c1",
+          "model": "m",
+          "request_kind": "http",
+          "started_unix_nano": 1784635204000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0020",
+          "credential_id": "c0",
+          "model": "m",
+          "request_kind": "stream",
+          "started_unix_nano": 1784635198000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0019",
+          "credential_id": "c1",
+          "model": "m",
+          "request_kind": "websocket",
+          "started_unix_nano": 1784635199500000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0018",
+          "credential_id": "c0",
+          "model": "m",
+          "request_kind": "http",
+          "started_unix_nano": 1784635201000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0017",
+          "credential_id": "c1",
+          "model": "m",
+          "request_kind": "stream",
+          "started_unix_nano": 1784635202500000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0016",
+          "credential_id": "c0",
+          "model": "m",
+          "request_kind": "websocket",
+          "started_unix_nano": 1784635204000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0015",
+          "credential_id": "c1",
+          "model": "m",
+          "request_kind": "http",
+          "started_unix_nano": 1784635198000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0014",
+          "credential_id": "c0",
+          "model": "m",
+          "request_kind": "stream",
+          "started_unix_nano": 1784635199500000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0013",
+          "credential_id": "c1",
+          "model": "m",
+          "request_kind": "websocket",
+          "started_unix_nano": 1784635201000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0012",
+          "credential_id": "c0",
+          "model": "m",
+          "request_kind": "http",
+          "started_unix_nano": 1784635202500000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0011",
+          "credential_id": "c1",
+          "model": "m",
+          "request_kind": "stream",
+          "started_unix_nano": 1784635204000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0010",
+          "credential_id": "c0",
+          "model": "m",
+          "request_kind": "websocket",
+          "started_unix_nano": 1784635198000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0009",
+          "credential_id": "c1",
+          "model": "m",
+          "request_kind": "http",
+          "started_unix_nano": 1784635199500000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0008",
+          "credential_id": "c0",
+          "model": "m",
+          "request_kind": "stream",
+          "started_unix_nano": 1784635201000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0007",
+          "credential_id": "c1",
+          "model": "m",
+          "request_kind": "websocket",
+          "started_unix_nano": 1784635202500000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0006",
+          "credential_id": "c0",
+          "model": "m",
+          "request_kind": "http",
+          "started_unix_nano": 1784635204000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0005",
+          "credential_id": "c1",
+          "model": "m",
+          "request_kind": "stream",
+          "started_unix_nano": 1784635198000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0004",
+          "credential_id": "c0",
+          "model": "m",
+          "request_kind": "websocket",
+          "started_unix_nano": 1784635199500000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0003",
+          "credential_id": "c1",
+          "model": "m",
+          "request_kind": "http",
+          "started_unix_nano": 1784635201000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0002",
+          "credential_id": "c0",
+          "model": "m",
+          "request_kind": "stream",
+          "started_unix_nano": 1784635202500000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0001",
+          "credential_id": "c1",
+          "model": "m",
+          "request_kind": "websocket",
+          "started_unix_nano": 1784635204000000000,
+          "accounted": true
+        }
+      ],
+      "observed_unix_nano": 1784635200120000000,
+      "revision": 7
+    },
+    {
+      "barrier": 11,
+      "cfg": {
+        "max_part_bytes": 262144,
+        "max_part_count": 64,
+        "max_revision_bytes": 16777216,
+        "max_aggregate_groups": 3,
+        "max_details": 10000,
+        "max_string_bytes": 256
+      },
+      "frames": [
+        "{\"kind\":\"overflow\",\"revision\":7,\"observed_at\":\"2026-07-21T12:00:00.12Z\",\"barrier_revision\":11,\"aggregate_group_count\":10}"
+      ],
+      "name": "aggregate_overflow",
+      "observations": [
+        {
+          "request_id": "req-0000",
+          "credential_id": "c0",
+          "model": "m",
+          "request_kind": "http",
+          "started_unix_nano": 1784635198000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0009",
+          "credential_id": "c1",
+          "model": "m",
+          "request_kind": "stream",
+          "started_unix_nano": 1784635199500000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0008",
+          "credential_id": "c2",
+          "model": "m",
+          "request_kind": "websocket",
+          "started_unix_nano": 1784635201000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0007",
+          "credential_id": "c3",
+          "model": "m",
+          "request_kind": "http",
+          "started_unix_nano": 1784635202500000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0006",
+          "credential_id": "c4",
+          "model": "m",
+          "request_kind": "stream",
+          "started_unix_nano": 1784635204000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0005",
+          "credential_id": "c5",
+          "model": "m",
+          "request_kind": "websocket",
+          "started_unix_nano": 1784635198000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0004",
+          "credential_id": "c6",
+          "model": "m",
+          "request_kind": "http",
+          "started_unix_nano": 1784635199500000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0003",
+          "credential_id": "c7",
+          "model": "m",
+          "request_kind": "stream",
+          "started_unix_nano": 1784635201000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0002",
+          "credential_id": "c8",
+          "model": "m",
+          "request_kind": "websocket",
+          "started_unix_nano": 1784635202500000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0001",
+          "credential_id": "c9",
+          "model": "m",
+          "request_kind": "http",
+          "started_unix_nano": 1784635204000000000,
+          "accounted": true
+        }
+      ],
+      "observed_unix_nano": 1784635200120000000,
+      "revision": 7
+    },
+    {
+      "barrier": 11,
+      "cfg": {
+        "max_part_bytes": 1024,
+        "max_part_count": 1,
+        "max_revision_bytes": 1024,
+        "max_aggregate_groups": 100000,
+        "max_details": 10000,
+        "max_string_bytes": 256
+      },
+      "frames": [
+        "{\"kind\":\"overflow\",\"revision\":7,\"observed_at\":\"2026-07-21T12:00:00.12Z\",\"barrier_revision\":11,\"aggregate_group_count\":40}"
+      ],
+      "name": "aggregates_dont_fit",
+      "observations": [
+        {
+          "request_id": "req-0000",
+          "credential_id": "credential-00",
+          "model": "m",
+          "request_kind": "http",
+          "started_unix_nano": 1784635198000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0039",
+          "credential_id": "credential-01",
+          "model": "m",
+          "request_kind": "stream",
+          "started_unix_nano": 1784635199500000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0038",
+          "credential_id": "credential-02",
+          "model": "m",
+          "request_kind": "websocket",
+          "started_unix_nano": 1784635201000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0037",
+          "credential_id": "credential-03",
+          "model": "m",
+          "request_kind": "http",
+          "started_unix_nano": 1784635202500000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0036",
+          "credential_id": "credential-04",
+          "model": "m",
+          "request_kind": "stream",
+          "started_unix_nano": 1784635204000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0035",
+          "credential_id": "credential-05",
+          "model": "m",
+          "request_kind": "websocket",
+          "started_unix_nano": 1784635198000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0034",
+          "credential_id": "credential-06",
+          "model": "m",
+          "request_kind": "http",
+          "started_unix_nano": 1784635199500000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0033",
+          "credential_id": "credential-07",
+          "model": "m",
+          "request_kind": "stream",
+          "started_unix_nano": 1784635201000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0032",
+          "credential_id": "credential-08",
+          "model": "m",
+          "request_kind": "websocket",
+          "started_unix_nano": 1784635202500000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0031",
+          "credential_id": "credential-09",
+          "model": "m",
+          "request_kind": "http",
+          "started_unix_nano": 1784635204000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0030",
+          "credential_id": "credential-10",
+          "model": "m",
+          "request_kind": "stream",
+          "started_unix_nano": 1784635198000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0029",
+          "credential_id": "credential-11",
+          "model": "m",
+          "request_kind": "websocket",
+          "started_unix_nano": 1784635199500000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0028",
+          "credential_id": "credential-12",
+          "model": "m",
+          "request_kind": "http",
+          "started_unix_nano": 1784635201000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0027",
+          "credential_id": "credential-13",
+          "model": "m",
+          "request_kind": "stream",
+          "started_unix_nano": 1784635202500000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0026",
+          "credential_id": "credential-14",
+          "model": "m",
+          "request_kind": "websocket",
+          "started_unix_nano": 1784635204000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0025",
+          "credential_id": "credential-15",
+          "model": "m",
+          "request_kind": "http",
+          "started_unix_nano": 1784635198000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0024",
+          "credential_id": "credential-16",
+          "model": "m",
+          "request_kind": "stream",
+          "started_unix_nano": 1784635199500000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0023",
+          "credential_id": "credential-17",
+          "model": "m",
+          "request_kind": "websocket",
+          "started_unix_nano": 1784635201000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0022",
+          "credential_id": "credential-18",
+          "model": "m",
+          "request_kind": "http",
+          "started_unix_nano": 1784635202500000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0021",
+          "credential_id": "credential-19",
+          "model": "m",
+          "request_kind": "stream",
+          "started_unix_nano": 1784635204000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0020",
+          "credential_id": "credential-20",
+          "model": "m",
+          "request_kind": "websocket",
+          "started_unix_nano": 1784635198000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0019",
+          "credential_id": "credential-21",
+          "model": "m",
+          "request_kind": "http",
+          "started_unix_nano": 1784635199500000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0018",
+          "credential_id": "credential-22",
+          "model": "m",
+          "request_kind": "stream",
+          "started_unix_nano": 1784635201000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0017",
+          "credential_id": "credential-23",
+          "model": "m",
+          "request_kind": "websocket",
+          "started_unix_nano": 1784635202500000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0016",
+          "credential_id": "credential-24",
+          "model": "m",
+          "request_kind": "http",
+          "started_unix_nano": 1784635204000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0015",
+          "credential_id": "credential-25",
+          "model": "m",
+          "request_kind": "stream",
+          "started_unix_nano": 1784635198000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0014",
+          "credential_id": "credential-26",
+          "model": "m",
+          "request_kind": "websocket",
+          "started_unix_nano": 1784635199500000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0013",
+          "credential_id": "credential-27",
+          "model": "m",
+          "request_kind": "http",
+          "started_unix_nano": 1784635201000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0012",
+          "credential_id": "credential-28",
+          "model": "m",
+          "request_kind": "stream",
+          "started_unix_nano": 1784635202500000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0011",
+          "credential_id": "credential-29",
+          "model": "m",
+          "request_kind": "websocket",
+          "started_unix_nano": 1784635204000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0010",
+          "credential_id": "credential-30",
+          "model": "m",
+          "request_kind": "http",
+          "started_unix_nano": 1784635198000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0009",
+          "credential_id": "credential-31",
+          "model": "m",
+          "request_kind": "stream",
+          "started_unix_nano": 1784635199500000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0008",
+          "credential_id": "credential-32",
+          "model": "m",
+          "request_kind": "websocket",
+          "started_unix_nano": 1784635201000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0007",
+          "credential_id": "credential-33",
+          "model": "m",
+          "request_kind": "http",
+          "started_unix_nano": 1784635202500000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0006",
+          "credential_id": "credential-34",
+          "model": "m",
+          "request_kind": "stream",
+          "started_unix_nano": 1784635204000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0005",
+          "credential_id": "credential-35",
+          "model": "m",
+          "request_kind": "websocket",
+          "started_unix_nano": 1784635198000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0004",
+          "credential_id": "credential-36",
+          "model": "m",
+          "request_kind": "http",
+          "started_unix_nano": 1784635199500000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0003",
+          "credential_id": "credential-37",
+          "model": "m",
+          "request_kind": "stream",
+          "started_unix_nano": 1784635201000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0002",
+          "credential_id": "credential-38",
+          "model": "m",
+          "request_kind": "websocket",
+          "started_unix_nano": 1784635202500000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0001",
+          "credential_id": "credential-39",
+          "model": "m",
+          "request_kind": "http",
+          "started_unix_nano": 1784635204000000000,
+          "accounted": true
+        }
+      ],
+      "observed_unix_nano": 1784635200120000000,
+      "revision": 7
+    },
+    {
+      "barrier": 11,
+      "cfg": {
+        "max_part_bytes": 262144,
+        "max_part_count": 64,
+        "max_revision_bytes": 16777216,
+        "max_aggregate_groups": 100000,
+        "max_details": 10000,
+        "max_string_bytes": 8
+      },
+      "frames": [
+        "{\"kind\":\"overflow\",\"revision\":7,\"observed_at\":\"2026-07-21T12:00:00.12Z\",\"barrier_revision\":11,\"aggregate_group_count\":2}"
+      ],
+      "name": "long_strings",
+      "observations": [
+        {
+          "request_id": "request-ééé-long",
+          "credential_id": "c1",
+          "model": "unknown-model-name",
+          "request_kind": "http",
+          "started_unix_nano": 1784635198000000000,
+          "accounted": false
+        },
+        {
+          "request_id": "r",
+          "credential_id": "c1",
+          "model": "m",
+          "request_kind": "stream",
+          "started_unix_nano": 1784635198000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "  ",
+          "credential_id": "c1",
+          "model": "m",
+          "request_kind": "http",
+          "started_unix_nano": 1784635198000000000,
+          "accounted": true
+        }
+      ],
+      "observed_unix_nano": 1784635200120000000,
+      "revision": 7
+    },
+    {
+      "barrier": 11,
+      "cfg": {
+        "max_part_bytes": 262144,
+        "max_part_count": 64,
+        "max_revision_bytes": 16777216,
+        "max_aggregate_groups": 100000,
+        "max_details": 10000,
+        "max_string_bytes": 4
+      },
+      "frames": [
+        "{\"kind\":\"overflow\",\"revision\":7,\"observed_at\":\"2026-07-21T12:00:00.12Z\",\"barrier_revision\":11,\"aggregate_group_count\":1}"
+      ],
+      "name": "long_credential",
+      "observations": [
+        {
+          "request_id": "r",
+          "credential_id": "credential",
+          "model": "m",
+          "request_kind": "http",
+          "started_unix_nano": 1784635198000000000,
+          "accounted": true
+        }
+      ],
+      "observed_unix_nano": 1784635200120000000,
+      "revision": 7
+    },
+    {
+      "barrier": 11,
+      "cfg": {
+        "max_part_bytes": 262144,
+        "max_part_count": 64,
+        "max_revision_bytes": 16777216,
+        "max_aggregate_groups": 100000,
+        "max_details": 3,
+        "max_string_bytes": 256
+      },
+      "frames": [
+        "{\"kind\":\"part\",\"revision\":7,\"observed_at\":\"2026-07-21T12:00:00.12Z\",\"barrier_revision\":11,\"part_index\":0,\"part_count\":1,\"details_truncated\":true,\"aggregates\":[{\"credential_id\":\"c\",\"model\":\"m\",\"status\":\"accounted\",\"count\":9}],\"details\":[{\"request_id\":\"req-0000\",\"credential_id\":\"c\",\"model\":\"m\",\"request_kind\":\"http\",\"started_at\":\"2026-07-21T11:59:58Z\"},{\"request_id\":\"req-0004\",\"credential_id\":\"c\",\"model\":\"m\",\"request_kind\":\"websocket\",\"started_at\":\"2026-07-21T11:59:58Z\"},{\"request_id\":\"req-0003\",\"credential_id\":\"c\",\"model\":\"m\",\"request_kind\":\"http\",\"started_at\":\"2026-07-21T11:59:59.5Z\"}]}"
+      ],
+      "name": "max_details",
+      "observations": [
+        {
+          "request_id": "req-0000",
+          "credential_id": "c",
+          "model": "m",
+          "request_kind": "http",
+          "started_unix_nano": 1784635198000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0008",
+          "credential_id": "c",
+          "model": "m",
+          "request_kind": "stream",
+          "started_unix_nano": 1784635199500000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0007",
+          "credential_id": "c",
+          "model": "m",
+          "request_kind": "websocket",
+          "started_unix_nano": 1784635201000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0006",
+          "credential_id": "c",
+          "model": "m",
+          "request_kind": "http",
+          "started_unix_nano": 1784635202500000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0005",
+          "credential_id": "c",
+          "model": "m",
+          "request_kind": "stream",
+          "started_unix_nano": 1784635204000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0004",
+          "credential_id": "c",
+          "model": "m",
+          "request_kind": "websocket",
+          "started_unix_nano": 1784635198000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0003",
+          "credential_id": "c",
+          "model": "m",
+          "request_kind": "http",
+          "started_unix_nano": 1784635199500000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0002",
+          "credential_id": "c",
+          "model": "m",
+          "request_kind": "stream",
+          "started_unix_nano": 1784635201000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0001",
+          "credential_id": "c",
+          "model": "m",
+          "request_kind": "websocket",
+          "started_unix_nano": 1784635202500000000,
+          "accounted": true
+        }
+      ],
+      "observed_unix_nano": 1784635200120000000,
+      "revision": 7
+    },
+    {
+      "barrier": 11,
+      "cfg": {
+        "max_part_bytes": 0,
+        "max_part_count": 0,
+        "max_revision_bytes": 0,
+        "max_aggregate_groups": 0,
+        "max_details": 0,
+        "max_string_bytes": 0
+      },
+      "frames": [
+        "{\"kind\":\"overflow\",\"revision\":7,\"observed_at\":\"2026-07-21T12:00:00.12Z\",\"barrier_revision\":11,\"aggregate_group_count\":1}"
+      ],
+      "name": "zero_config",
+      "observations": [
+        {
+          "request_id": "req-0000",
+          "credential_id": "c",
+          "model": "m",
+          "request_kind": "http",
+          "started_unix_nano": 1784635198000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0001",
+          "credential_id": "c",
+          "model": "m",
+          "request_kind": "stream",
+          "started_unix_nano": 1784635199500000000,
+          "accounted": true
+        }
+      ],
+      "observed_unix_nano": 1784635200120000000,
+      "revision": 7
+    },
+    {
+      "barrier": 11,
+      "cfg": {
+        "max_part_bytes": 1024,
+        "max_part_count": 8,
+        "max_revision_bytes": 1500,
+        "max_aggregate_groups": 100000,
+        "max_details": 10000,
+        "max_string_bytes": 256
+      },
+      "frames": [
+        "{\"kind\":\"part\",\"revision\":7,\"observed_at\":\"2026-07-21T12:00:00.12Z\",\"barrier_revision\":11,\"part_index\":0,\"part_count\":2,\"details_truncated\":true,\"aggregates\":[{\"credential_id\":\"c\",\"model\":\"m\",\"status\":\"accounted\",\"count\":25}],\"details\":[{\"request_id\":\"req-0000\",\"credential_id\":\"c\",\"model\":\"m\",\"request_kind\":\"http\",\"started_at\":\"2026-07-21T11:59:58Z\"},{\"request_id\":\"req-0005\",\"credential_id\":\"c\",\"model\":\"m\",\"request_kind\":\"websocket\",\"started_at\":\"2026-07-21T11:59:58Z\"},{\"request_id\":\"req-0010\",\"credential_id\":\"c\",\"model\":\"m\",\"request_kind\":\"http\",\"started_at\":\"2026-07-21T11:59:58Z\"},{\"request_id\":\"req-0015\",\"credential_id\":\"c\",\"model\":\"m\",\"request_kind\":\"stream\",\"started_at\":\"2026-07-21T11:59:58Z\"},{\"request_id\":\"req-0020\",\"credential_id\":\"c\",\"model\":\"m\",\"request_kind\":\"websocket\",\"started_at\":\"2026-07-21T11:59:58Z\"},{\"request_id\":\"req-0004\",\"credential_id\":\"c\",\"model\":\"m\",\"request_kind\":\"stream\",\"started_at\":\"2026-07-21T11:59:59.5Z\"}]}",
+        "{\"kind\":\"part\",\"revision\":7,\"observed_at\":\"2026-07-21T12:00:00.12Z\",\"barrier_revision\":11,\"part_index\":1,\"part_count\":2,\"details_truncated\":true,\"details\":[{\"request_id\":\"req-0009\",\"credential_id\":\"c\",\"model\":\"m\",\"request_kind\":\"websocket\",\"started_at\":\"2026-07-21T11:59:59.5Z\"},{\"request_id\":\"req-0014\",\"credential_id\":\"c\",\"model\":\"m\",\"request_kind\":\"http\",\"started_at\":\"2026-07-21T11:59:59.5Z\"},{\"request_id\":\"req-0019\",\"credential_id\":\"c\",\"model\":\"m\",\"request_kind\":\"stream\",\"started_at\":\"2026-07-21T11:59:59.5Z\"}]}"
+      ],
+      "name": "revision_limit",
+      "observations": [
+        {
+          "request_id": "req-0000",
+          "credential_id": "c",
+          "model": "m",
+          "request_kind": "http",
+          "started_unix_nano": 1784635198000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0019",
+          "credential_id": "c",
+          "model": "m",
+          "request_kind": "stream",
+          "started_unix_nano": 1784635199500000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0013",
+          "credential_id": "c",
+          "model": "m",
+          "request_kind": "websocket",
+          "started_unix_nano": 1784635201000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0007",
+          "credential_id": "c",
+          "model": "m",
+          "request_kind": "http",
+          "started_unix_nano": 1784635202500000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0001",
+          "credential_id": "c",
+          "model": "m",
+          "request_kind": "stream",
+          "started_unix_nano": 1784635204000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0020",
+          "credential_id": "c",
+          "model": "m",
+          "request_kind": "websocket",
+          "started_unix_nano": 1784635198000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0014",
+          "credential_id": "c",
+          "model": "m",
+          "request_kind": "http",
+          "started_unix_nano": 1784635199500000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0008",
+          "credential_id": "c",
+          "model": "m",
+          "request_kind": "stream",
+          "started_unix_nano": 1784635201000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0002",
+          "credential_id": "c",
+          "model": "m",
+          "request_kind": "websocket",
+          "started_unix_nano": 1784635202500000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0021",
+          "credential_id": "c",
+          "model": "m",
+          "request_kind": "http",
+          "started_unix_nano": 1784635204000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0015",
+          "credential_id": "c",
+          "model": "m",
+          "request_kind": "stream",
+          "started_unix_nano": 1784635198000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0009",
+          "credential_id": "c",
+          "model": "m",
+          "request_kind": "websocket",
+          "started_unix_nano": 1784635199500000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0003",
+          "credential_id": "c",
+          "model": "m",
+          "request_kind": "http",
+          "started_unix_nano": 1784635201000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0022",
+          "credential_id": "c",
+          "model": "m",
+          "request_kind": "stream",
+          "started_unix_nano": 1784635202500000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0016",
+          "credential_id": "c",
+          "model": "m",
+          "request_kind": "websocket",
+          "started_unix_nano": 1784635204000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0010",
+          "credential_id": "c",
+          "model": "m",
+          "request_kind": "http",
+          "started_unix_nano": 1784635198000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0004",
+          "credential_id": "c",
+          "model": "m",
+          "request_kind": "stream",
+          "started_unix_nano": 1784635199500000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0023",
+          "credential_id": "c",
+          "model": "m",
+          "request_kind": "websocket",
+          "started_unix_nano": 1784635201000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0017",
+          "credential_id": "c",
+          "model": "m",
+          "request_kind": "http",
+          "started_unix_nano": 1784635202500000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0011",
+          "credential_id": "c",
+          "model": "m",
+          "request_kind": "stream",
+          "started_unix_nano": 1784635204000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0005",
+          "credential_id": "c",
+          "model": "m",
+          "request_kind": "websocket",
+          "started_unix_nano": 1784635198000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0024",
+          "credential_id": "c",
+          "model": "m",
+          "request_kind": "http",
+          "started_unix_nano": 1784635199500000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0018",
+          "credential_id": "c",
+          "model": "m",
+          "request_kind": "stream",
+          "started_unix_nano": 1784635201000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0012",
+          "credential_id": "c",
+          "model": "m",
+          "request_kind": "websocket",
+          "started_unix_nano": 1784635202500000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-0006",
+          "credential_id": "c",
+          "model": "m",
+          "request_kind": "http",
+          "started_unix_nano": 1784635204000000000,
+          "accounted": true
+        }
+      ],
+      "observed_unix_nano": 1784635200120000000,
+      "revision": 7
+    }
+  ],
+  "model_keys": [
+    {
+      "in": " GPT-5(High) ",
+      "key": "gpt-5",
+      "valid": true
+    },
+    {
+      "in": "gpt-5(8192)",
+      "key": "gpt-5",
+      "valid": true
+    },
+    {
+      "in": "gpt-5(-1)",
+      "key": "gpt-5",
+      "valid": true
+    },
+    {
+      "in": "gpt-5(2147483647)",
+      "key": "gpt-5",
+      "valid": true
+    },
+    {
+      "in": "gpt-5(2147483648)",
+      "key": "gpt-5(2147483648)",
+      "valid": true
+    },
+    {
+      "in": "gpt-5(12345678901)",
+      "key": "gpt-5(12345678901)",
+      "valid": true
+    },
+    {
+      "in": "gpt-5(fast)",
+      "key": "gpt-5(fast)",
+      "valid": true
+    },
+    {
+      "in": "(high)",
+      "key": "(high)",
+      "valid": true
+    },
+    {
+      "in": "a (b) (low)",
+      "key": "a (b)",
+      "valid": true
+    },
+    {
+      "in": "x()",
+      "key": "x()",
+      "valid": true
+    },
+    {
+      "in": "m(  )",
+      "key": "m(  )",
+      "valid": true
+    },
+    {
+      "in": "\tModel\n",
+      "key": "model",
+      "valid": true
+    },
+    {
+      "in": "a(MAX)",
+      "key": "a",
+      "valid": true
+    },
+    {
+      "in": "",
+      "key": "",
+      "valid": false
+    },
+    {
+      "in": "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm",
+      "key": "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm",
+      "valid": false
+    }
+  ]
+}
