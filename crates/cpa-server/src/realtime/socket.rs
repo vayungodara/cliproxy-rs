@@ -29,17 +29,42 @@ use crate::runtime::Runtime;
 /// Bound on the closing frames written after a relay ends.
 const CLOSE_WRITE: Duration = Duration::from_secs(1);
 
+/// gorilla `tokenListContainsValue`: `token` is one of the comma-separated values.
+fn has_token(headers: &HeaderMap, name: header::HeaderName, token: &str) -> bool {
+    headers.get_all(name).iter().any(|v| {
+        String::from_utf8_lossy(v.as_bytes())
+            .split(',')
+            .any(|t| t.trim_matches([' ', '\t']).eq_ignore_ascii_case(token))
+    })
+}
+
 /// gorilla `IsWebSocketUpgrade`: `Connection` lists `upgrade` and `Upgrade` lists
 /// `websocket`.
 fn is_upgrade(headers: &HeaderMap) -> bool {
-    let lists = |name: header::HeaderName, token: &str| {
-        headers.get_all(name).iter().any(|v| {
-            String::from_utf8_lossy(v.as_bytes())
-                .split(',')
-                .any(|t| t.trim_matches([' ', '\t']).eq_ignore_ascii_case(token))
-        })
-    };
-    lists(header::CONNECTION, "upgrade") && lists(header::UPGRADE, "websocket")
+    has_token(headers, header::CONNECTION, "upgrade") && has_token(headers, header::UPGRADE, "websocket")
+}
+
+/// The rest of gorilla's `Upgrader.Upgrade` checks, which run after the upstream dial:
+/// version 13 among the offered versions and a challenge key of 16 base64 bytes.
+fn acceptable_handshake(headers: &HeaderMap) -> bool {
+    use base64::Engine;
+    let key = header_text(headers, header::SEC_WEBSOCKET_KEY);
+    has_token(headers, header::SEC_WEBSOCKET_VERSION, "13")
+        && base64::engine::general_purpose::STANDARD
+            .decode(key.as_bytes())
+            .is_ok_and(|k| k.len() == 16)
+}
+
+/// Lets axum's upgrade extractor accept what gorilla accepts: it wants exactly
+/// `Upgrade: websocket` and `Sec-WebSocket-Version: 13`, gorilla token lists. Neither
+/// header is forwarded upstream.
+pub(super) async fn normalize_upgrade(mut req: axum::extract::Request, next: axum::middleware::Next) -> Response {
+    let headers = req.headers_mut();
+    if is_upgrade(headers) && has_token(headers, header::SEC_WEBSOCKET_VERSION, "13") {
+        headers.insert(header::UPGRADE, HeaderValue::from_static("websocket"));
+        headers.insert(header::SEC_WEBSOCKET_VERSION, HeaderValue::from_static("13"));
+    }
+    next.run(req).await
 }
 
 /// gorilla `Subprotocols`: the first `Sec-WebSocket-Protocol` header, comma separated.
@@ -222,7 +247,7 @@ async fn sideband(inbound: Inbound, realtime: bool, style: Sideband, call_id: St
             );
         }
     };
-    let Ok(ws) = ws else {
+    let Some(ws) = ws.ok().filter(|_| acceptable_handshake(&headers)) else {
         return with_trace(bad_handshake(), &credential);
     };
     upgrade(ws, upstream, move |relay| {
@@ -339,7 +364,7 @@ async fn direct(inbound: Inbound, model: String) -> Response {
             ));
         }
     }
-    let Ok(ws) = ws else {
+    let Some(ws) = ws.ok().filter(|_| acceptable_handshake(&headers)) else {
         return traced(bad_handshake());
     };
     upgrade(ws, upstream, |relay| async move {

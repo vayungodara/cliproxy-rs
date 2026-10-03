@@ -6,6 +6,8 @@ package live
 import (
 	"encoding/base64"
 	"encoding/json"
+	"io"
+	"mime/quotedprintable"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -133,6 +135,18 @@ func TestRSFixLiveVectors(t *testing.T) {
 		{"--" + b + "\r\nbroken header line\r\n\r\nx\r\n--" + b + "--\r\n", multipartType},
 		{"no boundary at all", multipartType},
 		{"", multipartType},
+		{mp(b, disposition("sdp")+"\r\nContent-Transfer-Encoding: quoted-printable", "v=3D0=0D=0Ao=3d- 1=\r\n 2"), multipartType},
+		{mp(b, disposition("sdp")+"\r\nCONTENT-TRANSFER-ENCODING: Quoted-Printable", "a=ZZb =\r\nc\td  \r\ne=\t\r\n"), multipartType},
+		{mp(b, disposition("sdp"), "x", disposition("session")+"\r\nContent-Transfer-Encoding: quoted-printable", "{=22model=22:=22qp-model=22}"), multipartType},
+		{mp(b, disposition("sdp")+"\r\nContent-Transfer-Encoding: quoted-printable", "bad \x01 byte"), multipartType},
+		{mp(b, disposition("sdp")+"\r\nContent-Transfer-Encoding: quoted-printable", "soft= junk"), multipartType},
+		{mp(b, disposition("sdp")+"\r\nContent-Transfer-Encoding: quoted-printable", "hex=4"), multipartType},
+		{mp(b, disposition("sdp")+"\r\nContent-Transfer-Encoding: quoted-printable", "eq=\rx"), multipartType},
+		{mp(b, disposition("sdp")+"\r\nContent-Transfer-Encoding: base64", "djA="), multipartType},
+		{"--" + b + "\r\n" + disposition("sdp") + "\r\nContent-Transfer-Encoding: quoted-printable\r\n\r\nv=3D0 no closing boundary", multipartType},
+		{"--" + b + "\r\n" + disposition("sdp") + "\r\n" + strings.Repeat("X: y\r\n", 9999) + "\r\nok\r\n--" + b + "--\r\n", multipartType},
+		{"--" + b + "\r\n" + disposition("sdp") + "\r\n" + strings.Repeat("X: y\r\n", 10000) + "\r\ntoo many\r\n--" + b + "--\r\n", multipartType},
+		{"--" + b + "\r\n " + strings.Repeat("x", 90) + "\r\n\r\nv\r\n--" + b + "--\r\n", multipartType},
 		{mp(b, disposition("sdp"), sdp), "multipart/form-data"},
 		{mp(b, disposition("sdp"), sdp), "multipart/form-data; boundary=\"\""},
 		{mp(b, disposition("sdp"), sdp), "multipart/mixed; boundary=" + b},
@@ -180,6 +194,18 @@ func TestRSFixLiveVectors(t *testing.T) {
 				return map[string]any{"body": gb(encoded), "content_type": ct, "model": model, "err": gerr(err)}
 			})
 		}
+	}
+
+	for _, encoded := range []string{"", "plain", "a=3Db", "a=3db", "=", "a=", "a=\r\nb", "a=\nb", "a= \t\r\nb", "a=  x", "a=Z", "a=ZZ", "a=4", "a=4G", "a=\r", "a=\rb\n",
+		"trail  \t\r\nnext", "keep\tTab\n", "\x01", "\x7f", "\xc3\xa9", "=E2=82=AC", "line1\r\nline2\n", "a==3D", "x=\n"} {
+		encoded := encoded
+		add("quoted_printable", map[string]any{"body": gb([]byte(encoded))}, func() map[string]any {
+			decoded, err := io.ReadAll(quotedprintable.NewReader(strings.NewReader(encoded)))
+			if err != nil {
+				return map[string]any{"err": err.Error()}
+			}
+			return map[string]any{"body": gb(decoded), "err": nil}
+		})
 	}
 
 	for _, model := range []string{"", " ", "gpt-realtime", "GPT-Realtime", "gpt-realtime-mini", "gpt-realtime-2025-08-28", "gpt-realtimex", "gpt-4o-realtime-preview", "gpt-4o-mini-REALTIME-PREVIEW-2024", " custom-live ", "gpt-live-1-codex"} {

@@ -399,10 +399,15 @@ fn multipart_call(body: &[u8], boundary: &str) -> Result<Call, ShapeError> {
             Ok(None) => break,
             Err(e) => return Err(invalid(format!("failed to parse Codex live multipart body: {e}"))),
         };
-        let data = reader
-            .body()
-            .map_err(|e| invalid(format!("failed to read Codex live multipart field: {e}")))?;
-        match part.as_str() {
+        // `io.ReadAll(part)`: Go's `NextPart` decodes quoted-printable parts on read.
+        let (raw, read_error) = reader.body();
+        let data = if part.quoted_printable {
+            form::quoted_printable(&raw, read_error)
+        } else {
+            read_error.map_or(Ok(raw), Err)
+        }
+        .map_err(|e| invalid(format!("failed to read Codex live multipart field: {e}")))?;
+        match part.name.as_str() {
             "sdp" => sdp = Some(data),
             "session" => {
                 if !gj::std_valid(&data) {
@@ -944,16 +949,21 @@ impl CodexExecutor {
             response: None,
             message: message.into(),
         };
-        let mut builder = self
+        // gorilla's dialer offers the client's subprotocols as one header and accepts
+        // whatever the upstream selects, or none; wreq's own negotiation rejects both
+        // cases, so the offer goes out as a plain header and the answer is read here.
+        if !protocols.is_empty()
+            && let Ok(value) = http::HeaderValue::from_str(&protocols.join(", "))
+        {
+            map.insert(http::header::SEC_WEBSOCKET_PROTOCOL, value);
+        }
+        let builder = self
             .transport
             .standard(&view.proxy)
             .websocket(url)
             .headers(map)
             .max_frame_size(MAX_WS_MESSAGE)
             .max_message_size(MAX_WS_MESSAGE);
-        if !protocols.is_empty() {
-            builder = builder.protocols(protocols);
-        }
         let attempt = async {
             let mut res = builder.send().await.map_err(|e| fail(&dial_text(&e)))?;
             let status = res.status().as_u16();
@@ -976,15 +986,15 @@ impl CodexExecutor {
                     message: "websocket: bad handshake".into(),
                 });
             }
+            let protocol = res
+                .headers_mut()
+                .remove(http::header::SEC_WEBSOCKET_PROTOCOL)
+                .and_then(|p| p.to_str().ok().map(str::to_owned))
+                .filter(|p| !p.is_empty());
             let socket = res
                 .into_websocket()
                 .await
                 .map_err(|_| fail("websocket: bad handshake"))?;
-            let protocol = socket
-                .protocol()
-                .and_then(|p| p.to_str().ok())
-                .map(str::to_owned)
-                .filter(|p| !p.is_empty());
             Ok(LiveSocket {
                 socket,
                 protocol,
@@ -1010,9 +1020,9 @@ fn dial_text(error: &wreq::Error) -> String {
 
 /// Go `mime/multipart.Reader` and `textproto.readMIMEHeader` over a body already in
 /// memory, as `multipartCallRequest` walks it: `NextPart` then `io.ReadAll(part)`.
-// ponytail: same port as cpa-server's management multipart reader (the most Go-accurate
-// of the three in the tree); quoted-printable parts are not decoded. Consolidate the
-// copies into cpa-common when an owner is free.
+// ponytail: based on cpa-server's management multipart reader (the most Go-accurate of
+// the three in the tree) plus `NextPart`'s quoted-printable decoding and header limits.
+// Consolidate the copies into cpa-common when an owner is free.
 mod form {
     use super::MediaType;
 
@@ -1073,8 +1083,8 @@ mod form {
             rest == self.nl
         }
 
-        /// `NextPart`, yielding the part's `FormName()`; `None` is (a wrapped) `io.EOF`.
-        pub fn next_part(&mut self) -> Result<Option<String>, String> {
+        /// `NextPart`; `None` is (a wrapped) `io.EOF`.
+        pub fn next_part(&mut self) -> Result<Option<Part>, String> {
             let mut expect_new_part = false;
             loop {
                 let (line, eof) = self.read_slice();
@@ -1124,21 +1134,28 @@ mod form {
             })
         }
 
-        /// `readMIMEHeader`, then `FormName()`. EOF inside the headers is `io.EOF`.
-        fn headers(&mut self) -> Result<Option<String>, String> {
+        /// `readMIMEHeader` with `NextPart`'s limits (10000 headers, 10 MiB), then
+        /// `FormName()` and the transfer encoding. EOF inside the headers is `io.EOF`.
+        fn headers(&mut self) -> Result<Option<Part>, String> {
+            const TOO_LARGE: &str = "multipart: message too large";
             let mut disposition: Option<String> = None;
+            let mut encoding: Option<String> = None;
             if matches!(self.buf.get(self.pos), Some(b' ' | b'\t')) {
                 let Some(line) = self.read_line() else {
                     return Ok(None);
                 };
                 if line.len() > 80 {
-                    return Err("message too large".into());
+                    return Err(TOO_LARGE.into());
                 }
                 return Err(format!(
                     "malformed MIME header initial line: {}",
                     cpa_common::gostr::quote(line)
                 ));
             }
+            // `maxMIMEHeaders` and `maxMIMEHeaderSize` less the map overhead.
+            let mut headers_left: i64 = 10_000;
+            let mut memory_left: i64 = (10 << 20) - 400;
+            let mut keys = std::collections::HashSet::new();
             loop {
                 let Some(first) = self.read_line() else {
                     return Ok(None);
@@ -1177,14 +1194,34 @@ mod form {
                 if value.iter().any(|&b| (b < 0x20 && b != b'\t') || b == 0x7f) {
                     return Err(malformed());
                 }
-                if !key.contains(&b' ') && key.eq_ignore_ascii_case(b"content-disposition") && disposition.is_none() {
-                    let value: Vec<u8> = value
-                        .iter()
-                        .skip_while(|&&b| b == b' ' || b == b'\t')
-                        .copied()
-                        .collect();
-                    disposition = Some(String::from_utf8_lossy(&value).into_owned());
+                headers_left -= 1;
+                if headers_left < 0 {
+                    return Err(TOO_LARGE.into());
                 }
+                let value: Vec<u8> = value
+                    .iter()
+                    .skip_while(|&&b| b == b' ' || b == b'\t')
+                    .copied()
+                    .collect();
+                // Keys with a space are kept verbatim, so `Header.Get` never finds them.
+                let canonical = if key.contains(&b' ') {
+                    String::from_utf8_lossy(key).into_owned()
+                } else {
+                    String::from_utf8_lossy(key).to_ascii_lowercase()
+                };
+                if keys.insert(canonical.clone()) {
+                    memory_left -= key.len() as i64 + 200;
+                }
+                memory_left -= value.len() as i64;
+                if memory_left < 0 {
+                    return Err(TOO_LARGE.into());
+                }
+                let slot = match canonical.as_str() {
+                    "content-disposition" => &mut disposition,
+                    "content-transfer-encoding" => &mut encoding,
+                    _ => continue,
+                };
+                slot.get_or_insert_with(|| String::from_utf8_lossy(&value).into_owned());
             }
             let name = match disposition.map(|d| crate::openai_compat_multipart::parse_media_type(&d)) {
                 Some(MediaType::Ok(kind, params)) if kind == "form-data" => {
@@ -1192,11 +1229,15 @@ mod form {
                 }
                 _ => String::new(),
             };
-            Ok(Some(name))
+            Ok(Some(Part {
+                name,
+                quoted_printable: encoding.is_some_and(|e| e.eq_ignore_ascii_case("quoted-printable")),
+            }))
         }
 
-        /// The current part's body up to its closing boundary (`partReader`).
-        pub fn body(&mut self) -> Result<Vec<u8>, String> {
+        /// The current part's body up to its closing boundary (`partReader`), and the
+        /// read error that ended it early.
+        pub fn body(&mut self) -> (Vec<u8>, Option<String>) {
             let mut nl_dash = self.nl.to_vec();
             nl_dash.extend_from_slice(&self.dash_boundary);
             let mut data = Vec::new();
@@ -1209,11 +1250,96 @@ mod form {
                 total += n;
                 match scan {
                     Scan::Data => {}
-                    Scan::End => return Ok(data),
-                    Scan::UnexpectedEof => return Err("unexpected EOF".into()),
+                    Scan::End => return (data, None),
+                    Scan::UnexpectedEof => return (data, Some("unexpected EOF".into())),
                 }
             }
         }
+    }
+
+    /// What `NextPart` tells the caller about a part.
+    pub struct Part {
+        /// `FormName()`.
+        pub name: String,
+        /// `Content-Transfer-Encoding: quoted-printable` (case-insensitive).
+        pub quoted_printable: bool,
+    }
+
+    /// `io.ReadAll(quotedprintable.NewReader(part))` (mime/quotedprintable/reader.go):
+    /// `=XX` escapes (lower-case hex too), `=` soft breaks before LF or CRLF, a lone
+    /// `=` that is not followed by two hex digits kept literally, trailing white space
+    /// dropped. `read_error` is the part reader's own failure after `data`.
+    pub fn quoted_printable(data: &[u8], read_error: Option<String>) -> Result<Vec<u8>, String> {
+        let hex = |b: u8| match b {
+            b'0'..=b'9' => Ok(b - b'0'),
+            b'A'..=b'F' => Ok(b - b'A' + 10),
+            b'a'..=b'f' => Ok(b - b'a' + 10),
+            _ => Err(format!("quotedprintable: invalid hex byte 0x{b:02x}")),
+        };
+        let mut out = Vec::with_capacity(data.len());
+        let mut rest = data;
+        while !rest.is_empty() {
+            // `ReadSlice('\n')`: the last line ends with the reader's error instead.
+            let end = rest.iter().position(|&b| b == b'\n').map_or(rest.len(), |i| i + 1);
+            let whole = &rest[..end];
+            rest = &rest[end..];
+            let at_eof = rest.is_empty() && !whole.ends_with(b"\n") && read_error.is_none();
+            let kept = whole.len()
+                - whole
+                    .iter()
+                    .rev()
+                    .take_while(|b| matches!(b, b'\n' | b'\r' | b' ' | b'\t'))
+                    .count();
+            let mut line = whole[..kept].to_vec();
+            let mut line_error = None;
+            if line.ends_with(b"=") {
+                let tail = &whole[kept..];
+                let right = &tail[tail.iter().take_while(|b| matches!(b, b' ' | b'\t')).count()..];
+                line.pop();
+                if !right.starts_with(b"\n")
+                    && !right.starts_with(b"\r\n")
+                    && !(right.is_empty() && !line.is_empty() && at_eof)
+                {
+                    line_error = Some(format!(
+                        "quotedprintable: invalid bytes after =: {}",
+                        cpa_common::gostr::quote(right)
+                    ));
+                }
+            } else if whole.ends_with(b"\r\n") {
+                line.extend_from_slice(b"\r\n");
+            } else if whole.ends_with(b"\n") {
+                line.push(b'\n');
+            }
+            let mut i = 0;
+            while i < line.len() {
+                let b = line[i];
+                match b {
+                    b'=' => match line.get(i + 1..i + 3) {
+                        Some(pair) => match hex(pair[0]).and_then(|hi| Ok(hi << 4 | hex(pair[1])?)) {
+                            Ok(byte) => {
+                                out.push(byte);
+                                i += 3;
+                                continue;
+                            }
+                            Err(_) if !matches!(line[i + 1], b'\r' | b'\n') => out.push(b'='),
+                            Err(e) => return Err(e),
+                        },
+                        None if line.len() - i >= 2 && !matches!(line[i + 1], b'\r' | b'\n') => out.push(b'='),
+                        None => return Err("unexpected EOF".into()),
+                    },
+                    b'\t' | b'\r' | b'\n' | 0x80..=0xff => out.push(b),
+                    b if !(b' '..=b'~').contains(&b) => {
+                        return Err(format!("quotedprintable: invalid unescaped byte 0x{b:02x} in body"));
+                    }
+                    b => out.push(b),
+                }
+                i += 1;
+            }
+            if let Some(error) = line_error {
+                return Err(error);
+            }
+        }
+        read_error.map_or(Ok(out), Err)
     }
 
     fn scan_until_boundary(buf: &[u8], dash: &[u8], nl_dash: &[u8], total: usize) -> (usize, Scan) {

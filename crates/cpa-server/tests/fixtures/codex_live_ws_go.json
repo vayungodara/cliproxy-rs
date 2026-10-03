@@ -747,5 +747,66 @@
   "body": "{\"error\":{\"code\":\"realtime_websocket_upstream_unavailable\",\"message\":\"Codex Realtime WebSocket upstream unavailable\",\"param\":null,\"type\":\"api_error\"}}",
   "received": null,
   "call_kept": false
+ },
+ {
+  "name": "sideband_upstream_selects_no_protocol",
+  "path": "/v1/live/call-noselect",
+  "principal": "owner",
+  "headers": {
+   "Sec-Websocket-Protocol": [
+    "realtime, no-select"
+   ]
+  },
+  "send": [
+   {
+    "kind": "text",
+    "data": "n"
+   },
+   {
+    "kind": "close",
+    "code": 1000
+   }
+  ],
+  "status": 101,
+  "response_headers": {
+   "Upgrade": [
+    "websocket"
+   ]
+  },
+  "received": [
+   {
+    "kind": "text",
+    "data": "echo:n"
+   },
+   {
+    "kind": "close",
+    "code": 1000
+   }
+  ],
+  "upstream": {
+   "target": "/v1/live/call-noselect",
+   "headers": {
+    "Authorization": [
+     "Bearer pinned-token"
+    ],
+    "Chatgpt-Account-Id": [
+     "pinned-account"
+    ],
+    "Sec-Websocket-Protocol": [
+     "realtime, no-select"
+    ]
+   },
+   "received": [
+    {
+     "kind": "text",
+     "data": "n"
+    },
+    {
+     "kind": "close",
+     "code": 1000
+    }
+   ]
+  },
+  "call_kept": false
  }
 ]

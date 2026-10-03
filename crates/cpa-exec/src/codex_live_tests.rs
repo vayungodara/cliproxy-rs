@@ -210,6 +210,17 @@ fn shaping_matches_go() {
                 };
                 (got, out.clone())
             }
+            "quoted_printable" => {
+                let got = match form::quoted_printable(&body, None) {
+                    Ok(b) => serde_json::json!({"body": show(&b), "err": null}),
+                    Err(e) => serde_json::json!({"err": e}),
+                };
+                let want = match out["err"].as_str() {
+                    Some(e) => serde_json::json!({"err": e}),
+                    None => serde_json::json!({"body": show(&bytes(&out["body"])), "err": null}),
+                };
+                (got, want)
+            }
             other => panic!("unknown vector kind {other}"),
         };
         checked += 1;

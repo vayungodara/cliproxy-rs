@@ -10,7 +10,7 @@ cp zz_rsfix_realtime_http_test.go "$reference/internal/api/"
 cp zz_rsfix_live_ws_test.go "$reference/internal/client/codex/live/"
 RSFIX_OUT=/tmp/rsfix go test -count=1 -run TestRSFixRealtimeHTTP ./internal/api/
 RSFIX_OUT=/tmp/rsfix go test -count=1 -run TestRSFixLiveWebsockets ./internal/client/codex/live/
-cp /tmp/rsfix/realtime_http_go.json /tmp/rsfix/codex_live_ws_go.json ../../fixtures/
+cp /tmp/rsfix/realtime_http_go.json /tmp/rsfix/codex_live_ws_go.json /tmp/rsfix/codex_live_ws_raw_go.json ../../fixtures/
 ```
 
 - `realtime_http_go.json`: the real Go server (routes, access manager with
@@ -23,6 +23,9 @@ cp /tmp/rsfix/realtime_http_go.json /tmp/rsfix/codex_live_ws_go.json ../../fixtu
   a local gorilla upstream: handshake failures, subprotocols, relayed frames and close
   codes on both sides. The package's capture executor does not apply `header:`
   attributes, so those are covered by the HTTP goldens only.
+- `codex_live_ws_raw_go.json`: raw TCP handshakes no WebSocket client library sends
+  (bad or missing challenge key, token-list `Upgrade`, version lists), with gorilla's
+  status and whether the call survived.
 
 Never add a case that lets Go's sideband dial its default base URL: the HTTP harness
 cannot redirect it.

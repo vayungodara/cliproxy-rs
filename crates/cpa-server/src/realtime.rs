@@ -64,6 +64,7 @@ pub fn routes(rt: &Arc<Runtime>) -> Router<Arc<Runtime>> {
     let ordinary = Router::new()
         .route("/v1/live", post(http::call))
         .route("/v1/live/{call_id}", get(socket::live_sideband))
+        .route_layer(middleware::from_fn(socket::normalize_upgrade))
         .layer(auth(Mode::Ordinary));
     let realtime = Router::new()
         .route("/v1/realtime", get(socket::realtime).post(http::call))
@@ -73,6 +74,7 @@ pub fn routes(rt: &Arc<Runtime>) -> Router<Arc<Runtime>> {
             "/v1/realtime/translations",
             get(http::translation).post(http::translation),
         )
+        .route_layer(middleware::from_fn(socket::normalize_upgrade))
         .layer(auth(Mode::Realtime));
     let standard = Router::new()
         .route("/v1/realtime/client_secrets", post(secrets::create))

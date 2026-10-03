@@ -427,7 +427,7 @@ async fn ws_upstream(
         .filter(|p| !p.is_empty())
         .collect();
     let mut ws = ws;
-    if let Some(last) = offered.last() {
+    if let Some(last) = offered.last().filter(|p| *p != "no-select") {
         ws.set_selected_protocol(last.parse().unwrap());
     }
     ws.on_upgrade(move |mut socket| async move {
@@ -552,6 +552,7 @@ async fn realtime_websockets_match_go() {
         ("live_sideband_upstream_404", ("live-404", "owner")),
         ("sideband_upstream_429", ("call-429", "owner")),
         ("live_sideband_upstream_429", ("live-429", "owner")),
+        ("sideband_upstream_selects_no_protocol", ("call-noselect", "owner")),
     ]
     .into();
     let mut creators: BTreeMap<String, (String, String)> = BTreeMap::new();
@@ -592,11 +593,8 @@ async fn realtime_websockets_match_go() {
         if let Some(headers) = case["headers"].as_object() {
             for (header, values) in headers {
                 let value = values[0].as_str().unwrap();
-                if header.eq_ignore_ascii_case("sec-websocket-protocol") {
-                    builder = builder.protocols(value.split(',').map(|p| p.trim().to_owned()).collect::<Vec<_>>());
-                } else {
-                    builder = builder.header(header.as_str(), value);
-                }
+                // A raw offer, so wreq's strict negotiation cannot hide what the proxy did.
+                builder = builder.header(header.as_str(), value);
             }
         }
         let mut problems = Vec::new();
@@ -625,8 +623,11 @@ async fn realtime_websockets_match_go() {
         }
         let mut received = vec![];
         if status == 101 {
+            let protocol = response
+                .headers_mut()
+                .remove("sec-websocket-protocol")
+                .map(|p| p.to_str().unwrap().to_owned());
             let mut socket = response.into_websocket().await.unwrap();
-            let protocol = socket.protocol().map(|p| p.to_str().unwrap().to_owned());
             if protocol.as_deref() != case["protocol"].as_str() {
                 problems.push(format!("protocol {protocol:?}, Go {:?}", case["protocol"]));
             }
@@ -839,4 +840,93 @@ async fn sideband_claims_and_hangup_teardown() {
     rt.store().reconcile(vec![]);
     let orphan = join("call-b").await.unwrap();
     assert_eq!(orphan.status().as_u16(), 503);
+}
+
+/// gorilla's downstream handshake checks (`Upgrader.Upgrade`), from
+/// `codex_live_ws_raw_go.json`: raw requests no WebSocket client library would send. A
+/// rejected upgrade releases the call; an accepted one consumes it when it ends.
+#[tokio::test]
+async fn raw_handshakes_match_gorilla() {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    let cases: Vec<Value> = serde_json::from_str(include_str!("fixtures/codex_live_ws_raw_go.json")).unwrap();
+    let mock = WsShared::default();
+    let upstream_url = serve(axum::Router::new().fallback(ws_upstream).with_state(mock.clone())).await;
+    let executor = CodexExecutor::with_client(wreq::Client::new(), CodexOAuth::new(wreq::Client::new()))
+        .with_live_endpoints(
+            format!("{upstream_url}/backend-api/codex/realtime/calls"),
+            format!("ws{}/v1", upstream_url.trim_start_matches("http")),
+        );
+    let rt = Arc::new(Runtime::new(
+        Config::parse("api-keys: [owner-key]").unwrap(),
+        vec![credential(
+            "only-oauth",
+            serde_json::json!({"type":"codex","access_token":"only-token"}),
+            &[],
+        )],
+        Executors {
+            claude: cpa_exec::claude::ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
+            codex: executor,
+            devices: Default::default(),
+            openai: Default::default(),
+            google: Default::default(),
+        },
+    ));
+    let proxy = serve(router(rt)).await;
+    let client = wreq::Client::new();
+    let mut failures = Vec::new();
+    for case in &cases {
+        let name = case["name"].as_str().unwrap();
+        let call_id = case["call_id"].as_str().unwrap();
+        let created = client
+            .post(format!("{proxy}/v1/live"))
+            .header("authorization", "Bearer owner-key")
+            .header("thread-id", call_id)
+            .body(r#"{"sdp":"v=0"}"#)
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(created.status().as_u16(), 201);
+        let mut stream = tokio::net::TcpStream::connect(proxy.trim_start_matches("http://"))
+            .await
+            .unwrap();
+        let headers: Vec<&str> = case["headers"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|h| h.as_str().unwrap())
+            .collect();
+        let request = format!(
+            "GET /v1/live/{call_id} HTTP/1.1\r\nHost: x\r\nAuthorization: Bearer owner-key\r\n{}\r\n\r\n",
+            headers.join("\r\n")
+        );
+        stream.write_all(request.as_bytes()).await.unwrap();
+        let mut head = vec![0u8; 1024];
+        let n = tokio::time::timeout(std::time::Duration::from_secs(2), stream.read(&mut head))
+            .await
+            .unwrap()
+            .unwrap();
+        let status: u16 = String::from_utf8_lossy(&head[..n])
+            .split(' ')
+            .nth(1)
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(0);
+        drop(stream);
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        // A kept call can still be joined; a consumed one is gone.
+        let rejoin = client
+            .websocket(format!("ws{}/v1/live/{call_id}", proxy.trim_start_matches("http")))
+            .header("authorization", "Bearer owner-key")
+            .send()
+            .await
+            .unwrap();
+        let kept = rejoin.status().as_u16() == 101;
+        drop(rejoin);
+        if status != case["status"].as_u64().unwrap() as u16 || kept != case["call_kept"].as_bool().unwrap() {
+            failures.push(format!(
+                "{name}: status {status} kept {kept}, Go {} kept {}",
+                case["status"], case["call_kept"]
+            ));
+        }
+    }
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
 }

@@ -5,8 +5,9 @@ package live
 // CLIProxyAPI 6fecc6e and run with RSFIX_OUT=<dir>; it writes codex_live_ws_go.json.
 
 import (
-	"context"
+	"bufio"
 	"encoding/json"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -89,7 +90,7 @@ func TestRSFixLiveWebsockets(t *testing.T) {
 			}
 		}
 		var responseHeader http.Header
-		if protocols := websocket.Subprotocols(r); len(protocols) > 0 {
+		if protocols := websocket.Subprotocols(r); len(protocols) > 0 && protocols[len(protocols)-1] != "no-select" {
 			responseHeader = http.Header{"Sec-Websocket-Protocol": {protocols[len(protocols)-1]}}
 		}
 		upgrader := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
@@ -287,6 +288,60 @@ func TestRSFixLiveWebsockets(t *testing.T) {
 		run("direct_upstream_"+status, "/v1/realtime?model=m-"+status, "owner", nil, nil)
 	}
 
+	store("call-noselect", "owner")
+	run("sideband_upstream_selects_no_protocol", "/v1/live/call-noselect", "owner", map[string][]string{"Sec-Websocket-Protocol": {"realtime, no-select"}}, []rsfixFrame{{Kind: "text", Data: "n"}, {Kind: "close", Code: 1000}})
+
+	// Raw handshakes gorilla's client would never send: the downstream upgrade checks.
+	type rawCase struct {
+		Name    string   `json:"name"`
+		CallID  string   `json:"call_id"`
+		Headers []string `json:"headers"`
+		Status  int      `json:"status"`
+		Kept    bool     `json:"call_kept"`
+	}
+	var raws []rawCase
+	goodKey := "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ=="
+	for _, raw := range []rawCase{
+		{Name: "raw_valid", Headers: []string{"Connection: Upgrade", "Upgrade: websocket", "Sec-WebSocket-Version: 13", goodKey}},
+		{Name: "raw_bad_key", Headers: []string{"Connection: Upgrade", "Upgrade: websocket", "Sec-WebSocket-Version: 13", "Sec-WebSocket-Key: x"}},
+		{Name: "raw_short_key", Headers: []string{"Connection: Upgrade", "Upgrade: websocket", "Sec-WebSocket-Version: 13", "Sec-WebSocket-Key: AAAAAAAAAAAAAAAAAAAA"}},
+		{Name: "raw_missing_key", Headers: []string{"Connection: Upgrade", "Upgrade: websocket", "Sec-WebSocket-Version: 13"}},
+		{Name: "raw_upgrade_token_list", Headers: []string{"Connection: keep-alive, Upgrade", "Upgrade: h2c, websocket", "Sec-WebSocket-Version: 13", goodKey}},
+		{Name: "raw_version_list", Headers: []string{"Connection: Upgrade", "Upgrade: websocket", "Sec-WebSocket-Version: 12, 13", goodKey}},
+		{Name: "raw_version_wrong", Headers: []string{"Connection: Upgrade", "Upgrade: websocket", "Sec-WebSocket-Version: 12", goodKey}},
+	} {
+		raw.CallID = "call-" + strings.ReplaceAll(raw.Name, "_", "-")
+		store(raw.CallID, "owner")
+		conn, errDial := net.Dial("tcp", strings.TrimPrefix(downstream.URL, "http://"))
+		if errDial != nil {
+			t.Fatal(errDial)
+		}
+		request := "GET /v1/live/" + raw.CallID + " HTTP/1.1\r\nHost: x\r\nX-Test-Principal: owner\r\n" + strings.Join(raw.Headers, "\r\n") + "\r\n\r\n"
+		_, _ = conn.Write([]byte(request))
+		_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+		response, errRead := http.ReadResponse(bufio.NewReader(conn), nil)
+		if errRead == nil {
+			raw.Status = response.StatusCode
+		}
+		_ = conn.Close()
+		if raw.Status == 101 {
+			select {
+			case <-done:
+			case <-time.After(2 * time.Second):
+			}
+		}
+		time.Sleep(50 * time.Millisecond)
+		_, raw.Kept = handler.sessions.peek(raw.CallID)
+		raws = append(raws, raw)
+	}
+	rawEncoded, errMarshal := json.MarshalIndent(raws, "", " ")
+	if errMarshal != nil {
+		t.Fatal(errMarshal)
+	}
+	if errWrite := os.WriteFile(filepath.Join(dir, "codex_live_ws_raw_go.json"), rawEncoded, 0o644); errWrite != nil {
+		t.Fatal(errWrite)
+	}
+
 	encoded, errMarshal := json.MarshalIndent(cases, "", " ")
 	if errMarshal != nil {
 		t.Fatal(errMarshal)
@@ -294,5 +349,4 @@ func TestRSFixLiveWebsockets(t *testing.T) {
 	if errWrite := os.WriteFile(filepath.Join(dir, "codex_live_ws_go.json"), encoded, 0o644); errWrite != nil {
 		t.Fatal(errWrite)
 	}
-	_ = context.Background
 }
