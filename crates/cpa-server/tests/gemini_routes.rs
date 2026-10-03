@@ -187,3 +187,35 @@ async fn interactions_route_uses_interactions_key() {
         "event: interaction.created\ndata: {\"event_type\":\"interaction.created\"}\n\ndata: : ping\n\nevent: done\ndata: [DONE]\n\n"
     );
 }
+
+/// A Vertex API key through the router: alias routing to the key's models and the
+/// `/v1/publishers/google/models` path under its base URL.
+#[tokio::test]
+async fn vertex_api_key_routes_alias() {
+    let seen = Arc::new(Seen::default());
+    let up = serve(axum::Router::new().fallback(upstream).with_state(seen.clone())).await;
+    let config = Config::parse(&format!(
+        "access:\n  api-keys: [client-key]\napi-keys:\n  vertex:\n    - base-url: {up}/api\n      models:\n        - name: gemini-2.5-flash\n          alias: vflash\n      keys:\n        - api-key: vk-fake\n"
+    ))
+    .unwrap();
+    let credentials = cpa_core::config::credentials::load(&config);
+    let executors = Executors {
+        claude: ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
+        codex: Default::default(),
+        devices: Default::default(),
+        openai: Default::default(),
+        google: Default::default(),
+    };
+    let rt = Arc::new(Runtime::new(config, credentials, executors));
+    let url = serve(router(rt)).await;
+    let (status, _, text) = post(&url, "/v1beta/models/vflash:generateContent", HI).await;
+    assert_eq!(status, 200, "{text}");
+    assert_eq!(text, ANSWER);
+    let (path, key, _, body, _) = seen.lock().unwrap()[0].clone();
+    assert_eq!(
+        path,
+        "/api/v1/publishers/google/models/gemini-2.5-flash:generateContent"
+    );
+    assert_eq!(key.as_deref(), Some("vk-fake"));
+    assert!(body.contains(r#""model":"gemini-2.5-flash""#), "{body}");
+}

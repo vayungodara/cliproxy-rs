@@ -37,10 +37,10 @@ pub fn handles(provider: &str) -> bool {
 const DEFAULT_BASE_URL: &str = "https://generativelanguage.googleapis.com";
 const API_VERSION: &str = "v1beta";
 /// `streamScannerBuffer`.
-const MAX_LINE: usize = 52_428_800;
+pub(crate) const MAX_LINE: usize = 52_428_800;
 /// `geminiInteractionsAPIRevision`.
 const INTERACTIONS_REVISION: &str = "2026-05-20";
-const COMPACT_ALT: &str = "responses/compact";
+pub(crate) const COMPACT_ALT: &str = "responses/compact";
 /// helps.ApplyPatchUpstreamErrorMessage: Go's answer to an empty or failed translation.
 const EMPTY_TRANSLATION: &str = "Invalid apply_patch tool arguments received from upstream.";
 
@@ -65,7 +65,7 @@ fn scope_for(status: u16) -> FailureScope {
 }
 
 /// `statusErr{code, msg}`: no retry hint, no headers; an empty message reads `status N`.
-fn status_err(status: u16, message: impl Into<Bytes>) -> ExecError {
+pub(crate) fn status_err(status: u16, message: impl Into<Bytes>) -> ExecError {
     let mut body: Bytes = message.into();
     if body.is_empty() {
         body = Bytes::from(format!("status {status}"));
@@ -80,7 +80,7 @@ fn status_err(status: u16, message: impl Into<Bytes>) -> ExecError {
     }
 }
 
-fn bad_gateway() -> ExecError {
+pub(crate) fn bad_gateway() -> ExecError {
     status_err(502, EMPTY_TRANSLATION)
 }
 
@@ -118,12 +118,12 @@ fn native_interactions(credential: &Credential, source: Format) -> bool {
 }
 
 /// Go `opts.Alt`: absent and empty are the same.
-fn alt(req: &ExecRequest) -> Option<&str> {
+pub(crate) fn alt(req: &ExecRequest) -> Option<&str> {
     req.alt.as_deref().filter(|a| !a.is_empty())
 }
 
 /// `helps.ApplyPatchOriginalRequest`.
-fn original_request(req: &ExecRequest) -> &Bytes {
+pub(crate) fn original_request(req: &ExecRequest) -> &Bytes {
     if req.original_body.is_empty() {
         &req.body
     } else {
@@ -138,7 +138,7 @@ fn original_request(req: &ExecRequest) -> &Bytes {
 // is-compat Claude clients of an Interactions key use the regular pair (translator
 // thread); the Codex multi-agent v2 input rewrites are cpa_common::codex_client's (Codex
 // thread) and not applied.
-fn translate(
+pub(crate) fn translate(
     req: &ExecRequest,
     target: Format,
     model: &str,
@@ -235,7 +235,7 @@ fn translate_pair(
 }
 
 /// `helps.ApplyRequestThinking`.
-fn apply_thinking(
+pub(crate) fn apply_thinking(
     req: &ExecRequest,
     body: Vec<u8>,
     from: Format,
@@ -260,7 +260,7 @@ fn apply_thinking(
 
 /// `helps.ApplyPayloadConfigWithRequest`: config payload rules on the final body, with
 /// the translated original request as the baseline for `default` rules.
-fn apply_payload_rules(
+pub(crate) fn apply_payload_rules(
     rules: &cpa_common::payload::Rules,
     model: &str,
     protocol: &str,
@@ -297,27 +297,33 @@ fn request_headers(credential: &Credential, req: &ExecRequest) -> GoHeaders {
     if !key.is_empty() {
         headers.set("x-goog-api-key", key);
     }
-    // `$CPA-SESSION-ID` is the attempt's canonical session: Go's conductor binds it to the
-    // context (ensureCanonicalSessionMetadata + syncMetadataSessionToContext) before the
-    // executor runs, and EnsureSessionContext keeps it. Dispatch puts the same bound
-    // identity, derived and message-hash fallbacks included, in `req.session`.
+    set_custom_headers(&mut headers, credential, req);
+    headers
+}
+
+/// `applyGeminiHeaders` (util.ApplyCustomHeadersFromAttrs). `$CPA-SESSION-ID` is the
+/// attempt's canonical session: Go's conductor binds it to the context
+/// (ensureCanonicalSessionMetadata + syncMetadataSessionToContext) before the executor
+/// runs, and EnsureSessionContext keeps it. Dispatch puts the same bound identity,
+/// derived and message-hash fallbacks included, in `req.session`.
+pub(crate) fn set_custom_headers(headers: &mut GoHeaders, credential: &Credential, req: &ExecRequest) {
     let session = cpa_common::session::cpa_session_id(req.session.as_deref());
     for (name, value) in cpa_common::headers::custom_headers(&credential.attributes, &req.headers, session.as_deref()) {
         headers.set(&name, value);
     }
-    headers
 }
 
 /// The resolved API-key model for this attempt (Go conductor binding).
-fn resolved(credential: &Credential, cfg: &Config, req: &ExecRequest) -> Option<Resolved> {
+pub(crate) fn resolved(credential: &Credential, cfg: &Config, req: &ExecRequest) -> Option<Resolved> {
     let (family, model_type) = match credential.provider.as_str() {
         "gemini-interactions" => ("interactions", "interactions"),
+        "vertex" => ("vertex", "vertex"),
         _ => ("gemini", "gemini"),
     };
     payload::resolved_model(credential, cfg, family, model_type, &req.requested_model, &req.model)
 }
 
-async fn error_from(upstream: Upstream) -> ExecError {
+pub(crate) async fn error_from(upstream: Upstream) -> ExecError {
     let status = upstream.status;
     let body = proxy::read_all(upstream.body, proxy::MAX_ERROR_BODY, true)
         .await
@@ -342,7 +348,7 @@ async fn read_then_check(upstream: Upstream) -> Result<(http::HeaderMap, Bytes),
 /// `TranslateNonStream`: the registered transform, or the body itself when Go registers
 /// none (a Codex client of a Gemini upstream); then Go's empty-output check and Responses
 /// usage details.
-fn translate_non_stream(
+pub(crate) fn translate_non_stream(
     req: &ExecRequest,
     upstream: Format,
     translated: &[u8],
@@ -560,7 +566,7 @@ impl GeminiExecutor {
 
 /// Client items, and the terminal error that ends the stream after them.
 #[derive(Default)]
-struct Emit {
+pub(crate) struct Emit {
     out: Vec<Bytes>,
     stop: Option<ExecError>,
 }
@@ -576,12 +582,14 @@ impl Emit {
 
 /// Go's `TranslateStream` without a registered transform: the payload as one chunk.
 /// Only Gemini upstreams reach it (a Codex client); every client format that takes the
-/// native Interactions path has a registered Interactions pair.
+/// native Interactions path has a registered Interactions pair. Executors that pass
+/// scanned lines as `line\n` events get the line back without its newline.
 struct Unregistered;
 
 impl StreamTranslator for Unregistered {
     fn event(&mut self, event: &[u8]) -> Result<Vec<Bytes>, cpa_translate::Error> {
-        Ok(vec![Bytes::copy_from_slice(event)])
+        let line = event.strip_suffix(b"\n").unwrap_or(event);
+        Ok(vec![Bytes::copy_from_slice(line)])
     }
 
     fn finish(&mut self) -> Result<Vec<Bytes>, cpa_translate::Error> {
@@ -590,7 +598,7 @@ impl StreamTranslator for Unregistered {
 }
 
 /// Turns Go stream chunks into the bytes the client's route handler writes.
-struct Output {
+pub(crate) struct Output {
     translator: Box<dyn StreamTranslator>,
     client: Format,
     /// A Gemini client asked for `alt`: chunks are written bare.
@@ -599,7 +607,7 @@ struct Output {
 }
 
 impl Output {
-    fn new(req: &ExecRequest, upstream: Format, translated: &[u8]) -> Self {
+    pub(crate) fn new(req: &ExecRequest, upstream: Format, translated: &[u8]) -> Self {
         let client = req.response_format;
         let translator = match cpa_translate::pair(client, upstream) {
             Some(pair) => (pair.stream)(&ResponseCtx {
@@ -617,10 +625,20 @@ impl Output {
         }
     }
 
+    /// End of a Gemini-upstream stream: the tool-input finalization, then `[DONE]`
+    /// through the translator, then the client side's pending frames.
+    pub(crate) fn end_with_done(&mut self) -> Emit {
+        let mut emit = self.finalize();
+        if emit.stop.is_none() && !emit.then(self.translate(b"[DONE]")) {
+            emit.then(self.finish());
+        }
+        emit
+    }
+
     /// One Go `TranslateStreamWithClaudeInputTokens` call, framed for the client, then
     /// helps.StopApplyPatchStream: an apply_patch failure ends the stream after the
     /// event's frames.
-    fn translate(&mut self, payload: &[u8]) -> Emit {
+    pub(crate) fn translate(&mut self, payload: &[u8]) -> Emit {
         let mut out = match self.translator.event(payload) {
             Ok(out) => out,
             Err(_) => {
@@ -661,7 +679,7 @@ impl Output {
     }
 
     /// `responsesSSEFramer.Flush` before a terminal error.
-    fn flush_frames(&mut self) -> Vec<Bytes> {
+    pub(crate) fn flush_frames(&mut self) -> Vec<Bytes> {
         let mut out = self.translator.flush_frames();
         self.frame(&mut out);
         self.post_process(&mut out);
@@ -711,7 +729,7 @@ impl Output {
 
 /// One scanned upstream line in, client items out; `end` runs once at EOF or before a
 /// scanner error is reported.
-trait LineState: Send + 'static {
+pub(crate) trait LineState: Send + 'static {
     fn line(&mut self, line: &[u8]) -> Emit;
     fn end(&mut self) -> Emit;
     /// Client frames still pending when a terminal error is written.
@@ -722,7 +740,7 @@ trait LineState: Send + 'static {
 /// end-of-stream items, like Go's `scanner.Err()` check. Pending client frames are
 /// flushed before any terminal error (Go's Responses handler flushes its framer before
 /// writing the error).
-fn drive<S: LineState>(lines: ExecStream, state: S) -> ExecStream {
+pub(crate) fn drive<S: LineState>(lines: ExecStream, state: S) -> ExecStream {
     futures_util::stream::unfold(
         (lines, state, VecDeque::<Result<Bytes, ExecError>>::new(), false),
         |(mut lines, mut state, mut ready, mut ended)| async move {
@@ -772,11 +790,7 @@ impl LineState for GeminiLines {
     }
 
     fn end(&mut self) -> Emit {
-        let mut emit = self.0.finalize();
-        if emit.stop.is_none() && !emit.then(self.0.translate(b"[DONE]")) {
-            emit.then(self.0.finish());
-        }
-        emit
+        self.0.end_with_done()
     }
 
     fn flush(&mut self) -> Vec<Bytes> {
@@ -821,4 +835,4 @@ fn interactions_lines(lines: ExecStream, output: Output) -> ExecStream {
 
 #[cfg(test)]
 #[path = "gemini_tests.rs"]
-mod tests;
+pub(crate) mod tests;

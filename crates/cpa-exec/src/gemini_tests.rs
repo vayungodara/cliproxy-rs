@@ -169,7 +169,7 @@ fn request(s: &Value) -> ExecRequest {
 /// from the handlers rather than taken from the Rust framer. Empty chunks never reach a
 /// handler (handlers_stream.go). The Responses route's terminal tracking and the Gemini
 /// route's keep-alives belong to the server, so this stops at each chunk's framing.
-fn client_bytes(client: Format, alt: bool, chunks: &[Value]) -> Vec<u8> {
+pub(crate) fn client_bytes(client: Format, alt: bool, chunks: &[Value]) -> Vec<u8> {
     let mut out = Vec::new();
     for chunk in chunks {
         let chunk = chunk.as_str().unwrap().as_bytes();

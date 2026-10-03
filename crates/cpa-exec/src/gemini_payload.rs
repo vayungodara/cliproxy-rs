@@ -15,7 +15,6 @@ use cpa_core::config::Config;
 use cpa_core::credential::Credential;
 use cpa_core::registry::ThinkingSupport;
 use cpa_core::registry::dynamic;
-use serde_yaml_ng::Value as Yaml;
 
 const EMPTY_USER_TURN: &[u8] = br#"{"role":"user","parts":[{"text":""}]}"#;
 
@@ -241,12 +240,9 @@ pub(crate) struct Resolved {
 /// `attachResolvedAPIKeyModelInfo` for Gemini-family API keys: `family` is the config
 /// section under `api-keys` (`gemini`, `interactions`) and `model_type` Go's model type.
 // ponytail: Go binds this in the conductor for every API-key provider. The runtime does
-// not yet carry it on ExecRequest (owner: server thread), so the Gemini executors resolve
-// it here from the config document. Entries are matched like resolveAPIKeyConfig minus
-// its config_index shortcut: Go's sanitized list is not exposed, so entries that differ
-// only by header maps or by letter case of key, base URL, proxy or prefix (Go dedupes
-// case-sensitively, the fallback matches case-insensitively) bind the first entry's
-// models. Exact once cpa_core exposes the sanitized, index-aligned key entries.
+// not yet carry it on ExecRequest (owner: server thread), so the Google executors resolve
+// it here, with Go's entry resolution (cpa_core resolve_api_key_entry). Replace with the
+// ExecRequest field when it lands.
 pub(crate) fn resolved_model(
     credential: &Credential,
     cfg: &Config,
@@ -269,38 +265,11 @@ pub(crate) fn resolved_model(
     if !api_key_kind {
         return None;
     }
-    let entries = config_entries(cfg, family);
-    let (key, base) = (attr("api_key"), attr("base_url"));
-    let matches = |e: &Yaml| {
-        let (k, b) = (yaml_text(e, "api-key"), yaml_text(e, "base-url"));
-        if !key.is_empty() && !base.is_empty() {
-            return k.go_eq_fold(key) && b.go_eq_fold(base);
-        }
-        if !key.is_empty() {
-            return k.go_eq_fold(key) && (b.is_empty() || b.go_eq_fold(base));
-        }
-        !base.is_empty() && b.go_eq_fold(base)
-    };
-    let (prefix, proxy) = (dynamic::credential_prefix(credential), attr("proxy_url"));
-    let entry = entries
-        .iter()
-        .find(|e| {
-            matches(e)
-                && cpa_core::config::credentials::normalize_prefix(&yaml_text(e, "prefix")).go_eq_fold(prefix)
-                && yaml_text(e, "proxy-url").go_eq_fold(proxy)
-        })
-        .or_else(|| entries.iter().find(|e| matches(e)))
-        .or_else(|| {
-            (!key.is_empty())
-                .then(|| entries.iter().find(|e| yaml_text(e, "api-key").go_eq_fold(key)))
-                .flatten()
-        })?;
+    let entry = cpa_core::config::credentials::resolve_api_key_entry(cfg, family, credential)?;
     let models: Vec<ConfiguredModel> = entry
-        .get("models")
-        .and_then(Yaml::as_sequence)
-        .into_iter()
-        .flatten()
-        .filter_map(|m| serde_yaml_ng::from_value::<dynamic::ConfigModel>(m.clone()).ok())
+        .models
+        .iter()
+        .filter_map(|m| serde_json::from_value::<dynamic::ConfigModel>(m.clone()).ok())
         .filter_map(|m| {
             // addConfiguredModelCapability: a missing name is the alias and vice versa,
             // before routes and capabilities are built.
@@ -410,54 +379,4 @@ fn resolve_model_info(name: &str, model_type: &str, thinking: Option<ThinkingSup
     }
     caps.user_defined = false;
     caps
-}
-
-fn yaml_text(value: &Yaml, key: &str) -> String {
-    match value.get(key) {
-        Some(Yaml::String(s)) => s.trim().to_owned(),
-        Some(Yaml::Number(n)) => n.to_string(),
-        Some(Yaml::Bool(b)) => b.to_string(),
-        _ => String::new(),
-    }
-}
-
-/// v8 `api-keys.<family>` groups expanded per key: a key inherits the group's base URL
-/// and shared fields; a key's own non-null value wins (config_v8.go expandV8Groups).
-fn config_entries(cfg: &Config, family: &str) -> Vec<Yaml> {
-    const SHARED: &[&str] = &[
-        "base-url",
-        "priority",
-        "prefix",
-        "proxy-url",
-        "headers",
-        "models",
-        "excluded-models",
-        "disable-cooling",
-        "request-retry",
-        "request-scoped-errors",
-    ];
-    let groups = cfg
-        .document
-        .get("api-keys")
-        .and_then(|k| k.get(family))
-        .and_then(Yaml::as_sequence);
-    let mut out = Vec::new();
-    for group in groups.into_iter().flatten() {
-        let Some(group) = group.as_mapping() else { continue };
-        for key in group.get("keys").and_then(Yaml::as_sequence).into_iter().flatten() {
-            let mut item = serde_yaml_ng::Mapping::new();
-            for (field, value) in group {
-                if field.as_str().is_some_and(|f| SHARED.contains(&f)) {
-                    item.insert(field.clone(), value.clone());
-                }
-            }
-            for (field, value) in key.as_mapping().into_iter().flatten() {
-                if !value.is_null() {
-                    item.insert(field.clone(), value.clone());
-                }
-            }
-            out.push(Yaml::Mapping(item));
-        }
-    }
-    out
 }

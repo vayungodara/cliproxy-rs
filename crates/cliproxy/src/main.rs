@@ -45,6 +45,12 @@ struct Args {
     /// Login to Meta using OAuth
     #[arg(long)]
     meta_login: bool,
+    /// Import Vertex service account key JSON file
+    #[arg(long, default_value = "")]
+    vertex_import: String,
+    /// Prefix for Vertex model namespacing (use with -vertex-import)
+    #[arg(long, default_value = "")]
+    vertex_import_prefix: String,
     /// Management password accepted from loopback clients only.
     #[arg(long, hide = true, default_value = "")]
     password: String,
@@ -97,6 +103,14 @@ async fn main() -> anyhow::Result<()> {
         .init();
     let args = Args::parse_from(go_style_args());
     let config = Config::load(&args.config).with_context(|| format!("reading {}", args.config.display()))?;
+    // Go DoVertexImport: failures are logged and the command still exits normally.
+    if !args.vertex_import.is_empty() {
+        match cpa_exec::vertex_auth::import(&config.auth_dir, &args.vertex_import, &args.vertex_import_prefix) {
+            Ok(path) => println!("Vertex credentials imported: {}", path.display()),
+            Err(error) => tracing::error!("{error}"),
+        }
+        return Ok(());
+    }
     if args.claude_login {
         let options = cpa_exec::claude_login::LoginOptions {
             no_browser: args.no_browser,

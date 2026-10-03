@@ -1,0 +1,1733 @@
+{
+  "import": [
+    {
+      "name": "basic",
+      "input": "{\"client_email\":\"svc@proj-1.iam.gserviceaccount.com\",\"client_id\":\"1234567890\",\"private_key\":\"-----BEGIN PRIVATE KEY-----\\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCpcdIp1I50xPp3\\nHNpxwiNr5wGsyOX2KmMx5KLaoeydYvs5VH+ILe1JX7iSwA+PW01n2cv4lheP6zCT\\nAObFARNLQpLkR8nTLxNYmrXIzlM4AdoKQ6IeP6+mz3MACj0lUan9urAJq+3a9sIi\\ni5CI4KFt6GUQ+IyQTpqw+Vx60KxKH3IPfs4WkAR2MJat02vrAxX+0J8bLFSsITp2\\nwYJpDfv41KiRqEA8kYIamDMu0hszoQZ8zW4lJaqdFRTo5RzhIMklYmAUzGzUPhyJ\\nfQ6kuP6EBRJhIWCisrsUw1reETvocn/bc4J/lBJ+XpVV75x3rV1NTMA+oykyQB4X\\nue6sITqRAgMBAAECggEAJQTW84iaruwyBD/rgZr2fiZz+TnS89sC3O2knrttpFzx\\noe7SBgByrOsaugT34UwDN0MgCulPsIOjkxpJUJURkAm1aeY9M8Q/J8Z1HK/nAn91\\nEXUBQDaNu5Xq/AFAppyW1PYqa5KCXqo2c7GmHCFnY0m4euKyYvypUyzHhZV9bpvg\\n6JKGqhdQ3wXd1iLB00jLV2yKNduW65VPdbZ3IoJsBbryciP6+rGt9U4pULeSMOMB\\n2X/ERDj3FdwoWD4W+IIl/qjhSsn4PrLEhcpF/WperJhPJhY7bwysDwycMA58O91q\\nV/3qHUXHxgwWLxj7nWUUx7JL5JOz6lDaDob4sYwx+QKBgQDfKnPdwktiNUbrev+G\\nQ+cqnl1R6UuA7+A5IoVlUUP4f6GCgHt9MQ6BWVbj5Ul7Z2uHrgSXjIqNUWB4xG6U\\n3l76j490sKC05NiWOjqJE6nPtVsL0NfViyuiw5PMqLph3Y8OOjDkeMcXa0NkVGey\\nn6tN2my1E0q93TNH7aN1jNF+5wKBgQDCX/UINIzQe/AgM9qoANFZsJ/mWCTmDxFt\\nRImyJ9ExEEz/21mDKsDj836gKKe37UzwsRNULryY76zGZxMZXHTzlODm9ovbQNaA\\neIwnYewZ+mpzTNtFRF4qqqSuM26XM82ghVPjF5LadyCNGbgRfnRhG9qUbubW3BlP\\nU980D+IjxwKBgEd9D/TgAsoJCxjwI97c7baHWJmexGMfdJKY7maQa9e0+wYVJnnq\\nNx1UgzMqBioT7SxfoHTzvoaapO7K7imeOorFZk0ZL8IC9SbarFmxBNrW272jPyDX\\nHjlbsYMEIgCruuHx3iuyTQTBhaskJrvfzj54VA6FiZHcxEqsY4qKe6nNAoGAS/lV\\nvS9NGvBWmz+pZ6FqMrRmy5IIWiPpm9v+NjR5/8NvVVJXWn2Lh43VIKTDaZDHUgzk\\nkTLzZJPJ5ILFZFRPIiY/Age8AqcFMJHttjcAIedPVGHmEtz2MZchZzWTNGZ7KRL0\\nBv9f1yRZBM3YtH3I32wTs5DliXXeLrOJur+6lGECgYBThiX3A8K9wwQY0JFPvNgh\\nPSGgMEZSDKbmAgVD0OG9AKXeQhWDaxp+u52hXOrCbW7j2nur0ywSAUx+5501xBbW\\nzuUmAe8X/2p0GnRkAN0hze3kUpM5noCLXxgrjdMuAxGZBA8r7s4LmjG4e9guoYMg\\nOAuJjG09YF41hqGwu8wAZg==\\n-----END PRIVATE KEY-----\\n\",\"private_key_id\":\"kid-1\",\"project_id\":\"proj-1\",\"token_uri\":\"https://oauth2.googleapis.com/token\",\"type\":\"service_account\",\"universe_domain\":\"googleapis.com\",\"weird\\u003c\\u003e\\u0026\":1500}",
+      "prefix": "",
+      "files": {
+        "vertex-proj-1.json": "{\n  \"disabled\": false,\n  \"email\": \"svc@proj-1.iam.gserviceaccount.com\",\n  \"label\": \"proj-1 (svc@proj-1.iam.gserviceaccount.com)\",\n  \"location\": \"us-central1\",\n  \"prefix\": \"\",\n  \"project_id\": \"proj-1\",\n  \"service_account\": {\n    \"client_email\": \"svc@proj-1.iam.gserviceaccount.com\",\n    \"client_id\": \"1234567890\",\n    \"private_key\": \"-----BEGIN RSA PRIVATE KEY-----\\nMIIEogIBAAKCAQEAqXHSKdSOdMT6dxzaccIja+cBrMjl9ipjMeSi2qHsnWL7OVR/\\niC3tSV+4ksAPj1tNZ9nL+JYXj+swkwDmxQETS0KS5EfJ0y8TWJq1yM5TOAHaCkOi\\nHj+vps9zAAo9JVGp/bqwCavt2vbCIouQiOChbehlEPiMkE6asPlcetCsSh9yD37O\\nFpAEdjCWrdNr6wMV/tCfGyxUrCE6dsGCaQ37+NSokahAPJGCGpgzLtIbM6EGfM1u\\nJSWqnRUU6OUc4SDJJWJgFMxs1D4ciX0OpLj+hAUSYSFgorK7FMNa3hE76HJ/23OC\\nf5QSfl6VVe+cd61dTUzAPqMpMkAeF7nurCE6kQIDAQABAoIBACUE1vOImq7sMgQ/\\n64Ga9n4mc/k50vPbAtztpJ67baRc8aHu0gYAcqzrGroE9+FMAzdDIArpT7CDo5Ma\\nSVCVEZAJtWnmPTPEPyfGdRyv5wJ/dRF1AUA2jbuV6vwBQKacltT2KmuSgl6qNnOx\\nphwhZ2NJuHrismL8qVMsx4WVfW6b4OiShqoXUN8F3dYiwdNIy1dsijXbluuVT3W2\\ndyKCbAW68nIj+vqxrfVOKVC3kjDjAdl/xEQ49xXcKFg+FviCJf6o4UrJ+D6yxIXK\\nRf1qXqyYTyYWO28MrA8MnDAOfDvdalf96h1Fx8YMFi8Y+51lFMeyS+STs+pQ2g6G\\n+LGMMfkCgYEA3ypz3cJLYjVG63r/hkPnKp5dUelLgO/gOSKFZVFD+H+hgoB7fTEO\\ngVlW4+VJe2drh64El4yKjVFgeMRulN5e+o+PdLCgtOTYljo6iROpz7VbC9DX1Ysr\\nosOTzKi6Yd2PDjow5HjHF2tDZFRnsp+rTdpstRNKvd0zR+2jdYzRfucCgYEAwl/1\\nCDSM0HvwIDPaqADRWbCf5lgk5g8RbUSJsifRMRBM/9tZgyrA4/N+oCint+1M8LET\\nVC68mO+sxmcTGVx085Tg5vaL20DWgHiMJ2HsGfpqc0zbRUReKqqkrjNulzPNoIVT\\n4xeS2ncgjRm4EX50YRvalG7m1twZT1PfNA/iI8cCgYBHfQ/04ALKCQsY8CPe3O22\\nh1iZnsRjH3SSmO5mkGvXtPsGFSZ56jcdVIMzKgYqE+0sX6B0876GmqTuyu4pnjqK\\nxWZNGS/CAvUm2qxZsQTa1tu9oz8g1x45W7GDBCIAq7rh8d4rsk0EwYWrJCa7384+\\neFQOhYmR3MRKrGOKinupzQKBgEv5Vb0vTRrwVps/qWehajK0ZsuSCFoj6Zvb/jY0\\nef/Db1VSV1p9i4eN1SCkw2mQx1IM5JEy82STyeSCxWRUTyImPwIHvAKnBTCR7bY3\\nACHnT1Rh5hLc9jGXIWc1kzRmeykS9Ab/X9ckWQTN2LR9yN9sE7OQ5Yl13i6zibq/\\nupRhAoGAU4Yl9wPCvcMEGNCRT7zYIT0hoDBGUgym5gIFQ9DhvQCl3kIVg2safrud\\noVzqwm1u49p7q9MsEgFMfuedNcQW1s7lJgHvF/9qdBp0ZADdIc3t5FKTOZ6Ai18Y\\nK43TLgMRmQQPK+7OC5oxuHvYLqGDIDgLiYxtPWBeNYahsLvMAGY=\\n-----END RSA PRIVATE KEY-----\\n\",\n    \"private_key_id\": \"kid-1\",\n    \"project_id\": \"proj-1\",\n    \"token_uri\": \"https://oauth2.googleapis.com/token\",\n    \"type\": \"service_account\",\n    \"universe_domain\": \"googleapis.com\",\n    \"weird\\u003c\\u003e\\u0026\": 1500\n  },\n  \"type\": \"vertex\"\n}\n"
+      }
+    },
+    {
+      "name": "prefix",
+      "input": "{\"client_email\":\"svc@proj-1.iam.gserviceaccount.com\",\"client_id\":\"1234567890\",\"private_key\":\"-----BEGIN PRIVATE KEY-----\\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCpcdIp1I50xPp3\\nHNpxwiNr5wGsyOX2KmMx5KLaoeydYvs5VH+ILe1JX7iSwA+PW01n2cv4lheP6zCT\\nAObFARNLQpLkR8nTLxNYmrXIzlM4AdoKQ6IeP6+mz3MACj0lUan9urAJq+3a9sIi\\ni5CI4KFt6GUQ+IyQTpqw+Vx60KxKH3IPfs4WkAR2MJat02vrAxX+0J8bLFSsITp2\\nwYJpDfv41KiRqEA8kYIamDMu0hszoQZ8zW4lJaqdFRTo5RzhIMklYmAUzGzUPhyJ\\nfQ6kuP6EBRJhIWCisrsUw1reETvocn/bc4J/lBJ+XpVV75x3rV1NTMA+oykyQB4X\\nue6sITqRAgMBAAECggEAJQTW84iaruwyBD/rgZr2fiZz+TnS89sC3O2knrttpFzx\\noe7SBgByrOsaugT34UwDN0MgCulPsIOjkxpJUJURkAm1aeY9M8Q/J8Z1HK/nAn91\\nEXUBQDaNu5Xq/AFAppyW1PYqa5KCXqo2c7GmHCFnY0m4euKyYvypUyzHhZV9bpvg\\n6JKGqhdQ3wXd1iLB00jLV2yKNduW65VPdbZ3IoJsBbryciP6+rGt9U4pULeSMOMB\\n2X/ERDj3FdwoWD4W+IIl/qjhSsn4PrLEhcpF/WperJhPJhY7bwysDwycMA58O91q\\nV/3qHUXHxgwWLxj7nWUUx7JL5JOz6lDaDob4sYwx+QKBgQDfKnPdwktiNUbrev+G\\nQ+cqnl1R6UuA7+A5IoVlUUP4f6GCgHt9MQ6BWVbj5Ul7Z2uHrgSXjIqNUWB4xG6U\\n3l76j490sKC05NiWOjqJE6nPtVsL0NfViyuiw5PMqLph3Y8OOjDkeMcXa0NkVGey\\nn6tN2my1E0q93TNH7aN1jNF+5wKBgQDCX/UINIzQe/AgM9qoANFZsJ/mWCTmDxFt\\nRImyJ9ExEEz/21mDKsDj836gKKe37UzwsRNULryY76zGZxMZXHTzlODm9ovbQNaA\\neIwnYewZ+mpzTNtFRF4qqqSuM26XM82ghVPjF5LadyCNGbgRfnRhG9qUbubW3BlP\\nU980D+IjxwKBgEd9D/TgAsoJCxjwI97c7baHWJmexGMfdJKY7maQa9e0+wYVJnnq\\nNx1UgzMqBioT7SxfoHTzvoaapO7K7imeOorFZk0ZL8IC9SbarFmxBNrW272jPyDX\\nHjlbsYMEIgCruuHx3iuyTQTBhaskJrvfzj54VA6FiZHcxEqsY4qKe6nNAoGAS/lV\\nvS9NGvBWmz+pZ6FqMrRmy5IIWiPpm9v+NjR5/8NvVVJXWn2Lh43VIKTDaZDHUgzk\\nkTLzZJPJ5ILFZFRPIiY/Age8AqcFMJHttjcAIedPVGHmEtz2MZchZzWTNGZ7KRL0\\nBv9f1yRZBM3YtH3I32wTs5DliXXeLrOJur+6lGECgYBThiX3A8K9wwQY0JFPvNgh\\nPSGgMEZSDKbmAgVD0OG9AKXeQhWDaxp+u52hXOrCbW7j2nur0ywSAUx+5501xBbW\\nzuUmAe8X/2p0GnRkAN0hze3kUpM5noCLXxgrjdMuAxGZBA8r7s4LmjG4e9guoYMg\\nOAuJjG09YF41hqGwu8wAZg==\\n-----END PRIVATE KEY-----\\n\",\"private_key_id\":\"kid-1\",\"project_id\":\"proj-1\",\"token_uri\":\"https://oauth2.googleapis.com/token\",\"type\":\"service_account\",\"universe_domain\":\"googleapis.com\",\"weird\\u003c\\u003e\\u0026\":1500}",
+      "prefix": " /team a/ ",
+      "files": {
+        "vertex-team-a-proj-1.json": "{\n  \"disabled\": false,\n  \"email\": \"svc@proj-1.iam.gserviceaccount.com\",\n  \"label\": \"proj-1 (svc@proj-1.iam.gserviceaccount.com)\",\n  \"location\": \"us-central1\",\n  \"prefix\": \"team a\",\n  \"project_id\": \"proj-1\",\n  \"service_account\": {\n    \"client_email\": \"svc@proj-1.iam.gserviceaccount.com\",\n    \"client_id\": \"1234567890\",\n    \"private_key\": \"-----BEGIN RSA PRIVATE KEY-----\\nMIIEogIBAAKCAQEAqXHSKdSOdMT6dxzaccIja+cBrMjl9ipjMeSi2qHsnWL7OVR/\\niC3tSV+4ksAPj1tNZ9nL+JYXj+swkwDmxQETS0KS5EfJ0y8TWJq1yM5TOAHaCkOi\\nHj+vps9zAAo9JVGp/bqwCavt2vbCIouQiOChbehlEPiMkE6asPlcetCsSh9yD37O\\nFpAEdjCWrdNr6wMV/tCfGyxUrCE6dsGCaQ37+NSokahAPJGCGpgzLtIbM6EGfM1u\\nJSWqnRUU6OUc4SDJJWJgFMxs1D4ciX0OpLj+hAUSYSFgorK7FMNa3hE76HJ/23OC\\nf5QSfl6VVe+cd61dTUzAPqMpMkAeF7nurCE6kQIDAQABAoIBACUE1vOImq7sMgQ/\\n64Ga9n4mc/k50vPbAtztpJ67baRc8aHu0gYAcqzrGroE9+FMAzdDIArpT7CDo5Ma\\nSVCVEZAJtWnmPTPEPyfGdRyv5wJ/dRF1AUA2jbuV6vwBQKacltT2KmuSgl6qNnOx\\nphwhZ2NJuHrismL8qVMsx4WVfW6b4OiShqoXUN8F3dYiwdNIy1dsijXbluuVT3W2\\ndyKCbAW68nIj+vqxrfVOKVC3kjDjAdl/xEQ49xXcKFg+FviCJf6o4UrJ+D6yxIXK\\nRf1qXqyYTyYWO28MrA8MnDAOfDvdalf96h1Fx8YMFi8Y+51lFMeyS+STs+pQ2g6G\\n+LGMMfkCgYEA3ypz3cJLYjVG63r/hkPnKp5dUelLgO/gOSKFZVFD+H+hgoB7fTEO\\ngVlW4+VJe2drh64El4yKjVFgeMRulN5e+o+PdLCgtOTYljo6iROpz7VbC9DX1Ysr\\nosOTzKi6Yd2PDjow5HjHF2tDZFRnsp+rTdpstRNKvd0zR+2jdYzRfucCgYEAwl/1\\nCDSM0HvwIDPaqADRWbCf5lgk5g8RbUSJsifRMRBM/9tZgyrA4/N+oCint+1M8LET\\nVC68mO+sxmcTGVx085Tg5vaL20DWgHiMJ2HsGfpqc0zbRUReKqqkrjNulzPNoIVT\\n4xeS2ncgjRm4EX50YRvalG7m1twZT1PfNA/iI8cCgYBHfQ/04ALKCQsY8CPe3O22\\nh1iZnsRjH3SSmO5mkGvXtPsGFSZ56jcdVIMzKgYqE+0sX6B0876GmqTuyu4pnjqK\\nxWZNGS/CAvUm2qxZsQTa1tu9oz8g1x45W7GDBCIAq7rh8d4rsk0EwYWrJCa7384+\\neFQOhYmR3MRKrGOKinupzQKBgEv5Vb0vTRrwVps/qWehajK0ZsuSCFoj6Zvb/jY0\\nef/Db1VSV1p9i4eN1SCkw2mQx1IM5JEy82STyeSCxWRUTyImPwIHvAKnBTCR7bY3\\nACHnT1Rh5hLc9jGXIWc1kzRmeykS9Ab/X9ckWQTN2LR9yN9sE7OQ5Yl13i6zibq/\\nupRhAoGAU4Yl9wPCvcMEGNCRT7zYIT0hoDBGUgym5gIFQ9DhvQCl3kIVg2safrud\\noVzqwm1u49p7q9MsEgFMfuedNcQW1s7lJgHvF/9qdBp0ZADdIc3t5FKTOZ6Ai18Y\\nK43TLgMRmQQPK+7OC5oxuHvYLqGDIDgLiYxtPWBeNYahsLvMAGY=\\n-----END RSA PRIVATE KEY-----\\n\",\n    \"private_key_id\": \"kid-1\",\n    \"project_id\": \"proj-1\",\n    \"token_uri\": \"https://oauth2.googleapis.com/token\",\n    \"type\": \"service_account\",\n    \"universe_domain\": \"googleapis.com\",\n    \"weird\\u003c\\u003e\\u0026\": 1500\n  },\n  \"type\": \"vertex\"\n}\n"
+      }
+    },
+    {
+      "name": "prefix_slash_rejected",
+      "input": "{\"client_email\":\"svc@proj-1.iam.gserviceaccount.com\",\"client_id\":\"1234567890\",\"private_key\":\"-----BEGIN PRIVATE KEY-----\\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCpcdIp1I50xPp3\\nHNpxwiNr5wGsyOX2KmMx5KLaoeydYvs5VH+ILe1JX7iSwA+PW01n2cv4lheP6zCT\\nAObFARNLQpLkR8nTLxNYmrXIzlM4AdoKQ6IeP6+mz3MACj0lUan9urAJq+3a9sIi\\ni5CI4KFt6GUQ+IyQTpqw+Vx60KxKH3IPfs4WkAR2MJat02vrAxX+0J8bLFSsITp2\\nwYJpDfv41KiRqEA8kYIamDMu0hszoQZ8zW4lJaqdFRTo5RzhIMklYmAUzGzUPhyJ\\nfQ6kuP6EBRJhIWCisrsUw1reETvocn/bc4J/lBJ+XpVV75x3rV1NTMA+oykyQB4X\\nue6sITqRAgMBAAECggEAJQTW84iaruwyBD/rgZr2fiZz+TnS89sC3O2knrttpFzx\\noe7SBgByrOsaugT34UwDN0MgCulPsIOjkxpJUJURkAm1aeY9M8Q/J8Z1HK/nAn91\\nEXUBQDaNu5Xq/AFAppyW1PYqa5KCXqo2c7GmHCFnY0m4euKyYvypUyzHhZV9bpvg\\n6JKGqhdQ3wXd1iLB00jLV2yKNduW65VPdbZ3IoJsBbryciP6+rGt9U4pULeSMOMB\\n2X/ERDj3FdwoWD4W+IIl/qjhSsn4PrLEhcpF/WperJhPJhY7bwysDwycMA58O91q\\nV/3qHUXHxgwWLxj7nWUUx7JL5JOz6lDaDob4sYwx+QKBgQDfKnPdwktiNUbrev+G\\nQ+cqnl1R6UuA7+A5IoVlUUP4f6GCgHt9MQ6BWVbj5Ul7Z2uHrgSXjIqNUWB4xG6U\\n3l76j490sKC05NiWOjqJE6nPtVsL0NfViyuiw5PMqLph3Y8OOjDkeMcXa0NkVGey\\nn6tN2my1E0q93TNH7aN1jNF+5wKBgQDCX/UINIzQe/AgM9qoANFZsJ/mWCTmDxFt\\nRImyJ9ExEEz/21mDKsDj836gKKe37UzwsRNULryY76zGZxMZXHTzlODm9ovbQNaA\\neIwnYewZ+mpzTNtFRF4qqqSuM26XM82ghVPjF5LadyCNGbgRfnRhG9qUbubW3BlP\\nU980D+IjxwKBgEd9D/TgAsoJCxjwI97c7baHWJmexGMfdJKY7maQa9e0+wYVJnnq\\nNx1UgzMqBioT7SxfoHTzvoaapO7K7imeOorFZk0ZL8IC9SbarFmxBNrW272jPyDX\\nHjlbsYMEIgCruuHx3iuyTQTBhaskJrvfzj54VA6FiZHcxEqsY4qKe6nNAoGAS/lV\\nvS9NGvBWmz+pZ6FqMrRmy5IIWiPpm9v+NjR5/8NvVVJXWn2Lh43VIKTDaZDHUgzk\\nkTLzZJPJ5ILFZFRPIiY/Age8AqcFMJHttjcAIedPVGHmEtz2MZchZzWTNGZ7KRL0\\nBv9f1yRZBM3YtH3I32wTs5DliXXeLrOJur+6lGECgYBThiX3A8K9wwQY0JFPvNgh\\nPSGgMEZSDKbmAgVD0OG9AKXeQhWDaxp+u52hXOrCbW7j2nur0ywSAUx+5501xBbW\\nzuUmAe8X/2p0GnRkAN0hze3kUpM5noCLXxgrjdMuAxGZBA8r7s4LmjG4e9guoYMg\\nOAuJjG09YF41hqGwu8wAZg==\\n-----END PRIVATE KEY-----\\n\",\"private_key_id\":\"kid-1\",\"project_id\":\"proj-1\",\"token_uri\":\"https://oauth2.googleapis.com/token\",\"type\":\"service_account\",\"universe_domain\":\"googleapis.com\",\"weird\\u003c\\u003e\\u0026\":1500}",
+      "prefix": "a/b",
+      "files": {}
+    },
+    {
+      "name": "missing_project",
+      "input": "{\"client_email\":\"svc@proj-1.iam.gserviceaccount.com\",\"client_id\":\"1234567890\",\"private_key\":\"-----BEGIN PRIVATE KEY-----\\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCpcdIp1I50xPp3\\nHNpxwiNr5wGsyOX2KmMx5KLaoeydYvs5VH+ILe1JX7iSwA+PW01n2cv4lheP6zCT\\nAObFARNLQpLkR8nTLxNYmrXIzlM4AdoKQ6IeP6+mz3MACj0lUan9urAJq+3a9sIi\\ni5CI4KFt6GUQ+IyQTpqw+Vx60KxKH3IPfs4WkAR2MJat02vrAxX+0J8bLFSsITp2\\nwYJpDfv41KiRqEA8kYIamDMu0hszoQZ8zW4lJaqdFRTo5RzhIMklYmAUzGzUPhyJ\\nfQ6kuP6EBRJhIWCisrsUw1reETvocn/bc4J/lBJ+XpVV75x3rV1NTMA+oykyQB4X\\nue6sITqRAgMBAAECggEAJQTW84iaruwyBD/rgZr2fiZz+TnS89sC3O2knrttpFzx\\noe7SBgByrOsaugT34UwDN0MgCulPsIOjkxpJUJURkAm1aeY9M8Q/J8Z1HK/nAn91\\nEXUBQDaNu5Xq/AFAppyW1PYqa5KCXqo2c7GmHCFnY0m4euKyYvypUyzHhZV9bpvg\\n6JKGqhdQ3wXd1iLB00jLV2yKNduW65VPdbZ3IoJsBbryciP6+rGt9U4pULeSMOMB\\n2X/ERDj3FdwoWD4W+IIl/qjhSsn4PrLEhcpF/WperJhPJhY7bwysDwycMA58O91q\\nV/3qHUXHxgwWLxj7nWUUx7JL5JOz6lDaDob4sYwx+QKBgQDfKnPdwktiNUbrev+G\\nQ+cqnl1R6UuA7+A5IoVlUUP4f6GCgHt9MQ6BWVbj5Ul7Z2uHrgSXjIqNUWB4xG6U\\n3l76j490sKC05NiWOjqJE6nPtVsL0NfViyuiw5PMqLph3Y8OOjDkeMcXa0NkVGey\\nn6tN2my1E0q93TNH7aN1jNF+5wKBgQDCX/UINIzQe/AgM9qoANFZsJ/mWCTmDxFt\\nRImyJ9ExEEz/21mDKsDj836gKKe37UzwsRNULryY76zGZxMZXHTzlODm9ovbQNaA\\neIwnYewZ+mpzTNtFRF4qqqSuM26XM82ghVPjF5LadyCNGbgRfnRhG9qUbubW3BlP\\nU980D+IjxwKBgEd9D/TgAsoJCxjwI97c7baHWJmexGMfdJKY7maQa9e0+wYVJnnq\\nNx1UgzMqBioT7SxfoHTzvoaapO7K7imeOorFZk0ZL8IC9SbarFmxBNrW272jPyDX\\nHjlbsYMEIgCruuHx3iuyTQTBhaskJrvfzj54VA6FiZHcxEqsY4qKe6nNAoGAS/lV\\nvS9NGvBWmz+pZ6FqMrRmy5IIWiPpm9v+NjR5/8NvVVJXWn2Lh43VIKTDaZDHUgzk\\nkTLzZJPJ5ILFZFRPIiY/Age8AqcFMJHttjcAIedPVGHmEtz2MZchZzWTNGZ7KRL0\\nBv9f1yRZBM3YtH3I32wTs5DliXXeLrOJur+6lGECgYBThiX3A8K9wwQY0JFPvNgh\\nPSGgMEZSDKbmAgVD0OG9AKXeQhWDaxp+u52hXOrCbW7j2nur0ywSAUx+5501xBbW\\nzuUmAe8X/2p0GnRkAN0hze3kUpM5noCLXxgrjdMuAxGZBA8r7s4LmjG4e9guoYMg\\nOAuJjG09YF41hqGwu8wAZg==\\n-----END PRIVATE KEY-----\\n\",\"private_key_id\":\"kid-1\",\"token_uri\":\"https://oauth2.googleapis.com/token\",\"type\":\"service_account\",\"universe_domain\":\"googleapis.com\",\"weird\\u003c\\u003e\\u0026\":1500}",
+      "prefix": "",
+      "files": {}
+    },
+    {
+      "name": "missing_email",
+      "input": "{\"client_id\":\"1234567890\",\"private_key\":\"-----BEGIN PRIVATE KEY-----\\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCpcdIp1I50xPp3\\nHNpxwiNr5wGsyOX2KmMx5KLaoeydYvs5VH+ILe1JX7iSwA+PW01n2cv4lheP6zCT\\nAObFARNLQpLkR8nTLxNYmrXIzlM4AdoKQ6IeP6+mz3MACj0lUan9urAJq+3a9sIi\\ni5CI4KFt6GUQ+IyQTpqw+Vx60KxKH3IPfs4WkAR2MJat02vrAxX+0J8bLFSsITp2\\nwYJpDfv41KiRqEA8kYIamDMu0hszoQZ8zW4lJaqdFRTo5RzhIMklYmAUzGzUPhyJ\\nfQ6kuP6EBRJhIWCisrsUw1reETvocn/bc4J/lBJ+XpVV75x3rV1NTMA+oykyQB4X\\nue6sITqRAgMBAAECggEAJQTW84iaruwyBD/rgZr2fiZz+TnS89sC3O2knrttpFzx\\noe7SBgByrOsaugT34UwDN0MgCulPsIOjkxpJUJURkAm1aeY9M8Q/J8Z1HK/nAn91\\nEXUBQDaNu5Xq/AFAppyW1PYqa5KCXqo2c7GmHCFnY0m4euKyYvypUyzHhZV9bpvg\\n6JKGqhdQ3wXd1iLB00jLV2yKNduW65VPdbZ3IoJsBbryciP6+rGt9U4pULeSMOMB\\n2X/ERDj3FdwoWD4W+IIl/qjhSsn4PrLEhcpF/WperJhPJhY7bwysDwycMA58O91q\\nV/3qHUXHxgwWLxj7nWUUx7JL5JOz6lDaDob4sYwx+QKBgQDfKnPdwktiNUbrev+G\\nQ+cqnl1R6UuA7+A5IoVlUUP4f6GCgHt9MQ6BWVbj5Ul7Z2uHrgSXjIqNUWB4xG6U\\n3l76j490sKC05NiWOjqJE6nPtVsL0NfViyuiw5PMqLph3Y8OOjDkeMcXa0NkVGey\\nn6tN2my1E0q93TNH7aN1jNF+5wKBgQDCX/UINIzQe/AgM9qoANFZsJ/mWCTmDxFt\\nRImyJ9ExEEz/21mDKsDj836gKKe37UzwsRNULryY76zGZxMZXHTzlODm9ovbQNaA\\neIwnYewZ+mpzTNtFRF4qqqSuM26XM82ghVPjF5LadyCNGbgRfnRhG9qUbubW3BlP\\nU980D+IjxwKBgEd9D/TgAsoJCxjwI97c7baHWJmexGMfdJKY7maQa9e0+wYVJnnq\\nNx1UgzMqBioT7SxfoHTzvoaapO7K7imeOorFZk0ZL8IC9SbarFmxBNrW272jPyDX\\nHjlbsYMEIgCruuHx3iuyTQTBhaskJrvfzj54VA6FiZHcxEqsY4qKe6nNAoGAS/lV\\nvS9NGvBWmz+pZ6FqMrRmy5IIWiPpm9v+NjR5/8NvVVJXWn2Lh43VIKTDaZDHUgzk\\nkTLzZJPJ5ILFZFRPIiY/Age8AqcFMJHttjcAIedPVGHmEtz2MZchZzWTNGZ7KRL0\\nBv9f1yRZBM3YtH3I32wTs5DliXXeLrOJur+6lGECgYBThiX3A8K9wwQY0JFPvNgh\\nPSGgMEZSDKbmAgVD0OG9AKXeQhWDaxp+u52hXOrCbW7j2nur0ywSAUx+5501xBbW\\nzuUmAe8X/2p0GnRkAN0hze3kUpM5noCLXxgrjdMuAxGZBA8r7s4LmjG4e9guoYMg\\nOAuJjG09YF41hqGwu8wAZg==\\n-----END PRIVATE KEY-----\\n\",\"private_key_id\":\"kid-1\",\"project_id\":\"my:proj/x y\",\"token_uri\":\"https://oauth2.googleapis.com/token\",\"type\":\"service_account\",\"universe_domain\":\"googleapis.com\",\"weird\\u003c\\u003e\\u0026\":1500}",
+      "prefix": "",
+      "files": {
+        "vertex-my_proj_x-y.json": "{\n  \"disabled\": false,\n  \"email\": \"\",\n  \"label\": \"my:proj/x y\",\n  \"location\": \"us-central1\",\n  \"prefix\": \"\",\n  \"project_id\": \"my:proj/x y\",\n  \"service_account\": {\n    \"client_id\": \"1234567890\",\n    \"private_key\": \"-----BEGIN RSA PRIVATE KEY-----\\nMIIEogIBAAKCAQEAqXHSKdSOdMT6dxzaccIja+cBrMjl9ipjMeSi2qHsnWL7OVR/\\niC3tSV+4ksAPj1tNZ9nL+JYXj+swkwDmxQETS0KS5EfJ0y8TWJq1yM5TOAHaCkOi\\nHj+vps9zAAo9JVGp/bqwCavt2vbCIouQiOChbehlEPiMkE6asPlcetCsSh9yD37O\\nFpAEdjCWrdNr6wMV/tCfGyxUrCE6dsGCaQ37+NSokahAPJGCGpgzLtIbM6EGfM1u\\nJSWqnRUU6OUc4SDJJWJgFMxs1D4ciX0OpLj+hAUSYSFgorK7FMNa3hE76HJ/23OC\\nf5QSfl6VVe+cd61dTUzAPqMpMkAeF7nurCE6kQIDAQABAoIBACUE1vOImq7sMgQ/\\n64Ga9n4mc/k50vPbAtztpJ67baRc8aHu0gYAcqzrGroE9+FMAzdDIArpT7CDo5Ma\\nSVCVEZAJtWnmPTPEPyfGdRyv5wJ/dRF1AUA2jbuV6vwBQKacltT2KmuSgl6qNnOx\\nphwhZ2NJuHrismL8qVMsx4WVfW6b4OiShqoXUN8F3dYiwdNIy1dsijXbluuVT3W2\\ndyKCbAW68nIj+vqxrfVOKVC3kjDjAdl/xEQ49xXcKFg+FviCJf6o4UrJ+D6yxIXK\\nRf1qXqyYTyYWO28MrA8MnDAOfDvdalf96h1Fx8YMFi8Y+51lFMeyS+STs+pQ2g6G\\n+LGMMfkCgYEA3ypz3cJLYjVG63r/hkPnKp5dUelLgO/gOSKFZVFD+H+hgoB7fTEO\\ngVlW4+VJe2drh64El4yKjVFgeMRulN5e+o+PdLCgtOTYljo6iROpz7VbC9DX1Ysr\\nosOTzKi6Yd2PDjow5HjHF2tDZFRnsp+rTdpstRNKvd0zR+2jdYzRfucCgYEAwl/1\\nCDSM0HvwIDPaqADRWbCf5lgk5g8RbUSJsifRMRBM/9tZgyrA4/N+oCint+1M8LET\\nVC68mO+sxmcTGVx085Tg5vaL20DWgHiMJ2HsGfpqc0zbRUReKqqkrjNulzPNoIVT\\n4xeS2ncgjRm4EX50YRvalG7m1twZT1PfNA/iI8cCgYBHfQ/04ALKCQsY8CPe3O22\\nh1iZnsRjH3SSmO5mkGvXtPsGFSZ56jcdVIMzKgYqE+0sX6B0876GmqTuyu4pnjqK\\nxWZNGS/CAvUm2qxZsQTa1tu9oz8g1x45W7GDBCIAq7rh8d4rsk0EwYWrJCa7384+\\neFQOhYmR3MRKrGOKinupzQKBgEv5Vb0vTRrwVps/qWehajK0ZsuSCFoj6Zvb/jY0\\nef/Db1VSV1p9i4eN1SCkw2mQx1IM5JEy82STyeSCxWRUTyImPwIHvAKnBTCR7bY3\\nACHnT1Rh5hLc9jGXIWc1kzRmeykS9Ab/X9ckWQTN2LR9yN9sE7OQ5Yl13i6zibq/\\nupRhAoGAU4Yl9wPCvcMEGNCRT7zYIT0hoDBGUgym5gIFQ9DhvQCl3kIVg2safrud\\noVzqwm1u49p7q9MsEgFMfuedNcQW1s7lJgHvF/9qdBp0ZADdIc3t5FKTOZ6Ai18Y\\nK43TLgMRmQQPK+7OC5oxuHvYLqGDIDgLiYxtPWBeNYahsLvMAGY=\\n-----END RSA PRIVATE KEY-----\\n\",\n    \"private_key_id\": \"kid-1\",\n    \"project_id\": \"my:proj/x y\",\n    \"token_uri\": \"https://oauth2.googleapis.com/token\",\n    \"type\": \"service_account\",\n    \"universe_domain\": \"googleapis.com\",\n    \"weird\\u003c\\u003e\\u0026\": 1500\n  },\n  \"type\": \"vertex\"\n}\n"
+      }
+    },
+    {
+      "name": "bad_key",
+      "input": "{\"client_email\":\"svc@proj-1.iam.gserviceaccount.com\",\"client_id\":\"1234567890\",\"private_key\":\"nope\",\"private_key_id\":\"kid-1\",\"project_id\":\"proj-1\",\"token_uri\":\"https://oauth2.googleapis.com/token\",\"type\":\"service_account\",\"universe_domain\":\"googleapis.com\",\"weird\\u003c\\u003e\\u0026\":1500}",
+      "prefix": "",
+      "files": {}
+    },
+    {
+      "name": "invalid_json",
+      "input": "{",
+      "prefix": "",
+      "files": {}
+    }
+  ],
+  "keys": {
+    "bad_base64": "-----BEGIN PRIVATE KEY-----\n!!!!\n-----END PRIVATE KEY-----\n",
+    "ec": "-----BEGIN PRIVATE KEY-----\nMIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgkaP6i+QYVmmQFX4e\nBYyehn99cgligffv8lXOhfzfz+2hRANCAASqy6sacEGmrxWnbqxNVR9arSlsmLNh\nLf7pK3hcvmN+eVVeQV0WbUtZWeD3gqjF6Yfs6fcLrfo1DOzM1BiDH7ni\n-----END PRIVATE KEY-----\n",
+    "empty": "   ",
+    "garbage": "not a key",
+    "no_markers": "MIIEvQIBADANBgkqhkiG9w0BAQEFAASC",
+    "pkcs1": "-----BEGIN RSA PRIVATE KEY-----\nMIIEogIBAAKCAQEAqXHSKdSOdMT6dxzaccIja+cBrMjl9ipjMeSi2qHsnWL7OVR/\niC3tSV+4ksAPj1tNZ9nL+JYXj+swkwDmxQETS0KS5EfJ0y8TWJq1yM5TOAHaCkOi\nHj+vps9zAAo9JVGp/bqwCavt2vbCIouQiOChbehlEPiMkE6asPlcetCsSh9yD37O\nFpAEdjCWrdNr6wMV/tCfGyxUrCE6dsGCaQ37+NSokahAPJGCGpgzLtIbM6EGfM1u\nJSWqnRUU6OUc4SDJJWJgFMxs1D4ciX0OpLj+hAUSYSFgorK7FMNa3hE76HJ/23OC\nf5QSfl6VVe+cd61dTUzAPqMpMkAeF7nurCE6kQIDAQABAoIBACUE1vOImq7sMgQ/\n64Ga9n4mc/k50vPbAtztpJ67baRc8aHu0gYAcqzrGroE9+FMAzdDIArpT7CDo5Ma\nSVCVEZAJtWnmPTPEPyfGdRyv5wJ/dRF1AUA2jbuV6vwBQKacltT2KmuSgl6qNnOx\nphwhZ2NJuHrismL8qVMsx4WVfW6b4OiShqoXUN8F3dYiwdNIy1dsijXbluuVT3W2\ndyKCbAW68nIj+vqxrfVOKVC3kjDjAdl/xEQ49xXcKFg+FviCJf6o4UrJ+D6yxIXK\nRf1qXqyYTyYWO28MrA8MnDAOfDvdalf96h1Fx8YMFi8Y+51lFMeyS+STs+pQ2g6G\n+LGMMfkCgYEA3ypz3cJLYjVG63r/hkPnKp5dUelLgO/gOSKFZVFD+H+hgoB7fTEO\ngVlW4+VJe2drh64El4yKjVFgeMRulN5e+o+PdLCgtOTYljo6iROpz7VbC9DX1Ysr\nosOTzKi6Yd2PDjow5HjHF2tDZFRnsp+rTdpstRNKvd0zR+2jdYzRfucCgYEAwl/1\nCDSM0HvwIDPaqADRWbCf5lgk5g8RbUSJsifRMRBM/9tZgyrA4/N+oCint+1M8LET\nVC68mO+sxmcTGVx085Tg5vaL20DWgHiMJ2HsGfpqc0zbRUReKqqkrjNulzPNoIVT\n4xeS2ncgjRm4EX50YRvalG7m1twZT1PfNA/iI8cCgYBHfQ/04ALKCQsY8CPe3O22\nh1iZnsRjH3SSmO5mkGvXtPsGFSZ56jcdVIMzKgYqE+0sX6B0876GmqTuyu4pnjqK\nxWZNGS/CAvUm2qxZsQTa1tu9oz8g1x45W7GDBCIAq7rh8d4rsk0EwYWrJCa7384+\neFQOhYmR3MRKrGOKinupzQKBgEv5Vb0vTRrwVps/qWehajK0ZsuSCFoj6Zvb/jY0\nef/Db1VSV1p9i4eN1SCkw2mQx1IM5JEy82STyeSCxWRUTyImPwIHvAKnBTCR7bY3\nACHnT1Rh5hLc9jGXIWc1kzRmeykS9Ab/X9ckWQTN2LR9yN9sE7OQ5Yl13i6zibq/\nupRhAoGAU4Yl9wPCvcMEGNCRT7zYIT0hoDBGUgym5gIFQ9DhvQCl3kIVg2safrud\noVzqwm1u49p7q9MsEgFMfuedNcQW1s7lJgHvF/9qdBp0ZADdIc3t5FKTOZ6Ai18Y\nK43TLgMRmQQPK+7OC5oxuHvYLqGDIDgLiYxtPWBeNYahsLvMAGY=\n-----END RSA PRIVATE KEY-----\n",
+    "pkcs1_headers": "-----BEGIN RSA PRIVATE KEY-----\nProc-Type: 4,ENCRYPTED\n\nMIIEogIBAAKCAQEAqXHSKdSOdMT6dxzaccIja+cBrMjl9ipjMeSi2qHsnWL7OVR/\niC3tSV+4ksAPj1tNZ9nL+JYXj+swkwDmxQETS0KS5EfJ0y8TWJq1yM5TOAHaCkOi\nHj+vps9zAAo9JVGp/bqwCavt2vbCIouQiOChbehlEPiMkE6asPlcetCsSh9yD37O\nFpAEdjCWrdNr6wMV/tCfGyxUrCE6dsGCaQ37+NSokahAPJGCGpgzLtIbM6EGfM1u\nJSWqnRUU6OUc4SDJJWJgFMxs1D4ciX0OpLj+hAUSYSFgorK7FMNa3hE76HJ/23OC\nf5QSfl6VVe+cd61dTUzAPqMpMkAeF7nurCE6kQIDAQABAoIBACUE1vOImq7sMgQ/\n64Ga9n4mc/k50vPbAtztpJ67baRc8aHu0gYAcqzrGroE9+FMAzdDIArpT7CDo5Ma\nSVCVEZAJtWnmPTPEPyfGdRyv5wJ/dRF1AUA2jbuV6vwBQKacltT2KmuSgl6qNnOx\nphwhZ2NJuHrismL8qVMsx4WVfW6b4OiShqoXUN8F3dYiwdNIy1dsijXbluuVT3W2\ndyKCbAW68nIj+vqxrfVOKVC3kjDjAdl/xEQ49xXcKFg+FviCJf6o4UrJ+D6yxIXK\nRf1qXqyYTyYWO28MrA8MnDAOfDvdalf96h1Fx8YMFi8Y+51lFMeyS+STs+pQ2g6G\n+LGMMfkCgYEA3ypz3cJLYjVG63r/hkPnKp5dUelLgO/gOSKFZVFD+H+hgoB7fTEO\ngVlW4+VJe2drh64El4yKjVFgeMRulN5e+o+PdLCgtOTYljo6iROpz7VbC9DX1Ysr\nosOTzKi6Yd2PDjow5HjHF2tDZFRnsp+rTdpstRNKvd0zR+2jdYzRfucCgYEAwl/1\nCDSM0HvwIDPaqADRWbCf5lgk5g8RbUSJsifRMRBM/9tZgyrA4/N+oCint+1M8LET\nVC68mO+sxmcTGVx085Tg5vaL20DWgHiMJ2HsGfpqc0zbRUReKqqkrjNulzPNoIVT\n4xeS2ncgjRm4EX50YRvalG7m1twZT1PfNA/iI8cCgYBHfQ/04ALKCQsY8CPe3O22\nh1iZnsRjH3SSmO5mkGvXtPsGFSZ56jcdVIMzKgYqE+0sX6B0876GmqTuyu4pnjqK\nxWZNGS/CAvUm2qxZsQTa1tu9oz8g1x45W7GDBCIAq7rh8d4rsk0EwYWrJCa7384+\neFQOhYmR3MRKrGOKinupzQKBgEv5Vb0vTRrwVps/qWehajK0ZsuSCFoj6Zvb/jY0\nef/Db1VSV1p9i4eN1SCkw2mQx1IM5JEy82STyeSCxWRUTyImPwIHvAKnBTCR7bY3\nACHnT1Rh5hLc9jGXIWc1kzRmeykS9Ab/X9ckWQTN2LR9yN9sE7OQ5Yl13i6zibq/\nupRhAoGAU4Yl9wPCvcMEGNCRT7zYIT0hoDBGUgym5gIFQ9DhvQCl3kIVg2safrud\noVzqwm1u49p7q9MsEgFMfuedNcQW1s7lJgHvF/9qdBp0ZADdIc3t5FKTOZ6Ai18Y\nK43TLgMRmQQPK+7OC5oxuHvYLqGDIDgLiYxtPWBeNYahsLvMAGY=\n-----END RSA PRIVATE KEY-----\n",
+    "pkcs8": "-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCpcdIp1I50xPp3\nHNpxwiNr5wGsyOX2KmMx5KLaoeydYvs5VH+ILe1JX7iSwA+PW01n2cv4lheP6zCT\nAObFARNLQpLkR8nTLxNYmrXIzlM4AdoKQ6IeP6+mz3MACj0lUan9urAJq+3a9sIi\ni5CI4KFt6GUQ+IyQTpqw+Vx60KxKH3IPfs4WkAR2MJat02vrAxX+0J8bLFSsITp2\nwYJpDfv41KiRqEA8kYIamDMu0hszoQZ8zW4lJaqdFRTo5RzhIMklYmAUzGzUPhyJ\nfQ6kuP6EBRJhIWCisrsUw1reETvocn/bc4J/lBJ+XpVV75x3rV1NTMA+oykyQB4X\nue6sITqRAgMBAAECggEAJQTW84iaruwyBD/rgZr2fiZz+TnS89sC3O2knrttpFzx\noe7SBgByrOsaugT34UwDN0MgCulPsIOjkxpJUJURkAm1aeY9M8Q/J8Z1HK/nAn91\nEXUBQDaNu5Xq/AFAppyW1PYqa5KCXqo2c7GmHCFnY0m4euKyYvypUyzHhZV9bpvg\n6JKGqhdQ3wXd1iLB00jLV2yKNduW65VPdbZ3IoJsBbryciP6+rGt9U4pULeSMOMB\n2X/ERDj3FdwoWD4W+IIl/qjhSsn4PrLEhcpF/WperJhPJhY7bwysDwycMA58O91q\nV/3qHUXHxgwWLxj7nWUUx7JL5JOz6lDaDob4sYwx+QKBgQDfKnPdwktiNUbrev+G\nQ+cqnl1R6UuA7+A5IoVlUUP4f6GCgHt9MQ6BWVbj5Ul7Z2uHrgSXjIqNUWB4xG6U\n3l76j490sKC05NiWOjqJE6nPtVsL0NfViyuiw5PMqLph3Y8OOjDkeMcXa0NkVGey\nn6tN2my1E0q93TNH7aN1jNF+5wKBgQDCX/UINIzQe/AgM9qoANFZsJ/mWCTmDxFt\nRImyJ9ExEEz/21mDKsDj836gKKe37UzwsRNULryY76zGZxMZXHTzlODm9ovbQNaA\neIwnYewZ+mpzTNtFRF4qqqSuM26XM82ghVPjF5LadyCNGbgRfnRhG9qUbubW3BlP\nU980D+IjxwKBgEd9D/TgAsoJCxjwI97c7baHWJmexGMfdJKY7maQa9e0+wYVJnnq\nNx1UgzMqBioT7SxfoHTzvoaapO7K7imeOorFZk0ZL8IC9SbarFmxBNrW272jPyDX\nHjlbsYMEIgCruuHx3iuyTQTBhaskJrvfzj54VA6FiZHcxEqsY4qKe6nNAoGAS/lV\nvS9NGvBWmz+pZ6FqMrRmy5IIWiPpm9v+NjR5/8NvVVJXWn2Lh43VIKTDaZDHUgzk\nkTLzZJPJ5ILFZFRPIiY/Age8AqcFMJHttjcAIedPVGHmEtz2MZchZzWTNGZ7KRL0\nBv9f1yRZBM3YtH3I32wTs5DliXXeLrOJur+6lGECgYBThiX3A8K9wwQY0JFPvNgh\nPSGgMEZSDKbmAgVD0OG9AKXeQhWDaxp+u52hXOrCbW7j2nur0ywSAUx+5501xBbW\nzuUmAe8X/2p0GnRkAN0hze3kUpM5noCLXxgrjdMuAxGZBA8r7s4LmjG4e9guoYMg\nOAuJjG09YF41hqGwu8wAZg==\n-----END PRIVATE KEY-----\n",
+    "pkcs8_crlf_ansi": "  \u001b[32m-----BEGIN PRIVATE KEY-----\r\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCpcdIp1I50xPp3\r\nHNpxwiNr5wGsyOX2KmMx5KLaoeydYvs5VH+ILe1JX7iSwA+PW01n2cv4lheP6zCT\r\nAObFARNLQpLkR8nTLxNYmrXIzlM4AdoKQ6IeP6+mz3MACj0lUan9urAJq+3a9sIi\r\ni5CI4KFt6GUQ+IyQTpqw+Vx60KxKH3IPfs4WkAR2MJat02vrAxX+0J8bLFSsITp2\r\nwYJpDfv41KiRqEA8kYIamDMu0hszoQZ8zW4lJaqdFRTo5RzhIMklYmAUzGzUPhyJ\r\nfQ6kuP6EBRJhIWCisrsUw1reETvocn/bc4J/lBJ+XpVV75x3rV1NTMA+oykyQB4X\r\nue6sITqRAgMBAAECggEAJQTW84iaruwyBD/rgZr2fiZz+TnS89sC3O2knrttpFzx\r\noe7SBgByrOsaugT34UwDN0MgCulPsIOjkxpJUJURkAm1aeY9M8Q/J8Z1HK/nAn91\r\nEXUBQDaNu5Xq/AFAppyW1PYqa5KCXqo2c7GmHCFnY0m4euKyYvypUyzHhZV9bpvg\r\n6JKGqhdQ3wXd1iLB00jLV2yKNduW65VPdbZ3IoJsBbryciP6+rGt9U4pULeSMOMB\r\n2X/ERDj3FdwoWD4W+IIl/qjhSsn4PrLEhcpF/WperJhPJhY7bwysDwycMA58O91q\r\nV/3qHUXHxgwWLxj7nWUUx7JL5JOz6lDaDob4sYwx+QKBgQDfKnPdwktiNUbrev+G\r\nQ+cqnl1R6UuA7+A5IoVlUUP4f6GCgHt9MQ6BWVbj5Ul7Z2uHrgSXjIqNUWB4xG6U\r\n3l76j490sKC05NiWOjqJE6nPtVsL0NfViyuiw5PMqLph3Y8OOjDkeMcXa0NkVGey\r\nn6tN2my1E0q93TNH7aN1jNF+5wKBgQDCX/UINIzQe/AgM9qoANFZsJ/mWCTmDxFt\r\nRImyJ9ExEEz/21mDKsDj836gKKe37UzwsRNULryY76zGZxMZXHTzlODm9ovbQNaA\r\neIwnYewZ+mpzTNtFRF4qqqSuM26XM82ghVPjF5LadyCNGbgRfnRhG9qUbubW3BlP\r\nU980D+IjxwKBgEd9D/TgAsoJCxjwI97c7baHWJmexGMfdJKY7maQa9e0+wYVJnnq\r\nNx1UgzMqBioT7SxfoHTzvoaapO7K7imeOorFZk0ZL8IC9SbarFmxBNrW272jPyDX\r\nHjlbsYMEIgCruuHx3iuyTQTBhaskJrvfzj54VA6FiZHcxEqsY4qKe6nNAoGAS/lV\r\nvS9NGvBWmz+pZ6FqMrRmy5IIWiPpm9v+NjR5/8NvVVJXWn2Lh43VIKTDaZDHUgzk\r\nkTLzZJPJ5ILFZFRPIiY/Age8AqcFMJHttjcAIedPVGHmEtz2MZchZzWTNGZ7KRL0\r\nBv9f1yRZBM3YtH3I32wTs5DliXXeLrOJur+6lGECgYBThiX3A8K9wwQY0JFPvNgh\r\nPSGgMEZSDKbmAgVD0OG9AKXeQhWDaxp+u52hXOrCbW7j2nur0ywSAUx+5501xBbW\r\nzuUmAe8X/2p0GnRkAN0hze3kUpM5noCLXxgrjdMuAxGZBA8r7s4LmjG4e9guoYMg\r\nOAuJjG09YF41hqGwu8wAZg==\r\n-----END PRIVATE KEY-----\r\n\u001b[0m  ",
+    "pkcs8_one_line": "-----BEGIN PRIVATE KEY----- MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCpcdIp1I50xPp3 HNpxwiNr5wGsyOX2KmMx5KLaoeydYvs5VH+ILe1JX7iSwA+PW01n2cv4lheP6zCT AObFARNLQpLkR8nTLxNYmrXIzlM4AdoKQ6IeP6+mz3MACj0lUan9urAJq+3a9sIi i5CI4KFt6GUQ+IyQTpqw+Vx60KxKH3IPfs4WkAR2MJat02vrAxX+0J8bLFSsITp2 wYJpDfv41KiRqEA8kYIamDMu0hszoQZ8zW4lJaqdFRTo5RzhIMklYmAUzGzUPhyJ fQ6kuP6EBRJhIWCisrsUw1reETvocn/bc4J/lBJ+XpVV75x3rV1NTMA+oykyQB4X ue6sITqRAgMBAAECggEAJQTW84iaruwyBD/rgZr2fiZz+TnS89sC3O2knrttpFzx oe7SBgByrOsaugT34UwDN0MgCulPsIOjkxpJUJURkAm1aeY9M8Q/J8Z1HK/nAn91 EXUBQDaNu5Xq/AFAppyW1PYqa5KCXqo2c7GmHCFnY0m4euKyYvypUyzHhZV9bpvg 6JKGqhdQ3wXd1iLB00jLV2yKNduW65VPdbZ3IoJsBbryciP6+rGt9U4pULeSMOMB 2X/ERDj3FdwoWD4W+IIl/qjhSsn4PrLEhcpF/WperJhPJhY7bwysDwycMA58O91q V/3qHUXHxgwWLxj7nWUUx7JL5JOz6lDaDob4sYwx+QKBgQDfKnPdwktiNUbrev+G Q+cqnl1R6UuA7+A5IoVlUUP4f6GCgHt9MQ6BWVbj5Ul7Z2uHrgSXjIqNUWB4xG6U 3l76j490sKC05NiWOjqJE6nPtVsL0NfViyuiw5PMqLph3Y8OOjDkeMcXa0NkVGey n6tN2my1E0q93TNH7aN1jNF+5wKBgQDCX/UINIzQe/AgM9qoANFZsJ/mWCTmDxFt RImyJ9ExEEz/21mDKsDj836gKKe37UzwsRNULryY76zGZxMZXHTzlODm9ovbQNaA eIwnYewZ+mpzTNtFRF4qqqSuM26XM82ghVPjF5LadyCNGbgRfnRhG9qUbubW3BlP U980D+IjxwKBgEd9D/TgAsoJCxjwI97c7baHWJmexGMfdJKY7maQa9e0+wYVJnnq Nx1UgzMqBioT7SxfoHTzvoaapO7K7imeOorFZk0ZL8IC9SbarFmxBNrW272jPyDX HjlbsYMEIgCruuHx3iuyTQTBhaskJrvfzj54VA6FiZHcxEqsY4qKe6nNAoGAS/lV vS9NGvBWmz+pZ6FqMrRmy5IIWiPpm9v+NjR5/8NvVVJXWn2Lh43VIKTDaZDHUgzk kTLzZJPJ5ILFZFRPIiY/Age8AqcFMJHttjcAIedPVGHmEtz2MZchZzWTNGZ7KRL0 Bv9f1yRZBM3YtH3I32wTs5DliXXeLrOJur+6lGECgYBThiX3A8K9wwQY0JFPvNgh PSGgMEZSDKbmAgVD0OG9AKXeQhWDaxp+u52hXOrCbW7j2nur0ywSAUx+5501xBbW zuUmAe8X/2p0GnRkAN0hze3kUpM5noCLXxgrjdMuAxGZBA8r7s4LmjG4e9guoYMg OAuJjG09YF41hqGwu8wAZg==  -----END PRIVATE KEY-----",
+    "unknown_type": "-----BEGIN KEY-----\nMIIEogIBAAKCAQEAqXHSKdSOdMT6dxzaccIja+cBrMjl9ipjMeSi2qHsnWL7OVR/\niC3tSV+4ksAPj1tNZ9nL+JYXj+swkwDmxQETS0KS5EfJ0y8TWJq1yM5TOAHaCkOi\nHj+vps9zAAo9JVGp/bqwCavt2vbCIouQiOChbehlEPiMkE6asPlcetCsSh9yD37O\nFpAEdjCWrdNr6wMV/tCfGyxUrCE6dsGCaQ37+NSokahAPJGCGpgzLtIbM6EGfM1u\nJSWqnRUU6OUc4SDJJWJgFMxs1D4ciX0OpLj+hAUSYSFgorK7FMNa3hE76HJ/23OC\nf5QSfl6VVe+cd61dTUzAPqMpMkAeF7nurCE6kQIDAQABAoIBACUE1vOImq7sMgQ/\n64Ga9n4mc/k50vPbAtztpJ67baRc8aHu0gYAcqzrGroE9+FMAzdDIArpT7CDo5Ma\nSVCVEZAJtWnmPTPEPyfGdRyv5wJ/dRF1AUA2jbuV6vwBQKacltT2KmuSgl6qNnOx\nphwhZ2NJuHrismL8qVMsx4WVfW6b4OiShqoXUN8F3dYiwdNIy1dsijXbluuVT3W2\ndyKCbAW68nIj+vqxrfVOKVC3kjDjAdl/xEQ49xXcKFg+FviCJf6o4UrJ+D6yxIXK\nRf1qXqyYTyYWO28MrA8MnDAOfDvdalf96h1Fx8YMFi8Y+51lFMeyS+STs+pQ2g6G\n+LGMMfkCgYEA3ypz3cJLYjVG63r/hkPnKp5dUelLgO/gOSKFZVFD+H+hgoB7fTEO\ngVlW4+VJe2drh64El4yKjVFgeMRulN5e+o+PdLCgtOTYljo6iROpz7VbC9DX1Ysr\nosOTzKi6Yd2PDjow5HjHF2tDZFRnsp+rTdpstRNKvd0zR+2jdYzRfucCgYEAwl/1\nCDSM0HvwIDPaqADRWbCf5lgk5g8RbUSJsifRMRBM/9tZgyrA4/N+oCint+1M8LET\nVC68mO+sxmcTGVx085Tg5vaL20DWgHiMJ2HsGfpqc0zbRUReKqqkrjNulzPNoIVT\n4xeS2ncgjRm4EX50YRvalG7m1twZT1PfNA/iI8cCgYBHfQ/04ALKCQsY8CPe3O22\nh1iZnsRjH3SSmO5mkGvXtPsGFSZ56jcdVIMzKgYqE+0sX6B0876GmqTuyu4pnjqK\nxWZNGS/CAvUm2qxZsQTa1tu9oz8g1x45W7GDBCIAq7rh8d4rsk0EwYWrJCa7384+\neFQOhYmR3MRKrGOKinupzQKBgEv5Vb0vTRrwVps/qWehajK0ZsuSCFoj6Zvb/jY0\nef/Db1VSV1p9i4eN1SCkw2mQx1IM5JEy82STyeSCxWRUTyImPwIHvAKnBTCR7bY3\nACHnT1Rh5hLc9jGXIWc1kzRmeykS9Ab/X9ckWQTN2LR9yN9sE7OQ5Yl13i6zibq/\nupRhAoGAU4Yl9wPCvcMEGNCRT7zYIT0hoDBGUgym5gIFQ9DhvQCl3kIVg2safrud\noVzqwm1u49p7q9MsEgFMfuedNcQW1s7lJgHvF/9qdBp0ZADdIc3t5FKTOZ6Ai18Y\nK43TLgMRmQQPK+7OC5oxuHvYLqGDIDgLiYxtPWBeNYahsLvMAGY=\n-----END KEY-----\n"
+  },
+  "normalize": [
+    {
+      "key": "bad_base64",
+      "error": "private_key is not valid pem: private_key base64 payload empty"
+    },
+    {
+      "key": "ec",
+      "error": "private_key is not an RSA key"
+    },
+    {
+      "key": "empty",
+      "error": "service account missing private_key"
+    },
+    {
+      "key": "garbage",
+      "error": "private_key is not valid pem: missing pem markers"
+    },
+    {
+      "key": "no_markers",
+      "error": "private_key is not valid pem: missing pem markers"
+    },
+    {
+      "key": "pkcs1",
+      "out": "-----BEGIN RSA PRIVATE KEY-----\nMIIEogIBAAKCAQEAqXHSKdSOdMT6dxzaccIja+cBrMjl9ipjMeSi2qHsnWL7OVR/\niC3tSV+4ksAPj1tNZ9nL+JYXj+swkwDmxQETS0KS5EfJ0y8TWJq1yM5TOAHaCkOi\nHj+vps9zAAo9JVGp/bqwCavt2vbCIouQiOChbehlEPiMkE6asPlcetCsSh9yD37O\nFpAEdjCWrdNr6wMV/tCfGyxUrCE6dsGCaQ37+NSokahAPJGCGpgzLtIbM6EGfM1u\nJSWqnRUU6OUc4SDJJWJgFMxs1D4ciX0OpLj+hAUSYSFgorK7FMNa3hE76HJ/23OC\nf5QSfl6VVe+cd61dTUzAPqMpMkAeF7nurCE6kQIDAQABAoIBACUE1vOImq7sMgQ/\n64Ga9n4mc/k50vPbAtztpJ67baRc8aHu0gYAcqzrGroE9+FMAzdDIArpT7CDo5Ma\nSVCVEZAJtWnmPTPEPyfGdRyv5wJ/dRF1AUA2jbuV6vwBQKacltT2KmuSgl6qNnOx\nphwhZ2NJuHrismL8qVMsx4WVfW6b4OiShqoXUN8F3dYiwdNIy1dsijXbluuVT3W2\ndyKCbAW68nIj+vqxrfVOKVC3kjDjAdl/xEQ49xXcKFg+FviCJf6o4UrJ+D6yxIXK\nRf1qXqyYTyYWO28MrA8MnDAOfDvdalf96h1Fx8YMFi8Y+51lFMeyS+STs+pQ2g6G\n+LGMMfkCgYEA3ypz3cJLYjVG63r/hkPnKp5dUelLgO/gOSKFZVFD+H+hgoB7fTEO\ngVlW4+VJe2drh64El4yKjVFgeMRulN5e+o+PdLCgtOTYljo6iROpz7VbC9DX1Ysr\nosOTzKi6Yd2PDjow5HjHF2tDZFRnsp+rTdpstRNKvd0zR+2jdYzRfucCgYEAwl/1\nCDSM0HvwIDPaqADRWbCf5lgk5g8RbUSJsifRMRBM/9tZgyrA4/N+oCint+1M8LET\nVC68mO+sxmcTGVx085Tg5vaL20DWgHiMJ2HsGfpqc0zbRUReKqqkrjNulzPNoIVT\n4xeS2ncgjRm4EX50YRvalG7m1twZT1PfNA/iI8cCgYBHfQ/04ALKCQsY8CPe3O22\nh1iZnsRjH3SSmO5mkGvXtPsGFSZ56jcdVIMzKgYqE+0sX6B0876GmqTuyu4pnjqK\nxWZNGS/CAvUm2qxZsQTa1tu9oz8g1x45W7GDBCIAq7rh8d4rsk0EwYWrJCa7384+\neFQOhYmR3MRKrGOKinupzQKBgEv5Vb0vTRrwVps/qWehajK0ZsuSCFoj6Zvb/jY0\nef/Db1VSV1p9i4eN1SCkw2mQx1IM5JEy82STyeSCxWRUTyImPwIHvAKnBTCR7bY3\nACHnT1Rh5hLc9jGXIWc1kzRmeykS9Ab/X9ckWQTN2LR9yN9sE7OQ5Yl13i6zibq/\nupRhAoGAU4Yl9wPCvcMEGNCRT7zYIT0hoDBGUgym5gIFQ9DhvQCl3kIVg2safrud\noVzqwm1u49p7q9MsEgFMfuedNcQW1s7lJgHvF/9qdBp0ZADdIc3t5FKTOZ6Ai18Y\nK43TLgMRmQQPK+7OC5oxuHvYLqGDIDgLiYxtPWBeNYahsLvMAGY=\n-----END RSA PRIVATE KEY-----\n"
+    },
+    {
+      "key": "pkcs1_headers",
+      "out": "-----BEGIN RSA PRIVATE KEY-----\nProc-Type: 4,ENCRYPTED\n\nMIIEogIBAAKCAQEAqXHSKdSOdMT6dxzaccIja+cBrMjl9ipjMeSi2qHsnWL7OVR/\niC3tSV+4ksAPj1tNZ9nL+JYXj+swkwDmxQETS0KS5EfJ0y8TWJq1yM5TOAHaCkOi\nHj+vps9zAAo9JVGp/bqwCavt2vbCIouQiOChbehlEPiMkE6asPlcetCsSh9yD37O\nFpAEdjCWrdNr6wMV/tCfGyxUrCE6dsGCaQ37+NSokahAPJGCGpgzLtIbM6EGfM1u\nJSWqnRUU6OUc4SDJJWJgFMxs1D4ciX0OpLj+hAUSYSFgorK7FMNa3hE76HJ/23OC\nf5QSfl6VVe+cd61dTUzAPqMpMkAeF7nurCE6kQIDAQABAoIBACUE1vOImq7sMgQ/\n64Ga9n4mc/k50vPbAtztpJ67baRc8aHu0gYAcqzrGroE9+FMAzdDIArpT7CDo5Ma\nSVCVEZAJtWnmPTPEPyfGdRyv5wJ/dRF1AUA2jbuV6vwBQKacltT2KmuSgl6qNnOx\nphwhZ2NJuHrismL8qVMsx4WVfW6b4OiShqoXUN8F3dYiwdNIy1dsijXbluuVT3W2\ndyKCbAW68nIj+vqxrfVOKVC3kjDjAdl/xEQ49xXcKFg+FviCJf6o4UrJ+D6yxIXK\nRf1qXqyYTyYWO28MrA8MnDAOfDvdalf96h1Fx8YMFi8Y+51lFMeyS+STs+pQ2g6G\n+LGMMfkCgYEA3ypz3cJLYjVG63r/hkPnKp5dUelLgO/gOSKFZVFD+H+hgoB7fTEO\ngVlW4+VJe2drh64El4yKjVFgeMRulN5e+o+PdLCgtOTYljo6iROpz7VbC9DX1Ysr\nosOTzKi6Yd2PDjow5HjHF2tDZFRnsp+rTdpstRNKvd0zR+2jdYzRfucCgYEAwl/1\nCDSM0HvwIDPaqADRWbCf5lgk5g8RbUSJsifRMRBM/9tZgyrA4/N+oCint+1M8LET\nVC68mO+sxmcTGVx085Tg5vaL20DWgHiMJ2HsGfpqc0zbRUReKqqkrjNulzPNoIVT\n4xeS2ncgjRm4EX50YRvalG7m1twZT1PfNA/iI8cCgYBHfQ/04ALKCQsY8CPe3O22\nh1iZnsRjH3SSmO5mkGvXtPsGFSZ56jcdVIMzKgYqE+0sX6B0876GmqTuyu4pnjqK\nxWZNGS/CAvUm2qxZsQTa1tu9oz8g1x45W7GDBCIAq7rh8d4rsk0EwYWrJCa7384+\neFQOhYmR3MRKrGOKinupzQKBgEv5Vb0vTRrwVps/qWehajK0ZsuSCFoj6Zvb/jY0\nef/Db1VSV1p9i4eN1SCkw2mQx1IM5JEy82STyeSCxWRUTyImPwIHvAKnBTCR7bY3\nACHnT1Rh5hLc9jGXIWc1kzRmeykS9Ab/X9ckWQTN2LR9yN9sE7OQ5Yl13i6zibq/\nupRhAoGAU4Yl9wPCvcMEGNCRT7zYIT0hoDBGUgym5gIFQ9DhvQCl3kIVg2safrud\noVzqwm1u49p7q9MsEgFMfuedNcQW1s7lJgHvF/9qdBp0ZADdIc3t5FKTOZ6Ai18Y\nK43TLgMRmQQPK+7OC5oxuHvYLqGDIDgLiYxtPWBeNYahsLvMAGY=\n-----END RSA PRIVATE KEY-----\n"
+    },
+    {
+      "key": "pkcs8",
+      "out": "-----BEGIN RSA PRIVATE KEY-----\nMIIEogIBAAKCAQEAqXHSKdSOdMT6dxzaccIja+cBrMjl9ipjMeSi2qHsnWL7OVR/\niC3tSV+4ksAPj1tNZ9nL+JYXj+swkwDmxQETS0KS5EfJ0y8TWJq1yM5TOAHaCkOi\nHj+vps9zAAo9JVGp/bqwCavt2vbCIouQiOChbehlEPiMkE6asPlcetCsSh9yD37O\nFpAEdjCWrdNr6wMV/tCfGyxUrCE6dsGCaQ37+NSokahAPJGCGpgzLtIbM6EGfM1u\nJSWqnRUU6OUc4SDJJWJgFMxs1D4ciX0OpLj+hAUSYSFgorK7FMNa3hE76HJ/23OC\nf5QSfl6VVe+cd61dTUzAPqMpMkAeF7nurCE6kQIDAQABAoIBACUE1vOImq7sMgQ/\n64Ga9n4mc/k50vPbAtztpJ67baRc8aHu0gYAcqzrGroE9+FMAzdDIArpT7CDo5Ma\nSVCVEZAJtWnmPTPEPyfGdRyv5wJ/dRF1AUA2jbuV6vwBQKacltT2KmuSgl6qNnOx\nphwhZ2NJuHrismL8qVMsx4WVfW6b4OiShqoXUN8F3dYiwdNIy1dsijXbluuVT3W2\ndyKCbAW68nIj+vqxrfVOKVC3kjDjAdl/xEQ49xXcKFg+FviCJf6o4UrJ+D6yxIXK\nRf1qXqyYTyYWO28MrA8MnDAOfDvdalf96h1Fx8YMFi8Y+51lFMeyS+STs+pQ2g6G\n+LGMMfkCgYEA3ypz3cJLYjVG63r/hkPnKp5dUelLgO/gOSKFZVFD+H+hgoB7fTEO\ngVlW4+VJe2drh64El4yKjVFgeMRulN5e+o+PdLCgtOTYljo6iROpz7VbC9DX1Ysr\nosOTzKi6Yd2PDjow5HjHF2tDZFRnsp+rTdpstRNKvd0zR+2jdYzRfucCgYEAwl/1\nCDSM0HvwIDPaqADRWbCf5lgk5g8RbUSJsifRMRBM/9tZgyrA4/N+oCint+1M8LET\nVC68mO+sxmcTGVx085Tg5vaL20DWgHiMJ2HsGfpqc0zbRUReKqqkrjNulzPNoIVT\n4xeS2ncgjRm4EX50YRvalG7m1twZT1PfNA/iI8cCgYBHfQ/04ALKCQsY8CPe3O22\nh1iZnsRjH3SSmO5mkGvXtPsGFSZ56jcdVIMzKgYqE+0sX6B0876GmqTuyu4pnjqK\nxWZNGS/CAvUm2qxZsQTa1tu9oz8g1x45W7GDBCIAq7rh8d4rsk0EwYWrJCa7384+\neFQOhYmR3MRKrGOKinupzQKBgEv5Vb0vTRrwVps/qWehajK0ZsuSCFoj6Zvb/jY0\nef/Db1VSV1p9i4eN1SCkw2mQx1IM5JEy82STyeSCxWRUTyImPwIHvAKnBTCR7bY3\nACHnT1Rh5hLc9jGXIWc1kzRmeykS9Ab/X9ckWQTN2LR9yN9sE7OQ5Yl13i6zibq/\nupRhAoGAU4Yl9wPCvcMEGNCRT7zYIT0hoDBGUgym5gIFQ9DhvQCl3kIVg2safrud\noVzqwm1u49p7q9MsEgFMfuedNcQW1s7lJgHvF/9qdBp0ZADdIc3t5FKTOZ6Ai18Y\nK43TLgMRmQQPK+7OC5oxuHvYLqGDIDgLiYxtPWBeNYahsLvMAGY=\n-----END RSA PRIVATE KEY-----\n"
+    },
+    {
+      "key": "pkcs8_crlf_ansi",
+      "out": "-----BEGIN RSA PRIVATE KEY-----\nMIIEogIBAAKCAQEAqXHSKdSOdMT6dxzaccIja+cBrMjl9ipjMeSi2qHsnWL7OVR/\niC3tSV+4ksAPj1tNZ9nL+JYXj+swkwDmxQETS0KS5EfJ0y8TWJq1yM5TOAHaCkOi\nHj+vps9zAAo9JVGp/bqwCavt2vbCIouQiOChbehlEPiMkE6asPlcetCsSh9yD37O\nFpAEdjCWrdNr6wMV/tCfGyxUrCE6dsGCaQ37+NSokahAPJGCGpgzLtIbM6EGfM1u\nJSWqnRUU6OUc4SDJJWJgFMxs1D4ciX0OpLj+hAUSYSFgorK7FMNa3hE76HJ/23OC\nf5QSfl6VVe+cd61dTUzAPqMpMkAeF7nurCE6kQIDAQABAoIBACUE1vOImq7sMgQ/\n64Ga9n4mc/k50vPbAtztpJ67baRc8aHu0gYAcqzrGroE9+FMAzdDIArpT7CDo5Ma\nSVCVEZAJtWnmPTPEPyfGdRyv5wJ/dRF1AUA2jbuV6vwBQKacltT2KmuSgl6qNnOx\nphwhZ2NJuHrismL8qVMsx4WVfW6b4OiShqoXUN8F3dYiwdNIy1dsijXbluuVT3W2\ndyKCbAW68nIj+vqxrfVOKVC3kjDjAdl/xEQ49xXcKFg+FviCJf6o4UrJ+D6yxIXK\nRf1qXqyYTyYWO28MrA8MnDAOfDvdalf96h1Fx8YMFi8Y+51lFMeyS+STs+pQ2g6G\n+LGMMfkCgYEA3ypz3cJLYjVG63r/hkPnKp5dUelLgO/gOSKFZVFD+H+hgoB7fTEO\ngVlW4+VJe2drh64El4yKjVFgeMRulN5e+o+PdLCgtOTYljo6iROpz7VbC9DX1Ysr\nosOTzKi6Yd2PDjow5HjHF2tDZFRnsp+rTdpstRNKvd0zR+2jdYzRfucCgYEAwl/1\nCDSM0HvwIDPaqADRWbCf5lgk5g8RbUSJsifRMRBM/9tZgyrA4/N+oCint+1M8LET\nVC68mO+sxmcTGVx085Tg5vaL20DWgHiMJ2HsGfpqc0zbRUReKqqkrjNulzPNoIVT\n4xeS2ncgjRm4EX50YRvalG7m1twZT1PfNA/iI8cCgYBHfQ/04ALKCQsY8CPe3O22\nh1iZnsRjH3SSmO5mkGvXtPsGFSZ56jcdVIMzKgYqE+0sX6B0876GmqTuyu4pnjqK\nxWZNGS/CAvUm2qxZsQTa1tu9oz8g1x45W7GDBCIAq7rh8d4rsk0EwYWrJCa7384+\neFQOhYmR3MRKrGOKinupzQKBgEv5Vb0vTRrwVps/qWehajK0ZsuSCFoj6Zvb/jY0\nef/Db1VSV1p9i4eN1SCkw2mQx1IM5JEy82STyeSCxWRUTyImPwIHvAKnBTCR7bY3\nACHnT1Rh5hLc9jGXIWc1kzRmeykS9Ab/X9ckWQTN2LR9yN9sE7OQ5Yl13i6zibq/\nupRhAoGAU4Yl9wPCvcMEGNCRT7zYIT0hoDBGUgym5gIFQ9DhvQCl3kIVg2safrud\noVzqwm1u49p7q9MsEgFMfuedNcQW1s7lJgHvF/9qdBp0ZADdIc3t5FKTOZ6Ai18Y\nK43TLgMRmQQPK+7OC5oxuHvYLqGDIDgLiYxtPWBeNYahsLvMAGY=\n-----END RSA PRIVATE KEY-----\n"
+    },
+    {
+      "key": "pkcs8_one_line",
+      "out": "-----BEGIN RSA PRIVATE KEY-----\nMIIEogIBAAKCAQEAqXHSKdSOdMT6dxzaccIja+cBrMjl9ipjMeSi2qHsnWL7OVR/\niC3tSV+4ksAPj1tNZ9nL+JYXj+swkwDmxQETS0KS5EfJ0y8TWJq1yM5TOAHaCkOi\nHj+vps9zAAo9JVGp/bqwCavt2vbCIouQiOChbehlEPiMkE6asPlcetCsSh9yD37O\nFpAEdjCWrdNr6wMV/tCfGyxUrCE6dsGCaQ37+NSokahAPJGCGpgzLtIbM6EGfM1u\nJSWqnRUU6OUc4SDJJWJgFMxs1D4ciX0OpLj+hAUSYSFgorK7FMNa3hE76HJ/23OC\nf5QSfl6VVe+cd61dTUzAPqMpMkAeF7nurCE6kQIDAQABAoIBACUE1vOImq7sMgQ/\n64Ga9n4mc/k50vPbAtztpJ67baRc8aHu0gYAcqzrGroE9+FMAzdDIArpT7CDo5Ma\nSVCVEZAJtWnmPTPEPyfGdRyv5wJ/dRF1AUA2jbuV6vwBQKacltT2KmuSgl6qNnOx\nphwhZ2NJuHrismL8qVMsx4WVfW6b4OiShqoXUN8F3dYiwdNIy1dsijXbluuVT3W2\ndyKCbAW68nIj+vqxrfVOKVC3kjDjAdl/xEQ49xXcKFg+FviCJf6o4UrJ+D6yxIXK\nRf1qXqyYTyYWO28MrA8MnDAOfDvdalf96h1Fx8YMFi8Y+51lFMeyS+STs+pQ2g6G\n+LGMMfkCgYEA3ypz3cJLYjVG63r/hkPnKp5dUelLgO/gOSKFZVFD+H+hgoB7fTEO\ngVlW4+VJe2drh64El4yKjVFgeMRulN5e+o+PdLCgtOTYljo6iROpz7VbC9DX1Ysr\nosOTzKi6Yd2PDjow5HjHF2tDZFRnsp+rTdpstRNKvd0zR+2jdYzRfucCgYEAwl/1\nCDSM0HvwIDPaqADRWbCf5lgk5g8RbUSJsifRMRBM/9tZgyrA4/N+oCint+1M8LET\nVC68mO+sxmcTGVx085Tg5vaL20DWgHiMJ2HsGfpqc0zbRUReKqqkrjNulzPNoIVT\n4xeS2ncgjRm4EX50YRvalG7m1twZT1PfNA/iI8cCgYBHfQ/04ALKCQsY8CPe3O22\nh1iZnsRjH3SSmO5mkGvXtPsGFSZ56jcdVIMzKgYqE+0sX6B0876GmqTuyu4pnjqK\nxWZNGS/CAvUm2qxZsQTa1tu9oz8g1x45W7GDBCIAq7rh8d4rsk0EwYWrJCa7384+\neFQOhYmR3MRKrGOKinupzQKBgEv5Vb0vTRrwVps/qWehajK0ZsuSCFoj6Zvb/jY0\nef/Db1VSV1p9i4eN1SCkw2mQx1IM5JEy82STyeSCxWRUTyImPwIHvAKnBTCR7bY3\nACHnT1Rh5hLc9jGXIWc1kzRmeykS9Ab/X9ckWQTN2LR9yN9sE7OQ5Yl13i6zibq/\nupRhAoGAU4Yl9wPCvcMEGNCRT7zYIT0hoDBGUgym5gIFQ9DhvQCl3kIVg2safrud\noVzqwm1u49p7q9MsEgFMfuedNcQW1s7lJgHvF/9qdBp0ZADdIc3t5FKTOZ6Ai18Y\nK43TLgMRmQQPK+7OC5oxuHvYLqGDIDgLiYxtPWBeNYahsLvMAGY=\n-----END RSA PRIVATE KEY-----\n"
+    },
+    {
+      "key": "unknown_type",
+      "out": "-----BEGIN RSA PRIVATE KEY-----\nMIIEogIBAAKCAQEAqXHSKdSOdMT6dxzaccIja+cBrMjl9ipjMeSi2qHsnWL7OVR/\niC3tSV+4ksAPj1tNZ9nL+JYXj+swkwDmxQETS0KS5EfJ0y8TWJq1yM5TOAHaCkOi\nHj+vps9zAAo9JVGp/bqwCavt2vbCIouQiOChbehlEPiMkE6asPlcetCsSh9yD37O\nFpAEdjCWrdNr6wMV/tCfGyxUrCE6dsGCaQ37+NSokahAPJGCGpgzLtIbM6EGfM1u\nJSWqnRUU6OUc4SDJJWJgFMxs1D4ciX0OpLj+hAUSYSFgorK7FMNa3hE76HJ/23OC\nf5QSfl6VVe+cd61dTUzAPqMpMkAeF7nurCE6kQIDAQABAoIBACUE1vOImq7sMgQ/\n64Ga9n4mc/k50vPbAtztpJ67baRc8aHu0gYAcqzrGroE9+FMAzdDIArpT7CDo5Ma\nSVCVEZAJtWnmPTPEPyfGdRyv5wJ/dRF1AUA2jbuV6vwBQKacltT2KmuSgl6qNnOx\nphwhZ2NJuHrismL8qVMsx4WVfW6b4OiShqoXUN8F3dYiwdNIy1dsijXbluuVT3W2\ndyKCbAW68nIj+vqxrfVOKVC3kjDjAdl/xEQ49xXcKFg+FviCJf6o4UrJ+D6yxIXK\nRf1qXqyYTyYWO28MrA8MnDAOfDvdalf96h1Fx8YMFi8Y+51lFMeyS+STs+pQ2g6G\n+LGMMfkCgYEA3ypz3cJLYjVG63r/hkPnKp5dUelLgO/gOSKFZVFD+H+hgoB7fTEO\ngVlW4+VJe2drh64El4yKjVFgeMRulN5e+o+PdLCgtOTYljo6iROpz7VbC9DX1Ysr\nosOTzKi6Yd2PDjow5HjHF2tDZFRnsp+rTdpstRNKvd0zR+2jdYzRfucCgYEAwl/1\nCDSM0HvwIDPaqADRWbCf5lgk5g8RbUSJsifRMRBM/9tZgyrA4/N+oCint+1M8LET\nVC68mO+sxmcTGVx085Tg5vaL20DWgHiMJ2HsGfpqc0zbRUReKqqkrjNulzPNoIVT\n4xeS2ncgjRm4EX50YRvalG7m1twZT1PfNA/iI8cCgYBHfQ/04ALKCQsY8CPe3O22\nh1iZnsRjH3SSmO5mkGvXtPsGFSZ56jcdVIMzKgYqE+0sX6B0876GmqTuyu4pnjqK\nxWZNGS/CAvUm2qxZsQTa1tu9oz8g1x45W7GDBCIAq7rh8d4rsk0EwYWrJCa7384+\neFQOhYmR3MRKrGOKinupzQKBgEv5Vb0vTRrwVps/qWehajK0ZsuSCFoj6Zvb/jY0\nef/Db1VSV1p9i4eN1SCkw2mQx1IM5JEy82STyeSCxWRUTyImPwIHvAKnBTCR7bY3\nACHnT1Rh5hLc9jGXIWc1kzRmeykS9Ab/X9ckWQTN2LR9yN9sE7OQ5Yl13i6zibq/\nupRhAoGAU4Yl9wPCvcMEGNCRT7zYIT0hoDBGUgym5gIFQ9DhvQCl3kIVg2safrud\noVzqwm1u49p7q9MsEgFMfuedNcQW1s7lJgHvF/9qdBp0ZADdIc3t5FKTOZ6Ai18Y\nK43TLgMRmQQPK+7OC5oxuHvYLqGDIDgLiYxtPWBeNYahsLvMAGY=\n-----END RSA PRIVATE KEY-----\n"
+    }
+  ],
+  "scenarios": [
+    {
+      "name": "sa_generate_default_location",
+      "config_auth": -1,
+      "metadata": {
+        "email": "svc@proj-1.iam.gserviceaccount.com",
+        "project_id": "proj-1",
+        "proxy_url": "http://PROXY",
+        "service_account": {
+          "client_email": "svc@proj-1.iam.gserviceaccount.com",
+          "private_key": "SA_KEY",
+          "private_key_id": "kid-1",
+          "project_id": "proj-1",
+          "token_uri": "https://oauth2.googleapis.com/token",
+          "type": "service_account"
+        },
+        "type": "vertex"
+      },
+      "key": "pkcs1",
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"session_id\":\"sess-1\"}",
+      "source": "gemini",
+      "op": "execute",
+      "session": "session:sess-1",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json; charset=utf-8"
+            ]
+          ],
+          "body": "{\"access_token\":\"ya29.fake-access\",\"expires_in\":3599,\"token_type\":\"Bearer\"}"
+        },
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json; charset=UTF-8"
+            ]
+          ],
+          "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+        }
+      ],
+      "requests": [
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTEwMTY3NzQsImlhdCI6MTc5MTAxMzE3NH0.m4uPI_x4arzKHFQdyNvS-hEOUOy-QN2TaNUto7A9_6-4DQhvRfg2YSAHch8G_-sF2o1QU4eSpW8kIv1DD1N96kSmjRwn0GQUegn22cmuNP_3UU0Egy9fVJRld_k9jtkga5e4wzttd3skGz-u-ib6NOjrhLZ0bahxpb_D3DAaCoMNZMpWKqLmxDTd-jaS7xwlj84DWUt392_LJmm9mWR1W8OV-VKqF_eauekmDd5X2xniNI0UEDIbZn17ZF7-JXnlaYSxvAg3Coa2MF2u2RifXyOimYUGYlybjTHlRX-wWiTAUsqSzsVk0c6R6zfzAicu-ZwUH0Kal8do3qyQ7Yej-Q\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+        "POST /v1/projects/proj-1/locations/us-central1/publishers/google/models/gemini-2.5-flash:generateContent HTTP/1.1\r\nHost: us-central1-aiplatform.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 417\r\nAuthorization: Bearer ya29.fake-access\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+      ],
+      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+    },
+    {
+      "name": "sa_generate_pkcs8_key",
+      "config_auth": -1,
+      "metadata": {
+        "email": "svc@proj-1.iam.gserviceaccount.com",
+        "location": "europe-west4",
+        "project_id": "proj-1",
+        "proxy_url": "http://PROXY",
+        "service_account": {
+          "client_email": "svc@proj-1.iam.gserviceaccount.com",
+          "private_key": "SA_KEY",
+          "private_key_id": "kid-1",
+          "project_id": "proj-1",
+          "token_uri": "https://oauth2.googleapis.com/token",
+          "type": "service_account"
+        },
+        "type": "vertex"
+      },
+      "key": "pkcs8",
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"session_id\":\"sess-1\"}",
+      "source": "gemini",
+      "op": "execute",
+      "session": "session:sess-1",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json; charset=utf-8"
+            ]
+          ],
+          "body": "{\"access_token\":\"ya29.fake-access\",\"expires_in\":3599,\"token_type\":\"Bearer\"}"
+        },
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json; charset=UTF-8"
+            ]
+          ],
+          "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+        }
+      ],
+      "requests": [
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTEwMTY3NzQsImlhdCI6MTc5MTAxMzE3NH0.m4uPI_x4arzKHFQdyNvS-hEOUOy-QN2TaNUto7A9_6-4DQhvRfg2YSAHch8G_-sF2o1QU4eSpW8kIv1DD1N96kSmjRwn0GQUegn22cmuNP_3UU0Egy9fVJRld_k9jtkga5e4wzttd3skGz-u-ib6NOjrhLZ0bahxpb_D3DAaCoMNZMpWKqLmxDTd-jaS7xwlj84DWUt392_LJmm9mWR1W8OV-VKqF_eauekmDd5X2xniNI0UEDIbZn17ZF7-JXnlaYSxvAg3Coa2MF2u2RifXyOimYUGYlybjTHlRX-wWiTAUsqSzsVk0c6R6zfzAicu-ZwUH0Kal8do3qyQ7Yej-Q\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+        "POST /v1/projects/proj-1/locations/europe-west4/publishers/google/models/gemini-2.5-flash:generateContent HTTP/1.1\r\nHost: europe-west4-aiplatform.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 417\r\nAuthorization: Bearer ya29.fake-access\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+      ],
+      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+    },
+    {
+      "name": "sa_generate_pasted_key",
+      "config_auth": -1,
+      "metadata": {
+        "email": "svc@proj-1.iam.gserviceaccount.com",
+        "location": "us-east5",
+        "project_id": "proj-1",
+        "proxy_url": "http://PROXY",
+        "service_account": {
+          "client_email": "svc@proj-1.iam.gserviceaccount.com",
+          "private_key": "SA_KEY",
+          "private_key_id": "kid-1",
+          "project_id": "proj-1",
+          "token_uri": "https://oauth2.googleapis.com/token",
+          "type": "service_account"
+        },
+        "type": "vertex"
+      },
+      "key": "pkcs8_crlf_ansi",
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"session_id\":\"sess-1\"}",
+      "source": "gemini",
+      "op": "execute",
+      "session": "session:sess-1",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json; charset=utf-8"
+            ]
+          ],
+          "body": "{\"access_token\":\"ya29.fake-access\",\"expires_in\":3599,\"token_type\":\"Bearer\"}"
+        },
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json; charset=UTF-8"
+            ]
+          ],
+          "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+        }
+      ],
+      "requests": [
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTEwMTY3NzQsImlhdCI6MTc5MTAxMzE3NH0.m4uPI_x4arzKHFQdyNvS-hEOUOy-QN2TaNUto7A9_6-4DQhvRfg2YSAHch8G_-sF2o1QU4eSpW8kIv1DD1N96kSmjRwn0GQUegn22cmuNP_3UU0Egy9fVJRld_k9jtkga5e4wzttd3skGz-u-ib6NOjrhLZ0bahxpb_D3DAaCoMNZMpWKqLmxDTd-jaS7xwlj84DWUt392_LJmm9mWR1W8OV-VKqF_eauekmDd5X2xniNI0UEDIbZn17ZF7-JXnlaYSxvAg3Coa2MF2u2RifXyOimYUGYlybjTHlRX-wWiTAUsqSzsVk0c6R6zfzAicu-ZwUH0Kal8do3qyQ7Yej-Q\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+        "POST /v1/projects/proj-1/locations/us-east5/publishers/google/models/gemini-2.5-flash:generateContent HTTP/1.1\r\nHost: us-east5-aiplatform.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 417\r\nAuthorization: Bearer ya29.fake-access\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+      ],
+      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+    },
+    {
+      "name": "sa_generate_one_line_key",
+      "config_auth": -1,
+      "metadata": {
+        "email": "svc@proj-1.iam.gserviceaccount.com",
+        "location": "us-east5",
+        "project_id": "proj-1",
+        "proxy_url": "http://PROXY",
+        "service_account": {
+          "client_email": "svc@proj-1.iam.gserviceaccount.com",
+          "private_key": "SA_KEY",
+          "private_key_id": "kid-1",
+          "project_id": "proj-1",
+          "token_uri": "https://oauth2.googleapis.com/token",
+          "type": "service_account"
+        },
+        "type": "vertex"
+      },
+      "key": "pkcs8_one_line",
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"session_id\":\"sess-1\"}",
+      "source": "gemini",
+      "op": "execute",
+      "session": "session:sess-1",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json; charset=utf-8"
+            ]
+          ],
+          "body": "{\"access_token\":\"ya29.fake-access\",\"expires_in\":3599,\"token_type\":\"Bearer\"}"
+        },
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json; charset=UTF-8"
+            ]
+          ],
+          "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+        }
+      ],
+      "requests": [
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTEwMTY3NzQsImlhdCI6MTc5MTAxMzE3NH0.m4uPI_x4arzKHFQdyNvS-hEOUOy-QN2TaNUto7A9_6-4DQhvRfg2YSAHch8G_-sF2o1QU4eSpW8kIv1DD1N96kSmjRwn0GQUegn22cmuNP_3UU0Egy9fVJRld_k9jtkga5e4wzttd3skGz-u-ib6NOjrhLZ0bahxpb_D3DAaCoMNZMpWKqLmxDTd-jaS7xwlj84DWUt392_LJmm9mWR1W8OV-VKqF_eauekmDd5X2xniNI0UEDIbZn17ZF7-JXnlaYSxvAg3Coa2MF2u2RifXyOimYUGYlybjTHlRX-wWiTAUsqSzsVk0c6R6zfzAicu-ZwUH0Kal8do3qyQ7Yej-Q\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+        "POST /v1/projects/proj-1/locations/us-east5/publishers/google/models/gemini-2.5-flash:generateContent HTTP/1.1\r\nHost: us-east5-aiplatform.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 417\r\nAuthorization: Bearer ya29.fake-access\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+      ],
+      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+    },
+    {
+      "name": "sa_stream_global",
+      "config_auth": -1,
+      "metadata": {
+        "email": "svc@proj-1.iam.gserviceaccount.com",
+        "location": "global",
+        "project_id": "proj-1",
+        "proxy_url": "http://PROXY",
+        "service_account": {
+          "client_email": "svc@proj-1.iam.gserviceaccount.com",
+          "private_key": "SA_KEY",
+          "private_key_id": "kid-1",
+          "project_id": "proj-1",
+          "token_uri": "https://oauth2.googleapis.com/token",
+          "type": "service_account"
+        },
+        "type": "vertex"
+      },
+      "key": "pkcs1",
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"session_id\":\"sess-1\"}",
+      "source": "gemini",
+      "op": "stream",
+      "headers": {
+        "Authorization": "Bearer client-secret"
+      },
+      "session": "session:sess-1",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json; charset=utf-8"
+            ]
+          ],
+          "body": "{\"access_token\":\"ya29.fake-access\",\"expires_in\":3599,\"token_type\":\"Bearer\"}"
+        },
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "text/event-stream"
+            ]
+          ],
+          "body": "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"he\"}]},\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"totalTokenCount\":3},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}\r\n\r\n: keepalive\n\ndata:{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"llo\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":2,\"totalTokenCount\":5},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}\n\ndata: [DONE]\n\n"
+        }
+      ],
+      "requests": [
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTEwMTY3NzQsImlhdCI6MTc5MTAxMzE3NH0.m4uPI_x4arzKHFQdyNvS-hEOUOy-QN2TaNUto7A9_6-4DQhvRfg2YSAHch8G_-sF2o1QU4eSpW8kIv1DD1N96kSmjRwn0GQUegn22cmuNP_3UU0Egy9fVJRld_k9jtkga5e4wzttd3skGz-u-ib6NOjrhLZ0bahxpb_D3DAaCoMNZMpWKqLmxDTd-jaS7xwlj84DWUt392_LJmm9mWR1W8OV-VKqF_eauekmDd5X2xniNI0UEDIbZn17ZF7-JXnlaYSxvAg3Coa2MF2u2RifXyOimYUGYlybjTHlRX-wWiTAUsqSzsVk0c6R6zfzAicu-ZwUH0Kal8do3qyQ7Yej-Q\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+        "POST /v1/projects/proj-1/locations/global/publishers/google/models/gemini-2.5-flash:streamGenerateContent?alt=sse HTTP/1.1\r\nHost: aiplatform.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 417\r\nAuthorization: Bearer ya29.fake-access\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+      ],
+      "chunks": [
+        "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"he\"}]},\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"totalTokenCount\":3},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}",
+        "",
+        ": keepalive",
+        "",
+        "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"llo\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":2,\"totalTokenCount\":5},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}",
+        "",
+        ""
+      ]
+    },
+    {
+      "name": "sa_stream_alt_json",
+      "config_auth": -1,
+      "metadata": {
+        "email": "svc@proj-1.iam.gserviceaccount.com",
+        "location": "us-central1",
+        "project_id": "proj-1",
+        "proxy_url": "http://PROXY",
+        "service_account": {
+          "client_email": "svc@proj-1.iam.gserviceaccount.com",
+          "private_key": "SA_KEY",
+          "private_key_id": "kid-1",
+          "project_id": "proj-1",
+          "token_uri": "https://oauth2.googleapis.com/token",
+          "type": "service_account"
+        },
+        "type": "vertex"
+      },
+      "key": "pkcs1",
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"session_id\":\"sess-1\"}",
+      "source": "gemini",
+      "op": "stream",
+      "alt": "json",
+      "session": "session:sess-1",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json; charset=utf-8"
+            ]
+          ],
+          "body": "{\"access_token\":\"ya29.fake-access\",\"expires_in\":3599,\"token_type\":\"Bearer\"}"
+        },
+        {
+          "status": 200,
+          "body": "[{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"llo\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":2,\"totalTokenCount\":5},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}]"
+        }
+      ],
+      "requests": [
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTEwMTY3NzQsImlhdCI6MTc5MTAxMzE3NH0.m4uPI_x4arzKHFQdyNvS-hEOUOy-QN2TaNUto7A9_6-4DQhvRfg2YSAHch8G_-sF2o1QU4eSpW8kIv1DD1N96kSmjRwn0GQUegn22cmuNP_3UU0Egy9fVJRld_k9jtkga5e4wzttd3skGz-u-ib6NOjrhLZ0bahxpb_D3DAaCoMNZMpWKqLmxDTd-jaS7xwlj84DWUt392_LJmm9mWR1W8OV-VKqF_eauekmDd5X2xniNI0UEDIbZn17ZF7-JXnlaYSxvAg3Coa2MF2u2RifXyOimYUGYlybjTHlRX-wWiTAUsqSzsVk0c6R6zfzAicu-ZwUH0Kal8do3qyQ7Yej-Q\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+        "POST /v1/projects/proj-1/locations/us-central1/publishers/google/models/gemini-2.5-flash:streamGenerateContent?$alt=json HTTP/1.1\r\nHost: us-central1-aiplatform.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 417\r\nAuthorization: Bearer ya29.fake-access\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+      ],
+      "chunks": [
+        "[{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"llo\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":2,\"totalTokenCount\":5},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}]"
+      ]
+    },
+    {
+      "name": "sa_count",
+      "config_auth": -1,
+      "metadata": {
+        "email": "svc@proj-1.iam.gserviceaccount.com",
+        "location": "europe-west4",
+        "project_id": "proj-1",
+        "proxy_url": "http://PROXY",
+        "service_account": {
+          "client_email": "svc@proj-1.iam.gserviceaccount.com",
+          "private_key": "SA_KEY",
+          "private_key_id": "kid-1",
+          "project_id": "proj-1",
+          "token_uri": "https://oauth2.googleapis.com/token",
+          "type": "service_account"
+        },
+        "type": "vertex"
+      },
+      "key": "pkcs1",
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"model\",\"parts\":[{\"text\":\"a\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"tools\":[],\"generationConfig\":{\"maxOutputTokens\":99999}}",
+      "source": "gemini",
+      "op": "count",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json; charset=utf-8"
+            ]
+          ],
+          "body": "{\"access_token\":\"ya29.fake-access\",\"expires_in\":3599,\"token_type\":\"Bearer\"}"
+        },
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"totalTokens\":5,\"promptTokensDetails\":[{\"modality\":\"TEXT\",\"tokenCount\":5}]}"
+        }
+      ],
+      "requests": [
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTEwMTY3NzQsImlhdCI6MTc5MTAxMzE3NH0.m4uPI_x4arzKHFQdyNvS-hEOUOy-QN2TaNUto7A9_6-4DQhvRfg2YSAHch8G_-sF2o1QU4eSpW8kIv1DD1N96kSmjRwn0GQUegn22cmuNP_3UU0Egy9fVJRld_k9jtkga5e4wzttd3skGz-u-ib6NOjrhLZ0bahxpb_D3DAaCoMNZMpWKqLmxDTd-jaS7xwlj84DWUt392_LJmm9mWR1W8OV-VKqF_eauekmDd5X2xniNI0UEDIbZn17ZF7-JXnlaYSxvAg3Coa2MF2u2RifXyOimYUGYlybjTHlRX-wWiTAUsqSzsVk0c6R6zfzAicu-ZwUH0Kal8do3qyQ7Yej-Q\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+        "POST /v1/projects/proj-1/locations/europe-west4/publishers/google/models/gemini-2.5-flash:countTokens HTTP/1.1\r\nHost: europe-west4-aiplatform.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 119\r\nAuthorization: Bearer ya29.fake-access\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"a\"}]}]}"
+      ],
+      "output": "{\"totalTokens\":5,\"promptTokensDetails\":[{\"modality\":\"TEXT\",\"tokenCount\":5}]}"
+    },
+    {
+      "name": "sa_imagen_predict",
+      "config_auth": -1,
+      "metadata": {
+        "email": "svc@proj-1.iam.gserviceaccount.com",
+        "project_id": "proj-1",
+        "proxy_url": "http://PROXY",
+        "service_account": {
+          "client_email": "svc@proj-1.iam.gserviceaccount.com",
+          "private_key": "SA_KEY",
+          "private_key_id": "kid-1",
+          "project_id": "proj-1",
+          "token_uri": "https://oauth2.googleapis.com/token",
+          "type": "service_account"
+        },
+        "type": "vertex"
+      },
+      "key": "pkcs1",
+      "model": "imagen-3.0-generate-002",
+      "payload": "{\"contents\":[{\"parts\":[{\"text\":\"a red fox\"}]}],\"aspectRatio\":\"16:9\",\"sampleCount\":2,\"negativePrompt\":\"blur\"}",
+      "source": "gemini",
+      "op": "execute",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json; charset=utf-8"
+            ]
+          ],
+          "body": "{\"access_token\":\"ya29.fake-access\",\"expires_in\":3599,\"token_type\":\"Bearer\"}"
+        },
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"predictions\":[{\"bytesBase64Encoded\":\"iVBORw0KGgo=\",\"mimeType\":\"image/jpeg\"},{\"bytesBase64Encoded\":\"AAAA\"},{\"mimeType\":\"image/png\"}]}"
+        }
+      ],
+      "requests": [
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTEwMTY3NzQsImlhdCI6MTc5MTAxMzE3NH0.m4uPI_x4arzKHFQdyNvS-hEOUOy-QN2TaNUto7A9_6-4DQhvRfg2YSAHch8G_-sF2o1QU4eSpW8kIv1DD1N96kSmjRwn0GQUegn22cmuNP_3UU0Egy9fVJRld_k9jtkga5e4wzttd3skGz-u-ib6NOjrhLZ0bahxpb_D3DAaCoMNZMpWKqLmxDTd-jaS7xwlj84DWUt392_LJmm9mWR1W8OV-VKqF_eauekmDd5X2xniNI0UEDIbZn17ZF7-JXnlaYSxvAg3Coa2MF2u2RifXyOimYUGYlybjTHlRX-wWiTAUsqSzsVk0c6R6zfzAicu-ZwUH0Kal8do3qyQ7Yej-Q\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+        "POST /v1/projects/proj-1/locations/us-central1/publishers/google/models/imagen-3.0-generate-002:predict HTTP/1.1\r\nHost: us-central1-aiplatform.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 114\r\nAuthorization: Bearer ya29.fake-access\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"instances\":[{\"negativePrompt\":\"blur\",\"prompt\":\"a red fox\"}],\"parameters\":{\"aspectRatio\":\"16:9\",\"sampleCount\":2}}"
+      ],
+      "output": "{\"candidates\":[{\"content\":{\"parts\":[{\"inlineData\":{\"data\":\"iVBORw0KGgo=\",\"mimeType\":\"image/jpeg\"}},{\"inlineData\":{\"data\":\"AAAA\",\"mimeType\":\"image/png\"}}],\"role\":\"model\"},\"finishReason\":\"STOP\"}],\"modelVersion\":\"imagen-3.0-generate-002\",\"responseId\":\"imagen-1791013184515960969\",\"usageMetadata\":{\"candidatesTokenCount\":0,\"promptTokenCount\":0,\"totalTokenCount\":0}}"
+    },
+    {
+      "name": "sa_imagen_messages_prompt",
+      "config_auth": -1,
+      "metadata": {
+        "email": "svc@proj-1.iam.gserviceaccount.com",
+        "project_id": "proj-1",
+        "proxy_url": "http://PROXY",
+        "service_account": {
+          "client_email": "svc@proj-1.iam.gserviceaccount.com",
+          "private_key": "SA_KEY",
+          "private_key_id": "kid-1",
+          "project_id": "proj-1",
+          "token_uri": "https://oauth2.googleapis.com/token",
+          "type": "service_account"
+        },
+        "type": "vertex"
+      },
+      "key": "pkcs1",
+      "model": "imagen-4.0-ultra",
+      "payload": "{\"messages\":[{\"role\":\"system\",\"content\":\"\"},{\"role\":\"user\",\"content\":\"a cat\"}]}",
+      "source": "gemini",
+      "op": "execute",
+      "session": "msg:7d4d70733330db4a",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json; charset=utf-8"
+            ]
+          ],
+          "body": "{\"access_token\":\"ya29.fake-access\",\"expires_in\":3599,\"token_type\":\"Bearer\"}"
+        },
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"predictions\":[{\"bytesBase64Encoded\":\"iVBORw0KGgo=\",\"mimeType\":\"image/jpeg\"},{\"bytesBase64Encoded\":\"AAAA\"},{\"mimeType\":\"image/png\"}]}"
+        }
+      ],
+      "requests": [
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTEwMTY3NzQsImlhdCI6MTc5MTAxMzE3NH0.m4uPI_x4arzKHFQdyNvS-hEOUOy-QN2TaNUto7A9_6-4DQhvRfg2YSAHch8G_-sF2o1QU4eSpW8kIv1DD1N96kSmjRwn0GQUegn22cmuNP_3UU0Egy9fVJRld_k9jtkga5e4wzttd3skGz-u-ib6NOjrhLZ0bahxpb_D3DAaCoMNZMpWKqLmxDTd-jaS7xwlj84DWUt392_LJmm9mWR1W8OV-VKqF_eauekmDd5X2xniNI0UEDIbZn17ZF7-JXnlaYSxvAg3Coa2MF2u2RifXyOimYUGYlybjTHlRX-wWiTAUsqSzsVk0c6R6zfzAicu-ZwUH0Kal8do3qyQ7Yej-Q\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+        "POST /v1/projects/proj-1/locations/us-central1/publishers/google/models/imagen-4.0-ultra:predict HTTP/1.1\r\nHost: us-central1-aiplatform.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 65\r\nAuthorization: Bearer ya29.fake-access\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"instances\":[{\"prompt\":\"a cat\"}],\"parameters\":{\"sampleCount\":1}}"
+      ],
+      "output": "{\"candidates\":[{\"content\":{\"parts\":[{\"inlineData\":{\"data\":\"iVBORw0KGgo=\",\"mimeType\":\"image/jpeg\"}},{\"inlineData\":{\"data\":\"AAAA\",\"mimeType\":\"image/png\"}}],\"role\":\"model\"},\"finishReason\":\"STOP\"}],\"modelVersion\":\"imagen-4.0-ultra\",\"responseId\":\"imagen-1791013184572469360\",\"usageMetadata\":{\"candidatesTokenCount\":0,\"promptTokenCount\":0,\"totalTokenCount\":0}}"
+    },
+    {
+      "name": "sa_imagen_no_prompt",
+      "config_auth": -1,
+      "metadata": {
+        "email": "svc@proj-1.iam.gserviceaccount.com",
+        "project_id": "proj-1",
+        "proxy_url": "http://PROXY",
+        "service_account": {
+          "client_email": "svc@proj-1.iam.gserviceaccount.com",
+          "private_key": "SA_KEY",
+          "private_key_id": "kid-1",
+          "project_id": "proj-1",
+          "token_uri": "https://oauth2.googleapis.com/token",
+          "type": "service_account"
+        },
+        "type": "vertex"
+      },
+      "key": "pkcs1",
+      "model": "imagen-4.0-ultra",
+      "payload": "{\"messages\":[]}",
+      "source": "gemini",
+      "op": "execute",
+      "error": {
+        "status": 0,
+        "message": "imagen: no prompt found in request"
+      }
+    },
+    {
+      "name": "sa_imagen_stream",
+      "config_auth": -1,
+      "metadata": {
+        "email": "svc@proj-1.iam.gserviceaccount.com",
+        "project_id": "proj-1",
+        "proxy_url": "http://PROXY",
+        "service_account": {
+          "client_email": "svc@proj-1.iam.gserviceaccount.com",
+          "private_key": "SA_KEY",
+          "private_key_id": "kid-1",
+          "project_id": "proj-1",
+          "token_uri": "https://oauth2.googleapis.com/token",
+          "type": "service_account"
+        },
+        "type": "vertex"
+      },
+      "key": "pkcs1",
+      "model": "imagen-3.0-generate-002",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"session_id\":\"sess-1\"}",
+      "source": "gemini",
+      "op": "stream",
+      "session": "session:sess-1",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json; charset=utf-8"
+            ]
+          ],
+          "body": "{\"access_token\":\"ya29.fake-access\",\"expires_in\":3599,\"token_type\":\"Bearer\"}"
+        },
+        {
+          "status": 200,
+          "body": "{\"predictions\":[]}"
+        }
+      ],
+      "requests": [
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTEwMTY3NzQsImlhdCI6MTc5MTAxMzE3NH0.m4uPI_x4arzKHFQdyNvS-hEOUOy-QN2TaNUto7A9_6-4DQhvRfg2YSAHch8G_-sF2o1QU4eSpW8kIv1DD1N96kSmjRwn0GQUegn22cmuNP_3UU0Egy9fVJRld_k9jtkga5e4wzttd3skGz-u-ib6NOjrhLZ0bahxpb_D3DAaCoMNZMpWKqLmxDTd-jaS7xwlj84DWUt392_LJmm9mWR1W8OV-VKqF_eauekmDd5X2xniNI0UEDIbZn17ZF7-JXnlaYSxvAg3Coa2MF2u2RifXyOimYUGYlybjTHlRX-wWiTAUsqSzsVk0c6R6zfzAicu-ZwUH0Kal8do3qyQ7Yej-Q\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+        "POST /v1/projects/proj-1/locations/us-central1/publishers/google/models/imagen-3.0-generate-002:predict HTTP/1.1\r\nHost: us-central1-aiplatform.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 424\r\nAuthorization: Bearer ya29.fake-access\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"imagen-3.0-generate-002\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+      ],
+      "chunks": [
+        "{\"predictions\":[]}"
+      ]
+    },
+    {
+      "name": "sa_token_rejected",
+      "config_auth": -1,
+      "metadata": {
+        "email": "svc@proj-1.iam.gserviceaccount.com",
+        "project_id": "proj-1",
+        "proxy_url": "http://PROXY",
+        "service_account": {
+          "client_email": "svc@proj-1.iam.gserviceaccount.com",
+          "private_key": "SA_KEY",
+          "private_key_id": "kid-1",
+          "project_id": "proj-1",
+          "token_uri": "https://oauth2.googleapis.com/token",
+          "type": "service_account"
+        },
+        "type": "vertex"
+      },
+      "key": "pkcs1",
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"session_id\":\"sess-1\"}",
+      "source": "gemini",
+      "op": "execute",
+      "session": "session:sess-1",
+      "replies": [
+        {
+          "status": 400,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"error\":\"invalid_grant\",\"error_description\":\"Invalid JWT Signature.\"}"
+        }
+      ],
+      "requests": [
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTEwMTY3NzQsImlhdCI6MTc5MTAxMzE3NH0.m4uPI_x4arzKHFQdyNvS-hEOUOy-QN2TaNUto7A9_6-4DQhvRfg2YSAHch8G_-sF2o1QU4eSpW8kIv1DD1N96kSmjRwn0GQUegn22cmuNP_3UU0Egy9fVJRld_k9jtkga5e4wzttd3skGz-u-ib6NOjrhLZ0bahxpb_D3DAaCoMNZMpWKqLmxDTd-jaS7xwlj84DWUt392_LJmm9mWR1W8OV-VKqF_eauekmDd5X2xniNI0UEDIbZn17ZF7-JXnlaYSxvAg3Coa2MF2u2RifXyOimYUGYlybjTHlRX-wWiTAUsqSzsVk0c6R6zfzAicu-ZwUH0Kal8do3qyQ7Yej-Q\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer"
+      ],
+      "error": {
+        "status": 500,
+        "message": "internal server error"
+      }
+    },
+    {
+      "name": "sa_token_without_access_token",
+      "config_auth": -1,
+      "metadata": {
+        "email": "svc@proj-1.iam.gserviceaccount.com",
+        "project_id": "proj-1",
+        "proxy_url": "http://PROXY",
+        "service_account": {
+          "client_email": "svc@proj-1.iam.gserviceaccount.com",
+          "private_key": "SA_KEY",
+          "private_key_id": "kid-1",
+          "project_id": "proj-1",
+          "token_uri": "https://oauth2.googleapis.com/token",
+          "type": "service_account"
+        },
+        "type": "vertex"
+      },
+      "key": "pkcs1",
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"session_id\":\"sess-1\"}",
+      "source": "gemini",
+      "op": "execute",
+      "session": "session:sess-1",
+      "replies": [
+        {
+          "status": 200,
+          "body": "{\"token_type\":\"Bearer\",\"expires_in\":10}"
+        },
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json; charset=UTF-8"
+            ]
+          ],
+          "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+        }
+      ],
+      "requests": [
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTEwMTY3NzQsImlhdCI6MTc5MTAxMzE3NH0.m4uPI_x4arzKHFQdyNvS-hEOUOy-QN2TaNUto7A9_6-4DQhvRfg2YSAHch8G_-sF2o1QU4eSpW8kIv1DD1N96kSmjRwn0GQUegn22cmuNP_3UU0Egy9fVJRld_k9jtkga5e4wzttd3skGz-u-ib6NOjrhLZ0bahxpb_D3DAaCoMNZMpWKqLmxDTd-jaS7xwlj84DWUt392_LJmm9mWR1W8OV-VKqF_eauekmDd5X2xniNI0UEDIbZn17ZF7-JXnlaYSxvAg3Coa2MF2u2RifXyOimYUGYlybjTHlRX-wWiTAUsqSzsVk0c6R6zfzAicu-ZwUH0Kal8do3qyQ7Yej-Q\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+        "POST /v1/projects/proj-1/locations/us-central1/publishers/google/models/gemini-2.5-flash:generateContent HTTP/1.1\r\nHost: us-central1-aiplatform.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 417\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+      ],
+      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+    },
+    {
+      "name": "sa_token_bad_expires",
+      "config_auth": -1,
+      "metadata": {
+        "email": "svc@proj-1.iam.gserviceaccount.com",
+        "project_id": "proj-1",
+        "proxy_url": "http://PROXY",
+        "service_account": {
+          "client_email": "svc@proj-1.iam.gserviceaccount.com",
+          "private_key": "SA_KEY",
+          "private_key_id": "kid-1",
+          "project_id": "proj-1",
+          "token_uri": "https://oauth2.googleapis.com/token",
+          "type": "service_account"
+        },
+        "type": "vertex"
+      },
+      "key": "pkcs1",
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"session_id\":\"sess-1\"}",
+      "source": "gemini",
+      "op": "execute",
+      "session": "session:sess-1",
+      "replies": [
+        {
+          "status": 200,
+          "body": "{\"access_token\":\"ya29.x\",\"expires_in\":\"soon\"}"
+        }
+      ],
+      "requests": [
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTEwMTY3NzQsImlhdCI6MTc5MTAxMzE3NH0.m4uPI_x4arzKHFQdyNvS-hEOUOy-QN2TaNUto7A9_6-4DQhvRfg2YSAHch8G_-sF2o1QU4eSpW8kIv1DD1N96kSmjRwn0GQUegn22cmuNP_3UU0Egy9fVJRld_k9jtkga5e4wzttd3skGz-u-ib6NOjrhLZ0bahxpb_D3DAaCoMNZMpWKqLmxDTd-jaS7xwlj84DWUt392_LJmm9mWR1W8OV-VKqF_eauekmDd5X2xniNI0UEDIbZn17ZF7-JXnlaYSxvAg3Coa2MF2u2RifXyOimYUGYlybjTHlRX-wWiTAUsqSzsVk0c6R6zfzAicu-ZwUH0Kal8do3qyQ7Yej-Q\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer"
+      ],
+      "error": {
+        "status": 500,
+        "message": "internal server error"
+      }
+    },
+    {
+      "name": "sa_upstream_429",
+      "config_auth": -1,
+      "metadata": {
+        "email": "svc@proj-1.iam.gserviceaccount.com",
+        "project_id": "proj-1",
+        "proxy_url": "http://PROXY",
+        "service_account": {
+          "client_email": "svc@proj-1.iam.gserviceaccount.com",
+          "private_key": "SA_KEY",
+          "private_key_id": "kid-1",
+          "project_id": "proj-1",
+          "token_uri": "https://oauth2.googleapis.com/token",
+          "type": "service_account"
+        },
+        "type": "vertex"
+      },
+      "key": "pkcs1",
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"session_id\":\"sess-1\"}",
+      "source": "gemini",
+      "op": "execute",
+      "session": "session:sess-1",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json; charset=utf-8"
+            ]
+          ],
+          "body": "{\"access_token\":\"ya29.fake-access\",\"expires_in\":3599,\"token_type\":\"Bearer\"}"
+        },
+        {
+          "status": 429,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"error\":{\"code\":429,\"message\":\"Quota exceeded\",\"status\":\"RESOURCE_EXHAUSTED\"}}"
+        }
+      ],
+      "requests": [
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTEwMTY3NzQsImlhdCI6MTc5MTAxMzE3NH0.m4uPI_x4arzKHFQdyNvS-hEOUOy-QN2TaNUto7A9_6-4DQhvRfg2YSAHch8G_-sF2o1QU4eSpW8kIv1DD1N96kSmjRwn0GQUegn22cmuNP_3UU0Egy9fVJRld_k9jtkga5e4wzttd3skGz-u-ib6NOjrhLZ0bahxpb_D3DAaCoMNZMpWKqLmxDTd-jaS7xwlj84DWUt392_LJmm9mWR1W8OV-VKqF_eauekmDd5X2xniNI0UEDIbZn17ZF7-JXnlaYSxvAg3Coa2MF2u2RifXyOimYUGYlybjTHlRX-wWiTAUsqSzsVk0c6R6zfzAicu-ZwUH0Kal8do3qyQ7Yej-Q\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+        "POST /v1/projects/proj-1/locations/us-central1/publishers/google/models/gemini-2.5-flash:generateContent HTTP/1.1\r\nHost: us-central1-aiplatform.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 417\r\nAuthorization: Bearer ya29.fake-access\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+      ],
+      "error": {
+        "status": 429,
+        "message": "{\"error\":{\"code\":429,\"message\":\"Quota exceeded\",\"status\":\"RESOURCE_EXHAUSTED\"}}"
+      }
+    },
+    {
+      "name": "sa_stream_upstream_403",
+      "config_auth": -1,
+      "metadata": {
+        "email": "svc@proj-1.iam.gserviceaccount.com",
+        "project_id": "proj-1",
+        "proxy_url": "http://PROXY",
+        "service_account": {
+          "client_email": "svc@proj-1.iam.gserviceaccount.com",
+          "private_key": "SA_KEY",
+          "private_key_id": "kid-1",
+          "project_id": "proj-1",
+          "token_uri": "https://oauth2.googleapis.com/token",
+          "type": "service_account"
+        },
+        "type": "vertex"
+      },
+      "key": "pkcs1",
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"session_id\":\"sess-1\"}",
+      "source": "gemini",
+      "op": "stream",
+      "session": "session:sess-1",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json; charset=utf-8"
+            ]
+          ],
+          "body": "{\"access_token\":\"ya29.fake-access\",\"expires_in\":3599,\"token_type\":\"Bearer\"}"
+        },
+        {
+          "status": 403,
+          "body": "{\"error\":{\"code\":403,\"message\":\"denied\"}}"
+        }
+      ],
+      "requests": [
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTEwMTY3NzQsImlhdCI6MTc5MTAxMzE3NH0.m4uPI_x4arzKHFQdyNvS-hEOUOy-QN2TaNUto7A9_6-4DQhvRfg2YSAHch8G_-sF2o1QU4eSpW8kIv1DD1N96kSmjRwn0GQUegn22cmuNP_3UU0Egy9fVJRld_k9jtkga5e4wzttd3skGz-u-ib6NOjrhLZ0bahxpb_D3DAaCoMNZMpWKqLmxDTd-jaS7xwlj84DWUt392_LJmm9mWR1W8OV-VKqF_eauekmDd5X2xniNI0UEDIbZn17ZF7-JXnlaYSxvAg3Coa2MF2u2RifXyOimYUGYlybjTHlRX-wWiTAUsqSzsVk0c6R6zfzAicu-ZwUH0Kal8do3qyQ7Yej-Q\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+        "POST /v1/projects/proj-1/locations/us-central1/publishers/google/models/gemini-2.5-flash:streamGenerateContent?alt=sse HTTP/1.1\r\nHost: us-central1-aiplatform.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 417\r\nAuthorization: Bearer ya29.fake-access\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+      ],
+      "error": {
+        "status": 403,
+        "message": "{\"error\":{\"code\":403,\"message\":\"denied\"}}"
+      }
+    },
+    {
+      "name": "sa_missing_project",
+      "config_auth": -1,
+      "metadata": {
+        "email": "svc@proj-1.iam.gserviceaccount.com",
+        "project": "  ",
+        "proxy_url": "http://PROXY",
+        "service_account": {
+          "client_email": "svc@proj-1.iam.gserviceaccount.com",
+          "private_key": "SA_KEY",
+          "private_key_id": "kid-1",
+          "project_id": "proj-1",
+          "token_uri": "https://oauth2.googleapis.com/token",
+          "type": "service_account"
+        },
+        "type": "vertex"
+      },
+      "key": "pkcs1",
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"session_id\":\"sess-1\"}",
+      "source": "gemini",
+      "op": "execute",
+      "session": "session:sess-1",
+      "error": {
+        "status": 0,
+        "message": "vertex executor: missing project_id in credentials"
+      }
+    },
+    {
+      "name": "sa_project_fallback",
+      "config_auth": -1,
+      "metadata": {
+        "email": "svc@proj-1.iam.gserviceaccount.com",
+        "project": " proj-legacy ",
+        "proxy_url": "http://PROXY",
+        "service_account": {
+          "client_email": "svc@proj-1.iam.gserviceaccount.com",
+          "private_key": "SA_KEY",
+          "private_key_id": "kid-1",
+          "project_id": "proj-1",
+          "token_uri": "https://oauth2.googleapis.com/token",
+          "type": "service_account"
+        },
+        "type": "vertex"
+      },
+      "key": "pkcs1",
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"session_id\":\"sess-1\"}",
+      "source": "gemini",
+      "op": "execute",
+      "session": "session:sess-1",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json; charset=utf-8"
+            ]
+          ],
+          "body": "{\"access_token\":\"ya29.fake-access\",\"expires_in\":3599,\"token_type\":\"Bearer\"}"
+        },
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json; charset=UTF-8"
+            ]
+          ],
+          "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+        }
+      ],
+      "requests": [
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTEwMTY3NzUsImlhdCI6MTc5MTAxMzE3NX0.jJNwwcW3SjRMcGkrYvAYviSSQx_3DFpV9j4spI4xqaSNVTa6MGjV4SEiIxj4_BX_sa3V2br9Yk7k3hu7vuXEZ2GEqiGFsl9SmunPWb0h174r60ldACizBiwi-aJ0i4ccbtFUh-iANW5sQcl7DOKqCzrfgWXi8qVSxrh4NLHOyMd5c4C7h7_P7rVhI2Ssv_S0LVUDoyPnlC3pGH2GGa_nhpkkkuLYBW20Q32RgtHb7dSzaVGZL8NLcxdwEYZKQjfUuPO9Kwy0YM3jsdS90pdsybJqEBX6KR_e_jcoXtrEcj91NLSEQtQUuCLajHLoBbdAzAPitiQ3M-CQab2ihzAgRg\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+        "POST /v1/projects/proj-legacy/locations/us-central1/publishers/google/models/gemini-2.5-flash:generateContent HTTP/1.1\r\nHost: us-central1-aiplatform.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 417\r\nAuthorization: Bearer ya29.fake-access\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+      ],
+      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+    },
+    {
+      "name": "sa_missing_service_account",
+      "config_auth": -1,
+      "metadata": {
+        "email": "svc@proj-1.iam.gserviceaccount.com",
+        "project_id": "proj-1",
+        "proxy_url": "http://PROXY",
+        "type": "vertex"
+      },
+      "key": "pkcs1",
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"session_id\":\"sess-1\"}",
+      "source": "gemini",
+      "op": "execute",
+      "session": "session:sess-1",
+      "error": {
+        "status": 0,
+        "message": "vertex executor: missing service_account in credentials"
+      }
+    },
+    {
+      "name": "sa_ec_key",
+      "config_auth": -1,
+      "metadata": {
+        "email": "svc@proj-1.iam.gserviceaccount.com",
+        "project_id": "proj-1",
+        "proxy_url": "http://PROXY",
+        "service_account": {
+          "client_email": "svc@proj-1.iam.gserviceaccount.com",
+          "private_key": "SA_KEY",
+          "private_key_id": "kid-1",
+          "project_id": "proj-1",
+          "token_uri": "https://oauth2.googleapis.com/token",
+          "type": "service_account"
+        },
+        "type": "vertex"
+      },
+      "key": "ec",
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"session_id\":\"sess-1\"}",
+      "source": "gemini",
+      "op": "execute",
+      "session": "session:sess-1",
+      "error": {
+        "status": 0,
+        "message": "vertex executor: private_key is not an RSA key"
+      }
+    },
+    {
+      "name": "sa_wrong_credential_type",
+      "config_auth": -1,
+      "metadata": {
+        "email": "svc@proj-1.iam.gserviceaccount.com",
+        "project_id": "proj-1",
+        "proxy_url": "http://PROXY",
+        "service_account": {
+          "client_email": "svc@proj-1.iam.gserviceaccount.com",
+          "private_key": "SA_KEY",
+          "private_key_id": "kid-1",
+          "project_id": "proj-1",
+          "token_uri": "https://oauth2.googleapis.com/token",
+          "type": "authorized_user"
+        },
+        "type": "vertex"
+      },
+      "key": "pkcs1",
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"session_id\":\"sess-1\"}",
+      "source": "gemini",
+      "op": "execute",
+      "session": "session:sess-1",
+      "error": {
+        "status": 500,
+        "message": "internal server error"
+      }
+    },
+    {
+      "name": "sa_default_token_uri",
+      "config_auth": -1,
+      "metadata": {
+        "email": "svc@proj-1.iam.gserviceaccount.com",
+        "project_id": "proj-1",
+        "proxy_url": "http://PROXY",
+        "service_account": {
+          "client_email": "svc@proj-1.iam.gserviceaccount.com",
+          "private_key": "SA_KEY",
+          "private_key_id": "kid-1",
+          "project_id": "proj-1",
+          "type": "service_account"
+        },
+        "type": "vertex"
+      },
+      "key": "pkcs1",
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"session_id\":\"sess-1\"}",
+      "source": "gemini",
+      "op": "execute",
+      "session": "session:sess-1",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json; charset=utf-8"
+            ]
+          ],
+          "body": "{\"access_token\":\"ya29.fake-access\",\"expires_in\":3599,\"token_type\":\"Bearer\"}"
+        },
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json; charset=UTF-8"
+            ]
+          ],
+          "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+        }
+      ],
+      "requests": [
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTEwMTY3NzUsImlhdCI6MTc5MTAxMzE3NX0.jJNwwcW3SjRMcGkrYvAYviSSQx_3DFpV9j4spI4xqaSNVTa6MGjV4SEiIxj4_BX_sa3V2br9Yk7k3hu7vuXEZ2GEqiGFsl9SmunPWb0h174r60ldACizBiwi-aJ0i4ccbtFUh-iANW5sQcl7DOKqCzrfgWXi8qVSxrh4NLHOyMd5c4C7h7_P7rVhI2Ssv_S0LVUDoyPnlC3pGH2GGa_nhpkkkuLYBW20Q32RgtHb7dSzaVGZL8NLcxdwEYZKQjfUuPO9Kwy0YM3jsdS90pdsybJqEBX6KR_e_jcoXtrEcj91NLSEQtQUuCLajHLoBbdAzAPitiQ3M-CQab2ihzAgRg\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+        "POST /v1/projects/proj-1/locations/us-central1/publishers/google/models/gemini-2.5-flash:generateContent HTTP/1.1\r\nHost: us-central1-aiplatform.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 417\r\nAuthorization: Bearer ya29.fake-access\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+      ],
+      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+    },
+    {
+      "name": "sa_responses_tool_ids_stripped",
+      "config_auth": -1,
+      "metadata": {
+        "email": "svc@proj-1.iam.gserviceaccount.com",
+        "project_id": "proj-1",
+        "proxy_url": "http://PROXY",
+        "service_account": {
+          "client_email": "svc@proj-1.iam.gserviceaccount.com",
+          "private_key": "SA_KEY",
+          "private_key_id": "kid-1",
+          "project_id": "proj-1",
+          "token_uri": "https://oauth2.googleapis.com/token",
+          "type": "service_account"
+        },
+        "type": "vertex"
+      },
+      "key": "pkcs1",
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"function_call\",\"call_id\":\"call_1\",\"name\":\"lookup\",\"arguments\":\"{\\\"q\\\":1}\"},{\"type\":\"function_call_output\",\"call_id\":\"call_1\",\"output\":\"done\"}],\"tools\":[{\"type\":\"function\",\"name\":\"lookup\",\"parameters\":{\"type\":\"object\"}}]}",
+      "source": "openai-response",
+      "op": "execute",
+      "session": "derived:ctx:v1:a7c6eb144606fcd71939d5a8db03a966b2429b779fb62683e8144e1887f311ec",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json; charset=utf-8"
+            ]
+          ],
+          "body": "{\"access_token\":\"ya29.fake-access\",\"expires_in\":3599,\"token_type\":\"Bearer\"}"
+        },
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json; charset=UTF-8"
+            ]
+          ],
+          "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+        }
+      ],
+      "requests": [
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTEwMTY3NzUsImlhdCI6MTc5MTAxMzE3NX0.jJNwwcW3SjRMcGkrYvAYviSSQx_3DFpV9j4spI4xqaSNVTa6MGjV4SEiIxj4_BX_sa3V2br9Yk7k3hu7vuXEZ2GEqiGFsl9SmunPWb0h174r60ldACizBiwi-aJ0i4ccbtFUh-iANW5sQcl7DOKqCzrfgWXi8qVSxrh4NLHOyMd5c4C7h7_P7rVhI2Ssv_S0LVUDoyPnlC3pGH2GGa_nhpkkkuLYBW20Q32RgtHb7dSzaVGZL8NLcxdwEYZKQjfUuPO9Kwy0YM3jsdS90pdsybJqEBX6KR_e_jcoXtrEcj91NLSEQtQUuCLajHLoBbdAzAPitiQ3M-CQab2ihzAgRg\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+        "POST /v1/projects/proj-1/locations/us-central1/publishers/google/models/gemini-2.5-flash:generateContent HTTP/1.1\r\nHost: us-central1-aiplatform.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 755\r\nAuthorization: Bearer ya29.fake-access\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]},{\"role\":\"model\",\"parts\":[{\"functionCall\":{\"name\":\"lookup\",\"args\":{\"q\":1}},\"thoughtSignature\":\"skip_thought_signature_validator\"}]},{\"role\":\"user\",\"parts\":[{\"functionResponse\":{\"name\":\"lookup\",\"response\":{\"result\":\"done\"}}}]}],\"tools\":[{\"functionDeclarations\":[{\"name\":\"lookup\",\"description\":\"\",\"parametersJsonSchema\":{\"type\":\"object\"}}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"model\":\"gemini-2.5-flash\"}"
+      ],
+      "output": "{\"id\":\"resp_r1\",\"object\":\"response\",\"created_at\":1790856000,\"status\":\"completed\",\"background\":false,\"error\":null,\"incomplete_details\":null,\"model\":\"gemini-2.5-flash\",\"tools\":[{\"name\":\"lookup\",\"parameters\":{\"type\":\"object\"},\"type\":\"function\"}],\"output\":[{\"id\":\"msg_r1_0\",\"type\":\"message\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"ok\"}],\"role\":\"assistant\"}],\"usage\":{\"input_tokens\":3,\"input_tokens_details\":{\"cached_tokens\":0},\"output_tokens\":1,\"total_tokens\":4,\"output_tokens_details\":{\"reasoning_tokens\":0}}}"
+    },
+    {
+      "name": "sa_compact_alt_rejected",
+      "config_auth": -1,
+      "metadata": {
+        "email": "svc@proj-1.iam.gserviceaccount.com",
+        "project_id": "proj-1",
+        "proxy_url": "http://PROXY",
+        "service_account": {
+          "client_email": "svc@proj-1.iam.gserviceaccount.com",
+          "private_key": "SA_KEY",
+          "private_key_id": "kid-1",
+          "project_id": "proj-1",
+          "token_uri": "https://oauth2.googleapis.com/token",
+          "type": "service_account"
+        },
+        "type": "vertex"
+      },
+      "key": "pkcs1",
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"session_id\":\"sess-1\"}",
+      "source": "gemini",
+      "op": "execute",
+      "alt": "responses/compact",
+      "session": "session:sess-1",
+      "error": {
+        "status": 501,
+        "message": "/responses/compact not supported"
+      }
+    },
+    {
+      "name": "file_access_token_as_api_key",
+      "config_auth": -1,
+      "metadata": {
+        "access_token": "ya29.from-file",
+        "email": "svc@proj-1.iam.gserviceaccount.com",
+        "project_id": "proj-1",
+        "proxy_url": "http://PROXY",
+        "type": "vertex"
+      },
+      "key": "pkcs1",
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"session_id\":\"sess-1\"}",
+      "source": "gemini",
+      "op": "execute",
+      "session": "session:sess-1",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json; charset=UTF-8"
+            ]
+          ],
+          "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+        }
+      ],
+      "requests": [
+        "POST /v1/publishers/google/models/gemini-2.5-flash:generateContent HTTP/1.1\r\nHost: aiplatform.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 417\r\nContent-Type: application/json\r\nX-Goog-Api-Key: ya29.from-file\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+      ],
+      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+    },
+    {
+      "name": "key_generate_alias_headers",
+      "config": "\napi-keys:\n  vertex:\n    - name: v1\n      base-url: http://UPSTREAM/api\n      headers:\n        X-Static: static-vertex\n        X-Session: \"s-$CPA-SESSION-ID\"\n      models:\n        - name: gemini-2.5-pro\n          alias: vertex-pro\n          thinking:\n            levels: [low, high]\n        - name: gemini-2.5-flash\n          alias: vertex-flash\n      keys:\n        - api-key: vk-fake-1\n    - name: v2\n      base-url: http://UPSTREAM/v2/\n      keys:\n        - api-key: vk-fake-2\n    - name: v3\n      proxy-url: http://PROXY\n      models:\n        - name: gemini-2.5-flash\n          alias: flash-default\n      keys:\n        - api-key: vk-fake-3\n",
+      "config_auth": 0,
+      "model": "gemini-2.5-flash",
+      "requested_model": "vertex-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"session_id\":\"sess-1\"}",
+      "source": "gemini",
+      "op": "execute",
+      "headers": {
+        "X-Goog-Api-Key": "client-key",
+        "X-Session-Id": "client-sess"
+      },
+      "session": "header:client-sess",
+      "via": "plain",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json; charset=UTF-8"
+            ]
+          ],
+          "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+        }
+      ],
+      "requests": [
+        "POST /api/v1/publishers/google/models/gemini-2.5-flash:generateContent HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 417\r\nContent-Type: application/json\r\nX-Goog-Api-Key: vk-fake-1\r\nX-Session: s-header:client-sess\r\nX-Static: static-vertex\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+      ],
+      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+    },
+    {
+      "name": "key_stream_trailing_slash_base",
+      "config": "\napi-keys:\n  vertex:\n    - name: v1\n      base-url: http://UPSTREAM/api\n      headers:\n        X-Static: static-vertex\n        X-Session: \"s-$CPA-SESSION-ID\"\n      models:\n        - name: gemini-2.5-pro\n          alias: vertex-pro\n          thinking:\n            levels: [low, high]\n        - name: gemini-2.5-flash\n          alias: vertex-flash\n      keys:\n        - api-key: vk-fake-1\n    - name: v2\n      base-url: http://UPSTREAM/v2/\n      keys:\n        - api-key: vk-fake-2\n    - name: v3\n      proxy-url: http://PROXY\n      models:\n        - name: gemini-2.5-flash\n          alias: flash-default\n      keys:\n        - api-key: vk-fake-3\n",
+      "config_auth": 1,
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"session_id\":\"sess-1\"}",
+      "source": "gemini",
+      "op": "stream",
+      "session": "session:sess-1",
+      "via": "plain",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "text/event-stream"
+            ]
+          ],
+          "body": "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"he\"}]},\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"totalTokenCount\":3},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}\r\n\r\n: keepalive\n\ndata:{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"llo\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":2,\"totalTokenCount\":5},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}\n\ndata: [DONE]\n\n"
+        }
+      ],
+      "requests": [
+        "POST /v2//v1/publishers/google/models/gemini-2.5-flash:streamGenerateContent?alt=sse HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 417\r\nContent-Type: application/json\r\nX-Goog-Api-Key: vk-fake-2\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+      ],
+      "chunks": [
+        "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"he\"}]},\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"totalTokenCount\":3},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}",
+        "",
+        ": keepalive",
+        "",
+        "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"llo\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":2,\"totalTokenCount\":5},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}",
+        "",
+        ""
+      ]
+    },
+    {
+      "name": "key_count",
+      "config": "\napi-keys:\n  vertex:\n    - name: v1\n      base-url: http://UPSTREAM/api\n      headers:\n        X-Static: static-vertex\n        X-Session: \"s-$CPA-SESSION-ID\"\n      models:\n        - name: gemini-2.5-pro\n          alias: vertex-pro\n          thinking:\n            levels: [low, high]\n        - name: gemini-2.5-flash\n          alias: vertex-flash\n      keys:\n        - api-key: vk-fake-1\n    - name: v2\n      base-url: http://UPSTREAM/v2/\n      keys:\n        - api-key: vk-fake-2\n    - name: v3\n      proxy-url: http://PROXY\n      models:\n        - name: gemini-2.5-flash\n          alias: flash-default\n      keys:\n        - api-key: vk-fake-3\n",
+      "config_auth": 0,
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"session_id\":\"sess-1\"}",
+      "source": "gemini",
+      "op": "count",
+      "session": "session:sess-1",
+      "via": "plain",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"totalTokens\":5,\"promptTokensDetails\":[{\"modality\":\"TEXT\",\"tokenCount\":5}]}"
+        }
+      ],
+      "requests": [
+        "POST /api/v1/publishers/google/models/gemini-2.5-flash:countTokens HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 103\r\nContent-Type: application/json\r\nX-Goog-Api-Key: vk-fake-1\r\nX-Session: s-session:sess-1\r\nX-Static: static-vertex\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"session_id\":\"sess-1\"}"
+      ],
+      "output": "{\"totalTokens\":5,\"promptTokensDetails\":[{\"modality\":\"TEXT\",\"tokenCount\":5}]}"
+    },
+    {
+      "name": "key_default_base_via_proxy",
+      "config": "\napi-keys:\n  vertex:\n    - name: v1\n      base-url: http://UPSTREAM/api\n      headers:\n        X-Static: static-vertex\n        X-Session: \"s-$CPA-SESSION-ID\"\n      models:\n        - name: gemini-2.5-pro\n          alias: vertex-pro\n          thinking:\n            levels: [low, high]\n        - name: gemini-2.5-flash\n          alias: vertex-flash\n      keys:\n        - api-key: vk-fake-1\n    - name: v2\n      base-url: http://UPSTREAM/v2/\n      keys:\n        - api-key: vk-fake-2\n    - name: v3\n      proxy-url: http://PROXY\n      models:\n        - name: gemini-2.5-flash\n          alias: flash-default\n      keys:\n        - api-key: vk-fake-3\n",
+      "config_auth": 2,
+      "model": "gemini-2.5-flash",
+      "requested_model": "flash-default",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"session_id\":\"sess-1\"}",
+      "source": "gemini",
+      "op": "execute",
+      "session": "session:sess-1",
+      "via": "proxy",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json; charset=UTF-8"
+            ]
+          ],
+          "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+        }
+      ],
+      "requests": [
+        "POST /v1/publishers/google/models/gemini-2.5-flash:generateContent HTTP/1.1\r\nHost: aiplatform.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 417\r\nContent-Type: application/json\r\nX-Goog-Api-Key: vk-fake-3\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+      ],
+      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+    },
+    {
+      "name": "key_imagen_untranslated_response",
+      "config": "\napi-keys:\n  vertex:\n    - name: v1\n      base-url: http://UPSTREAM/api\n      headers:\n        X-Static: static-vertex\n        X-Session: \"s-$CPA-SESSION-ID\"\n      models:\n        - name: gemini-2.5-pro\n          alias: vertex-pro\n          thinking:\n            levels: [low, high]\n        - name: gemini-2.5-flash\n          alias: vertex-flash\n      keys:\n        - api-key: vk-fake-1\n    - name: v2\n      base-url: http://UPSTREAM/v2/\n      keys:\n        - api-key: vk-fake-2\n    - name: v3\n      proxy-url: http://PROXY\n      models:\n        - name: gemini-2.5-flash\n          alias: flash-default\n      keys:\n        - api-key: vk-fake-3\n",
+      "config_auth": 0,
+      "model": "imagen-3.0-generate-002",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"session_id\":\"sess-1\"}",
+      "source": "gemini",
+      "op": "execute",
+      "session": "session:sess-1",
+      "via": "plain",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"predictions\":[{\"bytesBase64Encoded\":\"iVBORw0KGgo=\",\"mimeType\":\"image/jpeg\"},{\"bytesBase64Encoded\":\"AAAA\"},{\"mimeType\":\"image/png\"}]}"
+        }
+      ],
+      "requests": [
+        "POST /api/v1/publishers/google/models/imagen-3.0-generate-002:predict HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 424\r\nContent-Type: application/json\r\nX-Goog-Api-Key: vk-fake-1\r\nX-Session: s-session:sess-1\r\nX-Static: static-vertex\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"imagen-3.0-generate-002\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+      ],
+      "output": "{\"predictions\":[{\"bytesBase64Encoded\":\"iVBORw0KGgo=\",\"mimeType\":\"image/jpeg\"},{\"bytesBase64Encoded\":\"AAAA\"},{\"mimeType\":\"image/png\"}]}"
+    },
+    {
+      "name": "key_imagen_stream",
+      "config": "\napi-keys:\n  vertex:\n    - name: v1\n      base-url: http://UPSTREAM/api\n      headers:\n        X-Static: static-vertex\n        X-Session: \"s-$CPA-SESSION-ID\"\n      models:\n        - name: gemini-2.5-pro\n          alias: vertex-pro\n          thinking:\n            levels: [low, high]\n        - name: gemini-2.5-flash\n          alias: vertex-flash\n      keys:\n        - api-key: vk-fake-1\n    - name: v2\n      base-url: http://UPSTREAM/v2/\n      keys:\n        - api-key: vk-fake-2\n    - name: v3\n      proxy-url: http://PROXY\n      models:\n        - name: gemini-2.5-flash\n          alias: flash-default\n      keys:\n        - api-key: vk-fake-3\n",
+      "config_auth": 0,
+      "model": "imagen-3.0-generate-002",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"session_id\":\"sess-1\"}",
+      "source": "gemini",
+      "op": "stream",
+      "session": "session:sess-1",
+      "via": "plain",
+      "replies": [
+        {
+          "status": 200,
+          "body": "{\"predictions\":[]}"
+        }
+      ],
+      "requests": [
+        "POST /api/v1/publishers/google/models/imagen-3.0-generate-002:predict HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 424\r\nContent-Type: application/json\r\nX-Goog-Api-Key: vk-fake-1\r\nX-Session: s-session:sess-1\r\nX-Static: static-vertex\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"imagen-3.0-generate-002\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+      ],
+      "chunks": [
+        "{\"predictions\":[]}"
+      ]
+    },
+    {
+      "name": "key_thinking_configured_levels",
+      "config": "\napi-keys:\n  vertex:\n    - name: v1\n      base-url: http://UPSTREAM/api\n      headers:\n        X-Static: static-vertex\n        X-Session: \"s-$CPA-SESSION-ID\"\n      models:\n        - name: gemini-2.5-pro\n          alias: vertex-pro\n          thinking:\n            levels: [low, high]\n        - name: gemini-2.5-flash\n          alias: vertex-flash\n      keys:\n        - api-key: vk-fake-1\n    - name: v2\n      base-url: http://UPSTREAM/v2/\n      keys:\n        - api-key: vk-fake-2\n    - name: v3\n      proxy-url: http://PROXY\n      models:\n        - name: gemini-2.5-flash\n          alias: flash-default\n      keys:\n        - api-key: vk-fake-3\n",
+      "config_auth": 0,
+      "model": "gemini-2.5-pro(medium)",
+      "requested_model": "vertex-pro(medium)",
+      "payload": "{\"model\":\"gemini-2.5-pro\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}",
+      "source": "gemini",
+      "op": "execute",
+      "session": "derived:ctx:v1:39e4011826e21361d0429d85036f493dd10bf10db89b9f0c5d315b6486284c41",
+      "via": "plain",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json; charset=UTF-8"
+            ]
+          ],
+          "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+        }
+      ],
+      "requests": [
+        "POST /api/v1/publishers/google/models/gemini-2.5-pro:generateContent HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 477\r\nContent-Type: application/json\r\nX-Goog-Api-Key: vk-fake-1\r\nX-Session: s-derived:ctx:v1:39e4011826e21361d0429d85036f493dd10bf10db89b9f0c5d315b6486284c41\r\nX-Static: static-vertex\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-2.5-pro\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"generationConfig\":{\"thinkingConfig\":{\"thinkingLevel\":\"low\"}}}"
+      ],
+      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+    },
+    {
+      "name": "key_thinking_budget_suffix",
+      "config": "\napi-keys:\n  vertex:\n    - name: v1\n      base-url: http://UPSTREAM/api\n      headers:\n        X-Static: static-vertex\n        X-Session: \"s-$CPA-SESSION-ID\"\n      models:\n        - name: gemini-2.5-pro\n          alias: vertex-pro\n          thinking:\n            levels: [low, high]\n        - name: gemini-2.5-flash\n          alias: vertex-flash\n      keys:\n        - api-key: vk-fake-1\n    - name: v2\n      base-url: http://UPSTREAM/v2/\n      keys:\n        - api-key: vk-fake-2\n    - name: v3\n      proxy-url: http://PROXY\n      models:\n        - name: gemini-2.5-flash\n          alias: flash-default\n      keys:\n        - api-key: vk-fake-3\n",
+      "config_auth": 0,
+      "model": "gemini-2.5-flash(2048)",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"session_id\":\"sess-1\"}",
+      "source": "gemini",
+      "op": "execute",
+      "session": "session:sess-1",
+      "via": "plain",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json; charset=UTF-8"
+            ]
+          ],
+          "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+        }
+      ],
+      "requests": [
+        "POST /api/v1/publishers/google/models/gemini-2.5-flash:generateContent HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 479\r\nContent-Type: application/json\r\nX-Goog-Api-Key: vk-fake-1\r\nX-Session: s-session:sess-1\r\nX-Static: static-vertex\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"generationConfig\":{\"thinkingConfig\":{\"thinkingBudget\":2048}}}"
+      ],
+      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+    },
+    {
+      "name": "key_stream_upstream_500",
+      "config": "\napi-keys:\n  vertex:\n    - name: v1\n      base-url: http://UPSTREAM/api\n      headers:\n        X-Static: static-vertex\n        X-Session: \"s-$CPA-SESSION-ID\"\n      models:\n        - name: gemini-2.5-pro\n          alias: vertex-pro\n          thinking:\n            levels: [low, high]\n        - name: gemini-2.5-flash\n          alias: vertex-flash\n      keys:\n        - api-key: vk-fake-1\n    - name: v2\n      base-url: http://UPSTREAM/v2/\n      keys:\n        - api-key: vk-fake-2\n    - name: v3\n      proxy-url: http://PROXY\n      models:\n        - name: gemini-2.5-flash\n          alias: flash-default\n      keys:\n        - api-key: vk-fake-3\n",
+      "config_auth": 0,
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"session_id\":\"sess-1\"}",
+      "source": "gemini",
+      "op": "stream",
+      "session": "session:sess-1",
+      "via": "plain",
+      "replies": [
+        {
+          "status": 500,
+          "body": "{\"error\":{\"code\":500,\"message\":\"boom\"}}"
+        }
+      ],
+      "requests": [
+        "POST /api/v1/publishers/google/models/gemini-2.5-flash:streamGenerateContent?alt=sse HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 417\r\nContent-Type: application/json\r\nX-Goog-Api-Key: vk-fake-1\r\nX-Session: s-session:sess-1\r\nX-Static: static-vertex\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+      ],
+      "error": {
+        "status": 500,
+        "message": "{\"error\":{\"code\":500,\"message\":\"boom\"}}"
+      }
+    },
+    {
+      "name": "key_empty_body_is_502",
+      "config": "\napi-keys:\n  vertex:\n    - name: v1\n      base-url: http://UPSTREAM/api\n      headers:\n        X-Static: static-vertex\n        X-Session: \"s-$CPA-SESSION-ID\"\n      models:\n        - name: gemini-2.5-pro\n          alias: vertex-pro\n          thinking:\n            levels: [low, high]\n        - name: gemini-2.5-flash\n          alias: vertex-flash\n      keys:\n        - api-key: vk-fake-1\n    - name: v2\n      base-url: http://UPSTREAM/v2/\n      keys:\n        - api-key: vk-fake-2\n    - name: v3\n      proxy-url: http://PROXY\n      models:\n        - name: gemini-2.5-flash\n          alias: flash-default\n      keys:\n        - api-key: vk-fake-3\n",
+      "config_auth": 0,
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"session_id\":\"sess-1\"}",
+      "source": "gemini",
+      "op": "execute",
+      "session": "session:sess-1",
+      "via": "plain",
+      "replies": [
+        {
+          "status": 200,
+          "body": ""
+        }
+      ],
+      "requests": [
+        "POST /api/v1/publishers/google/models/gemini-2.5-flash:generateContent HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 417\r\nContent-Type: application/json\r\nX-Goog-Api-Key: vk-fake-1\r\nX-Session: s-session:sess-1\r\nX-Static: static-vertex\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+      ],
+      "error": {
+        "status": 502,
+        "message": "Invalid apply_patch tool arguments received from upstream."
+      }
+    },
+    {
+      "name": "key_boundary_user_turns",
+      "config": "\napi-keys:\n  vertex:\n    - name: v1\n      base-url: http://UPSTREAM/api\n      headers:\n        X-Static: static-vertex\n        X-Session: \"s-$CPA-SESSION-ID\"\n      models:\n        - name: gemini-2.5-pro\n          alias: vertex-pro\n          thinking:\n            levels: [low, high]\n        - name: gemini-2.5-flash\n          alias: vertex-flash\n      keys:\n        - api-key: vk-fake-1\n    - name: v2\n      base-url: http://UPSTREAM/v2/\n      keys:\n        - api-key: vk-fake-2\n    - name: v3\n      proxy-url: http://PROXY\n      models:\n        - name: gemini-2.5-flash\n          alias: flash-default\n      keys:\n        - api-key: vk-fake-3\n",
+      "config_auth": 0,
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"model\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}",
+      "source": "gemini",
+      "op": "stream",
+      "via": "plain",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "text/event-stream"
+            ]
+          ],
+          "body": "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"he\"}]},\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"totalTokenCount\":3},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}\r\n\r\n: keepalive\n\ndata:{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"llo\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":2,\"totalTokenCount\":5},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}\n\ndata: [DONE]\n\n"
+        }
+      ],
+      "requests": [
+        "POST /api/v1/publishers/google/models/gemini-2.5-flash:streamGenerateContent?alt=sse HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 533\r\nContent-Type: application/json\r\nX-Goog-Api-Key: vk-fake-1\r\nX-Static: static-vertex\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+      ],
+      "chunks": [
+        "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"he\"}]},\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"totalTokenCount\":3},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}",
+        "",
+        ": keepalive",
+        "",
+        "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"llo\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":2,\"totalTokenCount\":5},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}",
+        "",
+        ""
+      ]
+    },
+    {
+      "name": "key_claude_stream",
+      "config": "\napi-keys:\n  vertex:\n    - name: v1\n      base-url: http://UPSTREAM/api\n      headers:\n        X-Static: static-vertex\n        X-Session: \"s-$CPA-SESSION-ID\"\n      models:\n        - name: gemini-2.5-pro\n          alias: vertex-pro\n          thinking:\n            levels: [low, high]\n        - name: gemini-2.5-flash\n          alias: vertex-flash\n      keys:\n        - api-key: vk-fake-1\n    - name: v2\n      base-url: http://UPSTREAM/v2/\n      keys:\n        - api-key: vk-fake-2\n    - name: v3\n      proxy-url: http://PROXY\n      models:\n        - name: gemini-2.5-flash\n          alias: flash-default\n      keys:\n        - api-key: vk-fake-3\n",
+      "config_auth": 0,
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"max_tokens\":64,\"messages\":[{\"role\":\"user\",\"content\":\"hello there\"}],\"stream\":true}",
+      "source": "claude",
+      "op": "stream",
+      "session": "derived:ctx:v1:c65cdc8a4f02173190f303f9d3557fbb96a40368b7b4f9e0a7d6e9f279040a87",
+      "via": "plain",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "text/event-stream"
+            ]
+          ],
+          "body": "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"he\"}]},\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"totalTokenCount\":3},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}\r\n\r\n: keepalive\n\ndata:{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"llo\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":2,\"totalTokenCount\":5},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}\n\ndata: [DONE]\n\n"
+        }
+      ],
+      "requests": [
+        "POST /api/v1/publishers/google/models/gemini-2.5-flash:streamGenerateContent?alt=sse HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 426\r\nContent-Type: application/json\r\nX-Goog-Api-Key: vk-fake-1\r\nX-Session: s-derived:ctx:v1:c65cdc8a4f02173190f303f9d3557fbb96a40368b7b4f9e0a7d6e9f279040a87\r\nX-Static: static-vertex\r\nAccept-Encoding: gzip\r\n\r\n{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hello there\"}]}],\"model\":\"gemini-2.5-flash\",\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+      ],
+      "chunks": [
+        "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"r1\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[],\"model\":\"gemini-2.5-flash\",\"stop_reason\":null,\"stop_sequence\":null,\"usage\":{\"input_tokens\":4,\"output_tokens\":0}}}\n\n\nevent: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\n\nevent: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"he\"}}\n\n\n",
+        "",
+        "",
+        "",
+        "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"llo\"}}\n\n\nevent: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\",\"stop_sequence\":null},\"usage\":{\"input_tokens\":3,\"output_tokens\":2}}\n\n\n",
+        "",
+        "",
+        "",
+        "event: message_stop\ndata: {\"type\":\"message_stop\"}\n\n\n"
+      ]
+    },
+    {
+      "name": "key_openai_stream",
+      "config": "\napi-keys:\n  vertex:\n    - name: v1\n      base-url: http://UPSTREAM/api\n      headers:\n        X-Static: static-vertex\n        X-Session: \"s-$CPA-SESSION-ID\"\n      models:\n        - name: gemini-2.5-pro\n          alias: vertex-pro\n          thinking:\n            levels: [low, high]\n        - name: gemini-2.5-flash\n          alias: vertex-flash\n      keys:\n        - api-key: vk-fake-1\n    - name: v2\n      base-url: http://UPSTREAM/v2/\n      keys:\n        - api-key: vk-fake-2\n    - name: v3\n      proxy-url: http://PROXY\n      models:\n        - name: gemini-2.5-flash\n          alias: flash-default\n      keys:\n        - api-key: vk-fake-3\n",
+      "config_auth": 0,
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"stream\":true,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+      "source": "openai",
+      "op": "stream",
+      "session": "derived:ctx:v1:1211c3ff60af63a561f0413f04b6c10dc806fc8a96c651902c73d8817f34b327",
+      "via": "plain",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "text/event-stream"
+            ]
+          ],
+          "body": "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"he\"}]},\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"totalTokenCount\":3},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}\r\n\r\n: keepalive\n\ndata:{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"llo\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":2,\"totalTokenCount\":5},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}\n\ndata: [DONE]\n\n"
+        }
+      ],
+      "requests": [
+        "POST /api/v1/publishers/google/models/gemini-2.5-flash:streamGenerateContent?alt=sse HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 417\r\nContent-Type: application/json\r\nX-Goog-Api-Key: vk-fake-1\r\nX-Session: s-derived:ctx:v1:1211c3ff60af63a561f0413f04b6c10dc806fc8a96c651902c73d8817f34b327\r\nX-Static: static-vertex\r\nAccept-Encoding: gzip\r\n\r\n{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"model\":\"gemini-2.5-flash\",\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+      ],
+      "chunks": [
+        "{\"id\":\"r1\",\"object\":\"chat.completion.chunk\",\"created\":1790856000,\"model\":\"gemini-2.5-flash\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"he\",\"reasoning_content\":null,\"tool_calls\":null},\"finish_reason\":null,\"native_finish_reason\":null}],\"usage\":{\"completion_tokens\":0,\"total_tokens\":3,\"prompt_tokens\":3}}",
+        "{\"id\":\"r1\",\"object\":\"chat.completion.chunk\",\"created\":1790856000,\"model\":\"gemini-2.5-flash\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"llo\",\"reasoning_content\":null,\"tool_calls\":null},\"finish_reason\":\"stop\",\"native_finish_reason\":\"stop\"}],\"usage\":{\"completion_tokens\":2,\"total_tokens\":5,\"prompt_tokens\":3}}"
+      ]
+    },
+    {
+      "name": "key_openai_execute",
+      "config": "\napi-keys:\n  vertex:\n    - name: v1\n      base-url: http://UPSTREAM/api\n      headers:\n        X-Static: static-vertex\n        X-Session: \"s-$CPA-SESSION-ID\"\n      models:\n        - name: gemini-2.5-pro\n          alias: vertex-pro\n          thinking:\n            levels: [low, high]\n        - name: gemini-2.5-flash\n          alias: vertex-flash\n      keys:\n        - api-key: vk-fake-1\n    - name: v2\n      base-url: http://UPSTREAM/v2/\n      keys:\n        - api-key: vk-fake-2\n    - name: v3\n      proxy-url: http://PROXY\n      models:\n        - name: gemini-2.5-flash\n          alias: flash-default\n      keys:\n        - api-key: vk-fake-3\n",
+      "config_auth": 0,
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":100000}",
+      "source": "openai",
+      "op": "execute",
+      "session": "derived:ctx:v1:1211c3ff60af63a561f0413f04b6c10dc806fc8a96c651902c73d8817f34b327",
+      "via": "plain",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json; charset=UTF-8"
+            ]
+          ],
+          "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+        }
+      ],
+      "requests": [
+        "POST /api/v1/publishers/google/models/gemini-2.5-flash:generateContent HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 463\r\nContent-Type: application/json\r\nX-Goog-Api-Key: vk-fake-1\r\nX-Session: s-derived:ctx:v1:1211c3ff60af63a561f0413f04b6c10dc806fc8a96c651902c73d8817f34b327\r\nX-Static: static-vertex\r\nAccept-Encoding: gzip\r\n\r\n{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"model\":\"gemini-2.5-flash\",\"generationConfig\":{\"maxOutputTokens\":100000},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+      ],
+      "output": "{\"id\":\"r1\",\"object\":\"chat.completion\",\"created\":1790856000,\"model\":\"gemini-2.5-flash\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\",\"reasoning_content\":null,\"tool_calls\":null},\"finish_reason\":\"stop\",\"native_finish_reason\":\"stop\"}],\"usage\":{\"completion_tokens\":1,\"total_tokens\":4,\"prompt_tokens\":3}}"
+    },
+    {
+      "name": "key_responses_stream",
+      "config": "\napi-keys:\n  vertex:\n    - name: v1\n      base-url: http://UPSTREAM/api\n      headers:\n        X-Static: static-vertex\n        X-Session: \"s-$CPA-SESSION-ID\"\n      models:\n        - name: gemini-2.5-pro\n          alias: vertex-pro\n          thinking:\n            levels: [low, high]\n        - name: gemini-2.5-flash\n          alias: vertex-flash\n      keys:\n        - api-key: vk-fake-1\n    - name: v2\n      base-url: http://UPSTREAM/v2/\n      keys:\n        - api-key: vk-fake-2\n    - name: v3\n      proxy-url: http://PROXY\n      models:\n        - name: gemini-2.5-flash\n          alias: flash-default\n      keys:\n        - api-key: vk-fake-3\n",
+      "config_auth": 0,
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"input\":\"hi\",\"stream\":true}",
+      "source": "openai-response",
+      "op": "stream",
+      "session": "derived:ctx:v1:a7c6eb144606fcd71939d5a8db03a966b2429b779fb62683e8144e1887f311ec",
+      "via": "plain",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "text/event-stream"
+            ]
+          ],
+          "body": "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"he\"}]},\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"totalTokenCount\":3},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}\r\n\r\n: keepalive\n\ndata:{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"llo\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":2,\"totalTokenCount\":5},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}\n\ndata: [DONE]\n\n"
+        }
+      ],
+      "requests": [
+        "POST /api/v1/publishers/google/models/gemini-2.5-flash:streamGenerateContent?alt=sse HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 417\r\nContent-Type: application/json\r\nX-Goog-Api-Key: vk-fake-1\r\nX-Session: s-derived:ctx:v1:a7c6eb144606fcd71939d5a8db03a966b2429b779fb62683e8144e1887f311ec\r\nX-Static: static-vertex\r\nAccept-Encoding: gzip\r\n\r\n{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"model\":\"gemini-2.5-flash\"}"
+      ],
+      "chunks": [
+        "event: response.created\ndata: {\"type\":\"response.created\",\"sequence_number\":1,\"response\":{\"id\":\"resp_r1\",\"object\":\"response\",\"created_at\":1790856000,\"status\":\"in_progress\",\"background\":false,\"error\":null,\"output\":[],\"model\":\"gemini-2.5-flash\"}}\n\n",
+        "event: response.in_progress\ndata: {\"type\":\"response.in_progress\",\"sequence_number\":2,\"response\":{\"id\":\"resp_r1\",\"object\":\"response\",\"created_at\":1790856000,\"status\":\"in_progress\",\"output\":[],\"model\":\"gemini-2.5-flash\"}}\n\n",
+        "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"sequence_number\":3,\"output_index\":0,\"item\":{\"id\":\"msg_resp_r1_0\",\"type\":\"message\",\"status\":\"in_progress\",\"content\":[],\"role\":\"assistant\"}}\n\n",
+        "event: response.content_part.added\ndata: {\"type\":\"response.content_part.added\",\"sequence_number\":4,\"item_id\":\"msg_resp_r1_0\",\"output_index\":0,\"content_index\":0,\"part\":{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"\"}}\n\n",
+        "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"sequence_number\":5,\"item_id\":\"msg_resp_r1_0\",\"output_index\":0,\"content_index\":0,\"delta\":\"he\",\"logprobs\":[]}\n\n",
+        "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"sequence_number\":6,\"item_id\":\"msg_resp_r1_0\",\"output_index\":0,\"content_index\":0,\"delta\":\"llo\",\"logprobs\":[]}\n\n",
+        "event: response.output_text.done\ndata: {\"type\":\"response.output_text.done\",\"sequence_number\":7,\"item_id\":\"msg_resp_r1_0\",\"output_index\":0,\"content_index\":0,\"text\":\"hello\",\"logprobs\":[]}\n\n",
+        "event: response.content_part.done\ndata: {\"type\":\"response.content_part.done\",\"sequence_number\":8,\"item_id\":\"msg_resp_r1_0\",\"output_index\":0,\"content_index\":0,\"part\":{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"hello\"}}\n\n",
+        "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"sequence_number\":9,\"output_index\":0,\"item\":{\"id\":\"msg_resp_r1_0\",\"type\":\"message\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"hello\"}],\"role\":\"assistant\"}}\n\n",
+        "event: response.completed\ndata: {\"type\":\"response.completed\",\"sequence_number\":10,\"response\":{\"id\":\"resp_r1\",\"object\":\"response\",\"created_at\":1790856000,\"status\":\"completed\",\"background\":false,\"error\":null,\"model\":\"gemini-2.5-flash\",\"output\":[{\"id\":\"msg_resp_r1_0\",\"type\":\"message\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"hello\"}],\"role\":\"assistant\"}],\"usage\":{\"input_tokens\":3,\"input_tokens_details\":{\"cached_tokens\":0},\"output_tokens\":2,\"output_tokens_details\":{\"reasoning_tokens\":0},\"total_tokens\":5}}}\n\n"
+      ]
+    },
+    {
+      "name": "key_claude_count",
+      "config": "\napi-keys:\n  vertex:\n    - name: v1\n      base-url: http://UPSTREAM/api\n      headers:\n        X-Static: static-vertex\n        X-Session: \"s-$CPA-SESSION-ID\"\n      models:\n        - name: gemini-2.5-pro\n          alias: vertex-pro\n          thinking:\n            levels: [low, high]\n        - name: gemini-2.5-flash\n          alias: vertex-flash\n      keys:\n        - api-key: vk-fake-1\n    - name: v2\n      base-url: http://UPSTREAM/v2/\n      keys:\n        - api-key: vk-fake-2\n    - name: v3\n      proxy-url: http://PROXY\n      models:\n        - name: gemini-2.5-flash\n          alias: flash-default\n      keys:\n        - api-key: vk-fake-3\n",
+      "config_auth": 0,
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+      "source": "claude",
+      "op": "count",
+      "session": "derived:ctx:v1:8ed3d00f709e2db65d288213eec043173a48ad204192530b3fbef5d5729599c8",
+      "via": "plain",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"totalTokens\":5,\"promptTokensDetails\":[{\"modality\":\"TEXT\",\"tokenCount\":5}]}"
+        }
+      ],
+      "requests": [
+        "POST /api/v1/publishers/google/models/gemini-2.5-flash:countTokens HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 81\r\nContent-Type: application/json\r\nX-Goog-Api-Key: vk-fake-1\r\nX-Session: s-derived:ctx:v1:8ed3d00f709e2db65d288213eec043173a48ad204192530b3fbef5d5729599c8\r\nX-Static: static-vertex\r\nAccept-Encoding: gzip\r\n\r\n{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"model\":\"gemini-2.5-flash\"}"
+      ],
+      "output": "{\"input_tokens\":5}"
+    },
+    {
+      "name": "key_codex_client_passthrough",
+      "config": "\napi-keys:\n  vertex:\n    - name: v1\n      base-url: http://UPSTREAM/api\n      headers:\n        X-Static: static-vertex\n        X-Session: \"s-$CPA-SESSION-ID\"\n      models:\n        - name: gemini-2.5-pro\n          alias: vertex-pro\n          thinking:\n            levels: [low, high]\n        - name: gemini-2.5-flash\n          alias: vertex-flash\n      keys:\n        - api-key: vk-fake-1\n    - name: v2\n      base-url: http://UPSTREAM/v2/\n      keys:\n        - api-key: vk-fake-2\n    - name: v3\n      proxy-url: http://PROXY\n      models:\n        - name: gemini-2.5-flash\n          alias: flash-default\n      keys:\n        - api-key: vk-fake-3\n",
+      "config_auth": 0,
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"input\":\"hi\"}",
+      "source": "codex",
+      "op": "execute",
+      "session": "derived:ctx:v1:774d701e7a037fafde5f2aac0359a00a0072308fa6aa25feebfc521c7dd52440",
+      "via": "plain",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json; charset=UTF-8"
+            ]
+          ],
+          "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+        }
+      ],
+      "requests": [
+        "POST /api/v1/publishers/google/models/gemini-2.5-flash:generateContent HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 41\r\nContent-Type: application/json\r\nX-Goog-Api-Key: vk-fake-1\r\nX-Session: s-derived:ctx:v1:774d701e7a037fafde5f2aac0359a00a0072308fa6aa25feebfc521c7dd52440\r\nX-Static: static-vertex\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-2.5-flash\",\"input\":\"hi\"}"
+      ],
+      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+    },
+    {
+      "name": "key_codex_tool_integer_types",
+      "config": "\napi-keys:\n  vertex:\n    - name: v1\n      base-url: http://UPSTREAM/api\n      headers:\n        X-Static: static-vertex\n        X-Session: \"s-$CPA-SESSION-ID\"\n      models:\n        - name: gemini-2.5-pro\n          alias: vertex-pro\n          thinking:\n            levels: [low, high]\n        - name: gemini-2.5-flash\n          alias: vertex-flash\n      keys:\n        - api-key: vk-fake-1\n    - name: v2\n      base-url: http://UPSTREAM/v2/\n      keys:\n        - api-key: vk-fake-2\n    - name: v3\n      proxy-url: http://PROXY\n      models:\n        - name: gemini-2.5-flash\n          alias: flash-default\n      keys:\n        - api-key: vk-fake-3\n",
+      "config_auth": 0,
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}],\"tools\":[{\"type\":\"function\",\"name\":\"shell\",\"parameters\":{\"type\":\"object\",\"properties\":{\"timeout_ms\":{\"type\":\"number\"}}}}]}",
+      "source": "openai-response",
+      "op": "execute",
+      "headers": {
+        "User-Agent": "codex_cli_rs/0.50.0 (Mac OS 15.0)"
+      },
+      "session": "derived:ctx:v1:a7c6eb144606fcd71939d5a8db03a966b2429b779fb62683e8144e1887f311ec",
+      "via": "plain",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json; charset=UTF-8"
+            ]
+          ],
+          "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+        }
+      ],
+      "requests": [
+        "POST /api/v1/publishers/google/models/gemini-2.5-flash:generateContent HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 575\r\nContent-Type: application/json\r\nX-Goog-Api-Key: vk-fake-1\r\nX-Session: s-derived:ctx:v1:a7c6eb144606fcd71939d5a8db03a966b2429b779fb62683e8144e1887f311ec\r\nX-Static: static-vertex\r\nAccept-Encoding: gzip\r\n\r\n{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"tools\":[{\"functionDeclarations\":[{\"name\":\"shell\",\"description\":\"\",\"parametersJsonSchema\":{\"type\":\"object\",\"properties\":{\"timeout_ms\":{\"type\":\"number\"}}}}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"model\":\"gemini-2.5-flash\"}"
+      ],
+      "output": "{\"id\":\"resp_r1\",\"object\":\"response\",\"created_at\":1790856000,\"status\":\"completed\",\"background\":false,\"error\":null,\"incomplete_details\":null,\"model\":\"gemini-2.5-flash\",\"tools\":[{\"name\":\"shell\",\"parameters\":{\"properties\":{\"timeout_ms\":{\"type\":\"number\"}},\"type\":\"object\"},\"type\":\"function\"}],\"output\":[{\"id\":\"msg_r1_0\",\"type\":\"message\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"ok\"}],\"role\":\"assistant\"}],\"usage\":{\"input_tokens\":3,\"input_tokens_details\":{\"cached_tokens\":0},\"output_tokens\":1,\"total_tokens\":4,\"output_tokens_details\":{\"reasoning_tokens\":0}}}"
+    }
+  ],
+  "tls": {
+    "ca_pem": "-----BEGIN CERTIFICATE-----\nMIIBbjCCARWgAwIBAgIBATAKBggqhkjOPQQDAjAeMRwwGgYDVQQDExNjbGlwcm94\neS1ycyB0ZXN0IENBMCAXDTIwMDEwMTAwMDAwMFoYDzIxMjAwMTAxMDAwMDAwWjAe\nMRwwGgYDVQQDExNjbGlwcm94eS1ycyB0ZXN0IENBMFkwEwYHKoZIzj0CAQYIKoZI\nzj0DAQcDQgAEhn2l3E2hK6pc5+wnifIYnph5ZAJ2Zh3f1lZTSz1My12nKHvlEx7P\nrQl1n/a7lB4D6qwwWpZaVykYMdPQbizJL6NCMEAwDgYDVR0PAQH/BAQDAgKEMA8G\nA1UdEwEB/wQFMAMBAf8wHQYDVR0OBBYEFC97ycfvz5sEEZuNCktSUXzRFlsVMAoG\nCCqGSM49BAMCA0cAMEQCIBXzKZU+WJm8+kQ3ZJRA5C08LiJrWj16sWK3Ggg+0Bei\nAiBycgDevzZxNEOkoraT2zW0hmBhPWXFrE6zxyqqzXVfWw==\n-----END CERTIFICATE-----\n",
+    "leaf_pem": "-----BEGIN CERTIFICATE-----\nMIIBnzCCAUWgAwIBAgIBAjAKBggqhkjOPQQDAjAeMRwwGgYDVQQDExNjbGlwcm94\neS1ycyB0ZXN0IENBMCAXDTIwMDEwMTAwMDAwMFoYDzIxMjAwMTAxMDAwMDAwWjAb\nMRkwFwYDVQQDDBAqLmdvb2dsZWFwaXMuY29tMFkwEwYHKoZIzj0CAQYIKoZIzj0D\nAQcDQgAE90UWG0uYKiIlAjrGxqUWBdryfRp4fjwEz7p3X6qeQe8Y+eOHcnESyHPv\nz2OaxgWenYV+feiLScgsDpHrjJIjAaN1MHMwDgYDVR0PAQH/BAQDAgeAMBMGA1Ud\nJQQMMAoGCCsGAQUFBwMBMB8GA1UdIwQYMBaAFC97ycfvz5sEEZuNCktSUXzRFlsV\nMCsGA1UdEQQkMCKCECouZ29vZ2xlYXBpcy5jb22CDmdvb2dsZWFwaXMuY29tMAoG\nCCqGSM49BAMCA0gAMEUCIGDlfNzcTtdGrKYPYO1fcH07/IpwR7ato5oB9RdBgoNO\nAiEApQVPkSPtjrq7b1JRQ/bb5OeZz90VvHyZFe90+5lIDAo=\n-----END CERTIFICATE-----\n",
+    "leaf_key_pem": "-----BEGIN PRIVATE KEY-----\nMIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgcBFWbuKsjRC7Ydv/\nvI0X72w1Zf1ZpxYdxS0vhNEYkXahRANCAAT3RRYbS5gqIiUCOsbGpRYF2vJ9Gnh+\nPATPundfqp5B7xj544dycRLIc+/PY5rGBZ6dhX596ItJyCwOkeuMkiMB\n-----END PRIVATE KEY-----\n"
+  }
+}
