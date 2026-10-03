@@ -42,7 +42,8 @@ function Install-CliproxyRs([bool]$Service, [bool]$BinaryOnly) {
   $tag = $env:CLIPROXY_VERSION
   if (-not $tag) {
     # /releases/latest redirects to /releases/tag/<tag> once a release exists.
-    $r = Invoke-WebRequest -Uri "$releases/latest" -Method Head -UseBasicParsing
+    try { $r = Invoke-Retry { Invoke-WebRequest -Uri "$releases/latest" -Method Head -UseBasicParsing } }
+    catch { throw "install.ps1: cannot reach $releases ($($_.Exception.Message))" }
     $final = if ($r.BaseResponse.ResponseUri) { $r.BaseResponse.ResponseUri.AbsoluteUri } else { $r.BaseResponse.RequestMessage.RequestUri.AbsoluteUri }
     if ($final -notmatch '/tag/([^/]+)$') { throw 'install.ps1: no release is published yet' }
     $tag = $Matches[1]
@@ -54,8 +55,8 @@ function Install-CliproxyRs([bool]$Service, [bool]$BinaryOnly) {
   try {
     $zip = Join-Path $tmp "$name.zip"
     try {
-      Invoke-WebRequest -Uri "$releases/download/$tag/$name.zip" -OutFile $zip -UseBasicParsing
-      Invoke-WebRequest -Uri "$releases/download/$tag/SHA256SUMS" -OutFile (Join-Path $tmp 'SHA256SUMS') -UseBasicParsing
+      Invoke-Retry { Invoke-WebRequest -Uri "$releases/download/$tag/$name.zip" -OutFile $zip -UseBasicParsing }
+      Invoke-Retry { Invoke-WebRequest -Uri "$releases/download/$tag/SHA256SUMS" -OutFile (Join-Path $tmp 'SHA256SUMS') -UseBasicParsing }
     } catch { throw "install.ps1: could not download $name.zip and SHA256SUMS from release $tag ($($_.Exception.Message))" }
     $expected = Get-Content (Join-Path $tmp 'SHA256SUMS') | ForEach-Object {
       $hash, $file = $_ -split '\s+', 2
@@ -152,6 +153,9 @@ Set-Content -Path @@PIDFILE@@ -Value $(if ($server) { $server.ProcessId } else {
   if ($Service) {
     $startFile = Join-Path $data 'start.ps1'
     [IO.File]::WriteAllText($startFile, $start + "`n")
+    # A new profile may have no Run key yet. Only create it then: New-Item -Force on an existing key
+    # would replace it and drop the other programs' entries.
+    if (-not (Test-Path $runKey)) { New-Item -Path $runKey | Out-Null }
     Set-ItemProperty -Path $runKey -Name 'cliproxy-rs' -Value "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$startFile`""
   }
 
@@ -200,6 +204,14 @@ Set-Content -Path @@PIDFILE@@ -Value $(if ($server) { $server.ProcessId } else {
     Write-Host 'Next: open the dashboard, sign in with CLIPROXY_MANAGEMENT_KEY from keys.env, and choose Connect account.'
   } else {
     Write-Host 'Next: open the dashboard, sign in with your management key, and choose Connect account.'
+  }
+}
+
+# Runs a download up to three times, for a brief network or server error.
+function Invoke-Retry([scriptblock]$Action) {
+  for ($i = 1; ; $i++) {
+    try { return & $Action } catch { if ($i -ge 3) { throw } }
+    Start-Sleep -Seconds (2 * $i)
   }
 }
 
