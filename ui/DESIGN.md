@@ -41,8 +41,6 @@ The dashboard is drawn as the face of a calm, precise device, after Dieter Rams'
 
 Light theme is the grey device body for daytime. Dark theme is the black ET66 for late-night work. Both use the same structure and the same accent.
 
-The concept round, the rejected directions and the reasons are in `design/README.md`.
-
 ## Anti-references
 
 - The KPI-card SaaS dashboard: a row of equal metric cards, a gradient area chart, every section in a bordered card.

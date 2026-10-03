@@ -5,7 +5,7 @@ The management dashboard for cliproxy-rs, written in Svelte 5 with plain CSS. It
 - `dist/` is embedded by the Rust binary (`crates/cpa-server/build.rs`) and served at `/management.html`.
 - `dist-panel/management.html` is one self-contained file for existing Go CLIProxyAPI servers. See [PANEL.md](PANEL.md).
 
-Product rules are in [PRODUCT.md](PRODUCT.md), the visual system in [DESIGN.md](DESIGN.md), the direction contract in [DIRECTION.md](DIRECTION.md), and the concept round in [design/README.md](design/README.md).
+Product rules are in [PRODUCT.md](PRODUCT.md) and the visual system in [DESIGN.md](DESIGN.md).
 
 ## Commands
 

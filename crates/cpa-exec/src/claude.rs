@@ -22,7 +22,7 @@
 //! this executor: `claudeCCHUpstreamVertex` has no caller, so CCH signing stays
 //! Anthropic-only.
 //!
-//! ponytail: Home KV device profiles and identities (M6, ultra/home) hook in front of
+//! ponytail: Home KV device profiles and identities (M6, Home) hook in front of
 //! `profile::resolve`; request logs belong to the server.
 
 mod alias;

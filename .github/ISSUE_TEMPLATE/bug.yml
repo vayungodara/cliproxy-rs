@@ -1,0 +1,47 @@
+name: Bug report
+description: Something does not work as documented, or differs from CLIProxyAPI without a listed reason.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Leave real keys, tokens and account files out of this report. Replace them with placeholders.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: The request, the tool and its settings, and the relevant part of config.yaml (keys removed).
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The last line of `cliproxy --version`.
+    validations:
+      required: true
+  - type: input
+    id: system
+    attributes:
+      label: System
+      description: Operating system and how you installed it (release binary, install.sh, Docker, source).
+  - type: dropdown
+    id: go
+    attributes:
+      label: Does CLIProxyAPI behave differently?
+      options:
+        - I don't know
+        - "Yes, CLIProxyAPI works"
+        - No, it fails the same way
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: The server log lines around the problem, with keys and tokens removed.
+      render: text

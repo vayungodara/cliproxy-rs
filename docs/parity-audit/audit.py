@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""Regenerates docs/PARITY-STATUS.md from docs/PARITY.md, a scan of this repository, the
-route probe (probe.py, routes.json) and the manual judgments in manual.tsv.
+"""Regenerates docs/parity-audit/status.md and the summary table in docs/PARITY.md from the
+checklist (checklist.md), a scan of this repository, the route probe (probe.py,
+routes.json) and the manual judgments in manual.tsv.
 
 Usage: python3 docs/parity-audit/audit.py [--milestones M1,M2]
 
@@ -32,7 +33,7 @@ GO_TEST = re.compile(r"\b(?:Test|Fuzz|Benchmark|Example)[A-Z0-9_][A-Za-z0-9_]*")
 
 def items():
     out, section = [], None
-    for line in open(os.path.join(ROOT, "docs", "PARITY.md"), encoding="utf-8"):
+    for line in open(os.path.join(HERE, "checklist.md"), encoding="utf-8"):
         m = re.match(r"^(#{2,3}) (.*)", line)
         if m:
             section = m.group(2).strip()
@@ -100,50 +101,50 @@ def test_file(text):
 
 
 def owner_for(text):
-    """The thread that owns a gap, from the Go paths an item cites."""
+    """The area of the code base a gap belongs to, from the Go paths an item cites."""
     paths = re.findall(r"(?:internal|sdk|cmd|test|pkg)/[A-Za-z0-9_\-/.]+", text)
     joined = " ".join(paths).lower() or text.lower()
     rules = [
-        ("codex/live", "ultra/realtime"),
-        ("realtime", "ultra/realtime"),
-        ("/live", "ultra/realtime"),
-        ("internal/translator", "ultra/translate"),
-        ("sdk/translator", "ultra/translate"),
-        ("internal/thinking", "ultra/google"),
-        ("internal/signature", "ultra/google"),
-        ("claude", "ultra/claude"),
-        ("anthropic", "ultra/claude"),
-        ("antigravity", "ultra/google"),
-        ("aistudio", "ultra/google"),
-        ("vertex", "ultra/google"),
-        ("interactions", "ultra/google"),
-        ("gemini", "ultra/google"),
-        ("kimi", "ultra/device-providers"),
-        ("meta", "ultra/device-providers"),
-        ("devin", "ultra/device-providers"),
-        ("xai", "ultra/openai-xai"),
-        ("grok", "ultra/openai-xai"),
-        ("openai_compat", "ultra/openai-xai"),
-        ("openai-compat", "ultra/openai-xai"),
-        ("codex", "ultra/codex"),
-        ("websocket", "ultra/codex"),
-        ("management", "ultra/manage"),
-        ("internal/config", "ultra/manage"),
-        ("internal/usage", "ultra/server"),
-        ("pluginabi", "ultra/plugins"),
-        ("pluginhost", "ultra/plugins"),
-        ("plugin", "ultra/plugins"),
-        ("internal/tui", "ultra/tui"),
-        ("internal/home", "ultra/home"),
-        ("managementasset", "ultra/dashboard"),
-        ("internal/store", "ultra/home"),
-        ("discovery", "ultra/tui"),
-        ("cmd/", "ultra/tui"),
+        ("codex/live", "realtime"),
+        ("realtime", "realtime"),
+        ("/live", "realtime"),
+        ("internal/translator", "translate"),
+        ("sdk/translator", "translate"),
+        ("internal/thinking", "google"),
+        ("internal/signature", "google"),
+        ("claude", "claude"),
+        ("anthropic", "claude"),
+        ("antigravity", "google"),
+        ("aistudio", "google"),
+        ("vertex", "google"),
+        ("interactions", "google"),
+        ("gemini", "google"),
+        ("kimi", "device-providers"),
+        ("meta", "device-providers"),
+        ("devin", "device-providers"),
+        ("xai", "openai-xai"),
+        ("grok", "openai-xai"),
+        ("openai_compat", "openai-xai"),
+        ("openai-compat", "openai-xai"),
+        ("codex", "codex"),
+        ("websocket", "codex"),
+        ("management", "manage"),
+        ("internal/config", "manage"),
+        ("internal/usage", "server"),
+        ("pluginabi", "plugins"),
+        ("pluginhost", "plugins"),
+        ("plugin", "plugins"),
+        ("internal/tui", "tui"),
+        ("internal/home", "home"),
+        ("managementasset", "dashboard"),
+        ("internal/store", "home"),
+        ("discovery", "tui"),
+        ("cmd/", "tui"),
     ]
     for key, owner in rules:
         if key in joined:
             return owner
-    return "ultra/server"
+    return "server"
 
 
 def load_manual():
@@ -230,13 +231,13 @@ def judge_route(item, routes, tests):
 
 
 # Provider families with no executor in Rust: their keys are accepted and never used.
-NO_EXECUTOR = {"antigravity": "ultra/google", "aistudio": "ultra/google"}
-FAMILY_OWNER = {"claude": "ultra/claude", "codex": "ultra/codex", "gemini": "ultra/google", "interactions": "ultra/google",
-                "meta": "ultra/device-providers", "kimi": "ultra/device-providers", "openai-compatibility": "ultra/openai-xai",
-                **NO_EXECUTOR, "vertex": "ultra/google", "xai": "ultra/openai-xai", "devin": "ultra/device-providers"}
-SECTION_OWNER = [("management.", "ultra/manage"), ("config-version", "ultra/manage"), ("plugins.", "ultra/plugins"),
-                 ("server.discovery", "ultra/tui"), ("credentials.", "ultra/home"),
-                 ("client.codex", "ultra/codex"), ("multimedia.", "ultra/openai-xai")]
+NO_EXECUTOR = {"antigravity": "google", "aistudio": "google"}
+FAMILY_OWNER = {"claude": "claude", "codex": "codex", "gemini": "google", "interactions": "google",
+                "meta": "device-providers", "kimi": "device-providers", "openai-compatibility": "openai-xai",
+                **NO_EXECUTOR, "vertex": "google", "xai": "openai-xai", "devin": "device-providers"}
+SECTION_OWNER = [("management.", "manage"), ("config-version", "manage"), ("plugins.", "plugins"),
+                 ("server.discovery", "tui"), ("credentials.", "home"),
+                 ("client.codex", "codex"), ("multimedia.", "openai-xai")]
 CONFIG_ONLY = ("config/schema.rs", "config/document.rs", "config/validate.rs", "config/generate_schema.py")
 
 
@@ -255,14 +256,14 @@ def config_family(key):
 
 def config_owner(key):
     if ".live-media-relay" in key or "aistudio.ws-auth" in key:
-        return "ultra/realtime" if ".live-media-relay" in key else "ultra/google"
+        return "realtime" if ".live-media-relay" in key else "google"
     family = config_family(key)
     if family in FAMILY_OWNER:
         return FAMILY_OWNER[family]
     for prefix, owner in SECTION_OWNER:
         if key.startswith(prefix):
             return owner
-    return "ultra/server"
+    return "server"
 
 
 def kebab_fields(text):
@@ -382,7 +383,8 @@ def main():
 
 # Milestones whose rows have been reviewed by hand; the others are not rendered yet.
 AUDITED = ["M1", "M2", "M3", "M4", "M5", "M6"]
-BASE = "b944482"
+# What the audited tree is called in the rendered pages: a release or a date.
+BASE = "2026-10-03"
 
 
 def title(r):
@@ -404,10 +406,10 @@ def cell(text):
 def render(rows):
     out = []
     w = out.append
-    w("# Parity status against docs/PARITY.md")
+    w("# Parity status, item by item")
     w("")
-    w(f"Audit of master `{BASE}` against CLIProxyAPI `6fecc6e`, item by item. Milestones audited: {', '.join(AUDITED)} "
-      "(every item in PARITY.md). The audit is re-run at the end, after the other threads finish.")
+    w(f"Audit of {BASE} against CLIProxyAPI `6fecc6e`. Milestones audited: {', '.join(AUDITED)} "
+      "(every item in [checklist.md](checklist.md)). [docs/PARITY.md](../PARITY.md) explains the milestones and sums them up.")
     w("")
     w("Statuses:")
     w("")
@@ -417,9 +419,7 @@ def render(rows):
     w("- **partial**: implemented in part, or implemented without tests that pin Go's behaviour. For Go test suites: the behaviour exists and is exercised, but not every Go case is ported.")
     w("- **missing**: not implemented.")
     w("")
-    w("Gap owner names the thread that should close a partial or missing item. Threads: ultra/claude, ultra/codex, ultra/google, ultra/device-providers (Kimi, Meta, Devin), "
-      "ultra/openai-xai, ultra/server, ultra/manage, ultra/dashboard, ultra/translate, ultra/realtime (\"Realtime and Live\"), ultra/plugins (\"Plugins\"), "
-      "ultra/home (\"Home control plane, credential concurrency, storage\") and ultra/tui (\"TUI and LAN discovery\", also crates/cliproxy startup) and ultra/observe (access log, pprof).")
+    w("Area names the part of the code base that would close a partial or missing item.")
     w("")
     w("Method: `docs/parity-audit/audit.py` regenerates this file. Routes come from `probe.py`, which starts the binary and requests every listed method and path "
       "without credentials (routed pairs answer from the auth guard or handler, unrouted ones 404/405). A route counts as covered when a test requests it. "
@@ -438,13 +438,13 @@ def render(rows):
             c[r["status"]] += 1
         w(f"| {ms} | {len(rs)} | {c['covered']} | {c['partial']} | {c['missing']} |")
     w("")
-    w("### Gaps by owner")
+    w("### Gaps by area")
     w("")
     owners = defaultdict(lambda: defaultdict(list))
     for r in rows:
         if r["status"] in ("partial", "missing"):
             owners[r["owner"]][r["status"]].append(r["id"])
-    w("| Owner | missing | partial | Missing items |")
+    w("| Area | missing | partial | Missing items |")
     w("|---|---:|---:|---|")
     for owner in sorted(owners, key=lambda o: (-len(owners[o]["missing"]), -len(owners[o]["partial"]), o)):
         m, p = owners[owner]["missing"], owners[owner]["partial"]
@@ -460,13 +460,36 @@ def render(rows):
         for section in sections:
             w(f"### {ms}: {section}")
             w("")
-            w("| ID | Item | Status | Evidence | Gap owner | Note |")
+            w("| ID | Item | Status | Evidence | Area | Note |")
             w("|---|---|---|---|---|---|")
             for r in rows:
                 if r["ms"] == ms and r["section"] == section:
                     w(f"| {r['id']} | {cell(title(r))} | {r['status']} | {cell(r['evidence'])} | {cell(r['owner'])} | {cell(r['note'])} |")
             w("")
-    open(os.path.join(ROOT, "docs", "PARITY-STATUS.md"), "w", encoding="utf-8").write("\n".join(out))
+    open(os.path.join(HERE, "status.md"), "w", encoding="utf-8").write("\n".join(out))
+    summary(rows)
+
+
+def summary(rows):
+    """Rewrites the table between the parity-summary markers in docs/PARITY.md."""
+    lines = [f"Audit of {BASE}.", "", "| Milestone | Items | Covered | Partial | Missing |", "|---|---:|---:|---:|---:|"]
+    total = defaultdict(int)
+    for ms in AUDITED:
+        c = defaultdict(int)
+        for r in rows:
+            if r["ms"] == ms:
+                c[r["status"]] += 1
+                c["all"] += 1
+        for k, v in c.items():
+            total[k] += v
+        lines.append(f"| {ms} | {c['all']} | {c['covered']} | {c['partial']} | {c['missing']} |")
+    lines.append(f"| All | {total['all']} | {total['covered']} | {total['partial']} | {total['missing']} |")
+    path = os.path.join(ROOT, "docs", "PARITY.md")
+    page = open(path, encoding="utf-8").read()
+    start, end = "<!-- parity-summary:start -->", "<!-- parity-summary:end -->"
+    head, rest = page.split(start, 1)
+    tail = rest.split(end, 1)[1]
+    open(path, "w", encoding="utf-8").write(head + start + "\n" + "\n".join(lines) + "\n" + end + tail)
 
 
 if __name__ == "__main__":

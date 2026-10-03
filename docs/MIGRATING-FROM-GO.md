@@ -5,7 +5,7 @@ cliproxy-rs follows CLIProxyAPI at commit `6fecc6e` (v8.0.10). It reads the same
 ## What carries over
 
 - `config.yaml`. The v8 layout and the older flat layout (top-level `port`, `auth-dir`, an `api-keys` list, `remote-management`) are both read. Every v8 setting is accepted, including settings for features cliproxy-rs does not have yet (listed below); those are kept in the file but have no effect.
-- Credential files in `oauth.auth-dir` (default `~/.cli-proxy-api`). Claude, Codex, Kimi, Meta, xAI, Devin and Vertex files are used as they are. Files for providers cliproxy-rs does not serve yet (Antigravity, AI Studio) are listed in the dashboard but not used for requests.
+- Credential files in `oauth.auth-dir` (default `~/.cli-proxy-api`). Claude, Codex, Kimi, Meta, xAI, Devin, Vertex and AI Studio files are used as they are. Antigravity files, a provider cliproxy-rs does not serve yet, are listed in the dashboard but not used for requests.
 - The hashed management key. Go and cliproxy-rs both hash a plaintext `management.secret-key` with bcrypt on start and write the hash back, and each accepts the other's hash.
 - Client keys in `access.api-keys`, provider keys under `api-keys`, OpenAI-compatible upstreams, model aliases and exclusions, payload rules, proxies, routing strategy, retries and cooldowns.
 - The client routes (`/v1/...`, `/v1beta/...`, `/backend-api/codex/...`) and the Responses WebSocket, so clients need no changes.
@@ -49,7 +49,7 @@ These settings are accepted in `config.yaml` and kept on save, but cliproxy-rs d
 
 `.env` in the working directory is loaded as in Go, and the `PGSTORE_*`, `OBJECTSTORE_*` and `GITSTORE_*` storage backends and `WRITABLE_PATH` work as in Go. `RUST_LOG`, when set, overrides the log level from `debug`.
 
-Providers that are not available yet are listed in the README under [Status](../README.md#status): Antigravity and AI Studio.
+The one provider that is not available yet, Antigravity, is listed in the README under [Upcoming features](../README.md#upcoming-features).
 
 ## Management API differences
 
@@ -57,31 +57,15 @@ The v8 routes for config, credentials, OAuth sign-in, `requests/api-call`, coold
 
 Not available on cliproxy-rs:
 
-- The plugin store (`GET /v8/management/plugins/store`, `POST /v8/management/plugins/store/{id}/install` and the v0 `plugin-store` routes) and plugin quotas (`/plugins/{id}/quota` in v8 and v0, and the v0 `/plugins/{id}/quota/reset`). Listing, enabling, configuring and deleting plugins work.
+- The plugin store (`GET /v8/management/plugins/store`, `POST /v8/management/plugins/store/{id}/install` and the v0 `plugin-store` routes). Listing, enabling, configuring and deleting plugins work, and so do the plugin quota routes.
 - `PUT /v0/management/config.yaml`. The v8 `PUT /v8/management/config.yaml` works.
 - `server/latest-version` answers `502` with "no release repository is configured" until cliproxy-rs publishes releases. Go asks GitHub for the latest CLIProxyAPI release.
 
 The bundled dashboard checks which server it is talking to and marks these features as not available instead of failing.
 
-## Differences from Go CLIProxyAPI
+## Differences from Go
 
-Where cliproxy-rs has a feature, it aims to behave as Go does. These differences are deliberate:
-
-- Startup: if the config fails to load outside cloud deploy mode, cliproxy-rs exits with a non-zero status, so a service manager sees the failure. Go exits 0.
-- Discovery: subtype PTR queries are answered (Go's zeroconf library never matches them), answers go out on every selected interface, and advertisement changes from a config reload apply within 1 second, by polling.
-- `.env`: non-UTF-8 bytes inside quoted values are decoded lossily. Go keeps the raw bytes.
-- OAuth sign-in from the Management API: pending callbacks are held in memory with the sign-in session instead of being written to `auth-dir` as `.oauth-<provider>-<state>.oauth` files.
-- Claude: `platform_url` is HTML-escaped on the sign-in result page, credential files are written atomically with mode 0600, and the SSH port-forwarding hint shows the IP address of the outbound interface.
-- Plugins: loading plugins on Windows is not supported, the same as a Go build without cgo.
-- Logs: structured fields that Go does not define are printed after Go's known fields.
-- Config writes: when the Management API changes one setting, the rest of `config.yaml` stays byte for byte as it was. Go re-encodes the file, which turns YAML 1.1 booleans such as `yes` and `on` into `true`.
-- Watcher: when a config change moves `auth-dir`, cliproxy-rs starts watching the new directory. Go keeps watching the old one until it restarts.
-- Management panel: cliproxy-rs never downloads or updates its dashboard; it is built into the binary. Go downloads its panel from `management.panel-github-repository` when it is first requested and checks for a new one every three hours unless `management.disable-auto-update-panel` is set. cliproxy-rs accepts both settings, checks their types and keeps them in `config.yaml` (setting `panel-github-repository` to null through the Management API stores Go's default repository, as Go does), but nothing reads them. `management.disable-control-panel` still turns the built-in dashboard off.
-- Sign-in errors: when a Codex, Kimi, Meta, xAI or Devin sign-in started from the Management API fails, the session error keeps Go's message, status and OAuth error code but leaves out upstream response bodies, OAuth error descriptions and decoder details. Go copies those in, and they can contain tokens, while the callback route shows session errors to anyone who holds the session state without a management key. For example, a failed Codex code exchange ends at "token exchange failed with status 400" where Go appends the response body.
-- OAuth callback: the unauthenticated `POST /v8/management/oauth/callback` (and the v0 `oauth-callback`) accepts a body of at most 64 KiB. Go reads it without a limit. Real callbacks are a few hundred bytes; the limit protects servers reachable from the internet.
-- Request logs: when a logged body has a malformed Brotli encoding, cliproxy-rs can leave out the partly decoded bytes that Go writes to the log, and the decoder's error text differs from Go's. Well-formed compressed bodies are logged as in Go.
-- `pprof` (planned; not in cliproxy-rs yet): the listener will serve the index, `cmdline` and `symbol`, and the CPU `profile` in builds with its optional feature. Profiles of the Go runtime (`heap`, `allocs`, `goroutine`, `block`, `mutex`, `threadcreate`, `trace`) have no Rust equivalent and will answer `501` with a plain message; without the feature, `profile` will answer `501` too and name the feature.
-- WebRTC media relay for Codex live calls (`oauth.providers.codex.live-media-relay`): every Go build includes it, and the config turns it on. In cliproxy-rs it is an optional build feature (`cargo build --release -p cliproxy --features cpa-server/media-relay`); the release binaries and the Docker image are built without it, so calls negotiate media directly with the upstream. In a build with the relay, TURN servers reached over TCP or TLS are skipped with a warning, because the WebRTC library cannot gather candidates through them; TURN over UDP and STUN work.
+A few behaviours differ from Go on purpose, for example config writes keep the rest of `config.yaml` byte for byte and the dashboard is never downloaded. [DIFFERENCES-FROM-GO.md](DIFFERENCES-FROM-GO.md) lists all of them.
 
 ## Switching back
 
@@ -89,4 +73,4 @@ Stop cliproxy-rs and start Go on the same config and credential directory. Crede
 
 ## Details
 
-[PARITY-STATUS.md](PARITY-STATUS.md) lists every route, setting, flag and Go test suite with its status in cliproxy-rs and the test that covers it.
+[PARITY.md](PARITY.md) sums up what works and links the item-by-item audit of every route, setting, flag and Go test suite.
