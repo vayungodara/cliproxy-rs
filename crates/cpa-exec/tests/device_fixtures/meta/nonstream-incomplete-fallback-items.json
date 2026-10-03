@@ -4,7 +4,7 @@
     "access_token": "meta-key-fixture",
     "api_key": "meta-key-fixture",
     "auth_kind": "oauth",
-    "base_url": "http://127.0.0.1:42983/v1",
+    "base_url": "http://127.0.0.1:34245/v1",
     "dca_token": "dca:fixture",
     "type": "meta"
   },
@@ -36,7 +36,7 @@
       "headers": [
         [
           "Host",
-          "127.0.0.1:42983"
+          "127.0.0.1:34245"
         ],
         [
           "User-Agent",
@@ -76,5 +76,20 @@
   ],
   "downstream": {
     "body": "{\"id\":\"r\",\"status\":\"incomplete\",\"usage\":{\"input_tokens\":1,\"output_tokens_details\":{\"reasoning_tokens\":0},\"input_tokens_details\":{\"cached_tokens\":0}},\"output\":[{\"type\":\"message\",\"content\":[]},{\"type\":\"reasoning\",\"summary\":[]}]}"
+  },
+  "extra": {
+    "usage": [
+      {
+        "cached_tokens": 0,
+        "failed": false,
+        "input_tokens": 1,
+        "model": "muse-spark-1.3",
+        "output_tokens": 0,
+        "reasoning_effort": "",
+        "reasoning_tokens": 0,
+        "response_model": "",
+        "total_tokens": 1
+      }
+    ]
   }
 }

@@ -14,8 +14,12 @@ Each executor fixture records:
 - `responses`: the scripted upstream answers, in order.
 - `upstream`: every request Go sent, with ordered, cased header lines and exact body.
 - `downstream`: what the Go executor returned (body, stream chunks or error).
+- `extra.usage`: the usage records Go's `UsageReporter` published for the attempt
+  (tokens, response model, translated reasoning effort), captured by a usage plugin.
 
-`vectors.json` holds pure-function input/output pairs from the Go helpers.
+`vectors.json` holds pure-function input/output pairs from the Go helpers;
+`devin/paste_vectors.json` comes from `sdk/auth` (`parseDevinManualPaste`). Devin request
+and response bodies are Connect frames, recorded as base64 (`body_b64`).
 
 ## Regenerating
 
@@ -24,8 +28,10 @@ git clone https://github.com/router-for-me/CLIProxyAPI && cd CLIProxyAPI
 git checkout 6fecc6e
 G=<cliproxy-rs>/crates/cpa-exec/tests/device_fixtures/go
 cp $G/zz_rsfix_frames_test.go sdk/api/handlers/openai/
-for f in $G/zz_rsfix_*_test.go; do [ $(basename $f) = zz_rsfix_frames_test.go ] || cp $f internal/runtime/executor/; done
+cp $G/zz_rsfix_devin_paste_test.go sdk/auth/
+for f in $G/zz_rsfix_*_test.go; do case $(basename $f) in zz_rsfix_frames_test.go|zz_rsfix_devin_paste_test.go) ;; *) cp $f internal/runtime/executor/ ;; esac; done
 RSFIX_OUT=/tmp/rsfix go test -count=1 -run 'TestRSFix' ./internal/runtime/executor/
+RSFIX_OUT=/tmp/rsfix go test -count=1 -run 'TestRSFixDevinPaste' ./sdk/auth/
 # Adds downstream.frames: Responses-route joining of the recorded stream chunks.
 RSFIX_OUT=/tmp/rsfix go test -count=1 -run 'TestRSFixResponsesFrames' ./sdk/api/handlers/openai/
 cp -r /tmp/rsfix/* <cliproxy-rs>/crates/cpa-exec/tests/device_fixtures/
@@ -33,5 +39,6 @@ cp -r /tmp/rsfix/* <cliproxy-rs>/crates/cpa-exec/tests/device_fixtures/
 
 The generator pins `buildinfo.Version` to the Rust crate version so `User-Agent` and
 `X-Msh-Version` compare exactly. Values that depend on the machine (Host port, hostname,
-OS/arch, random device IDs, timestamps) are masked by the tests, which check the Rust
+OS/arch, random device IDs, timestamps, Devin message IDs, Sentry traces and unseeded
+fingerprints) are masked by the tests, which check the Rust
 values against their own rules instead. Nothing here contacts a real provider.

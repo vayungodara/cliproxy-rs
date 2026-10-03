@@ -1,0 +1,102 @@
+{
+  "name": "login-save",
+  "credential": null,
+  "request": {
+    "exchange": "",
+    "token": "eyJsave"
+  },
+  "responses": [
+    {
+      "status": 200,
+      "headers": [
+        [
+          "Content-Type",
+          "application/json"
+        ]
+      ],
+      "body": "{\"user_name\":\"saver\",\"user_id\":\"s1\",\"org_id\":\"o1\"}"
+    },
+    {
+      "status": 200,
+      "headers": [
+        [
+          "Content-Type",
+          "application/proto"
+        ]
+      ],
+      "body": "",
+      "body_b64": "CnMaCGRldi51c2VyKgZ0ZWFtLTk6D2RldkBleGFtcGxlLmNvbWpACiASCVRlYW1zIFByb4oCEiIGb3JnLTc3QghBY21lIE9yZxIGCIDy1soGGgYIgNnb2QZwP3gAiAGA98TVBpgBBaICCHVzZXItMTIzwAIBEgdpZ25vcmVk"
+    }
+  ],
+  "upstream": [
+    {
+      "method": "GET",
+      "target": "/v3/self",
+      "headers": [
+        [
+          "Host",
+          "127.0.0.1:40179"
+        ],
+        [
+          "User-Agent",
+          "Go-http-client/1.1"
+        ],
+        [
+          "Accept",
+          "application/json"
+        ],
+        [
+          "Authorization",
+          "Bearer devin-session-token$eyJsave"
+        ],
+        [
+          "Accept-Encoding",
+          "gzip"
+        ]
+      ],
+      "body": ""
+    },
+    {
+      "method": "POST",
+      "target": "/exa.seat_management_pb.SeatManagementService/GetUserStatus",
+      "headers": [
+        [
+          "Host",
+          "127.0.0.1:40179"
+        ],
+        [
+          "Content-Length",
+          "819"
+        ],
+        [
+          "Accept",
+          "*/*"
+        ],
+        [
+          "Authorization",
+          "Basic devin-session-token$eyJsave-devin-session-token$eyJsave"
+        ],
+        [
+          "Connect-Protocol-Version",
+          "1"
+        ],
+        [
+          "Content-Type",
+          "application/proto"
+        ],
+        [
+          "Accept-Encoding",
+          "gzip"
+        ]
+      ],
+      "body": "",
+      "body_b64": "CrAGCgZjaGlzZWwSCjMwMDAuMTAuMjEaG2RldmluLXNlc3Npb24tdG9rZW4kZXlKc2F2ZSICZW4qBWxpbnV4OgozMDAwLjEwLjIxYgZjaGlzZWz6AdwFMGMzMDFjZjc1ODAwMGFjM2QwMDhlOWQ4NDVjY2EyZWJkNTQxN2E1NjgwNWY2Zjg0N2Y0MDRiNzI5MjUxNzM0Y2ViZmY2N2MzMTc0NWQwNTczZDM4Y2ZjYmQyODlmZDVlZGFiZTc0NjhmZmMxNTBlZTg3ZmUzNDkwZThlMGU2MzMxYTJmYWI1NDNiNWU3YjBhODExNDU0NThiZTcwYTUyNTJjMzkxNzZlZGQyMDNmNTBhODY1Nzc1MDk0NjgwNTE2MjAxOWE3MTIwNjUyMTkzZjllM2E2YWY3YjNkYmJlZGI2ZDZlYTJmZTY5ZmJhM2VjZmQ1ZmJhOGQ0NzhlYWRkNTA4ZjAyNmY5ODJmOGYzOGZlNGViZmM1N2Q0Yjk1ZGZhYWRhNDkzMTdkM2MxOGQxYWMxMzA3YzYxMmRkM2E2NDMwOTk4ZDk2NTc1MDUyOTE0NjJiNTJiNjlmYzFjNjI0ZDA5NmMzMzY0MWM3YjQ0NmRhZGM3ZGJmOWRmNjRlYWNmZjAyOTczNDI4OTdhNjE4YTM4ODYxOWY0N2Y3MGM0ZDAzNzZlYTg0ZGU2ZGQ5OTc4ZTQzZjdkM2E4NzYxNTJmYmE1ZWUwYTkzNDA2NjcwYmFkODk2MmI0YzgwNGU1NmNmM2Q2MGY1NjU3ZTEyZGVmM2U3NzQ1M2E2M2RkY2E3ZTQ4NDcwYTVkMzBhZWJkNTY1NzVmYzEzNThjOTI4ZTg5OTVkM2E2ZTQ5MDM2ZmIwMTI0YjNmNjliMmZjMTk4MjE2YjAzMjUyODVhNTIzZGYyNTcwNjZlMTgxNTk3Mzc4YjY0YjFkZTFlODcxNzhiNTk2OTBjNDllMTBiNTExMTJlMTkyNDg3ZjQxMGUzYWQ5ZDEzM2RhNjE2NGI4ZjE2ZTg1M2IxZjVhY2VhZmMwNWZmNjdjYzljOWQ2MzAxNTViOGI4NWE0Y2VhMmY5NzNlMjk2MmZiNjM0OTA2NTcx"
+    }
+  ],
+  "downstream": {},
+  "extra": {
+    "file": "{\"api_key\":\"devin-session-token$eyJsave\",\"auth_kind\":\"oauth\",\"custom\":\"keep\",\"disabled\":true,\"email\":\"dev@example.com\",\"org_id\":\"o1\",\"plan\":\"Teams Pro\",\"session_token\":\"devin-session-token$eyJsave\",\"type\":\"devin\",\"user_id\":\"s1\",\"user_name\":\"saver\",\"x\":1.5}",
+    "file_name": "devin-saver.json",
+    "stale": "{\"type\":\"devin\",\"api_key\":\"old\",\"custom\":\"keep\",\"disabled\":true,\"access_token\":\"drop\",\"user_name\":\"stale\",\"x\":1.50}"
+  }
+}

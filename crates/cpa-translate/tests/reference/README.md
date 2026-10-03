@@ -36,6 +36,14 @@ which of the 49 format pairs Go registers (request, stream, non-stream, TokenCou
 `TranslateRequest`/`TranslateTokenCount` results for pairs without a translator (the
 model-rewrite fallback). `tests/sdk_translator.rs` replays it.
 
+`apply_patch_responses` (in place of the pair list) writes
+`../fixtures/apply_patch_responses.json` from `apply_patch.go`: scenarios for
+translator/common's `NormalizeApplyPatchResponsesRequest` and `ApplyPatchResponsesBridge`,
+helps' `NormalizeApplyPatchResponsesRequest` and `ApplyPatchResponsesState`, and the
+openai-response:codex pair with an executor-owned bridge. Scenarios ported from Go's tests
+carry the Go test's name; the rest are edge cases. Every op's payloads and error text are
+recorded, and `tests/apply_patch_responses.rs` replays them.
+
 Regenerate with a temporary module whose import path sits inside the reference module's
 internal-package boundary. The reference checkout stays unchanged:
 
@@ -58,6 +66,7 @@ for line in sys.stdin:
     print(c + ":" + s[len(c) + 1:])')
   go run . "$reference" "$crate/tests/fixtures/pairs" $pairs
   go run . "$reference" "$crate/tests/fixtures/pairs" sdk
+  go run . "$reference" "$crate/tests/fixtures/pairs" apply_patch_responses
 )
 rm -rf "$tmp"
 ```

@@ -627,6 +627,10 @@ func main() {
 		sdkRegistry(os.Args[1], os.Args[2])
 		return
 	}
+	if os.Args[3] == "apply_patch_responses" {
+		applyPatchResponses(os.Args[2])
+		return
+	}
 	regs := registrations(os.Args[1])
 	for _, want := range os.Args[3:] {
 		var r *registration

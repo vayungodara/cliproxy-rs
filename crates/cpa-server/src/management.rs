@@ -50,6 +50,8 @@ pub struct Management {
     pub(crate) login_base: Option<String>,
     /// Go `Handler.logDir`: resolved once at startup.
     pub(crate) log_dir: PathBuf,
+    /// The zone log line timestamps are parsed in (Go `time.Local` when `None`).
+    pub(crate) log_zone: logs::Zone,
     access: access::Access,
 }
 
@@ -65,6 +67,8 @@ pub struct Options {
     pub login_base: Option<String>,
     /// Overrides the log directory Go resolves at startup (tests only).
     pub log_dir: Option<PathBuf>,
+    /// Parses log line timestamps in this zone instead of the local one (tests only).
+    pub log_zone: Option<chrono::FixedOffset>,
 }
 
 impl Management {
@@ -86,6 +90,7 @@ impl Management {
             .log_dir
             .clone()
             .unwrap_or_else(|| crate::logging::resolve_log_dir(&cfg));
+        let log_zone = options.log_zone;
         let access = access::Access::new(&cfg, options);
         rt.usage_queue().configure(access.available(), &cfg);
         let state = Arc::new(Self {
@@ -101,6 +106,7 @@ impl Management {
             forwarders: Mutex::default(),
             login_base,
             log_dir,
+            log_zone,
         });
         oauth::install_callback_sink(&state);
         state
@@ -473,7 +479,12 @@ pub(crate) fn config_sync(state: &Management, path: &str, method: Method, body: 
                 Err(_) => error(500, "decode_failed"),
             };
         }
-        let mut result = match serde_json::to_value(doc.value()) {
+        // Go reads the decoded node tree: merge keys expanded, scalars as written.
+        let mut view = doc.value().clone();
+        if cpa_core::config::expand_merges(&mut view).is_err() {
+            return error(500, "decode_failed");
+        }
+        let mut result = match serde_json::to_value(&view) {
             Ok(v) => v,
             Err(_) => return error(500, "decode_failed"),
         };
@@ -556,8 +567,26 @@ pub(crate) fn config_sync(state: &Management, path: &str, method: Method, body: 
     if let Err(e) = Config::parse(&text) {
         return invalid_config(StatusCode::UNPROCESSABLE_ENTITY, e);
     }
-    if let Err(e) = cpa_core::config::validate_config_fields(doc.value(), true) {
+    // Go `ValidateV8Config` checks the alias- and merge-expanded document.
+    let mut expanded = doc.value().clone();
+    let checked = cpa_core::config::expand_merges(&mut expanded)
+        .and_then(|()| cpa_core::config::validate_config_fields(&expanded, true));
+    if let Err(e) = checked {
         return invalid_config(StatusCode::BAD_REQUEST, e);
+    }
+    // Go's typed saver re-encodes a JSON string in a bool field (accepted above as
+    // a YAML 1.1 spelling) as `!!str <bool>` and fails to decode its own output; the
+    // file is left unchanged. ponytail: YAML uploads are not checked, since quoted
+    // and plain scalars are indistinguishable here and Go only fails on quoted ones.
+    if !yaml
+        && let Some(value) = written
+            .as_ref()
+            .and_then(|w| cpa_core::config::written_bool_spelling(&parts, w))
+    {
+        return json(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            &json!({"error": "write_failed", "message": format!("decode migrated config: yaml: unmarshal errors:\n  cannot unmarshal !!str `{value}` into bool")}),
+        );
     }
     // Go validates the raw candidate, then its saver persists typed values; projecting
     // only after validation keeps malformed input from being sanitized into success.

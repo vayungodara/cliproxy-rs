@@ -389,3 +389,139 @@ impl cpa_translate::StreamTranslator for PatchProbe {
         vec![]
     }
 }
+
+/// Records what an executor reports to its usage sink (Server 6's `UsageSink`).
+#[derive(Default)]
+pub(crate) struct UsageLog(Mutex<Vec<(&'static str, Format, Vec<u8>)>>);
+
+impl cpa_core::exec::UsageObserver for UsageLog {
+    fn response_body(&self, format: Format, body: &[u8]) {
+        self.0.lock().unwrap().push(("body", format, body.to_vec()));
+    }
+    fn response_line(&self, format: Format, line: &[u8]) {
+        self.0.lock().unwrap().push(("line", format, line.to_vec()));
+    }
+    fn request(&self, format: Format, payload: &[u8]) {
+        self.0.lock().unwrap().push(("request", format, payload.to_vec()));
+    }
+}
+
+impl UsageLog {
+    pub(crate) fn sink(self: &Arc<Self>) -> cpa_core::exec::UsageSink {
+        cpa_core::exec::UsageSink::new(self.clone())
+    }
+
+    /// The reported upstream payloads (bodies and lines, `data:` stripped), in order.
+    fn payloads(&self) -> Vec<(Format, Vec<u8>)> {
+        self.0
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|(kind, _, _)| *kind != "request")
+            .map(|(_, f, p)| {
+                let t = p.trim_ascii();
+                (*f, t.strip_prefix(b"data:").map_or(t, <[u8]>::trim_ascii).to_vec())
+            })
+            .collect()
+    }
+}
+
+/// Token counts in a reported upstream payload, by the payload's format:
+/// (input, output, total, cached).
+fn reported_tokens(format: Format, payload: &[u8]) -> Option<[i64; 4]> {
+    use cpa_common::json as gj;
+    let pick = |paths: &[&str]| paths.iter().map(|p| gj::get(payload, p)).find(|r| r.exists());
+    let (usage, keys): (_, [&str; 4]) = match format {
+        Format::OpenAI => (
+            pick(&["usage"]),
+            [
+                "prompt_tokens",
+                "completion_tokens",
+                "total_tokens",
+                "prompt_tokens_details.cached_tokens",
+            ],
+        ),
+        Format::Codex | Format::OpenAIResponse => (
+            pick(&["response.usage", "usage"]),
+            [
+                "input_tokens",
+                "output_tokens",
+                "total_tokens",
+                "input_tokens_details.cached_tokens",
+            ],
+        ),
+        Format::Interactions => (
+            pick(&["interaction.usage", "usage"]),
+            [
+                "total_input_tokens",
+                "total_output_tokens",
+                "total_tokens",
+                "total_cached_tokens",
+            ],
+        ),
+        _ => (None, ["", "", "", ""]),
+    };
+    let usage = usage?;
+    let mut t = keys.map(|k| usage.get(k).int());
+    // Go's usage parsers fill a missing total with input + output.
+    if t[2] == 0 {
+        t[2] = t[0] + t[1];
+    }
+    Some(t)
+}
+
+/// The response model a reported payload names, by format.
+fn reported_model(format: Format, payload: &[u8]) -> Option<String> {
+    let paths: &[&str] = match format {
+        Format::Codex | Format::OpenAIResponse => &["response.model", "model"],
+        Format::Interactions => &["interaction.model", "model"],
+        _ => &["model"],
+    };
+    paths
+        .iter()
+        .map(|p| cpa_common::json::get(payload, p).str().into_owned())
+        .find(|m| !m.is_empty())
+}
+
+/// Checks the usage reports against the record Go's `UsageReporter` published for the
+/// same fixture (`extra.usage`): the reported upstream payloads carry Go's token counts
+/// and response model, and the reported request yields Go's translated reasoning effort.
+pub(crate) fn assert_usage_like_go(name: &str, fx: &Value, log: &UsageLog) {
+    let Some(record) = fx["extra"]["usage"].as_array().and_then(|r| r.first()) else {
+        return;
+    };
+    let requests: Vec<(Format, Vec<u8>)> = log
+        .0
+        .lock()
+        .unwrap()
+        .iter()
+        .filter(|(kind, _, _)| *kind == "request")
+        .map(|(_, f, p)| (*f, p.clone()))
+        .collect();
+    let effort = requests
+        .last()
+        .map(|(f, p)| cpa_common::thinking::extract_translated_reasoning_effort(p, f.as_str()))
+        .unwrap_or_default();
+    assert_eq!(
+        effort,
+        record["reasoning_effort"].as_str().unwrap(),
+        "{name}: translated reasoning effort"
+    );
+    if record["failed"].as_bool() == Some(true) {
+        return;
+    }
+    let payloads = log.payloads();
+    let tokens = payloads
+        .iter()
+        .rev()
+        .find_map(|(f, p)| reported_tokens(*f, p))
+        .unwrap_or_default();
+    let want = ["input_tokens", "output_tokens", "total_tokens", "cached_tokens"].map(|k| record[k].as_i64().unwrap());
+    assert_eq!(tokens, want, "{name}: reported tokens (input, output, total, cached)");
+    let model = payloads.iter().rev().find_map(|(f, p)| reported_model(*f, p));
+    assert_eq!(
+        model.unwrap_or_default(),
+        record["response_model"].as_str().unwrap(),
+        "{name}: reported response model"
+    );
+}

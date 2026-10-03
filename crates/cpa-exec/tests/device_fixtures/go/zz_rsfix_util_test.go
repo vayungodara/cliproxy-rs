@@ -8,6 +8,7 @@ package executor
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -21,6 +22,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/usage"
 )
 
 type rsfixResponse struct {
@@ -236,5 +239,55 @@ func rsfixHeaders(h http.Header, names ...string) [][2]string {
 			out = append(out, [2]string{name, v})
 		}
 	}
+	return out
+}
+
+// rsfixUsagePlugin captures the usage records Go's executors publish, so fixtures can
+// carry the reporter's view (tokens, response model, translated reasoning effort).
+type rsfixUsagePlugin struct {
+	mu      sync.Mutex
+	records []usage.Record
+}
+
+func (p *rsfixUsagePlugin) HandleUsage(_ context.Context, record usage.Record) {
+	p.mu.Lock()
+	p.records = append(p.records, record)
+	p.mu.Unlock()
+}
+
+var rsfixUsage = func() *rsfixUsagePlugin {
+	p := &rsfixUsagePlugin{}
+	usage.RegisterNamedPlugin("rsfix-capture", p)
+	return p
+}()
+
+// rsfixResetUsage drops records from earlier cases.
+func rsfixResetUsage() {
+	time.Sleep(30 * time.Millisecond)
+	rsfixUsage.mu.Lock()
+	rsfixUsage.records = nil
+	rsfixUsage.mu.Unlock()
+}
+
+// rsfixTakeUsage returns the records published since the last reset.
+func rsfixTakeUsage() []map[string]any {
+	time.Sleep(80 * time.Millisecond)
+	rsfixUsage.mu.Lock()
+	defer rsfixUsage.mu.Unlock()
+	var out []map[string]any
+	for _, r := range rsfixUsage.records {
+		out = append(out, map[string]any{
+			"input_tokens":     r.Detail.InputTokens,
+			"output_tokens":    r.Detail.OutputTokens,
+			"cached_tokens":    r.Detail.CachedTokens,
+			"total_tokens":     r.Detail.TotalTokens,
+			"reasoning_tokens": r.Detail.ReasoningTokens,
+			"response_model":   r.ResponseModel,
+			"reasoning_effort": r.ReasoningEffort,
+			"model":            r.Model,
+			"failed":           r.Failed,
+		})
+	}
+	rsfixUsage.records = nil
 	return out
 }

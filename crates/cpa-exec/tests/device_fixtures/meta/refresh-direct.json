@@ -3,7 +3,7 @@
   "credential": {
     "access_token": "old-key",
     "api_key": "old-key",
-    "base_url": "http://127.0.0.1:35127/v1",
+    "base_url": "http://127.0.0.1:43479/v1",
     "custom": 1,
     "dca_token": "dca:refresh",
     "email": "keep@x",
@@ -40,7 +40,7 @@
       "headers": [
         [
           "Host",
-          "127.0.0.1:35127"
+          "127.0.0.1:43479"
         ],
         [
           "User-Agent",
@@ -75,16 +75,17 @@
     "metadata_after": {
       "access_token": "minted-key",
       "api_key": "minted-key",
-      "base_url": "http://127.0.0.1:35127/v1",
+      "base_url": "http://127.0.0.1:43479/v1",
       "custom": 1,
       "dca_token": "dca:refresh",
       "email": "u@example.com",
       "has_payment_method": false,
       "is_subs_active": true,
-      "last_refresh": "2026-10-02T20:59:54Z",
+      "last_refresh": "2026-10-03T08:48:05Z",
       "name": "U Ser",
       "subs_tier_name": "Plus",
       "type": "meta"
-    }
+    },
+    "usage": null
   }
 }
