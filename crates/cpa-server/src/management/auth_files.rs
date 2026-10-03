@@ -134,14 +134,14 @@ fn quota_observation(state: &Management, c: &Credential) -> Value {
 fn file_name(c: &Credential) -> Option<String> {
     match &c.source {
         Source::File(p) => p.file_name().map(|n| n.to_string_lossy().into_owned()),
-        Source::Config { .. } => None,
+        Source::Config { .. } | Source::Runtime => None,
     }
 }
 
 fn path_of(c: &Credential) -> Option<&Path> {
     match &c.source {
         Source::File(p) => Some(p),
-        Source::Config { .. } => None,
+        Source::Config { .. } | Source::Runtime => None,
     }
 }
 

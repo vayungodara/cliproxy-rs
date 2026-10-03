@@ -405,8 +405,8 @@ impl VertexExecutor {
     fn prepared_body(&self, req: &ExecRequest, cfg: &Config, base_model: &str) -> Result<Vec<u8>, ExecError> {
         let (from, to) = (req.source_format, Format::Gemini);
         let resolved = g::resolved(req);
-        let original = g::translate(req, to, base_model, g::original_request(req), req.stream, false)?;
-        let body = g::translate(req, to, base_model, &req.body, req.stream, false)?;
+        let original = g::translate(req, cfg, to, base_model, g::original_request(req), req.stream, false)?;
+        let body = g::translate(req, cfg, to, base_model, &req.body, req.stream, false)?;
         let mut body = g::apply_thinking(req, body, from, to, PROVIDER, resolved.as_ref())?;
         body = payload::fix_image_aspect_ratio(base_model, body);
         let rules = cpa_common::payload::Rules::from_config(cfg);
@@ -494,7 +494,7 @@ impl VertexExecutor {
         let base_model = parse_suffix(&req.model).model_name;
         let (from, to) = (req.source_format, Format::Gemini);
         let resolved = g::resolved(req);
-        let body = g::translate(req, to, &base_model, &req.body, false, false)?;
+        let body = g::translate(req, cfg, to, &base_model, &req.body, false, false)?;
         let mut body = g::apply_thinking(req, body, from, to, PROVIDER, resolved.as_ref())?;
         body = payload::fix_image_aspect_ratio(&base_model, body);
         body = gj::try_set_str(&body, "model", &base_model).unwrap_or(body);

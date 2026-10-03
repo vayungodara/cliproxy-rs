@@ -1312,7 +1312,7 @@ pub fn auth_index(c: &Credential) -> String {
         let provider = c.provider.trim().to_lowercase();
         let mut file = match &c.source {
             Source::File(p) => p.display().to_string(),
-            Source::Config { .. } => String::new(),
+            Source::Config { .. } | Source::Runtime => String::new(),
         };
         for k in ["path", "source"] {
             if file.is_empty() {

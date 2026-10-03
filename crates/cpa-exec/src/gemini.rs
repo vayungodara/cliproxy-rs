@@ -133,47 +133,24 @@ pub(crate) fn original_request(req: &ExecRequest) -> &Bytes {
     }
 }
 
-/// `TranslateRequestWithAPIKeyModelCompatibility` for one payload: Codex clients' tool
-/// integer types first, then the registered pair, or for an is-compat model the
-/// `...WithCompat` translator between Go's summary extraction and application.
-// ponytail: ConvertClaudeRequestToInteractionsWithCompat is not in cpa_translate yet, so
-// is-compat Claude clients of an Interactions key use the regular pair (translator
-// thread); the Codex multi-agent v2 input rewrites are cpa_common::codex_client's (Codex
-// thread) and not applied.
+/// `TranslateRequestWithAPIKeyModelCompatibility` (`TranslateRequestWithCodexMultiAgentV2`
+/// when `compat` is false) for one payload: the shared Codex-client rewrites, then the
+/// registered pair or, for an is-compat model, its `...WithCompat` translator.
 pub(crate) fn translate(
     req: &ExecRequest,
+    cfg: &Config,
     target: Format,
     model: &str,
     body: &[u8],
     stream: bool,
     compat: bool,
 ) -> Result<Vec<u8>, ExecError> {
-    let error = |e: cpa_translate::Error| ExecError::local(400, FailureScope::Request, e.to_string());
-    let source = req.source_format;
-    let normalized;
-    let body = if cpa_common::payload::is_codex_user_agent(&req.headers) {
-        normalized = cpa_common::payload::normalize_codex_tool_integer_types(body, &req.headers);
-        normalized.as_slice()
-    } else {
-        body
-    };
     let ctx = RequestCtx { model, stream };
-    let compat_translator: Option<cpa_translate::RequestFn> = match (source, target) {
-        (Format::Claude, Format::Gemini) if compat => Some(cpa_translate::claude_to_gemini_with_compat),
-        _ => None,
-    };
-    let Some(convert) = compat_translator else {
-        return cpa_translate::translate_request(source, target, &ctx, body).map_err(error);
-    };
-    use cpa_common::thinking::{apply_summary_config_for_model, extract_translated_summary_config};
-    let summary = extract_translated_summary_config(body, source.as_str(), target.as_str());
-    let translated = deep_stack(body, || convert(&ctx, body)).map_err(error)?;
-    Ok(apply_summary_config_for_model(
-        &translated,
-        target.as_str(),
-        model,
-        summary,
-    ))
+    let client = crate::codex_client::Client::new(&req.headers, cfg, "", compat);
+    deep_stack(body, || {
+        crate::codex_client::translate_request(req.source_format, target, &ctx, body, &client)
+    })
+    .map_err(|e| ExecError::local(400, FailureScope::Request, e.to_string()))
 }
 
 /// Runs a translator on a thread with Go's maximum goroutine stack when the body nests
@@ -223,16 +200,17 @@ fn deep_stack<T: Send>(body: &[u8], f: impl FnOnce() -> T + Send) -> T {
 /// when both are the same bytes).
 fn translate_pair(
     req: &ExecRequest,
+    cfg: &Config,
     target: Format,
     model: &str,
     compat: bool,
 ) -> Result<(Vec<u8>, Vec<u8>), ExecError> {
-    let working = translate(req, target, model, &req.body, req.stream, compat)?;
+    let working = translate(req, cfg, target, model, &req.body, req.stream, compat)?;
     let source = original_request(req);
     if *source == req.body {
         return Ok((working.clone(), working));
     }
-    let original = translate(req, target, model, source, req.stream, compat)?;
+    let original = translate(req, cfg, target, model, source, req.stream, compat)?;
     Ok((original, working))
 }
 
@@ -424,7 +402,7 @@ impl GeminiExecutor {
         let (from, to) = (req.source_format, Format::Gemini);
         let resolved = resolved(req);
         let compat = resolved.as_ref().is_some_and(|r| r.is_compat);
-        let (original_translated, body) = translate_pair(req, to, &base_model, compat)?;
+        let (original_translated, body) = translate_pair(req, cfg, to, &base_model, compat)?;
         let mut body = apply_thinking(req, body, from, to, &credential.provider, resolved.as_ref())?;
         body = payload::fix_image_aspect_ratio(&base_model, body);
         let rules = cpa_common::payload::Rules::from_config(cfg);
@@ -487,7 +465,7 @@ impl GeminiExecutor {
         let (original_translated, mut body) = if from == Format::Interactions {
             (original_request(req).to_vec(), req.body.to_vec())
         } else {
-            translate_pair(req, to, &target, compat)?
+            translate_pair(req, cfg, to, &target, compat)?
         };
         if gj::get(&body, "model").exists() && !target.is_empty() {
             body = payload::set_str_if_different(body, "model", &target);
@@ -551,7 +529,7 @@ impl GeminiExecutor {
         let (from, to) = (req.source_format, Format::Gemini);
         let resolved = resolved(req);
         let compat = resolved.as_ref().is_some_and(|r| r.is_compat);
-        let body = translate(req, to, &base_model, &req.body, false, compat)?;
+        let body = translate(req, cfg, to, &base_model, &req.body, false, compat)?;
         let mut body = apply_thinking(req, body, from, to, &credential.provider, resolved.as_ref())?;
         body = payload::fix_image_aspect_ratio(&base_model, body);
         for path in ["tools", "generationConfig", "safetySettings"] {

@@ -15,6 +15,10 @@ pub enum Source {
     File(PathBuf),
     /// An entry synthesized from `config.yaml` (for example `claude-api-key[i]`).
     Config { section: String, index: usize },
+    /// A runtime-only credential with no file or config entry (Go `runtime_only`): an
+    /// AI Studio browser connected to the `/v1/ws` relay, for as long as it stays
+    /// connected.
+    Runtime,
 }
 
 #[derive(Debug, Clone)]
