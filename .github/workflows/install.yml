@@ -101,9 +101,24 @@ jobs:
           launchctl print "$agent" | grep -q "state = running"
           curl -fsS http://127.0.0.1:8317/healthz
           launchctl bootout "$agent"
-      - name: Server log
-        if: always()
-        run: tail -n 40 ~/.cliproxy-rs/cliproxy.log || true
+      - name: Diagnostics
+        if: failure()
+        run: |
+          for h in ~/.cliproxy-rs "$RUNNER_TEMP/second"; do
+            [ -d "$h" ] || continue
+            echo "== $h"
+            if [ -f "$h/cliproxy.pid" ]; then
+              pid=$(cat "$h/cliproxy.pid")
+              echo "pid file: $pid"
+              ps -p "$pid" -o pid=,ppid=,comm=,args= || echo "process $pid is not running"
+            else
+              echo "no pid file"
+            fi
+            tail -n 40 "$h/cliproxy.log" || echo "no cliproxy.log"
+          done
+          (ss -ltnp 2>/dev/null || lsof -nP -iTCP -sTCP:LISTEN) | grep -E ':83[0-9]{2}' || echo "nothing listens on 8300-8399"
+          if [ "$RUNNER_OS" = Linux ]; then XDG_RUNTIME_DIR="/run/user/$(id -u)" systemctl --user status cliproxy --no-pager || true; fi
+          if [ "$RUNNER_OS" = macOS ]; then launchctl print "gui/$(id -u)/io.github.vayungodara.cliproxy-rs" || true; fi
 
   windows:
     name: install.ps1 (windows-2025)
@@ -177,6 +192,21 @@ jobs:
           Invoke-WebRequest -Uri http://127.0.0.1:8317/healthz -UseBasicParsing | Out-Null
           if ((Get-Process -Id (Get-Content "$data\cliproxy.pid")).ProcessName -ne 'cliproxy') { throw 'pid file' }
           Remove-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name cliproxy-rs
-      - name: Server log
-        if: always()
-        run: Get-Content "$env:USERPROFILE\.cliproxy-rs\cliproxy.log", "$env:USERPROFILE\.cliproxy-rs\cliproxy.err.log" -Tail 40 -ErrorAction SilentlyContinue
+      - name: Diagnostics
+        if: failure()
+        run: |
+          foreach ($h in "$env:USERPROFILE\.cliproxy-rs", "$env:RUNNER_TEMP\second") {
+            if (-not (Test-Path $h)) { continue }
+            "== $h"
+            if (Test-Path "$h\cliproxy.pid") {
+              $id = [int](Get-Content "$h\cliproxy.pid")
+              "pid file: $id"
+              $p = Get-CimInstance Win32_Process -Filter "ProcessId = $id"
+              if ($p) { "running: $($p.Name), parent $($p.ParentProcessId): $($p.CommandLine)" } else { "process $id is not running" }
+            } else { 'no pid file' }
+            foreach ($f in 'cliproxy.log', 'cliproxy.err.log') {
+              if (Test-Path "$h\$f") { "-- $f"; Get-Content "$h\$f" -Tail 40 }
+            }
+          }
+          Get-CimInstance Win32_Process -Filter "Name = 'cliproxy.exe'" | Format-Table ProcessId, ParentProcessId, CommandLine -AutoSize -Wrap | Out-String -Width 300
+          Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue | Where-Object { $_.LocalPort -ge 8300 -and $_.LocalPort -le 8399 } | Format-Table LocalAddress, LocalPort, OwningProcess | Out-String
