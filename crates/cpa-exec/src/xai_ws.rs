@@ -40,8 +40,6 @@ use cpa_translate::apply_patch_responses as apply_patch;
 const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(30);
 /// Bound on a handshake rejection body.
 const MAX_HANDSHAKE_BODY: usize = 64 * 1024;
-/// Largest upstream frame or message read (the Codex pool's bound).
-const MAX_UPSTREAM_MESSAGE: usize = 64 * 1024 * 1024;
 /// `buildXAIWebsocketWarmupCompletedPayload`'s empty usage.
 const EMPTY_USAGE: &str = r#"{"input_tokens":0,"input_tokens_details":{"cached_tokens":0},"output_tokens":0,"output_tokens_details":{"reasoning_tokens":0},"total_tokens":0}"#;
 
@@ -1044,12 +1042,12 @@ async fn dial(
     client: &wreq::Client,
     target: &Target,
     headers: &HeaderMap,
-) -> Result<(wreq::ws::WebSocket, HeaderMap), ExecError> {
-    let builder = client
-        .websocket(&target.url)
-        .headers(headers.clone())
-        .max_frame_size(MAX_UPSTREAM_MESSAGE)
-        .max_message_size(MAX_UPSTREAM_MESSAGE);
+) -> Result<(codex_ws::WebSocket, HeaderMap), ExecError> {
+    // Go's xAI dialer is gorilla's with `EnableCompression`, like the Codex one, and the
+    // socket joins the same pool type, so both dial through codex_ws's upgrade.
+    let mut headers = headers.clone();
+    let key = codex_ws::offer_compression(&mut headers);
+    let builder = client.websocket(&target.url).headers(headers).accept_key(key.clone());
     let attempt = async {
         let mut res = builder
             .send()
@@ -1069,10 +1067,14 @@ async fn dial(
             }
             return Err(response::status_error(status, &body));
         }
-        let socket = res
-            .into_websocket()
+        let socket = codex_ws::upgrade(&mut res, &key, &handshake)
             .await
-            .map_err(|_| plain("xai websockets executor: websocket handshake failed"))?;
+            .map_err(|e| match e {
+                codex_ws::UpgradeError::Handshake => plain("xai websockets executor: websocket handshake failed"),
+                codex_ws::UpgradeError::Compression => {
+                    plain("xai websockets executor: websocket: invalid compression negotiation")
+                }
+            })?;
         Ok((socket, handshake))
     };
     tokio::time::timeout(HANDSHAKE_TIMEOUT, attempt)

@@ -30,7 +30,7 @@ use deflate::Inflate;
 
 /// The upstream socket: tungstenite over the upgraded connection, with permessage-deflate
 /// reads when negotiated.
-type WebSocket = WebSocketStream<Inflate<wreq::Upgraded>>;
+pub(crate) type WebSocket = WebSocketStream<Inflate<wreq::Upgraded>>;
 
 use crate::codex::CodexExecutor;
 use crate::codex_json::{set_raw, set_str};
@@ -660,11 +660,7 @@ impl CodexExecutor {
         // `newProxyAwareWebsocketDialer`: Go's standard dialer, environment proxies
         // included when none is configured, with `EnableCompression`.
         let mut headers = headers.clone();
-        headers.insert(
-            http::header::SEC_WEBSOCKET_EXTENSIONS,
-            http::HeaderValue::from_static(deflate::OFFER),
-        );
-        let key = tokio_tungstenite::tungstenite::handshake::client::generate_key();
+        let key = offer_compression(&mut headers);
         let builder = self
             .transport
             .standard(&target.proxy)
@@ -696,30 +692,14 @@ impl CodexExecutor {
                 }
                 return Err(response::status_error(status, &body, handshake, model_level_cooling));
             }
-            // gorilla `Dial`'s checks, then its permessage-deflate agreement.
-            let accept = tokio_tungstenite::tungstenite::handshake::derive_accept_key(key.as_bytes());
-            let handshake_failed = || transport("codex websockets executor: websocket handshake failed");
-            if !token_list_contains(&handshake, http::header::UPGRADE, "websocket")
-                || !token_list_contains(&handshake, http::header::CONNECTION, "upgrade")
-                || handshake.get(http::header::SEC_WEBSOCKET_ACCEPT).map(|v| v.as_bytes()) != Some(accept.as_bytes())
-            {
-                return Err(handshake_failed());
-            }
             // ponytail: Go reports a failed negotiation (and a bad handshake) as a status
             // error carrying 101; here both are transport failures.
-            let compressed = deflate::negotiated(&handshake)
-                .map_err(|()| transport("codex websockets executor: websocket: invalid compression negotiation"))?;
-            let response = std::mem::replace(&mut *res, wreq::Response::from(http::Response::new(Vec::<u8>::new())));
-            let upgraded = response.upgrade().await.map_err(|_| handshake_failed())?;
-            let config = WebSocketConfig::default()
-                .max_frame_size(Some(MAX_UPSTREAM_MESSAGE))
-                .max_message_size(Some(MAX_UPSTREAM_MESSAGE));
-            let socket = WebSocketStream::from_raw_socket(
-                Inflate::new(upgraded, compressed, MAX_UPSTREAM_MESSAGE),
-                Role::Client,
-                Some(config),
-            )
-            .await;
+            let socket = upgrade(&mut res, &key, &handshake).await.map_err(|e| match e {
+                UpgradeError::Handshake => transport("codex websockets executor: websocket handshake failed"),
+                UpgradeError::Compression => {
+                    transport("codex websockets executor: websocket: invalid compression negotiation")
+                }
+            })?;
             Ok((socket, handshake))
         };
         tokio::time::timeout(HANDSHAKE_TIMEOUT, attempt)
@@ -887,6 +867,54 @@ pub(crate) async fn read_loop(
     }
 }
 
+/// Why [`upgrade`] refused a 101 answer.
+pub(crate) enum UpgradeError {
+    /// gorilla `Dial`'s checks failed (Upgrade, Connection, Sec-WebSocket-Accept) or the
+    /// connection could not be taken over.
+    Handshake,
+    /// The permessage-deflate answer does not match the offer.
+    Compression,
+}
+
+/// gorilla `Dialer` with `EnableCompression`: offers permessage-deflate on the request
+/// and returns the `Sec-WebSocket-Key` to send with it. Shared by the Codex and xAI
+/// WebSocket executors (Go's xAI dialer also enables compression).
+pub(crate) fn offer_compression(headers: &mut HeaderMap) -> String {
+    headers.insert(
+        http::header::SEC_WEBSOCKET_EXTENSIONS,
+        http::HeaderValue::from_static(deflate::OFFER),
+    );
+    tokio_tungstenite::tungstenite::handshake::client::generate_key()
+}
+
+/// gorilla `Dial`'s checks on a 101 answer, then its permessage-deflate agreement;
+/// wraps the upgraded connection for [`Upstream`] and [`read_loop`].
+pub(crate) async fn upgrade(
+    res: &mut wreq::ws::WebSocketResponse,
+    key: &str,
+    handshake: &HeaderMap,
+) -> Result<WebSocket, UpgradeError> {
+    let accept = tokio_tungstenite::tungstenite::handshake::derive_accept_key(key.as_bytes());
+    if !token_list_contains(handshake, http::header::UPGRADE, "websocket")
+        || !token_list_contains(handshake, http::header::CONNECTION, "upgrade")
+        || handshake.get(http::header::SEC_WEBSOCKET_ACCEPT).map(|v| v.as_bytes()) != Some(accept.as_bytes())
+    {
+        return Err(UpgradeError::Handshake);
+    }
+    let compressed = deflate::negotiated(handshake).map_err(|()| UpgradeError::Compression)?;
+    let response = std::mem::replace(&mut **res, wreq::Response::from(http::Response::new(Vec::<u8>::new())));
+    let upgraded = response.upgrade().await.map_err(|_| UpgradeError::Handshake)?;
+    let config = WebSocketConfig::default()
+        .max_frame_size(Some(MAX_UPSTREAM_MESSAGE))
+        .max_message_size(Some(MAX_UPSTREAM_MESSAGE));
+    Ok(WebSocketStream::from_raw_socket(
+        Inflate::new(upgraded, compressed, MAX_UPSTREAM_MESSAGE),
+        Role::Client,
+        Some(config),
+    )
+    .await)
+}
+
 /// gorilla `tokenListContainsValue`: a comma-separated token list holds `value`
 /// (ASCII case-insensitive).
 fn token_list_contains(headers: &HeaderMap, name: http::HeaderName, value: &str) -> bool {
@@ -899,7 +927,7 @@ fn token_list_contains(headers: &HeaderMap, name: http::HeaderName, value: &str)
 }
 
 #[path = "codex_ws_deflate.rs"]
-mod deflate;
+pub(crate) mod deflate;
 #[path = "codex_duplex.rs"]
 mod duplex;
 pub use duplex::SteeringInput;

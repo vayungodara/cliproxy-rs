@@ -194,7 +194,7 @@ fn invalid(message: &'static str) -> io::Error {
 
 /// The upgraded connection under tungstenite, inflating compressed messages when the
 /// handshake negotiated permessage-deflate.
-pub(super) struct Inflate<S> {
+pub(crate) struct Inflate<S> {
     inner: S,
     enabled: bool,
     /// Largest frame or inflated message accepted.
