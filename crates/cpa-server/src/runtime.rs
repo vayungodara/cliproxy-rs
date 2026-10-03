@@ -150,13 +150,20 @@ impl Runtime {
         let (enabled, strict) = signature_cache_config(&config);
         cpa_translate::set_antigravity_signature_cache_config(enabled, strict);
         let dir = cooldown_dir(&config, &policy);
+        let ws_auth = crate::relay::ws_auth(&config);
         let config = Arc::new(config);
-        {
+        let previous = {
             // The plugin worker is told under the same lock, so concurrent publishes
             // reach it in the order they replaced the config.
             let mut current = self.config.write().unwrap_or_else(PoisonError::into_inner);
-            *current = config.clone();
+            let previous = std::mem::replace(&mut *current, config.clone());
             self.plugins.config_published(config);
+            previous
+        };
+        // Go's websocket auth change handler: turning ws-auth on ends the relay sessions
+        // that connected without a key.
+        if ws_auth && !crate::relay::ws_auth(&previous) {
+            self.executors.google.aistudio.relay.stop();
         }
         self.publish_policy(policy);
         self.store.configure_cooldown_store(dir);
@@ -1276,6 +1283,15 @@ impl CredentialStore {
                 }
             }
         }
+        // Runtime-only credentials (relay sessions) have no file or config entry; they
+        // stay until their session ends.
+        let runtime: Vec<_> = inner
+            .creds
+            .iter()
+            .filter(|c| c.source == Source::Runtime && !next.iter().any(|n| n.id == c.id))
+            .cloned()
+            .collect();
+        next.extend(runtime);
         inner.creds = next;
         inner.epoch += 1;
         self.scheduler
@@ -1285,6 +1301,41 @@ impl CredentialStore {
         drop(inner);
         self.clear_disabled_cooldowns();
         self.persist_cooldowns();
+    }
+
+    /// Adds a runtime-only credential (Go's auth add for a `/v1/ws` relay session)
+    /// unless one with its ID is already active. Additive API for the relay route.
+    pub fn add_runtime(&self, mut credential: Credential) -> bool {
+        let mut inner = self.inner.write().unwrap_or_else(PoisonError::into_inner);
+        if inner.creds.iter().any(|c| c.id == credential.id && !c.disabled) {
+            return false;
+        }
+        inner.creds.retain(|c| c.id != credential.id);
+        inner.generation += 1;
+        credential.revision = inner.generation;
+        inner.creds.push(Arc::new(credential));
+        inner.epoch += 1;
+        self.scheduler
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .reconcile(&inner.creds);
+        true
+    }
+
+    /// Removes a credential when its relay session ends (Go's auth delete). Additive
+    /// API for the relay route.
+    pub fn remove_runtime(&self, id: &str) {
+        let mut inner = self.inner.write().unwrap_or_else(PoisonError::into_inner);
+        let before = inner.creds.len();
+        inner.creds.retain(|c| !(c.id == id && c.source == Source::Runtime));
+        if inner.creds.len() == before {
+            return;
+        }
+        inner.epoch += 1;
+        self.scheduler
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .reconcile(&inner.creds);
     }
 
     fn read(&self) -> std::sync::RwLockReadGuard<'_, Inner> {

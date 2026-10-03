@@ -15,6 +15,10 @@ pub enum Source {
     File(PathBuf),
     /// An entry synthesized from `config.yaml` (for example `claude-api-key[i]`).
     Config { section: String, index: usize },
+    /// A runtime-only credential with no file or config entry (Go `runtime_only`): an
+    /// AI Studio browser connected to the `/v1/ws` relay, for as long as it stays
+    /// connected.
+    Runtime,
 }
 
 #[derive(Debug, Clone)]
@@ -39,6 +43,23 @@ pub struct Credential {
 impl Credential {
     pub fn str(&self, key: &str) -> Option<&str> {
         self.metadata.get(key).and_then(Value::as_str)
+    }
+
+    /// The runtime-only `aistudio` credential of a `/v1/ws` relay session (Go
+    /// `wsOnConnected`): the channel ID is its ID, label and metadata email.
+    pub fn relay_session(channel: &str) -> Self {
+        let mut metadata = Map::new();
+        metadata.insert("email".into(), Value::String(channel.to_owned()));
+        Self {
+            id: channel.to_owned(),
+            provider: "aistudio".into(),
+            source: Source::Runtime,
+            disabled: false,
+            label: channel.to_owned(),
+            attributes: BTreeMap::from([("runtime_only".to_owned(), "true".to_owned())]),
+            metadata,
+            revision: 0,
+        }
     }
 
     /// Builds a credential from one auth file. Returns `None` for files CLIProxyAPI

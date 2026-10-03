@@ -284,6 +284,25 @@ pub fn token_count(client: Format, upstream: Format) -> Option<TokenCountFn> {
     registered(client, upstream).and_then(|r| r.token_count)
 }
 
+/// A pair's `stream` driven the way a Go executor with [`stream::StreamOptions`] drives
+/// it; `None` when Go registers no pair.
+pub fn stream_with(
+    client: Format,
+    upstream: Format,
+    ctx: &ResponseCtx<'_>,
+    options: stream::StreamOptions,
+) -> Option<Box<dyn StreamTranslator>> {
+    registered(client, upstream).map(|r| {
+        stream::framed_with(
+            client,
+            upstream,
+            (r.go_stream)(ctx),
+            levels(&[ctx.original_request, ctx.translated_request]),
+            options,
+        )
+    })
+}
+
 /// The Go-shaped line translator behind a pair's `stream`, for golden tests.
 #[doc(hidden)]
 pub fn go_stream(client: Format, upstream: Format) -> Option<GoStreamFn> {

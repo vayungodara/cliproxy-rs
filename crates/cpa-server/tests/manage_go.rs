@@ -975,7 +975,7 @@ mod creds {
                 .collect();
             let rust_name = |c: &cpa_core::credential::Credential| match &c.source {
                 Source::File(p) => p.file_name().unwrap().to_string_lossy().into_owned(),
-                Source::Config { .. } => c.id.clone(),
+                Source::Config { .. } | Source::Runtime => c.id.clone(),
             };
             let mut rust_names: HashMap<String, String> = rt
                 .store()

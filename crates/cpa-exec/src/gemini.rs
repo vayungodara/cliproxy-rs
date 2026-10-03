@@ -36,8 +36,8 @@ pub fn handles(provider: &str) -> bool {
     PROVIDERS.contains(&provider)
 }
 
-const DEFAULT_BASE_URL: &str = "https://generativelanguage.googleapis.com";
-const API_VERSION: &str = "v1beta";
+pub(crate) const DEFAULT_BASE_URL: &str = "https://generativelanguage.googleapis.com";
+pub(crate) const API_VERSION: &str = "v1beta";
 /// `streamScannerBuffer`.
 pub(crate) const MAX_LINE: usize = 52_428_800;
 /// `geminiInteractionsAPIRevision`.
@@ -133,47 +133,24 @@ pub(crate) fn original_request(req: &ExecRequest) -> &Bytes {
     }
 }
 
-/// `TranslateRequestWithAPIKeyModelCompatibility` for one payload: Codex clients' tool
-/// integer types first, then the registered pair, or for an is-compat model the
-/// `...WithCompat` translator between Go's summary extraction and application.
-// ponytail: ConvertClaudeRequestToInteractionsWithCompat is not in cpa_translate yet, so
-// is-compat Claude clients of an Interactions key use the regular pair (translator
-// thread); the Codex multi-agent v2 input rewrites are cpa_common::codex_client's (Codex
-// thread) and not applied.
+/// `TranslateRequestWithAPIKeyModelCompatibility` (`TranslateRequestWithCodexMultiAgentV2`
+/// when `compat` is false) for one payload: the shared Codex-client rewrites, then the
+/// registered pair or, for an is-compat model, its `...WithCompat` translator.
 pub(crate) fn translate(
     req: &ExecRequest,
+    cfg: &Config,
     target: Format,
     model: &str,
     body: &[u8],
     stream: bool,
     compat: bool,
 ) -> Result<Vec<u8>, ExecError> {
-    let error = |e: cpa_translate::Error| ExecError::local(400, FailureScope::Request, e.to_string());
-    let source = req.source_format;
-    let normalized;
-    let body = if cpa_common::payload::is_codex_user_agent(&req.headers) {
-        normalized = cpa_common::payload::normalize_codex_tool_integer_types(body, &req.headers);
-        normalized.as_slice()
-    } else {
-        body
-    };
     let ctx = RequestCtx { model, stream };
-    let compat_translator: Option<cpa_translate::RequestFn> = match (source, target) {
-        (Format::Claude, Format::Gemini) if compat => Some(cpa_translate::claude_to_gemini_with_compat),
-        _ => None,
-    };
-    let Some(convert) = compat_translator else {
-        return cpa_translate::translate_request(source, target, &ctx, body).map_err(error);
-    };
-    use cpa_common::thinking::{apply_summary_config_for_model, extract_translated_summary_config};
-    let summary = extract_translated_summary_config(body, source.as_str(), target.as_str());
-    let translated = deep_stack(body, || convert(&ctx, body)).map_err(error)?;
-    Ok(apply_summary_config_for_model(
-        &translated,
-        target.as_str(),
-        model,
-        summary,
-    ))
+    let client = crate::codex_client::Client::new(&req.headers, cfg, "", compat);
+    deep_stack(body, || {
+        crate::codex_client::translate_request(req.source_format, target, &ctx, body, &client)
+    })
+    .map_err(|e| ExecError::local(400, FailureScope::Request, e.to_string()))
 }
 
 /// Runs a translator on a thread with Go's maximum goroutine stack when the body nests
@@ -223,16 +200,17 @@ fn deep_stack<T: Send>(body: &[u8], f: impl FnOnce() -> T + Send) -> T {
 /// when both are the same bytes).
 fn translate_pair(
     req: &ExecRequest,
+    cfg: &Config,
     target: Format,
     model: &str,
     compat: bool,
 ) -> Result<(Vec<u8>, Vec<u8>), ExecError> {
-    let working = translate(req, target, model, &req.body, req.stream, compat)?;
+    let working = translate(req, cfg, target, model, &req.body, req.stream, compat)?;
     let source = original_request(req);
     if *source == req.body {
         return Ok((working.clone(), working));
     }
-    let original = translate(req, target, model, source, req.stream, compat)?;
+    let original = translate(req, cfg, target, model, source, req.stream, compat)?;
     Ok((original, working))
 }
 
@@ -424,7 +402,7 @@ impl GeminiExecutor {
         let (from, to) = (req.source_format, Format::Gemini);
         let resolved = resolved(req);
         let compat = resolved.as_ref().is_some_and(|r| r.is_compat);
-        let (original_translated, body) = translate_pair(req, to, &base_model, compat)?;
+        let (original_translated, body) = translate_pair(req, cfg, to, &base_model, compat)?;
         let mut body = apply_thinking(req, body, from, to, &credential.provider, resolved.as_ref())?;
         body = payload::fix_image_aspect_ratio(&base_model, body);
         let rules = cpa_common::payload::Rules::from_config(cfg);
@@ -487,7 +465,7 @@ impl GeminiExecutor {
         let (original_translated, mut body) = if from == Format::Interactions {
             (original_request(req).to_vec(), req.body.to_vec())
         } else {
-            translate_pair(req, to, &target, compat)?
+            translate_pair(req, cfg, to, &target, compat)?
         };
         if gj::get(&body, "model").exists() && !target.is_empty() {
             body = payload::set_str_if_different(body, "model", &target);
@@ -551,7 +529,7 @@ impl GeminiExecutor {
         let (from, to) = (req.source_format, Format::Gemini);
         let resolved = resolved(req);
         let compat = resolved.as_ref().is_some_and(|r| r.is_compat);
-        let body = translate(req, to, &base_model, &req.body, false, compat)?;
+        let body = translate(req, cfg, to, &base_model, &req.body, false, compat)?;
         let mut body = apply_thinking(req, body, from, to, &credential.provider, resolved.as_ref())?;
         body = payload::fix_image_aspect_ratio(&base_model, body);
         for path in ["tools", "generationConfig", "safetySettings"] {
@@ -577,13 +555,13 @@ impl GeminiExecutor {
 /// Client items, and the terminal error that ends the stream after them.
 #[derive(Default)]
 pub(crate) struct Emit {
-    out: Vec<Bytes>,
-    stop: Option<ExecError>,
+    pub(crate) out: Vec<Bytes>,
+    pub(crate) stop: Option<ExecError>,
 }
 
 impl Emit {
     /// Appends `next`; returns whether the stream stopped.
-    fn then(&mut self, next: Emit) -> bool {
+    pub(crate) fn then(&mut self, next: Emit) -> bool {
         self.out.extend(next.out);
         self.stop = next.stop;
         self.stop.is_some()
@@ -594,12 +572,20 @@ impl Emit {
 /// Only Gemini upstreams reach it (a Codex client); every client format that takes the
 /// native Interactions path has a registered Interactions pair. Executors that pass
 /// scanned lines as [`line_event`]s get the line back without the terminator.
-struct Unregistered;
+#[derive(Default)]
+struct Unregistered(cpa_translate::stream::StreamOptions);
 
 impl StreamTranslator for Unregistered {
     fn event(&mut self, event: &[u8]) -> Result<Vec<Bytes>, cpa_translate::Error> {
-        let line = event.strip_suffix(LINE_END).unwrap_or(event);
-        Ok(vec![Bytes::copy_from_slice(line)])
+        let line = if self.0.whole_events {
+            event
+        } else {
+            event.strip_suffix(LINE_END).unwrap_or(event)
+        };
+        Ok(vec![match self.0.chunk {
+            Some(hook) => Bytes::from(hook(line)),
+            None => Bytes::copy_from_slice(line),
+        }])
     }
 
     fn finish(&mut self) -> Result<Vec<Bytes>, cpa_translate::Error> {
@@ -620,15 +606,29 @@ pub(crate) struct Output {
 
 impl Output {
     pub(crate) fn new(req: &ExecRequest, upstream: Format, translated: &[u8]) -> Self {
+        Self::with_options(
+            req,
+            upstream,
+            translated,
+            cpa_translate::stream::StreamOptions::default(),
+        )
+    }
+
+    /// [`Output::new`] for an executor that drives the translator with `options`.
+    pub(crate) fn with_options(
+        req: &ExecRequest,
+        upstream: Format,
+        translated: &[u8],
+        options: cpa_translate::stream::StreamOptions,
+    ) -> Self {
         let client = req.response_format;
-        let translator = match cpa_translate::pair(client, upstream) {
-            Some(pair) => (pair.stream)(&ResponseCtx {
-                model: &req.model,
-                original_request: original_request(req),
-                translated_request: translated,
-            }),
-            None => Box::new(Unregistered),
+        let ctx = ResponseCtx {
+            model: &req.model,
+            original_request: original_request(req),
+            translated_request: translated,
         };
+        let translator = cpa_translate::stream_with(client, upstream, &ctx, options)
+            .unwrap_or_else(|| Box::new(Unregistered(options)));
         Self {
             translator,
             client,
@@ -636,6 +636,16 @@ impl Output {
             claude: ClaudeInputTokens::new(req.source_format, upstream, client, original_request(req).clone()),
             usage: req.usage.clone(),
         }
+    }
+
+    /// helps.EndApplyPatchStream, then the client side's pending frames: the end of a
+    /// stream that feeds no `[DONE]`.
+    pub(crate) fn end(&mut self) -> Emit {
+        let mut emit = self.finalize();
+        if emit.stop.is_none() {
+            emit.then(self.finish());
+        }
+        emit
     }
 
     /// End of a Gemini-upstream stream: the tool-input finalization, then `[DONE]`

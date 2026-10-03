@@ -16,8 +16,9 @@ Google hosts (`oauth2.googleapis.com`, `<location>-aiplatform.googleapis.com`,
 credential's `proxy_url` or the key's `proxy-url`) that terminates TLS with the test CA.
 The Go process trusts it through `SSL_CERT_FILE`; the Rust test trusts it through
 `proxy::Hooks`. API keys with a `base-url` go to a plain capture server (`UPSTREAM`).
-Nothing contacts Google. The mock servers offer no HTTP/2, so both sides speak HTTP/1.1;
-in production Go's cloned default transport negotiates HTTP/2 with Google.
+Nothing contacts Google. The mock servers offer only HTTP/1.1 (ALPN `http/1.1`), so
+both sides speak it; in production Go's cloned default transport and Rust's shared
+client (`crate::proxy`) both negotiate HTTP/2 with Google.
 
 Go signs the JWT with RS256 (PKCS#1 v1.5, deterministic) at `time.Now()-10s`; the Rust
 test reads Go's `iat` from the recorded assertion and signs at the same second, so the

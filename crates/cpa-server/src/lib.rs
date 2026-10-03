@@ -28,6 +28,7 @@ pub mod plugins;
 mod realtime;
 mod refresh;
 pub mod registry;
+mod relay;
 pub mod remote;
 pub mod request_logging;
 mod resp;
@@ -119,6 +120,7 @@ fn api(rt: Arc<Runtime>) -> Router {
         .route("/devin/callback", get(devin_callback))
         .merge(v1)
         .merge(realtime::routes(&rt))
+        .merge(relay::routes(&rt))
         // Matched API routes only: management answers its own HEADs (plugin routes).
         .route_layer(middleware::from_fn(head_only_healthz))
         .method_not_allowed_fallback(|| async { StatusCode::NOT_FOUND })

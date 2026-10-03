@@ -1,0 +1,1378 @@
+{
+  "decode": [
+    {
+      "frame": "{\"id\":\"a\",\"type\":\"stream_chunk\",\"payload\":{\"data\":\"x\"}}",
+      "error": false,
+      "id": "a",
+      "type": "stream_chunk",
+      "payload": "{\"data\":\"x\"}"
+    },
+    {
+      "frame": "  {\"ID\":\"b\",\"TYPE\":\"ping\"} trailing garbage",
+      "error": false,
+      "id": "b",
+      "type": "ping"
+    },
+    {
+      "frame": "{\"id\":\"c\",\"type\":\"x\",\"id\":\"d\",\"Id\":null}",
+      "error": false,
+      "id": "d",
+      "type": "x"
+    },
+    {
+      "frame": "{\"id\":\"e\",\"payload\":{\"a\":1},\"PAYLOAD\":{\"b\":2.50},\"payload\":null}",
+      "error": false,
+      "id": "e"
+    },
+    {
+      "frame": "{\"payload\":{\"status\":1e400}}",
+      "error": true
+    },
+    {
+      "frame": "{\"id\":5}",
+      "error": true
+    },
+    {
+      "frame": "{\"type\":[\"x\"]}",
+      "error": true
+    },
+    {
+      "frame": "{\"payload\":\"text\"}",
+      "error": true
+    },
+    {
+      "frame": "{\"payload\":[]}",
+      "error": true
+    },
+    {
+      "frame": "null",
+      "error": false
+    },
+    {
+      "frame": "nullx",
+      "error": false
+    },
+    {
+      "frame": "[1]",
+      "error": true
+    },
+    {
+      "frame": "\"s\"",
+      "error": true
+    },
+    {
+      "frame": "",
+      "error": true
+    },
+    {
+      "frame": "   ",
+      "error": true
+    },
+    {
+      "frame": "{\"id\":\"f\"",
+      "error": true
+    },
+    {
+      "frame": "{\"id\":\"\\u00e9\\ud83d\\ude00\"}",
+      "error": false,
+      "id": "é😀"
+    },
+    {
+      "frame": "{\"ſd\":\"long-s\",\"ıd\":\"dotless\"}",
+      "error": false
+    },
+    {
+      "frame": "{\"id\":\"g\ufffd\"}",
+      "error": false,
+      "id": "g�"
+    },
+    {
+      "frame": "{\"id\":\"h\"}{\"id\":\"i\"}",
+      "error": false,
+      "id": "h"
+    },
+    {
+      "frame": "{\"a\":{\"b\":[1,{\"c\":\"}\"}]},\"id\":\"j\"}",
+      "error": false,
+      "id": "j"
+    }
+  ],
+  "encode": [
+    {
+      "id": "p1",
+      "type": "pong",
+      "text": "{\"id\":\"p1\",\"type\":\"pong\"}\n"
+    },
+    {
+      "id": "p2",
+      "type": "pong",
+      "text": "{\"id\":\"p2\",\"type\":\"pong\"}\n"
+    },
+    {
+      "id": "\u003c\u0026\u003e",
+      "type": "http_request",
+      "payload": {
+        "body": "a\u003cb\u003e\u0026\u2028",
+        "headers": {
+          "Content-Type": [
+            "application/json"
+          ],
+          "X-B": [
+            "2"
+          ]
+        },
+        "method": "POST"
+      },
+      "text": "{\"id\":\"\\u003c\\u0026\\u003e\",\"type\":\"http_request\",\"payload\":{\"body\":\"a\\u003cb\\u003e\\u0026\\u2028\",\"headers\":{\"Content-Type\":[\"application/json\"],\"X-B\":[\"2\"]},\"method\":\"POST\"}}\n"
+    }
+  ],
+  "scenarios": [
+    {
+      "name": "execute_gemini",
+      "model": "gemini-2.5-flash",
+      "payload": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}]}",
+      "source": "gemini",
+      "op": "execute",
+      "replies": [
+        {
+          "type": "http_response",
+          "payload": {
+            "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash-002\",\"responseId\":\"r1\"}",
+            "headers": {
+              "X-Upstream": "1",
+              "content-type": [
+                "application/json"
+              ],
+              "x-skip": 5
+            },
+            "status": 200
+          }
+        }
+      ],
+      "frames": [
+        "{\"id\":\"ID\",\"type\":\"http_request\",\"payload\":{\"body\":\"{\\\"contents\\\":[{\\\"role\\\":\\\"user\\\",\\\"parts\\\":[{\\\"text\\\":\\\"hi\\\"}]}],\\\"safetySettings\\\":[{\\\"category\\\":\\\"HARM_CATEGORY_HARASSMENT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_HATE_SPEECH\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_SEXUALLY_EXPLICIT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_DANGEROUS_CONTENT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_CIVIC_INTEGRITY\\\",\\\"threshold\\\":\\\"BLOCK_NONE\\\"}]}\",\"headers\":{\"Content-Type\":[\"application/json\"]},\"method\":\"POST\",\"sent_at\":\"SENT_AT\",\"url\":\"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent\"}}\n"
+      ],
+      "output": "{\"candidates\": [{\"content\": {\"parts\": [{\"text\": \"ok\"}],\"role\": \"model\"},\"finishReason\": \"STOP\",\"index\": 0}],\"modelVersion\": \"gemini-2.5-flash-002\",\"responseId\": \"r1\",\"usageMetadata\": {\"candidatesTokenCount\": 1,\"promptTokenCount\": 3,\"totalTokenCount\": 4}}",
+      "usage": {
+        "reasoning_effort": "",
+        "response_model": "gemini-2.5-flash-002",
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "total_tokens": 4
+      }
+    },
+    {
+      "name": "execute_openai",
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"messages\":[{\"role\":\"user\",\"content\":\"hi \u003cb\u003e\u0026\"}],\"reasoning_effort\":\"low\"}",
+      "source": "openai",
+      "op": "execute",
+      "replies": [
+        {
+          "type": "http_response",
+          "payload": {
+            "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash-002\",\"responseId\":\"r1\"}",
+            "headers": {
+              "X-Upstream": "1",
+              "content-type": [
+                "application/json"
+              ],
+              "x-skip": 5
+            },
+            "status": 200
+          }
+        }
+      ],
+      "frames": [
+        "{\"id\":\"ID\",\"type\":\"http_request\",\"payload\":{\"body\":\"{\\\"contents\\\":[{\\\"role\\\":\\\"user\\\",\\\"parts\\\":[{\\\"text\\\":\\\"hi \\u003cb\\u003e\\u0026\\\"}]}],\\\"model\\\":\\\"gemini-2.5-flash\\\",\\\"generationConfig\\\":{\\\"thinkingConfig\\\":{\\\"thinkingBudget\\\":1024,\\\"includeThoughts\\\":true}},\\\"safetySettings\\\":[{\\\"category\\\":\\\"HARM_CATEGORY_HARASSMENT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_HATE_SPEECH\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_SEXUALLY_EXPLICIT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_DANGEROUS_CONTENT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_CIVIC_INTEGRITY\\\",\\\"threshold\\\":\\\"BLOCK_NONE\\\"}]}\",\"headers\":{\"Content-Type\":[\"application/json\"]},\"method\":\"POST\",\"sent_at\":\"SENT_AT\",\"url\":\"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent\"}}\n"
+      ],
+      "output": "{\"choices\": [{\"finish_reason\": \"stop\",\"index\": 0,\"message\": {\"content\": \"ok\",\"reasoning_content\": null,\"role\": \"assistant\",\"tool_calls\": null},\"native_finish_reason\": \"stop\"}],\"created\": 0,\"id\": \"r1\",\"model\": \"gemini-2.5-flash-002\",\"object\": \"chat.completion\",\"usage\": {\"completion_tokens\": 1,\"prompt_tokens\": 3,\"total_tokens\": 4}}",
+      "usage": {
+        "reasoning_effort": "low",
+        "response_model": "gemini-2.5-flash-002",
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "total_tokens": 4
+      }
+    },
+    {
+      "name": "execute_claude",
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"max_tokens\":64,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+      "source": "claude",
+      "op": "execute",
+      "replies": [
+        {
+          "type": "http_response",
+          "payload": {
+            "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash-002\",\"responseId\":\"r1\"}",
+            "headers": {
+              "X-Upstream": "1",
+              "content-type": [
+                "application/json"
+              ],
+              "x-skip": 5
+            },
+            "status": 200
+          }
+        }
+      ],
+      "frames": [
+        "{\"id\":\"ID\",\"type\":\"http_request\",\"payload\":{\"body\":\"{\\\"contents\\\":[{\\\"role\\\":\\\"user\\\",\\\"parts\\\":[{\\\"text\\\":\\\"hi\\\"}]}],\\\"model\\\":\\\"gemini-2.5-flash\\\",\\\"safetySettings\\\":[{\\\"category\\\":\\\"HARM_CATEGORY_HARASSMENT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_HATE_SPEECH\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_SEXUALLY_EXPLICIT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_DANGEROUS_CONTENT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_CIVIC_INTEGRITY\\\",\\\"threshold\\\":\\\"BLOCK_NONE\\\"}]}\",\"headers\":{\"Content-Type\":[\"application/json\"]},\"method\":\"POST\",\"sent_at\":\"SENT_AT\",\"url\":\"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent\"}}\n"
+      ],
+      "output": "{\"content\": [{\"text\": \"ok\",\"type\": \"text\"}],\"id\": \"r1\",\"model\": \"gemini-2.5-flash-002\",\"role\": \"assistant\",\"stop_reason\": \"end_turn\",\"stop_sequence\": null,\"type\": \"message\",\"usage\": {\"input_tokens\": 3,\"output_tokens\": 1}}",
+      "usage": {
+        "reasoning_effort": "",
+        "response_model": "gemini-2.5-flash-002",
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "total_tokens": 4
+      }
+    },
+    {
+      "name": "execute_responses",
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"input\":\"hi\"}",
+      "source": "openai-response",
+      "op": "execute",
+      "replies": [
+        {
+          "type": "http_response",
+          "payload": {
+            "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash-002\",\"responseId\":\"r1\"}",
+            "headers": {
+              "X-Upstream": "1",
+              "content-type": [
+                "application/json"
+              ],
+              "x-skip": 5
+            },
+            "status": 200
+          }
+        }
+      ],
+      "frames": [
+        "{\"id\":\"ID\",\"type\":\"http_request\",\"payload\":{\"body\":\"{\\\"contents\\\":[{\\\"role\\\":\\\"user\\\",\\\"parts\\\":[{\\\"text\\\":\\\"hi\\\"}]}],\\\"safetySettings\\\":[{\\\"category\\\":\\\"HARM_CATEGORY_HARASSMENT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_HATE_SPEECH\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_SEXUALLY_EXPLICIT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_DANGEROUS_CONTENT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_CIVIC_INTEGRITY\\\",\\\"threshold\\\":\\\"BLOCK_NONE\\\"}]}\",\"headers\":{\"Content-Type\":[\"application/json\"]},\"method\":\"POST\",\"sent_at\":\"SENT_AT\",\"url\":\"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent\"}}\n"
+      ],
+      "output": "{\"background\": false,\"created_at\": 1791032859,\"error\": null,\"id\": \"resp_r1\",\"incomplete_details\": null,\"model\": \"gemini-2.5-flash\",\"object\": \"response\",\"output\": [{\"content\": [{\"annotations\": [],\"logprobs\": [],\"text\": \"ok\",\"type\": \"output_text\"}],\"id\": \"msg_r1_0\",\"role\": \"assistant\",\"status\": \"completed\",\"type\": \"message\"}],\"status\": \"completed\",\"usage\": {\"input_tokens\": 3,\"input_tokens_details\": {\"cached_tokens\": 0},\"output_tokens\": 1,\"output_tokens_details\": {\"reasoning_tokens\": 0},\"total_tokens\": 4}}",
+      "usage": {
+        "reasoning_effort": "",
+        "response_model": "gemini-2.5-flash-002",
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "total_tokens": 4
+      }
+    },
+    {
+      "name": "execute_codex_no_pair",
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"input\":\"hi\"}",
+      "source": "codex",
+      "op": "execute",
+      "replies": [
+        {
+          "type": "http_response",
+          "payload": {
+            "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash-002\",\"responseId\":\"r1\"}",
+            "headers": {
+              "X-Upstream": "1",
+              "content-type": [
+                "application/json"
+              ],
+              "x-skip": 5
+            },
+            "status": 200
+          }
+        }
+      ],
+      "frames": [
+        "{\"id\":\"ID\",\"type\":\"http_request\",\"payload\":{\"body\":\"{\\\"model\\\":\\\"gemini-2.5-flash\\\",\\\"input\\\":\\\"hi\\\"}\",\"headers\":{\"Content-Type\":[\"application/json\"]},\"method\":\"POST\",\"sent_at\":\"SENT_AT\",\"url\":\"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent\"}}\n"
+      ],
+      "output": "{\"candidates\": [{\"content\": {\"parts\": [{\"text\": \"ok\"}],\"role\": \"model\"},\"finishReason\": \"STOP\",\"index\": 0}],\"modelVersion\": \"gemini-2.5-flash-002\",\"responseId\": \"r1\",\"usageMetadata\": {\"candidatesTokenCount\": 1,\"promptTokenCount\": 3,\"totalTokenCount\": 4}}",
+      "usage": {
+        "reasoning_effort": "",
+        "response_model": "gemini-2.5-flash-002",
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "total_tokens": 4
+      }
+    },
+    {
+      "name": "execute_drops_generation_fields",
+      "model": "gemini-3-pro-preview(low)",
+      "payload": "{\"contents\":[{\"role\":\"model\",\"parts\":[{\"text\":\"a\"}]}],\"generationConfig\":{\"maxOutputTokens\":10,\"responseMimeType\":\"application/json\",\"responseJsonSchema\":{\"type\":\"object\"},\"temperature\":0.5},\"session_id\":\"s1\"}",
+      "source": "gemini",
+      "op": "execute",
+      "replies": [
+        {
+          "type": "http_response",
+          "payload": {
+            "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash-002\",\"responseId\":\"r1\"}",
+            "headers": {
+              "X-Upstream": "1",
+              "content-type": [
+                "application/json"
+              ],
+              "x-skip": 5
+            },
+            "status": 200
+          }
+        }
+      ],
+      "frames": [
+        "{\"id\":\"ID\",\"type\":\"http_request\",\"payload\":{\"body\":\"{\\\"contents\\\":[{\\\"role\\\":\\\"user\\\",\\\"parts\\\":[{\\\"text\\\":\\\"\\\"}]},{\\\"role\\\":\\\"model\\\",\\\"parts\\\":[{\\\"text\\\":\\\"a\\\"}]},{\\\"role\\\":\\\"user\\\",\\\"parts\\\":[{\\\"text\\\":\\\"\\\"}]}],\\\"generationConfig\\\":{\\\"temperature\\\":0.5,\\\"thinkingConfig\\\":{\\\"thinkingLevel\\\":\\\"LOW\\\"}},\\\"safetySettings\\\":[{\\\"category\\\":\\\"HARM_CATEGORY_HARASSMENT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_HATE_SPEECH\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_SEXUALLY_EXPLICIT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_DANGEROUS_CONTENT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_CIVIC_INTEGRITY\\\",\\\"threshold\\\":\\\"BLOCK_NONE\\\"}]}\",\"headers\":{\"Content-Type\":[\"application/json\"]},\"method\":\"POST\",\"sent_at\":\"SENT_AT\",\"url\":\"https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent\"}}\n"
+      ],
+      "output": "{\"candidates\": [{\"content\": {\"parts\": [{\"text\": \"ok\"}],\"role\": \"model\"},\"finishReason\": \"STOP\",\"index\": 0}],\"modelVersion\": \"gemini-2.5-flash-002\",\"responseId\": \"r1\",\"usageMetadata\": {\"candidatesTokenCount\": 1,\"promptTokenCount\": 3,\"totalTokenCount\": 4}}",
+      "usage": {
+        "reasoning_effort": "low",
+        "response_model": "gemini-2.5-flash-002",
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "total_tokens": 4
+      }
+    },
+    {
+      "name": "execute_alt_json",
+      "model": "gemini-2.5-flash",
+      "payload": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}]}",
+      "source": "gemini",
+      "op": "execute",
+      "alt": "json",
+      "replies": [
+        {
+          "type": "http_response",
+          "payload": {
+            "body": "[{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash-002\",\"responseId\":\"r1\"}]",
+            "headers": {
+              "X-Upstream": "1",
+              "content-type": [
+                "application/json"
+              ],
+              "x-skip": 5
+            },
+            "status": 200
+          }
+        }
+      ],
+      "frames": [
+        "{\"id\":\"ID\",\"type\":\"http_request\",\"payload\":{\"body\":\"{\\\"contents\\\":[{\\\"role\\\":\\\"user\\\",\\\"parts\\\":[{\\\"text\\\":\\\"hi\\\"}]}],\\\"safetySettings\\\":[{\\\"category\\\":\\\"HARM_CATEGORY_HARASSMENT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_HATE_SPEECH\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_SEXUALLY_EXPLICIT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_DANGEROUS_CONTENT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_CIVIC_INTEGRITY\\\",\\\"threshold\\\":\\\"BLOCK_NONE\\\"}]}\",\"headers\":{\"Content-Type\":[\"application/json\"]},\"method\":\"POST\",\"sent_at\":\"SENT_AT\",\"url\":\"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?$alt=json\"}}\n"
+      ],
+      "output": "[{\"candidates\": [{\"content\": {\"parts\": [{\"text\": \"ok\"}],\"role\": \"model\"},\"finishReason\": \"STOP\",\"index\": 0}],\"modelVersion\": \"gemini-2.5-flash-002\",\"responseId\": \"r1\",\"usageMetadata\": {\"candidatesTokenCount\": 1,\"promptTokenCount\": 3,\"totalTokenCount\": 4}}]",
+      "usage": {
+        "reasoning_effort": "",
+        "response_model": "",
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "total_tokens": 0
+      }
+    },
+    {
+      "name": "execute_custom_headers",
+      "model": "gemini-2.5-flash",
+      "payload": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}]}",
+      "source": "gemini",
+      "op": "execute",
+      "headers": {
+        "X-Client": "c1"
+      },
+      "attributes": {
+        "header:Host": "example.invalid",
+        "header:X-Static": "v1",
+        "header:x-forward": "$X-Client"
+      },
+      "replies": [
+        {
+          "type": "http_response",
+          "payload": {
+            "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash-002\",\"responseId\":\"r1\"}",
+            "headers": {
+              "X-Upstream": "1",
+              "content-type": [
+                "application/json"
+              ],
+              "x-skip": 5
+            },
+            "status": 200
+          }
+        }
+      ],
+      "frames": [
+        "{\"id\":\"ID\",\"type\":\"http_request\",\"payload\":{\"body\":\"{\\\"contents\\\":[{\\\"role\\\":\\\"user\\\",\\\"parts\\\":[{\\\"text\\\":\\\"hi\\\"}]}],\\\"safetySettings\\\":[{\\\"category\\\":\\\"HARM_CATEGORY_HARASSMENT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_HATE_SPEECH\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_SEXUALLY_EXPLICIT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_DANGEROUS_CONTENT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_CIVIC_INTEGRITY\\\",\\\"threshold\\\":\\\"BLOCK_NONE\\\"}]}\",\"headers\":{\"Content-Type\":[\"application/json\"],\"Host\":[\"example.invalid\"],\"X-Forward\":[\"c1\"],\"X-Static\":[\"v1\"]},\"method\":\"POST\",\"sent_at\":\"SENT_AT\",\"url\":\"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent\"}}\n"
+      ],
+      "output": "{\"candidates\": [{\"content\": {\"parts\": [{\"text\": \"ok\"}],\"role\": \"model\"},\"finishReason\": \"STOP\",\"index\": 0}],\"modelVersion\": \"gemini-2.5-flash-002\",\"responseId\": \"r1\",\"usageMetadata\": {\"candidatesTokenCount\": 1,\"promptTokenCount\": 3,\"totalTokenCount\": 4}}",
+      "usage": {
+        "reasoning_effort": "",
+        "response_model": "gemini-2.5-flash-002",
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "total_tokens": 4
+      }
+    },
+    {
+      "name": "execute_payload_rules",
+      "model": "gemini-2.5-flash",
+      "payload": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}]}",
+      "source": "gemini",
+      "op": "execute",
+      "config": "requests:\n  payload:\n    override:\n      - models:\n          - name: gemini-2.5-flash\n            protocol: gemini\n        params:\n          generationConfig.topK: 7\n",
+      "replies": [
+        {
+          "type": "http_response",
+          "payload": {
+            "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash-002\",\"responseId\":\"r1\"}",
+            "headers": {
+              "X-Upstream": "1",
+              "content-type": [
+                "application/json"
+              ],
+              "x-skip": 5
+            },
+            "status": 200
+          }
+        }
+      ],
+      "frames": [
+        "{\"id\":\"ID\",\"type\":\"http_request\",\"payload\":{\"body\":\"{\\\"contents\\\":[{\\\"role\\\":\\\"user\\\",\\\"parts\\\":[{\\\"text\\\":\\\"hi\\\"}]}],\\\"safetySettings\\\":[{\\\"category\\\":\\\"HARM_CATEGORY_HARASSMENT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_HATE_SPEECH\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_SEXUALLY_EXPLICIT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_DANGEROUS_CONTENT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_CIVIC_INTEGRITY\\\",\\\"threshold\\\":\\\"BLOCK_NONE\\\"}],\\\"generationConfig\\\":{\\\"topK\\\":7}}\",\"headers\":{\"Content-Type\":[\"application/json\"]},\"method\":\"POST\",\"sent_at\":\"SENT_AT\",\"url\":\"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent\"}}\n"
+      ],
+      "output": "{\"candidates\": [{\"content\": {\"parts\": [{\"text\": \"ok\"}],\"role\": \"model\"},\"finishReason\": \"STOP\",\"index\": 0}],\"modelVersion\": \"gemini-2.5-flash-002\",\"responseId\": \"r1\",\"usageMetadata\": {\"candidatesTokenCount\": 1,\"promptTokenCount\": 3,\"totalTokenCount\": 4}}",
+      "usage": {
+        "reasoning_effort": "",
+        "response_model": "gemini-2.5-flash-002",
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "total_tokens": 4
+      }
+    },
+    {
+      "name": "execute_upstream_429",
+      "model": "gemini-2.5-flash",
+      "payload": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}]}",
+      "source": "gemini",
+      "op": "execute",
+      "replies": [
+        {
+          "type": "http_response",
+          "payload": {
+            "body": "{\"error\":{\"code\":429,\"message\":\"quota\"}}",
+            "headers": {
+              "X-Upstream": "1",
+              "content-type": [
+                "application/json"
+              ],
+              "x-skip": 5
+            },
+            "status": 429
+          }
+        }
+      ],
+      "frames": [
+        "{\"id\":\"ID\",\"type\":\"http_request\",\"payload\":{\"body\":\"{\\\"contents\\\":[{\\\"role\\\":\\\"user\\\",\\\"parts\\\":[{\\\"text\\\":\\\"hi\\\"}]}],\\\"safetySettings\\\":[{\\\"category\\\":\\\"HARM_CATEGORY_HARASSMENT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_HATE_SPEECH\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_SEXUALLY_EXPLICIT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_DANGEROUS_CONTENT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_CIVIC_INTEGRITY\\\",\\\"threshold\\\":\\\"BLOCK_NONE\\\"}]}\",\"headers\":{\"Content-Type\":[\"application/json\"]},\"method\":\"POST\",\"sent_at\":\"SENT_AT\",\"url\":\"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent\"}}\n"
+      ],
+      "error": {
+        "status": 429,
+        "message": "{\"error\":{\"code\":429,\"message\":\"quota\"}}"
+      },
+      "usage": {
+        "reasoning_effort": "",
+        "response_model": "",
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "total_tokens": 0
+      }
+    },
+    {
+      "name": "execute_streamed_answer",
+      "model": "gemini-2.5-flash",
+      "payload": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}]}",
+      "source": "gemini",
+      "op": "execute",
+      "replies": [
+        {
+          "type": "stream_start",
+          "payload": {
+            "headers": {
+              "Content-Type": [
+                "text/event-stream"
+              ]
+            },
+            "status": 200
+          }
+        },
+        {
+          "type": "stream_chunk",
+          "payload": {
+            "data": "{\"candidates\":[{\"con"
+          }
+        },
+        {
+          "type": "stream_chunk",
+          "payload": {
+            "data": "tent\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash-002\",\"responseId\":\"r1\"}"
+          }
+        },
+        {
+          "type": "stream_end"
+        }
+      ],
+      "frames": [
+        "{\"id\":\"ID\",\"type\":\"http_request\",\"payload\":{\"body\":\"{\\\"contents\\\":[{\\\"role\\\":\\\"user\\\",\\\"parts\\\":[{\\\"text\\\":\\\"hi\\\"}]}],\\\"safetySettings\\\":[{\\\"category\\\":\\\"HARM_CATEGORY_HARASSMENT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_HATE_SPEECH\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_SEXUALLY_EXPLICIT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_DANGEROUS_CONTENT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_CIVIC_INTEGRITY\\\",\\\"threshold\\\":\\\"BLOCK_NONE\\\"}]}\",\"headers\":{\"Content-Type\":[\"application/json\"]},\"method\":\"POST\",\"sent_at\":\"SENT_AT\",\"url\":\"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent\"}}\n"
+      ],
+      "output": "{\"candidates\": [{\"content\": {\"parts\": [{\"text\": \"ok\"}],\"role\": \"model\"},\"finishReason\": \"STOP\",\"index\": 0}],\"modelVersion\": \"gemini-2.5-flash-002\",\"responseId\": \"r1\",\"usageMetadata\": {\"candidatesTokenCount\": 1,\"promptTokenCount\": 3,\"totalTokenCount\": 4}}",
+      "usage": {
+        "reasoning_effort": "",
+        "response_model": "gemini-2.5-flash-002",
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "total_tokens": 4
+      }
+    },
+    {
+      "name": "execute_relay_error",
+      "model": "gemini-2.5-flash",
+      "payload": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}]}",
+      "source": "gemini",
+      "op": "execute",
+      "replies": [
+        {
+          "type": "error",
+          "payload": {
+            "error": "fetch failed",
+            "status": 503
+          }
+        }
+      ],
+      "frames": [
+        "{\"id\":\"ID\",\"type\":\"http_request\",\"payload\":{\"body\":\"{\\\"contents\\\":[{\\\"role\\\":\\\"user\\\",\\\"parts\\\":[{\\\"text\\\":\\\"hi\\\"}]}],\\\"safetySettings\\\":[{\\\"category\\\":\\\"HARM_CATEGORY_HARASSMENT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_HATE_SPEECH\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_SEXUALLY_EXPLICIT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_DANGEROUS_CONTENT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_CIVIC_INTEGRITY\\\",\\\"threshold\\\":\\\"BLOCK_NONE\\\"}]}\",\"headers\":{\"Content-Type\":[\"application/json\"]},\"method\":\"POST\",\"sent_at\":\"SENT_AT\",\"url\":\"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent\"}}\n"
+      ],
+      "error": {
+        "status": 0,
+        "message": "fetch failed (status=503)"
+      },
+      "usage": {
+        "reasoning_effort": "",
+        "response_model": "",
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "total_tokens": 0
+      }
+    },
+    {
+      "name": "execute_relay_error_bare",
+      "model": "gemini-2.5-flash",
+      "payload": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}]}",
+      "source": "gemini",
+      "op": "execute",
+      "replies": [
+        {
+          "type": "error"
+        }
+      ],
+      "frames": [
+        "{\"id\":\"ID\",\"type\":\"http_request\",\"payload\":{\"body\":\"{\\\"contents\\\":[{\\\"role\\\":\\\"user\\\",\\\"parts\\\":[{\\\"text\\\":\\\"hi\\\"}]}],\\\"safetySettings\\\":[{\\\"category\\\":\\\"HARM_CATEGORY_HARASSMENT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_HATE_SPEECH\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_SEXUALLY_EXPLICIT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_DANGEROUS_CONTENT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_CIVIC_INTEGRITY\\\",\\\"threshold\\\":\\\"BLOCK_NONE\\\"}]}\",\"headers\":{\"Content-Type\":[\"application/json\"]},\"method\":\"POST\",\"sent_at\":\"SENT_AT\",\"url\":\"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent\"}}\n"
+      ],
+      "error": {
+        "status": 0,
+        "message": "wsrelay: unknown error"
+      },
+      "usage": {
+        "reasoning_effort": "",
+        "response_model": "",
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "total_tokens": 0
+      }
+    },
+    {
+      "name": "execute_missing_payload",
+      "model": "gemini-2.5-flash",
+      "payload": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}]}",
+      "source": "gemini",
+      "op": "execute",
+      "replies": [
+        {
+          "type": "http_response"
+        }
+      ],
+      "frames": [
+        "{\"id\":\"ID\",\"type\":\"http_request\",\"payload\":{\"body\":\"{\\\"contents\\\":[{\\\"role\\\":\\\"user\\\",\\\"parts\\\":[{\\\"text\\\":\\\"hi\\\"}]}],\\\"safetySettings\\\":[{\\\"category\\\":\\\"HARM_CATEGORY_HARASSMENT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_HATE_SPEECH\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_SEXUALLY_EXPLICIT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_DANGEROUS_CONTENT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_CIVIC_INTEGRITY\\\",\\\"threshold\\\":\\\"BLOCK_NONE\\\"}]}\",\"headers\":{\"Content-Type\":[\"application/json\"]},\"method\":\"POST\",\"sent_at\":\"SENT_AT\",\"url\":\"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent\"}}\n"
+      ],
+      "error": {
+        "status": 502,
+        "message": "status 502"
+      },
+      "usage": {
+        "reasoning_effort": "",
+        "response_model": "",
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "total_tokens": 0
+      }
+    },
+    {
+      "name": "execute_disconnected",
+      "model": "gemini-2.5-flash",
+      "payload": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}]}",
+      "source": "gemini",
+      "op": "execute",
+      "disconnected": true,
+      "error": {
+        "status": 0,
+        "message": "wsrelay: provider aistudio-missing not connected"
+      },
+      "usage": {
+        "reasoning_effort": "",
+        "response_model": "",
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "total_tokens": 0
+      }
+    },
+    {
+      "name": "execute_compact_rejected",
+      "model": "gemini-2.5-flash",
+      "payload": "{\"input\":\"hi\"}",
+      "source": "openai-response",
+      "op": "execute",
+      "alt": "responses/compact",
+      "error": {
+        "status": 501,
+        "message": "/responses/compact not supported"
+      }
+    },
+    {
+      "name": "stream_gemini_sse",
+      "model": "gemini-2.5-flash",
+      "payload": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}]}",
+      "source": "gemini",
+      "op": "stream",
+      "replies": [
+        {
+          "type": "stream_start",
+          "payload": {
+            "headers": {
+              "Content-Type": [
+                "text/event-stream"
+              ]
+            },
+            "status": 200
+          }
+        },
+        {
+          "type": "stream_chunk",
+          "payload": {
+            "data": "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"he\"}]},\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"totalTokenCount\":3},\"modelVersion\":\"gemini-2.5-flash-002\",\"responseId\":\"r1\"}\r\n\r\n"
+          }
+        },
+        {
+          "type": "stream_chunk",
+          "payload": {
+            "data": "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"llo\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":2,\"totalTokenCount\":5},\"modelVersion\":\"gemini-2.5-flash-002\",\"responseId\":\"r1\"}\r\n\r\n"
+          }
+        },
+        {
+          "type": "stream_end"
+        }
+      ],
+      "frames": [
+        "{\"id\":\"ID\",\"type\":\"http_request\",\"payload\":{\"body\":\"{\\\"contents\\\":[{\\\"role\\\":\\\"user\\\",\\\"parts\\\":[{\\\"text\\\":\\\"hi\\\"}]}],\\\"safetySettings\\\":[{\\\"category\\\":\\\"HARM_CATEGORY_HARASSMENT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_HATE_SPEECH\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_SEXUALLY_EXPLICIT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_DANGEROUS_CONTENT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_CIVIC_INTEGRITY\\\",\\\"threshold\\\":\\\"BLOCK_NONE\\\"}]}\",\"headers\":{\"Content-Type\":[\"application/json\"]},\"method\":\"POST\",\"sent_at\":\"SENT_AT\",\"url\":\"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse\"}}\n"
+      ],
+      "chunks": [
+        "{\"candidates\": [{\"content\": {\"parts\": [{\"text\": \"he\"}],\"role\": \"model\"},\"index\": 0}],\"cpaUsageMetadata\": {\"promptTokenCount\": 3,\"totalTokenCount\": 3},\"modelVersion\": \"gemini-2.5-flash-002\",\"responseId\": \"r1\"}",
+        "{\"candidates\": [{\"content\": {\"parts\": [{\"text\": \"llo\"}],\"role\": \"model\"},\"finishReason\": \"STOP\",\"index\": 0}],\"modelVersion\": \"gemini-2.5-flash-002\",\"responseId\": \"r1\",\"usageMetadata\": {\"candidatesTokenCount\": 2,\"promptTokenCount\": 3,\"totalTokenCount\": 5}}"
+      ],
+      "usage": {
+        "reasoning_effort": "",
+        "response_model": "gemini-2.5-flash-002",
+        "input_tokens": 3,
+        "output_tokens": 2,
+        "total_tokens": 5
+      }
+    },
+    {
+      "name": "stream_gemini_bare",
+      "model": "gemini-2.5-flash",
+      "payload": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}]}",
+      "source": "gemini",
+      "op": "stream",
+      "replies": [
+        {
+          "type": "stream_start",
+          "payload": {
+            "headers": {
+              "Content-Type": [
+                "text/event-stream"
+              ]
+            },
+            "status": 200
+          }
+        },
+        {
+          "type": "stream_chunk",
+          "payload": {
+            "data": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"he\"}]},\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"totalTokenCount\":3},\"modelVersion\":\"gemini-2.5-flash-002\",\"responseId\":\"r1\"}"
+          }
+        },
+        {
+          "type": "stream_chunk",
+          "payload": {
+            "data": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"llo\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":2,\"totalTokenCount\":5},\"modelVersion\":\"gemini-2.5-flash-002\",\"responseId\":\"r1\"}"
+          }
+        },
+        {
+          "type": "stream_end"
+        }
+      ],
+      "frames": [
+        "{\"id\":\"ID\",\"type\":\"http_request\",\"payload\":{\"body\":\"{\\\"contents\\\":[{\\\"role\\\":\\\"user\\\",\\\"parts\\\":[{\\\"text\\\":\\\"hi\\\"}]}],\\\"safetySettings\\\":[{\\\"category\\\":\\\"HARM_CATEGORY_HARASSMENT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_HATE_SPEECH\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_SEXUALLY_EXPLICIT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_DANGEROUS_CONTENT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_CIVIC_INTEGRITY\\\",\\\"threshold\\\":\\\"BLOCK_NONE\\\"}]}\",\"headers\":{\"Content-Type\":[\"application/json\"]},\"method\":\"POST\",\"sent_at\":\"SENT_AT\",\"url\":\"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse\"}}\n"
+      ],
+      "chunks": [
+        "{\"candidates\": [{\"content\": {\"parts\": [{\"text\": \"he\"}],\"role\": \"model\"},\"index\": 0}],\"cpaUsageMetadata\": {\"promptTokenCount\": 3,\"totalTokenCount\": 3},\"modelVersion\": \"gemini-2.5-flash-002\",\"responseId\": \"r1\"}",
+        "{\"candidates\": [{\"content\": {\"parts\": [{\"text\": \"llo\"}],\"role\": \"model\"},\"finishReason\": \"STOP\",\"index\": 0}],\"modelVersion\": \"gemini-2.5-flash-002\",\"responseId\": \"r1\",\"usageMetadata\": {\"candidatesTokenCount\": 2,\"promptTokenCount\": 3,\"totalTokenCount\": 5}}"
+      ],
+      "usage": {
+        "reasoning_effort": "",
+        "response_model": "gemini-2.5-flash-002",
+        "input_tokens": 3,
+        "output_tokens": 2,
+        "total_tokens": 5
+      }
+    },
+    {
+      "name": "stream_openai_bare",
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"stream\":true,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+      "source": "openai",
+      "op": "stream",
+      "replies": [
+        {
+          "type": "stream_start",
+          "payload": {
+            "headers": {
+              "Content-Type": [
+                "text/event-stream"
+              ]
+            },
+            "status": 200
+          }
+        },
+        {
+          "type": "stream_chunk",
+          "payload": {
+            "data": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"he\"}]},\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"totalTokenCount\":3},\"modelVersion\":\"gemini-2.5-flash-002\",\"responseId\":\"r1\"}"
+          }
+        },
+        {
+          "type": "stream_chunk",
+          "payload": {
+            "data": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"llo\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":2,\"totalTokenCount\":5},\"modelVersion\":\"gemini-2.5-flash-002\",\"responseId\":\"r1\"}"
+          }
+        },
+        {
+          "type": "stream_end"
+        }
+      ],
+      "frames": [
+        "{\"id\":\"ID\",\"type\":\"http_request\",\"payload\":{\"body\":\"{\\\"contents\\\":[{\\\"role\\\":\\\"user\\\",\\\"parts\\\":[{\\\"text\\\":\\\"hi\\\"}]}],\\\"model\\\":\\\"gemini-2.5-flash\\\",\\\"safetySettings\\\":[{\\\"category\\\":\\\"HARM_CATEGORY_HARASSMENT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_HATE_SPEECH\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_SEXUALLY_EXPLICIT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_DANGEROUS_CONTENT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_CIVIC_INTEGRITY\\\",\\\"threshold\\\":\\\"BLOCK_NONE\\\"}]}\",\"headers\":{\"Content-Type\":[\"application/json\"]},\"method\":\"POST\",\"sent_at\":\"SENT_AT\",\"url\":\"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse\"}}\n"
+      ],
+      "chunks": [
+        "{\"choices\": [{\"delta\": {\"content\": \"he\",\"reasoning_content\": null,\"role\": \"assistant\",\"tool_calls\": null},\"finish_reason\": null,\"index\": 0,\"native_finish_reason\": null}],\"created\": 0,\"id\": \"r1\",\"model\": \"gemini-2.5-flash-002\",\"object\": \"chat.completion.chunk\"}",
+        "{\"choices\": [{\"delta\": {\"content\": \"llo\",\"reasoning_content\": null,\"role\": \"assistant\",\"tool_calls\": null},\"finish_reason\": \"stop\",\"index\": 0,\"native_finish_reason\": \"stop\"}],\"created\": 0,\"id\": \"r1\",\"model\": \"gemini-2.5-flash-002\",\"object\": \"chat.completion.chunk\",\"usage\": {\"completion_tokens\": 2,\"prompt_tokens\": 3,\"total_tokens\": 5}}"
+      ],
+      "usage": {
+        "reasoning_effort": "",
+        "response_model": "gemini-2.5-flash-002",
+        "input_tokens": 3,
+        "output_tokens": 2,
+        "total_tokens": 5
+      }
+    },
+    {
+      "name": "stream_openai_sse",
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"stream\":true,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+      "source": "openai",
+      "op": "stream",
+      "replies": [
+        {
+          "type": "stream_start",
+          "payload": {
+            "headers": {
+              "Content-Type": [
+                "text/event-stream"
+              ]
+            },
+            "status": 200
+          }
+        },
+        {
+          "type": "stream_chunk",
+          "payload": {
+            "data": "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"he\"}]},\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"totalTokenCount\":3},\"modelVersion\":\"gemini-2.5-flash-002\",\"responseId\":\"r1\"}\r\n\r\n"
+          }
+        },
+        {
+          "type": "stream_chunk",
+          "payload": {
+            "data": "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"llo\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":2,\"totalTokenCount\":5},\"modelVersion\":\"gemini-2.5-flash-002\",\"responseId\":\"r1\"}\r\n\r\n"
+          }
+        },
+        {
+          "type": "stream_end"
+        }
+      ],
+      "frames": [
+        "{\"id\":\"ID\",\"type\":\"http_request\",\"payload\":{\"body\":\"{\\\"contents\\\":[{\\\"role\\\":\\\"user\\\",\\\"parts\\\":[{\\\"text\\\":\\\"hi\\\"}]}],\\\"model\\\":\\\"gemini-2.5-flash\\\",\\\"safetySettings\\\":[{\\\"category\\\":\\\"HARM_CATEGORY_HARASSMENT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_HATE_SPEECH\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_SEXUALLY_EXPLICIT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_DANGEROUS_CONTENT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_CIVIC_INTEGRITY\\\",\\\"threshold\\\":\\\"BLOCK_NONE\\\"}]}\",\"headers\":{\"Content-Type\":[\"application/json\"]},\"method\":\"POST\",\"sent_at\":\"SENT_AT\",\"url\":\"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse\"}}\n"
+      ],
+      "chunks": [
+        "{\"choices\": [{\"delta\": {\"content\": \"he\",\"reasoning_content\": null,\"role\": \"assistant\",\"tool_calls\": null},\"finish_reason\": null,\"index\": 0,\"native_finish_reason\": null}],\"created\": 0,\"id\": \"r1\",\"model\": \"gemini-2.5-flash-002\",\"object\": \"chat.completion.chunk\"}",
+        "{\"choices\": [{\"delta\": {\"content\": \"llo\",\"reasoning_content\": null,\"role\": \"assistant\",\"tool_calls\": null},\"finish_reason\": \"stop\",\"index\": 0,\"native_finish_reason\": \"stop\"}],\"created\": 0,\"id\": \"r1\",\"model\": \"gemini-2.5-flash-002\",\"object\": \"chat.completion.chunk\",\"usage\": {\"completion_tokens\": 2,\"prompt_tokens\": 3,\"total_tokens\": 5}}"
+      ],
+      "usage": {
+        "reasoning_effort": "",
+        "response_model": "gemini-2.5-flash-002",
+        "input_tokens": 3,
+        "output_tokens": 2,
+        "total_tokens": 5
+      }
+    },
+    {
+      "name": "stream_claude_bare",
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"max_tokens\":64,\"stream\":true,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+      "source": "claude",
+      "op": "stream",
+      "replies": [
+        {
+          "type": "stream_start",
+          "payload": {
+            "headers": {
+              "Content-Type": [
+                "text/event-stream"
+              ]
+            },
+            "status": 200
+          }
+        },
+        {
+          "type": "stream_chunk",
+          "payload": {
+            "data": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"he\"}]},\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"totalTokenCount\":3},\"modelVersion\":\"gemini-2.5-flash-002\",\"responseId\":\"r1\"}"
+          }
+        },
+        {
+          "type": "stream_chunk",
+          "payload": {
+            "data": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"llo\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":2,\"totalTokenCount\":5},\"modelVersion\":\"gemini-2.5-flash-002\",\"responseId\":\"r1\"}"
+          }
+        },
+        {
+          "type": "stream_end"
+        }
+      ],
+      "frames": [
+        "{\"id\":\"ID\",\"type\":\"http_request\",\"payload\":{\"body\":\"{\\\"contents\\\":[{\\\"role\\\":\\\"user\\\",\\\"parts\\\":[{\\\"text\\\":\\\"hi\\\"}]}],\\\"model\\\":\\\"gemini-2.5-flash\\\",\\\"safetySettings\\\":[{\\\"category\\\":\\\"HARM_CATEGORY_HARASSMENT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_HATE_SPEECH\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_SEXUALLY_EXPLICIT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_DANGEROUS_CONTENT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_CIVIC_INTEGRITY\\\",\\\"threshold\\\":\\\"BLOCK_NONE\\\"}]}\",\"headers\":{\"Content-Type\":[\"application/json\"]},\"method\":\"POST\",\"sent_at\":\"SENT_AT\",\"url\":\"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse\"}}\n"
+      ],
+      "chunks": [
+        "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"r1\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[],\"model\":\"gemini-2.5-flash-002\",\"stop_reason\":null,\"stop_sequence\":null,\"usage\":{\"input_tokens\":3,\"output_tokens\":0}}}\n\n\nevent: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\n\nevent: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"he\"}}\n\n\n",
+        "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"llo\"}}\n\n\nevent: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\",\"stop_sequence\":null},\"usage\":{\"input_tokens\":3,\"output_tokens\":2}}\n\n\n"
+      ],
+      "usage": {
+        "reasoning_effort": "",
+        "response_model": "gemini-2.5-flash-002",
+        "input_tokens": 3,
+        "output_tokens": 2,
+        "total_tokens": 5
+      }
+    },
+    {
+      "name": "stream_responses_bare",
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"stream\":true,\"input\":\"hi\"}",
+      "source": "openai-response",
+      "op": "stream",
+      "replies": [
+        {
+          "type": "stream_start",
+          "payload": {
+            "headers": {
+              "Content-Type": [
+                "text/event-stream"
+              ]
+            },
+            "status": 200
+          }
+        },
+        {
+          "type": "stream_chunk",
+          "payload": {
+            "data": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"he\"}]},\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"totalTokenCount\":3},\"modelVersion\":\"gemini-2.5-flash-002\",\"responseId\":\"r1\"}"
+          }
+        },
+        {
+          "type": "stream_chunk",
+          "payload": {
+            "data": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"llo\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":2,\"totalTokenCount\":5},\"modelVersion\":\"gemini-2.5-flash-002\",\"responseId\":\"r1\"}"
+          }
+        },
+        {
+          "type": "stream_end"
+        }
+      ],
+      "frames": [
+        "{\"id\":\"ID\",\"type\":\"http_request\",\"payload\":{\"body\":\"{\\\"contents\\\":[{\\\"role\\\":\\\"user\\\",\\\"parts\\\":[{\\\"text\\\":\\\"hi\\\"}]}],\\\"safetySettings\\\":[{\\\"category\\\":\\\"HARM_CATEGORY_HARASSMENT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_HATE_SPEECH\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_SEXUALLY_EXPLICIT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_DANGEROUS_CONTENT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_CIVIC_INTEGRITY\\\",\\\"threshold\\\":\\\"BLOCK_NONE\\\"}]}\",\"headers\":{\"Content-Type\":[\"application/json\"]},\"method\":\"POST\",\"sent_at\":\"SENT_AT\",\"url\":\"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse\"}}\n"
+      ],
+      "chunks": [
+        "event: response.created\ndata: {\"type\":\"response.created\",\"sequence_number\":1,\"response\":{\"id\":\"resp_r1\",\"object\":\"response\",\"created_at\":1791032859,\"status\":\"in_progress\",\"background\":false,\"error\":null,\"output\":[],\"model\":\"gemini-2.5-flash\"}}\n\n",
+        "event: response.in_progress\ndata: {\"type\":\"response.in_progress\",\"sequence_number\":2,\"response\":{\"id\":\"resp_r1\",\"object\":\"response\",\"created_at\":1791032859,\"status\":\"in_progress\",\"output\":[],\"model\":\"gemini-2.5-flash\"}}\n\n",
+        "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"sequence_number\":3,\"output_index\":0,\"item\":{\"id\":\"msg_resp_r1_0\",\"type\":\"message\",\"status\":\"in_progress\",\"content\":[],\"role\":\"assistant\"}}\n\n",
+        "event: response.content_part.added\ndata: {\"type\":\"response.content_part.added\",\"sequence_number\":4,\"item_id\":\"msg_resp_r1_0\",\"output_index\":0,\"content_index\":0,\"part\":{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"\"}}\n\n",
+        "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"sequence_number\":5,\"item_id\":\"msg_resp_r1_0\",\"output_index\":0,\"content_index\":0,\"delta\":\"he\",\"logprobs\":[]}\n\n",
+        "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"sequence_number\":6,\"item_id\":\"msg_resp_r1_0\",\"output_index\":0,\"content_index\":0,\"delta\":\"llo\",\"logprobs\":[]}\n\n",
+        "event: response.output_text.done\ndata: {\"type\":\"response.output_text.done\",\"sequence_number\":7,\"item_id\":\"msg_resp_r1_0\",\"output_index\":0,\"content_index\":0,\"text\":\"hello\",\"logprobs\":[]}\n\n",
+        "event: response.content_part.done\ndata: {\"type\":\"response.content_part.done\",\"sequence_number\":8,\"item_id\":\"msg_resp_r1_0\",\"output_index\":0,\"content_index\":0,\"part\":{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"hello\"}}\n\n",
+        "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"sequence_number\":9,\"output_index\":0,\"item\":{\"id\":\"msg_resp_r1_0\",\"type\":\"message\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"hello\"}],\"role\":\"assistant\"}}\n\n",
+        "event: response.completed\ndata: {\"type\":\"response.completed\",\"sequence_number\":10,\"response\":{\"id\":\"resp_r1\",\"object\":\"response\",\"created_at\":1791032859,\"status\":\"completed\",\"background\":false,\"error\":null,\"model\":\"gemini-2.5-flash\",\"output\":[{\"id\":\"msg_resp_r1_0\",\"type\":\"message\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"hello\"}],\"role\":\"assistant\"}],\"usage\":{\"input_tokens\":3,\"input_tokens_details\":{\"cached_tokens\":0},\"output_tokens\":2,\"output_tokens_details\":{\"reasoning_tokens\":0},\"total_tokens\":5}}}\n\n"
+      ],
+      "usage": {
+        "reasoning_effort": "",
+        "response_model": "gemini-2.5-flash-002",
+        "input_tokens": 3,
+        "output_tokens": 2,
+        "total_tokens": 5
+      }
+    },
+    {
+      "name": "stream_openai_two_events_one_chunk",
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"stream\":true,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+      "source": "openai",
+      "op": "stream",
+      "replies": [
+        {
+          "type": "stream_start",
+          "payload": {
+            "headers": {
+              "Content-Type": [
+                "text/event-stream"
+              ]
+            },
+            "status": 200
+          }
+        },
+        {
+          "type": "stream_chunk",
+          "payload": {
+            "data": "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"he\"}]},\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"totalTokenCount\":3},\"modelVersion\":\"gemini-2.5-flash-002\",\"responseId\":\"r1\"}\n\ndata: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"llo\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":2,\"totalTokenCount\":5},\"modelVersion\":\"gemini-2.5-flash-002\",\"responseId\":\"r1\"}\n\n"
+          }
+        },
+        {
+          "type": "stream_end"
+        }
+      ],
+      "frames": [
+        "{\"id\":\"ID\",\"type\":\"http_request\",\"payload\":{\"body\":\"{\\\"contents\\\":[{\\\"role\\\":\\\"user\\\",\\\"parts\\\":[{\\\"text\\\":\\\"hi\\\"}]}],\\\"model\\\":\\\"gemini-2.5-flash\\\",\\\"safetySettings\\\":[{\\\"category\\\":\\\"HARM_CATEGORY_HARASSMENT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_HATE_SPEECH\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_SEXUALLY_EXPLICIT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_DANGEROUS_CONTENT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_CIVIC_INTEGRITY\\\",\\\"threshold\\\":\\\"BLOCK_NONE\\\"}]}\",\"headers\":{\"Content-Type\":[\"application/json\"]},\"method\":\"POST\",\"sent_at\":\"SENT_AT\",\"url\":\"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse\"}}\n"
+      ],
+      "chunks": [
+        "{\"choices\": [{\"delta\": {\"content\": \"he\",\"reasoning_content\": null,\"role\": \"assistant\",\"tool_calls\": null},\"finish_reason\": null,\"index\": 0,\"native_finish_reason\": null}],\"created\": 0,\"id\": \"r1\",\"model\": \"gemini-2.5-flash-002\",\"object\": \"chat.completion.chunk\"}"
+      ],
+      "usage": {
+        "reasoning_effort": "",
+        "response_model": "",
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "total_tokens": 0
+      }
+    },
+    {
+      "name": "stream_gemini_two_events_one_chunk",
+      "model": "gemini-2.5-flash",
+      "payload": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}]}",
+      "source": "gemini",
+      "op": "stream",
+      "replies": [
+        {
+          "type": "stream_start",
+          "payload": {
+            "headers": {
+              "Content-Type": [
+                "text/event-stream"
+              ]
+            },
+            "status": 200
+          }
+        },
+        {
+          "type": "stream_chunk",
+          "payload": {
+            "data": "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"he\"}]},\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"totalTokenCount\":3},\"modelVersion\":\"gemini-2.5-flash-002\",\"responseId\":\"r1\"}\n\ndata: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"llo\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":2,\"totalTokenCount\":5},\"modelVersion\":\"gemini-2.5-flash-002\",\"responseId\":\"r1\"}\n\n"
+          }
+        },
+        {
+          "type": "stream_end"
+        }
+      ],
+      "frames": [
+        "{\"id\":\"ID\",\"type\":\"http_request\",\"payload\":{\"body\":\"{\\\"contents\\\":[{\\\"role\\\":\\\"user\\\",\\\"parts\\\":[{\\\"text\\\":\\\"hi\\\"}]}],\\\"safetySettings\\\":[{\\\"category\\\":\\\"HARM_CATEGORY_HARASSMENT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_HATE_SPEECH\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_SEXUALLY_EXPLICIT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_DANGEROUS_CONTENT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_CIVIC_INTEGRITY\\\",\\\"threshold\\\":\\\"BLOCK_NONE\\\"}]}\",\"headers\":{\"Content-Type\":[\"application/json\"]},\"method\":\"POST\",\"sent_at\":\"SENT_AT\",\"url\":\"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse\"}}\n"
+      ],
+      "chunks": [
+        "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"he\"}]},\"index\":0}],\"modelVersion\":\"gemini-2.5-flash-002\",\"responseId\":\"r1\",\"cpaUsageMetadata\":{\"promptTokenCount\":3,\"totalTokenCount\":3}}\n\ndata: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"llo\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":2,\"totalTokenCount\":5},\"modelVersion\":\"gemini-2.5-flash-002\",\"responseId\":\"r1\"}"
+      ],
+      "usage": {
+        "reasoning_effort": "",
+        "response_model": "",
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "total_tokens": 0
+      }
+    },
+    {
+      "name": "stream_codex_no_pair",
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"stream\":true,\"input\":\"hi\"}",
+      "source": "codex",
+      "op": "stream",
+      "replies": [
+        {
+          "type": "stream_start",
+          "payload": {
+            "headers": {
+              "Content-Type": [
+                "text/event-stream"
+              ]
+            },
+            "status": 200
+          }
+        },
+        {
+          "type": "stream_chunk",
+          "payload": {
+            "data": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"he\"}]},\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"totalTokenCount\":3},\"modelVersion\":\"gemini-2.5-flash-002\",\"responseId\":\"r1\"}"
+          }
+        },
+        {
+          "type": "stream_chunk",
+          "payload": {
+            "data": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"llo\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":2,\"totalTokenCount\":5},\"modelVersion\":\"gemini-2.5-flash-002\",\"responseId\":\"r1\"}"
+          }
+        },
+        {
+          "type": "stream_end"
+        }
+      ],
+      "frames": [
+        "{\"id\":\"ID\",\"type\":\"http_request\",\"payload\":{\"body\":\"{\\\"model\\\":\\\"gemini-2.5-flash\\\",\\\"stream\\\":true,\\\"input\\\":\\\"hi\\\"}\",\"headers\":{\"Content-Type\":[\"application/json\"]},\"method\":\"POST\",\"sent_at\":\"SENT_AT\",\"url\":\"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse\"}}\n"
+      ],
+      "chunks": [
+        "{\"candidates\": [{\"content\": {\"parts\": [{\"text\": \"he\"}],\"role\": \"model\"},\"index\": 0}],\"cpaUsageMetadata\": {\"promptTokenCount\": 3,\"totalTokenCount\": 3},\"modelVersion\": \"gemini-2.5-flash-002\",\"responseId\": \"r1\"}",
+        "{\"candidates\": [{\"content\": {\"parts\": [{\"text\": \"llo\"}],\"role\": \"model\"},\"finishReason\": \"STOP\",\"index\": 0}],\"modelVersion\": \"gemini-2.5-flash-002\",\"responseId\": \"r1\",\"usageMetadata\": {\"candidatesTokenCount\": 2,\"promptTokenCount\": 3,\"totalTokenCount\": 5}}"
+      ],
+      "usage": {
+        "reasoning_effort": "",
+        "response_model": "gemini-2.5-flash-002",
+        "input_tokens": 3,
+        "output_tokens": 2,
+        "total_tokens": 5
+      }
+    },
+    {
+      "name": "stream_first_status_error",
+      "model": "gemini-2.5-flash",
+      "payload": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}]}",
+      "source": "gemini",
+      "op": "stream",
+      "replies": [
+        {
+          "type": "stream_start",
+          "payload": {
+            "headers": {
+              "Content-Type": [
+                "text/event-stream"
+              ]
+            },
+            "status": 400
+          }
+        },
+        {
+          "type": "stream_chunk",
+          "payload": {
+            "data": "{\"error\":"
+          }
+        },
+        {
+          "type": "stream_chunk",
+          "payload": {
+            "data": "\"bad\"}"
+          }
+        },
+        {
+          "type": "stream_end"
+        }
+      ],
+      "frames": [
+        "{\"id\":\"ID\",\"type\":\"http_request\",\"payload\":{\"body\":\"{\\\"contents\\\":[{\\\"role\\\":\\\"user\\\",\\\"parts\\\":[{\\\"text\\\":\\\"hi\\\"}]}],\\\"safetySettings\\\":[{\\\"category\\\":\\\"HARM_CATEGORY_HARASSMENT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_HATE_SPEECH\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_SEXUALLY_EXPLICIT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_DANGEROUS_CONTENT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_CIVIC_INTEGRITY\\\",\\\"threshold\\\":\\\"BLOCK_NONE\\\"}]}\",\"headers\":{\"Content-Type\":[\"application/json\"]},\"method\":\"POST\",\"sent_at\":\"SENT_AT\",\"url\":\"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse\"}}\n"
+      ],
+      "error": {
+        "status": 400,
+        "message": "{\"error\":\"bad\"}"
+      },
+      "usage": {
+        "reasoning_effort": "",
+        "response_model": "",
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "total_tokens": 0
+      }
+    },
+    {
+      "name": "stream_first_status_then_relay_error",
+      "model": "gemini-2.5-flash",
+      "payload": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}]}",
+      "source": "gemini",
+      "op": "stream",
+      "replies": [
+        {
+          "type": "stream_start",
+          "payload": {
+            "headers": {
+              "Content-Type": [
+                "text/event-stream"
+              ]
+            },
+            "status": 500
+          }
+        },
+        {
+          "type": "error",
+          "payload": {
+            "error": "gone"
+          }
+        }
+      ],
+      "frames": [
+        "{\"id\":\"ID\",\"type\":\"http_request\",\"payload\":{\"body\":\"{\\\"contents\\\":[{\\\"role\\\":\\\"user\\\",\\\"parts\\\":[{\\\"text\\\":\\\"hi\\\"}]}],\\\"safetySettings\\\":[{\\\"category\\\":\\\"HARM_CATEGORY_HARASSMENT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_HATE_SPEECH\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_SEXUALLY_EXPLICIT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_DANGEROUS_CONTENT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_CIVIC_INTEGRITY\\\",\\\"threshold\\\":\\\"BLOCK_NONE\\\"}]}\",\"headers\":{\"Content-Type\":[\"application/json\"]},\"method\":\"POST\",\"sent_at\":\"SENT_AT\",\"url\":\"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse\"}}\n"
+      ],
+      "error": {
+        "status": 500,
+        "message": "gone (status=0)"
+      },
+      "usage": {
+        "reasoning_effort": "",
+        "response_model": "",
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "total_tokens": 0
+      }
+    },
+    {
+      "name": "stream_error_midway",
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"stream\":true,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+      "source": "openai",
+      "op": "stream",
+      "replies": [
+        {
+          "type": "stream_start",
+          "payload": {
+            "headers": {
+              "Content-Type": [
+                "text/event-stream"
+              ]
+            },
+            "status": 200
+          }
+        },
+        {
+          "type": "stream_chunk",
+          "payload": {
+            "data": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"he\"}]},\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"totalTokenCount\":3},\"modelVersion\":\"gemini-2.5-flash-002\",\"responseId\":\"r1\"}"
+          }
+        },
+        {
+          "type": "error",
+          "payload": {
+            "error": "socket reset",
+            "status": 0
+          }
+        }
+      ],
+      "frames": [
+        "{\"id\":\"ID\",\"type\":\"http_request\",\"payload\":{\"body\":\"{\\\"contents\\\":[{\\\"role\\\":\\\"user\\\",\\\"parts\\\":[{\\\"text\\\":\\\"hi\\\"}]}],\\\"model\\\":\\\"gemini-2.5-flash\\\",\\\"safetySettings\\\":[{\\\"category\\\":\\\"HARM_CATEGORY_HARASSMENT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_HATE_SPEECH\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_SEXUALLY_EXPLICIT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_DANGEROUS_CONTENT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_CIVIC_INTEGRITY\\\",\\\"threshold\\\":\\\"BLOCK_NONE\\\"}]}\",\"headers\":{\"Content-Type\":[\"application/json\"]},\"method\":\"POST\",\"sent_at\":\"SENT_AT\",\"url\":\"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse\"}}\n"
+      ],
+      "chunks": [
+        "{\"choices\": [{\"delta\": {\"content\": \"he\",\"reasoning_content\": null,\"role\": \"assistant\",\"tool_calls\": null},\"finish_reason\": null,\"index\": 0,\"native_finish_reason\": null}],\"created\": 0,\"id\": \"r1\",\"model\": \"gemini-2.5-flash-002\",\"object\": \"chat.completion.chunk\"}"
+      ],
+      "error": {
+        "status": 0,
+        "message": "wsrelay: socket reset (status=0)"
+      },
+      "usage": {
+        "reasoning_effort": "",
+        "response_model": "gemini-2.5-flash-002",
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "total_tokens": 0
+      }
+    },
+    {
+      "name": "stream_http_response",
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"stream\":true,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+      "source": "openai",
+      "op": "stream",
+      "replies": [
+        {
+          "type": "http_response",
+          "payload": {
+            "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"llo\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":2,\"totalTokenCount\":5},\"modelVersion\":\"gemini-2.5-flash-002\",\"responseId\":\"r1\"}",
+            "headers": {
+              "X-Upstream": "1",
+              "content-type": [
+                "application/json"
+              ],
+              "x-skip": 5
+            },
+            "status": 200
+          }
+        }
+      ],
+      "frames": [
+        "{\"id\":\"ID\",\"type\":\"http_request\",\"payload\":{\"body\":\"{\\\"contents\\\":[{\\\"role\\\":\\\"user\\\",\\\"parts\\\":[{\\\"text\\\":\\\"hi\\\"}]}],\\\"model\\\":\\\"gemini-2.5-flash\\\",\\\"safetySettings\\\":[{\\\"category\\\":\\\"HARM_CATEGORY_HARASSMENT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_HATE_SPEECH\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_SEXUALLY_EXPLICIT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_DANGEROUS_CONTENT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_CIVIC_INTEGRITY\\\",\\\"threshold\\\":\\\"BLOCK_NONE\\\"}]}\",\"headers\":{\"Content-Type\":[\"application/json\"]},\"method\":\"POST\",\"sent_at\":\"SENT_AT\",\"url\":\"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse\"}}\n"
+      ],
+      "chunks": [
+        "{\"choices\": [{\"delta\": {\"content\": \"llo\",\"reasoning_content\": null,\"role\": \"assistant\",\"tool_calls\": null},\"finish_reason\": \"stop\",\"index\": 0,\"native_finish_reason\": \"stop\"}],\"created\": 0,\"id\": \"r1\",\"model\": \"gemini-2.5-flash-002\",\"object\": \"chat.completion.chunk\",\"usage\": {\"completion_tokens\": 2,\"prompt_tokens\": 3,\"total_tokens\": 5}}"
+      ],
+      "usage": {
+        "reasoning_effort": "",
+        "response_model": "gemini-2.5-flash-002",
+        "input_tokens": 3,
+        "output_tokens": 2,
+        "total_tokens": 5
+      }
+    },
+    {
+      "name": "stream_http_response_error",
+      "model": "gemini-2.5-flash",
+      "payload": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}]}",
+      "source": "gemini",
+      "op": "stream",
+      "replies": [
+        {
+          "type": "http_response",
+          "payload": {
+            "body": "{\"error\":\"denied\"}",
+            "headers": {
+              "X-Upstream": "1",
+              "content-type": [
+                "application/json"
+              ],
+              "x-skip": 5
+            },
+            "status": 403
+          }
+        }
+      ],
+      "frames": [
+        "{\"id\":\"ID\",\"type\":\"http_request\",\"payload\":{\"body\":\"{\\\"contents\\\":[{\\\"role\\\":\\\"user\\\",\\\"parts\\\":[{\\\"text\\\":\\\"hi\\\"}]}],\\\"safetySettings\\\":[{\\\"category\\\":\\\"HARM_CATEGORY_HARASSMENT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_HATE_SPEECH\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_SEXUALLY_EXPLICIT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_DANGEROUS_CONTENT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_CIVIC_INTEGRITY\\\",\\\"threshold\\\":\\\"BLOCK_NONE\\\"}]}\",\"headers\":{\"Content-Type\":[\"application/json\"]},\"method\":\"POST\",\"sent_at\":\"SENT_AT\",\"url\":\"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse\"}}\n"
+      ],
+      "error": {
+        "status": 403,
+        "message": "{\"error\":\"denied\"}"
+      },
+      "usage": {
+        "reasoning_effort": "",
+        "response_model": "",
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "total_tokens": 0
+      }
+    },
+    {
+      "name": "count_basic",
+      "model": "gemini-2.5-flash",
+      "payload": "{\"contents\":[{\"role\":\"model\",\"parts\":[{\"text\":\"a\"}]}],\"tools\":[{\"functionDeclarations\":[]}],\"generationConfig\":{\"temperature\":1}}",
+      "source": "gemini",
+      "op": "count",
+      "alt": "json",
+      "attributes": {
+        "header:X-Static": "v1"
+      },
+      "replies": [
+        {
+          "type": "http_response",
+          "payload": {
+            "body": "{\"totalTokens\":7}",
+            "headers": {
+              "X-Upstream": "1",
+              "content-type": [
+                "application/json"
+              ],
+              "x-skip": 5
+            },
+            "status": 200
+          }
+        }
+      ],
+      "frames": [
+        "{\"id\":\"ID\",\"type\":\"http_request\",\"payload\":{\"body\":\"{\\\"contents\\\":[{\\\"role\\\":\\\"user\\\",\\\"parts\\\":[{\\\"text\\\":\\\"\\\"}]},{\\\"role\\\":\\\"model\\\",\\\"parts\\\":[{\\\"text\\\":\\\"a\\\"}]}]}\",\"headers\":{\"Content-Type\":[\"application/json\"]},\"method\":\"POST\",\"sent_at\":\"SENT_AT\",\"url\":\"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:countTokens\"}}\n"
+      ],
+      "output": "{\"totalTokens\":7,\"promptTokensDetails\":[{\"modality\":\"TEXT\",\"tokenCount\":7}]}"
+    },
+    {
+      "name": "count_claude",
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+      "source": "claude",
+      "op": "count",
+      "replies": [
+        {
+          "type": "http_response",
+          "payload": {
+            "body": "{\"totalTokens\":7}",
+            "headers": {
+              "X-Upstream": "1",
+              "content-type": [
+                "application/json"
+              ],
+              "x-skip": 5
+            },
+            "status": 200
+          }
+        }
+      ],
+      "frames": [
+        "{\"id\":\"ID\",\"type\":\"http_request\",\"payload\":{\"body\":\"{\\\"contents\\\":[{\\\"role\\\":\\\"user\\\",\\\"parts\\\":[{\\\"text\\\":\\\"hi\\\"}]}],\\\"model\\\":\\\"gemini-2.5-flash\\\"}\",\"headers\":{\"Content-Type\":[\"application/json\"]},\"method\":\"POST\",\"sent_at\":\"SENT_AT\",\"url\":\"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:countTokens\"}}\n"
+      ],
+      "output": "{\"input_tokens\":7}"
+    },
+    {
+      "name": "count_missing_total",
+      "model": "gemini-2.5-flash",
+      "payload": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}]}",
+      "source": "gemini",
+      "op": "count",
+      "replies": [
+        {
+          "type": "http_response",
+          "payload": {
+            "body": "{\"totalTokens\":0}",
+            "headers": {
+              "X-Upstream": "1",
+              "content-type": [
+                "application/json"
+              ],
+              "x-skip": 5
+            },
+            "status": 200
+          }
+        }
+      ],
+      "frames": [
+        "{\"id\":\"ID\",\"type\":\"http_request\",\"payload\":{\"body\":\"{\\\"contents\\\":[{\\\"role\\\":\\\"user\\\",\\\"parts\\\":[{\\\"text\\\":\\\"hi\\\"}]}]}\",\"headers\":{\"Content-Type\":[\"application/json\"]},\"method\":\"POST\",\"sent_at\":\"SENT_AT\",\"url\":\"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:countTokens\"}}\n"
+      ],
+      "error": {
+        "status": 0,
+        "message": "wsrelay: totalTokens missing in response"
+      }
+    }
+  ]
+}
