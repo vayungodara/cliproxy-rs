@@ -4,7 +4,6 @@
 
 use std::fs::{File, OpenOptions};
 use std::io::{self, Read, Write};
-use std::os::unix::fs::OpenOptionsExt;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -885,11 +884,12 @@ impl Spool {
     fn new(dir: &Path, prefix: &str) -> io::Result<Self> {
         std::fs::create_dir_all(dir)?;
         let path = dir.join(format!("{prefix}-{}.tmp", uuid::Uuid::new_v4()));
-        let file = OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .mode(0o600)
-            .open(&path)?;
+        let mut options = OpenOptions::new();
+        options.write(true).create_new(true);
+        // Go's os.OpenFile modes; Windows ignores them.
+        #[cfg(unix)]
+        std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o600);
+        let file = options.open(&path)?;
         Ok(Self { file, path })
     }
 }
@@ -1251,12 +1251,11 @@ fn unique_file(dir: &Path, filename: &str) -> io::Result<File> {
         } else {
             format!("{prefix}_{index}-{id}.log")
         };
-        match OpenOptions::new()
-            .create_new(true)
-            .write(true)
-            .mode(0o644)
-            .open(dir.join(name))
-        {
+        let mut options = OpenOptions::new();
+        options.create_new(true).write(true);
+        #[cfg(unix)]
+        std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o644);
+        match options.open(dir.join(name)) {
             Ok(file) => return Ok(file),
             Err(error) if error.kind() == io::ErrorKind::AlreadyExists => (),
             Err(error) => return Err(error),
