@@ -22,7 +22,7 @@ Tested against unmodified CLIProxyAPI at commit `6fecc6e` (v8.0.10), both the re
 ## Install by hand
 
 1. Download `management.html` and check it against the checksum below.
-2. Put it where Go serves the panel from: `static/management.html` next to your `config.yaml`. If you set `WRITABLE_PATH`, it is `$WRITABLE_PATH/static/management.html`; if you set `MANAGEMENT_STATIC_PATH`, it is that path.
+2. Put it where Go serves the panel from: `static/management.html` next to your `config.yaml`. If you set `WRITABLE_PATH`, it is `$WRITABLE_PATH/static/management.html`. `MANAGEMENT_STATIC_PATH` takes precedence over both: a path ending in `management.html` is the file itself, and any other path is a directory that holds `management.html`.
 3. Stop Go from replacing it with the official panel. In a v8 config:
 
    ```yaml
@@ -69,4 +69,4 @@ About 169 KB on disk and 66 KB gzip, of which 18 KB is the inlined font. The Jav
 
 ## Remove
 
-Delete `static/management.html` and set `disable-auto-update-panel: false`; Go downloads the official panel on the next visit.
+Remove `panel-github-repository` from the config (or set it back to empty), set `disable-auto-update-panel: false`, then delete `static/management.html`. Go downloads the official panel on the next visit. If `panel-github-repository` still points at cliproxy-rs, Go downloads this panel again instead.

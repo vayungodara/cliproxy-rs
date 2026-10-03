@@ -69,10 +69,17 @@ The repository's `Dockerfile` builds the binary and copies it into a small Debia
 docker build -t cliproxy-rs .
 mkdir -p data/auth
 $EDITOR data/config.yaml                  # see the notes below
+sudo chown -R 10001:10001 data            # the container runs as uid and gid 10001
 docker run -d --name cliproxy -p 127.0.0.1:8317:8317 -v "$PWD/data:/data" cliproxy-rs
 ```
 
-Inside the container the config is `/data/config.yaml`. In that config, set `server.host` to `""` or `0.0.0.0` so the server listens on the container's interface, and set `oauth.auth-dir` to `/data/auth` so credentials persist in the mounted volume. Publish the port on `127.0.0.1` as above unless other machines need access; see the security notes in the [README](../README.md#security).
+Inside the container the config is `/data/config.yaml`. In that config:
+
+- Set `server.host` to `""` or `0.0.0.0` so the server listens on the container's interface.
+- Set `oauth.auth-dir` to `/data/auth` so credentials persist in the mounted volume.
+- Set `management.allow-remote: true` if you want the dashboard. Docker forwards the published port from its bridge network, so even requests from your own machine reach the server from a non-local address, and with `allow-remote: false` the management API refuses them ("remote management disabled"). Publishing the port on `127.0.0.1` as above still keeps other machines out. The Go server behaves the same way in a container.
+
+The server must be able to write to `data/`: it saves the hashed management key into `config.yaml` on first start, and the dashboard writes settings and credential files. If it cannot, the key stays in plain text and saves fail, which is what the `chown` above prevents. Publish the port on `127.0.0.1` unless other machines need access; see the security notes in the [README](../README.md#security).
 
 Browser sign-in inside a container needs the OAuth callback ports (54545 for Claude, 1455 for Codex) published to your machine, so it is usually easier to sign in from the dashboard and paste the final callback URL, or to use `--codex-device-login`, Kimi or Meta, which use device codes:
 

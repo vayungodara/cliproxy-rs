@@ -136,6 +136,7 @@ The same dashboard also works with the Go server as a drop-in `management.html`.
 - The management API is off until `management.secret-key` (or the `MANAGEMENT_PASSWORD` environment variable) is set. With `management.allow-remote: false`, only requests from `127.0.0.1` or `::1` are accepted. Five wrong keys from one address block it for 30 minutes.
 - Behind a tunnel or reverse proxy on the same machine (cloudflared, Tailscale Funnel, Caddy, nginx), every request arrives from `127.0.0.1`, so the server treats every internet client as local. Then `allow-remote: false` no longer keeps them out of the management API, a local-only `--password` is accepted from the internet, and five wrong keys from anyone ban the tunnel's address, which locks everyone out. Set `server.trusted-proxies` to the proxy's address, for example `[127.0.0.1, "::1"]` for a local cloudflared, and restart. The server then takes the client address from `X-Forwarded-For` and similar headers sent by that proxy only. This applies to the Go server in the same way. cliproxy-rs logs a warning the first time a forwarded management request arrives without the setting. If you do not need remote management, also consider leaving `management.secret-key` empty on an exposed server.
 - Do not send client keys or the management key over plain HTTP across a network. Terminate TLS in the tunnel or reverse proxy, or serve HTTPS directly with `server.tls` (`enable: true` plus `cert` and `key` file paths).
+- The dashboard is built into the binary, and cliproxy-rs never downloads code to run. The Go server instead downloads its dashboard from GitHub (or a fallback site) every three hours by default and runs it in your browser with the management key; set `management.disable-auto-update-panel: true` there if that worries you. cliproxy-rs does fetch model catalogs (`models.json`, the Codex client catalog and the Devin model list) from the router-for-me mirrors at start and every three hours, as Go does. They are JSON data, checked before use and ignored when invalid; `-local-model` turns the fetch off.
 - Credential files in `auth-dir` hold OAuth refresh tokens. Anyone who can read them can use the accounts. Keep the directory private (the server writes them with mode 0600) and treat downloaded credential files and config backups the same way.
 
 ## Account risk
@@ -160,7 +161,7 @@ The workspace is `crates/cpa-core` (config and credential formats), `crates/cpa-
 cargo test --workspace
 ```
 
-This project was written with AI coding agents in [Amp](https://ampcode.com), working in parallel threads against the Go source as the reference, under the maintainer's direction.
+Built with some help from AI.
 
 ## License
 

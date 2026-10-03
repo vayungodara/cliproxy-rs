@@ -70,7 +70,7 @@ Median of three rounds.
 
 ## Binary size
 
-Linux x86_64, with the dashboard included in both:
+Linux x86_64. The cliproxy-rs binary includes its dashboard; the Go binary does not, because Go downloads its panel separately:
 
 | | cliproxy-rs `4abce40` | Go v8.0.10 release |
 | --- | --- | --- |
