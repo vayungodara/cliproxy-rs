@@ -18,6 +18,7 @@ use futures_util::StreamExt;
 use crate::classify;
 use crate::gojson;
 use crate::registry::{self, AliasResult, Registry};
+use crate::respond;
 use crate::runtime::{AcquireError, Completing, Lease, Outcome, Runtime, Selection};
 use crate::scheduler::{Policy, canonical_model};
 
@@ -443,11 +444,22 @@ where
     let trace = Arc::new(Trace::with_request_id(crate::observability::current_request_id()));
     let mut run = Box::pin({
         let (rt, trace) = (rt.clone(), trace.clone());
-        async move { run_with_bootstrap_retries(&rt, call, &trace).await }
+        async move {
+            let result = run_with_bootstrap_retries(&rt, call, &trace).await;
+            let upstream = upstream_headers(&rt.config(), &result);
+            (result, upstream)
+        }
     });
+    // Upstream headers and the trace ID go on a rendered response; once a keep-alive
+    // committed the headers they are lost, as in Go.
     let traced = {
         let trace = trace.clone();
-        move |mut response: axum::response::Response| {
+        move |mut response: axum::response::Response, upstream: Option<Upstream>| {
+            match upstream {
+                Some(Upstream::Success(headers)) => respond::write_upstream_headers(response.headers_mut(), &headers),
+                Some(Upstream::Error(headers)) => respond::write_error_headers(response.headers_mut(), &headers),
+                None => {}
+            }
             if let Some(value) = trace.header() {
                 response.headers_mut().insert("x-cpa-trace-id", value);
             }
@@ -455,11 +467,12 @@ where
         }
     };
     let Some(interval) = interval else {
-        return traced(render(run.await).await);
+        let (result, upstream) = run.await;
+        return traced(render(result).await, upstream);
     };
     tokio::select! {
         biased;
-        result = &mut run => return traced(render(result).await),
+        (result, upstream) = &mut run => return traced(render(result).await, upstream),
         () = tokio::time::sleep(interval) => {}
     }
     // Go's handlers stop the keep-alive as soon as Execute returns: no beats while the
@@ -474,7 +487,7 @@ where
         let (mut run, mut ticks) = state?;
         tokio::select! {
             biased;
-            result = &mut run => Some((Event::Done(result), None)),
+            (result, _) = &mut run => Some((Event::Done(result), None)),
             _ = ticks.tick() => Some((Event::Tick, Some((run, ticks)))),
         }
     });
@@ -511,6 +524,27 @@ where
         headers.insert("x-cpa-trace-id", value);
     }
     response
+}
+
+/// Upstream response headers bound for the client under `requests.passthrough-headers`.
+enum Upstream {
+    /// Go `downstreamHeadersFromExecutor`, written by `WriteUpstreamHeaders`.
+    Success(HeaderMap),
+    /// Go `ErrorMessage.Addon`, written by `WriteErrorResponse`.
+    Error(HeaderMap),
+}
+
+fn upstream_headers(cfg: &Config, result: &Result<Done, Failure>) -> Option<Upstream> {
+    if !respond::passthrough_headers(cfg) {
+        return None;
+    }
+    match result {
+        Ok(Done::Buffered { headers, .. } | Done::Stream { headers, .. }) => {
+            Some(Upstream::Success(respond::filter_upstream_headers(headers)))
+        }
+        Err(Failure::Exec(error)) if !error.direct => Some(Upstream::Error((*error.headers).clone())),
+        Err(_) => None,
+    }
 }
 
 /// `requests.nonstream-keepalive-interval` seconds (Go `NonStreamingKeepAliveInterval`;

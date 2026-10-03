@@ -46,10 +46,10 @@ async fn main() -> anyhow::Result<()> {
         cpa_server::management::Options::default(),
     );
     let _watcher = cpa_server::watching::start(&management);
-    let app = cpa_server::app(rt.clone(), cpa_server::management::router(management))
+    let app = cpa_server::app(rt.clone(), cpa_server::management::router(management.clone()))
         .layer(axum::middleware::from_fn(cpa_server::management::cors));
     let app = cpa_server::observability::router(&rt, app);
     // The production listener (crates/cliproxy uses the same call), plain HTTP.
-    cpa_server::listener::serve(listener, app, None).await?;
+    cpa_server::listener::serve_with_resp(listener, app, None, Some(management)).await?;
     Ok(())
 }

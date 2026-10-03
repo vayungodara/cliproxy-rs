@@ -684,10 +684,16 @@ async fn serve(
         discovery::advertise::Advertiser::spawn(move || rt.config(), tls.is_some())
     };
     // Go applies its CORS middleware to every route, not only management.
-    let app = cpa_server::app(rt.clone(), cpa_server::management::router(management))
+    let app = cpa_server::app(rt.clone(), cpa_server::management::router(management.clone()))
         .layer(axum::middleware::from_fn(cpa_server::management::cors));
     let app = cpa_server::observability::router(&rt, app);
-    let mut server = Box::pin(cpa_server::listener::serve(listener, app, tls));
+    // Go's listener also serves the Redis protocol (usage queue) to management clients.
+    let mut server = Box::pin(cpa_server::listener::serve_with_resp(
+        listener,
+        app,
+        tls,
+        Some(management),
+    ));
     let served = tokio::select! {
         r = &mut server => r,
         _ = shutdown_signal() => Ok(()),

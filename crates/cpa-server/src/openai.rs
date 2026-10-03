@@ -48,6 +48,57 @@ fn call(req: Request, entry: Format, model: String, body: Bytes, stream: bool, a
     }
 }
 
+/// Go `handlers.ReadRequestBody`: `Content-Encoding` is decoded (zstd, applied last
+/// first; identity is a no-op) before the JSON is read. A body that fails to decode
+/// but is valid JSON is used as sent; otherwise the handler answers 400.
+// ponytail: decode errors carry the zstd crate's reason, not klauspost/compress's, and
+// the decoded size is bounded by MAX_REQUEST_BYTES (Go reads it unbounded).
+fn read_body(headers: &HeaderMap, raw: Bytes) -> Result<Bytes, Box<Response>> {
+    let encoding = headers
+        .get(axum::http::header::CONTENT_ENCODING)
+        .map(|v| String::from_utf8_lossy(v.as_bytes()).trim().to_owned())
+        .unwrap_or_default();
+    if encoding.is_empty() || encoding.eq_ignore_ascii_case("identity") {
+        return Ok(raw);
+    }
+    let decode = || -> Result<Bytes, String> {
+        let mut body = raw.clone();
+        for part in encoding.split(',').rev() {
+            match part.trim().to_ascii_lowercase().as_str() {
+                "" | "identity" => {}
+                "zstd" => body = decode_zstd(&body)?,
+                other => return Err(format!("unsupported request content encoding: {other}")),
+            }
+        }
+        Ok(body)
+    };
+    match decode() {
+        Ok(body) => Ok(body),
+        Err(_) if serde_json::from_slice::<serde::de::IgnoredAny>(&raw).is_ok() => Ok(raw),
+        Err(e) => Err(Box::new(respond::error_detail(
+            400,
+            &format!("Invalid request: {e}"),
+            "invalid_request_error",
+        ))),
+    }
+}
+
+fn decode_zstd(raw: &[u8]) -> Result<Bytes, String> {
+    use std::io::Read;
+    let fail = |e: std::io::Error| format!("failed to decode zstd request body: {e}");
+    let decoder =
+        zstd::stream::read::Decoder::new(raw).map_err(|e| format!("failed to create zstd request decoder: {e}"))?;
+    let mut out = Vec::new();
+    decoder
+        .take(crate::MAX_REQUEST_BYTES as u64 + 1)
+        .read_to_end(&mut out)
+        .map_err(fail)?;
+    if out.len() > crate::MAX_REQUEST_BYTES {
+        return Err(fail(std::io::Error::other("decoded body too large")));
+    }
+    Ok(Bytes::from(out))
+}
+
 pub async fn chat_completions(
     State(rt): State<Arc<Runtime>>,
     Extension(caller): Extension<Caller>,
@@ -58,7 +109,10 @@ pub async fn chat_completions(
     body: Result<Bytes, BytesRejection>,
 ) -> Response {
     let mut body = match body {
-        Ok(body) => body,
+        Ok(body) => match read_body(&headers, body) {
+            Ok(body) => body,
+            Err(response) => return *response,
+        },
         Err(rejection) => return read_failed(&rejection),
     };
     let fields = peek(&body);
@@ -136,7 +190,10 @@ pub async fn completions(
     body: Result<Bytes, BytesRejection>,
 ) -> Response {
     let body = match body {
-        Ok(body) => body,
+        Ok(body) => match read_body(&headers, body) {
+            Ok(body) => body,
+            Err(response) => return *response,
+        },
         Err(rejection) => return read_failed(&rejection),
     };
     let root: Value = serde_json::from_slice(&body).unwrap_or(Value::Null);
@@ -361,7 +418,10 @@ pub async fn responses(
     body: Result<Bytes, BytesRejection>,
 ) -> Response {
     let body = match body {
-        Ok(body) => body,
+        Ok(body) => match read_body(&headers, body) {
+            Ok(body) => body,
+            Err(response) => return *response,
+        },
         Err(rejection) => return read_failed(&rejection),
     };
     // Go `prepareCodexMultiAgentV2Tools` then `prepareCodexOrphanDelegation`.
@@ -886,7 +946,10 @@ pub async fn compact(
     body: Result<Bytes, BytesRejection>,
 ) -> Response {
     let body = match body {
-        Ok(body) => body,
+        Ok(body) => match read_body(&headers, body) {
+            Ok(body) => body,
+            Err(response) => return *response,
+        },
         Err(rejection) => return read_failed(&rejection),
     };
     // Go `prepareCodexOrphanDelegation` (compact skips the multi-agent tool step).

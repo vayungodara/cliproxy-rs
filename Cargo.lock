@@ -888,6 +888,7 @@ dependencies = [
  "uuid",
  "webrtc",
  "wreq",
+ "zstd",
 ]
 
 [[package]]

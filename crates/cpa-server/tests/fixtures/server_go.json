@@ -4569,6 +4569,90 @@
       "substituted": false
     }
   ],
+  "upstream_headers": [
+    {
+      "in": {
+        "Access-Control-Allow-Origin": [
+          "*"
+        ],
+        "Anthropic-Ratelimit-Requests-Limit": [
+          "50"
+        ],
+        "Cf-Aig-Cache-Status": [
+          "HIT"
+        ],
+        "Connection": [
+          "close, X-Custom-Hop"
+        ],
+        "Content-Encoding": [
+          "gzip"
+        ],
+        "Content-Length": [
+          "42"
+        ],
+        "Content-Type": [
+          "application/json"
+        ],
+        "Helicone-Id": [
+          "h1"
+        ],
+        "Keep-Alive": [
+          "timeout=5"
+        ],
+        "Retry-After": [
+          "30"
+        ],
+        "Set-Cookie": [
+          "s=1"
+        ],
+        "X-Cpa-Trace-Id": [
+          "t"
+        ],
+        "X-Custom-Hop": [
+          "h"
+        ],
+        "X-Litellm-Model": [
+          "m"
+        ],
+        "X-Multi": [
+          "a",
+          "b"
+        ],
+        "X-Request-Id": [
+          "req-1"
+        ]
+      },
+      "out": {
+        "Anthropic-Ratelimit-Requests-Limit": [
+          "50"
+        ],
+        "Content-Type": [
+          "application/json"
+        ],
+        "Retry-After": [
+          "30"
+        ],
+        "X-Multi": [
+          "a",
+          "b"
+        ],
+        "X-Request-Id": [
+          "req-1"
+        ]
+      }
+    },
+    {
+      "in": {
+        "Te": [
+          "trailers"
+        ],
+        "Transfer-Encoding": [
+          "chunked"
+        ]
+      },
+      "out": {}
+    }
+  ],
   "usage": [
     {
       "name": "claude buffered api key",
