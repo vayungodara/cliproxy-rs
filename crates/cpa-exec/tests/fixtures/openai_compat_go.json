@@ -2436,6 +2436,219 @@
       "output": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
     },
     {
+      "name": "apply_patch_valid_call",
+      "config": "\napi-keys:\n  openai-compatibility:\n    - name: Acme\n      base-url: http://UPSTREAM/v1\n      headers:\n        X-Static: static-value\n        X-Forward: $X-Client-Trace\n        X-Missing: $X-Not-Sent\n      models:\n        - name: acme-chat\n          alias: chat\n        - name: acme-mct\n          alias: mct\n          use-max-completion-tokens: true\n        - name: acme-text\n          alias: text\n          input-modalities: [text]\n        - name: acme-image\n          alias: img\n          image: true\n        - name: gpt-4o\n          alias: four\n        - name: acme-compat\n          alias: cc\n          is-compat: true\n      keys:\n        - api-key: sk-fake-acme\n    - name: cachey\n      base-url: http://UPSTREAM/v2/\n      support-prompt-cache-key: true\n      models:\n        - name: cache-model\n          alias: cm\n      keys:\n        - api-key: sk-fake-cache\n",
+      "config_auth": 0,
+      "provider": "openai-compatible-acme",
+      "model": "acme-chat",
+      "requested_model": "chat",
+      "payload": "{\"model\":\"chat\",\"input\":[{\"role\":\"user\",\"content\":\"edit a.txt\"}],\"tools\":[{\"type\":\"custom\",\"name\":\"apply_patch\",\"format\":{\"type\":\"grammar\",\"syntax\":\"lark\",\"definition\":\"start: patch\"}}]}",
+      "source": "openai-response",
+      "op": "execute",
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "application/json"
+          ]
+        ],
+        "body": "{\"id\":\"r1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"tool_calls\":[{\"id\":\"c1\",\"type\":\"function\",\"function\":{\"name\":\"apply_patch\",\"arguments\":\"{\\\"input\\\":\\\"*** Begin Patch\\\\n*** Add File: a.txt\\\\n+hello\\\\n*** End Patch\\\\n\\\"}\"}}]},\"finish_reason\":\"tool_calls\"}]}"
+      },
+      "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 1012\r\nAuthorization: Bearer sk-fake-acme\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"edit a.txt\"}],\"stream\":false,\"tools\":[{\"function\":{\"description\":\"Call this function with a JSON object whose input field contains the complete patch text.\\nUse the Codex apply_patch format, not a conventional git unified diff.\\nStart with *** Begin Patch and end with *** End Patch.\\nUse *** Add File: path, *** Delete File: path, or *** Update File: path.\\nEvery added-file content line starts with +.\\nFor updates, use @@; context lines start with one space, removed lines with -, and added lines with +.\\nUse *** Move to: path for a rename and *** End of File when required by the patch grammar.\\nExample input:\\n*** Begin Patch\\n*** Update File: src/main.go\\n@@\\n-old\\n+new\\n*** End Patch\\n\\nOriginal patch grammar:\\nstart: patch\",\"name\":\"apply_patch\",\"parameters\":{\"additionalProperties\":false,\"properties\":{\"input\":{\"description\":\"The complete apply_patch patch text.\",\"type\":\"string\"}},\"required\":[\"input\"],\"type\":\"object\"}},\"type\":\"function\"}]}",
+      "output": "{\"id\":\"r1\",\"object\":\"response\",\"created_at\":1,\"status\":\"completed\",\"background\":false,\"error\":null,\"incomplete_details\":null,\"model\":\"acme-chat\",\"tools\":[{\"function\":{\"description\":\"Call this function with a JSON object whose input field contains the complete patch text.\\nUse the Codex apply_patch format, not a conventional git unified diff.\\nStart with *** Begin Patch and end with *** End Patch.\\nUse *** Add File: path, *** Delete File: path, or *** Update File: path.\\nEvery added-file content line starts with +.\\nFor updates, use @@; context lines start with one space, removed lines with -, and added lines with +.\\nUse *** Move to: path for a rename and *** End of File when required by the patch grammar.\\nExample input:\\n*** Begin Patch\\n*** Update File: src/main.go\\n@@\\n-old\\n+new\\n*** End Patch\\n\\nOriginal patch grammar:\\nstart: patch\",\"name\":\"apply_patch\",\"parameters\":{\"additionalProperties\":false,\"properties\":{\"input\":{\"description\":\"The complete apply_patch patch text.\",\"type\":\"string\"}},\"required\":[\"input\"],\"type\":\"object\"}},\"type\":\"function\"}],\"output\":[{\"id\":\"ctc_c1\",\"type\":\"custom_tool_call\",\"status\":\"completed\",\"input\":\"*** Begin Patch\\n*** Add File: a.txt\\n+hello\\n*** End Patch\\n\",\"call_id\":\"c1\",\"name\":\"apply_patch\"}]}"
+    },
+    {
+      "name": "apply_patch_invalid_arguments",
+      "config": "\napi-keys:\n  openai-compatibility:\n    - name: Acme\n      base-url: http://UPSTREAM/v1\n      headers:\n        X-Static: static-value\n        X-Forward: $X-Client-Trace\n        X-Missing: $X-Not-Sent\n      models:\n        - name: acme-chat\n          alias: chat\n        - name: acme-mct\n          alias: mct\n          use-max-completion-tokens: true\n        - name: acme-text\n          alias: text\n          input-modalities: [text]\n        - name: acme-image\n          alias: img\n          image: true\n        - name: gpt-4o\n          alias: four\n        - name: acme-compat\n          alias: cc\n          is-compat: true\n      keys:\n        - api-key: sk-fake-acme\n    - name: cachey\n      base-url: http://UPSTREAM/v2/\n      support-prompt-cache-key: true\n      models:\n        - name: cache-model\n          alias: cm\n      keys:\n        - api-key: sk-fake-cache\n",
+      "config_auth": 0,
+      "provider": "openai-compatible-acme",
+      "model": "acme-chat",
+      "requested_model": "chat",
+      "payload": "{\"model\":\"chat\",\"input\":[{\"role\":\"user\",\"content\":\"edit a.txt\"}],\"tools\":[{\"type\":\"custom\",\"name\":\"apply_patch\",\"format\":{\"type\":\"grammar\",\"syntax\":\"lark\",\"definition\":\"start: patch\"}}]}",
+      "source": "openai-response",
+      "op": "execute",
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "application/json"
+          ]
+        ],
+        "body": "{\"id\":\"r1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"tool_calls\":[{\"id\":\"c1\",\"type\":\"function\",\"function\":{\"name\":\"apply_patch\",\"arguments\":\"{\\\"input\\\":\\\"x\\\",\\\"extra\\\":\\\"RAW_SECRET\\\"}\"}}]},\"finish_reason\":\"tool_calls\"}]}"
+      },
+      "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 1012\r\nAuthorization: Bearer sk-fake-acme\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"edit a.txt\"}],\"stream\":false,\"tools\":[{\"function\":{\"description\":\"Call this function with a JSON object whose input field contains the complete patch text.\\nUse the Codex apply_patch format, not a conventional git unified diff.\\nStart with *** Begin Patch and end with *** End Patch.\\nUse *** Add File: path, *** Delete File: path, or *** Update File: path.\\nEvery added-file content line starts with +.\\nFor updates, use @@; context lines start with one space, removed lines with -, and added lines with +.\\nUse *** Move to: path for a rename and *** End of File when required by the patch grammar.\\nExample input:\\n*** Begin Patch\\n*** Update File: src/main.go\\n@@\\n-old\\n+new\\n*** End Patch\\n\\nOriginal patch grammar:\\nstart: patch\",\"name\":\"apply_patch\",\"parameters\":{\"additionalProperties\":false,\"properties\":{\"input\":{\"description\":\"The complete apply_patch patch text.\",\"type\":\"string\"}},\"required\":[\"input\"],\"type\":\"object\"}},\"type\":\"function\"}]}",
+      "error": {
+        "status": 502,
+        "message": "Invalid apply_patch tool arguments received from upstream.",
+        "retry_after_ms": -1
+      }
+    },
+    {
+      "name": "apply_patch_stream_valid",
+      "config": "\napi-keys:\n  openai-compatibility:\n    - name: Acme\n      base-url: http://UPSTREAM/v1\n      headers:\n        X-Static: static-value\n        X-Forward: $X-Client-Trace\n        X-Missing: $X-Not-Sent\n      models:\n        - name: acme-chat\n          alias: chat\n        - name: acme-mct\n          alias: mct\n          use-max-completion-tokens: true\n        - name: acme-text\n          alias: text\n          input-modalities: [text]\n        - name: acme-image\n          alias: img\n          image: true\n        - name: gpt-4o\n          alias: four\n        - name: acme-compat\n          alias: cc\n          is-compat: true\n      keys:\n        - api-key: sk-fake-acme\n    - name: cachey\n      base-url: http://UPSTREAM/v2/\n      support-prompt-cache-key: true\n      models:\n        - name: cache-model\n          alias: cm\n      keys:\n        - api-key: sk-fake-cache\n",
+      "config_auth": 0,
+      "provider": "openai-compatible-acme",
+      "model": "acme-chat",
+      "requested_model": "chat",
+      "payload": "{\"model\":\"chat\",\"input\":[{\"role\":\"user\",\"content\":\"edit a.txt\"}],\"tools\":[{\"type\":\"custom\",\"name\":\"apply_patch\",\"format\":{\"type\":\"grammar\",\"syntax\":\"lark\",\"definition\":\"start: patch\"}}]}",
+      "source": "openai-response",
+      "stream": true,
+      "op": "stream",
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "text/event-stream"
+          ]
+        ],
+        "body": "data: {\"id\":\"r1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"tool_calls\":[{\"index\":0,\"id\":\"c1\",\"type\":\"function\",\"function\":{\"name\":\"apply_patch\",\"arguments\":\"\"}}]},\"finish_reason\":null}]}\n\ndata: {\"id\":\"r1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":\"{\\\"input\\\":\\\"*** Begin Patch\\\\n*** End Patch\\\\n\\\"}\"}}]},\"finish_reason\":null}]}\n\ndata: {\"id\":\"r1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"tool_calls\"}]}\n\ndata: [DONE]\n\n"
+      },
+      "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 1051\r\nAccept: text/event-stream\r\nAuthorization: Bearer sk-fake-acme\r\nCache-Control: no-cache\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"edit a.txt\"}],\"stream\":true,\"tools\":[{\"function\":{\"description\":\"Call this function with a JSON object whose input field contains the complete patch text.\\nUse the Codex apply_patch format, not a conventional git unified diff.\\nStart with *** Begin Patch and end with *** End Patch.\\nUse *** Add File: path, *** Delete File: path, or *** Update File: path.\\nEvery added-file content line starts with +.\\nFor updates, use @@; context lines start with one space, removed lines with -, and added lines with +.\\nUse *** Move to: path for a rename and *** End of File when required by the patch grammar.\\nExample input:\\n*** Begin Patch\\n*** Update File: src/main.go\\n@@\\n-old\\n+new\\n*** End Patch\\n\\nOriginal patch grammar:\\nstart: patch\",\"name\":\"apply_patch\",\"parameters\":{\"additionalProperties\":false,\"properties\":{\"input\":{\"description\":\"The complete apply_patch patch text.\",\"type\":\"string\"}},\"required\":[\"input\"],\"type\":\"object\"}},\"type\":\"function\"}],\"stream_options\":{\"include_usage\":true}}",
+      "chunks": [
+        "event: response.created\ndata: {\"type\":\"response.created\",\"sequence_number\":1,\"response\":{\"id\":\"r1\",\"object\":\"response\",\"created_at\":1,\"status\":\"in_progress\",\"background\":false,\"error\":null,\"output\":[],\"model\":\"chat\"}}\n\n",
+        "event: response.in_progress\ndata: {\"type\":\"response.in_progress\",\"sequence_number\":2,\"response\":{\"id\":\"r1\",\"object\":\"response\",\"created_at\":1,\"status\":\"in_progress\",\"output\":[],\"model\":\"chat\"}}\n\n",
+        "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"sequence_number\":3,\"output_index\":0,\"item\":{\"id\":\"ctc_c1\",\"type\":\"custom_tool_call\",\"status\":\"in_progress\",\"input\":\"\",\"call_id\":\"c1\",\"name\":\"apply_patch\"}}\n\n",
+        "event: response.custom_tool_call_input.delta\ndata: {\"type\":\"response.custom_tool_call_input.delta\",\"item_id\":\"ctc_c1\",\"call_id\":\"c1\",\"output_index\":0,\"sequence_number\":4,\"delta\":\"*** Begin Patch\\n*** End Patch\\n\"}\n\n",
+        "event: response.custom_tool_call_input.done\ndata: {\"type\":\"response.custom_tool_call_input.done\",\"item_id\":\"ctc_c1\",\"call_id\":\"c1\",\"output_index\":0,\"sequence_number\":5,\"input\":\"*** Begin Patch\\n*** End Patch\\n\"}\n\n",
+        "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"sequence_number\":6,\"output_index\":0,\"item\":{\"id\":\"ctc_c1\",\"type\":\"custom_tool_call\",\"status\":\"completed\",\"input\":\"*** Begin Patch\\n*** End Patch\\n\",\"call_id\":\"c1\",\"name\":\"apply_patch\"}}\n\n",
+        "event: response.completed\ndata: {\"type\":\"response.completed\",\"sequence_number\":7,\"response\":{\"id\":\"r1\",\"object\":\"response\",\"created_at\":1,\"status\":\"completed\",\"background\":false,\"error\":null,\"model\":\"chat\",\"tools\":[{\"format\":{\"definition\":\"start: patch\",\"syntax\":\"lark\",\"type\":\"grammar\"},\"name\":\"apply_patch\",\"type\":\"custom\"}],\"output\":[{\"id\":\"ctc_c1\",\"type\":\"custom_tool_call\",\"status\":\"completed\",\"input\":\"*** Begin Patch\\n*** End Patch\\n\",\"call_id\":\"c1\",\"name\":\"apply_patch\"}]}}\n\n"
+      ]
+    },
+    {
+      "name": "apply_patch_stream_invalid_arguments",
+      "config": "\napi-keys:\n  openai-compatibility:\n    - name: Acme\n      base-url: http://UPSTREAM/v1\n      headers:\n        X-Static: static-value\n        X-Forward: $X-Client-Trace\n        X-Missing: $X-Not-Sent\n      models:\n        - name: acme-chat\n          alias: chat\n        - name: acme-mct\n          alias: mct\n          use-max-completion-tokens: true\n        - name: acme-text\n          alias: text\n          input-modalities: [text]\n        - name: acme-image\n          alias: img\n          image: true\n        - name: gpt-4o\n          alias: four\n        - name: acme-compat\n          alias: cc\n          is-compat: true\n      keys:\n        - api-key: sk-fake-acme\n    - name: cachey\n      base-url: http://UPSTREAM/v2/\n      support-prompt-cache-key: true\n      models:\n        - name: cache-model\n          alias: cm\n      keys:\n        - api-key: sk-fake-cache\n",
+      "config_auth": 0,
+      "provider": "openai-compatible-acme",
+      "model": "acme-chat",
+      "requested_model": "chat",
+      "payload": "{\"model\":\"chat\",\"input\":[{\"role\":\"user\",\"content\":\"edit a.txt\"}],\"tools\":[{\"type\":\"custom\",\"name\":\"apply_patch\",\"format\":{\"type\":\"grammar\",\"syntax\":\"lark\",\"definition\":\"start: patch\"}}]}",
+      "source": "openai-response",
+      "stream": true,
+      "op": "stream",
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "text/event-stream"
+          ]
+        ],
+        "body": "data: {\"id\":\"r1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"tool_calls\":[{\"index\":0,\"id\":\"c1\",\"type\":\"function\",\"function\":{\"name\":\"apply_patch\",\"arguments\":\"\"}}]},\"finish_reason\":null}]}\n\ndata: {\"id\":\"r1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":\"{\\\"input\\\":7}\"}}]},\"finish_reason\":null}]}\n\ndata: {\"id\":\"r1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"tool_calls\"}]}\n\ndata: [DONE]\n\n"
+      },
+      "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 1051\r\nAccept: text/event-stream\r\nAuthorization: Bearer sk-fake-acme\r\nCache-Control: no-cache\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"edit a.txt\"}],\"stream\":true,\"tools\":[{\"function\":{\"description\":\"Call this function with a JSON object whose input field contains the complete patch text.\\nUse the Codex apply_patch format, not a conventional git unified diff.\\nStart with *** Begin Patch and end with *** End Patch.\\nUse *** Add File: path, *** Delete File: path, or *** Update File: path.\\nEvery added-file content line starts with +.\\nFor updates, use @@; context lines start with one space, removed lines with -, and added lines with +.\\nUse *** Move to: path for a rename and *** End of File when required by the patch grammar.\\nExample input:\\n*** Begin Patch\\n*** Update File: src/main.go\\n@@\\n-old\\n+new\\n*** End Patch\\n\\nOriginal patch grammar:\\nstart: patch\",\"name\":\"apply_patch\",\"parameters\":{\"additionalProperties\":false,\"properties\":{\"input\":{\"description\":\"The complete apply_patch patch text.\",\"type\":\"string\"}},\"required\":[\"input\"],\"type\":\"object\"}},\"type\":\"function\"}],\"stream_options\":{\"include_usage\":true}}",
+      "chunks": [
+        "event: response.created\ndata: {\"type\":\"response.created\",\"sequence_number\":1,\"response\":{\"id\":\"r1\",\"object\":\"response\",\"created_at\":1,\"status\":\"in_progress\",\"background\":false,\"error\":null,\"output\":[],\"model\":\"chat\"}}\n\n",
+        "event: response.in_progress\ndata: {\"type\":\"response.in_progress\",\"sequence_number\":2,\"response\":{\"id\":\"r1\",\"object\":\"response\",\"created_at\":1,\"status\":\"in_progress\",\"output\":[],\"model\":\"chat\"}}\n\n",
+        "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"sequence_number\":3,\"output_index\":0,\"item\":{\"id\":\"ctc_c1\",\"type\":\"custom_tool_call\",\"status\":\"in_progress\",\"input\":\"\",\"call_id\":\"c1\",\"name\":\"apply_patch\"}}\n\n",
+        "event: response.failed\ndata: {\"type\":\"response.failed\",\"sequence_number\":4,\"response\":{\"id\":\"r1\",\"object\":\"response\",\"status\":\"failed\",\"error\":{\"type\":\"server_error\",\"code\":\"invalid_tool_arguments\",\"message\":\"Invalid apply_patch tool arguments received from upstream.\",\"param\":null}}}\n\n"
+      ],
+      "error": {
+        "status": 502,
+        "message": "Invalid apply_patch tool arguments received from upstream.",
+        "retry_after_ms": -1
+      }
+    },
+    {
+      "name": "apply_patch_stream_failure_stops_before_later_frames",
+      "config": "\napi-keys:\n  openai-compatibility:\n    - name: Acme\n      base-url: http://UPSTREAM/v1\n      headers:\n        X-Static: static-value\n        X-Forward: $X-Client-Trace\n        X-Missing: $X-Not-Sent\n      models:\n        - name: acme-chat\n          alias: chat\n        - name: acme-mct\n          alias: mct\n          use-max-completion-tokens: true\n        - name: acme-text\n          alias: text\n          input-modalities: [text]\n        - name: acme-image\n          alias: img\n          image: true\n        - name: gpt-4o\n          alias: four\n        - name: acme-compat\n          alias: cc\n          is-compat: true\n      keys:\n        - api-key: sk-fake-acme\n    - name: cachey\n      base-url: http://UPSTREAM/v2/\n      support-prompt-cache-key: true\n      models:\n        - name: cache-model\n          alias: cm\n      keys:\n        - api-key: sk-fake-cache\n",
+      "config_auth": 0,
+      "provider": "openai-compatible-acme",
+      "model": "acme-chat",
+      "requested_model": "chat",
+      "payload": "{\"model\":\"chat\",\"input\":[{\"role\":\"user\",\"content\":\"edit a.txt\"}],\"tools\":[{\"type\":\"custom\",\"name\":\"apply_patch\",\"format\":{\"type\":\"grammar\",\"syntax\":\"lark\",\"definition\":\"start: patch\"}}]}",
+      "source": "openai-response",
+      "stream": true,
+      "op": "stream",
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "text/event-stream"
+          ]
+        ],
+        "body": "data: {\"id\":\"r1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"tool_calls\":[{\"index\":0,\"id\":\"c1\",\"type\":\"function\",\"function\":{\"name\":\"apply_patch\",\"arguments\":\"\"}}]},\"finish_reason\":null}]}\n\ndata: {\"id\":\"r1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":\"{\\\"input\\\":7}\"}}]},\"finish_reason\":null}]}\n\ndata: {\"id\":\"r1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"tool_calls\"}]}\n\ndata: {\"error\":{\"message\":\"late\",\"status\":429}}\n\n"
+      },
+      "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 1051\r\nAccept: text/event-stream\r\nAuthorization: Bearer sk-fake-acme\r\nCache-Control: no-cache\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"edit a.txt\"}],\"stream\":true,\"tools\":[{\"function\":{\"description\":\"Call this function with a JSON object whose input field contains the complete patch text.\\nUse the Codex apply_patch format, not a conventional git unified diff.\\nStart with *** Begin Patch and end with *** End Patch.\\nUse *** Add File: path, *** Delete File: path, or *** Update File: path.\\nEvery added-file content line starts with +.\\nFor updates, use @@; context lines start with one space, removed lines with -, and added lines with +.\\nUse *** Move to: path for a rename and *** End of File when required by the patch grammar.\\nExample input:\\n*** Begin Patch\\n*** Update File: src/main.go\\n@@\\n-old\\n+new\\n*** End Patch\\n\\nOriginal patch grammar:\\nstart: patch\",\"name\":\"apply_patch\",\"parameters\":{\"additionalProperties\":false,\"properties\":{\"input\":{\"description\":\"The complete apply_patch patch text.\",\"type\":\"string\"}},\"required\":[\"input\"],\"type\":\"object\"}},\"type\":\"function\"}],\"stream_options\":{\"include_usage\":true}}",
+      "chunks": [
+        "event: response.created\ndata: {\"type\":\"response.created\",\"sequence_number\":1,\"response\":{\"id\":\"r1\",\"object\":\"response\",\"created_at\":1,\"status\":\"in_progress\",\"background\":false,\"error\":null,\"output\":[],\"model\":\"chat\"}}\n\n",
+        "event: response.in_progress\ndata: {\"type\":\"response.in_progress\",\"sequence_number\":2,\"response\":{\"id\":\"r1\",\"object\":\"response\",\"created_at\":1,\"status\":\"in_progress\",\"output\":[],\"model\":\"chat\"}}\n\n",
+        "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"sequence_number\":3,\"output_index\":0,\"item\":{\"id\":\"ctc_c1\",\"type\":\"custom_tool_call\",\"status\":\"in_progress\",\"input\":\"\",\"call_id\":\"c1\",\"name\":\"apply_patch\"}}\n\n",
+        "event: response.failed\ndata: {\"type\":\"response.failed\",\"sequence_number\":4,\"response\":{\"id\":\"r1\",\"object\":\"response\",\"status\":\"failed\",\"error\":{\"type\":\"server_error\",\"code\":\"invalid_tool_arguments\",\"message\":\"Invalid apply_patch tool arguments received from upstream.\",\"param\":null}}}\n\n"
+      ],
+      "error": {
+        "status": 502,
+        "message": "Invalid apply_patch tool arguments received from upstream.",
+        "retry_after_ms": -1
+      }
+    },
+    {
+      "name": "apply_patch_stream_truncated",
+      "config": "\napi-keys:\n  openai-compatibility:\n    - name: Acme\n      base-url: http://UPSTREAM/v1\n      headers:\n        X-Static: static-value\n        X-Forward: $X-Client-Trace\n        X-Missing: $X-Not-Sent\n      models:\n        - name: acme-chat\n          alias: chat\n        - name: acme-mct\n          alias: mct\n          use-max-completion-tokens: true\n        - name: acme-text\n          alias: text\n          input-modalities: [text]\n        - name: acme-image\n          alias: img\n          image: true\n        - name: gpt-4o\n          alias: four\n        - name: acme-compat\n          alias: cc\n          is-compat: true\n      keys:\n        - api-key: sk-fake-acme\n    - name: cachey\n      base-url: http://UPSTREAM/v2/\n      support-prompt-cache-key: true\n      models:\n        - name: cache-model\n          alias: cm\n      keys:\n        - api-key: sk-fake-cache\n",
+      "config_auth": 0,
+      "provider": "openai-compatible-acme",
+      "model": "acme-chat",
+      "requested_model": "chat",
+      "payload": "{\"model\":\"chat\",\"input\":[{\"role\":\"user\",\"content\":\"edit a.txt\"}],\"tools\":[{\"type\":\"custom\",\"name\":\"apply_patch\",\"format\":{\"type\":\"grammar\",\"syntax\":\"lark\",\"definition\":\"start: patch\"}}]}",
+      "source": "openai-response",
+      "stream": true,
+      "op": "stream",
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "text/event-stream"
+          ]
+        ],
+        "body": "data: {\"id\":\"r1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"tool_calls\":[{\"index\":0,\"id\":\"c1\",\"type\":\"function\",\"function\":{\"name\":\"apply_patch\",\"arguments\":\"\"}}]},\"finish_reason\":null}]}\n\ndata: {\"id\":\"r1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":\"{\\\"input\\\":\\\"unfinished\\\"\"}}]},\"finish_reason\":null}]}\n\n"
+      },
+      "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 1051\r\nAccept: text/event-stream\r\nAuthorization: Bearer sk-fake-acme\r\nCache-Control: no-cache\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"edit a.txt\"}],\"stream\":true,\"tools\":[{\"function\":{\"description\":\"Call this function with a JSON object whose input field contains the complete patch text.\\nUse the Codex apply_patch format, not a conventional git unified diff.\\nStart with *** Begin Patch and end with *** End Patch.\\nUse *** Add File: path, *** Delete File: path, or *** Update File: path.\\nEvery added-file content line starts with +.\\nFor updates, use @@; context lines start with one space, removed lines with -, and added lines with +.\\nUse *** Move to: path for a rename and *** End of File when required by the patch grammar.\\nExample input:\\n*** Begin Patch\\n*** Update File: src/main.go\\n@@\\n-old\\n+new\\n*** End Patch\\n\\nOriginal patch grammar:\\nstart: patch\",\"name\":\"apply_patch\",\"parameters\":{\"additionalProperties\":false,\"properties\":{\"input\":{\"description\":\"The complete apply_patch patch text.\",\"type\":\"string\"}},\"required\":[\"input\"],\"type\":\"object\"}},\"type\":\"function\"}],\"stream_options\":{\"include_usage\":true}}",
+      "chunks": [
+        "event: response.created\ndata: {\"type\":\"response.created\",\"sequence_number\":1,\"response\":{\"id\":\"r1\",\"object\":\"response\",\"created_at\":1,\"status\":\"in_progress\",\"background\":false,\"error\":null,\"output\":[],\"model\":\"chat\"}}\n\n",
+        "event: response.in_progress\ndata: {\"type\":\"response.in_progress\",\"sequence_number\":2,\"response\":{\"id\":\"r1\",\"object\":\"response\",\"created_at\":1,\"status\":\"in_progress\",\"output\":[],\"model\":\"chat\"}}\n\n",
+        "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"sequence_number\":3,\"output_index\":0,\"item\":{\"id\":\"ctc_c1\",\"type\":\"custom_tool_call\",\"status\":\"in_progress\",\"input\":\"\",\"call_id\":\"c1\",\"name\":\"apply_patch\"}}\n\n",
+        "event: response.custom_tool_call_input.delta\ndata: {\"type\":\"response.custom_tool_call_input.delta\",\"item_id\":\"ctc_c1\",\"call_id\":\"c1\",\"output_index\":0,\"sequence_number\":4,\"delta\":\"unfinished\"}\n\n",
+        "event: response.failed\ndata: {\"type\":\"response.failed\",\"sequence_number\":5,\"response\":{\"id\":\"r1\",\"object\":\"response\",\"status\":\"failed\",\"error\":{\"type\":\"server_error\",\"code\":\"invalid_tool_arguments\",\"message\":\"Invalid apply_patch tool arguments received from upstream.\",\"param\":null}}}\n\n"
+      ],
+      "error": {
+        "status": 502,
+        "message": "Invalid apply_patch tool arguments received from upstream.",
+        "retry_after_ms": -1
+      }
+    },
+    {
+      "name": "apply_patch_stream_chat_client_ignores_bridge",
+      "config": "\napi-keys:\n  openai-compatibility:\n    - name: Acme\n      base-url: http://UPSTREAM/v1\n      headers:\n        X-Static: static-value\n        X-Forward: $X-Client-Trace\n        X-Missing: $X-Not-Sent\n      models:\n        - name: acme-chat\n          alias: chat\n        - name: acme-mct\n          alias: mct\n          use-max-completion-tokens: true\n        - name: acme-text\n          alias: text\n          input-modalities: [text]\n        - name: acme-image\n          alias: img\n          image: true\n        - name: gpt-4o\n          alias: four\n        - name: acme-compat\n          alias: cc\n          is-compat: true\n      keys:\n        - api-key: sk-fake-acme\n    - name: cachey\n      base-url: http://UPSTREAM/v2/\n      support-prompt-cache-key: true\n      models:\n        - name: cache-model\n          alias: cm\n      keys:\n        - api-key: sk-fake-cache\n",
+      "config_auth": 0,
+      "provider": "openai-compatible-acme",
+      "model": "acme-chat",
+      "requested_model": "chat",
+      "payload": "{\"model\":\"chat\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"apply_patch\",\"parameters\":{\"type\":\"object\"}}}]}",
+      "source": "openai",
+      "stream": true,
+      "op": "stream",
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "text/event-stream"
+          ]
+        ],
+        "body": "data: {\"id\":\"r1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"tool_calls\":[{\"index\":0,\"id\":\"c1\",\"type\":\"function\",\"function\":{\"name\":\"apply_patch\",\"arguments\":\"\"}}]},\"finish_reason\":null}]}\n\ndata: {\"id\":\"r1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":\"{\\\"input\\\":7}\"}}]},\"finish_reason\":null}]}\n\ndata: {\"id\":\"r1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"tool_calls\"}]}\n\ndata: [DONE]\n\n"
+      },
+      "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 199\r\nAccept: text/event-stream\r\nAuthorization: Bearer sk-fake-acme\r\nCache-Control: no-cache\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"apply_patch\",\"parameters\":{\"type\":\"object\"}}}],\"stream_options\":{\"include_usage\":true}}",
+      "chunks": [
+        "{\"id\":\"r1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"tool_calls\":[{\"index\":0,\"id\":\"c1\",\"type\":\"function\",\"function\":{\"name\":\"apply_patch\",\"arguments\":\"\"}}]},\"finish_reason\":null}]}",
+        "{\"id\":\"r1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":\"{\\\"input\\\":7}\"}}]},\"finish_reason\":null}]}",
+        "{\"id\":\"r1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"tool_calls\"}]}"
+      ]
+    },
+    {
       "name": "needs_translator_responses_source",
       "config": "\napi-keys:\n  openai-compatibility:\n    - name: Acme\n      base-url: http://UPSTREAM/v1\n      headers:\n        X-Static: static-value\n        X-Forward: $X-Client-Trace\n        X-Missing: $X-Not-Sent\n      models:\n        - name: acme-chat\n          alias: chat\n        - name: acme-mct\n          alias: mct\n          use-max-completion-tokens: true\n        - name: acme-text\n          alias: text\n          input-modalities: [text]\n        - name: acme-image\n          alias: img\n          image: true\n        - name: gpt-4o\n          alias: four\n        - name: acme-compat\n          alias: cc\n          is-compat: true\n      keys:\n        - api-key: sk-fake-acme\n    - name: cachey\n      base-url: http://UPSTREAM/v2/\n      support-prompt-cache-key: true\n      models:\n        - name: cache-model\n          alias: cm\n      keys:\n        - api-key: sk-fake-cache\n",
       "config_auth": 0,

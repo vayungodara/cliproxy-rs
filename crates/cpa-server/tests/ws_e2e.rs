@@ -227,18 +227,17 @@ async fn run(name: &str) {
     }
     let upstream = serve(axum::Router::new().fallback(upstream_handler).with_state(up.clone())).await;
     let cfg = config(scenario, &upstream);
-    let mut credentials = cpa_core::config::credentials::from_config(&cfg);
+    let credentials = cpa_core::config::credentials::from_config(&cfg);
     assert_eq!(credentials.len(), scenario["credentials"].as_array().unwrap().len());
-    // ponytail: config synthesis does not yet carry `codex-api-key` `models` into the
-    // metadata the registry reads (reported to the integrator); attach what it should.
-    for (credential, go) in credentials.iter_mut().zip(scenario["credentials"].as_array().unwrap()) {
+    // Synthesis carries each key's name-only `models` entries, as Go's registry reads them.
+    for (credential, go) in credentials.iter().zip(scenario["credentials"].as_array().unwrap()) {
         let models: Vec<Value> = go["models"]
             .as_array()
             .unwrap()
             .iter()
             .map(|m| serde_json::json!({ "name": m }))
             .collect();
-        credential.metadata.insert("models".into(), Value::Array(models));
+        assert_eq!(credential.metadata["models"], Value::Array(models));
     }
     let executors = Executors {
         claude: cpa_exec::claude::ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
