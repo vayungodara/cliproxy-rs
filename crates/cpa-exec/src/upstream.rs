@@ -244,7 +244,7 @@ fn decode_error() -> ExecError {
 }
 
 /// Frames an SSE body into whole events. The first `Err` is the last item.
-fn framed<S>(body: S) -> ExecStream
+pub(crate) fn framed<S>(body: S) -> ExecStream
 where
     S: Stream<Item = Result<Bytes, ExecError>> + Send + Unpin + 'static,
 {

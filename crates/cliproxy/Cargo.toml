@@ -10,10 +10,15 @@ rust-version.workspace = true
 anyhow.workspace = true
 axum.workspace = true
 clap.workspace = true
+cpa-common.workspace = true
 cpa-core.workspace = true
 cpa-exec.workspace = true
 cpa-server.workspace = true
+getrandom = "0.3"
 libc.workspace = true
-socket2.workspace = true
+serde_json.workspace = true
+serde_yaml_ng.workspace = true
+# `all` for SO_REUSEPORT, which Go sets on mDNS sockets outside Linux.
+socket2 = { workspace = true, features = ["all"] }
 tokio.workspace = true
 tracing.workspace = true
