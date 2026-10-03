@@ -68,7 +68,7 @@ fn with_retry_after(mut response: Response, seconds: Option<u64>) -> Response {
 }
 
 /// `Auth.AuthKind`: explicit kind, then an API key attribute, then OAuth token metadata.
-fn auth_kind(c: &Credential) -> Option<&'static str> {
+pub(crate) fn auth_kind(c: &Credential) -> Option<&'static str> {
     let normalize = |s: &str| match s.trim().to_ascii_lowercase().as_str() {
         "apikey" | "api_key" | "api-key" => Some("apikey"),
         "oauth" | "oauth2" => Some("oauth"),
