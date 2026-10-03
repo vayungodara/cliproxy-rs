@@ -15,7 +15,7 @@ use tokio::task::AbortHandle;
 const LIFETIME: Duration = Duration::from_secs(3600);
 
 /// One remembered call (`liveSession`).
-#[derive(Debug, Default)]
+#[derive(Default)]
 pub(super) struct Call {
     pub call_id: String,
     /// The credential that created it; the sideband and hangup are pinned to it.
@@ -30,6 +30,8 @@ pub(super) struct Call {
     /// The ephemeral key's `sess_` identity when one created it.
     pub secret_principal: String,
     pub resources: Resources,
+    /// The relayed media session, when the media relay handled the call.
+    pub media: Option<Arc<dyn super::relay::MediaSession>>,
     /// Assigned by [`Calls::put`]; tells a stale handle from the current call.
     pub token: u64,
 }
@@ -165,10 +167,15 @@ impl Calls {
 
     /// Forgets the call (if it is still this one) and ends it.
     pub fn complete(&self, call: &Call, reason: &str) {
+        self.complete_token(&call.call_id, call.token, reason);
+    }
+
+    /// [`Calls::complete`] by identity, for callbacks that must not keep the call alive.
+    pub fn complete_token(&self, call_id: &str, token: u64, reason: &str) {
         let removed = {
             let mut entries = self.entries.lock().unwrap_or_else(PoisonError::into_inner);
-            match entries.1.get(&call.call_id) {
-                Some(entry) if entry.call.token == call.token => entries.1.remove(&call.call_id),
+            match entries.1.get(call_id) {
+                Some(entry) if entry.call.token == token => entries.1.remove(call_id),
                 _ => None,
             }
         };
@@ -213,6 +220,9 @@ fn end(entry: Entry, reason: &str) {
     }
     tracing::debug!(call_id = %entry.call.call_id, reason, "codex live call ended");
     entry.call.resources.close();
+    if let Some(media) = &entry.call.media {
+        media.close(reason);
+    }
 }
 
 /// A sideband's claim on a call: dropped unconsumed it releases the call, consumed it

@@ -334,6 +334,81 @@ func TestRSFixLiveWebsockets(t *testing.T) {
 		_, raw.Kept = handler.sessions.peek(raw.CallID)
 		raws = append(raws, raw)
 	}
+	// How the relay ends when the downstream connection fails mid-session
+	// (websocketCloseDetails): what close frame the upstream receives.
+	type endCase struct {
+		Name     string       `json:"name"`
+		Upstream []rsfixFrame `json:"upstream_received"`
+	}
+	var ends []endCase
+	for _, action := range []string{"rsv1", "abrupt", "reset"} {
+		callID := "call-end-" + action
+		store(callID, "owner")
+		mu.Lock()
+		seen = nil
+		mu.Unlock()
+		select {
+		case <-done:
+		default:
+		}
+		conn, errDial := net.Dial("tcp", strings.TrimPrefix(downstream.URL, "http://"))
+		if errDial != nil {
+			t.Fatal(errDial)
+		}
+		request := "GET /v1/live/" + callID + " HTTP/1.1\r\nHost: x\r\nX-Test-Principal: owner\r\nConnection: Upgrade\r\nUpgrade: websocket\r\nSec-WebSocket-Version: 13\r\n" + goodKey + "\r\n\r\n"
+		_, _ = conn.Write([]byte(request))
+		reader := bufio.NewReader(conn)
+		response, errRead := http.ReadResponse(reader, nil)
+		if errRead != nil || response.StatusCode != 101 {
+			t.Fatalf("%s: upgrade failed: %v", action, errRead)
+		}
+		switch action {
+		case "rsv1":
+			payload := []byte("x")
+			mask := []byte{1, 2, 3, 4}
+			frame := []byte{0x80 | 0x40 | 0x1, 0x80 | byte(len(payload))}
+			frame = append(frame, mask...)
+			for i, b := range payload {
+				frame = append(frame, b^mask[i%4])
+			}
+			_, _ = conn.Write(frame)
+			time.Sleep(200 * time.Millisecond)
+			_ = conn.Close()
+		case "abrupt":
+			_ = conn.Close()
+		case "reset":
+			_ = conn.(*net.TCPConn).SetLinger(0)
+			_ = conn.Close()
+		}
+		// Earlier cases can leave stale completions; wait for this call's own record.
+		record := endCase{Name: action}
+		for deadline := time.Now().Add(10 * time.Second); time.Now().Before(deadline); time.Sleep(10 * time.Millisecond) {
+			select {
+			case <-done:
+			default:
+			}
+			mu.Lock()
+			if seen != nil && strings.Contains(seen.Target, callID) {
+				record.Upstream = seen.Received
+			}
+			mu.Unlock()
+			if record.Upstream != nil {
+				break
+			}
+		}
+		if record.Upstream == nil {
+			t.Fatalf("%s: upstream did not finish", action)
+		}
+		ends = append(ends, record)
+	}
+	endEncoded, errMarshal := json.MarshalIndent(ends, "", " ")
+	if errMarshal != nil {
+		t.Fatal(errMarshal)
+	}
+	if errWrite := os.WriteFile(filepath.Join(dir, "codex_live_ws_end_go.json"), endEncoded, 0o644); errWrite != nil {
+		t.Fatal(errWrite)
+	}
+
 	rawEncoded, errMarshal := json.MarshalIndent(raws, "", " ")
 	if errMarshal != nil {
 		t.Fatal(errMarshal)

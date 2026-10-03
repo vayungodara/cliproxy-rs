@@ -285,7 +285,7 @@
     "3"
    ],
    "X-Cpa-Trace-Id": [
-    "20261003074603-ed3d6b1db19d35a0-01a100ba-2cf5-7d2b-8f96-cb76f3de9826"
+    "20261003122516-ed3d6b1db19d35a0-01a101b9-cce0-73cd-a2a1-5376bacd37d7"
    ],
    "X-Request-Id": [
     "req-1"
@@ -377,7 +377,7 @@
     "/v1/realtime/calls/rtc_multi"
    ],
    "X-Cpa-Trace-Id": [
-    "20261003074603-ed3d6b1db19d35a0-01a100ba-2cf6-7151-89b1-c787c3992cdb"
+    "20261003122516-ed3d6b1db19d35a0-01a101b9-cce0-7a67-b225-d9cc2a57e5d6"
    ]
   },
   "body": "v=0\r\n",
@@ -450,7 +450,7 @@
     "/v1/realtime/calls/rtc_raw"
    ],
    "X-Cpa-Trace-Id": [
-    "20261003074603-ed3d6b1db19d35a0-01a100ba-2cf6-744e-9a07-970674bf65dd"
+    "20261003122516-ed3d6b1db19d35a0-01a101b9-cce0-7e3c-a56e-f1a66b0e8d6f"
    ]
   },
   "body": "answer",
@@ -509,7 +509,7 @@
     "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
    ],
    "X-Cpa-Trace-Id": [
-    "20261003074603-ed3d6b1db19d35a0-01a100ba-2cf6-7621-aff9-00786d5a4275"
+    "20261003122516-ed3d6b1db19d35a0-01a101b9-cce1-7191-90d1-c3832be32479"
    ]
   },
   "body": "v=0",
@@ -727,7 +727,7 @@
     "application/json"
    ],
    "X-Cpa-Trace-Id": [
-    "20261003074603-ed3d6b1db19d35a0-01a100ba-2cf8-7ac8-8029-9138852669fd"
+    "20261003122516-ed3d6b1db19d35a0-01a101b9-cce6-73bd-a190-67ab0e81a808"
    ]
   },
   "body": "{\"error\":{\"message\":\"expired\"}}",
@@ -809,7 +809,7 @@
     "7"
    ],
    "X-Cpa-Trace-Id": [
-    "20261003074603-ed3d6b1db19d35a0-01a100ba-2cf8-7ef9-b1d7-495aae23cb55"
+    "20261003122516-ed3d6b1db19d35a0-01a101b9-cce6-7918-8102-08deb8790e2c"
    ]
   },
   "body": "{\"error\":\"slow down\"}",
@@ -879,7 +879,7 @@
     "application/sdp"
    ],
    "X-Cpa-Trace-Id": [
-    "20261003074603-ed3d6b1db19d35a0-01a100ba-2cf9-741d-b5bb-3f807f214c90"
+    "20261003122516-ed3d6b1db19d35a0-01a101b9-cce6-7e99-8a25-4c699afae59b"
    ]
   },
   "body": "v=0",
@@ -1381,7 +1381,7 @@
     "/v1/realtime/calls/call-ek"
    ],
    "X-Cpa-Trace-Id": [
-    "20261003074603-ed3d6b1db19d35a0-01a100ba-2cfd-70eb-acac-e7847bb66bf8"
+    "20261003122516-ed3d6b1db19d35a0-01a101b9-ccea-7280-8fd5-1feb392cafa9"
    ]
   },
   "body": "v=0 ek",
@@ -1923,6 +1923,40 @@
   "sent": []
  },
  {
+  "name": "hangup_other_principal",
+  "server": "main",
+  "request": {
+   "method": "POST",
+   "path": "/v1/realtime/calls/call-123/hangup",
+   "headers": {
+    "Authorization": [
+     "Bearer other-key"
+    ]
+   },
+   "body": ""
+  },
+  "status": 403,
+  "headers": {
+   "Access-Control-Allow-Headers": [
+    "*"
+   ],
+   "Access-Control-Allow-Methods": [
+    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+   ],
+   "Access-Control-Allow-Origin": [
+    "*"
+   ],
+   "Access-Control-Expose-Headers": [
+    "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+   ],
+   "Content-Type": [
+    "application/json; charset=utf-8"
+   ]
+  },
+  "body": "{\"error\":{\"code\":\"realtime_call_scope_mismatch\",\"message\":\"Realtime call belongs to another API principal\",\"param\":null,\"type\":\"invalid_request_error\"}}",
+  "sent": []
+ },
+ {
   "name": "hangup_upstream_error_keeps_call",
   "server": "main",
   "request": {
@@ -1971,7 +2005,7 @@
     "application/json"
    ],
    "X-Cpa-Trace-Id": [
-    "20261003074603-ed3d6b1db19d35a0-01a100ba-2cfe-7879-a1ff-3e5744467bb7"
+    "20261003122516-ed3d6b1db19d35a0-01a101b9-cceb-7b92-af8f-81a21db834b3"
    ],
    "X-Request-Id": [
     "h-1"
@@ -2044,7 +2078,7 @@
     "application/json"
    ],
    "X-Cpa-Trace-Id": [
-    "20261003074603-ed3d6b1db19d35a0-01a100ba-2cfe-7c71-a3f5-3caf9d5dd3d0"
+    "20261003122516-ed3d6b1db19d35a0-01a101b9-ccec-7103-9bd7-2f7be25e268e"
    ]
   },
   "body": "{\"status\":\"ok\"}",
@@ -2134,7 +2168,7 @@
     "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
    ],
    "X-Cpa-Trace-Id": [
-    "20261003074603-ed3d6b1db19d35a0-01a100ba-2cff-7172-a1bf-915b536a5462"
+    "20261003122516-ed3d6b1db19d35a0-01a101b9-ccec-762e-b50a-041107201522"
    ]
   },
   "body": "",
