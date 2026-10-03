@@ -568,6 +568,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "cpa-home"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "base64 0.22.1",
+ "btls",
+ "chrono",
+ "cpa-common",
+ "cpa-core",
+ "serde",
+ "serde_json",
+ "serde_yaml_ng",
+ "sha2",
+ "tokio",
+ "tokio-btls",
+ "tokio-util",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "cpa-plugin"
 version = "0.1.0"
 dependencies = [

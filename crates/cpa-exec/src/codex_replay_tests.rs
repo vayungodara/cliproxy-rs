@@ -46,6 +46,7 @@ fn request(scenario: &Value, turn: &Value) -> ExecRequest {
             source: "authorization",
         },
         resolved_model: None,
+        usage: Default::default(),
     }
 }
 
