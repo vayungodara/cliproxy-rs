@@ -7,9 +7,9 @@
 
 use std::sync::{Arc, Mutex, PoisonError};
 
+use axum::response::IntoResponse;
 use cpa_core::credential::Credential;
 use cpa_core::exec::ExecError;
-use axum::response::IntoResponse;
 use futures_util::future::BoxFuture;
 
 /// Attribute carrying the upstream model the dispatcher chose (Go

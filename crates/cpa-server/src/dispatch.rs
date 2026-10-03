@@ -693,7 +693,10 @@ pub async fn run(rt: &Arc<Runtime>, call: Call, trace: &Trace) -> Result<Done, R
             let acquired = match &remote {
                 Some(remote) => {
                     let request = remote_request(&call, &selection, attempted.len(), trace);
-                    match rt.acquire_remote(remote.as_ref(), selection.clone(), request, &releases).await {
+                    match rt
+                        .acquire_remote(remote.as_ref(), selection.clone(), request, &releases)
+                        .await
+                    {
                         Ok(lease) => Ok(lease),
                         Err(error) => break Some(Failure::Exec(error)),
                     }
@@ -756,7 +759,14 @@ pub async fn run(rt: &Arc<Runtime>, call: Call, trace: &Trace) -> Result<Done, R
                 models.truncate(1);
                 // Go `homeForceMappingAliasResult`: only for the alias Home mapped from;
                 // the response then reports the route model.
-                let attr = |key: &str| lease.credential.attributes.get(key).map(|v| v.trim()).unwrap_or_default();
+                let attr = |key: &str| {
+                    lease
+                        .credential
+                        .attributes
+                        .get(key)
+                        .map(|v| v.trim())
+                        .unwrap_or_default()
+                };
                 let canonical = |m: &str| canonical_model(m).trim().to_lowercase();
                 let requested = registry::strip_prefix(&selection.model, &lease.credential);
                 if attr(crate::remote::FORCE_MAPPING).eq_ignore_ascii_case("true")
@@ -864,7 +874,12 @@ fn remote_request(call: &Call, selection: &Selection, picks: usize, trace: &Trac
     let headers = call
         .headers
         .iter()
-        .map(|(name, value)| (name.as_str().to_owned(), String::from_utf8_lossy(value.as_bytes()).into_owned()))
+        .map(|(name, value)| {
+            (
+                name.as_str().to_owned(),
+                String::from_utf8_lossy(value.as_bytes()).into_owned(),
+            )
+        })
         .collect();
     crate::remote::RemoteRequest {
         model: selection.model.clone(),
@@ -874,11 +889,7 @@ fn remote_request(call: &Call, selection: &Selection, picks: usize, trace: &Trac
         count: picks as i64 + 1,
         retry_round: selection.retry_round as i64,
         excluded: selection.exclude.clone(),
-        pinned: call
-            .turn
-            .as_ref()
-            .and_then(|t| t.pinned.clone())
-            .unwrap_or_default(),
+        pinned: call.turn.as_ref().and_then(|t| t.pinned.clone()).unwrap_or_default(),
         request_id: trace.request_id(),
         kind: if call.turn.is_some() {
             "websocket"
