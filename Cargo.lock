@@ -653,15 +653,19 @@ dependencies = [
  "cpa-common",
  "cpa-core",
  "cpa-exec",
+ "cpa-home",
  "cpa-server",
  "cpa-store",
+ "futures-util",
  "getrandom 0.3.4",
  "libc",
  "serde_json",
  "serde_yaml_ng",
  "socket2",
  "tokio",
+ "tokio-util",
  "tracing",
+ "wreq",
 ]
 
 [[package]]

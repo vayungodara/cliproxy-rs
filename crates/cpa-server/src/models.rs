@@ -25,19 +25,10 @@ pub async fn unified(State(rt): State<Arc<Runtime>>, OriginalUri(uri): OriginalU
             .get(name)
             .map(|v| String::from_utf8_lossy(v.as_bytes()).into_owned())
     };
-    if header("user-agent").is_some_and(|ua| ua.go_lower().contains("grok-shell")) {
-        let registry = rt.registry();
-        return respond::gin_json(200, grok_list(registry.available_with(|c, m| rt.suspension(c, m))));
-    }
-    if let Some(version) = query_value(&uri, "client_version") {
-        return crate::codex_models::response(&rt, &version);
-    }
     let anthropic = header("anthropic-version").is_some_and(|v| !v.is_empty())
         || header("user-agent").is_some_and(|ua| ua.starts_with("claude-cli"));
-    let registry = rt.registry();
-    let body = if anthropic {
-        let disable_cloaking = rt
-            .config()
+    let disable_cloaking = || {
+        rt.config()
             .document
             .get("oauth")
             .and_then(|o| o.get("providers"))
@@ -45,8 +36,36 @@ pub async fn unified(State(rt): State<Arc<Runtime>>, OriginalUri(uri): OriginalU
             .and_then(|c| c.get("claude-code"))
             .and_then(|c| c.get("disable-cloaking-model-list"))
             .and_then(serde_yaml_ng::Value::as_bool)
-            .unwrap_or(false);
-        claude_list(registry.available_with(|c, m| rt.suspension(c, m)), disable_cloaking)
+            .unwrap_or(false)
+    };
+    // Go Home mode: the catalog Home answers for this client.
+    if let Some(remote) = rt.remote_dispatch() {
+        let entries = match crate::home_models::load(remote.as_ref(), &headers, &uri).await {
+            Ok(entries) => entries,
+            Err(response) => return *response,
+        };
+        let grok_shell = header("user-agent").is_some_and(|ua| ua.to_lowercase().contains("grok-shell"));
+        // ponytail: Go builds the Codex client catalog (`client_version`) from Home's
+        // model IDs with its template metadata; here such clients get the OpenAI list.
+        let body = if grok_shell {
+            crate::home_models::grok(&entries)
+        } else if anthropic && query_value(&uri, "client_version").is_none() {
+            crate::home_models::claude(&entries, disable_cloaking())
+        } else {
+            crate::home_models::openai(&entries)
+        };
+        return respond::gin_json(200, body);
+    }
+    if header("user-agent").is_some_and(|ua| ua.go_lower().contains("grok-shell")) {
+        let registry = rt.registry();
+        return respond::gin_json(200, grok_list(registry.available_with(|c, m| rt.suspension(c, m))));
+    }
+    if let Some(version) = query_value(&uri, "client_version") {
+        return crate::codex_models::response(&rt, &version);
+    }
+    let registry = rt.registry();
+    let body = if anthropic {
+        claude_list(registry.available_with(|c, m| rt.suspension(c, m)), disable_cloaking())
     } else {
         openai_list(registry.available_with(|c, m| rt.suspension(c, m)))
     };
@@ -229,7 +248,21 @@ fn gemini_entry(m: &Spec) -> Map<String, Value> {
 }
 
 /// `GET /v1beta/models` (Go `GeminiModels`).
-pub async fn gemini_list(State(rt): State<Arc<Runtime>>) -> Response {
+pub async fn gemini_list(
+    State(rt): State<Arc<Runtime>>,
+    OriginalUri(uri): OriginalUri,
+    headers: HeaderMap,
+) -> Response {
+    // Go `handleHomeGeminiModels`.
+    if let Some(remote) = rt.remote_dispatch() {
+        return match crate::home_models::load(remote.as_ref(), &headers, &uri).await {
+            Ok(entries) => {
+                let models: Vec<Value> = entries.iter().map(crate::home_models::gemini).collect();
+                respond::gin_json(200, gojson::sorted(&json!({ "models": models })))
+            }
+            Err(response) => *response,
+        };
+    }
     let registry = rt.registry();
     let models: Vec<Value> = registry
         .available_with(|c, m| rt.suspension(c, m))
@@ -257,8 +290,24 @@ pub async fn gemini_list(State(rt): State<Arc<Runtime>>) -> Response {
 }
 
 /// `GET /v1beta/models/*action` (Go `GeminiGetHandler`).
-pub async fn gemini_get(State(rt): State<Arc<Runtime>>, Path(action): Path<String>) -> Response {
+pub async fn gemini_get(
+    State(rt): State<Arc<Runtime>>,
+    Path(action): Path<String>,
+    OriginalUri(uri): OriginalUri,
+    headers: HeaderMap,
+) -> Response {
     let action = action.trim_start_matches('/');
+    // Go `handleHomeGeminiModel`.
+    if let Some(remote) = rt.remote_dispatch() {
+        let action = action.trim();
+        return match crate::home_models::load(remote.as_ref(), &headers, &uri).await {
+            Ok(entries) => match entries.iter().find(|e| crate::home_models::gemini_matches(e, action)) {
+                Some(entry) => respond::gin_json(200, gojson::sorted(&crate::home_models::gemini(entry))),
+                None => respond::error_detail(404, "Not Found", "not_found"),
+            },
+            Err(response) => *response,
+        };
+    }
     let registry = rt.registry();
     let found = registry
         .available_with(|c, m| rt.suspension(c, m))
