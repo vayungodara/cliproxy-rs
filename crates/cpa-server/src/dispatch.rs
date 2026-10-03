@@ -383,11 +383,7 @@ where
     F: FnOnce(Result<Done, Failure>) -> Fut + Send + 'static,
     Fut: std::future::Future<Output = axum::response::Response> + Send,
 {
-    let interval = if call.stream || call.operation != Operation::Generate {
-        None
-    } else {
-        nonstream_keepalive(&rt.config())
-    };
+    let interval = nonstream_keepalive(&call, &rt.config());
     let trace = Arc::new(Trace::default());
     let mut work = Box::pin({
         let (rt, trace) = (rt.clone(), trace.clone());
@@ -441,8 +437,13 @@ where
 }
 
 /// `requests.nonstream-keepalive-interval` seconds (Go `NonStreamingKeepAliveInterval`;
-/// 0 or below disables it).
-fn nonstream_keepalive(cfg: &Config) -> Option<Duration> {
+/// 0 or below disables it), for the calls whose Go handler starts the keep-alive: only
+/// non-stream generate handlers do; the count-tokens handlers (code_handlers.go,
+/// gemini_handlers.go) never call `StartNonStreamingKeepAlive`.
+fn nonstream_keepalive(call: &Call, cfg: &Config) -> Option<Duration> {
+    if call.stream || call.operation != Operation::Generate {
+        return None;
+    }
     let seconds = cfg
         .document
         .get("requests")
@@ -968,6 +969,7 @@ async fn attempt(
             on_selected(&lease.credential);
         }
         let execute = |credential: Arc<cpa_core::credential::Credential>, req: ExecRequest| async move {
+            let credential = rt.for_executor(&credential);
             match call.turn.as_ref() {
                 Some(turn) => {
                     rt.executors
@@ -1319,6 +1321,57 @@ fn rewrite_lines(payload: &Bytes, target: &str) -> Bytes {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Go starts the non-stream keep-alive in the non-stream generate handlers only, and
+    /// `NonStreamingKeepAliveInterval` treats 0 and below as off.
+    #[test]
+    fn nonstream_keepalive_only_for_nonstream_generate() {
+        let call = |operation, stream| Call {
+            entry: Format::Claude,
+            response: Format::Claude,
+            operation,
+            model: "m".into(),
+            body: Bytes::new(),
+            stream,
+            alt: None,
+            headers: HeaderMap::new(),
+            caller: Caller {
+                principal: String::new(),
+                source: "",
+            },
+            forced_provider: None,
+            selection_model: None,
+            execution_session: None,
+            request_path: String::new(),
+            peer: None,
+            turn: None,
+        };
+        let cfg = |yaml: &str| Config::parse(yaml).unwrap();
+        let on = cfg("requests:\n  nonstream-keepalive-interval: 3\n");
+        assert_eq!(
+            nonstream_keepalive(&call(Operation::Generate, false), &on),
+            Some(Duration::from_secs(3))
+        );
+        assert_eq!(nonstream_keepalive(&call(Operation::Generate, true), &on), None);
+        assert_eq!(nonstream_keepalive(&call(Operation::CountTokens, false), &on), None);
+        for off in [
+            "{}\n",
+            "requests:\n  nonstream-keepalive-interval: 0\n",
+            "requests:\n  nonstream-keepalive-interval: -5\n",
+        ] {
+            assert_eq!(
+                nonstream_keepalive(&call(Operation::Generate, false), &cfg(off)),
+                None,
+                "{off}"
+            );
+        }
+        // The v7 top-level key migrates to requests.nonstream-keepalive-interval.
+        let legacy = cfg("nonstream-keepalive-interval: 2\n");
+        assert_eq!(
+            nonstream_keepalive(&call(Operation::Generate, false), &legacy),
+            Some(Duration::from_secs(2))
+        );
+    }
 
     /// Each attempt carries Go's binding for its credential and upstream model; a kept
     /// request model (Go `restoreExecutionModel`) routes Codex by that model. Expected

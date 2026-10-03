@@ -559,8 +559,13 @@ async fn persist_login(store: &cpa_store::Store, before: &std::collections::BTre
 
 /// Go's command modes, in Go's order; `Ok(false)` when no command flag is set.
 async fn command(args: &Args, config: &Config) -> anyhow::Result<bool> {
+    // Go DoVertexImport: failures are logged and the command still exits normally.
     if !args.vertex_import.is_empty() {
-        unsupported("Vertex service account import (-vertex-import)");
+        match cpa_exec::vertex_auth::import(&config.auth_dir, &args.vertex_import, &args.vertex_import_prefix) {
+            Ok(path) => println!("Vertex credentials imported: {}", path.display()),
+            Err(error) => tracing::error!("{error}"),
+        }
+        return Ok(true);
     }
     if args.antigravity_login {
         unsupported("Antigravity login (-antigravity-login)");
@@ -680,15 +685,17 @@ async fn serve(
     let app = router(rt)
         .merge(cpa_server::management::router(management))
         .layer(axum::middleware::from_fn(cpa_server::management::cors));
-    let server = cpa_server::listener::serve(listener, app, tls);
-    // Go's Shutdown closes the HTTP server without draining (`Server.Stop` calls
-    // `http.Server.Close`); dropping the server future here does the same.
-    tokio::select! {
-        r = server => r?,
-        _ = shutdown_signal() => {}
-    }
+    let mut server = Box::pin(cpa_server::listener::serve(listener, app, tls));
+    let served = tokio::select! {
+        r = &mut server => r,
+        _ = shutdown_signal() => Ok(()),
+    };
+    // Go's Service.Shutdown sends the mDNS goodbye (shutdownDiscovery) before
+    // Server.Stop, which closes the HTTP server without draining (`http.Server.Close`);
+    // dropping the server future afterwards does the same.
     advertiser.shutdown().await;
-    Ok(())
+    drop(server);
+    Ok(served?)
 }
 
 #[cfg(test)]
