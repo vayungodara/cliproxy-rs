@@ -12,10 +12,13 @@ mod errors;
 mod gemini;
 mod gojson;
 mod images;
+pub mod listener;
 pub mod logging;
 pub mod management;
+pub mod model_updater;
 mod models;
 mod openai;
+mod realtime;
 mod refresh;
 pub mod registry;
 mod respond;
@@ -73,6 +76,7 @@ pub fn router(rt: Arc<Runtime>) -> Router {
         .route("/callback", get(devin_callback))
         .route("/devin/callback", get(devin_callback))
         .merge(v1)
+        .merge(realtime::routes(&rt))
         .layer(DefaultBodyLimit::max(MAX_REQUEST_BYTES))
         .layer(middleware::from_fn(go_framing))
         .with_state(rt)

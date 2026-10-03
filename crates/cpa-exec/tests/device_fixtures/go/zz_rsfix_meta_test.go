@@ -144,6 +144,7 @@ func TestRSFixMeta(t *testing.T) {
 			}
 			exec := NewMetaExecutor(cfg)
 			ctx := context.Background()
+			rsfixResetUsage()
 			var down rsfixDownstream
 			var execErr error
 			switch {
@@ -177,7 +178,7 @@ func TestRSFixMeta(t *testing.T) {
 				down.ErrStatus, down.ErrBody = rsfixStatus(err)
 				down.Body = string(resp.Payload)
 			}
-			extra := map[string]any{}
+			extra := map[string]any{"usage": rsfixTakeUsage()}
 			if tc.mint {
 				extra["metadata_after"] = auth.Metadata
 			}

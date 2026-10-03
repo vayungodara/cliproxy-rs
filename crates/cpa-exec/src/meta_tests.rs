@@ -91,6 +91,7 @@ fn meta_credential(fx: &Value, origin: &str, url: &str) -> Credential {
 }
 
 struct Run {
+    usage: std::sync::Arc<crate::kimi_fixture::UsageLog>,
     fx: Value,
     origin: String,
     url: String,
@@ -109,7 +110,10 @@ async fn run(name: &str) -> Run {
     let exec = MetaExecutor::with_client(default_client()).with_mint_url(&format!("{}/muse-code/key", mock.url));
     let (mut body, mut chunks, mut error) = (None, Vec::new(), None);
     let cfg = Config::parse(fx["request"]["config"].as_str().unwrap_or_default()).unwrap();
-    match exec.execute(&credential, request(&fx, ""), &cfg).await {
+    let usage = std::sync::Arc::new(crate::kimi_fixture::UsageLog::default());
+    let mut req = request(&fx, "");
+    req.usage = usage.sink();
+    match exec.execute(&credential, req, &cfg).await {
         Err(e) => error = Some(e),
         Ok(response) => match response.body {
             ResponseBody::Buffered(b) => body = Some(String::from_utf8(b.to_vec()).unwrap()),
@@ -124,6 +128,7 @@ async fn run(name: &str) -> Run {
         },
     }
     Run {
+        usage,
         captured: mock.captured(),
         url: mock.url,
         fx,
@@ -299,6 +304,7 @@ async fn prepare_remints_and_matches_go_refresh() {
     );
     let patch = exec.prepare(&credential, &cfg()).await.unwrap();
     let r = Run {
+        usage: Default::default(),
         captured: mock.captured(),
         url: mock.url,
         fx,
@@ -913,4 +919,22 @@ async fn apply_patch_failures_end_meta_streams_like_go() {
     let (out, log) = run(vec!["data: {\"a\":1}"], true).await;
     assert_eq!(out, ["frame data: {\"a\":1}", "finished"]);
     assert_eq!(log, ["event data: {\"a\":1}", "finish"]);
+}
+
+#[tokio::test]
+async fn usage_reports_match_go_records() {
+    for name in [
+        "responses-nonstream-collected",
+        "responses-stream",
+        "responses-nonstream-json-body",
+        "stream-error-event",
+        "nonstream-response-failed",
+        "nonstream-incomplete-fallback-items",
+        "payload-rules-and-headers",
+        "remint-from-dca",
+        "error-429-plain",
+    ] {
+        let r = run(name).await;
+        crate::kimi_fixture::assert_usage_like_go(name, &r.fx, &r.usage);
+    }
 }

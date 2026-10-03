@@ -1,0 +1,58 @@
+{
+  "name": "exchange-no-token",
+  "credential": null,
+  "request": {
+    "exchange": "code-3",
+    "token": ""
+  },
+  "responses": [
+    {
+      "status": 200,
+      "headers": [
+        [
+          "Content-Type",
+          "application/json"
+        ]
+      ],
+      "body": "{\"other\":1}"
+    }
+  ],
+  "upstream": [
+    {
+      "method": "POST",
+      "target": "/auth/cli/token",
+      "headers": [
+        [
+          "Host",
+          "127.0.0.1:36335"
+        ],
+        [
+          "User-Agent",
+          "Go-http-client/1.1"
+        ],
+        [
+          "Content-Length",
+          "46"
+        ],
+        [
+          "Accept",
+          "application/json"
+        ],
+        [
+          "Content-Type",
+          "application/json"
+        ],
+        [
+          "Accept-Encoding",
+          "gzip"
+        ]
+      ],
+      "body": "",
+      "body_b64": "eyJjb2RlIjoiY29kZS0zIiwiY29kZV92ZXJpZmllciI6InZlcmlmaWVyLTEifQ=="
+    }
+  ],
+  "downstream": {
+    "err_status": -1,
+    "err_body": "response did not contain a valid token: {\"other\":1}"
+  }
+}

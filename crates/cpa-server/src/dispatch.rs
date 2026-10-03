@@ -46,59 +46,69 @@ pub struct Call {
     pub request_path: String,
     /// The downstream peer (Go `Request.RemoteAddr`), when the listener provides it.
     pub peer: Option<std::net::SocketAddr>,
-    /// Media routes (Go's `openai-image` / `openai-video` handler types); `None` for
+    /// A turn of a long-lived downstream session (the Responses WebSocket), `None` for
+    /// ordinary HTTP requests.
+    pub turn: Option<Arc<SessionTurn>>,
+    /// A media route (Go's `openai-image` / `openai-video` handler types), `None` for
     /// inference routes.
-    pub media: Option<Media>,
+    pub media: Option<Arc<Media>>,
 }
 
-/// A media call: which executor operation runs, and Go's per-request credential binding
-/// (`WithPinnedAuthID`, `WithSelectedAuthIDCallback`).
-#[derive(Clone, Debug)]
+/// How a media route runs through [`run`]: which executor operation serves it, and the
+/// same credential binding a [`SessionTurn`] has (`WithPinnedAuthID`,
+/// `WithSelectedAuthIDCallback`), which the video routes use to keep a job on the
+/// credential that created it.
 pub struct Media {
     pub kind: MediaKind,
-    /// The only credential that may serve the call.
+    /// Only this credential may serve the call.
     pub pinned: Option<String>,
-    /// Set to the credential selected for the latest attempt.
-    pub served: Arc<std::sync::Mutex<Option<String>>>,
+    /// Called with each credential right before it is attempted.
+    pub on_selected: Option<OnSelected>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum MediaKind {
-    /// `Executors::images`; image-only models are allowed (`ExecuteImageWithAuthManager`).
+    /// [`cpa_exec::Executors::images`]; image-only models are allowed
+    /// (`ExecuteImageWithAuthManager`).
     Images,
-    /// `Executors::videos`.
+    /// [`cpa_exec::Executors::videos`].
     Videos,
 }
 
-impl Media {
-    pub fn new(kind: MediaKind, pinned: Option<String>) -> Self {
-        Self {
-            kind,
-            pinned,
-            served: Arc::default(),
-        }
+impl Call {
+    /// `WithPinnedAuthID` of a session turn or media call.
+    fn pinned(&self) -> Option<&str> {
+        self.turn
+            .as_ref()
+            .and_then(|t| t.pinned.as_deref())
+            .or_else(|| self.media.as_ref().and_then(|m| m.pinned.as_deref()))
     }
 
-    /// The credential that served the call, once one was selected.
-    pub fn served(&self) -> Option<String> {
-        self.served.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clone()
+    /// `WithSelectedAuthIDCallback` of a session turn or media call.
+    fn on_selected(&self) -> Option<&OnSelected> {
+        self.turn
+            .as_ref()
+            .and_then(|t| t.on_selected.as_ref())
+            .or_else(|| self.media.as_ref().and_then(|m| m.on_selected.as_ref()))
     }
 }
 
-/// The executor operation a call runs.
-async fn execute(
-    rt: &Runtime,
-    call: &Call,
-    credential: &cpa_core::credential::Credential,
-    req: ExecRequest,
-    cfg: &Config,
-) -> Result<cpa_core::exec::ExecResponse, ExecError> {
-    match call.media.as_ref().map(|m| m.kind) {
-        Some(MediaKind::Images) => rt.executors.images(credential, req, &call.request_path, cfg).await,
-        Some(MediaKind::Videos) => rt.executors.videos(credential, req, &call.request_path, cfg).await,
-        None => rt.executors.execute(credential, req, cfg).await,
-    }
+/// How a session transport runs one turn through [`run`] (Go
+/// `ExecuteStreamWithAuthManager` with `WithPinnedAuthID`,
+/// `WithSelectedAuthIDCallback` and the execution session).
+pub struct SessionTurn {
+    /// Passed to [`cpa_exec::Executors::execute_in_session`] for every attempt.
+    pub session: cpa_core::exec::ExecSession,
+    /// Only this credential may serve the turn (`WithPinnedAuthID`); every retry round
+    /// excludes all others.
+    pub pinned: Option<String>,
+    /// Called with each credential right before it is attempted
+    /// (`WithSelectedAuthIDCallback`); the last call before success is the serving one.
+    pub on_selected: Option<OnSelected>,
 }
+
+/// The [`SessionTurn::on_selected`] callback.
+pub type OnSelected = Box<dyn Fn(&cpa_core::credential::Credential) + Send + Sync>;
 
 /// The downstream peer address, as the listener records it (`ConnectInfo`).
 pub type Peer = Option<axum::Extension<axum::extract::ConnectInfo<std::net::SocketAddr>>>;
@@ -480,7 +490,7 @@ impl Trace {
         self.1.get_or_init(request_id).clone()
     }
 
-    fn selected(&self, credential: &cpa_core::credential::Credential) {
+    pub(crate) fn selected(&self, credential: &cpa_core::credential::Credential) {
         let index = cpa_core::config::credentials::auth_index(credential);
         if index.is_empty() {
             return;
@@ -495,6 +505,11 @@ impl Trace {
             .filter(char::is_ascii_digit)
             .collect();
         *self.0.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = Some(format!("{stamp}-{index}-{request}"));
+    }
+
+    /// The trace ID once a credential was selected.
+    pub(crate) fn id(&self) -> Option<String> {
+        self.0.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clone()
     }
 }
 
@@ -585,16 +600,16 @@ pub async fn run(rt: &Arc<Runtime>, call: Call, trace: &Trace) -> Result<Done, R
             call.stream,
         ))
     });
-    // A pinned credential is the only candidate (`WithPinnedAuthID`), in every round.
-    let pinned_out: Vec<String> = match call.media.as_ref().and_then(|m| m.pinned.as_deref()) {
-        Some(pin) => rt
+    // `WithPinnedAuthID`: every other credential is excluded in every round.
+    let pinned_exclusion: Vec<String> = match call.pinned() {
+        Some(pinned) if !pinned.is_empty() => rt
             .store()
             .snapshot()
             .iter()
-            .filter(|c| c.id != pin)
+            .filter(|c| c.id != pinned)
             .map(|c| c.id.clone())
             .collect(),
-        None => Vec::new(),
+        _ => Vec::new(),
     };
     let mut selection = Selection {
         providers: providers.clone(),
@@ -602,7 +617,7 @@ pub async fn run(rt: &Arc<Runtime>, call: Call, trace: &Trace) -> Result<Done, R
         session: session.id.clone(),
         session_parent: session.parent,
         session_fork: session.fork,
-        exclude: pinned_out.clone(),
+        exclude: pinned_exclusion.clone(),
         ..Selection::default()
     };
     let request = ExecRequest {
@@ -675,9 +690,6 @@ pub async fn run(rt: &Arc<Runtime>, call: Call, trace: &Trace) -> Result<Done, R
             };
             selection.exclude.push(lease.credential.id.clone());
             trace.selected(&lease.credential);
-            if let Some(media) = &call.media {
-                *media.served.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = Some(lease.credential.id.clone());
-            }
             let (mut models, alias) = registry::execution_models(&aliases, &lease.credential, &selection.model);
             let pooled = models.len() > 1;
             if pooled {
@@ -764,7 +776,7 @@ pub async fn run(rt: &Arc<Runtime>, call: Call, trace: &Trace) -> Result<Done, R
             tokio::time::sleep(jitter(wait, policy.max_retry_interval)).await;
         }
         selection.retry_round += 1;
-        selection.exclude.clone_from(&pinned_out);
+        selection.exclude.clone_from(&pinned_exclusion);
     }
 }
 
@@ -843,7 +855,26 @@ async fn attempt(
             })
         };
         let mut tracker = start(&lease.credential, &mut req);
-        let mut executed = execute(rt, call, &lease.credential, req.clone(), cfg).await;
+        if let Some(on_selected) = call.on_selected() {
+            on_selected(&lease.credential);
+        }
+        let execute = |credential: Arc<cpa_core::credential::Credential>, req: ExecRequest| async move {
+            match (call.turn.as_ref(), call.media.as_ref().map(|m| m.kind)) {
+                (Some(turn), _) => {
+                    rt.executors
+                        .execute_in_session(&credential, req, cfg, &turn.session)
+                        .await
+                }
+                (None, Some(MediaKind::Images)) => {
+                    rt.executors.images(&credential, req, &call.request_path, cfg).await
+                }
+                (None, Some(MediaKind::Videos)) => {
+                    rt.executors.videos(&credential, req, &call.request_path, cfg).await
+                }
+                (None, None) => rt.executors.execute(&credential, req, cfg).await,
+            }
+        };
+        let mut executed = execute(lease.credential.clone(), req.clone()).await;
         // Go `tryRefreshAfterUnauthorized`: one refresh-and-retry per credential.
         if let Err(error) = &executed
             && !refreshed
@@ -856,7 +887,7 @@ async fn attempt(
             }
             lease.credential = current;
             tracker = start(&lease.credential, &mut req);
-            executed = execute(rt, call, &lease.credential, req, cfg).await;
+            executed = execute(lease.credential.clone(), req).await;
         }
         if let (Ok(response), Some(t)) = (&executed, tracker.as_mut()) {
             t.arrived(&response.headers);
@@ -961,7 +992,12 @@ fn usage_client(
         parent_session_id: session.parent.clone().unwrap_or_default(),
         is_fork: session.fork,
         request_id: trace.request_id(),
-        endpoint: format!("POST {}", call.request_path),
+        // Session turns arrive on the WebSocket upgrade (a GET).
+        endpoint: format!(
+            "{} {}",
+            if call.turn.is_some() { "GET" } else { "POST" },
+            call.request_path
+        ),
         api_key: call.caller.principal.clone(),
     }
 }

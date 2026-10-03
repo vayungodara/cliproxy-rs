@@ -873,3 +873,121 @@ async fn usage_queue_records_every_attempt() {
     queue.configure(true, &cfg);
     assert!(pop().is_empty());
 }
+
+/// Go's Responses handler applies `prepareCodexOrphanDelegation` before dispatch, so the
+/// rewrite reaches every provider (here Claude). Input and rewritten text come from
+/// Go's `RewriteCodexOrphanDelegationInput` golden (cpa-common codex_client_go.json).
+#[tokio::test]
+async fn responses_route_prepares_codex_orphan_delegation() {
+    let input = r#"[{"type":"function_call","call_id":"c1","name":"create_thread","namespace":"codex_app","arguments":"{}"},{"type":"function_call_output","call_id":"c1","name":"create_thread","namespace":"codex_app","output":"paired"},{"type":"function_call_output","call_id":"c1","name":"create_thread","namespace":"codex_app","output":"second <one>"}]"#;
+    let body = format!(r#"{{"model":"{MODEL}","input":{input}}}"#);
+    let send = |url: String, body: String| async move {
+        let res = wreq::Client::new()
+            .post(format!("{url}/v1/responses"))
+            .header("authorization", "Bearer client-key")
+            .header("x-openai-subagent", "collab_spawn")
+            .body(body)
+            .send()
+            .await
+            .unwrap();
+        res.status().as_u16()
+    };
+    let rewritten = "Tool output from codex_app__create_thread:\\nsecond <one>";
+    // Legacy `codex.orphan-delegation-compatibility` applies at the Responses boundary.
+    let p = proxy(
+        "codex:\n  orphan-delegation-compatibility: true\n",
+        vec![oauth("a.json", "fake-ok", serde_json::json!({}))],
+    )
+    .await;
+    assert_eq!(send(p.url.clone(), body.clone()).await, 200);
+    let upstream = p.seen.requests.lock().unwrap()[0].1.to_string();
+    assert!(upstream.contains(rewritten), "{upstream}");
+    // Written in v8 form it is OAuth-only and the handler leaves the input alone.
+    let p = proxy(
+        "oauth:\n  providers:\n    codex:\n      orphan-delegation-compatibility: true\n",
+        vec![oauth("a.json", "fake-ok", serde_json::json!({}))],
+    )
+    .await;
+    assert_eq!(send(p.url.clone(), body).await, 200);
+    let upstream = p.seen.requests.lock().unwrap()[0].1.to_string();
+    assert!(!upstream.contains("Tool output from"), "{upstream}");
+}
+
+/// Session turns (the Responses WebSocket) run through `dispatch::run`: the pin
+/// excludes every other credential in every round, the callback sees each attempted
+/// credential, and attempts go through `execute_in_session`.
+#[tokio::test]
+async fn session_turns_honour_pin_callback_and_session() {
+    use cpa_core::exec::{Caller, ExecSession, Operation};
+    use cpa_core::format::Format;
+    use cpa_server::dispatch::{self, Call, SessionTurn};
+    let p = proxy(
+        "",
+        vec![
+            oauth("a.json", "fake-ok", serde_json::json!({})),
+            oauth("b.json", "fake-fail", serde_json::json!({})),
+        ],
+    )
+    .await;
+    let selected = Arc::new(Mutex::new(Vec::<String>::new()));
+    let turn = |pinned: Option<&str>, continuation: bool| {
+        let seen = selected.clone();
+        Arc::new(SessionTurn {
+            session: ExecSession {
+                id: "ws-1".into(),
+                continuation,
+            },
+            pinned: pinned.map(str::to_owned),
+            on_selected: Some(Box::new(move |c| seen.lock().unwrap().push(c.id.clone()))),
+        })
+    };
+    let call = |turn| Call {
+        entry: Format::Claude,
+        response: Format::Claude,
+        operation: Operation::Generate,
+        model: MODEL.into(),
+        body: Bytes::from(format!(r#"{{"model":"{MODEL}","stream":true,"messages":[]}}"#)),
+        stream: true,
+        alt: None,
+        headers: Default::default(),
+        caller: Caller {
+            principal: "client-key".into(),
+            source: "authorization",
+        },
+        forced_provider: None,
+        selection_model: None,
+        execution_session: Some("ws-1".into()),
+        request_path: "/v1/responses".into(),
+        peer: None,
+        turn: Some(turn),
+        media: None,
+    };
+    let tokens = || -> Vec<String> { p.seen.requests.lock().unwrap().drain(..).map(|r| r.0).collect() };
+
+    // Pinned to the failing credential: no failover to a.json.
+    let result = dispatch::run(&p.rt, call(turn(Some("b.json"), false)), &dispatch::Trace::default()).await;
+    let error = result.err().expect("pinned credential fails");
+    assert_eq!(error.failure.status(), 500);
+    assert_eq!(tokens(), ["Bearer fake-fail"]);
+    assert_eq!(*selected.lock().unwrap(), ["b.json"]);
+
+    // Pinned to the healthy one: served there, and the callback names it.
+    selected.lock().unwrap().clear();
+    let done = dispatch::run(&p.rt, call(turn(Some("a.json"), false)), &dispatch::Trace::default()).await;
+    assert!(matches!(done, Ok(dispatch::Done::Stream { .. })));
+    drop(done);
+    assert_eq!(tokens(), ["Bearer fake-ok"]);
+    assert_eq!(*selected.lock().unwrap(), ["a.json"]);
+
+    // A continuation turn needs the session's upstream socket; a Claude credential
+    // cannot hold one, so execute_in_session refuses without calling upstream.
+    selected.lock().unwrap().clear();
+    let result = dispatch::run(&p.rt, call(turn(Some("a.json"), true)), &dispatch::Trace::default()).await;
+    let error = result.err().expect("continuation needs an upstream session");
+    assert!(
+        error.failure.text().contains("upstream_http_replay_required"),
+        "{}",
+        error.failure.text()
+    );
+    assert!(tokens().is_empty());
+}

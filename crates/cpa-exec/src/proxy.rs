@@ -336,6 +336,8 @@ pub fn canonical_header(name: &str) -> String {
 #[derive(Clone, Default)]
 pub struct GoHeaders {
     headers: Vec<(String, String)>,
+    /// Go `http.Transport.DisableCompression`: the transport never asks for gzip.
+    compression_disabled: bool,
 }
 
 impl GoHeaders {
@@ -354,6 +356,12 @@ impl GoHeaders {
     /// map key in Go, written as stored).
     pub fn add_raw(&mut self, name: &str, value: impl Into<String>) {
         self.headers.push((name.to_owned(), value.into()));
+    }
+
+    /// Go `http.Transport.DisableCompression` (Devin's transport): no automatic
+    /// `Accept-Encoding: gzip`, so responses are never decoded transparently.
+    pub fn disable_compression(&mut self) {
+        self.compression_disabled = true;
     }
 
     pub fn get(&self, name: &str) -> Option<&str> {
@@ -392,13 +400,21 @@ impl GoHeaders {
         order: Option<&[String]>,
         gzip_allowed: bool,
     ) -> (wreq::RequestBuilder, bool) {
-        let auto_gzip = gzip_allowed && self.get("Accept-Encoding").is_none() && self.get("Range").is_none();
+        let auto_gzip = gzip_allowed
+            && !self.compression_disabled
+            && self.get("Accept-Encoding").is_none()
+            && self.get("Range").is_none();
         // A custom Host header becomes the request Host (util.applyCustomHeaders).
         let host = self.take("Host").filter(|h| !h.is_empty());
         self.take("Content-Length");
-        if self.get("User-Agent").is_none() {
+        match self.get("User-Agent") {
             // ponytail: Go says Go-http-client/2.0 on HTTP/2; this is the HTTP/1.1 value.
-            self.headers.push(("User-Agent".into(), "Go-http-client/1.1".into()));
+            None => self.headers.push(("User-Agent".into(), "Go-http-client/1.1".into())),
+            // Go writes no User-Agent line for an empty value (`Header["User-Agent"] = []string{""}`).
+            Some("") => {
+                self.take("User-Agent");
+            }
+            Some(_) => {}
         }
         let mut wire = wreq::header::OrigHeaderMap::new();
         match order {

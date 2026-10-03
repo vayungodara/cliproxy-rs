@@ -2,7 +2,7 @@
   "name": "chat-stream-interactions-client",
   "credential": {
     "access_token": "kimi-access-fixture",
-    "base_url": "http://127.0.0.1:41103/coding",
+    "base_url": "http://127.0.0.1:40521/coding",
     "device_id": "dev-fixture-1",
     "refresh_token": "kimi-refresh-fixture",
     "type": "kimi"
@@ -32,7 +32,7 @@
       "headers": [
         [
           "Host",
-          "127.0.0.1:41103"
+          "127.0.0.1:40521"
         ],
         [
           "User-Agent",
@@ -89,8 +89,11 @@
       "event: step.start\ndata: {\"index\":0,\"step\":{\"type\":\"model_output\"},\"event_type\":\"step.start\"}\n\n",
       "event: step.delta\ndata: {\"index\":0,\"delta\":{\"text\":\"yo\",\"type\":\"text\"},\"event_type\":\"step.delta\"}\n\n",
       "event: step.stop\ndata: {\"index\":0,\"event_type\":\"step.stop\"}\n\n",
-      "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"i1\",\"status\":\"completed\",\"usage\":{},\"created\":\"2026-10-03T07:27:50Z\",\"updated\":\"2026-10-03T07:27:50Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"kimi-k2\"},\"event_type\":\"interaction.completed\"}\n\n",
+      "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"i1\",\"status\":\"completed\",\"usage\":{},\"created\":\"2026-10-03T08:49:24Z\",\"updated\":\"2026-10-03T08:49:24Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"kimi-k2\"},\"event_type\":\"interaction.completed\"}\n\n",
       "event: done\ndata: [DONE]\n\n"
     ]
+  },
+  "extra": {
+    "usage": null
   }
 }

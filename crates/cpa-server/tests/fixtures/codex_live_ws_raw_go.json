@@ -1,0 +1,85 @@
+[
+ {
+  "name": "raw_valid",
+  "call_id": "call-raw-valid",
+  "headers": [
+   "Connection: Upgrade",
+   "Upgrade: websocket",
+   "Sec-WebSocket-Version: 13",
+   "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ=="
+  ],
+  "status": 101,
+  "call_kept": false
+ },
+ {
+  "name": "raw_bad_key",
+  "call_id": "call-raw-bad-key",
+  "headers": [
+   "Connection: Upgrade",
+   "Upgrade: websocket",
+   "Sec-WebSocket-Version: 13",
+   "Sec-WebSocket-Key: x"
+  ],
+  "status": 400,
+  "call_kept": true
+ },
+ {
+  "name": "raw_short_key",
+  "call_id": "call-raw-short-key",
+  "headers": [
+   "Connection: Upgrade",
+   "Upgrade: websocket",
+   "Sec-WebSocket-Version: 13",
+   "Sec-WebSocket-Key: AAAAAAAAAAAAAAAAAAAA"
+  ],
+  "status": 400,
+  "call_kept": true
+ },
+ {
+  "name": "raw_missing_key",
+  "call_id": "call-raw-missing-key",
+  "headers": [
+   "Connection: Upgrade",
+   "Upgrade: websocket",
+   "Sec-WebSocket-Version: 13"
+  ],
+  "status": 400,
+  "call_kept": true
+ },
+ {
+  "name": "raw_upgrade_token_list",
+  "call_id": "call-raw-upgrade-token-list",
+  "headers": [
+   "Connection: keep-alive, Upgrade",
+   "Upgrade: h2c, websocket",
+   "Sec-WebSocket-Version: 13",
+   "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ=="
+  ],
+  "status": 101,
+  "call_kept": false
+ },
+ {
+  "name": "raw_version_list",
+  "call_id": "call-raw-version-list",
+  "headers": [
+   "Connection: Upgrade",
+   "Upgrade: websocket",
+   "Sec-WebSocket-Version: 12, 13",
+   "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ=="
+  ],
+  "status": 101,
+  "call_kept": false
+ },
+ {
+  "name": "raw_version_wrong",
+  "call_id": "call-raw-version-wrong",
+  "headers": [
+   "Connection: Upgrade",
+   "Upgrade: websocket",
+   "Sec-WebSocket-Version: 12",
+   "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ=="
+  ],
+  "status": 400,
+  "call_kept": true
+ }
+]

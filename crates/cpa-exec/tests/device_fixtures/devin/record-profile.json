@@ -1,0 +1,132 @@
+{
+  "name": "record-profile",
+  "credential": null,
+  "request": {
+    "exchange": "",
+    "token": "eyJhbGciOi.fixture"
+  },
+  "responses": [
+    {
+      "status": 200,
+      "headers": [
+        [
+          "Content-Type",
+          "application/json"
+        ]
+      ],
+      "body": "{\"user_name\":\"Profile Name\",\"user_id\":\"pid-1\",\"org_id\":\"porg\"}"
+    },
+    {
+      "status": 200,
+      "headers": [
+        [
+          "Content-Type",
+          "application/proto"
+        ]
+      ],
+      "body": "",
+      "body_b64": "CnMaCGRldi51c2VyKgZ0ZWFtLTk6D2RldkBleGFtcGxlLmNvbWpACiASCVRlYW1zIFByb4oCEiIGb3JnLTc3QghBY21lIE9yZxIGCIDy1soGGgYIgNnb2QZwP3gAiAGA98TVBpgBBaICCHVzZXItMTIzwAIBEgdpZ25vcmVk"
+    }
+  ],
+  "upstream": [
+    {
+      "method": "GET",
+      "target": "/v3/self",
+      "headers": [
+        [
+          "Host",
+          "127.0.0.1:36793"
+        ],
+        [
+          "User-Agent",
+          "Go-http-client/1.1"
+        ],
+        [
+          "Accept",
+          "application/json"
+        ],
+        [
+          "Authorization",
+          "Bearer devin-session-token$eyJhbGciOi.fixture"
+        ],
+        [
+          "Accept-Encoding",
+          "gzip"
+        ]
+      ],
+      "body": ""
+    },
+    {
+      "method": "POST",
+      "target": "/exa.seat_management_pb.SeatManagementService/GetUserStatus",
+      "headers": [
+        [
+          "Host",
+          "127.0.0.1:36793"
+        ],
+        [
+          "Content-Length",
+          "830"
+        ],
+        [
+          "Accept",
+          "*/*"
+        ],
+        [
+          "Authorization",
+          "Basic devin-session-token$eyJhbGciOi.fixture-devin-session-token$eyJhbGciOi.fixture"
+        ],
+        [
+          "Connect-Protocol-Version",
+          "1"
+        ],
+        [
+          "Content-Type",
+          "application/proto"
+        ],
+        [
+          "Accept-Encoding",
+          "gzip"
+        ]
+      ],
+      "body": "",
+      "body_b64": "CrsGCgZjaGlzZWwSCjMwMDAuMTAuMjEaJmRldmluLXNlc3Npb24tdG9rZW4kZXlKaGJHY2lPaS5maXh0dXJlIgJlbioFbGludXg6CjMwMDAuMTAuMjFiBmNoaXNlbPoB3AU3MjhlNWQ5Y2I0NzJiNjY1YjFmMGE1OTFlOTgxOWZkODZjOWU4YmEyYjg5OTg4NTA5ZTI1OGM3Yzc1NWMwZDk5MWU0ZmZkNTgzMzgwZTZmOWZhM2I1ZDQ4Y2U5NmMzNDA3MjUxOTllZDg4NTFkODlhNDA5MTg1YmU1YmViZmZmMjQ0MDBhYTIzMjNlZDNlZDU2NjcyZmJmODM4ZjUxYWJlYTUyMzU4OTBjNjJlMDUxNDUyMGZlODhjMDg5NTE4N2YxMzhhNmMzZDk3NGM5MDQ4YzUxZDM3MzljMWEyMWZhZmQzYjgyMDEyNDM0YmI5NGUxNDY3M2YwN2M3MzM0ZTg4MjJlMTYyMDliYWJhMWZhOGMwYTZkOWMzOWUzMTA5NjAwYjRhY2I0YzdmYjFkNGNkNGUxMWQ2MTJlZDgwM2JiMzk5NDEzODg2MTJiNjU3MTk3Y2RiNWEyYjkwODM1YTY4MDNlMmM1MTliNmNiODAyZDg1MDM5YjE2NmQxYzNjOTExNjQzYzdhNmU3MmVjNDM3MWZlNWUyNjhhMGVmYWRjMzM3MWZhMDZkODI0YjhkOTg1MGExODJjOGI1YzdkYTExZjU1NjYxN2RkOGMwNWRmYmUwMzJjODdkNWQwZTFkOTMwYThmMjg1NWNmNjUyZmEzNGUyY2RjNDIwODExOTMwN2NmNmQyYTlkNTdkNjVmYTA1MzE2M2UyN2JmZWQzYWY2YzdkMmY4Mjk3YjFhZDFjNDBjMjZkOGRjNDA0NTk5M2JkMzgwNzZkYzhiNjcwYTk4NDhhY2Y5YjIyMDYxZDUxMzA5ODMxYjYyY2E4Njg1MWEzMGE1ODE1N2FhM2I2MjA3MDE3ZTljYWE3MjVhZDA3ZjNkM2IwNTg2MWFhMzVjN2QzMDExNzUxNmI5NmZmNjU0NzY3YzgzYjEwNGFmZDNlNWVmNmQ1OGQ5ZTNkYzk1NGMzNTAyN2FiZDE4YWQ="
+    }
+  ],
+  "downstream": {},
+  "extra": {
+    "attributes": {
+      "api_key": "devin-session-token$eyJhbGciOi.fixture",
+      "auth_kind": "oauth",
+      "base_url": "https://server.codeium.com",
+      "email": "dev@example.com",
+      "org_id": "porg",
+      "plan": "Teams Pro",
+      "session_token": "devin-session-token$eyJhbGciOi.fixture",
+      "user_id": "pid-1",
+      "user_name": "Profile Name"
+    },
+    "file_name": "devin-user-a423b47777783386.json",
+    "id": "devin-user-a423b47777783386.json",
+    "label": "Devin (Profile Name - dev@example.com)",
+    "metadata": {
+      "api_key": "devin-session-token$eyJhbGciOi.fixture",
+      "auth_kind": "oauth",
+      "email": "dev@example.com",
+      "org_id": "porg",
+      "plan": "Teams Pro",
+      "session_token": "devin-session-token$eyJhbGciOi.fixture",
+      "type": "devin",
+      "user_id": "pid-1",
+      "user_name": "Profile Name"
+    },
+    "quota_signals": {
+      "daily_quota_remaining_percent": "63%",
+      "daily_quota_reset_at": "2026-09-21T14:13:20Z",
+      "plan": "Teams Pro",
+      "plan_end": "2027-01-01T00:00:00Z",
+      "plan_start": "2026-01-01T00:00:00Z",
+      "weekly_quota_remaining_percent": "0%"
+    }
+  }
+}
