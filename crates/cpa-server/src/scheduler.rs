@@ -35,6 +35,8 @@ pub struct Windows {
     /// A window (Claude 5-hour or 7-day, Codex primary or secondary) is used up and has
     /// not reset yet: upstream would refuse until it does.
     pub exhausted: bool,
+    /// When the snapshot these come from was observed (`None`: never).
+    pub observed: Option<SystemTime>,
 }
 
 /// One usage window read from quota signals.
@@ -136,13 +138,21 @@ impl Windows {
                     .into_iter()
                     .flatten()
                     .any(|w| w.exhausted(observed_at, now)),
+            observed: Some(observed_at),
         }
     }
 
-    /// `soonest-reset` order: usable before exhausted, then the earliest weekly reset,
-    /// then credentials with no known reset.
-    fn order(&self) -> (bool, bool, Option<SystemTime>) {
-        (self.exhausted, self.weekly_reset.is_none(), self.weekly_reset)
+    /// `soonest-reset` order. Usable accounts come before used-up ones. Among them, an
+    /// account without a known reset (never observed, or its reset has passed) first
+    /// gets one probe request to learn it, then known resets go earliest first, then
+    /// accounts the probe taught nothing.
+    fn order(&self, probed: bool) -> (bool, u8, Option<SystemTime>) {
+        let class = match (self.weekly_reset, probed) {
+            (Some(_), _) => 1,
+            (None, false) => 0,
+            (None, true) => 2,
+        };
+        (self.exhausted, class, self.weekly_reset)
     }
 }
 
@@ -535,6 +545,9 @@ pub(crate) struct Scheduler {
     pub(crate) cooldowns: HashMap<(String, String), Cooldown>,
     /// Session affinity bindings (Go `SessionAffinitySelector.cache`).
     affinity: crate::affinity::Cache,
+    /// `soonest-reset` probes: the observation (by time) each credential without a known
+    /// reset had when it was sent its probe request.
+    probes: HashMap<String, Option<SystemTime>>,
 }
 
 /// Go `cfg.OpenAICompatibility` for cooling: enabled entries with a base URL (Go
@@ -620,6 +633,7 @@ impl Scheduler {
             self.rotations.clear();
             self.cursors.clear();
             self.affinity.clear();
+            self.probes.clear();
         }
     }
 
@@ -849,11 +863,28 @@ impl Scheduler {
         match strategy {
             Strategy::FillFirst => members[0],
             Strategy::SoonestReset => {
-                let ranked: Vec<_> = members.iter().map(|c| (ranks(c).order(), *c)).collect();
-                let best = ranked.iter().map(|(order, _)| *order).min().expect("members");
-                // Equal ranks (no reset data at all included) take turns.
-                let tied: Vec<&Credential> = ranked.iter().filter(|(o, _)| *o == best).map(|(_, c)| *c).collect();
-                let picked = tied.iter().find(|c| c.id > state.last).copied().unwrap_or(tied[0]);
+                let probes = &mut self.probes;
+                let ranked: Vec<_> = members
+                    .iter()
+                    .map(|c| {
+                        let windows = ranks(c);
+                        // Probed while its observation was the current one.
+                        let probed = probes.get(&c.id) == Some(&windows.observed);
+                        (windows.order(probed), windows.observed, *c)
+                    })
+                    .collect();
+                let best = ranked.iter().map(|(order, ..)| *order).min().expect("members");
+                // Equal ranks take turns.
+                let tied: Vec<_> = ranked.iter().filter(|(o, ..)| *o == best).collect();
+                let (order, observed, picked) = *tied
+                    .iter()
+                    .find(|(.., c)| c.id > state.last)
+                    .copied()
+                    .unwrap_or(tied[0]);
+                if order.1 == 0 {
+                    // Its one probe: the next pick ranks it by what the answer reports.
+                    probes.insert(picked.id.clone(), observed);
+                }
                 state.last.clone_from(&picked.id);
                 picked
             }
@@ -1052,6 +1083,7 @@ impl Scheduler {
             .collect();
         self.cooldowns.retain(|(cid, _), _| cid != id);
         self.affinity.invalidate(id);
+        self.probes.remove(id);
         models.sort();
         models
     }
@@ -1186,6 +1218,7 @@ impl Scheduler {
         self.cooldowns
             .retain(|(id, _), _| credentials.iter().any(|c| c.id == *id));
         self.affinity.retain(|id| credentials.iter().any(|c| c.id == id));
+        self.probes.retain(|id, _| credentials.iter().any(|c| c.id == *id));
     }
 }
 
@@ -1928,11 +1961,7 @@ mod tests {
     #[test]
     fn soonest_reset_spends_the_earliest_weekly_window_first() {
         let wall = SystemTime::now();
-        let (a, b, c) = (
-            cred("a", serde_json::json!({})),
-            cred("b", serde_json::json!({})),
-            cred("c", serde_json::json!({})),
-        );
+        let (a, b) = (cred("a", serde_json::json!({})), cred("b", serde_json::json!({})));
         let in_an_hour = wall + Duration::from_secs(3600);
         // Both observed at `wall`, read at `now`; `b`'s 5-hour window in `b_five_hour`.
         let ranks_at = |b_five_hour: &'static str, now: SystemTime| {
@@ -1940,21 +1969,17 @@ mod tests {
                 claude_at(wall, now, 4 * DAY, "allowed", in_an_hour),
                 claude_at(wall, now, DAY, b_five_hour, in_an_hour),
             );
-            move |cred: &Credential| match cred.id.as_str() {
-                "a" => wa,
-                "b" => wb,
-                _ => Windows::default(),
-            }
+            move |cred: &Credential| if cred.id == "a" { wa } else { wb }
         };
         let policy = soonest();
         let mut s = Scheduler::default();
         let now = Instant::now();
         let ranks = ranks_at("allowed", wall);
         for _ in 0..3 {
-            let picked = s.pick_ranked(&tag(&[&a, &b, &c]), &selection("m"), &policy, &ranks, now);
+            let picked = s.pick_ranked(&tag(&[&a, &b]), &selection("m"), &policy, &ranks, now);
             assert_eq!(picked.unwrap().id, "b", "the sooner weekly reset is used up first");
         }
-        // `b` cools on a 429: the next soonest takes over, the unknown one stays last.
+        // `b` cools on a 429: the next soonest takes over.
         s.record(
             &b,
             "m",
@@ -1962,40 +1987,39 @@ mod tests {
             &policy,
             now,
         );
-        let ready: Vec<&Credential> = [&a, &b, &c]
-            .into_iter()
-            .filter(|x| s.wait(x, "m", now).is_none())
-            .collect();
-        assert_eq!(ready.iter().map(|x| x.id.as_str()).collect::<Vec<_>>(), ["a", "c"]);
+        let ready: Vec<&Credential> = [&a, &b].into_iter().filter(|x| s.wait(x, "m", now).is_none()).collect();
+        assert_eq!(ready.iter().map(|x| x.id.as_str()).collect::<Vec<_>>(), ["a"]);
+        assert_eq!(
+            s.pick_ranked(&tag(&ready), &selection("m"), &policy, &ranks, now)
+                .unwrap()
+                .id,
+            "a"
+        );
+        // Without the cooldown, `b`'s used-up 5-hour window also hands over to `a`...
+        let mut s = Scheduler::default();
+        let exhausted = ranks_at("rejected", wall);
         for _ in 0..2 {
             assert_eq!(
-                s.pick_ranked(&tag(&ready), &selection("m"), &policy, &ranks, now)
+                s.pick_ranked(&tag(&[&a, &b]), &selection("m"), &policy, &exhausted, now)
                     .unwrap()
                     .id,
                 "a"
             );
         }
-        // Without the cooldown, `b`'s exhausted 5-hour window also hands over to `a`...
-        let mut s = Scheduler::default();
-        let exhausted = ranks_at("rejected", wall);
-        assert_eq!(
-            s.pick_ranked(&tag(&[&a, &b, &c]), &selection("m"), &policy, &exhausted, now)
-                .unwrap()
-                .id,
-            "a"
-        );
         // ...until that window resets, an hour later.
         let reset = ranks_at("rejected", in_an_hour + Duration::from_secs(1));
         assert_eq!(
-            s.pick_ranked(&tag(&[&a, &b, &c]), &selection("m"), &policy, &reset, now)
+            s.pick_ranked(&tag(&[&a, &b]), &selection("m"), &policy, &reset, now)
                 .unwrap()
                 .id,
             "b"
         );
     }
 
+    /// Accounts with no known reset get one probe request each, then rank by what they
+    /// reported; one that reported nothing comes after the known resets.
     #[test]
-    fn soonest_reset_puts_unknown_resets_last_and_rotates_ties() {
+    fn soonest_reset_probes_unknown_accounts_once_then_ranks_them() {
         let wall = SystemTime::now();
         let creds: Vec<Credential> = ["a", "b", "c", "d"]
             .iter()
@@ -2003,8 +2027,8 @@ mod tests {
             .collect();
         let [a, b, c, d] = [&creds[0], &creds[1], &creds[2], &creds[3]];
         let in_an_hour = wall + Duration::from_secs(3600);
-        // `d` resets in 3 days; `a` and `b` know nothing; `c` is exhausted.
-        let ranks = |x: &Credential| match x.id.as_str() {
+        // `d` resets in 3 days, `c` is used up, `a` and `b` were never observed.
+        let known = |x: &Credential| match x.id.as_str() {
             "c" => claude(wall, DAY, "rejected", in_an_hour),
             "d" => claude(wall, 3 * DAY, "allowed", in_an_hour),
             _ => Windows::default(),
@@ -2012,22 +2036,66 @@ mod tests {
         let policy = soonest();
         let mut s = Scheduler::default();
         let now = Instant::now();
-        let pick = |s: &mut Scheduler, set: &[&Credential]| {
-            s.pick_ranked(&tag(set), &selection("m"), &policy, &ranks, now)
+        let pick = |s: &mut Scheduler, set: &[&Credential], ranks: &Ranks<'_>| {
+            s.pick_ranked(&tag(set), &selection("m"), &policy, ranks, now)
                 .unwrap()
                 .id
                 .clone()
         };
-        assert_eq!(pick(&mut s, &[a, b, d]), "d", "a known reset comes before none");
-        assert_eq!(pick(&mut s, &[a, b, c]), "a", "unknown before exhausted");
-        // Equal ranks take turns in round-robin order.
-        let turns: Vec<String> = (0..4).map(|_| pick(&mut s, &[a, b])).collect();
-        assert_eq!(turns, ["b", "a", "b", "a"]);
+        // One probe each for the unknown accounts, then the known reset.
+        let order: Vec<String> = (0..4).map(|_| pick(&mut s, &[a, b, c, d], &known)).collect();
+        assert_eq!(order, ["a", "b", "d", "d"]);
+        // `a`'s probe answered with a reset in 12 hours: it now ranks by it, ahead of
+        // `d`; `b`'s answer reported nothing, so it stays behind the known resets.
+        let learned = |x: &Credential| match x.id.as_str() {
+            "a" => claude(wall + Duration::from_secs(1), 12 * 3600, "allowed", in_an_hour),
+            _ => known(x),
+        };
+        assert_eq!(pick(&mut s, &[a, b, c, d], &learned), "a");
+        assert_eq!(pick(&mut s, &[b, c, d], &learned), "d");
         assert_eq!(
-            pick(&mut s, &[c]),
-            "c",
-            "an exhausted credential is still the last resort"
+            pick(&mut s, &[b, c], &learned),
+            "b",
+            "probed and unknown, still before used-up"
         );
+        assert_eq!(
+            pick(&mut s, &[c], &learned),
+            "c",
+            "a used-up account is the last resort"
+        );
+        // When `d`'s weekly reset passes, it is unknown again and gets a new probe.
+        let passed = |x: &Credential| match x.id.as_str() {
+            "d" => claude_at(
+                wall,
+                wall + Duration::from_secs(3 * DAY + 1),
+                3 * DAY,
+                "allowed",
+                in_an_hour,
+            ),
+            _ => learned(x),
+        };
+        assert_eq!(pick(&mut s, &[a, b, d], &passed), "d");
+        assert_eq!(pick(&mut s, &[a, b, d], &passed), "a");
+    }
+
+    #[test]
+    fn soonest_reset_rotates_equal_ranks() {
+        let wall = SystemTime::now();
+        let creds: Vec<Credential> = ["a", "b"].iter().map(|id| cred(id, serde_json::json!({}))).collect();
+        let in_an_hour = wall + Duration::from_secs(3600);
+        // The same reset for both.
+        let ranks = |_: &Credential| claude(wall, 2 * DAY, "allowed", in_an_hour);
+        let mut s = Scheduler::default();
+        let now = Instant::now();
+        let turns: Vec<String> = (0..4)
+            .map(|_| {
+                s.pick_ranked(&tag(&[&creds[0], &creds[1]]), &selection("m"), &soonest(), &ranks, now)
+                    .unwrap()
+                    .id
+                    .clone()
+            })
+            .collect();
+        assert_eq!(turns, ["a", "b", "a", "b"]);
     }
 
     #[test]
@@ -2122,7 +2190,8 @@ mod tests {
             "Anthropic-Ratelimit-Unified-7d-Reset",
             epoch(now - Duration::from_secs(60)),
         )]);
-        assert_eq!(Windows::observed("claude", &stale, now, now), Windows::default());
+        let w = Windows::observed("claude", &stale, now, now);
+        assert_eq!((w.weekly_reset, w.exhausted, w.observed), (None, false, Some(now)));
         // Utilization 1.0 exhausts the 5-hour window until its reset.
         let full = map(&[
             ("Anthropic-Ratelimit-Unified-5h-Utilization", "1.0".into()),
@@ -2164,6 +2233,7 @@ mod tests {
         let reached = map(&[("X-Codex-Limit-Reached", "True".into())]);
         assert!(Windows::observed("codex", &reached, now, now).exhausted);
         // Another provider's headers mean nothing here.
-        assert_eq!(Windows::observed("gemini", &codex, now, now), Windows::default());
+        let w = Windows::observed("gemini", &codex, now, now);
+        assert_eq!((w.weekly_reset, w.exhausted), (None, false));
     }
 }

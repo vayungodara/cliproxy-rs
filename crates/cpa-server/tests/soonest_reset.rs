@@ -192,19 +192,28 @@ impl Proxy {
 async fn soonest_weekly_reset_is_used_up_first_then_the_next() {
     let p = proxy("route", "soonest-reset").await;
     assert_eq!(p.rt.policy().strategy, Strategy::SoonestReset);
-    // `y` resets in one day, `x` in four; nothing is observed yet.
+    // `y` resets in one day, `x` in four; nothing is observed yet. Each unknown account
+    // gets one probe request (equal ranks start at `x`), then the sooner reset takes
+    // every request.
     *p.up.soon.lock().unwrap() = p.y.clone();
-    // Equal ranks start at `x`; once `x` reports a reset it outranks the unknown `y`.
-    assert_eq!(p.route(3).await, ["x", "x", "x"]);
-    // `x` reports its 5-hour window used up: the next request goes to `y`, which
-    // reports the sooner weekly reset and keeps every request after.
-    *p.up.five_hour_out.lock().unwrap() = p.x.clone();
-    assert_eq!(p.route(1).await, ["x"]);
-    assert_eq!(p.route(4).await, ["y", "y", "y", "y"]);
-    // `y` runs out: its 429 fails over to `x` and cools `y`.
-    *p.up.exhausted.lock().unwrap() = p.y.clone();
-    assert_eq!(p.route(1).await, ["y", "x"]);
+    assert_eq!(p.route(5).await, ["x", "y", "y", "y", "y"]);
+    // `y` reports its 5-hour window used up: `x` takes over.
+    *p.up.five_hour_out.lock().unwrap() = p.y.clone();
+    assert_eq!(p.route(1).await, ["y"]);
     assert_eq!(p.route(2).await, ["x", "x"]);
+    // `x` runs out: its 429 fails over to `y`, the only account left, and cools `x`.
+    *p.up.exhausted.lock().unwrap() = p.x.clone();
+    assert_eq!(p.route(1).await, ["x", "y"]);
+    assert_eq!(p.route(2).await, ["y", "y"]);
+}
+
+/// A probed account that resets later than the known one gets its one request, then
+/// the traffic goes back.
+#[tokio::test]
+async fn a_probed_later_reset_hands_back_to_the_sooner_one() {
+    let p = proxy("probe", "soonest-reset").await;
+    *p.up.soon.lock().unwrap() = p.x.clone();
+    assert_eq!(p.route(5).await, ["x", "y", "x", "x", "x"]);
 }
 
 #[tokio::test]
