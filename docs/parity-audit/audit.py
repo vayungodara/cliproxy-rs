@@ -199,6 +199,11 @@ def test_texts():
             steps = (s for sc in json.loads(text)["scenarios"] for s in sc.get("steps", []))
             out[rel] = "\n".join(f'{s["method"]} "/v0/management{s["path"]}"' for s in steps if "path" in s)
             continue
+        if rel.endswith("cpa-server/tests/fixtures/realtime_http_go.json"):
+            # tests/realtime.rs sends each case's request.
+            reqs = (c["request"] for c in json.loads(text) if isinstance(c.get("request"), dict))
+            out[rel] = "\n".join(f'{r.get("method", "")} "{r["path"]}"' for r in reqs if "path" in r)
+            continue
         if not rel.endswith(".rs"):
             continue
         if "/tests/" in rel or rel.endswith("_tests.rs"):
@@ -382,7 +387,7 @@ def main():
 
 # Milestones whose rows have been reviewed by hand; the others are not rendered yet.
 AUDITED = ["M1", "M2", "M3", "M4", "M5", "M6"]
-BASE = "b944482"
+BASE = "50b9e80"
 
 
 def title(r):

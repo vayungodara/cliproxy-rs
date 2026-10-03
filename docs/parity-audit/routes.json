@@ -210,7 +210,7 @@
   "status": 401
  },
  "GET /v0/management/anthropic-auth-url": {
-  "body": "{\"state\":\"fcca704684b8efd3cb2cd6d63eafc3a9\",\"status\":\"ok\",\"url\":\"https://claude.",
+  "body": "{\"state\":\"a04d2cf1d9fff502fef5bde8fa3ece3e\",\"status\":\"ok\",\"url\":\"https://claude.",
   "id": "M5-0217",
   "routed": true,
   "status": 200
@@ -234,7 +234,7 @@
   "status": 200
  },
  "GET /v0/management/auth-files": {
-  "body": "{\"files\":[],\"observed_at\":\"2026-10-03T14:29:06.855496504Z\"}",
+  "body": "{\"files\":[],\"observed_at\":\"2026-10-03T16:49:45.97729455Z\"}",
   "id": "M5-0207",
   "routed": true,
   "status": 200
@@ -264,7 +264,7 @@
   "status": 200
  },
  "GET /v0/management/codex-auth-url": {
-  "body": "{\"state\":\"ddbac35d3c68c651cee448b4ab0daba6\",\"status\":\"ok\",\"url\":\"https://auth.op",
+  "body": "{\"state\":\"9eafd43880c88e2758112ce6f294dbcc\",\"status\":\"ok\",\"url\":\"https://auth.op",
   "id": "M5-0218",
   "routed": true,
   "status": 200
@@ -276,7 +276,7 @@
   "status": 200
  },
  "GET /v0/management/config.yaml": {
-  "body": "host: 127.0.0.1\nport: 51045\nauth-dir: /tmp/parity-probe-59v9_qup/auth\napi-keys:\n",
+  "body": "host: 127.0.0.1\nport: 58747\nauth-dir: /tmp/parity-probe-tdem9u9k/auth\napi-keys:\n",
   "id": "M5-0086",
   "routed": true,
   "status": 200
@@ -288,7 +288,7 @@
   "status": 200
  },
  "GET /v0/management/devin-auth-url": {
-  "body": "{\"state\":\"fa96b501e4059a5f0df15ba5101a2eae\",\"status\":\"ok\",\"url\":\"https://app.dev",
+  "body": "{\"state\":\"3fdf9510933ef442ed2e78fd9d99a175\",\"status\":\"ok\",\"url\":\"https://app.dev",
   "id": "M5-0223",
   "routed": true,
   "status": 200
@@ -468,7 +468,7 @@
   "status": 404
  },
  "GET /v0/management/request-error-logs": {
-  "body": "{\"files\":[]}",
+  "body": "{\"files\":[{\"name\":\"error-backend-api-codex-alpha-search-2026-10-03T164929-468b7f",
   "id": "M5-0147",
   "routed": true,
   "status": 200
@@ -486,7 +486,7 @@
   "status": 200
  },
  "GET /v0/management/request-log-by-id/:id": {
-  "body": "{\"error\":\"log directory not found\"}",
+  "body": "{\"error\":\"log file not found for the given request ID\"}",
   "id": "M5-0149",
   "routed": true,
   "status": 404
@@ -600,7 +600,7 @@
   "status": 200
  },
  "GET /v8/management/config.yaml": {
-  "body": "access:\n  api-keys:\n    - probe-client-key\nserver:\n  host: 127.0.0.1\n  port: 510",
+  "body": "access:\n  api-keys:\n    - probe-client-key\nserver:\n  host: 127.0.0.1\n  port: 587",
   "id": "M5-0047",
   "routed": true,
   "status": 200
@@ -612,7 +612,7 @@
   "status": 404
  },
  "GET /v8/management/credentials": {
-  "body": "{\"files\":[],\"observed_at\":\"2026-10-03T14:28:54.291276728Z\"}",
+  "body": "{\"files\":[],\"observed_at\":\"2026-10-03T16:49:33.175309994Z\"}",
   "id": "M5-0064",
   "routed": true,
   "status": 200
@@ -654,7 +654,7 @@
   "status": 400
  },
  "GET /v8/management/observability/logs/errors": {
-  "body": "{\"files\":[]}",
+  "body": "{\"files\":[{\"name\":\"error-backend-api-codex-alpha-search-2026-10-03T164929-468b7f",
   "id": "M5-0059",
   "routed": true,
   "status": 200
@@ -666,7 +666,7 @@
   "status": 404
  },
  "GET /v8/management/observability/logs/requests/:id": {
-  "body": "{\"error\":\"log directory not found\"}",
+  "body": "{\"error\":\"log file not found for the given request ID\"}",
   "id": "M5-0061",
   "routed": true,
   "status": 404

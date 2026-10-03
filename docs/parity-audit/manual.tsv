@@ -401,14 +401,14 @@ M4-0246	partial	crates/cpa-server/src/watching.rs hash_cache_rereads_only_change
 M4-0247	partial	runtime.rs config_routing_drives_policy_at_startup_and_on_publish, reconcile_keeps_unchanged_revisions_and_never_reuses_old_ones; management.rs watcher tests	ultra/manage	Not tested for every reloadable subsystem.
 M4-0248	partial	runtime.rs reconcile and stale-lease tests; management.rs watcher tests	ultra/manage	Not tested case by case.
 M4-0249	partial	crates/cpa-server/src/logging.rs lines_follow_go_log_formatter, rotating_file_follows_lumberjack, cleaner_removes_oldest_logs_but_keeps_main_log	ultra/manage	Commercial mode (dropping heavy request logging) is absent.
-M4-0250	partial	crates/cpa-server/src/management/logs.rs serves request and error logs	ultra/server	Request logs are never written: no capture of inbound/upstream requests and responses.
+M4-0250	partial	crates/cpa-server/src/request_logging.rs (inbound and response capture, upstream_contract_matches_real_go); management/logs.rs serves request and error logs	ultra/observe	The upstream capture contract defaults to a no-op until each provider executor adopts it (integrator ruling: partial pending provider adoption).
 M4-0251	partial	crates/cpa-server/src/usage_record.rs queued_records_match_go; usage.rs; routes.rs usage_queue_records_every_attempt; server_go.json usage	ultra/server	No RESP subscribers (ponytail in usage.rs); plugin and Home usage hooks are not wired.
 M4-0252	partial	crates/cliproxy/src/main.rs argv_prescan_matches_go (TestArgvEnablesBoolFlag); model catalog plan in crates/cpa-server/src/model_updater.rs plan_matches_go	ultra/tui	Example-API-key safe mode and management base URL cases are not ported.
-M4-0253	partial	crates/cpa-server/src/lib.rs routes; crates/cpa-server/tests/routes.rs, claude_passthrough.rs	ultra/server	Not ported by name.
-M4-0254	partial	crates/cpa-server/src/lib.rs routes; crates/cpa-server/tests/routes.rs, claude_passthrough.rs	ultra/server	Not ported by name.
+M4-0253	covered	crates/cpa-server/src/request_logging.rs (go_middleware_goldens, served_composition_captures_before_head_stripping_and_length_inference, hot_enable_captures_only_frames_written_while_enabled_like_go)	ultra/server	Not ported by name; Go-recorded goldens.
+M4-0254	partial	crates/cpa-server/src/request_logging.rs compression_body_bytes_match_real_go_including_raw_error_fallback	ultra/observe	Accepted partial (integrator ruling): malformed Brotli bytes are withheld and codec diagnostics differ from Go.
 M4-0255	covered	crates/cpa-server/src/listener.rs serve_with_resp; tests/resp_protocol.rs		Go's muxListener queue (Put after Close, drain on Close) is an implementation detail: Rust hands each sniffed connection straight to its protocol, so those cases have no counterpart.
 M4-0256	covered	crates/cpa-server/tests/resp_protocol.rs idle_connection_does_not_block_http (Go TestAcceptMuxNotBlockedByIdleConnection)		
-M4-0257	partial	crates/cpa-server/tests/resp_protocol.rs: management_disabled_rejects_connection, subscribe_usage_sends_support_refresh, subscribe_errors_receives_error_events, auth_and_pop_contracts	ultra/server	TestRedisProtocol_HomeEnabled_DisablesConnection has no counterpart test (main.rs turns RESP off in Home mode).
+M4-0257	covered	crates/cpa-server/tests/resp_protocol.rs: management_disabled_rejects_connection, Home-mode refusal (Go TestRedisProtocol_HomeModeDisablesUsageOutput), subscribe_usage_sends_support_refresh, subscribe_errors_receives_error_events, auth_and_pop_contracts	ultra/server	TestRedisProtocol_HomeEnabled_DisablesConnection has no counterpart test (main.rs turns RESP off in Home mode).
 M4-0258	partial	crates/cpa-server/src/lib.rs routes; crates/cpa-server/tests/routes.rs, claude_passthrough.rs	ultra/server	Not ported by name.
 M4-0259	missing	/v1/models has no Grok Shell catalog (ponytail in crates/cpa-server/src/models.rs)	ultra/openai-xai	
 M4-0260	partial	crates/cpa-server/src/lib.rs routes; crates/cpa-server/tests/routes.rs, claude_passthrough.rs	ultra/server	Not ported by name.
@@ -456,7 +456,7 @@ M4-0303	partial	crates/cpa-server/src/logging.rs; request IDs and CPA trace head
 M4-0304	partial	crates/cpa-server/src/access.rs, observability.rs (go_access_and_redaction_goldens, health_status_levels_and_stream_completion_follow_go)	ultra/observe	The recovery cases (ErrAbortHandler re-panic, panic logging) are not ported by name.
 M4-0305	partial	crates/cpa-server/src/logging.rs (lumberjack rotation, cleaner, formatter tests)	ultra/manage	Not ported by name.
 M4-0306	partial	crates/cpa-server/src/logging.rs (lumberjack rotation, cleaner, formatter tests)	ultra/manage	Not ported by name.
-M4-0307	missing	request logs are never written	ultra/server	
+M4-0307	covered	crates/cpa-server/src/request_logging.rs go_masking_collisions_and_retention	ultra/server	Not ported by name.
 M4-0308	partial	crates/cpa-server/src/logging.rs; request IDs and CPA trace headers in dispatch.rs	ultra/server	Not ported by name.
 M4-0309	partial	MetadataPatch merges (crates/cpa-core/src/credential.rs)	ultra/server	Not ported by name.
 M4-0310	partial	crates/cpa-core/src/registry/dynamic.rs	ultra/server	Not ported by name.
@@ -597,7 +597,7 @@ M4-0451	partial	crates/cpa-server/src/scheduler.rs tests; crates/cpa-server/test
 M4-0452	partial	crates/cpa-server/src/scheduler.rs tests; crates/cpa-server/tests/scheduler_attempts.rs; server_go.json	ultra/server	Not ported by name.
 M4-0453	partial	crates/cpa-server/src/scheduler.rs tests; crates/cpa-server/tests/scheduler_attempts.rs; server_go.json	ultra/server	Not ported by name.
 M4-0454	partial	crates/cpa-server/src/scheduler.rs tests; crates/cpa-server/tests/scheduler_attempts.rs; server_go.json	ultra/server	Not ported by name.
-M4-0455	partial	crates/cpa-server/src/scheduler.rs tests; crates/cpa-server/tests/scheduler_attempts.rs; server_go.json	ultra/server	Not ported by name.
+M4-0455	covered	crates/cpa-server/src/error_events.rs error_events_match_go_mark_result (25 Go MarkResult cases in tests/fixtures/server_go.json); runtime.rs publishes after MarkResult	ultra/server	Go's Home-mode skip has no named test; events reach only RESP errors subscribers (UsageQueue::wants_errors), and Home mode refuses RESP.
 M4-0456	partial	crates/cpa-server/src/scheduler.rs tests; crates/cpa-server/tests/scheduler_attempts.rs; server_go.json	ultra/server	Not ported by name.
 M4-0457	partial	crates/cpa-server/src/scheduler.rs tests; crates/cpa-server/tests/scheduler_attempts.rs; server_go.json	ultra/server	Not ported by name.
 M4-0458	partial	crates/cpa-server/src/scheduler.rs tests; crates/cpa-server/tests/scheduler_attempts.rs; server_go.json	ultra/server	Not ported by name.
@@ -659,7 +659,7 @@ M5-0023	covered	crates/cpa-server/src/realtime/secrets.rs keys_expire_and_capaci
 M5-0024	partial	crates/cpa-exec/src/codex_ws.rs, crates/cpa-server/src/websocket*.rs; tests/ws_e2e.rs; websocket_requests_tests.rs (Go vectors)	ultra/codex	Duplex steering is absent (M2-0145..0149).
 M5-0025	covered	codex_go.json executor oauth_bootstrap_overload_failover, oauth_bootstrap_time_budget_spent, oauth_bootstrap_holds_then_releases; stream-bootstrap keys read in crates/cpa-exec/src/codex_request.rs		
 M5-0227	partial	probe: 95 of 237 listed routes routed	ultra/manage	Plugin routes and the deprecated v0 config subroutes are not registered.
-M5-0228	missing	v0-only quota/providers, quota/fetch, quota/reset and plugin config routes are not routed (probe 404)	ultra/manage	
+M5-0228	missing	v0 quota/providers, quota/fetch and quota/reset are not routed (probe 404); the v0-only plugins/:id/enabled and plugins/:id/config routes are (Plugins 3), as are the auth-url endpoints and flat setters (TUI 2)	ultra/plugins	Go's handlers live in plugin_quota.go.
 M5-0229	partial	crates/cpa-server/tests/management.rs (writes_normalize_only_what_they_touch, config_key_* tests); manage_go.json config_writes	ultra/manage	TURN credential and Home revision redaction are not tested.
 M5-0230	partial	crates/cpa-server/src/management/oauth.rs (claude, codex, kimi/kimi-ai, meta, xai, devin); tests/management.rs *_login_* tests	ultra/manage	Antigravity login (no executor) and plugin provider IDs are absent. The module header ponytail still says xai and devin answer provider_not_found; that is stale.
 M5-0231	partial	crates/cpa-server/src/management/auth_files.rs, multipart.rs (hostile_bodies_never_panic); manage_go.json credentials; tests/manage_go.rs go_credential_management_replay	ultra/manage	Not ported by name.
@@ -707,7 +707,7 @@ M5-0272	partial	crates/cpa-server/src/management*; tests/management.rs, tests/ma
 M5-0273	partial	crates/cpa-server/src/management*; tests/management.rs, tests/manage_go.rs (manage_go.json)	ultra/manage	Not ported by name.
 M5-0274	partial	crates/cpa-server/src/management*; tests/management.rs, tests/manage_go.rs (manage_go.json)	ultra/manage	Not ported by name.
 M5-0275	partial	crates/cpa-server/src/management*; tests/management.rs, tests/manage_go.rs (manage_go.json)	ultra/manage	Not ported by name.
-M5-0276	missing	v0 quota routes are not routed (probe 404)	ultra/manage	
+M5-0276	missing	v0 quota routes are not routed (probe 404)	ultra/plugins	Go's handlers live in plugin_quota.go.
 M5-0277	covered	n/a: Go test harness setup		
 M5-0278	partial	crates/cpa-server/src/management*; tests/management.rs, tests/manage_go.rs (manage_go.json)	ultra/manage	Not ported by name.
 M5-0279	partial	crates/cpa-server/src/management.rs router; tests/manage_go.rs go_server_routing_preflight_and_availability_replay	ultra/manage	Not ported by name.
@@ -892,4 +892,4 @@ M5-0087			ultra/tui	v0 serves GET config.yaml only (management.rs); v8 has both.
 # Owner corrections from the integrator (owner rulings).
 M4-0061			ultra/tui	Go reads it only in the v0 management handlers and the reload diff.
 M4-0062			ultra/tui	Go reads it only in the v0 management handlers and the reload diff.
-M4-0048			ultra/server	It only disables request logging; it ships with request-log capture (M4-0250).
+M4-0048	covered	crates/cpa-server/src/request_logging.rs commercial_mode_disables_only_request_capture_and_is_startup_only	ultra/server	It only disables request logging; it ships with request-log capture (M4-0250).
