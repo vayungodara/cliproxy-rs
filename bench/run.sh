@@ -7,9 +7,25 @@
 # fake upstream in bench/upstream, one client key, an empty credential directory. The
 # server is pinned to CPU 0; the fake upstream and the load generator share CPU 1.
 # Every scenario starts a fresh server process, so peak memory is per scenario.
-# Needs Go (to build the two helpers), curl, jq and taskset. Sends no traffic outside
-# 127.0.0.1.
+# Needs Go (to build the two helpers), curl, jq and taskset. DURATION (default 20s),
+# SCENARIOS and SERVERS narrow a run.
+#
+# External network is denied for the whole run: the script re-runs itself in a
+# loopback-only network namespace (unshare), or, where that is not allowed, points every
+# proxy variable at a closed local port.
 set -euo pipefail
+
+if [[ -z ${BENCH_ISOLATION:-} ]]; then
+  if unshare -rn true 2>/dev/null; then
+    BENCH_ISOLATION=netns exec unshare -rn bash -c \
+      'ip link set lo up && exec unshare --user --map-user="$1" --map-group="$2" -- "${@:3}"' \
+      _ "$(id -u)" "$(id -g)" "$0" "$@"
+  fi
+  export BENCH_ISOLATION=proxy-env HTTPS_PROXY=http://127.0.0.1:9 HTTP_PROXY=http://127.0.0.1:9 \
+    ALL_PROXY=http://127.0.0.1:9 NO_PROXY=127.0.0.1,localhost,::1
+fi
+export GOPROXY=off GOTOOLCHAIN=local
+echo "network isolation: $BENCH_ISOLATION" >&2
 
 RUST_BIN=$(realpath "$1")
 GO_BIN=$(realpath "$2")
@@ -139,7 +155,7 @@ scenario() { # name round server
 
 : > "$OUT/results.jsonl"
 for round in $(seq 1 "$ROUNDS"); do
-  for name in idle chat chat-stream chat-stream-slow messages-stream; do
-    for server in rust go; do scenario "$name" "$round" "$server"; done
+  for name in ${SCENARIOS:-idle chat chat-stream chat-stream-slow messages-stream}; do
+    for server in ${SERVERS:-rust go}; do scenario "$name" "$round" "$server"; done
   done
 done

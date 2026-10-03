@@ -7,9 +7,9 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 WORKDIR /src
 COPY . .
-# Lower CARGO_BUILD_JOBS on small machines; the final link needs about 2 GB of memory.
-ARG CARGO_BUILD_JOBS
-RUN cargo build --release --locked -p cliproxy \
+# On small machines pass --build-arg BUILD_JOBS=1; the final link needs about 2 GB of memory.
+ARG BUILD_JOBS
+RUN cargo build --release --locked -p cliproxy ${BUILD_JOBS:+--jobs "$BUILD_JOBS"} \
  && install -m 0755 target/release/cliproxy /usr/local/bin/cliproxy
 
 # Runtime stage. The binary links glibc and libstdc++, so a slim Debian base is the

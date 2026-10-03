@@ -101,7 +101,8 @@ jobs:
           exe=cliproxy; [[ "$RUNNER_OS" == Windows ]] && exe=cliproxy.exe
           mkdir -p "$name" out
           cp "target/${{ matrix.target }}/release/$exe" README.md LICENSE "$name/"
-          reported="$("./$name/$exe" --version | tr -d '\r')"
+          # The first line is Go's startup banner; the last is "cliproxy <version>".
+          reported="$("./$name/$exe" --version | tr -d '\r' | tail -n 1)"
           echo "$reported"
           if $tagged && [[ "$reported" != "cliproxy $version" ]]; then
             echo "::error::tag $GITHUB_REF_NAME does not match the binary version ($reported)"; exit 1

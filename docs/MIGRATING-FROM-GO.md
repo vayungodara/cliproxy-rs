@@ -19,7 +19,7 @@ The way back works too. In our tests against fake sign-in servers, Go 6fecc6e li
 
 1. Stop the Go server.
 2. Back up `config.yaml` and the credential directory. They hold OAuth refresh tokens, so keep the backup private.
-3. Check your command line against the flag list below. cliproxy-rs exits at start if it gets a flag it does not know.
+3. Check your command line against the flag list below. A few Go modes are not available yet, and cliproxy-rs exits with an error instead of starting without them.
 4. Start cliproxy-rs with the same config: `cliproxy --config /path/to/config.yaml`.
 5. Open `/management.html` and check that your credentials are listed and healthy, then send a test request with one of your client keys.
 
@@ -29,37 +29,38 @@ Do not run Go and cliproxy-rs against the same credential directory at the same 
 
 ## Command-line flags
 
-cliproxy-rs has `--config`, `--claude-login`, `--codex-login`, `--codex-device-login`, `--kimi-login`, `--kimi-ai-login`, `--xai-login`, `--meta-login`, `--no-browser`, `--oauth-callback-port` and `--password`. Go's single-dash spelling (`-config`) works too.
+cliproxy-rs accepts every CLIProxyAPI flag, in Go's single-dash spelling (`-config`) or with two dashes. These work as in Go: `-config`, `-claude-login`, `-codex-login`, `-codex-device-login`, `-kimi-login`, `-kimi-ai-login`, `-xai-login`, `-meta-login`, `-no-browser`, `-oauth-callback-port`, `-password`, `-local-model`, and LAN discovery with `-discover` (or the `discover` subcommand) and its `-discover-*` options.
 
-These Go flags are not supported and stop the server at start: `-antigravity-login`, `-devin-login`, `-vertex-import`, `-vertex-import-prefix`, `-discover`, `-discover-json`, `-discover-service-type`, `-discover-timeout`, `-home-jwt`, `-home-disable-cluster-discovery`, `-tui`, `-standalone`, `-management-base-url` and `-local-model`.
+These exit with a "not supported by cliproxy-rs yet" error and status 1: `-antigravity-login`, `-devin-login`, `-vertex-import`, and `-home-jwt` (also when set through the `HOME_JWT` environment variable). `-tui` prints that the terminal UI is not available and exits.
 
-## Settings and features without an effect
+## Not available yet
 
-These are accepted in `config.yaml` and kept on save, but cliproxy-rs does not act on them:
+These settings are accepted in `config.yaml` and kept on save, but cliproxy-rs does not act on them yet:
 
 | Go setting or feature | In cliproxy-rs |
 | --- | --- |
 | `server.tls` | No HTTPS listener. Terminate TLS in a reverse proxy or tunnel. |
-| `server.discovery`, `home` | No mDNS discovery, Home or cluster mode. |
-| `observability.logs` (`logging-to-file`, `request-log`, error log files, size limits) | Logs go to standard error only. Set `RUST_LOG` for the level. No request or error log files are written. |
+| `home` and `-home-jwt` | No Home control plane or cluster mode. |
+| `observability.logs.request-log` and error request logs | The application log works (stdout, or `main.log` with `logging-to-file`, rotation and the size limit), and so do the log routes of the Management API, but request log files and per-request error log files are not written. |
+| Access log | Go logs one line per HTTP request (status, duration, client address, method and path). cliproxy-rs does not log requests yet. |
 | `pprof` | No profiling endpoint. |
-| `plugins` | No plugin support. |
+| `plugins` | Plugins are not loaded, and the plugin routes of the Management API are not served. |
 | `requests.nonstream-keepalive-interval` | Non-streaming responses do not send keep-alive blank lines. |
 | `management.panel-github-repository`, `management.disable-auto-update-panel` | The dashboard is built into the binary and never downloaded. `management.disable-control-panel` is honoured. |
 | The Redis-protocol (RESP) usage subscriber on the main port | Not available. `GET /v8/management/observability/usage/queue` works. |
-| `PGSTORE_*`, `GITSTORE_*`, `OBJECTSTORE_*` storage backends, `WRITABLE_PATH`, `MANAGEMENT_STATIC_PATH` | Config and credentials are local files only. |
-| `.env` in the working directory | Not loaded. Set variables such as `MANAGEMENT_PASSWORD` in the environment of the process. |
+| `PGSTORE_*`, `GITSTORE_*`, `OBJECTSTORE_*` storage backends, `MANAGEMENT_STATIC_PATH` | Config and credentials are local files only. `WRITABLE_PATH` sets only the log directory. |
 | Config reload log summaries | The config is reloaded, but the changes are not summarised in the log. |
+
+`.env` in the working directory is loaded as in Go. `RUST_LOG`, when set, overrides the log level from `debug`.
 
 Providers and client routes that are not available yet are listed in the README under [Status](../README.md#status): Antigravity, AI Studio, Vertex and Devin, requests with xAI credentials, the image and video endpoints, realtime and live endpoints, and Responses WebSocket steering.
 
 ## Management API differences
 
-The v8 routes for config, credentials, OAuth sign-in, `requests/api-call`, cooldown reset, usage, model definitions and `server/latest-version` behave as in Go. OAuth sign-in through the API works for Claude, Codex, Kimi and Meta; other providers return `404` with `provider_not_found`.
+The v8 routes for config, credentials, OAuth sign-in, `requests/api-call`, cooldown reset, usage, logs, model definitions and `server/latest-version` behave as in Go. OAuth sign-in through the API works for Claude, Codex, Kimi and Meta; other providers return `404` with `provider_not_found`.
 
 Not available on cliproxy-rs:
 
-- `/v8/management/observability/logs` and its `errors` and `requests/{id}` routes.
 - `/v8/management/plugins` and every route under it.
 - Most of the older `/v0/management` routes. cliproxy-rs serves the v0 routes for credentials (`auth-files`), OAuth status and callback, `api-call`, `reset-quota`, usage, model definitions, `latest-version` and `GET config.yaml`, but not the per-setting v0 routes (such as `/v0/management/debug` or `/v0/management/proxy-url`) or the v0 sign-in routes (`/v0/management/anthropic-auth-url` and the rest). Tools built on the v0 API may only partly work.
 
@@ -76,6 +77,8 @@ Where cliproxy-rs has a feature, it aims to behave as Go does. These differences
 - Claude: `platform_url` is HTML-escaped on the sign-in result page, credential files are written atomically with mode 0600, and the SSH port-forwarding hint shows the IP address of the outbound interface.
 - Plugins: loading plugins on Windows is not supported, the same as a Go build without cgo.
 - Logs: structured fields that Go does not define are printed after Go's known fields.
+- Config writes: when the Management API changes one setting, the rest of `config.yaml` stays byte for byte as it was. Go re-encodes the file, which turns YAML 1.1 booleans such as `yes` and `on` into `true`.
+- Watcher: when a config change moves `auth-dir`, cliproxy-rs starts watching the new directory. Go keeps watching the old one until it restarts.
 
 ## Switching back
 

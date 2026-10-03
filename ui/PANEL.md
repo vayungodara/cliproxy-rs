@@ -39,17 +39,17 @@ Place the file before the first visit to `/management.html`: if the file is miss
 
 ## Install through Go's updater
 
-Go can fetch the panel from a GitHub repository's latest release:
+Go can fetch the panel from a GitHub repository's latest release. Every cliproxy-rs release carries this file as `management.html`, built from the release commit:
 
 ```yaml
 management:
-  panel-github-repository: "https://github.com/<owner>/<repo>"
+  panel-github-repository: "https://github.com/vayungodara/cliproxy-rs"
   disable-auto-update-panel: false
 ```
 
-Go reads `https://api.github.com/repos/<owner>/<repo>/releases/latest`, takes the asset named exactly `management.html`, checks it against the asset's `sha256` digest when GitHub provides one, and writes it to `static/management.html`. It checks again every three hours and replaces the file when the release changes.
+Go reads `https://api.github.com/repos/vayungodara/cliproxy-rs/releases/latest`, takes the asset named exactly `management.html`, checks it against the asset's `sha256` digest when GitHub provides one, and writes it to `static/management.html`. It checks again every three hours and replaces the file when the release changes.
 
-No repository or release exists for this dashboard yet. Until one is published, install by hand.
+The updater only sees published releases, not drafts. Until the first release is published, install by hand.
 
 ## Checksum
 

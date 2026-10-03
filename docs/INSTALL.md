@@ -4,7 +4,7 @@ cliproxy-rs is one executable, `cliproxy` (`cliproxy.exe` on Windows), with the 
 
 ## From a release
 
-Each release has an archive per platform and a `SHA256SUMS` file:
+Each [release](https://github.com/vayungodara/cliproxy-rs/releases) has an archive per platform and a `SHA256SUMS` file:
 
 | Platform | Archive |
 | --- | --- |
@@ -51,7 +51,7 @@ On macOS, `xcode-select --install` and `brew install cmake` are enough. On Windo
 Then build:
 
 ```sh
-git clone <repository-url> cliproxy-rs
+git clone https://github.com/vayungodara/cliproxy-rs.git
 cd cliproxy-rs
 cargo build --release -p cliproxy
 ./target/release/cliproxy --version
@@ -61,7 +61,7 @@ The dashboard in `ui/dist` is committed, so Node is not needed for a normal buil
 
 ## Docker
 
-The repository's `Dockerfile` builds the binary and copies it into a small Debian image that runs as an unprivileged user:
+The repository's `Dockerfile` builds the binary and copies it into a small Debian image that runs as an unprivileged user. The build compiles BoringSSL and needs about 2 GB of memory; on a small machine add `--build-arg BUILD_JOBS=1`.
 
 ```sh
 docker build -t cliproxy-rs .

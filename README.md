@@ -17,7 +17,8 @@ Works today:
 - Providers: Claude (OAuth and API keys), Codex (OAuth and API keys), Kimi, Meta, Gemini API keys and Gemini Interactions, and OpenAI-compatible upstreams such as OpenRouter.
 - Account sign-in from the command line or the dashboard: Claude, Codex (browser or device code), Kimi, Meta.
 - Routing: round-robin, weighted and fill-first selection, retries, cooldowns, session affinity, model aliases and exclusions, payload rules, per-credential and global proxies.
-- The v8 Management API for configuration, credentials, OAuth sign-in, quota checks (`/requests/api-call`), usage counters and model catalogs, plus the dashboard at `/management.html`.
+- The v8 Management API for configuration, credentials, OAuth sign-in, quota checks (`/requests/api-call`), usage counters, logs and model catalogs, plus the dashboard at `/management.html`.
+- Logging in Go's format to stdout or a rotating `main.log`, LAN discovery (`-discover` and the `server.discovery` advertisement), `.env` loading and `-local-model`.
 - Config and credential files are watched and reloaded without a restart. A plaintext management key is hashed on first start, as Go does.
 
 Not yet supported (at the time of writing):
@@ -25,13 +26,13 @@ Not yet supported (at the time of writing):
 - Providers: Antigravity, AI Studio, Vertex, Devin. xAI sign-in works, but xAI credentials are not used for requests yet.
 - Image and video endpoints, realtime and live (WebRTC) endpoints, and Responses WebSocket steering.
 - An HTTPS listener (`server.tls`). Put a reverse proxy or tunnel in front for TLS.
-- Server log files and the log endpoints of the Management API, plugins, the TUI, Home and cluster discovery, and the `--local-model` flag.
+- Request log files, plugins, the terminal UI (`-tui`) and the Home control plane (`-home-jwt`).
 
 The dashboard says when the server lacks an endpoint instead of failing: actions it cannot do are disabled and named, and pages it cannot load say which route is missing.
 
 ## Install
 
-Download a binary for Linux, macOS or Windows from the releases page, or build from source. See [docs/INSTALL.md](docs/INSTALL.md) for both, plus Docker and running as a service.
+Download a binary for Linux, macOS or Windows from the [releases page](https://github.com/vayungodara/cliproxy-rs/releases), or build from source. See [docs/INSTALL.md](docs/INSTALL.md) for both, plus Docker and running as a service.
 
 ```sh
 cargo build --release -p cliproxy     # needs Rust, cmake, clang and perl (BoringSSL)
