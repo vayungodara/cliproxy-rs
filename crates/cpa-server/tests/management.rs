@@ -1230,6 +1230,10 @@ async fn fake_logins() -> (
                     "expires_in": 600, "interval": 1}),
                 "/oauth2/token" => json!({"access_token": "fake-xai-at", "refresh_token": "fake-xai-rt",
                     "id_token": xai_id_token, "token_type": "Bearer", "expires_in": 3600}),
+                // Devin: code exchange and profile (the user-status RPC gets `{}` and fails,
+                // which the login tolerates).
+                "/auth/cli/token" => json!({"token": "fake-devin-session"}),
+                "/v3/self" => json!({"user_name": "dev-user", "user_id": "u-1", "org_id": "o-1"}),
                 _ => json!({}),
             };
             axum::Json(v)
@@ -1339,6 +1343,94 @@ async fn xai_login_polls_the_device_flow_and_saves_the_credential() {
     let token = forms.iter().find(|(p, _)| p == "/oauth2/token").unwrap();
     assert!(token.1.contains("device_code=xdc"), "{}", token.1);
     assert!(f.rt.store().snapshot().iter().any(|c| c.provider == "xai"), "published");
+    server.abort();
+    fake_server.abort();
+}
+
+/// Devin: Go `RequestDevinToken` needs the listener port for its fixed loopback
+/// redirect; the main listener's `/callback` completes the login.
+#[tokio::test]
+async fn devin_login_completes_through_the_main_listener_callback() {
+    let (fake, seen, fake_server) = fake_logins().await;
+    // Port 0: no redirect URI can be built.
+    let f = Fixture::new("devinlogin-noport");
+    let (base, _state, server) = login_server(&f, &fake).await;
+    let r = oauth_get(&base, "/oauth/auth-url?provider=devin").await;
+    assert_eq!(r, json!({"error": "callback server unavailable"}));
+    server.abort();
+
+    let f = Fixture::from_yaml("devinlogin", |auth, hash| {
+        format!(
+            "config-version: 8\nserver:\n  port: 18999\nmanagement:\n  secret-key: '{hash}'\noauth:\n  auth-dir: {}\n",
+            auth.display()
+        )
+    });
+    let (base, _state, server) = login_server(&f, &fake).await;
+    let deliver = |state: &str, code: &str, error: &str| {
+        f.rt.deliver_oauth_callback(&cpa_server::runtime::OAuthCallback {
+            provider: "devin",
+            state: state.to_owned(),
+            code: code.to_owned(),
+            error: error.to_owned(),
+        })
+    };
+    // A denied authorization ends the session with Go's message.
+    let started = oauth_get(&base, "/oauth/auth-url?provider=devin").await;
+    let denied = started["state"].as_str().unwrap().to_owned();
+    assert!(deliver(&denied, "", "access_denied"));
+    assert_eq!(
+        final_status(&base, &denied, 5).await,
+        json!({"status": "error", "error": "Devin authorization denied"})
+    );
+    // A callback for another provider or an unknown state is not delivered.
+    let started = oauth_get(&base, "/oauth/auth-url?provider=devin").await;
+    assert_eq!(started["status"], "ok");
+    let state = started["state"].as_str().unwrap().to_owned();
+    assert_eq!(state.len(), 32, "Go misc.GenerateRandomState");
+    let url = url::Url::parse(started["url"].as_str().unwrap()).unwrap();
+    let query: std::collections::HashMap<String, String> = url.query_pairs().into_owned().collect();
+    assert_eq!(query["redirect_uri"], "http://127.0.0.1:18999/callback");
+    assert_eq!(query["state"], state);
+    assert!(!deliver("unknown-state", "c", ""));
+    assert!(!f.rt.deliver_oauth_callback(&cpa_server::runtime::OAuthCallback {
+        provider: "codex",
+        state: state.clone(),
+        code: "c".into(),
+        error: String::new(),
+    }));
+    assert!(deliver(&state, "fake-devin-code", ""));
+    assert_eq!(final_status(&base, &state, 10).await, json!({"status": "ok"}));
+    let path = f.dir.join("auth/devin-dev-user.json");
+    let saved: Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+    for (key, want) in [
+        ("type", "devin"),
+        ("api_key", "fake-devin-session"),
+        ("session_token", "fake-devin-session"),
+        ("user_name", "dev-user"),
+        ("user_id", "u-1"),
+        ("org_id", "o-1"),
+        ("auth_kind", "oauth"),
+    ] {
+        assert_eq!(saved[key], want, "{key}");
+    }
+    assert_eq!(saved["disabled"], false);
+    let exchange = seen
+        .lock()
+        .unwrap()
+        .iter()
+        .find(|(p, _)| p == "/auth/cli/token")
+        .unwrap()
+        .1
+        .clone();
+    let exchange: Value = serde_json::from_str(&exchange).unwrap();
+    assert_eq!(exchange["code"], "fake-devin-code");
+    let verifier = exchange["code_verifier"].as_str().unwrap();
+    // The challenge sent to the browser is S256(verifier).
+    use base64::Engine;
+    use sha2::Digest;
+    let challenge = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(sha2::Sha256::digest(verifier.as_bytes()));
+    assert_eq!(query["code_challenge"], challenge);
+    assert!(f.rt.store().get("devin-dev-user.json").is_some(), "published");
     server.abort();
     fake_server.abort();
 }

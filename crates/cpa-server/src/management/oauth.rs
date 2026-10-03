@@ -262,6 +262,7 @@ pub(crate) async fn auth_url(State(state): State<Arc<Management>>, RawQuery(raw)
         "kimi-ai" => start_kimi(state, cpa_exec::kimi_auth::DOMAIN_AI.to_owned()).await,
         "meta" => start_meta(state).await,
         "xai" => start_xai(state).await,
+        "devin" => start_devin(state).await,
         _ => fail(StatusCode::NOT_FOUND, "provider_not_found"),
     }
 }
@@ -446,8 +447,9 @@ async fn start_codex(state: Arc<Management>, webui: bool) -> Response {
 }
 
 /// Go's callback wait: every 500 ms for up to five minutes, until the callback
-/// arrives, the session stops being pending, or the deadline passes. Returns the code.
-async fn wait_for_callback(state: &Management, sid: &str, provider: &str, bad_request: &str) -> Option<String> {
+/// arrives, the session stops being pending, or the deadline passes (recorded as the
+/// session's error).
+async fn next_callback(state: &Management, sid: &str, provider: &str) -> Option<Callback> {
     let deadline = Instant::now() + CALLBACK_WAIT;
     loop {
         if !state.oauth.is_pending(sid, provider) {
@@ -458,18 +460,92 @@ async fn wait_for_callback(state: &Management, sid: &str, provider: &str, bad_re
             return None;
         }
         if let Some(cb) = state.oauth.take_callback(sid) {
-            if !cb.error.is_empty() {
-                state.oauth.set_error(sid, bad_request);
-                return None;
-            }
-            if cb.state != sid {
-                state.oauth.set_error(sid, "State code error");
-                return None;
-            }
-            return Some(cb.code);
+            return Some(cb);
         }
         tokio::time::sleep(Duration::from_millis(500)).await;
     }
+}
+
+/// [`next_callback`] with the Claude and Codex checks: an error first, then the state.
+/// Returns the code.
+async fn wait_for_callback(state: &Management, sid: &str, provider: &str, bad_request: &str) -> Option<String> {
+    let cb = next_callback(state, sid, provider).await?;
+    if !cb.error.is_empty() {
+        state.oauth.set_error(sid, bad_request);
+        return None;
+    }
+    if cb.state != sid {
+        state.oauth.set_error(sid, "State code error");
+        return None;
+    }
+    Some(cb.code)
+}
+
+/// Go `RequestDevinToken`: PKCE login whose callback reaches the main listener's
+/// `/callback` (Devin only accepts `http://127.0.0.1:<port>/callback`).
+async fn start_devin(state: Arc<Management>) -> Response {
+    use cpa_exec::devin_auth::{DevinAuth, generate_pkce, save_record};
+    let port = state.rt.config().port;
+    if port == 0 {
+        return fail(StatusCode::INTERNAL_SERVER_ERROR, "callback server unavailable");
+    }
+    let redirect = format!("http://127.0.0.1:{port}/callback");
+    let Ok(pkce) = generate_pkce() else {
+        return fail(StatusCode::INTERNAL_SERVER_ERROR, "failed to generate PKCE codes");
+    };
+    let Some(sid) = random_state() else {
+        return fail(StatusCode::INTERNAL_SERVER_ERROR, "failed to generate state parameter");
+    };
+    let mut auth = DevinAuth::new(login_client(&state));
+    if let Some(base) = &state.login_base {
+        auth = auth.with_app_base(base).with_api_base(base).with_server_base(base);
+    }
+    let url = auth.build_authorization_url(&redirect, &pkce.challenge, &sid);
+    state.oauth.register(&sid, "devin");
+    let worker = state.clone();
+    let flow = sid.clone();
+    tokio::spawn(async move {
+        let Some(cb) = next_callback(&worker, &flow, "devin").await else {
+            return;
+        };
+        let fail = |message: &str| {
+            if worker.oauth.is_pending(&flow, "devin") {
+                settle(&worker, &flow, Outcome::Failed(message.into()));
+            }
+        };
+        if cb.state != flow {
+            return fail("State code error");
+        }
+        if !cb.error.is_empty() {
+            return fail("Devin authorization denied");
+        }
+        if cb.code.trim().is_empty() {
+            return fail("Missing authorization code");
+        }
+        // Upstream errors can carry tokens or codes: only Go's fixed messages surface.
+        let token = match auth.exchange_code(&cb.code, &pkce.verifier).await {
+            Ok(token) if !token.trim().is_empty() => token,
+            _ => return fail("Failed to exchange authorization code for tokens"),
+        };
+        if !worker.oauth.is_pending(&flow, "devin") {
+            return;
+        }
+        let Ok(record) = auth.create_auth_record(&token).await else {
+            return fail("Failed to create Devin authentication record");
+        };
+        let write = |dir: PathBuf, record| save_record(&dir, &record);
+        let outcome = save_if_pending(
+            &worker,
+            &flow,
+            "devin",
+            record,
+            write,
+            "Failed to save authentication tokens",
+        )
+        .await;
+        settle(&worker, &flow, outcome);
+    });
+    started(url, sid)
 }
 
 /// Go `watchOAuthSessionCancel`: resolves once the session stops being pending.
