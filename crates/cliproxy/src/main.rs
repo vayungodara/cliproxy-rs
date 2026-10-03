@@ -684,9 +684,10 @@ async fn serve(
         discovery::advertise::Advertiser::spawn(move || rt.config(), tls.is_some())
     };
     // Go applies its CORS middleware to every route, not only management.
-    let app = router(rt)
+    let app = router(rt.clone())
         .merge(cpa_server::management::router(management))
         .layer(axum::middleware::from_fn(cpa_server::management::cors));
+    let app = cpa_server::observability::router(&rt, app);
     let mut server = Box::pin(cpa_server::listener::serve(listener, app, tls));
     let served = tokio::select! {
         r = &mut server => r,

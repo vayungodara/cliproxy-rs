@@ -577,7 +577,7 @@ pub(crate) async fn config(
         .unwrap_or_else(|_| error(500, "internal_error"))
 }
 
-fn percent_decode(path: &str) -> String {
+pub(crate) fn percent_decode(path: &str) -> String {
     let bytes = path.as_bytes();
     let mut out = Vec::with_capacity(bytes.len());
     let mut i = 0;

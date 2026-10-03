@@ -440,7 +440,7 @@ where
     } else {
         nonstream_keepalive(&call, &rt.config())
     };
-    let trace = Arc::new(Trace::default());
+    let trace = Arc::new(Trace::with_request_id(crate::observability::current_request_id()));
     let mut run = Box::pin({
         let (rt, trace) = (rt.clone(), trace.clone());
         async move { run_with_bootstrap_retries(&rt, call, &trace).await }
@@ -589,8 +589,18 @@ fn bootstrap_eligible(status: u16) -> bool {
 pub struct Trace(std::sync::Mutex<Option<String>>, std::sync::OnceLock<String>);
 
 impl Trace {
+    /// Uses the HTTP middleware identity; absent identity keeps internal execution's
+    /// lazy UUID generation. Capture this before spawning background work.
+    pub fn with_request_id(id: Option<String>) -> Self {
+        let trace = Self::default();
+        if let Some(id) = id.filter(|id| !id.is_empty()) {
+            let _ = trace.1.set(id);
+        }
+        trace
+    }
+
     /// The request ID (Go `logging.GetRequestID`), created on first use.
-    fn request_id(&self) -> String {
+    pub fn request_id(&self) -> String {
         self.1.get_or_init(request_id).clone()
     }
 
@@ -610,14 +620,7 @@ impl Trace {
             return;
         }
         let request = self.1.get_or_init(request_id);
-        // ponytail: UTC; Go formats the selection time in the process time zone.
-        let now = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default();
-        let stamp: String = crate::models::rfc3339(now.as_secs() as i64)
-            .chars()
-            .filter(char::is_ascii_digit)
-            .collect();
+        let stamp = chrono::Local::now().format("%Y%m%d%H%M%S");
         *self.0.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = Some(format!("{stamp}-{index}-{request}"));
     }
 
