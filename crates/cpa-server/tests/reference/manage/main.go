@@ -274,6 +274,45 @@ type credStep struct {
 	Files       map[string]any    `json:"files"`
 	RawFiles    map[string]string `json:"raw_files,omitempty"`
 	Config      any               `json:"config"`
+	// AppendLog extends a log file (and sets its mtime) before the request.
+	AppendLog *logFile `json:"append_log,omitempty"`
+	// LogDir is the log directory after the step, for scenarios with log files.
+	LogDir map[string]string `json:"log_dir,omitempty"`
+}
+
+// A file in the scenario's log directory, $WRITABLE_PATH/logs. Mtime is seconds
+// after logEpoch, so cursors and listings are deterministic.
+type logFile struct {
+	Name  string `json:"name"`
+	Text  string `json:"text"`
+	Mtime int64  `json:"mtime"`
+}
+
+const logEpoch = 1700000000
+
+func putLog(dir string, f logFile, appendText bool) {
+	flags := os.O_CREATE | os.O_WRONLY | os.O_TRUNC
+	if appendText {
+		flags = os.O_CREATE | os.O_WRONLY | os.O_APPEND
+	}
+	file, err := os.OpenFile(filepath.Join(dir, f.Name), flags, 0o644)
+	must(err)
+	_, err = file.WriteString(f.Text)
+	must(err)
+	must(file.Close())
+	at := time.Unix(logEpoch+f.Mtime, 0)
+	must(os.Chtimes(filepath.Join(dir, f.Name), at, at))
+}
+
+func snapshotLogs(dir string) map[string]string {
+	out := map[string]string{}
+	entries, _ := os.ReadDir(dir)
+	for _, e := range entries {
+		data, err := os.ReadFile(filepath.Join(dir, e.Name()))
+		must(err)
+		out[e.Name()] = string(data)
+	}
+	return out
 }
 
 type credScenario struct {
@@ -284,6 +323,8 @@ type credScenario struct {
 	Steps   []credStep        `json:"steps"`
 	// Echo starts a local upstream for api-call; "$ECHO" in steps is its base URL.
 	Echo bool `json:"echo,omitempty"`
+	// LogFiles, when set, become $WRITABLE_PATH/logs with WRITABLE_PATH at the root.
+	LogFiles []logFile `json:"log_files,omitempty"`
 }
 
 // echoHandler reports what an api-call upstream received. The Rust replay runs an
@@ -390,6 +431,15 @@ func runCreds(s credScenario) credScenario {
 		}
 		s.Indexes[key] = a.EnsureIndex()
 	}
+	logDir := filepath.Join(root, "logs")
+	if s.LogFiles != nil {
+		must(os.MkdirAll(logDir, 0o755))
+		for _, f := range s.LogFiles {
+			putLog(logDir, f, false)
+		}
+		must(os.Setenv("WRITABLE_PATH", root))
+		defer os.Unsetenv("WRITABLE_PATH")
+	}
 	server := api.NewServer(cfg, manager, sdkaccess.NewManager(), path)
 	echoURL := "http://echo.invalid"
 	if s.Echo {
@@ -400,8 +450,10 @@ func runCreds(s credScenario) credScenario {
 		listener = strings.TrimPrefix(echo.URL, "http://")
 	}
 	lastState := "no-state"
+	lastCursor := "no-cursor"
 	resolve := func(text string) string {
 		text = strings.ReplaceAll(text, "$STATE", lastState)
+		text = strings.ReplaceAll(text, "$CURSOR", lastCursor)
 		text = strings.ReplaceAll(text, "$ECHO", echoURL)
 		text = strings.ReplaceAll(text, "$CFGID", cfgID)
 		for name, index := range s.Indexes {
@@ -413,6 +465,9 @@ func runCreds(s credScenario) credScenario {
 		st := &s.Steps[i]
 		if st.SleepMs > 0 {
 			time.Sleep(time.Duration(st.SleepMs) * time.Millisecond)
+		}
+		if st.AppendLog != nil {
+			putLog(logDir, *st.AppendLog, true)
 		}
 		req := httptest.NewRequest(st.Method, "/v8/management"+resolve(st.Path), strings.NewReader(resolve(st.Body)))
 		req.RemoteAddr = "127.0.0.1:1"
@@ -429,6 +484,11 @@ func runCreds(s credScenario) credScenario {
 			if m, ok := v.(map[string]any); ok && strings.HasPrefix(st.Path, "/oauth/auth-url") {
 				if state, ok := m["state"].(string); ok {
 					lastState = state
+				}
+			}
+			if m, ok := v.(map[string]any); ok {
+				if cursor, ok := m["next-cursor"].(string); ok && cursor != "" {
+					lastCursor = cursor
 				}
 			}
 		} else {
@@ -463,6 +523,9 @@ func runCreds(s credScenario) credScenario {
 		data, errRead := os.ReadFile(path)
 		must(errRead)
 		st.Config = yamlToJSON(string(data))
+		if s.LogFiles != nil {
+			st.LogDir = snapshotLogs(logDir)
+		}
 	}
 	// Report paths relative to the placeholder root, as the Rust replay does.
 	raw, err := json.Marshal(s.Steps)
@@ -1147,6 +1210,11 @@ func configScenarios() []configScenario {
 	}
 }
 
+// logsYAML is a v8 config with the two log switches the log routes read.
+func logsYAML(toFile, requestLog bool) string {
+	return fmt.Sprintf("config-version: 8\nmanagement:\n  secret-key: '$HASH'\noauth:\n  auth-dir: $AUTH\nobservability:\n  logs:\n    logging-to-file: %t\n    request-log: %t\n", toFile, requestLog)
+}
+
 func credScenarios() []credScenario {
 	jwt := func(claims string) string {
 		enc := func(s string) string { return strings.TrimRight(base64.URLEncoding.EncodeToString([]byte(s)), "=") }
@@ -1354,6 +1422,71 @@ func credScenarios() []credScenario {
 			call(http.MethodDelete, "/oauth/session?state=$STATE", ``),
 			get("/oauth/status?state=$STATE"),
 			call(http.MethodPost, "/oauth/callback", `{"state":"$STATE","code":"c"}`),
+		},
+	}, {
+		// Log routes with logging to file and request logging off: the application log
+		// is unavailable, error request logs are listed and downloadable.
+		Name: "logs_disabled", Files: map[string]string{}, YAML: logsYAML(false, false),
+		LogFiles: []logFile{
+			{Name: "main.log", Text: "[2023-11-14 22:14:00] [--------] [info ] [main.go:1] hidden\n", Mtime: 5},
+			{Name: "error-v1-chat-2026-01-01T000000-aaaa1111.log", Text: "first error\n", Mtime: 10},
+			{Name: "error-v1-chat-2026-01-02T000000-bbbb2222.log", Text: "second error, longer\n", Mtime: 20},
+			{Name: "error-notes.txt", Text: "not a log\n", Mtime: 30},
+			{Name: "v1-chat-error-2026.log", Text: "not an error log\n", Mtime: 40},
+			{Name: "v1-chat-completions-2026-01-01T000000-abcd1234.log", Text: "request one\n", Mtime: 50},
+		},
+		Steps: []credStep{
+			get("/observability/logs"),
+			call(http.MethodDelete, "/observability/logs", ``),
+			get("/observability/logs/errors"),
+			get("/observability/logs/errors/error-v1-chat-2026-01-01T000000-aaaa1111.log"),
+			get("/observability/logs/errors/main.log"),
+			get("/observability/logs/errors/error-missing.log"),
+			get("/observability/logs/errors/error-notes.txt"),
+			get("/observability/logs/requests/abcd1234"),
+		},
+	}, {
+		// The application log: rotated files oldest first, tail limits, the legacy
+		// after cutoff, Go's incremental cursor across appends and partial lines,
+		// request logs by ID and DELETE.
+		Name: "logs_enabled", Files: map[string]string{}, YAML: logsYAML(true, true),
+		LogFiles: []logFile{
+			{Name: "main-2023-11-14T22-12-00.000.log", Text: "[2023-11-14 22:11:00] [--------] [info ] [main.go:3] gamma\n" +
+				"[2023-11-14 22:11:30] [--------] [warn ] [main.go:4] delta\n", Mtime: 3},
+			{Name: "main.log.1", Text: "[2023-11-14 22:10:00] [--------] [info ] [main.go:1] alpha\n" +
+				"[2023-11-14 22:10:30] [--------] [info ] [main.go:2] beta\n", Mtime: 2},
+			{Name: "main.log", Text: "[2023-11-14 22:14:00] [--------] [info ] [main.go:5] epsilon\n" +
+				"continuation without a timestamp\n" +
+				"[2023-11-14 22:15:00] [abcd1234] [error] [main.go:6] zeta\n", Mtime: 20},
+			{Name: "error-v1-chat-2026-01-01T000000-aaaa1111.log", Text: "hidden while request-log is on\n", Mtime: 10},
+			{Name: "v1-chat-completions-2026-01-01T000000-abcd1234.log", Text: "older by mtime\n", Mtime: 40},
+			{Name: "v1-chat-completions-2026-01-02T000000-abcd1234.log", Text: "same mtime, later name time\n", Mtime: 50},
+			{Name: "v1-chat-completions-2026-01-01T000000-abcd1234.log.gz", Text: "not a .log\n", Mtime: 90},
+			{Name: "v1-responses-2025-12-31T000000_2-abcd1234.log", Text: "same mtime, earlier name time\n", Mtime: 50},
+			{Name: "v1-x-2026-01-03T000000-eeee0000.log", Text: "other id\n", Mtime: 60},
+		},
+		Steps: []credStep{
+			get("/observability/logs"),
+			get("/observability/logs?limit=2"),
+			get("/observability/logs?limit=abc"),
+			get("/observability/logs?limit=0"),
+			get("/observability/logs?after=1700000460"),
+			get("/observability/logs?after=1700000460&limit=1"),
+			get("/observability/logs"),
+			{Method: http.MethodGet, Path: "/observability/logs?cursor=$CURSOR",
+				AppendLog: &logFile{Name: "main.log", Text: "[2023-11-14 22:16:00] [--------] [info ] [main.go:7] eta\n", Mtime: 30}},
+			{Method: http.MethodGet, Path: "/observability/logs?cursor=$CURSOR",
+				AppendLog: &logFile{Name: "main.log", Text: "[2023-11-14 22:17:00] [--------] [info ] [main.go:8] partial", Mtime: 31}},
+			{Method: http.MethodGet, Path: "/observability/logs?cursor=$CURSOR&limit=5",
+				AppendLog: &logFile{Name: "main.log", Text: " theta\n[2023-11-14 22:18:00] [--------] [info ] [main.go:9] iota\n", Mtime: 32}},
+			get("/observability/logs?cursor=not-base64!"),
+			get("/observability/logs?cursor=e30"),
+			get("/observability/logs/errors"),
+			get("/observability/logs/requests/0198ffff-abcd1234"),
+			get("/observability/logs/requests/eeee0000"),
+			get("/observability/logs/requests/zzzz9999"),
+			get("/observability/logs/requests/a%5Cb"),
+			call(http.MethodDelete, "/observability/logs", ``),
 		},
 	}, {
 		// The dashboard's capability probes: Go rejects each with 400 before any I/O.
