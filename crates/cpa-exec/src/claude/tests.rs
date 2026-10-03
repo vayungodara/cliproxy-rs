@@ -257,6 +257,11 @@ async fn messages_responses_record_the_quota_snapshot() {
         .await
         .unwrap();
     assert_eq!(signal(&executor), "allowed");
+    // Go also observes the result model's state (`model_quotas`).
+    assert_eq!(
+        executor.quota().model_snapshots(&credential.id).get("m"),
+        executor.quota().snapshot(&credential.id).as_ref()
+    );
     let error = executor
         .execute(&credential, request(Operation::Generate), &cfg)
         .await
