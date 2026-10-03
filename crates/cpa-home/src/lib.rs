@@ -18,13 +18,15 @@ pub mod fake;
 mod gojson;
 pub mod inflight;
 pub mod kv;
+mod private_fs;
 pub mod registry;
 pub mod release;
 pub mod resp;
 mod subscriber;
 mod tls;
 
-#[cfg(test)]
+// Mode-bit assertions: Unix only.
+#[cfg(all(test, unix))]
 mod cert_tests;
 #[cfg(test)]
 mod client_tests;

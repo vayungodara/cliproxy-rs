@@ -6,6 +6,7 @@
 //! the local scheduler.
 
 use std::sync::{Arc, Mutex, PoisonError};
+use std::time::Duration;
 
 use axum::response::IntoResponse;
 use cpa_core::credential::Credential;
@@ -52,13 +53,65 @@ pub type EndLease = Box<dyn FnOnce() -> Option<ReleaseWait> + Send>;
 pub struct RemoteGrant {
     pub credential: Credential,
     pub end: EndLease,
+    /// The request-retry limit Home set for this request (Go `selection.requestRetry`).
+    pub request_retry: Option<i64>,
+}
+
+/// How a failed pick takes part in retries (Go's typed Home errors).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RemoteErrorKind {
+    Plain,
+    /// Go `homeDispatchRetryAfterError` (`model_cooldown`).
+    Cooldown {
+        retry_after: Option<Duration>,
+        request_retry: Option<i64>,
+    },
+    /// Go `HomeConcurrencyBusyError`: never retried; `header` is its safe `Retry-After`.
+    Busy {
+        header: Option<u64>,
+    },
+}
+
+/// A failed pick: the client-facing error (status and Go's `code: message`), its code
+/// and its retry behaviour.
+#[derive(Debug, Clone)]
+pub struct RemoteError {
+    pub error: ExecError,
+    pub code: String,
+    pub kind: RemoteErrorKind,
+}
+
+impl RemoteError {
+    pub fn plain(error: ExecError, code: &str) -> Self {
+        Self {
+            error,
+            code: code.to_owned(),
+            kind: RemoteErrorKind::Plain,
+        }
+    }
+}
+
+/// Why the control plane's model catalog is not available.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ModelsError {
+    /// No live control-plane client (Go `home.Current() == nil`).
+    Unavailable,
+    /// The request failed; the text is Go's error.
+    Failed(String),
 }
 
 pub trait RemoteDispatch: Send + Sync + 'static {
     /// Go `HeartbeatOK`: requests are refused while the control plane is unreachable.
     fn available(&self) -> bool;
-    /// One pick. Errors are the client-facing failure (status and Go's `code: message`).
-    fn dispatch(&self, request: RemoteRequest) -> BoxFuture<'_, Result<RemoteGrant, ExecError>>;
+    /// One pick.
+    fn dispatch(&self, request: RemoteRequest) -> BoxFuture<'_, Result<RemoteGrant, RemoteError>>;
+    /// Go `GetModels`: the catalog for the client these request headers and query
+    /// parameters authenticate (raw Home payload).
+    fn models(
+        &self,
+        headers: Vec<(String, String)>,
+        query: Vec<(String, String)>,
+    ) -> BoxFuture<'_, Result<Vec<u8>, ModelsError>>;
 }
 
 /// Releases ended during one request, awaited before its next pick (Go

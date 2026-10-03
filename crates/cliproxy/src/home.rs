@@ -17,7 +17,9 @@ use cpa_home::registry::{Registry, ScopeSpec};
 use cpa_home::release::ReleaseFlusher;
 use cpa_home::{Client, CredentialConcurrency, DispatchRequest, HomeConfig};
 use cpa_server::Runtime;
-use cpa_server::remote::{EndLease, RemoteDispatch, RemoteGrant, RemoteRequest};
+use cpa_server::remote::{
+    EndLease, ModelsError, RemoteDispatch, RemoteError, RemoteErrorKind, RemoteGrant, RemoteRequest,
+};
 use futures_util::future::BoxFuture;
 use serde_json::{Map, Value};
 use serde_yaml_ng::{Mapping, Value as Yaml};
@@ -155,6 +157,16 @@ fn fail(status: u16, code: &str, message: impl std::fmt::Display) -> ExecError {
     ExecError::local(status, scope, format!("{code}: {message}"))
 }
 
+/// A plain Home failure (Go `*auth.Error`).
+fn reject(status: u16, code: &str, message: impl std::fmt::Display) -> RemoteError {
+    RemoteError::plain(fail(status, code, message), code)
+}
+
+/// Go `invalidHomeConcurrencyResponse`.
+fn invalid_concurrency(message: &str) -> RemoteError {
+    reject(502, "invalid_home_concurrency", message)
+}
+
 impl Dispatcher {
     pub fn new(rt: &Arc<Runtime>) -> Self {
         Self {
@@ -179,16 +191,16 @@ impl Dispatcher {
         self.bundle.read().unwrap_or_else(PoisonError::into_inner).clone()
     }
 
-    async fn pick(&self, request: RemoteRequest) -> Result<RemoteGrant, ExecError> {
+    async fn pick(&self, request: RemoteRequest) -> Result<RemoteGrant, RemoteError> {
         let Some(Bundle { client, registry }) = self.current() else {
-            return Err(fail(503, "home_unavailable", "home dispatch bundle unavailable"));
+            return Err(reject(503, "home_unavailable", "home dispatch bundle unavailable"));
         };
         if !client.heartbeat_ok() {
-            return Err(fail(503, "home_unavailable", "home control center unavailable"));
+            return Err(reject(503, "home_unavailable", "home control center unavailable"));
         }
         let pinned = request.pinned.trim().to_owned();
         if !pinned.is_empty() && request.excluded.contains(&pinned) {
-            return Err(fail(
+            return Err(reject(
                 503,
                 "auth_not_found",
                 "pinned auth is unavailable in the current retry round",
@@ -196,7 +208,7 @@ impl Dispatcher {
         }
         let pending = registry
             .begin_dispatch()
-            .map_err(|_| fail(503, "home_unavailable", "home execution registry unavailable"))?;
+            .map_err(|_| reject(503, "home_unavailable", "home execution registry unavailable"))?;
         let model = request.model.trim().to_owned();
         let mut excluded: Vec<String> = request
             .excluded
@@ -223,23 +235,21 @@ impl Dispatcher {
             Err(error) => {
                 drop(pending);
                 return Err(match error {
-                    cpa_home::Error::AuthNotFound => fail(503, "auth_not_found", &error),
-                    _ => fail(503, "home_unavailable", &error),
+                    cpa_home::Error::AuthNotFound => reject(503, "auth_not_found", &error),
+                    _ => reject(503, "home_unavailable", &error),
                 });
             }
         };
         let tuple = match decode_concurrency(&raw) {
             Ok(tuple) => tuple,
-            Err((present, _)) => {
-                if present {
-                    client.abort_ambiguous_dispatch();
-                    return Err(fail(502, "invalid_auth", "Home returned malformed concurrency tuple"));
-                }
-                return Err(fail(502, "invalid_auth", "home returned invalid auth payload"));
+            Err((true, _)) => {
+                client.abort_ambiguous_dispatch();
+                return Err(invalid_concurrency("Home returned malformed concurrency tuple"));
             }
+            Err((false, _)) => return Err(reject(502, "invalid_auth", "home returned invalid auth payload")),
         };
         let kind = request.kind.to_owned();
-        let base_spec = |credential_id: String, model: String, accounted: bool| ScopeSpec {
+        let spec = |credential_id: String, model: String, accounted: bool| ScopeSpec {
             request_id: request.request_id.clone(),
             credential_id,
             model,
@@ -247,24 +257,27 @@ impl Dispatcher {
             started_at: SystemTime::now(),
             accounted,
         };
+        // Go `homeConcurrencyInstallError` for a registry that refuses the scope.
+        let install_failed = |error: cpa_home::registry::RegistryError| {
+            client.abort_ambiguous_dispatch();
+            reject(
+                503,
+                "home_unavailable",
+                format!("home execution registry unavailable: {error}"),
+            )
+        };
         // An accounted lease exists in Home from here on; every failure below ends its
         // scope, which releases it.
         let mut pending = Some(pending);
         let scope = match &tuple {
-            Some(tuple) => {
-                let spec = base_spec(tuple.credential_id.clone(), tuple.model.clone(), true);
-                match registry.install(pending.take().expect("pending"), spec) {
-                    Ok(scope) => Some(scope),
-                    Err(error) => {
-                        client.abort_ambiguous_dispatch();
-                        return Err(fail(
-                            503,
-                            "home_unavailable",
-                            format!("home execution registry: {error}"),
-                        ));
-                    }
-                }
-            }
+            Some(tuple) => Some(
+                registry
+                    .install(
+                        pending.take().expect("pending"),
+                        spec(tuple.credential_id.clone(), tuple.model.clone(), true),
+                    )
+                    .map_err(install_failed)?,
+            ),
             None => None,
         };
         let end_scope = |scope: &Option<cpa_home::registry::Scope>| {
@@ -276,23 +289,39 @@ impl Dispatcher {
             if tuple.is_some() {
                 client.abort_ambiguous_dispatch();
                 end_scope(&scope);
-                return Err(fail(
-                    502,
-                    "invalid_auth",
+                return Err(invalid_concurrency(
                     "Home returned both accounted concurrency and an error",
                 ));
             }
+            // Go's typed Home errors: cooldowns join retry rounds; busy is never
+            // retried and exposes its safe `Retry-After`.
+            let header = error.retry_after_header();
+            let kind = match error.kind {
+                cpa_home::dispatch::HomeErrorKind::Plain => RemoteErrorKind::Plain,
+                cpa_home::dispatch::HomeErrorKind::Cooldown {
+                    retry_after,
+                    request_retry,
+                } => RemoteErrorKind::Cooldown {
+                    retry_after,
+                    request_retry,
+                },
+                cpa_home::dispatch::HomeErrorKind::Busy { .. } => RemoteErrorKind::Busy { header },
+            };
             let mut failure = fail(error.status, &error.code, &error.message);
-            if let Some(seconds) = error.retry_after_header() {
-                failure.retry_after = Some(Duration::from_secs(seconds));
+            if let RemoteErrorKind::Cooldown { retry_after, .. } = &kind {
+                failure.retry_after = *retry_after;
             }
-            return Err(failure);
+            return Err(RemoteError {
+                error: failure,
+                code: error.code.clone(),
+                kind,
+            });
         }
         let response = match DispatchResponse::parse(&raw) {
             Ok(response) => response,
             Err(message) => {
                 end_scope(&scope);
-                return Err(fail(502, "invalid_auth", message));
+                return Err(reject(502, "invalid_auth", message));
             }
         };
         let observed = response.observed_model(&model).to_owned();
@@ -301,20 +330,18 @@ impl Dispatcher {
         {
             client.abort_ambiguous_dispatch();
             end_scope(&scope);
-            return Err(fail(
-                502,
-                "invalid_auth",
+            return Err(invalid_concurrency(
                 "Home concurrency model does not match dispatched model",
             ));
         }
         let auth_id = response.auth_id().trim().to_owned();
         if auth_id.is_empty() {
             end_scope(&scope);
-            return Err(fail(502, "invalid_auth", "home returned auth without id"));
+            return Err(reject(502, "invalid_auth", "home returned auth without id"));
         }
         if !pinned.is_empty() && auth_id != pinned {
             end_scope(&scope);
-            return Err(fail(
+            return Err(reject(
                 503,
                 "auth_not_found",
                 "home returned an auth that does not match the pinned credential",
@@ -324,34 +351,38 @@ impl Dispatcher {
             && let Err(message) = verify_identity(tuple, response.auth_id(), response.auth_index.trim())
         {
             end_scope(&scope);
-            return Err(fail(502, "invalid_auth", message));
+            return Err(invalid_concurrency(&message));
         }
-        let credential = match credential(&response) {
+        let mut credential = match credential(&response, &model) {
             Ok(credential) => credential,
             Err(error) => {
                 end_scope(&scope);
                 return Err(error);
             }
         };
-        if !self
-            .rt
-            .upgrade()
-            .is_some_and(|rt| rt.executors.supports(&credential.provider))
+        let supports = |provider: &str| self.rt.upgrade().is_some_and(|rt| rt.executors.supports(provider));
+        // Go: an unregistered provider with a base URL runs on the generic
+        // OpenAI-compatible executor.
+        if !supports(&credential.provider)
+            && credential
+                .attributes
+                .get("base_url")
+                .is_some_and(|u| !u.trim().is_empty())
         {
+            credential.provider = "openai-compatibility".into();
+        }
+        if !supports(&credential.provider) {
             end_scope(&scope);
-            return Err(fail(502, "executor_not_found", "executor not registered"));
+            return Err(reject(502, "executor_not_found", "executor not registered"));
         }
         let scope = match scope {
             Some(scope) => scope,
             None => registry
                 .install(
                     pending.take().expect("pending"),
-                    base_spec(auth_id.clone(), observed.clone(), false),
+                    spec(auth_id.clone(), observed.clone(), false),
                 )
-                .map_err(|error| {
-                    client.abort_ambiguous_dispatch();
-                    fail(503, "home_unavailable", format!("home execution registry: {error}"))
-                })?,
+                .map_err(install_failed)?,
         };
         // ponytail: the scope has no bound resource, so a drain waits for in-flight
         // executions instead of cancelling them (Go binds the request context).
@@ -362,7 +393,13 @@ impl Dispatcher {
                 async move { ticket.wait(bound).await.map_err(|e| e.to_string()) },
             ))
         });
-        Ok(RemoteGrant { credential, end })
+        // Go: Home's request-retry limit applies unless the request is pinned.
+        let request_retry = response.request_retry.filter(|r| *r >= 0 && pinned.is_empty());
+        Ok(RemoteGrant {
+            credential,
+            end,
+            request_retry,
+        })
     }
 }
 
@@ -371,8 +408,30 @@ impl RemoteDispatch for Dispatcher {
         self.current().is_some_and(|b| b.client.heartbeat_ok())
     }
 
-    fn dispatch(&self, request: RemoteRequest) -> BoxFuture<'_, Result<RemoteGrant, ExecError>> {
+    fn dispatch(&self, request: RemoteRequest) -> BoxFuture<'_, Result<RemoteGrant, RemoteError>> {
         Box::pin(self.pick(request))
+    }
+
+    /// Go `loadHomeModelEntries` with `GetModels` (headers and query lower-cased and
+    /// joined as Go's `headersToLowerMap` / `queryToLowerMap`).
+    fn models(
+        &self,
+        headers: Vec<(String, String)>,
+        query: Vec<(String, String)>,
+    ) -> BoxFuture<'_, Result<Vec<u8>, ModelsError>> {
+        Box::pin(async move {
+            let Some(bundle) = self.current() else {
+                return Err(ModelsError::Unavailable);
+            };
+            let lower = |pairs: &[(String, String)]| {
+                cpa_home::client::lower_map(pairs.iter().map(|(k, v)| (k.as_str(), v.as_str())))
+            };
+            bundle
+                .client
+                .get_models(&lower(&headers), &lower(&query))
+                .await
+                .map_err(|e| ModelsError::Failed(e.to_string()))
+        })
     }
 }
 
@@ -399,7 +458,7 @@ fn executor_key(provider: &str, label: &str, attributes: &BTreeMap<String, Strin
 
 /// The dispatched Go `coreauth.Auth` as a runtime credential. It lives for one lease:
 /// nothing persists it and the local scheduler never sees it.
-fn credential(response: &DispatchResponse) -> Result<Credential, ExecError> {
+fn credential(response: &DispatchResponse, requested: &str) -> Result<Credential, RemoteError> {
     let auth = &response.auth;
     let text = |key: &str| {
         auth.get(key)
@@ -426,7 +485,7 @@ fn credential(response: &DispatchResponse) -> Result<Credential, ExecError> {
     let label = text("label");
     let key = executor_key(&provider, &label, &attributes);
     if provider.is_empty() || key.is_empty() {
-        return Err(fail(502, "invalid_auth", "home returned auth without provider"));
+        return Err(reject(502, "invalid_auth", "home returned auth without provider"));
     }
     let prefix = cpa_core::config::credentials::normalize_prefix(&text("prefix"));
     if !prefix.is_empty() {
@@ -441,7 +500,16 @@ fn credential(response: &DispatchResponse) -> Result<Credential, ExecError> {
             response.model.trim().to_owned(),
         );
     }
-    if response.force_mapping && !response.original_alias.trim().is_empty() {
+    // Go `homeForceMappingAliasResult`: the mapping applies when the alias Home mapped
+    // from is the requested model (prefix removed, recognized suffixes ignored).
+    let canonical = cpa_home::dispatch::canonical_concurrency_model_key;
+    let raw_prefix = text("prefix");
+    let unprefixed = match requested.strip_prefix(&format!("{raw_prefix}/")) {
+        Some(rest) if !raw_prefix.is_empty() => rest,
+        _ => requested,
+    };
+    let original = canonical(&response.original_alias);
+    if response.force_mapping && !original.is_empty() && original == canonical(unprefixed) {
         attributes.insert(cpa_server::remote::FORCE_MAPPING.into(), "true".into());
         attributes.insert(
             cpa_server::remote::ORIGINAL_ALIAS.into(),
@@ -676,10 +744,75 @@ mod tests {
                 }
             }),
         );
+        let app = app.route(
+            "/chat/completions",
+            axum::routing::post(|| async {
+                axum::Json(serde_json::json!({
+                    "id": "c1", "object": "chat.completion", "created": 1, "model": "compat-up",
+                    "choices": [{"index": 0, "message": {"role": "assistant", "content": "hi"}, "finish_reason": "stop"}],
+                    "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2}
+                }))
+            }),
+        );
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let base = format!("http://{}", listener.local_addr().unwrap());
         tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
         base
+    }
+
+    /// A Home whose RPOP replies come from `replies` in order (nil once empty).
+    async fn scripted(config: &'static str, replies: Vec<String>) -> FakeHome {
+        let replies = Mutex::new(std::collections::VecDeque::from(replies));
+        FakeHome::start(move |args| match args[0].to_lowercase().as_str() {
+            "get" => fake::bulk(config),
+            "subscribe" => fake::raw(ACK),
+            "ping" => fake::raw("+PONG\r\n"),
+            "rpop" => match replies.lock().unwrap().pop_front() {
+                Some(reply) => fake::bulk(reply),
+                None => fake::raw("$-1\r\n"),
+            },
+            "lpush" => fake::raw(":1\r\n"),
+            _ => fake::raw("-ERR unexpected\r\n"),
+        })
+        .await
+    }
+
+    fn accounted(id: &str, key: &str, upstream: &str) -> String {
+        format!(
+            r#"{{"model":"claude-up","auth_index":"{id}","concurrency":{{"accounted":true,"credential_id":"{id}","model":"claude-up"}},"auth":{{"id":"{id}","provider":"claude","attributes":{{"api_key":"{key}","base_url":"{upstream}"}}}}}}"#
+        )
+    }
+
+    fn releases(home: &FakeHome) -> Vec<Value> {
+        home.commands()
+            .into_iter()
+            .filter(|c| c[0].eq_ignore_ascii_case("lpush") && c[1] == "concurrency-release")
+            .map(|c| serde_json::from_str(&c[2]).unwrap())
+            .collect()
+    }
+
+    fn rpops(home: &FakeHome) -> Vec<Value> {
+        home.commands()
+            .into_iter()
+            .filter(|c| c[0] == "rpop")
+            .map(|c| serde_json::from_str(&c[1]).unwrap())
+            .collect()
+    }
+
+    async fn ask_with_headers(base: &str, path: &str, body: Value) -> (u16, Option<String>, String) {
+        let response = wreq::Client::new()
+            .post(format!("{base}{path}"))
+            .header("authorization", "Bearer client-key")
+            .json(&body)
+            .send()
+            .await
+            .unwrap();
+        let status = response.status().as_u16();
+        let retry_after = response
+            .headers()
+            .get("retry-after")
+            .map(|v| v.to_str().unwrap().to_owned());
+        (status, retry_after, response.text().await.unwrap())
     }
 
     /// The node under test: a runtime routed through the dispatcher, the Home
@@ -755,9 +888,9 @@ mod tests {
 
     #[test]
     fn dispatched_auths_become_runtime_credentials() {
-        let raw = br#"{"model":"gpt-up","auth_index":"i1","force_mapping":true,"original_alias":"pretty","auth":{"id":"c1","provider":"openai-compatibility","label":"Acme","prefix":"/team/","proxy_url":"socks5://p","attributes":{"api_key":"k","base_url":"http://127.0.0.1:1","compat_name":"acme"},"metadata":{"x":1}}}"#;
+        let raw = br#"{"model":"gpt-up","auth_index":"i1","force_mapping":true,"original_alias":"pretty","auth":{"id":"c1","provider":"openai-compatibility","label":"Acme","prefix":"team","proxy_url":"socks5://p","attributes":{"api_key":"k","base_url":"http://127.0.0.1:1","compat_name":"acme"},"metadata":{"x":1}}}"#;
         let response = DispatchResponse::parse(raw).unwrap();
-        let c = credential(&response).unwrap();
+        let c = credential(&response, "team/pretty(high)").unwrap();
         assert_eq!(c.provider, "openai-compatible-acme", "Go executorKeyFromAuth");
         assert_eq!(c.attributes["prefix"], "team");
         assert_eq!(c.attributes["proxy_url"], "socks5://p");
@@ -765,15 +898,18 @@ mod tests {
         assert_eq!(c.attributes[cpa_server::remote::ORIGINAL_ALIAS], "pretty");
         assert!(matches!(c.source, Source::Config { .. }));
         assert_eq!(c.label, "Acme");
+        // Go `homeForceMappingAliasResult`: only recognized suffixes are ignored.
+        let c = credential(&response, "pretty(custom)").unwrap();
+        assert!(!c.attributes.contains_key(cpa_server::remote::FORCE_MAPPING));
         assert_eq!(executor_key("kimi.com", "", &BTreeMap::new()), "kimi");
         let oauth =
             DispatchResponse::parse(br#"{"id":"a.json","provider":"Claude","metadata":{"email":"e@x"}}"#).unwrap();
-        let c = credential(&oauth).unwrap();
+        let c = credential(&oauth, "m").unwrap();
         assert_eq!(
             (c.id.as_str(), c.provider.as_str(), c.label.as_str()),
             ("a.json", "claude", "e@x")
         );
-        assert!(credential(&DispatchResponse::parse(br#"{"id":"x"}"#).unwrap()).is_err());
+        assert!(credential(&DispatchResponse::parse(br#"{"id":"x"}"#).unwrap(), "m").is_err());
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -927,5 +1063,235 @@ mod tests {
         );
         shutdown.cancel();
         task.await.unwrap();
+    }
+
+    /// Go `executeHome`: a Home cooldown with a request-retry budget is waited out and
+    /// the next round asks again with `retry_round: 1`.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn home_cooldowns_start_a_new_round_after_the_wait() {
+        let seen = Arc::new(Mutex::new(Vec::new()));
+        let upstream = upstream(seen.clone()).await;
+        let cooldown =
+            r#"{"error":{"type":"model_cooldown","message":"cooling","retry_after_ms":300,"request_retry":1}}"#;
+        let home = scripted(
+            "port: 0\nrouting: {retry: {request-retry: 0, max-retry-interval: 5}}\n",
+            vec![cooldown.into(), accounted("cred-1", "sk-good", &upstream)],
+        )
+        .await;
+        let (base, rt, shutdown, task) = node(&home).await;
+        eventually("dispatch published", || {
+            rt.remote_dispatch().is_some_and(|d| d.available())
+        })
+        .await;
+        let started = std::time::Instant::now();
+        let (status, body) = ask(&base, "claude-x").await;
+        assert_eq!(status, 200, "{body}");
+        assert!(
+            started.elapsed() >= Duration::from_millis(300),
+            "waited for the cooldown"
+        );
+        let rounds: Vec<i64> = rpops(&home)
+            .iter()
+            .map(|r| r["retry_round"].as_i64().unwrap())
+            .collect();
+        assert_eq!(rounds, vec![0, 1]);
+        shutdown.cancel();
+        task.await.unwrap();
+    }
+
+    /// Go `shouldReturnLastErrorOnPickFailure`: a Home rejection after an upstream
+    /// failure is what the client sees, not the older upstream error.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn a_home_rejection_is_not_masked_by_an_earlier_upstream_failure() {
+        let seen = Arc::new(Mutex::new(Vec::new()));
+        let upstream = upstream(seen.clone()).await;
+        let home = scripted(
+            "port: 0\n",
+            vec![
+                accounted("cred-1", "sk-bad", &upstream),
+                r#"{"error":{"type":"user_credits_insufficient","message":"no credits left"}}"#.into(),
+            ],
+        )
+        .await;
+        let (base, rt, shutdown, task) = node(&home).await;
+        eventually("dispatch published", || {
+            rt.remote_dispatch().is_some_and(|d| d.available())
+        })
+        .await;
+        let (status, body) = ask(&base, "claude-x").await;
+        assert_eq!(status, 402, "{body}");
+        assert!(body.contains("user_credits_insufficient: no credits left"), "{body}");
+        shutdown.cancel();
+        task.await.unwrap();
+    }
+
+    /// Go `executeHomeOnce`: a credential Home hands out again is released unused and
+    /// the round ends with the earlier upstream failure.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn a_repeated_credential_is_released_and_ends_the_round() {
+        let seen = Arc::new(Mutex::new(Vec::new()));
+        let upstream = upstream(seen.clone()).await;
+        let home = scripted(
+            "port: 0\nrouting: {retry: {request-retry: 0}}\n",
+            vec![
+                accounted("cred-1", "sk-bad", &upstream),
+                accounted("cred-1", "sk-bad", &upstream),
+            ],
+        )
+        .await;
+        let (base, rt, shutdown, task) = node(&home).await;
+        eventually("dispatch published", || {
+            rt.remote_dispatch().is_some_and(|d| d.available())
+        })
+        .await;
+        let (status, body) = ask(&base, "claude-x").await;
+        assert_eq!(status, 500, "{body}");
+        assert_eq!(seen.lock().unwrap().len(), 1, "the duplicate never executes");
+        assert_eq!(rpops(&home).len(), 2);
+        eventually("both releases", || releases(&home).len() == 2).await;
+        let sequences: Vec<i64> = releases(&home)
+            .iter()
+            .map(|f| f["release_seq"].as_i64().unwrap())
+            .collect();
+        assert_eq!(sequences, vec![1, 2]);
+        shutdown.cancel();
+        task.await.unwrap();
+    }
+
+    /// Go `HomeConcurrencyBusyError`: never retried, and its safe `Retry-After`
+    /// reaches the client; concurrency validation failures use their own code and
+    /// still release the lease.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn busy_and_invalid_concurrency_replies_follow_go() {
+        let busy = r#"{"error":{"type":"credential_concurrency_exceeded","message":"busy","retry_after_ms":1500}}"#;
+        let mismatch = r#"{"model":"claude-up","auth_index":"other","concurrency":{"accounted":true,"credential_id":"cred-9","model":"claude-up"},"auth":{"id":"cred-9","provider":"claude"}}"#;
+        let home = scripted("port: 0\n", vec![busy.into(), mismatch.into()]).await;
+        let (base, rt, shutdown, task) = node(&home).await;
+        eventually("dispatch published", || {
+            rt.remote_dispatch().is_some_and(|d| d.available())
+        })
+        .await;
+        let body =
+            serde_json::json!({"model": "claude-x", "max_tokens": 8, "messages": [{"role": "user", "content": "hi"}]});
+        let (status, retry_after, text) = ask_with_headers(&base, "/v1/messages", body.clone()).await;
+        assert_eq!((status, retry_after.as_deref()), (429, Some("2")), "{text}");
+        assert!(text.contains("credential_concurrency_exceeded: busy"), "{text}");
+        assert_eq!(rpops(&home).len(), 1, "busy is not retried");
+        let (status, _, text) = ask_with_headers(&base, "/v1/messages", body).await;
+        assert_eq!(status, 502, "{text}");
+        assert!(
+            text.contains("invalid_home_concurrency: Home concurrency identity does not match dispatched auth"),
+            "{text}"
+        );
+        eventually("release of the rejected lease", || {
+            releases(&home).iter().any(|f| f["credential_id"] == "cred-9")
+        })
+        .await;
+        shutdown.cancel();
+        task.await.unwrap();
+    }
+
+    /// Go: an unregistered provider with a base URL runs on the OpenAI-compatible
+    /// executor.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn unknown_providers_with_a_base_url_run_openai_compatible() {
+        let seen = Arc::new(Mutex::new(Vec::new()));
+        let upstream = upstream(seen.clone()).await;
+        let reply = format!(
+            r#"{{"model":"compat-up","auth":{{"id":"m1","provider":"mystery","attributes":{{"api_key":"k","base_url":"{upstream}"}}}}}}"#
+        );
+        let home = scripted("port: 0\n", vec![reply]).await;
+        let (base, rt, shutdown, task) = node(&home).await;
+        eventually("dispatch published", || {
+            rt.remote_dispatch().is_some_and(|d| d.available())
+        })
+        .await;
+        let body = serde_json::json!({"model": "m", "messages": [{"role": "user", "content": "hi"}]});
+        let (status, _, text) = ask_with_headers(&base, "/v1/chat/completions", body).await;
+        assert_eq!(status, 200, "{text}");
+        shutdown.cancel();
+        task.await.unwrap();
+    }
+
+    /// Go `handleHomeModels`, `handleGrokModels` and `handleHomeGeminiModels`: every
+    /// catalog route serves what Home answers for this client.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn model_routes_serve_the_home_catalog() {
+        let catalog = r#"{"xai":[{"id":"grok-4","display_name":"Grok 4","context_length":256000,"owned_by":"xai"}],"claude":[{"id":"claude-x","owned_by":"anthropic","created":1700000000}]}"#;
+        let home = FakeHome::start(move |args| match args[0].to_lowercase().as_str() {
+            "get" if args[1] == "config" => fake::bulk("port: 0\n"),
+            "get" if args[1].contains("x-bad") => {
+                fake::bulk(r#"{"error":{"type":"no_credentials","message":"who are you"}}"#)
+            }
+            "get" => fake::bulk(catalog),
+            "subscribe" => fake::raw(ACK),
+            "ping" => fake::raw("+PONG\r\n"),
+            _ => fake::raw("-ERR unexpected\r\n"),
+        })
+        .await;
+        let (base, rt, shutdown, task) = node(&home).await;
+        eventually("dispatch published", || {
+            rt.remote_dispatch().is_some_and(|d| d.available())
+        })
+        .await;
+        let get = |path: &str, headers: &[(&str, &str)]| {
+            let mut request = wreq::Client::new().get(format!("{base}{path}"));
+            for (k, v) in headers {
+                request = request.header(*k, *v);
+            }
+            async move {
+                let response = request.send().await.unwrap();
+                (response.status().as_u16(), response.text().await.unwrap())
+            }
+        };
+        let (status, body) = get("/v1/models?key=k1", &[]).await;
+        assert_eq!(status, 200, "{body}");
+        assert_eq!(
+            body,
+            r#"{"data":[{"created":1700000000,"id":"claude-x","object":"model","owned_by":"anthropic"},{"id":"grok-4","object":"model","owned_by":"xai"}],"object":"list"}"#
+        );
+        let key = home
+            .commands()
+            .into_iter()
+            .find(|c| c[0] == "get" && c[1].starts_with('{'))
+            .unwrap();
+        let key: Value = serde_json::from_str(&key[1]).unwrap();
+        assert_eq!(
+            (key["type"].as_str(), key["query"]["key"].as_str()),
+            (Some("models"), Some("k1"))
+        );
+        let (_, body) = get("/v1/models", &[("user-agent", "grok-shell/1.2")]).await;
+        assert!(
+            body.starts_with(r#"{"object":"list","data":[{"id":"claude-x","model":"claude-x","name":"claude-x","#),
+            "{body}"
+        );
+        assert!(body.contains(r#""name":"Grok 4","context_window":256000"#), "{body}");
+        let (_, body) = get("/v1/models", &[("anthropic-version", "2023-06-01")]).await;
+        let claude: Value = serde_json::from_str(&body).unwrap();
+        // Go `claudemodels.BuildResponse` sorts by display name: "Grok 4" < "claude-x".
+        assert_eq!(claude["data"][0]["display_name"], "Grok 4");
+        assert_eq!(claude["data"][1]["created_at"], "2023-11-14T22:13:20Z");
+        assert_eq!(claude["data"][1]["max_input_tokens"], 200000);
+        let (status, body) = get("/v1beta/models/grok-4", &[]).await;
+        assert_eq!(status, 200, "{body}");
+        assert_eq!(
+            body,
+            r#"{"description":"Grok 4","displayName":"Grok 4","name":"models/grok-4","supportedGenerationMethods":["generateContent"]}"#
+        );
+        let (status, body) = get("/v1beta/models", &[]).await;
+        assert_eq!(status, 200);
+        assert!(body.contains("models/claude-x"), "{body}");
+        let (status, body) = get("/v1/models", &[("x-bad", "1")]).await;
+        assert_eq!(
+            (status, body.as_str()),
+            (
+                401,
+                r#"{"error":{"message":"who are you","type":"authentication_error"}}"#
+            )
+        );
+        shutdown.cancel();
+        task.await.unwrap();
+        let (status, _) = get("/v1/models", &[]).await;
+        assert_eq!(status, 503, "the heartbeat gate closes without Home");
     }
 }

@@ -275,24 +275,17 @@ impl Runtime {
         *self.remote.write().unwrap_or_else(PoisonError::into_inner) = dispatch;
     }
 
-    /// One remote pick: waits for this request's earlier releases, then asks the
-    /// dispatcher (Go `endHomeSelectionBeforeRedispatch` + `pickHomeDispatchSelection`).
+    /// One remote pick (Go `pickHomeDispatchSelection`): the lease ends through the
+    /// dispatcher, and its release joins `releases`.
     pub(crate) async fn acquire_remote(
         &self,
         dispatch: &dyn crate::remote::RemoteDispatch,
         selection: Selection,
         request: crate::remote::RemoteRequest,
         releases: &crate::remote::PendingReleases,
-    ) -> Result<Lease, ExecError> {
-        releases.settle().await.map_err(|error| {
-            ExecError::local(
-                503,
-                FailureScope::Credential,
-                format!("home_unavailable: Home did not acknowledge credential release: {error}"),
-            )
-        })?;
+    ) -> Result<(Lease, Option<i64>), crate::remote::RemoteError> {
         let grant = dispatch.dispatch(request).await?;
-        Ok(Lease {
+        let lease = Lease {
             store: self.store.clone(),
             credential: Arc::new(grant.credential),
             execution_model: selection.model.clone(),
@@ -304,7 +297,8 @@ impl Runtime {
                 end: Some(grant.end),
                 releases: releases.clone(),
             }),
-        })
+        };
+        Ok((lease, grant.request_retry))
     }
 
     /// Prepares and commits one credential. `failed` is the revision whose token an
@@ -1421,7 +1415,12 @@ impl Stream for Completing {
         match &item {
             Some(Ok(_)) => {}
             None => this.lease.take().unwrap().complete(Outcome::Success),
-            Some(Err(e)) => this.lease.take().unwrap().complete(Outcome::Failure(e.clone())),
+            Some(Err(e)) => {
+                // The upstream body closes before the lease ends: a remote lease's release
+                // must not reach the control plane while the response is still open.
+                this.inner = Box::pin(futures_util::stream::empty());
+                this.lease.take().unwrap().complete(Outcome::Failure(e.clone()));
+            }
         }
         Poll::Ready(item)
     }
@@ -2103,5 +2102,55 @@ mod tests {
         assert!(mid.next().await.is_some());
         drop(mid);
         assert_eq!(store.stats(), stats(2, 1, 2));
+    }
+
+    /// A remote lease ends once, never through the local scheduler, and only after the
+    /// upstream body it was streaming has been dropped.
+    #[tokio::test]
+    async fn remote_leases_end_after_the_upstream_body_closes() {
+        use std::sync::atomic::AtomicBool;
+        struct Probe(Arc<AtomicBool>);
+        impl Drop for Probe {
+            fn drop(&mut self) {
+                self.0.store(true, Ordering::SeqCst);
+            }
+        }
+        let store = CredentialStore::new(vec![cred("a.json", "claude", false)]);
+        let dropped = Arc::new(AtomicBool::new(false));
+        let observed = Arc::new(Mutex::new(Vec::new()));
+        let mut lease = store.select(sel("claude")).unwrap();
+        let (seen, probe) = (observed.clone(), dropped.clone());
+        lease.remote = Some(crate::remote::RemoteEnd {
+            end: Some(Box::new(move || {
+                seen.lock().unwrap().push(probe.load(Ordering::SeqCst));
+                None
+            })),
+            releases: Default::default(),
+        });
+        let guard = Probe(dropped.clone());
+        let err = ExecError::local(502, FailureScope::Transport, "boom");
+        let inner = futures_util::stream::iter(vec![Ok(Bytes::from_static(b"a")), Err(err)])
+            .chain(futures_util::stream::pending())
+            .map(move |item| {
+                let _ = &guard;
+                item
+            })
+            .boxed();
+        let mut stream = Completing::new(inner, lease);
+        assert!(stream.next().await.unwrap().is_ok());
+        assert!(observed.lock().unwrap().is_empty(), "still streaming");
+        assert!(stream.next().await.unwrap().is_err());
+        assert_eq!(
+            *observed.lock().unwrap(),
+            vec![true],
+            "body dropped first, then one end"
+        );
+        drop(stream);
+        assert_eq!(observed.lock().unwrap().len(), 1);
+        assert_eq!(
+            store.stats(),
+            AttemptStats::default(),
+            "the local scheduler saw nothing"
+        );
     }
 }

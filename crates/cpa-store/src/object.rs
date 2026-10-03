@@ -3,7 +3,6 @@
 //! mirrored into `<root>/config` and `<root>/auths`. Path-style requests signed with
 //! SigV4; the region comes from the bucket location like minio-go.
 
-use std::os::unix::fs::{DirBuilderExt, OpenOptionsExt};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
@@ -187,19 +186,14 @@ fn query_unescape(value: &str) -> String {
 }
 
 fn mkdir_0700(path: &Path) -> Result<()> {
-    std::fs::DirBuilder::new().recursive(true).mode(0o700).create(path)?;
+    crate::private_fs::create_dir_all(path)?;
     Ok(())
 }
 
 /// Go `os.WriteFile(path, data, 0o600)`.
 pub(crate) fn write_file(path: &Path, bytes: &[u8]) -> Result<()> {
     use std::io::Write;
-    let mut file = std::fs::OpenOptions::new()
-        .write(true)
-        .create(true)
-        .truncate(true)
-        .mode(0o600)
-        .open(path)?;
+    let mut file = crate::private_fs::create_truncate(path)?;
     file.write_all(bytes)?;
     Ok(())
 }
@@ -644,7 +638,8 @@ impl cpa_server::persist::StorePersister for ObjectPersister {
     }
 }
 
-#[cfg(test)]
+// Mode-bit assertions: Unix only.
+#[cfg(all(test, unix))]
 mod tests {
     use super::*;
 

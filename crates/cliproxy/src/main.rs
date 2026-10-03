@@ -722,9 +722,26 @@ async fn serve(
     }
     .layer(axum::middleware::from_fn(cpa_server::management::cors));
     let mut server = Box::pin(cpa_server::listener::serve(listener, app, tls));
+    let mut home = home;
+    // Go `cancelServiceRun`: a Home subscriber that stops on its own (an unsafe drain or
+    // an unsettled dispatch) stops the service; executions it could not drain end with
+    // the process instead of running on unaccounted.
+    let home_stopped = async {
+        match home.as_mut() {
+            Some((_, task)) => {
+                let _ = task.await;
+            }
+            None => std::future::pending::<()>().await,
+        }
+    };
+    let mut home_failed = false;
     let served = tokio::select! {
-        r = &mut server => r,
+        r = &mut server => r.map_err(anyhow::Error::from),
         _ = shutdown_signal() => Ok(()),
+        _ = home_stopped => {
+            home_failed = true;
+            Err(anyhow::anyhow!("home subscriber stopped; shutting down"))
+        }
     };
     // Go's Service.Shutdown sends the mDNS goodbye (shutdownDiscovery) before
     // Server.Stop, which closes the HTTP server without draining (`http.Server.Close`);
@@ -732,11 +749,13 @@ async fn serve(
     advertiser.shutdown().await;
     drop(server);
     // Go drains the Home registry and flushes releases before exiting.
-    if let Some((shutdown, task)) = home {
+    if let Some((shutdown, task)) = home
+        && !home_failed
+    {
         shutdown.cancel();
         let _ = task.await;
     }
-    Ok(served?)
+    served
 }
 
 #[cfg(test)]

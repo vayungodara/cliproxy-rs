@@ -5,7 +5,6 @@
 //! the enrollment secret carry the trust, exactly as in Go.
 
 use std::io::Write;
-use std::os::unix::fs::{DirBuilderExt, OpenOptionsExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
@@ -162,11 +161,7 @@ async fn ensure_files(claims: &Claims, paths: &Paths) -> Result<()> {
         }
         return Ok(());
     }
-    std::fs::DirBuilder::new()
-        .recursive(true)
-        .mode(0o700)
-        .create(&paths.dir)
-        .map_err(|e| other(e.to_string()))?;
+    crate::private_fs::create_dir_all(&paths.dir).map_err(|e| other(e.to_string()))?;
     let key = load_or_create_key(&paths.client_key)?;
     let csr = create_csr(&claims.certificate_id, &key)?;
     let response = request_certificate(claims, &csr).await?;
@@ -229,18 +224,12 @@ pub fn certificate_fingerprint(pem: &[u8]) -> Result<String> {
 }
 
 fn chmod_0600(path: &Path) -> Result<()> {
-    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600)).map_err(|e| other(e.to_string()))
+    crate::private_fs::restrict(path).map_err(|e| other(e.to_string()))
 }
 
 /// Go `writeFile0600`: create or truncate, then force 0600.
 fn write_0600(path: &Path, bytes: &[u8]) -> Result<()> {
-    let mut file = std::fs::OpenOptions::new()
-        .write(true)
-        .create(true)
-        .truncate(true)
-        .mode(0o600)
-        .open(path)
-        .map_err(|e| other(e.to_string()))?;
+    let mut file = crate::private_fs::create_truncate(path).map_err(|e| other(e.to_string()))?;
     file.write_all(bytes).map_err(|e| other(e.to_string()))?;
     chmod_0600(path)
 }
