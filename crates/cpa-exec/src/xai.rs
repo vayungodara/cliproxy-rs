@@ -26,11 +26,11 @@ use crate::gemini_stream::ClaudeInputTokens;
 use crate::openai_compat::status_err;
 use crate::openai_compat_http::{self as wire, Clients, GoHeaders};
 use crate::openai_compat_payload::{self as compat, ensure_responses_usage_details};
-use cpa_translate::apply_patch_responses as apply_patch;
 use crate::xai_auth::{self, CLI_CHAT_PROXY_BASE_URL, DEFAULT_API_BASE_URL, metadata_string};
 use crate::xai_replay::{self as replay, ReplayScope};
 use crate::xai_request::{self as request, Prepared};
 use crate::xai_response::{self as response, NamespaceRestorer, OutputItems, XSearchFilter, text};
+use cpa_translate::apply_patch_responses as apply_patch;
 
 pub const PROVIDER: &str = "xai";
 

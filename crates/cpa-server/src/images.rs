@@ -26,7 +26,7 @@ use cpa_core::format::Format;
 use cpa_exec::openai_compat_multipart::{self as multipart, Form, MediaType};
 
 use crate::claude::read_failed;
-use crate::dispatch::{self, Call, Done, Failure, Media, MediaKind};
+use crate::dispatch::{self, Call, Done, Failure, Media, MediaKind, SseError};
 use crate::respond::{self, Writer};
 use crate::{Runtime, errors};
 
@@ -102,7 +102,11 @@ fn unsupported(model: &str) -> Option<Response> {
 
 /// `normalizeImagesResponseFormat`.
 fn response_format(raw: &str) -> &'static str {
-    if raw.trim().go_eq_fold("url") { "url" } else { "b64_json" }
+    if raw.trim().go_eq_fold("url") {
+        "url"
+    } else {
+        "b64_json"
+    }
 }
 
 /// `canonicalXAIImagesModel`.
@@ -356,8 +360,15 @@ struct XaiImage {
     mime_type: String,
 }
 
+/// What `extractXAIImagesResponse` returns.
+struct XaiResult {
+    images: Vec<XaiImage>,
+    created: i64,
+    usage: Option<Vec<u8>>,
+}
+
 /// `extractXAIImagesResponse`.
-fn extract_xai(payload: &[u8]) -> Result<(Vec<XaiImage>, i64, Option<Vec<u8>>), String> {
+fn extract_xai(payload: &[u8]) -> Result<XaiResult, String> {
     if !gj::std_valid(payload) {
         return Err("upstream returned invalid image response JSON".into());
     }
@@ -392,7 +403,11 @@ fn extract_xai(payload: &[u8]) -> Result<(Vec<XaiImage>, i64, Option<Vec<u8>>), 
     }
     let usage = gj::get(payload, "usage");
     let usage = (usage.exists() && usage.is_object()).then(|| usage.raw().to_vec());
-    Ok((results, created, usage))
+    Ok(XaiResult {
+        images: results,
+        created,
+        usage,
+    })
 }
 
 /// The image of one result in the client's response format.
@@ -417,7 +432,11 @@ fn image_fields(out: &mut Vec<u8>, image: &XaiImage, format: &str) {
 
 /// `buildImagesAPIResponseFromXAI`.
 fn images_api_response(payload: &[u8], format: &str) -> Result<Vec<u8>, String> {
-    let (results, created, usage) = extract_xai(payload)?;
+    let XaiResult {
+        images: results,
+        created,
+        usage,
+    } = extract_xai(payload)?;
     let mut out = br#"{"created":0,"data":[]}"#.to_vec();
     gj::set_int(&mut out, "created", created);
     let format = response_format(format);
@@ -437,7 +456,9 @@ fn images_api_response(payload: &[u8], format: &str) -> Result<Vec<u8>, String> 
 
 /// The emulated stream of a finished xAI result: one `<prefix>.completed` event per image.
 fn completed_events(payload: &[u8], format: &str, prefix: &str) -> Result<Vec<u8>, String> {
-    let (results, _, usage) = extract_xai(payload)?;
+    let XaiResult {
+        images: results, usage, ..
+    } = extract_xai(payload)?;
     let event = format!("{prefix}.completed");
     let format = response_format(format);
     let mut out = Vec::new();
@@ -470,7 +491,8 @@ struct Prepared {
 }
 
 impl Prepared {
-    fn call(&self, model: &str, body: Vec<u8>, stream: bool) -> Call {
+    /// `stream` is the upstream call's mode; `sse` whether the client gets events.
+    fn call(&self, model: &str, body: Vec<u8>, stream: bool, sse: bool) -> Call {
         Call {
             entry: Format::OpenAI,
             response: Format::OpenAI,
@@ -491,6 +513,7 @@ impl Prepared {
                 kind: MediaKind::Images,
                 pinned: None,
                 on_selected: None,
+                sse,
             })),
         }
     }
@@ -508,47 +531,95 @@ fn json_ok(body: impl Into<Body>) -> Response {
     respond::json(200, "application/json", body)
 }
 
+/// Finished events, written as a flushed stream (chunked, no Content-Length) like Go.
+fn sse_events(events: impl Into<Bytes>) -> Response {
+    let chunk = Ok::<_, std::convert::Infallible>(events.into());
+    respond::sse(Body::from_stream(futures_util::stream::iter([chunk])))
+}
+
 /// `WriteErrorResponse` for a handler-side failure.
 pub(crate) fn gateway_error(message: &str) -> Response {
     respond::json(502, "application/json", errors::openai_body(502, message))
 }
 
 /// `writeImagesStreamErrorEvent`.
-pub(crate) fn stream_error_event(failure: &Failure) -> Bytes {
-    let status = match failure.status() {
+fn stream_error_event(status: u16, text: &str) -> Bytes {
+    let status = match status {
         s @ 400..=599 => s,
         _ => 500,
     };
-    let text = crate::openai::sanitize_error_text(status, &failure.text());
-    Bytes::from(format!("event: error\ndata: {}\n\n", errors::openai_body(status, &text)))
+    let text = crate::openai::sanitize_error_text(status, text);
+    Bytes::from(format!(
+        "event: error\ndata: {}\n\n",
+        errors::openai_body(status, &text)
+    ))
 }
 
-/// Raw upstream bytes; a terminal error becomes an `error` event.
-struct Raw;
+/// An error response that becomes an `error` event once the event stream committed.
+fn stream_failed(mut response: Response, status: u16, text: &str) -> Response {
+    response
+        .extensions_mut()
+        .insert(SseError(stream_error_event(status, text)));
+    response
+}
+
+fn failed(failure: &Failure, stream: bool) -> Response {
+    let response = errors::openai(failure);
+    if !stream {
+        return response;
+    }
+    stream_failed(response, failure.status(), &failure.text())
+}
+
+fn bad_gateway(message: &str, stream: bool) -> Response {
+    let response = gateway_error(message);
+    if !stream {
+        return response;
+    }
+    stream_failed(response, 502, message)
+}
+
+/// Raw upstream bytes; a terminal error becomes an `error` event. A routed stream that
+/// ends without data writes a single newline (`streamRoutedImages`); a compat one writes
+/// nothing (`streamOpenAICompatImages`).
+struct Raw {
+    started: bool,
+    routed: bool,
+}
 
 impl Writer for Raw {
     fn chunk(&mut self, event: Bytes) -> Vec<Bytes> {
+        self.started = true;
         vec![event]
     }
     fn error(&mut self, error: &ExecError) -> Vec<Bytes> {
-        vec![stream_error_event(&Failure::Exec(error.clone()))]
+        let failure = Failure::Exec(error.clone());
+        vec![stream_error_event(failure.status(), &failure.text())]
     }
     fn end(&mut self) -> Vec<Bytes> {
-        vec![]
+        if self.started || !self.routed {
+            vec![]
+        } else {
+            vec![Bytes::from_static(b"\n")]
+        }
     }
 }
 
 /// `collectRoutedImages` / `streamRoutedImages`, and the streaming half of the compat
-/// path (`streamOpenAICompatImages`): the upstream body or event stream as is.
-async fn raw(p: Prepared, model: &str, body: Vec<u8>, stream: bool) -> Response {
+/// path (`streamOpenAICompatImages`, `routed` false): the upstream body or event stream as
+/// is.
+async fn raw(p: Prepared, model: &str, body: Vec<u8>, stream: bool, routed: bool) -> Response {
     let keepalive = respond::keepalive(&p.rt.config());
-    let call = p.call(model, body, stream);
-    dispatch::serve(&p.rt, call, |result| async move {
+    let call = p.call(model, body, stream, stream);
+    dispatch::serve(&p.rt, call, move |result| async move {
         match result {
-            Err(failure) => errors::openai(&failure),
+            Err(failure) => failed(&failure, stream),
             Ok(Done::Buffered { body, .. }) if !stream => json_ok(body),
-            Ok(Done::Buffered { body, .. }) => respond::sse(Body::from(body)),
-            Ok(Done::Stream { first, rest, .. }) => respond::sse(respond::stream(first, rest, Raw, keepalive)),
+            Ok(Done::Buffered { body, .. }) => sse_events(body),
+            Ok(Done::Stream { first, rest, .. }) => {
+                let writer = Raw { started: false, routed };
+                respond::sse(respond::stream(first, rest, writer, keepalive))
+            }
         }
     })
     .await
@@ -557,11 +628,11 @@ async fn raw(p: Prepared, model: &str, body: Vec<u8>, stream: bool) -> Response 
 /// `collectImagesWithModel` and `streamImagesWithModel`: one buffered execution whose
 /// result is normalized to the Images API, or emitted as completed events.
 async fn normalized(p: Prepared, model: &str, body: Vec<u8>, format: String, prefix: &str, stream: bool) -> Response {
-    let call = p.call(model, body, false);
+    let call = p.call(model, body, false, stream);
     let prefix = prefix.to_owned();
-    dispatch::serve(&p.rt, call, |result| async move {
+    dispatch::serve(&p.rt, call, move |result| async move {
         let payload = match result {
-            Err(failure) => return errors::openai(&failure),
+            Err(failure) => return failed(&failure, stream),
             Ok(Done::Buffered { body, .. }) => body,
             Ok(Done::Stream { .. }) => unreachable!("a non-stream call is buffered"),
         };
@@ -572,8 +643,8 @@ async fn normalized(p: Prepared, model: &str, body: Vec<u8>, format: String, pre
             };
         }
         match completed_events(&payload, &format, &prefix) {
-            Ok(out) => respond::sse(Body::from(out)),
-            Err(message) => gateway_error(&message),
+            Ok(out) => sse_events(out),
+            Err(message) => bad_gateway(&message, true),
         }
     })
     .await
@@ -635,7 +706,7 @@ pub async fn generations(
     };
     if is_codex_tool_model(&model) {
         let req = compat_json_request(&body, &model, stream);
-        return raw(p, &model, req, stream).await;
+        return raw(p, &model, req, stream, true).await;
     }
     if is_xai_model(&model) {
         let req = xai_base_request(&model, &prompt, &format, &xai_json_options(&body, true));
@@ -645,7 +716,7 @@ pub async fn generations(
     // isOpenAICompatImagesModel (the only family left after `unsupported`).
     let req = compat_json_request(&body, &model, stream);
     if stream {
-        return raw(p, &model, req, true).await;
+        return raw(p, &model, req, true, false).await;
     }
     normalized(p, &model, req, format, "image_generation", false).await
 }
@@ -756,8 +827,9 @@ async fn edits_multipart(p: Prepared, content_type: &str, body: &[u8]) -> Respon
     // Codex tool models and OpenAI-compatible image models forward the rebuilt form.
     let (req, content_type) = multipart::rewrite_images_form(&form, &model, stream, true);
     let p = p.with_content_type(&content_type);
-    if is_codex_tool_model(&model) || stream {
-        return raw(p, &model, req, stream).await;
+    let routed = is_codex_tool_model(&model);
+    if routed || stream {
+        return raw(p, &model, req, stream, routed).await;
     }
     normalized(p, &model, req, format, "image_edit", false).await
 }
@@ -785,7 +857,7 @@ async fn edits_json(p: Prepared, body: &[u8]) -> Response {
     let stream = gj::get(body, "stream").bool();
     if is_codex_tool_model(&model) {
         let req = compat_json_request(body, &model, stream);
-        return raw(p, &model, req, stream).await;
+        return raw(p, &model, req, stream, true).await;
     }
     if is_xai_model(&model) {
         let images = xai_images_from_json(body);
@@ -798,7 +870,7 @@ async fn edits_json(p: Prepared, body: &[u8]) -> Response {
     }
     let req = compat_json_request(body, &model, stream);
     if stream {
-        return raw(p, &model, req, true).await;
+        return raw(p, &model, req, true, false).await;
     }
     normalized(p, &model, req, format, "image_edit", false).await
 }
@@ -847,12 +919,11 @@ pub(crate) fn detect_content_type(data: &[u8]) -> &'static str {
     if masked(&data[first..], b"\xFF\xFF\xFF\xFF\xFF", b"<?xml") {
         return "text/xml; charset=utf-8";
     }
-    let exact: [(&[u8], &'static str); 3] = [
+    let exact: [(&[u8], &'static str); 2] = [
         (b"%PDF-", "application/pdf"),
         (b"%!PS-Adobe-", "application/postscript"),
-        (b"", ""),
     ];
-    for (sig, ct) in exact.iter().take(2) {
+    for (sig, ct) in exact {
         if data.starts_with(sig) {
             return ct;
         }
@@ -894,12 +965,28 @@ pub(crate) fn detect_content_type(data: &[u8]) -> &'static str {
         return "image/jpeg";
     }
     let media: [Sig; 6] = [
-        (b"\xFF\xFF\xFF\xFF\x00\x00\x00\x00\xFF\xFF\xFF\xFF", b"FORM\x00\x00\x00\x00AIFF", "audio/aiff"),
+        (
+            b"\xFF\xFF\xFF\xFF\x00\x00\x00\x00\xFF\xFF\xFF\xFF",
+            b"FORM\x00\x00\x00\x00AIFF",
+            "audio/aiff",
+        ),
         (b"\xFF\xFF\xFF", b"ID3", "audio/mpeg"),
         (b"\xFF\xFF\xFF\xFF\xFF", b"OggS\x00", "application/ogg"),
-        (b"\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF", b"MThd\x00\x00\x00\x06", "audio/midi"),
-        (b"\xFF\xFF\xFF\xFF\x00\x00\x00\x00\xFF\xFF\xFF\xFF", b"RIFF\x00\x00\x00\x00AVI ", "video/avi"),
-        (b"\xFF\xFF\xFF\xFF\x00\x00\x00\x00\xFF\xFF\xFF\xFF", b"RIFF\x00\x00\x00\x00WAVE", "audio/wave"),
+        (
+            b"\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF",
+            b"MThd\x00\x00\x00\x06",
+            "audio/midi",
+        ),
+        (
+            b"\xFF\xFF\xFF\xFF\x00\x00\x00\x00\xFF\xFF\xFF\xFF",
+            b"RIFF\x00\x00\x00\x00AVI ",
+            "video/avi",
+        ),
+        (
+            b"\xFF\xFF\xFF\xFF\x00\x00\x00\x00\xFF\xFF\xFF\xFF",
+            b"RIFF\x00\x00\x00\x00WAVE",
+            "audio/wave",
+        ),
     ];
     for (mask, pat, ct) in media {
         if masked(data, mask, pat) {
@@ -908,7 +995,7 @@ pub(crate) fn detect_content_type(data: &[u8]) -> &'static str {
     }
     if data.len() >= 12 {
         let size = u32::from_be_bytes([data[0], data[1], data[2], data[3]]) as usize;
-        if data.len() >= size && size % 4 == 0 && &data[4..8] == b"ftyp" {
+        if data.len() >= size && size.is_multiple_of(4) && &data[4..8] == b"ftyp" {
             let mut st = 8;
             while st < size {
                 if st != 12 && &data[st..st + 3] == b"mp4" {
@@ -930,7 +1017,7 @@ pub(crate) fn detect_content_type(data: &[u8]) -> &'static str {
     if masked(data, &eot_mask, &eot_pat) {
         return "application/vnd.ms-fontobject";
     }
-    let rest: [(&[u8], &'static str); 11] = [
+    let rest: [(&[u8], &'static str); 10] = [
         (b"\x00\x01\x00\x00", "font/ttf"),
         (b"OTTO", "font/otf"),
         (b"ttcf", "font/collection"),
@@ -941,9 +1028,8 @@ pub(crate) fn detect_content_type(data: &[u8]) -> &'static str {
         (b"Rar!\x1A\x07\x00", "application/x-rar-compressed"),
         (b"Rar!\x1A\x07\x01\x00", "application/x-rar-compressed"),
         (b"\x00\x61\x73\x6D", "application/wasm"),
-        (b"", ""),
     ];
-    for (sig, ct) in rest.iter().take(10) {
+    for (sig, ct) in rest {
         if data.starts_with(sig) {
             return ct;
         }

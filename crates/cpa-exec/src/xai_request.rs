@@ -14,11 +14,11 @@ use cpa_core::format::Format;
 use cpa_translate::RequestCtx;
 
 use crate::openai_compat_payload::{self as compat, set_bool_if_different, set_str_if_different};
-use cpa_translate::apply_patch_responses as apply_patch;
 use crate::xai_replay::{self as replay, ReplayScope};
 use crate::xai_response::{
     self as response, CUSTOM, ClientToolKey, FUNCTION, NAMESPACE, NamespaceRef, NamespaceRefs, WEB_SEARCH, text,
 };
+use cpa_translate::apply_patch_responses as apply_patch;
 
 use crate::xai::PROVIDER;
 const IMAGE_GENERATION: &str = "image_generation";

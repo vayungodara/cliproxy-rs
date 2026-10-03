@@ -19,6 +19,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -27,6 +28,7 @@ import (
 )
 
 type upstream struct {
+	DelayMs int         `json:"delay_ms,omitempty"`
 	Status  int         `json:"status"`
 	Headers [][2]string `json:"headers,omitempty"`
 	Body    string      `json:"body"`
@@ -38,6 +40,7 @@ type scenario struct {
 	Path        string            `json:"path"`
 	ContentType string            `json:"content_type,omitempty"`
 	Body        string            `json:"body,omitempty"`
+	BodyB64     string            `json:"body_b64,omitempty"`
 	Headers     map[string]string `json:"headers,omitempty"`
 	Upstreams   []upstream        `json:"upstreams,omitempty"`
 
@@ -50,11 +53,16 @@ type scenario struct {
 
 // Config is shared by every scenario. UPSTREAM is the capture server, PORT the Go
 // server's port and AUTHDIR its auth directory; the Rust test fills them in the same way.
-const Config = `server:
+const Config = `config-version: 8
+server:
   host: 127.0.0.1
   port: PORT
 management:
   disable-control-panel: true
+requests:
+  nonstream-keepalive-interval: 1
+  streaming:
+    keepalive-seconds: 1
 access:
   api-keys: [client-key-1]
 oauth:
@@ -127,6 +135,7 @@ func (c *capture) handle(conn net.Conn) {
 		reply, c.replies = c.replies[0], c.replies[1:]
 	}
 	c.mu.Unlock()
+	time.Sleep(time.Duration(reply.DelayMs) * time.Millisecond)
 	payload := strings.ReplaceAll(reply.Body, "UPSTREAM", c.addr)
 	var out bytes.Buffer
 	fmt.Fprintf(&out, "HTTP/1.1 %d %s\r\n", reply.Status, http.StatusText(reply.Status))
@@ -141,15 +150,25 @@ var (
 	boundaryRe  = regexp.MustCompile(`boundary=([0-9a-f]{60})`)
 	createdRe   = regexp.MustCompile(`"(created_at|created)":(1[7-9]\d{8})`)
 	videoIDRe   = regexp.MustCompile(`"video_[0-9a-f]{32}"`)
+	xaiKeyRe    = regexp.MustCompile(`sk-fake-xai-[a-z]`)
+	keyAliases  = map[string]string{}
 	keepHeaders = []string{"Content-Type", "Cache-Control", "Content-Disposition", "Content-Length", "Etag", "Last-Modified"}
 )
 
 // normalize masks what Go varies per run: the capture address, the multipart writer's
-// random boundary, clock-derived timestamps and generated video IDs.
+// random boundary, clock-derived timestamps and generated video IDs. The xAI keys become
+// XAI-KEY-<n> in order of first use: credential IDs hash the base URL, which holds the
+// capture server's random port, so which key sorts first changes between runs.
 func normalize(s, addr string) string {
 	s = strings.ReplaceAll(s, addr, "UPSTREAM")
+	s = xaiKeyRe.ReplaceAllStringFunc(s, func(key string) string {
+		if _, ok := keyAliases[key]; !ok {
+			keyAliases[key] = fmt.Sprintf("XAI-KEY-%d", len(keyAliases)+1)
+		}
+		return keyAliases[key]
+	})
 	if m := boundaryRe.FindStringSubmatch(s); m != nil {
-		s = strings.ReplaceAll(s, m[1], "BOUNDARY")
+		s = canonicalForm(strings.ReplaceAll(s, m[1], "BOUNDARY"))
 	}
 	s = createdRe.ReplaceAllStringFunc(s, func(m string) string {
 		parts := createdRe.FindStringSubmatch(m)
@@ -159,6 +178,36 @@ func normalize(s, addr string) string {
 		return m
 	})
 	return videoIDRe.ReplaceAllString(s, `"video_<id>"`)
+}
+
+// canonicalForm sorts the parts of a rebuilt multipart body within each group Go writes
+// in map order (buildOpenAICompatImagesMultipartRequest ranges over form.Value, then
+// form.File): model and stream lead, then the values, then the files.
+func canonicalForm(s string) string {
+	const sep = "--BOUNDARY"
+	i := strings.Index(s, "\r\n\r\n")
+	if i < 0 || !strings.HasPrefix(s[i+4:], sep+"\r\n") {
+		return s
+	}
+	head, pieces := s[:i+4], strings.Split(s[i+4:], sep)
+	if len(pieces) < 3 {
+		return s
+	}
+	var lead, values, files []string
+	for _, p := range pieces[1 : len(pieces)-1] {
+		switch {
+		case strings.Contains(p, `name="model"`+"\r\n"), strings.Contains(p, `name="stream"`+"\r\n"):
+			lead = append(lead, p)
+		case strings.Contains(p, "filename="):
+			files = append(files, p)
+		default:
+			values = append(values, p)
+		}
+	}
+	sort.Strings(values)
+	sort.Strings(files)
+	parts := append(append(lead, values...), files...)
+	return head + pieces[0] + sep + strings.Join(parts, sep) + sep + pieces[len(pieces)-1]
 }
 
 func freePort() int {
@@ -230,6 +279,9 @@ func main() {
 		cap.requests = nil
 		cap.mu.Unlock()
 		req, errReq := http.NewRequest(s.Method, base+s.Path, strings.NewReader(s.Body))
+		if !utf8.ValidString(s.Body) {
+			s.BodyB64, s.Body = base64.StdEncoding.EncodeToString([]byte(s.Body)), ""
+		}
 		if errReq != nil {
 			panic(errReq)
 		}

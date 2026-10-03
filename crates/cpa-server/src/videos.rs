@@ -314,7 +314,9 @@ fn create_request(body: &[u8], model: &str) -> Result<(Vec<u8>, CreateMeta), Str
     let image = input_image(body)?;
     let references = reference_images(body);
     if references.len() > MAX_REFERENCES {
-        return Err(format!("reference_images supports at most {MAX_REFERENCES} images on xAI"));
+        return Err(format!(
+            "reference_images supports at most {MAX_REFERENCES} images on xAI"
+        ));
     }
     if !image.is_empty() && !references.is_empty() {
         return Err("image and reference_images cannot be combined on xAI".into());
@@ -372,7 +374,12 @@ fn create_request_from_form(headers: &HeaderMap, body: &[u8]) -> Vec<u8> {
             None => String::new(),
         }
     };
-    let first = |keys: &[&str]| keys.iter().map(|k| post_form(k)).find(|v| !v.trim().is_empty()).unwrap_or_default();
+    let first = |keys: &[&str]| {
+        keys.iter()
+            .map(|k| post_form(k))
+            .find(|v| !v.trim().is_empty())
+            .unwrap_or_default()
+    };
     let mut out = b"{}".to_vec();
     for field in ["model", "prompt", "seconds", "size", "aspect_ratio", "resolution"] {
         let value = post_form(field).trim().to_owned();
@@ -447,7 +454,11 @@ fn create_response(payload: &[u8], meta: &CreateMeta) -> Result<Vec<u8>, String>
 
 /// `buildVideosFailedAPIResponse`.
 fn failed_response(model: &str, code: &str, message: &str) -> Vec<u8> {
-    let model = if model.trim().is_empty() { XAI_MODEL } else { model.trim() };
+    let model = if model.trim().is_empty() {
+        XAI_MODEL
+    } else {
+        model.trim()
+    };
     let mut out = br#"{"object":"video","status":"failed","progress":0}"#.to_vec();
     gj::set_str(&mut out, "id", format!("video_{}", uuid::Uuid::new_v4().simple()));
     gj::set_str(&mut out, "model", model);
@@ -458,7 +469,11 @@ fn failed_response(model: &str, code: &str, message: &str) -> Vec<u8> {
 
 /// `writeVideosFailedError` (`c.Data` with `application/json`).
 fn failed(status: u16, model: &str, message: &str) -> Response {
-    respond::json(status, "application/json", failed_response(model, "invalid_request_error", message))
+    respond::json(
+        status,
+        "application/json",
+        failed_response(model, "invalid_request_error", message),
+    )
 }
 
 /// `markOpenAIVideoFailed`.
@@ -578,8 +593,8 @@ struct Request {
 /// the failure, and the last credential selected (`WithSelectedAuthIDCallback`).
 async fn execute<F, Fut>(r: &Request, model: &str, body: Vec<u8>, pinned: Option<String>, render: F) -> Response
 where
-    F: FnOnce(Result<Bytes, Failure>, String) -> Fut,
-    Fut: std::future::Future<Output = Response>,
+    F: FnOnce(Result<Bytes, Failure>, String) -> Fut + Send + 'static,
+    Fut: std::future::Future<Output = Response> + Send,
 {
     let selected: Arc<Mutex<String>> = Arc::default();
     let sink = selected.clone();
@@ -605,10 +620,14 @@ where
             on_selected: Some(Box::new(move |c| {
                 *sink.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = c.id.clone();
             })),
+            sse: false,
         })),
     };
-    dispatch::serve(&r.rt, call, |result| async move {
-        let selected = selected.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clone();
+    dispatch::serve(&r.rt, call, move |result| async move {
+        let selected = selected
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone();
         let payload = result.map(|done| match done {
             Done::Buffered { body, .. } => body,
             Done::Stream { .. } => unreachable!("a non-stream call is buffered"),
@@ -626,7 +645,11 @@ fn json_body(body: impl Into<Body>) -> Response {
 fn pinned_and_model(video: &str, fallback: &str) -> (Option<String>, String) {
     match binding(video) {
         Some((auth, model)) => {
-            let model = if model.trim().is_empty() { fallback.to_owned() } else { model };
+            let model = if model.trim().is_empty() {
+                fallback.to_owned()
+            } else {
+                model
+            };
             (Some(auth), model)
         }
         None => (None, fallback.to_owned()),
@@ -644,7 +667,7 @@ async fn native(r: Request, body: Vec<u8>, model: &str, bind_created: bool) -> R
     };
     let ttl = binding_ttl(&r.rt);
     let routed = routing(&model);
-    execute(&r, &model, body, pinned, |result, selected| async move {
+    execute(&r, &model, body, pinned, move |result, selected| async move {
         let payload = match result {
             Ok(payload) => payload,
             Err(failure) => return errors::openai(&failure),
@@ -660,8 +683,8 @@ async fn native(r: Request, body: Vec<u8>, model: &str, bind_created: bool) -> R
 /// rebinding it to the credential that answered.
 async fn poll<F, Fut>(r: &Request, id: &str, render: F) -> Response
 where
-    F: FnOnce(Bytes) -> Fut,
-    Fut: std::future::Future<Output = Response>,
+    F: FnOnce(Bytes) -> Fut + Send + 'static,
+    Fut: std::future::Future<Output = Response> + Send,
 {
     let mut payload = b"{}".to_vec();
     gj::set_str(&mut payload, "request_id", id);
@@ -669,7 +692,7 @@ where
     let ttl = binding_ttl(&r.rt);
     let routed = routing(&model);
     let id = id.to_owned();
-    execute(r, &model, payload, pinned, |result, selected| async move {
+    execute(r, &model, payload, pinned, move |result, selected| async move {
         match result {
             Ok(payload) => {
                 bind(&id, &selected, routed, ttl);
@@ -708,7 +731,9 @@ async fn download(rt: &Runtime, video: &str, url: &str) -> Response {
     };
     if !(200..300).contains(&upstream.status) {
         let status = upstream.status;
-        let body = cpa_exec::proxy::read_all(upstream.body, usize::MAX, true).await.unwrap_or_default();
+        let body = cpa_exec::proxy::read_all(upstream.body, usize::MAX, true)
+            .await
+            .unwrap_or_default();
         let text = String::from_utf8_lossy(&body).trim().to_owned();
         let message = if text.is_empty() {
             let reason = StatusCode::from_u16(status)
@@ -722,7 +747,9 @@ async fn download(rt: &Runtime, video: &str, url: &str) -> Response {
         let body = errors::openai_body(status, &message);
         return respond::json(status, "application/json", body);
     }
-    let mut response = Response::new(Body::from_stream(upstream.body.map(|r| r.map_err(std::io::Error::other))));
+    let mut response = Response::new(Body::from_stream(
+        upstream.body.map(|r| r.map_err(std::io::Error::other)),
+    ));
     *response.status_mut() = StatusCode::from_u16(upstream.status).unwrap_or(StatusCode::OK);
     let out = response.headers_mut();
     for name in [
@@ -734,11 +761,17 @@ async fn download(rt: &Runtime, video: &str, url: &str) -> Response {
         "Last-Modified",
     ] {
         if let Some(value) = upstream.headers.get(name).filter(|v| !v.is_empty()) {
-            out.insert(header::HeaderName::from_bytes(name.as_bytes()).expect("static name"), value.clone());
+            out.insert(
+                header::HeaderName::from_bytes(name.as_bytes()).expect("static name"),
+                value.clone(),
+            );
         }
     }
     if !out.contains_key(header::CONTENT_TYPE) {
-        out.insert(header::CONTENT_TYPE, HeaderValue::from_static("application/octet-stream"));
+        out.insert(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static("application/octet-stream"),
+        );
     }
     response
 }
@@ -811,7 +844,7 @@ pub async fn create(
     let r = request(rt, caller, peer, matched, &uri, headers);
     let ttl = binding_ttl(&r.rt);
     let routed = meta.routing;
-    execute(&r, routed, req, None, |result, selected| async move {
+    execute(&r, routed, req, None, move |result, selected| async move {
         let payload = match result {
             Ok(payload) => payload,
             Err(failure) => return errors::openai(&failure),
@@ -896,7 +929,10 @@ pub async fn retrieve(
     }
     let r = request(rt, caller, peer, matched, &uri, headers);
     let video = id.clone();
-    poll(&r, &id, |payload| async move { json_body(retrieve_response(&video, &payload, SORA_MODEL)) }).await
+    poll(&r, &id, |payload| async move {
+        json_body(retrieve_response(&video, &payload, SORA_MODEL))
+    })
+    .await
 }
 
 /// `GET /openai/v1/videos/{video_id}/content` (`VideosContent`): polls the job, then

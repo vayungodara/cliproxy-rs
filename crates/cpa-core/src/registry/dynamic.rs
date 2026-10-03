@@ -456,16 +456,36 @@ fn channel(name: &str) -> Vec<Spec> {
 /// appended after the channel's models and replacing any with the same ID.
 fn with_xai_builtins(models: Vec<Spec>) -> Vec<Spec> {
     const BUILTINS: [(&str, i64, &str, &str); 6] = [
-        ("grok-imagine-image", 1735689600, "Grok Imagine Image", "xAI Grok image generation model."),
+        (
+            "grok-imagine-image",
+            1735689600,
+            "Grok Imagine Image",
+            "xAI Grok image generation model.",
+        ),
         (
             "grok-imagine-image-quality",
             1735689600,
             "Grok Imagine Image Quality",
             "xAI Grok higher-fidelity image generation model.",
         ),
-        ("grok-imagine-image-2.0", 1786060800, "Grok Imagine Image 2.0", "xAI Grok image generation model."),
-        ("grok-imagine-video", 1735689600, "Grok Imagine Video", "xAI Grok video generation model."),
-        ("grok-imagine-video-1.5", 1735689600, "Grok Imagine Video 1.5", "xAI Grok video generation model."),
+        (
+            "grok-imagine-image-2.0",
+            1786060800,
+            "Grok Imagine Image 2.0",
+            "xAI Grok image generation model.",
+        ),
+        (
+            "grok-imagine-video",
+            1735689600,
+            "Grok Imagine Video",
+            "xAI Grok video generation model.",
+        ),
+        (
+            "grok-imagine-video-1.5",
+            1735689600,
+            "Grok Imagine Video 1.5",
+            "xAI Grok video generation model.",
+        ),
         (
             "grok-imagine-video-1.5-preview",
             1735689600,
