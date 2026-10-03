@@ -1,0 +1,812 @@
+[
+ {
+  "name": "live_sideband_relays",
+  "path": "/v1/live/call-live",
+  "principal": "owner",
+  "headers": {
+   "Openai-Alpha": [
+    "quicksilver=v2"
+   ],
+   "Sec-Websocket-Protocol": [
+    "realtime, openai-beta.realtime-v1"
+   ],
+   "Session-Id": [
+    "session-1"
+   ],
+   "X-Not-Forwarded": [
+    "x"
+   ],
+   "X-Oai-Attestation": [
+    "attest"
+   ]
+  },
+  "send": [
+   {
+    "kind": "text",
+    "data": "hello"
+   },
+   {
+    "kind": "ping",
+    "data": "p"
+   },
+   {
+    "kind": "binary",
+    "data": "\u0001\u0002"
+   },
+   {
+    "kind": "text",
+    "data": "upstream-close"
+   }
+  ],
+  "status": 101,
+  "response_headers": {
+   "Sec-Websocket-Protocol": [
+    "openai-beta.realtime-v1"
+   ],
+   "Upgrade": [
+    "websocket"
+   ]
+  },
+  "protocol": "openai-beta.realtime-v1",
+  "received": [
+   {
+    "kind": "text",
+    "data": "echo:hello"
+   },
+   {
+    "kind": "binary",
+    "data": "echo:\u0001\u0002"
+   },
+   {
+    "kind": "close",
+    "data": "bye",
+    "code": 4001
+   }
+  ],
+  "upstream": {
+   "target": "/v1/live/call-live",
+   "headers": {
+    "Authorization": [
+     "Bearer pinned-token"
+    ],
+    "Chatgpt-Account-Id": [
+     "pinned-account"
+    ],
+    "Openai-Alpha": [
+     "quicksilver=v2"
+    ],
+    "Sec-Websocket-Protocol": [
+     "realtime, openai-beta.realtime-v1"
+    ],
+    "Session-Id": [
+     "session-1"
+    ],
+    "X-Oai-Attestation": [
+     "attest"
+    ]
+   },
+   "received": [
+    {
+     "kind": "text",
+     "data": "hello"
+    },
+    {
+     "kind": "binary",
+     "data": "\u0001\u0002"
+    },
+    {
+     "kind": "text",
+     "data": "upstream-close"
+    },
+    {
+     "kind": "close",
+     "code": 4001
+    }
+   ]
+  },
+  "call_kept": false
+ },
+ {
+  "name": "live_sideband_consumed",
+  "path": "/v1/live/call-live",
+  "principal": "owner",
+  "headers": null,
+  "send": null,
+  "status": 404,
+  "response_headers": {
+   "Content-Type": [
+    "application/json; charset=utf-8"
+   ]
+  },
+  "body": "{\"error\":\"Codex live session not found\"}",
+  "received": null,
+  "call_kept": false
+ },
+ {
+  "name": "calls_sideband_client_close",
+  "path": "/v1/realtime/calls/call-calls",
+  "principal": "owner",
+  "headers": null,
+  "send": [
+   {
+    "kind": "text",
+    "data": "a"
+   },
+   {
+    "kind": "close",
+    "data": "client-bye",
+    "code": 4002
+   }
+  ],
+  "status": 101,
+  "response_headers": {
+   "Upgrade": [
+    "websocket"
+   ]
+  },
+  "received": [
+   {
+    "kind": "text",
+    "data": "echo:a"
+   },
+   {
+    "kind": "close",
+    "code": 4002
+   }
+  ],
+  "upstream": {
+   "target": "/v1/realtime/calls/call-calls",
+   "headers": {
+    "Authorization": [
+     "Bearer pinned-token"
+    ],
+    "Chatgpt-Account-Id": [
+     "pinned-account"
+    ]
+   },
+   "received": [
+    {
+     "kind": "text",
+     "data": "a"
+    },
+    {
+     "kind": "close",
+     "data": "client-bye",
+     "code": 4002
+    }
+   ]
+  },
+  "call_kept": false
+ },
+ {
+  "name": "query_sideband",
+  "path": "/v1/realtime?call_id=call-query",
+  "principal": "owner",
+  "headers": null,
+  "send": [
+   {
+    "kind": "text",
+    "data": "q"
+   },
+   {
+    "kind": "close",
+    "code": 1000
+   }
+  ],
+  "status": 101,
+  "response_headers": {
+   "Upgrade": [
+    "websocket"
+   ]
+  },
+  "received": [
+   {
+    "kind": "text",
+    "data": "echo:q"
+   },
+   {
+    "kind": "close",
+    "code": 1000
+   }
+  ],
+  "upstream": {
+   "target": "/v1/realtime?intent=quicksilver\u0026call_id=call-query",
+   "headers": {
+    "Authorization": [
+     "Bearer pinned-token"
+    ],
+    "Chatgpt-Account-Id": [
+     "pinned-account"
+    ]
+   },
+   "received": [
+    {
+     "kind": "text",
+     "data": "q"
+    },
+    {
+     "kind": "close",
+     "code": 1000
+    }
+   ]
+  },
+  "call_kept": false
+ },
+ {
+  "name": "sideband_other_principal",
+  "path": "/v1/live/call-scope",
+  "principal": "other",
+  "headers": null,
+  "send": null,
+  "status": 403,
+  "response_headers": {
+   "Content-Type": [
+    "application/json; charset=utf-8"
+   ]
+  },
+  "body": "{\"error\":{\"code\":\"realtime_call_scope_mismatch\",\"message\":\"Realtime call belongs to another API principal\",\"param\":null,\"type\":\"invalid_request_error\"}}",
+  "received": null,
+  "call_kept": true
+ },
+ {
+  "name": "sideband_after_scope_reject",
+  "path": "/v1/live/call-scope",
+  "principal": "owner",
+  "headers": null,
+  "send": [
+   {
+    "kind": "close",
+    "data": "away",
+    "code": 1001
+   }
+  ],
+  "status": 101,
+  "response_headers": {
+   "Upgrade": [
+    "websocket"
+   ]
+  },
+  "received": [
+   {
+    "kind": "close",
+    "code": 1001
+   }
+  ],
+  "upstream": {
+   "target": "/v1/live/call-scope",
+   "headers": {
+    "Authorization": [
+     "Bearer pinned-token"
+    ],
+    "Chatgpt-Account-Id": [
+     "pinned-account"
+    ]
+   },
+   "received": [
+    {
+     "kind": "close",
+     "data": "away",
+     "code": 1001
+    }
+   ]
+  },
+  "call_kept": false
+ },
+ {
+  "name": "sideband_secret_owner",
+  "path": "/v1/realtime/calls/call-secret",
+  "principal": "secret",
+  "headers": null,
+  "send": [
+   {
+    "kind": "text",
+    "data": "s"
+   },
+   {
+    "kind": "close",
+    "code": 1000
+   }
+  ],
+  "status": 101,
+  "response_headers": {
+   "Upgrade": [
+    "websocket"
+   ]
+  },
+  "received": [
+   {
+    "kind": "text",
+    "data": "echo:s"
+   },
+   {
+    "kind": "close",
+    "code": 1000
+   }
+  ],
+  "upstream": {
+   "target": "/v1/realtime/calls/call-secret",
+   "headers": {
+    "Authorization": [
+     "Bearer pinned-token"
+    ],
+    "Chatgpt-Account-Id": [
+     "pinned-account"
+    ]
+   },
+   "received": [
+    {
+     "kind": "text",
+     "data": "s"
+    },
+    {
+     "kind": "close",
+     "code": 1000
+    }
+   ]
+  },
+  "call_kept": false
+ },
+ {
+  "name": "sideband_secret_wrong_call",
+  "path": "/v1/realtime/calls/call-secret2",
+  "principal": "secret",
+  "headers": null,
+  "send": null,
+  "status": 403,
+  "response_headers": {
+   "Content-Type": [
+    "application/json; charset=utf-8"
+   ]
+  },
+  "body": "{\"error\":{\"code\":\"realtime_client_secret_scope_mismatch\",\"message\":\"Realtime client secret is not valid for this call\",\"param\":null,\"type\":\"invalid_request_error\"}}",
+  "received": null,
+  "call_kept": true
+ },
+ {
+  "name": "sideband_upstream_401",
+  "path": "/v1/realtime/calls/call-401",
+  "principal": "owner",
+  "headers": null,
+  "send": null,
+  "status": 401,
+  "response_headers": {
+   "Content-Type": [
+    "application/json"
+   ],
+   "Retry-After": [
+    "9"
+   ],
+   "X-Request-Id": [
+    "up-401"
+   ]
+  },
+  "body": "{\"error\":{\"message\":\"token expired\"}}",
+  "received": null,
+  "call_kept": true
+ },
+ {
+  "name": "live_sideband_upstream_401",
+  "path": "/v1/live/live-401",
+  "principal": "owner",
+  "headers": null,
+  "send": null,
+  "status": 401,
+  "response_headers": {
+   "Content-Type": [
+    "application/json"
+   ],
+   "Retry-After": [
+    "9"
+   ],
+   "X-Request-Id": [
+    "up-401"
+   ]
+  },
+  "body": "{\"error\":{\"message\":\"token expired\"}}",
+  "received": null,
+  "call_kept": true
+ },
+ {
+  "name": "sideband_upstream_404",
+  "path": "/v1/realtime/calls/call-404",
+  "principal": "owner",
+  "headers": null,
+  "send": null,
+  "status": 404,
+  "response_headers": {
+   "Content-Type": [
+    "application/json; charset=utf-8"
+   ],
+   "Retry-After": [
+    "9"
+   ],
+   "X-Request-Id": [
+    "up-404"
+   ]
+  },
+  "body": "{\"error\":{\"code\":\"realtime_request_failed\",\"message\":\"Codex live sideband upstream unavailable\",\"param\":null,\"type\":\"invalid_request_error\"}}",
+  "received": null,
+  "call_kept": true
+ },
+ {
+  "name": "live_sideband_upstream_404",
+  "path": "/v1/live/live-404",
+  "principal": "owner",
+  "headers": null,
+  "send": null,
+  "status": 404,
+  "response_headers": {
+   "Content-Type": [
+    "application/json; charset=utf-8"
+   ],
+   "Retry-After": [
+    "9"
+   ],
+   "X-Request-Id": [
+    "up-404"
+   ]
+  },
+  "body": "{\"error\":\"Codex live sideband upstream unavailable\"}",
+  "received": null,
+  "call_kept": true
+ },
+ {
+  "name": "sideband_upstream_429",
+  "path": "/v1/realtime/calls/call-429",
+  "principal": "owner",
+  "headers": null,
+  "send": null,
+  "status": 429,
+  "response_headers": {
+   "Content-Type": [
+    "application/json; charset=utf-8"
+   ],
+   "Retry-After": [
+    "9"
+   ],
+   "X-Request-Id": [
+    "up-429"
+   ]
+  },
+  "body": "{\"error\":{\"code\":\"realtime_request_failed\",\"message\":\"Codex live sideband upstream unavailable\",\"param\":null,\"type\":\"invalid_request_error\"}}",
+  "received": null,
+  "call_kept": true
+ },
+ {
+  "name": "live_sideband_upstream_429",
+  "path": "/v1/live/live-429",
+  "principal": "owner",
+  "headers": null,
+  "send": null,
+  "status": 429,
+  "response_headers": {
+   "Content-Type": [
+    "application/json; charset=utf-8"
+   ],
+   "Retry-After": [
+    "9"
+   ],
+   "X-Request-Id": [
+    "up-429"
+   ]
+  },
+  "body": "{\"error\":\"Codex live sideband upstream unavailable\"}",
+  "received": null,
+  "call_kept": true
+ },
+ {
+  "name": "direct_relays",
+  "path": "/v1/realtime?model=gpt-realtime",
+  "principal": "owner",
+  "headers": {
+   "Openai-Alpha": [
+    "dropped"
+   ],
+   "Sec-Websocket-Protocol": [
+    "realtime"
+   ]
+  },
+  "send": [
+   {
+    "kind": "text",
+    "data": "d"
+   },
+   {
+    "kind": "close",
+    "code": 1000
+   }
+  ],
+  "status": 101,
+  "response_headers": {
+   "Sec-Websocket-Protocol": [
+    "realtime"
+   ],
+   "Upgrade": [
+    "websocket"
+   ]
+  },
+  "protocol": "realtime",
+  "received": [
+   {
+    "kind": "text",
+    "data": "echo:d"
+   },
+   {
+    "kind": "close",
+    "code": 1000
+   }
+  ],
+  "upstream": {
+   "target": "/v1/realtime?model=gpt-realtime",
+   "headers": {
+    "Authorization": [
+     "Bearer other-token"
+    ],
+    "Chatgpt-Account-Id": [
+     "other-account"
+    ],
+    "Originator": [
+     "Codex Desktop"
+    ],
+    "Sec-Websocket-Protocol": [
+     "realtime"
+    ]
+   },
+   "received": [
+    {
+     "kind": "text",
+     "data": "d"
+    },
+    {
+     "kind": "close",
+     "code": 1000
+    }
+   ]
+  },
+  "call_kept": false
+ },
+ {
+  "name": "direct_default_model_originator",
+  "path": "/v1/realtime",
+  "principal": "owner",
+  "headers": {
+   "Originator": [
+    "my-app"
+   ]
+  },
+  "send": [
+   {
+    "kind": "close",
+    "code": 1000
+   }
+  ],
+  "status": 101,
+  "response_headers": {
+   "Upgrade": [
+    "websocket"
+   ]
+  },
+  "received": [
+   {
+    "kind": "close",
+    "code": 1000
+   }
+  ],
+  "upstream": {
+   "target": "/v1/realtime?model=gpt-realtime",
+   "headers": {
+    "Authorization": [
+     "Bearer pinned-token"
+    ],
+    "Chatgpt-Account-Id": [
+     "pinned-account"
+    ],
+    "Originator": [
+     "my-app"
+    ]
+   },
+   "received": [
+    {
+     "kind": "close",
+     "code": 1000
+    }
+   ]
+  },
+  "call_kept": false
+ },
+ {
+  "name": "direct_secret_session_update",
+  "path": "/v1/realtime?model=gpt-realtime-mini",
+  "principal": "secret",
+  "headers": null,
+  "send": [
+   {
+    "kind": "read"
+   },
+   {
+    "kind": "text",
+    "data": "after-update"
+   },
+   {
+    "kind": "close",
+    "code": 1000
+   }
+  ],
+  "status": 101,
+  "response_headers": {
+   "Upgrade": [
+    "websocket"
+   ]
+  },
+  "received": [
+   {
+    "kind": "text",
+    "data": "echo:{\"type\":\"session.update\",\"session\":{\"instructions\":\"\\u003cbe brief\\u003e\",\"type\":\"realtime\",\"voice\":\"alloy\"}}"
+   },
+   {
+    "kind": "text",
+    "data": "echo:after-update"
+   },
+   {
+    "kind": "close",
+    "code": 1000
+   }
+  ],
+  "upstream": {
+   "target": "/v1/realtime?model=gpt-realtime-mini",
+   "headers": {
+    "Authorization": [
+     "Bearer other-token"
+    ],
+    "Chatgpt-Account-Id": [
+     "other-account"
+    ],
+    "Originator": [
+     "Codex Desktop"
+    ]
+   },
+   "received": [
+    {
+     "kind": "text",
+     "data": "{\"type\":\"session.update\",\"session\":{\"instructions\":\"\\u003cbe brief\\u003e\",\"type\":\"realtime\",\"voice\":\"alloy\"}}"
+    },
+    {
+     "kind": "text",
+     "data": "after-update"
+    },
+    {
+     "kind": "close",
+     "code": 1000
+    }
+   ]
+  },
+  "call_kept": false
+ },
+ {
+  "name": "direct_upstream_401",
+  "path": "/v1/realtime?model=m-401",
+  "principal": "owner",
+  "headers": null,
+  "send": null,
+  "status": 401,
+  "response_headers": {
+   "Content-Type": [
+    "application/json"
+   ],
+   "Retry-After": [
+    "9"
+   ],
+   "X-Request-Id": [
+    "up-401"
+   ]
+  },
+  "body": "{\"error\":{\"message\":\"token expired\"}}",
+  "received": null,
+  "call_kept": false
+ },
+ {
+  "name": "direct_upstream_404",
+  "path": "/v1/realtime?model=m-404",
+  "principal": "owner",
+  "headers": null,
+  "send": null,
+  "status": 501,
+  "response_headers": {
+   "Content-Type": [
+    "application/json; charset=utf-8"
+   ],
+   "Retry-After": [
+    "9"
+   ],
+   "X-Request-Id": [
+    "up-404"
+   ]
+  },
+  "body": "{\"error\":{\"code\":\"realtime_capability_not_supported\",\"message\":\"Direct Realtime WebSocket is not supported by the Codex OAuth upstream\",\"param\":null,\"type\":\"not_supported_error\"}}",
+  "received": null,
+  "call_kept": false
+ },
+ {
+  "name": "direct_upstream_429",
+  "path": "/v1/realtime?model=m-429",
+  "principal": "owner",
+  "headers": null,
+  "send": null,
+  "status": 429,
+  "response_headers": {
+   "Content-Type": [
+    "application/json; charset=utf-8"
+   ],
+   "Retry-After": [
+    "9"
+   ],
+   "X-Request-Id": [
+    "up-429"
+   ]
+  },
+  "body": "{\"error\":{\"code\":\"realtime_websocket_upstream_unavailable\",\"message\":\"Codex Realtime WebSocket upstream unavailable\",\"param\":null,\"type\":\"api_error\"}}",
+  "received": null,
+  "call_kept": false
+ },
+ {
+  "name": "sideband_upstream_selects_no_protocol",
+  "path": "/v1/live/call-noselect",
+  "principal": "owner",
+  "headers": {
+   "Sec-Websocket-Protocol": [
+    "realtime, no-select"
+   ]
+  },
+  "send": [
+   {
+    "kind": "text",
+    "data": "n"
+   },
+   {
+    "kind": "close",
+    "code": 1000
+   }
+  ],
+  "status": 101,
+  "response_headers": {
+   "Upgrade": [
+    "websocket"
+   ]
+  },
+  "received": [
+   {
+    "kind": "text",
+    "data": "echo:n"
+   },
+   {
+    "kind": "close",
+    "code": 1000
+   }
+  ],
+  "upstream": {
+   "target": "/v1/live/call-noselect",
+   "headers": {
+    "Authorization": [
+     "Bearer pinned-token"
+    ],
+    "Chatgpt-Account-Id": [
+     "pinned-account"
+    ],
+    "Sec-Websocket-Protocol": [
+     "realtime, no-select"
+    ]
+   },
+   "received": [
+    {
+     "kind": "text",
+     "data": "n"
+    },
+    {
+     "kind": "close",
+     "code": 1000
+    }
+   ]
+  },
+  "call_kept": false
+ }
+]

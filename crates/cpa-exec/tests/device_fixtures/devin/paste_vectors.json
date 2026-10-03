@@ -1,0 +1,89 @@
+[
+  {
+    "code": "",
+    "input": "",
+    "token": ""
+  },
+  {
+    "code": "",
+    "input": "  \"eyJtoken\"  ",
+    "token": "eyJtoken"
+  },
+  {
+    "code": "",
+    "input": "devin-session-token$abc",
+    "token": "devin-session-token$abc"
+  },
+  {
+    "code": "c1",
+    "input": "http://127.0.0.1:1/callback?code=c1\u0026state=st",
+    "token": ""
+  },
+  {
+    "code": "",
+    "error": "devin oauth state mismatch (possible CSRF)",
+    "input": "http://127.0.0.1:1/callback?code=c1\u0026state=other",
+    "token": ""
+  },
+  {
+    "code": "c1",
+    "input": "http://127.0.0.1:1/callback?code=c1",
+    "token": ""
+  },
+  {
+    "code": "",
+    "error": "devin oauth error: access_denied: nope",
+    "input": "?error=access_denied\u0026error_description=nope",
+    "token": ""
+  },
+  {
+    "code": "",
+    "error": "devin oauth error: denied",
+    "input": "http://h/cb?error=denied",
+    "token": ""
+  },
+  {
+    "code": "c2",
+    "input": "code=c2\u0026state=st",
+    "token": ""
+  },
+  {
+    "code": "barecode_123",
+    "input": "barecode_123",
+    "token": ""
+  },
+  {
+    "code": "",
+    "error": "unrecognized devin authorization code or token format",
+    "input": "has space",
+    "token": ""
+  },
+  {
+    "code": "",
+    "error": "unrecognized devin authorization code or token format",
+    "input": "a/b",
+    "token": ""
+  },
+  {
+    "code": "quoted",
+    "input": "'quoted'",
+    "token": ""
+  },
+  {
+    "code": "",
+    "error": "unrecognized devin authorization code or token format",
+    "input": "x#y",
+    "token": ""
+  },
+  {
+    "code": "frag",
+    "input": "http://h/cb#code=frag\u0026state=st",
+    "token": ""
+  },
+  {
+    "code": "",
+    "error": "unrecognized devin authorization code or token format",
+    "input": "localhost:1/cb?state=st",
+    "token": ""
+  }
+]

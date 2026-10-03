@@ -2,7 +2,7 @@
   "name": "chat-stream-gemini-client",
   "credential": {
     "access_token": "kimi-access-fixture",
-    "base_url": "http://127.0.0.1:38247/coding",
+    "base_url": "http://127.0.0.1:38871/coding",
     "device_id": "dev-fixture-1",
     "refresh_token": "kimi-refresh-fixture",
     "type": "kimi"
@@ -32,7 +32,7 @@
       "headers": [
         [
           "Host",
-          "127.0.0.1:38247"
+          "127.0.0.1:38871"
         ],
         [
           "User-Agent",
@@ -86,6 +86,21 @@
     "chunks": [
       "{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"he\"}],\"role\":\"model\"},\"index\":0}],\"model\":\"k2\"}",
       "{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"y\"}],\"role\":\"model\"},\"index\":0}],\"model\":\"k2\"}"
+    ]
+  },
+  "extra": {
+    "usage": [
+      {
+        "cached_tokens": 0,
+        "failed": false,
+        "input_tokens": 2,
+        "model": "kimi-k2",
+        "output_tokens": 2,
+        "reasoning_effort": "",
+        "reasoning_tokens": 0,
+        "response_model": "k2",
+        "total_tokens": 4
+      }
     ]
   }
 }

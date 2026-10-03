@@ -30,7 +30,7 @@ pub async fn require_client_key(State(rt): State<Arc<Runtime>>, mut req: Request
     next.run(req).await
 }
 
-fn authenticate(keys: &[String], headers: &HeaderMap, query: &str) -> Result<Caller, &'static str> {
+pub(crate) fn authenticate(keys: &[String], headers: &HeaderMap, query: &str) -> Result<Caller, &'static str> {
     if keys.is_empty() {
         return Ok(Caller {
             principal: String::new(),
