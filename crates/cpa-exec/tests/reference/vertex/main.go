@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	log "github.com/sirupsen/logrus"
 	"io"
 	"math/big"
 	"net"
@@ -46,8 +47,8 @@ import (
 	cliproxyauth "github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/auth"
 	cliproxyexecutor "github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/executor"
 	cliproxysession "github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/session"
-	sdktranslator "github.com/router-for-me/CLIProxyAPI/v8/sdk/translator"
 	coreusage "github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/usage"
+	sdktranslator "github.com/router-for-me/CLIProxyAPI/v8/sdk/translator"
 )
 
 type reply struct {
@@ -569,7 +570,15 @@ func rsaKeys() map[string]string {
 		"no_markers":     "MIIEvQIBADANBgkqhkiG9w0BAQEFAASC",
 		"bad_base64":     "-----BEGIN PRIVATE KEY-----\n!!!!\n-----END PRIVATE KEY-----\n",
 		"unknown_type":   pemBlock("KEY", x509.MarshalPKCS1PrivateKey(key)),
-		"empty":          "   ",
+		// asn1.Unmarshal rejects bytes after the key.
+		"pkcs1_trailing": pemBlock("RSA PRIVATE KEY", append(x509.MarshalPKCS1PrivateKey(key), 0x00, 0x01)),
+		// rebuildPEM payloads base64 rejects: Go reports the offending input byte.
+		"b64_incomplete_quantum": "-----BEGIN PRIVATE KEY----- AAAAA -----END PRIVATE KEY-----",
+		"b64_after_padding":      "-----BEGIN PRIVATE KEY----- AAA=A -----END PRIVATE KEY-----",
+		"b64_single_padding":     "-----BEGIN PRIVATE KEY----- AA= -----END PRIVATE KEY-----",
+		"b64_padding_mismatch":   "-----BEGIN PRIVATE KEY----- AA=A -----END PRIVATE KEY-----",
+		"b64_leading_padding":    "-----BEGIN PRIVATE KEY----- =AAA -----END PRIVATE KEY-----",
+		"empty":                  "   ",
 	}
 }
 
@@ -583,22 +592,55 @@ type imported struct {
 	Name   string `json:"name"`
 	Input  string `json:"input"`
 	Prefix string `json:"prefix"`
+	// AuthDir is the auth dir under the case's temp dir DIR; "blocked" is a regular file.
+	AuthDir string `json:"auth_dir"`
+	// NoKeyFile leaves the key file unwritten.
+	NoKeyFile bool `json:"no_key_file,omitempty"`
 	// Files written to the auth dir, by name.
 	Files map[string]string `json:"files"`
+	// Errors are the error-level log messages, Imported the path Go printed on success.
+	Errors   []string `json:"errors,omitempty"`
+	Imported string   `json:"imported,omitempty"`
+}
+
+// logHook records error-level log messages.
+type logHook struct{ errors []string }
+
+func (h *logHook) Levels() []log.Level { return []log.Level{log.ErrorLevel} }
+
+func (h *logHook) Fire(e *log.Entry) error {
+	h.errors = append(h.errors, e.Message)
+	return nil
+}
+
+// stdout runs f with os.Stdout captured.
+func stdout(f func()) string {
+	r, w, _ := os.Pipe()
+	saved := os.Stdout
+	os.Stdout = w
+	done := make(chan string)
+	go func() {
+		b, _ := io.ReadAll(r)
+		done <- string(b)
+	}()
+	f()
+	_ = w.Close()
+	os.Stdout = saved
+	return <-done
 }
 
 func importVectors(keys map[string]string) []imported {
 	sa := func(extra map[string]any) string {
 		m := map[string]any{
-			"type":           "service_account",
-			"project_id":     "proj-1",
-			"private_key_id": "kid-1",
-			"private_key":    keys["pkcs8"],
-			"client_email":   "svc@proj-1.iam.gserviceaccount.com",
-			"client_id":      "1234567890",
-			"token_uri":      "https://oauth2.googleapis.com/token",
+			"type":            "service_account",
+			"project_id":      "proj-1",
+			"private_key_id":  "kid-1",
+			"private_key":     keys["pkcs8"],
+			"client_email":    "svc@proj-1.iam.gserviceaccount.com",
+			"client_id":       "1234567890",
+			"token_uri":       "https://oauth2.googleapis.com/token",
 			"universe_domain": "googleapis.com",
-			"weird<>&":       1.5e3,
+			"weird<>&":        1.5e3,
 		}
 		for k, v := range extra {
 			if v == nil {
@@ -618,13 +660,43 @@ func importVectors(keys map[string]string) []imported {
 		{Name: "missing_email", Input: sa(map[string]any{"client_email": nil, "project_id": "my:proj/x y"})},
 		{Name: "bad_key", Input: sa(map[string]any{"private_key": "nope"})},
 		{Name: "invalid_json", Input: "{"},
+		{Name: "syntax_error", Input: `{"a":}`},
+		{Name: "null_root", Input: "null"},
+		{Name: "array_root", Input: "[1]"},
+		{Name: "number_overflow", Input: `{"x":1e400}`},
+		{Name: "private_key_not_string", Input: sa(map[string]any{"private_key": 5})},
+		{Name: "bad_base64_key", Input: sa(map[string]any{"private_key": "-----BEGIN PRIVATE KEY----- AAA=A -----END PRIVATE KEY-----"})},
+		{Name: "missing_key_file", NoKeyFile: true},
+		{Name: "auth_dir_blocked", Input: sa(nil), AuthDir: "blocked/auths"},
+		{Name: "unclean_auth_dir", Input: sa(nil), AuthDir: "x/../auths/./"},
 	}
+	hook := &logHook{}
+	log.AddHook(hook)
 	for i := range cases {
 		dir, _ := os.MkdirTemp("", "vertex-import")
 		keyPath := filepath.Join(dir, "key.json")
-		_ = os.WriteFile(keyPath, []byte(cases[i].Input), 0o600)
-		authDir := filepath.Join(dir, "auths")
-		internalcmd.DoVertexImport(&config.Config{AuthDir: authDir}, keyPath, cases[i].Prefix)
+		if !cases[i].NoKeyFile {
+			_ = os.WriteFile(keyPath, []byte(cases[i].Input), 0o600)
+		}
+		_ = os.WriteFile(filepath.Join(dir, "blocked"), nil, 0o600)
+		if cases[i].AuthDir == "" {
+			cases[i].AuthDir = "auths"
+		}
+		// Joined by hand: filepath.Join would clean it.
+		authDir := dir + "/" + cases[i].AuthDir
+		hook.errors = nil
+		printed := stdout(func() {
+			internalcmd.DoVertexImport(&config.Config{AuthDir: authDir}, keyPath, cases[i].Prefix)
+		})
+		for _, line := range hook.errors {
+			cases[i].Errors = append(cases[i].Errors, strings.ReplaceAll(line, dir, "DIR"))
+		}
+		for _, line := range strings.Split(printed, "\n") {
+			if path, ok := strings.CutPrefix(line, "Vertex credentials imported: "); ok {
+				cases[i].Imported = strings.ReplaceAll(path, dir, "DIR")
+			}
+		}
+		authDir = filepath.Clean(authDir)
 		cases[i].Files = map[string]string{}
 		entries, _ := os.ReadDir(authDir)
 		for _, e := range entries {

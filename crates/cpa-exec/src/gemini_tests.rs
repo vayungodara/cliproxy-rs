@@ -48,7 +48,11 @@ impl UsageReports {
         let name = s["name"].as_str().unwrap();
         let effort = self.effort.lock().unwrap().clone().unwrap_or_default();
         match s.get("usage").filter(|u| !u.is_null()) {
-            Some(want) => assert_eq!(effort, want["reasoning_effort"].as_str().unwrap(), "{name}: reasoning effort"),
+            Some(want) => assert_eq!(
+                effort,
+                want["reasoning_effort"].as_str().unwrap(),
+                "{name}: reasoning effort"
+            ),
             // No record: Go failed before its reporter existed, so nothing was sent.
             None => assert_eq!(*self.responses.lock().unwrap(), 0, "{name}: no reporter in Go"),
         }

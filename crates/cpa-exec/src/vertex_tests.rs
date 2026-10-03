@@ -213,6 +213,10 @@ async fn go_reference_scenarios() {
         now,
     );
     let imagen_id = regex::Regex::new(r#""responseId":"imagen-[0-9]+""#).unwrap();
+    // Responses output stamps `created_at` and mints call IDs from the wall clock
+    // (`call_<UnixNano, hex or decimal>_<n>`); only their shape can match a fixture.
+    let created = regex::Regex::new(r#""created_at":1[0-9]{9}([,}])"#).unwrap();
+    let call_ids = regex::Regex::new(r"call_[0-9a-f]{16,20}_").unwrap();
     for s in scenarios {
         let name = s["name"].as_str().unwrap();
         let replies: Vec<Value> = s["replies"].as_array().cloned().unwrap_or_default();
@@ -261,9 +265,9 @@ async fn go_reference_scenarios() {
         });
         assert_eq!(error, want_error, "{name}: error");
         let norm = |t: &str| {
-            imagen_id
-                .replace_all(t, r#""responseId":"imagen-<nanos>""#)
-                .into_owned()
+            let t = imagen_id.replace_all(t, r#""responseId":"imagen-<nanos>""#);
+            let t = created.replace_all(&t, r#""created_at":<unix>$1"#);
+            call_ids.replace_all(&t, "call_<nanos>_").into_owned()
         };
         assert_eq!(
             output.as_deref().map(norm),
@@ -273,8 +277,8 @@ async fn go_reference_scenarios() {
         let want_stream =
             crate::gemini::tests::client_bytes(client, alt, s["chunks"].as_array().map_or(&[][..], Vec::as_slice));
         assert_eq!(
-            String::from_utf8_lossy(&streamed),
-            String::from_utf8_lossy(&want_stream),
+            norm(&String::from_utf8_lossy(&streamed)),
+            norm(&String::from_utf8_lossy(&want_stream)),
             "{name}: stream"
         );
         let mut got: Vec<String> = Vec::new();
@@ -317,29 +321,52 @@ fn private_key_normalization_matches_go() {
     }
 }
 
-/// `-vertex-import` writes Go's file, name and content, and nothing on Go's errors.
+/// `-vertex-import` writes Go's file, name and content, prints Go's (cleaned) path, and
+/// fails with Go's logged error.
 #[test]
 fn vertex_import_matches_go() {
     let cases = fixture()["import"].as_array().unwrap();
+    assert!(cases.len() >= 16);
     for (i, case) in cases.iter().enumerate() {
         let name = case["name"].as_str().unwrap();
         let dir = std::env::temp_dir().join(format!("cpa-vertex-import-{}-{i}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let key = dir.join("key.json");
-        std::fs::write(&key, case["input"].as_str().unwrap()).unwrap();
-        let auth_dir = dir.join("auths");
+        if case["no_key_file"].as_bool() != Some(true) {
+            std::fs::write(&key, case["input"].as_str().unwrap()).unwrap();
+        }
+        std::fs::write(dir.join("blocked"), b"").unwrap();
+        // Joined by hand, as Go's generator does: the import itself must clean it.
+        let auth_dir = format!("{}/{}", dir.display(), case["auth_dir"].as_str().unwrap());
         let result = vertex_auth::import(
-            &auth_dir,
+            std::path::Path::new(&auth_dir),
             key.to_str().unwrap(),
             case["prefix"].as_str().unwrap_or_default(),
         );
+        // Files are listed where the import wrote (Go lists the cleaned auth dir).
+        let written = result
+            .as_ref()
+            .ok()
+            .and_then(|path| path.parent())
+            .map_or_else(|| std::path::PathBuf::from(&auth_dir), std::path::Path::to_path_buf);
+        let normalized = |text: &str| text.replace(&dir.display().to_string(), "DIR");
+        let want = match case["errors"].as_array() {
+            Some(errors) => {
+                assert_eq!(errors.len(), 1, "{name}");
+                Err(errors[0].as_str().unwrap().to_owned())
+            }
+            None => Ok(case["imported"].as_str().unwrap().to_owned()),
+        };
+        let got = result
+            .map(|path| normalized(&path.display().to_string()))
+            .map_err(|e| normalized(&e));
+        assert_eq!(got, want, "{name}");
         let mut files = serde_json::Map::new();
-        for entry in std::fs::read_dir(&auth_dir).into_iter().flatten().flatten() {
+        for entry in std::fs::read_dir(&written).into_iter().flatten().flatten() {
             let content = std::fs::read_to_string(entry.path()).unwrap();
             files.insert(entry.file_name().to_string_lossy().into_owned(), Value::String(content));
         }
-        assert_eq!(Value::Object(files.clone()), case["files"], "{name}");
-        assert_eq!(result.is_ok(), !files.is_empty(), "{name}: {result:?}");
+        assert_eq!(Value::Object(files), case["files"], "{name}");
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

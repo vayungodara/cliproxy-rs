@@ -173,11 +173,7 @@ fn imagen_request(body: &[u8]) -> Result<Vec<u8>, ExecError> {
         let contents = gj::get(body, "messages.#.content");
         if contents.exists()
             && contents.is_array()
-            && let Some(first) = contents
-                .array()
-                .iter()
-                .map(go_string)
-                .find(|m| !m.is_empty())
+            && let Some(first) = contents.array().iter().map(go_string).find(|m| !m.is_empty())
         {
             prompt = first;
         }
@@ -205,10 +201,7 @@ fn imagen_request(body: &[u8]) -> Result<Vec<u8>, ExecError> {
     }
     let negative = gj::get(body, "negativePrompt");
     if negative.exists() {
-        instance.insert(
-            "negativePrompt".to_owned(),
-            GoValue::String(go_string(&negative)),
-        );
+        instance.insert("negativePrompt".to_owned(), GoValue::String(go_string(&negative)));
     }
     let mut request = BTreeMap::new();
     request.insert("instances".to_owned(), GoValue::Array(vec![GoValue::Object(instance)]));

@@ -1,6 +1,9 @@
 package main
 
-import "strings"
+import (
+	"encoding/base64"
+	"strings"
+)
 
 const keyConfig = `
 api-keys:
@@ -17,6 +20,14 @@ api-keys:
             levels: [low, high]
         - name: gemini-2.5-flash
           alias: vertex-flash
+        - name: gemini-2.5-flash-lite
+          alias: vertex-lite
+          display-name: Vertex Lite
+          thinking:
+            min: 512
+            max: 4096
+            zero-allowed: false
+            dynamic-allowed: false
       keys:
         - api-key: vk-fake-1
     - name: v2
@@ -106,8 +117,91 @@ func with(s scenario, edit func(*scenario)) scenario {
 	return s
 }
 
+// The apply_patch request and answer of Go's executor tests.
+const patchRequest = `{"tools":[{"type":"namespace","name":"functions","tools":[{"type":"custom","name":"apply_patch","format":{"type":"grammar","definition":"start: patch"}}]}],"input":"patch a file"}`
+const patchResponse = `{"responseId":"patch","candidates":[{"content":{"parts":[{"functionCall":{"name":"functions__apply_patch","args":{"input":"  *** Begin Patch\n*** End Patch\n "}}}]},"finishReason":"STOP"}]}`
+
+// b64 is unpadded base64url, as JWT segments are.
+func b64(s string) string { return base64.RawURLEncoding.EncodeToString([]byte(s)) }
+
+// tokenCases are token-endpoint answers decoded the way jwtSource.Token decodes them:
+// struct fields with Go's types, case-insensitive names, and an id_token claim set.
+func tokenCases(hi string) []scenario {
+	answer := func(name, body string) scenario {
+		return sa("token_"+name, "execute", "", "gemini-2.5-flash", hi, reply{Status: 200, Headers: [][2]string{{"Content-Type", "application/json"}}, Body: body}, jsonOK)
+	}
+	idToken := func(name, claims string) scenario {
+		return answer("id_"+name, `{"access_token":"ya29.id","id_token":"`+claims+`"}`)
+	}
+	return []scenario{
+		answer("null", `null`),
+		answer("fold_later_wins", `{"access_token":"ya29.a","ACCESS_TOKEN":"ya29.b"}`),
+		answer("exact_then_fold", `{"ACCESS_TOKEN":"ya29.b","access_token":"ya29.a"}`),
+		answer("escaped", `{"access_token":"ya29.\u0041x"}`),
+		answer("expires_in_float", `{"access_token":"ya29.x","expires_in":3599.0}`),
+		answer("expires_in_exponent", `{"access_token":"ya29.x","expires_in":1e3}`),
+		answer("expires_in_overflow", `{"access_token":"ya29.x","expires_in":99999999999999999999}`),
+		answer("expires_in_string", `{"access_token":"ya29.x","expires_in":"3599"}`),
+		answer("expires_in_negative", `{"access_token":"ya29.x","expires_in":-5}`),
+		answer("expiry_offset", `{"access_token":"ya29.x","expiry":"2026-10-01T12:00:00.5+02:00"}`),
+		answer("expiry_lowercase", `{"access_token":"ya29.x","expiry":"2026-10-01t12:00:00z"}`),
+		answer("expiry_bad_day", `{"access_token":"ya29.x","expiry":"2026-02-29T12:00:00Z"}`),
+		answer("expiry_number", `{"access_token":"ya29.x","expiry":5}`),
+		answer("nulls", `{"access_token":"ya29.x","expiry":null,"token_type":null,"expires_in":null}`),
+		answer("access_token_number", `{"access_token":5}`),
+		answer("array", `["ya29.x"]`),
+		answer("trailing", `{"access_token":"ya29.x"} x`),
+		answer("unknown_member", `{"access_token":"ya29.x","other":{"deep":[1,{"a":null}]}}`),
+		idToken("valid", "h."+b64(`{"exp":1700000000,"iss":"x"}`)+".s"),
+		idToken("null_claims", "h."+b64(`null`)+".s"),
+		idToken("string_exp", "h."+b64(`{"exp":"1"}`)+".s"),
+		idToken("trailing_after_claims", "h."+b64(`{"exp":1}garbage`)+".s"),
+		idToken("number_claims", "h."+b64(`5`)+".s"),
+		idToken("two_segments", "h."+b64(`{"exp":1}`)),
+		idToken("four_segments", "h."+b64(`{"exp":1}`)+".s.t"),
+		idToken("padded", "h."+b64(`{"exp":12}`)+"==.s"),
+		idToken("empty_claims", "h..s"),
+		idToken("trailing_bits", "h.eyJleHAiOjEyfR.s"),
+	}
+}
+
+// keyFileCases edit the service account the executor marshals into
+// google.CredentialsFromJSON.
+func keyFileCases(hi string) []scenario {
+	edit := func(name string, f func(sa map[string]any)) scenario {
+		return with(sa("keyfile_"+name, "execute", "", "gemini-2.5-flash", hi, token, jsonOK), func(s *scenario) {
+			f(s.Metadata["service_account"].(map[string]any))
+		})
+	}
+	return []scenario{
+		edit("client_id_number", func(sa map[string]any) { sa["client_id"] = 5 }),
+		edit("project_id_number", func(sa map[string]any) { sa["project_id"] = 5 }),
+		edit("universe_domain_bool", func(sa map[string]any) { sa["universe_domain"] = true }),
+		edit("delegates_with_null", func(sa map[string]any) { sa["delegates"] = []any{"a", nil} }),
+		edit("delegates_string", func(sa map[string]any) { sa["delegates"] = "a" }),
+		edit("credential_source_string", func(sa map[string]any) { sa["credential_source"] = "x" }),
+		edit("credential_source_object", func(sa map[string]any) { sa["credential_source"] = map[string]any{"file": "f"} }),
+		edit("impersonation_null", func(sa map[string]any) { sa["service_account_impersonation"] = nil }),
+		edit("type_folded", func(sa map[string]any) {
+			delete(sa, "type")
+			sa["TYPE"] = "service_account"
+		}),
+		edit("type_duplicate_sorted_last_wins", func(sa map[string]any) { sa["typE"] = "bogus" }),
+		edit("token_uri_folded", func(sa map[string]any) {
+			delete(sa, "token_uri")
+			sa["Token_URI"] = "https://oauth2.googleapis.com/token?folded=1"
+		}),
+		edit("audience_folded", func(sa map[string]any) { sa["Audience"] = "https://aud.example/" }),
+		edit("type_missing", func(sa map[string]any) { delete(sa, "type") }),
+	}
+}
+
 func scenarios() []scenario {
 	hi := gem("gemini-2.5-flash", userHi, `,"session_id":"sess-1"`)
+	return append(append(scenarios1(hi), tokenCases(hi)...), keyFileCases(hi)...)
+}
+
+func scenarios1(hi string) []scenario {
 	return []scenario{
 		// Service account: JWT bearer exchange at the key's token_uri, then the regional
 		// endpoint with the access token.
@@ -147,6 +241,10 @@ func scenarios() []scenario {
 		}),
 		with(sa("sa_responses_tool_ids_stripped", "execute", "", "gemini-2.5-flash", `{"model":"gemini-2.5-flash","input":[{"type":"message","role":"user","content":[{"type":"input_text","text":"hi"}]},{"type":"function_call","call_id":"call_1","name":"lookup","arguments":"{\"q\":1}"},{"type":"function_call_output","call_id":"call_1","output":"done"}],"tools":[{"type":"function","name":"lookup","parameters":{"type":"object"}}]}`, token, jsonOK), func(s *scenario) { s.Source = "openai-response" }),
 		with(sa("sa_compact_alt_rejected", "execute", "", "gemini-2.5-flash", hi), func(s *scenario) { s.Alt = "responses/compact" }),
+		// Go builds the model request (url.Parse) before the token exchange: a URL it
+		// rejects fails without a token request.
+		sa("sa_location_bad_host", "execute", "us central1", "gemini-2.5-flash", hi, token, jsonOK),
+		sa("sa_count_location_bad_host", "count", "us central1", "gemini-2.5-flash", hi, token, countOK),
 		// A file credential with an access token takes the API-key path.
 		with(sa("file_access_token_as_api_key", "execute", "", "gemini-2.5-flash", hi, jsonOK), func(s *scenario) {
 			s.Metadata["access_token"] = "ya29.from-file"
@@ -178,6 +276,15 @@ func scenarios() []scenario {
 		with(key("key_responses_stream", "stream", "gemini-2.5-flash", "", `{"model":"gemini-2.5-flash","input":"hi","stream":true}`, sseOK), func(s *scenario) { s.Source = "openai-response" }),
 		with(key("key_claude_count", "count", "gemini-2.5-flash", "", `{"model":"gemini-2.5-flash","messages":[{"role":"user","content":"hi"}]}`, countOK), func(s *scenario) { s.Source = "claude" }),
 		with(key("key_codex_client_passthrough", "execute", "gemini-2.5-flash", "", `{"model":"gemini-2.5-flash","input":"hi"}`, jsonOK), func(s *scenario) { s.Source = "codex" }),
+		// gemini_vertex_executor_test.go TestGeminiVertexApplyPatchExecutorReuse: the
+		// apply_patch custom tool round trip for a Responses client, both paths.
+		with(key("key_apply_patch_execute", "execute", "gemini-3.1-pro-preview", "", patchRequest, reply{Status: 200, Headers: [][2]string{{"Content-Type", "application/json"}}, Body: patchResponse}), func(s *scenario) { s.Source = "openai-response" }),
+		with(key("key_apply_patch_stream", "stream", "gemini-3.1-pro-preview", "", patchRequest, reply{Status: 200, Headers: [][2]string{{"Content-Type", "text/event-stream"}}, Body: "data: " + patchResponse + "\n\n"}), func(s *scenario) { s.Source = "openai-response" }),
+		// Every thinking field of a configured Vertex model: range, zero and dynamic.
+		key("key_thinking_above_max", "execute", "gemini-2.5-flash-lite(9000)", "vertex-lite(9000)", gem("gemini-2.5-flash-lite", userHi, ""), jsonOK),
+		key("key_thinking_zero_not_allowed", "execute", "gemini-2.5-flash-lite(0)", "vertex-lite(0)", gem("gemini-2.5-flash-lite", userHi, ""), jsonOK),
+		key("key_thinking_dynamic_not_allowed", "execute", "gemini-2.5-flash-lite(-1)", "vertex-lite(-1)", gem("gemini-2.5-flash-lite", userHi, ""), jsonOK),
+		key("key_thinking_below_min", "execute", "gemini-2.5-flash-lite(100)", "vertex-lite(100)", gem("gemini-2.5-flash-lite", userHi, ""), jsonOK),
 		// A line ending in "\r\r\n" keeps one "\r" through Go's scanner.
 		with(key("key_codex_stream_cr_lines", "stream", "gemini-2.5-flash", "", `{"model":"gemini-2.5-flash","input":"hi"}`, reply{Status: 200, Body: "data: " + chunk1 + "\r\r\n\r\r\ndata: " + chunk2 + "\r\n\r\n"}), func(s *scenario) { s.Source = "codex" }),
 		with(key("key_openai_stream_cr_lines", "stream", "gemini-2.5-flash", "", `{"model":"gemini-2.5-flash","stream":true,"messages":[{"role":"user","content":"hi"}]}`, reply{Status: 200, Body: "data: " + chunk1 + "\r\r\n\r\r\ndata: " + chunk2 + "\r\n\r\n"}), func(s *scenario) { s.Source = "openai" }),

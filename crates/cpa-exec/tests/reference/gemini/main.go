@@ -26,13 +26,13 @@ import (
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/thinking"
 	// Production registers every translator through this package (cmd/server/main.go).
 	_ "github.com/router-for-me/CLIProxyAPI/v8/internal/translator"
-	"github.com/router-for-me/CLIProxyAPI/v8/internal/watcher/synthesizer"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/util"
+	"github.com/router-for-me/CLIProxyAPI/v8/internal/watcher/synthesizer"
 	cliproxyauth "github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/auth"
 	cliproxyexecutor "github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/executor"
 	cliproxysession "github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/session"
-	sdktranslator "github.com/router-for-me/CLIProxyAPI/v8/sdk/translator"
 	coreusage "github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/usage"
+	sdktranslator "github.com/router-for-me/CLIProxyAPI/v8/sdk/translator"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 )

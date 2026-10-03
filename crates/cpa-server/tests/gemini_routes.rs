@@ -270,7 +270,10 @@ async fn usage_records_match_go() {
             let up = scripted(reply).await;
             let config = format!(
                 "access:\n  api-keys: [client-key]\n{}",
-                s["config"].as_str().unwrap().replace("UPSTREAM", up.trim_start_matches("http://"))
+                s["config"]
+                    .as_str()
+                    .unwrap()
+                    .replace("UPSTREAM", up.trim_start_matches("http://"))
             );
             let config = Config::parse(&config).unwrap();
             let credentials = cpa_core::config::credentials::load(&config);
@@ -319,7 +322,11 @@ async fn usage_records_match_go() {
                 assert_eq!(got["tokens"][field], want[field], "{name}: {field}");
             }
             let text = |v: &serde_json::Value| v.as_str().unwrap_or_default().to_owned();
-            assert_eq!(text(&got["response_model"]), text(&want["response_model"]), "{name}: response_model");
+            assert_eq!(
+                text(&got["response_model"]),
+                text(&want["response_model"]),
+                "{name}: response_model"
+            );
             assert_eq!(got["failed"], want["failed"], "{name}: failed");
             // Go's Interactions paths never set a translated effort: the record keeps the
             // conductor's context value (the client's effort), which the executor-level

@@ -88,7 +88,10 @@ fn std_decode(src: &[u8]) -> Result<Vec<u8>, usize> {
             len = j;
             break;
         }
-        let v = u32::from(quantum[0]) << 18 | u32::from(quantum[1]) << 12 | u32::from(quantum[2]) << 6 | u32::from(quantum[3]);
+        let v = u32::from(quantum[0]) << 18
+            | u32::from(quantum[1]) << 12
+            | u32::from(quantum[2]) << 6
+            | u32::from(quantum[3]);
         out.extend_from_slice(&[(v >> 16) as u8, (v >> 8) as u8, v as u8][..len - 1]);
         if let Some(at) = trailing {
             return Err(at);
@@ -624,7 +627,8 @@ fn parse_token(data: &[u8]) -> Result<String, String> {
         ("expires_in", Slot::Int(&mut expires_in, "int64")),
         ("id_token", Slot::Str(&mut id_token)),
     ];
-    meta_wire::unmarshal(data, "oauth2", "Token", &mut fields).map_err(|e| format!("oauth2: cannot fetch token: {e}"))?;
+    meta_wire::unmarshal(data, "oauth2", "Token", &mut fields)
+        .map_err(|e| format!("oauth2: cannot fetch token: {e}"))?;
     if !id_token.is_empty() {
         decode_id_token(&id_token).map_err(|e| format!("oauth2: error decoding JWT token: {e}"))?;
     }
@@ -725,8 +729,12 @@ pub fn import(auth_dir: &Path, key_path: &str, prefix: &str) -> Result<PathBuf, 
     if path.is_empty() {
         return Err("vertex-import: missing service account key path".into());
     }
-    let data = std::fs::read(path)
-        .map_err(|e| format!("vertex-import: read file failed: {}", path_error("open", Path::new(path), &e)))?;
+    let data = std::fs::read(path).map_err(|e| {
+        format!(
+            "vertex-import: read file failed: {}",
+            path_error("open", Path::new(path), &e)
+        )
+    })?;
     // json.Unmarshal into map[string]any: numbers become float64.
     let mut sa = match GoValue::parse_f64(&data) {
         Some(GoValue::Object(sa)) => sa,
@@ -744,11 +752,11 @@ pub fn import(auth_dir: &Path, key_path: &str, prefix: &str) -> Result<PathBuf, 
             ));
         }
         None => {
-            // Go's syntax error, else a number beyond float64.
-            // ponytail: Go's overflow message also quotes the number.
-            let error = meta_wire::check_valid(&data)
-                .err()
-                .unwrap_or_else(|| "json: cannot unmarshal number into Go value of type float64".into());
+            // Go's syntax error, else the first number beyond float64.
+            let error = meta_wire::check_valid(&data).err().unwrap_or_else(|| {
+                let number = first_overflow(&gj::parse(&data)).unwrap_or_default();
+                format!("json: cannot unmarshal number {number} into Go value of type float64")
+            });
             return Err(format!("vertex-import: invalid service account json: {error}"));
         }
     };
@@ -804,6 +812,22 @@ pub fn import(auth_dir: &Path, key_path: &str, prefix: &str) -> Result<PathBuf, 
         ))
     })?;
     Ok(out)
+}
+
+/// The first number, in document order, that does not fit a float64.
+fn first_overflow(value: &gj::Res<'_>) -> Option<String> {
+    if value.kind == gj::Kind::Number {
+        let raw = String::from_utf8_lossy(value.raw()).into_owned();
+        return gj::go_parse_float(value.raw()).is_err().then_some(raw);
+    }
+    let mut found = None;
+    if value.kind == gj::Kind::Json {
+        value.each(|_, item| {
+            found = first_overflow(&item);
+            found.is_none()
+        });
+    }
+    found
 }
 
 /// Go's `*fs.PathError` text: `<op> <path>: <errno text>`.
