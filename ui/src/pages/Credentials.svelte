@@ -14,6 +14,9 @@
     open = store.route.arg;
   });
   const key = (a: Data) => `${a.name}\u0000${a.auth_index}`;
+  // Go allows several credentials from one file; its ID is unique and every per-credential
+  // route accepts it in place of the file name. Downloads and deletes still use the file.
+  const id = (a: Data) => String(a.id || a.name);
   const rows = $derived(
     (store.creds.data || []).map((a) => ({ a, b: buckets(a), s: credState(a) })),
   );
@@ -52,15 +55,16 @@
   );
 
   // Detail panel state for the open credential.
-  const selected = $derived(rows.find((r) => r.a.name === open)?.a);
+  const selected = $derived(rows.find((r) => id(r.a) === open)?.a);
   let fields = $state({ note: "", priority: "", weight: "", request_retry: "" });
   let models = $state<Res<Data[]> | null>(null);
   // Fill the form when a credential is opened, not on every poll, so typing is not overwritten.
   let formFor = "";
   $effect(() => {
     const a = selected;
-    if (a?.name === formFor) return;
-    formFor = a?.name || "";
+    const k = a ? id(a) : "";
+    if (k === formFor) return;
+    formFor = k;
     if (!a) return;
     fields = {
       note: a.note || "",
@@ -68,13 +72,13 @@
       weight: a.weight === undefined ? "" : String(a.weight),
       request_retry: a.request_retry === undefined ? "" : String(a.request_retry),
     };
-    const name = a.name;
+    const name = id(a);
     const res = new Res<Data[]>(async () => (await api(`/credentials/models?name=${encodeURIComponent(name)}`)).models || []);
     models = res;
     res.load();
   });
   function toggle(a: Data) {
-    store.go(open === a.name ? "credentials" : `credentials/${encodeURIComponent(a.name)}`);
+    store.go(open === id(a) ? "credentials" : `credentials/${encodeURIComponent(id(a))}`);
   }
   const lookup = (a: Data) => ({ name: a.name, ...(a.auth_index ? { auth_index: a.auth_index } : {}) });
   const fieldNames = [
@@ -126,10 +130,14 @@
     });
   }
   function saveFields(a: Data) {
-    const patch: Data = { name: a.name, note: fields.note.trim() };
+    const patch: Data = { name: id(a), note: fields.note.trim() };
     for (const k of ["priority", "weight", "request_retry"] as const) {
       const v = fields[k].trim();
-      if (v === "") continue;
+      // An emptied field clears the override (Go deletes the key on null).
+      if (v === "") {
+        if (a[k] !== undefined) patch[k] = null;
+        continue;
+      }
       if (!/^-?\d+$/.test(v)) return store.notify(`${k.replace("_", " ")} must be a whole number.`, true);
       patch[k] = Number(v);
     }
@@ -200,7 +208,7 @@
           {#each groups as g (g.p)}
             <li class="group">{label(g.p)}<span>{g.rows.length}</span></li>
             {#each g.rows as r (key(r.a))}
-              {@const isOpen = open === r.a.name}
+              {@const isOpen = open === id(r.a)}
               <li class:open={isOpen}>
                 <button class="item" aria-expanded={isOpen} onclick={() => toggle(r.a)}>
                   <span class="lamp {r.s.lamp}"></span>

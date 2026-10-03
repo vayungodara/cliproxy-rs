@@ -54,7 +54,6 @@ function parse(hash: string) {
 
 class Store {
   logged = $state(false);
-  server = $state(location.origin);
   theme = $state(document.documentElement.dataset.theme || "dark");
   route = $state(parse(location.hash));
   meta = $state({ version: "", commit: "", built: "" });
@@ -81,9 +80,9 @@ class Store {
   #probed = new Set<string>();
   #timer: ReturnType<typeof setTimeout> | undefined;
 
-  async login(server: string, secret: string) {
+  async login(secret: string) {
     this.meta = { version: "", commit: "", built: "" };
-    connect(server, secret, {
+    connect(secret, {
       unauthorized: () => {
         this.logout();
         this.notify("The management key was rejected. Sign in again.", true);
@@ -103,7 +102,6 @@ class Store {
       disconnect();
       throw e;
     }
-    this.server = server;
     this.logged = true;
     this.creds.load();
   }

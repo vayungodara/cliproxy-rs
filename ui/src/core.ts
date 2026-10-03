@@ -2,21 +2,6 @@
 export type Data = Record<string, any>;
 export type Lamp = "ok" | "warn" | "bad" | "off";
 
-export function serverBase(input: string): string {
-  const url = new URL(input || location.origin);
-  if (
-    !["http:", "https:"].includes(url.protocol) ||
-    url.username ||
-    url.password ||
-    url.search ||
-    url.hash
-  )
-    throw new Error(
-      "Use an HTTP(S) server URL without credentials, query parameters, or a fragment.",
-    );
-  return url.href.replace(/\/$/, "").replace(/\/v8\/management$/, "");
-}
-
 export function fieldPath(path: string): string {
   return (
     "/config/" +

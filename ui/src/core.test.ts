@@ -11,7 +11,6 @@ import {
   lineDiff,
   quotaWindows,
   reconcile,
-  serverBase,
   span,
   sumBuckets,
   usageStats,
@@ -21,9 +20,6 @@ const now = Date.parse("2026-10-02T12:00:00Z");
 const at = (ms: number) => new Date(now + ms).toISOString();
 
 test("v8 paths, URL boundaries, and structural equality", () => {
-  assert.equal(serverBase("https://proxy.example.test/prefix/v8/management/"), "https://proxy.example.test/prefix");
-  assert.throws(() => serverBase("https://user:pass@example.test"));
-  assert.throws(() => serverBase("javascript:alert(1)"));
   assert.throws(() => fieldPath("oauth/../key"));
   assert.equal(fieldPath("plugins/configs/my plugin"), "/config/plugins/configs/my%20plugin");
   assert.equal(equal({ b: null, a: [1, false] }, { a: [1, false], b: null }), true);

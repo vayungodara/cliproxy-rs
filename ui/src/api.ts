@@ -1,7 +1,9 @@
-import { serverBase, type Data } from "./core";
+import type { Data } from "./core";
 
 // The management key lives only in this module's memory. It is never written to storage.
-let base = "";
+// Requests go only to the server that served this page: the API sits next to it
+// (/management.html -> /v8/management, also under a reverse-proxy path prefix).
+const base = new URL(".", location.href).href.replace(/\/$/, "");
 let key = "";
 let revision = 0;
 let hooks: {
@@ -26,8 +28,7 @@ export class ApiError extends Error {
   }
 }
 
-export function connect(url: string, secret: string, h: typeof hooks) {
-  base = serverBase(url);
+export function connect(secret: string, h: typeof hooks) {
   key = secret;
   hooks = h;
   revision++;

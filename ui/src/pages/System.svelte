@@ -22,7 +22,8 @@
       ["Config layout", c["config-version"] ? `v${c["config-version"]}` : "Legacy (migrated on save)"],
       ["Routing strategy", readPath(c, "routing/strategy", "Server default")],
       ["Auth directory", readPath(c, "oauth/auth-dir", "Server default")],
-      ["Remote management", readPath(c, "management/allow-remote", false) ? "Allowed" : "Local only"],
+      // The config cannot show the effective policy: MANAGEMENT_PASSWORD allows remote access too.
+      ["Remote management", readPath(c, "management/allow-remote", false) ? "Allowed" : "Local only, unless MANAGEMENT_PASSWORD is set"],
     ].filter((f) => f[1]),
   );
   const clean = (v: string) => v.replace(/^v/, "");
