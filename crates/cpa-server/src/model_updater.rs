@@ -49,9 +49,9 @@ pub fn plan(local_model: bool, home_enabled: bool) -> Plan {
 /// Go `startModelCatalogUpdaters`. Safe to call more than once: one updater runs.
 pub fn start(local_model: bool, home_enabled: bool) {
     let plan = plan(local_model, home_enabled);
-    // ponytail: the Codex client catalog updater (codex_client_models_updater.go, owner:
-    // Codex thread) is not on this base yet; start it here, before Devin, when
-    // `plan.codex_client` is set.
+    if plan.codex_client {
+        cpa_exec::codex_catalog_updater::start_codex_client_models_updater();
+    }
     if plan.devin {
         cpa_exec::devin_models::start_devin_models_updater();
     }
