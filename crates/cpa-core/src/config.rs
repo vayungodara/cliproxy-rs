@@ -23,7 +23,7 @@ mod trusted;
 mod validate;
 pub use document::{ConfigDocument, archive_comments};
 pub use schema::validate as validate_config_fields;
-pub use schema::{coerce_typed_bools, written_bool_spelling};
+pub use schema::{coerce_typed_scalars, go_bool, go_int, written_bool_spelling};
 
 /// Go `expandConfigAliases` plus yaml.v3's merge rules: `<<` keys expand bottom-up
 /// (nested merges first); explicit keys win, then earlier merged mappings. A merge
@@ -305,7 +305,7 @@ impl Config {
         };
         validate_shape(&root)?;
         let mut document = ConfigDocument::from_mapping(root.clone())?;
-        document.coerce_typed_bools();
+        document.coerce_typed_scalars();
         schema::validate(document.value(), false)?;
         let canonical = document.value().as_mapping().expect("document is a mapping");
         let routing = decode_section::<RoutingConfig>(canonical, "routing")?;
@@ -316,8 +316,8 @@ impl Config {
         let host = string_or_empty(pick("server.host", "host"), "server.host")?;
         let port = match pick("server.port", "port") {
             None | Some(Value::Null) => 0,
-            Some(v) => v
-                .as_u64()
+            // yaml.v3 truncates a float into Go's int port.
+            Some(v) => go_int(v)
                 .and_then(|p| u16::try_from(p).ok())
                 .context("server.port must be an integer port number")?,
         };

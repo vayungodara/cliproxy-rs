@@ -412,13 +412,43 @@ where
 }
 
 /// How one relay direction ended.
+#[derive(Debug)]
 enum End {
     /// A close frame: its code and reason, if any.
     Closed(Option<(u16, String)>),
-    /// The peer went away without a close frame, or its stream failed.
+    /// The peer went away: the stream ended, or the connection closed without a close
+    /// frame (gorilla's 1006, `io.EOF`, `net.ErrClosed`).
     Gone,
+    /// Reading failed for another reason: a protocol violation or a socket error.
+    Failed,
     /// Writing to the other side failed.
     WriteFailed,
+}
+
+/// A read error as gorilla reports it: an abnormal closure (connection closed without a
+/// close frame) counts as the peer going away; anything else is a relay failure.
+fn read_end(error: &(dyn std::error::Error + 'static)) -> End {
+    let mut current = Some(error);
+    while let Some(e) = current {
+        // tungstenite's `ResetWithoutClosingHandshake`, `ConnectionClosed`, `AlreadyClosed`;
+        // the crate is not a direct dependency, so they are recognised by their text.
+        let text = e.to_string();
+        if text.contains("Connection reset without closing handshake")
+            || text.contains("Connection closed normally")
+            || text.contains("Trying to work with closed connection")
+        {
+            return End::Gone;
+        }
+        if let Some(io) = e.downcast_ref::<std::io::Error>() {
+            return if io.kind() == std::io::ErrorKind::UnexpectedEof {
+                End::Gone
+            } else {
+                End::Failed
+            };
+        }
+        current = e.source();
+    }
+    End::Failed
 }
 
 /// `websocketCloseDetails`: what both sides are told when one direction stops.
@@ -426,13 +456,11 @@ fn close_details(end: End) -> (u16, String) {
     match end {
         End::Closed(Some((code, reason))) if !matches!(code, 1005 | 1006 | 1015) => (code, reason),
         End::Closed(_) | End::Gone => (1000, String::new()),
-        End::WriteFailed => (1011, "relay closed".into()),
+        End::Failed | End::WriteFailed => (1011, "relay closed".into()),
     }
 }
 
 /// `relayWebsockets`.
-// ponytail: a read error counts as the peer going away (1000); gorilla reports protocol
-// violations as 1011. tungstenite's error kinds are not visible through axum's error.
 async fn relay(downstream: WebSocket, upstream: wreq::ws::WebSocket) {
     let (mut down_tx, mut down_rx) = downstream.split();
     let (mut up_tx, mut up_rx) = upstream.split();
@@ -441,7 +469,8 @@ async fn relay(downstream: WebSocket, upstream: wreq::ws::WebSocket) {
             loop {
                 let message = match down_rx.next().await {
                     Some(Ok(message)) => message,
-                    Some(Err(_)) | None => return End::Gone,
+                    Some(Err(e)) => return read_end(&e),
+                    None => return End::Gone,
                 };
                 let message = match message {
                     ws::Message::Text(text) => up::Message::text(text.as_str()),
@@ -460,7 +489,8 @@ async fn relay(downstream: WebSocket, upstream: wreq::ws::WebSocket) {
             loop {
                 let message = match up_rx.next().await {
                     Some(Ok(message)) => message,
-                    Some(Err(_)) | None => return End::Gone,
+                    Some(Err(e)) => return read_end(&e),
+                    None => return End::Gone,
                 };
                 let message = match message {
                     up::Message::Text(text) => ws::Message::Text(text.as_str().into()),
@@ -535,5 +565,20 @@ mod tests {
         assert_eq!(close_details(End::Closed(None)), (1000, String::new()));
         assert_eq!(close_details(End::Gone), (1000, String::new()));
         assert_eq!(close_details(End::WriteFailed), (1011, "relay closed".into()));
+        assert_eq!(close_details(End::Failed), (1011, "relay closed".into()));
+    }
+
+    #[test]
+    fn read_errors_classify_like_gorilla() {
+        let io = |kind| std::io::Error::new(kind, "x");
+        assert!(matches!(read_end(&io(std::io::ErrorKind::UnexpectedEof)), End::Gone));
+        assert!(matches!(
+            read_end(&io(std::io::ErrorKind::ConnectionReset)),
+            End::Failed
+        ));
+        let abrupt = std::io::Error::other("WebSocket protocol error: Connection reset without closing handshake");
+        assert!(matches!(read_end(&abrupt), End::Gone));
+        let rsv = std::io::Error::other("WebSocket protocol error: Reserved bits are non-zero");
+        assert!(matches!(read_end(&rsv), End::Failed));
     }
 }

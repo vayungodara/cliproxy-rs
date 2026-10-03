@@ -148,6 +148,12 @@ pub trait UsageObserver: Send + Sync {
     /// usage (a reported body, or a stream line carrying usage) publishes nothing
     /// unless it fails.
     fn usage_required(&self) {}
+
+    /// The attempt failed after its usage was reported, and Go publishes the failure
+    /// with an empty detail (`reporter.PublishFailure(err)`, e.g. an apply_patch
+    /// rejection): the record carries no tokens but keeps the observed response model.
+    /// The default ignores it, for observers that never record a detail.
+    fn failed(&self) {}
 }
 
 /// A handle executors report usage through; cloning shares the observer.
@@ -233,6 +239,13 @@ impl UsageSink {
     pub fn usage_required(&self) {
         if let Some(o) = &self.0 {
             o.usage_required();
+        }
+    }
+
+    /// See [`UsageObserver::failed`].
+    pub fn failed(&self) {
+        if let Some(o) = &self.0 {
+            o.failed();
         }
     }
 }

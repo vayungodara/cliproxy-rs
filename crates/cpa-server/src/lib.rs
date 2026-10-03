@@ -13,17 +13,22 @@ mod error_events;
 mod errors;
 mod gemini;
 mod gojson;
+mod home_models;
+mod images;
 pub mod keepalive;
 pub mod listener;
 pub mod logging;
 pub mod management;
 pub mod model_updater;
 mod models;
+pub mod observability;
 mod openai;
 pub mod persist;
+pub mod plugins;
 mod realtime;
 mod refresh;
 pub mod registry;
+pub mod remote;
 mod resp;
 mod respond;
 pub mod runtime;
@@ -34,6 +39,7 @@ mod session;
 pub mod testing;
 pub mod usage;
 mod usage_record;
+mod videos;
 pub mod watching;
 mod websocket;
 mod websocket_requests;
@@ -53,12 +59,42 @@ pub use runtime::Runtime;
 // is 2 MiB; gin has none). Make it configurable if anyone needs more.
 pub const MAX_REQUEST_BYTES: usize = 64 * 1024 * 1024;
 
+/// The API routes alone; unregistered paths get gin's bare NoRoute 404.
 pub fn router(rt: Arc<Runtime>) -> Router {
+    gin(api(rt))
+}
+
+/// The served app: the API routes, with `rest` (the management router, which owns gin's
+/// NoRoute and its plugin routes) answering every path the API does not register. axum
+/// allows one fallback per merged router, so `rest` sits behind the API instead of being
+/// merged into it.
+pub fn app(rt: Arc<Runtime>, rest: Router) -> Router {
+    gin(api(rt).fallback_service(rest))
+}
+
+/// Around the whole router: axum sets `Allow` outside per-route layers.
+fn gin(api: Router) -> Router {
+    Router::new()
+        .fallback_service(api)
+        .layer(middleware::from_fn(no_route_allow))
+}
+
+fn api(rt: Arc<Runtime>) -> Router {
     let auth = || middleware::from_fn_with_state(rt.clone(), access::require_client_key);
     let v1 = Router::new()
         .route("/v1/models", get(models::unified))
         .route("/v1/chat/completions", post(openai::chat_completions))
         .route("/v1/completions", post(openai::completions))
+        .route("/v1/images/generations", post(images::generations))
+        .route("/v1/images/edits", post(images::edits))
+        .route("/v1/videos", post(videos::native_post))
+        .route("/v1/videos/generations", post(videos::native_post))
+        .route("/v1/videos/edits", post(videos::native_post))
+        .route("/v1/videos/extensions", post(videos::native_post))
+        .route("/v1/videos/{request_id}", get(videos::native_retrieve))
+        .route("/openai/v1/videos", post(videos::create))
+        .route("/openai/v1/videos/{video_id}/content", get(videos::content))
+        .route("/openai/v1/videos/{video_id}", get(videos::retrieve))
         .route("/v1/messages", post(claude::messages))
         .route("/v1/messages/count_tokens", post(claude::count_tokens))
         .route("/v1/responses", post(openai::responses))
@@ -72,7 +108,7 @@ pub fn router(rt: Arc<Runtime>) -> Router {
         .merge(websocket::routes())
         // Only matched routes: gin's NoRoute runs no group middleware.
         .route_layer(auth());
-    let api = Router::new()
+    Router::new()
         .route("/healthz", get(healthz).head(healthz))
         .route("/", get(root))
         .route("/anthropic/callback", get(callback))
@@ -82,23 +118,26 @@ pub fn router(rt: Arc<Runtime>) -> Router {
         .route("/devin/callback", get(devin_callback))
         .merge(v1)
         .merge(realtime::routes(&rt))
+        // Matched API routes only: management answers its own HEADs (plugin routes).
+        .route_layer(middleware::from_fn(head_only_healthz))
         .method_not_allowed_fallback(|| async { StatusCode::NOT_FOUND })
         .layer(DefaultBodyLimit::max(MAX_REQUEST_BYTES))
         .layer(middleware::from_fn(go_framing))
-        .with_state(rt);
-    // Around the whole router: axum sets `Allow` outside per-route layers.
-    Router::new()
-        .fallback_service(api)
-        .layer(middleware::from_fn(gin_no_method))
+        .with_state(rt)
 }
 
-/// gin runs without `HandleMethodNotAllowed`: an unregistered method on a known path
-/// is NoRoute, whose handler aborts with a bare 404 (no 405, no `Allow`), and HEAD is
-/// registered for `/healthz` only, so it never falls back to GET.
-async fn gin_no_method(req: axum::extract::Request, next: middleware::Next) -> Response {
+/// gin registers HEAD for `/healthz` only, so a HEAD never falls back to a GET handler;
+/// it is NoRoute's bare 404.
+async fn head_only_healthz(req: axum::extract::Request, next: middleware::Next) -> Response {
     if req.method() == Method::HEAD && req.uri().path() != "/healthz" {
         return StatusCode::NOT_FOUND.into_response();
     }
+    next.run(req).await
+}
+
+/// gin runs without `HandleMethodNotAllowed`: an unregistered method on a known path
+/// is NoRoute, whose handler aborts with a bare 404 (no 405, no `Allow`).
+async fn no_route_allow(req: axum::extract::Request, next: middleware::Next) -> Response {
     let mut res = next.run(req).await;
     if res.status() == StatusCode::NOT_FOUND {
         res.headers_mut().remove(header::ALLOW);

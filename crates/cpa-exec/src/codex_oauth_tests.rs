@@ -192,6 +192,27 @@ async fn refresh_retry_policy_matches_go_attempt_counts() {
     }
 }
 
+/// Go reports `failed to parse token response: <decoder error>`; the decoder can quote
+/// response values, so only Go's prefix is reported.
+#[tokio::test]
+async fn token_parse_failure_keeps_go_prefix_without_the_decoder_diagnostic() {
+    let mock = Mock::start().await;
+    let oauth = oauth(&mock).await;
+    mock.script(
+        "/oauth/token",
+        vec![json(
+            200,
+            r#"{"access_token":"at-SECRET-FAKE","expires_in":"rt-SECRET-FAKE"}"#,
+        )],
+    );
+    let error = oauth
+        .exchange("code-FAKE", &redirect_uri(DEFAULT_CALLBACK_PORT), "verifier-FAKE")
+        .await
+        .unwrap_err();
+    assert_eq!(String::from_utf8_lossy(&error.body), "failed to parse token response");
+    assert_eq!(error.status, 502);
+}
+
 #[tokio::test]
 async fn concurrent_refreshes_of_one_token_share_one_exchange() {
     let mock = Mock::start().await;

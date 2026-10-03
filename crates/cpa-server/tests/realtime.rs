@@ -1,5 +1,31 @@
 //! Realtime and Live through the real router against loopback upstreams. Fake tokens only.
 //!
+//! Go test cases (internal/client/codex/live) whose behaviour these goldens and the unit
+//! tests in cpa-exec `codex_live` and cpa-server `realtime` reproduce:
+//! - capabilities_test.go: TestHandleHangupForwardsPinnedOAuthCall, TestHandleHangupRejectsDifferentAPIPrincipal,
+//!   TestUnsupportedRealtimeCapabilitiesUseStandardError.
+//! - client_secret_test.go: TestCreateClientSecretMapsStandardRealtimeModel, TestStandardRealtimeCallMapsModelAndLocation,
+//!   TestClientSecretStoreRejectsExpiredToken, TestNormalizeClientSecretSessionHandlesWhitespaceNullAndRejectsArrays,
+//!   TestReadClientSecretBodyRejectsOversizedSession, TestCreateClientSecretRejectsUnsupportedSessionType,
+//!   TestSidebandRejectsClientSecretScopeMismatch, TestSidebandRejectsStandardPrincipalScopeMismatch,
+//!   TestApplyClientSecretCallSession.
+//! - live_test.go: TestHandlerRewritesLiveCallAndSchedulesOAuth, TestProxyURLForAuthPrefersCredentialOverride,
+//!   TestHandlerRelaysWebRTCMediaSDP, TestHandlerClosesUnretainedMediaSession, TestHandlerClosesMediaWhenResponseWriteFails,
+//!   TestHandleSidebandPinsAuthAndRelaysBidirectionally, TestHandleSidebandDialErrorDoesNotForwardNonUnauthorizedBody,
+//!   TestPrepareCallRequestRewritesMultipart, TestPrepareCallRequestPreservesRawSDPWhenRelayDisabled,
+//!   TestMediaRelayWrapsRawSDPForCodexBackend, TestHandlerUpdatesMediaRelayConfig, TestPrepareCallRequestRejectsInvalidMultipart,
+//!   TestSessionStoreClaimsAndExpiresSessions, TestSessionStoreCloseAllReleasesMediaAndResources, TestSidebandURLShapes.
+//! - media_test.go: TestPionMediaRelayBridgesAudioAndDataChannel, TestIsPublicRemoteIP.
+//! - websocket_test.go: TestHandleDirectWebsocketRejectsClientSecretModelMismatch,
+//!   TestHandleDirectWebsocketAppliesClientSecretSession, TestHandleDirectWebsocketRelaysStandardRealtimeFrames.
+//! - internal/config/codex_live_test.go: TestCodexLiveMediaRelayConfigMigratesLegacyPrivateIPSetting.
+//!
+//! Not reproduced: the Home dispatch cases (no Home selection in cpa-server yet), request
+//! logging (TestHeadersForLoggingRedactsAttestation; no request-log writer yet),
+//! TestReadLimitedBodyPreservesPayloadOnReadError, TestMediaCredentialNameUsesSafeIdentity
+//! beyond the label case, and the proxied media cases (TestPionMediaRelaySelectsRemoteProxyMode,
+//! TestMediaForwardingStartedLogRedactsProxyCredentials, tcp_proxy_test.go): proxied relays fail closed.
+//!
 //! `realtime_http_go.json` comes from tests/reference/realtime/zz_rsfix_realtime_http_test.go:
 //! the real Go server (routes, access manager, realtime middleware, live handler) with an
 //! executor that records the upstream request instead of sending it. Each case replays
@@ -88,7 +114,7 @@ async fn proxy(credentials: Vec<Credential>, mock: Shared) -> String {
             format!("ws{}/v1", upstream_url.trim_start_matches("http")),
         );
     let rt = Arc::new(cpa_server::testing::runtime(
-        Config::parse("api-keys: [good-key]").unwrap(),
+        Config::parse("api-keys: [good-key, other-key]").unwrap(),
         credentials,
         Executors {
             claude: cpa_exec::claude::ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
@@ -928,5 +954,117 @@ async fn raw_handshakes_match_gorilla() {
             ));
         }
     }
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+/// How a sideband ends when the downstream connection fails mid-session
+/// (`websocketCloseDetails`), from `codex_live_ws_end_go.json`: the close frame the
+/// upstream receives after a protocol violation, an abrupt close or a reset.
+#[tokio::test]
+async fn relay_end_close_codes_match_gorilla() {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    let cases: Vec<Value> = serde_json::from_str(include_str!("fixtures/codex_live_ws_end_go.json")).unwrap();
+    let mock = WsShared::default();
+    let upstream_url = serve(axum::Router::new().fallback(ws_upstream).with_state(mock.clone())).await;
+    let executor = CodexExecutor::with_client(wreq::Client::new(), CodexOAuth::new(wreq::Client::new()))
+        .with_live_endpoints(
+            format!("{upstream_url}/backend-api/codex/realtime/calls"),
+            format!("ws{}/v1", upstream_url.trim_start_matches("http")),
+        );
+    let rt = Arc::new(cpa_server::testing::runtime(
+        Config::parse("api-keys: [owner-key]").unwrap(),
+        vec![credential(
+            "only-oauth",
+            serde_json::json!({"type":"codex","access_token":"only-token"}),
+            &[],
+        )],
+        Executors {
+            claude: cpa_exec::claude::ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
+            codex: executor,
+            devices: Default::default(),
+            openai: Default::default(),
+            google: Default::default(),
+        },
+    ));
+    let proxy = serve(router(rt)).await;
+    let client = wreq::Client::new();
+    let mut failures = Vec::new();
+    for case in &cases {
+        let action = case["name"].as_str().unwrap();
+        let call_id = format!("call-end-{action}");
+        let created = client
+            .post(format!("{proxy}/v1/live"))
+            .header("authorization", "Bearer owner-key")
+            .header("thread-id", &call_id)
+            .body(r#"{"sdp":"v=0"}"#)
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(created.status().as_u16(), 201);
+        mock.lock().unwrap().seen = None;
+        let stream = tokio::net::TcpStream::connect(proxy.trim_start_matches("http://"))
+            .await
+            .unwrap();
+        let mut stream = stream;
+        let request = format!(
+            "GET /v1/live/{call_id} HTTP/1.1\r\nHost: x\r\nAuthorization: Bearer owner-key\r\nConnection: Upgrade\r\nUpgrade: websocket\r\nSec-WebSocket-Version: 13\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\r\n"
+        );
+        stream.write_all(request.as_bytes()).await.unwrap();
+        let mut head = Vec::new();
+        while !head.ends_with(b"\r\n\r\n") {
+            let mut byte = [0u8; 1];
+            stream.read_exact(&mut byte).await.unwrap();
+            head.push(byte[0]);
+        }
+        assert!(
+            head.starts_with(b"HTTP/1.1 101"),
+            "{action}: {}",
+            String::from_utf8_lossy(&head)
+        );
+        match action {
+            "rsv1" => {
+                let mask = [1u8, 2, 3, 4];
+                let mut frame = vec![0x80 | 0x40 | 0x1, 0x80 | 1];
+                frame.extend_from_slice(&mask);
+                frame.push(b'x' ^ mask[0]);
+                stream.write_all(&frame).await.unwrap();
+                tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+                drop(stream);
+            }
+            "abrupt" => drop(stream),
+            _ => {
+                #[allow(deprecated)]
+                stream.set_linger(Some(std::time::Duration::ZERO)).unwrap();
+                drop(stream);
+            }
+        }
+        let want: Vec<Frame> = case["upstream_received"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(frame)
+            .collect();
+        let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(5);
+        let got = loop {
+            let seen = mock
+                .lock()
+                .unwrap()
+                .seen
+                .as_ref()
+                .filter(|s| s.target.contains(&call_id))
+                .map(|s| s.received.clone());
+            if let Some(got) = seen {
+                break got;
+            }
+            if tokio::time::Instant::now() > deadline {
+                break vec![];
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        };
+        if got != want {
+            failures.push(format!("{action}: upstream received {got:?}, Go {want:?}"));
+        }
+    }
+    assert_eq!(cases.len(), 3);
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }

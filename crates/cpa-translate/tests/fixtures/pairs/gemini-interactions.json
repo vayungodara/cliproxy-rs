@@ -2117,6 +2117,127 @@
      "prefix": "response_"
     }
    ]
+  },
+  {
+   "name": "TestConvertInteractionsResponseToGeminiNonStreamFunctionCall:168#2",
+   "path": "non_stream",
+   "model": "gemini-3.1-flash-lite",
+   "input": "{\"id\":\"i1\",\"model\":\"gemini-3.1-flash-lite\",\"steps\":[{\"type\":\"function_call\",\"call_id\":\"call_1\",\"signature\":\"sig_1\",\"name\":\"get_weather\",\"arguments\":{\"location\":\"北京\"}}],\"usage\":{\"total_input_tokens\":2,\"total_output_tokens\":3,\"total_tokens\":5}}",
+   "outputs": [
+    [
+     "{\"candidates\":[{\"content\":{\"parts\":[{\"functionCall\":{\"name\":\"get_weather\",\"args\":{\"location\":\"北京\"},\"id\":\"call_1\"},\"thoughtSignature\":\"sig_1\"}],\"role\":\"model\"},\"index\":0,\"finishReason\":\"STOP\"}],\"modelVersion\":\"gemini-3.1-flash-lite\",\"responseId\":\"i1\",\"usageMetadata\":{\"promptTokenCount\":2,\"promptTokensDetails\":[{\"modality\":\"TEXT\",\"tokenCount\":2}],\"candidatesTokenCount\":3,\"totalTokenCount\":5}}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertInteractionsResponseToGemini_FunctionCallArgsPreservesRef:989#2",
+   "path": "non_stream",
+   "model": "gemini-3.1-flash-lite",
+   "input": "{\n\t\t\"id\": \"i1\",\n\t\t\"model\": \"gemini-3.1-flash-lite\",\n\t\t\"steps\": [\n\t\t\t{\n\t\t\t\t\"type\": \"function_call\",\n\t\t\t\t\"call_id\": \"call_1\",\n\t\t\t\t\"name\": \"validate_schema\",\n\t\t\t\t\"arguments\": {\n\t\t\t\t\t\"schema\": {\n\t\t\t\t\t\t\"$ref\": \"#/components/schemas/ErrorModel\"\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}\n\t\t]\n\t}",
+   "outputs": [
+    [
+     "{\"candidates\":[{\"content\":{\"parts\":[{\"functionCall\":{\"name\":\"validate_schema\",\"args\":{\n\t\t\t\t\t\"schema\": {\n\t\t\t\t\t\t\"$ref\": \"#/components/schemas/ErrorModel\"\n\t\t\t\t\t}\n\t\t\t\t},\"id\":\"call_1\"}}],\"role\":\"model\"},\"index\":0,\"finishReason\":\"STOP\"}],\"modelVersion\":\"gemini-3.1-flash-lite\",\"responseId\":\"i1\"}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertInteractionsResponseToGemini_FunctionResultWithRef:1016#2",
+   "path": "non_stream",
+   "model": "gemini-3.1-flash-lite",
+   "input": "{\n\t\t\"id\": \"i1\",\n\t\t\"model\": \"gemini-3.1-flash-lite\",\n\t\t\"steps\": [\n\t\t\t{\n\t\t\t\t\"type\": \"function_result\",\n\t\t\t\t\"call_id\": \"call_1\",\n\t\t\t\t\"name\": \"get_schema\",\n\t\t\t\t\"result\": {\n\t\t\t\t\t\"schema\": {\n\t\t\t\t\t\t\"$ref\": \"#/components/schemas/ErrorModel\"\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}\n\t\t]\n\t}",
+   "outputs": [
+    [
+     "{\"candidates\":[{\"content\":{\"parts\":[{\"functionResponse\":{\"name\":\"get_schema\",\"response\":{\"result\":\"{\\n\\t\\t\\t\\t\\t\\\"schema\\\": {\\n\\t\\t\\t\\t\\t\\t\\\"$ref\\\": \\\"#/components/schemas/ErrorModel\\\"\\n\\t\\t\\t\\t\\t}\\n\\t\\t\\t\\t}\"},\"id\":\"call_1\"}}],\"role\":\"model\"},\"index\":0,\"finishReason\":\"STOP\"}],\"modelVersion\":\"gemini-3.1-flash-lite\",\"responseId\":\"i1\"}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertInteractionsResponseToGeminiStreamFunctionCall:90:stream",
+   "path": "stream",
+   "model": "gemini-3.1-flash-lite",
+   "lines": [
+    "data: {\"interaction\":{\"id\":\"i1\",\"model\":\"gemini-3.1-flash-lite\"},\"event_type\":\"interaction.created\"}",
+    "data: {\"index\":0,\"step\":{\"type\":\"function_call\",\"id\":\"call_1\",\"signature\":\"sig_1\",\"name\":\"get_weather\",\"arguments\":{}},\"event_type\":\"step.start\"}",
+    "data: {\"index\":0,\"delta\":{\"type\":\"arguments_delta\",\"arguments\":\"{\\\"location\\\":\\\"北京\\\"}\"},\"event_type\":\"step.delta\"}",
+    "data: {\"interaction\":{\"id\":\"i1\",\"status\":\"requires_action\",\"usage\":{\"total_input_tokens\":2,\"total_output_tokens\":3,\"total_tokens\":5,\"total_thought_tokens\":1,\"total_cached_tokens\":4},\"service_tier\":\"standard\",\"model\":\"gemini-3.1-flash-lite\"},\"event_type\":\"interaction.completed\"}",
+    "event: done\ndata: [DONE]"
+   ],
+   "outputs": [
+    [],
+    [],
+    [
+     "{\"candidates\":[{\"content\":{\"parts\":[{\"functionCall\":{\"name\":\"get_weather\",\"args\":{\"location\":\"北京\"},\"id\":\"call_1\"},\"thoughtSignature\":\"sig_1\"}],\"role\":\"model\"},\"index\":0}],\"modelVersion\":\"gemini-3.1-flash-lite\",\"responseId\":\"i1\"}"
+    ],
+    [
+     "{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"\"}],\"role\":\"model\"},\"index\":0,\"finishReason\":\"STOP\"}],\"modelVersion\":\"gemini-3.1-flash-lite\",\"responseId\":\"i1\",\"usageMetadata\":{\"serviceTier\":\"standard\",\"promptTokenCount\":2,\"promptTokensDetails\":[{\"modality\":\"TEXT\",\"tokenCount\":2}],\"candidatesTokenCount\":3,\"totalTokenCount\":5,\"thoughtsTokenCount\":1,\"cachedContentTokenCount\":4}}"
+    ],
+    []
+   ]
+  },
+  {
+   "name": "TestConvertInteractionsResponseToGeminiStreamFinishMetadataUsage:142:stream",
+   "path": "stream",
+   "model": "gemini-test",
+   "lines": [
+    "data: {\"event_type\":\"finish\",\"metadata\":{\"total_usage\":{\"total_input_tokens\":2,\"total_output_tokens\":6,\"total_thought_tokens\":3,\"total_cached_tokens\":1,\"total_tokens\":11}}}"
+   ],
+   "outputs": [
+    [
+     "{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"\"}],\"role\":\"model\"},\"index\":0,\"finishReason\":\"STOP\"}],\"modelVersion\":\"gemini-test\",\"usageMetadata\":{\"promptTokenCount\":2,\"promptTokensDetails\":[{\"modality\":\"TEXT\",\"tokenCount\":2}],\"candidatesTokenCount\":6,\"totalTokenCount\":11,\"thoughtsTokenCount\":3,\"cachedContentTokenCount\":1}}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertInteractionsResponseToGemini_ResponseFailed:1365:stream",
+   "path": "stream",
+   "model": "devin/kimi-k3",
+   "lines": [
+    "data: {\"event_type\":\"response.failed\",\"error\":{\"message\":\"devin upstream error: permission_denied\",\"code\":\"403\"}}"
+   ],
+   "outputs": [
+    [
+     "{\"error\":{\"code\":403,\"message\":\"devin upstream error: permission_denied\",\"status\":\"PERMISSION_DENIED\"}}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertInteractionsResponseToGemini_ResponseFailed:1365:stream#2",
+   "path": "stream",
+   "model": "devin/kimi-k3",
+   "lines": [
+    "data: {\"event_type\":\"interaction.failed\",\"error\":{\"message\":\"quota exceeded\",\"code\":\"resource_exhausted\"}}"
+   ],
+   "outputs": [
+    [
+     "{\"error\":{\"code\":429,\"message\":\"quota exceeded\",\"status\":\"RESOURCE_EXHAUSTED\"}}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertInteractionsResponseToGemini_ResponseFailed:1365:stream#3",
+   "path": "stream",
+   "model": "devin/kimi-k3",
+   "lines": [
+    "data: {\"event_type\":\"response.failed\",\"interaction\":{\"error\":{\"message\":\"service unavailable\",\"code\":\"503\"}}}"
+   ],
+   "outputs": [
+    [
+     "{\"error\":{\"code\":503,\"message\":\"service unavailable\",\"status\":\"UNAVAILABLE\"}}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertInteractionsResponseToGemini_ResponseFailed:1365:stream#4",
+   "path": "stream",
+   "model": "devin/kimi-k3",
+   "lines": [
+    "data: {\"event_type\":\"response.failed\"}"
+   ],
+   "outputs": [
+    [
+     "{\"error\":{\"code\":500,\"message\":\"upstream error occurred\",\"status\":\"INTERNAL\"}}"
+    ]
+   ]
   }
  ],
  "token_count": false,

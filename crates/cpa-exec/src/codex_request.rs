@@ -59,6 +59,15 @@ pub(crate) struct Settings {
     pub client: cpa_common::codex_client::Settings,
     /// The `models` of the `codex-api-key` entry the credential resolves to.
     pub key_models: Vec<serde_json::Value>,
+    /// `response-steering`: full-duplex WebSocket turns (codex_websockets_duplex.go).
+    pub response_steering: bool,
+}
+
+/// `codex.response-steering` in its v8 home; the legacy key is already moved there.
+pub(crate) fn response_steering(cfg: &Config) -> bool {
+    setting(cfg, &["oauth", "providers", "codex", "response-steering"])
+        .and_then(serde_yaml_ng::Value::as_bool)
+        .unwrap_or(false)
 }
 
 fn setting<'a>(cfg: &'a Config, path: &[&str]) -> Option<&'a serde_yaml_ng::Value> {
@@ -137,6 +146,7 @@ impl Settings {
             payload: cpa_common::payload::Rules::from_config(cfg),
             client: cpa_common::codex_client::Settings::from_config(cfg),
             key_models: Vec::new(),
+            response_steering: response_steering(cfg),
         }
     }
 }

@@ -9,6 +9,7 @@ mod git;
 mod object;
 mod pgconn;
 mod postgres;
+mod private_fs;
 mod sigv4;
 
 use std::path::{Component, Path, PathBuf};

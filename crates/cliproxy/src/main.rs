@@ -1,5 +1,6 @@
 mod discovery;
 mod dotenv;
+mod home;
 
 use std::io;
 use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr};
@@ -12,7 +13,7 @@ use clap::{ArgAction, CommandFactory, Parser};
 use cpa_core::config::Config;
 use cpa_exec::Executors;
 use cpa_exec::claude::{ClaudeExecutor, DEFAULT_BASE_URL};
-use cpa_server::{Runtime, router};
+use cpa_server::Runtime;
 use socket2::{Domain, Socket, Type};
 
 /// Same strings as the management `X-CPA-*` headers.
@@ -471,7 +472,13 @@ async fn run(args: Args) -> anyhow::Result<()> {
         std::env::var("HOME_JWT").unwrap_or_default(),
         std::env::var("home_jwt").unwrap_or_default(),
     ];
-    let home = home_jwt.iter().any(|v| !v.trim().is_empty());
+    // Go: the flag, else HOME_JWT / home_jwt.
+    let home_jwt = home_jwt
+        .iter()
+        .map(|v| v.trim())
+        .find(|v| !v.is_empty())
+        .map(str::to_owned);
+    let home = home_jwt.is_some();
     // Go main: PGSTORE_*, OBJECTSTORE_* or GITSTORE_* keep config and auth files in a
     // remote store, served from its local mirror (never in Home mode).
     let env = |key: &str| std::env::var(key).ok();
@@ -491,18 +498,30 @@ async fn run(args: Args) -> anyhow::Result<()> {
         None => PathBuf::from(&args.config),
     };
     let cloud = std::env::var("DEPLOY").is_ok_and(|v| v == "cloud");
-    let mut config = load_config(&config_path, cloud)?;
+    // Go main: with a Home JWT the config comes from Home; the config path stays for
+    // downstream components but need not exist.
+    let (mut config, home_config) = match &home_jwt {
+        Some(jwt) => match home::bootstrap(jwt, args.home_disable_cluster_discovery).await {
+            Ok((home_config, config)) => (config, Some(home_config)),
+            Err(line) => {
+                tracing::error!("{line}");
+                return Ok(());
+            }
+        },
+        None => (load_config(&config_path, cloud)?, None),
+    };
     if let Some(store) = &store {
         config.auth_dir = store.auth_dir.clone();
         tracing::info!("{}", store.enabled);
     }
-    let config_present = !cloud || cloud_config_present(&config_path, &config);
+    let config_present = match &home_config {
+        // Go: `configFileExists = cfg.Port != 0` for a config loaded from Home.
+        Some(_) => !cloud || config.port != 0,
+        None => !cloud || cloud_config_present(&config_path, &config),
+    };
     // Go ConfigureLogOutput and SetLogLevel, before any login command.
     cpa_server::logging::configure(&config);
     tracing::info!("{}", banner());
-    if home {
-        unsupported("Home control plane mode (-home-jwt)");
-    }
     let before = store.as_ref().map(|store| auth_files(&store.auth_dir));
     let ran = command(&args, &config).await;
     if !matches!(ran, Ok(false)) {
@@ -522,7 +541,7 @@ async fn run(args: Args) -> anyhow::Result<()> {
         eprintln!("TUI error: the terminal UI is not available in this build yet");
         return Ok(());
     }
-    serve(config, config_path, args.password, args.local_model, store).await
+    serve(config, config_path, args.password, args.local_model, store, home_config).await
 }
 
 /// The top-level `*.json` files of the auth directory.
@@ -638,12 +657,17 @@ async fn serve(
     password: String,
     local_model: bool,
     store: Option<cpa_store::Store>,
+    home_config: Option<cpa_home::HomeConfig>,
 ) -> anyhow::Result<()> {
-    if config.api_keys.is_empty() {
+    if config.api_keys.is_empty() && home_config.is_none() {
         tracing::warn!("access.api-keys is empty: the proxy API is open to anyone who can reach it");
     }
-    // Auth-dir files and config API keys, synthesized as Go's watcher does.
-    let credentials = cpa_core::config::credentials::load(&config);
+    // Auth-dir files and config API keys, synthesized as Go's watcher does. Home mode
+    // runs on credentials Home dispatches per request.
+    let credentials = match home_config {
+        Some(_) => Vec::new(),
+        None => cpa_core::config::credentials::load(&config),
+    };
     tracing::info!(credentials = credentials.len(), "credentials loaded");
     let listener =
         bind(&config.host, config.port).with_context(|| format!("binding {}:{}", config.host, config.port))?;
@@ -663,8 +687,15 @@ async fn serve(
     if let Some(cooldown) = store.as_ref().and_then(|store| store.cooldown.clone()) {
         rt.set_cooldown_backend(cooldown);
     }
-    // Go `startModelCatalogUpdaters`; Home mode (-home-jwt) is refused above.
-    cpa_server::model_updater::start(rt.local_model(), false);
+    // Go `startModelCatalogUpdaters`.
+    cpa_server::model_updater::start(rt.local_model(), home_config.is_some());
+    let home = home_config.map(|home_config| {
+        let dispatcher = Arc::new(home::Dispatcher::new(&rt));
+        rt.set_remote_dispatch(Some(dispatcher.clone()));
+        let shutdown = tokio_util::sync::CancellationToken::new();
+        let task = home::spawn_subscriber(home_config, rt.clone(), dispatcher, shutdown.clone());
+        (shutdown, task)
+    });
     // Translators and thinking validation read model capabilities through the global
     // overlay; without it they see only the static catalog.
     cpa_server::install_registry(&rt);
@@ -675,33 +706,65 @@ async fn serve(
         ..Default::default()
     };
     let management = cpa_server::management::Management::with_options(rt.clone(), config_path, options);
-    let _watcher = cpa_server::watching::start(&management);
+    // Go applies the plugin config before serving; later publishes resync the host.
+    cpa_server::plugins::start(&rt).await;
+    // Home mode: the config comes from Home, and management answers 404 (Go
+    // `managementAvailable`).
+    let _watcher = home.is_none().then(|| cpa_server::watching::start(&management));
     let advertiser = {
         let rt = rt.clone();
         // The served transport decides `tls=`: HTTPS exactly when server.tls loaded.
         discovery::advertise::Advertiser::spawn(move || rt.config(), tls.is_some())
     };
     // Go applies its CORS middleware to every route, not only management.
-    let app = router(rt)
-        .merge(cpa_server::management::router(management.clone()))
-        .layer(axum::middleware::from_fn(cpa_server::management::cors));
+    let app = match &home {
+        Some(_) => cpa_server::router(rt.clone()).layer(axum::middleware::from_fn_with_state(
+            rt.clone(),
+            cpa_server::remote::gate,
+        )),
+        None => cpa_server::app(rt.clone(), cpa_server::management::router(management.clone())),
+    }
+    .layer(axum::middleware::from_fn(cpa_server::management::cors));
+    let app = cpa_server::observability::router(&rt, app);
     // Go's listener also serves the Redis protocol (usage queue) to management clients.
-    let mut server = Box::pin(cpa_server::listener::serve_with_resp(
-        listener,
-        app,
-        tls,
-        Some(management),
-    ));
+    // ponytail: in Home mode Go first answers "ERR redis usage output disabled in home
+    // mode"; here the RESP connection closes without it, as with management disabled.
+    let resp = home.is_none().then_some(management);
+    let mut server = Box::pin(cpa_server::listener::serve_with_resp(listener, app, tls, resp));
+    let mut home = home;
+    // Go `cancelServiceRun`: a Home subscriber that stops on its own (an unsafe drain or
+    // an unsettled dispatch) stops the service; executions it could not drain end with
+    // the process instead of running on unaccounted.
+    let home_stopped = async {
+        match home.as_mut() {
+            Some((_, task)) => {
+                let _ = task.await;
+            }
+            None => std::future::pending::<()>().await,
+        }
+    };
+    let mut home_failed = false;
     let served = tokio::select! {
-        r = &mut server => r,
+        r = &mut server => r.map_err(anyhow::Error::from),
         _ = shutdown_signal() => Ok(()),
+        _ = home_stopped => {
+            home_failed = true;
+            Err(anyhow::anyhow!("home subscriber stopped; shutting down"))
+        }
     };
     // Go's Service.Shutdown sends the mDNS goodbye (shutdownDiscovery) before
     // Server.Stop, which closes the HTTP server without draining (`http.Server.Close`);
     // dropping the server future afterwards does the same.
     advertiser.shutdown().await;
     drop(server);
-    Ok(served?)
+    // Go drains the Home registry and flushes releases before exiting.
+    if let Some((shutdown, task)) = home
+        && !home_failed
+    {
+        shutdown.cancel();
+        let _ = task.await;
+    }
+    served
 }
 
 #[cfg(test)]

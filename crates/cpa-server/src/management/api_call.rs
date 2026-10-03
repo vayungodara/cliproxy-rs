@@ -15,8 +15,8 @@ use cpa_core::credential::Credential;
 use cpa_exec::proxy::{self, GoHeaders, Proxy, Route};
 use serde_json::{Map, Value, json};
 
+use super::Management;
 use super::auth_files::{auth_kind, fail};
-use super::{Management, json as respond};
 
 const TIMEOUT: Duration = Duration::from_secs(60);
 /// ponytail: Go reads the upstream body without a bound; 64 MiB keeps a hostile
@@ -344,7 +344,8 @@ pub(crate) async fn api_call(State(state): State<Arc<Management>>, body: Bytes) 
         _ => return fail(StatusCode::BAD_GATEWAY, "failed to read response"),
     };
     let header: Map<String, Value> = header.into_iter().map(|(k, v)| (k, Value::Array(v))).collect();
-    respond(
+    // apiCallResponse struct: status_code, header, body.
+    super::json_ordered(
         StatusCode::OK,
         &json!({
             "status_code": status,

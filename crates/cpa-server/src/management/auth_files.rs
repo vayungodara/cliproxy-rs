@@ -90,6 +90,11 @@ pub(super) fn reply(status: StatusCode, pairs: impl IntoIterator<Item = (&'stati
     respond(status, &h(pairs))
 }
 
+/// [`reply`] for bodies holding Go structs (see [`super::json_ordered`]).
+pub(super) fn reply_ordered(status: StatusCode, pairs: impl IntoIterator<Item = (&'static str, Value)>) -> Response {
+    super::json_ordered(status, &h(pairs))
+}
+
 pub(super) fn fail(status: StatusCode, message: impl Into<String>) -> Response {
     reply(status, [("error", Value::from(message.into()))])
 }
@@ -121,8 +126,9 @@ fn local(t: SystemTime) -> String {
 fn quota_observation(state: &Management, c: &Credential) -> Value {
     let snapshot = match c.provider.trim().to_lowercase().as_str() {
         "codex" => state.rt.executors.codex.quota().snapshot(&c.id),
-        // ponytail: Go also observes claude and devin response headers; their
-        // executors keep no snapshots yet, so they report none.
+        "claude" => state.rt.executors.claude.quota().snapshot(&c.id),
+        // ponytail: Go also observes devin response headers; that executor's snapshots
+        // are not wired here yet, so it reports none.
         _ => None,
     };
     match snapshot {
@@ -472,7 +478,7 @@ fn entry(state: &Management, c: &Credential) -> Option<BTreeMap<&'static str, Va
     }
     if let Some(probe) = c.metadata.get("quota_probe").filter(|v| !v.is_null()) {
         e.insert("supports_quota", true.into());
-        e.insert("quota_probe", probe.clone());
+        e.insert("quota_probe", super::sorted_keys(probe));
     }
     let email = meta_str(c, "email").map(str::trim).unwrap_or_default();
     if !email.is_empty() {
@@ -554,7 +560,7 @@ fn entry(state: &Management, c: &Credential) -> Option<BTreeMap<&'static str, Va
             }
         }
         if !out.is_empty() {
-            e.insert("id_token", Value::Object(out));
+            e.insert("id_token", super::sorted_keys(&Value::Object(out)));
         }
     }
     let priority = c
@@ -657,7 +663,7 @@ pub(crate) async fn list(State(state): State<Arc<Management>>, RawQuery(raw): Ra
             .filter_map(|c| entry(&state, c).map(|e| (file_name(c).unwrap_or_else(|| c.id.clone()), entry_value(e))))
             .collect();
         files.sort_by_key(|(n, _)| n.to_lowercase());
-        return reply(
+        return reply_ordered(
             StatusCode::OK,
             [
                 ("observed_at", observed.into()),
@@ -681,7 +687,7 @@ pub(crate) async fn list(State(state): State<Arc<Management>>, RawQuery(raw): Ra
         .iter()
         .filter_map(|c| entry(&state, c).map(entry_value))
         .collect();
-    reply(
+    reply_ordered(
         StatusCode::OK,
         [
             ("observed_at", observed.into()),
@@ -728,18 +734,16 @@ pub(crate) async fn download(State(state): State<Arc<Management>>, RawQuery(raw)
 /// Exclusive 0600 temp file, then rename: a crash never leaves a partial credential.
 pub(super) fn write_file(dst: &Path, data: &[u8]) -> std::io::Result<()> {
     use std::io::Write;
-    use std::os::unix::fs::OpenOptionsExt;
     let dir = dst.parent().unwrap_or(Path::new("."));
     let name = dst.file_name().unwrap_or_default().to_string_lossy();
     let mut n = 0u32;
     let (tmp, mut file) = loop {
         let tmp = dir.join(format!(".{name}.{}.{n}.upload", std::process::id()));
-        match std::fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .mode(0o600)
-            .open(&tmp)
-        {
+        let mut options = std::fs::OpenOptions::new();
+        options.write(true).create_new(true);
+        #[cfg(unix)]
+        std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o600);
+        match options.open(&tmp) {
             Ok(f) => break (tmp, f),
             Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => n += 1,
             Err(e) => return Err(e),
@@ -1539,7 +1543,7 @@ pub(crate) async fn model_definitions(UrlPath(channel): UrlPath<String>) -> Resp
         return fail(StatusCode::BAD_REQUEST, "channel is required");
     }
     match channel_models(&channel) {
-        Some(models) => reply(
+        Some(models) => reply_ordered(
             StatusCode::OK,
             [
                 ("channel", channel.to_lowercase().into()),

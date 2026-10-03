@@ -4,7 +4,6 @@
 //! Go's, so both implementations can share one database.
 
 use std::collections::HashMap;
-use std::os::unix::fs::DirBuilderExt;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex as StdMutex, PoisonError};
 use std::time::{Duration, SystemTime};
@@ -52,7 +51,7 @@ fn quote_identifier(identifier: &str) -> String {
 }
 
 fn mkdir_0700(path: &Path) -> std::io::Result<()> {
-    std::fs::DirBuilder::new().recursive(true).mode(0o700).create(path)
+    crate::private_fs::create_dir_all(path)
 }
 
 fn db_error(context: &str, error: tokio_postgres::Error) -> anyhow::Error {

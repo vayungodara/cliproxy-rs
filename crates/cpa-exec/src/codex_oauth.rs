@@ -264,9 +264,11 @@ impl CodexOAuth {
         if status != 200 {
             return Err(token_error(status, &body));
         }
-        let parsed: TokenResponse = serde_json::from_slice(&body).map_err(|e| {
+        // Go appends the decoder error (`failed to parse token response: %w`); serde's
+        // diagnostics can quote response values such as tokens, so only the prefix is kept.
+        let parsed: TokenResponse = serde_json::from_slice(&body).map_err(|_| {
             if exchange {
-                oauth_error(502, &format!("failed to parse token response: {e}"))
+                oauth_error(502, "failed to parse token response")
             } else {
                 oauth_error(502, "failed to parse codex token response")
             }

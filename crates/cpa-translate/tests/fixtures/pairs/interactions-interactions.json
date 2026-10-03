@@ -794,6 +794,42 @@
      "{\"interaction\":{\"steps\":{\"k\":{\"type\":\"model_output\",\"content\":\"in object\"}}},\"steps\":[{\"type\":\"model_output\",\"content\":\"outer\"}]}"
     ]
    ]
+  },
+  {
+   "name": "TestSummaryIntentFinalPipeline:162",
+   "path": "request",
+   "model": "level-model",
+   "stream": true,
+   "input": "{\"model\":\"level-model\",\"generation_config\":{\"thinking_level\":\"high\"},\"input\":\"hi\"}",
+   "outputs": [
+    [
+     "{\"model\":\"level-model\",\"generation_config\":{\"thinking_level\":\"high\"},\"input\":\"hi\"}"
+    ]
+   ]
+  },
+  {
+   "name": "TestSummaryIntentFinalPipeline:162#2",
+   "path": "request",
+   "model": "level-model",
+   "stream": true,
+   "input": "{\"model\":\"level-model\",\"generation_config\":{\"thinking_level\":\"high\",\"thinking_summaries\":\"auto\"},\"input\":\"hi\"}",
+   "outputs": [
+    [
+     "{\"model\":\"level-model\",\"generation_config\":{\"thinking_level\":\"high\",\"thinking_summaries\":\"auto\"},\"input\":\"hi\"}"
+    ]
+   ]
+  },
+  {
+   "name": "TestSummaryIntentFinalPipeline:162#3",
+   "path": "request",
+   "model": "gemini-toggle-mixed-model",
+   "stream": true,
+   "input": "{\"model\":\"gemini-toggle-mixed-model(none)\",\"generation_config\":{\"thinking_summaries\":\"auto\"},\"input\":\"hi\"}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-toggle-mixed-model(none)\",\"generation_config\":{\"thinking_summaries\":\"auto\"},\"input\":\"hi\"}"
+    ]
+   ]
   }
  ],
  "token_count": false,

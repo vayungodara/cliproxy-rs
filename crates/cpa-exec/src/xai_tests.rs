@@ -18,7 +18,7 @@ const FIXTURE: &str = include_str!("../tests/fixtures/xai_go.json");
 
 /// Shared helpers whose real port has not landed: scenarios that need them are skipped
 /// and listed, so integration can remove an entry and see the scenario run.
-const PENDING: &[&str] = &["apply_patch_bridge"];
+const PENDING: &[&str] = &[];
 
 /// One-shot raw HTTP/1.1 capture server answering with the scripted response.
 struct Mock {
@@ -341,5 +341,5 @@ async fn go_reference_scenarios() {
         failures.len(),
         failures.join("\n\n")
     );
-    assert_eq!(skipped, vec!["apply_patch_custom_tool_bridged"]);
+    assert_eq!(skipped, Vec::<&str>::new());
 }

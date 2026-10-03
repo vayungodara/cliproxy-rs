@@ -120,6 +120,12 @@ struct Snapshot(u64);
 #[derive(Default)]
 pub(crate) struct ReplayCache(Mutex<Inner>);
 
+/// The process's cache, shared by every executor like Go's package-level cache.
+pub(crate) fn shared() -> Arc<ReplayCache> {
+    static SHARED: std::sync::OnceLock<Arc<ReplayCache>> = std::sync::OnceLock::new();
+    SHARED.get_or_init(Arc::default).clone()
+}
+
 impl ReplayCache {
     fn lock(&self) -> std::sync::MutexGuard<'_, Inner> {
         self.0.lock().unwrap_or_else(std::sync::PoisonError::into_inner)
@@ -354,27 +360,9 @@ pub(crate) fn prepare(cache: &Arc<ReplayCache>, gate: &Gate<'_>, req: &mut ExecR
     })
 }
 
-/// `Auth.AuthKind() == AuthKindAPIKey`: a recognised attribute kind, then a recognised
-/// metadata kind, then a non-empty `api_key` attribute.
+/// `Auth.AuthKind() == AuthKindAPIKey`.
 fn auth_kind_is_api_key(credential: &Credential) -> bool {
-    let normalize = |kind: &str| match kind.trim().to_lowercase().as_str() {
-        "apikey" | "api_key" | "api-key" => Some(true),
-        "oauth" | "oauth2" => Some(false),
-        _ => None,
-    };
-    let attribute = credential
-        .attributes
-        .get("auth_kind")
-        .map(String::as_str)
-        .unwrap_or_default();
-    normalize(attribute)
-        .or_else(|| normalize(credential.str("auth_kind").unwrap_or_default()))
-        .unwrap_or_else(|| {
-            credential
-                .attributes
-                .get("api_key")
-                .is_some_and(|k| !k.trim().is_empty())
-        })
+    cpa_core::registry::dynamic::auth_kind(credential) == Some("apikey")
 }
 
 /// `shouldClearKimiThinkingReplayAfterError`: only an upstream 400 or 422 classified as
