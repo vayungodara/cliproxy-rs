@@ -21,10 +21,20 @@ Paths:
 
 - `request`: `sdk/translator.TranslateRequest` (pair plus summary pipeline), compared
   with `cpa_translate::translate_request`.
-- `request_compat`: `ConvertOpenAIRequestToClaudeWithCompat`.
-- `non_stream`, `token_count`: `TranslateNonStream`, `TranslateTokenCount`.
-- `stream`: `TranslateStream` per input line, compared with the pair's `go_stream`.
-  Event splitting and client framing are covered by unit tests in `src/stream.rs`.
+- `request_compat`: the `...WithCompat` request converters (OpenAI -> Claude, Claude ->
+  OpenAI, Gemini, Codex and Interactions), compared with the `*_with_compat` exports.
+- `request_envelope`: `TranslateRequestEnvelope` with a `ModelInfo` whose native web
+  search is on, compared with `cpa_translate::translate_request_envelope`.
+- `non_stream`, `token_count`: `TranslateNonStream`, `TranslateTokenCount`. A non-stream
+  fixture with `tool_error` and empty output is Go's nil apply_patch result.
+- `stream`: `TranslateStream` per input line, compared with the pair's `go_stream`
+  (`finalize` adds `FinalizeToolInput` at transport end). Event splitting and client
+  framing are covered by unit tests in `src/stream.rs`.
+
+`sdk` (in place of the pair list) writes `../fixtures/sdk_registry.json` from `sdk.go`:
+which of the 49 format pairs Go registers (request, stream, non-stream, TokenCount), and
+`TranslateRequest`/`TranslateTokenCount` results for pairs without a translator (the
+model-rewrite fallback). `tests/sdk_translator.rs` replays it.
 
 Regenerate with a temporary module whose import path sits inside the reference module's
 internal-package boundary. The reference checkout stays unchanged:
@@ -40,12 +50,20 @@ cp "$crate"/tests/reference/*.go "$tmp/"
   go mod edit -go=1.26.0 -require=github.com/router-for-me/CLIProxyAPI/v8@v8.0.0
   go mod edit -replace=github.com/router-for-me/CLIProxyAPI/v8="$reference"
   go mod tidy
-  go run . "$reference" "$crate/tests/fixtures/pairs" openai:claude openai:openai openai-response:codex openai-response:claude
+  pairs=$(ls "$crate"/tests/fixtures/pairs | sed 's/\.json$//' | python3 -c 'import sys
+names = ["openai-response", "openai", "claude", "gemini", "codex", "antigravity", "interactions"]
+for line in sys.stdin:
+    s = line.strip()
+    c = next(n for n in names if s.startswith(n + "-"))
+    print(c + ":" + s[len(c) + 1:])')
+  go run . "$reference" "$crate/tests/fixtures/pairs" $pairs
+  go run . "$reference" "$crate/tests/fixtures/pairs" sdk
 )
 rm -rf "$tmp"
 ```
 
-List every ported pair (`client:upstream`, Go format names) on the command line.
+The pair list (`client:upstream`, Go format names) is every registered pair; the generator
+panics on a pair Go does not register.
 
 Known gaps: the extraction does not interpret dynamic table expressions, registry mocks
 or assertions about Go slice backing addresses, and plugin hooks (M6) are not exercised.

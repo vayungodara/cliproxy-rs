@@ -623,6 +623,10 @@ func main() {
 	if len(os.Args) < 4 {
 		panic("usage: generate REFERENCE_ROOT OUTPUT_DIR client:upstream...")
 	}
+	if os.Args[3] == "sdk" {
+		sdkRegistry(os.Args[1], os.Args[2])
+		return
+	}
 	regs := registrations(os.Args[1])
 	for _, want := range os.Args[3:] {
 		var r *registration

@@ -1,0 +1,772 @@
+{
+ "registrations": [
+  {
+   "client": "openai",
+   "upstream": "openai",
+   "request": true,
+   "stream": true,
+   "non_stream": true,
+   "token_count": false
+  },
+  {
+   "client": "openai",
+   "upstream": "openai-response",
+   "request": false,
+   "stream": false,
+   "non_stream": false,
+   "token_count": false
+  },
+  {
+   "client": "openai",
+   "upstream": "claude",
+   "request": true,
+   "stream": true,
+   "non_stream": true,
+   "token_count": false
+  },
+  {
+   "client": "openai",
+   "upstream": "gemini",
+   "request": true,
+   "stream": true,
+   "non_stream": true,
+   "token_count": false
+  },
+  {
+   "client": "openai",
+   "upstream": "codex",
+   "request": true,
+   "stream": true,
+   "non_stream": true,
+   "token_count": false
+  },
+  {
+   "client": "openai",
+   "upstream": "antigravity",
+   "request": true,
+   "stream": true,
+   "non_stream": true,
+   "token_count": false
+  },
+  {
+   "client": "openai",
+   "upstream": "interactions",
+   "request": true,
+   "stream": true,
+   "non_stream": true,
+   "token_count": false
+  },
+  {
+   "client": "openai-response",
+   "upstream": "openai",
+   "request": true,
+   "stream": true,
+   "non_stream": true,
+   "token_count": false
+  },
+  {
+   "client": "openai-response",
+   "upstream": "openai-response",
+   "request": false,
+   "stream": false,
+   "non_stream": false,
+   "token_count": false
+  },
+  {
+   "client": "openai-response",
+   "upstream": "claude",
+   "request": true,
+   "stream": true,
+   "non_stream": true,
+   "token_count": false
+  },
+  {
+   "client": "openai-response",
+   "upstream": "gemini",
+   "request": true,
+   "stream": true,
+   "non_stream": true,
+   "token_count": false
+  },
+  {
+   "client": "openai-response",
+   "upstream": "codex",
+   "request": true,
+   "stream": true,
+   "non_stream": true,
+   "token_count": false
+  },
+  {
+   "client": "openai-response",
+   "upstream": "antigravity",
+   "request": true,
+   "stream": true,
+   "non_stream": true,
+   "token_count": false
+  },
+  {
+   "client": "openai-response",
+   "upstream": "interactions",
+   "request": true,
+   "stream": true,
+   "non_stream": true,
+   "token_count": false
+  },
+  {
+   "client": "claude",
+   "upstream": "openai",
+   "request": true,
+   "stream": true,
+   "non_stream": true,
+   "token_count": true
+  },
+  {
+   "client": "claude",
+   "upstream": "openai-response",
+   "request": false,
+   "stream": false,
+   "non_stream": false,
+   "token_count": false
+  },
+  {
+   "client": "claude",
+   "upstream": "claude",
+   "request": false,
+   "stream": false,
+   "non_stream": false,
+   "token_count": false
+  },
+  {
+   "client": "claude",
+   "upstream": "gemini",
+   "request": true,
+   "stream": true,
+   "non_stream": true,
+   "token_count": true
+  },
+  {
+   "client": "claude",
+   "upstream": "codex",
+   "request": true,
+   "stream": true,
+   "non_stream": true,
+   "token_count": true
+  },
+  {
+   "client": "claude",
+   "upstream": "antigravity",
+   "request": true,
+   "stream": true,
+   "non_stream": true,
+   "token_count": true
+  },
+  {
+   "client": "claude",
+   "upstream": "interactions",
+   "request": true,
+   "stream": true,
+   "non_stream": true,
+   "token_count": false
+  },
+  {
+   "client": "gemini",
+   "upstream": "openai",
+   "request": true,
+   "stream": true,
+   "non_stream": true,
+   "token_count": true
+  },
+  {
+   "client": "gemini",
+   "upstream": "openai-response",
+   "request": false,
+   "stream": false,
+   "non_stream": false,
+   "token_count": false
+  },
+  {
+   "client": "gemini",
+   "upstream": "claude",
+   "request": true,
+   "stream": true,
+   "non_stream": true,
+   "token_count": true
+  },
+  {
+   "client": "gemini",
+   "upstream": "gemini",
+   "request": true,
+   "stream": true,
+   "non_stream": true,
+   "token_count": true
+  },
+  {
+   "client": "gemini",
+   "upstream": "codex",
+   "request": true,
+   "stream": true,
+   "non_stream": true,
+   "token_count": true
+  },
+  {
+   "client": "gemini",
+   "upstream": "antigravity",
+   "request": true,
+   "stream": true,
+   "non_stream": true,
+   "token_count": true
+  },
+  {
+   "client": "gemini",
+   "upstream": "interactions",
+   "request": true,
+   "stream": true,
+   "non_stream": true,
+   "token_count": false
+  },
+  {
+   "client": "codex",
+   "upstream": "openai",
+   "request": false,
+   "stream": false,
+   "non_stream": false,
+   "token_count": false
+  },
+  {
+   "client": "codex",
+   "upstream": "openai-response",
+   "request": false,
+   "stream": false,
+   "non_stream": false,
+   "token_count": false
+  },
+  {
+   "client": "codex",
+   "upstream": "claude",
+   "request": false,
+   "stream": false,
+   "non_stream": false,
+   "token_count": false
+  },
+  {
+   "client": "codex",
+   "upstream": "gemini",
+   "request": false,
+   "stream": false,
+   "non_stream": false,
+   "token_count": false
+  },
+  {
+   "client": "codex",
+   "upstream": "codex",
+   "request": false,
+   "stream": false,
+   "non_stream": false,
+   "token_count": false
+  },
+  {
+   "client": "codex",
+   "upstream": "antigravity",
+   "request": false,
+   "stream": false,
+   "non_stream": false,
+   "token_count": false
+  },
+  {
+   "client": "codex",
+   "upstream": "interactions",
+   "request": false,
+   "stream": false,
+   "non_stream": false,
+   "token_count": false
+  },
+  {
+   "client": "antigravity",
+   "upstream": "openai",
+   "request": false,
+   "stream": false,
+   "non_stream": false,
+   "token_count": false
+  },
+  {
+   "client": "antigravity",
+   "upstream": "openai-response",
+   "request": false,
+   "stream": false,
+   "non_stream": false,
+   "token_count": false
+  },
+  {
+   "client": "antigravity",
+   "upstream": "claude",
+   "request": false,
+   "stream": false,
+   "non_stream": false,
+   "token_count": false
+  },
+  {
+   "client": "antigravity",
+   "upstream": "gemini",
+   "request": false,
+   "stream": false,
+   "non_stream": false,
+   "token_count": false
+  },
+  {
+   "client": "antigravity",
+   "upstream": "codex",
+   "request": false,
+   "stream": false,
+   "non_stream": false,
+   "token_count": false
+  },
+  {
+   "client": "antigravity",
+   "upstream": "antigravity",
+   "request": false,
+   "stream": false,
+   "non_stream": false,
+   "token_count": false
+  },
+  {
+   "client": "antigravity",
+   "upstream": "interactions",
+   "request": false,
+   "stream": false,
+   "non_stream": false,
+   "token_count": false
+  },
+  {
+   "client": "interactions",
+   "upstream": "openai",
+   "request": true,
+   "stream": true,
+   "non_stream": true,
+   "token_count": false
+  },
+  {
+   "client": "interactions",
+   "upstream": "openai-response",
+   "request": true,
+   "stream": true,
+   "non_stream": true,
+   "token_count": false
+  },
+  {
+   "client": "interactions",
+   "upstream": "claude",
+   "request": true,
+   "stream": true,
+   "non_stream": true,
+   "token_count": false
+  },
+  {
+   "client": "interactions",
+   "upstream": "gemini",
+   "request": true,
+   "stream": true,
+   "non_stream": true,
+   "token_count": false
+  },
+  {
+   "client": "interactions",
+   "upstream": "codex",
+   "request": true,
+   "stream": true,
+   "non_stream": true,
+   "token_count": false
+  },
+  {
+   "client": "interactions",
+   "upstream": "antigravity",
+   "request": true,
+   "stream": true,
+   "non_stream": true,
+   "token_count": false
+  },
+  {
+   "client": "interactions",
+   "upstream": "interactions",
+   "request": true,
+   "stream": true,
+   "non_stream": true,
+   "token_count": false
+  }
+ ],
+ "vectors": [
+  {
+   "name": "prefixed model is rewritten",
+   "path": "request",
+   "client": "claude",
+   "upstream": "claude",
+   "model": "gpt-5-mini",
+   "input": "{\"model\":\"copilot/gpt-5-mini\",\"input\":\"ping\"}",
+   "output": "{\"model\":\"gpt-5-mini\",\"input\":\"ping\"}"
+  },
+  {
+   "name": "matching model is left unchanged",
+   "path": "request",
+   "client": "claude",
+   "upstream": "claude",
+   "model": "gpt-5-mini",
+   "input": "{\"model\":\"gpt-5-mini\",\"input\":\"ping\"}",
+   "output": "{\"model\":\"gpt-5-mini\",\"input\":\"ping\"}"
+  },
+  {
+   "name": "empty model leaves payload unchanged",
+   "path": "request",
+   "client": "claude",
+   "upstream": "claude",
+   "input": "{\"model\":\"copilot/gpt-5-mini\",\"input\":\"ping\"}",
+   "output": "{\"model\":\"copilot/gpt-5-mini\",\"input\":\"ping\"}"
+  },
+  {
+   "name": "deeply prefixed model is rewritten",
+   "path": "request",
+   "client": "claude",
+   "upstream": "claude",
+   "model": "gpt-5.3-codex",
+   "input": "{\"model\":\"team/gpt-5.3-codex\",\"stream\":true}",
+   "output": "{\"model\":\"gpt-5.3-codex\",\"stream\":true}"
+  },
+  {
+   "name": "prefixed model is rewritten",
+   "path": "request",
+   "client": "openai-response",
+   "upstream": "openai-response",
+   "model": "gpt-5-mini",
+   "input": "{\"model\":\"copilot/gpt-5-mini\",\"input\":\"ping\"}",
+   "output": "{\"model\":\"gpt-5-mini\",\"input\":\"ping\"}"
+  },
+  {
+   "name": "matching model is left unchanged",
+   "path": "request",
+   "client": "openai-response",
+   "upstream": "openai-response",
+   "model": "gpt-5-mini",
+   "input": "{\"model\":\"gpt-5-mini\",\"input\":\"ping\"}",
+   "output": "{\"model\":\"gpt-5-mini\",\"input\":\"ping\"}"
+  },
+  {
+   "name": "empty model leaves payload unchanged",
+   "path": "request",
+   "client": "openai-response",
+   "upstream": "openai-response",
+   "input": "{\"model\":\"copilot/gpt-5-mini\",\"input\":\"ping\"}",
+   "output": "{\"model\":\"copilot/gpt-5-mini\",\"input\":\"ping\"}"
+  },
+  {
+   "name": "deeply prefixed model is rewritten",
+   "path": "request",
+   "client": "openai-response",
+   "upstream": "openai-response",
+   "model": "gpt-5.3-codex",
+   "input": "{\"model\":\"team/gpt-5.3-codex\",\"stream\":true}",
+   "output": "{\"model\":\"gpt-5.3-codex\",\"stream\":true}"
+  },
+  {
+   "name": "prefixed model is rewritten",
+   "path": "request",
+   "client": "codex",
+   "upstream": "codex",
+   "model": "gpt-5-mini",
+   "input": "{\"model\":\"copilot/gpt-5-mini\",\"input\":\"ping\"}",
+   "output": "{\"model\":\"gpt-5-mini\",\"input\":\"ping\"}"
+  },
+  {
+   "name": "matching model is left unchanged",
+   "path": "request",
+   "client": "codex",
+   "upstream": "codex",
+   "model": "gpt-5-mini",
+   "input": "{\"model\":\"gpt-5-mini\",\"input\":\"ping\"}",
+   "output": "{\"model\":\"gpt-5-mini\",\"input\":\"ping\"}"
+  },
+  {
+   "name": "empty model leaves payload unchanged",
+   "path": "request",
+   "client": "codex",
+   "upstream": "codex",
+   "input": "{\"model\":\"copilot/gpt-5-mini\",\"input\":\"ping\"}",
+   "output": "{\"model\":\"copilot/gpt-5-mini\",\"input\":\"ping\"}"
+  },
+  {
+   "name": "deeply prefixed model is rewritten",
+   "path": "request",
+   "client": "codex",
+   "upstream": "codex",
+   "model": "gpt-5.3-codex",
+   "input": "{\"model\":\"team/gpt-5.3-codex\",\"stream\":true}",
+   "output": "{\"model\":\"gpt-5.3-codex\",\"stream\":true}"
+  },
+  {
+   "name": "prefixed model is rewritten",
+   "path": "request",
+   "client": "gemini",
+   "upstream": "openai-response",
+   "model": "gpt-5-mini",
+   "input": "{\"model\":\"copilot/gpt-5-mini\",\"input\":\"ping\"}",
+   "output": "{\"model\":\"gpt-5-mini\",\"input\":\"ping\"}"
+  },
+  {
+   "name": "matching model is left unchanged",
+   "path": "request",
+   "client": "gemini",
+   "upstream": "openai-response",
+   "model": "gpt-5-mini",
+   "input": "{\"model\":\"gpt-5-mini\",\"input\":\"ping\"}",
+   "output": "{\"model\":\"gpt-5-mini\",\"input\":\"ping\"}"
+  },
+  {
+   "name": "empty model leaves payload unchanged",
+   "path": "request",
+   "client": "gemini",
+   "upstream": "openai-response",
+   "input": "{\"model\":\"copilot/gpt-5-mini\",\"input\":\"ping\"}",
+   "output": "{\"model\":\"copilot/gpt-5-mini\",\"input\":\"ping\"}"
+  },
+  {
+   "name": "deeply prefixed model is rewritten",
+   "path": "request",
+   "client": "gemini",
+   "upstream": "openai-response",
+   "model": "gpt-5.3-codex",
+   "input": "{\"model\":\"team/gpt-5.3-codex\",\"stream\":true}",
+   "output": "{\"model\":\"gpt-5.3-codex\",\"stream\":true}"
+  },
+  {
+   "name": "summary is not mixed into the fallback",
+   "path": "request",
+   "client": "openai-response",
+   "upstream": "openai-response",
+   "model": "gemini-3.6-flash",
+   "input": "{\"model\":\"gemini-3.6-flash\",\"reasoning\":{\"summary\":\"auto\"},\"input\":\"hi\"}",
+   "output": "{\"model\":\"gemini-3.6-flash\",\"reasoning\":{\"summary\":\"auto\"},\"input\":\"hi\"}"
+  },
+  {
+   "name": "missing model is appended",
+   "path": "request",
+   "client": "claude",
+   "upstream": "claude",
+   "model": "m",
+   "input": "{\"input\":\"x\"}",
+   "output": "{\"input\":\"x\",\"model\":\"m\"}"
+  },
+  {
+   "name": "nested model is not the top-level model",
+   "path": "request",
+   "client": "claude",
+   "upstream": "claude",
+   "model": "m",
+   "input": "{\"meta\":{\"model\":\"m\"}}",
+   "output": "{\"meta\":{\"model\":\"m\"},\"model\":\"m\"}"
+  },
+  {
+   "name": "null model",
+   "path": "request",
+   "client": "claude",
+   "upstream": "claude",
+   "model": "m",
+   "input": "{\"model\":null}",
+   "output": "{\"model\":\"m\"}"
+  },
+  {
+   "name": "integer model equal as string",
+   "path": "request",
+   "client": "claude",
+   "upstream": "claude",
+   "model": "5",
+   "input": "{\"model\":5}",
+   "output": "{\"model\":5}"
+  },
+  {
+   "name": "integer model differs from float text",
+   "path": "request",
+   "client": "claude",
+   "upstream": "claude",
+   "model": "5.0",
+   "input": "{\"model\":5}",
+   "output": "{\"model\":\"5.0\"}"
+  },
+  {
+   "name": "exponent model stringifies",
+   "path": "request",
+   "client": "claude",
+   "upstream": "claude",
+   "model": "1000",
+   "input": "{\"model\":1e3}",
+   "output": "{\"model\":1e3}"
+  },
+  {
+   "name": "boolean model",
+   "path": "request",
+   "client": "claude",
+   "upstream": "claude",
+   "model": "true",
+   "input": "{\"model\":true}",
+   "output": "{\"model\":true}"
+  },
+  {
+   "name": "object model",
+   "path": "request",
+   "client": "claude",
+   "upstream": "claude",
+   "model": "m",
+   "input": "{\"model\":{\"id\":\"m\"}}",
+   "output": "{\"model\":\"m\"}"
+  },
+  {
+   "name": "escaped model compares unescaped",
+   "path": "request",
+   "client": "claude",
+   "upstream": "claude",
+   "model": "ab",
+   "input": "{\"model\":\"a\\u0062\"}",
+   "output": "{\"model\":\"a\\u0062\"}"
+  },
+  {
+   "name": "plain ASCII model with html stays raw",
+   "path": "request",
+   "client": "claude",
+   "upstream": "claude",
+   "model": "a\u003cb\u003e\u0026c",
+   "input": "{\"model\":\"x\"}",
+   "output": "{\"model\":\"a\u003cb\u003e\u0026c\"}"
+  },
+  {
+   "name": "non-ASCII model is marshaled",
+   "path": "request",
+   "client": "claude",
+   "upstream": "claude",
+   "model": "modèle\u003c\u0026\u003e",
+   "input": "{\"model\":\"x\"}",
+   "output": "{\"model\":\"modÃ¨le\\u003c\\u0026\\u003e\"}"
+  },
+  {
+   "name": "quoted model is marshaled",
+   "path": "request",
+   "client": "claude",
+   "upstream": "claude",
+   "model": "a\"b",
+   "input": "{\"model\":\"x\"}",
+   "output": "{\"model\":\"a\\\"b\"}"
+  },
+  {
+   "name": "line separator model",
+   "path": "request",
+   "client": "claude",
+   "upstream": "claude",
+   "model": "a\u2028b",
+   "input": "{\"model\":\"x\"}",
+   "output": "{\"model\":\"a\\u2028b\"}"
+  },
+  {
+   "name": "duplicate model keys",
+   "path": "request",
+   "client": "claude",
+   "upstream": "claude",
+   "model": "m",
+   "input": "{\"model\":\"a\",\"model\":\"m\"}",
+   "output": "{\"model\":\"m\",\"model\":\"m\"}"
+  },
+  {
+   "name": "duplicate keys first matches",
+   "path": "request",
+   "client": "claude",
+   "upstream": "claude",
+   "model": "a",
+   "input": "{\"model\":\"a\",\"model\":\"m\"}",
+   "output": "{\"model\":\"a\",\"model\":\"m\"}"
+  },
+  {
+   "name": "malformed bytes are kept",
+   "path": "request",
+   "client": "claude",
+   "upstream": "claude",
+   "model": "m",
+   "input": "{\"model\":\"x\",\"t\":\"ÿþ\"}",
+   "output": "{\"model\":\"m\",\"t\":\"ÿþ\"}"
+  },
+  {
+   "name": "array body",
+   "path": "request",
+   "client": "claude",
+   "upstream": "claude",
+   "model": "m",
+   "input": "[1,2]",
+   "output": "[1,2]"
+  },
+  {
+   "name": "invalid JSON",
+   "path": "request",
+   "client": "claude",
+   "upstream": "claude",
+   "model": "m",
+   "input": "not json",
+   "output": "{\"model\":\"m\"}"
+  },
+  {
+   "name": "empty body",
+   "path": "request",
+   "client": "claude",
+   "upstream": "claude",
+   "model": "m",
+   "input": "",
+   "output": "{\"model\":\"m\"}"
+  },
+  {
+   "name": "surrounding whitespace",
+   "path": "request",
+   "client": "claude",
+   "upstream": "claude",
+   "model": "m",
+   "input": " \n{\"model\":\"x\"} \n",
+   "output": " \n{\"model\":\"m\"} \n"
+  },
+  {
+   "name": "empty object",
+   "path": "request",
+   "client": "claude",
+   "upstream": "claude",
+   "model": "m",
+   "input": "{}",
+   "output": "{\"model\":\"m\"}"
+  },
+  {
+   "name": "string body",
+   "path": "request",
+   "client": "claude",
+   "upstream": "claude",
+   "model": "m",
+   "input": "\"text\"",
+   "output": "{\"model\":\"m\"}"
+  },
+  {
+   "name": "token count without TokenCount",
+   "path": "token_count",
+   "client": "claude",
+   "upstream": "claude",
+   "count": 9,
+   "input": "{\"input_tokens\":7,\"raw\":\"ÿ\"}",
+   "output": "{\"input_tokens\":7,\"raw\":\"ÿ\"}"
+  },
+  {
+   "name": "token count without TokenCount",
+   "path": "token_count",
+   "client": "openai",
+   "upstream": "claude",
+   "count": 9,
+   "input": "{\"input_tokens\":7,\"raw\":\"ÿ\"}",
+   "output": "{\"input_tokens\":7,\"raw\":\"ÿ\"}"
+  },
+  {
+   "name": "token count without TokenCount",
+   "path": "token_count",
+   "client": "openai-response",
+   "upstream": "codex",
+   "count": 9,
+   "input": "{\"input_tokens\":7,\"raw\":\"ÿ\"}",
+   "output": "{\"input_tokens\":7,\"raw\":\"ÿ\"}"
+  }
+ ]
+}
