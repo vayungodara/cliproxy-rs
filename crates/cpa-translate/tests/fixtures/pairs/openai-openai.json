@@ -2991,6 +2991,19 @@
      "{\"x\":\"ÿ\"}"
     ]
    ]
+  },
+  {
+   "name": "TestConvertOpenAIResponseToOpenAIPassthroughWithoutDone:34:stream",
+   "path": "stream",
+   "model": "m",
+   "lines": [
+    "{\"id\":\"y\"}"
+   ],
+   "outputs": [
+    [
+     "{\"id\":\"y\"}"
+    ]
+   ]
   }
  ],
  "token_count": false,

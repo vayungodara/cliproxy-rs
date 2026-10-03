@@ -194,6 +194,11 @@ def test_texts():
     """Test sources: integration tests, *_tests.rs files and inline test modules."""
     out = {}
     for rel, text in scan_files():
+        if rel.endswith("cpa-server/tests/fixtures/legacy_go.json"):
+            # legacy_go.rs requests each step's path under /v0/management.
+            steps = (s for sc in json.loads(text)["scenarios"] for s in sc.get("steps", []))
+            out[rel] = "\n".join(f'{s["method"]} "/v0/management{s["path"]}"' for s in steps if "path" in s)
+            continue
         if not rel.endswith(".rs"):
             continue
         if "/tests/" in rel or rel.endswith("_tests.rs"):
@@ -225,10 +230,10 @@ def judge_route(item, routes, tests):
 
 
 # Provider families with no executor in Rust: their keys are accepted and never used.
-NO_EXECUTOR = {"vertex": "ultra/google", "antigravity": "ultra/google", "aistudio": "ultra/google"}
+NO_EXECUTOR = {"antigravity": "ultra/google", "aistudio": "ultra/google"}
 FAMILY_OWNER = {"claude": "ultra/claude", "codex": "ultra/codex", "gemini": "ultra/google", "interactions": "ultra/google",
                 "meta": "ultra/device-providers", "kimi": "ultra/device-providers", "openai-compatibility": "ultra/openai-xai",
-                **NO_EXECUTOR, "xai": "ultra/openai-xai", "devin": "ultra/device-providers"}
+                **NO_EXECUTOR, "vertex": "ultra/google", "xai": "ultra/openai-xai", "devin": "ultra/device-providers"}
 SECTION_OWNER = [("management.", "ultra/manage"), ("config-version", "ultra/manage"), ("plugins.", "ultra/plugins"),
                  ("server.discovery", "ultra/tui"), ("credentials.", "ultra/home"),
                  ("client.codex", "ultra/codex"), ("multimedia.", "ultra/openai-xai")]
@@ -291,7 +296,9 @@ def config_sources():
     tokens = {rel: {part for lit in re.findall(r'"([^"\\\n]{1,200})"', text) for part in re.split(r"[./]", lit)}
               for rel, text in readers.items()}
     # Keys a test sets: YAML keys (`key:`, also inside JSON-escaped YAML) and quoted path segments.
-    test_tokens = {rel: set(re.findall(r"([a-z0-9][a-z0-9\-]*):", text))
+    # The lookbehind starts matches only at a run's first character: without it, long
+    # lowercase runs in fixtures (repeated-payload tests) backtrack quadratically.
+    test_tokens = {rel: set(re.findall(r"(?<![a-z0-9\-])([a-z0-9][a-z0-9\-]*):", text))
                    | {part for lit in re.findall(r'"([^"\\\n]{1,200})"', text) for part in re.split(r"[./]", lit)}
                    for rel, text in tests.items()}
     return readers, tests, tokens, test_tokens
@@ -375,7 +382,7 @@ def main():
 
 # Milestones whose rows have been reviewed by hand; the others are not rendered yet.
 AUDITED = ["M1", "M2", "M3", "M4", "M5", "M6"]
-BASE = "f97310d"
+BASE = "d068002"
 
 
 def title(r):

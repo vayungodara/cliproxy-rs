@@ -65,7 +65,7 @@ M1-0059	covered	crates/cliproxy/src/main.rs --no-browser -> LoginOptions.no_brow
 M1-0060	covered	crates/cliproxy/src/main.rs --oauth-callback-port (0 -> provider default); claude_login_tests.rs a_busy_port_is_go_port_in_use
 M1-0061	covered	crates/cliproxy/src/main.rs every_go_flag_parses_in_single_and_double_dash_form, argv_prescan_matches_go; --config resolves to config.yaml in the working directory like Go's empty default
 M1-0062	covered	crates/cliproxy/src/main.rs (--local-model -> Runtime::set_local_model); every_go_flag_parses_in_single_and_double_dash_form
-M1-0063	partial	crates/cliproxy/src/main.rs: .env (dotenv.rs parses_like_godotenv), cloud standby (cloud_mode_treats_missing_empty_and_broken_files_as_empty_config), auth-dir expansion, logins	ultra/home	The Postgres/git/object store backends (PGSTORE_*, GITSTORE_*, OBJECTSTORE_*) are absent.
+M1-0063	covered	crates/cliproxy/src/main.rs: .env (dotenv.rs parses_like_godotenv), cloud standby (cloud_mode_treats_missing_empty_and_broken_files_as_empty_config), auth-dir expansion, logins; cpa_store::select/bootstrap for PGSTORE_*, OBJECTSTORE_*, GITSTORE_* (crates/cpa-store tests)		
 M1-0064	partial	crates/cpa-exec/src/oauth_tests.rs token_key_singleflight_survives_canceled_waiter, refresh_429_backoff_and_error_redaction, refresh_rotation_preserves_identity_on_optional_profile_failure, missing_rotated_refresh_and_profile_fields_keep_saved_values	ultra/claude	Equivalents cover dedupe, 429 backoff, profile-failure tolerance and account preservation; no Go case is ported by name and the timeout cases are untested.
 M1-0065	covered	crates/cpa-exec/src/claude_login_tests.rs file_names_match_go, legacy_matching_follows_go_identity_rules
 M1-0066	partial	crates/cpa-exec/src/claude/identity.rs; device pools in claude scenarios	ultra/claude	Pool repair/migration cases are not ported.
@@ -118,7 +118,6 @@ M1-0114	partial	crates/cpa-translate/src/gemini.rs; translator goldens	ultra/tra
 M1-0115	partial	crates/cpa-server/src/claude.rs, errors.rs; routes.rs failover_stop_rules_and_cooldown_contracts	ultra/server	Not ported by name.
 M1-0116	partial	crates/cpa-server/src/claude.rs dd_model_ids_round_trip_like_go	ultra/server	Display-name and model-list cloaking cases are untested.
 M1-0117	covered	n/a: the Go test checks its own fixture maps, not production code
-M1-0118	partial	claude-codex translator goldens (crates/cpa-translate/tests/fixtures/pairs/claude-codex.json)	ultra/translate	The parallel-call lifecycle test is not ported.
 # ---------------------------------------------------------------------------------------- M2
 M2-0011	covered	crates/cpa-translate/tests/fixtures/pairs/gemini-claude.json (reference_goldens)
 M2-0012	covered	crates/cpa-translate/tests/fixtures/pairs/interactions-claude.json
@@ -164,15 +163,8 @@ M2-0051	covered	compat scenario chat_video_input_passthrough
 M2-0052	partial	crates/cpa-exec/src/codex_request.rs	ultra/codex	Not ported by name.
 M2-0053	covered	recorded replay: crates/cpa-common/tests/fixtures/go_calls.jsonl.gz (internal/signature calls)
 M2-0059	partial	crates/cpa-translate/src/gemini_claude.rs schema normalization; goldens	ultra/translate	Table-driven schema cases are not mined.
-M2-0064	partial	crates/cpa-translate/src/claude_chat_response.rs finish_reason mapping; goldens	ultra/translate	Table-driven stop_reason cases are not mined.
-M2-0066	partial	crates/cpa-translate/src/claude_responses_response.rs; goldens	ultra/translate	Interleaved web-search case not mined.
 M2-0078	partial	crates/cpa-translate/src/common.rs, sse.rs; cpa_common::json	ultra/translate	Unit cases not ported.
-M2-0097	partial	crates/cpa-translate/src/gemini_chat_request.rs; goldens	ultra/translate	Unit case not mined.
 M2-0109	covered	n/a: Go package import boundary check
-M2-0118	partial	crates/cpa-translate/src/responses_interactions_response.rs; apply_patch goldens in openai-response-interactions.json	ultra/translate	Unit cases not mined.
-M2-0119	partial	crates/cpa-translate/src/responses_interactions_response.rs; apply_patch goldens	ultra/translate	Unit cases not mined.
-M2-0120	partial	crates/cpa-translate/src/responses_interactions_response.rs; apply_patch goldens	ultra/translate	Unit cases not mined.
-M2-0121	partial	crates/cpa-translate/src/responses_interactions_response.rs; apply_patch goldens	ultra/translate	Unit cases not mined.
 M2-0133	covered	crates/cpa-common/tests/fixtures/gemini_schema.json: every JSON literal mined from gemini_schema_test.go run through Go's cleaners (crates/cpa-common/tests/gemini_schema.rs)
 M2-0134	missing	no config diff summaries in crates/cpa-server/src/watching.rs	ultra/server	Go logs openai-compatibility diffs on reload; Rust does not.
 M2-0135	partial	crates/cpa-server/src/dispatch.rs (bootstrap); routes.rs mid_stream_failure_ends_with_route_error_frame	ultra/server	Not ported for the Gemini handler.
@@ -230,7 +222,7 @@ M3-0031	covered	crates/cpa-translate/tests/fixtures/pairs/openai-response-antigr
 M3-0032	covered	crates/cpa-exec/src/codex_oauth.rs; codex_oauth_tests.rs jwt_claims_file_names_and_authorize_url_match_go, exchange_and_refresh_wire_and_results_match_go, device_flow_polls_through_pending_and_exchanges_like_go; crates/cpa-server/tests/management.rs codex_login_completes_through_the_main_listener_callback
 M3-0033	missing	no Antigravity login, executor or credential type in Rust (translators only)	ultra/google
 M3-0034	covered	crates/cpa-exec/src/gemini.rs; gemini scenarios (gen_*, stream_*, count_*, int_*); crates/cpa-server/tests/gemini_routes.rs
-M3-0035	missing	no Vertex executor or service-account import	ultra/google
+M3-0035	covered	crates/cpa-exec/src/vertex.rs, vertex_auth.rs; vertex_tests.rs go_reference_scenarios (tests/fixtures/vertex_go.json), vertex_import_matches_go		Go's Vertex executor has no separate Claude transport; Claude clients only get Claude input-token accounting.
 M3-0036	missing	no AI Studio WebSocket relay	ultra/google
 M3-0037	covered	crates/cpa-exec/src/kimi_auth.rs (domain_resolution tests), kimi_tests.rs; crates/cpa-server/tests/management.rs kimi_device_login_saves_and_a_cancelled_one_does_not
 M3-0038	covered	crates/cpa-exec/src/xai_auth.rs (xai_auth_tests.rs, xai_auth_go.json); executor crates/cpa-exec/src/xai*.rs; xai_tests.rs go_reference_scenarios (81 Go-generated scenarios, tests/fixtures/xai_go.json)
@@ -241,7 +233,7 @@ M3-0042	covered	crates/cpa-exec/src/codex_oauth_tests.rs login_file_bytes_match_
 M3-0043	covered	crates/cpa-exec/src/kimi_auth.rs; crates/cpa-server/tests/management.rs kimi_device_login_saves_and_a_cancelled_one_does_not
 M3-0044	covered	crates/cpa-exec/src/xai_auth_tests.rs login_matches_go_manager_and_file_store
 M3-0045	covered	crates/cpa-exec/src/meta_tests.rs file_names_and_writer_match_go, login_matches_go_requests_and_file
-M3-0046	missing	no Vertex import	ultra/google
+M3-0046	covered	crates/cpa-exec/src/vertex_auth.rs import; vertex_tests.rs vertex_import_matches_go, key_file_folded_duplicates_follow_sorted_order		
 M3-0047	covered	crates/cpa-exec/src/meta_tests.rs file_names_and_writer_match_go, remint_patch_matches_go_metadata, login_merge_skips_an_existing_file_go_cannot_decode
 M3-0048	missing	no Antigravity credentials	ultra/google
 M3-0049	covered	crates/cpa-exec/src/devin_tests.rs auth_record_matches_go_fixtures, login_save_merges_like_go_manager
@@ -254,7 +246,7 @@ M3-0056	missing		ultra/openai-xai	Images handlers are not ported.
 M3-0057	missing		ultra/openai-xai	Videos handlers are not ported.
 M3-0142	missing		ultra/codex	Responses steering is not ported.
 M3-0154	missing		ultra/openai-xai
-M3-0175	missing	no Vertex compat config handling	ultra/google
+M3-0175	covered	crates/cpa-core/src/config/credentials.rs (SanitizeVertexCompatKeys port); Go goldens crates/cpa-server/tests/fixtures/server_go.json, manage_go.json		
 M3-0176	covered	crates/cliproxy/src/main.rs --codex-login -> codex_oauth::login (codex_oauth_tests.rs)
 M3-0177	covered	crates/cliproxy/src/main.rs --codex-device-login -> codex_oauth::device_login (device_flow_polls_through_pending_and_exchanges_like_go)
 M3-0178	partial	crates/cliproxy/src/main.rs parses -antigravity-login, then exits with 'not supported'	ultra/google	The Antigravity login itself is absent.
@@ -263,8 +255,8 @@ M3-0180	covered	crates/cliproxy/src/main.rs --kimi-ai-login -> kimi_auth::login(
 M3-0181	covered	crates/cliproxy/src/main.rs --xai-login -> xai_auth::login (login_matches_go_manager_and_file_store)
 M3-0182	covered	crates/cliproxy/src/main.rs --devin-login -> cpa_exec::devin_auth::login (every_go_flag_parses_in_single_and_double_dash_form; devin_tests.rs code_exchange_matches_go_fixtures)
 M3-0183	covered	crates/cliproxy/src/main.rs --meta-login -> meta_auth::login (login_matches_go_requests_and_file)
-M3-0184	partial	crates/cliproxy/src/main.rs parses -vertex-import, then exits with 'not supported'	ultra/google	Vertex import itself is absent.
-M3-0185	partial	crates/cliproxy/src/main.rs parses -vertex-import-prefix	ultra/google	Vertex import itself is absent.
+M3-0184	covered	crates/cliproxy/src/main.rs calls cpa_exec::vertex_auth::import; vertex_tests.rs vertex_import_matches_go		
+M3-0185	covered	crates/cliproxy/src/main.rs passes the prefix to cpa_exec::vertex_auth::import; vertex_import_matches_go		
 M3-0187	covered	crates/cpa-server/tests/management.rs kimi_device_login_saves_and_a_cancelled_one_does_not
 M3-0189	covered	crates/cpa-exec/src/codex_oauth_tests.rs jwt_claims_file_names_and_authorize_url_match_go
 M3-0190	covered	crates/cpa-exec/src/codex_oauth_tests.rs jwt_claims_file_names_and_authorize_url_match_go
@@ -326,7 +318,6 @@ M3-0297	partial	crates/cpa-translate/src/antigravity_claude.rs; claude-antigravi
 M3-0300	partial	crates/cpa-translate/src/antigravity_gemini.rs; goldens	ultra/translate	Table-driven cases not mined.
 M3-0303	partial	crates/cpa-translate/src/antigravity_interactions.rs; goldens	ultra/translate	Table-driven cases not mined.
 M3-0307	partial	crates/cpa-translate/src/antigravity_chat.rs; goldens	ultra/translate	Table-driven case not mined.
-M3-0311	partial	crates/cpa-translate/src/codex_claude_response.rs; claude-codex goldens	ultra/translate	Parallel function-call cases not mined.
 M3-0317	partial	crates/cpa-translate/src/codex_gemini.rs; goldens	ultra/translate	Table-driven cases not mined.
 M3-0319	partial	crates/cpa-translate/src/codex_interactions.rs; goldens	ultra/translate	Table-driven cases not mined.
 M3-0325	partial	crates/cpa-translate/src/antigravity_*.rs tool renames; goldens	ultra/translate	Unit cases not ported.
@@ -347,7 +338,7 @@ M3-0348	partial	crates/cpa-server/src/openai.rs; codex_go.json oauth_stream_trun
 M3-0349	partial	crates/cpa-server/tests/routes.rs failover_stop_rules_and_cooldown_contracts; codex_go.json oauth_usage_limit_429	ultra/server	Not ported by name.
 M3-0350	partial	crates/cpa-server/tests/routes.rs empty_stream_fails_over_and_reports_empty_stream, bootstrap retries	ultra/server	Not ported by name.
 
-M3-0223	partial	crates/cpa-exec/src/codex_catalog_updater.rs refresh_falls_through_sources_and_validates	ultra/codex	The updater exists but nothing starts it: crates/cpa-server/src/model_updater.rs still has a ponytail saying it is not on the base.
+M3-0223	covered	crates/cpa-exec/src/codex_catalog_updater.rs (refresh_falls_through_sources_and_validates); started by crates/cpa-server/src/model_updater.rs		
 M3-0174	missing	live-media-relay settings are validated (crates/cpa-core/src/config/validate.rs) but the relay is not wired (ponytail in crates/cpa-server/src/realtime/http.rs)	ultra/realtime
 M3-0186	covered	crates/cpa-server/tests/management.rs devin_login_completes_through_the_main_listener_callback
 M3-0193	partial	crates/cpa-exec/src/devin*.rs; devin_tests.rs (17 Go-fixture tests, tests/device_fixtures/devin: 46 recorded cases)	ultra/device-providers	Not ported by name.
@@ -406,7 +397,7 @@ M4-0241	covered	crates/cliproxy/src/discovery/tests.rs go_durations; main.rs fla
 M4-0242	covered	crates/cliproxy/src/discovery/tests.rs discover_output_matches_go_byte_for_byte; main.rs argv_prescan_matches_go		
 M4-0243	covered	crates/cliproxy/src/discovery/tests.rs txt_parsing_names_subtypes_and_service_types_match_go		
 M4-0244	partial	crates/cliproxy/src/main.rs parses --tui/--standalone	ultra/tui	The terminal UI is not available yet (main.rs prints 'TUI error').
-M4-0245	missing	no Postgres, git or object store backends (file store only)	ultra/home	
+M4-0245	covered	crates/cpa-store (postgres.rs, object.rs with fake_s3, git.rs; tests/postgres.rs, tests/git.rs, object.rs unit tests); crates/cliproxy/src/main.rs cpa_store::select/bootstrap		
 M4-0246	partial	crates/cpa-server/src/watching.rs hash_cache_rereads_only_changed_or_racy_files; crates/cpa-server/tests/management.rs watcher_keeps_last_good_config_and_reconciles_disabled_deleted_and_self_writes	ultra/manage	Metadata polling stands in for fsnotify (ponytail in watching.rs).
 M4-0247	partial	runtime.rs config_routing_drives_policy_at_startup_and_on_publish, reconcile_keeps_unchanged_revisions_and_never_reuses_old_ones; management.rs watcher tests	ultra/manage	Not tested for every reloadable subsystem.
 M4-0248	partial	runtime.rs reconcile and stale-lease tests; management.rs watcher tests	ultra/manage	Not tested case by case.
@@ -482,7 +473,7 @@ M4-0320	partial	crates/cpa-core/src/registry*; crates/cpa-server/src/registry.rs
 M4-0321	partial	cpa_translate::apply_patch_responses (Go-generated scenarios); xAI uses a seam (crates/cpa-exec/src/xai_apply_patch.rs)	ultra/openai-xai	Executor-level cases need the xAI executor on the real bridge API.
 M4-0322	partial	cpa_translate::apply_patch_responses (Go-generated scenarios); xAI uses a seam (crates/cpa-exec/src/xai_apply_patch.rs)	ultra/openai-xai	Executor-level cases need the xAI executor on the real bridge API.
 M4-0323	partial	cpa_translate::apply_patch_responses (Go-generated scenarios); xAI uses a seam (crates/cpa-exec/src/xai_apply_patch.rs)	ultra/openai-xai	Executor-level cases need the xAI executor on the real bridge API.
-M4-0324	partial	cpa_translate::apply_patch_responses (Go-generated scenarios); executor wiring pending	ultra/device-providers	Kimi and Devin executors do not yet run the apply_patch Responses state.
+M4-0324	covered	Kimi and Meta run cpa_translate::apply_patch_responses::State (crates/cpa-exec/src/kimi.rs, meta.rs); kimi_tests apply_patch_failures_end_streams_like_go, meta_tests apply_patch_failures_end_meta_streams_like_go; apply_patch_responses.json Go scenarios		
 M4-0325	partial	cpa_translate::apply_patch_responses (Go-generated scenarios); xAI uses a seam (crates/cpa-exec/src/xai_apply_patch.rs)	ultra/openai-xai	Executor-level cases need the xAI executor on the real bridge API.
 M4-0326	partial	cpa_translate::apply_patch_responses (Go-generated scenarios); xAI uses a seam (crates/cpa-exec/src/xai_apply_patch.rs)	ultra/openai-xai	Executor-level cases need the xAI executor on the real bridge API.
 M4-0327	partial	Claude cache-control placement (crates/cpa-exec/src/claude/cloak.rs); claude scenarios	ultra/claude	Not ported by name.
@@ -515,8 +506,8 @@ M4-0354	covered	crates/cpa-exec/src/proxy.rs effective_proxy_precedence; proxy_g
 M4-0355	partial	crates/cpa-exec executors; cpa_common::headers, payload	ultra/server	Not ported by name.
 M4-0356	missing	no example-API-key safe mode	ultra/server	
 M4-0360	partial	runtime.rs first_use_persists_disabled_in_go_marshal_form	ultra/server	Not ported by name.
-M4-0361	missing	no git or Postgres store	ultra/home	
-M4-0362	missing	no git or Postgres store	ultra/home	
+M4-0361	partial	crates/cpa-store/src/git.rs; tests/git.rs (the_first_node_initializes_an_empty_remote, two_nodes_share_auth_files_and_config)	ultra/home	Not every gitstore_test.go case is ported.
+M4-0362	covered	crates/cpa-store/src/postgres.rs; tests/postgres.rs postgres_store_round_trips_config_auth_and_cooldowns		The Postgres tests run only where PostgreSQL server binaries exist (CPA_TEST_PG_BIN or /usr/lib/postgresql) and pass vacuously otherwise.
 M4-0363	partial	latest-version route (crates/cpa-server/src/management/observability.rs)	ultra/manage	Not ported by name.
 M4-0364	covered	crates/cpa-common/tests/json.rs get_matches_gjson (Go-generated vectors)		
 M4-0366	covered	n/a: Go slice-aliasing invariants		
@@ -613,7 +604,7 @@ M4-0457	partial	crates/cpa-server/src/scheduler.rs tests; crates/cpa-server/test
 M4-0458	partial	crates/cpa-server/src/scheduler.rs tests; crates/cpa-server/tests/scheduler_attempts.rs; server_go.json	ultra/server	Not ported by name.
 M4-0459	partial	crates/cpa-server/src/scheduler.rs tests; crates/cpa-server/tests/scheduler_attempts.rs; server_go.json	ultra/server	Not ported by name.
 M4-0460	partial	crates/cpa-server/src/scheduler.rs tests; crates/cpa-server/tests/scheduler_attempts.rs; server_go.json	ultra/server	Not ported by name.
-M4-0461	partial	crates/cpa-server/src/scheduler.rs tests; crates/cpa-server/tests/scheduler_attempts.rs; server_go.json	ultra/server	Not ported by name.
+M4-0461	partial	crates/cpa-exec/src/codex_quota.rs (codex_tests quota_events_and_signals_match_go); crates/cpa-server/tests/management.rs codex_passive_quota_snapshots_appear_in_credential_entries; scheduler tests	ultra/claude	Codex signals are complete (Management 9); Claude response-header watermarks are not observed.
 M4-0462	partial	crates/cpa-server/src/scheduler.rs tests; crates/cpa-server/tests/scheduler_attempts.rs; server_go.json	ultra/server	Not ported by name.
 M4-0463	partial	crates/cpa-server/src/scheduler.rs tests; crates/cpa-server/tests/scheduler_attempts.rs; server_go.json	ultra/server	Not ported by name.
 M4-0464	partial	crates/cpa-server/src/scheduler.rs tests; crates/cpa-server/tests/scheduler_attempts.rs; server_go.json	ultra/server	Not ported by name.
@@ -660,7 +651,6 @@ M4-0504	partial	crates/cpa-server/src/session.rs identity_matches_go, affinity.r
 M4-0505	partial	crates/cpa-server/src/runtime.rs, registry.rs	ultra/server	Not ported by name.
 M4-0506	partial	crates/cpa-server/src/runtime.rs, registry.rs	ultra/server	Not ported by name.
 M4-0507	partial	crates/cpa-exec/src/proxy.rs; proxy_go.json	ultra/claude	Not ported by name.
-M4-0508	partial	translator goldens	ultra/translate	Not ported by name.
 M4-0509	covered	recorded replay: crates/cpa-common/tests/fixtures/go_calls.jsonl.gz (Summary tests in ./test/)		
 M4-0510	partial	crates/cpa-server/tests/routes.rs usage_queue_records_every_attempt	ultra/server	Not ported by name.
 # ---------------------------------------------------------------------------------------- M5
