@@ -40,3 +40,6 @@ brotli-decompressor = "6"
 
 [dev-dependencies]
 axum = { workspace = true, features = ["ws"] }
+# A local TLS upstream for replaying Go's Claude tests (the versions wreq already uses).
+btls = "=0.5.6"
+tokio-btls = "=0.5.6"

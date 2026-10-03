@@ -22,8 +22,30 @@ PKG = "internal/runtime/executor"
 
 # Go test files whose call sites are rewritten, relative to PKG.
 FILES = [
+    "claude_cloaked_cache_repro_test.go",
+    "claude_executor_auth_race_test.go",
+    "claude_executor_auth_test.go",
+    "claude_executor_beta_passthrough_test.go",
+    "claude_executor_beta_policy_test.go",
+    "claude_executor_cloaking_display_test.go",
+    "claude_executor_diagnostics_test.go",
+    "claude_executor_fable_ratelimit_test.go",
+    "claude_executor_fast_error_test.go",
+    "claude_executor_native_helper_test.go",
+    "claude_executor_ratelimit_test.go",
     "claude_executor_request_remap_test.go",
+    "claude_executor_stream_terminal_test.go",
+    "claude_executor_subagent_ttl_regression_test.go",
     "claude_executor_test.go",
+    "claude_executor_thinking_signature_test.go",
+    "claude_executor_wire_casing_test.go",
+    "claude_fingerprint_policy_test.go",
+    "claude_issue_6120_test.go",
+    "claude_issue_6193_test.go",
+    "claude_messages_passthrough_test.go",
+    "claude_mid_system_model_test.go",
+    "claude_signing_test.go",
+    "claude_thinking_replay_test.go",
 ]
 
 # Call-site rewrites: function name -> wrapper. `\b` plus the opening parenthesis keeps
@@ -42,9 +64,18 @@ CALLS = {
 }
 
 
+# Executor entry points: `<receiver>.Execute(` -> `rsfixExecute(<receiver>, `. The
+# wrappers record only *ClaudeExecutor receivers (manager.Execute is the conductor).
+METHODS = {"Execute": "rsfixExecute", "ExecuteStream": "rsfixExecuteStream", "CountTokens": "rsfixCountTokens"}
+RECEIVERS = ("executor", "exec", "ex", "e", "claudeExec", "claudeExecutor")
+
+
 def rewrite(source: str) -> str:
     for name, wrapper in CALLS.items():
         source = re.sub(r"(?<![\w.])" + name + r"\(", wrapper + "(", source)
+    receivers = "|".join(RECEIVERS)
+    for method, wrapper in METHODS.items():
+        source = re.sub(r"(?<![\w.])(" + receivers + r")\." + method + r"\(", wrapper + r"(\1, ", source)
     return source
 
 
@@ -68,13 +99,18 @@ def main() -> None:
     with open(os.path.join(scratch, PKG, "zz_rsfix_claude_test.go"), "w", encoding="utf-8") as f:
         f.write(recorder)
     raw = os.path.join(scratch, "records.json")
-    pattern = "^(" + "|".join(tests + ["TestZZZRSFixWrite"]) + ")$"
+    only = os.environ.get("RSFIX_ONLY")
+    selected = [t for t in tests if not only or re.search(only, t)]
+    pattern = "^(" + "|".join(selected + ["TestZZZRSFixWrite"]) + ")$"
     env = dict(os.environ, RSFIX_OUT=raw, GOFLAGS="-mod=mod")
     run = subprocess.run(
         ["go", "test", "-count=1", "-parallel", "1", "-run", pattern, "./" + PKG + "/"],
         cwd=scratch, env=env, capture_output=True, text=True,
     )
     failures = re.findall(r"^--- FAIL: (\S+)", run.stdout, re.M)
+    if failures:
+        with open(output + ".go-test.log", "w", encoding="utf-8") as f:
+            f.write(run.stdout + run.stderr)
     if not os.path.exists(raw):
         sys.stderr.write(run.stdout[-4000:] + run.stderr[-4000:])
         sys.exit("no records written; scratch kept at " + scratch)

@@ -1602,6 +1602,8 @@ fn strip_attribution_system(body: &str) -> String {
 }
 
 #[cfg(test)]
+mod go_exec;
+#[cfg(test)]
 mod go_unit;
 #[cfg(test)]
 mod tests;
