@@ -19,12 +19,16 @@
 //! live exchanges are not ported; selection uses the local scheduler only.
 
 mod calls;
+#[cfg(feature = "media-relay")]
+mod dialer;
 mod http;
 #[cfg(feature = "media-relay")]
 mod media;
 mod relay;
 mod secrets;
 mod socket;
+#[cfg(feature = "media-relay")]
+mod tunnel;
 
 use std::sync::Arc;
 

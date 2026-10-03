@@ -74,28 +74,39 @@ impl PeerConnectionEventHandler for PeerEvents {
 }
 
 async fn loopback_peer() -> Peer {
+    peer_on(false).await
+}
+
+/// A UDP loopback peer, or with `tcp` one that only listens for ICE-TCP (a passive
+/// candidate on 127.0.0.1), like an upstream reachable over TCP 443.
+async fn peer_on(tcp: bool) -> Peer {
     let mut media = MediaEngine::default();
     media.register_codec(opus_parameters(), RtpCodecKind::Audio).unwrap();
     let registry = register_default_interceptors(Registry::new(), &mut media).unwrap();
     let (gathered_tx, gathered) = watch::channel(false);
     let (tracks_tx, tracks) = mpsc::channel(4);
     let (channels_tx, channels) = mpsc::channel(4);
+    let mut settings = SettingEngineBuilder::new()
+        .with_include_loopback_candidate(true)
+        .with_multicast_dns_mode(rtc::ice::mdns::MulticastDnsMode::Disabled);
+    let (udp, tcp) = if tcp {
+        settings = settings.with_network_types(vec![rtc::ice::network_type::NetworkType::Tcp4]);
+        (vec![], vec!["127.0.0.1:0".to_owned()])
+    } else {
+        (vec!["127.0.0.1:0".to_owned()], vec![])
+    };
     let pc = PeerConnectionBuilder::new()
         .with_configuration(RTCConfigurationBuilder::new().build())
         .with_media_engine(media)
         .with_interceptor_registry(registry)
-        .with_setting_engine(
-            SettingEngineBuilder::new()
-                .with_include_loopback_candidate(true)
-                .with_multicast_dns_mode(rtc::ice::mdns::MulticastDnsMode::Disabled)
-                .build(),
-        )
+        .with_setting_engine(settings.build())
         .with_handler(Arc::new(PeerEvents {
             gathered: gathered_tx,
             tracks: tracks_tx,
             channels: channels_tx,
         }))
-        .with_udp_addrs(vec!["127.0.0.1:0".to_owned()])
+        .with_udp_addrs(udp)
+        .with_tcp_addrs(tcp)
         .build()
         .await
         .unwrap();
@@ -199,7 +210,7 @@ async fn relays_audio_and_data_channel_between_peers() {
         bind_ip: Some("127.0.0.1".parse().unwrap()),
     };
     let route = || Route {
-        proxy: cpa_exec::proxy::Proxy::Inherit,
+        proxy_url: String::new(),
         credential: "Voice credential".into(),
         auth_index: "auth-index".into(),
     };
@@ -288,13 +299,19 @@ async fn relays_audio_and_data_channel_between_peers() {
     let _ = client.pc.close().await;
     let _ = upstream.pc.close().await;
 
-    // Proxied credentials fail closed instead of sending media around the proxy.
-    let proxied = Route {
-        proxy: cpa_exec::proxy::Proxy::Url("socks5://127.0.0.1:9".into()),
+    // An unusable proxy fails the call before a slot is taken, with Go's message.
+    let invalid = Route {
+        proxy_url: "ftp://proxy:21".into(),
         ..route()
     };
-    let refused = relay.new_session("v=0\r\n".into(), proxied).await;
-    assert_eq!(refused.err().map(|e| e.status), Some(502));
+    let refused = relay.new_session("v=0\r\n".into(), invalid).await.err().unwrap();
+    assert_eq!(
+        (refused.status, refused.message.as_str()),
+        (
+            502,
+            "configure Codex live remote TCP proxy: unsupported proxy scheme: ftp"
+        )
+    );
 }
 
 /// Go's ICE URL parsing supplies default ports; webrtc-rs needs them explicit.
@@ -378,7 +395,7 @@ async fn cancelled_setup_frees_ports_and_slot() {
         bind_ip: Some("127.0.0.1".parse().unwrap()),
     };
     let route = || Route {
-        proxy: cpa_exec::proxy::Proxy::Inherit,
+        proxy_url: String::new(),
         credential: "c".into(),
         auth_index: "i".into(),
     };
@@ -407,4 +424,236 @@ async fn cancelled_setup_frees_ports_and_slot() {
     }
     let _ = client.pc.close().await;
     drop(silent);
+}
+
+/// What the test SOCKS5 proxy saw: the targets asked for, and how many tunnels ended.
+#[derive(Default)]
+struct ProxyLog {
+    targets: std::sync::Mutex<Vec<String>>,
+    ended: std::sync::atomic::AtomicUsize,
+}
+
+/// A SOCKS5 proxy on loopback that sends every connection to `upstream` (set later).
+async fn socks_proxy(upstream: Arc<OnceLock<std::net::SocketAddr>>) -> (u16, Arc<ProxyLog>) {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let log = Arc::new(ProxyLog::default());
+    let seen = log.clone();
+    tokio::spawn(async move {
+        while let Ok((mut client, _)) = listener.accept().await {
+            let (seen, upstream) = (seen.clone(), upstream.clone());
+            tokio::spawn(async move {
+                let mut greeting = [0u8; 3];
+                client.read_exact(&mut greeting).await.ok()?;
+                client.write_all(&[5, 0]).await.ok()?;
+                let mut request = [0u8; 10];
+                client.read_exact(&mut request).await.ok()?;
+                let ip = std::net::Ipv4Addr::new(request[4], request[5], request[6], request[7]);
+                let port = u16::from_be_bytes([request[8], request[9]]);
+                seen.targets.lock().unwrap().push(format!("{ip}:{port}"));
+                let mut server = tokio::net::TcpStream::connect(*upstream.get()?).await.ok()?;
+                client.write_all(&[5, 0, 0, 1, 0, 0, 0, 0, 0, 0]).await.ok()?;
+                let _ = tokio::io::copy_bidirectional(&mut client, &mut server).await;
+                seen.ended.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                Some(())
+            });
+        }
+    });
+    (port, log)
+}
+
+/// Go `TestPionActiveTCPCandidatePassesTunnelAuthentication`, end to end: with a proxied
+/// credential the relay's upstream peer has loopback candidates only, the upstream's TCP
+/// passive candidate on a public address is rewritten to a local tunnel, and media flows
+/// through the SOCKS5 proxy to that fixed address.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn proxied_credentials_relay_media_through_the_proxy() {
+    let config = RelayConfig {
+        enabled: true,
+        max_sessions: 1,
+        public_ip: "198.51.100.7".into(),
+        ..RelayConfig::default()
+    };
+    let limiter = Arc::new(Limiter::default());
+    limiter.set_limit(config.max_sessions());
+    let relay = Relay {
+        config,
+        limiter,
+        bind_ip: Some("127.0.0.1".parse().unwrap()),
+    };
+    let upstream_addr = Arc::new(OnceLock::new());
+    let (proxy_port, proxy_log) = socks_proxy(upstream_addr.clone()).await;
+    let route = Route {
+        proxy_url: format!("socks5://127.0.0.1:{proxy_port}"),
+        credential: "Voice credential".into(),
+        auth_index: "auth-index".into(),
+    };
+
+    let mut client = loopback_peer().await;
+    let client_audio = audio(&client.pc).await;
+    let client_channel = client.pc.create_data_channel(LABEL, None).await.unwrap();
+    let offer = client.pc.create_offer(None).await.unwrap();
+    let client_offer = complete(&mut client, offer).await;
+    let (session, relay_offer) = relay.new_session(client_offer, route).await.unwrap();
+    let offered: Vec<&str> = relay_offer.lines().filter(|l| l.starts_with("a=candidate:")).collect();
+    assert!(!offered.is_empty());
+    for candidate in &offered {
+        let address = candidate.split(' ').nth(4).unwrap();
+        assert!(
+            address.parse::<IpAddr>().unwrap().is_loopback(),
+            "loopback only, no public-ip, no STUN: {candidate}"
+        );
+    }
+    assert!(
+        offered
+            .iter()
+            .any(|c| c.contains(" tcp ") && c.contains("tcptype active"))
+    );
+
+    // The upstream answers from 127.0.0.1:P; the relay is told 20.42.0.20:443.
+    let mut upstream = peer_on(true).await;
+    upstream
+        .pc
+        .set_remote_description(RTCSessionDescription::offer(relay_offer).unwrap())
+        .await
+        .unwrap();
+    let upstream_audio = audio(&upstream.pc).await;
+    let answer = upstream.pc.create_answer(None).await.unwrap();
+    let upstream_answer = complete(&mut upstream, answer).await;
+    let mut public_answer = String::new();
+    for line in upstream_answer.split_inclusive("\r\n") {
+        if line.starts_with("a=candidate:") && line.contains(" tcp ") && line.contains("tcptype passive") {
+            let mut fields: Vec<&str> = line.trim_end().split(' ').collect();
+            let _ = upstream_addr.set(format!("{}:{}", fields[4], fields[5]).parse().unwrap());
+            fields[4] = "20.42.0.20";
+            fields[5] = "443";
+            public_answer.push_str(&fields.join(" "));
+            public_answer.push_str("\r\n");
+        } else {
+            public_answer.push_str(line);
+        }
+    }
+    assert!(
+        upstream_addr.get().is_some(),
+        "the upstream offers a TCP passive candidate"
+    );
+
+    session.set_call_id("call-proxied");
+    let downstream_answer = session.accept_upstream_answer(public_answer).await.unwrap();
+    client
+        .pc
+        .set_remote_description(RTCSessionDescription::answer(downstream_answer).unwrap())
+        .await
+        .unwrap();
+
+    assert_eq!(
+        rtp_flows(&client_audio, &mut upstream.tracks, b"to-openai").await,
+        b"to-openai"
+    );
+    assert_eq!(
+        rtp_flows(&upstream_audio, &mut client.tracks, b"to-desktop").await,
+        b"to-desktop"
+    );
+    let upstream_channel = tokio::time::timeout(Duration::from_secs(15), upstream.channels.recv())
+        .await
+        .unwrap()
+        .unwrap();
+    wait_open(&client_channel).await;
+    client_channel.send_text("session.update").await.unwrap();
+    assert_eq!(next_message(&upstream_channel).await, "session.update");
+    upstream_channel
+        .send(BytesMut::from(&b"response.done"[..]))
+        .await
+        .unwrap();
+    assert_eq!(next_message(&client_channel).await, "response.done");
+    let targets = proxy_log.targets.lock().unwrap().clone();
+    assert!(!targets.is_empty());
+    assert!(
+        targets.iter().all(|t| t == "20.42.0.20:443"),
+        "the proxy only dials the fixed candidate: {targets:?}"
+    );
+    assert_eq!(proxy_log.ended.load(std::sync::atomic::Ordering::SeqCst), 0);
+
+    // Closing the session ends every proxied connection while both test peers stay up.
+    let (closed_tx, closed_rx) = std::sync::mpsc::channel();
+    session.set_close_handler(Box::new(move |reason| {
+        let _ = closed_tx.send(reason);
+    }));
+    session.close("test_done");
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(5);
+    while proxy_log.ended.load(std::sync::atomic::Ordering::SeqCst) < targets.len() {
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "proxied connections outlived the session"
+        );
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    assert!(closed_rx.try_recv().is_err(), "an explicit close is not a failure");
+    let _ = client.pc.close().await;
+    let _ = upstream.pc.close().await;
+}
+
+/// Go `installCandidateTunnels` and `CloseWithReason`: closing the session closes tunnels
+/// nobody claimed, and tunnels installed after the close are refused and closed.
+#[tokio::test]
+async fn session_close_closes_unclaimed_tunnels() {
+    let fixtures: serde_json::Value =
+        serde_json::from_str(include_str!("../../tests/fixtures/codex_live_tunnel_go.json")).unwrap();
+    let case = fixtures["prepare"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|c| c["name"] == "go_rewrite")
+        .unwrap()
+        .clone();
+    struct Never;
+    impl Dial for Never {
+        fn dial(&self, _: SocketAddr) -> BoxFuture<'_, Result<dialer::Conn, String>> {
+            Box::pin(async { Err("never".to_owned()) })
+        }
+    }
+    let prepare = || {
+        tunnel::prepare_answer(
+            case["answer"].as_str().unwrap(),
+            case["offer"].as_str().unwrap(),
+            Arc::new(Never),
+            Arc::new(|| {}),
+        )
+        .unwrap()
+    };
+    let refused = |addr: SocketAddr| async move {
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(2);
+        while tokio::net::TcpStream::connect(addr).await.is_ok() {
+            if tokio::time::Instant::now() > deadline {
+                return false;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+        true
+    };
+    let limiter = Arc::new(Limiter::default());
+    limiter.set_limit(1);
+    let route = Route {
+        proxy_url: String::new(),
+        credential: "c".into(),
+        auth_index: "i".into(),
+    };
+    let shared = Shared::new(limiter.acquire().unwrap(), route, None, String::new());
+    let installed = prepare();
+    let listener = installed.tunnels[0].listener;
+    assert!(shared.install_tunnels(installed.tunnels));
+    assert!(
+        tokio::net::TcpStream::connect(listener).await.is_ok(),
+        "open while the session lives"
+    );
+    shared.close("test_done");
+    assert!(refused(listener).await, "session close closed the unclaimed listener");
+    let late = prepare();
+    let listener = late.tunnels[0].listener;
+    assert!(
+        !shared.install_tunnels(late.tunnels),
+        "a closed session refuses tunnels"
+    );
+    assert!(refused(listener).await, "refused tunnels are closed");
 }
