@@ -1,7 +1,9 @@
-import { serverBase, type Data } from "./core";
+import type { Data } from "./core";
 
 // The management key lives only in this module's memory. It is never written to storage.
-let base = "";
+// Requests go only to the server that served this page: the API sits next to it
+// (/management.html -> /v8/management, also under a reverse-proxy path prefix).
+export const base = new URL(".", location.href).href.replace(/\/$/, "");
 let key = "";
 let revision = 0;
 let hooks: {
@@ -26,8 +28,7 @@ export class ApiError extends Error {
   }
 }
 
-export function connect(url: string, secret: string, h: typeof hooks) {
-  base = serverBase(url);
+export function connect(secret: string, h: typeof hooks) {
   key = secret;
   hooks = h;
   revision++;
@@ -63,7 +64,7 @@ async function send(path: string, method: string, body?: unknown) {
         ? "Connection changed. Try again."
         : e instanceof Error && e.name === "TimeoutError"
           ? "The server did not answer in time."
-          : "Cannot reach the server. Check the URL, CORS policy and TLS.",
+          : "Cannot reach the server. Check that cliproxy is still running.",
     );
   }
   if (at !== revision) throw new Error("Connection changed. Try again.");

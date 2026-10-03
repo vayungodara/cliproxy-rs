@@ -22,7 +22,17 @@
       ["Config layout", c["config-version"] ? `v${c["config-version"]}` : "Legacy (migrated on save)"],
       ["Routing strategy", readPath(c, "routing/strategy", "Server default")],
       ["Auth directory", readPath(c, "oauth/auth-dir", "Server default")],
-      ["Remote management", readPath(c, "management/allow-remote", false) ? "Allowed" : "Local only"],
+      // The config cannot show the effective policy: MANAGEMENT_PASSWORD allows remote access too.
+      ["Remote management", readPath(c, "management/allow-remote", false) ? "Allowed" : "Local only, unless MANAGEMENT_PASSWORD is set"],
+      // Where this page's code comes from: it runs with the management key.
+      [
+        "Dashboard",
+        store.kind === "rust"
+          ? "Built into the server"
+          : readPath(c, "management/disable-auto-update-panel", false)
+            ? "Local file, auto-update off"
+            : "Auto-updated from GitHub every 3 h",
+      ],
     ].filter((f) => f[1]),
   );
   const clean = (v: string) => v.replace(/^v/, "");
@@ -49,7 +59,7 @@
       {#snippet children(v)}
         <p class="row">
           <span class="lamp {clean(v) === clean(store.meta.version) ? 'ok' : 'warn'}"></span>
-          Latest CLIProxyAPI release: <strong>{v || "unknown"}</strong>{clean(v) === clean(store.meta.version) ? " · this server is up to date" : ""}
+          Latest {store.kind === "rust" ? "cliproxy-rs" : "CLIProxyAPI"} release: <strong>{v || "unknown"}</strong>{clean(v) === clean(store.meta.version) ? " · this server is up to date" : ""}
         </p>
       {/snippet}
     </Load>

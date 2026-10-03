@@ -1,13 +1,12 @@
 <script lang="ts">
   import { store } from "../store.svelte";
-  import { readPath, mask } from "../core";
+  import { readPath, mask, newKey } from "../core";
   import Load from "../Load.svelte";
 
   let draft = $state(""),
     reveal = $state(false);
   const keys = $derived(readPath(store.config.data || {}, "access/api-keys", []) as string[]);
-  const generate = () =>
-    (draft = `sk-${Array.from(crypto.getRandomValues(new Uint8Array(24)), (n) => n.toString(16).padStart(2, "0")).join("")}`);
+  const generate = () => (draft = newKey());
   function add(e: SubmitEvent) {
     e.preventDefault();
     const k = draft.trim();
@@ -28,7 +27,10 @@
 <Load res={store.config} what="Client keys">
   {#snippet children()}
     <section class="section">
-      <p class="muted">Clients send one of these as a Bearer token or <code>x-api-key</code>. They are not your management key.</p>
+      <p class="muted">
+        Client keys are passwords your tools send to this proxy, as a Bearer token or <code>x-api-key</code>. They are not your
+        management key.
+      </p>
       {#if keys.length}
         <ul class="list">
           {#each keys as k, i (k)}

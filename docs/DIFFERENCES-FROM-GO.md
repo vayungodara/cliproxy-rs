@@ -1,0 +1,25 @@
+# Differences from Go CLIProxyAPI
+
+Where cliproxy-rs has a feature, it aims to behave exactly as CLIProxyAPI does at commit `6fecc6e`. This page lists the places where it behaves differently on purpose, and the one routing strategy it adds. Features that are not ported yet are listed under [Upcoming features](../README.md#upcoming-features) instead.
+
+## Additions in cliproxy-rs
+
+- Routing strategy `soonest-reset` (alias `reset-first`), experimental and opt-in: spend the account whose weekly window resets soonest first, until it cools down or uses up a window, then move to the next. An account whose reset time is not known yet gets one probe request. Conversations bound to an account stay on it. Go has only `round-robin`, `weighted-round-robin` and `fill-first`, and reads `soonest-reset` as `round-robin`. The dashboard offers it only when it is connected to cliproxy-rs. See [MULTI-ACCOUNT.md](MULTI-ACCOUNT.md#routing-strategies).
+
+## Deliberate differences
+
+- Startup: if the config fails to load outside cloud deploy mode, cliproxy-rs exits with a non-zero status, so a service manager sees the failure. Go exits 0.
+- Discovery: subtype PTR queries are answered (Go's zeroconf library never matches them), answers go out on every selected interface, and advertisement changes from a config reload apply within 1 second, by polling.
+- `.env`: non-UTF-8 bytes inside quoted values are decoded lossily. Go keeps the raw bytes.
+- OAuth sign-in from the Management API: pending callbacks are held in memory with the sign-in session instead of being written to `auth-dir` as `.oauth-<provider>-<state>.oauth` files.
+- Claude: `platform_url` is HTML-escaped on the sign-in result page, credential files are written atomically with mode 0600, and the SSH port-forwarding hint shows the IP address of the outbound interface.
+- Plugins: loading plugins on Windows is not supported, the same as a Go build without cgo.
+- Logs: structured fields that Go does not define are printed after Go's known fields.
+- Config writes: when the Management API changes one setting, the rest of `config.yaml` stays byte for byte as it was. Go re-encodes the file, which turns YAML 1.1 booleans such as `yes` and `on` into `true`.
+- Watcher: when a config change moves `auth-dir`, cliproxy-rs starts watching the new directory. Go keeps watching the old one until it restarts.
+- Management panel: cliproxy-rs never downloads or updates its dashboard; it is built into the binary. Go downloads its panel from `management.panel-github-repository` when it is first requested and checks for a new one every three hours unless `management.disable-auto-update-panel` is set. cliproxy-rs accepts both settings, checks their types and keeps them in `config.yaml` (setting `panel-github-repository` to null through the Management API stores Go's default repository, as Go does), but nothing reads them. `management.disable-control-panel` still turns the built-in dashboard off.
+- Sign-in errors: when a Codex, Kimi, Meta, xAI or Devin sign-in started from the Management API fails, the session error keeps Go's message, status and OAuth error code but leaves out upstream response bodies, OAuth error descriptions and decoder details. Go copies those in, and they can contain tokens, while the callback route shows session errors to anyone who holds the session state without a management key. For example, a failed Codex code exchange ends at "token exchange failed with status 400" where Go appends the response body.
+- OAuth callback: the unauthenticated `POST /v8/management/oauth/callback` (and the v0 `oauth-callback`) accepts a body of at most 64 KiB. Go reads it without a limit. Real callbacks are a few hundred bytes; the limit protects servers reachable from the internet.
+- Request logs: when a logged body has a malformed Brotli encoding, cliproxy-rs can leave out the partly decoded bytes that Go writes to the log, and the decoder's error text differs from Go's. Well-formed compressed bodies are logged as in Go.
+- `pprof` (planned; not in cliproxy-rs yet): the listener will serve the index, `cmdline` and `symbol`, and the CPU `profile` in builds with its optional feature. Profiles of the Go runtime (`heap`, `allocs`, `goroutine`, `block`, `mutex`, `threadcreate`, `trace`) have no Rust equivalent and will answer `501` with a plain message; without the feature, `profile` will answer `501` too and name the feature.
+- WebRTC media relay for Codex live calls (`oauth.providers.codex.live-media-relay`): every Go build includes it, and the config turns it on. In cliproxy-rs it is an optional build feature (`cargo build --release -p cliproxy --features cpa-server/media-relay`); the release binaries and the Docker image are built without it, so calls negotiate media directly with the upstream. In a build with the relay, TURN servers reached over TCP or TLS are skipped with a warning, because the WebRTC library cannot gather candidates through them; TURN over UDP and STUN work.

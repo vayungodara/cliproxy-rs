@@ -7,7 +7,7 @@ Tested against unmodified CLIProxyAPI at commit `6fecc6e` (v8.0.10), both the re
 ## What you get
 
 - Every screen: overview, credentials and account sign-in (OAuth, device codes, callback paste, Vertex import), provider API keys, client keys, models, payload rules, quotas, configuration (JSON and YAML with a reviewed diff), logs, usage, plugins and system.
-- It talks only to the v8 Management API (`/v8/management/...`) of the server that serves it. JavaScript, CSS, the font and the icons are inside the file. It makes no other requests: no CDN, no web fonts, no analytics, no update checks of its own.
+- It talks only to the server that serves it: the v8 Management API (`/v8/management/...`), plus `GET /v1/models` with a client key when the Use with tools page tests that key. JavaScript, CSS, the font and the icons are inside the file. It makes no other requests: no CDN, no web fonts, no analytics, no update checks of its own.
 - The management key is kept in the tab's memory only, never in browser storage. Reloading the page signs you out. The theme choice is the only thing stored.
 - It recognises the server from its `X-CPA-VERSION`, `X-CPA-COMMIT` and `X-CPA-BUILD-DATE` headers. On Go it assumes the full v8 API and sends no capability probes; every request it makes is one you triggered or a read for the screen you are on.
 
@@ -22,7 +22,7 @@ Tested against unmodified CLIProxyAPI at commit `6fecc6e` (v8.0.10), both the re
 ## Install by hand
 
 1. Download `management.html` and check it against the checksum below.
-2. Put it where Go serves the panel from: `static/management.html` next to your `config.yaml`. If you set `WRITABLE_PATH`, it is `$WRITABLE_PATH/static/management.html`; if you set `MANAGEMENT_STATIC_PATH`, it is that path.
+2. Put it where Go serves the panel from: `static/management.html` next to your `config.yaml`. If you set `WRITABLE_PATH`, it is `$WRITABLE_PATH/static/management.html`. `MANAGEMENT_STATIC_PATH` takes precedence over both: a path ending in `management.html` is the file itself, and any other path is a directory that holds `management.html`.
 3. Stop Go from replacing it with the official panel. In a v8 config:
 
    ```yaml
@@ -55,7 +55,7 @@ The updater only sees published releases, not drafts. Until the first release is
 
 SHA-256 of the `dist-panel/management.html` built from this commit:
 
-<!-- sha256 -->`f9ab76aac405a8265fd967a0f17009853d5162ab31543e421b41e0b48acd6abb`<!-- /sha256 -->
+<!-- sha256 -->`b5ade636c52e22fc6dd653e1c20b27ba6c74c5d1f34ce9b18e7c520539d748e5`<!-- /sha256 -->
 
 ```sh
 sha256sum static/management.html
@@ -65,8 +65,8 @@ sha256sum static/management.html
 
 ## Size
 
-About 169 KB on disk and 66 KB gzip, of which 18 KB is the inlined font. The JavaScript and CSS inside are the same as the Rust build and stay within its budget (42,642 B and 6,853 B gzip).
+About 184 KB on disk and 71 KB gzip, of which 18 KB is the inlined font. The JavaScript and CSS inside are the same as the Rust build and stay within its budget (49,500 B and 6,853 B gzip).
 
 ## Remove
 
-Delete `static/management.html` and set `disable-auto-update-panel: false`; Go downloads the official panel on the next visit.
+Remove `panel-github-repository` from the config (or set it back to empty), set `disable-auto-update-panel: false`, then delete `static/management.html`. Go downloads the official panel on the next visit. If `panel-github-repository` still points at cliproxy-rs, Go downloads this panel again instead.

@@ -20,7 +20,7 @@
   const can = $derived(store.can("GET", "/oauth/auth-url"));
 
   async function start(p: string) {
-    if (session && status === "wait") await cancel();
+    if (session && status === "wait" && !(await cancel())) return;
     store.act(async () => {
       const r = await api(`/oauth/auth-url?provider=${encodeURIComponent(p)}${forwarded.includes(p) ? "&is_webui=true" : ""}`).catch((e) => {
         // Go knows every built-in provider; a server that lacks one answers provider_not_found.
@@ -36,13 +36,19 @@
       problem = callback = "";
     });
   }
+  /** Ends the pending sign-in; false when the server did not take the request. */
   async function cancel() {
-    const s = session;
-    if (!s) return;
-    // Report "Cancelled" only once the server has the request: until then it keeps the
-    // session, and with it the provider's local callback port, for up to five minutes.
-    await api(`/oauth/session?state=${encodeURIComponent(s.state)}`, "DELETE").catch(() => {});
-    if (s === session) finish("cancelled");
+    const s = session!;
+    // "Cancelled" only when the server says so. A session that already ended answers
+    // cancelled: false, and the next status read shows how it really ended.
+    try {
+      const r = await api(`/oauth/session?state=${encodeURIComponent(s.state)}`, "DELETE");
+      if (s === session && r.cancelled !== false) finish("cancelled");
+      return true;
+    } catch (e) {
+      store.notify(`Sign-in not cancelled: ${e instanceof Error ? e.message : e}`, true);
+      return false;
+    }
   }
   // A finished session replaces any in-progress message ("Callback sent…") so the toast
   // never contradicts the panel. Errors stay: the panel shows them in place.
@@ -72,7 +78,11 @@
     const form = new FormData();
     form.append("file", file);
     store.act(async () => {
-      await api("/oauth/import?provider=vertex", "POST", form);
+      await api("/oauth/import?provider=vertex", "POST", form).catch((e) => {
+        if (!(e instanceof ApiError && e.code === "provider_not_found")) throw e;
+        gone = [...gone, "vertex"];
+        throw new Error("Vertex import is not available on this server.");
+      });
       await store.creds.load(true);
     }, "Vertex service account imported.");
   }
@@ -83,6 +93,7 @@
 
 <section class="section">
   <h2>Sign in with a provider</h2>
+  <p class="muted">You approve access on the provider’s own page (OAuth). The proxy stores the resulting token and renews it; it never sees your password.</p>
   <div class="providers">
     {#each providers as p}
       <button
@@ -146,12 +157,12 @@
   <ul class="list">
     <li class="item">
       <span class="grow">Use a Google Cloud service-account JSON for Vertex AI.</span>
-      <label class="key" aria-disabled={!store.can("POST", "/oauth/import")}
+      <label class="key" aria-disabled={!store.can("POST", "/oauth/import") || gone.includes("vertex")}
         ><svg class="i" aria-hidden="true"><use href="#i-upload" /></svg>Import service account<input
           class="file"
           type="file"
           accept=".json,application/json"
-          disabled={store.busy || !store.can("POST", "/oauth/import")}
+          disabled={store.busy || !store.can("POST", "/oauth/import") || gone.includes("vertex")}
           onchange={(e) => vertex(e.currentTarget)}
         /></label
       >

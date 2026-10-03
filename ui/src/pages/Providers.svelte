@@ -35,7 +35,7 @@
 </script>
 
 <div class="head">
-  <h1>Providers</h1>
+  <h1>Provider keys</h1>
   {#if groups.length}<button class="key quiet" aria-pressed={reveal} onclick={() => (reveal = !reveal)}
       >{reveal ? "Hide keys" : "Show keys"}</button
     >{/if}
@@ -85,7 +85,10 @@
       {:else}
         <div class="state">
           <div class="row"><span class="lamp off"></span>No {label(family)} API keys</div>
-          <p>A group is one endpoint with one or more keys, used in turn by weight.</p>
+          <p>
+            API keys from the provider’s developer platform, billed per request. A group is one endpoint with one or more keys,
+            used in turn by weight.
+          </p>
         </div>
       {/if}
       {#if usage.error}<p class="note"><span class="lamp {missing(usage.error) ? 'off' : 'bad'}"></span>{missing(usage.error) ? "Per-key traffic is not reported by this server." : text(usage.error)}</p>{/if}

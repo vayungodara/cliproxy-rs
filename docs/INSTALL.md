@@ -2,6 +2,14 @@
 
 cliproxy-rs is one executable, `cliproxy` (`cliproxy.exe` on Windows), with the dashboard built in. It needs a `config.yaml` and a directory for credential files. Nothing else is installed.
 
+## With install.sh (macOS and Linux)
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/vayungodara/cliproxy-rs/master/install.sh | sh
+```
+
+The script picks the archive for your system, downloads it with the release's `SHA256SUMS`, refuses to install if the checksum does not match, and copies `cliproxy` to `~/.local/bin` without `sudo`. It does not write a config or start anything. `CLIPROXY_VERSION=v0.1.0` installs a specific release and `CLIPROXY_INSTALL_DIR` changes the target folder. Read [the script](../install.sh) before piping it to a shell if you prefer; it is short.
+
 ## From a release
 
 Each [release](https://github.com/vayungodara/cliproxy-rs/releases) has an archive per platform and a `SHA256SUMS` file:
@@ -46,7 +54,7 @@ sudo apt-get install -y build-essential cmake clang perl git
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 ```
 
-On macOS, `xcode-select --install` and `brew install cmake` are enough. On Windows, install Visual Studio Build Tools with the C++ workload, CMake and LLVM (bindgen needs `libclang`). BoringSSL builds there without assembly, so NASM is not needed. The Windows build is produced by the release workflow and has not been tested by hand.
+On macOS, `xcode-select --install` and `brew install cmake` are enough. On Windows, install Visual Studio Build Tools with the C++ workload, CMake, LLVM (bindgen needs `libclang`) and NASM (BoringSSL's x86_64 assembly), for example `choco install cmake llvm nasm`, and put NASM on `PATH`. The Windows build is produced by the release workflow and has not been tested by hand.
 
 Then build:
 
@@ -69,10 +77,17 @@ The repository's `Dockerfile` builds the binary and copies it into a small Debia
 docker build -t cliproxy-rs .
 mkdir -p data/auth
 $EDITOR data/config.yaml                  # see the notes below
+sudo chown -R 10001:10001 data            # the container runs as uid and gid 10001
 docker run -d --name cliproxy -p 127.0.0.1:8317:8317 -v "$PWD/data:/data" cliproxy-rs
 ```
 
-Inside the container the config is `/data/config.yaml`. In that config, set `server.host` to `""` or `0.0.0.0` so the server listens on the container's interface, and set `oauth.auth-dir` to `/data/auth` so credentials persist in the mounted volume. Publish the port on `127.0.0.1` as above unless other machines need access; see the security notes in the [README](../README.md#security).
+Inside the container the config is `/data/config.yaml`. In that config:
+
+- Set `server.host` to `""` or `0.0.0.0` so the server listens on the container's interface.
+- Set `oauth.auth-dir` to `/data/auth` so credentials persist in the mounted volume.
+- Set `management.allow-remote: true` if you want the dashboard. Docker forwards the published port from its bridge network, so even requests from your own machine reach the server from a non-local address, and with `allow-remote: false` the management API refuses them ("remote management disabled"). Publishing the port on `127.0.0.1` as above still keeps other machines out. The Go server behaves the same way in a container.
+
+The server must be able to write to `data/`: it saves the hashed management key into `config.yaml` on first start, and the dashboard writes settings and credential files. If it cannot, the key stays in plain text and saves fail, which is what the `chown` above prevents. Publish the port on `127.0.0.1` unless other machines need access; see [running it safely](GETTING-STARTED.md#running-it-safely).
 
 Browser sign-in inside a container needs the OAuth callback ports (54545 for Claude, 1455 for Codex) published to your machine, so it is usually easier to sign in from the dashboard and paste the final callback URL, or to use `--codex-device-login`, Kimi or Meta, which use device codes:
 
@@ -82,9 +97,9 @@ docker exec -it cliproxy cliproxy --config /data/config.yaml --codex-device-logi
 
 ## First run
 
-1. Write `config.yaml`. The [README](../README.md#quick-start) has a minimal one, and every setting in CLIProxyAPI's [`config.example.yaml`](https://github.com/router-for-me/CLIProxyAPI/blob/main/config.example.yaml) is accepted, although settings for features listed as not yet supported have no effect.
+1. Write `config.yaml`. [GETTING-STARTED.md](GETTING-STARTED.md) has a minimal one, and every setting in CLIProxyAPI's [`config.example.yaml`](https://github.com/router-for-me/CLIProxyAPI/blob/main/config.example.yaml) is accepted, although settings for features listed as not yet supported have no effect.
 2. Start the server: `cliproxy --config config.yaml`. With no `--config`, it reads `config.yaml` in the current directory.
-3. Connect accounts with `--claude-login`, `--codex-login`, `--codex-device-login`, `--kimi-login`, `--kimi-ai-login`, `--meta-login`, `--xai-login` or `--devin-login`, or from the dashboard at `/management.html`. Add `--no-browser` on a machine without a browser.
+3. Connect accounts with `--claude-login`, `--codex-login`, `--codex-device-login`, `--kimi-login`, `--kimi-ai-login`, `--meta-login`, `--xai-login` or `--devin-login`, import a Vertex AI service account with `--vertex-import key.json`, or connect accounts from the dashboard at `/management.html`. Add `--no-browser` on a machine without a browser.
 
 Go-style single-dash flags such as `-config config.yaml` work too.
 

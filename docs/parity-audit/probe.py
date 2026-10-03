@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Route probe for the parity audit: starts the cliproxy binary on a throwaway config with
-no upstream credentials and requests every method/path PARITY.md lists. Unrouted
+no upstream credentials and requests every method/path checklist.md lists. Unrouted
 method/path pairs get the empty 404/405 axum and gin give; anything else is routed.
 
 API paths are requested with a wrong client key, so the client-auth guard answers. The
@@ -34,7 +34,7 @@ MANAGEMENT_KEY = "probe-management-key"
 
 def routes():
     out = []
-    for line in open(os.path.join(ROOT, "docs", "PARITY.md"), encoding="utf-8"):
+    for line in open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "checklist.md"), encoding="utf-8"):
         m = re.match(r"^- \[[ x]\] \*\*\[M\d\] (M\d-\d{4})\*\* `([A-Z]+) (/\S*)`", LINK.sub(r"\1", line))
         if m:
             out.append((m.group(1), m.group(2), m.group(3)))

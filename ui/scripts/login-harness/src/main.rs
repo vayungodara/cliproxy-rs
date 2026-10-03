@@ -8,7 +8,6 @@ use std::sync::Arc;
 use cpa_core::config::Config;
 use cpa_exec::Executors;
 use cpa_exec::claude::{ClaudeExecutor, DEFAULT_BASE_URL};
-use cpa_server::{Runtime, router};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -25,14 +24,16 @@ async fn main() -> anyhow::Result<()> {
         openai: Default::default(),
         google: Default::default(),
     };
-    let rt = Arc::new(Runtime::new(config, credentials, executors));
+    // The deny-all test runtime: a credential that is not local cannot leave the machine.
+    let rt = Arc::new(cpa_server::testing::runtime(config, credentials, executors));
     cpa_server::install_registry(&rt);
     let options = cpa_server::management::Options { login_base: Some(login_base), ..Default::default() };
     let management = cpa_server::management::Management::with_options(rt.clone(), path, options);
     let _watcher = cpa_server::watching::start(&management);
-    let app = router(rt)
-        .merge(cpa_server::management::router(management))
+    // As main.rs: management answers what the API routes do not, then CORS and the access log.
+    let app = cpa_server::app(rt.clone(), cpa_server::management::router(management))
         .layer(axum::middleware::from_fn(cpa_server::management::cors));
+    let app = cpa_server::observability::router(&rt, app);
     axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>()).await?;
     Ok(())
 }

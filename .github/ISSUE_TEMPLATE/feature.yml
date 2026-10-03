@@ -1,0 +1,24 @@
+name: Feature request
+description: Ask for a CLIProxyAPI feature that is missing, or for something new.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: want
+    attributes:
+      label: What you want to do
+      description: The task you are trying to get done, and what gets in the way today.
+    validations:
+      required: true
+  - type: dropdown
+    id: parity
+    attributes:
+      label: Does CLIProxyAPI have it?
+      options:
+        - "Yes, it is a CLIProxyAPI feature cliproxy-rs lacks"
+        - No, it is new
+        - I don't know
+  - type: textarea
+    id: idea
+    attributes:
+      label: How it could work
+      description: Optional. Settings, routes or dashboard changes you have in mind.

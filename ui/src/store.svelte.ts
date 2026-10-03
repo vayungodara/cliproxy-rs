@@ -1,10 +1,11 @@
-import { api, connect, disconnect, configValue, route } from "./api";
-import { equal, fieldPath, reconcile, type Data } from "./core";
+import { api, connect, disconnect, configValue, route, ApiError } from "./api";
+import { equal, fieldPath, reconcile, type Data, type Window } from "./core";
 
 export const pages = [
   ["overview", "Overview"],
+  ["use", "Use with tools"],
   ["credentials", "Credentials"],
-  ["providers", "Providers"],
+  ["providers", "Provider keys"],
   ["keys", "Client keys"],
   ["models", "Models"],
   ["payload", "Payload rules"],
@@ -54,7 +55,6 @@ function parse(hash: string) {
 
 class Store {
   logged = $state(false);
-  server = $state(location.origin);
   theme = $state(document.documentElement.dataset.theme || "dark");
   route = $state(parse(location.hash));
   meta = $state({ version: "", commit: "", built: "" });
@@ -78,13 +78,16 @@ class Store {
     reconcile(this.creds.data || [], (await api("/credentials")).files || [], (a) => `${a.name}\u0000${a.auth_index}`),
   );
   plugins = new Res<Data[]>(async () => (await api("/plugins")).plugins || []);
+  /** Live quota checks made in this tab, by auth index. */
+  quota = $state<Record<string, { at: number; windows: Window[] } | { error: string }>>({});
   #probed = new Set<string>();
   #timer: ReturnType<typeof setTimeout> | undefined;
 
-  async login(server: string, secret: string) {
+  async login(secret: string) {
     this.meta = { version: "", commit: "", built: "" };
-    connect(server, secret, {
+    connect(secret, {
       unauthorized: () => {
+        if (!this.logged) return;
         this.logout();
         this.notify("The management key was rejected. Sign in again.", true);
       },
@@ -101,9 +104,8 @@ class Store {
       this.config.data = await api("/config");
     } catch (e) {
       disconnect();
-      throw e;
+      throw new Error(signInHelp(e));
     }
-    this.server = server;
     this.logged = true;
     this.creds.load();
   }
@@ -113,6 +115,7 @@ class Store {
     this.caps = {};
     this.#probed.clear();
     this.config.data = this.creds.data = this.plugins.data = undefined;
+    this.quota = {};
     this.dirty = false;
   }
   can(method: string, path: string) {
@@ -182,10 +185,13 @@ class Store {
       await after();
     }, done);
   }
-  /** Replace one config list after confirming nobody changed it since it was read. */
-  async replace(path: string, before: unknown, next: unknown) {
+  /**
+   * Replace one config value after confirming nobody changed it since it was read. `unset`
+   * is what an absent value reads as (an empty list or map unless given).
+   */
+  async replace(path: string, before: unknown, next: unknown, unset: unknown = Array.isArray(before) ? [] : {}) {
     const url = fieldPath(path);
-    const latest = await configValue(url, Array.isArray(before) ? [] : {});
+    const latest = await configValue(url, unset);
     if (!equal(latest, before)) {
       await this.config.load(true);
       throw new Error("This setting changed on the server. Nothing was written; the page now shows the server copy.");
@@ -196,6 +202,20 @@ class Store {
 }
 
 export const store = new Store();
+
+/** What to do about a failed sign-in, for each answer Go and cliproxy-rs give. */
+function signInHelp(e: unknown): string {
+  if (!(e instanceof ApiError)) return e instanceof Error ? e.message : String(e);
+  const m = e.message;
+  if (e.status === 404 || /key not set/.test(m))
+    return "The management API is off on this server. Set management.secret-key in the server's config.yaml (or start it with MANAGEMENT_PASSWORD), then restart it.";
+  if (/remote management disabled/.test(m))
+    return "This server accepts the dashboard only from its own machine. Open it there, or set management.allow-remote: true in config.yaml with a strong key.";
+  if (/banned/i.test(m)) return `${m}. Too many wrong keys came from this address.`;
+  if (e.status === 401)
+    return "That key is not right. Use the plain text you set as management.secret-key: on first start the server replaces it in config.yaml with a hash, so the file no longer shows it.";
+  return m;
+}
 
 /** Repeat a read while the tab is visible; never overlap calls. Returns a cleanup. */
 export function every(ms: number, work: () => Promise<unknown>) {

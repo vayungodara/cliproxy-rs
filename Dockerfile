@@ -6,7 +6,10 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends cmake clang libclang-dev perl \
  && rm -rf /var/lib/apt/lists/*
 WORKDIR /src
-COPY . .
+# Only what the build reads, so documentation edits do not invalidate the cached build.
+COPY Cargo.toml Cargo.lock ./
+COPY crates crates
+COPY ui/dist ui/dist
 # On small machines pass --build-arg BUILD_JOBS=1; the final link needs about 2 GB of memory.
 ARG BUILD_JOBS
 RUN cargo build --release --locked -p cliproxy ${BUILD_JOBS:+--jobs "$BUILD_JOBS"} \
@@ -18,7 +21,8 @@ FROM debian:bookworm-slim
 RUN apt-get update \
  && apt-get install -y --no-install-recommends ca-certificates \
  && rm -rf /var/lib/apt/lists/* \
- && useradd --system --uid 10001 --home-dir /data --shell /usr/sbin/nologin cliproxy \
+ && groupadd --system --gid 10001 cliproxy \
+ && useradd --system --uid 10001 --gid 10001 --home-dir /data --shell /usr/sbin/nologin cliproxy \
  && mkdir -p /data \
  && chown cliproxy:cliproxy /data
 COPY --from=build /usr/local/bin/cliproxy /usr/local/bin/cliproxy

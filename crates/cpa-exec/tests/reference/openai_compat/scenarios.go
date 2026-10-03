@@ -348,7 +348,7 @@ func scenarios() []scenario {
 			Headers:    map[string]string{"X-Claude-Code-Session-Id": "sess-hdr-1"},
 			Model:      "solo", Payload: hi, Source: "openai", Op: "execute", Upstream: jsonOK},
 		// Go expands $CPA-SESSION-ID to CanonicalSessionID, message-hash fallback included;
-		// the shared Rust helper passes only the explicit session (integrator decision).
+		// the shared Rust helper passes only the explicit session, by design.
 		{Name: "custom_header_session_from_payload_without_original", ConfigAuth: -1, Provider: "openai-compatible-solo",
 			Attributes: map[string]string{"base_url": "http://UPSTREAM/v1", "api_key": "sk-fake-solo", "header:X-Sess": "$CPA-SESSION-ID"},
 			Model:      "solo", Payload: `{"model":"solo","messages":[{"role":"user","content":"hi"}],"prompt_cache_key":"pc-1"}`, Source: "openai", Op: "execute", Upstream: jsonOK},

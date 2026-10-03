@@ -2,6 +2,7 @@
   import { tick, type Component } from "svelte";
   import { store, pages } from "./store.svelte";
   import Overview from "./pages/Overview.svelte";
+  import Use from "./pages/Use.svelte";
   import Credentials from "./pages/Credentials.svelte";
   import Connect from "./pages/Connect.svelte";
   import Providers from "./pages/Providers.svelte";
@@ -17,6 +18,7 @@
 
   const views: Record<string, Component> = {
     overview: Overview,
+    use: Use,
     credentials: Credentials,
     connect: Connect,
     providers: Providers,
@@ -35,7 +37,7 @@
   const title = $derived(
     store.route.page === "connect" ? "Connect an account" : pages.find((p) => p[0] === current)?.[1],
   );
-  const host = $derived(store.server.replace(/^https?:\/\//, ""));
+  const host = location.host;
   const version = $derived(/^\d/.test(store.meta.version) ? `v${store.meta.version}` : store.meta.version);
   let menu = $state(false);
   // After a page change, move focus to the new content (not on credential or log arguments).
@@ -45,8 +47,7 @@
     page = store.route.page;
     document.getElementById("main")?.focus({ preventScroll: true });
   });
-  let server = $state(location.origin),
-    secret = $state(""),
+  let secret = $state(""),
     failure = $state(""),
     connecting = $state(false);
 
@@ -55,7 +56,7 @@
     connecting = true;
     failure = "";
     try {
-      await store.login(server, secret);
+      await store.login(secret);
       secret = "";
     } catch (err) {
       failure = err instanceof Error ? err.message : String(err);
@@ -108,9 +109,6 @@
       </div>
       <div class="window">
         <label class="field"
-          >Server<input type="url" required bind:value={server} autocomplete="url" /></label
-        >
-        <label class="field"
           >Management key<input
             type="password"
             required
@@ -126,7 +124,8 @@
         >
       </div>
       <p class="small muted">
-        The key is held in this tab’s memory only. Reloading the page signs you out.
+        Use <code>management.secret-key</code> from the server’s config.yaml. It stays in this tab’s memory only; reloading
+        signs you out.
       </p>
     </form>
   </main>

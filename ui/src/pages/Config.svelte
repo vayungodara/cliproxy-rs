@@ -1,7 +1,7 @@
 <script lang="ts">
   import { store } from "../store.svelte";
   import { api, configValue } from "../api";
-  import { fieldPath } from "../core";
+  import { fieldPath, readPath, strategies, strategy } from "../core";
   import Editor from "../Editor.svelte";
   import Load from "../Load.svelte";
 
@@ -19,6 +19,12 @@
     plugins: "Native plugins.",
   };
   let edit = $state<{ path: string; value: unknown; title: string; yaml: boolean } | null>(null);
+  // Strategies this server understands; "soonest-reset" is a cliproxy-rs addition.
+  const offered = $derived(strategies.filter((s) => !s.rust || store.kind === "rust"));
+  const saved = $derived(readPath(store.config.data || {}, "routing/strategy", "") as string);
+  const current = $derived(strategy(saved));
+  const choose = (value: string) =>
+    store.act(() => store.replace("routing/strategy", saved, value, ""), `Routing strategy set to ${strategy(value).name.toLowerCase()}.`);
   function open(section: string) {
     store.act(async () => {
       edit = section
@@ -38,6 +44,15 @@
 {:else}
   <Load res={store.config} what="Configuration">
     {#snippet children(config)}
+      <section class="section">
+        <h2>Routing strategy</h2>
+        <div class="seg" role="group" aria-label="Routing strategy">
+          {#each offered as s}<button aria-pressed={current.value === s.value} disabled={store.busy} onclick={() => current.value !== s.value && choose(s.value)}
+              >{s.name}</button
+            >{/each}
+        </div>
+        <p class="muted">{current.help}</p>
+      </section>
       {@const sections = [...new Set([...Object.keys(about), ...Object.keys(config)])].filter((k) => k !== "config-version")}
       <ul class="list">
         {#each sections as k}

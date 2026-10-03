@@ -1,18 +1,20 @@
 # Benchmarks
 
-Binary size, memory and throughput of cliproxy-rs and the Go CLIProxyAPI on the same configuration, with a local fake upstream. The numbers come from one small machine and a synthetic load, so read them as a comparison between the two servers on that machine, not as a capacity figure.
+Binary size, memory and throughput of cliproxy-rs and CLIProxyAPI on the same configuration, with a local fake upstream. The numbers come from one small machine and a synthetic load, so use them to compare the two servers with each other. They say little about how much traffic either one can carry on bigger hardware.
 
 ## Setup
 
-- cliproxy-rs at commit `4abce40`, release profile (thin LTO, one codegen unit, stripped), built with Rust 1.99.0.
-- CLIProxyAPI v8.0.10 (commit `6fecc6e`), the official `linux_amd64` release binary (Go 1.26.4).
-- A 2-vCPU virtual machine (Intel Xeon at 2.6 GHz, 3.9 GB of memory) running Debian 12 with Linux 6.1. Other processes on the machine used under 5% of one CPU during the runs.
-- Both servers run with the same `config.yaml`: one OpenAI-compatible provider that points at the fake upstream, one client key and an empty credential directory, started with `-local-model`. Each scenario starts a fresh server process.
-- The server is pinned to CPU 0. The fake upstream and the load generator share CPU 1.
-- The whole run happens in a network namespace with only a loopback interface. Go tries to download its management panel and an Antigravity version file at start; both fail at once there. On a machine with network access, Go's idle memory was about 10 MB higher (56 MB) after those downloads.
-- Go writes one access-log line per request to standard output (redirected to a file). cliproxy-rs at this commit writes no access log, which saves it a little CPU in these tests.
+Measured on 2026-10-03.
 
-The scripts are in [`bench/`](../bench): `upstream/` is the fake OpenAI-compatible upstream, `load/` the load generator, `run.sh` runs every scenario three times and `summary.sh` prints the median of the three rounds. Both helpers use only the Go standard library. The raw results of the run below are in [`bench/results/4abce40.jsonl`](../bench/results/4abce40.jsonl).
+- cliproxy-rs 0.1.0, the launch build, release profile (thin LTO, one codegen unit, stripped), built with rustc 1.99.0.
+- CLIProxyAPI v8.0.10 (commit `6fecc6e`), the official `linux_amd64` release binary, built with Go 1.26.4.
+- A virtual machine with 2 vCPUs (Intel Xeon at 2.60 GHz) and 3.9 GB of memory, running Debian 12 with Linux 6.1. It is a shared machine, and the same binary measures differently from run to run, by up to about 15%; compare the two servers within one run.
+- Both servers run with the same `config.yaml`: one OpenAI-compatible provider that points at the fake upstream, one client key and an empty credential folder, started with `-local-model`. Each scenario starts a fresh server process.
+- The server is pinned to CPU 0. The fake upstream and the load generator share CPU 1.
+- The whole run happens in a network namespace with only a loopback interface. Go tries to download its management panel and an Antigravity version file at start; both fail at once there. On a machine with network access, Go's idle memory was about 10 MB higher after those downloads.
+- Both servers write one access-log line per request to standard output (redirected to a file).
+
+The scripts are in [`bench/`](../bench): `upstream/` is the fake OpenAI-compatible upstream, `load/` the load generator, `run.sh` runs every scenario three times and `summary.sh` prints the median of the three rounds. Both helpers use only the Go standard library. The raw results are in [`bench/results/`](../bench/results), one file per run.
 
 ```sh
 bench/run.sh target/release/cliproxy /path/to/cli-proxy-api /tmp/bench 3
@@ -21,7 +23,7 @@ bench/summary.sh /tmp/bench/results.jsonl
 
 ## Scenarios
 
-- Idle: start, wait 15 seconds, read the resident memory.
+- Idle: start, wait 15 seconds, read the resident memory. Startup is the time from launch to the first answered request.
 - chat: `POST /v1/chat/completions`, not streamed, 32 concurrent clients for 20 seconds. The request is 1.7 KB; the upstream answers at once with a 0.6 KB completion.
 - chat-stream: the same request with `"stream": true`. The upstream sends 22 SSE chunks with no pause between them.
 - chat-stream-slow: 256 concurrent streams, with 50 ms between chunks, so each response takes about 1.1 seconds. This is closest to many coding agents waiting on a model, and it shows the memory each open stream costs.
@@ -31,62 +33,82 @@ A response counts only if its status is 200 and the body has the expected end ma
 
 ## Results
 
-Median of three rounds.
+Median of three rounds, 2026-10-03, cliproxy-rs 0.1.0.
 
 ### Idle
 
 | Server | Startup (ms) | RSS after 15 s (MB) |
 | --- | --- | --- |
-| cliproxy-rs | 15 | 13.8 |
-| Go | 82 | 44.6 |
+| cliproxy-rs | 17 | 17.3 |
+| Go | 204 | 44.7 |
 
 ### chat
 
 | Server | Requests/s | p50 (ms) | p99 (ms) | CPU ms per request | Peak RSS (MB) | RSS 10 s later (MB) | Failed |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| cliproxy-rs | 1402 | 22.5 | 38.9 | 0.71 | 21.7 | 21.7 | 0 |
-| Go | 1677 | 18.2 | 43.6 | 0.59 | 57.3 | 56.6 | 0 |
+| cliproxy-rs | 1168 | 25.3 | 51.9 | 0.85 | 25.2 | 25.2 | 0 |
+| Go | 1568 | 18.9 | 50.1 | 0.62 | 57.8 | 56.9 | 0 |
 
 ### chat-stream
 
 | Server | Requests/s | p50 (ms) | p99 (ms) | CPU ms per request | Peak RSS (MB) | RSS 10 s later (MB) | Failed |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| cliproxy-rs | 627 | 48.5 | 68.1 | 1.03 | 22.6 | 22.6 | 0 |
-| Go | 989 | 32.3 | 62.4 | 1.01 | 57.6 | 56.5 | 0 |
+| cliproxy-rs | 833 | 34.9 | 75.1 | 1.19 | 26.2 | 26.2 | 0 |
+| Go | 916 | 34.4 | 69.6 | 1.08 | 57.8 | 56.7 | 0 |
 
 ### chat-stream-slow
 
 | Server | Requests/s | p50 (ms) | p99 (ms) | CPU ms per request | Peak RSS (MB) | RSS 10 s later (MB) | Failed |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| cliproxy-rs | 245 | 1019.3 | 1323.4 | 1.64 | 42.4 | 42.2 | 0 |
-| Go | 240 | 1025.2 | 1267 | 2.66 | 104.1 | 104.1 | 0 |
+| cliproxy-rs | 238 | 1021.4 | 1414.5 | 1.95 | 49.7 | 49.2 | 0 |
+| Go | 235 | 1039.7 | 1272.2 | 2.9 | 103.8 | 103.8 | 0 |
 
 ### messages-stream
 
 | Server | Requests/s | p50 (ms) | p99 (ms) | CPU ms per request | Peak RSS (MB) | RSS 10 s later (MB) | Failed |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| cliproxy-rs | 640 | 48.1 | 68.2 | 1.06 | 22.7 | 22.7 | 0 |
-| Go | 607 | 51.2 | 121 | 1.63 | 79.4 | 78.3 | 0 |
+| cliproxy-rs | 793 | 37.5 | 68.2 | 1.25 | 26.9 | 26.6 | 0 |
+| Go | 564 | 54.5 | 115.4 | 1.75 | 79.3 | 77.5 | 0 |
+
+Startup varies a lot on this machine, mostly in the first round after a binary is copied in. cliproxy-rs took 15, 17 and 46 ms; Go took 104, 204 and 453 ms in this run, and 45 to 98 ms in quieter runs earlier the same day.
 
 ## Binary size
 
-Linux x86_64, with the dashboard included in both:
+Linux x86_64. The cliproxy-rs binary includes its dashboard; the Go binary does not, because Go downloads its panel separately.
 
-| | cliproxy-rs `4abce40` | Go v8.0.10 release |
+| | cliproxy-rs 0.1.0 | CLIProxyAPI v8.0.10 release |
 | --- | --- | --- |
-| Binary | 29.6 MB | 69.1 MB |
-| Binary, gzip -9 | 12.6 MB | 22.7 MB |
-| Release archive | 12.6 MB | 22.9 MB |
+| Binary | 35.9 MB | 69.1 MB |
+| Binary, gzip -9 | 15.1 MB | 22.6 MB |
+| Release archive | 15.2 MB | 22.9 MB |
 
-The cliproxy-rs binary links glibc and libstdc++ dynamically; BoringSSL is linked in. The Go binary is the official release build (stripped). The Go server downloads its dashboard on first use instead of embedding it, and its archive also holds two READMEs and the example config.
+The cliproxy-rs binary links glibc and libstdc++ dynamically; BoringSSL is linked in. The Go binary is the official release build (stripped), and its archive also holds two READMEs and the example config.
 
 ## What the numbers say
 
-- Memory: cliproxy-rs used about a third of Go's memory at idle (13.8 MB against 44.6 MB) and under load (22 to 23 MB against 57 to 79 MB). With 256 slow streams open, it peaked at 42 MB and Go at 104 MB.
-- Startup: cliproxy-rs answered its first request 15 ms after launch, Go after 82 ms.
-- Non-streaming requests: Go was faster, 1,677 requests per second against 1,402, and used less CPU per request (0.59 ms against 0.71 ms). Both servers were CPU-bound in this test.
-- Fast streams: in chat-stream Go served 989 streams per second and cliproxy-rs 627, without using all of its CPU. cliproxy-rs at this commit does not set `TCP_NODELAY` on client connections, and Go does, so each small SSE write waits for the client's acknowledgement. In a shorter separate run of an earlier commit (`d48b9e0`) built with the option set, cliproxy-rs reached 980 streams per second in chat-stream and 912 in messages-stream, using all of its CPU.
-- Translated streams: in messages-stream, where both servers translate between the Anthropic and OpenAI formats, cliproxy-rs served slightly more streams (640 against 607) with about two thirds of Go's CPU per request and a lower p99 latency (68 ms against 121 ms).
-- Slow streams: with 256 streams that each last about a second, throughput is set by the upstream and both servers kept up. cliproxy-rs used less CPU per stream (1.64 ms against 2.66 ms).
+- Non-streaming requests: Go is faster. It handled 1,568 requests per second against cliproxy-rs's 1,168, about 34% more, and used less CPU per request (0.62 ms against 0.85 ms). Both servers were CPU-bound in this test.
+- Plain streams: Go was ahead too, 916 against 833 streams per second.
+- Translated streams: in messages-stream, where both servers translate between the Anthropic and OpenAI formats, cliproxy-rs served 793 streams per second against Go's 564, about 41% more, with less CPU per request (1.25 ms against 1.75 ms) and a lower p99 latency (68 ms against 115 ms).
+- Slow streams: with 256 streams that each last about a second, throughput is set by the upstream and both kept up; cliproxy-rs used 1.95 ms of CPU per stream against 2.9 ms.
+- Memory: cliproxy-rs used about 40% of Go's memory at idle (17.3 MB against 44.7 MB) and under load (25 to 27 MB against 58 to 79 MB). With 256 slow streams open it peaked at 50 MB and Go at 104 MB.
+- Startup and size: cliproxy-rs answered its first request in 17 ms (median) and its binary is half the size of Go's.
 
 No response failed in any run.
+
+## History
+
+Four runs on 2026-10-03 with the same method and machine. The Go column gives the Go result measured in each run, which shows how much the machine itself varied between runs.
+
+| Scenario | Run 1 | Run 2 | Run 3 | 0.1.0 | Go, per run |
+| --- | --- | --- | --- | --- | --- |
+| chat, requests per second | 1,402 | 1,403 | 1,307 | 1,168 | 1,677 / 1,696 / 1,859 / 1,568 |
+| chat-stream, streams per second | 627 | 956 | 944 | 833 | 989 / 940 / 1,038 / 916 |
+| messages-stream, streams per second | 640 | 913 | 830 | 793 | 607 / 613 / 657 / 564 |
+| Idle memory | 13.8 MB | 14.8 MB | 17.4 MB | 17.3 MB | 44.6 / 45.1 / 44.1 / 44.7 MB |
+| Binary | 29.6 MB | 33.0 MB | 35.9 MB | 35.9 MB | 69.1 MB |
+
+- Run 1: cliproxy-rs did not yet set `TCP_NODELAY` on client connections (Go sets it on every connection), so each small SSE write waited for the client's acknowledgement and the fast streaming tests were latency-bound rather than CPU-bound.
+- Run 2: `TCP_NODELAY` set; cliproxy-rs wrote no access log yet.
+- Run 3 and 0.1.0: cliproxy-rs writes Go's access log, request-log capture is wired in (off in this config), and usage reporting follows Go's contract. Since run 2, Go's lead on non-streaming requests grew from about 20% to 34 to 42%.
+
+Raw results: [`bench/results/`](../bench/results).

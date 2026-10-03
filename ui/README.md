@@ -5,7 +5,7 @@ The management dashboard for cliproxy-rs, written in Svelte 5 with plain CSS. It
 - `dist/` is embedded by the Rust binary (`crates/cpa-server/build.rs`) and served at `/management.html`.
 - `dist-panel/management.html` is one self-contained file for existing Go CLIProxyAPI servers. See [PANEL.md](PANEL.md).
 
-Product rules are in [PRODUCT.md](PRODUCT.md), the visual system in [DESIGN.md](DESIGN.md), the direction contract in [DIRECTION.md](DIRECTION.md), and the concept round in [design/README.md](design/README.md).
+Product rules are in [PRODUCT.md](PRODUCT.md) and the visual system in [DESIGN.md](DESIGN.md).
 
 ## Commands
 
@@ -19,7 +19,7 @@ npm test         # unit tests for src/core.ts
 npm run build    # dist/, dist-panel/, then the size budget
 ```
 
-`npm run build` runs `vite build`, then `scripts/panel.mjs` (inlines JS, CSS, font and favicon into `dist-panel/management.html`, writes its SHA-256 to `dist-panel/management.html.sha256` and into PANEL.md), then `scripts/size.mjs`, which fails the build if gzip JavaScript exceeds 42,642 B or CSS exceeds 6,853 B. Those ceilings are the sizes of the dashboard this one replaced.
+`npm run build` runs `vite build`, then `scripts/panel.mjs` (inlines JS, CSS, font and favicon into `dist-panel/management.html`, writes its SHA-256 to `dist-panel/management.html.sha256` and into PANEL.md), then `scripts/size.mjs`, which fails the build if gzip JavaScript exceeds 49,500 B or CSS exceeds 6,853 B. The ceilings began as the sizes of the dashboard this one replaced (42,642 B and 6,853 B); JavaScript was raised twice: for the beginner onboarding, then for the Claude usage parser and plan limits.
 
 Rebuild the UI before compiling Rust when UI sources change; `ui/dist` is checked in and embedded at compile time.
 
