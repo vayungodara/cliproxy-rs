@@ -371,6 +371,63 @@ async fn remote_policy_does_not_trust_forwarded_headers_and_key_hashing_preserve
     );
 }
 
+#[test]
+fn plaintext_secret_loads_from_a_read_only_config_and_inherited_keys() {
+    use std::os::unix::fs::PermissionsExt;
+    let dir = std::env::temp_dir().join(format!("manage-readonly-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("config.yaml");
+    let text = "port: 8317\nremote-management:\n  secret-key: fake-plain-secret\n";
+    std::fs::write(&path, text).unwrap();
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o444)).unwrap();
+    std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o555)).unwrap();
+    let loaded = Config::load(&path);
+    std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o755)).unwrap();
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644)).unwrap();
+    // Go: hashed in memory, persistence failure ignored.
+    let cfg = loaded.expect("read-only config must load");
+    assert!(bcrypt::verify("fake-plain-secret", &cfg.management.secret_key).unwrap());
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), text, "file untouched");
+    // A key inherited through a merge loads too (not persisted, ponytail).
+    std::fs::write(&path, "<<: {remote-management: {secret-key: fake-merged-secret}}\n").unwrap();
+    let cfg = Config::load(&path).unwrap();
+    assert!(bcrypt::verify("fake-merged-secret", &cfg.management.secret_key).unwrap());
+    // A writable plain layout is persisted as a hash, comments kept.
+    std::fs::write(&path, "# keep\nmanagement:\n  secret-key: fake-v8-secret # note\n").unwrap();
+    let cfg = Config::load(&path).unwrap();
+    let file = std::fs::read_to_string(&path).unwrap();
+    assert!(file.contains("# keep") && file.contains("# note") && !file.contains("fake-v8-secret"));
+    assert!(file.contains(&cfg.management.secret_key));
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[tokio::test]
+async fn management_bodies_are_unbounded_but_the_open_callback_is_not() {
+    let f = Fixture::new("body-limit");
+    let (base, server) = f.server().await;
+    let client = wreq::Client::new();
+    let note = "x".repeat(3 * 1024 * 1024);
+    let r = client
+        .post(format!("{base}/v8/management/credentials?name=large.json"))
+        .bearer_auth("fake-management-only")
+        .header("Content-Type", "application/json")
+        .body(format!(r#"{{"type":"codex","note":"{note}"}}"#))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(r.status(), 200, "{}", r.text().await.unwrap());
+    assert!(f.dir.join("auth/large.json").metadata().unwrap().len() > 3 * 1024 * 1024);
+    let r = client
+        .post(format!("{base}/v8/management/oauth/callback"))
+        .header("Content-Type", "application/json")
+        .body(format!(r#"{{"state":"s","code":"{note}"}}"#))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(r.status(), 413);
+    server.abort();
+}
+
 /// Waits up to four seconds for `done`.
 async fn eventually(done: impl Fn() -> bool) {
     tokio::time::timeout(std::time::Duration::from_secs(4), async {
