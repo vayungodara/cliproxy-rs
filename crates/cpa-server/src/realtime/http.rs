@@ -746,7 +746,7 @@ mod relay_tests {
             meta.as_object().unwrap().clone(),
         )
         .unwrap();
-        let rt = Arc::new(Runtime::new(
+        let rt = Arc::new(crate::testing::runtime(
             cpa_core::config::Config::parse(yaml).unwrap(),
             vec![credential],
             cpa_exec::Executors {

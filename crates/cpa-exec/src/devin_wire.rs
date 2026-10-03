@@ -1150,41 +1150,75 @@ pub(crate) fn parse_dimension_groups(groups: &[Vec<u8>]) -> Option<(i64, i64, i6
     found.then_some((prompt, completion, cached))
 }
 
-/// Go `encoding/json` struct-field matching: exact key first, else case-insensitive;
-/// the last matching key wins.
-fn json_field<'a>(obj: &'a serde_json::Map<String, serde_json::Value>, name: &str) -> Option<&'a serde_json::Value> {
-    obj.iter()
-        .rev()
-        .find(|(k, _)| k.eq_ignore_ascii_case(name))
-        .map(|(_, v)| v)
+/// A JSON string token as Go's `encoding/json` decodes it (a lone surrogate or an
+/// invalid UTF-8 byte becomes U+FFFD; a `\u` pair is joined only when valid).
+fn go_json_string(value: &cpa_common::json::Res<'_>) -> String {
+    cpa_common::json::go_unquote(value.raw()).unwrap_or_default()
+}
+
+/// `json.Unmarshal` of an EOS trailer into Go's `{Error *struct{Code, Message string}}`:
+/// field names match case-insensitively (Go's fold), duplicates decode in order into the
+/// same struct, and any type mismatch makes the whole decode an error (`None`).
+fn decode_trailer(payload: &[u8]) -> Option<(String, String)> {
+    use cpa_common::gostr::GoStr;
+    use cpa_common::json::{self as gj, Kind};
+    if !gj::std_valid(payload) {
+        return None;
+    }
+    let root = gj::parse(payload);
+    if root.kind == Kind::Null {
+        return None;
+    }
+    if !root.is_object() {
+        return None;
+    }
+    let mut type_error = false;
+    let mut error: Option<(String, String)> = None;
+    root.each(|key, value| {
+        if !key.str().go_eq_fold("error") {
+            return true;
+        }
+        match value.kind {
+            Kind::Null => error = None,
+            Kind::Json if value.is_object() => {
+                let fields = error.get_or_insert_with(Default::default);
+                value.each(|k, v| {
+                    let target = if k.str().go_eq_fold("code") {
+                        &mut fields.0
+                    } else if k.str().go_eq_fold("message") {
+                        &mut fields.1
+                    } else {
+                        return true;
+                    };
+                    match v.kind {
+                        Kind::String => *target = go_json_string(&v),
+                        Kind::Null => {}
+                        _ => type_error = true,
+                    }
+                    true
+                });
+            }
+            _ => type_error = true,
+        }
+        true
+    });
+    if type_error {
+        return None;
+    }
+    error
 }
 
 /// `ParseDevinTrailerError`: the HTTP status and message of an EOS trailer error;
 /// `None` for a clean end.
-// ponytail: serde_json rejects invalid UTF-8 and lone surrogates that Go's decoder
-// replaces with U+FFFD; such a trailer reads as a clean end here.
 pub(crate) fn parse_trailer_error(payload: &[u8]) -> Option<(u16, String)> {
-    use serde_json::Value;
+    use cpa_common::gostr::GoStr;
     let trimmed = cpa_common::gostr::trim_space(payload);
     if trimmed.is_empty() || trimmed == b"{}" {
         return None;
     }
-    let Value::Object(root) = serde_json::from_slice::<Value>(trimmed).ok()? else {
-        return None;
-    };
-    let Value::Object(error) = json_field(&root, "error")? else {
-        return None;
-    };
-    let text = |name: &str| -> Option<String> {
-        match json_field(error, name) {
-            None | Some(Value::Null) => Some(String::new()),
-            Some(Value::String(s)) => Some(s.clone()),
-            Some(_) => None,
-        }
-    };
-    let (code, message) = (text("code")?, text("message")?);
-    let code_lower = code.to_lowercase();
-    let msg = message.to_lowercase();
+    let (code, message) = decode_trailer(trimmed)?;
+    let code_lower = code.go_lower();
+    let msg = message.go_lower();
     let status = match code_lower.as_str() {
         "invalid_argument" if msg.contains("internal error") => 502,
         "invalid_argument" => 400,
@@ -1283,6 +1317,45 @@ mod tests {
         assert_eq!(
             pb::consume_field_value(3, pb::START_GROUP, &[0x08, 0x01, 0x24]),
             Err(pb::Error::EndGroup)
+        );
+    }
+
+    #[test]
+    fn trailers_decode_like_go_json() {
+        // Go replaces a lone surrogate and invalid UTF-8 with U+FFFD instead of failing.
+        let lone = br#"{"error":{"code":"unauthenticated","message":"\ud800x"}}"#;
+        assert_eq!(
+            parse_trailer_error(lone),
+            Some((401, "devin upstream error (unauthenticated): \u{FFFD}x".into()))
+        );
+        let raw = b"{\"error\":{\"code\":\"internal\",\"message\":\"a\xffb\"}}";
+        assert_eq!(
+            parse_trailer_error(raw),
+            Some((502, "devin upstream error (internal): a\u{FFFD}b".into()))
+        );
+        // A lone high surrogate does not consume the next escape (Go 1.26 decode.go;
+        // checked with json.Unmarshal: "\uFFFDinternal error", so 502 not 400).
+        let pair = br#"{"error":{"code":"invalid_argument","message":"\ud800\u0069nternal error"}}"#;
+        assert_eq!(
+            parse_trailer_error(pair),
+            Some((
+                502,
+                "devin upstream error (invalid_argument): \u{FFFD}internal error".into()
+            ))
+        );
+        // Case-insensitive field names; duplicates decode into the same struct.
+        let folded = br#"{"ERROR":{"Code":"canceled"},"error":{"MESSAGE":"m"}}"#;
+        assert_eq!(
+            parse_trailer_error(folded),
+            Some((499, "devin upstream error (canceled): m".into()))
+        );
+        // A type mismatch anywhere is an Unmarshal error: a clean end.
+        assert_eq!(parse_trailer_error(br#"{"error":{"code":5,"message":"m"}}"#), None);
+        assert_eq!(parse_trailer_error(br#"{"error":"x"}"#), None);
+        assert_eq!(parse_trailer_error(br#"[1]"#), None);
+        assert_eq!(
+            parse_trailer_error(br#"{"error":{"code":"internal"},"error":null}"#),
+            None
         );
     }
 

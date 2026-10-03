@@ -12,6 +12,68 @@ use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
 use super::*;
 use crate::{gemini_payload as payload, gemini_stream as sse};
 
+/// The model info Go's conductor bound for the scenario (the fixture's `resolved`).
+pub(crate) fn resolved_model(s: &Value) -> Option<cpa_core::exec::ResolvedModel> {
+    let record = s.get("resolved").filter(|r| !r.is_null())?;
+    let mut raw = record["info"].as_object().unwrap().clone();
+    for flag in ["is_compat", "user_defined", "support_configuration_update"] {
+        if record[flag].as_bool() == Some(true) {
+            raw.insert(flag.into(), Value::Bool(true));
+        }
+    }
+    Some(cpa_core::exec::ResolvedModel {
+        info: cpa_core::registry::ModelInfo::from_raw(raw).unwrap(),
+        source: cpa_core::exec::ResolvedSource::ApiKey,
+    })
+}
+
+/// What an executor reported to its usage sink: the reasoning effort of the last
+/// translated request (Go `SetTranslatedReasoningEffort`) and how many response reports
+/// arrived. Token and response-model parity is checked through the router against Go's
+/// published records (cpa-server tests/gemini_routes.rs `usage_records_match_go`).
+#[derive(Default)]
+pub(crate) struct UsageReports {
+    effort: Mutex<Option<String>>,
+    responses: Mutex<usize>,
+}
+
+impl UsageReports {
+    pub(crate) fn sink(self: &Arc<Self>) -> cpa_core::exec::UsageSink {
+        cpa_core::exec::UsageSink::new(self.clone())
+    }
+
+    /// Checks the reports against the record Go's reporter published (the fixture's
+    /// `usage`): Go's record keeps an empty effort unless the executor set one.
+    pub(crate) fn check(&self, s: &Value) {
+        let name = s["name"].as_str().unwrap();
+        let effort = self.effort.lock().unwrap().clone().unwrap_or_default();
+        match s.get("usage").filter(|u| !u.is_null()) {
+            Some(want) => assert_eq!(
+                effort,
+                want["reasoning_effort"].as_str().unwrap(),
+                "{name}: reasoning effort"
+            ),
+            // No record: Go failed before its reporter existed, so nothing was sent.
+            None => assert_eq!(*self.responses.lock().unwrap(), 0, "{name}: no reporter in Go"),
+        }
+    }
+}
+
+impl cpa_core::exec::UsageObserver for UsageReports {
+    fn response_body(&self, _: Format, _: &[u8]) {
+        *self.responses.lock().unwrap() += 1;
+    }
+
+    fn response_line(&self, _: Format, _: &[u8]) {
+        *self.responses.lock().unwrap() += 1;
+    }
+
+    fn request(&self, format: Format, payload: &[u8]) {
+        let effort = cpa_common::thinking::extract_translated_reasoning_effort(payload, format.as_str());
+        *self.effort.lock().unwrap() = Some(effort);
+    }
+}
+
 const FIXTURE: &str = include_str!("../tests/fixtures/gemini_go.json");
 
 fn fixture() -> &'static Value {
@@ -156,7 +218,7 @@ fn request(s: &Value) -> ExecRequest {
         session: s["session"].as_str().map(str::to_owned),
         execution_session: None,
         derived_session: None,
-        resolved_model: None,
+        resolved_model: resolved_model(s),
         usage: Default::default(),
         request_path: String::new(),
         headers,
@@ -171,7 +233,7 @@ fn request(s: &Value) -> ExecRequest {
 /// from the handlers rather than taken from the Rust framer. Empty chunks never reach a
 /// handler (handlers_stream.go). The Responses route's terminal tracking and the Gemini
 /// route's keep-alives belong to the server, so this stops at each chunk's framing.
-fn client_bytes(client: Format, alt: bool, chunks: &[Value]) -> Vec<u8> {
+pub(crate) fn client_bytes(client: Format, alt: bool, chunks: &[Value]) -> Vec<u8> {
     let mut out = Vec::new();
     for chunk in chunks {
         let chunk = chunk.as_str().unwrap().as_bytes();
@@ -264,7 +326,9 @@ async fn go_reference_scenarios() {
         let addr = mock.as_ref().map_or("127.0.0.1:9".to_owned(), |m| m.addr.clone());
         let cfg = Config::parse(&s["config"].as_str().unwrap_or_default().replace("UPSTREAM", &addr)).unwrap();
         let cred = credential(s, &cfg, &addr);
-        let req = request(s);
+        let mut req = request(s);
+        let reports = Arc::new(UsageReports::default());
+        req.usage = reports.sink();
         let (client, alt) = (req.response_format, req.alt.as_deref().is_some_and(|a| !a.is_empty()));
         let mut output = None;
         let mut streamed = Vec::new();
@@ -311,6 +375,7 @@ async fn go_reference_scenarios() {
         );
         let request = mock.as_ref().and_then(Mock::request);
         assert_eq!(request.as_deref(), s["request"].as_str(), "{name}: upstream request");
+        reports.check(s);
         ran += 1;
     }
     eprintln!("gemini scenarios: {ran} ran, {} wait for translators:", skipped.len());
@@ -396,59 +461,6 @@ fn claude_input_tokens_match_go() {
     }
 }
 
-/// The resolved configured model decides thinking validation (Go binds it in the
-/// conductor): a configured `levels` list rejects levels the static model would map.
-#[test]
-fn resolved_model_follows_config_routes() {
-    let cfg = Config::parse(
-        r#"
-api-keys:
-  gemini:
-    - base-url: http://example.invalid
-      prefix: team
-      models:
-        - name: gemini-2.5-pro
-          alias: pro-levels
-          is-compat: true
-          thinking:
-            levels: [LOW, High, none, high]
-        - name: gemini-2.5-flash(1024)
-          alias: suffixed
-      keys:
-        - api-key: AIza-fake
-"#,
-    )
-    .unwrap();
-    let cred = cpa_core::config::credentials::from_config(&cfg)
-        .into_iter()
-        .find(|c| c.provider == "gemini")
-        .unwrap();
-    let resolved = payload::resolved_model(
-        &cred,
-        &cfg,
-        "gemini",
-        "gemini",
-        "team/pro-levels(high)",
-        "gemini-2.5-pro(high)",
-    )
-    .unwrap();
-    assert!(resolved.is_compat);
-    assert_eq!(resolved.caps.id, "gemini-2.5-pro");
-    assert_eq!(resolved.caps.kind, "gemini");
-    assert!(!resolved.caps.user_defined);
-    let thinking = resolved.caps.thinking.unwrap();
-    assert_eq!(thinking.levels, ["low", "high", "none"]);
-    assert!(thinking.zero_allowed);
-    // Configured thinking replaces the static support, budget limits included.
-    assert_eq!((thinking.min, thinking.max), (0, 0));
-    // A configured suffix must match exactly; the base-name fallback is only for
-    // suffix-free configured names.
-    assert!(payload::resolved_model(&cred, &cfg, "gemini", "gemini", "suffixed", "gemini-2.5-flash").is_none());
-    assert!(payload::resolved_model(&cred, &cfg, "gemini", "gemini", "suffixed", "gemini-2.5-flash(1024)").is_some());
-    // Unconfigured routes resolve nothing (Go then looks the model up in the registry).
-    assert!(payload::resolved_model(&cred, &cfg, "gemini", "gemini", "other", "gemini-2.5-pro").is_none());
-}
-
 #[test]
 fn white_images_are_go_pngs() {
     use base64::Engine;
@@ -504,57 +516,6 @@ fn stop_memory_follows_go_timers() {
     assert_eq!(filter(&usage("clock-c"), at0(601.0)), usage("clock-c"));
 }
 
-/// A configured model without `name` routes and resolves as its alias (Go normalizes
-/// both before building the capability).
-#[test]
-fn alias_only_model_resolves_static_capabilities() {
-    let cfg = Config::parse(
-        "api-keys:\n  gemini:\n    - base-url: http://example.invalid\n      models:\n        - alias: gemini-2.5-flash\n      keys:\n        - api-key: AIza-fake\n",
-    )
-    .unwrap();
-    let cred = cpa_core::config::credentials::from_config(&cfg)
-        .into_iter()
-        .find(|c| c.provider == "gemini")
-        .unwrap();
-    let resolved = payload::resolved_model(
-        &cred,
-        &cfg,
-        "gemini",
-        "gemini",
-        "gemini-2.5-flash(1024)",
-        "gemini-2.5-flash(1024)",
-    )
-    .unwrap();
-    assert_eq!(resolved.caps.id, "gemini-2.5-flash");
-    let thinking = resolved.caps.thinking.unwrap();
-    assert_eq!((thinking.max, thinking.zero_allowed), (24576, true));
-}
-
-/// Configured budget thinking uses Go's YAML spellings (`zero-allowed`,
-/// `dynamic-allowed`); both must reach the bound capabilities.
-#[test]
-fn configured_budget_thinking_keeps_yaml_flags() {
-    let cfg = Config::parse(
-        "api-keys:\n  gemini:\n    - base-url: http://example.invalid\n      models:\n        - name: gemini-2.5-pro\n          alias: budget\n          thinking:\n            min: 64\n            max: 2048\n            zero-allowed: true\n            dynamic-allowed: true\n      keys:\n        - api-key: AIza-fake\n",
-    )
-    .unwrap();
-    let cred = cpa_core::config::credentials::from_config(&cfg)
-        .into_iter()
-        .find(|c| c.provider == "gemini")
-        .unwrap();
-    let resolved = payload::resolved_model(&cred, &cfg, "gemini", "gemini", "budget", "gemini-2.5-pro").unwrap();
-    let thinking = resolved.caps.thinking.unwrap();
-    assert_eq!(
-        (
-            thinking.min,
-            thinking.max,
-            thinking.zero_allowed,
-            thinking.dynamic_allowed
-        ),
-        (64, 2048, true, true)
-    );
-}
-
 /// Before a terminal error reaches a Responses client, the frame the translator is still
 /// joining is written first (Go's responsesSSEFramer.Flush in WriteTerminalError).
 #[tokio::test]
@@ -588,6 +549,7 @@ async fn pending_responses_frame_is_flushed_before_terminal_error() {
             Format::OpenAIResponse,
             Bytes::new(),
         ),
+        usage: Default::default(),
     };
     let lines = futures_util::stream::iter([
         Ok(Bytes::from_static(br#"data: {"a":1}"#)),
@@ -603,36 +565,6 @@ async fn pending_responses_frame_is_flushed_before_terminal_error() {
     );
     let error = items[1].as_ref().unwrap_err();
     assert_eq!((error.status, &error.body[..]), (502, EMPTY_TRANSLATION.as_bytes()));
-}
-
-/// Go `Auth.AuthKind` decides whether configured capabilities bind: a recognized
-/// attribute, then a recognized metadata field, then a non-empty API key attribute.
-#[test]
-fn resolved_model_follows_go_auth_kind() {
-    let cfg = Config::parse(
-        "api-keys:\n  gemini:\n    - base-url: http://example.invalid\n      models:\n        - name: gemini-2.5-pro\n          alias: pro\n      keys:\n        - api-key: AIza-fake\n",
-    )
-    .unwrap();
-    let base = cpa_core::config::credentials::from_config(&cfg)
-        .into_iter()
-        .find(|c| c.provider == "gemini")
-        .unwrap();
-    let resolve =
-        |c: &Credential| payload::resolved_model(c, &cfg, "gemini", "gemini", "pro", "gemini-2.5-pro").is_some();
-    assert!(resolve(&base));
-    // An unknown attribute kind falls through to the API key.
-    let mut unknown = base.clone();
-    unknown.attributes.insert("auth_kind".into(), "weird".into());
-    assert!(resolve(&unknown));
-    // A metadata OAuth kind wins over the API key attribute.
-    let mut oauth = unknown.clone();
-    oauth.metadata.insert("auth_kind".into(), "oauth".into());
-    assert!(!resolve(&oauth));
-    // Without a kind, an empty API key is not an API-key credential.
-    let mut empty = base.clone();
-    empty.attributes.remove("auth_kind");
-    empty.attributes.insert("api_key".into(), "  ".into());
-    assert!(!resolve(&empty));
 }
 
 /// helps.StopApplyPatchStream / EndApplyPatchStream: a failed tool input ends the stream
@@ -684,6 +616,7 @@ async fn apply_patch_hooks_follow_go_order() {
             client: Format::OpenAI,
             raw: false,
             claude: ClaudeInputTokens::new(Format::OpenAI, Format::Gemini, Format::OpenAI, Bytes::new()),
+            usage: Default::default(),
         };
         let lines = futures_util::stream::iter([
             Ok(Bytes::from_static(br#"data: {"a":1}"#)),

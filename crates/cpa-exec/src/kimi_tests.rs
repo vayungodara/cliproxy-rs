@@ -55,6 +55,16 @@ async fn upstream_requests_match_go_byte_for_byte() {
         "chat-kimi-ai-metadata-base",
         "responses-nonstream-reorder-suffix",
         "responses-stream-clamp",
+        "responses-apply-patch-stream",
+        "responses-apply-patch-nonstream",
+        "responses-apply-patch-invalid-stream",
+        "responses-apply-patch-invalid-nonstream",
+        "responses-apply-patch-eof-stream",
+        "responses-nonstream-nested-usage",
+        "responses-stream-incomplete-then-done",
+        "responses-apply-patch-stream-event-lines",
+        "responses-stream-tier-merge",
+        "chat-stream-usage-then-model",
         "chat-payload-rules",
         "responses-payload-rules",
         "responses-compact-rejected",
@@ -140,6 +150,16 @@ async fn downstream_results_match_go() {
         "chat-kimi-ai-metadata-base",
         "responses-nonstream-reorder-suffix",
         "responses-stream-clamp",
+        "responses-apply-patch-stream",
+        "responses-apply-patch-nonstream",
+        "responses-apply-patch-invalid-stream",
+        "responses-apply-patch-invalid-nonstream",
+        "responses-apply-patch-eof-stream",
+        "responses-nonstream-nested-usage",
+        "responses-stream-incomplete-then-done",
+        "responses-apply-patch-stream-event-lines",
+        "responses-stream-tier-merge",
+        "chat-stream-usage-then-model",
         "responses-stream-data-only-frames",
         "responses-compact-rejected",
         "transport-custom-headers",
@@ -157,8 +177,17 @@ async fn downstream_results_match_go() {
             continue;
         }
         if let Some(status) = go["err_status"].as_u64() {
+            let go_err = go["stream_err"]
+                .as_str()
+                .filter(|e| !e.is_empty())
+                .or(go["err_body"].as_str());
             assert_eq!(down.err_status, Some(status as u16), "{name}: error status");
-            assert_eq!(down.err_body.as_deref(), go["err_body"].as_str(), "{name}: error body");
+            assert_eq!(down.err_body.as_deref(), go_err, "{name}: error body");
+            // A stream that fails after output: the frames Go's route wrote before the error.
+            if let Some(frames) = go["frames"].as_array() {
+                let frames: Vec<&str> = frames.iter().filter_map(|f| f.as_str()).collect();
+                assert_eq!(down.chunks, frames, "{name}: frames before the error");
+            }
             continue;
         }
         if let Some(body) = go["body"].as_str() {
@@ -625,7 +654,7 @@ async fn probe(
         Err(()) => Err(ExecError::local(502, FailureScope::Transport, "scan failed")),
     }))
     .boxed();
-    let out: Vec<String> = translate_lines(upstream, translator, end)
+    let out: Vec<String> = translate_lines(upstream, translator, end, Default::default())
         .map(|item| match item {
             Ok(b) => String::from_utf8(b.to_vec()).unwrap(),
             Err(e) => format!("ERR {} {}", e.status, String::from_utf8_lossy(&e.body)),
@@ -676,6 +705,16 @@ async fn usage_reports_match_go_records() {
         "chat-error-429-clamped-none",
         "responses-nonstream-reorder-suffix",
         "responses-stream-clamp",
+        "responses-apply-patch-stream",
+        "responses-apply-patch-nonstream",
+        "responses-apply-patch-invalid-stream",
+        "responses-apply-patch-invalid-nonstream",
+        "responses-apply-patch-eof-stream",
+        "responses-nonstream-nested-usage",
+        "responses-stream-incomplete-then-done",
+        "responses-apply-patch-stream-event-lines",
+        "responses-stream-tier-merge",
+        "chat-stream-usage-then-model",
         "responses-stream-data-only-frames",
         "chat-payload-rules",
         "responses-payload-rules",

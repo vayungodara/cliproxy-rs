@@ -45,7 +45,7 @@ use cpa_core::credential::Credential;
 use cpa_exec::Executors;
 use cpa_exec::codex::CodexExecutor;
 use cpa_exec::codex_oauth::CodexOAuth;
-use cpa_server::{Runtime, router};
+use cpa_server::router;
 use serde_json::Value;
 
 #[derive(Default)]
@@ -113,7 +113,7 @@ async fn proxy(credentials: Vec<Credential>, mock: Shared) -> String {
             format!("{upstream_url}/backend-api/codex/realtime/calls?intent=quicksilver&architecture=avas"),
             format!("ws{}/v1", upstream_url.trim_start_matches("http")),
         );
-    let rt = Arc::new(Runtime::new(
+    let rt = Arc::new(cpa_server::testing::runtime(
         Config::parse("api-keys: [good-key, other-key]").unwrap(),
         credentials,
         Executors {
@@ -532,7 +532,7 @@ async fn realtime_websockets_match_go() {
             &[("header:X-Operator", "op-value")],
         ),
     ];
-    let rt = Arc::new(Runtime::new(
+    let rt = Arc::new(cpa_server::testing::runtime(
         Config::parse("api-keys: [owner-key, other-key]").unwrap(),
         credentials,
         Executors {
@@ -796,7 +796,7 @@ async fn sideband_claims_and_hangup_teardown() {
             format!("{upstream_url}/backend-api/codex/realtime/calls"),
             format!("ws{}/v1", upstream_url.trim_start_matches("http")),
         );
-    let rt = Arc::new(Runtime::new(
+    let rt = Arc::new(cpa_server::testing::runtime(
         Config::parse("api-keys: [owner-key]").unwrap(),
         vec![credential(
             "only-oauth",
@@ -882,7 +882,7 @@ async fn raw_handshakes_match_gorilla() {
             format!("{upstream_url}/backend-api/codex/realtime/calls"),
             format!("ws{}/v1", upstream_url.trim_start_matches("http")),
         );
-    let rt = Arc::new(Runtime::new(
+    let rt = Arc::new(cpa_server::testing::runtime(
         Config::parse("api-keys: [owner-key]").unwrap(),
         vec![credential(
             "only-oauth",
@@ -971,7 +971,7 @@ async fn relay_end_close_codes_match_gorilla() {
             format!("{upstream_url}/backend-api/codex/realtime/calls"),
             format!("ws{}/v1", upstream_url.trim_start_matches("http")),
         );
-    let rt = Arc::new(Runtime::new(
+    let rt = Arc::new(cpa_server::testing::runtime(
         Config::parse("api-keys: [owner-key]").unwrap(),
         vec![credential(
             "only-oauth",

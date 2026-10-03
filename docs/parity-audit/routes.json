@@ -540,10 +540,10 @@
   "status": 404
  },
  "GET /v1/live/:call_id": {
-  "body": "",
+  "body": "{\"error\":\"Invalid API key\"}",
   "id": "M5-0004",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 401
  },
  "GET /v1/models": {
   "body": "{\"error\":\"Invalid API key\"}",
@@ -552,22 +552,22 @@
   "status": 401
  },
  "GET /v1/realtime": {
-  "body": "",
+  "body": "{\"error\":{\"code\":\"invalid_api_key\",\"message\":\"Invalid API key\",\"param\":null,\"typ",
   "id": "M5-0005",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 401
  },
  "GET /v1/realtime/calls/:call_id": {
-  "body": "",
+  "body": "{\"error\":{\"code\":\"invalid_api_key\",\"message\":\"Invalid API key\",\"param\":null,\"typ",
   "id": "M5-0008",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 401
  },
  "GET /v1/realtime/translations": {
-  "body": "",
+  "body": "{\"error\":{\"code\":\"invalid_api_key\",\"message\":\"Invalid API key\",\"param\":null,\"typ",
   "id": "M5-0012",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 401
  },
  "GET /v1/responses": {
   "body": "{\"error\":\"Invalid API key\"}",
@@ -1050,10 +1050,10 @@
   "status": 404
  },
  "POST /v1/live": {
-  "body": "",
+  "body": "{\"error\":\"Invalid API key\"}",
   "id": "M5-0003",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 401
  },
  "POST /v1/messages": {
   "body": "{\"error\":\"Invalid API key\"}",
@@ -1068,70 +1068,70 @@
   "status": 401
  },
  "POST /v1/realtime": {
-  "body": "",
+  "body": "{\"error\":{\"code\":\"invalid_api_key\",\"message\":\"Invalid API key\",\"param\":null,\"typ",
   "id": "M5-0006",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 401
  },
  "POST /v1/realtime/calls": {
-  "body": "",
+  "body": "{\"error\":{\"code\":\"invalid_api_key\",\"message\":\"Invalid API key\",\"param\":null,\"typ",
   "id": "M5-0007",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 401
  },
  "POST /v1/realtime/calls/:call_id/accept": {
-  "body": "",
+  "body": "{\"error\":{\"code\":\"invalid_api_key\",\"message\":\"Invalid API key\",\"param\":null,\"typ",
   "id": "M5-0016",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 401
  },
  "POST /v1/realtime/calls/:call_id/hangup": {
-  "body": "",
+  "body": "{\"error\":{\"code\":\"invalid_api_key\",\"message\":\"Invalid API key\",\"param\":null,\"typ",
   "id": "M5-0015",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 401
  },
  "POST /v1/realtime/calls/:call_id/refer": {
-  "body": "",
+  "body": "{\"error\":{\"code\":\"invalid_api_key\",\"message\":\"Invalid API key\",\"param\":null,\"typ",
   "id": "M5-0018",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 401
  },
  "POST /v1/realtime/calls/:call_id/reject": {
-  "body": "",
+  "body": "{\"error\":{\"code\":\"invalid_api_key\",\"message\":\"Invalid API key\",\"param\":null,\"typ",
   "id": "M5-0017",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 401
  },
  "POST /v1/realtime/client_secrets": {
-  "body": "",
+  "body": "{\"error\":{\"code\":\"invalid_api_key\",\"message\":\"Invalid API key\",\"param\":null,\"typ",
   "id": "M5-0009",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 401
  },
  "POST /v1/realtime/sessions": {
-  "body": "",
+  "body": "{\"error\":{\"code\":\"invalid_api_key\",\"message\":\"Invalid API key\",\"param\":null,\"typ",
   "id": "M5-0010",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 401
  },
  "POST /v1/realtime/transcription_sessions": {
-  "body": "",
+  "body": "{\"error\":{\"code\":\"invalid_api_key\",\"message\":\"Invalid API key\",\"param\":null,\"typ",
   "id": "M5-0011",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 401
  },
  "POST /v1/realtime/translations": {
-  "body": "",
+  "body": "{\"error\":{\"code\":\"invalid_api_key\",\"message\":\"Invalid API key\",\"param\":null,\"typ",
   "id": "M5-0013",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 401
  },
  "POST /v1/realtime/translations/client_secrets": {
-  "body": "",
+  "body": "{\"error\":{\"code\":\"invalid_api_key\",\"message\":\"Invalid API key\",\"param\":null,\"typ",
   "id": "M5-0014",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 401
  },
  "POST /v1/responses": {
   "body": "{\"error\":\"Invalid API key\"}",

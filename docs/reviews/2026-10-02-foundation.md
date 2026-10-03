@@ -1,6 +1,6 @@
 # Foundation review (oracle, 2026-10-02, skeleton commit 99a3067)
 
-Go reference: `/home/vayun/projects/.amp/in/CLIProxyAPI` at `6fecc6e`. This file is the spec for the contracts rewrite. Go paths below are relative to that clone.
+Go reference: [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI) at `6fecc6e`. This file is the spec for the contracts rewrite. Go paths below are relative to the root of that repository.
 
 ## (a) Seam changes to make before fan-out
 

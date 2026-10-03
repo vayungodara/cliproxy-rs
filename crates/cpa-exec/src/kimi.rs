@@ -11,10 +11,10 @@
 //! translation cpa_translate, and clients and Go net/http wire behaviour the shared proxy
 //! module. Stages whose shared module has not landed go through adapters named after their
 //! owners: custom headers (kimi_http), payload rules and Codex-client rewrites (below).
-//! Translator apply_patch failures end streams with Go's 502. ponytail: Go's native
-//! Responses path also runs NormalizeApplyPatchResponsesRequest and ApplyPatchResponsesState
-//! (translator common and executor helps), which are not ported (no owner yet); requests
-//! without an apply_patch custom tool are unaffected.
+//! Translator apply_patch failures end streams with Go's 502. The native Responses path
+//! runs Go's apply_patch Responses bridge (cpa_translate::apply_patch_responses): a
+//! client's custom `apply_patch` tool goes upstream as a JSON function and comes back as
+//! the custom tool call.
 
 use std::collections::VecDeque;
 use std::sync::Arc;
@@ -27,15 +27,16 @@ use cpa_core::config::Config;
 use cpa_core::credential::{Credential, MetadataPatch};
 use cpa_core::exec::{ExecError, ExecRequest, ExecResponse, ExecStream, FailureScope, Operation, ResponseBody};
 use cpa_core::format::Format;
-use cpa_translate::{RequestCtx, ResponseCtx, StreamTranslator};
+use cpa_translate::{RequestCtx, ResponseCtx, StreamTranslator, apply_patch_responses};
 use futures_util::StreamExt;
 
 use crate::claude::{ClaudeExecutor, Delegation};
 use crate::kimi_auth::{self, DeviceFlow};
 use crate::kimi_http::{
-    BUILD_VERSION, credential_headers, go_arch, go_os, hostname, payload_rules, refresh_due, report_lines,
-    rfc3339_local_now, status_error,
+    BUILD_VERSION, credential_headers, go_arch, go_os, hostname, payload_rules, refresh_due, rfc3339_local_now,
+    status_error,
 };
+use crate::kimi_http::{DeferredUsage, UsageRule, apply_patch_requested, defer_usage, report_model};
 use crate::kimi_replay::{self, ReplayCache};
 use crate::meta_codex::go_trim_space;
 use crate::openai_compat_payload::ensure_responses_usage_details;
@@ -77,7 +78,9 @@ impl KimiExecutor {
     }
 
     pub fn needs_prepare(&self, credential: &Credential, _cfg: &Config) -> bool {
-        refresh_token(credential).is_some()
+        // Go's refresh loop never schedules API-key-kind credentials.
+        !cpa_core::registry::dynamic::is_api_key(credential)
+            && refresh_token(credential).is_some()
             && refresh_due(
                 credential,
                 chrono::Duration::from_std(kimi_auth::REFRESH_LEAD).ok(),
@@ -113,6 +116,13 @@ impl KimiExecutor {
         cfg: &Config,
     ) -> Result<ExecResponse, ExecError> {
         if req.operation == Operation::CountTokens || req.source_format == Format::Claude {
+            let mut req = req;
+            // Go CountTokens: Responses requests declare apply_patch as a function first.
+            if req.operation == Operation::CountTokens && req.source_format == Format::OpenAIResponse {
+                req.body = Bytes::from(
+                    apply_patch_responses::normalize_executor_request(&req.body, None).map_err(internal_error)?,
+                );
+            }
             return self.execute_claude(claude, credential, req, cfg).await;
         }
         let client = self.clients.get(&Proxy::effective(credential, cfg));
@@ -395,24 +405,27 @@ async fn execute_chat(
         translated_request: &translated,
     };
     let body = if req.stream {
+        let (tapped, usage) = defer_usage(
+            lines(upstream.body, CHAT_LINE_LIMIT),
+            &req.usage,
+            UsageRule::OpenAIStream,
+        );
         ResponseBody::Stream(translate_lines(
-            report_lines(
-                lines(upstream.body, CHAT_LINE_LIMIT),
-                &req.usage,
-                Format::OpenAI,
-                |_| true,
-            ),
+            tapped,
             (response_pair.stream)(&ctx),
             StreamEnd::Chat,
+            usage,
         ))
     } else {
         let data = read_all(upstream.body, usize::MAX, false).await?;
-        req.usage.response_body(Format::OpenAI, &data);
+        // Go observes the response model now and publishes the usage once translated.
+        report_model(&req.usage, Format::OpenAI, &data);
         // A translator error or empty output is Go's apply_patch 502.
         let out = (response_pair.non_stream)(&ctx, &data)
             .ok()
             .filter(|out| !out.is_empty())
             .ok_or_else(apply_patch_error)?;
+        req.usage.response_body(Format::OpenAI, &data);
         ResponseBody::Buffered(Bytes::from(if req.response_format == Format::OpenAIResponse {
             ensure_responses_usage_details(&out)
         } else {
@@ -446,24 +459,34 @@ fn apply_patch_error() -> ExecError {
 /// (EndApplyPatchStream) and translate a synthetic `[DONE]`, even after a scan error; the
 /// scan error follows. Before any terminal error the Responses route flushes the frame it
 /// is still joining.
-fn translate_lines(upstream: ExecStream, translator: Box<dyn StreamTranslator>, end: StreamEnd) -> ExecStream {
+fn translate_lines(
+    upstream: ExecStream,
+    translator: Box<dyn StreamTranslator>,
+    end: StreamEnd,
+    usage: DeferredUsage,
+) -> ExecStream {
     struct State {
         upstream: ExecStream,
         translator: Box<dyn StreamTranslator>,
         ready: VecDeque<Result<Bytes, ExecError>>,
         done: bool,
         end: StreamEnd,
+        usage: DeferredUsage,
+        failed: bool,
     }
     impl State {
         fn fail(&mut self, error: ExecError) {
             self.done = true;
+            self.failed = true;
             let flushed = self.translator.flush_frames();
             self.ready.extend(flushed.into_iter().map(Ok));
             self.ready.push_back(Err(error));
         }
 
-        /// One translated line; false when the stream has ended.
+        /// One translated line; false when the stream has ended. Bridge frames end in a
+        /// blank line; Go hands the translator the whole chunk, which it trims.
         fn translate(&mut self, line: &[u8]) -> bool {
+            let line = line.strip_suffix(b"\n\n").unwrap_or(line);
             match self.translator.event(line) {
                 Ok(events) => self.ready.extend(events.into_iter().map(Ok)),
                 Err(error) => {
@@ -491,7 +514,10 @@ fn translate_lines(upstream: ExecStream, translator: Box<dyn StreamTranslator>, 
                 Err(error) => return self.fail(translate_error(error)),
             }
             if let Some(Err(error)) = end {
-                self.fail(error);
+                return self.fail(error);
+            }
+            if !self.failed {
+                self.usage.commit();
             }
         }
     }
@@ -502,6 +528,8 @@ fn translate_lines(upstream: ExecStream, translator: Box<dyn StreamTranslator>, 
             ready: VecDeque::new(),
             done: false,
             end,
+            usage,
+            failed: false,
         },
         move |mut st| async move {
             loop {
@@ -533,12 +561,13 @@ fn translate_error(error: cpa_translate::Error) -> ExecError {
 /// Native Responses streaming: Go writes every scanned line plus `\n` as one chunk and
 /// the Responses route joins chunks into frames (cpa_translate's ResponsesFramer),
 /// flushing what is pending at the end and before a terminal error.
-fn responses_frames(lines: ExecStream) -> ExecStream {
+fn responses_frames(lines: ExecStream, usage: DeferredUsage) -> ExecStream {
     struct State {
         lines: ExecStream,
         joiner: cpa_translate::stream::ResponsesFramer,
         ready: VecDeque<Result<Bytes, ExecError>>,
         done: bool,
+        usage: DeferredUsage,
     }
     futures_util::stream::unfold(
         State {
@@ -546,6 +575,7 @@ fn responses_frames(lines: ExecStream) -> ExecStream {
             joiner: Default::default(),
             ready: VecDeque::new(),
             done: false,
+            usage,
         },
         |mut st| async move {
             loop {
@@ -566,8 +596,9 @@ fn responses_frames(lines: ExecStream) -> ExecStream {
                         st.done = true;
                         let frames = st.joiner.flush();
                         st.ready.extend(frames.into_iter().map(Ok));
-                        if let Some(Err(error)) = end {
-                            st.ready.push_back(Err(error));
+                        match end {
+                            Some(Err(error)) => st.ready.push_back(Err(error)),
+                            _ => st.usage.commit(),
                         }
                     }
                 }
@@ -575,6 +606,64 @@ fn responses_frames(lines: ExecStream) -> ExecStream {
         },
     )
     .boxed()
+}
+
+/// Go's native Responses loop around the apply_patch bridge: every scanned line goes
+/// through `State::stream`; at EOF `finish_stream` runs before a scan error is reported,
+/// and a bridge failure ends the stream with the apply_patch 502.
+fn bridge_lines(lines: ExecStream, bridge: apply_patch_responses::State) -> ExecStream {
+    futures_util::stream::unfold(
+        (lines, bridge, VecDeque::<Result<Bytes, ExecError>>::new(), false),
+        |(mut lines, mut bridge, mut ready, mut done)| async move {
+            loop {
+                if let Some(item) = ready.pop_front() {
+                    return Some((item, (lines, bridge, ready, done)));
+                }
+                if done {
+                    return None;
+                }
+                match lines.next().await {
+                    Some(Ok(line)) => {
+                        let (out, error) = bridge.stream(&line);
+                        ready.extend(out.into_iter().map(|l| Ok(Bytes::from(l))));
+                        if error.is_some() {
+                            done = true;
+                            ready.push_back(Err(apply_patch_error()));
+                        }
+                    }
+                    end => {
+                        done = true;
+                        let (out, error) = bridge.finish_stream();
+                        ready.extend(out.into_iter().map(|l| Ok(Bytes::from(l))));
+                        if error.is_some() {
+                            ready.push_back(Err(apply_patch_error()));
+                        } else if let Some(Err(error)) = end {
+                            ready.push_back(Err(error));
+                        }
+                    }
+                }
+            }
+        },
+    )
+    .boxed()
+}
+
+/// The usage Go's native Responses Execute publishes: Codex usage (`response.usage`)
+/// with tokens, else the top-level OpenAI usage with tokens, else none. Returned as the
+/// body the usage sink parses (top-level `usage`, Go's tier).
+fn native_usage_body(data: &[u8]) -> Option<Vec<u8>> {
+    use crate::kimi_http::usage_has_tokens;
+    if usage_has_tokens(&gj::get(data, "response.usage")) {
+        let mut inner = gj::get(data, "response").raw().to_vec();
+        let tier = crate::kimi_http::response_tier(data);
+        if tier.is_empty() {
+            gj::delete(&mut inner, "service_tier");
+        } else {
+            gj::set_str(&mut inner, "service_tier", tier);
+        }
+        return Some(inner);
+    }
+    usage_has_tokens(&gj::get(data, "usage")).then(|| data.to_vec())
 }
 
 /// `SetBoolIfDifferent`.
@@ -617,6 +706,7 @@ async fn execute_responses(
     body = thinking(&body, &req, "codex")?;
     // Go passes req.Payload as the original here, not OriginalRequest.
     body = payload_rules(cfg, &req, &base_model, "openai-response", body, &req.body);
+    body = apply_patch_responses::normalize_executor_request(&body, None).map_err(internal_error)?;
     body = normalize_responses_input(body);
     body = normalize_tools(body);
     body = normalize_temperature(body);
@@ -634,31 +724,48 @@ async fn execute_responses(
         original_request: original(&req),
         translated_request: &translated,
     };
-    // Go observes every line's response model and publishes Codex (else OpenAI) usage.
-    // ponytail: Go publishes the first data line carrying tokens; the server's Codex
-    // stream parser reads terminal events, where Kimi reports usage.
-    let tapped = |body| report_lines(lines(body, RESPONSES_LINE_LIMIT), &req.usage, Format::Codex, |_| true);
-    let out = match (req.stream, response_pair) {
-        (true, Some(pair)) => ResponseBody::Stream(translate_lines(
-            tapped(upstream.body),
-            (pair.stream)(&ctx),
-            StreamEnd::Responses,
-        )),
-        // Native Responses clients get every scanned line back, joined into frames.
-        (true, None) => ResponseBody::Stream(responses_frames(tapped(upstream.body))),
-        (false, pair) => {
-            let data = read_all(upstream.body, usize::MAX, false).await?;
-            req.usage.response_body(Format::Codex, &data);
-            match pair {
-                Some(pair) => ResponseBody::Buffered(Bytes::from(
-                    (pair.non_stream)(&ctx, &data)
-                        .ok()
-                        .filter(|out| !out.is_empty())
-                        .ok_or_else(apply_patch_error)?,
-                )),
-                None => ResponseBody::Buffered(data),
-            }
+    let original_request = original(&req);
+    let mut bridge = apply_patch_responses::State::new(req.source_format, original_request, original_request);
+    let out = if req.stream {
+        // Usage comes from the upstream lines; the bridge sits between them and the client.
+        let (tapped, usage) = defer_usage(
+            lines(upstream.body, RESPONSES_LINE_LIMIT),
+            &req.usage,
+            UsageRule::KimiResponses,
+        );
+        let bridged = if bridge.active() {
+            bridge_lines(tapped, bridge)
+        } else {
+            tapped
+        };
+        match response_pair {
+            Some(pair) => ResponseBody::Stream(translate_lines(
+                bridged,
+                (pair.stream)(&ctx),
+                StreamEnd::Responses,
+                usage,
+            )),
+            // Native Responses clients get every line back, joined into frames.
+            None => ResponseBody::Stream(responses_frames(bridged, usage)),
         }
+    } else {
+        let data = read_all(upstream.body, usize::MAX, false).await?;
+        report_model(&req.usage, Format::Codex, &data);
+        let out = match bridge.bridge.transform_non_stream(&data) {
+            Ok(out) if !(out.is_empty() && apply_patch_requested(original_request)) => out,
+            _ => return Err(apply_patch_error()),
+        };
+        let out = match response_pair {
+            Some(pair) => (pair.non_stream)(&ctx, &out)
+                .ok()
+                .filter(|out| !out.is_empty())
+                .ok_or_else(apply_patch_error)?,
+            None => out,
+        };
+        if let Some(usage) = native_usage_body(&data) {
+            req.usage.response_body(Format::Codex, &usage);
+        }
+        ResponseBody::Buffered(Bytes::from(out))
     };
     Ok(ExecResponse {
         status: upstream.status,

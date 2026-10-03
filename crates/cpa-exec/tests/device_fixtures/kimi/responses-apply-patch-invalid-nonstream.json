@@ -1,0 +1,104 @@
+{
+  "name": "responses-apply-patch-invalid-nonstream",
+  "credential": {
+    "access_token": "kimi-access-fixture",
+    "base_url": "http://127.0.0.1:36897/coding",
+    "device_id": "dev-fixture-1",
+    "refresh_token": "kimi-refresh-fixture",
+    "type": "kimi"
+  },
+  "request": {
+    "body": "{\"model\":\"kimi-k3\",\"input\":[{\"type\":\"custom_tool_call\",\"call_id\":\"old\",\"name\":\"apply_patch\",\"input\":\"old\\n\"},{\"type\":\"custom_tool_call_output\",\"call_id\":\"old\",\"output\":\"ok\"}],\"tools\":[{\"type\":\"custom\",\"name\":\"apply_patch\",\"description\":\"Apply a patch\"}],\"tool_choice\":{\"type\":\"custom\",\"name\":\"apply_patch\"}}",
+    "model": "kimi-k3",
+    "source": "openai-response",
+    "stream": false
+  },
+  "responses": [
+    {
+      "status": 200,
+      "headers": [
+        [
+          "Content-Type",
+          "application/json"
+        ]
+      ],
+      "body": "{\"id\":\"r1\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"k3\",\"output\":[{\"type\":\"function_call\",\"id\":\"fc1\",\"call_id\":\"c1\",\"name\":\"apply_patch\",\"arguments\":\"{\\\"input\\\":5}\",\"status\":\"completed\"}],\"usage\":{\"input_tokens\":9,\"output_tokens\":4,\"total_tokens\":13}}"
+    }
+  ],
+  "upstream": [
+    {
+      "method": "POST",
+      "target": "/coding/v1/responses",
+      "headers": [
+        [
+          "Host",
+          "127.0.0.1:36897"
+        ],
+        [
+          "User-Agent",
+          "CLIProxyAPI/0.1.0"
+        ],
+        [
+          "Content-Length",
+          "1142"
+        ],
+        [
+          "Accept",
+          "application/json"
+        ],
+        [
+          "Authorization",
+          "Bearer kimi-access-fixture"
+        ],
+        [
+          "Content-Type",
+          "application/json"
+        ],
+        [
+          "X-Msh-Device-Id",
+          "dev-fixture-1"
+        ],
+        [
+          "X-Msh-Device-Model",
+          "linux amd64"
+        ],
+        [
+          "X-Msh-Device-Name",
+          "e2b.local"
+        ],
+        [
+          "X-Msh-Platform",
+          "CLIProxyAPI"
+        ],
+        [
+          "X-Msh-Version",
+          "0.1.0"
+        ],
+        [
+          "Accept-Encoding",
+          "gzip"
+        ]
+      ],
+      "body": "{\"model\":\"k3\",\"input\":[{\"type\":\"function_call\",\"call_id\":\"old\",\"name\":\"apply_patch\",\"arguments\":\"{\\\"input\\\":\\\"old\\\\n\\\"}\"},{\"type\":\"function_call_output\",\"call_id\":\"old\",\"output\":\"ok\"}],\"tools\":[{\"type\":\"function\",\"name\":\"apply_patch\",\"description\":\"Apply a patch\\n\\nCall this function with a JSON object whose input field contains the complete patch text.\\nUse the Codex apply_patch format, not a conventional git unified diff.\\nStart with *** Begin Patch and end with *** End Patch.\\nUse *** Add File: path, *** Delete File: path, or *** Update File: path.\\nEvery added-file content line starts with +.\\nFor updates, use @@; context lines start with one space, removed lines with -, and added lines with +.\\nUse *** Move to: path for a rename and *** End of File when required by the patch grammar.\\nExample input:\\n*** Begin Patch\\n*** Update File: src/main.go\\n@@\\n-old\\n+new\\n*** End Patch\",\"parameters\":{\"type\":\"object\",\"properties\":{\"input\":{\"type\":\"string\",\"description\":\"The complete apply_patch patch text.\"}},\"required\":[\"input\"],\"additionalProperties\":false}}],\"tool_choice\":{\"type\":\"function\",\"name\":\"apply_patch\"},\"stream\":false}"
+    }
+  ],
+  "downstream": {
+    "err_status": 502,
+    "err_body": "Invalid apply_patch tool arguments received from upstream."
+  },
+  "extra": {
+    "usage": [
+      {
+        "cached_tokens": 0,
+        "failed": true,
+        "input_tokens": 0,
+        "model": "kimi-k3",
+        "output_tokens": 0,
+        "reasoning_effort": "",
+        "reasoning_tokens": 0,
+        "response_model": "k3",
+        "total_tokens": 0
+      }
+    ]
+  }
+}
