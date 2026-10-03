@@ -396,7 +396,7 @@ fn bootstrap_retries(cfg: &Config) -> usize {
 
 /// Go handlers_stream.go: a stream that failed before its first payload is retried as a
 /// whole request when the status is statusless, auth, quota, timeout or 5xx.
-async fn run_with_bootstrap_retries(rt: &Arc<Runtime>, call: Call, trace: &Trace) -> Result<Done, Failure> {
+pub async fn run_with_bootstrap_retries(rt: &Arc<Runtime>, call: Call, trace: &Trace) -> Result<Done, Failure> {
     let max = if call.stream {
         bootstrap_retries(&rt.config())
     } else {
