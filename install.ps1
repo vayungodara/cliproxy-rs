@@ -148,7 +148,10 @@ function Install-CliproxyRs([bool]$Service, [bool]$BinaryOnly) {
   Start-Sleep -Seconds 1
   for ($i = 0; $i -lt 20 -and -not $up; $i++) {
     try { $up = (Invoke-WebRequest -Uri "http://127.0.0.1:$port/healthz" -UseBasicParsing -TimeoutSec 2).StatusCode -eq 200 } catch {
-      if (-not $proc -or $proc.HasExited) { throw "install.ps1: cliproxy-rs stopped right after starting; the end of $errlog says why" }
+      if (-not $proc -or $proc.HasExited) {
+        $tail = @($errlog, $log) | ForEach-Object { Get-Content -Path $_ -Tail 20 -ErrorAction SilentlyContinue } | Out-String
+        throw "install.ps1: cliproxy-rs stopped right after starting. The end of its logs ($errlog, $log):`n$tail"
+      }
       Start-Sleep -Seconds 1
     }
   }
