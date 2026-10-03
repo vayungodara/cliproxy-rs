@@ -1,0 +1,244 @@
+{
+  "config_filters": [
+    {
+      "exclude": [
+        "docker0"
+      ],
+      "include": [
+        "eth0",
+        "en0",
+        "wl*"
+      ],
+      "yaml": "discovery:\n  interfaces:\n    include: [\"eth0,en0\", \" wl* \"]\n    exclude: [docker0]\n"
+    },
+    {
+      "exclude": null,
+      "include": null,
+      "yaml": "server:\n  discovery:\n    interfaces:\n      include: [eth0]\n"
+    },
+    {
+      "exclude": null,
+      "include": null,
+      "yaml": "discovery: [broken\n"
+    },
+    {
+      "exclude": null,
+      "include": null,
+      "yaml": "discovery:\n  interfaces:\n    include: eth0\n"
+    },
+    {
+      "exclude": null,
+      "include": null,
+      "yaml": ""
+    }
+  ],
+  "interface_lists": [
+    {
+      "in": [
+        "eth0,en0",
+        " eth0 ",
+        ""
+      ],
+      "out": [
+        "eth0",
+        "en0"
+      ]
+    },
+    {
+      "in": [
+        ",,"
+      ],
+      "out": null
+    },
+    {
+      "in": [
+        "a",
+        "b,a"
+      ],
+      "out": [
+        "a",
+        "b"
+      ]
+    }
+  ],
+  "runs": [
+    {
+      "name": "text-full",
+      "timeout_ms": 2000,
+      "json": false,
+      "service_type": "",
+      "code": 0,
+      "stdout": "Scanning LAN for AI Gateways (_ai-gateway._tcp)... (timeout 2s)\n\nFound 4 AI Gateway(s) on local network:\n\n[1] CPA-8F3B (Product: cliproxyapi, Version: 1)\n    Host:      box.local. (192.168.1.5:8317)\n    Addresses: 192.168.1.5, 10.0.0.2\n    Protocols: chat-completions, responses\n    Features:  chat, evil[31m\n    Auth:      Required (api_key)\n    Base URLs:\n      - OpenAI:    https://192.168.1.5:8317/v1\n      - Anthropic: https://192.168.1.5:8317/v1\n      - Gemini:    https://192.168.1.5:8317/v1beta\n\n[2] bare (Product: generic, Version: unknown)\n    Host:      gw.local. (gw.local:1234)\n    Addresses: gw.local, fe80::2\n    Auth:      No\n    Base URLs:\n      - OpenAI:    http://gw.local:1234/v1\n\n[3] open (Product: generic, Version: unknown)\n    Host:      bad host.local. (127.0.0.1:80)\n    Auth:      Required\n    Base URLs:\n      - OpenAI:    http://127.0.0.1:80/v1\n\n[4] mapped (Product: generic, Version: unknown)\n    Host:       (192.0.2.1:81)\n    Auth:      No\n    Base URLs:\n      - OpenAI:    http://192.0.2.1:81/v1\n\n",
+      "stderr": ""
+    },
+    {
+      "name": "json-full",
+      "timeout_ms": 0,
+      "json": true,
+      "service_type": " _x._tcp ",
+      "code": 0,
+      "stdout": "[\n  {\n    \"instance_name\": \"CPA-8F3B\",\n    \"service_type\": \"_ai-gateway._tcp\",\n    \"domain\": \"local.\",\n    \"host\": \"box.local.\",\n    \"port\": 8317,\n    \"ipv4\": [\n      \"192.168.1.5\",\n      \"10.0.0.2\"\n    ],\n    \"ipv6\": [\n      \"fe80::1\",\n      \"2001:db8::5\"\n    ],\n    \"protocols\": [\n      \"chat-completions\",\n      \"responses\"\n    ],\n    \"features\": [\n      \"chat\",\n      \"evil\\u001b[31m\"\n    ],\n    \"product\": \"cliproxyapi\",\n    \"auth_required\": true,\n    \"auth_methods\": [\n      \"api_key\"\n    ],\n    \"endpoints\": {\n      \"anthropic\": \"/v1\",\n      \"gemini\": \"/v1beta\",\n      \"openai\": \"/v1\"\n    },\n    \"node_role\": \"standalone\",\n    \"version\": \"1\",\n    \"raw_txt\": {\n      \"product\": \"cliproxyapi\",\n      \"tls\": \"1\",\n      \"z\": \"\\u003c\\u0026\\u003e\"\n    }\n  },\n  {\n    \"instance_name\": \"bare‮\",\n    \"service_type\": \"\",\n    \"domain\": \"\",\n    \"host\": \"gw.local.\",\n    \"port\": 1234,\n    \"ipv4\": [],\n    \"ipv6\": [\n      \"fe80::2\"\n    ],\n    \"auth_required\": false\n  },\n  {\n    \"instance_name\": \"open\",\n    \"service_type\": \"\",\n    \"domain\": \"\",\n    \"host\": \"bad host.local.\",\n    \"port\": 80,\n    \"ipv4\": [],\n    \"ipv6\": [],\n    \"auth_required\": true\n  },\n  {\n    \"instance_name\": \"mapped\",\n    \"service_type\": \"\",\n    \"domain\": \"\",\n    \"host\": \"\",\n    \"port\": 81,\n    \"ipv4\": [\n      \"127.0.0.1\"\n    ],\n    \"ipv6\": [\n      \"192.0.2.1\",\n      \"::1\"\n    ],\n    \"auth_required\": false\n  }\n]\n",
+      "stderr": ""
+    },
+    {
+      "name": "text-empty",
+      "timeout_ms": 90000,
+      "json": false,
+      "service_type": "",
+      "code": 0,
+      "stdout": "Scanning LAN for AI Gateways (_ai-gateway._tcp)... (timeout 1m0s)\n\nNo AI gateways found on local network.\nTips:\n  1. Ensure the target CPA instance has 'discovery.enabled: true' in its config.yaml.\n  2. Ensure your device is on the same local Wi-Fi / Ethernet subnet (mDNS does not traverse WAN).\n  3. Check that your local firewall allows UDP port 5353 multicast traffic.\n",
+      "stderr": ""
+    },
+    {
+      "name": "json-empty",
+      "timeout_ms": 0,
+      "json": true,
+      "service_type": "",
+      "code": 0,
+      "stdout": "[]\n",
+      "stderr": ""
+    },
+    {
+      "name": "text-browse-error",
+      "timeout_ms": 1000,
+      "json": false,
+      "service_type": "",
+      "code": 1,
+      "stdout": "Scanning LAN for AI Gateways (_ai-gateway._tcp)... (timeout 1s)\n",
+      "stderr": "Error scanning LAN: discovery: browse query failed: boom\n"
+    },
+    {
+      "name": "json-browse-error",
+      "timeout_ms": 1000,
+      "json": true,
+      "service_type": "",
+      "code": 1,
+      "stdout": "{\n  \"error\": \"discovery: browse query failed: \\u003cboom\\u003e\",\n  \"gateways\": []\n}\n",
+      "stderr": ""
+    },
+    {
+      "name": "text-factory-error",
+      "timeout_ms": -1000,
+      "json": false,
+      "service_type": "",
+      "code": 1,
+      "stdout": "Scanning LAN for AI Gateways (_ai-gateway._tcp)... (timeout 3s)\n",
+      "stderr": "Error scanning LAN: no qualified physical interfaces found for LAN discovery\n"
+    },
+    {
+      "name": "json-factory-error",
+      "timeout_ms": 59000,
+      "json": true,
+      "service_type": "",
+      "code": 1,
+      "stdout": "{\n  \"error\": \"no qualified physical interfaces found for LAN discovery\",\n  \"gateways\": []\n}\n",
+      "stderr": ""
+    },
+    {
+      "name": "text-ms",
+      "timeout_ms": 1500,
+      "json": false,
+      "service_type": "",
+      "code": 0,
+      "stdout": "Scanning LAN for AI Gateways (_ai-gateway._tcp)... (timeout 1.5s)\n\nNo AI gateways found on local network.\nTips:\n  1. Ensure the target CPA instance has 'discovery.enabled: true' in its config.yaml.\n  2. Ensure your device is on the same local Wi-Fi / Ethernet subnet (mDNS does not traverse WAN).\n  3. Check that your local firewall allows UDP port 5353 multicast traffic.\n",
+      "stderr": ""
+    }
+  ],
+  "sanitize": [
+    {
+      "host": "plain",
+      "in": "plain",
+      "out": "plain"
+    },
+    {
+      "host": "",
+      "in": "tab\there",
+      "out": "tab here"
+    },
+    {
+      "host": "",
+      "in": "esc\u001b[31m",
+      "out": "esc[31m"
+    },
+    {
+      "host": "bidix",
+      "in": "bidi‮⁦x",
+      "out": "bidix"
+    },
+    {
+      "host": "zw",
+      "in": "zw​‏­﻿",
+      "out": "zw"
+    },
+    {
+      "host": "lsps",
+      "in": "ls\u2028ps\u2029",
+      "out": "lsps"
+    },
+    {
+      "host": "",
+      "in": "é中",
+      "out": "é中"
+    },
+    {
+      "host": "del",
+      "in": "del",
+      "out": "del"
+    },
+    {
+      "host": "nbsp",
+      "in": "nbsp ",
+      "out": "nbsp"
+    },
+    {
+      "host": "",
+      "in": " gw.local. ",
+      "out": " gw.local. "
+    },
+    {
+      "host": "",
+      "in": "localhost",
+      "out": "localhost"
+    },
+    {
+      "host": "",
+      "in": "LOCALHOST.",
+      "out": "LOCALHOST."
+    },
+    {
+      "host": "",
+      "in": "a..b",
+      "out": "a..b"
+    },
+    {
+      "host": "",
+      "in": "-a",
+      "out": "-a"
+    },
+    {
+      "host": "",
+      "in": "a-",
+      "out": "a-"
+    },
+    {
+      "host": "",
+      "in": ".a",
+      "out": ".a"
+    },
+    {
+      "host": "ok-1.lan",
+      "in": "ok-1.lan",
+      "out": "ok-1.lan"
+    },
+    {
+      "host": "",
+      "in": "bad_host",
+      "out": "bad_host"
+    },
+    {
+      "host": "",
+      "in": "",
+      "out": ""
+    }
+  ]
+}

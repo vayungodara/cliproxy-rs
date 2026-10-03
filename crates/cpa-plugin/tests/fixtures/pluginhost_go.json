@@ -1,0 +1,1226 @@
+{
+  "steps": [
+    {
+      "op": "files",
+      "args": {
+        "recorder-a.so": "recorder",
+        "recorder-b.so": "recorder",
+        "recorder-c-v1.0.0.so": "recorder",
+        "recorder-c-v1.2.0.so": "recorder",
+        "recorder-d.so": "recorder",
+        "recorder-f.so": "recorder",
+        "scheduler.so": "scheduler",
+        "simple.so": "simple"
+      },
+      "result": null
+    },
+    {
+      "op": "apply",
+      "args": "plugins:\n  enabled: true\n  dir: PLUGINDIR\n  configs:\n    simple:\n      enabled: true\n      priority: 2\n      config1: true\n      mode: fast\n    scheduler:\n      enabled: true\n      priority: 2\n    recorder-a:\n      enabled: true\n      priority: 5\n      record: RECORDDIR\n      label: a\n      caps: management_api,scheduler,quota_provider,auth_provider\n    recorder-b:\n      enabled: true\n      priority: 5\n      record: RECORDDIR\n      label: b\n      schema: 5\n      caps: management_api\n    recorder-c:\n      enabled: true\n      record: RECORDDIR\n      label: c\n      caps: management_api\n      nested:\n        list: [1, two]\n    recorder-d:\n      enabled: false\n      record: RECORDDIR\n      label: d\n      caps: management_api\n    recorder-f:\n      enabled: true\n      record: RECORDDIR\n      label: f\n      fail: register\n      caps: management_api\n",
+      "result": [
+        {
+          "id": "recorder-a",
+          "priority": 5,
+          "metadata": {
+            "Author": "cliproxy-rs tests",
+            "ConfigFields": null,
+            "GitHubRepository": "https://example.invalid/recorder",
+            "Logo": "",
+            "Name": "a",
+            "Version": "1.0.0"
+          },
+          "supports_oauth": true,
+          "oauth_provider": "a",
+          "supports_quota": true,
+          "quota_provider": "a",
+          "menus": []
+        },
+        {
+          "id": "recorder-b",
+          "priority": 5,
+          "metadata": {
+            "Author": "cliproxy-rs tests",
+            "ConfigFields": null,
+            "GitHubRepository": "https://example.invalid/recorder",
+            "Logo": "",
+            "Name": "b",
+            "Version": "1.0.0"
+          },
+          "supports_oauth": false,
+          "oauth_provider": "",
+          "supports_quota": false,
+          "quota_provider": "",
+          "menus": []
+        },
+        {
+          "id": "scheduler",
+          "priority": 2,
+          "metadata": {
+            "Author": "router-for-me",
+            "ConfigFields": [
+              {
+                "Description": "Selects this auth ID when it is present in the scheduler candidates.",
+                "EnumValues": null,
+                "Name": "auth_id",
+                "Type": "string"
+              },
+              {
+                "Description": "Delegates selection to a built-in scheduler when set to fill-first or round-robin.",
+                "EnumValues": [
+                  "",
+                  "fill-first",
+                  "round-robin"
+                ],
+                "Name": "delegate",
+                "Type": "enum"
+              },
+              {
+                "Description": "Rejects scheduler picks with an explicit error when enabled.",
+                "EnumValues": null,
+                "Name": "deny",
+                "Type": "boolean"
+              }
+            ],
+            "GitHubRepository": "https://github.com/router-for-me/CLIProxyAPI",
+            "Logo": "https://raw.githubusercontent.com/router-for-me/CLIProxyAPI/main/docs/logo.png",
+            "Name": "scheduler",
+            "Version": "0.1.0"
+          },
+          "supports_oauth": false,
+          "oauth_provider": "",
+          "supports_quota": false,
+          "quota_provider": "",
+          "menus": []
+        },
+        {
+          "id": "simple",
+          "priority": 2,
+          "metadata": {
+            "Author": "router-for-me",
+            "ConfigFields": [
+              {
+                "Description": "Enables the example boolean option.",
+                "EnumValues": null,
+                "Name": "config1",
+                "Type": "boolean"
+              },
+              {
+                "Description": "Stores the example string option.",
+                "EnumValues": null,
+                "Name": "config2",
+                "Type": "string"
+              },
+              {
+                "Description": "Stores the example integer option.",
+                "EnumValues": null,
+                "Name": "config3",
+                "Type": "integer"
+              },
+              {
+                "Description": "Selects the example execution mode.",
+                "EnumValues": [
+                  "safe",
+                  "fast"
+                ],
+                "Name": "mode",
+                "Type": "enum"
+              }
+            ],
+            "GitHubRepository": "https://github.com/router-for-me/CLIProxyAPI",
+            "Logo": "https://raw.githubusercontent.com/router-for-me/CLIProxyAPI/main/docs/logo.png",
+            "Name": "example",
+            "Version": "0.1.0"
+          },
+          "supports_oauth": true,
+          "oauth_provider": "plugin-example",
+          "supports_quota": false,
+          "quota_provider": "",
+          "menus": []
+        },
+        {
+          "id": "recorder-c",
+          "priority": 0,
+          "metadata": {
+            "Author": "cliproxy-rs tests",
+            "ConfigFields": null,
+            "GitHubRepository": "https://example.invalid/recorder",
+            "Logo": "",
+            "Name": "c",
+            "Version": "1.0.0"
+          },
+          "supports_oauth": false,
+          "oauth_provider": "",
+          "supports_quota": false,
+          "quota_provider": "",
+          "menus": []
+        }
+      ]
+    },
+    {
+      "op": "loaded",
+      "args": [
+        "simple",
+        "scheduler",
+        "recorder-c",
+        "recorder-d",
+        "recorder-f",
+        "missing"
+      ],
+      "result": {
+        "missing": [
+          false,
+          false
+        ],
+        "recorder-c": [
+          true,
+          true
+        ],
+        "recorder-d": [
+          false,
+          false
+        ],
+        "recorder-f": [
+          true,
+          false
+        ],
+        "scheduler": [
+          true,
+          true
+        ],
+        "simple": [
+          true,
+          true
+        ]
+      }
+    },
+    {
+      "op": "records",
+      "args": null,
+      "result": {
+        "a": [
+          {
+            "config_yaml": "enabled: true\npriority: 5\nrecord: RECORDDIR\nlabel: a\ncaps: management_api,scheduler,quota_provider,auth_provider\n",
+            "method": "plugin.register",
+            "request": "{\"config_yaml\":\"\u003cconfig_yaml\u003e\",\"schema_version\":6}"
+          },
+          {
+            "method": "auth.identifier",
+            "request": "{}"
+          },
+          {
+            "method": "quota.identifier",
+            "request": "{}"
+          }
+        ],
+        "b": [
+          {
+            "config_yaml": "enabled: true\npriority: 5\nrecord: RECORDDIR\nlabel: b\nschema: 5\ncaps: management_api\n",
+            "method": "plugin.register",
+            "request": "{\"config_yaml\":\"\u003cconfig_yaml\u003e\",\"schema_version\":6}"
+          }
+        ],
+        "c": [
+          {
+            "config_yaml": "enabled: true\nrecord: RECORDDIR\nlabel: c\ncaps: management_api\nnested:\n    list: [1, two]\npriority: 0\n",
+            "method": "plugin.register",
+            "request": "{\"config_yaml\":\"\u003cconfig_yaml\u003e\",\"schema_version\":6}"
+          }
+        ],
+        "f": [
+          {
+            "config_yaml": "enabled: true\nrecord: RECORDDIR\nlabel: f\nfail: register\ncaps: management_api\npriority: 0\n",
+            "method": "plugin.register",
+            "request": "{\"config_yaml\":\"\u003cconfig_yaml\u003e\",\"schema_version\":6}"
+          }
+        ]
+      }
+    },
+    {
+      "op": "register_management",
+      "args": [
+        "GET /v0/management/rec/b"
+      ],
+      "result": [
+        {
+          "id": "recorder-a",
+          "priority": 5,
+          "metadata": {
+            "Author": "cliproxy-rs tests",
+            "ConfigFields": null,
+            "GitHubRepository": "https://example.invalid/recorder",
+            "Logo": "",
+            "Name": "a",
+            "Version": "1.0.0"
+          },
+          "supports_oauth": true,
+          "oauth_provider": "a",
+          "supports_quota": true,
+          "quota_provider": "a",
+          "menus": [
+            {
+              "description": "\u003cb\u003ea\u003c/b\u003e",
+              "menu": "Recorder a",
+              "path": "/v0/resource/plugins/recorder-a/page"
+            },
+            {
+              "description": "legacy menu",
+              "menu": "Legacy a",
+              "path": "/v0/resource/plugins/recorder-a/rec/a/menu"
+            }
+          ]
+        },
+        {
+          "id": "recorder-b",
+          "priority": 5,
+          "metadata": {
+            "Author": "cliproxy-rs tests",
+            "ConfigFields": null,
+            "GitHubRepository": "https://example.invalid/recorder",
+            "Logo": "",
+            "Name": "b",
+            "Version": "1.0.0"
+          },
+          "supports_oauth": false,
+          "oauth_provider": "",
+          "supports_quota": false,
+          "quota_provider": "",
+          "menus": [
+            {
+              "description": "\u003cb\u003eb\u003c/b\u003e",
+              "menu": "Recorder b",
+              "path": "/v0/resource/plugins/recorder-b/page"
+            },
+            {
+              "description": "legacy menu",
+              "menu": "Legacy b",
+              "path": "/v0/resource/plugins/recorder-b/rec/b/menu"
+            }
+          ]
+        },
+        {
+          "id": "scheduler",
+          "priority": 2,
+          "metadata": {
+            "Author": "router-for-me",
+            "ConfigFields": [
+              {
+                "Description": "Selects this auth ID when it is present in the scheduler candidates.",
+                "EnumValues": null,
+                "Name": "auth_id",
+                "Type": "string"
+              },
+              {
+                "Description": "Delegates selection to a built-in scheduler when set to fill-first or round-robin.",
+                "EnumValues": [
+                  "",
+                  "fill-first",
+                  "round-robin"
+                ],
+                "Name": "delegate",
+                "Type": "enum"
+              },
+              {
+                "Description": "Rejects scheduler picks with an explicit error when enabled.",
+                "EnumValues": null,
+                "Name": "deny",
+                "Type": "boolean"
+              }
+            ],
+            "GitHubRepository": "https://github.com/router-for-me/CLIProxyAPI",
+            "Logo": "https://raw.githubusercontent.com/router-for-me/CLIProxyAPI/main/docs/logo.png",
+            "Name": "scheduler",
+            "Version": "0.1.0"
+          },
+          "supports_oauth": false,
+          "oauth_provider": "",
+          "supports_quota": false,
+          "quota_provider": "",
+          "menus": []
+        },
+        {
+          "id": "simple",
+          "priority": 2,
+          "metadata": {
+            "Author": "router-for-me",
+            "ConfigFields": [
+              {
+                "Description": "Enables the example boolean option.",
+                "EnumValues": null,
+                "Name": "config1",
+                "Type": "boolean"
+              },
+              {
+                "Description": "Stores the example string option.",
+                "EnumValues": null,
+                "Name": "config2",
+                "Type": "string"
+              },
+              {
+                "Description": "Stores the example integer option.",
+                "EnumValues": null,
+                "Name": "config3",
+                "Type": "integer"
+              },
+              {
+                "Description": "Selects the example execution mode.",
+                "EnumValues": [
+                  "safe",
+                  "fast"
+                ],
+                "Name": "mode",
+                "Type": "enum"
+              }
+            ],
+            "GitHubRepository": "https://github.com/router-for-me/CLIProxyAPI",
+            "Logo": "https://raw.githubusercontent.com/router-for-me/CLIProxyAPI/main/docs/logo.png",
+            "Name": "example",
+            "Version": "0.1.0"
+          },
+          "supports_oauth": true,
+          "oauth_provider": "plugin-example",
+          "supports_quota": false,
+          "quota_provider": "",
+          "menus": [
+            {
+              "description": "Shows example plugin status as a browser-navigable resource.",
+              "menu": "Example Plugin",
+              "path": "/v0/resource/plugins/simple/status"
+            }
+          ]
+        },
+        {
+          "id": "recorder-c",
+          "priority": 0,
+          "metadata": {
+            "Author": "cliproxy-rs tests",
+            "ConfigFields": null,
+            "GitHubRepository": "https://example.invalid/recorder",
+            "Logo": "",
+            "Name": "c",
+            "Version": "1.0.0"
+          },
+          "supports_oauth": false,
+          "oauth_provider": "",
+          "supports_quota": false,
+          "quota_provider": "",
+          "menus": [
+            {
+              "description": "\u003cb\u003ec\u003c/b\u003e",
+              "menu": "Recorder c",
+              "path": "/v0/resource/plugins/recorder-c/page"
+            },
+            {
+              "description": "legacy menu",
+              "menu": "Legacy c",
+              "path": "/v0/resource/plugins/recorder-c/rec/c/menu"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "op": "records",
+      "args": null,
+      "result": {
+        "a": [
+          {
+            "method": "management.register",
+            "request": "{\"Plugin\":{\"Name\":\"a\",\"Version\":\"1.0.0\",\"Author\":\"cliproxy-rs tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null},\"BasePath\":\"/v0/management\",\"ResourceBasePath\":\"/v0/resource/plugins/recorder-a\"}"
+          }
+        ],
+        "b": [
+          {
+            "method": "management.register",
+            "request": "{\"Plugin\":{\"Name\":\"b\",\"Version\":\"1.0.0\",\"Author\":\"cliproxy-rs tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null},\"BasePath\":\"/v0/management\",\"ResourceBasePath\":\"/v0/resource/plugins/recorder-b\"}"
+          }
+        ],
+        "c": [
+          {
+            "method": "management.register",
+            "request": "{\"Plugin\":{\"Name\":\"c\",\"Version\":\"1.0.0\",\"Author\":\"cliproxy-rs tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null},\"BasePath\":\"/v0/management\",\"ResourceBasePath\":\"/v0/resource/plugins/recorder-c\"}"
+          }
+        ]
+      }
+    },
+    {
+      "op": "management",
+      "args": {
+        "method": "GET",
+        "target": "/v0/management/rec/a?x=1\u0026x=2\u0026y=%3C",
+        "headers": {
+          "X-Test": [
+            "1",
+            "2"
+          ]
+        }
+      },
+      "result": {
+        "handled": true,
+        "status": 201,
+        "headers": {
+          "Content-Type": [
+            "application/json"
+          ],
+          "X-Recorder": [
+            "a"
+          ]
+        },
+        "body": "{\"label\":\"a \\u003c\\u0026\\u003e\",\"method\":\"GET\",\"path\":\"/v0/management/rec/a\",\"query\":{\"x\":[\"1\",\"2\"],\"y\":[\"\\u003c\"]},\"results\":[]}"
+      }
+    },
+    {
+      "op": "management",
+      "args": {
+        "method": "POST",
+        "target": "/v0/management/rec/a/calls",
+        "body": "{\"calls\":[\n {\"method\":\"host.log\",\"request\":{\"level\":\"info\",\"message\":\"hello from recorder\",\"fields\":{\"k\":1}}},\n {\"method\":\"host.log\",\"request\":{\"message\":\"  \"}},\n {\"method\":\"host.stream.emit\",\"request\":{\"stream_id\":\"999\",\"payload\":\"eA==\"}},\n {\"method\":\"host.stream.emit\",\"request\":{\"payload\":\"eA==\"}},\n {\"method\":\"host.stream.close\",\"request\":{\"stream_id\":\"999\"}},\n {\"method\":\"host.unknown\",\"request\":{}},\n {\"method\":\"host.log\",\"request\":\"not an object\"}\n]}"
+      },
+      "result": {
+        "handled": true,
+        "status": 201,
+        "headers": {
+          "Content-Type": [
+            "application/json"
+          ],
+          "X-Recorder": [
+            "a"
+          ]
+        },
+        "body": "{\"label\":\"a \\u003c\\u0026\\u003e\",\"method\":\"POST\",\"path\":\"/v0/management/rec/a/calls\",\"query\":null,\"results\":[\"0 {\\\"ok\\\":true,\\\"result\\\":{}}\",\"0 {\\\"ok\\\":true,\\\"result\\\":{}}\",\"0 {\\\"ok\\\":false,\\\"error\\\":{\\\"code\\\":\\\"host_call_failed\\\",\\\"message\\\":\\\"stream 999 is not open\\\"}}\",\"0 {\\\"ok\\\":false,\\\"error\\\":{\\\"code\\\":\\\"host_call_failed\\\",\\\"message\\\":\\\"stream id is required\\\"}}\",\"0 {\\\"ok\\\":true,\\\"result\\\":{}}\",\"0 {\\\"ok\\\":false,\\\"error\\\":{\\\"code\\\":\\\"host_call_failed\\\",\\\"message\\\":\\\"unsupported host callback host.unknown\\\"}}\",\"0 {\\\"ok\\\":false,\\\"error\\\":{\\\"code\\\":\\\"host_call_failed\\\",\\\"message\\\":\\\"decode host log request: json: cannot unmarshal string into Go value of type pluginhost.rpcHostLogRequest\\\"}}\"]}"
+      }
+    },
+    {
+      "op": "management",
+      "args": {
+        "method": "GET",
+        "target": "/v0/management/rec/b"
+      },
+      "result": {
+        "handled": false,
+        "status": 0,
+        "headers": {},
+        "body": ""
+      }
+    },
+    {
+      "op": "management",
+      "args": {
+        "method": "POST",
+        "target": "/v0/management/rec/b/calls",
+        "body": "{}"
+      },
+      "result": {
+        "handled": true,
+        "status": 201,
+        "headers": {
+          "Content-Type": [
+            "application/json"
+          ],
+          "X-Recorder": [
+            "b"
+          ]
+        },
+        "body": "{\"label\":\"b \u0026lt;\u0026amp;\u0026gt;\",\"method\":\"POST\",\"path\":\"/v0/management/rec/b/calls\",\"query\":null,\"results\":[]}"
+      }
+    },
+    {
+      "op": "management",
+      "args": {
+        "method": "GET",
+        "target": "/v0/management/rec/a/calls"
+      },
+      "result": {
+        "handled": false,
+        "status": 0,
+        "headers": {},
+        "body": ""
+      }
+    },
+    {
+      "op": "management",
+      "args": {
+        "method": "GET",
+        "target": "/v0/management/rec/f"
+      },
+      "result": {
+        "handled": false,
+        "status": 0,
+        "headers": {},
+        "body": ""
+      }
+    },
+    {
+      "op": "resource",
+      "args": {
+        "method": "GET",
+        "target": "/v0/resource/plugins/recorder-a/page?q=1"
+      },
+      "result": {
+        "handled": true,
+        "status": 201,
+        "headers": {
+          "Content-Type": [
+            "application/json"
+          ],
+          "X-Recorder": [
+            "a"
+          ]
+        },
+        "body": "{\"label\":\"a \\u003c\\u0026\\u003e\",\"method\":\"GET\",\"path\":\"/v0/resource/plugins/recorder-a/page\",\"query\":{\"q\":[\"1\"]},\"results\":[]}"
+      }
+    },
+    {
+      "op": "resource",
+      "args": {
+        "method": "GET",
+        "target": "/v0/resource/plugins/recorder-c/raw"
+      },
+      "result": {
+        "handled": false,
+        "status": 0,
+        "headers": {},
+        "body": ""
+      }
+    },
+    {
+      "op": "resource",
+      "args": {
+        "method": "GET",
+        "target": "/v0/resource/plugins/recorder-a/rec/a/menu"
+      },
+      "result": {
+        "handled": true,
+        "status": 201,
+        "headers": {
+          "Content-Type": [
+            "application/json"
+          ],
+          "X-Recorder": [
+            "a"
+          ]
+        },
+        "body": "{\"label\":\"a \\u003c\\u0026\\u003e\",\"method\":\"GET\",\"path\":\"/v0/resource/plugins/recorder-a/rec/a/menu\",\"query\":null,\"results\":[]}"
+      }
+    },
+    {
+      "op": "resource",
+      "args": {
+        "method": "POST",
+        "target": "/v0/resource/plugins/recorder-a/page"
+      },
+      "result": {
+        "handled": false,
+        "status": 0,
+        "headers": {},
+        "body": ""
+      }
+    },
+    {
+      "op": "resource",
+      "args": {
+        "method": "GET",
+        "target": "/v0/resource/plugins/simple/status"
+      },
+      "result": {
+        "handled": true,
+        "status": 200,
+        "headers": {
+          "Content-Type": [
+            "text/html; charset=utf-8"
+          ]
+        },
+        "body": "\u003c!doctype html\u003e\u003ctitle\u003eExample Plugin\u003c/title\u003e\u003cmain\u003eExample Plugin\u003c/main\u003e"
+      }
+    },
+    {
+      "op": "records",
+      "args": null,
+      "result": {
+        "a": [
+          {
+            "method": "management.handle",
+            "request": "{\"Method\":\"GET\",\"Path\":\"/v0/management/rec/a\",\"Headers\":{\"X-Test\":[\"1\",\"2\"]},\"Query\":{\"x\":[\"1\",\"2\"],\"y\":[\"\\u003c\"]},\"Body\":\"\",\"host_callback_id\":\"1\"}"
+          },
+          {
+            "method": "management.handle",
+            "request": "{\"Method\":\"POST\",\"Path\":\"/v0/management/rec/a/calls\",\"Headers\":null,\"Query\":null,\"Body\":\"eyJjYWxscyI6WwogeyJtZXRob2QiOiJob3N0LmxvZyIsInJlcXVlc3QiOnsibGV2ZWwiOiJpbmZvIiwibWVzc2FnZSI6ImhlbGxvIGZyb20gcmVjb3JkZXIiLCJmaWVsZHMiOnsiayI6MX19fSwKIHsibWV0aG9kIjoiaG9zdC5sb2ciLCJyZXF1ZXN0Ijp7Im1lc3NhZ2UiOiIgICJ9fSwKIHsibWV0aG9kIjoiaG9zdC5zdHJlYW0uZW1pdCIsInJlcXVlc3QiOnsic3RyZWFtX2lkIjoiOTk5IiwicGF5bG9hZCI6ImVBPT0ifX0sCiB7Im1ldGhvZCI6Imhvc3Quc3RyZWFtLmVtaXQiLCJyZXF1ZXN0Ijp7InBheWxvYWQiOiJlQT09In19LAogeyJtZXRob2QiOiJob3N0LnN0cmVhbS5jbG9zZSIsInJlcXVlc3QiOnsic3RyZWFtX2lkIjoiOTk5In19LAogeyJtZXRob2QiOiJob3N0LnVua25vd24iLCJyZXF1ZXN0Ijp7fX0sCiB7Im1ldGhvZCI6Imhvc3QubG9nIiwicmVxdWVzdCI6Im5vdCBhbiBvYmplY3QifQpdfQ==\",\"host_callback_id\":\"2\"}"
+          },
+          {
+            "method": "management.handle",
+            "request": "{\"Method\":\"GET\",\"Path\":\"/v0/resource/plugins/recorder-a/page\",\"Headers\":null,\"Query\":{\"q\":[\"1\"]},\"Body\":null,\"host_callback_id\":\"4\"}"
+          },
+          {
+            "method": "management.handle",
+            "request": "{\"Method\":\"GET\",\"Path\":\"/v0/resource/plugins/recorder-a/rec/a/menu\",\"Headers\":null,\"Query\":null,\"Body\":null,\"host_callback_id\":\"5\"}"
+          }
+        ],
+        "b": [
+          {
+            "method": "management.handle",
+            "request": "{\"Method\":\"POST\",\"Path\":\"/v0/management/rec/b/calls\",\"Headers\":null,\"Query\":null,\"Body\":\"e30=\",\"host_callback_id\":\"3\"}"
+          }
+        ]
+      }
+    },
+    {
+      "op": "files",
+      "args": {
+        "recorder-c-v1.3.0.so": "recorder"
+      },
+      "result": null
+    },
+    {
+      "op": "apply",
+      "args": "plugins:\n  enabled: true\n  dir: PLUGINDIR\n  configs:\n    simple:\n      enabled: true\n      priority: 2\n    scheduler:\n      enabled: true\n      priority: 2\n    recorder-a:\n      enabled: true\n      priority: 1\n      record: RECORDDIR\n      label: a\n      caps: management_api,scheduler\n    recorder-b:\n      enabled: true\n      priority: 5\n      record: RECORDDIR\n      label: b\n      schema: 5\n      caps: management_api\n    recorder-c:\n      enabled: true\n      record: RECORDDIR\n      label: c\n      caps: management_api\n    recorder-d:\n      enabled: true\n      record: RECORDDIR\n      label: d\n      caps: management_api\n",
+      "result": [
+        {
+          "id": "recorder-b",
+          "priority": 5,
+          "metadata": {
+            "Author": "cliproxy-rs tests",
+            "ConfigFields": null,
+            "GitHubRepository": "https://example.invalid/recorder",
+            "Logo": "",
+            "Name": "b",
+            "Version": "1.0.0"
+          },
+          "supports_oauth": false,
+          "oauth_provider": "",
+          "supports_quota": false,
+          "quota_provider": "",
+          "menus": [
+            {
+              "description": "\u003cb\u003eb\u003c/b\u003e",
+              "menu": "Recorder b",
+              "path": "/v0/resource/plugins/recorder-b/page"
+            },
+            {
+              "description": "legacy menu",
+              "menu": "Legacy b",
+              "path": "/v0/resource/plugins/recorder-b/rec/b/menu"
+            }
+          ]
+        },
+        {
+          "id": "scheduler",
+          "priority": 2,
+          "metadata": {
+            "Author": "router-for-me",
+            "ConfigFields": [
+              {
+                "Description": "Selects this auth ID when it is present in the scheduler candidates.",
+                "EnumValues": null,
+                "Name": "auth_id",
+                "Type": "string"
+              },
+              {
+                "Description": "Delegates selection to a built-in scheduler when set to fill-first or round-robin.",
+                "EnumValues": [
+                  "",
+                  "fill-first",
+                  "round-robin"
+                ],
+                "Name": "delegate",
+                "Type": "enum"
+              },
+              {
+                "Description": "Rejects scheduler picks with an explicit error when enabled.",
+                "EnumValues": null,
+                "Name": "deny",
+                "Type": "boolean"
+              }
+            ],
+            "GitHubRepository": "https://github.com/router-for-me/CLIProxyAPI",
+            "Logo": "https://raw.githubusercontent.com/router-for-me/CLIProxyAPI/main/docs/logo.png",
+            "Name": "scheduler",
+            "Version": "0.1.0"
+          },
+          "supports_oauth": false,
+          "oauth_provider": "",
+          "supports_quota": false,
+          "quota_provider": "",
+          "menus": []
+        },
+        {
+          "id": "simple",
+          "priority": 2,
+          "metadata": {
+            "Author": "router-for-me",
+            "ConfigFields": [
+              {
+                "Description": "Enables the example boolean option.",
+                "EnumValues": null,
+                "Name": "config1",
+                "Type": "boolean"
+              },
+              {
+                "Description": "Stores the example string option.",
+                "EnumValues": null,
+                "Name": "config2",
+                "Type": "string"
+              },
+              {
+                "Description": "Stores the example integer option.",
+                "EnumValues": null,
+                "Name": "config3",
+                "Type": "integer"
+              },
+              {
+                "Description": "Selects the example execution mode.",
+                "EnumValues": [
+                  "safe",
+                  "fast"
+                ],
+                "Name": "mode",
+                "Type": "enum"
+              }
+            ],
+            "GitHubRepository": "https://github.com/router-for-me/CLIProxyAPI",
+            "Logo": "https://raw.githubusercontent.com/router-for-me/CLIProxyAPI/main/docs/logo.png",
+            "Name": "example",
+            "Version": "0.1.0"
+          },
+          "supports_oauth": true,
+          "oauth_provider": "plugin-example",
+          "supports_quota": false,
+          "quota_provider": "",
+          "menus": [
+            {
+              "description": "Shows example plugin status as a browser-navigable resource.",
+              "menu": "Example Plugin",
+              "path": "/v0/resource/plugins/simple/status"
+            }
+          ]
+        },
+        {
+          "id": "recorder-a",
+          "priority": 1,
+          "metadata": {
+            "Author": "cliproxy-rs tests",
+            "ConfigFields": null,
+            "GitHubRepository": "https://example.invalid/recorder",
+            "Logo": "",
+            "Name": "a",
+            "Version": "1.0.0"
+          },
+          "supports_oauth": false,
+          "oauth_provider": "",
+          "supports_quota": false,
+          "quota_provider": "",
+          "menus": [
+            {
+              "description": "\u003cb\u003ea\u003c/b\u003e",
+              "menu": "Recorder a",
+              "path": "/v0/resource/plugins/recorder-a/page"
+            },
+            {
+              "description": "legacy menu",
+              "menu": "Legacy a",
+              "path": "/v0/resource/plugins/recorder-a/rec/a/menu"
+            }
+          ]
+        },
+        {
+          "id": "recorder-c",
+          "priority": 0,
+          "metadata": {
+            "Author": "cliproxy-rs tests",
+            "ConfigFields": null,
+            "GitHubRepository": "https://example.invalid/recorder",
+            "Logo": "",
+            "Name": "c",
+            "Version": "1.0.0"
+          },
+          "supports_oauth": false,
+          "oauth_provider": "",
+          "supports_quota": false,
+          "quota_provider": "",
+          "menus": []
+        },
+        {
+          "id": "recorder-d",
+          "priority": 0,
+          "metadata": {
+            "Author": "cliproxy-rs tests",
+            "ConfigFields": null,
+            "GitHubRepository": "https://example.invalid/recorder",
+            "Logo": "",
+            "Name": "d",
+            "Version": "1.0.0"
+          },
+          "supports_oauth": false,
+          "oauth_provider": "",
+          "supports_quota": false,
+          "quota_provider": "",
+          "menus": []
+        }
+      ]
+    },
+    {
+      "op": "loaded",
+      "args": [
+        "recorder-c",
+        "recorder-d",
+        "recorder-f"
+      ],
+      "result": {
+        "recorder-c": [
+          true,
+          true
+        ],
+        "recorder-d": [
+          true,
+          true
+        ],
+        "recorder-f": [
+          true,
+          false
+        ]
+      }
+    },
+    {
+      "op": "records",
+      "args": null,
+      "result": {
+        "a": [
+          {
+            "config_yaml": "enabled: true\npriority: 1\nrecord: RECORDDIR\nlabel: a\ncaps: management_api,scheduler\n",
+            "method": "plugin.reconfigure",
+            "request": "{\"config_yaml\":\"\u003cconfig_yaml\u003e\",\"schema_version\":6}"
+          }
+        ],
+        "b": [
+          {
+            "config_yaml": "enabled: true\npriority: 5\nrecord: RECORDDIR\nlabel: b\nschema: 5\ncaps: management_api\n",
+            "method": "plugin.reconfigure",
+            "request": "{\"config_yaml\":\"\u003cconfig_yaml\u003e\",\"schema_version\":6}"
+          }
+        ],
+        "c": [
+          {
+            "method": "plugin.quiesce",
+            "request": "{}"
+          },
+          {
+            "config_yaml": "enabled: true\nrecord: RECORDDIR\nlabel: c\ncaps: management_api\npriority: 0\n",
+            "method": "plugin.register",
+            "request": "{\"config_yaml\":\"\u003cconfig_yaml\u003e\",\"schema_version\":6}"
+          }
+        ],
+        "d": [
+          {
+            "config_yaml": "enabled: true\nrecord: RECORDDIR\nlabel: d\ncaps: management_api\npriority: 0\n",
+            "method": "plugin.register",
+            "request": "{\"config_yaml\":\"\u003cconfig_yaml\u003e\",\"schema_version\":6}"
+          }
+        ]
+      }
+    },
+    {
+      "op": "apply",
+      "args": "plugins:\n  enabled: false\n  dir: PLUGINDIR\n",
+      "result": []
+    },
+    {
+      "op": "loaded",
+      "args": [
+        "simple",
+        "recorder-a"
+      ],
+      "result": {
+        "recorder-a": [
+          true,
+          false
+        ],
+        "simple": [
+          true,
+          false
+        ]
+      }
+    },
+    {
+      "op": "records",
+      "args": null,
+      "result": {}
+    },
+    {
+      "op": "apply",
+      "args": "plugins:\n  enabled: true\n  dir: PLUGINDIR\n  configs:\n    simple:\n      enabled: true\n      priority: 2\n      config1: true\n      mode: fast\n    scheduler:\n      enabled: true\n      priority: 2\n    recorder-a:\n      enabled: true\n      priority: 5\n      record: RECORDDIR\n      label: a\n      caps: management_api,scheduler,quota_provider,auth_provider\n    recorder-b:\n      enabled: true\n      priority: 5\n      record: RECORDDIR\n      label: b\n      schema: 5\n      caps: management_api\n    recorder-c:\n      enabled: true\n      record: RECORDDIR\n      label: c\n      caps: management_api\n      nested:\n        list: [1, two]\n    recorder-d:\n      enabled: false\n      record: RECORDDIR\n      label: d\n      caps: management_api\n    recorder-f:\n      enabled: true\n      record: RECORDDIR\n      label: f\n      fail: register\n      caps: management_api\n",
+      "result": [
+        {
+          "id": "recorder-a",
+          "priority": 5,
+          "metadata": {
+            "Author": "cliproxy-rs tests",
+            "ConfigFields": null,
+            "GitHubRepository": "https://example.invalid/recorder",
+            "Logo": "",
+            "Name": "a",
+            "Version": "1.0.0"
+          },
+          "supports_oauth": true,
+          "oauth_provider": "a",
+          "supports_quota": true,
+          "quota_provider": "a",
+          "menus": []
+        },
+        {
+          "id": "recorder-b",
+          "priority": 5,
+          "metadata": {
+            "Author": "cliproxy-rs tests",
+            "ConfigFields": null,
+            "GitHubRepository": "https://example.invalid/recorder",
+            "Logo": "",
+            "Name": "b",
+            "Version": "1.0.0"
+          },
+          "supports_oauth": false,
+          "oauth_provider": "",
+          "supports_quota": false,
+          "quota_provider": "",
+          "menus": []
+        },
+        {
+          "id": "scheduler",
+          "priority": 2,
+          "metadata": {
+            "Author": "router-for-me",
+            "ConfigFields": [
+              {
+                "Description": "Selects this auth ID when it is present in the scheduler candidates.",
+                "EnumValues": null,
+                "Name": "auth_id",
+                "Type": "string"
+              },
+              {
+                "Description": "Delegates selection to a built-in scheduler when set to fill-first or round-robin.",
+                "EnumValues": [
+                  "",
+                  "fill-first",
+                  "round-robin"
+                ],
+                "Name": "delegate",
+                "Type": "enum"
+              },
+              {
+                "Description": "Rejects scheduler picks with an explicit error when enabled.",
+                "EnumValues": null,
+                "Name": "deny",
+                "Type": "boolean"
+              }
+            ],
+            "GitHubRepository": "https://github.com/router-for-me/CLIProxyAPI",
+            "Logo": "https://raw.githubusercontent.com/router-for-me/CLIProxyAPI/main/docs/logo.png",
+            "Name": "scheduler",
+            "Version": "0.1.0"
+          },
+          "supports_oauth": false,
+          "oauth_provider": "",
+          "supports_quota": false,
+          "quota_provider": "",
+          "menus": []
+        },
+        {
+          "id": "simple",
+          "priority": 2,
+          "metadata": {
+            "Author": "router-for-me",
+            "ConfigFields": [
+              {
+                "Description": "Enables the example boolean option.",
+                "EnumValues": null,
+                "Name": "config1",
+                "Type": "boolean"
+              },
+              {
+                "Description": "Stores the example string option.",
+                "EnumValues": null,
+                "Name": "config2",
+                "Type": "string"
+              },
+              {
+                "Description": "Stores the example integer option.",
+                "EnumValues": null,
+                "Name": "config3",
+                "Type": "integer"
+              },
+              {
+                "Description": "Selects the example execution mode.",
+                "EnumValues": [
+                  "safe",
+                  "fast"
+                ],
+                "Name": "mode",
+                "Type": "enum"
+              }
+            ],
+            "GitHubRepository": "https://github.com/router-for-me/CLIProxyAPI",
+            "Logo": "https://raw.githubusercontent.com/router-for-me/CLIProxyAPI/main/docs/logo.png",
+            "Name": "example",
+            "Version": "0.1.0"
+          },
+          "supports_oauth": true,
+          "oauth_provider": "plugin-example",
+          "supports_quota": false,
+          "quota_provider": "",
+          "menus": []
+        },
+        {
+          "id": "recorder-c",
+          "priority": 0,
+          "metadata": {
+            "Author": "cliproxy-rs tests",
+            "ConfigFields": null,
+            "GitHubRepository": "https://example.invalid/recorder",
+            "Logo": "",
+            "Name": "c",
+            "Version": "1.0.0"
+          },
+          "supports_oauth": false,
+          "oauth_provider": "",
+          "supports_quota": false,
+          "quota_provider": "",
+          "menus": []
+        }
+      ]
+    },
+    {
+      "op": "records",
+      "args": null,
+      "result": {
+        "a": [
+          {
+            "config_yaml": "enabled: true\npriority: 5\nrecord: RECORDDIR\nlabel: a\ncaps: management_api,scheduler,quota_provider,auth_provider\n",
+            "method": "plugin.reconfigure",
+            "request": "{\"config_yaml\":\"\u003cconfig_yaml\u003e\",\"schema_version\":6}"
+          },
+          {
+            "method": "auth.identifier",
+            "request": "{}"
+          },
+          {
+            "method": "quota.identifier",
+            "request": "{}"
+          }
+        ],
+        "b": [
+          {
+            "config_yaml": "enabled: true\npriority: 5\nrecord: RECORDDIR\nlabel: b\nschema: 5\ncaps: management_api\n",
+            "method": "plugin.reconfigure",
+            "request": "{\"config_yaml\":\"\u003cconfig_yaml\u003e\",\"schema_version\":6}"
+          }
+        ],
+        "c": [
+          {
+            "config_yaml": "enabled: true\nrecord: RECORDDIR\nlabel: c\ncaps: management_api\nnested:\n    list: [1, two]\npriority: 0\n",
+            "method": "plugin.reconfigure",
+            "request": "{\"config_yaml\":\"\u003cconfig_yaml\u003e\",\"schema_version\":6}"
+          }
+        ],
+        "f": [
+          {
+            "config_yaml": "enabled: true\nrecord: RECORDDIR\nlabel: f\nfail: register\ncaps: management_api\npriority: 0\n",
+            "method": "plugin.reconfigure",
+            "request": "{\"config_yaml\":\"\u003cconfig_yaml\u003e\",\"schema_version\":6}"
+          }
+        ]
+      }
+    },
+    {
+      "op": "unload",
+      "args": "recorder-a",
+      "result": true
+    },
+    {
+      "op": "unload",
+      "args": "missing",
+      "result": false
+    },
+    {
+      "op": "loaded",
+      "args": [
+        "recorder-a",
+        "recorder-b"
+      ],
+      "result": {
+        "recorder-a": [
+          false,
+          false
+        ],
+        "recorder-b": [
+          true,
+          true
+        ]
+      }
+    },
+    {
+      "op": "records",
+      "args": null,
+      "result": {
+        "a": [
+          {
+            "method": "\u003cshutdown\u003e",
+            "request": ""
+          }
+        ]
+      }
+    },
+    {
+      "op": "shutdown",
+      "args": null,
+      "result": null
+    },
+    {
+      "op": "loaded",
+      "args": [
+        "recorder-b",
+        "simple"
+      ],
+      "result": {
+        "recorder-b": [
+          false,
+          false
+        ],
+        "simple": [
+          false,
+          false
+        ]
+      }
+    },
+    {
+      "op": "records",
+      "args": null,
+      "result": {
+        "b": [
+          {
+            "method": "\u003cshutdown\u003e",
+            "request": ""
+          }
+        ],
+        "c": [
+          {
+            "method": "\u003cshutdown\u003e",
+            "request": ""
+          },
+          {
+            "method": "\u003cshutdown\u003e",
+            "request": ""
+          }
+        ],
+        "d": [
+          {
+            "method": "\u003cshutdown\u003e",
+            "request": ""
+          }
+        ],
+        "f": [
+          {
+            "method": "\u003cshutdown\u003e",
+            "request": ""
+          }
+        ]
+      }
+    }
+  ]
+}

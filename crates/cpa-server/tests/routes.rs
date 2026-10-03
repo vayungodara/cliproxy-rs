@@ -791,3 +791,85 @@ async fn route_path_uses_gin_templates() {
         assert_eq!(got, expected, "{path}");
     }
 }
+
+/// Go's usage queue gets one `queuedUsageDetail` per upstream attempt (the shape is
+/// pinned against Go in `usage_record::tests`): a failed attempt records its status
+/// and body, the failover attempt its parsed usage; streams publish when they end.
+#[tokio::test]
+async fn usage_queue_records_every_attempt() {
+    let p = proxy(
+        "",
+        vec![
+            oauth("a.json", "fake-fail", serde_json::json!({})),
+            oauth("b.json", "fake-ok", serde_json::json!({"email": "b@example.com"})),
+        ],
+    )
+    .await;
+    let queue = p.rt.usage_queue();
+    let pop = || -> Vec<Value> {
+        queue
+            .pop_oldest(10)
+            .iter()
+            .map(|r| serde_json::from_slice(r).unwrap())
+            .collect()
+    };
+    let body = format!(r#"{{"model":"{MODEL}","max_tokens":5,"messages":[]}}"#);
+    let cfg = Config::parse("observability: {usage: {usage-statistics-enabled: true}}\n").unwrap();
+    queue.configure(true, &cfg);
+
+    let (status, headers, text) = post(&p.url, "/v1/messages", &body).await;
+    assert_eq!(status, 200, "{text}");
+    let trace = headers["x-cpa-trace-id"].to_str().unwrap();
+    let request_id = trace.splitn(3, '-').nth(2).unwrap();
+    let records = pop();
+    assert_eq!(records.len(), 2, "{records:?}");
+    let (failed, ok) = (&records[0], &records[1]);
+    assert_eq!(failed["failed"], true);
+    assert_eq!(failed["fail"], serde_json::json!({"status_code": 500, "body": "boom"}));
+    // No email and no API key: Go's source falls back to the client key.
+    assert_eq!(failed["source"], "client-key");
+    assert_eq!(ok["failed"], false);
+    assert_eq!(ok["fail"], serde_json::json!({"status_code": 200, "body": ""}));
+    assert_eq!(ok["source"], "b@example.com");
+    assert_eq!(ok["tokens"]["input_tokens"], 5);
+    assert_eq!(ok["tokens"]["output_tokens"], 1);
+    assert_eq!(ok["tokens"]["total_tokens"], 6);
+    assert_eq!(ok["token_breakdown"]["quality"], "complete");
+    for (key, want) in [
+        ("provider", "claude"),
+        ("executor_type", "ClaudeExecutor"),
+        ("model", MODEL),
+        ("alias", MODEL),
+        ("endpoint", "POST /v1/messages"),
+        ("auth_type", "oauth"),
+        ("api_key", "client-key"),
+        ("service_tier", "auto"),
+        ("response_model", MODEL),
+    ] {
+        assert_eq!(ok[key], want, "{key}");
+    }
+    assert_eq!(ok["request_id"], request_id);
+    assert_eq!(ok["trace_id"], request_id);
+    assert_eq!(ok["stream"], false);
+    assert_eq!(ok["generate"], true);
+    assert_ne!(failed["execution_id"], ok["execution_id"]);
+    assert_eq!(ok["access_token_sha256"].as_str().unwrap().len(), 64);
+
+    // A streamed attempt publishes once the stream ends, with the merged usage.
+    let body = format!(r#"{{"model":"{MODEL}","stream":true,"messages":[]}}"#);
+    let (status, _, _) = post(&p.url, "/v1/messages", &body).await;
+    assert_eq!(status, 200);
+    let records = pop();
+    let streamed = records.last().unwrap();
+    assert_eq!(streamed["stream"], true);
+    assert_eq!(streamed["tokens"]["input_tokens"], 5);
+    assert_eq!(streamed["tokens"]["output_tokens"], 1);
+    assert_eq!(streamed["response_model"], MODEL);
+
+    // Without management (or usage statistics) nothing is queued.
+    queue.configure(false, &cfg);
+    let (status, _, _) = post(&p.url, "/v1/messages", &body).await;
+    assert_eq!(status, 200);
+    queue.configure(true, &cfg);
+    assert!(pop().is_empty());
+}

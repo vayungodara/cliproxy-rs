@@ -6,6 +6,9 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -19,8 +22,10 @@ import (
 	"time"
 
 	codexauth "github.com/router-for-me/CLIProxyAPI/v8/internal/auth/codex"
+	internalcache "github.com/router-for-me/CLIProxyAPI/v8/internal/cache"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/config"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/misc"
+	"github.com/router-for-me/CLIProxyAPI/v8/internal/registry"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/runtime/executor"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/runtime/executor/helps"
 	sdkauth "github.com/router-for-me/CLIProxyAPI/v8/sdk/auth"
@@ -397,9 +402,15 @@ type execCase struct {
 	UpstreamStatus int               `json:"upstream_status"`
 	UpstreamType   string            `json:"upstream_type"`
 	UpstreamBody   string            `json:"upstream_body"`
+	// Redirect answers the first request with this status and Location /moved<path>;
+	// the reply above is served there.
+	Redirect int `json:"redirect,omitempty"`
+	// ResolvedCompat binds an is-compat API-key model to the attempt, as Go's conductor does.
+	ResolvedCompat bool `json:"resolved_compat,omitempty"`
 	// Filled by the generator.
-	Upstream *captured `json:"upstream,omitempty"`
-	Output   any       `json:"output"`
+	Upstream *captured  `json:"upstream,omitempty"`
+	Hops     []captured `json:"hops,omitempty"`
+	Output   any        `json:"output"`
 }
 
 const sseOK = "event: response.created\n" +
@@ -416,6 +427,7 @@ func executorCases() []execCase {
 		"Session_id": "sess-FAKE", "X-Codex-Turn-Metadata": `{"turn":1}`, "X-Client-Request-Id": "req-FAKE",
 		"Authorization": "Bearer client-key-FAKE", "X-Codex-Beta-Features": "beta-a",
 	}
+	claudeThinking := `{"model":"claude-x","max_tokens":64,"messages":[{"role":"user","content":"hi"},{"role":"assistant","content":[{"type":"thinking","thinking":"plan","signature":""},{"type":"text","text":"ok"}]},{"role":"user","content":"go"}],"thinking":{"type":"enabled","budget_tokens":2048}}`
 	native := `{"model":"gpt-5.4","instructions":"be brief","input":[{"type":"message","role":"user","content":[{"type":"input_text","text":"hi"}]}],"tools":[{"type":"function","name":"shell","parameters":{"type":"object","properties":{}}}],"tool_choice":"auto","parallel_tool_calls":true,"reasoning":{"effort":"high","summary":"auto"},"store":false,"stream":true,"include":["reasoning.encrypted_content"],"prompt_cache_key":"pck-FAKE","previous_response_id":"resp_0","safety_identifier":"sid","prompt_cache_retention":"24h","stream_options":{"include_obfuscation":false,"reasoning_summary_delivery":"inline"},"service_tier":"priority"}`
 	return []execCase{
 		{Name: "oauth_stream_native", Attributes: map[string]string{}, Metadata: oauthMeta, Source: "codex", Headers: codexHeaders,
@@ -478,6 +490,27 @@ func executorCases() []execCase {
 			Source: "codex", Headers: map[string]string{}, Model: "gpt-5.4", Payload: `{"model":"gpt-5.4","input":[]}`, Stream: true,
 			UpstreamStatus: 200, UpstreamType: "text/event-stream",
 			UpstreamBody: "data: {\"type\":\"response.created\",\"response\":{\"id\":\"r\"}}\n\ndata: {\"type\":\"response.failed\",\"response\":{\"error\":{\"type\":\"service_unavailable_error\",\"code\":\"server_is_overloaded\",\"message\":\"busy\"}}}\n\n"},
+		{Name: "oauth_stream_redirect_307", Attributes: map[string]string{}, Metadata: oauthMeta, Source: "codex", Headers: map[string]string{},
+			Model: "gpt-5.4", Payload: `{"model":"gpt-5.4","input":[]}`, Stream: true, Redirect: 307,
+			UpstreamStatus: 200, UpstreamType: "text/event-stream", UpstreamBody: sseOK},
+		{Name: "apikey_nonstream_redirect_302", Attributes: map[string]string{"api_key": "sk-FAKE"}, Metadata: map[string]any{}, Source: "codex",
+			Headers: map[string]string{}, Model: "gpt-5.4", Payload: `{"model":"gpt-5.4","input":[]}`, Redirect: 302,
+			UpstreamStatus: 200, UpstreamType: "text/event-stream", UpstreamBody: sseOK},
+		{Name: "apikey_claude_compat_from_config",
+			Config:     "codex-api-key:\n  - api-key: sk-FAKE\n    base-url: \"{{base_url}}\"\n    models:\n      - name: gpt-5.4\n        is-compat: true\n",
+			Attributes: map[string]string{"api_key": "sk-FAKE"}, Metadata: map[string]any{}, Source: "claude",
+			Headers: map[string]string{}, Model: "gpt-5.4", Payload: claudeThinking, Stream: true,
+			UpstreamStatus: 200, UpstreamType: "text/event-stream", UpstreamBody: sseOK},
+		{Name: "apikey_claude_not_compat", Attributes: map[string]string{"api_key": "sk-FAKE"}, Metadata: map[string]any{}, Source: "claude",
+			Headers: map[string]string{}, Model: "gpt-5.4", Payload: claudeThinking, Stream: true,
+			UpstreamStatus: 200, UpstreamType: "text/event-stream", UpstreamBody: sseOK},
+		{Name: "apikey_responses_compat_resolved", Attributes: map[string]string{"api_key": "sk-FAKE"}, Metadata: map[string]any{}, Source: "openai-response",
+			Headers: map[string]string{}, Model: "gpt-5.4", ResolvedCompat: true, Stream: true,
+			Payload:        `{"model":"gpt-5.4","input":[{"type":"reasoning","id":"rs_1","summary":[],"content":[{"type":"reasoning_text","text":"plan"}]},{"type":"reasoning","id":"rs_2","encrypted_content":" bad "},{"type":"message","role":"user","content":"go"}],"reasoning":{"effort":"high"}}`,
+			UpstreamStatus: 200, UpstreamType: "text/event-stream", UpstreamBody: sseOK},
+		{Name: "oauth_claude_nonstream_empty_translation", Attributes: map[string]string{}, Metadata: oauthMeta, Source: "claude", Headers: map[string]string{},
+			Model: "gpt-5.4", Payload: `{"model":"claude-x","max_tokens":64,"messages":[{"role":"user","content":"hi"}]}`,
+			UpstreamStatus: 200, UpstreamType: "text/event-stream", UpstreamBody: "data: {\"type\":\"response.completed\"}\n\n"},
 		{Name: "oauth_bootstrap_holds_then_releases", Config: "codex:\n  stream-bootstrap-buffering: true\n", Attributes: map[string]string{}, Metadata: oauthMeta,
 			Source: "codex", Headers: map[string]string{}, Model: "gpt-5.4", Payload: `{"model":"gpt-5.4","input":[]}`, Stream: true,
 			UpstreamStatus: 200, UpstreamType: "text/event-stream",
@@ -489,9 +522,18 @@ func runExecutor(c *execCase) {
 	var got captured
 	var mu sync.Mutex
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hop := capture(r)
 		mu.Lock()
-		got = capture(r)
+		got = hop
+		if c.Redirect != 0 {
+			c.Hops = append(c.Hops, hop)
+		}
 		mu.Unlock()
+		if c.Redirect != 0 && !strings.HasPrefix(r.URL.Path, "/moved") {
+			w.Header().Set("Location", "/moved"+r.URL.Path)
+			w.WriteHeader(c.Redirect)
+			return
+		}
 		w.Header().Set("Content-Type", c.UpstreamType)
 		w.Header().Set("X-Codex-Primary-Used-Percent", "42")
 		w.WriteHeader(c.UpstreamStatus)
@@ -501,7 +543,7 @@ func runExecutor(c *execCase) {
 	if strings.TrimSpace(c.Config) == "" {
 		c.Config = "{}\n"
 	}
-	cfg, err := config.ParseConfigBytes([]byte(c.Config))
+	cfg, err := config.ParseConfigBytes([]byte(strings.ReplaceAll(c.Config, "{{base_url}}", server.URL)))
 	if err != nil {
 		panic(err)
 	}
@@ -522,6 +564,9 @@ func runExecutor(c *execCase) {
 		opts.ResponseFormat = sdktranslator.FromString(c.Response)
 	}
 	req := cliproxyexecutor.Request{Model: c.Model, Payload: []byte(c.Payload), Metadata: c.ExecMetadata}
+	if c.ResolvedCompat {
+		req.Metadata = map[string]any{"cliproxy.resolved_api_key_model_info": &registry.ModelInfo{ID: c.Model, IsCompat: true}}
+	}
 	exec := executor.NewCodexExecutor(cfg)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -679,6 +724,134 @@ func quotaCases() map[string]any {
 	return map[string]any{"events": events, "signals": q.Signals}
 }
 
+// ---------------------------------------------------------------- reasoning replay
+
+type replayTurn struct {
+	Payload        string `json:"payload"`
+	Stream         bool   `json:"stream"`
+	UpstreamStatus int    `json:"upstream_status"`
+	UpstreamBody   string `json:"upstream_body"`
+	// Filled by the generator.
+	Upstream  string `json:"upstream"`
+	SessionID string `json:"session_id"`
+	Error     any    `json:"error,omitempty"`
+}
+
+type replayScenario struct {
+	Name    string            `json:"name"`
+	Headers map[string]string `json:"headers"`
+	Model   string            `json:"model"`
+	Turns   []replayTurn      `json:"turns"`
+}
+
+func replaySignature(seed byte) string {
+	payload := make([]byte, 1+8+16+16+32)
+	payload[0] = 0x80
+	for i := 9; i < len(payload); i++ {
+		payload[i] = seed + byte(i)
+	}
+	return base64.RawURLEncoding.EncodeToString(payload)
+}
+
+func replayScenarios() []replayScenario {
+	sse := func(events ...string) string {
+		var b strings.Builder
+		for _, e := range events {
+			b.WriteString("data: " + e + "\n\n")
+		}
+		return b.String()
+	}
+	created := `{"type":"response.created","response":{"id":"resp_r","status":"in_progress"}}`
+	completed := `{"type":"response.completed","response":{"id":"resp_r","status":"completed","output":[],"usage":{"input_tokens":3,"output_tokens":1}}}`
+	reasoning := func(seed byte, index int) string {
+		return fmt.Sprintf(`{"type":"response.output_item.done","output_index":%d,"item":{"type":"reasoning","id":"rs_%d","summary":[{"type":"summary_text","text":"thought"}],"encrypted_content":"%s"}}`, index, seed, replaySignature(seed))
+	}
+	call := func(id string, index int) string {
+		return fmt.Sprintf(`{"type":"response.output_item.done","output_index":%d,"item":{"type":"function_call","id":"fc_1","call_id":%q,"name":"shell","arguments":"{\"cmd\":\"ls\"}"}}`, index, id)
+	}
+	text := func(t string) string {
+		return `{"type":"response.output_item.done","output_index":0,"item":{"type":"message","role":"assistant","id":"msg_1","content":[{"type":"output_text","text":"` + t + `"}]}}`
+	}
+	first := `{"model":"claude-x","max_tokens":64,"messages":[{"role":"user","content":"list files"}]}`
+	followUp := func(toolID string) string {
+		return `{"model":"claude-x","max_tokens":64,"messages":[{"role":"user","content":"list files"},` +
+			`{"role":"assistant","content":[{"type":"tool_use","id":"` + toolID + `","name":"shell","input":{"cmd":"ls"}}]},` +
+			`{"role":"user","content":[{"type":"tool_result","tool_use_id":"` + toolID + `","content":"a.txt"}]}]}`
+	}
+	longID := "call:" + strings.Repeat("x", 70)
+	visible := strings.ReplaceAll(longID, ":", "_")
+	sum := sha256.Sum256([]byte(visible))
+	suffix := "_" + hex.EncodeToString(sum[:8])
+	visible = visible[:64-len(suffix)] + suffix
+	invalid := `{"error":{"message":"Invalid signature in thinking block","type":"invalid_request_error"}}`
+	return []replayScenario{
+		{Name: "tool_turn_replayed_then_cleared", Model: "gpt-5.4", Headers: map[string]string{"X-Claude-Code-Session-Id": "cc-replay-1"},
+			Turns: []replayTurn{
+				{Payload: first, Stream: true, UpstreamStatus: 200, UpstreamBody: sse(created, reasoning(1, 0), call("call_abc", 1), completed)},
+				{Payload: followUp("call_abc"), Stream: true, UpstreamStatus: 200, UpstreamBody: sse(created, text("a.txt found"), completed)},
+				{Payload: followUp("call_abc"), Stream: false, UpstreamStatus: 400, UpstreamBody: invalid},
+				{Payload: followUp("call_abc"), Stream: true, UpstreamStatus: 200, UpstreamBody: sse(created, text("again"), completed)},
+			}},
+		{Name: "long_call_id_matches_claude_visible_form", Model: "gpt-5.4", Headers: map[string]string{"X-Claude-Code-Session-Id": "cc-replay-2", "X-Claude-Code-Agent-Id": "agent-7"},
+			Turns: []replayTurn{
+				{Payload: first, Stream: false, UpstreamStatus: 200, UpstreamBody: sse(created, reasoning(3, 0), call(longID, 1), completed)},
+				{Payload: followUp(visible), Stream: true, UpstreamStatus: 200, UpstreamBody: sse(created, text("ok"), completed)},
+			}},
+	}
+}
+
+func runReplay(sc *replayScenario) {
+	internalcache.ClearCodexReasoningReplayCache()
+	var mu sync.Mutex
+	turn := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		mu.Lock()
+		t := &sc.Turns[turn]
+		t.Upstream = string(body)
+		t.SessionID = r.Header.Get("Session_id")
+		turn++
+		mu.Unlock()
+		if t.UpstreamStatus != 200 {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(t.UpstreamStatus)
+		} else {
+			w.Header().Set("Content-Type", "text/event-stream")
+		}
+		_, _ = w.Write([]byte(t.UpstreamBody))
+	}))
+	defer server.Close()
+	cfg, _ := config.ParseConfigBytes([]byte("{}\n"))
+	exec := executor.NewCodexExecutor(cfg)
+	auth := &cliproxyauth.Auth{ID: "codex-replay.json", Provider: "codex", Attributes: map[string]string{"base_url": server.URL},
+		Metadata: map[string]any{"type": "codex", "access_token": "at-FAKE", "account_id": "acct-FAKE-1"}}
+	headers := http.Header{}
+	for k, v := range sc.Headers {
+		headers.Set(k, v)
+	}
+	for i := range sc.Turns {
+		t := &sc.Turns[i]
+		opts := cliproxyexecutor.Options{Stream: t.Stream, Headers: headers, OriginalRequest: []byte(t.Payload), SourceFormat: sdktranslator.FromString("claude")}
+		req := cliproxyexecutor.Request{Model: sc.Model, Payload: []byte(t.Payload)}
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		if t.Stream {
+			res, err := exec.ExecuteStream(ctx, auth, req, opts)
+			if err != nil {
+				t.Error = describe(err)
+			} else {
+				for chunk := range res.Chunks {
+					if chunk.Err != nil {
+						t.Error = describe(chunk.Err)
+					}
+				}
+			}
+		} else if _, err := exec.Execute(ctx, auth, req, opts); err != nil {
+			t.Error = describe(err)
+		}
+		cancel()
+	}
+}
+
 func main() {
 	if len(os.Args) != 2 {
 		fmt.Fprintln(os.Stderr, "usage: generate <output.json>")
@@ -689,8 +862,12 @@ func main() {
 		runExecutor(&cases[i])
 	}
 	sort.SliceStable(cases, func(i, j int) bool { return false })
+	replays := replayScenarios()
+	for i := range replays {
+		runReplay(&replays[i])
+	}
 	out := map[string]any{"sjson": sjsonCases(), "oauth": oauthCases(), "executor": cases,
-		"alpha_search": alphaCases(), "quota": quotaCases()}
+		"alpha_search": alphaCases(), "quota": quotaCases(), "replay": replays}
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
 	enc.SetEscapeHTML(false)
