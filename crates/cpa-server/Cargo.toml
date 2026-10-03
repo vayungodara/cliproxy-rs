@@ -33,6 +33,15 @@ getrandom = "0.3"
 sha2 = "0.10"
 subtle = "2.6"
 wreq.workspace = true
+# Codex Live WebRTC media relay (codex.live-media-relay), a pion port; ring crypto keeps
+# a second BoringSSL out of the binary. Off by default.
+webrtc = { version = "0.21", default-features = false, features = ["runtime-tokio", "crypto-ring"], optional = true }
+# The relay names webrtc's codec and RTP types, which live in its private `rtc` core.
+rtc = { version = "0.21", default-features = false, features = ["crypto-ring"], optional = true }
+async-trait = { version = "0.1", optional = true }
+
+[features]
+media-relay = ["dep:webrtc", "dep:rtc", "dep:async-trait"]
 
 [dev-dependencies]
 url = "2"

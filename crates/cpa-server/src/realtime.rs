@@ -20,6 +20,8 @@
 
 mod calls;
 mod http;
+#[cfg(feature = "media-relay")]
+mod media;
 mod relay;
 mod secrets;
 mod socket;

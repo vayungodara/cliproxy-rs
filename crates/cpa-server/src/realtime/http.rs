@@ -519,7 +519,7 @@ mod relay_tests {
     use axum::extract::State as AxumState;
     use futures_util::future::BoxFuture;
 
-    use super::super::relay::{MediaRelay, MediaSession, RelayError, Route};
+    use super::super::relay::{MediaRelay, MediaSession, NewSession, RelayError, Route};
     use super::*;
 
     #[derive(Default)]
@@ -530,7 +530,7 @@ mod relay_tests {
         call_id: Mutex<String>,
         call_id_at_accept: Mutex<String>,
         closed: Mutex<Option<String>>,
-        handler: Mutex<Option<Box<dyn FnOnce(String) + Send>>>,
+        handler: Mutex<Option<super::super::relay::CloseHandler>>,
     }
 
     impl MediaSession for FakeSession {
@@ -547,7 +547,7 @@ mod relay_tests {
         fn set_call_id(&self, call_id: &str) {
             *self.call_id.lock().unwrap() = call_id.into();
         }
-        fn set_close_handler(&self, handler: Box<dyn FnOnce(String) + Send>) {
+        fn set_close_handler(&self, handler: super::super::relay::CloseHandler) {
             *self.handler.lock().unwrap() = Some(handler);
         }
         fn close(&self, reason: &str) {
@@ -562,11 +562,7 @@ mod relay_tests {
     }
 
     impl MediaRelay for FakeRelay {
-        fn new_session(
-            &self,
-            offer: String,
-            route: Route,
-        ) -> BoxFuture<'_, Result<(Arc<dyn MediaSession>, String), RelayError>> {
+        fn new_session(&self, offer: String, route: Route) -> BoxFuture<'_, NewSession> {
             Box::pin(async move {
                 *self.seen.lock().unwrap() = Some((offer, route));
                 match &self.error {

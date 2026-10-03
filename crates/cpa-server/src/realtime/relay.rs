@@ -3,8 +3,8 @@
 //! the proxy terminates the client's WebRTC session and opens its own to the upstream, so
 //! media flows through this host instead of straight to OpenAI.
 //!
-//! The relay itself is behind this interface so the call handler and the call store do
-//! not depend on a WebRTC stack; none is linked yet.
+//! The relay itself (`media`, feature `media-relay`) is behind this interface so the call
+//! handler and the call store do not depend on a WebRTC stack; default builds have none.
 
 use std::sync::{Arc, Mutex, PoisonError};
 
@@ -19,7 +19,7 @@ pub(crate) struct RelayError {
     pub message: String,
 }
 
-#[allow(dead_code)] // read by a relay implementation; none is linked yet
+#[cfg_attr(not(feature = "media-relay"), allow(dead_code))]
 impl RelayError {
     pub fn new(message: impl Into<String>) -> Self {
         Self {
@@ -30,7 +30,7 @@ impl RelayError {
 }
 
 /// Where the upstream half of a media session goes (`mediaSessionRoute`).
-#[allow(dead_code)] // read by a relay implementation; none is linked yet
+#[cfg_attr(not(feature = "media-relay"), allow(dead_code))]
 #[derive(Debug, Clone)]
 pub(crate) struct Route {
     /// The selected credential's effective proxy.
@@ -46,20 +46,22 @@ pub(crate) trait MediaSession: Send + Sync {
     fn accept_upstream_answer(&self, answer: String) -> BoxFuture<'_, Result<String, RelayError>>;
     fn set_call_id(&self, call_id: &str);
     /// Called once when the media fails or closes on its own; at once if it already did.
-    fn set_close_handler(&self, handler: Box<dyn FnOnce(String) + Send>);
+    fn set_close_handler(&self, handler: CloseHandler);
     /// Idempotent.
     fn close(&self, reason: &str);
 }
+
+/// Runs once when a media session ends on its own, with the reason.
+pub(crate) type CloseHandler = Box<dyn FnOnce(String) + Send>;
+
+/// A started session and the offer to send upstream instead of the client's.
+pub(crate) type NewSession = Result<(Arc<dyn MediaSession>, String), RelayError>;
 
 /// Builds media sessions (`mediaRelayFactory`).
 pub(crate) trait MediaRelay: Send + Sync {
     /// Starts a session from the client's offer and returns it with the offer to send
     /// upstream instead.
-    fn new_session(
-        &self,
-        offer: String,
-        route: Route,
-    ) -> BoxFuture<'_, Result<(Arc<dyn MediaSession>, String), RelayError>>;
+    fn new_session(&self, offer: String, route: Route) -> BoxFuture<'_, NewSession>;
 }
 
 /// `config.CodexLiveMediaRelayConfig`, as `oauth.providers.codex.live-media-relay` holds it.
@@ -81,7 +83,7 @@ pub(crate) struct IceServer {
     pub credential: String,
 }
 
-#[allow(dead_code)] // read by a relay implementation; none is linked yet
+#[cfg_attr(not(feature = "media-relay"), allow(dead_code))]
 impl RelayConfig {
     /// `EffectiveMaxSessions`: 32 unless set.
     pub fn max_sessions(&self) -> usize {
@@ -159,11 +161,11 @@ impl RelayConfig {
 
 /// Media sessions in flight, shared by every relay built over the process lifetime so a
 /// reload cannot exceed the limit (`mediaSessionLimiter`).
-#[allow(dead_code)] // read by a relay implementation; none is linked yet
+#[cfg_attr(not(feature = "media-relay"), allow(dead_code))]
 #[derive(Default)]
 pub(crate) struct Limiter(Mutex<(usize, usize)>);
 
-#[allow(dead_code)] // read by a relay implementation; none is linked yet
+#[cfg_attr(not(feature = "media-relay"), allow(dead_code))]
 impl Limiter {
     pub fn set_limit(&self, limit: usize) {
         self.0.lock().unwrap_or_else(PoisonError::into_inner).0 = limit;
@@ -180,7 +182,7 @@ impl Limiter {
     }
 }
 
-#[allow(dead_code)] // read by a relay implementation; none is linked yet
+#[cfg_attr(not(feature = "media-relay"), allow(dead_code))]
 pub(crate) struct Slot(Arc<Limiter>);
 
 impl Drop for Slot {
@@ -237,14 +239,22 @@ impl Relays {
         relay
     }
 
-    // ponytail: no WebRTC stack is linked yet (the dependency awaits the owner's
-    // decision), so an enabled relay is reported once and calls negotiate end to end
-    // with the upstream media servers, as with the relay off. A relay implementation
-    // plugs in here: set the limiter from `max_sessions()` and build it from `config`.
+    #[cfg(feature = "media-relay")]
+    fn build(&self, config: &RelayConfig) -> Result<Option<Arc<dyn MediaRelay>>, String> {
+        if !config.enabled {
+            return Ok(None);
+        }
+        self.limiter.set_limit(config.max_sessions());
+        super::media::Relay::new(config, self.limiter.clone()).map(|r| Some(Arc::new(r) as Arc<dyn MediaRelay>))
+    }
+
+    /// Default builds carry no WebRTC stack: an enabled relay is reported once per
+    /// config and calls negotiate end to end with the upstream media servers.
+    #[cfg(not(feature = "media-relay"))]
     fn build(&self, config: &RelayConfig) -> Result<Option<Arc<dyn MediaRelay>>, String> {
         if config.enabled {
             tracing::warn!(
-                "codex.live-media-relay is enabled but this build has no media relay; calls are not relayed"
+                "codex.live-media-relay is enabled, but this build lacks the media relay (cargo feature `media-relay`); Codex Live calls negotiate without it"
             );
         }
         let _ = &self.limiter;
