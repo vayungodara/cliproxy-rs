@@ -39,6 +39,11 @@ pub(crate) fn hostname() -> Option<String> {
             return Some(name.to_owned());
         }
     }
+    platform_hostname()
+}
+
+#[cfg(unix)]
+fn platform_hostname() -> Option<String> {
     let mut buf = [0u8; 256];
     // SAFETY: gethostname writes at most buf.len() bytes into the provided buffer.
     let rc = unsafe { libc::gethostname(buf.as_mut_ptr().cast(), buf.len()) };
@@ -47,6 +52,41 @@ pub(crate) fn hostname() -> Option<String> {
     }
     let end = buf.iter().position(|b| *b == 0).unwrap_or(buf.len());
     Some(String::from_utf8_lossy(&buf[..end]).into_owned())
+}
+
+/// Go's Windows `os.Hostname`: `GetComputerNameExW(ComputerNamePhysicalDnsHostname)`,
+/// growing the buffer while the call answers `ERROR_MORE_DATA` with a larger size.
+#[cfg(windows)]
+fn platform_hostname() -> Option<String> {
+    #[link(name = "kernel32")]
+    unsafe extern "system" {
+        fn GetComputerNameExW(name_type: i32, buffer: *mut u16, size: *mut u32) -> i32;
+        fn GetLastError() -> u32;
+    }
+    const COMPUTER_NAME_PHYSICAL_DNS_HOSTNAME: i32 = 5;
+    const ERROR_MORE_DATA: u32 = 234;
+    let mut n: u32 = 64;
+    loop {
+        let mut buf = vec![0u16; n as usize];
+        // SAFETY: `buf` holds `n` UTF-16 units; the call writes at most that many and
+        // stores the written (or required) length in `n`.
+        let ok = unsafe { GetComputerNameExW(COMPUTER_NAME_PHYSICAL_DNS_HOSTNAME, buf.as_mut_ptr(), &mut n) };
+        if ok != 0 {
+            buf.truncate(n as usize);
+            // syscall.UTF16ToString: up to the first NUL, invalid surrogates as U+FFFD.
+            let end = buf.iter().position(|&u| u == 0).unwrap_or(buf.len());
+            return Some(String::from_utf16_lossy(&buf[..end]));
+        }
+        // SAFETY: no preconditions.
+        if unsafe { GetLastError() } != ERROR_MORE_DATA || n as usize <= buf.len() {
+            return None;
+        }
+    }
+}
+
+#[cfg(not(any(unix, windows)))]
+fn platform_hostname() -> Option<String> {
+    None
 }
 
 /// Go `ApplyPayloadConfigWithRequest` (no target executor) for the device providers:
@@ -704,21 +744,31 @@ pub(crate) fn apply_patch_requested(original: &[u8]) -> bool {
     State::new(cpa_core::format::Format::OpenAIResponse, &root, &root).active()
 }
 
-/// Go `SetTranslatedReasoningEffort(body, provider)` for a provider name the sink's
-/// `Format` cannot carry (Kimi passes `"kimi"`, whose thinking fields differ from
-/// OpenAI's): the effort Go extracts, reported as an OpenAI `reasoning_effort`, which the
-/// server's OpenAI extraction reads back unchanged.
-// ponytail: a provider-named `UsageSink::request` would make this rewrite unnecessary.
-pub(crate) fn report_effort(usage: &cpa_core::exec::UsageSink, body: &[u8], provider: &str) {
+/// Go's TTFT tracking on the response body (`usageTTFTReadCloser`): the first read that
+/// returns bytes marks the first response byte, or with `packet_only` (Go
+/// `TrackHTTPClientRoundTripOnly`) a first non-token frame. Call
+/// `usage.round_trip_started()` before sending the request.
+pub(crate) fn track_first_byte(
+    body: futures_util::stream::BoxStream<'static, Result<bytes::Bytes, ExecError>>,
+    usage: &cpa_core::exec::UsageSink,
+    packet_only: bool,
+) -> futures_util::stream::BoxStream<'static, Result<bytes::Bytes, ExecError>> {
+    use futures_util::StreamExt;
     if !usage.enabled() {
-        return;
+        return body;
     }
-    let effort = cpa_common::thinking::extract_translated_reasoning_effort(body, provider);
-    let mut payload = b"{}".to_vec();
-    if !effort.is_empty() {
-        cpa_common::json::set_str(&mut payload, "reasoning_effort", effort);
-    }
-    usage.request(cpa_core::format::Format::OpenAI, &payload);
+    let (usage, mut marked) = (usage.clone(), false);
+    body.inspect(move |item| {
+        if !marked && item.as_ref().is_ok_and(|chunk| !chunk.is_empty()) {
+            marked = true;
+            if packet_only {
+                usage.token_event(false);
+            } else {
+                usage.first_byte();
+            }
+        }
+    })
+    .boxed()
 }
 
 /// A control-plane failure that must not echo upstream bodies (they may contain tokens).

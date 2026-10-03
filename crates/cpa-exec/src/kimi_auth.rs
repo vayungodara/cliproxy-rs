@@ -536,14 +536,26 @@ pub(crate) fn encode_credential(metadata: &Map<String, Value>) -> String {
 
 /// Writes a credential file atomically with mode 0600 in a 0700 directory.
 ///
+/// Go uses `os.Create` (0666 before umask) and an in-place write; on Unix a private temp
+/// file and rename is the deliberate, safer choice here (contracts review). Windows has
+/// no mode bits, so it gets Go's behaviour: create the directory, then create or
+/// truncate the file in place.
+#[cfg(not(unix))]
+pub(crate) fn write_private(path: &Path, contents: &[u8]) -> std::io::Result<()> {
+    std::fs::create_dir_all(path.parent().unwrap_or_else(|| Path::new(".")))?;
+    std::fs::write(path, contents)
+}
+
+/// Writes a credential file atomically with mode 0600 in a 0700 directory.
+///
 /// Go uses `os.Create` (0666 before umask) and an in-place write; a private temp file and
 /// rename is the deliberate, safer choice here (contracts review).
+#[cfg(unix)]
 pub(crate) fn write_private(path: &Path, contents: &[u8]) -> std::io::Result<()> {
     use std::io::Write;
     let directory = path.parent().unwrap_or_else(|| Path::new("."));
     let mut builder = std::fs::DirBuilder::new();
     builder.recursive(true);
-    #[cfg(unix)]
     {
         use std::os::unix::fs::DirBuilderExt;
         builder.mode(0o700);
@@ -559,7 +571,6 @@ pub(crate) fn write_private(path: &Path, contents: &[u8]) -> std::io::Result<()>
     let result = (|| {
         let mut options = std::fs::OpenOptions::new();
         options.write(true).create_new(true);
-        #[cfg(unix)]
         {
             use std::os::unix::fs::OpenOptionsExt;
             options.mode(0o600);

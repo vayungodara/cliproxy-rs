@@ -112,6 +112,13 @@ pub trait RemoteDispatch: Send + Sync + 'static {
         headers: Vec<(String, String)>,
         query: Vec<(String, String)>,
     ) -> BoxFuture<'_, Result<Vec<u8>, ModelsError>>;
+
+    /// Go RPushRequestLog. Unavailable Home lifetimes discard the log, never
+    /// fall back to writing it locally. Test/internal dispatchers may ignore it.
+    fn request_log(&self, payload: Vec<u8>) -> BoxFuture<'_, Result<(), String>> {
+        let _ = payload;
+        Box::pin(async { Ok(()) })
+    }
 }
 
 /// Releases ended during one request, awaited before its next pick (Go

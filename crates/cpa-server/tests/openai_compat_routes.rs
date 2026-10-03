@@ -212,6 +212,36 @@ async fn compact_decodes_zstd_request_body() {
     );
 }
 
+/// Go `TestOpenAIResponsesCompactRejectsStream`: 400 before any upstream call.
+#[tokio::test]
+async fn compact_rejects_stream() {
+    let (url, seen) = proxy().await;
+    let body = br#"{"model":"fast","stream":true}"#.to_vec();
+    let (status, text) = send(&url, "/v1/responses/compact", &[], body).await;
+    assert_eq!(status, 400, "{text}");
+    assert_eq!(
+        text,
+        r#"{"error":{"message":"Streaming not supported for compact responses","type":"invalid_request_error"}}"#
+    );
+    assert!(seen.0.lock().unwrap().is_empty(), "the executor is never called");
+}
+
+/// Go `TestOpenAIResponsesCompactExecute`: the `responses/compact` alt reaches the
+/// executor with the Responses source format, and its body is answered as is.
+#[tokio::test]
+async fn compact_execute() {
+    let (url, seen) = proxy().await;
+    let body = br#"{"model":"fast","input":"hello"}"#.to_vec();
+    let (status, text) = send(&url, "/v1/responses/compact", &[], body).await;
+    assert_eq!(status, 200, "{text}");
+    assert_eq!(text, r#"{"ok":true}"#);
+    let seen = seen.0.lock().unwrap().clone();
+    assert_eq!(seen.len(), 1);
+    assert_eq!(seen[0].0, "/v1/responses/compact", "the compact alt");
+    // A chat-format source would have been translated to `messages`.
+    assert_eq!(seen[0].2, r#"{"model":"up-model","input":"hello"}"#);
+}
+
 /// Go `TestOpenAIResponsesCompactTransientFailureDoesNotCooldownAuthAndPreservesError`:
 /// a 500 on every credential keeps the upstream status and message, and cools nothing.
 #[tokio::test]

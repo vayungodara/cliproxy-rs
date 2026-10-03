@@ -287,6 +287,9 @@ func rsfixTakeUsage() []map[string]any {
 			"model":            r.Model,
 			"failed":           r.Failed,
 			"service_tier":     r.ResponseServiceTier,
+			"fail_status":      r.Fail.StatusCode,
+			"fail_body":        r.Fail.Body,
+			"ttft_set":         r.TTFT > 0,
 		})
 	}
 	rsfixUsage.records = nil

@@ -414,11 +414,19 @@ fn bind(host: &str, port: u16) -> io::Result<std::net::TcpListener> {
         return Ok(listener);
     }
     match listen(Domain::IPV6, SocketAddr::from((Ipv6Addr::UNSPECIFIED, port)), true) {
-        Err(e) if matches!(e.raw_os_error(), Some(libc::EAFNOSUPPORT | libc::EADDRNOTAVAIL)) => {
-            listen(Domain::IPV4, SocketAddr::from((Ipv4Addr::UNSPECIFIED, port)), false)
-        }
+        Err(e) if no_ipv6(&e) => listen(Domain::IPV4, SocketAddr::from((Ipv4Addr::UNSPECIFIED, port)), false),
         other => other,
     }
+}
+
+/// The host has no usable IPv6: the address family is unsupported or `::` cannot be
+/// assigned. Windows reports Winsock codes, not the C runtime's errno values.
+fn no_ipv6(e: &io::Error) -> bool {
+    #[cfg(not(windows))]
+    const EAFNOSUPPORT: i32 = libc::EAFNOSUPPORT;
+    #[cfg(windows)]
+    const EAFNOSUPPORT: i32 = 10047; // WSAEAFNOSUPPORT
+    e.kind() == io::ErrorKind::AddrNotAvailable || e.raw_os_error() == Some(EAFNOSUPPORT)
 }
 
 fn listen(domain: Domain, addr: SocketAddr, dual_stack: bool) -> io::Result<std::net::TcpListener> {
@@ -426,6 +434,9 @@ fn listen(domain: Domain, addr: SocketAddr, dual_stack: bool) -> io::Result<std:
     if dual_stack {
         socket.set_only_v6(false)?;
     }
+    // Go sets SO_REUSEADDR except on Windows, where it would let another socket bind a
+    // port already in use (net/sockopt_windows.go).
+    #[cfg(not(windows))]
     socket.set_reuse_address(true)?;
     socket.bind(&addr.into())?;
     socket.listen(1024)?;
@@ -725,12 +736,16 @@ async fn serve(
         None => cpa_server::app(rt.clone(), cpa_server::management::router(management.clone())),
     }
     .layer(axum::middleware::from_fn(cpa_server::management::cors));
+    let app = cpa_server::request_logging::router(&management, app);
     let app = cpa_server::observability::router(&rt, app);
-    // Go's listener also serves the Redis protocol (usage queue) to management clients.
-    // ponytail: in Home mode Go first answers "ERR redis usage output disabled in home
-    // mode"; here the RESP connection closes without it, as with management disabled.
-    let resp = home.is_none().then_some(management);
-    let mut server = Box::pin(cpa_server::listener::serve_with_resp(listener, app, tls, resp));
+    // Go's listener also serves the Redis protocol (usage queue) to management clients;
+    // in Home mode it answers "ERR redis usage output disabled in home mode".
+    let mut server = Box::pin(cpa_server::listener::serve_with_resp(
+        listener,
+        app,
+        tls,
+        Some(management),
+    ));
     let mut home = home;
     // Go `cancelServiceRun`: a Home subscriber that stops on its own (an unsafe drain or
     // an unsettled dispatch) stops the service; executions it could not drain end with
@@ -945,9 +960,18 @@ mod tests {
         }
         let err = bind("", port).unwrap_err();
         assert_eq!(
-            err.raw_os_error(),
-            Some(libc::EADDRINUSE),
+            err.kind(),
+            io::ErrorKind::AddrInUse,
             "must not silently fall back to IPv4"
         );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn only_missing_ipv6_falls_back_to_ipv4() {
+        assert!(no_ipv6(&io::Error::from_raw_os_error(libc::EAFNOSUPPORT)));
+        assert!(no_ipv6(&io::Error::from_raw_os_error(libc::EADDRNOTAVAIL)));
+        assert!(!no_ipv6(&io::Error::from_raw_os_error(libc::EADDRINUSE)));
+        assert!(!no_ipv6(&io::Error::from_raw_os_error(libc::EACCES)));
     }
 }

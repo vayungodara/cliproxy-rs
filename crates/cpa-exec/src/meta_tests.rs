@@ -506,7 +506,7 @@ async fn failed_login_mint_logs_no_response_body() {
     let mock = Mock::start(&responses).await;
     let dir = TempDir::new();
     let capture = crate::kimi_fixture::LogCapture::default();
-    let guard = tracing::subscriber::set_default(capture.clone());
+    let guard = capture.install();
     let outcome = login_with(login_auth(&mock.url), dir.path(), true).await;
     drop(guard);
     assert!(outcome.is_ok(), "a failed mint does not fail the login");
@@ -992,6 +992,7 @@ async fn usage_reports_match_go_records() {
         "stream-nbsp-data",
     ] {
         let r = run(name).await;
-        crate::kimi_fixture::assert_usage_like_go(name, &r.fx, &r.usage);
+        let failure = r.error.as_ref().map(crate::kimi_fixture::go_failure);
+        crate::kimi_fixture::assert_usage_like_go(name, &r.fx, &r.usage, failure.as_ref());
     }
 }

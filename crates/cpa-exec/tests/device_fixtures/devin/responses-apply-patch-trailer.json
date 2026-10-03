@@ -72,6 +72,8 @@
     "usage": [
       {
         "cached_tokens": 0,
+        "fail_body": "Invalid apply_patch tool arguments received from upstream.",
+        "fail_status": 502,
         "failed": true,
         "input_tokens": 0,
         "model": "gpt-5-6-sol",
@@ -79,7 +81,9 @@
         "reasoning_effort": "",
         "reasoning_tokens": 0,
         "response_model": "",
-        "total_tokens": 0
+        "service_tier": "",
+        "total_tokens": 0,
+        "ttft_set": true
       }
     ]
   }
