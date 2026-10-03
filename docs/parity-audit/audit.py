@@ -135,6 +135,7 @@ def owner_for(text):
         ("plugin", "ultra/plugins"),
         ("internal/tui", "ultra/tui"),
         ("internal/home", "ultra/home"),
+        ("managementasset", "ultra/dashboard"),
         ("internal/store", "ultra/home"),
         ("discovery", "ultra/tui"),
         ("cmd/", "ultra/tui"),
@@ -216,7 +217,7 @@ def judge_route(item, routes, tests):
     literal = re.split(r"[:*]", path)[0]
     if literal != "/" and literal.endswith("/") and len(literal) > 1:
         literal = literal
-    pattern = re.compile(re.escape(literal) + (r'["?/ ]' if not literal.endswith("/") else ""))
+    pattern = re.compile(re.escape(literal) + (r'["?/ {]' if not literal.endswith("/") else ""))
     users = [rel for rel, text in tests.items() if pattern.search(text)]
     if users:
         return ("covered", f"probe: {key} -> {hit['status']}; tests: {short(users)}")
@@ -286,7 +287,14 @@ def config_sources():
                 tests[rel] = text[text.index("#[cfg(test)]"):]
         elif is_test:
             tests[rel] = text
-    return readers, tests
+    # Path segments per reader file: quoted strings split on '.' and '/'.
+    tokens = {rel: {part for lit in re.findall(r'"([^"\\\n]{1,200})"', text) for part in re.split(r"[./]", lit)}
+              for rel, text in readers.items()}
+    # Keys a test sets: YAML keys (`key:`, also inside JSON-escaped YAML) and quoted path segments.
+    test_tokens = {rel: set(re.findall(r"([a-z0-9][a-z0-9\-]*):", text))
+                   | {part for lit in re.findall(r'"([^"\\\n]{1,200})"', text) for part in re.split(r"[./]", lit)}
+                   for rel, text in tests.items()}
+    return readers, tests, tokens, test_tokens
 
 
 def judge_config(item, sources):
@@ -301,22 +309,22 @@ def judge_config(item, sources):
     leaf = key.replace("[]", "").split(".")[-1]
     if "{" in leaf:
         leaf = key.replace("[]", "").split(".")[-2].strip("{}")
-    readers, tests = sources
+    readers, tests, _, _ = sources
     lit = f'"{leaf}"'
     # A key appears as a whole string or as a segment of a dotted path ("server.trusted-proxies").
     seg = re.compile(r'["./]' + re.escape(leaf) + r'["./]')
+    tokens = sources[2]
     if leaf in GENERIC_LEAVES and family:
         # Shared credential fields: synthesized for every API-key family.
-        used = [rel for rel in readers if rel.endswith(("config/credentials.rs", "config/sanitize.rs")) and seg.search(readers[rel])]
+        used = [rel for rel in readers if rel.endswith(("config/credentials.rs", "config/sanitize.rs")) and leaf in tokens[rel]]
     else:
-        used = [rel for rel, text in readers.items() if seg.search(text)]
+        used = [rel for rel in readers if leaf in tokens[rel]]
     if not used:
         return ("missing", f"accepted by the config schema; no runtime code reads {lit}", owner, "")
-    if leaf == "max-context-length":
-        return ("partial", f"parsed in {short(used)}", "ultra/codex", "Its consumer, the Codex client model catalog, is not ported.")
     family_token = {"interactions": "interactions", "openai-compatibility": "openai-compat"}.get(family, family)
+    test_tokens = sources[3]
     set_in = [rel for rel, text in tests.items()
-              if (f"{leaf}:" in text or seg.search(text)) and (not family_token or family_token in text)]
+              if leaf in test_tokens[rel] and (not family_token or family_token in text)]
     if set_in:
         return ("covered", f"read in {short(used)}; set in {short(set_in)}", owner, "heuristic: key name match")
     return ("partial", f"read in {short(used)}; no test sets it", owner, "heuristic: key name match")
@@ -366,8 +374,8 @@ def main():
 
 
 # Milestones whose rows have been reviewed by hand; the others are not rendered yet.
-AUDITED = ["M1", "M2", "M3", "M4"]
-BASE = "4abce40"
+AUDITED = ["M1", "M2", "M3", "M4", "M5", "M6"]
+BASE = "f97310d"
 
 
 def title(r):
@@ -391,8 +399,8 @@ def render(rows):
     w = out.append
     w("# Parity status against docs/PARITY.md")
     w("")
-    w(f"Audit of master `{BASE}` against CLIProxyAPI `6fecc6e`, item by item. Milestones audited so far: {', '.join(AUDITED)}. "
-      "The rest follow in later deliveries, and the audit is re-run at the end.")
+    w(f"Audit of master `{BASE}` against CLIProxyAPI `6fecc6e`, item by item. Milestones audited: {', '.join(AUDITED)} "
+      "(every item in PARITY.md). The audit is re-run at the end, after the other threads finish.")
     w("")
     w("Statuses:")
     w("")
