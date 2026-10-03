@@ -57,6 +57,7 @@ macro_rules! registered {
 mod apply_patch;
 mod claude_chat_request;
 mod claude_chat_response;
+mod claude_gemini;
 mod claude_interactions;
 mod claude_responses;
 mod claude_responses_response;
@@ -218,6 +219,7 @@ fn registered(client: Format, upstream: Format) -> Option<&'static Registered> {
         (Format::Interactions, Format::OpenAIResponse) => Some(&responses_interactions::INTERACTIONS_TO_RESPONSES),
         (Format::Interactions, Format::Claude) => Some(&claude_interactions::PAIR),
         (Format::Claude, Format::Interactions) => Some(&interactions_claude::PAIR),
+        (Format::Gemini, Format::Claude) => Some(&claude_gemini::PAIR),
         _ => None,
     }
 }

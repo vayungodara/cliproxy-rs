@@ -41,7 +41,7 @@ fn first_nonempty(values: &[&[u8]]) -> Vec<u8> {
 /// common.ClaudeMessageAccumulator: consecutive same-role messages merge into one, with
 /// an assistant turn's tool_use blocks moved after its other content.
 #[derive(Default)]
-struct Accumulator {
+pub(crate) struct Accumulator {
     messages: Vec<Vec<u8>>,
     role: Vec<u8>,
     content: Vec<Vec<u8>>,
@@ -49,7 +49,7 @@ struct Accumulator {
 }
 
 impl Accumulator {
-    fn append(&mut self, message: &[u8]) {
+    pub(crate) fn append(&mut self, message: &[u8]) {
         let root = gj::parse(message);
         let role = string(&root.get("role"));
         if role != b"user" && role != b"assistant" {
@@ -72,7 +72,7 @@ impl Accumulator {
         self.role = role;
     }
 
-    fn flush(&mut self) {
+    pub(crate) fn flush(&mut self) {
         if self.role.is_empty() {
             return;
         }
@@ -87,7 +87,7 @@ impl Accumulator {
         self.role.clear();
     }
 
-    fn into_messages(mut self) -> Vec<Vec<u8>> {
+    pub(crate) fn into_messages(mut self) -> Vec<Vec<u8>> {
         self.flush();
         self.messages
     }

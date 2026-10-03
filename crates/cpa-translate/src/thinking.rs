@@ -3,7 +3,7 @@
 use cpa_common::thinking as ct;
 use cpa_core::registry::ModelInfo;
 
-pub use ct::{convert_level_to_budget, has_level, map_to_claude_effort};
+pub use ct::{convert_budget_to_level, convert_level_to_budget, has_level, map_to_claude_effort};
 
 /// registry.LookupModelInfo: the server's dynamic registry (preferring `provider`'s
 /// registration), then every static catalog in Go's search order, by trimmed ID.
