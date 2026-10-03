@@ -485,7 +485,7 @@ pub(crate) enum UsageEvent {
     Publish,
     PublishFailure(u16, String),
     UsageRequired,
-    Failed,
+    Discard,
 }
 
 /// Records what an executor reports to its usage sink: the payloads (Server 6) and,
@@ -530,8 +530,8 @@ impl cpa_core::exec::UsageObserver for UsageLog {
     fn usage_required(&self) {
         self.event(UsageEvent::UsageRequired);
     }
-    fn failed(&self) {
-        self.event(UsageEvent::Failed);
+    fn discard(&self) {
+        self.event(UsageEvent::Discard);
     }
 }
 
@@ -645,8 +645,8 @@ fn reported_model(format: Format, payload: &[u8]) -> Option<String> {
 }
 
 /// The record the server publishes from these reports (cpa_server usage_record
-/// `Tracker::publish`): the executor's first `publish`/`publish_failure`, else the
-/// attempt's `failure`, else a success, which `usage_required` drops when no usage was
+/// `Tracker::publish`): the executor's first `publish`/`publish_failure`, else nothing
+/// after `discard`, else the attempt's `failure`, else a success, which `usage_required` drops when no usage was
 /// reported. `(failed, status, body)`; `None` when nothing is published.
 fn rust_record(log: &UsageLog, failure: Option<&(u16, String)>) -> Option<(bool, u16, String)> {
     let events = log.events();
@@ -658,17 +658,20 @@ fn rust_record(log: &UsageLog, failure: Option<&(u16, String)>) -> Option<(bool,
     if published.is_some() {
         return published;
     }
+    // `UsageSink::discard`: Go returned before it created a reporter.
+    if events.contains(&UsageEvent::Discard) {
+        return None;
+    }
     if let Some((status, body)) = failure {
         return Some((true, *status, body.trim().to_owned()));
     }
-    let usage_reported = events.contains(&UsageEvent::Failed)
-        || log.0.lock().unwrap().iter().any(|(kind, format, payload)| {
-            *kind == "body" || {
-                let t = payload.trim_ascii();
-                let p = t.strip_prefix(b"data:").map_or(t, <[u8]>::trim_ascii);
-                reported_tokens(*format, p).is_some() || !crate::kimi_http::response_tier(p).is_empty()
-            }
-        });
+    let usage_reported = log.0.lock().unwrap().iter().any(|(kind, format, payload)| {
+        *kind == "body" || {
+            let t = payload.trim_ascii();
+            let p = t.strip_prefix(b"data:").map_or(t, <[u8]>::trim_ascii);
+            reported_tokens(*format, p).is_some() || !crate::kimi_http::response_tier(p).is_empty()
+        }
+    });
     if events.contains(&UsageEvent::UsageRequired) && !usage_reported {
         return None;
     }
