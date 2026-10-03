@@ -21,7 +21,7 @@ use axum::http::{HeaderMap, HeaderValue, header};
 use axum::response::{IntoResponse, Response};
 use cpa_common::gostr::GoStr;
 use cpa_common::json::{self as gj, Kind};
-use cpa_core::exec::{Caller, ExecError, FailureScope, Operation};
+use cpa_core::exec::{Caller, ExecError, Operation};
 use cpa_core::format::Format;
 use cpa_exec::openai_compat_multipart::{self as multipart, Form, MediaType};
 

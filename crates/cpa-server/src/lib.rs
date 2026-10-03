@@ -11,6 +11,7 @@ pub mod dispatch;
 mod errors;
 mod gemini;
 mod gojson;
+mod images;
 pub mod logging;
 pub mod management;
 mod models;
@@ -49,6 +50,8 @@ pub fn router(rt: Arc<Runtime>) -> Router {
         .route("/v1/models", get(models::unified))
         .route("/v1/chat/completions", post(openai::chat_completions))
         .route("/v1/completions", post(openai::completions))
+        .route("/v1/images/generations", post(images::generations))
+        .route("/v1/images/edits", post(images::edits))
         .route("/v1/messages", post(claude::messages))
         .route("/v1/messages/count_tokens", post(claude::count_tokens))
         .route("/v1/responses", post(openai::responses))
