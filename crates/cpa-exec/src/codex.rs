@@ -213,8 +213,10 @@ impl CodexExecutor {
         body: String,
         replay: &crate::codex_replay::Scope,
     ) -> Result<ExecResponse, ExecError> {
+        // The shaped body names the base model, the key of per-model quota snapshots.
+        let model = gjson::get(&body, "model").str().to_owned();
         let upstream = self.post(view, &url, &headers, Bytes::from(body)).await?;
-        self.quota.observe(&view.credential.id, &upstream.headers);
+        self.quota.observe(&view.credential.id, &model, &upstream.headers);
         let status = upstream.status;
         let mut headers = upstream.headers;
         headers.remove(http::header::CONTENT_ENCODING);
@@ -254,6 +256,7 @@ impl CodexExecutor {
         let model = request::base_model(&req.model).to_owned();
         let (body, restore) = request::shape(&req, view, settings, Call::Stream)?;
         let (body, scope) = crate::codex_replay::apply(&self.replay, &req, body);
+        report_request(&req, Format::Codex, &body);
         let (body, cache) = request::prompt_cache(&req, body, ws_session, false);
         let body = request::sanitize_input_ids(body);
         let headers = request::http_headers(view, settings, &req.headers, &body, &model, cache.as_deref(), true);
@@ -263,7 +266,8 @@ impl CodexExecutor {
         let upstream = events(res.body);
         let processor = Processor::new(request::is_native(&req), settings.model_level_cooling)
             .restoring(restore)
-            .replaying(self.replay.clone(), scope);
+            .replaying(self.replay.clone(), scope)
+            .reporting(req.usage.clone());
         let stream = if settings.bootstrap_buffering {
             match response::bootstrap(upstream, processor, settings.bootstrap_timeout, started).await {
                 Bootstrap::Reject(error) => return Err(error),
@@ -288,6 +292,7 @@ impl CodexExecutor {
         let model = request::base_model(&req.model).to_owned();
         let (body, restore) = request::shape(&req, view, settings, Call::NonStream)?;
         let (body, scope) = crate::codex_replay::apply(&self.replay, &req, body);
+        report_request(&req, Format::Codex, &body);
         let (body, cache) = request::prompt_cache(&req, body, None, false);
         let body = request::sanitize_input_ids(body);
         let headers = request::http_headers(view, settings, &req.headers, &body, &model, cache.as_deref(), true);
@@ -296,7 +301,8 @@ impl CodexExecutor {
         let mut upstream = events(res.body);
         let mut processor = Processor::new(false, settings.model_level_cooling)
             .restoring(restore)
-            .replaying(self.replay.clone(), scope);
+            .replaying(self.replay.clone(), scope)
+            .reporting(req.usage.clone());
         while let Some(event) = upstream.next().await {
             let Ok(event) = event else {
                 break;
@@ -315,6 +321,7 @@ impl CodexExecutor {
     async fn compact(&self, view: &View<'_>, settings: &Settings, req: ExecRequest) -> Result<ExecResponse, ExecError> {
         let model = request::base_model(&req.model).to_owned();
         let (body, restore) = request::shape(&req, view, settings, Call::Compact)?;
+        report_request(&req, Format::OpenAIResponse, &body);
         let (body, cache) = request::prompt_cache(&req, body, None, false);
         let body = request::sanitize_input_ids(body);
         let headers = request::http_headers(view, settings, &req.headers, &body, &model, cache.as_deref(), false);
@@ -335,6 +342,10 @@ impl CodexExecutor {
         };
         let text = String::from_utf8_lossy(&data);
         let text = response::restore(&text, restore);
+        if req.usage.enabled() {
+            // Go publishes `ParseOpenAIUsage` of the restored compaction body.
+            req.usage.response_body(Format::OpenAIResponse, text.as_bytes());
+        }
         Ok(ExecResponse {
             status: res.status,
             headers: res.headers,
@@ -572,6 +583,14 @@ fn go_headers(headers: &HeaderMap) -> crate::proxy::GoHeaders {
         );
     }
     out
+}
+
+/// Go `SetTranslatedReasoningEffort`: the upstream payload, for the usage record's
+/// reasoning effort.
+pub(crate) fn report_request(req: &ExecRequest, upstream: Format, body: &str) {
+    if req.usage.enabled() {
+        req.usage.request(upstream, body.as_bytes());
+    }
 }
 
 /// Go's request-context session for `$CPA-SESSION-ID` headers.

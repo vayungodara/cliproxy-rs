@@ -386,6 +386,10 @@ struct Turn {
     observed: HeaderMap,
     /// The request renamed the `collaboration` namespace (multi-agent v2).
     restore: bool,
+    /// The attempt's usage record.
+    usage: cpa_core::exec::UsageSink,
+    /// The upstream model, for per-model quota snapshots.
+    model: String,
 }
 
 impl Drop for Turn {
@@ -421,7 +425,12 @@ impl Turn {
         }
         if let Some(headers) = codex_quota::event_headers(payload) {
             codex_quota::merge(&mut self.observed, &headers);
-            self.quota.observe(&self.credential, &self.observed);
+            self.quota.observe(&self.credential, &self.model, &self.observed);
+        }
+        if self.usage.enabled() {
+            // Go observes the payload before restoring collaboration names.
+            self.usage
+                .response_line(cpa_core::format::Format::Codex, payload.as_bytes());
         }
         let raw_len = payload.len();
         let payload = response::restore(payload, self.restore);
@@ -573,6 +582,7 @@ impl CodexExecutor {
         session: &Arc<Session>,
         target: &Target,
         headers: &HeaderMap,
+        model: &str,
         model_level_cooling: bool,
     ) -> Result<(Arc<Upstream>, Option<HeaderMap>), ExecError> {
         if let Some(current) = session.current() {
@@ -587,7 +597,7 @@ impl CodexExecutor {
             drop(slot);
             current.shutdown();
         }
-        let (socket, handshake) = self.dial(target, headers, model_level_cooling).await?;
+        let (socket, handshake) = self.dial(target, headers, model, model_level_cooling).await?;
         let (sink, stream) = socket.split();
         let conn = Arc::new(Upstream {
             target: target.clone(),
@@ -610,6 +620,7 @@ impl CodexExecutor {
         &self,
         target: &Target,
         headers: &HeaderMap,
+        model: &str,
         model_level_cooling: bool,
     ) -> Result<(WebSocket, HeaderMap), ExecError> {
         // `newProxyAwareWebsocketDialer`: Go's standard dialer, environment proxies
@@ -638,7 +649,7 @@ impl CodexExecutor {
                         break;
                     }
                 }
-                self.quota_observe(&target.credential, &handshake);
+                self.quota_observe(&target.credential, model, &handshake);
                 if status == 426 {
                     // Go returns a plain statusErr for 426 on downstream WebSockets.
                     let text = String::from_utf8_lossy(&body).into_owned();
@@ -657,8 +668,8 @@ impl CodexExecutor {
             .unwrap_or_else(|_| Err(transport("codex websockets executor: handshake timed out")))
     }
 
-    fn quota_observe(&self, credential: &str, headers: &HeaderMap) {
-        self.quota().observe(credential, headers);
+    fn quota_observe(&self, credential: &str, model: &str, headers: &HeaderMap) {
+        self.quota().observe(credential, model, headers);
     }
 
     /// One Responses turn over the session's upstream socket (`ExecuteStream` on
@@ -672,6 +683,7 @@ impl CodexExecutor {
     ) -> Result<ExecResponse, ExecError> {
         let model = request::base_model(&req.model).to_owned();
         let (body, restore) = request::shape(&req, view, settings, Call::Websocket)?;
+        crate::codex::report_request(&req, cpa_core::format::Format::Codex, &body);
         let (body, cache) = request::prompt_cache(&req, body, Some(&exec_session.id), true);
         let native = request::is_native(&req);
         let headers = request::ws_headers(view, settings, &req.headers, &body, &model, cache.as_deref(), native);
@@ -688,7 +700,7 @@ impl CodexExecutor {
                 None => return Err(ExecError::replay_required()),
             }
         } else {
-            self.ensure(&session, &target, &headers, settings.model_level_cooling)
+            self.ensure(&session, &target, &headers, &model, settings.model_level_cooling)
                 .await?
         };
         let frame = request_frame(body);
@@ -707,7 +719,7 @@ impl CodexExecutor {
             }
             // Retry once on a fresh socket: upstream may have closed it between turns.
             let (fresh, fresh_handshake) = self
-                .ensure(&session, &target, &headers, settings.model_level_cooling)
+                .ensure(&session, &target, &headers, &model, settings.model_level_cooling)
                 .await?;
             rx = fresh.activate();
             if let Err(error) = fresh.send(frame).await {
@@ -719,7 +731,7 @@ impl CodexExecutor {
         }
         let observed = handshake.clone().unwrap_or_default();
         if !observed.is_empty() {
-            self.quota_observe(&view.credential.id, &observed);
+            self.quota_observe(&view.credential.id, &model, &observed);
         }
         let turn = Turn {
             rx,
@@ -734,6 +746,8 @@ impl CodexExecutor {
             credential: view.credential.id.clone(),
             observed,
             restore,
+            usage: req.usage.clone(),
+            model: model.clone(),
         };
         let stream = if settings.bootstrap_buffering {
             bootstrap(turn, settings.bootstrap_timeout, started).await?
