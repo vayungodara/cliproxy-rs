@@ -66,14 +66,86 @@ pub(super) fn copy_headers(to: &mut HeaderMap, from: &HeaderMap, names: &[&'stat
 
 /// A handler's body written the way Go's server does: a missing Content-Type is
 /// sniffed from a non-empty body (`http.DetectContentType`).
-pub(super) fn written(status: u16, mut headers: HeaderMap, body: Vec<u8>) -> Response {
+pub(super) fn written(status: u16, headers: HeaderMap, body: Vec<u8>) -> Response {
+    tracked(status, headers, body, None)
+}
+
+/// [`written`], calling `on_failure` when the body is dropped before it reached the
+/// connection (the client went away first): Go's failed `c.Writer.Write`.
+pub(super) fn tracked(
+    status: u16,
+    mut headers: HeaderMap,
+    body: Vec<u8>,
+    on_failure: Option<Box<dyn FnOnce() + Send>>,
+) -> Response {
     if !headers.contains_key(header::CONTENT_TYPE) && !body.is_empty() {
         headers.insert(header::CONTENT_TYPE, HeaderValue::from_static(sniff(&body)));
     }
     let status = StatusCode::from_u16(status).unwrap_or(StatusCode::BAD_GATEWAY);
-    let mut response = (status, body).into_response();
+    let mut response = (status, axum::body::Body::new(TrackedBody::new(body, on_failure))).into_response();
     *response.headers_mut() = headers;
     response
+}
+
+/// A one-frame body that knows whether its frame was taken. Up to 2048 bytes it has an
+/// exact size (Content-Length); past that none, so it goes out chunked, as Go's
+/// `bufferBeforeChunkingSize` does, without the framing layer buffering it.
+struct TrackedBody {
+    data: Option<Bytes>,
+    len: usize,
+    on_failure: Option<Box<dyn FnOnce() + Send>>,
+}
+
+impl TrackedBody {
+    fn new(body: Vec<u8>, on_failure: Option<Box<dyn FnOnce() + Send>>) -> Self {
+        let len = body.len();
+        Self {
+            data: (len > 0).then(|| Bytes::from(body)),
+            len,
+            // An empty body has nothing to fail on.
+            on_failure: on_failure.filter(|_| len > 0),
+        }
+    }
+}
+
+impl http_body::Body for TrackedBody {
+    type Data = Bytes;
+    type Error = std::convert::Infallible;
+
+    fn poll_frame(
+        self: std::pin::Pin<&mut Self>,
+        _: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Option<Result<http_body::Frame<Bytes>, Self::Error>>> {
+        let this = self.get_mut();
+        let frame = this.data.take().map(|data| {
+            this.on_failure = None;
+            Ok(http_body::Frame::data(data))
+        });
+        std::task::Poll::Ready(frame)
+    }
+
+    fn is_end_stream(&self) -> bool {
+        self.data.is_none()
+    }
+
+    fn size_hint(&self) -> http_body::SizeHint {
+        let remaining = self.data.as_ref().map_or(0, Bytes::len);
+        if self.len <= 2048 {
+            http_body::SizeHint::with_exact(remaining as u64)
+        } else {
+            let mut hint = http_body::SizeHint::new();
+            hint.set_lower(remaining as u64);
+            hint
+        }
+    }
+}
+
+impl Drop for TrackedBody {
+    fn drop(&mut self) {
+        if let Some(on_failure) = self.on_failure.take() {
+            on_failure();
+        }
+    }
 }
 
 /// `http.DetectContentType` for what a live upstream returns.
@@ -266,6 +338,7 @@ pub(super) async fn call(
         }
         response_headers.insert(header::CONTENT_TYPE, HeaderValue::from_static("application/sdp"));
     }
+    let mut on_failure: Option<Box<dyn FnOnce() + Send>> = None;
     if success && !call_id.is_empty() {
         let media = media.as_mut().and_then(|guard| guard.0.take());
         let stored = live_state.calls.put(
@@ -284,20 +357,27 @@ pub(super) async fn call(
                 ..Call::default()
             },
         );
-        if let (Some(media), Some(stored)) = (media, stored) {
-            // The media ending on its own ends the call; weak, so the call can drop.
+        if let Some(stored) = stored {
+            // The media ending on its own, or the answer never reaching the client, ends
+            // the call; weak, so the call can drop.
             let calls = Arc::downgrade(&live_state.calls);
             let (id, token) = (stored.call_id.clone(), stored.token);
-            media.set_close_handler(Box::new(move |reason| {
+            if let Some(media) = media {
+                let (calls, id) = (calls.clone(), id.clone());
+                media.set_close_handler(Box::new(move |reason| {
+                    if let Some(calls) = calls.upgrade() {
+                        calls.complete_token(&id, token, &reason);
+                    }
+                }));
+            }
+            on_failure = Some(Box::new(move || {
                 if let Some(calls) = calls.upgrade() {
-                    calls.complete_token(&id, token, &reason);
+                    calls.complete_token(&id, token, "response_write_failed");
                 }
             }));
         }
     }
-    // ponytail: Go completes the stored call when writing this body fails; axum gives no
-    // write result, so such a call lives until its sideband, hangup or expiry.
-    traced(written(status, response_headers, data))
+    traced(tracked(status, response_headers, data, on_failure))
 }
 
 /// Closes a media session the call did not keep (`request_not_retained`).
@@ -493,6 +573,42 @@ pub(super) async fn sip(OriginalUri(uri): OriginalUri) -> Response {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn tracked_body_reports_only_bodies_that_never_left() {
+        use http_body::Body as _;
+        let fired = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let hook = || -> Option<Box<dyn FnOnce() + Send>> {
+            let fired = fired.clone();
+            Some(Box::new(move || {
+                fired.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            }))
+        };
+        drop(TrackedBody::new(b"v=0".to_vec(), hook()));
+        assert_eq!(fired.load(std::sync::atomic::Ordering::SeqCst), 1, "dropped unsent");
+        let mut sent = TrackedBody::new(b"v=0".to_vec(), hook());
+        assert_eq!(sent.size_hint().exact(), Some(3));
+        let waker = futures_util::task::noop_waker();
+        let mut cx = std::task::Context::from_waker(&waker);
+        let frame = std::pin::Pin::new(&mut sent).poll_frame(&mut cx);
+        assert!(matches!(frame, std::task::Poll::Ready(Some(Ok(_)))));
+        assert!(sent.is_end_stream());
+        drop(sent);
+        assert_eq!(
+            fired.load(std::sync::atomic::Ordering::SeqCst),
+            1,
+            "taken frames are not failures"
+        );
+        drop(TrackedBody::new(Vec::new(), hook()));
+        assert_eq!(
+            fired.load(std::sync::atomic::Ordering::SeqCst),
+            1,
+            "empty bodies cannot fail"
+        );
+        let big = TrackedBody::new(vec![b'a'; 2049], None);
+        assert_eq!(big.size_hint().exact(), None, "past 2048 bytes Go chunks");
+        assert_eq!(TrackedBody::new(vec![b'a'; 2048], None).size_hint().exact(), Some(2048));
+    }
 
     /// Values from Go 1.26 `http.DetectContentType`.
     #[test]

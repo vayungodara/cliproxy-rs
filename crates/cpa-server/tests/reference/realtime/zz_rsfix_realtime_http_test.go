@@ -114,7 +114,7 @@ func newRSFixServer(t *testing.T, withCredentials bool) (*Server, *rsfixLiveExec
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 	cfg := &proxyconfig.Config{}
-	cfg.APIKeys = []string{"good-key"}
+	cfg.APIKeys = []string{"good-key", "other-key"}
 	tmp := t.TempDir()
 	cfg.AuthDir = filepath.Join(tmp, "auth")
 	_ = os.MkdirAll(cfg.AuthDir, 0o700)
@@ -298,6 +298,7 @@ func TestRSFixRealtimeHTTP(t *testing.T) {
 	// Hangup.
 	run("hangup_invalid_call_id", "main", post("/v1/realtime/calls/a%20b/hangup", good, ""), nil)
 	run("hangup_unknown_call", "main", post("/v1/realtime/calls/call-unknown/hangup", good, ""), nil)
+	run("hangup_other_principal", "main", post("/v1/realtime/calls/call-123/hangup", map[string][]string{"Authorization": {"Bearer other-key"}}, ""), nil)
 	run("hangup_upstream_error_keeps_call", "main", post("/v1/realtime/calls/call-123/hangup", with(good, "Content-Type", "application/json", "OpenAI-Alpha", "v"), `{"reason":"bye"}`),
 		&rsfixUpstream{Status: 500, Headers: map[string][]string{"Content-Type": {"application/json"}, "X-Request-Id": {"h-1"}}, Body: `{"error":"boom"}`})
 	run("hangup", "main", post("/v1/realtime/calls/call-123/hangup", good, ""), &rsfixUpstream{Status: 200, Headers: map[string][]string{"Content-Type": {"application/json"}}, Body: `{"status":"ok"}`})

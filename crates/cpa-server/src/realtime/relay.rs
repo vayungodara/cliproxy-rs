@@ -290,6 +290,36 @@ mod tests {
         );
     }
 
+    /// Go `TestHandlerUpdatesMediaRelayConfig`: an unrelated config change keeps the relay,
+    /// a relay change rebuilds it, disabling removes it.
+    #[cfg(feature = "media-relay")]
+    #[test]
+    fn relay_is_rebuilt_only_when_its_section_changes() {
+        let relays = Relays::default();
+        let enabled = "codex:\n  live-media-relay:\n    enabled: true\n    max-sessions: 1\n";
+        let first = relays.current(&cfg(enabled)).unwrap().expect("enabled");
+        let unrelated = format!("{enabled}debug: true\nproxy-url: http://new-proxy.example\n");
+        let same = relays.current(&cfg(&unrelated)).unwrap().unwrap();
+        assert!(Arc::ptr_eq(&first, &same), "unrelated change kept the relay");
+        let changed = relays
+            .current(&cfg(
+                "codex:\n  live-media-relay:\n    enabled: true\n    max-sessions: 2\n",
+            ))
+            .unwrap()
+            .unwrap();
+        assert!(!Arc::ptr_eq(&first, &changed), "relay change rebuilt it");
+        assert!(relays.current(&cfg("{}")).unwrap().is_none(), "disabled");
+    }
+
+    /// Without the feature an enabled relay is not an error: calls negotiate without it.
+    #[cfg(not(feature = "media-relay"))]
+    #[test]
+    fn builds_without_the_relay_negotiate_without_it() {
+        let relays = Relays::default();
+        let enabled = cfg("codex:\n  live-media-relay:\n    enabled: true\n");
+        assert!(relays.current(&enabled).unwrap().is_none());
+    }
+
     #[test]
     fn limiter_counts_slots_across_rebuilds() {
         let limiter = Arc::new(Limiter::default());
