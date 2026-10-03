@@ -23,6 +23,7 @@ mod sanitize;
 pub mod scheduler;
 mod session;
 pub mod usage;
+mod usage_record;
 pub mod watching;
 mod websocket;
 mod websocket_requests;

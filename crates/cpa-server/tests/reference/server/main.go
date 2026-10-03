@@ -17,13 +17,18 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/config"
+	"github.com/router-for-me/CLIProxyAPI/v8/internal/logging"
+	"github.com/router-for-me/CLIProxyAPI/v8/internal/redisqueue"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/registry"
+	"github.com/router-for-me/CLIProxyAPI/v8/internal/runtime/executor/helps"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/watcher/synthesizer"
 	"github.com/router-for-me/CLIProxyAPI/v8/sdk/api/handlers"
 	"github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/auth"
 	cliproxyexecutor "github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/executor"
 	"github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/session"
+	"github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/usage"
 	sdktranslator "github.com/router-for-me/CLIProxyAPI/v8/sdk/translator"
+	"github.com/tidwall/gjson"
 )
 
 type pair struct {
@@ -850,6 +855,266 @@ func resolvedModels() []resolvedCase {
 	return out
 }
 
+// usageCase is one upstream attempt: the client-format response, the request context
+// and credential, and the queuedUsageDetail Go's usage queue stores for it.
+type usageCase struct {
+	Name              string              `json:"name"`
+	Format            string              `json:"format"`
+	Stream            bool                `json:"stream"`
+	Lines             []string            `json:"lines"`
+	Provider          string              `json:"provider"`
+	ExecutorType      string              `json:"executor_type"`
+	Model             string              `json:"model"`
+	Alias             string              `json:"alias"`
+	AuthID            string              `json:"auth_id"`
+	AuthProvider      string              `json:"auth_provider"`
+	Attributes        map[string]string   `json:"attributes"`
+	Metadata          map[string]any      `json:"metadata"`
+	ClientKey         string              `json:"client_key"`
+	RequestID         string              `json:"request_id"`
+	Endpoint          string              `json:"endpoint"`
+	ClientIP          string              `json:"client_ip"`
+	ResolvedClientIP  string              `json:"resolved_client_ip"`
+	XForwardedFor     string              `json:"x_forwarded_for"`
+	UserAgent         string              `json:"user_agent"`
+	SessionID         string              `json:"session_id"`
+	ParentSessionID   string              `json:"parent_session_id"`
+	ReasoningEffort   string              `json:"reasoning_effort"`
+	TranslatedPayload string              `json:"translated_payload"`
+	TranslatedFormat  string              `json:"translated_format"`
+	ServiceTier       string              `json:"service_tier"`
+	Generate          bool                `json:"generate"`
+	Failed            bool                `json:"failed"`
+	FailStatus        int                 `json:"fail_status"`
+	FailBody          string              `json:"fail_body"`
+	ResponseHeaders   map[string][]string `json:"response_headers"`
+	ExecutionID       string              `json:"execution_id"`
+	RequestedAt       string              `json:"requested_at"`
+	LatencyMs         int64               `json:"latency_ms"`
+	TTFTMs            int64               `json:"ttft_ms"`
+	Queued            json.RawMessage     `json:"queued"`
+}
+
+// usageDetail parses one attempt's client-format response the way Go's executor for
+// that format does: whole bodies with Parse*Usage, streams through StreamUsageBuffer
+// (Claude merges events, OpenAI keeps the last usage), Codex terminal events with
+// ParseCodexUsage, Gemini terminal chunks only (FilterSSEUsageMetadata).
+func usageDetail(format string, stream bool, lines []string) usage.Detail {
+	if !stream {
+		body := []byte(lines[0])
+		switch format {
+		case "claude":
+			return helps.ParseClaudeUsage(body)
+		case "openai", "openai-response":
+			// A buffered Responses body is the completed event's response object:
+			// usage and service_tier sit at the top level.
+			return helps.ParseOpenAIUsage(body)
+		case "gemini":
+			return helps.ParseGeminiUsage(body)
+		case "interactions":
+			return helps.ParseInteractionsUsage(body)
+		}
+		panic(format)
+	}
+	var buffer helps.StreamUsageBuffer
+	for _, raw := range lines {
+		line := []byte(raw)
+		switch format {
+		case "claude":
+			buffer.ObserveClaudeStream(line)
+		case "openai":
+			buffer.ObserveOpenAIStream(line)
+		case "openai-response":
+			payload := helps.JSONPayload(line)
+			switch gjson.GetBytes(payload, "type").String() {
+			case "response.completed", "response.incomplete", "response.done":
+				if detail, ok := helps.ParseCodexUsage(payload); ok {
+					if _, seen := buffer.Detail(); !seen {
+						buffer.Observe(detail, true)
+					}
+				}
+			}
+		case "gemini":
+			payload := helps.JSONPayload(helps.FilterSSEUsageMetadata(line))
+			if detail, ok := helps.ParseGeminiStreamUsage(payload); ok {
+				buffer.Observe(detail, true)
+			}
+		case "interactions":
+			if detail, ok := helps.ParseInteractionsStreamUsage(line); ok {
+				buffer.Observe(detail, true)
+			}
+		}
+	}
+	detail, _ := buffer.Detail()
+	return detail
+}
+
+func usageRecords() []usageCase {
+	gin.SetMode(gin.ReleaseMode)
+	at := time.Date(2026, 10, 3, 8, 0, 0, 123456000, time.UTC).Format(time.RFC3339Nano)
+	claudeKey := func() (string, string, map[string]string, map[string]any) {
+		return "claude:apikey:0a1b2c3d4e5f", "claude", map[string]string{"api_key": "fake-upstream-key", "auth_kind": "apikey", "source": "config:claude[0a1b]", "config_index": "0"}, map[string]any{}
+	}
+	base := func(name, format string, stream bool, provider, executor, model, alias string, lines ...string) usageCase {
+		id, authProvider, attrs, meta := claudeKey()
+		return usageCase{
+			Name: name, Format: format, Stream: stream, Lines: lines,
+			Provider: provider, ExecutorType: executor, Model: model, Alias: alias,
+			AuthID: id, AuthProvider: authProvider, Attributes: attrs, Metadata: meta,
+			ClientKey: "fake-client-key", RequestID: "0192f5b4-aaaa-7bbb-8ccc-0123456789ab",
+			Endpoint: "POST /v1/messages", ClientIP: "10.0.0.2", ResolvedClientIP: "10.0.0.2",
+			UserAgent: "claude-cli/2.1.0 (external, cli)", ServiceTier: "auto", Generate: true,
+			ExecutionID: "6f9619ff-8b86-4d01-b42d-00cf4fc964ff", RequestedAt: at, LatencyMs: 1234, TTFTMs: 345,
+		}
+	}
+	oauth := func(c *usageCase, provider string, meta map[string]any, attrs map[string]string) {
+		c.AuthID, c.AuthProvider, c.Metadata, c.Attributes = provider+"-user.json", provider, meta, attrs
+	}
+	var cases []usageCase
+
+	c := base("claude buffered api key", "claude", false, "claude", "ClaudeExecutor", "claude-sonnet-4-6", "sonnet",
+		`{"id":"msg_1","type":"message","model":"claude-sonnet-4-6-20260101","usage":{"input_tokens":10,"output_tokens":20,"cache_read_input_tokens":5,"cache_creation_input_tokens":3,"output_tokens_details":{"thinking_tokens":7}}}`)
+	c.SessionID, c.ParentSessionID = "claude:5B8E6F3A-1234-4ABC-8DEF-0123456789AB", "claude:11111111-2222-4333-8444-555555555555"
+	c.ReasoningEffort = "high"
+	c.TranslatedPayload, c.TranslatedFormat = `{"thinking":{"type":"enabled","budget_tokens":8192}}`, "claude"
+	c.ResponseHeaders = map[string][]string{"X-Request-Id": {"req-1"}, "Content-Type": {"application/json"}}
+	cases = append(cases, c)
+
+	c = base("claude stream oauth", "claude", true, "claude", "ClaudeExecutor", "claude-opus-4-7", "claude-opus-4-7",
+		"event: message_start",
+		`data: {"type":"message_start","message":{"id":"m","model":"claude-opus-4-7","usage":{"input_tokens":12,"cache_read_input_tokens":100,"output_tokens":1}}}`,
+		"event: content_block_delta",
+		`data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"<hi>"}}`,
+		"event: message_delta",
+		`data: {"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":40}}`,
+		"event: message_stop",
+		`data: {"type":"message_stop"}`)
+	oauth(&c, "claude", map[string]any{"type": "claude", "email": "user@example.com", "access_token": "fake-access-token"}, map[string]string{"auth_kind": "oauth"})
+	c.ClientKey, c.UserAgent, c.XForwardedFor = "", "", "203.0.113.9, 10.0.0.1"
+	c.SessionID, c.ParentSessionID = "header:my-session", "header:my-session"
+	cases = append(cases, c)
+
+	c = base("openai buffered compat", "openai", false, "openai-compatible-acme", "OpenAICompatExecutor", "up-model", "acme-m",
+		`{"id":"c1","object":"chat.completion","model":"up-model","service_tier":"default","choices":[],"usage":{"prompt_tokens":100,"completion_tokens":50,"total_tokens":150,"prompt_tokens_details":{"cached_tokens":30},"completion_tokens_details":{"reasoning_tokens":20}}}`)
+	c.AuthID, c.AuthProvider = "openai-compatibility:acme:0376e65a6eff", "openai-compatible-acme"
+	c.Attributes = map[string]string{"api_key": "fake-compat-key", "auth_kind": "apikey", "compat_name": "acme", "provider_key": "openai-compatible-acme", "source": "config:acme[0376]"}
+	c.Endpoint, c.ServiceTier = "POST /v1/chat/completions", "default"
+	cases = append(cases, c)
+
+	c = base("openai stream last usage", "openai", true, "openai-compatible-acme", "OpenAICompatExecutor", "up-model", "acme-m",
+		`data: {"id":"c2","object":"chat.completion.chunk","model":"up-model-0612","service_tier":"flex","choices":[{"index":0,"delta":{"content":"hi"}}]}`,
+		`data: {"id":"c2","object":"chat.completion.chunk","model":"up-model-0612","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}`,
+		`data: {"id":"c2","object":"chat.completion.chunk","model":"up-model-0612","choices":[],"usage":{"prompt_tokens":7,"completion_tokens":3,"total_tokens":10}}`,
+		"data: [DONE]")
+	c.Attributes = map[string]string{"api_key": "fake-compat-key", "auth_kind": "apikey"}
+	c.Endpoint = "POST /v1/chat/completions"
+	cases = append(cases, c)
+
+	c = base("openai partial usage", "openai", false, "xai", "XAIExecutor", "grok-5", "grok-5",
+		`{"id":"c3","object":"chat.completion","model":"grok-5","usage":{"prompt_tokens":5}}`)
+	c.Endpoint = "POST /v1/chat/completions"
+	cases = append(cases, c)
+
+	c = base("responses buffered codex oauth", "openai-response", false, "codex", "CodexExecutor", "gpt-6-sol", "gpt-6-sol(high)",
+		`{"id":"resp_1","object":"response","model":"gpt-6-sol","service_tier":"priority","status":"completed","usage":{"input_tokens":200,"input_tokens_details":{"cached_tokens":50},"output_tokens":80,"output_tokens_details":{"reasoning_tokens":30},"total_tokens":280}}`)
+	oauth(&c, "codex", map[string]any{"type": "codex", "email": "dev@example.com", "access_token": "fake-codex-token"}, map[string]string{"plan_type": "plus"})
+	c.Endpoint, c.ReasoningEffort = "POST /v1/responses", "high"
+	c.TranslatedPayload, c.TranslatedFormat = `{"model":"gpt-6-sol","reasoning":{"effort":"medium"}}`, "codex"
+	cases = append(cases, c)
+
+	c = base("responses stream terminal", "openai-response", true, "codex", "CodexExecutor", "gpt-6-sol", "gpt-6-sol",
+		"event: response.created",
+		`data: {"type":"response.created","response":{"id":"r","model":"gpt-6-sol","service_tier":"auto","usage":null}}`,
+		`data: {"type":"response.output_text.delta","delta":"x"}`,
+		"event: response.completed",
+		`data: {"type":"response.completed","response":{"id":"r","model":"gpt-6-sol-2026","service_tier":"default","usage":{"input_tokens":9,"output_tokens":4,"total_tokens":13}}}`)
+	oauth(&c, "codex", map[string]any{"type": "codex", "access_token": "fake-codex-token"}, map[string]string{})
+	c.Endpoint, c.ServiceTier, c.Generate = "POST /v1/responses", "flex", false
+	cases = append(cases, c)
+
+	c = base("gemini buffered api key", "gemini", false, "gemini", "GeminiExecutor", "gemini-2.5-pro", "gemini-2.5-pro",
+		`{"candidates":[{"content":{"parts":[{"text":"ok"}]},"finishReason":"STOP"}],"usageMetadata":{"promptTokenCount":40,"candidatesTokenCount":60,"thoughtsTokenCount":10,"totalTokenCount":110,"cachedContentTokenCount":8},"modelVersion":"gemini-2.5-pro-002"}`)
+	c.Attributes = map[string]string{"api_key": "fake-gemini-key", "auth_kind": "apikey"}
+	c.Endpoint = "POST /v1beta/models/*action"
+	cases = append(cases, c)
+
+	c = base("gemini stream terminal usage", "gemini", true, "gemini", "GeminiExecutor", "gemini-2.5-flash", "gemini-2.5-flash",
+		`data: {"candidates":[{"content":{"parts":[{"text":"a"}]}}],"usageMetadata":{"promptTokenCount":3,"candidatesTokenCount":1,"totalTokenCount":4},"modelVersion":"gemini-2.5-flash"}`,
+		`data: {"candidates":[{"content":{"parts":[{"text":"b"}]},"finishReason":"STOP"}],"usageMetadata":{"promptTokenCount":3,"candidatesTokenCount":9,"thoughtsTokenCount":2,"totalTokenCount":14},"modelVersion":"gemini-2.5-flash"}`)
+	c.Attributes = map[string]string{"api_key": "fake-gemini-key", "auth_kind": "apikey"}
+	c.Endpoint = "POST /v1beta/models/*action"
+	cases = append(cases, c)
+
+	c = base("vertex project source", "gemini", false, "vertex", "GeminiVertexExecutor", "gemini-2.5-pro", "gemini-2.5-pro",
+		`{"usageMetadata":{"promptTokenCount":1,"candidatesTokenCount":2}}`)
+	oauth(&c, "vertex", map[string]any{"type": "vertex", "project_id": "proj-1", "email": "sa@proj-1.iam"}, map[string]string{})
+	cases = append(cases, c)
+
+	c = base("interactions buffered", "interactions", false, "gemini-interactions", "GeminiExecutor", "gemini-3-pro", "gemini-3-pro",
+		`{"id":"i1","model":"gemini-3-pro","status":"completed","usage":{"total_input_tokens":20,"total_output_tokens":30,"total_thought_tokens":5,"total_tokens":55,"total_cached_tokens":4}}`)
+	c.Endpoint = "POST /v1beta/interactions"
+	cases = append(cases, c)
+
+	c = base("failure without usage", "claude", false, "claude", "ClaudeExecutor", "claude-sonnet-4-6", "sonnet", `{}`)
+	c.Failed, c.FailStatus, c.FailBody = true, 429, "  {\"error\":{\"type\":\"rate_limit_error\",\"message\":\"quota <exceeded>\"}}  "
+	cases = append(cases, c)
+
+	c = base("failure after stream usage", "openai", true, "openai-compatible-acme", "OpenAICompatExecutor", "up-model", "acme-m",
+		`data: {"id":"c4","object":"chat.completion.chunk","model":"up-model","choices":[],"usage":{"prompt_tokens":11,"completion_tokens":2,"total_tokens":13}}`)
+	c.Failed, c.FailStatus, c.FailBody = true, 502, "upstream reset"
+	cases = append(cases, c)
+
+	c = base("client key source fallback", "openai", false, "codex", "CodexExecutor", "gpt-5.5", "gpt-5.5",
+		`{"object":"chat.completion","model":"gpt-5.5","usage":{"prompt_tokens":1,"completion_tokens":1,"total_tokens":2}}`)
+	oauth(&c, "codex", map[string]any{"type": "codex", "refresh_token": "fake-refresh"}, map[string]string{})
+	c.ClientKey = " fake-client-key-2 "
+	cases = append(cases, c)
+
+	for i := range cases {
+		cs := &cases[i]
+		ginCtx, _ := gin.CreateTestContext(httptest.NewRecorder())
+		if cs.ClientKey != "" {
+			ginCtx.Set("userApiKey", cs.ClientKey)
+		}
+		ctx := context.WithValue(context.Background(), "gin", ginCtx)
+		ctx = logging.WithRequestID(ctx, cs.RequestID)
+		ctx = logging.WithEndpoint(ctx, cs.Endpoint)
+		ctx = logging.WithClientRequestMetadata(ctx, logging.ClientRequestMetadata{
+			ClientIP: cs.ClientIP, ResolvedClientIP: cs.ResolvedClientIP, XForwardedFor: cs.XForwardedFor,
+			UserAgent: cs.UserAgent, SessionID: cs.SessionID, ParentSessionID: cs.ParentSessionID,
+		})
+		ctx = logging.WithResponseStatusHolder(ctx)
+		ctx = logging.WithResponseHeadersHolder(ctx)
+		if cs.ResponseHeaders != nil {
+			logging.SetResponseHeaders(ctx, http.Header(cs.ResponseHeaders))
+		}
+		ctx = usage.WithRequestedModelAlias(ctx, cs.Alias)
+		ctx = usage.WithReasoningEffort(ctx, cs.ReasoningEffort)
+		ctx = usage.WithServiceTier(ctx, cs.ServiceTier)
+		ctx = usage.WithGenerate(ctx, cs.Generate)
+		ctx = usage.WithStream(ctx, cs.Stream)
+		a := &auth.Auth{ID: cs.AuthID, Provider: cs.AuthProvider, Attributes: cs.Attributes, Metadata: cs.Metadata}
+		if strings.HasSuffix(cs.AuthID, ".json") {
+			// A file auth's index seed is its absolute path; pin it.
+			a.FileName = "/auth/" + cs.AuthID
+		}
+		detail := usageDetail(cs.Format, cs.Stream, cs.Lines)
+		requestedAt, err := time.Parse(time.RFC3339Nano, cs.RequestedAt)
+		if err != nil {
+			panic(err)
+		}
+		fail := usage.Failure{StatusCode: cs.FailStatus, Body: cs.FailBody}
+		record := helps.GoldenUsageRecord(ctx, cs.ExecutorType, cs.Provider, cs.Model, a, detail, cs.Failed, fail,
+			cs.ExecutionID, requestedAt, time.Duration(cs.LatencyMs)*time.Millisecond, time.Duration(cs.TTFTMs)*time.Millisecond,
+			cs.Lines, cs.TranslatedPayload, cs.TranslatedFormat)
+		cs.Queued = redisqueue.GoldenQueue(ctx, record)
+		if cs.Queued == nil {
+			panic("nothing queued for " + cs.Name)
+		}
+	}
+	return cases
+}
+
 // alts runs sdk/api/handlers GetAlt on raw query strings.
 func alts() []pair {
 	gin.SetMode(gin.ReleaseMode)
@@ -903,6 +1168,7 @@ func main() {
 	out["by_provider"] = byProvider()
 	out["resolved_config"] = resolvedConfig
 	out["resolved"] = resolvedModels()
+	out["usage"] = usageRecords()
 	var sanitized, extracted []pair
 	for _, in := range sanitizeInputs {
 		sanitized = append(sanitized, pair{in, auth.SanitizeUpstreamErrorSummary(in)})

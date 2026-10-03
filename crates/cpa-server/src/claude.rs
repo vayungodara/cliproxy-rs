@@ -47,17 +47,7 @@ pub fn ensure_dd(id: &str) -> String {
 pub async fn messages(
     State(rt): State<Arc<Runtime>>,
     Extension(caller): Extension<Caller>,
-    matched: Option<MatchedPath>,
-    OriginalUri(uri): OriginalUri,
-    headers: HeaderMap,
-    body: Result<Bytes, BytesRejection>,
-) -> Response {
-    handle(rt, caller, &uri, matched.as_ref(), headers, body, Operation::Generate).await
-}
-
-pub async fn count_tokens(
-    State(rt): State<Arc<Runtime>>,
-    Extension(caller): Extension<Caller>,
+    peer: dispatch::Peer,
     matched: Option<MatchedPath>,
     OriginalUri(uri): OriginalUri,
     headers: HeaderMap,
@@ -66,6 +56,29 @@ pub async fn count_tokens(
     handle(
         rt,
         caller,
+        dispatch::peer(peer),
+        &uri,
+        matched.as_ref(),
+        headers,
+        body,
+        Operation::Generate,
+    )
+    .await
+}
+
+pub async fn count_tokens(
+    State(rt): State<Arc<Runtime>>,
+    Extension(caller): Extension<Caller>,
+    peer: dispatch::Peer,
+    matched: Option<MatchedPath>,
+    OriginalUri(uri): OriginalUri,
+    headers: HeaderMap,
+    body: Result<Bytes, BytesRejection>,
+) -> Response {
+    handle(
+        rt,
+        caller,
+        dispatch::peer(peer),
         &uri,
         matched.as_ref(),
         headers,
@@ -112,9 +125,11 @@ pub fn read_failed(rejection: &BytesRejection) -> Response {
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn handle(
     rt: Arc<Runtime>,
     caller: Caller,
+    peer: Option<std::net::SocketAddr>,
     uri: &axum::http::Uri,
     matched: Option<&MatchedPath>,
     headers: HeaderMap,
@@ -154,6 +169,7 @@ async fn handle(
         selection_model: None,
         execution_session: None,
         request_path: dispatch::route_path(matched, uri),
+        peer,
     };
     let keepalive = respond::keepalive(&rt.config());
     dispatch::serve(&rt, call, |result| async move {

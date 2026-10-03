@@ -1,0 +1,33 @@
+// Golden-only overlay for internal/runtime/executor/helps (not part of CLIProxyAPI).
+// See auth_export.go.overlay for how main.go compiles it in.
+package helps
+
+import (
+	"context"
+	"time"
+
+	internallogging "github.com/router-for-me/CLIProxyAPI/v8/internal/logging"
+	cliproxyauth "github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/auth"
+	"github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/usage"
+)
+
+// GoldenUsageRecord builds the record an executor's UsageReporter publishes for one
+// attempt (publishWithOutcome), with the clock-dependent fields pinned.
+func GoldenUsageRecord(ctx context.Context, executorType, provider, model string, auth *cliproxyauth.Auth, detail usage.Detail, failed bool, fail usage.Failure, executionID string, requestedAt time.Time, latency, ttft time.Duration, observed []string, translatedEffortPayload, translatedEffortFormat string) usage.Record {
+	r := NewUsageReporter(ctx, provider, model, auth)
+	r.executorType = executorType
+	r.requestID = executionID
+	r.requestedAt = requestedAt
+	for _, line := range observed {
+		r.ObserveResponseModel([]byte(line))
+	}
+	if translatedEffortPayload != "" {
+		r.SetTranslatedReasoningEffort([]byte(translatedEffortPayload), translatedEffortFormat)
+	}
+	r.setTTFT(ttft)
+	detail = normalizeUsageDetailTotal(detail, r.provider, r.executorType)
+	record := r.buildRecord(detail, failed, fail)
+	record.Latency = latency
+	record.ResponseHeaders = internallogging.GetResponseHeaders(ctx)
+	return record
+}
