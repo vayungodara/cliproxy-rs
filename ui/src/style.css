@@ -305,6 +305,19 @@ ul.plain { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .steps { margin: 0; padding-left: 20px; display: grid; gap: 20px; }
 .steps li { display: grid; gap: 12px; padding-left: 6px; }
 .code-big { font-size: 28px; letter-spacing: 0.08em; font-weight: 500; }
+pre.code-window { margin: 0; }
+/* First run */
+.first h2 small { margin-left: 12px; font-size: 13px; font-weight: 400; color: var(--ink-2); }
+.checklist { list-style: none; padding: 0; gap: 18px; width: 100%; }
+.checklist li { gap: 8px; padding: 0; justify-items: start; }
+.checklist li > :not(.row) { margin-left: 22px; }
+.checklist .row { gap: 12px; }
+.checklist .done strong { font-weight: 500; color: var(--ink-2); }
+/* Limits on Overview: the account, then its windows side by side */
+.limits .item { display: grid; grid-template-columns: minmax(0, 220px) minmax(0, 1fr); gap: 8px 24px; padding: 12px 0; }
+.windows { display: flex; flex-wrap: wrap; gap: 6px 32px; }
+.windows .quota { grid-template-columns: 64px 216px 44px; gap: 10px; padding-left: 0; }
+.windows .quota .reset { grid-column: 2 / -1; margin-top: -4px; }
 .log { max-height: 62vh; }
 .log > div { padding: 1px 18px; }
 .log .t { color: var(--ink-2); margin-right: 8px; }
@@ -351,6 +364,7 @@ select { appearance: none; padding-right: 34px; background: var(--raised) url("d
   .columns { display: none; }
   .usage-row, .usage-model, .usage-event, .key-row, .quota, .list .catalog { display: flex; flex-wrap: wrap; gap: 8px 14px; padding-left: 0; }
   .facts { grid-template-columns: 1fr 1fr; }
+  .limits .item { grid-template-columns: 1fr; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }

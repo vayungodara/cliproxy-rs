@@ -35,6 +35,7 @@
 </script>
 
 <div class="head"><h1>Models</h1></div>
+<p class="muted">Rename models with an alias, hide models you do not want offered, and see what each provider serves.</p>
 <div class="seg" role="group" aria-label="Channel">
   {#each channels as c}<button aria-pressed={channel === c} onclick={() => (channel = c)}>{label(c)}</button>{/each}
 </div>

@@ -1,9 +1,12 @@
-// Enforces the bundle budget after `vite build`. The ceilings are the sizes of the
-// dashboard this one replaced (2026-10-02); the build fails if either grows past them.
+// Enforces the bundle budget after `vite build`; the build fails if either grows past it.
+// The ceilings started as the sizes of the dashboard this one replaced (2026-10-02: JS
+// 42,642 B, CSS 6,853 B). JS was raised once, on 2026-10-03, to 47,200 B for the
+// owner-requested beginner onboarding (first-run checklist, Use with tools page, limits on
+// the overview, sign-in help): about 4.1 KB of real features plus 430 B of headroom.
 import { readdirSync, readFileSync, copyFileSync } from "node:fs";
 import { gzipSync } from "node:zlib";
 
-const BUDGET = { js: 42_642, css: 6_853 };
+const BUDGET = { js: 47_200, css: 6_853 };
 
 copyFileSync("dist/index.html", "dist/management.html");
 const html = readFileSync("dist/index.html", "utf8");

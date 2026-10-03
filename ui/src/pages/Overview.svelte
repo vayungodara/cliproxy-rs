@@ -1,8 +1,10 @@
 <script lang="ts">
   import { store, every } from "../store.svelte";
-  import { buckets, sumBuckets, sum, credState, credName, provider, label, readPath, type Data } from "../core";
+  import { buckets, sumBuckets, sum, credState, credName, provider, label, readPath, newKey, ago, type Data } from "../core";
+  import { checkAll, canCheck, limits } from "../quota";
   import Grille from "../Grille.svelte";
   import Load from "../Load.svelte";
+  import Meter from "../Meter.svelte";
 
   $effect(() => every(10_000, () => store.creds.load(true)));
   const rows = $derived(
@@ -21,6 +23,45 @@
   );
   const routing = $derived(readPath(store.config.data || {}, "routing", {}) as Data);
   const fmt = (n: number) => n.toLocaleString();
+  if (!store.plugins.data) store.plugins.load();
+
+  // First run: the three things a new proxy needs before a tool can use it. Gone once done.
+  const keys = $derived(readPath(store.config.data || {}, "access/api-keys", []) as string[]);
+  const steps = $derived([
+    {
+      done: rows.length > 0,
+      title: "Connect an account",
+      text: "Sign in to Claude, ChatGPT, Kimi and others on the provider’s own page, or add a provider API key. The proxy keeps the token, never your password.",
+      href: "#connect",
+      action: "Connect account",
+    },
+    {
+      done: keys.length > 0,
+      title: "Create a client key",
+      text: "A password your tools send to this proxy. Without one, anyone who can reach this address can use your accounts.",
+      action: "Create a client key",
+    },
+    {
+      done: rows.some((r) => r.a.success || r.a.failed || (r.b && sum(r.b.total))),
+      title: "Point a tool at the proxy",
+      text: "Copy ready-made settings for Claude Code, Codex CLI, Cursor or an SDK, with this address and your key filled in.",
+      href: "#use",
+      action: "Use with tools",
+    },
+  ]);
+  const setup = $derived(store.config.data && store.creds.data && steps.some((s) => !s.done));
+  const next = $derived(steps.findIndex((s) => !s.done));
+  const createKey = () =>
+    store.act(() => store.replace("access/api-keys", keys, [...keys, newKey()]), "Client key created.");
+
+  const limited = $derived(rows.map((r) => ({ a: r.a, l: limits(r.a) })).filter((x) => x.l));
+  const checkable = $derived(rows.some((r) => canCheck(r.a)));
+  let checking = $state(false);
+  async function checkLimits() {
+    checking = true;
+    await checkAll(store.creds.data || []);
+    checking = false;
+  }
 </script>
 
 <div class="head">
@@ -28,21 +69,29 @@
   <a class="key primary" href="#connect"><svg class="i" aria-hidden="true"><use href="#i-plus" /></svg>Connect account</a>
 </div>
 
+{#if setup}
+  <section class="window first" aria-labelledby="start">
+    <h2 id="start">Get started<small>{steps.filter((s) => s.done).length} of 3 done</small></h2>
+    <ol class="steps checklist">
+      {#each steps as s, i}
+        <li class:done={s.done}>
+          <span class="row"
+            ><span class="lamp {s.done ? 'ok' : 'off'}"></span><strong>{s.title}</strong>{#if s.done}<span class="sr">, done</span>{/if}</span
+          >
+          {#if !s.done}
+            <p class="muted">{s.text}</p>
+            {#if s.href}<a class="key {i === next ? 'primary' : ''}" href={s.href}>{s.action}</a
+              >{:else}<button class="key {i === next ? 'primary' : ''}" disabled={store.busy} onclick={createKey}>{s.action}</button>{/if}
+          {/if}
+        </li>
+      {/each}
+    </ol>
+  </section>
+{/if}
+
 <Load res={store.creds} what="Credentials">
   {#snippet children(list)}
-    {#if !list.length}
-      <section class="window first">
-        <h2>No credentials connected</h2>
-        <p class="muted">
-          Sign in with a provider, upload a credential file, or add an API key under Providers.
-        </p>
-        <div class="row">
-          <a class="key primary" href="#connect"><svg class="i" aria-hidden="true"><use href="#i-plus" /></svg>Connect account</a>
-          <a class="key" href="#credentials"><svg class="i" aria-hidden="true"><use href="#i-upload" /></svg>Upload a file</a>
-          <a class="key quiet" href="#providers">Provider API keys</a>
-        </div>
-      </section>
-    {:else}
+    {#if list.length}
       <section class="window display" aria-label="Last 200 minutes">
         <div class="reading traffic">
           <span class="legend">Requests · last 200 min</span>
@@ -93,7 +142,7 @@
             <li class="group">{label(g.p)}<span>{g.rows.length}</span></li>
             {#each g.rows as r (`${r.a.name}\u0000${r.a.auth_index}`)}
               <li>
-                <a class="item" href={`#credentials/${encodeURIComponent(r.a.name)}`}>
+                <a class="item" href={`#credentials/${encodeURIComponent(r.a.id || r.a.name)}`}>
                   <span class="lamp {r.s.lamp}"></span>
                   <span class="name grow"
                     ><strong>{credName(r.a)}</strong><small>{r.a.note || r.a.name}</small></span
@@ -110,6 +159,29 @@
           </li>
         </ul>
       </section>
+
+      {#if limited.length || checkable}
+        <section class="section">
+          <div class="section-head">
+            <h2>Limits</h2>
+            {#if checkable}<button class="key quiet small" disabled={checking} onclick={checkLimits}
+                >{checking ? "Checking…" : "Check all"}</button
+              >{/if}
+          </div>
+          {#if limited.length}
+            <ul class="list limits">
+              {#each limited as x (`${x.a.name}\u0000${x.a.auth_index}`)}
+                <li class="item">
+                  <span class="name"><strong>{credName(x.a)}</strong><small>{label(provider(x.a))}{x.l && "at" in x.l && x.l.at ? ` · ${ago(x.l.at)}` : ""}</small></span>
+                  {#if x.l && "windows" in x.l}
+                    <div class="windows">{#each x.l.windows as w}<Meter {w} />{:else}<span class="legend">No usage windows reported.</span>{/each}</div>
+                  {:else if x.l}<p class="note error grow"><span class="lamp bad"></span>{x.l.error}</p>{/if}
+                </li>
+              {/each}
+            </ul>
+          {:else}<p class="muted">Check all asks each provider how much of its 5-hour and weekly limits is used, with the account’s own token.</p>{/if}
+        </section>
+      {/if}
     {/if}
   {/snippet}
 </Load>

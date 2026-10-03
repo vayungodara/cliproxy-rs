@@ -35,13 +35,14 @@
 </script>
 
 <div class="head">
-  <h1>Providers</h1>
+  <h1>Provider keys</h1>
   {#if groups.length}<button class="key quiet" aria-pressed={reveal} onclick={() => (reveal = !reveal)}
       >{reveal ? "Hide keys" : "Show keys"}</button
     >{/if}
   <a class="key" href="#config"><svg class="i" aria-hidden="true"><use href="#i-edit" /></svg>Edit in Configuration</a>
 </div>
 
+<p class="muted">API keys from the providers’ developer platforms, and any OpenAI-compatible service. They are billed per request.</p>
 <div class="seg" role="group" aria-label="Provider">
   {#each families as f}<button aria-pressed={family === f} onclick={() => (family = f)}
       >{label(f)}<b>{readPath(store.config.data || {}, `api-keys/${f}`, []).length || ""}</b></button

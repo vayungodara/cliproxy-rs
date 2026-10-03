@@ -93,6 +93,7 @@
 
 <section class="section">
   <h2>Sign in with a provider</h2>
+  <p class="muted">You approve access on the provider’s own page (OAuth). The proxy stores the resulting token and renews it; it never sees your password.</p>
   <div class="providers">
     {#each providers as p}
       <button
