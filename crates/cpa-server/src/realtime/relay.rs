@@ -33,8 +33,9 @@ impl RelayError {
 #[cfg_attr(not(feature = "media-relay"), allow(dead_code))]
 #[derive(Debug, Clone)]
 pub(crate) struct Route {
-    /// The selected credential's effective proxy.
-    pub proxy: cpa_exec::proxy::Proxy,
+    /// The selected credential's effective proxy setting as written (Go `proxyURLForAuth`);
+    /// the relay parses it and reports Go's message when it is invalid.
+    pub proxy_url: String,
     /// For logs only: label, file name or auth index (`mediaCredentialName`).
     pub credential: String,
     pub auth_index: String,

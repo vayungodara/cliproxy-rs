@@ -1575,6 +1575,8 @@ struct Reported {
     ttft: Ttft,
     usage_required: bool,
     outcome: Option<Outcome>,
+    /// Go created no reporter for this attempt: publish nothing.
+    discarded: bool,
 }
 
 impl Reported {
@@ -1675,10 +1677,8 @@ impl cpa_core::exec::UsageObserver for Observer {
         self.lock().usage_required = true;
     }
 
-    fn failed(&self) {
-        let mut r = self.lock();
-        r.seen = true;
-        r.body = Some(Detail::default());
+    fn discard(&self) {
+        self.lock().discarded = true;
     }
 }
 
@@ -1817,6 +1817,9 @@ impl Tracker {
             return;
         }
         let reported = std::mem::take(&mut *self.observer.lock());
+        if reported.discarded {
+            return;
+        }
         let mut record = std::mem::take(&mut self.record);
         if let Some(outcome) = reported.outcome {
             record.failed = outcome.failed;
@@ -2002,30 +2005,68 @@ mod tests {
         );
     }
 
-    /// Go's `PublishFailure(err)` after usage was observed (an apply_patch rejection):
-    /// an empty detail wins over the reported body and lines, the response model stays.
+    /// Claude's executor-published outcomes through the queue: an apply_patch
+    /// rejection is Go's `reporter.PublishFailure(err)` after usage was observed (no
+    /// tokens, response model kept, and the later failure the server sees changes
+    /// nothing); `discard` is Go returning before it created a reporter (no record).
     #[test]
-    fn executor_failure_report_drops_tokens_keeps_model() {
-        use cpa_core::exec::UsageObserver;
-        let observer = Observer {
-            provider: "claude".into(),
-            started: std::time::Instant::now(),
-            state: std::sync::Mutex::default(),
-        };
-        observer.response_line(
+    fn claude_executor_outcomes_reach_the_queue() {
+        use cpa_core::exec::{ExecError, FailureScope};
+        let rt = usage_runtime();
+        let facts = std::sync::Arc::new(Facts::new(
+            Client::default(),
+            Format::OpenAIResponse,
+            Format::OpenAIResponse,
+            "claude-sonnet-4-6",
+            b"{}",
+            true,
+        ));
+        let error = ExecError::local(502, FailureScope::Credential, "Invalid apply_patch tool arguments");
+        let tracker = Tracker::start(&rt, &facts, &credential_for("claude"), "claude-sonnet-4-6");
+        let sink = tracker.sink();
+        sink.usage_required();
+        sink.response_line(
             Format::Claude,
-            br#"data: {"type":"message_start","message":{"model":"claude-upstream","usage":{"input_tokens":9,"cache_creation_input_tokens":4}}}"#,
+            br#"data: {"type":"message_start","message":{"model":"claude-upstream","usage":{"input_tokens":9,"output_tokens":1}}}"#,
         );
-        observer.response_body(
+        sink.publish_failure(502, "Invalid apply_patch tool arguments");
+        tracker.fail(&error);
+        let got: Vec<Value> = rt.usage_queue().pop_oldest(10).iter().map(|q| summary(q)).collect();
+        assert_eq!(
+            got,
+            [serde_json::json!({
+                "failed": true, "fail_status": 502, "fail_body": "Invalid apply_patch tool arguments",
+                "input": 0, "output": 0, "total": 0, "response_model": "claude-upstream",
+                "reasoning_effort": "", "model": "claude-sonnet-4-6",
+            })]
+        );
+        // Without the executor's report the server keeps Claude's buffered usage
+        // (StreamUsageBuffer.PublishFailure), so the report above is what drops it.
+        let tracker = Tracker::start(&rt, &facts, &credential_for("claude"), "claude-sonnet-4-6");
+        tracker.sink().response_line(
             Format::Claude,
-            br#"{"model":"claude-upstream","usage":{"input_tokens":9,"output_tokens":2}}"#,
+            br#"data: {"type":"message_start","message":{"model":"claude-upstream","usage":{"input_tokens":9,"output_tokens":1}}}"#,
         );
-        assert_ne!(observer.lock().body, Some(Detail::default()), "the body parsed tokens");
-        observer.failed();
-        let reported = std::mem::take(&mut *observer.lock());
-        assert!(reported.seen);
-        assert_eq!(reported.body, Some(Detail::default()));
-        assert_eq!(reported.model.get(), "claude-upstream");
+        tracker.fail(&error);
+        let got = rt.usage_queue().pop_oldest(10);
+        assert_eq!(summary(&got[0])["input"], 9);
+        for fail in [true, false] {
+            let tracker = Tracker::start(&rt, &facts, &credential_for("claude"), "claude-sonnet-4-6");
+            tracker.sink().discard();
+            if fail {
+                tracker.fail(&ExecError::local(
+                    501,
+                    FailureScope::Request,
+                    "/responses/compact not supported",
+                ));
+            } else {
+                tracker.succeed();
+            }
+            assert!(
+                rt.usage_queue().pop_oldest(10).is_empty(),
+                "discarded attempt (fail: {fail})"
+            );
+        }
     }
 
     /// Records from Go's real parsers, `UsageReporter` and `usageQueuePlugin`

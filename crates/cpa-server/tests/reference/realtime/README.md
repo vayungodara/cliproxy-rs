@@ -30,6 +30,21 @@ cp /tmp/rsfix/realtime_http_go.json /tmp/rsfix/codex_live_ws_go.json /tmp/rsfix/
   sends a protocol violation (RSV1 set), closes TCP without a close frame, or resets the
   connection (`websocketCloseDetails`).
 
+`codex_live_tunnel_go.json` comes from `zz_rsfix_live_tunnel_test.go` (copy it next to
+the others in `internal/client/codex/live/`, run `-run TestRSFixLiveTunnelVectors`, copy
+`/tmp/rsfix/live_tunnel_vectors.json` to `../../fixtures/codex_live_tunnel_go.json`). It
+is replayed by `src/realtime/tunnel_tests.rs`, built with `--features media-relay`:
+
+- `prepare`: `prepareProxiedUpstreamAnswer` on answers built from `testProxySDP`, with
+  the error or the rewritten SDP (each tunnel listener masked as `LISTENn`), targets,
+  listener families, the expected STUN user and the remote password.
+- `frames`: `readValidatedICEBindingFrame` on frames pion/stun builds, including
+  attributes after MESSAGE-INTEGRITY, which pion's strict decoder drops.
+- `targets`: `isPublicProxyTarget` at every prefix boundary.
+- `proxies`: `proxyutil.BuildDialer` mode and error, and `proxyScheme`.
+- `dialers`: the bytes Go's SOCKS5 and HTTP `CONNECT` dialers send to a scripted local
+  proxy, and what they return (error or the first bytes through the tunnel).
+
 Never add a case that lets Go's sideband dial its default base URL: the HTTP harness
 cannot redirect it. Run the generators with external network denied, for example inside
 `unshare -rn` with only loopback up and `GOPROXY=off`.

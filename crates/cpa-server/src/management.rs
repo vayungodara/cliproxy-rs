@@ -30,6 +30,7 @@ pub mod observability;
 mod plugins;
 mod quota;
 pub use access::cors;
+pub(crate) use access::{Cors, cors_headers};
 
 pub struct Management {
     pub(crate) rt: Arc<Runtime>,

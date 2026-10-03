@@ -408,6 +408,19 @@ impl RemoteDispatch for Dispatcher {
         self.current().is_some_and(|b| b.client.heartbeat_ok())
     }
 
+    fn request_log(&self, payload: Vec<u8>) -> BoxFuture<'_, Result<(), String>> {
+        Box::pin(async move {
+            let Some(bundle) = self.current().filter(|b| b.client.heartbeat_ok()) else {
+                return Ok(());
+            };
+            bundle
+                .client
+                .rpush_request_log(&payload)
+                .await
+                .map_err(|e| e.to_string())
+        })
+    }
+
     fn dispatch(&self, request: RemoteRequest) -> BoxFuture<'_, Result<RemoteGrant, RemoteError>> {
         Box::pin(self.pick(request))
     }

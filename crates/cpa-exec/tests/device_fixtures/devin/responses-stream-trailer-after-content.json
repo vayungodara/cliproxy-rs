@@ -34,6 +34,8 @@
     "usage": [
       {
         "cached_tokens": 0,
+        "fail_body": "devin upstream error (permission_denied): Model under high demand",
+        "fail_status": 0,
         "failed": true,
         "input_tokens": 0,
         "model": "glm-5-3",
@@ -41,7 +43,9 @@
         "reasoning_effort": "",
         "reasoning_tokens": 0,
         "response_model": "",
-        "total_tokens": 0
+        "service_tier": "",
+        "total_tokens": 0,
+        "ttft_set": true
       }
     ]
   },

@@ -1484,6 +1484,1298 @@
     "claude-a.cds": "{\n  \"version\": 1,\n  \"auth_id\": \"claude-a.json\",\n  \"provider\": \"claude\",\n  \"updated_at\": \"\u003ctime\u003e\",\n  \"records\": [\n    {\n      \"provider\": \"claude\",\n      \"auth_id\": \"claude-a.json\",\n      \"status\": \"cooling\",\n      \"next_retry_after\": \"\u003ctime\u003e\",\n      \"reason\": \"quota\",\n      \"quota\": {\n        \"exceeded\": true,\n        \"reason\": \"quota\",\n        \"next_recover_at\": \"\u003ctime\u003e\",\n        \"observed_at\": \"0001-01-01T00:00:00Z\"\n      },\n      \"last_error\": {\n        \"message\": \"unauthorized\",\n        \"retryable\": false,\n        \"http_status\": 401\n      },\n      \"updated_at\": \"\u003ctime\u003e\"\n    },\n    {\n      \"provider\": \"claude\",\n      \"auth_id\": \"claude-a.json\",\n      \"model\": \"m1\",\n      \"status\": \"cooling\",\n      \"next_retry_after\": \"\u003ctime\u003e\",\n      \"reason\": \"quota\",\n      \"quota\": {\n        \"exceeded\": true,\n        \"reason\": \"quota\",\n        \"next_recover_at\": \"\u003ctime\u003e\",\n        \"observed_at\": \"0001-01-01T00:00:00Z\"\n      },\n      \"last_error\": {\n        \"message\": \"rate limited\",\n        \"retryable\": false,\n        \"http_status\": 429\n      },\n      \"updated_at\": \"\u003ctime\u003e\"\n    },\n    {\n      \"provider\": \"claude\",\n      \"auth_id\": \"claude-a.json\",\n      \"model\": \"m2\",\n      \"status\": \"cooling\",\n      \"next_retry_after\": \"\u003ctime\u003e\",\n      \"reason\": \"unauthorized\",\n      \"quota\": {\n        \"exceeded\": false,\n        \"next_recover_at\": \"0001-01-01T00:00:00Z\",\n        \"observed_at\": \"0001-01-01T00:00:00Z\"\n      },\n      \"last_error\": {\n        \"message\": \"unauthorized\",\n        \"retryable\": false,\n        \"http_status\": 401\n      },\n      \"updated_at\": \"\u003ctime\u003e\"\n    }\n  ]\n}\n",
     "sub/team_b.cds": "{\n  \"version\": 1,\n  \"auth_id\": \"sub/team b.json\",\n  \"provider\": \"claude\",\n  \"updated_at\": \"\u003ctime\u003e\",\n  \"records\": [\n    {\n      \"provider\": \"claude\",\n      \"auth_id\": \"sub/team b.json\",\n      \"status\": \"cooling\",\n      \"next_retry_after\": \"\u003ctime\u003e\",\n      \"reason\": \"credential_quota\",\n      \"quota\": {\n        \"exceeded\": true,\n        \"reason\": \"credential_quota\",\n        \"next_recover_at\": \"\u003ctime\u003e\",\n        \"observed_at\": \"0001-01-01T00:00:00Z\"\n      },\n      \"last_error\": {\n        \"message\": \"credential quota\",\n        \"retryable\": false,\n        \"http_status\": 429\n      },\n      \"updated_at\": \"\u003ctime\u003e\"\n    },\n    {\n      \"provider\": \"claude\",\n      \"auth_id\": \"sub/team b.json\",\n      \"model\": \"m1\",\n      \"status\": \"cooling\",\n      \"next_retry_after\": \"\u003ctime\u003e\",\n      \"reason\": \"quota\",\n      \"quota\": {\n        \"exceeded\": true,\n        \"reason\": \"quota\",\n        \"next_recover_at\": \"\u003ctime\u003e\",\n        \"observed_at\": \"0001-01-01T00:00:00Z\"\n      },\n      \"last_error\": {\n        \"message\": \"credential quota\",\n        \"retryable\": false,\n        \"http_status\": 429\n      },\n      \"updated_at\": \"\u003ctime\u003e\"\n    },\n    {\n      \"provider\": \"claude\",\n      \"auth_id\": \"sub/team b.json\",\n      \"model\": \"m2\",\n      \"status\": \"cooling\",\n      \"next_retry_after\": \"\u003ctime\u003e\",\n      \"reason\": \"credential_quota\",\n      \"quota\": {\n        \"exceeded\": true,\n        \"reason\": \"credential_quota\",\n        \"next_recover_at\": \"\u003ctime\u003e\",\n        \"observed_at\": \"0001-01-01T00:00:00Z\"\n      },\n      \"last_error\": {\n        \"message\": \"boom\",\n        \"retryable\": false,\n        \"http_status\": 500\n      },\n      \"updated_at\": \"\u003ctime\u003e\"\n    }\n  ]\n}\n"
   },
+  "error_events": [
+    {
+      "name": "429_no_hint",
+      "steps": [
+        {
+          "model": "m1",
+          "status": 429,
+          "message": "rate limited",
+          "retry_after_ms": -1,
+          "credential_scope": false
+        }
+      ],
+      "events": [
+        {
+          "auth_id": "events-0.json",
+          "auth_index": "idx-0",
+          "auth_status": {
+            "disabled": false,
+            "model": {
+              "name": "m1",
+              "next_retry_after": "+1s",
+              "quota": {
+                "backoff_level": 1,
+                "exceeded": true,
+                "next_recover_at": "+1s",
+                "reason": "quota"
+              },
+              "status": "error",
+              "status_message": "rate limited",
+              "unavailable": true
+            },
+            "next_retry_after": "+1s",
+            "quota": {
+              "backoff_level": 1,
+              "exceeded": true,
+              "next_recover_at": "+1s",
+              "reason": "quota"
+            },
+            "status": "error",
+            "status_message": "rate limited",
+            "unavailable": true
+          },
+          "body": "rate limited",
+          "model": "m1",
+          "provider": "claude",
+          "status_code": 429,
+          "timestamp": "\u003ctime\u003e"
+        }
+      ]
+    },
+    {
+      "name": "429_twice_reuses_deadline",
+      "steps": [
+        {
+          "model": "m1",
+          "status": 429,
+          "message": "rate limited",
+          "retry_after_ms": -1,
+          "credential_scope": false
+        },
+        {
+          "model": "m1",
+          "status": 429,
+          "message": "rate limited",
+          "retry_after_ms": -1,
+          "credential_scope": false
+        }
+      ],
+      "events": [
+        {
+          "auth_id": "events-1.json",
+          "auth_index": "idx-1",
+          "auth_status": {
+            "disabled": false,
+            "model": {
+              "name": "m1",
+              "next_retry_after": "+1s",
+              "quota": {
+                "backoff_level": 1,
+                "exceeded": true,
+                "next_recover_at": "+1s",
+                "reason": "quota"
+              },
+              "status": "error",
+              "status_message": "rate limited",
+              "unavailable": true
+            },
+            "next_retry_after": "+1s",
+            "quota": {
+              "backoff_level": 1,
+              "exceeded": true,
+              "next_recover_at": "+1s",
+              "reason": "quota"
+            },
+            "status": "error",
+            "status_message": "rate limited",
+            "unavailable": true
+          },
+          "body": "rate limited",
+          "model": "m1",
+          "provider": "claude",
+          "status_code": 429,
+          "timestamp": "\u003ctime\u003e"
+        },
+        {
+          "auth_id": "events-1.json",
+          "auth_index": "idx-1",
+          "auth_status": {
+            "disabled": false,
+            "model": {
+              "name": "m1",
+              "next_retry_after": "+1s",
+              "quota": {
+                "backoff_level": 1,
+                "exceeded": true,
+                "next_recover_at": "+1s",
+                "reason": "quota"
+              },
+              "status": "error",
+              "status_message": "rate limited",
+              "unavailable": true
+            },
+            "next_retry_after": "+1s",
+            "quota": {
+              "backoff_level": 1,
+              "exceeded": true,
+              "next_recover_at": "+1s",
+              "reason": "quota"
+            },
+            "status": "error",
+            "status_message": "rate limited",
+            "unavailable": true
+          },
+          "body": "rate limited",
+          "model": "m1",
+          "provider": "claude",
+          "status_code": 429,
+          "timestamp": "\u003ctime\u003e"
+        }
+      ]
+    },
+    {
+      "name": "429_zero_hint_floor",
+      "steps": [
+        {
+          "model": "m1",
+          "status": 429,
+          "message": "rate limited",
+          "retry_after_ms": 0,
+          "credential_scope": false
+        }
+      ],
+      "events": [
+        {
+          "auth_id": "events-2.json",
+          "auth_index": "idx-2",
+          "auth_status": {
+            "disabled": false,
+            "model": {
+              "name": "m1",
+              "next_retry_after": "+10s",
+              "quota": {
+                "exceeded": true,
+                "next_recover_at": "+10s",
+                "reason": "quota"
+              },
+              "status": "error",
+              "status_message": "rate limited",
+              "unavailable": true
+            },
+            "next_retry_after": "+10s",
+            "quota": {
+              "exceeded": true,
+              "next_recover_at": "+10s",
+              "reason": "quota"
+            },
+            "status": "error",
+            "status_message": "rate limited",
+            "unavailable": true
+          },
+          "body": "rate limited",
+          "model": "m1",
+          "provider": "claude",
+          "status_code": 429,
+          "timestamp": "\u003ctime\u003e"
+        }
+      ]
+    },
+    {
+      "name": "429_small_hint_floor",
+      "steps": [
+        {
+          "model": "m1",
+          "status": 429,
+          "message": "rate limited",
+          "retry_after_ms": 3000,
+          "credential_scope": false
+        }
+      ],
+      "events": [
+        {
+          "auth_id": "events-3.json",
+          "auth_index": "idx-3",
+          "auth_status": {
+            "disabled": false,
+            "model": {
+              "name": "m1",
+              "next_retry_after": "+10s",
+              "quota": {
+                "exceeded": true,
+                "next_recover_at": "+10s",
+                "reason": "quota"
+              },
+              "status": "error",
+              "status_message": "rate limited",
+              "unavailable": true
+            },
+            "next_retry_after": "+10s",
+            "quota": {
+              "exceeded": true,
+              "next_recover_at": "+10s",
+              "reason": "quota"
+            },
+            "status": "error",
+            "status_message": "rate limited",
+            "unavailable": true
+          },
+          "body": "rate limited",
+          "model": "m1",
+          "provider": "claude",
+          "status_code": 429,
+          "timestamp": "\u003ctime\u003e"
+        }
+      ]
+    },
+    {
+      "name": "429_large_hint",
+      "steps": [
+        {
+          "model": "m1",
+          "status": 429,
+          "message": "rate limited",
+          "retry_after_ms": 30000,
+          "credential_scope": false
+        }
+      ],
+      "events": [
+        {
+          "auth_id": "events-4.json",
+          "auth_index": "idx-4",
+          "auth_status": {
+            "disabled": false,
+            "model": {
+              "name": "m1",
+              "next_retry_after": "+30s",
+              "quota": {
+                "exceeded": true,
+                "next_recover_at": "+30s",
+                "reason": "quota"
+              },
+              "status": "error",
+              "status_message": "rate limited",
+              "unavailable": true
+            },
+            "next_retry_after": "+30s",
+            "quota": {
+              "exceeded": true,
+              "next_recover_at": "+30s",
+              "reason": "quota"
+            },
+            "status": "error",
+            "status_message": "rate limited",
+            "unavailable": true
+          },
+          "body": "rate limited",
+          "model": "m1",
+          "provider": "claude",
+          "status_code": 429,
+          "timestamp": "\u003ctime\u003e"
+        }
+      ]
+    },
+    {
+      "name": "429_hint_then_none",
+      "steps": [
+        {
+          "model": "m1",
+          "status": 429,
+          "message": "rate limited",
+          "retry_after_ms": 120000,
+          "credential_scope": false
+        },
+        {
+          "model": "m1",
+          "status": 429,
+          "message": "rate limited",
+          "retry_after_ms": -1,
+          "credential_scope": false
+        }
+      ],
+      "events": [
+        {
+          "auth_id": "events-5.json",
+          "auth_index": "idx-5",
+          "auth_status": {
+            "disabled": false,
+            "model": {
+              "name": "m1",
+              "next_retry_after": "+120s",
+              "quota": {
+                "exceeded": true,
+                "next_recover_at": "+120s",
+                "reason": "quota"
+              },
+              "status": "error",
+              "status_message": "rate limited",
+              "unavailable": true
+            },
+            "next_retry_after": "+120s",
+            "quota": {
+              "exceeded": true,
+              "next_recover_at": "+120s",
+              "reason": "quota"
+            },
+            "status": "error",
+            "status_message": "rate limited",
+            "unavailable": true
+          },
+          "body": "rate limited",
+          "model": "m1",
+          "provider": "claude",
+          "status_code": 429,
+          "timestamp": "\u003ctime\u003e"
+        },
+        {
+          "auth_id": "events-5.json",
+          "auth_index": "idx-5",
+          "auth_status": {
+            "disabled": false,
+            "model": {
+              "name": "m1",
+              "next_retry_after": "+120s",
+              "quota": {
+                "exceeded": true,
+                "next_recover_at": "+120s",
+                "reason": "quota"
+              },
+              "status": "error",
+              "status_message": "rate limited",
+              "unavailable": true
+            },
+            "next_retry_after": "+120s",
+            "quota": {
+              "exceeded": true,
+              "next_recover_at": "+120s",
+              "reason": "quota"
+            },
+            "status": "error",
+            "status_message": "rate limited",
+            "unavailable": true
+          },
+          "body": "rate limited",
+          "model": "m1",
+          "provider": "claude",
+          "status_code": 429,
+          "timestamp": "\u003ctime\u003e"
+        }
+      ]
+    },
+    {
+      "name": "401",
+      "steps": [
+        {
+          "model": "m1",
+          "status": 401,
+          "message": "unauthorized",
+          "retry_after_ms": -1,
+          "credential_scope": false
+        }
+      ],
+      "events": [
+        {
+          "auth_id": "events-6.json",
+          "auth_index": "idx-6",
+          "auth_status": {
+            "disabled": false,
+            "model": {
+              "name": "m1",
+              "next_retry_after": "+1800s",
+              "status": "error",
+              "status_message": "unauthorized",
+              "unavailable": true
+            },
+            "next_retry_after": "+1800s",
+            "status": "error",
+            "status_message": "unauthorized",
+            "unavailable": true
+          },
+          "body": "unauthorized",
+          "model": "m1",
+          "provider": "claude",
+          "status_code": 401,
+          "timestamp": "\u003ctime\u003e"
+        }
+      ]
+    },
+    {
+      "name": "402",
+      "steps": [
+        {
+          "model": "m1",
+          "status": 402,
+          "message": "payment required",
+          "retry_after_ms": -1,
+          "credential_scope": false
+        }
+      ],
+      "events": [
+        {
+          "auth_id": "events-7.json",
+          "auth_index": "idx-7",
+          "auth_status": {
+            "disabled": false,
+            "model": {
+              "name": "m1",
+              "next_retry_after": "+1800s",
+              "status": "error",
+              "status_message": "payment required",
+              "unavailable": true
+            },
+            "next_retry_after": "+1800s",
+            "status": "error",
+            "status_message": "payment required",
+            "unavailable": true
+          },
+          "body": "payment required",
+          "model": "m1",
+          "provider": "claude",
+          "status_code": 402,
+          "timestamp": "\u003ctime\u003e"
+        }
+      ]
+    },
+    {
+      "name": "403",
+      "steps": [
+        {
+          "model": "m1",
+          "status": 403,
+          "message": "forbidden",
+          "retry_after_ms": -1,
+          "credential_scope": false
+        }
+      ],
+      "events": [
+        {
+          "auth_id": "events-8.json",
+          "auth_index": "idx-8",
+          "auth_status": {
+            "disabled": false,
+            "model": {
+              "name": "m1",
+              "next_retry_after": "+1800s",
+              "status": "error",
+              "status_message": "forbidden",
+              "unavailable": true
+            },
+            "next_retry_after": "+1800s",
+            "status": "error",
+            "status_message": "forbidden",
+            "unavailable": true
+          },
+          "body": "forbidden",
+          "model": "m1",
+          "provider": "claude",
+          "status_code": 403,
+          "timestamp": "\u003ctime\u003e"
+        }
+      ]
+    },
+    {
+      "name": "404",
+      "steps": [
+        {
+          "model": "m1",
+          "status": 404,
+          "message": "not found",
+          "retry_after_ms": -1,
+          "credential_scope": false
+        }
+      ],
+      "events": [
+        {
+          "auth_id": "events-9.json",
+          "auth_index": "idx-9",
+          "auth_status": {
+            "disabled": false,
+            "model": {
+              "name": "m1",
+              "next_retry_after": "+43200s",
+              "status": "error",
+              "status_message": "not found",
+              "unavailable": true
+            },
+            "next_retry_after": "+43200s",
+            "status": "error",
+            "status_message": "not found",
+            "unavailable": true
+          },
+          "body": "not found",
+          "model": "m1",
+          "provider": "claude",
+          "status_code": 404,
+          "timestamp": "\u003ctime\u003e"
+        }
+      ]
+    },
+    {
+      "name": "404_hint",
+      "steps": [
+        {
+          "model": "m1",
+          "status": 404,
+          "message": "not found",
+          "retry_after_ms": 60000,
+          "credential_scope": false
+        }
+      ],
+      "events": [
+        {
+          "auth_id": "events-10.json",
+          "auth_index": "idx-10",
+          "auth_status": {
+            "disabled": false,
+            "model": {
+              "name": "m1",
+              "next_retry_after": "+60s",
+              "status": "error",
+              "status_message": "not found",
+              "unavailable": true
+            },
+            "next_retry_after": "+60s",
+            "status": "error",
+            "status_message": "not found",
+            "unavailable": true
+          },
+          "body": "not found",
+          "model": "m1",
+          "provider": "claude",
+          "status_code": 404,
+          "timestamp": "\u003ctime\u003e"
+        }
+      ]
+    },
+    {
+      "name": "500",
+      "steps": [
+        {
+          "model": "m1",
+          "status": 500,
+          "message": "boom",
+          "retry_after_ms": -1,
+          "credential_scope": false
+        }
+      ],
+      "events": [
+        {
+          "auth_id": "events-11.json",
+          "auth_index": "idx-11",
+          "auth_status": {
+            "disabled": false,
+            "model": {
+              "name": "m1",
+              "next_retry_after": "+60s",
+              "status": "error",
+              "status_message": "boom",
+              "unavailable": true
+            },
+            "next_retry_after": "+60s",
+            "status": "error",
+            "status_message": "boom",
+            "unavailable": true
+          },
+          "body": "boom",
+          "model": "m1",
+          "provider": "claude",
+          "status_code": 500,
+          "timestamp": "\u003ctime\u003e"
+        }
+      ]
+    },
+    {
+      "name": "500_hint",
+      "steps": [
+        {
+          "model": "m1",
+          "status": 500,
+          "message": "boom",
+          "retry_after_ms": 5000,
+          "credential_scope": false
+        }
+      ],
+      "events": [
+        {
+          "auth_id": "events-12.json",
+          "auth_index": "idx-12",
+          "auth_status": {
+            "disabled": false,
+            "model": {
+              "name": "m1",
+              "next_retry_after": "+5s",
+              "status": "error",
+              "status_message": "boom",
+              "unavailable": true
+            },
+            "next_retry_after": "+5s",
+            "status": "error",
+            "status_message": "boom",
+            "unavailable": true
+          },
+          "body": "boom",
+          "model": "m1",
+          "provider": "claude",
+          "status_code": 500,
+          "timestamp": "\u003ctime\u003e"
+        }
+      ]
+    },
+    {
+      "name": "503",
+      "steps": [
+        {
+          "model": "m1",
+          "status": 503,
+          "message": "overloaded",
+          "retry_after_ms": -1,
+          "credential_scope": false
+        }
+      ],
+      "events": [
+        {
+          "auth_id": "events-13.json",
+          "auth_index": "idx-13",
+          "auth_status": {
+            "disabled": false,
+            "model": {
+              "name": "m1",
+              "next_retry_after": "+60s",
+              "status": "error",
+              "status_message": "overloaded",
+              "unavailable": true
+            },
+            "next_retry_after": "+60s",
+            "status": "error",
+            "status_message": "overloaded",
+            "unavailable": true
+          },
+          "body": "overloaded",
+          "model": "m1",
+          "provider": "claude",
+          "status_code": 503,
+          "timestamp": "\u003ctime\u003e"
+        }
+      ]
+    },
+    {
+      "name": "418_default",
+      "steps": [
+        {
+          "model": "m1",
+          "status": 418,
+          "message": "teapot",
+          "retry_after_ms": -1,
+          "credential_scope": false
+        }
+      ],
+      "events": [
+        {
+          "auth_id": "events-14.json",
+          "auth_index": "idx-14",
+          "auth_status": {
+            "disabled": false,
+            "model": {
+              "name": "m1",
+              "next_retry_after": "+60s",
+              "status": "error",
+              "status_message": "teapot",
+              "unavailable": true
+            },
+            "next_retry_after": "+60s",
+            "status": "error",
+            "status_message": "teapot",
+            "unavailable": true
+          },
+          "body": "teapot",
+          "model": "m1",
+          "provider": "claude",
+          "status_code": 418,
+          "timestamp": "\u003ctime\u003e"
+        }
+      ]
+    },
+    {
+      "name": "400_request_fault",
+      "steps": [
+        {
+          "model": "m1",
+          "status": 400,
+          "message": "bad request",
+          "retry_after_ms": -1,
+          "credential_scope": false
+        }
+      ],
+      "events": [
+        {
+          "auth_id": "events-15.json",
+          "auth_index": "idx-15",
+          "auth_status": {
+            "disabled": false,
+            "status": "active",
+            "unavailable": false
+          },
+          "body": "bad request",
+          "model": "m1",
+          "provider": "claude",
+          "status_code": 400,
+          "timestamp": "\u003ctime\u003e"
+        }
+      ]
+    },
+    {
+      "name": "400_model_support",
+      "steps": [
+        {
+          "model": "m1",
+          "status": 400,
+          "message": "The requested model is not supported",
+          "retry_after_ms": -1,
+          "credential_scope": false
+        }
+      ],
+      "events": [
+        {
+          "auth_id": "events-16.json",
+          "auth_index": "idx-16",
+          "auth_status": {
+            "disabled": false,
+            "model": {
+              "name": "m1",
+              "next_retry_after": "+43200s",
+              "status": "error",
+              "status_message": "The requested model is not supported",
+              "unavailable": true
+            },
+            "next_retry_after": "+43200s",
+            "status": "error",
+            "status_message": "The requested model is not supported",
+            "unavailable": true
+          },
+          "body": "The requested model is not supported",
+          "model": "m1",
+          "provider": "claude",
+          "status_code": 400,
+          "timestamp": "\u003ctime\u003e"
+        }
+      ]
+    },
+    {
+      "name": "404_model_support_hint",
+      "steps": [
+        {
+          "model": "m1",
+          "status": 404,
+          "message": "model_not_supported",
+          "retry_after_ms": 90000,
+          "credential_scope": false
+        }
+      ],
+      "events": [
+        {
+          "auth_id": "events-17.json",
+          "auth_index": "idx-17",
+          "auth_status": {
+            "disabled": false,
+            "model": {
+              "name": "m1",
+              "next_retry_after": "+90s",
+              "status": "error",
+              "status_message": "model_not_supported",
+              "unavailable": true
+            },
+            "next_retry_after": "+90s",
+            "status": "error",
+            "status_message": "model_not_supported",
+            "unavailable": true
+          },
+          "body": "model_not_supported",
+          "model": "m1",
+          "provider": "claude",
+          "status_code": 404,
+          "timestamp": "\u003ctime\u003e"
+        }
+      ]
+    },
+    {
+      "name": "400_invalid_grant",
+      "steps": [
+        {
+          "model": "m1",
+          "status": 400,
+          "message": "{\"error\":\"invalid_grant\"}",
+          "retry_after_ms": -1,
+          "credential_scope": false
+        }
+      ],
+      "events": [
+        {
+          "auth_id": "events-18.json",
+          "auth_index": "idx-18",
+          "auth_status": {
+            "disabled": false,
+            "model": {
+              "name": "m1",
+              "next_retry_after": "+1800s",
+              "status": "error",
+              "status_message": "{\"error\":\"invalid_grant\"}",
+              "unavailable": true
+            },
+            "next_retry_after": "+1800s",
+            "status": "error",
+            "status_message": "{\"error\":\"invalid_grant\"}",
+            "unavailable": true
+          },
+          "body": "{\"error\":\"invalid_grant\"}",
+          "model": "m1",
+          "provider": "claude",
+          "status_code": 400,
+          "timestamp": "\u003ctime\u003e"
+        }
+      ]
+    },
+    {
+      "name": "403_cloudflare",
+      "steps": [
+        {
+          "model": "m1",
+          "status": 403,
+          "message": "\u003chtml\u003eJust a moment... cloudflare\u003c/html\u003e",
+          "retry_after_ms": -1,
+          "credential_scope": false
+        }
+      ],
+      "events": [
+        {
+          "auth_id": "events-19.json",
+          "auth_index": "idx-19",
+          "auth_status": {
+            "disabled": false,
+            "model": {
+              "name": "m1",
+              "next_retry_after": "+10s",
+              "quota": {
+                "backoff_level": 1,
+                "exceeded": true,
+                "next_recover_at": "+10s",
+                "reason": "cloudflare challenge"
+              },
+              "status": "error",
+              "status_message": "cloudflare challenge",
+              "unavailable": true
+            },
+            "next_retry_after": "+10s",
+            "quota": {
+              "backoff_level": 1,
+              "exceeded": true,
+              "next_recover_at": "+10s",
+              "reason": "quota"
+            },
+            "status": "error",
+            "status_message": "cloudflare challenge",
+            "unavailable": true
+          },
+          "body": "\u003chtml\u003eJust a moment... cloudflare\u003c/html\u003e",
+          "model": "m1",
+          "provider": "claude",
+          "status_code": 403,
+          "timestamp": "\u003ctime\u003e"
+        }
+      ]
+    },
+    {
+      "name": "403_cloudflare_twice",
+      "steps": [
+        {
+          "model": "m1",
+          "status": 403,
+          "message": "challenge-platform",
+          "retry_after_ms": -1,
+          "credential_scope": false
+        },
+        {
+          "model": "m1",
+          "status": 403,
+          "message": "challenge-platform",
+          "retry_after_ms": -1,
+          "credential_scope": false
+        }
+      ],
+      "events": [
+        {
+          "auth_id": "events-20.json",
+          "auth_index": "idx-20",
+          "auth_status": {
+            "disabled": false,
+            "model": {
+              "name": "m1",
+              "next_retry_after": "+10s",
+              "quota": {
+                "backoff_level": 1,
+                "exceeded": true,
+                "next_recover_at": "+10s",
+                "reason": "cloudflare challenge"
+              },
+              "status": "error",
+              "status_message": "cloudflare challenge",
+              "unavailable": true
+            },
+            "next_retry_after": "+10s",
+            "quota": {
+              "backoff_level": 1,
+              "exceeded": true,
+              "next_recover_at": "+10s",
+              "reason": "quota"
+            },
+            "status": "error",
+            "status_message": "cloudflare challenge",
+            "unavailable": true
+          },
+          "body": "challenge-platform",
+          "model": "m1",
+          "provider": "claude",
+          "status_code": 403,
+          "timestamp": "\u003ctime\u003e"
+        },
+        {
+          "auth_id": "events-20.json",
+          "auth_index": "idx-20",
+          "auth_status": {
+            "disabled": false,
+            "model": {
+              "name": "m1",
+              "next_retry_after": "+10s",
+              "quota": {
+                "backoff_level": 2,
+                "exceeded": true,
+                "next_recover_at": "+10s",
+                "reason": "cloudflare challenge"
+              },
+              "status": "error",
+              "status_message": "cloudflare challenge",
+              "unavailable": true
+            },
+            "next_retry_after": "+10s",
+            "quota": {
+              "backoff_level": 2,
+              "exceeded": true,
+              "next_recover_at": "+10s",
+              "reason": "quota"
+            },
+            "status": "error",
+            "status_message": "cloudflare challenge",
+            "unavailable": true
+          },
+          "body": "challenge-platform",
+          "model": "m1",
+          "provider": "claude",
+          "status_code": 403,
+          "timestamp": "\u003ctime\u003e"
+        }
+      ]
+    },
+    {
+      "name": "500_then_429",
+      "steps": [
+        {
+          "model": "m1",
+          "status": 500,
+          "message": "boom",
+          "retry_after_ms": -1,
+          "credential_scope": false
+        },
+        {
+          "model": "m1",
+          "status": 429,
+          "message": "rate limited",
+          "retry_after_ms": -1,
+          "credential_scope": false
+        }
+      ],
+      "events": [
+        {
+          "auth_id": "events-21.json",
+          "auth_index": "idx-21",
+          "auth_status": {
+            "disabled": false,
+            "model": {
+              "name": "m1",
+              "next_retry_after": "+60s",
+              "status": "error",
+              "status_message": "boom",
+              "unavailable": true
+            },
+            "next_retry_after": "+60s",
+            "status": "error",
+            "status_message": "boom",
+            "unavailable": true
+          },
+          "body": "boom",
+          "model": "m1",
+          "provider": "claude",
+          "status_code": 500,
+          "timestamp": "\u003ctime\u003e"
+        },
+        {
+          "auth_id": "events-21.json",
+          "auth_index": "idx-21",
+          "auth_status": {
+            "disabled": false,
+            "model": {
+              "name": "m1",
+              "next_retry_after": "+60s",
+              "quota": {
+                "backoff_level": 1,
+                "exceeded": true,
+                "next_recover_at": "+1s",
+                "reason": "quota"
+              },
+              "status": "error",
+              "status_message": "rate limited",
+              "unavailable": true
+            },
+            "next_retry_after": "+60s",
+            "quota": {
+              "backoff_level": 1,
+              "exceeded": true,
+              "next_recover_at": "+1s",
+              "reason": "quota"
+            },
+            "status": "error",
+            "status_message": "rate limited",
+            "unavailable": true
+          },
+          "body": "rate limited",
+          "model": "m1",
+          "provider": "claude",
+          "status_code": 429,
+          "timestamp": "\u003ctime\u003e"
+        }
+      ]
+    },
+    {
+      "name": "401_then_429_short",
+      "steps": [
+        {
+          "model": "m1",
+          "status": 401,
+          "message": "unauthorized",
+          "retry_after_ms": -1,
+          "credential_scope": false
+        },
+        {
+          "model": "m1",
+          "status": 429,
+          "message": "rate limited",
+          "retry_after_ms": 5000,
+          "credential_scope": false
+        }
+      ],
+      "events": [
+        {
+          "auth_id": "events-22.json",
+          "auth_index": "idx-22",
+          "auth_status": {
+            "disabled": false,
+            "model": {
+              "name": "m1",
+              "next_retry_after": "+1800s",
+              "status": "error",
+              "status_message": "unauthorized",
+              "unavailable": true
+            },
+            "next_retry_after": "+1800s",
+            "status": "error",
+            "status_message": "unauthorized",
+            "unavailable": true
+          },
+          "body": "unauthorized",
+          "model": "m1",
+          "provider": "claude",
+          "status_code": 401,
+          "timestamp": "\u003ctime\u003e"
+        },
+        {
+          "auth_id": "events-22.json",
+          "auth_index": "idx-22",
+          "auth_status": {
+            "disabled": false,
+            "model": {
+              "name": "m1",
+              "next_retry_after": "+1800s",
+              "quota": {
+                "exceeded": true,
+                "next_recover_at": "+10s",
+                "reason": "quota"
+              },
+              "status": "error",
+              "status_message": "rate limited",
+              "unavailable": true
+            },
+            "next_retry_after": "+1800s",
+            "quota": {
+              "exceeded": true,
+              "next_recover_at": "+10s",
+              "reason": "quota"
+            },
+            "status": "error",
+            "status_message": "rate limited",
+            "unavailable": true
+          },
+          "body": "rate limited",
+          "model": "m1",
+          "provider": "claude",
+          "status_code": 429,
+          "timestamp": "\u003ctime\u003e"
+        }
+      ]
+    },
+    {
+      "name": "credential_scope",
+      "steps": [
+        {
+          "model": "m2",
+          "status": 500,
+          "message": "boom",
+          "retry_after_ms": -1,
+          "credential_scope": false
+        },
+        {
+          "model": "m1",
+          "status": 429,
+          "message": "credential quota",
+          "retry_after_ms": 600000,
+          "credential_scope": true
+        }
+      ],
+      "events": [
+        {
+          "auth_id": "events-23.json",
+          "auth_index": "idx-23",
+          "auth_status": {
+            "disabled": false,
+            "model": {
+              "name": "m2",
+              "next_retry_after": "+60s",
+              "status": "error",
+              "status_message": "boom",
+              "unavailable": true
+            },
+            "next_retry_after": "+60s",
+            "status": "error",
+            "status_message": "boom",
+            "unavailable": true
+          },
+          "body": "boom",
+          "model": "m2",
+          "provider": "claude",
+          "status_code": 500,
+          "timestamp": "\u003ctime\u003e"
+        },
+        {
+          "auth_id": "events-23.json",
+          "auth_index": "idx-23",
+          "auth_status": {
+            "disabled": false,
+            "model": {
+              "name": "m1",
+              "next_retry_after": "+600s",
+              "quota": {
+                "exceeded": true,
+                "next_recover_at": "+600s",
+                "reason": "quota"
+              },
+              "status": "error",
+              "status_message": "credential quota",
+              "unavailable": true
+            },
+            "next_retry_after": "+600s",
+            "quota": {
+              "exceeded": true,
+              "next_recover_at": "+600s",
+              "reason": "credential_quota"
+            },
+            "status": "error",
+            "status_message": "credential quota",
+            "unavailable": true
+          },
+          "body": "credential quota",
+          "model": "m1",
+          "provider": "claude",
+          "status_code": 429,
+          "timestamp": "\u003ctime\u003e"
+        }
+      ]
+    },
+    {
+      "name": "credential_scope_short_keeps_sibling",
+      "steps": [
+        {
+          "model": "m2",
+          "status": 401,
+          "message": "unauthorized",
+          "retry_after_ms": -1,
+          "credential_scope": false
+        },
+        {
+          "model": "m1",
+          "status": 429,
+          "message": "credential quota",
+          "retry_after_ms": 20000,
+          "credential_scope": true
+        }
+      ],
+      "events": [
+        {
+          "auth_id": "events-24.json",
+          "auth_index": "idx-24",
+          "auth_status": {
+            "disabled": false,
+            "model": {
+              "name": "m2",
+              "next_retry_after": "+1800s",
+              "status": "error",
+              "status_message": "unauthorized",
+              "unavailable": true
+            },
+            "next_retry_after": "+1800s",
+            "status": "error",
+            "status_message": "unauthorized",
+            "unavailable": true
+          },
+          "body": "unauthorized",
+          "model": "m2",
+          "provider": "claude",
+          "status_code": 401,
+          "timestamp": "\u003ctime\u003e"
+        },
+        {
+          "auth_id": "events-24.json",
+          "auth_index": "idx-24",
+          "auth_status": {
+            "disabled": false,
+            "model": {
+              "name": "m1",
+              "next_retry_after": "+20s",
+              "quota": {
+                "exceeded": true,
+                "next_recover_at": "+20s",
+                "reason": "quota"
+              },
+              "status": "error",
+              "status_message": "credential quota",
+              "unavailable": true
+            },
+            "next_retry_after": "+20s",
+            "quota": {
+              "exceeded": true,
+              "next_recover_at": "+20s",
+              "reason": "credential_quota"
+            },
+            "status": "error",
+            "status_message": "credential quota",
+            "unavailable": true
+          },
+          "body": "credential quota",
+          "model": "m1",
+          "provider": "claude",
+          "status_code": 429,
+          "timestamp": "\u003ctime\u003e"
+        }
+      ]
+    }
+  ],
   "extract": [
     {
       "in": "",
