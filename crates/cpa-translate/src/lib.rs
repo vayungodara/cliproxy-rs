@@ -82,6 +82,8 @@ mod openai;
 mod openai_claude;
 mod openai_claude_response;
 mod openai_gemini;
+mod openai_interactions;
+mod openai_interactions_response;
 mod openai_responses;
 mod openai_responses_response;
 mod replay_cache;
@@ -205,6 +207,8 @@ fn registered(client: Format, upstream: Format) -> Option<&'static Registered> {
         (Format::Interactions, Format::Interactions) => Some(&gemini_interactions::PASSTHROUGH),
         (Format::Interactions, Format::Gemini) => Some(&gemini_interactions::INTERACTIONS_TO_GEMINI),
         (Format::Gemini, Format::Interactions) => Some(&gemini_interactions::GEMINI_TO_INTERACTIONS),
+        (Format::OpenAI, Format::Interactions) => Some(&openai_interactions::OPENAI_TO_INTERACTIONS),
+        (Format::Interactions, Format::OpenAI) => Some(&openai_interactions::INTERACTIONS_TO_OPENAI),
         _ => None,
     }
 }

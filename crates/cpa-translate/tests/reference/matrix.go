@@ -46,6 +46,9 @@ func matrix(r registration, model string) []fixture {
 		if r.upstream == "codex" {
 			out = append(out, openAICodexRequests(model)...)
 		}
+		if r.upstream == "interactions" {
+			out = append(out, openAIInteractionsRequests(model)...)
+		}
 		if r.upstream == "claude" {
 			for _, f := range openAIChatRequests(model) {
 				if strings.HasPrefix(f.Name, "tools/") || strings.HasPrefix(f.Name, "reasoning/") {
@@ -63,6 +66,9 @@ func matrix(r registration, model string) []fixture {
 		out = append(out, interactionsRequests(model)...)
 		if r.upstream == "gemini" {
 			out = append(out, interactionsGeminiRequests(model)...)
+		}
+		if r.upstream == "openai" {
+			out = append(out, interactionsOpenAIRequests(model)...)
 		}
 	case "gemini":
 		out = append(out, geminiRequests(model)...)
@@ -134,6 +140,9 @@ func matrix(r registration, model string) []fixture {
 		}
 	case "interactions":
 		out = append(out, interactionsUpstreamResponses()...)
+		if r.client == "openai" {
+			out = append(out, interactionsToOpenAI()...)
+		}
 	case "openai":
 		out = append(out, openAIResponses()...)
 		if r.client == "claude" {
@@ -144,6 +153,9 @@ func matrix(r registration, model string) []fixture {
 		}
 		if r.client == "gemini" {
 			out = append(out, openAIToGemini()...)
+		}
+		if r.client == "interactions" {
+			out = append(out, openAIToInteractions()...)
 		}
 	}
 	if r.tokenCount != "" {
@@ -1574,6 +1586,156 @@ func interactionsUpstreamResponses() []fixture {
 		`{}`, `not json`, `{"interaction":{"id":" ","steps":[]},"id":"outer","service_tier":" "}`, `{"interaction":{"steps":{"k":{"type":"model_output","content":"in object"}}},"steps":[{"type":"model_output","content":"outer"}]}`,
 	} {
 		out = append(out, nonStream(fmt.Sprintf("interactions-up/non-stream/%d", i), "gemini-2.5-pro", body))
+	}
+	return out
+}
+
+// openAIInteractionsRequests exercise ConvertOpenAIRequestToInteractions: message roles,
+// content parts, tool calls and results (with name recovery), generation settings and
+// the antigravity variants (tool renames, agent token budget).
+func openAIInteractionsRequests(model string) []fixture {
+	messages := `"messages":[{"role":"System","content":"s1 <x>"},{"role":" developer ","content":[{"type":"text","text":"d1"},{"text":""},{"text":"d2"}]},{"role":"system","content":{"text":"obj"}},{"role":"system","content":5},{"role":"user","content":""},{"role":"user","content":"hi é"},{"role":"user","content":[{"type":"text","text":"t"},{"text":"untyped"},{"type":"INPUT_TEXT","text":"it"},{"type":"output_text"},{"type":"image_url","image_url":{"url":"data:image/png;base64,iVBO"}},{"type":"image_url","image_url":{"url":"https://img"}},{"type":"input_image","image_url":"data:image/gif;BASE64,R0lG"},{"type":"image","data":"AA","mime_type":"image/webp"},{"type":"image","data":"BB"},{"type":"image","image_url":{"detail":"low"}},{"type":"image"},{"type":"input_audio","input_audio":{"data":"UklG","format":" WAV "}},{"type":"audio","data":"ZkxhQw","format":"flac"},{"type":"audio","input_audio":{"format":"mp3"}},{"type":"audio","data":"x"},{"type":"file","file":{"filename":"a.pdf","file_data":"JVBE"}},{"type":"input_file","file":{"file_data":"data:text/csv;base64,YQ"},"filename":"b.csv"},{"type":"document","mime_type":"text/plain","data":"aGk"},{"type":"file","file":{"file_url":"https://f"},"mimeType":"x/y"},{"type":"file","file":{"filename":"c.unknownext","file_data":"AA"}},{"type":"file"},{"type":"refusal","refusal":"no"}]},{"role":"user","content":{"type":"text","text":"single"}},{"role":"assistant","reasoning_content":"r1","content":"answer","tool_calls":[{"id":"c1","type":"function","function":{"name":"read_file","arguments":"{\"p\":1}"}},{"id":"c2","function":{"name":"Lookup","arguments":"not json"}},{"id":"","function":{"name":"anon","arguments":{"o":1}}},{"type":"custom","function":{"name":"x"}},{"id":"c3"},{"id":"c4","function":{"name":"noargs"}},{"id":"c5","function":{"name":"empty","arguments":""}}]},{"role":"assistant","reasoning_content":[{"text":"a"},{"content":"b"},{"text":""},"s"],"content":[{"type":"text","text":"x"}]},{"role":"assistant","reasoning_content":{"text":"obj"},"content":null},{"role":"tool","tool_call_id":"c1","content":"file body"},{"role":"tool","tool_call_id":"c2","name":"Explicit","content":{"k":"<v>"}},{"role":"function","id":"c4"},{"role":"tool","tool_call_id":"unknown","content":[1]},{"role":"tool"}]`
+	inputs := map[string]string{
+		"messages":         `{` + messages + `}`,
+		"top-level":        `{"model":"m","stream":false,"previous_response_id":" ","previous_interaction_id":"prev","environment":{"id":"env"},"agent_config":{"k":1},"messages":"notarray"}`,
+		"top-level/2":      `{"previous_response_id":"p1","environment_id":"e1","environment":{"id":"e2"},"messages":[]}`,
+		"generation":       `{"max_completion_tokens":10,"max_tokens":20,"temperature":0.5,"top_p":1e0,"presence_penalty":-1,"frequency_penalty":"2","n":2,"stop":["<s>"],"tool_choice":{"type":"function","function":{"name":"read_file"}},"reasoning_effort":" HIGH ","response_format":{"type":"json_object"},"modalities":["text"],"service_tier":"flex","messages":[{"role":"user","content":"x"}]}`,
+		"generation/2":     `{"max_tokens":20,"stop":"x","tool_choice":"auto","reasoning_effort":5,"service_tier":5,"messages":[]}`,
+		"tools":            `{"tools":[{"type":"function","function":{"name":"read_file","description":"d <&>","parameters":{"type":"object"}}},{"type":" Function ","name":"flat","description":5,"parameters":{"a":1}},{"name":"untyped"},{"type":"web_search"},{"type":"function","function":{"name":"  "}},{"function":{"description":"no name"}}],"messages":[]}`,
+		"tools/object":     `{"tools":{"type":"function","function":{"name":"x"}},"messages":[]}`,
+		"tools/empty":      `{"tools":[{"type":"other"}],"messages":[]}`,
+		"antigravity/msgs": `{` + messages + `}`,
+		"antigravity/gen":  `{"max_output_tokens":30,"temperature":1,"stop":["x"],"tool_choice":{"type":"function","function":{"name":"write_file"}},"tools":[{"type":"function","function":{"name":"execute_code"}},{"type":"function","function":{"name":"Execute_Code"}}],"messages":[]}`,
+		"antigravity/gen2": `{"max_completion_tokens":7,"agent_config":{"max_total_tokens":99},"tool_choice":{"type":"tool","name":"read_file"},"messages":[]}`,
+		"antigravity/gen3": `{"max_tokens":"8","tool_choice":{"type":"tool","name":"other","function":{"name":""}},"messages":[]}`,
+		"antigravity/gen4": `{"tool_choice":"required","agent_config":"str","max_tokens":9,"messages":[]}`,
+	}
+	var names []string
+	for name := range inputs {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	var out []fixture
+	for i, name := range names {
+		m := model
+		if strings.HasPrefix(name, "antigravity/") {
+			m = "Gemini-3-AntiGravity-agent"
+		}
+		out = append(out, req("openai-interactions/"+name, m, inputs[name], i%2 == 0))
+	}
+	out = append(out, req("openai-interactions/model-from-body", "", `{"model":"body-model","messages":[]}`, true))
+	return out
+}
+
+// interactionsToOpenAI exercise ConvertInteractionsResponseToOpenAI(NonStream): tool call
+// indexes per step, environment IDs, finish reasons, failures and antigravity names.
+func interactionsToOpenAI() []fixture {
+	cases := map[string][]string{
+		"tools":   {`{"event_type":"step.start","index":0,"step":{"type":"function_call","name":"external_read_file","id":"i0"}}`, `{"event_type":"step.delta","index":0,"delta":{"type":"arguments_delta","arguments":"{\"p\":"}}`, `{"event_type":"step.start","index":2,"step":{"type":"function_call","name":"b","call_id":"c2","arguments":{"x":1}}}`, `{"event_type":"step.start","index":0,"step":{"type":"function_call","name":"again"}}`, `{"event_type":"step.delta","index":5,"delta":{"type":"arguments_delta","arguments":"<orphan>"}}`, `{"event_type":"step.delta","index":2,"delta":{"type":"arguments_delta"}}`, `{"event_type":"step.start","index":3,"step":{"type":"model_output"}}`, `{"event_type":"step.delta","index":3,"delta":{"type":"thought_signature","signature":"s"}}`, `{"event_type":"interaction.completed","interaction":{"status":"incomplete","environment":{"id":"env-done"}}}`, `{"event_type":"interaction.completed"}`},
+		"created": {`{"event_type":"interaction.created","interaction":{"id":"int_9","model":"gemini-antigravity-x","environment_id":"env1"}}`, `{"event_type":"step.start","index":0,"step":{"type":"function_call","name":"external_write_file"}}`, `{"event_type":"step.delta","index":0,"delta":{"type":"thought_summary","text":"via text"}}`, `{"event_type":"step.delta","index":0,"delta":{"type":"thought_summary"}}`, `{"event_type":"finish","finish_reason":"content_filter","usage":{"input_tokens":1}}`},
+		"reasons": {`{"event_type":"interaction.created","interaction":{"id":" ","model":""},"environment":{"id":"root-env"}}`, `{"event_type":"step.delta","index":0,"delta":{"type":"text","text":"x"}}`, `{"event_type":"interaction.completed","interaction":{"finish_reason":"max_tokens"},"status":"completed"}`},
+		"errors":  {`{"event_type":"response.failed","error":{"message":"bad <x>","code":"429","type":"rate_limit"}}`, `{"event_type":"interaction.failed","interaction":{"error":{"code":5}}}`, `{"event_type":"interaction.failed"}`, `{"event_type":"done"}`, "data: [DONE]"},
+	}
+	var names []string
+	for name := range cases {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	var out []fixture
+	for _, name := range names {
+		out = append(out, streamCase("interactions-openai/"+name, "gemini-2.5-pro", cases[name]...))
+	}
+	for i, body := range []string{
+		`{"interaction":{"id":"i1","model":"gemini-antigravity-1","status":"incomplete","environment":{"id":"e"},"steps":[{"type":"thought","content":[{"text":"r1"},{"content":{"text":"r2"}}]},{"type":"model_output","content":"plain "},{"type":"model_output","content":[{"type":"text","text":"a <b>"},{"text":""}]},{"type":"function_call","name":"external_execute_code","arguments":{"c":1}},{"type":"function_call","call_id":"c2","name":"f","arguments":"{\"s\":1}"},{"type":"function_call","id":"c3","name":"g"}],"usage":{"total_input_tokens":3,"total_output_tokens":4,"total_tokens":7,"total_cached_tokens":1,"total_thought_tokens":2}}}`,
+		`{"id":"r","steps":[{"type":"model_output","content":5}],"finish_reason":"content_filter","environment_id":"top","interaction":{"environment_id":"ignored-nested"}}`,
+		`{"interaction":{"model":"","steps":[{"type":"thought","content":"t"}]},"finish_reason":"length","interaction.environment_id":"x"}`,
+		`{}`, `not json`,
+	} {
+		out = append(out, nonStream(fmt.Sprintf("interactions-openai/non-stream/%d", i), "gemini-2.5-pro", body))
+	}
+	return out
+}
+
+// interactionsOpenAIRequests exercise ConvertInteractionsRequestToOpenAI: system text,
+// every step type, content part conversions, tool declarations and the generation
+// config fallbacks to top-level fields.
+func interactionsOpenAIRequests(model string) []fixture {
+	steps := `"input":[{"type":"user_input","content":"plain"},{"type":"user_input","content":[{"type":"text","text":"a"},{"text":"b"},{"type":"image","data":"AA","mime_type":"image/png"},{"type":"image","url":"https://i"},{"type":"image","image_url":"data:x","file_data":"y"},{"type":"image"},{"type":"audio","data":"UklG","mime_type":"Audio/X-WAV"},{"type":"audio","mime_type":"audio/ogg"},{"type":"audio"},{"type":"video","data":"AA"},{"type":"video","url":"gs://v"},{"type":"document","data":"JVBE","mime_type":"application/pdf"},{"type":"file","filename":"n.txt","file_url":"https://f","data":"x"},{"type":"document","mime_type":"image/svg+xml"},{"type":"document","mime_type":"weird"},{"type":"Text","text":"case"},{"type":"thought"}]},{"type":"model_output","content":[{"type":"text","text":"m1"},{"type":"text","text":"m2"}]},{"type":"model_output","content":{"type":"text","text":"single"}},{"type":"model_output","content":{"type":"image","data":"QQ"}},{"type":"model_output"},{"type":"thought","content":[{"text":"t1"},{"content":{"text":"t2"}}]},{"type":"thought","content":{"text":"t3"}},{"type":"thought"},{"type":"function_call","name":"external_read_file","call_id":"c1","arguments":{"p":"<x>"}},{"type":"function_call","name":"g","id":"c2","arguments":"{\"s\":1}"},{"type":"function_call","name":"h"},{"type":"function_result","call_id":"c1","result":{"ok":true}},{"type":"function_result","id":"c2","output":"done"},{"type":"function_result"},"bare string",5,{"type":"unknown","content":"x"}]`
+	inputs := map[string]string{
+		"steps":             `{` + steps + `}`,
+		"antigravity/steps": `{` + steps + `,"tools":[{"name":"external_write_file"},{"function_declarations":[{"name":"external_execute_code"}]}]}`,
+		"input/object":      `{"input":{"type":"model_output","content":"obj"}}`,
+		"input/string":      `{"input":"hello","stream":true}`,
+		"input/number":      `{"input":5}`,
+		"system/object":     `{"system_instruction":{"text":"st"},"input":"x"}`,
+		"system/content":    `{"system_instruction":{"content":[{"text":"a"},{"content":{"text":"b"}},{}]},"input":"x"}`,
+		"system/parts":      `{"system_instruction":{"content":"x","parts":[{"text":"p"}]},"input":"x"}`,
+		"system/none":       `{"system_instruction":{"other":1},"input":"x"}`,
+		"tools":             `{"tools":[{"name":"a","description":"d <x>","parameters":{"type":"object"}},{"function":{"name":"b","description":"fd","parameters":{"p":1}}},{"name":"c","parametersJsonSchema":{"j":1}},{"function_declarations":[{"name":"d"},{"description":"none"}],"functionDeclarations":[{"name":"ignored"}]},{"functionDeclarations":[{"name":"e","parameters":{}}]},{"name":"  "},{"type":"google_search"}],"input":"x"}`,
+		"tools/none":        `{"tools":[{"type":"google_search"}],"input":"x"}`,
+		"gen/snake":         `{"generation_config":{"temperature":0.1,"max_output_tokens":5,"top_p":0.2,"top_k":3,"candidate_count":2,"stop_sequences":["<s>"],"tool_choice":{"type":"auto"},"reasoning_effort":" Low ","thinking_level":"high"},"temperature":9,"response_modalities":["TEXT"],"input":"x"}`,
+		"gen/camel":         `{"generationConfig":{"maxOutputTokens":6,"topP":0.3,"topK":4,"candidateCount":1,"stopSequences":"x","thinkingLevel":"MEDIUM"},"input":"x"}`,
+		"gen/root":          `{"generation_config":{"thinking_config":{"thinking_level":"minimal"}},"temperature":0.7,"max_tokens":8,"max_completion_tokens":9,"top_p":0.4,"n":3,"stop":["y"],"tool_choice":"none","reasoning_effort":"high","input":"x"}`,
+		"gen/effort":        `{"generation_config":{"reasoning_effort":5,"thinkingConfig":{"thinkingLevel":"x"}},"input":"x"}`,
+		"gen/effort-root":   `{"generationConfig":{"thinking_level":7},"reasoning_effort":" XHIGH ","max_completion_tokens":4,"input":"x"}`,
+		"gen/both":          `{"generation_config":{},"generationConfig":{"temperature":1},"input":"x"}`,
+		"top-level":         `{"response_format":{"type":"json_object"},"service_tier":"flex","previous_interaction_id":" ","previous_response_id":"p","environment":{"id":"e"},"agent_config":{"a":1},"parallel_tool_calls":false,"seed":42,"user":"u<1>","input":"x"}`,
+		"top-level/2":       `{"service_tier":3,"previous_interaction_id":"pi","environment_id":"ei","stream":"yes","input":"x"}`,
+		"model":             `{"model":"body","input":"x"}`,
+	}
+	var names []string
+	for name := range inputs {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	var out []fixture
+	for i, name := range names {
+		m := model
+		if strings.HasPrefix(name, "antigravity/") {
+			m = "antigravity-agent"
+		}
+		out = append(out, req("interactions-openai/"+name, m, inputs[name], i%2 == 1))
+	}
+	out = append(out, req("interactions-openai/model-from-body", "", `{"model":"body-model","input":"x"}`, false))
+	return out
+}
+
+// openAIToInteractions exercise ConvertOpenAIResponseToInteractions(NonStream): reasoning,
+// text and tool-call deltas with step switching, finish reasons, usage-only chunks,
+// stored usage, the done marker and antigravity names.
+func openAIToInteractions() []fixture {
+	chunk := func(delta, extra string) string {
+		return `data: {"id":"chatcmpl-1","model":"gpt-x","choices":[{"index":0,"delta":` + delta + extra + `}]}`
+	}
+	cases := map[string][]string{
+		"text":            {chunk(`{"role":"assistant","content":""}`, ``), chunk(`{"content":"Hi <b>"}`, ``), chunk(`{"content":" é"}`, `,"finish_reason":null`), chunk(`{"content":"more"}`, ``), chunk(`{}`, `,"finish_reason":"stop"`), `data: {"id":"chatcmpl-1","choices":[],"usage":{"prompt_tokens":3,"completion_tokens":4,"total_tokens":7,"prompt_tokens_details":{"cached_tokens":1},"completion_tokens_details":{"reasoning_tokens":2}}}`, "data: [DONE]"},
+		"reasoning-tools": {chunk(`{"reasoning_content":"think"}`, ``), chunk(`{"reasoning_content":[{"text":"a"},{"content":"b"},{"text":""}]}`, ``), chunk(`{"content":"x","tool_calls":[{"index":0,"id":"call_a","function":{"name":"read_file","arguments":""}}]}`, ``), chunk(`{"tool_calls":[{"index":0,"function":{"arguments":"{\"p\":"}}]}`, ``), chunk(`{"tool_calls":[{"index":0,"function":{"arguments":"1}"}},{"index":1,"function":{"name":"second","arguments":"{}"}}]}`, ``), chunk(`{"tool_calls":[{"index":1,"id":"late_id","function":{"arguments":"x"}}]}`, ``), chunk(`{}`, `,"finish_reason":"tool_calls"`), "data: [DONE]", "data: [DONE]"},
+		"usage-stored":    {`data: {"id":"u1","choices":[{"delta":{"content":"a"}}],"usage":{"prompt_tokens":"5"}}`, `data: {"choices":[{"delta":{"content":"b"}}]}`, "data: [DONE]"},
+		"framing":         {"", ": keepalive", "event: x\ndata: {\"choices\":[{\"delta\":{\"content\":\"multi\"}}]}", `{"choices":[{"delta":{"content":"bare"}}]}`, "data: not json", `data: {"choices":{"0":{"delta":{"content":"obj"}}}}`, `data: {"choices":[]}`, `data: {"object":"x"}`, "data: [DONE]"},
+		"done-only":       {"data: [DONE]"},
+	}
+	var names []string
+	for name := range cases {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	var out []fixture
+	for _, name := range names {
+		out = append(out, streamCase("openai-interactions/"+name, "gpt-test", cases[name]...))
+		if name == "reasoning-tools" {
+			out = append(out, streamCase("openai-interactions/antigravity-"+name, "antigravity-x", cases[name]...))
+		}
+	}
+	for i, body := range []string{
+		`{"id":"chatcmpl-9","model":"gpt-x","choices":[{"index":0,"message":{"role":"assistant","reasoning_content":[{"text":"r"}],"content":"answer <b>","tool_calls":[{"id":"c1","type":"function","function":{"name":"read_file","arguments":"{\"p\":1}"}},{"type":"custom","function":{"name":"skip"}},{"function":{"name":"noid","arguments":{"o":1}}}]},"finish_reason":"tool_calls"}],"usage":{"prompt_tokens":1,"completion_tokens":2,"total_tokens":3}}`,
+		`{"choices":[{"message":{"content":[{"type":"text","text":"array"}]},"finish_reason":null},{"message":{"reasoning_content":"second"},"finish_reason":"stop"}]}`,
+		`{"choices":[{"message":{"content":""}}],"usage":{"completion_tokens_details":{"reasoning_tokens":"4"}}}`,
+		`{}`, `not json`,
+	} {
+		out = append(out, nonStream(fmt.Sprintf("openai-interactions/non-stream/%d", i), "gpt-test", body))
+		if i == 0 {
+			out = append(out, nonStream("openai-interactions/non-stream/antigravity", "antigravity-x", body))
+		}
 	}
 	return out
 }
