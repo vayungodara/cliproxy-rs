@@ -2,7 +2,7 @@
   "name": "responses-nonstream-reorder-suffix",
   "credential": {
     "access_token": "kimi-access-fixture",
-    "base_url": "http://127.0.0.1:42961/coding",
+    "base_url": "http://127.0.0.1:35811/coding",
     "device_id": "dev-fixture-1",
     "refresh_token": "kimi-refresh-fixture",
     "type": "kimi"
@@ -32,7 +32,7 @@
       "headers": [
         [
           "Host",
-          "127.0.0.1:42961"
+          "127.0.0.1:35811"
         ],
         [
           "User-Agent",
@@ -84,5 +84,20 @@
   ],
   "downstream": {
     "body": "{\"id\":\"resp_1\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"k3\",\"output\":[{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"hello\"}]}],\"usage\":{\"input_tokens\":6,\"output_tokens\":4,\"total_tokens\":10}}"
+  },
+  "extra": {
+    "usage": [
+      {
+        "cached_tokens": 0,
+        "failed": false,
+        "input_tokens": 6,
+        "model": "kimi-k3",
+        "output_tokens": 4,
+        "reasoning_effort": "",
+        "reasoning_tokens": 0,
+        "response_model": "k3",
+        "total_tokens": 10
+      }
+    ]
   }
 }

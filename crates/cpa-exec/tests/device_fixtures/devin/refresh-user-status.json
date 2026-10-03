@@ -1,0 +1,97 @@
+{
+  "name": "refresh-user-status",
+  "credential": {
+    "api_key": "devin-session-token$fixture",
+    "device_seed": "seed-r",
+    "email": "old@example.com",
+    "plan": "Free",
+    "type": "devin"
+  },
+  "request": {
+    "refresh": true
+  },
+  "responses": [
+    {
+      "status": 200,
+      "headers": [
+        [
+          "Content-Type",
+          "application/proto"
+        ]
+      ],
+      "body": "",
+      "body_b64": "CnMaCGRldi51c2VyKgZ0ZWFtLTk6D2RldkBleGFtcGxlLmNvbWpACiASCVRlYW1zIFByb4oCEiIGb3JnLTc3QghBY21lIE9yZxIGCIDy1soGGgYIgNnb2QZwP3gAiAGA98TVBpgBBaICCHVzZXItMTIzwAIBEgdpZ25vcmVk"
+    }
+  ],
+  "upstream": [
+    {
+      "method": "POST",
+      "target": "/exa.seat_management_pb.SeatManagementService/GetUserStatus",
+      "headers": [
+        [
+          "Host",
+          "127.0.0.1:40657"
+        ],
+        [
+          "Content-Length",
+          "819"
+        ],
+        [
+          "Accept",
+          "*/*"
+        ],
+        [
+          "Authorization",
+          "Basic devin-session-token$fixture-devin-session-token$fixture"
+        ],
+        [
+          "Connect-Protocol-Version",
+          "1"
+        ],
+        [
+          "Content-Type",
+          "application/proto"
+        ]
+      ],
+      "body": "",
+      "body_b64": "CrAGCgZjaGlzZWwSCjMwMDAuMTAuMjEaG2RldmluLXNlc3Npb24tdG9rZW4kZml4dHVyZSICZW4qBWxpbnV4OgozMDAwLjEwLjIxYgZjaGlzZWz6AdwFYjZjODVlZGI1YzAyMTMwZDNlNDY5ODliZWEzMzFkNzAzMTE3MjBkNTY0YmM2Yjk4Zjg0YzQ5NDRkYWEyYTZmNTRkZmVjOTMyNTI5YWJkMTM1YWRiYzhmY2Y2M2Q5NWYxMjkzNGY4MjVmYjM3ZjFkNjc5MGNkMWRlN2QyN2VkYmVmZWMxY2QzZDIxNWQ2NTY3NWQ4ODY1NDk5YjU2ZDVkYTk0ZTM3NDAxMmZlMjQyNmEzN2ZjYTY0MDkxMDZiYzUzOWRjMGUwMTU4MmVlM2IyM2MyN2E3NjBlODExNDQyMWJiMGMzMzFlODZmMTI4N2YzM2ZiYzMzYTQ1OTFlMzA2NDRkYjViOTU3YjdkZWJlYzEwMzY0NDExNGUxMTk2MTk2ODVkMDFiODhjNTY1NTViYmE2YmFhMzZhOWZmOWU3YjVkZmY1ZGY4NDQzODBiNWZiMTRjMmQwZjBiOGExZDhkNGIwZDY0MzE0YjE1ZWY4MjU3MGI0MmY0ODZiZjEwYjAxYWU0YTkyMjdmYmZmNTJiYmQzM2MxODhhZmE0ZmVlYWU2OTQxYTg4NWIxYTgwMjI3MjFiMzViMWQyOGExNWQ5ZDA5NWI2MDJmZjc0ODk1MjJlNzBkNzI1NmNmNTNjNjZiMWQ3OTVhNTU4MzExNmUzOGU0OTBkYWQwZjg4ZThjNDk4ZTFmMzg1ZThhMzQ3MmM1OTRiMzQwYTg5MDM5YWExMzMzOWZiZTNlZGQxODVmMDBhYWZiNDIxNTQ2ZDZhNmQ5NDkzNzYwYTNiOTdjYmQ4MTZkOGNjY2NjM2M3NjY1YTA0Y2QxYzQxMzM2MTQ2Yjc2NWYwMzFkMDE5MDRlNWNiNzY3ZTYwOWE5ZGZkZWFiM2I3NWVjZjZlN2IxNTM1YTZhMDczYTljM2JkMjVkODA5MzA4YzhhMDUyY2NlZDcxMGZlYmU3YzQ5MWYwOWJhZTBkNzM5MWM1ZWIyNDU1"
+    }
+  ],
+  "downstream": {},
+  "extra": {
+    "attributes_after": {
+      "email": "dev@example.com",
+      "org_id": "org-77",
+      "org_name": "Acme Org",
+      "plan": "Teams Pro",
+      "team_id": "team-9",
+      "user_id": "user-123",
+      "user_name": "dev.user"
+    },
+    "metadata_after": {
+      "api_key": "devin-session-token$fixture",
+      "device_seed": "seed-r",
+      "email": "dev@example.com",
+      "org_id": "org-77",
+      "org_name": "Acme Org",
+      "plan": "Teams Pro",
+      "team_id": "team-9",
+      "type": "devin",
+      "user_id": "user-123",
+      "user_name": "dev.user"
+    },
+    "quota_before": {
+      "daily_quota_reset_at": "stale",
+      "plan_end": "keep-me"
+    },
+    "quota_signals": {
+      "daily_quota_remaining_percent": "63%",
+      "daily_quota_reset_at": "2026-09-21T14:13:20Z",
+      "plan": "Teams Pro",
+      "plan_end": "2027-01-01T00:00:00Z",
+      "plan_start": "2026-01-01T00:00:00Z",
+      "weekly_quota_remaining_percent": "0%"
+    },
+    "same_auth": false
+  }
+}

@@ -1,0 +1,93 @@
+{
+  "name": "claude-stream",
+  "credential": {
+    "api_key": "devin-session-token$fixture",
+    "base_url": "http://127.0.0.1:39131",
+    "device_seed": "seed-1",
+    "session_token": "devin-session-token$fixture",
+    "type": "devin"
+  },
+  "request": {
+    "body": "{\"model\":\"claude-sonnet-4-5\",\"max_tokens\":1024,\"system\":[{\"type\":\"text\",\"text\":\"x-anthropic-billing-header: cc_version=1\"},{\"type\":\"text\",\"text\":\"System rules claude-stream\"}],\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"image\",\"source\":{\"type\":\"base64\",\"media_type\":\"image/jpeg\",\"data\":\"/9j/AAAA\"}},{\"type\":\"text\",\"text\":\"Describe\"}]},{\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"hmm\",\"signature\":\"claude#EqQBCkYIBRgCKkB\"},{\"type\":\"text\",\"text\":\"It is a cat.\"},{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"zoom\",\"input\":{\"level\":2}}]},{\"role\":\"user\",\"content\":[{\"type\":\"tool_result\",\"tool_use_id\":\"toolu_1\",\"content\":[{\"type\":\"text\",\"text\":\"zoomed\"},{\"type\":\"image\",\"source\":{\"type\":\"base64\",\"media_type\":\"image/png\",\"data\":\"iVBORw0K\"}}]}]}],\"tools\":[{\"name\":\"zoom\",\"description\":\"Zoom in\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"level\":{\"type\":\"integer\"}}}}],\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":8000},\"stream\":true}",
+    "model": "claude-sonnet-4-5",
+    "source": "claude",
+    "stream": true
+  },
+  "responses": [
+    {
+      "status": 200,
+      "headers": [
+        [
+          "Content-Type",
+          "application/connect+proto"
+        ]
+      ],
+      "body": "",
+      "body_b64": "AAAAAAcaBUhlbGxvAAAAAAcaBSBtb3JlAAAAACs6JxAFGAIgACgAQhsKDHgtcmVxdWVzdC1pZBILcmVxX2ZpeHR1cmVKACgCAgAAAAJ7fQ=="
+    }
+  ],
+  "upstream": [
+    {
+      "method": "POST",
+      "target": "/exa.api_server_pb.ApiServerService/GetChatMessage",
+      "headers": [
+        [
+          "Host",
+          "127.0.0.1:39131"
+        ],
+        [
+          "Content-Length",
+          "1406"
+        ],
+        [
+          "Accept",
+          "*/*"
+        ],
+        [
+          "Authorization",
+          "Basic devin-session-token$fixture-devin-session-token$fixture"
+        ],
+        [
+          "Connect-Protocol-Version",
+          "1"
+        ],
+        [
+          "Content-Type",
+          "application/connect+proto"
+        ],
+        [
+          "Sentry-Trace",
+          "d223ceaf60f203495023dcadfe9ddd02-a30b5c20ddb75b76-1"
+        ]
+      ],
+      "body": "",
+      "body_b64": "AAAABXkKsAYKBmNoaXNlbBIKMzAwMC4xMC4yMRobZGV2aW4tc2Vzc2lvbi10b2tlbiRmaXh0dXJlIgJlbioFbGludXg6CjMwMDAuMTAuMjFiBmNoaXNlbPoB3AVkMzU3MTg4YTU3NGM3MmVjMjZhYWU3ODVhZjJhZDhhMjMzZWQzYjAzYjEyNDI1MTljOWFhMTZkOTg2ZjA3NWY3ZjdkMTA4NTk3MmM4MGMzOTVhMWUwYWFjYmYyYjM3Y2ZkMDkzYTQ1M2M0YWU4ZDczYTM5NDUxZjNhMzliZjk0NmM1YTJmMDI4NTBhYmUwOGE1NTYwNWEwY2Q3MzJhYWZjNTg0ZmYzOTA3NjkyM2MxYzQ4ZjIyMzZmMTRlMzg0Yzk0YmUyZjA0NDc5NGEyYzc5MGQ5ZTA4ZTY3NmU0NTExYzdlMzJjMWMzODI3ZjNiNDI2MmY5YTJhNzliZGU5Y2UyMmEwMjBjOWY3MTgxM2Q2OGQ1YTA1MjZjMTdiZDEyZWRmYTY4Y2FiNzA4NjYyMjI1YTVhMTEzZTMyNTVkYzdjYmNkNDJkOGE3Njg0NjM4ZTRkM2ZhNTBhMGVjNTJiNGQ2NTE5N2U3YzdmYzdjNjE4OWVkY2YzNWRkOWI0ZDQzODYyOWVkODYzZGM4NDllNDAyNjExMGEwZGY2MTI1ZDU0MmM0ODMxNDRiZTgzN2VjZjgyMDE2ZjFhYTc1ZTM5YmFlNWRjMGMwMWUyMjJkMGUwNjU1NTdmMWVlZTc3ZWEwMmU1NDBiZjM0ZmYyOWMxNWQ1MjkzYzA0ZmVmNTJhOGVjZjI5N2RjMDNkNGVmOGM5YWRlYmJhMTIxZWM4Nzg1MGU2MzA4OWE4ZGI0NjczNzNjMjNhZmZiMWM0MzU5MGZjNTVlMzFlNDA2Y2M4ZmE2ZDgyZjM5ZGIxZDE0NzU4ZDU2OWYyNjM4YTQ0MTE5YTNhZGZlYTU0YmRkOWE2MDljMTc4OWQwOTNjODU3MDc3ZTQwYzkyZmNlYTFlNGIwYzhhYzRiNjk1MmYxODUzNTY0ZjM5ODc4YzdmYmU2YWExMmM4OTllNTYxMzRhYTBlMTgzYmY2NTgwZGI5OTQ5NGUSGlN5c3RlbSBydWxlcyBjbGF1ZGUtc3RyZWFtGmkKJGY5ODBkMTI1LTMxMWYtNGNiMS04YWE3LWU4Nzg1ZjkwNWVmNxABGidbSW1hZ2UgMTogcGFzdGVkX2ltYWdlXzEuanBnXQoKRGVzY3JpYmVSFgoILzlqL0FBQUESCmltYWdlL2pwZWcadgokZjY3YzI1NTUtZWE1MS00YTRmLTk4NDAtOWZhYjIyN2IwZThmEAIaDEl0IGlzIGEgY2F0LjIcCgd0b29sdV8xEgR6b29tGgt7ImxldmVsIjoyfVoDaG1tYg9FcVFCQ2tZSUJSZ0NLa0KSAQlhbnRocm9waWMabwokYWEyOTcyMDctN2Q2NS00YzZjLTliMTctYmQ5OGIyNDg1NGU1EAQaJVtJbWFnZSAxOiBwYXN0ZWRfaW1hZ2VfMS5wbmddCgp6b29tZWQ6B3Rvb2x1XzFSFQoIaVZCT1J3MEsSCWltYWdlL3BuZzgFQhwIARCACBiQAykAAAAAAADwPzgoQQAAAGBmZu4/UkwKBHpvb20SB1pvb20gaW4aO3sidHlwZSI6Im9iamVjdCIsInByb3BlcnRpZXMiOnsibGV2ZWwiOnsidHlwZSI6ImludGVnZXIifX19eioKJGMwZTQ4MGZlLTU3NDYtNTI4Yy04MTRhLTY0ZGJmMjA2OTdlMBABGASCASRjMGU0ODBmZS01NzQ2LTUyOGMtODE0YS02NGRiZjIwNjk3ZTCgAQGqAQ9NT0RFTF9QUklWQVRFXzM="
+    }
+  ],
+  "downstream": {
+    "chunks": [
+      "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"interaction_783a18de-832\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[],\"model\":\"claude-sonnet-4-5\",\"stop_reason\":null,\"stop_sequence\":null,\"usage\":{\"input_tokens\":74,\"output_tokens\":0}}}\n\n\n",
+      "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\n\n",
+      "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"Hello\"}}\n\n\n",
+      "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\" more\"}}\n\n\n",
+      "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\n\n",
+      "event: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\",\"stop_sequence\":null},\"usage\":{\"input_tokens\":5,\"output_tokens\":2}}\n\n\n",
+      "event: message_stop\ndata: {\"type\":\"message_stop\"}\n\n\n"
+    ]
+  },
+  "extra": {
+    "usage": [
+      {
+        "cached_tokens": 0,
+        "failed": false,
+        "input_tokens": 5,
+        "model": "claude-sonnet-4-5",
+        "output_tokens": 2,
+        "reasoning_effort": "",
+        "reasoning_tokens": 0,
+        "response_model": "",
+        "total_tokens": 7
+      }
+    ]
+  }
+}
