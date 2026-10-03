@@ -25,6 +25,7 @@
 //! The proxy-aware HTTP client (executor/helps/proxy_helpers.go) touches the network and
 //! lives in cpa-exec instead.
 
+pub mod codex_client;
 pub mod gemini_schema;
 pub mod gostr;
 mod gostr_tables;

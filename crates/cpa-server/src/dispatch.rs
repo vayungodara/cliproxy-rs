@@ -528,6 +528,7 @@ pub async fn run(rt: &Arc<Runtime>, call: Call, trace: &Trace) -> Result<Done, R
         session: session.id,
         execution_session: call.execution_session.clone(),
         derived_session: session.derived,
+        resolved_model: None,
         request_path: call.request_path.clone(),
         headers: call.headers.clone(),
         caller: call.caller.clone(),
@@ -730,10 +731,14 @@ async fn attempt(
     for (i, upstream) in target.models.iter().enumerate() {
         let state = registry::state_model(target.selection_model, &route_model, upstream, target.pooled);
         lease.execution_model = state.clone();
-        let mut req = request.clone();
-        if !target.keep_model {
-            req.model.clone_from(upstream);
-        }
+        let req = attempt_request(
+            request,
+            cfg,
+            &lease.credential,
+            &route_model,
+            upstream,
+            target.keep_model,
+        );
         let mut executed = rt.executors.execute(&lease.credential, req.clone(), cfg).await;
         // Go `tryRefreshAfterUnauthorized`: one refresh-and-retry per credential.
         if let Err(error) = &executed
@@ -801,6 +806,30 @@ async fn attempt(
         last = Some(fault);
     }
     Attempt::Next(last.expect("at least one model was attempted"))
+}
+
+/// The request one upstream model attempt executes: the upstream model (unless the
+/// request keeps its own model), with Go's `attachResolvedExecutionModelInfo` binding.
+fn attempt_request(
+    request: &ExecRequest,
+    cfg: &Config,
+    credential: &cpa_core::credential::Credential,
+    route_model: &str,
+    upstream: &str,
+    keep_model: bool,
+) -> ExecRequest {
+    let mut req = request.clone();
+    if !keep_model {
+        req.model = upstream.to_owned();
+    }
+    req.resolved_model = crate::capabilities::resolve_attempt(
+        cfg,
+        credential,
+        route_model,
+        upstream,
+        keep_model.then_some(request.model.as_str()),
+    );
+    req
 }
 
 /// Bootstraps a stream (first event before committing) or buffers a body.
@@ -931,6 +960,50 @@ fn rewrite_lines(payload: &Bytes, target: &str) -> Bytes {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Each attempt carries Go's binding for its credential and upstream model; a kept
+    /// request model (Go `restoreExecutionModel`) routes Codex by that model. Expected
+    /// values are the Go goldens' "codex configured" and "codex restore" cases.
+    #[test]
+    fn attempts_bind_resolved_model_like_go() {
+        let cfg = Config::parse(
+            "config-version: 8\napi-keys:\n  codex:\n    - base-url: https://codex.example\n      models:\n        - name: gpt-6-sol\n          alias: sol\n          is-compat: true\n      keys:\n        - api-key: xk1\n",
+        )
+        .unwrap();
+        let credential = cpa_core::config::credentials::from_config(&cfg).remove(0);
+        let request = ExecRequest {
+            operation: Operation::Generate,
+            source_format: Format::OpenAI,
+            response_format: Format::OpenAI,
+            requested_model: "sol".into(),
+            model: "sol".into(),
+            original_body: Bytes::new(),
+            body: Bytes::new(),
+            stream: false,
+            alt: None,
+            session: None,
+            execution_session: None,
+            derived_session: None,
+            request_path: String::new(),
+            headers: HeaderMap::new(),
+            caller: Caller {
+                principal: String::new(),
+                source: "",
+            },
+            resolved_model: None,
+        };
+        let req = attempt_request(&request, &cfg, &credential, "sol", "gpt-6-sol", false);
+        assert_eq!(req.model, "gpt-6-sol");
+        let bound = req.resolved_model.unwrap();
+        assert_eq!(
+            (bound.info.id.as_str(), bound.source, bound.is_compat()),
+            ("gpt-6-sol", cpa_core::exec::ResolvedSource::ApiKey, true)
+        );
+        let kept = attempt_request(&request, &cfg, &credential, "selection", "gpt-6-sol", true);
+        assert_eq!(kept.model, "sol");
+        let bound = kept.resolved_model.unwrap();
+        assert_eq!((bound.info.id.as_str(), bound.is_compat()), ("sol", false));
+    }
 
     #[test]
     fn failure_texts_match_go_shapes() {
