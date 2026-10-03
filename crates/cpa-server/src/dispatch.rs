@@ -447,7 +447,7 @@ impl Trace {
         self.1.get_or_init(request_id).clone()
     }
 
-    fn selected(&self, credential: &cpa_core::credential::Credential) {
+    pub(crate) fn selected(&self, credential: &cpa_core::credential::Credential) {
         let index = cpa_core::config::credentials::auth_index(credential);
         if index.is_empty() {
             return;
@@ -462,6 +462,11 @@ impl Trace {
             .filter(char::is_ascii_digit)
             .collect();
         *self.0.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = Some(format!("{stamp}-{index}-{request}"));
+    }
+
+    /// The trace ID once a credential was selected.
+    pub(crate) fn id(&self) -> Option<String> {
+        self.0.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clone()
     }
 }
 
