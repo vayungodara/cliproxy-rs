@@ -29,9 +29,9 @@ Do not run Go and cliproxy-rs against the same credential directory at the same 
 
 ## Command-line flags
 
-cliproxy-rs accepts every CLIProxyAPI flag, in Go's single-dash spelling (`-config`) or with two dashes. These work as in Go: `-config`, `-claude-login`, `-codex-login`, `-codex-device-login`, `-kimi-login`, `-kimi-ai-login`, `-xai-login`, `-meta-login`, `-devin-login`, `-vertex-import` (with `-vertex-import-prefix`), `-no-browser`, `-oauth-callback-port`, `-password`, `-local-model`, and LAN discovery with `-discover` (or the `discover` subcommand) and its `-discover-*` options.
+cliproxy-rs accepts every CLIProxyAPI flag, in Go's single-dash spelling (`-config`) or with two dashes. These work as in Go: `-config`, `-claude-login`, `-codex-login`, `-codex-device-login`, `-kimi-login`, `-kimi-ai-login`, `-xai-login`, `-meta-login`, `-devin-login`, `-vertex-import` (with `-vertex-import-prefix`), `-no-browser`, `-oauth-callback-port`, `-password`, `-local-model`, `-home-jwt` (or `HOME_JWT`), and LAN discovery with `-discover` (or the `discover` subcommand) and its `-discover-*` options.
 
-These exit with a "not supported by cliproxy-rs yet" error and status 1: `-antigravity-login` and `-home-jwt` (also when set through the `HOME_JWT` environment variable). `-tui` prints that the terminal UI is not available and exits.
+`-antigravity-login` exits with a "not supported by cliproxy-rs yet" error and status 1. `-tui` prints that the terminal UI is not available and exits.
 
 ## Not available yet
 
@@ -39,18 +39,15 @@ These settings are accepted in `config.yaml` and kept on save, but cliproxy-rs d
 
 | Go setting or feature | In cliproxy-rs |
 | --- | --- |
-| `home` and `-home-jwt` | No Home control plane or cluster mode. |
 | `observability.logs.request-log` and error request logs | The application log works (stdout, or `main.log` with `logging-to-file`, rotation and the size limit), and so do the log routes of the Management API, but request log files and per-request error log files are not written. |
-| Access log | Go logs one line per HTTP request (status, duration, client address, method and path). cliproxy-rs does not log requests yet. |
 | `pprof` | No profiling endpoint. |
-| `plugins` | Plugins are not loaded, and the plugin routes of the Management API are not served. |
 | `management.panel-github-repository`, `management.disable-auto-update-panel`, `MANAGEMENT_STATIC_PATH` | The dashboard is built into the binary and never downloaded or read from disk. `management.disable-control-panel` is honoured. |
-| The Redis-protocol (RESP) usage subscriber on the main port | Not available. `GET /v8/management/observability/usage/queue` works. |
+| The Redis-protocol (RESP) usage subscriber in Home mode | Go answers `ERR redis usage output disabled in home mode`; cliproxy-rs closes the connection. Outside Home mode it works as in Go. |
 | Config reload log summaries | The config is reloaded, but the changes are not summarised in the log. |
 
 `.env` in the working directory is loaded as in Go, and the `PGSTORE_*`, `OBJECTSTORE_*` and `GITSTORE_*` storage backends and `WRITABLE_PATH` work as in Go. `RUST_LOG`, when set, overrides the log level from `debug`.
 
-Providers and client routes that are not available yet are listed in the README under [Status](../README.md#status): Antigravity and AI Studio, the image and video endpoints, and Responses WebSocket steering.
+Providers that are not available yet are listed in the README under [Status](../README.md#status): Antigravity and AI Studio.
 
 ## Management API differences
 
