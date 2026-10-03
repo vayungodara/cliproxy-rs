@@ -1,0 +1,31 @@
+// Golden-only overlay for sdk/cliproxy/auth (not part of CLIProxyAPI). main.go is run with
+// `go run -overlay`, which compiles this file into the reference package without touching
+// the reference tree, so the goldens exercise Go's unexported conductor helpers.
+package auth
+
+import (
+	internalconfig "github.com/router-for-me/CLIProxyAPI/v8/internal/config"
+	"github.com/router-for-me/CLIProxyAPI/v8/internal/registry"
+	cliproxyexecutor "github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/executor"
+)
+
+// GoldenResolvedModelInfo compiles the routing snapshot the way rebuildAPIKeyModelAliasLocked
+// does for one auth, then binds one execution attempt with attachResolvedExecutionModelInfo
+// (conductor_execution.go). It returns the bound model and its metadata key family.
+func GoldenResolvedModelInfo(cfg *internalconfig.Config, auth *Auth, reqModel, routeModel, upstreamModel string, restore bool) (*registry.ModelInfo, string) {
+	routing := &apiKeyModelRoutingSnapshot{config: cfg, capabilities: make(apiKeyModelCapabilityTable)}
+	if auth != nil && isConfiguredModelRoutingAuth(auth) {
+		if byCapability := compileAPIKeyModelCapabilitiesForAuth(cfg, auth); len(byCapability) > 0 {
+			routing.capabilities[auth.ID] = byCapability
+		}
+	}
+	req := cliproxyexecutor.Request{Model: reqModel}
+	req = attachResolvedExecutionModelInfo(routing, req, auth, routeModel, upstreamModel, restore)
+	if info, ok := req.Metadata[resolvedAPIKeyModelInfoMetadataKey].(*registry.ModelInfo); ok && info != nil {
+		return info, "api_key"
+	}
+	if info, ok := req.Metadata[resolvedCodexOAuthModelInfoMetadataKey].(*registry.ModelInfo); ok && info != nil {
+		return info, "codex_oauth"
+	}
+	return nil, ""
+}
