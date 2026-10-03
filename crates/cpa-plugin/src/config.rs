@@ -50,7 +50,9 @@ pub fn yaml_bool(v: &Value) -> Option<bool> {
     match v {
         Value::Bool(b) => Some(*b),
         Value::String(s) => cpa_core::config::go_bool(s),
-        Value::Tagged(t) => yaml_bool(&t.value),
+        // yaml.v3 resolves a custom-tagged scalar as a string, so only the 1.1
+        // spellings decode (`!foo yes` is true, `!foo true` fails).
+        Value::Tagged(t) => cpa_core::config::go_bool(&yaml_string(&t.value)),
         _ => None,
     }
 }
@@ -59,7 +61,8 @@ pub fn yaml_bool(v: &Value) -> Option<bool> {
 /// ([`cpa_core::config::go_int`]).
 pub fn yaml_int(v: &Value) -> Option<i64> {
     match v {
-        Value::Tagged(t) => yaml_int(&t.value),
+        // A custom-tagged scalar is a string to yaml.v3 and never decodes into an int.
+        Value::Tagged(_) => None,
         other => cpa_core::config::go_int(other),
     }
 }
@@ -366,7 +369,13 @@ mod tests {
             };
             assert_eq!(check_json_item(&fields).err(), want, "{body}");
         }
-        assert_eq!(yaml_int(&serde_yaml_ng::from_str("5.7").unwrap()), Some(5));
+        let yaml = |s: &str| serde_yaml_ng::from_str::<Value>(s).unwrap();
+        assert_eq!(yaml_int(&yaml("5.7")), Some(5));
+        assert_eq!(yaml_int(&yaml("!!int 5")), Some(5));
+        assert_eq!(yaml_int(&yaml("!foo 123")), None);
+        assert_eq!(yaml_bool(&yaml("!foo yes")), Some(true));
+        assert_eq!(yaml_bool(&yaml("!foo true")), None);
+        assert_eq!(yaml_bool(&yaml("!!str off")), Some(false));
     }
 
     fn doc(text: &str) -> Value {

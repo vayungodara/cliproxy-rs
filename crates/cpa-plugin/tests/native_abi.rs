@@ -1,6 +1,9 @@
 //! The raw C ABI against a Go-built plugin: calls racing shutdown must either complete or
 //! report a closed client, never touch freed library state.
 
+// Native plugins load only on Unix (the host's `native` module).
+#![cfg(unix)]
+
 mod support;
 
 use std::sync::Arc;

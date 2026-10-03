@@ -5,6 +5,9 @@
 //! exact request bytes every plugin received (config YAML compared as YAML, since the
 //! emitters format differently).
 
+// Native plugins load only on Unix (the host's `native` module).
+#![cfg(unix)]
+
 #[path = "go_host/calls.rs"]
 mod calls;
 mod support;
