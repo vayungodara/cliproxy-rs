@@ -25,6 +25,30 @@
         ],
         "body": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
       },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 3,
+        "output": 1,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 4,
+        "effort": "",
+        "response_model": "acme-chat",
+        "failed": false
+      },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 81\r\nAuthorization: Bearer sk-fake-acme\r\nContent-Type: application/json\r\nX-Forward: trace-1\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":64}",
       "output": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
     },
@@ -47,6 +71,30 @@
           ]
         ],
         "body": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
+      },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-mct",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 3,
+        "output": 1,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 4,
+        "effort": "",
+        "response_model": "acme-chat",
+        "failed": false
       },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 92\r\nAuthorization: Bearer sk-fake-acme\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-mct\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_completion_tokens\":128}",
       "output": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
@@ -71,6 +119,30 @@
         ],
         "body": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
       },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-mct",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 3,
+        "output": 1,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 4,
+        "effort": "",
+        "response_model": "acme-chat",
+        "failed": false
+      },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 62\r\nAuthorization: Bearer sk-fake-acme\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-mct\",\"max_completion_tokens\":256,\"messages\":[]}",
       "output": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
     },
@@ -93,6 +165,30 @@
           ]
         ],
         "body": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
+      },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 3,
+        "output": 1,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 4,
+        "effort": "",
+        "response_model": "acme-chat",
+        "failed": false
       },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 51\r\nAuthorization: Bearer sk-fake-acme\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[],\"max_tokens\":32}",
       "output": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
@@ -117,6 +213,16 @@
         ],
         "body": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
       },
+      "usage": {
+        "input": 3,
+        "output": 1,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 4,
+        "effort": "",
+        "response_model": "acme-chat",
+        "failed": false
+      },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 69\r\nAuthorization: Bearer sk-fake-acme\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"unlisted-upstream\",\"messages\":[],\"max_completion_tokens\":9}",
       "output": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
     },
@@ -139,6 +245,30 @@
           ]
         ],
         "body": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
+      },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-text",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 3,
+        "output": 1,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 4,
+        "effort": "",
+        "response_model": "acme-chat",
+        "failed": false
       },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 534\r\nAuthorization: Bearer sk-fake-acme\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-text\",\"messages\":[{\"role\":\"user\",\"content\":\"look\"},{\"role\":\"assistant\",\"tool_calls\":[{\"id\":\"t1\",\"type\":\"function\",\"function\":{\"name\":\"shot\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"t1\",\"content\":\"captured\\n\\n[image omitted: unsupported by upstream]\\n\\nplain\"},{\"role\":\"tool\",\"tool_call_id\":\"t2\",\"content\":\"[image omitted: unsupported by upstream]\"},{\"role\":\"tool\",\"tool_call_id\":\"t3\",\"content\":\"done\\n\\n[image omitted: unsupported by upstream]\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"keep me\"}]}]}",
       "output": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
@@ -163,6 +293,30 @@
         ],
         "body": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
       },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 3,
+        "output": 1,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 4,
+        "effort": "",
+        "response_model": "acme-chat",
+        "failed": false
+      },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 127\r\nAuthorization: Bearer sk-fake-acme\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"tool\",\"tool_call_id\":\"t1\",\"content\":[{\"type\":\"image_url\",\"image_url\":{\"url\":\"u\"}}]}]}",
       "output": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
     },
@@ -186,6 +340,30 @@
         ],
         "body": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
       },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 3,
+        "output": 1,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 4,
+        "effort": "",
+        "response_model": "acme-chat",
+        "failed": false
+      },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 221\r\nAuthorization: Bearer sk-fake-acme\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Describe the videos.\"},{\"type\":\"video_url\",\"video_url\":{\"url\":\"https://example.com/clip.mp4?part=1\u0026name=a%20b\",\"processing\":\"agentic\"}}]}]}",
       "output": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
     },
@@ -208,6 +386,30 @@
           ]
         ],
         "body": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
+      },
+      "resolved_model": {
+        "created": 0,
+        "id": "cache-model",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 3,
+        "output": 1,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 4,
+        "effort": "",
+        "response_model": "acme-chat",
+        "failed": false
       },
       "request": "POST /v2/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 63\r\nAuthorization: Bearer sk-fake-cache\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"cache-model\",\"prompt_cache_key\":\"pk-1\",\"messages\":[]}",
       "output": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
@@ -233,6 +435,30 @@
         ],
         "body": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
       },
+      "resolved_model": {
+        "created": 0,
+        "id": "cache-model",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 3,
+        "output": 1,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 4,
+        "effort": "",
+        "response_model": "acme-chat",
+        "failed": false
+      },
       "request": "POST /v2/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 67\r\nAuthorization: Bearer sk-fake-cache\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"cache-model\",\"messages\":[],\"prompt_cache_key\":\"orig-key\"}",
       "output": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
     },
@@ -255,6 +481,30 @@
           ]
         ],
         "body": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
+      },
+      "resolved_model": {
+        "created": 0,
+        "id": "cache-model",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 3,
+        "output": 1,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 4,
+        "effort": "",
+        "response_model": "acme-chat",
+        "failed": false
       },
       "request": "POST /v2/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 66\r\nAuthorization: Bearer sk-fake-cache\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"cache-model\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}]}",
       "output": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
@@ -280,6 +530,30 @@
         ],
         "body": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
       },
+      "resolved_model": {
+        "created": 0,
+        "id": "cache-model",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 3,
+        "output": 1,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 4,
+        "effort": "",
+        "response_model": "acme-chat",
+        "failed": false
+      },
       "request": "POST /v2/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 95\r\nAuthorization: Bearer sk-fake-cache\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"cache-model\",\"messages\":[],\"prompt_cache_key\":\"a9ea7ed9-748b-5d59-9515-03bcddeb42fc\"}",
       "output": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
     },
@@ -303,6 +577,30 @@
           ]
         ],
         "body": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
+      },
+      "resolved_model": {
+        "created": 0,
+        "id": "cache-model",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 3,
+        "output": 1,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 4,
+        "effort": "",
+        "response_model": "acme-chat",
+        "failed": false
       },
       "request": "POST /v2/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 95\r\nAuthorization: Bearer sk-fake-cache\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"cache-model\",\"messages\":[],\"prompt_cache_key\":\"8e54d247-0967-5fa8-a3b5-30978a3cc458\"}",
       "output": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
@@ -329,6 +627,30 @@
         ],
         "body": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
       },
+      "resolved_model": {
+        "created": 0,
+        "id": "cache-model",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 3,
+        "output": 1,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 4,
+        "effort": "",
+        "response_model": "acme-chat",
+        "failed": false
+      },
       "request": "POST /v2/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 95\r\nAuthorization: Bearer sk-fake-cache\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"cache-model\",\"messages\":[],\"prompt_cache_key\":\"a9ea7ed9-748b-5d59-9515-03bcddeb42fc\"}",
       "output": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
     },
@@ -353,6 +675,30 @@
         ],
         "body": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
       },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 3,
+        "output": 1,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 4,
+        "effort": "",
+        "response_model": "acme-chat",
+        "failed": false
+      },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 35\r\nAuthorization: Bearer sk-fake-acme\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[]}",
       "output": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
     },
@@ -375,6 +721,30 @@
           ]
         ],
         "body": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
+      },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 3,
+        "output": 1,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 4,
+        "effort": "",
+        "response_model": "acme-chat",
+        "failed": false
       },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 61\r\nAuthorization: Bearer sk-fake-acme\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"prompt_cache_key\":\"keep\",\"messages\":[]}",
       "output": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
@@ -402,6 +772,30 @@
           ]
         ],
         "body": "{\"id\":\"x\",\"choices\":[],\"extra\":{\"nested\":[1,2]}}"
+      },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "",
+        "failed": false
       },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 65\r\nAuthorization: Bearer sk-fake-acme\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
       "output": "{\"id\":\"x\",\"choices\":[],\"extra\":{\"nested\":[1,2]}}"
@@ -431,6 +825,30 @@
         "body": "{\"id\":\"gzip\"}",
         "gzip": true
       },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "",
+        "failed": false
+      },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 65\r\nAuthorization: Bearer sk-fake-acme\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
       "output": "{\"id\":\"gzip\"}"
     },
@@ -454,11 +872,36 @@
         ],
         "body": "{\"error\":{\"message\":\"bad request\",\"type\":\"invalid_request_error\"}}"
       },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "",
+        "failed": true
+      },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 65\r\nAuthorization: Bearer sk-fake-acme\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
       "error": {
         "status": 400,
         "message": "{\"error\":{\"message\":\"bad request\",\"type\":\"invalid_request_error\"}}",
-        "retry_after_ms": -1
+        "retry_after_ms": -1,
+        "credential_scoped": false
       }
     },
     {
@@ -485,11 +928,36 @@
         ],
         "body": "{\"error\":{\"code\":\"rate_limit\",\"message\":\"try later\"}}"
       },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "",
+        "failed": true
+      },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 65\r\nAuthorization: Bearer sk-fake-acme\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
       "error": {
         "status": 429,
         "message": "{\"error\":{\"code\":\"rate_limit\",\"message\":\"try later\"}}",
-        "retry_after_ms": 7000
+        "retry_after_ms": 7000,
+        "credential_scoped": false
       }
     },
     {
@@ -512,11 +980,36 @@
         ],
         "body": "{}"
       },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "",
+        "failed": true
+      },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 65\r\nAuthorization: Bearer sk-fake-acme\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
       "error": {
         "status": 429,
         "message": "{}",
-        "retry_after_ms": 0
+        "retry_after_ms": 0,
+        "credential_scoped": false
       }
     },
     {
@@ -539,11 +1032,36 @@
         ],
         "body": "{}"
       },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "",
+        "failed": true
+      },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 65\r\nAuthorization: Bearer sk-fake-acme\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
       "error": {
         "status": 429,
         "message": "{}",
-        "retry_after_ms": 0
+        "retry_after_ms": 0,
+        "credential_scoped": false
       }
     },
     {
@@ -566,11 +1084,36 @@
         ],
         "body": "{\"error\":{\"code\":\"TPMRateLimitExceeded\",\"message\":\"x\"}}"
       },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "",
+        "failed": true
+      },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 65\r\nAuthorization: Bearer sk-fake-acme\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
       "error": {
         "status": 429,
         "message": "{\"error\":{\"code\":\"TPMRateLimitExceeded\",\"message\":\"x\"}}",
-        "retry_after_ms": 60000
+        "retry_after_ms": 60000,
+        "credential_scoped": false
       }
     },
     {
@@ -587,11 +1130,36 @@
         "status": 429,
         "body": "{\"error\":{\"message\":\"Rate limit: Tokens per minute LIMIT was exceeded\"}}"
       },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "",
+        "failed": true
+      },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 65\r\nAuthorization: Bearer sk-fake-acme\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
       "error": {
         "status": 429,
         "message": "{\"error\":{\"message\":\"Rate limit: Tokens per minute LIMIT was exceeded\"}}",
-        "retry_after_ms": 60000
+        "retry_after_ms": 60000,
+        "credential_scoped": false
       }
     },
     {
@@ -608,11 +1176,36 @@
         "status": 429,
         "body": "slow down"
       },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "",
+        "failed": true
+      },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 65\r\nAuthorization: Bearer sk-fake-acme\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
       "error": {
         "status": 429,
         "message": "slow down",
-        "retry_after_ms": -1
+        "retry_after_ms": -1,
+        "credential_scoped": false
       }
     },
     {
@@ -635,11 +1228,36 @@
         ],
         "body": "busy"
       },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "",
+        "failed": true
+      },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 65\r\nAuthorization: Bearer sk-fake-acme\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
       "error": {
         "status": 503,
         "message": "busy",
-        "retry_after_ms": -1
+        "retry_after_ms": -1,
+        "credential_scoped": false
       }
     },
     {
@@ -656,11 +1274,36 @@
         "status": 500,
         "body": ""
       },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "",
+        "failed": true
+      },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 65\r\nAuthorization: Bearer sk-fake-acme\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
       "error": {
         "status": 500,
         "message": "status 500",
-        "retry_after_ms": -1
+        "retry_after_ms": -1,
+        "credential_scoped": false
       }
     },
     {
@@ -674,10 +1317,21 @@
       "payload": "{\"model\":\"chat\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
       "source": "openai",
       "op": "execute",
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "",
+        "failed": true
+      },
       "error": {
         "status": 401,
         "message": "missing provider baseURL",
-        "retry_after_ms": -1
+        "retry_after_ms": -1,
+        "credential_scoped": false
       }
     },
     {
@@ -707,6 +1361,16 @@
         ],
         "body": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
       },
+      "usage": {
+        "input": 3,
+        "output": 1,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 4,
+        "effort": "",
+        "response_model": "acme-chat",
+        "failed": false
+      },
       "request": "POST /base/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: custom-agent\r\nContent-Length: 60\r\nContent-Type: application/vnd.test+json\r\nX-A: 1\r\nX-B: 2\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"solo\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
       "output": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
     },
@@ -730,6 +1394,30 @@
           ]
         ],
         "body": "data: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"he\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"llo\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":2,\"total_tokens\":5}}\n\ndata: [DONE]\n\n"
+      },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 3,
+        "output": 2,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 5,
+        "effort": "",
+        "response_model": "acme-chat",
+        "failed": false
       },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 105\r\nAccept: text/event-stream\r\nAuthorization: Bearer sk-fake-acme\r\nCache-Control: no-cache\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream_options\":{\"include_usage\":true}}",
       "chunks": [
@@ -758,6 +1446,30 @@
         ],
         "body": "data: [DONE]\n\n"
       },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "",
+        "failed": false
+      },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 104\r\nAccept: text/event-stream\r\nAuthorization: Bearer sk-fake-acme\r\nCache-Control: no-cache\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"stream\":true,\"stream_options\":{\"include_usage\":true},\"messages\":[],\"max_tokens\":5}"
     },
     {
@@ -780,6 +1492,30 @@
           ]
         ],
         "body": ": keep-alive\r\n\r\nid: 7\r\nretry: 10\r\ndata:{\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"he\"},\"finish_reason\":null}]}\r\n\r\n   \ndata:   {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"llo\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":2,\"total_tokens\":5}}  \n\ndata: [DONE]\n\n"
+      },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 3,
+        "output": 2,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 5,
+        "effort": "",
+        "response_model": "acme-chat",
+        "failed": false
       },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 105\r\nAccept: text/event-stream\r\nAuthorization: Bearer sk-fake-acme\r\nCache-Control: no-cache\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream_options\":{\"include_usage\":true}}",
       "chunks": [
@@ -808,6 +1544,30 @@
         ],
         "body": "data: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"he\"},\"finish_reason\":null}]}\n\ndata: [DONE]\n\ndata: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"llo\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":2,\"total_tokens\":5}}\n\n"
       },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "acme-chat",
+        "failed": false
+      },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 105\r\nAccept: text/event-stream\r\nAuthorization: Bearer sk-fake-acme\r\nCache-Control: no-cache\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream_options\":{\"include_usage\":true}}",
       "chunks": [
         "{\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"he\"},\"finish_reason\":null}]}"
@@ -833,6 +1593,30 @@
           ]
         ],
         "body": "data: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"he\"},\"finish_reason\":null}]}\n\n"
+      },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "acme-chat",
+        "failed": false
       },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 105\r\nAccept: text/event-stream\r\nAuthorization: Bearer sk-fake-acme\r\nCache-Control: no-cache\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream_options\":{\"include_usage\":true}}",
       "chunks": [
@@ -860,6 +1644,30 @@
         ],
         "body": "data: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"he\"},\"finish_reason\":null}]}"
       },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "acme-chat",
+        "failed": false
+      },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 105\r\nAccept: text/event-stream\r\nAuthorization: Bearer sk-fake-acme\r\nCache-Control: no-cache\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream_options\":{\"include_usage\":true}}",
       "chunks": [
         "{\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"he\"},\"finish_reason\":null}]}"
@@ -886,6 +1694,30 @@
         ],
         "body": "data: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"he\"},\"finish_reason\":null}]}\n\ndata: {\"id\":"
       },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "acme-chat",
+        "failed": true
+      },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 105\r\nAccept: text/event-stream\r\nAuthorization: Bearer sk-fake-acme\r\nCache-Control: no-cache\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream_options\":{\"include_usage\":true}}",
       "chunks": [
         "{\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"he\"},\"finish_reason\":null}]}"
@@ -893,7 +1725,8 @@
       "error": {
         "status": 502,
         "message": "upstream stream ended with incomplete SSE data frame",
-        "retry_after_ms": -1
+        "retry_after_ms": -1,
+        "credential_scoped": false
       }
     },
     {
@@ -916,6 +1749,30 @@
           ]
         ],
         "body": "data: {\"id\":\"m\",\ndata: \"choices\":[]}\n\ndata: [DONE]\n\n"
+      },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "",
+        "failed": false
       },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 105\r\nAccept: text/event-stream\r\nAuthorization: Bearer sk-fake-acme\r\nCache-Control: no-cache\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream_options\":{\"include_usage\":true}}",
       "chunks": [
@@ -943,11 +1800,36 @@
         ],
         "body": "data: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"he\"},\"finish_reason\":null}]}\ndata: [DONE]\n\n"
       },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "acme-chat",
+        "failed": true
+      },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 105\r\nAccept: text/event-stream\r\nAuthorization: Bearer sk-fake-acme\r\nCache-Control: no-cache\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream_options\":{\"include_usage\":true}}",
       "error": {
         "status": 502,
         "message": "upstream stream ended with incomplete data before [DONE]",
-        "retry_after_ms": -1
+        "retry_after_ms": -1,
+        "credential_scoped": false
       }
     },
     {
@@ -971,6 +1853,30 @@
         ],
         "body": "data: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"he\"},\"finish_reason\":null}]}\n\nevent: error\ndata: {\"message\":\"boom\"}\n\n"
       },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "acme-chat",
+        "failed": true
+      },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 105\r\nAccept: text/event-stream\r\nAuthorization: Bearer sk-fake-acme\r\nCache-Control: no-cache\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream_options\":{\"include_usage\":true}}",
       "chunks": [
         "{\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"he\"},\"finish_reason\":null}]}"
@@ -978,7 +1884,8 @@
       "error": {
         "status": 502,
         "message": "{\"message\":\"boom\"}",
-        "retry_after_ms": -1
+        "retry_after_ms": -1,
+        "credential_scoped": false
       }
     },
     {
@@ -1002,11 +1909,36 @@
         ],
         "body": "event: response.failed\n\n"
       },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "",
+        "failed": true
+      },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 105\r\nAccept: text/event-stream\r\nAuthorization: Bearer sk-fake-acme\r\nCache-Control: no-cache\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream_options\":{\"include_usage\":true}}",
       "error": {
         "status": 502,
         "message": "upstream error event ended without data",
-        "retry_after_ms": -1
+        "retry_after_ms": -1,
+        "credential_scoped": false
       }
     },
     {
@@ -1030,11 +1962,36 @@
         ],
         "body": "event: error\ndata: [DONE]\n\n"
       },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "",
+        "failed": true
+      },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 105\r\nAccept: text/event-stream\r\nAuthorization: Bearer sk-fake-acme\r\nCache-Control: no-cache\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream_options\":{\"include_usage\":true}}",
       "error": {
         "status": 502,
         "message": "upstream error event ended before [DONE]",
-        "retry_after_ms": -1
+        "retry_after_ms": -1,
+        "credential_scoped": false
       }
     },
     {
@@ -1058,11 +2015,36 @@
         ],
         "body": "data: {\"error\":{\"message\":\"rate\",\"status\":429}}\n\n"
       },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "",
+        "failed": true
+      },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 105\r\nAccept: text/event-stream\r\nAuthorization: Bearer sk-fake-acme\r\nCache-Control: no-cache\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream_options\":{\"include_usage\":true}}",
       "error": {
         "status": 429,
         "message": "{\"error\":{\"message\":\"rate\",\"status\":429}}",
-        "retry_after_ms": -1
+        "retry_after_ms": -1,
+        "credential_scoped": false
       }
     },
     {
@@ -1085,6 +2067,30 @@
           ]
         ],
         "body": "data: {\"error\":null,\"id\":\"n\",\"choices\":[]}\n\ndata: [DONE]\n\n"
+      },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "",
+        "failed": false
       },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 105\r\nAccept: text/event-stream\r\nAuthorization: Bearer sk-fake-acme\r\nCache-Control: no-cache\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream_options\":{\"include_usage\":true}}",
       "chunks": [
@@ -1112,11 +2118,36 @@
         ],
         "body": "data: {\"type\":\"response.failed\",\"response\":{\"error\":{\"status_code\":503}}}\n\n"
       },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "",
+        "failed": true
+      },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 105\r\nAccept: text/event-stream\r\nAuthorization: Bearer sk-fake-acme\r\nCache-Control: no-cache\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream_options\":{\"include_usage\":true}}",
       "error": {
         "status": 503,
         "message": "{\"type\":\"response.failed\",\"response\":{\"error\":{\"status_code\":503}}}",
-        "retry_after_ms": -1
+        "retry_after_ms": -1,
+        "credential_scoped": false
       }
     },
     {
@@ -1140,11 +2171,36 @@
         ],
         "body": "data: {\"code\":\"x\",\"message\":\"y\",\"status\":700}\n\n"
       },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "",
+        "failed": true
+      },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 105\r\nAccept: text/event-stream\r\nAuthorization: Bearer sk-fake-acme\r\nCache-Control: no-cache\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream_options\":{\"include_usage\":true}}",
       "error": {
         "status": 502,
         "message": "{\"code\":\"x\",\"message\":\"y\",\"status\":700}",
-        "retry_after_ms": -1
+        "retry_after_ms": -1,
+        "credential_scoped": false
       }
     },
     {
@@ -1168,11 +2224,36 @@
         ],
         "body": "\n\n{\"error\":\"bad\"}\n"
       },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "",
+        "failed": true
+      },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 105\r\nAccept: text/event-stream\r\nAuthorization: Bearer sk-fake-acme\r\nCache-Control: no-cache\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream_options\":{\"include_usage\":true}}",
       "error": {
         "status": 502,
         "message": "{\"error\":\"bad\"}",
-        "retry_after_ms": -1
+        "retry_after_ms": -1,
+        "credential_scoped": false
       }
     },
     {
@@ -1196,11 +2277,36 @@
         ],
         "body": "data: not-json\n\n"
       },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "",
+        "failed": true
+      },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 105\r\nAccept: text/event-stream\r\nAuthorization: Bearer sk-fake-acme\r\nCache-Control: no-cache\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream_options\":{\"include_usage\":true}}",
       "error": {
         "status": 502,
         "message": "upstream stream ended with incomplete SSE data frame",
-        "retry_after_ms": -1
+        "retry_after_ms": -1,
+        "credential_scoped": false
       }
     },
     {
@@ -1224,11 +2330,36 @@
         ],
         "body": "{\"error\":{\"message\":\"later\"}}"
       },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "",
+        "failed": true
+      },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 105\r\nAccept: text/event-stream\r\nAuthorization: Bearer sk-fake-acme\r\nCache-Control: no-cache\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream_options\":{\"include_usage\":true}}",
       "error": {
         "status": 429,
         "message": "{\"error\":{\"message\":\"later\"}}",
-        "retry_after_ms": 3000
+        "retry_after_ms": 3000,
+        "credential_scoped": false
       }
     },
     {
@@ -1251,6 +2382,30 @@
           ]
         ],
         "body": "data: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"he\"},\"finish_reason\":null}]}\n\ndata: [DONE]\n\n"
+      },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "acme-chat",
+        "failed": false
       },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 105\r\nAccept: text/event-stream\r\nAuthorization: Bearer sk-fake-acme\r\nCache-Control: no-cache\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream_options\":{\"include_usage\":true}}",
       "chunks": [
@@ -1278,6 +2433,30 @@
         ],
         "body": "{\"id\":\"resp_1\",\"object\":\"response.compaction\",\"usage\":{\"input_tokens\":1,\"output_tokens\":2,\"total_tokens\":3}}"
       },
+      "resolved_model": {
+        "created": 0,
+        "id": "cache-model",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 1,
+        "output": 2,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 3,
+        "effort": "",
+        "response_model": "",
+        "failed": false
+      },
       "request": "POST /v2/responses/compact HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 312\r\nAuthorization: Bearer sk-fake-cache\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"cache-model\",\"input\":[{\"role\":\"user\",\"content\":\"hi\"},{\"type\":\"reasoning\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"step one\"}],\"content\":[]},{\"type\":\"reasoning\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"kept\"}]},{\"type\":\"message\",\"role\":\"assistant\",\"content\":[]}],\"max_tokens\":5,\"prompt_cache_key\":\"x\"}",
       "output": "{\"id\":\"resp_1\",\"object\":\"response.compaction\",\"usage\":{\"input_tokens\":1,\"output_tokens\":2,\"total_tokens\":3}}"
     },
@@ -1300,6 +2479,30 @@
           ]
         ],
         "body": "{\"id\":\"resp_2\",\"object\":\"response\",\"usage\":{\"input_tokens\":1,\"output_tokens\":2,\"output_tokens_details\":null,\"input_tokens_details\":{\"other\":1}}}"
+      },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 1,
+        "output": 2,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 3,
+        "effort": "",
+        "response_model": "",
+        "failed": false
       },
       "request": "POST /v1/responses/compact HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 124\r\nAuthorization: Bearer sk-fake-acme\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"store\":true,\"input\":[{\"type\":\"reasoning\",\"id\":\"rs_1\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"s\"}]}]}",
       "output": "{\"id\":\"resp_2\",\"object\":\"response\",\"usage\":{\"input_tokens\":1,\"output_tokens\":2,\"output_tokens_details\":{\"reasoning_tokens\":0},\"input_tokens_details\":{\"other\":1,\"cached_tokens\":0}}}"
@@ -1327,6 +2530,30 @@
         ],
         "body": "{\"object\":\"response.compaction\"}"
       },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "",
+        "failed": false
+      },
       "request": "POST /v1/responses/compact HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 167\r\nAuthorization: Bearer sk-fake-acme\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"input\":[{\"type\":\"reasoning\",\"summary\":[]},{\"type\":\"reasoning\",\"summary\":[]},{\"type\":\"reasoning\",\"summary\":[]},{\"type\":\"reasoning\",\"summary\":[]}]}",
       "output": "{\"object\":\"response.compaction\"}"
     },
@@ -1352,6 +2579,30 @@
         ],
         "body": "data: [DONE]\n\n"
       },
+      "resolved_model": {
+        "created": 0,
+        "id": "cache-model",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "",
+        "failed": false
+      },
       "request": "POST /v2/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 122\r\nAccept: text/event-stream\r\nAuthorization: Bearer sk-fake-cache\r\nCache-Control: no-cache\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"cache-model\",\"prompt_cache_key\":\" spaced \",\"max_tokens\":4,\"messages\":[],\"stream_options\":{\"include_usage\":true}}"
     },
     {
@@ -1363,6 +2614,20 @@
       "payload": "{\"model\":\"chat\",\"messages\":[{\"role\":\"system\",\"content\":\"You are terse.\"},{\"role\":\"user\",\"name\":\"bob\",\"content\":[{\"type\":\"text\",\"text\":\"Count these tokens, please.\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"https://example.com/a.png\"}}]},{\"role\":\"assistant\",\"tool_calls\":[{\"id\":\"c\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{\\\"q\\\":\\\"x\\\"}\"}}]}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"description\":\"Find things\",\"parameters\":{\"type\":\"object\",\"properties\":{\"q\":{\"type\":\"string\"}}}}}],\"tool_choice\":\"auto\",\"response_format\":{\"type\":\"json_object\"}}",
       "source": "openai",
       "op": "count",
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
       "output": "{\"usage\":{\"prompt_tokens\":61,\"completion_tokens\":0,\"total_tokens\":61}}"
     },
     {
@@ -1374,6 +2639,20 @@
       "payload": "{\"model\":\"four\",\"messages\":[{\"role\":\"user\",\"content\":\"tokenize ünïcödé text\"}]}",
       "source": "openai",
       "op": "count",
+      "resolved_model": {
+        "created": 0,
+        "id": "gpt-4o",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
       "output": "{\"usage\":{\"prompt_tokens\":9,\"completion_tokens\":0,\"total_tokens\":9}}"
     },
     {
@@ -1385,6 +2664,20 @@
       "payload": "{\"model\":\"chat\",\"messages\":[]}",
       "source": "openai",
       "op": "count",
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
       "output": "{\"usage\":{\"prompt_tokens\":0,\"completion_tokens\":0,\"total_tokens\":0}}"
     },
     {
@@ -1406,6 +2699,23 @@
           ]
         ],
         "body": "{\"created\":1,\"data\":[{\"b64_json\":\"AAAA\"}],\"usage\":{\"total_tokens\":3}}"
+      },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-image",
+        "object": "",
+        "owned_by": "",
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 3,
+        "effort": "",
+        "response_model": "",
+        "failed": false
       },
       "request": "POST /v1/images/generations HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 45\r\nAuthorization: Bearer sk-fake-acme\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-image\",\"prompt\":\"a cat\",\"n\":1}",
       "output": "{\"created\":1,\"data\":[{\"b64_json\":\"AAAA\"}],\"usage\":{\"total_tokens\":3}}"
@@ -1431,6 +2741,23 @@
         ],
         "body": "{\"data\":[]}"
       },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-image",
+        "object": "",
+        "owned_by": "",
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "",
+        "failed": false
+      },
       "request": "POST /v1/images/edits HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 90\r\nAuthorization: Bearer sk-fake-acme\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-image\",\"prompt\":\"edit\",\"images\":[{\"image_url\":\"data:image/png;base64,AA\"}]}",
       "output": "{\"data\":[]}"
     },
@@ -1453,6 +2780,23 @@
           ]
         ],
         "body": "{\"data\":[]}"
+      },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-image",
+        "object": "",
+        "owned_by": "",
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "",
+        "failed": false
       },
       "request": "POST /v1/images/generations HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 35\r\nAuthorization: Bearer sk-fake-acme\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"prompt\":\"p\",\"model\":\"acme-image\"}",
       "output": "{\"data\":[]}"
@@ -1477,6 +2821,23 @@
         ],
         "body": "event: image_generation.partial_image\ndata: {\"b64_json\":\"AA\",\"partial_image_index\":0}\n\nevent: image_generation.completed\ndata: {\"b64_json\":\"BB\"}\n\n"
       },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-image",
+        "object": "",
+        "owned_by": "",
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "",
+        "failed": false
+      },
       "request": "POST /v1/images/generations HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 53\r\nAccept: text/event-stream\r\nAuthorization: Bearer sk-fake-acme\r\nCache-Control: no-cache\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-image\",\"prompt\":\"a cat\",\"stream\":true}",
       "output": "event: image_generation.partial_image\ndata: {\"b64_json\":\"AA\",\"partial_image_index\":0}\n\nevent: image_generation.completed\ndata: {\"b64_json\":\"BB\"}\n\n"
     },
@@ -1500,11 +2861,29 @@
         ],
         "body": "{\"error\":{\"message\":\"busy\"}}"
       },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-image",
+        "object": "",
+        "owned_by": "",
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "",
+        "failed": true
+      },
       "request": "POST /v1/images/generations HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 49\r\nAccept: text/event-stream\r\nAuthorization: Bearer sk-fake-acme\r\nCache-Control: no-cache\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"prompt\":\"x\",\"model\":\"acme-image\",\"stream\":true}",
       "error": {
         "status": 429,
         "message": "{\"error\":{\"message\":\"busy\"}}",
-        "retry_after_ms": -1
+        "retry_after_ms": -1,
+        "credential_scoped": false
       }
     },
     {
@@ -1527,11 +2906,29 @@
         ],
         "body": "{\"error\":{\"message\":\"busy\"}}"
       },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-image",
+        "object": "",
+        "owned_by": "",
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "",
+        "failed": true
+      },
       "request": "POST /v1/images/generations HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 35\r\nAuthorization: Bearer sk-fake-acme\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"prompt\":\"x\",\"model\":\"acme-image\"}",
       "error": {
         "status": 429,
         "message": "{\"error\":{\"message\":\"busy\"}}",
-        "retry_after_ms": 5000
+        "retry_after_ms": 5000,
+        "credential_scoped": false
       }
     },
     {
@@ -1554,6 +2951,23 @@
           ]
         ],
         "body": "{\"data\":[]}"
+      },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-image",
+        "object": "",
+        "owned_by": "",
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "",
+        "failed": false
       },
       "request": "POST /v1/images/edits HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 365\r\nAuthorization: Bearer sk-fake-acme\r\nContent-Type: multipart/form-data; boundary=BOUNDARY\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nacme-image\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"image\"; filename=\"in put.png\"\r\nContent-Type: image/png\r\n\r\nPNG-bytes\r\n\u0000\u0001\r\n--BOUNDARY--\r\n",
       "output": "{\"data\":[]}"
@@ -1579,6 +2993,23 @@
         ],
         "body": "data: {}\n\n"
       },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-image",
+        "object": "",
+        "owned_by": "",
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "",
+        "failed": false
+      },
       "request": "POST /v1/images/edits HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 480\r\nAccept: text/event-stream\r\nAuthorization: Bearer sk-fake-acme\r\nCache-Control: no-cache\r\nContent-Type: multipart/form-data; boundary=BOUNDARY\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nacme-image\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"stream\"\r\n\r\ntrue\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"image\"; filename=\"x\"\r\nContent-Type: application/octet-stream\r\n\r\nraw\r\n--BOUNDARY--\r\n",
       "output": "data: {}\n\n"
     },
@@ -1593,10 +3024,28 @@
       "op": "images",
       "request_path": "/v1/images/edits",
       "content_type": "multipart/form-data",
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-image",
+        "object": "",
+        "owned_by": "",
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "",
+        "failed": true
+      },
       "error": {
         "status": 0,
         "message": "multipart boundary is missing",
-        "retry_after_ms": -1
+        "retry_after_ms": -1,
+        "credential_scoped": false
       }
     },
     {
@@ -1619,6 +3068,23 @@
           ]
         ],
         "body": "{\"data\":[]}"
+      },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-image",
+        "object": "",
+        "owned_by": "",
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "",
+        "failed": false
       },
       "request": "POST /v1/images/edits HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 8\r\nAuthorization: Bearer sk-fake-acme\r\nContent-Type: text/plain\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\nraw body",
       "output": "{\"data\":[]}"
@@ -1643,6 +3109,30 @@
           ]
         ],
         "body": "data: [[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[0]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]\n\ndata: [DONE]\n\n"
+      },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "",
+        "failed": false
       },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 105\r\nAccept: text/event-stream\r\nAuthorization: Bearer sk-fake-acme\r\nCache-Control: no-cache\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream_options\":{\"include_usage\":true}}",
       "chunks": [
@@ -1670,11 +3160,36 @@
         ],
         "body": "data: [[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[0]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]\n\n"
       },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "",
+        "failed": true
+      },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 105\r\nAccept: text/event-stream\r\nAuthorization: Bearer sk-fake-acme\r\nCache-Control: no-cache\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream_options\":{\"include_usage\":true}}",
       "error": {
         "status": 502,
         "message": "upstream stream ended with incomplete SSE data frame",
-        "retry_after_ms": -1
+        "retry_after_ms": -1,
+        "credential_scoped": false
       }
     },
     {
@@ -1697,6 +3212,30 @@
           ]
         ],
         "body": "data: {}\n \ndata: [DONE]\n\n"
+      },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "",
+        "failed": false
       },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 105\r\nAccept: text/event-stream\r\nAuthorization: Bearer sk-fake-acme\r\nCache-Control: no-cache\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream_options\":{\"include_usage\":true}}",
       "chunks": [
@@ -1724,11 +3263,36 @@
         ],
         "body": "data: {\"status\":\"429.5\",\"error\":{\"status\":503}}\n\n"
       },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "",
+        "failed": true
+      },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 105\r\nAccept: text/event-stream\r\nAuthorization: Bearer sk-fake-acme\r\nCache-Control: no-cache\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream_options\":{\"include_usage\":true}}",
       "error": {
         "status": 503,
         "message": "{\"status\":\"429.5\",\"error\":{\"status\":503}}",
-        "retry_after_ms": -1
+        "retry_after_ms": -1,
+        "credential_scoped": false
       }
     },
     {
@@ -1751,6 +3315,30 @@
           ]
         ],
         "body": "data: {\"status\":429.9}\n\n"
+      },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "",
+        "failed": false
       },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 105\r\nAccept: text/event-stream\r\nAuthorization: Bearer sk-fake-acme\r\nCache-Control: no-cache\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream_options\":{\"include_usage\":true}}",
       "chunks": [
@@ -1777,11 +3365,36 @@
         ],
         "body": "{\"error\":{\"code\":\"TPMRateLimitExceeded\"}}"
       },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "",
+        "failed": true
+      },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 65\r\nAuthorization: Bearer sk-fake-acme\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
       "error": {
         "status": 429,
         "message": "{\"error\":{\"code\":\"TPMRateLimitExceeded\"}}",
-        "retry_after_ms": 0
+        "retry_after_ms": 0,
+        "credential_scoped": false
       }
     },
     {
@@ -1804,11 +3417,36 @@
         ],
         "body": "{}"
       },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "",
+        "failed": true
+      },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 65\r\nAuthorization: Bearer sk-fake-acme\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
       "error": {
         "status": 429,
         "message": "{}",
-        "retry_after_ms": 0
+        "retry_after_ms": 0,
+        "credential_scoped": false
       }
     },
     {
@@ -1831,11 +3469,36 @@
         ],
         "body": "{}"
       },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "",
+        "failed": true
+      },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 65\r\nAuthorization: Bearer sk-fake-acme\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
       "error": {
         "status": 429,
         "message": "{}",
-        "retry_after_ms": 0
+        "retry_after_ms": 0,
+        "credential_scoped": false
       }
     },
     {
@@ -1858,11 +3521,36 @@
         ],
         "body": "{}"
       },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "",
+        "failed": true
+      },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 65\r\nAuthorization: Bearer sk-fake-acme\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
       "error": {
         "status": 429,
         "message": "{}",
-        "retry_after_ms": 4000
+        "retry_after_ms": 4000,
+        "credential_scoped": false
       }
     },
     {
@@ -1885,6 +3573,30 @@
         ],
         "body": "{\"object\":\"response.compaction\"}"
       },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "",
+        "failed": false
+      },
       "request": "POST /v1/responses/compact HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 153\r\nAuthorization: Bearer sk-fake-acme\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"input\":[{\"type\":\"reasoning\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"1000\"},{\"type\":\"summary_text\",\"text\":\"true\"}],\"content\":[]}]}",
       "output": "{\"object\":\"response.compaction\"}"
     },
@@ -1897,6 +3609,20 @@
       "payload": "{\"model\":\"chat\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":1e3},12.50,\"plain\",[{\"type\":\"text\",\"text\":\"nested\"}]]}],\"input\":{\"a\":1},\"prompt\":2.5e-3}",
       "source": "openai",
       "op": "count",
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
       "output": "{\"usage\":{\"prompt_tokens\":22,\"completion_tokens\":0,\"total_tokens\":22}}"
     },
     {
@@ -1919,6 +3645,23 @@
           ]
         ],
         "body": "{\"data\":[]}"
+      },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-image",
+        "object": "",
+        "owned_by": "",
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "",
+        "failed": false
       },
       "request": "POST /v1/images/edits HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 374\r\nAuthorization: Bearer sk-fake-acme\r\nContent-Type: multipart/form-data; boundary=BOUNDARY\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nacme-image\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"image\"; filename=\"x.png\"\r\nContent-Type: application/octet-stream\r\n\r\nA\r\n--bXYZ\r\nB\r\n--BOUNDARY--\r\n",
       "output": "{\"data\":[]}"
@@ -1944,6 +3687,23 @@
         ],
         "body": "{\"data\":[]}"
       },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-image",
+        "object": "",
+        "owned_by": "",
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "",
+        "failed": false
+      },
       "request": "POST /v1/images/edits HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 381\r\nAuthorization: Bearer sk-fake-acme\r\nContent-Type: multipart/form-data; boundary=BOUNDARY\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nacme-image\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"image\"; filename=\"é.png\"\r\nContent-Type: application/octet-stream\r\nX-Extra: kept\r\n\r\nraw\r\n--BOUNDARY--\r\n",
       "output": "{\"data\":[]}"
     },
@@ -1958,10 +3718,28 @@
       "op": "images",
       "request_path": "/v1/images/edits",
       "content_type": "multipart/form-data; boundary=b",
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-image",
+        "object": "",
+        "owned_by": "",
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "",
+        "failed": true
+      },
       "error": {
         "status": 0,
         "message": "read multipart form failed: multipart: expecting a new Part; got line \"--b--garbage\\r\\n\"",
-        "retry_after_ms": -1
+        "retry_after_ms": -1,
+        "credential_scoped": false
       }
     },
     {
@@ -1985,6 +3763,23 @@
           ]
         ],
         "body": "{\"data\":[]}"
+      },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-image",
+        "object": "",
+        "owned_by": "",
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "",
+        "failed": false
       },
       "request_b64": "UE9TVCAvdjEvaW1hZ2VzL2dlbmVyYXRpb25zIEhUVFAvMS4xDQpIb3N0OiBVUFNUUkVBTQ0KVXNlci1BZ2VudDogY2xpLXByb3h5LW9wZW5haS1jb21wYXQNCkNvbnRlbnQtTGVuZ3RoOiAzNQ0KQXV0aG9yaXphdGlvbjogQmVhcmVyIHNrLWZha2UtYWNtZQ0KQ29udGVudC1UeXBlOiBhcHBsaWNhdGlvbi9qc29uDQpYLVN0YXRpYzogc3RhdGljLXZhbHVlDQpBY2NlcHQtRW5jb2Rpbmc6IGd6aXANCg0KeyJtb2RlbCI6ImFjbWUtaW1hZ2UiLCJwcm9tcHQiOiL/In0=",
       "output": "{\"data\":[]}"
@@ -2010,6 +3805,23 @@
         ],
         "body": "{\"data\":[]}"
       },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-image",
+        "object": "",
+        "owned_by": "",
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "",
+        "failed": false
+      },
       "request": "POST /v1/images/generations HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 38\r\nAuthorization: Bearer sk-fake-acme\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-image\",\"prompt\":\"􏼢\"}",
       "output": "{\"data\":[]}"
     },
@@ -2033,6 +3845,23 @@
           ]
         ],
         "body": "{\"data\":[]}"
+      },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-image",
+        "object": "",
+        "owned_by": "",
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "",
+        "failed": false
       },
       "request": "POST /v1/images/edits HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 364\r\nAuthorization: Bearer sk-fake-acme\r\nContent-Type: multipart/form-data; boundary=BOUNDARY\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nacme-image\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"image\"; filename=\"é.png\"\r\nContent-Type: application/octet-stream\r\n\r\nx\r\n--BOUNDARY--\r\n",
       "output": "{\"data\":[]}"
@@ -2058,6 +3887,23 @@
         ],
         "body": "{\"data\":[]}"
       },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-image",
+        "object": "",
+        "owned_by": "",
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "",
+        "failed": false
+      },
       "request": "POST /v1/images/edits HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 371\r\nAuthorization: Bearer sk-fake-acme\r\nContent-Type: multipart/form-data; boundary=BOUNDARY\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nacme-image\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"image\"; filename=\"x\"\r\nContent-Type: application/octet-stream\r\nX Note: ok\r\n\r\nx\r\n--BOUNDARY--\r\n",
       "output": "{\"data\":[]}"
     },
@@ -2082,11 +3928,36 @@
         ],
         "body": "data: {\"error\":{},\"status\":\"18446744073709552045\"}\n\n"
       },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "",
+        "failed": true
+      },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 105\r\nAccept: text/event-stream\r\nAuthorization: Bearer sk-fake-acme\r\nCache-Control: no-cache\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream_options\":{\"include_usage\":true}}",
       "error": {
         "status": 429,
         "message": "{\"error\":{},\"status\":\"18446744073709552045\"}",
-        "retry_after_ms": -1
+        "retry_after_ms": -1,
+        "credential_scoped": false
       }
     },
     {
@@ -2109,11 +3980,36 @@
         ],
         "body": "{\"error\":{\"code\":\"TPMRateLimitExceeded\"}}"
       },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "",
+        "failed": true
+      },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 65\r\nAuthorization: Bearer sk-fake-acme\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
       "error": {
         "status": 429,
         "message": "{\"error\":{\"code\":\"TPMRateLimitExceeded\"}}",
-        "retry_after_ms": 0
+        "retry_after_ms": 0,
+        "credential_scoped": false
       }
     },
     {
@@ -2136,11 +4032,36 @@
         ],
         "body": "{\"error\":{\"code\":\"TPMRateLimitExceeded\"}}"
       },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "",
+        "failed": true
+      },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 65\r\nAuthorization: Bearer sk-fake-acme\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
       "error": {
         "status": 429,
         "message": "{\"error\":{\"code\":\"TPMRateLimitExceeded\"}}",
-        "retry_after_ms": 60000
+        "retry_after_ms": 60000,
+        "credential_scoped": false
       }
     },
     {
@@ -2165,6 +4086,30 @@
           ]
         ],
         "body": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
+      },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 3,
+        "output": 1,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 4,
+        "effort": "high",
+        "response_model": "acme-chat",
+        "failed": false
       },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 91\r\nAuthorization: Bearer sk-fake-acme\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"reasoning_effort\":\"high\"}",
       "output": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
@@ -2191,6 +4136,30 @@
           ]
         ],
         "body": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
+      },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 3,
+        "output": 1,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 4,
+        "effort": "high",
+        "response_model": "acme-chat",
+        "failed": false
       },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 61\r\nAuthorization: Bearer sk-fake-acme\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"reasoning_effort\":\"high\",\"messages\":[]}",
       "output": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
@@ -2221,6 +4190,16 @@
         ],
         "body": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
       },
+      "usage": {
+        "input": 3,
+        "output": 1,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 4,
+        "effort": "xhigh",
+        "response_model": "acme-chat",
+        "failed": false
+      },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 62\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"reasoning_effort\":\"xhigh\",\"messages\":[]}",
       "output": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
     },
@@ -2247,6 +4226,30 @@
         ],
         "body": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
       },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 3,
+        "output": 1,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 4,
+        "effort": "",
+        "response_model": "acme-chat",
+        "failed": false
+      },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 155\r\nAuthorization: Bearer sk-fake-acme\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[],\"max_tokens\":7,\"metadata\":{\"a\":1,\"tier\":\"gold\"},\"temperature\":0.25,\"response_format\":{\"type\":\"json_object\"},\"top_p\":0.5}",
       "output": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
     },
@@ -2272,6 +4275,30 @@
           ]
         ],
         "body": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
+      },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 3,
+        "output": 1,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 4,
+        "effort": "",
+        "response_model": "acme-chat",
+        "failed": false
       },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 108\r\nAuthorization: Bearer sk-fake-acme\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[],\"temperature\":0.25,\"metadata\":{\"tier\":\"gold\"},\"max_tokens\":1,\"top_p\":0.5}",
       "output": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
@@ -2304,6 +4331,16 @@
         ],
         "body": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
       },
+      "usage": {
+        "input": 3,
+        "output": 1,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 4,
+        "effort": "",
+        "response_model": "acme-chat",
+        "failed": false
+      },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 60\r\nAuthorization: Bearer sk-fake-solo\r\nContent-Type: application/json\r\nX-Echo: sess-hdr-1\r\nX-Mix: pre-claude:sess-hdr-1-post\r\nX-Sess: claude:sess-hdr-1\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"solo\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
       "output": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
     },
@@ -2329,6 +4366,16 @@
           ]
         ],
         "body": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
+      },
+      "usage": {
+        "input": 3,
+        "output": 1,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 4,
+        "effort": "",
+        "response_model": "acme-chat",
+        "failed": false
       },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 86\r\nAuthorization: Bearer sk-fake-solo\r\nContent-Type: application/json\r\nX-Sess: pck:pc-1\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"solo\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"prompt_cache_key\":\"pc-1\"}",
       "output": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
@@ -2360,6 +4407,16 @@
         ],
         "body": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
       },
+      "usage": {
+        "input": 3,
+        "output": 1,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 4,
+        "effort": "",
+        "response_model": "acme-chat",
+        "failed": false
+      },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 60\r\nAuthorization: Bearer sk-fake-solo\r\nContent-Type: application/json\r\nX-Mix: pre-msg:2f68951593d97234-post\r\nX-Sess: msg:2f68951593d97234\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"solo\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
       "output": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
     },
@@ -2383,6 +4440,31 @@
         ],
         "body": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
       },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-compat",
+        "is_compat": true,
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 3,
+        "output": 1,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 4,
+        "effort": "",
+        "response_model": "acme-chat",
+        "failed": false
+      },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 220\r\nAuthorization: Bearer sk-fake-acme\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-compat\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"reasoning_content\":\"plan it\"},{\"role\":\"user\",\"content\":\"go\"}],\"max_tokens\":10,\"stream\":false}",
       "output": "{\"id\":\"chatcmpl_1\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"acme-chat\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"usage\":{\"input_tokens\":3,\"output_tokens\":1}}"
     },
@@ -2405,6 +4487,30 @@
           ]
         ],
         "body": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
+      },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 3,
+        "output": 1,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 4,
+        "effort": "",
+        "response_model": "acme-chat",
+        "failed": false
       },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 188\r\nAuthorization: Bearer sk-fake-acme\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}]},{\"role\":\"user\",\"content\":\"go\"}],\"max_tokens\":10,\"stream\":false}",
       "output": "{\"id\":\"chatcmpl_1\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"acme-chat\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"usage\":{\"input_tokens\":3,\"output_tokens\":1}}"
@@ -2432,6 +4538,30 @@
         ],
         "body": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
       },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 3,
+        "output": 1,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 4,
+        "effort": "",
+        "response_model": "acme-chat",
+        "failed": false
+      },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 202\r\nAuthorization: Bearer sk-fake-acme\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"exec_command\",\"parameters\":{\"type\":\"object\",\"properties\":{\"timeout_ms\":{\"type\":\"integer\"},\"cmd\":{\"type\":\"string\"}}}}}]}",
       "output": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
     },
@@ -2454,6 +4584,30 @@
           ]
         ],
         "body": "{\"id\":\"r1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"tool_calls\":[{\"id\":\"c1\",\"type\":\"function\",\"function\":{\"name\":\"apply_patch\",\"arguments\":\"{\\\"input\\\":\\\"*** Begin Patch\\\\n*** Add File: a.txt\\\\n+hello\\\\n*** End Patch\\\\n\\\"}\"}}]},\"finish_reason\":\"tool_calls\"}]}"
+      },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "acme-chat",
+        "failed": false
       },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 1012\r\nAuthorization: Bearer sk-fake-acme\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"edit a.txt\"}],\"stream\":false,\"tools\":[{\"function\":{\"description\":\"Call this function with a JSON object whose input field contains the complete patch text.\\nUse the Codex apply_patch format, not a conventional git unified diff.\\nStart with *** Begin Patch and end with *** End Patch.\\nUse *** Add File: path, *** Delete File: path, or *** Update File: path.\\nEvery added-file content line starts with +.\\nFor updates, use @@; context lines start with one space, removed lines with -, and added lines with +.\\nUse *** Move to: path for a rename and *** End of File when required by the patch grammar.\\nExample input:\\n*** Begin Patch\\n*** Update File: src/main.go\\n@@\\n-old\\n+new\\n*** End Patch\\n\\nOriginal patch grammar:\\nstart: patch\",\"name\":\"apply_patch\",\"parameters\":{\"additionalProperties\":false,\"properties\":{\"input\":{\"description\":\"The complete apply_patch patch text.\",\"type\":\"string\"}},\"required\":[\"input\"],\"type\":\"object\"}},\"type\":\"function\"}]}",
       "output": "{\"id\":\"r1\",\"object\":\"response\",\"created_at\":1,\"status\":\"completed\",\"background\":false,\"error\":null,\"incomplete_details\":null,\"model\":\"acme-chat\",\"tools\":[{\"function\":{\"description\":\"Call this function with a JSON object whose input field contains the complete patch text.\\nUse the Codex apply_patch format, not a conventional git unified diff.\\nStart with *** Begin Patch and end with *** End Patch.\\nUse *** Add File: path, *** Delete File: path, or *** Update File: path.\\nEvery added-file content line starts with +.\\nFor updates, use @@; context lines start with one space, removed lines with -, and added lines with +.\\nUse *** Move to: path for a rename and *** End of File when required by the patch grammar.\\nExample input:\\n*** Begin Patch\\n*** Update File: src/main.go\\n@@\\n-old\\n+new\\n*** End Patch\\n\\nOriginal patch grammar:\\nstart: patch\",\"name\":\"apply_patch\",\"parameters\":{\"additionalProperties\":false,\"properties\":{\"input\":{\"description\":\"The complete apply_patch patch text.\",\"type\":\"string\"}},\"required\":[\"input\"],\"type\":\"object\"}},\"type\":\"function\"}],\"output\":[{\"id\":\"ctc_c1\",\"type\":\"custom_tool_call\",\"status\":\"completed\",\"input\":\"*** Begin Patch\\n*** Add File: a.txt\\n+hello\\n*** End Patch\\n\",\"call_id\":\"c1\",\"name\":\"apply_patch\"}]}"
@@ -2478,11 +4632,36 @@
         ],
         "body": "{\"id\":\"r1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"tool_calls\":[{\"id\":\"c1\",\"type\":\"function\",\"function\":{\"name\":\"apply_patch\",\"arguments\":\"{\\\"input\\\":\\\"x\\\",\\\"extra\\\":\\\"RAW_SECRET\\\"}\"}}]},\"finish_reason\":\"tool_calls\"}]}"
       },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "acme-chat",
+        "failed": true
+      },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 1012\r\nAuthorization: Bearer sk-fake-acme\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"edit a.txt\"}],\"stream\":false,\"tools\":[{\"function\":{\"description\":\"Call this function with a JSON object whose input field contains the complete patch text.\\nUse the Codex apply_patch format, not a conventional git unified diff.\\nStart with *** Begin Patch and end with *** End Patch.\\nUse *** Add File: path, *** Delete File: path, or *** Update File: path.\\nEvery added-file content line starts with +.\\nFor updates, use @@; context lines start with one space, removed lines with -, and added lines with +.\\nUse *** Move to: path for a rename and *** End of File when required by the patch grammar.\\nExample input:\\n*** Begin Patch\\n*** Update File: src/main.go\\n@@\\n-old\\n+new\\n*** End Patch\\n\\nOriginal patch grammar:\\nstart: patch\",\"name\":\"apply_patch\",\"parameters\":{\"additionalProperties\":false,\"properties\":{\"input\":{\"description\":\"The complete apply_patch patch text.\",\"type\":\"string\"}},\"required\":[\"input\"],\"type\":\"object\"}},\"type\":\"function\"}]}",
       "error": {
         "status": 502,
         "message": "Invalid apply_patch tool arguments received from upstream.",
-        "retry_after_ms": -1
+        "retry_after_ms": -1,
+        "credential_scoped": false
       }
     },
     {
@@ -2505,6 +4684,30 @@
           ]
         ],
         "body": "data: {\"id\":\"r1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"tool_calls\":[{\"index\":0,\"id\":\"c1\",\"type\":\"function\",\"function\":{\"name\":\"apply_patch\",\"arguments\":\"\"}}]},\"finish_reason\":null}]}\n\ndata: {\"id\":\"r1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":\"{\\\"input\\\":\\\"*** Begin Patch\\\\n*** End Patch\\\\n\\\"}\"}}]},\"finish_reason\":null}]}\n\ndata: {\"id\":\"r1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"tool_calls\"}]}\n\ndata: [DONE]\n\n"
+      },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "acme-chat",
+        "failed": false
       },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 1051\r\nAccept: text/event-stream\r\nAuthorization: Bearer sk-fake-acme\r\nCache-Control: no-cache\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"edit a.txt\"}],\"stream\":true,\"tools\":[{\"function\":{\"description\":\"Call this function with a JSON object whose input field contains the complete patch text.\\nUse the Codex apply_patch format, not a conventional git unified diff.\\nStart with *** Begin Patch and end with *** End Patch.\\nUse *** Add File: path, *** Delete File: path, or *** Update File: path.\\nEvery added-file content line starts with +.\\nFor updates, use @@; context lines start with one space, removed lines with -, and added lines with +.\\nUse *** Move to: path for a rename and *** End of File when required by the patch grammar.\\nExample input:\\n*** Begin Patch\\n*** Update File: src/main.go\\n@@\\n-old\\n+new\\n*** End Patch\\n\\nOriginal patch grammar:\\nstart: patch\",\"name\":\"apply_patch\",\"parameters\":{\"additionalProperties\":false,\"properties\":{\"input\":{\"description\":\"The complete apply_patch patch text.\",\"type\":\"string\"}},\"required\":[\"input\"],\"type\":\"object\"}},\"type\":\"function\"}],\"stream_options\":{\"include_usage\":true}}",
       "chunks": [
@@ -2538,6 +4741,30 @@
         ],
         "body": "data: {\"id\":\"r1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"tool_calls\":[{\"index\":0,\"id\":\"c1\",\"type\":\"function\",\"function\":{\"name\":\"apply_patch\",\"arguments\":\"\"}}]},\"finish_reason\":null}]}\n\ndata: {\"id\":\"r1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":\"{\\\"input\\\":7}\"}}]},\"finish_reason\":null}]}\n\ndata: {\"id\":\"r1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"tool_calls\"}]}\n\ndata: [DONE]\n\n"
       },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "acme-chat",
+        "failed": true
+      },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 1051\r\nAccept: text/event-stream\r\nAuthorization: Bearer sk-fake-acme\r\nCache-Control: no-cache\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"edit a.txt\"}],\"stream\":true,\"tools\":[{\"function\":{\"description\":\"Call this function with a JSON object whose input field contains the complete patch text.\\nUse the Codex apply_patch format, not a conventional git unified diff.\\nStart with *** Begin Patch and end with *** End Patch.\\nUse *** Add File: path, *** Delete File: path, or *** Update File: path.\\nEvery added-file content line starts with +.\\nFor updates, use @@; context lines start with one space, removed lines with -, and added lines with +.\\nUse *** Move to: path for a rename and *** End of File when required by the patch grammar.\\nExample input:\\n*** Begin Patch\\n*** Update File: src/main.go\\n@@\\n-old\\n+new\\n*** End Patch\\n\\nOriginal patch grammar:\\nstart: patch\",\"name\":\"apply_patch\",\"parameters\":{\"additionalProperties\":false,\"properties\":{\"input\":{\"description\":\"The complete apply_patch patch text.\",\"type\":\"string\"}},\"required\":[\"input\"],\"type\":\"object\"}},\"type\":\"function\"}],\"stream_options\":{\"include_usage\":true}}",
       "chunks": [
         "event: response.created\ndata: {\"type\":\"response.created\",\"sequence_number\":1,\"response\":{\"id\":\"r1\",\"object\":\"response\",\"created_at\":1,\"status\":\"in_progress\",\"background\":false,\"error\":null,\"output\":[],\"model\":\"chat\"}}\n\n",
@@ -2548,7 +4775,8 @@
       "error": {
         "status": 502,
         "message": "Invalid apply_patch tool arguments received from upstream.",
-        "retry_after_ms": -1
+        "retry_after_ms": -1,
+        "credential_scoped": false
       }
     },
     {
@@ -2572,6 +4800,30 @@
         ],
         "body": "data: {\"id\":\"r1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"tool_calls\":[{\"index\":0,\"id\":\"c1\",\"type\":\"function\",\"function\":{\"name\":\"apply_patch\",\"arguments\":\"\"}}]},\"finish_reason\":null}]}\n\ndata: {\"id\":\"r1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":\"{\\\"input\\\":7}\"}}]},\"finish_reason\":null}]}\n\ndata: {\"id\":\"r1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"tool_calls\"}]}\n\ndata: {\"error\":{\"message\":\"late\",\"status\":429}}\n\n"
       },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "acme-chat",
+        "failed": true
+      },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 1051\r\nAccept: text/event-stream\r\nAuthorization: Bearer sk-fake-acme\r\nCache-Control: no-cache\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"edit a.txt\"}],\"stream\":true,\"tools\":[{\"function\":{\"description\":\"Call this function with a JSON object whose input field contains the complete patch text.\\nUse the Codex apply_patch format, not a conventional git unified diff.\\nStart with *** Begin Patch and end with *** End Patch.\\nUse *** Add File: path, *** Delete File: path, or *** Update File: path.\\nEvery added-file content line starts with +.\\nFor updates, use @@; context lines start with one space, removed lines with -, and added lines with +.\\nUse *** Move to: path for a rename and *** End of File when required by the patch grammar.\\nExample input:\\n*** Begin Patch\\n*** Update File: src/main.go\\n@@\\n-old\\n+new\\n*** End Patch\\n\\nOriginal patch grammar:\\nstart: patch\",\"name\":\"apply_patch\",\"parameters\":{\"additionalProperties\":false,\"properties\":{\"input\":{\"description\":\"The complete apply_patch patch text.\",\"type\":\"string\"}},\"required\":[\"input\"],\"type\":\"object\"}},\"type\":\"function\"}],\"stream_options\":{\"include_usage\":true}}",
       "chunks": [
         "event: response.created\ndata: {\"type\":\"response.created\",\"sequence_number\":1,\"response\":{\"id\":\"r1\",\"object\":\"response\",\"created_at\":1,\"status\":\"in_progress\",\"background\":false,\"error\":null,\"output\":[],\"model\":\"chat\"}}\n\n",
@@ -2582,7 +4834,8 @@
       "error": {
         "status": 502,
         "message": "Invalid apply_patch tool arguments received from upstream.",
-        "retry_after_ms": -1
+        "retry_after_ms": -1,
+        "credential_scoped": false
       }
     },
     {
@@ -2606,6 +4859,30 @@
         ],
         "body": "data: {\"id\":\"r1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"tool_calls\":[{\"index\":0,\"id\":\"c1\",\"type\":\"function\",\"function\":{\"name\":\"apply_patch\",\"arguments\":\"\"}}]},\"finish_reason\":null}]}\n\ndata: {\"id\":\"r1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":\"{\\\"input\\\":\\\"unfinished\\\"\"}}]},\"finish_reason\":null}]}\n\n"
       },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "acme-chat",
+        "failed": true
+      },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 1051\r\nAccept: text/event-stream\r\nAuthorization: Bearer sk-fake-acme\r\nCache-Control: no-cache\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"edit a.txt\"}],\"stream\":true,\"tools\":[{\"function\":{\"description\":\"Call this function with a JSON object whose input field contains the complete patch text.\\nUse the Codex apply_patch format, not a conventional git unified diff.\\nStart with *** Begin Patch and end with *** End Patch.\\nUse *** Add File: path, *** Delete File: path, or *** Update File: path.\\nEvery added-file content line starts with +.\\nFor updates, use @@; context lines start with one space, removed lines with -, and added lines with +.\\nUse *** Move to: path for a rename and *** End of File when required by the patch grammar.\\nExample input:\\n*** Begin Patch\\n*** Update File: src/main.go\\n@@\\n-old\\n+new\\n*** End Patch\\n\\nOriginal patch grammar:\\nstart: patch\",\"name\":\"apply_patch\",\"parameters\":{\"additionalProperties\":false,\"properties\":{\"input\":{\"description\":\"The complete apply_patch patch text.\",\"type\":\"string\"}},\"required\":[\"input\"],\"type\":\"object\"}},\"type\":\"function\"}],\"stream_options\":{\"include_usage\":true}}",
       "chunks": [
         "event: response.created\ndata: {\"type\":\"response.created\",\"sequence_number\":1,\"response\":{\"id\":\"r1\",\"object\":\"response\",\"created_at\":1,\"status\":\"in_progress\",\"background\":false,\"error\":null,\"output\":[],\"model\":\"chat\"}}\n\n",
@@ -2617,7 +4894,8 @@
       "error": {
         "status": 502,
         "message": "Invalid apply_patch tool arguments received from upstream.",
-        "retry_after_ms": -1
+        "retry_after_ms": -1,
+        "credential_scoped": false
       }
     },
     {
@@ -2640,6 +4918,30 @@
           ]
         ],
         "body": "data: {\"id\":\"r1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"tool_calls\":[{\"index\":0,\"id\":\"c1\",\"type\":\"function\",\"function\":{\"name\":\"apply_patch\",\"arguments\":\"\"}}]},\"finish_reason\":null}]}\n\ndata: {\"id\":\"r1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":\"{\\\"input\\\":7}\"}}]},\"finish_reason\":null}]}\n\ndata: {\"id\":\"r1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"tool_calls\"}]}\n\ndata: [DONE]\n\n"
+      },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "acme-chat",
+        "failed": false
       },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 199\r\nAccept: text/event-stream\r\nAuthorization: Bearer sk-fake-acme\r\nCache-Control: no-cache\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"apply_patch\",\"parameters\":{\"type\":\"object\"}}}],\"stream_options\":{\"include_usage\":true}}",
       "chunks": [
@@ -2671,6 +4973,30 @@
         ],
         "body": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
       },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 3,
+        "output": 1,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 4,
+        "effort": "",
+        "response_model": "acme-chat",
+        "failed": false
+      },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 99\r\nAuthorization: Bearer sk-fake-acme\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"hello\"}],\"stream\":false,\"max_tokens\":20}",
       "output": "{\"id\":\"chatcmpl_1\",\"object\":\"response\",\"created_at\":1,\"status\":\"completed\",\"background\":false,\"error\":null,\"incomplete_details\":null,\"max_output_tokens\":20,\"model\":\"acme-chat\",\"output\":[{\"id\":\"msg_chatcmpl_1_0\",\"type\":\"message\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"ok\"}],\"role\":\"assistant\"}],\"usage\":{\"input_tokens\":3,\"output_tokens\":1,\"total_tokens\":4,\"output_tokens_details\":{\"reasoning_tokens\":0},\"input_tokens_details\":{\"cached_tokens\":0}}}"
     },
@@ -2698,6 +5024,30 @@
         ],
         "body": "data: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"he\"},\"finish_reason\":null}]}\n\n"
       },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "acme-chat",
+        "failed": true
+      },
       "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 122\r\nAccept: text/event-stream\r\nAuthorization: Bearer sk-fake-acme\r\nCache-Control: no-cache\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"hello\"}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}",
       "chunks": [
         "event: response.created\ndata: {\"type\":\"response.created\",\"sequence_number\":1,\"response\":{\"id\":\"c1\",\"object\":\"response\",\"created_at\":1,\"status\":\"in_progress\",\"background\":false,\"error\":null,\"output\":[],\"model\":\"chat\"}}\n\n",
@@ -2709,7 +5059,8 @@
       "error": {
         "status": 502,
         "message": "upstream stream closed before [DONE]",
-        "retry_after_ms": -1
+        "retry_after_ms": -1,
+        "credential_scoped": false
       }
     },
     {
@@ -2734,6 +5085,30 @@
           ]
         ],
         "body": "{\"id\":\"chatcmpl_1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
+      },
+      "resolved_model": {
+        "created": 0,
+        "id": "cache-model",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 3,
+        "output": 1,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 4,
+        "effort": "",
+        "response_model": "acme-chat",
+        "failed": false
       },
       "request": "POST /v2/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 156\r\nAuthorization: Bearer sk-fake-cache\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"cache-model\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":10,\"stream\":false,\"prompt_cache_key\":\"073100fb-ec1a-51c4-9161-98e669aa2ea2\"}",
       "output": "{\"id\":\"chatcmpl_1\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"acme-chat\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"usage\":{\"input_tokens\":3,\"output_tokens\":1}}"
