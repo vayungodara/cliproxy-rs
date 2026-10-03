@@ -629,6 +629,7 @@ impl Connection {
             session: selection.session.clone(),
             execution_session: Some(self.session.clone()),
             derived_session: identity.derived.clone(),
+            resolved_model: None,
             request_path: self.request_path.clone(),
             headers: self.headers.clone(),
             caller: self.caller.clone(),
