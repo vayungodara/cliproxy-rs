@@ -21,8 +21,8 @@ const SESSION_VAR: &str = "$CPA-SESSION-ID";
 /// default of the same name; a `Host` header also sets the request's authority (Go
 /// mirrors it into `req.Host`).
 ///
-/// `session_id` is Go's `$CPA-SESSION-ID`: the request's explicit session
-/// ([`crate::session::cpa_session_id`]), not the derived or hash fallbacks.
+/// `session_id` is Go's `$CPA-SESSION-ID`:
+/// `crate::session::cpa_session_id(req.session.as_deref())`.
 pub fn custom_headers(
     attributes: &BTreeMap<String, String>,
     client: &HeaderMap,

@@ -40,6 +40,8 @@ payload:
       params: {user_seen: "yes"}
     - models: [{name: "gpt-*", not-exist: [seed]}]
       params: {seed: 7}
+    - models: [{name: "img-*"}]
+      params: {tool_choice: image_generation}
   default-raw:
     - models: [{name: "gpt-*"}]
       params: {response_format: '{"type":"json_object"}'}
@@ -62,6 +64,8 @@ payload:
       params: {generationConfig.maxOutputTokens: 64}
     - models: [{name: "gpt-*"}]
       params: {nullable: null}
+    - models: [{name: "uni-*"}]
+      params: {"items.#(é==1)#.x": true}
   override-raw:
     - models: [{name: "gpt-*"}]
       params: {logit_bias: '{"1": -100}'}
@@ -101,6 +105,8 @@ var payloadInputs = []payloadCase{
 	{Name: "suffix_base_candidate", Model: "o3", RequestedModel: "gpt-5(high)", Protocol: "openai", Payload: `{}`},
 	{Name: "root_envelope", Model: "gemini-2.5-pro", Protocol: "gemini", Root: "request", Payload: `{"request":{"contents":[]}}`},
 	{Name: "no_model", Protocol: "openai", Payload: `{"a":1}`},
+	{Name: "defaults_see_body_before_image_strip", Model: "img-1", Protocol: "openai", Payload: `{"tools":[{"type":"image_generation"}],"tool_choice":"image_generation"}`, RequestPath: "/v1/responses"},
+	{Name: "unicode_query_key", Model: "uni-1", Protocol: "openai", Payload: `{"items":[{"é":1},{"é":2},{"é":1,"x":false}]}`},
 	{Name: "codex_client_integer_tools", Target: "openai", Model: "zz", Protocol: "openai", Headers: [][]string{{"User-Agent", "codex_cli_rs/0.50"}},
 		Payload: `{"tools":[{"type":"function","name":"exec_command","parameters":{"type":"object","properties":{"timeout_ms":{"type":"number"},"cmd":{"type":"string"},"yield_time_ms":{"type":["number","null","integer"]}}}},{"type":"function","name":"other","parameters":{"properties":{"timeout_ms":{"type":"number"}}}},{"type":"namespace","tools":[{"name":"collab__wait_agent","input_schema":{"properties":{"timeout_ms":{"type":"number"}}}}]}],"input":[{"type":"additional_tools","tools":[{"function":{"name":"functions__sleep","parameters":{"properties":{"duration_ms":{"type":"number"}}}}}]}]}`},
 	{Name: "codex_target_skips_integer_tools", Target: "codex", Model: "zz", Protocol: "codex", Headers: [][]string{{"User-Agent", "codex_cli_rs/0.50"}},

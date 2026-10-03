@@ -738,14 +738,24 @@ impl CredentialStore {
                 return;
             }
         }
-        let mut metadata = credential.metadata.clone();
-        metadata.insert("disabled".into(), Value::Bool(credential.disabled));
+        // The store write lock serializes this with `apply_patch`: a refresh committed
+        // after this request started must not be overwritten with the older token.
+        let mut inner = self.inner.write().unwrap_or_else(PoisonError::into_inner);
+        let Some(slot) = inner
+            .creds
+            .iter_mut()
+            .find(|c| c.id == credential.id && c.revision == credential.revision)
+        else {
+            return;
+        };
+        let mut metadata = slot.metadata.clone();
+        metadata.insert("disabled".into(), Value::Bool(slot.disabled));
         let go = |bytes: &[u8]| cpa_common::json::GoValue::parse_f64(bytes);
-        let target = serde_json::to_vec(&metadata).ok().and_then(|b| go(&b));
-        let Some(target) = target else { return };
-        let existing = match std::fs::read(path) {
-            Ok(bytes) => bytes,
-            Err(_) => return,
+        let Some(target) = serde_json::to_vec(&metadata).ok().and_then(|b| go(&b)) else {
+            return;
+        };
+        let Ok(existing) = std::fs::read(path) else {
+            return;
         };
         if go(&existing).as_ref() != Some(&target) {
             let bytes = target.marshal();
@@ -756,20 +766,13 @@ impl CredentialStore {
             // Same revision: the file now says what memory already meant (absent
             // `disabled` is false, numbers are float64), so memory takes the written
             // form and the watcher's reload finds nothing changed.
-            let Ok(written) = serde_json::from_slice::<Map<String, Value>>(&bytes) else {
-                return;
-            };
-            let mut inner = self.inner.write().unwrap_or_else(PoisonError::into_inner);
-            if let Some(slot) = inner
-                .creds
-                .iter_mut()
-                .find(|c| c.id == credential.id && c.revision == credential.revision)
-            {
+            if let Ok(written) = serde_json::from_slice::<Map<String, Value>>(&bytes) {
                 let mut next = Credential::clone(slot);
                 next.metadata = written;
                 *slot = Arc::new(next);
             }
         }
+        drop(inner);
         self.persisted
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
@@ -1227,7 +1230,7 @@ fn write_atomic(path: &Path, metadata: &Map<String, Value>) -> std::io::Result<(
 }
 
 /// Replaces `path` with `bytes` through an exclusively created 0600 sibling.
-fn write_bytes_atomic(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
+pub(crate) fn write_bytes_atomic(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
     use std::os::unix::fs::OpenOptionsExt;
     static COUNTER: AtomicU64 = AtomicU64::new(0);
     let dir = path.parent().unwrap_or(Path::new("."));
@@ -1679,6 +1682,34 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 
+    /// A result recorded after a refresh committed a newer revision must not write the
+    /// older token back (Go persists under the manager lock with generation checks).
+    #[test]
+    fn stale_result_does_not_overwrite_a_refreshed_credential() {
+        let dir = std::env::temp_dir().join(format!(
+            "stale-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("a.json");
+        std::fs::write(&path, r#"{"type":"claude","access_token":"old"}"#).unwrap();
+        let metadata: Map<String, Value> = serde_json::from_str(r#"{"type":"claude","access_token":"old"}"#).unwrap();
+        let store = CredentialStore::new(vec![Credential::from_file(&dir, &path, metadata).unwrap()]);
+        let stale = store.get("a.json").unwrap();
+        let mut patch = MetadataPatch::default();
+        patch.set.insert("access_token".into(), "new".into());
+        store.apply_patch("a.json", stale.revision, &patch).unwrap();
+        let refreshed = std::fs::read_to_string(&path).unwrap();
+        store.persist_credential(&stale);
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), refreshed);
+        assert!(refreshed.contains("\"new\"") && refreshed.contains("\"disabled\":false"));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
     /// Go `save-cooldown-status`: a cooldown change writes `<auth-dir>/<file>.cds`, a new
     /// process restores it, reset clears it, and a file Go wrote restores too.
     #[test]
@@ -1725,6 +1756,11 @@ mod tests {
         lease.complete(Outcome::Failure(quota));
         let file = dir.join("a.cds");
         let written = std::fs::read_to_string(&file).expect("cooldown written");
+        assert_eq!(
+            std::fs::metadata(&file).unwrap().permissions().mode() & 0o777,
+            0o600,
+            "Go os.CreateTemp mode"
+        );
         assert!(
             written.contains("\"model\": \"m1\"") && written.contains("\"reason\": \"quota\""),
             "{written}"
@@ -1766,6 +1802,8 @@ mod tests {
             r#"{{"version":1,"auth_id":"b.json","provider":"claude","updated_at":"{now}","records":[
 {{"provider":"claude","auth_id":"b.json","status":"cooling","next_retry_after":"{late}","reason":"credential_quota","quota":{{"exceeded":true,"reason":"credential_quota","next_recover_at":"{late}","observed_at":"0001-01-01T00:00:00Z"}},"last_error":{{"message":"credential quota","retryable":false,"http_status":429}},"updated_at":"{now}"}},
 {{"provider":"claude","auth_id":"b.json","model":"m2","status":"cooling","next_retry_after":"{soon}","reason":"unauthorized","quota":{{"exceeded":false,"next_recover_at":"0001-01-01T00:00:00Z","observed_at":"0001-01-01T00:00:00Z"}},"last_error":{{"message":"unauthorized","retryable":false,"http_status":401}},"updated_at":"{now}"}},
+{{"provider":"claude","auth_id":"b.json","model":"m4","status":"cooling","next_retry_after":"{soon}","reason":"quota","quota":{{"exceeded":true,"reason":"quota","next_recover_at":"{late}","observed_at":"0001-01-01T00:00:00Z"}},"updated_at":"{now}"}},
+{{"provider":"claude","auth_id":"b.json","model":"m5","status":"cooling","next_retry_after":"{past}","reason":"quota","quota":{{"exceeded":true,"reason":"quota","next_recover_at":"{late}","observed_at":"0001-01-01T00:00:00Z"}},"updated_at":"{now}"}},
 {{"provider":"claude","auth_id":"b.json","model":"m3","status":"cooling","next_retry_after":"{past}","reason":"boom","quota":{{"exceeded":false,"next_recover_at":"0001-01-01T00:00:00Z","observed_at":"0001-01-01T00:00:00Z"}},"updated_at":"{now}"}},
 {{"provider":"claude","auth_id":"gone.json","model":"m1","status":"cooling","next_retry_after":"{late}","quota":{{"exceeded":false,"next_recover_at":"0001-01-01T00:00:00Z","observed_at":"0001-01-01T00:00:00Z"}},"updated_at":"{now}"}}]}}"#,
             now = at(0),
@@ -1785,7 +1823,21 @@ mod tests {
         let records = scheduler.records(&b, now, std::time::SystemTime::now());
         drop(scheduler);
         let models: Vec<&str> = records.iter().map(|r| r.model.as_str()).collect();
-        assert_eq!(models, ["", "m2"], "expired and unknown-credential records are dropped");
+        assert_eq!(
+            models,
+            ["", "m2", "m4"],
+            "expired (by retry deadline) and unknown-credential records are dropped"
+        );
+        let m4 = records.iter().find(|r| r.model == "m4").unwrap();
+        let left = m4
+            .next_retry_after
+            .unwrap()
+            .duration_since(std::time::SystemTime::now())
+            .unwrap();
+        assert!(
+            left > Duration::from_secs(590),
+            "the later quota recovery wins: {left:?}"
+        );
         let rewritten = std::fs::read_to_string(dir.join("b.cds")).unwrap();
         assert!(!rewritten.contains("gone.json") && !rewritten.contains("\"m3\""));
 

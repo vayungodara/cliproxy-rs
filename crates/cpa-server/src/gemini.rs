@@ -6,7 +6,7 @@ use std::sync::Arc;
 use axum::Extension;
 use axum::body::Bytes;
 use axum::extract::rejection::BytesRejection;
-use axum::extract::{OriginalUri, Path, State};
+use axum::extract::{MatchedPath, OriginalUri, Path, State};
 use axum::http::HeaderMap;
 use axum::response::{IntoResponse, Response};
 use cpa_core::exec::{Caller, ExecError, Operation};
@@ -21,6 +21,7 @@ use crate::{Runtime, errors, gojson};
 pub async fn action(
     State(rt): State<Arc<Runtime>>,
     Extension(caller): Extension<Caller>,
+    matched: Option<MatchedPath>,
     OriginalUri(uri): OriginalUri,
     Path(action): Path<String>,
     headers: HeaderMap,
@@ -53,6 +54,7 @@ pub async fn action(
         forced_provider: None,
         selection_model: None,
         execution_session: None,
+        request_path: dispatch::route_path(matched.as_ref(), &uri),
     };
     let keepalive = respond::keepalive(&rt.config()).filter(|_| alt.is_none());
     dispatch::serve(&rt, call, |result| async move {
@@ -101,6 +103,7 @@ const AGENT_SELECTION_MODEL: &str = "gemini-2.5-flash";
 pub async fn interactions(
     State(rt): State<Arc<Runtime>>,
     Extension(caller): Extension<Caller>,
+    matched: Option<MatchedPath>,
     OriginalUri(uri): OriginalUri,
     headers: HeaderMap,
     body: Result<Bytes, BytesRejection>,
@@ -158,6 +161,7 @@ pub async fn interactions(
         forced_provider: forced,
         selection_model: selection,
         execution_session: None,
+        request_path: dispatch::route_path(matched.as_ref(), &uri),
     };
     let keepalive = respond::keepalive(&rt.config());
     dispatch::serve(&rt, call, |result| async move {

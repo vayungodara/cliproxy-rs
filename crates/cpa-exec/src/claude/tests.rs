@@ -53,6 +53,7 @@ fn request(case: &Value) -> ExecRequest {
         session: None,
         execution_session: None,
         derived_session: None,
+        request_path: String::new(),
         headers,
         caller: Caller {
             principal: "fixture-client-key".into(),
@@ -138,6 +139,7 @@ async fn custom_origin_counts_locally_without_sending_credentials() {
         session: None,
         execution_session: None,
         derived_session: None,
+        request_path: String::new(),
         headers: Default::default(),
         caller: Caller {
             principal: "fake-client".into(),
@@ -337,6 +339,7 @@ async fn executor_scenarios_match_go() {
             session: None,
             execution_session: scenario["execution_session"].as_str().map(str::to_owned),
             derived_session: None,
+            request_path: String::new(),
             headers,
             caller: Caller {
                 principal: scenario["client_key"].as_str().unwrap().into(),

@@ -5,7 +5,7 @@ use std::sync::Arc;
 use axum::Extension;
 use axum::body::Bytes;
 use axum::extract::rejection::BytesRejection;
-use axum::extract::{OriginalUri, State};
+use axum::extract::{MatchedPath, OriginalUri, State};
 use axum::http::HeaderMap;
 use axum::response::Response;
 use cpa_core::exec::{Caller, ExecError, Operation};
@@ -47,24 +47,18 @@ pub fn ensure_dd(id: &str) -> String {
 pub async fn messages(
     State(rt): State<Arc<Runtime>>,
     Extension(caller): Extension<Caller>,
+    matched: Option<MatchedPath>,
     OriginalUri(uri): OriginalUri,
     headers: HeaderMap,
     body: Result<Bytes, BytesRejection>,
 ) -> Response {
-    handle(
-        rt,
-        caller,
-        uri.query().unwrap_or_default(),
-        headers,
-        body,
-        Operation::Generate,
-    )
-    .await
+    handle(rt, caller, &uri, matched.as_ref(), headers, body, Operation::Generate).await
 }
 
 pub async fn count_tokens(
     State(rt): State<Arc<Runtime>>,
     Extension(caller): Extension<Caller>,
+    matched: Option<MatchedPath>,
     OriginalUri(uri): OriginalUri,
     headers: HeaderMap,
     body: Result<Bytes, BytesRejection>,
@@ -72,7 +66,8 @@ pub async fn count_tokens(
     handle(
         rt,
         caller,
-        uri.query().unwrap_or_default(),
+        &uri,
+        matched.as_ref(),
         headers,
         body,
         Operation::CountTokens,
@@ -119,7 +114,8 @@ pub fn read_failed(rejection: &BytesRejection) -> Response {
 async fn handle(
     rt: Arc<Runtime>,
     caller: Caller,
-    query: &str,
+    uri: &axum::http::Uri,
+    matched: Option<&MatchedPath>,
     headers: HeaderMap,
     body: Result<Bytes, BytesRejection>,
     operation: Operation,
@@ -146,12 +142,17 @@ async fn handle(
         body,
         stream,
         // Go passes no alt to the streaming path.
-        alt: if stream { None } else { alt(query) },
+        alt: if stream {
+            None
+        } else {
+            alt(uri.query().unwrap_or_default())
+        },
         headers,
         caller,
         forced_provider: None,
         selection_model: None,
         execution_session: None,
+        request_path: dispatch::route_path(matched, uri),
     };
     let keepalive = respond::keepalive(&rt.config());
     dispatch::serve(&rt, call, |result| async move {

@@ -6,7 +6,7 @@ use std::sync::Arc;
 use axum::Extension;
 use axum::body::Bytes;
 use axum::extract::rejection::BytesRejection;
-use axum::extract::{OriginalUri, State};
+use axum::extract::{MatchedPath, OriginalUri, State};
 use axum::http::HeaderMap;
 use axum::response::Response;
 use cpa_core::exec::{Caller, ExecError, Operation};
@@ -23,6 +23,7 @@ struct Request {
     caller: Caller,
     query: String,
     headers: HeaderMap,
+    path: String,
 }
 
 fn call(req: Request, entry: Format, model: String, body: Bytes, stream: bool, alt: Option<String>) -> Call {
@@ -39,12 +40,14 @@ fn call(req: Request, entry: Format, model: String, body: Bytes, stream: bool, a
         forced_provider: None,
         selection_model: None,
         execution_session: None,
+        request_path: req.path,
     }
 }
 
 pub async fn chat_completions(
     State(rt): State<Arc<Runtime>>,
     Extension(caller): Extension<Caller>,
+    matched: Option<MatchedPath>,
     OriginalUri(uri): OriginalUri,
     headers: HeaderMap,
     body: Result<Bytes, BytesRejection>,
@@ -70,7 +73,13 @@ pub async fn chat_completions(
     }
     let model = gojson::gjson_string(peek(&body).get("model"));
     let query = uri.query().unwrap_or_default().to_owned();
-    let req = Request { caller, query, headers };
+    let path = dispatch::route_path(matched.as_ref(), &uri);
+    let req = Request {
+        caller,
+        query,
+        headers,
+        path,
+    };
     let alt = alt(&req.query);
     let keepalive = respond::keepalive(&rt.config());
     dispatch::serve(
@@ -114,6 +123,8 @@ fn responses_shaped(body: &[u8]) -> bool {
 pub async fn completions(
     State(rt): State<Arc<Runtime>>,
     Extension(caller): Extension<Caller>,
+    matched: Option<MatchedPath>,
+    original: OriginalUri,
     headers: HeaderMap,
     body: Result<Bytes, BytesRejection>,
 ) -> Response {
@@ -129,6 +140,7 @@ pub async fn completions(
         caller,
         query: String::new(),
         headers,
+        path: dispatch::route_path(matched.as_ref(), &original.0),
     };
     let keepalive = respond::keepalive(&rt.config());
     dispatch::serve(
@@ -334,6 +346,8 @@ impl Writer for ChatSse {
 pub async fn responses(
     State(rt): State<Arc<Runtime>>,
     Extension(caller): Extension<Caller>,
+    matched: Option<MatchedPath>,
+    original: OriginalUri,
     headers: HeaderMap,
     body: Result<Bytes, BytesRejection>,
 ) -> Response {
@@ -351,6 +365,7 @@ pub async fn responses(
         caller,
         query: String::new(),
         headers,
+        path: dispatch::route_path(matched.as_ref(), &original.0),
     };
     let keepalive = respond::keepalive(&rt.config());
     dispatch::serve(
@@ -635,7 +650,6 @@ struct ResponsesSse {
     terminal_error: Option<(u16, String)>,
     output: std::collections::BTreeMap<i64, String>,
     unindexed: Vec<String>,
-    pending: Vec<Bytes>,
 }
 
 impl ResponsesSse {
@@ -648,7 +662,6 @@ impl ResponsesSse {
             terminal_error: None,
             output: Default::default(),
             unindexed: Vec::new(),
-            pending: Vec::new(),
         }
     }
 
@@ -820,9 +833,7 @@ impl Writer for ResponsesSse {
         if !self.terminal_event.is_empty() {
             return Vec::new();
         }
-        let mut out = std::mem::take(&mut self.pending);
-        out.extend(self.repair(respond::ensure_frame(event)));
-        out
+        self.repair(respond::ensure_frame(event)).into_iter().collect()
     }
 
     fn stopped(&self) -> bool {
@@ -855,6 +866,8 @@ impl Writer for ResponsesSse {
 pub async fn compact(
     State(rt): State<Arc<Runtime>>,
     Extension(caller): Extension<Caller>,
+    matched: Option<MatchedPath>,
+    original: OriginalUri,
     headers: HeaderMap,
     body: Result<Bytes, BytesRejection>,
 ) -> Response {
@@ -883,6 +896,7 @@ pub async fn compact(
         caller,
         query: String::new(),
         headers,
+        path: dispatch::route_path(matched.as_ref(), &original.0),
     };
     let call = call(
         req,

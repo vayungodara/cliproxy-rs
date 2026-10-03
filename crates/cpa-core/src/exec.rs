@@ -78,6 +78,12 @@ pub struct ExecRequest {
     /// session signal and no execution session, exactly when Go's `session.Enrich` sets
     /// it. Go `helps.ProviderSessionUUID` falls back to it after the execution session.
     pub derived_session: Option<String>,
+    /// Go `request_path` metadata (gin `FullPath()`): the matched route template, for
+    /// example `/v1/chat/completions` or `/v1beta/models/*action`; the URI path when no
+    /// route matched; empty for internal executions. Pass it to
+    /// `cpa_common::payload::Request::request_path` (the `disable-image-generation: chat`
+    /// gate keeps image generation on `/v1/images/*`).
+    pub request_path: String,
     /// Inbound headers. Executors forward only what their provider profile allows.
     /// Contains client credentials: never log or forward wholesale.
     pub headers: HeaderMap,
@@ -95,6 +101,7 @@ impl fmt::Debug for ExecRequest {
             .field("alt", &self.alt)
             .field("execution_session", &self.execution_session)
             .field("derived_session", &self.derived_session)
+            .field("request_path", &self.request_path)
             .field("body_len", &self.body.len())
             .finish_non_exhaustive()
     }

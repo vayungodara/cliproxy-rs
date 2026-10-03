@@ -924,11 +924,17 @@ fn finalize(mut info: SessionInfo) -> Option<SessionInfo> {
     Some(info)
 }
 
-/// Go `$CPA-SESSION-ID` for custom headers (`resolveCPASessionID` after the handler's
-/// `EnrichContextWithSessionHierarchy`): the request's explicit session, never a derived
-/// or message-hash fallback. `body` is the client's original request body.
-pub fn cpa_session_id(headers: &HeaderMap, body: &[u8], execution_session: Option<&str>) -> Option<String> {
-    extract_session_info(headers, body, execution_session).map(|info| info.session_id)
+/// Go `$CPA-SESSION-ID` for custom headers: the executor context's session
+/// (`syncMetadataSessionToContext`): the explicit or execution session, else
+/// `derived:<id>`. `session` is `ExecRequest::session`; its first-messages hash (`msg:`)
+/// is dropped because Go only puts that hash in context as the affinity selector's
+/// canonical ID.
+// ponytail: with session affinity on, Go would also use the `msg:` hash here; it only
+// arises when a request has no derivable identity.
+pub fn cpa_session_id(session: Option<&str>) -> Option<&str> {
+    session
+        .map(str::trim)
+        .filter(|s| !s.is_empty() && !s.starts_with("msg:"))
 }
 
 /// Go metadata the session fallbacks read.
@@ -1644,4 +1650,21 @@ fn session_hash(system: &[u8], user: &[u8], assistant: &[u8]) -> String {
         }
     }
     format!("msg:{hash:016x}")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::cpa_session_id;
+
+    /// Go `syncMetadataSessionToContext`: explicit, execution and derived sessions reach
+    /// `$CPA-SESSION-ID`; the first-messages hash does not.
+    #[test]
+    fn cpa_session_id_keeps_context_sessions() {
+        assert_eq!(cpa_session_id(Some("claude:s1")), Some("claude:s1"));
+        assert_eq!(cpa_session_id(Some("execution:ws-1")), Some("execution:ws-1"));
+        assert_eq!(cpa_session_id(Some("derived:ctx:v1:ab")), Some("derived:ctx:v1:ab"));
+        assert_eq!(cpa_session_id(Some("msg:0123456789abcdef")), None);
+        assert_eq!(cpa_session_id(Some("  ")), None);
+        assert_eq!(cpa_session_id(None), None);
+    }
 }
