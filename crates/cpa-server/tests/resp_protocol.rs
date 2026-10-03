@@ -140,6 +140,54 @@ async fn management_disabled_rejects_connection() {
     assert!(matches!(read, Ok(0) | Err(_)), "{read:?}");
 }
 
+/// A Home control plane that is never asked: the RESP refusal comes first.
+struct Home;
+
+impl cpa_server::remote::RemoteDispatch for Home {
+    fn available(&self) -> bool {
+        true
+    }
+
+    fn dispatch(
+        &self,
+        _: cpa_server::remote::RemoteRequest,
+    ) -> futures_util::future::BoxFuture<'_, Result<cpa_server::remote::RemoteGrant, cpa_server::remote::RemoteError>>
+    {
+        unreachable!("RESP never dispatches")
+    }
+
+    fn models(
+        &self,
+        _: Vec<(String, String)>,
+        _: Vec<(String, String)>,
+    ) -> futures_util::future::BoxFuture<'_, Result<Vec<u8>, cpa_server::remote::ModelsError>> {
+        unreachable!("RESP never lists models")
+    }
+}
+
+/// Go `TestRedisProtocol_HomeModeDisablesUsageOutput`: one error, then a clean close.
+/// Go checks Home before the management gate, so a disabled management key changes
+/// nothing.
+#[tokio::test]
+async fn home_mode_disables_usage_output() {
+    for password in [Some(PASSWORD), None] {
+        let s = server(password).await;
+        s.rt.set_remote_dispatch(Some(Arc::new(Home)));
+        let mut conn = connect(s.addr).await;
+        command(&mut conn, &["PING"]).await;
+        assert_eq!(
+            line(&mut conn).await,
+            "-ERR redis usage output disabled in home mode",
+            "{password:?}"
+        );
+        let mut buf = [0u8; 1];
+        let read = tokio::time::timeout(Duration::from_secs(2), conn.read(&mut buf))
+            .await
+            .expect("closed, not timed out");
+        assert!(matches!(read, Ok(0)), "{password:?}: {read:?}");
+    }
+}
+
 /// Go `TestRedisProtocol_SUBSCRIBE_UsageSendsSupportRefresh`.
 #[tokio::test]
 async fn subscribe_usage_sends_support_refresh() {
