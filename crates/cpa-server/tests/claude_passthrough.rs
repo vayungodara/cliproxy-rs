@@ -13,7 +13,7 @@ use axum::response::{IntoResponse, Response};
 use cpa_core::config::Config;
 use cpa_exec::Executors;
 use cpa_exec::claude::ClaudeExecutor;
-use cpa_server::{Runtime, router};
+use cpa_server::router;
 
 const SSE: &str = "event: message_start\ndata: {\"type\":\"message_start\"}\n\n\
                    event: message_stop\ndata: {\"type\":\"message_stop\"}\n\n";
@@ -99,7 +99,19 @@ async fn proxy(dir: &Path, upstream_url: &str) -> String {
     let mut config = Config::parse("").unwrap();
     config.api_keys = vec!["client-key-1".into()];
     config.auth_dir = dir.into();
-    let creds = cpa_core::credential::load_dir(dir).unwrap();
+    // Only the Claude executor is built on the mock; every other credential stays
+    // guarded so it can never reach a provider.
+    let creds = cpa_core::credential::load_dir(dir)
+        .unwrap()
+        .into_iter()
+        .map(|c| {
+            if c.provider == "claude" {
+                cpa_server::testing::local(c)
+            } else {
+                c
+            }
+        })
+        .collect();
     let executors = Executors {
         claude: ClaudeExecutor::new(upstream_url).unwrap(),
         codex: Default::default(),
@@ -107,18 +119,25 @@ async fn proxy(dir: &Path, upstream_url: &str) -> String {
         openai: Default::default(),
         google: Default::default(),
     };
-    let rt = Arc::new(Runtime::new(config, creds, executors));
+    let rt = Arc::new(cpa_server::testing::runtime(config, creds, executors));
     // This suite checks wire passthrough, one upstream attempt per request. Scheduler
     // failover/rounds have their own local-upstream integration suite.
     rt.publish_policy(cpa_server::scheduler::Policy {
         max_retry_credentials: 1,
         ..Default::default()
     });
+    // Like main.rs (Go's global registry): the executor reads registered models, for
+    // example for the default max_tokens. Callers hold REGISTRY while the overlay is theirs.
+    cpa_server::install_registry(&rt);
     serve(router(rt)).await
 }
 
+/// One test at a time owns the process-wide registry overlay.
+static REGISTRY: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
 #[tokio::test]
 async fn claude_messages_end_to_end() {
+    let _registry = REGISTRY.lock().await;
     let log: Log = Arc::default();
     let upstream_url = serve(axum::Router::new().fallback(upstream).with_state(log.clone())).await;
     let dir = auth_dir(
@@ -230,7 +249,7 @@ data: {"type":"error","error":{"type":"api_error","message":"unexpected EOF"#
     );
     // These tokens are not Claude OAuth tokens (no sk-ant-oat) and have no fingerprint
     // profile, so Go keeps the caller-owned shape: no CLI betas, and the body gets only
-    // Go's normalization (max_tokens from the catalog, a default cache breakpoint on the
+    // Go's normalization (max_tokens of the registered model, a default cache breakpoint on the
     // last turn, an explicit stream flag). Streams to custom gateways ask for identity.
     for s in &seen {
         assert_eq!(s.uri, "/v1/messages?beta=true");
@@ -285,6 +304,7 @@ data: {"type":"error","error":{"type":"api_error","message":"unexpected EOF"#
 
 #[tokio::test]
 async fn unregistered_and_unserved_models_follow_go_error_contracts() {
+    let _registry = REGISTRY.lock().await;
     let dir = auth_dir(
         "empty",
         &[

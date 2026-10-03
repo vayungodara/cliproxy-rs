@@ -135,6 +135,7 @@ def owner_for(text):
         ("plugin", "ultra/plugins"),
         ("internal/tui", "ultra/tui"),
         ("internal/home", "ultra/home"),
+        ("managementasset", "ultra/dashboard"),
         ("internal/store", "ultra/home"),
         ("discovery", "ultra/tui"),
         ("cmd/", "ultra/tui"),
@@ -193,6 +194,11 @@ def test_texts():
     """Test sources: integration tests, *_tests.rs files and inline test modules."""
     out = {}
     for rel, text in scan_files():
+        if rel.endswith("cpa-server/tests/fixtures/legacy_go.json"):
+            # legacy_go.rs requests each step's path under /v0/management.
+            steps = (s for sc in json.loads(text)["scenarios"] for s in sc.get("steps", []))
+            out[rel] = "\n".join(f'{s["method"]} "/v0/management{s["path"]}"' for s in steps if "path" in s)
+            continue
         if not rel.endswith(".rs"):
             continue
         if "/tests/" in rel or rel.endswith("_tests.rs"):
@@ -216,7 +222,7 @@ def judge_route(item, routes, tests):
     literal = re.split(r"[:*]", path)[0]
     if literal != "/" and literal.endswith("/") and len(literal) > 1:
         literal = literal
-    pattern = re.compile(re.escape(literal) + (r'["?/ ]' if not literal.endswith("/") else ""))
+    pattern = re.compile(re.escape(literal) + (r'["?/ {]' if not literal.endswith("/") else ""))
     users = [rel for rel, text in tests.items() if pattern.search(text)]
     if users:
         return ("covered", f"probe: {key} -> {hit['status']}; tests: {short(users)}")
@@ -224,11 +230,10 @@ def judge_route(item, routes, tests):
 
 
 # Provider families with no executor in Rust: their keys are accepted and never used.
-NO_EXECUTOR = {"vertex": "ultra/google", "antigravity": "ultra/google", "aistudio": "ultra/google",
-               "xai": "ultra/openai-xai", "devin": "ultra/device-providers"}
+NO_EXECUTOR = {"antigravity": "ultra/google", "aistudio": "ultra/google"}
 FAMILY_OWNER = {"claude": "ultra/claude", "codex": "ultra/codex", "gemini": "ultra/google", "interactions": "ultra/google",
                 "meta": "ultra/device-providers", "kimi": "ultra/device-providers", "openai-compatibility": "ultra/openai-xai",
-                **NO_EXECUTOR}
+                **NO_EXECUTOR, "vertex": "ultra/google", "xai": "ultra/openai-xai", "devin": "ultra/device-providers"}
 SECTION_OWNER = [("management.", "ultra/manage"), ("config-version", "ultra/manage"), ("plugins.", "ultra/plugins"),
                  ("server.discovery", "ultra/tui"), ("credentials.", "ultra/home"),
                  ("client.codex", "ultra/codex"), ("multimedia.", "ultra/openai-xai")]
@@ -260,18 +265,43 @@ def config_owner(key):
     return "ultra/server"
 
 
+def kebab_fields(text):
+    """Keys read through `#[serde(rename_all = "kebab-case")]` structs (no string literal)."""
+    keys = set()
+    for m in re.finditer(r'rename_all\s*=\s*"kebab-case"[^\n]*\n(?:\s*#\[[^\n]*\n)*\s*(?:pub(?:\([a-z]+\))?\s+)?struct\s+\w+(?:<[^>]*>)?\s*\{', text):
+        depth, i = 1, m.end()
+        start = i
+        while i < len(text) and depth:
+            depth += {"{": 1, "}": -1}.get(text[i], 0)
+            i += 1
+        body = text[start:i]
+        for field in re.findall(r'^\s*(?:pub(?:\([a-z]+\))?\s+)?([a-z][a-z0-9_]*)\s*:', body, re.M):
+            keys.add(field.replace("_", "-"))
+    return keys
+
+
 def config_sources():
     readers, tests = {}, {}
     for rel, text in scan_files():
         is_test = "/tests/" in rel or rel.endswith("_tests.rs") or "/testdata/" in rel
         if rel.endswith(".rs") and not is_test and not rel.endswith(CONFIG_ONLY):
             body = text.split("#[cfg(test)]")[0]
-            readers[rel] = body
+            # Kebab-case serde fields count as reads of their quoted key names.
+            readers[rel] = body + "\n" + " ".join(f'"{k}"' for k in sorted(kebab_fields(body)))
             if "#[cfg(test)]" in text:
                 tests[rel] = text[text.index("#[cfg(test)]"):]
         elif is_test:
             tests[rel] = text
-    return readers, tests
+    # Path segments per reader file: quoted strings split on '.' and '/'.
+    tokens = {rel: {part for lit in re.findall(r'"([^"\\\n]{1,200})"', text) for part in re.split(r"[./]", lit)}
+              for rel, text in readers.items()}
+    # Keys a test sets: YAML keys (`key:`, also inside JSON-escaped YAML) and quoted path segments.
+    # The lookbehind starts matches only at a run's first character: without it, long
+    # lowercase runs in fixtures (repeated-payload tests) backtrack quadratically.
+    test_tokens = {rel: set(re.findall(r"(?<![a-z0-9\-])([a-z0-9][a-z0-9\-]*):", text))
+                   | {part for lit in re.findall(r'"([^"\\\n]{1,200})"', text) for part in re.split(r"[./]", lit)}
+                   for rel, text in tests.items()}
+    return readers, tests, tokens, test_tokens
 
 
 def judge_config(item, sources):
@@ -286,20 +316,22 @@ def judge_config(item, sources):
     leaf = key.replace("[]", "").split(".")[-1]
     if "{" in leaf:
         leaf = key.replace("[]", "").split(".")[-2].strip("{}")
-    readers, tests = sources
+    readers, tests, _, _ = sources
     lit = f'"{leaf}"'
+    # A key appears as a whole string or as a segment of a dotted path ("server.trusted-proxies").
+    seg = re.compile(r'["./]' + re.escape(leaf) + r'["./]')
+    tokens = sources[2]
     if leaf in GENERIC_LEAVES and family:
         # Shared credential fields: synthesized for every API-key family.
-        used = [rel for rel in readers if rel.endswith(("config/credentials.rs", "config/sanitize.rs")) and lit in readers[rel]]
+        used = [rel for rel in readers if rel.endswith(("config/credentials.rs", "config/sanitize.rs")) and leaf in tokens[rel]]
     else:
-        used = [rel for rel, text in readers.items() if lit in text]
+        used = [rel for rel in readers if leaf in tokens[rel]]
     if not used:
         return ("missing", f"accepted by the config schema; no runtime code reads {lit}", owner, "")
-    if leaf == "max-context-length":
-        return ("partial", f"parsed in {short(used)}", "ultra/codex", "Its consumer, the Codex client model catalog, is not ported.")
     family_token = {"interactions": "interactions", "openai-compatibility": "openai-compat"}.get(family, family)
+    test_tokens = sources[3]
     set_in = [rel for rel, text in tests.items()
-              if (f"{leaf}:" in text or lit in text) and (not family_token or family_token in text)]
+              if leaf in test_tokens[rel] and (not family_token or family_token in text)]
     if set_in:
         return ("covered", f"read in {short(used)}; set in {short(set_in)}", owner, "heuristic: key name match")
     return ("partial", f"read in {short(used)}; no test sets it", owner, "heuristic: key name match")
@@ -349,8 +381,8 @@ def main():
 
 
 # Milestones whose rows have been reviewed by hand; the others are not rendered yet.
-AUDITED = ["M1", "M2", "M3"]
-BASE = "d48b9e0"
+AUDITED = ["M1", "M2", "M3", "M4", "M5", "M6"]
+BASE = "d068002"
 
 
 def title(r):
@@ -374,12 +406,14 @@ def render(rows):
     w = out.append
     w("# Parity status against docs/PARITY.md")
     w("")
-    w(f"Audit of master `{BASE}` against CLIProxyAPI `6fecc6e`, item by item. Milestones audited so far: {', '.join(AUDITED)}. "
-      "The rest follow in later deliveries, and the audit is re-run at the end.")
+    w(f"Audit of master `{BASE}` against CLIProxyAPI `6fecc6e`, item by item. Milestones audited: {', '.join(AUDITED)} "
+      "(every item in PARITY.md). The audit is re-run at the end, after the other threads finish.")
     w("")
     w("Statuses:")
     w("")
-    w("- **covered**: implemented, and Rust tests or Go-generated fixtures exercise it.")
+    w("- **covered**: implemented, and Rust tests or Go-generated fixtures exercise it. A note starting "
+      "\"Deliberate difference\" marks an owner-approved divergence from Go; it counts as covered because "
+      "there is no gap to close.")
     w("- **partial**: implemented in part, or implemented without tests that pin Go's behaviour. For Go test suites: the behaviour exists and is exercised, but not every Go case is ported.")
     w("- **missing**: not implemented.")
     w("")
@@ -414,7 +448,7 @@ def render(rows):
     w("|---|---:|---:|---|")
     for owner in sorted(owners, key=lambda o: (-len(owners[o]["missing"]), -len(owners[o]["partial"]), o)):
         m, p = owners[owner]["missing"], owners[owner]["partial"]
-        w(f"| {owner} | {len(m)} | {len(p)} | {', '.join(m) or '—'} |")
+        w(f"| {owner} | {len(m)} | {len(p)} | {', '.join(sorted(m)) or '—'} |")
     w("")
     for ms in AUDITED:
         w(f"## {ms}")

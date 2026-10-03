@@ -1163,6 +1163,264 @@ func authKinds() []authKindCase {
 	return cases
 }
 
+type goldenExecutor struct{ id string }
+
+func (e goldenExecutor) Identifier() string { return e.id }
+
+// Executor type names reach records through reflection, so each provider gets its
+// own named type, as in Go's executors.
+type (
+	GeminiExecutor struct{ goldenExecutor }
+	ClaudeExecutor struct{ goldenExecutor }
+	KimiExecutor   struct{ goldenExecutor }
+	DevinExecutor  struct{ goldenExecutor }
+	CodexExecutor  struct{ goldenExecutor }
+)
+
+type goldenStatusError struct {
+	code int
+	msg  string
+}
+
+func (e goldenStatusError) Error() string   { return e.msg }
+func (e goldenStatusError) StatusCode() int { return e.code }
+
+type capturePlugin struct{ ch chan usage.Record }
+
+func (p capturePlugin) HandleUsage(_ context.Context, r usage.Record) { p.ch <- r }
+
+type reporterRecord struct {
+	Failed          bool   `json:"failed"`
+	FailStatus      int    `json:"fail_status"`
+	FailBody        string `json:"fail_body"`
+	Input           int64  `json:"input"`
+	Output          int64  `json:"output"`
+	Total           int64  `json:"total"`
+	ResponseModel   string `json:"response_model"`
+	ReasoningEffort string `json:"reasoning_effort"`
+	Model           string `json:"model"`
+}
+
+type reporterCase struct {
+	Name    string           `json:"name"`
+	Records []reporterRecord `json:"records"`
+}
+
+// reporterSequences drives real UsageReporter call sequences, written as Go's
+// executors make them, and captures what Go publishes. The usage manager delivers in
+// order on one worker, so a sentinel record ends each case.
+func reporterSequences() []reporterCase {
+	ch := make(chan usage.Record, 64)
+	usage.RegisterPlugin(capturePlugin{ch})
+	const sentinel = "__sentinel__"
+	drain := func() []reporterRecord {
+		usage.PublishRecord(context.Background(), usage.Record{Model: sentinel})
+		out := []reporterRecord{}
+		for r := range ch {
+			if r.Model == sentinel {
+				return out
+			}
+			out = append(out, reporterRecord{
+				Failed: r.Failed, FailStatus: r.Fail.StatusCode, FailBody: r.Fail.Body,
+				Input: r.Detail.InputTokens, Output: r.Detail.OutputTokens, Total: r.Detail.TotalTokens,
+				ResponseModel: r.ResponseModel, ReasoningEffort: r.ReasoningEffort, Model: r.Model,
+			})
+		}
+		return out
+	}
+	drain() // anything published before this point
+	credential := &auth.Auth{ID: "a.json", Provider: "x", Attributes: map[string]string{"auth_kind": "oauth"}}
+	ctx := context.Background()
+	var cases []reporterCase
+	run := func(name string, f func()) {
+		f()
+		cases = append(cases, reporterCase{Name: name, Records: drain()})
+	}
+	gemini := GeminiExecutor{goldenExecutor{"gemini"}}
+	claude := ClaudeExecutor{goldenExecutor{"claude"}}
+	kimi := KimiExecutor{goldenExecutor{"kimi"}}
+	devin := DevinExecutor{goldenExecutor{"devin"}}
+	codex := CodexExecutor{goldenExecutor{"codex"}}
+
+	geminiLines := []string{
+		`data: {"candidates":[{"content":{"parts":[{"text":"a"}]}}],"usageMetadata":{"promptTokenCount":4,"candidatesTokenCount":1,"totalTokenCount":5}}`,
+		`data: {"candidates":[{"content":{"parts":[{"text":"b"}]}}],"usageMetadata":{"promptTokenCount":4,"candidatesTokenCount":3,"totalTokenCount":7}}`,
+	}
+	// gemini_executor.go stream: the scan error publishes before the deferred buffer.
+	// The lines stand for what the executor parses after FilterSSEUsageMetadata
+	// (Vertex parses unfiltered chunks like these).
+	run("gemini stream usage then scan error", func() {
+		r := helps.NewExecutorUsageReporter(ctx, gemini, "gemini-2.5-pro", credential)
+		defer r.EnsurePublished(ctx)
+		var buf helps.StreamUsageBuffer
+		defer buf.Publish(ctx, r)
+		for _, line := range geminiLines {
+			if d, ok := helps.ParseGeminiStreamUsage([]byte(line)); ok {
+				buf.Observe(d, true)
+			}
+		}
+		r.PublishFailure(ctx, errors.New("read: connection reset"))
+	})
+	run("gemini stream usage", func() {
+		r := helps.NewExecutorUsageReporter(ctx, gemini, "gemini-2.5-pro", credential)
+		defer r.EnsurePublished(ctx)
+		var buf helps.StreamUsageBuffer
+		defer buf.Publish(ctx, r)
+		for _, line := range geminiLines {
+			if d, ok := helps.ParseGeminiStreamUsage([]byte(line)); ok {
+				buf.Observe(d, true)
+			}
+		}
+	})
+	claudeLines := []string{
+		`data: {"type":"message_start","message":{"model":"claude-sonnet-4-6","usage":{"input_tokens":9,"output_tokens":1}}}`,
+		`data: {"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":6}}`,
+	}
+	// claude_executor_stream.go: failures go through the buffer and keep its usage.
+	run("claude stream usage then scan error", func() {
+		r := helps.NewExecutorUsageReporter(ctx, claude, "claude-sonnet-4-6", credential)
+		var buf helps.StreamUsageBuffer
+		defer buf.Publish(ctx, r)
+		for _, line := range claudeLines {
+			buf.ObserveClaudeStream([]byte(line))
+		}
+		buf.PublishFailure(ctx, r, goldenStatusError{502, "stream broke"})
+	})
+	kimiNoUsage := []string{`data: {"id":"c","object":"chat.completion.chunk","model":"kimi-k2","choices":[{"index":0,"delta":{"content":"x"}}]}`, "data: [DONE]"}
+	kimiUsage := append([]string{}, kimiNoUsage[0], `data: {"id":"c","object":"chat.completion.chunk","model":"kimi-k2","choices":[],"usage":{"prompt_tokens":5,"completion_tokens":2,"total_tokens":7}}`, "data: [DONE]")
+	// kimi_executor.go stream: no EnsurePublished.
+	for _, c := range []struct {
+		name  string
+		lines []string
+	}{{"kimi stream without usage", kimiNoUsage}, {"kimi stream with usage", kimiUsage}} {
+		run(c.name, func() {
+			r := helps.NewExecutorUsageReporter(ctx, kimi, "kimi-k2", credential)
+			var buf helps.StreamUsageBuffer
+			defer buf.Publish(ctx, r)
+			for _, line := range c.lines {
+				r.ObserveResponseModel([]byte(line))
+				buf.ObserveOpenAIStream([]byte(line))
+			}
+		})
+	}
+	// kimi_executor.go native non-stream: publishes only with tokens.
+	run("kimi native nonstream without usage", func() {
+		r := helps.NewExecutorUsageReporter(ctx, kimi, "kimi-k2", credential)
+		data := []byte(`{"id":"r","object":"response","model":"kimi-k2","output":[]}`)
+		if u, ok := helps.ParseCodexUsage(data); ok && (u.TotalTokens > 0 || u.InputTokens > 0) {
+			r.Publish(ctx, u)
+		} else if u := helps.ParseOpenAIUsage(data); u.TotalTokens > 0 || u.InputTokens > 0 {
+			r.Publish(ctx, u)
+		}
+	})
+	// kimi_executor.go: SetTranslatedReasoningEffort(body, e.Identifier()).
+	for _, payload := range []string{
+		`{"model":"kimi-k2","reasoning_effort":"high"}`,
+		`{"model":"kimi-k2","thinking":{"type":"enabled"}}`,
+		`{"model":"kimi-k2","thinking":{"type":"disabled"}}`,
+	} {
+		run("kimi translated effort "+payload, func() {
+			r := helps.NewExecutorUsageReporter(ctx, kimi, "kimi-k2", credential)
+			r.SetTranslatedReasoningEffort([]byte(payload), kimi.Identifier())
+			r.Publish(ctx, helps.ParseOpenAIUsage([]byte(`{"usage":{"prompt_tokens":1,"completion_tokens":1,"total_tokens":2}}`)))
+		})
+	}
+	// devin_executor.go stream outcomes.
+	run("devin set response model", func() {
+		r := helps.NewExecutorUsageReporter(ctx, devin, "devin-chat", credential)
+		defer r.EnsurePublished(ctx)
+		r.SetResponseModel("  devin-model-x ")
+	})
+	run("devin truncated before EOS", func() {
+		r := helps.NewExecutorUsageReporter(ctx, devin, "devin-chat", credential)
+		defer r.EnsurePublished(ctx)
+	})
+	run("devin trailer error", func() {
+		r := helps.NewExecutorUsageReporter(ctx, devin, "devin-chat", credential)
+		defer r.EnsurePublished(ctx)
+		r.PublishFailure(ctx, errors.New("devin trailer: permission_denied"))
+	})
+	run("publish then failure", func() {
+		r := helps.NewExecutorUsageReporter(ctx, gemini, "gemini-2.5-pro", credential)
+		r.Publish(ctx, helps.ParseGeminiUsage([]byte(`{"usageMetadata":{"promptTokenCount":2,"candidatesTokenCount":2,"totalTokenCount":4}}`)))
+		r.PublishFailure(ctx, goldenStatusError{500, "late"})
+	})
+	run("failure then publish", func() {
+		r := helps.NewExecutorUsageReporter(ctx, gemini, "gemini-2.5-pro", credential)
+		r.PublishFailure(ctx, goldenStatusError{429, "slow down"})
+		r.Publish(ctx, helps.ParseGeminiUsage([]byte(`{"usageMetadata":{"promptTokenCount":2,"candidatesTokenCount":2,"totalTokenCount":4}}`)))
+	})
+	run("terminal response model then set", func() {
+		r := helps.NewExecutorUsageReporter(ctx, codex, "gpt-5.5", credential)
+		r.ObserveResponseModel([]byte(`data: {"type":"response.completed","response":{"model":"gpt-5.5-2026-01-01"}}`))
+		r.SetResponseModel("other-model")
+		r.EnsurePublished(ctx)
+	})
+	return cases
+}
+
+type substitutionCase struct {
+	Requested   string `json:"requested"`
+	Served      string `json:"served"`
+	Substituted bool   `json:"substituted"`
+}
+
+func substitutions() []substitutionCase {
+	pairs := [][2]string{
+		{"gpt-5.5", "gpt-5.5"}, {"gpt-5.5", "GPT-5.5"}, {"gpt-5.5", "gpt-5.4"},
+		{"gpt-5.5", "gpt-5.5-2026-01-01"}, {"gpt-5.5-2026-01-01", "gpt-5.5"}, {"gpt-5.5", "gpt-5.5-20260101"},
+		{"gpt-5.5", "gpt-5.5-001"}, {"gpt-5.5", "gpt-5.5-0001"}, {"gpt-5.5", "gpt-5.5-2026-1-01"},
+		{"claude-sonnet-4-6", "anthropic/claude-sonnet-4-6"}, {"openai/gpt-5.5", "gpt-5.5-latest"},
+		{"gpt-5.5-latest", "gpt-5.5-2026-01-01"}, {"gpt-5.5(high)", "gpt-5.5"}, {" gpt-5.5 ", "gpt-5.5"},
+		{"", "gpt-5.5"}, {"gpt-5.5", ""}, {"kimi-k2", "kimi-k2.5"}, {"a/b/", "b"}, {"gemini-2.5-pro", "models/gemini-2.5-pro"},
+	}
+	out := make([]substitutionCase, 0, len(pairs))
+	for _, p := range pairs {
+		out = append(out, substitutionCase{p[0], p[1], helps.IsModelSubstituted(p[0], p[1])})
+	}
+	return out
+}
+
+type headerFilterCase struct {
+	In  map[string][]string `json:"in"`
+	Out map[string][]string `json:"out"`
+}
+
+// upstreamHeaderFilters runs handlers.FilterUpstreamHeaders, what passthrough-headers
+// forwards from an upstream response.
+func upstreamHeaderFilters() []headerFilterCase {
+	inputs := []http.Header{
+		{
+			"Content-Type":                       {"application/json"},
+			"Content-Length":                     {"42"},
+			"Content-Encoding":                   {"gzip"},
+			"Set-Cookie":                         {"s=1"},
+			"X-Request-Id":                       {"req-1"},
+			"Connection":                         {"close, X-Custom-Hop"},
+			"X-Custom-Hop":                       {"h"},
+			"Keep-Alive":                         {"timeout=5"},
+			"X-Litellm-Model":                    {"m"},
+			"Helicone-Id":                        {"h1"},
+			"Cf-Aig-Cache-Status":                {"HIT"},
+			"Access-Control-Allow-Origin":        {"*"},
+			"X-Cpa-Trace-Id":                     {"t"},
+			"Anthropic-Ratelimit-Requests-Limit": {"50"},
+			"Retry-After":                        {"30"},
+			"X-Multi":                            {"a", "b"},
+		},
+		{"Transfer-Encoding": {"chunked"}, "Te": {"trailers"}},
+	}
+	out := make([]headerFilterCase, 0, len(inputs))
+	for _, in := range inputs {
+		filtered := handlers.FilterUpstreamHeaders(in)
+		if filtered == nil {
+			filtered = http.Header{}
+		}
+		out = append(out, headerFilterCase{In: in, Out: filtered})
+	}
+	return out
+}
+
 type keepAliveCase struct {
 	Name        string `json:"name"`
 	DelayMillis int    `json:"delay_ms"`
@@ -1208,6 +1466,9 @@ func nonStreamKeepAlives() []keepAliveCase {
 
 func main() {
 	out := map[string]any{}
+	out["upstream_headers"] = upstreamHeaderFilters()
+	out["reporter"] = reporterSequences()
+	out["substitution"] = substitutions()
 	out["nonstream_keepalive"] = nonStreamKeepAlives()
 	out["alt"] = alts()
 	out["auth_kind"] = authKinds()

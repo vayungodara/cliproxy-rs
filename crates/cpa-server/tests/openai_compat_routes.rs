@@ -11,10 +11,14 @@ use axum::response::{IntoResponse, Response};
 use cpa_core::config::Config;
 use cpa_exec::Executors;
 use cpa_exec::claude::ClaudeExecutor;
-use cpa_server::{Runtime, router};
+use cpa_server::router;
 
+/// Requests seen, and the compact failure to answer with (`None` answers `{"ok":true}`).
 #[derive(Default)]
-struct Seen(Mutex<Vec<(String, Option<String>, String)>>);
+struct Seen(
+    Mutex<Vec<(String, Option<String>, String)>>,
+    Mutex<Option<(u16, &'static str)>>,
+);
 
 const CHAT: &str = r#"{"id":"c1","object":"chat.completion","created":1,"model":"up-model","choices":[{"index":0,"message":{"role":"assistant","content":"ok"},"finish_reason":"stop"}]}"#;
 const CHUNK: &str = r#"{"id":"c1","object":"chat.completion.chunk","created":1,"model":"up-model","choices":[{"index":0,"delta":{"content":"ok"},"finish_reason":"stop"}]}"#;
@@ -29,7 +33,18 @@ async fn upstream(State(seen): State<Arc<Seen>>, req: Request) -> Response {
     let body = axum::body::to_bytes(req.into_body(), usize::MAX).await.unwrap();
     let body = String::from_utf8(body.to_vec()).unwrap();
     let stream = body.contains(r#""include_usage":true"#);
-    seen.0.lock().unwrap().push((path, auth, body));
+    seen.0.lock().unwrap().push((path.clone(), auth, body));
+    if path.ends_with("/responses/compact") {
+        return match *seen.1.lock().unwrap() {
+            Some((status, body)) => (
+                axum::http::StatusCode::from_u16(status).unwrap(),
+                [("content-type", "application/json")],
+                body,
+            )
+                .into_response(),
+            None => ([("content-type", "application/json")], r#"{"ok":true}"#).into_response(),
+        };
+    }
     if stream {
         let sse = format!("data: {CHUNK}\n\ndata: [DONE]\n\n");
         ([("content-type", "text/event-stream")], Bytes::from(sse)).into_response()
@@ -46,10 +61,15 @@ async fn serve(app: axum::Router) -> String {
 }
 
 async fn proxy() -> (String, Arc<Seen>) {
+    proxy_keys(&["sk-fake-upstream"]).await
+}
+
+async fn proxy_keys(keys: &[&str]) -> (String, Arc<Seen>) {
+    let keys: String = keys.iter().map(|k| format!("        - api-key: {k}\n")).collect();
     let seen = Arc::new(Seen::default());
     let upstream_url = serve(axum::Router::new().fallback(upstream).with_state(seen.clone())).await;
     let config = Config::parse(&format!(
-        "access:\n  api-keys: [client-key]\napi-keys:\n  openai-compatibility:\n    - name: Acme\n      base-url: {upstream_url}/v1\n      models:\n        - name: up-model\n          alias: fast\n      keys:\n        - api-key: sk-fake-upstream\n"
+        "access:\n  api-keys: [client-key]\napi-keys:\n  openai-compatibility:\n    - name: Acme\n      base-url: {upstream_url}/v1\n      models:\n        - name: up-model\n          alias: fast\n      keys:\n{keys}"
     ))
     .unwrap();
     let credentials = cpa_core::config::credentials::load(&config);
@@ -60,7 +80,7 @@ async fn proxy() -> (String, Arc<Seen>) {
         openai: Default::default(),
         google: Default::default(),
     };
-    let rt = Arc::new(Runtime::new(config, credentials, executors));
+    let rt = Arc::new(cpa_server::testing::runtime(config, credentials, executors));
     (serve(router(rt)).await, seen)
 }
 
@@ -123,4 +143,103 @@ async fn streaming_requests_usage_and_ends_with_done() {
         body,
         r#"{"model":"up-model","stream":true,"messages":[{"role":"user","content":"hi"}],"stream_options":{"include_usage":true}}"#
     );
+}
+
+async fn send(url: &str, path: &str, headers: &[(&str, &str)], body: Vec<u8>) -> (u16, String) {
+    let mut req = wreq::Client::new()
+        .post(format!("{url}{path}"))
+        .header("authorization", "Bearer client-key")
+        .header("content-type", "application/json");
+    for (k, v) in headers {
+        req = req.header(*k, *v);
+    }
+    let res = req.body(body).send().await.unwrap();
+    (res.status().as_u16(), res.text().await.unwrap())
+}
+
+fn compact_calls(seen: &Seen) -> usize {
+    seen.0
+        .lock()
+        .unwrap()
+        .iter()
+        .filter(|r| r.0.ends_with("/responses/compact"))
+        .count()
+}
+
+/// Go `TestOpenAIResponsesCompactDecodesZstdRequestBody` (openai_responses_compact_test.go)
+/// and `handlers.ReadRequestBody`.
+#[tokio::test]
+async fn compact_decodes_zstd_request_body() {
+    let (url, seen) = proxy().await;
+    let compressed = zstd::stream::encode_all(&br#"{"model":"fast","input":"hello"}"#[..], 0).unwrap();
+    let (status, text) = send(
+        &url,
+        "/v1/responses/compact",
+        &[("content-encoding", "zstd")],
+        compressed,
+    )
+    .await;
+    assert_eq!(status, 200, "{text}");
+    assert_eq!(text, r#"{"ok":true}"#);
+    assert_eq!(compact_calls(&seen), 1);
+    let body = seen.0.lock().unwrap()[0].2.clone();
+    assert!(
+        body.contains(r#""input":"hello""#) && body.contains(r#""model":"up-model""#),
+        "{body}"
+    );
+
+    // ReadRequestBody: an undecodable body that is valid JSON is used as sent; one
+    // that is not answers 400 with the decoder's reason.
+    let (status, text) = send(
+        &url,
+        "/v1/chat/completions",
+        &[("content-encoding", "gzip")],
+        br#"{"model":"fast","messages":[{"role":"user","content":"hi"}]}"#.to_vec(),
+    )
+    .await;
+    assert_eq!(status, 200, "{text}");
+    let (status, text) = send(
+        &url,
+        "/v1/chat/completions",
+        &[("content-encoding", "br")],
+        b"\x1f\x8b".to_vec(),
+    )
+    .await;
+    assert_eq!(status, 400);
+    assert_eq!(
+        text,
+        r#"{"error":{"message":"Invalid request: unsupported request content encoding: br","type":"invalid_request_error"}}"#
+    );
+}
+
+/// Go `TestOpenAIResponsesCompactTransientFailureDoesNotCooldownAuthAndPreservesError`:
+/// a 500 on every credential keeps the upstream status and message, and cools nothing.
+#[tokio::test]
+async fn compact_transient_failure_keeps_error_and_cools_nothing() {
+    let (url, seen) = proxy_keys(&["sk-fake-a", "sk-fake-b"]).await;
+    *seen.1.lock().unwrap() = Some((
+        500,
+        r#"{"error":{"message":"compact upstream temporary error","type":"api_error"}}"#,
+    ));
+    let body = br#"{"model":"fast","input":"hello"}"#.to_vec();
+    let (status, text) = send(&url, "/v1/responses/compact", &[], body.clone()).await;
+    assert_eq!(status, 500, "{text}");
+    assert!(text.contains("compact upstream temporary error"), "{text}");
+    assert_eq!(compact_calls(&seen), 2, "a transient fault fails over");
+    let (status, text) = send(&url, "/v1/responses", &[], body).await;
+    assert_eq!(status, 200, "normal traffic is not cooled: {text}");
+}
+
+/// Go `TestOpenAIResponsesCompactRequestFaultStopsFallbackAndPreservesError`.
+#[tokio::test]
+async fn compact_request_fault_stops_fallback() {
+    let (url, seen) = proxy_keys(&["sk-fake-a", "sk-fake-b"]).await;
+    *seen.1.lock().unwrap() = Some((404, "404 page not found"));
+    let body = br#"{"model":"fast","input":"hello"}"#.to_vec();
+    let (status, text) = send(&url, "/v1/responses/compact", &[], body.clone()).await;
+    assert_eq!(status, 404, "{text}");
+    assert!(text.contains("404 page not found"), "{text}");
+    assert_eq!(compact_calls(&seen), 1, "a request fault stops failover");
+    let (status, text) = send(&url, "/v1/responses", &[], body).await;
+    assert_eq!(status, 200, "normal traffic is not cooled: {text}");
 }

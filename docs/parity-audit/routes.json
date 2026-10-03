@@ -1,9 +1,9 @@
 {
  "DELETE /v0/management/api-keys": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0134",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "DELETE /v0/management/auth-files": {
   "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
@@ -12,58 +12,58 @@
   "status": 403
  },
  "DELETE /v0/management/claude-api-key": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0174",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "DELETE /v0/management/codex-api-key": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0178",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "DELETE /v0/management/gemini-api-key": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0140",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "DELETE /v0/management/interactions-api-key": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0144",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "DELETE /v0/management/logs": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0146",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "DELETE /v0/management/meta-api-key": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0186",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "DELETE /v0/management/oauth-excluded-models": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0198",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "DELETE /v0/management/oauth-model-alias": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0202",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "DELETE /v0/management/oauth-request-scoped-errors": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0206",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "DELETE /v0/management/oauth-session": {
   "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
@@ -72,10 +72,10 @@
   "status": 403
  },
  "DELETE /v0/management/openai-compatibility": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0190",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "DELETE /v0/management/plugins/:id": {
   "body": "",
@@ -90,22 +90,22 @@
   "status": 404
  },
  "DELETE /v0/management/proxy-url": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0119",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "DELETE /v0/management/vertex-api-key": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0194",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "DELETE /v0/management/xai-api-key": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0182",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "DELETE /v8/management/config/*path": {
   "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
@@ -210,16 +210,16 @@
   "status": 404
  },
  "GET /v0/management/anthropic-auth-url": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0217",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "GET /v0/management/antigravity-auth-url": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0219",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "GET /v0/management/api-key-usage": {
   "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
@@ -228,10 +228,10 @@
   "status": 403
  },
  "GET /v0/management/api-keys": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0131",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "GET /v0/management/auth-files": {
   "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
@@ -252,28 +252,28 @@
   "status": 403
  },
  "GET /v0/management/claude-api-key": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0171",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "GET /v0/management/codex-api-key": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0175",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "GET /v0/management/codex-auth-url": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0218",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "GET /v0/management/config": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0085",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "GET /v0/management/config.yaml": {
   "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
@@ -282,34 +282,34 @@
   "status": 403
  },
  "GET /v0/management/debug": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0101",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "GET /v0/management/devin-auth-url": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0223",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "GET /v0/management/error-logs-max-files": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0110",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "GET /v0/management/force-model-prefix": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0165",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "GET /v0/management/gemini-api-key": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0137",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "GET /v0/management/get-auth-status": {
   "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
@@ -318,22 +318,22 @@
   "status": 403
  },
  "GET /v0/management/interactions-api-key": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0141",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "GET /v0/management/kimi-ai-auth-url": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0221",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "GET /v0/management/kimi-auth-url": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0220",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "GET /v0/management/latest-version": {
   "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
@@ -342,46 +342,46 @@
   "status": 403
  },
  "GET /v0/management/logging-to-file": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0104",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "GET /v0/management/logs": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0145",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "GET /v0/management/logs-max-total-size-mb": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0107",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "GET /v0/management/max-retry-credentials": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0159",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "GET /v0/management/max-retry-interval": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0162",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "GET /v0/management/meta-api-key": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0183",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "GET /v0/management/meta-auth-url": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0224",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "GET /v0/management/model-definitions/:channel": {
   "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
@@ -396,28 +396,28 @@
   "status": 400
  },
  "GET /v0/management/oauth-excluded-models": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0195",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "GET /v0/management/oauth-model-alias": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0199",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "GET /v0/management/oauth-request-scoped-errors": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0203",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "GET /v0/management/openai-compatibility": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0187",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "GET /v0/management/plugin-store": {
   "body": "",
@@ -444,22 +444,22 @@
   "status": 404
  },
  "GET /v0/management/proxy-url": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0116",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "GET /v0/management/quota-exceeded/switch-preview-model": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0124",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "GET /v0/management/quota-exceeded/switch-project": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0121",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "GET /v0/management/quota/providers": {
   "body": "",
@@ -468,40 +468,40 @@
   "status": 404
  },
  "GET /v0/management/request-error-logs": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0147",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "GET /v0/management/request-error-logs/:name": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0148",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "GET /v0/management/request-log": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0150",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "GET /v0/management/request-log-by-id/:id": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0149",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "GET /v0/management/request-retry": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0156",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "GET /v0/management/routing/strategy": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0168",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "GET /v0/management/usage-queue": {
   "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
@@ -510,40 +510,40 @@
   "status": 403
  },
  "GET /v0/management/usage-statistics-enabled": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0113",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "GET /v0/management/vertex-api-key": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0191",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "GET /v0/management/ws-auth": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0153",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "GET /v0/management/xai-api-key": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0179",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "GET /v0/management/xai-auth-url": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0222",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "GET /v1/live/:call_id": {
-  "body": "",
+  "body": "{\"error\":\"Invalid API key\"}",
   "id": "M5-0004",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 401
  },
  "GET /v1/models": {
   "body": "{\"error\":\"Invalid API key\"}",
@@ -552,22 +552,22 @@
   "status": 401
  },
  "GET /v1/realtime": {
-  "body": "",
+  "body": "{\"error\":{\"code\":\"invalid_api_key\",\"message\":\"Invalid API key\",\"param\":null,\"typ",
   "id": "M5-0005",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 401
  },
  "GET /v1/realtime/calls/:call_id": {
-  "body": "",
+  "body": "{\"error\":{\"code\":\"invalid_api_key\",\"message\":\"Invalid API key\",\"param\":null,\"typ",
   "id": "M5-0008",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 401
  },
  "GET /v1/realtime/translations": {
-  "body": "",
+  "body": "{\"error\":{\"code\":\"invalid_api_key\",\"message\":\"Invalid API key\",\"param\":null,\"typ",
   "id": "M5-0012",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 401
  },
  "GET /v1/responses": {
   "body": "{\"error\":\"Invalid API key\"}",
@@ -720,10 +720,10 @@
   "status": 200
  },
  "PATCH /v0/management/api-keys": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0133",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "PATCH /v0/management/auth-files/fields": {
   "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
@@ -738,100 +738,100 @@
   "status": 403
  },
  "PATCH /v0/management/claude-api-key": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0173",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "PATCH /v0/management/codex-api-key": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0177",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "PATCH /v0/management/debug": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0103",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "PATCH /v0/management/error-logs-max-files": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0112",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "PATCH /v0/management/force-model-prefix": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0167",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "PATCH /v0/management/gemini-api-key": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0139",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "PATCH /v0/management/interactions-api-key": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0143",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "PATCH /v0/management/logging-to-file": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0106",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "PATCH /v0/management/logs-max-total-size-mb": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0109",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "PATCH /v0/management/max-retry-credentials": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0161",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "PATCH /v0/management/max-retry-interval": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0164",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "PATCH /v0/management/meta-api-key": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0185",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "PATCH /v0/management/oauth-excluded-models": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0197",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "PATCH /v0/management/oauth-model-alias": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0201",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "PATCH /v0/management/oauth-request-scoped-errors": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0205",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "PATCH /v0/management/openai-compatibility": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0189",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "PATCH /v0/management/plugins/:id/config": {
   "body": "",
@@ -846,64 +846,64 @@
   "status": 404
  },
  "PATCH /v0/management/proxy-url": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0118",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "PATCH /v0/management/quota-exceeded/switch-preview-model": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0126",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "PATCH /v0/management/quota-exceeded/switch-project": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0123",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "PATCH /v0/management/request-log": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0152",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "PATCH /v0/management/request-retry": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0158",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "PATCH /v0/management/routing/strategy": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0170",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "PATCH /v0/management/usage-statistics-enabled": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0115",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "PATCH /v0/management/vertex-api-key": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0193",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "PATCH /v0/management/ws-auth": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0155",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "PATCH /v0/management/xai-api-key": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0181",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "PATCH /v8/management/config": {
   "body": "{\"error\":\"invalid management key\"}",
@@ -1014,10 +1014,10 @@
   "status": 403
  },
  "POST /v0/management/vertex/import": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0216",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "POST /v1/alpha/search": {
   "body": "{\"error\":\"Invalid API key\"}",
@@ -1050,10 +1050,10 @@
   "status": 404
  },
  "POST /v1/live": {
-  "body": "",
+  "body": "{\"error\":\"Invalid API key\"}",
   "id": "M5-0003",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 401
  },
  "POST /v1/messages": {
   "body": "{\"error\":\"Invalid API key\"}",
@@ -1068,70 +1068,70 @@
   "status": 401
  },
  "POST /v1/realtime": {
-  "body": "",
+  "body": "{\"error\":{\"code\":\"invalid_api_key\",\"message\":\"Invalid API key\",\"param\":null,\"typ",
   "id": "M5-0006",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 401
  },
  "POST /v1/realtime/calls": {
-  "body": "",
+  "body": "{\"error\":{\"code\":\"invalid_api_key\",\"message\":\"Invalid API key\",\"param\":null,\"typ",
   "id": "M5-0007",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 401
  },
  "POST /v1/realtime/calls/:call_id/accept": {
-  "body": "",
+  "body": "{\"error\":{\"code\":\"invalid_api_key\",\"message\":\"Invalid API key\",\"param\":null,\"typ",
   "id": "M5-0016",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 401
  },
  "POST /v1/realtime/calls/:call_id/hangup": {
-  "body": "",
+  "body": "{\"error\":{\"code\":\"invalid_api_key\",\"message\":\"Invalid API key\",\"param\":null,\"typ",
   "id": "M5-0015",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 401
  },
  "POST /v1/realtime/calls/:call_id/refer": {
-  "body": "",
+  "body": "{\"error\":{\"code\":\"invalid_api_key\",\"message\":\"Invalid API key\",\"param\":null,\"typ",
   "id": "M5-0018",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 401
  },
  "POST /v1/realtime/calls/:call_id/reject": {
-  "body": "",
+  "body": "{\"error\":{\"code\":\"invalid_api_key\",\"message\":\"Invalid API key\",\"param\":null,\"typ",
   "id": "M5-0017",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 401
  },
  "POST /v1/realtime/client_secrets": {
-  "body": "",
+  "body": "{\"error\":{\"code\":\"invalid_api_key\",\"message\":\"Invalid API key\",\"param\":null,\"typ",
   "id": "M5-0009",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 401
  },
  "POST /v1/realtime/sessions": {
-  "body": "",
+  "body": "{\"error\":{\"code\":\"invalid_api_key\",\"message\":\"Invalid API key\",\"param\":null,\"typ",
   "id": "M5-0010",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 401
  },
  "POST /v1/realtime/transcription_sessions": {
-  "body": "",
+  "body": "{\"error\":{\"code\":\"invalid_api_key\",\"message\":\"Invalid API key\",\"param\":null,\"typ",
   "id": "M5-0011",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 401
  },
  "POST /v1/realtime/translations": {
-  "body": "",
+  "body": "{\"error\":{\"code\":\"invalid_api_key\",\"message\":\"Invalid API key\",\"param\":null,\"typ",
   "id": "M5-0013",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 401
  },
  "POST /v1/realtime/translations/client_secrets": {
-  "body": "",
+  "body": "{\"error\":{\"code\":\"invalid_api_key\",\"message\":\"Invalid API key\",\"param\":null,\"typ",
   "id": "M5-0014",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 401
  },
  "POST /v1/responses": {
   "body": "{\"error\":\"Invalid API key\"}",
@@ -1230,22 +1230,22 @@
   "status": 403
  },
  "PUT /v0/management/api-keys": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0132",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "PUT /v0/management/claude-api-key": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0172",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "PUT /v0/management/codex-api-key": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0176",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "PUT /v0/management/config.yaml": {
   "body": "",
@@ -1254,88 +1254,88 @@
   "status": 404
  },
  "PUT /v0/management/debug": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0102",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "PUT /v0/management/error-logs-max-files": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0111",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "PUT /v0/management/force-model-prefix": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0166",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "PUT /v0/management/gemini-api-key": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0138",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "PUT /v0/management/interactions-api-key": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0142",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "PUT /v0/management/logging-to-file": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0105",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "PUT /v0/management/logs-max-total-size-mb": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0108",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "PUT /v0/management/max-retry-credentials": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0160",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "PUT /v0/management/max-retry-interval": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0163",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "PUT /v0/management/meta-api-key": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0184",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "PUT /v0/management/oauth-excluded-models": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0196",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "PUT /v0/management/oauth-model-alias": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0200",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "PUT /v0/management/oauth-request-scoped-errors": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0204",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "PUT /v0/management/openai-compatibility": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0188",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "PUT /v0/management/plugins/:id/config": {
   "body": "",
@@ -1344,64 +1344,64 @@
   "status": 404
  },
  "PUT /v0/management/proxy-url": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0117",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "PUT /v0/management/quota-exceeded/switch-preview-model": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0125",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "PUT /v0/management/quota-exceeded/switch-project": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0122",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "PUT /v0/management/request-log": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0151",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "PUT /v0/management/request-retry": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0157",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "PUT /v0/management/routing/strategy": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0169",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "PUT /v0/management/usage-statistics-enabled": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0114",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "PUT /v0/management/vertex-api-key": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0192",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "PUT /v0/management/ws-auth": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0154",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "PUT /v0/management/xai-api-key": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0180",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "PUT /v8/management/config": {
   "body": "{\"error\":\"invalid management key\"}",

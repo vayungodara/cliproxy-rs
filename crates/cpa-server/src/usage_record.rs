@@ -632,26 +632,28 @@ pub fn parse_gemini(body: &[u8]) -> Detail {
     parse_gemini_node(&node)
 }
 
-/// Go `ParseGeminiStreamUsage` on the payload Go's Gemini executor keeps after
-/// `FilterSSEUsageMetadata`: usage on a non-terminal chunk does not count.
-// ponytail: Go also drops a usage chunk that follows a usage-less stop chunk with the
-// same `traceId` (Antigravity and AI Studio); those executors are not ported.
+/// Go `ParseGeminiStreamUsage`. The Gemini-family executors report the line Go parses
+/// (the Gemini executor's `FilterSSEUsageMetadata` payload, Vertex's raw line), so a
+/// non-terminal chunk's usage counts when it is reported.
 fn parse_gemini_stream(line: &[u8]) -> Option<Detail> {
     let payload = json_payload(line).filter(|p| gj::valid(p))?;
-    let root = gj::parse(payload);
-    let finish = first(
-        &root,
-        &["candidates.0.finishReason", "response.candidates.0.finishReason"],
-    );
-    if !(finish.exists() && !finish.str().trim().is_empty()) {
-        return None;
-    }
-    let node = first(&root, &["usageMetadata", "usage_metadata"]);
+    let node = first(&gj::parse(payload), &["usageMetadata", "usage_metadata"]);
     if !node.exists() {
         return None;
     }
     let d = parse_gemini_node(&node);
     has_tokens(&d).then_some(d)
+}
+
+/// Go `ParseAntigravityStreamUsage`: the wrapped `response.usageMetadata` first, and
+/// zero usage still counts.
+fn parse_antigravity_stream(line: &[u8]) -> Option<Detail> {
+    let payload = json_payload(line).filter(|p| gj::valid(p))?;
+    let node = first(
+        &gj::parse(payload),
+        &["response.usageMetadata", "usageMetadata", "usage_metadata"],
+    );
+    node.exists().then(|| parse_gemini_node(&node))
 }
 
 /// Go `parseInteractionsUsageDetail`.
@@ -907,8 +909,13 @@ impl StreamUsage {
                     self.observe(d);
                 }
             }
-            Format::Gemini | Format::Antigravity => {
+            Format::Gemini => {
                 if let Some(d) = parse_gemini_stream(line) {
+                    self.observe(d);
+                }
+            }
+            Format::Antigravity => {
+                if let Some(d) = parse_antigravity_stream(line) {
                     self.observe(d);
                 }
             }
@@ -1079,9 +1086,135 @@ impl ResponseModel {
         }
     }
 
+    /// Go `SetResponseModel`: trimmed and bounded, unless a terminal event fixed it.
+    pub fn set(&mut self, model: &str) {
+        let model = model.trim();
+        if self.final_ || model.is_empty() || model.len() > MAX_RESPONSE_MODEL {
+            return;
+        }
+        self.model = model.to_owned();
+    }
+
     pub fn get(&self) -> &str {
         &self.model
     }
+}
+
+/// Go `normalizeModelName`: lower case without the thinking suffix.
+fn normalize_model_name(model: &str) -> String {
+    let lower = model.trim().to_lowercase();
+    cpa_common::thinking::parse_suffix(&lower).model_name.trim().to_owned()
+}
+
+/// Go `isDatedModelAlias`: `dated` is `base` plus a date or a three-digit version.
+fn is_dated_model_alias(base: &str, dated: &str) -> bool {
+    let Some(suffix) = dated.strip_prefix(base).and_then(|s| s.strip_prefix('-')) else {
+        return false;
+    };
+    let digits = |s: &str| !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit());
+    match suffix.len() {
+        10 => {
+            let b = suffix.as_bytes();
+            b[4] == b'-' && b[7] == b'-' && digits(&suffix[..4]) && digits(&suffix[5..7]) && digits(&suffix[8..])
+        }
+        8 | 3 => digits(suffix),
+        _ => false,
+    }
+}
+
+/// Go `IsModelSubstituted`: whether the upstream served another model than the
+/// requested one; dated aliases, provider prefixes and `-latest` are the same model.
+pub fn is_model_substituted(requested: &str, served: &str) -> bool {
+    let served = normalize_model_name(served);
+    let requested = normalize_model_name(requested);
+    if served.is_empty() || requested.is_empty() || requested == served {
+        return false;
+    }
+    let dated = |a: &str, b: &str| is_dated_model_alias(a, b) || is_dated_model_alias(b, a);
+    if dated(&requested, &served) {
+        return false;
+    }
+    // Go `stripModelProviderPrefix`: after the last `/`, unless it ends the name.
+    let strip = |m: &str| match m.rfind('/') {
+        Some(i) if i < m.len() - 1 => m[i + 1..].to_owned(),
+        _ => m.to_owned(),
+    };
+    let (req, srv) = (strip(&requested), strip(&served));
+    if req == srv || dated(&req, &srv) {
+        return false;
+    }
+    let (req, srv) = (
+        req.strip_suffix("-latest").unwrap_or(&req),
+        srv.strip_suffix("-latest").unwrap_or(&srv),
+    );
+    !(req == srv || dated(req, srv))
+}
+
+/// Provider, credential ID, normalized requested and served model.
+type SubstitutionKey = (String, String, String, String);
+
+/// Go `codexModelSubstitutionWarns`: one warning per provider, credential and model
+/// pair per ten minutes, at most 1024 pairs remembered.
+fn substitution_warning_allowed(key: SubstitutionKey) -> bool {
+    use std::collections::HashMap;
+    use std::time::{Duration, Instant};
+    const WINDOW: Duration = Duration::from_secs(600);
+    const MAX: usize = 1024;
+    static LAST: std::sync::Mutex<Option<HashMap<SubstitutionKey, Instant>>> = std::sync::Mutex::new(None);
+    let mut guard = LAST.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let last = guard.get_or_insert_with(HashMap::new);
+    let now = Instant::now();
+    if last.get(&key).is_some_and(|at| now.duration_since(*at) < WINDOW) {
+        return false;
+    }
+    if last.len() >= MAX {
+        last.retain(|_, at| now.duration_since(*at) < WINDOW);
+        if last.len() >= MAX {
+            last.clear();
+        }
+    }
+    last.insert(key, now);
+    true
+}
+
+/// Go `warnModelSubstitution`, after an attempt's record is published.
+fn warn_model_substitution(record: &Record, upstream_model: &str, auth_id: &str) {
+    let served = record.response_model.as_str();
+    let expected = if upstream_model.is_empty() {
+        record.model.as_str()
+    } else {
+        upstream_model
+    };
+    if served.is_empty() || !is_model_substituted(expected, served) {
+        return;
+    }
+    if !record.model.is_empty() && !is_model_substituted(&record.model, served) {
+        return;
+    }
+    let provider = if record.provider.is_empty() {
+        "codex"
+    } else {
+        record.provider.as_str()
+    };
+    let key = (
+        provider.to_owned(),
+        auth_id.to_owned(),
+        normalize_model_name(expected),
+        normalize_model_name(served),
+    );
+    if !substitution_warning_allowed(key) {
+        return;
+    }
+    let index = if record.auth_index.trim().is_empty() {
+        "nil"
+    } else {
+        record.auth_index.trim()
+    };
+    tracing::warn!(
+        "{provider} executor: upstream served model {} for requested model {} (auth_index={index})",
+        cpa_common::gostr::quote(served),
+        cpa_common::gostr::quote(&record.model),
+    );
 }
 
 // ---- the queued record ---------------------------------------------------------
@@ -1368,6 +1501,68 @@ fn executor_identity(c: &cpa_core::credential::Credential) -> (String, &'static 
     (provider, executor)
 }
 
+/// Go's TTFT marks (`StartResponseTTFT`, `MarkFirstResponseByte`,
+/// `ObserveTokenEvent`), taken only when the executor reports them.
+#[derive(Default)]
+struct Ttft {
+    /// The executor reports marks; the server's own approximation is not used.
+    tracked: bool,
+    start: Option<std::time::Instant>,
+    ttft: Option<std::time::Duration>,
+    first_packet: Option<std::time::Duration>,
+}
+
+impl Ttft {
+    fn start(&mut self) {
+        self.tracked = true;
+        if self.ttft.is_none() && self.start.is_none() {
+            self.start = Some(std::time::Instant::now());
+        }
+    }
+
+    fn first_byte(&mut self) {
+        self.tracked = true;
+        if self.ttft.is_none()
+            && let Some(start) = self.start.take()
+        {
+            self.ttft = Some(start.elapsed());
+        }
+    }
+
+    fn token(&mut self, is_token: bool) {
+        self.tracked = true;
+        let Some(start) = self.start.filter(|_| self.ttft.is_none()) else {
+            return;
+        };
+        if !is_token && self.first_packet.is_some() {
+            return;
+        }
+        let elapsed = start.elapsed();
+        self.first_packet.get_or_insert(elapsed);
+        if is_token {
+            self.ttft = Some(elapsed);
+            self.start = None;
+        }
+    }
+
+    /// Go `ttftDuration`: TTFT, else the first packet, else zero.
+    fn get(&self) -> std::time::Duration {
+        self.ttft.or(self.first_packet).unwrap_or_default()
+    }
+}
+
+/// An attempt outcome the executor published itself (Go `Publish`/`PublishFailure`),
+/// with what Go's `buildRecord` reads at that moment.
+struct Outcome {
+    failed: bool,
+    status: i64,
+    body: String,
+    detail: Detail,
+    model: String,
+    latency: std::time::Duration,
+    ttft: std::time::Duration,
+}
+
 /// What an executor reported through `ExecRequest::usage`.
 #[derive(Default)]
 struct Reported {
@@ -1376,17 +1571,50 @@ struct Reported {
     stream: StreamUsage,
     model: ResponseModel,
     effort: Option<String>,
+    upstream_model: String,
+    ttft: Ttft,
+    usage_required: bool,
+    outcome: Option<Outcome>,
+}
+
+impl Reported {
+    /// The usage reported so far: a body, else the stream's last usage.
+    fn usage(&self) -> Option<Detail> {
+        self.body.clone().or_else(|| self.stream.detail().cloned())
+    }
 }
 
 /// The executor-facing observer; `provider` picks the response-model extractor.
 struct Observer {
     provider: String,
+    started: std::time::Instant,
     state: std::sync::Mutex<Reported>,
 }
 
 impl Observer {
     fn lock(&self) -> std::sync::MutexGuard<'_, Reported> {
         self.state.lock().unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+
+    fn settle(&self, failed: bool, status: i64, body: &str) {
+        let mut r = self.lock();
+        if r.outcome.is_some() {
+            return;
+        }
+        let detail = if failed {
+            Detail::default()
+        } else {
+            r.usage().unwrap_or_default()
+        };
+        r.outcome = Some(Outcome {
+            failed,
+            status,
+            body: body.trim().to_owned(),
+            detail,
+            model: r.model.get().to_owned(),
+            latency: self.started.elapsed(),
+            ttft: r.ttft.get(),
+        });
     }
 }
 
@@ -1406,19 +1634,69 @@ impl cpa_core::exec::UsageObserver for Observer {
     }
 
     fn request(&self, format: Format, payload: &[u8]) {
+        self.request_for(format.as_str(), payload);
+    }
+
+    fn request_for(&self, identifier: &str, payload: &[u8]) {
         self.lock().effort = Some(cpa_common::thinking::extract_translated_reasoning_effort(
-            payload,
-            format.as_str(),
+            payload, identifier,
         ));
+    }
+
+    fn upstream_model(&self, model: &str) {
+        self.lock().upstream_model = model.trim().to_owned();
+    }
+
+    fn response_model(&self, model: &str) {
+        self.lock().model.set(model);
+    }
+
+    fn round_trip_started(&self) {
+        self.lock().ttft.start();
+    }
+
+    fn first_byte(&self) {
+        self.lock().ttft.first_byte();
+    }
+
+    fn token_event(&self, is_token: bool) {
+        self.lock().ttft.token(is_token);
+    }
+
+    fn publish(&self) {
+        self.settle(false, 0, "");
+    }
+
+    fn publish_failure(&self, status: u16, body: &str) {
+        self.settle(true, i64::from(status), body);
+    }
+
+    fn usage_required(&self) {
+        self.lock().usage_required = true;
+    }
+
+    fn failed(&self) {
+        let mut r = self.lock();
+        r.seen = true;
+        r.body = Some(Detail::default());
     }
 }
 
-/// One upstream attempt's record in progress. It publishes exactly once: on
-/// success, on failure, or when dropped mid-stream (Go's deferred publish).
+/// How the attempt ended for the server.
+enum Ending<'a> {
+    /// Success, or a stream the client dropped (Go's deferred publish).
+    Done,
+    Failed(&'a cpa_core::exec::ExecError),
+}
+
+/// One upstream attempt's record in progress. It publishes at most once: what the
+/// executor published itself, else on success, on failure, or when dropped
+/// mid-stream (Go's deferred publish).
 pub struct Tracker {
     queue: std::sync::Arc<crate::Runtime>,
     facts: std::sync::Arc<Facts>,
     record: Record,
+    auth_id: String,
     started: std::time::Instant,
     observer: std::sync::Arc<Observer>,
     stream: StreamUsage,
@@ -1456,13 +1734,16 @@ impl Tracker {
             provider: provider.clone(),
             ..Record::default()
         };
+        let started = std::time::Instant::now();
         Self {
             queue: rt.clone(),
             facts: facts.clone(),
             record,
-            started: std::time::Instant::now(),
+            auth_id: credential.id.clone(),
+            started,
             observer: std::sync::Arc::new(Observer {
                 provider,
+                started,
                 state: std::sync::Mutex::default(),
             }),
             stream: StreamUsage::default(),
@@ -1479,8 +1760,9 @@ impl Tracker {
     }
 
     /// The upstream answered; its headers are the record's `response_headers`.
-    // ponytail: TTFT is measured to the executor's response (buffered) or first event
-    // (streams); Go measures to the first upstream body byte.
+    // ponytail: without the executor's TTFT marks (`UsageSink::round_trip_started` and
+    // `first_byte`), TTFT is measured to the executor's response (buffered) or first
+    // event (streams); Go measures from the upstream request to its first body byte.
     pub fn arrived(&mut self, headers: &axum::http::HeaderMap) {
         self.first.get_or_insert_with(|| self.started.elapsed());
         self.record.response_headers = go_headers(headers);
@@ -1516,21 +1798,17 @@ impl Tracker {
     }
 
     pub fn succeed(mut self) {
-        self.publish();
+        self.publish(Ending::Done);
     }
 
-    /// Go `PublishFailure`: the error's status and body, and any usage seen so far.
+    /// Go `PublishFailure`: the error's status and body without usage. Claude's
+    /// executor fails through its stream buffer (`StreamUsageBuffer.PublishFailure`),
+    /// which keeps the usage seen so far.
     pub fn fail(mut self, error: &cpa_core::exec::ExecError) {
-        self.record.failed = true;
-        self.record.fail_status = i64::from(crate::classify::go_status(error));
-        self.record.fail_body = crate::classify::error_text(error);
-        if self.record.response_headers.is_empty() {
-            self.record.response_headers = go_headers(&error.headers);
-        }
-        self.publish();
+        self.publish(Ending::Failed(error));
     }
 
-    fn publish(&mut self) {
+    fn publish(&mut self, ending: Ending<'_>) {
         if std::mem::replace(&mut self.published, true) {
             return;
         }
@@ -1539,28 +1817,62 @@ impl Tracker {
             return;
         }
         let reported = std::mem::take(&mut *self.observer.lock());
-        let (detail, model) = if reported.seen {
-            let detail = reported.body.or_else(|| reported.stream.detail().cloned());
-            (detail, reported.model.get().to_owned())
-        } else {
-            let detail = self.body.take().or_else(|| self.stream.detail().cloned());
-            (detail, self.model.get().to_owned())
-        };
         let mut record = std::mem::take(&mut self.record);
-        record.detail = detail.unwrap_or_default();
-        record.response_model = model;
+        if let Some(outcome) = reported.outcome {
+            record.failed = outcome.failed;
+            record.fail_status = outcome.status;
+            record.fail_body = outcome.body;
+            record.detail = outcome.detail;
+            record.response_model = outcome.model;
+            record.latency_ms = outcome.latency.as_millis() as i64;
+            record.ttft_ms = outcome.ttft.as_millis() as i64;
+        } else {
+            let usage = if reported.seen {
+                reported.usage()
+            } else {
+                self.body.take().or_else(|| self.stream.detail().cloned())
+            };
+            let detail = match ending {
+                Ending::Done if reported.usage_required && usage.is_none() => return,
+                Ending::Done => usage.unwrap_or_default(),
+                Ending::Failed(error) => {
+                    record.failed = true;
+                    record.fail_status = i64::from(crate::classify::go_status(error));
+                    record.fail_body = crate::classify::error_text(error);
+                    if record.response_headers.is_empty() {
+                        record.response_headers = go_headers(&error.headers);
+                    }
+                    if self.observer.provider == "claude" {
+                        usage.unwrap_or_default()
+                    } else {
+                        Detail::default()
+                    }
+                }
+            };
+            record.detail = detail;
+            record.response_model = if reported.seen || !reported.model.get().is_empty() {
+                reported.model.get().to_owned()
+            } else {
+                self.model.get().to_owned()
+            };
+            record.latency_ms = self.started.elapsed().as_millis() as i64;
+            record.ttft_ms = if reported.ttft.tracked {
+                reported.ttft.get().as_millis() as i64
+            } else {
+                self.first.map_or(0, |d| d.as_millis() as i64)
+            };
+        }
         if let Some(effort) = reported.effort {
             record.reasoning_effort = effort;
         }
-        record.latency_ms = self.started.elapsed().as_millis() as i64;
-        record.ttft_ms = self.first.map_or(0, |d| d.as_millis() as i64);
         queue.enqueue(queued(&record, &self.facts.client));
+        warn_model_substitution(&record, &reported.upstream_model, &self.auth_id);
     }
 }
 
 impl Drop for Tracker {
     fn drop(&mut self) {
-        self.publish();
+        self.publish(Ending::Done);
     }
 }
 
@@ -1690,6 +2002,32 @@ mod tests {
         );
     }
 
+    /// Go's `PublishFailure(err)` after usage was observed (an apply_patch rejection):
+    /// an empty detail wins over the reported body and lines, the response model stays.
+    #[test]
+    fn executor_failure_report_drops_tokens_keeps_model() {
+        use cpa_core::exec::UsageObserver;
+        let observer = Observer {
+            provider: "claude".into(),
+            started: std::time::Instant::now(),
+            state: std::sync::Mutex::default(),
+        };
+        observer.response_line(
+            Format::Claude,
+            br#"data: {"type":"message_start","message":{"model":"claude-upstream","usage":{"input_tokens":9,"cache_creation_input_tokens":4}}}"#,
+        );
+        observer.response_body(
+            Format::Claude,
+            br#"{"model":"claude-upstream","usage":{"input_tokens":9,"output_tokens":2}}"#,
+        );
+        assert_ne!(observer.lock().body, Some(Detail::default()), "the body parsed tokens");
+        observer.failed();
+        let reported = std::mem::take(&mut *observer.lock());
+        assert!(reported.seen);
+        assert_eq!(reported.body, Some(Detail::default()));
+        assert_eq!(reported.model.get(), "claude-upstream");
+    }
+
     /// Records from Go's real parsers, `UsageReporter` and `usageQueuePlugin`
     /// (tests/reference/server/main.go `usageRecords`), byte for byte.
     #[test]
@@ -1804,5 +2142,235 @@ mod tests {
             let want = gj::compact(raw.raw(), false);
             assert_eq!(String::from_utf8_lossy(&got), String::from_utf8_lossy(&want), "{name}");
         }
+    }
+
+    /// A runtime whose usage queue keeps records.
+    fn usage_runtime() -> std::sync::Arc<crate::Runtime> {
+        let cfg =
+            cpa_core::config::Config::parse("observability:\n  usage:\n    usage-statistics-enabled: true\n").unwrap();
+        let executors = cpa_exec::Executors {
+            claude: cpa_exec::claude::ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
+            codex: Default::default(),
+            devices: Default::default(),
+            openai: Default::default(),
+            google: Default::default(),
+        };
+        let rt = std::sync::Arc::new(crate::testing::runtime(cfg.clone(), Vec::new(), executors));
+        rt.usage_queue().configure(true, &cfg);
+        rt
+    }
+
+    fn credential_for(provider: &str) -> cpa_core::credential::Credential {
+        let mut metadata = serde_json::Map::new();
+        metadata.insert("type".into(), provider.into());
+        let mut c = cpa_core::credential::Credential::from_file(
+            std::path::Path::new("/auth"),
+            std::path::Path::new("/auth/a.json"),
+            metadata,
+        )
+        .unwrap();
+        c.attributes.insert("auth_kind".into(), "oauth".into());
+        c
+    }
+
+    /// The fields Go's reporter goldens compare, from one queued record.
+    fn summary(queued: &[u8]) -> Value {
+        let v: Value = serde_json::from_slice(queued).unwrap();
+        let tokens = &v["tokens"];
+        serde_json::json!({
+            "failed": v["failed"],
+            "fail_status": v["fail"]["status_code"].as_i64().unwrap_or(0),
+            "fail_body": v["fail"]["body"].as_str().unwrap_or(""),
+            "input": tokens["input_tokens"],
+            "output": tokens["output_tokens"],
+            "total": tokens["total_tokens"],
+            "response_model": v["response_model"].as_str().unwrap_or(""),
+            "reasoning_effort": v["reasoning_effort"].as_str().unwrap_or(""),
+            "model": v["model"],
+        })
+    }
+
+    /// Go `UsageReporter` call sequences as Go's executors make them
+    /// (tests/reference/server/main.go `reporterSequences`), replayed through the
+    /// tracker and the executor sink: what Go publishes, and when it publishes nothing.
+    #[test]
+    fn reporter_sequences_match_go() {
+        use cpa_core::exec::{ExecError, FailureScope};
+        let fixture: Value = serde_json::from_str(FIXTURE).unwrap();
+        let cases = fixture["reporter"].as_array().unwrap();
+        let gemini = [
+            r#"data: {"candidates":[{"content":{"parts":[{"text":"a"}]}}],"usageMetadata":{"promptTokenCount":4,"candidatesTokenCount":1,"totalTokenCount":5}}"#,
+            r#"data: {"candidates":[{"content":{"parts":[{"text":"b"}]}}],"usageMetadata":{"promptTokenCount":4,"candidatesTokenCount":3,"totalTokenCount":7}}"#,
+        ];
+        let claude = [
+            r#"data: {"type":"message_start","message":{"model":"claude-sonnet-4-6","usage":{"input_tokens":9,"output_tokens":1}}}"#,
+            r#"data: {"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":6}}"#,
+        ];
+        let kimi_chunk = r#"data: {"id":"c","object":"chat.completion.chunk","model":"kimi-k2","choices":[{"index":0,"delta":{"content":"x"}}]}"#;
+        let kimi_usage = r#"data: {"id":"c","object":"chat.completion.chunk","model":"kimi-k2","choices":[],"usage":{"prompt_tokens":5,"completion_tokens":2,"total_tokens":7}}"#;
+        let gemini_body = br#"{"usageMetadata":{"promptTokenCount":2,"candidatesTokenCount":2,"totalTokenCount":4}}"#;
+        let error = |status: u16, text: &str| ExecError::local(status, FailureScope::Request, text);
+        let rt = usage_runtime();
+        for case in cases {
+            let name = case["name"].as_str().unwrap();
+            let (provider, model) = match name.split(' ').next().unwrap() {
+                "gemini" | "publish" | "failure" => ("gemini", "gemini-2.5-pro"),
+                "claude" => ("claude", "claude-sonnet-4-6"),
+                "kimi" => ("kimi", "kimi-k2"),
+                "devin" => ("devin", "devin-chat"),
+                _ => ("codex", "gpt-5.5"),
+            };
+            let facts = std::sync::Arc::new(Facts::new(
+                Client::default(),
+                Format::OpenAI,
+                Format::OpenAI,
+                model,
+                b"{}",
+                true,
+            ));
+            let tracker = Tracker::start(&rt, &facts, &credential_for(provider), model);
+            let sink = tracker.sink();
+            let lines = |format: Format, lines: &[&str]| {
+                for line in lines {
+                    sink.response_line(format, line.as_bytes());
+                }
+            };
+            match name {
+                "gemini stream usage then scan error" => {
+                    lines(Format::Gemini, &gemini);
+                    tracker.fail(&error(0, "read: connection reset"));
+                }
+                "gemini stream usage" => {
+                    lines(Format::Gemini, &gemini);
+                    tracker.succeed();
+                }
+                "claude stream usage then scan error" => {
+                    lines(Format::Claude, &claude);
+                    tracker.fail(&error(502, "stream broke"));
+                }
+                "kimi stream without usage" => {
+                    sink.usage_required();
+                    lines(Format::OpenAI, &[kimi_chunk, "data: [DONE]"]);
+                    tracker.succeed();
+                }
+                "kimi stream with usage" => {
+                    sink.usage_required();
+                    lines(Format::OpenAI, &[kimi_chunk, kimi_usage, "data: [DONE]"]);
+                    tracker.succeed();
+                }
+                // The executor reports no body because Go's condition did not publish.
+                "kimi native nonstream without usage" => {
+                    sink.usage_required();
+                    tracker.succeed();
+                }
+                _ if name.starts_with("kimi translated effort ") => {
+                    let payload = name.trim_start_matches("kimi translated effort ");
+                    sink.request_for("kimi", payload.as_bytes());
+                    sink.response_body(
+                        Format::OpenAI,
+                        br#"{"usage":{"prompt_tokens":1,"completion_tokens":1,"total_tokens":2}}"#,
+                    );
+                    sink.publish();
+                    tracker.succeed();
+                }
+                "devin set response model" => {
+                    sink.response_model("  devin-model-x ");
+                    tracker.succeed();
+                }
+                // Go's deferred EnsurePublished wins over the stream error the client sees.
+                "devin truncated before EOS" => {
+                    sink.publish();
+                    tracker.fail(&error(0, "devin stream terminated prematurely before EOS trailer"));
+                }
+                "devin trailer error" => {
+                    sink.publish_failure(0, "devin trailer: permission_denied");
+                    tracker.fail(&error(403, "devin trailer: permission_denied"));
+                }
+                "publish then failure" => {
+                    sink.response_body(Format::Gemini, gemini_body);
+                    sink.publish();
+                    tracker.fail(&error(500, "late"));
+                }
+                "failure then publish" => {
+                    sink.publish_failure(429, "slow down");
+                    sink.response_body(Format::Gemini, gemini_body);
+                    sink.publish();
+                    tracker.succeed();
+                }
+                "terminal response model then set" => {
+                    sink.response_line(
+                        Format::OpenAIResponse,
+                        br#"data: {"type":"response.completed","response":{"model":"gpt-5.5-2026-01-01"}}"#,
+                    );
+                    sink.response_model("other-model");
+                    sink.publish();
+                    tracker.succeed();
+                }
+                other => panic!("unscripted Go case {other}"),
+            }
+            let got: Vec<Value> = rt.usage_queue().pop_oldest(10).iter().map(|q| summary(q)).collect();
+            let want: Vec<Value> = case["records"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|r| {
+                    // The golden holds Go's record before the queue; Go's queue plugin
+                    // (redisqueue/plugin.go `failDetail`) reports 200 for a success and
+                    // 500 for a failure without status, as `queued` does.
+                    let status = match (r["failed"].as_bool().unwrap(), r["fail_status"].as_i64().unwrap()) {
+                        (false, _) => 200,
+                        (true, s) if s <= 0 => 500,
+                        (true, s) => s,
+                    };
+                    serde_json::json!({
+                        "failed": r["failed"], "fail_status": status, "fail_body": r["fail_body"],
+                        "input": r["input"], "output": r["output"], "total": r["total"],
+                        "response_model": r["response_model"], "reasoning_effort": r["reasoning_effort"],
+                        "model": r["model"],
+                    })
+                })
+                .collect();
+            assert_eq!(got, want, "{name}");
+        }
+    }
+
+    /// Go `IsModelSubstituted` (tests/reference/server/main.go `substitutions`).
+    #[test]
+    fn model_substitution_matches_go() {
+        let fixture: Value = serde_json::from_str(FIXTURE).unwrap();
+        for case in fixture["substitution"].as_array().unwrap() {
+            let (requested, served) = (case["requested"].as_str().unwrap(), case["served"].as_str().unwrap());
+            assert_eq!(
+                is_model_substituted(requested, served),
+                case["substituted"].as_bool().unwrap(),
+                "{requested:?} -> {served:?}"
+            );
+        }
+    }
+
+    /// Go's TTFT: from the upstream request to the first body byte; the first packet
+    /// stands in until a token event; nothing without a start.
+    #[test]
+    fn ttft_marks_follow_go() {
+        let mut t = Ttft::default();
+        t.first_byte();
+        assert!(t.tracked);
+        assert_eq!(t.get(), std::time::Duration::ZERO);
+
+        let mut t = Ttft::default();
+        t.start();
+        std::thread::sleep(std::time::Duration::from_millis(5));
+        t.token(false);
+        let packet = t.get();
+        assert!(packet >= std::time::Duration::from_millis(5));
+        std::thread::sleep(std::time::Duration::from_millis(5));
+        t.token(false);
+        assert_eq!(t.get(), packet, "a second non-token frame changes nothing");
+        t.token(true);
+        let ttft = t.get();
+        assert!(ttft > packet);
+        t.first_byte();
+        t.start();
+        assert_eq!(t.get(), ttft, "the first TTFT wins");
     }
 }

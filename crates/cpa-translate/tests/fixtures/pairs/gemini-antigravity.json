@@ -2401,6 +2401,217 @@
      "{\"totalTokens\":123456789012,\"promptTokensDetails\":[{\"modality\":\"TEXT\",\"tokenCount\":123456789012}]}"
     ]
    ]
+  },
+  {
+   "name": "TestConvertGeminiRequestToAntigravity_ReplacesClientSignatureOnFunctionCall:28",
+   "path": "request",
+   "model": "gemini-3-pro-preview",
+   "input": "{\n\t\t\"model\": \"gemini-3-pro-preview\",\n\t\t\"contents\": [\n\t\t\t{\n\t\t\t\t\"role\": \"model\",\n\t\t\t\t\"parts\": [\n\t\t\t\t\t{\"functionCall\": {\"name\": \"test_tool\", \"args\": {}}, \"thoughtSignature\": \"abc123validSignature1234567890123456789012345678901234567890\"}\n\t\t\t\t]\n\t\t\t}\n\t\t]\n\t}",
+   "outputs": [
+    [
+     "{\"project\":\"\",\"request\":{\n\t\t\"contents\": [{\n\t\t\t\t\"role\": \"model\",\n\t\t\t\t\"parts\": [{\"functionCall\": {\"name\": \"test_tool\", \"args\": {}},\"thoughtSignature\":\"skip_thought_signature_validator\"}]\n\t\t\t}]\n\t,\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"gemini-3-pro-preview\"}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertGeminiRequestToAntigravity_DropsIncompatibleClientSignatureOnTextPart:57",
+   "path": "request",
+   "model": "gemini-3-pro-preview",
+   "input": "{\n\t\t\"model\": \"gemini-3-pro-preview\",\n\t\t\"contents\": [\n\t\t\t{\n\t\t\t\t\"role\": \"model\",\n\t\t\t\t\"parts\": [\n\t\t\t\t\t{\"text\": \"previous answer\", \"thoughtSignature\": \"abc123validSignature1234567890123456789012345678901234567890\"}\n\t\t\t\t]\n\t\t\t}\n\t\t]\n\t}",
+   "outputs": [
+    [
+     "{\"project\":\"\",\"request\":{\n\t\t\"contents\": [{\n\t\t\t\t\"role\": \"model\",\n\t\t\t\t\"parts\": [{\"text\": \"previous answer\"}]\n\t\t\t}]\n\t,\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"gemini-3-pro-preview\"}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertGeminiRequestToAntigravity_ClaudeModelNormalizesStrictClaudeThoughtSignature:127",
+   "path": "request",
+   "model": "claude-opus-4-6-thinking",
+   "input": "{\n\t\t\"model\": \"claude-opus-4-6-thinking\",\n\t\t\"contents\": [\n\t\t\t{\n\t\t\t\t\"role\": \"model\",\n\t\t\t\t\"parts\": [\n\t\t\t\t\t{\"text\": \"internal reasoning\", \"thought\": true, \"thoughtSignature\": \"EhkKFwgMEAIyEWNsYXVkZS1zb25uZXQtNC02GAE=\"},\n\t\t\t\t\t{\"text\": \"visible answer\"}\n\t\t\t\t]\n\t\t\t},\n\t\t\t{\n\t\t\t\t\"role\": \"user\",\n\t\t\t\t\"parts\": [{\"text\": \"continue\"}]\n\t\t\t}\n\t\t]\n\t}",
+   "outputs": [
+    [
+     "{\"project\":\"\",\"request\":{\n\t\t\"contents\": [{\n\t\t\t\t\"role\": \"model\",\n\t\t\t\t\"parts\": [{\"text\":\"internal reasoning\",\"thought\":true,\"thoughtSignature\":\"RWhrS0Z3Z01FQUl5RVdOc1lYVmtaUzF6YjI1dVpYUXROQzAyR0FFPQ==\"},{\"text\": \"visible answer\"}]\n\t\t\t},{\n\t\t\t\t\"role\": \"user\",\n\t\t\t\t\"parts\": [{\"text\": \"continue\"}]\n\t\t\t}]\n\t,\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"claude-opus-4-6-thinking\"}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertGeminiRequestToAntigravity_ClaudeModelDropsNonStrictEPrefixThoughtSignature:161",
+   "path": "request",
+   "model": "claude-opus-4-6-thinking",
+   "input": "{\n\t\t\"model\": \"claude-opus-4-6-thinking\",\n\t\t\"contents\": [\n\t\t\t{\n\t\t\t\t\"role\": \"model\",\n\t\t\t\t\"parts\": [\n\t\t\t\t\t{\"text\": \"must not reach Claude\", \"thought\": true, \"thoughtSignature\": \"EgEC\"},\n\t\t\t\t\t{\"text\": \"visible answer\"}\n\t\t\t\t]\n\t\t\t},\n\t\t\t{\n\t\t\t\t\"role\": \"user\",\n\t\t\t\t\"parts\": [{\"text\": \"continue\"}]\n\t\t\t}\n\t\t]\n\t}",
+   "outputs": [
+    [
+     "{\"project\":\"\",\"request\":{\n\t\t\"contents\": [{\n\t\t\t\t\"role\": \"model\",\n\t\t\t\t\"parts\": [{\"text\": \"visible answer\"}]\n\t\t\t},{\n\t\t\t\t\"role\": \"user\",\n\t\t\t\t\"parts\": [{\"text\": \"continue\"}]\n\t\t\t}]\n\t,\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"claude-opus-4-6-thinking\"}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertGeminiRequestToAntigravity_ClaudeModelDropsEmptyThoughtText:190",
+   "path": "request",
+   "model": "claude-opus-4-6-thinking",
+   "input": "{\n\t\t\"model\": \"claude-opus-4-6-thinking\",\n\t\t\"contents\": [\n\t\t\t{\n\t\t\t\t\"role\": \"model\",\n\t\t\t\t\"parts\": [\n\t\t\t\t\t{\"text\": \"\", \"thought\": true, \"thoughtSignature\": \"EhkKFwgMEAIyEWNsYXVkZS1zb25uZXQtNC02GAE=\"},\n\t\t\t\t\t{\"text\": \"visible answer\"}\n\t\t\t\t]\n\t\t\t},\n\t\t\t{\n\t\t\t\t\"role\": \"user\",\n\t\t\t\t\"parts\": [{\"text\": \"continue\"}]\n\t\t\t}\n\t\t]\n\t}",
+   "outputs": [
+    [
+     "{\"project\":\"\",\"request\":{\n\t\t\"contents\": [{\n\t\t\t\t\"role\": \"model\",\n\t\t\t\t\"parts\": [{\"text\": \"visible answer\"}]\n\t\t\t},{\n\t\t\t\t\"role\": \"user\",\n\t\t\t\t\"parts\": [{\"text\": \"continue\"}]\n\t\t\t}]\n\t,\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"claude-opus-4-6-thinking\"}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertGeminiRequestToAntigravity_ClaudeModelStripsUnneededFunctionCallSignature:214",
+   "path": "request",
+   "model": "claude-opus-4-6-thinking",
+   "input": "{\n\t\t\"model\": \"claude-opus-4-6-thinking\",\n\t\t\"contents\": [\n\t\t\t{\n\t\t\t\t\"role\": \"model\",\n\t\t\t\t\"parts\": [\n\t\t\t\t\t{\"functionCall\": {\"name\": \"test_tool\", \"args\": {}}, \"thoughtSignature\": \"EhkKFwgMEAIyEWNsYXVkZS1zb25uZXQtNC02GAE=\"}\n\t\t\t\t]\n\t\t\t}\n\t\t]\n\t}",
+   "outputs": [
+    [
+     "{\"project\":\"\",\"request\":{\n\t\t\"contents\": [{\n\t\t\t\t\"role\": \"model\",\n\t\t\t\t\"parts\": [{\"functionCall\":{\"args\":{},\"name\":\"test_tool\"}}]\n\t\t\t}]\n\t,\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"claude-opus-4-6-thinking\"}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertAntigravityResponseToGeminiNonStream:65",
+   "path": "non_stream",
+   "model": "",
+   "input": "{\"response\":{\"modelVersion\":\"gemini-3-pro\",\"cpaUsageMetadata\":{\"promptTokenCount\":100}}}",
+   "outputs": [
+    [
+     "{\"modelVersion\":\"gemini-3-pro\",\"usageMetadata\":{\"promptTokenCount\":100}}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertAntigravityResponseToGeminiNonStream:65#2",
+   "path": "non_stream",
+   "model": "",
+   "input": "{\"response\":{\"modelVersion\":\"gemini-3-pro\",\"usageMetadata\":{\"promptTokenCount\":100}}}",
+   "outputs": [
+    [
+     "{\"modelVersion\":\"gemini-3-pro\",\"usageMetadata\":{\"promptTokenCount\":100}}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertAntigravityResponseToGeminiNonStreamRestoresDisambiguatedName:80",
+   "path": "non_stream",
+   "model": "",
+   "input": "{\"response\":{\"candidates\":[{\"content\":{\"parts\":[{\"functionCall\":{\"name\":\"mcp__plugin_cloudflare_cloudflare-builds__workers_b_226886c46f32\",\"args\":{}}}]}}]}}",
+   "original": "{\"tools\":[{\"functionDeclarations\":[{\"name\":\"mcp__plugin_cloudflare_cloudflare-builds__workers_builds_get_build\"},{\"name\":\"mcp__plugin_cloudflare_cloudflare-builds__workers_builds_get_build_logs\"}]}]}",
+   "outputs": [
+    [
+     "{\"candidates\":[{\"content\":{\"parts\":[{\"functionCall\":{\"name\":\"mcp__plugin_cloudflare_cloudflare-builds__workers_builds_get_build_logs\",\"args\":{}}}]},\"finishReason\":\"STOP\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertAntigravityResponseToGeminiNonStream_DefaultsEveryCandidate:225#2",
+   "path": "non_stream",
+   "model": "",
+   "input": "{\"response\":{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"a\"}],\"role\":\"model\"}},{\"content\":{\"parts\":[{\"text\":\"b\"}],\"role\":\"model\"},\"finishReason\":\"MAX_TOKENS\"},{\"content\":{\"parts\":[{\"text\":\"c\"}],\"role\":\"model\"}}]}}",
+   "outputs": [
+    [
+     "{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"a\"}],\"role\":\"model\"},\"finishReason\":\"STOP\"},{\"content\":{\"parts\":[{\"text\":\"b\"}],\"role\":\"model\"},\"finishReason\":\"MAX_TOKENS\"},{\"content\":{\"parts\":[{\"text\":\"c\"}],\"role\":\"model\"},\"finishReason\":\"STOP\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertAntigravityResponseToGeminiNonStream_DefaultsMissingFinishReason:237#2",
+   "path": "non_stream",
+   "model": "",
+   "input": "{\"response\":{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"Hi\"}],\"role\":\"model\"}}]}}",
+   "outputs": [
+    [
+     "{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"Hi\"}],\"role\":\"model\"},\"finishReason\":\"STOP\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertAntigravityResponseToGeminiStream_SynthesizesFinishReasonOnDoneWhenOmitted:92:stream",
+   "path": "stream",
+   "model": "gemini-3.7-flash",
+   "lines": [
+    "data: {\"response\":{\"candidates\":[{\"content\":{\"parts\":[{\"thought\":true,\"text\":\"Thinking...\"}],\"role\":\"model\"}}],\"usageMetadata\":{\"promptTokenCount\":100,\"totalTokenCount\":150,\"thoughtsTokenCount\":50},\"modelVersion\":\"gemini-3.7-flash\",\"responseId\":\"resp-123\"}}",
+    "[DONE]",
+    "[DONE]"
+   ],
+   "outputs": [
+    [
+     "{\"candidates\":[{\"content\":{\"parts\":[{\"thought\":true,\"text\":\"Thinking...\"}],\"role\":\"model\"}}],\"usageMetadata\":{\"promptTokenCount\":100,\"totalTokenCount\":150,\"thoughtsTokenCount\":50},\"modelVersion\":\"gemini-3.7-flash\",\"responseId\":\"resp-123\"}"
+    ],
+    [
+     "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"\"}]},\"finishReason\":\"STOP\"}],\"usageMetadata\":{\"promptTokenCount\":100,\"totalTokenCount\":150,\"thoughtsTokenCount\":50},\"modelVersion\":\"gemini-3.7-flash\",\"responseId\":\"resp-123\"}"
+    ],
+    []
+   ]
+  },
+  {
+   "name": "TestConvertAntigravityResponseToGeminiStream_DoesNotDuplicateFinishReasonWhenPresent:144:stream",
+   "path": "stream",
+   "model": "gemini-3.7-flash",
+   "lines": [
+    "data: {\"response\":{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"Hello\"}],\"role\":\"model\"},\"finishReason\":\"STOP\"}],\"modelVersion\":\"gemini-3.7-flash\"}}",
+    "[DONE]"
+   ],
+   "outputs": [
+    [
+     "{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"Hello\"}],\"role\":\"model\"},\"finishReason\":\"STOP\"}],\"modelVersion\":\"gemini-3.7-flash\"}"
+    ],
+    []
+   ]
+  },
+  {
+   "name": "TestConvertAntigravityResponseToGeminiStream_CarriesFilteredUsageIntoSyntheticTerminal:168:stream",
+   "path": "stream",
+   "model": "gemini-3.7-flash",
+   "lines": [
+    "{\"response\":{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"Hello\"}],\"role\":\"model\"}}],\"modelVersion\":\"gemini-3.7-flash\",\"responseId\":\"resp-filtered\",\"cpaUsageMetadata\":{\"promptTokenCount\":42,\"candidatesTokenCount\":7,\"totalTokenCount\":49}}}",
+    "[DONE]"
+   ],
+   "outputs": [
+    [
+     "{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"Hello\"}],\"role\":\"model\"}}],\"modelVersion\":\"gemini-3.7-flash\",\"responseId\":\"resp-filtered\",\"usageMetadata\":{\"promptTokenCount\":42,\"candidatesTokenCount\":7,\"totalTokenCount\":49}}"
+    ],
+    [
+     "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"\"}]},\"finishReason\":\"STOP\"}],\"usageMetadata\":{\"promptTokenCount\":42,\"candidatesTokenCount\":7,\"totalTokenCount\":49},\"modelVersion\":\"gemini-3.7-flash\",\"responseId\":\"resp-filtered\"}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertAntigravityResponseToGeminiStream_DoesNotFinalizeEmptyUpstreamStream:197:stream",
+   "path": "stream",
+   "model": "gemini-3.7-flash",
+   "lines": [
+    "[DONE]"
+   ],
+   "outputs": [
+    []
+   ]
+  },
+  {
+   "name": "TestConvertAntigravityResponseToGeminiStream_ResponseFreeEventDoesNotStartStream:215:stream",
+   "path": "stream",
+   "model": "gemini-3.7-flash",
+   "lines": [
+    "{}",
+    "{\"response\":{}}",
+    "{\"response\":{\"candidates\":[]}}",
+    "{\"response\":{\"candidates\":[],\"usageMetadata\":{}}}",
+    "[DONE]"
+   ],
+   "outputs": [
+    [
+     ""
+    ],
+    [
+     "{}"
+    ],
+    [
+     "{\"candidates\":[]}"
+    ],
+    [
+     "{\"candidates\":[],\"usageMetadata\":{}}"
+    ],
+    []
+   ]
   }
  ],
  "token_count": true,

@@ -1,17 +1,22 @@
 // Generates goldens for crates/cpa-exec/src/proxy.rs with the Go standard library only:
-// bufio.Scanner (ScanLines, Buffer(nil, max)) over scripted reads, and http.Client
-// redirect handling against a local scripted server. Nothing leaves loopback.
+// bufio.Scanner (ScanLines, Buffer(nil, max)) over scripted reads, http.Client
+// redirect handling against a local scripted server, and the protocol the cloned
+// default transport negotiates with local TLS and plain servers. Nothing leaves loopback.
 //
 // Run: go run main.go ../../fixtures/proxy_go.json
 package main
 
 import (
 	"bufio"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"io"
 	"net"
 	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"os"
 	"runtime"
 	"strings"
@@ -95,14 +100,17 @@ type step struct {
 }
 
 type hop struct {
-	Method        string `json:"method"`
-	Path          string `json:"path"`
-	Host          string `json:"host"`
-	Referer       string `json:"referer"`
-	Authorization string `json:"authorization"`
-	ContentType   string `json:"content_type"`
-	ContentLength string `json:"content_length"`
-	Body          string `json:"body"`
+	UserAgent      string `json:"user_agent"`
+	HasUserAgent   bool   `json:"has_user_agent"`
+	AcceptEncoding string `json:"accept_encoding"`
+	Method         string `json:"method"`
+	Path           string `json:"path"`
+	Host           string `json:"host"`
+	Referer        string `json:"referer"`
+	Authorization  string `json:"authorization"`
+	ContentType    string `json:"content_type"`
+	ContentLength  string `json:"content_length"`
+	Body           string `json:"body"`
 }
 
 type redirectCase struct {
@@ -116,6 +124,10 @@ type redirectCase struct {
 	Hops   []hop           `json:"hops"`
 	Status int             `json:"status"`
 	Error  bool            `json:"error"`
+	// Start is the first request's path (default /start), sent as written.
+	Start string `json:"start"`
+	// DisableCompression uses a transport with DisableCompression set.
+	DisableCompression bool `json:"disable_compression"`
 }
 
 type recorder struct {
@@ -128,15 +140,19 @@ type recorder struct {
 func (r *recorder) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	body, _ := io.ReadAll(req.Body)
 	r.mu.Lock()
+	_, hasUserAgent := req.Header["User-Agent"]
 	r.hops = append(r.hops, hop{
-		Method:        req.Method,
-		Path:          req.URL.Path,
-		Host:          req.Host,
-		Referer:       req.Header.Get("Referer"),
-		Authorization: req.Header.Get("Authorization"),
-		ContentType:   req.Header.Get("Content-Type"),
-		ContentLength: strings.Join(req.Header.Values("Content-Length"), ","),
-		Body:          string(body),
+		UserAgent:      req.Header.Get("User-Agent"),
+		HasUserAgent:   hasUserAgent,
+		AcceptEncoding: req.Header.Get("Accept-Encoding"),
+		Method:         req.Method,
+		Path:           req.RequestURI,
+		Host:           req.Host,
+		Referer:        req.Header.Get("Referer"),
+		Authorization:  req.Header.Get("Authorization"),
+		ContentType:    req.Header.Get("Content-Type"),
+		ContentLength:  strings.Join(req.Header.Values("Content-Length"), ","),
+		Body:           string(body),
 	})
 	s, ok := r.script[req.URL.Path]
 	r.mu.Unlock()
@@ -165,7 +181,10 @@ func runRedirect(c redirectCase) redirectCase {
 	if c.Body != nil {
 		body = strings.NewReader(*c.Body)
 	}
-	req, _ := http.NewRequest(c.Method, base+"/start", body)
+	if c.Start == "" {
+		c.Start = "/start"
+	}
+	req, _ := http.NewRequest(c.Method, base+c.Start, body)
 	for k, v := range c.Headers {
 		if k == "Host" {
 			// Go reads a custom Host from req.Host only (GoHeaders' "Host").
@@ -174,7 +193,11 @@ func runRedirect(c redirectCase) redirectCase {
 		}
 		req.Header.Set(k, v)
 	}
-	resp, err := (&http.Client{}).Do(req)
+	client := &http.Client{}
+	if c.DisableCompression {
+		client.Transport = &http.Transport{DisableCompression: true}
+	}
+	resp, err := client.Do(req)
 	if err != nil {
 		c.Error = true
 	} else {
@@ -188,6 +211,98 @@ func runRedirect(c redirectCase) redirectCase {
 		h.Referer = strings.Replace(h.Referer, base, "BASE", 1)
 		h.Host = strings.NewReplacer(main.Addr().String(), "BASE", "localhost:"+otherPort, "OTHER").Replace(h.Host)
 	}
+	return c
+}
+
+// protocolCase is one request through a clone of http.DefaultTransport (proxyutil's
+// cloneDefaultTransport, ForceAttemptHTTP2 kept) to a local server.
+type protocolCase struct {
+	Name string `json:"name"`
+	// Server: "h2" (TLS offering h2 then http/1.1), "h1" (TLS offering http/1.1 only)
+	// or "plain" (no TLS).
+	Server string `json:"server"`
+	// Proxy: "" (direct) or "http" (an HTTP CONNECT proxy, proxyutil's ModeProxy).
+	Proxy string `json:"proxy"`
+	// What the server saw: the request protocol, the client's ALPN offer and the
+	// transport's default User-Agent.
+	Proto      string   `json:"proto"`
+	ClientALPN []string `json:"client_alpn"`
+	UserAgent  string   `json:"user_agent"`
+}
+
+// connectProxy tunnels every CONNECT to target.
+func connectProxy(target string) net.Listener {
+	ln, _ := net.Listen("tcp", "127.0.0.1:0")
+	go func() {
+		for {
+			conn, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			go func(conn net.Conn) {
+				defer conn.Close()
+				reader := bufio.NewReader(conn)
+				req, err := http.ReadRequest(reader)
+				if err != nil || req.Method != http.MethodConnect {
+					return
+				}
+				upstream, err := net.Dial("tcp", target)
+				if err != nil {
+					return
+				}
+				defer upstream.Close()
+				_, _ = conn.Write([]byte("HTTP/1.1 200 Connection established\r\n\r\n"))
+				go func() { _, _ = io.Copy(upstream, reader) }()
+				_, _ = io.Copy(conn, upstream)
+			}(conn)
+		}
+	}()
+	return ln
+}
+
+func runProtocol(c protocolCase) protocolCase {
+	var mu sync.Mutex
+	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		c.Proto, c.UserAgent = r.Proto, r.Header.Get("User-Agent")
+		mu.Unlock()
+		_, _ = w.Write([]byte("ok"))
+	}))
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.Proxy = nil
+	if c.Server == "plain" {
+		server.Start()
+	} else {
+		protos := []string{"http/1.1"}
+		if c.Server == "h2" {
+			protos = []string{"h2", "http/1.1"}
+		}
+		server.TLS = &tls.Config{NextProtos: protos, GetConfigForClient: func(hello *tls.ClientHelloInfo) (*tls.Config, error) {
+			mu.Lock()
+			c.ClientALPN = append([]string{}, hello.SupportedProtos...)
+			mu.Unlock()
+			return nil, nil
+		}}
+		server.StartTLS()
+		// Only the trust store differs from production (system roots there).
+		pool := x509.NewCertPool()
+		pool.AddCert(server.Certificate())
+		transport.TLSClientConfig = &tls.Config{RootCAs: pool}
+	}
+	defer server.Close()
+	if c.Proxy == "http" {
+		proxy := connectProxy(server.Listener.Addr().String())
+		defer proxy.Close()
+		proxyURL, _ := url.Parse("http://" + proxy.Addr().String())
+		transport.Proxy = http.ProxyURL(proxyURL)
+	}
+	resp, err := (&http.Client{Transport: transport}).Get(server.URL + "/")
+	if err != nil {
+		panic(err)
+	}
+	_, _ = io.Copy(io.Discard, resp.Body)
+	resp.Body.Close()
+	transport.CloseIdleConnections()
 	return c
 }
 
@@ -238,6 +353,26 @@ func main() {
 		{Name: "post-empty-body-302", Method: "POST", Body: str(""), Headers: form, Script: map[string]step{
 			"/start": {302, "/b"}}},
 		{Name: "post-nil-body", Method: "POST", Headers: auth},
+		{Name: "get-empty-user-agent", Method: "GET", Headers: map[string]string{"User-Agent": "", "Accept": "application/json"}},
+		{Name: "get-custom-user-agent", Method: "GET", Headers: map[string]string{"User-Agent": "cli/1.0"}},
+		{Name: "get-disable-compression", Method: "GET", Headers: auth, DisableCompression: true},
+		{Name: "get-accept-encoding-explicit", Method: "GET", Headers: map[string]string{"Accept-Encoding": "br"}},
+		{Name: "get-dot-segments-exact", Method: "GET", Headers: auth, Start: "/videos/..", Script: map[string]step{
+			"/videos/..": {302, "./b/../c"}}},
+		{Name: "get-dot-escaped-exact", Method: "GET", Headers: auth, Start: "/videos/%2E%2E/x?q=a%20b"},
+		// The merged path stays a path, never a network-path reference to host "api".
+		{Name: "get-double-slash-path-exact", Method: "GET", Headers: auth, Start: "//api/item", Script: map[string]step{
+			"//api/item": {307, "next"}}},
+		// The authority ends at `?`: the base path is empty, and a slash in the query is
+		// not a directory.
+		{Name: "get-query-only-start-exact", Method: "GET", Headers: auth, Start: "?q=/x/item", Script: map[string]step{
+			"/": {307, "next"}}},
+		// A query-only reference keeps the base path, dot segments removed; a
+		// fragment-only one keeps the base query too.
+		{Name: "get-query-reference-exact", Method: "GET", Headers: auth, Start: "/a/./b?k=v", Script: map[string]step{
+			"/a/./b": {302, "?z=1"}}},
+		{Name: "get-fragment-reference-exact", Method: "GET", Headers: auth, Start: "/a/./b?k=v", Script: map[string]step{
+			"/a/./b": {302, "#frag"}}},
 		{Name: "put-empty-body", Method: "PUT", Body: str(""), Headers: auth},
 		{Name: "delete-nil-body", Method: "DELETE", Headers: auth},
 		{Name: "patch-empty-body-307", Method: "PATCH", Body: str(""), Headers: form, Script: map[string]step{
@@ -246,10 +381,21 @@ func main() {
 	for i := range redirects {
 		redirects[i] = runRedirect(redirects[i])
 	}
+	protocols := []protocolCase{
+		{Name: "tls-offering-h2", Server: "h2"},
+		{Name: "tls-http1-only", Server: "h1"},
+		{Name: "plain-http", Server: "plain"},
+		{Name: "tls-offering-h2-via-connect-proxy", Server: "h2", Proxy: "http"},
+		{Name: "tls-http1-only-via-connect-proxy", Server: "h1", Proxy: "http"},
+	}
+	for i := range protocols {
+		protocols[i] = runProtocol(protocols[i])
+	}
 	out, _ := json.MarshalIndent(map[string]any{
 		"source":    runtime.Version() + " standard library",
 		"lines":     lines,
 		"redirects": redirects,
+		"protocols": protocols,
 	}, "", " ")
 	if err := os.WriteFile(os.Args[1], append(out, '\n'), 0o644); err != nil {
 		panic(err)

@@ -13,7 +13,9 @@ clap.workspace = true
 cpa-common.workspace = true
 cpa-core.workspace = true
 cpa-exec.workspace = true
+cpa-home.workspace = true
 cpa-server.workspace = true
+cpa-store.workspace = true
 getrandom = "0.3"
 libc.workspace = true
 serde_json.workspace = true
@@ -22,3 +24,9 @@ serde_yaml_ng.workspace = true
 socket2 = { workspace = true, features = ["all"] }
 tokio.workspace = true
 tracing.workspace = true
+tokio-util = "0.7"
+futures-util.workspace = true
+
+[dev-dependencies]
+cpa-home = { workspace = true, features = ["fake"] }
+wreq.workspace = true

@@ -161,6 +161,66 @@ fn timestamp_date(raw: &str) -> Option<SystemTime> {
         .or_else(|| httpdate::parse_http_date(raw.trim()).ok())
 }
 
+/// Go `collectQuotaSignals("claude", headers)`: `Retry-After` and every
+/// `Anthropic-Ratelimit-Unified-*` header under its canonical name with its last value,
+/// trimmed; empty, oversized (over 512 bytes) and control-character values are dropped.
+/// Both kinds rank first, so at most 64 are kept in name order.
+pub fn claude_signals(headers: &HeaderMap) -> std::collections::BTreeMap<String, String> {
+    const MAX_SIGNALS: usize = 64;
+    const MAX_VALUE: usize = 512;
+    let mut signals = std::collections::BTreeMap::new();
+    for name in headers.keys() {
+        let lower = name.as_str();
+        if lower != "retry-after" && !lower.starts_with("anthropic-ratelimit-unified-") {
+            continue;
+        }
+        let Some(value) = headers.get_all(name).iter().next_back() else {
+            continue;
+        };
+        let value = String::from_utf8_lossy(value.as_bytes());
+        let value = value.trim();
+        if value.is_empty() || value.len() > MAX_VALUE || value.chars().any(|c| c < '\u{20}' || c == '\u{7f}') {
+            continue;
+        }
+        signals.insert(crate::proxy::canonical_header(lower), value.to_owned());
+    }
+    signals.into_iter().take(MAX_SIGNALS).collect()
+}
+
+/// The latest passive quota snapshot per Claude credential (Go
+/// `QuotaState.ObserveResponseHeadersForProvider` for provider `claude`): each upstream
+/// Messages response that carries a signal replaces the credential's snapshot; one
+/// without leaves it untouched.
+// ponytail: snapshots stay until the process restarts, one per Claude credential ever
+// used; Go drops them with the auth. Add a retain pass if credential churn ever matters.
+#[derive(Default)]
+pub struct Observations(std::sync::Mutex<std::collections::HashMap<String, crate::codex_quota::Snapshot>>);
+
+impl Observations {
+    pub fn observe(&self, credential_id: &str, headers: &HeaderMap) {
+        self.observe_at(credential_id, headers, SystemTime::now());
+    }
+
+    fn observe_at(&self, credential_id: &str, headers: &HeaderMap, observed_at: SystemTime) {
+        let signals = claude_signals(headers);
+        if signals.is_empty() {
+            return;
+        }
+        self.0.lock().unwrap_or_else(std::sync::PoisonError::into_inner).insert(
+            credential_id.to_owned(),
+            crate::codex_quota::Snapshot { observed_at, signals },
+        );
+    }
+
+    pub fn snapshot(&self, credential_id: &str) -> Option<crate::codex_quota::Snapshot> {
+        self.0
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .get(credential_id)
+            .cloned()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -240,5 +300,103 @@ mod tests {
         for bad in ["NaN", "inf", "-1", "0", "1e100", "wrong"] {
             assert_eq!(retry_after(bad, now), None);
         }
+    }
+
+    /// TestQuotaStateObserveResponseHeadersRetainsMeasuredClaudeAndCodexWatermarks (the
+    /// Claude half), quota_signals_test.go.
+    #[test]
+    fn claude_observation_keeps_go_measured_watermarks() {
+        let measured = [
+            ("Anthropic-Ratelimit-Unified-5h-Status", "allowed"),
+            ("Anthropic-Ratelimit-Unified-5h-Utilization", "0.0"),
+            ("Anthropic-Ratelimit-Unified-5h-Reset", "1787296800"),
+            ("Anthropic-Ratelimit-Unified-7d-Status", "allowed"),
+            ("Anthropic-Ratelimit-Unified-7d-Utilization", "0.53"),
+            ("Anthropic-Ratelimit-Unified-7d-Reset", "1787695200"),
+            ("Anthropic-Ratelimit-Unified-Fallback-Percentage", "0.5"),
+            (
+                "Anthropic-Ratelimit-Unified-Overage-Disabled-Reason",
+                "member_zero_credit_limit",
+            ),
+            ("Anthropic-Ratelimit-Unified-Overage-Status", "rejected"),
+            ("Anthropic-Ratelimit-Unified-Representative-Claim", "five_hour"),
+            ("Anthropic-Ratelimit-Unified-Reset", "1787296800"),
+            ("Anthropic-Ratelimit-Unified-Status", "allowed"),
+        ];
+        let mut all = measured.to_vec();
+        all.push(("Anthropic-Workspace-Id", "workspace-must-not-be-quota-signal"));
+        // Codex's signals are not Claude's (TestQuotaStateObserveResponseHeadersKeepsProviderScopedSignals).
+        all.push(("X-Codex-Primary-Used-Percent", "2"));
+        all.push(("Authorization", "Bearer secret"));
+        let signals = claude_signals(&headers(&all));
+        let want: std::collections::BTreeMap<String, String> = measured
+            .iter()
+            .map(|(k, v)| ((*k).to_owned(), (*v).to_owned()))
+            .collect();
+        assert_eq!(signals, want);
+    }
+
+    /// TestObserveResponseHeadersReplacesStaleWatermarks,
+    /// ...KeepsSnapshotWhenResponseCarriesNoSignal, ...AdvancesObservedAtOnRepeatedValues
+    /// and ...RejectsControlCharacterValues, for Claude's headers.
+    #[test]
+    fn observations_replace_keep_advance_and_reject_like_go() {
+        let at = |secs| UNIX_EPOCH + Duration::from_secs(secs);
+        let obs = Observations::default();
+        obs.observe_at(
+            "c",
+            &headers(&[
+                ("Retry-After", "120"),
+                ("Anthropic-Ratelimit-Unified-Status", "rejected"),
+            ]),
+            at(100),
+        );
+        assert_eq!(obs.snapshot("c").unwrap().signals["Retry-After"], "120");
+        obs.observe_at(
+            "c",
+            &headers(&[("Anthropic-Ratelimit-Unified-Status", "allowed")]),
+            at(200),
+        );
+        let snap = obs.snapshot("c").unwrap();
+        assert!(
+            !snap.signals.contains_key("Retry-After"),
+            "a stale Retry-After never survives"
+        );
+        assert_eq!(snap.signals["Anthropic-Ratelimit-Unified-Status"], "allowed");
+        assert_eq!(snap.observed_at, at(200));
+        // No signal: the previous snapshot stays.
+        obs.observe_at("c", &headers(&[("Content-Type", "application/json")]), at(300));
+        assert_eq!(obs.snapshot("c").unwrap().observed_at, at(200));
+        // Repeated values still advance the observation time.
+        obs.observe_at(
+            "c",
+            &headers(&[("Anthropic-Ratelimit-Unified-Status", "allowed")]),
+            at(400),
+        );
+        assert_eq!(obs.snapshot("c").unwrap().observed_at, at(400));
+        // Control characters, empty and oversized values are never stored.
+        let mut bad = headers(&[("Anthropic-Ratelimit-Unified-Status", "")]);
+        bad.insert(
+            "anthropic-ratelimit-unified-reset",
+            // The only control byte an HTTP header value can carry.
+            http::HeaderValue::from_bytes(b"1\tX-Injected: 1").unwrap(),
+        );
+        bad.insert("anthropic-ratelimit-unified-claim", "x".repeat(513).parse().unwrap());
+        assert!(claude_signals(&bad).is_empty());
+        assert!(obs.snapshot("other").is_none());
+    }
+
+    /// TestObserveResponseHeadersTruncatesDeterministically, for Claude: the first 64 names.
+    #[test]
+    fn claude_signals_cap_at_64_by_name() {
+        let many: Vec<(String, String)> = (0..128)
+            .map(|i| (format!("Anthropic-Ratelimit-Unified-L{i:03}-Status"), i.to_string()))
+            .collect();
+        let refs: Vec<(&str, &str)> = many.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect();
+        let signals = claude_signals(&headers(&refs));
+        assert_eq!(signals.len(), 64);
+        assert!(signals.contains_key("Anthropic-Ratelimit-Unified-L000-Status"));
+        assert!(signals.contains_key("Anthropic-Ratelimit-Unified-L063-Status"));
+        assert!(!signals.contains_key("Anthropic-Ratelimit-Unified-L064-Status"));
     }
 }

@@ -195,10 +195,9 @@ async fn browser_login_writes_go_file_and_migrates_the_legacy_one() {
         r#"{"type":"claude","email":"b@example.invalid","organization_uuid":"org-1"}"#,
     )
     .unwrap();
+    let mock = oauth_mock().await;
     let port = free_port();
-    let path = login_with(&dir, port, oauth_mock().await, browser(port, state_of))
-        .await
-        .unwrap();
+    let path = login_with(&dir, port, mock, browser(port, state_of)).await.unwrap();
     assert_eq!(
         path,
         dir.join(credential_file_name("a@example.invalid", "org-1", "acct-1"))
@@ -269,8 +268,9 @@ fn legacy_matching_follows_go_identity_rules() {
 #[tokio::test]
 async fn a_wrong_state_fails_the_login_without_writing() {
     let dir = temp_dir();
+    let mock = oauth_mock().await;
     let port = free_port();
-    let error = login_with(&dir, port, oauth_mock().await, browser(port, |_| "forged".into()))
+    let error = login_with(&dir, port, mock, browser(port, |_| "forged".into()))
         .await
         .unwrap_err();
     assert_eq!(
@@ -296,9 +296,9 @@ async fn pasted_callback_completes_the_login() {
         })),
         show_url: Box::new(move |u| *url.lock().unwrap() = u.to_owned()),
     };
-    let path = login_with(&dir, free_port(), oauth_mock().await, interaction)
-        .await
-        .unwrap();
+    // The mock binds first: the kernel may hand a just-released port to the next bind.
+    let mock = oauth_mock().await;
+    let path = login_with(&dir, free_port(), mock, interaction).await.unwrap();
     assert!(path.exists());
     std::fs::remove_dir_all(dir).unwrap();
 }
@@ -306,6 +306,7 @@ async fn pasted_callback_completes_the_login() {
 #[tokio::test]
 async fn an_empty_paste_keeps_waiting_for_the_browser() {
     let dir = temp_dir();
+    let mock = oauth_mock().await;
     let port = free_port();
     let mut interaction = browser(port, state_of);
     let show = interaction.show_url;
@@ -319,7 +320,7 @@ async fn an_empty_paste_keeps_waiting_for_the_browser() {
             show(&url);
         });
     });
-    assert!(login_with(&dir, port, oauth_mock().await, interaction).await.is_ok());
+    assert!(login_with(&dir, port, mock, interaction).await.is_ok());
     std::fs::remove_dir_all(dir).unwrap();
 }
 

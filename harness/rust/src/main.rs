@@ -1,9 +1,9 @@
 //! Only test wiring. Mirrors crates/cliproxy/src/main.rs (config, credential synthesis,
-//! auto-refresh, routes, management and CORS) except the listener and two hooks: the
-//! ephemeral test CA replaces the trust store, and the logical first-party hosts are
-//! dialed at 127.0.0.3. The executor still builds its production native and OAuth
-//! clients (TLS profile, header order, session caches), including for refresh, and its
-//! Go standard-transport clients for other origins.
+//! auto-refresh, routes, management, CORS and the access log) except the listener and
+//! two hooks: the ephemeral test CA replaces the trust store, and the logical
+//! first-party hosts are dialed at 127.0.0.3. The executor still builds its production
+//! native and OAuth clients (TLS profile, header order, session caches), including for
+//! refresh, and its Go standard-transport clients for other origins.
 use std::net::SocketAddr;
 use std::path::Path;
 use std::sync::Arc;
@@ -11,7 +11,7 @@ use std::sync::Arc;
 use cpa_core::config::Config;
 use cpa_exec::Executors;
 use cpa_exec::claude::{ClaudeExecutor, DEFAULT_BASE_URL, Hooks};
-use cpa_server::{Runtime, router};
+use cpa_server::Runtime;
 use wreq::tls::trust::CertStore;
 
 #[tokio::main]
@@ -46,9 +46,10 @@ async fn main() -> anyhow::Result<()> {
         cpa_server::management::Options::default(),
     );
     let _watcher = cpa_server::watching::start(&management);
-    let app = router(rt)
-        .merge(cpa_server::management::router(management))
+    let app = cpa_server::app(rt.clone(), cpa_server::management::router(management.clone()))
         .layer(axum::middleware::from_fn(cpa_server::management::cors));
-    axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>()).await?;
+    let app = cpa_server::observability::router(&rt, app);
+    // The production listener (crates/cliproxy uses the same call), plain HTTP.
+    cpa_server::listener::serve_with_resp(listener, app, None, Some(management)).await?;
     Ok(())
 }

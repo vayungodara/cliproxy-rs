@@ -1782,6 +1782,187 @@
      "prefix": "interaction_"
     }
    ]
+  },
+  {
+   "name": "TestConvertCodexResponseToInteractionsIncompleteTerminal:89#2",
+   "path": "non_stream",
+   "model": "codex-test",
+   "input": "{\"type\":\"response.incomplete\",\"response\":{\"id\":\"resp_1\",\"status\":\"incomplete\",\"incomplete_details\":{\"reason\":\"max_output_tokens\"},\"output\":[],\"usage\":{\"input_tokens\":1,\"output_tokens\":2,\"total_tokens\":3}}}",
+   "outputs": [
+    [
+     "{\"id\":\"resp_1\",\"object\":\"interaction\",\"status\":\"incomplete\",\"model\":\"codex-test\",\"steps\":[],\"usage\":{\"input_tokens\":1,\"output_tokens\":2,\"total_tokens\":3}}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertCodexResponseToInteractionsNonStream:107#2",
+   "path": "non_stream",
+   "model": "codex-test",
+   "input": "{\"type\":\"response.completed\",\"response\":{\"id\":\"resp_1\",\"created_at\":1700000000,\"usage\":{\"input_tokens\":3,\"output_tokens\":2},\"output\":[{\"type\":\"message\",\"content\":[{\"type\":\"output_text\",\"text\":\"ok\"}]},{\"type\":\"reasoning\",\"content\":\"thinking\"},{\"type\":\"function_call\",\"call_id\":\"call_1\",\"name\":\"lookup\",\"arguments\":\"{\\\"q\\\":\\\"x\\\"}\"}]}}",
+   "outputs": [
+    [
+     "{\"id\":\"resp_1\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"codex-test\",\"steps\":[{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}]},{\"type\":\"thought\",\"content\":[{\"type\":\"text\",\"text\":\"thinking\"}]},{\"type\":\"function_call\",\"name\":\"lookup\",\"arguments\":{\"q\":\"x\"},\"call_id\":\"call_1\"}],\"usage\":{\"input_tokens\":3,\"output_tokens\":2,\"total_tokens\":5}}"
+    ]
+   ]
+  },
+  {
+   "name": "TestSummaryIntentTranslation:76",
+   "path": "request",
+   "model": "",
+   "stream": true,
+   "input": "{\"model\":\"gpt-5.4\",\"generation_config\":{\"thinking_level\":\"high\",\"thinking_summaries\":\"none\"},\"input\":\"hi\"}",
+   "outputs": [
+    [
+     "{\"model\":\"\",\"instructions\":\"\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}],\"stream\":true,\"reasoning\":{\"effort\":\"high\"}}"
+    ]
+   ]
+  },
+  {
+   "name": "TestInvalidInteractionsSummaryDoesNotWriteTargetControl:100",
+   "path": "request",
+   "model": "model",
+   "input": "{\"model\":\"model\",\"generation_config\":{\"thinking_summaries\":\"banana\"},\"input\":\"hi\"}",
+   "outputs": [
+    [
+     "{\"model\":\"model\",\"instructions\":\"\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}]}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertCodexResponseToInteractionsIncompleteTerminal:95:stream",
+   "path": "stream",
+   "model": "codex-test",
+   "lines": [
+    "data: {\"type\":\"response.incomplete\",\"response\":{\"id\":\"resp_1\",\"status\":\"incomplete\",\"incomplete_details\":{\"reason\":\"max_output_tokens\"},\"output\":[],\"usage\":{\"input_tokens\":1,\"output_tokens\":2,\"total_tokens\":3}}}"
+   ],
+   "outputs": [
+    [
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"resp_1\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"codex-test\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"resp_1\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
+     "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"resp_1\",\"status\":\"incomplete\",\"usage\":{\"total_tokens\":3,\"total_input_tokens\":1,\"input_tokens_by_modality\":[{\"modality\":\"text\",\"tokens\":1}],\"total_cached_tokens\":0,\"total_output_tokens\":2,\"total_tool_use_tokens\":0,\"total_thought_tokens\":0},\"created\":\"2026-10-03T12:47:32Z\",\"updated\":\"2026-10-03T12:47:32Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"codex-test\"},\"event_type\":\"interaction.completed\"}\n\n",
+     "event: done\ndata: [DONE]\n\n"
+    ]
+   ],
+   "dynamic": [
+    {
+     "out": 2,
+     "data": 1,
+     "path": "interaction.created",
+     "time": true
+    },
+    {
+     "out": 2,
+     "data": 1,
+     "path": "interaction.updated",
+     "time": true
+    }
+   ]
+  },
+  {
+   "name": "TestConvertCodexResponseToInteractionsStream:124:stream",
+   "path": "stream",
+   "model": "codex-test",
+   "lines": [
+    "data: {\"type\":\"response.output_text.delta\",\"delta\":\"ok\"}"
+   ],
+   "outputs": [
+    [
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1791031652004347678\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"codex-test\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1791031652004347678\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
+     "event: step.start\ndata: {\"index\":0,\"step\":{\"type\":\"model_output\"},\"event_type\":\"step.start\"}\n\n",
+     "event: step.delta\ndata: {\"index\":0,\"delta\":{\"text\":\"ok\",\"type\":\"text\"},\"event_type\":\"step.delta\"}\n\n"
+    ]
+   ],
+   "dynamic": [
+    {
+     "out": 0,
+     "data": 1,
+     "path": "interaction.id",
+     "prefix": "interaction_"
+    },
+    {
+     "out": 1,
+     "data": 1,
+     "path": "interaction_id",
+     "prefix": "interaction_"
+    }
+   ]
+  },
+  {
+   "name": "TestConvertCodexResponseToInteractionsStreamFunctionCallStartHasCallID:136:stream",
+   "path": "stream",
+   "model": "codex-test",
+   "lines": [
+    "data: {\"type\":\"response.output_item.done\",\"item\":{\"type\":\"function_call\",\"call_id\":\"call_1\",\"name\":\"lookup\",\"arguments\":\"{\\\"q\\\":\\\"x\\\"}\"}}"
+   ],
+   "outputs": [
+    [
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1791031652005551300\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"codex-test\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1791031652005551300\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
+     "event: step.start\ndata: {\"index\":0,\"step\":{\"type\":\"function_call\",\"id\":\"call_1\",\"call_id\":\"call_1\",\"name\":\"lookup\",\"arguments\":{}},\"event_type\":\"step.start\"}\n\n",
+     "event: step.delta\ndata: {\"index\":0,\"delta\":{\"arguments\":\"{\\\"q\\\":\\\"x\\\"}\",\"type\":\"arguments_delta\"},\"event_type\":\"step.delta\"}\n\n",
+     "event: step.stop\ndata: {\"index\":0,\"event_type\":\"step.stop\"}\n\n"
+    ]
+   ],
+   "dynamic": [
+    {
+     "out": 0,
+     "data": 1,
+     "path": "interaction.id",
+     "prefix": "interaction_"
+    },
+    {
+     "out": 1,
+     "data": 1,
+     "path": "interaction_id",
+     "prefix": "interaction_"
+    }
+   ]
+  },
+  {
+   "name": "TestConvertCodexResponseToInteractionsStreamCompletesAfterSteps:152:stream",
+   "path": "stream",
+   "model": "codex-test",
+   "lines": [
+    "data: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_1\",\"model\":\"codex-test\"}}",
+    "data: {\"type\":\"response.output_text.delta\",\"delta\":\"我将调用工具。\"}",
+    "data: {\"type\":\"response.output_item.done\",\"item\":{\"type\":\"function_call\",\"call_id\":\"call_1\",\"name\":\"lookup\",\"arguments\":\"{\\\"q\\\":\\\"weather\\\"}\"},\"output_index\":1}",
+    "data: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_1\",\"output\":[],\"usage\":{\"input_tokens\":1,\"output_tokens\":2,\"total_tokens\":3}}}"
+   ],
+   "outputs": [
+    [
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"resp_1\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"codex-test\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"resp_1\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n"
+    ],
+    [
+     "event: step.start\ndata: {\"index\":0,\"step\":{\"type\":\"model_output\"},\"event_type\":\"step.start\"}\n\n",
+     "event: step.delta\ndata: {\"index\":0,\"delta\":{\"text\":\"我将调用工具。\",\"type\":\"text\"},\"event_type\":\"step.delta\"}\n\n"
+    ],
+    [
+     "event: step.stop\ndata: {\"index\":0,\"event_type\":\"step.stop\"}\n\n",
+     "event: step.start\ndata: {\"index\":1,\"step\":{\"type\":\"function_call\",\"id\":\"call_1\",\"call_id\":\"call_1\",\"name\":\"lookup\",\"arguments\":{}},\"event_type\":\"step.start\"}\n\n",
+     "event: step.delta\ndata: {\"index\":1,\"delta\":{\"arguments\":\"{\\\"q\\\":\\\"weather\\\"}\",\"type\":\"arguments_delta\"},\"event_type\":\"step.delta\"}\n\n",
+     "event: step.stop\ndata: {\"index\":1,\"event_type\":\"step.stop\"}\n\n"
+    ],
+    [
+     "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"resp_1\",\"status\":\"completed\",\"usage\":{\"total_tokens\":3,\"total_input_tokens\":1,\"input_tokens_by_modality\":[{\"modality\":\"text\",\"tokens\":1}],\"total_cached_tokens\":0,\"total_output_tokens\":2,\"total_tool_use_tokens\":0,\"total_thought_tokens\":0},\"created\":\"2026-10-03T12:47:32Z\",\"updated\":\"2026-10-03T12:47:32Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"codex-test\"},\"event_type\":\"interaction.completed\"}\n\n",
+     "event: done\ndata: [DONE]\n\n"
+    ]
+   ],
+   "dynamic": [
+    {
+     "out": 8,
+     "data": 1,
+     "path": "interaction.created",
+     "time": true
+    },
+    {
+     "out": 8,
+     "data": 1,
+     "path": "interaction.updated",
+     "time": true
+    }
+   ]
   }
  ],
  "token_count": false,

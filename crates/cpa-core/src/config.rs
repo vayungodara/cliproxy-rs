@@ -23,7 +23,7 @@ mod trusted;
 mod validate;
 pub use document::{ConfigDocument, archive_comments};
 pub use schema::validate as validate_config_fields;
-pub use schema::{coerce_typed_bools, written_bool_spelling};
+pub use schema::{coerce_typed_scalars, go_bool, go_int, written_bool_spelling};
 
 /// Go `expandConfigAliases` plus yaml.v3's merge rules: `<<` keys expand bottom-up
 /// (nested merges first); explicit keys win, then earlier merged mappings. A merge
@@ -243,26 +243,38 @@ const V8_PARENTS: &[&str] = &[
     "oauth.providers.antigravity",
 ];
 
-/// Writes `hash` over the plaintext `secret-key` in place, keeping the rest of the text.
+/// Writes `hash` over the plaintext `secret-key`: in place when the key is written
+/// literally, else (inherited through a merge) the merge-expanded tree, as Go's
+/// `SaveConfigPreserveCommentsUpdateNestedScalar` does. ponytail: that fallback
+/// re-emits without comments; Go keeps the node comments.
 fn persist_secret_hash(path: &Path, text: &str, hash: &str) -> anyhow::Result<()> {
-    let file: yaml_edit::YamlFile = text.parse()?;
-    let doc = file.document().context("config must be a mapping")?;
-    let root: Value = serde_yaml_ng::from_str(text)?;
-    let v8 = lookup(
-        root.as_mapping().context("config must be a mapping")?,
-        "management.secret-key",
-    )
-    .is_some();
+    let mut root: Value = serde_yaml_ng::from_str(text)?;
+    expand_merges(&mut root)?;
+    let mapping = root.as_mapping().context("config must be a mapping")?;
+    let v8 = lookup(mapping, "management.secret-key").is_some();
     let parent = if v8 { "management" } else { "remote-management" };
-    doc.get_mapping(parent)
-        .context("management must be a mapping")?
-        .set("secret-key", hash);
-    let updated = file.to_string();
-    // Only write text that still loads to the same key.
-    anyhow::ensure!(
-        Config::parse(&updated)?.management.secret_key == hash,
-        "secret key not updated"
-    );
+    let loads_hash = |t: &str| Config::parse(t).is_ok_and(|c| c.management.secret_key == hash);
+    // In place only over a literal key: an inherited one would stay in the merge.
+    let literal = serde_yaml_ng::from_str::<Value>(text)
+        .ok()
+        .and_then(|raw| raw.get(parent)?.as_mapping()?.get("secret-key").cloned())
+        .is_some();
+    let in_place = literal.then(|| {
+        let file: yaml_edit::YamlFile = text.parse().ok()?;
+        file.document()?.get_mapping(parent)?.set("secret-key", hash);
+        Some(file.to_string())
+    });
+    let updated = match in_place.flatten().filter(|t| loads_hash(t)) {
+        Some(t) => t,
+        None => {
+            root.get_mut(parent)
+                .and_then(Value::as_mapping_mut)
+                .context("management must be a mapping")?
+                .insert(Value::from("secret-key"), Value::from(hash));
+            serde_yaml_ng::to_string(&root)?
+        }
+    };
+    anyhow::ensure!(loads_hash(&updated), "secret key not updated");
     ConfigDocument::write(path, &updated)
 }
 
@@ -272,9 +284,7 @@ impl Config {
         let mut config = Self::parse(&text)?;
         if !config.management.secret_key.is_empty() && !is_bcrypt(&config.management.secret_key) {
             let hash = bcrypt::hash(&config.management.secret_key, 10)?;
-            // Go hashes in memory and persists best-effort (a read-only mount still
-            // starts). ponytail: a key inherited through a YAML alias is not persisted,
-            // so it is re-hashed on each start; Go rewrites the expanded file instead.
+            // Go hashes in memory and persists best-effort (a read-only mount starts).
             let _ = persist_secret_hash(path, &text, &hash);
             config.management.secret_key = hash.clone();
             if let Some(management) = config.document.get_mut("management").and_then(Value::as_mapping_mut) {
@@ -295,7 +305,7 @@ impl Config {
         };
         validate_shape(&root)?;
         let mut document = ConfigDocument::from_mapping(root.clone())?;
-        document.coerce_typed_bools();
+        document.coerce_typed_scalars();
         schema::validate(document.value(), false)?;
         let canonical = document.value().as_mapping().expect("document is a mapping");
         let routing = decode_section::<RoutingConfig>(canonical, "routing")?;
@@ -306,8 +316,8 @@ impl Config {
         let host = string_or_empty(pick("server.host", "host"), "server.host")?;
         let port = match pick("server.port", "port") {
             None | Some(Value::Null) => 0,
-            Some(v) => v
-                .as_u64()
+            // yaml.v3 truncates a float into Go's int port.
+            Some(v) => go_int(v)
                 .and_then(|p| u16::try_from(p).ok())
                 .context("server.port must be an integer port number")?,
         };

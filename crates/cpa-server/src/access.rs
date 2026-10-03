@@ -87,7 +87,7 @@ pub(crate) fn query_get(query: &str, name: &str) -> Option<Vec<u8>> {
 }
 
 /// Go's QueryUnescape: `+` is a space, `%XX` must be two hex digits, any bytes allowed.
-fn unescape(s: &str) -> Option<Vec<u8>> {
+pub(crate) fn unescape(s: &str) -> Option<Vec<u8>> {
     let bytes = s.as_bytes();
     let mut out = Vec::with_capacity(bytes.len());
     let mut i = 0;

@@ -79,6 +79,8 @@ struct Relay {
     /// translated loop does, instead of waiting for the event's blank line.
     eager_terminal: bool,
     done: Option<OnComplete>,
+    /// Go's usage reporter: every upstream line, before alias restore.
+    usage: cpa_core::exec::UsageSink,
 }
 
 impl Relay {
@@ -88,6 +90,8 @@ impl Relay {
             return false;
         }
         observe(line, &mut self.message_id, &mut self.completed);
+        // reporter.ObserveResponseModel and StreamUsageBuffer.ObserveClaudeStream.
+        self.usage.response_line(cpa_core::format::Format::Claude, line);
         let restored = match restore_line(line, &self.reverse) {
             Ok(restored) => restored,
             Err(message) => {
@@ -151,6 +155,11 @@ impl Relay {
     fn chunk(&mut self, chunk: &[u8]) {
         self.line.extend_from_slice(chunk);
         while let Some(pos) = self.line.iter().position(|b| *b == b'\n') {
+            // bufio.Scanner holds at most MAX_LINE bytes: the line and its newline must fit.
+            if pos + 1 > MAX_LINE {
+                self.fail(super::plain_error("bufio.Scanner: token too long"));
+                return;
+            }
             let mut line = self.line.split_to(pos + 1);
             line.truncate(pos);
             if line.last() == Some(&b'\r') {
@@ -187,17 +196,35 @@ impl Relay {
 
 /// Relays decoded upstream bytes as whole native SSE events. `done` runs once with
 /// the message ID when the upstream completed with `message_stop`.
-pub(crate) fn relay(body: ExecStream, reverse: Reverse, done: OnComplete) -> ExecStream {
-    relay_with(body, reverse, done, false)
+/// Every upstream line is reported to `usage` before alias restore.
+pub(crate) fn relay(
+    body: ExecStream,
+    reverse: Reverse,
+    done: OnComplete,
+    usage: cpa_core::exec::UsageSink,
+) -> ExecStream {
+    relay_with(body, reverse, done, false, usage)
 }
 
 /// [`relay`] for a translated client: the stream ends on the `message_stop` data line.
-pub(crate) fn relay_translated(body: ExecStream, reverse: Reverse, done: OnComplete) -> ExecStream {
-    relay_with(body, reverse, done, true)
+pub(crate) fn relay_translated(
+    body: ExecStream,
+    reverse: Reverse,
+    done: OnComplete,
+    usage: cpa_core::exec::UsageSink,
+) -> ExecStream {
+    relay_with(body, reverse, done, true, usage)
 }
 
-fn relay_with(body: ExecStream, reverse: Reverse, done: OnComplete, eager_terminal: bool) -> ExecStream {
+fn relay_with(
+    body: ExecStream,
+    reverse: Reverse,
+    done: OnComplete,
+    eager_terminal: bool,
+    usage: cpa_core::exec::UsageSink,
+) -> ExecStream {
     let relay = Relay {
+        usage,
         body,
         reverse,
         line: BytesMut::new(),
@@ -316,7 +343,7 @@ mod tests {
                 .chain(futures_util::stream::pending())
                 .boxed()
         };
-        let out: Vec<_> = relay_translated(open(), Reverse::new(), Box::new(|_| {}))
+        let out: Vec<_> = relay_translated(open(), Reverse::new(), Box::new(|_| {}), Default::default())
             .map(Result::unwrap)
             .collect()
             .await;
@@ -324,7 +351,7 @@ mod tests {
             out[1],
             Bytes::from_static(b"event: message_stop\ndata: {\"type\":\"message_stop\"}\n")
         );
-        let mut native = relay(open(), Reverse::new(), Box::new(|_| {}));
+        let mut native = relay(open(), Reverse::new(), Box::new(|_| {}), Default::default());
         assert!(native.next().await.is_some());
         let waited = tokio::time::timeout(std::time::Duration::from_millis(50), native.next()).await;
         assert!(waited.is_err(), "native output waits for the blank line");
@@ -342,6 +369,7 @@ mod tests {
             body,
             Reverse::new(),
             Box::new(move |id| *seen.lock().unwrap() = Some(id)),
+            Default::default(),
         )
         .map(Result::unwrap)
         .collect()
@@ -365,11 +393,51 @@ mod tests {
                 "upstream request failed",
             )),
         ]);
-        let out: Vec<_> = relay(body, Reverse::new(), Box::new(|_| panic!("not completed")))
-            .collect()
-            .await;
+        let out: Vec<_> = relay(
+            body,
+            Reverse::new(),
+            Box::new(|_| panic!("not completed")),
+            Default::default(),
+        )
+        .collect()
+        .await;
         assert_eq!(out.len(), 3);
         assert_eq!(out[1].as_ref().unwrap().as_ref(), b"event: x\ndata: {\n");
         assert_eq!(out[2].as_ref().unwrap_err().body.as_ref(), b"unexpected EOF");
+    }
+
+    #[tokio::test]
+    async fn every_upstream_line_is_reported_before_alias_restore() {
+        let usage = std::sync::Arc::new(crate::claude::tests::Usage::default());
+        let mut reverse = Reverse::new();
+        reverse.insert("mcp__poem_real__leisure_fixture_lookup".into(), "fixture_lookup".into());
+        let body = chunks(vec![
+            Ok(b"event: content_block_start\r\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"t\",\"name\":\"mcp__poem_real__leisure_fixture_lookup\",\"input\":{}}}\r\n\r\n"),
+            Ok(b"event: message_stop\ndata: {\"type\":\"message_stop\"}\n\nevent: ping\n"),
+        ]);
+        let out: Vec<_> = relay(
+            body,
+            reverse,
+            Box::new(|_| {}),
+            cpa_core::exec::UsageSink::new(usage.clone()),
+        )
+        .map(Result::unwrap)
+        .collect()
+        .await;
+        assert!(String::from_utf8_lossy(&out[0]).contains("\"name\":\"fixture_lookup\""));
+        let lines: Vec<String> = usage.0.lock().unwrap().iter().map(|(_, _, l)| l.clone()).collect();
+        // Scanner lines (CR dropped), the alias as upstream sent it, up to the terminal
+        // event's blank line where the relay stops reading.
+        assert_eq!(
+            lines,
+            [
+                "event: content_block_start",
+                "data: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"t\",\"name\":\"mcp__poem_real__leisure_fixture_lookup\",\"input\":{}}}",
+                "",
+                "event: message_stop",
+                "data: {\"type\":\"message_stop\"}",
+                "",
+            ]
+        );
     }
 }

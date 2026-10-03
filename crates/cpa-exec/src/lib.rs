@@ -64,18 +64,22 @@ pub mod proxy;
 mod quota;
 mod rawjson;
 mod replay;
+#[cfg(test)]
+mod test_tls;
 mod tls;
 mod tokens;
 mod translate;
 mod upstream;
+pub mod vertex;
+pub mod vertex_auth;
 mod wire;
 pub mod xai;
-mod xai_apply_patch;
 pub mod xai_auth;
 mod xai_replay;
 mod xai_request;
 mod xai_response;
 mod xai_url;
+mod xai_ws;
 
 use cpa_core::config::Config;
 use cpa_core::credential::{Credential, MetadataPatch};
@@ -108,6 +112,8 @@ pub struct Executors {
 pub struct GoogleExecutors {
     /// `gemini` and `gemini-interactions` API keys.
     pub gemini: gemini::GeminiExecutor,
+    /// `vertex` service accounts and API keys.
+    pub vertex: vertex::VertexExecutor,
 }
 
 /// OpenAI-wire executors, grouped like [`DeviceExecutors`].
@@ -141,6 +147,7 @@ impl Executors {
             devin::PROVIDER => self.devices.devin.execute(credential, req, cfg).await,
             p if openai_compat::handles(p) => self.openai.compat.execute(credential, req, cfg).await,
             p if gemini::handles(p) => self.google.gemini.execute(credential, req, cfg).await,
+            p if vertex::handles(p) => self.google.vertex.execute(credential, req, cfg).await,
             xai::PROVIDER => self.openai.xai.execute(credential, req, cfg, false).await,
             other => Err(no_executor(other)),
         }
@@ -179,10 +186,10 @@ impl Executors {
         }
     }
 
-    /// One turn of a downstream Responses WebSocket session. Codex credentials with
-    /// `websockets` keep a pooled upstream socket per session; every other credential runs
-    /// an ordinary execution and cannot continue upstream state, so a continuation turn
-    /// fails with [`ExecError::replay_required`].
+    /// One turn of a downstream Responses WebSocket session. Codex and xAI credentials
+    /// with `websockets` keep a pooled upstream socket per session; every other credential
+    /// runs an ordinary execution and cannot continue upstream state, so a continuation
+    /// turn fails with [`ExecError::replay_required`].
     pub async fn execute_in_session(
         &self,
         credential: &Credential,
@@ -192,8 +199,8 @@ impl Executors {
     ) -> Result<ExecResponse, ExecError> {
         match credential.provider.as_str() {
             "codex" => self.codex.execute_in_session(credential, req, cfg, session).await,
+            xai::PROVIDER => self.openai.xai.execute_in_session(credential, req, cfg, session).await,
             _ if session.continuation => Err(ExecError::replay_required()),
-            xai::PROVIDER => self.openai.xai.execute(credential, req, cfg, true).await,
             _ => self.execute(credential, req, cfg).await,
         }
     }
@@ -201,18 +208,30 @@ impl Executors {
     /// Whether `credential` keeps upstream conversation state on a session socket, so
     /// the next turn may be sent as an incremental continuation.
     pub fn session_upstream(&self, credential: &Credential) -> bool {
-        credential.provider == "codex" && codex::CodexExecutor::upstream_websocket(credential)
+        match credential.provider.as_str() {
+            "codex" => codex::CodexExecutor::upstream_websocket(credential),
+            xai::PROVIDER => xai::XaiExecutor::session_upstream(credential),
+            _ => false,
+        }
     }
 
     /// Resolves when an upstream socket held for session `id` is lost; pending forever
     /// when no executor holds one.
     pub fn session_closed(&self, id: &str) -> impl std::future::Future<Output = ExecError> + Send + 'static {
-        self.codex.session_closed(id)
+        let codex = self.codex.session_closed(id);
+        let xai = self.openai.xai.session_closed(id);
+        async move {
+            tokio::select! {
+                error = codex => error,
+                error = xai => error,
+            }
+        }
     }
 
     /// Releases everything executors hold for session `id`.
     pub fn close_session(&self, id: &str) {
         self.codex.close_session(id);
+        self.openai.xai.close_session(id);
     }
 
     /// Whether an executor serves this provider. Credentials of other providers never
@@ -224,6 +243,7 @@ impl Executors {
         ) || kimi::PROVIDERS.contains(&provider)
             || openai_compat::handles(provider)
             || gemini::handles(provider)
+            || vertex::handles(provider)
     }
 
     /// Go `authHasRefreshCredential`: whether an upstream 401 on `credential` should be

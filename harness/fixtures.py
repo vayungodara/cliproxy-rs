@@ -169,6 +169,12 @@ def cases():
     add("interactions-bad-stream", path="/v1beta/interactions", headers=openai_headers, no_upstream=True,
         body=encoded({"model": MODEL, "stream": "yes"}))
     add("healthz-head", method="HEAD", path="/healthz", body="", headers=[], no_upstream=True)
+    # gin without HandleMethodNotAllowed: wrong methods and unregistered HEADs are NoRoute 404s.
+    add("wrong-method-chat", method="GET", path="/v1/chat/completions", body="", headers=openai_headers,
+        no_upstream=True)
+    add("models-head", method="HEAD", path="/v1/models", body="", headers=openai_headers, no_upstream=True)
+    add("healthz-post", method="POST", path="/healthz", body="", headers=[], no_upstream=True)
+    add("unknown-path", method="GET", path="/v2/nothing", body="", headers=[], no_upstream=True)
     add("root", method="GET", path="/", body="", headers=[], no_upstream=True)
     add("dd-model-messages", body=encoded({**body, "model": "claude-fable-5-dd-6-4-tennos-edualc"}))
     return out

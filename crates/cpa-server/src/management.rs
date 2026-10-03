@@ -22,10 +22,12 @@ use crate::scheduler::{ErrorRule, Policy};
 mod access;
 mod api_call;
 mod auth_files;
+mod legacy;
 mod logs;
 mod multipart;
 mod oauth;
 pub mod observability;
+mod plugins;
 pub use access::cors;
 
 pub struct Management {
@@ -50,6 +52,8 @@ pub struct Management {
     pub(crate) login_base: Option<String>,
     /// Go `Handler.logDir`: resolved once at startup.
     pub(crate) log_dir: PathBuf,
+    /// The remote store mirroring config and auth files, when one is configured.
+    pub(crate) store: Option<Arc<dyn crate::persist::StorePersister>>,
     /// The zone log line timestamps are parsed in (Go `time.Local` when `None`).
     pub(crate) log_zone: logs::Zone,
     access: access::Access,
@@ -67,11 +71,29 @@ pub struct Options {
     pub login_base: Option<String>,
     /// Overrides the log directory Go resolves at startup (tests only).
     pub log_dir: Option<PathBuf>,
+    /// A Postgres, git or object store mirroring config and auth files (Go's
+    /// registered token store when it persists remotely).
+    pub store: Option<Arc<dyn crate::persist::StorePersister>>,
     /// Parses log line timestamps in this zone instead of the local one (tests only).
     pub log_zone: Option<chrono::FixedOffset>,
 }
 
 impl Management {
+    /// Go `managementRoutesEnabled`, for the RESP protocol on the main listener.
+    pub(crate) fn routes_enabled(&self) -> bool {
+        self.access.available()
+    }
+
+    /// Go `AuthenticateManagementKey` for callers outside HTTP (the RESP protocol).
+    pub(crate) async fn authenticate_key(
+        &self,
+        ip: &str,
+        local: bool,
+        provided: &[u8],
+    ) -> Result<(), (StatusCode, String)> {
+        self.access.authenticate(&self.rt.config(), ip, local, provided).await
+    }
+
     pub fn new(rt: Arc<Runtime>, path: PathBuf) -> Arc<Self> {
         Self::with_options(rt, path, Options::default())
     }
@@ -90,6 +112,8 @@ impl Management {
             .log_dir
             .clone()
             .unwrap_or_else(|| crate::logging::resolve_log_dir(&cfg));
+        let mut options = options;
+        let store = options.store.take();
         let log_zone = options.log_zone;
         let access = access::Access::new(&cfg, options);
         rt.usage_queue().configure(access.available(), &cfg);
@@ -106,11 +130,30 @@ impl Management {
             forwarders: Mutex::default(),
             login_base,
             log_dir,
+            store,
             log_zone,
         });
         oauth::install_callback_sink(&state);
         access::start_purge(&state);
         state
+    }
+
+    /// Go `Watcher.mirroredAuthDir`: with a remote store, the auth directory is the
+    /// store's mirror whatever `auth-dir` says.
+    pub(crate) fn lock_auth_dir(&self, cfg: &mut Config) {
+        if let Some(store) = &self.store {
+            cfg.auth_dir = store.auth_dir();
+        }
+    }
+
+    /// Go `deleteTokenRecord`: tells the store about an explicit removal. Blocking;
+    /// call from a blocking thread.
+    pub(crate) fn store_delete(&self, path: &std::path::Path) -> Result<(), String> {
+        let Some(store) = self.store.clone() else {
+            return Ok(());
+        };
+        let path = std::path::absolute(path).unwrap_or_else(|_| path.to_path_buf());
+        store.delete_auth(path).map_err(|e| format!("{e:#}"))
     }
 
     /// Publishes a config and everything Go derives from it on reload: scheduler
@@ -119,6 +162,8 @@ impl Management {
     /// has a reconciled list. Callers hold `disk`. Infallible on purpose: access
     /// settings of a valid config (a rotated or removed secret) always take effect.
     pub(crate) fn publish(&self, cfg: Config, files: Option<Vec<Credential>>) {
+        let mut cfg = cfg;
+        self.lock_auth_dir(&mut cfg);
         let mut all = files.unwrap_or_else(|| credentials::from_auth_dir(&cfg));
         // Fallbacks follow their file: gone with it, replaced once a synthesizer
         // claims it, otherwise rebuilt from its current content.
@@ -149,6 +194,8 @@ impl Management {
         let policy = policy(&cfg);
         self.rt.publish_config_and_policy(cfg, policy);
         self.rt.store().reconcile(all);
+        // Go's watcher calls redisqueue.NotifyUsageRefresh after every client reload.
+        self.rt.usage_queue().notify_usage_refresh();
     }
 }
 
@@ -201,15 +248,73 @@ pub fn policy(cfg: &Config) -> Policy {
     policy
 }
 
-/// gin `c.JSON`: compact JSON with the charset parameter.
+/// gin `c.JSON` of a `gin.H` map: Go's `json.Marshal` (sorted keys; `<`, `>`, `&`,
+/// U+2028 and U+2029 escaped) with the charset parameter.
 pub(crate) fn json(status: StatusCode, value: &Value) -> Response {
+    json_body(status, crate::gojson::sorted(value))
+}
+
+/// gin `c.JSON` of a value that holds Go structs: objects keep their insertion order
+/// (struct fields as Go declares them; callers insert map levels sorted, see
+/// [`sorted_keys`]), strings escaped like `json.Marshal`.
+pub(crate) fn json_ordered(status: StatusCode, value: &Value) -> Response {
+    let mut out = Vec::new();
+    write_ordered(value, &mut out);
+    json_body(status, String::from_utf8(out).expect("JSON text is UTF-8"))
+}
+
+fn write_ordered(value: &Value, out: &mut Vec<u8>) {
+    match value {
+        Value::Null => out.extend_from_slice(b"null"),
+        Value::Bool(b) => out.extend_from_slice(if *b { b"true" } else { b"false" }),
+        Value::Number(n) => out.extend_from_slice(n.to_string().as_bytes()),
+        Value::String(s) => out.extend(cpa_common::json::quote(s)),
+        Value::Array(items) => {
+            out.push(b'[');
+            for (i, item) in items.iter().enumerate() {
+                if i > 0 {
+                    out.push(b',');
+                }
+                write_ordered(item, out);
+            }
+            out.push(b']');
+        }
+        Value::Object(map) => {
+            out.push(b'{');
+            for (i, (key, item)) in map.iter().enumerate() {
+                if i > 0 {
+                    out.push(b',');
+                }
+                out.extend(cpa_common::json::quote(key));
+                out.push(b':');
+                write_ordered(item, out);
+            }
+            out.push(b'}');
+        }
+    }
+}
+
+/// A copy whose objects all have sorted keys, as Go encodes a `map[string]any`.
+pub(crate) fn sorted_keys(value: &Value) -> Value {
+    match value {
+        Value::Object(map) => {
+            let sorted: std::collections::BTreeMap<&String, Value> =
+                map.iter().map(|(k, v)| (k, sorted_keys(v))).collect();
+            Value::Object(sorted.into_iter().map(|(k, v)| (k.clone(), v)).collect())
+        }
+        Value::Array(items) => Value::Array(items.iter().map(sorted_keys).collect()),
+        other => other.clone(),
+    }
+}
+
+fn json_body(status: StatusCode, body: String) -> Response {
     (
         status,
         [(
             header::CONTENT_TYPE,
             HeaderValue::from_static("application/json; charset=utf-8"),
         )],
-        value.to_string(),
+        body,
     )
         .into_response()
 }
@@ -237,10 +342,12 @@ macro_rules! open {
     };
 }
 
-/// gin answers HEAD and unregistered methods on a known path with NoRoute's 404 and
-/// no `Allow` header; starting from `any` keeps axum from adding one.
+/// gin answers HEAD and unregistered methods on a known path with NoRoute (no `Allow`
+/// header; starting from `any` keeps axum from adding one). Go's NoRoute serves
+/// plugin routes, so those requests go to [`plugins::no_route`].
 fn methods() -> MethodRouter<Arc<Management>> {
-    any(|| async { access::not_found() }).head(|| async { access::not_found() })
+    // An explicit HEAD keeps axum from answering HEAD with the GET handler.
+    any(plugins::no_route).head(plugins::no_route)
 }
 
 /// The OAuth callback POST needs no key, so unlike Go it keeps a bound: legitimate
@@ -383,7 +490,86 @@ pub fn router(state: Arc<Management>) -> Router {
     ] {
         router = router.route(&format!("{v0}/{path}"), route);
     }
+    // Plugin routes: v8 and the v0 spellings Go keeps (internal/api/server_management.go,
+    // server_management_v8.go); the v0 config, enable and v8 store routes share them.
+    for (path, route) in [
+        ("plugins", methods().get(guarded!(s, plugins::list))),
+        ("plugins/{id}", methods().delete(guarded!(s, plugins::delete))),
+    ] {
+        router = router
+            .route(&format!("{v8}/{path}"), route.clone())
+            .route(&format!("{v0}/{path}"), route);
+    }
+    router = router
+        .route(
+            &format!("{v0}/plugins/{{id}}/enabled"),
+            methods().patch(guarded!(s, plugins::patch_enabled)),
+        )
+        .route(
+            &format!("{v0}/plugins/{{id}}/config"),
+            methods()
+                .get(guarded!(s, plugins::get_config))
+                .put(guarded!(s, plugins::put_config))
+                .patch(guarded!(s, plugins::patch_config)),
+        );
+    // Go's remaining v0 routes, adapted over the v8 handlers (management/legacy.rs).
+    router = router.route(&format!("{v0}/config"), methods().get(guarded!(s, legacy::config)));
+    for path in legacy::FIELD_ROUTES {
+        let mut route = methods()
+            .get(guarded!(s, legacy::field_route))
+            .put(guarded!(s, legacy::field_route))
+            .patch(guarded!(s, legacy::field_route));
+        if path == "proxy-url" {
+            route = route.delete(guarded!(s, legacy::field_route));
+        }
+        router = router.route(&format!("{v0}/{path}"), route);
+    }
+    router = router.route(
+        &format!("{v0}/api-keys"),
+        methods()
+            .get(guarded!(s, legacy::api_keys))
+            .put(guarded!(s, legacy::api_keys))
+            .patch(guarded!(s, legacy::api_keys))
+            .delete(guarded!(s, legacy::api_keys)),
+    );
+    for path in legacy::LIST_ROUTES {
+        router = router.route(
+            &format!("{v0}/{path}"),
+            methods()
+                .get(guarded!(s, legacy::list_route))
+                .put(guarded!(s, legacy::list_route))
+                .patch(guarded!(s, legacy::list_route))
+                .delete(guarded!(s, legacy::list_route)),
+        );
+    }
+    for (path, _) in legacy::AUTH_URL_ROUTES {
+        router = router.route(&format!("{v0}/{path}"), methods().get(guarded!(s, legacy::auth_url)));
+    }
+    router = router
+        .route(
+            &format!("{v0}/vertex/import"),
+            methods().post(guarded!(s, legacy::vertex_import)),
+        )
+        .route(
+            &format!("{v0}/logs"),
+            methods()
+                .get(guarded!(s, logs::get_logs))
+                .delete(guarded!(s, logs::delete_logs)),
+        )
+        .route(
+            &format!("{v0}/request-error-logs"),
+            methods().get(guarded!(s, logs::error_logs)),
+        )
+        .route(
+            &format!("{v0}/request-error-logs/{{name}}"),
+            methods().get(guarded!(s, logs::download_error_log)),
+        )
+        .route(
+            &format!("{v0}/request-log-by-id/{{id}}"),
+            methods().get(guarded!(s, logs::request_log)),
+        );
     router
+        .fallback(plugins::no_route)
         .route("/management.html", get(panel))
         .route("/assets/{*path}", get(panel))
         .route("/fonts/{*path}", get(panel))
@@ -408,7 +594,7 @@ pub(crate) async fn config(
         .unwrap_or_else(|_| error(500, "internal_error"))
 }
 
-fn percent_decode(path: &str) -> String {
+pub(crate) fn percent_decode(path: &str) -> String {
     let bytes = path.as_bytes();
     let mut out = Vec::with_capacity(bytes.len());
     let mut i = 0;
@@ -464,7 +650,7 @@ pub(crate) fn config_sync(state: &Management, path: &str, method: Method, body: 
     let basis = doc.migrated_text(&original).unwrap_or_else(|| original.clone());
     let archived = doc.archive_unknown();
     // Go keys this on the matched route: `/config/config.yaml` is a key lookup.
-    let yaml = path.ends_with("/management/config.yaml");
+    let yaml = matches!(path, "/v8/management/config.yaml" | "/v0/management/config.yaml");
     let suffix = path
         .strip_prefix("/v8/management/config/")
         .unwrap_or_default()

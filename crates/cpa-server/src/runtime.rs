@@ -44,6 +44,13 @@ pub struct Runtime {
     usage: crate::usage::UsageQueue,
     /// `--local-model`: embedded model catalogs only, no remote catalog refresh.
     local_model: std::sync::atomic::AtomicBool,
+    /// The native plugin host, synced with each published config (see [`crate::plugins`]).
+    plugins: crate::plugins::PluginRuntime,
+    /// The remote dispatcher that replaces local selection (Go Home mode).
+    remote: RwLock<Option<Arc<dyn crate::remote::RemoteDispatch>>>,
+    /// Set only by [`crate::testing::runtime`]: executor calls get credentials that
+    /// cannot leave the machine.
+    pub(crate) deny_external: std::sync::atomic::AtomicBool,
 }
 
 /// An OAuth provider redirect received on the main listener.
@@ -81,6 +88,9 @@ impl Runtime {
             pool_offsets: Mutex::default(),
             usage: crate::usage::UsageQueue::default(),
             local_model: Default::default(),
+            plugins: Default::default(),
+            remote: RwLock::default(),
+            deny_external: Default::default(),
         };
         rt.publish_policy(policy);
         rt.store.configure_cooldown_store(cooldown_dir);
@@ -99,9 +109,25 @@ impl Runtime {
         self.local_model.store(on, std::sync::atomic::Ordering::Relaxed);
     }
 
+    /// Persists cooldowns to `backend` instead of `.cds` files (PGSTORE's cooldown
+    /// table; additive API). Call before serving.
+    pub fn set_cooldown_backend(&self, backend: Arc<dyn crate::cooldown_store::Backend>) {
+        self.store.set_cooldown_backend(backend);
+    }
+
     /// Whether `--local-model` was given.
     pub fn local_model(&self) -> bool {
         self.local_model.load(std::sync::atomic::Ordering::Relaxed)
+    }
+
+    /// The plugin host (additive API). [`crate::plugins::start`] syncs it with the
+    /// config.
+    pub fn plugins(&self) -> &cpa_plugin::Host {
+        self.plugins.host()
+    }
+
+    pub(crate) fn plugin_runtime(&self) -> &crate::plugins::PluginRuntime {
+        &self.plugins
     }
 
     /// The config snapshot to use for one whole request.
@@ -122,7 +148,14 @@ impl Runtime {
         let (enabled, strict) = signature_cache_config(&config);
         cpa_translate::set_antigravity_signature_cache_config(enabled, strict);
         let dir = cooldown_dir(&config, &policy);
-        *self.config.write().unwrap_or_else(PoisonError::into_inner) = Arc::new(config);
+        let config = Arc::new(config);
+        {
+            // The plugin worker is told under the same lock, so concurrent publishes
+            // reach it in the order they replaced the config.
+            let mut current = self.config.write().unwrap_or_else(PoisonError::into_inner);
+            *current = config.clone();
+            self.plugins.config_published(config);
+        }
         self.publish_policy(policy);
         self.store.configure_cooldown_store(dir);
     }
@@ -174,6 +207,16 @@ impl Runtime {
     pub fn deliver_oauth_callback(&self, callback: &OAuthCallback) -> bool {
         let sink = self.oauth_sink.read().unwrap_or_else(PoisonError::into_inner).clone();
         sink.is_some_and(|sink| sink(callback))
+    }
+
+    /// The credential an executor call receives: the stored one, or in a test runtime
+    /// ([`crate::testing`]) a copy that cannot leave the machine.
+    pub(crate) fn for_executor(&self, credential: &Arc<Credential>) -> Arc<Credential> {
+        if self.deny_external.load(std::sync::atomic::Ordering::Relaxed) {
+            crate::testing::guarded(credential)
+        } else {
+            credential.clone()
+        }
     }
 
     /// The model registry for the current config and credential set. Rebuilt only when
@@ -241,6 +284,43 @@ impl Runtime {
         Ok(lease)
     }
 
+    /// The installed remote dispatcher (Go Home mode), if any.
+    pub fn remote_dispatch(&self) -> Option<Arc<dyn crate::remote::RemoteDispatch>> {
+        self.remote.read().unwrap_or_else(PoisonError::into_inner).clone()
+    }
+
+    /// Routes every request through `dispatch` (Go Home mode) or back to the local
+    /// scheduler with `None` (additive API).
+    pub fn set_remote_dispatch(&self, dispatch: Option<Arc<dyn crate::remote::RemoteDispatch>>) {
+        *self.remote.write().unwrap_or_else(PoisonError::into_inner) = dispatch;
+    }
+
+    /// One remote pick (Go `pickHomeDispatchSelection`): the lease ends through the
+    /// dispatcher, and its release joins `releases`.
+    pub(crate) async fn acquire_remote(
+        &self,
+        dispatch: &dyn crate::remote::RemoteDispatch,
+        selection: Selection,
+        request: crate::remote::RemoteRequest,
+        releases: &crate::remote::PendingReleases,
+    ) -> Result<(Lease, Option<i64>), crate::remote::RemoteError> {
+        let grant = dispatch.dispatch(request).await?;
+        let lease = Lease {
+            store: self.store.clone(),
+            credential: Arc::new(grant.credential),
+            execution_model: selection.model.clone(),
+            selection,
+            attempt: self.store.attempts.fetch_add(1, Ordering::Relaxed),
+            policy: self.policy(),
+            reported: false,
+            remote: Some(crate::remote::RemoteEnd {
+                end: Some(grant.end),
+                releases: releases.clone(),
+            }),
+        };
+        Ok((lease, grant.request_retry))
+    }
+
     /// Prepares and commits one credential. `failed` is the revision whose token an
     /// upstream rejected: preparation then runs even when not due, unless another task
     /// already replaced that revision (Go `refreshAuthForRequest`).
@@ -266,7 +346,7 @@ impl Runtime {
             None if self.executors.readiness(&current, cfg) == Readiness::Ready => return Ok(current),
             None => {}
         }
-        let patch = self.executors.prepare(&current, cfg).await?;
+        let patch = self.executors.prepare(&self.for_executor(&current), cfg).await?;
         let store = self.store.clone();
         let revision = current.revision;
         let id = id.to_owned();
@@ -324,7 +404,7 @@ impl Runtime {
                     state.reconcile(&snapshot);
                     snapshot
                         .iter()
-                        .filter(|c| matches!(c.source, Source::File(_)) && !c.disabled)
+                        .filter(|c| refresh_candidate(c))
                         .filter(|c| rt.executors.readiness(c, &cfg) != Readiness::Ready)
                         .filter(|c| state.reserve(c, Instant::now()))
                         .cloned()
@@ -555,9 +635,17 @@ pub struct Lease {
     pub attempt: u64,
     policy: Arc<Policy>,
     reported: bool,
+    /// A credential from the remote dispatcher: its lease ends there, not in the local
+    /// scheduler.
+    remote: Option<crate::remote::RemoteEnd>,
 }
 
 impl Lease {
+    /// Whether the credential came from the remote dispatcher (Go Home mode).
+    pub fn is_remote(&self) -> bool {
+        self.remote.is_some()
+    }
+
     pub fn complete(mut self, outcome: Outcome) {
         self.report(outcome);
     }
@@ -565,14 +653,21 @@ impl Lease {
     /// Records an intermediate outcome for one model of a pooled alias without ending
     /// the lease.
     pub fn note(&self, model: &str, outcome: &Outcome) {
-        self.store.record_model(self, model, outcome);
+        if self.remote.is_none() {
+            self.store.record_model(self, model, outcome);
+        }
     }
 
     fn report(&mut self, outcome: Outcome) {
         if std::mem::replace(&mut self.reported, true) {
             return;
         }
-        self.store.record(self, &outcome);
+        match &mut self.remote {
+            // Go `reportHomeResult` leaves local cooldowns alone; the scope ends with
+            // its release.
+            Some(remote) => remote.finish(),
+            None => self.store.record(self, &outcome),
+        }
     }
 }
 
@@ -629,6 +724,8 @@ pub struct CredentialStore {
     prepare_locks: Mutex<HashMap<String, Arc<tokio::sync::Mutex<()>>>>,
     /// `auth-dir` while `save-cooldown-status` is on (Go `cooldownStore`).
     cooldown_dir: RwLock<Option<std::path::PathBuf>>,
+    /// Replaces the `.cds` files while set (Go's token-store cooldown provider).
+    cooldown_backend: RwLock<Option<Arc<dyn crate::cooldown_store::Backend>>>,
     /// Serializes cooldown snapshots with their writes, so the last write is the newest.
     cooldown_write: Mutex<()>,
     activity: Mutex<HashMap<String, CredentialActivity>>,
@@ -656,6 +753,7 @@ impl CredentialStore {
             stats: Default::default(),
             prepare_locks: Mutex::default(),
             cooldown_dir: RwLock::default(),
+            cooldown_backend: RwLock::default(),
             cooldown_write: Mutex::default(),
             activity: Mutex::default(),
             persisted: Mutex::default(),
@@ -679,10 +777,31 @@ impl CredentialStore {
         }
     }
 
+    /// Go's builder taking the token store's `CooldownStateStore`: cooldowns go to
+    /// `backend` instead of `.cds` files, restored from it now when persistence is on.
+    pub fn set_cooldown_backend(&self, backend: Arc<dyn crate::cooldown_store::Backend>) {
+        *self.cooldown_backend.write().unwrap_or_else(PoisonError::into_inner) = Some(backend);
+        let dir = self.cooldown_dir.read().unwrap_or_else(PoisonError::into_inner).clone();
+        if let Some(dir) = dir {
+            self.restore_cooldowns(&dir);
+        }
+    }
+
+    fn cooldown_backend(&self) -> Option<Arc<dyn crate::cooldown_store::Backend>> {
+        self.cooldown_backend
+            .read()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone()
+    }
+
     /// Go `RestoreCooldownStates`: live records of live credentials whose cooling is
     /// enabled, then a rewrite that drops everything else.
     fn restore_cooldowns(&self, dir: &std::path::Path) {
-        let records = match crate::cooldown_store::load(dir) {
+        let loaded = match self.cooldown_backend() {
+            Some(backend) => backend.load(),
+            None => crate::cooldown_store::load(dir),
+        };
+        let records = match loaded {
             Ok(records) => records,
             Err(error) => {
                 tracing::warn!(%error, "failed to restore cooldown state");
@@ -730,7 +849,11 @@ impl CredentialStore {
                 .collect::<Vec<_>>()
         };
         records.sort_by(|a, b| (&a.provider, &a.auth_id, &a.model).cmp(&(&b.provider, &b.auth_id, &b.model)));
-        if let Err(error) = crate::cooldown_store::save(&dir, records, wall) {
+        let saved = match self.cooldown_backend() {
+            Some(backend) => backend.save(records, wall),
+            None => crate::cooldown_store::save(&dir, records, wall),
+        };
+        if let Err(error) = saved {
             tracing::warn!(%error, "failed to persist cooldown state");
         }
     }
@@ -884,6 +1007,7 @@ impl CredentialStore {
             attempt: self.attempts.fetch_add(1, Ordering::Relaxed),
             policy,
             reported: false,
+            remote: None,
         })
     }
 
@@ -1251,7 +1375,6 @@ fn write_atomic(path: &Path, metadata: &Map<String, Value>) -> std::io::Result<(
 
 /// Replaces `path` with `bytes` through an exclusively created 0600 sibling.
 pub(crate) fn write_bytes_atomic(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
-    use std::os::unix::fs::OpenOptionsExt;
     static COUNTER: AtomicU64 = AtomicU64::new(0);
     let dir = path.parent().unwrap_or(Path::new("."));
     let name = path.file_name().unwrap_or_default().to_string_lossy();
@@ -1262,12 +1385,12 @@ pub(crate) fn write_bytes_atomic(path: &Path, bytes: &[u8]) -> std::io::Result<(
             COUNTER.fetch_add(1, Ordering::Relaxed)
         ));
         // create_new is O_CREAT|O_EXCL: it never follows or reuses an existing path.
-        match std::fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .mode(0o600)
-            .open(&tmp)
-        {
+        let mut options = std::fs::OpenOptions::new();
+        options.write(true).create_new(true);
+        // Go's 0600; on Windows Go ignores mode bits and creates the file plainly.
+        #[cfg(unix)]
+        std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o600);
+        match options.open(&tmp) {
             Ok(file) => break (tmp, file),
             Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => continue,
             Err(e) => return Err(e),
@@ -1311,7 +1434,12 @@ impl Stream for Completing {
         match &item {
             Some(Ok(_)) => {}
             None => this.lease.take().unwrap().complete(Outcome::Success),
-            Some(Err(e)) => this.lease.take().unwrap().complete(Outcome::Failure(e.clone())),
+            Some(Err(e)) => {
+                // The upstream body closes before the lease ends: a remote lease's release
+                // must not reach the control plane while the response is still open.
+                this.inner = Box::pin(futures_util::stream::empty());
+                this.lease.take().unwrap().complete(Outcome::Failure(e.clone()));
+            }
         }
         Poll::Ready(item)
     }
@@ -1337,10 +1465,45 @@ fn signature_cache_config(cfg: &Config) -> (bool, bool) {
     )
 }
 
+/// Credentials the background refresh considers: enabled auth files, never API-key
+/// kinds (Go `nextRefreshCheckAt` skips `AuthKind() == apikey` for every provider).
+fn refresh_candidate(c: &Credential) -> bool {
+    matches!(c.source, Source::File(_)) && !c.disabled && cpa_core::registry::dynamic::auth_kind(c) != Some("apikey")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(unix)]
     use std::os::unix::fs::PermissionsExt;
+
+    /// Go `nextRefreshCheckAt` skips `AuthKind() == apikey` for every provider. The
+    /// kinds are Go's `AuthKind` goldens (tests/fixtures/server_go.json `auth_kind`).
+    #[test]
+    fn refresh_skips_api_key_kinds_like_go() {
+        let fixture: serde_json::Value =
+            serde_json::from_str(include_str!("../tests/fixtures/server_go.json")).unwrap();
+        let mut kinds = std::collections::BTreeSet::new();
+        for case in fixture["auth_kind"].as_array().unwrap() {
+            let meta = serde_json::json!({"type": "kimi"}).as_object().unwrap().clone();
+            let mut c = Credential::from_file(Path::new("/a"), Path::new("/a/x.json"), meta).unwrap();
+            c.metadata = case["metadata"].as_object().cloned().unwrap_or_default();
+            c.attributes = case["attributes"]
+                .as_object()
+                .map(|a| {
+                    a.iter()
+                        .map(|(k, v)| (k.clone(), v.as_str().unwrap().to_owned()))
+                        .collect()
+                })
+                .unwrap_or_default();
+            let kind = case["kind"].as_str().unwrap();
+            kinds.insert(kind);
+            assert_eq!(refresh_candidate(&c), kind != "apikey", "case {case}");
+            c.disabled = true;
+            assert!(!refresh_candidate(&c));
+        }
+        assert!(kinds.contains("apikey") && kinds.contains("oauth"), "{kinds:?}");
+    }
 
     #[test]
     fn signature_cache_config_reads_v8_and_legacy_keys() {
@@ -1442,6 +1605,7 @@ mod tests {
         // A stale temp-file-looking path and a symlink must not be reused or followed.
         let victim = dir.join("victim");
         std::fs::write(&victim, "keep").unwrap();
+        #[cfg(unix)]
         std::os::unix::fs::symlink(
             &victim,
             dir.join(format!(".claude-a.json.{}.0.tmp", std::process::id())),
@@ -1462,6 +1626,7 @@ mod tests {
             std::fs::read_to_string(&path).unwrap(),
             "{\"type\":\"claude\",\"access_token\":\"new\",\"zz_unknown\":{\"k\":[1,2]},\"email\":\"a@x.test\",\"disabled\":true}\n"
         );
+        #[cfg(unix)]
         assert_eq!(std::fs::metadata(&path).unwrap().permissions().mode() & 0o777, 0o600);
         assert_eq!(
             std::fs::read_to_string(&victim).unwrap(),
@@ -1644,7 +1809,7 @@ mod tests {
             google: Default::default(),
         };
         // Legacy top-level keys and the canonical routing block both reach the scheduler.
-        let rt = Runtime::new(
+        let rt = crate::testing::runtime(
             Config::parse("request-retry: 2\nrouting:\n  strategy: ff\n  session-affinity-ttl: 250ms\n").unwrap(),
             Vec::new(),
             executors(),
@@ -1665,7 +1830,7 @@ mod tests {
     /// single-entry pools or blank keys, reset to zero at the int32 guard.
     #[test]
     fn pool_offsets_rotate_per_key_like_go() {
-        let rt = Runtime::new(
+        let rt = crate::testing::runtime(
             Config::parse("").unwrap(),
             Vec::new(),
             Executors {
@@ -1808,7 +1973,7 @@ mod tests {
             google: Default::default(),
             devices: Default::default(),
         };
-        let rt = Runtime::new(config(), creds(), executors());
+        let rt = crate::testing::runtime(config(), creds(), executors());
         let mut selection = Selection::new("claude", "m1");
         selection.exclude.push("b.json".into());
         let lease = rt.store.select(selection.clone()).unwrap();
@@ -1817,6 +1982,7 @@ mod tests {
         lease.complete(Outcome::Failure(quota));
         let file = dir.join("a.cds");
         let written = std::fs::read_to_string(&file).expect("cooldown written");
+        #[cfg(unix)]
         assert_eq!(
             std::fs::metadata(&file).unwrap().permissions().mode() & 0o777,
             0o600,
@@ -1836,7 +2002,7 @@ mod tests {
 
         // A new process restores the cooldown.
         drop(rt);
-        let rt = Runtime::new(config(), creds(), executors());
+        let rt = crate::testing::runtime(config(), creds(), executors());
         let a = rt.store.get("a.json").unwrap();
         let wait = rt
             .store
@@ -1874,7 +2040,7 @@ mod tests {
         );
         std::fs::write(dir.join("b.cds"), go).unwrap();
         drop(rt);
-        let rt = Runtime::new(config(), creds(), executors());
+        let rt = crate::testing::runtime(config(), creds(), executors());
         let b = rt.store.get("b.json").unwrap();
         let now = Instant::now();
         let scheduler = rt.store.scheduler.lock().unwrap();
@@ -1911,7 +2077,7 @@ mod tests {
 
     #[tokio::test]
     async fn preparation_waiter_observes_deletion_and_refresh_loop_is_replaceable() {
-        let rt = Arc::new(Runtime::new(
+        let rt = Arc::new(crate::testing::runtime(
             Config::parse("").unwrap(),
             vec![cred("a.json", "claude", false)],
             Executors {
@@ -1993,5 +2159,55 @@ mod tests {
         assert!(mid.next().await.is_some());
         drop(mid);
         assert_eq!(store.stats(), stats(2, 1, 2));
+    }
+
+    /// A remote lease ends once, never through the local scheduler, and only after the
+    /// upstream body it was streaming has been dropped.
+    #[tokio::test]
+    async fn remote_leases_end_after_the_upstream_body_closes() {
+        use std::sync::atomic::AtomicBool;
+        struct Probe(Arc<AtomicBool>);
+        impl Drop for Probe {
+            fn drop(&mut self) {
+                self.0.store(true, Ordering::SeqCst);
+            }
+        }
+        let store = CredentialStore::new(vec![cred("a.json", "claude", false)]);
+        let dropped = Arc::new(AtomicBool::new(false));
+        let observed = Arc::new(Mutex::new(Vec::new()));
+        let mut lease = store.select(sel("claude")).unwrap();
+        let (seen, probe) = (observed.clone(), dropped.clone());
+        lease.remote = Some(crate::remote::RemoteEnd {
+            end: Some(Box::new(move || {
+                seen.lock().unwrap().push(probe.load(Ordering::SeqCst));
+                None
+            })),
+            releases: Default::default(),
+        });
+        let guard = Probe(dropped.clone());
+        let err = ExecError::local(502, FailureScope::Transport, "boom");
+        let inner = futures_util::stream::iter(vec![Ok(Bytes::from_static(b"a")), Err(err)])
+            .chain(futures_util::stream::pending())
+            .map(move |item| {
+                let _ = &guard;
+                item
+            })
+            .boxed();
+        let mut stream = Completing::new(inner, lease);
+        assert!(stream.next().await.unwrap().is_ok());
+        assert!(observed.lock().unwrap().is_empty(), "still streaming");
+        assert!(stream.next().await.unwrap().is_err());
+        assert_eq!(
+            *observed.lock().unwrap(),
+            vec![true],
+            "body dropped first, then one end"
+        );
+        drop(stream);
+        assert_eq!(observed.lock().unwrap().len(), 1);
+        assert_eq!(
+            store.stats(),
+            AttemptStats::default(),
+            "the local scheduler saw nothing"
+        );
     }
 }

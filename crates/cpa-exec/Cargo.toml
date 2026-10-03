@@ -35,8 +35,18 @@ regex = "1"
 serde_yaml_ng.workspace = true
 tracing.workspace = true
 libc.workspace = true
+# Vertex: RS256 service-account JWTs with the BoringSSL bindings wreq already uses.
+btls = "0.5.6"
 # Codex: brotli certificate decompression for the Chrome TLS profile (already in the graph).
 brotli-decompressor = "6"
+# Codex: the upstream WebSocket over an inflating layer for permessage-deflate, as wreq
+# uses it (already in the graph).
+tokio-tungstenite = { version = "0.29", default-features = false, features = ["handshake"] }
 
 [dev-dependencies]
 axum = { workspace = true, features = ["ws"] }
+# Local TLS endpoints: Vertex's *.googleapis.com and the Go Claude test replay (already
+# in the graph via wreq).
+tokio-btls = "0.5.6"
+# An HTTP/2 server for the local TLS upstreams (the HTTP/2 crate wreq already uses).
+http2 = "=0.5.20"

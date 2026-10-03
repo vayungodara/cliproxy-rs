@@ -12,7 +12,6 @@
 //! timestamp rule), so the steady state reads nothing. A change applies once it has
 //! been stable for 150 ms (config) or one tick (auth files).
 use std::collections::BTreeMap;
-use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, PoisonError};
 use std::time::{Duration, Instant, SystemTime};
@@ -52,12 +51,32 @@ struct Stat {
 }
 
 impl Stat {
+    #[cfg(unix)]
     fn of(meta: &std::fs::Metadata) -> Self {
+        use std::os::unix::fs::MetadataExt;
         Self {
             len: meta.len(),
             ino: meta.ino(),
             mtime: (meta.mtime(), meta.mtime_nsec()),
             ctime: (meta.ctime(), meta.ctime_nsec()),
+        }
+    }
+
+    /// ponytail: Windows exposes no stable file identity or change time here, so a
+    /// same-size replacement with an unchanged modification time older than two
+    /// seconds goes unnoticed until its next change.
+    #[cfg(not(unix))]
+    fn of(meta: &std::fs::Metadata) -> Self {
+        let mtime = meta
+            .modified()
+            .ok()
+            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+            .map_or((0, 0), |d| (d.as_secs() as i64, i64::from(d.subsec_nanos())));
+        Self {
+            len: meta.len(),
+            ino: 0,
+            mtime,
+            ctime: (0, 0),
         }
     }
 }
@@ -183,6 +202,10 @@ pub fn start(state: &Arc<Management>) -> tokio::task::JoinHandle<()> {
                 move || reload(&state)
             })
             .await;
+            if let Some(before) = &applied {
+                let accepted = matches!(loaded, Ok(Ok(())));
+                persist_changes(&state, before, &current, config_changed && accepted);
+            }
             match loaded {
                 Ok(Ok(())) if config_changed && applied.is_some() => {
                     tracing::info!("config successfully reloaded, triggering client reload");
@@ -202,6 +225,61 @@ pub fn start(state: &Arc<Management>) -> tokio::task::JoinHandle<()> {
             applied = Some(current);
         }
     })
+}
+
+/// Go `persistConfigAsync` / `persistAuthAsync`: with a remote store, what changed
+/// between two applied snapshots is pushed in the background. The config goes only
+/// after a reload accepted it, and never when empty or missing (Go ignores those
+/// events). An auth write goes as "Sync auth <name>" unless the file is empty or not a
+/// JSON object; a removal goes as "Remove auth <name>".
+// ponytail: Go also skips files whose JSON does not decode into its `Auth` struct or
+// whose weight is invalid; here any JSON object is pushed.
+fn persist_changes(state: &Management, before: &Snapshot, after: &Snapshot, config_accepted: bool) {
+    let Some(store) = state.store.clone() else {
+        return;
+    };
+    let config = config_accepted && std::fs::metadata(&state.path).is_ok_and(|m| m.len() > 0);
+    let mut auth = Vec::new();
+    for (path, hash) in &after.auth {
+        if before.auth.get(path) == Some(hash) {
+            continue;
+        }
+        let object = std::fs::read(path)
+            .ok()
+            .filter(|data| !data.is_empty())
+            .is_some_and(|data| serde_json::from_slice::<serde_json::Map<String, serde_json::Value>>(&data).is_ok());
+        if object {
+            auth.push(("Sync", path.clone()));
+        }
+    }
+    for path in before.auth.keys().filter(|p| !after.auth.contains_key(*p)) {
+        auth.push(("Remove", path.clone()));
+    }
+    if !config && auth.is_empty() {
+        return;
+    }
+    tokio::spawn(async move {
+        let bound = Duration::from_secs(30);
+        if config {
+            match tokio::time::timeout(bound, store.persist_config()).await {
+                Ok(Ok(())) => {}
+                Ok(Err(error)) => tracing::error!("failed to persist config change: {error:#}"),
+                Err(_) => tracing::error!("failed to persist config change: context deadline exceeded"),
+            }
+        }
+        for (verb, path) in auth {
+            let name = path
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_default();
+            let message = format!("{verb} auth {name}");
+            match tokio::time::timeout(bound, store.persist_auth_files(message, vec![path])).await {
+                Ok(Ok(())) => {}
+                Ok(Err(error)) => tracing::error!("failed to persist auth changes: {error:#}"),
+                Err(_) => tracing::error!("failed to persist auth changes: context deadline exceeded"),
+            }
+        }
+    });
 }
 
 /// Go's `syscall.Errno` text: strerror in lower case, without Rust's suffix.
@@ -241,7 +319,7 @@ impl std::error::Error for ReloadError {}
 /// of the config file.
 pub fn reload(state: &Management) -> Result<(), ReloadError> {
     let _guard = state.disk.lock().unwrap_or_else(PoisonError::into_inner);
-    let (config, config_error) = match std::fs::metadata(&state.path) {
+    let (mut config, config_error) = match std::fs::metadata(&state.path) {
         Err(error) => ((*state.rt.config()).clone(), Some(ReloadError::Missing(error))),
         // Go ignores an empty config write.
         Ok(meta) if meta.len() == 0 => ((*state.rt.config()).clone(), None),
@@ -250,6 +328,7 @@ pub fn reload(state: &Management) -> Result<(), ReloadError> {
             Err(error) => ((*state.rt.config()).clone(), Some(ReloadError::Invalid(error))),
         },
     };
+    state.lock_auth_dir(&mut config);
     let mut files = credentials::from_auth_dir(&config);
     // A malformed in-place auth write is not a deletion. Keep the last good value;
     // actual removal and a valid disabled update are reconciled normally.
