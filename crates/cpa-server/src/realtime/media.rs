@@ -6,13 +6,14 @@
 //! forwarded between them; anything else is dropped. Data channel messages over 256 KiB,
 //! a failed or remotely closed peer, or a failed data channel end the session.
 //!
-//! ponytail: pion behaviours webrtc-rs 0.21 lacks (more at `ice_url`, `advertise`). (1) Upstream proxies:
-//! Go tunnels the upstream media over TCP through the credential's proxy (tcp_proxy.go);
-//! here a proxied credential fails the call (502) rather than sending media around the
-//! proxy. (2) `disable-private-remote-ips` filters the client's offered candidates, not
-//! peer-reflexive ones learned from STUN. (3) Host candidates are IPv4 only.
+//! A credential with a proxy keeps the upstream peer on loopback and reaches the upstream
+//! over ICE-TCP through that proxy (tunnel.rs, Go tcp_proxy.go).
+//!
+//! ponytail: pion behaviours webrtc-rs 0.21 lacks (more at `ice_url`, `advertise`). (1)
+//! `disable-private-remote-ips` filters the client's offered candidates, not peer-reflexive
+//! ones learned from STUN. (2) Host candidates are IPv4 only.
 
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, OnceLock, PoisonError, Weak};
 use std::time::Duration;
@@ -31,12 +32,14 @@ use webrtc::media_stream::track_local::static_rtp::TrackLocalStaticRTP;
 use webrtc::media_stream::track_remote::{TrackRemote, TrackRemoteEvent};
 use webrtc::peer_connection::{
     MediaEngine, PeerConnection, PeerConnectionBuilder, PeerConnectionEventHandler, RTCConfigurationBuilder,
-    RTCIceGatheringState, RTCIceServer, RTCPeerConnectionState, RTCSessionDescription, Registry, SettingEngineBuilder,
-    register_default_interceptors,
+    RTCIceCandidateInit, RTCIceGatheringState, RTCIceServer, RTCPeerConnectionState, RTCSessionDescription, Registry,
+    SettingEngineBuilder, register_default_interceptors,
 };
 use webrtc::rtp_transceiver::RtpSender;
 
+use super::dialer::{self, Dial, proxy_scheme};
 use super::relay::{Limiter, MediaRelay, MediaSession, NewSession, RelayConfig, RelayError, Route, Slot};
+use super::tunnel::{self, Tunnel};
 
 /// `realtimeDataChannelLabel`.
 const LABEL: &str = "oai-events";
@@ -79,9 +82,13 @@ impl Relay {
         })
     }
 
-    /// One peer connection with Go's media and network settings. `port_range` tries each
-    /// free port of `udp-port-min..=udp-port-max` until one binds.
+    /// One peer connection with Go's media and network settings. Tries each free port of
+    /// `udp-port-min..=udp-port-max` until one binds. A proxied session's upstream peer
+    /// stays on loopback instead (Go `newPionProxyAPI`).
     async fn peer(&self, side: Side, shared: &Arc<Shared>) -> Result<Arc<dyn PeerConnection>, String> {
+        if side == Side::Up && shared.proxy.is_some() {
+            return self.build(side, shared, Net::Loopback, false).await;
+        }
         let ip = self.bind_ip.unwrap_or(IpAddr::V4(Ipv4Addr::UNSPECIFIED));
         let (min, max) = (self.config.udp_port_min, self.config.udp_port_max);
         let ports: Vec<u16> = if min == 0 {
@@ -97,13 +104,13 @@ impl Relay {
                 continue;
             }
             let addr = SocketAddr::new(ip, port);
-            match self.build(side, shared, addr, true).await {
+            match self.build(side, shared, Net::Udp(addr), true).await {
                 Ok(pc) => return Ok(pc),
                 // pion only logs a failed mDNS socket (no multicast interface); webrtc-rs
                 // fails the peer, so retry without mDNS queries.
                 Err(e) if e.contains("No such device") || e.contains("multicast") => {
                     tracing::debug!(error = %e, "codex live media: mDNS unavailable; continuing without it");
-                    match self.build(side, shared, addr, false).await {
+                    match self.build(side, shared, Net::Udp(addr), false).await {
                         Ok(pc) => return Ok(pc),
                         Err(e) => last = e,
                     }
@@ -118,7 +125,7 @@ impl Relay {
         &self,
         side: Side,
         shared: &Arc<Shared>,
-        addr: SocketAddr,
+        net: Net,
         mdns: bool,
     ) -> Result<Arc<dyn PeerConnection>, String> {
         let mut media = MediaEngine::default();
@@ -128,22 +135,37 @@ impl Relay {
         let registry = register_default_interceptors(Registry::new(), &mut media)
             .map_err(|e| format!("register WebRTC interceptors: {e}"))?;
         let mut settings = SettingEngineBuilder::new();
-        if addr.ip().is_loopback() {
-            settings = settings.with_include_loopback_candidate(true);
-        }
+        let (udp, tcp, ice_servers) = match net {
+            Net::Udp(addr) => {
+                if addr.ip().is_loopback() {
+                    settings = settings.with_include_loopback_candidate(true);
+                }
+                let servers = self
+                    .config
+                    .ice_servers
+                    .iter()
+                    .map(|s| RTCIceServer {
+                        urls: s.urls.iter().map(|u| ice_url(u.trim())).collect(),
+                        username: s.username.clone(),
+                        credential: s.credential.clone(),
+                    })
+                    .collect();
+                (vec![addr], vec![], servers)
+            }
+            Net::Loopback => {
+                use rtc::ice::network_type::NetworkType;
+                settings = settings.with_include_loopback_candidate(true).with_network_types(vec![
+                    NetworkType::Udp4,
+                    NetworkType::Udp6,
+                    NetworkType::Tcp4,
+                    NetworkType::Tcp6,
+                ]);
+                (loopback(), loopback(), vec![])
+            }
+        };
         if !mdns {
             settings = settings.with_multicast_dns_mode(rtc::ice::mdns::MulticastDnsMode::Disabled);
         }
-        let ice_servers = self
-            .config
-            .ice_servers
-            .iter()
-            .map(|s| RTCIceServer {
-                urls: s.urls.iter().map(|u| ice_url(u.trim())).collect(),
-                username: s.username.clone(),
-                credential: s.credential.clone(),
-            })
-            .collect();
         let pc = PeerConnectionBuilder::new()
             .with_configuration(RTCConfigurationBuilder::new().with_ice_servers(ice_servers).build())
             .with_media_engine(media)
@@ -153,7 +175,10 @@ impl Relay {
                 shared: Arc::downgrade(shared),
                 side,
             }))
-            .with_udp_addrs(vec![addr])
+            .with_udp_addrs(udp)
+            // TCP binds give the peer its ICE-TCP active candidate (it dials the
+            // tunnel); webrtc-rs also listens there, on loopback only.
+            .with_tcp_addrs(tcp)
             .with_data_channel_send_buffer_limit(BUFFERED_MAX)
             .build()
             .await
@@ -219,35 +244,43 @@ impl Relay {
             .gathered(Side::Up)
             .await
             .map_err(|e| fail("gather upstream WebRTC candidates", &e))?;
-        match up.local_description().await {
-            Some(local) if !local.sdp.trim().is_empty() => Ok(advertise(&local.sdp, &self.config.public_ip)),
-            _ => Err(RelayError::new("upstream WebRTC offer is empty")),
+        let local = match up.local_description().await {
+            Some(local) if !local.sdp.trim().is_empty() => local.sdp,
+            _ => return Err(RelayError::new("upstream WebRTC offer is empty")),
+        };
+        if shared.proxy.is_some() {
+            // Loopback only: no public-ip to advertise. The answer is checked against it.
+            let _ = shared.local_offer.set(local.clone());
+            return Ok(local);
         }
+        Ok(advertise(&local, &self.config.public_ip))
     }
 }
 
 impl MediaRelay for Relay {
     fn new_session(&self, offer: String, route: Route) -> BoxFuture<'_, NewSession> {
         Box::pin(async move {
-            match &route.proxy {
-                cpa_exec::proxy::Proxy::Url(_) => {
-                    return Err(RelayError::new(
-                        "Codex live media relay cannot reach the upstream through a proxy in this build",
-                    ));
-                }
-                cpa_exec::proxy::Proxy::Invalid => {
-                    return Err(RelayError::new(
-                        "configure Codex live remote TCP proxy: invalid proxy URL",
-                    ));
-                }
-                _ => {}
-            }
+            // `proxyutil.BuildDialer` before taking a slot.
+            let proxy = dialer::build(&route.proxy_url)
+                .map_err(|e| RelayError::new(format!("configure Codex live remote TCP proxy: {e}")))?
+                .map(|dialer| Proxied {
+                    dialer: Arc::new(dialer),
+                    scheme: proxy_scheme(&route.proxy_url),
+                });
             let slot = self
                 .limiter
                 .acquire()
                 .ok_or_else(|| RelayError::new("Codex live media relay capacity exhausted"))?;
-            let shared = Shared::new(slot, route, self.config.public_ip.clone());
-            tracing::info!(media_session_id = %shared.id, "codex live WebRTC media session created");
+            let shared = Shared::new(slot, route, proxy, self.config.public_ip.clone());
+            match &shared.proxy {
+                Some(proxy) => tracing::info!(
+                    media_session_id = %shared.id,
+                    remote_transport = "tcp",
+                    proxy_scheme = %proxy.scheme,
+                    "codex live WebRTC media session created"
+                ),
+                None => tracing::info!(media_session_id = %shared.id, "codex live WebRTC media session created"),
+            }
             // Closes the session if setup fails or this future is dropped (the request
             // went away mid-negotiation), as Go's `Close` on those paths.
             let mut guard = SetupGuard(Some(shared.clone()));
@@ -256,6 +289,32 @@ impl MediaRelay for Relay {
             Ok((Arc::new(Session(shared)) as Arc<dyn MediaSession>, sdp))
         })
     }
+}
+
+/// Where a peer's sockets live.
+enum Net {
+    /// One UDP socket (the configured port range, or any port).
+    Udp(SocketAddr),
+    /// UDP and TCP on loopback only: a proxied session's upstream peer.
+    Loopback,
+}
+
+/// The loopback addresses a proxied upstream peer binds: IPv4, and IPv6 where the host
+/// has it (pion gathers both families' loopback candidates).
+fn loopback() -> Vec<SocketAddr> {
+    static V6: OnceLock<bool> = OnceLock::new();
+    let mut addrs = vec![SocketAddr::new(Ipv4Addr::LOCALHOST.into(), 0)];
+    if *V6.get_or_init(|| std::net::UdpSocket::bind((Ipv6Addr::LOCALHOST, 0)).is_ok()) {
+        addrs.push(SocketAddr::new(Ipv6Addr::LOCALHOST.into(), 0));
+    }
+    addrs
+}
+
+/// How a proxied session reaches the upstream.
+struct Proxied {
+    dialer: Arc<dyn Dial>,
+    /// For logs (Go `proxyScheme`).
+    scheme: String,
 }
 
 /// Closes a session whose setup did not finish.
@@ -483,10 +542,16 @@ struct Shared {
     created: Mutex<Vec<Arc<dyn PeerConnection>>>,
     /// `public-ip`, advertised in place of host candidate addresses.
     public_ip: String,
+    /// Set when the credential has a proxy: media reaches the upstream through it.
+    proxy: Option<Proxied>,
+    /// The upstream offer as gathered, for the proxied answer's ICE credentials.
+    local_offer: OnceLock<String>,
+    /// The proxied answer's candidate tunnels, closed with the session.
+    tunnels: Mutex<Vec<Tunnel>>,
 }
 
 impl Shared {
-    fn new(slot: Slot, route: Route, public_ip: String) -> Arc<Self> {
+    fn new(slot: Slot, route: Route, proxy: Option<Proxied>, public_ip: String) -> Arc<Self> {
         let (down_tx, down_rx) = mpsc::channel(QUEUE);
         let (up_tx, up_rx) = mpsc::channel(QUEUE);
         Arc::new(Self {
@@ -508,7 +573,58 @@ impl Shared {
             pcs: OnceLock::new(),
             created: Mutex::default(),
             public_ip,
+            proxy,
+            local_offer: OnceLock::new(),
+            tunnels: Mutex::default(),
         })
+    }
+
+    /// `installCandidateTunnels`: false (and the tunnels closed) once the session closed.
+    /// `close` sets `closed` before it drains, so no tunnel outlives the session.
+    fn install_tunnels(&self, tunnels: Vec<Tunnel>) -> bool {
+        let mut installed = self.tunnels.lock().unwrap_or_else(PoisonError::into_inner);
+        if self.closed.load(Ordering::SeqCst) {
+            return false;
+        }
+        installed.extend(tunnels);
+        true
+    }
+
+    fn close_tunnels(&self) {
+        drop(std::mem::take(
+            &mut *self.tunnels.lock().unwrap_or_else(PoisonError::into_inner),
+        ));
+    }
+
+    /// `logForwardingStarted`: once per session, from the first tunnel that forwarded or
+    /// the upstream peer connecting, whichever comes first.
+    fn forwarding_started(&self) {
+        if self.forwarding_logged.swap(true, Ordering::SeqCst) {
+            return;
+        }
+        let call_id = self.lock().call_id.clone();
+        let (id, auth_index, credential) = (&self.id, &self.route.auth_index, &self.route.credential);
+        match &self.proxy {
+            Some(proxy) => tracing::info!(
+                media_session_id = %id,
+                call_id,
+                auth_index = %auth_index,
+                credential = %credential,
+                connection = %format!("via {} proxy", proxy.scheme),
+                remote_transport = "tcp",
+                proxy_scheme = %proxy.scheme,
+                "codex live remote media forwarding started"
+            ),
+            None => tracing::info!(
+                media_session_id = %id,
+                call_id,
+                auth_index = %auth_index,
+                credential = %credential,
+                connection = "direct",
+                remote_transport = "ice",
+                "codex live remote media forwarding started"
+            ),
+        }
     }
 
     /// Registers a new peer; one created after the session closed is closed at once.
@@ -617,6 +733,7 @@ impl Shared {
         }
         let call_id = self.lock().call_id.clone();
         tracing::info!(media_session_id = %self.id, call_id, reason, "codex live WebRTC media session closing");
+        self.close_tunnels();
         for task in self.tasks.lock().unwrap_or_else(PoisonError::into_inner).drain(..) {
             task.abort();
         }
@@ -686,20 +803,7 @@ impl PeerConnectionEventHandler for Handler {
         let Some(shared) = self.shared.upgrade() else { return };
         tracing::debug!(media_session_id = %shared.id, peer = self.side.name(), %state, "codex live WebRTC peer state changed");
         match state {
-            // `logForwardingStarted`: once, with the credential and how media leaves.
-            RTCPeerConnectionState::Connected
-                if self.side == Side::Up && !shared.forwarding_logged.swap(true, Ordering::SeqCst) =>
-            {
-                tracing::info!(
-                    media_session_id = %shared.id,
-                    call_id = %shared.lock().call_id,
-                    auth_index = %shared.route.auth_index,
-                    credential = %shared.route.credential,
-                    connection = "direct",
-                    remote_transport = "ice",
-                    "codex live remote media forwarding started"
-                );
-            }
+            RTCPeerConnectionState::Connected if self.side == Side::Up => shared.forwarding_started(),
             RTCPeerConnectionState::Failed => {
                 fail_shared(
                     &shared,
@@ -773,10 +877,58 @@ impl MediaSession for Session {
             let Some([down, up]) = self.0.pcs.get().cloned() else {
                 return Err(RelayError::new("Codex live media session unavailable"));
             };
-            let answer = RTCSessionDescription::answer(answer).map_err(|e| fail("set upstream WebRTC answer", &e))?;
-            up.set_remote_description(answer)
-                .await
-                .map_err(|e| fail("set upstream WebRTC answer", &e))?;
+            let mut dial = Vec::new();
+            let answer = match &self.0.proxy {
+                None => answer,
+                Some(proxy) => {
+                    let shared = Arc::downgrade(&self.0);
+                    let prepared = tunnel::prepare_answer(
+                        &answer,
+                        self.0.local_offer.get().map_or("", String::as_str),
+                        proxy.dialer.clone(),
+                        Arc::new(move || {
+                            if let Some(shared) = shared.upgrade() {
+                                shared.forwarding_started();
+                            }
+                        }),
+                    )
+                    .map_err(RelayError::new)?;
+                    for tunnel in &prepared.tunnels {
+                        tracing::debug!(
+                            media_session_id = %self.0.id,
+                            target = %tunnel.target,
+                            listener = %tunnel.listener,
+                            "codex live TCP proxy: candidate tunnel ready"
+                        );
+                        dial.push(RTCIceCandidateInit {
+                            candidate: format!("candidate:{}", tunnel.candidate),
+                            sdp_mid: tunnel.mid.clone(),
+                            sdp_mline_index: Some(tunnel.mline),
+                            ..Default::default()
+                        });
+                    }
+                    if !self.0.install_tunnels(prepared.tunnels) {
+                        return Err(RelayError::new(
+                            "Codex live media session closed while configuring TCP proxy",
+                        ));
+                    }
+                    prepared.sdp
+                }
+            };
+            let applied = async {
+                let answer = RTCSessionDescription::answer(answer)?;
+                up.set_remote_description(answer).await?;
+                // webrtc-rs dials a remote TCP passive candidate only when it is added on
+                // its own; the copy in the answer is a duplicate it ignores.
+                for candidate in dial {
+                    up.add_ice_candidate(candidate).await?;
+                }
+                Ok::<_, webrtc::error::Error>(())
+            };
+            if let Err(e) = applied.await {
+                self.0.close_tunnels();
+                return Err(fail("set upstream WebRTC answer", &e));
+            }
             let answer = down
                 .create_answer(None)
                 .await
