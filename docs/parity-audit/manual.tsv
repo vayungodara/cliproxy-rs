@@ -166,7 +166,6 @@ M2-0053	covered	recorded replay: crates/cpa-common/tests/fixtures/go_calls.jsonl
 M2-0059	partial	crates/cpa-translate/src/gemini_claude.rs schema normalization; goldens	ultra/translate	Table-driven schema cases are not mined.
 M2-0064	partial	crates/cpa-translate/src/claude_chat_response.rs finish_reason mapping; goldens	ultra/translate	Table-driven stop_reason cases are not mined.
 M2-0066	partial	crates/cpa-translate/src/claude_responses_response.rs; goldens	ultra/translate	Interleaved web-search case not mined.
-M2-0075	partial	crates/cpa-translate/src/apply_patch.rs; apply_patch goldens	ultra/translate	Unit cases not ported.
 M2-0078	partial	crates/cpa-translate/src/common.rs, sse.rs; cpa_common::json	ultra/translate	Unit cases not ported.
 M2-0097	partial	crates/cpa-translate/src/gemini_chat_request.rs; goldens	ultra/translate	Unit case not mined.
 M2-0109	covered	n/a: Go package import boundary check
