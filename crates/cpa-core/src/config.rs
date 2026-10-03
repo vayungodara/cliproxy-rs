@@ -254,12 +254,17 @@ fn persist_secret_hash(path: &Path, text: &str, hash: &str) -> anyhow::Result<()
     let v8 = lookup(mapping, "management.secret-key").is_some();
     let parent = if v8 { "management" } else { "remote-management" };
     let loads_hash = |t: &str| Config::parse(t).is_ok_and(|c| c.management.secret_key == hash);
-    let in_place = (|| {
+    // In place only over a literal key: an inherited one would stay in the merge.
+    let literal = serde_yaml_ng::from_str::<Value>(text)
+        .ok()
+        .and_then(|raw| raw.get(parent)?.as_mapping()?.get("secret-key").cloned())
+        .is_some();
+    let in_place = literal.then(|| {
         let file: yaml_edit::YamlFile = text.parse().ok()?;
         file.document()?.get_mapping(parent)?.set("secret-key", hash);
         Some(file.to_string())
-    })();
-    let updated = match in_place.filter(|t| loads_hash(t)) {
+    });
+    let updated = match in_place.flatten().filter(|t| loads_hash(t)) {
         Some(t) => t,
         None => {
             root.get_mut(parent)

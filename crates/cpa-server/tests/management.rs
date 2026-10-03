@@ -421,9 +421,16 @@ fn plaintext_secret_loads_from_a_read_only_config_and_inherited_keys() {
     let cfg = loaded.expect("read-only config must load");
     assert!(bcrypt::verify("fake-plain-secret", &cfg.management.secret_key).unwrap());
     assert_eq!(std::fs::read_to_string(&path).unwrap(), text, "file untouched");
-    // Keys inherited through a merge (legacy and v8 layout) are persisted hashed.
-    for layout in ["remote-management", "management"] {
-        std::fs::write(&path, format!("<<: {{{layout}: {{secret-key: fake-merged-secret}}}}\n")).unwrap();
+    // Keys inherited through a merge (legacy and v8 layout, at the root or inside the
+    // parent mapping) are persisted hashed, with no plaintext left in the merge.
+    for text in [
+        "<<: {remote-management: {secret-key: fake-merged-secret}}\n",
+        "<<: {management: {secret-key: fake-merged-secret}}\n",
+        "management:\n  <<: {secret-key: fake-merged-secret}\n",
+        "remote-management:\n  <<: {secret-key: fake-merged-secret}\n  allow-remote: false\n",
+    ] {
+        let layout = text;
+        std::fs::write(&path, text).unwrap();
         let cfg = Config::load(&path).unwrap();
         assert!(bcrypt::verify("fake-merged-secret", &cfg.management.secret_key).unwrap());
         let file = std::fs::read_to_string(&path).unwrap();
