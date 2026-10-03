@@ -1,0 +1,109 @@
+{
+  "name": "chat-stream-usage-then-model",
+  "credential": {
+    "access_token": "kimi-access-fixture",
+    "base_url": "http://127.0.0.1:44381/coding",
+    "device_id": "dev-fixture-1",
+    "refresh_token": "kimi-refresh-fixture",
+    "type": "kimi"
+  },
+  "request": {
+    "body": "{\"model\":\"kimi-k2\",\"stream\":true,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+    "model": "kimi-k2",
+    "source": "openai",
+    "stream": true
+  },
+  "responses": [
+    {
+      "status": 200,
+      "headers": [
+        [
+          "Content-Type",
+          "text/event-stream"
+        ]
+      ],
+      "body": "data: {\"id\":\"c\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"m1\",\"choices\":[],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":0}}\n\ndata: {\"id\":\"c\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"m2\",\"choices\":[]}\n\ndata: [DONE]\n\n"
+    }
+  ],
+  "upstream": [
+    {
+      "method": "POST",
+      "target": "/coding/v1/chat/completions",
+      "headers": [
+        [
+          "Host",
+          "127.0.0.1:44381"
+        ],
+        [
+          "User-Agent",
+          "CLIProxyAPI/0.1.0"
+        ],
+        [
+          "Content-Length",
+          "112"
+        ],
+        [
+          "Accept",
+          "text/event-stream"
+        ],
+        [
+          "Authorization",
+          "Bearer kimi-access-fixture"
+        ],
+        [
+          "Content-Type",
+          "application/json"
+        ],
+        [
+          "X-Msh-Device-Id",
+          "dev-fixture-1"
+        ],
+        [
+          "X-Msh-Device-Model",
+          "linux amd64"
+        ],
+        [
+          "X-Msh-Device-Name",
+          "e2b.local"
+        ],
+        [
+          "X-Msh-Platform",
+          "CLIProxyAPI"
+        ],
+        [
+          "X-Msh-Version",
+          "0.1.0"
+        ],
+        [
+          "Accept-Encoding",
+          "gzip"
+        ]
+      ],
+      "body": "{\"model\":\"k2\",\"stream\":true,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream_options\":{\"include_usage\":true}}"
+    }
+  ],
+  "downstream": {
+    "chunks": [
+      "{\"id\":\"c\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"m1\",\"choices\":[],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":0}}",
+      "",
+      "{\"id\":\"c\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"m2\",\"choices\":[]}",
+      ""
+    ]
+  },
+  "extra": {
+    "usage": [
+      {
+        "cached_tokens": 0,
+        "failed": false,
+        "input_tokens": 3,
+        "model": "kimi-k2",
+        "output_tokens": 0,
+        "reasoning_effort": "",
+        "reasoning_tokens": 0,
+        "response_model": "m2",
+        "service_tier": "",
+        "total_tokens": 3
+      }
+    ]
+  }
+}

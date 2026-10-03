@@ -624,7 +624,9 @@ fn stream_events(
         fn translate_all(&mut self, lines: Vec<Vec<u8>>) -> bool {
             for line in lines {
                 // Bridge frames end in a blank line; Go hands the translator the whole
-                // chunk, which it trims.
+                // chunk, which it trims, and a Responses route's framer ends the frame at
+                // that blank line.
+                let complete = line.ends_with(b"\n\n");
                 let line = line.strip_suffix(b"\n\n").unwrap_or(&line);
                 let line = if self.responses_client {
                     ensure_responses_usage_details(line)
@@ -632,7 +634,12 @@ fn stream_events(
                     line.to_vec()
                 };
                 match self.translator.event(&line) {
-                    Ok(frames) => self.ready.extend(frames.into_iter().filter(|f| !f.is_empty()).map(Ok)),
+                    Ok(mut frames) => {
+                        if complete && self.responses_client {
+                            frames.extend(self.translator.flush_frames());
+                        }
+                        self.ready.extend(frames.into_iter().filter(|f| !f.is_empty()).map(Ok));
+                    }
                     Err(error) => {
                         self.done = true;
                         self.ready

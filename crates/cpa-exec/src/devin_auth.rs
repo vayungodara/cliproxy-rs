@@ -408,12 +408,14 @@ impl DevinAuth {
         let data = read_all(upstream.body, BODY_LIMIT, false)
             .await
             .map_err(|e| format!("read token exchange response: {}", lossy(&e.body)))?;
+        // Go appends the response body to both errors; it can carry the session token and
+        // the message is logged, so it is withheld.
         if !(200..300).contains(&status) {
-            return Err(format!("token exchange failed with status {status}: {}", lossy(&data)));
+            return Err(format!("token exchange failed with status {status}"));
         }
         let token = gj::get(&data, "token").str().trim().to_owned();
         if token.is_empty() {
-            return Err(format!("response did not contain a valid token: {}", lossy(&data)));
+            return Err("response did not contain a valid token".into());
         }
         Ok(token)
     }
@@ -466,11 +468,8 @@ impl DevinAuth {
             .await
             .map_err(|e| lossy(&e.body))?;
         if upstream.status != 200 {
-            return Err(format!(
-                "devin seat management error (status {}): {}",
-                upstream.status,
-                lossy(&data)
-            ));
+            // Go appends the response body; it is withheld from logs and clients.
+            return Err(format!("devin seat management error (status {})", upstream.status));
         }
         parse_user_status(&data)
     }

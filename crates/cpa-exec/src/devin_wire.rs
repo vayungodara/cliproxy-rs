@@ -1150,25 +1150,10 @@ pub(crate) fn parse_dimension_groups(groups: &[Vec<u8>]) -> Option<(i64, i64, i6
     found.then_some((prompt, completion, cached))
 }
 
-/// A JSON string as Go's `encoding/json` decodes it: escapes resolved (a lone surrogate
-/// becomes U+FFFD) and every invalid UTF-8 byte replaced by U+FFFD.
+/// A JSON string token as Go's `encoding/json` decodes it (a lone surrogate or an
+/// invalid UTF-8 byte becomes U+FFFD; a `\u` pair is joined only when valid).
 fn go_json_string(value: &cpa_common::json::Res<'_>) -> String {
-    let raw = value.bytes();
-    let mut out = String::with_capacity(raw.len());
-    let mut i = 0;
-    while i < raw.len() {
-        match cpa_common::json::decode_rune(&raw[i..]) {
-            (Some(c), size) => {
-                out.push(c);
-                i += size;
-            }
-            _ => {
-                out.push(char::REPLACEMENT_CHARACTER);
-                i += 1;
-            }
-        }
-    }
-    out
+    cpa_common::json::go_unquote(value.raw()).unwrap_or_default()
 }
 
 /// `json.Unmarshal` of an EOS trailer into Go's `{Error *struct{Code, Message string}}`:
@@ -1347,6 +1332,16 @@ mod tests {
         assert_eq!(
             parse_trailer_error(raw),
             Some((502, "devin upstream error (internal): a\u{FFFD}b".into()))
+        );
+        // A lone high surrogate does not consume the next escape (Go 1.26 decode.go;
+        // checked with json.Unmarshal: "\uFFFDinternal error", so 502 not 400).
+        let pair = br#"{"error":{"code":"invalid_argument","message":"\ud800\u0069nternal error"}}"#;
+        assert_eq!(
+            parse_trailer_error(pair),
+            Some((
+                502,
+                "devin upstream error (invalid_argument): \u{FFFD}internal error".into()
+            ))
         );
         // Case-insensitive field names; duplicates decode into the same struct.
         let folded = br#"{"ERROR":{"Code":"canceled"},"error":{"MESSAGE":"m"}}"#;

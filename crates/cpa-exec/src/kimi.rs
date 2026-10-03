@@ -655,17 +655,11 @@ fn native_usage_body(data: &[u8]) -> Option<Vec<u8>> {
     use crate::kimi_http::usage_has_tokens;
     if usage_has_tokens(&gj::get(data, "response.usage")) {
         let mut inner = gj::get(data, "response").raw().to_vec();
-        let tier = ["response.service_tier", "service_tier", "interaction.service_tier"]
-            .iter()
-            .map(|p| gj::get(data, p).str().trim().to_owned())
-            .find(|t| !t.is_empty());
-        match tier {
-            Some(tier) => {
-                gj::set_str(&mut inner, "service_tier", tier);
-            }
-            None => {
-                gj::delete(&mut inner, "service_tier");
-            }
+        let tier = crate::kimi_http::response_tier(data);
+        if tier.is_empty() {
+            gj::delete(&mut inner, "service_tier");
+        } else {
+            gj::set_str(&mut inner, "service_tier", tier);
         }
         return Some(inner);
     }
