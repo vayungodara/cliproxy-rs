@@ -485,8 +485,13 @@ async fn run(args: Args) -> anyhow::Result<()> {
         unsupported("Home control plane mode (-home-jwt)");
     }
     // Command modes, in Go's order.
+    // Go DoVertexImport: failures are logged and the command still exits normally.
     if !args.vertex_import.is_empty() {
-        unsupported("Vertex service account import (-vertex-import)");
+        match cpa_exec::vertex_auth::import(&config.auth_dir, &args.vertex_import, &args.vertex_import_prefix) {
+            Ok(path) => println!("Vertex credentials imported: {}", path.display()),
+            Err(error) => tracing::error!("{error}"),
+        }
+        return Ok(());
     }
     if args.antigravity_login {
         unsupported("Antigravity login (-antigravity-login)");
