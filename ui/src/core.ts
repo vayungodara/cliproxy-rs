@@ -75,6 +75,8 @@ const names: Record<string, string> = {
 export const label = (id: string) => names[id] || id;
 export const provider = (a: Data) => String(a.provider || a.type || "unknown").replace("anthropic", "claude");
 export const credName = (a: Data) => String(a.email || a.label || a.account || a.name);
+/** A random client key: "sk-" and 48 hex characters. */
+export const newKey = () => `sk-${Array.from(crypto.getRandomValues(new Uint8Array(24)), (n) => n.toString(16).padStart(2, "0")).join("")}`;
 export const mask = (k: string) => (k.length > 10 ? `${k.slice(0, 3)}…${k.slice(-4)}` : "••••");
 
 /** Durations like 45s, 4m, 2h 5m, 3d. */
@@ -108,7 +110,14 @@ export function credState(a: Data, now = Date.now()): CredState {
   if (until < Infinity && until > now)
     return { lamp: "warn", label: `Cooling ${span(until - now)}`, detail: a.status_message || "" };
   if (a.unavailable || a.status === "error")
-    return { lamp: "bad", label: a.unavailable ? "Unavailable" : "Error", detail: a.status_message || "" };
+    return {
+      lamp: "bad",
+      // An expired or revoked sign-in is fixed by connecting the account again.
+      label: /\b401\b|unauthori[sz]ed|invalid_grant|revoked|refresh token/i.test(a.status_message || "")
+        ? "Sign in again"
+        : a.unavailable ? "Unavailable" : "Error",
+      detail: a.status_message || "",
+    };
   const models = cooldowns.length - whole.length;
   const detail = models ? `${models} model${models > 1 ? "s" : ""} cooling` : "";
   if (["active", "ok", ""].includes(String(a.status ?? "")))
@@ -231,4 +240,56 @@ export function quotaWindows(p: string, payload: Data): Window[] {
         out.push({ label: k.replaceAll("_", " "), used: clamp((Number(v.used) / Number(v.limit)) * 100), reset: String(v.reset_time || "") });
   }
   return out;
+}
+
+/**
+ * Limits the server observed passively, without asking the provider: Codex rate-limit
+ * headers (x-codex-primary-*, x-codex-secondary-*) and Devin's daily and weekly quota.
+ */
+export function signalWindows(p: string, quota: Data | undefined): Window[] {
+  const sig: Data = {};
+  for (const [k, v] of Object.entries<string>(quota?.signals || {})) sig[k.toLowerCase()] = v;
+  const at = Date.parse(quota?.observed_at) || 0;
+  const out: Window[] = [];
+  if (p === "codex")
+    for (const w of ["primary", "secondary"]) {
+      const g = (k: string) => sig[`x-codex-${w}-${k}`];
+      const used = parseFloat(g("used-percent")),
+        minutes = Number(g("window-minutes"));
+      if (Number.isNaN(used)) continue;
+      const resetAt = Number(g("reset-at")),
+        after = Number(g("reset-after-seconds"));
+      out.push({
+        label: minutes === 300 ? "5-hour" : minutes === 10080 ? "Weekly" : minutes ? `${span(minutes * 60_000)} window` : w,
+        used: clamp(used),
+        reset: resetAt > 0 ? new Date(resetAt * 1000).toISOString() : after >= 0 && at ? new Date(at + after * 1000).toISOString() : "",
+      });
+    }
+  else if (p === "devin")
+    for (const w of ["daily", "weekly"]) {
+      const left = parseFloat(sig[`${w}_quota_remaining_percent`]);
+      if (!Number.isNaN(left))
+        out.push({ label: w === "daily" ? "Daily" : "Weekly", used: clamp(100 - left), reset: sig[`${w}_quota_reset_at`] || "" });
+    }
+  return out;
+}
+
+export const tools = ["Claude Code", "Codex CLI", "Cursor", "OpenAI SDK", "Anthropic SDK", "curl"] as const;
+/** Setup text for one tool, pointed at this server (base has no trailing slash). */
+export function snippet(tool: (typeof tools)[number], base: string, key: string, model: string): string {
+  const v1 = `${base}/v1`;
+  switch (tool) {
+    case "Claude Code":
+      return `export ANTHROPIC_BASE_URL=${base}\nexport ANTHROPIC_AUTH_TOKEN=${key}\nclaude`;
+    case "Codex CLI":
+      return `# ~/.codex/config.toml\nmodel_provider = "cliproxy"\n\n[model_providers.cliproxy]\nname = "cliproxy"\nbase_url = "${v1}"\nenv_key = "CLIPROXY_API_KEY"\nwire_api = "responses"\n\n# then, in your shell\nexport CLIPROXY_API_KEY=${key}`;
+    case "Cursor":
+      return `OpenAI API key:            ${key}\nOverride OpenAI Base URL:  ${v1}`;
+    case "OpenAI SDK":
+      return `from openai import OpenAI\n\nclient = OpenAI(base_url="${v1}", api_key="${key}")\nr = client.chat.completions.create(\n    model="${model}", messages=[{"role": "user", "content": "Hello"}]\n)\nprint(r.choices[0].message.content)`;
+    case "Anthropic SDK":
+      return `import anthropic\n\nclient = anthropic.Anthropic(base_url="${base}", api_key="${key}")\nr = client.messages.create(\n    model="${model}", max_tokens=256, messages=[{"role": "user", "content": "Hello"}]\n)\nprint(r.content[0].text)`;
+    default:
+      return `curl ${v1}/models -H "Authorization: Bearer ${key}"`;
+  }
 }

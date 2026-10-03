@@ -11,6 +11,8 @@ import {
   lineDiff,
   quotaWindows,
   reconcile,
+  signalWindows,
+  snippet,
   span,
   sumBuckets,
   usageStats,
@@ -112,4 +114,52 @@ test("durations round to the unit a reader needs", () => {
   assert.equal(ago(at(-3_600_000), now), "1h ago");
   // Epoch milliseconds (as stored for quota checks) are accepted, not parsed as strings.
   assert.equal(ago(now - 120_000, now), "2m ago");
+});
+
+test("passive limits from Codex headers and Devin quota", () => {
+  const observed = "2026-10-02T12:00:00Z";
+  const codex = signalWindows("codex", {
+    observed_at: observed,
+    signals: {
+      "X-Codex-Primary-Used-Percent": "42.5",
+      "X-Codex-Primary-Window-Minutes": "300",
+      "X-Codex-Primary-Reset-At": String(Date.parse("2026-10-02T14:00:00Z") / 1000),
+      "x-codex-secondary-used-percent": "7",
+      "x-codex-secondary-window-minutes": "10080",
+      "x-codex-secondary-reset-after-seconds": "3600",
+      "x-codex-code-review-primary-used-percent": "99",
+    },
+  });
+  assert.deepEqual(codex, [
+    { label: "5-hour", used: 42.5, reset: "2026-10-02T14:00:00.000Z" },
+    // Relative resets count from when the server observed them, not from now.
+    { label: "Weekly", used: 7, reset: "2026-10-02T13:00:00.000Z" },
+  ]);
+  assert.deepEqual(signalWindows("codex", { signals: { "x-codex-primary-window-minutes": "300" } }), []);
+  assert.deepEqual(
+    signalWindows("devin", { signals: { daily_quota_remaining_percent: "87%", weekly_quota_remaining_percent: "100%", daily_quota_reset_at: "2026-10-03T00:00:00Z" } }),
+    [
+      { label: "Daily", used: 13, reset: "2026-10-03T00:00:00Z" },
+      { label: "Weekly", used: 0, reset: "" },
+    ],
+  );
+  assert.deepEqual(signalWindows("claude", { signals: { "x-codex-primary-used-percent": "5" } }), []);
+});
+
+test("expired sign-ins ask for a new sign-in; other errors stay errors", () => {
+  assert.equal(credState({ status: "error", status_message: "refresh token was revoked" }, now).label, "Sign in again");
+  assert.equal(credState({ status: "error", status_message: "upstream returned 401" }, now).label, "Sign in again");
+  assert.equal(credState({ status: "error", status_message: "context window 4010 tokens over" }, now).label, "Error");
+  assert.equal(credState({ unavailable: true, status_message: "upstream 503" }, now).label, "Unavailable");
+});
+
+test("tool setup points at this server with the chosen key", () => {
+  const base = "https://proxy.example.test/cpa";
+  assert.match(snippet("Claude Code", base, "sk-k", "m"), /^export ANTHROPIC_BASE_URL=https:\/\/proxy\.example\.test\/cpa\n/);
+  assert.match(snippet("Anthropic SDK", base, "sk-k", "m"), /base_url="https:\/\/proxy\.example\.test\/cpa"/);
+  for (const tool of ["Codex CLI", "Cursor", "OpenAI SDK", "curl"] as const)
+    assert.ok(snippet(tool, base, "sk-k", "m").includes(`${base}/v1`), tool);
+  assert.ok(snippet("OpenAI SDK", base, "sk-k", "claude-x").includes('model="claude-x"'));
+  for (const tool of ["Claude Code", "Codex CLI", "Cursor", "OpenAI SDK", "Anthropic SDK", "curl"] as const)
+    assert.ok(snippet(tool, base, "sk-secret-key", "m").includes("sk-secret-key"), tool);
 });

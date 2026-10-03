@@ -2,6 +2,7 @@
   import { tick, type Component } from "svelte";
   import { store, pages } from "./store.svelte";
   import Overview from "./pages/Overview.svelte";
+  import Use from "./pages/Use.svelte";
   import Credentials from "./pages/Credentials.svelte";
   import Connect from "./pages/Connect.svelte";
   import Providers from "./pages/Providers.svelte";
@@ -17,6 +18,7 @@
 
   const views: Record<string, Component> = {
     overview: Overview,
+    use: Use,
     credentials: Credentials,
     connect: Connect,
     providers: Providers,
@@ -122,7 +124,9 @@
         >
       </div>
       <p class="small muted">
-        The key is held in this tab’s memory only. Reloading the page signs you out.
+        The management key is <code>management.secret-key</code> from the server’s config.yaml, or the
+        <code>MANAGEMENT_PASSWORD</code> it was started with. Not set yet? Add one and restart the server. The key stays in this
+        tab’s memory only; reloading signs you out.
       </p>
     </form>
   </main>
