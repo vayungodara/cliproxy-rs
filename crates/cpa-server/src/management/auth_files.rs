@@ -90,6 +90,11 @@ pub(super) fn reply(status: StatusCode, pairs: impl IntoIterator<Item = (&'stati
     respond(status, &h(pairs))
 }
 
+/// [`reply`] for bodies holding Go structs (see [`super::json_ordered`]).
+pub(super) fn reply_ordered(status: StatusCode, pairs: impl IntoIterator<Item = (&'static str, Value)>) -> Response {
+    super::json_ordered(status, &h(pairs))
+}
+
 pub(super) fn fail(status: StatusCode, message: impl Into<String>) -> Response {
     reply(status, [("error", Value::from(message.into()))])
 }
@@ -472,7 +477,7 @@ fn entry(state: &Management, c: &Credential) -> Option<BTreeMap<&'static str, Va
     }
     if let Some(probe) = c.metadata.get("quota_probe").filter(|v| !v.is_null()) {
         e.insert("supports_quota", true.into());
-        e.insert("quota_probe", probe.clone());
+        e.insert("quota_probe", super::sorted_keys(probe));
     }
     let email = meta_str(c, "email").map(str::trim).unwrap_or_default();
     if !email.is_empty() {
@@ -554,7 +559,7 @@ fn entry(state: &Management, c: &Credential) -> Option<BTreeMap<&'static str, Va
             }
         }
         if !out.is_empty() {
-            e.insert("id_token", Value::Object(out));
+            e.insert("id_token", super::sorted_keys(&Value::Object(out)));
         }
     }
     let priority = c
@@ -657,7 +662,7 @@ pub(crate) async fn list(State(state): State<Arc<Management>>, RawQuery(raw): Ra
             .filter_map(|c| entry(&state, c).map(|e| (file_name(c).unwrap_or_else(|| c.id.clone()), entry_value(e))))
             .collect();
         files.sort_by_key(|(n, _)| n.to_lowercase());
-        return reply(
+        return reply_ordered(
             StatusCode::OK,
             [
                 ("observed_at", observed.into()),
@@ -681,7 +686,7 @@ pub(crate) async fn list(State(state): State<Arc<Management>>, RawQuery(raw): Ra
         .iter()
         .filter_map(|c| entry(&state, c).map(entry_value))
         .collect();
-    reply(
+    reply_ordered(
         StatusCode::OK,
         [
             ("observed_at", observed.into()),
@@ -1530,7 +1535,7 @@ pub(crate) async fn model_definitions(UrlPath(channel): UrlPath<String>) -> Resp
         return fail(StatusCode::BAD_REQUEST, "channel is required");
     }
     match channel_models(&channel) {
-        Some(models) => reply(
+        Some(models) => reply_ordered(
             StatusCode::OK,
             [
                 ("channel", channel.to_lowercase().into()),

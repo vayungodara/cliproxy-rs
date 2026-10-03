@@ -202,6 +202,8 @@ type configStep struct {
 	Status   int    `json:"status"`
 	Response any    `json:"response"`
 	RawResp  string `json:"raw_response,omitempty"`
+	// RawJSON is the exact JSON body gin wrote, for byte comparison.
+	RawJSON  string `json:"raw_json,omitempty"`
 	File     any    `json:"file"`
 	Archived bool   `json:"file_has_archive"`
 }
@@ -247,6 +249,7 @@ func runConfig(s configScenario) configScenario {
 			var v any
 			if json.Unmarshal(rec.Body.Bytes(), &v) == nil {
 				st.Response = v
+				st.RawJSON = rec.Body.String()
 			} else {
 				st.RawResp = rec.Body.String()
 			}
@@ -270,6 +273,7 @@ type credStep struct {
 	Status      int               `json:"status"`
 	Response    any               `json:"response"`
 	Raw         string            `json:"raw_response,omitempty"`
+	RawJSON     string            `json:"raw_json,omitempty"`
 	Headers     map[string]string `json:"resp_headers,omitempty"`
 	Files       map[string]any    `json:"files"`
 	RawFiles    map[string]string `json:"raw_files,omitempty"`
@@ -481,6 +485,7 @@ func runCreds(s credScenario) credScenario {
 		var v any
 		if json.Unmarshal(rec.Body.Bytes(), &v) == nil && !strings.Contains(st.Path, "/download") {
 			st.Response = v
+			st.RawJSON = rec.Body.String()
 			if m, ok := v.(map[string]any); ok && strings.HasPrefix(st.Path, "/oauth/auth-url") {
 				if state, ok := m["state"].(string); ok {
 					lastState = state
@@ -1329,6 +1334,14 @@ func configScenarios() []configScenario {
 			put("/config", `{"server":{"port":1},"management":{"secret-key":"fake-secret"}}`),
 			put("/config.yaml", "config-version: 8\nmanagement:\n  secret-key: fake-secret\nserver:\n  port: 2 # yaml\n"),
 			patch("/config.yaml", "{}"),
+		}},
+		// gin's c.JSON escapes <, > and & (and U+2028/U+2029) in every string.
+		{Name: "html_escaping_in_json", YAML: "config-version: 8\nmanagement:\n  secret-key: '$HASH'\n" +
+			"server:\n  host: \"a<b>&c\\u2028d\\u2029\"\n", Steps: []configStep{
+			get("/config/server/host"),
+			get("/config/server"),
+			patch("/config/server", `{"host":"<x&y>"}`),
+			get("/config/server/host"),
 		}},
 		// Settings inherited through merge keys survive edits next to them (Go expands
 		// aliases before editing); /config/config.yaml is a key lookup, not the YAML

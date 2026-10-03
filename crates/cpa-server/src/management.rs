@@ -201,15 +201,73 @@ pub fn policy(cfg: &Config) -> Policy {
     policy
 }
 
-/// gin `c.JSON`: compact JSON with the charset parameter.
+/// gin `c.JSON` of a `gin.H` map: Go's `json.Marshal` (sorted keys; `<`, `>`, `&`,
+/// U+2028 and U+2029 escaped) with the charset parameter.
 pub(crate) fn json(status: StatusCode, value: &Value) -> Response {
+    json_body(status, crate::gojson::sorted(value))
+}
+
+/// gin `c.JSON` of a value that holds Go structs: objects keep their insertion order
+/// (struct fields as Go declares them; callers insert map levels sorted, see
+/// [`sorted_keys`]), strings escaped like `json.Marshal`.
+pub(crate) fn json_ordered(status: StatusCode, value: &Value) -> Response {
+    let mut out = Vec::new();
+    write_ordered(value, &mut out);
+    json_body(status, String::from_utf8(out).expect("JSON text is UTF-8"))
+}
+
+fn write_ordered(value: &Value, out: &mut Vec<u8>) {
+    match value {
+        Value::Null => out.extend_from_slice(b"null"),
+        Value::Bool(b) => out.extend_from_slice(if *b { b"true" } else { b"false" }),
+        Value::Number(n) => out.extend_from_slice(n.to_string().as_bytes()),
+        Value::String(s) => out.extend(cpa_common::json::quote(s)),
+        Value::Array(items) => {
+            out.push(b'[');
+            for (i, item) in items.iter().enumerate() {
+                if i > 0 {
+                    out.push(b',');
+                }
+                write_ordered(item, out);
+            }
+            out.push(b']');
+        }
+        Value::Object(map) => {
+            out.push(b'{');
+            for (i, (key, item)) in map.iter().enumerate() {
+                if i > 0 {
+                    out.push(b',');
+                }
+                out.extend(cpa_common::json::quote(key));
+                out.push(b':');
+                write_ordered(item, out);
+            }
+            out.push(b'}');
+        }
+    }
+}
+
+/// A copy whose objects all have sorted keys, as Go encodes a `map[string]any`.
+pub(crate) fn sorted_keys(value: &Value) -> Value {
+    match value {
+        Value::Object(map) => {
+            let sorted: std::collections::BTreeMap<&String, Value> =
+                map.iter().map(|(k, v)| (k, sorted_keys(v))).collect();
+            Value::Object(sorted.into_iter().map(|(k, v)| (k.clone(), v)).collect())
+        }
+        Value::Array(items) => Value::Array(items.iter().map(sorted_keys).collect()),
+        other => other.clone(),
+    }
+}
+
+fn json_body(status: StatusCode, body: String) -> Response {
     (
         status,
         [(
             header::CONTENT_TYPE,
             HeaderValue::from_static("application/json; charset=utf-8"),
         )],
-        value.to_string(),
+        body,
     )
         .into_response()
 }

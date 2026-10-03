@@ -33,6 +33,38 @@ fn first_header<'a>(headers: &'a Value, name: &str) -> Option<&'a [u8]> {
         .map(str::as_bytes)
 }
 
+/// Go's key order (map keys sorted, struct fields as declared) against ours, wherever
+/// both objects have the same keys; values may differ (times, indexes). Both sides are
+/// parsed with insertion order kept.
+fn same_key_order(go: &Value, rs: &Value, at: &str) -> Result<(), String> {
+    match (go, rs) {
+        (Value::Object(g), Value::Object(r)) => {
+            let (gk, rk): (Vec<&String>, Vec<&String>) = (g.keys().collect(), r.keys().collect());
+            let mut gs = gk.clone();
+            let mut rsorted = rk.clone();
+            gs.sort();
+            rsorted.sort();
+            if gs != rsorted {
+                return Ok(());
+            }
+            if gk != rk {
+                return Err(format!("{at}: key order go {gk:?} rs {rk:?}"));
+            }
+            for (k, v) in g {
+                same_key_order(v, &r[k.as_str()], &format!("{at}.{k}"))?;
+            }
+            Ok(())
+        }
+        (Value::Array(g), Value::Array(r)) if g.len() == r.len() => {
+            for (i, (gv, rv)) in g.iter().zip(r).enumerate() {
+                same_key_order(gv, rv, &format!("{at}[{i}]"))?;
+            }
+            Ok(())
+        }
+        _ => Ok(()),
+    }
+}
+
 /// The config text for one `yaml_bools` fixture case (same templates as Go's).
 fn scalar_case_yaml(field: &str, spelling: &str) -> String {
     match field {
@@ -625,6 +657,7 @@ mod config_writes {
         let hash = bcrypt::hash("fake-secret", 4).unwrap();
         let client = wreq::Client::new();
         let mut compared = 0;
+        let mut bytes_compared = 0;
         let mut failures: Vec<String> = Vec::new();
         for scenario in fixture()["config_writes"].as_array().unwrap() {
             let name = scenario["name"].as_str().unwrap();
@@ -675,6 +708,19 @@ mod config_writes {
                     assert!(body.is_empty(), "{at}: {body}");
                 } else {
                     let got: Value = serde_json::from_str(&body).unwrap();
+                    // gin's exact bytes wherever the values agree exactly; key order always.
+                    if let Some(raw) = step["raw_json"].as_str() {
+                        if got == *want {
+                            bytes_compared += 1;
+                            if body != raw {
+                                failures.push(format!("{at}: bytes differ\n go: {raw}\n rs: {body}"));
+                            }
+                        }
+                        let go_raw: Value = serde_json::from_str(raw).unwrap();
+                        if let Err(e) = same_key_order(&go_raw, &got, &at) {
+                            failures.push(e);
+                        }
+                    }
                     if let Some(code) = want.get("error") {
                         assert_eq!(got["error"], *code, "{at}");
                         assert_eq!(got.get("field"), want.get("field"), "{at}");
@@ -720,7 +766,9 @@ mod config_writes {
             let _ = std::fs::remove_dir_all(&dir);
         }
         assert!(failures.is_empty(), "{}", failures.join("\n"));
-        assert_eq!(compared, 89);
+        assert_eq!(compared, 93);
+        eprintln!("config writes: {bytes_compared} of {compared} steps compared byte for byte");
+        assert!(bytes_compared >= 40, "only {bytes_compared} byte comparisons");
     }
 }
 
@@ -797,6 +845,7 @@ mod creds {
         let hash = bcrypt::hash("fake-secret", 4).unwrap();
         let client = wreq::Client::new();
         let mut compared = 0;
+        let mut bytes_compared = 0;
         for scenario in fixture()["credentials"].as_array().unwrap() {
             let name = scenario["name"].as_str().unwrap();
             if name == "dashboard_probes" {
@@ -932,6 +981,15 @@ mod creds {
                     }
                 } else {
                     let got: Value = serde_json::from_str(&body).unwrap();
+                    // gin's exact bytes wherever the values agree exactly; key order always.
+                    if let Some(raw) = step["raw_json"].as_str() {
+                        if got == step["response"] {
+                            assert_eq!(body, raw, "{at}: bytes");
+                            bytes_compared += 1;
+                        }
+                        let go_raw: Value = serde_json::from_str(raw).unwrap();
+                        same_key_order(&go_raw, &got, &at).unwrap();
+                    }
                     if req_path.starts_with("/oauth/auth-url")
                         && let Some(state) = got["state"].as_str()
                     {
@@ -1033,6 +1091,8 @@ mod creds {
             let _ = std::fs::remove_dir_all(&dir);
         }
         assert_eq!(compared, 184);
+        eprintln!("credentials: {bytes_compared} of {compared} steps compared byte for byte");
+        assert!(bytes_compared >= 80, "only {bytes_compared} byte comparisons");
     }
 
     /// Writes or appends a fixture log file and sets Go's fixed mtime
