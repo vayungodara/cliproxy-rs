@@ -301,6 +301,57 @@ api-keys:
       keys: [{api-key: fake-x, alpha-search: true}]
 `
 
+// readsEdge holds the null, prune and sanitizer edges from the delivery-2 review.
+const readsEdge = `config-version: 8
+server:
+  discovery:
+    enabled: true
+    interfaces:
+      include: [null, eth0]
+management:
+  secret-key: '$HASH'
+observability:
+  logs:
+    error-logs-max-files: null
+credentials:
+  in-flight:
+    snapshot-interval: null
+  concurrency:
+    busy-retry-min: null
+    max-limit: null
+oauth:
+  providers:
+    aistudio:
+      ws-auth: null
+    codex:
+      live-media-relay:
+        max-sessions: null
+  model-alias:
+    codex: [{name: a, alias: b, display-name: " "}, {name: c, alias: d, display-name: " D "}]
+plugins:
+  configs:
+    example: {}
+requests:
+  payload:
+    default-raw:
+      - models: [{name: "gpt-*"}]
+        params: {"a.b": "{not json", "c": "  ", "d": " {\"x\":1} ", "e": "[1,2]"}
+      - models: [{name: "m"}]
+        params: {}
+api-keys:
+  claude:
+    - name: c
+      keys:
+        - api-key: fake-c1
+          cloak: {}
+        - api-key: fake-c2
+          cloak: {mode: ""}
+  vertex:
+    - name: v
+      models: [{name: n, alias: a, display-name: "  "}]
+      keys: [{api-key: fake-v1}]
+`
+
 func fieldRoutes() []step {
 	var out []step
 	for _, p := range []string{"/debug", "/logging-to-file", "/logs-max-total-size-mb", "/error-logs-max-files",
@@ -341,6 +392,9 @@ func apiKeyWrites() []step {
 		put("/api-keys", `["k1"," k2 ","k1"]`), get("/api-keys"),
 		put("/api-keys", `{"items":["k3"]}`), put("/api-keys", `{"items":[]}`), put("/api-keys", `[]`),
 		put("/api-keys", `"x"`),
+		put("/api-keys", `{"items":7,"items":["replacement"]}`), put("/api-keys", `{"ITEMS":["replacement"]}`),
+		put("/api-keys", `{"items":["replacement"],"ITEMS":null}`), put("/api-keys", `["a",null]`),
+		put("/api-keys", `{"items":["a",1]}`), put("/api-keys", `[1]`),
 		patch("/api-keys", `{"index":0,"value":"k0"}`), patch("/api-keys", `{"index":9,"value":"k9"}`),
 		patch("/api-keys", `{"old":"k0","new":"k00"}`), patch("/api-keys", `{"old":"missing","new":"k-new"}`),
 		patch("/api-keys", `{"old":"k00"}`), patch("/api-keys", `{"old":null,"new":"k-null"}`),
@@ -362,6 +416,7 @@ func main() {
 		{Name: "reads-legacy", YAML: legacyFull, Steps: cat(steps(get("/config")), fieldRoutes())},
 		{Name: "reads-v8", YAML: v8Full, Steps: cat(steps(get("/config")), fieldRoutes())},
 		{Name: "reads-rich", YAML: richV8, Steps: cat(steps(get("/config")), fieldRoutes())},
+		{Name: "reads-edge", YAML: readsEdge, Steps: cat(steps(get("/config")), fieldRoutes())},
 		{Name: "scalars-v8", YAML: minimalV8, Steps: scalarWrites()},
 		{Name: "scalars-legacy", YAML: legacyFull, Steps: scalarWrites()},
 		{Name: "api-keys", YAML: v8Full, Steps: apiKeyWrites()},

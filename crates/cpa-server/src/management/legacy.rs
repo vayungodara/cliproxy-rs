@@ -318,6 +318,32 @@ fn unescape(s: &str) -> Option<String> {
     String::from_utf8(out).ok()
 }
 
+fn strings(v: Value) -> Option<Option<Vec<String>>> {
+    serde_json::from_value::<Option<Vec<Option<String>>>>(v)
+        .ok()
+        .map(|l| l.map(|l| l.into_iter().map(Option::unwrap_or_default).collect()))
+}
+
+/// Go `putStringList` body: `json.Unmarshal` into `[]string` (null is a nil list),
+/// else into `struct { Items []string }` with case-folded member names, every
+/// occurrence decoded in order (one bad occurrence fails it) and a non-empty result
+/// required. `None` is Go's 400.
+fn put_string_list(body: &[u8]) -> Option<Option<Vec<String>>> {
+    if let Ok(v) = serde_json::from_slice::<Value>(body)
+        && let Some(list) = strings(v.clone()).filter(|_| !v.is_object())
+    {
+        return Some(list);
+    }
+    let Members(members) = serde_json::from_slice::<Members>(body).ok()?;
+    let mut items = None;
+    for (k, v) in members.unwrap_or_default() {
+        if k.eq_ignore_ascii_case("items") {
+            items = Some(strings(v)?);
+        }
+    }
+    items.flatten().filter(|l| !l.is_empty()).map(Some)
+}
+
 /// Go's `api-keys` routes (`putStringList`, `patchStringList`, `deleteFromStringList`).
 pub(crate) async fn api_keys(
     State(state): State<Arc<Management>>,
@@ -331,18 +357,8 @@ pub(crate) async fn api_keys(
     match method {
         Method::GET => super::json(StatusCode::OK, &json!({"api-keys": cfg["api-keys"]})),
         Method::PUT => {
-            let list = match serde_json::from_slice::<Option<Vec<Option<String>>>>(&body) {
-                Ok(list) => list.map(|l| l.into_iter().map(Option::unwrap_or_default).collect::<Vec<_>>()),
-                Err(_) => match serde_json::from_slice::<Value>(&body)
-                    .ok()
-                    .and_then(|v| v.get("items").cloned())
-                    .and_then(|i| serde_json::from_value::<Vec<Option<String>>>(i).ok())
-                {
-                    Some(items) if !items.is_empty() => {
-                        Some(items.into_iter().map(Option::unwrap_or_default).collect())
-                    }
-                    _ => return bad("invalid body"),
-                },
+            let Some(list) = put_string_list(&body) else {
+                return bad("invalid body");
             };
             // Go copies with append([]string(nil), v...): an empty list becomes nil.
             let list = list.filter(|l| !l.is_empty());
@@ -486,6 +502,19 @@ mod tests {
         assert_eq!(bind_value(br#"{"value":-3}"#, Kind::Int), Some(json!(-3)));
         assert_eq!(bind_value(b"", Kind::Bool), None);
         assert_eq!(bind_value(b"null", Kind::Bool), None);
+    }
+
+    #[test]
+    fn put_string_list_follows_go_unmarshal() {
+        let list = |b: &str| put_string_list(b.as_bytes());
+        assert_eq!(list(r#"["a",null]"#), Some(Some(vec!["a".into(), String::new()])));
+        assert_eq!(list("null"), Some(None));
+        assert_eq!(list(r#"{"ITEMS":["r"]}"#), Some(Some(vec!["r".into()])));
+        assert_eq!(list(r#"{"items":7,"items":["r"]}"#), None);
+        assert_eq!(list(r#"{"items":["r"],"ITEMS":null}"#), None);
+        assert_eq!(list(r#"{"items":[]}"#), None);
+        assert_eq!(list(r#"["a"] x"#), None);
+        assert_eq!(list(r#""x""#), None);
     }
 
     #[test]

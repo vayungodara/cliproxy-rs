@@ -162,6 +162,9 @@ fn entry(family: &str, e: &Value) -> Option<Value> {
                     cloak.insert("sensitive-words".into(), Value::Array(words));
                 }
             }
+            if let (Some(cloak), Some(shape)) = (o.get_mut("cloak"), view::nested("claude-api-key", "cloak")) {
+                prune(shape, cloak);
+            }
             let profile = text(&o, "fingerprint-profile");
             let normalized = match lower(go_trim(&profile)).as_str() {
                 "claude-code-cli" | "oauth-cli" => "claude-code-cli".to_owned(),
@@ -320,7 +323,9 @@ pub(super) fn oauth_alias(v: &Value) -> Value {
                 {
                     o.insert("display-name".into(), d.into());
                 }
-                Some(Value::Object(o))
+                let mut o = Value::Object(o);
+                prune_map_entry("oauth-model-alias", &mut o);
+                Some(o)
             })
             .collect()
     }))

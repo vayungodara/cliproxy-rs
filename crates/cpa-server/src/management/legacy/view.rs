@@ -79,6 +79,11 @@ pub(super) fn field(json: &str) -> &'static Shape {
         .expect("known Config field")
 }
 
+/// The shape of a field inside a root list's element (for example a Claude key's `cloak`).
+pub(super) fn nested(list: &str, name: &str) -> Option<&'static Shape> {
+    field(list).elem.as_deref()?.fields.iter().find(|f| f.json == name)
+}
+
 fn get_path<'a>(v: &'a Yaml, path: &str) -> Option<&'a Yaml> {
     path.split('.').try_fold(v, |v, k| v.get(k))
 }
@@ -175,38 +180,100 @@ fn duration_nanos(v: &Yaml) -> Value {
     }
 }
 
+/// Go `time.ParseDuration`, integer arithmetic included.
 fn go_duration(s: &str) -> Option<i64> {
-    let (neg, mut rest) = match s.as_bytes().first() {
+    const MAX: u64 = 1 << 63;
+    let (neg, mut s) = match s.as_bytes().first() {
         Some(b'-') => (true, &s[1..]),
         Some(b'+') => (false, &s[1..]),
         _ => (false, s),
     };
-    if rest == "0" {
+    if s == "0" {
         return Some(0);
     }
-    let mut total: f64 = 0.0;
-    while !rest.is_empty() {
-        let num_end = rest
-            .find(|c: char| !(c.is_ascii_digit() || c == '.'))
-            .unwrap_or(rest.len());
-        let number: f64 = rest[..num_end].parse().ok()?;
-        rest = &rest[num_end..];
-        let unit_end = rest
-            .find(|c: char| c.is_ascii_digit() || c == '.')
-            .unwrap_or(rest.len());
-        let unit = match &rest[..unit_end] {
-            "ns" => 1.0,
-            "us" | "µs" | "μs" => 1e3,
-            "ms" => 1e6,
-            "s" => 1e9,
-            "m" => 60e9,
-            "h" => 3600e9,
+    if s.is_empty() {
+        return None;
+    }
+    let mut d: u64 = 0;
+    while !s.is_empty() {
+        let b = s.as_bytes();
+        if !(b[0] == b'.' || b[0].is_ascii_digit()) {
+            return None;
+        }
+        // leadingInt
+        let digits = b.iter().take_while(|c| c.is_ascii_digit()).count();
+        let mut v: u64 = 0;
+        for &c in &b[..digits] {
+            if v > MAX / 10 {
+                return None;
+            }
+            v = v * 10 + u64::from(c - b'0');
+            if v > MAX {
+                return None;
+            }
+        }
+        s = &s[digits..];
+        let pre = digits > 0;
+        // leadingFraction
+        let (mut f, mut scale, mut post) = (0u64, 1f64, false);
+        if let Some(rest) = s.strip_prefix('.') {
+            let fd = rest.bytes().take_while(u8::is_ascii_digit).count();
+            let mut overflow = false;
+            for c in rest[..fd].bytes() {
+                if overflow {
+                    continue;
+                }
+                if f > (MAX - 1) / 10 {
+                    overflow = true;
+                    continue;
+                }
+                let y = f * 10 + u64::from(c - b'0');
+                if y > MAX {
+                    overflow = true;
+                    continue;
+                }
+                f = y;
+                scale *= 10.0;
+            }
+            post = fd > 0;
+            s = &rest[fd..];
+        }
+        if !pre && !post {
+            return None;
+        }
+        let unit_len = s.find(|c: char| c == '.' || c.is_ascii_digit()).unwrap_or(s.len());
+        if unit_len == 0 {
+            return None;
+        }
+        let unit: u64 = match &s[..unit_len] {
+            "ns" => 1,
+            "us" | "\u{b5}s" | "\u{3bc}s" => 1_000,
+            "ms" => 1_000_000,
+            "s" => 1_000_000_000,
+            "m" => 60_000_000_000,
+            "h" => 3_600_000_000_000,
             _ => return None,
         };
-        rest = &rest[unit_end..];
-        total += number * unit;
+        s = &s[unit_len..];
+        if v > MAX / unit {
+            return None;
+        }
+        v *= unit;
+        if f > 0 {
+            v += (f as f64 * (unit as f64 / scale)) as u64;
+            if v > MAX {
+                return None;
+            }
+        }
+        d += v;
+        if d > MAX {
+            return None;
+        }
     }
-    Some(if neg { -total } else { total } as i64)
+    if neg {
+        return Some((d as i64).wrapping_neg());
+    }
+    i64::try_from(d).ok()
 }
 
 /// A YAML value as generic JSON (Go `any` fields).
@@ -223,7 +290,7 @@ fn zero(shape: &Shape) -> Value {
         "bool" => Value::Bool(false),
         "int" | "uint" | "float" | "duration" => Value::from(0),
         "string" => Value::from(""),
-        "struct" => object(shape, None, None),
+        "struct" => object(shape, None, None, false),
         k if k.starts_with("marshaler:") => Value::Bool(false),
         _ => Value::Null,
     }
@@ -239,6 +306,16 @@ fn empty(shape: &Shape, v: &Value) -> bool {
         Value::Array(a) => a.is_empty(),
         Value::Object(o) => shape.kind == "map" && o.is_empty(),
     }
+}
+
+/// yaml.v3 leaves a non-pointer scalar or struct unchanged on null (its pre-decode
+/// default stands) and skips null elements of such types in sequences and maps.
+fn nilable(shape: &Shape) -> bool {
+    shape.ptr || matches!(shape.kind.as_str(), "slice" | "map" | "any")
+}
+
+fn skipped_null(shape: &Shape, v: &Yaml) -> bool {
+    !nilable(shape) && matches!(v, Yaml::Null)
 }
 
 /// One value decoded into a shape.
@@ -262,11 +339,17 @@ pub(super) fn convert(shape: &Shape, v: &Yaml) -> Value {
         "duration" => duration_nanos(v),
         "string" => Value::from(yaml_string(v)),
         "any" => any_json(v),
-        "struct" => object(shape, Some(v), None),
+        "struct" => object(shape, Some(v), None, false),
         "slice" => match v.as_sequence() {
             Some(items) => {
                 let elem = shape.elem.as_deref().expect("slice element");
-                Value::Array(items.iter().map(|i| convert(elem, i)).collect())
+                Value::Array(
+                    items
+                        .iter()
+                        .filter(|i| !skipped_null(elem, i))
+                        .map(|i| convert(elem, i))
+                        .collect(),
+                )
             }
             None => Value::Null,
         },
@@ -274,8 +357,11 @@ pub(super) fn convert(shape: &Shape, v: &Yaml) -> Value {
             Some(map) => {
                 let elem = shape.elem.as_deref().expect("map element");
                 // encoding/json sorts map keys.
-                let sorted: BTreeMap<String, Value> =
-                    map.iter().map(|(k, v)| (yaml_string(k), convert(elem, v))).collect();
+                let sorted: BTreeMap<String, Value> = map
+                    .iter()
+                    .filter(|(_, v)| !skipped_null(elem, v))
+                    .map(|(k, v)| (yaml_string(k), convert(elem, v)))
+                    .collect();
                 Value::Object(sorted.into_iter().collect())
             }
             None => Value::Null,
@@ -294,13 +380,27 @@ pub(super) fn convert(shape: &Shape, v: &Yaml) -> Value {
     }
 }
 
+/// Structs Go decodes through an `UnmarshalYAML` into a zeroed value that records key
+/// presence (`CredentialConcurrencyConfig`): a null there is a present zero.
+const ZEROED_STRUCTS: [&str; 1] = ["credential-concurrency"];
+
 /// A struct: present fields decoded, absent ones from `defaults` (Go's load defaults)
-/// or the zero value; `omitempty` fields dropped when empty.
-fn object(shape: &Shape, present: Option<&Yaml>, defaults: Option<&Value>) -> Value {
+/// or the zero value; `omitempty` fields dropped when empty. `zeroed` marks a struct
+/// in `ZEROED_STRUCTS`.
+fn object(shape: &Shape, present: Option<&Yaml>, defaults: Option<&Value>, zeroed: bool) -> Value {
     let mut out = Map::new();
     for f in &shape.fields {
-        let value = match present.and_then(|p| p.get(f.yaml.as_str())) {
-            Some(v) if f.kind == "struct" && !f.ptr => object(f, Some(v), defaults.and_then(|d| d.get(&f.json))),
+        // A null on a non-nilable field leaves the pre-decode default, like absence.
+        let value = match present
+            .and_then(|p| p.get(f.yaml.as_str()))
+            .filter(|v| zeroed || !skipped_null(f, v))
+        {
+            Some(v) if f.kind == "struct" && !f.ptr => object(
+                f,
+                Some(v),
+                defaults.and_then(|d| d.get(&f.json)),
+                ZEROED_STRUCTS.contains(&f.json.as_str()),
+            ),
             Some(v) => convert(f, v),
             None => match defaults.and_then(|d| d.get(&f.json)) {
                 Some(d) => d.clone(),
@@ -318,7 +418,7 @@ fn object(shape: &Shape, present: Option<&Yaml>, defaults: Option<&Value>) -> Va
 /// Go's runtime config as GET /v0/management/config returns it.
 pub(super) fn config(doc: &Yaml) -> Value {
     let legacy = flatten(doc);
-    let mut cfg = object(shape(), Some(&legacy), Some(&DEFAULTS));
+    let mut cfg = object(shape(), Some(&legacy), Some(&DEFAULTS), false);
     super::keys::normalize_config(&mut cfg);
     load_normalize(&mut cfg);
     cfg
@@ -362,6 +462,34 @@ fn load_normalize(cfg: &mut Value) {
     if let Some(p) = c.get_mut("plugins").and_then(Value::as_object_mut) {
         let dir = plugins_dir(p.get("dir").and_then(Value::as_str).unwrap_or_default());
         p.insert("dir".into(), dir.into());
+        // PluginInstanceConfig.UnmarshalYAML starts `enabled` as a non-nil false;
+        // NormalizePluginsConfig makes a nil map empty.
+        let configs = p.entry("configs").or_insert(Value::Null);
+        if configs.is_null() {
+            *configs = Value::Object(Map::new());
+        }
+        for entry in configs.as_object_mut().into_iter().flat_map(|m| m.values_mut()) {
+            if !entry.is_object() {
+                *entry = Value::Object(Map::new());
+            }
+            let o = entry.as_object_mut().expect("object");
+            let priority = o.shift_remove("priority");
+            let enabled = o
+                .shift_remove("enabled")
+                .filter(Value::is_boolean)
+                .unwrap_or(Value::Bool(false));
+            o.insert("enabled".into(), enabled);
+            if let Some(p) = priority {
+                o.insert("priority".into(), p);
+            }
+        }
+    }
+    if let Some(payload) = c.get_mut("payload").and_then(Value::as_object_mut) {
+        for section in ["default-raw", "override-raw"] {
+            if let Some(rules) = payload.get_mut(section).and_then(Value::as_array_mut) {
+                rules.retain(payload_raw_rule_valid);
+            }
+        }
     }
     if let Some(p) = c.get_mut("pprof").and_then(Value::as_object_mut) {
         let addr = p
@@ -402,6 +530,21 @@ fn load_normalize(cfg: &mut Value) {
             }
         }
     }
+}
+
+/// Go `sanitizePayloadRawRules`: a rule needs params, and every string param must be
+/// valid JSON once trimmed (non-string params are kept as they are).
+fn payload_raw_rule_valid(rule: &Value) -> bool {
+    let Some(params) = rule.get("params").and_then(Value::as_object).filter(|p| !p.is_empty()) else {
+        return false;
+    };
+    params.values().all(|v| match v.as_str() {
+        Some(raw) => {
+            let trimmed = super::go_trim(raw);
+            !trimmed.is_empty() && serde_json::from_str::<serde::de::IgnoredAny>(trimmed).is_ok()
+        }
+        None => true,
+    })
 }
 
 /// Go `filepath.Clean` (Unix separators).
