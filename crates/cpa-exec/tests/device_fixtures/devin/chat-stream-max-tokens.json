@@ -2,7 +2,7 @@
   "name": "chat-stream-max-tokens",
   "credential": {
     "api_key": "devin-session-token$fixture",
-    "base_url": "http://127.0.0.1:36801",
+    "base_url": "http://127.0.0.1:35493",
     "device_seed": "seed-1",
     "session_token": "devin-session-token$fixture",
     "type": "devin"
@@ -33,7 +33,7 @@
       "headers": [
         [
           "Host",
-          "127.0.0.1:36801"
+          "127.0.0.1:35493"
         ],
         [
           "Content-Length",
@@ -57,18 +57,18 @@
         ],
         [
           "Sentry-Trace",
-          "f14b6821952989ab7cbbc2ad2eb995fb-c687a427fddb03ec-1"
+          "434778cd8837c5c125f23782dff2fd07-8f758975dc880c63-1"
         ]
       ],
       "body": "",
-      "body_b64": "AAAABgYKsAYKBmNoaXNlbBIKMzAwMC4xMC4yMRobZGV2aW4tc2Vzc2lvbi10b2tlbiRmaXh0dXJlIgJlbioFbGludXg6CjMwMDAuMTAuMjFiBmNoaXNlbPoB3AVkMzU3MTg4YTU3NGM3MmVjMjZhYWU3ODVhZjJhZDhhMjMzZWQzYjAzYjEyNDI1MTljOWFhMTZkOTg2ZjA3NWY3ZjdkMTA4NTk3MmM4MGMzOTVhMWUwYWFjYmYyYjM3Y2ZkMDkzYTQ1M2M0YWU4ZDczYTM5NDUxZjNhMzliZjk0NmM1YTJmMDI4NTBhYmUwOGE1NTYwNWEwY2Q3MzJhYWZjNTg0ZmYzOTA3NjkyM2MxYzQ4ZjIyMzZmMTRlMzg0Yzk0YmUyZjA0NDc5NGEyYzc5MGQ5ZTA4ZTY3NmU0NTExYzdlMzJjMWMzODI3ZjNiNDI2MmY5YTJhNzliZGU5Y2UyMmEwMjBjOWY3MTgxM2Q2OGQ1YTA1MjZjMTdiZDEyZWRmYTY4Y2FiNzA4NjYyMjI1YTVhMTEzZTMyNTVkYzdjYmNkNDJkOGE3Njg0NjM4ZTRkM2ZhNTBhMGVjNTJiNGQ2NTE5N2U3YzdmYzdjNjE4OWVkY2YzNWRkOWI0ZDQzODYyOWVkODYzZGM4NDllNDAyNjExMGEwZGY2MTI1ZDU0MmM0ODMxNDRiZTgzN2VjZjgyMDE2ZjFhYTc1ZTM5YmFlNWRjMGMwMWUyMjJkMGUwNjU1NTdmMWVlZTc3ZWEwMmU1NDBiZjM0ZmYyOWMxNWQ1MjkzYzA0ZmVmNTJhOGVjZjI5N2RjMDNkNGVmOGM5YWRlYmJhMTIxZWM4Nzg1MGU2MzA4OWE4ZGI0NjczNzNjMjNhZmZiMWM0MzU5MGZjNTVlMzFlNDA2Y2M4ZmE2ZDgyZjM5ZGIxZDE0NzU4ZDU2OWYyNjM4YTQ0MTE5YTNhZGZlYTU0YmRkOWE2MDljMTc4OWQwOTNjODU3MDc3ZTQwYzkyZmNlYTFlNGIwYzhhYzRiNjk1MmYxODUzNTY0ZjM5ODc4YzdmYmU2YWExMmM4OTllNTYxMzRhYTBlMTgzYmY2NTgwZGI5OTQ5NGUSH1lvdSBhcmUgaGVscGZ1bC4KS2VlcCBpdCBzaG9ydC4aXQokN2Q5M2FlN2QtZTM1ZC00MmRjLWEwYTYtYjViN2I4NDc4OGNiEAEaM1doYXQncyB0aGUgd2VhdGhlciBpbiBQYXJpcz8gY2hhdC1zdHJlYW0tbWF4LXRva2VucxpcCiRhNzlkNzc0ZS0yZjNjLTQ0NWYtYWU1NC04MDZhNTAyMTJjNGMQAhoJQ2hlY2tpbmcuMicKBmNhbGxfYRILZ2V0X3dlYXRoZXIaEHsiY2l0eSI6IlBhcmlzIn0aNwokMGM5YzNmMWYtZTRmNi00OTg4LTgyNjgtMWMyM2YxNTMyOWI5EAQaBXN1bm55OgZjYWxsX2EacQokMGNlOWQ4NDctMjgxMi00MzVhLWJhMzQtMGJiZjg5MDE5OTU2EAEaL1tJbWFnZSAxOiBwYXN0ZWRfaW1hZ2VfMS53ZWJwXQoKVGhhbmtzIDxiPiY8L2I+UhYKCFVrbEdSZz09EgppbWFnZS93ZWJwOAVCHAgBEPQDGJADKTMzMzMzM9M/OChBAAAAYGZm7j9SVQoLZ2V0X3dlYXRoZXISC0dldCB3ZWF0aGVyGjl7InR5cGUiOiJvYmplY3QiLCJwcm9wZXJ0aWVzIjp7ImNpdHkiOnsidHlwZSI6InN0cmluZyJ9fX1SbQoMZXhlY19jb21tYW5kEkpSdW5zIGEgY29tbWFuZCwgcmV0dXJuaW5nIG91dHB1dCBvciBhbiBzZXNzaW9uIElEIGZvciBvbmdvaW5nIGludGVyYWN0aW9uLhoReyJ0eXBlIjoib2JqZWN0In16KgokODNlZjdkOWQtMDFmOS01MzExLWFlNDctNzNjZTVjN2Y2YjBmGAQgDoIBJDgzZWY3ZDlkLTAxZjktNTMxMS1hZTQ3LTczY2U1YzdmNmIwZqABAaoBCnN3ZS0yLWhpZ2g="
+      "body_b64": "AAAABgYKsAYKBmNoaXNlbBIKMzAwMC4xMC4yMRobZGV2aW4tc2Vzc2lvbi10b2tlbiRmaXh0dXJlIgJlbioFbGludXg6CjMwMDAuMTAuMjFiBmNoaXNlbPoB3AVkMzU3MTg4YTU3NGM3MmVjMjZhYWU3ODVhZjJhZDhhMjMzZWQzYjAzYjEyNDI1MTljOWFhMTZkOTg2ZjA3NWY3ZjdkMTA4NTk3MmM4MGMzOTVhMWUwYWFjYmYyYjM3Y2ZkMDkzYTQ1M2M0YWU4ZDczYTM5NDUxZjNhMzliZjk0NmM1YTJmMDI4NTBhYmUwOGE1NTYwNWEwY2Q3MzJhYWZjNTg0ZmYzOTA3NjkyM2MxYzQ4ZjIyMzZmMTRlMzg0Yzk0YmUyZjA0NDc5NGEyYzc5MGQ5ZTA4ZTY3NmU0NTExYzdlMzJjMWMzODI3ZjNiNDI2MmY5YTJhNzliZGU5Y2UyMmEwMjBjOWY3MTgxM2Q2OGQ1YTA1MjZjMTdiZDEyZWRmYTY4Y2FiNzA4NjYyMjI1YTVhMTEzZTMyNTVkYzdjYmNkNDJkOGE3Njg0NjM4ZTRkM2ZhNTBhMGVjNTJiNGQ2NTE5N2U3YzdmYzdjNjE4OWVkY2YzNWRkOWI0ZDQzODYyOWVkODYzZGM4NDllNDAyNjExMGEwZGY2MTI1ZDU0MmM0ODMxNDRiZTgzN2VjZjgyMDE2ZjFhYTc1ZTM5YmFlNWRjMGMwMWUyMjJkMGUwNjU1NTdmMWVlZTc3ZWEwMmU1NDBiZjM0ZmYyOWMxNWQ1MjkzYzA0ZmVmNTJhOGVjZjI5N2RjMDNkNGVmOGM5YWRlYmJhMTIxZWM4Nzg1MGU2MzA4OWE4ZGI0NjczNzNjMjNhZmZiMWM0MzU5MGZjNTVlMzFlNDA2Y2M4ZmE2ZDgyZjM5ZGIxZDE0NzU4ZDU2OWYyNjM4YTQ0MTE5YTNhZGZlYTU0YmRkOWE2MDljMTc4OWQwOTNjODU3MDc3ZTQwYzkyZmNlYTFlNGIwYzhhYzRiNjk1MmYxODUzNTY0ZjM5ODc4YzdmYmU2YWExMmM4OTllNTYxMzRhYTBlMTgzYmY2NTgwZGI5OTQ5NGUSH1lvdSBhcmUgaGVscGZ1bC4KS2VlcCBpdCBzaG9ydC4aXQokNTU1NTQ3ZjAtNzg5ZS00NjM0LWE4YWUtNTljODVlMjliZGM3EAEaM1doYXQncyB0aGUgd2VhdGhlciBpbiBQYXJpcz8gY2hhdC1zdHJlYW0tbWF4LXRva2VucxpcCiQzZDc3Y2IyNy0zMjAzLTQyMmQtOTMyZC04Y2NmMDg1MjM0MDkQAhoJQ2hlY2tpbmcuMicKBmNhbGxfYRILZ2V0X3dlYXRoZXIaEHsiY2l0eSI6IlBhcmlzIn0aNwokZjI3ZGI5OTAtYzkxOC00MDMyLWI3ZDgtZTQ4MDIxOGJlOTY0EAQaBXN1bm55OgZjYWxsX2EacQokNWQwMTY3OWYtYWNiMi00ZjJiLWIyNTItN2ZlNDU2OTljOTRiEAEaL1tJbWFnZSAxOiBwYXN0ZWRfaW1hZ2VfMS53ZWJwXQoKVGhhbmtzIDxiPiY8L2I+UhYKCFVrbEdSZz09EgppbWFnZS93ZWJwOAVCHAgBEPQDGJADKTMzMzMzM9M/OChBAAAAYGZm7j9SVQoLZ2V0X3dlYXRoZXISC0dldCB3ZWF0aGVyGjl7InR5cGUiOiJvYmplY3QiLCJwcm9wZXJ0aWVzIjp7ImNpdHkiOnsidHlwZSI6InN0cmluZyJ9fX1SbQoMZXhlY19jb21tYW5kEkpSdW5zIGEgY29tbWFuZCwgcmV0dXJuaW5nIG91dHB1dCBvciBhbiBzZXNzaW9uIElEIGZvciBvbmdvaW5nIGludGVyYWN0aW9uLhoReyJ0eXBlIjoib2JqZWN0In16KgokODNlZjdkOWQtMDFmOS01MzExLWFlNDctNzNjZTVjN2Y2YjBmGAQgDoIBJDgzZWY3ZDlkLTAxZjktNTMxMS1hZTQ3LTczY2U1YzdmNmIwZqABAaoBCnN3ZS0yLWhpZ2g="
     }
   ],
   "downstream": {
     "chunks": [
-      "{\"id\":\"interaction_ad24a67a-bd0\",\"object\":\"chat.completion.chunk\",\"created\":1791014377,\"model\":\"swe-2\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\"},\"finish_reason\":null}]}",
-      "{\"id\":\"interaction_ad24a67a-bd0\",\"object\":\"chat.completion.chunk\",\"created\":1791014377,\"model\":\"swe-2\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"long\"},\"finish_reason\":null}]}",
-      "{\"id\":\"interaction_ad24a67a-bd0\",\"object\":\"chat.completion.chunk\",\"created\":1791014377,\"model\":\"swe-2\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"length\"}],\"usage\":{\"prompt_tokens\":0,\"completion_tokens\":0,\"prompt_tokens_details\":{\"cached_tokens\":0}}}"
+      "{\"id\":\"interaction_15c89e8e-1ba\",\"object\":\"chat.completion.chunk\",\"created\":1791016481,\"model\":\"swe-2\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\"},\"finish_reason\":null}]}",
+      "{\"id\":\"interaction_15c89e8e-1ba\",\"object\":\"chat.completion.chunk\",\"created\":1791016481,\"model\":\"swe-2\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"long\"},\"finish_reason\":null}]}",
+      "{\"id\":\"interaction_15c89e8e-1ba\",\"object\":\"chat.completion.chunk\",\"created\":1791016481,\"model\":\"swe-2\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"length\"}],\"usage\":{\"prompt_tokens\":0,\"completion_tokens\":0,\"prompt_tokens_details\":{\"cached_tokens\":0}}}"
     ]
   }
 }

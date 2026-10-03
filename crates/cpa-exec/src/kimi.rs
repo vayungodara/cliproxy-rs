@@ -22,7 +22,7 @@ use std::sync::Arc;
 use bytes::Bytes;
 use cpa_common::gostr::GoStr;
 use cpa_common::json::{self as gj, GoValue, Kind, Res};
-use cpa_common::thinking::{RequestThinking, apply_request_thinking, parse_suffix};
+use cpa_common::thinking::{ModelCaps, RequestThinking, apply_request_thinking, parse_suffix};
 use cpa_core::config::Config;
 use cpa_core::credential::{Credential, MetadataPatch};
 use cpa_core::exec::{ExecError, ExecRequest, ExecResponse, ExecStream, FailureScope, Operation, ResponseBody};
@@ -307,6 +307,8 @@ fn original(req: &ExecRequest) -> &Bytes {
 fn thinking(body: &[u8], req: &ExecRequest, to: &str) -> Result<Vec<u8>, ExecError> {
     let has_request_transformer =
         Format::parse(to).is_some_and(|t| cpa_translate::pair(req.source_format, t).is_some());
+    // Go `cliproxyauth.ResolvedModelInfo`: capabilities bound to this attempt.
+    let caps = req.resolved_model.as_ref().map(|r| ModelCaps::from(&r.info));
     apply_request_thinking(&RequestThinking {
         body,
         payload: &req.body,
@@ -315,9 +317,7 @@ fn thinking(body: &[u8], req: &ExecRequest, to: &str) -> Result<Vec<u8>, ExecErr
         from: req.source_format.as_str(),
         to,
         provider: "kimi",
-        // ponytail: API-key model capabilities bound by the scheduler (Go
-        // ResolvedModelInfo) are not on ExecRequest; the registry lookup applies.
-        resolved: None,
+        resolved: caps.as_ref().map(Some),
         has_request_transformer,
         updates_changed: false,
     })

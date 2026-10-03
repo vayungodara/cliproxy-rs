@@ -42,6 +42,9 @@ struct Args {
     /// Login to xAI using OAuth
     #[arg(long)]
     xai_login: bool,
+    /// Login to Devin using OAuth
+    #[arg(long)]
+    devin_login: bool,
     /// Login to Meta using OAuth
     #[arg(long)]
     meta_login: bool,
@@ -145,6 +148,11 @@ async fn main() -> anyhow::Result<()> {
         if let Err(error) = cpa_exec::xai_auth::login(&config, args.no_browser).await {
             tracing::error!("xAI authentication failed: {}", String::from_utf8_lossy(&error.body));
         }
+        return Ok(());
+    }
+    if args.devin_login {
+        // Go DoDevinLogin: a failure is logged and the command still exits normally.
+        cpa_exec::devin_auth::login(&config, args.no_browser, args.oauth_callback_port).await;
         return Ok(());
     }
     if args.meta_login {

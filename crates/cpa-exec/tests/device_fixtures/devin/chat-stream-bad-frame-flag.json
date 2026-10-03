@@ -2,7 +2,7 @@
   "name": "chat-stream-bad-frame-flag",
   "credential": {
     "api_key": "devin-session-token$fixture",
-    "base_url": "http://127.0.0.1:35603",
+    "base_url": "http://127.0.0.1:39679",
     "device_seed": "seed-1",
     "session_token": "devin-session-token$fixture",
     "type": "devin"
@@ -33,7 +33,7 @@
       "headers": [
         [
           "Host",
-          "127.0.0.1:35603"
+          "127.0.0.1:39679"
         ],
         [
           "Content-Length",
@@ -57,17 +57,17 @@
         ],
         [
           "Sentry-Trace",
-          "52bc151bbbcb019e1de139f5701e89b7-6633fac4bbfbfa71-1"
+          "69ab0de10baa9d47691c679df730da24-66d9a132acb3ffb3-1"
         ]
       ],
       "body": "",
-      "body_b64": "AAAABgoKsAYKBmNoaXNlbBIKMzAwMC4xMC4yMRobZGV2aW4tc2Vzc2lvbi10b2tlbiRmaXh0dXJlIgJlbioFbGludXg6CjMwMDAuMTAuMjFiBmNoaXNlbPoB3AVkMzU3MTg4YTU3NGM3MmVjMjZhYWU3ODVhZjJhZDhhMjMzZWQzYjAzYjEyNDI1MTljOWFhMTZkOTg2ZjA3NWY3ZjdkMTA4NTk3MmM4MGMzOTVhMWUwYWFjYmYyYjM3Y2ZkMDkzYTQ1M2M0YWU4ZDczYTM5NDUxZjNhMzliZjk0NmM1YTJmMDI4NTBhYmUwOGE1NTYwNWEwY2Q3MzJhYWZjNTg0ZmYzOTA3NjkyM2MxYzQ4ZjIyMzZmMTRlMzg0Yzk0YmUyZjA0NDc5NGEyYzc5MGQ5ZTA4ZTY3NmU0NTExYzdlMzJjMWMzODI3ZjNiNDI2MmY5YTJhNzliZGU5Y2UyMmEwMjBjOWY3MTgxM2Q2OGQ1YTA1MjZjMTdiZDEyZWRmYTY4Y2FiNzA4NjYyMjI1YTVhMTEzZTMyNTVkYzdjYmNkNDJkOGE3Njg0NjM4ZTRkM2ZhNTBhMGVjNTJiNGQ2NTE5N2U3YzdmYzdjNjE4OWVkY2YzNWRkOWI0ZDQzODYyOWVkODYzZGM4NDllNDAyNjExMGEwZGY2MTI1ZDU0MmM0ODMxNDRiZTgzN2VjZjgyMDE2ZjFhYTc1ZTM5YmFlNWRjMGMwMWUyMjJkMGUwNjU1NTdmMWVlZTc3ZWEwMmU1NDBiZjM0ZmYyOWMxNWQ1MjkzYzA0ZmVmNTJhOGVjZjI5N2RjMDNkNGVmOGM5YWRlYmJhMTIxZWM4Nzg1MGU2MzA4OWE4ZGI0NjczNzNjMjNhZmZiMWM0MzU5MGZjNTVlMzFlNDA2Y2M4ZmE2ZDgyZjM5ZGIxZDE0NzU4ZDU2OWYyNjM4YTQ0MTE5YTNhZGZlYTU0YmRkOWE2MDljMTc4OWQwOTNjODU3MDc3ZTQwYzkyZmNlYTFlNGIwYzhhYzRiNjk1MmYxODUzNTY0ZjM5ODc4YzdmYmU2YWExMmM4OTllNTYxMzRhYTBlMTgzYmY2NTgwZGI5OTQ5NGUSH1lvdSBhcmUgaGVscGZ1bC4KS2VlcCBpdCBzaG9ydC4aYQokOWU0MGE4MjgtZmJiNC00YTU0LTg4YmYtY2JiNThjM2M1NzAwEAEaN1doYXQncyB0aGUgd2VhdGhlciBpbiBQYXJpcz8gY2hhdC1zdHJlYW0tYmFkLWZyYW1lLWZsYWcaXAokYjRhNzFhZTUtOGUyYi00NGVmLTg4NGMtMDE2MDRlNDVjODJhEAIaCUNoZWNraW5nLjInCgZjYWxsX2ESC2dldF93ZWF0aGVyGhB7ImNpdHkiOiJQYXJpcyJ9GjcKJGQ2NmE4Y2Y1LTZmZGYtNGJmMi1iODA5LTQ0ZDQ0MGYzNjg0ZRAEGgVzdW5ueToGY2FsbF9hGnEKJGUzYjU5ZmQ3LWQ1YmEtNDRmMy1hZDQyLTIzNjFlMzdmNThiOBABGi9bSW1hZ2UgMTogcGFzdGVkX2ltYWdlXzEud2VicF0KClRoYW5rcyA8Yj4mPC9iPlIWCghVa2xHUmc9PRIKaW1hZ2Uvd2VicDgFQhwIARD0AxiQAykzMzMzMzPTPzgoQQAAAGBmZu4/UlUKC2dldF93ZWF0aGVyEgtHZXQgd2VhdGhlcho5eyJ0eXBlIjoib2JqZWN0IiwicHJvcGVydGllcyI6eyJjaXR5Ijp7InR5cGUiOiJzdHJpbmcifX19Um0KDGV4ZWNfY29tbWFuZBJKUnVucyBhIGNvbW1hbmQsIHJldHVybmluZyBvdXRwdXQgb3IgYW4gc2Vzc2lvbiBJRCBmb3Igb25nb2luZyBpbnRlcmFjdGlvbi4aEXsidHlwZSI6Im9iamVjdCJ9eioKJDg1NzRhMjA0LTU1MDktNTM1Yy1iOTZiLTU0ZGRlZGU4NzAzOBgEIA6CASQ4NTc0YTIwNC01NTA5LTUzNWMtYjk2Yi01NGRkZWRlODcwMzigAQGqAQpzd2UtMi1oaWdo"
+      "body_b64": "AAAABgoKsAYKBmNoaXNlbBIKMzAwMC4xMC4yMRobZGV2aW4tc2Vzc2lvbi10b2tlbiRmaXh0dXJlIgJlbioFbGludXg6CjMwMDAuMTAuMjFiBmNoaXNlbPoB3AVkMzU3MTg4YTU3NGM3MmVjMjZhYWU3ODVhZjJhZDhhMjMzZWQzYjAzYjEyNDI1MTljOWFhMTZkOTg2ZjA3NWY3ZjdkMTA4NTk3MmM4MGMzOTVhMWUwYWFjYmYyYjM3Y2ZkMDkzYTQ1M2M0YWU4ZDczYTM5NDUxZjNhMzliZjk0NmM1YTJmMDI4NTBhYmUwOGE1NTYwNWEwY2Q3MzJhYWZjNTg0ZmYzOTA3NjkyM2MxYzQ4ZjIyMzZmMTRlMzg0Yzk0YmUyZjA0NDc5NGEyYzc5MGQ5ZTA4ZTY3NmU0NTExYzdlMzJjMWMzODI3ZjNiNDI2MmY5YTJhNzliZGU5Y2UyMmEwMjBjOWY3MTgxM2Q2OGQ1YTA1MjZjMTdiZDEyZWRmYTY4Y2FiNzA4NjYyMjI1YTVhMTEzZTMyNTVkYzdjYmNkNDJkOGE3Njg0NjM4ZTRkM2ZhNTBhMGVjNTJiNGQ2NTE5N2U3YzdmYzdjNjE4OWVkY2YzNWRkOWI0ZDQzODYyOWVkODYzZGM4NDllNDAyNjExMGEwZGY2MTI1ZDU0MmM0ODMxNDRiZTgzN2VjZjgyMDE2ZjFhYTc1ZTM5YmFlNWRjMGMwMWUyMjJkMGUwNjU1NTdmMWVlZTc3ZWEwMmU1NDBiZjM0ZmYyOWMxNWQ1MjkzYzA0ZmVmNTJhOGVjZjI5N2RjMDNkNGVmOGM5YWRlYmJhMTIxZWM4Nzg1MGU2MzA4OWE4ZGI0NjczNzNjMjNhZmZiMWM0MzU5MGZjNTVlMzFlNDA2Y2M4ZmE2ZDgyZjM5ZGIxZDE0NzU4ZDU2OWYyNjM4YTQ0MTE5YTNhZGZlYTU0YmRkOWE2MDljMTc4OWQwOTNjODU3MDc3ZTQwYzkyZmNlYTFlNGIwYzhhYzRiNjk1MmYxODUzNTY0ZjM5ODc4YzdmYmU2YWExMmM4OTllNTYxMzRhYTBlMTgzYmY2NTgwZGI5OTQ5NGUSH1lvdSBhcmUgaGVscGZ1bC4KS2VlcCBpdCBzaG9ydC4aYQokNzQ1ZTk2ZWMtMjQzNS00ZGVjLTk1OWMtYWQwMzc1MDUwYmM4EAEaN1doYXQncyB0aGUgd2VhdGhlciBpbiBQYXJpcz8gY2hhdC1zdHJlYW0tYmFkLWZyYW1lLWZsYWcaXAokMWQwNGNlOGEtNTVlYi00OTliLTg2MGYtOWVkNWNmZGQ3M2M3EAIaCUNoZWNraW5nLjInCgZjYWxsX2ESC2dldF93ZWF0aGVyGhB7ImNpdHkiOiJQYXJpcyJ9GjcKJGNkYWRmZDk4LTNhYjMtNDhmNy05YTljLTJkMjFlMTkxNWFhNRAEGgVzdW5ueToGY2FsbF9hGnEKJDk2N2I1NjQzLTU1ZDUtNGM0Ny1iMDkxLTQ2NzQ1ZmU3OTdhOBABGi9bSW1hZ2UgMTogcGFzdGVkX2ltYWdlXzEud2VicF0KClRoYW5rcyA8Yj4mPC9iPlIWCghVa2xHUmc9PRIKaW1hZ2Uvd2VicDgFQhwIARD0AxiQAykzMzMzMzPTPzgoQQAAAGBmZu4/UlUKC2dldF93ZWF0aGVyEgtHZXQgd2VhdGhlcho5eyJ0eXBlIjoib2JqZWN0IiwicHJvcGVydGllcyI6eyJjaXR5Ijp7InR5cGUiOiJzdHJpbmcifX19Um0KDGV4ZWNfY29tbWFuZBJKUnVucyBhIGNvbW1hbmQsIHJldHVybmluZyBvdXRwdXQgb3IgYW4gc2Vzc2lvbiBJRCBmb3Igb25nb2luZyBpbnRlcmFjdGlvbi4aEXsidHlwZSI6Im9iamVjdCJ9eioKJDg1NzRhMjA0LTU1MDktNTM1Yy1iOTZiLTU0ZGRlZGU4NzAzOBgEIA6CASQ4NTc0YTIwNC01NTA5LTUzNWMtYjk2Yi01NGRkZWRlODcwMzigAQGqAQpzd2UtMi1oaWdo"
     }
   ],
   "downstream": {
     "chunks": [
-      "{\"id\":\"interaction_93a49938-7aa\",\"object\":\"chat.completion.chunk\",\"created\":1791014377,\"model\":\"swe-2\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\"},\"finish_reason\":null}]}",
-      "{\"id\":\"interaction_93a49938-7aa\",\"object\":\"chat.completion.chunk\",\"created\":1791014377,\"model\":\"swe-2\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"ok\"},\"finish_reason\":null}]}",
+      "{\"id\":\"interaction_fb3a891b-eb4\",\"object\":\"chat.completion.chunk\",\"created\":1791016481,\"model\":\"swe-2\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\"},\"finish_reason\":null}]}",
+      "{\"id\":\"interaction_fb3a891b-eb4\",\"object\":\"chat.completion.chunk\",\"created\":1791016481,\"model\":\"swe-2\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"ok\"},\"finish_reason\":null}]}",
       "{\"error\":{\"message\":\"invalid connect frame flag: 0x04\",\"type\":\"server_error\",\"code\":\"stream_read_error\"}}"
     ],
     "err_status": -1,

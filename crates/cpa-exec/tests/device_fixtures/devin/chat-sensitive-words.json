@@ -2,7 +2,7 @@
   "name": "chat-sensitive-words",
   "credential": {
     "api_key": "devin-session-token$fixture",
-    "base_url": "http://127.0.0.1:46197",
+    "base_url": "http://127.0.0.1:44211",
     "device_seed": "seed-1",
     "session_token": "devin-session-token$fixture",
     "type": "devin"
@@ -34,7 +34,7 @@
       "headers": [
         [
           "Host",
-          "127.0.0.1:46197"
+          "127.0.0.1:44211"
         ],
         [
           "Content-Length",
@@ -58,14 +58,14 @@
         ],
         [
           "Sentry-Trace",
-          "2212d8b42a9d183e593c59c9e8f769af-296ce3fbb9715514-1"
+          "17221ea379ec0962ca1880b0c1c9723c-e0966b95105ab653-1"
         ]
       ],
       "body": "",
-      "body_b64": "AAAABAgKsAYKBmNoaXNlbBIKMzAwMC4xMC4yMRobZGV2aW4tc2Vzc2lvbi10b2tlbiRmaXh0dXJlIgJlbioFbGludXg6CjMwMDAuMTAuMjFiBmNoaXNlbPoB3AVkMzU3MTg4YTU3NGM3MmVjMjZhYWU3ODVhZjJhZDhhMjMzZWQzYjAzYjEyNDI1MTljOWFhMTZkOTg2ZjA3NWY3ZjdkMTA4NTk3MmM4MGMzOTVhMWUwYWFjYmYyYjM3Y2ZkMDkzYTQ1M2M0YWU4ZDczYTM5NDUxZjNhMzliZjk0NmM1YTJmMDI4NTBhYmUwOGE1NTYwNWEwY2Q3MzJhYWZjNTg0ZmYzOTA3NjkyM2MxYzQ4ZjIyMzZmMTRlMzg0Yzk0YmUyZjA0NDc5NGEyYzc5MGQ5ZTA4ZTY3NmU0NTExYzdlMzJjMWMzODI3ZjNiNDI2MmY5YTJhNzliZGU5Y2UyMmEwMjBjOWY3MTgxM2Q2OGQ1YTA1MjZjMTdiZDEyZWRmYTY4Y2FiNzA4NjYyMjI1YTVhMTEzZTMyNTVkYzdjYmNkNDJkOGE3Njg0NjM4ZTRkM2ZhNTBhMGVjNTJiNGQ2NTE5N2U3YzdmYzdjNjE4OWVkY2YzNWRkOWI0ZDQzODYyOWVkODYzZGM4NDllNDAyNjExMGEwZGY2MTI1ZDU0MmM0ODMxNDRiZTgzN2VjZjgyMDE2ZjFhYTc1ZTM5YmFlNWRjMGMwMWUyMjJkMGUwNjU1NTdmMWVlZTc3ZWEwMmU1NDBiZjM0ZmYyOWMxNWQ1MjkzYzA0ZmVmNTJhOGVjZjI5N2RjMDNkNGVmOGM5YWRlYmJhMTIxZWM4Nzg1MGU2MzA4OWE4ZGI0NjczNzNjMjNhZmZiMWM0MzU5MGZjNTVlMzFlNDA2Y2M4ZmE2ZDgyZjM5ZGIxZDE0NzU4ZDU2OWYyNjM4YTQ0MTE5YTNhZGZlYTU0YmRkOWE2MDljMTc4OWQwOTNjODU3MDc3ZTQwYzkyZmNlYTFlNGIwYzhhYzRiNjk1MmYxODUzNTY0ZjM5ODc4YzdmYmU2YWExMmM4OTllNTYxMzRhYTBlMTgzYmY2NTgwZGI5OTQ5NGUSCVN0YXkgY2FsbRpECiRlMWIwMTUyMS02ZWZhLTQ2YjktYTBhYy0xZGZlOGU0MGRiNWQQARoaUGFyaXMgY2hhdC1zZW5zaXRpdmUtd29yZHM4BUIdCAEQgOgHGJADKQAAAAAAAPA/OChBAAAAYGZm7j96KgokZjhjNTBmM2UtY2Q2MC01ZTAzLThkY2UtOTg1N2I3MGE0ZTc1GAQgDoIBJGY4YzUwZjNlLWNkNjAtNWUwMy04ZGNlLTk4NTdiNzBhNGU3NaABAaoBCnN3ZS0yLWhpZ2g="
+      "body_b64": "AAAABAgKsAYKBmNoaXNlbBIKMzAwMC4xMC4yMRobZGV2aW4tc2Vzc2lvbi10b2tlbiRmaXh0dXJlIgJlbioFbGludXg6CjMwMDAuMTAuMjFiBmNoaXNlbPoB3AVkMzU3MTg4YTU3NGM3MmVjMjZhYWU3ODVhZjJhZDhhMjMzZWQzYjAzYjEyNDI1MTljOWFhMTZkOTg2ZjA3NWY3ZjdkMTA4NTk3MmM4MGMzOTVhMWUwYWFjYmYyYjM3Y2ZkMDkzYTQ1M2M0YWU4ZDczYTM5NDUxZjNhMzliZjk0NmM1YTJmMDI4NTBhYmUwOGE1NTYwNWEwY2Q3MzJhYWZjNTg0ZmYzOTA3NjkyM2MxYzQ4ZjIyMzZmMTRlMzg0Yzk0YmUyZjA0NDc5NGEyYzc5MGQ5ZTA4ZTY3NmU0NTExYzdlMzJjMWMzODI3ZjNiNDI2MmY5YTJhNzliZGU5Y2UyMmEwMjBjOWY3MTgxM2Q2OGQ1YTA1MjZjMTdiZDEyZWRmYTY4Y2FiNzA4NjYyMjI1YTVhMTEzZTMyNTVkYzdjYmNkNDJkOGE3Njg0NjM4ZTRkM2ZhNTBhMGVjNTJiNGQ2NTE5N2U3YzdmYzdjNjE4OWVkY2YzNWRkOWI0ZDQzODYyOWVkODYzZGM4NDllNDAyNjExMGEwZGY2MTI1ZDU0MmM0ODMxNDRiZTgzN2VjZjgyMDE2ZjFhYTc1ZTM5YmFlNWRjMGMwMWUyMjJkMGUwNjU1NTdmMWVlZTc3ZWEwMmU1NDBiZjM0ZmYyOWMxNWQ1MjkzYzA0ZmVmNTJhOGVjZjI5N2RjMDNkNGVmOGM5YWRlYmJhMTIxZWM4Nzg1MGU2MzA4OWE4ZGI0NjczNzNjMjNhZmZiMWM0MzU5MGZjNTVlMzFlNDA2Y2M4ZmE2ZDgyZjM5ZGIxZDE0NzU4ZDU2OWYyNjM4YTQ0MTE5YTNhZGZlYTU0YmRkOWE2MDljMTc4OWQwOTNjODU3MDc3ZTQwYzkyZmNlYTFlNGIwYzhhYzRiNjk1MmYxODUzNTY0ZjM5ODc4YzdmYmU2YWExMmM4OTllNTYxMzRhYTBlMTgzYmY2NTgwZGI5OTQ5NGUSCVN0YXkgY2FsbRpECiQzZjU3ZGNiNS1jOWE3LTQ0YzctYjlmMi1lZjEwNjY5NTk0NmUQARoaUGFyaXMgY2hhdC1zZW5zaXRpdmUtd29yZHM4BUIdCAEQgOgHGJADKQAAAAAAAPA/OChBAAAAYGZm7j96KgokZjhjNTBmM2UtY2Q2MC01ZTAzLThkY2UtOTg1N2I3MGE0ZTc1GAQgDoIBJGY4YzUwZjNlLWNkNjAtNWUwMy04ZGNlLTk4NTdiNzBhNGU3NaABAaoBCnN3ZS0yLWhpZ2g="
     }
   ],
   "downstream": {
-    "body": "{\"id\":\"interaction_8dab52b2-a04\",\"object\":\"chat.completion\",\"created\":1791014377,\"model\":\"swe-2\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok more\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":5,\"completion_tokens\":2,\"total_tokens\":7,\"prompt_tokens_details\":{\"cached_tokens\":0}}}"
+    "body": "{\"id\":\"interaction_c2799055-617\",\"object\":\"chat.completion\",\"created\":1791016481,\"model\":\"swe-2\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok more\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":5,\"completion_tokens\":2,\"total_tokens\":7,\"prompt_tokens_details\":{\"cached_tokens\":0}}}"
   }
 }

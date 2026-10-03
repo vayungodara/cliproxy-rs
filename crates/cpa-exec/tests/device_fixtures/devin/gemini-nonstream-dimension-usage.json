@@ -2,7 +2,7 @@
   "name": "gemini-nonstream-dimension-usage",
   "credential": {
     "api_key": "devin-session-token$fixture",
-    "base_url": "http://127.0.0.1:37333",
+    "base_url": "http://127.0.0.1:43749",
     "device_seed": "seed-1",
     "session_token": "devin-session-token$fixture",
     "type": "devin"
@@ -33,7 +33,7 @@
       "headers": [
         [
           "Host",
-          "127.0.0.1:37333"
+          "127.0.0.1:43749"
         ],
         [
           "Content-Length",
@@ -57,14 +57,14 @@
         ],
         [
           "Sentry-Trace",
-          "dd084ea739777ce593d18696a5ed8c58-7e62f627eb64708b-1"
+          "43b4d03be1a063713c4bbbcf71be00c7-121a2af45e686ad5-1"
         ]
       ],
       "body": "",
-      "body_b64": "AAAABBEKsAYKBmNoaXNlbBIKMzAwMC4xMC4yMRobZGV2aW4tc2Vzc2lvbi10b2tlbiRmaXh0dXJlIgJlbioFbGludXg6CjMwMDAuMTAuMjFiBmNoaXNlbPoB3AVkMzU3MTg4YTU3NGM3MmVjMjZhYWU3ODVhZjJhZDhhMjMzZWQzYjAzYjEyNDI1MTljOWFhMTZkOTg2ZjA3NWY3ZjdkMTA4NTk3MmM4MGMzOTVhMWUwYWFjYmYyYjM3Y2ZkMDkzYTQ1M2M0YWU4ZDczYTM5NDUxZjNhMzliZjk0NmM1YTJmMDI4NTBhYmUwOGE1NTYwNWEwY2Q3MzJhYWZjNTg0ZmYzOTA3NjkyM2MxYzQ4ZjIyMzZmMTRlMzg0Yzk0YmUyZjA0NDc5NGEyYzc5MGQ5ZTA4ZTY3NmU0NTExYzdlMzJjMWMzODI3ZjNiNDI2MmY5YTJhNzliZGU5Y2UyMmEwMjBjOWY3MTgxM2Q2OGQ1YTA1MjZjMTdiZDEyZWRmYTY4Y2FiNzA4NjYyMjI1YTVhMTEzZTMyNTVkYzdjYmNkNDJkOGE3Njg0NjM4ZTRkM2ZhNTBhMGVjNTJiNGQ2NTE5N2U3YzdmYzdjNjE4OWVkY2YzNWRkOWI0ZDQzODYyOWVkODYzZGM4NDllNDAyNjExMGEwZGY2MTI1ZDU0MmM0ODMxNDRiZTgzN2VjZjgyMDE2ZjFhYTc1ZTM5YmFlNWRjMGMwMWUyMjJkMGUwNjU1NTdmMWVlZTc3ZWEwMmU1NDBiZjM0ZmYyOWMxNWQ1MjkzYzA0ZmVmNTJhOGVjZjI5N2RjMDNkNGVmOGM5YWRlYmJhMTIxZWM4Nzg1MGU2MzA4OWE4ZGI0NjczNzNjMjNhZmZiMWM0MzU5MGZjNTVlMzFlNDA2Y2M4ZmE2ZDgyZjM5ZGIxZDE0NzU4ZDU2OWYyNjM4YTQ0MTE5YTNhZGZlYTU0YmRkOWE2MDljMTc4OWQwOTNjODU3MDc3ZTQwYzkyZmNlYTFlNGIwYzhhYzRiNjk1MmYxODUzNTY0ZjM5ODc4YzdmYmU2YWExMmM4OTllNTYxMzRhYTBlMTgzYmY2NTgwZGI5OTQ5NGUaTQokZmZhNWMyZDctZGUwOC00NjYyLWJhZTItNzEzMTRkOGU5ZDdmEAEaI0hpIGdlbWluaS1ub25zdHJlYW0tZGltZW5zaW9uLXVzYWdlOAVCHQgBEIDoBxiQAymamZmZmZm5PzgoQQAAAGBmZu4/eioKJDgyZWM2ZDA4LTg2YjMtNWUyZS1hYjA1LTE0MmQwYTQ3NTQwNhgEIA6CASQ4MmVjNmQwOC04NmIzLTVlMmUtYWIwNS0xNDJkMGE0NzU0MDagAQGqARVnZW1pbmktMy04LWZsYXNoLWhpZ2g="
+      "body_b64": "AAAABBEKsAYKBmNoaXNlbBIKMzAwMC4xMC4yMRobZGV2aW4tc2Vzc2lvbi10b2tlbiRmaXh0dXJlIgJlbioFbGludXg6CjMwMDAuMTAuMjFiBmNoaXNlbPoB3AVkMzU3MTg4YTU3NGM3MmVjMjZhYWU3ODVhZjJhZDhhMjMzZWQzYjAzYjEyNDI1MTljOWFhMTZkOTg2ZjA3NWY3ZjdkMTA4NTk3MmM4MGMzOTVhMWUwYWFjYmYyYjM3Y2ZkMDkzYTQ1M2M0YWU4ZDczYTM5NDUxZjNhMzliZjk0NmM1YTJmMDI4NTBhYmUwOGE1NTYwNWEwY2Q3MzJhYWZjNTg0ZmYzOTA3NjkyM2MxYzQ4ZjIyMzZmMTRlMzg0Yzk0YmUyZjA0NDc5NGEyYzc5MGQ5ZTA4ZTY3NmU0NTExYzdlMzJjMWMzODI3ZjNiNDI2MmY5YTJhNzliZGU5Y2UyMmEwMjBjOWY3MTgxM2Q2OGQ1YTA1MjZjMTdiZDEyZWRmYTY4Y2FiNzA4NjYyMjI1YTVhMTEzZTMyNTVkYzdjYmNkNDJkOGE3Njg0NjM4ZTRkM2ZhNTBhMGVjNTJiNGQ2NTE5N2U3YzdmYzdjNjE4OWVkY2YzNWRkOWI0ZDQzODYyOWVkODYzZGM4NDllNDAyNjExMGEwZGY2MTI1ZDU0MmM0ODMxNDRiZTgzN2VjZjgyMDE2ZjFhYTc1ZTM5YmFlNWRjMGMwMWUyMjJkMGUwNjU1NTdmMWVlZTc3ZWEwMmU1NDBiZjM0ZmYyOWMxNWQ1MjkzYzA0ZmVmNTJhOGVjZjI5N2RjMDNkNGVmOGM5YWRlYmJhMTIxZWM4Nzg1MGU2MzA4OWE4ZGI0NjczNzNjMjNhZmZiMWM0MzU5MGZjNTVlMzFlNDA2Y2M4ZmE2ZDgyZjM5ZGIxZDE0NzU4ZDU2OWYyNjM4YTQ0MTE5YTNhZGZlYTU0YmRkOWE2MDljMTc4OWQwOTNjODU3MDc3ZTQwYzkyZmNlYTFlNGIwYzhhYzRiNjk1MmYxODUzNTY0ZjM5ODc4YzdmYmU2YWExMmM4OTllNTYxMzRhYTBlMTgzYmY2NTgwZGI5OTQ5NGUaTQokZjkwYTZjNTctNDRhNC00ODFjLTk5MmEtZjU3NmVkYjRmOTU4EAEaI0hpIGdlbWluaS1ub25zdHJlYW0tZGltZW5zaW9uLXVzYWdlOAVCHQgBEIDoBxiQAymamZmZmZm5PzgoQQAAAGBmZu4/eioKJDgyZWM2ZDA4LTg2YjMtNWUyZS1hYjA1LTE0MmQwYTQ3NTQwNhgEIA6CASQ4MmVjNmQwOC04NmIzLTVlMmUtYWIwNS0xNDJkMGE0NzU0MDagAQGqARVnZW1pbmktMy04LWZsYXNoLWhpZ2g="
     }
   ],
   "downstream": {
-    "body": "{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"ok\"}],\"role\":\"model\"},\"index\":0,\"finishReason\":\"STOP\"}],\"modelVersion\":\"gemini-3-flash\",\"responseId\":\"interaction_d257a131-c1f\",\"usageMetadata\":{\"promptTokenCount\":46,\"promptTokensDetails\":[{\"modality\":\"TEXT\",\"tokenCount\":46}],\"candidatesTokenCount\":9,\"totalTokenCount\":55,\"cachedContentTokenCount\":4}}"
+    "body": "{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"ok\"}],\"role\":\"model\"},\"index\":0,\"finishReason\":\"STOP\"}],\"modelVersion\":\"gemini-3-flash\",\"responseId\":\"interaction_a2dbe0d5-e7d\",\"usageMetadata\":{\"promptTokenCount\":46,\"promptTokensDetails\":[{\"modality\":\"TEXT\",\"tokenCount\":46}],\"candidatesTokenCount\":9,\"totalTokenCount\":55,\"cachedContentTokenCount\":4}}"
   }
 }

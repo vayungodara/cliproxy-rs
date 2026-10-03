@@ -2,7 +2,7 @@
   "name": "chat-stream-premature-eof",
   "credential": {
     "api_key": "devin-session-token$fixture",
-    "base_url": "http://127.0.0.1:45887",
+    "base_url": "http://127.0.0.1:34703",
     "device_seed": "seed-1",
     "session_token": "devin-session-token$fixture",
     "type": "devin"
@@ -33,7 +33,7 @@
       "headers": [
         [
           "Host",
-          "127.0.0.1:45887"
+          "127.0.0.1:34703"
         ],
         [
           "Content-Length",
@@ -57,17 +57,17 @@
         ],
         [
           "Sentry-Trace",
-          "015740466e799170b940e30a35ddf2a6-63062dcdec0ae7ec-1"
+          "64604cb2a995438a6a83e7d3a266e2c6-402f7fa8a93db4ba-1"
         ]
       ],
       "body": "",
-      "body_b64": "AAAABgkKsAYKBmNoaXNlbBIKMzAwMC4xMC4yMRobZGV2aW4tc2Vzc2lvbi10b2tlbiRmaXh0dXJlIgJlbioFbGludXg6CjMwMDAuMTAuMjFiBmNoaXNlbPoB3AVkMzU3MTg4YTU3NGM3MmVjMjZhYWU3ODVhZjJhZDhhMjMzZWQzYjAzYjEyNDI1MTljOWFhMTZkOTg2ZjA3NWY3ZjdkMTA4NTk3MmM4MGMzOTVhMWUwYWFjYmYyYjM3Y2ZkMDkzYTQ1M2M0YWU4ZDczYTM5NDUxZjNhMzliZjk0NmM1YTJmMDI4NTBhYmUwOGE1NTYwNWEwY2Q3MzJhYWZjNTg0ZmYzOTA3NjkyM2MxYzQ4ZjIyMzZmMTRlMzg0Yzk0YmUyZjA0NDc5NGEyYzc5MGQ5ZTA4ZTY3NmU0NTExYzdlMzJjMWMzODI3ZjNiNDI2MmY5YTJhNzliZGU5Y2UyMmEwMjBjOWY3MTgxM2Q2OGQ1YTA1MjZjMTdiZDEyZWRmYTY4Y2FiNzA4NjYyMjI1YTVhMTEzZTMyNTVkYzdjYmNkNDJkOGE3Njg0NjM4ZTRkM2ZhNTBhMGVjNTJiNGQ2NTE5N2U3YzdmYzdjNjE4OWVkY2YzNWRkOWI0ZDQzODYyOWVkODYzZGM4NDllNDAyNjExMGEwZGY2MTI1ZDU0MmM0ODMxNDRiZTgzN2VjZjgyMDE2ZjFhYTc1ZTM5YmFlNWRjMGMwMWUyMjJkMGUwNjU1NTdmMWVlZTc3ZWEwMmU1NDBiZjM0ZmYyOWMxNWQ1MjkzYzA0ZmVmNTJhOGVjZjI5N2RjMDNkNGVmOGM5YWRlYmJhMTIxZWM4Nzg1MGU2MzA4OWE4ZGI0NjczNzNjMjNhZmZiMWM0MzU5MGZjNTVlMzFlNDA2Y2M4ZmE2ZDgyZjM5ZGIxZDE0NzU4ZDU2OWYyNjM4YTQ0MTE5YTNhZGZlYTU0YmRkOWE2MDljMTc4OWQwOTNjODU3MDc3ZTQwYzkyZmNlYTFlNGIwYzhhYzRiNjk1MmYxODUzNTY0ZjM5ODc4YzdmYmU2YWExMmM4OTllNTYxMzRhYTBlMTgzYmY2NTgwZGI5OTQ5NGUSH1lvdSBhcmUgaGVscGZ1bC4KS2VlcCBpdCBzaG9ydC4aYAokMjg1YzAzYzEtNjU5OS00YTEyLTlhMWEtMDdiMzdkNDJkYzA4EAEaNldoYXQncyB0aGUgd2VhdGhlciBpbiBQYXJpcz8gY2hhdC1zdHJlYW0tcHJlbWF0dXJlLWVvZhpcCiQwMGE2YjQ3ZS1lNDgwLTQxYWUtYTUwMS1iZDAxMDQ5ZGEwNDgQAhoJQ2hlY2tpbmcuMicKBmNhbGxfYRILZ2V0X3dlYXRoZXIaEHsiY2l0eSI6IlBhcmlzIn0aNwokOTk4ZjljMzItNmI4MS00NjlmLTliOTYtNzk2Y2JjYjViZGIxEAQaBXN1bm55OgZjYWxsX2EacQokZDlkYWY3ZTktNzZjOC00NTU2LThmNWYtYjhkMmUxOGU5OTkyEAEaL1tJbWFnZSAxOiBwYXN0ZWRfaW1hZ2VfMS53ZWJwXQoKVGhhbmtzIDxiPiY8L2I+UhYKCFVrbEdSZz09EgppbWFnZS93ZWJwOAVCHAgBEPQDGJADKTMzMzMzM9M/OChBAAAAYGZm7j9SVQoLZ2V0X3dlYXRoZXISC0dldCB3ZWF0aGVyGjl7InR5cGUiOiJvYmplY3QiLCJwcm9wZXJ0aWVzIjp7ImNpdHkiOnsidHlwZSI6InN0cmluZyJ9fX1SbQoMZXhlY19jb21tYW5kEkpSdW5zIGEgY29tbWFuZCwgcmV0dXJuaW5nIG91dHB1dCBvciBhbiBzZXNzaW9uIElEIGZvciBvbmdvaW5nIGludGVyYWN0aW9uLhoReyJ0eXBlIjoib2JqZWN0In16KgokM2ZiYjgzZGQtZTI2ZS01ZTM5LTk3MmQtNTE3NTA4MzBmNDExGAQgDoIBJDNmYmI4M2RkLWUyNmUtNWUzOS05NzJkLTUxNzUwODMwZjQxMaABAaoBCnN3ZS0yLWhpZ2g="
+      "body_b64": "AAAABgkKsAYKBmNoaXNlbBIKMzAwMC4xMC4yMRobZGV2aW4tc2Vzc2lvbi10b2tlbiRmaXh0dXJlIgJlbioFbGludXg6CjMwMDAuMTAuMjFiBmNoaXNlbPoB3AVkMzU3MTg4YTU3NGM3MmVjMjZhYWU3ODVhZjJhZDhhMjMzZWQzYjAzYjEyNDI1MTljOWFhMTZkOTg2ZjA3NWY3ZjdkMTA4NTk3MmM4MGMzOTVhMWUwYWFjYmYyYjM3Y2ZkMDkzYTQ1M2M0YWU4ZDczYTM5NDUxZjNhMzliZjk0NmM1YTJmMDI4NTBhYmUwOGE1NTYwNWEwY2Q3MzJhYWZjNTg0ZmYzOTA3NjkyM2MxYzQ4ZjIyMzZmMTRlMzg0Yzk0YmUyZjA0NDc5NGEyYzc5MGQ5ZTA4ZTY3NmU0NTExYzdlMzJjMWMzODI3ZjNiNDI2MmY5YTJhNzliZGU5Y2UyMmEwMjBjOWY3MTgxM2Q2OGQ1YTA1MjZjMTdiZDEyZWRmYTY4Y2FiNzA4NjYyMjI1YTVhMTEzZTMyNTVkYzdjYmNkNDJkOGE3Njg0NjM4ZTRkM2ZhNTBhMGVjNTJiNGQ2NTE5N2U3YzdmYzdjNjE4OWVkY2YzNWRkOWI0ZDQzODYyOWVkODYzZGM4NDllNDAyNjExMGEwZGY2MTI1ZDU0MmM0ODMxNDRiZTgzN2VjZjgyMDE2ZjFhYTc1ZTM5YmFlNWRjMGMwMWUyMjJkMGUwNjU1NTdmMWVlZTc3ZWEwMmU1NDBiZjM0ZmYyOWMxNWQ1MjkzYzA0ZmVmNTJhOGVjZjI5N2RjMDNkNGVmOGM5YWRlYmJhMTIxZWM4Nzg1MGU2MzA4OWE4ZGI0NjczNzNjMjNhZmZiMWM0MzU5MGZjNTVlMzFlNDA2Y2M4ZmE2ZDgyZjM5ZGIxZDE0NzU4ZDU2OWYyNjM4YTQ0MTE5YTNhZGZlYTU0YmRkOWE2MDljMTc4OWQwOTNjODU3MDc3ZTQwYzkyZmNlYTFlNGIwYzhhYzRiNjk1MmYxODUzNTY0ZjM5ODc4YzdmYmU2YWExMmM4OTllNTYxMzRhYTBlMTgzYmY2NTgwZGI5OTQ5NGUSH1lvdSBhcmUgaGVscGZ1bC4KS2VlcCBpdCBzaG9ydC4aYAokYmFlMzcxNWUtZDI2NC00MzExLTkwNGItZjgyYzg1ZDRhNmYzEAEaNldoYXQncyB0aGUgd2VhdGhlciBpbiBQYXJpcz8gY2hhdC1zdHJlYW0tcHJlbWF0dXJlLWVvZhpcCiQ3NjgyZTZiNC1lNTBkLTRiMzgtYjM0Yi02YjQ3YzVjODIxNTEQAhoJQ2hlY2tpbmcuMicKBmNhbGxfYRILZ2V0X3dlYXRoZXIaEHsiY2l0eSI6IlBhcmlzIn0aNwokMzZmZTAyM2UtZjI2NS00Y2U0LWIzMWItMzlmMGI0M2FjMjgzEAQaBXN1bm55OgZjYWxsX2EacQokM2I0ODMxYmUtOTZmMS00YmIxLWFhODctY2Q4MDk4MjRkMjgzEAEaL1tJbWFnZSAxOiBwYXN0ZWRfaW1hZ2VfMS53ZWJwXQoKVGhhbmtzIDxiPiY8L2I+UhYKCFVrbEdSZz09EgppbWFnZS93ZWJwOAVCHAgBEPQDGJADKTMzMzMzM9M/OChBAAAAYGZm7j9SVQoLZ2V0X3dlYXRoZXISC0dldCB3ZWF0aGVyGjl7InR5cGUiOiJvYmplY3QiLCJwcm9wZXJ0aWVzIjp7ImNpdHkiOnsidHlwZSI6InN0cmluZyJ9fX1SbQoMZXhlY19jb21tYW5kEkpSdW5zIGEgY29tbWFuZCwgcmV0dXJuaW5nIG91dHB1dCBvciBhbiBzZXNzaW9uIElEIGZvciBvbmdvaW5nIGludGVyYWN0aW9uLhoReyJ0eXBlIjoib2JqZWN0In16KgokM2ZiYjgzZGQtZTI2ZS01ZTM5LTk3MmQtNTE3NTA4MzBmNDExGAQgDoIBJDNmYmI4M2RkLWUyNmUtNWUzOS05NzJkLTUxNzUwODMwZjQxMaABAaoBCnN3ZS0yLWhpZ2g="
     }
   ],
   "downstream": {
     "chunks": [
-      "{\"id\":\"interaction_4f7d5097-c91\",\"object\":\"chat.completion.chunk\",\"created\":1791014377,\"model\":\"swe-2\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\"},\"finish_reason\":null}]}",
-      "{\"id\":\"interaction_4f7d5097-c91\",\"object\":\"chat.completion.chunk\",\"created\":1791014377,\"model\":\"swe-2\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"cut\"},\"finish_reason\":null}]}",
+      "{\"id\":\"interaction_116f5746-df8\",\"object\":\"chat.completion.chunk\",\"created\":1791016481,\"model\":\"swe-2\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\"},\"finish_reason\":null}]}",
+      "{\"id\":\"interaction_116f5746-df8\",\"object\":\"chat.completion.chunk\",\"created\":1791016481,\"model\":\"swe-2\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"cut\"},\"finish_reason\":null}]}",
       "{\"error\":{\"message\":\"devin stream terminated prematurely before EOS trailer\",\"type\":\"server_error\",\"code\":\"stream_truncated\"}}"
     ],
     "err_status": -1,

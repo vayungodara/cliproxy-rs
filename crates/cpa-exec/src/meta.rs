@@ -20,7 +20,7 @@ use std::time::Duration;
 
 use bytes::Bytes;
 use cpa_common::json::{self as gj, Kind};
-use cpa_common::thinking::{RequestThinking, apply_request_thinking, parse_suffix};
+use cpa_common::thinking::{ModelCaps, RequestThinking, apply_request_thinking, parse_suffix};
 use cpa_core::config::Config;
 use cpa_core::credential::{Credential, MetadataPatch, Source};
 use cpa_core::exec::{ExecError, ExecRequest, ExecResponse, ExecStream, FailureScope, Operation, ResponseBody};
@@ -306,9 +306,8 @@ fn prepare(req: &ExecRequest, cfg: &Config, stream: bool) -> Result<Prepared, Ex
     }
     let base_model = parse_suffix(&req.model).model_name;
     // Go: helps.TranslateRequestWithAPIKeyModelCompatibility with APIKeyModelIsCompat.
-    // ponytail: the attempt's resolved API-key model (Go ResolvedModelInfo) is not on
-    // ExecRequest yet, so is-compat models translate like any other.
-    let client = crate::codex_client::Client::new(&req.headers, cfg, "", false);
+    let is_compat = req.resolved_model.as_ref().is_some_and(|r| r.is_compat());
+    let client = crate::codex_client::Client::new(&req.headers, cfg, "", is_compat);
     let translate = |body: &[u8]| {
         crate::codex_client::translate_request(
             req.source_format,
@@ -323,6 +322,8 @@ fn prepare(req: &ExecRequest, cfg: &Config, stream: bool) -> Result<Prepared, Ex
         .map_err(|e| ExecError::local(400, FailureScope::Request, e.0))
     };
     let mut body = translate(&req.body)?;
+    // Go `cliproxyauth.ResolvedModelInfo`: capabilities bound to this attempt.
+    let caps = req.resolved_model.as_ref().map(|r| ModelCaps::from(&r.info));
     // Go translates the original request too, for payload-rule defaults.
     let original_translated = translate(original(req))?;
     let thinking = apply_request_thinking(&RequestThinking {
@@ -333,9 +334,7 @@ fn prepare(req: &ExecRequest, cfg: &Config, stream: bool) -> Result<Prepared, Ex
         from: req.source_format.as_str(),
         to: "codex",
         provider: PROVIDER,
-        // ponytail: API-key model capabilities bound by the scheduler (Go
-        // ResolvedModelInfo) are not on ExecRequest; the registry lookup applies.
-        resolved: None,
+        resolved: caps.as_ref().map(Some),
         has_request_transformer,
         updates_changed: false,
     })

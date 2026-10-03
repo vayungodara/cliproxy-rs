@@ -2,7 +2,7 @@
   "name": "interactions-nonstream",
   "credential": {
     "api_key": "devin-session-token$fixture",
-    "base_url": "http://127.0.0.1:34071",
+    "base_url": "http://127.0.0.1:36581",
     "device_seed": "seed-1",
     "session_token": "devin-session-token$fixture",
     "type": "devin"
@@ -33,7 +33,7 @@
       "headers": [
         [
           "Host",
-          "127.0.0.1:34071"
+          "127.0.0.1:36581"
         ],
         [
           "Content-Length",
@@ -57,14 +57,14 @@
         ],
         [
           "Sentry-Trace",
-          "3f3bc016ef883023206358ce563ffc45-0ee6b78eee805803-1"
+          "6eeb67af3f22f369831c6c67e9494dca-b3772617c1697c7b-1"
         ]
       ],
       "body": "",
-      "body_b64": "AAAABa4KsAYKBmNoaXNlbBIKMzAwMC4xMC4yMRobZGV2aW4tc2Vzc2lvbi10b2tlbiRmaXh0dXJlIgJlbioFbGludXg6CjMwMDAuMTAuMjFiBmNoaXNlbPoB3AVkMzU3MTg4YTU3NGM3MmVjMjZhYWU3ODVhZjJhZDhhMjMzZWQzYjAzYjEyNDI1MTljOWFhMTZkOTg2ZjA3NWY3ZjdkMTA4NTk3MmM4MGMzOTVhMWUwYWFjYmYyYjM3Y2ZkMDkzYTQ1M2M0YWU4ZDczYTM5NDUxZjNhMzliZjk0NmM1YTJmMDI4NTBhYmUwOGE1NTYwNWEwY2Q3MzJhYWZjNTg0ZmYzOTA3NjkyM2MxYzQ4ZjIyMzZmMTRlMzg0Yzk0YmUyZjA0NDc5NGEyYzc5MGQ5ZTA4ZTY3NmU0NTExYzdlMzJjMWMzODI3ZjNiNDI2MmY5YTJhNzliZGU5Y2UyMmEwMjBjOWY3MTgxM2Q2OGQ1YTA1MjZjMTdiZDEyZWRmYTY4Y2FiNzA4NjYyMjI1YTVhMTEzZTMyNTVkYzdjYmNkNDJkOGE3Njg0NjM4ZTRkM2ZhNTBhMGVjNTJiNGQ2NTE5N2U3YzdmYzdjNjE4OWVkY2YzNWRkOWI0ZDQzODYyOWVkODYzZGM4NDllNDAyNjExMGEwZGY2MTI1ZDU0MmM0ODMxNDRiZTgzN2VjZjgyMDE2ZjFhYTc1ZTM5YmFlNWRjMGMwMWUyMjJkMGUwNjU1NTdmMWVlZTc3ZWEwMmU1NDBiZjM0ZmYyOWMxNWQ1MjkzYzA0ZmVmNTJhOGVjZjI5N2RjMDNkNGVmOGM5YWRlYmJhMTIxZWM4Nzg1MGU2MzA4OWE4ZGI0NjczNzNjMjNhZmZiMWM0MzU5MGZjNTVlMzFlNDA2Y2M4ZmE2ZDgyZjM5ZGIxZDE0NzU4ZDU2OWYyNjM4YTQ0MTE5YTNhZGZlYTU0YmRkOWE2MDljMTc4OWQwOTNjODU3MDc3ZTQwYzkyZmNlYTFlNGIwYzhhYzRiNjk1MmYxODUzNTY0ZjM5ODc4YzdmYmU2YWExMmM4OTllNTYxMzRhYTBlMTgzYmY2NTgwZGI5OTQ5NGUSIUJlIGhlbHBmdWwgaW50ZXJhY3Rpb25zLW5vbnN0cmVhbRovCiQxNjk2YjBlMi1mMzM3LTRkYjItYjQ3MC0yOWNmYmU1OTc4MGQQARoFaGVsbG8aYwokMmY5ZDY2NzAtNTdkNi00ZTYxLTlkMjItZTIxYjc4ZGYwZjI1EAIaAmhpMhkKBGZjXzESA3J1bhoMeyJjbWQiOiJscyJ9Wglwb25kZXJpbmdiBmdBQUFBQpIBBm9wZW5haRo1CiQxYTIwNjhlYy1jYTRmLTQ4ODItYTg2OC1iMDhjNzI0OWQzYmYQBBoFYS50eHQ6BGZjXzEaLgokMGRjZGY0YjMtNWY1Mi00MDFiLWI4YzctYWE5ZDFkMjRmNmQyEAEaBGxvc3QaLAokYzlmNDA5NTgtMWU4MC00ZmZmLTlkZmQtYWZmOWU3MjA0NDgzEAEaAnt9Gi4KJDFmN2Q3YzQ1LWRiNDktNGY1ZS05M2Q1LWQ5YmI1NGZkMzE2ZBABGgRuZXh0OAVCHQgBEIDoBxiQAylmZmZmZmbmPzgoQQAAAGBmZu4/Uh0KA3J1bhIDUnVuGhF7InR5cGUiOiJvYmplY3QifVJKCgZkZWNsX2ESLVRha2VzIGEgdGFza0lkIHBhcmFtZXRlciBpZGVudGlmeWluZyB0aGUgdGFzaxoReyJ0eXBlIjoib2JqZWN0In1SDAoEb3BlbhIET3BlbnoqCiQ5ZGEzNzcxMS03YmExLTU4ZTktOTBiOC00MzI1ZmUzM2VhZTUYBCAOggEkOWRhMzc3MTEtN2JhMS01OGU5LTkwYjgtNDMyNWZlMzNlYWU1oAEBqgEKc3dlLTItaGlnaA=="
+      "body_b64": "AAAABa4KsAYKBmNoaXNlbBIKMzAwMC4xMC4yMRobZGV2aW4tc2Vzc2lvbi10b2tlbiRmaXh0dXJlIgJlbioFbGludXg6CjMwMDAuMTAuMjFiBmNoaXNlbPoB3AVkMzU3MTg4YTU3NGM3MmVjMjZhYWU3ODVhZjJhZDhhMjMzZWQzYjAzYjEyNDI1MTljOWFhMTZkOTg2ZjA3NWY3ZjdkMTA4NTk3MmM4MGMzOTVhMWUwYWFjYmYyYjM3Y2ZkMDkzYTQ1M2M0YWU4ZDczYTM5NDUxZjNhMzliZjk0NmM1YTJmMDI4NTBhYmUwOGE1NTYwNWEwY2Q3MzJhYWZjNTg0ZmYzOTA3NjkyM2MxYzQ4ZjIyMzZmMTRlMzg0Yzk0YmUyZjA0NDc5NGEyYzc5MGQ5ZTA4ZTY3NmU0NTExYzdlMzJjMWMzODI3ZjNiNDI2MmY5YTJhNzliZGU5Y2UyMmEwMjBjOWY3MTgxM2Q2OGQ1YTA1MjZjMTdiZDEyZWRmYTY4Y2FiNzA4NjYyMjI1YTVhMTEzZTMyNTVkYzdjYmNkNDJkOGE3Njg0NjM4ZTRkM2ZhNTBhMGVjNTJiNGQ2NTE5N2U3YzdmYzdjNjE4OWVkY2YzNWRkOWI0ZDQzODYyOWVkODYzZGM4NDllNDAyNjExMGEwZGY2MTI1ZDU0MmM0ODMxNDRiZTgzN2VjZjgyMDE2ZjFhYTc1ZTM5YmFlNWRjMGMwMWUyMjJkMGUwNjU1NTdmMWVlZTc3ZWEwMmU1NDBiZjM0ZmYyOWMxNWQ1MjkzYzA0ZmVmNTJhOGVjZjI5N2RjMDNkNGVmOGM5YWRlYmJhMTIxZWM4Nzg1MGU2MzA4OWE4ZGI0NjczNzNjMjNhZmZiMWM0MzU5MGZjNTVlMzFlNDA2Y2M4ZmE2ZDgyZjM5ZGIxZDE0NzU4ZDU2OWYyNjM4YTQ0MTE5YTNhZGZlYTU0YmRkOWE2MDljMTc4OWQwOTNjODU3MDc3ZTQwYzkyZmNlYTFlNGIwYzhhYzRiNjk1MmYxODUzNTY0ZjM5ODc4YzdmYmU2YWExMmM4OTllNTYxMzRhYTBlMTgzYmY2NTgwZGI5OTQ5NGUSIUJlIGhlbHBmdWwgaW50ZXJhY3Rpb25zLW5vbnN0cmVhbRovCiRmNjhmNzY4ZS0zMjUxLTQ1MWItODNhOC0yMWI1OTFiZThiMjcQARoFaGVsbG8aYwokOWExZjFlMzctMWZmMy00MDc1LTg5OTItNDlkZTNhMmMzNjI5EAIaAmhpMhkKBGZjXzESA3J1bhoMeyJjbWQiOiJscyJ9Wglwb25kZXJpbmdiBmdBQUFBQpIBBm9wZW5haRo1CiQ4OWVkODVhMS1jNzdlLTQzOTktYTg2NC00MTBhYjJiNTE0NjkQBBoFYS50eHQ6BGZjXzEaLgokMTFlNDRiYmQtMWIzMi00MDA3LTg2OTItZGE4MTEzMTA0ZDRjEAEaBGxvc3QaLAokZTAxOWY5NzgtMmNhMi00YTlmLWI4NzMtOWFmMzYxMzk3YTMzEAEaAnt9Gi4KJDlmM2U4NDFiLWM1Y2QtNGEwMy1hZTQ3LTQwODk5NTgzMTc2NRABGgRuZXh0OAVCHQgBEIDoBxiQAylmZmZmZmbmPzgoQQAAAGBmZu4/Uh0KA3J1bhIDUnVuGhF7InR5cGUiOiJvYmplY3QifVJKCgZkZWNsX2ESLVRha2VzIGEgdGFza0lkIHBhcmFtZXRlciBpZGVudGlmeWluZyB0aGUgdGFzaxoReyJ0eXBlIjoib2JqZWN0In1SDAoEb3BlbhIET3BlbnoqCiQ5ZGEzNzcxMS03YmExLTU4ZTktOTBiOC00MzI1ZmUzM2VhZTUYBCAOggEkOWRhMzc3MTEtN2JhMS01OGU5LTkwYjgtNDMyNWZlMzNlYWU1oAEBqgEKc3dlLTItaGlnaA=="
     }
   ],
   "downstream": {
-    "body": "{\"id\":\"interaction_e3ced66e-35c\",\"model\":\"devin/swe-2\",\"status\":\"completed\",\"steps\":[{\"type\":\"thought\",\"content\":[{\"type\":\"text\",\"text\":\"Let me think café.\"}],\"signature\":\"sig-part-1|sig-part-2\",\"thought_signature\":\"sig-part-1|sig-part-2\"},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"Answer: \"}]},{\"type\":\"function_call\",\"name\":\"get_weather\",\"id\":\"call_1\",\"call_id\":\"call_1\",\"arguments\":{\"city\":\"Paris\"}},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"Done.\"}]}],\"usage\":{\"total_input_tokens\":14,\"total_output_tokens\":7,\"total_cached_tokens\":3,\"cache_write_tokens\":2,\"total_tokens\":21}}"
+    "body": "{\"id\":\"interaction_b1f0ce71-194\",\"model\":\"devin/swe-2\",\"status\":\"completed\",\"steps\":[{\"type\":\"thought\",\"content\":[{\"type\":\"text\",\"text\":\"Let me think café.\"}],\"signature\":\"sig-part-1|sig-part-2\",\"thought_signature\":\"sig-part-1|sig-part-2\"},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"Answer: \"}]},{\"type\":\"function_call\",\"name\":\"get_weather\",\"id\":\"call_1\",\"call_id\":\"call_1\",\"arguments\":{\"city\":\"Paris\"}},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"Done.\"}]}],\"usage\":{\"total_input_tokens\":14,\"total_output_tokens\":7,\"total_cached_tokens\":3,\"cache_write_tokens\":2,\"total_tokens\":21}}"
   }
 }

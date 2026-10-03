@@ -2,7 +2,7 @@
   "name": "count-tokens",
   "credential": {
     "api_key": "devin-session-token$fixture",
-    "base_url": "http://127.0.0.1:46363",
+    "base_url": "http://127.0.0.1:43545",
     "device_seed": "seed-1",
     "session_token": "devin-session-token$fixture",
     "type": "devin"

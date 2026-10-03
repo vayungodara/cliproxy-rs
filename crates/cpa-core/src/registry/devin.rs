@@ -257,16 +257,8 @@ impl Model {
             }
         }
         strings(&mut out, "supported_parameters", &self.supported_parameters);
-        strings(
-            &mut out,
-            "supportedInputModalities",
-            &self.supported_input_modalities,
-        );
-        strings(
-            &mut out,
-            "supportedOutputModalities",
-            &self.supported_output_modalities,
-        );
+        strings(&mut out, "supportedInputModalities", &self.supported_input_modalities);
+        strings(&mut out, "supportedOutputModalities", &self.supported_output_modalities);
         if self.supports_web_search {
             out.insert("supports_web_search".into(), true.into());
         }
@@ -381,14 +373,7 @@ fn static_list() -> Vec<Model> {
             64_000,
             &["low", "medium", "high", "xhigh", "max"],
         ),
-        static_model(
-            "devin/glm-5-2",
-            "zhipu",
-            "GLM-5.2",
-            200_000,
-            64_000,
-            &["none", "high"],
-        ),
+        static_model("devin/glm-5-2", "zhipu", "GLM-5.2", 200_000, 64_000, &["none", "high"]),
         static_model(
             "devin/glm-5-3",
             "zhipu",
@@ -628,18 +613,9 @@ fn aggregate(models: Vec<Model>) -> Vec<Model> {
         entry.max_completion_tokens = entry.max_completion_tokens.max(m.max_completion_tokens);
         entry.input_token_limit = entry.input_token_limit.max(m.input_token_limit);
         entry.output_token_limit = entry.output_token_limit.max(m.output_token_limit);
-        push_unique(
-            &mut entry.supported_input_modalities,
-            &m.supported_input_modalities,
-        );
-        push_unique(
-            &mut entry.supported_output_modalities,
-            &m.supported_output_modalities,
-        );
-        push_unique(
-            &mut entry.supported_generation_methods,
-            &m.supported_generation_methods,
-        );
+        push_unique(&mut entry.supported_input_modalities, &m.supported_input_modalities);
+        push_unique(&mut entry.supported_output_modalities, &m.supported_output_modalities);
+        push_unique(&mut entry.supported_generation_methods, &m.supported_generation_methods);
         if let Some(thinking) = &m.thinking {
             for l in &thinking.levels {
                 if !l.is_empty() && l != "priority" && !levels.contains(l) {

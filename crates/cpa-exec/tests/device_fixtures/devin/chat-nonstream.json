@@ -2,7 +2,7 @@
   "name": "chat-nonstream",
   "credential": {
     "api_key": "devin-session-token$fixture",
-    "base_url": "http://127.0.0.1:38099",
+    "base_url": "http://127.0.0.1:43557",
     "device_seed": "seed-1",
     "session_token": "devin-session-token$fixture",
     "type": "devin"
@@ -33,7 +33,7 @@
       "headers": [
         [
           "Host",
-          "127.0.0.1:38099"
+          "127.0.0.1:43557"
         ],
         [
           "Content-Length",
@@ -57,14 +57,14 @@
         ],
         [
           "Sentry-Trace",
-          "703b82e98a6cecd9f536bd0ad18870e4-dfc4013fa3d2755b-1"
+          "f97e816b9b18ab7c2f459232625b51f9-e0dcf5186ad3b911-1"
         ]
       ],
       "body": "",
-      "body_b64": "AAAABf4KsAYKBmNoaXNlbBIKMzAwMC4xMC4yMRobZGV2aW4tc2Vzc2lvbi10b2tlbiRmaXh0dXJlIgJlbioFbGludXg6CjMwMDAuMTAuMjFiBmNoaXNlbPoB3AVkMzU3MTg4YTU3NGM3MmVjMjZhYWU3ODVhZjJhZDhhMjMzZWQzYjAzYjEyNDI1MTljOWFhMTZkOTg2ZjA3NWY3ZjdkMTA4NTk3MmM4MGMzOTVhMWUwYWFjYmYyYjM3Y2ZkMDkzYTQ1M2M0YWU4ZDczYTM5NDUxZjNhMzliZjk0NmM1YTJmMDI4NTBhYmUwOGE1NTYwNWEwY2Q3MzJhYWZjNTg0ZmYzOTA3NjkyM2MxYzQ4ZjIyMzZmMTRlMzg0Yzk0YmUyZjA0NDc5NGEyYzc5MGQ5ZTA4ZTY3NmU0NTExYzdlMzJjMWMzODI3ZjNiNDI2MmY5YTJhNzliZGU5Y2UyMmEwMjBjOWY3MTgxM2Q2OGQ1YTA1MjZjMTdiZDEyZWRmYTY4Y2FiNzA4NjYyMjI1YTVhMTEzZTMyNTVkYzdjYmNkNDJkOGE3Njg0NjM4ZTRkM2ZhNTBhMGVjNTJiNGQ2NTE5N2U3YzdmYzdjNjE4OWVkY2YzNWRkOWI0ZDQzODYyOWVkODYzZGM4NDllNDAyNjExMGEwZGY2MTI1ZDU0MmM0ODMxNDRiZTgzN2VjZjgyMDE2ZjFhYTc1ZTM5YmFlNWRjMGMwMWUyMjJkMGUwNjU1NTdmMWVlZTc3ZWEwMmU1NDBiZjM0ZmYyOWMxNWQ1MjkzYzA0ZmVmNTJhOGVjZjI5N2RjMDNkNGVmOGM5YWRlYmJhMTIxZWM4Nzg1MGU2MzA4OWE4ZGI0NjczNzNjMjNhZmZiMWM0MzU5MGZjNTVlMzFlNDA2Y2M4ZmE2ZDgyZjM5ZGIxZDE0NzU4ZDU2OWYyNjM4YTQ0MTE5YTNhZGZlYTU0YmRkOWE2MDljMTc4OWQwOTNjODU3MDc3ZTQwYzkyZmNlYTFlNGIwYzhhYzRiNjk1MmYxODUzNTY0ZjM5ODc4YzdmYmU2YWExMmM4OTllNTYxMzRhYTBlMTgzYmY2NTgwZGI5OTQ5NGUSH1lvdSBhcmUgaGVscGZ1bC4KS2VlcCBpdCBzaG9ydC4aVQokZjg2ZmM2NjMtNDFkMi00NTBlLWFjM2MtZWQwZjk4YzNjNTJlEAEaK1doYXQncyB0aGUgd2VhdGhlciBpbiBQYXJpcz8gY2hhdC1ub25zdHJlYW0aXAokYTdhZjFjYzAtMTUxMS00OTc4LWE5NzYtZTNkNGEzOTY0NzYxEAIaCUNoZWNraW5nLjInCgZjYWxsX2ESC2dldF93ZWF0aGVyGhB7ImNpdHkiOiJQYXJpcyJ9GjcKJDY3OWUzMjBmLTQxNmQtNDJmYy04NDdmLTg0OGUwNDNlMjE4MRAEGgVzdW5ueToGY2FsbF9hGnEKJGE4Y2Y4NGZkLWZkY2EtNGMxOC1hMTNmLTQwYmI4NWNiMmJkZRABGi9bSW1hZ2UgMTogcGFzdGVkX2ltYWdlXzEud2VicF0KClRoYW5rcyA8Yj4mPC9iPlIWCghVa2xHUmc9PRIKaW1hZ2Uvd2VicDgFQhwIARD0AxiQAykzMzMzMzPTPzgoQQAAAGBmZu4/UlUKC2dldF93ZWF0aGVyEgtHZXQgd2VhdGhlcho5eyJ0eXBlIjoib2JqZWN0IiwicHJvcGVydGllcyI6eyJjaXR5Ijp7InR5cGUiOiJzdHJpbmcifX19Um0KDGV4ZWNfY29tbWFuZBJKUnVucyBhIGNvbW1hbmQsIHJldHVybmluZyBvdXRwdXQgb3IgYW4gc2Vzc2lvbiBJRCBmb3Igb25nb2luZyBpbnRlcmFjdGlvbi4aEXsidHlwZSI6Im9iamVjdCJ9eioKJDliMmNjZDQ4LTU5YzItNWQzOS1iNmE2LTMzYmMwNjdhYzI3NhgEIA6CASQ5YjJjY2Q0OC01OWMyLTVkMzktYjZhNi0zM2JjMDY3YWMyNzagAQGqAQpzd2UtMi1oaWdo"
+      "body_b64": "AAAABf4KsAYKBmNoaXNlbBIKMzAwMC4xMC4yMRobZGV2aW4tc2Vzc2lvbi10b2tlbiRmaXh0dXJlIgJlbioFbGludXg6CjMwMDAuMTAuMjFiBmNoaXNlbPoB3AVkMzU3MTg4YTU3NGM3MmVjMjZhYWU3ODVhZjJhZDhhMjMzZWQzYjAzYjEyNDI1MTljOWFhMTZkOTg2ZjA3NWY3ZjdkMTA4NTk3MmM4MGMzOTVhMWUwYWFjYmYyYjM3Y2ZkMDkzYTQ1M2M0YWU4ZDczYTM5NDUxZjNhMzliZjk0NmM1YTJmMDI4NTBhYmUwOGE1NTYwNWEwY2Q3MzJhYWZjNTg0ZmYzOTA3NjkyM2MxYzQ4ZjIyMzZmMTRlMzg0Yzk0YmUyZjA0NDc5NGEyYzc5MGQ5ZTA4ZTY3NmU0NTExYzdlMzJjMWMzODI3ZjNiNDI2MmY5YTJhNzliZGU5Y2UyMmEwMjBjOWY3MTgxM2Q2OGQ1YTA1MjZjMTdiZDEyZWRmYTY4Y2FiNzA4NjYyMjI1YTVhMTEzZTMyNTVkYzdjYmNkNDJkOGE3Njg0NjM4ZTRkM2ZhNTBhMGVjNTJiNGQ2NTE5N2U3YzdmYzdjNjE4OWVkY2YzNWRkOWI0ZDQzODYyOWVkODYzZGM4NDllNDAyNjExMGEwZGY2MTI1ZDU0MmM0ODMxNDRiZTgzN2VjZjgyMDE2ZjFhYTc1ZTM5YmFlNWRjMGMwMWUyMjJkMGUwNjU1NTdmMWVlZTc3ZWEwMmU1NDBiZjM0ZmYyOWMxNWQ1MjkzYzA0ZmVmNTJhOGVjZjI5N2RjMDNkNGVmOGM5YWRlYmJhMTIxZWM4Nzg1MGU2MzA4OWE4ZGI0NjczNzNjMjNhZmZiMWM0MzU5MGZjNTVlMzFlNDA2Y2M4ZmE2ZDgyZjM5ZGIxZDE0NzU4ZDU2OWYyNjM4YTQ0MTE5YTNhZGZlYTU0YmRkOWE2MDljMTc4OWQwOTNjODU3MDc3ZTQwYzkyZmNlYTFlNGIwYzhhYzRiNjk1MmYxODUzNTY0ZjM5ODc4YzdmYmU2YWExMmM4OTllNTYxMzRhYTBlMTgzYmY2NTgwZGI5OTQ5NGUSH1lvdSBhcmUgaGVscGZ1bC4KS2VlcCBpdCBzaG9ydC4aVQokNjkxZGZlMTEtZWM3OC00MzYxLWFlZmQtMTAxNDc5MjYyNDczEAEaK1doYXQncyB0aGUgd2VhdGhlciBpbiBQYXJpcz8gY2hhdC1ub25zdHJlYW0aXAokOGY1ODgyZmQtNWEzZS00MGU4LWFkYzctNTg3YmQyOWZiNmM4EAIaCUNoZWNraW5nLjInCgZjYWxsX2ESC2dldF93ZWF0aGVyGhB7ImNpdHkiOiJQYXJpcyJ9GjcKJDZmMzdhNjY2LTFmYWItNDBjZC1iOWFhLTFmYTA5NzBhNzZmNhAEGgVzdW5ueToGY2FsbF9hGnEKJDEzYWQ1NmY1LWY2ZmItNDA0Ni1iMTliLTlmZGM0YjE1ZWM3YRABGi9bSW1hZ2UgMTogcGFzdGVkX2ltYWdlXzEud2VicF0KClRoYW5rcyA8Yj4mPC9iPlIWCghVa2xHUmc9PRIKaW1hZ2Uvd2VicDgFQhwIARD0AxiQAykzMzMzMzPTPzgoQQAAAGBmZu4/UlUKC2dldF93ZWF0aGVyEgtHZXQgd2VhdGhlcho5eyJ0eXBlIjoib2JqZWN0IiwicHJvcGVydGllcyI6eyJjaXR5Ijp7InR5cGUiOiJzdHJpbmcifX19Um0KDGV4ZWNfY29tbWFuZBJKUnVucyBhIGNvbW1hbmQsIHJldHVybmluZyBvdXRwdXQgb3IgYW4gc2Vzc2lvbiBJRCBmb3Igb25nb2luZyBpbnRlcmFjdGlvbi4aEXsidHlwZSI6Im9iamVjdCJ9eioKJDliMmNjZDQ4LTU5YzItNWQzOS1iNmE2LTMzYmMwNjdhYzI3NhgEIA6CASQ5YjJjY2Q0OC01OWMyLTVkMzktYjZhNi0zM2JjMDY3YWMyNzagAQGqAQpzd2UtMi1oaWdo"
     }
   ],
   "downstream": {
-    "body": "{\"id\":\"interaction_27e3ff4a-69e\",\"object\":\"chat.completion\",\"created\":1791014376,\"model\":\"swe-2\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":null,\"reasoning_content\":\"Let me think café.\",\"tool_calls\":[{\"id\":\"call_1\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"{\\\"city\\\":\\\"Paris\\\"}\"}}]},\"finish_reason\":\"tool_calls\"}],\"usage\":{\"prompt_tokens\":14,\"completion_tokens\":7,\"total_tokens\":21,\"prompt_tokens_details\":{\"cached_tokens\":3}}}"
+    "body": "{\"id\":\"interaction_55d65b02-130\",\"object\":\"chat.completion\",\"created\":1791016481,\"model\":\"swe-2\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":null,\"reasoning_content\":\"Let me think café.\",\"tool_calls\":[{\"id\":\"call_1\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"{\\\"city\\\":\\\"Paris\\\"}\"}}]},\"finish_reason\":\"tool_calls\"}],\"usage\":{\"prompt_tokens\":14,\"completion_tokens\":7,\"total_tokens\":21,\"prompt_tokens_details\":{\"cached_tokens\":3}}}"
   }
 }

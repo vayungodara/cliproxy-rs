@@ -101,6 +101,23 @@ func dvRichFrames() [][]byte {
 	}
 }
 
+// Ordering: content and tool calls buffered while thinking, a late signature, a new
+// thought that flushes the buffer, a tool name arriving after its ID, invalid JSON args.
+func dvOrderingFrames() [][]byte {
+	return [][]byte{
+		dvData(pbS(9, "plan")),
+		dvData(pbS(3, "Hi")),
+		dvData(pbB(10, []byte("sig-late")), pbS(21, "openai")),
+		dvData(dvTool("c1", "", `{"a"`)),
+		dvData(pbS(9, "more")),
+		dvData(dvTool("c1", "fn", `:1}`)),
+		dvData(pbB(6, pbMsg(pbS(1, "c2"), pbS(2, "g"), pbS(4, "bad{")))),
+		dvData(pbS(3, "end")),
+		dvData(dvUsage(3, 4, 0, 0, "m"), pbV(5, 10)),
+		dvEOS("{}"),
+	}
+}
+
 func dvPlainFrames(text string) [][]byte {
 	return [][]byte{
 		dvData(pbS(3, text)),
@@ -195,6 +212,9 @@ func TestRSFixDevin(t *testing.T) {
 			responses: []rsfixResponse{dvResp(dvPlainFrames("hi")...)}},
 		{name: "turn-index-repeat", source: sdktranslator.FormatInteractions, model: "devin/swe-1-6", body: interactions, repeat: 2,
 			responses: []rsfixResponse{dvResp(dvPlainFrames("a")...), dvResp(dvPlainFrames("b")...)}},
+		{name: "interactions-stream-ordering", source: sdktranslator.FormatInteractions, model: "devin/swe-2", body: interactions, stream: true, responses: []rsfixResponse{dvResp(dvOrderingFrames()...)}},
+		{name: "responses-stream-ordering", source: sdktranslator.FormatOpenAIResponse, model: "glm-5-3", body: responses, stream: true, responses: []rsfixResponse{dvResp(dvOrderingFrames()...)}},
+		{name: "interactions-nonstream-ordering", source: sdktranslator.FormatInteractions, model: "devin/swe-2", body: interactions, responses: []rsfixResponse{dvResp(dvOrderingFrames()...)}},
 		{name: "count-tokens", source: sdktranslator.FormatOpenAI, model: "swe-2", body: chat, count: true},
 		{name: "missing-credentials", source: sdktranslator.FormatOpenAI, model: "swe-2", body: chat, meta: map[string]any{"type": "devin"}},
 	}

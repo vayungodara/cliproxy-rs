@@ -242,7 +242,7 @@ pub(crate) fn expiration(credential: &Credential) -> Option<DateTime<Utc>> {
     jwt_exp(token).or_else(|| expiration_from_map(&credential.metadata))
 }
 
-fn last_refresh(credential: &Credential) -> Option<DateTime<Utc>> {
+pub(crate) fn last_refresh(credential: &Credential) -> Option<DateTime<Utc>> {
     ["last_refresh", "lastRefresh", "last_refreshed_at", "lastRefreshedAt"]
         .iter()
         .find_map(|k| credential.metadata.get(*k).and_then(parse_time))
@@ -258,7 +258,7 @@ fn last_refresh(credential: &Credential) -> Option<DateTime<Utc>> {
         })
 }
 
-fn preferred_interval(credential: &Credential) -> Option<chrono::Duration> {
+pub(crate) fn preferred_interval(credential: &Credential) -> Option<chrono::Duration> {
     const KEYS: [&str; 4] = [
         "refresh_interval_seconds",
         "refreshIntervalSeconds",
