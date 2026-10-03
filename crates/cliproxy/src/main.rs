@@ -92,11 +92,11 @@ fn listen(domain: Domain, addr: SocketAddr, dual_stack: bool) -> io::Result<std:
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    tracing_subscriber::fmt()
-        .with_env_filter(tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()))
-        .init();
+    cpa_server::logging::init();
     let args = Args::parse_from(go_style_args());
     let config = Config::load(&args.config).with_context(|| format!("reading {}", args.config.display()))?;
+    // Go ConfigureLogOutput and SetLogLevel, before any login command.
+    cpa_server::logging::configure(&config);
     if args.claude_login {
         let options = cpa_exec::claude_login::LoginOptions {
             no_browser: args.no_browser,

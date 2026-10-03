@@ -22,6 +22,7 @@ use crate::scheduler::{ErrorRule, Policy};
 mod access;
 mod api_call;
 mod auth_files;
+mod logs;
 mod multipart;
 mod oauth;
 pub mod observability;
@@ -47,6 +48,8 @@ pub struct Management {
     /// Callback forwarders by port (Go `callbackForwarders`).
     pub(crate) forwarders: Mutex<std::collections::HashMap<u16, oauth::Forwarder>>,
     pub(crate) login_base: Option<String>,
+    /// Go `Handler.logDir`: resolved once at startup.
+    pub(crate) log_dir: PathBuf,
     access: access::Access,
 }
 
@@ -60,6 +63,8 @@ pub struct Options {
     pub latest_release_url: Option<String>,
     /// One local base URL for every provider's login endpoints (tests only).
     pub login_base: Option<String>,
+    /// Overrides the log directory Go resolves at startup (tests only).
+    pub log_dir: Option<PathBuf>,
 }
 
 impl Management {
@@ -77,6 +82,10 @@ impl Management {
             .clone()
             .unwrap_or_else(|| observability::LATEST_RELEASE_URL.to_owned());
         let login_base = options.login_base.clone();
+        let log_dir = options
+            .log_dir
+            .clone()
+            .unwrap_or_else(|| crate::logging::resolve_log_dir(&cfg));
         let access = access::Access::new(&cfg, options);
         rt.usage_queue().configure(access.available(), &cfg);
         let state = Arc::new(Self {
@@ -91,6 +100,7 @@ impl Management {
             oauth: oauth::Sessions::default(),
             forwarders: Mutex::default(),
             login_base,
+            log_dir,
         });
         oauth::install_callback_sink(&state);
         state
@@ -127,6 +137,7 @@ impl Management {
         drop(fallbacks);
         all.extend(credentials::from_config(&cfg));
         self.access.config_published(&cfg);
+        crate::logging::configure(&cfg);
         self.rt.usage_queue().configure(self.access.available(), &cfg);
         let policy = policy(&cfg);
         self.rt.publish_config_and_policy(cfg, policy);
@@ -311,6 +322,24 @@ pub fn router(state: Arc<Management>) -> Router {
         ("oauth/status", methods().get(guarded!(s, oauth::status))),
         ("oauth/session", methods().delete(guarded!(s, oauth::cancel))),
         ("oauth/import", methods().post(guarded!(s, oauth::import))),
+        (
+            "observability/logs",
+            methods()
+                .get(guarded!(s, logs::get_logs))
+                .delete(guarded!(s, logs::delete_logs)),
+        ),
+        (
+            "observability/logs/errors",
+            methods().get(guarded!(s, logs::error_logs)),
+        ),
+        (
+            "observability/logs/errors/{name}",
+            methods().get(guarded!(s, logs::download_error_log)),
+        ),
+        (
+            "observability/logs/requests/{id}",
+            methods().get(guarded!(s, logs::request_log)),
+        ),
         (
             "oauth/callback",
             methods()

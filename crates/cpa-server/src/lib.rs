@@ -11,6 +11,7 @@ pub mod dispatch;
 mod errors;
 mod gemini;
 mod gojson;
+pub mod logging;
 pub mod management;
 mod models;
 mod openai;

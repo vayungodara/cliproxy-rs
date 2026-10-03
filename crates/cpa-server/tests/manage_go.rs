@@ -693,12 +693,25 @@ mod creds {
             if name == "dashboard_probes" {
                 continue;
             }
+            // Go parsed log line timestamps in UTC (the generator runs with TZ=UTC).
+            let log_files = scenario["log_files"].as_array();
+            let parses_timestamps = scenario["yaml"].as_str().unwrap().contains("logging-to-file: true");
+            if parses_timestamps && chrono::Local::now().offset().local_minus_utc() != 0 {
+                eprintln!("skipping {name}: log timestamps need a UTC local time zone");
+                compared += scenario["steps"].as_array().unwrap().len();
+                continue;
+            }
             let dir = std::env::temp_dir().join(format!("cpa-creds-{name}-{}", std::process::id()));
             let root = dir.join("fixture-root");
             let auth = root.join("auth");
             std::fs::create_dir_all(&auth).unwrap();
             for (file, body) in scenario["auth_files"].as_object().unwrap() {
                 std::fs::write(auth.join(file), body.as_str().unwrap()).unwrap();
+            }
+            let log_dir = root.join("logs");
+            for file in log_files.into_iter().flatten() {
+                std::fs::create_dir_all(&log_dir).unwrap();
+                put_log(&log_dir, file, false);
             }
             let path = root.join("config.yaml");
             let yaml = scenario["yaml"]
@@ -721,6 +734,7 @@ mod creds {
             ));
             let options = Options {
                 management_password: Some(String::new()),
+                log_dir: Some(log_dir.clone()),
                 ..Options::default()
             };
             let state = Management::with_options(rt.clone(), path.clone(), options);
@@ -764,13 +778,19 @@ mod creds {
                 text
             };
             let mut last_state = "no-state".to_owned();
+            let mut last_cursor = "no-cursor".to_owned();
             for (i, step) in scenario["steps"].as_array().unwrap().iter().enumerate() {
                 let at = format!("{name}[{i}] {} {}", step["method"], step["path"]);
                 if let Some(ms) = step["sleep_ms"].as_u64() {
                     tokio::time::sleep(std::time::Duration::from_millis(ms)).await;
                 }
+                if let Some(file) = step.get("append_log") {
+                    put_log(&log_dir, file, true);
+                }
                 let method: wreq::Method = step["method"].as_str().unwrap().parse().unwrap();
-                let req_path = resolve(step["path"].as_str().unwrap(), &rust_names).replace("$STATE", &last_state);
+                let req_path = resolve(step["path"].as_str().unwrap(), &rust_names)
+                    .replace("$STATE", &last_state)
+                    .replace("$CURSOR", &last_cursor);
                 let mut req = client
                     .request(method, format!("{base}/v8/management{req_path}"))
                     .header("X-Test-Peer", "127.0.0.1:1")
@@ -812,6 +832,13 @@ mod creds {
                         && let Some(state) = got["state"].as_str()
                     {
                         last_state = state.to_owned();
+                    }
+                    if let Some(cursor) = got["next-cursor"].as_str().filter(|c| !c.is_empty()) {
+                        last_cursor = cursor.to_owned();
+                    }
+                    // Log routes compare exactly: sizes, mtimes and cursors are fixed.
+                    if req_path.starts_with("/observability/logs") {
+                        assert_eq!(got, step["response"], "{at}");
                     }
                     let mut want = normalize(&step["response"], &go_names);
                     let mut got = normalize(&got, &rust_names);
@@ -871,6 +898,15 @@ mod creds {
                     go_numbers(&step["files"]),
                     "{at}: auth dir"
                 );
+                if let Some(want) = step.get("log_dir") {
+                    let mut logs = serde_json::Map::new();
+                    for entry in std::fs::read_dir(&log_dir).unwrap() {
+                        let entry = entry.unwrap();
+                        let text = std::fs::read_to_string(entry.path()).unwrap();
+                        logs.insert(entry.file_name().to_string_lossy().into_owned(), text.into());
+                    }
+                    assert_eq!(&Value::Object(logs), want, "{at}: log dir");
+                }
                 for (file, raw) in step["raw_files"].as_object().into_iter().flatten() {
                     let got = std::fs::read_to_string(auth.join(file)).unwrap();
                     assert_eq!(Some(got.as_str()), raw.as_str(), "{at}: bytes of {file}");
@@ -892,7 +928,25 @@ mod creds {
             }
             let _ = std::fs::remove_dir_all(&dir);
         }
-        assert_eq!(compared, 158);
+        assert_eq!(compared, 184);
+    }
+
+    /// Writes or appends a fixture log file and sets Go's fixed mtime
+    /// (`logEpoch + mtime` seconds).
+    fn put_log(dir: &std::path::Path, file: &Value, append: bool) {
+        use std::io::Write;
+        let path = dir.join(file["name"].as_str().unwrap());
+        let mut f = std::fs::OpenOptions::new()
+            .create(true)
+            .write(true)
+            .append(append)
+            .truncate(!append)
+            .open(&path)
+            .unwrap();
+        f.write_all(file["text"].as_str().unwrap().as_bytes()).unwrap();
+        let at =
+            std::time::UNIX_EPOCH + std::time::Duration::from_secs(1_700_000_000 + file["mtime"].as_u64().unwrap());
+        f.set_modified(at).unwrap();
     }
 
     /// Every file in the auth dir and the config, byte for byte.
