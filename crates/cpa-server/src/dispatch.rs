@@ -46,6 +46,58 @@ pub struct Call {
     pub request_path: String,
     /// The downstream peer (Go `Request.RemoteAddr`), when the listener provides it.
     pub peer: Option<std::net::SocketAddr>,
+    /// Media routes (Go's `openai-image` / `openai-video` handler types); `None` for
+    /// inference routes.
+    pub media: Option<Media>,
+}
+
+/// A media call: which executor operation runs, and Go's per-request credential binding
+/// (`WithPinnedAuthID`, `WithSelectedAuthIDCallback`).
+#[derive(Clone, Debug)]
+pub struct Media {
+    pub kind: MediaKind,
+    /// The only credential that may serve the call.
+    pub pinned: Option<String>,
+    /// Set to the credential selected for the latest attempt.
+    pub served: Arc<std::sync::Mutex<Option<String>>>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MediaKind {
+    /// `Executors::images`; image-only models are allowed (`ExecuteImageWithAuthManager`).
+    Images,
+    /// `Executors::videos`.
+    Videos,
+}
+
+impl Media {
+    pub fn new(kind: MediaKind, pinned: Option<String>) -> Self {
+        Self {
+            kind,
+            pinned,
+            served: Arc::default(),
+        }
+    }
+
+    /// The credential that served the call, once one was selected.
+    pub fn served(&self) -> Option<String> {
+        self.served.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clone()
+    }
+}
+
+/// The executor operation a call runs.
+async fn execute(
+    rt: &Runtime,
+    call: &Call,
+    credential: &cpa_core::credential::Credential,
+    req: ExecRequest,
+    cfg: &Config,
+) -> Result<cpa_core::exec::ExecResponse, ExecError> {
+    match call.media.as_ref().map(|m| m.kind) {
+        Some(MediaKind::Images) => rt.executors.images(credential, req, &call.request_path, cfg).await,
+        Some(MediaKind::Videos) => rt.executors.videos(credential, req, &call.request_path, cfg).await,
+        None => rt.executors.execute(credential, req, cfg).await,
+    }
 }
 
 /// The downstream peer address, as the listener records it (`ConnectInfo`).
@@ -313,7 +365,8 @@ fn route(rt: &Runtime, registry: &Registry, call: &Call) -> Result<(Vec<String>,
         .unwrap_or(&base)
         .trim()
         .to_lowercase();
-    if IMAGE_ONLY.contains(&image.as_str()) {
+    let images_route = call.media.as_ref().is_some_and(|m| m.kind == MediaKind::Images);
+    if IMAGE_ONLY.contains(&image.as_str()) && !images_route {
         return Err(Failure::ImageOnly(base).into());
     }
     let mut providers = registry.providers(&base);
@@ -532,12 +585,24 @@ pub async fn run(rt: &Arc<Runtime>, call: Call, trace: &Trace) -> Result<Done, R
             call.stream,
         ))
     });
+    // A pinned credential is the only candidate (`WithPinnedAuthID`), in every round.
+    let pinned_out: Vec<String> = match call.media.as_ref().and_then(|m| m.pinned.as_deref()) {
+        Some(pin) => rt
+            .store()
+            .snapshot()
+            .iter()
+            .filter(|c| c.id != pin)
+            .map(|c| c.id.clone())
+            .collect(),
+        None => Vec::new(),
+    };
     let mut selection = Selection {
         providers: providers.clone(),
         model: call.selection_model.clone().unwrap_or_else(|| model.clone()),
         session: session.id.clone(),
         session_parent: session.parent,
         session_fork: session.fork,
+        exclude: pinned_out.clone(),
         ..Selection::default()
     };
     let request = ExecRequest {
@@ -610,6 +675,9 @@ pub async fn run(rt: &Arc<Runtime>, call: Call, trace: &Trace) -> Result<Done, R
             };
             selection.exclude.push(lease.credential.id.clone());
             trace.selected(&lease.credential);
+            if let Some(media) = &call.media {
+                *media.served.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = Some(lease.credential.id.clone());
+            }
             let (mut models, alias) = registry::execution_models(&aliases, &lease.credential, &selection.model);
             let pooled = models.len() > 1;
             if pooled {
@@ -696,7 +764,7 @@ pub async fn run(rt: &Arc<Runtime>, call: Call, trace: &Trace) -> Result<Done, R
             tokio::time::sleep(jitter(wait, policy.max_retry_interval)).await;
         }
         selection.retry_round += 1;
-        selection.exclude.clear();
+        selection.exclude.clone_from(&pinned_out);
     }
 }
 
@@ -775,7 +843,7 @@ async fn attempt(
             })
         };
         let mut tracker = start(&lease.credential, &mut req);
-        let mut executed = rt.executors.execute(&lease.credential, req.clone(), cfg).await;
+        let mut executed = execute(rt, call, &lease.credential, req.clone(), cfg).await;
         // Go `tryRefreshAfterUnauthorized`: one refresh-and-retry per credential.
         if let Err(error) = &executed
             && !refreshed
@@ -788,7 +856,7 @@ async fn attempt(
             }
             lease.credential = current;
             tracker = start(&lease.credential, &mut req);
-            executed = rt.executors.execute(&lease.credential, req, cfg).await;
+            executed = execute(rt, call, &lease.credential, req, cfg).await;
         }
         if let (Ok(response), Some(t)) = (&executed, tracker.as_mut()) {
             t.arrived(&response.headers);
