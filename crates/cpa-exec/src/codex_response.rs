@@ -664,6 +664,8 @@ pub(crate) struct Processor {
     pub last_bufferable: bool,
     /// The last completed payload (response.completed/incomplete), for buffered callers.
     pub completed: Option<String>,
+    /// The request renamed the `collaboration` namespace (multi-agent v2).
+    restore: bool,
 }
 
 impl Processor {
@@ -675,7 +677,15 @@ impl Processor {
             model_level_cooling,
             last_bufferable: true,
             completed: None,
+            restore: false,
         }
+    }
+
+    /// Restores the client's `collaboration` names in every payload before anything
+    /// reads it, as Go does right after trimming each `data:` line.
+    pub fn restoring(mut self, restore: bool) -> Self {
+        self.restore = restore;
+        self
     }
 
     /// One framed SSE event in. Go scans lines: `data:` payloads are trimmed and
@@ -693,7 +703,8 @@ impl Processor {
                 lines.push(line.to_owned());
                 continue;
             };
-            let payload = data.trim();
+            let payload = restore(data.trim(), self.restore);
+            let payload = payload.as_ref();
             if let Some((error, body)) = terminal_failure(payload, self.model_level_cooling) {
                 return Step::Fail {
                     error,
@@ -744,7 +755,8 @@ impl Processor {
             let Some(data) = line.strip_prefix("data:") else {
                 continue;
             };
-            let payload = data.trim();
+            let payload = restore(data.trim(), self.restore);
+            let payload = payload.as_ref();
             if meaningful_delta(payload) {
                 self.saw_delta = true;
             }
@@ -763,6 +775,18 @@ impl Processor {
             }
         }
         Ok(None)
+    }
+}
+
+/// `RestoreCodexMultiAgentV2Response` on one upstream payload when the request was
+/// optimized.
+pub(crate) fn restore(payload: &str, optimized: bool) -> std::borrow::Cow<'_, str> {
+    if !optimized {
+        return std::borrow::Cow::Borrowed(payload);
+    }
+    match String::from_utf8(cpa_common::codex_client::restore_response(payload.as_bytes(), true)) {
+        Ok(restored) => std::borrow::Cow::Owned(restored),
+        Err(_) => std::borrow::Cow::Borrowed(payload),
     }
 }
 

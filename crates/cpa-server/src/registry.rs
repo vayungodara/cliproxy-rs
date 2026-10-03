@@ -30,6 +30,17 @@ impl cpa_core::registry::Overlay for Overlay {
             .map(|s| s.to_info())
             .collect()
     }
+
+    fn available(&self) -> Vec<ModelInfo> {
+        let Some(rt) = self.0.upgrade() else {
+            return Vec::new();
+        };
+        let registry = rt.registry();
+        registry
+            .available_with(|c, m| rt.suspension(c, m))
+            .map(|s| s.to_info())
+            .collect()
+    }
 }
 
 #[cfg(test)]
