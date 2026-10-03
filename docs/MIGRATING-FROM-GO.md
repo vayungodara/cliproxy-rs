@@ -79,6 +79,7 @@ Where cliproxy-rs has a feature, it aims to behave as Go does. These differences
 - Logs: structured fields that Go does not define are printed after Go's known fields.
 - Config writes: when the Management API changes one setting, the rest of `config.yaml` stays byte for byte as it was. Go re-encodes the file, which turns YAML 1.1 booleans such as `yes` and `on` into `true`.
 - Watcher: when a config change moves `auth-dir`, cliproxy-rs starts watching the new directory. Go keeps watching the old one until it restarts.
+- WebRTC media relay: Go always includes it. In cliproxy-rs it is an optional build feature (`cargo build --release -p cliproxy --features cpa-server/media-relay`), and the release binaries and the Docker image are built without it.
 
 ## Switching back
 
