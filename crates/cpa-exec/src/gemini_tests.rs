@@ -156,6 +156,8 @@ fn request(s: &Value) -> ExecRequest {
         session: s["session"].as_str().map(str::to_owned),
         execution_session: None,
         derived_session: None,
+        resolved_model: None,
+        usage: Default::default(),
         request_path: String::new(),
         headers,
         caller: Caller {

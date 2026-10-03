@@ -1,6 +1,6 @@
 <script lang="ts">
   import { store, every } from "../store.svelte";
-  import { api } from "../api";
+  import { api, ApiError } from "../api";
   import { label, type Data } from "../core";
   import Missing from "../Missing.svelte";
 
@@ -12,7 +12,8 @@
     ...builtIn,
     ...(store.plugins.data || []).filter((p) => p.supports_oauth).map((p) => String(p.oauth_provider || p.id)),
   ]);
-  let session = $state<Data | null>(null),
+  let gone = $state<string[]>([]),
+    session = $state<Data | null>(null),
     status = $state(""),
     problem = $state(""),
     callback = $state("");
@@ -21,7 +22,14 @@
   async function start(p: string) {
     if (session && status === "wait") await cancel();
     store.act(async () => {
-      const r = await api(`/oauth/auth-url?provider=${encodeURIComponent(p)}${forwarded.includes(p) ? "&is_webui=true" : ""}`);
+      const r = await api(`/oauth/auth-url?provider=${encodeURIComponent(p)}${forwarded.includes(p) ? "&is_webui=true" : ""}`).catch((e) => {
+        // Go knows every built-in provider; a server that lacks one answers provider_not_found.
+        if (e instanceof ApiError && e.code === "provider_not_found") {
+          gone = [...gone, p];
+          throw new Error(`${label(p)} sign-in is not available on this server.`);
+        }
+        throw e;
+      });
       if (!/^https?:/.test(new URL(r.url).protocol)) throw new Error("The server returned an unsafe sign-in URL.");
       session = { ...r, provider: p, started: Date.now() };
       status = "wait";
@@ -31,8 +39,10 @@
   async function cancel() {
     const s = session;
     if (!s) return;
-    status = "cancelled";
+    // Report "Cancelled" only once the server has the request: until then it keeps the
+    // session, and with it the provider's local callback port, for up to five minutes.
     await api(`/oauth/session?state=${encodeURIComponent(s.state)}`, "DELETE").catch(() => {});
+    if (s === session) status = "cancelled";
   }
   $effect(() =>
     every(2000, async () => {
@@ -72,7 +82,7 @@
       <button
         class="key"
         aria-pressed={session?.provider === p && status === "wait"}
-        disabled={store.busy || !can}
+        disabled={store.busy || !can || gone.includes(p)}
         onclick={() => start(p)}>{label(p)}</button
       >
     {/each}

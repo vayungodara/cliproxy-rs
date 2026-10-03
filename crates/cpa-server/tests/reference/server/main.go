@@ -8,17 +8,27 @@ import (
 	"fmt"
 	"io/fs"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
 
+	"github.com/gin-gonic/gin"
+	"github.com/router-for-me/CLIProxyAPI/v8/internal/config"
+	"github.com/router-for-me/CLIProxyAPI/v8/internal/logging"
+	"github.com/router-for-me/CLIProxyAPI/v8/internal/redisqueue"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/registry"
+	"github.com/router-for-me/CLIProxyAPI/v8/internal/runtime/executor/helps"
+	"github.com/router-for-me/CLIProxyAPI/v8/internal/watcher/synthesizer"
+	"github.com/router-for-me/CLIProxyAPI/v8/sdk/api/handlers"
 	"github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/auth"
 	cliproxyexecutor "github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/executor"
 	"github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/session"
+	"github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/usage"
 	sdktranslator "github.com/router-for-me/CLIProxyAPI/v8/sdk/translator"
+	"github.com/tidwall/gjson"
 )
 
 type pair struct {
@@ -563,8 +573,602 @@ func cooldownFiles() map[string]string {
 	return out
 }
 
+// byProviderClient is one registering credential: provider, projected state and its
+// own SupportsWebSearch flag.
+type byProviderClient struct {
+	Provider string `json:"provider"`
+	State    string `json:"state"`
+	Search   bool   `json:"search"`
+}
+
+type byProviderCase struct {
+	Clients []byProviderClient `json:"clients"`
+	// Listed reports GetAvailableModelsByProvider("golden-ag"); ListedSearch its flag.
+	// ListedSearch is omitted when the provider's credentials disagree (Go picks a
+	// random one's info).
+	Listed       bool  `json:"listed"`
+	ListedSearch *bool `json:"listed_search,omitempty"`
+	// InfoSearch is GetModelInfo(model, "").SupportsWebSearch; AgSearch with "golden-ag".
+	InfoSearch bool `json:"info_search"`
+	AgSearch   bool `json:"ag_search"`
+}
+
+// byProvider registers each case's clients (in order) on the real registry and reads
+// GetAvailableModelsByProvider and GetModelInfo.
+func byProvider() []byProviderCase {
+	ag, x := "golden-ag", "golden-x"
+	c := func(p, state string, search bool) byProviderClient { return byProviderClient{p, state, search} }
+	cases := []byProviderCase{
+		{Clients: []byProviderClient{c(ag, "none", true)}},
+		{Clients: []byProviderClient{c(ag, "other", true), c(x, "none", true)}},
+		{Clients: []byProviderClient{c(ag, "quota", false)}},
+		{Clients: []byProviderClient{c(ag, "other", false), c(ag, "none", false)}},
+		{Clients: []byProviderClient{c(x, "none", true)}},
+		{Clients: []byProviderClient{c(x, "none", true), c(ag, "none", false)}},
+		{Clients: []byProviderClient{c(ag, "none", true), c(x, "none", false)}},
+		{Clients: []byProviderClient{c(ag, "none", true), c(ag, "none", false)}},
+		{Clients: []byProviderClient{c(ag, "other_qe", false), c(x, "other", false)}},
+	}
+	reg := registry.GetGlobalRegistry()
+	for i := range cases {
+		model := fmt.Sprintf("golden-bp-model-%d", i)
+		for j, cl := range cases[i].Clients {
+			client := fmt.Sprintf("golden-bp-client-%d-%d", i, j)
+			reg.RegisterClient(client, cl.Provider, []*registry.ModelInfo{{ID: model, Object: "model", OwnedBy: "golden", SupportsWebSearch: cl.Search}})
+			projection := registry.ClientModelProjection{ModelID: model}
+			switch cl.State {
+			case "quota":
+				projection.Suspended, projection.SuspendReason, projection.QuotaExceeded = true, "quota", true
+			case "other":
+				projection.Suspended, projection.SuspendReason = true, "unauthorized"
+			case "other_qe":
+				projection.Suspended, projection.SuspendReason, projection.QuotaExceeded = true, "cloudflare_challenge", true
+			}
+			if !reg.ApplyClientModelProjections(client, reg.ClientRegistrationEpoch(client), 1, []registry.ClientModelProjection{projection}) {
+				panic("projection rejected for " + client)
+			}
+		}
+		if info := reg.GetModelInfo(model, ""); info != nil {
+			cases[i].InfoSearch = info.SupportsWebSearch
+		}
+		if info := reg.GetModelInfo(model, ag); info != nil {
+			cases[i].AgSearch = info.SupportsWebSearch
+		}
+	}
+	for _, info := range reg.GetAvailableModelsByProvider(" GOLDEN-AG ") {
+		var i int
+		if _, err := fmt.Sscanf(info.ID, "golden-bp-model-%d", &i); err != nil {
+			continue
+		}
+		cases[i].Listed = true
+		agree := true
+		for _, cl := range cases[i].Clients {
+			if cl.Provider == ag && cl.Search != info.SupportsWebSearch {
+				agree = false
+			}
+		}
+		if agree {
+			search := info.SupportsWebSearch
+			cases[i].ListedSearch = &search
+		}
+	}
+	return cases
+}
+
+// resolvedConfig is the config every resolved-model case runs against.
+const resolvedConfig = `config-version: 8
+api-keys:
+  claude:
+    - name: c1
+      base-url: https://c.example
+      models:
+        - name: claude-sonnet-4-6
+          alias: sonnet
+          is-compat: true
+        - name: claude-opus-4-6(high)
+          alias: opus
+        - name: claude-custom-x
+          alias: custom
+          thinking:
+            levels: ["HIGH", "none", "high", " auto "]
+        - alias: aliasonly
+      keys:
+        - api-key: ck1
+    - name: c2
+      base-url: https://dup.example
+      headers:
+        X-A: "1"
+      models:
+        - name: claude-sonnet-4-6
+          alias: first
+      keys:
+        - api-key: dupkey
+    - name: c3
+      base-url: https://dup.example
+      headers:
+        X-A: "2"
+      models:
+        - name: claude-opus-4-7
+          alias: second
+      keys:
+        - api-key: dupkey
+  codex:
+    - name: x1
+      base-url: https://codex.example
+      prefix: team
+      models:
+        - name: gpt-6-sol
+          alias: sol
+          is-compat: true
+        - name: gpt-5.5
+          alias: five
+          support-configuration-update: true
+          thinking:
+            min: 1
+            max: 9
+      keys:
+        - api-key: xk1
+  vertex:
+    - name: v1
+      base-url: https://vertex.example
+      models:
+        - name: gemini-2.5-pro
+          alias: vpro
+      keys:
+        - api-key: vk1
+  openai-compatibility:
+    - name: acme
+      base-url: https://acme.example/v1
+      models:
+        - name: up-model
+          alias: acme-m
+          is-compat: true
+        - name: img-model
+          alias: acme-img
+          image: true
+      keys:
+        - api-key: ok1
+`
+
+type resolvedCase struct {
+	Name       string            `json:"name"`
+	AuthID     string            `json:"auth_id"`
+	Provider   string            `json:"provider"`
+	Synthetic  bool              `json:"synthetic"`
+	Attributes map[string]string `json:"attributes"`
+	Metadata   map[string]any    `json:"metadata"`
+	ReqModel   string            `json:"req_model"`
+	Route      string            `json:"route"`
+	Upstream   string            `json:"upstream"`
+	Restore    bool              `json:"restore"`
+	// Source is "api_key", "codex_oauth" or "" (nothing bound).
+	Source      string              `json:"source"`
+	Info        *registry.ModelInfo `json:"info"`
+	IsCompat    bool                `json:"is_compat"`
+	SCU         bool                `json:"support_configuration_update"`
+	UserDefined bool                `json:"user_defined"`
+}
+
+// resolvedModels binds one execution attempt per case (attachResolvedExecutionModelInfo)
+// against config-synthesized auths, mutated config indexes and file-style auths.
+func resolvedModels() []resolvedCase {
+	cfg, err := config.ParseConfigBytes([]byte(resolvedConfig))
+	if err != nil {
+		panic(err)
+	}
+	auths, err := synthesizer.NewConfigSynthesizer().Synthesize(&synthesizer.SynthesisContext{
+		Config: cfg, Now: time.Unix(0, 0), IDGenerator: synthesizer.NewStableIDGenerator(),
+	})
+	if err != nil {
+		panic(err)
+	}
+	find := func(provider, key, index string) *auth.Auth {
+		for _, a := range auths {
+			if a.Provider == provider && a.Attributes["api_key"] == key && (index == "" || a.Attributes["config_index"] == index) {
+				return a.Clone()
+			}
+		}
+		panic("no auth " + provider + " " + key)
+	}
+	withIndex := func(a *auth.Auth, index string) *auth.Auth {
+		a.Attributes["config_index"] = index
+		return a
+	}
+	file := func(id, provider string, attrs map[string]string, meta map[string]any) *auth.Auth {
+		return &auth.Auth{ID: id, Provider: provider, Attributes: attrs, Metadata: meta}
+	}
+	codexOAuth := func(plan string) *auth.Auth {
+		attrs := map[string]string{}
+		if plan != "" {
+			attrs["plan_type"] = plan
+		}
+		return file("codex-"+plan+".json", "codex", attrs, map[string]any{"type": "codex", "access_token": "t"})
+	}
+	type spec struct {
+		name                 string
+		auth                 *auth.Auth
+		synthetic            bool
+		req, route, upstream string
+		restore              bool
+	}
+	ck1 := func() *auth.Auth { return find("claude", "ck1", "") }
+	dup := func() *auth.Auth { return find("claude", "dupkey", "2") }
+	xk1 := func() *auth.Auth { return find("codex", "xk1", "") }
+	ok1 := func() *auth.Auth { return find("openai-compatible-acme", "ok1", "") }
+	at := func(name string, a *auth.Auth, route, upstream string) spec {
+		return spec{name: name, auth: a, synthetic: true, req: route, route: route, upstream: upstream}
+	}
+	restore := func(name string, a *auth.Auth, req string) spec {
+		return spec{name: name, auth: a, synthetic: true, req: req, route: "selection-" + req, upstream: "upstream-" + req, restore: true}
+	}
+	specs := []spec{
+		at("alias", ck1(), "sonnet", "claude-sonnet-4-6"),
+		at("suffix falls back to base", ck1(), "sonnet(high)", "claude-sonnet-4-6(high)"),
+		at("suffixed configured name exact", ck1(), "opus", "claude-opus-4-6(high)"),
+		at("suffixed configured name no fallback", ck1(), "opus(low)", "claude-opus-4-6(low)"),
+		at("configured thinking normalized", ck1(), "custom", "claude-custom-x"),
+		at("alias-only model", ck1(), "aliasonly", "aliasonly"),
+		at("case folded", ck1(), "Sonnet", "CLAUDE-SONNET-4-6"),
+		at("route without upstream match", ck1(), "sonnet", "claude-opus-4-6"),
+		at("headers twin own entry", dup(), "second", "claude-opus-4-7"),
+		at("headers twin not the other entry", dup(), "first", "claude-sonnet-4-6"),
+		at("stale index to matching twin", withIndex(dup(), "1"), "first", "claude-sonnet-4-6"),
+		at("stale index to other key falls back", withIndex(dup(), "0"), "first", "claude-sonnet-4-6"),
+		at("stale index to other key not second", withIndex(dup(), "0"), "second", "claude-opus-4-7"),
+		at("stale index out of range", withIndex(dup(), "9"), "first", "claude-sonnet-4-6"),
+		at("codex configured with prefix", xk1(), "team/sol", "gpt-6-sol"),
+		at("codex configured support and thinking", xk1(), "team/five", "gpt-5.5"),
+		at("codex suffix fallback", xk1(), "team/sol(high)", "gpt-6-sol(high)"),
+		at("codex unlisted model", xk1(), "team/gpt-6-astra", "gpt-6-astra"),
+		at("codex unlisted route configured upstream", xk1(), "team/other", "gpt-6-sol"),
+		restore("codex restore", xk1(), "sol"),
+		restore("claude restore binds nothing", ck1(), "sonnet"),
+		at("compat model", ok1(), "acme-m", "up-model"),
+		at("compat image model", ok1(), "acme-img", "img-model"),
+		at("compat stale index", withIndex(ok1(), "5"), "acme-m", "up-model"),
+		at("vertex model type", find("vertex", "vk1", ""), "vpro", "gemini-2.5-pro"),
+		{name: "file api key matches config", auth: file("claude-key.json", "claude",
+			map[string]string{"api_key": "ck1", "base_url": "https://c.example"}, map[string]any{"type": "claude"}),
+			req: "sonnet", route: "sonnet", upstream: "claude-sonnet-4-6"},
+		{name: "claude oauth binds nothing", auth: file("claude-oauth.json", "claude", map[string]string{},
+			map[string]any{"type": "claude", "access_token": "t"}), req: "sonnet", route: "sonnet", upstream: "claude-sonnet-4-6"},
+		{name: "codex oauth plus", auth: codexOAuth("plus"), req: "gpt-6-astra(high)", route: "gpt-6-astra(high)", upstream: "gpt-6-astra(high)"},
+		{name: "codex oauth free lacks model", auth: codexOAuth("free"), req: "gpt-6-sol", route: "gpt-6-sol", upstream: "gpt-6-sol"},
+		{name: "codex oauth team case folded", auth: codexOAuth("Team"), req: "GPT-5.5", route: "GPT-5.5", upstream: "GPT-5.5"},
+		{name: "codex oauth default plan", auth: codexOAuth(""), req: "gpt-6-sol", route: "gpt-6-sol", upstream: "gpt-6-sol"},
+		{name: "codex oauth restore", auth: codexOAuth("plus"), req: "gpt-6-luna", route: "selection", upstream: "upstream", restore: true},
+	}
+	var out []resolvedCase
+	for _, s := range specs {
+		info, source := auth.GoldenResolvedModelInfo(cfg, s.auth, s.req, s.route, s.upstream, s.restore)
+		c := resolvedCase{
+			Name: s.name, AuthID: s.auth.ID, Provider: s.auth.Provider, Synthetic: s.synthetic,
+			Attributes: s.auth.Attributes, Metadata: s.auth.Metadata,
+			ReqModel: s.req, Route: s.route, Upstream: s.upstream, Restore: s.restore,
+			Source: source, Info: info,
+		}
+		if info != nil {
+			c.IsCompat, c.SCU, c.UserDefined = info.IsCompat, info.SupportConfigurationUpdate, info.UserDefined
+		}
+		out = append(out, c)
+	}
+	return out
+}
+
+// usageCase is one upstream attempt: the client-format response, the request context
+// and credential, and the queuedUsageDetail Go's usage queue stores for it.
+type usageCase struct {
+	Name              string              `json:"name"`
+	Format            string              `json:"format"`
+	Stream            bool                `json:"stream"`
+	Lines             []string            `json:"lines"`
+	Provider          string              `json:"provider"`
+	ExecutorType      string              `json:"executor_type"`
+	Model             string              `json:"model"`
+	Alias             string              `json:"alias"`
+	AuthID            string              `json:"auth_id"`
+	AuthProvider      string              `json:"auth_provider"`
+	Attributes        map[string]string   `json:"attributes"`
+	Metadata          map[string]any      `json:"metadata"`
+	ClientKey         string              `json:"client_key"`
+	RequestID         string              `json:"request_id"`
+	Endpoint          string              `json:"endpoint"`
+	ClientIP          string              `json:"client_ip"`
+	ResolvedClientIP  string              `json:"resolved_client_ip"`
+	XForwardedFor     string              `json:"x_forwarded_for"`
+	UserAgent         string              `json:"user_agent"`
+	SessionID         string              `json:"session_id"`
+	ParentSessionID   string              `json:"parent_session_id"`
+	ReasoningEffort   string              `json:"reasoning_effort"`
+	TranslatedPayload string              `json:"translated_payload"`
+	TranslatedFormat  string              `json:"translated_format"`
+	ServiceTier       string              `json:"service_tier"`
+	Generate          bool                `json:"generate"`
+	Failed            bool                `json:"failed"`
+	FailStatus        int                 `json:"fail_status"`
+	FailBody          string              `json:"fail_body"`
+	ResponseHeaders   map[string][]string `json:"response_headers"`
+	ExecutionID       string              `json:"execution_id"`
+	RequestedAt       string              `json:"requested_at"`
+	LatencyMs         int64               `json:"latency_ms"`
+	TTFTMs            int64               `json:"ttft_ms"`
+	Queued            json.RawMessage     `json:"queued"`
+}
+
+// usageDetail parses one attempt's client-format response the way Go's executor for
+// that format does: whole bodies with Parse*Usage, streams through StreamUsageBuffer
+// (Claude merges events, OpenAI keeps the last usage), Codex terminal events with
+// ParseCodexUsage, Gemini terminal chunks only (FilterSSEUsageMetadata).
+func usageDetail(format string, stream bool, lines []string) usage.Detail {
+	if !stream {
+		body := []byte(lines[0])
+		switch format {
+		case "claude":
+			return helps.ParseClaudeUsage(body)
+		case "openai", "openai-response":
+			// A buffered Responses body is the completed event's response object:
+			// usage and service_tier sit at the top level.
+			return helps.ParseOpenAIUsage(body)
+		case "gemini":
+			return helps.ParseGeminiUsage(body)
+		case "interactions":
+			return helps.ParseInteractionsUsage(body)
+		}
+		panic(format)
+	}
+	var buffer helps.StreamUsageBuffer
+	for _, raw := range lines {
+		line := []byte(raw)
+		switch format {
+		case "claude":
+			buffer.ObserveClaudeStream(line)
+		case "openai":
+			buffer.ObserveOpenAIStream(line)
+		case "openai-response":
+			payload := helps.JSONPayload(line)
+			switch gjson.GetBytes(payload, "type").String() {
+			case "response.completed", "response.incomplete", "response.done":
+				if detail, ok := helps.ParseCodexUsage(payload); ok {
+					if _, seen := buffer.Detail(); !seen {
+						buffer.Observe(detail, true)
+					}
+				}
+			}
+		case "gemini":
+			payload := helps.JSONPayload(helps.FilterSSEUsageMetadata(line))
+			if detail, ok := helps.ParseGeminiStreamUsage(payload); ok {
+				buffer.Observe(detail, true)
+			}
+		case "interactions":
+			if detail, ok := helps.ParseInteractionsStreamUsage(line); ok {
+				buffer.Observe(detail, true)
+			}
+		}
+	}
+	detail, _ := buffer.Detail()
+	return detail
+}
+
+func usageRecords() []usageCase {
+	gin.SetMode(gin.ReleaseMode)
+	at := time.Date(2026, 10, 3, 8, 0, 0, 123456000, time.UTC).Format(time.RFC3339Nano)
+	claudeKey := func() (string, string, map[string]string, map[string]any) {
+		return "claude:apikey:0a1b2c3d4e5f", "claude", map[string]string{"api_key": "fake-upstream-key", "auth_kind": "apikey", "source": "config:claude[0a1b]", "config_index": "0"}, map[string]any{}
+	}
+	base := func(name, format string, stream bool, provider, executor, model, alias string, lines ...string) usageCase {
+		id, authProvider, attrs, meta := claudeKey()
+		return usageCase{
+			Name: name, Format: format, Stream: stream, Lines: lines,
+			Provider: provider, ExecutorType: executor, Model: model, Alias: alias,
+			AuthID: id, AuthProvider: authProvider, Attributes: attrs, Metadata: meta,
+			ClientKey: "fake-client-key", RequestID: "0192f5b4-aaaa-7bbb-8ccc-0123456789ab",
+			Endpoint: "POST /v1/messages", ClientIP: "10.0.0.2", ResolvedClientIP: "10.0.0.2",
+			UserAgent: "claude-cli/2.1.0 (external, cli)", ServiceTier: "auto", Generate: true,
+			ExecutionID: "6f9619ff-8b86-4d01-b42d-00cf4fc964ff", RequestedAt: at, LatencyMs: 1234, TTFTMs: 345,
+		}
+	}
+	oauth := func(c *usageCase, provider string, meta map[string]any, attrs map[string]string) {
+		c.AuthID, c.AuthProvider, c.Metadata, c.Attributes = provider+"-user.json", provider, meta, attrs
+	}
+	var cases []usageCase
+
+	c := base("claude buffered api key", "claude", false, "claude", "ClaudeExecutor", "claude-sonnet-4-6", "sonnet",
+		`{"id":"msg_1","type":"message","model":"claude-sonnet-4-6-20260101","usage":{"input_tokens":10,"output_tokens":20,"cache_read_input_tokens":5,"cache_creation_input_tokens":3,"output_tokens_details":{"thinking_tokens":7}}}`)
+	c.SessionID, c.ParentSessionID = "claude:5B8E6F3A-1234-4ABC-8DEF-0123456789AB", "claude:11111111-2222-4333-8444-555555555555"
+	c.ReasoningEffort = "high"
+	c.TranslatedPayload, c.TranslatedFormat = `{"thinking":{"type":"enabled","budget_tokens":8192}}`, "claude"
+	c.ResponseHeaders = map[string][]string{"X-Request-Id": {"req-1"}, "Content-Type": {"application/json"}}
+	cases = append(cases, c)
+
+	c = base("claude stream oauth", "claude", true, "claude", "ClaudeExecutor", "claude-opus-4-7", "claude-opus-4-7",
+		"event: message_start",
+		`data: {"type":"message_start","message":{"id":"m","model":"claude-opus-4-7","usage":{"input_tokens":12,"cache_read_input_tokens":100,"output_tokens":1}}}`,
+		"event: content_block_delta",
+		`data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"<hi>"}}`,
+		"event: message_delta",
+		`data: {"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":40}}`,
+		"event: message_stop",
+		`data: {"type":"message_stop"}`)
+	oauth(&c, "claude", map[string]any{"type": "claude", "email": "user@example.com", "access_token": "fake-access-token"}, map[string]string{"auth_kind": "oauth"})
+	c.ClientKey, c.UserAgent, c.XForwardedFor = "", "", "203.0.113.9, 10.0.0.1"
+	c.SessionID, c.ParentSessionID = "header:my-session", "header:my-session"
+	cases = append(cases, c)
+
+	c = base("openai buffered compat", "openai", false, "openai-compatible-acme", "OpenAICompatExecutor", "up-model", "acme-m",
+		`{"id":"c1","object":"chat.completion","model":"up-model","service_tier":"default","choices":[],"usage":{"prompt_tokens":100,"completion_tokens":50,"total_tokens":150,"prompt_tokens_details":{"cached_tokens":30},"completion_tokens_details":{"reasoning_tokens":20}}}`)
+	c.AuthID, c.AuthProvider = "openai-compatibility:acme:0376e65a6eff", "openai-compatible-acme"
+	c.Attributes = map[string]string{"api_key": "fake-compat-key", "auth_kind": "apikey", "compat_name": "acme", "provider_key": "openai-compatible-acme", "source": "config:acme[0376]"}
+	c.Endpoint, c.ServiceTier = "POST /v1/chat/completions", "default"
+	cases = append(cases, c)
+
+	c = base("openai stream last usage", "openai", true, "openai-compatible-acme", "OpenAICompatExecutor", "up-model", "acme-m",
+		`data: {"id":"c2","object":"chat.completion.chunk","model":"up-model-0612","service_tier":"flex","choices":[{"index":0,"delta":{"content":"hi"}}]}`,
+		`data: {"id":"c2","object":"chat.completion.chunk","model":"up-model-0612","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}`,
+		`data: {"id":"c2","object":"chat.completion.chunk","model":"up-model-0612","choices":[],"usage":{"prompt_tokens":7,"completion_tokens":3,"total_tokens":10}}`,
+		"data: [DONE]")
+	c.Attributes = map[string]string{"api_key": "fake-compat-key", "auth_kind": "apikey"}
+	c.Endpoint = "POST /v1/chat/completions"
+	cases = append(cases, c)
+
+	c = base("openai partial usage", "openai", false, "xai", "XAIExecutor", "grok-5", "grok-5",
+		`{"id":"c3","object":"chat.completion","model":"grok-5","usage":{"prompt_tokens":5}}`)
+	c.Endpoint = "POST /v1/chat/completions"
+	cases = append(cases, c)
+
+	c = base("responses buffered codex oauth", "openai-response", false, "codex", "CodexExecutor", "gpt-6-sol", "gpt-6-sol(high)",
+		`{"id":"resp_1","object":"response","model":"gpt-6-sol","service_tier":"priority","status":"completed","usage":{"input_tokens":200,"input_tokens_details":{"cached_tokens":50},"output_tokens":80,"output_tokens_details":{"reasoning_tokens":30},"total_tokens":280}}`)
+	oauth(&c, "codex", map[string]any{"type": "codex", "email": "dev@example.com", "access_token": "fake-codex-token"}, map[string]string{"plan_type": "plus"})
+	c.Endpoint, c.ReasoningEffort = "POST /v1/responses", "high"
+	c.TranslatedPayload, c.TranslatedFormat = `{"model":"gpt-6-sol","reasoning":{"effort":"medium"}}`, "codex"
+	cases = append(cases, c)
+
+	c = base("responses stream terminal", "openai-response", true, "codex", "CodexExecutor", "gpt-6-sol", "gpt-6-sol",
+		"event: response.created",
+		`data: {"type":"response.created","response":{"id":"r","model":"gpt-6-sol","service_tier":"auto","usage":null}}`,
+		`data: {"type":"response.output_text.delta","delta":"x"}`,
+		"event: response.completed",
+		`data: {"type":"response.completed","response":{"id":"r","model":"gpt-6-sol-2026","service_tier":"default","usage":{"input_tokens":9,"output_tokens":4,"total_tokens":13}}}`)
+	oauth(&c, "codex", map[string]any{"type": "codex", "access_token": "fake-codex-token"}, map[string]string{})
+	c.Endpoint, c.ServiceTier, c.Generate = "POST /v1/responses", "flex", false
+	cases = append(cases, c)
+
+	c = base("gemini buffered api key", "gemini", false, "gemini", "GeminiExecutor", "gemini-2.5-pro", "gemini-2.5-pro",
+		`{"candidates":[{"content":{"parts":[{"text":"ok"}]},"finishReason":"STOP"}],"usageMetadata":{"promptTokenCount":40,"candidatesTokenCount":60,"thoughtsTokenCount":10,"totalTokenCount":110,"cachedContentTokenCount":8},"modelVersion":"gemini-2.5-pro-002"}`)
+	c.Attributes = map[string]string{"api_key": "fake-gemini-key", "auth_kind": "apikey"}
+	c.Endpoint = "POST /v1beta/models/*action"
+	cases = append(cases, c)
+
+	c = base("gemini stream terminal usage", "gemini", true, "gemini", "GeminiExecutor", "gemini-2.5-flash", "gemini-2.5-flash",
+		`data: {"candidates":[{"content":{"parts":[{"text":"a"}]}}],"usageMetadata":{"promptTokenCount":3,"candidatesTokenCount":1,"totalTokenCount":4},"modelVersion":"gemini-2.5-flash"}`,
+		`data: {"candidates":[{"content":{"parts":[{"text":"b"}]},"finishReason":"STOP"}],"usageMetadata":{"promptTokenCount":3,"candidatesTokenCount":9,"thoughtsTokenCount":2,"totalTokenCount":14},"modelVersion":"gemini-2.5-flash"}`)
+	c.Attributes = map[string]string{"api_key": "fake-gemini-key", "auth_kind": "apikey"}
+	c.Endpoint = "POST /v1beta/models/*action"
+	cases = append(cases, c)
+
+	c = base("vertex project source", "gemini", false, "vertex", "GeminiVertexExecutor", "gemini-2.5-pro", "gemini-2.5-pro",
+		`{"usageMetadata":{"promptTokenCount":1,"candidatesTokenCount":2}}`)
+	oauth(&c, "vertex", map[string]any{"type": "vertex", "project_id": "proj-1", "email": "sa@proj-1.iam"}, map[string]string{})
+	cases = append(cases, c)
+
+	c = base("interactions buffered", "interactions", false, "gemini-interactions", "GeminiExecutor", "gemini-3-pro", "gemini-3-pro",
+		`{"id":"i1","model":"gemini-3-pro","status":"completed","usage":{"total_input_tokens":20,"total_output_tokens":30,"total_thought_tokens":5,"total_tokens":55,"total_cached_tokens":4}}`)
+	c.Endpoint = "POST /v1beta/interactions"
+	cases = append(cases, c)
+
+	c = base("failure without usage", "claude", false, "claude", "ClaudeExecutor", "claude-sonnet-4-6", "sonnet", `{}`)
+	c.Failed, c.FailStatus, c.FailBody = true, 429, "  {\"error\":{\"type\":\"rate_limit_error\",\"message\":\"quota <exceeded>\"}}  "
+	cases = append(cases, c)
+
+	c = base("failure after stream usage", "openai", true, "openai-compatible-acme", "OpenAICompatExecutor", "up-model", "acme-m",
+		`data: {"id":"c4","object":"chat.completion.chunk","model":"up-model","choices":[],"usage":{"prompt_tokens":11,"completion_tokens":2,"total_tokens":13}}`)
+	c.Failed, c.FailStatus, c.FailBody = true, 502, "upstream reset"
+	cases = append(cases, c)
+
+	c = base("client key source fallback", "openai", false, "codex", "CodexExecutor", "gpt-5.5", "gpt-5.5",
+		`{"object":"chat.completion","model":"gpt-5.5","usage":{"prompt_tokens":1,"completion_tokens":1,"total_tokens":2}}`)
+	oauth(&c, "codex", map[string]any{"type": "codex", "refresh_token": "fake-refresh"}, map[string]string{})
+	c.ClientKey = " fake-client-key-2 "
+	cases = append(cases, c)
+
+	for i := range cases {
+		cs := &cases[i]
+		ginCtx, _ := gin.CreateTestContext(httptest.NewRecorder())
+		if cs.ClientKey != "" {
+			ginCtx.Set("userApiKey", cs.ClientKey)
+		}
+		ctx := context.WithValue(context.Background(), "gin", ginCtx)
+		ctx = logging.WithRequestID(ctx, cs.RequestID)
+		ctx = logging.WithEndpoint(ctx, cs.Endpoint)
+		ctx = logging.WithClientRequestMetadata(ctx, logging.ClientRequestMetadata{
+			ClientIP: cs.ClientIP, ResolvedClientIP: cs.ResolvedClientIP, XForwardedFor: cs.XForwardedFor,
+			UserAgent: cs.UserAgent, SessionID: cs.SessionID, ParentSessionID: cs.ParentSessionID,
+		})
+		ctx = logging.WithResponseStatusHolder(ctx)
+		ctx = logging.WithResponseHeadersHolder(ctx)
+		if cs.ResponseHeaders != nil {
+			logging.SetResponseHeaders(ctx, http.Header(cs.ResponseHeaders))
+		}
+		ctx = usage.WithRequestedModelAlias(ctx, cs.Alias)
+		ctx = usage.WithReasoningEffort(ctx, cs.ReasoningEffort)
+		ctx = usage.WithServiceTier(ctx, cs.ServiceTier)
+		ctx = usage.WithGenerate(ctx, cs.Generate)
+		ctx = usage.WithStream(ctx, cs.Stream)
+		a := &auth.Auth{ID: cs.AuthID, Provider: cs.AuthProvider, Attributes: cs.Attributes, Metadata: cs.Metadata}
+		if strings.HasSuffix(cs.AuthID, ".json") {
+			// A file auth's index seed is its absolute path; pin it.
+			a.FileName = "/auth/" + cs.AuthID
+		}
+		detail := usageDetail(cs.Format, cs.Stream, cs.Lines)
+		requestedAt, err := time.Parse(time.RFC3339Nano, cs.RequestedAt)
+		if err != nil {
+			panic(err)
+		}
+		fail := usage.Failure{StatusCode: cs.FailStatus, Body: cs.FailBody}
+		record := helps.GoldenUsageRecord(ctx, cs.ExecutorType, cs.Provider, cs.Model, a, detail, cs.Failed, fail,
+			cs.ExecutionID, requestedAt, time.Duration(cs.LatencyMs)*time.Millisecond, time.Duration(cs.TTFTMs)*time.Millisecond,
+			cs.Lines, cs.TranslatedPayload, cs.TranslatedFormat)
+		cs.Queued = redisqueue.GoldenQueue(ctx, record)
+		if cs.Queued == nil {
+			panic("nothing queued for " + cs.Name)
+		}
+	}
+	return cases
+}
+
+// alts runs sdk/api/handlers GetAlt on raw query strings.
+func alts() []pair {
+	gin.SetMode(gin.ReleaseMode)
+	var out []pair
+	for _, q := range []string{"", "alt=", "alt", "alt=sse", "alt=json", "$alt=json", "alt=&$alt=json",
+		"$alt=sse", "alt=SSE", "alt=a%20b", "alt=%zz&$alt=json", "x=1;alt=json&$alt=raw", "alt=json&alt=sse"} {
+		c, _ := gin.CreateTestContext(httptest.NewRecorder())
+		c.Request = httptest.NewRequest(http.MethodPost, "/v1beta/models/m:generateContent?"+q, nil)
+		out = append(out, pair{q, (&handlers.BaseAPIHandler{}).GetAlt(c)})
+	}
+	return out
+}
+
+type authKindCase struct {
+	Attributes map[string]string `json:"attributes"`
+	Metadata   map[string]any    `json:"metadata"`
+	Kind       string            `json:"kind"`
+}
+
+// authKinds runs Auth.AuthKind over attribute and metadata shapes.
+func authKinds() []authKindCase {
+	cases := []authKindCase{
+		{Attributes: map[string]string{"auth_kind": "apikey"}},
+		{Attributes: map[string]string{"auth_kind": " API-Key "}},
+		{Attributes: map[string]string{"auth_kind": "OAuth2", "api_key": "k"}},
+		{Attributes: map[string]string{"auth_kind": "weird", "api_key": "k"}},
+		{Attributes: map[string]string{"auth_kind": "weird"}, Metadata: map[string]any{"auth_kind": "api_key"}},
+		{Attributes: map[string]string{"auth_kind": "weird"}, Metadata: map[string]any{"auth_kind": "unknown", "email": "a@b"}},
+		{Metadata: map[string]any{"auth_kind": "oauth", "api_key": "k"}},
+		{Attributes: map[string]string{"api_key": "   "}},
+		{Attributes: map[string]string{"api_key": "   "}, Metadata: map[string]any{"refresh_token": "r"}},
+		{Metadata: map[string]any{"api_key": "k"}},
+		{Metadata: map[string]any{"token": map[string]any{"access_token": "x"}}},
+		{Metadata: map[string]any{"token": map[string]any{}}},
+		{Metadata: map[string]any{"expired": "2026-01-01T00:00:00Z"}},
+		{Metadata: map[string]any{"email": "  "}},
+		{Metadata: map[string]any{"auth_kind": 7, "access_token": "t"}},
+		{},
+	}
+	for i := range cases {
+		a := &auth.Auth{Attributes: cases[i].Attributes, Metadata: cases[i].Metadata}
+		cases[i].Kind = a.AuthKind()
+	}
+	return cases
+}
+
 func main() {
 	out := map[string]any{}
+	out["alt"] = alts()
+	out["auth_kind"] = authKinds()
+	out["by_provider"] = byProvider()
+	out["resolved_config"] = resolvedConfig
+	out["resolved"] = resolvedModels()
+	out["usage"] = usageRecords()
 	var sanitized, extracted []pair
 	for _, in := range sanitizeInputs {
 		sanitized = append(sanitized, pair{in, auth.SanitizeUpstreamErrorSummary(in)})

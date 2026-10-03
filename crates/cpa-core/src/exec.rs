@@ -88,6 +88,103 @@ pub struct ExecRequest {
     /// Contains client credentials: never log or forward wholesale.
     pub headers: HeaderMap,
     pub caller: Caller,
+    /// Go `cliproxyauth.ResolvedModelInfo(req)`: the model capabilities the dispatch
+    /// loop bound to this attempt for the selected credential and upstream model (Go
+    /// `attachResolvedExecutionModelInfo`, sdk/cliproxy/auth/api_key_model_capabilities.go).
+    /// `None` when Go binds nothing; executors then fall back to the registry lookup
+    /// (`cpa_core::registry::lookup_model`), as Go's helpers do. Callers outside the
+    /// dispatch loop set `None`.
+    pub resolved_model: Option<ResolvedModel>,
+    /// Usage accounting for this attempt (Go's per-executor `UsageReporter`). Optional:
+    /// without reports the server parses the client-format response, which matches Go
+    /// whenever the upstream speaks the client's format. Executors that translate
+    /// should forward the upstream payloads Go parses; `UsageSink::default()` is a
+    /// no-op.
+    pub usage: UsageSink,
+}
+
+/// Receives the upstream payloads Go's executors feed their usage reporter.
+pub trait UsageObserver: Send + Sync {
+    /// A whole upstream response body in `format` (Go `Parse*Usage` on the body).
+    fn response_body(&self, format: Format, body: &[u8]);
+    /// One upstream stream line in `format`, as received (Go feeds each scanner line to
+    /// its `StreamUsageBuffer` and `ObserveResponseModel`).
+    fn response_line(&self, format: Format, line: &[u8]);
+    /// The translated payload sent upstream in `format` (Go
+    /// `SetTranslatedReasoningEffort`: the record's `reasoning_effort`).
+    fn request(&self, format: Format, payload: &[u8]);
+}
+
+/// A handle executors report usage through; cloning shares the observer.
+#[derive(Clone, Default)]
+pub struct UsageSink(Option<std::sync::Arc<dyn UsageObserver>>);
+
+impl UsageSink {
+    pub fn new(observer: std::sync::Arc<dyn UsageObserver>) -> Self {
+        Self(Some(observer))
+    }
+
+    /// Whether anyone listens; executors can skip the work otherwise.
+    pub fn enabled(&self) -> bool {
+        self.0.is_some()
+    }
+
+    pub fn response_body(&self, format: Format, body: &[u8]) {
+        if let Some(o) = &self.0 {
+            o.response_body(format, body);
+        }
+    }
+
+    pub fn response_line(&self, format: Format, line: &[u8]) {
+        if let Some(o) = &self.0 {
+            o.response_line(format, line);
+        }
+    }
+
+    pub fn request(&self, format: Format, payload: &[u8]) {
+        if let Some(o) = &self.0 {
+            o.request(format, payload);
+        }
+    }
+}
+
+impl fmt::Debug for UsageSink {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("UsageSink").field(&self.enabled()).finish()
+    }
+}
+
+/// Capabilities bound to one execution attempt (Go `*registry.ModelInfo` stored under a
+/// request metadata key).
+#[derive(Debug, Clone)]
+pub struct ResolvedModel {
+    /// Go's `modelconfig.ResolveModelInfo` snapshot for configured API-key models (the
+    /// static definition of the suffix-free upstream name, renamed to it, typed for the
+    /// provider, configured thinking normalized, never user-defined), or the static
+    /// Codex plan catalog entry for Codex OAuth. `info.raw` carries `is_compat` and
+    /// `support_configuration_update` when set; `info.is_compat()` is Go's
+    /// `helps.APIKeyModelIsCompat`.
+    pub info: crate::registry::ModelInfo,
+    pub source: ResolvedSource,
+}
+
+impl ResolvedModel {
+    /// Go `ModelInfo.IsCompat` of the bound model (`helps.APIKeyModelIsCompat`).
+    pub fn is_compat(&self) -> bool {
+        self.info.is_compat()
+    }
+}
+
+/// Which request metadata key Go stores the binding under. Go's `ResolvedModelInfo`
+/// reads either; `ResolvedAPIKeyModelInfo` reads only [`ResolvedSource::ApiKey`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ResolvedSource {
+    /// `cliproxy.resolved_api_key_model_info`: a configured API-key model (any
+    /// family, OpenAI compatibility included) or an unlisted Codex API-key model.
+    ApiKey,
+    /// `cliproxy.resolved_codex_oauth_model_info`: a Codex OAuth credential's plan
+    /// catalog model.
+    CodexOAuth,
 }
 
 impl fmt::Debug for ExecRequest {
@@ -102,6 +199,10 @@ impl fmt::Debug for ExecRequest {
             .field("execution_session", &self.execution_session)
             .field("derived_session", &self.derived_session)
             .field("request_path", &self.request_path)
+            .field(
+                "resolved_model",
+                &self.resolved_model.as_ref().map(|r| (&r.info.id, r.source)),
+            )
             .field("body_len", &self.body.len())
             .finish_non_exhaustive()
     }

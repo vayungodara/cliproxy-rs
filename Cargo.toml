@@ -12,6 +12,7 @@ rust-version = "1.88"
 cpa-common = { path = "crates/cpa-common" }
 cpa-core = { path = "crates/cpa-core" }
 cpa-exec = { path = "crates/cpa-exec" }
+cpa-home = { path = "crates/cpa-home" }
 cpa-server = { path = "crates/cpa-server" }
 cpa-translate = { path = "crates/cpa-translate" }
 

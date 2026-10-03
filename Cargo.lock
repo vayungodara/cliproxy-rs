@@ -441,14 +441,17 @@ dependencies = [
  "anyhow",
  "axum",
  "clap",
+ "cpa-common",
  "cpa-core",
  "cpa-exec",
  "cpa-server",
+ "getrandom 0.3.4",
  "libc",
+ "serde_json",
+ "serde_yaml_ng",
  "socket2",
  "tokio",
  "tracing",
- "tracing-subscriber",
 ]
 
 [[package]]
@@ -565,6 +568,49 @@ dependencies = [
 ]
 
 [[package]]
+name = "cpa-home"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "base64 0.22.1",
+ "btls",
+ "chrono",
+ "cpa-common",
+ "cpa-core",
+ "serde",
+ "serde_json",
+ "serde_yaml_ng",
+ "sha2",
+ "tokio",
+ "tokio-btls",
+ "tokio-util",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "cpa-plugin"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "bytes",
+ "chrono",
+ "cpa-common",
+ "cpa-core",
+ "cpa-exec",
+ "futures-util",
+ "http",
+ "libc",
+ "serde_json",
+ "serde_yaml_ng",
+ "sha2",
+ "tokio",
+ "tracing",
+ "url",
+ "wreq",
+]
+
+[[package]]
 name = "cpa-server"
 version = "0.1.0"
 dependencies = [
@@ -585,9 +631,11 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml_ng",
+ "sha2",
  "subtle",
  "tokio",
  "tracing",
+ "tracing-subscriber",
  "url",
  "uuid",
  "wreq",

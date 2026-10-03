@@ -54,7 +54,7 @@ pub(crate) fn is_capacity(body: &str) -> bool {
 }
 
 /// `codexStatusErrorClassification`.
-fn classification(status: u16, body: &str) -> Option<(&'static str, &'static str)> {
+pub(crate) fn classification(status: u16, body: &str) -> Option<(&'static str, &'static str)> {
     let mut message = lower(&gjson::get(body, "error.message"));
     if message.is_empty() {
         message = lower(&gjson::get(body, "message"));
@@ -664,6 +664,11 @@ pub(crate) struct Processor {
     pub last_bufferable: bool,
     /// The last completed payload (response.completed/incomplete), for buffered callers.
     pub completed: Option<String>,
+    /// The request renamed the `collaboration` namespace (multi-agent v2).
+    restore: bool,
+    /// Claude clients' reasoning replay: cached from completed turns, cleared on an
+    /// invalid-signature failure.
+    replay: Option<(std::sync::Arc<crate::codex_replay::Cache>, crate::codex_replay::Scope)>,
 }
 
 impl Processor {
@@ -675,7 +680,38 @@ impl Processor {
             model_level_cooling,
             last_bufferable: true,
             completed: None,
+            restore: false,
+            replay: None,
         }
+    }
+
+    /// Caches completed turns and clears on invalid signatures for this replay scope.
+    pub fn replaying(
+        mut self,
+        cache: std::sync::Arc<crate::codex_replay::Cache>,
+        scope: crate::codex_replay::Scope,
+    ) -> Self {
+        self.replay = Some((cache, scope));
+        self
+    }
+
+    fn replay_failure(&self, status: u16, body: &str) {
+        if let Some((cache, scope)) = &self.replay {
+            crate::codex_replay::clear_on_invalid_signature(cache, scope, status, body.as_bytes());
+        }
+    }
+
+    fn replay_completed(&self, payload: &str) {
+        if let Some((cache, scope)) = &self.replay {
+            crate::codex_replay::cache_completed(cache, scope, payload.as_bytes());
+        }
+    }
+
+    /// Restores the client's `collaboration` names in every payload before anything
+    /// reads it, as Go does right after trimming each `data:` line.
+    pub fn restoring(mut self, restore: bool) -> Self {
+        self.restore = restore;
+        self
     }
 
     /// One framed SSE event in. Go scans lines: `data:` payloads are trimmed and
@@ -693,8 +729,10 @@ impl Processor {
                 lines.push(line.to_owned());
                 continue;
             };
-            let payload = data.trim();
+            let payload = restore(data.trim(), self.restore);
+            let payload = payload.as_ref();
             if let Some((error, body)) = terminal_failure(payload, self.model_level_cooling) {
+                self.replay_failure(error.status, &body);
                 return Step::Fail {
                     error,
                     body: Some(body),
@@ -713,11 +751,15 @@ impl Processor {
             let mut payload = payload.to_owned();
             match gjson::get(&payload, "type").str() {
                 "response.output_item.done" => self.items.collect(&payload),
-                "response.completed" | "response.incomplete" | "response.done" => {
+                kind @ ("response.completed" | "response.incomplete" | "response.done") => {
+                    let incomplete = kind == "response.incomplete";
                     terminal = true;
                     payload = normalize_completion(payload);
                     if !self.preserve_native {
                         payload = self.items.patch(payload);
+                    }
+                    if !incomplete {
+                        self.replay_completed(&payload);
                     }
                     self.completed = Some(payload.clone());
                 }
@@ -744,25 +786,43 @@ impl Processor {
             let Some(data) = line.strip_prefix("data:") else {
                 continue;
             };
-            let payload = data.trim();
+            let payload = restore(data.trim(), self.restore);
+            let payload = payload.as_ref();
             if meaningful_delta(payload) {
                 self.saw_delta = true;
             }
-            if let Some((error, _)) = terminal_failure(payload, self.model_level_cooling) {
+            if let Some((error, body)) = terminal_failure(payload, self.model_level_cooling) {
+                self.replay_failure(error.status, &body);
                 return Err(error);
             }
             match gjson::get(payload, "type").str() {
                 "response.output_item.done" => self.items.collect(payload),
-                "response.completed" | "response.incomplete" => {
+                kind @ ("response.completed" | "response.incomplete") => {
                     if empty_incomplete(payload, self.items.len(), self.saw_delta) {
                         return Err(request_scoped(502, EMPTY_INCOMPLETE_MESSAGE));
                     }
-                    return Ok(Some(self.items.patch(payload.to_owned())));
+                    let completed = self.items.patch(payload.to_owned());
+                    if kind == "response.completed" {
+                        self.replay_completed(&completed);
+                    }
+                    return Ok(Some(completed));
                 }
                 _ => {}
             }
         }
         Ok(None)
+    }
+}
+
+/// `RestoreCodexMultiAgentV2Response` on one upstream payload when the request was
+/// optimized.
+pub(crate) fn restore(payload: &str, optimized: bool) -> std::borrow::Cow<'_, str> {
+    if !optimized {
+        return std::borrow::Cow::Borrowed(payload);
+    }
+    match String::from_utf8(cpa_common::codex_client::restore_response(payload.as_bytes(), true)) {
+        Ok(restored) => std::borrow::Cow::Owned(restored),
+        Err(_) => std::borrow::Cow::Borrowed(payload),
     }
 }
 

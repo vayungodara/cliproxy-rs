@@ -60,6 +60,75 @@ pub fn bound_session_identity(id: &str) -> String {
     format!("{}#{hash}", &id[..end])
 }
 
+/// Go `knownSessionPrefixes` (sdk/cliproxy/session/identity.go), stripped iteratively.
+const KNOWN_SESSION_PREFIXES: [&str; 20] = [
+    "lcp:v1:",
+    "lcp:",
+    "ctx:v1:",
+    "ctx:",
+    "codex:",
+    "claude:",
+    "header:",
+    "session:",
+    "affinity:",
+    "slot:",
+    "task:",
+    "conv:",
+    "thread:",
+    "clientreq:",
+    "geminicache:",
+    "pck:",
+    "user:",
+    "execution:",
+    "agy:",
+    "derived:",
+];
+
+fn is_canonical_uuid(s: &str) -> bool {
+    let b = s.as_bytes();
+    b.len() == 36
+        && b.iter().enumerate().all(|(i, c)| match i {
+            8 | 13 | 18 | 23 => *c == b'-',
+            _ => c.is_ascii_hexdigit(),
+        })
+}
+
+/// Go `NormalizeToCanonicalUUID`: a lowercase UUID as is (after stripping known
+/// session prefixes, or after one generic `prefix:`), otherwise an RFC 9562 UUIDv8
+/// projected from SHA-256. Empty when nothing identifying remains.
+pub fn normalize_to_canonical_uuid(raw: &str) -> String {
+    let mut clean = raw.trim();
+    if clean.is_empty() {
+        return String::new();
+    }
+    if is_canonical_uuid(clean) {
+        return clean.to_ascii_lowercase();
+    }
+    while let Some(rest) = KNOWN_SESSION_PREFIXES.iter().find_map(|p| clean.strip_prefix(p)) {
+        clean = rest.trim();
+    }
+    if clean.is_empty() {
+        return String::new();
+    }
+    if is_canonical_uuid(clean) {
+        return clean.to_ascii_lowercase();
+    }
+    if let Some(idx) = clean.find(':').filter(|i| *i > 0) {
+        let candidate = clean[idx + 1..].trim();
+        if is_canonical_uuid(candidate) {
+            return candidate.to_ascii_lowercase();
+        }
+    }
+    let mut hasher = Sha256::new();
+    hasher.update(b"cpa:canonical-uuid:v1\0");
+    hasher.update(clean.as_bytes());
+    let mut u: [u8; 16] = hasher.finalize()[..16].try_into().expect("16 bytes");
+    u[6] = (u[6] & 0x0f) | 0x80;
+    u[8] = (u[8] & 0x3f) | 0x80;
+    let h = hex(&u);
+    format!("{}-{}-{}-{}-{}", &h[..8], &h[8..12], &h[12..16], &h[16..20], &h[20..])
+}
+
 /// Go `CallerScope`: an irreversible namespace for a downstream client key.
 pub fn caller_scope(value: &str) -> String {
     let value = value.trim();

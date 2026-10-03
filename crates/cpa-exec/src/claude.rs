@@ -210,7 +210,7 @@ impl ClaudeExecutor {
     }
 
     /// Execute / ExecuteStream around the compat thinking replay: restore before
-    /// translation, clear applied replay the upstream rejected (400/422).
+    /// translation; `generate_with` clears applied replay the upstream rejected.
     async fn generate(&self, ctx: Ctx<'_>, mut req: ExecRequest) -> Result<ExecResponse, ExecError> {
         let attr = |k: &str| ctx.credential.attributes.get(k).map(String::as_str).unwrap_or_default();
         let gate = replay::Gate {
@@ -224,12 +224,6 @@ impl ClaudeExecutor {
         let scope = replay::prepare(&self.replay, &gate, &mut req);
         let result = self.generate_with(ctx, req, scope.as_ref()).await;
         match (result, scope) {
-            (Err(error), Some(scope)) => {
-                if scope.applied && replay::clears_after(&error) {
-                    scope.clear();
-                }
-                Err(error)
-            }
             // wrapClaudeThinkingReplayStream wraps the stream ExecuteStream returns,
             // after translation.
             (Ok(mut response), Some(scope)) => {
@@ -238,7 +232,7 @@ impl ClaudeExecutor {
                 }
                 Ok(response)
             }
-            (result, None) => result,
+            (result, _) => result,
         }
     }
 
@@ -252,7 +246,14 @@ impl ClaudeExecutor {
         let translated = translate::request(&req, &ctx.base_model, ctx.is_compat)?;
         let original_translated = translate::original(&req, &translated, &ctx.base_model, ctx.is_compat)?;
         let prepared = ctx.prepare_messages(&req, &translated, &original_translated, upstream_stream)?;
-        let response = self.send(&ctx, &prepared, "/v1/messages").await?;
+        let response = self.send(&ctx, &prepared, "/v1/messages").await.inspect_err(|error| {
+            // shouldClearKimiThinkingReplayAfterError: an upstream rejection of applied replay.
+            if let Some(scope) = replay.filter(|s| s.applied)
+                && replay::upstream_rejects(error)
+            {
+                scope.clear();
+            }
+        })?;
         let reverse = prepared.reverse.clone();
         let continuity = prepared.continuity.clone();
         let request_id = header_value(&response.headers, "request-id");

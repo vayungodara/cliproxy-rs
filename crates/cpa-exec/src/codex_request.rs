@@ -54,6 +54,11 @@ pub(crate) struct Settings {
     pub image_generation: bool,
     /// `requests.payload` rules and image-generation mode for this config snapshot.
     pub payload: cpa_common::payload::Rules,
+    /// Multi-agent v2 and orphan-delegation settings (Go reads them from `ForAPIKey` for
+    /// API keys, as [`Settings::scoped`] does).
+    pub client: cpa_common::codex_client::Settings,
+    /// The `models` of the `codex-api-key` entry the credential resolves to.
+    pub key_models: Vec<serde_json::Value>,
 }
 
 fn setting<'a>(cfg: &'a Config, path: &[&str]) -> Option<&'a serde_yaml_ng::Value> {
@@ -64,11 +69,40 @@ impl Settings {
     /// The settings `view`'s credential sees: API keys get Go's `ForAPIKey` view, where
     /// `oauth.providers.codex.*` written in v8 form does not apply.
     pub fn scoped(cfg: &Config, view: &View<'_>) -> Self {
-        if view.api_key {
+        let mut settings = if view.api_key {
             Self::from(&cfg.for_api_key())
         } else {
             Self::from(cfg)
+        };
+        // ponytail: Go's executor-side resolveCodexKeyConfig skips the prefix/proxy
+        // tie-break of the shared resolver; they differ only for duplicate key+URL entries.
+        settings.key_models = cpa_core::config::credentials::resolve_api_key_entry(cfg, "codex", view.credential)
+            .map(|entry| entry.models)
+            .unwrap_or_default();
+        settings
+    }
+
+    /// `resolveCodexModelIsCompat`: the model dispatch bound to the attempt, else the
+    /// credential's config entry, where the first model whose name or alias equals the
+    /// base or requested model decides; none means not compat.
+    pub fn is_compat(&self, req: &ExecRequest) -> bool {
+        if let Some(resolved) = &req.resolved_model {
+            return resolved.is_compat();
         }
+        let fold = |a: &str, b: &str| !b.is_empty() && a.to_lowercase() == b.to_lowercase();
+        let requested = req.model.trim();
+        let base = base_model(&req.model);
+        let target = base.trim();
+        self.key_models
+            .iter()
+            .find(|m| {
+                let field = |k: &str| m.get(k).and_then(serde_json::Value::as_str).unwrap_or_default().trim();
+                let (name, alias) = (field("name"), field("alias"));
+                fold(name, target) || fold(alias, target) || fold(name, requested) || fold(alias, requested)
+            })
+            .and_then(|m| m.get("is-compat"))
+            .and_then(serde_json::Value::as_bool)
+            .unwrap_or(false)
     }
 
     pub fn from(cfg: &Config) -> Self {
@@ -101,6 +135,8 @@ impl Settings {
             default_beta_features: text(&["oauth", "providers", "codex", "header-defaults", "beta-features"]),
             image_generation: image_off,
             payload: cpa_common::payload::Rules::from_config(cfg),
+            client: cpa_common::codex_client::Settings::from_config(cfg),
+            key_models: Vec::new(),
         }
     }
 }
@@ -276,9 +312,8 @@ pub(crate) fn is_native(req: &ExecRequest) -> bool {
 /// thinking pipeline for `codex` (`openai-response` for compact). Also returns the
 /// translated original request, which payload default rules consult.
 // ponytail: the translator's configuration-update intent is not surfaced, so
-// `updates_changed` stays false. Resolved API-key model capabilities
-// (`ResolvedModelInfo`) are not bound to the attempt either.
-fn translate_request(req: &ExecRequest, call: Call) -> Result<(String, Vec<u8>), ExecError> {
+// `updates_changed` stays false.
+fn translate_request(req: &ExecRequest, call: Call, is_compat: bool) -> Result<(String, Vec<u8>), ExecError> {
     let target = call.target();
     let registered = cpa_translate::pair(req.source_format, target).is_some();
     if !registered && !matches!(req.source_format, Format::Codex | Format::OpenAIResponse) {
@@ -298,9 +333,22 @@ fn translate_request(req: &ExecRequest, call: Call) -> Result<(String, Vec<u8>),
         model: &model,
         stream: matches!(call, Call::Stream | Call::Websocket),
     };
+    // `translateCodexRequestPairWithUpdateIntent`: an is-compat model's Claude requests
+    // use the compat translator, with no client headers or config (Go passes nil).
+    let no_headers = HeaderMap::new();
+    let compat = crate::codex_client::Client {
+        headers: &no_headers,
+        settings: Default::default(),
+        target_executor: "",
+        is_compat: true,
+    };
     let translate = |raw: &[u8]| {
-        cpa_translate::translate_request(req.source_format, target, &ctx, raw)
-            .map_err(|e| ExecError::local(400, FailureScope::Request, e.to_string()))
+        if is_compat && req.source_format == Format::Claude && target == Format::Codex {
+            crate::codex_client::translate_request(req.source_format, target, &ctx, raw, &compat)
+        } else {
+            cpa_translate::translate_request(req.source_format, target, &ctx, raw)
+        }
+        .map_err(|e| ExecError::local(400, FailureScope::Request, e.to_string()))
     };
     let body = translate(&req.body)?;
     let original = if req.original_body.is_empty() || req.original_body == req.body {
@@ -308,6 +356,10 @@ fn translate_request(req: &ExecRequest, call: Call) -> Result<(String, Vec<u8>),
     } else {
         translate(&req.original_body)?
     };
+    let caps = req
+        .resolved_model
+        .as_ref()
+        .map(|r| cpa_common::thinking::ModelCaps::from(&r.info));
     let thought = cpa_common::thinking::apply_request_thinking(&cpa_common::thinking::RequestThinking {
         body: &body,
         payload: &req.body,
@@ -316,7 +368,7 @@ fn translate_request(req: &ExecRequest, call: Call) -> Result<(String, Vec<u8>),
         from: req.source_format.as_str(),
         to: target.as_str(),
         provider: "codex",
-        resolved: None,
+        resolved: caps.as_ref().map(Some),
         has_request_transformer: registered,
         updates_changed: false,
     })
@@ -359,14 +411,20 @@ fn apply_payload(
     String::from_utf8(out).unwrap_or_else(|e| String::from_utf8_lossy(e.as_bytes()).into_owned())
 }
 
-/// Applies the Codex body rules for `call`.
-// ponytail: payload rules (M4-0031), multi-agent v2 optimisation
-// (client.codex.optimize-multi-agent-v2, default off) and the Claude-source reasoning
-// replay cache are not applied here yet.
-pub(crate) fn shape(req: &ExecRequest, view: &View<'_>, settings: &Settings, call: Call) -> Result<String, ExecError> {
+/// Applies the Codex body rules for `call`. Also returns whether the multi-agent v2
+/// optimization renamed the `collaboration` namespace, so upstream payloads need
+/// `cpa_common::codex_client::restore_response`.
+// ponytail: the Claude-source reasoning replay cache is not applied here yet.
+pub(crate) fn shape(
+    req: &ExecRequest,
+    view: &View<'_>,
+    settings: &Settings,
+    call: Call,
+) -> Result<(String, bool), ExecError> {
     let model = base_model(&req.model);
     let model = model.as_str();
-    let (body, original) = translate_request(req, call)?;
+    let is_compat = settings.is_compat(req);
+    let (body, original) = translate_request(req, call, is_compat)?;
     let mut body = apply_payload(req, settings, call, model, body, &original);
     match call {
         Call::NonStream => {
@@ -426,7 +484,7 @@ pub(crate) fn shape(req: &ExecRequest, view: &View<'_>, settings: &Settings, cal
     if call != Call::Compact && settings.image_generation {
         body = ensure_image_tool(body, model, view, &req.headers);
     }
-    body = sanitize_reasoning(body);
+    body = sanitize_reasoning(body, is_compat);
     body = if call == Call::Websocket {
         if is_lite(&body, &req.headers) {
             set_bool_if_different(body, "parallel_tool_calls", false)
@@ -436,7 +494,11 @@ pub(crate) fn shape(req: &ExecRequest, view: &View<'_>, settings: &Settings, cal
     } else {
         normalize_parallel_tool_calls(body, &req.headers)
     };
-    Ok(normalize_tool_schemas(body))
+    let body = normalize_tool_schemas(body);
+    let (body, restore) =
+        crate::codex_client::optimize_for_auth(&req.headers, body.as_bytes(), &settings.client, is_compat);
+    let body = String::from_utf8(body).unwrap_or_else(|e| String::from_utf8_lossy(e.as_bytes()).into_owned());
+    Ok((body, restore))
 }
 
 fn ensure_image_tool(body: String, model: &str, view: &View<'_>, headers: &HeaderMap) -> String {
@@ -488,10 +550,10 @@ fn normalize_parallel_tool_calls(body: String, headers: &HeaderMap) -> String {
     delete(&body, "parallel_tool_calls")
 }
 
-/// `sanitizeOpenAIResponsesReasoningEncryptedContentWithCompat(..., isCompat=false)`.
-// ponytail: per-model `is-compat` (third-party Responses models) is not wired; Codex
-// models are never compat.
-fn sanitize_reasoning(body: String) -> String {
+/// `sanitizeOpenAIResponsesReasoningEncryptedContentWithCompat`. Compat models
+/// (third-party Responses upstreams) keep reasoning `content` and orphan ids; invalid
+/// `encrypted_content` is dropped either way.
+fn sanitize_reasoning(body: String, is_compat: bool) -> String {
     let input = gjson::get(&body, "input");
     if input.kind() != Kind::Array {
         return body;
@@ -504,7 +566,7 @@ fn sanitize_reasoning(body: String) -> String {
         let mut changed = false;
         if item.get("type").str().trim() == "reasoning" {
             let content = item.get("content");
-            if content.kind() == Kind::Array && !content.array().is_empty() {
+            if !is_compat && content.kind() == Kind::Array && !content.array().is_empty() {
                 let summary = item.get("summary");
                 let empty_summary = !summary.exists()
                     || summary.kind() == Kind::Null
@@ -526,7 +588,7 @@ fn sanitize_reasoning(body: String) -> String {
             let encrypted = item.get("encrypted_content");
             let has_id = item.get("id").exists();
             if !encrypted.exists() {
-                if strip_orphan_ids && has_id {
+                if !is_compat && strip_orphan_ids && has_id {
                     next = delete(&next, "id");
                     changed = true;
                 }
@@ -537,7 +599,7 @@ fn sanitize_reasoning(body: String) -> String {
                 if !valid {
                     next = delete(&next, "encrypted_content");
                     changed = true;
-                    if strip_orphan_ids && has_id {
+                    if !is_compat && strip_orphan_ids && has_id {
                         next = delete(&next, "id");
                     }
                 }
@@ -878,10 +940,19 @@ fn session_uuid(req: &ExecRequest, ws_session: Option<&str>) -> Option<String> {
     }
 }
 
+/// `helps.ClaudeCodePromptCache`: one deterministic key per Claude Code agent and model.
+fn claude_code_prompt_cache(model: &str, payload: &[u8], headers: &HeaderMap) -> Option<String> {
+    let model = model.trim();
+    let scope = crate::replay::claude_code_session(payload, headers)?;
+    (!model.is_empty()).then(|| {
+        let identity = format!("cli-proxy-api:codex:claude-code\0{model}\0{scope}");
+        uuid::Uuid::new_v5(&uuid::Uuid::NAMESPACE_OID, identity.as_bytes()).to_string()
+    })
+}
+
 /// `cacheHelper` / `applyCodexPromptCacheHeadersWithContext`: the prompt cache key from
-/// the client body (Responses/Chat) or the session identity, written into the body.
-// ponytail: Claude-source prompt caching (helps.ClaudeCodePromptCache) arrives with the
-// Claude -> Codex translator; it falls back to the session UUID meanwhile.
+/// the client body (Claude Code agent, Responses or Chat) or the session identity,
+/// written into the body.
 pub(crate) fn prompt_cache(
     req: &ExecRequest,
     body: String,
@@ -891,6 +962,13 @@ pub(crate) fn prompt_cache(
     let original = String::from_utf8_lossy(&req.body);
     let client_key = gjson::get(&original, "prompt_cache_key");
     let mut id = match req.source_format {
+        Format::Claude => {
+            let mut model = gjson::get(&body, "model").str().trim().to_owned();
+            if model.is_empty() {
+                model = base_model(&req.model);
+            }
+            claude_code_prompt_cache(&model, &req.body, &req.headers).unwrap_or_default()
+        }
         Format::OpenAIResponse if client_key.exists() => client_key.str().to_owned(),
         Format::OpenAI if client_key.exists() && !websocket => client_key.str().trim().to_owned(),
         _ => String::new(),
@@ -1008,8 +1086,6 @@ pub(crate) fn http_headers(
     apply_identity(&mut h, view, settings, client);
     routing_hint(&mut h, view, client, body, model);
     model_header_overrides(&mut h, model);
-    // Go's transport adds this and decodes the body transparently.
-    set(&mut h, "accept-encoding", "gzip");
     h
 }
 

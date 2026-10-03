@@ -2,6 +2,7 @@
 
 mod access;
 mod affinity;
+pub mod capabilities;
 mod classify;
 mod claude;
 mod codex_alpha;
@@ -10,6 +11,7 @@ pub mod dispatch;
 mod errors;
 mod gemini;
 mod gojson;
+pub mod logging;
 pub mod management;
 mod models;
 mod openai;
@@ -22,6 +24,7 @@ mod sanitize;
 pub mod scheduler;
 mod session;
 pub mod usage;
+mod usage_record;
 pub mod watching;
 mod websocket;
 mod websocket_requests;

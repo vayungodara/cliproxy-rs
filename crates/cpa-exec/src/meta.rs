@@ -10,8 +10,10 @@
 //! cpa_common::thinking, JSON edits cpa_common::json, and the Codex and OpenAI-compatible
 //! executors' ports of the shared Responses helpers. Stages whose shared module has not
 //! landed go through adapters named after their owners (meta_codex, kimi_http, below).
-//! ponytail: the apply_patch Responses bridge (translator common) is not applied, as for
-//! Kimi; requests without an apply_patch custom tool are unaffected.
+//! Translator apply_patch failures end streams with Go's 502. ponytail: Go's
+//! ApplyPatchResponsesState (executor helps) and the translator-common Responses bridge
+//! around the Codex stream are not ported (no owner yet), so a custom `apply_patch` tool is
+//! sent upstream as declared; requests without one are unaffected.
 
 use std::collections::VecDeque;
 use std::time::Duration;
@@ -28,11 +30,13 @@ use futures_util::StreamExt;
 use serde_json::Value;
 
 use crate::codex_response::OutputItems;
+use crate::codex_tokens::{Encoding, count_input_tokens};
 use crate::kimi_http::{credential_headers, payload_rules, read_all_strict, refresh_due, rfc3339_local_now};
 use crate::meta_auth::{DEFAULT_API_BASE_URL, MetaAuth, MintedKey};
-use crate::meta_codex::{count_codex_input_tokens, go_trim_space, normalize_codex_instructions};
+use crate::meta_codex::go_trim_space;
 use crate::openai_compat_payload::{ensure_responses_usage_details, sanitize_reasoning_encrypted_content};
 use crate::proxy::{GoClients, GoHeaders, MAX_ERROR_BODY, Proxy, default_client, lines, read_all, send};
+use cpa_common::codex_client::normalize_codex_instructions;
 
 /// Provider string served by this executor.
 pub const PROVIDER: &str = "meta";
@@ -43,8 +47,6 @@ pub const USER_AGENT: &str =
 const NOT_FOUND_COOLDOWN: Duration = Duration::from_secs(300);
 /// Go's bufio.Scanner limit for the upstream stream.
 const LINE_LIMIT: usize = 52_428_800;
-/// `helps.ApplyPatchUpstreamErrorMessage`, also used when translation yields nothing.
-const APPLY_PATCH_ERROR: &str = "Invalid apply_patch tool arguments received from upstream.";
 const DISCONNECTED: &str = "meta stream error: stream disconnected before response.completed or response.incomplete";
 
 pub struct MetaExecutor {
@@ -212,12 +214,13 @@ impl MetaExecutor {
         } else {
             let data = read_all(upstream.body, usize::MAX, false).await?;
             let completed = collect_completed(&data, |event| {
-                let out = (prepared.response.non_stream)(&ctx, event)
-                    .map_err(|e| ExecError::local(502, FailureScope::Request, e.0))?;
-                if out.is_empty() {
-                    return Err(ExecError::local(502, FailureScope::Request, APPLY_PATCH_ERROR));
-                }
-                Ok(out)
+                // A translator error or empty output is Go's apply_patch 502.
+                (prepared.response.non_stream)(&ctx, event)
+                    .ok()
+                    .filter(|out| !out.is_empty())
+                    .ok_or_else(|| {
+                        ExecError::local(502, FailureScope::Request, cpa_translate::APPLY_PATCH_UPSTREAM_ERROR)
+                    })
             })?;
             ResponseBody::Buffered(Bytes::from(if responses_client {
                 ensure_responses_usage_details(&completed)
@@ -241,7 +244,7 @@ impl MetaExecutor {
     ) -> Result<ExecResponse, ExecError> {
         self.ensure_auth(credential, cfg).await?;
         let prepared = prepare(&req, cfg, false)?;
-        let count = count_codex_input_tokens(&prepared.body).map_err(|e| {
+        let count = count_input_tokens(Encoding::O200kBase, &prepared.body).map_err(|e| {
             ExecError::local(
                 500,
                 FailureScope::Request,
@@ -291,13 +294,6 @@ fn not_registered(what: &str) -> ExecError {
     )
 }
 
-/// ponytail: adapter for `cpa_common::codex_client` (owner: Codex thread). Go translates
-/// through TranslateRequestWithCodexMultiAgentV2, which rewrites Codex CLI requests;
-/// identity until the shared module lands.
-fn codex_client_request(_req: &ExecRequest, body: &[u8]) -> Vec<u8> {
-    body.to_vec()
-}
-
 /// prepareResponsesRequest. Every Go client format has a Codex translator; here the
 /// unregistered ones answer 501 instead of falling back to a model rewrite.
 fn prepare(req: &ExecRequest, cfg: &Config, stream: bool) -> Result<Prepared, ExecError> {
@@ -309,15 +305,19 @@ fn prepare(req: &ExecRequest, cfg: &Config, stream: bool) -> Result<Prepared, Ex
         return Err(not_registered("Meta request"));
     }
     let base_model = parse_suffix(&req.model).model_name;
+    // Go: helps.TranslateRequestWithAPIKeyModelCompatibility with APIKeyModelIsCompat.
+    let is_compat = req.resolved_model.as_ref().is_some_and(|r| r.is_compat());
+    let client = crate::codex_client::Client::new(&req.headers, cfg, "", is_compat);
     let translate = |body: &[u8]| {
-        cpa_translate::translate_request(
+        crate::codex_client::translate_request(
             req.source_format,
             Format::Codex,
             &RequestCtx {
                 model: &base_model,
                 stream,
             },
-            &codex_client_request(req, body),
+            body,
+            &client,
         )
         .map_err(|e| ExecError::local(400, FailureScope::Request, e.0))
     };
@@ -579,6 +579,15 @@ fn stream_events(upstream: ExecStream, translator: Box<dyn StreamTranslator>, re
             };
             let translated = self.translator.event(&line);
             self.emit(translated);
+            // StopApplyPatchStream: the rejected call's frames, then a 502. Go's Meta loop
+            // does not finalize tool input at EOF.
+            if !self.done && self.translator.tool_input_failed() {
+                self.fail(ExecError::local(
+                    502,
+                    FailureScope::Request,
+                    cpa_translate::APPLY_PATCH_UPSTREAM_ERROR,
+                ));
+            }
         }
 
         /// Ends the stream with `error`. Go stops translating; the Responses route first

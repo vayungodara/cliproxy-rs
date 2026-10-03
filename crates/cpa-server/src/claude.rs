@@ -47,17 +47,7 @@ pub fn ensure_dd(id: &str) -> String {
 pub async fn messages(
     State(rt): State<Arc<Runtime>>,
     Extension(caller): Extension<Caller>,
-    matched: Option<MatchedPath>,
-    OriginalUri(uri): OriginalUri,
-    headers: HeaderMap,
-    body: Result<Bytes, BytesRejection>,
-) -> Response {
-    handle(rt, caller, &uri, matched.as_ref(), headers, body, Operation::Generate).await
-}
-
-pub async fn count_tokens(
-    State(rt): State<Arc<Runtime>>,
-    Extension(caller): Extension<Caller>,
+    peer: dispatch::Peer,
     matched: Option<MatchedPath>,
     OriginalUri(uri): OriginalUri,
     headers: HeaderMap,
@@ -66,6 +56,29 @@ pub async fn count_tokens(
     handle(
         rt,
         caller,
+        dispatch::peer(peer),
+        &uri,
+        matched.as_ref(),
+        headers,
+        body,
+        Operation::Generate,
+    )
+    .await
+}
+
+pub async fn count_tokens(
+    State(rt): State<Arc<Runtime>>,
+    Extension(caller): Extension<Caller>,
+    peer: dispatch::Peer,
+    matched: Option<MatchedPath>,
+    OriginalUri(uri): OriginalUri,
+    headers: HeaderMap,
+    body: Result<Bytes, BytesRejection>,
+) -> Response {
+    handle(
+        rt,
+        caller,
+        dispatch::peer(peer),
         &uri,
         matched.as_ref(),
         headers,
@@ -75,11 +88,12 @@ pub async fn count_tokens(
     .await
 }
 
-/// Go `GetAlt`: `alt`, else `$alt`; `sse` means none.
+/// Go `GetAlt`: `alt` when present (even empty), else `$alt`; `sse` and the empty
+/// string both mean none, as Go's `""`.
 pub fn alt(query: &str) -> Option<String> {
     let value = crate::access::query_get(query, "alt").or_else(|| crate::access::query_get(query, "$alt"))?;
     let value = String::from_utf8_lossy(&value).into_owned();
-    (value != "sse").then_some(value)
+    (!value.is_empty() && value != "sse").then_some(value)
 }
 
 /// Reads the top-level fields a route needs without materializing the rest.
@@ -111,9 +125,11 @@ pub fn read_failed(rejection: &BytesRejection) -> Response {
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn handle(
     rt: Arc<Runtime>,
     caller: Caller,
+    peer: Option<std::net::SocketAddr>,
     uri: &axum::http::Uri,
     matched: Option<&MatchedPath>,
     headers: HeaderMap,
@@ -153,6 +169,7 @@ async fn handle(
         selection_model: None,
         execution_session: None,
         request_path: dispatch::route_path(matched, uri),
+        peer,
     };
     let keepalive = respond::keepalive(&rt.config());
     dispatch::serve(&rt, call, |result| async move {
@@ -186,6 +203,21 @@ impl Writer for ClaudeSse {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Go `GetAlt` goldens (tests/reference/server/main.go `alts`): an empty `alt`
+    /// stops the `$alt` fallback and means none.
+    #[test]
+    fn alt_matches_go() {
+        let fixture: Value = serde_json::from_str(include_str!("../tests/fixtures/server_go.json")).unwrap();
+        let cases = fixture["alt"].as_array().unwrap();
+        assert_eq!(cases.len(), 13);
+        for case in cases {
+            let want = case["out"].as_str().unwrap();
+            let got = alt(case["in"].as_str().unwrap());
+            assert_eq!(got.as_deref().unwrap_or(""), want, "query {}", case["in"]);
+            assert_eq!(got.is_some(), !want.is_empty());
+        }
+    }
 
     #[test]
     fn dd_model_ids_round_trip_like_go() {

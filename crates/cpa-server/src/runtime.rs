@@ -42,6 +42,8 @@ pub struct Runtime {
     pool_offsets: Mutex<HashMap<String, usize>>,
     /// Usage records for `GET /observability/usage/queue` (management configures it).
     usage: crate::usage::UsageQueue,
+    /// `--local-model`: embedded model catalogs only, no remote catalog refresh.
+    local_model: std::sync::atomic::AtomicBool,
 }
 
 /// An OAuth provider redirect received on the main listener.
@@ -66,6 +68,8 @@ impl Runtime {
         let mut policy = crate::management::policy(&config);
         policy.compat_disable_cooling = crate::scheduler::compat_cooling(&config);
         let cooldown_dir = cooldown_dir(&config, &policy);
+        let (enabled, strict) = signature_cache_config(&config);
+        cpa_translate::set_antigravity_signature_cache_config(enabled, strict);
         let rt = Self {
             config: RwLock::new(Arc::new(config)),
             store: CredentialStore::new(credentials),
@@ -76,6 +80,7 @@ impl Runtime {
             oauth_sink: RwLock::default(),
             pool_offsets: Mutex::default(),
             usage: crate::usage::UsageQueue::default(),
+            local_model: Default::default(),
         };
         rt.publish_policy(policy);
         rt.store.configure_cooldown_store(cooldown_dir);
@@ -86,6 +91,17 @@ impl Runtime {
     /// `queuedUsageDetail` per upstream request when `accepts()` (additive API).
     pub fn usage_queue(&self) -> &crate::usage::UsageQueue {
         &self.usage
+    }
+
+    /// Records `--local-model` (Go `modelCatalogUpdaterPlan`'s `localModel`): remote
+    /// model catalog updaters must not start when set (additive API).
+    pub fn set_local_model(&self, on: bool) {
+        self.local_model.store(on, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    /// Whether `--local-model` was given.
+    pub fn local_model(&self) -> bool {
+        self.local_model.load(std::sync::atomic::Ordering::Relaxed)
     }
 
     /// The config snapshot to use for one whole request.
@@ -103,6 +119,8 @@ impl Runtime {
     /// Integration should use this when publishing parsed routing settings too.
     pub fn publish_config_and_policy(&self, config: Config, mut policy: Policy) {
         policy.compat_disable_cooling = crate::scheduler::compat_cooling(&config);
+        let (enabled, strict) = signature_cache_config(&config);
+        cpa_translate::set_antigravity_signature_cache_config(enabled, strict);
         let dir = cooldown_dir(&config, &policy);
         *self.config.write().unwrap_or_else(PoisonError::into_inner) = Arc::new(config);
         self.publish_policy(policy);
@@ -1297,10 +1315,48 @@ impl Stream for Completing {
     }
 }
 
+/// Go `configuredSignatureCacheEnabled` / `configuredSignatureBypassStrict`
+/// (internal/api/server_reload.go): `oauth.providers.antigravity.signature-cache-enabled`
+/// (default true) and `.signature-bypass-strict` (default false), legacy
+/// `antigravity-signature-*` spellings included. Applied on every publish, as Go
+/// applies them at startup and on each reload.
+fn signature_cache_config(cfg: &Config) -> (bool, bool) {
+    let flag = |key: &str| {
+        cfg.document
+            .get("oauth")
+            .and_then(|o| o.get("providers"))
+            .and_then(|p| p.get("antigravity"))
+            .and_then(|a| a.get(key))
+            .and_then(serde_yaml_ng::Value::as_bool)
+    };
+    (
+        flag("signature-cache-enabled").unwrap_or(true),
+        flag("signature-bypass-strict").unwrap_or(false),
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::os::unix::fs::PermissionsExt;
+
+    #[test]
+    fn signature_cache_config_reads_v8_and_legacy_keys() {
+        let at = |yaml: &str| signature_cache_config(&Config::parse(yaml).unwrap());
+        assert_eq!(at("{}\n"), (true, false));
+        assert_eq!(
+            at("antigravity-signature-cache-enabled: false\nantigravity-signature-bypass-strict: true\n"),
+            (false, true)
+        );
+        assert_eq!(
+            at("oauth: {providers: {antigravity: {signature-cache-enabled: false, signature-bypass-strict: true}}}\n"),
+            (false, true)
+        );
+        assert_eq!(
+            at("oauth: {providers: {antigravity: {signature-cache-enabled: null}}}\n"),
+            (true, false)
+        );
+    }
 
     fn cred(id: &str, provider: &str, disabled: bool) -> Credential {
         let mut metadata = Map::new();

@@ -240,7 +240,7 @@ async fn select_oauth(
         .snapshot()
         .iter()
         .filter(|c| c.provider == "codex")
-        .filter(|c| crate::codex_alpha::auth_kind(c) != Some("oauth") || pinned.is_some_and(|id| id != c.id))
+        .filter(|c| cpa_core::registry::dynamic::auth_kind(c) != Some("oauth") || pinned.is_some_and(|id| id != c.id))
         .map(|c| c.id.clone())
         .collect();
     let (primary, parent, fork) = session_hierarchy(headers, body, execution_session);

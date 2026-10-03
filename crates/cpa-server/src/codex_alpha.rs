@@ -67,44 +67,10 @@ fn with_retry_after(mut response: Response, seconds: Option<u64>) -> Response {
     response
 }
 
-/// `Auth.AuthKind`: explicit kind, then an API key attribute, then OAuth token metadata.
-pub(crate) fn auth_kind(c: &Credential) -> Option<&'static str> {
-    let normalize = |s: &str| match s.trim().to_ascii_lowercase().as_str() {
-        "apikey" | "api_key" | "api-key" => Some("apikey"),
-        "oauth" | "oauth2" => Some("oauth"),
-        _ => None,
-    };
-    if let Some(kind) = c.attributes.get("auth_kind").and_then(|s| normalize(s)) {
-        return Some(kind);
-    }
-    if let Some(kind) = c.str("auth_kind").and_then(normalize) {
-        return Some(kind);
-    }
-    if c.attributes.get("api_key").is_some_and(|k| !k.trim().is_empty()) {
-        return Some("apikey");
-    }
-    let oauth = [
-        "access_token",
-        "refresh_token",
-        "id_token",
-        "email",
-        "token_type",
-        "expires_at",
-        "expired",
-    ]
-    .iter()
-    .any(|k| c.str(k).is_some_and(|v| !v.trim().is_empty()))
-        || c.metadata
-            .get("token")
-            .and_then(|t| t.as_object())
-            .is_some_and(|t| !t.is_empty());
-    oauth.then_some("oauth")
-}
-
 /// `credentialPolicyAllows(codex_alpha_search_v1, auth)`.
 fn allowed(c: &Credential) -> bool {
     c.provider.eq_ignore_ascii_case("codex")
-        && match auth_kind(c) {
+        && match cpa_core::registry::dynamic::auth_kind(c) {
             Some("oauth") => true,
             Some("apikey") => c
                 .attributes

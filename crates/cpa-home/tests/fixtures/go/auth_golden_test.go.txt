@@ -1,0 +1,211 @@
+package auth
+
+// Golden generator for cliproxy-rs. RUST_GOLDEN=<file> go test -run TestRustGoldenHome ./sdk/cliproxy/auth/
+
+import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"os"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/executionregistry"
+)
+
+type rustObs struct {
+	RequestID    string `json:"request_id"`
+	CredentialID string `json:"credential_id"`
+	Model        string `json:"model"`
+	RequestKind  string `json:"request_kind"`
+	StartedNanos int64  `json:"started_unix_nano"`
+	Accounted    bool   `json:"accounted"`
+}
+
+type rustCfg struct {
+	MaxPartBytes       int `json:"max_part_bytes"`
+	MaxPartCount       int `json:"max_part_count"`
+	MaxRevisionBytes   int `json:"max_revision_bytes"`
+	MaxAggregateGroups int `json:"max_aggregate_groups"`
+	MaxDetails         int `json:"max_details"`
+	MaxStringBytes     int `json:"max_string_bytes"`
+}
+
+func TestRustGoldenHome(t *testing.T) {
+	out := os.Getenv("RUST_GOLDEN")
+	if out == "" {
+		t.Skip("RUST_GOLDEN not set")
+	}
+	doc := map[string]any{}
+	base := time.Date(2026, 7, 21, 11, 59, 58, 0, time.UTC)
+
+	mkObs := func(n int, credFn func(int) string, modelFn func(int) string, accountedFn func(int) bool) []rustObs {
+		var obs []rustObs
+		for i := 0; i < n; i++ {
+			obs = append(obs, rustObs{
+				RequestID:    fmt.Sprintf("req-%04d", (i*7919)%n),
+				CredentialID: credFn(i),
+				Model:        modelFn(i),
+				RequestKind:  []string{"http", "stream", "websocket"}[i%3],
+				StartedNanos: base.Add(time.Duration(i%5) * 1500 * time.Millisecond).UnixNano(),
+				Accounted:    accountedFn(i),
+			})
+		}
+		return obs
+	}
+	def := rustCfg{262144, 64, 16777216, 100000, 10000, 256}
+	small := rustCfg{1024, 4, 4096, 100000, 10000, 256}
+	cases := []struct {
+		name string
+		cfg  rustCfg
+		obs  []rustObs
+	}{
+		{"empty", def, nil},
+		{"fixture_like", def, []rustObs{
+			{"req-1", "cred-a", "gpt-5", "sse", base.UnixNano(), true},
+			{"req-2", "cred-a", "gpt-5", "http", base.Add(time.Second).UnixNano(), true},
+			{"req-3", "cred-a", "GPT-5(high)", "http", base.Add(123456789).UnixNano(), false},
+		}},
+		{"multipart_truncated", small, mkObs(40, func(i int) string { return fmt.Sprintf("cred-%d", i%3) }, func(i int) string { return "model-<x>&" }, func(i int) bool { return i%2 == 0 })},
+		{"part_count_limit", rustCfg{1024, 2, 2048, 100000, 10000, 256}, mkObs(30, func(i int) string { return fmt.Sprintf("c%d", i%2) }, func(int) string { return "m" }, func(int) bool { return true })},
+		{"aggregate_overflow", rustCfg{262144, 64, 16777216, 3, 10000, 256}, mkObs(10, func(i int) string { return fmt.Sprintf("c%d", i) }, func(int) string { return "m" }, func(int) bool { return true })},
+		{"aggregates_dont_fit", rustCfg{1024, 1, 1024, 100000, 10000, 256}, mkObs(40, func(i int) string { return fmt.Sprintf("credential-%02d", i) }, func(int) string { return "m" }, func(int) bool { return true })},
+		{"long_strings", rustCfg{262144, 64, 16777216, 100000, 10000, 8}, []rustObs{
+			{"request-ééé-long", "c1", "unknown-model-name", "http", base.UnixNano(), false},
+			{"r", "c1", "m", "stream", base.UnixNano(), true},
+			{"  ", "c1", "m", "http", base.UnixNano(), true},
+		}},
+		{"long_credential", rustCfg{262144, 64, 16777216, 100000, 10000, 4}, []rustObs{{"r", "credential", "m", "http", base.UnixNano(), true}}},
+		{"max_details", rustCfg{262144, 64, 16777216, 100000, 3, 256}, mkObs(9, func(int) string { return "c" }, func(int) string { return "m" }, func(int) bool { return true })},
+		{"zero_config", rustCfg{}, mkObs(2, func(int) string { return "c" }, func(int) string { return "m" }, func(int) bool { return true })},
+		{"revision_limit", rustCfg{1024, 8, 1500, 100000, 10000, 256}, mkObs(25, func(i int) string { return "c" }, func(int) string { return "m" }, func(int) bool { return true })},
+	}
+	observedAt := time.Date(2026, 7, 21, 12, 0, 0, 120000000, time.UTC)
+	var inflight []map[string]any
+	for _, tc := range cases {
+		freeze := executionregistry.Freeze{Revision: 7, BarrierRevision: 11}
+		for _, o := range tc.obs {
+			freeze.Executions = append(freeze.Executions, executionregistry.Observation{
+				RequestID: o.RequestID, CredentialID: o.CredentialID, Model: o.Model, RequestKind: o.RequestKind,
+				StartedAt: time.Unix(0, o.StartedNanos), Accounted: o.Accounted,
+			})
+		}
+		cfg := HomeInFlightPublisherConfig{
+			SnapshotInterval:   2 * time.Second,
+			MaxPartBytes:       tc.cfg.MaxPartBytes,
+			MaxPartCount:       tc.cfg.MaxPartCount,
+			MaxRevisionBytes:   tc.cfg.MaxRevisionBytes,
+			MaxAggregateGroups: tc.cfg.MaxAggregateGroups,
+			MaxDetails:         tc.cfg.MaxDetails,
+			MaxStringBytes:     tc.cfg.MaxStringBytes,
+		}
+		frames := encodeHomeInFlightFreeze(freeze, observedAt, cfg)
+		var raws []string
+		for _, f := range frames {
+			raw, err := json.Marshal(f)
+			if err != nil {
+				t.Fatal(err)
+			}
+			raws = append(raws, string(raw))
+		}
+		inflight = append(inflight, map[string]any{"name": tc.name, "cfg": tc.cfg, "observations": tc.obs, "observed_unix_nano": observedAt.UnixNano(), "revision": 7, "barrier": 11, "frames": raws})
+	}
+	doc["inflight"] = inflight
+
+	// Home dispatch error decoding.
+	var errorsOut []map[string]any
+	for _, raw := range []string{
+		`{"error":{"type":"credential_concurrency_exceeded","message":"limit","retryable":true,"retry_after_ms":750}}`,
+		`{"error":{"type":"credential_model_concurrency_exceeded","retry_after_ms":0}}`,
+		`{"error":{"code":"model_cooldown","message":" wait ","retry_after_ms":1500,"request_retry":2}}`,
+		`{"error":{"type":"model_cooldown","retry_after_ms":-5,"request_retry":-1}}`,
+		`{"error":{"type":"MODEL_NOT_FOUND"}}`,
+		`{"error":{"type":"unauthorized"}}`,
+		`{"error":{"type":"user_credits_insufficient"}}`,
+		`{"error":{"type":"user_period_limit_exceeded"}}`,
+		`{"error":{"type":"refresh_temporarily_unavailable"}}`,
+		`{"error":{"type":"concurrency_protocol_required"}}`,
+		`{"error":{"type":"request_retry_exceeded","message":"x"}}`,
+		`{"error":{"type":" ","code":" auth_not_found "}}`,
+		`{"error":{"message":"no code"}}`,
+		`{"error":null}`,
+		`{"error":"text"}`,
+		`{"error":{"type":5}}`,
+		`{"auth":{"id":"a"}}`,
+		`not json`,
+	} {
+		entry := map[string]any{"raw": raw}
+		err := decodeHomeDispatchError([]byte(raw))
+		if err != nil {
+			var authErr *Error
+			if errors.As(err, &authErr) {
+				entry["code"] = authErr.Code
+				entry["message"] = authErr.Message
+				entry["retryable"] = authErr.Retryable
+				entry["status"] = authErr.HTTPStatus
+			}
+			var busy *HomeConcurrencyBusyError
+			var cooldown *homeDispatchRetryAfterError
+			switch {
+			case errors.As(err, &busy):
+				entry["kind"] = "busy"
+				if ra := busy.RetryAfter(); ra != nil {
+					entry["retry_after_ms"] = ra.Milliseconds()
+				}
+			case errors.As(err, &cooldown):
+				entry["kind"] = "cooldown"
+				if ra := cooldown.RetryAfter(); ra != nil {
+					entry["retry_after_ms"] = ra.Milliseconds()
+				}
+				if limit, ok := cooldown.RequestRetryLimit(); ok {
+					entry["request_retry"] = limit
+				}
+			default:
+				entry["kind"] = "plain"
+			}
+			if h := SafeResponseHeaders(err); h != nil {
+				entry["retry_after_header"] = h.Get("Retry-After")
+			}
+		}
+		errorsOut = append(errorsOut, entry)
+	}
+	doc["dispatch_errors"] = errorsOut
+
+	var keys []map[string]any
+	for _, m := range []string{" GPT-5(High) ", "gpt-5(8192)", "gpt-5(-1)", "gpt-5(2147483647)", "gpt-5(2147483648)", "gpt-5(12345678901)", "gpt-5(fast)", "(high)", "a (b) (low)", "x()", "m(  )", "\tModel\n", "a(MAX)", "", strings.Repeat("m", 257)} {
+		key, valid := validCanonicalHomeConcurrencyModelKey(m)
+		keys = append(keys, map[string]any{"in": m, "key": key, "valid": valid})
+	}
+	doc["model_keys"] = keys
+
+	var envelopes []map[string]any
+	for _, raw := range []string{
+		`{"concurrency":{"accounted":true,"credential_id":"c","model":"gpt"}}`,
+		`{"concurrency":{"accounted":false,"credential_id":"c","model":"gpt"}}`,
+		`{"concurrency":{"accounted":true,"credential_id":" c","model":"gpt"}}`,
+		`{"concurrency":{"accounted":true,"credential_id":"c","model":"GPT"}}`,
+		`{"concurrency":{"accounted":true,"credential_id":"c","model":"gpt(high)"}}`,
+		`{"concurrency":null}`,
+		`{"concurrency":"x"}`,
+		`{"auth":{}}`,
+		`[1]`,
+		"\xff",
+	} {
+		env, err := decodeHomeDispatchConcurrencyEnvelope([]byte(raw))
+		entry := map[string]any{"raw": raw, "present": env.Present, "ok": err == nil}
+		if err == nil && env.Present {
+			entry["tuple"] = map[string]any{"accounted": env.Tuple.Accounted, "credential_id": env.Tuple.CredentialID, "model": env.Tuple.Model}
+		}
+		envelopes = append(envelopes, entry)
+	}
+	doc["envelopes"] = envelopes
+
+	raw, err := json.MarshalIndent(doc, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(out, append(raw, '\n'), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}

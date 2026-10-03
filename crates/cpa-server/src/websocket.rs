@@ -364,8 +364,14 @@ impl Connection {
                 };
             }
         };
-        // ponytail: client.codex.optimize-multi-agent-v2 and
-        // codex.orphan-delegation-compatibility (both default off) are not applied here.
+        // Go prepares multi-agent v2 tools and orphan delegation outputs here, before the
+        // prewarm and dispatch decisions.
+        let client = cpa_common::codex_client::Settings::for_responses_handler(&cfg);
+        if client.optimize_multi_agent_v2 || client.orphan_delegation {
+            let prepared =
+                cpa_common::codex_client::prepare_responses_request(&self.headers, request.as_bytes(), &client);
+            request = String::from_utf8(prepared).unwrap_or(request);
+        }
 
         if is_prewarm {
             request = delete(&request, "generate");
@@ -629,6 +635,8 @@ impl Connection {
             session: selection.session.clone(),
             execution_session: Some(self.session.clone()),
             derived_session: identity.derived.clone(),
+            resolved_model: None,
+            usage: Default::default(),
             request_path: self.request_path.clone(),
             headers: self.headers.clone(),
             caller: self.caller.clone(),

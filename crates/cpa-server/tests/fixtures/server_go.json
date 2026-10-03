@@ -545,6 +545,185 @@
       ]
     }
   ],
+  "alt": [
+    {
+      "in": "",
+      "out": ""
+    },
+    {
+      "in": "alt=",
+      "out": ""
+    },
+    {
+      "in": "alt",
+      "out": ""
+    },
+    {
+      "in": "alt=sse",
+      "out": ""
+    },
+    {
+      "in": "alt=json",
+      "out": "json"
+    },
+    {
+      "in": "$alt=json",
+      "out": "json"
+    },
+    {
+      "in": "alt=\u0026$alt=json",
+      "out": ""
+    },
+    {
+      "in": "$alt=sse",
+      "out": ""
+    },
+    {
+      "in": "alt=SSE",
+      "out": "SSE"
+    },
+    {
+      "in": "alt=a%20b",
+      "out": "a b"
+    },
+    {
+      "in": "alt=%zz\u0026$alt=json",
+      "out": "json"
+    },
+    {
+      "in": "x=1;alt=json\u0026$alt=raw",
+      "out": "raw"
+    },
+    {
+      "in": "alt=json\u0026alt=sse",
+      "out": "json"
+    }
+  ],
+  "auth_kind": [
+    {
+      "attributes": {
+        "auth_kind": "apikey"
+      },
+      "metadata": null,
+      "kind": "apikey"
+    },
+    {
+      "attributes": {
+        "auth_kind": " API-Key "
+      },
+      "metadata": null,
+      "kind": "apikey"
+    },
+    {
+      "attributes": {
+        "api_key": "k",
+        "auth_kind": "OAuth2"
+      },
+      "metadata": null,
+      "kind": "oauth"
+    },
+    {
+      "attributes": {
+        "api_key": "k",
+        "auth_kind": "weird"
+      },
+      "metadata": null,
+      "kind": "apikey"
+    },
+    {
+      "attributes": {
+        "auth_kind": "weird"
+      },
+      "metadata": {
+        "auth_kind": "api_key"
+      },
+      "kind": "apikey"
+    },
+    {
+      "attributes": {
+        "auth_kind": "weird"
+      },
+      "metadata": {
+        "auth_kind": "unknown",
+        "email": "a@b"
+      },
+      "kind": "oauth"
+    },
+    {
+      "attributes": null,
+      "metadata": {
+        "api_key": "k",
+        "auth_kind": "oauth"
+      },
+      "kind": "oauth"
+    },
+    {
+      "attributes": {
+        "api_key": "   "
+      },
+      "metadata": null,
+      "kind": ""
+    },
+    {
+      "attributes": {
+        "api_key": "   "
+      },
+      "metadata": {
+        "refresh_token": "r"
+      },
+      "kind": "oauth"
+    },
+    {
+      "attributes": null,
+      "metadata": {
+        "api_key": "k"
+      },
+      "kind": ""
+    },
+    {
+      "attributes": null,
+      "metadata": {
+        "token": {
+          "access_token": "x"
+        }
+      },
+      "kind": "oauth"
+    },
+    {
+      "attributes": null,
+      "metadata": {
+        "token": {}
+      },
+      "kind": ""
+    },
+    {
+      "attributes": null,
+      "metadata": {
+        "expired": "2026-01-01T00:00:00Z"
+      },
+      "kind": "oauth"
+    },
+    {
+      "attributes": null,
+      "metadata": {
+        "email": "  "
+      },
+      "kind": ""
+    },
+    {
+      "attributes": null,
+      "metadata": {
+        "access_token": "t",
+        "auth_kind": 7
+      },
+      "kind": "oauth"
+    },
+    {
+      "attributes": null,
+      "metadata": null,
+      "kind": ""
+    }
+  ],
   "availability": [
     {
       "states": [
@@ -648,6 +827,151 @@
         "none"
       ],
       "available": true
+    }
+  ],
+  "by_provider": [
+    {
+      "clients": [
+        {
+          "provider": "golden-ag",
+          "state": "none",
+          "search": true
+        }
+      ],
+      "listed": true,
+      "listed_search": true,
+      "info_search": true,
+      "ag_search": true
+    },
+    {
+      "clients": [
+        {
+          "provider": "golden-ag",
+          "state": "other",
+          "search": true
+        },
+        {
+          "provider": "golden-x",
+          "state": "none",
+          "search": true
+        }
+      ],
+      "listed": false,
+      "info_search": true,
+      "ag_search": true
+    },
+    {
+      "clients": [
+        {
+          "provider": "golden-ag",
+          "state": "quota",
+          "search": false
+        }
+      ],
+      "listed": true,
+      "listed_search": false,
+      "info_search": false,
+      "ag_search": false
+    },
+    {
+      "clients": [
+        {
+          "provider": "golden-ag",
+          "state": "other",
+          "search": false
+        },
+        {
+          "provider": "golden-ag",
+          "state": "none",
+          "search": false
+        }
+      ],
+      "listed": true,
+      "listed_search": false,
+      "info_search": false,
+      "ag_search": false
+    },
+    {
+      "clients": [
+        {
+          "provider": "golden-x",
+          "state": "none",
+          "search": true
+        }
+      ],
+      "listed": false,
+      "info_search": true,
+      "ag_search": true
+    },
+    {
+      "clients": [
+        {
+          "provider": "golden-x",
+          "state": "none",
+          "search": true
+        },
+        {
+          "provider": "golden-ag",
+          "state": "none",
+          "search": false
+        }
+      ],
+      "listed": true,
+      "listed_search": false,
+      "info_search": true,
+      "ag_search": false
+    },
+    {
+      "clients": [
+        {
+          "provider": "golden-ag",
+          "state": "none",
+          "search": true
+        },
+        {
+          "provider": "golden-x",
+          "state": "none",
+          "search": false
+        }
+      ],
+      "listed": true,
+      "listed_search": true,
+      "info_search": true,
+      "ag_search": true
+    },
+    {
+      "clients": [
+        {
+          "provider": "golden-ag",
+          "state": "none",
+          "search": true
+        },
+        {
+          "provider": "golden-ag",
+          "state": "none",
+          "search": false
+        }
+      ],
+      "listed": true,
+      "info_search": true,
+      "ag_search": true
+    },
+    {
+      "clients": [
+        {
+          "provider": "golden-ag",
+          "state": "other_qe",
+          "search": false
+        },
+        {
+          "provider": "golden-x",
+          "state": "other",
+          "search": false
+        }
+      ],
+      "listed": false,
+      "info_search": false,
+      "ag_search": false
     }
   ],
   "cooldown": [
@@ -1214,6 +1538,1370 @@
       "out": "[1,2]"
     }
   ],
+  "resolved": [
+    {
+      "name": "alias",
+      "auth_id": "claude:apikey:e4da04c50cff",
+      "provider": "claude",
+      "synthetic": true,
+      "attributes": {
+        "api_key": "ck1",
+        "auth_kind": "apikey",
+        "base_url": "https://c.example",
+        "config_index": "0",
+        "models_hash": "33c39d89bedc61fe3f33a59ca0bf8e5d52ba7d81181902b7f6a44e1f01f64f3d",
+        "source": "config:claude[e4da04c50cff]"
+      },
+      "metadata": null,
+      "req_model": "sonnet",
+      "route": "sonnet",
+      "upstream": "claude-sonnet-4-6",
+      "restore": false,
+      "source": "api_key",
+      "info": {
+        "id": "claude-sonnet-4-6",
+        "object": "model",
+        "created": 1771372800,
+        "owned_by": "anthropic",
+        "type": "claude",
+        "display_name": "Claude 4.6 Sonnet",
+        "context_length": 200000,
+        "max_completion_tokens": 64000,
+        "supportedInputModalities": [
+          "text",
+          "image"
+        ],
+        "supportedOutputModalities": [
+          "text"
+        ],
+        "thinking": {
+          "min": 1024,
+          "max": 128000,
+          "zero_allowed": true,
+          "levels": [
+            "low",
+            "medium",
+            "high",
+            "max"
+          ]
+        }
+      },
+      "is_compat": true,
+      "support_configuration_update": false,
+      "user_defined": false
+    },
+    {
+      "name": "suffix falls back to base",
+      "auth_id": "claude:apikey:e4da04c50cff",
+      "provider": "claude",
+      "synthetic": true,
+      "attributes": {
+        "api_key": "ck1",
+        "auth_kind": "apikey",
+        "base_url": "https://c.example",
+        "config_index": "0",
+        "models_hash": "33c39d89bedc61fe3f33a59ca0bf8e5d52ba7d81181902b7f6a44e1f01f64f3d",
+        "source": "config:claude[e4da04c50cff]"
+      },
+      "metadata": null,
+      "req_model": "sonnet(high)",
+      "route": "sonnet(high)",
+      "upstream": "claude-sonnet-4-6(high)",
+      "restore": false,
+      "source": "api_key",
+      "info": {
+        "id": "claude-sonnet-4-6",
+        "object": "model",
+        "created": 1771372800,
+        "owned_by": "anthropic",
+        "type": "claude",
+        "display_name": "Claude 4.6 Sonnet",
+        "context_length": 200000,
+        "max_completion_tokens": 64000,
+        "supportedInputModalities": [
+          "text",
+          "image"
+        ],
+        "supportedOutputModalities": [
+          "text"
+        ],
+        "thinking": {
+          "min": 1024,
+          "max": 128000,
+          "zero_allowed": true,
+          "levels": [
+            "low",
+            "medium",
+            "high",
+            "max"
+          ]
+        }
+      },
+      "is_compat": true,
+      "support_configuration_update": false,
+      "user_defined": false
+    },
+    {
+      "name": "suffixed configured name exact",
+      "auth_id": "claude:apikey:e4da04c50cff",
+      "provider": "claude",
+      "synthetic": true,
+      "attributes": {
+        "api_key": "ck1",
+        "auth_kind": "apikey",
+        "base_url": "https://c.example",
+        "config_index": "0",
+        "models_hash": "33c39d89bedc61fe3f33a59ca0bf8e5d52ba7d81181902b7f6a44e1f01f64f3d",
+        "source": "config:claude[e4da04c50cff]"
+      },
+      "metadata": null,
+      "req_model": "opus",
+      "route": "opus",
+      "upstream": "claude-opus-4-6(high)",
+      "restore": false,
+      "source": "api_key",
+      "info": {
+        "id": "claude-opus-4-6(high)",
+        "object": "model",
+        "created": 1770318000,
+        "owned_by": "anthropic",
+        "type": "claude",
+        "display_name": "Claude 4.6 Opus",
+        "description": "Premium model combining maximum intelligence with practical performance",
+        "context_length": 1000000,
+        "max_completion_tokens": 128000,
+        "supportedInputModalities": [
+          "text",
+          "image"
+        ],
+        "supportedOutputModalities": [
+          "text"
+        ],
+        "thinking": {
+          "min": 1024,
+          "max": 128000,
+          "zero_allowed": true,
+          "levels": [
+            "low",
+            "medium",
+            "high",
+            "max"
+          ]
+        }
+      },
+      "is_compat": false,
+      "support_configuration_update": false,
+      "user_defined": false
+    },
+    {
+      "name": "suffixed configured name no fallback",
+      "auth_id": "claude:apikey:e4da04c50cff",
+      "provider": "claude",
+      "synthetic": true,
+      "attributes": {
+        "api_key": "ck1",
+        "auth_kind": "apikey",
+        "base_url": "https://c.example",
+        "config_index": "0",
+        "models_hash": "33c39d89bedc61fe3f33a59ca0bf8e5d52ba7d81181902b7f6a44e1f01f64f3d",
+        "source": "config:claude[e4da04c50cff]"
+      },
+      "metadata": null,
+      "req_model": "opus(low)",
+      "route": "opus(low)",
+      "upstream": "claude-opus-4-6(low)",
+      "restore": false,
+      "source": "",
+      "info": null,
+      "is_compat": false,
+      "support_configuration_update": false,
+      "user_defined": false
+    },
+    {
+      "name": "configured thinking normalized",
+      "auth_id": "claude:apikey:e4da04c50cff",
+      "provider": "claude",
+      "synthetic": true,
+      "attributes": {
+        "api_key": "ck1",
+        "auth_kind": "apikey",
+        "base_url": "https://c.example",
+        "config_index": "0",
+        "models_hash": "33c39d89bedc61fe3f33a59ca0bf8e5d52ba7d81181902b7f6a44e1f01f64f3d",
+        "source": "config:claude[e4da04c50cff]"
+      },
+      "metadata": null,
+      "req_model": "custom",
+      "route": "custom",
+      "upstream": "claude-custom-x",
+      "restore": false,
+      "source": "api_key",
+      "info": {
+        "id": "claude-custom-x",
+        "object": "",
+        "created": 0,
+        "owned_by": "",
+        "type": "claude",
+        "thinking": {
+          "zero_allowed": true,
+          "dynamic_allowed": true,
+          "levels": [
+            "high",
+            "none",
+            "auto"
+          ]
+        }
+      },
+      "is_compat": false,
+      "support_configuration_update": false,
+      "user_defined": false
+    },
+    {
+      "name": "alias-only model",
+      "auth_id": "claude:apikey:e4da04c50cff",
+      "provider": "claude",
+      "synthetic": true,
+      "attributes": {
+        "api_key": "ck1",
+        "auth_kind": "apikey",
+        "base_url": "https://c.example",
+        "config_index": "0",
+        "models_hash": "33c39d89bedc61fe3f33a59ca0bf8e5d52ba7d81181902b7f6a44e1f01f64f3d",
+        "source": "config:claude[e4da04c50cff]"
+      },
+      "metadata": null,
+      "req_model": "aliasonly",
+      "route": "aliasonly",
+      "upstream": "aliasonly",
+      "restore": false,
+      "source": "api_key",
+      "info": {
+        "id": "aliasonly",
+        "object": "",
+        "created": 0,
+        "owned_by": "",
+        "type": "claude"
+      },
+      "is_compat": false,
+      "support_configuration_update": false,
+      "user_defined": false
+    },
+    {
+      "name": "case folded",
+      "auth_id": "claude:apikey:e4da04c50cff",
+      "provider": "claude",
+      "synthetic": true,
+      "attributes": {
+        "api_key": "ck1",
+        "auth_kind": "apikey",
+        "base_url": "https://c.example",
+        "config_index": "0",
+        "models_hash": "33c39d89bedc61fe3f33a59ca0bf8e5d52ba7d81181902b7f6a44e1f01f64f3d",
+        "source": "config:claude[e4da04c50cff]"
+      },
+      "metadata": null,
+      "req_model": "Sonnet",
+      "route": "Sonnet",
+      "upstream": "CLAUDE-SONNET-4-6",
+      "restore": false,
+      "source": "api_key",
+      "info": {
+        "id": "claude-sonnet-4-6",
+        "object": "model",
+        "created": 1771372800,
+        "owned_by": "anthropic",
+        "type": "claude",
+        "display_name": "Claude 4.6 Sonnet",
+        "context_length": 200000,
+        "max_completion_tokens": 64000,
+        "supportedInputModalities": [
+          "text",
+          "image"
+        ],
+        "supportedOutputModalities": [
+          "text"
+        ],
+        "thinking": {
+          "min": 1024,
+          "max": 128000,
+          "zero_allowed": true,
+          "levels": [
+            "low",
+            "medium",
+            "high",
+            "max"
+          ]
+        }
+      },
+      "is_compat": true,
+      "support_configuration_update": false,
+      "user_defined": false
+    },
+    {
+      "name": "route without upstream match",
+      "auth_id": "claude:apikey:e4da04c50cff",
+      "provider": "claude",
+      "synthetic": true,
+      "attributes": {
+        "api_key": "ck1",
+        "auth_kind": "apikey",
+        "base_url": "https://c.example",
+        "config_index": "0",
+        "models_hash": "33c39d89bedc61fe3f33a59ca0bf8e5d52ba7d81181902b7f6a44e1f01f64f3d",
+        "source": "config:claude[e4da04c50cff]"
+      },
+      "metadata": null,
+      "req_model": "sonnet",
+      "route": "sonnet",
+      "upstream": "claude-opus-4-6",
+      "restore": false,
+      "source": "",
+      "info": null,
+      "is_compat": false,
+      "support_configuration_update": false,
+      "user_defined": false
+    },
+    {
+      "name": "headers twin own entry",
+      "auth_id": "claude:apikey:696dd38fc71f",
+      "provider": "claude",
+      "synthetic": true,
+      "attributes": {
+        "api_key": "dupkey",
+        "auth_kind": "apikey",
+        "base_url": "https://dup.example",
+        "config_index": "2",
+        "header:X-A": "2",
+        "models_hash": "53625af5de3d0f02d39a893b962d6555861dcb996c067940a216e49cc94450d3",
+        "source": "config:claude[696dd38fc71f]"
+      },
+      "metadata": null,
+      "req_model": "second",
+      "route": "second",
+      "upstream": "claude-opus-4-7",
+      "restore": false,
+      "source": "api_key",
+      "info": {
+        "id": "claude-opus-4-7",
+        "object": "model",
+        "created": 1776297600,
+        "owned_by": "anthropic",
+        "type": "claude",
+        "display_name": "Claude Opus 4.7",
+        "description": "Premium model combining maximum intelligence with practical performance",
+        "context_length": 1000000,
+        "max_completion_tokens": 128000,
+        "supportedInputModalities": [
+          "text",
+          "image"
+        ],
+        "supportedOutputModalities": [
+          "text"
+        ],
+        "thinking": {
+          "min": 1024,
+          "max": 128000,
+          "zero_allowed": true,
+          "levels": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ]
+        }
+      },
+      "is_compat": false,
+      "support_configuration_update": false,
+      "user_defined": false
+    },
+    {
+      "name": "headers twin not the other entry",
+      "auth_id": "claude:apikey:696dd38fc71f",
+      "provider": "claude",
+      "synthetic": true,
+      "attributes": {
+        "api_key": "dupkey",
+        "auth_kind": "apikey",
+        "base_url": "https://dup.example",
+        "config_index": "2",
+        "header:X-A": "2",
+        "models_hash": "53625af5de3d0f02d39a893b962d6555861dcb996c067940a216e49cc94450d3",
+        "source": "config:claude[696dd38fc71f]"
+      },
+      "metadata": null,
+      "req_model": "first",
+      "route": "first",
+      "upstream": "claude-sonnet-4-6",
+      "restore": false,
+      "source": "",
+      "info": null,
+      "is_compat": false,
+      "support_configuration_update": false,
+      "user_defined": false
+    },
+    {
+      "name": "stale index to matching twin",
+      "auth_id": "claude:apikey:696dd38fc71f",
+      "provider": "claude",
+      "synthetic": true,
+      "attributes": {
+        "api_key": "dupkey",
+        "auth_kind": "apikey",
+        "base_url": "https://dup.example",
+        "config_index": "1",
+        "header:X-A": "2",
+        "models_hash": "53625af5de3d0f02d39a893b962d6555861dcb996c067940a216e49cc94450d3",
+        "source": "config:claude[696dd38fc71f]"
+      },
+      "metadata": null,
+      "req_model": "first",
+      "route": "first",
+      "upstream": "claude-sonnet-4-6",
+      "restore": false,
+      "source": "api_key",
+      "info": {
+        "id": "claude-sonnet-4-6",
+        "object": "model",
+        "created": 1771372800,
+        "owned_by": "anthropic",
+        "type": "claude",
+        "display_name": "Claude 4.6 Sonnet",
+        "context_length": 200000,
+        "max_completion_tokens": 64000,
+        "supportedInputModalities": [
+          "text",
+          "image"
+        ],
+        "supportedOutputModalities": [
+          "text"
+        ],
+        "thinking": {
+          "min": 1024,
+          "max": 128000,
+          "zero_allowed": true,
+          "levels": [
+            "low",
+            "medium",
+            "high",
+            "max"
+          ]
+        }
+      },
+      "is_compat": false,
+      "support_configuration_update": false,
+      "user_defined": false
+    },
+    {
+      "name": "stale index to other key falls back",
+      "auth_id": "claude:apikey:696dd38fc71f",
+      "provider": "claude",
+      "synthetic": true,
+      "attributes": {
+        "api_key": "dupkey",
+        "auth_kind": "apikey",
+        "base_url": "https://dup.example",
+        "config_index": "0",
+        "header:X-A": "2",
+        "models_hash": "53625af5de3d0f02d39a893b962d6555861dcb996c067940a216e49cc94450d3",
+        "source": "config:claude[696dd38fc71f]"
+      },
+      "metadata": null,
+      "req_model": "first",
+      "route": "first",
+      "upstream": "claude-sonnet-4-6",
+      "restore": false,
+      "source": "api_key",
+      "info": {
+        "id": "claude-sonnet-4-6",
+        "object": "model",
+        "created": 1771372800,
+        "owned_by": "anthropic",
+        "type": "claude",
+        "display_name": "Claude 4.6 Sonnet",
+        "context_length": 200000,
+        "max_completion_tokens": 64000,
+        "supportedInputModalities": [
+          "text",
+          "image"
+        ],
+        "supportedOutputModalities": [
+          "text"
+        ],
+        "thinking": {
+          "min": 1024,
+          "max": 128000,
+          "zero_allowed": true,
+          "levels": [
+            "low",
+            "medium",
+            "high",
+            "max"
+          ]
+        }
+      },
+      "is_compat": false,
+      "support_configuration_update": false,
+      "user_defined": false
+    },
+    {
+      "name": "stale index to other key not second",
+      "auth_id": "claude:apikey:696dd38fc71f",
+      "provider": "claude",
+      "synthetic": true,
+      "attributes": {
+        "api_key": "dupkey",
+        "auth_kind": "apikey",
+        "base_url": "https://dup.example",
+        "config_index": "0",
+        "header:X-A": "2",
+        "models_hash": "53625af5de3d0f02d39a893b962d6555861dcb996c067940a216e49cc94450d3",
+        "source": "config:claude[696dd38fc71f]"
+      },
+      "metadata": null,
+      "req_model": "second",
+      "route": "second",
+      "upstream": "claude-opus-4-7",
+      "restore": false,
+      "source": "",
+      "info": null,
+      "is_compat": false,
+      "support_configuration_update": false,
+      "user_defined": false
+    },
+    {
+      "name": "stale index out of range",
+      "auth_id": "claude:apikey:696dd38fc71f",
+      "provider": "claude",
+      "synthetic": true,
+      "attributes": {
+        "api_key": "dupkey",
+        "auth_kind": "apikey",
+        "base_url": "https://dup.example",
+        "config_index": "9",
+        "header:X-A": "2",
+        "models_hash": "53625af5de3d0f02d39a893b962d6555861dcb996c067940a216e49cc94450d3",
+        "source": "config:claude[696dd38fc71f]"
+      },
+      "metadata": null,
+      "req_model": "first",
+      "route": "first",
+      "upstream": "claude-sonnet-4-6",
+      "restore": false,
+      "source": "api_key",
+      "info": {
+        "id": "claude-sonnet-4-6",
+        "object": "model",
+        "created": 1771372800,
+        "owned_by": "anthropic",
+        "type": "claude",
+        "display_name": "Claude 4.6 Sonnet",
+        "context_length": 200000,
+        "max_completion_tokens": 64000,
+        "supportedInputModalities": [
+          "text",
+          "image"
+        ],
+        "supportedOutputModalities": [
+          "text"
+        ],
+        "thinking": {
+          "min": 1024,
+          "max": 128000,
+          "zero_allowed": true,
+          "levels": [
+            "low",
+            "medium",
+            "high",
+            "max"
+          ]
+        }
+      },
+      "is_compat": false,
+      "support_configuration_update": false,
+      "user_defined": false
+    },
+    {
+      "name": "codex configured with prefix",
+      "auth_id": "codex:apikey:47ea5b967114",
+      "provider": "codex",
+      "synthetic": true,
+      "attributes": {
+        "api_key": "xk1",
+        "auth_kind": "apikey",
+        "base_url": "https://codex.example",
+        "config_index": "0",
+        "models_hash": "2a426c3148568e4602c97cc42f410f03ef83b21f3221ab11fb57e83656e04f18",
+        "source": "config:codex[47ea5b967114]"
+      },
+      "metadata": null,
+      "req_model": "team/sol",
+      "route": "team/sol",
+      "upstream": "gpt-6-sol",
+      "restore": false,
+      "source": "api_key",
+      "info": {
+        "id": "gpt-6-sol",
+        "object": "model",
+        "created": 1790035200,
+        "owned_by": "openai",
+        "type": "codex",
+        "display_name": "GPT 6.0 Sol",
+        "version": "gpt-6.0",
+        "description": "GPT-6 Sol Codex model.",
+        "context_length": 272000,
+        "max_completion_tokens": 128000,
+        "supported_parameters": [
+          "tools"
+        ],
+        "supportedInputModalities": [
+          "text",
+          "image"
+        ],
+        "supportedOutputModalities": [
+          "text"
+        ],
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ]
+        }
+      },
+      "is_compat": true,
+      "support_configuration_update": false,
+      "user_defined": false
+    },
+    {
+      "name": "codex configured support and thinking",
+      "auth_id": "codex:apikey:47ea5b967114",
+      "provider": "codex",
+      "synthetic": true,
+      "attributes": {
+        "api_key": "xk1",
+        "auth_kind": "apikey",
+        "base_url": "https://codex.example",
+        "config_index": "0",
+        "models_hash": "2a426c3148568e4602c97cc42f410f03ef83b21f3221ab11fb57e83656e04f18",
+        "source": "config:codex[47ea5b967114]"
+      },
+      "metadata": null,
+      "req_model": "team/five",
+      "route": "team/five",
+      "upstream": "gpt-5.5",
+      "restore": false,
+      "source": "api_key",
+      "info": {
+        "id": "gpt-5.5",
+        "object": "model",
+        "created": 1776902400,
+        "owned_by": "openai",
+        "type": "codex",
+        "display_name": "GPT 5.5",
+        "version": "gpt-5.5",
+        "description": "Frontier model for complex coding, research, and real-world work.",
+        "context_length": 272000,
+        "max_completion_tokens": 128000,
+        "supported_parameters": [
+          "tools"
+        ],
+        "supportedInputModalities": [
+          "text",
+          "image"
+        ],
+        "supportedOutputModalities": [
+          "text"
+        ],
+        "thinking": {
+          "min": 1,
+          "max": 9
+        }
+      },
+      "is_compat": false,
+      "support_configuration_update": true,
+      "user_defined": false
+    },
+    {
+      "name": "codex suffix fallback",
+      "auth_id": "codex:apikey:47ea5b967114",
+      "provider": "codex",
+      "synthetic": true,
+      "attributes": {
+        "api_key": "xk1",
+        "auth_kind": "apikey",
+        "base_url": "https://codex.example",
+        "config_index": "0",
+        "models_hash": "2a426c3148568e4602c97cc42f410f03ef83b21f3221ab11fb57e83656e04f18",
+        "source": "config:codex[47ea5b967114]"
+      },
+      "metadata": null,
+      "req_model": "team/sol(high)",
+      "route": "team/sol(high)",
+      "upstream": "gpt-6-sol(high)",
+      "restore": false,
+      "source": "api_key",
+      "info": {
+        "id": "gpt-6-sol",
+        "object": "model",
+        "created": 1790035200,
+        "owned_by": "openai",
+        "type": "codex",
+        "display_name": "GPT 6.0 Sol",
+        "version": "gpt-6.0",
+        "description": "GPT-6 Sol Codex model.",
+        "context_length": 272000,
+        "max_completion_tokens": 128000,
+        "supported_parameters": [
+          "tools"
+        ],
+        "supportedInputModalities": [
+          "text",
+          "image"
+        ],
+        "supportedOutputModalities": [
+          "text"
+        ],
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ]
+        }
+      },
+      "is_compat": true,
+      "support_configuration_update": false,
+      "user_defined": false
+    },
+    {
+      "name": "codex unlisted model",
+      "auth_id": "codex:apikey:47ea5b967114",
+      "provider": "codex",
+      "synthetic": true,
+      "attributes": {
+        "api_key": "xk1",
+        "auth_kind": "apikey",
+        "base_url": "https://codex.example",
+        "config_index": "0",
+        "models_hash": "2a426c3148568e4602c97cc42f410f03ef83b21f3221ab11fb57e83656e04f18",
+        "source": "config:codex[47ea5b967114]"
+      },
+      "metadata": null,
+      "req_model": "team/gpt-6-astra",
+      "route": "team/gpt-6-astra",
+      "upstream": "gpt-6-astra",
+      "restore": false,
+      "source": "api_key",
+      "info": {
+        "id": "gpt-6-astra",
+        "object": "model",
+        "created": 1783616400,
+        "owned_by": "openai",
+        "type": "codex",
+        "display_name": "GPT 6.0 Astra",
+        "version": "gpt-6.0",
+        "description": "GPT-6 Astra is our most intelligent model yet, with state-of-the-art performance in computer use, browsing, software engineering, science, and professional work.",
+        "context_length": 272000,
+        "max_completion_tokens": 128000,
+        "supported_parameters": [
+          "tools"
+        ],
+        "supportedInputModalities": [
+          "text",
+          "image"
+        ],
+        "supportedOutputModalities": [
+          "text"
+        ],
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ]
+        }
+      },
+      "is_compat": false,
+      "support_configuration_update": false,
+      "user_defined": false
+    },
+    {
+      "name": "codex unlisted route configured upstream",
+      "auth_id": "codex:apikey:47ea5b967114",
+      "provider": "codex",
+      "synthetic": true,
+      "attributes": {
+        "api_key": "xk1",
+        "auth_kind": "apikey",
+        "base_url": "https://codex.example",
+        "config_index": "0",
+        "models_hash": "2a426c3148568e4602c97cc42f410f03ef83b21f3221ab11fb57e83656e04f18",
+        "source": "config:codex[47ea5b967114]"
+      },
+      "metadata": null,
+      "req_model": "team/other",
+      "route": "team/other",
+      "upstream": "gpt-6-sol",
+      "restore": false,
+      "source": "api_key",
+      "info": {
+        "id": "gpt-6-sol",
+        "object": "model",
+        "created": 1790035200,
+        "owned_by": "openai",
+        "type": "codex",
+        "display_name": "GPT 6.0 Sol",
+        "version": "gpt-6.0",
+        "description": "GPT-6 Sol Codex model.",
+        "context_length": 272000,
+        "max_completion_tokens": 128000,
+        "supported_parameters": [
+          "tools"
+        ],
+        "supportedInputModalities": [
+          "text",
+          "image"
+        ],
+        "supportedOutputModalities": [
+          "text"
+        ],
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ]
+        }
+      },
+      "is_compat": true,
+      "support_configuration_update": false,
+      "user_defined": false
+    },
+    {
+      "name": "codex restore",
+      "auth_id": "codex:apikey:47ea5b967114",
+      "provider": "codex",
+      "synthetic": true,
+      "attributes": {
+        "api_key": "xk1",
+        "auth_kind": "apikey",
+        "base_url": "https://codex.example",
+        "config_index": "0",
+        "models_hash": "2a426c3148568e4602c97cc42f410f03ef83b21f3221ab11fb57e83656e04f18",
+        "source": "config:codex[47ea5b967114]"
+      },
+      "metadata": null,
+      "req_model": "sol",
+      "route": "selection-sol",
+      "upstream": "upstream-sol",
+      "restore": true,
+      "source": "api_key",
+      "info": {
+        "id": "sol",
+        "object": "",
+        "created": 0,
+        "owned_by": "",
+        "type": "codex"
+      },
+      "is_compat": false,
+      "support_configuration_update": false,
+      "user_defined": false
+    },
+    {
+      "name": "claude restore binds nothing",
+      "auth_id": "claude:apikey:e4da04c50cff",
+      "provider": "claude",
+      "synthetic": true,
+      "attributes": {
+        "api_key": "ck1",
+        "auth_kind": "apikey",
+        "base_url": "https://c.example",
+        "config_index": "0",
+        "models_hash": "33c39d89bedc61fe3f33a59ca0bf8e5d52ba7d81181902b7f6a44e1f01f64f3d",
+        "source": "config:claude[e4da04c50cff]"
+      },
+      "metadata": null,
+      "req_model": "sonnet",
+      "route": "selection-sonnet",
+      "upstream": "upstream-sonnet",
+      "restore": true,
+      "source": "",
+      "info": null,
+      "is_compat": false,
+      "support_configuration_update": false,
+      "user_defined": false
+    },
+    {
+      "name": "compat model",
+      "auth_id": "openai-compatibility:acme:0376e65a6eff",
+      "provider": "openai-compatible-acme",
+      "synthetic": true,
+      "attributes": {
+        "api_key": "ok1",
+        "base_url": "https://acme.example/v1",
+        "compat_name": "acme",
+        "config_index": "0",
+        "models_hash": "46523af488f20b835386001d34b0b8d912d0a063e5000883cb5f79600bb2b921",
+        "provider_key": "openai-compatible-acme",
+        "source": "config:acme[0376e65a6eff]"
+      },
+      "metadata": null,
+      "req_model": "acme-m",
+      "route": "acme-m",
+      "upstream": "up-model",
+      "restore": false,
+      "source": "api_key",
+      "info": {
+        "id": "up-model",
+        "object": "",
+        "created": 0,
+        "owned_by": "",
+        "type": "openai-compatibility",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        }
+      },
+      "is_compat": true,
+      "support_configuration_update": false,
+      "user_defined": false
+    },
+    {
+      "name": "compat image model",
+      "auth_id": "openai-compatibility:acme:0376e65a6eff",
+      "provider": "openai-compatible-acme",
+      "synthetic": true,
+      "attributes": {
+        "api_key": "ok1",
+        "base_url": "https://acme.example/v1",
+        "compat_name": "acme",
+        "config_index": "0",
+        "models_hash": "46523af488f20b835386001d34b0b8d912d0a063e5000883cb5f79600bb2b921",
+        "provider_key": "openai-compatible-acme",
+        "source": "config:acme[0376e65a6eff]"
+      },
+      "metadata": null,
+      "req_model": "acme-img",
+      "route": "acme-img",
+      "upstream": "img-model",
+      "restore": false,
+      "source": "api_key",
+      "info": {
+        "id": "img-model",
+        "object": "",
+        "created": 0,
+        "owned_by": "",
+        "type": "openai-compatibility"
+      },
+      "is_compat": false,
+      "support_configuration_update": false,
+      "user_defined": false
+    },
+    {
+      "name": "compat stale index",
+      "auth_id": "openai-compatibility:acme:0376e65a6eff",
+      "provider": "openai-compatible-acme",
+      "synthetic": true,
+      "attributes": {
+        "api_key": "ok1",
+        "base_url": "https://acme.example/v1",
+        "compat_name": "acme",
+        "config_index": "5",
+        "models_hash": "46523af488f20b835386001d34b0b8d912d0a063e5000883cb5f79600bb2b921",
+        "provider_key": "openai-compatible-acme",
+        "source": "config:acme[0376e65a6eff]"
+      },
+      "metadata": null,
+      "req_model": "acme-m",
+      "route": "acme-m",
+      "upstream": "up-model",
+      "restore": false,
+      "source": "api_key",
+      "info": {
+        "id": "up-model",
+        "object": "",
+        "created": 0,
+        "owned_by": "",
+        "type": "openai-compatibility",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        }
+      },
+      "is_compat": true,
+      "support_configuration_update": false,
+      "user_defined": false
+    },
+    {
+      "name": "vertex model type",
+      "auth_id": "vertex:apikey:e333e3a9a14f",
+      "provider": "vertex",
+      "synthetic": true,
+      "attributes": {
+        "api_key": "vk1",
+        "auth_kind": "apikey",
+        "base_url": "https://vertex.example",
+        "config_index": "0",
+        "models_hash": "d04e2a2f7e93380d2004b9f895699a89cb14041c6ec63553514768ffc8b61bad",
+        "provider_key": "vertex",
+        "source": "config:vertex-apikey[e333e3a9a14f]"
+      },
+      "metadata": null,
+      "req_model": "vpro",
+      "route": "vpro",
+      "upstream": "gemini-2.5-pro",
+      "restore": false,
+      "source": "api_key",
+      "info": {
+        "id": "gemini-2.5-pro",
+        "object": "model",
+        "created": 1750118400,
+        "owned_by": "google",
+        "type": "gemini",
+        "display_name": "Gemini 2.5 Pro",
+        "name": "models/gemini-2.5-pro",
+        "version": "2.5",
+        "description": "Stable release (June 17th, 2025) of Gemini 2.5 Pro",
+        "inputTokenLimit": 1048576,
+        "outputTokenLimit": 65536,
+        "supportedGenerationMethods": [
+          "generateContent",
+          "countTokens",
+          "createCachedContent",
+          "batchGenerateContent"
+        ],
+        "supportedInputModalities": [
+          "text",
+          "image",
+          "audio",
+          "video"
+        ],
+        "supportedOutputModalities": [
+          "text"
+        ],
+        "thinking": {
+          "min": 128,
+          "max": 32768,
+          "dynamic_allowed": true
+        }
+      },
+      "is_compat": false,
+      "support_configuration_update": false,
+      "user_defined": false
+    },
+    {
+      "name": "file api key matches config",
+      "auth_id": "claude-key.json",
+      "provider": "claude",
+      "synthetic": false,
+      "attributes": {
+        "api_key": "ck1",
+        "base_url": "https://c.example"
+      },
+      "metadata": {
+        "type": "claude"
+      },
+      "req_model": "sonnet",
+      "route": "sonnet",
+      "upstream": "claude-sonnet-4-6",
+      "restore": false,
+      "source": "api_key",
+      "info": {
+        "id": "claude-sonnet-4-6",
+        "object": "model",
+        "created": 1771372800,
+        "owned_by": "anthropic",
+        "type": "claude",
+        "display_name": "Claude 4.6 Sonnet",
+        "context_length": 200000,
+        "max_completion_tokens": 64000,
+        "supportedInputModalities": [
+          "text",
+          "image"
+        ],
+        "supportedOutputModalities": [
+          "text"
+        ],
+        "thinking": {
+          "min": 1024,
+          "max": 128000,
+          "zero_allowed": true,
+          "levels": [
+            "low",
+            "medium",
+            "high",
+            "max"
+          ]
+        }
+      },
+      "is_compat": true,
+      "support_configuration_update": false,
+      "user_defined": false
+    },
+    {
+      "name": "claude oauth binds nothing",
+      "auth_id": "claude-oauth.json",
+      "provider": "claude",
+      "synthetic": false,
+      "attributes": {},
+      "metadata": {
+        "access_token": "t",
+        "type": "claude"
+      },
+      "req_model": "sonnet",
+      "route": "sonnet",
+      "upstream": "claude-sonnet-4-6",
+      "restore": false,
+      "source": "",
+      "info": null,
+      "is_compat": false,
+      "support_configuration_update": false,
+      "user_defined": false
+    },
+    {
+      "name": "codex oauth plus",
+      "auth_id": "codex-plus.json",
+      "provider": "codex",
+      "synthetic": false,
+      "attributes": {
+        "plan_type": "plus"
+      },
+      "metadata": {
+        "access_token": "t",
+        "type": "codex"
+      },
+      "req_model": "gpt-6-astra(high)",
+      "route": "gpt-6-astra(high)",
+      "upstream": "gpt-6-astra(high)",
+      "restore": false,
+      "source": "codex_oauth",
+      "info": {
+        "id": "gpt-6-astra",
+        "object": "model",
+        "created": 1783616400,
+        "owned_by": "openai",
+        "type": "openai",
+        "display_name": "GPT 6.0 Astra",
+        "version": "gpt-6.0",
+        "description": "GPT-6 Astra is our most intelligent model yet, with state-of-the-art performance in computer use, browsing, software engineering, science, and professional work.",
+        "context_length": 272000,
+        "max_completion_tokens": 128000,
+        "supported_parameters": [
+          "tools"
+        ],
+        "supportedInputModalities": [
+          "text",
+          "image"
+        ],
+        "supportedOutputModalities": [
+          "text"
+        ],
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ]
+        }
+      },
+      "is_compat": false,
+      "support_configuration_update": true,
+      "user_defined": false
+    },
+    {
+      "name": "codex oauth free lacks model",
+      "auth_id": "codex-free.json",
+      "provider": "codex",
+      "synthetic": false,
+      "attributes": {
+        "plan_type": "free"
+      },
+      "metadata": {
+        "access_token": "t",
+        "type": "codex"
+      },
+      "req_model": "gpt-6-sol",
+      "route": "gpt-6-sol",
+      "upstream": "gpt-6-sol",
+      "restore": false,
+      "source": "",
+      "info": null,
+      "is_compat": false,
+      "support_configuration_update": false,
+      "user_defined": false
+    },
+    {
+      "name": "codex oauth team case folded",
+      "auth_id": "codex-Team.json",
+      "provider": "codex",
+      "synthetic": false,
+      "attributes": {
+        "plan_type": "Team"
+      },
+      "metadata": {
+        "access_token": "t",
+        "type": "codex"
+      },
+      "req_model": "GPT-5.5",
+      "route": "GPT-5.5",
+      "upstream": "GPT-5.5",
+      "restore": false,
+      "source": "codex_oauth",
+      "info": {
+        "id": "gpt-5.5",
+        "object": "model",
+        "created": 1776902400,
+        "owned_by": "openai",
+        "type": "openai",
+        "display_name": "GPT 5.5",
+        "version": "gpt-5.5",
+        "description": "Frontier model for complex coding, research, and real-world work.",
+        "context_length": 272000,
+        "max_completion_tokens": 128000,
+        "supported_parameters": [
+          "tools"
+        ],
+        "supportedInputModalities": [
+          "text",
+          "image"
+        ],
+        "supportedOutputModalities": [
+          "text"
+        ],
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high",
+            "xhigh"
+          ]
+        }
+      },
+      "is_compat": false,
+      "support_configuration_update": false,
+      "user_defined": false
+    },
+    {
+      "name": "codex oauth default plan",
+      "auth_id": "codex-.json",
+      "provider": "codex",
+      "synthetic": false,
+      "attributes": {},
+      "metadata": {
+        "access_token": "t",
+        "type": "codex"
+      },
+      "req_model": "gpt-6-sol",
+      "route": "gpt-6-sol",
+      "upstream": "gpt-6-sol",
+      "restore": false,
+      "source": "codex_oauth",
+      "info": {
+        "id": "gpt-6-sol",
+        "object": "model",
+        "created": 1790035200,
+        "owned_by": "openai",
+        "type": "openai",
+        "display_name": "GPT 6.0 Sol",
+        "version": "gpt-6.0",
+        "description": "GPT-6 Sol Codex model.",
+        "context_length": 272000,
+        "max_completion_tokens": 128000,
+        "supported_parameters": [
+          "tools"
+        ],
+        "supportedInputModalities": [
+          "text",
+          "image"
+        ],
+        "supportedOutputModalities": [
+          "text"
+        ],
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ]
+        }
+      },
+      "is_compat": false,
+      "support_configuration_update": true,
+      "user_defined": false
+    },
+    {
+      "name": "codex oauth restore",
+      "auth_id": "codex-plus.json",
+      "provider": "codex",
+      "synthetic": false,
+      "attributes": {
+        "plan_type": "plus"
+      },
+      "metadata": {
+        "access_token": "t",
+        "type": "codex"
+      },
+      "req_model": "gpt-6-luna",
+      "route": "selection",
+      "upstream": "upstream",
+      "restore": true,
+      "source": "codex_oauth",
+      "info": {
+        "id": "gpt-6-luna",
+        "object": "model",
+        "created": 1790035200,
+        "owned_by": "openai",
+        "type": "openai",
+        "display_name": "GPT 6.0 Luna",
+        "version": "gpt-6.0",
+        "description": "GPT-6 Luna Codex model.",
+        "context_length": 272000,
+        "max_completion_tokens": 128000,
+        "supported_parameters": [
+          "tools"
+        ],
+        "supportedInputModalities": [
+          "text",
+          "image"
+        ],
+        "supportedOutputModalities": [
+          "text"
+        ],
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ]
+        }
+      },
+      "is_compat": false,
+      "support_configuration_update": true,
+      "user_defined": false
+    }
+  ],
+  "resolved_config": "config-version: 8\napi-keys:\n  claude:\n    - name: c1\n      base-url: https://c.example\n      models:\n        - name: claude-sonnet-4-6\n          alias: sonnet\n          is-compat: true\n        - name: claude-opus-4-6(high)\n          alias: opus\n        - name: claude-custom-x\n          alias: custom\n          thinking:\n            levels: [\"HIGH\", \"none\", \"high\", \" auto \"]\n        - alias: aliasonly\n      keys:\n        - api-key: ck1\n    - name: c2\n      base-url: https://dup.example\n      headers:\n        X-A: \"1\"\n      models:\n        - name: claude-sonnet-4-6\n          alias: first\n      keys:\n        - api-key: dupkey\n    - name: c3\n      base-url: https://dup.example\n      headers:\n        X-A: \"2\"\n      models:\n        - name: claude-opus-4-7\n          alias: second\n      keys:\n        - api-key: dupkey\n  codex:\n    - name: x1\n      base-url: https://codex.example\n      prefix: team\n      models:\n        - name: gpt-6-sol\n          alias: sol\n          is-compat: true\n        - name: gpt-5.5\n          alias: five\n          support-configuration-update: true\n          thinking:\n            min: 1\n            max: 9\n      keys:\n        - api-key: xk1\n  vertex:\n    - name: v1\n      base-url: https://vertex.example\n      models:\n        - name: gemini-2.5-pro\n          alias: vpro\n      keys:\n        - api-key: vk1\n  openai-compatibility:\n    - name: acme\n      base-url: https://acme.example/v1\n      models:\n        - name: up-model\n          alias: acme-m\n          is-compat: true\n        - name: img-model\n          alias: acme-img\n          image: true\n      keys:\n        - api-key: ok1\n",
   "sanitize": [
     {
       "in": "",
@@ -2534,6 +4222,1464 @@
       "session_id": "",
       "hash_session_id": "",
       "caller_scope": ""
+    }
+  ],
+  "usage": [
+    {
+      "name": "claude buffered api key",
+      "format": "claude",
+      "stream": false,
+      "lines": [
+        "{\"id\":\"msg_1\",\"type\":\"message\",\"model\":\"claude-sonnet-4-6-20260101\",\"usage\":{\"input_tokens\":10,\"output_tokens\":20,\"cache_read_input_tokens\":5,\"cache_creation_input_tokens\":3,\"output_tokens_details\":{\"thinking_tokens\":7}}}"
+      ],
+      "provider": "claude",
+      "executor_type": "ClaudeExecutor",
+      "model": "claude-sonnet-4-6",
+      "alias": "sonnet",
+      "auth_id": "claude:apikey:0a1b2c3d4e5f",
+      "auth_provider": "claude",
+      "attributes": {
+        "api_key": "fake-upstream-key",
+        "auth_kind": "apikey",
+        "config_index": "0",
+        "source": "config:claude[0a1b]"
+      },
+      "metadata": {},
+      "client_key": "fake-client-key",
+      "request_id": "0192f5b4-aaaa-7bbb-8ccc-0123456789ab",
+      "endpoint": "POST /v1/messages",
+      "client_ip": "10.0.0.2",
+      "resolved_client_ip": "10.0.0.2",
+      "x_forwarded_for": "",
+      "user_agent": "claude-cli/2.1.0 (external, cli)",
+      "session_id": "claude:5B8E6F3A-1234-4ABC-8DEF-0123456789AB",
+      "parent_session_id": "claude:11111111-2222-4333-8444-555555555555",
+      "reasoning_effort": "high",
+      "translated_payload": "{\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":8192}}",
+      "translated_format": "claude",
+      "service_tier": "auto",
+      "generate": true,
+      "failed": false,
+      "fail_status": 0,
+      "fail_body": "",
+      "response_headers": {
+        "Content-Type": [
+          "application/json"
+        ],
+        "X-Request-Id": [
+          "req-1"
+        ]
+      },
+      "execution_id": "6f9619ff-8b86-4d01-b42d-00cf4fc964ff",
+      "requested_at": "2026-10-03T08:00:00.123456Z",
+      "latency_ms": 1234,
+      "ttft_ms": 345,
+      "queued": {
+        "timestamp": "2026-10-03T08:00:00.123456Z",
+        "latency_ms": 1234,
+        "ttft_ms": 345,
+        "source": "fake-upstream-key",
+        "auth_index": "117a78d9d7ea8ca4",
+        "client_ip": "10.0.0.2",
+        "resolved_client_ip": "10.0.0.2",
+        "x_forwarded_for": "",
+        "user_agent": "claude-cli/2.1.0 (external, cli)",
+        "tokens": {
+          "input_tokens": 10,
+          "output_tokens": 20,
+          "reasoning_tokens": 7,
+          "cached_tokens": 5,
+          "cache_read_tokens": 5,
+          "cache_read_tokens_present": true,
+          "cache_creation_tokens": 3,
+          "total_tokens": 38
+        },
+        "failed": false,
+        "generate": true,
+        "stream": false,
+        "fail": {
+          "status_code": 200,
+          "body": ""
+        },
+        "response_headers": {
+          "Content-Type": [
+            "application/json"
+          ],
+          "X-Request-Id": [
+            "req-1"
+          ]
+        },
+        "accounting_version": 2,
+        "token_breakdown": {
+          "schema_version": 2,
+          "quality": "complete",
+          "total_tokens": 38,
+          "input": {
+            "total_tokens": 18,
+            "uncached_tokens": 10,
+            "cache_read_tokens": 5,
+            "cache_write_tokens": 3
+          },
+          "output": {
+            "total_tokens": 20,
+            "non_reasoning_tokens": 13,
+            "reasoning_tokens": 7
+          },
+          "unclassified_tokens": 0
+        },
+        "provider": "claude",
+        "executor_type": "ClaudeExecutor",
+        "model": "claude-sonnet-4-6",
+        "alias": "sonnet",
+        "endpoint": "POST /v1/messages",
+        "auth_type": "apikey",
+        "api_key": "fake-client-key",
+        "request_id": "0192f5b4-aaaa-7bbb-8ccc-0123456789ab",
+        "execution_id": "6f9619ff-8b86-4d01-b42d-00cf4fc964ff",
+        "trace_id": "0192f5b4-aaaa-7bbb-8ccc-0123456789ab",
+        "session_id": "5b8e6f3a-1234-4abc-8def-0123456789ab",
+        "parent_session_id": "11111111-2222-4333-8444-555555555555",
+        "reasoning_effort": "medium",
+        "service_tier": "auto",
+        "response_model": "claude-sonnet-4-6-20260101"
+      }
+    },
+    {
+      "name": "claude stream oauth",
+      "format": "claude",
+      "stream": true,
+      "lines": [
+        "event: message_start",
+        "data: {\"type\":\"message_start\",\"message\":{\"id\":\"m\",\"model\":\"claude-opus-4-7\",\"usage\":{\"input_tokens\":12,\"cache_read_input_tokens\":100,\"output_tokens\":1}}}",
+        "event: content_block_delta",
+        "data: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"\u003chi\u003e\"}}",
+        "event: message_delta",
+        "data: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"},\"usage\":{\"output_tokens\":40}}",
+        "event: message_stop",
+        "data: {\"type\":\"message_stop\"}"
+      ],
+      "provider": "claude",
+      "executor_type": "ClaudeExecutor",
+      "model": "claude-opus-4-7",
+      "alias": "claude-opus-4-7",
+      "auth_id": "claude-user.json",
+      "auth_provider": "claude",
+      "attributes": {
+        "auth_kind": "oauth"
+      },
+      "metadata": {
+        "access_token": "fake-access-token",
+        "email": "user@example.com",
+        "type": "claude"
+      },
+      "client_key": "",
+      "request_id": "0192f5b4-aaaa-7bbb-8ccc-0123456789ab",
+      "endpoint": "POST /v1/messages",
+      "client_ip": "10.0.0.2",
+      "resolved_client_ip": "10.0.0.2",
+      "x_forwarded_for": "203.0.113.9, 10.0.0.1",
+      "user_agent": "",
+      "session_id": "header:my-session",
+      "parent_session_id": "header:my-session",
+      "reasoning_effort": "",
+      "translated_payload": "",
+      "translated_format": "",
+      "service_tier": "auto",
+      "generate": true,
+      "failed": false,
+      "fail_status": 0,
+      "fail_body": "",
+      "response_headers": null,
+      "execution_id": "6f9619ff-8b86-4d01-b42d-00cf4fc964ff",
+      "requested_at": "2026-10-03T08:00:00.123456Z",
+      "latency_ms": 1234,
+      "ttft_ms": 345,
+      "queued": {
+        "timestamp": "2026-10-03T08:00:00.123456Z",
+        "latency_ms": 1234,
+        "ttft_ms": 345,
+        "source": "user@example.com",
+        "auth_index": "bc6436f804a1fc64",
+        "access_token_sha256": "0ed67e78396236f068c7f03b5dd972fb64d0bdacfe56bd1102c047bcade79887",
+        "client_ip": "10.0.0.2",
+        "resolved_client_ip": "10.0.0.2",
+        "x_forwarded_for": "203.0.113.9, 10.0.0.1",
+        "user_agent": "",
+        "tokens": {
+          "input_tokens": 12,
+          "output_tokens": 40,
+          "reasoning_tokens": 0,
+          "cached_tokens": 100,
+          "cache_read_tokens": 100,
+          "cache_read_tokens_present": true,
+          "cache_creation_tokens": 0,
+          "total_tokens": 152
+        },
+        "failed": false,
+        "generate": true,
+        "stream": true,
+        "fail": {
+          "status_code": 200,
+          "body": ""
+        },
+        "accounting_version": 2,
+        "token_breakdown": {
+          "schema_version": 2,
+          "quality": "complete",
+          "total_tokens": 152,
+          "input": {
+            "total_tokens": 112,
+            "uncached_tokens": 12,
+            "cache_read_tokens": 100,
+            "cache_write_tokens": 0
+          },
+          "output": {
+            "total_tokens": 40,
+            "non_reasoning_tokens": 40,
+            "reasoning_tokens": 0
+          },
+          "unclassified_tokens": 0
+        },
+        "provider": "claude",
+        "executor_type": "ClaudeExecutor",
+        "model": "claude-opus-4-7",
+        "alias": "claude-opus-4-7",
+        "endpoint": "POST /v1/messages",
+        "auth_type": "oauth",
+        "api_key": "",
+        "request_id": "0192f5b4-aaaa-7bbb-8ccc-0123456789ab",
+        "execution_id": "6f9619ff-8b86-4d01-b42d-00cf4fc964ff",
+        "trace_id": "0192f5b4-aaaa-7bbb-8ccc-0123456789ab",
+        "session_id": "de26f405-bfae-8865-a046-0f1a8640b26f",
+        "reasoning_effort": "",
+        "service_tier": "auto",
+        "response_model": "claude-opus-4-7"
+      }
+    },
+    {
+      "name": "openai buffered compat",
+      "format": "openai",
+      "stream": false,
+      "lines": [
+        "{\"id\":\"c1\",\"object\":\"chat.completion\",\"model\":\"up-model\",\"service_tier\":\"default\",\"choices\":[],\"usage\":{\"prompt_tokens\":100,\"completion_tokens\":50,\"total_tokens\":150,\"prompt_tokens_details\":{\"cached_tokens\":30},\"completion_tokens_details\":{\"reasoning_tokens\":20}}}"
+      ],
+      "provider": "openai-compatible-acme",
+      "executor_type": "OpenAICompatExecutor",
+      "model": "up-model",
+      "alias": "acme-m",
+      "auth_id": "openai-compatibility:acme:0376e65a6eff",
+      "auth_provider": "openai-compatible-acme",
+      "attributes": {
+        "api_key": "fake-compat-key",
+        "auth_kind": "apikey",
+        "compat_name": "acme",
+        "provider_key": "openai-compatible-acme",
+        "source": "config:acme[0376]"
+      },
+      "metadata": {},
+      "client_key": "fake-client-key",
+      "request_id": "0192f5b4-aaaa-7bbb-8ccc-0123456789ab",
+      "endpoint": "POST /v1/chat/completions",
+      "client_ip": "10.0.0.2",
+      "resolved_client_ip": "10.0.0.2",
+      "x_forwarded_for": "",
+      "user_agent": "claude-cli/2.1.0 (external, cli)",
+      "session_id": "",
+      "parent_session_id": "",
+      "reasoning_effort": "",
+      "translated_payload": "",
+      "translated_format": "",
+      "service_tier": "default",
+      "generate": true,
+      "failed": false,
+      "fail_status": 0,
+      "fail_body": "",
+      "response_headers": null,
+      "execution_id": "6f9619ff-8b86-4d01-b42d-00cf4fc964ff",
+      "requested_at": "2026-10-03T08:00:00.123456Z",
+      "latency_ms": 1234,
+      "ttft_ms": 345,
+      "queued": {
+        "timestamp": "2026-10-03T08:00:00.123456Z",
+        "latency_ms": 1234,
+        "ttft_ms": 345,
+        "source": "fake-compat-key",
+        "auth_index": "9217d0918a9b7941",
+        "client_ip": "10.0.0.2",
+        "resolved_client_ip": "10.0.0.2",
+        "x_forwarded_for": "",
+        "user_agent": "claude-cli/2.1.0 (external, cli)",
+        "tokens": {
+          "input_tokens": 100,
+          "output_tokens": 50,
+          "reasoning_tokens": 20,
+          "cached_tokens": 30,
+          "cache_read_tokens": 30,
+          "cache_read_tokens_present": true,
+          "cache_creation_tokens": 0,
+          "total_tokens": 150
+        },
+        "failed": false,
+        "generate": true,
+        "stream": false,
+        "fail": {
+          "status_code": 200,
+          "body": ""
+        },
+        "accounting_version": 2,
+        "token_breakdown": {
+          "schema_version": 2,
+          "quality": "complete",
+          "total_tokens": 150,
+          "input": {
+            "total_tokens": 100,
+            "uncached_tokens": 70,
+            "cache_read_tokens": 30,
+            "cache_write_tokens": 0
+          },
+          "output": {
+            "total_tokens": 50,
+            "non_reasoning_tokens": 30,
+            "reasoning_tokens": 20
+          },
+          "unclassified_tokens": 0
+        },
+        "provider": "openai-compatible-acme",
+        "executor_type": "OpenAICompatExecutor",
+        "model": "up-model",
+        "alias": "acme-m",
+        "endpoint": "POST /v1/chat/completions",
+        "auth_type": "apikey",
+        "api_key": "fake-client-key",
+        "request_id": "0192f5b4-aaaa-7bbb-8ccc-0123456789ab",
+        "execution_id": "6f9619ff-8b86-4d01-b42d-00cf4fc964ff",
+        "trace_id": "0192f5b4-aaaa-7bbb-8ccc-0123456789ab",
+        "reasoning_effort": "",
+        "service_tier": "default",
+        "response_service_tier": "default",
+        "response_model": "up-model"
+      }
+    },
+    {
+      "name": "openai stream last usage",
+      "format": "openai",
+      "stream": true,
+      "lines": [
+        "data: {\"id\":\"c2\",\"object\":\"chat.completion.chunk\",\"model\":\"up-model-0612\",\"service_tier\":\"flex\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"hi\"}}]}",
+        "data: {\"id\":\"c2\",\"object\":\"chat.completion.chunk\",\"model\":\"up-model-0612\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}",
+        "data: {\"id\":\"c2\",\"object\":\"chat.completion.chunk\",\"model\":\"up-model-0612\",\"choices\":[],\"usage\":{\"prompt_tokens\":7,\"completion_tokens\":3,\"total_tokens\":10}}",
+        "data: [DONE]"
+      ],
+      "provider": "openai-compatible-acme",
+      "executor_type": "OpenAICompatExecutor",
+      "model": "up-model",
+      "alias": "acme-m",
+      "auth_id": "claude:apikey:0a1b2c3d4e5f",
+      "auth_provider": "claude",
+      "attributes": {
+        "api_key": "fake-compat-key",
+        "auth_kind": "apikey"
+      },
+      "metadata": {},
+      "client_key": "fake-client-key",
+      "request_id": "0192f5b4-aaaa-7bbb-8ccc-0123456789ab",
+      "endpoint": "POST /v1/chat/completions",
+      "client_ip": "10.0.0.2",
+      "resolved_client_ip": "10.0.0.2",
+      "x_forwarded_for": "",
+      "user_agent": "claude-cli/2.1.0 (external, cli)",
+      "session_id": "",
+      "parent_session_id": "",
+      "reasoning_effort": "",
+      "translated_payload": "",
+      "translated_format": "",
+      "service_tier": "auto",
+      "generate": true,
+      "failed": false,
+      "fail_status": 0,
+      "fail_body": "",
+      "response_headers": null,
+      "execution_id": "6f9619ff-8b86-4d01-b42d-00cf4fc964ff",
+      "requested_at": "2026-10-03T08:00:00.123456Z",
+      "latency_ms": 1234,
+      "ttft_ms": 345,
+      "queued": {
+        "timestamp": "2026-10-03T08:00:00.123456Z",
+        "latency_ms": 1234,
+        "ttft_ms": 345,
+        "source": "fake-compat-key",
+        "auth_index": "ca2e01d1f8509dfc",
+        "client_ip": "10.0.0.2",
+        "resolved_client_ip": "10.0.0.2",
+        "x_forwarded_for": "",
+        "user_agent": "claude-cli/2.1.0 (external, cli)",
+        "tokens": {
+          "input_tokens": 7,
+          "output_tokens": 3,
+          "reasoning_tokens": 0,
+          "cached_tokens": 0,
+          "cache_read_tokens": 0,
+          "cache_read_tokens_present": true,
+          "cache_creation_tokens": 0,
+          "total_tokens": 10
+        },
+        "failed": false,
+        "generate": true,
+        "stream": true,
+        "fail": {
+          "status_code": 200,
+          "body": ""
+        },
+        "accounting_version": 2,
+        "token_breakdown": {
+          "schema_version": 2,
+          "quality": "complete",
+          "total_tokens": 10,
+          "input": {
+            "total_tokens": 7,
+            "uncached_tokens": 7,
+            "cache_read_tokens": 0,
+            "cache_write_tokens": 0
+          },
+          "output": {
+            "total_tokens": 3,
+            "non_reasoning_tokens": 3,
+            "reasoning_tokens": 0
+          },
+          "unclassified_tokens": 0
+        },
+        "provider": "openai-compatible-acme",
+        "executor_type": "OpenAICompatExecutor",
+        "model": "up-model",
+        "alias": "acme-m",
+        "endpoint": "POST /v1/chat/completions",
+        "auth_type": "apikey",
+        "api_key": "fake-client-key",
+        "request_id": "0192f5b4-aaaa-7bbb-8ccc-0123456789ab",
+        "execution_id": "6f9619ff-8b86-4d01-b42d-00cf4fc964ff",
+        "trace_id": "0192f5b4-aaaa-7bbb-8ccc-0123456789ab",
+        "reasoning_effort": "",
+        "service_tier": "auto",
+        "response_service_tier": "flex",
+        "response_model": "up-model-0612"
+      }
+    },
+    {
+      "name": "openai partial usage",
+      "format": "openai",
+      "stream": false,
+      "lines": [
+        "{\"id\":\"c3\",\"object\":\"chat.completion\",\"model\":\"grok-5\",\"usage\":{\"prompt_tokens\":5}}"
+      ],
+      "provider": "xai",
+      "executor_type": "XAIExecutor",
+      "model": "grok-5",
+      "alias": "grok-5",
+      "auth_id": "claude:apikey:0a1b2c3d4e5f",
+      "auth_provider": "claude",
+      "attributes": {
+        "api_key": "fake-upstream-key",
+        "auth_kind": "apikey",
+        "config_index": "0",
+        "source": "config:claude[0a1b]"
+      },
+      "metadata": {},
+      "client_key": "fake-client-key",
+      "request_id": "0192f5b4-aaaa-7bbb-8ccc-0123456789ab",
+      "endpoint": "POST /v1/chat/completions",
+      "client_ip": "10.0.0.2",
+      "resolved_client_ip": "10.0.0.2",
+      "x_forwarded_for": "",
+      "user_agent": "claude-cli/2.1.0 (external, cli)",
+      "session_id": "",
+      "parent_session_id": "",
+      "reasoning_effort": "",
+      "translated_payload": "",
+      "translated_format": "",
+      "service_tier": "auto",
+      "generate": true,
+      "failed": false,
+      "fail_status": 0,
+      "fail_body": "",
+      "response_headers": null,
+      "execution_id": "6f9619ff-8b86-4d01-b42d-00cf4fc964ff",
+      "requested_at": "2026-10-03T08:00:00.123456Z",
+      "latency_ms": 1234,
+      "ttft_ms": 345,
+      "queued": {
+        "timestamp": "2026-10-03T08:00:00.123456Z",
+        "latency_ms": 1234,
+        "ttft_ms": 345,
+        "source": "fake-upstream-key",
+        "auth_index": "117a78d9d7ea8ca4",
+        "client_ip": "10.0.0.2",
+        "resolved_client_ip": "10.0.0.2",
+        "x_forwarded_for": "",
+        "user_agent": "claude-cli/2.1.0 (external, cli)",
+        "tokens": {
+          "input_tokens": 5,
+          "output_tokens": 0,
+          "reasoning_tokens": 0,
+          "cached_tokens": 0,
+          "cache_read_tokens": 0,
+          "cache_read_tokens_present": true,
+          "cache_creation_tokens": 0,
+          "total_tokens": 5
+        },
+        "failed": false,
+        "generate": true,
+        "stream": false,
+        "fail": {
+          "status_code": 200,
+          "body": ""
+        },
+        "accounting_version": 2,
+        "token_breakdown": {
+          "schema_version": 2,
+          "quality": "complete",
+          "total_tokens": 5,
+          "input": {
+            "total_tokens": 5,
+            "uncached_tokens": 5,
+            "cache_read_tokens": 0,
+            "cache_write_tokens": 0
+          },
+          "output": {
+            "total_tokens": 0,
+            "non_reasoning_tokens": 0,
+            "reasoning_tokens": 0
+          },
+          "unclassified_tokens": 0
+        },
+        "provider": "xai",
+        "executor_type": "XAIExecutor",
+        "model": "grok-5",
+        "alias": "grok-5",
+        "endpoint": "POST /v1/chat/completions",
+        "auth_type": "apikey",
+        "api_key": "fake-client-key",
+        "request_id": "0192f5b4-aaaa-7bbb-8ccc-0123456789ab",
+        "execution_id": "6f9619ff-8b86-4d01-b42d-00cf4fc964ff",
+        "trace_id": "0192f5b4-aaaa-7bbb-8ccc-0123456789ab",
+        "reasoning_effort": "",
+        "service_tier": "auto",
+        "response_model": "grok-5"
+      }
+    },
+    {
+      "name": "responses buffered codex oauth",
+      "format": "openai-response",
+      "stream": false,
+      "lines": [
+        "{\"id\":\"resp_1\",\"object\":\"response\",\"model\":\"gpt-6-sol\",\"service_tier\":\"priority\",\"status\":\"completed\",\"usage\":{\"input_tokens\":200,\"input_tokens_details\":{\"cached_tokens\":50},\"output_tokens\":80,\"output_tokens_details\":{\"reasoning_tokens\":30},\"total_tokens\":280}}"
+      ],
+      "provider": "codex",
+      "executor_type": "CodexExecutor",
+      "model": "gpt-6-sol",
+      "alias": "gpt-6-sol(high)",
+      "auth_id": "codex-user.json",
+      "auth_provider": "codex",
+      "attributes": {
+        "plan_type": "plus"
+      },
+      "metadata": {
+        "access_token": "fake-codex-token",
+        "email": "dev@example.com",
+        "type": "codex"
+      },
+      "client_key": "fake-client-key",
+      "request_id": "0192f5b4-aaaa-7bbb-8ccc-0123456789ab",
+      "endpoint": "POST /v1/responses",
+      "client_ip": "10.0.0.2",
+      "resolved_client_ip": "10.0.0.2",
+      "x_forwarded_for": "",
+      "user_agent": "claude-cli/2.1.0 (external, cli)",
+      "session_id": "",
+      "parent_session_id": "",
+      "reasoning_effort": "high",
+      "translated_payload": "{\"model\":\"gpt-6-sol\",\"reasoning\":{\"effort\":\"medium\"}}",
+      "translated_format": "codex",
+      "service_tier": "auto",
+      "generate": true,
+      "failed": false,
+      "fail_status": 0,
+      "fail_body": "",
+      "response_headers": null,
+      "execution_id": "6f9619ff-8b86-4d01-b42d-00cf4fc964ff",
+      "requested_at": "2026-10-03T08:00:00.123456Z",
+      "latency_ms": 1234,
+      "ttft_ms": 345,
+      "queued": {
+        "timestamp": "2026-10-03T08:00:00.123456Z",
+        "latency_ms": 1234,
+        "ttft_ms": 345,
+        "source": "dev@example.com",
+        "auth_index": "38e36504a36d7d40",
+        "access_token_sha256": "d925ee4957cc96b41f5eca0a50692a945721af3ae86d2c36af4d22500ba6d749",
+        "client_ip": "10.0.0.2",
+        "resolved_client_ip": "10.0.0.2",
+        "x_forwarded_for": "",
+        "user_agent": "claude-cli/2.1.0 (external, cli)",
+        "tokens": {
+          "input_tokens": 200,
+          "output_tokens": 80,
+          "reasoning_tokens": 30,
+          "cached_tokens": 50,
+          "cache_read_tokens": 50,
+          "cache_read_tokens_present": true,
+          "cache_creation_tokens": 0,
+          "total_tokens": 280
+        },
+        "failed": false,
+        "generate": true,
+        "stream": false,
+        "fail": {
+          "status_code": 200,
+          "body": ""
+        },
+        "accounting_version": 2,
+        "token_breakdown": {
+          "schema_version": 2,
+          "quality": "complete",
+          "total_tokens": 280,
+          "input": {
+            "total_tokens": 200,
+            "uncached_tokens": 150,
+            "cache_read_tokens": 50,
+            "cache_write_tokens": 0
+          },
+          "output": {
+            "total_tokens": 80,
+            "non_reasoning_tokens": 50,
+            "reasoning_tokens": 30
+          },
+          "unclassified_tokens": 0
+        },
+        "provider": "codex",
+        "executor_type": "CodexExecutor",
+        "model": "gpt-6-sol",
+        "alias": "gpt-6-sol(high)",
+        "endpoint": "POST /v1/responses",
+        "auth_type": "oauth",
+        "api_key": "fake-client-key",
+        "request_id": "0192f5b4-aaaa-7bbb-8ccc-0123456789ab",
+        "execution_id": "6f9619ff-8b86-4d01-b42d-00cf4fc964ff",
+        "trace_id": "0192f5b4-aaaa-7bbb-8ccc-0123456789ab",
+        "reasoning_effort": "medium",
+        "service_tier": "auto",
+        "response_service_tier": "priority"
+      }
+    },
+    {
+      "name": "responses stream terminal",
+      "format": "openai-response",
+      "stream": true,
+      "lines": [
+        "event: response.created",
+        "data: {\"type\":\"response.created\",\"response\":{\"id\":\"r\",\"model\":\"gpt-6-sol\",\"service_tier\":\"auto\",\"usage\":null}}",
+        "data: {\"type\":\"response.output_text.delta\",\"delta\":\"x\"}",
+        "event: response.completed",
+        "data: {\"type\":\"response.completed\",\"response\":{\"id\":\"r\",\"model\":\"gpt-6-sol-2026\",\"service_tier\":\"default\",\"usage\":{\"input_tokens\":9,\"output_tokens\":4,\"total_tokens\":13}}}"
+      ],
+      "provider": "codex",
+      "executor_type": "CodexExecutor",
+      "model": "gpt-6-sol",
+      "alias": "gpt-6-sol",
+      "auth_id": "codex-user.json",
+      "auth_provider": "codex",
+      "attributes": {},
+      "metadata": {
+        "access_token": "fake-codex-token",
+        "type": "codex"
+      },
+      "client_key": "fake-client-key",
+      "request_id": "0192f5b4-aaaa-7bbb-8ccc-0123456789ab",
+      "endpoint": "POST /v1/responses",
+      "client_ip": "10.0.0.2",
+      "resolved_client_ip": "10.0.0.2",
+      "x_forwarded_for": "",
+      "user_agent": "claude-cli/2.1.0 (external, cli)",
+      "session_id": "",
+      "parent_session_id": "",
+      "reasoning_effort": "",
+      "translated_payload": "",
+      "translated_format": "",
+      "service_tier": "flex",
+      "generate": false,
+      "failed": false,
+      "fail_status": 0,
+      "fail_body": "",
+      "response_headers": null,
+      "execution_id": "6f9619ff-8b86-4d01-b42d-00cf4fc964ff",
+      "requested_at": "2026-10-03T08:00:00.123456Z",
+      "latency_ms": 1234,
+      "ttft_ms": 345,
+      "queued": {
+        "timestamp": "2026-10-03T08:00:00.123456Z",
+        "latency_ms": 1234,
+        "ttft_ms": 345,
+        "source": "fake-client-key",
+        "auth_index": "38e36504a36d7d40",
+        "access_token_sha256": "d925ee4957cc96b41f5eca0a50692a945721af3ae86d2c36af4d22500ba6d749",
+        "client_ip": "10.0.0.2",
+        "resolved_client_ip": "10.0.0.2",
+        "x_forwarded_for": "",
+        "user_agent": "claude-cli/2.1.0 (external, cli)",
+        "tokens": {
+          "input_tokens": 9,
+          "output_tokens": 4,
+          "reasoning_tokens": 0,
+          "cached_tokens": 0,
+          "cache_read_tokens": 0,
+          "cache_read_tokens_present": true,
+          "cache_creation_tokens": 0,
+          "total_tokens": 13
+        },
+        "failed": false,
+        "generate": false,
+        "stream": true,
+        "fail": {
+          "status_code": 200,
+          "body": ""
+        },
+        "accounting_version": 2,
+        "token_breakdown": {
+          "schema_version": 2,
+          "quality": "complete",
+          "total_tokens": 13,
+          "input": {
+            "total_tokens": 9,
+            "uncached_tokens": 9,
+            "cache_read_tokens": 0,
+            "cache_write_tokens": 0
+          },
+          "output": {
+            "total_tokens": 4,
+            "non_reasoning_tokens": 4,
+            "reasoning_tokens": 0
+          },
+          "unclassified_tokens": 0
+        },
+        "provider": "codex",
+        "executor_type": "CodexExecutor",
+        "model": "gpt-6-sol",
+        "alias": "gpt-6-sol",
+        "endpoint": "POST /v1/responses",
+        "auth_type": "oauth",
+        "api_key": "fake-client-key",
+        "request_id": "0192f5b4-aaaa-7bbb-8ccc-0123456789ab",
+        "execution_id": "6f9619ff-8b86-4d01-b42d-00cf4fc964ff",
+        "trace_id": "0192f5b4-aaaa-7bbb-8ccc-0123456789ab",
+        "reasoning_effort": "",
+        "service_tier": "flex",
+        "response_service_tier": "default",
+        "response_model": "gpt-6-sol-2026"
+      }
+    },
+    {
+      "name": "gemini buffered api key",
+      "format": "gemini",
+      "stream": false,
+      "lines": [
+        "{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\"}],\"usageMetadata\":{\"promptTokenCount\":40,\"candidatesTokenCount\":60,\"thoughtsTokenCount\":10,\"totalTokenCount\":110,\"cachedContentTokenCount\":8},\"modelVersion\":\"gemini-2.5-pro-002\"}"
+      ],
+      "provider": "gemini",
+      "executor_type": "GeminiExecutor",
+      "model": "gemini-2.5-pro",
+      "alias": "gemini-2.5-pro",
+      "auth_id": "claude:apikey:0a1b2c3d4e5f",
+      "auth_provider": "claude",
+      "attributes": {
+        "api_key": "fake-gemini-key",
+        "auth_kind": "apikey"
+      },
+      "metadata": {},
+      "client_key": "fake-client-key",
+      "request_id": "0192f5b4-aaaa-7bbb-8ccc-0123456789ab",
+      "endpoint": "POST /v1beta/models/*action",
+      "client_ip": "10.0.0.2",
+      "resolved_client_ip": "10.0.0.2",
+      "x_forwarded_for": "",
+      "user_agent": "claude-cli/2.1.0 (external, cli)",
+      "session_id": "",
+      "parent_session_id": "",
+      "reasoning_effort": "",
+      "translated_payload": "",
+      "translated_format": "",
+      "service_tier": "auto",
+      "generate": true,
+      "failed": false,
+      "fail_status": 0,
+      "fail_body": "",
+      "response_headers": null,
+      "execution_id": "6f9619ff-8b86-4d01-b42d-00cf4fc964ff",
+      "requested_at": "2026-10-03T08:00:00.123456Z",
+      "latency_ms": 1234,
+      "ttft_ms": 345,
+      "queued": {
+        "timestamp": "2026-10-03T08:00:00.123456Z",
+        "latency_ms": 1234,
+        "ttft_ms": 345,
+        "source": "fake-gemini-key",
+        "auth_index": "dd505043a11ab0d4",
+        "client_ip": "10.0.0.2",
+        "resolved_client_ip": "10.0.0.2",
+        "x_forwarded_for": "",
+        "user_agent": "claude-cli/2.1.0 (external, cli)",
+        "tokens": {
+          "input_tokens": 40,
+          "output_tokens": 60,
+          "reasoning_tokens": 10,
+          "cached_tokens": 8,
+          "cache_read_tokens": 8,
+          "cache_read_tokens_present": true,
+          "cache_creation_tokens": 0,
+          "total_tokens": 110
+        },
+        "failed": false,
+        "generate": true,
+        "stream": false,
+        "fail": {
+          "status_code": 200,
+          "body": ""
+        },
+        "accounting_version": 2,
+        "token_breakdown": {
+          "schema_version": 2,
+          "quality": "complete",
+          "total_tokens": 110,
+          "input": {
+            "total_tokens": 40,
+            "uncached_tokens": 32,
+            "cache_read_tokens": 8,
+            "cache_write_tokens": 0
+          },
+          "output": {
+            "total_tokens": 70,
+            "non_reasoning_tokens": 60,
+            "reasoning_tokens": 10
+          },
+          "unclassified_tokens": 0
+        },
+        "provider": "gemini",
+        "executor_type": "GeminiExecutor",
+        "model": "gemini-2.5-pro",
+        "alias": "gemini-2.5-pro",
+        "endpoint": "POST /v1beta/models/*action",
+        "auth_type": "apikey",
+        "api_key": "fake-client-key",
+        "request_id": "0192f5b4-aaaa-7bbb-8ccc-0123456789ab",
+        "execution_id": "6f9619ff-8b86-4d01-b42d-00cf4fc964ff",
+        "trace_id": "0192f5b4-aaaa-7bbb-8ccc-0123456789ab",
+        "reasoning_effort": "",
+        "service_tier": "auto",
+        "response_model": "gemini-2.5-pro-002"
+      }
+    },
+    {
+      "name": "gemini stream terminal usage",
+      "format": "gemini",
+      "stream": true,
+      "lines": [
+        "data: {\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"a\"}]}}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\"}",
+        "data: {\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"b\"}]},\"finishReason\":\"STOP\"}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":9,\"thoughtsTokenCount\":2,\"totalTokenCount\":14},\"modelVersion\":\"gemini-2.5-flash\"}"
+      ],
+      "provider": "gemini",
+      "executor_type": "GeminiExecutor",
+      "model": "gemini-2.5-flash",
+      "alias": "gemini-2.5-flash",
+      "auth_id": "claude:apikey:0a1b2c3d4e5f",
+      "auth_provider": "claude",
+      "attributes": {
+        "api_key": "fake-gemini-key",
+        "auth_kind": "apikey"
+      },
+      "metadata": {},
+      "client_key": "fake-client-key",
+      "request_id": "0192f5b4-aaaa-7bbb-8ccc-0123456789ab",
+      "endpoint": "POST /v1beta/models/*action",
+      "client_ip": "10.0.0.2",
+      "resolved_client_ip": "10.0.0.2",
+      "x_forwarded_for": "",
+      "user_agent": "claude-cli/2.1.0 (external, cli)",
+      "session_id": "",
+      "parent_session_id": "",
+      "reasoning_effort": "",
+      "translated_payload": "",
+      "translated_format": "",
+      "service_tier": "auto",
+      "generate": true,
+      "failed": false,
+      "fail_status": 0,
+      "fail_body": "",
+      "response_headers": null,
+      "execution_id": "6f9619ff-8b86-4d01-b42d-00cf4fc964ff",
+      "requested_at": "2026-10-03T08:00:00.123456Z",
+      "latency_ms": 1234,
+      "ttft_ms": 345,
+      "queued": {
+        "timestamp": "2026-10-03T08:00:00.123456Z",
+        "latency_ms": 1234,
+        "ttft_ms": 345,
+        "source": "fake-gemini-key",
+        "auth_index": "dd505043a11ab0d4",
+        "client_ip": "10.0.0.2",
+        "resolved_client_ip": "10.0.0.2",
+        "x_forwarded_for": "",
+        "user_agent": "claude-cli/2.1.0 (external, cli)",
+        "tokens": {
+          "input_tokens": 3,
+          "output_tokens": 9,
+          "reasoning_tokens": 2,
+          "cached_tokens": 0,
+          "cache_read_tokens": 0,
+          "cache_read_tokens_present": true,
+          "cache_creation_tokens": 0,
+          "total_tokens": 14
+        },
+        "failed": false,
+        "generate": true,
+        "stream": true,
+        "fail": {
+          "status_code": 200,
+          "body": ""
+        },
+        "accounting_version": 2,
+        "token_breakdown": {
+          "schema_version": 2,
+          "quality": "complete",
+          "total_tokens": 14,
+          "input": {
+            "total_tokens": 3,
+            "uncached_tokens": 3,
+            "cache_read_tokens": 0,
+            "cache_write_tokens": 0
+          },
+          "output": {
+            "total_tokens": 11,
+            "non_reasoning_tokens": 9,
+            "reasoning_tokens": 2
+          },
+          "unclassified_tokens": 0
+        },
+        "provider": "gemini",
+        "executor_type": "GeminiExecutor",
+        "model": "gemini-2.5-flash",
+        "alias": "gemini-2.5-flash",
+        "endpoint": "POST /v1beta/models/*action",
+        "auth_type": "apikey",
+        "api_key": "fake-client-key",
+        "request_id": "0192f5b4-aaaa-7bbb-8ccc-0123456789ab",
+        "execution_id": "6f9619ff-8b86-4d01-b42d-00cf4fc964ff",
+        "trace_id": "0192f5b4-aaaa-7bbb-8ccc-0123456789ab",
+        "reasoning_effort": "",
+        "service_tier": "auto",
+        "response_model": "gemini-2.5-flash"
+      }
+    },
+    {
+      "name": "vertex project source",
+      "format": "gemini",
+      "stream": false,
+      "lines": [
+        "{\"usageMetadata\":{\"promptTokenCount\":1,\"candidatesTokenCount\":2}}"
+      ],
+      "provider": "vertex",
+      "executor_type": "GeminiVertexExecutor",
+      "model": "gemini-2.5-pro",
+      "alias": "gemini-2.5-pro",
+      "auth_id": "vertex-user.json",
+      "auth_provider": "vertex",
+      "attributes": {},
+      "metadata": {
+        "email": "sa@proj-1.iam",
+        "project_id": "proj-1",
+        "type": "vertex"
+      },
+      "client_key": "fake-client-key",
+      "request_id": "0192f5b4-aaaa-7bbb-8ccc-0123456789ab",
+      "endpoint": "POST /v1/messages",
+      "client_ip": "10.0.0.2",
+      "resolved_client_ip": "10.0.0.2",
+      "x_forwarded_for": "",
+      "user_agent": "claude-cli/2.1.0 (external, cli)",
+      "session_id": "",
+      "parent_session_id": "",
+      "reasoning_effort": "",
+      "translated_payload": "",
+      "translated_format": "",
+      "service_tier": "auto",
+      "generate": true,
+      "failed": false,
+      "fail_status": 0,
+      "fail_body": "",
+      "response_headers": null,
+      "execution_id": "6f9619ff-8b86-4d01-b42d-00cf4fc964ff",
+      "requested_at": "2026-10-03T08:00:00.123456Z",
+      "latency_ms": 1234,
+      "ttft_ms": 345,
+      "queued": {
+        "timestamp": "2026-10-03T08:00:00.123456Z",
+        "latency_ms": 1234,
+        "ttft_ms": 345,
+        "source": "proj-1",
+        "auth_index": "51b2a6f3f7832d04",
+        "client_ip": "10.0.0.2",
+        "resolved_client_ip": "10.0.0.2",
+        "x_forwarded_for": "",
+        "user_agent": "claude-cli/2.1.0 (external, cli)",
+        "tokens": {
+          "input_tokens": 1,
+          "output_tokens": 2,
+          "reasoning_tokens": 0,
+          "cached_tokens": 0,
+          "cache_read_tokens": 0,
+          "cache_read_tokens_present": true,
+          "cache_creation_tokens": 0,
+          "total_tokens": 3
+        },
+        "failed": false,
+        "generate": true,
+        "stream": false,
+        "fail": {
+          "status_code": 200,
+          "body": ""
+        },
+        "accounting_version": 2,
+        "token_breakdown": {
+          "schema_version": 2,
+          "quality": "complete",
+          "total_tokens": 3,
+          "input": {
+            "total_tokens": 1,
+            "uncached_tokens": 1,
+            "cache_read_tokens": 0,
+            "cache_write_tokens": 0
+          },
+          "output": {
+            "total_tokens": 2,
+            "non_reasoning_tokens": 2,
+            "reasoning_tokens": 0
+          },
+          "unclassified_tokens": 0
+        },
+        "provider": "vertex",
+        "executor_type": "GeminiVertexExecutor",
+        "model": "gemini-2.5-pro",
+        "alias": "gemini-2.5-pro",
+        "endpoint": "POST /v1/messages",
+        "auth_type": "oauth",
+        "api_key": "fake-client-key",
+        "request_id": "0192f5b4-aaaa-7bbb-8ccc-0123456789ab",
+        "execution_id": "6f9619ff-8b86-4d01-b42d-00cf4fc964ff",
+        "trace_id": "0192f5b4-aaaa-7bbb-8ccc-0123456789ab",
+        "reasoning_effort": "",
+        "service_tier": "auto"
+      }
+    },
+    {
+      "name": "interactions buffered",
+      "format": "interactions",
+      "stream": false,
+      "lines": [
+        "{\"id\":\"i1\",\"model\":\"gemini-3-pro\",\"status\":\"completed\",\"usage\":{\"total_input_tokens\":20,\"total_output_tokens\":30,\"total_thought_tokens\":5,\"total_tokens\":55,\"total_cached_tokens\":4}}"
+      ],
+      "provider": "gemini-interactions",
+      "executor_type": "GeminiExecutor",
+      "model": "gemini-3-pro",
+      "alias": "gemini-3-pro",
+      "auth_id": "claude:apikey:0a1b2c3d4e5f",
+      "auth_provider": "claude",
+      "attributes": {
+        "api_key": "fake-upstream-key",
+        "auth_kind": "apikey",
+        "config_index": "0",
+        "source": "config:claude[0a1b]"
+      },
+      "metadata": {},
+      "client_key": "fake-client-key",
+      "request_id": "0192f5b4-aaaa-7bbb-8ccc-0123456789ab",
+      "endpoint": "POST /v1beta/interactions",
+      "client_ip": "10.0.0.2",
+      "resolved_client_ip": "10.0.0.2",
+      "x_forwarded_for": "",
+      "user_agent": "claude-cli/2.1.0 (external, cli)",
+      "session_id": "",
+      "parent_session_id": "",
+      "reasoning_effort": "",
+      "translated_payload": "",
+      "translated_format": "",
+      "service_tier": "auto",
+      "generate": true,
+      "failed": false,
+      "fail_status": 0,
+      "fail_body": "",
+      "response_headers": null,
+      "execution_id": "6f9619ff-8b86-4d01-b42d-00cf4fc964ff",
+      "requested_at": "2026-10-03T08:00:00.123456Z",
+      "latency_ms": 1234,
+      "ttft_ms": 345,
+      "queued": {
+        "timestamp": "2026-10-03T08:00:00.123456Z",
+        "latency_ms": 1234,
+        "ttft_ms": 345,
+        "source": "fake-upstream-key",
+        "auth_index": "117a78d9d7ea8ca4",
+        "client_ip": "10.0.0.2",
+        "resolved_client_ip": "10.0.0.2",
+        "x_forwarded_for": "",
+        "user_agent": "claude-cli/2.1.0 (external, cli)",
+        "tokens": {
+          "input_tokens": 20,
+          "output_tokens": 30,
+          "reasoning_tokens": 5,
+          "cached_tokens": 4,
+          "cache_read_tokens": 4,
+          "cache_read_tokens_present": true,
+          "cache_creation_tokens": 0,
+          "total_tokens": 55
+        },
+        "failed": false,
+        "generate": true,
+        "stream": false,
+        "fail": {
+          "status_code": 200,
+          "body": ""
+        },
+        "accounting_version": 2,
+        "token_breakdown": {
+          "schema_version": 2,
+          "quality": "complete",
+          "total_tokens": 55,
+          "input": {
+            "total_tokens": 20,
+            "uncached_tokens": 16,
+            "cache_read_tokens": 4,
+            "cache_write_tokens": 0
+          },
+          "output": {
+            "total_tokens": 35,
+            "non_reasoning_tokens": 30,
+            "reasoning_tokens": 5
+          },
+          "unclassified_tokens": 0
+        },
+        "provider": "gemini-interactions",
+        "executor_type": "GeminiExecutor",
+        "model": "gemini-3-pro",
+        "alias": "gemini-3-pro",
+        "endpoint": "POST /v1beta/interactions",
+        "auth_type": "apikey",
+        "api_key": "fake-client-key",
+        "request_id": "0192f5b4-aaaa-7bbb-8ccc-0123456789ab",
+        "execution_id": "6f9619ff-8b86-4d01-b42d-00cf4fc964ff",
+        "trace_id": "0192f5b4-aaaa-7bbb-8ccc-0123456789ab",
+        "reasoning_effort": "",
+        "service_tier": "auto",
+        "response_model": "gemini-3-pro"
+      }
+    },
+    {
+      "name": "failure without usage",
+      "format": "claude",
+      "stream": false,
+      "lines": [
+        "{}"
+      ],
+      "provider": "claude",
+      "executor_type": "ClaudeExecutor",
+      "model": "claude-sonnet-4-6",
+      "alias": "sonnet",
+      "auth_id": "claude:apikey:0a1b2c3d4e5f",
+      "auth_provider": "claude",
+      "attributes": {
+        "api_key": "fake-upstream-key",
+        "auth_kind": "apikey",
+        "config_index": "0",
+        "source": "config:claude[0a1b]"
+      },
+      "metadata": {},
+      "client_key": "fake-client-key",
+      "request_id": "0192f5b4-aaaa-7bbb-8ccc-0123456789ab",
+      "endpoint": "POST /v1/messages",
+      "client_ip": "10.0.0.2",
+      "resolved_client_ip": "10.0.0.2",
+      "x_forwarded_for": "",
+      "user_agent": "claude-cli/2.1.0 (external, cli)",
+      "session_id": "",
+      "parent_session_id": "",
+      "reasoning_effort": "",
+      "translated_payload": "",
+      "translated_format": "",
+      "service_tier": "auto",
+      "generate": true,
+      "failed": true,
+      "fail_status": 429,
+      "fail_body": "  {\"error\":{\"type\":\"rate_limit_error\",\"message\":\"quota \u003cexceeded\u003e\"}}  ",
+      "response_headers": null,
+      "execution_id": "6f9619ff-8b86-4d01-b42d-00cf4fc964ff",
+      "requested_at": "2026-10-03T08:00:00.123456Z",
+      "latency_ms": 1234,
+      "ttft_ms": 345,
+      "queued": {
+        "timestamp": "2026-10-03T08:00:00.123456Z",
+        "latency_ms": 1234,
+        "ttft_ms": 345,
+        "source": "fake-upstream-key",
+        "auth_index": "117a78d9d7ea8ca4",
+        "client_ip": "10.0.0.2",
+        "resolved_client_ip": "10.0.0.2",
+        "x_forwarded_for": "",
+        "user_agent": "claude-cli/2.1.0 (external, cli)",
+        "tokens": {
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 0,
+          "cached_tokens": 0,
+          "cache_read_tokens": 0,
+          "cache_read_tokens_present": true,
+          "cache_creation_tokens": 0,
+          "total_tokens": 0
+        },
+        "failed": true,
+        "generate": true,
+        "stream": false,
+        "fail": {
+          "status_code": 429,
+          "body": "{\"error\":{\"type\":\"rate_limit_error\",\"message\":\"quota \u003cexceeded\u003e\"}}"
+        },
+        "accounting_version": 2,
+        "token_breakdown": {
+          "schema_version": 2,
+          "quality": "complete",
+          "total_tokens": 0,
+          "input": {
+            "total_tokens": 0,
+            "uncached_tokens": 0,
+            "cache_read_tokens": 0,
+            "cache_write_tokens": 0
+          },
+          "output": {
+            "total_tokens": 0,
+            "non_reasoning_tokens": 0,
+            "reasoning_tokens": 0
+          },
+          "unclassified_tokens": 0
+        },
+        "provider": "claude",
+        "executor_type": "ClaudeExecutor",
+        "model": "claude-sonnet-4-6",
+        "alias": "sonnet",
+        "endpoint": "POST /v1/messages",
+        "auth_type": "apikey",
+        "api_key": "fake-client-key",
+        "request_id": "0192f5b4-aaaa-7bbb-8ccc-0123456789ab",
+        "execution_id": "6f9619ff-8b86-4d01-b42d-00cf4fc964ff",
+        "trace_id": "0192f5b4-aaaa-7bbb-8ccc-0123456789ab",
+        "reasoning_effort": "",
+        "service_tier": "auto"
+      }
+    },
+    {
+      "name": "failure after stream usage",
+      "format": "openai",
+      "stream": true,
+      "lines": [
+        "data: {\"id\":\"c4\",\"object\":\"chat.completion.chunk\",\"model\":\"up-model\",\"choices\":[],\"usage\":{\"prompt_tokens\":11,\"completion_tokens\":2,\"total_tokens\":13}}"
+      ],
+      "provider": "openai-compatible-acme",
+      "executor_type": "OpenAICompatExecutor",
+      "model": "up-model",
+      "alias": "acme-m",
+      "auth_id": "claude:apikey:0a1b2c3d4e5f",
+      "auth_provider": "claude",
+      "attributes": {
+        "api_key": "fake-upstream-key",
+        "auth_kind": "apikey",
+        "config_index": "0",
+        "source": "config:claude[0a1b]"
+      },
+      "metadata": {},
+      "client_key": "fake-client-key",
+      "request_id": "0192f5b4-aaaa-7bbb-8ccc-0123456789ab",
+      "endpoint": "POST /v1/messages",
+      "client_ip": "10.0.0.2",
+      "resolved_client_ip": "10.0.0.2",
+      "x_forwarded_for": "",
+      "user_agent": "claude-cli/2.1.0 (external, cli)",
+      "session_id": "",
+      "parent_session_id": "",
+      "reasoning_effort": "",
+      "translated_payload": "",
+      "translated_format": "",
+      "service_tier": "auto",
+      "generate": true,
+      "failed": true,
+      "fail_status": 502,
+      "fail_body": "upstream reset",
+      "response_headers": null,
+      "execution_id": "6f9619ff-8b86-4d01-b42d-00cf4fc964ff",
+      "requested_at": "2026-10-03T08:00:00.123456Z",
+      "latency_ms": 1234,
+      "ttft_ms": 345,
+      "queued": {
+        "timestamp": "2026-10-03T08:00:00.123456Z",
+        "latency_ms": 1234,
+        "ttft_ms": 345,
+        "source": "fake-upstream-key",
+        "auth_index": "117a78d9d7ea8ca4",
+        "client_ip": "10.0.0.2",
+        "resolved_client_ip": "10.0.0.2",
+        "x_forwarded_for": "",
+        "user_agent": "claude-cli/2.1.0 (external, cli)",
+        "tokens": {
+          "input_tokens": 11,
+          "output_tokens": 2,
+          "reasoning_tokens": 0,
+          "cached_tokens": 0,
+          "cache_read_tokens": 0,
+          "cache_read_tokens_present": true,
+          "cache_creation_tokens": 0,
+          "total_tokens": 13
+        },
+        "failed": true,
+        "generate": true,
+        "stream": true,
+        "fail": {
+          "status_code": 502,
+          "body": "upstream reset"
+        },
+        "accounting_version": 2,
+        "token_breakdown": {
+          "schema_version": 2,
+          "quality": "complete",
+          "total_tokens": 13,
+          "input": {
+            "total_tokens": 11,
+            "uncached_tokens": 11,
+            "cache_read_tokens": 0,
+            "cache_write_tokens": 0
+          },
+          "output": {
+            "total_tokens": 2,
+            "non_reasoning_tokens": 2,
+            "reasoning_tokens": 0
+          },
+          "unclassified_tokens": 0
+        },
+        "provider": "openai-compatible-acme",
+        "executor_type": "OpenAICompatExecutor",
+        "model": "up-model",
+        "alias": "acme-m",
+        "endpoint": "POST /v1/messages",
+        "auth_type": "apikey",
+        "api_key": "fake-client-key",
+        "request_id": "0192f5b4-aaaa-7bbb-8ccc-0123456789ab",
+        "execution_id": "6f9619ff-8b86-4d01-b42d-00cf4fc964ff",
+        "trace_id": "0192f5b4-aaaa-7bbb-8ccc-0123456789ab",
+        "reasoning_effort": "",
+        "service_tier": "auto",
+        "response_model": "up-model"
+      }
+    },
+    {
+      "name": "client key source fallback",
+      "format": "openai",
+      "stream": false,
+      "lines": [
+        "{\"object\":\"chat.completion\",\"model\":\"gpt-5.5\",\"usage\":{\"prompt_tokens\":1,\"completion_tokens\":1,\"total_tokens\":2}}"
+      ],
+      "provider": "codex",
+      "executor_type": "CodexExecutor",
+      "model": "gpt-5.5",
+      "alias": "gpt-5.5",
+      "auth_id": "codex-user.json",
+      "auth_provider": "codex",
+      "attributes": {},
+      "metadata": {
+        "refresh_token": "fake-refresh",
+        "type": "codex"
+      },
+      "client_key": " fake-client-key-2 ",
+      "request_id": "0192f5b4-aaaa-7bbb-8ccc-0123456789ab",
+      "endpoint": "POST /v1/messages",
+      "client_ip": "10.0.0.2",
+      "resolved_client_ip": "10.0.0.2",
+      "x_forwarded_for": "",
+      "user_agent": "claude-cli/2.1.0 (external, cli)",
+      "session_id": "",
+      "parent_session_id": "",
+      "reasoning_effort": "",
+      "translated_payload": "",
+      "translated_format": "",
+      "service_tier": "auto",
+      "generate": true,
+      "failed": false,
+      "fail_status": 0,
+      "fail_body": "",
+      "response_headers": null,
+      "execution_id": "6f9619ff-8b86-4d01-b42d-00cf4fc964ff",
+      "requested_at": "2026-10-03T08:00:00.123456Z",
+      "latency_ms": 1234,
+      "ttft_ms": 345,
+      "queued": {
+        "timestamp": "2026-10-03T08:00:00.123456Z",
+        "latency_ms": 1234,
+        "ttft_ms": 345,
+        "source": "fake-client-key-2",
+        "auth_index": "38e36504a36d7d40",
+        "client_ip": "10.0.0.2",
+        "resolved_client_ip": "10.0.0.2",
+        "x_forwarded_for": "",
+        "user_agent": "claude-cli/2.1.0 (external, cli)",
+        "tokens": {
+          "input_tokens": 1,
+          "output_tokens": 1,
+          "reasoning_tokens": 0,
+          "cached_tokens": 0,
+          "cache_read_tokens": 0,
+          "cache_read_tokens_present": true,
+          "cache_creation_tokens": 0,
+          "total_tokens": 2
+        },
+        "failed": false,
+        "generate": true,
+        "stream": false,
+        "fail": {
+          "status_code": 200,
+          "body": ""
+        },
+        "accounting_version": 2,
+        "token_breakdown": {
+          "schema_version": 2,
+          "quality": "complete",
+          "total_tokens": 2,
+          "input": {
+            "total_tokens": 1,
+            "uncached_tokens": 1,
+            "cache_read_tokens": 0,
+            "cache_write_tokens": 0
+          },
+          "output": {
+            "total_tokens": 1,
+            "non_reasoning_tokens": 1,
+            "reasoning_tokens": 0
+          },
+          "unclassified_tokens": 0
+        },
+        "provider": "codex",
+        "executor_type": "CodexExecutor",
+        "model": "gpt-5.5",
+        "alias": "gpt-5.5",
+        "endpoint": "POST /v1/messages",
+        "auth_type": "oauth",
+        "api_key": "fake-client-key-2",
+        "request_id": "0192f5b4-aaaa-7bbb-8ccc-0123456789ab",
+        "execution_id": "6f9619ff-8b86-4d01-b42d-00cf4fc964ff",
+        "trace_id": "0192f5b4-aaaa-7bbb-8ccc-0123456789ab",
+        "reasoning_effort": "",
+        "service_tier": "auto"
+      }
     }
   ]
 }
