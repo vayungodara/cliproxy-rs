@@ -465,28 +465,107 @@ fn main() -> anyhow::Result<()> {
 }
 
 async fn run(args: Args) -> anyhow::Result<()> {
-    let config_path = if args.config.is_empty() {
-        std::env::current_dir()?.join("config.yaml")
-    } else {
-        PathBuf::from(&args.config)
-    };
-    let cloud = std::env::var("DEPLOY").is_ok_and(|v| v == "cloud");
-    let config = load_config(&config_path, cloud)?;
-    let config_present = !cloud || cloud_config_present(&config_path, &config);
-    // Go ConfigureLogOutput and SetLogLevel, before any login command.
-    cpa_server::logging::configure(&config);
-    tracing::info!("{}", banner());
+    let wd = std::env::current_dir()?;
     let home_jwt = [
         args.home_jwt.clone(),
         std::env::var("HOME_JWT").unwrap_or_default(),
         std::env::var("home_jwt").unwrap_or_default(),
     ];
-    if home_jwt.iter().any(|v| !v.trim().is_empty()) {
+    let home = home_jwt.iter().any(|v| !v.trim().is_empty());
+    // Go main: PGSTORE_*, OBJECTSTORE_* or GITSTORE_* keep config and auth files in a
+    // remote store, served from its local mirror (never in Home mode).
+    let env = |key: &str| std::env::var(key).ok();
+    let store = match cpa_store::select(&env, &wd, home) {
+        Some(selection) => match cpa_store::bootstrap(selection, &wd).await {
+            Ok(store) => Some(store),
+            Err(line) => {
+                tracing::error!("{line}");
+                return Ok(());
+            }
+        },
+        None => None,
+    };
+    let config_path = match &store {
+        Some(store) => store.config_path.clone(),
+        None if args.config.is_empty() => wd.join("config.yaml"),
+        None => PathBuf::from(&args.config),
+    };
+    let cloud = std::env::var("DEPLOY").is_ok_and(|v| v == "cloud");
+    let mut config = load_config(&config_path, cloud)?;
+    if let Some(store) = &store {
+        config.auth_dir = store.auth_dir.clone();
+        tracing::info!("{}", store.enabled);
+    }
+    let config_present = !cloud || cloud_config_present(&config_path, &config);
+    // Go ConfigureLogOutput and SetLogLevel, before any login command.
+    cpa_server::logging::configure(&config);
+    tracing::info!("{}", banner());
+    if home {
         unsupported("Home control plane mode (-home-jwt)");
     }
-    // Command modes, in Go's order.
+    let before = store.as_ref().map(|store| auth_files(&store.auth_dir));
+    let ran = command(&args, &config).await;
+    if !matches!(ran, Ok(false)) {
+        if let (Some(store), Some(before)) = (&store, &before) {
+            persist_login(store, before).await;
+        }
+        return ran.map(|_| ());
+    }
+    if !config_present {
+        wait_for_cloud_deploy().await;
+        return Ok(());
+    }
+    if args.local_model && (!args.tui || args.standalone) {
+        tracing::info!("Local model mode: using embedded model catalogs, remote model updates disabled");
+    }
+    if args.tui {
+        eprintln!("TUI error: the terminal UI is not available in this build yet");
+        return Ok(());
+    }
+    serve(config, config_path, args.password, args.local_model, store).await
+}
+
+/// The top-level `*.json` files of the auth directory.
+fn auth_files(dir: &Path) -> std::collections::BTreeMap<PathBuf, Vec<u8>> {
+    std::fs::read_dir(dir)
+        .into_iter()
+        .flatten()
+        .flatten()
+        .filter(|e| e.file_name().to_string_lossy().to_lowercase().ends_with(".json"))
+        .filter_map(|e| Some((e.path(), std::fs::read(e.path()).ok()?)))
+        .collect()
+}
+
+/// Go's token store `Save` after a login command: what the login wrote goes to the
+/// remote store, or the next bootstrap would not know it.
+async fn persist_login(store: &cpa_store::Store, before: &std::collections::BTreeMap<PathBuf, Vec<u8>>) {
+    for (path, data) in auth_files(&store.auth_dir) {
+        if before.get(&path) == Some(&data) {
+            continue;
+        }
+        let name = path
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        if let Err(error) = store
+            .persister
+            .persist_auth_files(format!("Update auth {name}"), vec![path])
+            .await
+        {
+            tracing::error!("failed to save auth {name} to the token store: {error:#}");
+        }
+    }
+}
+
+/// Go's command modes, in Go's order; `Ok(false)` when no command flag is set.
+async fn command(args: &Args, config: &Config) -> anyhow::Result<bool> {
+    // Go DoVertexImport: failures are logged and the command still exits normally.
     if !args.vertex_import.is_empty() {
-        unsupported("Vertex service account import (-vertex-import)");
+        match cpa_exec::vertex_auth::import(&config.auth_dir, &args.vertex_import, &args.vertex_import_prefix) {
+            Ok(path) => println!("Vertex credentials imported: {}", path.display()),
+            Err(error) => tracing::error!("{error}"),
+        }
+        return Ok(true);
     }
     if args.antigravity_login {
         unsupported("Antigravity login (-antigravity-login)");
@@ -506,7 +585,7 @@ async fn run(args: Args) -> anyhow::Result<()> {
         };
         println!("Authentication saved to {}", path.display());
         println!("Codex authentication successful!");
-        return Ok(());
+        return Ok(true);
     }
     if args.claude_login {
         let options = cpa_exec::claude_login::LoginOptions {
@@ -527,44 +606,39 @@ async fn run(args: Args) -> anyhow::Result<()> {
             }
             println!("Claude authentication failed: {message}");
         }
-        return Ok(());
+        return Ok(true);
     }
     if args.kimi_login || args.kimi_ai_login {
         let provider = if args.kimi_login { "kimi" } else { "kimi-ai" };
-        cpa_exec::kimi_auth::login(provider, &config, args.no_browser).await?;
-        return Ok(());
+        cpa_exec::kimi_auth::login(provider, config, args.no_browser).await?;
+        return Ok(true);
     }
     if args.xai_login {
         // Go DoXAILogin: a failure is logged and the command still exits normally.
-        if let Err(error) = cpa_exec::xai_auth::login(&config, args.no_browser).await {
+        if let Err(error) = cpa_exec::xai_auth::login(config, args.no_browser).await {
             tracing::error!("xAI authentication failed: {}", String::from_utf8_lossy(&error.body));
         }
-        return Ok(());
+        return Ok(true);
     }
     if args.devin_login {
         // Go DoDevinLogin: a failure is logged and the command still exits normally.
-        cpa_exec::devin_auth::login(&config, args.no_browser, args.oauth_callback_port).await;
-        return Ok(());
+        cpa_exec::devin_auth::login(config, args.no_browser, args.oauth_callback_port).await;
+        return Ok(true);
     }
     if args.meta_login {
-        cpa_exec::meta_auth::login(&config, args.no_browser).await?;
-        return Ok(());
+        cpa_exec::meta_auth::login(config, args.no_browser).await?;
+        return Ok(true);
     }
-    if !config_present {
-        wait_for_cloud_deploy().await;
-        return Ok(());
-    }
-    if args.local_model && (!args.tui || args.standalone) {
-        tracing::info!("Local model mode: using embedded model catalogs, remote model updates disabled");
-    }
-    if args.tui {
-        eprintln!("TUI error: the terminal UI is not available in this build yet");
-        return Ok(());
-    }
-    serve(config, config_path, args.password, args.local_model).await
+    Ok(false)
 }
 
-async fn serve(config: Config, config_path: PathBuf, password: String, local_model: bool) -> anyhow::Result<()> {
+async fn serve(
+    config: Config,
+    config_path: PathBuf,
+    password: String,
+    local_model: bool,
+    store: Option<cpa_store::Store>,
+) -> anyhow::Result<()> {
     if config.api_keys.is_empty() {
         tracing::warn!("access.api-keys is empty: the proxy API is open to anyone who can reach it");
     }
@@ -586,6 +660,9 @@ async fn serve(config: Config, config_path: PathBuf, password: String, local_mod
     };
     let rt = Arc::new(Runtime::new(config, credentials, executors));
     rt.set_local_model(local_model);
+    if let Some(cooldown) = store.as_ref().and_then(|store| store.cooldown.clone()) {
+        rt.set_cooldown_backend(cooldown);
+    }
     // Go `startModelCatalogUpdaters`; Home mode (-home-jwt) is refused above.
     cpa_server::model_updater::start(rt.local_model(), false);
     // Translators and thinking validation read model capabilities through the global
@@ -594,6 +671,7 @@ async fn serve(config: Config, config_path: PathBuf, password: String, local_mod
     rt.start_auto_refresh();
     let options = cpa_server::management::Options {
         local_password: password,
+        store: store.map(|store| store.persister),
         ..Default::default()
     };
     let management = cpa_server::management::Management::with_options(rt.clone(), config_path, options);
@@ -607,15 +685,17 @@ async fn serve(config: Config, config_path: PathBuf, password: String, local_mod
     let app = router(rt)
         .merge(cpa_server::management::router(management))
         .layer(axum::middleware::from_fn(cpa_server::management::cors));
-    let server = cpa_server::listener::serve(listener, app, tls);
-    // Go's Shutdown closes the HTTP server without draining (`Server.Stop` calls
-    // `http.Server.Close`); dropping the server future here does the same.
-    tokio::select! {
-        r = server => r?,
-        _ = shutdown_signal() => {}
-    }
+    let mut server = Box::pin(cpa_server::listener::serve(listener, app, tls));
+    let served = tokio::select! {
+        r = &mut server => r,
+        _ = shutdown_signal() => Ok(()),
+    };
+    // Go's Service.Shutdown sends the mDNS goodbye (shutdownDiscovery) before
+    // Server.Stop, which closes the HTTP server without draining (`http.Server.Close`);
+    // dropping the server future afterwards does the same.
     advertiser.shutdown().await;
-    Ok(())
+    drop(server);
+    Ok(served?)
 }
 
 #[cfg(test)]

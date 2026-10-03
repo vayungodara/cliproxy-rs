@@ -282,7 +282,8 @@ impl DevinExecutor {
     /// Go's refresh scheduling for Devin: no SDK lead, so only a `refresh_interval`
     /// (or an expiry inside it) makes the background loop re-read the user status.
     pub fn needs_prepare(&self, credential: &Credential, _cfg: &Config) -> bool {
-        if creds(credential).0.is_empty() {
+        // Go's refresh loop never schedules API-key-kind credentials.
+        if creds(credential).0.is_empty() || cpa_core::registry::dynamic::is_api_key(credential) {
             return false;
         }
         let Some(interval) = crate::kimi_http::preferred_interval(credential) else {
@@ -916,6 +917,10 @@ impl DevinStream {
         reader: FrameReader,
         usage_sink: cpa_core::exec::UsageSink,
     ) -> Self {
+        // Go's Devin reporter takes the response model only from upstream usage frames;
+        // reporting marks the record as executor-fed, so the server never falls back to
+        // the client-format frames (which carry the client's model).
+        usage_sink.response_line(Format::Interactions, b"{}");
         Self {
             reader: Some(reader),
             model,

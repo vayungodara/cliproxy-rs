@@ -74,7 +74,7 @@ async fn refresh_skips_failing_sources_and_swaps_a_changed_catalog() {
         openai: Default::default(),
         google: Default::default(),
     };
-    let rt = cpa_server::Runtime::new(cpa_core::config::Config::default(), vec![credential], executors);
+    let rt = cpa_server::testing::runtime(cpa_core::config::Config::default(), vec![credential], executors);
     let registered = |rt: &cpa_server::Runtime| rt.registry().ids().any(|id| id == "claude-refreshed-1");
     assert!(!registered(&rt));
     let meta_before = pinned().channel("meta").len();

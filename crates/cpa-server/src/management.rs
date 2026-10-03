@@ -22,6 +22,7 @@ use crate::scheduler::{ErrorRule, Policy};
 mod access;
 mod api_call;
 mod auth_files;
+mod legacy;
 mod logs;
 mod multipart;
 mod oauth;
@@ -50,6 +51,8 @@ pub struct Management {
     pub(crate) login_base: Option<String>,
     /// Go `Handler.logDir`: resolved once at startup.
     pub(crate) log_dir: PathBuf,
+    /// The remote store mirroring config and auth files, when one is configured.
+    pub(crate) store: Option<Arc<dyn crate::persist::StorePersister>>,
     /// The zone log line timestamps are parsed in (Go `time.Local` when `None`).
     pub(crate) log_zone: logs::Zone,
     access: access::Access,
@@ -67,6 +70,9 @@ pub struct Options {
     pub login_base: Option<String>,
     /// Overrides the log directory Go resolves at startup (tests only).
     pub log_dir: Option<PathBuf>,
+    /// A Postgres, git or object store mirroring config and auth files (Go's
+    /// registered token store when it persists remotely).
+    pub store: Option<Arc<dyn crate::persist::StorePersister>>,
     /// Parses log line timestamps in this zone instead of the local one (tests only).
     pub log_zone: Option<chrono::FixedOffset>,
 }
@@ -90,6 +96,8 @@ impl Management {
             .log_dir
             .clone()
             .unwrap_or_else(|| crate::logging::resolve_log_dir(&cfg));
+        let mut options = options;
+        let store = options.store.take();
         let log_zone = options.log_zone;
         let access = access::Access::new(&cfg, options);
         rt.usage_queue().configure(access.available(), &cfg);
@@ -106,11 +114,30 @@ impl Management {
             forwarders: Mutex::default(),
             login_base,
             log_dir,
+            store,
             log_zone,
         });
         oauth::install_callback_sink(&state);
         access::start_purge(&state);
         state
+    }
+
+    /// Go `Watcher.mirroredAuthDir`: with a remote store, the auth directory is the
+    /// store's mirror whatever `auth-dir` says.
+    pub(crate) fn lock_auth_dir(&self, cfg: &mut Config) {
+        if let Some(store) = &self.store {
+            cfg.auth_dir = store.auth_dir();
+        }
+    }
+
+    /// Go `deleteTokenRecord`: tells the store about an explicit removal. Blocking;
+    /// call from a blocking thread.
+    pub(crate) fn store_delete(&self, path: &std::path::Path) -> Result<(), String> {
+        let Some(store) = self.store.clone() else {
+            return Ok(());
+        };
+        let path = std::path::absolute(path).unwrap_or_else(|_| path.to_path_buf());
+        store.delete_auth(path).map_err(|e| format!("{e:#}"))
     }
 
     /// Publishes a config and everything Go derives from it on reload: scheduler
@@ -119,6 +146,8 @@ impl Management {
     /// has a reconciled list. Callers hold `disk`. Infallible on purpose: access
     /// settings of a valid config (a rotated or removed secret) always take effect.
     pub(crate) fn publish(&self, cfg: Config, files: Option<Vec<Credential>>) {
+        let mut cfg = cfg;
+        self.lock_auth_dir(&mut cfg);
         let mut all = files.unwrap_or_else(|| credentials::from_auth_dir(&cfg));
         // Fallbacks follow their file: gone with it, replaced once a synthesizer
         // claims it, otherwise rebuilt from its current content.
@@ -383,6 +412,62 @@ pub fn router(state: Arc<Management>) -> Router {
     ] {
         router = router.route(&format!("{v0}/{path}"), route);
     }
+    // Go's remaining v0 routes, adapted over the v8 handlers (management/legacy.rs).
+    router = router.route(&format!("{v0}/config"), methods().get(guarded!(s, legacy::config)));
+    for path in legacy::FIELD_ROUTES {
+        let mut route = methods()
+            .get(guarded!(s, legacy::field_route))
+            .put(guarded!(s, legacy::field_route))
+            .patch(guarded!(s, legacy::field_route));
+        if path == "proxy-url" {
+            route = route.delete(guarded!(s, legacy::field_route));
+        }
+        router = router.route(&format!("{v0}/{path}"), route);
+    }
+    router = router.route(
+        &format!("{v0}/api-keys"),
+        methods()
+            .get(guarded!(s, legacy::api_keys))
+            .put(guarded!(s, legacy::api_keys))
+            .patch(guarded!(s, legacy::api_keys))
+            .delete(guarded!(s, legacy::api_keys)),
+    );
+    for path in legacy::LIST_ROUTES {
+        router = router.route(
+            &format!("{v0}/{path}"),
+            methods()
+                .get(guarded!(s, legacy::list_route))
+                .put(guarded!(s, legacy::list_route))
+                .patch(guarded!(s, legacy::list_route))
+                .delete(guarded!(s, legacy::list_route)),
+        );
+    }
+    for (path, _) in legacy::AUTH_URL_ROUTES {
+        router = router.route(&format!("{v0}/{path}"), methods().get(guarded!(s, legacy::auth_url)));
+    }
+    router = router
+        .route(
+            &format!("{v0}/vertex/import"),
+            methods().post(guarded!(s, legacy::vertex_import)),
+        )
+        .route(
+            &format!("{v0}/logs"),
+            methods()
+                .get(guarded!(s, logs::get_logs))
+                .delete(guarded!(s, logs::delete_logs)),
+        )
+        .route(
+            &format!("{v0}/request-error-logs"),
+            methods().get(guarded!(s, logs::error_logs)),
+        )
+        .route(
+            &format!("{v0}/request-error-logs/{{name}}"),
+            methods().get(guarded!(s, logs::download_error_log)),
+        )
+        .route(
+            &format!("{v0}/request-log-by-id/{{id}}"),
+            methods().get(guarded!(s, logs::request_log)),
+        );
     router
         .route("/management.html", get(panel))
         .route("/assets/{*path}", get(panel))
@@ -464,7 +549,7 @@ pub(crate) fn config_sync(state: &Management, path: &str, method: Method, body: 
     let basis = doc.migrated_text(&original).unwrap_or_else(|| original.clone());
     let archived = doc.archive_unknown();
     // Go keys this on the matched route: `/config/config.yaml` is a key lookup.
-    let yaml = path.ends_with("/management/config.yaml");
+    let yaml = matches!(path, "/v8/management/config.yaml" | "/v0/management/config.yaml");
     let suffix = path
         .strip_prefix("/v8/management/config/")
         .unwrap_or_default()

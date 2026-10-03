@@ -10,7 +10,7 @@ use base64::Engine;
 use cpa_core::config::Config;
 use cpa_exec::Executors;
 use cpa_exec::claude::ClaudeExecutor;
-use cpa_server::{Runtime, router};
+use cpa_server::router;
 use regex::Regex;
 use serde::Deserialize;
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
@@ -234,7 +234,7 @@ async fn media_routes_match_go() {
         openai: Default::default(),
         google: Default::default(),
     };
-    let rt = Arc::new(Runtime::new(config, credentials, executors));
+    let rt = Arc::new(cpa_server::testing::runtime(config, credentials, executors));
     cpa_server::install_registry(&rt);
     let server = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let base = format!("http://{}", server.local_addr().unwrap());

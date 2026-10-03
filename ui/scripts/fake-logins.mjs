@@ -1,6 +1,6 @@
 // Fake provider login endpoints for end-to-end OAuth checks. Never a real provider.
 // Answers the token, profile, device-code, key-mint and Claude usage routes that cliproxy-rs and Go call
-// during Claude, Codex, Kimi and Meta logins, with fake tokens and @example.invalid emails.
+// during Claude, Codex, Kimi, Meta, xAI and Devin logins, with fake tokens and @example.invalid emails.
 // Device flows answer "authorization_pending" on the first poll, then succeed.
 // Usage: node scripts/fake-logins.mjs [port]   (default 9102)
 import http from "node:http";
@@ -72,6 +72,34 @@ const routes = {
     user_email: "meta-login@example.invalid",
     user_full_name: "Fake Meta User",
   }),
+  // xAI (OIDC discovery, then device flow). Discovery names auth.x.ai endpoints; the
+  // server's test seam sends those requests here instead.
+  "/.well-known/openid-configuration": () => ({
+    device_authorization_endpoint: "https://auth.x.ai/oauth2/device/code",
+    token_endpoint: "https://auth.x.ai/oauth2/token",
+  }),
+  "/oauth2/device/code": () => ({
+    device_code: "fake-xai-dc",
+    user_code: "XAI-FAKE",
+    verification_uri: "https://xai.example.invalid/device",
+    verification_uri_complete: "https://xai.example.invalid/device?user_code=XAI-FAKE",
+    expires_in: 600,
+    interval: 1,
+  }),
+  "/oauth2/token": () =>
+    pending("xai")
+      ? [400, { error: "authorization_pending" }]
+      : {
+          access_token: "fake-xai-at",
+          refresh_token: "fake-xai-rt",
+          id_token: `${b64({ alg: "none" })}.${b64({ email: "xai-login@example.invalid", sub: "xai-fake-user" })}.sig`,
+          token_type: "Bearer",
+          expires_in: 3600,
+        },
+  // Devin (PKCE code exchange and profile; the user-status RPC gets {} and the login
+  // tolerates its failure)
+  "/auth/cli/token": () => ({ token: "fake-devin-session" }),
+  "/v3/self": () => ({ user_name: "devin-login", user_id: "u-fake-devin", org_id: "o-fake-devin" }),
 };
 
 http

@@ -1340,6 +1340,7 @@ func configScenarios() []configScenario {
 			patch("/config/management", `{"allow-remote":false}`),
 			get("/config"),
 			get("/config/config.yaml"),
+			get("/config/management/config.yaml"),
 			put("/config/config.yaml", `1`),
 			put("/config.yaml", "config-version: 8\nmanagement: &m\n  secret-key: fake-secret\nrouting:\n  retry: &r {request-retry: 3}\n  <<: {strategy: fill-first}\n"),
 			put("/config.yaml", "config-version: 8\nmanagement:\n  secret-key: fake-secret\nrouting:\n  <<: 5\n"),

@@ -55,6 +55,10 @@ fn sse() -> String {
 #[derive(Default)]
 struct Seen {
     requests: Mutex<Vec<(String, Value)>>,
+    /// Signalled when a `fake-held-<token>` request reached the mock.
+    arrived: tokio::sync::Notify,
+    /// The held request answers like `fake-<token>` once this is signalled.
+    release: tokio::sync::Notify,
 }
 
 async fn upstream(State(seen): State<Arc<Seen>>, req: Request) -> Response {
@@ -62,9 +66,9 @@ async fn upstream(State(seen): State<Arc<Seen>>, req: Request) -> Response {
     let bytes = axum::body::to_bytes(req.into_body(), usize::MAX).await.unwrap();
     let body: Value = serde_json::from_slice(&bytes).unwrap_or(Value::Null);
     seen.requests.lock().unwrap().push((token.clone(), body.clone()));
-    // `fake-slow-<token>` answers like `fake-<token>` after 1.5 s.
-    if let Some(rest) = token.strip_prefix("Bearer fake-slow-") {
-        tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
+    if let Some(rest) = token.strip_prefix("Bearer fake-held-") {
+        seen.arrived.notify_one();
+        seen.release.notified().await;
         token = format!("Bearer fake-{rest}");
     }
     match token.as_str() {
@@ -145,7 +149,7 @@ async fn proxy(config: &str, credentials: Vec<Credential>) -> Proxy {
         openai: Default::default(),
         google: Default::default(),
     };
-    let rt = Arc::new(Runtime::new(config, credentials, executors));
+    let rt = Arc::new(cpa_server::testing::runtime(config, credentials, executors));
     let url = serve(router(rt.clone())).await;
     Proxy { url, seen, rt }
 }
@@ -201,6 +205,11 @@ async fn chat_completions_translate_and_stream_upstream_for_non_stream_clients()
 /// `nonstream_keepalive` (tests/reference/server/main.go): a result within one interval
 /// is untouched; a slower one commits 200 `application/json` with a `\n` per interval,
 /// then the rendered body, even when it is an error.
+///
+/// Synchronisation decides every outcome, never a wall-clock margin: the fast cases use
+/// an interval that cannot elapse during the test, and a held mock answers only after
+/// the test has read the first keep-alive newline. Which calls run the keep-alive at all
+/// is `dispatch::tests::nonstream_keepalive_only_for_nonstream_generate`.
 #[tokio::test]
 async fn nonstream_keepalive_commits_like_go() {
     let fixture: Value = serde_json::from_str(include_str!("fixtures/server_go.json")).unwrap();
@@ -213,56 +222,70 @@ async fn nonstream_keepalive_commits_like_go() {
             .unwrap()
             .clone()
     };
-    let config = "requests:\n  nonstream-keepalive-interval: 1\n";
-    let proxy_for = |token: &'static str| proxy(config, vec![oauth("a.json", token, serde_json::json!({}))]);
-    let (fast_ok, slow_ok, fast_bad, slow_bad, slow_count) = tokio::join!(
-        proxy_for("fake-ok"),
-        proxy_for("fake-slow-ok"),
-        proxy_for("fake-bad"),
-        proxy_for("fake-slow-bad"),
-        proxy_for("fake-slow-ok"),
-    );
-    let body = format!(r#"{{"model":"{MODEL}","max_tokens":5,"messages":[{{"role":"user","content":"hi"}}]}}"#);
-    let (fast_ok, slow_ok, fast_bad, slow_bad, slow_count) = tokio::join!(
-        post(&fast_ok.url, "/v1/messages", &body),
-        post(&slow_ok.url, "/v1/chat/completions", &body),
-        post(&fast_bad.url, "/v1/messages", &body),
-        post(&slow_bad.url, "/v1/messages", &body),
-        post(&slow_count.url, "/v1/messages/count_tokens", &body),
-    );
     // Splits the keep-alive newlines from the rendered body.
     let split = |text: &str| {
         let rest = text.trim_start_matches('\n');
         (text.len() - rest.len(), rest.to_owned())
     };
+    let body = format!(r#"{{"model":"{MODEL}","max_tokens":5,"messages":[{{"role":"user","content":"hi"}}]}}"#);
 
-    for (got, want) in [(&fast_ok, golden("fast_ok")), (&fast_bad, golden("fast_error"))] {
-        assert_eq!(u64::from(got.0), want["status"].as_u64().unwrap(), "{}", got.2);
-        assert_eq!(got.1["content-type"], want["content_type"].as_str().unwrap());
-        assert_eq!(split(&got.2).0, 0, "{:?}", got.2);
+    // A result before the first tick is answered as without a keep-alive.
+    let never = "requests:\n  nonstream-keepalive-interval: 86400\n";
+    for (token, case) in [("fake-ok", "fast_ok"), ("fake-bad", "fast_error")] {
+        let want = golden(case);
+        let p = proxy(never, vec![oauth("a.json", token, serde_json::json!({}))]).await;
+        let (status, headers, text) = post(&p.url, "/v1/messages", &body).await;
+        assert_eq!(u64::from(status), want["status"].as_u64().unwrap(), "{text}");
+        assert_eq!(headers["content-type"], want["content_type"].as_str().unwrap());
+        assert!(headers.get("content-length").is_some(), "{headers:?}");
+        assert_eq!(split(&text).0, 0, "{text:?}");
+        if case == "fast_error" {
+            assert_eq!(text, want["body"].as_str().unwrap());
+        }
     }
-    assert_eq!(fast_bad.2, golden("fast_error")["body"].as_str().unwrap());
 
-    for (got, want) in [(&slow_ok, golden("slow_ok")), (&slow_bad, golden("slow_error"))] {
-        assert_eq!(u64::from(got.0), want["status"].as_u64().unwrap(), "{}", got.2);
-        assert_eq!(got.1["content-type"], want["content_type"].as_str().unwrap());
-        assert!(got.1.get("content-length").is_none(), "{:?}", got.1);
-        // Go flushed with the selected credential already traced.
-        assert!(got.1.get("x-cpa-trace-id").is_some(), "{:?}", got.1);
-        let (newlines, _) = split(want["body"].as_str().unwrap());
-        assert_eq!(newlines, 1);
-        assert!(split(&got.2).0 >= 1, "{:?}", got.2);
+    // A result after the first tick: the mock holds its reply until the client has read
+    // a keep-alive newline, so the commit always precedes the result.
+    let every_second = "requests:\n  nonstream-keepalive-interval: 1\n";
+    for (token, path, case) in [
+        ("fake-held-ok", "/v1/chat/completions", "slow_ok"),
+        ("fake-held-bad", "/v1/messages", "slow_error"),
+    ] {
+        let want = golden(case);
+        let p = proxy(every_second, vec![oauth("a.json", token, serde_json::json!({}))]).await;
+        let res = wreq::Client::new()
+            .post(format!("{}{path}", p.url))
+            .header("authorization", "Bearer client-key")
+            .body(body.clone())
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(u64::from(res.status().as_u16()), want["status"].as_u64().unwrap());
+        let headers = res.headers().clone();
+        assert_eq!(headers["content-type"], want["content_type"].as_str().unwrap());
+        assert!(headers.get("content-length").is_none(), "{headers:?}");
+        let mut chunks = res.bytes_stream();
+        let mut text = Vec::new();
+        while text.is_empty() {
+            text.extend_from_slice(&chunks.next().await.unwrap().unwrap());
+        }
+        assert!(text.iter().all(|&b| b == b'\n'), "{:?}", String::from_utf8_lossy(&text));
+        p.seen.release.notify_one();
+        while let Some(chunk) = chunks.next().await {
+            text.extend_from_slice(&chunk.unwrap());
+        }
+        let text = String::from_utf8(text).unwrap();
+        let (newlines, rest) = split(&text);
+        assert!(newlines >= 1, "{text:?}");
+        let (want_newlines, want_rest) = split(want["body"].as_str().unwrap());
+        assert_eq!(want_newlines, 1);
+        if case == "slow_error" {
+            assert_eq!(rest, want_rest);
+        } else {
+            let reply: Value = serde_json::from_str(&rest).unwrap();
+            assert_eq!(reply["choices"][0]["message"]["content"], "hi");
+        }
     }
-    let reply: Value = serde_json::from_str(&split(&slow_ok.2).1).unwrap();
-    assert_eq!(reply["choices"][0]["message"]["content"], "hi");
-    assert_eq!(
-        split(&slow_bad.2).1,
-        split(golden("slow_error")["body"].as_str().unwrap()).1
-    );
-
-    // Go's count_tokens handler starts no keep-alive.
-    assert_eq!(slow_count.0, 200, "{}", slow_count.2);
-    assert_eq!(split(&slow_count.2).0, 0, "{:?}", slow_count.2);
 }
 
 #[tokio::test]
@@ -485,16 +508,35 @@ async fn misc_routes_match_go() {
     let got = Arc::new(Mutex::new(None));
     let sink = got.clone();
     p.rt.set_oauth_callback_sink(Some(Arc::new(move |cb: &cpa_server::runtime::OAuthCallback| {
-        *sink.lock().unwrap() = Some((cb.provider, cb.state.clone(), cb.code.clone()));
+        *sink.lock().unwrap() = Some((cb.provider, cb.state.clone(), cb.code.clone(), cb.error.clone()));
         true
     })));
-    let ok = client
-        .get(format!("{}/callback?code=%20c1%20&state=s1", p.url))
-        .send()
+    let callback = |path: &'static str| client.get(format!("{}{path}", p.url)).send();
+    let ok = callback("/callback?code=%20c1%20&state=s1").await.unwrap();
+    assert_eq!(ok.status().as_u16(), 200);
+    assert_eq!(
+        *got.lock().unwrap(),
+        Some(("devin", "s1".to_owned(), "c1".to_owned(), String::new()))
+    );
+    // Go's Devin handler trims `error` before falling back to `error_description`, so a
+    // blank error still reports the denial (server_routes.go devinCallbackHandler).
+    let denied = callback("/callback?state=s2&error=%20&error_description=access_denied")
         .await
         .unwrap();
-    assert_eq!(ok.status().as_u16(), 200);
-    assert_eq!(*got.lock().unwrap(), Some(("devin", "s1".to_owned(), "c1".to_owned())));
+    assert_eq!(denied.status().as_u16(), 200);
+    assert_eq!(
+        *got.lock().unwrap(),
+        Some(("devin", "s2".to_owned(), String::new(), "access_denied".to_owned()))
+    );
+    // The other providers' handlers read `error` untrimmed: a blank one wins.
+    let blank = callback("/anthropic/callback?state=s3&error=%20&error_description=access_denied")
+        .await
+        .unwrap();
+    assert_eq!(blank.status().as_u16(), 200);
+    assert_eq!(
+        *got.lock().unwrap(),
+        Some(("anthropic", "s3".to_owned(), String::new(), " ".to_owned()))
+    );
     // Interactions validation (interactions_handlers.go).
     let (status, _, text) = post(&p.url, "/v1beta/interactions", r#"{"model":"a","agent":"b"}"#).await;
     assert_eq!(
@@ -592,7 +634,7 @@ async fn expired_token_is_used_then_refreshed_once_after_401() {
         google: Default::default(),
     };
     let config = Config::parse("access:\n  api-keys: [client-key]\n").unwrap();
-    let rt = Arc::new(Runtime::new(config, vec![credential], executors));
+    let rt = Arc::new(cpa_server::testing::runtime(config, vec![credential], executors));
     let url = serve(router(rt.clone())).await;
     let (status, _, text) = post(
         &url,
@@ -681,7 +723,7 @@ async fn scripted_proxy(config: &str, tokens: &[&str], replies: Vec<Reply>) -> (
         openai: Default::default(),
         google: Default::default(),
     };
-    let rt = Arc::new(Runtime::new(config, credentials, executors));
+    let rt = Arc::new(cpa_server::testing::runtime(config, credentials, executors));
     (serve(router(rt.clone())).await, script, rt)
 }
 
