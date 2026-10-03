@@ -20,6 +20,7 @@
 pub mod claude;
 pub mod claude_login;
 pub mod codex;
+pub mod codex_catalog_updater;
 mod codex_client;
 mod codex_json;
 pub mod codex_oauth;
