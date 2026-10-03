@@ -240,6 +240,8 @@ struct Prepared {
     url: String,
     headers: GoHeaders,
     body: Bytes,
+    /// The chat model UID (Go `SetUpstreamModel` when non-empty).
+    model_uid: String,
 }
 
 impl DevinExecutor {
@@ -373,11 +375,10 @@ impl DevinExecutor {
     fn prepare_request(&self, credential: &Credential, req: &ExecRequest, cfg: &Config) -> Result<Prepared, ExecError> {
         let (key, base, seed) = creds(credential);
         if key.is_empty() {
-            return Err(ExecError::local(
-                500,
-                FailureScope::Credential,
-                "devin credentials missing: api_key or session_token required",
-            ));
+            const MISSING: &str = "devin credentials missing: api_key or session_token required";
+            // Go's error is plain: the usage record carries no status.
+            req.usage.publish_failure(0, MISSING);
+            return Err(ExecError::local(500, FailureScope::Credential, MISSING));
         }
         let payload = if req.source_format == Format::Interactions {
             req.body.to_vec()
@@ -438,6 +439,7 @@ impl DevinExecutor {
             url: format!("{}{CHAT_PATH}", base.trim_end_matches('/')),
             headers: headers(credential, req, &key),
             body: Bytes::from(wrap_envelope(&proto)),
+            model_uid,
         })
     }
 
@@ -457,8 +459,13 @@ impl DevinExecutor {
             });
         }
         let prepared = self.prepare_request(credential, &req, cfg)?;
+        if !prepared.model_uid.is_empty() {
+            req.usage.upstream_model(&prepared.model_uid);
+        }
         let client = self.clients.get(&Proxy::effective(credential, cfg));
-        let upstream = send(&client, &prepared.url, prepared.headers, prepared.body, None).await?;
+        req.usage.round_trip_started();
+        let mut upstream = send(&client, &prepared.url, prepared.headers, prepared.body, None).await?;
+        upstream.body = crate::kimi_http::track_first_byte(upstream.body, &req.usage, false);
         if !(200..300).contains(&upstream.status) {
             let headers = upstream.headers.clone();
             let body = read_all(upstream.body, ERROR_BODY_LIMIT, true)
@@ -506,7 +513,9 @@ impl DevinExecutor {
         }
         let interactions = match consume_frames(reader, &req.model, &ctx_original).await {
             Ok((json, usage_model)) => {
-                report_response_model(&req.usage, &usage_model);
+                if !usage_model.is_empty() {
+                    req.usage.response_model(&String::from_utf8_lossy(&usage_model));
+                }
                 json
             }
             Err(_) if apply_patch_requested(&ctx_original) => return Err(apply_patch_error()),
@@ -553,17 +562,6 @@ fn headers(credential: &Credential, req: &ExecRequest, key: &str) -> GoHeaders {
         h.set(&name, value);
     }
     h
-}
-
-/// Go's `SetResponseModel(usage model)`: the server's usage record reads the response
-/// model from reported payloads, so the upstream usage model goes out as its own line.
-fn report_response_model(usage: &cpa_core::exec::UsageSink, model: &[u8]) {
-    if !usage.enabled() || model.is_empty() {
-        return;
-    }
-    let mut line = br#"{"interaction":{"model":""}}"#.to_vec();
-    gj::set_str(&mut line, "interaction.model", model);
-    usage.response_line(Format::Interactions, &line);
 }
 
 /// The Interactions payload Go parses usage from, without the client-facing model (Go
@@ -917,9 +915,10 @@ impl DevinStream {
         reader: FrameReader,
         usage_sink: cpa_core::exec::UsageSink,
     ) -> Self {
-        // Go's Devin reporter takes the response model only from upstream usage frames;
-        // reporting marks the record as executor-fed, so the server never falls back to
-        // the client-format frames (which carry the client's model).
+        // Go's Devin reporter takes the response model only from upstream usage frames
+        // (`response_model`); reporting this neutral line marks the record as
+        // executor-fed, so the server never falls back to the client-format frames,
+        // which carry the client's model.
         usage_sink.response_line(Format::Interactions, b"{}");
         Self {
             reader: Some(reader),
@@ -1255,8 +1254,10 @@ impl DevinStream {
             self.stop_reason = frame.stop_reason;
         }
         merge_usage(&mut self.usage, frame.usage.as_ref(), &frame.dimension_groups);
-        if let Some(u) = &frame.usage {
-            report_response_model(&self.usage_sink, &u.model_name);
+        if let Some(u) = &frame.usage
+            && !u.model_name.is_empty()
+        {
+            self.usage_sink.response_model(&String::from_utf8_lossy(&u.model_name));
         }
         if !frame.thinking.is_empty() {
             if !self.pending.is_empty() && !self.flush_pending() {
@@ -1338,6 +1339,8 @@ impl DevinStream {
             self.ended = true;
             return;
         }
+        // Go: reporter.PublishFailure(errTrailer), a plain error: no status.
+        self.usage_sink.publish_failure(0, &message);
         tracing::warn!("devin executor: trailer error ({code}): {message}");
         let mut failed = br#"{"event_type":"response.failed","error":{"message":"","code":""}}"#.to_vec();
         gj::set_str(&mut failed, "error.message", &message);
@@ -1358,6 +1361,11 @@ impl DevinStream {
         if self.translation_failed || self.ended {
             self.ended = true;
             return;
+        }
+        // A read error or a missing EOS returns without publishing: Go's deferred
+        // EnsurePublished records a success without usage, not the stream error.
+        if read_error.is_some() || !saw_eos {
+            self.usage_sink.publish();
         }
         if let Some(message) = read_error {
             let mut failed =

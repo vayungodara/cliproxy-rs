@@ -200,7 +200,11 @@ impl MetaExecutor {
         let url = format!("{}/responses", base.strip_suffix('/').unwrap_or(&base));
         let client = self.clients.get(&Proxy::effective(&enriched, cfg));
         let body = Bytes::from(prepared.body);
-        let upstream = send(&client, &url, headers(&enriched, &req, &token), body.clone(), None).await?;
+        // Go: TrackHTTPClient for Execute; ExecuteStream uses TrackHTTPClientRoundTripOnly,
+        // so its first body byte only records the first-packet fallback.
+        req.usage.round_trip_started();
+        let mut upstream = send(&client, &url, headers(&enriched, &req, &token), body.clone(), None).await?;
+        upstream.body = crate::kimi_http::track_first_byte(upstream.body, &req.usage, req.stream);
         if !(200..300).contains(&upstream.status) {
             let headers = upstream.headers.clone();
             // Go returns a failed error-body read as is, never classified by status.
@@ -216,6 +220,8 @@ impl MetaExecutor {
         let ctx = response_ctx(&req, &body);
         let responses_client = req.response_format == Format::OpenAIResponse;
         let out = if req.stream {
+            // Go publishes stream usage only through its buffer (no EnsurePublished).
+            req.usage.usage_required();
             // Go observes `data:` lines: their response model, and usage once completed.
             let (tapped, usage) = defer_usage(lines(upstream.body, LINE_LIMIT), &req.usage, UsageRule::MetaResponses);
             ResponseBody::Stream(stream_events(

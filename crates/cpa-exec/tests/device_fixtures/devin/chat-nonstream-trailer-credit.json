@@ -72,6 +72,8 @@
     "usage": [
       {
         "cached_tokens": 0,
+        "fail_body": "devin upstream error (failed_precondition): Credit balance exhausted",
+        "fail_status": 429,
         "failed": true,
         "input_tokens": 0,
         "model": "swe-2",
@@ -79,7 +81,9 @@
         "reasoning_effort": "",
         "reasoning_tokens": 0,
         "response_model": "",
-        "total_tokens": 0
+        "service_tier": "",
+        "total_tokens": 0,
+        "ttft_set": true
       }
     ]
   }
