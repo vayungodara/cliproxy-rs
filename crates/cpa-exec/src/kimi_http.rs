@@ -744,21 +744,31 @@ pub(crate) fn apply_patch_requested(original: &[u8]) -> bool {
     State::new(cpa_core::format::Format::OpenAIResponse, &root, &root).active()
 }
 
-/// Go `SetTranslatedReasoningEffort(body, provider)` for a provider name the sink's
-/// `Format` cannot carry (Kimi passes `"kimi"`, whose thinking fields differ from
-/// OpenAI's): the effort Go extracts, reported as an OpenAI `reasoning_effort`, which the
-/// server's OpenAI extraction reads back unchanged.
-// ponytail: a provider-named `UsageSink::request` would make this rewrite unnecessary.
-pub(crate) fn report_effort(usage: &cpa_core::exec::UsageSink, body: &[u8], provider: &str) {
+/// Go's TTFT tracking on the response body (`usageTTFTReadCloser`): the first read that
+/// returns bytes marks the first response byte, or with `packet_only` (Go
+/// `TrackHTTPClientRoundTripOnly`) a first non-token frame. Call
+/// `usage.round_trip_started()` before sending the request.
+pub(crate) fn track_first_byte(
+    body: futures_util::stream::BoxStream<'static, Result<bytes::Bytes, ExecError>>,
+    usage: &cpa_core::exec::UsageSink,
+    packet_only: bool,
+) -> futures_util::stream::BoxStream<'static, Result<bytes::Bytes, ExecError>> {
+    use futures_util::StreamExt;
     if !usage.enabled() {
-        return;
+        return body;
     }
-    let effort = cpa_common::thinking::extract_translated_reasoning_effort(body, provider);
-    let mut payload = b"{}".to_vec();
-    if !effort.is_empty() {
-        cpa_common::json::set_str(&mut payload, "reasoning_effort", effort);
-    }
-    usage.request(cpa_core::format::Format::OpenAI, &payload);
+    let (usage, mut marked) = (usage.clone(), false);
+    body.inspect(move |item| {
+        if !marked && item.as_ref().is_ok_and(|chunk| !chunk.is_empty()) {
+            marked = true;
+            if packet_only {
+                usage.token_event(false);
+            } else {
+                usage.first_byte();
+            }
+        }
+    })
+    .boxed()
 }
 
 /// A control-plane failure that must not echo upstream bodies (they may contain tokens).

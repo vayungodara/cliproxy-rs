@@ -488,7 +488,7 @@ async fn check_executor_fixture(name: &str) {
         down = Some(downstream(result).await);
     }
     let down = down.unwrap();
-    crate::kimi_fixture::assert_usage_like_go(name, &fx, &usage);
+    crate::kimi_fixture::assert_usage_like_go(name, &fx, &usage, down.failure.as_ref());
     // Upstream requests.
     let go: Vec<Captured> = fx["upstream"]
         .as_array()
