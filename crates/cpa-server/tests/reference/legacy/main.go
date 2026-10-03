@@ -18,6 +18,7 @@ import (
 	sdkaccess "github.com/router-for-me/CLIProxyAPI/v8/sdk/access"
 	coreauth "github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/auth"
 	"golang.org/x/crypto/bcrypt"
+	"gopkg.in/yaml.v3"
 )
 
 type step struct {
@@ -29,6 +30,32 @@ type step struct {
 	Raw string `json:"raw_response"`
 	// Config is the exact GET /v0/management/config body after a write.
 	Config string `json:"config,omitempty"`
+	// Groups names the v8 key groups in the saved file after a write (v8 files only).
+	Groups map[string][]string `json:"groups,omitempty"`
+}
+
+// groupNames reads the saved file's api-keys groups by family.
+func groupNames(path string) map[string][]string {
+	data, err := os.ReadFile(path)
+	must(err)
+	var doc map[string]any
+	must(yaml.Unmarshal(data, &doc))
+	families, ok := doc["api-keys"].(map[string]any)
+	if !ok {
+		return nil
+	}
+	out := map[string][]string{}
+	for family, groups := range families {
+		names := []string{}
+		list, _ := groups.([]any)
+		for _, group := range list {
+			entry, _ := group.(map[string]any)
+			name, _ := entry["name"].(string)
+			names = append(names, name)
+		}
+		out[family] = names
+	}
+	return out
 }
 
 type scenario struct {
@@ -74,6 +101,7 @@ func run(s scenario) scenario {
 		st.Raw = body
 		if st.Method != http.MethodGet {
 			_, st.Config = send(server, http.MethodGet, "/config", "")
+			st.Groups = groupNames(path)
 		}
 	}
 	return s
@@ -352,6 +380,168 @@ api-keys:
       keys: [{api-key: fake-v1}]
 `
 
+// writesV8 holds an entry pair in every key family (the Gemini pair shares one v8
+// group, so a write regroups it) and one entry in every OAuth map.
+const writesV8 = `config-version: 8
+management:
+  secret-key: '$HASH'
+oauth:
+  excluded-models:
+    claude: [m1]
+  model-alias:
+    codex: [{name: a, alias: b}]
+  request-scoped-errors:
+    codex: [{status: 429, match: [quota], action: switch}]
+api-keys:
+  gemini:
+    - name: shared
+      base-url: https://g.example.invalid
+      keys: [{api-key: fake-r-1}, {api-key: fake-r-2}]
+  interactions:
+    - name: i
+      keys: [{api-key: fake-r-1}, {api-key: fake-r-2}]
+  claude:
+    - name: c
+      base-url: https://c.example.invalid
+      keys:
+        - api-key: fake-r-1
+          cloak: {mode: always, sensitive-words: [secret]}
+        - api-key: fake-r-2
+  codex:
+    - name: x
+      base-url: https://x.example.invalid
+      keys: [{api-key: fake-r-1}, {api-key: fake-r-2}]
+  xai:
+    - name: x
+      base-url: https://xai.example.invalid
+      keys: [{api-key: fake-r-1}, {api-key: fake-r-2}]
+  meta:
+    - name: m
+      keys: [{api-key: fake-r-1}, {api-key: fake-r-2}]
+  vertex:
+    - name: v
+      base-url: https://v.example.invalid
+      models: [{name: n, alias: a}]
+      keys: [{api-key: fake-r-1}, {api-key: fake-r-2}]
+  openai-compatibility:
+    - name: compat
+      base-url: http://127.0.0.1:9/v1
+      keys: [{api-key: fake-oa}]
+`
+
+// keyListWrites drives one provider key list route through Go's PATCH, PUT and
+// DELETE branches; family-specific fields are ignored by families without them.
+func keyListWrites(r string) []step {
+	return steps(
+		get(r),
+		patch(r, `{"index":0,"value":{"priority":5,"prefix":" /p/ ","headers":{" X ":" y ","Z":""},"excluded-models":[" A ","a",""]}}`),
+		patch(r, `{"match":" fake-r-2 ","value":{"weight":7,"disable-cooling":true,"request-retry":2}}`),
+		patch(r, `{"match":"fake-r-2","value":{"weight":null,"disable-cooling":null,"request-retry":null}}`),
+		patch(r, `{"index":0,"value":{"weight":1.5}}`), patch(r, `{"index":0,"value":{"weight":2000000}}`),
+		patch(r, `{"index":0,"value":{"weight":"3"}}`), patch(r, `{"index":0,"value":{"disable-cooling":"yes"}}`),
+		patch(r, `{"index":9,"value":{"priority":1}}`), patch(r, `{"match":"missing","value":{}}`),
+		patch(r, `{"index":0}`), patch(r, `{"index":0,"value":null}`), patch(r, `not json`), patch(r, ``),
+		patch(r, `{"index":0,"value":{"priority":"x"}}`), patch(r, `{"index":-1,"value":{"priority":1}}`),
+		patch(r, `{"Index":0,"VALUE":{"Priority":3}} trailing`),
+		patch(r, `{"index":0,"value":{"models":[{"name":" m ","alias":" a "},{"name":"","alias":""},{"name":"only"}]}}`),
+		patch(r, `{"index":0,"value":{"request-scoped-errors":[{"status":429,"match":["quota"],"action":"switch"}]}}`),
+		patch(r, `{"index":0,"value":{"request-scoped-errors":[],"models":[]}}`),
+		patch(r, `{"index":0,"value":{"headers":{"A":"1"},"headers":{"B":"2","A":null}}}`),
+		patch(r, `{"index":0,"value":{"prefix":"a&b","proxy-url":" socks5://h<1> "}}`),
+		patch(r, `{"index":1,"value":{"alpha-search":true,"websockets":true,"disable-codex-cloaking":true,"rebuild-mid-system-message":true}}`),
+		patch(r, `{"index":1,"value":{"disable-codex-cloaking":"x"}}`),
+		patch(r, `{"index":0,"value":{"api-key":"  fake-r-new  ","base-url":" https://new.example.invalid "}}`),
+		get(r),
+		put(r, `[{"api-key":"fake-p1","base-url":"https://p.example.invalid","weight":3,"models":[{"name":" n ","alias":""}]},{"api-key":" fake-p2 ","prefix":"x/y","base-url":" https://p2.example.invalid "}]`),
+		put(r, `{"items":[{"api-key":"fake-p3","base-url":"https://p3.example.invalid"}]}`),
+		put(r, `{"ITEMS":[{"API-KEY":"fake-p4","base-url":"https://p4.example.invalid"}],"items":[{"base-url":"https://p5.example.invalid"}]}`),
+		put(r, `{"items":[]}`), put(r, `[{"api-key":1}]`), put(r, `[{"api-key":"k","base-url":"https://k.example.invalid","weight":1000001}]`),
+		put(r, `"x"`), put(r, `[] x`),
+		put(r, `[{"api-key":"fake-q","base-url":""},{"api-key":"","base-url":"https://only-base.example.invalid"},{"api-key":"dca:x","base-url":"https://d.example.invalid"}]`),
+		put(r, `[]`), get(r), put(r, `null`), get(r),
+		del(r+"?api-key=nothing&base-url=https://a.example.invalid"),
+		put(r, `[{"api-key":"d1","base-url":"https://a.example.invalid"},{"api-key":"d1","base-url":"https://b.example.invalid"},{"api-key":"d2","base-url":"https://a.example.invalid"},{"api-key":"d3","base-url":"https://a.example.invalid"}]`),
+		patch(r, `{"match":"d1","value":{"priority":4}}`),
+		patch(r+"?base-url=https://b.example.invalid", `{"match":"d1","value":{"priority":6}}`),
+		del(r+"?api-key=d1"), del(r+"?api-key=d1&base-url=%20https://b.example.invalid%20"),
+		del(r+"?api-key=missing"), del(r+"?api-key=missing&base-url=x"),
+		del(r+"?index=1"), del(r+"?index=x"), del(r+"?index=99"), del(r), del(r+"?api-key=%20&index=0"),
+		del(r+"?api-key=d2&base-url=https://a.example.invalid"),
+		put(r, `[{"api-key":"e1","base-url":"https://e.example.invalid"},{"api-key":"e2","base-url":"https://e.example.invalid"}]`),
+		patch(r, `{"index":0,"value":{"base-url":" "}}`), patch(r, `{"index":0,"value":{"api-key":"","base-url":""}}`),
+		get(r),
+	)
+}
+
+func claudeWrites() []step {
+	r := "/claude-api-key"
+	return steps(
+		patch(r, `{"index":0,"value":{"fingerprint-profile":" OAUTH-CLI "}}`),
+		patch(r, `{"index":0,"value":{"fingerprint-profile":"weird<x>"}}`),
+		patch(r, `{"index":0,"value":{"cloak":{"mode":" never ","sensitive-words":[" w ",""],"cache-user-id":true}}}`),
+		patch(r, `{"index":0,"value":{"cloak":{"mode":"","strict-mode":true}}}`),
+		patch(r, `{"index":0,"value":{"cloak":"x"}}`), patch(r, `{"index":0,"value":{"cloak":{"mode":1}}}`),
+		patch(r, `{"index":0,"value":{"base-url":"https://moved.example.invalid"}}`),
+		patch(r, `{"index":0,"value":{"cloak":{"mode":"auto"}}}`),
+		patch(r, `{"index":0,"value":{"api-key":"fake-c-new","cloak":{"strict-mode":true}}}`),
+		patch(r, `{"index":0,"value":{"cloak":{"mode":" "}}}`),
+		patch(r, `{"index":0,"value":{"cloak":null}}`),
+		patch(r, `{"index":1,"value":{"cloak":{}}}`),
+		put(r, `[{"api-key":"fake-c-new","base-url":"https://moved.example.invalid"},{"api-key":"fake-r-2","base-url":"https://c.example.invalid","cloak":{"mode":" "}}]`),
+		put(r, `[{"api-key":"fake-c-new","base-url":"https://moved.example.invalid","fingerprint-profile":"bogus"}]`),
+		put(r, `[{"api-key":" fake-c-x ","base-url":" https://c.example.invalid ","fingerprint-profile":" Claude-Code-CLI ","headers":{"A":" b "},"cloak":{"sensitive-words":[""]}}]`),
+		get(r),
+	)
+}
+
+func openAIWrites() []step {
+	r := "/openai-compatibility"
+	return steps(
+		patch(r, `{"name":" compat ","value":{"priority":2,"prefix":" p ","disabled":true,"support-prompt-cache-key":true,"headers":{"A":"1"}}}`),
+		patch(r, `{"name":"compat","value":{"api-key-entries":[{"api-key":" k1 ","weight":2},{"api-key":"k2"}],"models":[{"name":"m","alias":"a"}]}}`),
+		patch(r, `{"index":0,"value":{"api-key-entries":[{"api-key":"k","weight":1000001}]}}`),
+		patch(r, `{"index":0,"value":{"disable-cooling":5,"base-url":""}}`),
+		patch(r, `{"name":"missing","value":{}}`), patch(r, `{"match":"compat","value":{"priority":9}}`),
+		patch(r, `{"index":0,"value":{"name":" renamed ","request-retry":3}}`),
+		put(r, `[{"name":"a","base-url":" http://a.example.invalid ","api-key-entries":[{"api-key":" x "}]},{"name":"b","base-url":" "},{"name":"c","base-url":"http://c.example.invalid","headers":{" ":"x"}}]`),
+		put(r, `[{"name":"a","base-url":"http://a.example.invalid","api-key-entries":[{"api-key":"x"},{"api-key":"y","weight":2000000}]}]`),
+		patch(r, `{"index":1,"value":{"base-url":" "}}`),
+		del(r+"?name=a"), del(r+"?name=%20c"), del(r+"?index=0"), del(r+"?index=0"), del(r),
+		put(r, `null`), put(r, `{"items":[{"name":"z","base-url":"http://z.example.invalid"}]}`),
+		get(r),
+	)
+}
+
+func mapWrites() []step {
+	return steps(
+		put("/oauth-excluded-models", `{" Codex ":[" A ","a",""],"claude":[]}`),
+		put("/oauth-excluded-models", `{"items":{"x":["m"]}}`), put("/oauth-excluded-models", `{"items":["a"]}`),
+		put("/oauth-excluded-models", `[]`), put("/oauth-excluded-models", `{"a":"b"}`),
+		patch("/oauth-excluded-models", `{"provider":" GEMINI ","models":["x"," X "]}`),
+		patch("/oauth-excluded-models", `{"provider":"gemini","models":[]}`),
+		patch("/oauth-excluded-models", `{"provider":"gemini","models":[" "]}`),
+		patch("/oauth-excluded-models", `{"models":["x"]}`), patch("/oauth-excluded-models", `{"provider":" "}`),
+		patch("/oauth-excluded-models", `{"provider":"a","models":"x"}`),
+		del("/oauth-excluded-models?provider=%20ITEMS"), del("/oauth-excluded-models?provider=none"), del("/oauth-excluded-models"),
+		put("/oauth-excluded-models", `null`), del("/oauth-excluded-models?provider=x"),
+		get("/oauth-excluded-models"),
+		put("/oauth-model-alias", `{"codex":[{"name":"a","alias":"b"},{"name":"c","alias":"B"},{"name":"d","alias":"d"}]," Gemini-CLI ":[]}`),
+		patch("/oauth-model-alias", `{"channel":"Gemini-CLI","aliases":[{"name":" x ","alias":" y ","fork":true,"display-name":" Y "}]}`),
+		patch("/oauth-model-alias", `{"provider":"claude","channel":null,"aliases":[{"name":"p","alias":"q"}]}`),
+		patch("/oauth-model-alias", `{"provider":"gemini-cli","aliases":[]}`), patch("/oauth-model-alias", `{"channel":"gemini-cli"}`),
+		patch("/oauth-model-alias", `{}`), patch("/oauth-model-alias", `{"aliases":5}`),
+		del("/oauth-model-alias?channel=CODEX"), del("/oauth-model-alias?provider=claude"), del("/oauth-model-alias?provider=x"),
+		del("/oauth-model-alias"), put("/oauth-model-alias", `{}`), get("/oauth-model-alias"),
+		put("/oauth-request-scoped-errors", `{"codex":[{"status":429,"match":[" q "],"action":" SWITCH "},{"status":0,"match":["x"],"action":"a"}]}`),
+		patch("/oauth-request-scoped-errors", `{"channel":"claude","rules":[{"status":500,"match-regexr":["^x"],"action":"retry"}]}`),
+		patch("/oauth-request-scoped-errors", `{"channel":"claude","rules":[{"status":500,"action":"retry"}]}`),
+		patch("/oauth-request-scoped-errors", `{"channel":"none","rules":[]}`),
+		del("/oauth-request-scoped-errors?channel=codex"), del("/oauth-request-scoped-errors?channel=codex"),
+		put("/oauth-request-scoped-errors", `{"items":{"codex":[{"status":1,"match":["m"],"action":"x"}]}}`),
+		get("/oauth-request-scoped-errors"),
+	)
+}
+
 func fieldRoutes() []step {
 	var out []step
 	for _, p := range []string{"/debug", "/logging-to-file", "/logs-max-total-size-mb", "/error-logs-max-files",
@@ -420,6 +610,17 @@ func main() {
 		{Name: "scalars-v8", YAML: minimalV8, Steps: scalarWrites()},
 		{Name: "scalars-legacy", YAML: legacyFull, Steps: scalarWrites()},
 		{Name: "api-keys", YAML: v8Full, Steps: apiKeyWrites()},
+		{Name: "gemini-writes", YAML: writesV8, Steps: keyListWrites("/gemini-api-key")},
+		{Name: "interactions-writes", YAML: writesV8, Steps: keyListWrites("/interactions-api-key")},
+		{Name: "claude-writes", YAML: writesV8, Steps: cat(keyListWrites("/claude-api-key"))},
+		{Name: "claude-cloak", YAML: writesV8, Steps: claudeWrites()},
+		{Name: "codex-writes", YAML: writesV8, Steps: keyListWrites("/codex-api-key")},
+		{Name: "xai-writes", YAML: writesV8, Steps: keyListWrites("/xai-api-key")},
+		{Name: "meta-writes", YAML: writesV8, Steps: keyListWrites("/meta-api-key")},
+		{Name: "vertex-writes", YAML: writesV8, Steps: keyListWrites("/vertex-api-key")},
+		{Name: "openai-writes", YAML: writesV8, Steps: openAIWrites()},
+		{Name: "map-writes", YAML: writesV8, Steps: mapWrites()},
+		{Name: "legacy-writes", YAML: legacyFull, Steps: cat(claudeWrites(), mapWrites())},
 	} {
 		out = append(out, run(s))
 	}

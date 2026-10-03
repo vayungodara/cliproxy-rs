@@ -10,7 +10,7 @@ use sha2::{Digest, Sha256};
 use super::go_trim;
 use super::view::{self, Shape};
 
-fn lower(s: &str) -> String {
+pub(super) fn lower(s: &str) -> String {
     cpa_common::gostr::lower_bytes(s.as_bytes())
 }
 

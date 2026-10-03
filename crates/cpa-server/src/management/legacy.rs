@@ -10,16 +10,21 @@ use std::sync::Arc;
 
 use axum::body::Bytes;
 use axum::extract::{OriginalUri, RawQuery, State};
-use axum::http::{Method, StatusCode};
-use axum::response::Response;
+use axum::http::{HeaderValue, Method, StatusCode, header};
+use axum::response::{IntoResponse, Response};
 use cpa_core::credential::Source;
 use serde_json::{Value, json};
 
 use super::api_call::Members;
 use super::{Management, json_error};
 
+mod decode;
 mod keys;
+mod lists;
 mod view;
+
+/// Serializes v0 read-modify-write handlers, as Go's handler mutex does.
+static WRITES: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
 /// Go `strings.TrimSpace`.
 pub(crate) fn go_trim(s: &str) -> &str {
@@ -168,12 +173,33 @@ fn route_of(uri: &axum::http::Uri) -> &str {
     uri.path().strip_prefix("/v0/management/").unwrap_or_default()
 }
 
+/// gin `c.JSON`: `json.Marshal` escapes `<`, `>`, `&`, U+2028 and U+2029 inside
+/// strings (the only places these characters occur in compact JSON).
+fn go_json(status: StatusCode, value: &Value) -> Response {
+    let text = value
+        .to_string()
+        .replace('<', "\\u003c")
+        .replace('>', "\\u003e")
+        .replace('&', "\\u0026")
+        .replace('\u{2028}', "\\u2028")
+        .replace('\u{2029}', "\\u2029");
+    (
+        status,
+        [(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static("application/json; charset=utf-8"),
+        )],
+        text,
+    )
+        .into_response()
+}
+
 fn ok() -> Response {
-    super::json(StatusCode::OK, &json!({"status": "ok"}))
+    go_json(StatusCode::OK, &json!({"status": "ok"}))
 }
 
 fn bad(message: &str) -> Response {
-    json_error(StatusCode::BAD_REQUEST, message)
+    go_json(StatusCode::BAD_REQUEST, &json!({"error": message}))
 }
 
 /// The published runtime config as Go's `json.Marshal(cfg)` view.
@@ -183,7 +209,7 @@ fn current(state: &Management) -> Value {
 
 /// GET /v0/management/config (Go `GetConfig`).
 pub(crate) async fn config(State(state): State<Arc<Management>>) -> Response {
-    super::json(StatusCode::OK, &current(&state))
+    go_json(StatusCode::OK, &current(&state))
 }
 
 /// Go `normalizeRoutingStrategy`.
@@ -229,6 +255,18 @@ async fn write(state: Arc<Management>, v8: String, value: Value) -> Response {
     if res.status() == StatusCode::OK { ok() } else { res }
 }
 
+/// Deletes one v8 path through the shared config writer (absent counts as done).
+async fn remove(state: Arc<Management>, v8: String) -> Response {
+    let path = format!("/v8/management/config/{v8}");
+    let res = tokio::task::spawn_blocking(move || super::config_sync(&state, &path, Method::DELETE, b""))
+        .await
+        .unwrap_or_else(|_| json_error(StatusCode::INTERNAL_SERVER_ERROR, "internal_error"));
+    match res.status() {
+        StatusCode::OK | StatusCode::NOT_FOUND => ok(),
+        _ => res,
+    }
+}
+
 /// Go's scalar v0 routes: GET reads the runtime value, PUT and PATCH take
 /// `{"value": ...}`, DELETE (proxy-url only) clears it.
 pub(crate) async fn field_route(
@@ -250,7 +288,7 @@ pub(crate) async fn field_route(
             r if r.starts_with("quota-exceeded/") => cfg["quota-exceeded"][f.key].clone(),
             _ => cfg[f.key].clone(),
         };
-        return super::json(StatusCode::OK, &json!({ f.key: value }));
+        return go_json(StatusCode::OK, &json!({ f.key: value }));
     }
     if method == Method::DELETE {
         return write(state, f.v8.into(), Value::from("")).await;
@@ -351,11 +389,12 @@ pub(crate) async fn api_keys(
     RawQuery(raw): RawQuery,
     body: Bytes,
 ) -> Response {
+    let _serial = WRITES.lock().await;
     let cfg = current(&state);
     let mut keys: Vec<Value> = cfg["api-keys"].as_array().cloned().unwrap_or_default();
     let v8 = "access/api-keys".to_owned();
     match method {
-        Method::GET => super::json(StatusCode::OK, &json!({"api-keys": cfg["api-keys"]})),
+        Method::GET => go_json(StatusCode::OK, &json!({"api-keys": cfg["api-keys"]})),
         Method::PUT => {
             let Some(list) = put_string_list(&body) else {
                 return bad("invalid body");
@@ -449,16 +488,26 @@ fn live_indexes(state: &Management) -> HashMap<String, String> {
         .collect()
 }
 
-/// GET of Go's provider key lists (with `auth-index`) and OAuth maps.
-pub(crate) async fn list_route(State(state): State<Arc<Management>>, OriginalUri(uri): OriginalUri) -> Response {
+/// Go's provider key lists (GET with `auth-index`) and OAuth maps; writes go to
+/// [`lists::change`].
+pub(crate) async fn list_route(
+    State(state): State<Arc<Management>>,
+    OriginalUri(uri): OriginalUri,
+    method: Method,
+    RawQuery(raw): RawQuery,
+    body: Bytes,
+) -> Response {
     let route = route_of(&uri).to_owned();
+    if method != Method::GET {
+        return lists::change(state, &route, method, raw.as_deref(), &body).await;
+    }
     let cfg = current(&state);
     let value = if route.starts_with("oauth-") {
         cfg.get(&route).cloned().unwrap_or(Value::Null)
     } else {
         keys::with_auth_index(&route, &cfg[&route], &live_indexes(&state))
     };
-    super::json(StatusCode::OK, &json!({ route: value }))
+    go_json(StatusCode::OK, &json!({ route: value }))
 }
 
 /// v0 `*-auth-url`: the v8 `/oauth/auth-url` handler for that provider (Go's

@@ -400,7 +400,14 @@ pub fn router(state: Arc<Management>) -> Router {
             .delete(guarded!(s, legacy::api_keys)),
     );
     for path in legacy::LIST_ROUTES {
-        router = router.route(&format!("{v0}/{path}"), methods().get(guarded!(s, legacy::list_route)));
+        router = router.route(
+            &format!("{v0}/{path}"),
+            methods()
+                .get(guarded!(s, legacy::list_route))
+                .put(guarded!(s, legacy::list_route))
+                .patch(guarded!(s, legacy::list_route))
+                .delete(guarded!(s, legacy::list_route)),
+        );
     }
     for (path, _) in legacy::AUTH_URL_ROUTES {
         router = router.route(&format!("{v0}/{path}"), methods().get(guarded!(s, legacy::auth_url)));

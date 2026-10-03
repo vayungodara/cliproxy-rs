@@ -10,7 +10,7 @@ use serde_json::{Map, Value};
 use serde_yaml_ng::Value as Yaml;
 
 /// One field of a Go struct (or the element of a slice or map).
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize)]
 pub(super) struct Shape {
     #[serde(default)]
     pub json: String,
@@ -52,7 +52,7 @@ pub(super) const KEY_FAMILIES: [(&str, &str); 8] = [
 ];
 
 /// Group fields copied into every key of a v8 group (Go `sharedKeyFields` plus base-url).
-const SHARED_KEY_FIELDS: [&str; 10] = [
+pub(super) const SHARED_KEY_FIELDS: [&str; 10] = [
     "base-url",
     "priority",
     "prefix",
@@ -282,10 +282,15 @@ fn any_json(v: &Yaml) -> Value {
 }
 
 /// Go's zero value of a shape, as `json.Marshal` prints it.
-fn zero(shape: &Shape) -> Value {
+pub(super) fn zero(shape: &Shape) -> Value {
     if shape.ptr {
         return Value::Null;
     }
+    pointee_zero(shape)
+}
+
+/// The zero value a pointer field points at once Go allocates it.
+pub(super) fn pointee_zero(shape: &Shape) -> Value {
     match shape.kind.as_str() {
         "bool" => Value::Bool(false),
         "int" | "uint" | "float" | "duration" => Value::from(0),
@@ -310,7 +315,7 @@ fn empty(shape: &Shape, v: &Value) -> bool {
 
 /// yaml.v3 leaves a non-pointer scalar or struct unchanged on null (its pre-decode
 /// default stands) and skips null elements of such types in sequences and maps.
-fn nilable(shape: &Shape) -> bool {
+pub(super) fn nilable(shape: &Shape) -> bool {
     shape.ptr || matches!(shape.kind.as_str(), "slice" | "map" | "any")
 }
 

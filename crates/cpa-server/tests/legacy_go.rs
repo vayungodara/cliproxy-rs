@@ -59,9 +59,15 @@ fn first_difference(rust: &str, go: &str) -> Option<String> {
             _ => Some(format!("{at}: Rust {r} vs Go {g}")),
         }
     }
+    if rust == go {
+        return None;
+    }
     let (r, g) = (normalized(rust), normalized(go));
     if r == g {
-        return None;
+        // Bodies with live auth indexes are compared without them; every other body
+        // must match byte for byte (gin's HTML escaping included).
+        return (!rust.contains("\"auth-index\""))
+            .then(|| format!("same JSON, other bytes: Rust {rust:?} vs Go {go:?}"));
     }
     match (serde_json::from_str(&r), serde_json::from_str(&g)) {
         (Ok(a), Ok(b)) => walk(&a, &b, "$".into()).or(Some("serialization differs".into())),
@@ -77,6 +83,28 @@ fn normalized(body: &str) -> String {
         }
         Err(_) => body.to_owned(),
     }
+}
+
+/// Group names per v8 key family. Go saves a nil list as `family: []`; the shared
+/// writer removes the family instead (both read back as no keys), so an empty list
+/// and an absent family compare equal.
+fn group_difference(saved: &Value, go: &serde_json::Map<String, Value>) -> Option<String> {
+    let names = |groups: Option<&Value>| -> Vec<String> {
+        groups
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .map(|g| g.as_str().or(g["name"].as_str()).unwrap_or_default().to_owned())
+            .collect()
+    };
+    let families: std::collections::BTreeSet<&String> = go
+        .keys()
+        .chain(saved.as_object().into_iter().flat_map(|o| o.keys()))
+        .collect();
+    families.into_iter().find_map(|family| {
+        let (rust, go) = (names(saved.get(family)), names(go.get(family)));
+        (rust != go).then(|| format!("{family}: Rust {rust:?} vs Go {go:?}"))
+    })
 }
 
 async fn serve(path: &std::path::Path) -> (String, tokio::task::JoinHandle<()>) {
@@ -165,11 +193,23 @@ async fn go_v0_routes_replay_byte_for_byte() {
                     failures.push(format!("{at}: config after write: {d}"));
                 }
             }
+            if let Some(go_groups) = step["groups"].as_object() {
+                let res = client
+                    .get(format!("{base}/v8/management/config/api-keys"))
+                    .bearer_auth("fake-secret")
+                    .send()
+                    .await
+                    .unwrap();
+                let saved: Value = res.json().await.unwrap_or_default();
+                if let Some(d) = group_difference(&saved, go_groups) {
+                    failures.push(format!("{at}: v8 groups after write: {d}"));
+                }
+            }
         }
         server.abort();
         let _ = std::fs::remove_dir_all(&dir);
     }
-    assert!(compared > 150, "{compared}");
+    assert!(compared >= 762, "{compared}");
     assert!(
         failures.is_empty(),
         "{} of {compared} steps differ:\n{}",
