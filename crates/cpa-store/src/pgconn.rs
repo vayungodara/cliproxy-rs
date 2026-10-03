@@ -110,22 +110,30 @@ impl std::fmt::Debug for Dsn {
     }
 }
 
-fn percent_decode(text: &str) -> String {
-    let bytes = text.as_bytes();
-    let mut out = Vec::with_capacity(bytes.len());
-    let mut i = 0;
-    while i < bytes.len() {
-        if bytes[i] == b'%'
-            && let Some(byte) = text.get(i + 1..i + 3).and_then(|h| u8::from_str_radix(h, 16).ok())
-        {
-            out.push(byte);
-            i += 3;
-            continue;
+/// One `options` argument: PostgreSQL's `pg_split_opts` splits on `isspace()` and
+/// lets `\` escape the next character.
+fn escape_option(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    for c in text.chars() {
+        if matches!(c, '\\' | ' ' | '\t' | '\n' | '\r' | '\x0b' | '\x0c') {
+            out.push('\\');
         }
-        out.push(bytes[i]);
-        i += 1;
+        out.push(c);
     }
-    String::from_utf8_lossy(&out).into_owned()
+    out
+}
+
+/// Percent-encodes all but unreserved characters (tokio-postgres decodes only `%XX`).
+fn percent_encode(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    for byte in text.bytes() {
+        if byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.' | b'~') {
+            out.push(byte as char);
+        } else {
+            out.push_str(&format!("%{byte:02X}"));
+        }
+    }
+    out
 }
 
 /// libpq keyword/value pairs: `key = value`, values optionally single-quoted, `\`
@@ -195,7 +203,6 @@ impl Dsn {
         // picks the tables when PGSTORE_SCHEMA is unset); here they travel as `-c`.
         let mut runtime: Vec<(String, String)> = Vec::new();
         let mut keep = |key: &str, value: String| -> bool {
-            let key = if key == "database" { "dbname" } else { key };
             if TLS_KEYS.contains(&key) {
                 tls.set(key, value);
                 false
@@ -209,30 +216,40 @@ impl Dsn {
                 false
             }
         };
+        let canonical = |key: String| if key == "database" { "dbname".to_owned() } else { key };
         let stripped = if raw.starts_with("postgres://") || raw.starts_with("postgresql://") {
             let (base, query) = raw.split_once('?').unwrap_or((raw, ""));
-            let kept: Vec<String> = query
-                .split('&')
-                .filter(|pair| !pair.is_empty())
-                .filter_map(|pair| {
-                    let (key, value) = pair.split_once('=').unwrap_or((pair, ""));
-                    let key = percent_decode(key);
-                    let key = if key == "database" { "dbname".to_owned() } else { key };
-                    keep(&key, percent_decode(value)).then(|| format!("{key}={value}"))
-                })
-                .collect();
+            // pgx: Go's `url.Query()` decoding (`+` is a space), first value per key.
+            let mut seen: Vec<String> = Vec::new();
+            let mut kept: Vec<String> = Vec::new();
+            for (key, value) in url::form_urlencoded::parse(query.as_bytes()) {
+                let key = canonical(key.into_owned());
+                if seen.contains(&key) {
+                    continue;
+                }
+                seen.push(key.clone());
+                if keep(&key, value.clone().into_owned()) {
+                    kept.push(format!("{key}={}", percent_encode(&value)));
+                }
+            }
             if kept.is_empty() {
                 base.to_owned()
             } else {
                 format!("{base}?{}", kept.join("&"))
             }
         } else {
-            keyword_pairs(raw)?
+            // pgx: the last value per key.
+            let mut pairs: Vec<(String, String)> = Vec::new();
+            for (key, value) in keyword_pairs(raw)? {
+                let key = canonical(key);
+                match pairs.iter_mut().find(|(k, _)| *k == key) {
+                    Some(pair) => pair.1 = value,
+                    None => pairs.push((key, value)),
+                }
+            }
+            pairs
                 .into_iter()
-                .filter_map(|(key, value)| {
-                    let key = if key == "database" { "dbname".to_owned() } else { key };
-                    keep(&key, value.clone()).then(|| format!("{key}={}", quote(&value)))
-                })
+                .filter_map(|(key, value)| keep(&key, value.clone()).then(|| format!("{key}={}", quote(&value))))
                 .collect::<Vec<_>>()
                 .join(" ")
         };
@@ -250,13 +267,16 @@ impl Dsn {
         }
         if !runtime.is_empty() {
             let mut options = config.get_options().unwrap_or_default().to_owned();
+            // The server drops a final unescaped `\`; keep it from escaping our separator.
+            let trailing = options.len() - options.trim_end_matches('\\').len();
+            if trailing % 2 == 1 {
+                options.pop();
+            }
             for (key, value) in &runtime {
-                // The server splits `options` on spaces; `\` escapes them.
-                let escape = |text: &str| text.replace('\\', "\\\\").replace(' ', "\\ ");
                 if !options.is_empty() {
                     options.push(' ');
                 }
-                options.push_str(&format!("-c {}={}", escape(key), escape(value)));
+                options.push_str(&format!("-c {}={}", escape_option(key), escape_option(value)));
             }
             config.options(options);
         }
@@ -635,6 +655,27 @@ mod tests {
             dsn.config.get_options(),
             Some("-c statement_timeout=5s -c search_path=t")
         );
+        // URL queries: Go's decoding (`+` is a space) and the first value per key.
+        let dsn = Dsn::parse(
+            "postgres://u@db/app?search_path=tenant+one&search_path=public&application_name=a%2Bb+c&application_name=x",
+            &no_env,
+        )
+        .unwrap();
+        assert_eq!(dsn.config.get_options(), Some(r"-c search_path=tenant\ one"));
+        assert_eq!(dsn.config.get_application_name(), Some("a+b c"));
+        // Keyword form: the last value per key, hosts included.
+        let dsn = Dsn::parse("host=a host=b search_path=x search_path=y", &no_env).unwrap();
+        assert_eq!(dsn.config.get_hosts(), &[Host::Tcp("b".into())]);
+        assert_eq!(dsn.config.get_options(), Some("-c search_path=y"));
+        // Every separator the server splits on is escaped.
+        let dsn = Dsn::parse("host=db search_path='a\tb\nc\x0bd'", &no_env).unwrap();
+        assert_eq!(dsn.config.get_options(), Some("-c search_path=a\\\tb\\\nc\\\x0bd"));
+        // A dangling `\` in the given options (dropped by the server) cannot swallow the
+        // separator before the added arguments. libpq quoting: `\\` is one backslash.
+        let dsn = Dsn::parse(r"host=db options='-c x=1\\' search_path=t", &no_env).unwrap();
+        assert_eq!(dsn.config.get_options(), Some("-c x=1 -c search_path=t"));
+        let dsn = Dsn::parse(r"host=db options='-c x=1\\\\' search_path=t", &no_env).unwrap();
+        assert_eq!(dsn.config.get_options(), Some(r"-c x=1\\ -c search_path=t"));
     }
 
     #[test]

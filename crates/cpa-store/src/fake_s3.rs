@@ -212,9 +212,15 @@ fn handle(state: &State, method: Method, uri: Uri, headers: HeaderMap, body: Byt
         let body = if state.region == "us-east-1" {
             format!("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<LocationConstraint xmlns=\"{xmlns}\"/>")
         } else {
+            // Legacy eu-west-1 buckets answer `EU`; requests are still signed for
+            // eu-west-1.
+            let shown = if state.region == "eu-west-1" {
+                "EU"
+            } else {
+                &state.region
+            };
             format!(
-                "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<LocationConstraint xmlns=\"{xmlns}\">{}</LocationConstraint>",
-                state.region
+                "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<LocationConstraint xmlns=\"{xmlns}\">{shown}</LocationConstraint>"
             )
         };
         return (StatusCode::OK, body).into_response();

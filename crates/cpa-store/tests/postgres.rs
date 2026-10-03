@@ -387,6 +387,27 @@ async fn search_path_in_the_dsn_selects_the_tables() {
         .unwrap()
         .get(0);
     assert_eq!(tables, 3);
+    // A schema whose name has a space: the server must receive the escaped value as
+    // one setting (keyword form, quoted identifier inside the value).
+    sql.batch_execute(
+        "CREATE SCHEMA \"my tenant\";
+         CREATE TABLE \"my tenant\".config_store (id TEXT PRIMARY KEY, content TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
+         INSERT INTO \"my tenant\".config_store (id, content) VALUES ('config', 'port: 3\n');",
+    )
+    .await
+    .unwrap();
+    let spaced = PostgresStore::connect(PostgresConfig {
+        dsn: format!(
+            "host=127.0.0.1 port={} user=postgres dbname=postgres sslmode=disable search_path='\"my tenant\"'",
+            cluster.port
+        ),
+        schema: String::new(),
+        spool_dir: dir.join("spaced"),
+    })
+    .await
+    .unwrap();
+    spaced.bootstrap(Path::new("")).await.unwrap();
+    assert_eq!(std::fs::read(spaced.config_path()).unwrap(), b"port: 3\n");
     // An unknown runtime parameter fails like pgx's startup message does.
     let error = PostgresStore::connect(PostgresConfig {
         dsn: format!("{}&pool_max_conns=4", cluster.dsn()),

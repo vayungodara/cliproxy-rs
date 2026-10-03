@@ -396,10 +396,11 @@ impl ObjectStore {
                 if reply.status == 200 {
                     let location =
                         xml_text(&String::from_utf8_lossy(&reply.body), "LocationConstraint").unwrap_or_default();
-                    return Ok(if location.is_empty() {
-                        DEFAULT_REGION.to_owned()
-                    } else {
-                        location
+                    return Ok(match location.as_str() {
+                        "" => DEFAULT_REGION.to_owned(),
+                        // Legacy buckets answer `EU`.
+                        "EU" => "eu-west-1".to_owned(),
+                        _ => location,
                     });
                 }
                 let error = Self::error(&reply);
@@ -562,7 +563,6 @@ impl ObjectStore {
     // ponytail: Go would upload a path outside the mirror as `auths/../<name>`; it is
     // refused here instead.
     fn auth_key(&self, path: &Path) -> Result<String> {
-        let path = crate::clean(path);
         let rel = path.strip_prefix(&self.auth_dir).map_err(|_| {
             anyhow!(
                 "object store: resolve auth relative path: {} is outside the mirror",
@@ -587,14 +587,15 @@ impl ObjectStore {
     pub async fn persist_auth_files(&self, paths: &[PathBuf]) -> Result<()> {
         let _guard = self.lock.lock().await;
         for path in paths {
-            let path = if path.is_absolute() {
-                path.clone()
-            } else {
-                self.auth_dir.join(path)
-            };
-            self.upload_auth(&path).await?;
+            self.upload_auth(&self.resolve(path)).await?;
         }
         Ok(())
+    }
+
+    /// A mirror path as Go's `filepath.Join` gives it: relative to the mirror, cleaned
+    /// once, so the file read and the object key name the same thing.
+    fn resolve(&self, path: &Path) -> PathBuf {
+        crate::clean(&self.auth_dir.join(path))
     }
 
     /// Go `PersistConfig`.
@@ -610,6 +611,7 @@ impl ObjectStore {
 
     /// Go `Delete`.
     pub async fn delete(&self, path: &Path) -> Result<()> {
+        let path = &self.resolve(path);
         let _guard = self.lock.lock().await;
         match std::fs::remove_file(path) {
             Ok(()) => {}
@@ -812,6 +814,33 @@ mod tests {
         let outside = dir.join("outside.json");
         std::fs::write(&outside, b"{}").unwrap();
         assert!(store.persist_auth_files(&[outside]).await.is_err());
+    }
+
+    /// minio-go maps the legacy `EU` location to eu-west-1 for signing.
+    #[tokio::test]
+    async fn the_legacy_eu_location_signs_for_eu_west_1() {
+        let s3 = FakeS3::start("eu-west-1", Location::Answer, 1000).await;
+        s3.put("tokens", "auths/x.json", b"{}");
+        let store = store(&s3, &scratch("obj-eu"));
+        store.bootstrap(Path::new("")).await.unwrap();
+        assert!(store.auth_dir().join("x.json").exists());
+    }
+
+    /// A path through a missing directory resolves before both the read and the key:
+    /// `missing/../a.json` uploads `a.json` rather than deleting `auths/a.json`.
+    #[tokio::test]
+    async fn dot_segments_resolve_before_the_read_and_the_key() {
+        let s3 = FakeS3::start("us-east-1", Location::Answer, 1000).await;
+        let store = store(&s3, &scratch("obj-dots"));
+        store.bootstrap(Path::new("")).await.unwrap();
+        std::fs::write(store.auth_dir().join("a.json"), b"{\"v\":1}").unwrap();
+        store.persist_auth_files(&[PathBuf::from("a.json")]).await.unwrap();
+        std::fs::write(store.auth_dir().join("a.json"), b"{\"v\":2}").unwrap();
+        store
+            .persist_auth_files(&[PathBuf::from("missing/../a.json")])
+            .await
+            .unwrap();
+        assert_eq!(s3.object("tokens", "auths/a.json").unwrap(), b"{\"v\":2}");
     }
 
     /// minio-go's discovery recovery: a regional bucket whose location cannot be read
