@@ -726,7 +726,7 @@ M5-0279	partial	crates/cpa-server/src/management.rs router; tests/manage_go.rs g
 M5-0280	partial	crates/cpa-server/src/realtime/socket.rs; tests/realtime.rs realtime_websockets_match_go	ultra/realtime	Not ported by name.
 M5-0281	partial	crates/cpa-exec/src/codex_request.rs header defaults	ultra/codex	Not ported by name.
 M5-0282	partial	crates/cpa-core/src/config.rs ManagementConfig; tests/management.rs nonlocal_socket_requires_allow_remote_even_with_a_valid_key	ultra/manage	Not ported by name.
-M5-0283	partial	the control panel is the project's embedded dashboard (crates/cpa-server/src/management.rs panel)	ultra/dashboard	Decision needed: Go downloads and auto-updates its panel from panel-github-repository; Rust embeds its own dashboard and never fetches.
+M5-0283	covered	crates/cpa-server/src/management.rs serves the embedded dashboard	ultra/dashboard	Deliberate difference (integrator ruling): Rust serves its embedded dashboard and never downloads or auto-updates Go's panel; the periodic GitHub download runs third-party JavaScript with the admin key.
 M5-0284	missing	no duplex (steering) Codex WebSocket path	ultra/codex	
 M5-0285	missing	no duplex (steering) Codex WebSocket path	ultra/codex	
 M5-0286	missing	no duplex (steering) Codex WebSocket path	ultra/codex	
@@ -892,6 +892,9 @@ M6-0218	missing	no terminal UI client	ultra/tui
 M6-0243	partial	crates/cpa-plugin/src/abi.rs (envelopes_match_go_bytes)	ultra/plugins	Not ported by name.
 M6-0244	partial	crates/cpa-plugin/src/api.rs, gojson (model_info_round_trips_go_field_names, scheduler and quota decode tests)	ultra/plugins	Not ported by name.
 M6-0246	partial	crates/cpa-plugin/src/quota.rs; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json quota steps)	ultra/plugins	Not ported by name.
+M5-0029	covered	accepted by the config schema (crates/cpa-core/src/config.rs); no panel updater reads it		Deliberate difference (integrator ruling): Rust serves its embedded dashboard and never downloads or auto-updates Go's panel; the periodic GitHub download runs third-party JavaScript with the admin key.
+M5-0030	covered	accepted by the config schema (crates/cpa-core/src/config.rs); nothing downloads from it		Deliberate difference (integrator ruling): Rust serves its embedded dashboard and never downloads or auto-updates Go's panel; the periodic GitHub download runs third-party JavaScript with the admin key.
+M5-0001				The page is the embedded dashboard, not Go's downloaded panel (deliberate difference, see M5-0283).
 # Owner corrections from the integrator (owner rulings).
 M4-0061			ultra/tui	Go reads it only in the v0 management handlers and the reload diff.
 M4-0062			ultra/tui	Go reads it only in the v0 management handlers and the reload diff.

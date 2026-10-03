@@ -404,7 +404,9 @@ def render(rows):
     w("")
     w("Statuses:")
     w("")
-    w("- **covered**: implemented, and Rust tests or Go-generated fixtures exercise it.")
+    w("- **covered**: implemented, and Rust tests or Go-generated fixtures exercise it. A note starting "
+      "\"Deliberate difference\" marks an owner-approved divergence from Go; it counts as covered because "
+      "there is no gap to close.")
     w("- **partial**: implemented in part, or implemented without tests that pin Go's behaviour. For Go test suites: the behaviour exists and is exercised, but not every Go case is ported.")
     w("- **missing**: not implemented.")
     w("")

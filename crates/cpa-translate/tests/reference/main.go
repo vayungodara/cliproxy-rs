@@ -646,6 +646,8 @@ func main() {
 		m := mine(*r, model)
 		cases := append(append(append([]fixture{}, m.requests...), m.streams...), m.nonStream...)
 		cases = append(cases, matrix(*r, model)...)
+		harvest := harvested(os.Args[1], *r, cases)
+		cases = append(cases, harvest...)
 		var out []fixture
 		names := map[string]int{}
 		for _, f := range cases {
@@ -663,6 +665,6 @@ func main() {
 		if err := os.WriteFile(path, append(raw, '\n'), 0o644); err != nil {
 			panic(err)
 		}
-		fmt.Printf("%s: %d fixtures (%d mined requests, %d mined streams, %d mined non-stream)\n", want, len(out), len(m.requests), len(m.streams), len(m.nonStream))
+		fmt.Printf("%s: %d fixtures (%d mined requests, %d mined streams, %d mined non-stream, %d harvested)\n", want, len(out), len(m.requests), len(m.streams), len(m.nonStream), len(harvest))
 	}
 }

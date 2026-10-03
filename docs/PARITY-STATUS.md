@@ -4,7 +4,7 @@ Audit of master `f97310d` against CLIProxyAPI `6fecc6e`, item by item. Milestone
 
 Statuses:
 
-- **covered**: implemented, and Rust tests or Go-generated fixtures exercise it.
+- **covered**: implemented, and Rust tests or Go-generated fixtures exercise it. A note starting "Deliberate difference" marks an owner-approved divergence from Go; it counts as covered because there is no gap to close.
 - **partial**: implemented in part, or implemented without tests that pin Go's behaviour. For Go test suites: the behaviour exists and is exercised, but not every Go case is ported.
 - **missing**: not implemented.
 
@@ -20,7 +20,7 @@ Method: `docs/parity-audit/audit.py` regenerates this file. Routes come from `pr
 | M2 | 158 | 78 | 72 | 8 |
 | M3 | 350 | 145 | 129 | 76 |
 | M4 | 510 | 203 | 259 | 48 |
-| M5 | 303 | 50 | 100 | 153 |
+| M5 | 303 | 51 | 99 | 153 |
 | M6 | 248 | 44 | 116 | 88 |
 
 ### Gaps by owner
@@ -39,7 +39,6 @@ Method: `docs/parity-audit/audit.py` regenerates this file. Routes come from `pr
 | ultra/device-providers | 2 | 22 | M5-0223, M6-0215 |
 | ultra/translate | 0 | 81 | — |
 | ultra/claude | 0 | 59 | — |
-| ultra/dashboard | 0 | 1 | — |
 
 ## M1
 
@@ -1351,7 +1350,7 @@ Method: `docs/parity-audit/audit.py` regenerates this file. Routes come from `pr
 
 | ID | Item | Status | Evidence | Gap owner | Note |
 |---|---|---|---|---|---|
-| M5-0001 | GET /management.html | covered | probe: GET /management.html -> 200; tests: crates/cpa-server/tests/management.rs |  |  |
+| M5-0001 | GET /management.html | covered | probe: GET /management.html -> 200; tests: crates/cpa-server/tests/management.rs |  | The page is the embedded dashboard, not Go's downloaded panel (deliberate difference, see M5-0283). |
 | M5-0002 | GET /v1/responses | covered | probe: GET /v1/responses -> 401; tests: crates/cpa-exec/src/codex_tls_tests.rs, crates/cpa-exec/src/kimi_tests.rs (+3) |  |  |
 | M5-0003 | POST /v1/live | covered | probe: POST /v1/live -> 401; tests: crates/cpa-server/tests/realtime.rs |  |  |
 | M5-0004 | GET /v1/live/:call_id | covered | probe: GET /v1/live/:call_id -> 401; tests: crates/cpa-server/tests/realtime.rs |  |  |
@@ -1394,8 +1393,8 @@ Method: `docs/parity-audit/audit.py` regenerates this file. Routes come from `pr
 | M5-0026 | management.allow-remote | covered | read in crates/cpa-core/src/config.rs; set in crates/cpa-core/src/config.rs, crates/cpa-server/tests/fixtures/manage_go.json (+2) |  | heuristic: key name match |
 | M5-0027 | management.secret-key | covered | read in crates/cpa-core/src/config.rs, crates/cpa-server/src/management.rs; set in crates/cpa-server/src/management/access.rs, crates/cpa-server/tests/fixtures/manage_go.json (+2) |  | heuristic: key name match |
 | M5-0028 | management.disable-control-panel | partial | read in crates/cpa-core/src/config.rs; no test sets it | ultra/manage | heuristic: key name match |
-| M5-0029 | management.disable-auto-update-panel | covered | read in crates/cpa-core/src/config.rs; set in crates/cpa-core/src/config.rs |  | heuristic: key name match |
-| M5-0030 | management.panel-github-repository | covered | read in crates/cpa-core/src/config.rs; set in crates/cpa-server/tests/fixtures/manage_go.json |  | heuristic: key name match |
+| M5-0029 | management.disable-auto-update-panel | covered | accepted by the config schema (crates/cpa-core/src/config.rs); no panel updater reads it |  | Deliberate difference (integrator ruling): Rust serves its embedded dashboard and never downloads or auto-updates Go's panel; the periodic GitHub download runs third-party JavaScript with the admin key. |
+| M5-0030 | management.panel-github-repository | covered | accepted by the config schema (crates/cpa-core/src/config.rs); nothing downloads from it |  | Deliberate difference (integrator ruling): Rust serves its embedded dashboard and never downloads or auto-updates Go's panel; the periodic GitHub download runs third-party JavaScript with the admin key. |
 | M5-0031 | management.base-url | covered | read in crates/cpa-core/src/config/credentials.rs, crates/cpa-exec/src/claude/settings.rs (+7); set in crates/cpa-core/src/config.rs, crates/cpa-core/src/config/credentials.rs (+19) |  | heuristic: key name match |
 | M5-0032 | oauth.providers.aistudio.ws-auth | missing | no aistudio executor in crates/cpa-exec | ultra/google |  |
 | M5-0033 | oauth.providers.codex.live-media-relay.enabled | covered | read in crates/cliproxy/src/discovery/mod.rs, crates/cpa-common/src/thinking/apply.rs (+15); set in crates/cpa-common/tests/fixtures/go_calls.jsonl.gz, crates/cpa-common/tests/fixtures/go_thinking_matrix.jsonl.gz (+6) |  | heuristic: key name match |
@@ -1668,7 +1667,7 @@ Method: `docs/parity-audit/audit.py` regenerates this file. Routes come from `pr
 | M5-0280 | internal/client/codex/live/websocket_test.go | partial | crates/cpa-server/src/realtime/socket.rs; tests/realtime.rs realtime_websockets_match_go | ultra/realtime | Not ported by name. |
 | M5-0281 | internal/config/codex_websocket_header_defaults_test.go | partial | crates/cpa-exec/src/codex_request.rs header defaults | ultra/codex | Not ported by name. |
 | M5-0282 | internal/config/remote_management_test.go | partial | crates/cpa-core/src/config.rs ManagementConfig; tests/management.rs nonlocal_socket_requires_allow_remote_even_with_a_valid_key | ultra/manage | Not ported by name. |
-| M5-0283 | internal/managementasset/updater_test.go | partial | the control panel is the project's embedded dashboard (crates/cpa-server/src/management.rs panel) | ultra/dashboard | Decision needed: Go downloads and auto-updates its panel from panel-github-repository; Rust embeds its own dashboard and never fetches. |
+| M5-0283 | internal/managementasset/updater_test.go | covered | crates/cpa-server/src/management.rs serves the embedded dashboard |  | Deliberate difference (integrator ruling): Rust serves its embedded dashboard and never downloads or auto-updates Go's panel; the periodic GitHub download runs third-party JavaScript with the admin key. |
 | M5-0284 | internal/runtime/executor/codex_websockets_duplex_bootstrap_input_test.go | missing | no duplex (steering) Codex WebSocket path | ultra/codex |  |
 | M5-0285 | internal/runtime/executor/codex_websockets_duplex_credential_failure_test.go | missing | no duplex (steering) Codex WebSocket path | ultra/codex |  |
 | M5-0286 | internal/runtime/executor/codex_websockets_duplex_health_test.go | missing | no duplex (steering) Codex WebSocket path | ultra/codex |  |
