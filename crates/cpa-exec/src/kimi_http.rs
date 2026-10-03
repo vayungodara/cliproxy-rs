@@ -80,7 +80,7 @@ pub(crate) fn payload_rules(
             from_protocol: req.source_format.as_str(),
             root: "",
             original,
-            request_path: "",
+            request_path: &req.request_path,
             headers: Some(&req.headers),
         },
         body,
@@ -88,13 +88,13 @@ pub(crate) fn payload_rules(
 }
 
 /// `util.ApplyCustomHeadersFromAttrs` through cpa_common::headers, with Go's
-/// `$CPA-SESSION-ID`: the request's explicit session only.
+/// `$CPA-SESSION-ID`: the canonical session bound to the request (`req.session`).
 pub(crate) fn credential_headers(
     credential: &Credential,
     req: &cpa_core::exec::ExecRequest,
-    original: &[u8],
+    _original: &[u8],
 ) -> Vec<(String, String)> {
-    let session = cpa_common::session::cpa_session_id(&req.headers, original, req.execution_session.as_deref());
+    let session = cpa_common::session::cpa_session_id(req.session.as_deref());
     cpa_common::headers::custom_headers(&credential.attributes, &req.headers, session.as_deref())
 }
 

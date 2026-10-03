@@ -352,9 +352,7 @@ fn apply_payload(
         from_protocol: req.source_format.as_str(),
         root: "",
         original,
-        // ponytail: ExecRequest carries no route path; it only selects image-generation
-        // `chat` mode for /v1/images routes, which never reach Codex.
-        request_path: "",
+        request_path: &req.request_path,
         headers: Some(&req.headers),
     };
     let out = cpa_common::payload::apply(&settings.payload, &rules, body.into_bytes());

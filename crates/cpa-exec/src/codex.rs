@@ -334,7 +334,11 @@ impl CodexExecutor {
         {
             selection_headers.insert("x-session-id", value);
         }
-        let session = cpa_common::session::cpa_session_id(&selection_headers, body, None);
+        let session = cpa_common::session::cpa_session_id(Some(&cpa_common::session::extract_session_id(
+            &selection_headers,
+            body,
+            &Default::default(),
+        )));
         let view = View::for_request(credential, cfg).with_session(session);
         let mut body = sanitize_alpha_search(body);
         let url = if view.api_key {
@@ -497,7 +501,7 @@ fn rewrite_alpha_search_model(body: Vec<u8>, model: &str) -> Vec<u8> {
 
 /// Go's request-context session for `$CPA-SESSION-ID` headers.
 fn explicit_session(req: &ExecRequest) -> Option<String> {
-    cpa_common::session::cpa_session_id(&req.headers, &req.original_body, req.execution_session.as_deref())
+    cpa_common::session::cpa_session_id(req.session.as_deref())
 }
 
 fn check_response_format(req: &ExecRequest) -> Result<(), ExecError> {

@@ -924,17 +924,17 @@ fn finalize(mut info: SessionInfo) -> Option<SessionInfo> {
     Some(info)
 }
 
-/// Go `$CPA-SESSION-ID` for custom headers: the executor context's session
-/// (`syncMetadataSessionToContext`): the explicit or execution session, else
-/// `derived:<id>`. `session` is `ExecRequest::session`; its first-messages hash (`msg:`)
-/// is dropped because Go only puts that hash in context as the affinity selector's
-/// canonical ID.
-// ponytail: with session affinity on, Go would also use the `msg:` hash here; it only
-// arises when a request has no derivable identity.
-pub fn cpa_session_id(session: Option<&str>) -> Option<&str> {
+/// Go `$CPA-SESSION-ID` for custom headers: the session the conductor binds to the
+/// executor context (`ensureCanonicalSessionMetadata` then `syncMetadataSessionToContext`):
+/// `BoundSessionIdentity(CanonicalSessionID)`, which falls through the whole
+/// `ExtractSessionID` chain, including the `derived:` and first-messages `msg:` fallbacks.
+/// `session` is `ExecRequest::session`. Empty when Go's chain finds nothing.
+// ponytail: Go's LCP-affinity metadata (session/lcp.go) is not ported, so it never wins here.
+pub fn cpa_session_id(session: Option<&str>) -> Option<String> {
     session
         .map(str::trim)
-        .filter(|s| !s.is_empty() && !s.starts_with("msg:"))
+        .filter(|s| !s.is_empty())
+        .map(bound_session_identity)
 }
 
 /// Go metadata the session fallbacks read.
@@ -1656,15 +1656,29 @@ fn session_hash(system: &[u8], user: &[u8], assistant: &[u8]) -> String {
 mod tests {
     use super::cpa_session_id;
 
-    /// Go `syncMetadataSessionToContext`: explicit, execution and derived sessions reach
-    /// `$CPA-SESSION-ID`; the first-messages hash does not.
+    /// Go `ensureCanonicalSessionMetadata` + `syncMetadataSessionToContext`: every
+    /// `ExtractSessionID` result reaches `$CPA-SESSION-ID`, the first-messages hash included,
+    /// bounded like `BoundSessionIdentity`.
     #[test]
-    fn cpa_session_id_keeps_context_sessions() {
-        assert_eq!(cpa_session_id(Some("claude:s1")), Some("claude:s1"));
-        assert_eq!(cpa_session_id(Some("execution:ws-1")), Some("execution:ws-1"));
-        assert_eq!(cpa_session_id(Some("derived:ctx:v1:ab")), Some("derived:ctx:v1:ab"));
-        assert_eq!(cpa_session_id(Some("msg:0123456789abcdef")), None);
+    fn cpa_session_id_is_the_bound_canonical_session() {
+        assert_eq!(cpa_session_id(Some("claude:s1")).as_deref(), Some("claude:s1"));
+        assert_eq!(
+            cpa_session_id(Some("execution:ws-1")).as_deref(),
+            Some("execution:ws-1")
+        );
+        assert_eq!(
+            cpa_session_id(Some("derived:ctx:v1:ab")).as_deref(),
+            Some("derived:ctx:v1:ab")
+        );
+        assert_eq!(
+            cpa_session_id(Some("msg:2f68951593d97234")).as_deref(),
+            Some("msg:2f68951593d97234")
+        );
         assert_eq!(cpa_session_id(Some("  ")), None);
+        let long = format!("header:{}", "x".repeat(300));
+        let bounded = cpa_session_id(Some(&long)).unwrap();
+        assert_eq!(bounded.len(), 255);
+        assert_eq!(bounded, super::bound_session_identity(&long));
         assert_eq!(cpa_session_id(None), None);
     }
 }

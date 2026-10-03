@@ -43,6 +43,16 @@ fn request(case: &Value) -> ExecRequest {
         );
     }
     let body = Bytes::from(case["payload"].as_str().unwrap().to_owned());
+    // Go's executor-side fallback (EnsureSessionContext -> CanonicalSessionID) for a
+    // request without conductor metadata, which is how the fixtures were generated: the
+    // canonical session from headers and body, with no derived identity.
+    let session = Some(cpa_common::session::extract_session_id(
+        &headers,
+        &body,
+        &Default::default(),
+    ))
+    .filter(|s| !s.is_empty())
+    .map(|s| cpa_common::session::bound_session_identity(&s));
     ExecRequest {
         operation: Operation::Generate,
         source_format: source,
@@ -53,7 +63,7 @@ fn request(case: &Value) -> ExecRequest {
         body,
         stream: case["stream"].as_bool().unwrap_or(false),
         alt: case["alt"].as_str().map(str::to_owned),
-        session: None,
+        session,
         headers,
         execution_session: None,
         derived_session: None,

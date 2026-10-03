@@ -70,6 +70,7 @@ const TERMINAL_WRITE: Duration = Duration::from_secs(1);
 async fn upgrade(
     State(rt): State<Arc<Runtime>>,
     Extension(caller): Extension<Caller>,
+    matched: axum::extract::MatchedPath,
     headers: HeaderMap,
     ws: Result<WebSocketUpgrade, WebSocketUpgradeRejection>,
 ) -> Response {
@@ -92,7 +93,9 @@ async fn upgrade(
         .map(str::trim)
         .filter(|v| !v.is_empty())
         .and_then(|v| HeaderValue::from_str(v).ok());
-    let connection = Connection::new(rt, caller, headers);
+    let mut connection = Connection::new(rt, caller, headers);
+    // Go `request_path` metadata: gin FullPath of the upgrade route.
+    connection.request_path = matched.as_str().to_owned();
     let mut response = ws
         .max_message_size(MAX_MESSAGE)
         .max_frame_size(MAX_MESSAGE)
@@ -161,6 +164,8 @@ struct Connection {
     rt: Arc<Runtime>,
     caller: Caller,
     headers: HeaderMap,
+    /// Go `request_path` metadata for payload rules.
+    request_path: String,
     /// Execution session id (`passthroughSessionID`).
     session: String,
     /// Tool-cache key (`websocketDownstreamSessionKey`).
@@ -222,6 +227,7 @@ impl Connection {
             rt,
             caller,
             headers,
+            request_path: String::new(),
             session: uuid::Uuid::new_v4().to_string(),
             last_request: String::new(),
             last_output: "[]".into(),
@@ -623,6 +629,7 @@ impl Connection {
             session: selection.session.clone(),
             execution_session: Some(self.session.clone()),
             derived_session: identity.derived.clone(),
+            request_path: self.request_path.clone(),
             headers: self.headers.clone(),
             caller: self.caller.clone(),
         };
