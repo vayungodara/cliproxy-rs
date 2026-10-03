@@ -217,8 +217,10 @@ impl Executors {
     /// Whether an executor serves this provider. Credentials of other providers never
     /// enter selection (Go skips auths whose executor is not registered).
     pub fn supports(&self, provider: &str) -> bool {
-        matches!(provider, "claude" | "codex" | meta::PROVIDER | xai::PROVIDER | devin::PROVIDER)
-            || kimi::PROVIDERS.contains(&provider)
+        matches!(
+            provider,
+            "claude" | "codex" | meta::PROVIDER | xai::PROVIDER | devin::PROVIDER
+        ) || kimi::PROVIDERS.contains(&provider)
             || openai_compat::handles(provider)
             || gemini::handles(provider)
     }
