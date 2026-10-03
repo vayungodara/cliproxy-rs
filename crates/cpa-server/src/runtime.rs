@@ -44,6 +44,9 @@ pub struct Runtime {
     usage: crate::usage::UsageQueue,
     /// `--local-model`: embedded model catalogs only, no remote catalog refresh.
     local_model: std::sync::atomic::AtomicBool,
+    /// Set only by [`crate::testing::runtime`]: executor calls get credentials that
+    /// cannot leave the machine.
+    pub(crate) deny_external: std::sync::atomic::AtomicBool,
 }
 
 /// An OAuth provider redirect received on the main listener.
@@ -81,6 +84,7 @@ impl Runtime {
             pool_offsets: Mutex::default(),
             usage: crate::usage::UsageQueue::default(),
             local_model: Default::default(),
+            deny_external: Default::default(),
         };
         rt.publish_policy(policy);
         rt.store.configure_cooldown_store(cooldown_dir);
@@ -176,6 +180,16 @@ impl Runtime {
         sink.is_some_and(|sink| sink(callback))
     }
 
+    /// The credential an executor call receives: the stored one, or in a test runtime
+    /// ([`crate::testing`]) a copy that cannot leave the machine.
+    pub(crate) fn for_executor(&self, credential: &Arc<Credential>) -> Arc<Credential> {
+        if self.deny_external.load(std::sync::atomic::Ordering::Relaxed) {
+            crate::testing::guarded(credential)
+        } else {
+            credential.clone()
+        }
+    }
+
     /// The model registry for the current config and credential set. Rebuilt only when
     /// either changed, so it is always derived, never separately maintained.
     pub fn registry(&self) -> Arc<Registry> {
@@ -266,7 +280,7 @@ impl Runtime {
             None if self.executors.readiness(&current, cfg) == Readiness::Ready => return Ok(current),
             None => {}
         }
-        let patch = self.executors.prepare(&current, cfg).await?;
+        let patch = self.executors.prepare(&self.for_executor(&current), cfg).await?;
         let store = self.store.clone();
         let revision = current.revision;
         let id = id.to_owned();
@@ -1644,7 +1658,7 @@ mod tests {
             google: Default::default(),
         };
         // Legacy top-level keys and the canonical routing block both reach the scheduler.
-        let rt = Runtime::new(
+        let rt = crate::testing::runtime(
             Config::parse("request-retry: 2\nrouting:\n  strategy: ff\n  session-affinity-ttl: 250ms\n").unwrap(),
             Vec::new(),
             executors(),
@@ -1665,7 +1679,7 @@ mod tests {
     /// single-entry pools or blank keys, reset to zero at the int32 guard.
     #[test]
     fn pool_offsets_rotate_per_key_like_go() {
-        let rt = Runtime::new(
+        let rt = crate::testing::runtime(
             Config::parse("").unwrap(),
             Vec::new(),
             Executors {
@@ -1808,7 +1822,7 @@ mod tests {
             google: Default::default(),
             devices: Default::default(),
         };
-        let rt = Runtime::new(config(), creds(), executors());
+        let rt = crate::testing::runtime(config(), creds(), executors());
         let mut selection = Selection::new("claude", "m1");
         selection.exclude.push("b.json".into());
         let lease = rt.store.select(selection.clone()).unwrap();
@@ -1836,7 +1850,7 @@ mod tests {
 
         // A new process restores the cooldown.
         drop(rt);
-        let rt = Runtime::new(config(), creds(), executors());
+        let rt = crate::testing::runtime(config(), creds(), executors());
         let a = rt.store.get("a.json").unwrap();
         let wait = rt
             .store
@@ -1874,7 +1888,7 @@ mod tests {
         );
         std::fs::write(dir.join("b.cds"), go).unwrap();
         drop(rt);
-        let rt = Runtime::new(config(), creds(), executors());
+        let rt = crate::testing::runtime(config(), creds(), executors());
         let b = rt.store.get("b.json").unwrap();
         let now = Instant::now();
         let scheduler = rt.store.scheduler.lock().unwrap();
@@ -1911,7 +1925,7 @@ mod tests {
 
     #[tokio::test]
     async fn preparation_waiter_observes_deletion_and_refresh_loop_is_replaceable() {
-        let rt = Arc::new(Runtime::new(
+        let rt = Arc::new(crate::testing::runtime(
             Config::parse("").unwrap(),
             vec![cred("a.json", "claude", false)],
             Executors {

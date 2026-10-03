@@ -149,7 +149,7 @@ async fn proxy(config: &str, credentials: Vec<Credential>) -> Proxy {
         openai: Default::default(),
         google: Default::default(),
     };
-    let rt = Arc::new(Runtime::new(config, credentials, executors));
+    let rt = Arc::new(cpa_server::testing::runtime(config, credentials, executors));
     let url = serve(router(rt.clone())).await;
     Proxy { url, seen, rt }
 }
@@ -508,16 +508,35 @@ async fn misc_routes_match_go() {
     let got = Arc::new(Mutex::new(None));
     let sink = got.clone();
     p.rt.set_oauth_callback_sink(Some(Arc::new(move |cb: &cpa_server::runtime::OAuthCallback| {
-        *sink.lock().unwrap() = Some((cb.provider, cb.state.clone(), cb.code.clone()));
+        *sink.lock().unwrap() = Some((cb.provider, cb.state.clone(), cb.code.clone(), cb.error.clone()));
         true
     })));
-    let ok = client
-        .get(format!("{}/callback?code=%20c1%20&state=s1", p.url))
-        .send()
+    let callback = |path: &'static str| client.get(format!("{}{path}", p.url)).send();
+    let ok = callback("/callback?code=%20c1%20&state=s1").await.unwrap();
+    assert_eq!(ok.status().as_u16(), 200);
+    assert_eq!(
+        *got.lock().unwrap(),
+        Some(("devin", "s1".to_owned(), "c1".to_owned(), String::new()))
+    );
+    // Go's Devin handler trims `error` before falling back to `error_description`, so a
+    // blank error still reports the denial (server_routes.go devinCallbackHandler).
+    let denied = callback("/callback?state=s2&error=%20&error_description=access_denied")
         .await
         .unwrap();
-    assert_eq!(ok.status().as_u16(), 200);
-    assert_eq!(*got.lock().unwrap(), Some(("devin", "s1".to_owned(), "c1".to_owned())));
+    assert_eq!(denied.status().as_u16(), 200);
+    assert_eq!(
+        *got.lock().unwrap(),
+        Some(("devin", "s2".to_owned(), String::new(), "access_denied".to_owned()))
+    );
+    // The other providers' handlers read `error` untrimmed: a blank one wins.
+    let blank = callback("/anthropic/callback?state=s3&error=%20&error_description=access_denied")
+        .await
+        .unwrap();
+    assert_eq!(blank.status().as_u16(), 200);
+    assert_eq!(
+        *got.lock().unwrap(),
+        Some(("anthropic", "s3".to_owned(), String::new(), " ".to_owned()))
+    );
     // Interactions validation (interactions_handlers.go).
     let (status, _, text) = post(&p.url, "/v1beta/interactions", r#"{"model":"a","agent":"b"}"#).await;
     assert_eq!(
@@ -615,7 +634,7 @@ async fn expired_token_is_used_then_refreshed_once_after_401() {
         google: Default::default(),
     };
     let config = Config::parse("access:\n  api-keys: [client-key]\n").unwrap();
-    let rt = Arc::new(Runtime::new(config, vec![credential], executors));
+    let rt = Arc::new(cpa_server::testing::runtime(config, vec![credential], executors));
     let url = serve(router(rt.clone())).await;
     let (status, _, text) = post(
         &url,
@@ -704,7 +723,7 @@ async fn scripted_proxy(config: &str, tokens: &[&str], replies: Vec<Reply>) -> (
         openai: Default::default(),
         google: Default::default(),
     };
-    let rt = Arc::new(Runtime::new(config, credentials, executors));
+    let rt = Arc::new(cpa_server::testing::runtime(config, credentials, executors));
     (serve(router(rt.clone())).await, script, rt)
 }
 

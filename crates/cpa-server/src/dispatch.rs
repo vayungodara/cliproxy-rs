@@ -891,6 +891,7 @@ async fn attempt(
             on_selected(&lease.credential);
         }
         let execute = |credential: Arc<cpa_core::credential::Credential>, req: ExecRequest| async move {
+            let credential = rt.for_executor(&credential);
             match call.turn.as_ref() {
                 Some(turn) => {
                     rt.executors
