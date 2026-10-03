@@ -1,6 +1,6 @@
 # cliproxy-rs
 
-cliproxy-rs is a Rust rewrite of [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI). It runs one local server that accepts OpenAI, Anthropic and Gemini API requests and serves them with the accounts and API keys you connect: Claude and ChatGPT (Codex) subscriptions signed in through OAuth, Kimi and Meta accounts, Gemini API keys, and any OpenAI-compatible upstream. Coding tools such as Claude Code and Amp, and clients built on the OpenAI, Anthropic or Gemini SDKs, point at it as if it were the provider.
+cliproxy-rs is a Rust rewrite of [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI). It runs one local server that accepts OpenAI, Anthropic and Gemini API requests and serves them with the accounts and API keys you connect: Claude and ChatGPT (Codex) subscriptions signed in through OAuth, Kimi, Meta, xAI and Devin accounts, Gemini API keys, and any OpenAI-compatible upstream. Coding tools such as Claude Code and Amp, and clients built on the OpenAI, Anthropic or Gemini SDKs, point at it as if it were the provider.
 
 It reads the same `config.yaml` and the same credential files as CLIProxyAPI v8, and serves the same HTTP routes and v8 Management API. A Go user can stop the Go binary, start this one on the same directory, and keep their accounts. It ships as a single binary with the management dashboard built in.
 
@@ -14,19 +14,20 @@ Works today:
 
 - Client APIs: `POST /v1/messages` and `/v1/messages/count_tokens` (Anthropic), `POST /v1/chat/completions`, `/v1/completions`, `/v1/responses` and `/v1/responses/compact` (OpenAI), `/v1beta/models/...` and `/v1beta/interactions` (Gemini), `GET /v1/models`, and the Codex paths under `/backend-api/codex/`. Streaming (SSE) and non-streaming, with format translation between the three protocols.
 - WebSocket: the Responses WebSocket on `GET /v1/responses` and `GET /backend-api/codex/responses`, used by Codex clients.
-- Providers: Claude (OAuth and API keys), Codex (OAuth and API keys), Kimi, Meta, Gemini API keys and Gemini Interactions, and OpenAI-compatible upstreams such as OpenRouter.
-- Account sign-in from the command line or the dashboard: Claude, Codex (browser or device code), Kimi, Meta.
+- Realtime and live through a Codex account: `/v1/realtime` (WebSocket and WebRTC calls), `/v1/live`, call sidebands and local ephemeral keys (`/v1/realtime/client_secrets`).
+- Providers: Claude (OAuth and API keys), Codex (OAuth and API keys), Kimi, Meta, xAI, Devin, Gemini API keys and Gemini Interactions, and OpenAI-compatible upstreams such as OpenRouter.
+- Account sign-in from the command line: Claude, Codex (browser or device code), Kimi, Meta, xAI and Devin. From the dashboard: Claude, Codex, Kimi and Meta.
 - Routing: round-robin, weighted and fill-first selection, retries, cooldowns, session affinity, model aliases and exclusions, payload rules, per-credential and global proxies.
 - The v8 Management API for configuration, credentials, OAuth sign-in, quota checks (`/requests/api-call`), usage counters, logs and model catalogs, plus the dashboard at `/management.html`.
-- Logging in Go's format to stdout or a rotating `main.log`, LAN discovery (`-discover` and the `server.discovery` advertisement), `.env` loading and `-local-model`.
+- HTTPS on the main port (`server.tls`), logging in Go's format to stdout or a rotating `main.log`, LAN discovery (`-discover` and the `server.discovery` advertisement), `.env` loading, and remote model catalog updates as in Go (`-local-model` turns them off).
 - Config and credential files are watched and reloaded without a restart. A plaintext management key is hashed on first start, as Go does.
 
 Not yet supported (at the time of writing):
 
-- Providers: Antigravity, AI Studio, Vertex, Devin. xAI sign-in works, but xAI credentials are not used for requests yet.
-- Image and video endpoints, realtime and live (WebRTC) endpoints, and Responses WebSocket steering.
-- An HTTPS listener (`server.tls`). Put a reverse proxy or tunnel in front for TLS.
-- Request log files, plugins, the terminal UI (`-tui`) and the Home control plane (`-home-jwt`).
+- Providers: Antigravity, AI Studio, Vertex. xAI and Devin sign-in from the dashboard.
+- Image and video endpoints, and Responses WebSocket steering.
+- The WebRTC media relay for live calls is an optional build feature and is not in the release binaries.
+- Request log files, an access log, plugins, the terminal UI (`-tui`) and the Home control plane (`-home-jwt`).
 
 The dashboard says when the server lacks an endpoint instead of failing: actions it cannot do are disabled and named, and pages it cannot load say which route is missing.
 
@@ -59,7 +60,7 @@ oauth:
 Sign in to an account and start the server:
 
 ```sh
-cliproxy --config config.yaml --claude-login    # or --codex-login, --codex-device-login, --kimi-login, --meta-login
+cliproxy --config config.yaml --claude-login    # or --codex-login, --codex-device-login, --kimi-login, --meta-login, --xai-login, --devin-login
 cliproxy --config config.yaml
 ```
 
@@ -134,7 +135,7 @@ The same dashboard also works with the Go server as a drop-in `management.html`.
 - Keep `server.host` on `127.0.0.1` unless other machines need access. The default empty host listens on every interface.
 - The management API is off until `management.secret-key` (or the `MANAGEMENT_PASSWORD` environment variable) is set. With `management.allow-remote: false`, only requests from `127.0.0.1` or `::1` are accepted. Five wrong keys from one address block it for 30 minutes.
 - Behind a tunnel or reverse proxy on the same machine (cloudflared, Tailscale Funnel, Caddy, nginx), every request arrives from `127.0.0.1`. The server then treats all internet clients as local, so `allow-remote: false` no longer keeps them out of the management API. Set `server.trusted-proxies` to the proxy's address, for example `[127.0.0.1, "::1"]`, and restart. The server then takes the client address from `X-Forwarded-For` and similar headers sent by that proxy only. It logs a warning the first time a forwarded management request arrives without this setting. If you do not need remote management, also consider leaving `management.secret-key` empty on an exposed server.
-- There is no HTTPS listener. Do not send client keys or the management key over plain HTTP across a network; terminate TLS in the tunnel or reverse proxy.
+- Do not send client keys or the management key over plain HTTP across a network. Terminate TLS in the tunnel or reverse proxy, or serve HTTPS directly with `server.tls` (`enable: true` plus `cert` and `key` file paths).
 - Credential files in `auth-dir` hold OAuth refresh tokens. Anyone who can read them can use the accounts. Keep the directory private (the server writes them with mode 0600) and treat downloaded credential files and config backups the same way.
 
 ## Account risk

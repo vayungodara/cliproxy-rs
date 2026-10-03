@@ -5,7 +5,7 @@ cliproxy-rs follows CLIProxyAPI at commit `6fecc6e` (v8.0.10). It reads the same
 ## What carries over
 
 - `config.yaml`. The v8 layout and the older flat layout (top-level `port`, `auth-dir`, an `api-keys` list, `remote-management`) are both read. Every v8 setting is accepted, including settings for features cliproxy-rs does not have yet (listed below); those are kept in the file but have no effect.
-- Credential files in `oauth.auth-dir` (default `~/.cli-proxy-api`). Claude, Codex, Kimi and Meta files are used as they are. Files for providers cliproxy-rs does not serve yet (Antigravity, AI Studio, Vertex, Devin, xAI) are listed in the dashboard but not used for requests.
+- Credential files in `oauth.auth-dir` (default `~/.cli-proxy-api`). Claude, Codex, Kimi, Meta, xAI and Devin files are used as they are. Files for providers cliproxy-rs does not serve yet (Antigravity, AI Studio, Vertex) are listed in the dashboard but not used for requests.
 - The hashed management key. Go and cliproxy-rs both hash a plaintext `management.secret-key` with bcrypt on start and write the hash back, and each accepts the other's hash.
 - Client keys in `access.api-keys`, provider keys under `api-keys`, OpenAI-compatible upstreams, model aliases and exclusions, payload rules, proxies, routing strategy, retries and cooldowns.
 - The client routes (`/v1/...`, `/v1beta/...`, `/backend-api/codex/...`) and the Responses WebSocket, so clients need no changes.
@@ -29,9 +29,9 @@ Do not run Go and cliproxy-rs against the same credential directory at the same 
 
 ## Command-line flags
 
-cliproxy-rs accepts every CLIProxyAPI flag, in Go's single-dash spelling (`-config`) or with two dashes. These work as in Go: `-config`, `-claude-login`, `-codex-login`, `-codex-device-login`, `-kimi-login`, `-kimi-ai-login`, `-xai-login`, `-meta-login`, `-no-browser`, `-oauth-callback-port`, `-password`, `-local-model`, and LAN discovery with `-discover` (or the `discover` subcommand) and its `-discover-*` options.
+cliproxy-rs accepts every CLIProxyAPI flag, in Go's single-dash spelling (`-config`) or with two dashes. These work as in Go: `-config`, `-claude-login`, `-codex-login`, `-codex-device-login`, `-kimi-login`, `-kimi-ai-login`, `-xai-login`, `-meta-login`, `-devin-login`, `-no-browser`, `-oauth-callback-port`, `-password`, `-local-model`, and LAN discovery with `-discover` (or the `discover` subcommand) and its `-discover-*` options.
 
-These exit with a "not supported by cliproxy-rs yet" error and status 1: `-antigravity-login`, `-devin-login`, `-vertex-import`, and `-home-jwt` (also when set through the `HOME_JWT` environment variable). `-tui` prints that the terminal UI is not available and exits.
+These exit with a "not supported by cliproxy-rs yet" error and status 1: `-antigravity-login`, `-vertex-import`, and `-home-jwt` (also when set through the `HOME_JWT` environment variable). `-tui` prints that the terminal UI is not available and exits.
 
 ## Not available yet
 
@@ -39,7 +39,6 @@ These settings are accepted in `config.yaml` and kept on save, but cliproxy-rs d
 
 | Go setting or feature | In cliproxy-rs |
 | --- | --- |
-| `server.tls` | No HTTPS listener. Terminate TLS in a reverse proxy or tunnel. |
 | `home` and `-home-jwt` | No Home control plane or cluster mode. |
 | `observability.logs.request-log` and error request logs | The application log works (stdout, or `main.log` with `logging-to-file`, rotation and the size limit), and so do the log routes of the Management API, but request log files and per-request error log files are not written. |
 | Access log | Go logs one line per HTTP request (status, duration, client address, method and path). cliproxy-rs does not log requests yet. |
@@ -53,7 +52,7 @@ These settings are accepted in `config.yaml` and kept on save, but cliproxy-rs d
 
 `.env` in the working directory is loaded as in Go. `RUST_LOG`, when set, overrides the log level from `debug`.
 
-Providers and client routes that are not available yet are listed in the README under [Status](../README.md#status): Antigravity, AI Studio, Vertex and Devin, requests with xAI credentials, the image and video endpoints, realtime and live endpoints, and Responses WebSocket steering.
+Providers and client routes that are not available yet are listed in the README under [Status](../README.md#status): Antigravity, AI Studio and Vertex, the image and video endpoints, and Responses WebSocket steering.
 
 ## Management API differences
 
@@ -79,7 +78,7 @@ Where cliproxy-rs has a feature, it aims to behave as Go does. These differences
 - Logs: structured fields that Go does not define are printed after Go's known fields.
 - Config writes: when the Management API changes one setting, the rest of `config.yaml` stays byte for byte as it was. Go re-encodes the file, which turns YAML 1.1 booleans such as `yes` and `on` into `true`.
 - Watcher: when a config change moves `auth-dir`, cliproxy-rs starts watching the new directory. Go keeps watching the old one until it restarts.
-- WebRTC media relay: Go always includes it. In cliproxy-rs it is an optional build feature (`cargo build --release -p cliproxy --features cpa-server/media-relay`), and the release binaries and the Docker image are built without it.
+- WebRTC media relay for Codex live calls (`oauth.providers.codex.live-media-relay`): every Go build includes it, and the config turns it on. In cliproxy-rs it is an optional build feature (`cargo build --release -p cliproxy --features cpa-server/media-relay`); the release binaries and the Docker image are built without it, so calls negotiate media directly with the upstream.
 
 ## Switching back
 

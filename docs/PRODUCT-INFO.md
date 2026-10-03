@@ -6,7 +6,7 @@ Plain facts about cliproxy-rs for anyone writing about it. Each number says wher
 
 cliproxy-rs is a Rust rewrite of [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI), the Go proxy by router-for-me. It follows CLIProxyAPI v8.0.10 (commit `6fecc6e`).
 
-It is one local server. Tools send it OpenAI, Anthropic or Gemini API requests, and it serves them with the accounts and keys the user has connected: Claude and ChatGPT (Codex) subscriptions signed in through OAuth, Kimi and Meta accounts, Claude, Codex and Gemini API keys, and OpenAI-compatible upstreams such as OpenRouter. It translates between the three API formats, spreads requests across accounts, and moves on to another account when one is rate-limited.
+It is one local server. Tools send it OpenAI, Anthropic or Gemini API requests, and it serves them with the accounts and keys the user has connected: Claude and ChatGPT (Codex) subscriptions signed in through OAuth, Kimi, Meta, xAI and Devin accounts, Claude, Codex and Gemini API keys, and OpenAI-compatible upstreams such as OpenRouter. It translates between the three API formats, spreads requests across accounts, and moves on to another account when one is rate-limited.
 
 It started from a post on X by @maria_rcks on 2 October 2026: "why hasnt anyone built cliproxyapi but: rust, nice ui, support stuff like websockets".
 
@@ -19,10 +19,11 @@ It started from a post on X by @maria_rcks on 2 October 2026: "why hasnt anyone 
 
 - One binary with the dashboard built in. Release builds for Linux (x86_64, arm64), macOS (Apple silicon, Intel) and Windows (x86_64), plus a Dockerfile.
 - The client routes for chat completions, completions, Responses, Messages, token counting, Gemini `generateContent` and Interactions, model lists and the Codex paths, streaming and non-streaming.
-- WebSocket: the Responses WebSocket that Codex clients use.
-- Account sign-in from the command line or the dashboard for Claude, Codex (browser or device code), Kimi and Meta.
+- WebSocket: the Responses WebSocket that Codex clients use, and the Realtime WebSocket.
+- Realtime and live voice through a Codex account (`/v1/realtime`, `/v1/live`, WebRTC call setup).
+- Account sign-in from the command line for Claude, Codex (browser or device code), Kimi, Meta, xAI and Devin; from the dashboard for Claude, Codex, Kimi and Meta.
 - Routing: round-robin, weighted and fill-first selection, retries, cooldowns, session affinity, model aliases and exclusions, payload rules, per-account proxies.
-- The v8 Management API, config and credential hot reload, LAN discovery, logging in Go's format.
+- The v8 Management API, HTTPS on the main port, config and credential hot reload, remote model catalog updates, LAN discovery, logging in Go's format.
 
 ## The dashboard
 
@@ -34,9 +35,9 @@ It started from a post on X by @maria_rcks on 2 October 2026: "why hasnt anyone 
 
 ## Gaps today
 
-- Providers not supported yet: Antigravity, AI Studio, Vertex, Devin. xAI sign-in works, but xAI accounts are not used for requests.
-- No image or video endpoints, no realtime or live endpoints, no Responses WebSocket steering.
-- No HTTPS listener; TLS needs a reverse proxy or tunnel.
+- Providers not supported yet: Antigravity, AI Studio, Vertex. xAI and Devin can be signed in from the command line only.
+- No image or video endpoints, no Responses WebSocket steering.
+- The WebRTC media relay for live calls is an optional build feature, not in the release binaries.
 - No request log files, no access log lines, no plugins, no terminal UI, no Home control plane, no pprof.
 - Codex CLI asks `/v1/models` for its own catalog format; cliproxy-rs answers with the OpenAI list, so Codex may not show every model. Codex CLI has not been tested end to end.
 - The Windows build comes from the release workflow and has not been run by hand. The macOS builds are not signed or notarized.
