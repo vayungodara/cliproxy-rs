@@ -13,7 +13,7 @@ use axum::response::{IntoResponse, Response};
 use cpa_core::config::Config;
 use cpa_exec::Executors;
 use cpa_exec::claude::ClaudeExecutor;
-use cpa_server::{Runtime, router};
+use cpa_server::router;
 
 const SSE: &str = "event: message_start\ndata: {\"type\":\"message_start\"}\n\n\
                    event: message_stop\ndata: {\"type\":\"message_stop\"}\n\n";
@@ -99,7 +99,19 @@ async fn proxy(dir: &Path, upstream_url: &str) -> String {
     let mut config = Config::parse("").unwrap();
     config.api_keys = vec!["client-key-1".into()];
     config.auth_dir = dir.into();
-    let creds = cpa_core::credential::load_dir(dir).unwrap();
+    // Only the Claude executor is built on the mock; every other credential stays
+    // guarded so it can never reach a provider.
+    let creds = cpa_core::credential::load_dir(dir)
+        .unwrap()
+        .into_iter()
+        .map(|c| {
+            if c.provider == "claude" {
+                cpa_server::testing::local(c)
+            } else {
+                c
+            }
+        })
+        .collect();
     let executors = Executors {
         claude: ClaudeExecutor::new(upstream_url).unwrap(),
         codex: Default::default(),
@@ -107,7 +119,7 @@ async fn proxy(dir: &Path, upstream_url: &str) -> String {
         openai: Default::default(),
         google: Default::default(),
     };
-    let rt = Arc::new(Runtime::new(config, creds, executors));
+    let rt = Arc::new(cpa_server::testing::runtime(config, creds, executors));
     // This suite checks wire passthrough, one upstream attempt per request. Scheduler
     // failover/rounds have their own local-upstream integration suite.
     rt.publish_policy(cpa_server::scheduler::Policy {

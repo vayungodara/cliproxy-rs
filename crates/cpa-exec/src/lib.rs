@@ -70,6 +70,8 @@ mod tls;
 mod tokens;
 mod translate;
 mod upstream;
+pub mod vertex;
+pub mod vertex_auth;
 mod wire;
 pub mod xai;
 mod xai_apply_patch;
@@ -110,6 +112,8 @@ pub struct Executors {
 pub struct GoogleExecutors {
     /// `gemini` and `gemini-interactions` API keys.
     pub gemini: gemini::GeminiExecutor,
+    /// `vertex` service accounts and API keys.
+    pub vertex: vertex::VertexExecutor,
 }
 
 /// OpenAI-wire executors, grouped like [`DeviceExecutors`].
@@ -143,6 +147,7 @@ impl Executors {
             devin::PROVIDER => self.devices.devin.execute(credential, req, cfg).await,
             p if openai_compat::handles(p) => self.openai.compat.execute(credential, req, cfg).await,
             p if gemini::handles(p) => self.google.gemini.execute(credential, req, cfg).await,
+            p if vertex::handles(p) => self.google.vertex.execute(credential, req, cfg).await,
             xai::PROVIDER => self.openai.xai.execute(credential, req, cfg, false).await,
             other => Err(no_executor(other)),
         }
@@ -226,6 +231,7 @@ impl Executors {
         ) || kimi::PROVIDERS.contains(&provider)
             || openai_compat::handles(provider)
             || gemini::handles(provider)
+            || vertex::handles(provider)
     }
 
     /// Go `authHasRefreshCredential`: whether an upstream 401 on `credential` should be

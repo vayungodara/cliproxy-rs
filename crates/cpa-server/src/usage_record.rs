@@ -632,26 +632,28 @@ pub fn parse_gemini(body: &[u8]) -> Detail {
     parse_gemini_node(&node)
 }
 
-/// Go `ParseGeminiStreamUsage` on the payload Go's Gemini executor keeps after
-/// `FilterSSEUsageMetadata`: usage on a non-terminal chunk does not count.
-// ponytail: Go also drops a usage chunk that follows a usage-less stop chunk with the
-// same `traceId` (Antigravity and AI Studio); those executors are not ported.
+/// Go `ParseGeminiStreamUsage`. The Gemini-family executors report the line Go parses
+/// (the Gemini executor's `FilterSSEUsageMetadata` payload, Vertex's raw line), so a
+/// non-terminal chunk's usage counts when it is reported.
 fn parse_gemini_stream(line: &[u8]) -> Option<Detail> {
     let payload = json_payload(line).filter(|p| gj::valid(p))?;
-    let root = gj::parse(payload);
-    let finish = first(
-        &root,
-        &["candidates.0.finishReason", "response.candidates.0.finishReason"],
-    );
-    if !(finish.exists() && !finish.str().trim().is_empty()) {
-        return None;
-    }
-    let node = first(&root, &["usageMetadata", "usage_metadata"]);
+    let node = first(&gj::parse(payload), &["usageMetadata", "usage_metadata"]);
     if !node.exists() {
         return None;
     }
     let d = parse_gemini_node(&node);
     has_tokens(&d).then_some(d)
+}
+
+/// Go `ParseAntigravityStreamUsage`: the wrapped `response.usageMetadata` first, and
+/// zero usage still counts.
+fn parse_antigravity_stream(line: &[u8]) -> Option<Detail> {
+    let payload = json_payload(line).filter(|p| gj::valid(p))?;
+    let node = first(
+        &gj::parse(payload),
+        &["response.usageMetadata", "usageMetadata", "usage_metadata"],
+    );
+    node.exists().then(|| parse_gemini_node(&node))
 }
 
 /// Go `parseInteractionsUsageDetail`.
@@ -907,8 +909,13 @@ impl StreamUsage {
                     self.observe(d);
                 }
             }
-            Format::Gemini | Format::Antigravity => {
+            Format::Gemini => {
                 if let Some(d) = parse_gemini_stream(line) {
+                    self.observe(d);
+                }
+            }
+            Format::Antigravity => {
+                if let Some(d) = parse_antigravity_stream(line) {
                     self.observe(d);
                 }
             }

@@ -1,0 +1,8 @@
+target
+.git
+.amp
+harness
+docs
+ui/node_modules
+ui/dist-panel
+**/*.log

@@ -17,12 +17,16 @@ cpa-exec.workspace = true
 cpa-translate.workspace = true
 futures-util.workspace = true
 gjson = "0.8.1"
+hyper = { version = "1", features = ["server", "http1", "http2"] }
+hyper-util = { version = "0.1", features = ["tokio"] }
 regex = "1"
 serde.workspace = true
 serde_json.workspace = true
 serde_yaml_ng.workspace = true
+socket2.workspace = true
 tokio.workspace = true
 tokio-btls = "0.5.6"
+tower-service = "0.3"
 tracing.workspace = true
 tracing-subscriber.workspace = true
 uuid = { version = "1", features = ["v4"] }

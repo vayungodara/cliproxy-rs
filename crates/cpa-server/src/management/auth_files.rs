@@ -127,9 +127,30 @@ fn quota_observation(state: &Management, c: &Credential) -> Value {
         _ => None,
     };
     match snapshot {
-        Some(s) => json!({"observed_at": local(s.observed_at), "signals": s.signals}),
+        Some(s) => observation(&s),
         None => json!({"signals": {}}),
     }
+}
+
+/// Go `modelQuotaObservationPayload`: the latest snapshot per (canonical) model;
+/// empty for providers without observations.
+fn model_quota_observations(state: &Management, c: &Credential) -> Map<String, Value> {
+    match c.provider.trim().to_lowercase().as_str() {
+        "codex" => state
+            .rt
+            .executors
+            .codex
+            .quota()
+            .model_snapshots(&c.id)
+            .iter()
+            .map(|(model, s)| (model.clone(), observation(s)))
+            .collect(),
+        _ => Map::new(),
+    }
+}
+
+fn observation(s: &cpa_exec::codex_quota::Snapshot) -> Value {
+    json!({"observed_at": local(s.observed_at), "signals": s.signals})
 }
 
 fn file_name(c: &Credential) -> Option<String> {
@@ -446,6 +467,10 @@ fn entry(state: &Management, c: &Credential) -> Option<BTreeMap<&'static str, Va
     e.insert("failed", activity.failed.into());
     e.insert("recent_requests", recent_requests(&activity));
     e.insert("quota", quota_observation(state, c));
+    let model_quotas = model_quota_observations(state, c);
+    if !model_quotas.is_empty() {
+        e.insert("model_quotas", Value::Object(model_quotas));
+    }
     if let Some(probe) = c.metadata.get("quota_probe").filter(|v| !v.is_null()) {
         e.insert("supports_quota", true.into());
         e.insert("quota_probe", probe.clone());
@@ -924,7 +949,13 @@ fn delete_one(state: &Management, name: &str) -> Result<String, (StatusCode, Str
         .and_then(|c| path_of(c).map(Path::to_path_buf))
         .unwrap_or_else(|| cfg.auth_dir.join(&base));
     match std::fs::remove_file(&target) {
-        Ok(()) => Ok(base),
+        Ok(()) => {
+            // Go `deleteTokenRecord`: remote stores record the removal explicitly.
+            state
+                .store_delete(&target)
+                .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))?;
+            Ok(base)
+        }
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
             Err((StatusCode::NOT_FOUND, "auth file not found".into()))
         }
@@ -960,6 +991,9 @@ fn delete_sync(state: &Management, q: &Query, body: &[u8]) -> Response {
         for entry in entries.flatten() {
             let is_json = entry.file_name().to_string_lossy().to_lowercase().ends_with(".json");
             if entry.file_type().is_ok_and(|t| !t.is_dir()) && is_json && std::fs::remove_file(entry.path()).is_ok() {
+                if let Err(error) = state.store_delete(&entry.path()) {
+                    return fail(StatusCode::INTERNAL_SERVER_ERROR, error);
+                }
                 deleted += 1;
             }
         }

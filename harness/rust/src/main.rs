@@ -49,6 +49,7 @@ async fn main() -> anyhow::Result<()> {
     let app = router(rt)
         .merge(cpa_server::management::router(management))
         .layer(axum::middleware::from_fn(cpa_server::management::cors));
-    axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>()).await?;
+    // The production listener (crates/cliproxy uses the same call), plain HTTP.
+    cpa_server::listener::serve(listener, app, None).await?;
     Ok(())
 }
