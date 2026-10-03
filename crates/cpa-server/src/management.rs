@@ -78,6 +78,21 @@ pub struct Options {
 }
 
 impl Management {
+    /// Go `managementRoutesEnabled`, for the RESP protocol on the main listener.
+    pub(crate) fn routes_enabled(&self) -> bool {
+        self.access.available()
+    }
+
+    /// Go `AuthenticateManagementKey` for callers outside HTTP (the RESP protocol).
+    pub(crate) async fn authenticate_key(
+        &self,
+        ip: &str,
+        local: bool,
+        provided: &[u8],
+    ) -> Result<(), (StatusCode, String)> {
+        self.access.authenticate(&self.rt.config(), ip, local, provided).await
+    }
+
     pub fn new(rt: Arc<Runtime>, path: PathBuf) -> Arc<Self> {
         Self::with_options(rt, path, Options::default())
     }
@@ -178,6 +193,8 @@ impl Management {
         let policy = policy(&cfg);
         self.rt.publish_config_and_policy(cfg, policy);
         self.rt.store().reconcile(all);
+        // Go's watcher calls redisqueue.NotifyUsageRefresh after every client reload.
+        self.rt.usage_queue().notify_usage_refresh();
     }
 }
 

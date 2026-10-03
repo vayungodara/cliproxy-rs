@@ -23,6 +23,7 @@ pub mod persist;
 mod realtime;
 mod refresh;
 pub mod registry;
+mod resp;
 mod respond;
 pub mod runtime;
 mod sanitize;
