@@ -579,6 +579,7 @@ dependencies = [
  "cpa-exec",
  "cpa-translate",
  "futures-util",
+ "getrandom 0.3.4",
  "gjson",
  "regex",
  "serde",
@@ -587,6 +588,7 @@ dependencies = [
  "subtle",
  "tokio",
  "tracing",
+ "url",
  "uuid",
  "wreq",
 ]

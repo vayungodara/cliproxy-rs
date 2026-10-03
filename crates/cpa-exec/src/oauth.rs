@@ -304,7 +304,7 @@ impl OAuth {
         self.tokens(body, "", true).await
     }
 
-    fn via(&self, proxy: &Proxy) -> Self {
+    pub(crate) fn via(&self, proxy: &Proxy) -> Self {
         Self {
             proxy: proxy.clone(),
             ..self.clone()

@@ -23,6 +23,7 @@ mod access;
 mod api_call;
 mod auth_files;
 mod multipart;
+mod oauth;
 pub mod observability;
 pub use access::cors;
 
@@ -41,6 +42,11 @@ pub struct Management {
     /// Go net/http clients by proxy for `api-call` and the release lookup.
     pub(crate) clients: cpa_exec::proxy::GoClients,
     pub(crate) latest_release_url: String,
+    /// Pending and recent management logins (Go `oauthSessionStore`).
+    pub(crate) oauth: oauth::Sessions,
+    /// Callback forwarders by port (Go `callbackForwarders`).
+    pub(crate) forwarders: Mutex<std::collections::HashMap<u16, oauth::Forwarder>>,
+    pub(crate) login_base: Option<String>,
     access: access::Access,
 }
 
@@ -52,6 +58,8 @@ pub struct Options {
     pub management_password: Option<String>,
     /// Overrides [`observability::LATEST_RELEASE_URL`] (tests point it at a local server).
     pub latest_release_url: Option<String>,
+    /// One local base URL for every provider's login endpoints (tests only).
+    pub login_base: Option<String>,
 }
 
 impl Management {
@@ -68,9 +76,10 @@ impl Management {
             .latest_release_url
             .clone()
             .unwrap_or_else(|| observability::LATEST_RELEASE_URL.to_owned());
+        let login_base = options.login_base.clone();
         let access = access::Access::new(&cfg, options);
         rt.usage_queue().configure(access.available(), &cfg);
-        Arc::new(Self {
+        let state = Arc::new(Self {
             access,
             rt,
             path,
@@ -79,7 +88,12 @@ impl Management {
             disabled_via_api: Mutex::default(),
             clients: cpa_exec::proxy::GoClients::new(cpa_exec::proxy::Hooks::default()),
             latest_release_url,
-        })
+            oauth: oauth::Sessions::default(),
+            forwarders: Mutex::default(),
+            login_base,
+        });
+        oauth::install_callback_sink(&state);
+        state
     }
 
     /// Publishes a config and everything Go derives from it on reload: scheduler
@@ -198,6 +212,13 @@ macro_rules! guarded {
     };
 }
 
+/// Availability only, no key: Go's OAuth callback routes.
+macro_rules! open {
+    ($state:expr, $handler:expr) => {
+        $handler.layer(middleware::from_fn_with_state($state.clone(), access::available))
+    };
+}
+
 /// gin answers HEAD and unregistered methods on a known path with NoRoute's 404 and
 /// no `Allow` header; starting from `any` keeps axum from adding one.
 fn methods() -> MethodRouter<Arc<Management>> {
@@ -286,6 +307,16 @@ pub fn router(state: Arc<Management>) -> Router {
             "observability/usage/queue",
             methods().get(guarded!(s, observability::usage_queue)),
         ),
+        ("oauth/auth-url", methods().get(guarded!(s, oauth::auth_url))),
+        ("oauth/status", methods().get(guarded!(s, oauth::status))),
+        ("oauth/session", methods().delete(guarded!(s, oauth::cancel))),
+        ("oauth/import", methods().post(guarded!(s, oauth::import))),
+        (
+            "oauth/callback",
+            methods()
+                .get(open!(s, oauth::callback_get))
+                .post(open!(s, oauth::callback_post)),
+        ),
     ] {
         router = router.route(&format!("{v8}/{path}"), route);
     }
@@ -301,6 +332,14 @@ pub fn router(state: Arc<Management>) -> Router {
             methods().get(guarded!(s, observability::api_key_usage)),
         ),
         ("usage-queue", methods().get(guarded!(s, observability::usage_queue))),
+        ("get-auth-status", methods().get(guarded!(s, oauth::status))),
+        ("oauth-session", methods().delete(guarded!(s, oauth::cancel))),
+        (
+            "oauth-callback",
+            methods()
+                .get(open!(s, oauth::callback_get))
+                .post(open!(s, oauth::callback_post)),
+        ),
     ] {
         router = router.route(&format!("{v0}/{path}"), route);
     }

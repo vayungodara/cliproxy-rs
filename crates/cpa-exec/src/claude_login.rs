@@ -87,6 +87,46 @@ pub async fn login(auth_dir: &Path, options: &LoginOptions) -> Result<PathBuf, E
     Ok(path)
 }
 
+/// A login started from the management API (Go `RequestAnthropicToken`): the
+/// authorization URL and state to hand out; the PKCE verifier stays here for the
+/// exchange. The callback reaches management, not a local server.
+pub struct ManagedLogin {
+    pub url: String,
+    pub state: String,
+    verifier: String,
+}
+
+impl ManagedLogin {
+    pub fn start() -> Result<Self, ExecError> {
+        let (verifier, challenge) = pkce()?;
+        let state = random_hex(16)?;
+        Ok(Self {
+            url: authorize_url(&state, &challenge),
+            state,
+            verifier,
+        })
+    }
+
+    /// Exchanges the callback code (Go drops anything after `#`) through the production
+    /// OAuth transport and `proxy` (Go's Claude auth service uses `requests.proxy-url`).
+    pub async fn exchange(&self, code: &str, proxy: &crate::proxy::Proxy) -> Result<MetadataPatch, ExecError> {
+        let oauth = OAuth::with_transport(Arc::new(Transport::new(crate::proxy::Hooks::default()))).via(proxy);
+        self.exchange_with(&oauth, code).await
+    }
+
+    /// [`ManagedLogin::exchange`] through `oauth` (tests use local endpoints).
+    pub async fn exchange_with(&self, oauth: &OAuth, code: &str) -> Result<MetadataPatch, ExecError> {
+        let code = code.split('#').next().unwrap_or_default();
+        oauth.exchange(code, &self.state, &self.verifier).await
+    }
+
+    /// Writes an exchanged login as the CLI login does (Go file name, merged with an
+    /// existing file and a matching legacy file). Blocking.
+    pub fn save(auth_dir: &Path, patch: MetadataPatch) -> Result<PathBuf, ExecError> {
+        write_login(auth_dir, patch)
+    }
+}
+
 fn show_url(url: &str, port: u16, no_browser: bool) {
     if !no_browser {
         println!("Opening browser for Claude authentication");

@@ -26,9 +26,11 @@ uuid = { version = "1", features = ["v4"] }
 base64 = "0.22"
 bcrypt = "0.19"
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
+getrandom = "0.3"
 subtle = "2.6"
 wreq.workspace = true
 
 [dev-dependencies]
+url = "2"
 tokio = { workspace = true, features = ["test-util"] }
 wreq = { workspace = true, features = ["ws"] }

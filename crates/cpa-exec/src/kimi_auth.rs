@@ -595,6 +595,15 @@ pub(crate) fn open_browser(url: &str) -> bool {
         .is_ok()
 }
 
+/// Writes a finished login into `auth_dir` under its Go file name (management
+/// `kimi-auth-url`); returns the path.
+pub fn write_login(auth_dir: &Path, record: &LoginRecord) -> Result<PathBuf, ExecError> {
+    let path = auth_dir.join(&record.file_name);
+    write_private(&path, encode_credential(&record.metadata).as_bytes())
+        .map_err(|_| auth_error(500, "kimi: cannot write credential file"))?;
+    Ok(path)
+}
+
 /// `--kimi-login` (`provider` "kimi") or `--kimi-ai-login` ("kimi-ai"): device flow
 /// through the configured `requests.proxy-url`, then the credential file in `auth-dir`.
 pub async fn login(provider: &str, cfg: &cpa_core::config::Config, no_browser: bool) -> Result<PathBuf, ExecError> {
