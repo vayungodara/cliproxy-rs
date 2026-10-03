@@ -46,7 +46,7 @@ async fn server(management_password: Option<&str>) -> Server {
         ..Default::default()
     };
     let management = Management::with_options(rt.clone(), path, options);
-    let app = cpa_server::router(rt.clone()).merge(cpa_server::management::router(management.clone()));
+    let app = cpa_server::app(rt.clone(), cpa_server::management::router(management.clone()));
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
     tokio::spawn(cpa_server::listener::serve_with_resp(
