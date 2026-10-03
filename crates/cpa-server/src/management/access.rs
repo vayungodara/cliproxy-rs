@@ -39,7 +39,7 @@ const BUILD_DATE: &str = match option_env!("CPA_BUILD_DATE") {
     None => "unknown",
 };
 /// Go reports "1" only for cgo builds that can load native plugins.
-const SUPPORT_PLUGIN: &str = "0";
+const SUPPORT_PLUGIN: &str = cpa_plugin::SUPPORT_PLUGIN;
 
 const EXPOSED_HEADERS: &str = "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, \
 X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, \

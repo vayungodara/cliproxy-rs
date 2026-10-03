@@ -44,6 +44,8 @@ pub struct Runtime {
     usage: crate::usage::UsageQueue,
     /// `--local-model`: embedded model catalogs only, no remote catalog refresh.
     local_model: std::sync::atomic::AtomicBool,
+    /// The native plugin host, synced with each published config (see [`crate::plugins`]).
+    plugins: crate::plugins::PluginRuntime,
     /// Set only by [`crate::testing::runtime`]: executor calls get credentials that
     /// cannot leave the machine.
     pub(crate) deny_external: std::sync::atomic::AtomicBool,
@@ -84,6 +86,7 @@ impl Runtime {
             pool_offsets: Mutex::default(),
             usage: crate::usage::UsageQueue::default(),
             local_model: Default::default(),
+            plugins: Default::default(),
             deny_external: Default::default(),
         };
         rt.publish_policy(policy);
@@ -114,6 +117,16 @@ impl Runtime {
         self.local_model.load(std::sync::atomic::Ordering::Relaxed)
     }
 
+    /// The plugin host (additive API). [`crate::plugins::start`] syncs it with the
+    /// config.
+    pub fn plugins(&self) -> &cpa_plugin::Host {
+        self.plugins.host()
+    }
+
+    pub(crate) fn plugin_runtime(&self) -> &crate::plugins::PluginRuntime {
+        &self.plugins
+    }
+
     /// The config snapshot to use for one whole request.
     pub fn config(&self) -> Arc<Config> {
         self.config.read().unwrap_or_else(PoisonError::into_inner).clone()
@@ -132,7 +145,14 @@ impl Runtime {
         let (enabled, strict) = signature_cache_config(&config);
         cpa_translate::set_antigravity_signature_cache_config(enabled, strict);
         let dir = cooldown_dir(&config, &policy);
-        *self.config.write().unwrap_or_else(PoisonError::into_inner) = Arc::new(config);
+        let config = Arc::new(config);
+        {
+            // The plugin worker is told under the same lock, so concurrent publishes
+            // reach it in the order they replaced the config.
+            let mut current = self.config.write().unwrap_or_else(PoisonError::into_inner);
+            *current = config.clone();
+            self.plugins.config_published(config);
+        }
         self.publish_policy(policy);
         self.store.configure_cooldown_store(dir);
     }

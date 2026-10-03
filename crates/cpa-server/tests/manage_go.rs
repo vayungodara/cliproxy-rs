@@ -520,9 +520,10 @@ mod routes {
                     assert_eq!(body, step["resp_body"].as_str().unwrap(), "{name}[{i}]");
                 }
                 let mut want = step["resp_headers"].as_object().unwrap().clone();
-                // Go's cgo build can load native plugins; this binary cannot.
+                // The goldens come from Go's cgo build, which loads native plugins; this
+                // binary does too, except on Windows.
                 if want.contains_key("X-CPA-SUPPORT-PLUGIN") {
-                    want.insert("X-CPA-SUPPORT-PLUGIN".into(), "0".into());
+                    want.insert("X-CPA-SUPPORT-PLUGIN".into(), cpa_plugin::SUPPORT_PLUGIN.into());
                 }
                 assert_eq!(Value::Object(headers), Value::Object(want), "{name}[{i}] headers");
                 compared += 1;
