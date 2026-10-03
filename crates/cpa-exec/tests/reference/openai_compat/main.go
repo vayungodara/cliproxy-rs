@@ -32,6 +32,7 @@ import (
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/watcher/synthesizer"
 	cliproxyauth "github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/auth"
 	cliproxyexecutor "github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/executor"
+	"github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/usage"
 	sdktranslator "github.com/router-for-me/CLIProxyAPI/v8/sdk/translator"
 	"github.com/tidwall/gjson"
 )
@@ -49,6 +50,8 @@ type errOut struct {
 	Status       int    `json:"status"`
 	Message      string `json:"message"`
 	RetryAfterMS int64  `json:"retry_after_ms"`
+	// CredentialScoped is IsCredentialScoped(): a 429 that cools the whole credential.
+	CredentialScoped bool `json:"credential_scoped"`
 }
 
 type scenario struct {
@@ -83,6 +86,11 @@ type scenario struct {
 	// Needs names shared helpers whose real port must land before Rust can match.
 	Needs    []string  `json:"needs,omitempty"`
 	Upstream *upstream `json:"upstream,omitempty"`
+	// ResolvedModel is the model info the conductor binds to the attempt
+	// (ResolvedAPIKeyModelInfo), JSON plus its json:"-" flags, for the Rust dispatch stand-in.
+	ResolvedModel map[string]any `json:"resolved_model,omitempty"`
+	// Usage is the record Go's usage reporter published for the attempt.
+	Usage *usageOut `json:"usage,omitempty"`
 
 	Request string `json:"request,omitempty"`
 	// RequestB64 holds the capture instead of Request when it is not valid UTF-8.
@@ -91,6 +99,23 @@ type scenario struct {
 	Chunks     []string `json:"chunks,omitempty"`
 	Error      *errOut  `json:"error,omitempty"`
 }
+
+type usageOut struct {
+	Input         int64  `json:"input"`
+	Output        int64  `json:"output"`
+	Reasoning     int64  `json:"reasoning"`
+	Cached        int64  `json:"cached"`
+	Total         int64  `json:"total"`
+	Effort        string `json:"effort"`
+	ResponseModel string `json:"response_model"`
+	Failed        bool   `json:"failed"`
+}
+
+var records = make(chan usage.Record, 64)
+
+type capturePlugin struct{}
+
+func (capturePlugin) HandleUsage(_ context.Context, r usage.Record) { records <- r }
 
 var boundaryRe = regexp.MustCompile(`boundary=([0-9a-f]{60})`)
 
@@ -240,6 +265,29 @@ func compatModelInfo(cfg *config.Config, index int, requested, upstream string) 
 	return nil
 }
 
+// resolvedJSON is the bound ModelInfo as the Rust registry stores it: Go's JSON with
+// the internal flags thinking reads added when set.
+func resolvedJSON(info *registry.ModelInfo) map[string]any {
+	raw, err := json.Marshal(info)
+	if err != nil {
+		panic(err)
+	}
+	out := map[string]any{}
+	if err := json.Unmarshal(raw, &out); err != nil {
+		panic(err)
+	}
+	if info.IsCompat {
+		out["is_compat"] = true
+	}
+	if info.UserDefined {
+		out["user_defined"] = true
+	}
+	if info.SupportConfigurationUpdate {
+		out["support_configuration_update"] = true
+	}
+	return out
+}
+
 func statusOf(err error) *errOut {
 	out := &errOut{Message: err.Error(), RetryAfterMS: -1}
 	if s, ok := err.(interface{ StatusCode() int }); ok {
@@ -247,6 +295,9 @@ func statusOf(err error) *errOut {
 	}
 	if r, ok := err.(interface{ RetryAfter() *time.Duration }); ok && r.RetryAfter() != nil {
 		out.RetryAfterMS = r.RetryAfter().Milliseconds()
+	}
+	if c, ok := err.(interface{ IsCredentialScoped() bool }); ok {
+		out.CredentialScoped = c.IsCredentialScoped()
 	}
 	return out
 }
@@ -344,9 +395,13 @@ func run(s *scenario) {
 		}
 		if info := compatModelInfo(cfg, index, requested, s.Model); info != nil {
 			req.Metadata["cliproxy.resolved_api_key_model_info"] = info
+			s.ResolvedModel = resolvedJSON(info)
 		}
 	}
 	ctx := context.Background()
+	for len(records) > 0 {
+		<-records
+	}
 
 	switch s.Op {
 	case "execute", "images":
@@ -388,6 +443,14 @@ func run(s *scenario) {
 	default:
 		panic(s.Op)
 	}
+	if s.Op != "count" {
+		select {
+		case r := <-records:
+			s.Usage = &usageOut{Input: r.Detail.InputTokens, Output: r.Detail.OutputTokens, Reasoning: r.Detail.ReasoningTokens,
+				Cached: r.Detail.CachedTokens, Total: r.Detail.TotalTokens, Effort: r.ReasoningEffort, ResponseModel: r.ResponseModel, Failed: r.Failed}
+		case <-time.After(500 * time.Millisecond):
+		}
+	}
 	if s.Upstream != nil {
 		select {
 		case raw := <-done:
@@ -407,6 +470,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, "usage: generator OUTPUT.json")
 		os.Exit(2)
 	}
+	usage.RegisterPlugin(capturePlugin{})
 	all := scenarios()
 	for i := range all {
 		run(&all[i])

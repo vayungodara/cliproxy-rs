@@ -13,6 +13,67 @@ struct Fixture {
     state: Arc<Management>,
     rt: Arc<Runtime>,
 }
+#[tokio::test]
+async fn codex_passive_quota_snapshots_appear_in_credential_entries() {
+    let f = Fixture::from_yaml("codex-quota", |auth, hash| {
+        std::fs::write(
+            auth.join("codex-a.json"),
+            r#"{"type":"codex","email":"a@example.invalid"}"#,
+        )
+        .unwrap();
+        std::fs::write(
+            auth.join("claude-b.json"),
+            r#"{"type":"claude","email":"b@example.invalid"}"#,
+        )
+        .unwrap();
+        format!(
+            "config-version: 8\nmanagement:\n  secret-key: '{hash}'\noauth:\n  auth-dir: {}\n",
+            auth.display()
+        )
+    });
+    let snapshot = f.rt.store().snapshot();
+    let id = |provider: &str| snapshot.iter().find(|c| c.provider == provider).unwrap().id.clone();
+    let (codex, claude) = (id("codex"), id("claude"));
+    let mut headers = axum::http::HeaderMap::new();
+    headers.insert("x-codex-plan-type", "pro".parse().unwrap());
+    headers.insert("x-codex-primary-used-percent", "12".parse().unwrap());
+    headers.insert("x-unrelated", "1".parse().unwrap());
+    // Signals recorded for another provider's credential never surface (Go keys
+    // observation by provider).
+    f.rt.executors.codex.quota().observe(&codex, &headers);
+    f.rt.executors.codex.quota().observe(&claude, &headers);
+    let (base, server) = f.server().await;
+    let listed: Value = wreq::Client::new()
+        .get(format!("{base}/v8/management/credentials"))
+        .bearer_auth("fake-management-only")
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    server.abort();
+    let entry = |name: &str| {
+        listed["files"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|e| e["name"] == name)
+            .unwrap()
+            .clone()
+    };
+    let quota = entry("codex-a.json")["quota"].clone();
+    assert_eq!(
+        quota["signals"],
+        json!({"X-Codex-Plan-Type": "pro", "X-Codex-Primary-Used-Percent": "12"})
+    );
+    // Go time.Time JSON (RFC 3339 with an offset), close to now.
+    let observed = chrono::DateTime::parse_from_rfc3339(quota["observed_at"].as_str().unwrap()).unwrap();
+    assert!((chrono::Utc::now() - observed.to_utc()).num_seconds().abs() < 60);
+    assert_eq!(entry("claude-b.json")["quota"], json!({"signals": {}}));
+    assert!(entry("codex-a.json").get("model_quotas").is_none());
+}
+
 impl Fixture {
     fn new(name: &str) -> Self {
         let dir = std::env::temp_dir().join(format!("manage-{name}-{}", std::process::id()));
@@ -308,6 +369,49 @@ async fn remote_policy_does_not_trust_forwarded_headers_and_key_hashing_preserve
         text.contains("remote-management:"),
         "startup must not migrate legacy source"
     );
+}
+
+/// Waits up to four seconds for `done`.
+async fn eventually(done: impl Fn() -> bool) {
+    tokio::time::timeout(std::time::Duration::from_secs(4), async {
+        while !done() {
+            tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        }
+    })
+    .await
+    .expect("condition not reached");
+}
+
+#[tokio::test]
+async fn watcher_reconciles_auth_while_the_config_file_is_missing() {
+    let f = Fixture::new("missing-config");
+    let watcher = watching::start(&f.state);
+    let auth = |name: &str| f.dir.join("auth").join(name);
+    std::fs::write(auth("a.json"), r#"{"type":"claude","access_token":"fake-a"}"#).unwrap();
+    eventually(|| f.rt.store().get("a.json").is_some()).await;
+    // Go keeps serving and still applies auth events after the config disappears.
+    let config = f.file();
+    std::fs::remove_file(f.dir.join("config.yaml")).unwrap();
+    std::fs::write(auth("b.json"), r#"{"type":"claude","access_token":"fake-b"}"#).unwrap();
+    std::fs::remove_file(auth("a.json")).unwrap();
+    eventually(|| f.rt.store().get("b.json").is_some() && f.rt.store().get("a.json").is_none()).await;
+    assert_eq!(f.rt.config().api_keys, ["fake-client"], "last good config kept");
+    // An unchanged rewrite (same bytes) is not a change; an edit to the restored
+    // config is applied.
+    std::fs::write(
+        f.dir.join("config.yaml"),
+        config.replace("[fake-client]", "[fake-next]"),
+    )
+    .unwrap();
+    eventually(|| f.rt.config().api_keys == ["fake-next"]).await;
+    let revision = f.rt.store().get("b.json").unwrap().revision;
+    std::fs::write(auth("b.json"), r#"{"type":"claude","access_token":"fake-b"}"#).unwrap();
+    tokio::time::sleep(std::time::Duration::from_millis(400)).await;
+    assert_eq!(f.rt.store().get("b.json").unwrap().revision, revision);
+    // A changed auth file of the same size is noticed (racy timestamps re-hash).
+    std::fs::write(auth("b.json"), r#"{"type":"claude","access_token":"fake-c"}"#).unwrap();
+    eventually(|| f.rt.store().get("b.json").unwrap().revision != revision).await;
+    watcher.abort();
 }
 
 #[tokio::test]

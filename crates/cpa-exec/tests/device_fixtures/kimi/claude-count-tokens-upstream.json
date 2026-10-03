@@ -2,7 +2,7 @@
   "name": "claude-count-tokens-upstream",
   "credential": {
     "access_token": "kimi-access-fixture",
-    "base_url": "http://127.0.0.1:38261/coding",
+    "base_url": "http://127.0.0.1:39603/coding",
     "device_id": "dev-fixture-1",
     "refresh_token": "kimi-refresh-fixture",
     "type": "kimi"
@@ -33,7 +33,7 @@
       "headers": [
         [
           "Host",
-          "127.0.0.1:38261"
+          "127.0.0.1:39603"
         ],
         [
           "User-Agent",
@@ -73,5 +73,8 @@
   ],
   "downstream": {
     "body": "{\"input_tokens\":9}"
+  },
+  "extra": {
+    "usage": null
   }
 }

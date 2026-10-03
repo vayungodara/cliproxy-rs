@@ -33,6 +33,98 @@ fn first_header<'a>(headers: &'a Value, name: &str) -> Option<&'a [u8]> {
         .map(str::as_bytes)
 }
 
+/// The config text for one `yaml_bools` fixture case (same templates as Go's).
+fn scalar_case_yaml(field: &str, spelling: &str) -> String {
+    match field {
+        "observability.logs.debug" => format!("config-version: 8\nobservability:\n  logs:\n    debug: {spelling}\n"),
+        "plugins.configs.x.enabled" => {
+            format!("config-version: 8\nplugins:\n  configs:\n    x:\n      enabled: {spelling}\n")
+        }
+        "server.host" => format!("config-version: 8\nserver:\n  host: {spelling}\n"),
+        _ => format!("config-version: 8\ncredentials:\n  concurrency:\n    cpa-heartbeat-timeout: {spelling}\n"),
+    }
+}
+
+#[test]
+fn yaml_bool_spellings_and_durations_load_like_go() {
+    let cases = fixture()["yaml_bools"].as_array().unwrap();
+    assert!(cases.len() > 100);
+    for case in cases {
+        let (field, spelling) = (case["field"].as_str().unwrap(), case["spelling"].as_str().unwrap());
+        let at = format!("{field}: {spelling}");
+        let parsed = Config::parse(&scalar_case_yaml(field, spelling));
+        assert_eq!(
+            parsed.is_err(),
+            case["error"] == true,
+            "{at}: {:?}",
+            parsed.as_ref().err()
+        );
+        let Ok(cfg) = parsed else { continue };
+        let flag = |path: &[&str]| {
+            path.iter()
+                .try_fold(&cfg.document, |node, part| node.get(*part))
+                .and_then(serde_yaml_ng::Value::as_bool)
+                .unwrap_or(false)
+        };
+        let got = match field {
+            "observability.logs.debug" => json!(flag(&["observability", "logs", "debug"])),
+            "plugins.configs.x.enabled" => json!(flag(&["plugins", "configs", "x", "enabled"])),
+            // ponytail: serde resolves the YAML 1.2 bool spellings without keeping their
+            // text, so a string field reads `True`/`TRUE` as `true` where Go keeps it.
+            "server.host" if ["True", "TRUE", "False", "FALSE"].contains(&spelling) => {
+                assert_eq!(cfg.host, spelling.to_lowercase(), "{at}");
+                continue;
+            }
+            "server.host" => json!(cfg.host),
+            // Durations: load acceptance only (nothing consumes them without Home).
+            _ => continue,
+        };
+        assert_eq!(got, case["value"], "{at}");
+    }
+}
+
+#[test]
+fn yaml_merge_keys_load_like_go() {
+    for case in fixture()["yaml_merges"].as_array().unwrap() {
+        let name = case["name"].as_str().unwrap();
+        let parsed = Config::parse(case["yaml"].as_str().unwrap());
+        assert_eq!(
+            parsed.is_err(),
+            case["error"] == true,
+            "{name}: {:?}",
+            parsed.as_ref().err()
+        );
+        let Ok(cfg) = parsed else { continue };
+        let want = &case["values"];
+        let logs = |key: &str| {
+            cfg.document
+                .get("observability")
+                .and_then(|o| o.get("logs"))
+                .and_then(|l| l.get(key))
+                .and_then(serde_yaml_ng::Value::as_bool)
+                .unwrap_or(false)
+        };
+        let claude: Vec<Value> = credentials::from_config(&cfg)
+            .iter()
+            .filter(|c| c.provider == "claude")
+            .map(|c| {
+                json!({
+                    "api-key": c.attributes["api_key"],
+                    "priority": c.attributes.get("priority").map_or(0, |p| p.parse::<i64>().unwrap()),
+                })
+            })
+            .collect();
+        let got = json!({
+            "request-retry": cfg.routing.retry.request_retry,
+            "max-retry-interval": cfg.routing.retry.max_retry_interval,
+            "debug": logs("debug"),
+            "request-log": logs("request-log"),
+            "claude": claude,
+        });
+        assert_eq!(&got, want, "{name}");
+    }
+}
+
 #[test]
 fn client_ip_matches_gin_for_every_trusted_remote_and_header_combination() {
     let cases = fixture()["client_ip"].as_array().unwrap();
@@ -511,9 +603,20 @@ mod config_writes {
         }
     }
 
+    /// A YAML text as Go's decoder into `any` sees it: merge keys expanded.
     fn rust_yaml_value(text: &str) -> Value {
-        let v: serde_yaml_ng::Value = serde_yaml_ng::from_str(text).unwrap();
+        let mut v: serde_yaml_ng::Value = serde_yaml_ng::from_str(text).unwrap();
+        cpa_core::config::expand_merges(&mut v).unwrap();
         serde_json::to_value(v).unwrap()
+    }
+
+    /// YAML 1.1 bool spellings in typed bool fields as booleans. Go's saver re-encodes
+    /// them on its first write; cliproxy-rs keeps untouched text as written, so files
+    /// are compared by what they load as.
+    fn typed_bools(v: &Value) -> Value {
+        let mut yaml = serde_yaml_ng::to_value(v).unwrap();
+        cpa_core::config::coerce_typed_bools(&mut yaml);
+        serde_json::to_value(yaml).unwrap()
     }
 
     #[tokio::test]
@@ -581,7 +684,13 @@ mod config_writes {
                             "{at}: {got}"
                         );
                     } else {
-                        if let Err(e) = same_modulo_defaults(&normalize(want), &normalize(&got), &defaults, "response")
+                        // A full-config read is compared like the file it reflects.
+                        let (want, got) = if step["path"] == "/config" {
+                            (typed_bools(want), typed_bools(&got))
+                        } else {
+                            (want.clone(), got)
+                        };
+                        if let Err(e) = same_modulo_defaults(&normalize(&want), &normalize(&got), &defaults, "response")
                         {
                             failures.push(format!("{at}: {e}"));
                         }
@@ -589,8 +698,8 @@ mod config_writes {
                 }
                 let file = std::fs::read_to_string(&path).unwrap();
                 if let Err(e) = same_modulo_defaults(
-                    &normalize(&step["file"]),
-                    &normalize(&rust_yaml_value(&file)),
+                    &normalize(&typed_bools(&step["file"])),
+                    &normalize(&typed_bools(&rust_yaml_value(&file))),
                     &defaults,
                     "file",
                 ) {
@@ -611,7 +720,7 @@ mod config_writes {
             let _ = std::fs::remove_dir_all(&dir);
         }
         assert!(failures.is_empty(), "{}", failures.join("\n"));
-        assert_eq!(compared, 72);
+        assert_eq!(compared, 79);
     }
 }
 
@@ -693,14 +802,7 @@ mod creds {
             if name == "dashboard_probes" {
                 continue;
             }
-            // Go parsed log line timestamps in UTC (the generator runs with TZ=UTC).
             let log_files = scenario["log_files"].as_array();
-            let parses_timestamps = scenario["yaml"].as_str().unwrap().contains("logging-to-file: true");
-            if parses_timestamps && chrono::Local::now().offset().local_minus_utc() != 0 {
-                eprintln!("skipping {name}: log timestamps need a UTC local time zone");
-                compared += scenario["steps"].as_array().unwrap().len();
-                continue;
-            }
             let dir = std::env::temp_dir().join(format!("cpa-creds-{name}-{}", std::process::id()));
             let root = dir.join("fixture-root");
             let auth = root.join("auth");
@@ -735,6 +837,8 @@ mod creds {
             let options = Options {
                 management_password: Some(String::new()),
                 log_dir: Some(log_dir.clone()),
+                // Go parsed log line timestamps in UTC: the generator runs with TZ=UTC.
+                log_zone: chrono::FixedOffset::east_opt(0),
                 ..Options::default()
             };
             let state = Management::with_options(rt.clone(), path.clone(), options);

@@ -8,6 +8,7 @@
 
 use std::sync::LazyLock;
 
+pub mod devin;
 pub mod dynamic;
 
 use serde::Deserialize;
@@ -18,9 +19,9 @@ const MODELS_JSON: &str = include_str!("registry/models.json");
 /// Channels searched by [`Catalog::lookup`], in Go's `LookupStaticModelInfo` order
 /// (internal/registry/model_definitions.go). `gemini-cli`, `codex-free`, `codex-team` and
 /// `codex-plus` are not searched; Go reaches them only through per-channel getters.
-// ponytail: Go also searches the Devin catalog (devin_models.json plus staticDevinModels)
-// between xai and meta. Add it with the Devin provider port.
-const LOOKUP_ORDER: [&str; 9] = [
+/// After the `devin` section Go searches `staticDevinModels` ([`devin::static_models`]),
+/// not the `devin_models.json` catalog.
+const LOOKUP_ORDER: [&str; 10] = [
     "claude",
     "gemini",
     "vertex",
@@ -29,6 +30,7 @@ const LOOKUP_ORDER: [&str; 9] = [
     "kimi",
     "antigravity",
     "xai",
+    "devin",
     "meta",
 ];
 
@@ -124,7 +126,14 @@ impl Catalog {
         }
         LOOKUP_ORDER
             .iter()
-            .flat_map(|channel| self.channel(channel))
+            .flat_map(|channel| {
+                let statics: &[ModelInfo] = if *channel == "devin" {
+                    devin::static_models()
+                } else {
+                    &[]
+                };
+                self.channel(channel).iter().chain(statics)
+            })
             .find(|m| m.id == id)
     }
 }

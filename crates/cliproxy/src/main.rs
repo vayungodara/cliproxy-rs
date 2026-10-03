@@ -542,7 +542,9 @@ async fn run(args: Args) -> anyhow::Result<()> {
         return Ok(());
     }
     if args.devin_login {
-        unsupported("Devin login (-devin-login)");
+        // Go DoDevinLogin: a failure is logged and the command still exits normally.
+        cpa_exec::devin_auth::login(&config, args.no_browser, args.oauth_callback_port).await;
+        return Ok(());
     }
     if args.meta_login {
         cpa_exec::meta_auth::login(&config, args.no_browser).await?;
