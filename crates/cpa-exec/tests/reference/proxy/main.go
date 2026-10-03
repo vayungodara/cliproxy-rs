@@ -23,16 +23,30 @@ type lineCase struct {
 	Max    int      `json:"max"`
 	Chunks []string `json:"chunks"`
 	// IOError ends the reads with an I/O error instead of io.EOF.
-	IOError bool     `json:"io_error"`
-	Tokens  []string `json:"tokens"`
-	Error   string   `json:"error"`
+	IOError bool `json:"io_error"`
+	// Tokens and Error: the reader returns EOF or the error together with the last
+	// bytes, as net/http does for a Content-Length body and gzip.Reader does at its end.
+	Tokens []string `json:"tokens"`
+	Error  string   `json:"error"`
+	// Separate*: the reader returns EOF or the error on a read of its own.
+	SeparateTokens []string `json:"separate_tokens"`
+	SeparateError  string   `json:"separate_error"`
 }
 
 // scripted serves each chunk across as many Reads as the caller's buffer needs, then
-// returns (0, EOF) or (0, error) on its own Read, as a network body does.
+// ends with EOF or an I/O error: together with the last bytes when attach is set,
+// otherwise on a Read of its own.
 type scripted struct {
 	chunks []string
 	fail   bool
+	attach bool
+}
+
+func (s *scripted) terminal() error {
+	if s.fail {
+		return errors.New("read failed")
+	}
+	return io.EOF
 }
 
 func (s *scripted) Read(p []byte) (int, error) {
@@ -40,30 +54,38 @@ func (s *scripted) Read(p []byte) (int, error) {
 		s.chunks = s.chunks[1:]
 	}
 	if len(s.chunks) == 0 {
-		if s.fail {
-			return 0, errors.New("read failed")
-		}
-		return 0, io.EOF
+		return 0, s.terminal()
 	}
 	n := copy(p, s.chunks[0])
 	s.chunks[0] = s.chunks[0][n:]
+	if s.attach && strings.Join(s.chunks, "") == "" {
+		s.chunks = nil
+		return n, s.terminal()
+	}
 	return n, nil
 }
 
-func runLines(c lineCase) lineCase {
-	scanner := bufio.NewScanner(&scripted{chunks: append([]string(nil), c.Chunks...), fail: c.IOError})
+func scan(c lineCase, attach bool) ([]string, string) {
+	reader := &scripted{chunks: append([]string(nil), c.Chunks...), fail: c.IOError, attach: attach}
+	scanner := bufio.NewScanner(reader)
 	scanner.Buffer(nil, c.Max)
-	c.Tokens = []string{}
+	tokens := []string{}
 	for scanner.Scan() {
-		c.Tokens = append(c.Tokens, scanner.Text())
+		tokens = append(tokens, scanner.Text())
 	}
 	switch err := scanner.Err(); {
 	case err == nil:
+		return tokens, ""
 	case errors.Is(err, bufio.ErrTooLong):
-		c.Error = "too_long"
+		return tokens, "too_long"
 	default:
-		c.Error = "io"
+		return tokens, "io"
 	}
+}
+
+func runLines(c lineCase) lineCase {
+	c.Tokens, c.Error = scan(c, true)
+	c.SeparateTokens, c.SeparateError = scan(c, false)
 	return c
 }
 
@@ -186,6 +208,8 @@ func main() {
 		{Name: "many-lines-small-window", Max: 5, Chunks: []string{"aaa\nbbb\nccc\nd", "d\n"}},
 		{Name: "empty-lines", Max: 8, Chunks: []string{"\n\n\r\n"}},
 		{Name: "too-long-before-io-error", Max: 8, Chunks: []string{x(9)}, IOError: true},
+		{Name: "exact-max-then-io-error", Max: 8, Chunks: []string{x(8)}, IOError: true},
+		{Name: "exact-max-then-more", Max: 8, Chunks: []string{x(8), "y\n"}},
 	}
 	for i := range lines {
 		lines[i] = runLines(lines[i])

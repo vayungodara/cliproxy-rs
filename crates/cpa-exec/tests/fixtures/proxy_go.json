@@ -14,7 +14,13 @@
     "",
     "final"
    ],
-   "error": ""
+   "error": "",
+   "separate_tokens": [
+    "data: a\r\rdata: b",
+    "",
+    "final"
+   ],
+   "separate_error": ""
   },
   {
    "name": "partial-then-io-error",
@@ -27,7 +33,12 @@
     "data: a",
     "data: part"
    ],
-   "error": "io"
+   "error": "io",
+   "separate_tokens": [
+    "data: a",
+    "data: part"
+   ],
+   "separate_error": "io"
   },
   {
    "name": "io-error-without-data",
@@ -35,7 +46,9 @@
    "chunks": null,
    "io_error": true,
    "tokens": [],
-   "error": "io"
+   "error": "io",
+   "separate_tokens": [],
+   "separate_error": "io"
   },
   {
    "name": "io-error-after-newline",
@@ -47,7 +60,11 @@
    "tokens": [
     "a"
    ],
-   "error": "io"
+   "error": "io",
+   "separate_tokens": [
+    "a"
+   ],
+   "separate_error": "io"
   },
   {
    "name": "max-plus-newline-one-chunk",
@@ -57,7 +74,9 @@
    ],
    "io_error": false,
    "tokens": [],
-   "error": "too_long"
+   "error": "too_long",
+   "separate_tokens": [],
+   "separate_error": "too_long"
   },
   {
    "name": "max-minus-one-plus-newline",
@@ -69,7 +88,11 @@
    "tokens": [
     "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
    ],
-   "error": ""
+   "error": "",
+   "separate_tokens": [
+    "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+   ],
+   "separate_error": ""
   },
   {
    "name": "short-then-long-one-chunk",
@@ -81,7 +104,11 @@
    "tokens": [
     "a"
    ],
-   "error": "too_long"
+   "error": "too_long",
+   "separate_tokens": [
+    "a"
+   ],
+   "separate_error": "too_long"
   },
   {
    "name": "exact-max-unterminated",
@@ -90,8 +117,12 @@
     "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
    ],
    "io_error": false,
-   "tokens": [],
-   "error": "too_long"
+   "tokens": [
+    "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+   ],
+   "error": "",
+   "separate_tokens": [],
+   "separate_error": "too_long"
   },
   {
    "name": "max-minus-one-unterminated",
@@ -103,7 +134,11 @@
    "tokens": [
     "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
    ],
-   "error": ""
+   "error": "",
+   "separate_tokens": [
+    "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+   ],
+   "separate_error": ""
   },
   {
    "name": "split-long-line",
@@ -115,7 +150,9 @@
    ],
    "io_error": false,
    "tokens": [],
-   "error": "too_long"
+   "error": "too_long",
+   "separate_tokens": [],
+   "separate_error": "too_long"
   },
   {
    "name": "split-fitting-line",
@@ -129,7 +166,11 @@
    "tokens": [
     "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
    ],
-   "error": ""
+   "error": "",
+   "separate_tokens": [
+    "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+   ],
+   "separate_error": ""
   },
   {
    "name": "many-lines-small-window",
@@ -145,7 +186,14 @@
     "ccc",
     "dd"
    ],
-   "error": ""
+   "error": "",
+   "separate_tokens": [
+    "aaa",
+    "bbb",
+    "ccc",
+    "dd"
+   ],
+   "separate_error": ""
   },
   {
    "name": "empty-lines",
@@ -159,7 +207,13 @@
     "",
     ""
    ],
-   "error": ""
+   "error": "",
+   "separate_tokens": [
+    "",
+    "",
+    ""
+   ],
+   "separate_error": ""
   },
   {
    "name": "too-long-before-io-error",
@@ -169,7 +223,36 @@
    ],
    "io_error": true,
    "tokens": [],
-   "error": "too_long"
+   "error": "too_long",
+   "separate_tokens": [],
+   "separate_error": "too_long"
+  },
+  {
+   "name": "exact-max-then-io-error",
+   "max": 8,
+   "chunks": [
+    "xxxxxxxx"
+   ],
+   "io_error": true,
+   "tokens": [
+    "xxxxxxxx"
+   ],
+   "error": "io",
+   "separate_tokens": [],
+   "separate_error": "too_long"
+  },
+  {
+   "name": "exact-max-then-more",
+   "max": 8,
+   "chunks": [
+    "xxxxxxxx",
+    "y\n"
+   ],
+   "io_error": false,
+   "tokens": [],
+   "error": "too_long",
+   "separate_tokens": [],
+   "separate_error": "too_long"
   }
  ],
  "redirects": [

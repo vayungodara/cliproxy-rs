@@ -377,11 +377,13 @@ fn auth_kind_is_api_key(credential: &Credential) -> bool {
         })
 }
 
-/// `shouldClearKimiThinkingReplayAfterError`: only an upstream 400 or 422 (Go's plain
-/// `statusErr`) rejects applied replay. Callers ask this of upstream responses only;
-/// local validation errors (wrapped status errors in Go) keep the cache.
-pub(crate) fn upstream_rejects(status: u16) -> bool {
-    matches!(status, 400 | 422)
+/// `shouldClearKimiThinkingReplayAfterError`: only an upstream 400 or 422 classified as
+/// Go's plain `statusErr` rejects applied replay. Callers ask this of upstream responses
+/// only: local validation errors are other Go types, and a Fast request's direct answer
+/// (`claudeFastDirectResponseError`) unwraps to `RequestTerminatedError`, so both keep
+/// the cache.
+pub(crate) fn upstream_rejects(error: &cpa_core::exec::ExecError) -> bool {
+    !error.direct && matches!(error.status, 400 | 422)
 }
 
 #[cfg(test)]
@@ -472,6 +474,20 @@ mod tests {
             &[],
             serde_json::json!({"type":"claude","api_key":"meta-only"})
         )));
+    }
+
+    #[test]
+    fn only_classified_upstream_rejections_clear() {
+        use cpa_core::exec::{ExecError, FailureScope};
+        let classified = |status| ExecError::local(status, FailureScope::Request, "rejected");
+        assert!(upstream_rejects(&classified(400)));
+        assert!(upstream_rejects(&classified(422)));
+        assert!(!upstream_rejects(&classified(429)));
+        assert!(!upstream_rejects(&classified(500)));
+        // A Fast request's direct 400 is answered as sent and keeps the cache.
+        let mut direct = classified(400);
+        direct.direct = true;
+        assert!(!upstream_rejects(&direct));
     }
 
     #[test]

@@ -249,7 +249,7 @@ impl ClaudeExecutor {
         let response = self.send(&ctx, &prepared, "/v1/messages").await.inspect_err(|error| {
             // shouldClearKimiThinkingReplayAfterError: an upstream rejection of applied replay.
             if let Some(scope) = replay.filter(|s| s.applied)
-                && replay::upstream_rejects(error.status)
+                && replay::upstream_rejects(error)
             {
                 scope.clear();
             }

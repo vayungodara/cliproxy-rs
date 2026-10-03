@@ -690,9 +690,10 @@ pub async fn read_all(
 /// `bufio.ErrTooLong` when no newline falls within `max` bytes of a line's start (the
 /// scanner's buffer never holds more). An I/O error ends the stream after the line
 /// buffered before it, as `Scan` returns that last token before reporting `Err`.
-// ponytail: EOF is taken to arrive on its own read, as it does on a streamed body: an
-// unterminated final line of exactly `max` bytes is too long. Go accepts it when the
-// reader returns EOF together with the last bytes.
+// ponytail: the body's end (or error) is taken to arrive with its last bytes, as net/http
+// returns EOF for a Content-Length body and gzip.Reader at its end; the stream cannot
+// tell. When Go's reader reports the end on a read of its own, Go rejects an
+// unterminated final line of exactly `max` bytes that this accepts.
 pub fn lines(
     body: BoxStream<'static, Result<Bytes, ExecError>>,
     max: usize,
@@ -731,7 +732,9 @@ pub fn lines(
                     return Some((Ok(drop_cr(&line[..at])), st));
                 }
                 st.scanned = window;
-                if st.buf.len() >= max {
+                // A full buffer without a newline: more data is too long, while the end
+                // of the body makes it the final line.
+                if st.buf.len() > max {
                     st.finished = true;
                     let error = ExecError::local(500, FailureScope::Request, "bufio.Scanner: token too long");
                     return Some((Err(error), st));
@@ -907,6 +910,11 @@ mod tests {
             };
             let max = case["max"].as_u64().unwrap() as usize;
             let got: Vec<_> = lines(body, max).collect().await;
+            // Go with a separate terminal read differs only where the ponytail says.
+            let separate = (case["separate_tokens"].clone(), case["separate_error"].clone());
+            let attached = (case["tokens"].clone(), case["error"].clone());
+            let differs = ["exact-max-unterminated", "exact-max-then-io-error"].contains(&name);
+            assert_eq!(separate != attached, differs, "{name}: Go's two terminal modes");
             let (tokens, errors): (Vec<_>, Vec<_>) = got.into_iter().partition(Result::is_ok);
             let tokens: Vec<String> = tokens
                 .into_iter()
