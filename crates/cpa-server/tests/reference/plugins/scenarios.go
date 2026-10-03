@@ -185,6 +185,15 @@ func quotaScenarios(r *runner) {
 		r.http(httpArgs{Method: "DELETE", Path: base + "recorder-a/quota", Body: `{"auth_index":"` + codex + `"}`})
 		r.http(httpArgs{Method: "DELETE", Path: base + "recorder-a/quota", Body: `{bad`})
 	}
+	// Binding and query corner cases.
+	r.http(httpArgs{Method: "DELETE", Path: "/v0/management/plugins/recorder-a/quota", Body: `{"auth_index":"` + claude + `","provider":7}`})
+	r.http(httpArgs{Method: "DELETE", Path: "/v0/management/plugins/recorder-a/quota", Body: `{"auth_index":"` + claude + `","auth_index":7}`})
+	r.http(httpArgs{Method: "GET", Path: "/v0/management/plugins/recorder-a/quota?auth_index=%ZZ&authIndex=" + claude})
+	r.http(httpArgs{Method: "GET", Path: "/v0/management/plugins/recorder-a/quota?auth_index=x;y&authIndex=" + claude})
+	r.http(httpArgs{Method: "GET", Path: "/v0/management/plugins/recorder-a/quota?auth_index=+" + claude + "+"})
+	post("/v0/management/quota/fetch", `{"auth_index":"`+claude+`","unused":1e400}`)
+	post("/v0/management/quota/fetch", `{"auth_index":"`+claude+`"} trailing`)
+	post("/v0/management/quota/fetch", `{"auth_index":"`+claude+`","provider":7}`)
 	post("/v0/management/plugins/recorder-a/quota/reset", `{"authIndex":"`+claude+`"}`)
 	post("/v8/management/plugins/recorder-a/quota/reset", `{"authIndex":"`+claude+`"}`)
 	r.records()

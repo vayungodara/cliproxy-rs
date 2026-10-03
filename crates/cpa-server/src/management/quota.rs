@@ -7,17 +7,18 @@
 use std::sync::Arc;
 
 use axum::body::Bytes;
-use axum::extract::{Path as UrlPath, Query, State};
+use axum::extract::{Path as UrlPath, Request, State};
 use axum::http::{HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use cpa_core::config::credentials;
 use cpa_core::credential::Credential;
 use cpa_plugin::api::{QuotaFetchRequest, QuotaResetRequest};
 use cpa_plugin::auth::AuthView;
+use cpa_plugin::gojson::{self as pjson, Node};
 use serde_json::{Value, json};
 
 use super::Management;
-use super::api_call::Members;
+use super::plugins::go_query;
 
 fn map_json(status: StatusCode, value: &Value) -> Response {
     go_json(status, crate::gojson::sorted(value).into_bytes())
@@ -49,40 +50,40 @@ struct QuotaBody {
 }
 
 impl QuotaBody {
+    /// gin `ShouldBindJSON`: `None` when binding fails.
     fn decode(body: &[u8]) -> Option<Self> {
+        let (out, ok) = Self::bind(body);
+        ok.then_some(out)
+    }
+
+    /// `json.Decoder.Decode` into `credentialQuotaRequest`: the first JSON value only;
+    /// exact field names first, then case-insensitive in struct order. A type error
+    /// leaves that field as it was and decoding goes on (Go reports it at the end);
+    /// a syntax error yields nothing.
+    fn bind(body: &[u8]) -> (Self, bool) {
         const FIELDS: [&str; 5] = ["auth_index", "authIndex", "AuthIndex", "plugin_id", "provider"];
-        let Members(members) = serde_json::Deserializer::from_slice(body)
-            .into_iter::<Members>()
-            .next()?
-            .ok()?;
         let mut out = Self::default();
-        for (key, v) in members.unwrap_or_default() {
+        let fields = match pjson::parse(first_value(body)) {
+            Ok(Node::Object(fields)) => fields,
+            Ok(Node::Null) => return (out, true),
+            _ => return (out, false),
+        };
+        let mut ok = true;
+        for (key, v) in fields {
             let field = FIELDS
                 .iter()
                 .position(|f| *f == key)
                 .or_else(|| FIELDS.iter().position(|f| f.eq_ignore_ascii_case(&key)));
-            let text = |slot: &mut String| match v.clone() {
-                Value::String(s) => {
-                    *slot = s;
-                    Some(())
-                }
-                Value::Null => Some(()),
-                _ => None,
-            };
-            match field {
-                Some(i @ 0..=2) => {
-                    out.auth_index[i] = match v {
-                        Value::String(s) => Some(s),
-                        Value::Null => None,
-                        _ => return None,
-                    }
-                }
-                Some(3) => text(&mut out.plugin_id)?,
-                Some(4) => text(&mut out.provider)?,
-                _ => {}
+            match (field, v) {
+                (Some(i @ 0..=2), Node::String(s)) => out.auth_index[i] = Some(s),
+                (Some(i @ 0..=2), Node::Null) => out.auth_index[i] = None,
+                (Some(3), Node::String(s)) => out.plugin_id = s,
+                (Some(4), Node::String(s)) => out.provider = s,
+                (Some(_), Node::Null) | (None, _) => {}
+                (Some(_), _) => ok = false,
             }
         }
-        Some(out)
+        (out, ok)
     }
 
     /// Go `resolveAuthIndex`.
@@ -95,6 +96,56 @@ impl QuotaBody {
             .unwrap_or_default()
             .to_owned()
     }
+}
+
+/// The bytes of the first JSON value (`json.Decoder` ignores what follows it).
+fn first_value(body: &[u8]) -> &[u8] {
+    let start = body.iter().position(|b| !b.is_ascii_whitespace()).unwrap_or(body.len());
+    let rest = &body[start..];
+    let (mut depth, mut in_string, mut escaped) = (0usize, false, false);
+    for (i, &b) in rest.iter().enumerate() {
+        if in_string {
+            match (escaped, b) {
+                (true, _) => escaped = false,
+                (false, b'\\') => escaped = true,
+                (false, b'"') => {
+                    in_string = false;
+                    if depth == 0 {
+                        return &rest[..=i];
+                    }
+                }
+                _ => {}
+            }
+            continue;
+        }
+        match b {
+            b'"' => in_string = true,
+            b'{' | b'[' => depth += 1,
+            b'}' | b']' => {
+                depth = depth.saturating_sub(1);
+                if depth == 0 {
+                    return &rest[..=i];
+                }
+            }
+            b' ' | b'\t' | b'\r' | b'\n' | b',' if depth == 0 => return &rest[..i],
+            _ => {}
+        }
+    }
+    rest
+}
+
+/// Go `json.Unmarshal` into `map[string]any`: an object (or null) whose numbers all
+/// fit a float64.
+fn go_object(data: &[u8]) -> bool {
+    fn numbers_fit(n: &Node) -> bool {
+        match n {
+            Node::Number(lit) => cpa_plugin::cli::parse_float(lit).is_some(),
+            Node::Array(items) => items.iter().all(numbers_fit),
+            Node::Object(fields) => fields.iter().all(|(_, v)| numbers_fit(v)),
+            _ => true,
+        }
+    }
+    matches!(pjson::parse(data), Ok(n @ (Node::Object(_) | Node::Null)) if numbers_fit(&n))
 }
 
 fn credential(state: &Management, index: &str) -> Option<Arc<Credential>> {
@@ -115,9 +166,8 @@ fn physical(c: &Credential) -> Option<AuthView> {
     if data.iter().all(u8::is_ascii_whitespace) {
         return None;
     }
-    match serde_json::from_slice::<Value>(&data).ok()? {
-        Value::Object(_) | Value::Null => {}
-        _ => return None,
+    if !go_object(&data) {
+        return None;
     }
     Some(AuthView {
         id: c.id.clone(),
@@ -297,8 +347,10 @@ fn finish_reset(
     map_json(StatusCode::OK, &out)
 }
 
-/// `?auth_index=` then `?authIndex=` (first values, trimmed).
-fn query_index(query: &[(String, String)]) -> String {
+/// `c.Query("auth_index")`, else `c.Query("authIndex")`: first values from Go's
+/// `URL.Query()`, trimmed.
+fn query_index(raw: Option<&str>) -> String {
+    let query = go_query(raw.unwrap_or_default());
     ["auth_index", "authIndex"]
         .iter()
         .filter_map(|k| query.iter().find(|(name, _)| name == k).map(|(_, v)| v.trim()))
@@ -311,9 +363,9 @@ fn query_index(query: &[(String, String)]) -> String {
 pub(crate) async fn get_plugin(
     State(state): State<Arc<Management>>,
     UrlPath(id): UrlPath<String>,
-    Query(query): Query<Vec<(String, String)>>,
+    uri: axum::http::Uri,
 ) -> Response {
-    let index = query_index(&query);
+    let index = query_index(uri.query());
     if index.is_empty() {
         return fail(StatusCode::BAD_REQUEST, "auth_index is required");
     }
@@ -362,13 +414,17 @@ async fn fetch_for_plugin(state: &Management, plugin_id: &str, index: &str) -> R
 pub(crate) async fn reset_plugin(
     State(state): State<Arc<Management>>,
     UrlPath(id): UrlPath<String>,
-    Query(query): Query<Vec<(String, String)>>,
-    body: Bytes,
+    req: Request,
 ) -> Response {
     let plugin_id = id.trim();
-    let mut index = query_index(&query);
+    let mut index = query_index(req.uri().query());
     if index.is_empty() {
-        index = QuotaBody::decode(&body).unwrap_or_default().auth_index();
+        // Go reads the body only here and ignores binding errors, keeping whatever
+        // fields did bind.
+        let body = axum::body::to_bytes(req.into_body(), usize::MAX)
+            .await
+            .unwrap_or_default();
+        index = QuotaBody::bind(&body).0.auth_index();
     }
     if index.is_empty() {
         return fail(StatusCode::BAD_REQUEST, "auth_index is required");

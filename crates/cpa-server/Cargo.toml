@@ -31,7 +31,6 @@ tower-service = "0.3"
 tracing.workspace = true
 tracing-subscriber.workspace = true
 tower = { version = "0.5", features = ["util"] }
-url = "2"
 uuid = { version = "1", features = ["v4"] }
 zstd = { version = "0.14", default-features = false }
 base64 = "0.22"

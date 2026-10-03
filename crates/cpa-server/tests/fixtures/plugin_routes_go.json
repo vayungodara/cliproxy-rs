@@ -1659,6 +1659,115 @@
     {
       "op": "http",
       "args": {
+        "method": "DELETE",
+        "path": "/v0/management/plugins/recorder-a/quota",
+        "body": "{\"auth_index\":\"AUTHINDEX(claude.json)\",\"provider\":7}"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"auth_index\":\"AUTHINDEX(claude.json)\",\"status\":\"ok\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "DELETE",
+        "path": "/v0/management/plugins/recorder-a/quota",
+        "body": "{\"auth_index\":\"AUTHINDEX(claude.json)\",\"auth_index\":7}"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"auth_index\":\"AUTHINDEX(claude.json)\",\"status\":\"ok\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v0/management/plugins/recorder-a/quota?auth_index=%ZZ\u0026authIndex=AUTHINDEX(claude.json)"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"subscription\":{\"plan\":\"pro\"}}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v0/management/plugins/recorder-a/quota?auth_index=x;y\u0026authIndex=AUTHINDEX(claude.json)"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"subscription\":{\"plan\":\"pro\"}}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v0/management/plugins/recorder-a/quota?auth_index=+AUTHINDEX(claude.json)+"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"subscription\":{\"plan\":\"pro\"}}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v0/management/quota/fetch",
+        "body": "{\"auth_index\":\"AUTHINDEX(claude.json)\",\"unused\":1e400}"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"subscription\":{\"plan\":\"pro\"}}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v0/management/quota/fetch",
+        "body": "{\"auth_index\":\"AUTHINDEX(claude.json)\"} trailing"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"subscription\":{\"plan\":\"pro\"}}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v0/management/quota/fetch",
+        "body": "{\"auth_index\":\"AUTHINDEX(claude.json)\",\"provider\":7}"
+      },
+      "result": {
+        "status": 400,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"invalid request body\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
         "method": "POST",
         "path": "/v0/management/plugins/recorder-a/quota/reset",
         "body": "{\"authIndex\":\"AUTHINDEX(claude.json)\"}"
@@ -1736,6 +1845,41 @@
           "label": "a",
           "method": "quota.reset",
           "request": "{\"auth_index\":\"AUTHINDEX(codex.json)\",\"auth_id\":\"codex.json\",\"provider\":\"codex\",\"storage_json\":\"eyJ0eXBlIjoiY29kZXgiLCJlbWFpbCI6ImJAZXhhbXBsZS5pbnZhbGlkIiwiYWNjZXNzX3Rva2VuIjoiZmFrZS1jb2RleCJ9\",\"metadata\":{\"access_token\":\"fake-codex\",\"email\":\"b@example.invalid\",\"type\":\"codex\"},\"attributes\":{\"auth_kind\":\"oauth\",\"path\":\"AUTHDIR/codex.json\",\"source\":\"AUTHDIR/codex.json\",\"source_backend\":\"file\"},\"host\":{\"AuthDir\":\"AUTHDIR\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"host_callback_id\":\"#\"}"
+        },
+        {
+          "label": "a",
+          "method": "quota.reset",
+          "request": "{\"auth_index\":\"AUTHINDEX(claude.json)\",\"auth_id\":\"claude.json\",\"provider\":\"claude\",\"storage_json\":\"eyJ0eXBlIjoiY2xhdWRlIiwiZW1haWwiOiJhQGV4YW1wbGUuaW52YWxpZCIsImFjY2Vzc190b2tlbiI6ImZha2UtYWNjZXNzIiwicmVmcmVzaF90b2tlbiI6ImZha2UtcmVmcmVzaCJ9\",\"metadata\":{\"access_token\":\"fake-access\",\"email\":\"a@example.invalid\",\"refresh_token\":\"fake-refresh\",\"type\":\"claude\"},\"attributes\":{\"auth_kind\":\"oauth\",\"path\":\"AUTHDIR/claude.json\",\"source\":\"AUTHDIR/claude.json\",\"source_backend\":\"file\"},\"host\":{\"AuthDir\":\"AUTHDIR\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"host_callback_id\":\"#\"}"
+        },
+        {
+          "label": "a",
+          "method": "quota.reset",
+          "request": "{\"auth_index\":\"AUTHINDEX(claude.json)\",\"auth_id\":\"claude.json\",\"provider\":\"claude\",\"storage_json\":\"eyJ0eXBlIjoiY2xhdWRlIiwiZW1haWwiOiJhQGV4YW1wbGUuaW52YWxpZCIsImFjY2Vzc190b2tlbiI6ImZha2UtYWNjZXNzIiwicmVmcmVzaF90b2tlbiI6ImZha2UtcmVmcmVzaCJ9\",\"metadata\":{\"access_token\":\"fake-access\",\"email\":\"a@example.invalid\",\"refresh_token\":\"fake-refresh\",\"type\":\"claude\"},\"attributes\":{\"auth_kind\":\"oauth\",\"path\":\"AUTHDIR/claude.json\",\"source\":\"AUTHDIR/claude.json\",\"source_backend\":\"file\"},\"host\":{\"AuthDir\":\"AUTHDIR\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"host_callback_id\":\"#\"}"
+        },
+        {
+          "label": "a",
+          "method": "quota.fetch",
+          "request": "{\"auth_index\":\"AUTHINDEX(claude.json)\",\"auth_id\":\"claude.json\",\"provider\":\"claude\",\"storage_json\":\"eyJ0eXBlIjoiY2xhdWRlIiwiZW1haWwiOiJhQGV4YW1wbGUuaW52YWxpZCIsImFjY2Vzc190b2tlbiI6ImZha2UtYWNjZXNzIiwicmVmcmVzaF90b2tlbiI6ImZha2UtcmVmcmVzaCJ9\",\"metadata\":{\"access_token\":\"fake-access\",\"email\":\"a@example.invalid\",\"refresh_token\":\"fake-refresh\",\"type\":\"claude\"},\"attributes\":{\"auth_kind\":\"oauth\",\"path\":\"AUTHDIR/claude.json\",\"source\":\"AUTHDIR/claude.json\",\"source_backend\":\"file\"},\"host\":{\"AuthDir\":\"AUTHDIR\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"host_callback_id\":\"#\"}"
+        },
+        {
+          "label": "a",
+          "method": "quota.fetch",
+          "request": "{\"auth_index\":\"AUTHINDEX(claude.json)\",\"auth_id\":\"claude.json\",\"provider\":\"claude\",\"storage_json\":\"eyJ0eXBlIjoiY2xhdWRlIiwiZW1haWwiOiJhQGV4YW1wbGUuaW52YWxpZCIsImFjY2Vzc190b2tlbiI6ImZha2UtYWNjZXNzIiwicmVmcmVzaF90b2tlbiI6ImZha2UtcmVmcmVzaCJ9\",\"metadata\":{\"access_token\":\"fake-access\",\"email\":\"a@example.invalid\",\"refresh_token\":\"fake-refresh\",\"type\":\"claude\"},\"attributes\":{\"auth_kind\":\"oauth\",\"path\":\"AUTHDIR/claude.json\",\"source\":\"AUTHDIR/claude.json\",\"source_backend\":\"file\"},\"host\":{\"AuthDir\":\"AUTHDIR\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"host_callback_id\":\"#\"}"
+        },
+        {
+          "label": "a",
+          "method": "quota.fetch",
+          "request": "{\"auth_index\":\"AUTHINDEX(claude.json)\",\"auth_id\":\"claude.json\",\"provider\":\"claude\",\"storage_json\":\"eyJ0eXBlIjoiY2xhdWRlIiwiZW1haWwiOiJhQGV4YW1wbGUuaW52YWxpZCIsImFjY2Vzc190b2tlbiI6ImZha2UtYWNjZXNzIiwicmVmcmVzaF90b2tlbiI6ImZha2UtcmVmcmVzaCJ9\",\"metadata\":{\"access_token\":\"fake-access\",\"email\":\"a@example.invalid\",\"refresh_token\":\"fake-refresh\",\"type\":\"claude\"},\"attributes\":{\"auth_kind\":\"oauth\",\"path\":\"AUTHDIR/claude.json\",\"source\":\"AUTHDIR/claude.json\",\"source_backend\":\"file\"},\"host\":{\"AuthDir\":\"AUTHDIR\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"host_callback_id\":\"#\"}"
+        },
+        {
+          "label": "a",
+          "method": "quota.fetch",
+          "request": "{\"auth_index\":\"AUTHINDEX(claude.json)\",\"auth_id\":\"claude.json\",\"provider\":\"claude\",\"storage_json\":\"eyJ0eXBlIjoiY2xhdWRlIiwiZW1haWwiOiJhQGV4YW1wbGUuaW52YWxpZCIsImFjY2Vzc190b2tlbiI6ImZha2UtYWNjZXNzIiwicmVmcmVzaF90b2tlbiI6ImZha2UtcmVmcmVzaCJ9\",\"metadata\":{\"access_token\":\"fake-access\",\"email\":\"a@example.invalid\",\"refresh_token\":\"fake-refresh\",\"type\":\"claude\"},\"attributes\":{\"auth_kind\":\"oauth\",\"path\":\"AUTHDIR/claude.json\",\"source\":\"AUTHDIR/claude.json\",\"source_backend\":\"file\"},\"host\":{\"AuthDir\":\"AUTHDIR\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"host_callback_id\":\"#\"}"
+        },
+        {
+          "label": "a",
+          "method": "quota.fetch",
+          "request": "{\"auth_index\":\"AUTHINDEX(claude.json)\",\"auth_id\":\"claude.json\",\"provider\":\"claude\",\"storage_json\":\"eyJ0eXBlIjoiY2xhdWRlIiwiZW1haWwiOiJhQGV4YW1wbGUuaW52YWxpZCIsImFjY2Vzc190b2tlbiI6ImZha2UtYWNjZXNzIiwicmVmcmVzaF90b2tlbiI6ImZha2UtcmVmcmVzaCJ9\",\"metadata\":{\"access_token\":\"fake-access\",\"email\":\"a@example.invalid\",\"refresh_token\":\"fake-refresh\",\"type\":\"claude\"},\"attributes\":{\"auth_kind\":\"oauth\",\"path\":\"AUTHDIR/claude.json\",\"source\":\"AUTHDIR/claude.json\",\"source_backend\":\"file\"},\"host\":{\"AuthDir\":\"AUTHDIR\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"host_callback_id\":\"#\"}"
         },
         {
           "label": "a",
