@@ -1,0 +1,16 @@
+# Test tool, not shipped: cliproxy-rs with every provider login endpoint pointed at a local fake.
+[package]
+name = "login-harness"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[dependencies]
+anyhow = "1"
+axum = "0.8.9"
+tokio = { version = "1.53", features = ["full"] }
+cpa-core = { path = "../../../crates/cpa-core" }
+cpa-exec = { path = "../../../crates/cpa-exec" }
+cpa-server = { path = "../../../crates/cpa-server" }

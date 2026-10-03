@@ -34,6 +34,15 @@ const go = async (hash) => {
 };
 const button = (name, scope = main) => scope.getByRole("button", { name, exact: true });
 const toast = (text) => page.locator(".toast", { hasText: text }).waitFor();
+// One proxy request with the fixture's fake client key; the fixture routes it to a local
+// mock upstream (or a dead proxy port), so it reaches no provider. It gives the log tail a
+// request line with an ID and the usage queue a record.
+const traffic = () =>
+  fetch(`${origin}/v1/messages`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-api-key": "sk-fake-client-0001-not-a-real-key", "anthropic-version": "2023-06-01" },
+    body: JSON.stringify({ model: "claude-sonnet-4-5-20250929", max_tokens: 16, messages: [{ role: "user", content: "ping" }] }),
+  }).then((r) => r.text(), () => "");
 
 try {
   await page.goto(url);
@@ -131,6 +140,7 @@ try {
   pass("configuration: section editor shows a diff and closes without writing");
 
   // Logs and usage.
+  await traffic();
   await go("#logs");
   await main.locator(".log > div").first().waitFor();
   const id = await main.locator(".log a.t").first().textContent();
@@ -141,6 +151,7 @@ try {
   await go("#usage");
   page.once("dialog", (d) => d.accept());
   await button("Start live view").click();
+  await traffic();
   await main.locator(".live-readings").waitFor({ timeout: 90_000 });
   await shot("go-dark-usage-live", true);
   await button("Stop").click();
