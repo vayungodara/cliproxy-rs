@@ -260,13 +260,29 @@ def config_owner(key):
     return "ultra/server"
 
 
+def kebab_fields(text):
+    """Keys read through `#[serde(rename_all = "kebab-case")]` structs (no string literal)."""
+    keys = set()
+    for m in re.finditer(r'rename_all\s*=\s*"kebab-case"[^\n]*\n(?:\s*#\[[^\n]*\n)*\s*(?:pub(?:\([a-z]+\))?\s+)?struct\s+\w+(?:<[^>]*>)?\s*\{', text):
+        depth, i = 1, m.end()
+        start = i
+        while i < len(text) and depth:
+            depth += {"{": 1, "}": -1}.get(text[i], 0)
+            i += 1
+        body = text[start:i]
+        for field in re.findall(r'^\s*(?:pub(?:\([a-z]+\))?\s+)?([a-z][a-z0-9_]*)\s*:', body, re.M):
+            keys.add(field.replace("_", "-"))
+    return keys
+
+
 def config_sources():
     readers, tests = {}, {}
     for rel, text in scan_files():
         is_test = "/tests/" in rel or rel.endswith("_tests.rs") or "/testdata/" in rel
         if rel.endswith(".rs") and not is_test and not rel.endswith(CONFIG_ONLY):
             body = text.split("#[cfg(test)]")[0]
-            readers[rel] = body
+            # Kebab-case serde fields count as reads of their quoted key names.
+            readers[rel] = body + "\n" + " ".join(f'"{k}"' for k in sorted(kebab_fields(body)))
             if "#[cfg(test)]" in text:
                 tests[rel] = text[text.index("#[cfg(test)]"):]
         elif is_test:

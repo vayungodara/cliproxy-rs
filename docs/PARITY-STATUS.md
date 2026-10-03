@@ -18,7 +18,7 @@ Method: `docs/parity-audit/audit.py` regenerates this file. Routes come from `pr
 |---|---:|---:|---:|---:|
 | M1 | 118 | 48 | 70 | 0 |
 | M2 | 158 | 77 | 72 | 9 |
-| M3 | 350 | 121 | 98 | 131 |
+| M3 | 350 | 125 | 108 | 117 |
 
 ### Gaps by owner
 
@@ -26,11 +26,11 @@ Method: `docs/parity-audit/audit.py` regenerates this file. Routes come from `pr
 |---|---:|---:|---|
 | ultra/google | 55 | 9 | M3-0019, M3-0033, M3-0035, M3-0036, M3-0046, M3-0048, M3-0054, M3-0058, M3-0059, M3-0060, M3-0061, M3-0062, M3-0063, M3-0164, M3-0165, M3-0166, M3-0167, M3-0168, M3-0169, M3-0170, M3-0171, M3-0172, M3-0173, M3-0175, M3-0188, M3-0222, M3-0225, M3-0226, M3-0227, M3-0228, M3-0229, M3-0230, M3-0231, M3-0232, M3-0233, M3-0234, M3-0235, M3-0236, M3-0237, M3-0238, M3-0239, M3-0240, M3-0241, M3-0242, M3-0268, M3-0269, M3-0270, M3-0283, M3-0287, M3-0329, M3-0334, M3-0335, M3-0336, M3-0342, M3-0344 |
 | ultra/openai-xai | 39 | 7 | M3-0001, M3-0002, M3-0003, M3-0004, M3-0005, M3-0006, M3-0007, M3-0009, M3-0010, M3-0011, M3-0056, M3-0057, M3-0105, M3-0106, M3-0107, M3-0108, M3-0109, M3-0110, M3-0111, M3-0112, M3-0113, M3-0114, M3-0115, M3-0116, M3-0117, M3-0118, M3-0119, M3-0120, M3-0137, M3-0154, M3-0204, M3-0219, M3-0220, M3-0288, M3-0289, M3-0290, M3-0291, M2-0139, M2-0150 |
-| ultra/codex | 22 | 43 | M3-0097, M3-0141, M3-0142, M3-0202, M3-0205, M3-0211, M3-0212, M3-0213, M3-0215, M3-0223, M3-0246, M3-0251, M3-0255, M3-0262, M3-0263, M3-0328, M2-0145, M2-0146, M2-0147, M2-0148, M2-0149, M3-0347 |
-| ultra/device-providers | 15 | 11 | M3-0020, M3-0021, M3-0040, M3-0049, M3-0064, M3-0129, M3-0186, M3-0193, M3-0194, M3-0195, M3-0224, M3-0267, M3-0278, M3-0279, M3-0331 |
+| ultra/device-providers | 14 | 11 | M3-0020, M3-0021, M3-0040, M3-0049, M3-0064, M3-0186, M3-0193, M3-0194, M3-0195, M3-0224, M3-0267, M3-0278, M3-0279, M3-0331 |
+| ultra/codex | 9 | 52 | M3-0142, M3-0246, M3-0262, M3-0263, M2-0145, M2-0146, M2-0147, M2-0148, M2-0149 |
 | ultra/realtime | 6 | 1 | M3-0174, M3-0206, M3-0207, M3-0208, M3-0209, M3-0210 |
 | ultra/server | 3 | 31 | M2-0036, M3-0221, M2-0134 |
-| ultra/translate | 0 | 79 | — |
+| ultra/translate | 0 | 80 | — |
 | ultra/claude | 0 | 52 | — |
 | ultra/home | 0 | 2 | — |
 | ultra/manage | 0 | 2 | — |
@@ -100,7 +100,7 @@ Method: `docs/parity-audit/audit.py` regenerates this file. Routes come from `pr
 | M1-0030 | api-keys.claude[].base-url | covered | crates/cpa-core/src/config/credentials.rs; claude scenarios apikey-gateway-cli-stream, apikey-cloak-always (base-url) |  | heuristic: key name match |
 | M1-0031 | api-keys.claude[].keys[].models[].name | covered | crates/cpa-core/src/config/credentials.rs; claude scenarios with model aliases (apikey-firstparty-oauth-cli-alias) |  | heuristic: key name match |
 | M1-0032 | api-keys.claude[].keys[].models[].display-name | covered | crates/cpa-core/src/config/credentials.rs config_models_reach_the_registry_like_go (display names reach the registry; the test configures codex and vertex keys, Claude keys take the same path); crates/cpa-core/src/registry/dynamic.rs |  | heuristic: key name match |
-| M1-0033 | api-keys.claude[].keys[].models[].max-context-length | partial | parsed into crates/cpa-core/src/registry/dynamic.rs max_context_length | ultra/codex | Its consumer, the Codex client model catalog, is not ported. |
+| M1-0033 | api-keys.claude[].keys[].models[].max-context-length | partial | parsed into crates/cpa-core/src/registry/dynamic.rs max_context_length; cpa_common::codex_client carries the embedded catalog | ultra/codex | The client_version catalog that advertises it is not served on /v1/models. |
 | M1-0034 | api-keys.claude[].keys[].models[].is-compat | covered | claude scenarios apikey-compat-openai-reasoning, apikey-plain-openai-reasoning; compat scenarios claude_is_compat_keeps_thinking, claude_not_compat_drops_thinking |  | heuristic: key name match |
 | M1-0035 | api-keys.claude[].keys[].models[].thinking.min | covered | claude scenarios apikey-resolved-thinking-in-range, apikey-resolved-thinking-out-of-range |  | heuristic: key name match |
 | M1-0036 | api-keys.claude[].keys[].models[].thinking.max | covered | claude scenarios apikey-resolved-thinking-in-range, apikey-resolved-thinking-out-of-range |  | heuristic: key name match |
@@ -470,7 +470,7 @@ Method: `docs/parity-audit/audit.py` regenerates this file. Routes come from `pr
 
 | ID | Item | Status | Evidence | Gap owner | Note |
 |---|---|---|---|---|---|
-| M3-0053 | Codex native fidelity: instructions, tools (including apply_patch/spawn_agent), encrypted … | partial | crates/cpa-exec/src/codex*.rs; codex_go.json executor (18), codex_tls_tests.rs, codex_ws_tests.rs | ultra/codex | The image tool, direct Images API and spawn_agent rewrites are absent; local token counting differs (ponytail in codex.rs). |
+| M3-0053 | Codex native fidelity: instructions, tools (including apply_patch/spawn_agent), encrypted … | partial | crates/cpa-exec/src/codex*.rs; codex_go.json executor (18), replay; codex_client vectors; codex_tokens_go.json; codex_tls_tests.rs, codex_ws_tests.rs | ultra/codex | The image tool and direct Images API are absent. |
 | M3-0054 | Antigravity request sanitization includes project envelope, thinking-signature validation/… | missing | no Antigravity executor (the translators port the request-side sanitizing) | ultra/google |  |
 
 ### M3: 5. Configuration keys: canonical v8 paths, legacy paths, types, defaults, meanings
@@ -491,8 +491,8 @@ Method: `docs/parity-audit/audit.py` regenerates this file. Routes come from `pr
 | M3-0066 | api-keys.gemini[].base-url | covered | read in crates/cpa-core/src/config/credentials.rs; set in crates/cpa-core/src/config/credentials.rs, crates/cpa-exec/src/claude/testdata/go_executor.json (+6) |  | heuristic: key name match |
 | M3-0067 | api-keys.gemini[].keys[].models[].name | covered | read in crates/cpa-core/src/config/credentials.rs, crates/cpa-core/src/config/sanitize.rs; set in crates/cliproxy/tests/fixtures/discovery_cmd_go.json, crates/cliproxy/tests/fixtures/discovery_go.json (+43) |  | heuristic: key name match |
 | M3-0068 | api-keys.gemini[].keys[].models[].display-name | covered | read in crates/cpa-core/src/config/credentials.rs, crates/cpa-core/src/config/sanitize.rs; set in crates/cpa-core/src/config/credentials.rs |  | heuristic: key name match |
-| M3-0069 | api-keys.gemini[].keys[].models[].max-context-length | partial | parsed in crates/cpa-core/src/config/sanitize.rs | ultra/codex | Its consumer, the Codex client model catalog, is not ported. |
-| M3-0070 | api-keys.gemini[].keys[].models[].is-compat | covered | read in crates/cpa-exec/src/codex_request.rs, crates/cpa-exec/src/openai_compat_payload.rs; set in crates/cpa-exec/src/claude/testdata/go_executor.json, crates/cpa-exec/src/gemini_tests.rs (+2) |  | heuristic: key name match |
+| M3-0069 | api-keys.gemini[].keys[].models[].max-context-length | partial | parsed in crates/cpa-core/src/config/sanitize.rs, crates/cpa-core/src/registry/dynamic.rs | ultra/codex | Its consumer, the Codex client model catalog, is not ported. |
+| M3-0070 | api-keys.gemini[].keys[].models[].is-compat | covered | read in crates/cpa-core/src/registry/dynamic.rs, crates/cpa-exec/src/codex_request.rs (+1); set in crates/cpa-exec/src/claude/testdata/go_executor.json, crates/cpa-exec/src/gemini_tests.rs (+2) |  | heuristic: key name match |
 | M3-0071 | api-keys.gemini[].keys[].models[].thinking.min | covered | read in crates/cpa-common/src/thinking/tests.rs, crates/cpa-core/src/registry/dynamic.rs (+1); set in crates/cpa-common/tests/fixtures/go_calls.jsonl.gz, crates/cpa-common/tests/fixtures/go_thinking_matrix.jsonl.gz (+4) |  | heuristic: key name match |
 | M3-0072 | api-keys.gemini[].keys[].models[].thinking.max | covered | read in crates/cpa-common/src/codex_client.rs, crates/cpa-common/src/thinking/mod.rs (+6); set in crates/cpa-common/src/thinking/mod.rs, crates/cpa-common/tests/fixtures/go_calls.jsonl.gz (+5) |  | heuristic: key name match |
 | M3-0073 | api-keys.gemini[].keys[].models[].thinking.zero-allowed | covered | read in crates/cpa-core/src/registry.rs, crates/cpa-exec/src/openai_compat_payload.rs; set in crates/cpa-exec/src/gemini_tests.rs |  | heuristic: key name match |
@@ -503,8 +503,8 @@ Method: `docs/parity-audit/audit.py` regenerates this file. Routes come from `pr
 | M3-0078 | api-keys.interactions[].base-url | covered | read in crates/cpa-core/src/config/credentials.rs; set in crates/cpa-exec/src/gemini_tests.rs, crates/cpa-exec/tests/fixtures/gemini_go.json (+3) |  | heuristic: key name match |
 | M3-0079 | api-keys.interactions[].keys[].models[].name | covered | read in crates/cpa-core/src/config/credentials.rs, crates/cpa-core/src/config/sanitize.rs; set in crates/cliproxy/tests/fixtures/discovery_go.json, crates/cpa-common/src/thinking/mod.rs (+21) |  | heuristic: key name match |
 | M3-0080 | api-keys.interactions[].keys[].models[].display-name | partial | read in crates/cpa-core/src/config/credentials.rs, crates/cpa-core/src/config/sanitize.rs; no test sets it | ultra/google | heuristic: key name match |
-| M3-0081 | api-keys.interactions[].keys[].models[].max-context-length | partial | parsed in crates/cpa-core/src/config/sanitize.rs | ultra/codex | Its consumer, the Codex client model catalog, is not ported. |
-| M3-0082 | api-keys.interactions[].keys[].models[].is-compat | covered | read in crates/cpa-exec/src/codex_request.rs, crates/cpa-exec/src/openai_compat_payload.rs; set in crates/cpa-exec/src/gemini_tests.rs, crates/cpa-exec/tests/fixtures/gemini_go.json (+1) |  | heuristic: key name match |
+| M3-0081 | api-keys.interactions[].keys[].models[].max-context-length | partial | parsed in crates/cpa-core/src/config/sanitize.rs, crates/cpa-core/src/registry/dynamic.rs | ultra/codex | Its consumer, the Codex client model catalog, is not ported. |
+| M3-0082 | api-keys.interactions[].keys[].models[].is-compat | covered | read in crates/cpa-core/src/registry/dynamic.rs, crates/cpa-exec/src/codex_request.rs (+1); set in crates/cpa-exec/src/gemini_tests.rs, crates/cpa-exec/tests/fixtures/gemini_go.json (+1) |  | heuristic: key name match |
 | M3-0083 | api-keys.interactions[].keys[].models[].thinking.min | covered | read in crates/cpa-common/src/thinking/tests.rs, crates/cpa-core/src/registry/dynamic.rs (+1); set in crates/cpa-common/tests/fixtures/go_calls.jsonl.gz, crates/cpa-common/tests/fixtures/go_thinking_matrix.jsonl.gz (+3) |  | heuristic: key name match |
 | M3-0084 | api-keys.interactions[].keys[].models[].thinking.max | covered | read in crates/cpa-common/src/codex_client.rs, crates/cpa-common/src/thinking/mod.rs (+6); set in crates/cpa-common/src/thinking/mod.rs, crates/cpa-common/tests/fixtures/go_calls.jsonl.gz (+4) |  | heuristic: key name match |
 | M3-0085 | api-keys.interactions[].keys[].models[].thinking.zero-allowed | covered | read in crates/cpa-core/src/registry.rs, crates/cpa-exec/src/openai_compat_payload.rs; set in crates/cpa-exec/src/gemini_tests.rs |  | heuristic: key name match |
@@ -517,9 +517,9 @@ Method: `docs/parity-audit/audit.py` regenerates this file. Routes come from `pr
 | M3-0092 | api-keys.codex[].keys[].alpha-search | covered | read in crates/cpa-core/src/config/credentials.rs; set in crates/cpa-server/tests/fixtures/manage_go.json |  | heuristic: key name match |
 | M3-0093 | api-keys.codex[].keys[].models[].name | covered | read in crates/cpa-core/src/config/credentials.rs, crates/cpa-core/src/config/sanitize.rs; set in crates/cpa-common/src/codex_client_tests.rs, crates/cpa-common/src/thinking/mod.rs (+46) |  | heuristic: key name match |
 | M3-0094 | api-keys.codex[].keys[].models[].display-name | covered | read in crates/cpa-core/src/config/credentials.rs, crates/cpa-core/src/config/sanitize.rs; set in crates/cpa-core/src/config/credentials.rs |  | heuristic: key name match |
-| M3-0095 | api-keys.codex[].keys[].models[].max-context-length | partial | parsed in crates/cpa-core/src/config/sanitize.rs | ultra/codex | Its consumer, the Codex client model catalog, is not ported. |
-| M3-0096 | api-keys.codex[].keys[].models[].is-compat | covered | read in crates/cpa-exec/src/codex_request.rs, crates/cpa-exec/src/openai_compat_payload.rs; set in crates/cpa-exec/tests/fixtures/codex_go.json, crates/cpa-exec/tests/fixtures/gemini_go.json (+3) |  | heuristic: key name match |
-| M3-0097 | api-keys.codex[].keys[].models[].support-configuration-update | missing | accepted by the config schema; no runtime code reads "support-configuration-update" | ultra/codex |  |
+| M3-0095 | api-keys.codex[].keys[].models[].max-context-length | partial | parsed in crates/cpa-core/src/config/sanitize.rs, crates/cpa-core/src/registry/dynamic.rs | ultra/codex | Its consumer, the Codex client model catalog, is not ported. |
+| M3-0096 | api-keys.codex[].keys[].models[].is-compat | covered | read in crates/cpa-core/src/registry/dynamic.rs, crates/cpa-exec/src/codex_request.rs (+1); set in crates/cpa-exec/tests/fixtures/codex_go.json, crates/cpa-exec/tests/fixtures/gemini_go.json (+3) |  | heuristic: key name match |
+| M3-0097 | api-keys.codex[].keys[].models[].support-configuration-update | covered | read in crates/cpa-core/src/registry/dynamic.rs; set in crates/cpa-server/tests/fixtures/server_go.json |  | heuristic: key name match |
 | M3-0098 | api-keys.codex[].keys[].models[].thinking.min | covered | read in crates/cpa-common/src/thinking/tests.rs, crates/cpa-core/src/registry/dynamic.rs (+1); set in crates/cpa-common/tests/fixtures/go_calls.jsonl.gz, crates/cpa-common/tests/fixtures/go_thinking_matrix.jsonl.gz (+3) |  | heuristic: key name match |
 | M3-0099 | api-keys.codex[].keys[].models[].thinking.max | covered | read in crates/cpa-common/src/codex_client.rs, crates/cpa-common/src/thinking/mod.rs (+6); set in crates/cpa-common/src/thinking/mod.rs, crates/cpa-common/tests/fixtures/go_calls.jsonl.gz (+3) |  | heuristic: key name match |
 | M3-0100 | api-keys.codex[].keys[].models[].thinking.zero-allowed | partial | read in crates/cpa-core/src/registry.rs, crates/cpa-exec/src/openai_compat_payload.rs; no test sets it | ultra/codex | heuristic: key name match |
@@ -549,9 +549,9 @@ Method: `docs/parity-audit/audit.py` regenerates this file. Routes come from `pr
 | M3-0124 | api-keys.meta[].keys[].alpha-search | covered | read in crates/cpa-core/src/config/credentials.rs; set in crates/cpa-server/tests/fixtures/manage_go.json |  | heuristic: key name match |
 | M3-0125 | api-keys.meta[].keys[].models[].name | covered | read in crates/cpa-core/src/config/credentials.rs, crates/cpa-core/src/config/sanitize.rs; set in crates/cpa-common/tests/fixtures/payload_go.json, crates/cpa-core/src/registry/dynamic.rs (+90) |  | heuristic: key name match |
 | M3-0126 | api-keys.meta[].keys[].models[].display-name | covered | read in crates/cpa-core/src/config/credentials.rs, crates/cpa-core/src/config/sanitize.rs; set in crates/cpa-core/src/registry/dynamic.rs |  | heuristic: key name match |
-| M3-0127 | api-keys.meta[].keys[].models[].max-context-length | partial | parsed in crates/cpa-core/src/config/sanitize.rs | ultra/codex | Its consumer, the Codex client model catalog, is not ported. |
-| M3-0128 | api-keys.meta[].keys[].models[].is-compat | covered | read in crates/cpa-exec/src/codex_request.rs, crates/cpa-exec/src/openai_compat_payload.rs; set in crates/cpa-core/src/registry/dynamic.rs, crates/cpa-exec/src/claude/testdata/go_executor.json (+4) |  | heuristic: key name match |
-| M3-0129 | api-keys.meta[].keys[].models[].support-configuration-update | missing | accepted by the config schema; no runtime code reads "support-configuration-update" | ultra/device-providers |  |
+| M3-0127 | api-keys.meta[].keys[].models[].max-context-length | partial | parsed in crates/cpa-core/src/config/sanitize.rs, crates/cpa-core/src/registry/dynamic.rs | ultra/codex | Its consumer, the Codex client model catalog, is not ported. |
+| M3-0128 | api-keys.meta[].keys[].models[].is-compat | covered | read in crates/cpa-core/src/registry/dynamic.rs, crates/cpa-exec/src/codex_request.rs (+1); set in crates/cpa-core/src/registry/dynamic.rs, crates/cpa-exec/src/claude/testdata/go_executor.json (+4) |  | heuristic: key name match |
+| M3-0129 | api-keys.meta[].keys[].models[].support-configuration-update | covered | read in crates/cpa-core/src/registry/dynamic.rs; set in crates/cpa-server/tests/fixtures/server_go.json |  | heuristic: key name match |
 | M3-0130 | api-keys.meta[].keys[].models[].thinking.min | covered | read in crates/cpa-common/src/thinking/tests.rs, crates/cpa-core/src/registry/dynamic.rs (+1); set in crates/cpa-common/tests/fixtures/go_calls.jsonl.gz, crates/cpa-exec/src/claude/testdata/go_executor.json (+4) |  | heuristic: key name match |
 | M3-0131 | api-keys.meta[].keys[].models[].thinking.max | covered | read in crates/cpa-common/src/codex_client.rs, crates/cpa-common/src/thinking/mod.rs (+6); set in crates/cpa-common/tests/fixtures/go_calls.jsonl.gz, crates/cpa-exec/src/claude/testdata/go_executor.json (+6) |  | heuristic: key name match |
 | M3-0132 | api-keys.meta[].keys[].models[].thinking.zero-allowed | covered | read in crates/cpa-core/src/registry.rs, crates/cpa-exec/src/openai_compat_payload.rs; set in crates/cpa-exec/src/gemini_tests.rs |  | heuristic: key name match |
@@ -563,7 +563,7 @@ Method: `docs/parity-audit/audit.py` regenerates this file. Routes come from `pr
 | M3-0138 | oauth.providers.codex.disable-codex-cloaking | covered | read in crates/cpa-core/src/config/credentials.rs, crates/cpa-exec/src/codex_request.rs; set in crates/cpa-exec/tests/fixtures/codex_go.json, crates/cpa-server/tests/fixtures/manage_go.json (+1) |  | heuristic: key name match |
 | M3-0139 | oauth.providers.codex.stream-bootstrap-buffering | covered | read in crates/cpa-exec/src/codex_request.rs; set in crates/cpa-exec/src/codex_ws_tests.rs, crates/cpa-exec/tests/fixtures/codex_go.json (+1) |  | heuristic: key name match |
 | M3-0140 | oauth.providers.codex.stream-bootstrap-timeout | covered | read in crates/cpa-exec/src/codex_request.rs; set in crates/cpa-exec/tests/fixtures/codex_go.json |  | heuristic: key name match |
-| M3-0141 | oauth.providers.codex.orphan-delegation-compatibility | missing | read in crates/cpa-common/src/codex_client.rs; set in crates/cpa-common/src/codex_client_tests.rs, crates/cpa-exec/src/codex_client_tests.rs (+2) | ultra/codex | Orphan delegation compatibility is not configurable. |
+| M3-0141 | oauth.providers.codex.orphan-delegation-compatibility | covered | read in crates/cpa-common/src/codex_client.rs; set in crates/cpa-common/src/codex_client_tests.rs, crates/cpa-exec/src/codex_client_tests.rs (+2) |  | heuristic: key name match |
 | M3-0142 | oauth.providers.codex.response-steering | missing | accepted by the config schema; no runtime code reads "response-steering" | ultra/codex | Responses steering is not ported. |
 | M3-0143 | oauth.providers.codex.header-defaults.user-agent | covered | read in crates/cpa-common/src/codex_client.rs, crates/cpa-exec/src/claude/detect.rs (+9); set in crates/cpa-common/src/codex_client_tests.rs, crates/cpa-exec/src/codex_oauth_tests.rs (+7) |  | heuristic: key name match |
 | M3-0144 | oauth.providers.codex.header-defaults.beta-features | partial | read in crates/cpa-exec/src/codex_request.rs; no test sets it | ultra/codex | heuristic: key name match |
@@ -573,11 +573,11 @@ Method: `docs/parity-audit/audit.py` regenerates this file. Routes come from `pr
 | M3-0148 | api-keys.openai-compatibility[].keys[].api-key | covered | read in crates/cpa-core/src/config/credentials.rs; set in crates/cpa-core/src/config/credentials.rs, crates/cpa-exec/tests/fixtures/openai_compat_go.json (+3) |  | heuristic: key name match |
 | M3-0149 | api-keys.openai-compatibility[].models[].name | covered | read in crates/cpa-core/src/config/credentials.rs, crates/cpa-core/src/config/sanitize.rs; set in crates/cpa-core/src/config/credentials.rs, crates/cpa-core/src/registry/dynamic.rs (+6) |  | heuristic: key name match |
 | M3-0150 | api-keys.openai-compatibility[].models[].display-name | covered | read in crates/cpa-core/src/config/credentials.rs, crates/cpa-core/src/config/sanitize.rs; set in crates/cpa-core/src/config/credentials.rs, crates/cpa-core/src/registry/dynamic.rs |  | heuristic: key name match |
-| M3-0151 | api-keys.openai-compatibility[].models[].max-context-length | partial | parsed in crates/cpa-core/src/config/sanitize.rs | ultra/codex | Its consumer, the Codex client model catalog, is not ported. |
-| M3-0152 | api-keys.openai-compatibility[].models[].image | covered | read in crates/cpa-common/src/session.rs, crates/cpa-exec/src/gemini_stream.rs (+21); set in crates/cpa-exec/tests/fixtures/openai_compat_go.json, crates/cpa-server/tests/fixtures/manage_go.json (+1) |  | heuristic: key name match |
+| M3-0151 | api-keys.openai-compatibility[].models[].max-context-length | partial | parsed in crates/cpa-core/src/config/sanitize.rs, crates/cpa-core/src/registry/dynamic.rs | ultra/codex | Its consumer, the Codex client model catalog, is not ported. |
+| M3-0152 | api-keys.openai-compatibility[].models[].image | covered | read in crates/cpa-common/src/session.rs, crates/cpa-core/src/registry/dynamic.rs (+22); set in crates/cpa-exec/tests/fixtures/openai_compat_go.json, crates/cpa-server/tests/fixtures/manage_go.json (+1) |  | heuristic: key name match |
 | M3-0153 | api-keys.openai-compatibility[].models[].input-modalities | covered | read in crates/cpa-exec/src/openai_compat_payload.rs; set in crates/cpa-exec/tests/fixtures/openai_compat_go.json |  | heuristic: key name match |
 | M3-0154 | api-keys.openai-compatibility[].models[].output-modalities | missing | accepted by the config schema; no runtime code reads "output-modalities" | ultra/openai-xai |  |
-| M3-0155 | api-keys.openai-compatibility[].models[].is-compat | covered | read in crates/cpa-exec/src/codex_request.rs, crates/cpa-exec/src/openai_compat_payload.rs; set in crates/cpa-core/src/registry/dynamic.rs, crates/cpa-exec/tests/fixtures/openai_compat_go.json (+1) |  | heuristic: key name match |
+| M3-0155 | api-keys.openai-compatibility[].models[].is-compat | covered | read in crates/cpa-core/src/registry/dynamic.rs, crates/cpa-exec/src/codex_request.rs (+1); set in crates/cpa-core/src/registry/dynamic.rs, crates/cpa-exec/tests/fixtures/openai_compat_go.json (+1) |  | heuristic: key name match |
 | M3-0156 | api-keys.openai-compatibility[].models[].use-max-completion-tokens | covered | read in crates/cpa-exec/src/openai_compat_payload.rs; set in crates/cpa-exec/tests/fixtures/openai_compat_go.json |  | heuristic: key name match |
 | M3-0157 | api-keys.openai-compatibility[].models[].thinking.min | covered | read in crates/cpa-common/src/thinking/tests.rs, crates/cpa-core/src/registry/dynamic.rs (+1); set in crates/cpa-common/tests/fixtures/go_calls.jsonl.gz, crates/cpa-server/tests/fixtures/manage_go.json (+1) |  | heuristic: key name match |
 | M3-0158 | api-keys.openai-compatibility[].models[].thinking.max | covered | read in crates/cpa-common/src/codex_client.rs, crates/cpa-common/src/thinking/mod.rs (+6); set in crates/cpa-common/tests/fixtures/go_calls.jsonl.gz, crates/cpa-server/src/scheduler.rs (+2) |  | heuristic: key name match |
@@ -639,20 +639,20 @@ Method: `docs/parity-audit/audit.py` regenerates this file. Routes come from `pr
 | M3-0199 | internal/auth/meta/meta_auth_test.go | partial | crates/cpa-exec/src/meta_tests.rs login_matches_go_requests_and_file, device_flow_errors_and_slow_down_follow_go, poll_errors_use_go_partial_decoding_and_key_folding | ultra/device-providers | Equivalents; not ported by name. |
 | M3-0200 | internal/auth/xai/xai_auth_test.go | partial | crates/cpa-exec/src/xai_auth_tests.rs (9 tests from xai_auth_go.json) | ultra/openai-xai | Equivalents; not ported by name. |
 | M3-0201 | internal/cache/antigravity_reasoning_replay_cache_test.go | partial | crates/cpa-translate/src/replay_cache.rs (in-process store, tombstones, purge; 4 tests) | ultra/google | Owner of internal/cache with the Antigravity executor; snapshots, CAS and Home KV are not ported. |
-| M3-0202 | internal/cache/codex_reasoning_replay_cache_test.go | missing | no Codex reasoning replay cache | ultra/codex |  |
+| M3-0202 | internal/cache/codex_reasoning_replay_cache_test.go | partial | crates/cpa-exec/src/codex_replay.rs (cache per model and Claude Code agent/session); codex_replay_tests.rs replay_scenarios_match_go (Go-generated codex_go.json replay scenarios), entries_keep_the_newest_turns | ultra/codex | Not ported by name. |
 | M3-0203 | internal/cache/kimi_thinking_replay_cache_test.go | partial | crates/cpa-exec/src/kimi_replay.rs family_shares_k3_variants_only, conditional_writes_keep_newer_content | ultra/device-providers | Not ported by name. |
 | M3-0204 | internal/cache/xai_reasoning_replay_cache_test.go | missing | 0/7 cases matched; xai_reasoning_replay_cache.go not cited | ultra/openai-xai |  |
-| M3-0205 | internal/client/codex/apply-patch/tool_test.go | missing | no internal/client/codex/apply-patch tool definitions | ultra/codex |  |
+| M3-0205 | internal/client/codex/apply-patch/tool_test.go | partial | crates/cpa-translate/src/apply_patch.rs ports tool.go (is_custom_tool, description, parameters, wrap_input, unwrap_input, escape_input_fragment); exercised by apply_patch goldens and tests/fixtures/apply_patch_responses.json | ultra/translate | Unit cases not ported by name. |
 | M3-0206 | internal/client/codex/live/capabilities_test.go | missing | 0/5 cases matched; capabilities.go not cited | ultra/realtime |  |
 | M3-0207 | internal/client/codex/live/client_secret_test.go | missing | 0/10 cases matched; client_secret.go not cited | ultra/realtime |  |
 | M3-0208 | internal/client/codex/live/live_test.go | missing | 0/25 cases matched; live.go not cited | ultra/realtime |  |
 | M3-0209 | internal/client/codex/live/media_test.go | missing | 0/4 cases matched; media.go not cited | ultra/realtime |  |
 | M3-0210 | internal/client/codex/live/tcp_proxy_test.go | missing | 0/11 cases matched; tcp_proxy.go not cited | ultra/realtime |  |
-| M3-0211 | internal/client/codex/models/apply_patch_test.go | missing | no Codex client model catalog | ultra/codex |  |
-| M3-0212 | internal/client/codex/models/models_test.go | missing | no Codex client model catalog | ultra/codex |  |
-| M3-0213 | internal/client/codex/models/web_search_capability_test.go | missing | no Codex client model catalog | ultra/codex |  |
-| M3-0214 | internal/client/codex/optimize-multi-agent-v2/optimize_multi_agent_v2_test.go | partial | cpa_common::codex_client rewrites (crates/cpa-exec/src/codex_request.rs, crates/cpa-server/src/websocket.rs) | ultra/codex | 35 Go cases; not ported by name; optimize-multi-agent-v2 has a ponytail in websocket.rs. |
-| M3-0215 | internal/client/codex/optimize-multi-agent-v2/orphan_delegation_test.go | missing | orphan delegation compatibility not configurable | ultra/codex |  |
+| M3-0211 | internal/client/codex/models/apply_patch_test.go | partial | cpa_common::codex_client CLIENT_MODELS_JSON (embedded Go catalog) feeds spawn_agent model lists | ultra/codex | Catalog cases not ported; /v1/models does not serve the client_version catalog (ponytail in crates/cpa-server/src/models.rs). |
+| M3-0212 | internal/client/codex/models/models_test.go | partial | cpa_common::codex_client CLIENT_MODELS_JSON (embedded Go catalog) feeds spawn_agent model lists | ultra/codex | 31 Go cases not ported; /v1/models does not serve the client_version catalog; the remote catalog updater is not ported. |
+| M3-0213 | internal/client/codex/models/web_search_capability_test.go | partial | cpa_common::codex_client CLIENT_MODELS_JSON (embedded Go catalog) feeds spawn_agent model lists | ultra/codex | Not ported by name. |
+| M3-0214 | internal/client/codex/optimize-multi-agent-v2/optimize_multi_agent_v2_test.go | partial | cpa_common::codex_client multi-agent v2 rewrites; crates/cpa-common/tests/fixtures/codex_client_go.json (52 Go vectors); crates/cpa-exec/src/codex_client_tests.rs replays_go_translation_and_optimization | ultra/codex | 35 Go cases; not ported by name. |
+| M3-0215 | internal/client/codex/optimize-multi-agent-v2/orphan_delegation_test.go | partial | cpa_common::codex_client orphan delegation (oauth.providers.codex.orphan-delegation-compatibility); crates/cpa-exec/src/codex_client_tests.rs orphan_delegation_written_oauth_only_skips_api_keys; codex_client_go.json vectors | ultra/codex | Not ported by name. |
 | M3-0216 | internal/client/codex/tool-schema/tool_schema_test.go | partial | cpa_common::payload normalize_codex_tool_integer_types | ultra/codex | Not ported by name. |
 | M3-0217 | internal/config/codex_live_test.go | partial | crates/cpa-core/src/config/validate.rs (codex live bounds) | ultra/realtime | Validation only; the live relay is absent. |
 | M3-0218 | internal/config/config_meta_test.go | partial | crates/cpa-core/src/config.rs | ultra/manage | Not ported by name. |
@@ -660,7 +660,7 @@ Method: `docs/parity-audit/audit.py` regenerates this file. Routes come from `pr
 | M3-0220 | internal/config/xai_api_key_test.go | missing | no xAI executor | ultra/openai-xai |  |
 | M3-0221 | internal/logging/requestmeta_test.go | missing | no request metadata logging | ultra/server |  |
 | M3-0222 | internal/misc/antigravity_version_test.go | missing | 0/9 cases matched; antigravity_version.go not cited | ultra/google |  |
-| M3-0223 | internal/registry/codex_client_models_test.go | missing | 0/5 cases matched; codex_client_models.go not cited | ultra/codex |  |
+| M3-0223 | internal/registry/codex_client_models_test.go | partial | cpa_common::codex_client CLIENT_MODELS_JSON (embedded Go catalog) feeds spawn_agent model lists | ultra/codex | Registry catalog cases not ported; no remote updater (StartCodexClientModelsUpdater). |
 | M3-0224 | internal/registry/devin_models_test.go | missing | 0/8 cases matched; devin_models.go not cited | ultra/device-providers |  |
 | M3-0225 | internal/runtime/executor/aistudio_executor_test.go | missing | 0/12 cases matched; aistudio_executor.go not cited | ultra/google |  |
 | M3-0226 | internal/runtime/executor/antigravity_executor_buildrequest_test.go | missing | 0/14 cases matched; antigravity_executor_buildrequest.go not cited | ultra/google |  |
@@ -688,14 +688,14 @@ Method: `docs/parity-audit/audit.py` regenerates this file. Routes come from `pr
 | M3-0248 | internal/runtime/executor/codex_executor_input_ids_test.go | partial | crates/cpa-exec/src/codex_request.rs input IDs | ultra/codex | Not ported by name. |
 | M3-0249 | internal/runtime/executor/codex_executor_instructions_test.go | partial | codex_go.json executor oauth_nonstream_no_instructions_free_plan | ultra/codex | Not ported by name. |
 | M3-0250 | internal/runtime/executor/codex_executor_parallel_tool_calls_test.go | partial | crates/cpa-exec/src/codex_request.rs parallel_tool_calls | ultra/codex | Not ported by name. |
-| M3-0251 | internal/runtime/executor/codex_executor_reasoning_replay_cache_test.go | missing | no Codex reasoning replay cache | ultra/codex |  |
+| M3-0251 | internal/runtime/executor/codex_executor_reasoning_replay_cache_test.go | partial | crates/cpa-exec/src/codex_replay.rs; codex_replay_tests.rs replay_scenarios_match_go (Go-generated end-to-end scenarios) | ultra/codex | 24 Go cases; not ported by name. |
 | M3-0252 | internal/runtime/executor/codex_executor_retry_test.go | partial | codex_go.json executor oauth_bootstrap_overload_failover; crates/cpa-exec/src/codex_tests.rs (invalid_grant) | ultra/codex | Not ported by name. |
 | M3-0253 | internal/runtime/executor/codex_executor_routing_hint_test.go | partial | crates/cpa-exec/src/codex_request.rs routing hint | ultra/codex | Not ported by name. |
 | M3-0254 | internal/runtime/executor/codex_executor_signature_test.go | partial | crates/cpa-exec/src/codex_request.rs reasoning sanitizing | ultra/codex | Not ported by name. |
-| M3-0255 | internal/runtime/executor/codex_executor_spawn_agent_test.go | missing | no spawn_agent handling | ultra/codex |  |
+| M3-0255 | internal/runtime/executor/codex_executor_spawn_agent_test.go | partial | cpa_common::codex_client spawn_agent/send_message/followup_task rewrites; crates/cpa-common/tests/fixtures/codex_client_go.json (52 Go vectors), crates/cpa-exec/tests/fixtures/codex_client_translate_go.json | ultra/codex | Not ported by name. |
 | M3-0256 | internal/runtime/executor/codex_executor_stream_alloc_test.go | covered | n/a: Go allocation count test |  |  |
 | M3-0257 | internal/runtime/executor/codex_executor_stream_output_test.go | partial | codex_go.json executor oauth_stream_native, oauth_stream_terminal_failed_in_stream, oauth_stream_truncated, oauth_capacity_in_stream_500 | ultra/codex | 21 Go cases; not ported by name. |
-| M3-0258 | internal/runtime/executor/codex_executor_tokens_test.go | partial | crates/cpa-exec/src/codex.rs count path | ultra/codex | Go counts input tokens locally with tiktoken; Rust differs (ponytail in codex.rs). |
+| M3-0258 | internal/runtime/executor/codex_executor_tokens_test.go | covered | crates/cpa-exec/src/codex_tokens.rs; codex_tokens_tests.rs count_tokens_matches_go, encodings_follow_go_model_prefixes (codex_tokens_go.json) |  |  |
 | M3-0259 | internal/runtime/executor/codex_executor_tool_schema_test.go | partial | codex_go.json executor oauth_tool_schema_enum_collapse | ultra/codex | Not ported by name. |
 | M3-0260 | internal/runtime/executor/codex_executor_translate_test.go | partial | crates/cpa-exec/src/codex.rs via cpa_translate | ultra/codex | Not ported by name. |
 | M3-0261 | internal/runtime/executor/codex_native_fidelity_test.go | partial | crates/cpa-exec/src/codex_tls_tests.rs chatgpt_clienthello_matches_go_chrome_profile; codex_go.json executor | ultra/codex | Not ported by name. |
@@ -765,7 +765,7 @@ Method: `docs/parity-audit/audit.py` regenerates this file. Routes come from `pr
 | M3-0325 | internal/translator/common/antigravity_tools_test.go | partial | crates/cpa-translate/src/antigravity_*.rs tool renames; goldens | ultra/translate | Unit cases not ported. |
 | M3-0326 | internal/translator/common/devin_tools_test.go | partial | crates/cpa-translate/src/responses_interactions.rs Devin tool filtering; goldens | ultra/translate | Unit cases not ported. |
 | M3-0327 | sdk/api/handlers/handlers_metadata_test.go | partial | crates/cpa-server/src/session.rs, dispatch.rs (execution metadata) | ultra/server | 15 Go cases; not ported by name. |
-| M3-0328 | sdk/api/handlers/openai/codex_client_models_test.go | missing | no Codex client model catalog | ultra/codex |  |
+| M3-0328 | sdk/api/handlers/openai/codex_client_models_test.go | partial | cpa_common::codex_client CLIENT_MODELS_JSON (embedded Go catalog) feeds spawn_agent model lists | ultra/codex | The handler that serves the client_version catalog is not ported. |
 | M3-0329 | sdk/auth/antigravity_headless_test.go | missing | 0/9 cases matched; antigravity_headless.go not cited | ultra/google |  |
 | M3-0330 | sdk/auth/codex_auth_record_test.go | covered | crates/cpa-exec/src/codex_oauth_tests.rs login_file_bytes_match_go_storage_serializer |  |  |
 | M3-0331 | sdk/auth/devin_test.go | missing | 0/11 cases matched; devin.go not cited | ultra/device-providers |  |
@@ -784,7 +784,7 @@ Method: `docs/parity-audit/audit.py` regenerates this file. Routes come from `pr
 | M3-0344 | sdk/cliproxy/auth/selector_antigravity_subagent_test.go | missing | 0/8 cases matched; selector_antigravity_subagent.go not cited | ultra/google |  |
 | M3-0345 | sdk/cliproxy/auth/session_affinity_metadata_test.go | partial | crates/cpa-server/src/affinity.rs (3 tests), server_go.json affinity | ultra/server | Not ported by name. |
 | M3-0346 | sdk/cliproxy/service_codex_executor_binding_test.go | partial | crates/cpa-exec/src/lib.rs Executors binding | ultra/codex | Not ported by name. |
-| M3-0347 | sdk/cliproxy/service_codex_models_test.go | missing | no Codex client model catalog | ultra/codex |  |
+| M3-0347 | sdk/cliproxy/service_codex_models_test.go | partial | cpa_common::codex_client CLIENT_MODELS_JSON (embedded Go catalog) feeds spawn_agent model lists | ultra/codex | Catalog service cases not ported; no remote updater. |
 | M3-0348 | test/codex_incomplete_stream_error_type_test.go | partial | crates/cpa-server/src/openai.rs; codex_go.json oauth_stream_truncated | ultra/codex | Not ported by name. |
 | M3-0349 | test/codex_quota_failover_test.go | partial | crates/cpa-server/tests/routes.rs failover_stop_rules_and_cooldown_contracts; codex_go.json oauth_usage_limit_429 | ultra/server | Not ported by name. |
 | M3-0350 | test/codex_stream_disconnect_failover_test.go | partial | crates/cpa-server/tests/routes.rs empty_stream_fails_over_and_reports_empty_stream, bootstrap retries | ultra/server | Not ported by name. |
