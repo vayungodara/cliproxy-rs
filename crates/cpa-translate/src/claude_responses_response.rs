@@ -1,33 +1,30 @@
 //! Claude Messages responses -> OpenAI Responses
-//! (internal/translator/claude/openai/responses/claude_openai-responses_response.go).
+//! (internal/translator/claude/openai/responses/claude_openai-responses_response.go),
+//! including the apply_patch bridge: a declared `apply_patch` custom tool streams its
+//! decoded patch input, and invalid or conflicting input fails the response.
 //
-// ponytail: responses that call a declared `apply_patch` custom tool fail with an error
-// instead of running Go's streaming patch decoder (common/apply_patch_*.go); port it with
-// the apply_patch Responses bridge. Go finalizes pending tool items in map order, which
-// is random when several are open at once; this port uses ascending block index.
+// ponytail: Go finalizes pending tool items in map order, which is random when several
+// are open at once; this port uses ascending block index.
 
+use crate::apply_patch::CallState;
 use crate::{
-    Error, Pair, Registered, RequestCtx, ResponseCtx,
+    Error, Registered, RequestCtx, ResponseCtx,
     claude_responses::{
         REDACTED_THINKING_PREFIX, ToolNames, split_qualified_call, tool_descriptors, tool_winners, web_search_call_id,
     },
     common::{self, now_unix, sse_event, trim_space},
-    stream::{self, GoStream},
+    stream::GoStream,
 };
 use cpa_common::json::{self as gj, Kind, Res};
-use cpa_core::format::Format;
 use std::collections::{BTreeMap, HashMap, HashSet};
 
-pub static PAIR: Registered = Registered {
-    pair: Pair {
-        request,
-        non_stream,
-        stream: |ctx| stream::framed(Format::OpenAIResponse, Format::Claude, go_stream(ctx)),
-        count_tokens: None,
-    },
+pub static PAIR: Registered = registered!(
+    OpenAIResponse -> Claude,
+    request: request,
+    non_stream: non_stream,
+    go_stream: go_stream,
     token_count: None,
-    go_stream,
-};
+);
 
 fn request(ctx: &RequestCtx<'_>, body: &[u8]) -> Result<Vec<u8>, Error> {
     Ok(crate::claude_responses::convert(ctx.model, body, ctx.stream, false))
@@ -36,6 +33,9 @@ fn request(ctx: &RequestCtx<'_>, body: &[u8]) -> Result<Vec<u8>, Error> {
 struct Winner {
     custom: bool,
     apply_patch: bool,
+    /// The declaration's local name and namespace (an apply_patch call's identity).
+    local_name: Vec<u8>,
+    namespace: Vec<u8>,
 }
 
 struct Tools {
@@ -53,7 +53,14 @@ impl Tools {
                 let d = &descriptors[order];
                 let custom = d.kind == b"custom";
                 let apply_patch = custom && crate::apply_patch::is_custom_tool(&d.tool);
-                (name, Winner { custom, apply_patch })
+                let local_name = if d.direct { d.name.clone() } else { d.child_name.clone() };
+                let winner = Winner {
+                    custom,
+                    apply_patch,
+                    local_name,
+                    namespace: d.namespace.clone(),
+                };
+                (name, winner)
             })
             .collect();
         Tools {
@@ -66,19 +73,52 @@ impl Tools {
         self.winners.get(&self.names.identity(claude_name))
     }
 
+    /// isApplyPatch: the original request's winning declaration decides.
     fn is_apply_patch(&self, name: &[u8]) -> bool {
         self.winner(name).is_some_and(|w| w.apply_patch)
     }
 
-    fn check(&self, names: &[&[u8]]) -> Result<(), Error> {
-        if names.iter().any(|n| self.is_apply_patch(n)) {
-            return Err(Error("apply_patch Responses translation is not supported yet".into()));
-        }
-        Ok(())
+    /// Two names for one block that resolve to different tools.
+    fn conflicting(&self, a: &[u8], b: &[u8]) -> bool {
+        !a.is_empty() && !b.is_empty() && self.names.identity(a) != self.names.identity(b)
     }
 }
 
-fn pick_request<'a>(original: &'a [u8], translated: &'a [u8]) -> &'a [u8] {
+/// validateApplyPatchSnapshots: equivalent JSON spellings are fine, a different complete
+/// input is not.
+fn validate_patch_snapshots(previous: &[u8], current: &[u8]) -> Result<(), String> {
+    let mut call = CallState::default();
+    if !previous.is_empty() {
+        call.finish_arguments(previous)?;
+    }
+    call.finish_arguments(current).map(|_| ())
+}
+
+/// finishClaudeApplyPatchArguments: complete streamed JSON is a complete snapshot that a
+/// later snapshot may confirm but not extend.
+fn finish_patch_arguments(call: &mut CallState, arguments: &[u8], snapshot: &[u8]) -> Result<(String, String), String> {
+    if snapshot.is_empty() {
+        return call.finish_arguments(arguments);
+    }
+    if gj::valid(arguments) {
+        call.finish_arguments(arguments)?;
+    }
+    call.finish_arguments(snapshot)
+}
+
+/// A content block start's `input`, when it carries a snapshot (Claude's empty `{}`
+/// placeholder does not).
+fn input_snapshot<'a>(cb: &Res<'a>) -> Option<Res<'a>> {
+    let input = cb.get("input");
+    (input.exists() && (!input.is_object() || !input.map().is_empty())).then_some(input)
+}
+
+fn patch_failure() -> Error {
+    Error(crate::apply_patch::UPSTREAM_ERROR_MESSAGE.into())
+}
+
+/// pickRequestJSON: the original request when valid, else the translated one.
+pub(crate) fn pick_request<'a>(original: &'a [u8], translated: &'a [u8]) -> &'a [u8] {
     if !original.is_empty() && gj::valid(original) {
         original
     } else if !translated.is_empty() && gj::valid(translated) {
@@ -334,6 +374,12 @@ struct State {
     request: Vec<u8>,
     tools: Tools,
     completed: bool,
+    /// ApplyPatchErrorState: an invalid apply_patch call failed the response.
+    tool_error: bool,
+    patch_calls: HashMap<i64, CallState>,
+    func_input_snapshot: HashMap<i64, Vec<u8>>,
+    func_snapshot_errors: HashSet<i64>,
+    func_identity_conflicts: HashSet<i64>,
     seq: i64,
     response_id: Vec<u8>,
     created_at: i64,
@@ -382,6 +428,11 @@ pub fn go_stream(ctx: &ResponseCtx<'_>) -> Box<dyn GoStream> {
         tools: Tools::new(&request),
         request,
         completed: false,
+        tool_error: false,
+        patch_calls: HashMap::new(),
+        func_input_snapshot: HashMap::new(),
+        func_snapshot_errors: HashSet::new(),
+        func_identity_conflicts: HashSet::new(),
         seq: 0,
         response_id: vec![],
         created_at: 0,
@@ -479,20 +530,39 @@ impl State {
         vec![event("response.output_item.done", &done)]
     }
 
+    /// failToolInput: the first failure ends the response with `response.failed`.
+    fn fail_tool_input(&mut self) -> Vec<Vec<u8>> {
+        if self.tool_error {
+            return vec![];
+        }
+        self.tool_error = true;
+        let seq = self.next_seq();
+        vec![event(
+            "response.failed",
+            &crate::apply_patch::failure(&self.response_id, seq),
+        )]
+    }
+
     fn emit_func_item(&mut self, idx: i64, force: bool) -> Result<Vec<Vec<u8>>, Error> {
-        if self.func_item_added.contains(&idx) {
+        if self.func_item_added.contains(&idx) || self.tool_error {
             return Ok(vec![]);
         }
-        let name = self.name(idx);
+        let mut name = self.name(idx);
         let mut call_id = self.call_id(idx);
-        if force
-            && name.is_empty()
-            && self.tools.winners.len() == 1
-            && self.tools.winners.values().any(|w| w.apply_patch)
-        {
-            return Err(Error("apply_patch Responses translation is not supported yet".into()));
+        if force && name.is_empty() && self.tools.winners.len() == 1 {
+            let identities: Vec<Vec<u8>> = self.tools.winners.keys().cloned().collect();
+            for identity in identities {
+                if self.tools.is_apply_patch(&identity) {
+                    name = self.tools.names.claude_name(&identity);
+                    self.func_names.insert(idx, name.clone());
+                }
+            }
         }
-        self.tools.check(&[&name])?;
+        if self.tools.is_apply_patch(&name)
+            && (self.func_identity_conflicts.contains(&idx) || self.func_snapshot_errors.contains(&idx))
+        {
+            return Ok(self.fail_tool_input());
+        }
         if !force && (name.is_empty() || call_id.is_empty()) {
             return Ok(vec![]);
         }
@@ -508,7 +578,20 @@ impl State {
         } else {
             (br#"{"type":"response.output_item.added","sequence_number":0,"output_index":0,"item":{"id":"","type":"function_call","status":"in_progress","arguments":"","call_id":"","name":""}}"#.to_vec(), b"fc_")
         };
-        gj::set_str(&mut item, "item.id", [prefix, &call_id].concat());
+        let item_id = [prefix, &call_id].concat();
+        if custom && self.tools.is_apply_patch(&name) {
+            let winner = self.tools.winner(&name);
+            let call = CallState {
+                item_id: item_id.clone(),
+                call_id: call_id.clone(),
+                name: winner.map(|w| w.local_name.clone()).unwrap_or_default(),
+                namespace: winner.map(|w| w.namespace.clone()).unwrap_or_default(),
+                output_index,
+                ..CallState::default()
+            };
+            self.patch_calls.insert(idx, call);
+        }
+        gj::set_str(&mut item, "item.id", &item_id);
         gj::set_str(&mut item, "item.call_id", &call_id);
         item = with_identity(item, &self.request, &name, "item");
         let seq = self.next_seq();
@@ -519,7 +602,7 @@ impl State {
     }
 
     fn emit_pending_args(&mut self, idx: i64) -> Vec<Vec<u8>> {
-        if !self.func_item_added.contains(&idx) {
+        if !self.func_item_added.contains(&idx) || self.tool_error {
             return vec![];
         }
         let sent = self.func_args_sent.get(&idx).copied().unwrap_or(0);
@@ -529,7 +612,18 @@ impl State {
         let fragment = buf[sent..].to_vec();
         self.func_args_sent.insert(idx, buf.len());
         if self.func_custom.get(&idx).copied().unwrap_or(false) {
-            return vec![];
+            let Some(call) = self.patch_calls.get_mut(&idx) else {
+                return vec![];
+            };
+            return match call.push_arguments(&fragment) {
+                Err(_) => self.fail_tool_input(),
+                Ok(delta) if delta.is_empty() => vec![],
+                Ok(delta) => {
+                    let seq = self.next_seq();
+                    let payload = self.patch_calls[&idx].input_delta(&delta, seq);
+                    vec![event("response.custom_tool_call_input.delta", &payload)]
+                }
+            };
         }
         let mut msg = br#"{"type":"response.function_call_arguments.delta","sequence_number":0,"item_id":"","output_index":0,"delta":""}"#.to_vec();
         let seq = self.next_seq();
@@ -542,11 +636,14 @@ impl State {
     }
 
     fn finalize_func_item(&mut self, idx: i64, status: &'static str) -> Result<Vec<Vec<u8>>, Error> {
-        if self.func_item_done.contains(&idx) {
+        if self.func_item_done.contains(&idx) || self.tool_error {
             return Ok(vec![]);
         }
         let mut out = self.emit_func_item(idx, true)?;
         out.extend(self.emit_pending_args(idx));
+        if self.tool_error {
+            return Ok(out);
+        }
         self.func_item_done.insert(idx);
         self.func_item_status.insert(idx, status);
         let output_index = self.function_output_index(idx);
@@ -560,11 +657,35 @@ impl State {
             call_id = self.current_fc_id.clone();
         }
         let name = self.name(idx);
+        let id = [&b"ctc_"[..], &call_id].concat();
+        let mut input = vec![];
+        if custom {
+            let snapshot = self.func_input_snapshot.get(&idx).cloned().unwrap_or_default();
+            if let Some(call) = self.patch_calls.get_mut(&idx) {
+                let (tail, full) = match finish_patch_arguments(call, &args, &snapshot) {
+                    Ok(done) => done,
+                    Err(_) => {
+                        out.extend(self.fail_tool_input());
+                        return Ok(out);
+                    }
+                };
+                input = full.into_bytes();
+                if !tail.is_empty() {
+                    let seq = self.next_seq();
+                    let payload = self.patch_calls[&idx].input_delta(&tail, seq);
+                    out.push(event("response.custom_tool_call_input.delta", &payload));
+                }
+            } else {
+                input = unwrap_custom_tool_input(&args);
+            }
+        }
         let first_done = self.func_args_done.insert(idx);
         if custom {
-            let input = unwrap_custom_tool_input(&args);
-            let id = [&b"ctc_"[..], &call_id].concat();
-            if first_done {
+            if first_done && self.patch_calls.contains_key(&idx) {
+                let seq = self.next_seq();
+                let payload = self.patch_calls[&idx].input_done(&String::from_utf8_lossy(&input), seq);
+                out.push(event("response.custom_tool_call_input.done", &payload));
+            } else if first_done {
                 let mut done = br#"{"type":"response.custom_tool_call_input.done","sequence_number":0,"item_id":"","output_index":0,"input":""}"#.to_vec();
                 let seq = self.next_seq();
                 gj::set_int(&mut done, "sequence_number", seq);
@@ -746,11 +867,15 @@ impl State {
         self.func_call_ids.clear();
         self.func_custom.clear();
         self.func_output_indices.clear();
+        self.patch_calls.clear();
+        self.func_input_snapshot.clear();
+        self.func_snapshot_errors.clear();
+        self.func_identity_conflicts.clear();
         self.usage = Usage::default();
     }
 
     fn convert(&mut self, line: &[u8]) -> Result<Vec<Vec<u8>>, Error> {
-        if self.completed {
+        if self.completed || self.tool_error {
             return Ok(vec![]);
         }
         let Some(rest) = line.strip_prefix(b"data:") else {
@@ -904,6 +1029,9 @@ impl State {
                 continue;
             }
             out.extend(self.finalize_func_item(prev, "completed")?);
+            if self.tool_error {
+                return Ok(());
+            }
         }
         for i in 0..self.web.len() {
             if !self.web[i].emitted && self.web[i].results.is_some() {
@@ -947,7 +1075,16 @@ impl State {
                 let name = cb.get("name").bytes().into_owned();
                 let old_id = self.call_id(idx);
                 let old_name = self.name(idx);
-                self.tools.check(&[&old_name, &name])?;
+                // Pending identity evidence must survive later matching updates.
+                if !call_id.is_empty() && !old_id.is_empty() && call_id != old_id {
+                    self.func_identity_conflicts.insert(idx);
+                }
+                if (self.tools.is_apply_patch(&old_name) || self.tools.is_apply_patch(&name))
+                    && (self.func_identity_conflicts.contains(&idx) || self.tools.conflicting(&name, &old_name))
+                {
+                    out.extend(self.fail_tool_input());
+                    return Ok(());
+                }
                 if !self.func_item_added.contains(&idx) && (!call_id.is_empty() || old_id.is_empty()) {
                     self.func_call_ids.insert(idx, call_id);
                 }
@@ -957,6 +1094,25 @@ impl State {
                 self.current_fc_id = self.call_id(idx);
                 self.function_output_index(idx);
                 self.func_args.entry(idx).or_default();
+                if let Some(input) = input_snapshot(&cb) {
+                    let previous = self.func_input_snapshot.get(&idx).cloned().unwrap_or_default();
+                    if validate_patch_snapshots(&previous, &input.raw).is_err() {
+                        self.func_snapshot_errors.insert(idx);
+                    }
+                    // A finished call compares late snapshots without emitting more input.
+                    if self.func_item_done.contains(&idx)
+                        && let Some(call) = self.patch_calls.get_mut(&idx)
+                        && call.finish_arguments(&input.raw).is_err()
+                    {
+                        out.extend(self.fail_tool_input());
+                        return Ok(());
+                    }
+                    self.func_input_snapshot.insert(idx, input.raw.to_vec());
+                }
+                if self.tools.is_apply_patch(&self.name(idx)) && self.func_snapshot_errors.contains(&idx) {
+                    out.extend(self.fail_tool_input());
+                    return Ok(());
+                }
                 out.extend(self.emit_func_item(idx, false)?);
                 out.extend(self.emit_pending_args(idx));
             }
@@ -1025,6 +1181,9 @@ impl State {
         for idx in pending {
             if !self.func_item_done.contains(&idx) {
                 out.extend(self.finalize_func_item(idx, status)?);
+                if self.tool_error {
+                    return Ok(());
+                }
             }
         }
         for i in 0..self.web.len() {
@@ -1051,7 +1210,7 @@ impl State {
                 r#"{"reason":"max_output_tokens"}"#,
             );
         }
-        copy_request_fields(&mut completed, &self.request, "response.");
+        copy_request_fields(&mut completed, &self.request, "response.", Echo::default());
         let mut outputs = br#"{"arr":[]}"#.to_vec();
         for r in &self.reasoning_items {
             let mut item =
@@ -1110,7 +1269,11 @@ impl State {
                         .to_vec();
                 gj::set_str(&mut item, "id", [&b"ctc_"[..], &call_id].concat());
                 gj::set_str(&mut item, "status", status);
-                gj::set_str(&mut item, "input", unwrap_custom_tool_input(&args));
+                let input = match self.patch_calls.get(&idx) {
+                    Some(call) => call.decoder.input().as_bytes().to_vec(),
+                    None => unwrap_custom_tool_input(&args),
+                };
+                gj::set_str(&mut item, "input", input);
                 gj::set_str(&mut item, "call_id", &call_id);
                 with_identity(item, &self.request, &name, "")
             } else {
@@ -1155,8 +1318,17 @@ impl State {
     }
 }
 
+/// Fallbacks for request fields the echo copies.
+#[derive(Default, Clone, Copy)]
+pub(crate) struct Echo<'a> {
+    /// Fills `model` when the request has none (the upstream's model).
+    pub model: Option<&'a [u8]>,
+    /// Takes `max_output_tokens` from `max_tokens` (a Chat Completions request).
+    pub max_tokens: bool,
+}
+
 /// The request echo Go copies into response.completed and the non-stream response.
-fn copy_request_fields(out: &mut Vec<u8>, request: &[u8], prefix: &str) {
+pub(crate) fn copy_request_fields(out: &mut Vec<u8>, request: &[u8], prefix: &str, echo: Echo<'_>) {
     if request.is_empty() {
         return;
     }
@@ -1184,8 +1356,16 @@ fn copy_request_fields(out: &mut Vec<u8>, request: &[u8], prefix: &str) {
         "user",
         "metadata",
     ] {
-        let v = req.get(key);
+        let mut v = req.get(key);
+        if !v.exists() && key == "max_output_tokens" && echo.max_tokens {
+            v = req.get("max_tokens");
+        }
         if !v.exists() {
+            if key == "model"
+                && let Some(fallback) = echo.model
+            {
+                gj::set_str(out, &at(key), fallback);
+            }
             continue;
         }
         match key {
@@ -1237,6 +1417,31 @@ impl GoStream for State {
     fn line(&mut self, line: &[u8]) -> Result<Vec<Vec<u8>>, Error> {
         self.convert(line)
     }
+
+    fn tool_input_failed(&self) -> bool {
+        self.tool_error
+    }
+
+    /// FinalizeToolInput: a patch-enabled stream that ends before message_stop fails.
+    fn finalize_tool_input(&mut self) -> Vec<Vec<u8>> {
+        if self.tool_error || self.completed {
+            return vec![];
+        }
+        if !self
+            .tools
+            .winners
+            .keys()
+            .any(|identity| self.tools.is_apply_patch(identity))
+        {
+            return vec![];
+        }
+        self.tool_error = true;
+        let seq = self.next_seq();
+        vec![event(
+            "response.failed",
+            &crate::apply_patch::failure(&self.response_id, seq),
+        )]
+    }
 }
 
 #[derive(Default)]
@@ -1250,9 +1455,12 @@ struct OutputItem {
     annotations: Vec<Vec<u8>>,
     args: Vec<u8>,
     results: Option<Vec<u8>>,
+    input_snapshot: Vec<u8>,
 }
 
-/// Buffered Claude SSE to one Responses object.
+/// Buffered Claude SSE to one Responses object. An invalid or conflicting apply_patch
+/// call is an error carrying Go's upstream message (Go's executors answer 502 and drop
+/// the body).
 pub fn non_stream(ctx: &ResponseCtx<'_>, body: &[u8]) -> Result<Vec<u8>, Error> {
     let request = pick_request(ctx.original_request, ctx.translated_request);
     let tools = Tools::new(request);
@@ -1265,6 +1473,8 @@ pub fn non_stream(ctx: &ResponseCtx<'_>, body: &[u8]) -> Result<Vec<u8>, Error> 
     let mut message_count = 0;
     let mut active_message: Option<usize> = None;
     let mut pending_annotations: Vec<Vec<u8>> = vec![];
+    let mut identity_conflicts: HashSet<i64> = HashSet::new();
+    let mut snapshot_errors: HashSet<i64> = HashSet::new();
     for line in body.split(|&c| c == b'\n') {
         let line = line.strip_suffix(b"\r").unwrap_or(line);
         let Some(chunk) = line.strip_prefix(b"data:") else {
@@ -1333,13 +1543,29 @@ pub fn non_stream(ctx: &ResponseCtx<'_>, body: &[u8]) -> Result<Vec<u8>, Error> 
                             None => new_item(&mut items, &mut by_block, kind, idx),
                         };
                         let call_id = cb.get("id").bytes().into_owned();
-                        tools.check(&[&items[i].name, &name])?;
+                        if !call_id.is_empty() && !items[i].call_id.is_empty() && call_id != items[i].call_id {
+                            identity_conflicts.insert(idx);
+                        }
+                        if (tools.is_apply_patch(&items[i].name) || tools.is_apply_patch(&name))
+                            && (identity_conflicts.contains(&idx) || tools.conflicting(&name, &items[i].name))
+                        {
+                            return Err(patch_failure());
+                        }
                         if !name.is_empty() {
                             items[i].name = name;
                             items[i].kind = kind;
                         }
                         if !call_id.is_empty() {
                             items[i].call_id = call_id;
+                        }
+                        if let Some(input) = input_snapshot(&cb) {
+                            if validate_patch_snapshots(&items[i].input_snapshot, &input.raw).is_err() {
+                                snapshot_errors.insert(idx);
+                            }
+                            items[i].input_snapshot = input.raw.to_vec();
+                        }
+                        if tools.is_apply_patch(&items[i].name) && snapshot_errors.contains(&idx) {
+                            return Err(patch_failure());
                         }
                         let prefix: &[u8] = if items[i].kind == "custom_tool_call" {
                             b"ctc_"
@@ -1441,7 +1667,7 @@ pub fn non_stream(ctx: &ResponseCtx<'_>, body: &[u8]) -> Result<Vec<u8>, Error> 
     if incomplete(&stop) {
         gj::set_raw(&mut out, "incomplete_details", r#"{"reason":"max_output_tokens"}"#);
     }
-    copy_request_fields(&mut out, request, "");
+    copy_request_fields(&mut out, request, "", Echo::default());
     let mut outputs = vec![];
     let count = items.len();
     for (i, it) in items.iter().enumerate() {
@@ -1484,7 +1710,16 @@ pub fn non_stream(ctx: &ResponseCtx<'_>, body: &[u8]) -> Result<Vec<u8>, Error> 
                         .to_vec();
                 gj::set_str(&mut item, "id", &it.id);
                 gj::set_str(&mut item, "status", item_status);
-                gj::set_str(&mut item, "input", unwrap_custom_tool_input(&it.args));
+                let input = if tools.is_apply_patch(&it.name) {
+                    let mut call = CallState::default();
+                    call.push_arguments(&it.args).map_err(|_| patch_failure())?;
+                    let (_, full) =
+                        finish_patch_arguments(&mut call, &it.args, &it.input_snapshot).map_err(|_| patch_failure())?;
+                    full.into_bytes()
+                } else {
+                    unwrap_custom_tool_input(&it.args)
+                };
+                gj::set_str(&mut item, "input", input);
                 gj::set_str(&mut item, "call_id", &it.call_id);
                 with_identity(item, request, &it.name, "")
             }

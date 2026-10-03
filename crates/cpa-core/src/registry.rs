@@ -137,6 +137,12 @@ pub trait Overlay: Send + Sync {
     /// The model one credential registered under `model` (config model entries carry
     /// display names, context limits, thinking and `is_compat`).
     fn for_credential(&self, credential_id: &str, model: &str) -> Option<ModelInfo>;
+    /// Go `GetAvailableModelsByProvider`: the models `provider`'s credentials currently
+    /// serve (translators read Antigravity's `supports_web_search` from them). Defaults
+    /// to none.
+    fn available_by_provider(&self, _provider: &str) -> Vec<ModelInfo> {
+        Vec::new()
+    }
 }
 
 static OVERLAY: std::sync::RwLock<Option<std::sync::Arc<dyn Overlay>>> = std::sync::RwLock::new(None);
@@ -162,6 +168,12 @@ pub fn lookup_model(id: &str, provider: Option<&str>) -> Option<ModelInfo> {
     overlay()
         .and_then(|o| o.lookup(id, provider))
         .or_else(|| pinned().lookup(id).cloned())
+}
+
+/// Go `GetGlobalRegistry().GetAvailableModelsByProvider(provider)`; empty without an
+/// installed registry.
+pub fn available_models_by_provider(provider: &str) -> Vec<ModelInfo> {
+    overlay().map(|o| o.available_by_provider(provider)).unwrap_or_default()
 }
 
 /// The model info resolved for one credential and model (Go attaches this to the

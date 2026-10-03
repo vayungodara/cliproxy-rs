@@ -442,8 +442,9 @@ pub fn generate_claude_tool_call_id() -> Vec<u8> {
     out
 }
 
-/// Replaces every rune outside `[a-zA-Z0-9_-]` (each invalid byte counts as one) with `_`.
-fn sanitize(s: &[u8]) -> Vec<u8> {
+/// Replaces every rune outside `[a-zA-Z0-9_-]` (each invalid byte counts as one) with `_`
+/// (also Codex's sanitizeToolName).
+pub fn sanitize(s: &[u8]) -> Vec<u8> {
     let mut out = Vec::with_capacity(s.len());
     let mut i = 0;
     while i < s.len() {
@@ -986,6 +987,11 @@ pub fn align_claude_tool_results<'a>(parts: Vec<Res<'a>>, tool_use_ids: &[Vec<u8
 /// assistant message that made the call, when every call ID of that assistant message is
 /// unambiguous and answered exactly once later on.
 pub fn align_openai_tool_call_messages(messages: Vec<Vec<u8>>) -> Vec<Vec<u8>> {
+    align_openai_tool_call_messages_with(messages, &[])
+}
+
+/// AlignOpenAIToolCallMessages with extra call IDs treated as ambiguous (trimmed).
+pub fn align_openai_tool_call_messages_with(messages: Vec<Vec<u8>>, extra_ambiguous: &[Vec<u8>]) -> Vec<Vec<u8>> {
     if messages.len() <= 1 {
         return messages;
     }
@@ -996,7 +1002,11 @@ pub fn align_openai_tool_call_messages(messages: Vec<Vec<u8>>) -> Vec<Vec<u8>> {
     }
     let mut assistants = vec![];
     let mut assistant_by_call: HashMap<Vec<u8>, usize> = HashMap::new();
-    let mut ambiguous: HashSet<Vec<u8>> = HashSet::new();
+    let mut ambiguous: HashSet<Vec<u8>> = extra_ambiguous
+        .iter()
+        .map(|id| trim_space(id).to_vec())
+        .filter(|id| !id.is_empty())
+        .collect();
     let mut tools_by_call: HashMap<Vec<u8>, Vec<usize>> = HashMap::new();
     for (i, raw) in messages.iter().enumerate() {
         match gj::get(raw, "role").bytes().as_ref() {
@@ -1111,7 +1121,7 @@ pub fn sanitize_function_name(name: &[u8]) -> Vec<u8> {
 }
 
 /// filepath.Ext: the suffix from the last dot of the final path element.
-fn file_ext(name: &[u8]) -> &[u8] {
+pub(crate) fn file_ext(name: &[u8]) -> &[u8] {
     for i in (0..name.len()).rev() {
         match name[i] {
             b'/' => break,
@@ -1200,6 +1210,35 @@ pub fn restore_sanitized_tool_name(map: Option<&HashMap<Vec<u8>, Vec<u8>>>, name
         .unwrap_or_else(|| name.to_vec())
 }
 
+/// `time.Unix(secs, 0).Format(time.RFC3339Nano)` in UTC: `YYYY-MM-DDThh:mm:ssZ`.
+// ponytail: Go formats in the process's local zone; this assumes UTC, as Go runs in its
+// container image. Years beyond four digits print in full, as Go does.
+pub fn format_rfc3339_utc(secs: i64) -> String {
+    let days = secs.div_euclid(86_400);
+    let rem = secs.rem_euclid(86_400);
+    // Howard Hinnant's civil_from_days (proleptic Gregorian, like Go).
+    let z = days as i128 + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z.rem_euclid(146_097);
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let day = doy - (153 * mp + 2) / 5 + 1;
+    let month = if mp < 10 { mp + 3 } else { mp - 9 };
+    let year = yoe + era * 400 + i128::from(month <= 2);
+    let year = if year < 0 {
+        format!("-{:04}", -year)
+    } else {
+        format!("{year:04}")
+    };
+    format!(
+        "{year}-{month:02}-{day:02}T{:02}:{:02}:{:02}Z",
+        rem / 3600,
+        rem % 3600 / 60,
+        rem % 60
+    )
+}
+
 /// `time.Parse(time.RFC3339Nano, s).Unix()`: `YYYY-MM-DDThh:mm:ss[.frac]` with `Z` or
 /// `±hh:mm`. The hour may have one digit and the fraction may use a comma, as Go's general
 /// layout parser allows.
@@ -1276,6 +1315,16 @@ pub fn parse_rfc3339_unix(s: &[u8]) -> Option<i64> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn rfc3339_formats_like_go_in_utc() {
+        assert_eq!(format_rfc3339_utc(0), "1970-01-01T00:00:00Z");
+        assert_eq!(format_rfc3339_utc(1_700_000_000), "2023-11-14T22:13:20Z");
+        assert_eq!(format_rfc3339_utc(-1), "1969-12-31T23:59:59Z");
+        assert_eq!(format_rfc3339_utc(951_782_400), "2000-02-29T00:00:00Z");
+        assert_eq!(format_rfc3339_utc(253_402_300_800), "10000-01-01T00:00:00Z");
+        assert_eq!(format_rfc3339_utc(-62_167_219_201), "-0001-12-31T23:59:59Z");
+    }
 
     #[test]
     fn rfc3339_matches_go_unix_seconds() {

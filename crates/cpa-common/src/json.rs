@@ -445,27 +445,197 @@ fn go_f64_to_u64(f: f64) -> u64 {
 }
 
 /// `strconv.ParseFloat(s, 64)` with the error ignored (0 on syntax errors, ±Inf on
-/// overflow), including Go's digit-separating underscores.
-// ponytail: Go also accepts hexadecimal floats ("0x1p-2"); they parse as 0 here.
+/// overflow).
 pub fn parse_float(s: &[u8]) -> f64 {
-    let Ok(text) = std::str::from_utf8(s) else {
-        return 0.0;
-    };
-    if text.contains('_') {
-        if !underscore_ok(text.as_bytes()) {
-            return 0.0;
-        }
-        return text.replace('_', "").parse::<f64>().unwrap_or(0.0);
-    }
-    text.parse::<f64>().unwrap_or(0.0)
+    go_parse_float(s).unwrap_or_else(|value| value)
 }
 
-/// strconv's underscoreOK for decimal input: underscores only between digits.
+/// `strconv.ParseFloat(s, 64)`: `Err` carries the value Go returns with the error (±Inf
+/// on overflow, 0 on syntax errors). Accepts Go's signs, `inf`/`infinity`/`nan`,
+/// digit-separating underscores and hexadecimal floats (`0x1.8p3`).
+pub fn go_parse_float(s: &[u8]) -> Result<f64, f64> {
+    let Ok(text) = std::str::from_utf8(s) else {
+        return Err(0.0);
+    };
+    let (negative, body) = match text.as_bytes().first() {
+        Some(b'-') => (true, &text[1..]),
+        Some(b'+') => (false, &text[1..]),
+        _ => (false, text),
+    };
+    let sign = if negative { -1.0 } else { 1.0 };
+    if body.eq_ignore_ascii_case("inf") || body.eq_ignore_ascii_case("infinity") {
+        return Ok(sign * f64::INFINITY);
+    }
+    if text.eq_ignore_ascii_case("nan") {
+        return Ok(f64::NAN);
+    }
+    let bytes = body.as_bytes();
+    if bytes.len() > 2 && bytes[0] == b'0' && bytes[1] | 0x20 == b'x' {
+        if text.contains('_') && !underscore_ok(text.as_bytes()) {
+            return Err(0.0);
+        }
+        return parse_hex_float(&bytes[2..], negative);
+    }
+    if !bytes
+        .iter()
+        .all(|c| c.is_ascii_digit() || matches!(c, b'.' | b'e' | b'E' | b'+' | b'-' | b'_'))
+    {
+        return Err(0.0);
+    }
+    let cleaned;
+    let digits = if text.contains('_') {
+        if !underscore_ok(text.as_bytes()) {
+            return Err(0.0);
+        }
+        cleaned = text.replace('_', "");
+        cleaned.as_str()
+    } else {
+        text
+    };
+    match digits.parse::<f64>() {
+        Ok(f) if f.is_infinite() => Err(f),
+        Ok(f) => Ok(f),
+        Err(_) => Err(0.0),
+    }
+}
+
+/// strconv's readFloat + atofHex for the digits after `0x` (underscores already checked).
+fn parse_hex_float(s: &[u8], negative: bool) -> Result<f64, f64> {
+    const MANT_BITS: u32 = 52;
+    const BIAS: i64 = -1023;
+    let (mut mantissa, mut nd, mut nd_mant, mut dp) = (0u64, 0i64, 0i64, 0i64);
+    let (mut saw_dot, mut saw_digits, mut trunc) = (false, false, false);
+    let mut i = 0;
+    while i < s.len() {
+        let c = s[i];
+        let digit = match c {
+            b'_' => {
+                i += 1;
+                continue;
+            }
+            b'.' if saw_dot => break,
+            b'.' => {
+                saw_dot = true;
+                dp = nd;
+                i += 1;
+                continue;
+            }
+            b'0'..=b'9' => u64::from(c - b'0'),
+            _ if (b'a'..=b'f').contains(&(c | 0x20)) => u64::from((c | 0x20) - b'a' + 10),
+            _ => break,
+        };
+        saw_digits = true;
+        if c == b'0' && nd == 0 {
+            dp -= 1;
+        } else {
+            nd += 1;
+            if nd_mant < 16 {
+                mantissa = mantissa * 16 + digit;
+                nd_mant += 1;
+            } else if c != b'0' {
+                trunc = true;
+            }
+        }
+        i += 1;
+    }
+    if !saw_digits {
+        return Err(0.0);
+    }
+    if !saw_dot {
+        dp = nd;
+    }
+    dp *= 4;
+    nd_mant *= 4;
+    if i >= s.len() || s[i] | 0x20 != b'p' {
+        return Err(0.0);
+    }
+    i += 1;
+    let mut exp_sign = 1;
+    match s.get(i) {
+        Some(b'+') => i += 1,
+        Some(b'-') => {
+            exp_sign = -1;
+            i += 1;
+        }
+        _ => {}
+    }
+    if !s.get(i).is_some_and(u8::is_ascii_digit) {
+        return Err(0.0);
+    }
+    let mut e = 0i64;
+    while i < s.len() && (s[i].is_ascii_digit() || s[i] == b'_') {
+        if s[i] != b'_' && e < 10000 {
+            e = e * 10 + i64::from(s[i] - b'0');
+        }
+        i += 1;
+    }
+    if i != s.len() {
+        return Err(0.0);
+    }
+    dp += e * exp_sign;
+    let mut exp = if mantissa != 0 { dp - nd_mant } else { 0 };
+
+    // atofHex
+    let max_exp = (1i64 << 11) + BIAS - 2;
+    let min_exp = BIAS + 1;
+    exp += i64::from(MANT_BITS);
+    while mantissa != 0 && mantissa >> (MANT_BITS + 2) == 0 {
+        mantissa <<= 1;
+        exp -= 1;
+    }
+    if trunc {
+        mantissa |= 1;
+    }
+    while mantissa >> (1 + MANT_BITS + 2) != 0 {
+        mantissa = mantissa >> 1 | mantissa & 1;
+        exp += 1;
+    }
+    while mantissa > 1 && exp < min_exp - 2 {
+        mantissa = mantissa >> 1 | mantissa & 1;
+        exp += 1;
+    }
+    let mut round = mantissa & 3;
+    mantissa >>= 2;
+    round |= mantissa & 1;
+    exp += 2;
+    if round == 3 {
+        mantissa += 1;
+        if mantissa == 1 << (1 + MANT_BITS) {
+            mantissa >>= 1;
+            exp += 1;
+        }
+    }
+    if mantissa >> MANT_BITS == 0 {
+        exp = BIAS;
+    }
+    let overflow = exp > max_exp;
+    if overflow {
+        mantissa = 1 << MANT_BITS;
+        exp = max_exp + 1;
+    }
+    let mut bits = mantissa & ((1 << MANT_BITS) - 1);
+    bits |= (((exp - BIAS) & ((1 << 11) - 1)) as u64) << MANT_BITS;
+    if negative {
+        bits |= 1 << 63;
+    }
+    let f = f64::from_bits(bits);
+    if overflow { Err(f) } else { Ok(f) }
+}
+
+/// strconv's underscoreOK: underscores only between digits (a base prefix counts as a
+/// digit).
 fn underscore_ok(s: &[u8]) -> bool {
     let s = s.strip_prefix(b"-").or_else(|| s.strip_prefix(b"+")).unwrap_or(s);
     let mut saw = b'^';
-    for &c in s {
-        if c.is_ascii_digit() {
+    let mut i = 0;
+    let mut hex = false;
+    if s.len() >= 2 && s[0] == b'0' && matches!(s[1] | 0x20, b'b' | b'o' | b'x') {
+        i = 2;
+        saw = b'0';
+        hex = s[1] | 0x20 == b'x';
+    }
+    for &c in &s[i..] {
+        if c.is_ascii_digit() || (hex && (b'a'..=b'f').contains(&(c | 0x20))) {
             saw = b'0';
         } else if c == b'_' {
             if saw != b'0' {
@@ -2875,5 +3045,56 @@ mod tests {
         );
         assert!(GoValue::parse_f64(b"[1e400]").is_none());
         assert_eq!(quote("<&>\u{1}\u{8}"), br#""\u003c\u0026\u003e\u0001\b""#);
+    }
+}
+
+#[cfg(test)]
+mod parse_float_tests {
+    use super::go_parse_float;
+
+    /// Expectations from Go 1.26 strconv.ParseFloat (value, error?).
+    #[test]
+    fn parse_float_matches_go_strconv() {
+        let ok = |s: &str, want: f64| {
+            let got = go_parse_float(s.as_bytes()).unwrap_or_else(|_| panic!("{s} should parse"));
+            assert!(got == want || (got.is_nan() && want.is_nan()), "{s}: {got} != {want}");
+            assert_eq!(got.is_sign_negative(), want.is_sign_negative(), "{s} sign");
+        };
+        let err = |s: &str, value: f64| assert_eq!(go_parse_float(s.as_bytes()), Err(value), "{s}");
+        ok("1_000", 1000.0);
+        ok("1_000.5", 1000.5);
+        ok("1e1_0", 1e10);
+        ok("0x1p4", 16.0);
+        ok("0X1.8P1", 3.0);
+        ok("0x_1p0", 1.0);
+        ok("0x.8p1", 1.0);
+        ok("-0x1p-1074", -5e-324);
+        ok("0x1.fffffffffffffp1023", f64::MAX);
+        err("0x1.fffffffffffff8p1023", f64::INFINITY);
+        ok("0x1.00000000000008p0", 1.0);
+        ok("0x1.00000000000018p0", 1.0000000000000004);
+        ok("inf", f64::INFINITY);
+        ok("+Inf", f64::INFINITY);
+        ok("-infinity", f64::NEG_INFINITY);
+        ok("NaN", f64::NAN);
+        ok("1e-400", 0.0);
+        ok("1.", 1.0);
+        ok(".5", 0.5);
+        ok("-0", -0.0);
+        ok("1E5", 100000.0);
+        err("1__0", 0.0);
+        err("_1", 0.0);
+        err("0x10", 0.0);
+        err("0x1p", 0.0);
+        err("+nan", 0.0);
+        err("1e400", f64::INFINITY);
+        err("-1e400", f64::NEG_INFINITY);
+        err("0x1p1024", f64::INFINITY);
+        err("  1", 0.0);
+        err("1e", 0.0);
+        err("+", 0.0);
+        err("0b101", 0.0);
+        err("infx", 0.0);
+        err("1e_5", 0.0);
     }
 }

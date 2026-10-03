@@ -2,20 +2,16 @@
 //! (internal/translator/openai/openai/chat-completions). Byte-oriented: bodies pass
 //! through untouched apart from the model rewrite, whatever bytes they contain.
 
-use crate::{Error, Pair, Registered, RequestCtx, ResponseCtx, common::trim_space, stream};
+use crate::{Error, Registered, RequestCtx, ResponseCtx, common::trim_space, stream};
 use cpa_common::json::{self as gj, Kind};
-use cpa_core::format::Format;
 
-pub static PAIR: Registered = Registered {
-    pair: Pair {
-        request,
-        non_stream: |_, body| Ok(body.to_vec()),
-        stream: |ctx| stream::framed(Format::OpenAI, Format::OpenAI, go_stream(ctx)),
-        count_tokens: None,
-    },
+pub static PAIR: Registered = registered!(
+    OpenAI -> OpenAI,
+    request: request,
+    non_stream: |_, body| Ok(body.to_vec()),
+    go_stream: go_stream,
     token_count: None,
-    go_stream,
-};
+);
 
 fn request(ctx: &RequestCtx<'_>, body: &[u8]) -> Result<Vec<u8>, Error> {
     let model = gj::get(body, "model");

@@ -16,6 +16,14 @@ use cpa_core::format::Format;
 pub trait GoStream: Send {
     /// One upstream line (no terminator) in, zero or more Go chunks out.
     fn line(&mut self, line: &[u8]) -> Result<Vec<Vec<u8>>, Error>;
+    /// Go's `ToolInputError() != nil` on the translator state.
+    fn tool_input_failed(&self) -> bool {
+        false
+    }
+    /// Go's `FinalizeToolInput()`.
+    fn finalize_tool_input(&mut self) -> Vec<Vec<u8>> {
+        vec![]
+    }
 }
 
 /// bufio.ScanLines over one event: split on `\n`, drop one trailing `\r` per line, and
@@ -253,6 +261,58 @@ struct Framed {
     upstream: Format,
     inner: Box<dyn GoStream>,
     responses: ResponsesFramer,
+    /// Interactions upstreams: the lines of the SSE frame being read.
+    frame: Vec<u8>,
+    /// Nesting of the requests the translator reads.
+    request_levels: usize,
+    /// Nesting of everything read from upstream so far (state the translator retains).
+    seen: crate::Depth,
+    /// A stack reservation that failed in `finalize_tool_input`; the stream is broken.
+    failed: Option<Error>,
+}
+
+/// geminiInteractionsSSEPayload (gemini_executor.go): a JSON frame as is, else its
+/// non-empty, non-`[DONE]` `data:` payloads joined with newlines.
+fn interactions_frame_payload(frame: &[u8]) -> Vec<u8> {
+    let trimmed = crate::common::trim_space(frame);
+    if trimmed.starts_with(b"{") {
+        return trimmed.to_vec();
+    }
+    let mut payload = vec![];
+    for line in frame.split(|&c| c == b'\n') {
+        let Some(data) = crate::common::trim_space(line).strip_prefix(b"data:") else {
+            continue;
+        };
+        let data = crate::common::trim_space(data);
+        if data.is_empty() || data == b"[DONE]" {
+            continue;
+        }
+        if !payload.is_empty() {
+            payload.push(b'\n');
+        }
+        payload.extend_from_slice(data);
+    }
+    payload
+}
+
+/// geminiInteractionsSSEDone: a `[DONE]` frame or data line, or an `event: done` line.
+fn interactions_frame_done(frame: &[u8]) -> bool {
+    if crate::common::trim_space(frame) == b"[DONE]" {
+        return true;
+    }
+    let mut done_event = false;
+    for line in frame.split(|&c| c == b'\n') {
+        let line = crate::common::trim_space(line);
+        // strings.EqualFold: no letter of "event: done" has a non-ASCII fold partner.
+        if line.eq_ignore_ascii_case(b"event: done") {
+            done_event = true;
+        } else if let Some(data) = line.strip_prefix(b"data:")
+            && crate::common::trim_space(data) == b"[DONE]"
+        {
+            return true;
+        }
+    }
+    done_event
 }
 
 /// Go's OpenAI-compatible executor joins a frame's `data:` lines with `\n` and passes the
@@ -298,8 +358,99 @@ impl StreamTranslator for Framed {
     }
 
     fn event(&mut self, event: &[u8]) -> Result<Vec<Bytes>, Error> {
+        if let Some(e) = &self.failed {
+            return Err(e.clone());
+        }
+        self.seen.feed(event);
+        crate::deep_stack(self.levels(), || self.translate(event))
+    }
+
+    fn finish(&mut self) -> Result<Vec<Bytes>, Error> {
+        if let Some(e) = &self.failed {
+            return Err(e.clone());
+        }
+        crate::deep_stack(self.levels(), || self.finish_frames())
+    }
+
+    fn tool_input_failed(&self) -> bool {
+        self.inner.tool_input_failed()
+    }
+
+    /// A stack that cannot be reserved emits nothing; every later `event` and `finish`
+    /// then returns that error.
+    fn finalize_tool_input(&mut self) -> Vec<Bytes> {
+        if self.failed.is_some() {
+            return vec![];
+        }
+        let finalized = crate::deep_stack(self.levels(), || {
+            let chunks = self.inner.finalize_tool_input();
+            Ok(self.framed(chunks))
+        });
+        finalized.unwrap_or_else(|e| {
+            self.failed = Some(e);
+            vec![]
+        })
+    }
+}
+
+impl Framed {
+    fn levels(&self) -> usize {
+        self.request_levels.max(self.seen.levels())
+    }
+
+    fn finish_frames(&mut self) -> Result<Vec<Bytes>, Error> {
+        let mut out = vec![];
+        if self.upstream == Format::Interactions {
+            let chunks = self.interactions_frame()?;
+            out.extend(self.framed(chunks));
+        }
+        let mut pending = vec![];
+        self.responses.flush_into(&mut pending);
+        out.extend(pending.into_iter().map(Bytes::from));
+        Ok(out)
+    }
+
+    /// The Gemini Interactions executor's emitFrame for the frame read so far: an
+    /// Interactions client gets the frame itself (no translator runs), other clients get
+    /// the translation of its joined `data:` payload (`[DONE]` for a done frame).
+    fn interactions_frame(&mut self) -> Result<Vec<Vec<u8>>, Error> {
+        let frame = std::mem::take(&mut self.frame);
+        let trimmed = crate::common::trim_space(&frame);
+        if trimmed.is_empty() {
+            return Ok(vec![]);
+        }
+        if self.client == Format::Interactions {
+            let end = frame
+                .iter()
+                .rposition(|c| !matches!(c, b'\r' | b'\n'))
+                .map_or(0, |i| i + 1);
+            return Ok(vec![[&frame[..end], b"\n\n"].concat()]);
+        }
+        let mut payload = interactions_frame_payload(&frame);
+        if payload.is_empty() && interactions_frame_done(&frame) {
+            payload = b"[DONE]".to_vec();
+        }
+        if payload.is_empty() {
+            return Ok(vec![]);
+        }
+        self.inner.line(&payload)
+    }
+
+    fn translate(&mut self, event: &[u8]) -> Result<Vec<Bytes>, Error> {
         let mut chunks = vec![];
-        if self.upstream == Format::OpenAI {
+        if self.upstream == Format::Interactions {
+            // The executor reads lines and ends a frame at each blank line.
+            for line in scan_lines(event) {
+                if crate::common::trim_space(line).is_empty() {
+                    chunks.extend(self.interactions_frame()?);
+                    continue;
+                }
+                if !self.frame.is_empty() {
+                    self.frame.push(b'\n');
+                }
+                self.frame.extend_from_slice(line);
+            }
+        } else if self.upstream == Format::OpenAI {
             for line in openai_lines(event) {
                 chunks.extend(self.inner.line(&line)?);
             }
@@ -310,24 +461,30 @@ impl StreamTranslator for Framed {
         }
         Ok(self.framed(chunks))
     }
-
-    fn finish(&mut self) -> Result<Vec<Bytes>, Error> {
-        let mut out = vec![];
-        self.responses.flush_into(&mut out);
-        Ok(out.into_iter().map(Bytes::from).collect())
-    }
 }
 
 /// Wraps a Go-shaped translator. Executor-side line handling stays with the executor:
 /// Go's OpenAI-compatible executor joins a frame's `data:` lines into one line and feeds
 /// `data: [DONE]` when a non-Responses stream ends without one; the Gemini executors feed
-/// a final `[DONE]`. Executors that do so pass those lines as events.
-pub(crate) fn framed(client: Format, upstream: Format, inner: Box<dyn GoStream>) -> Box<dyn StreamTranslator> {
+/// a final `[DONE]`. Executors that do so pass those lines as events. The one exception
+/// is an Interactions upstream: pass its SSE events as read (any split into lines works)
+/// and call `finish` at the end; the Gemini Interactions executor's frame handling (the
+/// passthrough to Interactions clients, payload joining, done frames) happens here.
+pub(crate) fn framed(
+    client: Format,
+    upstream: Format,
+    inner: Box<dyn GoStream>,
+    request_levels: usize,
+) -> Box<dyn StreamTranslator> {
     Box::new(Framed {
         client,
         upstream,
         inner,
         responses: ResponsesFramer::default(),
+        frame: vec![],
+        request_levels,
+        seen: crate::Depth::default(),
+        failed: None,
     })
 }
 
@@ -351,6 +508,19 @@ mod tests {
             self.0.push(line.to_vec());
             Ok(vec![line.to_vec()])
         }
+    }
+
+    #[test]
+    fn a_failed_finalize_breaks_the_stream() {
+        let mut s = framed(Format::OpenAI, Format::OpenAI, Box::new(Echo(vec![])), 1000);
+        assert_eq!(s.event(b"data: {}\n\n").unwrap().len(), 1, "deep stack available");
+        crate::FAIL_SPAWN.with(|f| f.set(true));
+        assert!(s.finalize_tool_input().is_empty());
+        crate::FAIL_SPAWN.with(|f| f.set(false));
+        let err = s.finish().unwrap_err();
+        assert!(err.0.contains("stack"), "{err}");
+        assert_eq!(s.event(b"data: {}\n\n").unwrap_err(), err);
+        assert!(s.finalize_tool_input().is_empty());
     }
 
     fn responses(chunks: &[&[u8]]) -> Vec<Vec<u8>> {
@@ -442,7 +612,7 @@ mod tests {
     #[test]
     fn openai_joined_data_payload_stays_one_line() {
         // Go scenario stream_multiline_data: the executor's joined payload keeps its newline.
-        let mut s = framed(Format::OpenAI, Format::OpenAI, Box::new(Echo(vec![])));
+        let mut s = framed(Format::OpenAI, Format::OpenAI, Box::new(Echo(vec![])), 0);
         let out = s.event(b"data: {\"id\":\"m\",\n\"choices\":[]}\n\n").unwrap();
         assert_eq!(
             out,
@@ -459,7 +629,7 @@ mod tests {
 
     #[test]
     fn events_become_scanner_lines_and_chunks_get_client_framing() {
-        let mut s = framed(Format::OpenAI, Format::OpenAI, Box::new(Echo(vec![])));
+        let mut s = framed(Format::OpenAI, Format::OpenAI, Box::new(Echo(vec![])), 0);
         let out = s.event(b"event: x\r\ndata: {}\n\n").unwrap();
         assert_eq!(
             out,
@@ -474,10 +644,85 @@ mod tests {
             [Bytes::from_static(b"data: : keep-alive\n\n")]
         );
         assert!(s.finish().unwrap().is_empty());
-        let mut s = framed(Format::Claude, Format::OpenAI, Box::new(Echo(vec![])));
+        let mut s = framed(Format::Claude, Format::OpenAI, Box::new(Echo(vec![])), 0);
         assert_eq!(
             s.event(b"event: e\ndata: 1\n\n").unwrap(),
             [Bytes::from_static(b"event: e"), Bytes::from_static(b"data: 1")]
         );
+    }
+
+    /// The Gemini Interactions executor (gemini_executor.go executeInteractionsStream):
+    /// frames end at blank or blank-looking lines, possibly across events; Interactions
+    /// clients get each frame with its line breaks normalized and no translator call.
+    #[test]
+    fn interactions_upstream_frames_pass_through_to_interactions_clients() {
+        let mut s = framed(Format::Interactions, Format::Interactions, Box::new(Echo(vec![])), 0);
+        assert_eq!(
+            s.event(b"event: interaction.created\r\ndata: {\"a\":1}\r\n\r\n")
+                .unwrap(),
+            [Bytes::from_static(b"event: interaction.created\ndata: {\"a\":1}\n\n")]
+        );
+        assert!(s.event(b"data: {\"b\":2}\n").unwrap().is_empty());
+        assert_eq!(
+            s.event(b" \n{\"c\":3}\n\n").unwrap(),
+            [
+                Bytes::from_static(b"data: {\"b\":2}\n\n"),
+                Bytes::from_static(b"data: {\"c\":3}\n\n")
+            ]
+        );
+        assert!(s.event(b"\n\n").unwrap().is_empty());
+        assert!(s.event(b": tail").unwrap().is_empty());
+        // The pending frame is emitted at EOF; the handler prefixes non-field chunks.
+        assert_eq!(s.finish().unwrap(), [Bytes::from_static(b"data: : tail\n\n")]);
+    }
+
+    /// Other clients get the translation of each frame's joined `data:` payload; a frame
+    /// whose data lines continue one JSON document translates as that document.
+    #[test]
+    fn interactions_upstream_frames_translate_their_joined_payload() {
+        let ctx = crate::ResponseCtx {
+            model: "m",
+            original_request: b"",
+            translated_request: b"",
+        };
+        let mut s = (crate::pair(Format::Gemini, Format::Interactions).unwrap().stream)(&ctx);
+        let text = |t: &str| {
+            Bytes::from(
+                format!(
+                    r#"data: {{"candidates":[{{"content":{{"parts":[{{"text":"{t}"}}],"role":"model"}},"index":0}}],"modelVersion":"m"}}"#
+                ) + "\n\n",
+            )
+        };
+        assert_eq!(
+            s.event(b"event: step.delta\ndata: {\"event_type\":\"step.delta\",\"delta\":{\"type\":\"text\",\"text\":\"a\"}}\n\n")
+                .unwrap(),
+            [text("a")]
+        );
+        assert_eq!(
+            s.event(b"data: {\"event_type\":\"step.delta\",\ndata:  \"delta\":{\"type\":\"text\",\"text\":\"b\"}}\n\n")
+                .unwrap(),
+            [text("b")]
+        );
+        assert!(s.event(b"event: done\ndata: [DONE]\n\n").unwrap().is_empty());
+        assert!(
+            s.event(b"data: {\"event_type\":\"step.delta\",\"delta\":{\"type\":\"text\",\"text\":\"c\"}}")
+                .unwrap()
+                .is_empty()
+        );
+        assert_eq!(s.finish().unwrap(), [text("c")]);
+    }
+
+    #[test]
+    fn interactions_done_frames_match_go() {
+        assert!(interactions_frame_done(b" [DONE] "));
+        assert!(interactions_frame_done(b"EVENT: Done\n: x"));
+        assert!(interactions_frame_done(b"event: x\n data:  [DONE] "));
+        assert!(!interactions_frame_done(b"event: done!"));
+        assert!(!interactions_frame_done(b"data: [DONE]x"));
+        assert_eq!(
+            interactions_frame_payload(b"data: [DONE]\ndata:\n data: a \nid: 1"),
+            b"a"
+        );
+        assert_eq!(interactions_frame_payload(b" {\"x\":1}\n"), b"{\"x\":1}");
     }
 }

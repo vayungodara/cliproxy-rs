@@ -225,6 +225,18 @@ fn find_paths_by_fields(json: &[u8], fields: &[&[u8]]) -> HashMap<Vec<u8>, Vec<V
     paths
 }
 
+/// util.Walk: the escaped gjson paths of every `field` key inside `value`, depth first
+/// in document order.
+pub fn walk(value: &Res<'_>, field: &[u8]) -> Vec<Vec<u8>> {
+    let mut paths = vec![];
+    walk_fields(value, b"", &mut |key, path| {
+        if key == field {
+            paths.push(path.to_vec());
+        }
+    });
+    paths
+}
+
 fn walk_fields(value: &Res<'_>, path: &[u8], visit: &mut dyn FnMut(&[u8], &[u8])) {
     if value.kind != Kind::Json {
         return;

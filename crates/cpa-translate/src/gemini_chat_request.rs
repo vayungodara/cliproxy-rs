@@ -2,25 +2,21 @@
 //! (internal/translator/gemini/openai/chat-completions/gemini_openai_request.go).
 
 use crate::{
-    Pair, Registered,
+    Registered,
     common::{self, go_lower, sanitize_function_name, trim_space},
     gemini::attach_default_safety_settings,
-    gemini_chat_response as response, stream,
+    gemini_chat_response as response,
 };
 use cpa_common::json::{self as gj, Kind, Res};
-use cpa_core::format::Format;
 use std::collections::{HashMap, HashSet};
 
-pub static PAIR: Registered = Registered {
-    pair: Pair {
-        request: |ctx, body| Ok(convert(ctx.model, body)),
-        non_stream: response::non_stream,
-        stream: |ctx| stream::framed(Format::OpenAI, Format::Gemini, response::go_stream(ctx)),
-        count_tokens: None,
-    },
-    token_count: None,
+pub static PAIR: Registered = registered!(
+    OpenAI -> Gemini,
+    request: |ctx, body| Ok(convert(ctx.model, body)),
+    non_stream: response::non_stream,
     go_stream: response::go_stream,
-};
+    token_count: None,
+);
 
 const SKIP_SIGNATURE: &[u8] = b"skip_thought_signature_validator";
 
@@ -64,7 +60,7 @@ fn demoted_text(text: Vec<u8>, demoted: bool) -> Vec<u8> {
     common::system_reminder_text(&text)
 }
 
-fn audio_mime(format: &[u8]) -> Vec<u8> {
+pub(crate) fn audio_mime(format: &[u8]) -> Vec<u8> {
     match format {
         b"" | b"wav" => b"audio/wav".to_vec(),
         b"mp3" => b"audio/mpeg".to_vec(),
@@ -526,7 +522,7 @@ fn apply_tools(out: &mut Vec<u8>, raw: &[u8]) {
 
 /// The function object with `parameters` renamed to `parametersJsonSchema`, or an empty
 /// object schema added. `None` where Go's sjson edits fail and the tool is skipped.
-fn function_declaration(f: &Res<'_>) -> Option<Vec<u8>> {
+pub(crate) fn function_declaration(f: &Res<'_>) -> Option<Vec<u8>> {
     let raw = f.raw.to_vec();
     if f.get("parameters").exists() {
         // util.RenameKey, falling back to an empty object schema when it fails.

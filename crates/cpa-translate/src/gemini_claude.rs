@@ -2,26 +2,22 @@
 //! (internal/translator/gemini/claude/gemini_claude_request.go).
 
 use crate::{
-    Error, Pair, Registered, RequestCtx,
+    Error, Registered, RequestCtx,
     common::{self, go_lower, sanitize_function_name, trim_space},
     gemini::{self, attach_default_safety_settings},
     gemini_chat_request::content_node,
-    gemini_claude_response as response, openai_claude, stream,
+    gemini_claude_response as response, openai_claude,
 };
 use cpa_common::json::{self as gj, Kind, Res};
-use cpa_core::format::Format;
 use std::collections::HashMap;
 
-pub static PAIR: Registered = Registered {
-    pair: Pair {
-        request: |ctx, body| Ok(convert(ctx.model, body, false)),
-        non_stream: response::non_stream,
-        stream: |ctx| stream::framed(Format::Claude, Format::Gemini, response::go_stream(ctx)),
-        count_tokens: None,
-    },
-    token_count: Some(openai_claude::claude_input_tokens),
+pub static PAIR: Registered = registered!(
+    Claude -> Gemini,
+    request: |ctx, body| Ok(convert(ctx.model, body, false)),
+    non_stream: response::non_stream,
     go_stream: response::go_stream,
-};
+    token_count: Some(openai_claude::claude_input_tokens),
+);
 
 /// ConvertClaudeRequestToGeminiWithCompat: compatibility endpoints keep assistant
 /// thinking blocks (as thought parts) even without a Gemini signature.

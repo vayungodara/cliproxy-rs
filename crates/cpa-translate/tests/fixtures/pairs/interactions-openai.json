@@ -1,0 +1,1642 @@
+{
+ "client": "interactions",
+ "fixtures": [
+  {
+   "name": "TestConvertInteractionsRequestToOpenAIPreservesExpressibleFields:10",
+   "path": "request",
+   "model": "gpt-test",
+   "input": "{\"model\":\"gpt-test\",\"tool_choice\":{\"type\":\"function\",\"function\":{\"name\":\"lookup\"}},\"response_modalities\":[\"text\",\"image\"],\"service_tier\":\"priority\",\"input\":\"hi\"}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"tool_choice\":{\"type\":\"function\",\"function\":{\"name\":\"lookup\"}},\"modalities\":[\"text\",\"image\"],\"service_tier\":\"priority\"}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertInteractionsRequestToOpenAIAcceptsImageContent:130",
+   "path": "request",
+   "model": "gpt-test",
+   "input": "{\"model\":\"gpt-test\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"image\",\"mime_type\":\"image/png\",\"data\":\"aGVsbG8=\"}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,aGVsbG8=\"}}]}]}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertInteractionsRequestToOpenAIPreservesNonImageMediaContent:140",
+   "path": "request",
+   "model": "gpt-test",
+   "input": "{\"model\":\"gpt-test\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"audio\",\"mime_type\":\"audio/wav\",\"data\":\"UklGRg==\"},{\"type\":\"video\",\"mime_type\":\"video/mp4\",\"data\":\"AAAAIGZ0eXA=\"},{\"type\":\"document\",\"mime_type\":\"application/pdf\",\"data\":\"JVBERi0=\"}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"input_audio\",\"input_audio\":{\"data\":\"UklGRg==\",\"format\":\"wav\"}},{\"type\":\"video_url\",\"video_url\":{\"url\":\"data:video/mp4;base64,AAAAIGZ0eXA=\"}},{\"type\":\"file\",\"file\":{\"filename\":\"document.pdf\",\"file_data\":\"JVBERi0=\"}}]}]}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertInteractionsRequestToOpenAIWithToolMessagesDirect:157",
+   "path": "request",
+   "model": "gpt-test",
+   "input": "{\"model\":\"gpt-test\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"}]},{\"type\":\"function_call\",\"name\":\"lookup\",\"call_id\":\"call_1\",\"arguments\":{\"q\":\"x\"}},{\"type\":\"function_result\",\"name\":\"lookup\",\"call_id\":\"call_1\",\"result\":{\"ok\":true}}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":\"\",\"tool_calls\":[{\"id\":\"call_1\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{\\\"q\\\":\\\"x\\\"}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"call_1\",\"content\":\"{\\\"ok\\\":true}\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertInteractionsRequestToOpenAIWithToolMessagesDirect:literal",
+   "path": "request",
+   "model": "gpt-test",
+   "input": "{\"q\":\"x\"}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[]}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertOpenAIResponseToInteractionsStreamUsageOnlyTerminalChunk:calls",
+   "path": "stream",
+   "model": "gpt-test",
+   "lines": [
+    "data: {\"id\":\"chatcmpl_1\",\"object\":\"chat.completion.chunk\",\"model\":\"gpt-test\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}",
+    "data: {\"id\":\"chatcmpl_1\",\"object\":\"chat.completion.chunk\",\"model\":\"gpt-test\",\"choices\":[],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":4,\"total_tokens\":7}}",
+    "data: [DONE]"
+   ],
+   "outputs": [
+    [],
+    [
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"chatcmpl_1\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gpt-test\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"chatcmpl_1\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
+     "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"chatcmpl_1\",\"status\":\"completed\",\"usage\":{\"input_tokens\":3,\"total_input_tokens\":3,\"output_tokens\":4,\"total_output_tokens\":4,\"total_tokens\":7},\"created\":\"2026-10-03T00:48:29Z\",\"updated\":\"2026-10-03T00:48:29Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"gpt-test\"},\"event_type\":\"interaction.completed\"}\n\n"
+    ],
+    [
+     "event: done\ndata: [DONE]\n\n"
+    ]
+   ],
+   "dynamic": [
+    {
+     "out": 2,
+     "data": 1,
+     "path": "interaction.created",
+     "time": true
+    },
+    {
+     "out": 2,
+     "data": 1,
+     "path": "interaction.updated",
+     "time": true
+    }
+   ]
+  },
+  {
+   "name": "TestConvertOpenAIResponseToInteractionsCompletesOnDoneWithoutUsage:calls",
+   "path": "stream",
+   "model": "gpt-test",
+   "lines": [
+    "data: {\"id\":\"chatcmpl_1\",\"object\":\"chat.completion.chunk\",\"model\":\"gpt-test\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}",
+    "data: [DONE]"
+   ],
+   "outputs": [
+    [],
+    [
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1790988509760291608\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gpt-test\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1790988509760291608\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
+     "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"interaction_1790988509760291608\",\"status\":\"completed\",\"usage\":{},\"created\":\"2026-10-03T00:48:29Z\",\"updated\":\"2026-10-03T00:48:29Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"gpt-test\"},\"event_type\":\"interaction.completed\"}\n\n",
+     "event: done\ndata: [DONE]\n\n"
+    ]
+   ],
+   "dynamic": [
+    {
+     "out": 0,
+     "data": 1,
+     "path": "interaction.id",
+     "prefix": "interaction_"
+    },
+    {
+     "out": 1,
+     "data": 1,
+     "path": "interaction_id",
+     "prefix": "interaction_"
+    },
+    {
+     "out": 2,
+     "data": 1,
+     "path": "interaction.id",
+     "prefix": "interaction_"
+    },
+    {
+     "out": 2,
+     "data": 1,
+     "path": "interaction.created",
+     "time": true
+    },
+    {
+     "out": 2,
+     "data": 1,
+     "path": "interaction.updated",
+     "time": true
+    }
+   ]
+  },
+  {
+   "name": "TestConvertOpenAIResponseToInteractionsStreamCreatedUsesChunkIdentity:calls",
+   "path": "stream",
+   "model": "gpt-test",
+   "lines": [
+    "data: {\"id\":\"chatcmpl_1\",\"object\":\"chat.completion.chunk\",\"model\":\"gpt-test\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"hi\"},\"finish_reason\":null}]}"
+   ],
+   "outputs": [
+    [
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"chatcmpl_1\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gpt-test\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"chatcmpl_1\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
+     "event: step.start\ndata: {\"index\":0,\"step\":{\"type\":\"model_output\"},\"event_type\":\"step.start\"}\n\n",
+     "event: step.delta\ndata: {\"index\":0,\"delta\":{\"text\":\"hi\",\"type\":\"text\"},\"event_type\":\"step.delta\"}\n\n",
+     "event: step.stop\ndata: {\"index\":0,\"event_type\":\"step.stop\"}\n\n"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertOpenAIResponseToInteractionsStreamToolCall:calls",
+   "path": "stream",
+   "model": "gpt-test",
+   "lines": [
+    "data: {\"id\":\"chatcmpl_1\",\"object\":\"chat.completion.chunk\",\"model\":\"gpt-test\",\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"call_1\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{\\\"q\\\":\\\"x\\\"}\"}}]},\"finish_reason\":null}]}"
+   ],
+   "outputs": [
+    [
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"chatcmpl_1\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gpt-test\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"chatcmpl_1\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
+     "event: step.start\ndata: {\"index\":0,\"step\":{\"type\":\"function_call\",\"id\":\"call_1\",\"name\":\"lookup\",\"arguments\":{}},\"event_type\":\"step.start\"}\n\n",
+     "event: step.delta\ndata: {\"index\":0,\"delta\":{\"arguments\":\"{\\\"q\\\":\\\"x\\\"}\",\"type\":\"arguments_delta\"},\"event_type\":\"step.delta\"}\n\n",
+     "event: step.stop\ndata: {\"index\":0,\"event_type\":\"step.stop\"}\n\n"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertOpenAIResponseToInteractionsNonStreamDirectToolCall:80",
+   "path": "non_stream",
+   "model": "gpt-test",
+   "input": "{\"id\":\"chatcmpl_1\",\"model\":\"gpt-test\",\"choices\":[{\"message\":{\"role\":\"assistant\",\"tool_calls\":[{\"id\":\"call_1\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{\\\"q\\\":\\\"x\\\"}\"}}]},\"finish_reason\":\"tool_calls\"}],\"usage\":{\"prompt_tokens\":2,\"completion_tokens\":3,\"total_tokens\":5}}",
+   "outputs": [
+    [
+     "{\"id\":\"chatcmpl_1\",\"status\":\"completed\",\"object\":\"interaction\",\"model\":\"gpt-test\",\"steps\":[{\"type\":\"function_call\",\"name\":\"lookup\",\"arguments\":{\"q\":\"x\"},\"id\":\"call_1\"}],\"finish_reason\":\"tool_calls\",\"usage\":{\"input_tokens\":2,\"total_input_tokens\":2,\"output_tokens\":3,\"total_output_tokens\":3,\"total_tokens\":5}}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions/config/00",
+   "path": "request",
+   "model": "gpt-test",
+   "stream": true,
+   "input": "{\"generation_config\":{\"thinking_level\":\" HIGH \"},\"input\":\"x\"}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}],\"stream\":true,\"reasoning_effort\":\"high\"}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions/config/01",
+   "path": "request",
+   "model": "gpt-test",
+   "input": "{\"generation_config\":{\"thinkingLevel\":\"\",\"thinking_config\":{\"thinking_level\":\"low\"}},\"input\":\"x\"}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions/config/02",
+   "path": "request",
+   "model": "gpt-test",
+   "input": "{\"generation_config\":{\"thinkingConfig\":{\"thinkingLevel\":\"Medium\"}},\"input\":\"x\"}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}],\"reasoning_effort\":\"medium\"}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions/config/03",
+   "path": "request",
+   "model": "gpt-test",
+   "stream": true,
+   "input": "{\"generation_config\":{\"reasoning\":{\"effort\":\"minimal\",\"summary\":\"detailed\"}},\"input\":\"x\"}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}],\"stream\":true}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions/config/04",
+   "path": "request",
+   "model": "gpt-test",
+   "input": "{\"generation_config\":{\"thinking_budget\":0},\"input\":\"x\"}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions/config/05",
+   "path": "request",
+   "model": "gpt-test",
+   "input": "{\"generation_config\":{\"thinkingBudget\":\"x\",\"thinking_config\":{\"thinkingBudget\":30000}},\"input\":\"x\"}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions/config/06",
+   "path": "request",
+   "model": "gpt-test",
+   "stream": true,
+   "input": "{\"generation_config\":{\"thinkingConfig\":{\"thinking_budget\":-1}},\"input\":\"x\"}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}],\"stream\":true}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions/config/07",
+   "path": "request",
+   "model": "gpt-test",
+   "input": "{\"generation_config\":{\"thinking_summaries\":\" AUTO \"},\"input\":\"x\"}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions/config/08",
+   "path": "request",
+   "model": "gpt-test",
+   "input": "{\"generation_config\":{\"thinkingSummaries\":\"detailed\",\"include_thoughts\":false},\"input\":\"x\"}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions/config/09",
+   "path": "request",
+   "model": "gpt-test",
+   "stream": true,
+   "input": "{\"generation_config\":{\"reasoning\":{\"summary\":\"none\"}},\"input\":\"x\"}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}],\"stream\":true}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions/config/10",
+   "path": "request",
+   "model": "gpt-test",
+   "input": "{\"generation_config\":{\"thinkingConfig\":{\"includeThoughts\":true}},\"input\":\"x\"}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions/config/11",
+   "path": "request",
+   "model": "gpt-test",
+   "input": "{\"generation_config\":{\"max_output_tokens\":10},\"input\":\"x\"}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}],\"max_tokens\":10}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions/config/12",
+   "path": "request",
+   "model": "gpt-test",
+   "stream": true,
+   "input": "{\"generation_config\":{\"maxOutputTokens\":\"11\"},\"input\":\"x\"}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}],\"stream\":true,\"max_tokens\":\"11\"}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions/config/13",
+   "path": "request",
+   "model": "gpt-test",
+   "input": "{\"generation_config\":{\"max_tokens\":12},\"input\":\"x\"}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions/config/14",
+   "path": "request",
+   "model": "gpt-test",
+   "input": "{\"generation_config\":{\"temperature\":0.5},\"input\":\"x\"}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}],\"temperature\":0.5}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions/config/15",
+   "path": "request",
+   "model": "gpt-test",
+   "stream": true,
+   "input": "{\"generation_config\":{\"topP\":1e0},\"input\":\"x\"}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}],\"stream\":true,\"top_p\":1e0}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions/config/16",
+   "path": "request",
+   "model": "gpt-test",
+   "input": "{\"generation_config\":{\"presence_penalty\":-1},\"input\":\"x\"}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions/config/17",
+   "path": "request",
+   "model": "gpt-test",
+   "input": "{\"generation_config\":{\"frequencyPenalty\":2},\"input\":\"x\"}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions/config/18",
+   "path": "request",
+   "model": "gpt-test",
+   "stream": true,
+   "input": "{\"generation_config\":{\"parallelToolCalls\":false},\"input\":\"x\"}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}],\"stream\":true}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions/config/19",
+   "path": "request",
+   "model": "gpt-test",
+   "input": "{\"generation_config\":{\"response_format\":{\"type\":\"json_object\"}},\"input\":\"x\"}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions/config/20",
+   "path": "request",
+   "model": "gpt-test",
+   "input": "{\"generation_config\":{\"text\":{\"format\":{\"type\":\"text\"}}},\"input\":\"x\"}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions/config/21",
+   "path": "request",
+   "model": "gpt-test",
+   "stream": true,
+   "input": "{\"generation_config\":{\"verbosity\":\"low\"},\"input\":\"x\"}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}],\"stream\":true}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions/config/22",
+   "path": "request",
+   "model": "gpt-test",
+   "input": "{\"generation_config\":{\"truncation\":\"auto\"},\"input\":\"x\"}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions/config/23",
+   "path": "request",
+   "model": "gpt-test",
+   "input": "{\"generation_config\":{\"toolChoice\":\"required\"},\"input\":\"x\"}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions/config/24",
+   "path": "request",
+   "model": "gpt-test",
+   "stream": true,
+   "input": "{\"generation_config\":{\"serviceTier\":\"flex\"},\"input\":\"x\"}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}],\"stream\":true}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions/config/25",
+   "path": "request",
+   "model": "gpt-test",
+   "input": "{\"generation_config\":{\"max_output_tokens\":1,\"maxOutputTokens\":2,\"temperature\":0.1,\"top_p\":0.2,\"text\":{\"a\":1},\"verbosity\":\"high\"},\"input\":\"x\"}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}],\"temperature\":0.1,\"max_tokens\":1,\"top_p\":0.2}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions/config/camel",
+   "path": "request",
+   "model": "gpt-test",
+   "input": "{\"generationConfig\":{\"temperature\":1},\"reasoning\":{\"effort\":\"ignored\"},\"input\":\"x\"}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}],\"temperature\":1}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions/input/none",
+   "path": "request",
+   "model": "gpt-test",
+   "stream": true,
+   "input": "{\"input\":5}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[],\"stream\":true}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions/input/object",
+   "path": "request",
+   "model": "gpt-test",
+   "input": "{\"input\":{\"role\":\"model\",\"steps\":[{\"type\":\"user_input\",\"content\":\"as model\"},\"bare\"]}}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[]}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions/input/single",
+   "path": "request",
+   "model": "gpt-test",
+   "input": "{\"input\":{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"one\"}]}}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":\"one\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions/input/steps",
+   "path": "request",
+   "model": "gpt-test",
+   "stream": true,
+   "input": "{\"input\":[\"plain\",{\"type\":\"user_input\",\"content\":\"u\"},{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"t1\"},{\"type\":\"image\",\"url\":\"https://i/a.png\"},{\"text\":\"t2\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"m\"}]},{\"type\":\"thought\",\"content\":[{\"text\":\"a\"},{\"text\":\"\"},{\"text\":\"b\"}],\"id\":\"th1\"},{\"type\":\"reasoning\",\"text\":\"r\"},{\"type\":\"thought\"},{\"type\":\"function_call\",\"name\":\"nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn\",\"id\":\" fc1 \",\"arguments\":{\"a\":\"\u003cx\u003e\"}},{\"type\":\"function_call\",\"name\":\"g\",\"call_id\":\"c2\",\"args\":\"{\\\"s\\\":1}\"},{\"type\":\"function_call\"},{\"type\":\"function_result\",\"call_id\":\"c2\",\"result\":{\"ok\":true}},{\"type\":\"function_call_output\",\"id\":\"fc1\",\"output\":\"done\"},{\"type\":\"function_result\",\"name\":\"x\"},{\"type\":\"message\",\"role\":\"system\",\"content\":\"sys\"},{\"type\":\"MESSAGE\",\"role\":\" Model \",\"text\":\"txt\"},{\"role\":\"developer\",\"steps\":[{\"type\":\"user_input\",\"content\":\"nested dev\"},{\"role\":\"user\",\"steps\":[\"deep\"]}]},{\"type\":\"other\",\"role\":\"assistant\",\"content\":{\"type\":\"text\",\"text\":\"obj\"}},{\"type\":\"other\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":\"plain\"},{\"role\":\"user\",\"content\":\"u\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"t1\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"https://i/a.png\"}},{\"type\":\"text\",\"text\":\"t2\"}]},{\"role\":\"assistant\",\"content\":\"m\"},{\"role\":\"assistant\",\"content\":\"\",\"reasoning_content\":\"\"},{\"role\":\"assistant\",\"content\":\"\",\"reasoning_content\":\"\"},{\"role\":\"assistant\",\"content\":\"\",\"tool_calls\":[{\"id\":\" fc1 \",\"type\":\"function\",\"function\":{\"name\":\"nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn\",\"arguments\":\"{\\\"a\\\":\\\"\\u003cx\\u003e\\\"}\"}}]},{\"role\":\"assistant\",\"content\":\"\",\"tool_calls\":[{\"id\":\"c2\",\"type\":\"function\",\"function\":{\"name\":\"g\",\"arguments\":\"{}\"}}]},{\"role\":\"assistant\",\"content\":\"\",\"tool_calls\":[{\"id\":\"call_0\",\"type\":\"function\",\"function\":{\"name\":\"\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"c2\",\"content\":\"{\\\"ok\\\":true}\"},{\"role\":\"tool\",\"tool_call_id\":\"\",\"content\":\"\"}],\"stream\":true}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions/input/string",
+   "path": "request",
+   "model": "gpt-test",
+   "input": "{\"input\":\"hello \u003cb\u003e\",\"stream\":true}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":\"hello \u003cb\u003e\"}],\"stream\":true}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions/invalid",
+   "path": "request",
+   "model": "gpt-test",
+   "input": "not json",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[]}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions/parts/inline",
+   "path": "request",
+   "model": "gpt-test",
+   "stream": true,
+   "input": "{\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"blob\",\"inline_data\":{\"mime_type\":\"image/png\",\"data\":\"iVBO\"}},{\"type\":\"blob\",\"inlineData\":{\"mimeType\":\"audio/x-wav\",\"data\":\"UklG\"}},{\"type\":\"blob\",\"inline_data\":{\"mime_type\":\"application/pdf\",\"data\":\"JVBE\"}},{\"type\":\"blob\",\"inline_data\":{\"mime_type\":\"image/svg+xml; name=\\\"\u003ca\u003e\\u00e9\\u2028\\\"\",\"data\":\"PHN2Zz4=\"}},{\"type\":\"blob\",\"inline_data\":{\"mime_type\":\"image/png\"}},{\"type\":\"blob\",\"file_data\":{\"mime_type\":\"image/jpeg\",\"file_uri\":\"gs://i.jpg\"}},{\"type\":\"blob\",\"fileData\":{\"mimeType\":\"video/mp4\",\"fileUri\":\"gs://v\"}},{\"type\":\"blob\",\"file_data\":{\"mime_type\":\"text/plain\"}},{\"inline_data\":{\"mime_type\":\"image/png\",\"data\":\"dropped\"}},{\"type\":\"text\"},{\"type\":\"unknown\"}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":\"\"}],\"stream\":true}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions/parts/media",
+   "path": "request",
+   "model": "gpt-test",
+   "input": "{\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"image\",\"file_uri\":\"gs://f\"},{\"type\":\"image\",\"fileUri\":\"\",\"mime_type\":\"image/png\",\"data\":\"iVBO\"},{\"type\":\"image\",\"mimeType\":\"image/gif\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"https://u\"}},{\"type\":\"audio\",\"mime_type\":\"audio/flac\",\"data\":\"ZkxhQw\"},{\"type\":\"audio\",\"data\":\"x\"},{\"type\":\"input_audio\",\"input_audio\":{\"data\":\"d\",\"format\":\"wav\"}},{\"type\":\"input_audio\"},{\"type\":\"video\",\"file\":{\"file_data\":\"AA\",\"filename\":\"v.mp4\"}},{\"type\":\"document\",\"uri\":\"x\",\"url\":\"https://d/a.pdf\",\"mimeType\":\"application/pdf\"},{\"type\":\"file\",\"file_uri\":\"\",\"url\":\"u\",\"mime_type\":\"text/csv\"},{\"type\":\"file\",\"mime_type\":\"application/json\",\"data\":\"e30\"},{\"type\":\"file\"}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"image_url\",\"image_url\":{\"url\":\"\"}},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,iVBO\"}},{\"type\":\"image_url\",\"image_url\":{\"url\":\"\"}},{\"type\":\"input_audio\",\"input_audio\":{\"data\":\"ZkxhQw\",\"format\":\"flac\"}},{\"type\":\"input_audio\",\"input_audio\":{\"data\":\"x\",\"format\":\"mp3\"}},{\"type\":\"video_url\",\"video_url\":{\"url\":\"\"}},{\"type\":\"file\",\"file\":{\"filename\":\"document.bin\",\"file_url\":\"https://d/a.pdf\"}},{\"type\":\"file\",\"file\":{\"filename\":\"document.csv\",\"file_url\":\"u\"}},{\"type\":\"file\",\"file\":{\"filename\":\"document.json\",\"file_data\":\"e30\"}},{\"type\":\"file\",\"file\":{\"filename\":\"document.bin\",\"file_data\":\"\"}}]}]}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions/reasoning/top",
+   "path": "request",
+   "model": "gpt-test",
+   "input": "{\"reasoning\":{\"effort\":\"high\"},\"input\":\"x\"}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions/system/empty",
+   "path": "request",
+   "model": "gpt-test",
+   "stream": true,
+   "input": "{\"system_instruction\":{\"parts\":[{\"text\":\"\"}]},\"input\":\"x\"}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}],\"stream\":true}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions/system/parts",
+   "path": "request",
+   "model": "gpt-test",
+   "input": "{\"system_instruction\":{\"text\":5,\"parts\":[{\"text\":\"p1\"},{\"text\":\"\"},{\"inline\":1},{\"text\":\"p2\"}]},\"input\":\"x\"}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"system\",\"content\":\"5\"},{\"role\":\"user\",\"content\":\"x\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions/system/string",
+   "path": "request",
+   "model": "gpt-test",
+   "input": "{\"system_instruction\":\"sys \u003cx\u003e\",\"input\":\"x\"}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"system\",\"content\":\"sys \u003cx\u003e\"},{\"role\":\"user\",\"content\":\"x\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions/system/text",
+   "path": "request",
+   "model": "gpt-test",
+   "stream": true,
+   "input": "{\"systemInstruction\":{\"text\":\"camel text\",\"parts\":[{\"text\":\"ignored\"}]},\"input\":\"x\"}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}],\"stream\":true}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions/tools/badparam",
+   "path": "request",
+   "model": "gpt-test",
+   "input": "{\"tools\":[{\"name\":\"x\",\"parameters\":\"str\"}],\"input\":\"x\"}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"x\",\"parameters\":\"str\"}}]}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions/tools/decls",
+   "path": "request",
+   "model": "gpt-test",
+   "input": "{\"tools\":[{\"function_declarations\":[{\"name\":\"a \u003cb\u003e\",\"description\":\"d \u0026 e\",\"parameters\":{\"$schema\":\"x\",\"type\":\"object\",\"additionalProperties\":true,\"properties\":{\"q\":{\"type\":\"string\",\"description\":\"\u003cq\u003e\"}}}},{\"name\":\"nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn\",\"parametersJsonSchema\":{\"type\":\"object\",\"additionalProperties\":false}},{\"name\":\"c\",\"parameters_json_schema\":{\"type\":\"object\"}},{\"description\":\"no name\"}]},{\"functionDeclarations\":[{\"name\":\"d\",\"description\":5}]},{\"name\":\"direct\",\"parameters\":{\"type\":\"object\"}},{\"googleSearch\":{}},{\"function_declarations\":\"notarray\"}],\"input\":\"x\"}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"a \u003cb\u003e\",\"description\":\"d \u0026 e\",\"parameters\":{\"$schema\":\"x\",\"type\":\"object\",\"additionalProperties\":true,\"properties\":{\"q\":{\"type\":\"string\",\"description\":\"\u003cq\u003e\"}}}}},{\"type\":\"function\",\"function\":{\"name\":\"nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn\",\"parameters\":{\"type\":\"object\",\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"c\"}},{\"type\":\"function\",\"function\":{\"name\":\"d\",\"description\":\"5\"}},{\"type\":\"function\",\"function\":{\"name\":\"direct\",\"parameters\":{\"type\":\"object\"}}}]}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions/tools/nonames",
+   "path": "request",
+   "model": "gpt-test",
+   "stream": true,
+   "input": "{\"tools\":[{\"googleSearch\":{}}],\"input\":\"x\"}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}],\"stream\":true}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions/tools/object",
+   "path": "request",
+   "model": "gpt-test",
+   "input": "{\"tools\":{\"name\":\"obj\"},\"tool_choice\":\"none\",\"input\":\"x\"}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}],\"tool_choice\":\"none\"}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions/top-level",
+   "path": "request",
+   "model": "gpt-test",
+   "input": "{\"service_tier\":\" Fast \",\"tool_choice\":{\"type\":\"function\",\"name\":\"a\"},\"parallel_tool_calls\":false,\"store\":true,\"metadata\":{\"k\":\"\u003cv\u003e\"},\"include\":[\"reasoning.encrypted_content\"],\"truncation\":\"auto\",\"input\":\"x\",\"tools\":[{\"name\":\"a\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"a\"}}],\"tool_choice\":{\"type\":\"function\",\"name\":\"a\"},\"service_tier\":\" Fast \",\"parallel_tool_calls\":false}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions/top-level/2",
+   "path": "request",
+   "model": "gpt-test",
+   "stream": true,
+   "input": "{\"service_tier\":\"flex\",\"generation_config\":{\"service_tier\":\"priority\",\"tool_choice\":\"auto\"},\"tool_choice\":\"auto\",\"input\":\"x\"}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}],\"stream\":true,\"tool_choice\":\"auto\",\"service_tier\":\"flex\"}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions-openai/antigravity/steps",
+   "path": "request",
+   "model": "antigravity-agent",
+   "input": "{\"input\":[{\"type\":\"user_input\",\"content\":\"plain\"},{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"},{\"text\":\"b\"},{\"type\":\"image\",\"data\":\"AA\",\"mime_type\":\"image/png\"},{\"type\":\"image\",\"url\":\"https://i\"},{\"type\":\"image\",\"image_url\":\"data:x\",\"file_data\":\"y\"},{\"type\":\"image\"},{\"type\":\"audio\",\"data\":\"UklG\",\"mime_type\":\"Audio/X-WAV\"},{\"type\":\"audio\",\"mime_type\":\"audio/ogg\"},{\"type\":\"audio\"},{\"type\":\"video\",\"data\":\"AA\"},{\"type\":\"video\",\"url\":\"gs://v\"},{\"type\":\"document\",\"data\":\"JVBE\",\"mime_type\":\"application/pdf\"},{\"type\":\"file\",\"filename\":\"n.txt\",\"file_url\":\"https://f\",\"data\":\"x\"},{\"type\":\"document\",\"mime_type\":\"image/svg+xml\"},{\"type\":\"document\",\"mime_type\":\"weird\"},{\"type\":\"Text\",\"text\":\"case\"},{\"type\":\"thought\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"m1\"},{\"type\":\"text\",\"text\":\"m2\"}]},{\"type\":\"model_output\",\"content\":{\"type\":\"text\",\"text\":\"single\"}},{\"type\":\"model_output\",\"content\":{\"type\":\"image\",\"data\":\"QQ\"}},{\"type\":\"model_output\"},{\"type\":\"thought\",\"content\":[{\"text\":\"t1\"},{\"content\":{\"text\":\"t2\"}}]},{\"type\":\"thought\",\"content\":{\"text\":\"t3\"}},{\"type\":\"thought\"},{\"type\":\"function_call\",\"name\":\"external_read_file\",\"call_id\":\"c1\",\"arguments\":{\"p\":\"\u003cx\u003e\"}},{\"type\":\"function_call\",\"name\":\"g\",\"id\":\"c2\",\"arguments\":\"{\\\"s\\\":1}\"},{\"type\":\"function_call\",\"name\":\"h\"},{\"type\":\"function_result\",\"call_id\":\"c1\",\"result\":{\"ok\":true}},{\"type\":\"function_result\",\"id\":\"c2\",\"output\":\"done\"},{\"type\":\"function_result\"},\"bare string\",5,{\"type\":\"unknown\",\"content\":\"x\"}],\"tools\":[{\"name\":\"external_write_file\"},{\"function_declarations\":[{\"name\":\"external_execute_code\"}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"antigravity-agent\",\"messages\":[{\"role\":\"user\",\"content\":\"plain\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"a\"},{\"type\":\"text\",\"text\":\"b\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AA\"}},{\"type\":\"image_url\",\"image_url\":{\"url\":\"https://i\"}},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:x\"}},{\"type\":\"image_url\",\"image_url\":{\"url\":\"\"}},{\"type\":\"input_audio\",\"input_audio\":{\"data\":\"UklG\",\"format\":\"wav\"}},{\"type\":\"input_audio\",\"input_audio\":{\"data\":\"\",\"format\":\"opus\"}},{\"type\":\"input_audio\",\"input_audio\":{\"data\":\"\",\"format\":\"mp3\"}},{\"type\":\"video_url\",\"video_url\":{\"url\":\"data:video/mp4;base64,AA\"}},{\"type\":\"video_url\",\"video_url\":{\"url\":\"gs://v\"}},{\"type\":\"file\",\"file\":{\"filename\":\"document.pdf\",\"file_data\":\"JVBE\"}},{\"type\":\"file\",\"file\":{\"filename\":\"n.txt\",\"file_url\":\"https://f\"}},{\"type\":\"file\",\"file\":{\"filename\":\"document.svg.xml\",\"file_data\":\"\"}},{\"type\":\"file\",\"file\":{\"filename\":\"document.bin\",\"file_data\":\"\"}}]},{\"role\":\"assistant\",\"content\":\"m1m2\"},{\"role\":\"assistant\",\"content\":\"single\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:application/octet-stream;base64,QQ\"}}]},{\"role\":\"assistant\",\"content\":\"\"},{\"role\":\"assistant\",\"content\":\"\",\"reasoning_content\":\"\"},{\"role\":\"assistant\",\"content\":\"\",\"reasoning_content\":\"t3\"},{\"role\":\"assistant\",\"content\":\"\",\"reasoning_content\":\"\"},{\"role\":\"assistant\",\"content\":\"\",\"tool_calls\":[{\"id\":\"c1\",\"type\":\"function\",\"function\":{\"name\":\"read_file\",\"arguments\":\"{\\\"p\\\":\\\"\\u003cx\\u003e\\\"}\"}}]},{\"role\":\"assistant\",\"content\":\"\",\"tool_calls\":[{\"id\":\"c2\",\"type\":\"function\",\"function\":{\"name\":\"g\",\"arguments\":\"{\\\"s\\\":1}\"}}]},{\"role\":\"assistant\",\"content\":\"\",\"tool_calls\":[{\"id\":\"call_0\",\"type\":\"function\",\"function\":{\"name\":\"h\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"c1\",\"content\":\"{\\\"ok\\\":true}\"},{\"role\":\"tool\",\"tool_call_id\":\"c2\",\"content\":\"done\"},{\"role\":\"tool\",\"tool_call_id\":\"\",\"content\":\"\"},{\"role\":\"user\",\"content\":\"bare string\"}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"write_file\"}},{\"type\":\"function\",\"function\":{\"name\":\"execute_code\"}}]}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions-openai/gen/both",
+   "path": "request",
+   "model": "gpt-test",
+   "stream": true,
+   "input": "{\"generation_config\":{},\"generationConfig\":{\"temperature\":1},\"input\":\"x\"}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}],\"stream\":true}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions-openai/gen/camel",
+   "path": "request",
+   "model": "gpt-test",
+   "input": "{\"generationConfig\":{\"maxOutputTokens\":6,\"topP\":0.3,\"topK\":4,\"candidateCount\":1,\"stopSequences\":\"x\",\"thinkingLevel\":\"MEDIUM\"},\"input\":\"x\"}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}],\"max_tokens\":6,\"top_p\":0.3,\"top_k\":4,\"n\":1,\"stop\":\"x\",\"reasoning_effort\":\"medium\"}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions-openai/gen/effort",
+   "path": "request",
+   "model": "gpt-test",
+   "stream": true,
+   "input": "{\"generation_config\":{\"reasoning_effort\":5,\"thinkingConfig\":{\"thinkingLevel\":\"x\"}},\"input\":\"x\"}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}],\"stream\":true,\"reasoning_effort\":\"x\"}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions-openai/gen/effort-root",
+   "path": "request",
+   "model": "gpt-test",
+   "input": "{\"generationConfig\":{\"thinking_level\":7},\"reasoning_effort\":\" XHIGH \",\"max_completion_tokens\":4,\"input\":\"x\"}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}],\"max_tokens\":4,\"reasoning_effort\":\"xhigh\"}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions-openai/gen/root",
+   "path": "request",
+   "model": "gpt-test",
+   "stream": true,
+   "input": "{\"generation_config\":{\"thinking_config\":{\"thinking_level\":\"minimal\"}},\"temperature\":0.7,\"max_tokens\":8,\"max_completion_tokens\":9,\"top_p\":0.4,\"n\":3,\"stop\":[\"y\"],\"tool_choice\":\"none\",\"reasoning_effort\":\"high\",\"input\":\"x\"}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}],\"stream\":true,\"temperature\":0.7,\"max_tokens\":8,\"top_p\":0.4,\"n\":3,\"stop\":[\"y\"],\"tool_choice\":\"none\",\"reasoning_effort\":\"minimal\"}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions-openai/gen/snake",
+   "path": "request",
+   "model": "gpt-test",
+   "input": "{\"generation_config\":{\"temperature\":0.1,\"max_output_tokens\":5,\"top_p\":0.2,\"top_k\":3,\"candidate_count\":2,\"stop_sequences\":[\"\u003cs\u003e\"],\"tool_choice\":{\"type\":\"auto\"},\"reasoning_effort\":\" Low \",\"thinking_level\":\"high\"},\"temperature\":9,\"response_modalities\":[\"TEXT\"],\"input\":\"x\"}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}],\"temperature\":0.1,\"max_tokens\":5,\"top_p\":0.2,\"top_k\":3,\"n\":2,\"stop\":[\"\u003cs\u003e\"],\"tool_choice\":{\"type\":\"auto\"},\"reasoning_effort\":\"low\",\"modalities\":[\"TEXT\"]}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions-openai/input/number",
+   "path": "request",
+   "model": "gpt-test",
+   "stream": true,
+   "input": "{\"input\":5}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[],\"stream\":true}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions-openai/input/object",
+   "path": "request",
+   "model": "gpt-test",
+   "input": "{\"input\":{\"type\":\"model_output\",\"content\":\"obj\"}}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"assistant\",\"content\":\"obj\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions-openai/input/string",
+   "path": "request",
+   "model": "gpt-test",
+   "stream": true,
+   "input": "{\"input\":\"hello\",\"stream\":true}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":\"hello\"}],\"stream\":true}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions-openai/model",
+   "path": "request",
+   "model": "gpt-test",
+   "input": "{\"model\":\"body\",\"input\":\"x\"}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions-openai/steps",
+   "path": "request",
+   "model": "gpt-test",
+   "stream": true,
+   "input": "{\"input\":[{\"type\":\"user_input\",\"content\":\"plain\"},{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"},{\"text\":\"b\"},{\"type\":\"image\",\"data\":\"AA\",\"mime_type\":\"image/png\"},{\"type\":\"image\",\"url\":\"https://i\"},{\"type\":\"image\",\"image_url\":\"data:x\",\"file_data\":\"y\"},{\"type\":\"image\"},{\"type\":\"audio\",\"data\":\"UklG\",\"mime_type\":\"Audio/X-WAV\"},{\"type\":\"audio\",\"mime_type\":\"audio/ogg\"},{\"type\":\"audio\"},{\"type\":\"video\",\"data\":\"AA\"},{\"type\":\"video\",\"url\":\"gs://v\"},{\"type\":\"document\",\"data\":\"JVBE\",\"mime_type\":\"application/pdf\"},{\"type\":\"file\",\"filename\":\"n.txt\",\"file_url\":\"https://f\",\"data\":\"x\"},{\"type\":\"document\",\"mime_type\":\"image/svg+xml\"},{\"type\":\"document\",\"mime_type\":\"weird\"},{\"type\":\"Text\",\"text\":\"case\"},{\"type\":\"thought\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"m1\"},{\"type\":\"text\",\"text\":\"m2\"}]},{\"type\":\"model_output\",\"content\":{\"type\":\"text\",\"text\":\"single\"}},{\"type\":\"model_output\",\"content\":{\"type\":\"image\",\"data\":\"QQ\"}},{\"type\":\"model_output\"},{\"type\":\"thought\",\"content\":[{\"text\":\"t1\"},{\"content\":{\"text\":\"t2\"}}]},{\"type\":\"thought\",\"content\":{\"text\":\"t3\"}},{\"type\":\"thought\"},{\"type\":\"function_call\",\"name\":\"external_read_file\",\"call_id\":\"c1\",\"arguments\":{\"p\":\"\u003cx\u003e\"}},{\"type\":\"function_call\",\"name\":\"g\",\"id\":\"c2\",\"arguments\":\"{\\\"s\\\":1}\"},{\"type\":\"function_call\",\"name\":\"h\"},{\"type\":\"function_result\",\"call_id\":\"c1\",\"result\":{\"ok\":true}},{\"type\":\"function_result\",\"id\":\"c2\",\"output\":\"done\"},{\"type\":\"function_result\"},\"bare string\",5,{\"type\":\"unknown\",\"content\":\"x\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":\"plain\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"a\"},{\"type\":\"text\",\"text\":\"b\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AA\"}},{\"type\":\"image_url\",\"image_url\":{\"url\":\"https://i\"}},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:x\"}},{\"type\":\"image_url\",\"image_url\":{\"url\":\"\"}},{\"type\":\"input_audio\",\"input_audio\":{\"data\":\"UklG\",\"format\":\"wav\"}},{\"type\":\"input_audio\",\"input_audio\":{\"data\":\"\",\"format\":\"opus\"}},{\"type\":\"input_audio\",\"input_audio\":{\"data\":\"\",\"format\":\"mp3\"}},{\"type\":\"video_url\",\"video_url\":{\"url\":\"data:video/mp4;base64,AA\"}},{\"type\":\"video_url\",\"video_url\":{\"url\":\"gs://v\"}},{\"type\":\"file\",\"file\":{\"filename\":\"document.pdf\",\"file_data\":\"JVBE\"}},{\"type\":\"file\",\"file\":{\"filename\":\"n.txt\",\"file_url\":\"https://f\"}},{\"type\":\"file\",\"file\":{\"filename\":\"document.svg.xml\",\"file_data\":\"\"}},{\"type\":\"file\",\"file\":{\"filename\":\"document.bin\",\"file_data\":\"\"}}]},{\"role\":\"assistant\",\"content\":\"m1m2\"},{\"role\":\"assistant\",\"content\":\"single\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:application/octet-stream;base64,QQ\"}}]},{\"role\":\"assistant\",\"content\":\"\"},{\"role\":\"assistant\",\"content\":\"\",\"reasoning_content\":\"\"},{\"role\":\"assistant\",\"content\":\"\",\"reasoning_content\":\"t3\"},{\"role\":\"assistant\",\"content\":\"\",\"reasoning_content\":\"\"},{\"role\":\"assistant\",\"content\":\"\",\"tool_calls\":[{\"id\":\"c1\",\"type\":\"function\",\"function\":{\"name\":\"external_read_file\",\"arguments\":\"{\\\"p\\\":\\\"\\u003cx\\u003e\\\"}\"}}]},{\"role\":\"assistant\",\"content\":\"\",\"tool_calls\":[{\"id\":\"c2\",\"type\":\"function\",\"function\":{\"name\":\"g\",\"arguments\":\"{\\\"s\\\":1}\"}}]},{\"role\":\"assistant\",\"content\":\"\",\"tool_calls\":[{\"id\":\"call_0\",\"type\":\"function\",\"function\":{\"name\":\"h\",\"arguments\":\"{}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"c1\",\"content\":\"{\\\"ok\\\":true}\"},{\"role\":\"tool\",\"tool_call_id\":\"c2\",\"content\":\"done\"},{\"role\":\"tool\",\"tool_call_id\":\"\",\"content\":\"\"},{\"role\":\"user\",\"content\":\"bare string\"}],\"stream\":true}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions-openai/system/content",
+   "path": "request",
+   "model": "gpt-test",
+   "input": "{\"system_instruction\":{\"content\":[{\"text\":\"a\"},{\"content\":{\"text\":\"b\"}},{}]},\"input\":\"x\"}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"system\",\"content\":\"ab\"},{\"role\":\"user\",\"content\":\"x\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions-openai/system/none",
+   "path": "request",
+   "model": "gpt-test",
+   "stream": true,
+   "input": "{\"system_instruction\":{\"other\":1},\"input\":\"x\"}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}],\"stream\":true}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions-openai/system/object",
+   "path": "request",
+   "model": "gpt-test",
+   "input": "{\"system_instruction\":{\"text\":\"st\"},\"input\":\"x\"}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"system\",\"content\":\"st\"},{\"role\":\"user\",\"content\":\"x\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions-openai/system/parts",
+   "path": "request",
+   "model": "gpt-test",
+   "stream": true,
+   "input": "{\"system_instruction\":{\"content\":\"x\",\"parts\":[{\"text\":\"p\"}]},\"input\":\"x\"}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"system\",\"content\":\"p\"},{\"role\":\"user\",\"content\":\"x\"}],\"stream\":true}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions-openai/tools",
+   "path": "request",
+   "model": "gpt-test",
+   "input": "{\"tools\":[{\"name\":\"a\",\"description\":\"d \u003cx\u003e\",\"parameters\":{\"type\":\"object\"}},{\"function\":{\"name\":\"b\",\"description\":\"fd\",\"parameters\":{\"p\":1}}},{\"name\":\"c\",\"parametersJsonSchema\":{\"j\":1}},{\"function_declarations\":[{\"name\":\"d\"},{\"description\":\"none\"}],\"functionDeclarations\":[{\"name\":\"ignored\"}]},{\"functionDeclarations\":[{\"name\":\"e\",\"parameters\":{}}]},{\"name\":\"  \"},{\"type\":\"google_search\"}],\"input\":\"x\"}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"a\",\"description\":\"d \u003cx\u003e\",\"parameters\":{\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"b\",\"description\":\"fd\",\"parameters\":{\"p\":1}}},{\"type\":\"function\",\"function\":{\"name\":\"c\",\"parameters\":{\"j\":1}}},{\"type\":\"function\",\"function\":{\"name\":\"d\"}},{\"type\":\"function\",\"function\":{\"name\":\"e\",\"parameters\":{}}}]}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions-openai/tools/none",
+   "path": "request",
+   "model": "gpt-test",
+   "stream": true,
+   "input": "{\"tools\":[{\"type\":\"google_search\"}],\"input\":\"x\"}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}],\"stream\":true}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions-openai/top-level",
+   "path": "request",
+   "model": "gpt-test",
+   "input": "{\"response_format\":{\"type\":\"json_object\"},\"service_tier\":\"flex\",\"previous_interaction_id\":\" \",\"previous_response_id\":\"p\",\"environment\":{\"id\":\"e\"},\"agent_config\":{\"a\":1},\"parallel_tool_calls\":false,\"seed\":42,\"user\":\"u\u003c1\u003e\",\"input\":\"x\"}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}],\"response_format\":{\"type\":\"json_object\"},\"service_tier\":\"flex\",\"previous_response_id\":\"p\",\"environment_id\":\"e\",\"agent_config\":{\"a\":1},\"parallel_tool_calls\":false,\"seed\":42,\"user\":\"u\u003c1\u003e\"}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions-openai/top-level/2",
+   "path": "request",
+   "model": "gpt-test",
+   "stream": true,
+   "input": "{\"service_tier\":3,\"previous_interaction_id\":\"pi\",\"environment_id\":\"ei\",\"stream\":\"yes\",\"input\":\"x\"}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}],\"stream\":true,\"previous_response_id\":\"pi\",\"environment_id\":\"ei\"}"
+    ]
+   ]
+  },
+  {
+   "name": "interactions-openai/model-from-body",
+   "path": "request",
+   "model": "",
+   "input": "{\"model\":\"body-model\",\"input\":\"x\"}",
+   "outputs": [
+    [
+     "{\"model\":\"body-model\",\"messages\":[{\"role\":\"user\",\"content\":\"x\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "passthrough/done",
+   "path": "stream",
+   "model": "m",
+   "lines": [
+    "data: {\"id\":\"x\",\"choices\":[]}",
+    "data: [DONE]",
+    "data: {\"choices\":[],\"cost\":\"0\"}"
+   ],
+   "outputs": [
+    [],
+    [
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1790988509891121282\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"m\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1790988509891121282\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
+     "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"interaction_1790988509891121282\",\"status\":\"completed\",\"usage\":{},\"created\":\"2026-10-03T00:48:29Z\",\"updated\":\"2026-10-03T00:48:29Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"m\"},\"event_type\":\"interaction.completed\"}\n\n",
+     "event: done\ndata: [DONE]\n\n"
+    ],
+    []
+   ],
+   "dynamic": [
+    {
+     "out": 0,
+     "data": 1,
+     "path": "interaction.id",
+     "prefix": "interaction_"
+    },
+    {
+     "out": 1,
+     "data": 1,
+     "path": "interaction_id",
+     "prefix": "interaction_"
+    },
+    {
+     "out": 2,
+     "data": 1,
+     "path": "interaction.id",
+     "prefix": "interaction_"
+    },
+    {
+     "out": 2,
+     "data": 1,
+     "path": "interaction.created",
+     "time": true
+    },
+    {
+     "out": 2,
+     "data": 1,
+     "path": "interaction.updated",
+     "time": true
+    }
+   ]
+  },
+  {
+   "name": "passthrough/bare",
+   "path": "stream",
+   "model": "m",
+   "lines": [
+    "{\"id\":\"y\"}",
+    " data: {\"n\":1}",
+    "",
+    "event: x"
+   ],
+   "outputs": [
+    [],
+    [],
+    [],
+    []
+   ]
+  },
+  {
+   "name": "passthrough/bare-done",
+   "path": "stream",
+   "model": "m",
+   "lines": [
+    "[DONE]",
+    "{\"id\":\"after\"}"
+   ],
+   "outputs": [
+    [
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1790988509893409035\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"m\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1790988509893409035\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
+     "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"interaction_1790988509893409035\",\"status\":\"completed\",\"usage\":{},\"created\":\"2026-10-03T00:48:29Z\",\"updated\":\"2026-10-03T00:48:29Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"m\"},\"event_type\":\"interaction.completed\"}\n\n",
+     "event: done\ndata: [DONE]\n\n"
+    ],
+    []
+   ],
+   "dynamic": [
+    {
+     "out": 0,
+     "data": 1,
+     "path": "interaction.id",
+     "prefix": "interaction_"
+    },
+    {
+     "out": 1,
+     "data": 1,
+     "path": "interaction_id",
+     "prefix": "interaction_"
+    },
+    {
+     "out": 2,
+     "data": 1,
+     "path": "interaction.id",
+     "prefix": "interaction_"
+    },
+    {
+     "out": 2,
+     "data": 1,
+     "path": "interaction.created",
+     "time": true
+    },
+    {
+     "out": 2,
+     "data": 1,
+     "path": "interaction.updated",
+     "time": true
+    }
+   ]
+  },
+  {
+   "name": "passthrough/timestamp",
+   "path": "stream",
+   "model": "m",
+   "lines": [
+    "data: {\"created\":123,\"n\":1e+09}",
+    " {\"created\":456,\"n\":9007199254740993} ",
+    "data:   [DONE]  "
+   ],
+   "outputs": [
+    [],
+    [],
+    [
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1790988509894548957\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"m\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1790988509894548957\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
+     "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"interaction_1790988509894548957\",\"status\":\"completed\",\"usage\":{},\"created\":\"2026-10-03T00:48:29Z\",\"updated\":\"2026-10-03T00:48:29Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"m\"},\"event_type\":\"interaction.completed\"}\n\n",
+     "event: done\ndata: [DONE]\n\n"
+    ]
+   ],
+   "dynamic": [
+    {
+     "out": 0,
+     "data": 1,
+     "path": "interaction.id",
+     "prefix": "interaction_"
+    },
+    {
+     "out": 1,
+     "data": 1,
+     "path": "interaction_id",
+     "prefix": "interaction_"
+    },
+    {
+     "out": 2,
+     "data": 1,
+     "path": "interaction.id",
+     "prefix": "interaction_"
+    },
+    {
+     "out": 2,
+     "data": 1,
+     "path": "interaction.created",
+     "time": true
+    },
+    {
+     "out": 2,
+     "data": 1,
+     "path": "interaction.updated",
+     "time": true
+    }
+   ]
+  },
+  {
+   "name": "passthrough/bytes",
+   "path": "stream",
+   "model": "m",
+   "bytes": true,
+   "lines": [
+    "data: {\"x\":\"ÿþ\"}",
+    "data: ÿ"
+   ],
+   "outputs": [
+    [],
+    []
+   ]
+  },
+  {
+   "name": "passthrough/json",
+   "path": "non_stream",
+   "model": "m",
+   "input": " {\"id\":\"opaque\",\"created\":123,\"usage\":{\"n\":1e+09}} ",
+   "outputs": [
+    [
+     "{\"id\":\"opaque\",\"status\":\"completed\",\"object\":\"interaction\",\"model\":\"m\",\"steps\":[]}"
+    ]
+   ]
+  },
+  {
+   "name": "passthrough/invalid",
+   "path": "non_stream",
+   "model": "m",
+   "input": "invalid",
+   "outputs": [
+    [
+     "{\"id\":\"interaction_1790988509898033595\",\"status\":\"completed\",\"object\":\"interaction\",\"model\":\"m\",\"steps\":[]}"
+    ]
+   ],
+   "dynamic": [
+    {
+     "out": 0,
+     "data": -1,
+     "path": "id",
+     "prefix": "interaction_"
+    }
+   ]
+  },
+  {
+   "name": "passthrough/bytes#2",
+   "path": "non_stream",
+   "model": "m",
+   "bytes": true,
+   "input": "{\"x\":\"ÿ\"}",
+   "outputs": [
+    [
+     "{\"id\":\"interaction_1790988509899288924\",\"status\":\"completed\",\"object\":\"interaction\",\"model\":\"m\",\"steps\":[]}"
+    ]
+   ],
+   "dynamic": [
+    {
+     "out": 0,
+     "data": -1,
+     "path": "id",
+     "prefix": "interaction_"
+    }
+   ]
+  },
+  {
+   "name": "openai-interactions/done-only",
+   "path": "stream",
+   "model": "gpt-test",
+   "lines": [
+    "data: [DONE]"
+   ],
+   "outputs": [
+    [
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1790988509900436145\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gpt-test\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1790988509900436145\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
+     "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"interaction_1790988509900436145\",\"status\":\"completed\",\"usage\":{},\"created\":\"2026-10-03T00:48:29Z\",\"updated\":\"2026-10-03T00:48:29Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"gpt-test\"},\"event_type\":\"interaction.completed\"}\n\n",
+     "event: done\ndata: [DONE]\n\n"
+    ]
+   ],
+   "dynamic": [
+    {
+     "out": 0,
+     "data": 1,
+     "path": "interaction.id",
+     "prefix": "interaction_"
+    },
+    {
+     "out": 1,
+     "data": 1,
+     "path": "interaction_id",
+     "prefix": "interaction_"
+    },
+    {
+     "out": 2,
+     "data": 1,
+     "path": "interaction.id",
+     "prefix": "interaction_"
+    },
+    {
+     "out": 2,
+     "data": 1,
+     "path": "interaction.created",
+     "time": true
+    },
+    {
+     "out": 2,
+     "data": 1,
+     "path": "interaction.updated",
+     "time": true
+    }
+   ]
+  },
+  {
+   "name": "openai-interactions/framing",
+   "path": "stream",
+   "model": "gpt-test",
+   "lines": [
+    "",
+    ": keepalive",
+    "event: x\ndata: {\"choices\":[{\"delta\":{\"content\":\"multi\"}}]}",
+    "{\"choices\":[{\"delta\":{\"content\":\"bare\"}}]}",
+    "data: not json",
+    "data: {\"choices\":{\"0\":{\"delta\":{\"content\":\"obj\"}}}}",
+    "data: {\"choices\":[]}",
+    "data: {\"object\":\"x\"}",
+    "data: [DONE]"
+   ],
+   "outputs": [
+    [],
+    [],
+    [
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1790988509901733675\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gpt-test\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1790988509901733675\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
+     "event: step.start\ndata: {\"index\":0,\"step\":{\"type\":\"model_output\"},\"event_type\":\"step.start\"}\n\n",
+     "event: step.delta\ndata: {\"index\":0,\"delta\":{\"text\":\"multi\",\"type\":\"text\"},\"event_type\":\"step.delta\"}\n\n"
+    ],
+    [
+     "event: step.delta\ndata: {\"index\":0,\"delta\":{\"text\":\"bare\",\"type\":\"text\"},\"event_type\":\"step.delta\"}\n\n"
+    ],
+    [],
+    [],
+    [],
+    [],
+    [
+     "event: step.stop\ndata: {\"index\":0,\"event_type\":\"step.stop\"}\n\n",
+     "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"interaction_1790988509901733675\",\"status\":\"completed\",\"usage\":{},\"created\":\"2026-10-03T00:48:29Z\",\"updated\":\"2026-10-03T00:48:29Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"gpt-test\"},\"event_type\":\"interaction.completed\"}\n\n",
+     "event: done\ndata: [DONE]\n\n"
+    ]
+   ],
+   "dynamic": [
+    {
+     "out": 0,
+     "data": 1,
+     "path": "interaction.id",
+     "prefix": "interaction_"
+    },
+    {
+     "out": 1,
+     "data": 1,
+     "path": "interaction_id",
+     "prefix": "interaction_"
+    },
+    {
+     "out": 6,
+     "data": 1,
+     "path": "interaction.id",
+     "prefix": "interaction_"
+    },
+    {
+     "out": 6,
+     "data": 1,
+     "path": "interaction.created",
+     "time": true
+    },
+    {
+     "out": 6,
+     "data": 1,
+     "path": "interaction.updated",
+     "time": true
+    }
+   ]
+  },
+  {
+   "name": "openai-interactions/reasoning-tools",
+   "path": "stream",
+   "model": "gpt-test",
+   "lines": [
+    "data: {\"id\":\"chatcmpl-1\",\"model\":\"gpt-x\",\"choices\":[{\"index\":0,\"delta\":{\"reasoning_content\":\"think\"}}]}",
+    "data: {\"id\":\"chatcmpl-1\",\"model\":\"gpt-x\",\"choices\":[{\"index\":0,\"delta\":{\"reasoning_content\":[{\"text\":\"a\"},{\"content\":\"b\"},{\"text\":\"\"}]}}]}",
+    "data: {\"id\":\"chatcmpl-1\",\"model\":\"gpt-x\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"x\",\"tool_calls\":[{\"index\":0,\"id\":\"call_a\",\"function\":{\"name\":\"read_file\",\"arguments\":\"\"}}]}}]}",
+    "data: {\"id\":\"chatcmpl-1\",\"model\":\"gpt-x\",\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":\"{\\\"p\\\":\"}}]}}]}",
+    "data: {\"id\":\"chatcmpl-1\",\"model\":\"gpt-x\",\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":\"1}\"}},{\"index\":1,\"function\":{\"name\":\"second\",\"arguments\":\"{}\"}}]}}]}",
+    "data: {\"id\":\"chatcmpl-1\",\"model\":\"gpt-x\",\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":1,\"id\":\"late_id\",\"function\":{\"arguments\":\"x\"}}]}}]}",
+    "data: {\"id\":\"chatcmpl-1\",\"model\":\"gpt-x\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"tool_calls\"}]}",
+    "data: [DONE]",
+    "data: [DONE]"
+   ],
+   "outputs": [
+    [
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"chatcmpl-1\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gpt-test\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"chatcmpl-1\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
+     "event: step.start\ndata: {\"index\":0,\"step\":{\"type\":\"thought\"},\"event_type\":\"step.start\"}\n\n",
+     "event: step.delta\ndata: {\"index\":0,\"delta\":{\"content\":{\"text\":\"think\",\"type\":\"text\"},\"type\":\"thought_summary\"},\"event_type\":\"step.delta\"}\n\n"
+    ],
+    [
+     "event: step.delta\ndata: {\"index\":0,\"delta\":{\"content\":{\"text\":\"a\",\"type\":\"text\"},\"type\":\"thought_summary\"},\"event_type\":\"step.delta\"}\n\n",
+     "event: step.delta\ndata: {\"index\":0,\"delta\":{\"content\":{\"text\":\"b\",\"type\":\"text\"},\"type\":\"thought_summary\"},\"event_type\":\"step.delta\"}\n\n"
+    ],
+    [
+     "event: step.stop\ndata: {\"index\":0,\"event_type\":\"step.stop\"}\n\n",
+     "event: step.start\ndata: {\"index\":1,\"step\":{\"type\":\"model_output\"},\"event_type\":\"step.start\"}\n\n",
+     "event: step.delta\ndata: {\"index\":1,\"delta\":{\"text\":\"x\",\"type\":\"text\"},\"event_type\":\"step.delta\"}\n\n",
+     "event: step.stop\ndata: {\"index\":1,\"event_type\":\"step.stop\"}\n\n",
+     "event: step.start\ndata: {\"index\":2,\"step\":{\"type\":\"function_call\",\"id\":\"call_a\",\"name\":\"read_file\",\"arguments\":{}},\"event_type\":\"step.start\"}\n\n"
+    ],
+    [
+     "event: step.delta\ndata: {\"index\":2,\"delta\":{\"arguments\":\"{\\\"p\\\":\",\"type\":\"arguments_delta\"},\"event_type\":\"step.delta\"}\n\n"
+    ],
+    [
+     "event: step.delta\ndata: {\"index\":2,\"delta\":{\"arguments\":\"1}\",\"type\":\"arguments_delta\"},\"event_type\":\"step.delta\"}\n\n",
+     "event: step.stop\ndata: {\"index\":2,\"event_type\":\"step.stop\"}\n\n",
+     "event: step.start\ndata: {\"index\":3,\"step\":{\"type\":\"function_call\",\"id\":\"call_1\",\"name\":\"second\",\"arguments\":{}},\"event_type\":\"step.start\"}\n\n",
+     "event: step.delta\ndata: {\"index\":3,\"delta\":{\"arguments\":\"{}\",\"type\":\"arguments_delta\"},\"event_type\":\"step.delta\"}\n\n"
+    ],
+    [
+     "event: step.stop\ndata: {\"index\":3,\"event_type\":\"step.stop\"}\n\n",
+     "event: step.start\ndata: {\"index\":4,\"step\":{\"type\":\"function_call\",\"id\":\"late_id\",\"name\":\"second\",\"arguments\":{}},\"event_type\":\"step.start\"}\n\n",
+     "event: step.delta\ndata: {\"index\":4,\"delta\":{\"arguments\":\"x\",\"type\":\"arguments_delta\"},\"event_type\":\"step.delta\"}\n\n"
+    ],
+    [
+     "event: step.stop\ndata: {\"index\":4,\"event_type\":\"step.stop\"}\n\n"
+    ],
+    [
+     "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"chatcmpl-1\",\"status\":\"completed\",\"usage\":{},\"created\":\"2026-10-03T00:48:29Z\",\"updated\":\"2026-10-03T00:48:29Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"gpt-test\"},\"event_type\":\"interaction.completed\"}\n\n",
+     "event: done\ndata: [DONE]\n\n"
+    ],
+    []
+   ],
+   "dynamic": [
+    {
+     "out": 20,
+     "data": 1,
+     "path": "interaction.created",
+     "time": true
+    },
+    {
+     "out": 20,
+     "data": 1,
+     "path": "interaction.updated",
+     "time": true
+    }
+   ]
+  },
+  {
+   "name": "openai-interactions/antigravity-reasoning-tools",
+   "path": "stream",
+   "model": "antigravity-x",
+   "lines": [
+    "data: {\"id\":\"chatcmpl-1\",\"model\":\"gpt-x\",\"choices\":[{\"index\":0,\"delta\":{\"reasoning_content\":\"think\"}}]}",
+    "data: {\"id\":\"chatcmpl-1\",\"model\":\"gpt-x\",\"choices\":[{\"index\":0,\"delta\":{\"reasoning_content\":[{\"text\":\"a\"},{\"content\":\"b\"},{\"text\":\"\"}]}}]}",
+    "data: {\"id\":\"chatcmpl-1\",\"model\":\"gpt-x\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"x\",\"tool_calls\":[{\"index\":0,\"id\":\"call_a\",\"function\":{\"name\":\"read_file\",\"arguments\":\"\"}}]}}]}",
+    "data: {\"id\":\"chatcmpl-1\",\"model\":\"gpt-x\",\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":\"{\\\"p\\\":\"}}]}}]}",
+    "data: {\"id\":\"chatcmpl-1\",\"model\":\"gpt-x\",\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":\"1}\"}},{\"index\":1,\"function\":{\"name\":\"second\",\"arguments\":\"{}\"}}]}}]}",
+    "data: {\"id\":\"chatcmpl-1\",\"model\":\"gpt-x\",\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":1,\"id\":\"late_id\",\"function\":{\"arguments\":\"x\"}}]}}]}",
+    "data: {\"id\":\"chatcmpl-1\",\"model\":\"gpt-x\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"tool_calls\"}]}",
+    "data: [DONE]",
+    "data: [DONE]"
+   ],
+   "outputs": [
+    [
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"chatcmpl-1\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"antigravity-x\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"chatcmpl-1\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
+     "event: step.start\ndata: {\"index\":0,\"step\":{\"type\":\"thought\"},\"event_type\":\"step.start\"}\n\n",
+     "event: step.delta\ndata: {\"index\":0,\"delta\":{\"content\":{\"text\":\"think\",\"type\":\"text\"},\"type\":\"thought_summary\"},\"event_type\":\"step.delta\"}\n\n"
+    ],
+    [
+     "event: step.delta\ndata: {\"index\":0,\"delta\":{\"content\":{\"text\":\"a\",\"type\":\"text\"},\"type\":\"thought_summary\"},\"event_type\":\"step.delta\"}\n\n",
+     "event: step.delta\ndata: {\"index\":0,\"delta\":{\"content\":{\"text\":\"b\",\"type\":\"text\"},\"type\":\"thought_summary\"},\"event_type\":\"step.delta\"}\n\n"
+    ],
+    [
+     "event: step.stop\ndata: {\"index\":0,\"event_type\":\"step.stop\"}\n\n",
+     "event: step.start\ndata: {\"index\":1,\"step\":{\"type\":\"model_output\"},\"event_type\":\"step.start\"}\n\n",
+     "event: step.delta\ndata: {\"index\":1,\"delta\":{\"text\":\"x\",\"type\":\"text\"},\"event_type\":\"step.delta\"}\n\n",
+     "event: step.stop\ndata: {\"index\":1,\"event_type\":\"step.stop\"}\n\n",
+     "event: step.start\ndata: {\"index\":2,\"step\":{\"type\":\"function_call\",\"id\":\"call_a\",\"name\":\"external_read_file\",\"arguments\":{}},\"event_type\":\"step.start\"}\n\n"
+    ],
+    [
+     "event: step.delta\ndata: {\"index\":2,\"delta\":{\"arguments\":\"{\\\"p\\\":\",\"type\":\"arguments_delta\"},\"event_type\":\"step.delta\"}\n\n"
+    ],
+    [
+     "event: step.delta\ndata: {\"index\":2,\"delta\":{\"arguments\":\"1}\",\"type\":\"arguments_delta\"},\"event_type\":\"step.delta\"}\n\n",
+     "event: step.stop\ndata: {\"index\":2,\"event_type\":\"step.stop\"}\n\n",
+     "event: step.start\ndata: {\"index\":3,\"step\":{\"type\":\"function_call\",\"id\":\"call_1\",\"name\":\"second\",\"arguments\":{}},\"event_type\":\"step.start\"}\n\n",
+     "event: step.delta\ndata: {\"index\":3,\"delta\":{\"arguments\":\"{}\",\"type\":\"arguments_delta\"},\"event_type\":\"step.delta\"}\n\n"
+    ],
+    [
+     "event: step.stop\ndata: {\"index\":3,\"event_type\":\"step.stop\"}\n\n",
+     "event: step.start\ndata: {\"index\":4,\"step\":{\"type\":\"function_call\",\"id\":\"late_id\",\"name\":\"second\",\"arguments\":{}},\"event_type\":\"step.start\"}\n\n",
+     "event: step.delta\ndata: {\"index\":4,\"delta\":{\"arguments\":\"x\",\"type\":\"arguments_delta\"},\"event_type\":\"step.delta\"}\n\n"
+    ],
+    [
+     "event: step.stop\ndata: {\"index\":4,\"event_type\":\"step.stop\"}\n\n"
+    ],
+    [
+     "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"chatcmpl-1\",\"status\":\"completed\",\"usage\":{},\"created\":\"2026-10-03T00:48:29Z\",\"updated\":\"2026-10-03T00:48:29Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"antigravity-x\"},\"event_type\":\"interaction.completed\"}\n\n",
+     "event: done\ndata: [DONE]\n\n"
+    ],
+    []
+   ],
+   "dynamic": [
+    {
+     "out": 20,
+     "data": 1,
+     "path": "interaction.created",
+     "time": true
+    },
+    {
+     "out": 20,
+     "data": 1,
+     "path": "interaction.updated",
+     "time": true
+    }
+   ]
+  },
+  {
+   "name": "openai-interactions/text",
+   "path": "stream",
+   "model": "gpt-test",
+   "lines": [
+    "data: {\"id\":\"chatcmpl-1\",\"model\":\"gpt-x\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"\"}}]}",
+    "data: {\"id\":\"chatcmpl-1\",\"model\":\"gpt-x\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"Hi \u003cb\u003e\"}}]}",
+    "data: {\"id\":\"chatcmpl-1\",\"model\":\"gpt-x\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\" é\"},\"finish_reason\":null}]}",
+    "data: {\"id\":\"chatcmpl-1\",\"model\":\"gpt-x\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"more\"}}]}",
+    "data: {\"id\":\"chatcmpl-1\",\"model\":\"gpt-x\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}",
+    "data: {\"id\":\"chatcmpl-1\",\"choices\":[],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":4,\"total_tokens\":7,\"prompt_tokens_details\":{\"cached_tokens\":1},\"completion_tokens_details\":{\"reasoning_tokens\":2}}}",
+    "data: [DONE]"
+   ],
+   "outputs": [
+    [],
+    [
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"chatcmpl-1\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gpt-test\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"chatcmpl-1\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
+     "event: step.start\ndata: {\"index\":0,\"step\":{\"type\":\"model_output\"},\"event_type\":\"step.start\"}\n\n",
+     "event: step.delta\ndata: {\"index\":0,\"delta\":{\"text\":\"Hi \u003cb\u003e\",\"type\":\"text\"},\"event_type\":\"step.delta\"}\n\n"
+    ],
+    [
+     "event: step.delta\ndata: {\"index\":0,\"delta\":{\"text\":\" é\",\"type\":\"text\"},\"event_type\":\"step.delta\"}\n\n",
+     "event: step.stop\ndata: {\"index\":0,\"event_type\":\"step.stop\"}\n\n"
+    ],
+    [
+     "event: step.start\ndata: {\"index\":1,\"step\":{\"type\":\"model_output\"},\"event_type\":\"step.start\"}\n\n",
+     "event: step.delta\ndata: {\"index\":1,\"delta\":{\"text\":\"more\",\"type\":\"text\"},\"event_type\":\"step.delta\"}\n\n"
+    ],
+    [
+     "event: step.stop\ndata: {\"index\":1,\"event_type\":\"step.stop\"}\n\n"
+    ],
+    [
+     "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"chatcmpl-1\",\"status\":\"completed\",\"usage\":{\"input_tokens\":3,\"total_input_tokens\":3,\"output_tokens\":4,\"total_output_tokens\":4,\"total_tokens\":7,\"cached_tokens\":1,\"total_cached_tokens\":1,\"reasoning_tokens\":2,\"total_thought_tokens\":2},\"created\":\"2026-10-03T00:48:29Z\",\"updated\":\"2026-10-03T00:48:29Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"gpt-test\"},\"event_type\":\"interaction.completed\"}\n\n"
+    ],
+    [
+     "event: done\ndata: [DONE]\n\n"
+    ]
+   ],
+   "dynamic": [
+    {
+     "out": 9,
+     "data": 1,
+     "path": "interaction.created",
+     "time": true
+    },
+    {
+     "out": 9,
+     "data": 1,
+     "path": "interaction.updated",
+     "time": true
+    }
+   ]
+  },
+  {
+   "name": "openai-interactions/usage-stored",
+   "path": "stream",
+   "model": "gpt-test",
+   "lines": [
+    "data: {\"id\":\"u1\",\"choices\":[{\"delta\":{\"content\":\"a\"}}],\"usage\":{\"prompt_tokens\":\"5\"}}",
+    "data: {\"choices\":[{\"delta\":{\"content\":\"b\"}}]}",
+    "data: [DONE]"
+   ],
+   "outputs": [
+    [
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"u1\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gpt-test\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"u1\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
+     "event: step.start\ndata: {\"index\":0,\"step\":{\"type\":\"model_output\"},\"event_type\":\"step.start\"}\n\n",
+     "event: step.delta\ndata: {\"index\":0,\"delta\":{\"text\":\"a\",\"type\":\"text\"},\"event_type\":\"step.delta\"}\n\n"
+    ],
+    [
+     "event: step.delta\ndata: {\"index\":0,\"delta\":{\"text\":\"b\",\"type\":\"text\"},\"event_type\":\"step.delta\"}\n\n"
+    ],
+    [
+     "event: step.stop\ndata: {\"index\":0,\"event_type\":\"step.stop\"}\n\n",
+     "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"u1\",\"status\":\"completed\",\"usage\":{\"input_tokens\":5,\"total_input_tokens\":5},\"created\":\"2026-10-03T00:48:29Z\",\"updated\":\"2026-10-03T00:48:29Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"gpt-test\"},\"event_type\":\"interaction.completed\"}\n\n",
+     "event: done\ndata: [DONE]\n\n"
+    ]
+   ],
+   "dynamic": [
+    {
+     "out": 6,
+     "data": 1,
+     "path": "interaction.created",
+     "time": true
+    },
+    {
+     "out": 6,
+     "data": 1,
+     "path": "interaction.updated",
+     "time": true
+    }
+   ]
+  },
+  {
+   "name": "openai-interactions/non-stream/0",
+   "path": "non_stream",
+   "model": "gpt-test",
+   "input": "{\"id\":\"chatcmpl-9\",\"model\":\"gpt-x\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"reasoning_content\":[{\"text\":\"r\"}],\"content\":\"answer \u003cb\u003e\",\"tool_calls\":[{\"id\":\"c1\",\"type\":\"function\",\"function\":{\"name\":\"read_file\",\"arguments\":\"{\\\"p\\\":1}\"}},{\"type\":\"custom\",\"function\":{\"name\":\"skip\"}},{\"function\":{\"name\":\"noid\",\"arguments\":{\"o\":1}}}]},\"finish_reason\":\"tool_calls\"}],\"usage\":{\"prompt_tokens\":1,\"completion_tokens\":2,\"total_tokens\":3}}",
+   "outputs": [
+    [
+     "{\"id\":\"chatcmpl-9\",\"status\":\"completed\",\"object\":\"interaction\",\"model\":\"gpt-test\",\"steps\":[{\"type\":\"thought\",\"content\":[{\"type\":\"text\",\"text\":\"r\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"answer \u003cb\u003e\"}]},{\"type\":\"function_call\",\"name\":\"read_file\",\"arguments\":{\"p\":1},\"id\":\"c1\"},{\"type\":\"function_call\",\"name\":\"noid\",\"arguments\":{\"o\":1}}],\"finish_reason\":\"tool_calls\",\"usage\":{\"input_tokens\":1,\"total_input_tokens\":1,\"output_tokens\":2,\"total_output_tokens\":2,\"total_tokens\":3}}"
+    ]
+   ]
+  },
+  {
+   "name": "openai-interactions/non-stream/antigravity",
+   "path": "non_stream",
+   "model": "antigravity-x",
+   "input": "{\"id\":\"chatcmpl-9\",\"model\":\"gpt-x\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"reasoning_content\":[{\"text\":\"r\"}],\"content\":\"answer \u003cb\u003e\",\"tool_calls\":[{\"id\":\"c1\",\"type\":\"function\",\"function\":{\"name\":\"read_file\",\"arguments\":\"{\\\"p\\\":1}\"}},{\"type\":\"custom\",\"function\":{\"name\":\"skip\"}},{\"function\":{\"name\":\"noid\",\"arguments\":{\"o\":1}}}]},\"finish_reason\":\"tool_calls\"}],\"usage\":{\"prompt_tokens\":1,\"completion_tokens\":2,\"total_tokens\":3}}",
+   "outputs": [
+    [
+     "{\"id\":\"chatcmpl-9\",\"status\":\"completed\",\"object\":\"interaction\",\"model\":\"antigravity-x\",\"steps\":[{\"type\":\"thought\",\"content\":[{\"type\":\"text\",\"text\":\"r\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"answer \u003cb\u003e\"}]},{\"type\":\"function_call\",\"name\":\"external_read_file\",\"arguments\":{\"p\":1},\"id\":\"c1\"},{\"type\":\"function_call\",\"name\":\"noid\",\"arguments\":{\"o\":1}}],\"finish_reason\":\"tool_calls\",\"usage\":{\"input_tokens\":1,\"total_input_tokens\":1,\"output_tokens\":2,\"total_output_tokens\":2,\"total_tokens\":3}}"
+    ]
+   ]
+  },
+  {
+   "name": "openai-interactions/non-stream/1",
+   "path": "non_stream",
+   "model": "gpt-test",
+   "input": "{\"choices\":[{\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"array\"}]},\"finish_reason\":null},{\"message\":{\"reasoning_content\":\"second\"},\"finish_reason\":\"stop\"}]}",
+   "outputs": [
+    [
+     "{\"id\":\"interaction_1790988509911601918\",\"status\":\"completed\",\"object\":\"interaction\",\"model\":\"gpt-test\",\"steps\":[{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"[{\\\"type\\\":\\\"text\\\",\\\"text\\\":\\\"array\\\"}]\"}]},{\"type\":\"thought\",\"content\":[{\"type\":\"text\",\"text\":\"second\"}]}],\"finish_reason\":\"stop\"}"
+    ]
+   ],
+   "dynamic": [
+    {
+     "out": 0,
+     "data": -1,
+     "path": "id",
+     "prefix": "interaction_"
+    }
+   ]
+  },
+  {
+   "name": "openai-interactions/non-stream/2",
+   "path": "non_stream",
+   "model": "gpt-test",
+   "input": "{\"choices\":[{\"message\":{\"content\":\"\"}}],\"usage\":{\"completion_tokens_details\":{\"reasoning_tokens\":\"4\"}}}",
+   "outputs": [
+    [
+     "{\"id\":\"interaction_1790988509912847242\",\"status\":\"completed\",\"object\":\"interaction\",\"model\":\"gpt-test\",\"steps\":[],\"usage\":{\"reasoning_tokens\":4,\"total_thought_tokens\":4}}"
+    ]
+   ],
+   "dynamic": [
+    {
+     "out": 0,
+     "data": -1,
+     "path": "id",
+     "prefix": "interaction_"
+    }
+   ]
+  },
+  {
+   "name": "openai-interactions/non-stream/3",
+   "path": "non_stream",
+   "model": "gpt-test",
+   "input": "{}",
+   "outputs": [
+    [
+     "{\"id\":\"interaction_1790988509913998862\",\"status\":\"completed\",\"object\":\"interaction\",\"model\":\"gpt-test\",\"steps\":[]}"
+    ]
+   ],
+   "dynamic": [
+    {
+     "out": 0,
+     "data": -1,
+     "path": "id",
+     "prefix": "interaction_"
+    }
+   ]
+  },
+  {
+   "name": "openai-interactions/non-stream/4",
+   "path": "non_stream",
+   "model": "gpt-test",
+   "input": "not json",
+   "outputs": [
+    [
+     "{\"id\":\"interaction_1790988509915164041\",\"status\":\"completed\",\"object\":\"interaction\",\"model\":\"gpt-test\",\"steps\":[]}"
+    ]
+   ],
+   "dynamic": [
+    {
+     "out": 0,
+     "data": -1,
+     "path": "id",
+     "prefix": "interaction_"
+    }
+   ]
+  }
+ ],
+ "token_count": false,
+ "upstream": "openai"
+}

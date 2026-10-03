@@ -42,6 +42,32 @@ fn doc_range(out: &[u8], data: i64) -> Option<(usize, usize)> {
     None
 }
 
+/// Unix seconds of a `YYYY-MM-DDThh:mm:ss[.frac](Z|±hh:mm)` stamp.
+fn parse_rfc3339(s: &[u8]) -> Option<i64> {
+    let s = std::str::from_utf8(s).ok()?;
+    let num = |r: std::ops::Range<usize>| s.get(r)?.parse::<i64>().ok();
+    let (y, mo, d, h, mi, se) = (
+        num(0..4)?,
+        num(5..7)?,
+        num(8..10)?,
+        num(11..13)?,
+        num(14..16)?,
+        num(17..19)?,
+    );
+    let rest = s.get(19..)?;
+    let rest = rest.trim_start_matches(|c: char| c == '.' || c.is_ascii_digit());
+    let offset = match rest {
+        "Z" => 0,
+        _ => {
+            let sign = if rest.starts_with('-') { -1 } else { 1 };
+            sign * (rest.get(1..3)?.parse::<i64>().ok()? * 3600 + rest.get(4..6)?.parse::<i64>().ok()? * 60)
+        }
+    };
+    let (y, mo) = if mo <= 2 { (y - 1, mo + 12) } else { (y, mo) };
+    let days = 365 * y + y / 4 - y / 100 + y / 400 + (153 * (mo - 3) + 2) / 5 + d - 719_469;
+    Some(days * 86_400 + h * 3600 + mi * 60 + se - offset)
+}
+
 struct Dyn {
     out: usize,
     data: i64,
@@ -72,7 +98,10 @@ fn normalize(outputs: &mut [Vec<u8>], dynamics: &[Dyn], check: Option<(i64, i64)
         }
         if let Some((start, end)) = check {
             if d.time {
-                let n = value.int();
+                let n = match value.kind {
+                    gj::Kind::String => parse_rfc3339(&value.s).unwrap_or(0),
+                    _ => value.int(),
+                };
                 if !((start - 2..=end + 2).contains(&n) || ((start - 2) * 1000..=(end + 2) * 1000).contains(&n)) {
                     errors.push(format!("{} = {n} is not a current timestamp", d.path));
                 }
@@ -110,11 +139,31 @@ fn run(client: Format, upstream: Format, f: &Value, bytes: bool) -> Vec<Vec<u8>>
                 (Format::OpenAI, Format::Claude) => cpa_translate::openai_to_claude_with_compat(&ctx, &input),
                 (Format::Claude, Format::OpenAI) => cpa_translate::claude_to_openai_with_compat(&ctx, &input),
                 (Format::Claude, Format::Gemini) => cpa_translate::claude_to_gemini_with_compat(&ctx, &input),
+                (Format::Claude, Format::Codex) => cpa_translate::claude_to_codex_with_compat(&ctx, &input),
+                (Format::Claude, Format::Interactions) => {
+                    cpa_translate::claude_to_interactions_with_compat(&ctx, &input)
+                }
                 other => panic!("no compat request for {other:?}"),
             }
             .unwrap(),
         ],
-        "non_stream" => vec![(pair.non_stream)(&rctx, &input).unwrap()],
+        "request_envelope" => {
+            // The executor's ResolvedModelInfo with native web search on.
+            let info = cpa_core::registry::ModelInfo::from_raw(
+                serde_json::json!({"id": model, "native_capabilities": {"web_search": true}})
+                    .as_object()
+                    .unwrap()
+                    .clone(),
+            )
+            .unwrap();
+            vec![cpa_translate::translate_request_envelope(client, upstream, &ctx, &input, Some(&info)).unwrap()]
+        }
+        // Go returns nil (written as "") when the apply_patch bridge rejects the body.
+        "non_stream" => vec![match (pair.non_stream)(&rctx, &input) {
+            Ok(out) => out,
+            Err(e) if e.0 == cpa_translate::APPLY_PATCH_UPSTREAM_ERROR => vec![],
+            Err(e) => panic!("non_stream failed: {e}"),
+        }],
         "token_count" => vec![translate_token_count(
             client,
             upstream,
@@ -130,6 +179,25 @@ fn run(client: Format, upstream: Format, f: &Value, bytes: bool) -> Vec<Vec<u8>>
             out
         }
         other => panic!("unknown fixture path {other}"),
+    }
+}
+
+/// JSON with object keys sorted recursively (for outputs whose Go key order varies).
+fn canonical(raw: &[u8]) -> Vec<u8> {
+    fn sorted(value: Value) -> Value {
+        match value {
+            Value::Object(map) => {
+                let mut entries: Vec<(String, Value)> = map.into_iter().map(|(k, v)| (k, sorted(v))).collect();
+                entries.sort_by(|a, b| a.0.cmp(&b.0));
+                Value::Object(entries.into_iter().collect())
+            }
+            Value::Array(items) => Value::Array(items.into_iter().map(sorted).collect()),
+            other => other,
+        }
+    }
+    match serde_json::from_slice::<Value>(raw) {
+        Ok(value) => serde_json::to_vec(&sorted(value)).unwrap(),
+        Err(_) => raw.to_vec(),
     }
 }
 
@@ -202,7 +270,8 @@ fn reference_goldens() {
                 };
                 let mut s = go_stream(client, upstream).unwrap()(&rctx);
                 let mut out = vec![];
-                for (i, line) in f["lines"].as_array().unwrap().iter().enumerate() {
+                let lines = f["lines"].as_array().unwrap();
+                for (i, line) in lines.iter().enumerate() {
                     let chunks = s.line(&field(line, bytes)).unwrap();
                     let want = f["outputs"][i].as_array().unwrap().len();
                     if chunks.len() != want {
@@ -210,11 +279,55 @@ fn reference_goldens() {
                     }
                     out.extend(chunks);
                 }
+                if f["finalize"].as_bool().unwrap_or(false) {
+                    let chunks = s.finalize_tool_input();
+                    let want = f["outputs"][lines.len()].as_array().unwrap().len();
+                    if chunks.len() != want {
+                        failures.push(format!("{name}: finalize produced {} chunks, Go {want}", chunks.len()));
+                    }
+                    out.extend(chunks);
+                }
+                if s.tool_input_failed() != f["tool_error"].as_bool().unwrap_or(false) {
+                    failures.push(format!("{name}: tool input error state differs from Go"));
+                }
                 out
             } else {
-                run(client, upstream, f, bytes)
+                let out = run(client, upstream, f, bytes);
+                if f["path"] == "non_stream"
+                    && out[0].is_empty() != f["tool_error"].as_bool().unwrap_or(false)
+                    && f["tool_error"].as_bool().unwrap_or(false)
+                {
+                    failures.push(format!("{name}: Go rejected the apply_patch body, Rust did not"));
+                }
+                if f["path"] == "non_stream" && f["tool_error"].as_bool().unwrap_or(false) && out[0].is_empty() {
+                    // Go's executors answer 502 and drop whatever body the translator
+                    // returned with ToolInputError set; Rust returns the error instead.
+                    expected.clone()
+                } else {
+                    out
+                }
             };
+            if let Some(variants) = f["variants"].as_array()
+                && let Some(out) = actual.first()
+                && variants.iter().any(|v| canonical(&field(v, bytes)) == canonical(out))
+            {
+                // Go's own output order varies here (map iteration); any order it
+                // produced is accepted.
+                actual = expected.clone();
+            }
             let end = now();
+            if let Some(variants) = f["stream_variants"].as_array() {
+                // Go's output order varies (map iteration); any order it produced is
+                // accepted.
+                let produced = variants.iter().any(|v| {
+                    let lists: Vec<Vec<String>> = serde_json::from_str(v.as_str().unwrap()).unwrap();
+                    let flat: Vec<Vec<u8>> = lists.into_iter().flatten().map(String::into_bytes).collect();
+                    flat == actual
+                });
+                if produced {
+                    actual = expected.clone();
+                }
+            }
             let mut errors = normalize(&mut actual, &dynamics, Some((start, end)));
             normalize(&mut expected, &dynamics, None);
             if actual != expected {
@@ -341,4 +454,168 @@ fn deeply_nested_client_bodies_translate_without_overflowing() {
     let out = translate_request(Format::Claude, Format::OpenAI, &ctx, &body).unwrap();
     assert!(out.starts_with(br#"{"model":"gpt-test","messages":"#));
     assert!(out.windows(depth).any(|w| w.iter().all(|&c| c == b'[')));
+}
+
+#[test]
+fn deeply_nested_upstream_bodies_translate_without_overflowing() {
+    let depth = 50_000;
+    let nested = [vec![b'['; depth], vec![b']'; depth]].concat();
+    let rctx = ResponseCtx {
+        model: "m",
+        original_request: b"{}",
+        translated_request: b"{}",
+    };
+    // Non-stream: a Gemini body whose function-call arguments nest deeply.
+    let body = [
+        &br#"{"candidates":[{"content":{"parts":[{"functionCall":{"name":"f","args":{"x":"#[..],
+        &nested,
+        b"}}}]}}]}",
+    ]
+    .concat();
+    let out = (pair(Format::Claude, Format::Gemini).unwrap().non_stream)(&rctx, &body).unwrap();
+    assert!(out.starts_with(br#"{"id":"","type":"message""#));
+    // Stream: the same payload as one upstream event.
+    let mut stream = (pair(Format::OpenAI, Format::Gemini).unwrap().stream)(&rctx);
+    let chunks = stream.event(&[&b"data: "[..], &body, b"\n\n"].concat()).unwrap();
+    assert_eq!(chunks.len(), 1);
+}
+
+#[test]
+fn deeply_nested_retained_state_translates_without_overflowing() {
+    let depth = 50_000;
+    let nested = [vec![b'['; depth], vec![b']'; depth]].concat();
+    let deep_run = |out: &[u8]| out.windows(depth).any(|w| w.iter().all(|&c| c == b'['));
+    // Responses completions echo the request's metadata (Go's Value() re-marshal) while
+    // the upstream events themselves are shallow.
+    let original = [&br#"{"model":"m","input":"q","metadata":{"x":"#[..], &nested, b"}}"].concat();
+    let ctx = ResponseCtx {
+        model: "gemini-2.5-pro",
+        original_request: &original,
+        translated_request: b"{}",
+    };
+    let gemini = pair(Format::OpenAIResponse, Format::Gemini).unwrap();
+    let mut stream = (gemini.stream)(&ctx);
+    let mut out = vec![];
+    for event in [
+        &b"data: {\"responseId\":\"r\",\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"x\"}]}}]}\n\n"[..],
+        b"data: [DONE]\n\n",
+    ] {
+        out.extend(stream.event(event).unwrap());
+    }
+    out.extend(stream.finish().unwrap());
+    let completed = out
+        .iter()
+        .find(|f| f.starts_with(b"event: response.completed"))
+        .unwrap();
+    assert!(deep_run(completed));
+    let body = br#"{"responseId":"r","candidates":[{"content":{"parts":[{"text":"x"}]},"finishReason":"STOP"}]}"#;
+    assert!(deep_run(&(gemini.non_stream)(&ctx, body).unwrap()));
+
+    // Tool arguments that only nest once the stream's string deltas are joined.
+    let ctx = ResponseCtx {
+        model: "claude-sonnet-4-5",
+        original_request: br#"{"model":"m","input":"q"}"#,
+        translated_request: b"{}",
+    };
+    let mut stream = (pair(Format::OpenAIResponse, Format::Claude).unwrap().stream)(&ctx);
+    let ev = |json: &str| format!("data: {json}\n\n").into_bytes();
+    let mut out = vec![];
+    out.extend(
+        stream
+            .event(&ev(r#"{"type":"message_start","message":{"id":"m1","model":"c"}}"#))
+            .unwrap(),
+    );
+    out.extend(
+        stream
+            .event(&ev(
+                r#"{"type":"content_block_start","index":0,"content_block":{"type":"tool_use","id":"t1","name":"f","input":{}}}"#,
+            ))
+            .unwrap(),
+    );
+    for part in [&b"{\"x\":"[..], &vec![b'['; depth], &vec![b']'; depth], b"}"] {
+        for piece in part.chunks(5_000) {
+            let delta = serde_json::json!({"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":String::from_utf8(piece.to_vec()).unwrap()}});
+            out.extend(stream.event(&ev(&delta.to_string())).unwrap());
+        }
+    }
+    for json in [
+        r#"{"type":"content_block_stop","index":0}"#,
+        r#"{"type":"message_delta","delta":{"stop_reason":"tool_use"},"usage":{"output_tokens":1}}"#,
+        r#"{"type":"message_stop"}"#,
+    ] {
+        out.extend(stream.event(&ev(json)).unwrap());
+    }
+    out.extend(stream.finish().unwrap());
+    let completed = out
+        .iter()
+        .find(|f| f.starts_with(b"event: response.completed"))
+        .unwrap();
+    assert!(deep_run(completed));
+}
+
+#[test]
+fn apply_patch_failures_reach_the_stream_contract() {
+    let original = br#"{"model":"m","input":"q","tools":[{"type":"custom","name":"apply_patch"}]}"#;
+    let ctx = ResponseCtx {
+        model: "gemini-2.5-pro",
+        original_request: original,
+        translated_request: b"{}",
+    };
+    let pair = pair(Format::OpenAIResponse, Format::Gemini).unwrap();
+    let failed = |frame: &bytes::Bytes| frame.starts_with(b"event: response.failed\ndata: ");
+
+    // Invalid patch input: the event's frames end in response.failed, then the executor
+    // stops with the 502 message.
+    let mut stream = (pair.stream)(&ctx);
+    let frames = stream
+        .event(b"data: {\"responseId\":\"r\",\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"hi\"},{\"functionCall\":{\"name\":\"apply_patch\",\"args\":{\"input\":5}}}]}}]}\n\n")
+        .unwrap();
+    assert!(stream.tool_input_failed());
+    assert!(failed(frames.last().unwrap()), "{frames:?}");
+    assert!(frames.iter().filter(|f| failed(f)).count() == 1);
+
+    // A patch-enabled stream that ends without its terminator fails at EOF.
+    let mut stream = (pair.stream)(&ctx);
+    stream
+        .event(b"data: {\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"x\"}]}}]}\n\n")
+        .unwrap();
+    assert!(!stream.tool_input_failed());
+    let frames = stream.finalize_tool_input();
+    assert_eq!(frames.len(), 1);
+    assert!(failed(&frames[0]));
+    assert!(stream.tool_input_failed());
+    assert!(stream.finalize_tool_input().is_empty(), "the failure is reported once");
+
+    // A completed stream, or one without apply_patch, has nothing to finalize.
+    let mut stream = (pair.stream)(&ctx);
+    stream
+        .event(b"data: {\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"x\"}]},\"finishReason\":\"STOP\"}]}\n\n")
+        .unwrap();
+    assert!(stream.finalize_tool_input().is_empty());
+    let plain = ResponseCtx {
+        original_request: br#"{"input":"q"}"#,
+        ..ctx
+    };
+    let mut stream = (pair.stream)(&plain);
+    stream
+        .event(b"data: {\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"x\"}]}}]}\n\n")
+        .unwrap();
+    assert!(stream.finalize_tool_input().is_empty());
+    assert!(!stream.tool_input_failed());
+
+    // Buffered responses report the same failure as an error carrying Go's message.
+    let err = (pair.non_stream)(
+        &ctx,
+        br#"{"candidates":[{"content":{"parts":[{"functionCall":{"name":"apply_patch","args":{"input":5}}}]}}]}"#,
+    )
+    .unwrap_err();
+    assert_eq!(err.0, cpa_translate::APPLY_PATCH_UPSTREAM_ERROR);
+}
+
+#[test]
+fn golden_rfc3339_parser_matches_unix_seconds() {
+    assert_eq!(parse_rfc3339(b"1970-01-01T00:00:00Z"), Some(0));
+    assert_eq!(parse_rfc3339(b"2023-11-14T22:13:20Z"), Some(1_700_000_000));
+    assert_eq!(parse_rfc3339(b"2000-02-29T01:00:00+01:00"), Some(951_782_400));
+    assert_eq!(parse_rfc3339(b"2025-08-15T02:52:03.884209Z"), Some(1_755_226_323));
 }

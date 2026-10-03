@@ -23,9 +23,12 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/router-for-me/CLIProxyAPI/v8/internal/registry"
 	_ "github.com/router-for-me/CLIProxyAPI/v8/internal/translator"
 	claudechat "github.com/router-for-me/CLIProxyAPI/v8/internal/translator/claude/openai/chat-completions"
+	codexclaude "github.com/router-for-me/CLIProxyAPI/v8/internal/translator/codex/claude"
 	geminiclaude "github.com/router-for-me/CLIProxyAPI/v8/internal/translator/gemini/claude"
+	interactionsclaude "github.com/router-for-me/CLIProxyAPI/v8/internal/translator/interactions/claude"
 	openaiclaude "github.com/router-for-me/CLIProxyAPI/v8/internal/translator/openai/claude"
 	sdk "github.com/router-for-me/CLIProxyAPI/v8/sdk/translator"
 	"github.com/tidwall/gjson"
@@ -51,8 +54,17 @@ type fixture struct {
 	Lines      []string   `json:"lines,omitempty"`
 	Count      int64      `json:"count,omitempty"`
 	Outputs    [][]string `json:"outputs"`
-	Dynamic    []dynamic  `json:"dynamic,omitempty"`
-	key        string
+	Finalize   bool       `json:"finalize,omitempty"`
+	ToolError  bool       `json:"tool_error,omitempty"`
+	// Variants are every distinct output of a request whose Go output is not stable
+	// (map iteration order); Rust must match one of them modulo object key order.
+	Variants []string `json:"variants,omitempty"`
+	// Unordered streams emit in Go map order; every distinct output over 25 runs is
+	// recorded in StreamVariants (JSON-encoded output lists).
+	Unordered      bool      `json:"unordered,omitempty"`
+	StreamVariants []string  `json:"stream_variants,omitempty"`
+	Dynamic        []dynamic `json:"dynamic,omitempty"`
+	key            string
 }
 
 type registration struct {
@@ -363,8 +375,21 @@ func firstNonEmpty(values ...string) string {
 // ---------------------------------------------------------------------------------------
 // Running and dynamic-value detection.
 
+// lastToolError is the ToolInputError state run left behind (Go's apply_patch contract).
+var lastToolError bool
+
+func toolInputFailed(param any) bool {
+	state, ok := param.(interface{ ToolInputError() error })
+	return ok && state.ToolInputError() != nil
+}
+
 func run(r registration, f fixture) [][]string {
+	lastToolError = false
 	ctx := context.Background()
+	if r.upstream == "antigravity" {
+		// The Antigravity executor streams with an empty `alt` (antigravity_executor_stream.go).
+		ctx = context.WithValue(ctx, "alt", "")
+	}
 	from, to := sdk.FromString(r.client), sdk.FromString(r.upstream)
 	var orig, req []byte
 	if f.Original != "" {
@@ -384,11 +409,23 @@ func run(r registration, f fixture) [][]string {
 			return [][]string{{string(openaiclaude.ConvertClaudeRequestToOpenAIWithCompat(f.Model, []byte(f.Input), f.Stream))}}
 		case "claude:gemini":
 			return [][]string{{string(geminiclaude.ConvertClaudeRequestToGeminiWithCompat(f.Model, []byte(f.Input), f.Stream))}}
+		case "claude:codex":
+			return [][]string{{string(codexclaude.ConvertClaudeRequestToCodexWithCompat(f.Model, []byte(f.Input), f.Stream))}}
+		case "claude:interactions":
+			return [][]string{{string(interactionsclaude.ConvertClaudeRequestToInteractionsWithCompat(f.Model, []byte(f.Input), f.Stream))}}
 		}
 		panic("no compat request for " + r.client + ":" + r.upstream)
+	case "request_envelope":
+		// The executor's ResolvedModelInfo with native web search on.
+		webSearch := true
+		info := &registry.ModelInfo{ID: f.Model, NativeCapabilities: &registry.NativeCapabilities{WebSearch: &webSearch}}
+		env := sdk.TranslateRequestEnvelope(ctx, from, to, sdk.RequestEnvelope{Format: from, Model: f.Model, Stream: f.Stream, Body: []byte(f.Input), ModelInfo: info})
+		return [][]string{{string(env.Body)}}
 	case "non_stream":
 		var param any
-		return [][]string{{string(sdk.TranslateNonStream(ctx, to, from, f.Model, orig, req, []byte(f.Input), &param))}}
+		out := sdk.TranslateNonStream(ctx, to, from, f.Model, orig, req, []byte(f.Input), &param)
+		lastToolError = toolInputFailed(param)
+		return [][]string{{string(out)}}
 	case "token_count":
 		return [][]string{{string(sdk.TranslateTokenCount(ctx, to, from, f.Count, []byte(f.Input)))}}
 	case "stream":
@@ -402,6 +439,17 @@ func run(r registration, f fixture) [][]string {
 			}
 			out = append(out, strs)
 		}
+		if f.Finalize {
+			// helps.FinalizeApplyPatchStream at transport EOF.
+			strs := []string{}
+			if state, ok := param.(interface{ FinalizeToolInput() [][]byte }); ok {
+				for _, c := range state.FinalizeToolInput() {
+					strs = append(strs, string(c))
+				}
+			}
+			out = append(out, strs)
+		}
+		lastToolError = toolInputFailed(param)
 		return out
 	}
 	panic("unknown path " + f.Path)
@@ -467,6 +515,13 @@ func walk(a, b gjson.Result, path string, start, end int64, add func(path, prefi
 			return
 		}
 	}
+	if a.Type == gjson.String {
+		// RFC3339 wall-clock stamps (interaction created/updated).
+		if t, err := time.Parse(time.RFC3339Nano, a.String()); err == nil && t.Unix() >= start-2 && t.Unix() <= end+2 {
+			add(path, "", true)
+			return
+		}
+	}
 	if a.Raw != b.Raw {
 		prefix := ""
 		if a.Type == gjson.String && b.Type == gjson.String {
@@ -479,6 +534,32 @@ func walk(a, b gjson.Result, path string, start, end int64, add func(path, prefi
 func record(r registration, f fixture) fixture {
 	start := time.Now().Unix()
 	a := run(r, f)
+	f.ToolError = lastToolError
+	if f.Unordered {
+		seen := map[string]bool{}
+		for i := 0; i < 25; i++ {
+			raw, _ := json.Marshal(run(r, f))
+			if !seen[string(raw)] {
+				seen[string(raw)] = true
+				f.StreamVariants = append(f.StreamVariants, string(raw))
+			}
+		}
+		f.Outputs = a
+		return f
+	}
+	if f.Path == "request" || f.Path == "request_compat" || f.Path == "request_envelope" {
+		seen := map[string]bool{a[0][0]: true}
+		variants := []string{a[0][0]}
+		for i := 0; i < 24; i++ {
+			if v := run(r, f)[0][0]; !seen[v] {
+				seen[v] = true
+				variants = append(variants, v)
+			}
+		}
+		if len(variants) > 1 {
+			f.Variants = variants
+		}
+	}
 	time.Sleep(time.Millisecond)
 	b := run(r, f)
 	end := time.Now().Unix()
@@ -512,6 +593,9 @@ func encode(f fixture) fixture {
 	for i := range f.Lines {
 		fields = append(fields, &f.Lines[i])
 	}
+	for i := range f.Variants {
+		fields = append(fields, &f.Variants[i])
+	}
 	for i := range f.Outputs {
 		for j := range f.Outputs[i] {
 			fields = append(fields, &f.Outputs[i][j])
@@ -538,6 +622,10 @@ func encode(f fixture) fixture {
 func main() {
 	if len(os.Args) < 4 {
 		panic("usage: generate REFERENCE_ROOT OUTPUT_DIR client:upstream...")
+	}
+	if os.Args[3] == "sdk" {
+		sdkRegistry(os.Args[1], os.Args[2])
+		return
 	}
 	regs := registrations(os.Args[1])
 	for _, want := range os.Args[3:] {

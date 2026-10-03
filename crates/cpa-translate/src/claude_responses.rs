@@ -996,8 +996,10 @@ fn normalize_codex_agent_messages(payload: &[u8]) -> Vec<u8> {
 // ---------------------------------------------------------------------------------------
 // Tool declarations and Claude-safe names (*_request.go, *_tool_names.go)
 
+/// util.QualifyResponsesNamespaceToolName.
 pub(crate) fn qualify_namespace_name(namespace: &[u8], child: &[u8]) -> Vec<u8> {
     let child = trim_space(child);
+    let namespace = trim_space(namespace);
     if child.is_empty() || namespace.is_empty() || child.starts_with(b"mcp__") {
         return child.to_vec();
     }
