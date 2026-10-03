@@ -39,11 +39,18 @@ fn calls_racing_shutdown_are_safe() {
     );
     let first = client.call("auth.identifier", b"{}").unwrap();
     assert_eq!(&first[..], br#"{"ok":true,"result":{"identifier":"plugin-example"}}"#);
+    // Each caller completes one call before shutdown starts (so `total` cannot be zero
+    // on a slow machine), then keeps calling while shutdown races it.
+    let started = Arc::new(std::sync::Barrier::new(5));
     let callers: Vec<_> = (0..4)
         .map(|_| {
             let client = client.clone();
+            let started = started.clone();
             std::thread::spawn(move || {
-                let mut ok = 0;
+                let first = client.call("model.static", b"{}").unwrap();
+                assert!(first.starts_with(br#"{"ok":true"#));
+                started.wait();
+                let mut ok = 1;
                 for _ in 0..500 {
                     match client.call("model.static", b"{}") {
                         Ok(resp) => {
@@ -60,10 +67,11 @@ fn calls_racing_shutdown_are_safe() {
             })
         })
         .collect();
+    started.wait();
     std::thread::sleep(std::time::Duration::from_millis(5));
     client.shutdown();
     let total: usize = callers.into_iter().map(|t| t.join().unwrap()).sum();
-    assert!(total > 0);
+    assert!(total >= 4);
     assert_eq!(
         client.call("model.static", b"{}"),
         Err("plugin client is closed".into())

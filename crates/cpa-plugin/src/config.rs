@@ -45,34 +45,23 @@ impl ItemConfig {
 }
 
 /// yaml.v3 decoding into a Go `bool`: YAML booleans plus the 1.1 spellings it accepts
-/// for typed bools (`yes`, `on`, `y`, ...).
+/// for typed bools (`yes`, `on`, `y`, ...; [`cpa_core::config::go_bool`]).
 pub fn yaml_bool(v: &Value) -> Option<bool> {
     match v {
         Value::Bool(b) => Some(*b),
-        Value::String(s) => match s.as_str() {
-            "y" | "Y" | "yes" | "Yes" | "YES" | "on" | "On" | "ON" => Some(true),
-            "n" | "N" | "no" | "No" | "NO" | "off" | "Off" | "OFF" => Some(false),
-            _ => None,
-        },
+        Value::String(s) => cpa_core::config::go_bool(s),
         Value::Tagged(t) => yaml_bool(&t.value),
         _ => None,
     }
 }
 
-/// yaml.v3 decoding into a Go `int`: floats truncate toward zero when in range.
+/// yaml.v3 decoding into a Go `int`: floats truncate toward zero when in range
+/// ([`cpa_core::config::go_int`]).
 pub fn yaml_int(v: &Value) -> Option<i64> {
     match v {
-        Value::Number(n) => n.as_i64().or_else(|| float_to_int(n.as_f64()?)),
         Value::Tagged(t) => yaml_int(&t.value),
-        _ => None,
+        other => cpa_core::config::go_int(other),
     }
-}
-
-/// yaml.v3's float-to-int rule: `f <= MaxInt64` and no overflow after truncation.
-fn float_to_int(f: f64) -> Option<i64> {
-    (-9.223_372_036_854_776e18..9.223_372_036_854_776e18)
-        .contains(&f)
-        .then_some(f as i64)
 }
 
 /// Go `PluginInstanceConfig.UnmarshalYAML` on a config built from a management JSON
@@ -122,7 +111,13 @@ pub fn check_json_item(fields: &[(String, crate::gojson::Node)]) -> Result<(), S
     if let Some(v) = get("priority") {
         let ok = match v {
             J::Null => true,
-            J::Number(n) => int_literal(n) || n.parse::<f64>().ok().and_then(float_to_int).is_some(),
+            J::Number(n) => {
+                int_literal(n)
+                    || n.parse::<f64>()
+                        .ok()
+                        .and_then(|f| cpa_core::config::go_int(&Value::from(f)))
+                        .is_some()
+            }
             _ => false,
         };
         if !ok {
