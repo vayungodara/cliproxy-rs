@@ -10,8 +10,8 @@ use cpa_core::config::Config;
 use cpa_exec::Executors;
 use serde_json::Value;
 
+use crate::router;
 use crate::websocket_tools::is_retained;
-use crate::{Runtime, router};
 
 async fn serve(app: axum::Router) -> String {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -67,7 +67,7 @@ async fn upstream_loss_while_the_client_stalls_releases_the_session() {
         openai: Default::default(),
         google: Default::default(),
     };
-    let proxy = serve(router(Arc::new(Runtime::new(cfg, credentials, executors)))).await;
+    let proxy = serve(router(Arc::new(crate::testing::runtime(cfg, credentials, executors)))).await;
 
     let key = "stalled-client-session";
     let mut socket = wreq::Client::new()

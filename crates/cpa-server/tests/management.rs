@@ -115,7 +115,7 @@ impl Fixture {
         let hash = bcrypt::hash("fake-management-only", 4).unwrap();
         std::fs::write(&path, format!("# operator note\nconfig-version: 8\nserver:\n  host: '127.0.0.1' # listener\n  port: 0\nmanagement:\n  secret-key: '{hash}'\noauth:\n  auth-dir: {}\nrouting:\n  retry:\n    request-retry: 3 # attempts\naccess:\n  api-keys: [fake-client]\n", dir.join("auth").display())).unwrap();
         let cfg = Config::load(&path).unwrap();
-        let rt = Arc::new(Runtime::new(
+        let rt = Arc::new(cpa_server::testing::runtime(
             cfg,
             vec![],
             Executors {
@@ -137,7 +137,7 @@ impl Fixture {
         let hash = bcrypt::hash("fake-management-only", 4).unwrap();
         std::fs::write(&path, yaml(&dir.join("auth"), &hash)).unwrap();
         let cfg = Config::load(&path).unwrap();
-        let rt = Arc::new(Runtime::new(
+        let rt = Arc::new(cpa_server::testing::runtime(
             cfg.clone(),
             cpa_core::config::credentials::load(&cfg),
             Executors {

@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use cpa_core::config::Config;
 use cpa_exec::Executors;
-use cpa_server::{Runtime, router};
+use cpa_server::router;
 use serde_json::Value;
 
 async fn get(path: &str, cfg: &str) -> (u16, String, Value) {
@@ -19,7 +19,7 @@ async fn get(path: &str, cfg: &str) -> (u16, String, Value) {
         openai: Default::default(),
         google: Default::default(),
     };
-    let rt = Arc::new(Runtime::new(cfg, credentials, executors));
+    let rt = Arc::new(cpa_server::testing::runtime(cfg, credentials, executors));
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let url = format!("http://{}{path}", listener.local_addr().unwrap());
     tokio::spawn(async move { axum::serve(listener, router(rt)).await.unwrap() });
