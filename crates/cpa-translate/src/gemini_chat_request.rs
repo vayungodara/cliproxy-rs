@@ -60,7 +60,7 @@ fn demoted_text(text: Vec<u8>, demoted: bool) -> Vec<u8> {
     common::system_reminder_text(&text)
 }
 
-fn audio_mime(format: &[u8]) -> Vec<u8> {
+pub(crate) fn audio_mime(format: &[u8]) -> Vec<u8> {
     match format {
         b"" | b"wav" => b"audio/wav".to_vec(),
         b"mp3" => b"audio/mpeg".to_vec(),
@@ -522,7 +522,7 @@ fn apply_tools(out: &mut Vec<u8>, raw: &[u8]) {
 
 /// The function object with `parameters` renamed to `parametersJsonSchema`, or an empty
 /// object schema added. `None` where Go's sjson edits fail and the tool is skipped.
-fn function_declaration(f: &Res<'_>) -> Option<Vec<u8>> {
+pub(crate) fn function_declaration(f: &Res<'_>) -> Option<Vec<u8>> {
     let raw = f.raw.to_vec();
     if f.get("parameters").exists() {
         // util.RenameKey, falling back to an empty object schema when it fails.

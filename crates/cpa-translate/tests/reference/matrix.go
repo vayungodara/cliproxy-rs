@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/router-for-me/CLIProxyAPI/v8/internal/signature"
 )
 
 // Upstream model used when a case does not choose one.
@@ -49,6 +51,9 @@ func matrix(r registration, model string) []fixture {
 		if r.upstream == "interactions" {
 			out = append(out, openAIInteractionsRequests(model)...)
 		}
+		if r.upstream == "antigravity" {
+			out = append(out, openAIAntigravityRequests(model)...)
+		}
 		if r.upstream == "claude" {
 			for _, f := range openAIChatRequests(model) {
 				if strings.HasPrefix(f.Name, "tools/") || strings.HasPrefix(f.Name, "reasoning/") {
@@ -90,6 +95,9 @@ func matrix(r registration, model string) []fixture {
 		if r.upstream == "codex" {
 			out = append(out, geminiCodexRequests(model)...)
 		}
+		if r.upstream == "antigravity" {
+			out = append(out, geminiAntigravityRequests(model)...)
+		}
 	case "claude":
 		out = append(out, claudeRequests(model)...)
 		if r.upstream == "codex" {
@@ -122,6 +130,9 @@ func matrix(r registration, model string) []fixture {
 		}
 		if r.upstream == "interactions" {
 			out = append(out, responsesInteractionsRequests(model)...)
+		}
+		if r.upstream == "antigravity" {
+			out = append(out, responsesAntigravityRequests(model)...)
 		}
 	}
 	switch r.upstream {
@@ -172,6 +183,11 @@ func matrix(r registration, model string) []fixture {
 		}
 	case "openai-response":
 		out = append(out, responsesToInteractions()...)
+	case "antigravity":
+		out = append(out, antigravityUpstreamResponses()...)
+		if r.client == "openai-response" {
+			out = append(out, antigravityToResponses()...)
+		}
 	case "openai":
 		out = append(out, openAIResponses()...)
 		if r.client == "claude" {
@@ -2201,5 +2217,261 @@ func claudeToGemini() []fixture {
 	} {
 		out = append(out, nonStream(fmt.Sprintf("claude-gemini/non-stream/%d", i), "gemini-2.5-pro", body))
 	}
+	return out
+}
+
+// claudeNativeSig is a strict Claude thinking signature (protobuf channel block naming a
+// Claude model), as the antigravity/gemini tests build it.
+func claudeNativeSig() string {
+	channel := append([]byte{0x08, 12, 0x10, 2, 0x32, byte(len("claude-sonnet-4-6"))}, "claude-sonnet-4-6"...)
+	container := append([]byte{0x0a, byte(len(channel))}, channel...)
+	payload := append([]byte{0x12, byte(len(container))}, container...)
+	payload = append(payload, 0x18, 0x01)
+	return base64.StdEncoding.EncodeToString(payload)
+}
+
+// geminiAntigravityRequests exercise ConvertGeminiRequestToAntigravity beyond the shared
+// Gemini matrix: function-response grouping with sibling images, malformed responses,
+// declaration renames and dedupe, empty tools, name rewrites (batched and per path),
+// allowed names, schema and system renames, and Claude signature sanitizing.
+func geminiAntigravityRequests(model string) []fixture {
+	nativeSig := claudeNativeSig()
+	normalized, ok := signature.CompatibleAntigravityClaudeThinkingSignature(nativeSig)
+	if !ok {
+		panic("claude signature not compatible")
+	}
+	tools := `[{"functionDeclarations":[{"name":"a b","description":"<d>","parameters":{"type":"object"}},{"name":"a_b"},{"name":"a b","description":"dup"},{"name":5},{"description":"no name"},{"name":"keep","parametersJsonSchema":{}}]},{"function_declarations":[{"name":"x/y","parameters":{"type":"object","properties":{}}},{"name":"keep"}]},{"functionDeclarations":[]},{},{"googleSearch":{}},"str"]`
+	inputs := map[string]string{
+		"group/images":       `{"contents":[{"role":"user","parts":[{"text":"q"}]},{"role":"model","parts":[{"functionCall":{"name":"f1","args":{}}},{"functionCall":{"name":"f2"}}]},{"role":"user","parts":[{"inlineData":{"mimeType":"image/jpeg","data":"AAA"}},{"functionResponse":{"name":"","response":{"r":"<1>"}}},{"inline_data":{"data":"BBB"}},{"inlineData":{"data":""}},{"inline_data":{"mime_type":"image/webp","data":"CCC"}},{"text":"dropped text"}]},{"role":"user","parts":[{"functionResponse":{"name":"f2","response":{}}}]},{"role":"user","parts":[{"text":"after"}]}]}`,
+		"group/unmatched":    `{"contents":[{"role":"user","parts":[{"functionResponse":{"name":"early","response":{}}}]},{"role":"model","parts":[{"functionCall":{"name":"a"}}]},{"role":"model","parts":[{"functionCall":{"name":"b"}},{"functionCall":{"name":"c"}}]},{"role":"user","parts":[{"functionResponse":{"name":"","response":{"x":1}}}]},{"role":"model","parts":[{"functionCall":{"name":"d"}}]},"skip",[1],{"role":"user","parts":[{"functionResponse":{"name":"  ","response":{}}},{"functionResponse":{"response":{}}},{"functionResponse":{"name":"z"}}]}]}`,
+		"group/leftover":     `{"contents":[{"role":"model","parts":[{"functionCall":{"name":"a"}},{"functionCall":{"name":"b"}},{"functionCall":{"name":"c"}}]},{"role":"model","parts":[{"functionCall":{"name":"d"}}]},{"role":"user","parts":[{"functionResponse":{"name":"r1"}}]},{"role":"model","parts":[{"text":"no calls"}]},{"role":"user","parts":[{"functionResponse":{"name":""}}]}]}`,
+		"group/odd-response": `{"contents":[{"role":"model","parts":[{"functionCall":{"name":"s"}},{"functionCall":{"name":"t"}}]},{"role":"user","parts":[{"functionResponse":"str"},{"functionResponse":{"name":"","response":"plain","id":"id1"}}]}],"generationConfig":{}}`,
+		"group/object":       `{"contents":{"m":{"role":"model","parts":[{"functionCall":{"name":"o"}}]},"u":{"role":"user","parts":[{"functionResponse":{"name":""}}]},"n":null}}`,
+		"group/no-contents":  `{"systemInstruction":{"parts":[{"text":"s"}]},"tools":[]}`,
+		"rename/system":      `{"model":"drop-me","system_instruction":{"parts":[{"text":"snake <s>"}]},"systemInstruction":{"parts":[{"text":"camel"}]},"generation_config":{"response_json_schema":{"type":"object"},"responseJsonSchema":{"type":"string"}},"generationConfig":{"responseSchema":{"keep":true},"responseJsonSchema":{"drop":true}},"contents":[{"role":"user","parts":[{"text":"x"}]}],"safetySettings":[{"category":"c","threshold":"t"}]}`,
+		"rename/system-only": `{"system_instruction":{"parts":[{"text":"snake"}]},"generation_config":{"responseJsonSchema":{"type":"object"}},"contents":[{"parts":[{"text":"x"}]},{"role":"function","parts":[{"function_response":{"name":"f"}}]},{"role":"tool","parts":[{"text":"t"}]},{"role":"MODEL","parts":[{"text":"m"}]}]}`,
+		"tools/names":        `{"tools":` + tools + `,"toolConfig":{"functionCallingConfig":{"mode":"ANY","allowedFunctionNames":["a b","keep",7,"x/y","<a>"]}},"tool_config":{"function_calling_config":{"allowed_function_names":["keep"]}},"contents":[{"role":"model","parts":[{"functionCall":{"name":"a b","args":{}}},{"functionCall":{"name":"x/y"}},{"function_call":{"name":"9lives"}},{"functionCall":{"name":7}},{"text":"t"}]},{"role":"user","parts":[{"functionResponse":{"name":"a b","response":{}}},{"function_response":{"name":"keep"}},{"functionResponse":{"name":"x/y","response":{}}}]}]}`,
+		"tools/unchanged":    `{"tools":[{"functionDeclarations":[{"name":"plain","parametersJsonSchema":{"type":"object"}}]}],"toolConfig":{"functionCallingConfig":{"allowedFunctionNames":["plain"]}},"contents":[{"role":"model","parts":[{"functionCall":{"name":"plain"}}]}]}`,
+		"tools/empty":        `{"tools":[{"functionDeclarations":[]},{},{"function_declarations":[]}],"contents":[{"role":"user","parts":[{"text":"x"}]}]}`,
+		"tools/empty-array":  `{"tools":[],"contents":[{"role":"user","parts":[{"text":"x"}]}]}`,
+		"tools/mixed-empty":  `{"tools":[{"functionDeclarations":[],"googleSearch":{}},{"codeExecution":{}}],"contents":[{"role":"user","parts":[{"text":"x"}]}]}`,
+		"tools/object":       `{"tools":{"functionDeclarations":[{"name":"a b"}]},"contents":[{"role":"model","parts":[{"functionCall":{"name":"a b"}}]}]}`,
+		"rewrite/per-path":   `{"tools":[{"functionDeclarations":[{"name":"a b"}]}],"toolConfig":{"functionCallingConfig":{"allowedFunctionNames":"a b"}},"tool_config":{"function_calling_config":{"allowed_function_names":7}},"contents":[{"role":"model","parts":{"functionCall":{"name":"a b"}}},{"role":"model","parts":[{"functionCall":{"name":"a b"}},{"function_response":{"name":"c/d"}}]},{"role":"user","parts":"x"}]}`,
+		"rewrite/nested":     `{"tools":[{"tools":[{"function":{"name":"n m"}},{"name":"o p"}]},{"functionDeclarations":[{"name":"n m"}]}],"contents":[{"role":"model","parts":[{"functionCall":{"name":"n m"}},{"functionCall":{"name":"o p"}}]}]}`,
+		"malformed/response": "{\"contents\":[{\"role\":\"model\",\"parts\":[{\"functionCall\":{\"name\":\"f\"}}]},{\"role\":\"user\",\"parts\":[{\"functionResponse\":{\"name\":\"\",\"id\":\"i\",\"response\":{\"a\":1,}}}]}]}",
+		"malformed/bytes":    "{\"tools\":[{\"functionDeclarations\":[{\"name\":\"b\xffad\"}]}],\"contents\":[{\"role\":\"model\",\"parts\":[{\"functionCall\":{\"name\":\"b\xffad\"}}]},{\"role\":\"user\",\"parts\":[{\"functionResponse\":{\"name\":\"\",\"response\":{\"t\":\"\xfe\"}}}]}]}",
+	}
+	claudeInputs := map[string]string{
+		"claude/parts":     `{"contents":[{"role":"model","parts":[{"text":"reason <x> & \u2028","thought":true,"thoughtSignature":"` + nativeSig + `","z":1e3,"a":[1.50]},{"text":"bad sig","thought":true,"thoughtSignature":"EgEC"},{"text":"  ","thought":true,"thoughtSignature":"` + nativeSig + `"},{"text":"no sig","thought":true},{"text":"answer","thoughtSignature":"` + nativeSig + `"},{"functionCall":{"name":"f","args":{"k":"<v>"},"thought_signature":"x"}},{"text":"deep","meta":{"inner":[{"thought_signature":"z"}]}},{"text":"extra","extra_content":{"google":{"thought_signature":"g","other":1}}},{"text":"plain"},"str",null]},{"role":"user","parts":[{"text":"u","thought_signature":"s"},{"text":"clean"}]},{"role":"model","parts":[{"text":"","thought":true}]},{"role":"model","parts":[]},{"role":"model","parts":"notarray"},{"role":"function","parts":[{"functionResponse":{"name":"f","response":{"n":1.0}},"thoughtSignature":"s"}]}]}`,
+		"claude/stable":    `{"contents":[{"role":"model","parts":[{"thought":true,"text":"kept raw","thoughtSignature":"` + normalized + `","b":2}]},{"role":"user","parts":[{"text":"q"}]}]}`,
+		"claude/stable-2":  `{"contents":[{"role":"model","parts":[{"thought":true,"text":"re-marshaled","thoughtSignature":"` + normalized + `","b":2},{"text":"t","thoughtSignature":"x"}]}]}`,
+		"claude/thought-1": `{"contents":[{"role":"model","parts":[{"thought":1,"text":"num thought","thoughtSignature":"` + nativeSig + `"},{"thought":"true","text":"str thought"}]}]}`,
+		"claude/claude#":   `{"contents":[{"role":"model","parts":[{"thought":true,"text":"prefixed","thoughtSignature":"claude#` + nativeSig + `"},{"thought":true,"text":"snake","thought_signature":"` + nativeSig + `"},{"thought":true,"text":"in call","functionCall":{"name":"f","thoughtSignature":"` + nativeSig + `"}}]}]}`,
+	}
+	var out []fixture
+	keys := func(m map[string]string) []string {
+		var names []string
+		for name := range m {
+			names = append(names, name)
+		}
+		sort.Strings(names)
+		return names
+	}
+	for i, name := range keys(inputs) {
+		out = append(out, req("gemini-antigravity/"+name, model, inputs[name], i%2 == 0))
+	}
+	for _, name := range keys(claudeInputs) {
+		for _, m := range []string{"claude-sonnet-4-6", "Claude-Opus-4-6-Thinking", "gemini-3-pro-preview"} {
+			out = append(out, req("gemini-antigravity/"+name+"/"+m, m, claudeInputs[name], false))
+		}
+	}
+	return out
+}
+
+// antigravityUpstreamResponses are Antigravity envelopes (`{"response":...}`) as the
+// executor passes them: cpaUsageMetadata on non-terminal chunks, sanitized function
+// names, missing finish reasons closed at [DONE], bare and malformed payloads.
+func antigravityUpstreamResponses() []fixture {
+	env := func(body string) string { return `{"response":` + body + `}` }
+	cand := func(parts, extra string) string {
+		return `{"content":{"role":"model","parts":` + parts + `}` + extra + `}`
+	}
+	cases := map[string][]string{
+		"text": {env(`{"candidates":[` + cand(`[{"text":"Hi <b> é"}]`, ``) + `],"cpaUsageMetadata":{"promptTokenCount":3},"modelVersion":"gemini-3-flash","responseId":"r1"}`),
+			env(`{"candidates":[` + cand(`[{"text":" more"}]`, ``) + `],"usageMetadata":{"promptTokenCount":3,"candidatesTokenCount":2},"cpaUsageMetadata":{"stale":true},"modelVersion":"other"}`), "[DONE]", "[DONE]"},
+		"finished": {"data: " + env(`{"candidates":[`+cand(`[{"text":"done"}]`, `,"finishReason":"STOP"`)+`],"usageMetadata":{"totalTokenCount":9}}`), "data: [DONE]"},
+		"tools": {env(`{"candidates":[` + cand(`[{"functionCall":{"name":"a_b","args":{"q":"<x>"}}},{"functionCall":{"name":"x_y"}},{"function_call":{"name":5}},{"functionResponse":{"name":"a_b"}},{"functionCall":{"name":"unknown"}}]`, ``) + `,` + cand(`[{"functionCall":{"name":"x_y"}}]`, `,"index":1`) + `],"responseId":7}`),
+			env(`{"candidates":{"content":{"parts":[{"functionCall":{"name":"a_b"}}]},"finishReason":"STOP"}}`), "[DONE]"},
+		"empty":      {env(`{}`), `{}`, env(`{"candidates":[]}`), env(`{"usageMetadata":{}}`), `{"response":null}`, "[DONE]"},
+		"usage-only": {env(`{"cpaUsageMetadata":{"totalTokenCount":5},"modelVersion":5}`), "[DONE]"},
+		"bare":       {`{"candidates":[` + cand(`[{"text":"bare"}]`, ``) + `],"modelVersion":"bare-model","cpaUsageMetadata":{"x":1}}`, env(`{"candidates":[` + cand(`[{"text":"wrapped"}]`, ``) + `]}`), "data:  [DONE] "},
+		"framing":    {"", ": keepalive", "data: not json", "data: " + env("{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"bad\xff\"}]}}]}"), `data: {"error":{"code":429,"message":"quota <x>"}}`, "[DONE]"},
+		"rich": {env(`{"candidates":[` + cand(`[{"text":"plan","thought":true,"thoughtSignature":"sig"},{"thoughtSignature":"only-sig"},{"text":"Hello <b>"},{"inlineData":{"mimeType":"image/jpeg","data":"/9j/"}},{"inline_data":{"data":"iVBO"}},{"inlineData":{"data":""}},{"functionCall":{"name":"a_b","args":{"q":"<x>"}},"thoughtSignature":"s2"},{"functionCall":{"name":"plain"}},{"executableCode":{"code":"x"}}]`, ``) + `],"createTime":"2025-01-02T03:04:05.678Z","modelVersion":"gemini-3-flash","responseId":"r9","cpaUsageMetadata":{"promptTokenCount":4,"candidatesTokenCount":2,"thoughtsTokenCount":1,"cachedContentTokenCount":3,"totalTokenCount":7}}`),
+			env(`{"candidates":[` + cand(`[{"text":""}]`, `,"finishReason":"max_tokens"`) + `],"createTime":"bad","usageMetadata":{"promptTokenCount":4,"candidatesTokenCount":"5","thoughtsTokenCount":2,"totalTokenCount":11}}`), "[DONE]"},
+		"late-usage":    {env(`{"candidates":[` + cand(`[{"text":"a"}]`, `,"finishReason":"STOP"`) + `],"responseId":"r2"}`), env(`{"candidates":[` + cand(`[{"text":"b"}]`, ``) + `]}`), env(`{"usageMetadata":{"promptTokenCount":1,"candidatesTokenCount":1}}`), "[DONE]"},
+		"pending-usage": {env(`{"candidates":[` + cand(`[{"functionCall":{"name":"x_y","args":{}}}]`, ``) + `],"cpaUsageMetadata":{"promptTokenCount":2,"cachedContentTokenCount":1},"createTime":"2025-03-04T05:06:07+02:00"}`), env(`{"candidates":[` + cand(`[{"text":"t"}]`, `,"finishReason":"SAFETY"`) + `],"cpaUsageMetadata":{"promptTokenCount":3}}`), "[DONE]"},
+	}
+	var names []string
+	for name := range cases {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	var out []fixture
+	for _, name := range names {
+		f := streamCase("antigravity-up/"+name, "gemini-3-flash", cases[name]...)
+		f.Original = `{"model":"client-model","tools":[{"functionDeclarations":[{"name":"a b"},{"name":"x/y"},{"name":"plain"}]}]}`
+		out = append(out, f)
+	}
+	for i, body := range []string{
+		env(`{"candidates":[` + cand(`[{"text":"Hello <b>"},{"functionCall":{"name":"a_b","args":{}}}]`, ``) + `,` + cand(`[{"text":"c1"}]`, `,"finishReason":"MAX_TOKENS","index":1`) + `,` + cand(`[]`, `,"finishReason":""`) + `],"cpaUsageMetadata":{"promptTokenCount":3},"usageMetadata":{"old":1},"modelVersion":"m"}`),
+		env(`{"candidates":{"content":{"parts":[{"functionCall":{"name":"x_y"}}]}}}`),
+		`{"candidates":[` + cand(`[{"functionCall":{"name":"a_b"}}]`, ``) + `],"cpaUsageMetadata":{"kept":true}}`,
+		env(`null`), env(`[]`), `{}`, ``, `not json`, "{\"response\":{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"bad\xfe\"}]}}]}}",
+	} {
+		n := nonStream(fmt.Sprintf("antigravity-up/non-stream/%d", i), "gemini-3-flash", body)
+		n.Original = `{"model":"client-model","tools":[{"functionDeclarations":[{"name":"a b"},{"name":"x/y"}]}]}`
+		out = append(out, n)
+	}
+	return out
+}
+
+// openAIAntigravityRequests exercise ConvertOpenAIRequestToAntigravity beyond the shared
+// OpenAI Chat -> Gemini matrix: thinking-config normalization of a passed-through
+// generationConfig, call-ID dedupe, argument and tool-result coercions, declaration
+// renames and dedupe, tool choices and Claude signature sanitizing.
+func openAIAntigravityRequests(model string) []fixture {
+	var out []fixture
+	for _, f := range openAIGeminiRequests(model) {
+		f.Name = strings.Replace(f.Name, "openai-gemini/", "openai-antigravity/gemini-matrix/", 1)
+		out = append(out, f)
+	}
+	user := `"messages":[{"role":"user","content":"x"}]`
+	inputs := map[string]string{
+		"thinking/snake":      `{` + user + `,"generationConfig":{"thinking_config":{"include_thoughts":true,"thinking_level":"high","thinkingBudget":512},"thinkingConfig":{"includeThoughts":"yes","thinking_budget":100},"includeThoughts":false,"include_thoughts":true,"temperature":1}}`,
+		"thinking/camel":      `{` + user + `,"generation_config":{"thinkingConfig":{"includeThoughts":true,"thinkingLevel":"low","thinking_level":"high","include_thoughts":false}},"reasoning_effort":"medium"}`,
+		"thinking/effort":     `{` + user + `,"generationConfig":{"thinkingConfig":{"thinkingBudget":2048}},"reasoning_effort":"auto"}`,
+		"thinking/none":       `{` + user + `,"generationConfig":{"includeThoughts":1,"thinking_config":"str"},"reasoning_effort":"none"}`,
+		"tool-ids":            `{"messages":[{"role":"user","content":"q"},{"role":"assistant","tool_calls":[{"id":"","type":"function","function":{"name":"A","arguments":"{}"}},{"id":"dup","type":"function","function":{"name":"B","arguments":{"o":1}}},{"id":"dup","type":"function","function":{"name":"C","arguments":5}},{"id":"bad id!","type":"function","function":{"name":"D","arguments":"not json"}},{"id":"dup_1","type":"function","function":{"name":"E"}},{"id":"skip","type":"function","function":{"name":""}},{"id":"skip","type":"function","function":{"name":"F","arguments":"[1]"}}]},{"role":"tool","tool_call_id":"dup","content":{"obj":"<v>"}},{"role":"tool","tool_call_id":"bad id!","content":[{"type":"text","text":"t"}]},{"role":"tool","tool_call_id":"dup_1","content":7},{"role":"tool","tool_call_id":"skip","content":""},{"role":"user","content":"after"},{"role":"tool","tool_call_id":"","content":"no id"}]}`,
+		"tool-names":          `{"messages":[{"role":"assistant","content":"c","tool_calls":[{"id":"1","type":"function","function":{"name":"a b","arguments":"{}"}},{"id":"2","type":"function","function":{"name":"a_b","arguments":"{}"}},{"id":"3","type":"function","function":{"name":"x/y","arguments":"{}"}}]}],"tools":[{"type":"function","function":{"name":"a b","parameters":{"type":"object"},"strict":true}},{"type":"function","function":{"name":"a_b","strict":false}},{"type":"function","function":{"name":"x/y","parameters":"str"}},{"type":"function","function":{"name":"x/y","description":"dup"}},{"type":"function","function":{"description":"nameless"}},{"type":"function","function":{"description":"nameless 2"}}],"tool_choice":{"type":"function","function":{"name":"x/y"}}}`,
+		"tool-choice/none":    `{` + user + `,"tools":[{"type":"function","function":{"name":"f"}},{"google_search":{}}],"tool_choice":" NONE "}`,
+		"tool-choice/obj":     `{` + user + `,"tools":[{"type":"function","function":{"name":"f"}}],"tool_choice":{"type":"Function","function":{"name":"  "}}}`,
+		"tool-choice/objnone": `{` + user + `,"tools":[{"type":"function","function":{"name":"f"}}],"tool_choice":{"type":"none"}}`,
+		"tool-choice/any":     `{` + user + `,"tools":[{"type":"function","function":{"name":"f"}}],"tool_choice":"any"}`,
+		"tool-choice/other":   `{` + user + `,"tool_choice":{"type":"allowed_tools"}}`,
+		"tool-choice/name":    `{` + user + `,"tool_choice":{"type":"function","function":{"name":" g h "}}}`,
+		"format":              `{` + user + `,"generationConfig":{"responseSchema":{"a":1},"responseJsonSchema":{"b":2},"response_schema":{},"response_json_schema":{}},"response_format":{"type":"json_object"}}`,
+		"format/schema":       `{` + user + `,"generation_config":{"responseJsonSchema":{"b":2}},"response_format":{"type":"json_schema","json_schema":{"schema":{"type":"object"}}}}`,
+		"format/text":         `{` + user + `,"generationConfig":{"responseSchema":{"a":1}},"response_format":{"type":"text"}}`,
+		"trailing-model":      `{"messages":[{"role":"user","content":"x"},{"role":"assistant","content":"kept as last turn"}]}`,
+		"no-messages":         `{"messages":"str","tools":"x"}`,
+	}
+	var names []string
+	for name := range inputs {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for i, name := range names {
+		out = append(out, req("openai-antigravity/"+name, model, inputs[name], i%2 == 0))
+	}
+	claude := `{"messages":[{"role":"user","content":"q"},{"role":"assistant","content":"answer","reasoning_content":"thinking <x>","tool_calls":[{"id":"t1","type":"function","function":{"name":"Read","arguments":"{\"n\":1e3}"}}]},{"role":"tool","tool_call_id":"t1","content":"ok"}],"tools":[{"type":"function","function":{"name":"Read","parameters":{"type":"object"}}}]}`
+	for _, m := range []string{"claude-sonnet-4-6", "gemini-3-pro-preview", "gemini-2.5-flash", "Claude-Opus-4-6-Thinking"} {
+		out = append(out, req("openai-antigravity/claude-turns/"+m, m, claude, false))
+		out = append(out, req("openai-antigravity/thinking-models/"+m, m, `{`+user+`,"reasoning_effort":"high","generationConfig":{"thinking_config":{"include_thoughts":false}}}`, true))
+	}
+	return out
+}
+
+// responsesAntigravityRequests exercise ConvertOpenAIResponsesRequest(Envelope)ToAntigravity:
+// the shared Responses -> Gemini matrix through the envelope, Claude reasoning
+// signatures (re-marshaled through Go's float64 decoding), Google Search stripping,
+// default thinking summaries and the native web-search request.
+func responsesAntigravityRequests(model string) []fixture {
+	var out []fixture
+	for _, f := range responsesGeminiRequests(model) {
+		f.Name = strings.Replace(f.Name, "responses-gemini/", "responses-antigravity/gemini-matrix/", 1)
+		out = append(out, f)
+	}
+	nativeSig := claudeNativeSig()
+	normalized, _ := signature.CompatibleAntigravityClaudeThinkingSignature(nativeSig)
+	reasoning := func(enc, text string) string {
+		item := `{"type":"reasoning","summary":[`
+		if text != "" {
+			item += `{"type":"summary_text","text":"` + text + `"}`
+		}
+		item += `]`
+		if enc != "-" {
+			item += `,"encrypted_content":"` + enc + `"`
+		}
+		return item + `}`
+	}
+	assistant := `{"role":"assistant","content":[{"type":"output_text","text":"visible <a>"}]}`
+	user := `{"role":"user","content":[{"type":"input_text","text":"continue"}]}`
+	inputs := map[string]string{
+		"claude/mixed":      `{"input":[` + reasoning(nativeSig, "first <r>") + `,` + assistant + `,` + reasoning(gptSignature(), "gpt reasoning") + `,{"type":"function_call","call_id":"c1","name":"f","arguments":"{\"n\":1e3,\"big\":12345678901234567890}"},{"type":"function_call_output","call_id":"c1","output":"ok"},` + reasoning(normalized, "") + `,` + assistant + `,` + reasoning("-", "no sig") + `,` + reasoning(normalized, "kept normalized") + `,` + user + `],"tools":[{"type":"function","name":"f"}]}`,
+		"claude/unchanged":  `{"input":[` + reasoning(normalized, "already") + `,` + assistant + `,` + user + `]}`,
+		"claude/no-thought": `{"input":[{"type":"reasoning","encrypted_content":"` + nativeSig + `"},{"role":"user","content":"x"}]}`,
+		"claude/overflow":   `{"input":[` + reasoning(gptSignature(), "dropped") + `,{"role":"user","content":[{"type":"input_text","text":"n"}]},{"type":"function_call","call_id":"c","name":"f","arguments":"{\"n\":1e400}"}],"tools":[{"type":"function","name":"f"}]}`,
+		"claude/role-items": `{"input":[{"role":"assistant","type":"","content":"r"},` + reasoning(nativeSig, "t") + `,{"type":"message","role":"user","content":"u"}]}`,
+		"search/mixed":      `{"input":"find","tools":[{"type":"web_search","filters":{"allowed_domains":["a.com"]}},{"type":"function","name":"f"}]}`,
+		"search/only":       `{"input":[{"role":"user","content":"find <x>"}],"instructions":"be brief","tools":[{"type":"web_search","filters":{"allowed_domains":[" a.com ","","b<c>.com"]}},{"type":"web_search_preview"}],"tool_choice":"auto","reasoning":{"effort":"low"}}`,
+		"search/no-domains": `{"input":"find","tools":[{"type":"web_search_2025_08_26"}],"tool_choice":{"type":"web_search"}}`,
+		"search/choice":     `{"input":"find","tools":[{"type":"web_search"}],"tool_choice":"none"}`,
+		"summary/effort":    `{"input":"x","reasoning":{"effort":" High "}}`,
+		"summary/explicit":  `{"input":"x","reasoning":{"effort":"medium","summary":"detailed"}}`,
+		"summary/off":       `{"input":"x","reasoning":{"effort":"high","summary":"none"}}`,
+		"summary/none":      `{"input":"x","reasoning":{"effort":"none"}}`,
+		"summary/number":    `{"input":"x","reasoning":{"effort":5}}`,
+	}
+	var names []string
+	for name := range inputs {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for i, name := range names {
+		for _, m := range []string{"claude-sonnet-4-6", "gemini-3-flash", "gemini-3-pro-preview", "Claude-Opus-4-6-Thinking"} {
+			out = append(out, req("responses-antigravity/"+name+"@"+m, m, inputs[name], i%2 == 0))
+			if strings.HasPrefix(name, "search/") || name == "claude/mixed" {
+				f := req("responses-antigravity/envelope/"+name+"@"+m, m, inputs[name], i%2 == 1)
+				f.Path = "request_envelope"
+				out = append(out, f)
+			}
+		}
+	}
+	return out
+}
+
+// antigravityToResponses run the Gemini Responses response matrix through Antigravity
+// envelopes, plus an envelope-wrapped client request in the non-stream path.
+func antigravityToResponses() []fixture {
+	wrap := func(s string) string {
+		t := strings.TrimSpace(s)
+		if strings.HasPrefix(t, "data:") {
+			t = strings.TrimSpace(t[5:])
+		}
+		if strings.HasPrefix(t, "{") {
+			return `{"response":` + t + `}`
+		}
+		return t
+	}
+	var out []fixture
+	for _, f := range geminiToResponses() {
+		if f.Path != "stream" && f.Path != "non_stream" {
+			continue
+		}
+		f.Name = strings.Replace(f.Name, "gemini-responses/", "antigravity-responses/", 1)
+		if f.Path == "stream" {
+			for i := range f.Lines {
+				f.Lines[i] = wrap(f.Lines[i])
+			}
+		} else {
+			f.Input = wrap(f.Input)
+			f.Translated = `{"project":"","request":{"contents":[]},"model":"m"}`
+		}
+		out = append(out, f)
+	}
+	n := nonStream("antigravity-responses/non-stream/request-wrapped", "gemini-3-flash", `{"response":{"candidates":[{"content":{"parts":[{"functionCall":{"name":"a_b","args":{}}}]},"finishReason":"STOP"}],"responseId":"rw"}}`)
+	n.Original = `{"request":{"model":"inner","tools":[{"type":"function","name":"a.b"}]},"tools":[{"type":"function","name":"ignored"}]}`
+	n.Translated = `{"project":"","request":{"tools":[]},"model":"m"}`
+	out = append(out, n)
 	return out
 }

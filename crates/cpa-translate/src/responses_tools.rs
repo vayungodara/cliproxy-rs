@@ -191,6 +191,81 @@ fn sanitize_names(names: &[&[u8]]) -> HashMap<Vec<u8>, Vec<u8>> {
     out
 }
 
+/// util.functionNamesFromRequest: declared function names of a request's `tools`
+/// (nested `tools`, Gemini declarations, OpenAI `function.name`, then `name`).
+fn function_names_from_request(raw: &[u8]) -> Vec<Vec<u8>> {
+    fn collect(tool: &Res<'_>, names: &mut Vec<Vec<u8>>) {
+        let nested = tool.get("tools");
+        if nested.is_array() {
+            nested.each(|_, t| {
+                collect(&t, names);
+                true
+            });
+            return;
+        }
+        let mut declared = false;
+        for key in ["functionDeclarations", "function_declarations"] {
+            let declarations = tool.get(key);
+            if declarations.is_array() {
+                declared = true;
+                declarations.each(|_, d| {
+                    let name = d.get("name").bytes();
+                    if !name.is_empty() {
+                        names.push(name.into_owned());
+                    }
+                    true
+                });
+            }
+        }
+        if declared {
+            return;
+        }
+        for path in ["function.name", "name"] {
+            let name = tool.get(path).bytes();
+            if !name.is_empty() {
+                names.push(name.into_owned());
+                return;
+            }
+        }
+    }
+    if raw.is_empty() || !gj::valid(raw) {
+        return vec![];
+    }
+    let tools = gj::get(raw, "tools");
+    let mut names = vec![];
+    if tools.is_array() {
+        tools.each(|_, tool| {
+            collect(&tool, &mut names);
+            true
+        });
+    }
+    names
+}
+
+/// util.SanitizedFunctionNameMap: declared name -> collision-free Gemini-safe name.
+pub(crate) fn sanitized_function_name_map(raw: &[u8]) -> HashMap<Vec<u8>, Vec<u8>> {
+    let names = function_names_from_request(raw);
+    let names: Vec<&[u8]> = names.iter().map(Vec::as_slice).collect();
+    sanitize_names(&names)
+}
+
+/// util.MapSanitizedFunctionName: the request-specific name, else the sanitized name.
+pub(crate) fn map_sanitized_function_name(map: &HashMap<Vec<u8>, Vec<u8>>, name: &[u8]) -> Vec<u8> {
+    match map.get(name) {
+        Some(mapped) if !mapped.is_empty() => mapped.clone(),
+        _ => sanitize_function_name(name),
+    }
+}
+
+/// util.DisambiguatedToolNameMap: sanitized name -> declared name, for names that changed.
+pub(crate) fn disambiguated_tool_name_map(raw: &[u8]) -> HashMap<Vec<u8>, Vec<u8>> {
+    sanitized_function_name_map(raw)
+        .into_iter()
+        .filter(|(original, sanitized)| original != sanitized)
+        .map(|(original, sanitized)| (sanitized, original))
+        .collect()
+}
+
 fn disambiguate(base: &[u8], original: &[u8], used: &HashMap<Vec<u8>, Vec<u8>>) -> Vec<u8> {
     for attempt in 0u64.. {
         let mut hasher = Sha256::new();

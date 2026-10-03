@@ -147,6 +147,17 @@ fn run(client: Format, upstream: Format, f: &Value, bytes: bool) -> Vec<Vec<u8>>
             }
             .unwrap(),
         ],
+        "request_envelope" => {
+            // The executor's ResolvedModelInfo with native web search on.
+            let info = cpa_core::registry::ModelInfo::from_raw(
+                serde_json::json!({"id": model, "native_capabilities": {"web_search": true}})
+                    .as_object()
+                    .unwrap()
+                    .clone(),
+            )
+            .unwrap();
+            vec![cpa_translate::translate_request_envelope(client, upstream, &ctx, &input, Some(&info)).unwrap()]
+        }
         // Go returns nil (written as "") when the apply_patch bridge rejects the body.
         "non_stream" => vec![match (pair.non_stream)(&rctx, &input) {
             Ok(out) => out,

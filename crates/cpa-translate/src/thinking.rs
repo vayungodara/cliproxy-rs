@@ -19,6 +19,16 @@ pub fn extract_translated_summary(body: &[u8], source: &str, target: &str) -> Su
     ct::extract_translated_summary_config(body, source, target)
 }
 
+/// ExtractSummaryConfig.
+pub fn extract_summary(body: &[u8], format: &str) -> Summary {
+    ct::extract_summary_config(body, format)
+}
+
+/// ApplySummaryConfig.
+pub fn apply_summary(body: Vec<u8>, format: &str, config: Summary) -> Vec<u8> {
+    ct::apply_summary_config(&body, format, config)
+}
+
 /// ApplySummaryConfigForModel.
 pub fn apply_summary_for_model(body: Vec<u8>, format: &str, model: &str, config: Summary) -> Vec<u8> {
     ct::apply_summary_config_for_model(&body, format, model, config)

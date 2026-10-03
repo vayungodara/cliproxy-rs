@@ -23,6 +23,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/router-for-me/CLIProxyAPI/v8/internal/registry"
 	_ "github.com/router-for-me/CLIProxyAPI/v8/internal/translator"
 	claudechat "github.com/router-for-me/CLIProxyAPI/v8/internal/translator/claude/openai/chat-completions"
 	codexclaude "github.com/router-for-me/CLIProxyAPI/v8/internal/translator/codex/claude"
@@ -385,6 +386,10 @@ func toolInputFailed(param any) bool {
 func run(r registration, f fixture) [][]string {
 	lastToolError = false
 	ctx := context.Background()
+	if r.upstream == "antigravity" {
+		// The Antigravity executor streams with an empty `alt` (antigravity_executor_stream.go).
+		ctx = context.WithValue(ctx, "alt", "")
+	}
 	from, to := sdk.FromString(r.client), sdk.FromString(r.upstream)
 	var orig, req []byte
 	if f.Original != "" {
@@ -410,6 +415,12 @@ func run(r registration, f fixture) [][]string {
 			return [][]string{{string(interactionsclaude.ConvertClaudeRequestToInteractionsWithCompat(f.Model, []byte(f.Input), f.Stream))}}
 		}
 		panic("no compat request for " + r.client + ":" + r.upstream)
+	case "request_envelope":
+		// The executor's ResolvedModelInfo with native web search on.
+		webSearch := true
+		info := &registry.ModelInfo{ID: f.Model, NativeCapabilities: &registry.NativeCapabilities{WebSearch: &webSearch}}
+		env := sdk.TranslateRequestEnvelope(ctx, from, to, sdk.RequestEnvelope{Format: from, Model: f.Model, Stream: f.Stream, Body: []byte(f.Input), ModelInfo: info})
+		return [][]string{{string(env.Body)}}
 	case "non_stream":
 		var param any
 		out := sdk.TranslateNonStream(ctx, to, from, f.Model, orig, req, []byte(f.Input), &param)
@@ -536,7 +547,7 @@ func record(r registration, f fixture) fixture {
 		f.Outputs = a
 		return f
 	}
-	if f.Path == "request" || f.Path == "request_compat" {
+	if f.Path == "request" || f.Path == "request_compat" || f.Path == "request_envelope" {
 		seen := map[string]bool{a[0][0]: true}
 		variants := []string{a[0][0]}
 		for i := 0; i < 24; i++ {

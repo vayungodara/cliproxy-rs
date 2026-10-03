@@ -83,6 +83,16 @@ pub(crate) fn has_web_search_tool(root: &Res<'_>) -> bool {
             .any(|t| is_web_search_tool_type(&t.get("type").bytes()))
 }
 
+/// HasOnlyResponsesWebSearchTools: at least one tool, and every tool a web search.
+pub(crate) fn has_only_web_search_tools(root: &Res<'_>) -> bool {
+    let tools = root.get("tools");
+    if !tools.is_array() {
+        return false;
+    }
+    let tools = tools.array();
+    !tools.is_empty() && tools.iter().all(|t| is_web_search_tool_type(&t.get("type").bytes()))
+}
+
 /// AllowsResponsesWebSearchToolChoice.
 pub(crate) fn allows_web_search_tool_choice(root: &Res<'_>) -> bool {
     let choice = root.get("tool_choice");

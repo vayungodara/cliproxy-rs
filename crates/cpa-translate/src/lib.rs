@@ -54,6 +54,9 @@ macro_rules! registered {
     };
 }
 
+mod antigravity_chat;
+mod antigravity_gemini;
+mod antigravity_responses;
 mod apply_patch;
 mod claude_chat_request;
 mod claude_chat_response;
@@ -220,6 +223,9 @@ fn registered(client: Format, upstream: Format) -> Option<&'static Registered> {
         (Format::Interactions, Format::Claude) => Some(&claude_interactions::PAIR),
         (Format::Claude, Format::Interactions) => Some(&interactions_claude::PAIR),
         (Format::Gemini, Format::Claude) => Some(&claude_gemini::PAIR),
+        (Format::Gemini, Format::Antigravity) => Some(&antigravity_gemini::PAIR),
+        (Format::OpenAI, Format::Antigravity) => Some(&antigravity_chat::PAIR),
+        (Format::OpenAIResponse, Format::Antigravity) => Some(&antigravity_responses::PAIR),
         _ => None,
     }
 }
@@ -269,6 +275,33 @@ pub fn translate_request(
         gj::set_str(&mut out, "model", ctx.model);
     }
     Ok(out)
+}
+
+/// sdk/translator TranslateRequestEnvelope: [`translate_request`] with the request-scoped
+/// model info Go's executors put in the envelope (`ResolvedModelInfo` of the selected
+/// credential). Only pairs Go registers with RegisterRequestEnvelope read it: OpenAI
+/// Responses -> Antigravity, whose native web-search capability decides between a
+/// dedicated web-search request and a normal one.
+pub fn translate_request_envelope(
+    client: Format,
+    upstream: Format,
+    ctx: &RequestCtx<'_>,
+    body: &[u8],
+    model_info: Option<&cpa_core::registry::ModelInfo>,
+) -> Result<Vec<u8>, Error> {
+    if (client, upstream) != (Format::OpenAIResponse, Format::Antigravity) {
+        return translate_request(client, upstream, ctx, body);
+    }
+    deep_stack(body, || {
+        let summary = thinking::extract_translated_summary(body, client.as_str(), upstream.as_str());
+        let out = antigravity_responses::request_envelope(ctx, body, model_info);
+        Ok(thinking::apply_summary_for_model(
+            out,
+            upstream.as_str(),
+            ctx.model,
+            summary,
+        ))
+    })
 }
 
 /// sdk/translator TranslateTokenCount: the pair's token-count shape, or the upstream body
