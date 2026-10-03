@@ -77,6 +77,21 @@ export const provider = (a: Data) => String(a.provider || a.type || "unknown").r
 export const credName = (a: Data) => String(a.email || a.label || a.account || a.name);
 /** A random client key: "sk-" and 48 hex characters. */
 export const newKey = () => `sk-${Array.from(crypto.getRandomValues(new Uint8Array(24)), (n) => n.toString(16).padStart(2, "0")).join("")}`;
+/** Small flags this browser keeps for the first-run card. Never keys. */
+export const flag = {
+  get: (k: string) => {
+    try {
+      return localStorage.getItem(`cliproxy-${k}`);
+    } catch {
+      return null;
+    }
+  },
+  set: (k: string, v: string) => {
+    try {
+      localStorage.setItem(`cliproxy-${k}`, v);
+    } catch {}
+  },
+};
 export const mask = (k: string) => (k.length > 10 ? `${k.slice(0, 3)}…${k.slice(-4)}` : "••••");
 
 /** Durations like 45s, 4m, 2h 5m, 3d. */

@@ -1,8 +1,8 @@
 <script lang="ts">
   import { tick } from "svelte";
   import { store } from "../store.svelte";
-  import { base } from "../api";
-  import { readPath, mask, newKey, tools, snippet, type Data, type Lamp } from "../core";
+  import { base, clientModels } from "../api";
+  import { readPath, mask, newKey, tools, snippet, flag, type Lamp } from "../core";
   import Load from "../Load.svelte";
 
   const keys = $derived(readPath(store.config.data || {}, "access/api-keys", []) as string[]);
@@ -29,10 +29,7 @@
     const k = key;
     test = { lamp: "off", text: "Testing the key…" };
     try {
-      const r = await fetch(`${base}/v1/models`, { headers: { Authorization: `Bearer ${k}` }, cache: "no-store" });
-      if (r.status === 401) throw new Error("The proxy rejected this key. Check that it is listed under Client keys.");
-      if (!r.ok) throw new Error(`The proxy answered HTTP ${r.status}. Check Logs for the reason.`);
-      const ids: string[] = ((await r.json()).data || []).map((m: Data) => String(m.id));
+      const ids = await clientModels(k);
       if (k !== key) return;
       models = ids;
       if (!ids.includes(model)) model = ids[0] || "";
@@ -107,7 +104,10 @@
         <div class="row">
           <button
             class="key primary"
-            onclick={() => store.act(() => navigator.clipboard.writeText(snippet(tool, target, key, model || "MODEL_ID")), "Copied, with the full key.")}
+            onclick={async () => {
+              if (await store.act(() => navigator.clipboard.writeText(snippet(tool, target, key, model || "MODEL_ID")), "Copied, with the full key."))
+                flag.set("start-tool", "1");
+            }}
             ><svg class="i" aria-hidden="true"><use href="#i-copy" /></svg>Copy</button
           >
           <span class="legend">The copy includes the full key; the page shows it shortened.</span>

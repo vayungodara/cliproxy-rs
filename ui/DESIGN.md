@@ -91,7 +91,7 @@ Monospace is for data only: keys, file names in detail views, paths, log lines a
 - **Fields**: raised face, 8 px radius, label above in `--ink-2`. Focus is a 1 px ink ring plus the border.
 - **States**: loading is one breathing skeleton row; empty explains what to do next; not available names the route and status code; errors keep the last good data visible when there is any.
 - **Toast**: an ink pill at the bottom centre. Success clears itself after four seconds; errors stay until dismissed and use `role=alert`.
-- Icons are 14 hand-drawn 24 px strokes (1.7 px, round caps) in an SVG sprite in `index.html`.
+- Icons are 15 hand-drawn 24 px strokes (1.7 px, round caps) in an SVG sprite in `index.html`.
 
 ## Motion
 

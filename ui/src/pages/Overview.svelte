@@ -1,7 +1,8 @@
 <script lang="ts">
   import { tick } from "svelte";
   import { store, every } from "../store.svelte";
-  import { buckets, sumBuckets, sum, credState, credName, provider, label, readPath, newKey, ago, strategy, type Data } from "../core";
+  import { buckets, sumBuckets, sum, credState, credName, provider, label, readPath, newKey, ago, strategy, flag, type Data, type Lamp } from "../core";
+  import { clientModels } from "../api";
   import { checkAll, canCheck, limits } from "../quota";
   import Grille from "../Grille.svelte";
   import Load from "../Load.svelte";
@@ -26,41 +27,85 @@
   const fmt = (n: number) => n.toLocaleString();
   if (!store.plugins.data) store.plugins.load();
 
-  // First run: the three things a new proxy needs before a tool can use it. Gone once done.
+  // First run. The card opens when this server has no accounts and stays, in this browser, until
+  // its three steps are done or it is dismissed. A server that already had accounts never shows it,
+  // so an established setup looks as it always did.
   const keys = $derived(readPath(store.config.data || {}, "access/api-keys", []) as string[]);
+  const served = $derived(rows.some((r) => r.a.success || r.a.failed || (r.b && sum(r.b.total))));
+  let start = $state(flag.get("start"));
+  let tested = $state(flag.get("start-test") === "1");
+  let probe = $state<{ lamp: Lamp; text: string } | null>(null);
   const steps = $derived([
     {
       done: rows.length > 0,
       title: "Connect an account",
-      text: "Sign in to Claude, ChatGPT, Kimi and others on the provider’s own page, or add a provider API key. The proxy keeps the token, never your password.",
+      text: "Sign in on the provider’s own page, or add a provider API key. The proxy keeps the token, never your password.",
       href: "#connect",
       action: "Connect account",
     },
+    keys.length
+      ? {
+          done: served || flag.get("start-tool") === "1",
+          title: "Point a tool at the proxy",
+          text: "Copy the settings for Claude Code, Codex CLI, Cursor or an SDK, with this address and your key filled in.",
+          href: "#use",
+          action: "Use with tools",
+        }
+      : {
+          done: false,
+          title: "Point a tool at the proxy",
+          text: "Tools send a client key, a password for this proxy. Without one, anyone who can reach this address can use your accounts.",
+          run: createKey,
+          action: "Create a client key",
+        },
     {
-      done: keys.length > 0,
-      title: "Create a client key",
-      text: "A password your tools send to this proxy. Without one, anyone who can reach this address can use your accounts.",
-      action: "Create a client key",
-    },
-    {
-      done: rows.some((r) => r.a.success || r.a.failed || (r.b && sum(r.b.total))),
-      title: "Point a tool at the proxy",
-      text: "Copy ready-made settings for Claude Code, Codex CLI, Cursor or an SDK, with this address and your key filled in.",
-      href: "#use",
-      action: "Use with tools",
+      done: served || tested,
+      title: "Send a test request",
+      text: "Asks this proxy for its models with your client key, as a tool would. It uses none of your plan’s limits.",
+      run: test,
+      action: "Send test request",
+      off: !keys.length,
     },
   ]);
-  // Shown only while an account or a client key is missing; with both in place the overview
-  // looks as it always did, and the third step lives in the "No requests yet" line.
-  const setup = $derived(store.config.data && store.creds.data && !(steps[0].done && steps[1].done));
+  const left = $derived(steps.filter((s) => !s.done).length);
   const next = $derived(steps.findIndex((s) => !s.done));
+  $effect(() => {
+    if (start || !store.creds.data || store.creds.data.length) return;
+    start = "open";
+    flag.set("start", start);
+  });
+  $effect(() => {
+    if (start !== "open" || left || !store.creds.data) return;
+    start = "done";
+    flag.set("start", start);
+  });
+  const setup = $derived(start === "open" && store.config.data && store.creds.data && left > 0);
+  function dismiss() {
+    start = "dismissed";
+    flag.set("start", start);
+    document.getElementById("main")?.focus();
+  }
   async function createKey() {
     if (!(await store.act(() => store.replace("access/api-keys", keys, [...keys, newKey()]), "Client key created."))) return;
     // The button is gone now; continue at the next step unless the user already moved on.
     await tick();
-    if (document.activeElement !== document.body) return;
-    const next = [...document.querySelectorAll<HTMLElement>(".checklist .key.primary, .reading .hint a")].find((e) => e.offsetParent);
-    (next ?? document.getElementById("main"))?.focus();
+    if (document.activeElement === document.body) document.querySelector<HTMLElement>(".start .key.primary")?.focus();
+  }
+  async function test() {
+    probe = { lamp: "off", text: "Sending…" };
+    try {
+      const ids = await clientModels(keys[0]);
+      if (!ids.length) {
+        probe = { lamp: "warn", text: "The proxy answered, but no models are available yet. Connect an account first." };
+        return;
+      }
+      probe = { lamp: "ok", text: `It works: this proxy serves ${ids.length} model${ids.length > 1 ? "s" : ""} to your tools.` };
+      tested = true;
+      flag.set("start-test", "1");
+      if (!steps.some((s) => !s.done)) store.notify("All set. Your tools can use this proxy now.");
+    } catch (e) {
+      probe = { lamp: "bad", text: e instanceof Error ? e.message : "Cannot reach the proxy." };
+    }
   }
 
   const limited = $derived(rows.map((r) => ({ a: r.a, l: limits(r.a) })).filter((x) => x.l));
@@ -79,18 +124,24 @@
 </div>
 
 {#if setup}
-  <section class="window first" aria-labelledby="start">
-    <h2 id="start">Get started<small>{steps.filter((s) => s.done).length} of 3 done</small></h2>
-    <ol class="steps checklist">
+  <section class="window start" aria-labelledby="start">
+    <div class="section-head">
+      <h2 id="start">Get started<small>{3 - left} of 3 done</small></h2>
+      <button class="key quiet small" onclick={dismiss}>Dismiss</button>
+    </div>
+    <ol class="list">
       {#each steps as s, i}
         <li class:done={s.done}>
-          <span class="row"
-            ><span class="lamp {s.done ? 'ok' : 'off'}"></span><strong>{s.title}</strong>{#if s.done}<span class="sr">, done</span>{/if}</span
+          {#if s.done}<svg class="i mark" aria-hidden="true"><use href="#i-check" /></svg>{:else}<span class="lamp off"></span>{/if}
+          <span class="grow"
+            ><strong>{s.title}</strong>{#if s.done}<span class="sr">, done</span>{/if}
+            {#if i === 2 && probe}<span class="note" role="status"
+                >{#if !s.done}<span class="lamp {probe.lamp}" class:live={probe.text.endsWith("…")}></span>{/if}{probe.text}</span
+              >{:else if !s.done}<small>{s.text}</small>{/if}</span
           >
           {#if !s.done}
-            <p class="muted">{s.text}</p>
-            {#if s.href}<a class="key {i === next ? 'primary' : ''}" href={s.href}>{s.action}</a
-              >{:else}<button class="key {i === next ? 'primary' : ''}" disabled={store.busy} onclick={createKey}>{s.action}</button>{/if}
+            {#if s.href}<a class="key small {i === next ? 'primary' : ''}" href={s.href}>{s.action}</a
+              >{:else}<button class="key small {i === next ? 'primary' : ''}" disabled={store.busy || s.off} onclick={s.run}>{s.action}</button>{/if}
           {/if}
         </li>
       {/each}
