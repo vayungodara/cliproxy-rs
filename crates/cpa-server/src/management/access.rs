@@ -66,6 +66,18 @@ pub(crate) struct Access {
     warned_untrusted_forwarding: AtomicBool,
 }
 
+/// An environment value as Go reads it: raw bytes on Unix; on Windows the UTF-16
+/// value decoded to UTF-8 with invalid units replaced (Go `syscall.Getenv`).
+fn env_bytes(key: &str) -> Vec<u8> {
+    let Some(value) = std::env::var_os(key) else {
+        return Vec::new();
+    };
+    #[cfg(unix)]
+    return std::os::unix::ffi::OsStringExt::into_vec(value);
+    #[cfg(not(unix))]
+    return value.to_string_lossy().into_owned().into_bytes();
+}
+
 /// Go `startAttemptCleanup`: an hourly purge for as long as the management state
 /// lives. Without a Tokio runtime (synchronous callers) there is no timer.
 pub(super) fn start_purge(state: &std::sync::Arc<Management>) {
@@ -88,12 +100,7 @@ impl Access {
         // Go: os.LookupEnv + TrimSpace; empty means unset.
         let raw: Vec<u8> = match options.management_password {
             Some(value) => value.into_bytes(),
-            None => {
-                use std::os::unix::ffi::OsStringExt;
-                std::env::var_os("MANAGEMENT_PASSWORD")
-                    .map(OsStringExt::into_vec)
-                    .unwrap_or_default()
-            }
+            None => env_bytes("MANAGEMENT_PASSWORD"),
         };
         let env_secret = go_trim_space(&raw).to_vec();
         let local_password = options.local_password;
