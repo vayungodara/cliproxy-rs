@@ -98,6 +98,20 @@ test("quota is percent used, not remaining; unknown payloads stay empty", () => 
     { label: "Current session", used: 37, reset: "later" },
   ]);
   assert.equal(quotaWindows("codex", { rate_limit: { primary_window: { used_percent: 24, reset_at: 1000 } } })[0].used, 24);
+  // Codex windows are named by their length; without one, by their slot.
+  assert.deepEqual(
+    quotaWindows("codex", {
+      rate_limit: {
+        primary_window: { used_percent: 61, limit_window_seconds: 18000, reset_at: 1790000000 },
+        secondary_window: { used_percent: 18, limit_window_seconds: 604800, reset_at: 1790500000 },
+      },
+    }).map((w) => [w.label, w.used, w.reset]),
+    [
+      ["5-hour limit", 61, "2026-09-21T14:13:20.000Z"],
+      ["Weekly limit", 18, "2026-09-27T09:06:40.000Z"],
+    ],
+  );
+  assert.equal(quotaWindows("codex", { rate_limit: { secondary_window: { used_percent: 3 } } })[0].label, "Secondary limit");
   assert.equal(quotaWindows("x", { groups: [{ displayName: "Pro", buckets: [{ remainingFraction: 0.25 }] }] })[0].used, 75);
   assert.deepEqual(quotaWindows("gemini", {}), []);
 });
@@ -211,9 +225,9 @@ test("passive limits from Codex headers and Devin quota", () => {
     },
   });
   assert.deepEqual(codex, [
-    { label: "5-hour", used: 42.5, reset: "2026-10-02T14:00:00.000Z", source: "x-codex-primary-" },
+    { label: "5-hour limit", used: 42.5, reset: "2026-10-02T14:00:00.000Z", source: "x-codex-primary-" },
     // Relative resets count from when the server observed them, not from now.
-    { label: "Weekly", used: 7, reset: "2026-10-02T13:00:00.000Z", source: "x-codex-secondary-" },
+    { label: "Weekly limit", used: 7, reset: "2026-10-02T13:00:00.000Z", source: "x-codex-secondary-" },
   ]);
   assert.deepEqual(signalWindows("codex", { signals: { "x-codex-primary-window-minutes": "300" } }), []);
   assert.deepEqual(

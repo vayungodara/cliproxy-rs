@@ -232,9 +232,13 @@ export function quotaWindows(p: string, payload: Data): Window[] {
     for (const [k, v] of Object.entries<Data>(payload.rate_limit || payload.rateLimit || {}))
       if (v && typeof v.used_percent === "number")
         out.push({
-          label: k === "primary_window" ? "Primary window" : "Weekly window",
+          label: codexWindow(Number(v.limit_window_seconds), k === "primary_window" ? "Primary limit" : "Secondary limit"),
           used: clamp(v.used_percent),
-          reset: v.reset_at ? new Date(v.reset_at * 1000).toISOString() : "",
+          reset: v.reset_at
+            ? new Date(v.reset_at * 1000).toISOString()
+            : Number(v.reset_after_seconds) >= 0 && v.reset_after_seconds !== undefined
+              ? new Date(Date.now() + Number(v.reset_after_seconds) * 1000).toISOString()
+              : "",
         });
   } else if (p === "kimi" || p === "kimi-ai") {
     for (const [k, v] of Object.entries<Data>(payload.usages || {}))
@@ -309,6 +313,10 @@ export function claudeWindows(payload: Data): Window[] {
   return out;
 }
 
+/** A Codex rate-limit window by its length, as the Codex CLI names them. */
+const codexWindow = (seconds: number, fallback: string) =>
+  seconds === 18_000 ? "5-hour limit" : seconds === 604_800 ? "Weekly limit" : seconds > 0 ? `${span(seconds * 1000)} limit` : fallback;
+
 /**
  * Limits the server observed passively, without asking the provider: Codex rate-limit
  * headers (x-codex-primary-*, x-codex-secondary-*) and Devin's daily and weekly quota.
@@ -327,7 +335,7 @@ export function signalWindows(p: string, quota: Data | undefined): Window[] {
       const resetAt = Number(g("reset-at")),
         after = Number(g("reset-after-seconds"));
       out.push({
-        label: minutes === 300 ? "5-hour" : minutes === 10080 ? "Weekly" : minutes ? `${span(minutes * 60_000)} window` : w,
+        label: codexWindow(minutes * 60, w === "primary" ? "Primary limit" : "Secondary limit"),
         used: clamp(used),
         reset: resetAt > 0 ? new Date(resetAt * 1000).toISOString() : after >= 0 && at ? new Date(at + after * 1000).toISOString() : "",
         source: `x-codex-${w}-`,
