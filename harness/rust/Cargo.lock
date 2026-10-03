@@ -436,6 +436,7 @@ dependencies = [
  "async-compression",
  "base64 0.22.1",
  "brotli-decompressor",
+ "btls",
  "bytes",
  "chrono",
  "cpa-common",

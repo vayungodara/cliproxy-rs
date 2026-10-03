@@ -15,7 +15,8 @@ Each executor fixture records:
 - `upstream`: every request Go sent, with ordered, cased header lines and exact body.
 - `downstream`: what the Go executor returned (body, stream chunks or error).
 - `extra.usage`: the usage records Go's `UsageReporter` published for the attempt
-  (tokens, response model, translated reasoning effort), captured by a usage plugin.
+  (tokens, response model, response service tier, translated reasoning effort), captured
+  by a usage plugin. Fixtures recorded before the tier was captured lack `service_tier`.
 
 `vectors.json` holds pure-function input/output pairs from the Go helpers;
 `devin/paste_vectors.json` comes from `sdk/auth` (`parseDevinManualPaste`). Devin request
@@ -30,6 +31,10 @@ G=<cliproxy-rs>/crates/cpa-exec/tests/device_fixtures/go
 cp $G/zz_rsfix_frames_test.go sdk/api/handlers/openai/
 cp $G/zz_rsfix_devin_paste_test.go sdk/auth/
 for f in $G/zz_rsfix_*_test.go; do case $(basename $f) in zz_rsfix_frames_test.go|zz_rsfix_devin_paste_test.go) ;; *) cp $f internal/runtime/executor/ ;; esac; done
+# Run the generators with external network denied (loopback only), after `go mod download`;
+# with GOTOOLCHAIN=local, put a Go >= 1.26 toolchain first on PATH. For example:
+#   unshare -rn sh -c 'ip link set lo up && exec unshare --user --map-user='"$(id -u)"' \
+#     --map-group='"$(id -g)"' -- env GOPROXY=off GOTOOLCHAIN=local sh'
 RSFIX_OUT=/tmp/rsfix go test -count=1 -run 'TestRSFix' ./internal/runtime/executor/
 RSFIX_OUT=/tmp/rsfix go test -count=1 -run 'TestRSFixDevinPaste' ./sdk/auth/
 # Adds downstream.frames: Responses-route joining of the recorded stream chunks.
