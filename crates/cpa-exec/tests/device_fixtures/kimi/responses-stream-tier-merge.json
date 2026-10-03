@@ -22,6 +22,8 @@
     "usage": [
       {
         "cached_tokens": 0,
+        "fail_body": "",
+        "fail_status": 0,
         "failed": false,
         "input_tokens": 7,
         "model": "kimi-k3",
@@ -30,7 +32,8 @@
         "reasoning_tokens": 0,
         "response_model": "",
         "service_tier": "priority",
-        "total_tokens": 9
+        "total_tokens": 9,
+        "ttft_set": true
       }
     ]
   },

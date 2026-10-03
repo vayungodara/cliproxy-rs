@@ -178,6 +178,11 @@ impl UsageQueue {
         }
     }
 
+    /// Whether an error event would reach anyone; producers can skip building one.
+    pub fn wants_errors(&self) -> bool {
+        self.enabled.load(Ordering::SeqCst) && !self.error_subscribers.lock().1.is_empty()
+    }
+
     /// Go `NotifyUsageRefresh`: tells usage subscribers the credential set changed.
     pub fn notify_usage_refresh(&self) {
         self.usage_subscribers.publish(REFRESH);

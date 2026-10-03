@@ -3,6 +3,9 @@
 //! management router with the same c-shared plugins: plugin list, config reads and
 //! writes, enable, delete, and plugin-declared routes and resources through NoRoute.
 
+// Native plugins load only on Unix (the host's `native` module).
+#![cfg(unix)]
+
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
