@@ -1,0 +1,96 @@
+{
+  "name": "chat-stream-interactions-client",
+  "credential": {
+    "access_token": "kimi-access-fixture",
+    "base_url": "http://127.0.0.1:41103/coding",
+    "device_id": "dev-fixture-1",
+    "refresh_token": "kimi-refresh-fixture",
+    "type": "kimi"
+  },
+  "request": {
+    "body": "{\"model\":\"kimi-k2\",\"input\":\"hi\"}",
+    "model": "kimi-k2",
+    "source": "interactions",
+    "stream": true
+  },
+  "responses": [
+    {
+      "status": 200,
+      "headers": [
+        [
+          "Content-Type",
+          "text/event-stream"
+        ]
+      ],
+      "body": "data: {\"id\":\"i1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"k2\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"yo\"},\"finish_reason\":\"stop\"}]}\n\n"
+    }
+  ],
+  "upstream": [
+    {
+      "method": "POST",
+      "target": "/coding/v1/chat/completions",
+      "headers": [
+        [
+          "Host",
+          "127.0.0.1:41103"
+        ],
+        [
+          "User-Agent",
+          "CLIProxyAPI/0.1.0"
+        ],
+        [
+          "Content-Length",
+          "112"
+        ],
+        [
+          "Accept",
+          "text/event-stream"
+        ],
+        [
+          "Authorization",
+          "Bearer kimi-access-fixture"
+        ],
+        [
+          "Content-Type",
+          "application/json"
+        ],
+        [
+          "X-Msh-Device-Id",
+          "dev-fixture-1"
+        ],
+        [
+          "X-Msh-Device-Model",
+          "linux amd64"
+        ],
+        [
+          "X-Msh-Device-Name",
+          "e2b.local"
+        ],
+        [
+          "X-Msh-Platform",
+          "CLIProxyAPI"
+        ],
+        [
+          "X-Msh-Version",
+          "0.1.0"
+        ],
+        [
+          "Accept-Encoding",
+          "gzip"
+        ]
+      ],
+      "body": "{\"model\":\"k2\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}"
+    }
+  ],
+  "downstream": {
+    "chunks": [
+      "event: interaction.created\ndata: {\"interaction\":{\"id\":\"i1\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"kimi-k2\"},\"event_type\":\"interaction.created\"}\n\n",
+      "event: interaction.status_update\ndata: {\"interaction_id\":\"i1\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
+      "event: step.start\ndata: {\"index\":0,\"step\":{\"type\":\"model_output\"},\"event_type\":\"step.start\"}\n\n",
+      "event: step.delta\ndata: {\"index\":0,\"delta\":{\"text\":\"yo\",\"type\":\"text\"},\"event_type\":\"step.delta\"}\n\n",
+      "event: step.stop\ndata: {\"index\":0,\"event_type\":\"step.stop\"}\n\n",
+      "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"i1\",\"status\":\"completed\",\"usage\":{},\"created\":\"2026-10-03T07:27:50Z\",\"updated\":\"2026-10-03T07:27:50Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"kimi-k2\"},\"event_type\":\"interaction.completed\"}\n\n",
+      "event: done\ndata: [DONE]\n\n"
+    ]
+  }
+}

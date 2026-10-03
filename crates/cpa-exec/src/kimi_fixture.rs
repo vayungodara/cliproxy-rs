@@ -282,6 +282,7 @@ pub(crate) fn request(fixture: &Value, principal: &str) -> ExecRequest {
         session: None,
         execution_session: None,
         derived_session: None,
+        resolved_model: None,
         request_path: String::new(),
         headers,
         caller: Caller {
@@ -350,4 +351,40 @@ pub(crate) fn data_payloads(frames: &[String]) -> Vec<String> {
                 .collect::<Vec<_>>()
         })
         .collect()
+}
+
+/// A translator that echoes events and rejects apply_patch input on a marked line.
+pub(crate) struct PatchProbe {
+    pub failed: bool,
+    pub fail_on_finalize: bool,
+    pub log: std::sync::Arc<std::sync::Mutex<Vec<String>>>,
+}
+
+impl cpa_translate::StreamTranslator for PatchProbe {
+    fn event(&mut self, event: &[u8]) -> Result<Vec<Bytes>, cpa_translate::Error> {
+        let event = String::from_utf8_lossy(event).into_owned();
+        self.log.lock().unwrap().push(format!("event {event}"));
+        if event.contains("BAD_PATCH") {
+            self.failed = true;
+        }
+        Ok(vec![Bytes::from(format!("frame {event}"))])
+    }
+    fn finish(&mut self) -> Result<Vec<Bytes>, cpa_translate::Error> {
+        self.log.lock().unwrap().push("finish".into());
+        Ok(vec![Bytes::from_static(b"finished")])
+    }
+    fn flush_frames(&mut self) -> Vec<Bytes> {
+        vec![Bytes::from_static(b"flushed")]
+    }
+    fn tool_input_failed(&self) -> bool {
+        self.failed
+    }
+    fn finalize_tool_input(&mut self) -> Vec<Bytes> {
+        self.log.lock().unwrap().push("finalize".into());
+        if self.fail_on_finalize {
+            self.failed = true;
+            return vec![Bytes::from_static(b"response.failed")];
+        }
+        vec![]
+    }
 }
