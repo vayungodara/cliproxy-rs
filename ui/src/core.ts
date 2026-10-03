@@ -368,7 +368,7 @@ export const strategies = [
     value: "soonest-reset",
     name: "Soonest reset first",
     rust: true,
-    help: "Use the account whose weekly limit resets soonest until it cools down or uses up a window, then move to the next. Conversations bound to an account stay on it.",
+    help: "Experimental. Uses the account whose weekly limit resets soonest until it cools down or uses up a window, then moves to the next. Conversations bound to an account stay on it.",
   },
 ] as const;
 /** The strategy a configured value selects, aliases included; anything else is round robin, as on the server. */

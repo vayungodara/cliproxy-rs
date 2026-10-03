@@ -95,7 +95,7 @@ claude
 
 ## Several accounts
 
-Sign in to as many Claude and Codex accounts as you have, and choose how the proxy rotates between them: `round-robin`, `fill-first`, `weighted-round-robin`, or `soonest-reset` (a cliproxy-rs addition: spend the account whose weekly window resets soonest first). Session affinity keeps each conversation on one account so the provider's prompt cache stays warm, and an account that hits a limit rests while the others take over. [docs/MULTI-ACCOUNT.md](docs/MULTI-ACCOUNT.md) covers routing, cooldowns, the quota view, per-account proxies, Codex over WebSocket and reaching the proxy from your other machines over Tailscale.
+Sign in to as many Claude and Codex accounts as you have, and choose how the proxy rotates between them: `round-robin`, `fill-first`, `weighted-round-robin`, or `soonest-reset` (experimental, a cliproxy-rs addition: spend the account whose weekly window resets soonest first). Session affinity keeps each conversation on one account so the provider's prompt cache stays warm, and an account that hits a limit rests while the others take over. [docs/MULTI-ACCOUNT.md](docs/MULTI-ACCOUNT.md) covers routing, cooldowns, the quota view, per-account proxies, Codex over WebSocket and reaching the proxy from your other machines over Tailscale.
 
 ## Works with CLIProxyAPI apps
 
@@ -141,11 +141,11 @@ Keep `access.api-keys` set and `server.host` on `127.0.0.1` unless you need othe
 
 ## Performance
 
-Go is faster on non-streaming throughput. On a 2-vCPU test machine with a local fake upstream, CLIProxyAPI handled about 42% more non-streaming requests per second (1,859 against 1,307) and about 10% more plain streams (1,038 against 944). cliproxy-rs was faster on streams it translates between the Anthropic and OpenAI formats (830 against 657 per second) and used less than half of Go's memory: 17 MB at idle against 44 MB, and 25 to 50 MB under load against 58 to 105 MB. It starts in 16 ms against Go's 46 ms, and the release binary is 36 MB against 69 MB. [docs/BENCHMARKS.md](docs/BENCHMARKS.md) has the method and every number.
+Go is faster on non-streaming throughput. On a 2-vCPU test machine with a local fake upstream (2026-10-03), CLIProxyAPI handled about 34% more non-streaming requests per second (1,568 against 1,168) and about 10% more plain streams (916 against 833). cliproxy-rs was faster on streams it translates between the Anthropic and OpenAI formats (793 against 564 per second, about 41% more) and used less than half of Go's memory: 17 MB at idle against 45 MB, and 25 to 50 MB under load against 58 to 104 MB. It answers its first request about 17 ms after launch, and the release binary is 36 MB against 69 MB. [docs/BENCHMARKS.md](docs/BENCHMARKS.md) has the method and every number.
 
 ## Development
 
-The workspace is `crates/cpa-core` (config and account formats), `crates/cpa-exec` (one module per upstream provider), `crates/cpa-translate` (format translation), `crates/cpa-server` (routes, account selection and the Management API), `crates/cliproxy` (the binary) and `ui/` (the dashboard, see [ui/README.md](ui/README.md)). The workspace has 925 tests, run against local mock upstreams only; CI runs all of them on every push with Go and PostgreSQL installed, so none are skipped. A [differential harness](harness/README.md) sends the same 59 cases to CLIProxyAPI and cliproxy-rs and compares the results.
+The workspace is `crates/cpa-core` (config and account formats), `crates/cpa-exec` (one module per upstream provider), `crates/cpa-translate` (format translation), `crates/cpa-server` (routes, account selection and the Management API), `crates/cliproxy` (the binary) and `ui/` (the dashboard, see [ui/README.md](ui/README.md)). The workspace has 925 tests, run against local mock upstreams only; CI runs the whole suite on every push, with Go and PostgreSQL installed so the tests that compare against them run too. A [differential harness](harness/README.md) sends the same 59 cases to CLIProxyAPI and cliproxy-rs and compares the results.
 
 ```sh
 cargo fmt --all --check

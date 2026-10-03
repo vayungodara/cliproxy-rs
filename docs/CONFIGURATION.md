@@ -79,7 +79,7 @@ How the server picks an account for each request. [MULTI-ACCOUNT.md](MULTI-ACCOU
 
 | Setting | What it does |
 |---|---|
-| `strategy` | `round-robin` (the default), `fill-first`, `weighted-round-robin`, or `soonest-reset` (a cliproxy-rs addition: spend the account whose weekly window resets soonest first). |
+| `strategy` | `round-robin` (the default), `fill-first`, `weighted-round-robin`, or `soonest-reset` (experimental, a cliproxy-rs addition: spend the account whose weekly window resets soonest first). |
 | `session-affinity` | `true` keeps a conversation on the account that served its first request. Off by default. |
 | `session-affinity-ttl` | How long a conversation stays bound to its account, `"1h"` by default. |
 | `retry.request-retry` | Extra rounds over the accounts after a failed attempt, `0` by default. |

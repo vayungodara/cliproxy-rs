@@ -36,7 +36,7 @@ for (const base of process.argv.slice(2)) {
   const usage = typeof r.body.body === "string" ? JSON.parse(r.body.body) : r.body.body;
   assert.equal(usage.echo_authorization, "Bearer fake-access-not-real", "$TOKEN$ substituted with the credential token");
   const windows = quotaWindows("claude", usage);
-  assert.deepEqual(windows.map((w) => [w.label, w.used]), [["five hour", 37], ["seven day", 12.5]]);
+  assert.deepEqual(windows.map((w) => [w.label, w.used]), [["Current session", 37], ["Current week (all models)", 12.5]]);
   shapes.push([r.server, Object.keys(r.body).sort().join(","), typeof r.body.body]);
   console.log(`PASS ${r.server} api-call: token substituted, ${windows.length} quota windows parsed`);
 }

@@ -22,7 +22,9 @@ The provider's sign-in page uses whatever account your browser is logged into. T
 | `round-robin` (default) | Takes the accounts in turn, one request each. | The accounts are alike and you want the load even. |
 | `fill-first` | Uses one account until it cools down or reaches a limit, then the next. | You want to drain one plan before touching the others, for example a main account and spares. |
 | `weighted-round-robin` | Takes the accounts in turn in proportion to each account's `weight`. An account with weight 0 is left out. | The plans differ in size, for example a Max plan next to two Pro plans. |
-| `soonest-reset` (a cliproxy-rs addition) | Spends the account whose weekly window resets soonest first, until it cools down or uses up a window, then moves to the next. An account whose reset time is not known yet gets one probe request so the proxy can learn it. | You want to use up each week's allowance before it resets and is lost. CLIProxyAPI reads this value as `round-robin`. |
+| `soonest-reset` (experimental, a cliproxy-rs addition) | Spends the account whose weekly window resets soonest first, until it cools down or uses up a window, then moves to the next. An account whose reset time is not known yet gets one probe request so the proxy can learn it. | You want to use up each week's allowance before it resets and is lost. CLIProxyAPI reads this value as `round-robin`. |
+
+`soonest-reset` is experimental and only runs if you choose it. Please report anything that looks wrong.
 
 You can change the strategy on the dashboard's Configuration page, or in `config.yaml`.
 
