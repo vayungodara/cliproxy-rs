@@ -296,3 +296,115 @@ async fn relays_audio_and_data_channel_between_peers() {
     let refused = relay.new_session("v=0\r\n".into(), proxied).await;
     assert_eq!(refused.err().map(|e| e.status), Some(502));
 }
+
+/// Go's ICE URL parsing supplies default ports; webrtc-rs needs them explicit.
+#[test]
+fn ice_urls_get_go_default_ports() {
+    assert_eq!(ice_url("stun:stun.example.org"), "stun:stun.example.org:3478");
+    assert_eq!(ice_url("stun:stun.example.org:19302"), "stun:stun.example.org:19302");
+    assert_eq!(
+        ice_url("turn:turn.example.org?transport=udp"),
+        "turn:turn.example.org:3478?transport=udp"
+    );
+    assert_eq!(ice_url("turns:turn.example.org"), "turns:turn.example.org:5349");
+    assert_eq!(ice_url("stun:[2001:db8::1]"), "stun:[2001:db8::1]:3478");
+    assert_eq!(ice_url("stun:[2001:db8::1]:5000"), "stun:[2001:db8::1]:5000");
+    let config = RelayConfig {
+        ice_servers: vec![crate::realtime::relay::IceServer {
+            urls: vec![
+                "turn:a.example?transport=tcp".into(),
+                "turns:b.example".into(),
+                "turn:c.example".into(),
+                "stun:d.example".into(),
+            ],
+            ..Default::default()
+        }],
+        ..RelayConfig::default()
+    };
+    assert_eq!(
+        ungathered_ice_urls(&config),
+        ["turn:a.example?transport=tcp", "turns:b.example"],
+        "reported, not silently skipped"
+    );
+}
+
+/// pion `SetNAT1To1IPs(public-ip, host)`: host candidates advertise the public address;
+/// srflx, relay and IPv6 candidates are untouched.
+#[test]
+fn public_ip_replaces_ipv4_host_candidates() {
+    let sdp = "v=0\r\na=candidate:1 1 udp 2130706431 10.0.0.5 50000 typ host\r\na=candidate:2 1 udp 1694498815 198.51.100.1 50000 typ srflx raddr 10.0.0.5 rport 50000\r\na=candidate:3 1 udp 2130706431 fd00::5 50001 typ host\r\na=end\r\n";
+    assert_eq!(
+        advertise(sdp, "203.0.113.7"),
+        "v=0\r\na=candidate:1 1 udp 2130706431 203.0.113.7 50000 typ host\r\na=candidate:2 1 udp 1694498815 198.51.100.1 50000 typ srflx raddr 10.0.0.5 rport 50000\r\na=candidate:3 1 udp 2130706431 fd00::5 50001 typ host\r\na=end\r\n"
+    );
+    assert_eq!(advertise(sdp, ""), sdp, "unset");
+}
+
+/// Two consecutive free loopback UDP ports.
+fn free_port_pair() -> u16 {
+    (20000..60000)
+        .step_by(7)
+        .find(|p| {
+            std::net::UdpSocket::bind(("127.0.0.1", *p)).is_ok()
+                && std::net::UdpSocket::bind(("127.0.0.1", *p + 1)).is_ok()
+        })
+        .expect("two free ports")
+}
+
+/// A request cancelled mid-negotiation (Go: request context ends while gathering) closes
+/// both peers and returns the slot: with one session allowed and only two ports, a new
+/// session can start again.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn cancelled_setup_frees_ports_and_slot() {
+    // A STUN server that never answers keeps upstream gathering pending.
+    let silent = std::net::UdpSocket::bind("127.0.0.1:0").unwrap();
+    let port = free_port_pair();
+    let config = RelayConfig {
+        enabled: true,
+        max_sessions: 1,
+        udp_port_min: port,
+        udp_port_max: port + 1,
+        ice_servers: vec![crate::realtime::relay::IceServer {
+            urls: vec![format!("stun:{}", silent.local_addr().unwrap())],
+            ..Default::default()
+        }],
+        ..RelayConfig::default()
+    };
+    let limiter = Arc::new(Limiter::default());
+    limiter.set_limit(config.max_sessions());
+    let relay = Relay {
+        config,
+        limiter: limiter.clone(),
+        bind_ip: Some("127.0.0.1".parse().unwrap()),
+    };
+    let route = || Route {
+        proxy: cpa_exec::proxy::Proxy::Inherit,
+        credential: "c".into(),
+        auth_index: "i".into(),
+    };
+    let mut client = loopback_peer().await;
+    let _ = client.pc.create_data_channel(LABEL, None).await.unwrap();
+    let offer = client.pc.create_offer(None).await.unwrap();
+    let offer = complete(&mut client, offer).await;
+
+    let first = tokio::time::timeout(Duration::from_millis(300), relay.new_session(offer.clone(), route())).await;
+    assert!(first.is_err(), "setup is still gathering when the request goes away");
+    // A second attempt fails at once while the slot or a port is still held, and stays
+    // pending (gathering) once both are free.
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(10);
+    loop {
+        match tokio::time::timeout(Duration::from_millis(300), relay.new_session(offer.clone(), route())).await {
+            Err(_) => break,
+            Ok(result) => {
+                let message = result.err().map(|e| e.message).unwrap_or_default();
+                assert!(
+                    tokio::time::Instant::now() < deadline,
+                    "slot or ports never released: {message}"
+                );
+                tokio::time::sleep(Duration::from_millis(50)).await;
+            }
+        }
+    }
+    let _ = client.pc.close().await;
+    drop(silent);
+}
