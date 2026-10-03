@@ -31,7 +31,9 @@ pub(crate) struct FakeS3 {
 }
 
 fn error(status: StatusCode, code: &str) -> Response {
-    let body = format!("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>{code}</Code><Message>{code} message</Message></Error>");
+    let body = format!(
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>{code}</Code><Message>{code} message</Message></Error>"
+    );
     (status, body).into_response()
 }
 
@@ -88,7 +90,13 @@ impl FakeS3 {
 
 /// Recomputes the signature from what arrived; `Err` is the S3 error code.
 fn verify(method: &Method, uri: &Uri, headers: &HeaderMap, body: &[u8]) -> Result<String, &'static str> {
-    let header = |name: &str| headers.get(name).and_then(|v| v.to_str().ok()).unwrap_or_default().to_owned();
+    let header = |name: &str| {
+        headers
+            .get(name)
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or_default()
+            .to_owned()
+    };
     let authorization = header("authorization");
     let payload = header("x-amz-content-sha256");
     if payload != sigv4::sha256_hex(body) {
@@ -148,11 +156,10 @@ fn verify(method: &Method, uri: &Uri, headers: &HeaderMap, body: &[u8]) -> Resul
 }
 
 fn handle(state: &State, method: Method, uri: Uri, headers: HeaderMap, body: Bytes) -> Response {
-    state
-        .log
-        .lock()
-        .unwrap()
-        .push(format!("{method} {}", uri.path_and_query().map(|p| p.as_str()).unwrap_or_default()));
+    state.log.lock().unwrap().push(format!(
+        "{method} {}",
+        uri.path_and_query().map(|p| p.as_str()).unwrap_or_default()
+    ));
     let region = match verify(&method, &uri, &headers, &body) {
         Ok(region) => region,
         Err(code) => return error(StatusCode::FORBIDDEN, code),
@@ -223,7 +230,10 @@ fn handle(state: &State, method: Method, uri: Uri, headers: HeaderMap, body: Byt
                 }
                 xml.push_str(&format!("<IsTruncated>{truncated}</IsTruncated>"));
                 if truncated && let Some(last) = page.last() {
-                    xml.push_str(&format!("<NextContinuationToken>{}</NextContinuationToken>", xml_escape(last)));
+                    xml.push_str(&format!(
+                        "<NextContinuationToken>{}</NextContinuationToken>",
+                        xml_escape(last)
+                    ));
                 }
                 xml.push_str("</ListBucketResult>");
                 (StatusCode::OK, xml).into_response()

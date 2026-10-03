@@ -543,8 +543,15 @@ async fn persist_login(store: &cpa_store::Store, before: &std::collections::BTre
         if before.get(&path) == Some(&data) {
             continue;
         }
-        let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
-        if let Err(error) = store.persister.persist_auth_files(format!("Update auth {name}"), vec![path]).await {
+        let name = path
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        if let Err(error) = store
+            .persister
+            .persist_auth_files(format!("Update auth {name}"), vec![path])
+            .await
+        {
             tracing::error!("failed to save auth {name} to the token store: {error:#}");
         }
     }

@@ -241,7 +241,9 @@ impl Dsn {
             config.dbname(dbname);
         }
         if config.get_connect_timeout().is_none()
-            && let Some(secs) = env("PGCONNECT_TIMEOUT").and_then(|v| v.parse::<u64>().ok()).filter(|s| *s > 0)
+            && let Some(secs) = env("PGCONNECT_TIMEOUT")
+                .and_then(|v| v.parse::<u64>().ok())
+                .filter(|s| *s > 0)
         {
             config.connect_timeout(Duration::from_secs(secs));
         }
@@ -294,7 +296,11 @@ impl Dsn {
     }
 
     async fn connect(&self) -> Result<Client> {
-        let (client, connection) = self.config.connect(self.tls.clone()).await.map_err(|e| anyhow!("{e}"))?;
+        let (client, connection) = self
+            .config
+            .connect(self.tls.clone())
+            .await
+            .map_err(|e| anyhow!("{e}"))?;
         tokio::spawn(async move {
             if let Err(error) = connection.await {
                 tracing::warn!("postgres store: connection closed: {error}");
@@ -523,7 +529,11 @@ mod tests {
         let dsn = Dsn::parse("host=db user=u password=p sslmode=verify-full", &no_env).unwrap();
         assert_eq!(dsn.config.get_ssl_mode(), SslMode::Require);
         assert!(dsn.tls.verify && dsn.tls.verify_hostname);
-        let dsn = Dsn::parse("postgres://u:p@db:5433/app?sslmode=verify-ca&application_name=x", &no_env).unwrap();
+        let dsn = Dsn::parse(
+            "postgres://u:p@db:5433/app?sslmode=verify-ca&application_name=x",
+            &no_env,
+        )
+        .unwrap();
         assert_eq!(dsn.config.get_ssl_mode(), SslMode::Require);
         assert!(dsn.tls.verify && !dsn.tls.verify_hostname);
         assert_eq!(dsn.config.get_ports(), &[5433]);

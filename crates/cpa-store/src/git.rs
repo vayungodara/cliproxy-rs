@@ -151,7 +151,11 @@ impl GitStore {
         // Go `gitClientOptions`: HTTP basic auth, user "git" when only a token is set.
         // Passed through the environment so it never appears in a process listing.
         if !self.username.is_empty() || !self.password.is_empty() {
-            let user = if self.username.is_empty() { "git" } else { &self.username };
+            let user = if self.username.is_empty() {
+                "git"
+            } else {
+                &self.username
+            };
             let token = base64::engine::general_purpose::STANDARD.encode(format!("{user}:{}", self.password));
             cmd.env("GIT_CONFIG_COUNT", "1")
                 .env("GIT_CONFIG_KEY_0", "http.extraHeader")
@@ -187,7 +191,10 @@ impl GitStore {
     }
 
     fn rev(&self, name: &str) -> Result<Option<String>> {
-        let output = self.run_in(&self.repo, &["rev-parse", "--verify", "-q", &format!("{name}^{{commit}}")])?;
+        let output = self.run_in(
+            &self.repo,
+            &["rev-parse", "--verify", "-q", &format!("{name}^{{commit}}")],
+        )?;
         Ok(output
             .status
             .success()
@@ -324,7 +331,9 @@ impl GitStore {
         }
         // Fall back to the local origin/HEAD, then any remote branch.
         if let Ok(local) = self.git(&["symbolic-ref", "-q", "refs/remotes/origin/HEAD"])
-            && let Some(branch) = String::from_utf8_lossy(&local).trim().strip_prefix("refs/remotes/origin/")
+            && let Some(branch) = String::from_utf8_lossy(&local)
+                .trim()
+                .strip_prefix("refs/remotes/origin/")
         {
             return Ok(branch.to_owned());
         }
@@ -356,7 +365,9 @@ impl GitStore {
         let Some(remote) = self.rev(&format!("refs/remotes/origin/{short}"))? else {
             // Go: an empty remote is ignored; a configured branch missing from a
             // non-empty remote is a pull error; following the remote default, ignored.
-            let remote_empty = self.git(&["for-each-ref", "--count=1", "refs/remotes/origin/"])?.is_empty();
+            let remote_empty = self
+                .git(&["for-each-ref", "--count=1", "refs/remotes/origin/"])?
+                .is_empty();
             if !self.branch.is_empty() && !remote_empty {
                 bail!("git token store: pull: reference not found");
             }
@@ -364,7 +375,8 @@ impl GitStore {
         };
         let base = self.rev("HEAD")?;
         if base.as_deref() == Some(remote.as_str()) {
-            self.git(&["reset", "-q"]).context("git token store: repair index after up-to-date pull")?;
+            self.git(&["reset", "-q"])
+                .context("git token store: repair index after up-to-date pull")?;
         } else {
             self.reconcile(base.as_deref(), &remote, &branch)?;
         }
@@ -373,10 +385,19 @@ impl GitStore {
 
     fn reconcile(&self, base: Option<&str>, remote: &str, branch: &str) -> Result<()> {
         let dirty = self.dirty_paths()?;
-        let changed = split_nul(&self.git(&["diff", "--name-only", "--no-renames", "-z", base.unwrap_or(EMPTY_TREE), remote])?);
+        let changed = split_nul(&self.git(&[
+            "diff",
+            "--name-only",
+            "--no-renames",
+            "-z",
+            base.unwrap_or(EMPTY_TREE),
+            remote,
+        ])?);
         for path in &changed {
             if let Some(local) = dirty.iter().find(|d| overlaps(path, d)) {
-                bail!("git token store: reconcile remote changes: remote path {path} conflicts with local change {local}");
+                bail!(
+                    "git token store: reconcile remote changes: remote path {path} conflicts with local change {local}"
+                );
             }
         }
         for path in &changed {
@@ -399,7 +420,13 @@ impl GitStore {
 
     /// Go `worktreeDirtyPaths`: staged, modified or untracked paths.
     fn dirty_paths(&self) -> Result<Vec<String>> {
-        let status = self.git(&["status", "--porcelain=v1", "-z", "--untracked-files=all", "--no-renames"])?;
+        let status = self.git(&[
+            "status",
+            "--porcelain=v1",
+            "-z",
+            "--untracked-files=all",
+            "--no-renames",
+        ])?;
         Ok(split_nul(&status)
             .into_iter()
             .filter_map(|entry| entry.get(3..).map(str::to_owned))
@@ -418,8 +445,7 @@ impl GitStore {
                 continue;
             }
             if let Some(contents) = self.blob("HEAD", &path)? {
-                write_0600(&destination, &contents)
-                    .context("git token store: restore tracked worktree files")?;
+                write_0600(&destination, &contents).context("git token store: restore tracked worktree files")?;
             }
         }
         Ok(())
@@ -427,14 +453,21 @@ impl GitStore {
 
     /// Go `commitAndPushWithOptionsLocked`: one squashed commit of `paths`, pushed with
     /// force-with-lease; the branch is restored when the push is rejected.
-    fn commit_and_push(&self, last_gc: &mut Option<Instant>, message: &str, paths: &[String], allow_missing_remote: bool) -> Result<()> {
+    fn commit_and_push(
+        &self,
+        last_gc: &mut Option<Instant>,
+        message: &str,
+        paths: &[String],
+        allow_missing_remote: bool,
+    ) -> Result<()> {
         let managed = normalize(paths).context("git token store: validate commit paths")?;
         if managed.is_empty() {
             return Ok(());
         }
         let base = self.rev("HEAD")?;
         if base.is_some() {
-            self.git(&["reset", "-q"]).context("git token store: reset index before commit")?;
+            self.git(&["reset", "-q"])
+                .context("git token store: reset index before commit")?;
         }
         let mut added = false;
         for path in &managed {
@@ -461,9 +494,14 @@ impl GitStore {
         if let Some(base) = &base {
             // Go `validateManagedTreeChanges`.
             let changed = split_nul(&self.git(&["diff", "--name-only", "--no-renames", "-z", base, &tree])?);
-            if let Some(path) = changed.iter().find(|p| !managed.iter().any(|m| p == &m || p.starts_with(&format!("{m}/")))) {
+            if let Some(path) = changed
+                .iter()
+                .find(|p| !managed.iter().any(|m| p == &m || p.starts_with(&format!("{m}/"))))
+            {
                 self.git(&["reset", "-q"])?;
-                bail!("git token store: validate commit tree: unexpected indexed change outside requested paths: {path}");
+                bail!(
+                    "git token store: validate commit tree: unexpected indexed change outside requested paths: {path}"
+                );
             }
         }
         // Go commits, then rewrites the tip as a parentless commit of the same tree.
@@ -491,7 +529,11 @@ impl GitStore {
         let lease = match self.rev(&tracking)? {
             Some(hash) => Some(format!("--force-with-lease={branch}:{hash}")),
             None if allow_missing_remote => None,
-            None => return Err(restore(anyhow!("git token store: remote tracking branch {tracking} not found"))),
+            None => {
+                return Err(restore(anyhow!(
+                    "git token store: remote tracking branch {tracking} not found"
+                )));
+            }
         };
         let mut args = vec!["push", "-q", "--porcelain"];
         if let Some(lease) = &lease {
@@ -534,7 +576,9 @@ impl GitStore {
                 continue;
             }
             if self.blob("HEAD", &rel)?.is_some() {
-                bail!("git token store: refusing watcher-originated removal of tracked auth {rel}; use an explicit delete");
+                bail!(
+                    "git token store: refusing watcher-originated removal of tracked auth {rel}; use an explicit delete"
+                );
             }
         }
         // Without a surviving path the explicit delete already committed the removal.

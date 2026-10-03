@@ -162,8 +162,10 @@ async fn watcher_reports_changes_to_the_store_and_keeps_its_auth_dir() {
 
     let a = f.mirror.join("a.json");
     std::fs::write(&a, r#"{"type":"codex","access_token":"fake"}"#).unwrap();
-    f.wait_for("sync a.json", |c| c.contains(&Call::Auth("Sync auth a.json".into(), vec![a.clone()])))
-        .await;
+    f.wait_for("sync a.json", |c| {
+        c.contains(&Call::Auth("Sync auth a.json".into(), vec![a.clone()]))
+    })
+    .await;
 
     // A config the reload accepts is pushed; auth-dir in it is still overridden.
     std::fs::write(f.dir.join("config.yaml"), config_text(&f.dir, 5)).unwrap();
@@ -178,11 +180,17 @@ async fn watcher_reports_changes_to_the_store_and_keeps_its_auth_dir() {
     f.settle().await;
     let configs = f.calls().iter().filter(|c| **c == Call::Config).count();
     assert_eq!(configs, 1, "{:?}", f.calls());
-    assert!(!f.calls().iter().any(|c| matches!(c, Call::Auth(m, _) if m.contains("junk"))));
+    assert!(
+        !f.calls()
+            .iter()
+            .any(|c| matches!(c, Call::Auth(m, _) if m.contains("junk")))
+    );
 
     std::fs::remove_file(&a).unwrap();
-    f.wait_for("remove a.json", |c| c.contains(&Call::Auth("Remove auth a.json".into(), vec![a.clone()])))
-        .await;
+    f.wait_for("remove a.json", |c| {
+        c.contains(&Call::Auth("Remove auth a.json".into(), vec![a.clone()]))
+    })
+    .await;
     watcher.abort();
 }
 
@@ -198,9 +206,12 @@ async fn management_deletes_reach_the_store_and_its_errors_reach_the_client() {
         let base = format!("http://{}", listener.local_addr().unwrap());
         let app = management::router(f.state.clone());
         let server = tokio::spawn(async move {
-            axum::serve(listener, app.into_make_service_with_connect_info::<std::net::SocketAddr>())
-                .await
-                .unwrap()
+            axum::serve(
+                listener,
+                app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+            )
+            .await
+            .unwrap()
         });
         let client = wreq::Client::new();
         let delete = |query: &str| {
@@ -235,7 +246,10 @@ async fn management_deletes_reach_the_store_and_its_errors_reach_the_client() {
             deleted.sort_by_key(|c| format!("{c:?}"));
             assert_eq!(
                 deleted,
-                vec![Call::Delete(f.mirror.join("b.json")), Call::Delete(f.mirror.join("c.json"))]
+                vec![
+                    Call::Delete(f.mirror.join("b.json")),
+                    Call::Delete(f.mirror.join("c.json"))
+                ]
             );
         }
         server.abort();

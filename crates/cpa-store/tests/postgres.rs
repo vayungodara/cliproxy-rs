@@ -13,7 +13,10 @@ use cpa_server::persist::StorePersister;
 use cpa_store::{PostgresConfig, PostgresPersister, PostgresStore};
 
 fn scratch(name: &str) -> PathBuf {
-    let nanos = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_nanos();
+    let nanos = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
     let dir = std::env::temp_dir().join(format!("cpa-pg-{name}-{}-{nanos}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     dir
@@ -53,8 +56,16 @@ impl Cluster {
             .arg(&data)
             .output()
             .unwrap();
-        assert!(output.status.success(), "initdb: {}", String::from_utf8_lossy(&output.stderr));
-        let port = std::net::TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port();
+        assert!(
+            output.status.success(),
+            "initdb: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let port = std::net::TcpListener::bind("127.0.0.1:0")
+            .unwrap()
+            .local_addr()
+            .unwrap()
+            .port();
         let options = format!(
             "-p {port} -c listen_addresses=127.0.0.1 -k {} -c fsync=off -c shared_buffers=16MB -c max_connections=20",
             root.display()
@@ -76,7 +87,9 @@ impl Cluster {
     }
 
     async fn client(&self) -> tokio_postgres::Client {
-        let (client, connection) = tokio_postgres::connect(&self.dsn(), tokio_postgres::NoTls).await.unwrap();
+        let (client, connection) = tokio_postgres::connect(&self.dsn(), tokio_postgres::NoTls)
+            .await
+            .unwrap();
         tokio::spawn(connection);
         client
     }
@@ -144,12 +157,18 @@ async fn postgres_store_round_trips_config_auth_and_cooldowns() {
         .collect();
     assert_eq!(tables, vec!["auth_store", "config_store", "cooldown_store"]);
     let config: String = sql
-        .query_one("SELECT content FROM \"cpa \"\"tenant\"\"\".\"config_store\" WHERE id = 'config'", &[])
+        .query_one(
+            "SELECT content FROM \"cpa \"\"tenant\"\"\".\"config_store\" WHERE id = 'config'",
+            &[],
+        )
         .await
         .unwrap()
         .get(0);
     assert_eq!(config, "port: 8317\nauth-dir: x\n");
-    assert_eq!(std::fs::read(first.config_path()).unwrap(), b"port: 8317\r\nauth-dir: x\r\n");
+    assert_eq!(
+        std::fs::read(first.config_path()).unwrap(),
+        b"port: 8317\r\nauth-dir: x\r\n"
+    );
 
     // Auth files: upsert, subdirectories, deletes for empty and missing files.
     let auth = first.auth_dir();
@@ -166,13 +185,22 @@ async fn postgres_store_round_trips_config_auth_and_cooldowns() {
         .await
         .unwrap();
     std::fs::write(auth.join("c.json"), "").unwrap();
-    persister.persist_auth_files("Sync auth c.json".into(), vec![auth.join("c.json")]).await.unwrap();
+    persister
+        .persist_auth_files("Sync auth c.json".into(), vec![auth.join("c.json")])
+        .await
+        .unwrap();
     std::fs::write(auth.join("bad.json"), "{not json").unwrap();
     let error = format!(
         "{:#}",
-        persister.persist_auth_files("x".into(), vec![auth.join("bad.json")]).await.unwrap_err()
+        persister
+            .persist_auth_files("x".into(), vec![auth.join("bad.json")])
+            .await
+            .unwrap_err()
     );
-    assert!(error.contains("postgres store: upsert auth record: ERROR: invalid input syntax for type json"), "{error}");
+    assert!(
+        error.contains("postgres store: upsert auth record: ERROR: invalid input syntax for type json"),
+        "{error}"
+    );
     let ids: Vec<String> = sql
         .query("SELECT id FROM \"cpa \"\"tenant\"\"\".\"auth_store\" ORDER BY id", &[])
         .await
@@ -194,10 +222,16 @@ async fn postgres_store_round_trips_config_auth_and_cooldowns() {
         std::fs::read_to_string(mirrored.join("a.json")).unwrap(),
         r#"{"a": "x", "b": [1, 2], "type": "claude"}"#
     );
-    assert_eq!(std::fs::read_to_string(mirrored.join("team/b.json")).unwrap(), r#"{"type": "codex"}"#);
+    assert_eq!(
+        std::fs::read_to_string(mirrored.join("team/b.json")).unwrap(),
+        r#"{"type": "codex"}"#
+    );
     assert!(!mirrored.join("stale.json").exists());
     assert_eq!(mode(&mirrored.join("a.json")), 0o600);
-    assert_eq!(std::fs::read(second.config_path()).unwrap(), b"port: 8317\nauth-dir: x\n");
+    assert_eq!(
+        std::fs::read(second.config_path()).unwrap(),
+        b"port: 8317\nauth-dir: x\n"
+    );
 
     // Explicit delete and a removed config.
     second.delete(&mirrored.join("team/b.json")).await.unwrap();
@@ -233,8 +267,18 @@ async fn postgres_store_round_trips_config_auth_and_cooldowns() {
         // A record without a time takes the save time, truncated to microseconds.
         let mut untimed = record("b.json", "", t0);
         untimed.updated_at = None;
-        cooldown.save(vec![record("a.json", "m1", t0), untimed], now + Duration::from_nanos(999)).unwrap();
-        let b = cooldown.load().unwrap().into_iter().find(|r| r.auth_id == "b.json").unwrap();
+        cooldown
+            .save(
+                vec![record("a.json", "m1", t0), untimed],
+                now + Duration::from_nanos(999),
+            )
+            .unwrap();
+        let b = cooldown
+            .load()
+            .unwrap()
+            .into_iter()
+            .find(|r| r.auth_id == "b.json")
+            .unwrap();
         assert_eq!(b.updated_at, Some(now));
         assert!(cooldown.save(vec![record(" ", "", t0)], now).is_err());
     })
@@ -269,7 +313,10 @@ async fn postgres_store_round_trips_config_auth_and_cooldowns() {
     tokio::task::spawn_blocking(move || {
         cooldown.save(vec![record("a.json", "m1", t0)], now).unwrap();
         let loaded = cooldown.load().unwrap();
-        assert!(loaded.iter().any(|r| r.model == "m1" && r.reason == "other node"), "{loaded:?}");
+        assert!(
+            loaded.iter().any(|r| r.model == "m1" && r.reason == "other node"),
+            "{loaded:?}"
+        );
     })
     .await
     .unwrap();

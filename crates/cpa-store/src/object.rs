@@ -39,7 +39,8 @@ impl ObjectConfig {
         let mut endpoint = raw.to_owned();
         let mut use_ssl = true;
         if raw.contains("://") {
-            let parsed = url::Url::parse(raw).map_err(|e| anyhow!("failed to parse object store endpoint {raw:?}: {e}"))?;
+            let parsed =
+                url::Url::parse(raw).map_err(|e| anyhow!("failed to parse object store endpoint {raw:?}: {e}"))?;
             use_ssl = match parsed.scheme().to_lowercase().as_str() {
                 "http" => false,
                 "https" => true,
@@ -315,7 +316,13 @@ impl ObjectStore {
             host: &self.cfg.endpoint,
             payload_sha256: &payload,
         };
-        let (date, authorization) = sigv4::sign(&request, &self.cfg.access_key, &self.cfg.secret_key, region, chrono::Utc::now());
+        let (date, authorization) = sigv4::sign(
+            &request,
+            &self.cfg.access_key,
+            &self.cfg.secret_key,
+            region,
+            chrono::Utc::now(),
+        );
         let method = wreq::Method::from_bytes(method.as_bytes()).map_err(|e| anyhow!("{e}"))?;
         let mut builder = self
             .http
@@ -366,7 +373,14 @@ impl ObjectStore {
             .cloned()
     }
 
-    async fn call(&self, method: &str, key: Option<&str>, query: &[(String, String)], body: Vec<u8>, content_type: Option<&str>) -> Result<Vec<u8>> {
+    async fn call(
+        &self,
+        method: &str,
+        key: Option<&str>,
+        query: &[(String, String)],
+        body: Vec<u8>,
+        content_type: Option<&str>,
+    ) -> Result<Vec<u8>> {
         let region = self.region().await?;
         let (status, bytes) = self.send(method, key, query, body, content_type, &region).await?;
         if (200..300).contains(&status) {
@@ -498,9 +512,12 @@ impl ObjectStore {
     }
 
     fn auth_key(&self, path: &Path) -> Result<String> {
-        let rel = path
-            .strip_prefix(&self.auth_dir)
-            .map_err(|_| anyhow!("object store: resolve auth relative path: {} is outside the mirror", path.display()))?;
+        let rel = path.strip_prefix(&self.auth_dir).map_err(|_| {
+            anyhow!(
+                "object store: resolve auth relative path: {} is outside the mirror",
+                path.display()
+            )
+        })?;
         Ok(format!("{AUTH_PREFIX}/{}", rel.to_string_lossy().replace('\\', "/")))
     }
 
@@ -579,10 +596,22 @@ mod tests {
 
     #[test]
     fn endpoints_parse_like_go_main() {
-        assert_eq!(ObjectConfig::endpoint_from("http://127.0.0.1:9000/").unwrap(), ("127.0.0.1:9000".into(), false));
-        assert_eq!(ObjectConfig::endpoint_from("https://s3.example.com").unwrap(), ("s3.example.com".into(), true));
-        assert_eq!(ObjectConfig::endpoint_from("minio:9000").unwrap(), ("minio:9000".into(), true));
-        assert_eq!(ObjectConfig::endpoint_from("https://h/base/").unwrap(), ("h/base".into(), true));
+        assert_eq!(
+            ObjectConfig::endpoint_from("http://127.0.0.1:9000/").unwrap(),
+            ("127.0.0.1:9000".into(), false)
+        );
+        assert_eq!(
+            ObjectConfig::endpoint_from("https://s3.example.com").unwrap(),
+            ("s3.example.com".into(), true)
+        );
+        assert_eq!(
+            ObjectConfig::endpoint_from("minio:9000").unwrap(),
+            ("minio:9000".into(), true)
+        );
+        assert_eq!(
+            ObjectConfig::endpoint_from("https://h/base/").unwrap(),
+            ("h/base".into(), true)
+        );
         assert_eq!(
             ObjectConfig::endpoint_from("ftp://h").unwrap_err().to_string(),
             "unsupported object store scheme \"ftp\" (only http and https are allowed)"
@@ -595,7 +624,10 @@ mod tests {
         assert_eq!(xml_all(body, "Key"), vec!["auths/a%2Bb+c.json", "auths/x&y.json"]);
         assert_eq!(query_unescape("auths/a%2Bb+c.json"), "auths/a+b c.json");
         assert_eq!(xml_text(body, "NextContinuationToken").unwrap(), "t<1");
-        assert_eq!(xml_text("<LocationConstraint xmlns=\"x\"/>", "LocationConstraint").unwrap(), "");
+        assert_eq!(
+            xml_text("<LocationConstraint xmlns=\"x\"/>", "LocationConstraint").unwrap(),
+            ""
+        );
         assert_eq!(xml_text("<KeyCount>2</KeyCount><Key>a</Key>", "Key").unwrap(), "a");
         assert_eq!(normalize_line_endings(b"a\r\nb\rc\n"), b"a\nb\nc\n");
     }
@@ -637,12 +669,18 @@ mod tests {
         std::fs::write(&example, "port: 8317\r\n").unwrap();
         let store = store(&s3, &dir.join("objectstore"));
         store.bootstrap(&example).await.unwrap();
-        assert!(s3.state.log.lock().unwrap().iter().any(|l| l == "PUT /tokens"), "bucket created");
+        assert!(
+            s3.state.log.lock().unwrap().iter().any(|l| l == "PUT /tokens"),
+            "bucket created"
+        );
         // Go uploads the local bytes as they are; only downloads normalize.
         assert_eq!(s3.object("tokens", "config/config.yaml").unwrap(), b"port: 8317\r\n");
         assert_eq!(std::fs::read(store.config_path()).unwrap(), b"port: 8317\r\n");
         assert_eq!(mode(&store.config_path()), 0o600);
-        assert_eq!(store.auth_dir(), std::path::absolute(dir.join("objectstore/auths")).unwrap());
+        assert_eq!(
+            store.auth_dir(),
+            std::path::absolute(dir.join("objectstore/auths")).unwrap()
+        );
     }
 
     #[tokio::test]

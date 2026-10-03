@@ -94,7 +94,12 @@ pub fn select(env: &dyn Fn(&str) -> Option<String>, wd: &Path, home: bool) -> Op
         return None;
     }
     let get = |upper: &str| lookup(env, &[upper, &upper.to_lowercase()]);
-    let local = |key: &str| get(key).map(PathBuf::from).or_else(|| writable_path(env)).unwrap_or_else(|| wd.to_path_buf());
+    let local = |key: &str| {
+        get(key)
+            .map(PathBuf::from)
+            .or_else(|| writable_path(env))
+            .unwrap_or_else(|| wd.to_path_buf())
+    };
     if let Some(dsn) = get("PGSTORE_DSN") {
         return Some(Selection::Postgres {
             dsn,
@@ -271,8 +276,13 @@ mod tests {
             ("OBJECTSTORE_LOCAL_PATH", "/obj"),
             ("GITSTORE_GIT_URL", "https://git/x.git"),
         ]);
-        assert!(matches!(select(&env, wd, false), Some(Selection::Object { root, bucket, .. }) if root == Path::new("/obj/objectstore") && bucket == "b"));
-        let env = env_of(&[("GITSTORE_GIT_URL", "https://git/x.git"), ("gitstore_git_branch", "main")]);
+        assert!(
+            matches!(select(&env, wd, false), Some(Selection::Object { root, bucket, .. }) if root == Path::new("/obj/objectstore") && bucket == "b")
+        );
+        let env = env_of(&[
+            ("GITSTORE_GIT_URL", "https://git/x.git"),
+            ("gitstore_git_branch", "main"),
+        ]);
         assert_eq!(
             select(&env, wd, false),
             Some(Selection::Git {

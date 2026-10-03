@@ -23,7 +23,11 @@ fn hmac(key: &[u8], data: &[u8]) -> [u8; 32] {
     }
     let pad = |byte: u8| block.map(|b| b ^ byte);
     let inner = Sha256::new().chain_update(pad(0x36)).chain_update(data).finalize();
-    Sha256::new().chain_update(pad(0x5c)).chain_update(inner).finalize().into()
+    Sha256::new()
+        .chain_update(pad(0x5c))
+        .chain_update(inner)
+        .finalize()
+        .into()
 }
 
 /// minio-go `s3utils.EncodePath`: everything but unreserved characters and `/`.
@@ -80,14 +84,25 @@ pub(crate) struct Request<'a> {
 }
 
 /// Returns `(x-amz-date, Authorization)`.
-pub(crate) fn sign(request: &Request, access_key: &str, secret_key: &str, region: &str, now: DateTime<Utc>) -> (String, String) {
+pub(crate) fn sign(
+    request: &Request,
+    access_key: &str,
+    secret_key: &str,
+    region: &str,
+    now: DateTime<Utc>,
+) -> (String, String) {
     let amz_date = now.format("%Y%m%dT%H%M%SZ").to_string();
     let day = now.format("%Y%m%d").to_string();
     let mut headers: Vec<(String, String)> = request
         .headers
         .iter()
         .map(|(k, v)| (k.to_lowercase(), trim_all(v)))
-        .filter(|(k, _)| !matches!(k.as_str(), "authorization" | "user-agent" | "accept-encoding" | "host" | "x-amz-date"))
+        .filter(|(k, _)| {
+            !matches!(
+                k.as_str(),
+                "authorization" | "user-agent" | "accept-encoding" | "host" | "x-amz-date"
+            )
+        })
         .collect();
     headers.push(("host".into(), request.host.to_owned()));
     headers.push(("x-amz-date".into(), amz_date.clone()));
@@ -104,12 +119,14 @@ pub(crate) fn sign(request: &Request, access_key: &str, secret_key: &str, region
     ]
     .join("\n");
     let scope = format!("{day}/{region}/s3/aws4_request");
-    let to_sign = format!("AWS4-HMAC-SHA256\n{amz_date}\n{scope}\n{}", sha256_hex(canonical.as_bytes()));
-    let key = [region.as_bytes(), b"s3", b"aws4_request"]
-        .iter()
-        .fold(hmac(format!("AWS4{secret_key}").as_bytes(), day.as_bytes()), |key, part| {
-            hmac(&key, part)
-        });
+    let to_sign = format!(
+        "AWS4-HMAC-SHA256\n{amz_date}\n{scope}\n{}",
+        sha256_hex(canonical.as_bytes())
+    );
+    let key = [region.as_bytes(), b"s3", b"aws4_request"].iter().fold(
+        hmac(format!("AWS4{secret_key}").as_bytes(), day.as_bytes()),
+        |key, part| hmac(&key, part),
+    );
     let signature = hex(&hmac(&key, to_sign.as_bytes()));
     let authorization = format!(
         "AWS4-HMAC-SHA256 Credential={access_key}/{scope}, SignedHeaders={signed_headers}, Signature={signature}"
@@ -138,8 +155,13 @@ mod tests {
             let url = url::Url::parse(input["url"].as_str().unwrap()).unwrap();
             let signed = &case["signed_headers"];
             let amz_date = signed["X-Amz-Date"].as_str().unwrap();
-            let now = chrono::NaiveDateTime::parse_from_str(amz_date, "%Y%m%dT%H%M%SZ").unwrap().and_utc();
-            let query: Vec<(String, String)> = url.query_pairs().map(|(k, v)| (k.into_owned(), v.into_owned())).collect();
+            let now = chrono::NaiveDateTime::parse_from_str(amz_date, "%Y%m%dT%H%M%SZ")
+                .unwrap()
+                .and_utc();
+            let query: Vec<(String, String)> = url
+                .query_pairs()
+                .map(|(k, v)| (k.into_owned(), v.into_owned()))
+                .collect();
             let headers: Vec<(String, String)> = input["headers"]
                 .as_object()
                 .unwrap()
@@ -168,7 +190,12 @@ mod tests {
                 now,
             );
             assert_eq!(date, amz_date);
-            assert_eq!(authorization, signed["Authorization"].as_str().unwrap(), "{}", input["url"]);
+            assert_eq!(
+                authorization,
+                signed["Authorization"].as_str().unwrap(),
+                "{}",
+                input["url"]
+            );
         }
     }
 

@@ -699,7 +699,10 @@ impl CredentialStore {
     }
 
     fn cooldown_backend(&self) -> Option<Arc<dyn crate::cooldown_store::Backend>> {
-        self.cooldown_backend.read().unwrap_or_else(PoisonError::into_inner).clone()
+        self.cooldown_backend
+            .read()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone()
     }
 
     /// Go `RestoreCooldownStates`: live records of live credentials whose cooling is

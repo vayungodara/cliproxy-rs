@@ -249,7 +249,10 @@ fn persist_changes(state: &Management, before: &Snapshot, after: &Snapshot, conf
             }
         }
         for (verb, path) in auth {
-            let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+            let name = path
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_default();
             let message = format!("{verb} auth {name}");
             match tokio::time::timeout(bound, store.persist_auth_files(message, vec![path])).await {
                 Ok(Ok(())) => {}

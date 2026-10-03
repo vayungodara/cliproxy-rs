@@ -82,7 +82,8 @@ impl PostgresStore {
         } else {
             cfg.spool_dir.clone()
         };
-        let spool_root = std::path::absolute(&spool).map_err(|e| anyhow!("postgres store: resolve spool directory: {e}"))?;
+        let spool_root =
+            std::path::absolute(&spool).map_err(|e| anyhow!("postgres store: resolve spool directory: {e}"))?;
         let config_dir = spool_root.join("config");
         let auth_dir = spool_root.join("auths");
         mkdir_0700(&config_dir).map_err(|e| anyhow!("postgres store: create config directory: {e}"))?;
@@ -96,7 +97,10 @@ impl PostgresStore {
         match tokio::time::timeout(PING_TIMEOUT, ping).await {
             Ok(Ok(())) => {}
             Ok(Err(error)) => {
-                bail!("postgres store: ping database: {}", error.to_string().trim_start_matches(": "))
+                bail!(
+                    "postgres store: ping database: {}",
+                    error.to_string().trim_start_matches(": ")
+                )
             }
             Err(_) => bail!("postgres store: ping database: context deadline exceeded"),
         }
@@ -137,7 +141,8 @@ impl PostgresStore {
     /// Go `EnsureSchema`.
     pub async fn ensure_schema(&self) -> Result<()> {
         let schema = self.schema.trim().to_owned();
-        let schema_sql = (!schema.is_empty()).then(|| format!("CREATE SCHEMA IF NOT EXISTS {}", quote_identifier(&self.schema)));
+        let schema_sql =
+            (!schema.is_empty()).then(|| format!("CREATE SCHEMA IF NOT EXISTS {}", quote_identifier(&self.schema)));
         let config_sql = format!(
             "
 		CREATE TABLE IF NOT EXISTS {} (
@@ -219,13 +224,15 @@ impl PostgresStore {
                     if example.as_os_str().is_empty() {
                         mkdir_0700(self.config_path.parent().unwrap_or(&self.spool_root))
                             .map_err(|e| anyhow!("postgres store: prepare config directory: {e}"))?;
-                        write_file(&self.config_path, b"").map_err(|e| anyhow!("postgres store: create empty config: {e}"))?;
+                        write_file(&self.config_path, b"")
+                            .map_err(|e| anyhow!("postgres store: create empty config: {e}"))?;
                     } else {
                         seed_config(example, &self.config_path)
                             .map_err(|e| anyhow!("postgres store: copy example config: {e:#}"))?;
                     }
                 }
-                let data = std::fs::read(&self.config_path).map_err(|e| anyhow!("postgres store: read local config: {e}"))?;
+                let data =
+                    std::fs::read(&self.config_path).map_err(|e| anyhow!("postgres store: read local config: {e}"))?;
                 self.upsert_config(&data).await
             }
             Some(content) => {
@@ -476,7 +483,10 @@ fn micros(t: SystemTime) -> DateTime<Utc> {
 
 impl cpa_server::cooldown_store::Backend for PgCooldown {
     fn load(&self) -> Result<Vec<Record>, String> {
-        let sql = format!("SELECT content::text, updated_at FROM {} WHERE deleted = FALSE", self.table);
+        let sql = format!(
+            "SELECT content::text, updated_at FROM {} WHERE deleted = FALSE",
+            self.table
+        );
         let previous = self.previous.clone();
         self.pg
             .run_blocking(move |client| async move {
@@ -566,7 +576,9 @@ impl cpa_server::cooldown_store::Backend for PgCooldown {
                         client
                             .execute(&upsert, &[auth_id, model, content, updated])
                             .await
-                            .map_err(|e| db_error(&format!("postgres cooldown store: save state for {auth_id:?}"), e))?;
+                            .map_err(|e| {
+                                db_error(&format!("postgres cooldown store: save state for {auth_id:?}"), e)
+                            })?;
                     }
                     for ((auth_id, model), was) in &stale {
                         let mut at = now;
@@ -576,7 +588,9 @@ impl cpa_server::cooldown_store::Backend for PgCooldown {
                         client
                             .execute(&clear, &[auth_id, model, &"{}", &at, was])
                             .await
-                            .map_err(|e| db_error(&format!("postgres cooldown store: clear state for {auth_id:?}"), e))?;
+                            .map_err(|e| {
+                                db_error(&format!("postgres cooldown store: clear state for {auth_id:?}"), e)
+                            })?;
                     }
                     client
                         .batch_execute("COMMIT")
