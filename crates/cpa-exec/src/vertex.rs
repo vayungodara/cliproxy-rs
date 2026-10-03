@@ -135,6 +135,27 @@ fn endpoint(auth: &Auth, model: &str, action: &str) -> String {
     }
 }
 
+/// `http.NewRequestWithContext`'s URL parse. Go builds the request before the token
+/// exchange, so a URL it rejects fails without contacting the token endpoint.
+fn check_url(url: &str) -> Result<(), ExecError> {
+    crate::xai_url::parse(url).map_err(plain_error)?;
+    // The shared client's own URL check (`proxy::send`), before the token exchange too.
+    url::Url::parse(url).map_err(|_| ExecError::local(500, FailureScope::Request, "invalid upstream URL"))?;
+    Ok(())
+}
+
+/// gjson's `String()` as Go's `json.Marshal` writes it back: each invalid UTF-8 byte
+/// becomes U+FFFD.
+fn go_string(value: &gj::Res<'_>) -> String {
+    let bytes = value.bytes();
+    let mut out = String::with_capacity(bytes.len());
+    for chunk in bytes.utf8_chunks() {
+        out.push_str(chunk.valid());
+        out.extend(std::iter::repeat_n('\u{FFFD}', chunk.invalid().len()));
+    }
+    out
+}
+
 /// `isImagenModel`.
 fn is_imagen(model: &str) -> bool {
     model.to_lowercase().contains("imagen")
@@ -146,7 +167,7 @@ fn imagen_request(body: &[u8]) -> Result<Vec<u8>, ExecError> {
     let mut prompt = String::new();
     let text = gj::get(body, "contents.0.parts.0.text");
     if text.exists() {
-        prompt = text.str().into_owned();
+        prompt = go_string(&text);
     }
     if prompt.is_empty() {
         let contents = gj::get(body, "messages.#.content");
@@ -155,7 +176,7 @@ fn imagen_request(body: &[u8]) -> Result<Vec<u8>, ExecError> {
             && let Some(first) = contents
                 .array()
                 .iter()
-                .map(|m| m.str().into_owned())
+                .map(go_string)
                 .find(|m| !m.is_empty())
         {
             prompt = first;
@@ -164,7 +185,7 @@ fn imagen_request(body: &[u8]) -> Result<Vec<u8>, ExecError> {
     if prompt.is_empty() {
         let direct = gj::get(body, "prompt");
         if direct.exists() {
-            prompt = direct.str().into_owned();
+            prompt = go_string(&direct);
         }
     }
     if prompt.is_empty() {
@@ -176,7 +197,7 @@ fn imagen_request(body: &[u8]) -> Result<Vec<u8>, ExecError> {
     parameters.insert("sampleCount".to_owned(), GoValue::Number("1".into()));
     let aspect = gj::get(body, "aspectRatio");
     if aspect.exists() {
-        parameters.insert("aspectRatio".to_owned(), GoValue::String(aspect.str().into_owned()));
+        parameters.insert("aspectRatio".to_owned(), GoValue::String(go_string(&aspect)));
     }
     let count = gj::get(body, "sampleCount");
     if count.exists() {
@@ -186,7 +207,7 @@ fn imagen_request(body: &[u8]) -> Result<Vec<u8>, ExecError> {
     if negative.exists() {
         instance.insert(
             "negativePrompt".to_owned(),
-            GoValue::String(negative.str().into_owned()),
+            GoValue::String(go_string(&negative)),
         );
     }
     let mut request = BTreeMap::new();
@@ -205,8 +226,8 @@ fn imagen_response(data: &[u8], model: &str) -> Vec<u8> {
     let string = |s: &str| GoValue::String(s.to_owned());
     let mut parts = Vec::new();
     for prediction in predictions.array() {
-        let image = prediction.get("bytesBase64Encoded").str().into_owned();
-        let mut mime = prediction.get("mimeType").str().into_owned();
+        let image = go_string(&prediction.get("bytesBase64Encoded"));
+        let mut mime = go_string(&prediction.get("mimeType"));
         if mime.is_empty() {
             mime = "image/png".into();
         }
@@ -436,6 +457,7 @@ impl VertexExecutor {
         }
         body = payload::delete(body, "session_id");
         req.usage.request(Format::Gemini, &body);
+        check_url(&url)?;
         let headers = self.headers(credential, req, cfg, auth).await?;
         let upstream = proxy::send(&self.client(credential, cfg), &url, headers, body.clone(), None).await?;
         if !(200..300).contains(&upstream.status) {
@@ -490,6 +512,7 @@ impl VertexExecutor {
         body = cpa_common::signature::sanitize_gemini_request_thought_signatures(&body, "contents");
         body = payload::ensure_leading_user_content(body, "contents");
         let url = endpoint(&auth, &base_model, "countTokens");
+        check_url(&url)?;
         let headers = self.headers(credential, req, cfg, &auth).await?;
         let upstream = proxy::send(&self.client(credential, cfg), &url, headers, body, None).await?;
         if !(200..300).contains(&upstream.status) {

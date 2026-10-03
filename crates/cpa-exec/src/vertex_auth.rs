@@ -16,6 +16,7 @@ use cpa_common::gostr::trim_space;
 use cpa_common::json::{self as gj, GoValue};
 use serde_json::{Map, Value};
 
+use crate::meta_wire::{self, Slot};
 use crate::proxy::{self, GoHeaders};
 
 /// `https://www.googleapis.com/auth/cloud-platform`, the only scope Vertex asks for.
@@ -24,17 +25,76 @@ pub const SCOPE: &str = "https://www.googleapis.com/auth/cloud-platform";
 pub const DEFAULT_TOKEN_URL: &str = "https://oauth2.googleapis.com/token";
 const GRANT_TYPE: &str = "urn:ietf:params:oauth:grant-type:jwt-bearer";
 
-/// Go's `base64.StdEncoding` decoder: padded, line breaks ignored, non-zero trailing
-/// bits accepted.
-fn std_decode(data: &[u8]) -> Option<Vec<u8>> {
-    let stripped: Vec<u8> = data.iter().copied().filter(|b| *b != b'\r' && *b != b'\n').collect();
-    let engine = base64::engine::GeneralPurpose::new(
-        &base64::alphabet::STANDARD,
-        base64::engine::GeneralPurposeConfig::new()
-            .with_decode_allow_trailing_bits(true)
-            .with_decode_padding_mode(base64::engine::DecodePaddingMode::RequireCanonical),
-    );
-    engine.decode(stripped).ok()
+/// Go's `base64.StdEncoding.DecodeString`: padded, line breaks ignored, non-zero
+/// trailing bits accepted. The error is the `CorruptInputError` offset Go reports
+/// ("illegal base64 data at input byte N"), from the same quantum-by-quantum scan
+/// (encoding/base64 decodeQuantum).
+fn std_decode(src: &[u8]) -> Result<Vec<u8>, usize> {
+    let value = |c: u8| match c {
+        b'A'..=b'Z' => Some(c - b'A'),
+        b'a'..=b'z' => Some(c - b'a' + 26),
+        b'0'..=b'9' => Some(c - b'0' + 52),
+        b'+' => Some(62),
+        b'/' => Some(63),
+        _ => None,
+    };
+    let newline = |c: u8| c == b'\n' || c == b'\r';
+    let mut out = Vec::with_capacity(src.len() / 4 * 3);
+    let mut si = 0;
+    while si < src.len() {
+        let mut quantum = [0u8; 4];
+        let mut len = 4;
+        let mut trailing = None;
+        let mut j = 0;
+        while j < 4 {
+            if si == src.len() {
+                if j == 0 {
+                    return Ok(out);
+                }
+                return Err(si - j);
+            }
+            let c = src[si];
+            si += 1;
+            if let Some(v) = value(c) {
+                quantum[j] = v;
+                j += 1;
+                continue;
+            }
+            if newline(c) {
+                continue;
+            }
+            if c != b'=' || j < 2 {
+                return Err(si - 1);
+            }
+            if j == 2 {
+                // "==" is expected; the first "=" is consumed.
+                while si < src.len() && newline(src[si]) {
+                    si += 1;
+                }
+                if si == src.len() {
+                    return Err(src.len());
+                }
+                if src[si] != b'=' {
+                    return Err(si - 1);
+                }
+                si += 1;
+            }
+            while si < src.len() && newline(src[si]) {
+                si += 1;
+            }
+            if si < src.len() {
+                trailing = Some(si);
+            }
+            len = j;
+            break;
+        }
+        let v = u32::from(quantum[0]) << 18 | u32::from(quantum[1]) << 12 | u32::from(quantum[2]) << 6 | u32::from(quantum[3]);
+        out.extend_from_slice(&[(v >> 16) as u8, (v >> 8) as u8, v as u8][..len - 1]);
+        if let Some(at) = trailing {
+            return Err(at);
+        }
+    }
+    Ok(out)
 }
 
 /// One PEM block (`encoding/pem.Block`).
@@ -144,8 +204,8 @@ pub fn pem_decode(data: &[u8]) -> Option<PemBlock> {
                 .filter(|b| *b != b' ' && *b != b'\t')
                 .collect();
             match std_decode(&body) {
-                Some(decoded) => bytes = decoded,
-                None => continue,
+                Ok(decoded) => bytes = decoded,
+                Err(_) => continue,
             }
         }
         return Some(PemBlock {
@@ -250,9 +310,8 @@ fn rebuild_pem(raw: &str) -> Result<String, String> {
     if payload.is_empty() {
         return Err("private_key base64 payload empty".into());
     }
-    // ponytail: Go's message carries base64's position detail ("illegal base64 data at
-    // input byte N"); this one names only the failure.
-    let der = std_decode(payload.as_bytes()).ok_or("private_key base64 decode failed: illegal base64 data")?;
+    let der = std_decode(payload.as_bytes())
+        .map_err(|at| format!("private_key base64 decode failed: illegal base64 data at input byte {at}"))?;
     Ok(pem_encode(&PemBlock {
         kind: kind.into(),
         headers: BTreeMap::new(),
@@ -265,10 +324,41 @@ fn pkcs1_der(rsa: &btls::rsa::Rsa<btls::pkey::Private>) -> Result<Vec<u8>, Strin
     rsa.private_key_to_der().map_err(|e| e.to_string())
 }
 
-fn parse_pkcs1(der: &[u8]) -> Option<btls::rsa::Rsa<btls::pkey::Private>> {
-    btls::rsa::Rsa::private_key_from_der(der)
-        .ok()
-        .filter(|k| k.check_key().unwrap_or(false))
+/// `x509.ParsePKCS1PrivateKey`. The error is Go's for trailing data and a generic
+/// x509 message otherwise.
+// ponytail: Go also accepts keys that omit the CRT values and multi-prime keys, which
+// BoringSSL rejects; Google issues neither. Other parse errors carry no asn1 detail.
+fn parse_pkcs1(der: &[u8]) -> Result<btls::rsa::Rsa<btls::pkey::Private>, String> {
+    const FAILED: &str = "x509: failed to parse private key";
+    let key = btls::rsa::Rsa::private_key_from_der(der).map_err(|_| FAILED)?;
+    // BoringSSL's d2i parser stops after the key; asn1.Unmarshal rejects what follows,
+    // before any key validation.
+    if !single_sequence(der) {
+        return Err("asn1: syntax error: trailing data".into());
+    }
+    if !key.check_key().unwrap_or(false) {
+        return Err(FAILED.into());
+    }
+    Ok(key)
+}
+
+/// Whether `der` is exactly one DER SEQUENCE, nothing after it.
+fn single_sequence(der: &[u8]) -> bool {
+    let [0x30, first, rest @ ..] = der else {
+        return false;
+    };
+    let (len, header) = match *first {
+        n if n < 0x80 => (usize::from(n), 2),
+        n @ 0x81..=0x84 => {
+            let k = usize::from(n & 0x7f);
+            let Some(bytes) = rest.get(..k) else {
+                return false;
+            };
+            (bytes.iter().fold(0usize, |a, b| a << 8 | usize::from(*b)), 2 + k)
+        }
+        _ => return false,
+    };
+    header.checked_add(len) == Some(der.len())
 }
 
 /// PKCS#8: `Err(true)` for a parsed non-RSA key, `Err(false)` for unparseable input.
@@ -288,8 +378,8 @@ fn ensure_rsa(block: PemBlock) -> Result<PemBlock, String> {
     };
     match block.kind.as_str() {
         "RSA PRIVATE KEY" => match parse_pkcs1(&block.bytes) {
-            Some(_) => Ok(block),
-            None => Err("private_key invalid rsa: x509: failed to parse private key".into()),
+            Ok(_) => Ok(block),
+            Err(e) => Err(format!("private_key invalid rsa: {e}")),
         },
         "PRIVATE KEY" => match parse_pkcs8_rsa(&block.bytes) {
             Ok(rsa) => Ok(pkcs1(pkcs1_der(&rsa)?)),
@@ -297,7 +387,7 @@ fn ensure_rsa(block: PemBlock) -> Result<PemBlock, String> {
             Err(false) => Err("private_key invalid pkcs8: x509: failed to parse private key".into()),
         },
         _ => {
-            if let Some(rsa) = parse_pkcs1(&block.bytes) {
+            if let Ok(rsa) = parse_pkcs1(&block.bytes) {
                 return Ok(pkcs1(pkcs1_der(&rsa)?));
             }
             if let Ok(rsa) = parse_pkcs8_rsa(&block.bytes) {
@@ -333,7 +423,8 @@ pub fn normalize_service_account(sa: &Map<String, Value>) -> Result<Map<String, 
     Ok(out)
 }
 
-/// The fields `google.CredentialsFromJSON` reads from a key file.
+/// The key-file fields the JWT token source reads.
+#[derive(Default)]
 struct KeyFile {
     kind: String,
     client_email: String,
@@ -343,45 +434,43 @@ struct KeyFile {
     audience: String,
 }
 
-/// Go struct decoding: a string field accepts a string or null; other types fail.
-fn string_field(sa: &Map<String, Value>, field: &str) -> Result<String, String> {
-    match fold_get(sa, field) {
-        None | Some(Value::Null) => Ok(String::new()),
-        Some(Value::String(s)) => Ok(s.clone()),
-        Some(other) => Err(format!(
-            "json: cannot unmarshal {} into Go struct field credentialsFile.{field} of type string",
-            json_kind(other)
-        )),
-    }
-}
-
-fn json_kind(v: &Value) -> &'static str {
-    match v {
-        Value::Bool(_) => "bool",
-        Value::Number(_) => "number",
-        Value::String(_) => "string",
-        Value::Array(_) => "array",
-        Value::Object(_) => "object",
-        Value::Null => "null",
-    }
-}
-
-/// `encoding/json` field matching: the exact key, else a case-insensitive one.
-fn fold_get<'a>(map: &'a Map<String, Value>, field: &str) -> Option<&'a Value> {
-    map.get(field)
-        .or_else(|| map.iter().find(|(k, _)| k.eq_ignore_ascii_case(field)).map(|(_, v)| v))
-}
-
 impl KeyFile {
+    /// `google.CredentialsFromJSON`: Go marshals the normalized map (keys sorted, as
+    /// serde_json's map is) and unmarshals it into `credentialsFile` (oauth2 v0.30.0), so a
+    /// wrongly typed member of any field fails.
     fn parse(sa: &Map<String, Value>) -> Result<Self, String> {
-        Ok(Self {
-            kind: string_field(sa, "type")?,
-            client_email: string_field(sa, "client_email")?,
-            private_key: string_field(sa, "private_key")?,
-            private_key_id: string_field(sa, "private_key_id")?,
-            token_uri: string_field(sa, "token_uri")?,
-            audience: string_field(sa, "audience")?,
-        })
+        let data = serde_json::to_vec(sa).map_err(|e| e.to_string())?;
+        let mut f = Self::default();
+        let mut unused: [String; 13] = Default::default();
+        let mut unused = unused.iter_mut();
+        let mut other = || Slot::Str(unused.next().expect("one string per unread field"));
+        let mut fields = [
+            ("type", Slot::Str(&mut f.kind)),
+            ("client_email", Slot::Str(&mut f.client_email)),
+            ("private_key_id", Slot::Str(&mut f.private_key_id)),
+            ("private_key", Slot::Str(&mut f.private_key)),
+            ("auth_uri", other()),
+            ("token_uri", Slot::Str(&mut f.token_uri)),
+            ("project_id", other()),
+            ("universe_domain", other()),
+            ("client_secret", other()),
+            ("client_id", other()),
+            ("refresh_token", other()),
+            ("audience", Slot::Str(&mut f.audience)),
+            ("subject_token_type", other()),
+            ("token_url", other()),
+            ("token_info_url", other()),
+            ("service_account_impersonation_url", other()),
+            ("service_account_impersonation", Slot::Object),
+            ("delegates", Slot::Strs),
+            ("credential_source", Slot::Object),
+            ("quota_project_id", other()),
+            ("workforce_pool_user_project", other()),
+            ("revoke_url", other()),
+            ("source_credentials", Slot::Object),
+        ];
+        meta_wire::unmarshal(&data, "google", "credentialsFile", &mut fields)?;
+        Ok(f)
     }
 }
 
@@ -391,9 +480,8 @@ fn signing_key(pem: &str) -> Result<btls::pkey::PKey<btls::pkey::Private>, Strin
     let rsa = match parse_pkcs8_rsa(&der) {
         Ok(rsa) => rsa,
         Err(true) => return Err("private key is invalid".into()),
-        Err(false) => parse_pkcs1(&der).ok_or(
-            "private key should be a PEM or plain PKCS1 or PKCS8; parse error: x509: failed to parse private key",
-        )?,
+        Err(false) => parse_pkcs1(&der)
+            .map_err(|e| format!("private key should be a PEM or plain PKCS1 or PKCS8; parse error: {e}"))?,
     };
     btls::pkey::PKey::from_rsa(rsa).map_err(|e| e.to_string())
 }
@@ -458,13 +546,18 @@ fn query_escape(s: &str) -> String {
 /// One token from the key file: `google.CredentialsFromJSON(...).TokenSource.Token()`.
 /// Returns the access token, which may be empty (Go then sends no `Authorization`).
 pub async fn access_token(client: &wreq::Client, sa: &Map<String, Value>, now: i64) -> Result<String, String> {
+    // ponytail: Go first tries the key as a `web`/`installed` OAuth client file
+    // (ConfigFromJSON), whose token source then needs an interactive handler; a Go
+    // service-account file never has those members.
     let file = KeyFile::parse(sa)?;
     match file.kind.as_str() {
         "service_account" => {}
-        // ponytail: Go refreshes `authorized_user` keys with their refresh token, but a
-        // key without `private_key` never reaches this point (vertexCreds requires one);
-        // with an empty refresh token Go fails the same way.
+        // ponytail: with a refresh token Go refreshes an `authorized_user` key at its token
+        // URL, and it runs the external-account, impersonation and GDCH flows for those
+        // types. Vertex service-account files carry none of them; without a refresh token
+        // Go fails like this.
         "authorized_user" => return Err("oauth2: token expired and refresh token is not set".into()),
+        "" => return Err("missing 'type' field in credentials".into()),
         other => return Err(format!("unknown credential type: {}", gostr_quote(other))),
     }
     let token_url = if file.token_uri.is_empty() {
@@ -501,8 +594,13 @@ pub async fn access_token(client: &wreq::Client, sa: &Map<String, Value>, now: i
         .await
         .map_err(|e| format!("oauth2: cannot fetch token: {}", String::from_utf8_lossy(&e.body)))?;
     if !(200..=299).contains(&status) {
+        // oauth2.RetrieveError: the response status line, then the body.
+        let reason = http::StatusCode::from_u16(status)
+            .ok()
+            .and_then(|s| s.canonical_reason())
+            .unwrap_or_default();
         return Err(format!(
-            "oauth2: cannot fetch token: {status}\nResponse: {}",
+            "oauth2: cannot fetch token: {status} {reason}\nResponse: {}",
             String::from_utf8_lossy(&data)
         ));
     }
@@ -513,53 +611,96 @@ fn gostr_quote(s: &str) -> String {
     cpa_common::gostr::quote(s)
 }
 
-/// The token response as Go's `jwtSource.Token` decodes it: struct-typed fields fail on
-/// a wrong JSON type, and an `id_token` must decode as a JWT claim set.
+/// The access token from a token response, decoded as Go's `jwtSource.Token` does into
+/// `struct { oauth2.Token; IDToken string }`: a wrongly typed member fails, and an
+/// `id_token` must decode as a JWT claim set.
 fn parse_token(data: &[u8]) -> Result<String, String> {
-    let fail = |m: &str| Err(format!("oauth2: cannot fetch token: {m}"));
-    let Ok(Value::Object(root)) = serde_json::from_slice::<Value>(data) else {
-        return match serde_json::from_slice::<Value>(data) {
-            Ok(_) => fail("json: cannot unmarshal into Go value"),
-            Err(_) => fail("invalid character in token response"),
-        };
-    };
-    let string = |field: &str| -> Result<String, String> {
-        match fold_get(&root, field) {
-            None | Some(Value::Null) => Ok(String::new()),
-            Some(Value::String(s)) => Ok(s.clone()),
-            Some(_) => Err(format!(
-                "oauth2: cannot fetch token: json: cannot unmarshal into {field}"
-            )),
-        }
-    };
-    let access = string("access_token")?;
-    string("token_type")?;
-    string("refresh_token")?;
-    match fold_get(&root, "expires_in") {
-        None | Some(Value::Null) => {}
-        Some(Value::Number(n)) if n.as_i64().is_some() => {}
-        Some(_) => return fail("json: cannot unmarshal into expires_in"),
-    }
-    match fold_get(&root, "expiry") {
-        None | Some(Value::Null) => {}
-        Some(Value::String(s)) if chrono::DateTime::parse_from_rfc3339(s).is_ok() => {}
-        Some(_) => return fail("parsing time in expiry"),
-    }
-    let id_token = string("id_token")?;
+    let (mut access, mut token_type, mut refresh, mut id_token, mut expires_in) = Default::default();
+    let mut fields = [
+        ("access_token", Slot::Str(&mut access)),
+        ("token_type", Slot::Str(&mut token_type)),
+        ("refresh_token", Slot::Str(&mut refresh)),
+        ("expiry", Slot::Time),
+        ("expires_in", Slot::Int(&mut expires_in, "int64")),
+        ("id_token", Slot::Str(&mut id_token)),
+    ];
+    meta_wire::unmarshal(data, "oauth2", "Token", &mut fields).map_err(|e| format!("oauth2: cannot fetch token: {e}"))?;
     if !id_token.is_empty() {
-        let parts: Vec<&str> = id_token.split('.').collect();
-        let claims = parts
-            .get(1)
-            .filter(|_| parts.len() >= 2)
-            .and_then(|p| base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(p).ok());
-        let valid = claims
-            .and_then(|c| serde_json::from_slice::<Value>(&c).ok())
-            .is_some_and(|c| c.is_object());
-        if !valid {
-            return Err("oauth2: error decoding JWT token".into());
-        }
+        decode_id_token(&id_token).map_err(|e| format!("oauth2: error decoding JWT token: {e}"))?;
     }
     Ok(access)
+}
+
+/// `jws.Decode`: exactly three dot-separated segments; the second is unpadded base64url
+/// (line breaks ignored) whose first JSON value decodes into a `jws.ClaimSet`. What
+/// follows that value is never read.
+fn decode_id_token(token: &str) -> Result<(), String> {
+    let segments: Vec<&str> = token.split('.').collect();
+    if segments.len() != 3 {
+        return Err("jws: invalid token received".into());
+    }
+    let engine = base64::engine::GeneralPurpose::new(
+        &base64::alphabet::URL_SAFE,
+        base64::engine::GeneralPurposeConfig::new()
+            .with_decode_allow_trailing_bits(true)
+            .with_decode_padding_mode(base64::engine::DecodePaddingMode::RequireNone),
+    );
+    let claims: Vec<u8> = segments[1].bytes().filter(|b| *b != b'\r' && *b != b'\n').collect();
+    let claims = engine.decode(claims).map_err(|e| format!("illegal base64 data: {e}"))?;
+    let Some(start) = claims.iter().position(|c| !matches!(c, b' ' | b'\t' | b'\r' | b'\n')) else {
+        return Err("EOF".into());
+    };
+    let value = &claims[start..];
+    if value.starts_with(b"null") {
+        return Ok(());
+    }
+    if !value.starts_with(b"{") {
+        // Any other first value fails: a non-object cannot fill the struct.
+        return Err("json: cannot unmarshal into Go value of type jws.ClaimSet".into());
+    }
+    let end = object_end(value).ok_or("unexpected EOF")?;
+    let (mut iss, mut scope, mut aud, mut typ, mut sub, mut prn) = Default::default();
+    let (mut exp, mut iat) = (0, 0);
+    let mut fields = [
+        ("iss", Slot::Str(&mut iss)),
+        ("scope", Slot::Str(&mut scope)),
+        ("aud", Slot::Str(&mut aud)),
+        ("exp", Slot::Int(&mut exp, "int64")),
+        ("iat", Slot::Int(&mut iat, "int64")),
+        ("typ", Slot::Str(&mut typ)),
+        ("sub", Slot::Str(&mut sub)),
+        ("prn", Slot::Str(&mut prn)),
+    ];
+    meta_wire::unmarshal(&value[..end], "jws", "ClaimSet", &mut fields)
+}
+
+/// The length of the object at the start of `s`: up to the brace that closes it.
+fn object_end(s: &[u8]) -> Option<usize> {
+    let (mut depth, mut in_string, mut escaped) = (0usize, false, false);
+    for (i, &c) in s.iter().enumerate() {
+        if in_string {
+            if escaped {
+                escaped = false;
+            } else if c == b'\\' {
+                escaped = true;
+            } else if c == b'"' {
+                in_string = false;
+            }
+            continue;
+        }
+        match c {
+            b'"' => in_string = true,
+            b'{' | b'[' => depth += 1,
+            b'}' | b']' => {
+                depth = depth.checked_sub(1)?;
+                if depth == 0 {
+                    return Some(i + 1);
+                }
+            }
+            _ => {}
+        }
+    }
+    None
 }
 
 /// `sanitizeFilePart`.
@@ -584,21 +725,44 @@ pub fn import(auth_dir: &Path, key_path: &str, prefix: &str) -> Result<PathBuf, 
     if path.is_empty() {
         return Err("vertex-import: missing service account key path".into());
     }
-    let data = std::fs::read(path).map_err(|e| format!("vertex-import: read file failed: {e}"))?;
-    // ponytail: the decode message is serde_json's, not encoding/json's.
-    let sa: Map<String, Value> =
-        serde_json::from_slice(&data).map_err(|e| format!("vertex-import: invalid service account json: {e}"))?;
-    let normalized = normalize_service_account(&sa).map_err(|e| format!("vertex-import: {e}"))?;
-    let email = normalized
-        .get("client_email")
-        .and_then(Value::as_str)
-        .unwrap_or_default()
-        .to_owned();
-    let project = normalized
-        .get("project_id")
-        .and_then(Value::as_str)
-        .unwrap_or_default()
-        .to_owned();
+    let data = std::fs::read(path)
+        .map_err(|e| format!("vertex-import: read file failed: {}", path_error("open", Path::new(path), &e)))?;
+    // json.Unmarshal into map[string]any: numbers become float64.
+    let mut sa = match GoValue::parse_f64(&data) {
+        Some(GoValue::Object(sa)) => sa,
+        // `null` leaves the map nil, which NormalizeServiceAccountMap rejects.
+        Some(GoValue::Null) => return Err("vertex-import: service account payload is empty".into()),
+        Some(other) => {
+            let kind = match other {
+                GoValue::Array(_) => "array",
+                GoValue::String(_) => "string",
+                GoValue::Bool(_) => "bool",
+                _ => "number",
+            };
+            return Err(format!(
+                "vertex-import: invalid service account json: json: cannot unmarshal {kind} into Go value of type map[string]interface {{}}"
+            ));
+        }
+        None => {
+            // Go's syntax error, else a number beyond float64.
+            // ponytail: Go's overflow message also quotes the number.
+            let error = meta_wire::check_valid(&data)
+                .err()
+                .unwrap_or_else(|| "json: cannot unmarshal number into Go value of type float64".into());
+            return Err(format!("vertex-import: invalid service account json: {error}"));
+        }
+    };
+    let text = |sa: &BTreeMap<String, GoValue>, key: &str| match sa.get(key) {
+        Some(GoValue::String(s)) => s.clone(),
+        _ => String::new(),
+    };
+    let private_key = text(&sa, "private_key");
+    if private_key.trim().is_empty() {
+        return Err("vertex-import: service account missing private_key".into());
+    }
+    let private_key = sanitize_private_key(&private_key).map_err(|e| format!("vertex-import: {e}"))?;
+    sa.insert("private_key".into(), GoValue::String(private_key));
+    let (email, project) = (text(&sa, "client_email"), text(&sa, "project_id"));
     if project.trim().is_empty() {
         return Err("vertex-import: project_id missing in service account json".into());
     }
@@ -616,18 +780,6 @@ pub fn import(auth_dir: &Path, key_path: &str, prefix: &str) -> Result<PathBuf, 
     if !prefix.is_empty() {
         base = format!("{}-{base}", file_part(prefix));
     }
-    let file_name = format!("vertex-{base}.json");
-    // Go decodes the key into map[string]any (numbers become float64) and saves it with
-    // the normalized private key.
-    let Some(GoValue::Object(mut service_account)) = GoValue::parse_f64(&data) else {
-        return Err("vertex-import: invalid service account json".into());
-    };
-    let private_key = normalized
-        .get("private_key")
-        .and_then(Value::as_str)
-        .unwrap_or_default();
-    service_account.insert("private_key".into(), GoValue::String(private_key.to_owned()));
-    let service_account = GoValue::Object(service_account);
     let mut doc = BTreeMap::new();
     doc.insert("disabled".to_owned(), GoValue::Bool(false));
     doc.insert("email".to_owned(), GoValue::String(email.clone()));
@@ -635,26 +787,79 @@ pub fn import(auth_dir: &Path, key_path: &str, prefix: &str) -> Result<PathBuf, 
     doc.insert("location".to_owned(), GoValue::String("us-central1".into()));
     doc.insert("prefix".to_owned(), GoValue::String(prefix.to_owned()));
     doc.insert("project_id".to_owned(), GoValue::String(project));
-    doc.insert("service_account".to_owned(), service_account);
+    doc.insert("service_account".to_owned(), GoValue::Object(sa));
     doc.insert("type".to_owned(), GoValue::String("vertex".into()));
-    create_private_dir(auth_dir).map_err(|e| format!("vertex credential: create directory failed: {e}"))?;
-    let out = auth_dir.join(file_name);
+    // FileTokenStore.Save: filepath.Join (cleaned), MkdirAll of its directory, then
+    // VertexCredentialStorage.SaveTokenToFile.
+    let out = go_clean(&auth_dir.join(format!("vertex-{base}.json")));
+    let save_failed = |e: String| format!("vertex-import: save credential failed: {e}");
+    let dir = out.parent().unwrap_or(Path::new("."));
+    go_mkdir_all(dir).map_err(|e| save_failed(format!("auth filestore: create dir failed: {e}")))?;
     // misc.LogSavingCredentials.
     println!("Saving credentials to {}", out.display());
-    std::fs::write(&out, GoValue::Object(doc).encode_indented())
-        .map_err(|e| format!("vertex credential: create file failed: {e}"))?;
+    std::fs::write(&out, GoValue::Object(doc).encode_indented()).map_err(|e| {
+        save_failed(format!(
+            "vertex credential: create file failed: {}",
+            path_error("open", &out, &e)
+        ))
+    })?;
     Ok(out)
 }
 
-/// `os.MkdirAll(dir, 0o700)`.
-fn create_private_dir(dir: &Path) -> std::io::Result<()> {
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::DirBuilderExt;
-        std::fs::DirBuilder::new().recursive(true).mode(0o700).create(dir)
+/// Go's `*fs.PathError` text: `<op> <path>: <errno text>`.
+fn path_error(op: &str, path: &Path, e: &std::io::Error) -> String {
+    // syscall.Errno strings are strerror in lower case.
+    let text = e.to_string();
+    let text = text.split(" (os error").next().unwrap_or_default();
+    let mut chars = text.chars();
+    let errno: String = chars
+        .next()
+        .map_or_else(String::new, |c| c.to_lowercase().chain(chars).collect());
+    format!("{op} {}: {errno}", path.display())
+}
+
+/// `filepath.Clean`, lexically: no `.` elements, `..` folded into its parent, no
+/// trailing separator; `.` for an empty result.
+fn go_clean(path: &Path) -> PathBuf {
+    use std::path::Component;
+    let mut out: Vec<Component<'_>> = Vec::new();
+    for component in path.components() {
+        match component {
+            Component::CurDir => {}
+            Component::ParentDir => match out.last() {
+                Some(Component::Normal(_)) => {
+                    out.pop();
+                }
+                Some(Component::RootDir | Component::Prefix(_)) => {}
+                _ => out.push(component),
+            },
+            other => out.push(other),
+        }
     }
-    #[cfg(not(unix))]
-    {
-        std::fs::create_dir_all(dir)
+    if out.is_empty() {
+        return PathBuf::from(".");
+    }
+    out.iter().collect()
+}
+
+/// `os.MkdirAll(dir, 0o700)` with Go's error: an existing non-directory fails as
+/// `mkdir <path>: not a directory`, parents are created first, and a failed `mkdir`
+/// names the directory it could not create.
+fn go_mkdir_all(dir: &Path) -> Result<(), String> {
+    match std::fs::metadata(dir) {
+        Ok(meta) if meta.is_dir() => return Ok(()),
+        Ok(_) => return Err(format!("mkdir {}: not a directory", dir.display())),
+        Err(_) => {}
+    }
+    if let Some(parent) = dir.parent().filter(|p| !p.as_os_str().is_empty()) {
+        go_mkdir_all(parent)?;
+    }
+    let mut builder = std::fs::DirBuilder::new();
+    #[cfg(unix)]
+    std::os::unix::fs::DirBuilderExt::mode(&mut builder, 0o700);
+    match builder.create(dir) {
+        Ok(()) => Ok(()),
+        Err(_) if std::fs::symlink_metadata(dir).is_ok_and(|m| m.is_dir()) => Ok(()),
+        Err(e) => Err(path_error("mkdir", dir, &e)),
     }
 }
