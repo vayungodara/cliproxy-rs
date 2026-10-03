@@ -276,6 +276,8 @@ async fn go_reference_scenarios() {
                 ResponseBody::Stream(mut stream) => {
                     let mut joined = Vec::new();
                     while let Some(item) = stream.next().await {
+                        // An error is terminal: nothing may follow it.
+                        assert!(error.is_none(), "{name}: stream item after an error");
                         match item {
                             Ok(bytes) => {
                                 joined.extend_from_slice(&bytes);
@@ -307,8 +309,9 @@ async fn go_reference_scenarios() {
         }
         assert_eq!(output.as_deref(), s["output"].as_str(), "{name}: output");
         // Go's chunks are what the client's route frames; the Rust translator contract
-        // emits the framed events. Responses routes join chunks (responsesSSEFramer), so
-        // those compare as one byte stream.
+        // emits the framed events, one per item. Responses routes join chunks into frames
+        // (responsesSSEFramer), so those compare frame by frame. The route's frame repairs
+        // (repairErrorPayload) are server logic and not modelled here.
         let go_chunks: Vec<&str> = s["chunks"]
             .as_array()
             .into_iter()
@@ -317,12 +320,13 @@ async fn go_reference_scenarios() {
             .collect();
         if response_format(s) == Format::OpenAIResponse {
             let mut framer = cpa_translate::stream::ResponsesFramer::default();
-            let mut want: Vec<u8> = Vec::new();
+            let mut want: Vec<bytes::Bytes> = Vec::new();
             for chunk in &go_chunks {
-                want.extend(framer.write(chunk.as_bytes()).into_iter().flatten());
+                want.extend(framer.write(chunk.as_bytes()));
             }
-            want.extend(framer.flush().into_iter().flatten());
-            assert_eq!(chunks.concat(), String::from_utf8_lossy(&want), "{name}: stream bytes");
+            want.extend(framer.flush());
+            let want: Vec<String> = want.iter().map(|f| String::from_utf8_lossy(f).into_owned()).collect();
+            assert_eq!(chunks, want, "{name}: stream frames");
         } else {
             let want_chunks: Vec<String> = go_chunks
                 .iter()
