@@ -100,16 +100,11 @@ async fn transform(
     let responses = req.response_format == Format::OpenAIResponse && req.operation == Operation::Generate;
     if req.stream && req.operation == Operation::Generate {
         match body {
-            ResponseBody::Stream(stream) => {
-                let events = streaming(stream, (pair.stream)(&context));
-                Ok(ResponseBody::Stream(if responses {
-                    events
-                        .map(|event| event.map(|e| Bytes::from(ensure_responses_usage_details(&e))))
-                        .boxed()
-                } else {
-                    events
-                }))
-            }
+            ResponseBody::Stream(stream) => Ok(ResponseBody::Stream(streaming(
+                stream,
+                (pair.stream)(&context),
+                responses,
+            ))),
             ResponseBody::Buffered(_) => Err(ExecError::local(
                 502,
                 FailureScope::Request,
@@ -127,14 +122,19 @@ async fn transform(
                 body.freeze()
             }
         };
-        let transform = if req.operation == Operation::CountTokens {
-            pair.count_tokens.ok_or_else(|| {
+        if req.operation == Operation::CountTokens {
+            let transform = pair.count_tokens.ok_or_else(|| {
                 ExecError::local(501, FailureScope::Request, "Claude count translation is not registered")
-            })?
-        } else {
-            pair.non_stream
-        };
-        let out = transform(&context, &body).map_err(error)?;
+            })?;
+            return Ok(ResponseBody::Buffered(Bytes::from(
+                transform(&context, &body).map_err(error)?,
+            )));
+        }
+        // ApplyPatchTranslationError or an empty translation: Go's sanitized 502.
+        let out = (pair.non_stream)(&context, &body)
+            .ok()
+            .filter(|out| !out.is_empty())
+            .ok_or_else(apply_patch_error)?;
         Ok(ResponseBody::Buffered(Bytes::from(if responses {
             ensure_responses_usage_details(&out)
         } else {
@@ -143,18 +143,68 @@ async fn transform(
     }
 }
 
-fn streaming(upstream: ExecStream, translator: Box<dyn StreamTranslator>) -> ExecStream {
+/// helps.ApplyPatchUpstreamErrorMessage with Go's 502 `statusErr`.
+fn apply_patch_error() -> ExecError {
+    ExecError::local(502, FailureScope::Request, cpa_translate::APPLY_PATCH_UPSTREAM_ERROR)
+}
+
+/// Go's translated stream loop (claude_executor_stream.go): each upstream event goes
+/// through the translator; Responses frames get usage details unless apply_patch input
+/// failed, and a failure ends the stream with a 502 after that event's frames
+/// (StopApplyPatchStream). When the transport ends, cleanly or not, tool input is
+/// finalized first (EndApplyPatchStream); a failure there replaces any transport error.
+fn streaming(upstream: ExecStream, translator: Box<dyn StreamTranslator>, responses: bool) -> ExecStream {
     struct State {
         upstream: ExecStream,
         translator: Box<dyn StreamTranslator>,
+        responses: bool,
         ready: VecDeque<Bytes>,
         error: Option<ExecError>,
         done: bool,
+    }
+    impl State {
+        fn emit(&mut self, events: Vec<Bytes>) {
+            let usage = self.responses && !self.translator.tool_input_failed();
+            self.ready.extend(events.into_iter().map(|e| {
+                if usage {
+                    Bytes::from(ensure_responses_usage_details(&e))
+                } else {
+                    e
+                }
+            }));
+        }
+
+        /// Ends the stream with `error`, after the Responses frame still being joined
+        /// (Go's responsesSSEFramer.Flush).
+        fn fail(&mut self, error: ExecError) {
+            let pending = self.translator.flush_frames();
+            self.ready.extend(pending);
+            self.error = Some(error);
+            self.done = true;
+        }
+
+        /// The transport ended: `None` cleanly, else with its error.
+        fn end(&mut self, transport: Option<ExecError>) {
+            self.done = true;
+            let finalized = self.translator.finalize_tool_input();
+            self.emit(finalized);
+            if self.translator.tool_input_failed() {
+                return self.fail(apply_patch_error());
+            }
+            if let Some(error) = transport {
+                return self.fail(error);
+            }
+            match self.translator.finish() {
+                Ok(events) => self.emit(events),
+                Err(e) => self.fail(stream_error(e)),
+            }
+        }
     }
     futures_util::stream::unfold(
         State {
             upstream,
             translator,
+            responses,
             ready: VecDeque::new(),
             error: None,
             done: false,
@@ -170,28 +220,29 @@ fn streaming(upstream: ExecStream, translator: Box<dyn StreamTranslator>) -> Exe
                 if state.done {
                     return None;
                 }
-                let result = match state.upstream.next().await {
-                    Some(Ok(event)) => state.translator.event(&event).map_err(error),
-                    Some(Err(error)) => Err(error),
-                    None => {
-                        state.done = true;
-                        state.translator.finish().map_err(error)
-                    }
-                };
-                match result {
-                    Ok(events) => state.ready.extend(events),
-                    Err(error) => {
-                        // Go's responsesSSEFramer.Flush: a Responses client gets the frame
-                        // still being joined before the terminal error.
-                        state.ready.extend(state.translator.flush_frames());
-                        state.error = Some(error);
-                        state.done = true;
-                    }
+                match state.upstream.next().await {
+                    Some(Ok(event)) => match state.translator.event(&event) {
+                        Ok(events) => {
+                            state.emit(events);
+                            if state.translator.tool_input_failed() {
+                                state.error = Some(apply_patch_error());
+                                state.done = true;
+                            }
+                        }
+                        Err(e) => state.fail(stream_error(e)),
+                    },
+                    Some(Err(error)) => state.end(Some(error)),
+                    None => state.end(None),
                 }
             }
         },
     )
     .boxed()
+}
+
+/// A response translator rejecting upstream data: a bad gateway, never the client's fault.
+fn stream_error(error: cpa_translate::Error) -> ExecError {
+    ExecError::local(502, FailureScope::Request, error.to_string())
 }
 
 fn error(error: cpa_translate::Error) -> ExecError {
@@ -313,7 +364,7 @@ mod tests {
         let result: Vec<_> = result.map(Result::unwrap).collect().await;
         assert_eq!(result, ["first", "one", "finished"]);
         let pending = stream(&[b"bad"]).chain(futures_util::stream::pending()).boxed();
-        let result: Vec<_> = streaming(pending, Box::new(Translator)).collect().await;
+        let result: Vec<_> = streaming(pending, Box::new(Translator), false).collect().await;
         assert_eq!(
             result.len(),
             1,
@@ -349,12 +400,12 @@ mod tests {
         ])
         .chain(futures_util::stream::pending())
         .boxed();
-        let result: Vec<_> = streaming(failing, Box::<Framer>::default()).collect().await;
+        let result: Vec<_> = streaming(failing, Box::<Framer>::default(), false).collect().await;
         assert_eq!(result.len(), 2);
         assert_eq!(result[0].as_ref().unwrap(), "frame");
         assert_eq!(result[1].as_ref().unwrap_err().status, 502);
         // A translator error flushes the same way.
-        let result: Vec<_> = streaming(stream(&[b"frame", b"bad"]), Box::<Framer>::default())
+        let result: Vec<_> = streaming(stream(&[b"frame", b"bad"]), Box::<Framer>::default(), false)
             .collect()
             .await;
         assert_eq!(result.len(), 2);

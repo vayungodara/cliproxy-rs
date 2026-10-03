@@ -423,6 +423,8 @@ pub(super) async fn replay(test: &str, record: &Value) -> Result<(), String> {
     }
     let exchanges = record["exchanges"]["exchanges"].as_array().cloned().unwrap_or_default();
     let go_origins = regex::Regex::new(r"http://127\.0\.0\.1:\d+").unwrap();
+    // The default User-Agent names the build: CLIProxyAPI/dev in Go's test binary.
+    let version = regex::Regex::new(r"^CLIProxyAPI/\S+").unwrap();
     let mut hosts: Vec<String> = [
         "api.anthropic.com",
         "platform.claude.com",
@@ -627,8 +629,6 @@ pub(super) async fn replay(test: &str, record: &Value) -> Result<(), String> {
         // Go's recorded header map is what the executor set; the transport adds
         // Host, Content-Length, Accept-Encoding and its default User-Agent.
         let transport = ["host", "content-length", "accept-encoding", "user-agent", "connection"];
-        // The default User-Agent names the build: CLIProxyAPI/dev in Go's test binary.
-        let version = regex::Regex::new(r"^CLIProxyAPI/\S+").unwrap();
         let value = |v: &str| normalize(&version.replace(v, "CLIProxyAPI/<version>"));
         let mut want: BTreeMap<String, Vec<String>> = BTreeMap::new();
         for (k, v) in header_pairs(&go["headers"]) {
@@ -641,11 +641,11 @@ pub(super) async fn replay(test: &str, record: &Value) -> Result<(), String> {
                 got.entry(k).or_default().push(value(v));
             }
         }
-        for random in ["x-client-request-id"] {
-            if want.contains_key(random) && got.contains_key(random) {
-                want.remove(random);
-                got.remove(random);
-            }
+        // Random per request in both implementations.
+        let random = "x-client-request-id";
+        if want.contains_key(random) && got.contains_key(random) {
+            want.remove(random);
+            got.remove(random);
         }
         if got != want {
             let only_rust: Vec<_> = got.iter().filter(|(k, v)| want.get(*k) != Some(v)).collect();

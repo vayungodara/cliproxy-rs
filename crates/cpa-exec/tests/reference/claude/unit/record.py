@@ -22,6 +22,7 @@ PKG = "internal/runtime/executor"
 
 # Go test files whose call sites are rewritten, relative to PKG.
 FILES = [
+    "apply_patch_integration_test.go",
     "claude_cloaked_cache_repro_test.go",
     "claude_executor_auth_race_test.go",
     "claude_executor_auth_test.go",

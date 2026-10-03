@@ -114,11 +114,18 @@ async fn proxy(dir: &Path, upstream_url: &str) -> String {
         max_retry_credentials: 1,
         ..Default::default()
     });
+    // Like main.rs (Go's global registry): the executor reads registered models, for
+    // example for the default max_tokens. Callers hold REGISTRY while the overlay is theirs.
+    cpa_server::install_registry(&rt);
     serve(router(rt)).await
 }
 
+/// One test at a time owns the process-wide registry overlay.
+static REGISTRY: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
 #[tokio::test]
 async fn claude_messages_end_to_end() {
+    let _registry = REGISTRY.lock().await;
     let log: Log = Arc::default();
     let upstream_url = serve(axum::Router::new().fallback(upstream).with_state(log.clone())).await;
     let dir = auth_dir(
@@ -230,7 +237,7 @@ data: {"type":"error","error":{"type":"api_error","message":"unexpected EOF"#
     );
     // These tokens are not Claude OAuth tokens (no sk-ant-oat) and have no fingerprint
     // profile, so Go keeps the caller-owned shape: no CLI betas, and the body gets only
-    // Go's normalization (max_tokens from the catalog, a default cache breakpoint on the
+    // Go's normalization (max_tokens of the registered model, a default cache breakpoint on the
     // last turn, an explicit stream flag). Streams to custom gateways ask for identity.
     for s in &seen {
         assert_eq!(s.uri, "/v1/messages?beta=true");
@@ -285,6 +292,7 @@ data: {"type":"error","error":{"type":"api_error","message":"unexpected EOF"#
 
 #[tokio::test]
 async fn unregistered_and_unserved_models_follow_go_error_contracts() {
+    let _registry = REGISTRY.lock().await;
     let dir = auth_dir(
         "empty",
         &[
