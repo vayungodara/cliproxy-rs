@@ -597,10 +597,12 @@ dependencies = [
 name = "cpa-translate"
 version = "0.1.0"
 dependencies = [
+ "base64 0.22.1",
  "bytes",
  "cpa-common",
  "cpa-core",
  "rand",
+ "regex",
  "serde_json",
  "sha2",
 ]
