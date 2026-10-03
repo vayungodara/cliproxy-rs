@@ -2,13 +2,12 @@
 //!
 //! Requests keep the client's bytes except for Codex's required fields and removals.
 //! Responses pass through, adding the requested model to `response.created` and
-//! `response.in_progress` when upstream omits it.
-//
-// ponytail: the apply_patch Responses bridge (common/apply_patch_responses.go) is not
-// ported; Go only installs it when the executor enables apply_patch for the request.
-// Port it with the translator-common apply_patch helpers.
+//! `response.in_progress` when upstream omits it. An executor may own an apply_patch
+//! [`Bridge`] for the request ([`stream_with_bridge`], [`non_stream_with_bridge`]); native
+//! Codex never installs one.
 
-use crate::{Error, Registered, RequestCtx, ResponseCtx, common, stream};
+use crate::apply_patch_responses::Bridge;
+use crate::{Error, Registered, RequestCtx, ResponseCtx, StreamTranslator, common, stream};
 use cpa_common::json::{self as gj, Kind};
 
 pub static PAIR: Registered = registered!(
@@ -247,17 +246,30 @@ fn normalize_tool_array(raw: Vec<u8>, path: &str) -> Vec<u8> {
 }
 
 fn go_stream(ctx: &ResponseCtx<'_>) -> Box<dyn stream::GoStream> {
-    Box::new(Events {
+    Box::new(events(ctx, None))
+}
+
+/// The Go-shaped line translator behind [`stream_with_bridge`], for golden tests.
+#[doc(hidden)]
+pub fn go_stream_with_bridge(ctx: &ResponseCtx<'_>, bridge: Option<Bridge>) -> Box<dyn stream::GoStream> {
+    Box::new(events(ctx, bridge))
+}
+
+fn events(ctx: &ResponseCtx<'_>, bridge: Option<Bridge>) -> Events {
+    Events {
         model: ctx.model.as_bytes().to_vec(),
         original: ctx.original_request.to_vec(),
         translated: ctx.translated_request.to_vec(),
-    })
+        bridge,
+    }
 }
 
 struct Events {
     model: Vec<u8>,
     original: Vec<u8>,
     translated: Vec<u8>,
+    /// Go's executor-owned `param` bridge (responsesBridge).
+    bridge: Option<Bridge>,
 }
 
 impl stream::GoStream for Events {
@@ -267,15 +279,27 @@ impl stream::GoStream for Events {
             None => (false, line),
         };
         let updated = with_model(payload, &self.model, &self.original, &self.translated);
-        if updated == payload {
-            return Ok(vec![line.to_vec()]);
-        }
-        let mut out = vec![];
-        if sse {
-            out.extend_from_slice(b"data: ");
-        }
-        out.extend_from_slice(&updated);
-        Ok(vec![out])
+        let Some(bridge) = &mut self.bridge else {
+            if updated == payload {
+                return Ok(vec![line.to_vec()]);
+            }
+            let mut out = vec![];
+            if sse {
+                out.extend_from_slice(b"data: ");
+            }
+            out.extend_from_slice(&updated);
+            return Ok(vec![out]);
+        };
+        // The failure stays on the bridge (tool_input_failed), as Go's param does.
+        let (outputs, _) = bridge.transform(&updated);
+        Ok(outputs
+            .into_iter()
+            .map(|o| if sse { [&b"data: "[..], &o].concat() } else { o })
+            .collect())
+    }
+
+    fn tool_input_failed(&self) -> bool {
+        self.bridge.as_ref().is_some_and(|b| b.tool_input_error().is_some())
     }
 }
 
@@ -294,6 +318,31 @@ fn with_model(raw: &[u8], model: &[u8], original: &[u8], translated: &[u8]) -> V
         gj::set_str(&mut out, "response.model", name);
     }
     out
+}
+
+/// The openai-response:codex stream with an executor-owned apply_patch bridge for this
+/// request (Go passes the bridge as the translator `param`). After each event, check
+/// [`StreamTranslator::tool_input_failed`]: the event's frames end in `response.failed`
+/// and the executor stops with HTTP 502 and [`crate::APPLY_PATCH_UPSTREAM_ERROR`].
+pub fn stream_with_bridge(ctx: &ResponseCtx<'_>, bridge: Bridge) -> Box<dyn StreamTranslator> {
+    let levels = crate::levels(&[ctx.original_request, ctx.translated_request]);
+    stream::framed(
+        cpa_core::format::Format::OpenAIResponse,
+        cpa_core::format::Format::Codex,
+        Box::new(events(ctx, Some(bridge))),
+        levels,
+    )
+}
+
+/// The openai-response:codex non-stream with an executor-owned apply_patch bridge. A
+/// rejected body is `Err(APPLY_PATCH_UPSTREAM_ERROR)` (Go returns nil and the executor
+/// answers 502); the bridge keeps the underlying error.
+pub fn non_stream_with_bridge(ctx: &ResponseCtx<'_>, body: &[u8], bridge: &mut Bridge) -> Result<Vec<u8>, Error> {
+    let levels = crate::levels(&[body, ctx.original_request, ctx.translated_request]);
+    crate::deep_stack(levels, || match bridge.transform_non_stream(body) {
+        Ok(converted) => non_stream(ctx, &converted),
+        Err(_) => Err(Error(crate::APPLY_PATCH_UPSTREAM_ERROR.into())),
+    })
 }
 
 fn non_stream(_: &ResponseCtx<'_>, body: &[u8]) -> Result<Vec<u8>, Error> {

@@ -663,3 +663,35 @@ async fn apply_patch_failures_end_streams_like_go() {
     assert_eq!(out, ["frame a", "finished"]);
     assert_eq!(log, ["event a", "finish"]);
 }
+
+#[tokio::test]
+async fn usage_reports_match_go_records() {
+    for name in [
+        "chat-nonstream-normalize",
+        "chat-stream-suffix",
+        "chat-stream-gemini-client",
+        "chat-nonstream-gemini-client",
+        "chat-disabled-thinking-temperature",
+        "chat-kimi-ai-metadata-base",
+        "chat-error-429-clamped-none",
+        "responses-nonstream-reorder-suffix",
+        "responses-stream-clamp",
+        "responses-stream-data-only-frames",
+        "chat-payload-rules",
+        "responses-payload-rules",
+        "transport-gzip-response",
+    ] {
+        let fx = fixture("kimi", name);
+        let mock = Mock::start(&fx["responses"]).await;
+        let cred = credential("kimi", &fx, Some(("base_url", format!("{}/coding", mock.url))));
+        let cfg = Config::parse(fx["request"]["config"].as_str().unwrap_or_default()).unwrap();
+        let log = std::sync::Arc::new(crate::kimi_fixture::UsageLog::default());
+        let mut req = request(&fx, "");
+        req.usage = log.sink();
+        let result = KimiExecutor::with_client(default_client())
+            .execute(&claude(), &cred, req, &cfg)
+            .await;
+        let _ = downstream(result).await;
+        crate::kimi_fixture::assert_usage_like_go(name, &fx, &log);
+    }
+}

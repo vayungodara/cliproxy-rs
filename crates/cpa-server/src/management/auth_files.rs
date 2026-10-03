@@ -116,6 +116,21 @@ fn local(t: SystemTime) -> String {
     go_time(chrono::DateTime::<chrono::Local>::from(t))
 }
 
+/// Go `quotaObservationPayloadForProvider`: the latest passive quota snapshot
+/// (`observed_at`, `signals`) for providers Go observes; empty signals otherwise.
+fn quota_observation(state: &Management, c: &Credential) -> Value {
+    let snapshot = match c.provider.trim().to_lowercase().as_str() {
+        "codex" => state.rt.executors.codex.quota().snapshot(&c.id),
+        // ponytail: Go also observes claude and devin response headers; their
+        // executors keep no snapshots yet, so they report none.
+        _ => None,
+    };
+    match snapshot {
+        Some(s) => json!({"observed_at": local(s.observed_at), "signals": s.signals}),
+        None => json!({"signals": {}}),
+    }
+}
+
 fn file_name(c: &Credential) -> Option<String> {
     match &c.source {
         Source::File(p) => p.file_name().map(|n| n.to_string_lossy().into_owned()),
@@ -429,7 +444,7 @@ fn entry(state: &Management, c: &Credential) -> Option<BTreeMap<&'static str, Va
     e.insert("success", activity.success.into());
     e.insert("failed", activity.failed.into());
     e.insert("recent_requests", recent_requests(&activity));
-    e.insert("quota", json!({"signals": {}}));
+    e.insert("quota", quota_observation(state, c));
     if let Some(probe) = c.metadata.get("quota_probe").filter(|v| !v.is_null()) {
         e.insert("supports_quota", true.into());
         e.insert("quota_probe", probe.clone());

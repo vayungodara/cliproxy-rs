@@ -157,7 +157,7 @@ fn response_format(s: &Value) -> Format {
     s["response"].as_str().and_then(Format::parse).unwrap_or(source)
 }
 
-fn request(s: &Value) -> (ExecRequest, String) {
+fn request(s: &Value, usage: cpa_core::exec::UsageSink) -> (ExecRequest, String) {
     let op = s["op"].as_str().unwrap();
     let source = Format::parse(s["source"].as_str().unwrap()).unwrap();
     let response = s["response"].as_str().and_then(Format::parse).unwrap_or(source);
@@ -210,8 +210,8 @@ fn request(s: &Value) -> (ExecRequest, String) {
         session,
         execution_session: s["execution_session"].as_str().map(str::to_owned),
         derived_session: s["derived_session"].as_str().map(str::to_owned),
-        resolved_model: None,
-        usage: Default::default(),
+        resolved_model: bound_model(&s["resolved_model"]),
+        usage,
         request_path: String::new(),
         headers,
         caller: Caller {
@@ -222,11 +222,25 @@ fn request(s: &Value) -> (ExecRequest, String) {
     (req, op.to_owned())
 }
 
+/// The dispatch loop's binding (cpa-server capabilities::resolve), as Go's conductor
+/// bound it in the generator.
+pub(crate) fn bound_model(v: &Value) -> Option<cpa_core::exec::ResolvedModel> {
+    let raw = v.as_object()?.clone();
+    Some(cpa_core::exec::ResolvedModel {
+        info: cpa_core::registry::ModelInfo::from_raw(raw).expect("resolved model info"),
+        source: cpa_core::exec::ResolvedSource::ApiKey,
+    })
+}
+
 fn error_json(e: &ExecError) -> Value {
     serde_json::json!({
         "status": e.status,
         "message": String::from_utf8_lossy(&e.body),
         "retry_after_ms": e.retry_after.map_or(-1, |d| d.as_millis() as i64),
+        // The server's reading of IsCredentialScoped (classify::credential_scoped).
+        "credential_scoped": e.scope == FailureScope::Credential && e.status == 429,
+        // A plain Go error (no status) is a transport-scoped 500 here.
+        "plain": e.scope == FailureScope::Transport,
     })
 }
 
@@ -261,7 +275,8 @@ async fn go_reference_scenarios() {
         let addr = mock.as_ref().map_or("127.0.0.1:9".to_owned(), |m| m.addr.clone());
         let cfg = Config::parse(&s["config"].as_str().unwrap_or_default().replace("UPSTREAM", &addr)).unwrap();
         let cred = credential(s, &cfg, &addr);
-        let (req, op) = request(s);
+        let recorder = Arc::new(crate::openai_compat_usage::Recorder::default());
+        let (req, op) = request(s, cpa_core::exec::UsageSink::new(recorder.clone()));
         let result = if op.starts_with("images") {
             let path = s["request_path"].as_str().unwrap_or_default().to_owned();
             executor.images(&cred, req, &path, &cfg).await
@@ -337,10 +352,19 @@ async fn go_reference_scenarios() {
                 .collect();
             assert_eq!(chunks, want_chunks, "{name}: stream chunks");
         }
+        // Go's published usage record, derived from what the executor reported.
+        if let Some(want) = s.get("usage").filter(|u| !u.is_null()) {
+            let got = crate::openai_compat_usage::derived(&recorder.0.lock().unwrap(), want["failed"] == true);
+            assert_eq!(&got, want, "{name}: usage");
+        }
         let mut want_error = s["error"].clone();
-        if want_error["status"] == 0 {
-            // A plain Go error: the handler answers 500.
-            want_error["status"] = 500.into();
+        if !want_error.is_null() {
+            let plain = want_error["status"] == 0;
+            if plain {
+                // A plain Go error: the handler answers 500.
+                want_error["status"] = 500.into();
+            }
+            want_error["plain"] = plain.into();
         }
         assert_eq!(error.unwrap_or(Value::Null), want_error, "{name}: error");
     }

@@ -242,7 +242,7 @@ pub(crate) fn expiration(credential: &Credential) -> Option<DateTime<Utc>> {
     jwt_exp(token).or_else(|| expiration_from_map(&credential.metadata))
 }
 
-fn last_refresh(credential: &Credential) -> Option<DateTime<Utc>> {
+pub(crate) fn last_refresh(credential: &Credential) -> Option<DateTime<Utc>> {
     ["last_refresh", "lastRefresh", "last_refreshed_at", "lastRefreshedAt"]
         .iter()
         .find_map(|k| credential.metadata.get(*k).and_then(parse_time))
@@ -258,7 +258,7 @@ fn last_refresh(credential: &Credential) -> Option<DateTime<Utc>> {
         })
 }
 
-fn preferred_interval(credential: &Credential) -> Option<chrono::Duration> {
+pub(crate) fn preferred_interval(credential: &Credential) -> Option<chrono::Duration> {
     const KEYS: [&str; 4] = [
         "refresh_interval_seconds",
         "refreshIntervalSeconds",
@@ -349,6 +349,48 @@ pub(crate) fn refresh_due(credential: &Credential, lead: Option<chrono::Duration
         return expiry - now <= lead;
     }
     last_refresh(credential).is_none_or(|last| now - last >= lead)
+}
+
+/// Reports every upstream line to the attempt's usage sink before it is translated (Go
+/// feeds each scanned line to `ObserveResponseModel` and its `StreamUsageBuffer`).
+/// `filter` keeps the lines Go observes.
+pub(crate) fn report_lines(
+    lines: cpa_core::exec::ExecStream,
+    usage: &cpa_core::exec::UsageSink,
+    format: cpa_core::format::Format,
+    filter: fn(&[u8]) -> bool,
+) -> cpa_core::exec::ExecStream {
+    use futures_util::StreamExt;
+    if !usage.enabled() {
+        return lines;
+    }
+    let usage = usage.clone();
+    lines
+        .inspect(move |item| {
+            if let Ok(line) = item
+                && filter(line)
+            {
+                usage.response_line(format, line);
+            }
+        })
+        .boxed()
+}
+
+/// Go `SetTranslatedReasoningEffort(body, provider)` for a provider name the sink's
+/// `Format` cannot carry (Kimi passes `"kimi"`, whose thinking fields differ from
+/// OpenAI's): the effort Go extracts, reported as an OpenAI `reasoning_effort`, which the
+/// server's OpenAI extraction reads back unchanged.
+// ponytail: a provider-named `UsageSink::request` would make this rewrite unnecessary.
+pub(crate) fn report_effort(usage: &cpa_core::exec::UsageSink, body: &[u8], provider: &str) {
+    if !usage.enabled() {
+        return;
+    }
+    let effort = cpa_common::thinking::extract_translated_reasoning_effort(body, provider);
+    let mut payload = b"{}".to_vec();
+    if !effort.is_empty() {
+        cpa_common::json::set_str(&mut payload, "reasoning_effort", effort);
+    }
+    usage.request(cpa_core::format::Format::OpenAI, &payload);
 }
 
 /// A control-plane failure that must not echo upstream bodies (they may contain tokens).

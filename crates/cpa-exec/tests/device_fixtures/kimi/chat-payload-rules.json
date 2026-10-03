@@ -2,7 +2,7 @@
   "name": "chat-payload-rules",
   "credential": {
     "access_token": "kimi-access-fixture",
-    "base_url": "http://127.0.0.1:36881/coding",
+    "base_url": "http://127.0.0.1:44681/coding",
     "device_id": "dev-fixture-1",
     "refresh_token": "kimi-refresh-fixture",
     "type": "kimi"
@@ -33,7 +33,7 @@
       "headers": [
         [
           "Host",
-          "127.0.0.1:36881"
+          "127.0.0.1:44681"
         ],
         [
           "User-Agent",
@@ -88,5 +88,8 @@
       "{\"id\":\"c\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"k3\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"ok\"},\"finish_reason\":\"stop\"}]}",
       ""
     ]
+  },
+  "extra": {
+    "usage": null
   }
 }
