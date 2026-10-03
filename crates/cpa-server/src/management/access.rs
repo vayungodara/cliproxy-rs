@@ -316,7 +316,11 @@ pub(crate) async fn guard(State(state): State<Arc<Management>>, req: Request, ne
 
 /// Go's global CORS middleware: every response is cross-origin readable and every
 /// OPTIONS request ends with 204 before routing or authentication.
-pub async fn cors(req: Request, next: Next) -> Response {
+#[derive(Clone)]
+pub(crate) struct Cors;
+
+pub async fn cors(mut req: Request, next: Next) -> Response {
+    req.extensions_mut().insert(Cors);
     let mut response = if req.method() == Method::OPTIONS {
         StatusCode::NO_CONTENT.into_response()
     } else {
@@ -326,6 +330,12 @@ pub async fn cors(req: Request, next: Next) -> Response {
         // axum adds `Allow` to method fallbacks; gin's NoRoute 404 has none.
         response.headers_mut().remove(header::ALLOW);
     }
+    cors_headers(&mut response);
+    response
+}
+
+/// The inner request-log snapshot must see CORS headers before axum framing.
+pub(crate) fn cors_headers(response: &mut Response) {
     let headers = response.headers_mut();
     for (name, value) in [
         ("Access-Control-Allow-Origin", "*"),
@@ -335,7 +345,6 @@ pub async fn cors(req: Request, next: Next) -> Response {
     ] {
         headers.insert(name, HeaderValue::from_static(value));
     }
-    response
 }
 
 #[cfg(test)]

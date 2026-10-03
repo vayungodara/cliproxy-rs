@@ -158,11 +158,17 @@ pub trait UsageObserver: Send + Sync {
 
 /// A handle executors report usage through; cloning shares the observer.
 #[derive(Clone, Default)]
-pub struct UsageSink(Option<std::sync::Arc<dyn UsageObserver>>);
+pub struct UsageSink(Option<std::sync::Arc<dyn UsageObserver>>, CaptureSink);
 
 impl UsageSink {
     pub fn new(observer: std::sync::Arc<dyn UsageObserver>) -> Self {
-        Self(Some(observer))
+        Self(Some(observer), CaptureSink::default())
+    }
+
+    /// Attach request capture without changing ExecRequest construction sites.
+    pub fn with_capture(mut self, capture: CaptureSink) -> Self {
+        self.1 = capture;
+        self
     }
 
     /// Whether anyone listens; executors can skip the work otherwise.
@@ -253,6 +259,62 @@ impl UsageSink {
 impl fmt::Debug for UsageSink {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_tuple("UsageSink").field(&self.enabled()).finish()
+    }
+}
+
+impl ExecRequest {
+    /// Optional per-call wire capture, independent of usage accounting. Capture
+    /// the handle before spawning a stream task; clones retain the same observer.
+    pub fn capture(&self) -> &CaptureSink {
+        &self.usage.1
+    }
+}
+
+/// Go helps.UpstreamRequestLog. Credentials and bodies intentionally have no
+/// Debug implementation. The observer owns Go's masking and formatting policy.
+#[derive(Default)]
+pub struct UpstreamRequest<'a> {
+    pub url: &'a str,
+    pub method: &'a str,
+    pub headers: &'a [(String, String)],
+    pub body: &'a [u8],
+    pub provider: &'a str,
+    pub auth_id: &'a str,
+    pub auth_label: &'a str,
+    pub auth_type: &'a str,
+    pub auth_value: &'a str,
+}
+
+pub enum CaptureEvent<'a> {
+    Request(UpstreamRequest<'a>),
+    ResponseMetadata(u16, &'a [(String, String)]),
+    ResponseError(&'a str),
+    ResponseChunk(&'a [u8]),
+    WebsocketRequest(UpstreamRequest<'a>),
+    WebsocketHandshake(u16, &'a [(String, String)]),
+    WebsocketResponse(&'a [u8]),
+    WebsocketError { stage: &'a str, error: &'a str },
+}
+
+pub trait CaptureObserver: Send + Sync {
+    fn record(&self, event: CaptureEvent<'_>);
+}
+
+/// Default no-op; providers call this at Go's logging_helpers call sites.
+#[derive(Clone, Default)]
+pub struct CaptureSink(Option<std::sync::Arc<dyn CaptureObserver>>);
+
+impl CaptureSink {
+    pub fn new(observer: std::sync::Arc<dyn CaptureObserver>) -> Self {
+        Self(Some(observer))
+    }
+    pub fn enabled(&self) -> bool {
+        self.0.is_some()
+    }
+    pub fn record(&self, event: CaptureEvent<'_>) {
+        if let Some(observer) = &self.0 {
+            observer.record(event);
+        }
     }
 }
 

@@ -29,6 +29,7 @@ mod oauth;
 pub mod observability;
 mod plugins;
 pub use access::cors;
+pub(crate) use access::{Cors, cors_headers};
 
 pub struct Management {
     pub(crate) rt: Arc<Runtime>,

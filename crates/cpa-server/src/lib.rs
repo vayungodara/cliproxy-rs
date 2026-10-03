@@ -28,6 +28,7 @@ mod realtime;
 mod refresh;
 pub mod registry;
 pub mod remote;
+pub mod request_logging;
 mod resp;
 mod respond;
 pub mod runtime;
@@ -68,7 +69,7 @@ pub fn router(rt: Arc<Runtime>) -> Router {
 /// allows one fallback per merged router, so `rest` sits behind the API instead of being
 /// merged into it.
 pub fn app(rt: Arc<Runtime>, rest: Router) -> Router {
-    gin(api(rt).fallback_service(rest))
+    gin(api(rt).fallback_service(rest.layer(middleware::from_fn(request_logging::response))))
 }
 
 /// Around the whole router: axum sets `Allow` outside per-route layers.
@@ -122,6 +123,7 @@ fn api(rt: Arc<Runtime>) -> Router {
         .method_not_allowed_fallback(|| async { StatusCode::NOT_FOUND })
         .layer(DefaultBodyLimit::max(MAX_REQUEST_BYTES))
         .layer(middleware::from_fn(go_framing))
+        .layer(middleware::from_fn(request_logging::response))
         .with_state(rt)
 }
 
