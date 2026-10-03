@@ -22,7 +22,6 @@ use crate::codex_oauth::{self, CodexOAuth};
 use crate::codex_quota::QuotaSignals;
 use crate::codex_request::{self as request, Call, Settings, View};
 use crate::codex_response::{self as response, Bootstrap, Processor};
-use crate::upstream::{into_response, transport_error};
 
 pub use crate::codex_request::DEFAULT_BASE_URL;
 
@@ -178,6 +177,27 @@ impl CodexExecutor {
         }
     }
 
+    /// Go's `http.Client.Do` through the Codex transport: the client is picked per hop
+    /// (Chrome for chatgpt.com, Go's standard transport elsewhere), redirects are
+    /// followed like Go's, and gzip is undone only when the transport asked for it.
+    async fn post(
+        &self,
+        view: &View<'_>,
+        url: &str,
+        headers: &HeaderMap,
+        body: Bytes,
+    ) -> Result<crate::proxy::Upstream, ExecError> {
+        let transport = &self.transport;
+        let proxy = &view.proxy;
+        let route = |hop: &url::Url| {
+            Ok(crate::proxy::Route {
+                client: transport.for_url(hop.as_str(), proxy),
+                order: None,
+            })
+        };
+        crate::proxy::send_routed(&route, url, go_headers(headers), body, None).await
+    }
+
     async fn send(
         &self,
         view: &View<'_>,
@@ -186,31 +206,32 @@ impl CodexExecutor {
         headers: HeaderMap,
         body: String,
     ) -> Result<ExecResponse, ExecError> {
-        let res = self
-            .transport
-            .for_url(&url, &view.proxy)
-            .post(url)
-            .redirect(wreq::redirect::Policy::none())
-            .headers(headers)
-            .body(body)
-            .send()
-            .await
-            .map_err(transport_error)?;
-        let status = res.status().as_u16();
-        let headers = res.headers().clone();
-        self.quota.observe(&view.credential.id, &headers);
-        match into_response(res).await {
-            Ok(response) => Ok(response),
-            // A non-2xx response that was read completely; a failure to read or decode it
-            // keeps its own (transport) scope instead of the status's credential policy.
-            Err(error) if !(200..300).contains(&status) && !read_failure(&error) => Err(response::status_error(
+        let upstream = self.post(view, &url, &headers, Bytes::from(body)).await?;
+        self.quota.observe(&view.credential.id, &upstream.headers);
+        let status = upstream.status;
+        let mut headers = upstream.headers;
+        headers.remove(http::header::CONTENT_ENCODING);
+        headers.remove(http::header::CONTENT_LENGTH);
+        if !(200..300).contains(&status) {
+            // Go ignores the read error and reports what arrived.
+            let body = crate::proxy::read_all(upstream.body, crate::proxy::MAX_ERROR_BODY, true).await?;
+            return Err(response::status_error(
                 status,
-                &error.body,
+                &body,
                 headers,
                 settings.model_level_cooling,
-            )),
-            Err(error) => Err(error),
+            ));
         }
+        let sse = headers
+            .get(http::header::CONTENT_TYPE)
+            .and_then(|v| v.to_str().ok())
+            .is_some_and(|v| v.starts_with("text/event-stream"));
+        let body = if sse {
+            ResponseBody::Stream(crate::upstream::framed(upstream.body))
+        } else {
+            ResponseBody::Buffered(crate::proxy::read_all(upstream.body, usize::MAX, false).await?)
+        };
+        Ok(ExecResponse { status, headers, body })
     }
 
     /// HTTP streaming. `ws_session` is the downstream WebSocket connection when an HTTP
@@ -382,20 +403,14 @@ impl CodexExecutor {
                 headers.insert(name, value);
             }
         }
-        headers.insert("accept-encoding", http::HeaderValue::from_static("gzip"));
-        let res = self
-            .transport
-            .for_url(&url, &view.proxy)
-            .post(url)
-            .redirect(wreq::redirect::Policy::none())
-            .headers(headers)
-            .body(body)
-            .send()
+        let upstream = self.post(&view, &url, &headers, Bytes::from(body)).await?;
+        let status = upstream.status;
+        let content_type = upstream.headers.get(http::header::CONTENT_TYPE).cloned();
+        // `io.ReadAll(io.LimitReader(resp.Body, 32 MiB))`: bytes past the limit are never
+        // read off the socket.
+        let data = crate::proxy::read_all(upstream.body, ALPHA_SEARCH_MAX_RESPONSE, false)
             .await
-            .map_err(transport_error)?;
-        let status = res.status().as_u16();
-        let content_type = res.headers().get(http::header::CONTENT_TYPE).cloned();
-        let data = read_bounded_body(res, ALPHA_SEARCH_MAX_RESPONSE).await?;
+            .map_err(|_| ExecError::local(502, FailureScope::Transport, "Failed to read Codex search response"))?;
         let mut headers = HeaderMap::new();
         if let Some(value) = content_type {
             headers.insert(http::header::CONTENT_TYPE, value);
@@ -474,35 +489,6 @@ fn count_tokens(req: &ExecRequest, cfg: &Config) -> Result<ExecResponse, ExecErr
 /// Go reads at most 32 MiB of an Alpha Search response, whatever its status.
 const ALPHA_SEARCH_MAX_RESPONSE: usize = 32 << 20;
 
-/// `io.ReadAll(io.LimitReader(resp.Body, limit))` over Go's transparently gunzipped body.
-/// Bytes past the limit are never read off the socket.
-async fn read_bounded_body(res: wreq::Response, limit: usize) -> Result<Bytes, ExecError> {
-    use async_compression::tokio::bufread::GzipDecoder;
-    use tokio::io::AsyncReadExt;
-    let gzip = res
-        .headers()
-        .get(http::header::CONTENT_ENCODING)
-        .and_then(|v| v.to_str().ok())
-        .is_some_and(|v| v.trim().eq_ignore_ascii_case("gzip"));
-    let reader = tokio_util::io::StreamReader::new(res.bytes_stream().map(|r| r.map_err(std::io::Error::other)));
-    let mut out = Vec::new();
-    let read = if gzip {
-        let mut decoder = GzipDecoder::new(tokio::io::BufReader::new(reader));
-        decoder.multiple_members(true);
-        decoder.take(limit as u64).read_to_end(&mut out).await
-    } else {
-        reader.take(limit as u64).read_to_end(&mut out).await
-    };
-    read.map_err(|_| ExecError::local(502, FailureScope::Transport, "Failed to read Codex search response"))?;
-    Ok(Bytes::from(out))
-}
-
-/// `into_response` failed to read or decode the body, as opposed to returning a
-/// completely read non-2xx response.
-fn read_failure(error: &ExecError) -> bool {
-    error.scope == FailureScope::Transport || error.body.starts_with(b"upstream request failed:")
-}
-
 /// Go's compact policy (`isResponsesCompactRequestFaultError`,
 /// `isResponsesCompactAvailabilityNeutralError`): an upstream without compact support must
 /// not cool ordinary Responses traffic. Request faults stop the request; other failures
@@ -555,6 +541,19 @@ fn rewrite_alpha_search_model(body: Vec<u8>, model: &str) -> Vec<u8> {
     })
     .map(String::into_bytes)
     .unwrap_or(body)
+}
+
+/// The shaped headers as Go's `http.Header`: canonical keys, values in order. Go's
+/// transport adds `Accept-Encoding: gzip` itself unless a header already set it.
+fn go_headers(headers: &HeaderMap) -> crate::proxy::GoHeaders {
+    let mut out = crate::proxy::GoHeaders::new();
+    for (name, value) in headers {
+        out.add_raw(
+            &crate::proxy::canonical_header(name.as_str()),
+            String::from_utf8_lossy(value.as_bytes()),
+        );
+    }
+    out
 }
 
 /// Go's request-context session for `$CPA-SESSION-ID` headers.

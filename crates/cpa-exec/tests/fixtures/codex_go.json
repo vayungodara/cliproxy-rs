@@ -830,7 +830,7 @@
             "codex-tui"
           ],
           "session_id": [
-            "cf520d8f-753a-468c-ae89-f6e7402876c9"
+            "c83ef1fd-45a3-447d-b076-e9649b64cd94"
           ],
           "user-agent": [
             "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
@@ -1179,6 +1179,266 @@
           "message": "{\"error\":{\"type\":\"service_unavailable_error\",\"code\":\"server_is_overloaded\",\"message\":\"busy\"}}",
           "status": 502
         }
+      }
+    },
+    {
+      "name": "oauth_stream_redirect_307",
+      "config": "{}\n",
+      "attributes": {},
+      "metadata": {
+        "access_token": "at-FAKE",
+        "account_id": "acct-FAKE-1",
+        "email": "user@example.invalid",
+        "type": "codex"
+      },
+      "source": "codex",
+      "headers": {},
+      "model": "gpt-5.4",
+      "payload": "{\"model\":\"gpt-5.4\",\"input\":[]}",
+      "stream": true,
+      "upstream_status": 200,
+      "upstream_type": "text/event-stream",
+      "upstream_body": "event: response.created\ndata: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_1\",\"status\":\"in_progress\"}}\n\nevent: response.output_item.done\ndata:{\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"id\":\"msg_1\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"Hi\"}]}}\n\nevent: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_1\",\"status\":\"completed\",\"output\":[],\"usage\":{\"input_tokens\":3,\"output_tokens\":1}}}\n\n",
+      "redirect": 307,
+      "upstream": {
+        "method": "POST",
+        "path": "/moved/responses",
+        "headers": {
+          "accept": [
+            "text/event-stream"
+          ],
+          "accept-encoding": [
+            "gzip"
+          ],
+          "authorization": [
+            "Bearer at-FAKE"
+          ],
+          "chatgpt-account-id": [
+            "acct-FAKE-1"
+          ],
+          "connection": [
+            "Keep-Alive"
+          ],
+          "content-length": [
+            "108"
+          ],
+          "content-type": [
+            "application/json"
+          ],
+          "originator": [
+            "codex-tui"
+          ],
+          "referer": [
+            "http://127.0.0.1:35201/responses"
+          ],
+          "user-agent": [
+            "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
+          ],
+          "x-codex-routing-hint": [
+            "model=gpt-5.4"
+          ]
+        },
+        "body": "{\"model\":\"gpt-5.4\",\"input\":[],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}]}"
+      },
+      "hops": [
+        {
+          "method": "POST",
+          "path": "/responses",
+          "headers": {
+            "accept": [
+              "text/event-stream"
+            ],
+            "accept-encoding": [
+              "gzip"
+            ],
+            "authorization": [
+              "Bearer at-FAKE"
+            ],
+            "chatgpt-account-id": [
+              "acct-FAKE-1"
+            ],
+            "connection": [
+              "Keep-Alive"
+            ],
+            "content-length": [
+              "108"
+            ],
+            "content-type": [
+              "application/json"
+            ],
+            "originator": [
+              "codex-tui"
+            ],
+            "user-agent": [
+              "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
+            ],
+            "x-codex-routing-hint": [
+              "model=gpt-5.4"
+            ]
+          },
+          "body": "{\"model\":\"gpt-5.4\",\"input\":[],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}]}"
+        },
+        {
+          "method": "POST",
+          "path": "/moved/responses",
+          "headers": {
+            "accept": [
+              "text/event-stream"
+            ],
+            "accept-encoding": [
+              "gzip"
+            ],
+            "authorization": [
+              "Bearer at-FAKE"
+            ],
+            "chatgpt-account-id": [
+              "acct-FAKE-1"
+            ],
+            "connection": [
+              "Keep-Alive"
+            ],
+            "content-length": [
+              "108"
+            ],
+            "content-type": [
+              "application/json"
+            ],
+            "originator": [
+              "codex-tui"
+            ],
+            "referer": [
+              "http://127.0.0.1:35201/responses"
+            ],
+            "user-agent": [
+              "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
+            ],
+            "x-codex-routing-hint": [
+              "model=gpt-5.4"
+            ]
+          },
+          "body": "{\"model\":\"gpt-5.4\",\"input\":[],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}]}"
+        }
+      ],
+      "output": {
+        "chunks": [
+          "event: response.created",
+          "data: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_1\",\"status\":\"in_progress\"}}",
+          "",
+          "event: response.output_item.done",
+          "data: {\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"id\":\"msg_1\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"Hi\"}]}}",
+          "",
+          "event: response.completed",
+          "data: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_1\",\"status\":\"completed\",\"output\":[{\"id\":\"msg_1\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"Hi\"}]}],\"usage\":{\"input_tokens\":3,\"output_tokens\":1}}}"
+        ]
+      }
+    },
+    {
+      "name": "apikey_nonstream_redirect_302",
+      "config": "{}\n",
+      "attributes": {
+        "api_key": "sk-FAKE"
+      },
+      "metadata": {},
+      "source": "codex",
+      "headers": {},
+      "model": "gpt-5.4",
+      "payload": "{\"model\":\"gpt-5.4\",\"input\":[]}",
+      "stream": false,
+      "upstream_status": 200,
+      "upstream_type": "text/event-stream",
+      "upstream_body": "event: response.created\ndata: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_1\",\"status\":\"in_progress\"}}\n\nevent: response.output_item.done\ndata:{\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"id\":\"msg_1\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"Hi\"}]}}\n\nevent: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_1\",\"status\":\"completed\",\"output\":[],\"usage\":{\"input_tokens\":3,\"output_tokens\":1}}}\n\n",
+      "redirect": 302,
+      "upstream": {
+        "method": "GET",
+        "path": "/moved/responses",
+        "headers": {
+          "accept": [
+            "text/event-stream"
+          ],
+          "accept-encoding": [
+            "gzip"
+          ],
+          "authorization": [
+            "Bearer sk-FAKE"
+          ],
+          "connection": [
+            "Keep-Alive"
+          ],
+          "originator": [
+            "codex-tui"
+          ],
+          "referer": [
+            "http://127.0.0.1:35345/responses"
+          ],
+          "user-agent": [
+            "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
+          ]
+        },
+        "body": ""
+      },
+      "hops": [
+        {
+          "method": "POST",
+          "path": "/responses",
+          "headers": {
+            "accept": [
+              "text/event-stream"
+            ],
+            "accept-encoding": [
+              "gzip"
+            ],
+            "authorization": [
+              "Bearer sk-FAKE"
+            ],
+            "connection": [
+              "Keep-Alive"
+            ],
+            "content-length": [
+              "122"
+            ],
+            "content-type": [
+              "application/json"
+            ],
+            "originator": [
+              "codex-tui"
+            ],
+            "user-agent": [
+              "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
+            ]
+          },
+          "body": "{\"model\":\"gpt-5.4\",\"input\":[],\"stream\":true,\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}]}"
+        },
+        {
+          "method": "GET",
+          "path": "/moved/responses",
+          "headers": {
+            "accept": [
+              "text/event-stream"
+            ],
+            "accept-encoding": [
+              "gzip"
+            ],
+            "authorization": [
+              "Bearer sk-FAKE"
+            ],
+            "connection": [
+              "Keep-Alive"
+            ],
+            "originator": [
+              "codex-tui"
+            ],
+            "referer": [
+              "http://127.0.0.1:35345/responses"
+            ],
+            "user-agent": [
+              "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
+            ]
+          },
+          "body": ""
+        }
+      ],
+      "output": {
+        "payload": "{\"type\":\"response.completed\",\"response\":{\"id\":\"resp_1\",\"status\":\"completed\",\"output\":[{\"id\":\"msg_1\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"Hi\"}]}],\"usage\":{\"input_tokens\":3,\"output_tokens\":1}}}"
       }
     },
     {

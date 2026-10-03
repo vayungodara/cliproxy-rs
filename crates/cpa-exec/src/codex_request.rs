@@ -1065,8 +1065,6 @@ pub(crate) fn http_headers(
     apply_identity(&mut h, view, settings, client);
     routing_hint(&mut h, view, client, body, model);
     model_header_overrides(&mut h, model);
-    // Go's transport adds this and decodes the body transparently.
-    set(&mut h, "accept-encoding", "gzip");
     h
 }
 

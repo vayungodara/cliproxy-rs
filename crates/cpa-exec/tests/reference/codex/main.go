@@ -397,9 +397,13 @@ type execCase struct {
 	UpstreamStatus int               `json:"upstream_status"`
 	UpstreamType   string            `json:"upstream_type"`
 	UpstreamBody   string            `json:"upstream_body"`
+	// Redirect answers the first request with this status and Location /moved<path>;
+	// the reply above is served there.
+	Redirect int `json:"redirect,omitempty"`
 	// Filled by the generator.
-	Upstream *captured `json:"upstream,omitempty"`
-	Output   any       `json:"output"`
+	Upstream *captured  `json:"upstream,omitempty"`
+	Hops     []captured `json:"hops,omitempty"`
+	Output   any        `json:"output"`
 }
 
 const sseOK = "event: response.created\n" +
@@ -478,6 +482,12 @@ func executorCases() []execCase {
 			Source: "codex", Headers: map[string]string{}, Model: "gpt-5.4", Payload: `{"model":"gpt-5.4","input":[]}`, Stream: true,
 			UpstreamStatus: 200, UpstreamType: "text/event-stream",
 			UpstreamBody: "data: {\"type\":\"response.created\",\"response\":{\"id\":\"r\"}}\n\ndata: {\"type\":\"response.failed\",\"response\":{\"error\":{\"type\":\"service_unavailable_error\",\"code\":\"server_is_overloaded\",\"message\":\"busy\"}}}\n\n"},
+		{Name: "oauth_stream_redirect_307", Attributes: map[string]string{}, Metadata: oauthMeta, Source: "codex", Headers: map[string]string{},
+			Model: "gpt-5.4", Payload: `{"model":"gpt-5.4","input":[]}`, Stream: true, Redirect: 307,
+			UpstreamStatus: 200, UpstreamType: "text/event-stream", UpstreamBody: sseOK},
+		{Name: "apikey_nonstream_redirect_302", Attributes: map[string]string{"api_key": "sk-FAKE"}, Metadata: map[string]any{}, Source: "codex",
+			Headers: map[string]string{}, Model: "gpt-5.4", Payload: `{"model":"gpt-5.4","input":[]}`, Redirect: 302,
+			UpstreamStatus: 200, UpstreamType: "text/event-stream", UpstreamBody: sseOK},
 		{Name: "oauth_bootstrap_holds_then_releases", Config: "codex:\n  stream-bootstrap-buffering: true\n", Attributes: map[string]string{}, Metadata: oauthMeta,
 			Source: "codex", Headers: map[string]string{}, Model: "gpt-5.4", Payload: `{"model":"gpt-5.4","input":[]}`, Stream: true,
 			UpstreamStatus: 200, UpstreamType: "text/event-stream",
@@ -489,9 +499,18 @@ func runExecutor(c *execCase) {
 	var got captured
 	var mu sync.Mutex
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hop := capture(r)
 		mu.Lock()
-		got = capture(r)
+		got = hop
+		if c.Redirect != 0 {
+			c.Hops = append(c.Hops, hop)
+		}
 		mu.Unlock()
+		if c.Redirect != 0 && !strings.HasPrefix(r.URL.Path, "/moved") {
+			w.Header().Set("Location", "/moved"+r.URL.Path)
+			w.WriteHeader(c.Redirect)
+			return
+		}
 		w.Header().Set("Content-Type", c.UpstreamType)
 		w.Header().Set("X-Codex-Primary-Used-Percent", "42")
 		w.WriteHeader(c.UpstreamStatus)

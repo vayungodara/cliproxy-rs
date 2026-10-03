@@ -106,6 +106,12 @@ fn assert_same_upstream(name: &str, rust: &Captured, go: &Value) {
         }
         let expected = values[0].as_str().unwrap();
         let actual = rust.header(name_);
+        if name_ == "referer" {
+            // The previous hop's URL, on each run's own mock port.
+            let path = |u: &str| url::Url::parse(u).map(|u| u.path().to_owned()).unwrap_or_default();
+            assert_eq!(path(actual), path(expected), "{name}: header {name_}");
+            continue;
+        }
         if name_ == "session_id"
             && go_headers.contains_key("session_id")
             && !go["body"].as_str().unwrap().contains(expected)
@@ -234,11 +240,35 @@ async fn executor_matches_go_on_every_fixture_case() {
         } else {
             "/responses"
         };
-        mock.script(path, vec![reply(case)]);
+        if let Some(redirect) = case["redirect"].as_u64() {
+            let moved = format!("/moved{path}");
+            mock.script(
+                path,
+                vec![Reply {
+                    status: redirect as u16,
+                    headers: vec![("location".into(), moved.clone())],
+                    body: String::new(),
+                }],
+            );
+            mock.script(&moved, vec![reply(case)]);
+        } else {
+            mock.script(path, vec![reply(case)]);
+        }
         let (result, items) = run(&executor, case, &mock).await;
         let captured = mock.take();
-        assert_eq!(captured.len(), 1, "{name}: one upstream request");
-        assert_same_upstream(name, &captured[0], &case["upstream"]);
+        match case["hops"].as_array() {
+            Some(hops) => {
+                assert_eq!(captured.len(), hops.len(), "{name}: upstream requests");
+                for (rust, go) in captured.iter().zip(hops) {
+                    assert_eq!(rust.method, go["method"].as_str().unwrap(), "{name}: method");
+                    assert_same_upstream(name, rust, go);
+                }
+            }
+            None => {
+                assert_eq!(captured.len(), 1, "{name}: one upstream request");
+                assert_same_upstream(name, &captured[0], &case["upstream"]);
+            }
+        }
         let output = &case["output"];
         if let Some(go_error) = output.get("error") {
             assert_same_error(
