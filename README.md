@@ -20,7 +20,7 @@ Works today:
 - Account sign-in from the command line or the dashboard: Claude, Codex (browser or device code), Kimi, Meta, xAI and Devin.
 - Routing: round-robin, weighted and fill-first selection, retries, cooldowns, session affinity, model aliases and exclusions, payload rules, per-credential and global proxies.
 - The v8 Management API for configuration, credentials, OAuth sign-in, quota checks (`/requests/api-call`), usage counters, logs and model catalogs, plus the dashboard at `/management.html`.
-- HTTPS on the main port (`server.tls`), logging in Go's format to stdout or a rotating `main.log` with Go's per-request access log lines, LAN discovery (`-discover` and the `server.discovery` advertisement), `.env` loading, and remote model catalog updates as in Go (`-local-model` turns them off).
+- HTTPS on the main port (`server.tls`), logging in Go's format to stdout or a rotating `main.log` with Go's per-request access log lines, request log files, LAN discovery (`-discover` and the `server.discovery` advertisement), `.env` loading, and remote model catalog updates as in Go (`-local-model` turns them off).
 - Plugins (`plugins`, Linux and macOS), with plugin-defined routes and the Management API routes to list, enable, configure and delete them. The plugin store and plugin quotas are not available yet.
 - Home mode (`-home-jwt`), the `PGSTORE_*`, `OBJECTSTORE_*` and `GITSTORE_*` storage backends, and the Redis-protocol usage subscriber on the main port.
 - Config and credential files are watched and reloaded without a restart. A plaintext management key is hashed on first start, as Go does.
@@ -29,7 +29,7 @@ Not yet supported (at the time of writing):
 
 - Providers: Antigravity and AI Studio. Vertex service accounts can be imported from the command line, not yet from the dashboard.
 - The WebRTC media relay for live calls is an optional build feature and is not in the release binaries.
-- Request log files, the `pprof` listener and the terminal UI (`-tui`).
+- The upstream request and response sections of request log files, the `pprof` listener and the terminal UI (`-tui`).
 
 The dashboard says when the server lacks an endpoint instead of failing: actions it cannot do are disabled and named, and pages it cannot load say which route is missing.
 

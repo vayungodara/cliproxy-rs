@@ -24,7 +24,7 @@ It started from a post on X by @maria_rcks on 2 October 2026: "why hasnt anyone 
 - Realtime and live voice through a Codex account (`/v1/realtime`, `/v1/live`, WebRTC call setup).
 - Account sign-in from the command line or the dashboard for Claude, Codex (browser or device code), Kimi, Meta, xAI and Devin.
 - Routing: round-robin, weighted and fill-first selection, retries, cooldowns, session affinity, model aliases and exclusions, payload rules, per-account proxies.
-- The v8 Management API, HTTPS on the main port, config and credential hot reload, remote model catalog updates, LAN discovery, logging in Go's format with per-request access log lines.
+- The v8 Management API, HTTPS on the main port, config and credential hot reload, remote model catalog updates, LAN discovery, logging in Go's format with per-request access log lines and request log files.
 - Plugins on Linux and macOS, Home mode, and the Postgres, object-storage and git storage backends.
 
 ## The dashboard
@@ -49,7 +49,7 @@ From [BENCHMARKS.md](BENCHMARKS.md): commit `d068002` against the Go v8.0.10 rel
 
 - Providers not supported yet: Antigravity and AI Studio.
 - The WebRTC media relay for live calls is an optional build feature, not in the release binaries.
-- No request log files, no terminal UI, no pprof.
+- Request log files lack the upstream request and response sections. No terminal UI, no pprof.
 - Codex CLI has not been tested end to end against cliproxy-rs.
 - The Windows build comes from the release workflow and has not been run by hand. The macOS builds are not signed or notarized.
 - [MIGRATING-FROM-GO.md](MIGRATING-FROM-GO.md) and [PARITY-STATUS.md](PARITY-STATUS.md) list every difference.

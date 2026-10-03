@@ -35,14 +35,13 @@ cliproxy-rs accepts every CLIProxyAPI flag, in Go's single-dash spelling (`-conf
 
 ## Not available yet
 
-These settings are accepted in `config.yaml` and kept on save, but cliproxy-rs does not act on them yet:
+These settings are accepted in `config.yaml` and kept on save, but cliproxy-rs does not act on them yet, or only in part:
 
 | Go setting or feature | In cliproxy-rs |
 | --- | --- |
-| `observability.logs.request-log` and error request logs | The application log works (stdout, or `main.log` with `logging-to-file`, rotation and the size limit), and so do the log routes of the Management API, but request log files and per-request error log files are not written. |
+| `observability.logs.request-log` and error request logs | Request log files and per-request error logs are written as in Go, with the client's request (headers masked) and the response it received, but without Go's `=== API REQUEST ===` and `=== API RESPONSE ===` sections: the provider executors do not report the upstream exchange to the log yet. |
 | `pprof` | No profiling endpoint. |
 | `management.panel-github-repository`, `management.disable-auto-update-panel`, `MANAGEMENT_STATIC_PATH` | The dashboard is built into the binary and never downloaded or read from disk. `management.disable-control-panel` is honoured. |
-| The Redis-protocol (RESP) usage subscriber in Home mode | Go answers `ERR redis usage output disabled in home mode`; cliproxy-rs closes the connection. Outside Home mode it works as in Go. |
 | Config reload log summaries | The config is reloaded, but the changes are not summarised in the log. |
 
 `.env` in the working directory is loaded as in Go, and the `PGSTORE_*`, `OBJECTSTORE_*` and `GITSTORE_*` storage backends and `WRITABLE_PATH` work as in Go. `RUST_LOG`, when set, overrides the log level from `debug`.
