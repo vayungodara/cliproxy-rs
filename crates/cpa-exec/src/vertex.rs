@@ -389,15 +389,9 @@ impl VertexExecutor {
     }
 
     /// The translated body through Go's Vertex request edits, before the boundary turns.
-    fn prepared_body(
-        &self,
-        credential: &Credential,
-        req: &ExecRequest,
-        cfg: &Config,
-        base_model: &str,
-    ) -> Result<Vec<u8>, ExecError> {
+    fn prepared_body(&self, req: &ExecRequest, cfg: &Config, base_model: &str) -> Result<Vec<u8>, ExecError> {
         let (from, to) = (req.source_format, Format::Gemini);
-        let resolved = g::resolved(credential, cfg, req);
+        let resolved = g::resolved(req);
         let original = g::translate(req, to, base_model, g::original_request(req), req.stream, false)?;
         let body = g::translate(req, to, base_model, &req.body, req.stream, false)?;
         let mut body = g::apply_thinking(req, body, from, to, PROVIDER, resolved.as_ref())?;
@@ -425,7 +419,7 @@ impl VertexExecutor {
         let mut body = if imagen_wire {
             imagen_request(&req.body)?
         } else {
-            self.prepared_body(credential, req, cfg, &base_model)?
+            self.prepared_body(req, cfg, &base_model)?
         };
         body = payload::ensure_leading_user_content(body, "contents");
         body = payload::ensure_trailing_user_content(body, "contents");
@@ -480,7 +474,7 @@ impl VertexExecutor {
         let auth = auth_for(credential)?;
         let base_model = parse_suffix(&req.model).model_name;
         let (from, to) = (req.source_format, Format::Gemini);
-        let resolved = g::resolved(credential, cfg, req);
+        let resolved = g::resolved(req);
         let body = g::translate(req, to, &base_model, &req.body, false, false)?;
         let mut body = g::apply_thinking(req, body, from, to, PROVIDER, resolved.as_ref())?;
         body = payload::fix_image_aspect_ratio(&base_model, body);

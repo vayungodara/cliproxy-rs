@@ -79,6 +79,8 @@ type scenario struct {
 	Alt            string            `json:"alt,omitempty"`
 	Headers        map[string]string `json:"headers,omitempty"`
 	Session        string            `json:"session,omitempty"`
+	// Resolved is the model info the conductor binds (ExecRequest.resolved_model).
+	Resolved *resolvedRecord `json:"resolved,omitempty"`
 	// Via is "plain" for the capture server at UPSTREAM, else the TLS proxy.
 	Via string `json:"via,omitempty"`
 	// Replies answer the upstream connections in order (token exchange first).
@@ -258,6 +260,23 @@ func testCA() (tlsMaterial, *tls.Config) {
 	return material, &tls.Config{Certificates: []tls.Certificate{pair}, NextProtos: []string{"http/1.1"}}
 }
 
+// resolvedRecord is a bound *registry.ModelInfo: its JSON plus the json:"-" fields
+// executors read.
+type resolvedRecord struct {
+	Info                       json.RawMessage `json:"info"`
+	IsCompat                   bool            `json:"is_compat,omitempty"`
+	UserDefined                bool            `json:"user_defined,omitempty"`
+	SupportConfigurationUpdate bool            `json:"support_configuration_update,omitempty"`
+}
+
+func recordResolved(info *registry.ModelInfo) *resolvedRecord {
+	raw, err := json.Marshal(info)
+	if err != nil {
+		panic(err)
+	}
+	return &resolvedRecord{Info: raw, IsCompat: info.IsCompat, UserDefined: info.UserDefined, SupportConfigurationUpdate: info.SupportConfigurationUpdate}
+}
+
 func statusOf(err error) *errOut {
 	out := &errOut{Message: err.Error()}
 	if s, ok := err.(interface{ StatusCode() int }); ok {
@@ -425,6 +444,7 @@ func run(s *scenario, plain, proxy *capture, keys map[string]string) {
 		}
 		if info := resolvedModelInfo(cfg.VertexCompatAPIKey[index].Models, requested, s.Model); info != nil {
 			req.Metadata["cliproxy.resolved_api_key_model_info"] = info
+			s.Resolved = recordResolved(info)
 		}
 	}
 	// The conductor binds the canonical session (see the gemini generator).

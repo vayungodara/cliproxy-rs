@@ -1,6 +1,5 @@
 //! Request-body edits the Gemini-family executors apply after translation
-//! (gemini_executor.go, helps/gemini_content_turns.go, helps/payload_mutations.go), and
-//! the API-key model capabilities Go binds to an execution attempt.
+//! (gemini_executor.go, helps/gemini_content_turns.go, helps/payload_mutations.go).
 //!
 //! Every edit is byte-level through `cpa_common::json`, so key order, escaping and
 //! malformed input behave like Go's gjson/sjson.
@@ -8,13 +7,7 @@
 use std::io::Read;
 use std::sync::OnceLock;
 
-use cpa_common::gostr::GoStr;
 use cpa_common::json::{self as gj, Kind};
-use cpa_common::thinking::{ModelCaps, parse_suffix};
-use cpa_core::config::Config;
-use cpa_core::credential::Credential;
-use cpa_core::registry::ThinkingSupport;
-use cpa_core::registry::dynamic;
 
 const EMPTY_USER_TURN: &[u8] = br#"{"role":"user","parts":[{"text":""}]}"#;
 
@@ -228,155 +221,4 @@ pub(crate) fn sanitize_interactions_input_ids(mut body: Vec<u8>) -> Vec<u8> {
         }
     }
     body
-}
-
-/// The model capabilities Go binds to an API-key attempt (`ResolvedModelInfo`): the
-/// configured model routed by the client's model and selected upstream model.
-pub(crate) struct Resolved {
-    pub caps: ModelCaps,
-    pub is_compat: bool,
-}
-
-/// `attachResolvedAPIKeyModelInfo` for Gemini-family API keys: `family` is the config
-/// section under `api-keys` (`gemini`, `interactions`) and `model_type` Go's model type.
-// ponytail: Go binds this in the conductor for every API-key provider. The runtime does
-// not yet carry it on ExecRequest (owner: server thread), so the Google executors resolve
-// it here, with Go's entry resolution (cpa_core resolve_api_key_entry). Replace with the
-// ExecRequest field when it lands.
-pub(crate) fn resolved_model(
-    credential: &Credential,
-    cfg: &Config,
-    family: &str,
-    model_type: &str,
-    route_model: &str,
-    upstream_model: &str,
-) -> Option<Resolved> {
-    let attr = |k: &str| credential.attributes.get(k).map(|v| v.trim()).unwrap_or_default();
-    // Auth.AuthKind: a recognized attribute, then a recognized metadata field, then a
-    // non-empty API key attribute.
-    let kind = |k: &str| match k.trim().go_lower().as_str() {
-        "apikey" | "api_key" | "api-key" => Some(true),
-        "oauth" | "oauth2" => Some(false),
-        _ => None,
-    };
-    let api_key_kind = kind(attr("auth_kind"))
-        .or_else(|| credential.str("auth_kind").and_then(kind))
-        .unwrap_or(!attr("api_key").is_empty());
-    if !api_key_kind {
-        return None;
-    }
-    let entry = cpa_core::config::credentials::resolve_api_key_entry(cfg, family, credential)?;
-    let models: Vec<ConfiguredModel> = entry
-        .models
-        .iter()
-        .filter_map(|m| serde_json::from_value::<dynamic::ConfigModel>(m.clone()).ok())
-        .filter_map(|m| {
-            // addConfiguredModelCapability: a missing name is the alias and vice versa,
-            // before routes and capabilities are built.
-            let (name, alias) = (m.name.trim().to_owned(), m.alias.trim().to_owned());
-            let name = if name.is_empty() { alias.clone() } else { name };
-            let alias = if alias.is_empty() { name.clone() } else { alias };
-            (!name.is_empty()).then_some(ConfiguredModel {
-                name,
-                alias,
-                is_compat: m.is_compat,
-                thinking: m.thinking,
-            })
-        })
-        .collect();
-    let route_model = dynamic::strip_prefix(route_model.trim(), credential);
-    let model = lookup_route(&models, route_model, upstream_model)?;
-    Some(Resolved {
-        caps: resolve_model_info(&model.name, model_type, model.thinking.clone()),
-        is_compat: model.is_compat,
-    })
-}
-
-/// One `models[]` entry of a config API key, name and alias filled from each other.
-struct ConfiguredModel {
-    name: String,
-    alias: String,
-    is_compat: bool,
-    thinking: Option<ThinkingSupport>,
-}
-
-/// `lookupAPIKeyModelCapability` over `addConfiguredModelCapability` routes: the route
-/// keys are the alias and name with and without suffix; the upstream name must match
-/// exactly, or a suffix-free configured name must match the selection's base.
-fn lookup_route<'a>(models: &'a [ConfiguredModel], route_model: &str, upstream: &str) -> Option<&'a ConfiguredModel> {
-    let candidates = |model: &str| -> Vec<String> {
-        let model = model.trim();
-        if model.is_empty() {
-            return vec![];
-        }
-        let base = parse_suffix(model).model_name;
-        let base = if base.is_empty() { model.to_owned() } else { base };
-        if base != model {
-            vec![model.to_owned(), base]
-        } else {
-            vec![model.to_owned()]
-        }
-    };
-    // Route keys per model, in Go's insertion order (alias first, then name).
-    let mut routes: Vec<(String, usize, String)> = Vec::new();
-    for (index, m) in models.iter().enumerate() {
-        let name = &m.name;
-        let mut seen: Vec<String> = Vec::new();
-        for route in [&m.alias, name] {
-            for candidate in candidates(route) {
-                let key = candidate.trim().go_lower();
-                if key.is_empty() || seen.contains(&key) {
-                    continue;
-                }
-                seen.push(key.clone());
-                let duplicate = routes
-                    .iter()
-                    .any(|(k, _, upstream)| *k == key && upstream.go_eq_fold(name));
-                if !duplicate {
-                    routes.push((key, index, name.clone()));
-                }
-            }
-        }
-    }
-    let mut matched: Vec<(usize, &str)> = Vec::new();
-    for candidate in candidates(route_model) {
-        let key = candidate.trim().go_lower();
-        matched.extend(
-            routes
-                .iter()
-                .filter(|(k, ..)| *k == key)
-                .map(|(_, index, upstream)| (*index, upstream.as_str())),
-        );
-    }
-    let selected = upstream.trim();
-    if let Some((index, _)) = matched.iter().find(|(_, u)| u.trim().go_eq_fold(selected)) {
-        return models.get(*index);
-    }
-    let selected_base = parse_suffix(selected).model_name;
-    matched
-        .iter()
-        .find(|(_, u)| {
-            let configured = parse_suffix(u.trim());
-            !configured.has_suffix && configured.model_name.trim().go_eq_fold(selected_base.trim())
-        })
-        .and_then(|(index, _)| models.get(*index))
-}
-
-/// `modelconfig.ResolveModelInfo`: the static definition of the configured name's base,
-/// with the configured name as ID, the provider's model type, configured thinking when
-/// set (normalized), and never user-defined.
-fn resolve_model_info(name: &str, model_type: &str, thinking: Option<ThinkingSupport>) -> ModelCaps {
-    let name = name.trim();
-    let base = parse_suffix(name).model_name;
-    let mut caps = cpa_core::registry::pinned()
-        .lookup(base.trim())
-        .map(ModelCaps::from)
-        .unwrap_or_default();
-    caps.id = name.to_owned();
-    caps.kind = model_type.trim().to_owned();
-    if let Some(support) = thinking {
-        caps.thinking = Some(dynamic::normalize_thinking(support));
-    }
-    caps.user_defined = false;
-    caps
 }

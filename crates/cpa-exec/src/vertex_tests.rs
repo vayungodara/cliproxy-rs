@@ -179,6 +179,7 @@ fn request(s: &Value) -> ExecRequest {
         execution_session: None,
         derived_session: None,
         request_path: String::new(),
+        resolved_model: crate::gemini::tests::resolved_model(s),
         headers,
         caller: Caller {
             principal: "fake-client-key".into(),

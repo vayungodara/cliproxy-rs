@@ -16,6 +16,41 @@
         "X-Goog-Api-Key": "client-key"
       },
       "session": "session:sess-1",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "gemini",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
       "upstream": {
         "status": 200,
         "headers": [
@@ -44,6 +79,41 @@
       "op": "execute",
       "alt": "json",
       "session": "derived:ctx:v1:39e4011826e21361d0429d85036f493dd10bf10db89b9f0c5d315b6486284c41",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "gemini",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
       "upstream": {
         "status": 200,
         "headers": [
@@ -71,6 +141,41 @@
       "source": "gemini",
       "op": "execute",
       "session": "derived:ctx:v1:39e4011826e21361d0429d85036f493dd10bf10db89b9f0c5d315b6486284c41",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "gemini",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
       "needs": [
         "pair:gemini-\u003egemini"
       ],
@@ -101,6 +206,41 @@
       "source": "gemini",
       "op": "execute",
       "session": "derived:ctx:v1:47d2dc35679bcfc314333d8af9a38fc1dc13f5e57163c895584b848c5fcbe929",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "gemini",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
       "upstream": {
         "status": 200,
         "headers": [
@@ -128,6 +268,41 @@
       "source": "gemini",
       "op": "execute",
       "session": "derived:ctx:v1:47d2dc35679bcfc314333d8af9a38fc1dc13f5e57163c895584b848c5fcbe929",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "gemini",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
       "upstream": {
         "status": 200,
         "headers": [
@@ -155,6 +330,41 @@
       "source": "gemini",
       "op": "execute",
       "session": "derived:ctx:v1:39e4011826e21361d0429d85036f493dd10bf10db89b9f0c5d315b6486284c41",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "gemini",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
       "upstream": {
         "status": 200,
         "headers": [
@@ -209,6 +419,41 @@
       "source": "gemini",
       "op": "execute",
       "session": "derived:ctx:v1:39e4011826e21361d0429d85036f493dd10bf10db89b9f0c5d315b6486284c41",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "gemini",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
       "upstream": {
         "status": 200,
         "headers": [
@@ -344,6 +589,41 @@
       "source": "gemini",
       "op": "execute",
       "session": "derived:ctx:v1:39e4011826e21361d0429d85036f493dd10bf10db89b9f0c5d315b6486284c41",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "gemini",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
       "upstream": {
         "status": 200,
         "headers": [
@@ -371,6 +651,41 @@
       "source": "gemini",
       "op": "execute",
       "session": "derived:ctx:v1:39e4011826e21361d0429d85036f493dd10bf10db89b9f0c5d315b6486284c41",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "gemini",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
       "upstream": {
         "status": 200,
         "headers": [
@@ -425,6 +740,42 @@
       "source": "gemini",
       "op": "execute",
       "session": "derived:ctx:v1:39e4011826e21361d0429d85036f493dd10bf10db89b9f0c5d315b6486284c41",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-pro",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "gemini",
+          "display_name": "Gemini 2.5 Pro",
+          "name": "models/gemini-2.5-pro",
+          "version": "2.5",
+          "description": "Stable release (June 17th, 2025) of Gemini 2.5 Pro",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "levels": [
+              "low",
+              "high"
+            ]
+          }
+        }
+      },
       "upstream": {
         "status": 200,
         "headers": [
@@ -452,6 +803,41 @@
       "source": "gemini",
       "op": "execute",
       "session": "derived:ctx:v1:39e4011826e21361d0429d85036f493dd10bf10db89b9f0c5d315b6486284c41",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "gemini",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
       "upstream": {
         "status": 200,
         "headers": [
@@ -481,6 +867,41 @@
       "source": "gemini",
       "op": "execute",
       "session": "derived:ctx:v1:39e4011826e21361d0429d85036f493dd10bf10db89b9f0c5d315b6486284c41",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "gemini",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
       "upstream": {
         "status": 200,
         "headers": [
@@ -509,6 +930,42 @@
       "source": "gemini",
       "op": "execute",
       "session": "derived:ctx:v1:39e4011826e21361d0429d85036f493dd10bf10db89b9f0c5d315b6486284c41",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-pro",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "gemini",
+          "display_name": "Gemini 2.5 Pro",
+          "name": "models/gemini-2.5-pro",
+          "version": "2.5",
+          "description": "Stable release (June 17th, 2025) of Gemini 2.5 Pro",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "levels": [
+              "low",
+              "high"
+            ]
+          }
+        }
+      },
       "upstream": {
         "status": 200,
         "headers": [
@@ -539,6 +996,42 @@
       "source": "gemini",
       "op": "execute",
       "session": "derived:ctx:v1:39e4011826e21361d0429d85036f493dd10bf10db89b9f0c5d315b6486284c41",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-pro",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "gemini",
+          "display_name": "Gemini 2.5 Pro",
+          "name": "models/gemini-2.5-pro",
+          "version": "2.5",
+          "description": "Stable release (June 17th, 2025) of Gemini 2.5 Pro",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "levels": [
+              "low",
+              "high"
+            ]
+          }
+        }
+      },
       "upstream": {
         "status": 200,
         "headers": [
@@ -566,6 +1059,41 @@
       "source": "gemini",
       "op": "execute",
       "session": "derived:ctx:v1:39e4011826e21361d0429d85036f493dd10bf10db89b9f0c5d315b6486284c41",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "gemini",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
       "upstream": {
         "status": 429,
         "headers": [
@@ -596,6 +1124,41 @@
       "source": "gemini",
       "op": "execute",
       "session": "derived:ctx:v1:39e4011826e21361d0429d85036f493dd10bf10db89b9f0c5d315b6486284c41",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "gemini",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
       "upstream": {
         "status": 500,
         "headers": [
@@ -623,6 +1186,41 @@
       "source": "gemini",
       "op": "execute",
       "session": "derived:ctx:v1:39e4011826e21361d0429d85036f493dd10bf10db89b9f0c5d315b6486284c41",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "gemini",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
       "upstream": {
         "status": 200,
         "headers": [
@@ -651,6 +1249,41 @@
       "source": "gemini",
       "op": "execute",
       "session": "derived:ctx:v1:39e4011826e21361d0429d85036f493dd10bf10db89b9f0c5d315b6486284c41",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "gemini",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
       "upstream": {
         "status": 200,
         "body": ""
@@ -672,6 +1305,41 @@
       "op": "execute",
       "alt": "responses/compact",
       "session": "derived:ctx:v1:39e4011826e21361d0429d85036f493dd10bf10db89b9f0c5d315b6486284c41",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "gemini",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
       "error": {
         "status": 501,
         "message": "/responses/compact not supported"
@@ -745,6 +1413,41 @@
       "source": "gemini",
       "op": "execute",
       "session": "derived:ctx:v1:5a994aec810b22ed549cdf465721808441d7c7287a3fd693bfd52855be16a434",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "gemini",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
       "upstream": {
         "status": 200,
         "headers": [
@@ -843,6 +1546,41 @@
       "source": "gemini",
       "op": "execute",
       "session": "derived:ctx:v1:39e4011826e21361d0429d85036f493dd10bf10db89b9f0c5d315b6486284c41",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-pro",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "gemini",
+          "display_name": "Gemini 2.5 Pro",
+          "name": "models/gemini-2.5-pro",
+          "version": "2.5",
+          "description": "Stable release (June 17th, 2025) of Gemini 2.5 Pro",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "levels": [
+              "low"
+            ]
+          }
+        }
+      },
       "upstream": {
         "status": 200,
         "headers": [
@@ -876,6 +1614,41 @@
         "X-Session-Id": "client-session-1"
       },
       "session": "header:client-session-1",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "gemini",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
       "upstream": {
         "status": 200,
         "headers": [
@@ -904,6 +1677,41 @@
       "source": "gemini",
       "op": "execute",
       "session": "derived:ctx:v1:4ce120e7546ca63b366edbb97ff199e0e4148621de1a7ac8e5da9918ea7529ab",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "gemini",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
       "upstream": {
         "status": 200,
         "headers": [
@@ -931,6 +1739,41 @@
       "source": "gemini",
       "op": "stream",
       "session": "session:x",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "gemini",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
       "upstream": {
         "status": 200,
         "headers": [
@@ -958,6 +1801,41 @@
       "op": "stream",
       "alt": "json",
       "session": "derived:ctx:v1:39e4011826e21361d0429d85036f493dd10bf10db89b9f0c5d315b6486284c41",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "gemini",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
       "upstream": {
         "status": 200,
         "headers": [
@@ -982,6 +1860,41 @@
       "payload": "{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"model\",\"parts\":[{\"text\":\"earlier\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"a\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}",
       "source": "gemini",
       "op": "stream",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "gemini",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
       "upstream": {
         "status": 200,
         "headers": [
@@ -1008,6 +1921,41 @@
       "source": "gemini",
       "op": "stream",
       "session": "derived:ctx:v1:39e4011826e21361d0429d85036f493dd10bf10db89b9f0c5d315b6486284c41",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "gemini",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
       "upstream": {
         "status": 200,
         "headers": [
@@ -1035,6 +1983,41 @@
       "source": "gemini",
       "op": "stream",
       "session": "derived:ctx:v1:39e4011826e21361d0429d85036f493dd10bf10db89b9f0c5d315b6486284c41",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "gemini",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
       "upstream": {
         "status": 200,
         "headers": [
@@ -1061,6 +2044,41 @@
       "source": "gemini",
       "op": "stream",
       "session": "derived:ctx:v1:39e4011826e21361d0429d85036f493dd10bf10db89b9f0c5d315b6486284c41",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "gemini",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
       "upstream": {
         "status": 400,
         "headers": [
@@ -1087,6 +2105,41 @@
       "source": "gemini",
       "op": "stream",
       "session": "derived:ctx:v1:39e4011826e21361d0429d85036f493dd10bf10db89b9f0c5d315b6486284c41",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "gemini",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
       "upstream": {
         "status": 200,
         "headers": [
@@ -1112,6 +2165,41 @@
       "source": "gemini",
       "op": "stream",
       "session": "derived:ctx:v1:39e4011826e21361d0429d85036f493dd10bf10db89b9f0c5d315b6486284c41",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "gemini",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
       "upstream": {
         "status": 200,
         "headers": [
@@ -1139,6 +2227,41 @@
       "op": "stream",
       "alt": "responses/compact",
       "session": "derived:ctx:v1:39e4011826e21361d0429d85036f493dd10bf10db89b9f0c5d315b6486284c41",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "gemini",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
       "error": {
         "status": 501,
         "message": "/responses/compact not supported"
@@ -1155,6 +2278,41 @@
       "op": "count",
       "alt": "json",
       "session": "session:s",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "gemini",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
       "upstream": {
         "status": 200,
         "headers": [
@@ -1178,6 +2336,41 @@
       "source": "gemini",
       "op": "count",
       "session": "derived:ctx:v1:39e4011826e21361d0429d85036f493dd10bf10db89b9f0c5d315b6486284c41",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "gemini",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
       "upstream": {
         "status": 200,
         "body": "{\"totalTokens\":5,\"promptTokensDetails\":[{\"modality\":\"TEXT\",\"tokenCount\":5}]}"
@@ -1195,6 +2388,41 @@
       "source": "gemini",
       "op": "count",
       "session": "derived:ctx:v1:39e4011826e21361d0429d85036f493dd10bf10db89b9f0c5d315b6486284c41",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "gemini",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
       "needs": [
         "token_count:gemini-\u003egemini"
       ],
@@ -1215,6 +2443,41 @@
       "source": "gemini",
       "op": "count",
       "session": "derived:ctx:v1:39e4011826e21361d0429d85036f493dd10bf10db89b9f0c5d315b6486284c41",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "gemini",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
       "upstream": {
         "status": 403,
         "body": "{\"error\":{\"code\":403,\"message\":\"denied\"}}"
@@ -1235,6 +2498,41 @@
       "source": "openai",
       "op": "execute",
       "session": "derived:ctx:v1:65aa2f7a82e6dfd250e5736f34b047a1f9e07556a5370e5d40e7fb5795100966",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "gemini",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
       "needs": [
         "pair:openai-\u003egemini"
       ],
@@ -1265,6 +2563,41 @@
       "source": "openai",
       "op": "stream",
       "session": "derived:ctx:v1:1211c3ff60af63a561f0413f04b6c10dc806fc8a96c651902c73d8817f34b327",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "gemini",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
       "needs": [
         "pair:openai-\u003egemini"
       ],
@@ -1294,6 +2627,41 @@
       "source": "claude",
       "op": "stream",
       "session": "derived:ctx:v1:0b095303599c06739ee19f3ceee889b166c2565ed1d62566e209347748754162",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "gemini",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
       "needs": [
         "pair:claude-\u003egemini"
       ],
@@ -1325,6 +2693,42 @@
       "source": "claude",
       "op": "execute",
       "session": "derived:ctx:v1:8ed3d00f709e2db65d288213eec043173a48ad204192530b3fbef5d5729599c8",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "gemini",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        },
+        "is_compat": true
+      },
       "needs": [
         "pair:claude-\u003egemini"
       ],
@@ -1355,6 +2759,41 @@
       "source": "claude",
       "op": "count",
       "session": "derived:ctx:v1:8ed3d00f709e2db65d288213eec043173a48ad204192530b3fbef5d5729599c8",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "gemini",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
       "needs": [
         "pair:claude-\u003egemini",
         "token_count:claude-\u003egemini"
@@ -1376,6 +2815,41 @@
       "source": "openai-response",
       "op": "stream",
       "session": "derived:ctx:v1:a7c6eb144606fcd71939d5a8db03a966b2429b779fb62683e8144e1887f311ec",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "gemini",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
       "needs": [
         "pair:openai-response-\u003egemini"
       ],
@@ -1413,6 +2887,41 @@
       "source": "interactions",
       "op": "stream",
       "session": "derived:ctx:v1:50f40ff090573d922a41698341526bdc93c6d4c5056809c8ca8bc16327d9ddb7",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "gemini",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
       "needs": [
         "pair:interactions-\u003egemini"
       ],
@@ -1428,13 +2937,13 @@
       },
       "request": "POST /v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 81\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-gemini-1\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}]}",
       "chunks": [
-        "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1791012160595271007\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-2.5-flash\"},\"event_type\":\"interaction.created\"}\n\n",
-        "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1791012160595271007\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
+        "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1791016446573408314\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-2.5-flash\"},\"event_type\":\"interaction.created\"}\n\n",
+        "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1791016446573408314\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
         "event: step.start\ndata: {\"index\":0,\"step\":{\"type\":\"model_output\"},\"event_type\":\"step.start\"}\n\n",
         "event: step.delta\ndata: {\"index\":0,\"delta\":{\"text\":\"he\",\"type\":\"text\"},\"event_type\":\"step.delta\"}\n\n",
         "event: step.delta\ndata: {\"index\":0,\"delta\":{\"text\":\"llo\",\"type\":\"text\"},\"event_type\":\"step.delta\"}\n\n",
         "event: step.stop\ndata: {\"index\":0,\"event_type\":\"step.stop\"}\n\n",
-        "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"interaction_1791012160595271007\",\"status\":\"completed\",\"usage\":{\"total_tokens\":5,\"total_input_tokens\":3,\"input_tokens_by_modality\":[{\"modality\":\"text\",\"tokens\":3}],\"total_cached_tokens\":0,\"total_output_tokens\":2,\"total_tool_use_tokens\":0,\"total_thought_tokens\":0},\"created\":\"2026-10-03T07:22:40Z\",\"updated\":\"2026-10-03T07:22:40Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"gemini-2.5-flash\"},\"event_type\":\"interaction.completed\"}\n\n",
+        "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"interaction_1791016446573408314\",\"status\":\"completed\",\"usage\":{\"total_tokens\":5,\"total_input_tokens\":3,\"input_tokens_by_modality\":[{\"modality\":\"text\",\"tokens\":3}],\"total_cached_tokens\":0,\"total_output_tokens\":2,\"total_tool_use_tokens\":0,\"total_thought_tokens\":0},\"created\":\"2026-10-03T08:34:06Z\",\"updated\":\"2026-10-03T08:34:06Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"gemini-2.5-flash\"},\"event_type\":\"interaction.completed\"}\n\n",
         "event: done\ndata: [DONE]\n\n"
       ]
     },
@@ -1447,6 +2956,41 @@
       "payload": "{\"contents\":[{\"parts\":[{\"text\":\"hi\",\"thoughtSignature\":\"bogus\"}]}],\"tools\":[{\"functionDeclarations\":[{\"name\":\"f\",\"parameters\":{\"type\":\"object\"}}]}]}",
       "source": "gemini",
       "op": "stream",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "gemini",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
       "needs": [
         "pair:gemini-\u003egemini"
       ],
@@ -1479,6 +3023,45 @@
         "Authorization": "Bearer client-secret"
       },
       "session": "derived:ctx:v1:e9dedbf8818d506807a021d95642db8e91244735fe3230851685af7e530e880b",
+      "resolved": {
+        "info": {
+          "id": "gemini-3-pro-preview",
+          "object": "model",
+          "created": 1737158400,
+          "owned_by": "google",
+          "type": "interactions",
+          "display_name": "Gemini 3 Pro Preview",
+          "name": "models/gemini-3-pro-preview",
+          "version": "3.0",
+          "description": "Gemini 3 Pro Preview",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "min": 128,
+            "max": 32768,
+            "dynamic_allowed": true,
+            "levels": [
+              "low",
+              "high"
+            ]
+          }
+        }
+      },
       "upstream": {
         "status": 200,
         "headers": [
@@ -1505,6 +3088,45 @@
         "Api-Revision": "2030-02-02"
       },
       "session": "derived:ctx:v1:50f40ff090573d922a41698341526bdc93c6d4c5056809c8ca8bc16327d9ddb7",
+      "resolved": {
+        "info": {
+          "id": "gemini-3-pro-preview",
+          "object": "model",
+          "created": 1737158400,
+          "owned_by": "google",
+          "type": "interactions",
+          "display_name": "Gemini 3 Pro Preview",
+          "name": "models/gemini-3-pro-preview",
+          "version": "3.0",
+          "description": "Gemini 3 Pro Preview",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "min": 128,
+            "max": 32768,
+            "dynamic_allowed": true,
+            "levels": [
+              "low",
+              "high"
+            ]
+          }
+        }
+      },
       "upstream": {
         "status": 200,
         "body": "{\"id\":\"int_1\",\"model\":\"gemini-3-pro-preview\",\"status\":\"completed\",\"outputs\":[{\"type\":\"text\",\"text\":\"ok\"}],\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":1,\"total_tokens\":4}}"
@@ -1542,6 +3164,45 @@
       "source": "interactions",
       "op": "execute",
       "session": "derived:ctx:v1:50f40ff090573d922a41698341526bdc93c6d4c5056809c8ca8bc16327d9ddb7",
+      "resolved": {
+        "info": {
+          "id": "gemini-3-pro-preview",
+          "object": "model",
+          "created": 1737158400,
+          "owned_by": "google",
+          "type": "interactions",
+          "display_name": "Gemini 3 Pro Preview",
+          "name": "models/gemini-3-pro-preview",
+          "version": "3.0",
+          "description": "Gemini 3 Pro Preview",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "min": 128,
+            "max": 32768,
+            "dynamic_allowed": true,
+            "levels": [
+              "low",
+              "high"
+            ]
+          }
+        }
+      },
       "upstream": {
         "status": 200,
         "body": "{\"id\":\"int_1\",\"model\":\"gemini-3-pro-preview\",\"status\":\"completed\",\"outputs\":[{\"type\":\"text\",\"text\":\"ok\"}],\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":1,\"total_tokens\":4}}"
@@ -1576,6 +3237,45 @@
       "source": "interactions",
       "op": "execute",
       "session": "derived:ctx:v1:50f40ff090573d922a41698341526bdc93c6d4c5056809c8ca8bc16327d9ddb7",
+      "resolved": {
+        "info": {
+          "id": "gemini-3-pro-preview",
+          "object": "model",
+          "created": 1737158400,
+          "owned_by": "google",
+          "type": "interactions",
+          "display_name": "Gemini 3 Pro Preview",
+          "name": "models/gemini-3-pro-preview",
+          "version": "3.0",
+          "description": "Gemini 3 Pro Preview",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "min": 128,
+            "max": 32768,
+            "dynamic_allowed": true,
+            "levels": [
+              "low",
+              "high"
+            ]
+          }
+        }
+      },
       "upstream": {
         "status": 200,
         "body": "{\"id\":\"int_1\",\"model\":\"gemini-3-pro-preview\",\"status\":\"completed\",\"outputs\":[{\"type\":\"text\",\"text\":\"ok\"}],\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":1,\"total_tokens\":4}}"
@@ -1593,6 +3293,45 @@
       "source": "interactions",
       "op": "execute",
       "session": "derived:ctx:v1:50f40ff090573d922a41698341526bdc93c6d4c5056809c8ca8bc16327d9ddb7",
+      "resolved": {
+        "info": {
+          "id": "gemini-3-pro-preview",
+          "object": "model",
+          "created": 1737158400,
+          "owned_by": "google",
+          "type": "interactions",
+          "display_name": "Gemini 3 Pro Preview",
+          "name": "models/gemini-3-pro-preview",
+          "version": "3.0",
+          "description": "Gemini 3 Pro Preview",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "min": 128,
+            "max": 32768,
+            "dynamic_allowed": true,
+            "levels": [
+              "low",
+              "high"
+            ]
+          }
+        }
+      },
       "upstream": {
         "status": 200,
         "body": "{\"id\":\"int_1\",\"model\":\"gemini-3-pro-preview\",\"status\":\"completed\",\"outputs\":[{\"type\":\"text\",\"text\":\"ok\"}],\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":1,\"total_tokens\":4}}"
@@ -1610,6 +3349,45 @@
       "source": "interactions",
       "op": "execute",
       "session": "derived:ctx:v1:50f40ff090573d922a41698341526bdc93c6d4c5056809c8ca8bc16327d9ddb7",
+      "resolved": {
+        "info": {
+          "id": "gemini-3-pro-preview",
+          "object": "model",
+          "created": 1737158400,
+          "owned_by": "google",
+          "type": "interactions",
+          "display_name": "Gemini 3 Pro Preview",
+          "name": "models/gemini-3-pro-preview",
+          "version": "3.0",
+          "description": "Gemini 3 Pro Preview",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "min": 128,
+            "max": 32768,
+            "dynamic_allowed": true,
+            "levels": [
+              "low",
+              "high"
+            ]
+          }
+        }
+      },
       "upstream": {
         "status": 400,
         "headers": [
@@ -1636,6 +3414,45 @@
       "source": "interactions",
       "op": "stream",
       "session": "derived:ctx:v1:50f40ff090573d922a41698341526bdc93c6d4c5056809c8ca8bc16327d9ddb7",
+      "resolved": {
+        "info": {
+          "id": "gemini-3-pro-preview",
+          "object": "model",
+          "created": 1737158400,
+          "owned_by": "google",
+          "type": "interactions",
+          "display_name": "Gemini 3 Pro Preview",
+          "name": "models/gemini-3-pro-preview",
+          "version": "3.0",
+          "description": "Gemini 3 Pro Preview",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "min": 128,
+            "max": 32768,
+            "dynamic_allowed": true,
+            "levels": [
+              "low",
+              "high"
+            ]
+          }
+        }
+      },
       "upstream": {
         "status": 200,
         "headers": [
@@ -1668,6 +3485,45 @@
       "source": "interactions",
       "op": "stream",
       "session": "derived:ctx:v1:e9dedbf8818d506807a021d95642db8e91244735fe3230851685af7e530e880b",
+      "resolved": {
+        "info": {
+          "id": "gemini-3-pro-preview",
+          "object": "model",
+          "created": 1737158400,
+          "owned_by": "google",
+          "type": "interactions",
+          "display_name": "Gemini 3 Pro Preview",
+          "name": "models/gemini-3-pro-preview",
+          "version": "3.0",
+          "description": "Gemini 3 Pro Preview",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "min": 128,
+            "max": 32768,
+            "dynamic_allowed": true,
+            "levels": [
+              "low",
+              "high"
+            ]
+          }
+        }
+      },
       "upstream": {
         "status": 200,
         "headers": [
@@ -1700,6 +3556,45 @@
       "source": "interactions",
       "op": "stream",
       "session": "derived:ctx:v1:50f40ff090573d922a41698341526bdc93c6d4c5056809c8ca8bc16327d9ddb7",
+      "resolved": {
+        "info": {
+          "id": "gemini-3-pro-preview",
+          "object": "model",
+          "created": 1737158400,
+          "owned_by": "google",
+          "type": "interactions",
+          "display_name": "Gemini 3 Pro Preview",
+          "name": "models/gemini-3-pro-preview",
+          "version": "3.0",
+          "description": "Gemini 3 Pro Preview",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "min": 128,
+            "max": 32768,
+            "dynamic_allowed": true,
+            "levels": [
+              "low",
+              "high"
+            ]
+          }
+        }
+      },
       "upstream": {
         "status": 503,
         "headers": [
@@ -1728,6 +3623,45 @@
       "op": "execute",
       "alt": "responses/compact",
       "session": "derived:ctx:v1:50f40ff090573d922a41698341526bdc93c6d4c5056809c8ca8bc16327d9ddb7",
+      "resolved": {
+        "info": {
+          "id": "gemini-3-pro-preview",
+          "object": "model",
+          "created": 1737158400,
+          "owned_by": "google",
+          "type": "interactions",
+          "display_name": "Gemini 3 Pro Preview",
+          "name": "models/gemini-3-pro-preview",
+          "version": "3.0",
+          "description": "Gemini 3 Pro Preview",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "min": 128,
+            "max": 32768,
+            "dynamic_allowed": true,
+            "levels": [
+              "low",
+              "high"
+            ]
+          }
+        }
+      },
       "error": {
         "status": 501,
         "message": "/responses/compact not supported"
@@ -1760,6 +3694,45 @@
       "source": "interactions",
       "op": "count",
       "session": "msg:2f68951593d97234",
+      "resolved": {
+        "info": {
+          "id": "gemini-3-pro-preview",
+          "object": "model",
+          "created": 1737158400,
+          "owned_by": "google",
+          "type": "interactions",
+          "display_name": "Gemini 3 Pro Preview",
+          "name": "models/gemini-3-pro-preview",
+          "version": "3.0",
+          "description": "Gemini 3 Pro Preview",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "min": 128,
+            "max": 32768,
+            "dynamic_allowed": true,
+            "levels": [
+              "low",
+              "high"
+            ]
+          }
+        }
+      },
       "needs": [
         "pair:interactions-\u003egemini"
       ],
@@ -1781,6 +3754,45 @@
       "op": "stream",
       "alt": "json",
       "session": "derived:ctx:v1:50f40ff090573d922a41698341526bdc93c6d4c5056809c8ca8bc16327d9ddb7",
+      "resolved": {
+        "info": {
+          "id": "gemini-3-pro-preview",
+          "object": "model",
+          "created": 1737158400,
+          "owned_by": "google",
+          "type": "interactions",
+          "display_name": "Gemini 3 Pro Preview",
+          "name": "models/gemini-3-pro-preview",
+          "version": "3.0",
+          "description": "Gemini 3 Pro Preview",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "min": 128,
+            "max": 32768,
+            "dynamic_allowed": true,
+            "levels": [
+              "low",
+              "high"
+            ]
+          }
+        }
+      },
       "upstream": {
         "status": 200,
         "headers": [
@@ -1813,6 +3825,45 @@
       "source": "gemini",
       "op": "stream",
       "session": "derived:ctx:v1:39e4011826e21361d0429d85036f493dd10bf10db89b9f0c5d315b6486284c41",
+      "resolved": {
+        "info": {
+          "id": "gemini-3-pro-preview",
+          "object": "model",
+          "created": 1737158400,
+          "owned_by": "google",
+          "type": "interactions",
+          "display_name": "Gemini 3 Pro Preview",
+          "name": "models/gemini-3-pro-preview",
+          "version": "3.0",
+          "description": "Gemini 3 Pro Preview",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "min": 128,
+            "max": 32768,
+            "dynamic_allowed": true,
+            "levels": [
+              "low",
+              "high"
+            ]
+          }
+        }
+      },
       "needs": [
         "pair:gemini-\u003einteractions"
       ],
@@ -1843,6 +3894,45 @@
       "source": "openai",
       "op": "execute",
       "session": "derived:ctx:v1:1211c3ff60af63a561f0413f04b6c10dc806fc8a96c651902c73d8817f34b327",
+      "resolved": {
+        "info": {
+          "id": "gemini-3-pro-preview",
+          "object": "model",
+          "created": 1737158400,
+          "owned_by": "google",
+          "type": "interactions",
+          "display_name": "Gemini 3 Pro Preview",
+          "name": "models/gemini-3-pro-preview",
+          "version": "3.0",
+          "description": "Gemini 3 Pro Preview",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "min": 128,
+            "max": 32768,
+            "dynamic_allowed": true,
+            "levels": [
+              "low",
+              "high"
+            ]
+          }
+        }
+      },
       "needs": [
         "pair:openai-\u003einteractions"
       ],
@@ -1851,7 +3941,7 @@
         "body": "{\"id\":\"int_1\",\"model\":\"gemini-3-pro-preview\",\"status\":\"completed\",\"outputs\":[{\"type\":\"text\",\"text\":\"ok\"}],\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":1,\"total_tokens\":4}}"
       },
       "request": "POST /v1beta/interactions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 104\r\nApi-Revision: 2026-05-20\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-int-1\r\nX-Static: static-int\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-3-pro-preview\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"}]}]}",
-      "output": "{\"id\":\"int_1\",\"object\":\"chat.completion\",\"created\":1791012160,\"model\":\"gemini-3-pro-preview\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
+      "output": "{\"id\":\"int_1\",\"object\":\"chat.completion\",\"created\":1791016446,\"model\":\"gemini-3-pro-preview\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
     },
     {
       "name": "int_claude_client_stream",
@@ -1863,6 +3953,45 @@
       "source": "claude",
       "op": "stream",
       "session": "derived:ctx:v1:c65cdc8a4f02173190f303f9d3557fbb96a40368b7b4f9e0a7d6e9f279040a87",
+      "resolved": {
+        "info": {
+          "id": "gemini-3-pro-preview",
+          "object": "model",
+          "created": 1737158400,
+          "owned_by": "google",
+          "type": "interactions",
+          "display_name": "Gemini 3 Pro Preview",
+          "name": "models/gemini-3-pro-preview",
+          "version": "3.0",
+          "description": "Gemini 3 Pro Preview",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "min": 128,
+            "max": 32768,
+            "dynamic_allowed": true,
+            "levels": [
+              "low",
+              "high"
+            ]
+          }
+        }
+      },
       "needs": [
         "pair:claude-\u003einteractions"
       ],
@@ -1897,6 +4026,45 @@
       "source": "openai-response",
       "op": "stream",
       "session": "derived:ctx:v1:a7c6eb144606fcd71939d5a8db03a966b2429b779fb62683e8144e1887f311ec",
+      "resolved": {
+        "info": {
+          "id": "gemini-3-pro-preview",
+          "object": "model",
+          "created": 1737158400,
+          "owned_by": "google",
+          "type": "interactions",
+          "display_name": "Gemini 3 Pro Preview",
+          "name": "models/gemini-3-pro-preview",
+          "version": "3.0",
+          "description": "Gemini 3 Pro Preview",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "min": 128,
+            "max": 32768,
+            "dynamic_allowed": true,
+            "levels": [
+              "low",
+              "high"
+            ]
+          }
+        }
+      },
       "needs": [
         "pair:openai-response-\u003einteractions"
       ],
@@ -1929,6 +4097,45 @@
       "source": "codex",
       "op": "execute",
       "session": "derived:ctx:v1:774d701e7a037fafde5f2aac0359a00a0072308fa6aa25feebfc521c7dd52440",
+      "resolved": {
+        "info": {
+          "id": "gemini-3-pro-preview",
+          "object": "model",
+          "created": 1737158400,
+          "owned_by": "google",
+          "type": "interactions",
+          "display_name": "Gemini 3 Pro Preview",
+          "name": "models/gemini-3-pro-preview",
+          "version": "3.0",
+          "description": "Gemini 3 Pro Preview",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "min": 128,
+            "max": 32768,
+            "dynamic_allowed": true,
+            "levels": [
+              "low",
+              "high"
+            ]
+          }
+        }
+      },
       "upstream": {
         "status": 200,
         "headers": [

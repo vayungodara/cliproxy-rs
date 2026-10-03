@@ -23,7 +23,7 @@ use cpa_core::format::Format;
 use cpa_translate::{RequestCtx, ResponseCtx, StreamTranslator};
 use futures_util::StreamExt;
 
-use crate::gemini_payload::{self as payload, Resolved};
+use crate::gemini_payload as payload;
 use crate::gemini_stream::{self as sse, ClaudeInputTokens};
 use crate::proxy::{self, GoClients, GoHeaders, Hooks, Proxy, Upstream};
 
@@ -313,14 +313,19 @@ pub(crate) fn set_custom_headers(headers: &mut GoHeaders, credential: &Credentia
     }
 }
 
-/// The resolved API-key model for this attempt (Go conductor binding).
-pub(crate) fn resolved(credential: &Credential, cfg: &Config, req: &ExecRequest) -> Option<Resolved> {
-    let (family, model_type) = match credential.provider.as_str() {
-        "gemini-interactions" => ("interactions", "interactions"),
-        "vertex" => ("vertex", "vertex"),
-        _ => ("gemini", "gemini"),
-    };
-    payload::resolved_model(credential, cfg, family, model_type, &req.requested_model, &req.model)
+/// Go `cliproxyauth.ResolvedModelInfo(req)`: the capabilities dispatch bound to this
+/// attempt, and `helps.APIKeyModelIsCompat`.
+pub(crate) fn resolved(req: &ExecRequest) -> Option<Resolved> {
+    req.resolved_model.as_ref().map(|r| Resolved {
+        caps: cpa_common::thinking::ModelCaps::from(&r.info),
+        is_compat: r.is_compat(),
+    })
+}
+
+/// Capabilities bound to an attempt, as thinking and translation read them.
+pub(crate) struct Resolved {
+    pub caps: cpa_common::thinking::ModelCaps,
+    pub is_compat: bool,
 }
 
 pub(crate) async fn error_from(upstream: Upstream) -> ExecError {
@@ -415,7 +420,7 @@ impl GeminiExecutor {
     ) -> Result<ExecResponse, ExecError> {
         let base_model = parse_suffix(&req.model).model_name;
         let (from, to) = (req.source_format, Format::Gemini);
-        let resolved = resolved(credential, cfg, req);
+        let resolved = resolved(req);
         let compat = resolved.as_ref().is_some_and(|r| r.is_compat);
         let (original_translated, body) = translate_pair(req, to, &base_model, compat)?;
         let mut body = apply_thinking(req, body, from, to, &credential.provider, resolved.as_ref())?;
@@ -472,7 +477,7 @@ impl GeminiExecutor {
     ) -> Result<ExecResponse, ExecError> {
         let target = parse_suffix(&req.model).model_name;
         let (from, to) = (req.source_format, Format::Interactions);
-        let resolved = resolved(credential, cfg, req);
+        let resolved = resolved(req);
         let compat = resolved.as_ref().is_some_and(|r| r.is_compat);
         // Interactions clients are sent as they are, without the registry normalizer.
         let (original_translated, mut body) = if from == Format::Interactions {
@@ -539,7 +544,7 @@ impl GeminiExecutor {
     ) -> Result<ExecResponse, ExecError> {
         let base_model = parse_suffix(&req.model).model_name;
         let (from, to) = (req.source_format, Format::Gemini);
-        let resolved = resolved(credential, cfg, req);
+        let resolved = resolved(req);
         let compat = resolved.as_ref().is_some_and(|r| r.is_compat);
         let body = translate(req, to, &base_model, &req.body, false, compat)?;
         let mut body = apply_thinking(req, body, from, to, &credential.provider, resolved.as_ref())?;

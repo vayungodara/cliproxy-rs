@@ -70,6 +70,8 @@ type scenario struct {
 	Headers map[string]string `json:"headers,omitempty"`
 	// Session is the canonical session the conductor binds (ExecRequest.session).
 	Session string `json:"session,omitempty"`
+	// Resolved is the model info the conductor binds (ExecRequest.resolved_model).
+	Resolved *resolvedRecord `json:"resolved,omitempty"`
 	// Needs lists translator registrations Go used whose result is not the
 	// identity: "pair:<client>-><upstream>" and "token_count:<client>-><upstream>".
 	Needs    []string  `json:"needs,omitempty"`
@@ -208,6 +210,23 @@ func resolvedModelInfo(models []config.GeminiModel, modelType, requested, upstre
 		}
 	}
 	return nil
+}
+
+// resolvedRecord is a bound *registry.ModelInfo: its JSON plus the json:"-" fields
+// executors read.
+type resolvedRecord struct {
+	Info                       json.RawMessage `json:"info"`
+	IsCompat                   bool            `json:"is_compat,omitempty"`
+	UserDefined                bool            `json:"user_defined,omitempty"`
+	SupportConfigurationUpdate bool            `json:"support_configuration_update,omitempty"`
+}
+
+func recordResolved(info *registry.ModelInfo) *resolvedRecord {
+	raw, err := json.Marshal(info)
+	if err != nil {
+		panic(err)
+	}
+	return &resolvedRecord{Info: raw, IsCompat: info.IsCompat, UserDefined: info.UserDefined, SupportConfigurationUpdate: info.SupportConfigurationUpdate}
 }
 
 func statusOf(err error) *errOut {
@@ -375,6 +394,7 @@ func run(s *scenario) {
 		}
 		if info := resolvedModelInfo(models, modelType, requested, s.Model); info != nil {
 			req.Metadata["cliproxy.resolved_api_key_model_info"] = info
+			s.Resolved = recordResolved(info)
 		}
 	}
 	upstreamFormat := "gemini"
