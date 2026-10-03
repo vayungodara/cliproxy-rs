@@ -433,9 +433,7 @@ fn listen(domain: Domain, addr: SocketAddr, dual_stack: bool) -> io::Result<std:
 }
 
 fn main() -> anyhow::Result<()> {
-    tracing_subscriber::fmt()
-        .with_env_filter(tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()))
-        .init();
+    cpa_server::logging::init();
     let raw: Vec<String> = std::env::args().collect();
     if raw.get(1).map(String::as_str) == Some("discover") {
         let args = DiscoverArgs::parse_from(go_flags(&DiscoverArgs::command(), raw.into_iter().skip(1)));
@@ -475,6 +473,8 @@ async fn run(args: Args) -> anyhow::Result<()> {
     let cloud = std::env::var("DEPLOY").is_ok_and(|v| v == "cloud");
     let config = load_config(&config_path, cloud)?;
     let config_present = !cloud || cloud_config_present(&config_path, &config);
+    // Go ConfigureLogOutput and SetLogLevel, before any login command.
+    cpa_server::logging::configure(&config);
     tracing::info!("{}", banner());
     let home_jwt = [
         args.home_jwt.clone(),
