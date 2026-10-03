@@ -1,0 +1,86 @@
+# Moving from CLIProxyAPI (Go) to cliproxy-rs
+
+cliproxy-rs follows CLIProxyAPI at commit `6fecc6e` (v8.0.10). It reads the same files, so switching is a matter of stopping one binary and starting the other on the same config. This page lists what carries over, what does not, and how to switch back.
+
+## What carries over
+
+- `config.yaml`. The v8 layout and the older flat layout (top-level `port`, `auth-dir`, an `api-keys` list, `remote-management`) are both read. Every v8 setting is accepted, including settings for features cliproxy-rs does not have yet (listed below); those are kept in the file but have no effect.
+- Credential files in `oauth.auth-dir` (default `~/.cli-proxy-api`). Claude, Codex, Kimi and Meta files are used as they are. Files for providers cliproxy-rs does not serve yet (Antigravity, AI Studio, Vertex, Devin, xAI) are listed in the dashboard but not used for requests.
+- The hashed management key. Go and cliproxy-rs both hash a plaintext `management.secret-key` with bcrypt on start and write the hash back, and each accepts the other's hash.
+- Client keys in `access.api-keys`, provider keys under `api-keys`, OpenAI-compatible upstreams, model aliases and exclusions, payload rules, proxies, routing strategy, retries and cooldowns.
+- The client routes (`/v1/...`, `/v1beta/...`, `/backend-api/codex/...`) and the Responses WebSocket, so clients need no changes.
+- The v8 Management API at `/v8/management`, apart from the gaps below, and the dashboard at `/management.html`.
+
+When a setting is changed through the dashboard or the Management API, cliproxy-rs edits only that key and keeps the rest of the text and its comments. As in Go, that first write also converts a flat legacy config to the v8 layout and moves keys that are not v8 settings into comments instead of deleting them. The dashboard's raw editor saves the text you submit.
+
+The way back works too. In our tests against fake sign-in servers, Go 6fecc6e listed the Claude, Codex, Kimi and Meta credential files written by cliproxy-rs as active, and accepted a management key hashed by cliproxy-rs.
+
+## Switching
+
+1. Stop the Go server.
+2. Back up `config.yaml` and the credential directory. They hold OAuth refresh tokens, so keep the backup private.
+3. Check your command line against the flag list below. cliproxy-rs exits at start if it gets a flag it does not know.
+4. Start cliproxy-rs with the same config: `cliproxy --config /path/to/config.yaml`.
+5. Open `/management.html` and check that your credentials are listed and healthy, then send a test request with one of your client keys.
+
+If you run Go as a systemd service or in Docker, replace the binary or image and keep the same paths. See [INSTALL.md](INSTALL.md) for both.
+
+Do not run Go and cliproxy-rs against the same credential directory at the same time. Both refresh OAuth tokens in the background and write the new tokens to the files. Some providers rotate the refresh token on every refresh, so a refresh by one server can invalidate the token the other is holding, and the account then needs a new sign-in. To try cliproxy-rs next to Go, give it a copy of the directory and a different port, or connect a separate test account.
+
+## Command-line flags
+
+cliproxy-rs has `--config`, `--claude-login`, `--codex-login`, `--codex-device-login`, `--kimi-login`, `--kimi-ai-login`, `--xai-login`, `--meta-login`, `--no-browser`, `--oauth-callback-port` and `--password`. Go's single-dash spelling (`-config`) works too.
+
+These Go flags are not supported and stop the server at start: `-antigravity-login`, `-devin-login`, `-vertex-import`, `-vertex-import-prefix`, `-discover`, `-discover-json`, `-discover-service-type`, `-discover-timeout`, `-home-jwt`, `-home-disable-cluster-discovery`, `-tui`, `-standalone`, `-management-base-url` and `-local-model`.
+
+## Settings and features without an effect
+
+These are accepted in `config.yaml` and kept on save, but cliproxy-rs does not act on them:
+
+| Go setting or feature | In cliproxy-rs |
+| --- | --- |
+| `server.tls` | No HTTPS listener. Terminate TLS in a reverse proxy or tunnel. |
+| `server.discovery`, `home` | No mDNS discovery, Home or cluster mode. |
+| `observability.logs` (`logging-to-file`, `request-log`, error log files, size limits) | Logs go to standard error only. Set `RUST_LOG` for the level. No request or error log files are written. |
+| `pprof` | No profiling endpoint. |
+| `plugins` | No plugin support. |
+| `requests.nonstream-keepalive-interval` | Non-streaming responses do not send keep-alive blank lines. |
+| `management.panel-github-repository`, `management.disable-auto-update-panel` | The dashboard is built into the binary and never downloaded. `management.disable-control-panel` is honoured. |
+| The Redis-protocol (RESP) usage subscriber on the main port | Not available. `GET /v8/management/observability/usage/queue` works. |
+| `PGSTORE_*`, `GITSTORE_*`, `OBJECTSTORE_*` storage backends, `WRITABLE_PATH`, `MANAGEMENT_STATIC_PATH` | Config and credentials are local files only. |
+| `.env` in the working directory | Not loaded. Set variables such as `MANAGEMENT_PASSWORD` in the environment of the process. |
+| Config reload log summaries | The config is reloaded, but the changes are not summarised in the log. |
+
+Providers and client routes that are not available yet are listed in the README under [Status](../README.md#status): Antigravity, AI Studio, Vertex and Devin, requests with xAI credentials, the image and video endpoints, realtime and live endpoints, and Responses WebSocket steering.
+
+## Management API differences
+
+The v8 routes for config, credentials, OAuth sign-in, `requests/api-call`, cooldown reset, usage, model definitions and `server/latest-version` behave as in Go. OAuth sign-in through the API works for Claude, Codex, Kimi and Meta; other providers return `404` with `provider_not_found`.
+
+Not available on cliproxy-rs:
+
+- `/v8/management/observability/logs` and its `errors` and `requests/{id}` routes.
+- `/v8/management/plugins` and every route under it.
+- Most of the older `/v0/management` routes. cliproxy-rs serves the v0 routes for credentials (`auth-files`), OAuth status and callback, `api-call`, `reset-quota`, usage, model definitions, `latest-version` and `GET config.yaml`, but not the per-setting v0 routes (such as `/v0/management/debug` or `/v0/management/proxy-url`) or the v0 sign-in routes (`/v0/management/anthropic-auth-url` and the rest). Tools built on the v0 API may only partly work.
+
+The bundled dashboard checks which server it is talking to and marks these features as not available instead of failing.
+
+## Differences from Go CLIProxyAPI
+
+Where cliproxy-rs has a feature, it aims to behave as Go does. These differences are deliberate:
+
+- Startup: if the config fails to load outside cloud deploy mode, cliproxy-rs exits with a non-zero status, so a service manager sees the failure. Go exits 0.
+- Discovery: subtype PTR queries are answered (Go's zeroconf library never matches them), answers go out on every selected interface, and advertisement changes from a config reload apply within 1 second, by polling.
+- `.env`: non-UTF-8 bytes inside quoted values are decoded lossily. Go keeps the raw bytes.
+- OAuth sign-in from the Management API: pending callbacks are held in memory with the sign-in session instead of being written to `auth-dir` as `.oauth-<provider>-<state>.oauth` files.
+- Claude: `platform_url` is HTML-escaped on the sign-in result page, credential files are written atomically with mode 0600, and the SSH port-forwarding hint shows the IP address of the outbound interface.
+- Plugins: loading plugins on Windows is not supported, the same as a Go build without cgo.
+- Logs: structured fields that Go does not define are printed after Go's known fields.
+
+## Switching back
+
+Stop cliproxy-rs and start Go on the same config and credential directory. Credentials that cliproxy-rs connected or refreshed stay valid for Go, and the management key keeps working. cliproxy-rs has no settings of its own, so there is nothing in the config to undo.
+
+## Details
+
+[PARITY-STATUS.md](PARITY-STATUS.md) lists every route, setting, flag and Go test suite with its status in cliproxy-rs and the test that covers it.
