@@ -1048,7 +1048,7 @@ impl State {
                 r#"{"reason":"max_output_tokens"}"#,
             );
         }
-        copy_request_fields(&mut completed, &self.request, "response.", None);
+        copy_request_fields(&mut completed, &self.request, "response.", Echo::default());
         let mut outputs = br#"{"arr":[]}"#.to_vec();
         for r in &self.reasoning_items {
             let mut item =
@@ -1152,9 +1152,17 @@ impl State {
     }
 }
 
+/// Fallbacks for request fields the echo copies.
+#[derive(Default, Clone, Copy)]
+pub(crate) struct Echo<'a> {
+    /// Fills `model` when the request has none (the upstream's model).
+    pub model: Option<&'a [u8]>,
+    /// Takes `max_output_tokens` from `max_tokens` (a Chat Completions request).
+    pub max_tokens: bool,
+}
+
 /// The request echo Go copies into response.completed and the non-stream response.
-/// `model_fallback` (Gemini's `modelVersion`) fills `model` when the request has none.
-pub(crate) fn copy_request_fields(out: &mut Vec<u8>, request: &[u8], prefix: &str, model_fallback: Option<&[u8]>) {
+pub(crate) fn copy_request_fields(out: &mut Vec<u8>, request: &[u8], prefix: &str, echo: Echo<'_>) {
     if request.is_empty() {
         return;
     }
@@ -1182,10 +1190,13 @@ pub(crate) fn copy_request_fields(out: &mut Vec<u8>, request: &[u8], prefix: &st
         "user",
         "metadata",
     ] {
-        let v = req.get(key);
+        let mut v = req.get(key);
+        if !v.exists() && key == "max_output_tokens" && echo.max_tokens {
+            v = req.get("max_tokens");
+        }
         if !v.exists() {
             if key == "model"
-                && let Some(fallback) = model_fallback
+                && let Some(fallback) = echo.model
             {
                 gj::set_str(out, &at(key), fallback);
             }
@@ -1444,7 +1455,7 @@ pub fn non_stream(ctx: &ResponseCtx<'_>, body: &[u8]) -> Result<Vec<u8>, Error> 
     if incomplete(&stop) {
         gj::set_raw(&mut out, "incomplete_details", r#"{"reason":"max_output_tokens"}"#);
     }
-    copy_request_fields(&mut out, request, "", None);
+    copy_request_fields(&mut out, request, "", Echo::default());
     let mut outputs = vec![];
     let count = items.len();
     for (i, it) in items.iter().enumerate() {

@@ -14,7 +14,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use cpa_common::json::{self as gj, Res};
 
 use crate::apply_patch::{self, CallState};
-use crate::claude_responses_response::{copy_request_fields, pick_request};
+use crate::claude_responses_response::{Echo, copy_request_fields, pick_request};
 use crate::common::{
     go_runes, now_nanos, now_unix, parse_rfc3339_unix, request_model_name, restore_sanitized_tool_name,
     sanitized_tool_name_map, sse_event, trim_space,
@@ -1344,7 +1344,7 @@ impl State {
         gj::set_int(&mut completed, "response.created_at", self.created_at);
         if !self.request.is_empty() {
             let root = unwrap_request_root(gj::parse(&self.request));
-            copy_request_fields(&mut completed, &root.raw, "response.", None);
+            copy_request_fields(&mut completed, &root.raw, "response.", Echo::default());
         }
         self.emit_late_citations(out);
 
@@ -1578,7 +1578,15 @@ pub fn non_stream(ctx: &ResponseCtx<'_>, body: &[u8]) -> Result<Vec<u8>, Error> 
     let model_version = model_version.exists().then(|| model_version.bytes().into_owned());
     if !request.is_empty() {
         let req = unwrap_request_root(gj::parse(request));
-        copy_request_fields(&mut resp, &req.raw, "", model_version.as_deref());
+        copy_request_fields(
+            &mut resp,
+            &req.raw,
+            "",
+            Echo {
+                model: model_version.as_deref(),
+                ..Echo::default()
+            },
+        );
     } else if let Some(version) = &model_version {
         gj::set_str(&mut resp, "model", version);
     }

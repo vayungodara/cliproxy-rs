@@ -987,6 +987,11 @@ pub fn align_claude_tool_results<'a>(parts: Vec<Res<'a>>, tool_use_ids: &[Vec<u8
 /// assistant message that made the call, when every call ID of that assistant message is
 /// unambiguous and answered exactly once later on.
 pub fn align_openai_tool_call_messages(messages: Vec<Vec<u8>>) -> Vec<Vec<u8>> {
+    align_openai_tool_call_messages_with(messages, &[])
+}
+
+/// AlignOpenAIToolCallMessages with extra call IDs treated as ambiguous (trimmed).
+pub fn align_openai_tool_call_messages_with(messages: Vec<Vec<u8>>, extra_ambiguous: &[Vec<u8>]) -> Vec<Vec<u8>> {
     if messages.len() <= 1 {
         return messages;
     }
@@ -997,7 +1002,11 @@ pub fn align_openai_tool_call_messages(messages: Vec<Vec<u8>>) -> Vec<Vec<u8>> {
     }
     let mut assistants = vec![];
     let mut assistant_by_call: HashMap<Vec<u8>, usize> = HashMap::new();
-    let mut ambiguous: HashSet<Vec<u8>> = HashSet::new();
+    let mut ambiguous: HashSet<Vec<u8>> = extra_ambiguous
+        .iter()
+        .map(|id| trim_space(id).to_vec())
+        .filter(|id| !id.is_empty())
+        .collect();
     let mut tools_by_call: HashMap<Vec<u8>, Vec<usize>> = HashMap::new();
     for (i, raw) in messages.iter().enumerate() {
         match gj::get(raw, "role").bytes().as_ref() {
