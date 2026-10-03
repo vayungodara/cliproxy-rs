@@ -476,13 +476,27 @@ pub async fn send(
     body: impl Into<Bytes>,
     timeout: Option<std::time::Duration>,
 ) -> Result<Upstream, ExecError> {
+    request(client, wreq::Method::POST, url, headers, Some(body.into()), timeout).await
+}
+
+/// [`send`] for any method: `http.NewRequest(method, url, body)` then `Client.Do`, with
+/// Go's redirect rules for that method (a GET follows 301-303 and 307/308 as a GET).
+/// `None` is Go's nil body.
+pub async fn request(
+    client: &wreq::Client,
+    method: wreq::Method,
+    url: &str,
+    headers: GoHeaders,
+    body: Option<Bytes>,
+    timeout: Option<std::time::Duration>,
+) -> Result<Upstream, ExecError> {
     let route = |_: &url::Url| {
         Ok(Route {
             client: client.clone(),
             order: None,
         })
     };
-    send_routed(&route, url, headers, body.into(), timeout).await
+    send_request(&route, method, url, headers, body, timeout).await
 }
 
 /// [`send`] with the client and header order chosen per hop.
@@ -534,8 +548,13 @@ pub async fn send_request(
             hop_headers
                 .clone()
                 .apply_gzip(builder, hop.order.as_deref(), method != wreq::Method::HEAD);
-        let builder = if has_body && include_body {
+        let sends_body = has_body && include_body && !body.is_empty();
+        let builder = if sends_body {
             builder.body(body.clone())
+        } else if matches!(method.as_str(), "POST" | "PUT" | "PATCH") {
+            // transferWriter.shouldSendContentLength: these methods always carry a length,
+            // so a nil or empty body still says Content-Length: 0.
+            builder.header(http::header::CONTENT_LENGTH, "0")
         } else {
             builder
         };
@@ -666,18 +685,28 @@ pub async fn read_all(
     Ok(out.freeze())
 }
 
-/// `bufio.Scanner` with `ScanLines`: one item per line without its `\n`, a trailing
-/// `\r` dropped, the final unterminated line included, and Go's error once a line
-/// reaches `max` bytes without a newline.
+/// `bufio.Scanner` with `ScanLines` and `Buffer(nil, max)`: one item per line without
+/// its `\n`, a trailing `\r` dropped, the final unterminated line included, and
+/// `bufio.ErrTooLong` when no newline falls within `max` bytes of a line's start (the
+/// scanner's buffer never holds more). An I/O error ends the stream after the line
+/// buffered before it, as `Scan` returns that last token before reporting `Err`.
+// ponytail: EOF is taken to arrive on its own read, as it does on a streamed body: an
+// unterminated final line of exactly `max` bytes is too long. Go accepts it when the
+// reader returns EOF together with the last bytes.
 pub fn lines(
     body: BoxStream<'static, Result<Bytes, ExecError>>,
     max: usize,
 ) -> BoxStream<'static, Result<Bytes, ExecError>> {
     struct State {
         body: BoxStream<'static, Result<Bytes, ExecError>>,
+        /// Unconsumed input from the current line's start.
         buf: bytes::BytesMut,
+        /// Bytes of `buf` already searched for a newline.
         scanned: usize,
-        done: bool,
+        /// The reader ended (EOF or the error below).
+        ended: bool,
+        error: Option<ExecError>,
+        finished: bool,
     }
     let drop_cr = |line: &[u8]| Bytes::copy_from_slice(line.strip_suffix(b"\r").unwrap_or(line));
     futures_util::stream::unfold(
@@ -685,46 +714,44 @@ pub fn lines(
             body,
             buf: bytes::BytesMut::new(),
             scanned: 0,
-            done: false,
+            ended: false,
+            error: None,
+            finished: false,
         },
         move |mut st| async move {
+            if st.finished {
+                return None;
+            }
             loop {
-                if let Some(pos) = st.buf[st.scanned..].iter().position(|b| *b == b'\n') {
-                    let line = st.buf.split_to(st.scanned + pos + 1);
+                let window = st.buf.len().min(max);
+                if let Some(pos) = st.buf[st.scanned.min(window)..window].iter().position(|b| *b == b'\n') {
+                    let at = st.scanned.min(window) + pos;
+                    let line = st.buf.split_to(at + 1);
                     st.scanned = 0;
-                    return Some((Ok(drop_cr(&line[..line.len() - 1])), st));
+                    return Some((Ok(drop_cr(&line[..at])), st));
                 }
-                st.scanned = st.buf.len();
-                if st.done {
-                    if st.buf.is_empty() {
-                        return None;
-                    }
-                    let line = st.buf.split();
-                    st.scanned = 0;
-                    return Some((Ok(drop_cr(&line)), st));
-                }
+                st.scanned = window;
                 if st.buf.len() >= max {
-                    st.done = true;
-                    st.buf.clear();
-                    st.scanned = 0;
-                    return Some((
-                        Err(ExecError::local(
-                            500,
-                            FailureScope::Request,
-                            "bufio.Scanner: token too long",
-                        )),
-                        st,
-                    ));
+                    st.finished = true;
+                    let error = ExecError::local(500, FailureScope::Request, "bufio.Scanner: token too long");
+                    return Some((Err(error), st));
+                }
+                if st.ended {
+                    if !st.buf.is_empty() {
+                        let line = st.buf.split();
+                        st.scanned = 0;
+                        return Some((Ok(drop_cr(&line)), st));
+                    }
+                    st.finished = true;
+                    return st.error.take().map(|error| (Err(error), st));
                 }
                 match st.body.next().await {
                     Some(Ok(chunk)) => st.buf.extend_from_slice(&chunk),
                     Some(Err(error)) => {
-                        st.done = true;
-                        st.buf.clear();
-                        st.scanned = 0;
-                        return Some((Err(error), st));
+                        st.ended = true;
+                        st.error = Some(error);
                     }
-                    None => st.done = true,
+                    None => st.ended = true,
                 }
             }
         },
@@ -852,23 +879,158 @@ mod tests {
         assert_eq!(canonical_header("bad header"), "bad header");
     }
 
+    fn go_fixture() -> serde_json::Value {
+        serde_json::from_str(include_str!("../tests/fixtures/proxy_go.json")).unwrap()
+    }
+
+    /// Every case runs the real `bufio.Scanner` in tests/reference/proxy/main.go.
     #[tokio::test]
-    async fn lines_follow_bufio_scanner() {
-        let chunks = ["data: a\r\rdata: b", "\r\n\nfinal", ""];
-        let body = futures_util::stream::iter(chunks.map(|c| Ok(Bytes::from(c)))).boxed();
-        let got: Vec<_> = lines(body, 64).map(|r| r.unwrap()).collect().await;
-        assert_eq!(got, ["data: a\r\rdata: b", "", "final"].map(Bytes::from));
-        let long = futures_util::stream::iter([Ok(Bytes::from(vec![b'x'; 70]))]).boxed();
-        let got: Vec<_> = lines(long, 64).collect().await;
-        assert_eq!(got.len(), 1);
-        assert_eq!(got[0].as_ref().unwrap_err().body, "bufio.Scanner: token too long");
-        let exact =
-            futures_util::stream::iter([Ok(Bytes::from(vec![b'x'; 63])), Ok(Bytes::from_static(b"\n"))]).boxed();
-        assert_eq!(
-            lines(exact, 64).count().await,
-            1,
-            "63 bytes plus newline fit a 64-byte buffer"
-        );
+    async fn lines_follow_go_bufio_scanner() {
+        for case in go_fixture()["lines"].as_array().unwrap() {
+            let name = case["name"].as_str().unwrap();
+            let mut items: Vec<Result<Bytes, ExecError>> = case["chunks"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .map(|c| Ok(Bytes::from(c.as_str().unwrap().to_owned())))
+                .collect();
+            let failed = case["io_error"].as_bool().unwrap();
+            if failed {
+                items.push(Err(ExecError::local(502, FailureScope::Transport, "read failed")));
+            }
+            let body = futures_util::stream::iter(items);
+            // A failed reader is never read again; otherwise the body ends (EOF).
+            let body = if failed {
+                body.chain(futures_util::stream::pending()).boxed()
+            } else {
+                body.boxed()
+            };
+            let max = case["max"].as_u64().unwrap() as usize;
+            let got: Vec<_> = lines(body, max).collect().await;
+            let (tokens, errors): (Vec<_>, Vec<_>) = got.into_iter().partition(Result::is_ok);
+            let tokens: Vec<String> = tokens
+                .into_iter()
+                .map(|t| String::from_utf8(t.unwrap().to_vec()).unwrap())
+                .collect();
+            let want: Vec<&str> = case["tokens"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|t| t.as_str().unwrap())
+                .collect();
+            assert_eq!(tokens, want, "{name}");
+            let error = errors.into_iter().map(|e| e.unwrap_err()).collect::<Vec<_>>();
+            match case["error"].as_str().unwrap() {
+                "" => assert!(error.is_empty(), "{name}"),
+                "too_long" => {
+                    assert_eq!(error.len(), 1, "{name}");
+                    assert_eq!(error[0].body, "bufio.Scanner: token too long", "{name}");
+                }
+                _ => {
+                    assert_eq!(error.len(), 1, "{name}");
+                    assert_eq!(error[0].body, "read failed", "{name}");
+                }
+            }
+        }
+    }
+
+    /// Go's `http.Client` redirect hops for GET and POST (tests/reference/proxy/main.go),
+    /// replayed through [`request`] against the same scripted servers.
+    #[tokio::test]
+    async fn redirects_follow_go_http_client() {
+        type Hops = Arc<Mutex<Vec<serde_json::Value>>>;
+        async fn record(
+            hops: Hops,
+            script: Arc<serde_json::Value>,
+            other: Arc<String>,
+            request: axum::extract::Request,
+        ) -> axum::response::Response {
+            use axum::response::IntoResponse;
+            let (parts, body) = request.into_parts();
+            let body = axum::body::to_bytes(body, 1 << 20).await.unwrap();
+            let header = |name: &str| {
+                parts
+                    .headers
+                    .get_all(name)
+                    .iter()
+                    .map(|v| v.to_str().unwrap().to_owned())
+                    .collect::<Vec<_>>()
+                    .join(",")
+            };
+            let path = parts.uri.path().to_owned();
+            hops.lock().unwrap().push(serde_json::json!({
+                "method": parts.method.as_str(),
+                "path": path,
+                "host": header("host"),
+                "referer": header("referer"),
+                "authorization": header("authorization"),
+                "content_type": header("content-type"),
+                "content_length": header("content-length"),
+                "body": String::from_utf8_lossy(&body),
+            }));
+            let Some(step) = script.get(&path) else {
+                return (http::StatusCode::OK, "done").into_response();
+            };
+            let status = http::StatusCode::from_u16(step["status"].as_u64().unwrap() as u16).unwrap();
+            let location = step["location"].as_str().unwrap().replacen("OTHER", &other, 1);
+            if location.is_empty() {
+                return status.into_response();
+            }
+            (status, [(http::header::LOCATION, location)]).into_response()
+        }
+        for case in go_fixture()["redirects"].as_array().unwrap() {
+            let name = case["name"].as_str().unwrap();
+            let main = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let second = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let (main_addr, other_port) = (main.local_addr().unwrap(), second.local_addr().unwrap().port());
+            let other = Arc::new(format!("http://localhost:{other_port}"));
+            let hops: Hops = Arc::default();
+            let script = Arc::new(case["script"].clone());
+            for listener in [main, second] {
+                let (hops, script, other) = (hops.clone(), script.clone(), other.clone());
+                let app = axum::Router::new().fallback(move |request: axum::extract::Request| {
+                    record(hops.clone(), script.clone(), other.clone(), request)
+                });
+                tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+            }
+            let mut headers = GoHeaders::new();
+            for (k, v) in case["headers"].as_object().unwrap() {
+                headers.set(k, v.as_str().unwrap());
+            }
+            let base = format!("http://{main_addr}");
+            let method = wreq::Method::from_bytes(case["method"].as_str().unwrap().as_bytes()).unwrap();
+            let body = case["body"].as_str().map(|b| Bytes::from(b.to_owned()));
+            let result = request(
+                &default_client(),
+                method,
+                &format!("{base}/start"),
+                headers,
+                body,
+                Some(std::time::Duration::from_secs(10)),
+            )
+            .await;
+            match &result {
+                Ok(upstream) => assert_eq!(u64::from(upstream.status), case["status"].as_u64().unwrap(), "{name}"),
+                Err(_) => assert!(case["error"].as_bool().unwrap(), "{name}: unexpected error"),
+            }
+            let got: Vec<serde_json::Value> = hops
+                .lock()
+                .unwrap()
+                .iter()
+                .map(|h| {
+                    let mut h = h.clone();
+                    let host = h["host"]
+                        .as_str()
+                        .unwrap()
+                        .replace(&main_addr.to_string(), "BASE")
+                        .replace(&format!("localhost:{other_port}"), "OTHER");
+                    h["host"] = host.into();
+                    h["referer"] = h["referer"].as_str().unwrap().replacen(&base, "BASE", 1).into();
+                    h
+                })
+                .collect();
+            assert_eq!(&got, case["hops"].as_array().unwrap(), "{name}");
+        }
     }
 
     #[test]

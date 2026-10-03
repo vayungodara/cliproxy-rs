@@ -1,0 +1,802 @@
+{
+ "lines": [
+  {
+   "name": "cr-lf-mix",
+   "max": 64,
+   "chunks": [
+    "data: a\r\rdata: b",
+    "\r\n\nfinal",
+    ""
+   ],
+   "io_error": false,
+   "tokens": [
+    "data: a\r\rdata: b",
+    "",
+    "final"
+   ],
+   "error": ""
+  },
+  {
+   "name": "partial-then-io-error",
+   "max": 64,
+   "chunks": [
+    "data: a\ndata: part"
+   ],
+   "io_error": true,
+   "tokens": [
+    "data: a",
+    "data: part"
+   ],
+   "error": "io"
+  },
+  {
+   "name": "io-error-without-data",
+   "max": 64,
+   "chunks": null,
+   "io_error": true,
+   "tokens": [],
+   "error": "io"
+  },
+  {
+   "name": "io-error-after-newline",
+   "max": 64,
+   "chunks": [
+    "a\n"
+   ],
+   "io_error": true,
+   "tokens": [
+    "a"
+   ],
+   "error": "io"
+  },
+  {
+   "name": "max-plus-newline-one-chunk",
+   "max": 64,
+   "chunks": [
+    "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n"
+   ],
+   "io_error": false,
+   "tokens": [],
+   "error": "too_long"
+  },
+  {
+   "name": "max-minus-one-plus-newline",
+   "max": 64,
+   "chunks": [
+    "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n"
+   ],
+   "io_error": false,
+   "tokens": [
+    "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+   ],
+   "error": ""
+  },
+  {
+   "name": "short-then-long-one-chunk",
+   "max": 64,
+   "chunks": [
+    "a\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nb\n"
+   ],
+   "io_error": false,
+   "tokens": [
+    "a"
+   ],
+   "error": "too_long"
+  },
+  {
+   "name": "exact-max-unterminated",
+   "max": 64,
+   "chunks": [
+    "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+   ],
+   "io_error": false,
+   "tokens": [],
+   "error": "too_long"
+  },
+  {
+   "name": "max-minus-one-unterminated",
+   "max": 64,
+   "chunks": [
+    "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+   ],
+   "io_error": false,
+   "tokens": [
+    "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+   ],
+   "error": ""
+  },
+  {
+   "name": "split-long-line",
+   "max": 64,
+   "chunks": [
+    "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "xxxxxxxxxxxxxxxxxxxxxxxx",
+    "\n"
+   ],
+   "io_error": false,
+   "tokens": [],
+   "error": "too_long"
+  },
+  {
+   "name": "split-fitting-line",
+   "max": 64,
+   "chunks": [
+    "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "xxxxxxxxxxxxxxxxxxxxxxx",
+    "\n"
+   ],
+   "io_error": false,
+   "tokens": [
+    "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+   ],
+   "error": ""
+  },
+  {
+   "name": "many-lines-small-window",
+   "max": 5,
+   "chunks": [
+    "aaa\nbbb\nccc\nd",
+    "d\n"
+   ],
+   "io_error": false,
+   "tokens": [
+    "aaa",
+    "bbb",
+    "ccc",
+    "dd"
+   ],
+   "error": ""
+  },
+  {
+   "name": "empty-lines",
+   "max": 8,
+   "chunks": [
+    "\n\n\r\n"
+   ],
+   "io_error": false,
+   "tokens": [
+    "",
+    "",
+    ""
+   ],
+   "error": ""
+  },
+  {
+   "name": "too-long-before-io-error",
+   "max": 8,
+   "chunks": [
+    "xxxxxxxxx"
+   ],
+   "io_error": true,
+   "tokens": [],
+   "error": "too_long"
+  }
+ ],
+ "redirects": [
+  {
+   "name": "get-301-302-303",
+   "method": "GET",
+   "body": null,
+   "headers": {
+    "Accept": "application/json",
+    "Authorization": "Bearer fake-token"
+   },
+   "script": {
+    "/b": {
+     "status": 302,
+     "location": "/c"
+    },
+    "/c": {
+     "status": 303,
+     "location": "/d"
+    },
+    "/start": {
+     "status": 301,
+     "location": "/b"
+    }
+   },
+   "hops": [
+    {
+     "method": "GET",
+     "path": "/start",
+     "host": "BASE",
+     "referer": "",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "path": "/b",
+     "host": "BASE",
+     "referer": "BASE/start",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "path": "/c",
+     "host": "BASE",
+     "referer": "BASE/b",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "path": "/d",
+     "host": "BASE",
+     "referer": "BASE/c",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    }
+   ],
+   "status": 200,
+   "error": false
+  },
+  {
+   "name": "get-307-308",
+   "method": "GET",
+   "body": null,
+   "headers": {
+    "Accept": "application/json",
+    "Authorization": "Bearer fake-token"
+   },
+   "script": {
+    "/b": {
+     "status": 308,
+     "location": "/c"
+    },
+    "/start": {
+     "status": 307,
+     "location": "/b"
+    }
+   },
+   "hops": [
+    {
+     "method": "GET",
+     "path": "/start",
+     "host": "BASE",
+     "referer": "",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "path": "/b",
+     "host": "BASE",
+     "referer": "BASE/start",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "path": "/c",
+     "host": "BASE",
+     "referer": "BASE/b",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    }
+   ],
+   "status": 200,
+   "error": false
+  },
+  {
+   "name": "get-cross-host-strips-credentials",
+   "method": "GET",
+   "body": null,
+   "headers": {
+    "Accept": "application/json",
+    "Authorization": "Bearer fake-token"
+   },
+   "script": {
+    "/start": {
+     "status": 302,
+     "location": "OTHER/b"
+    }
+   },
+   "hops": [
+    {
+     "method": "GET",
+     "path": "/start",
+     "host": "BASE",
+     "referer": "",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "path": "/b",
+     "host": "OTHER",
+     "referer": "BASE/start",
+     "authorization": "",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    }
+   ],
+   "status": 200,
+   "error": false
+  },
+  {
+   "name": "get-custom-host-relative-then-absolute",
+   "method": "GET",
+   "body": null,
+   "headers": {
+    "Accept": "application/json",
+    "Host": "custom.example"
+   },
+   "script": {
+    "/b": {
+     "status": 302,
+     "location": "OTHER/c"
+    },
+    "/start": {
+     "status": 302,
+     "location": "/b"
+    }
+   },
+   "hops": [
+    {
+     "method": "GET",
+     "path": "/start",
+     "host": "custom.example",
+     "referer": "",
+     "authorization": "",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "path": "/b",
+     "host": "custom.example",
+     "referer": "BASE/start",
+     "authorization": "",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "path": "/c",
+     "host": "OTHER",
+     "referer": "BASE/b",
+     "authorization": "",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    }
+   ],
+   "status": 200,
+   "error": false
+  },
+  {
+   "name": "get-no-location",
+   "method": "GET",
+   "body": null,
+   "headers": {
+    "Accept": "application/json",
+    "Authorization": "Bearer fake-token"
+   },
+   "script": {
+    "/start": {
+     "status": 302,
+     "location": ""
+    }
+   },
+   "hops": [
+    {
+     "method": "GET",
+     "path": "/start",
+     "host": "BASE",
+     "referer": "",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    }
+   ],
+   "status": 302,
+   "error": false
+  },
+  {
+   "name": "get-ten-redirects",
+   "method": "GET",
+   "body": null,
+   "headers": {
+    "Accept": "application/json",
+    "Authorization": "Bearer fake-token"
+   },
+   "script": {
+    "/1": {
+     "status": 302,
+     "location": "/2"
+    },
+    "/2": {
+     "status": 302,
+     "location": "/3"
+    },
+    "/3": {
+     "status": 302,
+     "location": "/4"
+    },
+    "/4": {
+     "status": 302,
+     "location": "/5"
+    },
+    "/5": {
+     "status": 302,
+     "location": "/6"
+    },
+    "/6": {
+     "status": 302,
+     "location": "/7"
+    },
+    "/7": {
+     "status": 302,
+     "location": "/8"
+    },
+    "/8": {
+     "status": 302,
+     "location": "/9"
+    },
+    "/9": {
+     "status": 302,
+     "location": "/10"
+    },
+    "/start": {
+     "status": 302,
+     "location": "/1"
+    }
+   },
+   "hops": [
+    {
+     "method": "GET",
+     "path": "/start",
+     "host": "BASE",
+     "referer": "",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "path": "/1",
+     "host": "BASE",
+     "referer": "BASE/start",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "path": "/2",
+     "host": "BASE",
+     "referer": "BASE/1",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "path": "/3",
+     "host": "BASE",
+     "referer": "BASE/2",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "path": "/4",
+     "host": "BASE",
+     "referer": "BASE/3",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "path": "/5",
+     "host": "BASE",
+     "referer": "BASE/4",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "path": "/6",
+     "host": "BASE",
+     "referer": "BASE/5",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "path": "/7",
+     "host": "BASE",
+     "referer": "BASE/6",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "path": "/8",
+     "host": "BASE",
+     "referer": "BASE/7",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "path": "/9",
+     "host": "BASE",
+     "referer": "BASE/8",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    }
+   ],
+   "status": 0,
+   "error": true
+  },
+  {
+   "name": "post-303-becomes-get",
+   "method": "POST",
+   "body": "a=1",
+   "headers": {
+    "Authorization": "Bearer fake-token",
+    "Content-Type": "application/x-www-form-urlencoded"
+   },
+   "script": {
+    "/start": {
+     "status": 303,
+     "location": "/b"
+    }
+   },
+   "hops": [
+    {
+     "method": "POST",
+     "path": "/start",
+     "host": "BASE",
+     "referer": "",
+     "authorization": "Bearer fake-token",
+     "content_type": "application/x-www-form-urlencoded",
+     "content_length": "3",
+     "body": "a=1"
+    },
+    {
+     "method": "GET",
+     "path": "/b",
+     "host": "BASE",
+     "referer": "BASE/start",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    }
+   ],
+   "status": 200,
+   "error": false
+  },
+  {
+   "name": "post-307-resends-body",
+   "method": "POST",
+   "body": "a=1",
+   "headers": {
+    "Authorization": "Bearer fake-token",
+    "Content-Type": "application/x-www-form-urlencoded"
+   },
+   "script": {
+    "/start": {
+     "status": 307,
+     "location": "/b"
+    }
+   },
+   "hops": [
+    {
+     "method": "POST",
+     "path": "/start",
+     "host": "BASE",
+     "referer": "",
+     "authorization": "Bearer fake-token",
+     "content_type": "application/x-www-form-urlencoded",
+     "content_length": "3",
+     "body": "a=1"
+    },
+    {
+     "method": "POST",
+     "path": "/b",
+     "host": "BASE",
+     "referer": "BASE/start",
+     "authorization": "Bearer fake-token",
+     "content_type": "application/x-www-form-urlencoded",
+     "content_length": "3",
+     "body": "a=1"
+    }
+   ],
+   "status": 200,
+   "error": false
+  },
+  {
+   "name": "post-empty-body-302",
+   "method": "POST",
+   "body": "",
+   "headers": {
+    "Authorization": "Bearer fake-token",
+    "Content-Type": "application/x-www-form-urlencoded"
+   },
+   "script": {
+    "/start": {
+     "status": 302,
+     "location": "/b"
+    }
+   },
+   "hops": [
+    {
+     "method": "POST",
+     "path": "/start",
+     "host": "BASE",
+     "referer": "",
+     "authorization": "Bearer fake-token",
+     "content_type": "application/x-www-form-urlencoded",
+     "content_length": "0",
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "path": "/b",
+     "host": "BASE",
+     "referer": "BASE/start",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    }
+   ],
+   "status": 200,
+   "error": false
+  },
+  {
+   "name": "post-nil-body",
+   "method": "POST",
+   "body": null,
+   "headers": {
+    "Accept": "application/json",
+    "Authorization": "Bearer fake-token"
+   },
+   "script": null,
+   "hops": [
+    {
+     "method": "POST",
+     "path": "/start",
+     "host": "BASE",
+     "referer": "",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "0",
+     "body": ""
+    }
+   ],
+   "status": 200,
+   "error": false
+  },
+  {
+   "name": "put-empty-body",
+   "method": "PUT",
+   "body": "",
+   "headers": {
+    "Accept": "application/json",
+    "Authorization": "Bearer fake-token"
+   },
+   "script": null,
+   "hops": [
+    {
+     "method": "PUT",
+     "path": "/start",
+     "host": "BASE",
+     "referer": "",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "0",
+     "body": ""
+    }
+   ],
+   "status": 200,
+   "error": false
+  },
+  {
+   "name": "delete-nil-body",
+   "method": "DELETE",
+   "body": null,
+   "headers": {
+    "Accept": "application/json",
+    "Authorization": "Bearer fake-token"
+   },
+   "script": null,
+   "hops": [
+    {
+     "method": "DELETE",
+     "path": "/start",
+     "host": "BASE",
+     "referer": "",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    }
+   ],
+   "status": 200,
+   "error": false
+  },
+  {
+   "name": "patch-empty-body-307",
+   "method": "PATCH",
+   "body": "",
+   "headers": {
+    "Authorization": "Bearer fake-token",
+    "Content-Type": "application/x-www-form-urlencoded"
+   },
+   "script": {
+    "/start": {
+     "status": 307,
+     "location": "/b"
+    }
+   },
+   "hops": [
+    {
+     "method": "PATCH",
+     "path": "/start",
+     "host": "BASE",
+     "referer": "",
+     "authorization": "Bearer fake-token",
+     "content_type": "application/x-www-form-urlencoded",
+     "content_length": "0",
+     "body": ""
+    },
+    {
+     "method": "PATCH",
+     "path": "/b",
+     "host": "BASE",
+     "referer": "BASE/start",
+     "authorization": "Bearer fake-token",
+     "content_type": "application/x-www-form-urlencoded",
+     "content_length": "0",
+     "body": ""
+    }
+   ],
+   "status": 200,
+   "error": false
+  }
+ ],
+ "source": "go1.26.8 standard library"
+}
