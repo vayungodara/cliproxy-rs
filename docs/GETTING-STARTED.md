@@ -38,7 +38,7 @@ Only you can read the file, and the script never prints the keys. Run the same c
 
 The script opens <http://127.0.0.1:8317/management.html> in your browser (use your port if it picked another). Sign in with `CLIPROXY_MANAGEMENT_KEY`. On a server without a browser, open an SSH tunnel from your own computer first, as [INSTALL.md](INSTALL.md#with-the-install-script) shows.
 
-Until you connect an account, the Overview shows a short Get started card: connect an account, point a tool at the proxy, and send a test request. It goes away once all three are done, or when you dismiss it.
+On a new server, the Overview shows a short Get started card with three steps: connect an account, point a tool at the proxy, and send a test request. It goes away once all three are done, or when you dismiss it.
 
 ## 3. Connect an account
 

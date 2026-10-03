@@ -111,6 +111,14 @@ export async function api(
 export const missing = (e: unknown) => e instanceof ApiError && e.missing;
 export const text = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
+/** Asks this proxy for its model list with a client key, as a tool would. No upstream call. */
+export async function clientModels(clientKey: string): Promise<string[]> {
+  const r = await fetch(`${base}/v1/models`, { headers: { Authorization: `Bearer ${clientKey}` }, cache: "no-store" });
+  if (r.status === 401) throw new Error("The proxy rejected this key. Check that it is listed under Client keys.");
+  if (!r.ok) throw new Error(`The proxy answered HTTP ${r.status}. Check Logs for the reason.`);
+  return ((await r.json()).data || []).map((m: Data) => String(m.id));
+}
+
 export async function configValue(path: string, fallback: unknown) {
   try {
     return await api(path);

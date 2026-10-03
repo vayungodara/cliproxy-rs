@@ -267,8 +267,6 @@ ul.plain { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .axis { display: flex; justify-content: space-between; width: 314px; max-width: 100%; }
 .routing { grid-column: 1 / -1; border-top: 1px solid var(--line); padding: 12px 28px; }
 .routing b { font-weight: 600; color: var(--ink); }
-.first { display: grid; gap: 14px; justify-items: start; padding: 32px; }
-.first p { max-width: 58ch; }
 
 /* Row buttons and links */
 .list :is(button, a).item {
@@ -309,13 +307,16 @@ ul.plain { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .code-big { font-size: 28px; letter-spacing: 0.08em; font-weight: 500; }
 pre.code-window { margin: 0; }
 .picks { max-width: 640px; }
-/* First run */
-.first h2 small { margin-left: 12px; font-size: 13px; font-weight: 400; color: var(--ink-2); }
-.checklist { list-style: none; padding: 0; gap: 18px; width: 100%; }
-.checklist li { gap: 8px; padding: 0; justify-items: start; }
-.checklist li > :not(.row) { margin-left: 22px; }
-.checklist .row { gap: 12px; }
-.checklist .done strong { font-weight: 500; color: var(--ink-2); }
+/* First run: three rows in a display window, each a mark, the step and its one action */
+.start { display: grid; gap: 14px; }
+.start h2 small { margin-left: 12px; font-size: 13px; font-weight: 400; color: var(--ink-2); }
+.start li { display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; gap: 14px; align-items: center; min-height: 60px; padding: 10px 0; }
+.start li:last-child { border-bottom: 0; padding-bottom: 0; }
+.start .grow { display: grid; gap: 3px; }
+.start small { font-size: 13px; color: var(--ink-2); }
+.start .lamp { justify-self: center; }
+.start .done strong { font-weight: 500; color: var(--ink-2); }
+.start .mark { color: var(--ok); stroke-width: 2.2; }
 /* Limits on Overview: the account, then its windows side by side */
 .limits .item { display: grid; grid-template-columns: minmax(0, 220px) minmax(0, 1fr); gap: 8px 24px; padding: 12px 0; }
 .windows { display: flex; flex-wrap: wrap; gap: 6px 32px; }
@@ -375,6 +376,9 @@ select { appearance: none; padding-right: 34px; background: var(--raised) url("d
   .quota > .detail { grid-area: 2 / 1 / 3 / -1; }
   .facts { grid-template-columns: 1fr 1fr; }
   .limits .item { grid-template-columns: 1fr; }
+  .start li { grid-template-columns: 16px minmax(0, 1fr); align-items: start; row-gap: 10px; }
+  .start li > .key { grid-column: 2; justify-self: start; }
+  .start li > :is(.lamp, .mark) { margin-top: 3px; }
   .hint { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
