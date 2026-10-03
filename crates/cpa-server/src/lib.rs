@@ -28,6 +28,7 @@ pub mod scheduler;
 mod session;
 pub mod usage;
 mod usage_record;
+mod videos;
 pub mod watching;
 mod websocket;
 mod websocket_requests;
@@ -55,6 +56,14 @@ pub fn router(rt: Arc<Runtime>) -> Router {
         .route("/v1/completions", post(openai::completions))
         .route("/v1/images/generations", post(images::generations))
         .route("/v1/images/edits", post(images::edits))
+        .route("/v1/videos", post(videos::native_post))
+        .route("/v1/videos/generations", post(videos::native_post))
+        .route("/v1/videos/edits", post(videos::native_post))
+        .route("/v1/videos/extensions", post(videos::native_post))
+        .route("/v1/videos/{request_id}", get(videos::native_retrieve))
+        .route("/openai/v1/videos", post(videos::create))
+        .route("/openai/v1/videos/{video_id}/content", get(videos::content))
+        .route("/openai/v1/videos/{video_id}", get(videos::retrieve))
         .route("/v1/messages", post(claude::messages))
         .route("/v1/messages/count_tokens", post(claude::count_tokens))
         .route("/v1/responses", post(openai::responses))

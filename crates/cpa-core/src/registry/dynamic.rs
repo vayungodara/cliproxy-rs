@@ -452,6 +452,48 @@ fn channel(name: &str) -> Vec<Spec> {
     pinned().channel(name).iter().map(Spec::from_static).collect()
 }
 
+/// Go `WithXAIBuiltins` (`upsertModelInfos`): the hard-coded image and video models,
+/// appended after the channel's models and replacing any with the same ID.
+fn with_xai_builtins(models: Vec<Spec>) -> Vec<Spec> {
+    const BUILTINS: [(&str, i64, &str, &str); 6] = [
+        ("grok-imagine-image", 1735689600, "Grok Imagine Image", "xAI Grok image generation model."),
+        (
+            "grok-imagine-image-quality",
+            1735689600,
+            "Grok Imagine Image Quality",
+            "xAI Grok higher-fidelity image generation model.",
+        ),
+        ("grok-imagine-image-2.0", 1786060800, "Grok Imagine Image 2.0", "xAI Grok image generation model."),
+        ("grok-imagine-video", 1735689600, "Grok Imagine Video", "xAI Grok video generation model."),
+        ("grok-imagine-video-1.5", 1735689600, "Grok Imagine Video 1.5", "xAI Grok video generation model."),
+        (
+            "grok-imagine-video-1.5-preview",
+            1735689600,
+            "Grok Imagine Video 1.5 Preview",
+            "Compatibility alias for the xAI Grok video generation model.",
+        ),
+    ];
+    let mut out: Vec<Spec> = models
+        .into_iter()
+        .filter(|m| {
+            let id = m.id.trim();
+            !id.is_empty() && !BUILTINS.iter().any(|(b, ..)| b.eq_ignore_ascii_case(id))
+        })
+        .collect();
+    out.extend(BUILTINS.iter().map(|(id, created, display, description)| Spec {
+        id: (*id).into(),
+        object: "model".into(),
+        created: *created,
+        owned_by: "xai".into(),
+        kind: "xai".into(),
+        display_name: (*display).into(),
+        name: (*id).into(),
+        description: (*description).into(),
+        ..Spec::default()
+    }));
+    out
+}
+
 fn build_config_models(models: &[ConfigModel], owned_by: &str, kind: &str, now: i64) -> Vec<Spec> {
     let mut seen = std::collections::HashSet::new();
     models
@@ -723,7 +765,7 @@ pub fn models_for(cfg: &Config, aliases: &HashMap<String, Vec<OAuthAlias>>, c: &
             })
         }
         "kimi" | "kimi-ai" | "kimi.ai" | "kimi.com" => channel("kimi"),
-        "xai" => with_config(channel("xai"), "xai", "xai"),
+        "xai" => with_config(with_xai_builtins(channel("xai")), "xai", "xai"),
         "meta" => with_config(channel("meta"), "meta", "meta"),
         // Go `registry.GetDevinModels()`: the live Devin catalog, never config models.
         "devin" => super::devin::models().iter().map(Spec::from_static).collect(),

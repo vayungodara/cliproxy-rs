@@ -69,7 +69,6 @@ mod translate;
 mod upstream;
 mod wire;
 pub mod xai;
-mod xai_apply_patch;
 pub mod xai_auth;
 mod xai_replay;
 mod xai_request;

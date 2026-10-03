@@ -26,7 +26,7 @@ use crate::gemini_stream::ClaudeInputTokens;
 use crate::openai_compat::status_err;
 use crate::openai_compat_http::{self as wire, Clients, GoHeaders};
 use crate::openai_compat_payload::{self as compat, ensure_responses_usage_details};
-use crate::xai_apply_patch as apply_patch;
+use cpa_translate::apply_patch_responses as apply_patch;
 use crate::xai_auth::{self, CLI_CHAT_PROXY_BASE_URL, DEFAULT_API_BASE_URL, metadata_string};
 use crate::xai_replay::{self as replay, ReplayScope};
 use crate::xai_request::{self as request, Prepared};
@@ -45,6 +45,13 @@ const IMAGES_EDITS: &str = "/images/edits";
 const VIDEOS_GENERATIONS: &str = "/videos/generations";
 const VIDEOS_EDITS: &str = "/videos/edits";
 const VIDEOS_EXTENSIONS: &str = "/videos/extensions";
+
+/// Go `url.Parse(raw)` succeeds with an `http` or `https` scheme and a host (the video
+/// content URL check of the videos handler).
+pub fn is_http_url(raw: &str) -> bool {
+    crate::xai_url::parse(raw)
+        .is_ok_and(|u| matches!(u.scheme.as_str(), "http" | "https") && !(u.hostname.is_empty() && u.port.is_empty()))
+}
 
 /// Rewrites upstream URLs (tests point the fixed xAI hosts at a local mock).
 type UrlRewrite = Arc<dyn Fn(&str) -> String + Send + Sync>;
@@ -464,7 +471,8 @@ impl XaiExecutor {
         let (mut p, data, headers) = self.compact_request(credential, req, cfg, downstream_websocket).await?;
         let converted = p
             .apply_patch
-            .transform_non_stream(data.to_vec())
+            .bridge
+            .transform_non_stream(&data)
             .map_err(|_| apply_patch_error())?;
         let out = translate_non_stream(req, &p, Format::OpenAIResponse, &converted)?;
         Ok(ExecResponse {
@@ -656,7 +664,11 @@ fn buffered(req: &ExecRequest, mut p: Prepared, store: &replay::Store, data: &[u
         let Some(event) = filter.apply(event).filter(|e| !e.is_empty()) else {
             continue;
         };
-        for event in p.apply_patch.transform(event).map_err(|_| apply_patch_error())? {
+        let (events, bridge_error) = p.apply_patch.transform(&event);
+        if bridge_error.is_some() {
+            return Err(apply_patch_error());
+        }
+        for event in events {
             // ObserveResponseModel on every event; ParseCodexUsage on the terminal one.
             if req.usage.enabled() {
                 req.usage.response_line(Format::Codex, &event);
@@ -776,10 +788,8 @@ impl Pipeline {
 
     /// `emitTranslatedLine`; false ends the stream.
     fn emit(&mut self, line: Vec<u8>) -> bool {
-        let (lines, bridge_failed) = match self.apply_patch.stream(line) {
-            Ok(lines) => (lines, false),
-            Err(()) => (vec![], true),
-        };
+        let (lines, bridge_error) = self.apply_patch.stream(&line);
+        let bridge_failed = bridge_error.is_some();
         let mut chunks = vec![];
         for mut line in lines {
             if let Some(rest) = line.strip_prefix(b"data:") {
@@ -876,10 +886,8 @@ impl Pipeline {
         {
             return;
         }
-        let (events, failed) = match self.apply_patch.finish_stream() {
-            Ok(events) => (events, false),
-            Err(()) => (vec![], true),
-        };
+        let (events, finish_error) = self.apply_patch.finish_stream();
+        let failed = finish_error.is_some();
         for event in events {
             match self.translate(&event) {
                 Some(out) => self.ready.extend(out.into_iter().map(Ok)),

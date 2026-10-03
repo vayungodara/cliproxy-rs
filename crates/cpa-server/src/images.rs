@@ -83,7 +83,7 @@ fn is_compat_model(model: &str) -> bool {
     !model.is_empty() && cpa_core::registry::lookup_model(model, None).is_some_and(|info| info.kind == "openai-image")
 }
 
-fn bad_request(message: &str) -> Response {
+pub(crate) fn bad_request(message: &str) -> Response {
     respond::error_detail(400, message, "invalid_request_error")
 }
 
@@ -195,7 +195,7 @@ fn xai_base_request(model: &str, prompt: &str, format: &str, o: &XaiOptions) -> 
     req
 }
 
-fn text(body: &[u8], path: &str) -> String {
+pub(crate) fn text(body: &[u8], path: &str) -> String {
     gj::get(body, path).str().into_owned()
 }
 
@@ -509,7 +509,7 @@ fn json_ok(body: impl Into<Body>) -> Response {
 }
 
 /// `WriteErrorResponse` for a handler-side failure.
-fn gateway_error(message: &str) -> Response {
+pub(crate) fn gateway_error(message: &str) -> Response {
     respond::json(502, "application/json", errors::openai_body(502, message))
 }
 
@@ -694,7 +694,7 @@ pub async fn edits(
 }
 
 /// `http.Request.ParseMultipartForm` as gin's `c.MultipartForm` calls it.
-fn multipart_form(content_type: &str, body: &[u8]) -> Result<Form, String> {
+pub(crate) fn multipart_form(content_type: &str, body: &[u8]) -> Result<Form, String> {
     const NOT_MULTIPART: &str = "request Content-Type isn't multipart/form-data";
     if content_type.is_empty() {
         return Err(NOT_MULTIPART.into());
