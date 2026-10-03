@@ -100,7 +100,6 @@ struct GuardState {
     inner: Option<Arc<dyn PluginClient>>,
     calls: usize,
     closed: bool,
-    shutdown_done: bool,
 }
 
 /// Go `guardedPluginClient`.
@@ -108,6 +107,8 @@ pub struct GuardedClient {
     state: Mutex<GuardState>,
     changed: Condvar,
     instance: Arc<CallbackInstance>,
+    /// Flips to `true` once the plugin has been shut down.
+    done: tokio::sync::watch::Sender<bool>,
 }
 
 fn lock<T>(m: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
@@ -123,6 +124,7 @@ impl GuardedClient {
             }),
             changed: Condvar::new(),
             instance,
+            done: tokio::sync::watch::Sender::new(false),
         })
     }
 
@@ -172,17 +174,12 @@ impl GuardedClient {
     }
 
     /// Detaches the client at once, then waits up to `wait` for running calls to drain
-    /// before the plugin is shut down. Shutdown itself always completes in the
-    /// background (Go `ShutdownContext`). `None` waits indefinitely.
+    /// and the plugin to shut down. Shutdown itself always completes on a dedicated
+    /// thread (Go `ShutdownContext`). `None` waits indefinitely.
     pub async fn shutdown(self: &Arc<Self>, wait: Option<Duration>) {
         let start = {
             let mut state = lock(&self.state);
-            if state.closed {
-                false
-            } else {
-                state.closed = true;
-                true
-            }
+            !std::mem::replace(&mut state.closed, true)
         };
         if start {
             let this = self.clone();
@@ -199,33 +196,24 @@ impl GuardedClient {
                 if let Some(inner) = inner {
                     inner.shutdown();
                 }
-                lock(&this.state).shutdown_done = true;
-                this.changed.notify_all();
+                this.done.send_replace(true);
             });
         }
-        let this = self.clone();
-        let wait_done = tokio::task::spawn_blocking(move || {
-            let mut state = lock(&this.state);
-            while !state.shutdown_done {
-                state = this
-                    .changed
-                    .wait(state)
-                    .unwrap_or_else(std::sync::PoisonError::into_inner);
-            }
-        });
+        let mut done = self.done.subscribe();
+        let finished = done.wait_for(|done| *done);
         match wait {
             Some(limit) => {
-                let _ = tokio::time::timeout(limit, wait_done).await;
+                let _ = tokio::time::timeout(limit, finished).await;
             }
             None => {
-                let _ = wait_done.await;
+                let _ = finished.await;
             }
         }
     }
 
     /// Whether shutdown has finished (the library is closed).
     pub fn is_shut_down(&self) -> bool {
-        lock(&self.state).shutdown_done
+        *self.done.borrow()
     }
 
     pub fn active_calls(&self) -> usize {

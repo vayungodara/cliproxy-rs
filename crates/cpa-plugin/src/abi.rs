@@ -1,9 +1,8 @@
 //! `sdk/pluginabi`: ABI and schema versions, RPC method names and the JSON envelope.
 
 use bytes::Bytes;
-use serde_json::Value;
 
-use crate::gojson::{self, DecodeError, GoJson, ObjWriter};
+use crate::gojson::{self, DecodeError, GoJson, Node, ObjWriter};
 
 /// Native C ABI shape (`cliproxy_plugin_init` and the two function tables).
 pub const ABI_VERSION: u32 = 1;
@@ -117,44 +116,57 @@ crate::go_struct! {
     }
 }
 
-/// `pluginabi.Envelope` with the result kept as a parsed value.
+/// `pluginabi.Envelope` with the result kept as a parsed document (Go keeps it as a
+/// `json.RawMessage` and decodes it into the target type afterwards).
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Envelope {
     pub ok: bool,
-    pub result: Option<Value>,
+    pub result: Option<Node>,
     pub error: Option<EnvelopeError>,
 }
 
 impl Envelope {
-    /// Parses a plugin response envelope.
+    /// Parses a plugin response envelope member by member, as `json.Unmarshal` does:
+    /// keys match case-insensitively, later members decode over earlier ones, `null`
+    /// leaves `ok` alone and clears `error`.
     pub fn parse(raw: &[u8]) -> Result<Self, DecodeError> {
-        let value: Value = serde_json::from_slice(raw).map_err(|e| DecodeError(format!("json: {e}")))?;
-        let Value::Object(map) = &value else {
-            return Err(gojson::type_error(&value, "pluginabi.Envelope"));
+        let node = gojson::parse(raw)?;
+        let Node::Object(members) = &node else {
+            if node.is_null() {
+                return Ok(Self::default());
+            }
+            return Err(gojson::type_error(&node, "pluginabi.Envelope"));
         };
         let mut out = Envelope::default();
-        // encoding/json: keys match case-insensitively and the last one wins.
-        let lookup = |name: &str| {
-            map.iter()
-                .rev()
-                .find(|(k, _)| k.eq_ignore_ascii_case(name))
-                .map(|(_, v)| v)
-        };
-        if let Some(v) = lookup("ok") {
-            out.ok = bool::decode(v).map_err(|e| gojson::in_field(e, "Envelope", "ok"))?;
+        let mut wire: Option<WireError> = None;
+        let mut first_err = None;
+        for (key, value) in members {
+            let result = if key.eq_ignore_ascii_case("ok") {
+                out.ok
+                    .decode_into(value)
+                    .map_err(|e| gojson::in_field(e, "Envelope", "ok"))
+            } else if key.eq_ignore_ascii_case("result") {
+                out.result = Some(value.clone());
+                Ok(())
+            } else if key.eq_ignore_ascii_case("error") {
+                wire.decode_into(value)
+                    .map_err(|e| gojson::in_field(e, "Envelope", "error"))
+            } else {
+                Ok(())
+            };
+            if let Err(e) = result {
+                first_err.get_or_insert(e);
+            }
         }
-        if let Some(v) = lookup("result").filter(|v| !v.is_null()) {
-            out.result = Some(v.clone());
+        if let Some(e) = first_err {
+            return Err(e);
         }
-        if let Some(v) = lookup("error").filter(|v| !v.is_null()) {
-            let wire = WireError::decode(v).map_err(|e| gojson::in_field(e, "Envelope", "error"))?;
-            out.error = Some(EnvelopeError {
-                code: wire.code,
-                message: wire.message,
-                retryable: wire.retryable,
-                http_status: wire.http_status,
-            });
-        }
+        out.error = wire.map(|wire| EnvelopeError {
+            code: wire.code,
+            message: wire.message,
+            retryable: wire.retryable,
+            http_status: wire.http_status,
+        });
         Ok(out)
     }
 
@@ -217,5 +229,15 @@ mod tests {
         let parsed = Envelope::parse(br#"{"OK":false,"Error":{"Code":"c","Message":"m","HTTP_STATUS":401}}"#).unwrap();
         assert!(!parsed.ok);
         assert_eq!(parsed.error.unwrap().http_status, 401);
+        // Go: a later null leaves the bool alone; an overflowing number in the raw result
+        // is only a problem once the result is decoded.
+        assert!(
+            Envelope::parse(br#"{"ok":true,"ok":null,"result":{"x":1e400}}"#)
+                .unwrap()
+                .ok
+        );
+        let merged = Envelope::parse(br#"{"error":{"code":"a"},"error":{"message":"b"}}"#).unwrap();
+        let error = merged.error.unwrap();
+        assert_eq!((error.code.as_str(), error.message.as_str()), ("a", "b"));
     }
 }

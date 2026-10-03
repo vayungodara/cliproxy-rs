@@ -213,10 +213,9 @@ impl Host {
             method::HOST_LOG => self.host_log(request),
             method::HOST_STREAM_EMIT => {
                 let req: StreamEmitRequest = decode("stream emit request", request)?;
-                let chunk = if req.error.is_empty() {
-                    Chunk::Data(req.payload)
-                } else {
-                    Chunk::Error(req.error)
+                let chunk = Chunk {
+                    payload: req.payload,
+                    error: (!req.error.is_empty()).then_some(req.error),
                 };
                 self.inner
                     .callbacks

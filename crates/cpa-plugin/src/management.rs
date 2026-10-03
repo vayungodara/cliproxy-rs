@@ -399,12 +399,12 @@ impl Host {
     }
 }
 
-/// `http.Header.Get`: first value of the canonically matching name.
+/// `http.Header.Get`: canonicalizes the key, then looks it up exactly. A decoded map
+/// whose key is spelled `content-type` does not match.
 pub fn header_get<'a>(headers: &'a Header, name: &str) -> &'a str {
     headers
-        .iter()
-        .find(|(k, _)| k.eq_ignore_ascii_case(name))
-        .and_then(|(_, v)| v.first())
+        .get(&cpa_exec::proxy::canonical_header(name))
+        .and_then(|v| v.first())
         .map(String::as_str)
         .unwrap_or_default()
 }
@@ -521,5 +521,12 @@ mod tests {
         );
         assert_eq!(escape_json_body_if_likely(b"{bad", "application/json"), None);
         assert!(is_json_content_type("application/problem+json; charset=utf-8"));
+        // Go's Header.Get does not find a lowercase key decoded from JSON.
+        let lower: Header = [("content-type".to_owned(), vec!["application/json".to_owned()])].into();
+        assert_eq!(header_get(&lower, "Content-Type"), "");
+        assert_eq!(
+            escape_json_body_if_likely(br#""<b>""#, header_get(&lower, "Content-Type")),
+            None
+        );
     }
 }

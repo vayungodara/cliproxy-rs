@@ -18,7 +18,7 @@ use std::collections::HashMap;
 use std::ffi::{CStr, CString, c_char, c_int, c_void};
 use std::path::Path;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock, RwLock};
 
 use bytes::Bytes;
 
@@ -152,7 +152,10 @@ pub struct NativeClient {
     api: PluginApi,
     callback_id: usize,
     instance: Arc<CallbackInstance>,
-    shut: Mutex<bool>,
+    /// `true` once shut down. Calls hold it shared for their whole duration (including
+    /// the response copy and `free_buffer`); shutdown takes it exclusively, so the
+    /// library and host tables can never be freed under a running call.
+    gate: RwLock<bool>,
 }
 
 // SAFETY: the raw pointers are owned by this client and only freed in `shutdown`, which
@@ -223,7 +226,7 @@ impl NativeClient {
             api: PluginApi::default(),
             callback_id,
             instance,
-            shut: Mutex::new(false),
+            gate: RwLock::new(false),
         };
         // SAFETY: `init` is the plugin's exported cliproxy_plugin_init.
         let init: InitFn = unsafe { std::mem::transmute::<*mut c_void, InitFn>(init) };
@@ -252,7 +255,8 @@ impl NativeClient {
     /// Go `dynamicLibraryClient.Call`. A non-zero return with an error envelope is a
     /// normal RPC failure; any other non-zero return is a transport error.
     pub fn call(&self, method: &str, request: &[u8]) -> Result<Bytes, String> {
-        if *lock(&self.shut) {
+        let gate = self.gate.read().unwrap_or_else(std::sync::PoisonError::into_inner);
+        if *gate {
             return Err("plugin client is closed".into());
         }
         let (Some(call), Some(free)) = (self.api.call, self.api.free_buffer) else {
@@ -281,6 +285,7 @@ impl NativeClient {
             // SAFETY: released through the plugin's own allocator.
             unsafe { free(response.ptr, response.len) };
         }
+        drop(gate);
         if rc != 0 {
             if abi::Envelope::is_error(&out) {
                 return Ok(out);
@@ -296,7 +301,7 @@ impl NativeClient {
     /// Go `dynamicLibraryClient.Shutdown`: `shutdown()`, drop the callback entry, free the
     /// host tables, `dlclose`. Idempotent.
     pub fn shutdown(&self) {
-        let mut shut = lock(&self.shut);
+        let mut shut = self.gate.write().unwrap_or_else(std::sync::PoisonError::into_inner);
         if *shut {
             return;
         }

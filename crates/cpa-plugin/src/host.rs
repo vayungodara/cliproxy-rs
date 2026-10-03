@@ -349,7 +349,17 @@ impl Host {
     }
 
     /// Go `ApplyConfig`.
+    ///
+    /// ponytail: runs to completion on its own task even if the caller stops waiting, so
+    /// a dropped future can never strand a half-loaded plugin; Go instead aborts on
+    /// context cancellation and rolls the load back. Add cancellation with rollback if
+    /// shutdown latency during a slow `plugin.register` ever matters.
     pub async fn apply_config(&self, cfg: Arc<Config>) {
+        let host = self.clone();
+        let _ = tokio::spawn(async move { host.apply_config_inner(cfg).await }).await;
+    }
+
+    async fn apply_config_inner(&self, cfg: Arc<Config>) {
         let _apply = self.inner.apply.lock().await;
         let rc = match config::runtime_config(&cfg.document) {
             Ok(rc) => rc,
@@ -712,6 +722,14 @@ impl Host {
     /// Go `UnloadPluginContext`: detach `id` from the runtime, then close every loaded
     /// instance of it, waiting up to `wait` for running calls.
     pub async fn unload_plugin(&self, id: &str, wait: Option<Duration>) -> bool {
+        let host = self.clone();
+        let id = id.to_owned();
+        tokio::spawn(async move { host.unload_plugin_inner(&id, wait).await })
+            .await
+            .unwrap_or(false)
+    }
+
+    async fn unload_plugin_inner(&self, id: &str, wait: Option<Duration>) -> bool {
         let id = id.trim();
         if id.is_empty() {
             return false;
@@ -752,6 +770,11 @@ impl Host {
 
     /// Go `ShutdownAllContext`.
     pub async fn shutdown_all(&self, wait: Option<Duration>) {
+        let host = self.clone();
+        let _ = tokio::spawn(async move { host.shutdown_all_inner(wait).await }).await;
+    }
+
+    async fn shutdown_all_inner(&self, wait: Option<Duration>) {
         let _apply = self.inner.apply.lock().await;
         let targets: Vec<LoadedPlugin> = {
             let mut state = self.state();
@@ -850,4 +873,80 @@ fn remove_runtime_state(state: &mut State, id: &str) {
 /// Payload bytes for an RPC field that Go fills with `bytes.Clone`.
 pub fn bytes_of(v: &[u8]) -> Bytes {
     Bytes::copy_from_slice(v)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    /// A plugin that registers with one capability.
+    struct FakeClient;
+
+    impl PluginClient for FakeClient {
+        fn call(&self, method: &str, _: &[u8]) -> Result<Bytes, String> {
+            Ok(match method {
+                method::PLUGIN_REGISTER | method::PLUGIN_RECONFIGURE => Bytes::from_static(
+                    br#"{"ok":true,"result":{"schema_version":6,"metadata":{"Name":"n","Version":"1","Author":"a","GitHubRepository":"r"},"capabilities":{"usage_plugin":true}}}"#,
+                ),
+                _ => Bytes::from_static(br#"{"ok":true,"result":{}}"#),
+            })
+        }
+        fn shutdown(&self) {}
+    }
+
+    /// Blocks `open` until released; counts opens.
+    struct GateLoader {
+        release: Arc<(Mutex<bool>, std::sync::Condvar)>,
+        opens: AtomicUsize,
+    }
+
+    impl Loader for GateLoader {
+        fn open(
+            &self,
+            _: &PluginFile,
+            _: Arc<dyn CallbackHandler>,
+            _: Arc<CallbackInstance>,
+        ) -> Result<Arc<dyn PluginClient>, String> {
+            self.opens.fetch_add(1, Ordering::SeqCst);
+            let (open, cv) = &*self.release;
+            let mut open = lock(open);
+            while !*open {
+                open = cv.wait(open).unwrap();
+            }
+            Ok(Arc::new(FakeClient))
+        }
+    }
+
+    /// Oracle finding 1: an apply abandoned while `open` blocks must not strand the
+    /// plugin in `loading`; it completes and the plugin is active afterwards.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn abandoned_apply_still_completes() {
+        let dir = std::env::temp_dir().join(format!("cpa-plugin-cancel-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join(format!("p{}", platform::extension(platform::goos()))), b"").unwrap();
+        let release = Arc::new((Mutex::new(false), std::sync::Condvar::new()));
+        let loader = Arc::new(GateLoader {
+            release: release.clone(),
+            opens: AtomicUsize::new(0),
+        });
+        let host = Host::with_loader(loader.clone());
+        let yaml = format!(
+            "plugins:\n  enabled: true\n  dir: {}\n  configs:\n    p:\n      enabled: true\n",
+            dir.display()
+        );
+        let cfg = Arc::new(Config::parse(&yaml).unwrap());
+        let abandoned = tokio::time::timeout(Duration::from_millis(50), host.apply_config(cfg.clone())).await;
+        assert!(abandoned.is_err(), "open is still blocked");
+        *lock(&release.0) = true;
+        release.1.notify_all();
+        host.apply_config(cfg).await;
+        assert!(host.plugin_registered("p"));
+        assert_eq!(
+            loader.opens.load(Ordering::SeqCst),
+            1,
+            "the abandoned load was reused, not repeated"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 }

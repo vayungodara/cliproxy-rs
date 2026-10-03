@@ -16,11 +16,25 @@ use crate::host::lock;
 
 const BUFFER: usize = 16;
 
-/// One chunk: a payload, or a terminal error.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Chunk {
-    Data(Bytes),
-    Error(String),
+/// One chunk (`pluginapi.ExecutorStreamChunk`): a payload and, when set, an error that
+/// ends the stream after it. A plugin may send both in one emit.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Chunk {
+    pub payload: Bytes,
+    pub error: Option<String>,
+}
+
+impl Chunk {
+    pub fn data(payload: Bytes) -> Self {
+        Self { payload, error: None }
+    }
+
+    pub fn error(message: impl Into<String>) -> Self {
+        Self {
+            payload: Bytes::new(),
+            error: Some(message.into()),
+        }
+    }
 }
 
 #[derive(Default)]
@@ -59,9 +73,10 @@ impl Stream {
         }
         q.closed = true;
         if !error.is_empty() {
-            q.items.push_back(Chunk::Error(error.to_owned()));
+            q.items.push_back(Chunk::error(error));
         }
-        self.ready.notify_one();
+        // Terminal: wake every pending reader, as closing Go's channel does.
+        self.ready.notify_waiters();
         self.space.notify_all();
     }
 
@@ -69,7 +84,7 @@ impl Stream {
         let mut q = lock(&self.queue);
         q.aborted = true;
         q.items.clear();
-        self.ready.notify_one();
+        self.ready.notify_waiters();
         self.space.notify_all();
     }
 
@@ -188,7 +203,7 @@ mod tests {
             let id = id.clone();
             tokio::task::spawn_blocking(move || {
                 for i in 0..20u8 {
-                    bridge.emit(&id, Chunk::Data(Bytes::from(vec![i]))).unwrap();
+                    bridge.emit(&id, Chunk::data(Bytes::from(vec![i]))).unwrap();
                 }
                 bridge.close(&id, "boom");
             })
@@ -199,25 +214,41 @@ mod tests {
         }
         emitter.await.unwrap();
         assert_eq!(got.len(), 21);
-        assert_eq!(got[0], Chunk::Data(Bytes::from_static(&[0])));
-        assert_eq!(got[20], Chunk::Error("boom".into()));
+        assert_eq!(got[0], Chunk::data(Bytes::from_static(&[0])));
+        assert_eq!(got[20], Chunk::error("boom"));
         assert_eq!(
-            bridge.emit(&id, Chunk::Data(Bytes::new())),
+            bridge.emit(&id, Chunk::default()),
             Err(format!("stream {id} is not open"))
         );
 
         let reader = bridge.open();
         let id = reader.id().to_owned();
         for _ in 0..BUFFER {
-            bridge.emit(&id, Chunk::Data(Bytes::new())).unwrap();
+            bridge.emit(&id, Chunk::default()).unwrap();
         }
         let blocked = {
             let bridge = bridge.clone();
             let id = id.clone();
-            tokio::task::spawn_blocking(move || bridge.emit(&id, Chunk::Data(Bytes::new())))
+            tokio::task::spawn_blocking(move || bridge.emit(&id, Chunk::default()))
         };
         tokio::time::sleep(std::time::Duration::from_millis(20)).await;
         drop(reader);
         assert_eq!(blocked.await.unwrap(), Err(format!("stream {id} is not open")));
+
+        // Closing wakes every pending reader (oracle finding: notify_one left one asleep).
+        let reader = Arc::new(bridge.open());
+        let id = reader.id().to_owned();
+        let waiters: Vec<_> = (0..2)
+            .map(|_| {
+                let reader = reader.clone();
+                tokio::spawn(async move { reader.next().await })
+            })
+            .collect();
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        bridge.close(&id, "");
+        for waiter in waiters {
+            let got = tokio::time::timeout(std::time::Duration::from_secs(5), waiter).await;
+            assert_eq!(got.expect("reader woke").unwrap(), None);
+        }
     }
 }

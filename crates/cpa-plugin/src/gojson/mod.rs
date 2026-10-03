@@ -9,6 +9,11 @@
 //! scalars alone and clears slices and maps; numbers into integer fields must be integer
 //! literals.
 //!
+//! Decoding walks a [`Node`] tree that keeps every object member and number literal,
+//! and follows Go's decode-into-existing rules: struct fields and map keys merge into
+//! what is already there (a map element itself is decoded fresh), a pointer decodes
+//! into its pointee, a slice reuses its elements.
+//!
 //! Structs are declared with [`go_struct!`](crate::go_struct). `[]byte` is
 //! [`bytes::Bytes`]; `map[string]any` and `any` are [`serde_json::Value`].
 //!
@@ -22,6 +27,9 @@ use base64::Engine as _;
 use bytes::Bytes;
 use chrono::{DateTime, Datelike, FixedOffset, Timelike};
 use serde_json::Value;
+
+mod node;
+pub use node::{Node, parse};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DecodeError(pub String);
@@ -40,8 +48,30 @@ pub trait GoJson: Sized + Default {
     const GO_TYPE: &'static str;
     /// Appends `json.Marshal` output.
     fn encode(&self, out: &mut Vec<u8>);
-    /// `json.Unmarshal` into a zero value. `null` yields the zero value.
-    fn decode(v: &Value) -> Result<Self, DecodeError>;
+    /// `json.Unmarshal` into a zero value.
+    fn decode(v: &Node) -> Result<Self, DecodeError> {
+        let mut out = Self::default();
+        out.decode_into(v)?;
+        Ok(out)
+    }
+    /// `json.Unmarshal` into an existing value. `null` resets slices, maps, pointers and
+    /// `any`, and leaves everything else alone.
+    fn decode_into(&mut self, v: &Node) -> Result<(), DecodeError> {
+        if v.is_null() {
+            if Self::NULL_CLEARS {
+                *self = Self::default();
+            }
+            return Ok(());
+        }
+        *self = Self::decode_value(v)?;
+        Ok(())
+    }
+    /// Decodes a non-null value from scratch. Implement this or [`Self::decode_into`].
+    fn decode_value(v: &Node) -> Result<Self, DecodeError> {
+        let mut out = Self::default();
+        out.decode_into(v)?;
+        Ok(out)
+    }
     /// Go `omitempty`: false, 0, "", nil or empty slices and maps, nil pointers. Structs
     /// (including `time.Time`) are never empty.
     fn is_empty(&self) -> bool;
@@ -59,24 +89,23 @@ pub fn to_vec<T: GoJson>(v: &T) -> Vec<u8> {
 
 /// `json.Unmarshal` of a complete document.
 pub fn from_slice<T: GoJson>(raw: &[u8]) -> Result<T, DecodeError> {
-    let value: Value = serde_json::from_slice(raw).map_err(|e| DecodeError(format!("json: {e}")))?;
-    T::decode(&value)
+    T::decode(&parse(raw)?)
 }
 
-fn kind(v: &Value) -> &'static str {
+fn kind(v: &Node) -> &'static str {
     match v {
-        Value::Null => "null",
-        Value::Bool(_) => "bool",
-        Value::Number(_) => "number",
-        Value::String(_) => "string",
-        Value::Array(_) => "array",
-        Value::Object(_) => "object",
+        Node::Null => "null",
+        Node::Bool(_) => "bool",
+        Node::Number(_) => "number",
+        Node::String(_) => "string",
+        Node::Array(_) => "array",
+        Node::Object(_) => "object",
     }
 }
 
-pub fn type_error(v: &Value, go_type: &str) -> DecodeError {
+pub fn type_error(v: &Node, go_type: &str) -> DecodeError {
     let what = match v {
-        Value::Number(n) => format!("number {n}"),
+        Node::Number(n) => format!("number {n}"),
         other => kind(other).to_owned(),
     };
     DecodeError(format!("json: cannot unmarshal {what} into Go value of type {go_type}"))
@@ -139,23 +168,25 @@ pub trait GoStruct: GoJson {
     fn encode_fields(&self, w: &mut ObjWriter<'_>);
     /// Decodes `v` into the field named `key` (exact match first, then
     /// case-insensitive). `None` when no field matches.
-    fn decode_field(&mut self, key: &str, v: &Value) -> Option<Result<(), DecodeError>>;
+    fn decode_field(&mut self, key: &str, v: &Node) -> Option<Result<(), DecodeError>>;
 }
 
-/// Decodes an object into a struct field by field.
-pub fn decode_struct<T: GoStruct>(v: &Value) -> Result<T, DecodeError> {
+/// Decodes an object into a fresh struct.
+pub fn decode_struct<T: GoStruct>(v: &Node) -> Result<T, DecodeError> {
     let mut out = T::default();
     decode_struct_into(&mut out, v)?;
     Ok(out)
 }
 
-pub fn decode_struct_into<T: GoStruct>(out: &mut T, v: &Value) -> Result<(), DecodeError> {
+/// Decodes an object member by member into an existing struct; later duplicates decode
+/// over earlier ones.
+pub fn decode_struct_into<T: GoStruct>(out: &mut T, v: &Node) -> Result<(), DecodeError> {
     match v {
-        Value::Null => Ok(()),
-        Value::Object(map) => {
+        Node::Null => Ok(()),
+        Node::Object(members) => {
             // Go keeps decoding after a type mismatch and reports the first one.
             let mut first_err = None;
-            for (key, value) in map {
+            for (key, value) in members {
                 if let Some(Err(e)) = out.decode_field(key, value) {
                     first_err.get_or_insert(e);
                 }
@@ -198,8 +229,8 @@ macro_rules! go_struct {
                 $crate::gojson::GoStruct::encode_fields(self, &mut w);
                 w.end();
             }
-            fn decode(v: &serde_json::Value) -> Result<Self, $crate::gojson::DecodeError> {
-                $crate::gojson::decode_struct(v)
+            fn decode_into(&mut self, v: &$crate::gojson::Node) -> Result<(), $crate::gojson::DecodeError> {
+                $crate::gojson::decode_struct_into(self, v)
             }
             fn is_empty(&self) -> bool {
                 false
@@ -215,7 +246,7 @@ macro_rules! go_struct {
             fn decode_field(
                 &mut self,
                 key: &str,
-                v: &serde_json::Value,
+                v: &$crate::gojson::Node,
             ) -> Option<Result<(), $crate::gojson::DecodeError>> {
                 $(
                     if key == $wire {
@@ -235,14 +266,10 @@ macro_rules! go_struct {
     (@omit) => { false };
 }
 
-/// Decodes one field. `null` leaves scalars and structs unchanged and clears slices,
-/// maps and pointers, as Go does.
-pub fn decode_field_value<T: GoJson>(slot: &mut T, v: &Value, strukt: &str, field: &str) -> Result<(), DecodeError> {
-    if v.is_null() && !T::NULL_CLEARS {
-        return Ok(());
-    }
-    *slot = T::decode(v).map_err(|e| in_field(e, strukt.rsplit('.').next().unwrap_or(strukt), field))?;
-    Ok(())
+/// Decodes one field into its current value.
+pub fn decode_field_value<T: GoJson>(slot: &mut T, v: &Node, strukt: &str, field: &str) -> Result<(), DecodeError> {
+    slot.decode_into(v)
+        .map_err(|e| in_field(e, strukt.rsplit('.').next().unwrap_or(strukt), field))
 }
 
 // ----------------------------------------------------------------------------------------
@@ -253,10 +280,9 @@ impl GoJson for String {
     fn encode(&self, out: &mut Vec<u8>) {
         cpa_common::json::marshal_str(out, self.as_bytes(), true);
     }
-    fn decode(v: &Value) -> Result<Self, DecodeError> {
+    fn decode_value(v: &Node) -> Result<Self, DecodeError> {
         match v {
-            Value::Null => Ok(String::new()),
-            Value::String(s) => Ok(s.clone()),
+            Node::String(s) => Ok(s.clone()),
             other => Err(type_error(other, Self::GO_TYPE)),
         }
     }
@@ -270,10 +296,9 @@ impl GoJson for bool {
     fn encode(&self, out: &mut Vec<u8>) {
         out.extend_from_slice(if *self { b"true" } else { b"false" });
     }
-    fn decode(v: &Value) -> Result<Self, DecodeError> {
+    fn decode_value(v: &Node) -> Result<Self, DecodeError> {
         match v {
-            Value::Null => Ok(false),
-            Value::Bool(b) => Ok(*b),
+            Node::Bool(b) => Ok(*b),
             other => Err(type_error(other, Self::GO_TYPE)),
         }
     }
@@ -289,15 +314,11 @@ macro_rules! go_int {
             fn encode(&self, out: &mut Vec<u8>) {
                 out.extend_from_slice(self.to_string().as_bytes());
             }
-            fn decode(v: &Value) -> Result<Self, DecodeError> {
+            /// Go parses the literal with `strconv.ParseInt`/`ParseUint`: `1.0`, `1e2` and
+            /// out-of-range values are errors.
+            fn decode_value(v: &Node) -> Result<Self, DecodeError> {
                 match v {
-                    Value::Null => Ok(0),
-                    // Go parses the literal: `1.0` or `1e2` is not an integer.
-                    Value::Number(n) => n
-                        .as_i64()
-                        .and_then(|i| <$t>::try_from(i).ok())
-                        .or_else(|| n.as_u64().and_then(|u| <$t>::try_from(u).ok()))
-                        .ok_or_else(|| type_error(v, Self::GO_TYPE)),
+                    Node::Number(n) => n.parse::<$t>().map_err(|_| type_error(v, Self::GO_TYPE)),
                     other => Err(type_error(other, Self::GO_TYPE)),
                 }
             }
@@ -323,10 +344,9 @@ impl GoJson for f64 {
                 .as_bytes(),
         );
     }
-    fn decode(v: &Value) -> Result<Self, DecodeError> {
+    fn decode_value(v: &Node) -> Result<Self, DecodeError> {
         match v {
-            Value::Null => Ok(0.0),
-            Value::Number(n) => n.as_f64().ok_or_else(|| type_error(v, Self::GO_TYPE)),
+            Node::Number(n) => node::parse_f64(n),
             other => Err(type_error(other, Self::GO_TYPE)),
         }
     }
@@ -335,7 +355,41 @@ impl GoJson for f64 {
     }
 }
 
-/// `[]byte`: standard padded base64.
+/// `encoding/base64.StdEncoding` as `encoding/json` uses it: padding required, CR and
+/// LF skipped, non-zero trailing bits accepted.
+fn decode_base64(s: &str) -> Result<Bytes, DecodeError> {
+    use base64::engine::{DecodePaddingMode, GeneralPurpose, GeneralPurposeConfig};
+    const LENIENT: GeneralPurpose = GeneralPurpose::new(
+        &base64::alphabet::STANDARD,
+        GeneralPurposeConfig::new()
+            .with_decode_allow_trailing_bits(true)
+            .with_decode_padding_mode(DecodePaddingMode::RequireCanonical),
+    );
+    let cleaned: Vec<u8> = s.bytes().filter(|c| *c != b'\r' && *c != b'\n').collect();
+    LENIENT
+        .decode(&cleaned)
+        .map(Bytes::from)
+        .map_err(|e| DecodeError(format!("illegal base64 data: {e}")))
+}
+
+/// `[]byte`: a base64 string, or a JSON array of byte values (a `null` element is 0).
+fn decode_byte_slice(v: &Node) -> Result<Bytes, DecodeError> {
+    match v {
+        Node::String(s) => decode_base64(s),
+        Node::Array(items) => items
+            .iter()
+            .map(|item| match item {
+                Node::Null => Ok(0),
+                Node::Number(n) => n.parse::<u8>().map_err(|_| type_error(item, "uint8")),
+                other => Err(type_error(other, "uint8")),
+            })
+            .collect::<Result<Vec<u8>, _>>()
+            .map(Bytes::from),
+        other => Err(type_error(other, "[]uint8")),
+    }
+}
+
+/// `[]byte`: standard padded base64; empty encodes as `null` (Go's nil).
 impl GoJson for Bytes {
     const GO_TYPE: &'static str = "[]uint8";
     const NULL_CLEARS: bool = true;
@@ -348,32 +402,32 @@ impl GoJson for Bytes {
         out.extend_from_slice(base64::engine::general_purpose::STANDARD.encode(self).as_bytes());
         out.push(b'"');
     }
-    fn decode(v: &Value) -> Result<Self, DecodeError> {
-        match v {
-            Value::Null => Ok(Bytes::new()),
-            Value::String(s) => {
-                // encoding/base64 skips CR and LF.
-                let cleaned: String = s.chars().filter(|c| *c != '\r' && *c != '\n').collect();
-                base64::engine::general_purpose::STANDARD
-                    .decode(cleaned.as_bytes())
-                    .map(Bytes::from)
-                    .map_err(|e| DecodeError(format!("illegal base64 data: {e}")))
-            }
-            // A JSON array decodes element-wise into []uint8.
-            Value::Array(items) => items
-                .iter()
-                .map(|item| {
-                    item.as_u64()
-                        .and_then(|n| u8::try_from(n).ok())
-                        .ok_or_else(|| type_error(item, "uint8"))
-                })
-                .collect::<Result<Vec<u8>, _>>()
-                .map(Bytes::from),
-            other => Err(type_error(other, Self::GO_TYPE)),
-        }
+    fn decode_value(v: &Node) -> Result<Self, DecodeError> {
+        decode_byte_slice(v)
     }
     fn is_empty(&self) -> bool {
         Bytes::is_empty(self)
+    }
+}
+
+/// A `[]byte` Go builds non-nil (for example from `io.ReadAll`): encodes `""` when
+/// empty instead of `null`.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct NonNilBytes(pub Bytes);
+
+impl GoJson for NonNilBytes {
+    const GO_TYPE: &'static str = "[]uint8";
+    const NULL_CLEARS: bool = true;
+    fn encode(&self, out: &mut Vec<u8>) {
+        out.push(b'"');
+        out.extend_from_slice(base64::engine::general_purpose::STANDARD.encode(&self.0).as_bytes());
+        out.push(b'"');
+    }
+    fn decode_value(v: &Node) -> Result<Self, DecodeError> {
+        decode_byte_slice(v).map(NonNilBytes)
+    }
+    fn is_empty(&self) -> bool {
+        self.0.is_empty()
     }
 }
 
@@ -385,8 +439,8 @@ impl GoJson for Value {
     fn encode(&self, out: &mut Vec<u8>) {
         encode_any(self, out);
     }
-    fn decode(v: &Value) -> Result<Self, DecodeError> {
-        Ok(v.clone())
+    fn decode_value(v: &Node) -> Result<Self, DecodeError> {
+        v.to_value()
     }
     fn is_empty(&self) -> bool {
         self.is_null()
@@ -432,6 +486,7 @@ pub fn encode_any(v: &Value, out: &mut Vec<u8>) {
 // ----------------------------------------------------------------------------------------
 // Containers
 
+/// A slice: decoding reuses existing elements and truncates to the array's length.
 impl<T: GoJson> GoJson for Vec<T> {
     const GO_TYPE: &'static str = "slice";
     const NULL_CLEARS: bool = true;
@@ -442,10 +497,25 @@ impl<T: GoJson> GoJson for Vec<T> {
         }
         encode_items(self, out);
     }
-    fn decode(v: &Value) -> Result<Self, DecodeError> {
+    fn decode_into(&mut self, v: &Node) -> Result<(), DecodeError> {
         match v {
-            Value::Null => Ok(Vec::new()),
-            Value::Array(items) => items.iter().map(T::decode).collect(),
+            Node::Null => {
+                self.clear();
+                Ok(())
+            }
+            Node::Array(items) => {
+                let mut first_err = None;
+                for (i, item) in items.iter().enumerate() {
+                    if i == self.len() {
+                        self.push(T::default());
+                    }
+                    if let Err(e) = self[i].decode_into(item) {
+                        first_err.get_or_insert(e);
+                    }
+                }
+                self.truncate(items.len());
+                first_err.map_or(Ok(()), Err)
+            }
             other => Err(type_error(other, Self::GO_TYPE)),
         }
     }
@@ -465,7 +535,7 @@ fn encode_items<T: GoJson>(items: &[T], out: &mut Vec<u8>) {
     out.push(b']');
 }
 
-/// A pointer.
+/// A pointer: `null` makes it nil; a value decodes into the existing pointee.
 impl<T: GoJson> GoJson for Option<T> {
     const GO_TYPE: &'static str = T::GO_TYPE;
     const NULL_CLEARS: bool = true;
@@ -475,17 +545,19 @@ impl<T: GoJson> GoJson for Option<T> {
             Some(v) => v.encode(out),
         }
     }
-    fn decode(v: &Value) -> Result<Self, DecodeError> {
-        match v {
-            Value::Null => Ok(None),
-            other => T::decode(other).map(Some),
+    fn decode_into(&mut self, v: &Node) -> Result<(), DecodeError> {
+        if v.is_null() {
+            *self = None;
+            return Ok(());
         }
+        self.get_or_insert_with(T::default).decode_into(v)
     }
     fn is_empty(&self) -> bool {
         self.is_none()
     }
 }
 
+/// A map: keys merge into the existing map; each element is decoded fresh.
 impl<T: GoJson> GoJson for BTreeMap<String, T> {
     const GO_TYPE: &'static str = "map";
     const NULL_CLEARS: bool = true;
@@ -496,10 +568,26 @@ impl<T: GoJson> GoJson for BTreeMap<String, T> {
         }
         encode_map(self, out);
     }
-    fn decode(v: &Value) -> Result<Self, DecodeError> {
+    fn decode_into(&mut self, v: &Node) -> Result<(), DecodeError> {
         match v {
-            Value::Null => Ok(BTreeMap::new()),
-            Value::Object(map) => map.iter().map(|(k, v)| Ok((k.clone(), T::decode(v)?))).collect(),
+            Node::Null => {
+                self.clear();
+                Ok(())
+            }
+            Node::Object(members) => {
+                let mut first_err = None;
+                for (k, item) in members {
+                    match T::decode(item) {
+                        Ok(value) => {
+                            self.insert(k.clone(), value);
+                        }
+                        Err(e) => {
+                            first_err.get_or_insert(e);
+                        }
+                    }
+                }
+                first_err.map_or(Ok(()), Err)
+            }
             other => Err(type_error(other, Self::GO_TYPE)),
         }
     }
@@ -531,8 +619,8 @@ impl<T: GoJson> GoJson for NonNil<Vec<T>> {
     fn encode(&self, out: &mut Vec<u8>) {
         encode_items(&self.0, out);
     }
-    fn decode(v: &Value) -> Result<Self, DecodeError> {
-        Vec::decode(v).map(NonNil)
+    fn decode_into(&mut self, v: &Node) -> Result<(), DecodeError> {
+        self.0.decode_into(v)
     }
     fn is_empty(&self) -> bool {
         self.0.is_empty()
@@ -545,29 +633,8 @@ impl<T: GoJson> GoJson for NonNil<BTreeMap<String, T>> {
     fn encode(&self, out: &mut Vec<u8>) {
         encode_map(&self.0, out);
     }
-    fn decode(v: &Value) -> Result<Self, DecodeError> {
-        BTreeMap::decode(v).map(NonNil)
-    }
-    fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-}
-
-/// A `[]byte` Go builds non-nil (for example from `io.ReadAll`): encodes `""` when
-/// empty instead of `null`.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct NonNilBytes(pub Bytes);
-
-impl GoJson for NonNilBytes {
-    const GO_TYPE: &'static str = "[]uint8";
-    const NULL_CLEARS: bool = true;
-    fn encode(&self, out: &mut Vec<u8>) {
-        out.push(b'"');
-        out.extend_from_slice(base64::engine::general_purpose::STANDARD.encode(&self.0).as_bytes());
-        out.push(b'"');
-    }
-    fn decode(v: &Value) -> Result<Self, DecodeError> {
-        Bytes::decode(v).map(NonNilBytes)
+    fn decode_into(&mut self, v: &Node) -> Result<(), DecodeError> {
+        self.0.decode_into(v)
     }
     fn is_empty(&self) -> bool {
         self.0.is_empty()
@@ -636,10 +703,9 @@ impl GoJson for GoTime {
         out.extend_from_slice(self.rfc3339_nano().as_bytes());
         out.push(b'"');
     }
-    fn decode(v: &Value) -> Result<Self, DecodeError> {
+    fn decode_value(v: &Node) -> Result<Self, DecodeError> {
         match v {
-            Value::Null => Ok(Self(None)),
-            Value::String(s) => {
+            Node::String(s) => {
                 let t = DateTime::parse_from_rfc3339(s)
                     .map_err(|e| DecodeError(format!("parsing time {s:?} as RFC3339: {e}")))?;
                 let zero = t.naive_utc()
@@ -671,10 +737,12 @@ impl GoJson for RawJson {
             out.extend_from_slice(&cpa_common::json::compact(&self.0, true));
         }
     }
-    fn decode(v: &Value) -> Result<Self, DecodeError> {
-        // ponytail: re-serialized from the parsed value, so number spelling and
-        // whitespace are normalized; Go keeps the raw text.
-        Ok(Self(Bytes::from(serde_json::to_vec(v).unwrap_or_default())))
+    /// The member's JSON text re-rendered compactly. ponytail: Go keeps the raw member
+    /// text; whitespace and string escapes (`\u003c` vs `<`) can differ, the JSON value
+    /// cannot. Keep source spans in `Node` if a byte-exact consumer appears.
+    fn decode_into(&mut self, v: &Node) -> Result<(), DecodeError> {
+        self.0 = Bytes::from(v.to_json());
+        Ok(())
     }
     fn is_empty(&self) -> bool {
         self.0.is_empty()
@@ -738,6 +806,34 @@ mod tests {
         assert!(from_slice::<Sample>(br#"{"Body":"!!"}"#).is_err());
         let s: Sample = from_slice(br#"{"Body":[104,105],"Count":null}"#).unwrap();
         assert_eq!(s.body, Bytes::from_static(b"hi"));
+    }
+
+    /// Go decodes member by member into the existing value: a second spelling of a map
+    /// field merges keys; a later struct member decodes over the earlier one field by
+    /// field; base64 accepts non-zero trailing bits; a null byte element is 0.
+    #[test]
+    fn decodes_into_existing_values_like_go() {
+        crate::go_struct! {
+            pub struct Resp("pluginapi.ManagementResponse") {
+                "Headers" => headers: Header,
+                "Body" => body: Bytes,
+                "Inner" => inner: Option<Sample>,
+            }
+        }
+        let r: Resp = from_slice(
+            br#"{"Headers":{"A":["1"]},"headers":{"B":["2"]},"Body":"Zh==","Inner":{"Count":1},"inner":{"Path":"/p"}}"#,
+        )
+        .unwrap();
+        assert_eq!(r.headers.keys().collect::<Vec<_>>(), ["A", "B"]);
+        assert_eq!(r.body, Bytes::from_static(b"f"));
+        let inner = r.inner.unwrap();
+        assert_eq!((inner.count, inner.path.as_str()), (1, "/p"));
+        let r: Resp = from_slice(br#"{"Body":[null,65]}"#).unwrap();
+        assert_eq!(r.body, Bytes::from_static(&[0, 65]));
+        assert!(from_slice::<Resp>(br#"{"Body":[256]}"#).is_err());
+        assert!(from_slice::<Resp>(br#"{"Headers":{"a":["x"]},"Body":1e400}"#).is_err());
+        // An unknown member never needs to fit a Go type.
+        assert!(from_slice::<Resp>(br#"{"unused":1e400}"#).is_ok());
     }
 
     #[test]
