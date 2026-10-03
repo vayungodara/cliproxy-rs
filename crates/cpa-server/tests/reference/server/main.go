@@ -8,13 +8,16 @@ import (
 	"fmt"
 	"io/fs"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/registry"
+	"github.com/router-for-me/CLIProxyAPI/v8/sdk/api/handlers"
 	"github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/auth"
 	cliproxyexecutor "github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/executor"
 	"github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/session"
@@ -563,8 +566,139 @@ func cooldownFiles() map[string]string {
 	return out
 }
 
+// byProviderClient is one registering credential: provider, projected state and its
+// own SupportsWebSearch flag.
+type byProviderClient struct {
+	Provider string `json:"provider"`
+	State    string `json:"state"`
+	Search   bool   `json:"search"`
+}
+
+type byProviderCase struct {
+	Clients []byProviderClient `json:"clients"`
+	// Listed reports GetAvailableModelsByProvider("golden-ag"); ListedSearch its flag.
+	// ListedSearch is omitted when the provider's credentials disagree (Go picks a
+	// random one's info).
+	Listed       bool  `json:"listed"`
+	ListedSearch *bool `json:"listed_search,omitempty"`
+	// InfoSearch is GetModelInfo(model, "").SupportsWebSearch; AgSearch with "golden-ag".
+	InfoSearch bool `json:"info_search"`
+	AgSearch   bool `json:"ag_search"`
+}
+
+// byProvider registers each case's clients (in order) on the real registry and reads
+// GetAvailableModelsByProvider and GetModelInfo.
+func byProvider() []byProviderCase {
+	ag, x := "golden-ag", "golden-x"
+	c := func(p, state string, search bool) byProviderClient { return byProviderClient{p, state, search} }
+	cases := []byProviderCase{
+		{Clients: []byProviderClient{c(ag, "none", true)}},
+		{Clients: []byProviderClient{c(ag, "other", true), c(x, "none", true)}},
+		{Clients: []byProviderClient{c(ag, "quota", false)}},
+		{Clients: []byProviderClient{c(ag, "other", false), c(ag, "none", false)}},
+		{Clients: []byProviderClient{c(x, "none", true)}},
+		{Clients: []byProviderClient{c(x, "none", true), c(ag, "none", false)}},
+		{Clients: []byProviderClient{c(ag, "none", true), c(x, "none", false)}},
+		{Clients: []byProviderClient{c(ag, "none", true), c(ag, "none", false)}},
+		{Clients: []byProviderClient{c(ag, "other_qe", false), c(x, "other", false)}},
+	}
+	reg := registry.GetGlobalRegistry()
+	for i := range cases {
+		model := fmt.Sprintf("golden-bp-model-%d", i)
+		for j, cl := range cases[i].Clients {
+			client := fmt.Sprintf("golden-bp-client-%d-%d", i, j)
+			reg.RegisterClient(client, cl.Provider, []*registry.ModelInfo{{ID: model, Object: "model", OwnedBy: "golden", SupportsWebSearch: cl.Search}})
+			projection := registry.ClientModelProjection{ModelID: model}
+			switch cl.State {
+			case "quota":
+				projection.Suspended, projection.SuspendReason, projection.QuotaExceeded = true, "quota", true
+			case "other":
+				projection.Suspended, projection.SuspendReason = true, "unauthorized"
+			case "other_qe":
+				projection.Suspended, projection.SuspendReason, projection.QuotaExceeded = true, "cloudflare_challenge", true
+			}
+			if !reg.ApplyClientModelProjections(client, reg.ClientRegistrationEpoch(client), 1, []registry.ClientModelProjection{projection}) {
+				panic("projection rejected for " + client)
+			}
+		}
+		if info := reg.GetModelInfo(model, ""); info != nil {
+			cases[i].InfoSearch = info.SupportsWebSearch
+		}
+		if info := reg.GetModelInfo(model, ag); info != nil {
+			cases[i].AgSearch = info.SupportsWebSearch
+		}
+	}
+	for _, info := range reg.GetAvailableModelsByProvider(" GOLDEN-AG ") {
+		var i int
+		if _, err := fmt.Sscanf(info.ID, "golden-bp-model-%d", &i); err != nil {
+			continue
+		}
+		cases[i].Listed = true
+		agree := true
+		for _, cl := range cases[i].Clients {
+			if cl.Provider == ag && cl.Search != info.SupportsWebSearch {
+				agree = false
+			}
+		}
+		if agree {
+			search := info.SupportsWebSearch
+			cases[i].ListedSearch = &search
+		}
+	}
+	return cases
+}
+
+// alts runs sdk/api/handlers GetAlt on raw query strings.
+func alts() []pair {
+	gin.SetMode(gin.ReleaseMode)
+	var out []pair
+	for _, q := range []string{"", "alt=", "alt", "alt=sse", "alt=json", "$alt=json", "alt=&$alt=json",
+		"$alt=sse", "alt=SSE", "alt=a%20b", "alt=%zz&$alt=json", "x=1;alt=json&$alt=raw", "alt=json&alt=sse"} {
+		c, _ := gin.CreateTestContext(httptest.NewRecorder())
+		c.Request = httptest.NewRequest(http.MethodPost, "/v1beta/models/m:generateContent?"+q, nil)
+		out = append(out, pair{q, (&handlers.BaseAPIHandler{}).GetAlt(c)})
+	}
+	return out
+}
+
+type authKindCase struct {
+	Attributes map[string]string `json:"attributes"`
+	Metadata   map[string]any    `json:"metadata"`
+	Kind       string            `json:"kind"`
+}
+
+// authKinds runs Auth.AuthKind over attribute and metadata shapes.
+func authKinds() []authKindCase {
+	cases := []authKindCase{
+		{Attributes: map[string]string{"auth_kind": "apikey"}},
+		{Attributes: map[string]string{"auth_kind": " API-Key "}},
+		{Attributes: map[string]string{"auth_kind": "OAuth2", "api_key": "k"}},
+		{Attributes: map[string]string{"auth_kind": "weird", "api_key": "k"}},
+		{Attributes: map[string]string{"auth_kind": "weird"}, Metadata: map[string]any{"auth_kind": "api_key"}},
+		{Attributes: map[string]string{"auth_kind": "weird"}, Metadata: map[string]any{"auth_kind": "unknown", "email": "a@b"}},
+		{Metadata: map[string]any{"auth_kind": "oauth", "api_key": "k"}},
+		{Attributes: map[string]string{"api_key": "   "}},
+		{Attributes: map[string]string{"api_key": "   "}, Metadata: map[string]any{"refresh_token": "r"}},
+		{Metadata: map[string]any{"api_key": "k"}},
+		{Metadata: map[string]any{"token": map[string]any{"access_token": "x"}}},
+		{Metadata: map[string]any{"token": map[string]any{}}},
+		{Metadata: map[string]any{"expired": "2026-01-01T00:00:00Z"}},
+		{Metadata: map[string]any{"email": "  "}},
+		{Metadata: map[string]any{"auth_kind": 7, "access_token": "t"}},
+		{},
+	}
+	for i := range cases {
+		a := &auth.Auth{Attributes: cases[i].Attributes, Metadata: cases[i].Metadata}
+		cases[i].Kind = a.AuthKind()
+	}
+	return cases
+}
+
 func main() {
 	out := map[string]any{}
+	out["alt"] = alts()
+	out["auth_kind"] = authKinds()
+	out["by_provider"] = byProvider()
 	var sanitized, extracted []pair
 	for _, in := range sanitizeInputs {
 		sanitized = append(sanitized, pair{in, auth.SanitizeUpstreamErrorSummary(in)})

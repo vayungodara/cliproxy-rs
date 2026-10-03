@@ -545,6 +545,185 @@
       ]
     }
   ],
+  "alt": [
+    {
+      "in": "",
+      "out": ""
+    },
+    {
+      "in": "alt=",
+      "out": ""
+    },
+    {
+      "in": "alt",
+      "out": ""
+    },
+    {
+      "in": "alt=sse",
+      "out": ""
+    },
+    {
+      "in": "alt=json",
+      "out": "json"
+    },
+    {
+      "in": "$alt=json",
+      "out": "json"
+    },
+    {
+      "in": "alt=\u0026$alt=json",
+      "out": ""
+    },
+    {
+      "in": "$alt=sse",
+      "out": ""
+    },
+    {
+      "in": "alt=SSE",
+      "out": "SSE"
+    },
+    {
+      "in": "alt=a%20b",
+      "out": "a b"
+    },
+    {
+      "in": "alt=%zz\u0026$alt=json",
+      "out": "json"
+    },
+    {
+      "in": "x=1;alt=json\u0026$alt=raw",
+      "out": "raw"
+    },
+    {
+      "in": "alt=json\u0026alt=sse",
+      "out": "json"
+    }
+  ],
+  "auth_kind": [
+    {
+      "attributes": {
+        "auth_kind": "apikey"
+      },
+      "metadata": null,
+      "kind": "apikey"
+    },
+    {
+      "attributes": {
+        "auth_kind": " API-Key "
+      },
+      "metadata": null,
+      "kind": "apikey"
+    },
+    {
+      "attributes": {
+        "api_key": "k",
+        "auth_kind": "OAuth2"
+      },
+      "metadata": null,
+      "kind": "oauth"
+    },
+    {
+      "attributes": {
+        "api_key": "k",
+        "auth_kind": "weird"
+      },
+      "metadata": null,
+      "kind": "apikey"
+    },
+    {
+      "attributes": {
+        "auth_kind": "weird"
+      },
+      "metadata": {
+        "auth_kind": "api_key"
+      },
+      "kind": "apikey"
+    },
+    {
+      "attributes": {
+        "auth_kind": "weird"
+      },
+      "metadata": {
+        "auth_kind": "unknown",
+        "email": "a@b"
+      },
+      "kind": "oauth"
+    },
+    {
+      "attributes": null,
+      "metadata": {
+        "api_key": "k",
+        "auth_kind": "oauth"
+      },
+      "kind": "oauth"
+    },
+    {
+      "attributes": {
+        "api_key": "   "
+      },
+      "metadata": null,
+      "kind": ""
+    },
+    {
+      "attributes": {
+        "api_key": "   "
+      },
+      "metadata": {
+        "refresh_token": "r"
+      },
+      "kind": "oauth"
+    },
+    {
+      "attributes": null,
+      "metadata": {
+        "api_key": "k"
+      },
+      "kind": ""
+    },
+    {
+      "attributes": null,
+      "metadata": {
+        "token": {
+          "access_token": "x"
+        }
+      },
+      "kind": "oauth"
+    },
+    {
+      "attributes": null,
+      "metadata": {
+        "token": {}
+      },
+      "kind": ""
+    },
+    {
+      "attributes": null,
+      "metadata": {
+        "expired": "2026-01-01T00:00:00Z"
+      },
+      "kind": "oauth"
+    },
+    {
+      "attributes": null,
+      "metadata": {
+        "email": "  "
+      },
+      "kind": ""
+    },
+    {
+      "attributes": null,
+      "metadata": {
+        "access_token": "t",
+        "auth_kind": 7
+      },
+      "kind": "oauth"
+    },
+    {
+      "attributes": null,
+      "metadata": null,
+      "kind": ""
+    }
+  ],
   "availability": [
     {
       "states": [
@@ -648,6 +827,151 @@
         "none"
       ],
       "available": true
+    }
+  ],
+  "by_provider": [
+    {
+      "clients": [
+        {
+          "provider": "golden-ag",
+          "state": "none",
+          "search": true
+        }
+      ],
+      "listed": true,
+      "listed_search": true,
+      "info_search": true,
+      "ag_search": true
+    },
+    {
+      "clients": [
+        {
+          "provider": "golden-ag",
+          "state": "other",
+          "search": true
+        },
+        {
+          "provider": "golden-x",
+          "state": "none",
+          "search": true
+        }
+      ],
+      "listed": false,
+      "info_search": true,
+      "ag_search": true
+    },
+    {
+      "clients": [
+        {
+          "provider": "golden-ag",
+          "state": "quota",
+          "search": false
+        }
+      ],
+      "listed": true,
+      "listed_search": false,
+      "info_search": false,
+      "ag_search": false
+    },
+    {
+      "clients": [
+        {
+          "provider": "golden-ag",
+          "state": "other",
+          "search": false
+        },
+        {
+          "provider": "golden-ag",
+          "state": "none",
+          "search": false
+        }
+      ],
+      "listed": true,
+      "listed_search": false,
+      "info_search": false,
+      "ag_search": false
+    },
+    {
+      "clients": [
+        {
+          "provider": "golden-x",
+          "state": "none",
+          "search": true
+        }
+      ],
+      "listed": false,
+      "info_search": true,
+      "ag_search": true
+    },
+    {
+      "clients": [
+        {
+          "provider": "golden-x",
+          "state": "none",
+          "search": true
+        },
+        {
+          "provider": "golden-ag",
+          "state": "none",
+          "search": false
+        }
+      ],
+      "listed": true,
+      "listed_search": false,
+      "info_search": true,
+      "ag_search": false
+    },
+    {
+      "clients": [
+        {
+          "provider": "golden-ag",
+          "state": "none",
+          "search": true
+        },
+        {
+          "provider": "golden-x",
+          "state": "none",
+          "search": false
+        }
+      ],
+      "listed": true,
+      "listed_search": true,
+      "info_search": true,
+      "ag_search": true
+    },
+    {
+      "clients": [
+        {
+          "provider": "golden-ag",
+          "state": "none",
+          "search": true
+        },
+        {
+          "provider": "golden-ag",
+          "state": "none",
+          "search": false
+        }
+      ],
+      "listed": true,
+      "info_search": true,
+      "ag_search": true
+    },
+    {
+      "clients": [
+        {
+          "provider": "golden-ag",
+          "state": "other_qe",
+          "search": false
+        },
+        {
+          "provider": "golden-x",
+          "state": "other",
+          "search": false
+        }
+      ],
+      "listed": false,
+      "info_search": false,
+      "ag_search": false
     }
   ],
   "cooldown": [
