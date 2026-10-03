@@ -73,13 +73,14 @@ pub(crate) fn decode(raw: &[u8]) -> Result<Vec<Entry>, String> {
     if raw.is_empty() {
         return Err("home models payload is empty".into());
     }
-    let sections: Map<String, Value> =
-        serde_json::from_slice(raw).map_err(|e| format!("parse home models payload: {e}"))?;
+    // Go `map[string][]map[string]any`: null sections and null entries are empty.
+    let parse_error = |e: serde_json::Error| format!("parse home models payload: {e}");
+    let sections: Option<Map<String, Value>> = serde_json::from_slice(raw).map_err(parse_error)?;
+    let sections = sections.unwrap_or_default();
     let mut parsed: Vec<(String, Vec<Map<String, Value>>)> = Vec::with_capacity(sections.len());
     for (section, models) in sections {
-        let models: Vec<Map<String, Value>> =
-            serde_json::from_value(models).map_err(|e| format!("parse home models payload: {e}"))?;
-        parsed.push((section, models));
+        let models: Option<Vec<Option<Map<String, Value>>>> = serde_json::from_value(models).map_err(parse_error)?;
+        parsed.push((section, models.unwrap_or_default().into_iter().flatten().collect()));
     }
     if parsed.is_empty() {
         return Err("home models payload has no sections".into());
@@ -311,6 +312,10 @@ mod tests {
         );
         assert_eq!(decode(b"").unwrap_err(), "home models payload is empty");
         assert_eq!(decode(b"{}").unwrap_err(), "home models payload has no sections");
+        // Go accepts null sections and entries.
+        let entries = decode(br#"{"claude":null,"codex":[null,{"id":"gpt-5"}]}"#).unwrap();
+        assert_eq!(entries.iter().map(|e| e.id.as_str()).collect::<Vec<_>>(), ["gpt-5"]);
+        assert_eq!(decode(b"null").unwrap_err(), "home models payload has no sections");
         assert_eq!(
             decode(br#"{"a":[{"id":" "}]}"#).unwrap_err(),
             "home models payload contains no models"

@@ -1294,4 +1294,52 @@ mod tests {
         let (status, _) = get("/v1/models", &[]).await;
         assert_eq!(status, 503, "the heartbeat gate closes without Home");
     }
+
+    /// Go `SafeResponseHeaders`: a Home cooldown that ends the request exposes its
+    /// rounded-up delay.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn a_final_home_cooldown_sends_its_retry_after() {
+        let cooldown =
+            r#"{"error":{"type":"model_cooldown","message":"cooling","retry_after_ms":1500,"request_retry":0}}"#;
+        let home = scripted("port: 0\n", vec![cooldown.into()]).await;
+        let (base, rt, shutdown, task) = node(&home).await;
+        eventually("dispatch published", || {
+            rt.remote_dispatch().is_some_and(|d| d.available())
+        })
+        .await;
+        let body =
+            serde_json::json!({"model": "claude-x", "max_tokens": 8, "messages": [{"role": "user", "content": "hi"}]});
+        let (status, retry_after, text) = ask_with_headers(&base, "/v1/messages", body).await;
+        assert_eq!((status, retry_after.as_deref()), (429, Some("2")), "{text}");
+        assert!(text.contains("model_cooldown: cooling"), "{text}");
+        assert_eq!(rpops(&home).len(), 1);
+        shutdown.cancel();
+        task.await.unwrap();
+    }
+
+    /// Go sets `maxBootstrapRetries = 0` in Home mode: a stream that fails before its
+    /// first byte is not re-run by the handler; the Home round decides alone.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn home_streams_get_no_handler_bootstrap_retries() {
+        let seen = Arc::new(Mutex::new(Vec::new()));
+        let upstream = upstream(seen.clone()).await;
+        let home = scripted(
+            "port: 0\nrouting: {retry: {request-retry: 0}}\nstreaming: {bootstrap-retries: 2}\n",
+            vec![accounted("cred-1", "sk-bad", &upstream)],
+        )
+        .await;
+        let (base, rt, shutdown, task) = node(&home).await;
+        eventually("dispatch published", || {
+            rt.remote_dispatch().is_some_and(|d| d.available())
+        })
+        .await;
+        let body = serde_json::json!({"model": "claude-x", "max_tokens": 8, "stream": true, "messages": [{"role": "user", "content": "hi"}]});
+        let (status, _, text) = ask_with_headers(&base, "/v1/messages", body).await;
+        assert_eq!(status, 500, "{text}");
+        assert_eq!(seen.lock().unwrap().len(), 1, "one execution");
+        // The failed credential, then Home's empty answer that ends the round.
+        assert_eq!(rpops(&home).len(), 2);
+        shutdown.cancel();
+        task.await.unwrap();
+    }
 }
