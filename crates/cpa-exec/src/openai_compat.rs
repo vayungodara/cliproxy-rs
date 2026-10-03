@@ -163,8 +163,7 @@ fn apply_payload_rules(
             from_protocol: req.source_format.as_str(),
             root: "",
             original,
-            // Chat and Responses routes only; the images path never reaches here.
-            request_path: "",
+            request_path: &req.request_path,
             headers: Some(&req.headers),
         },
         body,
@@ -204,10 +203,9 @@ fn base_headers(api_key: &str, content_type: &str) -> GoHeaders {
     headers
 }
 
-/// `util.ApplyCustomHeadersFromAttrs` with the client headers and explicit session.
+/// `util.ApplyCustomHeadersFromAttrs` with the client headers and the canonical session.
 fn apply_custom(headers: &mut GoHeaders, credential: &Credential, req: &ExecRequest) {
-    let session =
-        cpa_common::session::cpa_session_id(&req.headers, original_payload(req), req.execution_session.as_deref());
+    let session = cpa_common::session::cpa_session_id(req.session.as_deref());
     for (name, value) in cpa_common::headers::custom_headers(&credential.attributes, &req.headers, session.as_deref()) {
         headers.set(&name, value);
     }

@@ -9,7 +9,6 @@
 use chrono::{DateTime, SecondsFormat, TimeZone, Utc};
 use cpa_core::credential::Credential;
 use cpa_core::exec::{ExecError, FailureScope};
-use http::HeaderMap;
 use serde_json::Value;
 
 /// Go `runtime.GOOS`.
@@ -139,73 +138,6 @@ pub(crate) async fn read_all_strict(
         out.extend_from_slice(&chunk[..chunk.len().min(room)]);
     }
     Ok(out.freeze())
-}
-
-/// ponytail: superseded by `cpa_common::headers` (Kimi and Meta use it). Only
-/// openai_compat_http still calls this copy; delete it when that file switches.
-///
-/// `util.ApplyCustomHeadersFromAttrs`: `header:<Name>` attributes and the file's `headers`
-/// map (synthesized into attributes by Go). `$Name` copies an inbound header and
-/// `$CPA-SESSION-ID` the request session; missing sources omit the header.
-pub(crate) fn custom_headers(
-    credential: &Credential,
-    inbound: &HeaderMap,
-    session: Option<&str>,
-) -> Vec<(String, String)> {
-    let mut configured: Vec<(String, String)> = Vec::new();
-    if let Some(Value::Object(map)) = credential.metadata.get("headers") {
-        for (name, value) in map {
-            if let Some(value) = value.as_str() {
-                configured.push((name.trim().to_owned(), value.trim().to_owned()));
-            }
-        }
-    }
-    for (key, value) in &credential.attributes {
-        if let Some(name) = key.strip_prefix("header:") {
-            configured.retain(|(n, _)| n != name.trim());
-            configured.push((name.trim().to_owned(), value.trim().to_owned()));
-        }
-    }
-    let session = session.map(str::trim).filter(|s| !s.is_empty());
-    let mut out = Vec::new();
-    for (name, value) in configured {
-        if name.is_empty() || value.is_empty() {
-            continue;
-        }
-        let upper = value.to_ascii_uppercase();
-        let resolved = if value.starts_with('$') && value[1..].trim().eq_ignore_ascii_case("CPA-SESSION-ID") {
-            match session {
-                Some(id) => id.to_owned(),
-                None => continue,
-            }
-        } else if upper.contains("$CPA-SESSION-ID") {
-            let Some(id) = session else { continue };
-            replace_session(&value, id)
-        } else if let Some(var) = value.strip_prefix('$') {
-            let var = var.trim();
-            match inbound.get(var).and_then(|v| v.to_str().ok()).filter(|v| !v.is_empty()) {
-                Some(v) if !var.is_empty() => v.to_owned(),
-                _ => continue,
-            }
-        } else {
-            value
-        };
-        out.push((name, resolved));
-    }
-    out
-}
-
-fn replace_session(value: &str, session: &str) -> String {
-    const TARGET: &str = "$CPA-SESSION-ID";
-    let mut out = String::new();
-    let mut rest = value;
-    while let Some(pos) = rest.to_ascii_uppercase().find(TARGET) {
-        out.push_str(&rest[..pos]);
-        out.push_str(session);
-        rest = &rest[pos + TARGET.len()..];
-    }
-    out.push_str(rest);
-    out
 }
 
 /// Go `time.Time.Format(time.RFC3339)` in UTC.
@@ -435,27 +367,6 @@ mod tests {
             meta.as_object().unwrap().clone(),
         )
         .unwrap()
-    }
-
-    #[test]
-    fn custom_headers_resolve_references_and_session() {
-        let mut cred = credential(serde_json::json!({"type":"kimi","headers":{"X-Team":" blue ","X-Empty":""}}));
-        cred.attributes.insert("header:X-Trace".into(), "$X-Request-Id".into());
-        cred.attributes
-            .insert("header:X-Session".into(), "s-$cpa-session-id-x".into());
-        cred.attributes.insert("header:X-Missing".into(), "$Nope".into());
-        let mut inbound = HeaderMap::new();
-        inbound.insert("x-request-id", "abc".parse().unwrap());
-        let mut got = custom_headers(&cred, &inbound, Some("sess"));
-        got.sort();
-        assert_eq!(
-            got,
-            [
-                ("X-Session".to_owned(), "s-sess-x".to_owned()),
-                ("X-Team".to_owned(), "blue".to_owned()),
-                ("X-Trace".to_owned(), "abc".to_owned()),
-            ]
-        );
     }
 
     #[test]

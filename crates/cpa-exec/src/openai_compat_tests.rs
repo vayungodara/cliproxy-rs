@@ -15,7 +15,7 @@ const FIXTURE: &str = include_str!("../tests/fixtures/openai_compat_go.json");
 
 /// Shared helpers whose real port has not landed: scenarios that need them are skipped
 /// and listed, so integration can remove an entry and see the scenario run.
-const PENDING: &[&str] = &["translator", "session"];
+const PENDING: &[&str] = &["translator"];
 
 /// One-shot raw HTTP/1.1 capture server answering with the scripted response.
 struct Mock {
@@ -178,6 +178,16 @@ fn request(s: &Value) -> (ExecRequest, String) {
     if let Some(ct) = s["content_type"].as_str() {
         headers.insert(http::header::CONTENT_TYPE, ct.parse().unwrap());
     }
+    // Go's executor-side fallback (EnsureSessionContext -> CanonicalSessionID) for a
+    // request without conductor metadata, which is how the fixtures were generated.
+    let session_body: &[u8] = if original.is_empty() { &payload } else { &original };
+    let meta = cpa_common::session::Meta {
+        execution_session: s["execution_session"].as_str(),
+        derived: s["derived_session"].as_str(),
+    };
+    let session = Some(cpa_common::session::extract_session_id(&headers, session_body, &meta))
+        .filter(|id| !id.is_empty())
+        .map(|id| cpa_common::session::bound_session_identity(&id));
     let req = ExecRequest {
         operation: if op == "count" {
             Operation::CountTokens
@@ -192,7 +202,7 @@ fn request(s: &Value) -> (ExecRequest, String) {
         body: payload,
         stream: op.ends_with("stream") || s["stream"].as_bool() == Some(true),
         alt: s["alt"].as_str().map(str::to_owned),
-        session: None,
+        session,
         execution_session: s["execution_session"].as_str().map(str::to_owned),
         derived_session: s["derived_session"].as_str().map(str::to_owned),
         request_path: String::new(),
@@ -311,7 +321,6 @@ async fn go_reference_scenarios() {
     assert_eq!(
         skipped,
         [
-            "custom_header_cpa_session_id_absent",
             "needs_translator_responses_source",
             "needs_translator_responses_eof_without_done",
         ]
