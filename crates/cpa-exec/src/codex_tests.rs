@@ -68,6 +68,7 @@ fn request(case: &Value) -> ExecRequest {
         execution_session: None,
         derived_session: None,
         resolved_model: None,
+        usage: Default::default(),
         request_path: String::new(),
         caller: Caller {
             principal: "client-key-FAKE".into(),
@@ -107,6 +108,12 @@ fn assert_same_upstream(name: &str, rust: &Captured, go: &Value) {
         }
         let expected = values[0].as_str().unwrap();
         let actual = rust.header(name_);
+        if name_ == "referer" {
+            // The previous hop's URL, on each run's own mock port.
+            let path = |u: &str| url::Url::parse(u).map(|u| u.path().to_owned()).unwrap_or_default();
+            assert_eq!(path(actual), path(expected), "{name}: header {name_}");
+            continue;
+        }
         if name_ == "session_id"
             && go_headers.contains_key("session_id")
             && !go["body"].as_str().unwrap().contains(expected)
@@ -127,14 +134,27 @@ fn assert_same_upstream(name: &str, rust: &Captured, go: &Value) {
     }
 }
 
-/// Go streams lines; Rust streams whole events. Compare event by event.
+/// Go streams native lines one per chunk and translated events several per chunk; Rust
+/// streams whole events. Compare event by event.
 fn go_events(chunks: &Value) -> Vec<Vec<String>> {
     let mut events = Vec::new();
     let mut current = Vec::new();
     for chunk in chunks.as_array().unwrap() {
-        match chunk.as_str().unwrap() {
-            "" => events.push(std::mem::take(&mut current)),
-            line => current.push(line.to_owned()),
+        let chunk = chunk.as_str().unwrap();
+        let lines: Vec<&str> = if chunk.contains('\n') {
+            chunk.split('\n').collect()
+        } else {
+            vec![chunk]
+        };
+        for line in lines {
+            match line {
+                "" => {
+                    if !current.is_empty() {
+                        events.push(std::mem::take(&mut current));
+                    }
+                }
+                line => current.push(line.to_owned()),
+            }
         }
     }
     if !current.is_empty() {
@@ -146,12 +166,12 @@ fn go_events(chunks: &Value) -> Vec<Vec<String>> {
 fn rust_events(events: &[Bytes]) -> Vec<Vec<String>> {
     events
         .iter()
-        .map(|e| {
+        .flat_map(|e| {
             String::from_utf8_lossy(e)
-                .trim_end_matches('\n')
-                .split('\n')
-                .map(str::to_owned)
-                .collect()
+                .split("\n\n")
+                .filter(|event| !event.trim_end_matches('\n').is_empty())
+                .map(|event| event.trim_end_matches('\n').split('\n').map(str::to_owned).collect())
+                .collect::<Vec<Vec<String>>>()
         })
         .collect()
 }
@@ -189,8 +209,16 @@ async fn run(
 ) -> (Result<ExecResponse, ExecError>, Vec<Result<Bytes, ExecError>>) {
     let credential = credential(case, &mock.url);
     let config_text = case["config"].as_str().filter(|s| !s.trim().is_empty()).unwrap_or("{}");
-    let cfg = Config::parse(config_text).unwrap();
-    let req = request(case);
+    let cfg = Config::parse(&config_text.replace("{{base_url}}", &mock.url)).unwrap();
+    let mut req = request(case);
+    if case["resolved_compat"] == true {
+        // Go's conductor binds the configured model (`resolved_api_key_model_info`).
+        let raw = serde_json::json!({"id": req.model, "is_compat": true});
+        req.resolved_model = Some(cpa_core::exec::ResolvedModel {
+            info: cpa_core::registry::ModelInfo::from_raw(raw.as_object().unwrap().clone()).unwrap(),
+            source: cpa_core::exec::ResolvedSource::ApiKey,
+        });
+    }
     let ws_session = case["exec_metadata"]["execution_session_id"].as_str();
     let result = if ws_session.is_some() {
         let settings = Settings::from(&cfg);
@@ -235,11 +263,35 @@ async fn executor_matches_go_on_every_fixture_case() {
         } else {
             "/responses"
         };
-        mock.script(path, vec![reply(case)]);
+        if let Some(redirect) = case["redirect"].as_u64() {
+            let moved = format!("/moved{path}");
+            mock.script(
+                path,
+                vec![Reply {
+                    status: redirect as u16,
+                    headers: vec![("location".into(), moved.clone())],
+                    body: String::new(),
+                }],
+            );
+            mock.script(&moved, vec![reply(case)]);
+        } else {
+            mock.script(path, vec![reply(case)]);
+        }
         let (result, items) = run(&executor, case, &mock).await;
         let captured = mock.take();
-        assert_eq!(captured.len(), 1, "{name}: one upstream request");
-        assert_same_upstream(name, &captured[0], &case["upstream"]);
+        match case["hops"].as_array() {
+            Some(hops) => {
+                assert_eq!(captured.len(), hops.len(), "{name}: upstream requests");
+                for (rust, go) in captured.iter().zip(hops) {
+                    assert_eq!(rust.method, go["method"].as_str().unwrap(), "{name}: method");
+                    assert_same_upstream(name, rust, go);
+                }
+            }
+            None => {
+                assert_eq!(captured.len(), 1, "{name}: one upstream request");
+                assert_same_upstream(name, &captured[0], &case["upstream"]);
+            }
+        }
         let output = &case["output"];
         if let Some(go_error) = output.get("error") {
             assert_same_error(
@@ -271,6 +323,52 @@ async fn executor_matches_go_on_every_fixture_case() {
         let snapshot = executor.quota().snapshot("codex-fixture.json").expect("quota observed");
         assert_eq!(snapshot.signals["X-Codex-Primary-Used-Percent"], "42");
     }
+}
+
+/// Go refreshes through `NewCodexAuthWithProxyURL(cfg, auth.ProxyURL)`: the credential's
+/// proxy wins over the global one. A loopback HTTP proxy answers the token request, so
+/// the unresolvable token host proves the request went through it.
+#[tokio::test]
+async fn refresh_uses_the_credential_proxy_before_the_global_one() {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    async fn proxy_once(listener: tokio::net::TcpListener) -> String {
+        let (mut socket, _) = listener.accept().await.unwrap();
+        let mut buf = vec![0; 8192];
+        let n = socket.read(&mut buf).await.unwrap();
+        let body = r#"{"access_token":"at-proxied","refresh_token":"rt-proxied","id_token":"","expires_in":3600}"#;
+        let reply = format!(
+            "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{body}",
+            body.len()
+        );
+        socket.write_all(reply.as_bytes()).await.unwrap();
+        String::from_utf8_lossy(&buf[..n]).lines().next().unwrap().to_owned()
+    }
+    let own = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let own_addr = own.local_addr().unwrap();
+    let oauth = CodexOAuth::with_endpoints(wreq::Client::new(), "http://token.invalid/oauth/token", "", "");
+    let executor = CodexExecutor::with_transport(crate::codex_tls::Transport::new(Default::default()), oauth);
+    // The global proxy is a closed port: using it would fail the refresh.
+    let cfg = Config::parse("proxy-url: http://127.0.0.1:9\n").unwrap();
+    let gone = (Utc::now() - chrono::TimeDelta::hours(2)).to_rfc3339();
+    let credential = Credential::from_file(
+        Path::new("/fake"),
+        Path::new("/fake/proxied.json"),
+        serde_json::json!({
+            "type": "codex",
+            "refresh_token": "rt-proxy-test",
+            "access_token": "opaque",
+            "expired": gone,
+            "proxy_url": format!("http://{own_addr}"),
+        })
+        .as_object()
+        .unwrap()
+        .clone(),
+    )
+    .unwrap();
+    let seen = tokio::spawn(proxy_once(own));
+    let patch = executor.prepare(&credential, &cfg).await.unwrap();
+    assert_eq!(patch.set["access_token"], "at-proxied");
+    assert_eq!(seen.await.unwrap(), "POST http://token.invalid/oauth/token HTTP/1.1");
 }
 
 #[tokio::test]
@@ -416,6 +514,7 @@ fn plain_request(stream: bool, alt: Option<&str>) -> ExecRequest {
         execution_session: None,
         derived_session: None,
         resolved_model: None,
+        usage: Default::default(),
         request_path: String::new(),
         caller: Caller {
             principal: String::new(),
