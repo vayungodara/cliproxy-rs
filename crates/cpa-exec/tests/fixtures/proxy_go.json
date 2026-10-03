@@ -255,6 +255,60 @@
    "separate_error": "too_long"
   }
  ],
+ "protocols": [
+  {
+   "name": "tls-offering-h2",
+   "server": "h2",
+   "proxy": "",
+   "proto": "HTTP/2.0",
+   "client_alpn": [
+    "h2",
+    "http/1.1"
+   ],
+   "user_agent": "Go-http-client/2.0"
+  },
+  {
+   "name": "tls-http1-only",
+   "server": "h1",
+   "proxy": "",
+   "proto": "HTTP/1.1",
+   "client_alpn": [
+    "h2",
+    "http/1.1"
+   ],
+   "user_agent": "Go-http-client/1.1"
+  },
+  {
+   "name": "plain-http",
+   "server": "plain",
+   "proxy": "",
+   "proto": "HTTP/1.1",
+   "client_alpn": null,
+   "user_agent": "Go-http-client/1.1"
+  },
+  {
+   "name": "tls-offering-h2-via-connect-proxy",
+   "server": "h2",
+   "proxy": "http",
+   "proto": "HTTP/2.0",
+   "client_alpn": [
+    "h2",
+    "http/1.1"
+   ],
+   "user_agent": "Go-http-client/2.0"
+  },
+  {
+   "name": "tls-http1-only-via-connect-proxy",
+   "server": "h1",
+   "proxy": "http",
+   "proto": "HTTP/1.1",
+   "client_alpn": [
+    "h2",
+    "http/1.1"
+   ],
+   "user_agent": "Go-http-client/1.1"
+  }
+ ],
  "redirects": [
   {
    "name": "get-301-302-303",
@@ -280,6 +334,9 @@
    },
    "hops": [
     {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
      "method": "GET",
      "path": "/start",
      "host": "BASE",
@@ -290,6 +347,9 @@
      "body": ""
     },
     {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
      "method": "GET",
      "path": "/b",
      "host": "BASE",
@@ -300,6 +360,9 @@
      "body": ""
     },
     {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
      "method": "GET",
      "path": "/c",
      "host": "BASE",
@@ -310,6 +373,9 @@
      "body": ""
     },
     {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
      "method": "GET",
      "path": "/d",
      "host": "BASE",
@@ -321,7 +387,9 @@
     }
    ],
    "status": 200,
-   "error": false
+   "error": false,
+   "start": "/start",
+   "disable_compression": false
   },
   {
    "name": "get-307-308",
@@ -343,6 +411,9 @@
    },
    "hops": [
     {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
      "method": "GET",
      "path": "/start",
      "host": "BASE",
@@ -353,6 +424,9 @@
      "body": ""
     },
     {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
      "method": "GET",
      "path": "/b",
      "host": "BASE",
@@ -363,6 +437,9 @@
      "body": ""
     },
     {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
      "method": "GET",
      "path": "/c",
      "host": "BASE",
@@ -374,7 +451,9 @@
     }
    ],
    "status": 200,
-   "error": false
+   "error": false,
+   "start": "/start",
+   "disable_compression": false
   },
   {
    "name": "get-cross-host-strips-credentials",
@@ -392,6 +471,9 @@
    },
    "hops": [
     {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
      "method": "GET",
      "path": "/start",
      "host": "BASE",
@@ -402,6 +484,9 @@
      "body": ""
     },
     {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
      "method": "GET",
      "path": "/b",
      "host": "OTHER",
@@ -413,7 +498,9 @@
     }
    ],
    "status": 200,
-   "error": false
+   "error": false,
+   "start": "/start",
+   "disable_compression": false
   },
   {
    "name": "get-custom-host-relative-then-absolute",
@@ -435,6 +522,9 @@
    },
    "hops": [
     {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
      "method": "GET",
      "path": "/start",
      "host": "custom.example",
@@ -445,6 +535,9 @@
      "body": ""
     },
     {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
      "method": "GET",
      "path": "/b",
      "host": "custom.example",
@@ -455,6 +548,9 @@
      "body": ""
     },
     {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
      "method": "GET",
      "path": "/c",
      "host": "OTHER",
@@ -466,7 +562,9 @@
     }
    ],
    "status": 200,
-   "error": false
+   "error": false,
+   "start": "/start",
+   "disable_compression": false
   },
   {
    "name": "get-no-location",
@@ -484,6 +582,9 @@
    },
    "hops": [
     {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
      "method": "GET",
      "path": "/start",
      "host": "BASE",
@@ -495,7 +596,9 @@
     }
    ],
    "status": 302,
-   "error": false
+   "error": false,
+   "start": "/start",
+   "disable_compression": false
   },
   {
    "name": "get-ten-redirects",
@@ -549,6 +652,9 @@
    },
    "hops": [
     {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
      "method": "GET",
      "path": "/start",
      "host": "BASE",
@@ -559,6 +665,9 @@
      "body": ""
     },
     {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
      "method": "GET",
      "path": "/1",
      "host": "BASE",
@@ -569,6 +678,9 @@
      "body": ""
     },
     {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
      "method": "GET",
      "path": "/2",
      "host": "BASE",
@@ -579,6 +691,9 @@
      "body": ""
     },
     {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
      "method": "GET",
      "path": "/3",
      "host": "BASE",
@@ -589,6 +704,9 @@
      "body": ""
     },
     {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
      "method": "GET",
      "path": "/4",
      "host": "BASE",
@@ -599,6 +717,9 @@
      "body": ""
     },
     {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
      "method": "GET",
      "path": "/5",
      "host": "BASE",
@@ -609,6 +730,9 @@
      "body": ""
     },
     {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
      "method": "GET",
      "path": "/6",
      "host": "BASE",
@@ -619,6 +743,9 @@
      "body": ""
     },
     {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
      "method": "GET",
      "path": "/7",
      "host": "BASE",
@@ -629,6 +756,9 @@
      "body": ""
     },
     {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
      "method": "GET",
      "path": "/8",
      "host": "BASE",
@@ -639,6 +769,9 @@
      "body": ""
     },
     {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
      "method": "GET",
      "path": "/9",
      "host": "BASE",
@@ -650,7 +783,9 @@
     }
    ],
    "status": 0,
-   "error": true
+   "error": true,
+   "start": "/start",
+   "disable_compression": false
   },
   {
    "name": "post-303-becomes-get",
@@ -668,6 +803,9 @@
    },
    "hops": [
     {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
      "method": "POST",
      "path": "/start",
      "host": "BASE",
@@ -678,6 +816,9 @@
      "body": "a=1"
     },
     {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
      "method": "GET",
      "path": "/b",
      "host": "BASE",
@@ -689,7 +830,9 @@
     }
    ],
    "status": 200,
-   "error": false
+   "error": false,
+   "start": "/start",
+   "disable_compression": false
   },
   {
    "name": "post-307-resends-body",
@@ -707,6 +850,9 @@
    },
    "hops": [
     {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
      "method": "POST",
      "path": "/start",
      "host": "BASE",
@@ -717,6 +863,9 @@
      "body": "a=1"
     },
     {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
      "method": "POST",
      "path": "/b",
      "host": "BASE",
@@ -728,7 +877,9 @@
     }
    ],
    "status": 200,
-   "error": false
+   "error": false,
+   "start": "/start",
+   "disable_compression": false
   },
   {
    "name": "post-empty-body-302",
@@ -746,6 +897,9 @@
    },
    "hops": [
     {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
      "method": "POST",
      "path": "/start",
      "host": "BASE",
@@ -756,6 +910,9 @@
      "body": ""
     },
     {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
      "method": "GET",
      "path": "/b",
      "host": "BASE",
@@ -767,7 +924,9 @@
     }
    ],
    "status": 200,
-   "error": false
+   "error": false,
+   "start": "/start",
+   "disable_compression": false
   },
   {
    "name": "post-nil-body",
@@ -780,6 +939,9 @@
    "script": null,
    "hops": [
     {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
      "method": "POST",
      "path": "/start",
      "host": "BASE",
@@ -791,7 +953,387 @@
     }
    ],
    "status": 200,
-   "error": false
+   "error": false,
+   "start": "/start",
+   "disable_compression": false
+  },
+  {
+   "name": "get-empty-user-agent",
+   "method": "GET",
+   "body": null,
+   "headers": {
+    "Accept": "application/json",
+    "User-Agent": ""
+   },
+   "script": null,
+   "hops": [
+    {
+     "user_agent": "",
+     "has_user_agent": false,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "/start",
+     "host": "BASE",
+     "referer": "",
+     "authorization": "",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    }
+   ],
+   "status": 200,
+   "error": false,
+   "start": "/start",
+   "disable_compression": false
+  },
+  {
+   "name": "get-custom-user-agent",
+   "method": "GET",
+   "body": null,
+   "headers": {
+    "User-Agent": "cli/1.0"
+   },
+   "script": null,
+   "hops": [
+    {
+     "user_agent": "cli/1.0",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "/start",
+     "host": "BASE",
+     "referer": "",
+     "authorization": "",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    }
+   ],
+   "status": 200,
+   "error": false,
+   "start": "/start",
+   "disable_compression": false
+  },
+  {
+   "name": "get-disable-compression",
+   "method": "GET",
+   "body": null,
+   "headers": {
+    "Accept": "application/json",
+    "Authorization": "Bearer fake-token"
+   },
+   "script": null,
+   "hops": [
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "",
+     "method": "GET",
+     "path": "/start",
+     "host": "BASE",
+     "referer": "",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    }
+   ],
+   "status": 200,
+   "error": false,
+   "start": "/start",
+   "disable_compression": true
+  },
+  {
+   "name": "get-accept-encoding-explicit",
+   "method": "GET",
+   "body": null,
+   "headers": {
+    "Accept-Encoding": "br"
+   },
+   "script": null,
+   "hops": [
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "br",
+     "method": "GET",
+     "path": "/start",
+     "host": "BASE",
+     "referer": "",
+     "authorization": "",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    }
+   ],
+   "status": 200,
+   "error": false,
+   "start": "/start",
+   "disable_compression": false
+  },
+  {
+   "name": "get-dot-segments-exact",
+   "method": "GET",
+   "body": null,
+   "headers": {
+    "Accept": "application/json",
+    "Authorization": "Bearer fake-token"
+   },
+   "script": {
+    "/videos/..": {
+     "status": 302,
+     "location": "./b/../c"
+    }
+   },
+   "hops": [
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "/videos/..",
+     "host": "BASE",
+     "referer": "",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    },
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "/videos/c",
+     "host": "BASE",
+     "referer": "BASE/videos/..",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    }
+   ],
+   "status": 200,
+   "error": false,
+   "start": "/videos/..",
+   "disable_compression": false
+  },
+  {
+   "name": "get-dot-escaped-exact",
+   "method": "GET",
+   "body": null,
+   "headers": {
+    "Accept": "application/json",
+    "Authorization": "Bearer fake-token"
+   },
+   "script": null,
+   "hops": [
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "/videos/%2E%2E/x?q=a%20b",
+     "host": "BASE",
+     "referer": "",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    }
+   ],
+   "status": 200,
+   "error": false,
+   "start": "/videos/%2E%2E/x?q=a%20b",
+   "disable_compression": false
+  },
+  {
+   "name": "get-double-slash-path-exact",
+   "method": "GET",
+   "body": null,
+   "headers": {
+    "Accept": "application/json",
+    "Authorization": "Bearer fake-token"
+   },
+   "script": {
+    "//api/item": {
+     "status": 307,
+     "location": "next"
+    }
+   },
+   "hops": [
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "//api/item",
+     "host": "BASE",
+     "referer": "",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    },
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "//api/next",
+     "host": "BASE",
+     "referer": "BASE//api/item",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    }
+   ],
+   "status": 200,
+   "error": false,
+   "start": "//api/item",
+   "disable_compression": false
+  },
+  {
+   "name": "get-query-only-start-exact",
+   "method": "GET",
+   "body": null,
+   "headers": {
+    "Accept": "application/json",
+    "Authorization": "Bearer fake-token"
+   },
+   "script": {
+    "/": {
+     "status": 307,
+     "location": "next"
+    }
+   },
+   "hops": [
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "/?q=/x/item",
+     "host": "BASE",
+     "referer": "",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    },
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "/next",
+     "host": "BASE",
+     "referer": "BASE?q=/x/item",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    }
+   ],
+   "status": 200,
+   "error": false,
+   "start": "?q=/x/item",
+   "disable_compression": false
+  },
+  {
+   "name": "get-query-reference-exact",
+   "method": "GET",
+   "body": null,
+   "headers": {
+    "Accept": "application/json",
+    "Authorization": "Bearer fake-token"
+   },
+   "script": {
+    "/a/./b": {
+     "status": 302,
+     "location": "?z=1"
+    }
+   },
+   "hops": [
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "/a/./b?k=v",
+     "host": "BASE",
+     "referer": "",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    },
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "/a/b?z=1",
+     "host": "BASE",
+     "referer": "BASE/a/./b?k=v",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    }
+   ],
+   "status": 200,
+   "error": false,
+   "start": "/a/./b?k=v",
+   "disable_compression": false
+  },
+  {
+   "name": "get-fragment-reference-exact",
+   "method": "GET",
+   "body": null,
+   "headers": {
+    "Accept": "application/json",
+    "Authorization": "Bearer fake-token"
+   },
+   "script": {
+    "/a/./b": {
+     "status": 302,
+     "location": "#frag"
+    }
+   },
+   "hops": [
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "/a/./b?k=v",
+     "host": "BASE",
+     "referer": "",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    },
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "/a/b?k=v",
+     "host": "BASE",
+     "referer": "BASE/a/./b?k=v",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    }
+   ],
+   "status": 200,
+   "error": false,
+   "start": "/a/./b?k=v",
+   "disable_compression": false
   },
   {
    "name": "put-empty-body",
@@ -804,6 +1346,9 @@
    "script": null,
    "hops": [
     {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
      "method": "PUT",
      "path": "/start",
      "host": "BASE",
@@ -815,7 +1360,9 @@
     }
    ],
    "status": 200,
-   "error": false
+   "error": false,
+   "start": "/start",
+   "disable_compression": false
   },
   {
    "name": "delete-nil-body",
@@ -828,6 +1375,9 @@
    "script": null,
    "hops": [
     {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
      "method": "DELETE",
      "path": "/start",
      "host": "BASE",
@@ -839,7 +1389,9 @@
     }
    ],
    "status": 200,
-   "error": false
+   "error": false,
+   "start": "/start",
+   "disable_compression": false
   },
   {
    "name": "patch-empty-body-307",
@@ -857,6 +1409,9 @@
    },
    "hops": [
     {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
      "method": "PATCH",
      "path": "/start",
      "host": "BASE",
@@ -867,6 +1422,9 @@
      "body": ""
     },
     {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
      "method": "PATCH",
      "path": "/b",
      "host": "BASE",
@@ -878,7 +1436,9 @@
     }
    ],
    "status": 200,
-   "error": false
+   "error": false,
+   "start": "/start",
+   "disable_compression": false
   }
  ],
  "source": "go1.26.8 standard library"

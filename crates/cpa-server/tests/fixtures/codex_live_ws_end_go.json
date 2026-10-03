@@ -1,0 +1,31 @@
+[
+ {
+  "name": "rsv1",
+  "upstream_received": [
+   {
+    "kind": "close",
+    "data": "relay closed",
+    "code": 1011
+   }
+  ]
+ },
+ {
+  "name": "abrupt",
+  "upstream_received": [
+   {
+    "kind": "close",
+    "code": 1000
+   }
+  ]
+ },
+ {
+  "name": "reset",
+  "upstream_received": [
+   {
+    "kind": "close",
+    "data": "relay closed",
+    "code": 1011
+   }
+  ]
+ }
+]

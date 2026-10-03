@@ -63,15 +63,27 @@ pub(crate) fn wire_identity(credential: &Credential, seed: &str, synthesize: boo
     (device, account)
 }
 
+/// Why [`apply`] failed, typed like Go's errors so a message never decides the class.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum ApplyError {
+    /// A plain Go error (missing identity): no status, no request scope.
+    Plain(String),
+    /// `claudeCredentialMetadataRequestError`: the caller's payload is malformed (400,
+    /// request-scoped).
+    Request(String),
+}
+
 /// `ApplyClaudeCredentialMetadata`: rewrites metadata.user_id as
 /// `{"device_id","account_uuid","session_id",...caller extras}`.
-pub(crate) fn apply(body: &str, device: &str, account: &str, session: &str) -> Result<String, String> {
-    let existing = existing_user_id(body)?;
-    if account.is_empty() {
-        return Err("apply Claude credential metadata: account UUID is empty".into());
-    }
+pub(crate) fn apply(body: &str, device: &str, account: &str, session: &str) -> Result<String, ApplyError> {
+    let existing = existing_user_id(body).map_err(ApplyError::Request)?;
     if session.trim().is_empty() {
-        return Err("select Claude device ID: session ID is empty".into());
+        return Err(ApplyError::Plain("select Claude device ID: session ID is empty".into()));
+    }
+    if account.is_empty() {
+        return Err(ApplyError::Plain(
+            "apply Claude credential metadata: account UUID is empty".into(),
+        ));
     }
     let mut out = format!(
         r#"{{"device_id":{},"account_uuid":{},"session_id":{}"#,
@@ -99,9 +111,9 @@ pub(crate) fn apply(body: &str, device: &str, account: &str, session: &str) -> R
             true
         });
         if let Some(key) = duplicate {
-            return Err(format!(
+            return Err(ApplyError::Request(format!(
                 "apply Claude credential metadata: metadata.user_id contains duplicate key {key:?}"
-            ));
+            )));
         }
     }
     out.push('}');
@@ -165,11 +177,30 @@ mod tests {
             rawjson::get(&out, "metadata.user_id").str(),
             r#"{"device_id":"dev","account_uuid":"acct","session_id":"sess","parent_session_id":"p"}"#
         );
-        assert!(apply(r#"{"metadata":{},"metadata":{}}"#, "d", "a", "s").is_err());
+        assert!(matches!(
+            apply(r#"{"metadata":{},"metadata":{}}"#, "d", "a", "s"),
+            Err(ApplyError::Request(_))
+        ));
         let out = apply(r#"{"model":"m"}"#, "d", "a", "s").unwrap();
         assert_eq!(
             out,
             r#"{"model":"m","metadata":{"user_id":"{\"device_id\":\"d\",\"account_uuid\":\"a\",\"session_id\":\"s\"}"}}"#
         );
+    }
+
+    /// A caller-chosen key that spells a plain error's message stays a request error.
+    #[test]
+    fn error_class_is_typed_not_matched_on_text() {
+        let body = r#"{"metadata":{"user_id":"{\"account UUID is empty\":1,\"account UUID is empty\":2}"}}"#;
+        assert_eq!(
+            apply(body, "d", "a", "s"),
+            Err(ApplyError::Request(
+                r#"apply Claude credential metadata: metadata.user_id contains duplicate key "account UUID is empty""#
+                    .into()
+            ))
+        );
+        assert!(matches!(apply(r#"{}"#, "d", "", "s"), Err(ApplyError::Plain(_))));
+        assert!(matches!(apply(r#"{}"#, "d", "a", " "), Err(ApplyError::Plain(_))));
+        assert!(matches!(apply("[]", "d", "", ""), Err(ApplyError::Request(_))));
     }
 }

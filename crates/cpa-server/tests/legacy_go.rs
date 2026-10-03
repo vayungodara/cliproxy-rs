@@ -8,7 +8,6 @@ use std::sync::Arc;
 use cpa_core::config::Config;
 use cpa_exec::Executors;
 use cpa_exec::claude::ClaudeExecutor;
-use cpa_server::Runtime;
 use cpa_server::management::{self, Management, Options};
 use serde_json::Value;
 
@@ -111,7 +110,7 @@ async fn serve(path: &std::path::Path) -> (String, tokio::task::JoinHandle<()>) 
     let config = Config::load(path).unwrap();
     // As main.rs starts the server: config keys are credentials from the start.
     let credentials = cpa_core::config::credentials::load(&config);
-    let rt = Arc::new(Runtime::new(
+    let rt = Arc::new(cpa_server::testing::runtime(
         config,
         credentials,
         Executors {

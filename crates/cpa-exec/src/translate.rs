@@ -8,18 +8,22 @@ use cpa_core::format::Format;
 use cpa_translate::{Pair, RequestCtx, ResponseCtx, StreamTranslator};
 use futures_util::StreamExt;
 
-/// sdktranslator.TranslateRequest to Claude for `model` (the base model, without a
-/// thinking suffix): a registered pair with Go's summary pipeline, else Go's top-level
-/// model rewrite. Streaming translation whenever the client is not Claude.
-///
-/// With `is_compat` (an is-compat API-key model), OpenAI Chat and Responses clients use
-/// Go's `...WithCompat` translators, which keep unsigned reasoning history, between the
-/// same summary extraction and application
-/// (`TranslateRequestWithAPIKeyModelCompatibilityForExecutor`).
-// ponytail: the Codex orphan-delegation and multi-agent v2 input rewrites Go applies to
-// compat Responses payloads first are cpa_common::codex_client's (Codex thread).
-pub(crate) fn request(req: &ExecRequest, model: &str, is_compat: bool) -> Result<Bytes, ExecError> {
-    translate_body(req, &req.body, model, is_compat)
+use crate::openai_compat_payload::ensure_responses_usage_details;
+
+/// `TranslateRequestWithAPIKeyModelCompatibilityForExecutor` to Claude for `model` (the
+/// base model, without a thinking suffix), through the shared Codex client rewrites
+/// ([`crate::codex_client::translate_request`]): Codex integer tool types, the Responses
+/// orphan-delegation and multi-agent v2 rewrites, Go's `...WithCompat` translators for an
+/// is-compat model, else `sdktranslator.TranslateRequest` (a registered pair with the
+/// summary pipeline, or Go's top-level model rewrite). Streaming translation whenever
+/// the client is not Claude.
+pub(crate) fn request(
+    req: &ExecRequest,
+    codex: cpa_common::codex_client::Settings,
+    model: &str,
+    is_compat: bool,
+) -> Result<Bytes, ExecError> {
+    translate_body(req, &req.body, codex, model, is_compat)
 }
 
 /// Go `originalTranslated` from `TranslateRequestPairWithAPIKeyModelCompatibility`: the
@@ -28,6 +32,7 @@ pub(crate) fn request(req: &ExecRequest, model: &str, is_compat: bool) -> Result
 pub(crate) fn original(
     req: &ExecRequest,
     translated: &Bytes,
+    codex: cpa_common::codex_client::Settings,
     model: &str,
     is_compat: bool,
 ) -> Result<Bytes, ExecError> {
@@ -36,38 +41,29 @@ pub(crate) fn original(
     if req.original_body.is_empty() || req.original_body == req.body {
         return Ok(translated.clone());
     }
-    translate_body(req, &req.original_body, model, is_compat)
+    translate_body(req, &req.original_body, codex, model, is_compat)
 }
 
-fn translate_body(req: &ExecRequest, body: &[u8], model: &str, is_compat: bool) -> Result<Bytes, ExecError> {
-    // TranslateRequestWithAPIKeyModelCompatibilityForExecutor: Codex clients' integer
-    // tool schemas are normalized before any translation to a non-Codex executor.
-    let normalized = cpa_common::payload::normalize_codex_tool_integer_types(body, &req.headers);
-    let body = normalized.as_slice();
+fn translate_body(
+    req: &ExecRequest,
+    body: &[u8],
+    codex: cpa_common::codex_client::Settings,
+    model: &str,
+    is_compat: bool,
+) -> Result<Bytes, ExecError> {
     let ctx = RequestCtx {
         model,
         stream: req.stream || req.source_format != Format::Claude,
     };
-    let compat: Option<cpa_translate::RequestFn> = match req.source_format {
-        Format::OpenAI if is_compat => Some(cpa_translate::openai_to_claude_with_compat),
-        Format::OpenAIResponse if is_compat => Some(cpa_translate::responses_to_claude_with_compat),
-        _ => None,
+    let client = crate::codex_client::Client {
+        headers: &req.headers,
+        settings: codex,
+        target_executor: "claude",
+        is_compat,
     };
-    let Some(translate) = compat else {
-        return cpa_translate::translate_request(req.source_format, Format::Claude, &ctx, body)
-            .map(Bytes::from)
-            .map_err(error);
-    };
-    use cpa_common::thinking::{apply_summary_config_for_model, extract_translated_summary_config};
-    let (from, to) = (req.source_format.as_str(), Format::Claude.as_str());
-    let summary = extract_translated_summary_config(body, from, to);
-    let translated = translate(&ctx, body).map_err(error)?;
-    Ok(Bytes::from(apply_summary_config_for_model(
-        &translated,
-        to,
-        model,
-        summary,
-    )))
+    crate::codex_client::translate_request(req.source_format, Format::Claude, &ctx, body, &client)
+        .map(Bytes::from)
+        .map_err(error)
 }
 
 pub(crate) async fn response(
@@ -100,9 +96,16 @@ async fn transform(
         original_request: &req.original_body,
         translated_request: &translated,
     };
+    // EnsureResponsesUsageDetails on every translated Responses payload.
+    let responses = req.response_format == Format::OpenAIResponse && req.operation == Operation::Generate;
     if req.stream && req.operation == Operation::Generate {
         match body {
-            ResponseBody::Stream(stream) => Ok(ResponseBody::Stream(streaming(stream, (pair.stream)(&context)))),
+            ResponseBody::Stream(stream) => Ok(ResponseBody::Stream(streaming(
+                stream,
+                (pair.stream)(&context),
+                responses,
+                req.usage.clone(),
+            ))),
             ResponseBody::Buffered(_) => Err(ExecError::local(
                 502,
                 FailureScope::Request,
@@ -120,31 +123,108 @@ async fn transform(
                 body.freeze()
             }
         };
-        let transform = if req.operation == Operation::CountTokens {
-            pair.count_tokens.ok_or_else(|| {
+        if req.operation == Operation::CountTokens {
+            let transform = pair.count_tokens.ok_or_else(|| {
                 ExecError::local(501, FailureScope::Request, "Claude count translation is not registered")
-            })?
+            })?;
+            return Ok(ResponseBody::Buffered(Bytes::from(
+                transform(&context, &body).map_err(error)?,
+            )));
+        }
+        // ApplyPatchTranslationError or an empty translation: Go's sanitized 502, whose
+        // deferred TrackFailure publishes no tokens.
+        let out = (pair.non_stream)(&context, &body)
+            .ok()
+            .filter(|out| !out.is_empty())
+            .ok_or_else(|| {
+                req.usage.failed();
+                apply_patch_error()
+            })?;
+        Ok(ResponseBody::Buffered(Bytes::from(if responses {
+            ensure_responses_usage_details(&out)
         } else {
-            pair.non_stream
-        };
-        Ok(ResponseBody::Buffered(Bytes::from(
-            transform(&context, &body).map_err(error)?,
-        )))
+            out
+        })))
     }
 }
 
-fn streaming(upstream: ExecStream, translator: Box<dyn StreamTranslator>) -> ExecStream {
+/// helps.ApplyPatchUpstreamErrorMessage with Go's 502 `statusErr`: a plain status error,
+/// so the conductor classifies it by status (it is not request-scoped) and fails over.
+fn apply_patch_error() -> ExecError {
+    ExecError::local(
+        502,
+        crate::upstream::scope_for(502),
+        cpa_translate::APPLY_PATCH_UPSTREAM_ERROR,
+    )
+}
+
+/// Go's translated stream loop (claude_executor_stream.go): each upstream event goes
+/// through the translator; Responses frames get usage details unless apply_patch input
+/// failed, and a failure ends the stream with a 502 after that event's frames
+/// (StopApplyPatchStream). When the transport ends, cleanly or not, tool input is
+/// finalized first (EndApplyPatchStream); a failure there replaces any transport error.
+/// An apply_patch failure publishes no tokens (RecordApplyPatchStreamFailure); other
+/// failures keep the stream usage seen so far.
+fn streaming(
+    upstream: ExecStream,
+    translator: Box<dyn StreamTranslator>,
+    responses: bool,
+    usage: cpa_core::exec::UsageSink,
+) -> ExecStream {
     struct State {
         upstream: ExecStream,
         translator: Box<dyn StreamTranslator>,
+        responses: bool,
+        usage: cpa_core::exec::UsageSink,
         ready: VecDeque<Bytes>,
         error: Option<ExecError>,
         done: bool,
+    }
+    impl State {
+        fn emit(&mut self, events: Vec<Bytes>) {
+            let usage = self.responses && !self.translator.tool_input_failed();
+            self.ready.extend(events.into_iter().map(|e| {
+                if usage {
+                    Bytes::from(ensure_responses_usage_details(&e))
+                } else {
+                    e
+                }
+            }));
+        }
+
+        /// Ends the stream with `error`, after the Responses frame still being joined
+        /// (Go's responsesSSEFramer.Flush).
+        fn fail(&mut self, error: ExecError) {
+            let pending = self.translator.flush_frames();
+            self.ready.extend(pending);
+            self.error = Some(error);
+            self.done = true;
+        }
+
+        /// The transport ended: `None` cleanly, else with its error.
+        fn end(&mut self, transport: Option<ExecError>) {
+            self.done = true;
+            let finalized = self.translator.finalize_tool_input();
+            self.emit(finalized);
+            if self.translator.tool_input_failed() {
+                self.usage.failed();
+                return self.fail(apply_patch_error());
+            }
+            if let Some(error) = transport {
+                return self.fail(error);
+            }
+            match self.translator.finish() {
+                Ok(events) => self.emit(events),
+                Err(e) => self.fail(stream_error(e)),
+            }
+        }
     }
     futures_util::stream::unfold(
         State {
             upstream,
             translator,
+            responses,
+            usage,
             ready: VecDeque::new(),
             error: None,
             done: false,
@@ -160,28 +240,31 @@ fn streaming(upstream: ExecStream, translator: Box<dyn StreamTranslator>) -> Exe
                 if state.done {
                     return None;
                 }
-                let result = match state.upstream.next().await {
-                    Some(Ok(event)) => state.translator.event(&event).map_err(error),
-                    Some(Err(error)) => Err(error),
-                    None => {
-                        state.done = true;
-                        state.translator.finish().map_err(error)
-                    }
-                };
-                match result {
-                    Ok(events) => state.ready.extend(events),
-                    Err(error) => {
-                        // Go's responsesSSEFramer.Flush: a Responses client gets the frame
-                        // still being joined before the terminal error.
-                        state.ready.extend(state.translator.flush_frames());
-                        state.error = Some(error);
-                        state.done = true;
-                    }
+                match state.upstream.next().await {
+                    Some(Ok(event)) => match state.translator.event(&event) {
+                        Ok(events) => {
+                            state.emit(events);
+                            if state.translator.tool_input_failed() {
+                                state.usage.failed();
+                                state.error = Some(apply_patch_error());
+                                state.done = true;
+                            }
+                        }
+                        Err(e) => state.fail(stream_error(e)),
+                    },
+                    Some(Err(error)) => state.end(Some(error)),
+                    None => state.end(None),
                 }
             }
         },
     )
     .boxed()
+}
+
+/// A response translator rejecting upstream data: a bad gateway, never the client's fault,
+/// classified by status like Go's plain `statusErr`.
+fn stream_error(error: cpa_translate::Error) -> ExecError {
+    ExecError::local(502, crate::upstream::scope_for(502), error.to_string())
 }
 
 fn error(error: cpa_translate::Error) -> ExecError {
@@ -303,7 +386,9 @@ mod tests {
         let result: Vec<_> = result.map(Result::unwrap).collect().await;
         assert_eq!(result, ["first", "one", "finished"]);
         let pending = stream(&[b"bad"]).chain(futures_util::stream::pending()).boxed();
-        let result: Vec<_> = streaming(pending, Box::new(Translator)).collect().await;
+        let result: Vec<_> = streaming(pending, Box::new(Translator), false, Default::default())
+            .collect()
+            .await;
         assert_eq!(
             result.len(),
             1,
@@ -339,17 +424,164 @@ mod tests {
         ])
         .chain(futures_util::stream::pending())
         .boxed();
-        let result: Vec<_> = streaming(failing, Box::<Framer>::default()).collect().await;
-        assert_eq!(result.len(), 2);
-        assert_eq!(result[0].as_ref().unwrap(), "frame");
-        assert_eq!(result[1].as_ref().unwrap_err().status, 502);
-        // A translator error flushes the same way.
-        let result: Vec<_> = streaming(stream(&[b"frame", b"bad"]), Box::<Framer>::default())
+        let result: Vec<_> = streaming(failing, Box::<Framer>::default(), false, Default::default())
             .collect()
             .await;
         assert_eq!(result.len(), 2);
         assert_eq!(result[0].as_ref().unwrap(), "frame");
+        assert_eq!(result[1].as_ref().unwrap_err().status, 502);
+        // A translator error flushes the same way.
+        let result: Vec<_> = streaming(
+            stream(&[b"frame", b"bad"]),
+            Box::<Framer>::default(),
+            false,
+            Default::default(),
+        )
+        .collect()
+        .await;
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0].as_ref().unwrap(), "frame");
         assert!(result[1].is_err());
+    }
+
+    /// Fails apply_patch tool input on the event `patch`.
+    #[derive(Default)]
+    struct PatchFail(bool);
+    impl StreamTranslator for PatchFail {
+        fn event(&mut self, event: &[u8]) -> Result<Vec<Bytes>, cpa_translate::Error> {
+            if event == b"bad" {
+                return Err(cpa_translate::Error("malformed event".into()));
+            }
+            self.0 |= event == b"patch";
+            Ok(vec![Bytes::copy_from_slice(event)])
+        }
+        fn finish(&mut self) -> Result<Vec<Bytes>, cpa_translate::Error> {
+            Ok(Vec::new())
+        }
+        fn tool_input_failed(&self) -> bool {
+            self.0
+        }
+    }
+
+    /// Counts `UsageObserver::failed` reports.
+    #[derive(Default)]
+    struct Failures(std::sync::atomic::AtomicUsize);
+    impl cpa_core::exec::UsageObserver for Failures {
+        fn response_body(&self, _: Format, _: &[u8]) {}
+        fn response_line(&self, _: Format, _: &[u8]) {}
+        fn request(&self, _: Format, _: &[u8]) {}
+        fn failed(&self) {
+            self.0.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        }
+    }
+    impl Failures {
+        fn sink() -> (std::sync::Arc<Self>, cpa_core::exec::UsageSink) {
+            let failures = std::sync::Arc::new(Self::default());
+            (failures.clone(), cpa_core::exec::UsageSink::new(failures))
+        }
+        fn count(&self) -> usize {
+            self.0.load(std::sync::atomic::Ordering::SeqCst)
+        }
+    }
+
+    /// Go returns these as plain 502 `statusErr`s, not request-scoped errors: the
+    /// conductor fails over to the next credential instead of answering the caller.
+    /// Only the apply_patch rejection publishes its usage as empty
+    /// (RecordApplyPatchStreamFailure); a transport error keeps the stream's usage.
+    #[tokio::test]
+    async fn apply_patch_and_translator_failures_are_not_request_scoped() {
+        let (failures, usage) = Failures::sink();
+        let pending = stream(&[b"patch"]).chain(futures_util::stream::pending()).boxed();
+        let result: Vec<_> = streaming(pending, Box::<PatchFail>::default(), false, usage)
+            .collect()
+            .await;
+        assert_eq!(result.len(), 2, "the failing event's frames, then the error");
+        let error = result[1].as_ref().unwrap_err();
+        assert_eq!(error.status, 502);
+        assert_eq!(error.body, cpa_translate::APPLY_PATCH_UPSTREAM_ERROR);
+        assert_eq!(error.scope, FailureScope::Credential);
+        assert_eq!(failures.count(), 1);
+        let (failures, usage) = Failures::sink();
+        let result: Vec<_> = streaming(stream(&[b"bad"]), Box::<PatchFail>::default(), false, usage)
+            .collect()
+            .await;
+        assert_eq!(result[0].as_ref().unwrap_err().scope, FailureScope::Credential);
+        assert_eq!(apply_patch_error().scope, FailureScope::Credential);
+        assert_eq!(failures.count(), 0);
+        let (failures, usage) = Failures::sink();
+        let reset = futures_util::stream::iter(vec![
+            Ok(Bytes::from_static(b"frame")),
+            Err(ExecError::local(502, FailureScope::Transport, "upstream reset")),
+        ])
+        .boxed();
+        let result: Vec<_> = streaming(reset, Box::<PatchFail>::default(), false, usage)
+            .collect()
+            .await;
+        assert_eq!(result[1].as_ref().unwrap_err().scope, FailureScope::Transport);
+        assert_eq!(failures.count(), 0);
+    }
+
+    /// Finalizing tool input at EOF can fail too; that failure replaces the transport
+    /// error and publishes no tokens.
+    #[tokio::test]
+    async fn apply_patch_failure_at_eof_replaces_transport_error() {
+        #[derive(Default)]
+        struct FailsAtEnd(bool);
+        impl StreamTranslator for FailsAtEnd {
+            fn event(&mut self, event: &[u8]) -> Result<Vec<Bytes>, cpa_translate::Error> {
+                Ok(vec![Bytes::copy_from_slice(event)])
+            }
+            fn finish(&mut self) -> Result<Vec<Bytes>, cpa_translate::Error> {
+                Ok(Vec::new())
+            }
+            fn finalize_tool_input(&mut self) -> Vec<Bytes> {
+                self.0 = true;
+                vec![Bytes::from_static(b"finalized")]
+            }
+            fn tool_input_failed(&self) -> bool {
+                self.0
+            }
+        }
+        let (failures, usage) = Failures::sink();
+        let reset = futures_util::stream::iter(vec![
+            Ok(Bytes::from_static(b"frame")),
+            Err(ExecError::local(502, FailureScope::Transport, "upstream reset")),
+        ])
+        .boxed();
+        let result: Vec<_> = streaming(reset, Box::<FailsAtEnd>::default(), false, usage)
+            .collect()
+            .await;
+        assert_eq!(result.len(), 3);
+        assert_eq!(result[1].as_ref().unwrap(), "finalized");
+        let error = result[2].as_ref().unwrap_err();
+        assert_eq!(error.body, cpa_translate::APPLY_PATCH_UPSTREAM_ERROR);
+        assert_eq!(error.scope, FailureScope::Credential);
+        assert_eq!(failures.count(), 1);
+    }
+
+    #[tokio::test]
+    async fn nonstream_apply_patch_rejection_publishes_no_tokens() {
+        static REJECTS: Pair = Pair {
+            request: |_, _| unreachable!(),
+            non_stream: |_, _| Ok(Vec::new()),
+            stream: |_| unreachable!(),
+            count_tokens: None,
+        };
+        let (failures, usage) = Failures::sink();
+        let mut request = req(false, Operation::Generate);
+        request.usage = usage;
+        let error = transform(
+            &REJECTS,
+            request,
+            Bytes::new(),
+            ResponseBody::Buffered(Bytes::from_static(b"{}")),
+        )
+        .await
+        .err()
+        .unwrap();
+        assert_eq!(error.status, 502);
+        assert_eq!(error.scope, FailureScope::Credential);
+        assert_eq!(failures.count(), 1);
     }
 
     #[test]
@@ -357,9 +589,12 @@ mod tests {
         let mut request = req(false, Operation::Generate);
         request.source_format = Format::Claude;
         request.body = Bytes::from_static(br#"{  "model" : "claude", "messages": [] }"#);
-        assert_eq!(super::request(&request, "claude", false).unwrap(), request.body);
         assert_eq!(
-            super::request(&request, "claude-base", false).unwrap(),
+            super::request(&request, Default::default(), "claude", false).unwrap(),
+            request.body
+        );
+        assert_eq!(
+            super::request(&request, Default::default(), "claude-base", false).unwrap(),
             br#"{  "model" : "claude-base", "messages": [] }"#.as_slice()
         );
     }

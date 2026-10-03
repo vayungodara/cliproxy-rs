@@ -176,11 +176,12 @@ enum Frame {
     Close(u16, String),
 }
 
+/// Go leaves `frames` null for steps after the connection closed.
 fn go_frames(step: &Value) -> Vec<Frame> {
     step["frames"]
         .as_array()
-        .unwrap()
-        .iter()
+        .into_iter()
+        .flatten()
         .map(|f| match f["text"].as_str() {
             Some(text) => Frame::Text(mask(text)),
             None => Frame::Close(
@@ -191,10 +192,11 @@ fn go_frames(step: &Value) -> Vec<Frame> {
         .collect()
 }
 
-/// Headers both implementations must agree on. Transport headers (WebSocket key,
-/// extensions, connection, length, encoding) legitimately differ between gorilla/net
-/// http and wreq.
-const COMPARED_HEADERS: [&str; 10] = [
+/// Headers both implementations must agree on, the permessage-deflate offer included.
+/// Transport headers (WebSocket key, connection, length, encoding) legitimately differ
+/// between gorilla/net http and wreq.
+const COMPARED_HEADERS: [&str; 11] = [
+    "sec-websocket-extensions",
     "authorization",
     "openai-beta",
     "originator",
@@ -254,7 +256,7 @@ async fn run(name: &str) {
     static REGISTRY: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
     let _registry = REGISTRY.lock().await;
     cpa_server::install_registry(&rt);
-    let proxy = serve(router(rt)).await;
+    let proxy = serve(router(rt.clone())).await;
 
     let mut request = wreq::Client::new().websocket(format!("ws://{proxy}/v1/responses"));
     for (k, v) in scenario["client_headers"].as_object().into_iter().flatten() {
@@ -280,11 +282,27 @@ async fn run(name: &str) {
             assert!(expected.is_empty(), "{name} step {i}: Go read after close");
             continue;
         }
+        if step["disable"].as_bool() == Some(true) {
+            // Go `manager.Update` with `Disabled`: config credentials change in memory.
+            for credential in rt.store().snapshot() {
+                let mut disabled = cpa_core::credential::Credential::clone(&credential);
+                disabled.disabled = true;
+                rt.store().replace_config_backed(disabled, credential.revision).unwrap();
+            }
+        }
         if let Some(send) = step["send"].as_str() {
             let send = send.replace("{{last_response_id}}", &last_id);
             socket.send(Message::text(send)).await.unwrap();
         }
         let mode = step["read"].as_str().unwrap();
+        if mode == "none" {
+            assert!(expected.is_empty(), "{name} step {i}: Go read nothing");
+            continue;
+        }
+        // "until:<type>[@<response id>]".
+        let until = mode
+            .strip_prefix("until:")
+            .map(|target| target.split_once('@').unwrap_or((target, "")));
         let mut got = Vec::new();
         loop {
             let next = tokio::time::timeout(Duration::from_secs(5), socket.next())
@@ -313,6 +331,12 @@ async fn run(name: &str) {
                 last_id = gjson::get(&text, "response.id").str().to_owned();
             }
             got.push(Frame::Text(mask(&text)));
+            if let Some((want_kind, want_id)) = until
+                && kind == want_kind
+                && (want_id.is_empty() || gjson::get(&text, "response.id").str() == want_id)
+            {
+                break;
+            }
             if mode == "one"
                 || (mode == "completed"
                     && matches!(
@@ -420,6 +444,119 @@ async fn http_upstream_400_is_shown_then_closed() {
     run("http_upstream_400_exposed").await;
 }
 
+// Response steering (Go openai_responses_steering*_test.go, codex_websockets_duplex*_test.go).
+
+/// M2-0147, M2-0148: in-flight steers go upstream raw; acknowledgements, the steered
+/// response's `response.incomplete` and the automatic successor reach the client.
+#[tokio::test]
+async fn steering_forwards_steers_and_the_automatic_successor() {
+    run("steer_successor").await;
+}
+
+/// A pending steer waits for the tool result; the explicit continuation is shaped like a
+/// turn and keeps `previous_response_id`.
+#[tokio::test]
+async fn steering_waits_for_required_tool_input() {
+    run("steer_tool_pending").await;
+}
+
+#[tokio::test]
+async fn steering_upstream_close_after_accepted_steers_closes_the_client() {
+    run("steer_disconnect_accepted").await;
+}
+
+/// M2-0149: invalid JSON and unknown types are rejected locally; the socket stays usable.
+#[tokio::test]
+async fn steering_rejects_bad_frames_locally_and_recovers() {
+    run("steer_local_validation").await;
+}
+
+/// M2-0146: a later upstream error is an event the client can correct on the socket.
+#[tokio::test]
+async fn steering_later_error_recovers_with_a_corrected_create() {
+    run("steer_later_error_recovers").await;
+}
+
+#[tokio::test]
+async fn steering_initial_error_stays_terminal() {
+    run("steer_initial_error_terminal").await;
+}
+
+#[tokio::test]
+async fn steering_later_error_then_upstream_close_closes_the_client() {
+    run("steer_later_error_then_upstream_close").await;
+}
+
+/// The v8 OAuth-only form does not enable steering for API keys.
+#[tokio::test]
+async fn steering_oauth_only_setting_leaves_api_keys_in_normal_mode() {
+    run("steer_oauth_only_skips_api_key").await;
+}
+
+#[tokio::test]
+async fn steering_idle_upstream_close_closes_the_client() {
+    run("steer_idle_upstream_close").await;
+}
+
+/// An append inherits `previous_response_id`, `model` and the parent's instructions.
+#[tokio::test]
+async fn steering_append_inherits_parent_context() {
+    run("steer_append_inherits").await;
+}
+
+/// A create queued behind an automatic successor does not hold back a later steer.
+#[tokio::test]
+async fn steering_queued_create_does_not_block_a_later_steer() {
+    run("steer_queued_create_then_steer").await;
+}
+
+/// A failure of the running response leaves the pending create to start next.
+#[tokio::test]
+async fn steering_active_failure_keeps_the_queued_create() {
+    run("steer_active_failure_keeps_queued_create").await;
+}
+
+/// A failure without a response ID while a create is pending ends the socket.
+#[tokio::test]
+async fn steering_ambiguous_failure_ends_the_socket() {
+    run("steer_ambiguous_failure_ends_the_socket").await;
+}
+
+/// 401/403/429 after the first response end the stream with the original classification.
+#[tokio::test]
+async fn steering_later_credential_failure_ends_the_socket() {
+    run("steer_later_credential_failure").await;
+}
+
+#[tokio::test]
+async fn steering_later_quota_failure_ends_the_socket() {
+    run("steer_later_quota_failure").await;
+}
+
+/// While a steer waits for tool input, a create must continue that response.
+#[tokio::test]
+async fn steering_rejects_a_create_for_another_parent() {
+    run("steer_wrong_parent_rejected").await;
+}
+
+/// Another model cannot run on the bound socket: the client replays (1012).
+#[tokio::test]
+async fn steering_model_switch_needs_replay() {
+    run("steer_model_switch_needs_replay").await;
+}
+
+/// M2-0145: a disabled credential sends no further frame; the connection ends.
+#[tokio::test]
+async fn steering_disabled_credential_cannot_send_another_frame() {
+    run("steer_credential_disabled").await;
+}
+
+/// M2-0148: with steering off, `response.steer` is an unsupported request type.
+#[tokio::test]
+async fn steer_is_rejected_when_steering_is_off() {
+    run("steer_rejected_when_disabled").await;
+}
+
 #[test]
 fn every_go_scenario_has_a_test() {
     let names: Vec<&str> = FIXTURE.iter().map(|s| s["name"].as_str().unwrap()).collect();
@@ -438,6 +575,25 @@ fn every_go_scenario_has_a_test() {
             "http_stream_ends_early",
             "ws_multi_agent_v2",
             "http_multi_agent_v2",
+            "steer_successor",
+            "steer_tool_pending",
+            "steer_disconnect_accepted",
+            "steer_local_validation",
+            "steer_later_error_recovers",
+            "steer_initial_error_terminal",
+            "steer_later_error_then_upstream_close",
+            "steer_oauth_only_skips_api_key",
+            "steer_idle_upstream_close",
+            "steer_append_inherits",
+            "steer_queued_create_then_steer",
+            "steer_active_failure_keeps_queued_create",
+            "steer_ambiguous_failure_ends_the_socket",
+            "steer_later_credential_failure",
+            "steer_later_quota_failure",
+            "steer_wrong_parent_rejected",
+            "steer_model_switch_needs_replay",
+            "steer_credential_disabled",
+            "steer_rejected_when_disabled",
             "http_upstream_400_exposed",
         ]
     );

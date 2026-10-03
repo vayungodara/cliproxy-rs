@@ -2378,6 +2378,249 @@
      ""
     ]
    ]
+  },
+  {
+   "name": "TestConvertOpenAIResponsesRequestToCodex_ServiceTier:875",
+   "path": "request",
+   "model": "gpt-5.6",
+   "stream": true,
+   "input": "{\"model\":\"gpt-5.6\",\"service_tier\":\"priority\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":\"hello\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-5.6\",\"service_tier\":\"priority\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":\"hello\"}],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"]}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertOpenAIResponsesRequestToCodex_ServiceTier:875#2",
+   "path": "request",
+   "model": "gpt-5.6",
+   "stream": true,
+   "input": "{\"model\":\"gpt-5.6\",\"service_tier\":\" Priority \",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":\"hello\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-5.6\",\"service_tier\":\"priority\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":\"hello\"}],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"]}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertOpenAIResponsesRequestToCodex_ServiceTier:875#3",
+   "path": "request",
+   "model": "gpt-5.6",
+   "stream": true,
+   "input": "{\"model\":\"gpt-5.6\",\"service_tier\":\"fast\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":\"hello\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-5.6\",\"service_tier\":\"priority\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":\"hello\"}],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"]}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertOpenAIResponsesRequestToCodex_ServiceTier:875#4",
+   "path": "request",
+   "model": "gpt-5.6",
+   "stream": true,
+   "input": "{\"model\":\"gpt-5.6\",\"service_tier\":\"ultrafast\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":\"hello\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-5.6\",\"service_tier\":\"ultrafast\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":\"hello\"}],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"]}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertOpenAIResponsesRequestToCodex_ServiceTier:875#5",
+   "path": "request",
+   "model": "gpt-5.6",
+   "stream": true,
+   "input": "{\"model\":\"gpt-5.6\",\"service_tier\":\" UltraFast \",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":\"hello\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-5.6\",\"service_tier\":\"ultrafast\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":\"hello\"}],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"]}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertOpenAIResponsesRequestToCodex_ServiceTier:875#6",
+   "path": "request",
+   "model": "gpt-5.6",
+   "stream": true,
+   "input": "{\"model\":\"gpt-5.6\",\"service_tier\":\"standard\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":\"hello\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-5.6\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":\"hello\"}],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"]}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertOpenAIResponsesRequestToCodex_ServiceTier:875#7",
+   "path": "request",
+   "model": "gpt-5.6",
+   "stream": true,
+   "input": "{\"model\":\"gpt-5.6\",\"service_tier\":\"default\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":\"hello\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-5.6\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":\"hello\"}],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"]}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertOpenAIResponsesRequestToCodex_ServiceTier:875#8",
+   "path": "request",
+   "model": "gpt-5.6",
+   "stream": true,
+   "input": "{\"model\":\"gpt-5.6\",\"service_tier\":\"flex\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":\"hello\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-5.6\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":\"hello\"}],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"]}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertOpenAIResponsesRequestToCodex_ServiceTier:875#9",
+   "path": "request",
+   "model": "gpt-5.6",
+   "stream": true,
+   "input": "{\"model\":\"gpt-5.6\",\"service_tier\":123,\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":\"hello\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-5.6\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":\"hello\"}],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"]}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertOpenAIResponsesRequestToCodex_ServiceTier:875#10",
+   "path": "request",
+   "model": "gpt-5.6",
+   "stream": true,
+   "input": "{\"model\":\"gpt-5.6\",\"service_tier\":null,\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":\"hello\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-5.6\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":\"hello\"}],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"]}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertOpenAIResponsesRequestToCodex_ServiceTier:875#11",
+   "path": "request",
+   "model": "gpt-5.6",
+   "stream": true,
+   "input": "{\"model\":\"gpt-5.6\",\"service_tier\":true,\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":\"hello\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-5.6\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":\"hello\"}],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"]}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertOpenAIResponsesRequestToCodex_ServiceTier:875#12",
+   "path": "request",
+   "model": "gpt-5.6",
+   "stream": true,
+   "input": "{\"model\":\"gpt-5.6\",\"service_tier\":\"\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":\"hello\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-5.6\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":\"hello\"}],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"]}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertOpenAIResponsesRequestToCodex_ServiceTier:875#13",
+   "path": "request",
+   "model": "gpt-5.6",
+   "stream": true,
+   "input": "{\"model\":\"gpt-5.6\",\"service_tier\":\"   \",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":\"hello\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-5.6\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":\"hello\"}],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"]}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertCodexResponseToOpenAIResponsesNonStreamIncomplete:31#2",
+   "path": "non_stream",
+   "model": "gpt-5.5",
+   "input": "{\"type\":\"response.incomplete\",\"response\":{\"id\":\"resp_1\",\"status\":\"incomplete\",\"incomplete_details\":{\"reason\":\"max_output_tokens\"},\"output\":[],\"usage\":{\"input_tokens\":1,\"output_tokens\":2,\"total_tokens\":3}}}",
+   "outputs": [
+    [
+     "{\"id\":\"resp_1\",\"status\":\"incomplete\",\"incomplete_details\":{\"reason\":\"max_output_tokens\"},\"output\":[],\"usage\":{\"input_tokens\":1,\"output_tokens\":2,\"total_tokens\":3}}"
+    ]
+   ]
+  },
+  {
+   "name": "TestSummaryIntentFinalPipeline:162",
+   "path": "request",
+   "model": "level-model",
+   "stream": true,
+   "input": "{\"model\":\"level-model\",\"reasoning\":{\"effort\":\"high\",\"generate_summary\":\"detailed\"},\"input\":\"hi\"}",
+   "outputs": [
+    [
+     "{\"model\":\"level-model\",\"reasoning\":{\"effort\":\"high\",\"summary\":\"detailed\"},\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"]}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertCodexResponseToOpenAIResponses_CreatedIncludesOriginalRequestModel:18:stream",
+   "path": "stream",
+   "model": "fallback-model",
+   "original": "{\"model\":\"original-codex-model\"}",
+   "translated": "{\"model\":\"translated-codex-model\"}",
+   "lines": [
+    "data: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_1\"}}",
+    "data: {\"type\":\"response.in_progress\",\"response\":{\"id\":\"resp_1\"}}"
+   ],
+   "outputs": [
+    [
+     "data: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_1\",\"model\":\"original-codex-model\"}}"
+    ],
+    [
+     "data: {\"type\":\"response.in_progress\",\"response\":{\"id\":\"resp_1\",\"model\":\"original-codex-model\"}}"
+    ]
+   ]
+  },
+  {
+   "name": "TestApplyPatchResponsesActualRequestGatesNativeCodex:49:stream",
+   "path": "stream",
+   "model": "m",
+   "original": "{\"tools\":[{\"type\":\"custom\",\"name\":\"apply_patch\"}]}",
+   "translated": "{\"tools\":[{\"type\":\"custom\",\"name\":\"apply_patch\"}]}",
+   "lines": [
+    "data: {\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"type\":\"function_call\",\"id\":\"a\",\"call_id\":\"c\",\"name\":\"apply_patch\",\"arguments\":\"{\\\"input\\\":\\\"p\\\"}\"}}"
+   ],
+   "outputs": [
+    [
+     "data: {\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"type\":\"function_call\",\"id\":\"a\",\"call_id\":\"c\",\"name\":\"apply_patch\",\"arguments\":\"{\\\"input\\\":\\\"p\\\"}\"}}"
+    ]
+   ]
+  },
+  {
+   "name": "TestApplyPatchResponsesActualRequestGatesNativeCodex:54:stream",
+   "path": "stream",
+   "model": "m",
+   "original": "{\"tools\":[{\"type\":\"custom\",\"name\":\"apply_patch\"}]}",
+   "translated": "{\"tools\":[{\"type\":\"function\",\"name\":\"apply_patch\",\"description\":\"Call this function with a JSON object whose input field contains the complete patch text.\\nUse the Codex apply_patch format, not a conventional git unified diff.\\nStart with *** Begin Patch and end with *** End Patch.\\nUse *** Add File: path, *** Delete File: path, or *** Update File: path.\\nEvery added-file content line starts with +.\\nFor updates, use @@; context lines start with one space, removed lines with -, and added lines with +.\\nUse *** Move to: path for a rename and *** End of File when required by the patch grammar.\\nExample input:\\n*** Begin Patch\\n*** Update File: src/main.go\\n@@\\n-old\\n+new\\n*** End Patch\",\"parameters\":{\"type\":\"object\",\"properties\":{\"input\":{\"type\":\"string\",\"description\":\"The complete apply_patch patch text.\"}},\"required\":[\"input\"],\"additionalProperties\":false}}]}",
+   "lines": [
+    "data: {\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"type\":\"function_call\",\"id\":\"a\",\"call_id\":\"c\",\"name\":\"apply_patch\",\"arguments\":\"{\\\"input\\\":\\\"p\\\"}\"}}"
+   ],
+   "outputs": [
+    [
+     "data: {\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"type\":\"function_call\",\"id\":\"a\",\"call_id\":\"c\",\"name\":\"apply_patch\",\"arguments\":\"{\\\"input\\\":\\\"p\\\"}\"}}"
+    ]
+   ]
+  },
+  {
+   "name": "TestApplyPatchResponsesActualRequestGatesNativeCodex:64:stream",
+   "path": "stream",
+   "model": "m",
+   "original": "{\"tools\":[{\"type\":\"custom\",\"name\":\"apply_patch\"}]}",
+   "translated": "{\"tools\":[{\"type\":\"function\",\"name\":\"apply_patch\",\"description\":\"Call this function with a JSON object whose input field contains the complete patch text.\\nUse the Codex apply_patch format, not a conventional git unified diff.\\nStart with *** Begin Patch and end with *** End Patch.\\nUse *** Add File: path, *** Delete File: path, or *** Update File: path.\\nEvery added-file content line starts with +.\\nFor updates, use @@; context lines start with one space, removed lines with -, and added lines with +.\\nUse *** Move to: path for a rename and *** End of File when required by the patch grammar.\\nExample input:\\n*** Begin Patch\\n*** Update File: src/main.go\\n@@\\n-old\\n+new\\n*** End Patch\",\"parameters\":{\"type\":\"object\",\"properties\":{\"input\":{\"type\":\"string\",\"description\":\"The complete apply_patch patch text.\"}},\"required\":[\"input\"],\"additionalProperties\":false}}]}",
+   "lines": [
+    "data: {\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"type\":\"function_call\",\"name\":\"apply_patch\",\"arguments\":\"{}\"}}"
+   ],
+   "outputs": [
+    [
+     "data: {\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"type\":\"function_call\",\"name\":\"apply_patch\",\"arguments\":\"{}\"}}"
+    ]
+   ]
   }
  ],
  "token_count": false,

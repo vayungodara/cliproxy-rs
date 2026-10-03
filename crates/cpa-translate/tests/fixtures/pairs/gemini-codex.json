@@ -2482,6 +2482,159 @@
      "{\"totalTokens\":123456789012,\"promptTokensDetails\":[{\"modality\":\"TEXT\",\"tokenCount\":123456789012}]}"
     ]
    ]
+  },
+  {
+   "name": "TestConvertGeminiRequestToCodex_PreservesCustomCallIDs:50",
+   "path": "request",
+   "model": "gpt-5.1-codex",
+   "input": "{\n\t\t\t\t\"contents\": [\n\t\t\t\t\t{\n\t\t\t\t\t\t\"role\": \"model\",\n\t\t\t\t\t\t\"parts\": [\n\t\t\t\t\t\t\t{\"functionCall\": {\"name\": \"lookup\", \"id\":\"call_gateway_id\", \"args\": {\"query\": \"status\"}}}\n\t\t\t\t\t\t]\n\t\t\t\t\t},\n\t\t\t\t\t{\n\t\t\t\t\t\t\"role\": \"user\",\n\t\t\t\t\t\t\"parts\": [\n\t\t\t\t\t\t\t{\"functionResponse\": {\"name\": \"lookup\", \"id\":\"call_gateway_id\", \"response\": {\"result\": \"ok\"}}}\n\t\t\t\t\t\t]\n\t\t\t\t\t}\n\t\t\t\t]\n\t\t\t}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-5.1-codex\",\"instructions\":\"\",\"input\":[{\"type\":\"function_call\",\"name\":\"lookup\",\"arguments\":\"{\\\"query\\\": \\\"status\\\"}\",\"call_id\":\"call_gateway_id\"},{\"type\":\"function_call_output\",\"output\":\"ok\",\"call_id\":\"call_gateway_id\"}],\"parallel_tool_calls\":true,\"reasoning\":{\"effort\":\"medium\"},\"stream\":true,\"store\":false,\"include\":[\"reasoning.encrypted_content\"]}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertGeminiRequestToCodex_PreservesCustomCallIDs:50#2",
+   "path": "request",
+   "model": "gpt-5.1-codex",
+   "input": "{\n\t\t\t\t\"contents\": [\n\t\t\t\t\t{\n\t\t\t\t\t\t\"role\": \"model\",\n\t\t\t\t\t\t\"parts\": [\n\t\t\t\t\t\t\t{\"functionCall\": {\"name\": \"lookup\", \"call_id\":\"call_gateway_call_id\", \"args\": {\"query\": \"status\"}}}\n\t\t\t\t\t\t]\n\t\t\t\t\t},\n\t\t\t\t\t{\n\t\t\t\t\t\t\"role\": \"user\",\n\t\t\t\t\t\t\"parts\": [\n\t\t\t\t\t\t\t{\"functionResponse\": {\"name\": \"lookup\", \"call_id\":\"call_gateway_call_id\", \"response\": {\"result\": \"ok\"}}}\n\t\t\t\t\t\t]\n\t\t\t\t\t}\n\t\t\t\t]\n\t\t\t}",
+   "outputs": [
+    [
+     "{\"model\":\"gpt-5.1-codex\",\"instructions\":\"\",\"input\":[{\"type\":\"function_call\",\"name\":\"lookup\",\"arguments\":\"{\\\"query\\\": \\\"status\\\"}\",\"call_id\":\"call_gateway_call_id\"},{\"type\":\"function_call_output\",\"output\":\"ok\",\"call_id\":\"call_gateway_call_id\"}],\"parallel_tool_calls\":true,\"reasoning\":{\"effort\":\"medium\"},\"stream\":true,\"store\":false,\"include\":[\"reasoning.encrypted_content\"]}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertCodexResponseToGemini_IncompleteTerminal:23#2",
+   "path": "non_stream",
+   "model": "gemini-2.5-pro",
+   "input": "{\"type\":\"response.incomplete\",\"response\":{\"id\":\"resp_1\",\"model\":\"gpt-5.5\",\"status\":\"incomplete\",\"incomplete_details\":{\"reason\":\"max_output_tokens\"},\"output\":[],\"usage\":{\"input_tokens\":1,\"output_tokens\":2,\"total_tokens\":3}}}",
+   "outputs": [
+    [
+     "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[]},\"finishReason\":\"MAX_TOKENS\"}],\"usageMetadata\":{\"trafficType\":\"PROVISIONED_THROUGHPUT\",\"promptTokenCount\":1,\"candidatesTokenCount\":2,\"totalTokenCount\":3},\"modelVersion\":\"gemini-2.5-pro\",\"createTime\":\"\",\"responseId\":\"resp_1\"}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertCodexResponseToGemini_NonStreamImageGenerationCallAddsInlineDataPart:119#2",
+   "path": "non_stream",
+   "model": "gemini-2.5-pro",
+   "input": "{\"type\":\"response.completed\",\"response\":{\"id\":\"resp_123\",\"created_at\":1700000000,\"usage\":{\"input_tokens\":1,\"output_tokens\":1},\"output\":[{\"type\":\"message\",\"content\":[{\"type\":\"output_text\",\"text\":\"ok\"}]},{\"type\":\"image_generation_call\",\"output_format\":\"png\",\"result\":\"aGVsbG8=\"}]}}",
+   "original": "{\"tools\":[]}",
+   "outputs": [
+    [
+     "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"},{\"inlineData\":{\"data\":\"aGVsbG8=\",\"mimeType\":\"image/png\"}}]},\"finishReason\":\"STOP\"}],\"usageMetadata\":{\"trafficType\":\"PROVISIONED_THROUGHPUT\",\"promptTokenCount\":1,\"candidatesTokenCount\":1,\"totalTokenCount\":2},\"modelVersion\":\"gemini-2.5-pro\",\"createTime\":\"2023-11-14T22:13:20Z\",\"responseId\":\"resp_123\"}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertCodexResponseToGeminiNonStreamPreservesFunctionCallID:164#2",
+   "path": "non_stream",
+   "model": "gemini-2.5-pro",
+   "input": "{\"type\":\"response.completed\",\"response\":{\"id\":\"resp_123\",\"created_at\":1700000000,\"usage\":{\"input_tokens\":1,\"output_tokens\":1},\"output\":[{\"type\":\"function_call\",\"call_id\":\"call_gateway\",\"name\":\"lookup\",\"arguments\":\"{\\\"query\\\":\\\"status\\\"}\"}]}}",
+   "original": "{\"tools\":[]}",
+   "outputs": [
+    [
+     "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"functionCall\":{\"args\":{\"query\":\"status\"},\"name\":\"lookup\",\"id\":\"call_gateway\"}}]},\"finishReason\":\"STOP\"}],\"usageMetadata\":{\"trafficType\":\"PROVISIONED_THROUGHPUT\",\"promptTokenCount\":1,\"candidatesTokenCount\":1,\"totalTokenCount\":2},\"modelVersion\":\"gemini-2.5-pro\",\"createTime\":\"2023-11-14T22:13:20Z\",\"responseId\":\"resp_123\"}"
+    ]
+   ]
+  },
+  {
+   "name": "TestSummaryIntentTranslation:76",
+   "path": "request",
+   "model": "",
+   "stream": true,
+   "input": "{\"model\":\"gpt-5.4\",\"generationConfig\":{\"thinkingConfig\":{\"thinkingLevel\":\"high\"}},\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"\",\"instructions\":\"\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}],\"parallel_tool_calls\":true,\"reasoning\":{\"effort\":\"high\"},\"stream\":true,\"store\":false,\"include\":[\"reasoning.encrypted_content\"]}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertCodexResponseToGemini_IncompleteTerminal:15:stream",
+   "path": "stream",
+   "model": "gemini-2.5-pro",
+   "lines": [
+    "data: {\"type\":\"response.incomplete\",\"response\":{\"id\":\"resp_1\",\"model\":\"gpt-5.5\",\"status\":\"incomplete\",\"incomplete_details\":{\"reason\":\"max_output_tokens\"},\"output\":[],\"usage\":{\"input_tokens\":1,\"output_tokens\":2,\"total_tokens\":3}}}"
+   ],
+   "outputs": [
+    [
+     "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[]},\"finishReason\":\"MAX_TOKENS\"}],\"usageMetadata\":{\"trafficType\":\"PROVISIONED_THROUGHPUT\",\"promptTokenCount\":1,\"candidatesTokenCount\":2,\"totalTokenCount\":3},\"modelVersion\":\"gemini-2.5-pro\",\"createTime\":\"2025-08-15T02:52:03.884209Z\",\"responseId\":\"\"}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertCodexResponseToGemini_StreamEmptyOutputUsesOutputItemDoneMessageFallback:41:stream",
+   "path": "stream",
+   "model": "gemini-2.5-pro",
+   "original": "{\"tools\":[]}",
+   "lines": [
+    "data: {\"type\":\"response.output_item.done\",\"item\":{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"ok\"}]},\"output_index\":0}",
+    "data: {\"type\":\"response.completed\",\"response\":{\"usage\":{\"input_tokens\":1,\"output_tokens\":1}}}"
+   ],
+   "outputs": [
+    [
+     "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]}}],\"usageMetadata\":{\"trafficType\":\"PROVISIONED_THROUGHPUT\"},\"modelVersion\":\"gemini-2.5-pro\",\"createTime\":\"2025-08-15T02:52:03.884209Z\",\"responseId\":\"\"}"
+    ],
+    [
+     "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[]}}],\"usageMetadata\":{\"trafficType\":\"PROVISIONED_THROUGHPUT\",\"promptTokenCount\":1,\"candidatesTokenCount\":1,\"totalTokenCount\":2},\"modelVersion\":\"gemini-2.5-pro\",\"createTime\":\"2025-08-15T02:52:03.884209Z\",\"responseId\":\"\"}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertCodexResponseToGemini_StreamPartialImageEmitsInlineData:62:stream",
+   "path": "stream",
+   "model": "gemini-2.5-pro",
+   "original": "{\"tools\":[]}",
+   "lines": [
+    "data: {\"type\":\"response.image_generation_call.partial_image\",\"item_id\":\"ig_123\",\"output_format\":\"png\",\"partial_image_b64\":\"aGVsbG8=\",\"partial_image_index\":0}",
+    "data: {\"type\":\"response.image_generation_call.partial_image\",\"item_id\":\"ig_123\",\"output_format\":\"png\",\"partial_image_b64\":\"aGVsbG8=\",\"partial_image_index\":0}"
+   ],
+   "outputs": [
+    [
+     "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"inlineData\":{\"data\":\"aGVsbG8=\",\"mimeType\":\"image/png\"}}]}}],\"usageMetadata\":{\"trafficType\":\"PROVISIONED_THROUGHPUT\"},\"modelVersion\":\"gemini-2.5-pro\",\"createTime\":\"2025-08-15T02:52:03.884209Z\",\"responseId\":\"\"}"
+    ],
+    []
+   ]
+  },
+  {
+   "name": "TestConvertCodexResponseToGemini_StreamImageGenerationCallDoneEmitsInlineData:88:stream",
+   "path": "stream",
+   "model": "gemini-2.5-pro",
+   "original": "{\"tools\":[]}",
+   "lines": [
+    "data: {\"type\":\"response.image_generation_call.partial_image\",\"item_id\":\"ig_123\",\"output_format\":\"png\",\"partial_image_b64\":\"aGVsbG8=\",\"partial_image_index\":0}",
+    "data: {\"type\":\"response.output_item.done\",\"item\":{\"id\":\"ig_123\",\"type\":\"image_generation_call\",\"output_format\":\"png\",\"result\":\"aGVsbG8=\"}}",
+    "data: {\"type\":\"response.output_item.done\",\"item\":{\"id\":\"ig_123\",\"type\":\"image_generation_call\",\"output_format\":\"jpeg\",\"result\":\"Ymll\"}}"
+   ],
+   "outputs": [
+    [
+     "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"inlineData\":{\"data\":\"aGVsbG8=\",\"mimeType\":\"image/png\"}}]}}],\"usageMetadata\":{\"trafficType\":\"PROVISIONED_THROUGHPUT\"},\"modelVersion\":\"gemini-2.5-pro\",\"createTime\":\"2025-08-15T02:52:03.884209Z\",\"responseId\":\"\"}"
+    ],
+    [],
+    [
+     "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"inlineData\":{\"data\":\"Ymll\",\"mimeType\":\"image/jpeg\"}}]}}],\"usageMetadata\":{\"trafficType\":\"PROVISIONED_THROUGHPUT\"},\"modelVersion\":\"gemini-2.5-pro\",\"createTime\":\"2025-08-15T02:52:03.884209Z\",\"responseId\":\"\"}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertCodexResponseToGemini_StreamPreservesFunctionCallID:137:stream",
+   "path": "stream",
+   "model": "gemini-2.5-pro",
+   "original": "{\"tools\":[]}",
+   "lines": [
+    "data: {\"type\":\"response.output_item.done\",\"item\":{\"type\":\"function_call\",\"call_id\":\"call_gateway\",\"name\":\"lookup\",\"arguments\":\"{\\\"query\\\":\\\"status\\\"}\"}}",
+    "data: {\"type\":\"response.completed\",\"response\":{\"usage\":{\"input_tokens\":1,\"output_tokens\":1}}}"
+   ],
+   "outputs": [
+    [],
+    [
+     "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"functionCall\":{\"name\":\"lookup\",\"args\":{\"query\":\"status\"},\"id\":\"call_gateway\"}}]},\"finishReason\":\"STOP\"}],\"usageMetadata\":{\"trafficType\":\"PROVISIONED_THROUGHPUT\"},\"modelVersion\":\"gemini-2.5-pro\",\"createTime\":\"2025-08-15T02:52:03.884209Z\",\"responseId\":\"\"}",
+     "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[]}}],\"usageMetadata\":{\"trafficType\":\"PROVISIONED_THROUGHPUT\",\"promptTokenCount\":1,\"candidatesTokenCount\":1,\"totalTokenCount\":2},\"modelVersion\":\"gemini-2.5-pro\",\"createTime\":\"2025-08-15T02:52:03.884209Z\",\"responseId\":\"\"}"
+    ]
+   ]
   }
  ],
  "token_count": true,

@@ -83,7 +83,7 @@ fn fixture(name: &str, fail_delete: bool) -> Fixture {
     let mut cfg = Config::load(&path).unwrap();
     // What main does in store mode before the runtime exists.
     cfg.auth_dir = mirror.clone();
-    let rt = Arc::new(Runtime::new(
+    let rt = Arc::new(cpa_server::testing::runtime(
         cfg,
         vec![],
         Executors {

@@ -1936,5 +1936,204 @@
    "name": "claude-sonnet-4-6",
    "compat": true
   }
+ },
+ {
+  "name": "config-apikey-rebuild-mid-system",
+  "config": "config-version: 8\naccess:\n  api-keys: [client-key-1]\noauth:\n  auth-dir: AUTH_DIR\napi-keys:\n  claude:\n    - keys:\n        - api-key: sk-ant-api03-FAKE-KEY\n          rebuild-mid-system-message: true\n",
+  "client_key": "client-key-1",
+  "model": "claude-haiku-4-5-20251001",
+  "headers": [
+   [
+    "Authorization",
+    "Bearer client-key-1"
+   ],
+   [
+    "Content-Type",
+    "application/json"
+   ],
+   [
+    "Anthropic-Version",
+    "2023-06-01"
+   ]
+  ],
+  "stream": false,
+  "count": false,
+  "reply": {
+   "status": 200,
+   "content_type": "application/json",
+   "body": "{\"id\":\"msg_go_fixture\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-haiku-4-5-20251001\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"usage\":{\"input_tokens\":5,\"output_tokens\":2}}",
+   "headers": [
+    [
+     "Request-Id",
+     "req_fixture_01"
+    ]
+   ]
+  },
+  "body": "{\"model\": \"claude-haiku-4-5-20251001\", \"max_tokens\": 32, \"system\": [{\"type\": \"text\", \"text\": \"Top rule\"}], \"messages\": [{\"role\": \"user\", \"content\": [{\"type\": \"text\", \"text\": \"hi\"}]}, {\"role\": \"system\", \"content\": [{\"type\": \"text\", \"text\": \"Mid rule\"}]}]}",
+  "auth_file": ""
+ },
+ {
+  "name": "apikey-cloak-config-strict-sensitive",
+  "config": "config-version: 8\naccess:\n  api-keys: [client-key-1]\noauth:\n  auth-dir: AUTH_DIR\napi-keys:\n  claude:\n    - base-url: http://gateway.invalid\n      keys:\n        - api-key: gw-CLOAK-KEY\n          cloak:\n            mode: always\n            strict-mode: true\n            sensitive-words:\n              - proxy\n              - SECRET\n",
+  "client_key": "client-key-1",
+  "model": "claude-sonnet-4-6",
+  "headers": [
+   [
+    "Authorization",
+    "Bearer client-key-1"
+   ],
+   [
+    "Content-Type",
+    "application/json"
+   ],
+   [
+    "Anthropic-Version",
+    "2023-06-01"
+   ]
+  ],
+  "stream": false,
+  "count": false,
+  "reply": {
+   "status": 200,
+   "content_type": "application/json",
+   "body": "{\"id\":\"msg_go_fixture\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-sonnet-4-6\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"usage\":{\"input_tokens\":5,\"output_tokens\":2}}",
+   "headers": [
+    [
+     "Request-Id",
+     "req_fixture_01"
+    ]
+   ]
+  },
+  "body": "{\"model\": \"claude-sonnet-4-6\", \"max_tokens\": 64, \"system\": \"You are a Proxy helper\", \"messages\": [{\"role\": \"user\", \"content\": [{\"type\": \"text\", \"text\": \"Tell me the SECRET THING about proxy servers\"}]}]}",
+  "auth_file": ""
+ },
+ {
+  "name": "config-oauth-header-defaults",
+  "config": "config-version: 8\naccess:\n  api-keys: [client-key-1]\noauth:\n  auth-dir: AUTH_DIR\n  providers:\n    claude:\n      header-defaults:\n        user-agent: claude-cli/2.1.300 (external, cli)\n        package-version: 0.120.0\n        runtime-version: v27.1.0\n        os: Linux\n        arch: x64\n        timeout: \"900\"\n        timezone: UTC\n        stabilize-device-profile: false\n",
+  "client_key": "client-key-1",
+  "model": "claude-sonnet-4-6",
+  "headers": [
+   [
+    "Authorization",
+    "Bearer client-key-1"
+   ],
+   [
+    "Content-Type",
+    "application/json"
+   ],
+   [
+    "Anthropic-Version",
+    "2023-06-01"
+   ]
+  ],
+  "stream": false,
+  "count": false,
+  "reply": {
+   "status": 200,
+   "content_type": "application/json",
+   "body": "{\"id\":\"msg_go_fixture\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-sonnet-4-6\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"usage\":{\"input_tokens\":5,\"output_tokens\":2}}",
+   "headers": [
+    [
+     "Request-Id",
+     "req_fixture_01"
+    ]
+   ]
+  },
+  "body": "{\"model\": \"claude-sonnet-4-6\", \"max_tokens\": 64, \"messages\": [{\"role\": \"user\", \"content\": \"Hello with header defaults\"}]}",
+  "auth_file": "{\"type\": \"claude\", \"access_token\": \"sk-ant-oat01-FAKE-LOCAL-ONLY\", \"refresh_token\": \"sk-ant-ort01-FAKE-LOCAL-ONLY\", \"id_token\": \"\", \"email\": \"fixture@example.invalid\", \"account_uuid\": \"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee\", \"organization_uuid\": \"12345678-1234-4234-8234-123456789abc\", \"organization_name\": \"Fixture\", \"claude_device_ids\": [\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\"], \"expired\": \"2099-01-01T00:00:00Z\", \"last_refresh\": \"2026-10-01T00:00:00Z\"}"
+ },
+ {
+  "name": "config-oauth-header-defaults-stabilized",
+  "config": "config-version: 8\naccess:\n  api-keys: [client-key-1]\noauth:\n  auth-dir: AUTH_DIR\n  providers:\n    claude:\n      header-defaults:\n        user-agent: claude-cli/2.1.300 (external, cli)\n        package-version: 0.120.0\n        runtime-version: v27.1.0\n        os: Linux\n        arch: x64\n        stabilize-device-profile: true\n",
+  "client_key": "client-key-1",
+  "model": "claude-sonnet-4-6",
+  "headers": [
+   [
+    "Authorization",
+    "Bearer client-key-1"
+   ],
+   [
+    "Content-Type",
+    "application/json"
+   ],
+   [
+    "Anthropic-Version",
+    "2023-06-01"
+   ],
+   [
+    "User-Agent",
+    "claude-cli/2.1.200 (external, cli)"
+   ],
+   [
+    "X-Stainless-Package-Version",
+    "0.100.0"
+   ],
+   [
+    "X-Stainless-Runtime-Version",
+    "v24.0.0"
+   ],
+   [
+    "X-Stainless-Os",
+    "Windows"
+   ],
+   [
+    "X-Stainless-Arch",
+    "x64"
+   ],
+   [
+    "X-App",
+    "cli"
+   ]
+  ],
+  "stream": false,
+  "count": false,
+  "reply": {
+   "status": 200,
+   "content_type": "application/json",
+   "body": "{\"id\":\"msg_go_fixture\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-sonnet-4-6\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"usage\":{\"input_tokens\":5,\"output_tokens\":2}}",
+   "headers": [
+    [
+     "Request-Id",
+     "req_fixture_01"
+    ]
+   ]
+  },
+  "body": "{\"model\": \"claude-sonnet-4-6\", \"max_tokens\": 64, \"messages\": [{\"role\": \"user\", \"content\": \"Hello from an older native client\"}]}",
+  "auth_file": "{\"type\": \"claude\", \"access_token\": \"sk-ant-oat01-FAKE-LOCAL-ONLY\", \"refresh_token\": \"sk-ant-ort01-FAKE-LOCAL-ONLY\", \"id_token\": \"\", \"email\": \"fixture@example.invalid\", \"account_uuid\": \"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee\", \"organization_uuid\": \"12345678-1234-4234-8234-123456789abc\", \"organization_name\": \"Fixture\", \"claude_device_ids\": [\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\"], \"expired\": \"2099-01-01T00:00:00Z\", \"last_refresh\": \"2026-10-01T00:00:00Z\"}"
+ },
+ {
+  "name": "config-oauth-disable-cloak",
+  "config": "config-version: 8\naccess:\n  api-keys: [client-key-1]\noauth:\n  auth-dir: AUTH_DIR\n  providers:\n    claude:\n      disable-claude-cloak-mode: true\n",
+  "client_key": "client-key-1",
+  "model": "claude-sonnet-4-6",
+  "headers": [
+   [
+    "Authorization",
+    "Bearer client-key-1"
+   ],
+   [
+    "Content-Type",
+    "application/json"
+   ],
+   [
+    "Anthropic-Version",
+    "2023-06-01"
+   ]
+  ],
+  "stream": false,
+  "count": false,
+  "reply": {
+   "status": 200,
+   "content_type": "application/json",
+   "body": "{\"id\":\"msg_go_fixture\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-sonnet-4-6\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"usage\":{\"input_tokens\":5,\"output_tokens\":2}}",
+   "headers": [
+    [
+     "Request-Id",
+     "req_fixture_01"
+    ]
+   ]
+  },
+  "body": "{\"model\": \"claude-sonnet-4-6\", \"max_tokens\": 64, \"system\": \"Plain system kept\", \"messages\": [{\"role\": \"user\", \"content\": \"Hi without cloak\"}]}",
+  "auth_file": "{\"type\": \"claude\", \"access_token\": \"sk-ant-oat01-FAKE-LOCAL-ONLY\", \"refresh_token\": \"sk-ant-ort01-FAKE-LOCAL-ONLY\", \"id_token\": \"\", \"email\": \"fixture@example.invalid\", \"account_uuid\": \"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee\", \"organization_uuid\": \"12345678-1234-4234-8234-123456789abc\", \"organization_name\": \"Fixture\", \"claude_device_ids\": [\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\"], \"expired\": \"2099-01-01T00:00:00Z\", \"last_refresh\": \"2026-10-01T00:00:00Z\"}"
  }
 ]
