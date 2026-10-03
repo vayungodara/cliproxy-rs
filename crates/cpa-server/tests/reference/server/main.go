@@ -1421,6 +1421,81 @@ func upstreamHeaderFilters() []headerFilterCase {
 	return out
 }
 
+type errorEventCase struct {
+	Name   string           `json:"name"`
+	Steps  []step           `json:"steps"`
+	Events []map[string]any `json:"events"`
+}
+
+// errorEvents captures the events Go's MarkResult publishes on the errors channel
+// (sdk/cliproxy/auth/error_events.go) for the cooldown inputs. Clock values become
+// "<time>" or whole seconds from now ("+Ns").
+func errorEvents() []errorEventCase {
+	redisqueue.SetEnabled(true)
+	defer redisqueue.SetEnabled(false)
+	events, unsubscribe := redisqueue.SubscribeErrors()
+	defer unsubscribe()
+	ctx := context.Background()
+	m := auth.NewManager(nil, nil, nil)
+	var normalize func(v any) any
+	normalize = func(v any) any {
+		switch x := v.(type) {
+		case map[string]any:
+			for k, val := range x {
+				switch k {
+				case "timestamp":
+					x[k] = "<time>"
+				case "next_retry_after", "next_recover_at":
+					t, err := time.Parse(time.RFC3339Nano, val.(string))
+					if err != nil {
+						panic(err)
+					}
+					x[k] = fmt.Sprintf("+%ds", int64(time.Until(t).Round(time.Second)/time.Second))
+				default:
+					x[k] = normalize(val)
+				}
+			}
+			return x
+		default:
+			return v
+		}
+	}
+	out := make([]errorEventCase, len(cooldownInputs))
+	for i, c := range cooldownInputs {
+		id := fmt.Sprintf("events-%d.json", i)
+		// Synthesized credentials start active (watcher/synthesizer file.go, config.go).
+		if _, err := m.Register(ctx, &auth.Auth{ID: id, Index: fmt.Sprintf("idx-%d", i), Provider: "claude", Status: auth.StatusActive, Metadata: map[string]any{"type": "claude"}}); err != nil {
+			panic(err)
+		}
+		cs := errorEventCase{Name: c.Name, Steps: c.Steps, Events: []map[string]any{}}
+		for _, st := range c.Steps {
+			result := auth.Result{
+				AuthID:          id,
+				Provider:        "claude",
+				Model:           st.Model,
+				CredentialScope: st.CredentialScope,
+				Error:           &auth.Error{HTTPStatus: st.Status, Message: st.Message},
+			}
+			if st.RetryAfterMs >= 0 {
+				d := time.Duration(st.RetryAfterMs) * time.Millisecond
+				result.RetryAfter = &d
+			}
+			m.MarkResult(ctx, result)
+			select {
+			case payload := <-events:
+				var event map[string]any
+				if err := json.Unmarshal(payload, &event); err != nil {
+					panic(err)
+				}
+				cs.Events = append(cs.Events, normalize(event).(map[string]any))
+			case <-time.After(time.Second):
+			}
+		}
+		out[i] = cs
+	}
+	return out
+}
+
 type keepAliveCase struct {
 	Name        string `json:"name"`
 	DelayMillis int    `json:"delay_ms"`
@@ -1466,6 +1541,7 @@ func nonStreamKeepAlives() []keepAliveCase {
 
 func main() {
 	out := map[string]any{}
+	out["error_events"] = errorEvents()
 	out["upstream_headers"] = upstreamHeaderFilters()
 	out["reporter"] = reporterSequences()
 	out["substitution"] = substitutions()

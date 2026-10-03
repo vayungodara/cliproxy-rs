@@ -41,7 +41,7 @@ pub struct Runtime {
     /// Go `modelPoolOffsets`: rotation cursors for OpenAI-compatible alias pools.
     pool_offsets: Mutex<HashMap<String, usize>>,
     /// Usage records for `GET /observability/usage/queue` (management configures it).
-    usage: crate::usage::UsageQueue,
+    usage: Arc<crate::usage::UsageQueue>,
     /// `--local-model`: embedded model catalogs only, no remote catalog refresh.
     local_model: std::sync::atomic::AtomicBool,
     /// Set only by [`crate::testing::runtime`]: executor calls get credentials that
@@ -82,12 +82,14 @@ impl Runtime {
             registry: Mutex::default(),
             oauth_sink: RwLock::default(),
             pool_offsets: Mutex::default(),
-            usage: crate::usage::UsageQueue::default(),
+            usage: Arc::default(),
             local_model: Default::default(),
             deny_external: Default::default(),
         };
         rt.publish_policy(policy);
         rt.store.configure_cooldown_store(cooldown_dir);
+        // Failed attempts publish Go's error events on the RESP `errors` channel.
+        let _ = rt.store.error_events.set(rt.usage.clone());
         rt
     }
 
@@ -656,6 +658,8 @@ pub struct CredentialStore {
     activity: Mutex<HashMap<String, CredentialActivity>>,
     /// Credential revisions whose file already holds Go's persisted form.
     persisted: Mutex<HashMap<String, u64>>,
+    /// Where failed attempts publish Go's error events (set by the runtime).
+    error_events: std::sync::OnceLock<Arc<crate::usage::UsageQueue>>,
 }
 
 impl CredentialStore {
@@ -682,6 +686,7 @@ impl CredentialStore {
             cooldown_write: Mutex::default(),
             activity: Mutex::default(),
             persisted: Mutex::default(),
+            error_events: std::sync::OnceLock::new(),
         })
     }
 
@@ -1056,6 +1061,13 @@ impl CredentialStore {
             let before = persist.then(|| scheduler.records(&lease.credential, now, wall));
             scheduler.record(&lease.credential, model, outcome, &lease.policy, now);
             scheduler.session_result(&lease.credential, &lease.selection, outcome, &lease.policy, now);
+            // Go `publishErrorEvent` after MarkResult (and the availability-neutral record).
+            if let (Outcome::Failure(error) | Outcome::Neutral(error), Some(queue)) = (outcome, self.error_events.get())
+                && queue.wants_errors()
+            {
+                let records = scheduler.records(&lease.credential, now, wall);
+                queue.enqueue_error(&crate::error_events::payload(&lease.credential, model, error, &records));
+            }
             // Go MarkResult persists only when this credential's cooldown records changed.
             let changed = before.is_some_and(|before| before != scheduler.records(&lease.credential, now, wall));
             drop(scheduler);

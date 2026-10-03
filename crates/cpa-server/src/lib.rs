@@ -9,6 +9,7 @@ mod codex_alpha;
 mod codex_models;
 pub mod cooldown_store;
 pub mod dispatch;
+mod error_events;
 mod errors;
 mod gemini;
 mod gojson;

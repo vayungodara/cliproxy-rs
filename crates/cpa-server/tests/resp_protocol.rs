@@ -22,6 +22,10 @@ struct Server {
 }
 
 async fn server(management_password: Option<&str>) -> Server {
+    server_with(management_password, Vec::new()).await
+}
+
+async fn server_with(management_password: Option<&str>, credentials: Vec<cpa_core::credential::Credential>) -> Server {
     static NEXT: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
     let n = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let dir = std::env::temp_dir().join(format!("cpa-resp-{}-{n}", std::process::id()));
@@ -38,7 +42,7 @@ async fn server(management_password: Option<&str>) -> Server {
     };
     let rt = Arc::new(cpa_server::testing::runtime(
         Config::parse(yaml).unwrap(),
-        Vec::new(),
+        credentials,
         executors,
     ));
     let options = Options {
@@ -242,4 +246,46 @@ async fn idle_connection_does_not_block_http() {
     .expect("not blocked")
     .unwrap();
     assert_eq!(res.status().as_u16(), 200);
+}
+
+/// A failed attempt publishes Go's error event to `errors` subscribers
+/// (sdk/cliproxy/auth/error_events.go); the payload shape is checked against Go in
+/// error_events.rs.
+#[tokio::test]
+async fn failed_attempt_reaches_errors_subscribers() {
+    let mut metadata = serde_json::Map::new();
+    metadata.insert("type".into(), "claude".into());
+    metadata.insert("access_token".into(), "fake-token".into());
+    metadata.insert("expired".into(), "2099-01-01T00:00:00Z".into());
+    let mut credential = cpa_core::credential::Credential::from_file(
+        std::path::Path::new("/fake"),
+        std::path::Path::new("/fake/a.json"),
+        metadata,
+    )
+    .unwrap();
+    // Nothing listens on the discard port: the attempt fails at connect.
+    credential
+        .attributes
+        .insert("base_url".into(), "http://127.0.0.1:9".into());
+    let s = server_with(Some(PASSWORD), vec![credential]).await;
+    let mut conn = connect(s.addr).await;
+    auth(&mut conn).await;
+    command(&mut conn, &["SUBSCRIBE", "errors"]).await;
+    assert_eq!(pubsub(&mut conn).await.0, "subscribe");
+    let res = wreq::Client::new()
+        .post(format!("http://{}/v1/messages", s.addr))
+        .body(r#"{"model":"claude-sonnet-4-6","max_tokens":5,"messages":[{"role":"user","content":"hi"}]}"#)
+        .send()
+        .await
+        .unwrap();
+    assert!(res.status().is_server_error(), "{}", res.status());
+    let (kind, channel, payload) = pubsub(&mut conn).await;
+    assert_eq!((kind.as_str(), channel.as_str()), ("message", "errors"));
+    let event: serde_json::Value = serde_json::from_str(&payload).unwrap();
+    assert_eq!(event["provider"], "claude");
+    assert_eq!(event["auth_id"], "a.json");
+    assert_eq!(event["model"], "claude-sonnet-4-6");
+    // Go `errorEventStatusCode`: a failure without an HTTP status reports 500.
+    assert_eq!(event["status_code"], 500, "{event}");
+    assert!(event["auth_status"].is_object(), "{event}");
 }
