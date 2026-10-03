@@ -73,6 +73,25 @@ async fn upstream(State(seen): State<Arc<Seen>>, req: Request) -> Response {
     }
     match token.as_str() {
         "Bearer fake-fail" => (StatusCode::INTERNAL_SERVER_ERROR, "boom").into_response(),
+        "Bearer fake-hdr" => (
+            [
+                ("content-type", "application/json; charset=utf-8"),
+                ("x-upstream-id", "u1"),
+                ("x-litellm-model", "m"),
+                ("set-cookie", "s=1"),
+            ],
+            serde_json::json!({"id":"msg_1","type":"message","role":"assistant","model":body["model"],
+                "content":[{"type":"text","text":"hi"}],"stop_reason":"end_turn","stop_sequence":null,
+                "usage":{"input_tokens":5,"output_tokens":1}})
+            .to_string(),
+        )
+            .into_response(),
+        "Bearer fake-hdr-bad" => (
+            StatusCode::BAD_REQUEST,
+            [("content-type", "application/json"), ("x-upstream-id", "e1")],
+            r#"{"type":"error","error":{"type":"invalid_request_error","message":"bad input"}}"#,
+        )
+            .into_response(),
         "Bearer fake-bad" => (
             StatusCode::BAD_REQUEST,
             [("content-type", "application/json")],
@@ -285,6 +304,92 @@ async fn nonstream_keepalive_commits_like_go() {
             let reply: Value = serde_json::from_str(&rest).unwrap();
             assert_eq!(reply["choices"][0]["message"]["content"], "hi");
         }
+    }
+}
+
+/// gin without `HandleMethodNotAllowed` (Go `engine.handleHTTPRequest`): a known
+/// path's unregistered method and an unregistered HEAD run NoRoute, whose handler
+/// aborts with a bare 404; only `/healthz` registers HEAD. The Go binary comparison is
+/// harness/fixtures.py `wrong-method-chat`, `models-head`, `healthz-post`.
+#[tokio::test]
+async fn wrong_methods_are_gin_no_route() {
+    let p = proxy("", vec![oauth("a.json", "fake-ok", serde_json::json!({}))]).await;
+    let client = wreq::Client::new();
+    for (method, path) in [
+        (wreq::Method::GET, "/v1/chat/completions"),
+        (wreq::Method::PUT, "/v1/models"),
+        (wreq::Method::DELETE, "/v1/messages"),
+        (wreq::Method::HEAD, "/v1/models"),
+        (wreq::Method::HEAD, "/"),
+        (wreq::Method::POST, "/healthz"),
+        (wreq::Method::GET, "/v2/nothing"),
+    ] {
+        let res = client
+            .request(method.clone(), format!("{}{path}", p.url))
+            .header("authorization", "Bearer client-key")
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(res.status().as_u16(), 404, "{method} {path}");
+        assert!(
+            res.headers().get("allow").is_none(),
+            "{method} {path}: {:?}",
+            res.headers()
+        );
+        assert!(res.headers().get("content-type").is_none(), "{method} {path}");
+        assert_eq!(res.text().await.unwrap(), "", "{method} {path}");
+    }
+    // NoRoute runs no group middleware: no client key is asked for.
+    for (method, path) in [
+        (wreq::Method::GET, "/v2/nothing"),
+        (wreq::Method::GET, "/v1/chat/completions"),
+    ] {
+        let res = client
+            .request(method.clone(), format!("{}{path}", p.url))
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(res.status().as_u16(), 404, "{method} {path} without a key");
+    }
+    let res = client.get(format!("{}/v1/models", p.url)).send().await.unwrap();
+    assert_eq!(res.status().as_u16(), 401, "matched routes still require the key");
+    for (method, path) in [(wreq::Method::HEAD, "/healthz"), (wreq::Method::GET, "/v1/models")] {
+        let res = client
+            .request(method.clone(), format!("{}{path}", p.url))
+            .header("authorization", "Bearer client-key")
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(res.status().as_u16(), 200, "{method} {path}");
+    }
+}
+
+/// `requests.passthrough-headers` (Go `downstreamHeadersFromExecutor`,
+/// `WriteUpstreamHeaders`, `WriteErrorResponse` addon): off by default; on, filtered
+/// upstream headers fill what the handler did not set, and an error's upstream
+/// headers come along. Filter expectations are the Go golden `upstream_headers`.
+#[tokio::test]
+async fn passthrough_headers_follow_go() {
+    let body = format!(r#"{{"model":"{MODEL}","max_tokens":5,"messages":[{{"role":"user","content":"hi"}}]}}"#);
+    for enabled in [false, true] {
+        let config = format!("requests:\n  passthrough-headers: {enabled}\n");
+        let ok = proxy(&config, vec![oauth("a.json", "fake-hdr", serde_json::json!({}))]).await;
+        let (status, headers, text) = post(&ok.url, "/v1/messages", &body).await;
+        assert_eq!(status, 200, "{text}");
+        assert_eq!(
+            headers["content-type"], "application/json",
+            "the handler's own header wins"
+        );
+        assert_eq!(headers.get("x-upstream-id").is_some(), enabled, "{headers:?}");
+        if enabled {
+            assert_eq!(headers["x-upstream-id"], "u1");
+        }
+        assert!(headers.get("x-litellm-model").is_none() && headers.get("set-cookie").is_none());
+
+        let bad = proxy(&config, vec![oauth("a.json", "fake-hdr-bad", serde_json::json!({}))]).await;
+        let (status, headers, _) = post(&bad.url, "/v1/messages", &body).await;
+        assert_eq!(status, 400);
+        assert_eq!(headers.get("x-upstream-id").is_some(), enabled, "{headers:?}");
     }
 }
 
@@ -1017,12 +1122,23 @@ async fn responses_route_prepares_codex_orphan_delegation() {
     assert_eq!(send(p.url.clone(), body.clone()).await, 200);
     let upstream = p.seen.requests.lock().unwrap()[0].1.to_string();
     assert!(upstream.contains(rewritten), "{upstream}");
-    // Written in v8 form it is OAuth-only and the handler leaves the input alone.
-    let p = proxy(
-        "oauth:\n  providers:\n    codex:\n      orphan-delegation-compatibility: true\n",
-        vec![oauth("a.json", "fake-ok", serde_json::json!({}))],
+    // Written in v8 form it is OAuth-only: the handler leaves the input alone, but an
+    // OAuth credential's executor still sees it (Go's executor translation runs
+    // RewriteCodexOrphanDelegationInputForConfig with the unscoped config).
+    let v8 = "oauth:\n  providers:\n    codex:\n      orphan-delegation-compatibility: true\n";
+    let p = proxy(v8, vec![oauth("a.json", "fake-ok", serde_json::json!({}))]).await;
+    assert_eq!(send(p.url.clone(), body.clone()).await, 200);
+    let upstream = p.seen.requests.lock().unwrap()[0].1.to_string();
+    assert!(upstream.contains(rewritten), "{upstream}");
+    // An API-key credential runs with cfg.ForAPIKey() (executorForAuth): nobody rewrites.
+    let mut key = Credential::from_file(
+        Path::new("/fake"),
+        &Path::new("/fake").join("key.json"),
+        serde_json::json!({"type": "claude"}).as_object().unwrap().clone(),
     )
-    .await;
+    .unwrap();
+    key.attributes.insert("api_key".into(), "fake-ok".into());
+    let p = proxy(v8, vec![key]).await;
     assert_eq!(send(p.url.clone(), body).await, 200);
     let upstream = p.seen.requests.lock().unwrap()[0].1.to_string();
     assert!(!upstream.contains("Tool output from"), "{upstream}");
@@ -1075,6 +1191,7 @@ async fn session_turns_honour_pin_callback_and_session() {
         request_path: "/v1/responses".into(),
         peer: None,
         turn: Some(turn),
+        media: None,
     };
     let tokens = || -> Vec<String> { p.seen.requests.lock().unwrap().drain(..).map(|r| r.0).collect() };
 

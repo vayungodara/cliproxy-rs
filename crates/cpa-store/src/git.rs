@@ -9,7 +9,6 @@
 //! preserving local edits) is not ported: a corrupt repository is reported and the
 //! operator removes `<root>` to re-clone.
 
-use std::os::unix::fs::{DirBuilderExt, OpenOptionsExt, PermissionsExt};
 use std::path::{Component, Path, PathBuf};
 use std::process::{Command, Output};
 use std::sync::{Arc, Mutex, PoisonError};
@@ -35,11 +34,7 @@ pub struct GitStore {
 }
 
 fn mkdir_0700(path: &Path) -> Result<()> {
-    std::fs::DirBuilder::new()
-        .recursive(true)
-        .mode(0o700)
-        .create(path)
-        .with_context(|| format!("create {}", path.display()))
+    crate::private_fs::create_dir_all(path).with_context(|| format!("create {}", path.display()))
 }
 
 fn write_0600(path: &Path, bytes: &[u8]) -> Result<()> {
@@ -47,15 +42,9 @@ fn write_0600(path: &Path, bytes: &[u8]) -> Result<()> {
     if let Some(parent) = path.parent() {
         mkdir_0700(parent)?;
     }
-    let mut file = std::fs::OpenOptions::new()
-        .write(true)
-        .create(true)
-        .truncate(true)
-        .mode(0o600)
-        .open(path)
-        .with_context(|| format!("write {}", path.display()))?;
+    let mut file = crate::private_fs::create_truncate(path).with_context(|| format!("write {}", path.display()))?;
     file.write_all(bytes)?;
-    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))?;
+    crate::private_fs::restrict(path)?;
     Ok(())
 }
 
@@ -281,7 +270,7 @@ impl GitStore {
         for path in split_nul(&listed) {
             let full = self.repo.join(&path);
             if full.is_file() {
-                std::fs::set_permissions(&full, std::fs::Permissions::from_mode(0o600))?;
+                crate::private_fs::restrict(&full)?;
             }
         }
         Ok(())

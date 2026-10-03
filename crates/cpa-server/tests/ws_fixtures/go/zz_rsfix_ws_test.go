@@ -345,10 +345,14 @@ type rsfixWSFrame struct {
 }
 
 type rsfixWSStep struct {
+	// Disable marks every credential disabled (manager.Update) before Send.
+	Disable bool `json:"disable,omitempty"`
 	// Send is written as a text frame; "{{last_response_id}}" is replaced by the id of
 	// the last completed response the client saw. Empty sends nothing.
 	Send string `json:"send,omitempty"`
-	// Read: "completed" (until a completion event or close), "one", or "close".
+	// Read: "completed" (until a completion event or close), "one", "close", "none"
+	// (send only), or "until:<type>[@<response id>]" (until that event type, optionally
+	// for that response.id).
 	Read     string         `json:"read"`
 	Upstream []rsfixWSReply `json:"upstream,omitempty"`
 	Frames   []rsfixWSFrame `json:"frames"`
@@ -489,6 +493,18 @@ func rsfixWSScenarios() []rsfixWSScenario {
 	multiAgentTools := `"tools":[{"type":"namespace","name":"collaboration","tools":[{"type":"function","name":"spawn_agent","description":"Spawns an agent.","parameters":{"type":"object","properties":{"message":{"type":"string","encrypted":true}}}}]}]`
 	multiAgentInput := `[{"type":"function_call_output","call_id":"orphan","name":"create_thread","namespace":"codex_app","output":"thread ok"},` + user("delegate") + `]`
 	spawnCall := `{"type":"response.output_item.done","output_index":0,"item":{"type":"function_call","id":"fc_s","call_id":"call_s","namespace":"collaboration-optimize","name":"spawn_agent","arguments":"{\"message\":\"go\"}"}}`
+	steerCfg := cfg + "codex:\n  response-steering: true\n"
+	steerOAuthOnlyCfg := cfg + "oauth:\n  providers:\n    codex:\n      response-steering: true\n"
+	steerCreate := `{"type":"response.create","model":"gpt-fixture","input":[]}`
+	steerCreateInstr := func(instructions string) string {
+		return `{"type":"response.create","model":"gpt-fixture","instructions":"` + instructions + `","input":[]}`
+	}
+	steer1 := `{"type":"response.steer","previous_response_id":"r1","input":"one"}`
+	steer2 := `{"type":"response.steer","previous_response_id":"r1","input":"two"}`
+	accepted := func(id string) string {
+		return `{"type":"response.steer.accepted","steer":{"id":"` + id + `","previous_response_id":"r1"}}`
+	}
+	rejection := `{"type":"error","status":400,"event_id":"rejected-create","error":{"type":"invalid_request_error","message":"Correct the request"}}`
 	return []rsfixWSScenario{
 		{
 			Name: "ws_two_turns", Config: cfg, Creds: []rsfixWSCred{ws},
@@ -592,6 +608,185 @@ func rsfixWSScenarios() []rsfixWSScenario {
 					Upstream: []rsfixWSReply{{Events: []string{created("r1"), spawnCall, completed("r1")}}}},
 			},
 		},
+		// Response steering (sdk/api/handlers/openai/openai_responses_steering*_test.go).
+		{
+			Name: "steer_successor", Config: steerCfg, Creds: []rsfixWSCred{ws},
+			Steps: []rsfixWSStep{
+				{Send: steerCreate, Read: "until:response.created", Upstream: []rsfixWSReply{{Events: []string{created("r1")}}}},
+				{Send: steer1, Read: "none", Upstream: []rsfixWSReply{{}}},
+				{Send: steer2, Read: "until:response.completed", Upstream: []rsfixWSReply{{Events: []string{
+					accepted("s1"), accepted("s2"),
+					`{"type":"response.incomplete","response":{"id":"r1","incomplete_details":{"reason":"steered"},"output":[]}}`,
+					created("r2"), message("STEER_OK"), completed("r2")}}}},
+			},
+		},
+		{
+			Name: "steer_tool_pending", Config: steerCfg, Creds: []rsfixWSCred{ws},
+			Steps: []rsfixWSStep{
+				{Send: steerCreate, Read: "until:response.created", Upstream: []rsfixWSReply{{Events: []string{created("r1")}}}},
+				{Send: steer1, Read: "none", Upstream: []rsfixWSReply{{}}},
+				{Send: steer2, Read: "until:response.steer.pending", Upstream: []rsfixWSReply{{Events: []string{
+					accepted("s1"), accepted("s2"),
+					`{"type":"response.completed","response":{"id":"r1","output":[{"type":"function_call","call_id":"call1","name":"lookup","arguments":"{}"}]}}`,
+					`{"type":"response.steer.pending","steer":{"id":"s1","previous_response_id":"r1"},"reason":"waiting_for_required_input","required_input":[{"type":"function_call_output","call_id":"call1","name":"lookup"}]}`}}}},
+				{Send: `{"type":"response.create","previous_response_id":"r1","input":[{"type":"function_call_output","call_id":"call1","output":"found"}]}`,
+					Read: "until:response.completed@r2", Upstream: []rsfixWSReply{{Events: []string{created("r2"), message("STEER_OK"), completed("r2")}}}},
+			},
+		},
+		{
+			Name: "steer_disconnect_accepted", Config: steerCfg, Creds: []rsfixWSCred{ws},
+			Steps: []rsfixWSStep{
+				{Send: steerCreate, Read: "until:response.created", Upstream: []rsfixWSReply{{Events: []string{created("r1")}}}},
+				{Send: steer1, Read: "none", Upstream: []rsfixWSReply{{}}},
+				{Send: steer2, Read: "close", Upstream: []rsfixWSReply{{Events: []string{accepted("s1"), accepted("s2")}, Then: "close"}}},
+			},
+		},
+		{
+			Name: "steer_local_validation", Config: steerCfg, Creds: []rsfixWSCred{ws},
+			Steps: []rsfixWSStep{
+				{Send: steerCreate, Read: "none", Upstream: []rsfixWSReply{{Events: []string{created("first")}}}},
+				{Send: "{", Read: "until:error"},
+				{Send: `{"type":"unsupported.request"}`, Read: "until:error"},
+				{Send: `{"type":"response.steer","steering_id":"corrected","input":[{"role":"user","content":[{"type":"input_text","text":"continue"}]}]}`,
+					Read: "until:response.completed@first", Upstream: []rsfixWSReply{{Events: []string{
+						`{"type":"response.steer.accepted","steer":{"id":"corrected","previous_response_id":"first"}}`,
+						completed("first"),
+						`{"type":"response.created","response":{"id":"steered","previous_response_id":"first","status":"in_progress","output":[]}}`,
+						completed("steered")}}}},
+				{Send: steerCreate, Read: "until:response.completed@second", Upstream: []rsfixWSReply{{Events: []string{created("second"), completed("second")}}}},
+			},
+		},
+		{
+			Name: "steer_later_error_recovers", Config: steerCfg, Creds: []rsfixWSCred{ws},
+			Steps: []rsfixWSStep{
+				{Send: steerCreateInstr("INITIAL"), Read: "until:response.completed", Upstream: []rsfixWSReply{{Events: []string{created("first"), completed("first")}}}},
+				{Send: steerCreateInstr("REJECTED"), Read: "until:error", Upstream: []rsfixWSReply{{Events: []string{rejection}}}},
+				{Send: steerCreateInstr("CORRECTED"), Read: "until:response.completed", Upstream: []rsfixWSReply{{Events: []string{created("corrected"), message("RECOVERED"), completed("corrected")}}}},
+			},
+		},
+		{
+			Name: "steer_initial_error_terminal", Config: steerCfg, Creds: []rsfixWSCred{ws},
+			Steps: []rsfixWSStep{
+				{Send: steerCreateInstr("INITIAL"), Read: "close", Upstream: []rsfixWSReply{{Events: []string{rejection}}}},
+			},
+		},
+		{
+			Name: "steer_later_error_then_upstream_close", Config: steerCfg, Creds: []rsfixWSCred{ws},
+			Steps: []rsfixWSStep{
+				{Send: steerCreateInstr("INITIAL"), Read: "until:response.completed", Upstream: []rsfixWSReply{{Events: []string{created("first"), completed("first")}}}},
+				{Send: steerCreateInstr("REJECTED"), Read: "close", Upstream: []rsfixWSReply{{Events: []string{rejection}, Then: "close"}}},
+			},
+		},
+		{
+			Name: "steer_oauth_only_skips_api_key", Config: steerOAuthOnlyCfg, Creds: []rsfixWSCred{ws},
+			Steps: []rsfixWSStep{
+				{Send: steerCreateInstr("INITIAL"), Read: "until:response.completed", Upstream: []rsfixWSReply{{Events: []string{created("first"), completed("first")}}}},
+				{Send: steerCreateInstr("REJECTED"), Read: "close", Upstream: []rsfixWSReply{{Events: []string{rejection}}}},
+			},
+		},
+		{
+			Name: "steer_idle_upstream_close", Config: steerCfg, Creds: []rsfixWSCred{ws},
+			Steps: []rsfixWSStep{
+				{Send: steerCreate, Read: "until:response.completed", Upstream: []rsfixWSReply{{Events: []string{created("first"), completed("first")}, Then: "close"}}},
+				{Read: "close"},
+			},
+		},
+		// Executor duplex behaviour (internal/runtime/executor/codex_websockets_duplex*_test.go)
+		// through the handler.
+		{
+			Name: "steer_append_inherits", Config: steerCfg, Creds: []rsfixWSCred{ws},
+			Steps: []rsfixWSStep{
+				{Send: steerCreateInstr("Initial system instructions"), Read: "until:response.completed", Upstream: []rsfixWSReply{{Events: []string{created("r1"), completed("r1")}}}},
+				{Send: `{"type":"response.append","input":[{"role":"user","content":"turn 2"}]}`, Read: "until:response.completed@r2", Upstream: []rsfixWSReply{{Events: []string{created("r2"), completed("r2")}}}},
+			},
+		},
+		{
+			Name: "steer_queued_create_then_steer", Config: steerCfg, Creds: []rsfixWSCred{ws},
+			Steps: []rsfixWSStep{
+				{Send: steerCreate, Read: "until:response.created", Upstream: []rsfixWSReply{{Events: []string{created("r1")}}}},
+				{Send: `{"type":"response.steer","previous_response_id":"r1","input":"steer 1"}`, Read: "until:response.created@auto-1", Upstream: []rsfixWSReply{{Events: []string{
+					accepted("s1"),
+					`{"type":"response.incomplete","response":{"id":"r1","output":[],"incomplete_details":{"reason":"steered"}}}`,
+					`{"type":"response.created","response":{"id":"auto-1","previous_response_id":"r1","output":[]}}`}}}},
+				{Send: `{"type":"response.create","model":"gpt-fixture","previous_response_id":"auto-1","input":[{"role":"user","content":"queued next"}]}`, Read: "none"},
+				{Send: `{"type":"response.steer","previous_response_id":"auto-1","input":"steer 2 in flight"}`, Read: "until:response.completed@r2", Upstream: []rsfixWSReply{
+					{Events: []string{
+						`{"type":"response.steer.accepted","steer":{"id":"s2","previous_response_id":"auto-1"}}`,
+						`{"type":"response.completed","response":{"id":"auto-1","output":[]}}`,
+						`{"type":"response.created","response":{"id":"auto-2","previous_response_id":"auto-1","output":[]}}`,
+						`{"type":"response.completed","response":{"id":"auto-2","output":[]}}`}},
+					{Events: []string{created("r2"), completed("r2")}},
+				}},
+			},
+		},
+		{
+			Name: "steer_active_failure_keeps_queued_create", Config: steerCfg, Creds: []rsfixWSCred{ws},
+			Steps: []rsfixWSStep{
+				{Send: steerCreate, Read: "until:response.created", Upstream: []rsfixWSReply{{Events: []string{created("first")}}}},
+				{Send: steerCreate, Read: "until:response.completed@good", Upstream: []rsfixWSReply{{Events: []string{
+					`{"type":"response.failed","response":{"id":"first","output":[],"error":{"type":"invalid_request_error","message":"rejected"}}}`,
+					created("good"), completed("good")}}}},
+			},
+		},
+		{
+			Name: "steer_ambiguous_failure_ends_the_socket", Config: steerCfg, Creds: []rsfixWSCred{ws},
+			Steps: []rsfixWSStep{
+				{Send: steerCreate, Read: "until:response.created", Upstream: []rsfixWSReply{{Events: []string{created("first")}}}},
+				{Send: steerCreate, Read: "close", Upstream: []rsfixWSReply{{Events: []string{
+					`{"type":"response.failed","response":{"id":"","output":[],"error":{"type":"invalid_request_error","message":"rejected"}}}`}}}},
+			},
+		},
+		{
+			Name: "steer_later_credential_failure", Config: steerCfg, Creds: []rsfixWSCred{ws},
+			Steps: []rsfixWSStep{
+				{Send: steerCreate, Read: "until:response.completed", Upstream: []rsfixWSReply{{Events: []string{created("first"), completed("first")}}}},
+				{Send: steerCreate, Read: "close", Upstream: []rsfixWSReply{{Events: []string{
+					`{"type":"error","status":401,"headers":{"X-Request-Id":"later-rejection"},"error":{"type":"authentication_error","status":401,"message":"credential rejected","resets_in_seconds":3600}}`}}}},
+			},
+		},
+		{
+			Name: "steer_later_quota_failure", Config: steerCfg, Creds: []rsfixWSCred{ws},
+			Steps: []rsfixWSStep{
+				{Send: steerCreate, Read: "until:response.created", Upstream: []rsfixWSReply{{Events: []string{created("started")}}}},
+				{Send: steerCreate, Read: "close", Upstream: []rsfixWSReply{{Events: []string{
+					`{"type":"response.failed","response":{"id":"started","error":{"type":"usage_limit_reached","status":429,"message":"credential rejected","resets_in_seconds":3600}}}`}}}},
+			},
+		},
+		{
+			Name: "steer_wrong_parent_rejected", Config: steerCfg, Creds: []rsfixWSCred{ws},
+			Steps: []rsfixWSStep{
+				{Send: steerCreate, Read: "until:response.created", Upstream: []rsfixWSReply{{Events: []string{created("r1")}}}},
+				{Send: steer1, Read: "until:response.steer.pending", Upstream: []rsfixWSReply{{Events: []string{
+					accepted("s1"),
+					`{"type":"response.completed","response":{"id":"r1","output":[{"type":"function_call","call_id":"call1","name":"lookup","arguments":"{}"}]}}`,
+					`{"type":"response.steer.pending","steer":{"id":"s1","previous_response_id":"r1"},"reason":"waiting_for_required_input","required_input":[{"type":"function_call_output","call_id":"call1","name":"lookup"}]}`}}}},
+				{Send: `{"type":"response.create","previous_response_id":"other","input":[]}`, Read: "until:error"},
+				{Send: `{"type":"response.create","previous_response_id":"r1","input":[{"type":"function_call_output","call_id":"call1","output":"found"}]}`,
+					Read: "until:response.completed@r2", Upstream: []rsfixWSReply{{Events: []string{created("r2"), completed("r2")}}}},
+			},
+		},
+		{
+			Name: "steer_model_switch_needs_replay", Config: steerCfg, Creds: []rsfixWSCred{ws},
+			Steps: []rsfixWSStep{
+				{Send: steerCreate, Read: "until:response.completed", Upstream: []rsfixWSReply{{Events: []string{created("r1"), completed("r1")}}}},
+				{Send: `{"type":"response.create","model":"gpt-other","input":[]}`, Read: "close"},
+			},
+		},
+		{
+			Name: "steer_credential_disabled", Config: steerCfg, Creds: []rsfixWSCred{ws},
+			Steps: []rsfixWSStep{
+				{Send: steerCreate, Read: "until:response.completed", Upstream: []rsfixWSReply{{Events: []string{created("r1"), completed("r1")}}}},
+				{Disable: true, Send: `{"type":"response.steer","previous_response_id":"r1","input":"must not be sent"}`, Read: "close"},
+			},
+		},
+		{
+			Name: "steer_rejected_when_disabled", Config: cfg, Creds: []rsfixWSCred{ws},
+			Steps: []rsfixWSStep{
+				{Send: steerCreate, Read: "until:response.completed", Upstream: []rsfixWSReply{{Events: []string{created("r1"), completed("r1")}}}},
+				{Send: steer1, Read: "one"},
+				{Send: `{"type":"response.steer","input":"one"}`, Read: "one"},
+			},
+		},
 		{
 			Name: "http_upstream_400_exposed", Config: cfg, Creds: []rsfixWSCred{httpCred},
 			Steps: []rsfixWSStep{
@@ -614,8 +809,10 @@ func rsfixRunWSScenario(t *testing.T, sc *rsfixWSScenario) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// internal/api/server_options.go copies this provider setting into the handlers' config.
+	// internal/api/server_options.go (effectiveSDKConfig) copies these provider settings
+	// into the handlers' config.
 	cfg.SDKConfig.CodexOrphanDelegationCompatibility = cfg.Codex.OrphanDelegationCompatibility
+	cfg.SDKConfig.CodexResponseSteering = cfg.Codex.ResponseSteering
 	manager := coreauth.NewManager(nil, nil, nil)
 	manager.SetConfig(cfg)
 	manager.RegisterExecutor(runtimeexecutor.NewCodexAutoExecutor(cfg))
@@ -659,13 +856,27 @@ func rsfixRunWSScenario(t *testing.T, sc *rsfixWSScenario) {
 		if closed {
 			break
 		}
+		if step.Disable {
+			for _, cred := range sc.Creds {
+				auth, ok := manager.GetByID(cred.ID)
+				if !ok {
+					t.Fatalf("%s: no credential %s", sc.Name, cred.ID)
+				}
+				disabled := auth.Clone()
+				disabled.Disabled = true
+				disabled.Status = coreauth.StatusDisabled
+				if _, err := manager.Update(context.Background(), disabled); err != nil {
+					t.Fatal(err)
+				}
+			}
+		}
 		if step.Send != "" {
 			send := strings.ReplaceAll(step.Send, "{{last_response_id}}", lastResponseID)
 			if err := conn.WriteMessage(websocket.TextMessage, []byte(send)); err != nil {
 				t.Fatalf("%s: write: %v", sc.Name, err)
 			}
 		}
-		for {
+		for step.Read != "none" {
 			_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 			_, msg, err := conn.ReadMessage()
 			if err != nil {
@@ -689,6 +900,12 @@ func rsfixRunWSScenario(t *testing.T, sc *rsfixWSScenario) {
 			}
 			if step.Read == "one" {
 				break
+			}
+			if target, ok := strings.CutPrefix(step.Read, "until:"); ok {
+				wantType, wantID, _ := strings.Cut(target, "@")
+				if kind == wantType && (wantID == "" || gjson.GetBytes(msg, "response.id").String() == wantID) {
+					break
+				}
 			}
 			if step.Read == "completed" && (kind == "response.completed" || kind == "response.done" || kind == "response.incomplete") {
 				break

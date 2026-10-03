@@ -16,6 +16,20 @@ const FIXTURE: &str = include_str!("../tests/fixtures/xai_auth_go.json");
 /// `go_unmarshal`): only the text before it is compared.
 const SYNTAX_MESSAGE: &[&str] = &["discovery_not_json", "token_body_not_json"];
 
+/// Go's error with the number it quotes in a type mismatch removed ("number 1.5 into"
+/// becomes "number into"): Rust names only the kind, as response data never reaches
+/// error text.
+fn without_quoted_number(want: &str) -> String {
+    const MARK: &str = "cannot unmarshal number ";
+    match want
+        .split_once(MARK)
+        .and_then(|(head, rest)| Some((head, rest.split_once(" into ")?.1)))
+    {
+        Some((head, tail)) => format!("{head}cannot unmarshal number into {tail}"),
+        None => want.to_owned(),
+    }
+}
+
 #[derive(Clone)]
 struct Reply {
     path: String,
@@ -231,7 +245,7 @@ async fn login_matches_go_manager_and_file_store() {
                     let prefix = want.split("parse response: ").next().unwrap();
                     assert!(got.starts_with(prefix), "{name}: {got} vs {want}");
                 } else {
-                    assert_eq!(got, want, "{name}: error");
+                    assert_eq!(got, without_quoted_number(want), "{name}: error");
                 }
             }
         }
@@ -288,10 +302,32 @@ async fn refresh_matches_go_executor() {
                     Some((head, _)) if head.contains("failed with status") => head,
                     _ => want,
                 };
-                assert_eq!(got, want, "{name}: error");
+                assert_eq!(got, without_quoted_number(want), "{name}: error");
             }
         }
     }
+}
+
+#[test]
+fn number_mismatch_never_quotes_the_value() {
+    let fields = [("expires_in", Field::Int)];
+    for body in [
+        &br#"{"expires_in":1.5}"#[..],
+        br#"{"expires_in":99999999999999999999}"#,
+        br#"{"expires_in":-1e3}"#,
+    ] {
+        let Err(error) = go_unmarshal(body, &fields, "T", "Wire") else {
+            panic!("{body:?} decoded");
+        };
+        assert_eq!(
+            error,
+            "json: cannot unmarshal number into Go struct field Wire.expires_in of type int"
+        );
+    }
+    assert_eq!(
+        without_quoted_number("x: json: cannot unmarshal number 1.5 into Go struct field .e of type int"),
+        "x: json: cannot unmarshal number into Go struct field .e of type int"
+    );
 }
 
 #[test]

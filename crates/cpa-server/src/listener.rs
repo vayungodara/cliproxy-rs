@@ -17,7 +17,8 @@ use tokio::net::{TcpListener, TcpStream};
 /// server's preference wins, as in Go's `negotiateALPN`.
 const ALPN: &[u8] = b"\x02h2\x08http/1.1";
 
-/// Go `muxSniffDeadline`: a connection must finish its handshake within this.
+/// Go `muxSniffDeadline`: a connection must finish its handshake and send its first
+/// byte within this.
 const HANDSHAKE_DEADLINE: std::time::Duration = std::time::Duration::from_secs(10);
 
 /// The configured TLS settings (`server.tls`, legacy `tls`).
@@ -68,13 +69,25 @@ pub fn tls_acceptor(cfg: &Config) -> anyhow::Result<Option<Arc<SslAcceptor>>> {
 
 /// Serves `app` on `listener` with the peer address as connect info, over TLS when
 /// `tls` is set. Returns only if accepting fails for good; drop the future to stop.
-///
-/// Go routes each connection (protocol_multiplexer.go `routeMuxConnection`): a TLS
-/// connection that negotiated `h2` goes to the HTTP/2 server, everything else, plain or
-/// TLS, to the HTTP/1.1 server, which never speaks h2c.
-// ponytail: Go also sniffs RESP (Redis protocol) connections on this port; they get an
-// HTTP/1.1 parse error here.
+/// RESP connections are closed, as Go does while management is disabled; see
+/// [`serve_with_resp`].
 pub async fn serve(listener: TcpListener, app: Router, tls: Option<Arc<SslAcceptor>>) -> std::io::Result<()> {
+    serve_with_resp(listener, app, tls, None).await
+}
+
+/// [`serve`] with Go's protocol routing (protocol_multiplexer.go `routeMuxConnection`):
+/// a TLS connection that negotiated `h2` goes to the HTTP/2 server and one that
+/// negotiated `http/1.1` to the HTTP/1.1 server. Any other connection, plain or TLS
+/// without ALPN, is sniffed: a RESP type prefix goes to the Redis protocol
+/// (`management`'s usage queue, closed without it), anything else to HTTP/1.1, which
+/// never speaks h2c. A connection must finish its handshake and send its first byte
+/// within Go's 10 s sniff deadline.
+pub async fn serve_with_resp(
+    listener: TcpListener,
+    app: Router,
+    tls: Option<Arc<SslAcceptor>>,
+    management: Option<Arc<crate::management::Management>>,
+) -> std::io::Result<()> {
     loop {
         let (stream, peer) = match listener.accept().await {
             Ok(conn) => conn,
@@ -88,21 +101,94 @@ pub async fn serve(listener: TcpListener, app: Router, tls: Option<Arc<SslAccept
             }
         };
         go_socket_defaults(&stream);
-        let app = app.clone();
-        match &tls {
-            None => {
-                tokio::spawn(serve_connection(stream, peer, app, false));
-            }
-            Some(acceptor) => {
-                let acceptor = acceptor.clone();
-                tokio::spawn(async move {
-                    if let Some(tls) = handshake(&acceptor, stream, peer).await {
-                        let h2 = tls.ssl().selected_alpn_protocol() == Some(b"h2");
-                        serve_connection(tls, peer, app, h2).await;
+        let (app, management, tls) = (app.clone(), management.clone(), tls.clone());
+        let deadline = tokio::time::Instant::now() + HANDSHAKE_DEADLINE;
+        tokio::spawn(async move {
+            let Some(acceptor) = tls else {
+                let mut first = [0u8; 1];
+                match tokio::time::timeout_at(deadline, stream.peek(&mut first)).await {
+                    Ok(Ok(n)) if n > 0 => {}
+                    _ => return,
+                }
+                if crate::resp::is_resp_prefix(first[0]) {
+                    if let Some(management) = management {
+                        crate::resp::serve(stream, peer, management).await;
                     }
-                });
+                    return;
+                }
+                return serve_connection(stream, peer, app, false).await;
+            };
+            let Some(mut tls) = handshake(&acceptor, stream, peer, deadline).await else {
+                return;
+            };
+            match tls.ssl().selected_alpn_protocol() {
+                Some(b"h2") => return serve_connection(tls, peer, app, true).await,
+                Some(b"http/1.1") => return serve_connection(tls, peer, app, false).await,
+                _ => {}
             }
+            let first = match tokio::time::timeout_at(deadline, tokio::io::AsyncReadExt::read_u8(&mut tls)).await {
+                Ok(Ok(byte)) => byte,
+                _ => return,
+            };
+            let io = Prefixed {
+                first: Some(first),
+                inner: tls,
+            };
+            if crate::resp::is_resp_prefix(first) {
+                if let Some(management) = management {
+                    crate::resp::serve(io, peer, management).await;
+                }
+                return;
+            }
+            serve_connection(io, peer, app, false).await;
+        });
+    }
+}
+
+/// A stream whose first byte was already read for sniffing (Go `bufferedConn`).
+struct Prefixed<I> {
+    first: Option<u8>,
+    inner: I,
+}
+
+impl<I: tokio::io::AsyncRead + Unpin> tokio::io::AsyncRead for Prefixed<I> {
+    fn poll_read(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &mut tokio::io::ReadBuf<'_>,
+    ) -> std::task::Poll<std::io::Result<()>> {
+        let this = self.get_mut();
+        if buf.remaining() > 0
+            && let Some(byte) = this.first.take()
+        {
+            buf.put_slice(&[byte]);
+            return std::task::Poll::Ready(Ok(()));
         }
+        std::pin::Pin::new(&mut this.inner).poll_read(cx, buf)
+    }
+}
+
+impl<I: tokio::io::AsyncWrite + Unpin> tokio::io::AsyncWrite for Prefixed<I> {
+    fn poll_write(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &[u8],
+    ) -> std::task::Poll<std::io::Result<usize>> {
+        std::pin::Pin::new(&mut self.get_mut().inner).poll_write(cx, buf)
+    }
+
+    fn poll_flush(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<std::io::Result<()>> {
+        std::pin::Pin::new(&mut self.get_mut().inner).poll_flush(cx)
+    }
+
+    fn poll_shutdown(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<std::io::Result<()>> {
+        std::pin::Pin::new(&mut self.get_mut().inner).poll_shutdown(cx)
     }
 }
 
@@ -127,10 +213,11 @@ async fn handshake(
     acceptor: &SslAcceptor,
     stream: TcpStream,
     peer: SocketAddr,
+    deadline: tokio::time::Instant,
 ) -> Option<tokio_btls::SslStream<TcpStream>> {
     let ssl = Ssl::new(acceptor.context()).ok()?;
     let mut tls = tokio_btls::SslStream::new(ssl, stream).ok()?;
-    match tokio::time::timeout(HANDSHAKE_DEADLINE, std::pin::Pin::new(&mut tls).accept()).await {
+    match tokio::time::timeout_at(deadline, std::pin::Pin::new(&mut tls).accept()).await {
         Ok(Ok(())) => Some(tls),
         Ok(Err(e)) => {
             tracing::debug!(%peer, "TLS handshake error: {e}");
@@ -383,9 +470,10 @@ mod tests {
         assert!(accepted.nodelay().unwrap());
         let socket = socket2::SockRef::from(&accepted);
         assert!(socket.keepalive().unwrap());
-        assert_eq!(socket.tcp_keepalive_time().unwrap(), std::time::Duration::from_secs(15));
+        // Windows cannot read keep-alive timings back.
         #[cfg(target_os = "linux")]
         {
+            assert_eq!(socket.tcp_keepalive_time().unwrap(), std::time::Duration::from_secs(15));
             assert_eq!(
                 socket.tcp_keepalive_interval().unwrap(),
                 std::time::Duration::from_secs(15)

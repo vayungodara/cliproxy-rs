@@ -1635,6 +1635,23 @@
      "prefix": "interaction_"
     }
    ]
+  },
+  {
+   "name": "TestConvertOpenAIResponseToInteractionsStreamCreatedUsesChunkIdentity:68:stream",
+   "path": "stream",
+   "model": "",
+   "lines": [
+    "data: {\"id\":\"chatcmpl_1\",\"object\":\"chat.completion.chunk\",\"model\":\"gpt-test\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"hi\"},\"finish_reason\":null}]}"
+   ],
+   "outputs": [
+    [
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"chatcmpl_1\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gpt-test\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"chatcmpl_1\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
+     "event: step.start\ndata: {\"index\":0,\"step\":{\"type\":\"model_output\"},\"event_type\":\"step.start\"}\n\n",
+     "event: step.delta\ndata: {\"index\":0,\"delta\":{\"text\":\"hi\",\"type\":\"text\"},\"event_type\":\"step.delta\"}\n\n",
+     "event: step.stop\ndata: {\"index\":0,\"event_type\":\"step.stop\"}\n\n"
+    ]
+   ]
   }
  ],
  "token_count": false,

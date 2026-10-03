@@ -4545,6 +4545,307 @@
      "{\"id\":\"\",\"object\":\"chat.completion\",\"created\":0,\"model\":\"model\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"bad\\ufffd\",\"reasoning_content\":null,\"tool_calls\":null},\"finish_reason\":null,\"native_finish_reason\":null}]}"
     ]
    ]
+  },
+  {
+   "name": "TestConvertOpenAIRequestToAntigravityMapsToolChoiceModes:501",
+   "path": "request",
+   "model": "gemini-3-flash",
+   "input": "{\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"tool_choice\":\"none\"}",
+   "outputs": [
+    [
+     "{\"project\":\"\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"toolConfig\":{\"functionCallingConfig\":{\"mode\":\"NONE\"}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"gemini-3-flash\"}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertOpenAIRequestToAntigravityMapsToolChoiceModes:501#2",
+   "path": "request",
+   "model": "gemini-3-flash",
+   "input": "{\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"tool_choice\":\"auto\"}",
+   "outputs": [
+    [
+     "{\"project\":\"\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"toolConfig\":{\"functionCallingConfig\":{\"mode\":\"AUTO\"}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"gemini-3-flash\"}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertOpenAIRequestToAntigravityMapsToolChoiceModes:501#3",
+   "path": "request",
+   "model": "gemini-3-flash",
+   "input": "{\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"tool_choice\":\"required\"}",
+   "outputs": [
+    [
+     "{\"project\":\"\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"toolConfig\":{\"functionCallingConfig\":{\"mode\":\"ANY\"}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"gemini-3-flash\"}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertOpenAIRequestToAntigravityToolChoiceNoneOmitsTools:706",
+   "path": "request",
+   "model": "gemini-3-flash",
+   "input": "{\n\t\t\t\t\"model\":\"gemini-3-flash\",\n\t\t\t\t\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\n\t\t\t\t\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"parameters\":{\"type\":\"object\"}}}],\n\t\t\t\t\"tool_choice\":\"none\"\n\t\t\t}",
+   "outputs": [
+    [
+     "{\"project\":\"\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"toolConfig\":{\"functionCallingConfig\":{\"mode\":\"NONE\"}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"gemini-3-flash\"}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertOpenAIRequestToAntigravityToolChoiceNoneOmitsTools:706#2",
+   "path": "request",
+   "model": "gemini-3-flash",
+   "input": "{\n\t\t\t\t\"model\":\"gemini-3-flash\",\n\t\t\t\t\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\n\t\t\t\t\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"parameters\":{\"type\":\"object\"}}}],\n\t\t\t\t\"tool_choice\":{\"type\":\"none\"}\n\t\t\t}",
+   "outputs": [
+    [
+     "{\"project\":\"\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"toolConfig\":{\"functionCallingConfig\":{\"mode\":\"NONE\"}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"gemini-3-flash\"}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertAntigravityResponseToOpenAINonStreamRestoresDisambiguatedName:278",
+   "path": "non_stream",
+   "model": "gemini-3-flash",
+   "input": "{\"response\":{\"candidates\":[{\"content\":{\"parts\":[{\"functionCall\":{\"name\":\"mcp__plugin_cloudflare_cloudflare-builds__workers_b_226886c46f32\",\"args\":{}}}]}}]}}",
+   "original": "{\"tools\":[\n\t\t{\"type\":\"function\",\"function\":{\"name\":\"mcp__plugin_cloudflare_cloudflare-builds__workers_builds_get_build\"}},\n\t\t{\"type\":\"function\",\"function\":{\"name\":\"mcp__plugin_cloudflare_cloudflare-builds__workers_builds_get_build_logs\"}}\n\t]}",
+   "outputs": [
+    [
+     "{\"id\":\"\",\"object\":\"chat.completion\",\"created\":0,\"model\":\"model\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":null,\"reasoning_content\":null,\"tool_calls\":[{\"id\":\"mcp__plugin_cloudflare_cloudflare-builds__workers_builds_get_build_logs-1791031653527212486-3\",\"type\":\"function\",\"function\":{\"name\":\"mcp__plugin_cloudflare_cloudflare-builds__workers_builds_get_build_logs\",\"arguments\":\"{}\"}}]},\"finish_reason\":\"tool_calls\",\"native_finish_reason\":\"tool_calls\"}]}"
+    ]
+   ],
+   "dynamic": [
+    {
+     "out": 0,
+     "data": -1,
+     "path": "choices.0.message.tool_calls.0.id",
+     "prefix": "mcp__plugin_cloudflare_cloudflare-builds__workers_builds_get_build_logs-"
+    }
+   ]
+  },
+  {
+   "name": "TestConvertAntigravityResponseToOpenAINonStreamIncludesReasoningContent:309#2",
+   "path": "non_stream",
+   "model": "gemini-3.1-pro-low",
+   "input": "{\n\t\t\"response\": {\n\t\t\t\"candidates\": [{\n\t\t\t\t\"index\": 0,\n\t\t\t\t\"content\": {\n\t\t\t\t\t\"parts\": [\n\t\t\t\t\t\t{\"text\": \"I need to multiply 17 by 24.\", \"thought\": true},\n\t\t\t\t\t\t{\"text\": \"408\", \"thoughtSignature\": \"sig-final-answer\"}\n\t\t\t\t\t]\n\t\t\t\t},\n\t\t\t\t\"finishReason\": \"STOP\"\n\t\t\t}],\n\t\t\t\"usageMetadata\": {\n\t\t\t\t\"promptTokenCount\": 16,\n\t\t\t\t\"candidatesTokenCount\": 3,\n\t\t\t\t\"thoughtsTokenCount\": 42,\n\t\t\t\t\"totalTokenCount\": 61\n\t\t\t},\n\t\t\t\"modelVersion\": \"gemini-3.1-pro-low\",\n\t\t\t\"responseId\": \"resp-reasoning\"\n\t\t}\n\t}",
+   "outputs": [
+    [
+     "{\"id\":\"resp-reasoning\",\"object\":\"chat.completion\",\"created\":0,\"model\":\"gemini-3.1-pro-low\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"408\",\"reasoning_content\":\"I need to multiply 17 by 24.\",\"tool_calls\":null},\"finish_reason\":\"stop\",\"native_finish_reason\":\"stop\"}],\"usage\":{\"completion_tokens\":45,\"total_tokens\":61,\"prompt_tokens\":16,\"completion_tokens_details\":{\"reasoning_tokens\":42}}}"
+    ]
+   ]
+  },
+  {
+   "name": "TestSummaryIntentTranslation:76",
+   "path": "request",
+   "model": "",
+   "stream": true,
+   "input": "{\"model\":\"gemini-3.6-flash\",\"reasoning_effort\":\"high\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"project\":\"\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"thinkingConfig\":{\"thinkingLevel\":\"high\",\"includeThoughts\":true}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"\"}"
+    ]
+   ]
+  },
+  {
+   "name": "TestFinishReasonToolCallsNotOverwritten:17:stream",
+   "path": "stream",
+   "model": "model",
+   "lines": [
+    "{\"response\":{\"candidates\":[{\"content\":{\"parts\":[{\"functionCall\":{\"name\":\"list_files\",\"args\":{\"path\":\".\"}}}]}}]}}",
+    "{\"response\":{\"candidates\":[{\"finishReason\":\"STOP\"}],\"usageMetadata\":{\"promptTokenCount\":10,\"candidatesTokenCount\":20,\"totalTokenCount\":30}}}"
+   ],
+   "outputs": [
+    [
+     "{\"id\":\"\",\"object\":\"chat.completion.chunk\",\"created\":0,\"model\":\"model\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":null,\"reasoning_content\":null,\"tool_calls\":[{\"id\": \"list_files-1791031653532771919-17\",\"index\": 0,\"type\": \"function\",\"function\": {\"name\": \"list_files\",\"arguments\": \"{\\\"path\\\":\\\".\\\"}\"}}]},\"finish_reason\":null,\"native_finish_reason\":null}]}"
+    ],
+    [
+     "{\"id\":\"\",\"object\":\"chat.completion.chunk\",\"created\":0,\"model\":\"model\",\"choices\":[{\"index\":0,\"delta\":{\"role\":null,\"content\":null,\"reasoning_content\":null,\"tool_calls\":null},\"finish_reason\":\"tool_calls\",\"native_finish_reason\":\"stop\"}],\"usage\":{\"completion_tokens\":20,\"total_tokens\":30,\"prompt_tokens\":10}}"
+    ]
+   ],
+   "dynamic": [
+    {
+     "out": 0,
+     "data": -1,
+     "path": "choices.0.delta.tool_calls.0.id",
+     "prefix": "list_files-"
+    }
+   ]
+  },
+  {
+   "name": "TestFinishReasonStopForNormalText:55:stream",
+   "path": "stream",
+   "model": "model",
+   "lines": [
+    "{\"response\":{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"Hello world\"}]}}]}}",
+    "{\"response\":{\"candidates\":[{\"finishReason\":\"STOP\"}],\"usageMetadata\":{\"promptTokenCount\":10,\"candidatesTokenCount\":5,\"totalTokenCount\":15}}}"
+   ],
+   "outputs": [
+    [
+     "{\"id\":\"\",\"object\":\"chat.completion.chunk\",\"created\":0,\"model\":\"model\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"Hello world\",\"reasoning_content\":null,\"tool_calls\":null},\"finish_reason\":null,\"native_finish_reason\":null}]}"
+    ],
+    [
+     "{\"id\":\"\",\"object\":\"chat.completion.chunk\",\"created\":0,\"model\":\"model\",\"choices\":[{\"index\":0,\"delta\":{\"role\":null,\"content\":null,\"reasoning_content\":null,\"tool_calls\":null},\"finish_reason\":\"stop\",\"native_finish_reason\":\"stop\"}],\"usage\":{\"completion_tokens\":5,\"total_tokens\":15,\"prompt_tokens\":10}}"
+    ]
+   ]
+  },
+  {
+   "name": "TestFinishReasonMaxTokens:74:stream",
+   "path": "stream",
+   "model": "model",
+   "lines": [
+    "{\"response\":{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"Hello\"}]}}]}}",
+    "{\"response\":{\"candidates\":[{\"finishReason\":\"MAX_TOKENS\"}],\"usageMetadata\":{\"promptTokenCount\":10,\"candidatesTokenCount\":100,\"totalTokenCount\":110}}}"
+   ],
+   "outputs": [
+    [
+     "{\"id\":\"\",\"object\":\"chat.completion.chunk\",\"created\":0,\"model\":\"model\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"Hello\",\"reasoning_content\":null,\"tool_calls\":null},\"finish_reason\":null,\"native_finish_reason\":null}]}"
+    ],
+    [
+     "{\"id\":\"\",\"object\":\"chat.completion.chunk\",\"created\":0,\"model\":\"model\",\"choices\":[{\"index\":0,\"delta\":{\"role\":null,\"content\":null,\"reasoning_content\":null,\"tool_calls\":null},\"finish_reason\":\"max_tokens\",\"native_finish_reason\":\"max_tokens\"}],\"usage\":{\"completion_tokens\":100,\"total_tokens\":110,\"prompt_tokens\":10}}"
+    ]
+   ]
+  },
+  {
+   "name": "TestToolCallTakesPriorityOverMaxTokens:93:stream",
+   "path": "stream",
+   "model": "model",
+   "lines": [
+    "{\"response\":{\"candidates\":[{\"content\":{\"parts\":[{\"functionCall\":{\"name\":\"test\",\"args\":{}}}]}}]}}",
+    "{\"response\":{\"candidates\":[{\"finishReason\":\"MAX_TOKENS\"}],\"usageMetadata\":{\"promptTokenCount\":10,\"candidatesTokenCount\":100,\"totalTokenCount\":110}}}"
+   ],
+   "outputs": [
+    [
+     "{\"id\":\"\",\"object\":\"chat.completion.chunk\",\"created\":0,\"model\":\"model\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":null,\"reasoning_content\":null,\"tool_calls\":[{\"id\": \"test-1791031653536663355-19\",\"index\": 0,\"type\": \"function\",\"function\": {\"name\": \"test\",\"arguments\": \"{}\"}}]},\"finish_reason\":null,\"native_finish_reason\":null}]}"
+    ],
+    [
+     "{\"id\":\"\",\"object\":\"chat.completion.chunk\",\"created\":0,\"model\":\"model\",\"choices\":[{\"index\":0,\"delta\":{\"role\":null,\"content\":null,\"reasoning_content\":null,\"tool_calls\":null},\"finish_reason\":\"tool_calls\",\"native_finish_reason\":\"max_tokens\"}],\"usage\":{\"completion_tokens\":100,\"total_tokens\":110,\"prompt_tokens\":10}}"
+    ]
+   ],
+   "dynamic": [
+    {
+     "out": 0,
+     "data": -1,
+     "path": "choices.0.delta.tool_calls.0.id",
+     "prefix": "test-"
+    }
+   ]
+  },
+  {
+   "name": "TestNoFinishReasonOnIntermediateChunks:112:stream",
+   "path": "stream",
+   "model": "model",
+   "lines": [
+    "{\"response\":{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"Hello\"}]}}]}}",
+    "{\"response\":{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\" world\"}]}}]}}"
+   ],
+   "outputs": [
+    [
+     "{\"id\":\"\",\"object\":\"chat.completion.chunk\",\"created\":0,\"model\":\"model\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"Hello\",\"reasoning_content\":null,\"tool_calls\":null},\"finish_reason\":null,\"native_finish_reason\":null}]}"
+    ],
+    [
+     "{\"id\":\"\",\"object\":\"chat.completion.chunk\",\"created\":0,\"model\":\"model\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\" world\",\"reasoning_content\":null,\"tool_calls\":null},\"finish_reason\":null,\"native_finish_reason\":null}]}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertAntigravityResponseToOpenAIIncludesZeroCompletionTokensWhenMissing:135:stream",
+   "path": "stream",
+   "model": "model",
+   "lines": [
+    "{\"response\":{\"usageMetadata\":{\"promptTokenCount\":16,\"thoughtsTokenCount\":42,\"totalTokenCount\":58}}}"
+   ],
+   "outputs": [
+    [
+     "{\"id\":\"\",\"object\":\"chat.completion.chunk\",\"created\":0,\"model\":\"model\",\"choices\":[{\"index\":0,\"delta\":{\"role\":null,\"content\":null,\"reasoning_content\":null,\"tool_calls\":null},\"finish_reason\":null,\"native_finish_reason\":null}],\"usage\":{\"completion_tokens\":0,\"total_tokens\":58,\"prompt_tokens\":16,\"completion_tokens_details\":{\"reasoning_tokens\":42}}}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertAntigravityResponseToOpenAI_SynthesizesStopOnUsageChunkWhenFinishReasonOmitted:152:stream",
+   "path": "stream",
+   "model": "gemini-3.7-flash",
+   "lines": [
+    "{\"response\":{\"candidates\":[{\"content\":{\"parts\":[{\"thought\":true,\"text\":\"Analyzing...\"}]}}],\"usageMetadata\":{\"promptTokenCount\":100,\"totalTokenCount\":150,\"thoughtsTokenCount\":50},\"modelVersion\":\"gemini-3.7-flash\",\"responseId\":\"resp-999\"}}",
+    "[DONE]"
+   ],
+   "outputs": [
+    [
+     "{\"id\":\"resp-999\",\"object\":\"chat.completion.chunk\",\"created\":0,\"model\":\"gemini-3.7-flash\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":null,\"reasoning_content\":\"Analyzing...\",\"tool_calls\":null},\"finish_reason\":null,\"native_finish_reason\":null}],\"usage\":{\"completion_tokens\":0,\"total_tokens\":150,\"prompt_tokens\":100,\"completion_tokens_details\":{\"reasoning_tokens\":50}}}"
+    ],
+    [
+     "{\"id\":\"resp-999\",\"object\":\"chat.completion.chunk\",\"created\":0,\"model\":\"gemini-3.7-flash\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\",\"native_finish_reason\":\"stop\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertAntigravityResponseToOpenAI_PreservesFilteredUsageUntilDone:178:stream",
+   "path": "stream",
+   "model": "gemini-3.7-flash",
+   "lines": [
+    "{\"response\":{\"candidates\":[{\"content\":{\"parts\":[{\"thought\":true,\"text\":\"Thinking...\"}]}}],\"modelVersion\":\"gemini-3.7-flash\",\"responseId\":\"resp-filtered\",\"cpaUsageMetadata\":{\"promptTokenCount\":100,\"totalTokenCount\":150,\"thoughtsTokenCount\":50}}}",
+    "[DONE]"
+   ],
+   "outputs": [
+    [
+     "{\"id\":\"resp-filtered\",\"object\":\"chat.completion.chunk\",\"created\":0,\"model\":\"gemini-3.7-flash\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":null,\"reasoning_content\":\"Thinking...\",\"tool_calls\":null},\"finish_reason\":null,\"native_finish_reason\":null}]}"
+    ],
+    [
+     "{\"id\":\"resp-filtered\",\"object\":\"chat.completion.chunk\",\"created\":0,\"model\":\"gemini-3.7-flash\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\",\"native_finish_reason\":\"stop\"}],\"usage\":{\"completion_tokens\":0,\"total_tokens\":150,\"prompt_tokens\":100,\"completion_tokens_details\":{\"reasoning_tokens\":50}}}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertAntigravityResponseToOpenAI_SynthesizesStopOnDoneWhenFinishReasonAndUsageOmitted:210:stream",
+   "path": "stream",
+   "model": "gemini-3.7-flash",
+   "lines": [
+    "{\"response\":{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"Partial output\"}]}}],\"modelVersion\":\"gemini-3.7-flash\",\"responseId\":\"resp-888\"}}",
+    "[DONE]"
+   ],
+   "outputs": [
+    [
+     "{\"id\":\"resp-888\",\"object\":\"chat.completion.chunk\",\"created\":0,\"model\":\"gemini-3.7-flash\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"Partial output\",\"reasoning_content\":null,\"tool_calls\":null},\"finish_reason\":null,\"native_finish_reason\":null}]}"
+    ],
+    [
+     "{\"id\":\"resp-888\",\"object\":\"chat.completion.chunk\",\"created\":0,\"model\":\"gemini-3.7-flash\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\",\"native_finish_reason\":\"stop\"}]}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertAntigravityResponseToOpenAI_DoesNotFinalizeEmptyUpstreamStream:242:stream",
+   "path": "stream",
+   "model": "gemini-3.7-flash",
+   "lines": [
+    "[DONE]"
+   ],
+   "outputs": [
+    []
+   ]
+  },
+  {
+   "name": "TestConvertAntigravityResponseToOpenAI_ResponseFreeEventDoesNotStartStream:260:stream",
+   "path": "stream",
+   "model": "gemini-3.7-flash",
+   "lines": [
+    "{}",
+    "{\"response\":{}}",
+    "{\"response\":{\"candidates\":[]}}",
+    "{\"response\":{\"candidates\":[],\"usageMetadata\":{}}}",
+    "[DONE]"
+   ],
+   "outputs": [
+    [
+     "{\"id\":\"\",\"object\":\"chat.completion.chunk\",\"created\":0,\"model\":\"model\",\"choices\":[{\"index\":0,\"delta\":{\"role\":null,\"content\":null,\"reasoning_content\":null,\"tool_calls\":null},\"finish_reason\":null,\"native_finish_reason\":null}]}"
+    ],
+    [
+     "{\"id\":\"\",\"object\":\"chat.completion.chunk\",\"created\":0,\"model\":\"model\",\"choices\":[{\"index\":0,\"delta\":{\"role\":null,\"content\":null,\"reasoning_content\":null,\"tool_calls\":null},\"finish_reason\":null,\"native_finish_reason\":null}]}"
+    ],
+    [
+     "{\"id\":\"\",\"object\":\"chat.completion.chunk\",\"created\":0,\"model\":\"model\",\"choices\":[{\"index\":0,\"delta\":{\"role\":null,\"content\":null,\"reasoning_content\":null,\"tool_calls\":null},\"finish_reason\":null,\"native_finish_reason\":null}]}"
+    ],
+    [
+     "{\"id\":\"\",\"object\":\"chat.completion.chunk\",\"created\":0,\"model\":\"model\",\"choices\":[{\"index\":0,\"delta\":{\"role\":null,\"content\":null,\"reasoning_content\":null,\"tool_calls\":null},\"finish_reason\":null,\"native_finish_reason\":null}],\"usage\":{\"completion_tokens\":0,\"prompt_tokens\":0}}"
+    ],
+    []
+   ]
   }
  ],
  "token_count": false,

@@ -343,6 +343,8 @@ pub struct GoHeaders {
     headers: Vec<(String, String)>,
     /// Go `http.Transport.DisableCompression`: the transport never asks for gzip.
     compression_disabled: bool,
+    /// Send the first request's target exactly as the caller wrote the URL.
+    exact_target: bool,
 }
 
 impl GoHeaders {
@@ -367,6 +369,15 @@ impl GoHeaders {
     /// `Accept-Encoding: gzip`, so responses are never decoded transparently.
     pub fn disable_compression(&mut self) {
         self.compression_disabled = true;
+    }
+
+    /// Go's `URL.RequestURI()`: the first request's target is the caller's URL as
+    /// written, so `.` and `..` segments and the caller's escaping reach the upstream
+    /// (Go's `PathEscape` output). Without it the URL is normalized as WHATWG parses it.
+    /// A relative redirect from that request resolves against the path as written, as
+    /// Go's `ResolveReference` does.
+    pub fn exact_target(&mut self) {
+        self.exact_target = true;
     }
 
     pub fn get(&self, name: &str) -> Option<&str> {
@@ -394,16 +405,17 @@ impl GoHeaders {
     /// whether the transport asked for gzip itself (no explicit Accept-Encoding or
     /// Range), which is the only case Go decodes transparently.
     pub fn apply(self, builder: wreq::RequestBuilder, order: Option<&[String]>) -> (wreq::RequestBuilder, bool) {
-        self.apply_gzip(builder, order, true)
+        self.apply_gzip(builder, order, true, false)
     }
 
     /// [`GoHeaders::apply`]; `gzip_allowed` is false for HEAD, which Go's transport
-    /// never asks to compress.
+    /// never asks to compress, and `http2` picks Go's HTTP/2 default User-Agent.
     fn apply_gzip(
         mut self,
         builder: wreq::RequestBuilder,
         order: Option<&[String]>,
         gzip_allowed: bool,
+        http2: bool,
     ) -> (wreq::RequestBuilder, bool) {
         let auto_gzip = gzip_allowed
             && !self.compression_disabled
@@ -413,8 +425,15 @@ impl GoHeaders {
         let host = self.take("Host").filter(|h| !h.is_empty());
         self.take("Content-Length");
         match self.get("User-Agent") {
-            // ponytail: Go says Go-http-client/2.0 on HTTP/2; this is the HTTP/1.1 value.
-            None => self.headers.push(("User-Agent".into(), "Go-http-client/1.1".into())),
+            // net/http's defaultUserAgent, or x/net/http2's on an HTTP/2 connection.
+            None => {
+                let ua = if http2 {
+                    "Go-http-client/2.0"
+                } else {
+                    "Go-http-client/1.1"
+                };
+                self.headers.push(("User-Agent".into(), ua.into()));
+            }
             // Go writes no User-Agent line for an empty value (`Header["User-Agent"] = []string{""}`).
             Some("") => {
                 self.take("User-Agent");
@@ -544,6 +563,10 @@ pub async fn send_request(
     let initial =
         url::Url::parse(url).map_err(|_| ExecError::local(500, FailureScope::Request, "invalid upstream URL"))?;
     let explicit_referer = headers.get("Referer").map(str::to_owned);
+    // The caller's URL as written, for the first request only (GoHeaders::exact_target);
+    // a URL with user info falls back to the parsed form (Go strips it from Referer).
+    let exact =
+        (headers.exact_target && initial.username().is_empty() && initial.password().is_none()).then(|| url.to_owned());
     let mut current = initial.clone();
     // req.Host: the custom Host of the current hop, if any.
     let mut host = headers.get("Host").filter(|h| !h.is_empty()).map(str::to_owned);
@@ -560,15 +583,22 @@ pub async fn send_request(
         let hop = route(&current)?;
         let mut builder = hop
             .client
-            .request(method.clone(), current.as_str())
+            .request(
+                method.clone(),
+                exact.as_deref().filter(|_| sent == 0).unwrap_or(current.as_str()),
+            )
             .redirect(wreq::redirect::Policy::none());
         if let Some(timeout) = timeout {
             builder = builder.timeout(timeout);
         }
-        let (builder, auto_gzip) =
-            hop_headers
-                .clone()
-                .apply_gzip(builder, hop.order.as_deref(), method != wreq::Method::HEAD);
+        // Go's standard transport (no exact order) speaks HTTP/2 wherever ALPN picks it.
+        let go_transport = hop.order.is_none();
+        let (builder, auto_gzip) = hop_headers.clone().apply_gzip(
+            builder,
+            hop.order.as_deref(),
+            method != wreq::Method::HEAD,
+            go_transport && expects_http2(&current),
+        );
         let sends_body = has_body && include_body && !body.is_empty();
         let builder = if sends_body {
             builder.body(body.clone())
@@ -580,6 +610,9 @@ pub async fn send_request(
             builder
         };
         let response = builder.send().await.map_err(crate::upstream::transport_error)?;
+        if go_transport {
+            remember_protocol(&current, response.version() == http::Version::HTTP_2);
+        }
         sent += 1;
         let status = response.status().as_u16();
         let location = response
@@ -591,7 +624,12 @@ pub async fn send_request(
         if !matches!(status, 301 | 302 | 303 | 307 | 308) || location.is_empty() {
             break (response, auto_gzip);
         }
-        let next = current.join(&location).map_err(|_| {
+        let from_exact = exact.as_deref().filter(|_| sent == 1);
+        let next = match from_exact {
+            Some(raw) => resolve_exact(raw, &location, &current),
+            None => current.join(&location),
+        }
+        .map_err(|_| {
             ExecError::local(
                 500,
                 FailureScope::Transport,
@@ -654,12 +692,15 @@ pub async fn send_request(
         }
         hop_headers.take("Referer");
         if !(current.scheme() == "https" && next.scheme() == "http") {
-            let referer = explicit_referer.clone().unwrap_or_else(|| {
-                let mut last = current.clone();
-                let _ = last.set_username("");
-                let _ = last.set_password(None);
-                last.to_string()
-            });
+            let referer = explicit_referer
+                .clone()
+                .or_else(|| from_exact.map(str::to_owned))
+                .unwrap_or_else(|| {
+                    let mut last = current.clone();
+                    let _ = last.set_username("");
+                    let _ = last.set_password(None);
+                    last.to_string()
+                });
             hop_headers.set("Referer", referer);
         }
         current = next;
@@ -685,6 +726,135 @@ pub async fn send_request(
         stream.map(|r| r.map_err(body_error)).boxed()
     };
     Ok(Upstream { status, headers, body })
+}
+
+/// Origins (`scheme://host:port`) and whether their last answer came over HTTP/2.
+/// Go's default User-Agent names the negotiated protocol, which wreq only reports
+/// after the request is written.
+fn origin_protocols() -> &'static Mutex<std::collections::HashMap<String, bool>> {
+    static PROTOCOLS: std::sync::OnceLock<Mutex<std::collections::HashMap<String, bool>>> = std::sync::OnceLock::new();
+    PROTOCOLS.get_or_init(Mutex::default)
+}
+
+fn origin(url: &url::Url) -> String {
+    format!(
+        "{}://{}:{}",
+        url.scheme(),
+        url.host_str().unwrap_or_default(),
+        url.port_or_known_default().unwrap_or_default()
+    )
+}
+
+/// Whether Go's transport would speak HTTP/2 to `url`: what its origin last answered
+/// with; never over plain HTTP (no h2c).
+// ponytail: an origin not seen yet counts as HTTP/1.1, so the first request to an h2
+// upstream says Go-http-client/1.1 where Go says /2.0 (only callers that set no
+// User-Agent). The protocol itself is always the negotiated one.
+fn expects_http2(url: &url::Url) -> bool {
+    url.scheme() == "https"
+        && origin_protocols()
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .get(&origin(url))
+            .copied()
+            .unwrap_or(false)
+}
+
+fn remember_protocol(url: &url::Url, http2: bool) {
+    let mut protocols = origin_protocols()
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    // Bounded: forgetting only brings back the first-request assumption.
+    if protocols.len() >= 1024 {
+        protocols.clear();
+    }
+    protocols.insert(origin(url), http2);
+}
+
+/// Go `URL.ResolveReference` against the base URL as written (`Response.Location`):
+/// the scheme and authority stay; the path is Go's `resolvePath` over the written base
+/// path, so dot segments merge as written and a merged `//` path stays a path; the base
+/// query survives only a reference with neither path nor query. Absolute and
+/// network-path references ignore the base.
+// ponytail: the next hop is a `url::Url`, which reads `%2e` as a dot segment where Go
+// keeps it; only the first request goes out exactly as written.
+fn resolve_exact(raw: &str, location: &str, current: &url::Url) -> Result<url::Url, url::ParseError> {
+    if location.starts_with("//") || url::Url::parse(location).is_ok() {
+        return current.join(location);
+    }
+    let (reference, fragment) = match location.split_once('#') {
+        Some((reference, fragment)) => (reference, Some(fragment)),
+        None => (location, None),
+    };
+    let (ref_path, ref_query) = match reference.split_once('?') {
+        Some((path, query)) => (path, Some(query)),
+        None => (reference, None),
+    };
+    // Go's parse order: the fragment, then the query at the first `?`, then the
+    // authority (up to the first `/`) after the scheme.
+    let base = raw.split_once('#').map_or(raw, |(base, _)| base);
+    let (base, base_query) = match base.split_once('?') {
+        Some((base, query)) => (base, Some(query)),
+        None => (base, None),
+    };
+    let rest = base.find("://").map_or(base, |i| &base[i + 3..]);
+    let base_path = rest.find('/').map_or("", |i| &rest[i..]);
+    let mut next = current.clone();
+    next.set_path(&go_resolve_path(base_path, ref_path));
+    if ref_path.is_empty() && ref_query.is_none() {
+        next.set_query(base_query);
+    } else {
+        next.set_query(ref_query);
+    }
+    next.set_fragment(fragment);
+    Ok(next)
+}
+
+/// Go `net/url.resolvePath`: merge `reference` with `base`, then remove dot segments.
+fn go_resolve_path(base: &str, reference: &str) -> String {
+    let full = if reference.is_empty() {
+        base.to_owned()
+    } else if !reference.starts_with('/') {
+        let i = base.rfind('/').map_or(0, |i| i + 1);
+        format!("{}{reference}", &base[..i])
+    } else {
+        reference.to_owned()
+    };
+    if full.is_empty() {
+        return String::new();
+    }
+    let mut dst = String::with_capacity(full.len() + 1);
+    dst.push('/');
+    let mut first = true;
+    let mut last = "";
+    for elem in full.split('/') {
+        last = elem;
+        match elem {
+            "." => first = false,
+            ".." => {
+                match dst[1..].rfind('/') {
+                    Some(i) => dst.truncate(i + 1),
+                    None => dst.truncate(1),
+                }
+                first = dst.len() == 1;
+            }
+            _ => {
+                if !first {
+                    dst.push('/');
+                }
+                dst.push_str(elem);
+                first = false;
+            }
+        }
+    }
+    if last == "." || last == ".." {
+        dst.push('/');
+    }
+    // An initial `/` was written; never two.
+    if dst.len() > 1 && dst.as_bytes()[1] == b'/' {
+        dst.remove(0);
+    }
+    dst
 }
 
 /// `io.ReadAll` up to `limit` bytes; with `lossy`, a read error keeps what arrived
@@ -907,6 +1077,206 @@ mod tests {
         serde_json::from_str(include_str!("../tests/fixtures/proxy_go.json")).unwrap()
     }
 
+    /// What a local upstream saw of one request.
+    #[derive(Debug, Default, Clone, PartialEq)]
+    struct Saw {
+        proto: String,
+        client_alpn: Option<Vec<String>>,
+        user_agent: String,
+    }
+
+    /// Answers one HTTP/1.1 request on `io` with `ok`, recording its User-Agent.
+    async fn serve_h1<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin>(mut io: S, saw: Arc<Mutex<Saw>>) {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        let mut head = Vec::new();
+        let mut byte = [0u8; 1];
+        while !head.ends_with(b"\r\n\r\n") {
+            if io.read(&mut byte).await.unwrap_or(0) == 0 {
+                return;
+            }
+            head.push(byte[0]);
+        }
+        let head = String::from_utf8_lossy(&head).into_owned();
+        {
+            let mut s = saw.lock().unwrap();
+            s.proto = head
+                .lines()
+                .next()
+                .unwrap_or_default()
+                .rsplit(' ')
+                .next()
+                .unwrap_or_default()
+                .to_owned();
+            s.user_agent = head
+                .lines()
+                .find_map(|l| l.split_once(':').filter(|(k, _)| k.eq_ignore_ascii_case("user-agent")))
+                .map(|(_, v)| v.trim().to_owned())
+                .unwrap_or_default();
+        }
+        let _ = io
+            .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok")
+            .await;
+        let _ = io.shutdown().await;
+    }
+
+    /// A local upstream: TLS offering the `alpn` protocols (HTTP/2 when the client picks
+    /// it), or plain HTTP/1.1 for `None`. Returns its address, CA PEM and observations.
+    async fn upstream(alpn: Option<&'static [u8]>) -> (SocketAddr, Vec<u8>, Arc<Mutex<Saw>>) {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let saw = Arc::new(Mutex::new(Saw::default()));
+        let Some(alpn) = alpn else {
+            let seen = saw.clone();
+            tokio::spawn(async move {
+                while let Ok((tcp, _)) = listener.accept().await {
+                    tokio::spawn(serve_h1(tcp, seen.clone()));
+                }
+            });
+            return (addr, Vec::new(), saw);
+        };
+        let (ca, mut builder) = crate::test_tls::builder(&["upstream.test.invalid".to_owned()]);
+        let offered = saw.clone();
+        builder.set_alpn_select_callback(move |_, client| {
+            // The client's offer, decoded from the wire's length-prefixed names.
+            let (mut names, mut rest) = (Vec::new(), client);
+            while let Some((&len, tail)) = rest.split_first() {
+                let (name, tail) = tail.split_at(usize::from(len).min(tail.len()));
+                names.push(String::from_utf8_lossy(name).into_owned());
+                rest = tail;
+            }
+            offered.lock().unwrap().client_alpn = Some(names);
+            btls::ssl::select_next_proto(alpn, client).ok_or(btls::ssl::AlpnError::NOACK)
+        });
+        let acceptor = builder.build();
+        let seen = saw.clone();
+        tokio::spawn(async move {
+            while let Ok((tcp, _)) = listener.accept().await {
+                let ssl = btls::ssl::Ssl::new(acceptor.context()).unwrap();
+                let mut tls = tokio_btls::SslStream::new(ssl, tcp).unwrap();
+                if std::pin::Pin::new(&mut tls).accept().await.is_err() {
+                    continue;
+                }
+                let seen = seen.clone();
+                tokio::spawn(async move {
+                    if tls.ssl().selected_alpn_protocol() != Some(b"h2") {
+                        return serve_h1(tls, seen).await;
+                    }
+                    let mut conn = http2::server::handshake(tls).await.unwrap();
+                    while let Some(Ok((request, mut respond))) = conn.accept().await {
+                        {
+                            let mut s = seen.lock().unwrap();
+                            s.proto = "HTTP/2.0".into();
+                            s.user_agent = request
+                                .headers()
+                                .get("user-agent")
+                                .map(|v| v.to_str().unwrap().to_owned())
+                                .unwrap_or_default();
+                        }
+                        let response = http::Response::builder().status(200).body(()).unwrap();
+                        let mut body = respond.send_response(response, false).unwrap();
+                        body.send_data(Bytes::from_static(b"ok"), true).unwrap();
+                    }
+                });
+            }
+        });
+        (addr, ca, saw)
+    }
+
+    /// An HTTP CONNECT proxy tunnelling every request to `target`.
+    async fn connect_proxy(target: SocketAddr) -> SocketAddr {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        tokio::spawn(async move {
+            while let Ok((mut client, _)) = listener.accept().await {
+                tokio::spawn(async move {
+                    let mut head = Vec::new();
+                    let mut byte = [0u8; 1];
+                    while !head.ends_with(b"\r\n\r\n") {
+                        if client.read(&mut byte).await.unwrap_or(0) == 0 {
+                            return;
+                        }
+                        head.push(byte[0]);
+                    }
+                    if !head.starts_with(b"CONNECT ") {
+                        return;
+                    }
+                    let mut upstream = tokio::net::TcpStream::connect(target).await.unwrap();
+                    client
+                        .write_all(b"HTTP/1.1 200 Connection established\r\n\r\n")
+                        .await
+                        .unwrap();
+                    let _ = tokio::io::copy_bidirectional(&mut client, &mut upstream).await;
+                });
+            }
+        });
+        addr
+    }
+
+    /// Go's cloned default transport (proxyutil, ForceAttemptHTTP2) offers h2 and
+    /// http/1.1 to every TLS upstream and speaks HTTP/2 wherever the upstream picks it,
+    /// directly or through a CONNECT proxy; plain HTTP stays HTTP/1.1. Go's default
+    /// User-Agent names the protocol (tests/reference/proxy/main.go `protocols`).
+    #[tokio::test]
+    async fn go_clients_negotiate_http2_like_go() {
+        let fixture = go_fixture();
+        let cases = fixture["protocols"].as_array().unwrap();
+        assert_eq!(cases.len(), 5);
+        for case in cases {
+            let name = case["name"].as_str().unwrap();
+            let alpn: Option<&'static [u8]> = match case["server"].as_str().unwrap() {
+                "h2" => Some(b"\x02h2\x08http/1.1"),
+                "h1" => Some(b"\x08http/1.1"),
+                _ => None,
+            };
+            let (addr, ca, saw) = upstream(alpn).await;
+            let host = "upstream.test.invalid";
+            let proxy = match case["proxy"].as_str().unwrap() {
+                "http" => Proxy::Url(format!("http://{}", connect_proxy(addr).await)),
+                _ => Proxy::Direct,
+            };
+            let clients = GoClients::new(Hooks {
+                trust: (!ca.is_empty()).then(|| CertStore::from_pem_stack(ca).unwrap()),
+                resolve: vec![(host.to_owned(), addr)],
+            });
+            let scheme = if alpn.is_some() { "https" } else { "http" };
+            let route = |_: &url::Url| {
+                Ok(Route {
+                    client: clients.get(&proxy),
+                    order: None,
+                })
+            };
+            let want = Saw {
+                proto: case["proto"].as_str().unwrap().to_owned(),
+                client_alpn: case["client_alpn"]
+                    .as_array()
+                    .map(|a| a.iter().map(|p| p.as_str().unwrap().to_owned()).collect()),
+                user_agent: case["user_agent"].as_str().unwrap().to_owned(),
+            };
+            // The second request knows the origin's protocol; the first assumes HTTP/1.1
+            // for the default User-Agent only (see `expects_http2`).
+            for attempt in ["first", "second"] {
+                let upstream = send_request(
+                    &route,
+                    wreq::Method::GET,
+                    &format!("{scheme}://{host}:{}/", addr.port()),
+                    GoHeaders::new(),
+                    None,
+                    Some(std::time::Duration::from_secs(10)),
+                )
+                .await
+                .unwrap_or_else(|e| panic!("{name}: {e:?}"));
+                assert_eq!(upstream.status, 200, "{name}");
+                assert_eq!(read_all(upstream.body, 16, false).await.unwrap(), "ok", "{name}");
+                let mut want = want.clone();
+                if attempt == "first" && want.proto == "HTTP/2.0" {
+                    want.user_agent = "Go-http-client/1.1".into();
+                }
+                assert_eq!(*saw.lock().unwrap(), want, "{name} ({attempt} request)");
+            }
+        }
+    }
+
     /// Every case runs the real `bufio.Scanner` in tests/reference/proxy/main.go.
     #[tokio::test]
     async fn lines_follow_go_bufio_scanner() {
@@ -963,6 +1333,30 @@ mod tests {
         }
     }
 
+    /// Go's own table (net/url url_test.go `resolvePathTests`), plus merged `//` paths.
+    #[test]
+    fn resolve_path_matches_go() {
+        for (base, reference, want) in [
+            ("a/b", ".", "/a/"),
+            ("a/b", "c", "/a/c"),
+            ("a/b", "..", "/"),
+            ("a/", "..", "/"),
+            ("a/", "../..", "/"),
+            ("a/b/c", "..", "/a/"),
+            ("a/b/c", "../d", "/a/d"),
+            ("a/b/c", ".././d", "/a/d"),
+            ("a/b", "./..", "/"),
+            ("a/./b", ".", "/a/"),
+            ("a/../", ".", "/"),
+            ("a/.././b", "c", "/c"),
+            ("//api/item", "next", "//api/next"),
+            ("", "next", "/next"),
+            ("", "", ""),
+        ] {
+            assert_eq!(go_resolve_path(base, reference), want, "{base:?} + {reference:?}");
+        }
+    }
+
     /// Go's `http.Client` redirect hops for GET and POST (tests/reference/proxy/main.go),
     /// replayed through [`request`] against the same scripted servers.
     #[tokio::test]
@@ -987,9 +1381,13 @@ mod tests {
                     .join(",")
             };
             let path = parts.uri.path().to_owned();
+            let target = parts.uri.path_and_query().map_or("/", |p| p.as_str()).to_owned();
             hops.lock().unwrap().push(serde_json::json!({
+                "user_agent": header("user-agent"),
+                "has_user_agent": parts.headers.contains_key("user-agent"),
+                "accept_encoding": header("accept-encoding"),
                 "method": parts.method.as_str(),
-                "path": path,
+                "path": target,
                 "host": header("host"),
                 "referer": header("referer"),
                 "authorization": header("authorization"),
@@ -1007,8 +1405,17 @@ mod tests {
             }
             (status, [(http::header::LOCATION, location)]).into_response()
         }
-        for case in go_fixture()["redirects"].as_array().unwrap() {
-            let name = case["name"].as_str().unwrap();
+        let fixture = go_fixture();
+        let cases = fixture["redirects"].as_array().unwrap();
+        // Go always sends the URL as written; Rust does with exact_target, and normalizes
+        // otherwise, which only dot segments and escaping can tell apart.
+        let runs = cases.iter().flat_map(|case| {
+            let start = case["start"].as_str().unwrap();
+            let both = start == "/start";
+            [(case, true)].into_iter().chain(both.then_some((case, false)))
+        });
+        for (case, exact) in runs {
+            let name = format!("{} (exact: {exact})", case["name"].as_str().unwrap());
             let main = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
             let second = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
             let (main_addr, other_port) = (main.local_addr().unwrap(), second.local_addr().unwrap().port());
@@ -1026,13 +1433,19 @@ mod tests {
             for (k, v) in case["headers"].as_object().unwrap() {
                 headers.set(k, v.as_str().unwrap());
             }
+            if exact {
+                headers.exact_target();
+            }
+            if case["disable_compression"].as_bool().unwrap() {
+                headers.disable_compression();
+            }
             let base = format!("http://{main_addr}");
             let method = wreq::Method::from_bytes(case["method"].as_str().unwrap().as_bytes()).unwrap();
             let body = case["body"].as_str().map(|b| Bytes::from(b.to_owned()));
             let result = request(
                 &default_client(),
                 method,
-                &format!("{base}/start"),
+                &format!("{base}{}", case["start"].as_str().unwrap()),
                 headers,
                 body,
                 Some(std::time::Duration::from_secs(10)),

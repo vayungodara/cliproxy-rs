@@ -2222,6 +2222,51 @@
      "{\"totalTokens\":123456789012,\"promptTokensDetails\":[{\"modality\":\"TEXT\",\"tokenCount\":123456789012}]}"
     ]
    ]
+  },
+  {
+   "name": "TestConvertGeminiRequestToOpenAI_PreservesExplicitFunctionCallIDs:144",
+   "path": "request",
+   "model": "test-model",
+   "input": "{\n\t\t\t\t\"contents\": [\n\t\t\t\t\t{\"role\": \"model\", \"parts\": [{\"functionCall\": {\"name\": \"lookup\", \"id\":\"call_gateway_id\", \"args\": {\"q\": \"x\"}}}]},\n\t\t\t\t\t{\"role\": \"function\", \"parts\": [{\"functionResponse\": {\"name\": \"lookup\", \"id\":\"call_gateway_id\", \"response\": {\"result\": \"ok\"}}}]}\n\t\t\t\t]\n\t\t\t}",
+   "outputs": [
+    [
+     "{\"model\":\"test-model\",\"messages\":[{\"role\":\"assistant\",\"content\":\"\",\"tool_calls\":[{\"id\":\"call_gateway_id\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{\\\"q\\\": \\\"x\\\"}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"call_gateway_id\",\"content\":\"{\\\"result\\\": \\\"ok\\\"}\"},{\"role\":\"function\",\"content\":\"\"}],\"stream\":false}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertGeminiRequestToOpenAI_PreservesExplicitFunctionCallIDs:144#2",
+   "path": "request",
+   "model": "test-model",
+   "input": "{\n\t\t\t\t\"contents\": [\n\t\t\t\t\t{\"role\": \"model\", \"parts\": [{\"functionCall\": {\"name\": \"lookup\", \"call_id\":\"call_gateway_call_id\", \"args\": {\"q\": \"x\"}}}]},\n\t\t\t\t\t{\"role\": \"function\", \"parts\": [{\"functionResponse\": {\"name\": \"lookup\", \"call_id\":\"call_gateway_call_id\", \"response\": {\"result\": \"ok\"}}}]}\n\t\t\t\t]\n\t\t\t}",
+   "outputs": [
+    [
+     "{\"model\":\"test-model\",\"messages\":[{\"role\":\"assistant\",\"content\":\"\",\"tool_calls\":[{\"id\":\"call_gateway_call_id\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{\\\"q\\\": \\\"x\\\"}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"call_gateway_call_id\",\"content\":\"{\\\"result\\\": \\\"ok\\\"}\"},{\"role\":\"function\",\"content\":\"\"}],\"stream\":false}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertGeminiRequestToOpenAI_PreservesExplicitFunctionCallIDs:144#3",
+   "path": "request",
+   "model": "test-model",
+   "input": "{\n\t\t\t\t\"contents\": [\n\t\t\t\t\t{\"role\": \"model\", \"parts\": [{\"functionCall\": {\"name\": \"lookup\", \"callId\":\"call_gateway_camel_id\", \"args\": {\"q\": \"x\"}}}]},\n\t\t\t\t\t{\"role\": \"function\", \"parts\": [{\"functionResponse\": {\"name\": \"lookup\", \"callId\":\"call_gateway_camel_id\", \"response\": {\"result\": \"ok\"}}}]}\n\t\t\t\t]\n\t\t\t}",
+   "outputs": [
+    [
+     "{\"model\":\"test-model\",\"messages\":[{\"role\":\"assistant\",\"content\":\"\",\"tool_calls\":[{\"id\":\"call_gateway_camel_id\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{\\\"q\\\": \\\"x\\\"}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"call_gateway_camel_id\",\"content\":\"{\\\"result\\\": \\\"ok\\\"}\"},{\"role\":\"function\",\"content\":\"\"}],\"stream\":false}"
+    ]
+   ]
+  },
+  {
+   "name": "TestSummaryIntentTranslation:76",
+   "path": "request",
+   "model": "",
+   "stream": true,
+   "input": "{\"model\":\"gpt-5.4\",\"generationConfig\":{\"thinkingConfig\":{\"thinkingLevel\":\"high\",\"includeThoughts\":false}},\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"reasoning_effort\":\"high\",\"stream\":true}"
+    ]
+   ]
   }
  ],
  "token_count": true,

@@ -796,7 +796,8 @@ pub(crate) async fn error_logs(State(state): State<Arc<Management>>) -> Response
         .into_iter()
         .map(|(name, size, modified)| serde_json::json!({"name": name, "size": size, "modified": modified}))
         .collect();
-    reply(StatusCode::OK, [("files", Value::Array(files))])
+    // errorLog structs: name, size, modified.
+    super::auth_files::reply_ordered(StatusCode::OK, [("files", Value::Array(files))])
 }
 
 /// gin `FileAttachment` over `http.ServeFile` for a plain log file.

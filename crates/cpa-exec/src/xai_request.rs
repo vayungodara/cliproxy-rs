@@ -14,11 +14,11 @@ use cpa_core::format::Format;
 use cpa_translate::RequestCtx;
 
 use crate::openai_compat_payload::{self as compat, set_bool_if_different, set_str_if_different};
-use crate::xai_apply_patch as apply_patch;
 use crate::xai_replay::{self as replay, ReplayScope};
 use crate::xai_response::{
     self as response, CUSTOM, ClientToolKey, FUNCTION, NAMESPACE, NamespaceRef, NamespaceRefs, WEB_SEARCH, text,
 };
+use cpa_translate::apply_patch_responses as apply_patch;
 
 use crate::xai::PROVIDER;
 const IMAGE_GENERATION: &str = "image_generation";
@@ -43,7 +43,7 @@ pub(crate) struct Prepared {
     pub replay_scope: ReplayScope,
     pub filter_internal_x_search: bool,
     pub web_search_alias: String,
-    /// SEAM: `helps.ApplyPatchResponsesState` (see xai_apply_patch).
+    /// `helps.ApplyPatchResponsesState`.
     pub apply_patch: apply_patch::State,
 }
 
@@ -185,8 +185,10 @@ pub(crate) fn prepare(
         gj::delete(&mut body, key);
     }
     body = cpa_common::codex_client::rewrite_multi_agent_v2_input(&req.headers, &body, &client.settings, false);
-    let mut apply_patch = apply_patch::State::new(&original_translated);
-    body = apply_patch::normalize_request(body, &original_payload)?;
+    let mut apply_patch = apply_patch::State::new(req.source_format, &original_payload, &original_translated);
+    // A plain Go error (translator/common NormalizeApplyPatchResponsesRequest).
+    body = apply_patch::normalize_executor_request(&body, Some(&original_payload))
+        .map_err(crate::openai_compat::plain_err)?;
     let will_inject = inject_x_search(cfg);
     let fold = should_fold_namespace_tools(&body, will_inject);
     let namespace_tools = collect_namespace_refs(&body, fold);
@@ -244,7 +246,7 @@ pub(crate) fn prepare(
 }
 
 /// `xaiExecutionSessionID`.
-fn execution_session_id(req: &ExecRequest) -> String {
+pub(crate) fn execution_session_id(req: &ExecRequest) -> String {
     if let Some(s) = req
         .execution_session
         .as_deref()

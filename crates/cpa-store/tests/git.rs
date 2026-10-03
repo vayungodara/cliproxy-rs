@@ -1,5 +1,7 @@
 //! `GITSTORE_*` against local bare repositories: two nodes sharing one remote, as two
 //! CLIProxyAPI instances share a token repository.
+// Mode bits, initdb and local git remotes: Unix only.
+#![cfg(unix)]
 
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};

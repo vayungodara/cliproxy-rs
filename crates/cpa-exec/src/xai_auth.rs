@@ -157,7 +157,7 @@ fn go_unmarshal(
             .find(|(name, _)| *name == key)
             .or_else(|| fields.iter().find(|(name, _)| name.go_eq_fold(&key)));
         let Some(&(name, kind)) = field else { return true };
-        let mismatch = |what: String| {
+        let mismatch = |what: &str| {
             let ty = if kind == Field::Str { "string" } else { "int" };
             format!("json: cannot unmarshal {what} into Go struct field {field_prefix}.{name} of type {ty}")
         };
@@ -173,13 +173,15 @@ fn go_unmarshal(
                 Some(n) => {
                     out.ints.insert(name, n);
                 }
+                // ponytail: Go quotes the number ("number 1.5 into ..."); the value is
+                // response data that reaches logs and returned errors, so the message
+                // names only its kind.
                 None => {
-                    let what = format!("number {}", String::from_utf8_lossy(value.raw()));
-                    first_error.get_or_insert_with(|| mismatch(what));
+                    first_error.get_or_insert_with(|| mismatch("number"));
                 }
             },
             _ => {
-                first_error.get_or_insert_with(|| mismatch(kind_name(&value).into()));
+                first_error.get_or_insert_with(|| mismatch(kind_name(&value)));
             }
         }
         true

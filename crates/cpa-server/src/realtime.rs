@@ -77,7 +77,7 @@ fn routes_with(rt: &Arc<Runtime>, live: Arc<Live>) -> Router<Arc<Runtime>> {
         .route("/v1/live", post(http::call))
         .route("/v1/live/{call_id}", get(socket::live_sideband))
         .route_layer(middleware::from_fn(socket::normalize_upgrade))
-        .layer(auth(Mode::Ordinary));
+        .route_layer(auth(Mode::Ordinary));
     let realtime = Router::new()
         .route("/v1/realtime", get(socket::realtime).post(http::call))
         .route("/v1/realtime/calls", post(http::call))
@@ -87,7 +87,7 @@ fn routes_with(rt: &Arc<Runtime>, live: Arc<Live>) -> Router<Arc<Runtime>> {
             get(http::translation).post(http::translation),
         )
         .route_layer(middleware::from_fn(socket::normalize_upgrade))
-        .layer(auth(Mode::Realtime));
+        .route_layer(auth(Mode::Realtime));
     let standard = Router::new()
         .route("/v1/realtime/client_secrets", post(secrets::create))
         .route("/v1/realtime/sessions", post(secrets::legacy))
@@ -97,7 +97,7 @@ fn routes_with(rt: &Arc<Runtime>, live: Arc<Live>) -> Router<Arc<Runtime>> {
         .route("/v1/realtime/calls/{call_id}/accept", post(http::sip))
         .route("/v1/realtime/calls/{call_id}/reject", post(http::sip))
         .route("/v1/realtime/calls/{call_id}/refer", post(http::sip))
-        .layer(auth(Mode::Standard));
+        .route_layer(auth(Mode::Standard));
     ordinary.merge(realtime).merge(standard).layer(axum::Extension(live))
 }
 

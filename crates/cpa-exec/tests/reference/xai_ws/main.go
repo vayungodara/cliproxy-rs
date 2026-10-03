@@ -1,0 +1,320 @@
+// Generates goldens for the xAI upstream Responses WebSocket by running the pinned Go
+// XAIAutoExecutor (as production registers it) on downstream-WebSocket turns against a
+// scripted local upstream: a gorilla WebSocket endpoint for /v1/responses and plain HTTP
+// for /v1/responses/compact. It never contacts a provider; keys are fake.
+package main
+
+import (
+	"bufio"
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"net"
+	"net/http"
+	"os"
+	"sort"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/gorilla/websocket"
+	"github.com/router-for-me/CLIProxyAPI/v8/internal/config"
+	"github.com/router-for-me/CLIProxyAPI/v8/internal/runtime/executor"
+	// Production registers every translator through this package (cmd/server/main.go).
+	_ "github.com/router-for-me/CLIProxyAPI/v8/internal/translator"
+	cliproxyauth "github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/auth"
+	cliproxyexecutor "github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/executor"
+	sdktranslator "github.com/router-for-me/CLIProxyAPI/v8/sdk/translator"
+)
+
+// act is what the upstream does after receiving one frame.
+type act struct {
+	Send      []string `json:"send,omitempty"`
+	Binary    bool     `json:"binary,omitempty"`
+	Close     int      `json:"close,omitempty"`
+	CloseText string   `json:"close_text,omitempty"`
+}
+
+type reply struct {
+	Status int    `json:"status"`
+	Body   string `json:"body"`
+}
+
+type errOut struct {
+	Status       int    `json:"status"`
+	Message      string `json:"message"`
+	RetryAfterMS int64  `json:"retry_after_ms"`
+}
+
+type turn struct {
+	// Close ends the downstream session instead of sending a request.
+	Close        bool              `json:"close,omitempty"`
+	Auth         string            `json:"auth,omitempty"`
+	Payload      string            `json:"payload,omitempty"`
+	Model        string            `json:"model,omitempty"`
+	Headers      map[string]string `json:"headers,omitempty"`
+	Continuation bool              `json:"continuation,omitempty"`
+	Acts         []act             `json:"acts,omitempty"`
+	Reject       *reply            `json:"reject,omitempty"`
+	Compact      *reply            `json:"compact,omitempty"`
+
+	Chunks   []string `json:"chunks"`
+	Error    *errOut  `json:"error,omitempty"`
+	Upgrades []string `json:"upgrades"`
+	Frames   []string `json:"frames"`
+	HTTP     []string `json:"http"`
+}
+
+type scenario struct {
+	Name    string `json:"name"`
+	Session string `json:"session"`
+	// Auths maps an auth ID to its attributes; base_url UPSTREAM is the local upstream.
+	Auths map[string]map[string]string `json:"auths"`
+	Turns []*turn                      `json:"turns"`
+}
+
+// upstream is the scripted server; the driver points it at the turn in progress.
+type upstream struct {
+	mu   sync.Mutex
+	turn *turn
+	addr string
+}
+
+func (u *upstream) current() *turn {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	return u.turn
+}
+
+func (u *upstream) record(f func(t *turn)) {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	if u.turn != nil {
+		f(u.turn)
+	}
+}
+
+// upgradeHeaders lists the handshake headers except the random key, sorted.
+func upgradeHeaders(r *http.Request) string {
+	var lines []string
+	for name, values := range r.Header {
+		if name == "Sec-Websocket-Key" {
+			continue
+		}
+		lines = append(lines, name+": "+strings.Join(values, ", "))
+	}
+	sort.Strings(lines)
+	return r.URL.RequestURI() + "\n" + strings.Join(lines, "\n")
+}
+
+func (u *upstream) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	t := u.current()
+	if websocket.IsWebSocketUpgrade(r) {
+		u.record(func(t *turn) { t.Upgrades = append(t.Upgrades, upgradeHeaders(r)) })
+		if t != nil && t.Reject != nil {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(t.Reject.Status)
+			_, _ = io.WriteString(w, t.Reject.Body)
+			return
+		}
+		upgrader := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		go u.serveSocket(conn)
+		return
+	}
+	body, _ := io.ReadAll(r.Body)
+	u.record(func(t *turn) {
+		t.HTTP = append(t.HTTP, r.Method+" "+r.URL.RequestURI()+"\n"+string(body))
+	})
+	w.Header().Set("Content-Type", "application/json")
+	if t == nil || t.Compact == nil {
+		w.WriteHeader(599)
+		return
+	}
+	w.WriteHeader(t.Compact.Status)
+	_, _ = io.WriteString(w, t.Compact.Body)
+}
+
+func (u *upstream) serveSocket(conn *websocket.Conn) {
+	defer conn.Close()
+	for {
+		_, data, err := conn.ReadMessage()
+		if err != nil {
+			return
+		}
+		var next *act
+		u.record(func(t *turn) {
+			t.Frames = append(t.Frames, string(data))
+			if len(t.Acts) >= len(t.Frames) {
+				next = &t.Acts[len(t.Frames)-1]
+			}
+		})
+		if next == nil {
+			continue
+		}
+		for _, frame := range next.Send {
+			if err := conn.WriteMessage(websocket.TextMessage, []byte(frame)); err != nil {
+				return
+			}
+		}
+		if next.Binary {
+			_ = conn.WriteMessage(websocket.BinaryMessage, []byte{1, 2, 3})
+		}
+		if next.Close != 0 {
+			msg := websocket.FormatCloseMessage(next.Close, next.CloseText)
+			_ = conn.WriteControl(websocket.CloseMessage, msg, time.Now().Add(time.Second))
+			return
+		}
+	}
+}
+
+func statusOf(err error) *errOut {
+	out := &errOut{Status: 500, Message: err.Error()}
+	var sc interface{ StatusCode() int }
+	if errors.As(err, &sc) && sc.StatusCode() > 0 {
+		out.Status = sc.StatusCode()
+	}
+	var ra interface{ RetryAfter() *time.Duration }
+	if errors.As(err, &ra) {
+		if d := ra.RetryAfter(); d != nil {
+			out.RetryAfterMS = d.Milliseconds()
+		}
+	}
+	return out
+}
+
+func run(s *scenario) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		panic(err)
+	}
+	up := &upstream{addr: ln.Addr().String()}
+	server := &http.Server{Handler: up}
+	go func() { _ = server.Serve(ln) }()
+	defer server.Close()
+
+	cfg := &config.Config{}
+	exec := executor.NewXAIAutoExecutor(cfg)
+	auths := map[string]*cliproxyauth.Auth{}
+	for id, attrs := range s.Auths {
+		copied := map[string]string{}
+		for k, v := range attrs {
+			copied[k] = strings.ReplaceAll(v, "UPSTREAM", up.addr)
+		}
+		auths[id] = &cliproxyauth.Auth{ID: id, Provider: "xai", Attributes: copied, Metadata: map[string]any{}}
+	}
+	normalize := func(text string) string { return strings.ReplaceAll(text, up.addr, "UPSTREAM") }
+
+	for _, t := range s.Turns {
+		up.mu.Lock()
+		up.turn = t
+		up.mu.Unlock()
+		if t.Close {
+			exec.CloseExecutionSession(s.Session)
+			time.Sleep(50 * time.Millisecond)
+		} else {
+			runTurn(exec, auths[t.Auth], s.Session, t)
+			time.Sleep(50 * time.Millisecond)
+		}
+		up.mu.Lock()
+		up.turn = nil
+		up.mu.Unlock()
+		for i := range t.Upgrades {
+			t.Upgrades[i] = normalize(t.Upgrades[i])
+		}
+		for i := range t.Frames {
+			t.Frames[i] = normalize(t.Frames[i])
+		}
+		for i := range t.HTTP {
+			t.HTTP[i] = normalize(t.HTTP[i])
+		}
+		for i := range t.Chunks {
+			t.Chunks[i] = normalize(t.Chunks[i])
+		}
+		if t.Error != nil {
+			t.Error.Message = normalize(t.Error.Message)
+		}
+		if t.Chunks == nil {
+			t.Chunks = []string{}
+		}
+		if t.Upgrades == nil {
+			t.Upgrades = []string{}
+		}
+		if t.Frames == nil {
+			t.Frames = []string{}
+		}
+		if t.HTTP == nil {
+			t.HTTP = []string{}
+		}
+	}
+	exec.CloseExecutionSession(s.Session)
+}
+
+func runTurn(exec *executor.XAIAutoExecutor, auth *cliproxyauth.Auth, session string, t *turn) {
+	model := t.Model
+	if model == "" {
+		model = "grok-4.3"
+	}
+	headers := http.Header{}
+	for k, v := range t.Headers {
+		headers.Set(k, v)
+	}
+	ctx := cliproxyexecutor.WithDownstreamWebsocket(context.Background())
+	if t.Continuation {
+		ctx = cliproxyexecutor.WithRequiredUpstreamWebsocket(ctx)
+	}
+	req := cliproxyexecutor.Request{Model: model, Payload: []byte(t.Payload), Metadata: map[string]any{}}
+	opts := cliproxyexecutor.Options{
+		Stream:          true,
+		Headers:         headers,
+		SourceFormat:    sdktranslator.FromString("openai-response"),
+		ResponseFormat:  sdktranslator.FromString("openai-response"),
+		OriginalRequest: []byte(t.Payload),
+		Metadata:        map[string]any{cliproxyexecutor.ExecutionSessionMetadataKey: session},
+	}
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	result, err := exec.ExecuteStream(ctx, auth, req, opts)
+	if err != nil {
+		t.Error = statusOf(err)
+		return
+	}
+	for chunk := range result.Chunks {
+		if chunk.Err != nil {
+			t.Error = statusOf(chunk.Err)
+			continue
+		}
+		t.Chunks = append(t.Chunks, string(chunk.Payload))
+	}
+}
+
+func main() {
+	if len(os.Args) != 2 {
+		fmt.Fprintln(os.Stderr, "usage: generator OUTPUT.json")
+		os.Exit(2)
+	}
+	all := scenarios()
+	for _, s := range all {
+		run(s)
+	}
+	out, err := os.Create(os.Args[1])
+	if err != nil {
+		panic(err)
+	}
+	defer out.Close()
+	w := bufio.NewWriter(out)
+	enc := json.NewEncoder(w)
+	enc.SetEscapeHTML(false)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(all); err != nil {
+		panic(err)
+	}
+	if err := w.Flush(); err != nil {
+		panic(err)
+	}
+}

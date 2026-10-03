@@ -14,6 +14,7 @@ btls = "0.5.6"
 cpa-common.workspace = true
 cpa-core.workspace = true
 cpa-exec.workspace = true
+cpa-plugin.workspace = true
 cpa-translate.workspace = true
 futures-util.workspace = true
 gjson = "0.8.1"
@@ -29,7 +30,10 @@ tokio-btls = "0.5.6"
 tower-service = "0.3"
 tracing.workspace = true
 tracing-subscriber.workspace = true
+tower = { version = "0.5", features = ["util"] }
+url = "2"
 uuid = { version = "1", features = ["v4"] }
+zstd = { version = "0.14", default-features = false }
 base64 = "0.22"
 bcrypt = "0.19"
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
@@ -50,6 +54,7 @@ async-trait = { version = "0.1", optional = true }
 media-relay = ["dep:webrtc", "dep:rtc", "dep:async-trait"]
 
 [dev-dependencies]
+cpa-plugin = { workspace = true, features = ["test-support"] }
 url = "2"
 tokio = { workspace = true, features = ["test-util"] }
 wreq = { workspace = true, features = ["ws"] }
