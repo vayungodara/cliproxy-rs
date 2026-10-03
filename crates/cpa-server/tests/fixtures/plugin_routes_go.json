@@ -1,0 +1,1035 @@
+{
+  "steps": [
+    {
+      "op": "files",
+      "args": {
+        "recorder-a.so": "recorder",
+        "recorder-b.so": "recorder",
+        "recorder-c.so": "recorder",
+        "recorder-d-v1.0.0.so": "recorder",
+        "recorder-d-v1.2.0.so": "recorder"
+      },
+      "result": null
+    },
+    {
+      "op": "config",
+      "args": "config-version: 8\nmanagement:\n  secret-key: $HASH\nplugins:\n  enabled: true\n  dir: PLUGINDIR/./sub/..\n  configs:\n    recorder-a:\n      enabled: true\n      priority: 5\n      record: RECORDDIR\n      label: a\n      caps: management_api,quota_provider,auth_provider\n      nested:\n        list: [1, two]\n        flag: yes\n    recorder-b:\n      enabled: true\n      record: RECORDDIR\n      label: b\n      caps: management_api\n    recorder-d:\n      enabled: false\n      store:\n        version: 1_bad\n        release-tag: 1.0.0\n    ghost:\n      enabled: true\n",
+      "result": null
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v0/management/plugins"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"plugins_enabled\":true,\"plugins_dir\":\"PLUGINDIR\",\"plugins\":[{\"id\":\"ghost\",\"path\":\"\",\"configured\":true,\"registered\":false,\"enabled\":true,\"effective_enabled\":false,\"supports_oauth\":false,\"oauth_provider\":\"\",\"supports_quota\":false,\"logo\":\"\",\"config_fields\":[],\"menus\":[],\"metadata\":null},{\"id\":\"recorder-a\",\"path\":\"PLUGINDIR/recorder-a.so\",\"configured\":true,\"registered\":true,\"enabled\":true,\"effective_enabled\":true,\"supports_oauth\":true,\"oauth_provider\":\"a\",\"supports_quota\":true,\"quota_provider\":\"a\",\"logo\":\"\",\"config_fields\":[],\"menus\":[{\"path\":\"/v0/resource/plugins/recorder-a/page\",\"menu\":\"Recorder a\",\"description\":\"\\u0026lt;b\\u0026gt;a\\u0026lt;/b\\u0026gt;\"},{\"path\":\"/v0/resource/plugins/recorder-a/rec/a/menu\",\"menu\":\"Legacy a\",\"description\":\"legacy menu\"}],\"metadata\":{\"name\":\"a\",\"version\":\"1.0.0\",\"author\":\"cliproxy-rs tests\",\"github_repository\":\"https://example.invalid/recorder\",\"logo\":\"\",\"config_fields\":[]}},{\"id\":\"recorder-b\",\"path\":\"PLUGINDIR/recorder-b.so\",\"configured\":true,\"registered\":true,\"enabled\":true,\"effective_enabled\":true,\"supports_oauth\":false,\"oauth_provider\":\"\",\"supports_quota\":false,\"logo\":\"\",\"config_fields\":[],\"menus\":[{\"path\":\"/v0/resource/plugins/recorder-b/page\",\"menu\":\"Recorder b\",\"description\":\"\\u0026lt;b\\u0026gt;b\\u0026lt;/b\\u0026gt;\"},{\"path\":\"/v0/resource/plugins/recorder-b/rec/b/menu\",\"menu\":\"Legacy b\",\"description\":\"legacy menu\"}],\"metadata\":{\"name\":\"b\",\"version\":\"1.0.0\",\"author\":\"cliproxy-rs tests\",\"github_repository\":\"https://example.invalid/recorder\",\"logo\":\"\",\"config_fields\":[]}},{\"id\":\"recorder-c\",\"path\":\"PLUGINDIR/recorder-c.so\",\"configured\":false,\"registered\":false,\"enabled\":false,\"effective_enabled\":false,\"supports_oauth\":false,\"oauth_provider\":\"\",\"supports_quota\":false,\"logo\":\"\",\"config_fields\":[],\"menus\":[],\"metadata\":null},{\"id\":\"recorder-d\",\"path\":\"PLUGINDIR/recorder-d-v1.2.0.so\",\"configured\":true,\"registered\":false,\"enabled\":false,\"effective_enabled\":false,\"supports_oauth\":false,\"oauth_provider\":\"\",\"supports_quota\":false,\"logo\":\"\",\"config_fields\":[],\"menus\":[],\"metadata\":null}]}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v8/management/plugins"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"plugins_enabled\":true,\"plugins_dir\":\"PLUGINDIR\",\"plugins\":[{\"id\":\"ghost\",\"path\":\"\",\"configured\":true,\"registered\":false,\"enabled\":true,\"effective_enabled\":false,\"supports_oauth\":false,\"oauth_provider\":\"\",\"supports_quota\":false,\"logo\":\"\",\"config_fields\":[],\"menus\":[],\"metadata\":null},{\"id\":\"recorder-a\",\"path\":\"PLUGINDIR/recorder-a.so\",\"configured\":true,\"registered\":true,\"enabled\":true,\"effective_enabled\":true,\"supports_oauth\":true,\"oauth_provider\":\"a\",\"supports_quota\":true,\"quota_provider\":\"a\",\"logo\":\"\",\"config_fields\":[],\"menus\":[{\"path\":\"/v0/resource/plugins/recorder-a/page\",\"menu\":\"Recorder a\",\"description\":\"\\u0026lt;b\\u0026gt;a\\u0026lt;/b\\u0026gt;\"},{\"path\":\"/v0/resource/plugins/recorder-a/rec/a/menu\",\"menu\":\"Legacy a\",\"description\":\"legacy menu\"}],\"metadata\":{\"name\":\"a\",\"version\":\"1.0.0\",\"author\":\"cliproxy-rs tests\",\"github_repository\":\"https://example.invalid/recorder\",\"logo\":\"\",\"config_fields\":[]}},{\"id\":\"recorder-b\",\"path\":\"PLUGINDIR/recorder-b.so\",\"configured\":true,\"registered\":true,\"enabled\":true,\"effective_enabled\":true,\"supports_oauth\":false,\"oauth_provider\":\"\",\"supports_quota\":false,\"logo\":\"\",\"config_fields\":[],\"menus\":[{\"path\":\"/v0/resource/plugins/recorder-b/page\",\"menu\":\"Recorder b\",\"description\":\"\\u0026lt;b\\u0026gt;b\\u0026lt;/b\\u0026gt;\"},{\"path\":\"/v0/resource/plugins/recorder-b/rec/b/menu\",\"menu\":\"Legacy b\",\"description\":\"legacy menu\"}],\"metadata\":{\"name\":\"b\",\"version\":\"1.0.0\",\"author\":\"cliproxy-rs tests\",\"github_repository\":\"https://example.invalid/recorder\",\"logo\":\"\",\"config_fields\":[]}},{\"id\":\"recorder-c\",\"path\":\"PLUGINDIR/recorder-c.so\",\"configured\":false,\"registered\":false,\"enabled\":false,\"effective_enabled\":false,\"supports_oauth\":false,\"oauth_provider\":\"\",\"supports_quota\":false,\"logo\":\"\",\"config_fields\":[],\"menus\":[],\"metadata\":null},{\"id\":\"recorder-d\",\"path\":\"PLUGINDIR/recorder-d-v1.2.0.so\",\"configured\":true,\"registered\":false,\"enabled\":false,\"effective_enabled\":false,\"supports_oauth\":false,\"oauth_provider\":\"\",\"supports_quota\":false,\"logo\":\"\",\"config_fields\":[],\"menus\":[],\"metadata\":null}]}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v0/management/plugins/recorder-a/config"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"caps\":\"management_api,quota_provider,auth_provider\",\"enabled\":true,\"label\":\"a\",\"nested\":{\"flag\":\"yes\",\"list\":[1,\"two\"]},\"priority\":5,\"record\":\"RECORDDIR\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v0/management/plugins/recorder-c/config"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v0/management/plugins/nope/config"
+      },
+      "result": {
+        "status": 404,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"plugin_not_found\",\"message\":\"plugin not found\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v0/management/plugins/bad!id/config"
+      },
+      "result": {
+        "status": 400,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"invalid_plugin_id\",\"message\":\"invalid plugin id\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "PATCH",
+        "path": "/v0/management/plugins/recorder-b/enabled",
+        "body": "{\"enabled\":\"false\"}"
+      },
+      "result": {
+        "status": 400,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"invalid_body\",\"message\":\"enabled is required\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "PATCH",
+        "path": "/v0/management/plugins/recorder-b/enabled"
+      },
+      "result": {
+        "status": 400,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"invalid_body\",\"message\":\"enabled is required\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "PATCH",
+        "path": "/v0/management/plugins/recorder-b/enabled",
+        "body": "{\"enabled\":null}"
+      },
+      "result": {
+        "status": 400,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"invalid_body\",\"message\":\"enabled is required\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "PATCH",
+        "path": "/v0/management/plugins/recorder-b/enabled",
+        "body": "[]"
+      },
+      "result": {
+        "status": 400,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"invalid_body\",\"message\":\"enabled is required\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "PATCH",
+        "path": "/v0/management/plugins/recorder-b/enabled",
+        "body": "{\"enabled\":false}"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"status\":\"ok\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "settle",
+      "result": null
+    },
+    {
+      "op": "plugins",
+      "result": {
+        "configs": {
+          "ghost": {
+            "enabled": true
+          },
+          "recorder-a": {
+            "caps": "management_api,quota_provider,auth_provider",
+            "enabled": true,
+            "label": "a",
+            "nested": {
+              "flag": "yes",
+              "list": [
+                1,
+                "two"
+              ]
+            },
+            "priority": 5,
+            "record": "RECORDDIR"
+          },
+          "recorder-b": {
+            "caps": "management_api",
+            "enabled": false,
+            "label": "b",
+            "record": "RECORDDIR"
+          },
+          "recorder-d": {
+            "enabled": false,
+            "store": {
+              "release-tag": "1.0.0",
+              "version": "1_bad"
+            }
+          }
+        },
+        "dir": "PLUGINDIR",
+        "enabled": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v0/management/plugins"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"plugins_enabled\":true,\"plugins_dir\":\"PLUGINDIR\",\"plugins\":[{\"id\":\"ghost\",\"path\":\"\",\"configured\":true,\"registered\":false,\"enabled\":true,\"effective_enabled\":false,\"supports_oauth\":false,\"oauth_provider\":\"\",\"supports_quota\":false,\"logo\":\"\",\"config_fields\":[],\"menus\":[],\"metadata\":null},{\"id\":\"recorder-a\",\"path\":\"PLUGINDIR/recorder-a.so\",\"configured\":true,\"registered\":true,\"enabled\":true,\"effective_enabled\":true,\"supports_oauth\":true,\"oauth_provider\":\"a\",\"supports_quota\":true,\"quota_provider\":\"a\",\"logo\":\"\",\"config_fields\":[],\"menus\":[{\"path\":\"/v0/resource/plugins/recorder-a/page\",\"menu\":\"Recorder a\",\"description\":\"\\u0026lt;b\\u0026gt;a\\u0026lt;/b\\u0026gt;\"},{\"path\":\"/v0/resource/plugins/recorder-a/rec/a/menu\",\"menu\":\"Legacy a\",\"description\":\"legacy menu\"}],\"metadata\":{\"name\":\"a\",\"version\":\"1.0.0\",\"author\":\"cliproxy-rs tests\",\"github_repository\":\"https://example.invalid/recorder\",\"logo\":\"\",\"config_fields\":[]}},{\"id\":\"recorder-b\",\"path\":\"PLUGINDIR/recorder-b.so\",\"configured\":true,\"registered\":false,\"enabled\":false,\"effective_enabled\":false,\"supports_oauth\":false,\"oauth_provider\":\"\",\"supports_quota\":false,\"logo\":\"\",\"config_fields\":[],\"menus\":[],\"metadata\":null},{\"id\":\"recorder-c\",\"path\":\"PLUGINDIR/recorder-c.so\",\"configured\":false,\"registered\":false,\"enabled\":false,\"effective_enabled\":false,\"supports_oauth\":false,\"oauth_provider\":\"\",\"supports_quota\":false,\"logo\":\"\",\"config_fields\":[],\"menus\":[],\"metadata\":null},{\"id\":\"recorder-d\",\"path\":\"PLUGINDIR/recorder-d-v1.2.0.so\",\"configured\":true,\"registered\":false,\"enabled\":false,\"effective_enabled\":false,\"supports_oauth\":false,\"oauth_provider\":\"\",\"supports_quota\":false,\"logo\":\"\",\"config_fields\":[],\"menus\":[],\"metadata\":null}]}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "PUT",
+        "path": "/v0/management/plugins/recorder-c/config",
+        "body": "{\"enabled\":\"maybe\"}"
+      },
+      "result": {
+        "status": 400,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"invalid_config\",\"message\":\"parse plugin enabled: yaml: unmarshal errors:\\n  line 0: cannot unmarshal !!str `maybe` into bool\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "PUT",
+        "path": "/v0/management/plugins/recorder-c/config",
+        "body": "{\"priority\":\"5\"}"
+      },
+      "result": {
+        "status": 400,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"invalid_config\",\"message\":\"parse plugin priority: yaml: unmarshal errors:\\n  line 0: cannot unmarshal !!str `5` into int\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "PUT",
+        "path": "/v0/management/plugins/recorder-c/config",
+        "body": "[1]"
+      },
+      "result": {
+        "status": 400,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"invalid_body\",\"message\":\"json: cannot unmarshal array into Go value of type map[string]interface {}\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "PUT",
+        "path": "/v0/management/plugins/recorder-c/config",
+        "body": "null"
+      },
+      "result": {
+        "status": 400,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"invalid_body\",\"message\":\"body must be a JSON object\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "PUT",
+        "path": "/v0/management/plugins/recorder-c/config",
+        "body": "{bad"
+      },
+      "result": {
+        "status": 400,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"invalid_body\",\"message\":\"invalid character 'b' looking for beginning of object key string\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "PUT",
+        "path": "/v0/management/plugins/recorder-c/config"
+      },
+      "result": {
+        "status": 400,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"invalid_body\",\"message\":\"EOF\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "PUT",
+        "path": "/v0/management/plugins/recorder-c/config",
+        "body": " "
+      },
+      "result": {
+        "status": 400,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"invalid_body\",\"message\":\"EOF\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "PUT",
+        "path": "/v0/management/plugins/recorder-c/config",
+        "body": "\"x\""
+      },
+      "result": {
+        "status": 400,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"invalid_body\",\"message\":\"json: cannot unmarshal string into Go value of type map[string]interface {}\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "PUT",
+        "path": "/v0/management/plugins/recorder-c/config",
+        "body": "true"
+      },
+      "result": {
+        "status": 400,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"invalid_body\",\"message\":\"json: cannot unmarshal bool into Go value of type map[string]interface {}\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "PUT",
+        "path": "/v0/management/plugins/recorder-c/config",
+        "body": "{\"a\":"
+      },
+      "result": {
+        "status": 400,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"invalid_body\",\"message\":\"unexpected EOF\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "PUT",
+        "path": "/v0/management/plugins/recorder-c/config",
+        "body": "{\"label\":\"c\",\"enabled\":true,\"record\":\"RECORDDIR\",\"caps\":\"management_api\",\"n\":1.50,\"big\":12345678901,\"z\":{\"b\":1,\"a\":[true,null,\"s\"]}}"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"status\":\"ok\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "settle",
+      "result": null
+    },
+    {
+      "op": "plugins",
+      "result": {
+        "configs": {
+          "ghost": {
+            "enabled": true
+          },
+          "recorder-a": {
+            "caps": "management_api,quota_provider,auth_provider",
+            "enabled": true,
+            "label": "a",
+            "nested": {
+              "flag": "yes",
+              "list": [
+                1,
+                "two"
+              ]
+            },
+            "priority": 5,
+            "record": "RECORDDIR"
+          },
+          "recorder-b": {
+            "caps": "management_api",
+            "enabled": false,
+            "label": "b",
+            "record": "RECORDDIR"
+          },
+          "recorder-c": {
+            "big": 12345678901,
+            "caps": "management_api",
+            "enabled": true,
+            "label": "c",
+            "n": 1.5,
+            "record": "RECORDDIR",
+            "z": {
+              "a": [
+                true,
+                null,
+                "s"
+              ],
+              "b": 1
+            }
+          },
+          "recorder-d": {
+            "enabled": false,
+            "store": {
+              "release-tag": "1.0.0",
+              "version": "1_bad"
+            }
+          }
+        },
+        "dir": "PLUGINDIR",
+        "enabled": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v0/management/plugins/recorder-c/config"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"big\":12345678901,\"caps\":\"management_api\",\"enabled\":true,\"label\":\"c\",\"n\":1.5,\"record\":\"RECORDDIR\",\"z\":{\"a\":[true,null,\"s\"],\"b\":1}}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v0/management/plugins"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"plugins_enabled\":true,\"plugins_dir\":\"PLUGINDIR\",\"plugins\":[{\"id\":\"ghost\",\"path\":\"\",\"configured\":true,\"registered\":false,\"enabled\":true,\"effective_enabled\":false,\"supports_oauth\":false,\"oauth_provider\":\"\",\"supports_quota\":false,\"logo\":\"\",\"config_fields\":[],\"menus\":[],\"metadata\":null},{\"id\":\"recorder-a\",\"path\":\"PLUGINDIR/recorder-a.so\",\"configured\":true,\"registered\":true,\"enabled\":true,\"effective_enabled\":true,\"supports_oauth\":true,\"oauth_provider\":\"a\",\"supports_quota\":true,\"quota_provider\":\"a\",\"logo\":\"\",\"config_fields\":[],\"menus\":[{\"path\":\"/v0/resource/plugins/recorder-a/page\",\"menu\":\"Recorder a\",\"description\":\"\\u0026lt;b\\u0026gt;a\\u0026lt;/b\\u0026gt;\"},{\"path\":\"/v0/resource/plugins/recorder-a/rec/a/menu\",\"menu\":\"Legacy a\",\"description\":\"legacy menu\"}],\"metadata\":{\"name\":\"a\",\"version\":\"1.0.0\",\"author\":\"cliproxy-rs tests\",\"github_repository\":\"https://example.invalid/recorder\",\"logo\":\"\",\"config_fields\":[]}},{\"id\":\"recorder-b\",\"path\":\"PLUGINDIR/recorder-b.so\",\"configured\":true,\"registered\":false,\"enabled\":false,\"effective_enabled\":false,\"supports_oauth\":false,\"oauth_provider\":\"\",\"supports_quota\":false,\"logo\":\"\",\"config_fields\":[],\"menus\":[],\"metadata\":null},{\"id\":\"recorder-c\",\"path\":\"PLUGINDIR/recorder-c.so\",\"configured\":true,\"registered\":true,\"enabled\":true,\"effective_enabled\":true,\"supports_oauth\":false,\"oauth_provider\":\"\",\"supports_quota\":false,\"logo\":\"\",\"config_fields\":[],\"menus\":[{\"path\":\"/v0/resource/plugins/recorder-c/page\",\"menu\":\"Recorder c\",\"description\":\"\\u0026lt;b\\u0026gt;c\\u0026lt;/b\\u0026gt;\"},{\"path\":\"/v0/resource/plugins/recorder-c/rec/c/menu\",\"menu\":\"Legacy c\",\"description\":\"legacy menu\"}],\"metadata\":{\"name\":\"c\",\"version\":\"1.0.0\",\"author\":\"cliproxy-rs tests\",\"github_repository\":\"https://example.invalid/recorder\",\"logo\":\"\",\"config_fields\":[]}},{\"id\":\"recorder-d\",\"path\":\"PLUGINDIR/recorder-d-v1.2.0.so\",\"configured\":true,\"registered\":false,\"enabled\":false,\"effective_enabled\":false,\"supports_oauth\":false,\"oauth_provider\":\"\",\"supports_quota\":false,\"logo\":\"\",\"config_fields\":[],\"menus\":[],\"metadata\":null}]}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "PATCH",
+        "path": "/v0/management/plugins/recorder-a/config",
+        "body": "{\"enabled\":1}"
+      },
+      "result": {
+        "status": 400,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"invalid_config\",\"message\":\"parse plugin enabled: yaml: unmarshal errors:\\n  line 0: cannot unmarshal !!int `1` into bool\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "PATCH",
+        "path": "/v0/management/plugins/recorder-a/config",
+        "body": "{\"priority\":7,\"nested\":null,\"extra\":\"x\",\"enabled\":null}"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"status\":\"ok\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "settle",
+      "result": null
+    },
+    {
+      "op": "plugins",
+      "result": {
+        "configs": {
+          "ghost": {
+            "enabled": true
+          },
+          "recorder-a": {
+            "caps": "management_api,quota_provider,auth_provider",
+            "extra": "x",
+            "label": "a",
+            "priority": 7,
+            "record": "RECORDDIR"
+          },
+          "recorder-b": {
+            "caps": "management_api",
+            "enabled": false,
+            "label": "b",
+            "record": "RECORDDIR"
+          },
+          "recorder-c": {
+            "big": 12345678901,
+            "caps": "management_api",
+            "enabled": true,
+            "label": "c",
+            "n": 1.5,
+            "record": "RECORDDIR",
+            "z": {
+              "a": [
+                true,
+                null,
+                "s"
+              ],
+              "b": 1
+            }
+          },
+          "recorder-d": {
+            "enabled": false,
+            "store": {
+              "release-tag": "1.0.0",
+              "version": "1_bad"
+            }
+          }
+        },
+        "dir": "PLUGINDIR",
+        "enabled": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v0/management/plugins/recorder-a/config"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"caps\":\"management_api,quota_provider,auth_provider\",\"extra\":\"x\",\"label\":\"a\",\"priority\":7,\"record\":\"RECORDDIR\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "PATCH",
+        "path": "/v0/management/plugins/new-one/config",
+        "body": "{\"priority\":-2}"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"status\":\"ok\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "settle",
+      "result": null
+    },
+    {
+      "op": "plugins",
+      "result": {
+        "configs": {
+          "ghost": {
+            "enabled": true
+          },
+          "new-one": {
+            "priority": -2
+          },
+          "recorder-a": {
+            "caps": "management_api,quota_provider,auth_provider",
+            "extra": "x",
+            "label": "a",
+            "priority": 7,
+            "record": "RECORDDIR"
+          },
+          "recorder-b": {
+            "caps": "management_api",
+            "enabled": false,
+            "label": "b",
+            "record": "RECORDDIR"
+          },
+          "recorder-c": {
+            "big": 12345678901,
+            "caps": "management_api",
+            "enabled": true,
+            "label": "c",
+            "n": 1.5,
+            "record": "RECORDDIR",
+            "z": {
+              "a": [
+                true,
+                null,
+                "s"
+              ],
+              "b": 1
+            }
+          },
+          "recorder-d": {
+            "enabled": false,
+            "store": {
+              "release-tag": "1.0.0",
+              "version": "1_bad"
+            }
+          }
+        },
+        "dir": "PLUGINDIR",
+        "enabled": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "PUT",
+        "path": "/v0/management/plugins/new-one/config",
+        "body": "{\"z\":{\"x\":1e400},\"a\":1}"
+      },
+      "result": {
+        "status": 400,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"invalid_body\",\"message\":\"z: x: invalid number \\\"1e400\\\"\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "PUT",
+        "path": "/v0/management/plugins/new-one/config",
+        "body": "{\"a\":[1,1e400]}"
+      },
+      "result": {
+        "status": 400,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"invalid_body\",\"message\":\"a: invalid number \\\"1e400\\\"\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "PATCH",
+        "path": "/v0/management/plugins/new-one/config",
+        "body": "{\"q\":-1e400,\"enabled\":\"bad\"}"
+      },
+      "result": {
+        "status": 400,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"invalid_body\",\"message\":\"invalid number \\\"-1e400\\\"\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "PATCH",
+        "path": "/v0/management/plugins/new-one/config",
+        "body": "{\"enabled\":\"bad\",\"enabled\":null,\"p\":1e300}"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"status\":\"ok\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "settle",
+      "result": null
+    },
+    {
+      "op": "plugins",
+      "result": {
+        "configs": {
+          "ghost": {
+            "enabled": true
+          },
+          "new-one": {
+            "p": 1e+300,
+            "priority": -2
+          },
+          "recorder-a": {
+            "caps": "management_api,quota_provider,auth_provider",
+            "extra": "x",
+            "label": "a",
+            "priority": 7,
+            "record": "RECORDDIR"
+          },
+          "recorder-b": {
+            "caps": "management_api",
+            "enabled": false,
+            "label": "b",
+            "record": "RECORDDIR"
+          },
+          "recorder-c": {
+            "big": 12345678901,
+            "caps": "management_api",
+            "enabled": true,
+            "label": "c",
+            "n": 1.5,
+            "record": "RECORDDIR",
+            "z": {
+              "a": [
+                true,
+                null,
+                "s"
+              ],
+              "b": 1
+            }
+          },
+          "recorder-d": {
+            "enabled": false,
+            "store": {
+              "release-tag": "1.0.0",
+              "version": "1_bad"
+            }
+          }
+        },
+        "dir": "PLUGINDIR",
+        "enabled": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v0/management/plugins/new-one/config"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"p\":1e+300,\"priority\":-2}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v0/%6danagement/rec/c"
+      },
+      "result": {
+        "status": 201,
+        "content_type": "application/json",
+        "body": "{\"label\":\"c \\u003c\\u0026\\u003e\",\"method\":\"GET\",\"path\":\"/v0/management/rec/c\",\"query\":null,\"results\":[]}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v0/management/rec/c"
+      },
+      "result": {
+        "status": 201,
+        "content_type": "application/json",
+        "body": "{\"label\":\"c \\u003c\\u0026\\u003e\",\"method\":\"GET\",\"path\":\"/v0/management/rec/c\",\"query\":null,\"results\":[]}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v0/management/rec/c",
+        "no_key": true
+      },
+      "result": {
+        "status": 401,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"missing management key\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v0/management/rec/c/calls",
+        "body": "{\"calls\":[]}"
+      },
+      "result": {
+        "status": 201,
+        "content_type": "application/json",
+        "body": "{\"label\":\"c \\u003c\\u0026\\u003e\",\"method\":\"POST\",\"path\":\"/v0/management/rec/c/calls\",\"query\":null,\"results\":[]}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v0/management/rec/b"
+      },
+      "result": {
+        "status": 404,
+        "content_type": "",
+        "body": "",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v0/management/nothing-here"
+      },
+      "result": {
+        "status": 404,
+        "content_type": "",
+        "body": "",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v0/management/plugins"
+      },
+      "result": {
+        "status": 404,
+        "content_type": "",
+        "body": "",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v0/resource/plugins/recorder-c/page"
+      },
+      "result": {
+        "status": 201,
+        "content_type": "application/json",
+        "body": "{\"label\":\"c \\u003c\\u0026\\u003e\",\"method\":\"GET\",\"path\":\"/v0/resource/plugins/recorder-c/page\",\"query\":null,\"results\":[]}",
+        "version_headers": false
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v0/resource/plugins/recorder-b/page?x=1"
+      },
+      "result": {
+        "status": 404,
+        "content_type": "",
+        "body": "",
+        "version_headers": false
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v8/management/rec/c"
+      },
+      "result": {
+        "status": 404,
+        "content_type": "",
+        "body": "",
+        "version_headers": false
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "DELETE",
+        "path": "/v0/management/plugins/recorder-c"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"configured_removed\":true,\"file_deleted\":true,\"id\":\"recorder-c\",\"path\":\"PLUGINDIR/recorder-c.so\",\"restart_required\":false,\"status\":\"deleted\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "settle",
+      "result": null
+    },
+    {
+      "op": "plugins",
+      "result": {
+        "configs": {
+          "ghost": {
+            "enabled": true
+          },
+          "new-one": {
+            "p": 1e+300,
+            "priority": -2
+          },
+          "recorder-a": {
+            "caps": "management_api,quota_provider,auth_provider",
+            "extra": "x",
+            "label": "a",
+            "priority": 7,
+            "record": "RECORDDIR"
+          },
+          "recorder-b": {
+            "caps": "management_api",
+            "enabled": false,
+            "label": "b",
+            "record": "RECORDDIR"
+          },
+          "recorder-d": {
+            "enabled": false,
+            "store": {
+              "release-tag": "1.0.0",
+              "version": "1_bad"
+            }
+          }
+        },
+        "dir": "PLUGINDIR",
+        "enabled": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "DELETE",
+        "path": "/v8/management/plugins/ghost"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"configured_removed\":true,\"file_deleted\":false,\"id\":\"ghost\",\"path\":\"\",\"restart_required\":false,\"status\":\"deleted\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "settle",
+      "result": null
+    },
+    {
+      "op": "plugins",
+      "result": {
+        "configs": {
+          "new-one": {
+            "p": 1e+300,
+            "priority": -2
+          },
+          "recorder-a": {
+            "caps": "management_api,quota_provider,auth_provider",
+            "extra": "x",
+            "label": "a",
+            "priority": 7,
+            "record": "RECORDDIR"
+          },
+          "recorder-b": {
+            "caps": "management_api",
+            "enabled": false,
+            "label": "b",
+            "record": "RECORDDIR"
+          },
+          "recorder-d": {
+            "enabled": false,
+            "store": {
+              "release-tag": "1.0.0",
+              "version": "1_bad"
+            }
+          }
+        },
+        "dir": "PLUGINDIR",
+        "enabled": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "DELETE",
+        "path": "/v0/management/plugins/nope"
+      },
+      "result": {
+        "status": 404,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"plugin_not_found\",\"message\":\"plugin not found\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "DELETE",
+        "path": "/v8/management/plugins/bad!id"
+      },
+      "result": {
+        "status": 400,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"invalid_plugin_id\",\"message\":\"invalid plugin id\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v0/management/plugins"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"plugins_enabled\":true,\"plugins_dir\":\"PLUGINDIR\",\"plugins\":[{\"id\":\"new-one\",\"path\":\"\",\"configured\":true,\"registered\":false,\"enabled\":false,\"effective_enabled\":false,\"supports_oauth\":false,\"oauth_provider\":\"\",\"supports_quota\":false,\"logo\":\"\",\"config_fields\":[],\"menus\":[],\"metadata\":null},{\"id\":\"recorder-a\",\"path\":\"PLUGINDIR/recorder-a.so\",\"configured\":true,\"registered\":false,\"enabled\":false,\"effective_enabled\":false,\"supports_oauth\":false,\"oauth_provider\":\"\",\"supports_quota\":false,\"logo\":\"\",\"config_fields\":[],\"menus\":[],\"metadata\":null},{\"id\":\"recorder-b\",\"path\":\"PLUGINDIR/recorder-b.so\",\"configured\":true,\"registered\":false,\"enabled\":false,\"effective_enabled\":false,\"supports_oauth\":false,\"oauth_provider\":\"\",\"supports_quota\":false,\"logo\":\"\",\"config_fields\":[],\"menus\":[],\"metadata\":null},{\"id\":\"recorder-d\",\"path\":\"PLUGINDIR/recorder-d-v1.2.0.so\",\"configured\":true,\"registered\":false,\"enabled\":false,\"effective_enabled\":false,\"supports_oauth\":false,\"oauth_provider\":\"\",\"supports_quota\":false,\"logo\":\"\",\"config_fields\":[],\"menus\":[],\"metadata\":null}]}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v0/management/rec/c"
+      },
+      "result": {
+        "status": 404,
+        "content_type": "",
+        "body": "",
+        "version_headers": true
+      }
+    }
+  ]
+}

@@ -6,6 +6,7 @@ use std::sync::Arc;
 use axum::extract::{OriginalUri, Path, State};
 use axum::http::HeaderMap;
 use axum::response::Response;
+use cpa_common::gostr::GoStr;
 use serde_json::{Map, Value, json};
 
 use crate::registry::Spec;
@@ -14,26 +15,20 @@ use crate::{Runtime, gojson, respond};
 const CLAUDE_MAX_INPUT: i64 = 200_000;
 const CLAUDE_MAX_OUTPUT: i64 = 64_000;
 
-/// `GET /v1/models`: Anthropic clients (an `Anthropic-Version` header or a `claude-cli`
-/// User-Agent) get the Anthropic catalog, everyone else the OpenAI one.
+/// `GET /v1/models`: Grok Shell (a `grok-shell` User-Agent) gets its own catalog, Codex
+/// clients (any `client_version` query key) the Codex client catalog, Anthropic clients
+/// (an `Anthropic-Version` header or a `claude-cli` User-Agent) the Anthropic catalog, and
+/// everyone else the OpenAI one.
 pub async fn unified(State(rt): State<Arc<Runtime>>, OriginalUri(uri): OriginalUri, headers: HeaderMap) -> Response {
     let header = |name: &str| {
         headers
             .get(name)
             .map(|v| String::from_utf8_lossy(v.as_bytes()).into_owned())
     };
-    // ponytail: Go serves Grok Shell (`grok-shell` User-Agent) its own catalog format;
-    // it falls back to the OpenAI list here until the xAI client catalog is ported.
-    // Codex clients (any `client_version` query key) get the Codex client catalog.
-    if let Some(version) = query_value(&uri, "client_version") {
-        return crate::codex_models::response(&rt, &version);
-    }
     let anthropic = header("anthropic-version").is_some_and(|v| !v.is_empty())
         || header("user-agent").is_some_and(|ua| ua.starts_with("claude-cli"));
-    let registry = rt.registry();
-    let body = if anthropic {
-        let disable_cloaking = rt
-            .config()
+    let disable_cloaking = || {
+        rt.config()
             .document
             .get("oauth")
             .and_then(|o| o.get("providers"))
@@ -41,8 +36,36 @@ pub async fn unified(State(rt): State<Arc<Runtime>>, OriginalUri(uri): OriginalU
             .and_then(|c| c.get("claude-code"))
             .and_then(|c| c.get("disable-cloaking-model-list"))
             .and_then(serde_yaml_ng::Value::as_bool)
-            .unwrap_or(false);
-        claude_list(registry.available_with(|c, m| rt.suspension(c, m)), disable_cloaking)
+            .unwrap_or(false)
+    };
+    // Go Home mode: the catalog Home answers for this client.
+    if let Some(remote) = rt.remote_dispatch() {
+        let entries = match crate::home_models::load(remote.as_ref(), &headers, &uri).await {
+            Ok(entries) => entries,
+            Err(response) => return *response,
+        };
+        let grok_shell = header("user-agent").is_some_and(|ua| ua.to_lowercase().contains("grok-shell"));
+        // ponytail: Go builds the Codex client catalog (`client_version`) from Home's
+        // model IDs with its template metadata; here such clients get the OpenAI list.
+        let body = if grok_shell {
+            crate::home_models::grok(&entries)
+        } else if anthropic && query_value(&uri, "client_version").is_none() {
+            crate::home_models::claude(&entries, disable_cloaking())
+        } else {
+            crate::home_models::openai(&entries)
+        };
+        return respond::gin_json(200, body);
+    }
+    if header("user-agent").is_some_and(|ua| ua.go_lower().contains("grok-shell")) {
+        let registry = rt.registry();
+        return respond::gin_json(200, grok_list(registry.available_with(|c, m| rt.suspension(c, m))));
+    }
+    if let Some(version) = query_value(&uri, "client_version") {
+        return crate::codex_models::response(&rt, &version);
+    }
+    let registry = rt.registry();
+    let body = if anthropic {
+        claude_list(registry.available_with(|c, m| rt.suspension(c, m)), disable_cloaking())
     } else {
         openai_list(registry.available_with(|c, m| rt.suspension(c, m)))
     };
@@ -70,6 +93,47 @@ pub fn openai_list<'a>(models: impl Iterator<Item = &'a Spec>) -> String {
         })
         .collect();
     gojson::sorted(&json!({ "object": "list", "data": data }))
+}
+
+/// Go `grokbuild.BuildResponse` over `GetAvailableModelInfos` (sorted by trimmed ID),
+/// marshalled in struct field order.
+pub fn grok_list<'a>(models: impl Iterator<Item = &'a Spec>) -> String {
+    let mut models: Vec<&Spec> = models.collect();
+    models.sort_by(|a, b| a.id.trim().cmp(b.id.trim()));
+    let data: Vec<String> = models
+        .into_iter()
+        .map(|m| {
+            let name = if m.display_name.is_empty() {
+                &m.id
+            } else {
+                &m.display_name
+            };
+            let mut entry = gojson::Obj::new()
+                .str("id", &m.id)
+                .str("model", &m.id)
+                .str("name", name);
+            if m.context_length > 0 {
+                entry = entry.raw("context_window", &m.context_length.to_string());
+            }
+            entry = entry.str("api_backend", "responses").raw("supported_in_api", "true");
+            let efforts: Vec<String> = m
+                .thinking
+                .iter()
+                .flat_map(|t| &t.levels)
+                .map(|level| level.trim())
+                .filter(|level| !level.is_empty())
+                .map(|level| gojson::Obj::new().str("value", level).finish())
+                .collect();
+            if !efforts.is_empty() {
+                entry = entry.raw("reasoning_efforts", &format!("[{}]", efforts.join(",")));
+            }
+            entry.finish()
+        })
+        .collect();
+    gojson::Obj::new()
+        .str("object", "list")
+        .raw("data", &format!("[{}]", data.join(",")))
+        .finish()
 }
 
 /// Go `convertModelToMap(model, "claude")` plus `claudemodels.BuildResponse`.
@@ -184,7 +248,21 @@ fn gemini_entry(m: &Spec) -> Map<String, Value> {
 }
 
 /// `GET /v1beta/models` (Go `GeminiModels`).
-pub async fn gemini_list(State(rt): State<Arc<Runtime>>) -> Response {
+pub async fn gemini_list(
+    State(rt): State<Arc<Runtime>>,
+    OriginalUri(uri): OriginalUri,
+    headers: HeaderMap,
+) -> Response {
+    // Go `handleHomeGeminiModels`.
+    if let Some(remote) = rt.remote_dispatch() {
+        return match crate::home_models::load(remote.as_ref(), &headers, &uri).await {
+            Ok(entries) => {
+                let models: Vec<Value> = entries.iter().map(crate::home_models::gemini).collect();
+                respond::gin_json(200, gojson::sorted(&json!({ "models": models })))
+            }
+            Err(response) => *response,
+        };
+    }
     let registry = rt.registry();
     let models: Vec<Value> = registry
         .available_with(|c, m| rt.suspension(c, m))
@@ -212,8 +290,24 @@ pub async fn gemini_list(State(rt): State<Arc<Runtime>>) -> Response {
 }
 
 /// `GET /v1beta/models/*action` (Go `GeminiGetHandler`).
-pub async fn gemini_get(State(rt): State<Arc<Runtime>>, Path(action): Path<String>) -> Response {
+pub async fn gemini_get(
+    State(rt): State<Arc<Runtime>>,
+    Path(action): Path<String>,
+    OriginalUri(uri): OriginalUri,
+    headers: HeaderMap,
+) -> Response {
     let action = action.trim_start_matches('/');
+    // Go `handleHomeGeminiModel`.
+    if let Some(remote) = rt.remote_dispatch() {
+        let action = action.trim();
+        return match crate::home_models::load(remote.as_ref(), &headers, &uri).await {
+            Ok(entries) => match entries.iter().find(|e| crate::home_models::gemini_matches(e, action)) {
+                Some(entry) => respond::gin_json(200, gojson::sorted(&crate::home_models::gemini(entry))),
+                None => respond::error_detail(404, "Not Found", "not_found"),
+            },
+            Err(response) => *response,
+        };
+    }
     let registry = rt.registry();
     let found = registry
         .available_with(|c, m| rt.suspension(c, m))

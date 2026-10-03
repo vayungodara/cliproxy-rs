@@ -12,7 +12,6 @@
 //! timestamp rule), so the steady state reads nothing. A change applies once it has
 //! been stable for 150 ms (config) or one tick (auth files).
 use std::collections::BTreeMap;
-use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, PoisonError};
 use std::time::{Duration, Instant, SystemTime};
@@ -52,12 +51,32 @@ struct Stat {
 }
 
 impl Stat {
+    #[cfg(unix)]
     fn of(meta: &std::fs::Metadata) -> Self {
+        use std::os::unix::fs::MetadataExt;
         Self {
             len: meta.len(),
             ino: meta.ino(),
             mtime: (meta.mtime(), meta.mtime_nsec()),
             ctime: (meta.ctime(), meta.ctime_nsec()),
+        }
+    }
+
+    /// ponytail: Windows exposes no stable file identity or change time here, so a
+    /// same-size replacement with an unchanged modification time older than two
+    /// seconds goes unnoticed until its next change.
+    #[cfg(not(unix))]
+    fn of(meta: &std::fs::Metadata) -> Self {
+        let mtime = meta
+            .modified()
+            .ok()
+            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+            .map_or((0, 0), |d| (d.as_secs() as i64, i64::from(d.subsec_nanos())));
+        Self {
+            len: meta.len(),
+            ino: 0,
+            mtime,
+            ctime: (0, 0),
         }
     }
 }

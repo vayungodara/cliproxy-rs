@@ -22,8 +22,15 @@ use futures_util::{SinkExt, StreamExt};
 use gjson::Kind;
 use http::HeaderMap;
 use tokio::sync::{OwnedMutexGuard, mpsc, watch};
-use wreq::ws::WebSocket;
-use wreq::ws::message::Message;
+use tokio_tungstenite::WebSocketStream;
+use tokio_tungstenite::tungstenite::Message;
+use tokio_tungstenite::tungstenite::protocol::{Role, WebSocketConfig};
+
+use deflate::Inflate;
+
+/// The upstream socket: tungstenite over the upgraded connection, with permessage-deflate
+/// reads when negotiated.
+pub(crate) type WebSocket = WebSocketStream<Inflate<wreq::Upgraded>>;
 
 use crate::codex::CodexExecutor;
 use crate::codex_json::{set_raw, set_str};
@@ -45,13 +52,13 @@ const MAX_HANDSHAKE_BODY: usize = 64 * 1024;
 const MAX_UPSTREAM_MESSAGE: usize = 64 * 1024 * 1024;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct Target {
-    credential: String,
-    url: String,
-    proxy: crate::proxy::Proxy,
+pub(crate) struct Target {
+    pub(crate) credential: String,
+    pub(crate) url: String,
+    pub(crate) proxy: crate::proxy::Proxy,
 }
 
-enum Read {
+pub(crate) enum Read {
     Text(String),
     /// The socket failed; the reader has already invalidated it.
     Failed(ExecError),
@@ -67,15 +74,25 @@ struct Link {
     lost: Option<ExecError>,
 }
 
-struct Upstream {
-    target: Target,
+pub(crate) struct Upstream {
+    pub(crate) target: Target,
     sink: tokio::sync::Mutex<SplitSink<WebSocket, Message>>,
     link: Mutex<Link>,
-    reader: Mutex<Option<tokio::task::AbortHandle>>,
+    pub(crate) reader: Mutex<Option<tokio::task::AbortHandle>>,
 }
 
 impl Upstream {
-    fn activate(&self) -> mpsc::Receiver<Read> {
+    /// A socket for `target`, not yet published to a session and without a reader.
+    pub(crate) fn new(target: Target, sink: SplitSink<WebSocket, Message>) -> Arc<Self> {
+        Arc::new(Self {
+            target,
+            sink: tokio::sync::Mutex::new(sink),
+            link: Mutex::default(),
+            reader: Mutex::default(),
+        })
+    }
+
+    pub(crate) fn activate(&self) -> mpsc::Receiver<Read> {
         let (tx, rx) = mpsc::channel(TURN_BUFFER);
         let mut link = self.link.lock().expect("link");
         match &link.lost {
@@ -87,13 +104,13 @@ impl Upstream {
         rx
     }
 
-    fn deactivate(&self) {
+    pub(crate) fn deactivate(&self) {
         self.link.lock().expect("link").active.take();
     }
 
     /// `writeCodexWebsocketMessage` + `mapCodexWebsocketWriteError`: a write after the
     /// upstream closed with 1009 reports the request-scoped 413 instead.
-    async fn send(&self, frame: String) -> Result<(), ExecError> {
+    pub(crate) async fn send(&self, frame: String) -> Result<(), ExecError> {
         let sent = self.sink.lock().await.send(Message::text(frame)).await;
         sent.map_err(|_| {
             self.link
@@ -107,7 +124,7 @@ impl Upstream {
     }
 
     /// Stops the reader and closes the socket. Idempotent.
-    fn shutdown(self: &Arc<Self>) {
+    pub(crate) fn shutdown(self: &Arc<Self>) {
         if let Some(reader) = self.reader.lock().expect("reader handle").take() {
             reader.abort();
         }
@@ -116,7 +133,7 @@ impl Upstream {
         tokio::spawn(async move {
             let _ = tokio::time::timeout(Duration::from_secs(1), async {
                 let mut sink = this.sink.lock().await;
-                let _ = sink.send(Message::close(None)).await;
+                let _ = sink.send(Message::Close(None)).await;
                 let _ = sink.close().await;
             })
             .await;
@@ -124,22 +141,28 @@ impl Upstream {
     }
 }
 
-struct Session {
+pub(crate) struct Session {
     /// Serialises turns (`reqMu`).
-    turn: Arc<tokio::sync::Mutex<()>>,
-    conn: Mutex<Option<Arc<Upstream>>>,
+    pub(crate) turn: Arc<tokio::sync::Mutex<()>>,
+    pub(crate) conn: Mutex<Option<Arc<Upstream>>>,
     /// Set once when the session's socket is lost (`notifyUpstreamDisconnect`).
     closed: watch::Sender<Option<ExecError>>,
+    /// The downstream connection's client frames when response steering is configured.
+    steering: Mutex<Option<Arc<SteeringInput>>>,
 }
 
 impl Session {
-    fn current(&self) -> Option<Arc<Upstream>> {
+    pub(crate) fn current(&self) -> Option<Arc<Upstream>> {
         self.conn.lock().expect("session conn").clone()
+    }
+
+    fn steering(&self) -> Option<Arc<SteeringInput>> {
+        self.steering.lock().expect("session steering").clone()
     }
 
     /// `invalidateUpstreamConn`: only the session's current socket is dropped, so a stale
     /// reader cannot tear down its replacement. `notify` tells the downstream handler.
-    fn invalidate(&self, conn: &Arc<Upstream>, error: &ExecError, notify: bool) {
+    pub(crate) fn invalidate(&self, conn: &Arc<Upstream>, error: &ExecError, notify: bool) {
         {
             let mut current = self.conn.lock().expect("session conn");
             if !current.as_ref().is_some_and(|c| Arc::ptr_eq(c, conn)) {
@@ -164,7 +187,7 @@ impl Session {
 pub(crate) struct Pool {
     sessions: Mutex<HashMap<String, Arc<Session>>>,
     /// Read deadline for each upstream application message.
-    idle: Duration,
+    pub(crate) idle: Duration,
 }
 
 impl Default for Pool {
@@ -185,7 +208,7 @@ impl Pool {
         }
     }
 
-    fn session(&self, id: &str) -> Arc<Session> {
+    pub(crate) fn session(&self, id: &str) -> Arc<Session> {
         self.sessions
             .lock()
             .expect("sessions")
@@ -195,9 +218,15 @@ impl Pool {
                     turn: Arc::default(),
                     conn: Mutex::default(),
                     closed: watch::channel(None).0,
+                    steering: Mutex::default(),
                 })
             })
             .clone()
+    }
+
+    /// `WithWebsocketInput`: binds the downstream connection's frames to its session.
+    pub fn attach_steering(&self, id: &str, input: SteeringInput) {
+        *self.session(id).steering.lock().expect("session steering") = Some(Arc::new(input));
     }
 
     /// `CloseExecutionSession`: the downstream connection ended.
@@ -423,15 +452,7 @@ impl Turn {
         if payload.is_empty() {
             return Frame::Skip;
         }
-        if let Some(headers) = codex_quota::event_headers(payload) {
-            codex_quota::merge(&mut self.observed, &headers);
-            self.quota.observe(&self.credential, &self.model, &self.observed);
-        }
-        if self.usage.enabled() {
-            // Go observes the payload before restoring collaboration names.
-            self.usage
-                .response_line(cpa_core::format::Format::Codex, payload.as_bytes());
-        }
+        self.observe(payload);
         let raw_len = payload.len();
         let payload = response::restore(payload, self.restore);
         let payload = payload.as_ref();
@@ -484,6 +505,19 @@ impl Turn {
             out: Bytes::from(response::ensure_usage_details(out)),
             bufferable,
             terminal,
+        }
+    }
+
+    /// Quota headers and usage from one upstream event, observed before collaboration
+    /// names are restored (as Go does).
+    fn observe(&mut self, payload: &str) {
+        if let Some(headers) = codex_quota::event_headers(payload) {
+            codex_quota::merge(&mut self.observed, &headers);
+            self.quota.observe(&self.credential, &self.model, &self.observed);
+        }
+        if self.usage.enabled() {
+            self.usage
+                .response_line(cpa_core::format::Format::Codex, payload.as_bytes());
         }
     }
 
@@ -624,14 +658,15 @@ impl CodexExecutor {
         model_level_cooling: bool,
     ) -> Result<(WebSocket, HeaderMap), ExecError> {
         // `newProxyAwareWebsocketDialer`: Go's standard dialer, environment proxies
-        // included when none is configured.
+        // included when none is configured, with `EnableCompression`.
+        let mut headers = headers.clone();
+        let key = offer_compression(&mut headers);
         let builder = self
             .transport
             .standard(&target.proxy)
             .websocket(&target.url)
-            .headers(headers.clone())
-            .max_frame_size(MAX_UPSTREAM_MESSAGE)
-            .max_message_size(MAX_UPSTREAM_MESSAGE);
+            .headers(headers)
+            .accept_key(key.clone());
         let attempt = async {
             let mut res = builder
                 .send()
@@ -657,10 +692,14 @@ impl CodexExecutor {
                 }
                 return Err(response::status_error(status, &body, handshake, model_level_cooling));
             }
-            let socket = res
-                .into_websocket()
-                .await
-                .map_err(|_| transport("codex websockets executor: websocket handshake failed"))?;
+            // ponytail: Go reports a failed negotiation (and a bad handshake) as a status
+            // error carrying 101; here both are transport failures.
+            let socket = upgrade(&mut res, &key, &handshake).await.map_err(|e| match e {
+                UpgradeError::Handshake => transport("codex websockets executor: websocket handshake failed"),
+                UpgradeError::Compression => {
+                    transport("codex websockets executor: websocket: invalid compression negotiation")
+                }
+            })?;
             Ok((socket, handshake))
         };
         tokio::time::timeout(HANDSHAKE_TIMEOUT, attempt)
@@ -693,6 +732,12 @@ impl CodexExecutor {
             proxy: view.proxy.clone(),
         };
         let session = self.ws.session(&exec_session.id);
+        // `WebsocketInputFromContext(ctx) != nil && cfg.Codex.ResponseSteering`.
+        let steering = settings
+            .response_steering
+            .then(|| session.steering())
+            .flatten()
+            .map(|input| (input, duplex::Prepared::new(&body, &req.original_body, restore, native)));
         let guard = session.turn.clone().lock_owned().await;
         let (mut conn, mut handshake) = if exec_session.continuation {
             match session.current().filter(|c| c.target == target) {
@@ -749,6 +794,15 @@ impl CodexExecutor {
             usage: req.usage.clone(),
             model: model.clone(),
         };
+        if let Some((input, initial)) = steering {
+            // The socket now belongs to this connection; bootstrap buffering does not apply.
+            let stream = duplex::Duplex::start(turn, input, initial, req, view, settings, &exec_session.id).await;
+            return Ok(ExecResponse {
+                status: 200,
+                headers: handshake.unwrap_or_default(),
+                body: ResponseBody::Stream(stream),
+            });
+        }
         let stream = if settings.bootstrap_buffering {
             bootstrap(turn, settings.bootstrap_timeout, started).await?
         } else {
@@ -766,7 +820,12 @@ impl CodexExecutor {
 ///
 /// Like Go's read deadline, `idle` starts when the read for the next application message
 /// begins; control frames answered meanwhile do not extend it.
-async fn read_loop(mut stream: SplitStream<WebSocket>, session: Weak<Session>, conn: Arc<Upstream>, idle: Duration) {
+pub(crate) async fn read_loop(
+    mut stream: SplitStream<WebSocket>,
+    session: Weak<Session>,
+    conn: Arc<Upstream>,
+    idle: Duration,
+) {
     let error = 'read: loop {
         let deadline = tokio::time::Instant::now() + idle;
         let text = loop {
@@ -780,12 +839,12 @@ async fn read_loop(mut stream: SplitStream<WebSocket>, session: Weak<Session>, c
                 Message::Text(text) => break text.as_str().to_owned(),
                 Message::Binary(_) => break 'read transport("codex websockets executor: unexpected binary message"),
                 Message::Close(frame) => {
-                    if let Some(frame) = frame.filter(|f| u16::from(f.code.clone()) == 1009) {
+                    if let Some(frame) = frame.filter(|f| u16::from(f.code) == 1009) {
                         break 'read message_too_big(frame.reason.as_str());
                     }
                     break 'read transport("codex websockets executor: upstream closed the connection");
                 }
-                Message::Ping(_) | Message::Pong(_) => continue,
+                Message::Ping(_) | Message::Pong(_) | Message::Frame(_) => continue,
             }
         };
         let active = conn.link.lock().expect("link").active.clone();
@@ -807,6 +866,71 @@ async fn read_loop(mut stream: SplitStream<WebSocket>, session: Weak<Session>, c
         None => conn.deactivate(),
     }
 }
+
+/// Why [`upgrade`] refused a 101 answer.
+pub(crate) enum UpgradeError {
+    /// gorilla `Dial`'s checks failed (Upgrade, Connection, Sec-WebSocket-Accept) or the
+    /// connection could not be taken over.
+    Handshake,
+    /// The permessage-deflate answer does not match the offer.
+    Compression,
+}
+
+/// gorilla `Dialer` with `EnableCompression`: offers permessage-deflate on the request
+/// and returns the `Sec-WebSocket-Key` to send with it. Shared by the Codex and xAI
+/// WebSocket executors (Go's xAI dialer also enables compression).
+pub(crate) fn offer_compression(headers: &mut HeaderMap) -> String {
+    headers.insert(
+        http::header::SEC_WEBSOCKET_EXTENSIONS,
+        http::HeaderValue::from_static(deflate::OFFER),
+    );
+    tokio_tungstenite::tungstenite::handshake::client::generate_key()
+}
+
+/// gorilla `Dial`'s checks on a 101 answer, then its permessage-deflate agreement;
+/// wraps the upgraded connection for [`Upstream`] and [`read_loop`].
+pub(crate) async fn upgrade(
+    res: &mut wreq::ws::WebSocketResponse,
+    key: &str,
+    handshake: &HeaderMap,
+) -> Result<WebSocket, UpgradeError> {
+    let accept = tokio_tungstenite::tungstenite::handshake::derive_accept_key(key.as_bytes());
+    if !token_list_contains(handshake, http::header::UPGRADE, "websocket")
+        || !token_list_contains(handshake, http::header::CONNECTION, "upgrade")
+        || handshake.get(http::header::SEC_WEBSOCKET_ACCEPT).map(|v| v.as_bytes()) != Some(accept.as_bytes())
+    {
+        return Err(UpgradeError::Handshake);
+    }
+    let compressed = deflate::negotiated(handshake).map_err(|()| UpgradeError::Compression)?;
+    let response = std::mem::replace(&mut **res, wreq::Response::from(http::Response::new(Vec::<u8>::new())));
+    let upgraded = response.upgrade().await.map_err(|_| UpgradeError::Handshake)?;
+    let config = WebSocketConfig::default()
+        .max_frame_size(Some(MAX_UPSTREAM_MESSAGE))
+        .max_message_size(Some(MAX_UPSTREAM_MESSAGE));
+    Ok(WebSocketStream::from_raw_socket(
+        Inflate::new(upgraded, compressed, MAX_UPSTREAM_MESSAGE),
+        Role::Client,
+        Some(config),
+    )
+    .await)
+}
+
+/// gorilla `tokenListContainsValue`: a comma-separated token list holds `value`
+/// (ASCII case-insensitive).
+fn token_list_contains(headers: &HeaderMap, name: http::HeaderName, value: &str) -> bool {
+    headers.get_all(name).iter().any(|v| {
+        v.to_str().is_ok_and(|v| {
+            v.split(',')
+                .any(|t| t.trim_matches([' ', '\t']).eq_ignore_ascii_case(value))
+        })
+    })
+}
+
+#[path = "codex_ws_deflate.rs"]
+pub(crate) mod deflate;
+#[path = "codex_duplex.rs"]
+mod duplex;
+pub use duplex::SteeringInput;
 
 #[cfg(test)]
 #[path = "codex_ws_tests.rs"]

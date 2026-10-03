@@ -304,6 +304,13 @@ impl Host {
         self.state().resource_routes.values().cloned().collect()
     }
 
+    /// Whether [`Self::serve_management`] would call a plugin for this method and decoded
+    /// path (Go checks this before reading the body).
+    pub fn has_management_route(&self, method: &str, path: &str) -> bool {
+        let record = self.state().management_routes.get(&route_key(method, path)).cloned();
+        record.is_some_and(|r| !self.is_fused(&r.plugin_id))
+    }
+
     /// Go `ServeManagementHTTP`: `None` when no plugin route matches.
     pub async fn serve_management(&self, req: Inbound) -> Option<Reply> {
         let key = route_key(&req.method, &req.path);

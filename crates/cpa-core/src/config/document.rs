@@ -157,9 +157,9 @@ impl ConfigDocument {
     pub fn value(&self) -> &Value {
         &self.0
     }
-    /// yaml.v3's decoding of YAML 1.1 bool spellings into typed bool fields.
-    pub(super) fn coerce_typed_bools(&mut self) {
-        super::schema::coerce_typed_bools(&mut self.0);
+    /// yaml.v3's decoding of typed scalars (see [`super::coerce_typed_scalars`]).
+    pub(super) fn coerce_typed_scalars(&mut self) {
+        super::schema::coerce_typed_scalars(&mut self.0);
     }
     pub fn into_value(self) -> Value {
         self.0
@@ -325,13 +325,12 @@ impl ConfigDocument {
     /// All parsing/normalization must finish before calling this function.
     pub fn write(path: &std::path::Path, text: &str) -> anyhow::Result<()> {
         use std::io::Write;
-        use std::os::unix::fs::OpenOptionsExt;
-        let mut file = std::fs::OpenOptions::new()
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .mode(0o600)
-            .open(path)?;
+        let mut options = std::fs::OpenOptions::new();
+        options.write(true).create(true).truncate(true);
+        // Unix: a new file is private. Windows has no mode bits (Go's mode is ignored).
+        #[cfg(unix)]
+        std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o600);
+        let mut file = options.open(path)?;
         file.write_all(text.as_bytes())?;
         file.sync_all()?;
         Ok(())

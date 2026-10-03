@@ -7,7 +7,6 @@
 
 use std::fs::{File, OpenOptions};
 use std::io::{self, Write};
-use std::os::unix::fs::{DirBuilderExt, OpenOptionsExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Mutex, MutexGuard, OnceLock, PoisonError};
@@ -108,10 +107,7 @@ fn logs_setting<'a>(cfg: &'a Config, key: &str) -> Option<&'a serde_yaml_ng::Val
 fn configure_output(dir: &Path, applied: Applied) -> io::Result<()> {
     let mut output = OUTPUT.lock().unwrap_or_else(PoisonError::into_inner);
     let protected = if applied.logging_to_file {
-        std::fs::DirBuilder::new()
-            .recursive(true)
-            .mode(0o755)
-            .create(dir)
+        create_dir(dir)
             .map_err(|e| io::Error::new(e.kind(), format!("logging: failed to create log directory: {e}")))?;
         let path = dir.join(MAIN_LOG);
         *output = Output::File(RotatingFile {
@@ -311,28 +307,38 @@ impl RotatingFile {
 
     fn open_new(&mut self) -> io::Result<()> {
         let dir = self.path.parent().unwrap_or(Path::new("."));
-        std::fs::DirBuilder::new()
-            .recursive(true)
-            .mode(0o755)
-            .create(dir)
+        create_dir(dir)
             .map_err(|e| io::Error::new(e.kind(), format!("can't make directories for new logfile: {e}")))?;
-        let mut mode = 0o600;
-        if let Ok(info) = std::fs::metadata(&self.path) {
-            mode = info.permissions().mode() & 0o7777;
+        let previous = std::fs::metadata(&self.path).ok();
+        if previous.is_some() {
             std::fs::rename(&self.path, backup_name(&self.path, chrono::Utc::now()))
                 .map_err(|e| io::Error::new(e.kind(), format!("can't rename log file: {e}")))?;
         }
-        let file = OpenOptions::new()
-            .create(true)
-            .write(true)
-            .truncate(true)
-            .mode(mode)
+        let mut options = OpenOptions::new();
+        options.create(true).write(true).truncate(true);
+        // lumberjack: 0600, or the mode of the file being rotated. Windows has no
+        // mode bits (Go's mode is ignored there).
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
+            options.mode(previous.map_or(0o600, |info| info.permissions().mode() & 0o7777));
+        }
+        let file = options
             .open(&self.path)
             .map_err(|e| io::Error::new(e.kind(), format!("can't open new logfile: {e}")))?;
         self.file = Some(file);
         self.size = 0;
         Ok(())
     }
+}
+
+/// `os.MkdirAll(dir, 0755)`.
+fn create_dir(dir: &Path) -> io::Result<()> {
+    let mut builder = std::fs::DirBuilder::new();
+    builder.recursive(true);
+    #[cfg(unix)]
+    std::os::unix::fs::DirBuilderExt::mode(&mut builder, 0o755);
+    builder.create(dir)
 }
 
 /// lumberjack `backupName`: `main.log` -> `main-2006-01-02T15-04-05.000.log`.
@@ -567,7 +573,11 @@ mod tests {
         let mut file = RotatingFile::new(path.clone());
         // New file: directory created, mode 0600.
         assert_eq!(file.write(b"12345", 10).unwrap(), 5);
-        assert_eq!(std::fs::metadata(&path).unwrap().permissions().mode() & 0o777, 0o600);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            assert_eq!(std::fs::metadata(&path).unwrap().permissions().mode() & 0o777, 0o600);
+        }
         // size + len == max fits; one more byte rotates.
         file.write(b"67890", 10).unwrap();
         assert_eq!(std::fs::read(&path).unwrap(), b"1234567890");

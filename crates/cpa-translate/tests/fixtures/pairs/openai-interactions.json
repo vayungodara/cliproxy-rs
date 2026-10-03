@@ -4576,6 +4576,545 @@
      "time": true
     }
    ]
+  },
+  {
+   "name": "TestConvertInteractionsResponseToOpenAINonStreamToolCall:173#2",
+   "path": "non_stream",
+   "model": "gemini-3.1-flash-lite",
+   "input": "{\"id\":\"i1\",\"model\":\"gemini-3.1-flash-lite\",\"steps\":[{\"type\":\"function_call\",\"id\":\"call_1\",\"name\":\"get_weather\",\"arguments\":{\"location\":\"北京\"}}],\"usage\":{\"total_input_tokens\":2,\"total_output_tokens\":3,\"total_tokens\":5}}",
+   "outputs": [
+    [
+     "{\"id\":\"i1\",\"object\":\"chat.completion\",\"created\":1791031656,\"model\":\"gemini-3.1-flash-lite\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"call_1\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"{\\\"location\\\":\\\"北京\\\"}\"}}]},\"finish_reason\":\"tool_calls\"}],\"usage\":{\"prompt_tokens\":2,\"completion_tokens\":3,\"total_tokens\":5}}"
+    ]
+   ],
+   "dynamic": [
+    {
+     "out": 0,
+     "data": -1,
+     "path": "created",
+     "time": true
+    }
+   ]
+  },
+  {
+   "name": "TestConvertInteractionsResponseToOpenAINonStream_PreservesEnvironmentID:190#2",
+   "path": "non_stream",
+   "model": "antigravity-preview-05-2026",
+   "input": "{\"id\":\"i1\",\"model\":\"antigravity-preview-05-2026\",\"environment_id\":\"env_chat123\",\"steps\":[{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"hello\"}]}],\"usage\":{\"total_tokens\":5}}",
+   "outputs": [
+    [
+     "{\"id\":\"i1\",\"object\":\"chat.completion\",\"created\":1791031656,\"model\":\"antigravity-preview-05-2026\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"hello\"},\"finish_reason\":\"stop\"}],\"environment_id\":\"env_chat123\",\"usage\":{\"total_tokens\":5}}"
+    ]
+   ],
+   "dynamic": [
+    {
+     "out": 0,
+     "data": -1,
+     "path": "created",
+     "time": true
+    }
+   ]
+  },
+  {
+   "name": "TestConvertInteractionsResponseToOpenAINonStreamRestoresAntigravityToolName:210#2",
+   "path": "non_stream",
+   "model": "antigravity-preview-05-2026",
+   "input": "{\"id\":\"i1\",\"model\":\"antigravity-preview-05-2026\",\"steps\":[{\"type\":\"function_call\",\"id\":\"call_1\",\"name\":\"external_read_file\",\"arguments\":{\"path\":\"/etc/hosts\"}}],\"usage\":{\"total_input_tokens\":2,\"total_output_tokens\":3,\"total_tokens\":5}}",
+   "outputs": [
+    [
+     "{\"id\":\"i1\",\"object\":\"chat.completion\",\"created\":1791031656,\"model\":\"antigravity-preview-05-2026\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"call_1\",\"type\":\"function\",\"function\":{\"name\":\"read_file\",\"arguments\":\"{\\\"path\\\":\\\"/etc/hosts\\\"}\"}}]},\"finish_reason\":\"tool_calls\"}],\"usage\":{\"prompt_tokens\":2,\"completion_tokens\":3,\"total_tokens\":5}}"
+    ]
+   ],
+   "dynamic": [
+    {
+     "out": 0,
+     "data": -1,
+     "path": "created",
+     "time": true
+    }
+   ]
+  },
+  {
+   "name": "TestConvertInteractionsResponseToOpenAIPreservesNonCollidingAndNonAntigravityNames:237#2",
+   "path": "non_stream",
+   "model": "antigravity-preview-05-2026",
+   "input": "{\"id\":\"i1\",\"model\":\"antigravity-preview-05-2026\",\"steps\":[{\"type\":\"function_call\",\"id\":\"call_1\",\"name\":\"external_lookup\",\"arguments\":{\"q\":\"test\"}}]}",
+   "outputs": [
+    [
+     "{\"id\":\"i1\",\"object\":\"chat.completion\",\"created\":1791031656,\"model\":\"antigravity-preview-05-2026\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"call_1\",\"type\":\"function\",\"function\":{\"name\":\"external_lookup\",\"arguments\":\"{\\\"q\\\":\\\"test\\\"}\"}}]},\"finish_reason\":\"tool_calls\"}]}"
+    ]
+   ],
+   "dynamic": [
+    {
+     "out": 0,
+     "data": -1,
+     "path": "created",
+     "time": true
+    }
+   ]
+  },
+  {
+   "name": "TestConvertInteractionsResponseToOpenAIPreservesNonCollidingAndNonAntigravityNames:243#2",
+   "path": "non_stream",
+   "model": "gemini-3.1-flash-lite",
+   "input": "{\"id\":\"i2\",\"model\":\"gemini-3.1-flash-lite\",\"steps\":[{\"type\":\"function_call\",\"id\":\"call_2\",\"name\":\"external_read_file\",\"arguments\":{\"path\":\"/etc/hosts\"}}]}",
+   "outputs": [
+    [
+     "{\"id\":\"i2\",\"object\":\"chat.completion\",\"created\":1791031656,\"model\":\"gemini-3.1-flash-lite\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"call_2\",\"type\":\"function\",\"function\":{\"name\":\"external_read_file\",\"arguments\":\"{\\\"path\\\":\\\"/etc/hosts\\\"}\"}}]},\"finish_reason\":\"tool_calls\"}]}"
+    ]
+   ],
+   "dynamic": [
+    {
+     "out": 0,
+     "data": -1,
+     "path": "created",
+     "time": true
+    }
+   ]
+  },
+  {
+   "name": "TestConvertInteractionsResponseToOpenAI_ContentFilterFinishReason:409#2",
+   "path": "non_stream",
+   "model": "devin/swe-2",
+   "input": "{\"id\":\"i1\",\"model\":\"devin/swe-2\",\"status\":\"incomplete\",\"finish_reason\":\"content_filter\",\"steps\":[{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"blocked\"}]}]}",
+   "outputs": [
+    [
+     "{\"id\":\"i1\",\"object\":\"chat.completion\",\"created\":1791031656,\"model\":\"devin/swe-2\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"blocked\"},\"finish_reason\":\"content_filter\"}]}"
+    ]
+   ],
+   "dynamic": [
+    {
+     "out": 0,
+     "data": -1,
+     "path": "created",
+     "time": true
+    }
+   ]
+  },
+  {
+   "name": "TestSummaryIntentTranslation:76",
+   "path": "request",
+   "model": "",
+   "stream": true,
+   "input": "{\"model\":\"gemini-3.6-flash\",\"reasoning_effort\":\"high\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3.6-flash\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"}]}],\"stream\":true,\"generation_config\":{\"thinking_level\":\"high\",\"thinking_summaries\":\"auto\"}}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertInteractionsResponseToOpenAIStreamToolCall:125:stream",
+   "path": "stream",
+   "model": "gemini-3.1-flash-lite",
+   "lines": [
+    "data: {\"event_type\":\"interaction.created\",\"interaction\":{\"id\":\"i1\",\"model\":\"gemini-3.1-flash-lite\"}}",
+    "data: {\"event_type\":\"step.start\",\"index\":0,\"step\":{\"type\":\"function_call\",\"id\":\"call_1\",\"name\":\"get_weather\",\"arguments\":{}}}",
+    "data: {\"event_type\":\"step.delta\",\"index\":0,\"delta\":{\"type\":\"arguments_delta\",\"arguments\":\"{\\\"location\\\":\\\"北京\\\"}\"}}",
+    "data: {\"event_type\":\"step.stop\",\"index\":0}",
+    "data: {\"event_type\":\"interaction.completed\",\"interaction\":{\"id\":\"i1\",\"status\":\"requires_action\",\"usage\":{\"total_input_tokens\":2,\"total_output_tokens\":3,\"total_tokens\":5}}}"
+   ],
+   "outputs": [
+    [
+     "{\"id\":\"i1\",\"object\":\"chat.completion.chunk\",\"created\":1791031656,\"model\":\"gemini-3.1-flash-lite\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\"},\"finish_reason\":null}]}"
+    ],
+    [
+     "{\"id\":\"i1\",\"object\":\"chat.completion.chunk\",\"created\":1791031656,\"model\":\"gemini-3.1-flash-lite\",\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"call_1\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"\"}}]},\"finish_reason\":null}]}"
+    ],
+    [
+     "{\"id\":\"i1\",\"object\":\"chat.completion.chunk\",\"created\":1791031656,\"model\":\"gemini-3.1-flash-lite\",\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":\"{\\\"location\\\":\\\"北京\\\"}\"}}]},\"finish_reason\":null}]}"
+    ],
+    [],
+    [
+     "{\"id\":\"i1\",\"object\":\"chat.completion.chunk\",\"created\":1791031656,\"model\":\"gemini-3.1-flash-lite\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"tool_calls\"}],\"usage\":{\"prompt_tokens\":2,\"completion_tokens\":3,\"total_tokens\":5}}"
+    ]
+   ],
+   "dynamic": [
+    {
+     "out": 0,
+     "data": -1,
+     "path": "created",
+     "time": true
+    },
+    {
+     "out": 1,
+     "data": -1,
+     "path": "created",
+     "time": true
+    },
+    {
+     "out": 2,
+     "data": -1,
+     "path": "created",
+     "time": true
+    },
+    {
+     "out": 3,
+     "data": -1,
+     "path": "created",
+     "time": true
+    }
+   ]
+  },
+  {
+   "name": "TestConvertInteractionsResponseToOpenAIStreamFinishMetadataUsage:149:stream",
+   "path": "stream",
+   "model": "gpt-test",
+   "lines": [
+    "data: {\"event_type\":\"finish\",\"metadata\":{\"total_usage\":{\"total_input_tokens\":2,\"total_output_tokens\":6,\"total_thought_tokens\":3,\"total_cached_tokens\":1,\"total_tokens\":11}}}"
+   ],
+   "outputs": [
+    [
+     "{\"id\":\"chatcmpl_1791031656884688712\",\"object\":\"chat.completion.chunk\",\"created\":1791031656,\"model\":\"gpt-test\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\"},\"finish_reason\":null}]}",
+     "{\"id\":\"chatcmpl_1791031656884694991\",\"object\":\"chat.completion.chunk\",\"created\":1791031656,\"model\":\"gpt-test\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":2,\"completion_tokens\":6,\"total_tokens\":11,\"prompt_tokens_details\":{\"cached_tokens\":1},\"completion_tokens_details\":{\"reasoning_tokens\":3}}}"
+    ]
+   ],
+   "dynamic": [
+    {
+     "out": 0,
+     "data": -1,
+     "path": "id",
+     "prefix": "chatcmpl_"
+    },
+    {
+     "out": 0,
+     "data": -1,
+     "path": "created",
+     "time": true
+    },
+    {
+     "out": 1,
+     "data": -1,
+     "path": "id",
+     "prefix": "chatcmpl_"
+    },
+    {
+     "out": 1,
+     "data": -1,
+     "path": "created",
+     "time": true
+    }
+   ]
+  },
+  {
+   "name": "TestConvertInteractionsResponseToOpenAIStream_PreservesEnvironmentID:199:stream",
+   "path": "stream",
+   "model": "antigravity-preview-05-2026",
+   "lines": [
+    "data: {\"event_type\":\"interaction.created\",\"interaction\":{\"id\":\"i1\",\"model\":\"antigravity-preview-05-2026\",\"environment_id\":\"env_chat_stream456\"}}"
+   ],
+   "outputs": [
+    [
+     "{\"id\":\"i1\",\"object\":\"chat.completion.chunk\",\"created\":1791031656,\"model\":\"antigravity-preview-05-2026\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\"},\"finish_reason\":null}],\"environment_id\":\"env_chat_stream456\"}"
+    ]
+   ],
+   "dynamic": [
+    {
+     "out": 0,
+     "data": -1,
+     "path": "created",
+     "time": true
+    }
+   ]
+  },
+  {
+   "name": "TestConvertInteractionsResponseToOpenAIStreamRestoresAntigravityToolName:227:stream",
+   "path": "stream",
+   "model": "antigravity-preview-05-2026",
+   "lines": [
+    "data: {\"event_type\":\"interaction.created\",\"interaction\":{\"id\":\"i1\",\"model\":\"antigravity-preview-05-2026\"}}",
+    "data: {\"event_type\":\"step.start\",\"index\":0,\"step\":{\"type\":\"function_call\",\"id\":\"call_1\",\"name\":\"external_read_file\",\"arguments\":{}}}",
+    "data: {\"event_type\":\"step.delta\",\"index\":0,\"delta\":{\"type\":\"arguments_delta\",\"arguments\":\"{\\\"path\\\":\\\"/etc/hosts\\\"}\"}}",
+    "data: {\"event_type\":\"step.stop\",\"index\":0}",
+    "data: {\"event_type\":\"interaction.completed\",\"interaction\":{\"id\":\"i1\",\"status\":\"requires_action\"}}"
+   ],
+   "outputs": [
+    [
+     "{\"id\":\"i1\",\"object\":\"chat.completion.chunk\",\"created\":1791031656,\"model\":\"antigravity-preview-05-2026\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\"},\"finish_reason\":null}]}"
+    ],
+    [
+     "{\"id\":\"i1\",\"object\":\"chat.completion.chunk\",\"created\":1791031656,\"model\":\"antigravity-preview-05-2026\",\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"call_1\",\"type\":\"function\",\"function\":{\"name\":\"read_file\",\"arguments\":\"\"}}]},\"finish_reason\":null}]}"
+    ],
+    [
+     "{\"id\":\"i1\",\"object\":\"chat.completion.chunk\",\"created\":1791031656,\"model\":\"antigravity-preview-05-2026\",\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":\"{\\\"path\\\":\\\"/etc/hosts\\\"}\"}}]},\"finish_reason\":null}]}"
+    ],
+    [],
+    [
+     "{\"id\":\"i1\",\"object\":\"chat.completion.chunk\",\"created\":1791031656,\"model\":\"antigravity-preview-05-2026\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"tool_calls\"}]}"
+    ]
+   ],
+   "dynamic": [
+    {
+     "out": 0,
+     "data": -1,
+     "path": "created",
+     "time": true
+    },
+    {
+     "out": 1,
+     "data": -1,
+     "path": "created",
+     "time": true
+    },
+    {
+     "out": 2,
+     "data": -1,
+     "path": "created",
+     "time": true
+    },
+    {
+     "out": 3,
+     "data": -1,
+     "path": "created",
+     "time": true
+    }
+   ]
+  },
+  {
+   "name": "TestConvertInteractionsResponseToOpenAIStreamToolCall_ContiguousZeroBasedIndex:335:stream",
+   "path": "stream",
+   "model": "devin/swe-2",
+   "lines": [
+    "data: {\"event_type\":\"interaction.created\",\"interaction\":{\"id\":\"i1\",\"model\":\"devin/swe-2\"}}",
+    "data: {\"event_type\":\"step.start\",\"index\":0,\"step\":{\"type\":\"thought\"}}",
+    "data: {\"event_type\":\"step.delta\",\"index\":0,\"delta\":{\"type\":\"thought_summary\",\"text\":\"planning...\"}}",
+    "data: {\"event_type\":\"step.stop\",\"index\":0}",
+    "data: {\"event_type\":\"step.start\",\"index\":1,\"step\":{\"type\":\"model_output\"}}",
+    "data: {\"event_type\":\"step.delta\",\"index\":1,\"delta\":{\"type\":\"text\",\"text\":\"I will call tool.\"}}",
+    "data: {\"event_type\":\"step.stop\",\"index\":1}",
+    "data: {\"event_type\":\"step.start\",\"index\":2,\"step\":{\"type\":\"function_call\",\"id\":\"call_first\",\"name\":\"write_file\",\"arguments\":{}}}",
+    "data: {\"event_type\":\"step.delta\",\"index\":2,\"delta\":{\"type\":\"arguments_delta\",\"arguments\":\"{\\\"path\\\":\\\"a\\\"}\"}}",
+    "data: {\"event_type\":\"step.stop\",\"index\":2}",
+    "data: {\"event_type\":\"step.start\",\"index\":3,\"step\":{\"type\":\"function_call\",\"id\":\"call_second\",\"name\":\"read_file\",\"arguments\":{}}}",
+    "data: {\"event_type\":\"step.delta\",\"index\":3,\"delta\":{\"type\":\"arguments_delta\",\"arguments\":\"{\\\"path\\\":\\\"b\\\"}\"}}",
+    "data: {\"event_type\":\"step.stop\",\"index\":3}",
+    "data: {\"event_type\":\"interaction.completed\",\"interaction\":{\"id\":\"i1\",\"status\":\"completed\"}}",
+    "data: [DONE]"
+   ],
+   "outputs": [
+    [
+     "{\"id\":\"i1\",\"object\":\"chat.completion.chunk\",\"created\":1791031656,\"model\":\"devin/swe-2\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\"},\"finish_reason\":null}]}"
+    ],
+    [],
+    [
+     "{\"id\":\"i1\",\"object\":\"chat.completion.chunk\",\"created\":1791031656,\"model\":\"devin/swe-2\",\"choices\":[{\"index\":0,\"delta\":{\"reasoning_content\":\"planning...\"},\"finish_reason\":null}]}"
+    ],
+    [],
+    [],
+    [
+     "{\"id\":\"i1\",\"object\":\"chat.completion.chunk\",\"created\":1791031656,\"model\":\"devin/swe-2\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"I will call tool.\"},\"finish_reason\":null}]}"
+    ],
+    [],
+    [
+     "{\"id\":\"i1\",\"object\":\"chat.completion.chunk\",\"created\":1791031656,\"model\":\"devin/swe-2\",\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"call_first\",\"type\":\"function\",\"function\":{\"name\":\"write_file\",\"arguments\":\"\"}}]},\"finish_reason\":null}]}"
+    ],
+    [
+     "{\"id\":\"i1\",\"object\":\"chat.completion.chunk\",\"created\":1791031656,\"model\":\"devin/swe-2\",\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":\"{\\\"path\\\":\\\"a\\\"}\"}}]},\"finish_reason\":null}]}"
+    ],
+    [],
+    [
+     "{\"id\":\"i1\",\"object\":\"chat.completion.chunk\",\"created\":1791031656,\"model\":\"devin/swe-2\",\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":1,\"id\":\"call_second\",\"type\":\"function\",\"function\":{\"name\":\"read_file\",\"arguments\":\"\"}}]},\"finish_reason\":null}]}"
+    ],
+    [
+     "{\"id\":\"i1\",\"object\":\"chat.completion.chunk\",\"created\":1791031656,\"model\":\"devin/swe-2\",\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":1,\"function\":{\"arguments\":\"{\\\"path\\\":\\\"b\\\"}\"}}]},\"finish_reason\":null}]}"
+    ],
+    [],
+    [
+     "{\"id\":\"i1\",\"object\":\"chat.completion.chunk\",\"created\":1791031656,\"model\":\"devin/swe-2\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"tool_calls\"}]}"
+    ],
+    []
+   ],
+   "dynamic": [
+    {
+     "out": 0,
+     "data": -1,
+     "path": "created",
+     "time": true
+    },
+    {
+     "out": 1,
+     "data": -1,
+     "path": "created",
+     "time": true
+    },
+    {
+     "out": 2,
+     "data": -1,
+     "path": "created",
+     "time": true
+    },
+    {
+     "out": 3,
+     "data": -1,
+     "path": "created",
+     "time": true
+    },
+    {
+     "out": 4,
+     "data": -1,
+     "path": "created",
+     "time": true
+    },
+    {
+     "out": 5,
+     "data": -1,
+     "path": "created",
+     "time": true
+    },
+    {
+     "out": 6,
+     "data": -1,
+     "path": "created",
+     "time": true
+    },
+    {
+     "out": 7,
+     "data": -1,
+     "path": "created",
+     "time": true
+    }
+   ]
+  },
+  {
+   "name": "TestConvertInteractionsResponseToOpenAIStream_IncompleteFinishReasonLength:378:stream",
+   "path": "stream",
+   "model": "devin/swe-2",
+   "lines": [
+    "data: {\"event_type\":\"interaction.created\",\"interaction\":{\"id\":\"i1\",\"model\":\"devin/swe-2\"}}",
+    "data: {\"event_type\":\"step.start\",\"index\":0,\"step\":{\"type\":\"function_call\",\"id\":\"call_1\",\"name\":\"write_file\"}}",
+    "data: {\"event_type\":\"step.delta\",\"index\":0,\"delta\":{\"type\":\"arguments_delta\",\"arguments\":\"{\\\"path\\\":\\\"a\\\"\"}}",
+    "data: {\"event_type\":\"step.stop\",\"index\":0}",
+    "data: {\"event_type\":\"interaction.completed\",\"interaction\":{\"id\":\"i1\",\"status\":\"incomplete\",\"finish_reason\":\"length\"}}",
+    "data: [DONE]"
+   ],
+   "outputs": [
+    [
+     "{\"id\":\"i1\",\"object\":\"chat.completion.chunk\",\"created\":1791031656,\"model\":\"devin/swe-2\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\"},\"finish_reason\":null}]}"
+    ],
+    [
+     "{\"id\":\"i1\",\"object\":\"chat.completion.chunk\",\"created\":1791031656,\"model\":\"devin/swe-2\",\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"call_1\",\"type\":\"function\",\"function\":{\"name\":\"write_file\",\"arguments\":\"\"}}]},\"finish_reason\":null}]}"
+    ],
+    [
+     "{\"id\":\"i1\",\"object\":\"chat.completion.chunk\",\"created\":1791031656,\"model\":\"devin/swe-2\",\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":\"{\\\"path\\\":\\\"a\\\"\"}}]},\"finish_reason\":null}]}"
+    ],
+    [],
+    [
+     "{\"id\":\"i1\",\"object\":\"chat.completion.chunk\",\"created\":1791031656,\"model\":\"devin/swe-2\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"length\"}]}"
+    ],
+    []
+   ],
+   "dynamic": [
+    {
+     "out": 0,
+     "data": -1,
+     "path": "created",
+     "time": true
+    },
+    {
+     "out": 1,
+     "data": -1,
+     "path": "created",
+     "time": true
+    },
+    {
+     "out": 2,
+     "data": -1,
+     "path": "created",
+     "time": true
+    },
+    {
+     "out": 3,
+     "data": -1,
+     "path": "created",
+     "time": true
+    }
+   ]
+  },
+  {
+   "name": "TestConvertInteractionsResponseToOpenAI_ContentFilterFinishReason:400:stream",
+   "path": "stream",
+   "model": "devin/swe-2",
+   "lines": [
+    "data: {\"event_type\":\"interaction.created\",\"interaction\":{\"id\":\"i1\",\"model\":\"devin/swe-2\"}}",
+    "data: {\"event_type\":\"step.start\",\"index\":0,\"step\":{\"type\":\"model_output\"}}",
+    "data: {\"event_type\":\"step.delta\",\"index\":0,\"delta\":{\"type\":\"text\",\"text\":\"blocked\"}}",
+    "data: {\"event_type\":\"step.stop\",\"index\":0}",
+    "data: {\"event_type\":\"interaction.completed\",\"interaction\":{\"id\":\"i1\",\"status\":\"incomplete\",\"finish_reason\":\"content_filter\"}}",
+    "data: [DONE]"
+   ],
+   "outputs": [
+    [
+     "{\"id\":\"i1\",\"object\":\"chat.completion.chunk\",\"created\":1791031656,\"model\":\"devin/swe-2\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\"},\"finish_reason\":null}]}"
+    ],
+    [],
+    [
+     "{\"id\":\"i1\",\"object\":\"chat.completion.chunk\",\"created\":1791031656,\"model\":\"devin/swe-2\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"blocked\"},\"finish_reason\":null}]}"
+    ],
+    [],
+    [
+     "{\"id\":\"i1\",\"object\":\"chat.completion.chunk\",\"created\":1791031656,\"model\":\"devin/swe-2\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"content_filter\"}]}"
+    ],
+    []
+   ],
+   "dynamic": [
+    {
+     "out": 0,
+     "data": -1,
+     "path": "created",
+     "time": true
+    },
+    {
+     "out": 1,
+     "data": -1,
+     "path": "created",
+     "time": true
+    },
+    {
+     "out": 2,
+     "data": -1,
+     "path": "created",
+     "time": true
+    }
+   ]
+  },
+  {
+   "name": "TestConvertInteractionsResponseToOpenAI_ResponseFailed:445:stream",
+   "path": "stream",
+   "model": "devin/kimi-k3",
+   "lines": [
+    "data: {\"event_type\":\"response.failed\",\"error\":{\"message\":\"devin upstream error (permission_denied): Unable to process request due to an MCP configuration issue.\",\"code\":\"403\"}}"
+   ],
+   "outputs": [
+    [
+     "{\"error\":{\"message\":\"devin upstream error (permission_denied): Unable to process request due to an MCP configuration issue.\",\"type\":\"server_error\",\"code\":\"403\"}}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertInteractionsResponseToOpenAI_ResponseFailed:445:stream#2",
+   "path": "stream",
+   "model": "devin/kimi-k3",
+   "lines": [
+    "data: {\"event_type\":\"interaction.failed\",\"interaction\":{\"error\":{\"message\":\"rate limit exceeded\",\"code\":\"429\"}}}"
+   ],
+   "outputs": [
+    [
+     "{\"error\":{\"message\":\"rate limit exceeded\",\"type\":\"server_error\",\"code\":\"429\"}}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertInteractionsResponseToOpenAI_ResponseFailed:445:stream#3",
+   "path": "stream",
+   "model": "devin/kimi-k3",
+   "lines": [
+    "data: {\"event_type\":\"response.failed\"}"
+   ],
+   "outputs": [
+    [
+     "{\"error\":{\"message\":\"upstream error occurred\",\"type\":\"server_error\"}}"
+    ]
+   ]
   }
  ],
  "token_count": false,

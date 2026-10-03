@@ -446,3 +446,90 @@ async fn large_upstream_frames_are_delivered() {
         .expect("not an error");
     assert_eq!(first.len(), len);
 }
+
+/// One final server text frame compressed like gorilla's writer (sync flush, the
+/// `00 00 ff ff` tail removed).
+fn compressed_frame(text: &str) -> Vec<u8> {
+    let mut deflate = flate2::Compress::new(flate2::Compression::fast(), false);
+    let mut payload = Vec::with_capacity(text.len() + 64);
+    deflate
+        .compress_vec(text.as_bytes(), &mut payload, flate2::FlushCompress::Sync)
+        .unwrap();
+    assert!(payload.ends_with(&[0, 0, 0xff, 0xff]));
+    payload.truncate(payload.len() - 4);
+    let mut frame = vec![0xc1];
+    match payload.len() {
+        n if n < 126 => frame.push(n as u8),
+        n => {
+            frame.push(126);
+            frame.extend_from_slice(&(n as u16).to_be_bytes());
+        }
+    }
+    frame.extend_from_slice(&payload);
+    frame
+}
+
+/// permessage-deflate end to end: the dial offers gorilla's extension, an upstream that
+/// agrees compresses its events, and the turn yields exactly what the same events give
+/// uncompressed.
+#[tokio::test]
+async fn compressed_upstream_events_read_like_plain_ones() {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let url = format!("http://{}", listener.local_addr().unwrap());
+    let server = tokio::spawn(async move {
+        let (mut tcp, _) = listener.accept().await.unwrap();
+        let mut request = Vec::new();
+        let mut buf = [0u8; 4096];
+        while !request.windows(4).any(|w| w == b"\r\n\r\n") {
+            let n = tcp.read(&mut buf).await.unwrap();
+            request.extend_from_slice(&buf[..n]);
+        }
+        let request = String::from_utf8(request).unwrap();
+        let header = |name: &str| {
+            request.lines().find_map(|line| {
+                let (k, v) = line.split_once(':')?;
+                k.trim().eq_ignore_ascii_case(name).then(|| v.trim().to_owned())
+            })
+        };
+        let accept = tokio_tungstenite::tungstenite::handshake::derive_accept_key(
+            header("sec-websocket-key").unwrap().as_bytes(),
+        );
+        let response = format!(
+            "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\
+             Sec-WebSocket-Accept: {accept}\r\nSec-WebSocket-Extensions: {}\r\n\r\n",
+            deflate::OFFER
+        );
+        tcp.write_all(response.as_bytes()).await.unwrap();
+        // The turn's response.create, then the compressed events.
+        let _ = tcp.read(&mut buf).await.unwrap();
+        for event in [CREATED, COMPLETED] {
+            tcp.write_all(&compressed_frame(event)).await.unwrap();
+        }
+        let _ = tcp.read(&mut buf).await;
+        header("sec-websocket-extensions")
+    });
+    let executor = CodexExecutor::new().unwrap();
+    let response = executor
+        .execute_in_session(&credential(&url), request(BODY), &Config::default(), &session(false))
+        .await
+        .unwrap();
+    let compressed: Vec<String> = collect(response).await.into_iter().map(Result::unwrap).collect();
+    executor.close_session("conn-1");
+    assert_eq!(server.await.unwrap().as_deref(), Some(deflate::OFFER));
+
+    let (_up, plain_url) = upstream(vec![Act::Send(vec![CREATED, COMPLETED])]).await;
+    let executor = CodexExecutor::new().unwrap();
+    let response = executor
+        .execute_in_session(
+            &credential(&plain_url),
+            request(BODY),
+            &Config::default(),
+            &session(false),
+        )
+        .await
+        .unwrap();
+    let plain: Vec<String> = collect(response).await.into_iter().map(Result::unwrap).collect();
+    assert_eq!(compressed.len(), 2, "{compressed:?}");
+    assert_eq!(compressed, plain);
+}

@@ -60,6 +60,107 @@ pub fn keepalive(cfg: &Config) -> Option<Duration> {
     (seconds > 0).then(|| Duration::from_secs(seconds as u64))
 }
 
+/// `requests.passthrough-headers` (Go `PassthroughHeadersEnabled`): upstream response
+/// headers reach the client. Off by default.
+pub fn passthrough_headers(cfg: &Config) -> bool {
+    cfg.document
+        .get("requests")
+        .and_then(|r| r.get("passthrough-headers"))
+        .and_then(serde_yaml_ng::Value::as_bool)
+        .unwrap_or(false)
+}
+
+/// Go `cpaReservedResponseHeaders`: headers CPA manages itself.
+pub fn reserved_response_header(name: &str) -> bool {
+    [
+        "access-control-allow-credentials",
+        "access-control-allow-headers",
+        "access-control-allow-methods",
+        "access-control-allow-origin",
+        "access-control-expose-headers",
+        "access-control-max-age",
+        "x-cpa-trace-id",
+    ]
+    .iter()
+    .any(|r| name.eq_ignore_ascii_case(r))
+}
+
+/// Go `hopByHopHeaders`: RFC 7230 hop-by-hop headers, `Set-Cookie`, and the framing
+/// headers CPA sets itself.
+fn hop_by_hop(name: &str) -> bool {
+    [
+        "connection",
+        "keep-alive",
+        "proxy-authenticate",
+        "proxy-authorization",
+        "te",
+        "trailer",
+        "transfer-encoding",
+        "upgrade",
+        "set-cookie",
+        "content-length",
+        "content-encoding",
+    ]
+    .iter()
+    .any(|h| name.eq_ignore_ascii_case(h))
+}
+
+/// Go `FilterUpstreamHeaders`: upstream headers without hop-by-hop, reserved,
+/// `Connection`-listed and AI-gateway headers (Claude Code reports gateways it sees).
+pub fn filter_upstream_headers(src: &axum::http::HeaderMap) -> axum::http::HeaderMap {
+    const GATEWAY_PREFIXES: [&str; 6] = ["x-litellm-", "helicone-", "x-portkey-", "cf-aig-", "x-kong-", "x-bt-"];
+    let scoped: Vec<String> = src
+        .get_all(header::CONNECTION)
+        .iter()
+        .filter_map(|v| v.to_str().ok())
+        .flat_map(|v| v.split(','))
+        .map(|t| t.trim().to_ascii_lowercase())
+        .filter(|t| !t.is_empty())
+        .collect();
+    let mut out = axum::http::HeaderMap::new();
+    for (name, value) in src {
+        let key = name.as_str();
+        if hop_by_hop(key)
+            || reserved_response_header(key)
+            || scoped.iter().any(|s| s == key)
+            || GATEWAY_PREFIXES.iter().any(|p| key.starts_with(p))
+        {
+            continue;
+        }
+        out.append(name.clone(), value.clone());
+    }
+    out
+}
+
+/// Go `WriteUpstreamHeaders`: adds each upstream header the response does not set yet.
+pub fn write_upstream_headers(dst: &mut axum::http::HeaderMap, src: &axum::http::HeaderMap) {
+    for name in src.keys() {
+        if dst.contains_key(name) {
+            continue;
+        }
+        for value in src.get_all(name) {
+            dst.append(name.clone(), value.clone());
+        }
+    }
+}
+
+/// Go `WriteErrorResponse` with passthrough on: the error's upstream headers replace
+/// the response's, reserved names excepted.
+// ponytail: Go copies these unfiltered, so an upstream Content-Length (or other
+// framing header) can declare the wrong length for CPA's error body; framing and
+// hop-by-hop headers are dropped here to keep the response valid.
+pub fn write_error_headers(dst: &mut axum::http::HeaderMap, src: &axum::http::HeaderMap) {
+    for name in src.keys() {
+        if reserved_response_header(name.as_str()) || hop_by_hop(name.as_str()) {
+            continue;
+        }
+        dst.remove(name);
+        for value in src.get_all(name) {
+            dst.append(name.clone(), value.clone());
+        }
+    }
+}
+
 /// How one route frames a stream.
 pub trait Writer: Send + 'static {
     /// One upstream event in, the bytes to write out.
@@ -270,5 +371,81 @@ mod tests {
             "response.completed"
         );
         assert!(data_payload(b": ping\n\n").is_none());
+    }
+
+    /// Go `handlers.FilterUpstreamHeaders` (tests/reference/server/main.go
+    /// `upstreamHeaderFilters`).
+    #[test]
+    fn upstream_header_filter_matches_go() {
+        use std::collections::BTreeMap;
+        let fixture: serde_json::Value =
+            serde_json::from_str(include_str!("../tests/fixtures/server_go.json")).unwrap();
+        let as_map = |v: &serde_json::Value| -> BTreeMap<String, Vec<String>> {
+            v.as_object()
+                .unwrap()
+                .iter()
+                .map(|(k, vs)| {
+                    let values = vs.as_array().unwrap().iter().map(|x| x.as_str().unwrap().to_owned());
+                    (k.to_ascii_lowercase(), values.collect())
+                })
+                .collect()
+        };
+        let cases = fixture["upstream_headers"].as_array().unwrap();
+        assert_eq!(cases.len(), 2);
+        for case in cases {
+            let mut src = axum::http::HeaderMap::new();
+            for (name, values) in as_map(&case["in"]) {
+                for value in values {
+                    src.append(
+                        axum::http::HeaderName::from_bytes(name.as_bytes()).unwrap(),
+                        HeaderValue::from_str(&value).unwrap(),
+                    );
+                }
+            }
+            let got = filter_upstream_headers(&src);
+            let mut got_map: BTreeMap<String, Vec<String>> = BTreeMap::new();
+            for (name, value) in &got {
+                got_map
+                    .entry(name.as_str().to_owned())
+                    .or_default()
+                    .push(value.to_str().unwrap().to_owned());
+            }
+            assert_eq!(got_map, as_map(&case["out"]));
+        }
+    }
+
+    /// Go `WriteUpstreamHeaders` never overwrites what the handler set;
+    /// `WriteErrorResponse` replaces with the error's headers but keeps reserved ones.
+    #[test]
+    fn upstream_and_error_header_writes_follow_go() {
+        let headers = |pairs: &[(&'static str, &'static str)]| {
+            let mut h = axum::http::HeaderMap::new();
+            for (k, v) in pairs {
+                h.append(*k, HeaderValue::from_static(v));
+            }
+            h
+        };
+        let mut dst = headers(&[("content-type", "application/json")]);
+        write_upstream_headers(
+            &mut dst,
+            &headers(&[("content-type", "text/plain"), ("x-a", "1"), ("x-a", "2")]),
+        );
+        assert_eq!(dst["content-type"], "application/json");
+        assert_eq!(dst.get_all("x-a").iter().collect::<Vec<_>>(), ["1", "2"]);
+
+        let mut dst = headers(&[("content-type", "application/json"), ("x-cpa-trace-id", "t")]);
+        write_error_headers(
+            &mut dst,
+            &headers(&[
+                ("content-type", "text/html"),
+                ("x-cpa-trace-id", "upstream"),
+                ("content-length", "999"),
+                ("x-b", "1"),
+            ]),
+        );
+        assert_eq!(dst["content-type"], "text/html");
+        assert_eq!(dst["x-cpa-trace-id"], "t");
+        assert!(dst.get("content-length").is_none());
+        assert_eq!(dst["x-b"], "1");
     }
 }

@@ -14,9 +14,16 @@
 //!   through with `previous_response_id` and incremental input, pinned to that credential's
 //!   socket. A continuation that cannot run there closes with 1012 so the client replays.
 //! - HTTP: the handler keeps the transcript and sends each turn as a full request.
+//!
+//! Response steering (`codex.response-steering`): a turn served by a Codex credential in
+//! WebSocket mode runs full duplex. The executor keeps the upstream socket for the rest of
+//! the connection and, after the first `response.created`, takes the client's later frames
+//! (`response.steer`, more creates) from a bounded channel this task fills while it
+//! forwards. That turn ends only with the connection.
 
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use axum::Extension;
@@ -32,8 +39,9 @@ use cpa_core::config::Config;
 use cpa_core::credential::Credential;
 use cpa_core::exec::{Caller, ExecError, ExecSession, ExecStream, Operation};
 use cpa_core::format::Format;
-use cpa_exec::codex::CodexExecutor;
-use futures_util::StreamExt;
+use cpa_exec::codex::{CodexExecutor, SteeringInput};
+use futures_util::{FutureExt, StreamExt};
+use tokio::sync::mpsc;
 
 use crate::registry::provider_key;
 use crate::runtime::Runtime;
@@ -66,6 +74,8 @@ const MAX_MESSAGE: usize = crate::MAX_REQUEST_BYTES;
 /// flush, the connection task and its executor session forever.
 // ponytail: one fixed best-effort bound instead of Go's in-flight-writer check.
 const TERMINAL_WRITE: Duration = Duration::from_secs(1);
+/// `readResponsesWebsocketInput`'s queue: steering frames backpressure the client.
+const STEERING_QUEUE: usize = 16;
 
 /// gorilla `returnError` for a request that is not a websocket handshake: plain status
 /// text and the supported version.
@@ -191,6 +201,11 @@ struct Connection {
     passthrough_model: String,
     mode: Mode,
     upstream_auth: String,
+    /// Client frames for a duplex turn, when response steering is configured.
+    steering: Option<mpsc::Sender<Bytes>>,
+    /// The turn's selected credential runs full duplex (`codexDuplexStream`); its stream
+    /// owns the connection's closure.
+    duplex: Arc<AtomicBool>,
 }
 
 /// A turn's stream once its first event arrived.
@@ -248,12 +263,28 @@ impl Connection {
             passthrough_model: String::new(),
             mode: Mode::Unknown,
             upstream_auth: String::new(),
+            steering: None,
+            duplex: Arc::default(),
         }
     }
 
     async fn run(mut self, mut socket: WebSocket) {
         let _tools = Retained::new(self.tool_key.clone());
-        let mut lost = Box::pin(self.rt.executors.session_closed(&self.session));
+        if CodexExecutor::response_steering_configured(&self.rt.config()) {
+            let (tx, rx) = mpsc::channel(STEERING_QUEUE);
+            let store = self.rt.store().clone();
+            // `WithWebsocketAuthCheck`. ponytail: Go falls back to the execution session's
+            // snapshot of a credential removed since; a missing credential counts as enabled.
+            let enabled = move |id: &str| store.get(id).is_none_or(|c| !c.disabled);
+            self.rt
+                .executors
+                .codex
+                .attach_steering(&self.session, SteeringInput::new(rx, enabled));
+            self.steering = Some(tx);
+        }
+        let duplex = self.duplex.clone();
+        // Fused: a loss ignored during a duplex turn never fires again.
+        let mut lost = Box::pin(self.rt.executors.session_closed(&self.session).fuse());
         loop {
             let message = tokio::select! {
                 message = socket.recv() => message,
@@ -269,11 +300,22 @@ impl Connection {
                 Some(Err(_)) | None => break,
             };
             // The turn wins ties so frames already received reach the client before a
-            // simultaneous upstream-loss signal closes the connection.
-            let flow = tokio::select! {
-                biased;
-                flow = self.turn(&mut socket, payload) => Ok(flow),
-                error = &mut lost => Err(error),
+            // simultaneous upstream-loss signal closes the connection. A duplex turn owns
+            // closure: it drains acknowledgements and pending events in order first.
+            let flow = {
+                let turn = self.turn(&mut socket, payload);
+                tokio::pin!(turn);
+                tokio::select! {
+                    biased;
+                    flow = &mut turn => Ok(flow),
+                    error = &mut lost => {
+                        if duplex.load(Ordering::Acquire) {
+                            Ok(turn.await)
+                        } else {
+                            Err(error)
+                        }
+                    }
+                }
             };
             match flow {
                 Ok(Flow::Next) => {}
@@ -596,9 +638,11 @@ impl Connection {
             mode: ctx.attempted_mode,
             preserve_output: ctx.preserve_output,
         }));
+        self.duplex.store(false, Ordering::Release);
         let on_selected: dispatch::OnSelected = {
             let (selected, rt, pinned) = (selected.clone(), self.rt.clone(), self.pinned.clone());
             let native_request = ctx.native_request;
+            let (duplex, steering) = (self.duplex.clone(), self.steering.is_some());
             Box::new(move |credential: &Credential| {
                 let mut s = selected.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
                 s.last.clone_from(&credential.id);
@@ -608,7 +652,14 @@ impl Connection {
                 } else {
                     Mode::Http
                 };
-                s.preserve_output = native_request && credential.provider.eq_ignore_ascii_case("codex");
+                let codex = credential.provider.eq_ignore_ascii_case("codex");
+                s.preserve_output = native_request && codex;
+                // OAuth-only steering leaves API keys in normal mode.
+                let full_duplex = steering
+                    && codex
+                    && s.mode == Mode::Websocket
+                    && CodexExecutor::response_steering(credential, &rt.config());
+                duplex.store(full_duplex, Ordering::Release);
             })
         };
         let turn = Arc::new(dispatch::SessionTurn {
@@ -635,6 +686,7 @@ impl Connection {
             request_path: self.request_path.clone(),
             peer: self.peer,
             turn: Some(turn),
+            media: None,
         };
         let result = dispatch::run_with_bootstrap_retries(&self.rt, call, &dispatch::Trace::default()).await;
         {
@@ -662,18 +714,62 @@ impl Connection {
         let mut deadline = keepalive.map(|k| tokio::time::Instant::now() + k);
         let mut turn = Turn::default();
         let (mut completed, mut completed_output, mut completed_id) = (false, String::from("[]"), String::new());
+        // A duplex stream reads the client's later frames and owns the connection's end.
+        let duplex = self.duplex.load(Ordering::Acquire);
+        let mut input = self.steering.clone().filter(|_| duplex);
+        let mut slot: Option<mpsc::OwnedPermit<Bytes>> = None;
+        let mut response_started = false;
         loop {
-            let item = tokio::select! {
-                item = stream.next() => item,
-                _ = sleep_until(deadline) => {
+            enum Event {
+                Item(Option<Result<Bytes, ExecError>>),
+                Ping,
+                Slot(Option<mpsc::OwnedPermit<Bytes>>),
+                Client(Option<Result<Message, axum::Error>>),
+            }
+            // Client frames are read only into a free queue slot (backpressure).
+            let event = tokio::select! {
+                biased;
+                item = stream.next() => Event::Item(item),
+                _ = sleep_until(deadline) => Event::Ping,
+                reserved = reserve(input.clone()), if input.is_some() && slot.is_none() => Event::Slot(reserved),
+                message = socket.recv(), if slot.is_some() => Event::Client(message),
+            };
+            let item = match event {
+                Event::Item(item) => item,
+                Event::Ping => {
                     if socket.send(Message::Ping(Bytes::new())).await.is_err() {
                         return Forwarded::End;
                     }
                     deadline = keepalive.map(|k| tokio::time::Instant::now() + k);
                     continue;
                 }
+                Event::Slot(Some(reserved)) => {
+                    slot = Some(reserved);
+                    continue;
+                }
+                // The executor released the queue: no more client frames are taken.
+                Event::Slot(None) => {
+                    input = None;
+                    continue;
+                }
+                Event::Client(message) => {
+                    let frame = match message {
+                        Some(Ok(Message::Text(text))) => Bytes::from(text),
+                        Some(Ok(Message::Binary(bytes))) => bytes,
+                        Some(Ok(_)) => continue,
+                        // The client went away; dropping the stream releases the socket.
+                        Some(Err(_)) | None => return Forwarded::End,
+                    };
+                    if let Some(slot) = slot.take() {
+                        slot.send(frame);
+                    }
+                    continue;
+                }
             };
             let chunk = match item {
+                // A duplex stream ends with its socket, not with a response: close the
+                // connection without an error.
+                None if duplex => return Forwarded::End,
                 None if completed => {
                     return Forwarded::Completed {
                         output: completed_output,
@@ -700,6 +796,7 @@ impl Connection {
             for mut payload in payloads_from_chunk(&chunk) {
                 let kind = gjson::get(&payload, "type").str().to_owned();
                 if kind == "response.created" {
+                    response_started = true;
                     completed = false;
                     turn.reset();
                 }
@@ -713,7 +810,10 @@ impl Connection {
                     None => tools::record_calls(&self.tool_key, &payload),
                 }
                 turn.track_pending(&payload);
-                if kind == "error" {
+                // In duplex mode an error event after `response.created` is recoverable:
+                // the client may correct the request on this socket. Stream errors still
+                // close it.
+                if kind == "error" && !(response_started && duplex) {
                     // `responsesWebsocketErrorMessageFromPayload`.
                     let mut status = gjson::get(&payload, "status").i64();
                     if status <= 0 {
@@ -758,6 +858,11 @@ fn resolve_auto(rt: &Runtime, registry: &crate::registry::Registry, model: &str)
         .resolve_auto(|client, m| rt.suspension(client, m))
         .unwrap_or_else(|| "auto".into());
     format!("{first}{}", &model[base.len()..])
+}
+
+/// A free slot in the steering queue; `None` once the executor dropped its end.
+async fn reserve(input: Option<mpsc::Sender<Bytes>>) -> Option<mpsc::OwnedPermit<Bytes>> {
+    input?.reserve_owned().await.ok()
 }
 
 async fn sleep_until(deadline: Option<tokio::time::Instant>) {

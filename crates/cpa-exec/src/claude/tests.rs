@@ -75,11 +75,11 @@ fn pipeline_reproduces_go_upstream_captures() {
         let req = enrich(request(case));
         let mut ctx = Ctx::new(&executor, &credential, &req, &cfg, Default::default());
         ctx.today = "2026-10-02".into();
-        let translated = translate::request(&req, &ctx.base_model, ctx.is_compat).unwrap();
+        let translated = translate::request(&req, ctx.codex, &ctx.base_model, ctx.is_compat).unwrap();
         let prepared = if req.operation == Operation::CountTokens {
             ctx.prepare_count(&req, &translated).unwrap()
         } else {
-            let original = translate::original(&req, &translated, &ctx.base_model, ctx.is_compat).unwrap();
+            let original = translate::original(&req, &translated, ctx.codex, &ctx.base_model, ctx.is_compat).unwrap();
             ctx.prepare_messages(&req, &translated, &original, req.stream).unwrap()
         };
         assert_eq!(prepared.body, case["upstream_body"].as_str().unwrap(), "{name}: body");
@@ -170,6 +170,119 @@ async fn custom_origin_counts_locally_without_sending_credentials() {
     );
 }
 
+/// Go's conductor observes the quota headers of every Messages response (success,
+/// undecodable success or upstream error) for Claude credentials; count_tokens results
+/// skip observation.
+#[tokio::test]
+async fn messages_responses_record_the_quota_snapshot() {
+    use axum::response::IntoResponse;
+    let replies = Arc::new(std::sync::Mutex::new(std::collections::VecDeque::from([
+        (200u16, "allowed"),
+        (429, "rejected"),
+        (200, "undecodable"),
+        (200, "count-must-not-observe"),
+    ])));
+    let router = axum::Router::new().fallback(move || {
+        let replies = replies.clone();
+        async move {
+            let (status, value) = replies.lock().unwrap().pop_front().unwrap();
+            let body = if status == 200 {
+                r#"{"id":"msg_q","type":"message","role":"assistant","model":"m","content":[],"stop_reason":"end_turn","usage":{"input_tokens":1,"output_tokens":1},"input_tokens":3}"#
+            } else {
+                r#"{"type":"error","error":{"type":"rate_limit_error","message":"limited"}}"#
+            };
+            // A 2xx whose gzip body cannot be decoded still observes the headers.
+            let encoding = if value == "undecodable" { "gzip" } else { "identity" };
+            (
+                http::StatusCode::from_u16(status).unwrap(),
+                [
+                    ("content-type", "application/json"),
+                    ("content-encoding", encoding),
+                    ("anthropic-ratelimit-unified-status", value),
+                    ("anthropic-workspace-id", "ws-not-a-signal"),
+                ],
+                body,
+            )
+                .into_response()
+        }
+    });
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let base = format!("http://{}", listener.local_addr().unwrap());
+    tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
+    let executor = ClaudeExecutor::with_client(wreq::Client::new(), DEFAULT_BASE_URL);
+    let mut credential = Credential::from_file(
+        Path::new("/fake"),
+        Path::new("/fake/claude.json"),
+        serde_json::json!({"type":"claude"}).as_object().unwrap().clone(),
+    )
+    .unwrap();
+    credential
+        .attributes
+        .insert("api_key".into(), "fake-gateway-key".into());
+    credential.attributes.insert("base_url".into(), base);
+    let request = |operation| {
+        let body = Bytes::from_static(br#"{"model":"m","max_tokens":8,"messages":[{"role":"user","content":"hi"}]}"#);
+        ExecRequest {
+            operation,
+            source_format: Format::Claude,
+            response_format: Format::Claude,
+            requested_model: "m".into(),
+            model: "m".into(),
+            original_body: body.clone(),
+            body,
+            stream: false,
+            alt: None,
+            session: None,
+            execution_session: None,
+            derived_session: None,
+            resolved_model: None,
+            usage: Default::default(),
+            request_path: String::new(),
+            headers: Default::default(),
+            caller: Caller {
+                principal: "fake-client".into(),
+                source: "x-api-key",
+            },
+        }
+    };
+    let cfg = Config::parse("").unwrap();
+    let signal = |executor: &ClaudeExecutor| {
+        let snapshot = executor.quota().snapshot(&credential.id).unwrap();
+        assert_eq!(snapshot.signals.len(), 1, "only quota headers are signals");
+        snapshot.signals["Anthropic-Ratelimit-Unified-Status"].clone()
+    };
+    assert!(executor.quota().snapshot(&credential.id).is_none());
+    executor
+        .execute(&credential, request(Operation::Generate), &cfg)
+        .await
+        .unwrap();
+    assert_eq!(signal(&executor), "allowed");
+    let error = executor
+        .execute(&credential, request(Operation::Generate), &cfg)
+        .await
+        .err()
+        .unwrap();
+    assert_eq!(error.status, 429);
+    assert_eq!(signal(&executor), "rejected");
+    assert!(
+        executor
+            .execute(&credential, request(Operation::Generate), &cfg)
+            .await
+            .is_err()
+    );
+    assert_eq!(signal(&executor), "undecodable");
+    // A custom origin counts locally; Delegation's upstream count still never observes.
+    let count = Delegation {
+        count_upstream: true,
+        ..Default::default()
+    };
+    executor
+        .execute_delegated(&credential, request(Operation::CountTokens), &cfg, count)
+        .await
+        .unwrap();
+    assert_eq!(signal(&executor), "undecodable");
+}
+
 /// Go `session.Enrich` + `ExtractSessionID`, as the server applies them before the
 /// executor (crates/cpa-server/src/session.rs, on the shared `cpa_common::session`).
 fn enrich(mut req: ExecRequest) -> ExecRequest {
@@ -200,6 +313,15 @@ fn normalize_random(text: &str) -> String {
     let text = device.replace_all(text, "${1}<device>");
     let text = session.replace_all(&text, "${1}<session>");
     cch.replace_all(&text, "cch=<cch>;").into_owned()
+}
+
+/// The model capabilities Go bound to the scenario's request (dispatch's job in Rust).
+fn resolved(scenario: &Value) -> Option<cpa_core::exec::ResolvedModel> {
+    let info = scenario.get("resolved_info")?.as_object()?.clone();
+    Some(cpa_core::exec::ResolvedModel {
+        info: cpa_core::registry::ModelInfo::from_raw(info).unwrap(),
+        source: cpa_core::exec::ResolvedSource::ApiKey,
+    })
 }
 
 /// [`normalize_random`] plus the values a cloaked request derives from the wall clock
@@ -294,14 +416,41 @@ fn assert_go_error(name: &str, scenario: &Value, info: &serde_json::Map<String, 
 
 #[tokio::test]
 async fn executor_scenarios_match_go() {
+    // Sequenced through execute(): compat_replay_sequence_matches_go; config keys:
+    // m1_0041_to_m1_0056_config_keys_match_go.
+    scenarios_match_go("all", |name| !name.starts_with("replay-") && !is_config_scenario(name)).await;
+}
+
+/// Scenarios whose only purpose is a `config.yaml` key (Go generator, same pipeline).
+fn is_config_scenario(name: &str) -> bool {
+    name.starts_with("config-") || name == "apikey-cloak-config-strict-sensitive"
+}
+
+/// M1-0041 rebuild-mid-system-message, M1-0043 cloak.strict-mode, M1-0044
+/// cloak.sensitive-words, M1-0048..M1-0055 every header-defaults key (stabilized and
+/// not) and M1-0056 disable-claude-cloak-mode, each set in config.yaml and run through
+/// Go's executor by the scenario generator.
+#[tokio::test]
+async fn m1_0041_to_m1_0056_config_keys_match_go() {
     let fixture: Value = serde_json::from_str(include_str!("testdata/go_executor.json")).unwrap();
-    let root = std::env::temp_dir().join(format!("cpa-claude-go-{}", std::process::id()));
+    let count = fixture["scenarios"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|s| is_config_scenario(s["name"].as_str().unwrap()))
+        .count();
+    assert_eq!(count, 5);
+    scenarios_match_go("config", is_config_scenario).await;
+}
+
+async fn scenarios_match_go(run: &str, selected: fn(&str) -> bool) {
+    let fixture: Value = serde_json::from_str(include_str!("testdata/go_executor.json")).unwrap();
+    let root = std::env::temp_dir().join(format!("cpa-claude-go-{run}-{}", std::process::id()));
     let executor = ClaudeExecutor::with_client(wreq::Client::new(), DEFAULT_BASE_URL);
     let prompt_id = regex::Regex::new(r"cc_prompt_id=[0-9a-f-]{36};").unwrap();
     for scenario in fixture["scenarios"].as_array().unwrap() {
         let name = scenario["name"].as_str().unwrap();
-        if name.starts_with("replay-") {
-            // Sequenced through execute(): compat_replay_sequence_matches_go.
+        if !selected(name) {
             continue;
         }
         let dir = root.join(name);
@@ -358,7 +507,7 @@ async fn executor_scenarios_match_go() {
             session: None,
             execution_session: scenario["execution_session"].as_str().map(str::to_owned),
             derived_session: None,
-            resolved_model: None,
+            resolved_model: resolved(scenario),
             usage: Default::default(),
             request_path: String::new(),
             headers,
@@ -370,12 +519,12 @@ async fn executor_scenarios_match_go() {
         let req = enrich(req);
         let mut ctx = Ctx::new(&executor, &credential, &req, &cfg, Default::default());
         ctx.today = scenario["date"].as_str().unwrap().into();
-        let translated = translate::request(&req, &ctx.base_model, ctx.is_compat).unwrap();
+        let translated = translate::request(&req, ctx.codex, &ctx.base_model, ctx.is_compat).unwrap();
         let prepared = if count {
             ctx.prepare_count(&req, &translated)
         } else {
             // generate(): translated clients always stream upstream.
-            let original = translate::original(&req, &translated, &ctx.base_model, ctx.is_compat).unwrap();
+            let original = translate::original(&req, &translated, ctx.codex, &ctx.base_model, ctx.is_compat).unwrap();
             ctx.prepare_messages(&req, &translated, &original, stream || source != Format::Claude)
         };
         if scenario["upstream"].as_array().is_none_or(Vec::is_empty) {
@@ -422,6 +571,16 @@ async fn executor_scenarios_match_go() {
                 continue;
             }
             if k == "X-Claude-Code-Session-Id" && name.starts_with("apikey-cloak") {
+                continue;
+            }
+            // The default User-Agent names the build: CLIProxyAPI/dev in Go's generator.
+            if let Some(go_version) = b.strip_prefix("CLIProxyAPI/") {
+                assert_eq!(go_version, "dev", "{name}: header {k}");
+                assert_eq!(
+                    a,
+                    &format!("CLIProxyAPI/{}", env!("CARGO_PKG_VERSION")),
+                    "{name}: header {k}"
+                );
                 continue;
             }
             assert_eq!(a, b, "{name}: header {k}");
@@ -477,6 +636,7 @@ async fn executor_scenarios_match_go() {
                         &continuity.prompt_id,
                     )
                 }),
+                Default::default(),
             )
             .map(|e| String::from_utf8(e.unwrap().to_vec()).unwrap())
             .collect()
@@ -496,6 +656,75 @@ async fn executor_scenarios_match_go() {
         }
     }
     let _ = std::fs::remove_dir_all(root);
+}
+
+/// Go's non-stream native path: a reply whose OAuth tool alias cannot be restored
+/// returns before ParseClaudeUsage, so the deferred TrackFailure publishes no tokens
+/// even though the upstream body (and its model) was observed.
+#[tokio::test]
+async fn unrestorable_tool_alias_publishes_no_tokens() {
+    use axum::response::IntoResponse;
+    let router = axum::Router::new().fallback(|body: String| async move {
+        // The client tool `other` went upstream as mcp__<virtual server>__<word>_other;
+        // `query` under that server matches both passthrough MCP tools.
+        let sent: Value = serde_json::from_str(&body).unwrap();
+        let alias = sent["tools"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|t| t["name"].as_str())
+            .find(|n| n.ends_with("_other"))
+            .unwrap()
+            .to_owned();
+        let server = alias.split("__").nth(1).unwrap();
+        let reply = serde_json::json!({
+            "id": "msg_r", "type": "message", "role": "assistant", "model": "claude-upstream",
+            "content": [{"type": "tool_use", "id": "toolu_1", "name": format!("mcp__{server}__query"), "input": {}}],
+            "stop_reason": "tool_use", "usage": {"input_tokens": 11, "output_tokens": 3},
+        });
+        ([(http::header::CONTENT_TYPE, "application/json")], reply.to_string()).into_response()
+    });
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let base = format!("http://{}", listener.local_addr().unwrap());
+    tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
+    let executor = ClaudeExecutor::with_client(wreq::Client::new(), DEFAULT_BASE_URL);
+    let mut credential = harness_credential();
+    credential.attributes.insert("base_url".into(), base);
+    let body = Bytes::from_static(
+        br#"{"model":"claude-sonnet-4-6","max_tokens":8,"messages":[{"role":"user","content":"hi"}],"tools":[{"name":"mcp__srv1__query","input_schema":{"type":"object"}},{"name":"mcp__srv2__query","input_schema":{"type":"object"}},{"name":"other","input_schema":{"type":"object"}}]}"#,
+    );
+    let usage = Arc::new(Usage::default());
+    let req = enrich(ExecRequest {
+        operation: Operation::Generate,
+        source_format: Format::Claude,
+        response_format: Format::Claude,
+        requested_model: "claude-sonnet-4-6".into(),
+        model: "claude-sonnet-4-6".into(),
+        original_body: body.clone(),
+        body,
+        stream: false,
+        alt: None,
+        session: None,
+        execution_session: None,
+        derived_session: None,
+        resolved_model: None,
+        usage: cpa_core::exec::UsageSink::new(usage.clone()),
+        request_path: String::new(),
+        headers: Default::default(),
+        caller: Caller {
+            principal: "fake-client".into(),
+            source: "authorization",
+        },
+    });
+    let cfg = Config::parse("").unwrap();
+    let error = executor.execute(&credential, req, &cfg).await.err().unwrap();
+    let message = String::from_utf8_lossy(&error.body).into_owned();
+    assert!(
+        message.starts_with("restore Claude OAuth tool name from response: "),
+        "{message}"
+    );
+    let kinds: Vec<_> = usage.0.lock().unwrap().iter().map(|(kind, _, _)| *kind).collect();
+    assert_eq!(kinds, ["request", "body", "failed"]);
 }
 
 /// Go's in-process compat replay across two requests (store, then restore), replayed
@@ -549,6 +778,7 @@ async fn compat_replay_sequence_matches_go() {
         .build()
         .unwrap();
     let executor = ClaudeExecutor::with_client(client, DEFAULT_BASE_URL);
+    let usage = Arc::new(Usage::default());
     let root = std::env::temp_dir().join(format!("cpa-claude-replay-{}", std::process::id()));
     std::fs::create_dir_all(&root).unwrap();
     for (step, scenario) in steps.iter().enumerate() {
@@ -586,8 +816,8 @@ async fn compat_replay_sequence_matches_go() {
             session: None,
             execution_session: None,
             derived_session: None,
-            resolved_model: None,
-            usage: Default::default(),
+            resolved_model: resolved(scenario),
+            usage: cpa_core::exec::UsageSink::new(usage.clone()),
             request_path: String::new(),
             headers,
             caller: Caller {
@@ -595,6 +825,7 @@ async fn compat_replay_sequence_matches_go() {
                 source: "authorization",
             },
         });
+        usage.0.lock().unwrap().clear();
         let sent = captured.lock().unwrap().len();
         let result = executor.execute(&credential, req, &cfg).await;
         match scenario["error_status"].as_u64() {
@@ -607,9 +838,43 @@ async fn compat_replay_sequence_matches_go() {
         let go = scenario["upstream"][0]["body"].as_str();
         let rust = captured.lock().unwrap().get(sent).cloned();
         assert_eq!(rust.is_some(), go.is_some(), "step {step}: upstream request");
-        if let (Some(rust), Some(go)) = (rust, go) {
+        if let (Some(rust), Some(go)) = (rust.clone(), go) {
             assert_eq!(normalize_replay(&rust), normalize_replay(go), "step {step}");
         }
+        // Go's usage reporter reads the body sent upstream (SetTranslatedReasoningEffort)
+        // and the upstream reply as received (ParseClaudeUsage, ObserveResponseModel).
+        let reports = usage.0.lock().unwrap().clone();
+        let mut want = Vec::new();
+        if let Some(sent) = rust {
+            want.push(("request", Format::Claude, sent));
+            if scenario["error_status"].is_null() {
+                let reply = scenario["reply"]["body"].as_str().unwrap().to_owned();
+                want.push(("body", Format::Claude, reply));
+            }
+        }
+        assert_eq!(reports, want, "step {step}: usage reports");
     }
     let _ = std::fs::remove_dir_all(root);
+}
+
+/// Records what the executor reports to the usage queue.
+#[derive(Default)]
+pub(super) struct Usage(pub std::sync::Mutex<Vec<(&'static str, Format, String)>>);
+
+impl cpa_core::exec::UsageObserver for Usage {
+    fn response_body(&self, format: Format, body: &[u8]) {
+        let body = String::from_utf8_lossy(body).into_owned();
+        self.0.lock().unwrap().push(("body", format, body));
+    }
+    fn response_line(&self, format: Format, line: &[u8]) {
+        let line = String::from_utf8_lossy(line).into_owned();
+        self.0.lock().unwrap().push(("line", format, line));
+    }
+    fn request(&self, format: Format, payload: &[u8]) {
+        let payload = String::from_utf8_lossy(payload).into_owned();
+        self.0.lock().unwrap().push(("request", format, payload));
+    }
+    fn failed(&self) {
+        self.0.lock().unwrap().push(("failed", Format::Claude, String::new()));
+    }
 }

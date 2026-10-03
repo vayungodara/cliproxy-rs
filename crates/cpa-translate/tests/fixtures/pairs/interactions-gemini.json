@@ -2619,6 +2619,108 @@
      "prefix": "interaction_"
     }
    ]
+  },
+  {
+   "name": "TestConvertGeminiResponseToInteractionsNonStream_ThoughtSignature:1105#2",
+   "path": "non_stream",
+   "model": "gemini-3.5-flash",
+   "input": "{\n\t\t\"candidates\": [{\n\t\t\t\"content\": {\n\t\t\t\t\"role\": \"model\",\n\t\t\t\t\"parts\": [\n\t\t\t\t\t{\"functionCall\": {\"name\": \"lookup\", \"id\": \"call_1\", \"args\": {\"q\": \"x\"}}, \"thoughtSignature\": \"sig_fc\"},\n\t\t\t\t\t{\"functionCall\": {\"name\": \"search\", \"id\": \"call_2\", \"args\": {\"q\": \"y\"}}}\n\t\t\t\t]\n\t\t\t}\n\t\t}]\n\t}",
+   "outputs": [
+    [
+     "{\"id\":\"interaction_1791031652254029980\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-3.5-flash\",\"steps\":[{\"type\":\"thought\",\"signature\":\"sig_fc\"},{\"type\":\"function_call\",\"name\":\"lookup\",\"arguments\":{\"q\": \"x\"},\"call_id\":\"call_1\"},{\"type\":\"function_call\",\"name\":\"search\",\"arguments\":{\"q\": \"y\"},\"call_id\":\"call_2\"}]}"
+    ]
+   ],
+   "dynamic": [
+    {
+     "out": 0,
+     "data": -1,
+     "path": "id",
+     "prefix": "interaction_"
+    }
+   ]
+  },
+  {
+   "name": "TestConvertInteractionsRequestToGemini_ResponseToRequestRoundTrip:1206#2",
+   "path": "non_stream",
+   "model": "gemini-3.5-flash",
+   "input": "{\n\t\t\"candidates\": [{\n\t\t\t\"content\": {\n\t\t\t\t\"role\": \"model\",\n\t\t\t\t\"parts\": [\n\t\t\t\t\t{\"functionCall\": {\"name\": \"lookup\", \"id\": \"call_1\", \"args\": {\"q\": \"x\"}}, \"thoughtSignature\": \"sig_rt_fc\"},\n\t\t\t\t\t{\"functionCall\": {\"name\": \"search\", \"id\": \"call_2\", \"args\": {\"q\": \"y\"}}}\n\t\t\t\t]\n\t\t\t}\n\t\t}]\n\t}",
+   "outputs": [
+    [
+     "{\"id\":\"interaction_1791031652255223017\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-3.5-flash\",\"steps\":[{\"type\":\"thought\",\"signature\":\"sig_rt_fc\"},{\"type\":\"function_call\",\"name\":\"lookup\",\"arguments\":{\"q\": \"x\"},\"call_id\":\"call_1\"},{\"type\":\"function_call\",\"name\":\"search\",\"arguments\":{\"q\": \"y\"},\"call_id\":\"call_2\"}]}"
+    ]
+   ],
+   "dynamic": [
+    {
+     "out": 0,
+     "data": -1,
+     "path": "id",
+     "prefix": "interaction_"
+    }
+   ]
+  },
+  {
+   "name": "TestConvertInteractionsRequestToGemini_ResponseToRequestRoundTrip:1216#2",
+   "path": "request",
+   "model": "gemini-3.5-flash",
+   "input": "{\"model\":\"gemini-3.5-flash\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"hello\"}]},{\"type\":\"thought\",\"signature\":\"sig_rt_fc\"},{\"type\":\"function_call\",\"name\":\"lookup\",\"arguments\":{\"q\": \"x\"},\"call_id\":\"call_1\"},{\"type\":\"function_call\",\"name\":\"search\",\"arguments\":{\"q\": \"y\"},\"call_id\":\"call_2\"},{\"type\":\"function_result\",\"name\":\"lookup\",\"call_id\":\"call_1\",\"result\":{\"ok\":true}},{\"type\":\"function_result\",\"name\":\"search\",\"call_id\":\"call_2\",\"result\":{\"found\":true}}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hello\"}]},{\"role\":\"model\",\"parts\":[{\"functionCall\":{\"name\":\"lookup\",\"args\":{\"q\": \"x\"},\"id\":\"call_1\"},\"thoughtSignature\":\"sig_rt_fc\"},{\"functionCall\":{\"name\":\"search\",\"args\":{\"q\": \"y\"},\"id\":\"call_2\"}}]},{\"role\":\"user\",\"parts\":[{\"functionResponse\":{\"name\":\"lookup\",\"response\":{\"ok\":true},\"id\":\"call_1\"}},{\"functionResponse\":{\"name\":\"search\",\"response\":{\"found\":true},\"id\":\"call_2\"}}]}]}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertInteractionsRequestToGemini_TrailingSignatureRoundTrip:1274#2",
+   "path": "non_stream",
+   "model": "gemini-3.5-flash",
+   "input": "{\n\t\t\"candidates\": [{\n\t\t\t\"content\": {\n\t\t\t\t\"role\": \"model\",\n\t\t\t\t\"parts\": [\n\t\t\t\t\t{\"text\": \"answer\"},\n\t\t\t\t\t{\"text\": \"\", \"thoughtSignature\": \"sig_trailing_rt\"}\n\t\t\t\t]\n\t\t\t}\n\t\t}]\n\t}",
+   "outputs": [
+    [
+     "{\"id\":\"interaction_1791031652258486104\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-3.5-flash\",\"steps\":[{\"type\":\"model_output\",\"content\":[{\"text\":\"answer\"}]},{\"type\":\"thought\",\"signature\":\"sig_trailing_rt\"}]}"
+    ]
+   ],
+   "dynamic": [
+    {
+     "out": 0,
+     "data": -1,
+     "path": "id",
+     "prefix": "interaction_"
+    }
+   ]
+  },
+  {
+   "name": "TestConvertInteractionsRequestToGemini_TrailingSignatureRoundTrip:1278",
+   "path": "request",
+   "model": "gemini-3.5-flash",
+   "input": "{\"model\":\"gemini-3.5-flash\",\"input\":[{\"type\":\"model_output\",\"content\":[{\"text\":\"answer\"}]},{\"type\":\"thought\",\"signature\":\"sig_trailing_rt\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3.5-flash\",\"contents\":[{\"role\":\"model\",\"parts\":[{\"text\":\"answer\"},{\"text\":\"\",\"thoughtSignature\":\"sig_trailing_rt\"}]}]}"
+    ]
+   ]
+  },
+  {
+   "name": "TestSummaryIntentTranslation:76",
+   "path": "request",
+   "model": "",
+   "stream": true,
+   "input": "{\"model\":\"gemini-3.6-flash\",\"generation_config\":{\"thinking_level\":\"high\",\"thinking_summaries\":\"auto\"},\"input\":\"hi\"}",
+   "outputs": [
+    [
+     "{\"model\":\"\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"thinkingConfig\":{\"thinkingLevel\":\"high\",\"includeThoughts\":true}}}"
+    ]
+   ]
+  },
+  {
+   "name": "TestInvalidInteractionsSummaryDoesNotWriteTargetControl:100",
+   "path": "request",
+   "model": "model",
+   "input": "{\"model\":\"model\",\"generation_config\":{\"thinking_summaries\":\"banana\"},\"input\":\"hi\"}",
+   "outputs": [
+    [
+     "{\"model\":\"model\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{}}"
+    ]
+   ]
   }
  ],
  "token_count": false,

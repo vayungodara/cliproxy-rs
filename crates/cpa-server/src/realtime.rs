@@ -20,6 +20,9 @@
 
 mod calls;
 mod http;
+#[cfg(feature = "media-relay")]
+mod media;
+mod relay;
 mod secrets;
 mod socket;
 
@@ -40,6 +43,7 @@ use crate::runtime::{AcquireError, Lease, Runtime, Selection};
 pub(crate) struct Live {
     calls: Arc<calls::Calls>,
     secrets: secrets::Secrets,
+    relays: relay::Relays,
 }
 
 impl Default for Live {
@@ -47,6 +51,7 @@ impl Default for Live {
         Self {
             calls: calls::Calls::new(),
             secrets: secrets::Secrets::default(),
+            relays: relay::Relays::default(),
         }
     }
 }
@@ -59,13 +64,16 @@ impl Drop for Live {
 }
 
 pub fn routes(rt: &Arc<Runtime>) -> Router<Arc<Runtime>> {
-    let live = Arc::new(Live::default());
+    routes_with(rt, Arc::new(Live::default()))
+}
+
+fn routes_with(rt: &Arc<Runtime>, live: Arc<Live>) -> Router<Arc<Runtime>> {
     let auth = |mode| middleware::from_fn_with_state((rt.clone(), live.clone(), mode), authenticate);
     let ordinary = Router::new()
         .route("/v1/live", post(http::call))
         .route("/v1/live/{call_id}", get(socket::live_sideband))
         .route_layer(middleware::from_fn(socket::normalize_upgrade))
-        .layer(auth(Mode::Ordinary));
+        .route_layer(auth(Mode::Ordinary));
     let realtime = Router::new()
         .route("/v1/realtime", get(socket::realtime).post(http::call))
         .route("/v1/realtime/calls", post(http::call))
@@ -75,7 +83,7 @@ pub fn routes(rt: &Arc<Runtime>) -> Router<Arc<Runtime>> {
             get(http::translation).post(http::translation),
         )
         .route_layer(middleware::from_fn(socket::normalize_upgrade))
-        .layer(auth(Mode::Realtime));
+        .route_layer(auth(Mode::Realtime));
     let standard = Router::new()
         .route("/v1/realtime/client_secrets", post(secrets::create))
         .route("/v1/realtime/sessions", post(secrets::legacy))
@@ -85,7 +93,7 @@ pub fn routes(rt: &Arc<Runtime>) -> Router<Arc<Runtime>> {
         .route("/v1/realtime/calls/{call_id}/accept", post(http::sip))
         .route("/v1/realtime/calls/{call_id}/reject", post(http::sip))
         .route("/v1/realtime/calls/{call_id}/refer", post(http::sip))
-        .layer(auth(Mode::Standard));
+        .route_layer(auth(Mode::Standard));
     ordinary.merge(realtime).merge(standard).layer(axum::Extension(live))
 }
 

@@ -59,15 +59,99 @@ pub fn yaml_bool(v: &Value) -> Option<bool> {
     }
 }
 
-/// yaml.v3 decoding into a Go `int`.
+/// yaml.v3 decoding into a Go `int`: floats truncate toward zero when in range.
 pub fn yaml_int(v: &Value) -> Option<i64> {
     match v {
-        Value::Number(n) => n
-            .as_i64()
-            .or_else(|| n.as_f64().filter(|f| f.fract() == 0.0).map(|f| f as i64)),
+        Value::Number(n) => n.as_i64().or_else(|| float_to_int(n.as_f64()?)),
         Value::Tagged(t) => yaml_int(&t.value),
         _ => None,
     }
+}
+
+/// yaml.v3's float-to-int rule: `f <= MaxInt64` and no overflow after truncation.
+fn float_to_int(f: f64) -> Option<i64> {
+    (-9.223_372_036_854_776e18..9.223_372_036_854_776e18)
+        .contains(&f)
+        .then_some(f as i64)
+}
+
+/// Go `PluginInstanceConfig.UnmarshalYAML` on a config built from a management JSON
+/// body (`yamlNodeFromJSONValue`, numbers kept as written): `enabled` must decode into
+/// a bool and `priority` into an int. The error text is yaml.v3's (synthetic nodes are
+/// on line 0). `fields` are the object's members; the last duplicate wins, as in Go.
+pub fn check_json_item(fields: &[(String, crate::gojson::Node)]) -> Result<(), String> {
+    use crate::gojson::Node as J;
+    let get = |key: &str| fields.iter().rev().find(|(k, _)| k == key).map(|(_, v)| v);
+    // json.Number: `!!int` when strconv.ParseInt accepts the literal, else `!!float`.
+    let int_literal = |n: &str| n.parse::<i64>().is_ok();
+    // yaml.v3 `shortTag` plus the value it prints, truncated to 7 bytes past 10.
+    let describe = |v: &J| {
+        let (tag, text) = match v {
+            J::String(s) => ("!!str", s.as_str()),
+            J::Bool(true) => ("!!bool", "true"),
+            J::Bool(false) => ("!!bool", "false"),
+            J::Number(n) if int_literal(n) => ("!!int", n.as_str()),
+            J::Number(n) => ("!!float", n.as_str()),
+            J::Array(_) => return "!!seq".to_owned(),
+            J::Object(_) => return "!!map".to_owned(),
+            J::Null => return "!!null".to_owned(),
+        };
+        let text = if text.len() > 10 {
+            format!("{}...", go_lossy(&text.as_bytes()[..7]))
+        } else {
+            text.to_owned()
+        };
+        format!("{tag} `{text}`")
+    };
+    let fail = |field: &str, v: &J, into: &str| {
+        Err(format!(
+            "parse plugin {field}: yaml: unmarshal errors:\n  line 0: cannot unmarshal {} into {into}",
+            describe(v)
+        ))
+    };
+    if let Some(v) = get("enabled") {
+        let ok = match v {
+            J::Null | J::Bool(_) => true,
+            J::String(s) => yaml_bool(&Value::String(s.clone())).is_some(),
+            _ => false,
+        };
+        if !ok {
+            return fail("enabled", v, "bool");
+        }
+    }
+    if let Some(v) = get("priority") {
+        let ok = match v {
+            J::Null => true,
+            J::Number(n) => int_literal(n) || n.parse::<f64>().ok().and_then(float_to_int).is_some(),
+            _ => false,
+        };
+        if !ok {
+            return fail("priority", v, "int");
+        }
+    }
+    Ok(())
+}
+
+/// Bytes as Go's JSON encoder reads them: each byte of an invalid or cut UTF-8
+/// sequence becomes U+FFFD.
+fn go_lossy(bytes: &[u8]) -> String {
+    let mut out = String::new();
+    let mut rest = bytes;
+    while !rest.is_empty() {
+        match std::str::from_utf8(rest) {
+            Ok(s) => {
+                out.push_str(s);
+                break;
+            }
+            Err(e) => {
+                let (valid, bad) = rest.split_at(e.valid_up_to());
+                out.push_str(std::str::from_utf8(valid).expect("valid prefix"));
+                out.push('\u{fffd}');
+                rest = &bad[1..];
+            }
+        }
+    }
+    out
 }
 
 /// yaml.v3 decoding of a scalar into a Go `string`.
@@ -237,6 +321,58 @@ pub fn desired_versions(items: &BTreeMap<String, ItemConfig>) -> BTreeMap<String
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Expected errors printed by Go: `config.PluginInstanceConfig` decoded from the
+    /// nodes `yamlNodeFromJSONValue` builds.
+    #[test]
+    fn json_item_checks_follow_go() {
+        let line = |f: &str, rest: &str| {
+            format!("parse plugin {f}: yaml: unmarshal errors:\n  line 0: cannot unmarshal {rest}")
+        };
+        for (body, want) in [
+            (r#"{"enabled":"yes"}"#, None),
+            (r#"{"enabled":"on","priority":2}"#, None),
+            (r#"{"enabled":null,"priority":null}"#, None),
+            (r#"{"priority":5.7}"#, None),
+            (r#"{"priority":-2.9}"#, None),
+            (r#"{"priority":1e3}"#, None),
+            (
+                r#"{"enabled":"maybe"}"#,
+                Some(line("enabled", "!!str `maybe` into bool")),
+            ),
+            (r#"{"enabled":"true"}"#, Some(line("enabled", "!!str `true` into bool"))),
+            (
+                r#"{"enabled":"abcdefghijklmnop"}"#,
+                Some(line("enabled", "!!str `abcdefg...` into bool")),
+            ),
+            (r#"{"enabled":1}"#, Some(line("enabled", "!!int `1` into bool"))),
+            (r#"{"enabled":0.5}"#, Some(line("enabled", "!!float `0.5` into bool"))),
+            (r#"{"enabled":[true]}"#, Some(line("enabled", "!!seq into bool"))),
+            (r#"{"enabled":{"a":1}}"#, Some(line("enabled", "!!map into bool"))),
+            (r#"{"priority":"5"}"#, Some(line("priority", "!!str `5` into int"))),
+            (r#"{"priority":true}"#, Some(line("priority", "!!bool `true` into int"))),
+            (
+                r#"{"priority":1.5e300}"#,
+                Some(line("priority", "!!float `1.5e300` into int")),
+            ),
+            (
+                r#"{"priority":99999999999999999999}"#,
+                Some(line("priority", "!!float `9999999...` into int")),
+            ),
+            (r#"{"enabled":1,"enabled":true}"#, None),
+            // A cut UTF-8 sequence: Go's encoder writes U+FFFD for the stray byte.
+            (
+                r#"{"enabled":"éééééé"}"#,
+                Some(line("enabled", "!!str `ééé\u{fffd}...` into bool")),
+            ),
+        ] {
+            let crate::gojson::Node::Object(fields) = crate::gojson::parse(body.as_bytes()).unwrap() else {
+                panic!("object");
+            };
+            assert_eq!(check_json_item(&fields).err(), want, "{body}");
+        }
+        assert_eq!(yaml_int(&serde_yaml_ng::from_str("5.7").unwrap()), Some(5));
+    }
 
     fn doc(text: &str) -> Value {
         serde_yaml_ng::from_str(text).unwrap()

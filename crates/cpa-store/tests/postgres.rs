@@ -1,6 +1,8 @@
 //! `PGSTORE_*` against a throwaway local PostgreSQL cluster (initdb in a temp dir,
 //! trust auth, a free port). Skipped when no PostgreSQL binaries are installed; set
 //! `CPA_TEST_PG_BIN` to their directory to choose one.
+// Mode bits, initdb and local git remotes: Unix only.
+#![cfg(unix)]
 
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};

@@ -31,6 +31,13 @@ impl cpa_core::registry::Overlay for Overlay {
             .collect()
     }
 
+    fn model_providers(&self, model: &str) -> Vec<String> {
+        self.0
+            .upgrade()
+            .map(|rt| rt.registry().model_providers(model))
+            .unwrap_or_default()
+    }
+
     fn available(&self) -> Vec<ModelInfo> {
         let Some(rt) = self.0.upgrade() else {
             return Vec::new();
