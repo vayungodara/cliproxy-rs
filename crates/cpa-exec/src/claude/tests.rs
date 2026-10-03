@@ -54,6 +54,7 @@ fn request(case: &Value) -> ExecRequest {
         execution_session: None,
         derived_session: None,
         resolved_model: None,
+        usage: Default::default(),
         request_path: String::new(),
         headers,
         caller: Caller {
@@ -142,6 +143,7 @@ async fn custom_origin_counts_locally_without_sending_credentials() {
         execution_session: None,
         derived_session: None,
         resolved_model: None,
+        usage: Default::default(),
         request_path: String::new(),
         headers: Default::default(),
         caller: Caller {
@@ -347,6 +349,7 @@ async fn executor_scenarios_match_go() {
             execution_session: scenario["execution_session"].as_str().map(str::to_owned),
             derived_session: None,
             resolved_model: None,
+            usage: Default::default(),
             request_path: String::new(),
             headers,
             caller: Caller {
@@ -562,6 +565,7 @@ async fn compat_replay_sequence_matches_go() {
             execution_session: None,
             derived_session: None,
             resolved_model: None,
+            usage: Default::default(),
             request_path: String::new(),
             headers,
             caller: Caller {

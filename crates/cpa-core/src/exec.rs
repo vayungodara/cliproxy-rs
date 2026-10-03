@@ -95,6 +95,63 @@ pub struct ExecRequest {
     /// (`cpa_core::registry::lookup_model`), as Go's helpers do. Callers outside the
     /// dispatch loop set `None`.
     pub resolved_model: Option<ResolvedModel>,
+    /// Usage accounting for this attempt (Go's per-executor `UsageReporter`). Optional:
+    /// without reports the server parses the client-format response, which matches Go
+    /// whenever the upstream speaks the client's format. Executors that translate
+    /// should forward the upstream payloads Go parses; `UsageSink::default()` is a
+    /// no-op.
+    pub usage: UsageSink,
+}
+
+/// Receives the upstream payloads Go's executors feed their usage reporter.
+pub trait UsageObserver: Send + Sync {
+    /// A whole upstream response body in `format` (Go `Parse*Usage` on the body).
+    fn response_body(&self, format: Format, body: &[u8]);
+    /// One upstream stream line in `format`, as received (Go feeds each scanner line to
+    /// its `StreamUsageBuffer` and `ObserveResponseModel`).
+    fn response_line(&self, format: Format, line: &[u8]);
+    /// The translated payload sent upstream in `format` (Go
+    /// `SetTranslatedReasoningEffort`: the record's `reasoning_effort`).
+    fn request(&self, format: Format, payload: &[u8]);
+}
+
+/// A handle executors report usage through; cloning shares the observer.
+#[derive(Clone, Default)]
+pub struct UsageSink(Option<std::sync::Arc<dyn UsageObserver>>);
+
+impl UsageSink {
+    pub fn new(observer: std::sync::Arc<dyn UsageObserver>) -> Self {
+        Self(Some(observer))
+    }
+
+    /// Whether anyone listens; executors can skip the work otherwise.
+    pub fn enabled(&self) -> bool {
+        self.0.is_some()
+    }
+
+    pub fn response_body(&self, format: Format, body: &[u8]) {
+        if let Some(o) = &self.0 {
+            o.response_body(format, body);
+        }
+    }
+
+    pub fn response_line(&self, format: Format, line: &[u8]) {
+        if let Some(o) = &self.0 {
+            o.response_line(format, line);
+        }
+    }
+
+    pub fn request(&self, format: Format, payload: &[u8]) {
+        if let Some(o) = &self.0 {
+            o.request(format, payload);
+        }
+    }
+}
+
+impl fmt::Debug for UsageSink {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("UsageSink").field(&self.enabled()).finish()
+    }
 }
 
 /// Capabilities bound to one execution attempt (Go `*registry.ModelInfo` stored under a

@@ -529,6 +529,7 @@ pub async fn run(rt: &Arc<Runtime>, call: Call, trace: &Trace) -> Result<Done, R
         execution_session: call.execution_session.clone(),
         derived_session: session.derived,
         resolved_model: None,
+        usage: Default::default(),
         request_path: call.request_path.clone(),
         headers: call.headers.clone(),
         caller: call.caller.clone(),
@@ -991,6 +992,7 @@ mod tests {
                 source: "",
             },
             resolved_model: None,
+            usage: Default::default(),
         };
         let req = attempt_request(&request, &cfg, &credential, "sol", "gpt-6-sol", false);
         assert_eq!(req.model, "gpt-6-sol");

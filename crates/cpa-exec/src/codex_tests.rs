@@ -68,6 +68,7 @@ fn request(case: &Value) -> ExecRequest {
         execution_session: None,
         derived_session: None,
         resolved_model: None,
+        usage: Default::default(),
         request_path: String::new(),
         caller: Caller {
             principal: "client-key-FAKE".into(),
@@ -416,6 +417,7 @@ fn plain_request(stream: bool, alt: Option<&str>) -> ExecRequest {
         execution_session: None,
         derived_session: None,
         resolved_model: None,
+        usage: Default::default(),
         request_path: String::new(),
         caller: Caller {
             principal: String::new(),

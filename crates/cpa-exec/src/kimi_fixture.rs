@@ -283,6 +283,7 @@ pub(crate) fn request(fixture: &Value, principal: &str) -> ExecRequest {
         execution_session: None,
         derived_session: None,
         resolved_model: None,
+        usage: Default::default(),
         request_path: String::new(),
         headers,
         caller: Caller {

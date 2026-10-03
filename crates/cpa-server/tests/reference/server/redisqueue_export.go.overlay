@@ -1,0 +1,22 @@
+// Golden-only overlay for internal/redisqueue (not part of CLIProxyAPI). See
+// auth_export.go.overlay for how main.go compiles it in.
+package redisqueue
+
+import (
+	"context"
+
+	coreusage "github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/usage"
+)
+
+// GoldenQueue runs the usage queue plugin on one record and returns the payload it
+// queued (queuedUsageDetail JSON).
+func GoldenQueue(ctx context.Context, record coreusage.Record) []byte {
+	SetEnabled(true)
+	SetUsageStatisticsEnabled(true)
+	(&usageQueuePlugin{}).HandleUsage(ctx, record)
+	items := PopOldest(1)
+	if len(items) == 0 {
+		return nil
+	}
+	return items[0]
+}
