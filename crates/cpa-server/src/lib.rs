@@ -17,6 +17,7 @@ pub mod logging;
 pub mod management;
 pub mod model_updater;
 mod models;
+pub mod observability;
 mod openai;
 pub mod persist;
 mod realtime;
