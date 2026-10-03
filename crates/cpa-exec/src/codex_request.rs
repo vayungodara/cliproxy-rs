@@ -82,11 +82,13 @@ impl Settings {
         settings
     }
 
-    /// `resolveCodexModelIsCompat` from the credential's config entry: the first model whose
-    /// name or alias equals the base or requested model decides; none means not compat.
-    // ponytail: Go first takes the attempt's ResolvedModelInfo, which ExecRequest does
-    // not carry yet; the config entry is Go's fallback.
+    /// `resolveCodexModelIsCompat`: the model dispatch bound to the attempt, else the
+    /// credential's config entry, where the first model whose name or alias equals the
+    /// base or requested model decides; none means not compat.
     pub fn is_compat(&self, req: &ExecRequest) -> bool {
+        if let Some(resolved) = &req.resolved_model {
+            return resolved.is_compat();
+        }
         let fold = |a: &str, b: &str| !b.is_empty() && a.to_lowercase() == b.to_lowercase();
         let requested = req.model.trim();
         let base = base_model(&req.model);
@@ -310,8 +312,7 @@ pub(crate) fn is_native(req: &ExecRequest) -> bool {
 /// thinking pipeline for `codex` (`openai-response` for compact). Also returns the
 /// translated original request, which payload default rules consult.
 // ponytail: the translator's configuration-update intent is not surfaced, so
-// `updates_changed` stays false. Resolved API-key model capabilities
-// (`ResolvedModelInfo`) are not bound to the attempt either.
+// `updates_changed` stays false.
 fn translate_request(req: &ExecRequest, call: Call, is_compat: bool) -> Result<(String, Vec<u8>), ExecError> {
     let target = call.target();
     let registered = cpa_translate::pair(req.source_format, target).is_some();
@@ -355,6 +356,10 @@ fn translate_request(req: &ExecRequest, call: Call, is_compat: bool) -> Result<(
     } else {
         translate(&req.original_body)?
     };
+    let caps = req
+        .resolved_model
+        .as_ref()
+        .map(|r| cpa_common::thinking::ModelCaps::from(&r.info));
     let thought = cpa_common::thinking::apply_request_thinking(&cpa_common::thinking::RequestThinking {
         body: &body,
         payload: &req.body,
@@ -363,7 +368,7 @@ fn translate_request(req: &ExecRequest, call: Call, is_compat: bool) -> Result<(
         from: req.source_format.as_str(),
         to: target.as_str(),
         provider: "codex",
-        resolved: None,
+        resolved: caps.as_ref().map(Some),
         has_request_transformer: registered,
         updates_changed: false,
     })
@@ -935,10 +940,19 @@ fn session_uuid(req: &ExecRequest, ws_session: Option<&str>) -> Option<String> {
     }
 }
 
+/// `helps.ClaudeCodePromptCache`: one deterministic key per Claude Code agent and model.
+fn claude_code_prompt_cache(model: &str, payload: &[u8], headers: &HeaderMap) -> Option<String> {
+    let model = model.trim();
+    let scope = crate::replay::claude_code_session(payload, headers)?;
+    (!model.is_empty()).then(|| {
+        let identity = format!("cli-proxy-api:codex:claude-code\0{model}\0{scope}");
+        uuid::Uuid::new_v5(&uuid::Uuid::NAMESPACE_OID, identity.as_bytes()).to_string()
+    })
+}
+
 /// `cacheHelper` / `applyCodexPromptCacheHeadersWithContext`: the prompt cache key from
-/// the client body (Responses/Chat) or the session identity, written into the body.
-// ponytail: Claude-source prompt caching (helps.ClaudeCodePromptCache) arrives with the
-// Claude -> Codex translator; it falls back to the session UUID meanwhile.
+/// the client body (Claude Code agent, Responses or Chat) or the session identity,
+/// written into the body.
 pub(crate) fn prompt_cache(
     req: &ExecRequest,
     body: String,
@@ -948,6 +962,13 @@ pub(crate) fn prompt_cache(
     let original = String::from_utf8_lossy(&req.body);
     let client_key = gjson::get(&original, "prompt_cache_key");
     let mut id = match req.source_format {
+        Format::Claude => {
+            let mut model = gjson::get(&body, "model").str().trim().to_owned();
+            if model.is_empty() {
+                model = base_model(&req.model);
+            }
+            claude_code_prompt_cache(&model, &req.body, &req.headers).unwrap_or_default()
+        }
         Format::OpenAIResponse if client_key.exists() => client_key.str().to_owned(),
         Format::OpenAI if client_key.exists() && !websocket => client_key.str().trim().to_owned(),
         _ => String::new(),
@@ -1065,8 +1086,6 @@ pub(crate) fn http_headers(
     apply_identity(&mut h, view, settings, client);
     routing_hint(&mut h, view, client, body, model);
     model_header_overrides(&mut h, model);
-    // Go's transport adds this and decodes the body transparently.
-    set(&mut h, "accept-encoding", "gzip");
     h
 }
 
