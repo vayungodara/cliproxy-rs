@@ -44,16 +44,10 @@ jobs:
           path: ui/dist-panel/management.html
           if-no-files-found: error
 
+  # The same fmt, clippy, network-denied tests and Windows check as every push.
   test:
-    name: cargo test
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v7
-      - name: Build tools
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends cmake clang libclang-dev perl
-      - name: Rust
-        run: rustup toolchain install stable --profile minimal && rustup default stable
-      - run: cargo test --workspace --locked
+    name: CI
+    uses: ./.github/workflows/ci.yml
 
   build:
     name: build ${{ matrix.target }}
@@ -77,11 +71,16 @@ jobs:
       - name: Build tools (Linux)
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends cmake clang libclang-dev perl
-      # macOS images ship cmake and Xcode's clang. Windows images ship CMake and LLVM;
-      # BoringSSL builds without assembly there, so NASM is not needed.
-      - name: Point bindgen at libclang (Windows)
+      # macOS images ship cmake and Xcode's clang. Windows images ship CMake and LLVM but not
+      # NASM, which BoringSSL needs there: btls-sys sets OPENSSL_NO_ASM only when it
+      # cross-compiles from another host, so a native MSVC build keeps the assembly, and
+      # BoringSSL's CMakeLists assembles x86_64 Windows code with NASM (enable_language(ASM_NASM)).
+      - name: NASM and libclang (Windows)
         if: runner.os == 'Windows'
-        run: printf 'LIBCLANG_PATH=%s\n' 'C:\Program Files\LLVM\bin' >> "$GITHUB_ENV"
+        run: |
+          choco install nasm --no-progress -y
+          printf '%s\n' 'C:\Program Files\NASM' >> "$GITHUB_PATH"
+          printf 'LIBCLANG_PATH=%s\n' 'C:\Program Files\LLVM\bin' >> "$GITHUB_ENV"
       - name: Rust
         run: |
           if ! command -v rustup >/dev/null; then
