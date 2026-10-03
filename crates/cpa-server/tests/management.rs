@@ -1135,9 +1135,15 @@ async fn fake_logins() -> (
         b64(&json!({"email": "c@example.invalid",
             "https://api.openai.com/auth": {"chatgpt_plan_type": "plus", "chatgpt_account_id": "acc-fake"}}))
     );
+    let xai_id_token = format!(
+        "{}.{}.sig",
+        b64(&json!({"alg": "none"})),
+        b64(&json!({"email": "x@example.invalid", "sub": "xai-user-1"}))
+    );
     let app = axum::Router::new().fallback(move |uri: axum::http::Uri, body: axum::body::Bytes| {
         let record = record.clone();
         let id_token = id_token.clone();
+        let xai_id_token = xai_id_token.clone();
         async move {
             record
                 .lock()
@@ -1157,6 +1163,16 @@ async fn fake_logins() -> (
                     "expires_in": 600, "interval": 1}),
                 "/api/oauth/token" => json!({"access_token": "fake-kimi-at", "refresh_token": "fake-kimi-rt",
                     "token_type": "Bearer", "expires_in": 3600, "scope": "s"}),
+                // xAI: discovery names auth.x.ai endpoints, which the test seam redirects here.
+                "/.well-known/openid-configuration" => json!({
+                    "device_authorization_endpoint": "https://auth.x.ai/oauth2/device/code",
+                    "token_endpoint": "https://auth.x.ai/oauth2/token"}),
+                "/oauth2/device/code" => json!({"device_code": "xdc", "user_code": "XU-1",
+                    "verification_uri": "https://accounts.x.ai/device",
+                    "verification_uri_complete": "https://accounts.x.ai/device?user_code=XU-1",
+                    "expires_in": 600, "interval": 1}),
+                "/oauth2/token" => json!({"access_token": "fake-xai-at", "refresh_token": "fake-xai-rt",
+                    "id_token": xai_id_token, "token_type": "Bearer", "expires_in": 3600}),
                 _ => json!({}),
             };
             axum::Json(v)
@@ -1211,6 +1227,63 @@ async fn final_status(base: &str, state: &str, secs: u64) -> Value {
         }
         tokio::time::sleep(std::time::Duration::from_millis(200)).await;
     }
+}
+
+/// xAI: Go `RequestXAIToken` answers with the device URL and code, and the poller
+/// saves the credential through the file store and publishes it.
+#[tokio::test]
+async fn xai_login_polls_the_device_flow_and_saves_the_credential() {
+    let (fake, seen, fake_server) = fake_logins().await;
+    let f = Fixture::new("xailogin");
+    let (base, _state, server) = login_server(&f, &fake).await;
+    let started = oauth_get(&base, "/oauth/auth-url?provider=xai").await;
+    let state = started["state"].as_str().unwrap().to_owned();
+    assert!(state.starts_with("xai-"), "{state}");
+    assert_eq!(started["status"], "ok");
+    assert_eq!(started["flow"], "device");
+    assert_eq!(started["url"], "https://accounts.x.ai/device?user_code=XU-1");
+    assert_eq!(started["user_code"], "XU-1");
+    assert_eq!(started["expires_in"], 600);
+    assert_eq!(final_status(&base, &state, 10).await, json!({"status": "ok"}));
+    let auth = f.dir.join("auth");
+    let names: Vec<String> = std::fs::read_dir(&auth)
+        .unwrap()
+        .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+        .filter(|n| n.starts_with("xai-"))
+        .collect();
+    assert_eq!(names.len(), 1, "{names:?}");
+    let path = auth.join(&names[0]);
+    let saved: Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+    for (key, want) in [
+        ("type", json!("xai")),
+        ("access_token", json!("fake-xai-at")),
+        ("refresh_token", json!("fake-xai-rt")),
+        ("email", json!("x@example.invalid")),
+        ("sub", json!("xai-user-1")),
+        ("base_url", json!("https://api.x.ai/v1")),
+        ("token_endpoint", json!("https://auth.x.ai/oauth2/token")),
+        ("auth_kind", json!("oauth")),
+        ("expires_in", json!(3600)),
+        ("disabled", json!(false)),
+    ] {
+        assert_eq!(saved[key], want, "{key}");
+    }
+    let last_refresh = saved["last_refresh"].as_str().unwrap();
+    assert!(chrono::DateTime::parse_from_rfc3339(last_refresh).is_ok() && last_refresh.ends_with('Z'));
+    use std::os::unix::fs::PermissionsExt;
+    assert_eq!(std::fs::metadata(&path).unwrap().permissions().mode() & 0o777, 0o600);
+    let forms = seen.lock().unwrap().clone();
+    let device = forms.iter().find(|(p, _)| p == "/oauth2/device/code").unwrap();
+    assert!(
+        device.1.contains("client_id=b1a00492-073a-47ea-816f-4c329264a828"),
+        "{}",
+        device.1
+    );
+    let token = forms.iter().find(|(p, _)| p == "/oauth2/token").unwrap();
+    assert!(token.1.contains("device_code=xdc"), "{}", token.1);
+    assert!(f.rt.store().snapshot().iter().any(|c| c.provider == "xai"), "published");
+    server.abort();
+    fake_server.abort();
 }
 
 /// Codex: the main listener's `/codex/callback` hands the code to the pending login,
