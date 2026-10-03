@@ -74,11 +74,11 @@ fn pipeline_reproduces_go_upstream_captures() {
         let req = enrich(request(case));
         let mut ctx = Ctx::new(&executor, &credential, &req, &cfg, Default::default());
         ctx.today = "2026-10-02".into();
-        let translated = translate::request(&req, &ctx.base_model, ctx.is_compat).unwrap();
+        let translated = translate::request(&req, ctx.codex, &ctx.base_model, ctx.is_compat).unwrap();
         let prepared = if req.operation == Operation::CountTokens {
             ctx.prepare_count(&req, &translated).unwrap()
         } else {
-            let original = translate::original(&req, &translated, &ctx.base_model, ctx.is_compat).unwrap();
+            let original = translate::original(&req, &translated, ctx.codex, &ctx.base_model, ctx.is_compat).unwrap();
             ctx.prepare_messages(&req, &translated, &original, req.stream).unwrap()
         };
         assert_eq!(prepared.body, case["upstream_body"].as_str().unwrap(), "{name}: body");
@@ -198,6 +198,15 @@ fn normalize_random(text: &str) -> String {
     let text = device.replace_all(text, "${1}<device>");
     let text = session.replace_all(&text, "${1}<session>");
     cch.replace_all(&text, "cch=<cch>;").into_owned()
+}
+
+/// The model capabilities Go bound to the scenario's request (dispatch's job in Rust).
+fn resolved(scenario: &Value) -> Option<cpa_core::exec::ResolvedModel> {
+    let info = scenario.get("resolved_info")?.as_object()?.clone();
+    Some(cpa_core::exec::ResolvedModel {
+        info: cpa_core::registry::ModelInfo::from_raw(info).unwrap(),
+        source: cpa_core::exec::ResolvedSource::ApiKey,
+    })
 }
 
 /// [`normalize_random`] plus the values a cloaked request derives from the wall clock
@@ -356,7 +365,7 @@ async fn executor_scenarios_match_go() {
             session: None,
             execution_session: scenario["execution_session"].as_str().map(str::to_owned),
             derived_session: None,
-            resolved_model: None,
+            resolved_model: resolved(scenario),
             request_path: String::new(),
             headers,
             caller: Caller {
@@ -367,12 +376,12 @@ async fn executor_scenarios_match_go() {
         let req = enrich(req);
         let mut ctx = Ctx::new(&executor, &credential, &req, &cfg, Default::default());
         ctx.today = scenario["date"].as_str().unwrap().into();
-        let translated = translate::request(&req, &ctx.base_model, ctx.is_compat).unwrap();
+        let translated = translate::request(&req, ctx.codex, &ctx.base_model, ctx.is_compat).unwrap();
         let prepared = if count {
             ctx.prepare_count(&req, &translated)
         } else {
             // generate(): translated clients always stream upstream.
-            let original = translate::original(&req, &translated, &ctx.base_model, ctx.is_compat).unwrap();
+            let original = translate::original(&req, &translated, ctx.codex, &ctx.base_model, ctx.is_compat).unwrap();
             ctx.prepare_messages(&req, &translated, &original, stream || source != Format::Claude)
         };
         if scenario["upstream"].as_array().is_none_or(Vec::is_empty) {
@@ -583,7 +592,7 @@ async fn compat_replay_sequence_matches_go() {
             session: None,
             execution_session: None,
             derived_session: None,
-            resolved_model: None,
+            resolved_model: resolved(scenario),
             request_path: String::new(),
             headers,
             caller: Caller {

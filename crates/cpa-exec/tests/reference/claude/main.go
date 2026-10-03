@@ -23,10 +23,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 	claudeauth "github.com/router-for-me/CLIProxyAPI/v8/internal/auth/claude"
+	"github.com/router-for-me/CLIProxyAPI/v8/internal/config"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/misc"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/modelconfig"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/registry"
-	"github.com/router-for-me/CLIProxyAPI/v8/internal/config"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/runtime/executor"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/watcher/synthesizer"
 	cliproxyauth "github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/auth"
@@ -88,6 +88,10 @@ type result struct {
 	Error     string     `json:"error,omitempty"`
 	Status    int        `json:"error_status,omitempty"`
 	ErrorInfo *errInfo   `json:"error_info,omitempty"`
+	// ResolvedInfo is the exact ModelInfo bound to the request (Rust tests bind it as
+	// ExecRequest.resolved_model, as dispatch does), with the json:"-" fields the
+	// executor reads added under cpa_core's raw keys.
+	ResolvedInfo map[string]any `json:"resolved_info,omitempty"`
 }
 
 // errInfo is what the conductor and handlers read from an executor error.
@@ -265,10 +269,16 @@ func run(root string, s scenario) result {
 		source = "claude"
 	}
 	req := cliproxyexecutor.Request{Model: s.Model, Payload: []byte(s.Body), Format: sdktranslator.FromString(source)}
+	var resolvedInfo map[string]any
 	if s.Resolved != nil {
 		info := modelconfig.ResolveModelInfo(s.Resolved.Name, "claude", s.Resolved.Thinking)
 		info.IsCompat = s.Resolved.Compat
 		req.Metadata = map[string]any{"cliproxy.resolved_api_key_model_info": info}
+		raw, _ := json.Marshal(info)
+		_ = json.Unmarshal(raw, &resolvedInfo)
+		resolvedInfo["is_compat"] = info.IsCompat
+		resolvedInfo["user_defined"] = info.UserDefined
+		resolvedInfo["support_configuration_update"] = info.SupportConfigurationUpdate
 	}
 	opts := cliproxyexecutor.Options{
 		Stream:          s.Stream,
@@ -280,7 +290,7 @@ func run(root string, s scenario) result {
 	}
 	req, opts = cliproxysession.Enrich(req, opts)
 
-	out := result{scenario: s, Date: time.Now().Format("2006-01-02")}
+	out := result{scenario: s, Date: time.Now().Format("2006-01-02"), ResolvedInfo: resolvedInfo}
 	var errRun error
 	switch {
 	case s.Count:

@@ -243,8 +243,8 @@ impl ClaudeExecutor {
         replay: Option<&replay::Scope>,
     ) -> Result<ExecResponse, ExecError> {
         let upstream_stream = req.stream || req.response_format != Format::Claude;
-        let translated = translate::request(&req, &ctx.base_model, ctx.is_compat)?;
-        let original_translated = translate::original(&req, &translated, &ctx.base_model, ctx.is_compat)?;
+        let translated = translate::request(&req, ctx.codex, &ctx.base_model, ctx.is_compat)?;
+        let original_translated = translate::original(&req, &translated, ctx.codex, &ctx.base_model, ctx.is_compat)?;
         let prepared = ctx.prepare_messages(&req, &translated, &original_translated, upstream_stream)?;
         let response = self.send(&ctx, &prepared, "/v1/messages").await.inspect_err(|error| {
             // shouldClearKimiThinkingReplayAfterError: an upstream rejection of applied replay.
@@ -344,7 +344,7 @@ impl ClaudeExecutor {
     }
 
     async fn count_tokens(&self, ctx: Ctx<'_>, req: ExecRequest, upstream: bool) -> Result<ExecResponse, ExecError> {
-        let translated = translate::request(&req, &ctx.base_model, ctx.is_compat)?;
+        let translated = translate::request(&req, ctx.codex, &ctx.base_model, ctx.is_compat)?;
         // sdktranslator.TranslateTokenCount(to=claude, responseFormat, count, raw).
         let render = |raw: &[u8]| {
             let count = gjson::get(&String::from_utf8_lossy(raw), "input_tokens").i64();
@@ -548,13 +548,14 @@ struct Ctx<'a> {
     kimi: bool,
     /// Normalized execution-session ID (websocket executions), or empty.
     execution: String,
-    /// `cliproxyauth.ResolvedModelInfo`: the configured model bound to an API-key attempt.
-    resolved: Option<Resolved>,
+    /// `cliproxyauth.ResolvedModelInfo`: the capabilities dispatch bound to this attempt.
+    resolved: Option<cpa_common::thinking::ModelCaps>,
     /// `helps.APIKeyModelIsCompat`.
     is_compat: bool,
-    /// `requests.payload` rules of this config snapshot.
-    // ponytail: parsed per request from the snapshot; the rule section is small.
-    payload_rules: cpa_common::payload::Rules,
+    /// The Codex client rewrite settings of this config snapshot (Go `e.cfg`).
+    codex: cpa_common::codex_client::Settings,
+    /// `requests.payload` rules of this config snapshot (parsed once per snapshot).
+    payload_rules: std::sync::Arc<cpa_common::payload::Rules>,
     /// Real Claude OAuth token (`sk-ant-oat`).
     oauth_token: bool,
     /// `fp.ProfileClaudeCodeCLI`: OAuth token or `fingerprint-profile: claude-code-cli`.
@@ -574,68 +575,6 @@ struct Prepared {
     reverse: alias::Reverse,
     continuity: session::Continuity,
     fast: bool,
-}
-
-/// Capabilities bound to an attempt (Go `cliproxyauth.ResolvedModelInfo`).
-struct Resolved {
-    caps: cpa_common::thinking::ModelCaps,
-    is_compat: bool,
-}
-
-/// `lookupAPIKeyModelCapability` over the claude-api-key entry's `models[]`
-/// (`resolveClaudeKeyConfig`, as Go compiles it from config): the route
-/// (requested alias or name, with and without a thinking suffix) and the selected
-/// upstream name pick one entry, whose snapshot is `modelconfig.ResolveModelInfo`
-/// (static capabilities of the suffix-free name, configured thinking, never
-/// user-defined) plus `is-compat`.
-fn resolved_model(credential: &Credential, req: &ExecRequest, settings: &Settings) -> Option<Resolved> {
-    use cpa_core::registry::dynamic;
-    if !dynamic::is_api_key(credential) {
-        return None;
-    }
-    let attr = |k: &str| credential.attributes.get(k).map(String::as_str).unwrap_or_default();
-    let models = &settings.key_for(attr("api_key"), attr("base_url"))?.models;
-    let candidates = |model: &str| {
-        let model = model.trim();
-        let base = base_model(model);
-        [model.to_lowercase(), base.trim().to_lowercase()]
-    };
-    let route = candidates(dynamic::strip_prefix(req.requested_model.trim(), credential));
-    let routes: Vec<(String, &dynamic::ConfigModel)> = models
-        .iter()
-        .filter_map(|m| {
-            let name = Some(m.name.trim()).filter(|n| !n.is_empty()).unwrap_or(m.alias.trim());
-            let alias = Some(m.alias.trim()).filter(|a| !a.is_empty()).unwrap_or(name);
-            let keys: Vec<String> = [alias, name].into_iter().flat_map(candidates).collect();
-            (!name.is_empty() && keys.iter().any(|k| !k.is_empty() && route.contains(k))).then(|| (name.to_owned(), m))
-        })
-        .collect();
-    let selected = req.model.trim();
-    let (name, entry) = routes
-        .iter()
-        .find(|(name, _)| name.eq_ignore_ascii_case(selected))
-        .or_else(|| {
-            routes.iter().find(|(name, _)| {
-                // configuredUpstreamFallbackMatches
-                !cpa_common::thinking::parse_suffix(name).has_suffix
-                    && name.eq_ignore_ascii_case(base_model(selected).trim())
-            })
-        })?;
-    let static_info = cpa_core::registry::pinned().lookup(base_model(name).trim()).cloned();
-    let mut caps = static_info
-        .as_ref()
-        .map(cpa_common::thinking::ModelCaps::from)
-        .unwrap_or_default();
-    caps.id = name.clone();
-    caps.kind = "claude".into();
-    if let Some(thinking) = entry.thinking.clone() {
-        caps.thinking = Some(dynamic::normalize_thinking(thinking));
-    }
-    caps.user_defined = false;
-    Some(Resolved {
-        caps,
-        is_compat: entry.is_compat,
-    })
 }
 
 /// `config.NormalizeClaudeFingerprintProfile`: unknown values are the default ("").
@@ -783,7 +722,11 @@ impl<'a> Ctx<'a> {
         let api_key_kind = attr("auth_kind") == "apikey";
         let bearer = oauth_token || (!api_key_kind && attr("api_key").trim().is_empty());
         let base = base_model(&req.model);
-        let resolved = resolved_model(credential, req, &settings);
+        // Go `cliproxyauth.ResolvedModelInfo(req)`, bound by dispatch per attempt.
+        let resolved = req
+            .resolved_model
+            .as_ref()
+            .map(|r| cpa_common::thinking::ModelCaps::from(&r.info));
         Self {
             credential,
             first_party: tokens::first_party(&base_url),
@@ -791,8 +734,9 @@ impl<'a> Ctx<'a> {
             upstream_model: delegation.upstream_model.map_or_else(|| base.clone(), |f| f(&base)),
             kimi: kimi_upstream(&credential.provider, &base_url),
             execution: session::normalize(req.execution_session.as_deref().unwrap_or_default()),
-            is_compat: resolved.as_ref().is_some_and(|r| r.is_compat),
-            payload_rules: cpa_common::payload::Rules::from_config(cfg),
+            is_compat: req.resolved_model.as_ref().is_some_and(|r| r.is_compat()),
+            codex: cpa_common::codex_client::Settings::from_config(cfg),
+            payload_rules: cpa_common::payload::Rules::of(cfg),
             resolved,
             base_model: base,
             cli_profile: oauth_token || profile == "claude-code-cli",
@@ -840,7 +784,7 @@ impl<'a> Ctx<'a> {
             from: req.source_format.as_str(),
             to: Format::Claude.as_str(),
             provider: "claude",
-            resolved: self.resolved.as_ref().map(|r| Some(&r.caps)),
+            resolved: self.resolved.as_ref().map(Some),
             has_request_transformer: cpa_translate::pair(req.source_format, Format::Claude).is_some(),
             updates_changed: false,
         })

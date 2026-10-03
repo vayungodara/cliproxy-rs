@@ -8,18 +8,20 @@ use cpa_core::format::Format;
 use cpa_translate::{Pair, RequestCtx, ResponseCtx, StreamTranslator};
 use futures_util::StreamExt;
 
-/// sdktranslator.TranslateRequest to Claude for `model` (the base model, without a
-/// thinking suffix): a registered pair with Go's summary pipeline, else Go's top-level
-/// model rewrite. Streaming translation whenever the client is not Claude.
-///
-/// With `is_compat` (an is-compat API-key model), OpenAI Chat and Responses clients use
-/// Go's `...WithCompat` translators, which keep unsigned reasoning history, between the
-/// same summary extraction and application
-/// (`TranslateRequestWithAPIKeyModelCompatibilityForExecutor`).
-// ponytail: the Codex orphan-delegation and multi-agent v2 input rewrites Go applies to
-// compat Responses payloads first are cpa_common::codex_client's (Codex thread).
-pub(crate) fn request(req: &ExecRequest, model: &str, is_compat: bool) -> Result<Bytes, ExecError> {
-    translate_body(req, &req.body, model, is_compat)
+/// `TranslateRequestWithAPIKeyModelCompatibilityForExecutor` to Claude for `model` (the
+/// base model, without a thinking suffix), through the shared Codex client rewrites
+/// ([`crate::codex_client::translate_request`]): Codex integer tool types, the Responses
+/// orphan-delegation and multi-agent v2 rewrites, Go's `...WithCompat` translators for an
+/// is-compat model, else `sdktranslator.TranslateRequest` (a registered pair with the
+/// summary pipeline, or Go's top-level model rewrite). Streaming translation whenever
+/// the client is not Claude.
+pub(crate) fn request(
+    req: &ExecRequest,
+    codex: cpa_common::codex_client::Settings,
+    model: &str,
+    is_compat: bool,
+) -> Result<Bytes, ExecError> {
+    translate_body(req, &req.body, codex, model, is_compat)
 }
 
 /// Go `originalTranslated` from `TranslateRequestPairWithAPIKeyModelCompatibility`: the
@@ -28,6 +30,7 @@ pub(crate) fn request(req: &ExecRequest, model: &str, is_compat: bool) -> Result
 pub(crate) fn original(
     req: &ExecRequest,
     translated: &Bytes,
+    codex: cpa_common::codex_client::Settings,
     model: &str,
     is_compat: bool,
 ) -> Result<Bytes, ExecError> {
@@ -36,38 +39,29 @@ pub(crate) fn original(
     if req.original_body.is_empty() || req.original_body == req.body {
         return Ok(translated.clone());
     }
-    translate_body(req, &req.original_body, model, is_compat)
+    translate_body(req, &req.original_body, codex, model, is_compat)
 }
 
-fn translate_body(req: &ExecRequest, body: &[u8], model: &str, is_compat: bool) -> Result<Bytes, ExecError> {
-    // TranslateRequestWithAPIKeyModelCompatibilityForExecutor: Codex clients' integer
-    // tool schemas are normalized before any translation to a non-Codex executor.
-    let normalized = cpa_common::payload::normalize_codex_tool_integer_types(body, &req.headers);
-    let body = normalized.as_slice();
+fn translate_body(
+    req: &ExecRequest,
+    body: &[u8],
+    codex: cpa_common::codex_client::Settings,
+    model: &str,
+    is_compat: bool,
+) -> Result<Bytes, ExecError> {
     let ctx = RequestCtx {
         model,
         stream: req.stream || req.source_format != Format::Claude,
     };
-    let compat: Option<cpa_translate::RequestFn> = match req.source_format {
-        Format::OpenAI if is_compat => Some(cpa_translate::openai_to_claude_with_compat),
-        Format::OpenAIResponse if is_compat => Some(cpa_translate::responses_to_claude_with_compat),
-        _ => None,
+    let client = crate::codex_client::Client {
+        headers: &req.headers,
+        settings: codex,
+        target_executor: "claude",
+        is_compat,
     };
-    let Some(translate) = compat else {
-        return cpa_translate::translate_request(req.source_format, Format::Claude, &ctx, body)
-            .map(Bytes::from)
-            .map_err(error);
-    };
-    use cpa_common::thinking::{apply_summary_config_for_model, extract_translated_summary_config};
-    let (from, to) = (req.source_format.as_str(), Format::Claude.as_str());
-    let summary = extract_translated_summary_config(body, from, to);
-    let translated = translate(&ctx, body).map_err(error)?;
-    Ok(Bytes::from(apply_summary_config_for_model(
-        &translated,
-        to,
-        model,
-        summary,
-    )))
+    crate::codex_client::translate_request(req.source_format, Format::Claude, &ctx, body, &client)
+        .map(Bytes::from)
+        .map_err(error)
 }
 
 pub(crate) async fn response(
@@ -356,9 +350,12 @@ mod tests {
         let mut request = req(false, Operation::Generate);
         request.source_format = Format::Claude;
         request.body = Bytes::from_static(br#"{  "model" : "claude", "messages": [] }"#);
-        assert_eq!(super::request(&request, "claude", false).unwrap(), request.body);
         assert_eq!(
-            super::request(&request, "claude-base", false).unwrap(),
+            super::request(&request, Default::default(), "claude", false).unwrap(),
+            request.body
+        );
+        assert_eq!(
+            super::request(&request, Default::default(), "claude-base", false).unwrap(),
             br#"{  "model" : "claude-base", "messages": [] }"#.as_slice()
         );
     }
