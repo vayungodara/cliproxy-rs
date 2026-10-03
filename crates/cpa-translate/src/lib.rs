@@ -72,6 +72,8 @@ mod gemini_chat_request;
 mod gemini_chat_response;
 mod gemini_claude;
 mod gemini_claude_response;
+mod gemini_interactions;
+mod gemini_interactions_response;
 mod gemini_responses;
 mod gemini_responses_response;
 mod gemini_web_search;
@@ -200,6 +202,9 @@ fn registered(client: Format, upstream: Format) -> Option<&'static Registered> {
         (Format::Interactions, Format::Codex) => Some(&codex_interactions::PAIR),
         (Format::OpenAIResponse, Format::OpenAI) => Some(&openai_responses_response::PAIR),
         (Format::Gemini, Format::OpenAI) => Some(&openai_gemini::PAIR),
+        (Format::Interactions, Format::Interactions) => Some(&gemini_interactions::PASSTHROUGH),
+        (Format::Interactions, Format::Gemini) => Some(&gemini_interactions::INTERACTIONS_TO_GEMINI),
+        (Format::Gemini, Format::Interactions) => Some(&gemini_interactions::GEMINI_TO_INTERACTIONS),
         _ => None,
     }
 }
