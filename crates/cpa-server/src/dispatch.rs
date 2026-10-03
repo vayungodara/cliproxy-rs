@@ -317,7 +317,9 @@ fn route(rt: &Runtime, registry: &Registry, call: &Call) -> Result<(Vec<String>,
         Some(i) if model.ends_with(')') => &model[..i],
         _ => model,
     };
-    let resolved = if base == "auto" {
+    // Go Home mode: no `auto` resolution; Home routes the model as sent.
+    let remote = rt.remote_dispatch().is_some();
+    let resolved = if base == "auto" && !remote {
         let first = registry
             .resolve_auto(|client, model| rt.suspension(client, model))
             .unwrap_or_else(|| "auto".into());
@@ -335,6 +337,9 @@ fn route(rt: &Runtime, registry: &Registry, call: &Call) -> Result<(Vec<String>,
         .to_lowercase();
     if IMAGE_ONLY.contains(&image.as_str()) {
         return Err(Failure::ImageOnly(base).into());
+    }
+    if remote {
+        return Ok((vec!["home".to_owned()], resolved));
     }
     let mut providers = registry.providers(&base);
     if providers.is_empty() && base != resolved {
@@ -632,8 +637,9 @@ pub async fn run(rt: &Arc<Runtime>, call: Call, trace: &Trace) -> Result<Done, R
         ))
     });
     // `WithPinnedAuthID`: every other credential is excluded in every round.
+    // A remote dispatcher receives the pinned ID itself.
     let pinned_exclusion: Vec<String> = match call.turn.as_ref().and_then(|t| t.pinned.as_deref()) {
-        Some(pinned) if !pinned.is_empty() => rt
+        Some(pinned) if !pinned.is_empty() && rt.remote_dispatch().is_none() => rt
             .store()
             .snapshot()
             .iter()
@@ -671,6 +677,8 @@ pub async fn run(rt: &Arc<Runtime>, call: Call, trace: &Trace) -> Result<Done, R
         caller: call.caller.clone(),
     };
     let compact = call.alt.as_deref() == Some("responses/compact");
+    let remote = rt.remote_dispatch();
+    let releases = crate::remote::PendingReleases::default();
     // Go `preferredExecutionAttemptError`: the latest failure that reached upstream wins
     // over later selection failures.
     let mut upstream: Option<Fault> = None;
@@ -681,7 +689,17 @@ pub async fn run(rt: &Arc<Runtime>, call: Call, trace: &Trace) -> Result<Done, R
             if policy.max_retry_credentials > 0 && attempted.len() >= policy.max_retry_credentials {
                 break None;
             }
-            let lease = match rt.acquire(selection.clone(), &cfg, policy.clone(), &registry).await {
+            let acquired = match &remote {
+                Some(remote) => {
+                    let request = remote_request(&call, &selection, attempted.len(), trace);
+                    match rt.acquire_remote(remote.as_ref(), selection.clone(), request, &releases).await {
+                        Ok(lease) => Ok(lease),
+                        Err(error) => break Some(Failure::Exec(error)),
+                    }
+                }
+                None => rt.acquire(selection.clone(), &cfg, policy.clone(), &registry).await,
+            };
+            let lease = match acquired {
                 Ok(lease) => lease,
                 Err(AcquireError::Prepare { id, error }) => {
                     attempted.push(id.clone());
@@ -721,7 +739,33 @@ pub async fn run(rt: &Arc<Runtime>, call: Call, trace: &Trace) -> Result<Done, R
             };
             selection.exclude.push(lease.credential.id.clone());
             trace.selected(&lease.credential);
-            let (mut models, alias) = registry::execution_models(&aliases, &lease.credential, &selection.model);
+            let (mut models, mut alias) = registry::execution_models(&aliases, &lease.credential, &selection.model);
+            if lease.is_remote() {
+                // Go `executeHomeOnce`: Home's upstream model when it chose one, and only
+                // the first model either way.
+                if let Some(upstream) = lease
+                    .credential
+                    .attributes
+                    .get(crate::remote::UPSTREAM_MODEL)
+                    .map(|m| m.trim())
+                    .filter(|m| !m.is_empty())
+                {
+                    models = vec![upstream.to_owned()];
+                }
+                models.truncate(1);
+                // Go `homeForceMappingAliasResult`: only for the alias Home mapped from;
+                // the response then reports the route model.
+                let attr = |key: &str| lease.credential.attributes.get(key).map(|v| v.trim()).unwrap_or_default();
+                let canonical = |m: &str| canonical_model(m).trim().to_lowercase();
+                let requested = registry::strip_prefix(&selection.model, &lease.credential);
+                if attr(crate::remote::FORCE_MAPPING).eq_ignore_ascii_case("true")
+                    && !attr(crate::remote::ORIGINAL_ALIAS).is_empty()
+                    && canonical(attr(crate::remote::ORIGINAL_ALIAS)) == canonical(requested)
+                {
+                    alias.force_mapping = true;
+                    alias.original_alias = selection.model.clone();
+                }
+            }
             let pooled = models.len() > 1;
             if pooled {
                 // Go `nextModelPoolOffset`: rotate the alias pool once per selection.
@@ -808,6 +852,40 @@ pub async fn run(rt: &Arc<Runtime>, call: Call, trace: &Trace) -> Result<Done, R
         }
         selection.retry_round += 1;
         selection.exclude.clone_from(&pinned_exclusion);
+    }
+}
+
+/// Go's RPOP request for one pick: the route model, session hierarchy, downstream
+/// headers (Home authenticates the client with them), and this round's exclusions.
+// ponytail: no Home session-alias canonicalization and no `?key=` header fallback;
+// the local session resolution and the request headers are sent as they are.
+fn remote_request(call: &Call, selection: &Selection, picks: usize, trace: &Trace) -> crate::remote::RemoteRequest {
+    let headers = call
+        .headers
+        .iter()
+        .map(|(name, value)| (name.as_str().to_owned(), String::from_utf8_lossy(value.as_bytes()).into_owned()))
+        .collect();
+    crate::remote::RemoteRequest {
+        model: selection.model.clone(),
+        session_id: selection.session.clone().unwrap_or_default(),
+        parent_session_id: selection.session_parent.clone().unwrap_or_default(),
+        headers,
+        count: picks as i64 + 1,
+        retry_round: selection.retry_round as i64,
+        excluded: selection.exclude.clone(),
+        pinned: call
+            .turn
+            .as_ref()
+            .and_then(|t| t.pinned.clone())
+            .unwrap_or_default(),
+        request_id: trace.request_id(),
+        kind: if call.turn.is_some() {
+            "websocket"
+        } else if call.stream {
+            "stream"
+        } else {
+            "http"
+        },
     }
 }
 

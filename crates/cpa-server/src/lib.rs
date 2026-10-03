@@ -19,6 +19,7 @@ pub mod model_updater;
 mod models;
 mod openai;
 pub mod persist;
+pub mod remote;
 mod realtime;
 mod refresh;
 pub mod registry;

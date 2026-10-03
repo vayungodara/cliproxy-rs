@@ -44,6 +44,8 @@ pub struct Runtime {
     usage: crate::usage::UsageQueue,
     /// `--local-model`: embedded model catalogs only, no remote catalog refresh.
     local_model: std::sync::atomic::AtomicBool,
+    /// The remote dispatcher that replaces local selection (Go Home mode).
+    remote: RwLock<Option<Arc<dyn crate::remote::RemoteDispatch>>>,
 }
 
 /// An OAuth provider redirect received on the main listener.
@@ -81,6 +83,7 @@ impl Runtime {
             pool_offsets: Mutex::default(),
             usage: crate::usage::UsageQueue::default(),
             local_model: Default::default(),
+            remote: RwLock::default(),
         };
         rt.publish_policy(policy);
         rt.store.configure_cooldown_store(cooldown_dir);
@@ -245,6 +248,49 @@ impl Runtime {
             }
         }
         Ok(lease)
+    }
+
+    /// The installed remote dispatcher (Go Home mode), if any.
+    pub fn remote_dispatch(&self) -> Option<Arc<dyn crate::remote::RemoteDispatch>> {
+        self.remote.read().unwrap_or_else(PoisonError::into_inner).clone()
+    }
+
+    /// Routes every request through `dispatch` (Go Home mode) or back to the local
+    /// scheduler with `None` (additive API).
+    pub fn set_remote_dispatch(&self, dispatch: Option<Arc<dyn crate::remote::RemoteDispatch>>) {
+        *self.remote.write().unwrap_or_else(PoisonError::into_inner) = dispatch;
+    }
+
+    /// One remote pick: waits for this request's earlier releases, then asks the
+    /// dispatcher (Go `endHomeSelectionBeforeRedispatch` + `pickHomeDispatchSelection`).
+    pub(crate) async fn acquire_remote(
+        &self,
+        dispatch: &dyn crate::remote::RemoteDispatch,
+        selection: Selection,
+        request: crate::remote::RemoteRequest,
+        releases: &crate::remote::PendingReleases,
+    ) -> Result<Lease, ExecError> {
+        releases.settle().await.map_err(|error| {
+            ExecError::local(
+                503,
+                FailureScope::Credential,
+                format!("home_unavailable: Home did not acknowledge credential release: {error}"),
+            )
+        })?;
+        let grant = dispatch.dispatch(request).await?;
+        Ok(Lease {
+            store: self.store.clone(),
+            credential: Arc::new(grant.credential),
+            execution_model: selection.model.clone(),
+            selection,
+            attempt: self.store.attempts.fetch_add(1, Ordering::Relaxed),
+            policy: self.policy(),
+            reported: false,
+            remote: Some(crate::remote::RemoteEnd {
+                end: Some(grant.end),
+                releases: releases.clone(),
+            }),
+        })
     }
 
     /// Prepares and commits one credential. `failed` is the revision whose token an
@@ -561,9 +607,17 @@ pub struct Lease {
     pub attempt: u64,
     policy: Arc<Policy>,
     reported: bool,
+    /// A credential from the remote dispatcher: its lease ends there, not in the local
+    /// scheduler.
+    remote: Option<crate::remote::RemoteEnd>,
 }
 
 impl Lease {
+    /// Whether the credential came from the remote dispatcher (Go Home mode).
+    pub fn is_remote(&self) -> bool {
+        self.remote.is_some()
+    }
+
     pub fn complete(mut self, outcome: Outcome) {
         self.report(outcome);
     }
@@ -571,14 +625,21 @@ impl Lease {
     /// Records an intermediate outcome for one model of a pooled alias without ending
     /// the lease.
     pub fn note(&self, model: &str, outcome: &Outcome) {
-        self.store.record_model(self, model, outcome);
+        if self.remote.is_none() {
+            self.store.record_model(self, model, outcome);
+        }
     }
 
     fn report(&mut self, outcome: Outcome) {
         if std::mem::replace(&mut self.reported, true) {
             return;
         }
-        self.store.record(self, &outcome);
+        match &mut self.remote {
+            // Go `reportHomeResult` leaves local cooldowns alone; the scope ends with
+            // its release.
+            Some(remote) => remote.finish(),
+            None => self.store.record(self, &outcome),
+        }
     }
 }
 
@@ -918,6 +979,7 @@ impl CredentialStore {
             attempt: self.attempts.fetch_add(1, Ordering::Relaxed),
             policy,
             reported: false,
+            remote: None,
         })
     }
 
