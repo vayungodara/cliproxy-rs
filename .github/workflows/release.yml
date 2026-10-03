@@ -44,16 +44,10 @@ jobs:
           path: ui/dist-panel/management.html
           if-no-files-found: error
 
+  # The same fmt, clippy, network-denied tests and Windows check as every push.
   test:
-    name: cargo test
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v7
-      - name: Build tools
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends cmake clang libclang-dev perl
-      - name: Rust
-        run: rustup toolchain install stable --profile minimal && rustup default stable
-      - run: cargo test --workspace --locked
+    name: CI
+    uses: ./.github/workflows/ci.yml
 
   build:
     name: build ${{ matrix.target }}

@@ -1,40 +1,64 @@
 # cliproxy-rs
 
+[![CI](https://github.com/vayungodara/cliproxy-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/vayungodara/cliproxy-rs/actions/workflows/ci.yml)
+
 cliproxy-rs is a Rust rewrite of [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI). It runs one local server that accepts OpenAI, Anthropic and Gemini API requests and serves them with the accounts and API keys you connect: Claude and ChatGPT (Codex) subscriptions signed in through OAuth, Kimi, Meta, xAI and Devin accounts, Gemini API keys, Vertex AI service accounts, and any OpenAI-compatible upstream. Coding tools such as Claude Code and Amp, and clients built on the OpenAI, Anthropic or Gemini SDKs, point at it as if it were the provider.
 
 It reads the same `config.yaml` and the same credential files as CLIProxyAPI v8, and serves the same HTTP routes and v8 Management API. A Go user can stop the Go binary, start this one on the same directory, and keep their accounts. It ships as a single binary with the management dashboard built in.
 
-![The dashboard overview, light theme](docs/img/dashboard-overview-light.png)
+<!--
+  Launch hero slot. When the launch video is ready, replace the <picture> below with a
+  5 to 8 second loop of its best part (docs/img/hero.gif, or an MP4 uploaded as a GitHub
+  attachment), under 10 MB, and add a link to the full video under it, for example:
+    <a href="FULL_VIDEO_URL"><img src="docs/img/hero.gif" alt="..." width="880"></a>
+    <br><a href="FULL_VIDEO_URL">Watch the full video</a>
+  If the shipped video keeps its current track, also uncomment the credit line below.
+  Until then the dashboard screenshots stand in.
+-->
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/img/dashboard-overview-dark.png">
+    <img src="docs/img/dashboard-overview-light.png" alt="The cliproxy-rs dashboard: requests over the last 200 minutes, ready accounts, success rate and the connected accounts" width="880">
+  </picture>
+</p>
+<!-- Music credit for the launch video, pending the final track:
+<p align="center"><sub>Music: "Voxel Revolution" by Kevin MacLeod (<a href="https://incompetech.com">incompetech.com</a>), licensed under <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>.</sub></p>
+-->
 
 ## Status
 
-cliproxy-rs follows CLIProxyAPI at commit `6fecc6e` (v8.0.10). It is new and does not cover everything the Go server does yet. [docs/PARITY-STATUS.md](docs/PARITY-STATUS.md) tracks every route, setting and test suite item by item.
+cliproxy-rs follows CLIProxyAPI at commit `6fecc6e` (v8.0.10). It is new: the proxy, the providers below and the Management API work, and some of Go's extras are still to come (see [Upcoming features](#upcoming-features)). [docs/PARITY-STATUS.md](docs/PARITY-STATUS.md) tracks every route, setting and test suite item by item.
 
 Works today:
 
 - Client APIs: `POST /v1/messages` and `/v1/messages/count_tokens` (Anthropic), `POST /v1/chat/completions`, `/v1/completions`, `/v1/responses` and `/v1/responses/compact` (OpenAI), `/v1beta/models/...` and `/v1beta/interactions` (Gemini), `GET /v1/models`, and the Codex paths under `/backend-api/codex/`. Streaming (SSE) and non-streaming, with format translation between the three protocols.
 - Images and video: `POST /v1/images/generations` and `/v1/images/edits` through xAI and OpenAI-compatible upstreams (including `gpt-image` models served by such an upstream), and the `/v1/videos` and `/openai/v1/videos` routes for xAI video.
 - WebSocket: the Responses WebSocket on `GET /v1/responses` and `GET /backend-api/codex/responses`, used by Codex clients, including response steering (`oauth.providers.codex.response-steering`).
-- Realtime and live through a Codex account: `/v1/realtime` (WebSocket and WebRTC calls), `/v1/live`, call sidebands and local ephemeral keys (`/v1/realtime/client_secrets`).
+- Realtime and live through a Codex account: `/v1/realtime` (WebSocket and WebRTC calls), `/v1/live`, call sidebands and local ephemeral keys (`/v1/realtime/client_secrets`). The WebRTC media relay is an optional build feature (`cargo build --release -p cliproxy --features cpa-server/media-relay`) and is not in the release binaries.
 - Providers: Claude (OAuth and API keys), Codex (OAuth and API keys), Kimi, Meta, xAI, Devin, Gemini API keys and Gemini Interactions, Vertex AI (service accounts imported with `-vertex-import`, and API keys), and OpenAI-compatible upstreams such as OpenRouter.
 - Account sign-in from the command line or the dashboard: Claude, Codex (browser or device code), Kimi, Meta, xAI and Devin.
 - Routing: round-robin, weighted and fill-first selection, retries, cooldowns, session affinity, model aliases and exclusions, payload rules, per-credential and global proxies.
 - The v8 Management API for configuration, credentials, OAuth sign-in, quota checks (`/requests/api-call`), usage counters, logs and model catalogs, plus the dashboard at `/management.html`.
 - HTTPS on the main port (`server.tls`), logging in Go's format to stdout or a rotating `main.log` with Go's per-request access log lines, request log files, LAN discovery (`-discover` and the `server.discovery` advertisement), `.env` loading, and remote model catalog updates as in Go (`-local-model` turns them off).
-- Plugins (`plugins`, Linux and macOS), with plugin-defined routes and the Management API routes to list, enable, configure and delete them. The plugin store and plugin quotas are not available yet.
-- Home mode (`-home-jwt`): bootstrap, config updates and dispatch through Home.
+- Plugins (`plugins`, Linux and macOS): loading and configuration, plugin-defined routes, and the Management API routes to list, enable, configure and delete plugins.
+- Home mode (`-home-jwt`): bootstrap from Home, config updates and request dispatch through Home.
 - The `PGSTORE_*`, `OBJECTSTORE_*` and `GITSTORE_*` storage backends, and the Redis-protocol usage subscriber on the main port.
 - Config and credential files are watched and reloaded without a restart. A plaintext management key is hashed on first start, as Go does.
 
-Not yet supported (at the time of writing):
-
-- Providers: Antigravity and AI Studio. Vertex service accounts can be imported from the command line, not yet from the dashboard.
-- The WebRTC media relay for live calls is an optional build feature and is not in the release binaries.
-- Image generation and editing through Codex accounts (Go serves `gpt-image` models with a ChatGPT sign-in).
-- Home-managed plugins: Home's plugin sync, plugin tasks and plugin status reports.
-- The upstream request and response sections of request log files, the `pprof` listener and the terminal UI (`-tui`).
-
 The dashboard says when the server lacks an endpoint instead of failing: actions it cannot do are disabled and named, and pages it cannot load say which route is missing.
+
+## Upcoming features
+
+These parts of CLIProxyAPI are not in cliproxy-rs yet. They are planned, in no fixed order:
+
+- Plugins: the host callbacks plugins use to call back into the server, calling plugins on the request path (plugin providers, sign-in, models and usage), the plugin store and plugin quotas. Today plugins load and serve their own routes, but requests do not pass through them.
+- Home (cluster) mode: reporting usage, logs and in-flight requests back to Home, Home's KV storage, and syncing plugins managed by Home.
+- Google Antigravity, and Google AI Studio.
+- Image generation and editing through Codex accounts (Go serves `gpt-image` models with a ChatGPT sign-in), and importing Vertex service accounts from the dashboard (the command line works).
+- The terminal UI (`-tui`).
+- The `pprof` debug listener.
+- The upstream request and response sections of request log files.
+- The rest of Go's own test cases. The parity audit at commit `50b9e80` checked 1,687 Go routes, settings, flags and test suites: 798 (47%) are fully covered, 697 partly and 192 not yet. [docs/PARITY-STATUS.md](docs/PARITY-STATUS.md) lists each one.
 
 ## Install
 
@@ -156,14 +180,16 @@ The same files work for both servers. [docs/MIGRATING-FROM-GO.md](docs/MIGRATING
 
 ## Performance
 
-On a 2-vCPU test machine with a local fake upstream, cliproxy-rs used 15 MB of memory at idle against Go's 45 MB, and 24 to 43 MB under load against 57 to 104 MB. Go handled about 20% more non-streaming requests per second; streaming throughput was level, and translated Anthropic-format streams were about 50% faster on cliproxy-rs. The release binary is 33 MB against Go's 69 MB. [docs/BENCHMARKS.md](docs/BENCHMARKS.md) has the method, every number and the caveats.
+Go is faster on non-streaming throughput. On a 2-vCPU test machine with a local fake upstream, Go handled about 42% more non-streaming requests per second (1,859 against 1,307) and about 10% more plain streams (1,038 against 944). cliproxy-rs was faster on streams it translates between the Anthropic and OpenAI formats (830 against 657 per second) and used less than half of Go's memory: 17 MB at idle against 44 MB, and 25 to 50 MB under load against 58 to 105 MB. It starts in 16 ms against Go's 46 ms, and the release binary is 36 MB against 69 MB. [docs/BENCHMARKS.md](docs/BENCHMARKS.md) has the method, every number and the caveats.
 
 ## Development
 
-The workspace is `crates/cpa-core` (config and credential formats), `crates/cpa-exec` (one module per upstream provider), `crates/cpa-translate` (protocol translation), `crates/cpa-server` (routes, selection, management API), `crates/cliproxy` (the binary) and `ui/` (the dashboard, see [ui/README.md](ui/README.md)). Tests run against local mock upstreams only:
+The workspace is `crates/cpa-core` (config and credential formats), `crates/cpa-exec` (one module per upstream provider), `crates/cpa-translate` (protocol translation), `crates/cpa-server` (routes, selection, management API), `crates/cliproxy` (the binary) and `ui/` (the dashboard, see [ui/README.md](ui/README.md)). Tests run against local mock upstreams only. CI runs the same three commands on every push and pull request:
 
 ```sh
-cargo test --workspace
+cargo fmt --all --check
+cargo clippy --workspace --all-targets --locked -- -D warnings
+cargo test --workspace --locked
 ```
 
 Built with some help from AI.

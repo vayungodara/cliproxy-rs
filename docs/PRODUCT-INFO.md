@@ -38,12 +38,13 @@ It started from a post on X by @maria_rcks on 2 October 2026: "why hasnt anyone 
 
 ## Measured numbers
 
-From [BENCHMARKS.md](BENCHMARKS.md): commit `d068002` against the Go v8.0.10 release binary, same config, a 2-vCPU virtual machine, a local fake upstream, median of three runs.
+From [BENCHMARKS.md](BENCHMARKS.md): commit `50b9e80` against the Go v8.0.10 release binary, same config, a 2-vCPU virtual machine, a local fake upstream, median of three runs.
 
-- Memory at idle: 14.8 MB (Go: 45.1 MB). Under load: 24 to 25 MB (Go: 57 to 79 MB). With 256 slow streams open: 43 MB (Go: 104 MB).
-- Startup to first answered request: 13 ms (Go: 98 ms).
-- Binary: 33.0 MB, 14.0 MB as a release archive (Go: 69.1 MB and 22.9 MB).
-- Throughput: Go handled about 20% more non-streaming requests per second (1,696 against 1,403). Fast streams were level (956 against 940 per second). Translated Anthropic-format streams ran at 913 per second against Go's 613, with lower CPU per request. Do not describe cliproxy-rs as faster than Go overall.
+- Throughput: Go is faster on non-streaming requests. It handled about 42% more per second (1,859 against 1,307) and about 10% more plain streams (1,038 against 944). cliproxy-rs was faster on translated Anthropic-format streams (830 against 657 per second, with lower CPU per request). Do not describe cliproxy-rs as faster than Go overall.
+- Memory at idle: 17.4 MB (Go: 44.1 MB). Under load: 25 to 27 MB (Go: 58 to 78 MB). With 256 slow streams open: 50 MB (Go: 105 MB).
+- Startup to first answered request: 16 ms (Go: 46 ms).
+- Binary: 35.9 MB, 15.2 MB as a release archive (Go: 69.1 MB and 22.9 MB).
+- Results vary between runs on this machine by up to about 10%; the comparisons above are within one run.
 
 ## Gaps today
 
