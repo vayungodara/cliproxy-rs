@@ -1,6 +1,15 @@
 package main
 
+import "encoding/json"
+
+// Fake credentials; nothing is sent anywhere.
+var authFiles = map[string]string{
+	"claude.json": `{"type":"claude","email":"a@example.invalid","access_token":"fake-access","refresh_token":"fake-refresh"}`,
+	"codex.json":  `{"type":"codex","email":"b@example.invalid","access_token":"fake-codex"}`,
+}
+
 const initialConfig = `config-version: 8
+auth-dir: AUTHDIR
 management:
   secret-key: $HASH
 plugins:
@@ -93,6 +102,8 @@ func scenarios(r *runner) {
 	get("/v0/resource/plugins/recorder-b/page?x=1")
 	get("/v8/management/rec/c")
 
+	quotaScenarios(r)
+
 	// Delete: a loaded configured plugin, a configured plugin without a file, misses.
 	r.http(httpArgs{Method: "DELETE", Path: v0 + "/recorder-c"})
 	r.settle()
@@ -104,4 +115,81 @@ func scenarios(r *runner) {
 	r.http(httpArgs{Method: "DELETE", Path: v8 + "/bad!id"})
 	get(v0)
 	get("/v0/management/rec/c")
+}
+
+func ok(v any) string {
+	raw, err := json.Marshal(map[string]any{"ok": true, "result": v})
+	check(err)
+	return string(raw)
+}
+
+func fail(message string) string {
+	raw, err := json.Marshal(map[string]any{"ok": false, "error": map[string]any{"code": "x", "message": message}})
+	check(err)
+	return string(raw)
+}
+
+// quotaScenarios covers plugin_quota.go and quota_test.go (recorder-a is the quota provider).
+func quotaScenarios(r *runner) {
+	claude := "AUTHINDEX(claude.json)"
+	codex := "AUTHINDEX(codex.json)"
+	post := func(path, body string) { r.http(httpArgs{Method: "POST", Path: path, Body: body}) }
+	// An earlier PATCH removed recorder-a's enabled key; turn it back on.
+	r.http(httpArgs{Method: "PATCH", Path: "/v0/management/plugins/recorder-a/enabled", Body: `{"enabled":true}`})
+	r.settle()
+	r.records()
+	r.respond("a", "quota.describe", ok(map[string]any{"supported_providers": []string{"Claude"}, "display_name": "Rec <A>", "supports_reset": true}))
+	r.http(httpArgs{Method: "GET", Path: "/v0/management/quota/providers"})
+	r.http(httpArgs{Method: "GET", Path: "/v8/management/quota/providers"})
+	r.http(httpArgs{Method: "POST", Path: "/v8/management/quota/fetch", Body: `{}`})
+
+	r.respond("a", "quota.fetch", ok(map[string]any{"summary": []map[string]any{{"key": "k", "label": "L", "value": 0.5, "unit": "%"}}, "server_time_offset_ms": 3}))
+	for _, body := range []string{``, `[]`, `{}`, `null`, `{"auth_index":5}`, `{"auth_index":"  "}`, `{"auth_index":"nope"}`, `{"auth_index":"claude.json"}`} {
+		post("/v0/management/quota/fetch", body)
+	}
+	post("/v0/management/quota/fetch", `{"authIndex":"`+claude+`"}`)
+	r.records()
+	post("/v0/management/quota/fetch", `{"AUTHINDEX":"`+claude+`","provider":"other"}`)
+	post("/v0/management/quota/fetch", `{"auth_index":"`+codex+`"}`)
+	post("/v0/management/quota/fetch", `{"auth_index":"`+codex+`","plugin_id":"recorder-a"}`)
+	post("/v0/management/quota/fetch", `{"auth_index":"`+claude+`","plugin_id":"recorder-b"}`)
+	r.records()
+	r.respond("a", "quota.fetch", fail("upstream <down>"))
+	post("/v0/management/quota/fetch", `{"auth_index":"`+claude+`"}`)
+	r.records()
+
+	r.respond("a", "quota.reset", ok(map[string]any{"success": true, "message": "done"}))
+	post("/v0/management/quota/reset", `{"auth_index":"`+claude+`"}`)
+	post("/v0/management/quota/reset", `{"auth_index":"`+codex+`"}`)
+	post("/v0/management/quota/reset", `{"auth_index":"`+codex+`","plugin_id":"recorder-a"}`)
+	post("/v0/management/quota/reset", `{"auth_index":"`+claude+`","plugin_id":"recorder-b"}`)
+	r.records()
+	r.respond("a", "quota.reset", ok(map[string]any{"success": false}))
+	post("/v0/management/quota/reset", `{"auth_index":"`+claude+`"}`)
+	r.respond("a", "quota.reset", fail("nope"))
+	post("/v0/management/quota/reset", `{"auth_index":"`+claude+`"}`)
+	r.records()
+
+	// Per-plugin quota, v0 and v8; the plugin ID is not validated.
+	r.respond("a", "quota.fetch", ok(map[string]any{"subscription": map[string]any{"plan": "pro"}}))
+	r.respond("a", "quota.reset", ok(map[string]any{"success": true}))
+	for _, base := range []string{"/v0/management/plugins/", "/v8/management/plugins/"} {
+		r.http(httpArgs{Method: "GET", Path: base + "recorder-a/quota?auth_index=" + claude})
+		r.http(httpArgs{Method: "GET", Path: base + "recorder-a/quota?authIndex=" + codex})
+		r.http(httpArgs{Method: "GET", Path: base + "recorder-a/quota"})
+		r.http(httpArgs{Method: "GET", Path: base + "bad!id/quota?auth_index=" + claude})
+		r.http(httpArgs{Method: "GET", Path: base + "recorder-b/quota?auth_index=nope"})
+		post(base+"recorder-a/quota", `{"AuthIndex":"`+claude+`"}`)
+		post(base+"recorder-a/quota", `{bad`)
+		r.http(httpArgs{Method: "DELETE", Path: base + "recorder-a/quota?auth_index=" + claude})
+		r.http(httpArgs{Method: "DELETE", Path: base + "recorder-a/quota", Body: `{"auth_index":"` + codex + `"}`})
+		r.http(httpArgs{Method: "DELETE", Path: base + "recorder-a/quota", Body: `{bad`})
+	}
+	post("/v0/management/plugins/recorder-a/quota/reset", `{"authIndex":"`+claude+`"}`)
+	post("/v8/management/plugins/recorder-a/quota/reset", `{"authIndex":"`+claude+`"}`)
+	r.records()
+
+	// quota_test.go: the cooldown reset takes only an auth index.
+	post("/v0/management/reset-quota", `{"auth_id":"claude.json"}`)
+	post("/v0/management/reset-quota", `{"auth_index":"claude.json"}`)
 }

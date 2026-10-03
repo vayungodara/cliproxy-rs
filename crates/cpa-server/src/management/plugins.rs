@@ -44,6 +44,13 @@ fn body_json(status: StatusCode, body: String) -> Response {
         .into_response()
 }
 
+/// A struct-shaped value as Go's `encoding/json` writes it: fields in order.
+pub(super) fn ordered_json(v: &Value) -> String {
+    let mut out = String::new();
+    ordered(v, &mut out);
+    out
+}
+
 fn ordered(v: &Value, out: &mut String) {
     match v {
         Value::Object(map) => {

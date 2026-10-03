@@ -13,12 +13,14 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/api"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/config"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/pluginhost"
+	"github.com/router-for-me/CLIProxyAPI/v8/internal/watcher/synthesizer"
 	sdkaccess "github.com/router-for-me/CLIProxyAPI/v8/sdk/access"
 	coreauth "github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/auth"
 	"golang.org/x/crypto/bcrypt"
@@ -32,9 +34,10 @@ type step struct {
 }
 
 type runner struct {
-	built, pluginDir, recordDir, configPath string
-	server                                  *api.Server
-	steps                                   []step
+	built, pluginDir, recordDir, authDir, configPath string
+	server                                           *api.Server
+	steps                                            []step
+	indexes                                          map[string]string // auth file name -> auth_index
 }
 
 func check(err error) {
@@ -44,11 +47,59 @@ func check(err error) {
 }
 
 func (r *runner) placeholders(s string) string {
-	return strings.NewReplacer("PLUGINDIR", r.pluginDir, "RECORDDIR", r.recordDir).Replace(s)
+	pairs := []string{"PLUGINDIR", r.pluginDir, "RECORDDIR", r.recordDir, "AUTHDIR", r.authDir}
+	for name, index := range r.indexes {
+		pairs = append(pairs, "AUTHINDEX("+name+")", index)
+	}
+	return strings.NewReplacer(pairs...).Replace(s)
 }
 
 func (r *runner) normalize(s string) string {
-	return strings.NewReplacer(r.pluginDir, "PLUGINDIR", r.recordDir, "RECORDDIR").Replace(s)
+	pairs := []string{r.pluginDir, "PLUGINDIR", r.recordDir, "RECORDDIR", r.authDir, "AUTHDIR"}
+	for name, index := range r.indexes {
+		pairs = append(pairs, index, "AUTHINDEX("+name+")")
+	}
+	return strings.NewReplacer(pairs...).Replace(s)
+}
+
+// respond stores the envelope a recorder answers method with ("" removes it).
+func (r *runner) respond(label, method, envelope string) {
+	dir := filepath.Join(r.recordDir, "respond", label)
+	check(os.MkdirAll(dir, 0o755))
+	path := filepath.Join(dir, method+".json")
+	if envelope == "" {
+		_ = os.Remove(path)
+	} else {
+		check(os.WriteFile(path, []byte(envelope), 0o644))
+	}
+	r.steps = append(r.steps, step{Op: "respond", Args: map[string]string{"label": label, "method": method, "envelope": envelope}})
+}
+
+var callbackID = regexp.MustCompile(`"host_callback_id":"[0-9]+"`)
+
+// records returns and clears the quota.* calls every recorder received.
+func (r *runner) records() {
+	out := []map[string]string{}
+	entries, err := os.ReadDir(r.recordDir)
+	check(err)
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		path := filepath.Join(r.recordDir, entry.Name())
+		data, err := os.ReadFile(path)
+		check(err)
+		check(os.Remove(path))
+		for _, line := range strings.Split(strings.TrimSpace(string(data)), "\n") {
+			var rec map[string]string
+			if json.Unmarshal([]byte(line), &rec) != nil || !strings.HasPrefix(rec["method"], "quota.") {
+				continue
+			}
+			request := callbackID.ReplaceAllString(r.normalize(rec["request"]), `"host_callback_id":"#"`)
+			out = append(out, map[string]string{"label": strings.TrimSuffix(entry.Name(), ".jsonl"), "method": rec["method"], "request": request})
+		}
+	}
+	r.steps = append(r.steps, step{Op: "records", Result: out})
 }
 
 func (r *runner) files(files map[string]string) {
@@ -75,7 +126,7 @@ type httpResult struct {
 }
 
 func (r *runner) http(args httpArgs) {
-	req := httptest.NewRequest(args.Method, args.Path, strings.NewReader(r.placeholders(args.Body)))
+	req := httptest.NewRequest(args.Method, r.placeholders(args.Path), strings.NewReader(r.placeholders(args.Body)))
 	req.RemoteAddr = "127.0.0.1:40000"
 	if !args.NoKey {
 		req.Header.Set("Authorization", "Bearer fake-secret")
@@ -121,10 +172,17 @@ func main() {
 		built:      os.Args[1],
 		pluginDir:  filepath.Join(work, "plugins"),
 		recordDir:  filepath.Join(work, "records"),
+		authDir:    filepath.Join(work, "auths"),
 		configPath: filepath.Join(work, "config.yaml"),
+		indexes:    map[string]string{},
 	}
 	check(os.MkdirAll(r.pluginDir, 0o755))
 	check(os.MkdirAll(r.recordDir, 0o755))
+	check(os.MkdirAll(r.authDir, 0o700))
+	for name, body := range authFiles {
+		check(os.WriteFile(filepath.Join(r.authDir, name), []byte(body), 0o600))
+	}
+	r.steps = append(r.steps, step{Op: "auths", Args: authFiles})
 	r.files(map[string]string{
 		"recorder-a.so":        "recorder",
 		"recorder-b.so":        "recorder",
@@ -139,10 +197,20 @@ func main() {
 	check(os.WriteFile(r.configPath, []byte(text), 0o600))
 	cfg, err := config.LoadConfig(r.configPath)
 	check(err)
+	// Credentials as Go's watcher synthesizes them from the auth dir.
+	manager := coreauth.NewManager(nil, nil, nil)
+	synth := &synthesizer.SynthesisContext{Config: cfg, AuthDir: r.authDir, Now: time.Now(), IDGenerator: synthesizer.NewStableIDGenerator()}
+	auths, err := synthesizer.NewFileSynthesizer().Synthesize(synth)
+	check(err)
+	for _, a := range auths {
+		_, errRegister := manager.Register(coreauth.WithSkipPersist(context.Background()), a)
+		check(errRegister)
+		r.indexes[a.FileName] = a.EnsureIndex()
+	}
 	host := pluginhost.New()
 	host.ApplyConfig(context.Background(), cfg)
 	var server *api.Server
-	server = api.NewServer(cfg, coreauth.NewManager(nil, nil, nil), sdkaccess.NewManager(), r.configPath,
+	server = api.NewServer(cfg, manager, sdkaccess.NewManager(), r.configPath,
 		api.WithPluginHost(host),
 		api.WithConfigReloadHook(func(ctx context.Context, cfg *config.Config) {
 			host.ApplyConfig(ctx, cfg)

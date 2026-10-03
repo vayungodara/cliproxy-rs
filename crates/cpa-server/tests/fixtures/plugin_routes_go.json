@@ -1,6 +1,14 @@
 {
   "steps": [
     {
+      "op": "auths",
+      "args": {
+        "claude.json": "{\"type\":\"claude\",\"email\":\"a@example.invalid\",\"access_token\":\"fake-access\",\"refresh_token\":\"fake-refresh\"}",
+        "codex.json": "{\"type\":\"codex\",\"email\":\"b@example.invalid\",\"access_token\":\"fake-codex\"}"
+      },
+      "result": null
+    },
+    {
       "op": "files",
       "args": {
         "recorder-a.so": "recorder",
@@ -13,7 +21,7 @@
     },
     {
       "op": "config",
-      "args": "config-version: 8\nmanagement:\n  secret-key: $HASH\nplugins:\n  enabled: true\n  dir: PLUGINDIR/./sub/..\n  configs:\n    recorder-a:\n      enabled: true\n      priority: 5\n      record: RECORDDIR\n      label: a\n      caps: management_api,quota_provider,auth_provider\n      nested:\n        list: [1, two]\n        flag: yes\n    recorder-b:\n      enabled: true\n      record: RECORDDIR\n      label: b\n      caps: management_api\n    recorder-d:\n      enabled: false\n      store:\n        version: 1_bad\n        release-tag: 1.0.0\n    ghost:\n      enabled: true\n",
+      "args": "config-version: 8\nauth-dir: AUTHDIR\nmanagement:\n  secret-key: $HASH\nplugins:\n  enabled: true\n  dir: PLUGINDIR/./sub/..\n  configs:\n    recorder-a:\n      enabled: true\n      priority: 5\n      record: RECORDDIR\n      label: a\n      caps: management_api,quota_provider,auth_provider\n      nested:\n        list: [1, two]\n        flag: yes\n    recorder-b:\n      enabled: true\n      record: RECORDDIR\n      label: b\n      caps: management_api\n    recorder-d:\n      enabled: false\n      store:\n        version: 1_bad\n        release-tag: 1.0.0\n    ghost:\n      enabled: true\n",
       "result": null
     },
     {
@@ -879,6 +887,894 @@
     {
       "op": "http",
       "args": {
+        "method": "PATCH",
+        "path": "/v0/management/plugins/recorder-a/enabled",
+        "body": "{\"enabled\":true}"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"status\":\"ok\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "settle",
+      "result": null
+    },
+    {
+      "op": "records",
+      "result": [
+        {
+          "label": "a",
+          "method": "quota.identifier",
+          "request": "{}"
+        },
+        {
+          "label": "a",
+          "method": "quota.identifier",
+          "request": "{}"
+        },
+        {
+          "label": "a",
+          "method": "quota.identifier",
+          "request": "{}"
+        },
+        {
+          "label": "a",
+          "method": "quota.identifier",
+          "request": "{}"
+        }
+      ]
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"ok\":true,\"result\":{\"display_name\":\"Rec \\u003cA\\u003e\",\"supported_providers\":[\"Claude\"],\"supports_reset\":true}}",
+        "label": "a",
+        "method": "quota.describe"
+      },
+      "result": null
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v0/management/quota/providers"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"providers\":[{\"plugin_id\":\"recorder-a\",\"provider\":\"a\",\"display_name\":\"Rec \\u003cA\\u003e\",\"supported_providers\":[\"Claude\"],\"supports_reset\":true}]}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v8/management/quota/providers"
+      },
+      "result": {
+        "status": 404,
+        "content_type": "",
+        "body": "",
+        "version_headers": false
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v8/management/quota/fetch",
+        "body": "{}"
+      },
+      "result": {
+        "status": 404,
+        "content_type": "",
+        "body": "",
+        "version_headers": false
+      }
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"ok\":true,\"result\":{\"server_time_offset_ms\":3,\"summary\":[{\"key\":\"k\",\"label\":\"L\",\"unit\":\"%\",\"value\":0.5}]}}",
+        "label": "a",
+        "method": "quota.fetch"
+      },
+      "result": null
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v0/management/quota/fetch"
+      },
+      "result": {
+        "status": 400,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"invalid request body\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v0/management/quota/fetch",
+        "body": "[]"
+      },
+      "result": {
+        "status": 400,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"invalid request body\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v0/management/quota/fetch",
+        "body": "{}"
+      },
+      "result": {
+        "status": 400,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"auth_index is required\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v0/management/quota/fetch",
+        "body": "null"
+      },
+      "result": {
+        "status": 400,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"auth_index is required\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v0/management/quota/fetch",
+        "body": "{\"auth_index\":5}"
+      },
+      "result": {
+        "status": 400,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"invalid request body\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v0/management/quota/fetch",
+        "body": "{\"auth_index\":\"  \"}"
+      },
+      "result": {
+        "status": 400,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"auth_index is required\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v0/management/quota/fetch",
+        "body": "{\"auth_index\":\"nope\"}"
+      },
+      "result": {
+        "status": 404,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"auth not found\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v0/management/quota/fetch",
+        "body": "{\"auth_index\":\"claude.json\"}"
+      },
+      "result": {
+        "status": 404,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"auth not found\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v0/management/quota/fetch",
+        "body": "{\"authIndex\":\"AUTHINDEX(claude.json)\"}"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"summary\":[{\"key\":\"k\",\"label\":\"L\",\"value\":0.5,\"unit\":\"%\"}],\"serverTimeOffsetMs\":3}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "records",
+      "result": [
+        {
+          "label": "a",
+          "method": "quota.describe",
+          "request": "{\"plugin\":{\"Name\":\"a\",\"Version\":\"1.0.0\",\"Author\":\"cliproxy-rs tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null}}"
+        },
+        {
+          "label": "a",
+          "method": "quota.describe",
+          "request": "{\"plugin\":{\"Name\":\"a\",\"Version\":\"1.0.0\",\"Author\":\"cliproxy-rs tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null}}"
+        },
+        {
+          "label": "a",
+          "method": "quota.fetch",
+          "request": "{\"auth_index\":\"AUTHINDEX(claude.json)\",\"auth_id\":\"claude.json\",\"provider\":\"claude\",\"storage_json\":\"eyJ0eXBlIjoiY2xhdWRlIiwiZW1haWwiOiJhQGV4YW1wbGUuaW52YWxpZCIsImFjY2Vzc190b2tlbiI6ImZha2UtYWNjZXNzIiwicmVmcmVzaF90b2tlbiI6ImZha2UtcmVmcmVzaCJ9\",\"metadata\":{\"access_token\":\"fake-access\",\"email\":\"a@example.invalid\",\"refresh_token\":\"fake-refresh\",\"type\":\"claude\"},\"attributes\":{\"auth_kind\":\"oauth\",\"path\":\"AUTHDIR/claude.json\",\"source\":\"AUTHDIR/claude.json\",\"source_backend\":\"file\"},\"host\":{\"AuthDir\":\"AUTHDIR\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"host_callback_id\":\"#\"}"
+        }
+      ]
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v0/management/quota/fetch",
+        "body": "{\"AUTHINDEX\":\"AUTHINDEX(claude.json)\",\"provider\":\"other\"}"
+      },
+      "result": {
+        "status": 501,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"no quota provider available for credential\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v0/management/quota/fetch",
+        "body": "{\"auth_index\":\"AUTHINDEX(codex.json)\"}"
+      },
+      "result": {
+        "status": 501,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"no quota provider available for credential\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v0/management/quota/fetch",
+        "body": "{\"auth_index\":\"AUTHINDEX(codex.json)\",\"plugin_id\":\"recorder-a\"}"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"summary\":[{\"key\":\"k\",\"label\":\"L\",\"value\":0.5,\"unit\":\"%\"}],\"serverTimeOffsetMs\":3}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v0/management/quota/fetch",
+        "body": "{\"auth_index\":\"AUTHINDEX(claude.json)\",\"plugin_id\":\"recorder-b\"}"
+      },
+      "result": {
+        "status": 501,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"no quota provider available for credential\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "records",
+      "result": [
+        {
+          "label": "a",
+          "method": "quota.fetch",
+          "request": "{\"auth_index\":\"AUTHINDEX(codex.json)\",\"auth_id\":\"codex.json\",\"provider\":\"codex\",\"storage_json\":\"eyJ0eXBlIjoiY29kZXgiLCJlbWFpbCI6ImJAZXhhbXBsZS5pbnZhbGlkIiwiYWNjZXNzX3Rva2VuIjoiZmFrZS1jb2RleCJ9\",\"metadata\":{\"access_token\":\"fake-codex\",\"email\":\"b@example.invalid\",\"type\":\"codex\"},\"attributes\":{\"auth_kind\":\"oauth\",\"path\":\"AUTHDIR/codex.json\",\"source\":\"AUTHDIR/codex.json\",\"source_backend\":\"file\"},\"host\":{\"AuthDir\":\"AUTHDIR\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"host_callback_id\":\"#\"}"
+        }
+      ]
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"error\":{\"code\":\"x\",\"message\":\"upstream \\u003cdown\\u003e\"},\"ok\":false}",
+        "label": "a",
+        "method": "quota.fetch"
+      },
+      "result": null
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v0/management/quota/fetch",
+        "body": "{\"auth_index\":\"AUTHINDEX(claude.json)\"}"
+      },
+      "result": {
+        "status": 502,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"failed to fetch quota: upstream \\u003cdown\\u003e\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "records",
+      "result": [
+        {
+          "label": "a",
+          "method": "quota.fetch",
+          "request": "{\"auth_index\":\"AUTHINDEX(claude.json)\",\"auth_id\":\"claude.json\",\"provider\":\"claude\",\"storage_json\":\"eyJ0eXBlIjoiY2xhdWRlIiwiZW1haWwiOiJhQGV4YW1wbGUuaW52YWxpZCIsImFjY2Vzc190b2tlbiI6ImZha2UtYWNjZXNzIiwicmVmcmVzaF90b2tlbiI6ImZha2UtcmVmcmVzaCJ9\",\"metadata\":{\"access_token\":\"fake-access\",\"email\":\"a@example.invalid\",\"refresh_token\":\"fake-refresh\",\"type\":\"claude\"},\"attributes\":{\"auth_kind\":\"oauth\",\"path\":\"AUTHDIR/claude.json\",\"source\":\"AUTHDIR/claude.json\",\"source_backend\":\"file\"},\"host\":{\"AuthDir\":\"AUTHDIR\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"host_callback_id\":\"#\"}"
+        }
+      ]
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"ok\":true,\"result\":{\"message\":\"done\",\"success\":true}}",
+        "label": "a",
+        "method": "quota.reset"
+      },
+      "result": null
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v0/management/quota/reset",
+        "body": "{\"auth_index\":\"AUTHINDEX(claude.json)\"}"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"auth_index\":\"AUTHINDEX(claude.json)\",\"message\":\"done\",\"status\":\"ok\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v0/management/quota/reset",
+        "body": "{\"auth_index\":\"AUTHINDEX(codex.json)\"}"
+      },
+      "result": {
+        "status": 501,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"no quota provider available for credential to reset\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v0/management/quota/reset",
+        "body": "{\"auth_index\":\"AUTHINDEX(codex.json)\",\"plugin_id\":\"recorder-a\"}"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"auth_index\":\"AUTHINDEX(codex.json)\",\"message\":\"done\",\"status\":\"ok\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v0/management/quota/reset",
+        "body": "{\"auth_index\":\"AUTHINDEX(claude.json)\",\"plugin_id\":\"recorder-b\"}"
+      },
+      "result": {
+        "status": 404,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"quota provider not found for plugin\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "records",
+      "result": [
+        {
+          "label": "a",
+          "method": "quota.reset",
+          "request": "{\"auth_index\":\"AUTHINDEX(claude.json)\",\"auth_id\":\"claude.json\",\"provider\":\"claude\",\"storage_json\":\"eyJ0eXBlIjoiY2xhdWRlIiwiZW1haWwiOiJhQGV4YW1wbGUuaW52YWxpZCIsImFjY2Vzc190b2tlbiI6ImZha2UtYWNjZXNzIiwicmVmcmVzaF90b2tlbiI6ImZha2UtcmVmcmVzaCJ9\",\"metadata\":{\"access_token\":\"fake-access\",\"email\":\"a@example.invalid\",\"refresh_token\":\"fake-refresh\",\"type\":\"claude\"},\"attributes\":{\"auth_kind\":\"oauth\",\"path\":\"AUTHDIR/claude.json\",\"source\":\"AUTHDIR/claude.json\",\"source_backend\":\"file\"},\"host\":{\"AuthDir\":\"AUTHDIR\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"host_callback_id\":\"#\"}"
+        },
+        {
+          "label": "a",
+          "method": "quota.reset",
+          "request": "{\"auth_index\":\"AUTHINDEX(codex.json)\",\"auth_id\":\"codex.json\",\"provider\":\"codex\",\"storage_json\":\"eyJ0eXBlIjoiY29kZXgiLCJlbWFpbCI6ImJAZXhhbXBsZS5pbnZhbGlkIiwiYWNjZXNzX3Rva2VuIjoiZmFrZS1jb2RleCJ9\",\"metadata\":{\"access_token\":\"fake-codex\",\"email\":\"b@example.invalid\",\"type\":\"codex\"},\"attributes\":{\"auth_kind\":\"oauth\",\"path\":\"AUTHDIR/codex.json\",\"source\":\"AUTHDIR/codex.json\",\"source_backend\":\"file\"},\"host\":{\"AuthDir\":\"AUTHDIR\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"host_callback_id\":\"#\"}"
+        }
+      ]
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"ok\":true,\"result\":{\"success\":false}}",
+        "label": "a",
+        "method": "quota.reset"
+      },
+      "result": null
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v0/management/quota/reset",
+        "body": "{\"auth_index\":\"AUTHINDEX(claude.json)\"}"
+      },
+      "result": {
+        "status": 502,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"quota reset rejected by provider\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"error\":{\"code\":\"x\",\"message\":\"nope\"},\"ok\":false}",
+        "label": "a",
+        "method": "quota.reset"
+      },
+      "result": null
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v0/management/quota/reset",
+        "body": "{\"auth_index\":\"AUTHINDEX(claude.json)\"}"
+      },
+      "result": {
+        "status": 502,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"plugin quota reset failed: nope\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "records",
+      "result": [
+        {
+          "label": "a",
+          "method": "quota.reset",
+          "request": "{\"auth_index\":\"AUTHINDEX(claude.json)\",\"auth_id\":\"claude.json\",\"provider\":\"claude\",\"storage_json\":\"eyJ0eXBlIjoiY2xhdWRlIiwiZW1haWwiOiJhQGV4YW1wbGUuaW52YWxpZCIsImFjY2Vzc190b2tlbiI6ImZha2UtYWNjZXNzIiwicmVmcmVzaF90b2tlbiI6ImZha2UtcmVmcmVzaCJ9\",\"metadata\":{\"access_token\":\"fake-access\",\"email\":\"a@example.invalid\",\"refresh_token\":\"fake-refresh\",\"type\":\"claude\"},\"attributes\":{\"auth_kind\":\"oauth\",\"path\":\"AUTHDIR/claude.json\",\"source\":\"AUTHDIR/claude.json\",\"source_backend\":\"file\"},\"host\":{\"AuthDir\":\"AUTHDIR\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"host_callback_id\":\"#\"}"
+        },
+        {
+          "label": "a",
+          "method": "quota.reset",
+          "request": "{\"auth_index\":\"AUTHINDEX(claude.json)\",\"auth_id\":\"claude.json\",\"provider\":\"claude\",\"storage_json\":\"eyJ0eXBlIjoiY2xhdWRlIiwiZW1haWwiOiJhQGV4YW1wbGUuaW52YWxpZCIsImFjY2Vzc190b2tlbiI6ImZha2UtYWNjZXNzIiwicmVmcmVzaF90b2tlbiI6ImZha2UtcmVmcmVzaCJ9\",\"metadata\":{\"access_token\":\"fake-access\",\"email\":\"a@example.invalid\",\"refresh_token\":\"fake-refresh\",\"type\":\"claude\"},\"attributes\":{\"auth_kind\":\"oauth\",\"path\":\"AUTHDIR/claude.json\",\"source\":\"AUTHDIR/claude.json\",\"source_backend\":\"file\"},\"host\":{\"AuthDir\":\"AUTHDIR\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"host_callback_id\":\"#\"}"
+        }
+      ]
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"ok\":true,\"result\":{\"subscription\":{\"plan\":\"pro\"}}}",
+        "label": "a",
+        "method": "quota.fetch"
+      },
+      "result": null
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"ok\":true,\"result\":{\"success\":true}}",
+        "label": "a",
+        "method": "quota.reset"
+      },
+      "result": null
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v0/management/plugins/recorder-a/quota?auth_index=AUTHINDEX(claude.json)"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"subscription\":{\"plan\":\"pro\"}}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v0/management/plugins/recorder-a/quota?authIndex=AUTHINDEX(codex.json)"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"subscription\":{\"plan\":\"pro\"}}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v0/management/plugins/recorder-a/quota"
+      },
+      "result": {
+        "status": 400,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"auth_index is required\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v0/management/plugins/bad!id/quota?auth_index=AUTHINDEX(claude.json)"
+      },
+      "result": {
+        "status": 404,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"quota provider not found for plugin\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v0/management/plugins/recorder-b/quota?auth_index=nope"
+      },
+      "result": {
+        "status": 404,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"auth not found\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v0/management/plugins/recorder-a/quota",
+        "body": "{\"AuthIndex\":\"AUTHINDEX(claude.json)\"}"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"subscription\":{\"plan\":\"pro\"}}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v0/management/plugins/recorder-a/quota",
+        "body": "{bad"
+      },
+      "result": {
+        "status": 400,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"invalid request body\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "DELETE",
+        "path": "/v0/management/plugins/recorder-a/quota?auth_index=AUTHINDEX(claude.json)"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"auth_index\":\"AUTHINDEX(claude.json)\",\"status\":\"ok\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "DELETE",
+        "path": "/v0/management/plugins/recorder-a/quota",
+        "body": "{\"auth_index\":\"AUTHINDEX(codex.json)\"}"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"auth_index\":\"AUTHINDEX(codex.json)\",\"status\":\"ok\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "DELETE",
+        "path": "/v0/management/plugins/recorder-a/quota",
+        "body": "{bad"
+      },
+      "result": {
+        "status": 400,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"auth_index is required\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v8/management/plugins/recorder-a/quota?auth_index=AUTHINDEX(claude.json)"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"subscription\":{\"plan\":\"pro\"}}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v8/management/plugins/recorder-a/quota?authIndex=AUTHINDEX(codex.json)"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"subscription\":{\"plan\":\"pro\"}}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v8/management/plugins/recorder-a/quota"
+      },
+      "result": {
+        "status": 400,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"auth_index is required\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v8/management/plugins/bad!id/quota?auth_index=AUTHINDEX(claude.json)"
+      },
+      "result": {
+        "status": 404,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"quota provider not found for plugin\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v8/management/plugins/recorder-b/quota?auth_index=nope"
+      },
+      "result": {
+        "status": 404,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"auth not found\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v8/management/plugins/recorder-a/quota",
+        "body": "{\"AuthIndex\":\"AUTHINDEX(claude.json)\"}"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"subscription\":{\"plan\":\"pro\"}}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v8/management/plugins/recorder-a/quota",
+        "body": "{bad"
+      },
+      "result": {
+        "status": 400,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"invalid request body\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "DELETE",
+        "path": "/v8/management/plugins/recorder-a/quota?auth_index=AUTHINDEX(claude.json)"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"auth_index\":\"AUTHINDEX(claude.json)\",\"status\":\"ok\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "DELETE",
+        "path": "/v8/management/plugins/recorder-a/quota",
+        "body": "{\"auth_index\":\"AUTHINDEX(codex.json)\"}"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"auth_index\":\"AUTHINDEX(codex.json)\",\"status\":\"ok\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "DELETE",
+        "path": "/v8/management/plugins/recorder-a/quota",
+        "body": "{bad"
+      },
+      "result": {
+        "status": 400,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"auth_index is required\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v0/management/plugins/recorder-a/quota/reset",
+        "body": "{\"authIndex\":\"AUTHINDEX(claude.json)\"}"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"auth_index\":\"AUTHINDEX(claude.json)\",\"status\":\"ok\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v8/management/plugins/recorder-a/quota/reset",
+        "body": "{\"authIndex\":\"AUTHINDEX(claude.json)\"}"
+      },
+      "result": {
+        "status": 404,
+        "content_type": "",
+        "body": "",
+        "version_headers": false
+      }
+    },
+    {
+      "op": "records",
+      "result": [
+        {
+          "label": "a",
+          "method": "quota.fetch",
+          "request": "{\"auth_index\":\"AUTHINDEX(claude.json)\",\"auth_id\":\"claude.json\",\"provider\":\"claude\",\"storage_json\":\"eyJ0eXBlIjoiY2xhdWRlIiwiZW1haWwiOiJhQGV4YW1wbGUuaW52YWxpZCIsImFjY2Vzc190b2tlbiI6ImZha2UtYWNjZXNzIiwicmVmcmVzaF90b2tlbiI6ImZha2UtcmVmcmVzaCJ9\",\"metadata\":{\"access_token\":\"fake-access\",\"email\":\"a@example.invalid\",\"refresh_token\":\"fake-refresh\",\"type\":\"claude\"},\"attributes\":{\"auth_kind\":\"oauth\",\"path\":\"AUTHDIR/claude.json\",\"source\":\"AUTHDIR/claude.json\",\"source_backend\":\"file\"},\"host\":{\"AuthDir\":\"AUTHDIR\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"host_callback_id\":\"#\"}"
+        },
+        {
+          "label": "a",
+          "method": "quota.fetch",
+          "request": "{\"auth_index\":\"AUTHINDEX(codex.json)\",\"auth_id\":\"codex.json\",\"provider\":\"codex\",\"storage_json\":\"eyJ0eXBlIjoiY29kZXgiLCJlbWFpbCI6ImJAZXhhbXBsZS5pbnZhbGlkIiwiYWNjZXNzX3Rva2VuIjoiZmFrZS1jb2RleCJ9\",\"metadata\":{\"access_token\":\"fake-codex\",\"email\":\"b@example.invalid\",\"type\":\"codex\"},\"attributes\":{\"auth_kind\":\"oauth\",\"path\":\"AUTHDIR/codex.json\",\"source\":\"AUTHDIR/codex.json\",\"source_backend\":\"file\"},\"host\":{\"AuthDir\":\"AUTHDIR\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"host_callback_id\":\"#\"}"
+        },
+        {
+          "label": "a",
+          "method": "quota.fetch",
+          "request": "{\"auth_index\":\"AUTHINDEX(claude.json)\",\"auth_id\":\"claude.json\",\"provider\":\"claude\",\"storage_json\":\"eyJ0eXBlIjoiY2xhdWRlIiwiZW1haWwiOiJhQGV4YW1wbGUuaW52YWxpZCIsImFjY2Vzc190b2tlbiI6ImZha2UtYWNjZXNzIiwicmVmcmVzaF90b2tlbiI6ImZha2UtcmVmcmVzaCJ9\",\"metadata\":{\"access_token\":\"fake-access\",\"email\":\"a@example.invalid\",\"refresh_token\":\"fake-refresh\",\"type\":\"claude\"},\"attributes\":{\"auth_kind\":\"oauth\",\"path\":\"AUTHDIR/claude.json\",\"source\":\"AUTHDIR/claude.json\",\"source_backend\":\"file\"},\"host\":{\"AuthDir\":\"AUTHDIR\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"host_callback_id\":\"#\"}"
+        },
+        {
+          "label": "a",
+          "method": "quota.reset",
+          "request": "{\"auth_index\":\"AUTHINDEX(claude.json)\",\"auth_id\":\"claude.json\",\"provider\":\"claude\",\"storage_json\":\"eyJ0eXBlIjoiY2xhdWRlIiwiZW1haWwiOiJhQGV4YW1wbGUuaW52YWxpZCIsImFjY2Vzc190b2tlbiI6ImZha2UtYWNjZXNzIiwicmVmcmVzaF90b2tlbiI6ImZha2UtcmVmcmVzaCJ9\",\"metadata\":{\"access_token\":\"fake-access\",\"email\":\"a@example.invalid\",\"refresh_token\":\"fake-refresh\",\"type\":\"claude\"},\"attributes\":{\"auth_kind\":\"oauth\",\"path\":\"AUTHDIR/claude.json\",\"source\":\"AUTHDIR/claude.json\",\"source_backend\":\"file\"},\"host\":{\"AuthDir\":\"AUTHDIR\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"host_callback_id\":\"#\"}"
+        },
+        {
+          "label": "a",
+          "method": "quota.reset",
+          "request": "{\"auth_index\":\"AUTHINDEX(codex.json)\",\"auth_id\":\"codex.json\",\"provider\":\"codex\",\"storage_json\":\"eyJ0eXBlIjoiY29kZXgiLCJlbWFpbCI6ImJAZXhhbXBsZS5pbnZhbGlkIiwiYWNjZXNzX3Rva2VuIjoiZmFrZS1jb2RleCJ9\",\"metadata\":{\"access_token\":\"fake-codex\",\"email\":\"b@example.invalid\",\"type\":\"codex\"},\"attributes\":{\"auth_kind\":\"oauth\",\"path\":\"AUTHDIR/codex.json\",\"source\":\"AUTHDIR/codex.json\",\"source_backend\":\"file\"},\"host\":{\"AuthDir\":\"AUTHDIR\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"host_callback_id\":\"#\"}"
+        },
+        {
+          "label": "a",
+          "method": "quota.fetch",
+          "request": "{\"auth_index\":\"AUTHINDEX(claude.json)\",\"auth_id\":\"claude.json\",\"provider\":\"claude\",\"storage_json\":\"eyJ0eXBlIjoiY2xhdWRlIiwiZW1haWwiOiJhQGV4YW1wbGUuaW52YWxpZCIsImFjY2Vzc190b2tlbiI6ImZha2UtYWNjZXNzIiwicmVmcmVzaF90b2tlbiI6ImZha2UtcmVmcmVzaCJ9\",\"metadata\":{\"access_token\":\"fake-access\",\"email\":\"a@example.invalid\",\"refresh_token\":\"fake-refresh\",\"type\":\"claude\"},\"attributes\":{\"auth_kind\":\"oauth\",\"path\":\"AUTHDIR/claude.json\",\"source\":\"AUTHDIR/claude.json\",\"source_backend\":\"file\"},\"host\":{\"AuthDir\":\"AUTHDIR\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"host_callback_id\":\"#\"}"
+        },
+        {
+          "label": "a",
+          "method": "quota.fetch",
+          "request": "{\"auth_index\":\"AUTHINDEX(codex.json)\",\"auth_id\":\"codex.json\",\"provider\":\"codex\",\"storage_json\":\"eyJ0eXBlIjoiY29kZXgiLCJlbWFpbCI6ImJAZXhhbXBsZS5pbnZhbGlkIiwiYWNjZXNzX3Rva2VuIjoiZmFrZS1jb2RleCJ9\",\"metadata\":{\"access_token\":\"fake-codex\",\"email\":\"b@example.invalid\",\"type\":\"codex\"},\"attributes\":{\"auth_kind\":\"oauth\",\"path\":\"AUTHDIR/codex.json\",\"source\":\"AUTHDIR/codex.json\",\"source_backend\":\"file\"},\"host\":{\"AuthDir\":\"AUTHDIR\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"host_callback_id\":\"#\"}"
+        },
+        {
+          "label": "a",
+          "method": "quota.fetch",
+          "request": "{\"auth_index\":\"AUTHINDEX(claude.json)\",\"auth_id\":\"claude.json\",\"provider\":\"claude\",\"storage_json\":\"eyJ0eXBlIjoiY2xhdWRlIiwiZW1haWwiOiJhQGV4YW1wbGUuaW52YWxpZCIsImFjY2Vzc190b2tlbiI6ImZha2UtYWNjZXNzIiwicmVmcmVzaF90b2tlbiI6ImZha2UtcmVmcmVzaCJ9\",\"metadata\":{\"access_token\":\"fake-access\",\"email\":\"a@example.invalid\",\"refresh_token\":\"fake-refresh\",\"type\":\"claude\"},\"attributes\":{\"auth_kind\":\"oauth\",\"path\":\"AUTHDIR/claude.json\",\"source\":\"AUTHDIR/claude.json\",\"source_backend\":\"file\"},\"host\":{\"AuthDir\":\"AUTHDIR\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"host_callback_id\":\"#\"}"
+        },
+        {
+          "label": "a",
+          "method": "quota.reset",
+          "request": "{\"auth_index\":\"AUTHINDEX(claude.json)\",\"auth_id\":\"claude.json\",\"provider\":\"claude\",\"storage_json\":\"eyJ0eXBlIjoiY2xhdWRlIiwiZW1haWwiOiJhQGV4YW1wbGUuaW52YWxpZCIsImFjY2Vzc190b2tlbiI6ImZha2UtYWNjZXNzIiwicmVmcmVzaF90b2tlbiI6ImZha2UtcmVmcmVzaCJ9\",\"metadata\":{\"access_token\":\"fake-access\",\"email\":\"a@example.invalid\",\"refresh_token\":\"fake-refresh\",\"type\":\"claude\"},\"attributes\":{\"auth_kind\":\"oauth\",\"path\":\"AUTHDIR/claude.json\",\"source\":\"AUTHDIR/claude.json\",\"source_backend\":\"file\"},\"host\":{\"AuthDir\":\"AUTHDIR\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"host_callback_id\":\"#\"}"
+        },
+        {
+          "label": "a",
+          "method": "quota.reset",
+          "request": "{\"auth_index\":\"AUTHINDEX(codex.json)\",\"auth_id\":\"codex.json\",\"provider\":\"codex\",\"storage_json\":\"eyJ0eXBlIjoiY29kZXgiLCJlbWFpbCI6ImJAZXhhbXBsZS5pbnZhbGlkIiwiYWNjZXNzX3Rva2VuIjoiZmFrZS1jb2RleCJ9\",\"metadata\":{\"access_token\":\"fake-codex\",\"email\":\"b@example.invalid\",\"type\":\"codex\"},\"attributes\":{\"auth_kind\":\"oauth\",\"path\":\"AUTHDIR/codex.json\",\"source\":\"AUTHDIR/codex.json\",\"source_backend\":\"file\"},\"host\":{\"AuthDir\":\"AUTHDIR\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"host_callback_id\":\"#\"}"
+        },
+        {
+          "label": "a",
+          "method": "quota.reset",
+          "request": "{\"auth_index\":\"AUTHINDEX(claude.json)\",\"auth_id\":\"claude.json\",\"provider\":\"claude\",\"storage_json\":\"eyJ0eXBlIjoiY2xhdWRlIiwiZW1haWwiOiJhQGV4YW1wbGUuaW52YWxpZCIsImFjY2Vzc190b2tlbiI6ImZha2UtYWNjZXNzIiwicmVmcmVzaF90b2tlbiI6ImZha2UtcmVmcmVzaCJ9\",\"metadata\":{\"access_token\":\"fake-access\",\"email\":\"a@example.invalid\",\"refresh_token\":\"fake-refresh\",\"type\":\"claude\"},\"attributes\":{\"auth_kind\":\"oauth\",\"path\":\"AUTHDIR/claude.json\",\"source\":\"AUTHDIR/claude.json\",\"source_backend\":\"file\"},\"host\":{\"AuthDir\":\"AUTHDIR\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"host_callback_id\":\"#\"}"
+        }
+      ]
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v0/management/reset-quota",
+        "body": "{\"auth_id\":\"claude.json\"}"
+      },
+      "result": {
+        "status": 400,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"auth_index is required\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v0/management/reset-quota",
+        "body": "{\"auth_index\":\"claude.json\"}"
+      },
+      "result": {
+        "status": 404,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"auth not found\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
         "method": "DELETE",
         "path": "/v0/management/plugins/recorder-c"
       },
@@ -906,6 +1802,7 @@
           },
           "recorder-a": {
             "caps": "management_api,quota_provider,auth_provider",
+            "enabled": true,
             "extra": "x",
             "label": "a",
             "priority": 7,
@@ -956,6 +1853,7 @@
           },
           "recorder-a": {
             "caps": "management_api,quota_provider,auth_provider",
+            "enabled": true,
             "extra": "x",
             "label": "a",
             "priority": 7,
@@ -1014,7 +1912,7 @@
       "result": {
         "status": 200,
         "content_type": "application/json; charset=utf-8",
-        "body": "{\"plugins_enabled\":true,\"plugins_dir\":\"PLUGINDIR\",\"plugins\":[{\"id\":\"new-one\",\"path\":\"\",\"configured\":true,\"registered\":false,\"enabled\":false,\"effective_enabled\":false,\"supports_oauth\":false,\"oauth_provider\":\"\",\"supports_quota\":false,\"logo\":\"\",\"config_fields\":[],\"menus\":[],\"metadata\":null},{\"id\":\"recorder-a\",\"path\":\"PLUGINDIR/recorder-a.so\",\"configured\":true,\"registered\":false,\"enabled\":false,\"effective_enabled\":false,\"supports_oauth\":false,\"oauth_provider\":\"\",\"supports_quota\":false,\"logo\":\"\",\"config_fields\":[],\"menus\":[],\"metadata\":null},{\"id\":\"recorder-b\",\"path\":\"PLUGINDIR/recorder-b.so\",\"configured\":true,\"registered\":false,\"enabled\":false,\"effective_enabled\":false,\"supports_oauth\":false,\"oauth_provider\":\"\",\"supports_quota\":false,\"logo\":\"\",\"config_fields\":[],\"menus\":[],\"metadata\":null},{\"id\":\"recorder-d\",\"path\":\"PLUGINDIR/recorder-d-v1.2.0.so\",\"configured\":true,\"registered\":false,\"enabled\":false,\"effective_enabled\":false,\"supports_oauth\":false,\"oauth_provider\":\"\",\"supports_quota\":false,\"logo\":\"\",\"config_fields\":[],\"menus\":[],\"metadata\":null}]}",
+        "body": "{\"plugins_enabled\":true,\"plugins_dir\":\"PLUGINDIR\",\"plugins\":[{\"id\":\"new-one\",\"path\":\"\",\"configured\":true,\"registered\":false,\"enabled\":false,\"effective_enabled\":false,\"supports_oauth\":false,\"oauth_provider\":\"\",\"supports_quota\":false,\"logo\":\"\",\"config_fields\":[],\"menus\":[],\"metadata\":null},{\"id\":\"recorder-a\",\"path\":\"PLUGINDIR/recorder-a.so\",\"configured\":true,\"registered\":true,\"enabled\":true,\"effective_enabled\":true,\"supports_oauth\":true,\"oauth_provider\":\"a\",\"supports_quota\":true,\"quota_provider\":\"a\",\"logo\":\"\",\"config_fields\":[],\"menus\":[{\"path\":\"/v0/resource/plugins/recorder-a/page\",\"menu\":\"Recorder a\",\"description\":\"\\u0026lt;b\\u0026gt;a\\u0026lt;/b\\u0026gt;\"},{\"path\":\"/v0/resource/plugins/recorder-a/rec/a/menu\",\"menu\":\"Legacy a\",\"description\":\"legacy menu\"}],\"metadata\":{\"name\":\"a\",\"version\":\"1.0.0\",\"author\":\"cliproxy-rs tests\",\"github_repository\":\"https://example.invalid/recorder\",\"logo\":\"\",\"config_fields\":[]}},{\"id\":\"recorder-b\",\"path\":\"PLUGINDIR/recorder-b.so\",\"configured\":true,\"registered\":false,\"enabled\":false,\"effective_enabled\":false,\"supports_oauth\":false,\"oauth_provider\":\"\",\"supports_quota\":false,\"logo\":\"\",\"config_fields\":[],\"menus\":[],\"metadata\":null},{\"id\":\"recorder-d\",\"path\":\"PLUGINDIR/recorder-d-v1.2.0.so\",\"configured\":true,\"registered\":false,\"enabled\":false,\"effective_enabled\":false,\"supports_oauth\":false,\"oauth_provider\":\"\",\"supports_quota\":false,\"logo\":\"\",\"config_fields\":[],\"menus\":[],\"metadata\":null}]}",
         "version_headers": true
       }
     },

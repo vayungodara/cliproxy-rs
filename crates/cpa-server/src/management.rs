@@ -28,6 +28,7 @@ mod multipart;
 mod oauth;
 pub mod observability;
 mod plugins;
+mod quota;
 pub use access::cors;
 
 pub struct Management {
@@ -500,6 +501,28 @@ pub fn router(state: Arc<Management>) -> Router {
             .route(&format!("{v8}/{path}"), route.clone())
             .route(&format!("{v0}/{path}"), route);
     }
+    // Plugin quota (plugin_quota.go): per-plugin under v8 and v0, the credential-level
+    // routes and the reset alias only under v0.
+    for base in [v8, v0] {
+        router = router.route(
+            &format!("{base}/plugins/{{id}}/quota"),
+            methods()
+                .get(guarded!(s, quota::get_plugin))
+                .post(guarded!(s, quota::fetch_plugin))
+                .delete(guarded!(s, quota::reset_plugin)),
+        );
+    }
+    router = router
+        .route(
+            &format!("{v0}/plugins/{{id}}/quota/reset"),
+            methods().post(guarded!(s, quota::reset_plugin)),
+        )
+        .route(
+            &format!("{v0}/quota/providers"),
+            methods().get(guarded!(s, quota::providers)),
+        )
+        .route(&format!("{v0}/quota/fetch"), methods().post(guarded!(s, quota::fetch)))
+        .route(&format!("{v0}/quota/reset"), methods().post(guarded!(s, quota::reset)));
     router = router
         .route(
             &format!("{v0}/plugins/{{id}}/enabled"),
