@@ -36,22 +36,41 @@ pub struct Windows {
     /// learned about it is stale and the credential may be probed again. Only a reset
     /// upstream stated (an absolute time, or a delay above zero) identifies a rollover;
     /// a zero delay would make every answer's observation time a new one.
-    pub rolled_over: Option<SystemTime>,
-    /// How far apart two rollovers must be to count as different ones: half the long
-    /// window (five hours when its length is unknown), which absorbs the rounding of
-    /// relative resets around a boundary.
-    pub rollover_gap: Duration,
+    pub rolled_over: Option<Rollover>,
     /// A window (Claude 5-hour or 7-day, Codex primary or secondary) is used up and has
     /// not reset yet: upstream would refuse until it does.
     pub exhausted: bool,
+}
+
+/// Which window a rollover belongs to. Probe markers are kept per window, so a
+/// rollover of one window is never compared with a probe made for another.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum WindowId {
+    Claude7d,
+    Claude5h,
+    CodexPrimary,
+    CodexSecondary,
+}
+
+/// A long window that rolled over.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Rollover {
+    pub window: WindowId,
+    /// The stated reset that passed.
+    pub at: SystemTime,
+    /// How far apart two rollovers of this window must be to count as different ones:
+    /// half its length (five hours when unknown), which absorbs the rounding of
+    /// relative resets around a boundary.
+    pub gap: Duration,
 }
 
 /// How long a used-up window without a usable reset or length is assumed to hold.
 const FALLBACK_WINDOW: Duration = Duration::from_secs(5 * 3600);
 
 /// One usage window read from quota signals; each part may be missing.
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy)]
 struct Window {
+    id: WindowId,
     used_up: bool,
     reset: Option<SystemTime>,
     /// `reset` when it can identify a rollover (not synthesized from a zero delay).
@@ -116,7 +135,8 @@ impl Windows {
         let codex = provider.trim().eq_ignore_ascii_case("codex");
         let (long, short) = match provider.trim().to_ascii_lowercase().as_str() {
             "claude" => {
-                let window = |label: &str, minutes: f64| Window {
+                let window = |id: WindowId, label: &str, minutes: f64| Window {
+                    id,
                     used_up: get(&format!("anthropic-ratelimit-unified-{label}-status"))
                         .is_some_and(|s| s.eq_ignore_ascii_case("rejected"))
                         || number(&format!("anthropic-ratelimit-unified-{label}-utilization"))
@@ -125,12 +145,15 @@ impl Windows {
                     stated_reset: get(&format!("anthropic-ratelimit-unified-{label}-reset")).and_then(reset_time),
                     length: window_length(minutes, observed_at),
                 };
-                (Some(window("7d", 7.0 * 24.0 * 60.0)), Some(window("5h", 300.0)))
+                (
+                    Some(window(WindowId::Claude7d, "7d", 7.0 * 24.0 * 60.0)),
+                    Some(window(WindowId::Claude5h, "5h", 300.0)),
+                )
             }
             "codex" => {
                 // Usage, reset and length are read independently; a window exists when
                 // any of them was reported.
-                let window = |label: &str| {
+                let window = |id: WindowId, label: &str| {
                     let p = format!("x-codex-{label}-");
                     let used = number(&format!("{p}used-percent"));
                     let absolute = get(&format!("{p}reset-at")).and_then(reset_time);
@@ -142,6 +165,7 @@ impl Windows {
                     let stated_reset = absolute.or(relative.filter(|_| after.is_some_and(|a| a > 0.0)));
                     let length = number(&format!("{p}window-minutes")).and_then(|m| window_length(m, observed_at));
                     (used.is_some() || reset.is_some() || length.is_some()).then_some(Window {
+                        id,
                         used_up: used.is_some_and(|u| u >= 100.0),
                         reset,
                         stated_reset,
@@ -149,7 +173,10 @@ impl Windows {
                     })
                 };
                 let day = Duration::from_secs(24 * 3600);
-                match (window("primary"), window("secondary")) {
+                match (
+                    window(WindowId::CodexPrimary, "primary"),
+                    window(WindowId::CodexSecondary, "secondary"),
+                ) {
                     // The longer window is the weekly one, whichever header carries it;
                     // without lengths, secondary is weekly.
                     (Some(p), Some(s)) if p.length.unwrap_or(Duration::ZERO) > s.length.unwrap_or(Duration::MAX) => {
@@ -182,8 +209,14 @@ impl Windows {
         let long_reset = long.and_then(|w| w.reset);
         Self {
             weekly_reset: long_reset.filter(|r| *r > now),
-            rolled_over: long.and_then(|w| w.stated_reset).filter(|r| *r <= now),
-            rollover_gap: long.and_then(|w| w.length).unwrap_or(FALLBACK_WINDOW) / 2,
+            rolled_over: long.and_then(|w| {
+                let at = w.stated_reset.filter(|r| *r <= now)?;
+                Some(Rollover {
+                    window: w.id,
+                    at,
+                    gap: w.length.unwrap_or(FALLBACK_WINDOW) / 2,
+                })
+            }),
             exhausted: until.max(flag_until).is_some_and(|u| u > now),
         }
     }
@@ -202,15 +235,20 @@ impl Windows {
     }
 }
 
+/// A credential's `soonest-reset` probes: present once its probe for an unknown reset
+/// was spent, with the last rollover probed for, per window.
+type Probes = HashMap<WindowId, SystemTime>;
+
 /// Whether a credential was already probed for what it reports now. A probe holds
-/// until the long window rolls over after it: a reset that passed and is more than
-/// `gap` later than the rollover the probe was made for (`None`: a probe with no
-/// rollover known).
-fn probed(record: Option<&Option<SystemTime>>, rolled_over: Option<SystemTime>, gap: Duration) -> bool {
+/// until its long window rolls over after it: a reset of that same window that passed
+/// and is more than the window's gap later than the rollover last probed for it.
+fn probed(record: Option<&Probes>, rolled_over: Option<Rollover>) -> bool {
     match (record, rolled_over) {
         (None, _) => false,
         (Some(_), None) => true,
-        (Some(at), Some(rollover)) => at.is_some_and(|at| at.checked_add(gap).is_none_or(|limit| rollover <= limit)),
+        (Some(markers), Some(r)) => markers
+            .get(&r.window)
+            .is_some_and(|at| at.checked_add(r.gap).is_none_or(|limit| r.at <= limit)),
     }
 }
 
@@ -603,10 +641,9 @@ pub(crate) struct Scheduler {
     pub(crate) cooldowns: HashMap<(String, String), Cooldown>,
     /// Session affinity bindings (Go `SessionAffinitySelector.cache`).
     affinity: crate::affinity::Cache,
-    /// `soonest-reset` probes, reserved when the probe request is picked (under the
-    /// scheduler lock, so concurrent picks never probe twice): the long-window rollover
-    /// each credential was probed for (`None`: none known). See [`probed`].
-    probes: HashMap<String, Option<SystemTime>>,
+    /// `soonest-reset` probes by credential, reserved when the probe request is picked
+    /// (under the scheduler lock, so concurrent picks never probe twice). See [`probed`].
+    probes: HashMap<String, Probes>,
 }
 
 /// Go `cfg.OpenAICompatibility` for cooling: enabled entries with a base URL (Go
@@ -927,7 +964,7 @@ impl Scheduler {
                     .iter()
                     .map(|c| {
                         let windows = ranks(c);
-                        let order = windows.order(probed(probes.get(&c.id), windows.rolled_over, windows.rollover_gap));
+                        let order = windows.order(probed(probes.get(&c.id), windows.rolled_over));
                         (order, windows.rolled_over, *c)
                     })
                     .collect();
@@ -942,7 +979,10 @@ impl Scheduler {
                 if order.1 == 0 {
                     // Its one probe, spent whatever the answer: the next pick ranks it
                     // by what the answer reports, if anything.
-                    probes.insert(picked.id.clone(), rolled_over);
+                    let markers = probes.entry(picked.id.clone()).or_default();
+                    if let Some(r) = rolled_over {
+                        markers.insert(r.window, r.at);
+                    }
                 }
                 state.last.clone_from(&picked.id);
                 picked
@@ -2253,8 +2293,16 @@ mod tests {
         )]);
         let w = Windows::observed("claude", &stale, now, now);
         assert_eq!(
-            (w.weekly_reset, w.rolled_over.map(epoch), w.exhausted),
-            (None, Some(epoch(now - Duration::from_secs(60))), false)
+            (
+                w.weekly_reset,
+                w.rolled_over.map(|r| (r.window, epoch(r.at))),
+                w.exhausted
+            ),
+            (
+                None,
+                Some((WindowId::Claude7d, epoch(now - Duration::from_secs(60)))),
+                false
+            )
         );
         // Utilization 1.0 exhausts the 5-hour window until its reset.
         let full = map(&[
@@ -2506,6 +2554,53 @@ mod tests {
             pick(codex(next - Duration::from_secs(5), 5, next + Duration::from_secs(1))),
             "b"
         );
+    }
+
+    /// The oracle's sequence: a probe made for one window's rollover must not suppress a
+    /// later rollover of another window.
+    #[test]
+    fn soonest_reset_probe_markers_are_kept_per_window() {
+        let wall = SystemTime::now();
+        let (a, b) = (cred("a", serde_json::json!({})), cred("b", serde_json::json!({})));
+        let b_known = claude(wall, 5 * DAY, "allowed", wall + Duration::from_secs(3600));
+        let r = wall + Duration::from_secs(600);
+        let after = |t: SystemTime, secs: u64| t + Duration::from_secs(secs);
+        // 1. Only `Secondary-Reset-At: R` and no lengths: secondary is taken as weekly.
+        let partial = signals(&[("X-Codex-Secondary-Reset-At", epoch(r))]);
+        // 2. The probe's answer is complete: the weekly window is primary, resetting at
+        //    R + 1 day; secondary is the 5-hour window.
+        let complete = signals(&[
+            ("X-Codex-Primary-Used-Percent", "10".into()),
+            ("X-Codex-Primary-Window-Minutes", "10080".into()),
+            ("X-Codex-Primary-Reset-At", epoch(after(r, DAY))),
+            ("X-Codex-Secondary-Used-Percent", "10".into()),
+            ("X-Codex-Secondary-Window-Minutes", "300".into()),
+            ("X-Codex-Secondary-Reset-At", epoch(after(r, 5 * 3600))),
+        ]);
+        let mut s = Scheduler::default();
+        let now = Instant::now();
+        let mut pick = |a_now: Windows| {
+            let ranks = |x: &Credential| if x.id == "a" { a_now } else { b_known };
+            s.pick_ranked(&tag(&[&a, &b]), &selection("m"), &soonest(), &ranks, now)
+                .unwrap()
+                .id
+                .clone()
+        };
+        // Just after R, `a`'s secondary rolled over: its probe.
+        let w = Windows::observed("codex", &partial, wall, after(r, 1));
+        assert_eq!(w.rolled_over.map(|r| r.window), Some(WindowId::CodexSecondary));
+        assert_eq!(pick(w), "a");
+        // The answer reports primary resetting in a day, sooner than `b`: `a` keeps it.
+        assert_eq!(
+            pick(Windows::observed("codex", &complete, after(r, 1), after(r, 2))),
+            "a"
+        );
+        // 3. Just after R + 1 day, primary rolls over: one probe, not suppressed by the
+        //    secondary's marker R (R + 1 day is within half of primary's week of R).
+        let w = Windows::observed("codex", &complete, after(r, 1), after(r, DAY + 1));
+        assert_eq!(w.rolled_over.map(|r| r.window), Some(WindowId::CodexPrimary));
+        assert_eq!(pick(w), "a");
+        assert_eq!(pick(w), "b", "probed for that rollover");
     }
 
     /// P2: a management reset clears the probe record (the account is probed again) and
