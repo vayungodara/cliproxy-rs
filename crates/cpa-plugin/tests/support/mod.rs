@@ -1,9 +1,8 @@
 //! Builds the Go test plugins in `tests/goplugins` (CLIProxyAPI examples at 6fecc6e plus
 //! the recorder) as c-shared libraries.
 //!
-//! The build never touches the network: `GOTOOLCHAIN=local` (no toolchain download) and
-//! `GOPROXY=off` (modules from the local cache only; run `go mod download` in
-//! `tests/goplugins` once). It needs Go 1.26 or newer, looked up in `$HOME/sdk/go*/bin`
+//! The build never touches the network (see `go_command`): modules come from the local
+//! cache only, so run `go mod download` in `tests/goplugins` once. It needs Go 1.26 or newer, looked up in `$HOME/sdk/go*/bin`
 //! first, then on `PATH`, then `/usr/local/go/bin`. Without one, each native test prints
 //! a SKIPPED line naming itself and returns, so a skip is visible in the test output.
 
@@ -16,11 +15,22 @@ use std::sync::OnceLock;
 /// The minimum Go version: `tests/goplugins/go.mod` says `go 1.26.0`.
 const MIN_GO: (u32, u32) = (1, 26);
 
+/// A `go` command that cannot reach the network: no toolchain download, no module proxy,
+/// no direct fetch for private patterns (`GONOPROXY` would otherwise default to an
+/// inherited `GOPRIVATE`), no checksum database, and telemetry off in a test-owned
+/// directory so an opted-in user's uploader never starts.
 fn go_command(go: &Path) -> Command {
+    let telemetry = Path::new(env!("CARGO_TARGET_TMPDIR")).join("go-telemetry");
+    let _ = std::fs::create_dir_all(&telemetry);
+    let _ = std::fs::write(telemetry.join("mode"), "off");
     let mut cmd = Command::new(go);
     cmd.env("GOTOOLCHAIN", "local")
         .env("GOPROXY", "off")
-        .env("GOFLAGS", "-mod=readonly");
+        .env("GONOPROXY", "none")
+        .env("GOPRIVATE", "")
+        .env("GOSUMDB", "off")
+        .env("GOFLAGS", "-mod=readonly")
+        .env("TEST_TELEMETRY_DIR", telemetry);
     cmd
 }
 

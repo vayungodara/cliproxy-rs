@@ -110,6 +110,9 @@ func capabilityScenarios(r *runner) {
 	// Lifecycle completion and WebSocket observation are fire-and-forget.
 	r.call(callArgs{Fn: "complete", Req: raw(`{"RequestID":"r4","SourceFormat":"openai","Model":"m","Outcome":"failed","StatusCode":502,
 		"Error":"upstream","StartedAt":"2026-10-03T01:02:03.5Z","CompletedAt":"2026-10-03T01:02:04Z","Metadata":{"k":[1,2]}}`)})
+	// Completion is asynchronous; let it land before the synchronous observation so the
+	// record order is deterministic.
+	r.settle()
 	r.call(callArgs{Fn: "ws_event", Req: raw(`{"RequestID":"r5","TraceID":"t","SourceFormat":"openai-response","Payload":"eyJ0eXBlIjoicmVzcG9uc2UuZG9uZSJ9"}`)})
 	r.settle()
 	r.records()

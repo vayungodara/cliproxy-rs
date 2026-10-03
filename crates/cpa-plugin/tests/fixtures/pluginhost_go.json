@@ -1843,6 +1843,11 @@
       "result": null
     },
     {
+      "op": "settle",
+      "args": null,
+      "result": null
+    },
+    {
       "op": "call",
       "args": {
         "fn": "ws_event",
@@ -1866,18 +1871,18 @@
       "result": {
         "a": [
           {
-            "method": "websocket.response_event",
-            "request": "{\"RequestID\":\"r5\",\"TraceID\":\"t\",\"SourceFormat\":\"openai-response\",\"Model\":\"\",\"RequestedModel\":\"\",\"Provider\":\"\",\"AuthID\":\"\",\"AuthLabel\":\"\",\"AuthType\":\"\",\"EventType\":\"\",\"Payload\":\"eyJ0eXBlIjoicmVzcG9uc2UuZG9uZSJ9\",\"Metadata\":null,\"host_callback_id\":\"17\"}"
-          },
-          {
             "method": "request.complete",
             "request": "{\"RequestID\":\"r4\",\"TraceID\":\"\",\"SourceFormat\":\"openai\",\"Model\":\"m\",\"RequestedModel\":\"\",\"Stream\":false,\"Outcome\":\"failed\",\"StatusCode\":502,\"Error\":\"upstream\",\"StartedAt\":\"2026-10-03T01:02:03.5Z\",\"CompletedAt\":\"2026-10-03T01:02:04Z\",\"Metadata\":{\"k\":[1,2]},\"host_callback_id\":\"18\"}"
+          },
+          {
+            "method": "websocket.response_event",
+            "request": "{\"RequestID\":\"r5\",\"TraceID\":\"t\",\"SourceFormat\":\"openai-response\",\"Model\":\"\",\"RequestedModel\":\"\",\"Provider\":\"\",\"AuthID\":\"\",\"AuthLabel\":\"\",\"AuthType\":\"\",\"EventType\":\"\",\"Payload\":\"eyJ0eXBlIjoicmVzcG9uc2UuZG9uZSJ9\",\"Metadata\":null,\"host_callback_id\":\"19\"}"
           }
         ],
         "b": [
           {
             "method": "request.complete",
-            "request": "{\"RequestID\":\"r4\",\"TraceID\":\"\",\"SourceFormat\":\"openai\",\"Model\":\"m\",\"RequestedModel\":\"\",\"Stream\":false,\"Outcome\":\"failed\",\"StatusCode\":502,\"Error\":\"upstream\",\"StartedAt\":\"2026-10-03T01:02:03.5Z\",\"CompletedAt\":\"2026-10-03T01:02:04Z\",\"Metadata\":{\"k\":[1,2]},\"host_callback_id\":\"19\"}"
+            "request": "{\"RequestID\":\"r4\",\"TraceID\":\"\",\"SourceFormat\":\"openai\",\"Model\":\"m\",\"RequestedModel\":\"\",\"Stream\":false,\"Outcome\":\"failed\",\"StatusCode\":502,\"Error\":\"upstream\",\"StartedAt\":\"2026-10-03T01:02:03.5Z\",\"CompletedAt\":\"2026-10-03T01:02:04Z\",\"Metadata\":{\"k\":[1,2]},\"host_callback_id\":\"17\"}"
           }
         ]
       }

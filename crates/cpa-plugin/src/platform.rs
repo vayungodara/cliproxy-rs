@@ -140,7 +140,7 @@ pub fn rel(base: &str, targ: &str) -> Option<String> {
             out.push('/');
             out.push_str(&targ[t0..]);
         }
-        return Some(out);
+        return Some(clean(Path::new(&out)).to_string_lossy().into_owned());
     }
     Some(targ[t0..].to_owned())
 }

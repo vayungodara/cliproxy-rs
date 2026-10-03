@@ -4,7 +4,7 @@
 set -eu
 # Offline: no toolchain download, modules from the local cache only. Run `go mod download`
 # in the reference checkout and in tests/goplugins once beforehand.
-export GOTOOLCHAIN=local GOPROXY=off
+export GOTOOLCHAIN=local GOPROXY=off GONOPROXY=none GOPRIVATE= GOSUMDB=off
 reference=${1:?usage: gen.sh /path/to/CLIProxyAPI}
 here=$(cd "$(dirname "$0")" && pwd)
 crate=$(cd "$here/../../.." && pwd)

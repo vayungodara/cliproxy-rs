@@ -660,6 +660,9 @@ mod tests {
             ("rel/a.json", "/auth", None),
             ("/auth/../other/t.json", "/auth", Some("../other/t.json")),
             ("x/y", ".", Some("x/y")),
+            (".", "a", Some("..")),
+            (".", "a/b", Some("../..")),
+            ("a/c", "a/b", Some("../c")),
         ] {
             assert_eq!(crate::platform::rel(base, targ).as_deref(), want, "{targ} from {base}");
         }
