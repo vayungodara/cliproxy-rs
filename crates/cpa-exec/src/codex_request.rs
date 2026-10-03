@@ -495,8 +495,13 @@ pub(crate) fn shape(
         normalize_parallel_tool_calls(body, &req.headers)
     };
     let body = normalize_tool_schemas(body);
-    let (body, restore) =
-        crate::codex_client::optimize_for_auth(&req.headers, body.as_bytes(), &settings.client, is_compat);
+    let (body, restore) = crate::codex_client::optimize_for_auth(
+        &req.headers,
+        body.as_bytes(),
+        &settings.client,
+        is_compat,
+        crate::codex_client::tools_prepared(&req.request_path),
+    );
     let body = String::from_utf8(body).unwrap_or_else(|e| String::from_utf8_lossy(e.as_bytes()).into_owned());
     Ok((body, restore))
 }

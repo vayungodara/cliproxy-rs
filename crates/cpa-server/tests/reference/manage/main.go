@@ -1330,6 +1330,21 @@ func configScenarios() []configScenario {
 			put("/config.yaml", "config-version: 8\nmanagement:\n  secret-key: fake-secret\nserver:\n  port: 2 # yaml\n"),
 			patch("/config.yaml", "{}"),
 		}},
+		// Settings inherited through merge keys survive edits next to them (Go expands
+		// aliases before editing); /config/config.yaml is a key lookup, not the YAML
+		// download; merges in uploads are flattened, scalar merges are rejected.
+		{Name: "inherited_merges_survive_writes", YAML: "config-version: 8\n<<:\n  management:\n    secret-key: '$HASH'\n" +
+			"  access:\n    api-keys: [fake-client-1]\n  routing:\n    retry:\n      request-retry: 2\n", Steps: []configStep{
+			patch("/config", `{"access":{}}`),
+			patch("/config/routing/retry", `{"max-retry-interval":5}`),
+			patch("/config/management", `{"allow-remote":false}`),
+			get("/config"),
+			get("/config/config.yaml"),
+			put("/config/config.yaml", `1`),
+			put("/config.yaml", "config-version: 8\nmanagement: &m\n  secret-key: fake-secret\nrouting:\n  retry: &r {request-retry: 3}\n  <<: {strategy: fill-first}\n"),
+			put("/config.yaml", "config-version: 8\nmanagement:\n  secret-key: fake-secret\nrouting:\n  <<: 5\n"),
+			get("/config"),
+		}},
 	}
 }
 
