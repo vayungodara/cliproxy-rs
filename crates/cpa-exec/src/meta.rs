@@ -306,9 +306,8 @@ fn prepare(req: &ExecRequest, cfg: &Config, stream: bool) -> Result<Prepared, Ex
     }
     let base_model = parse_suffix(&req.model).model_name;
     // Go: helps.TranslateRequestWithAPIKeyModelCompatibility with APIKeyModelIsCompat.
-    // ponytail: the attempt's resolved API-key model (Go ResolvedModelInfo) is not on
-    // ExecRequest yet, so is-compat models translate like any other.
-    let client = crate::codex_client::Client::new(&req.headers, cfg, "", false);
+    let is_compat = req.resolved_model.as_ref().is_some_and(|r| r.is_compat());
+    let client = crate::codex_client::Client::new(&req.headers, cfg, "", is_compat);
     let translate = |body: &[u8]| {
         crate::codex_client::translate_request(
             req.source_format,
