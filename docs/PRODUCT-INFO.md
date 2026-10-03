@@ -21,7 +21,7 @@ It started from a post on X by @maria_rcks on 2 October 2026: "why hasnt anyone 
 - The client routes for chat completions, completions, Responses, Messages, token counting, Gemini `generateContent` and Interactions, model lists and the Codex paths, streaming and non-streaming.
 - WebSocket: the Responses WebSocket that Codex clients use, and the Realtime WebSocket.
 - Realtime and live voice through a Codex account (`/v1/realtime`, `/v1/live`, WebRTC call setup).
-- Account sign-in from the command line for Claude, Codex (browser or device code), Kimi, Meta, xAI and Devin; from the dashboard for Claude, Codex, Kimi and Meta.
+- Account sign-in from the command line or the dashboard for Claude, Codex (browser or device code), Kimi, Meta, xAI and Devin.
 - Routing: round-robin, weighted and fill-first selection, retries, cooldowns, session affinity, model aliases and exclusions, payload rules, per-account proxies.
 - The v8 Management API, HTTPS on the main port, config and credential hot reload, remote model catalog updates, LAN discovery, logging in Go's format.
 
@@ -44,11 +44,11 @@ From [BENCHMARKS.md](BENCHMARKS.md): commit `4abce40` against the Go v8.0.10 rel
 
 ## Gaps today
 
-- Providers not supported yet: Antigravity, AI Studio, Vertex. xAI and Devin can be signed in from the command line only.
+- Providers not supported yet: Antigravity, AI Studio, Vertex.
 - No image or video endpoints, no Responses WebSocket steering.
 - The WebRTC media relay for live calls is an optional build feature, not in the release binaries.
 - No request log files, no access log lines, no plugins, no terminal UI, no Home control plane, no pprof.
-- Codex CLI asks `/v1/models` for its own catalog format; cliproxy-rs answers with the OpenAI list, so Codex may not show every model. Codex CLI has not been tested end to end.
+- Codex CLI has not been tested end to end against cliproxy-rs.
 - The Windows build comes from the release workflow and has not been run by hand. The macOS builds are not signed or notarized.
 - [MIGRATING-FROM-GO.md](MIGRATING-FROM-GO.md) and [PARITY-STATUS.md](PARITY-STATUS.md) list every difference.
 

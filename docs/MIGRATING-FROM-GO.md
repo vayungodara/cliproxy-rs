@@ -44,7 +44,6 @@ These settings are accepted in `config.yaml` and kept on save, but cliproxy-rs d
 | Access log | Go logs one line per HTTP request (status, duration, client address, method and path). cliproxy-rs does not log requests yet. |
 | `pprof` | No profiling endpoint. |
 | `plugins` | Plugins are not loaded, and the plugin routes of the Management API are not served. |
-| `requests.nonstream-keepalive-interval` | Non-streaming responses do not send keep-alive blank lines. |
 | `management.panel-github-repository`, `management.disable-auto-update-panel` | The dashboard is built into the binary and never downloaded. `management.disable-control-panel` is honoured. |
 | The Redis-protocol (RESP) usage subscriber on the main port | Not available. `GET /v8/management/observability/usage/queue` works. |
 | `PGSTORE_*`, `GITSTORE_*`, `OBJECTSTORE_*` storage backends, `MANAGEMENT_STATIC_PATH` | Config and credentials are local files only. `WRITABLE_PATH` sets only the log directory. |
@@ -56,7 +55,7 @@ Providers and client routes that are not available yet are listed in the README 
 
 ## Management API differences
 
-The v8 routes for config, credentials, OAuth sign-in, `requests/api-call`, cooldown reset, usage, logs, model definitions and `server/latest-version` behave as in Go. OAuth sign-in through the API works for Claude, Codex, Kimi and Meta; other providers return `404` with `provider_not_found`.
+The v8 routes for config, credentials, OAuth sign-in, `requests/api-call`, cooldown reset, usage, logs, model definitions and `server/latest-version` behave as in Go. OAuth sign-in through the API works for Claude, Codex, Kimi, Meta, xAI and Devin. Antigravity sign-in, plugin-provided sign-in and the Vertex import (`oauth/import`) return `404` with `provider_not_found`.
 
 Not available on cliproxy-rs:
 

@@ -16,7 +16,7 @@ Works today:
 - WebSocket: the Responses WebSocket on `GET /v1/responses` and `GET /backend-api/codex/responses`, used by Codex clients.
 - Realtime and live through a Codex account: `/v1/realtime` (WebSocket and WebRTC calls), `/v1/live`, call sidebands and local ephemeral keys (`/v1/realtime/client_secrets`).
 - Providers: Claude (OAuth and API keys), Codex (OAuth and API keys), Kimi, Meta, xAI, Devin, Gemini API keys and Gemini Interactions, and OpenAI-compatible upstreams such as OpenRouter.
-- Account sign-in from the command line: Claude, Codex (browser or device code), Kimi, Meta, xAI and Devin. From the dashboard: Claude, Codex, Kimi and Meta.
+- Account sign-in from the command line or the dashboard: Claude, Codex (browser or device code), Kimi, Meta, xAI and Devin.
 - Routing: round-robin, weighted and fill-first selection, retries, cooldowns, session affinity, model aliases and exclusions, payload rules, per-credential and global proxies.
 - The v8 Management API for configuration, credentials, OAuth sign-in, quota checks (`/requests/api-call`), usage counters, logs and model catalogs, plus the dashboard at `/management.html`.
 - HTTPS on the main port (`server.tls`), logging in Go's format to stdout or a rotating `main.log`, LAN discovery (`-discover` and the `server.discovery` advertisement), `.env` loading, and remote model catalog updates as in Go (`-local-model` turns them off).
@@ -24,7 +24,7 @@ Works today:
 
 Not yet supported (at the time of writing):
 
-- Providers: Antigravity, AI Studio, Vertex. xAI and Devin sign-in from the dashboard.
+- Providers: Antigravity, AI Studio, Vertex.
 - Image and video endpoints, and Responses WebSocket steering.
 - The WebRTC media relay for live calls is an optional build feature and is not in the release binaries.
 - Request log files, an access log, plugins, the terminal UI (`-tui`) and the Home control plane (`-home-jwt`).
@@ -121,7 +121,7 @@ wire_api = "responses"
 supports_websockets = true
 ```
 
-cliproxy-rs serves the Responses API and the Responses WebSocket that Codex uses, but this setup has not been tested end to end with Codex CLI. One known gap: Codex asks `/v1/models` for its own catalog format at startup, and cliproxy-rs answers with the OpenAI list instead (item M1-0003 in [docs/PARITY-STATUS.md](docs/PARITY-STATUS.md)), so Codex may not show the full model list.
+cliproxy-rs serves the Responses API, the Responses WebSocket and the Codex client model catalog (`/v1/models?client_version=...`) that Codex uses, but this setup has not been tested end to end with Codex CLI.
 
 ## The dashboard
 
