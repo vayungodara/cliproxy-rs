@@ -12,6 +12,7 @@ pub mod dispatch;
 mod errors;
 mod gemini;
 mod gojson;
+pub mod keepalive;
 pub mod listener;
 pub mod logging;
 pub mod management;

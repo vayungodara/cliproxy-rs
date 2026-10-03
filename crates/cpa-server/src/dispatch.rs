@@ -18,6 +18,7 @@ use futures_util::StreamExt;
 use crate::classify;
 use crate::gojson;
 use crate::registry::{self, AliasResult, Registry};
+use crate::respond;
 use crate::runtime::{AcquireError, Completing, Lease, Outcome, Runtime, Selection};
 use crate::scheduler::{Policy, canonical_model};
 
@@ -384,7 +385,13 @@ where
         let (rt, trace) = (rt.clone(), trace.clone());
         async move {
             let result = run_with_bootstrap_retries(&rt, call, &trace).await;
+            let upstream = upstream_headers(&rt.config(), &result);
             let mut response = render(result).await;
+            match upstream {
+                Some(Upstream::Success(headers)) => respond::write_upstream_headers(response.headers_mut(), &headers),
+                Some(Upstream::Error(headers)) => respond::write_error_headers(response.headers_mut(), &headers),
+                None => {}
+            }
             if let Some(value) = trace.header() {
                 response.headers_mut().insert("x-cpa-trace-id", value);
             }
@@ -429,6 +436,27 @@ where
         headers.insert("x-cpa-trace-id", value);
     }
     response
+}
+
+/// Upstream response headers bound for the client under `requests.passthrough-headers`.
+enum Upstream {
+    /// Go `downstreamHeadersFromExecutor`, written by `WriteUpstreamHeaders`.
+    Success(HeaderMap),
+    /// Go `ErrorMessage.Addon`, written by `WriteErrorResponse`.
+    Error(HeaderMap),
+}
+
+fn upstream_headers(cfg: &Config, result: &Result<Done, Failure>) -> Option<Upstream> {
+    if !respond::passthrough_headers(cfg) {
+        return None;
+    }
+    match result {
+        Ok(Done::Buffered { headers, .. } | Done::Stream { headers, .. }) => {
+            Some(Upstream::Success(respond::filter_upstream_headers(headers)))
+        }
+        Err(Failure::Exec(error)) if !error.direct => Some(Upstream::Error((*error.headers).clone())),
+        Err(_) => None,
+    }
 }
 
 /// `requests.nonstream-keepalive-interval` seconds (Go `NonStreamingKeepAliveInterval`;

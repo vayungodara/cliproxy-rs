@@ -1381,6 +1381,46 @@ func substitutions() []substitutionCase {
 	return out
 }
 
+type headerFilterCase struct {
+	In  map[string][]string `json:"in"`
+	Out map[string][]string `json:"out"`
+}
+
+// upstreamHeaderFilters runs handlers.FilterUpstreamHeaders, what passthrough-headers
+// forwards from an upstream response.
+func upstreamHeaderFilters() []headerFilterCase {
+	inputs := []http.Header{
+		{
+			"Content-Type":                       {"application/json"},
+			"Content-Length":                     {"42"},
+			"Content-Encoding":                   {"gzip"},
+			"Set-Cookie":                         {"s=1"},
+			"X-Request-Id":                       {"req-1"},
+			"Connection":                         {"close, X-Custom-Hop"},
+			"X-Custom-Hop":                       {"h"},
+			"Keep-Alive":                         {"timeout=5"},
+			"X-Litellm-Model":                    {"m"},
+			"Helicone-Id":                        {"h1"},
+			"Cf-Aig-Cache-Status":                {"HIT"},
+			"Access-Control-Allow-Origin":        {"*"},
+			"X-Cpa-Trace-Id":                     {"t"},
+			"Anthropic-Ratelimit-Requests-Limit": {"50"},
+			"Retry-After":                        {"30"},
+			"X-Multi":                            {"a", "b"},
+		},
+		{"Transfer-Encoding": {"chunked"}, "Te": {"trailers"}},
+	}
+	out := make([]headerFilterCase, 0, len(inputs))
+	for _, in := range inputs {
+		filtered := handlers.FilterUpstreamHeaders(in)
+		if filtered == nil {
+			filtered = http.Header{}
+		}
+		out = append(out, headerFilterCase{In: in, Out: filtered})
+	}
+	return out
+}
+
 type keepAliveCase struct {
 	Name        string `json:"name"`
 	DelayMillis int    `json:"delay_ms"`
@@ -1426,6 +1466,7 @@ func nonStreamKeepAlives() []keepAliveCase {
 
 func main() {
 	out := map[string]any{}
+	out["upstream_headers"] = upstreamHeaderFilters()
 	out["reporter"] = reporterSequences()
 	out["substitution"] = substitutions()
 	out["nonstream_keepalive"] = nonStreamKeepAlives()

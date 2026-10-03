@@ -73,6 +73,25 @@ async fn upstream(State(seen): State<Arc<Seen>>, req: Request) -> Response {
     }
     match token.as_str() {
         "Bearer fake-fail" => (StatusCode::INTERNAL_SERVER_ERROR, "boom").into_response(),
+        "Bearer fake-hdr" => (
+            [
+                ("content-type", "application/json; charset=utf-8"),
+                ("x-upstream-id", "u1"),
+                ("x-litellm-model", "m"),
+                ("set-cookie", "s=1"),
+            ],
+            serde_json::json!({"id":"msg_1","type":"message","role":"assistant","model":body["model"],
+                "content":[{"type":"text","text":"hi"}],"stop_reason":"end_turn","stop_sequence":null,
+                "usage":{"input_tokens":5,"output_tokens":1}})
+            .to_string(),
+        )
+            .into_response(),
+        "Bearer fake-hdr-bad" => (
+            StatusCode::BAD_REQUEST,
+            [("content-type", "application/json"), ("x-upstream-id", "e1")],
+            r#"{"type":"error","error":{"type":"invalid_request_error","message":"bad input"}}"#,
+        )
+            .into_response(),
         "Bearer fake-bad" => (
             StatusCode::BAD_REQUEST,
             [("content-type", "application/json")],
@@ -342,6 +361,35 @@ async fn wrong_methods_are_gin_no_route() {
             .await
             .unwrap();
         assert_eq!(res.status().as_u16(), 200, "{method} {path}");
+    }
+}
+
+/// `requests.passthrough-headers` (Go `downstreamHeadersFromExecutor`,
+/// `WriteUpstreamHeaders`, `WriteErrorResponse` addon): off by default; on, filtered
+/// upstream headers fill what the handler did not set, and an error's upstream
+/// headers come along. Filter expectations are the Go golden `upstream_headers`.
+#[tokio::test]
+async fn passthrough_headers_follow_go() {
+    let body = format!(r#"{{"model":"{MODEL}","max_tokens":5,"messages":[{{"role":"user","content":"hi"}}]}}"#);
+    for enabled in [false, true] {
+        let config = format!("requests:\n  passthrough-headers: {enabled}\n");
+        let ok = proxy(&config, vec![oauth("a.json", "fake-hdr", serde_json::json!({}))]).await;
+        let (status, headers, text) = post(&ok.url, "/v1/messages", &body).await;
+        assert_eq!(status, 200, "{text}");
+        assert_eq!(
+            headers["content-type"], "application/json",
+            "the handler's own header wins"
+        );
+        assert_eq!(headers.get("x-upstream-id").is_some(), enabled, "{headers:?}");
+        if enabled {
+            assert_eq!(headers["x-upstream-id"], "u1");
+        }
+        assert!(headers.get("x-litellm-model").is_none() && headers.get("set-cookie").is_none());
+
+        let bad = proxy(&config, vec![oauth("a.json", "fake-hdr-bad", serde_json::json!({}))]).await;
+        let (status, headers, _) = post(&bad.url, "/v1/messages", &body).await;
+        assert_eq!(status, 400);
+        assert_eq!(headers.get("x-upstream-id").is_some(), enabled, "{headers:?}");
     }
 }
 
