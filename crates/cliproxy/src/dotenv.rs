@@ -204,6 +204,8 @@ fn expand_variables(v: &str, vars: &HashMap<String, String>) -> String {
 pub fn load_from_working_dir() {
     let Ok(wd) = std::env::current_dir() else { return };
     let path = wd.join(".env");
+    // ponytail: the file is decoded as UTF-8 (lossy); Go keeps raw non-UTF-8 bytes in
+    // quoted values. Upgrade: a byte-level parser that sets OsString values.
     let text = match std::fs::read(&path) {
         Ok(bytes) => String::from_utf8_lossy(&bytes).into_owned(),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return,
