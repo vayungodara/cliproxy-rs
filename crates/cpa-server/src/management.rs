@@ -50,6 +50,8 @@ pub struct Management {
     pub(crate) login_base: Option<String>,
     /// Go `Handler.logDir`: resolved once at startup.
     pub(crate) log_dir: PathBuf,
+    /// The remote store mirroring config and auth files, when one is configured.
+    pub(crate) store: Option<Arc<dyn crate::persist::StorePersister>>,
     access: access::Access,
 }
 
@@ -65,6 +67,9 @@ pub struct Options {
     pub login_base: Option<String>,
     /// Overrides the log directory Go resolves at startup (tests only).
     pub log_dir: Option<PathBuf>,
+    /// A Postgres, git or object store mirroring config and auth files (Go's
+    /// registered token store when it persists remotely).
+    pub store: Option<Arc<dyn crate::persist::StorePersister>>,
 }
 
 impl Management {
@@ -86,6 +91,8 @@ impl Management {
             .log_dir
             .clone()
             .unwrap_or_else(|| crate::logging::resolve_log_dir(&cfg));
+        let mut options = options;
+        let store = options.store.take();
         let access = access::Access::new(&cfg, options);
         rt.usage_queue().configure(access.available(), &cfg);
         let state = Arc::new(Self {
@@ -101,9 +108,30 @@ impl Management {
             forwarders: Mutex::default(),
             login_base,
             log_dir,
+            store,
         });
         oauth::install_callback_sink(&state);
         state
+    }
+
+    /// Go `Watcher.mirroredAuthDir`: with a remote store, the auth directory is the
+    /// store's mirror whatever `auth-dir` says.
+    pub(crate) fn lock_auth_dir(&self, cfg: &mut Config) {
+        if let Some(store) = &self.store {
+            cfg.auth_dir = store.auth_dir();
+        }
+    }
+
+    /// Go `deleteTokenRecord`: tells the store about an explicit removal. Blocking;
+    /// call from blocking code inside the runtime.
+    pub(crate) fn store_delete(&self, path: &std::path::Path) -> Result<(), String> {
+        let Some(store) = self.store.clone() else {
+            return Ok(());
+        };
+        let path = std::path::absolute(path).unwrap_or_else(|_| path.to_path_buf());
+        tokio::runtime::Handle::current()
+            .block_on(store.delete_auth(path))
+            .map_err(|e| e.to_string())
     }
 
     /// Publishes a config and everything Go derives from it on reload: scheduler
@@ -112,6 +140,8 @@ impl Management {
     /// has a reconciled list. Callers hold `disk`. Infallible on purpose: access
     /// settings of a valid config (a rotated or removed secret) always take effect.
     pub(crate) fn publish(&self, cfg: Config, files: Option<Vec<Credential>>) {
+        let mut cfg = cfg;
+        self.lock_auth_dir(&mut cfg);
         let mut all = files.unwrap_or_else(|| credentials::from_auth_dir(&cfg));
         // Fallbacks follow their file: gone with it, replaced once a synthesizer
         // claims it, otherwise rebuilt from its current content.

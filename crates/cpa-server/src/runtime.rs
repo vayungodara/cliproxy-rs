@@ -99,6 +99,12 @@ impl Runtime {
         self.local_model.store(on, std::sync::atomic::Ordering::Relaxed);
     }
 
+    /// Persists cooldowns to `backend` instead of `.cds` files (PGSTORE's cooldown
+    /// table; additive API). Call before serving.
+    pub fn set_cooldown_backend(&self, backend: Arc<dyn crate::cooldown_store::Backend>) {
+        self.store.set_cooldown_backend(backend);
+    }
+
     /// Whether `--local-model` was given.
     pub fn local_model(&self) -> bool {
         self.local_model.load(std::sync::atomic::Ordering::Relaxed)
@@ -627,6 +633,8 @@ pub struct CredentialStore {
     prepare_locks: Mutex<HashMap<String, Arc<tokio::sync::Mutex<()>>>>,
     /// `auth-dir` while `save-cooldown-status` is on (Go `cooldownStore`).
     cooldown_dir: RwLock<Option<std::path::PathBuf>>,
+    /// Replaces the `.cds` files while set (Go's token-store cooldown provider).
+    cooldown_backend: RwLock<Option<Arc<dyn crate::cooldown_store::Backend>>>,
     /// Serializes cooldown snapshots with their writes, so the last write is the newest.
     cooldown_write: Mutex<()>,
     activity: Mutex<HashMap<String, CredentialActivity>>,
@@ -654,6 +662,7 @@ impl CredentialStore {
             stats: Default::default(),
             prepare_locks: Mutex::default(),
             cooldown_dir: RwLock::default(),
+            cooldown_backend: RwLock::default(),
             cooldown_write: Mutex::default(),
             activity: Mutex::default(),
             persisted: Mutex::default(),
@@ -677,10 +686,28 @@ impl CredentialStore {
         }
     }
 
+    /// Go's builder taking the token store's `CooldownStateStore`: cooldowns go to
+    /// `backend` instead of `.cds` files, restored from it now when persistence is on.
+    pub fn set_cooldown_backend(&self, backend: Arc<dyn crate::cooldown_store::Backend>) {
+        *self.cooldown_backend.write().unwrap_or_else(PoisonError::into_inner) = Some(backend);
+        let dir = self.cooldown_dir.read().unwrap_or_else(PoisonError::into_inner).clone();
+        if let Some(dir) = dir {
+            self.restore_cooldowns(&dir);
+        }
+    }
+
+    fn cooldown_backend(&self) -> Option<Arc<dyn crate::cooldown_store::Backend>> {
+        self.cooldown_backend.read().unwrap_or_else(PoisonError::into_inner).clone()
+    }
+
     /// Go `RestoreCooldownStates`: live records of live credentials whose cooling is
     /// enabled, then a rewrite that drops everything else.
     fn restore_cooldowns(&self, dir: &std::path::Path) {
-        let records = match crate::cooldown_store::load(dir) {
+        let loaded = match self.cooldown_backend() {
+            Some(backend) => backend.load(),
+            None => crate::cooldown_store::load(dir),
+        };
+        let records = match loaded {
             Ok(records) => records,
             Err(error) => {
                 tracing::warn!(%error, "failed to restore cooldown state");
@@ -728,7 +755,11 @@ impl CredentialStore {
                 .collect::<Vec<_>>()
         };
         records.sort_by(|a, b| (&a.provider, &a.auth_id, &a.model).cmp(&(&b.provider, &b.auth_id, &b.model)));
-        if let Err(error) = crate::cooldown_store::save(&dir, records, wall) {
+        let saved = match self.cooldown_backend() {
+            Some(backend) => backend.save(records, wall),
+            None => crate::cooldown_store::save(&dir, records, wall),
+        };
+        if let Err(error) = saved {
             tracing::warn!(%error, "failed to persist cooldown state");
         }
     }

@@ -1,0 +1,66 @@
+package store
+
+// Golden generator for cliproxy-rs: requests signed by minio-go's SigV4 signer.
+// RUST_GOLDEN=<file> go test -run TestRustGoldenSigV4 ./internal/store/
+
+import (
+	"encoding/json"
+	"net/http"
+	"net/url"
+	"os"
+	"sort"
+	"testing"
+
+	"github.com/minio/minio-go/v7/pkg/signer"
+)
+
+func TestRustGoldenSigV4(t *testing.T) {
+	out := os.Getenv("RUST_GOLDEN")
+	if out == "" {
+		t.Skip("RUST_GOLDEN not set")
+	}
+	type tc struct {
+		Method  string            `json:"method"`
+		URL     string            `json:"url"`
+		Headers map[string]string `json:"headers"`
+		Region  string            `json:"region"`
+	}
+	empty := "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+	cases := []tc{
+		{"HEAD", "http://127.0.0.1:9000/cpa-bucket", map[string]string{"X-Amz-Content-Sha256": empty}, "us-east-1"},
+		{"GET", "http://127.0.0.1:9000/cpa-bucket?location=", map[string]string{"X-Amz-Content-Sha256": empty}, "us-east-1"},
+		{"GET", "http://127.0.0.1:9000/cpa-bucket?list-type=2&prefix=auths%2F&continuation-token=a+b%2Fc%3D&fetch-owner=true", map[string]string{"X-Amz-Content-Sha256": empty}, "eu-west-1"},
+		{"PUT", "https://s3.example.com/cpa-bucket/auths/team%20a/%C3%BC%2Bx.json", map[string]string{"X-Amz-Content-Sha256": "5d41402abc4b2a76b9719d911017c592ae8fbaa1fa3dc0d65ff1ac1b5d2ac57d", "Content-Type": "application/json"}, "us-east-1"},
+		{"DELETE", "http://minio.local:9000/b/config/config.yaml", map[string]string{"X-Amz-Content-Sha256": empty}, "us-east-1"},
+		{"PUT", "http://127.0.0.1:9000/new-bucket", map[string]string{"X-Amz-Content-Sha256": empty}, "us-east-1"},
+	}
+	var results []map[string]any
+	for _, c := range cases {
+		u, err := url.Parse(c.URL)
+		if err != nil {
+			t.Fatal(err)
+		}
+		req := http.Request{Method: c.Method, URL: u, Header: http.Header{}, Host: u.Host}
+		for k, v := range c.Headers {
+			req.Header.Set(k, v)
+		}
+		signed := signer.SignV4(req, "AKIAEXAMPLE", "secret/key+EXAMPLE", "", c.Region)
+		var names []string
+		for k := range signed.Header {
+			names = append(names, k)
+		}
+		sort.Strings(names)
+		headers := map[string]string{}
+		for _, k := range names {
+			headers[k] = signed.Header.Get(k)
+		}
+		results = append(results, map[string]any{"case": c, "signed_headers": headers, "raw_query": signed.URL.RawQuery})
+	}
+	raw, err := json.MarshalIndent(results, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(out, append(raw, '\n'), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}

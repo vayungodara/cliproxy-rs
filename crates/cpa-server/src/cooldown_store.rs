@@ -203,6 +203,16 @@ fn cds_files(dir: &Path) -> Vec<PathBuf> {
     out
 }
 
+/// A cooldown store other than `.cds` files (Go `CooldownStateStore` from a token store
+/// that is a `CooldownStateStoreProvider`: PGSTORE's `cooldown_store` table). Used
+/// while `save-cooldown-status` is on, in place of the files.
+pub trait Backend: Send + Sync {
+    /// Go `Load`.
+    fn load(&self) -> Result<Vec<Record>, String>;
+    /// Go `Save`: the complete live set; records no longer present are cleared.
+    fn save(&self, records: Vec<Record>, now: SystemTime) -> Result<(), String>;
+}
+
 /// Go `FileCooldownStateStore.Load`: every `.cds` file below `dir`. A missing directory
 /// is empty state; an unreadable file is an error.
 pub fn load(dir: &Path) -> Result<Vec<Record>, String> {
