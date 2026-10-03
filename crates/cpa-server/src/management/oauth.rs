@@ -239,7 +239,7 @@ fn login_client(state: &Management) -> wreq::Client {
 }
 
 /// Go `StartOAuthV8`.
-pub(super) async fn auth_url(State(state): State<Arc<Management>>, RawQuery(raw): RawQuery) -> Response {
+pub(crate) async fn auth_url(State(state): State<Arc<Management>>, RawQuery(raw): RawQuery) -> Response {
     let q = Query::parse(raw);
     let webui = matches!(
         q.first("is_webui").trim().to_lowercase().as_str(),
@@ -266,7 +266,7 @@ pub(super) async fn auth_url(State(state): State<Arc<Management>>, RawQuery(raw)
 }
 
 /// Go `ImportOAuthV8`.
-pub(super) async fn import(RawQuery(raw): RawQuery) -> Response {
+pub(crate) async fn import(RawQuery(raw): RawQuery) -> Response {
     match Query::parse(raw).first("provider").trim() {
         "" => fail(StatusCode::BAD_REQUEST, "provider is required"),
         _ => fail(StatusCode::NOT_FOUND, "provider_not_found"),
@@ -746,7 +746,7 @@ fn stop_forwarder(state: &Management, port: u16, id: Option<u64>) {
 }
 
 /// Go `GetAuthStatus` (no plugin logins).
-pub(super) async fn status(State(state): State<Arc<Management>>, RawQuery(raw): RawQuery) -> Response {
+pub(crate) async fn status(State(state): State<Arc<Management>>, RawQuery(raw): RawQuery) -> Response {
     let q = Query::parse(raw);
     let sid = q.first("state").trim().to_owned();
     if sid.is_empty() {
@@ -764,7 +764,7 @@ pub(super) async fn status(State(state): State<Arc<Management>>, RawQuery(raw): 
 }
 
 /// Go `CancelAuthSession`.
-pub(super) async fn cancel(State(state): State<Arc<Management>>, RawQuery(raw): RawQuery) -> Response {
+pub(crate) async fn cancel(State(state): State<Arc<Management>>, RawQuery(raw): RawQuery) -> Response {
     let q = Query::parse(raw);
     let sid = q.first("state").trim().to_owned();
     if sid.is_empty() {
@@ -790,7 +790,7 @@ struct CallbackRequest {
 }
 
 /// Go `GetOAuthCallback`.
-pub(super) async fn callback_get(State(state): State<Arc<Management>>, RawQuery(raw): RawQuery) -> Response {
+pub(crate) async fn callback_get(State(state): State<Arc<Management>>, RawQuery(raw): RawQuery) -> Response {
     let q = Query::parse(raw);
     let error = [q.first("error"), q.first("error_description")]
         .into_iter()
@@ -810,7 +810,7 @@ pub(super) async fn callback_get(State(state): State<Arc<Management>>, RawQuery(
 
 /// Go `PostOAuthCallback`: gin's `ShouldBindJSON` into `oauthCallbackRequest`
 /// (first JSON value, exact-then-case-insensitive names, type mismatches rejected).
-pub(super) async fn callback_post(State(state): State<Arc<Management>>, body: Bytes) -> Response {
+pub(crate) async fn callback_post(State(state): State<Arc<Management>>, body: Bytes) -> Response {
     const FIELDS: [&str; 5] = ["provider", "redirect_url", "code", "state", "error"];
     let invalid = || status_error(StatusCode::BAD_REQUEST, "invalid body");
     let members = serde_json::Deserializer::from_slice(&body)

@@ -1428,13 +1428,13 @@
       },
       "request": "POST /v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 81\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-gemini-1\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}]}",
       "chunks": [
-        "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1790982385616242330\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-2.5-flash\"},\"event_type\":\"interaction.created\"}\n\n",
-        "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1790982385616242330\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
+        "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1791012160595271007\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-2.5-flash\"},\"event_type\":\"interaction.created\"}\n\n",
+        "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1791012160595271007\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
         "event: step.start\ndata: {\"index\":0,\"step\":{\"type\":\"model_output\"},\"event_type\":\"step.start\"}\n\n",
         "event: step.delta\ndata: {\"index\":0,\"delta\":{\"text\":\"he\",\"type\":\"text\"},\"event_type\":\"step.delta\"}\n\n",
         "event: step.delta\ndata: {\"index\":0,\"delta\":{\"text\":\"llo\",\"type\":\"text\"},\"event_type\":\"step.delta\"}\n\n",
         "event: step.stop\ndata: {\"index\":0,\"event_type\":\"step.stop\"}\n\n",
-        "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"interaction_1790982385616242330\",\"status\":\"completed\",\"usage\":{\"total_tokens\":5,\"total_input_tokens\":3,\"input_tokens_by_modality\":[{\"modality\":\"text\",\"tokens\":3}],\"total_cached_tokens\":0,\"total_output_tokens\":2,\"total_tool_use_tokens\":0,\"total_thought_tokens\":0},\"created\":\"2026-10-02T23:06:25Z\",\"updated\":\"2026-10-02T23:06:25Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"gemini-2.5-flash\"},\"event_type\":\"interaction.completed\"}\n\n",
+        "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"interaction_1791012160595271007\",\"status\":\"completed\",\"usage\":{\"total_tokens\":5,\"total_input_tokens\":3,\"input_tokens_by_modality\":[{\"modality\":\"text\",\"tokens\":3}],\"total_cached_tokens\":0,\"total_output_tokens\":2,\"total_tool_use_tokens\":0,\"total_thought_tokens\":0},\"created\":\"2026-10-03T07:22:40Z\",\"updated\":\"2026-10-03T07:22:40Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"gemini-2.5-flash\"},\"event_type\":\"interaction.completed\"}\n\n",
         "event: done\ndata: [DONE]\n\n"
       ]
     },
@@ -1851,7 +1851,7 @@
         "body": "{\"id\":\"int_1\",\"model\":\"gemini-3-pro-preview\",\"status\":\"completed\",\"outputs\":[{\"type\":\"text\",\"text\":\"ok\"}],\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":1,\"total_tokens\":4}}"
       },
       "request": "POST /v1beta/interactions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 104\r\nApi-Revision: 2026-05-20\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-int-1\r\nX-Static: static-int\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-3-pro-preview\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"}]}]}",
-      "output": "{\"id\":\"int_1\",\"object\":\"chat.completion\",\"created\":1790982385,\"model\":\"gemini-3-pro-preview\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
+      "output": "{\"id\":\"int_1\",\"object\":\"chat.completion\",\"created\":1791012160,\"model\":\"gemini-3-pro-preview\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}"
     },
     {
       "name": "int_claude_client_stream",
@@ -1929,9 +1929,6 @@
       "source": "codex",
       "op": "execute",
       "session": "derived:ctx:v1:774d701e7a037fafde5f2aac0359a00a0072308fa6aa25feebfc521c7dd52440",
-      "needs": [
-        "pair:codex-\u003egemini"
-      ],
       "upstream": {
         "status": 200,
         "headers": [

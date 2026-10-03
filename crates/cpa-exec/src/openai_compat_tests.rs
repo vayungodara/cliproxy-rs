@@ -15,7 +15,7 @@ const FIXTURE: &str = include_str!("../tests/fixtures/openai_compat_go.json");
 
 /// Shared helpers whose real port has not landed: scenarios that need them are skipped
 /// and listed, so integration can remove an entry and see the scenario run.
-const PENDING: &[&str] = &["translator"];
+const PENDING: &[&str] = &[];
 
 /// One-shot raw HTTP/1.1 capture server answering with the scripted response.
 struct Mock {
@@ -152,6 +152,11 @@ fn credential(s: &Value, cfg: &Config, addr: &str) -> Credential {
     c
 }
 
+fn response_format(s: &Value) -> Format {
+    let source = Format::parse(s["source"].as_str().unwrap()).unwrap();
+    s["response"].as_str().and_then(Format::parse).unwrap_or(source)
+}
+
 fn request(s: &Value) -> (ExecRequest, String) {
     let op = s["op"].as_str().unwrap();
     let source = Format::parse(s["source"].as_str().unwrap()).unwrap();
@@ -271,6 +276,8 @@ async fn go_reference_scenarios() {
                 ResponseBody::Stream(mut stream) => {
                     let mut joined = Vec::new();
                     while let Some(item) = stream.next().await {
+                        // An error is terminal: nothing may follow it.
+                        assert!(error.is_none(), "{name}: stream item after an error");
                         match item {
                             Ok(bytes) => {
                                 joined.extend_from_slice(&bytes);
@@ -301,16 +308,33 @@ async fn go_reference_scenarios() {
             assert_eq!(mock.request(), want_bytes(s), "{name}: upstream request bytes");
         }
         assert_eq!(output.as_deref(), s["output"].as_str(), "{name}: output");
-        // Go's chunks are payloads the route frames as `data: <chunk>\n\n`; the Rust
-        // translator contract emits the framed event.
-        let want_chunks: Vec<String> = s["chunks"]
+        // Go's chunks are what the client's route frames; the Rust translator contract
+        // emits the framed events, one per item. Responses routes join chunks into frames
+        // (responsesSSEFramer), so those compare frame by frame. The route's frame repairs
+        // (repairErrorPayload) are server logic and not modelled here.
+        let go_chunks: Vec<&str> = s["chunks"]
             .as_array()
             .into_iter()
             .flatten()
             .filter_map(Value::as_str)
-            .map(|c| format!("data: {c}\n\n"))
             .collect();
-        assert_eq!(chunks, want_chunks, "{name}: stream chunks");
+        if response_format(s) == Format::OpenAIResponse {
+            let mut framer = cpa_translate::stream::ResponsesFramer::default();
+            let mut want: Vec<bytes::Bytes> = Vec::new();
+            for chunk in &go_chunks {
+                want.extend(framer.write(chunk.as_bytes()));
+            }
+            want.extend(framer.flush());
+            let want: Vec<String> = want.iter().map(|f| String::from_utf8_lossy(f).into_owned()).collect();
+            assert_eq!(chunks, want, "{name}: stream frames");
+        } else {
+            let want_chunks: Vec<String> = go_chunks
+                .iter()
+                .filter_map(|c| cpa_translate::stream::frame(response_format(s), c.as_bytes()))
+                .map(|f| String::from_utf8_lossy(&f).into_owned())
+                .collect();
+            assert_eq!(chunks, want_chunks, "{name}: stream chunks");
+        }
         let mut want_error = s["error"].clone();
         if want_error["status"] == 0 {
             // A plain Go error: the handler answers 500.
@@ -318,13 +342,7 @@ async fn go_reference_scenarios() {
         }
         assert_eq!(error.unwrap_or(Value::Null), want_error, "{name}: error");
     }
-    assert_eq!(
-        skipped,
-        [
-            "needs_translator_responses_source",
-            "needs_translator_responses_eof_without_done",
-        ]
-    );
+    assert_eq!(skipped, Vec::<&str>::new());
 }
 
 #[test]

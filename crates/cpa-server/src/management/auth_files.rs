@@ -581,7 +581,7 @@ fn entry_value(e: BTreeMap<&'static str, Value>) -> Value {
     Value::Object(e.into_iter().map(|(k, v)| (k.to_owned(), v)).collect())
 }
 
-pub(super) async fn list(State(state): State<Arc<Management>>, RawQuery(raw): RawQuery) -> Response {
+pub(crate) async fn list(State(state): State<Arc<Management>>, RawQuery(raw): RawQuery) -> Response {
     let q = Query::parse(raw);
     let positive = |name: &'static str| -> Result<Option<usize>, String> {
         match q.get(name) {
@@ -657,7 +657,7 @@ pub(super) async fn list(State(state): State<Arc<Management>>, RawQuery(raw): Ra
 // ---------------------------------------------------------------------------
 // Files
 
-pub(super) async fn download(State(state): State<Arc<Management>>, RawQuery(raw): RawQuery) -> Response {
+pub(crate) async fn download(State(state): State<Arc<Management>>, RawQuery(raw): RawQuery) -> Response {
     let q = Query::parse(raw);
     let name = q.first("name").trim().to_owned();
     if unsafe_name(&name) {
@@ -766,7 +766,7 @@ fn store_file(state: &Management, name: &str, data: &[u8]) -> Result<(), String>
     Ok(())
 }
 
-pub(super) async fn upload(
+pub(crate) async fn upload(
     State(state): State<Arc<Management>>,
     RawQuery(raw): RawQuery,
     headers: HeaderMap,
@@ -916,7 +916,7 @@ fn delete_one(state: &Management, name: &str) -> Result<String, (StatusCode, Str
     }
 }
 
-pub(super) async fn delete(State(state): State<Arc<Management>>, RawQuery(raw): RawQuery, body: Bytes) -> Response {
+pub(crate) async fn delete(State(state): State<Arc<Management>>, RawQuery(raw): RawQuery, body: Bytes) -> Response {
     let q = Query::parse(raw);
     tokio::task::spawn_blocking(move || {
         let _guard = state.disk.lock().unwrap_or_else(PoisonError::into_inner);
@@ -1145,7 +1145,7 @@ fn toggle_config_key(state: &Management, id: &str, disabled: bool) -> Result<boo
     Ok(true)
 }
 
-pub(super) async fn status(State(state): State<Arc<Management>>, body: Bytes) -> Response {
+pub(crate) async fn status(State(state): State<Arc<Management>>, body: Bytes) -> Response {
     #[derive(serde::Deserialize, Default)]
     #[serde(default)]
     struct Req {
@@ -1222,7 +1222,7 @@ fn canonical(key: &str) -> &str {
 
 /// Go `PatchAuthFileFields`: dotted metadata paths, `weight`, `request_retry` and a
 /// merging `headers` field. The canonical spelling wins over a config-style alias.
-pub(super) async fn fields(State(state): State<Arc<Management>>, body: Bytes) -> Response {
+pub(crate) async fn fields(State(state): State<Arc<Management>>, body: Bytes) -> Response {
     let Ok(req) = serde_json::from_slice::<Map<String, Value>>(&body) else {
         return fail(StatusCode::BAD_REQUEST, "invalid request body");
     };
@@ -1484,7 +1484,7 @@ fn channel_models(channel: &str) -> Option<&'static Vec<Value>> {
     definitions().get(&key)?.as_array()
 }
 
-pub(super) async fn model_definitions(UrlPath(channel): UrlPath<String>) -> Response {
+pub(crate) async fn model_definitions(UrlPath(channel): UrlPath<String>) -> Response {
     let channel = channel.trim().to_owned();
     if channel.is_empty() {
         return fail(StatusCode::BAD_REQUEST, "channel is required");
@@ -1534,7 +1534,7 @@ fn models_for(state: &Management, c: &Credential) -> Vec<Value> {
         .collect()
 }
 
-pub(super) async fn models(State(state): State<Arc<Management>>, RawQuery(raw): RawQuery) -> Response {
+pub(crate) async fn models(State(state): State<Arc<Management>>, RawQuery(raw): RawQuery) -> Response {
     let q = Query::parse(raw);
     let name = q.first("name").to_owned();
     if name.is_empty() {
@@ -1549,7 +1549,7 @@ pub(super) async fn models(State(state): State<Arc<Management>>, RawQuery(raw): 
     reply(StatusCode::OK, [("models", Value::Array(models))])
 }
 
-pub(super) async fn cooldown_reset(State(state): State<Arc<Management>>, body: Bytes) -> Response {
+pub(crate) async fn cooldown_reset(State(state): State<Arc<Management>>, body: Bytes) -> Response {
     #[derive(serde::Deserialize, Default)]
     #[serde(default)]
     struct Req {
@@ -1603,7 +1603,7 @@ fn auth_json(c: &Credential) -> Value {
     })
 }
 
-pub(super) async fn refresh(State(state): State<Arc<Management>>, RawQuery(raw): RawQuery, body: Bytes) -> Response {
+pub(crate) async fn refresh(State(state): State<Arc<Management>>, RawQuery(raw): RawQuery, body: Bytes) -> Response {
     #[derive(serde::Deserialize, Default)]
     #[serde(default)]
     struct Req {
