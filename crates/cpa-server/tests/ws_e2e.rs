@@ -245,6 +245,7 @@ async fn run(name: &str) {
         codex: cpa_exec::codex::CodexExecutor::new().unwrap(),
         devices: Default::default(),
         openai: Default::default(),
+        google: Default::default(),
     };
     let rt = Arc::new(Runtime::new(cfg, credentials, executors));
     let proxy = serve(router(rt)).await;

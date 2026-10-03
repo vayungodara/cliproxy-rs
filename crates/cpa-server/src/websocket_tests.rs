@@ -65,6 +65,7 @@ async fn upstream_loss_while_the_client_stalls_releases_the_session() {
         codex: cpa_exec::codex::CodexExecutor::new().unwrap(),
         devices: Default::default(),
         openai: Default::default(),
+        google: Default::default(),
     };
     let proxy = serve(router(Arc::new(Runtime::new(cfg, credentials, executors)))).await;
 

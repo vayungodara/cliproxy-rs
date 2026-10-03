@@ -1,0 +1,27 @@
+package main
+
+import (
+	"bytes"
+	"encoding/binary"
+	"image"
+	"image/draw"
+	"image/png"
+	"os"
+)
+
+// Writes each white PNG as: u16 width, u16 height, u32 length, bytes.
+func main() {
+	dims := [][2]int{{1024, 1024}, {832, 1248}, {1248, 832}, {864, 1184}, {1184, 864}, {896, 1152}, {1152, 896}, {768, 1344}, {1344, 768}, {1536, 672}}
+	var out bytes.Buffer
+	for _, d := range dims {
+		img := image.NewRGBA(image.Rect(0, 0, d[0], d[1]))
+		draw.Draw(img, img.Bounds(), image.White, image.Point{}, draw.Src)
+		var buf bytes.Buffer
+		png.Encode(&buf, img)
+		binary.Write(&out, binary.BigEndian, uint16(d[0]))
+		binary.Write(&out, binary.BigEndian, uint16(d[1]))
+		binary.Write(&out, binary.BigEndian, uint32(buf.Len()))
+		out.Write(buf.Bytes())
+	}
+	os.WriteFile("white.bin", out.Bytes(), 0o644)
+}

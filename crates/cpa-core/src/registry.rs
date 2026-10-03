@@ -38,7 +38,10 @@ const LOOKUP_ORDER: [&str; 9] = [
 pub struct ThinkingSupport {
     pub min: i64,
     pub max: i64,
+    /// `zero_allowed` in models.json, `zero-allowed` in config YAML (Go's yaml tag).
+    #[serde(alias = "zero-allowed")]
     pub zero_allowed: bool,
+    #[serde(alias = "dynamic-allowed")]
     pub dynamic_allowed: bool,
     /// Discrete effort levels; empty means budget-based thinking.
     pub levels: Vec<String>,
