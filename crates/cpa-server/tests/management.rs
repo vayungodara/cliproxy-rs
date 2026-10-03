@@ -40,8 +40,8 @@ async fn codex_passive_quota_snapshots_appear_in_credential_entries() {
     headers.insert("x-unrelated", "1".parse().unwrap());
     // Signals recorded for another provider's credential never surface (Go keys
     // observation by provider).
-    f.rt.executors.codex.quota().observe(&codex, &headers);
-    f.rt.executors.codex.quota().observe(&claude, &headers);
+    f.rt.executors.codex.quota().observe(&codex, "", &headers);
+    f.rt.executors.codex.quota().observe(&claude, "", &headers);
     let (base, server) = f.server().await;
     let listed: Value = wreq::Client::new()
         .get(format!("{base}/v8/management/credentials"))
