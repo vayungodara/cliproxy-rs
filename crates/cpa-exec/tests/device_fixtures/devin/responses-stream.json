@@ -66,6 +66,8 @@
     "usage": [
       {
         "cached_tokens": 3,
+        "fail_body": "",
+        "fail_status": 0,
         "failed": false,
         "input_tokens": 14,
         "model": "glm-5-3",
@@ -73,7 +75,9 @@
         "reasoning_effort": "",
         "reasoning_tokens": 0,
         "response_model": "upstream-model-x",
-        "total_tokens": 21
+        "service_tier": "",
+        "total_tokens": 21,
+        "ttft_set": true
       }
     ]
   },
