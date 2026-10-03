@@ -39,8 +39,10 @@
   async function cancel() {
     const s = session;
     if (!s) return;
-    status = "cancelled";
+    // Report "Cancelled" only once the server has the request: until then it keeps the
+    // session, and with it the provider's local callback port, for up to five minutes.
     await api(`/oauth/session?state=${encodeURIComponent(s.state)}`, "DELETE").catch(() => {});
+    if (s === session) status = "cancelled";
   }
   $effect(() =>
     every(2000, async () => {
