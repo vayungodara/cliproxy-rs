@@ -20,6 +20,7 @@
 
 mod calls;
 mod http;
+mod relay;
 mod secrets;
 mod socket;
 
@@ -40,6 +41,7 @@ use crate::runtime::{AcquireError, Lease, Runtime, Selection};
 pub(crate) struct Live {
     calls: Arc<calls::Calls>,
     secrets: secrets::Secrets,
+    relays: relay::Relays,
 }
 
 impl Default for Live {
@@ -47,6 +49,7 @@ impl Default for Live {
         Self {
             calls: calls::Calls::new(),
             secrets: secrets::Secrets::default(),
+            relays: relay::Relays::default(),
         }
     }
 }
@@ -59,7 +62,10 @@ impl Drop for Live {
 }
 
 pub fn routes(rt: &Arc<Runtime>) -> Router<Arc<Runtime>> {
-    let live = Arc::new(Live::default());
+    routes_with(rt, Arc::new(Live::default()))
+}
+
+fn routes_with(rt: &Arc<Runtime>, live: Arc<Live>) -> Router<Arc<Runtime>> {
     let auth = |mode| middleware::from_fn_with_state((rt.clone(), live.clone(), mode), authenticate);
     let ordinary = Router::new()
         .route("/v1/live", post(http::call))

@@ -164,18 +164,47 @@ pub(super) async fn call(
         Err(ShapeError::Invalid(message)) => return fail(400, &message),
         Err(ShapeError::NilMap) => return panic_response(),
     };
-    // ponytail: the optional WebRTC media relay (codex.live-media-relay) is not wired yet;
-    // calls always negotiate end to end with the upstream media servers.
     let cfg = rt.config();
+    let relay = match live_state.relays.current(&cfg) {
+        Ok(relay) => relay,
+        Err(message) => return fail(503, &message),
+    };
     let selection_headers = principal.selection_headers(&headers);
     let lease = match select_oauth(&rt, &cfg, None, &selection_headers, &body, None).await {
         Ok(lease) => lease,
         Err(rejection) => return rejection.render(realtime),
     };
     let credential = lease.credential.clone();
+    let traced = |response| with_trace(response, &credential);
+    let (mut upstream_body, mut upstream_content_type) = (call.body, call.content_type);
+    // The relay's session, closed unless the call keeps it (Go's deferred
+    // `request_not_retained` close).
+    let mut media = None;
+    if let Some(relay) = relay {
+        let offer = match live::request_sdp(&upstream_body, &upstream_content_type) {
+            Ok(offer) => offer,
+            Err(message) => return traced(fail(400, &message)),
+        };
+        let route = super::relay::Route {
+            proxy: cpa_exec::proxy::Proxy::effective(&credential, &cfg),
+            credential: media_credential_name(&credential),
+            auth_index: cpa_core::config::credentials::auth_index(&credential),
+        };
+        let (session, upstream_offer) = match relay.new_session(offer, route).await {
+            Ok(created) => created,
+            Err(e) => return traced(fail(e.status, &e.message)),
+        };
+        let guard = MediaGuard(Some(session));
+        match live::replace_sdp(&upstream_body, &upstream_content_type, &upstream_offer) {
+            Ok((body, content_type)) => (upstream_body, upstream_content_type) = (body, content_type),
+            Err(ShapeError::Invalid(message)) => return traced(fail(400, &message)),
+            Err(ShapeError::NilMap) => return traced(panic_response()),
+        }
+        media = Some(guard);
+    }
     let session_id = super::session_id(&selection_headers, &body);
     let mut upstream_headers = live::protocol_headers(&headers);
-    upstream_headers.push(("Content-Type".into(), call.content_type.clone()));
+    upstream_headers.push(("Content-Type".into(), upstream_content_type));
     let target = LiveTarget {
         credential: &credential,
         cfg: &cfg,
@@ -186,54 +215,115 @@ pub(super) async fn call(
     let upstream = match rt
         .executors
         .codex
-        .live_post(&target, &call_url, upstream_headers, Bytes::from(call.body))
+        .live_post(&target, &call_url, upstream_headers, Bytes::from(upstream_body))
         .await
     {
         Ok(upstream) => upstream,
         Err(e) => {
             let status = if e.status == 0 { 502 } else { e.status };
-            return with_trace(fail(status, &String::from_utf8_lossy(&e.body)), &credential);
+            return traced(fail(status, &String::from_utf8_lossy(&e.body)));
         }
     };
     let status = upstream.status;
     let mut response_headers = HeaderMap::new();
     copy_headers(&mut response_headers, &upstream.headers, &CALL_RESPONSE_HEADERS);
     let location = header_text(&upstream.headers, header::LOCATION);
-    let (data, read_error) = live::read_limited(upstream).await;
+    let upstream_content_type = header_text(&upstream.headers, header::CONTENT_TYPE);
+    let (mut data, read_error) = live::read_limited(upstream).await;
     drop(lease);
     if let Some(error) = read_error {
         let message = match error {
             BodyError::TooLarge => "Codex live response body too large",
             BodyError::Read => "Failed to read Codex live response",
         };
-        return with_trace(fail(502, message), &credential);
+        return traced(fail(502, message));
     }
-    if (200..300).contains(&status) {
-        let call_id = live::call_id_from_location(&location);
-        if !call_id.is_empty() {
-            if realtime && let Ok(value) = HeaderValue::from_str(&format!("/v1/realtime/calls/{call_id}")) {
-                response_headers.insert(header::LOCATION, value);
-            }
-            live_state.calls.put(
-                &call_id,
-                Call {
-                    auth_id: credential.id.clone(),
-                    session_id,
-                    owner_key: principal.key.clone(),
-                    owner_provider: principal.provider.clone(),
-                    secret_principal: principal
-                        .secret
-                        .as_ref()
-                        .map(|g| g.principal.clone())
-                        .unwrap_or_default(),
-                    ..Call::default()
-                },
-            );
+    let success = (200..300).contains(&status);
+    let mut call_id = String::new();
+    if success {
+        call_id = live::call_id_from_location(&location);
+        if call_id.is_empty() && media.is_some() {
+            return traced(fail(502, "Codex live response is missing a valid call ID"));
+        }
+        if let Some(MediaGuard(Some(session))) = &media {
+            session.set_call_id(&call_id);
+        }
+        if !call_id.is_empty()
+            && realtime
+            && let Ok(value) = HeaderValue::from_str(&format!("/v1/realtime/calls/{call_id}"))
+        {
+            response_headers.insert(header::LOCATION, value);
+        }
+    }
+    if success && let Some(MediaGuard(Some(session))) = &media {
+        let answer = match live::response_sdp(&data, &upstream_content_type) {
+            Ok(answer) => answer,
+            Err(message) => return traced(fail(502, &message)),
+        };
+        match session.accept_upstream_answer(answer).await {
+            Ok(downstream) => data = downstream.into_bytes(),
+            Err(e) => return traced(fail(e.status, &e.message)),
+        }
+        response_headers.insert(header::CONTENT_TYPE, HeaderValue::from_static("application/sdp"));
+    }
+    if success && !call_id.is_empty() {
+        let media = media.as_mut().and_then(|guard| guard.0.take());
+        let stored = live_state.calls.put(
+            &call_id,
+            Call {
+                auth_id: credential.id.clone(),
+                session_id,
+                owner_key: principal.key.clone(),
+                owner_provider: principal.provider.clone(),
+                secret_principal: principal
+                    .secret
+                    .as_ref()
+                    .map(|g| g.principal.clone())
+                    .unwrap_or_default(),
+                media: media.clone(),
+                ..Call::default()
+            },
+        );
+        if let (Some(media), Some(stored)) = (media, stored) {
+            // The media ending on its own ends the call; weak, so the call can drop.
+            let calls = Arc::downgrade(&live_state.calls);
+            let (id, token) = (stored.call_id.clone(), stored.token);
+            media.set_close_handler(Box::new(move |reason| {
+                if let Some(calls) = calls.upgrade() {
+                    calls.complete_token(&id, token, &reason);
+                }
+            }));
         }
     }
     // ponytail: Go completes the stored call when writing this body fails; axum gives no
     // write result, so such a call lives until its sideband, hangup or expiry.
-    with_trace(written(status, response_headers, data), &credential)
+    traced(written(status, response_headers, data))
+}
+
+/// Closes a media session the call did not keep (`request_not_retained`).
+struct MediaGuard(Option<Arc<dyn super::relay::MediaSession>>);
+
+impl Drop for MediaGuard {
+    fn drop(&mut self) {
+        if let Some(session) = self.0.take() {
+            session.close("request_not_retained");
+        }
+    }
+}
+
+/// `mediaCredentialName`: a log-safe name for the credential (label, file name, index).
+fn media_credential_name(credential: &cpa_core::credential::Credential) -> String {
+    let label = credential.label.trim();
+    if !label.is_empty() {
+        return label.to_owned();
+    }
+    if let cpa_core::credential::Source::File(path) = &credential.source
+        && let Some(name) = path.file_name().map(|n| n.to_string_lossy().trim().to_owned())
+        && !name.is_empty()
+    {
+        return name;
+    }
+    cpa_core::config::credentials::auth_index(credential)
 }
 
 /// The call ID path parameter, trimmed; `None` when it cannot be decoded.
@@ -417,5 +507,280 @@ mod tests {
         assert_eq!(sniff(b"<?xml version"), "text/xml; charset=utf-8");
         assert_eq!(sniff(b"a\x00b"), "application/octet-stream");
         assert_eq!(sniff(b"\xEF\xBB\xBFx"), "text/plain; charset=utf-8");
+    }
+}
+
+/// Go live_test.go's relay cases (`TestHandlerRelaysWebRTCMediaSDP`,
+/// `TestHandlerClosesUnretainedMediaSession`) with a fake relay.
+#[cfg(test)]
+mod relay_tests {
+    use std::sync::Mutex;
+
+    use axum::extract::State as AxumState;
+    use futures_util::future::BoxFuture;
+
+    use super::super::relay::{MediaRelay, MediaSession, RelayError, Route};
+    use super::*;
+
+    #[derive(Default)]
+    struct FakeSession {
+        downstream: String,
+        answer_error: Option<RelayError>,
+        upstream_answer: Mutex<String>,
+        call_id: Mutex<String>,
+        call_id_at_accept: Mutex<String>,
+        closed: Mutex<Option<String>>,
+        handler: Mutex<Option<Box<dyn FnOnce(String) + Send>>>,
+    }
+
+    impl MediaSession for FakeSession {
+        fn accept_upstream_answer(&self, answer: String) -> BoxFuture<'_, Result<String, RelayError>> {
+            Box::pin(async move {
+                *self.upstream_answer.lock().unwrap() = answer;
+                *self.call_id_at_accept.lock().unwrap() = self.call_id.lock().unwrap().clone();
+                match &self.answer_error {
+                    Some(e) => Err(e.clone()),
+                    None => Ok(self.downstream.clone()),
+                }
+            })
+        }
+        fn set_call_id(&self, call_id: &str) {
+            *self.call_id.lock().unwrap() = call_id.into();
+        }
+        fn set_close_handler(&self, handler: Box<dyn FnOnce(String) + Send>) {
+            *self.handler.lock().unwrap() = Some(handler);
+        }
+        fn close(&self, reason: &str) {
+            self.closed.lock().unwrap().get_or_insert_with(|| reason.into());
+        }
+    }
+
+    struct FakeRelay {
+        session: Arc<FakeSession>,
+        error: Option<RelayError>,
+        seen: Mutex<Option<(String, Route)>>,
+    }
+
+    impl MediaRelay for FakeRelay {
+        fn new_session(
+            &self,
+            offer: String,
+            route: Route,
+        ) -> BoxFuture<'_, Result<(Arc<dyn MediaSession>, String), RelayError>> {
+            Box::pin(async move {
+                *self.seen.lock().unwrap() = Some((offer, route));
+                match &self.error {
+                    Some(e) => Err(e.clone()),
+                    None => Ok((
+                        self.session.clone() as Arc<dyn MediaSession>,
+                        "v=0\r\no=gateway-offer\r\n".to_owned(),
+                    )),
+                }
+            })
+        }
+    }
+
+    type Seen = Arc<Mutex<Vec<Bytes>>>;
+
+    async fn serve(app: axum::Router) -> String {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let url = format!("http://{}", listener.local_addr().unwrap());
+        tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+        url
+    }
+
+    /// A proxy whose upstream answers `status` with `location`, and its live state.
+    async fn start(
+        relay: Option<Arc<FakeRelay>>,
+        status: u16,
+        location: Option<&'static str>,
+        yaml: &str,
+    ) -> (String, Arc<Live>, Seen) {
+        let seen = Seen::default();
+        let upstream = axum::Router::new()
+            .fallback(move |AxumState(seen): AxumState<Seen>, body: Bytes| async move {
+                seen.lock().unwrap().push(body);
+                let mut response =
+                    (StatusCode::from_u16(status).unwrap(), "v=0\r\no=upstream-answer\r\n").into_response();
+                response
+                    .headers_mut()
+                    .insert(header::CONTENT_TYPE, HeaderValue::from_static("application/sdp"));
+                if let Some(location) = location {
+                    response
+                        .headers_mut()
+                        .insert(header::LOCATION, HeaderValue::from_static(location));
+                }
+                response
+            })
+            .with_state(seen.clone());
+        let upstream_url = serve(upstream).await;
+        let executor = cpa_exec::codex::CodexExecutor::with_client(
+            wreq::Client::new(),
+            cpa_exec::codex_oauth::CodexOAuth::new(wreq::Client::new()),
+        )
+        .with_live_endpoints(format!("{upstream_url}/calls"), "ws://127.0.0.1:9/v1");
+        let meta = serde_json::json!({
+            "type": "codex", "access_token": "oauth-token", "email": "voice@example.com",
+            // Go's test uses a SOCKS URL; `direct` proves the same precedence while the
+            // upstream call still reaches the loopback mock.
+            "proxy_url": "direct",
+        });
+        let credential = cpa_core::credential::Credential::from_file(
+            std::path::Path::new("/fake"),
+            std::path::Path::new("/fake/codex-user.json"),
+            meta.as_object().unwrap().clone(),
+        )
+        .unwrap();
+        let rt = Arc::new(Runtime::new(
+            cpa_core::config::Config::parse(yaml).unwrap(),
+            vec![credential],
+            cpa_exec::Executors {
+                claude: cpa_exec::claude::ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
+                codex: executor,
+                devices: Default::default(),
+                openai: Default::default(),
+                google: Default::default(),
+            },
+        ));
+        let mut live = Live::default();
+        live.relays.fixed = relay.map(|r| r as Arc<dyn MediaRelay>);
+        let live = Arc::new(live);
+        let app = axum::Router::new()
+            .merge(super::super::routes_with(&rt, live.clone()))
+            .with_state(rt);
+        (serve(app).await, live, seen)
+    }
+
+    const BOUNDARY: &str = "media-relay-boundary";
+
+    async fn post(proxy: &str) -> wreq::Response {
+        let body = format!(
+            "--{BOUNDARY}\r\nContent-Disposition: form-data; name=\"sdp\"\r\n\r\nv=0\r\no=desktop-offer\r\n\r\n--{BOUNDARY}\r\nContent-Disposition: form-data; name=\"session\"\r\n\r\n{{\"model\":\"gpt-live-1-codex\"}}\r\n--{BOUNDARY}--\r\n"
+        );
+        wreq::Client::new()
+            .post(format!("{proxy}/v1/live"))
+            .header("content-type", format!("multipart/form-data; boundary={BOUNDARY}"))
+            .body(body)
+            .send()
+            .await
+            .unwrap()
+    }
+
+    fn fake(answer_error: Option<RelayError>, error: Option<RelayError>) -> Arc<FakeRelay> {
+        Arc::new(FakeRelay {
+            session: Arc::new(FakeSession {
+                downstream: "v=0\r\no=downstream-answer\r\n".into(),
+                answer_error,
+                ..FakeSession::default()
+            }),
+            error,
+            seen: Mutex::default(),
+        })
+    }
+
+    #[tokio::test]
+    async fn relays_sdp_both_ways_and_keeps_the_session_with_the_call() {
+        let relay = fake(None, None);
+        let (proxy, live, seen) = start(
+            Some(relay.clone()),
+            201,
+            Some("/v1/live/call-123"),
+            "proxy-url: http://global-proxy.example:8080",
+        )
+        .await;
+        let response = post(&proxy).await;
+        assert_eq!(response.status().as_u16(), 201);
+        assert_eq!(response.headers()["content-type"], "application/sdp");
+        assert_eq!(response.text().await.unwrap(), "v=0\r\no=downstream-answer\r\n");
+        let (offer, route) = relay.seen.lock().unwrap().take().unwrap();
+        assert_eq!(offer, "v=0\r\no=desktop-offer\r\n");
+        assert_eq!(
+            route.proxy,
+            cpa_exec::proxy::Proxy::Direct,
+            "the credential's proxy wins over the global one"
+        );
+        assert_eq!(route.credential, "voice@example.com");
+        assert!(!route.auth_index.is_empty());
+        let sent: serde_json::Value = serde_json::from_slice(&seen.lock().unwrap()[0]).unwrap();
+        assert_eq!(
+            sent["sdp"], "v=0\r\no=gateway-offer\r\n",
+            "the relay's offer goes upstream"
+        );
+        assert_eq!(sent["session"]["model"], "gpt-live-1-codex");
+        let session = &relay.session;
+        assert_eq!(*session.upstream_answer.lock().unwrap(), "v=0\r\no=upstream-answer\r\n");
+        assert_eq!(
+            *session.call_id_at_accept.lock().unwrap(),
+            "call-123",
+            "call ID set before the answer"
+        );
+        assert!(session.closed.lock().unwrap().is_none(), "retained session stays open");
+        assert!(live.calls.peek("call-123").unwrap().media.is_some());
+        let handler = session.handler.lock().unwrap().take().expect("close handler installed");
+        handler("test_closed".into());
+        assert!(live.calls.peek("call-123").is_none(), "media closing ends the call");
+        assert_eq!(session.closed.lock().unwrap().as_deref(), Some("test_closed"));
+    }
+
+    #[tokio::test]
+    async fn unretained_sessions_close_with_request_not_retained() {
+        // Upstream rejection: the status passes through.
+        let relay = fake(None, None);
+        let (proxy, live, _) = start(Some(relay.clone()), 401, Some("/v1/live/call-123"), "{}").await;
+        assert_eq!(post(&proxy).await.status().as_u16(), 401);
+        assert_eq!(
+            relay.session.closed.lock().unwrap().as_deref(),
+            Some("request_not_retained")
+        );
+        assert!(live.calls.peek("call-123").is_none());
+        // The relay rejects the upstream answer.
+        let relay = fake(Some(RelayError::new("invalid answer")), None);
+        let (proxy, live, _) = start(Some(relay.clone()), 201, Some("/v1/live/call-123"), "{}").await;
+        let response = post(&proxy).await;
+        assert_eq!(response.status().as_u16(), 502);
+        assert_eq!(response.text().await.unwrap(), r#"{"error":"invalid answer"}"#);
+        assert_eq!(
+            relay.session.closed.lock().unwrap().as_deref(),
+            Some("request_not_retained")
+        );
+        assert!(live.calls.peek("call-123").is_none());
+        // A relayed call needs a call ID.
+        let relay = fake(None, None);
+        let (proxy, _, _) = start(Some(relay.clone()), 201, None, "{}").await;
+        let response = post(&proxy).await;
+        assert_eq!(response.status().as_u16(), 502);
+        assert_eq!(
+            response.text().await.unwrap(),
+            r#"{"error":"Codex live response is missing a valid call ID"}"#
+        );
+        assert_eq!(
+            relay.session.closed.lock().unwrap().as_deref(),
+            Some("request_not_retained")
+        );
+    }
+
+    #[tokio::test]
+    async fn relay_failures_never_reach_the_upstream() {
+        let relay = fake(None, Some(RelayError::new("Codex live media relay capacity exhausted")));
+        let (proxy, _, seen) = start(Some(relay), 201, Some("/v1/live/call-1"), "{}").await;
+        let response = post(&proxy).await;
+        assert_eq!(response.status().as_u16(), 502);
+        assert_eq!(
+            response.text().await.unwrap(),
+            r#"{"error":"Codex live media relay capacity exhausted"}"#
+        );
+        assert!(seen.lock().unwrap().is_empty());
+        // An unusable relay section answers 503 before any selection.
+        let (proxy, _, seen) = start(
+            None,
+            201,
+            Some("/v1/live/call-1"),
+            "codex:\n  live-media-relay:\n    allow-private-remote-ips: true\n    disable-private-remote-ips: true\n",
+        )
+        .await;
+        let response = post(&proxy).await;
+        assert_eq!(response.status().as_u16(), 503);
+        assert!(response.text().await.unwrap().contains("cannot set both"));
+        assert!(seen.lock().unwrap().is_empty());
     }
 }
