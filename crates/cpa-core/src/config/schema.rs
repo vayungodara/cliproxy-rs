@@ -12,6 +12,74 @@ pub fn validate(value: &Value, reject_unknown: bool) -> anyhow::Result<()> {
     walk(value, &SCHEMA, "config", reject_unknown)
 }
 
+/// yaml.v3's YAML 1.1 compatibility for typed bool fields: these strings (plain,
+/// quoted or `!!str`) decode into a Go `bool`. String fields keep them verbatim, and
+/// other spellings (`yEs`, a quoted `"true"`, `1`) are type errors.
+pub(super) fn go_bool(text: &str) -> Option<bool> {
+    match text {
+        "y" | "Y" | "yes" | "Yes" | "YES" | "on" | "On" | "ON" => Some(true),
+        "n" | "N" | "no" | "No" | "NO" | "off" | "Off" | "OFF" => Some(false),
+        _ => None,
+    }
+}
+
+/// The child schema of a mapping entry: the map's value schema or the named field.
+fn child<'a>(schema: &'a Schema, key: &Value) -> Option<&'a Schema> {
+    schema.get("map").or_else(|| schema.get("fields")?.get(key.as_str()?))
+}
+
+/// Rewrites YAML 1.1 bool spellings in typed bool fields of a canonical v8 document
+/// to booleans, as yaml.v3 decodes them into the Go config.
+pub fn coerce_typed_bools(value: &mut Value) {
+    fn walk(value: &mut Value, schema: &Schema) {
+        let schema = schema.get("optional").unwrap_or(schema);
+        if schema.as_str() == Some("bool") {
+            if let Some(b) = value.as_str().and_then(go_bool) {
+                *value = Value::Bool(b);
+            }
+            return;
+        }
+        match value {
+            Value::Mapping(map) => {
+                for (key, item) in map.iter_mut() {
+                    if let Some(field) = child(schema, key) {
+                        walk(item, field);
+                    }
+                }
+            }
+            Value::Sequence(items) => {
+                if let Some(inner) = schema.get("list") {
+                    items.iter_mut().for_each(|item| walk(item, inner));
+                }
+            }
+            _ => {}
+        }
+    }
+    walk(value, &SCHEMA);
+}
+
+/// The bool a YAML 1.1 spelling decodes to, for the first such string in a typed bool
+/// field of `written` (the value written at the v8 path `parts`).
+pub fn written_bool_spelling(parts: &[&str], written: &Value) -> Option<bool> {
+    fn find(node: &Value, schema: &Schema) -> Option<bool> {
+        let schema = schema.get("optional").unwrap_or(schema);
+        if schema.as_str() == Some("bool") {
+            return node.as_str().and_then(go_bool);
+        }
+        match node {
+            Value::Mapping(map) => map.iter().find_map(|(k, v)| find(v, child(schema, k)?)),
+            Value::Sequence(items) => items.iter().find_map(|i| find(i, schema.get("list")?)),
+            _ => None,
+        }
+    }
+    let mut schema = &*SCHEMA;
+    for part in parts {
+        let inner = schema.get("optional").unwrap_or(schema);
+        schema = child(inner, &Value::from(*part))?;
+    }
+    find(written, schema)
+}
+
 pub(super) fn is_struct(path: &str) -> bool {
     let mut schema = &*SCHEMA;
     for part in path.split('.') {
@@ -38,11 +106,15 @@ fn walk(value: &Value, schema: &Schema, path: &str, strict: bool) -> anyhow::Res
             "opaque" => true,
             // yaml.v3 decodes numeric/bool scalar spellings into Go string fields.
             "string" => value.is_string() || value.is_number() || value.is_bool(),
-            "bool" => value.is_bool(),
+            "bool" => value.is_bool() || value.as_str().and_then(go_bool).is_some(),
             "int" => value.as_i64().is_some(),
             "port" => value.as_i64().is_some(), // Config bounds listener ports separately.
             "version" => value.as_i64() == Some(8),
-            "duration" => value.is_string(),
+            // yaml.v3 decodes a time.Duration from a string through time.ParseDuration
+            // and rejects integers.
+            "duration" => value
+                .as_str()
+                .is_some_and(|s| super::validate::parse_duration(s).is_some()),
             "image-mode" => {
                 value.is_bool()
                     || value
@@ -120,7 +192,8 @@ fn walk_unknown(value: &mut Value, schema: &Schema, path: &str, out: &mut Vec<(S
     };
     let unknown: Vec<Value> = map
         .keys()
-        .filter(|k| k.as_str().is_none_or(|k| fields.get(k).is_none()))
+        // Merge keys are YAML structure, not settings: loads expand them.
+        .filter(|k| k.as_str().is_none_or(|k| k != "<<" && fields.get(k).is_none()))
         .cloned()
         .collect();
     for key in unknown {

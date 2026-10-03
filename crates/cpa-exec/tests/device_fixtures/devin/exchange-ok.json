@@ -1,0 +1,57 @@
+{
+  "name": "exchange-ok",
+  "credential": null,
+  "request": {
+    "exchange": "code-1",
+    "token": ""
+  },
+  "responses": [
+    {
+      "status": 200,
+      "headers": [
+        [
+          "Content-Type",
+          "application/json"
+        ]
+      ],
+      "body": "{\"token\":\" eyJexchanged \"}"
+    }
+  ],
+  "upstream": [
+    {
+      "method": "POST",
+      "target": "/auth/cli/token",
+      "headers": [
+        [
+          "Host",
+          "127.0.0.1:46317"
+        ],
+        [
+          "User-Agent",
+          "Go-http-client/1.1"
+        ],
+        [
+          "Content-Length",
+          "46"
+        ],
+        [
+          "Accept",
+          "application/json"
+        ],
+        [
+          "Content-Type",
+          "application/json"
+        ],
+        [
+          "Accept-Encoding",
+          "gzip"
+        ]
+      ],
+      "body": "",
+      "body_b64": "eyJjb2RlIjoiY29kZS0xIiwiY29kZV92ZXJpZmllciI6InZlcmlmaWVyLTEifQ=="
+    }
+  ],
+  "downstream": {
+    "body": "eyJexchanged"
+  }
+}

@@ -6,7 +6,7 @@
     "access_token": "meta-key-fixture",
     "api_key": "meta-key-fixture",
     "auth_kind": "oauth",
-    "base_url": "http://127.0.0.1:44729/v1",
+    "base_url": "http://127.0.0.1:45171/v1",
     "dca_token": "dca:fixture",
     "type": "meta"
   },
@@ -22,7 +22,20 @@
     "stream_err": "{\"type\":\"error\",\"error\":{\"code\":503,\"message\":\"overloaded\"}}"
   },
   "extra": {
-    "credential_scoped": false
+    "credential_scoped": false,
+    "usage": [
+      {
+        "cached_tokens": 0,
+        "failed": true,
+        "input_tokens": 0,
+        "model": "muse-spark-1.3",
+        "output_tokens": 0,
+        "reasoning_effort": "",
+        "reasoning_tokens": 0,
+        "response_model": "",
+        "total_tokens": 0
+      }
+    ]
   },
   "name": "stream-error-after-data-only",
   "request": {
@@ -49,7 +62,7 @@
       "headers": [
         [
           "Host",
-          "127.0.0.1:44729"
+          "127.0.0.1:45171"
         ],
         [
           "User-Agent",

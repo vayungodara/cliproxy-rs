@@ -1,0 +1,2428 @@
+[
+ {
+  "name": "live_missing_key",
+  "server": "main",
+  "request": {
+   "method": "POST",
+   "path": "/v1/live",
+   "body": "{}"
+  },
+  "status": 401,
+  "headers": {
+   "Access-Control-Allow-Headers": [
+    "*"
+   ],
+   "Access-Control-Allow-Methods": [
+    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+   ],
+   "Access-Control-Allow-Origin": [
+    "*"
+   ],
+   "Access-Control-Expose-Headers": [
+    "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+   ],
+   "Content-Type": [
+    "application/json; charset=utf-8"
+   ]
+  },
+  "body": "{\"error\":\"Missing API key\"}",
+  "sent": []
+ },
+ {
+  "name": "live_invalid_key",
+  "server": "main",
+  "request": {
+   "method": "POST",
+   "path": "/v1/live",
+   "headers": {
+    "Authorization": [
+     "Bearer nope"
+    ]
+   },
+   "body": "{}"
+  },
+  "status": 401,
+  "headers": {
+   "Access-Control-Allow-Headers": [
+    "*"
+   ],
+   "Access-Control-Allow-Methods": [
+    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+   ],
+   "Access-Control-Allow-Origin": [
+    "*"
+   ],
+   "Access-Control-Expose-Headers": [
+    "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+   ],
+   "Content-Type": [
+    "application/json; charset=utf-8"
+   ]
+  },
+  "body": "{\"error\":\"Invalid API key\"}",
+  "sent": []
+ },
+ {
+  "name": "calls_missing_key",
+  "server": "main",
+  "request": {
+   "method": "POST",
+   "path": "/v1/realtime/calls",
+   "body": "{}"
+  },
+  "status": 401,
+  "headers": {
+   "Access-Control-Allow-Headers": [
+    "*"
+   ],
+   "Access-Control-Allow-Methods": [
+    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+   ],
+   "Access-Control-Allow-Origin": [
+    "*"
+   ],
+   "Access-Control-Expose-Headers": [
+    "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+   ],
+   "Content-Type": [
+    "application/json; charset=utf-8"
+   ]
+  },
+  "body": "{\"error\":{\"code\":\"invalid_api_key\",\"message\":\"Missing API key\",\"param\":null,\"type\":\"authentication_error\"}}",
+  "sent": []
+ },
+ {
+  "name": "calls_invalid_key",
+  "server": "main",
+  "request": {
+   "method": "POST",
+   "path": "/v1/realtime/calls",
+   "headers": {
+    "X-Api-Key": [
+     "nope"
+    ]
+   },
+   "body": "{}"
+  },
+  "status": 401,
+  "headers": {
+   "Access-Control-Allow-Headers": [
+    "*"
+   ],
+   "Access-Control-Allow-Methods": [
+    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+   ],
+   "Access-Control-Allow-Origin": [
+    "*"
+   ],
+   "Access-Control-Expose-Headers": [
+    "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+   ],
+   "Content-Type": [
+    "application/json; charset=utf-8"
+   ]
+  },
+  "body": "{\"error\":{\"code\":\"invalid_api_key\",\"message\":\"Invalid API key\",\"param\":null,\"type\":\"authentication_error\"}}",
+  "sent": []
+ },
+ {
+  "name": "calls_unknown_client_secret",
+  "server": "main",
+  "request": {
+   "method": "POST",
+   "path": "/v1/realtime/calls",
+   "headers": {
+    "Authorization": [
+     "Bearer ek_unknown"
+    ]
+   },
+   "body": "{}"
+  },
+  "status": 401,
+  "headers": {
+   "Access-Control-Allow-Headers": [
+    "*"
+   ],
+   "Access-Control-Allow-Methods": [
+    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+   ],
+   "Access-Control-Allow-Origin": [
+    "*"
+   ],
+   "Access-Control-Expose-Headers": [
+    "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+   ],
+   "Content-Type": [
+    "application/json; charset=utf-8"
+   ]
+  },
+  "body": "{\"error\":{\"code\":\"invalid_realtime_client_secret\",\"message\":\"Realtime client secret is invalid or expired\",\"param\":null,\"type\":\"invalid_request_error\"}}",
+  "sent": []
+ },
+ {
+  "name": "secrets_reject_client_secret",
+  "server": "main",
+  "request": {
+   "method": "POST",
+   "path": "/v1/realtime/client_secrets",
+   "headers": {
+    "Authorization": [
+     "Bearer ek_unknown"
+    ]
+   },
+   "body": "{}"
+  },
+  "status": 401,
+  "headers": {
+   "Access-Control-Allow-Headers": [
+    "*"
+   ],
+   "Access-Control-Allow-Methods": [
+    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+   ],
+   "Access-Control-Allow-Origin": [
+    "*"
+   ],
+   "Access-Control-Expose-Headers": [
+    "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+   ],
+   "Content-Type": [
+    "application/json; charset=utf-8"
+   ]
+  },
+  "body": "{\"error\":{\"code\":\"invalid_api_key\",\"message\":\"Invalid API key\",\"param\":null,\"type\":\"authentication_error\"}}",
+  "sent": []
+ },
+ {
+  "name": "live_json",
+  "server": "main",
+  "request": {
+   "method": "POST",
+   "path": "/v1/live",
+   "headers": {
+    "Authorization": [
+     "Bearer good-key"
+    ],
+    "Content-Type": [
+     "application/json"
+    ],
+    "OpenAI-Alpha": [
+     "quicksilver=v2"
+    ],
+    "Openai-Project": [
+     "p1",
+     "p2"
+    ],
+    "Originator": [
+     "Codex Desktop"
+    ],
+    "Session-Id": [
+     "session-123"
+    ],
+    "Thread-Id": [
+     "thread-1"
+    ],
+    "X-Not-Forwarded": [
+     "x"
+    ],
+    "X-Oai-Attestation": [
+     "attest"
+    ]
+   },
+   "body": "{\"sdp\":\"v=0\\r\\n\",\"model\":\"gpt-realtime\",\"session\":{\"instructions\":\"\u003chi\u003e\",\"model\":\"gpt-realtime-mini\"}}"
+  },
+  "upstream": {
+   "status": 201,
+   "headers": {
+    "Content-Type": [
+     "application/sdp"
+    ],
+    "Location": [
+     "/v1/live/call-123"
+    ],
+    "Openai-Request-Id": [
+     "oreq-1"
+    ],
+    "Retry-After": [
+     "3"
+    ],
+    "Set-Cookie": [
+     "session=secret"
+    ],
+    "X-Live-Session": [
+     "leak"
+    ],
+    "X-Request-Id": [
+     "req-1"
+    ]
+   },
+   "body": "v=0\r\no=upstream-answer\r\n"
+  },
+  "status": 201,
+  "headers": {
+   "Access-Control-Allow-Headers": [
+    "*"
+   ],
+   "Access-Control-Allow-Methods": [
+    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+   ],
+   "Access-Control-Allow-Origin": [
+    "*"
+   ],
+   "Access-Control-Expose-Headers": [
+    "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+   ],
+   "Content-Type": [
+    "application/sdp"
+   ],
+   "Location": [
+    "/v1/live/call-123"
+   ],
+   "Openai-Request-Id": [
+    "oreq-1"
+   ],
+   "Retry-After": [
+    "3"
+   ],
+   "X-Cpa-Trace-Id": [
+    "20261003074603-ed3d6b1db19d35a0-01a100ba-2cf5-7d2b-8f96-cb76f3de9826"
+   ],
+   "X-Request-Id": [
+    "req-1"
+   ]
+  },
+  "body": "v=0\r\no=upstream-answer\r\n",
+  "sent": [
+   {
+    "method": "POST",
+    "url": "https://chatgpt.com/backend-api/codex/realtime/calls?intent=quicksilver\u0026architecture=avas",
+    "headers": {
+     "Authorization": [
+      "Bearer oauth-token"
+     ],
+     "Chatgpt-Account-Id": [
+      "acct-1"
+     ],
+     "Content-Type": [
+      "application/json"
+     ],
+     "Openai-Alpha": [
+      "quicksilver=v2"
+     ],
+     "Openai-Project": [
+      "p1",
+      "p2"
+     ],
+     "Originator": [
+      "Codex Desktop"
+     ],
+     "Session-Id": [
+      "session-123"
+     ],
+     "Thread-Id": [
+      "thread-1"
+     ],
+     "X-Oai-Attestation": [
+      "attest"
+     ],
+     "X-Operator": [
+      "op-value"
+     ]
+    },
+    "body": "{\"model\":\"gpt-realtime\",\"sdp\":\"v=0\\r\\n\",\"session\":{\"instructions\":\"\\u003chi\\u003e\",\"model\":\"gpt-live-1-codex\"}}",
+    "auth_id": "b-codex-oauth"
+   }
+  ]
+ },
+ {
+  "name": "calls_multipart",
+  "server": "main",
+  "request": {
+   "method": "POST",
+   "path": "/v1/realtime/calls",
+   "headers": {
+    "Authorization": [
+     "Bearer good-key"
+    ],
+    "Content-Type": [
+     "multipart/form-data; boundary=rsfix-boundary"
+    ]
+   },
+   "body": "--rsfix-boundary\r\nContent-Disposition: form-data; name=\"sdp\"\r\n\r\nv=0\r\no=- 1 2 IN IP4 127.0.0.1\r\ns=-\r\n\r\n--rsfix-boundary\r\nContent-Disposition: form-data; name=\"session\"\r\n\r\n{\"type\":\"realtime\",\"model\":\"gpt-realtime\",\"instructions\":\"\u003chi\u003e\"}\r\n--rsfix-boundary--\r\n"
+  },
+  "upstream": {
+   "status": 201,
+   "headers": {
+    "Location": [
+     "https://chatgpt.com/backend-api/codex/realtime/calls/rtc_multi?x=1"
+    ]
+   },
+   "body": "v=0\r\n"
+  },
+  "status": 201,
+  "headers": {
+   "Access-Control-Allow-Headers": [
+    "*"
+   ],
+   "Access-Control-Allow-Methods": [
+    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+   ],
+   "Access-Control-Allow-Origin": [
+    "*"
+   ],
+   "Access-Control-Expose-Headers": [
+    "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+   ],
+   "Location": [
+    "/v1/realtime/calls/rtc_multi"
+   ],
+   "X-Cpa-Trace-Id": [
+    "20261003074603-ed3d6b1db19d35a0-01a100ba-2cf6-7151-89b1-c787c3992cdb"
+   ]
+  },
+  "body": "v=0\r\n",
+  "sent": [
+   {
+    "method": "POST",
+    "url": "https://chatgpt.com/backend-api/codex/realtime/calls?intent=quicksilver\u0026architecture=avas",
+    "headers": {
+     "Authorization": [
+      "Bearer oauth-token"
+     ],
+     "Chatgpt-Account-Id": [
+      "acct-1"
+     ],
+     "Content-Type": [
+      "application/json"
+     ],
+     "X-Operator": [
+      "op-value"
+     ]
+    },
+    "body": "{\"sdp\":\"v=0\\r\\no=- 1 2 IN IP4 127.0.0.1\\r\\ns=-\\r\\n\",\"session\":{\"instructions\":\"\\u003chi\\u003e\",\"model\":\"gpt-live-1-codex\",\"type\":\"realtime\"}}",
+    "auth_id": "b-codex-oauth"
+   }
+  ]
+ },
+ {
+  "name": "realtime_raw_sdp_query_key",
+  "server": "main",
+  "request": {
+   "method": "POST",
+   "path": "/v1/realtime?key=good-key",
+   "headers": {
+    "Content-Type": [
+     "application/sdp"
+    ]
+   },
+   "body": "v=0\r\no=- 1 2 IN IP4 127.0.0.1\r\ns=-\r\n"
+  },
+  "upstream": {
+   "status": 200,
+   "headers": {
+    "Content-Type": [
+     "application/sdp"
+    ],
+    "Location": [
+     "rtc_raw"
+    ]
+   },
+   "body": "answer"
+  },
+  "status": 200,
+  "headers": {
+   "Access-Control-Allow-Headers": [
+    "*"
+   ],
+   "Access-Control-Allow-Methods": [
+    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+   ],
+   "Access-Control-Allow-Origin": [
+    "*"
+   ],
+   "Access-Control-Expose-Headers": [
+    "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+   ],
+   "Content-Type": [
+    "application/sdp"
+   ],
+   "Location": [
+    "/v1/realtime/calls/rtc_raw"
+   ],
+   "X-Cpa-Trace-Id": [
+    "20261003074603-ed3d6b1db19d35a0-01a100ba-2cf6-744e-9a07-970674bf65dd"
+   ]
+  },
+  "body": "answer",
+  "sent": [
+   {
+    "method": "POST",
+    "url": "https://chatgpt.com/backend-api/codex/realtime/calls?intent=quicksilver\u0026architecture=avas",
+    "headers": {
+     "Authorization": [
+      "Bearer oauth-token"
+     ],
+     "Chatgpt-Account-Id": [
+      "acct-1"
+     ],
+     "Content-Type": [
+      "application/sdp"
+     ],
+     "X-Operator": [
+      "op-value"
+     ]
+    },
+    "body": "v=0\r\no=- 1 2 IN IP4 127.0.0.1\r\ns=-\r\n",
+    "auth_id": "b-codex-oauth"
+   }
+  ]
+ },
+ {
+  "name": "live_no_content_type",
+  "server": "main",
+  "request": {
+   "method": "POST",
+   "path": "/v1/live",
+   "headers": {
+    "Authorization": [
+     "Bearer good-key"
+    ]
+   },
+   "body": "{\"model\":\"custom-live\"}"
+  },
+  "upstream": {
+   "status": 201,
+   "body": "v=0"
+  },
+  "status": 201,
+  "headers": {
+   "Access-Control-Allow-Headers": [
+    "*"
+   ],
+   "Access-Control-Allow-Methods": [
+    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+   ],
+   "Access-Control-Allow-Origin": [
+    "*"
+   ],
+   "Access-Control-Expose-Headers": [
+    "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+   ],
+   "X-Cpa-Trace-Id": [
+    "20261003074603-ed3d6b1db19d35a0-01a100ba-2cf6-7621-aff9-00786d5a4275"
+   ]
+  },
+  "body": "v=0",
+  "sent": [
+   {
+    "method": "POST",
+    "url": "https://chatgpt.com/backend-api/codex/realtime/calls?intent=quicksilver\u0026architecture=avas",
+    "headers": {
+     "Authorization": [
+      "Bearer oauth-token"
+     ],
+     "Chatgpt-Account-Id": [
+      "acct-1"
+     ],
+     "Content-Type": [
+      "application/json"
+     ],
+     "X-Operator": [
+      "op-value"
+     ]
+    },
+    "body": "{\"model\":\"custom-live\"}",
+    "auth_id": "b-codex-oauth"
+   }
+  ]
+ },
+ {
+  "name": "live_invalid_multipart",
+  "server": "main",
+  "request": {
+   "method": "POST",
+   "path": "/v1/live",
+   "headers": {
+    "Authorization": [
+     "Bearer good-key"
+    ],
+    "Content-Type": [
+     "multipart/form-data; boundary=x"
+    ]
+   },
+   "body": "--x\r\nContent-Disposition: form-data; name=\"session\"\r\n\r\n{}\r\n--x--\r\n"
+  },
+  "status": 400,
+  "headers": {
+   "Access-Control-Allow-Headers": [
+    "*"
+   ],
+   "Access-Control-Allow-Methods": [
+    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+   ],
+   "Access-Control-Allow-Origin": [
+    "*"
+   ],
+   "Access-Control-Expose-Headers": [
+    "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+   ],
+   "Content-Type": [
+    "application/json; charset=utf-8"
+   ]
+  },
+  "body": "{\"error\":\"Codex live multipart body requires an sdp field\"}",
+  "sent": []
+ },
+ {
+  "name": "calls_invalid_multipart",
+  "server": "main",
+  "request": {
+   "method": "POST",
+   "path": "/v1/realtime/calls",
+   "headers": {
+    "Authorization": [
+     "Bearer good-key"
+    ],
+    "Content-Type": [
+     "multipart/form-data"
+    ]
+   },
+   "body": "x"
+  },
+  "status": 400,
+  "headers": {
+   "Access-Control-Allow-Headers": [
+    "*"
+   ],
+   "Access-Control-Allow-Methods": [
+    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+   ],
+   "Access-Control-Allow-Origin": [
+    "*"
+   ],
+   "Access-Control-Expose-Headers": [
+    "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+   ],
+   "Content-Type": [
+    "application/json; charset=utf-8"
+   ]
+  },
+  "body": "{\"error\":{\"code\":\"realtime_request_failed\",\"message\":\"Codex live multipart boundary is missing\",\"param\":null,\"type\":\"invalid_request_error\"}}",
+  "sent": []
+ },
+ {
+  "name": "calls_bad_session_json",
+  "server": "main",
+  "request": {
+   "method": "POST",
+   "path": "/v1/realtime/calls",
+   "headers": {
+    "Authorization": [
+     "Bearer good-key"
+    ],
+    "Content-Type": [
+     "application/json"
+    ]
+   },
+   "body": "{\"sdp\":\"x\",\"session\":\"str\"}"
+  },
+  "status": 400,
+  "headers": {
+   "Access-Control-Allow-Headers": [
+    "*"
+   ],
+   "Access-Control-Allow-Methods": [
+    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+   ],
+   "Access-Control-Allow-Origin": [
+    "*"
+   ],
+   "Access-Control-Expose-Headers": [
+    "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+   ],
+   "Content-Type": [
+    "application/json; charset=utf-8"
+   ]
+  },
+  "body": "{\"error\":{\"code\":\"realtime_request_failed\",\"message\":\"failed to decode Realtime session: json: cannot unmarshal string into Go value of type map[string]json.RawMessage\",\"param\":null,\"type\":\"invalid_request_error\"}}",
+  "sent": []
+ },
+ {
+  "name": "calls_null_session_panics",
+  "server": "main",
+  "request": {
+   "method": "POST",
+   "path": "/v1/realtime/calls",
+   "headers": {
+    "Authorization": [
+     "Bearer good-key"
+    ],
+    "Content-Type": [
+     "application/json"
+    ]
+   },
+   "body": "{\"sdp\":\"x\",\"session\":null}"
+  },
+  "status": 500,
+  "headers": {
+   "Access-Control-Allow-Headers": [
+    "*"
+   ],
+   "Access-Control-Allow-Methods": [
+    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+   ],
+   "Access-Control-Allow-Origin": [
+    "*"
+   ],
+   "Access-Control-Expose-Headers": [
+    "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+   ]
+  },
+  "body": "",
+  "sent": []
+ },
+ {
+  "name": "live_upstream_unauthorized",
+  "server": "main",
+  "request": {
+   "method": "POST",
+   "path": "/v1/live",
+   "headers": {
+    "Authorization": [
+     "Bearer good-key"
+    ],
+    "Content-Type": [
+     "application/json"
+    ]
+   },
+   "body": "{\"sdp\":\"x\"}"
+  },
+  "upstream": {
+   "status": 401,
+   "headers": {
+    "Content-Type": [
+     "application/json"
+    ],
+    "Www-Authenticate": [
+     "Bearer"
+    ]
+   },
+   "body": "{\"error\":{\"message\":\"expired\"}}"
+  },
+  "status": 401,
+  "headers": {
+   "Access-Control-Allow-Headers": [
+    "*"
+   ],
+   "Access-Control-Allow-Methods": [
+    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+   ],
+   "Access-Control-Allow-Origin": [
+    "*"
+   ],
+   "Access-Control-Expose-Headers": [
+    "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+   ],
+   "Content-Type": [
+    "application/json"
+   ],
+   "X-Cpa-Trace-Id": [
+    "20261003074603-ed3d6b1db19d35a0-01a100ba-2cf8-7ac8-8029-9138852669fd"
+   ]
+  },
+  "body": "{\"error\":{\"message\":\"expired\"}}",
+  "sent": [
+   {
+    "method": "POST",
+    "url": "https://chatgpt.com/backend-api/codex/realtime/calls?intent=quicksilver\u0026architecture=avas",
+    "headers": {
+     "Authorization": [
+      "Bearer oauth-token"
+     ],
+     "Chatgpt-Account-Id": [
+      "acct-1"
+     ],
+     "Content-Type": [
+      "application/json"
+     ],
+     "X-Operator": [
+      "op-value"
+     ]
+    },
+    "body": "{\"sdp\":\"x\"}",
+    "auth_id": "b-codex-oauth"
+   }
+  ]
+ },
+ {
+  "name": "calls_upstream_rate_limited",
+  "server": "main",
+  "request": {
+   "method": "POST",
+   "path": "/v1/realtime/calls",
+   "headers": {
+    "Authorization": [
+     "Bearer good-key"
+    ],
+    "Content-Type": [
+     "application/json"
+    ]
+   },
+   "body": "{\"sdp\":\"x\"}"
+  },
+  "upstream": {
+   "status": 429,
+   "headers": {
+    "Content-Type": [
+     "application/json"
+    ],
+    "Location": [
+     "/v1/live/ignored"
+    ],
+    "Retry-After": [
+     "7"
+    ]
+   },
+   "body": "{\"error\":\"slow down\"}"
+  },
+  "status": 429,
+  "headers": {
+   "Access-Control-Allow-Headers": [
+    "*"
+   ],
+   "Access-Control-Allow-Methods": [
+    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+   ],
+   "Access-Control-Allow-Origin": [
+    "*"
+   ],
+   "Access-Control-Expose-Headers": [
+    "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+   ],
+   "Content-Type": [
+    "application/json"
+   ],
+   "Location": [
+    "/v1/live/ignored"
+   ],
+   "Retry-After": [
+    "7"
+   ],
+   "X-Cpa-Trace-Id": [
+    "20261003074603-ed3d6b1db19d35a0-01a100ba-2cf8-7ef9-b1d7-495aae23cb55"
+   ]
+  },
+  "body": "{\"error\":\"slow down\"}",
+  "sent": [
+   {
+    "method": "POST",
+    "url": "https://chatgpt.com/backend-api/codex/realtime/calls?intent=quicksilver\u0026architecture=avas",
+    "headers": {
+     "Authorization": [
+      "Bearer oauth-token"
+     ],
+     "Chatgpt-Account-Id": [
+      "acct-1"
+     ],
+     "Content-Type": [
+      "application/json"
+     ],
+     "X-Operator": [
+      "op-value"
+     ]
+    },
+    "body": "{\"sdp\":\"x\"}",
+    "auth_id": "b-codex-oauth"
+   }
+  ]
+ },
+ {
+  "name": "live_success_without_location",
+  "server": "main",
+  "request": {
+   "method": "POST",
+   "path": "/v1/live",
+   "headers": {
+    "Authorization": [
+     "Bearer good-key"
+    ],
+    "Content-Type": [
+     "application/json"
+    ]
+   },
+   "body": "{\"sdp\":\"x\"}"
+  },
+  "upstream": {
+   "status": 201,
+   "headers": {
+    "Content-Type": [
+     "application/sdp"
+    ]
+   },
+   "body": "v=0"
+  },
+  "status": 201,
+  "headers": {
+   "Access-Control-Allow-Headers": [
+    "*"
+   ],
+   "Access-Control-Allow-Methods": [
+    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+   ],
+   "Access-Control-Allow-Origin": [
+    "*"
+   ],
+   "Access-Control-Expose-Headers": [
+    "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+   ],
+   "Content-Type": [
+    "application/sdp"
+   ],
+   "X-Cpa-Trace-Id": [
+    "20261003074603-ed3d6b1db19d35a0-01a100ba-2cf9-741d-b5bb-3f807f214c90"
+   ]
+  },
+  "body": "v=0",
+  "sent": [
+   {
+    "method": "POST",
+    "url": "https://chatgpt.com/backend-api/codex/realtime/calls?intent=quicksilver\u0026architecture=avas",
+    "headers": {
+     "Authorization": [
+      "Bearer oauth-token"
+     ],
+     "Chatgpt-Account-Id": [
+      "acct-1"
+     ],
+     "Content-Type": [
+      "application/json"
+     ],
+     "X-Operator": [
+      "op-value"
+     ]
+    },
+    "body": "{\"sdp\":\"x\"}",
+    "auth_id": "b-codex-oauth"
+   }
+  ]
+ },
+ {
+  "name": "live_no_credentials",
+  "server": "empty",
+  "request": {
+   "method": "POST",
+   "path": "/v1/live",
+   "headers": {
+    "Authorization": [
+     "Bearer good-key"
+    ],
+    "Content-Type": [
+     "application/json"
+    ]
+   },
+   "body": "{\"sdp\":\"x\"}"
+  },
+  "status": 503,
+  "headers": {
+   "Access-Control-Allow-Headers": [
+    "*"
+   ],
+   "Access-Control-Allow-Methods": [
+    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+   ],
+   "Access-Control-Allow-Origin": [
+    "*"
+   ],
+   "Access-Control-Expose-Headers": [
+    "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+   ],
+   "Content-Type": [
+    "application/json; charset=utf-8"
+   ]
+  },
+  "body": "{\"error\":\"auth_not_found: no auth available\"}",
+  "sent": []
+ },
+ {
+  "name": "calls_no_credentials",
+  "server": "empty",
+  "request": {
+   "method": "POST",
+   "path": "/v1/realtime/calls",
+   "headers": {
+    "Authorization": [
+     "Bearer good-key"
+    ],
+    "Content-Type": [
+     "application/json"
+    ]
+   },
+   "body": "{\"sdp\":\"x\"}"
+  },
+  "status": 503,
+  "headers": {
+   "Access-Control-Allow-Headers": [
+    "*"
+   ],
+   "Access-Control-Allow-Methods": [
+    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+   ],
+   "Access-Control-Allow-Origin": [
+    "*"
+   ],
+   "Access-Control-Expose-Headers": [
+    "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+   ],
+   "Content-Type": [
+    "application/json; charset=utf-8"
+   ]
+  },
+  "body": "{\"error\":{\"code\":\"realtime_request_failed\",\"message\":\"auth_not_found: no auth available\",\"param\":null,\"type\":\"api_error\"}}",
+  "sent": []
+ },
+ {
+  "name": "secret_create",
+  "server": "main",
+  "request": {
+   "method": "POST",
+   "path": "/v1/realtime/client_secrets",
+   "headers": {
+    "Authorization": [
+     "Bearer good-key"
+    ],
+    "Content-Type": [
+     "application/json"
+    ]
+   },
+   "body": "{\"session\":{\"type\":\"realtime\",\"model\":\"gpt-realtime\",\"instructions\":\"\u003chelp\u003e\",\"n\":1.50},\"expires_after\":{\"anchor\":\"created_at\",\"seconds\":60}}"
+  },
+  "status": 200,
+  "headers": {
+   "Access-Control-Allow-Headers": [
+    "*"
+   ],
+   "Access-Control-Allow-Methods": [
+    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+   ],
+   "Access-Control-Allow-Origin": [
+    "*"
+   ],
+   "Access-Control-Expose-Headers": [
+    "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+   ],
+   "Cache-Control": [
+    "no-store"
+   ],
+   "Content-Type": [
+    "application/json; charset=utf-8"
+   ]
+  },
+  "body": "{\"value\":\"ek_\u003csecret\u003e\",\"expires_at\":0,\"session\":{\"expires_at\":0,\"id\":\"sess_\u003cid\u003e\",\"instructions\":\"\\u003chelp\\u003e\",\"model\":\"gpt-realtime\",\"n\":1.5,\"object\":\"realtime.session\",\"type\":\"realtime\"}}",
+  "sent": []
+ },
+ {
+  "name": "secret_default_session",
+  "server": "main",
+  "request": {
+   "method": "POST",
+   "path": "/v1/realtime/client_secrets",
+   "headers": {
+    "Authorization": [
+     "Bearer good-key"
+    ]
+   },
+   "body": ""
+  },
+  "status": 200,
+  "headers": {
+   "Access-Control-Allow-Headers": [
+    "*"
+   ],
+   "Access-Control-Allow-Methods": [
+    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+   ],
+   "Access-Control-Allow-Origin": [
+    "*"
+   ],
+   "Access-Control-Expose-Headers": [
+    "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+   ],
+   "Cache-Control": [
+    "no-store"
+   ],
+   "Content-Type": [
+    "application/json; charset=utf-8"
+   ]
+  },
+  "body": "{\"value\":\"ek_\u003csecret\u003e\",\"expires_at\":0,\"session\":{\"expires_at\":0,\"id\":\"sess_\u003cid\u003e\",\"model\":\"gpt-realtime\",\"object\":\"realtime.session\",\"type\":\"realtime\"}}",
+  "sent": []
+ },
+ {
+  "name": "secret_invalid_json",
+  "server": "main",
+  "request": {
+   "method": "POST",
+   "path": "/v1/realtime/client_secrets",
+   "headers": {
+    "Authorization": [
+     "Bearer good-key"
+    ]
+   },
+   "body": "{\"session\":"
+  },
+  "status": 400,
+  "headers": {
+   "Access-Control-Allow-Headers": [
+    "*"
+   ],
+   "Access-Control-Allow-Methods": [
+    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+   ],
+   "Access-Control-Allow-Origin": [
+    "*"
+   ],
+   "Access-Control-Expose-Headers": [
+    "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+   ],
+   "Content-Type": [
+    "application/json; charset=utf-8"
+   ]
+  },
+  "body": "{\"error\":{\"code\":\"invalid_request\",\"message\":\"Invalid Realtime client secret request\",\"param\":null,\"type\":\"invalid_request_error\"}}",
+  "sent": []
+ },
+ {
+  "name": "secret_bad_session",
+  "server": "main",
+  "request": {
+   "method": "POST",
+   "path": "/v1/realtime/client_secrets",
+   "headers": {
+    "Authorization": [
+     "Bearer good-key"
+    ]
+   },
+   "body": "{\"session\":[1]}"
+  },
+  "status": 400,
+  "headers": {
+   "Access-Control-Allow-Headers": [
+    "*"
+   ],
+   "Access-Control-Allow-Methods": [
+    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+   ],
+   "Access-Control-Allow-Origin": [
+    "*"
+   ],
+   "Access-Control-Expose-Headers": [
+    "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+   ],
+   "Content-Type": [
+    "application/json; charset=utf-8"
+   ]
+  },
+  "body": "{\"error\":{\"code\":\"invalid_session\",\"message\":\"session must be a valid JSON object\",\"param\":null,\"type\":\"invalid_request_error\"}}",
+  "sent": []
+ },
+ {
+  "name": "secret_bad_anchor",
+  "server": "main",
+  "request": {
+   "method": "POST",
+   "path": "/v1/realtime/client_secrets",
+   "headers": {
+    "Authorization": [
+     "Bearer good-key"
+    ]
+   },
+   "body": "{\"expires_after\":{\"anchor\":\"now\",\"seconds\":60}}"
+  },
+  "status": 400,
+  "headers": {
+   "Access-Control-Allow-Headers": [
+    "*"
+   ],
+   "Access-Control-Allow-Methods": [
+    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+   ],
+   "Access-Control-Allow-Origin": [
+    "*"
+   ],
+   "Access-Control-Expose-Headers": [
+    "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+   ],
+   "Content-Type": [
+    "application/json; charset=utf-8"
+   ]
+  },
+  "body": "{\"error\":{\"code\":\"invalid_expires_after\",\"message\":\"expires_after.anchor must be created_at\",\"param\":null,\"type\":\"invalid_request_error\"}}",
+  "sent": []
+ },
+ {
+  "name": "secret_bad_seconds",
+  "server": "main",
+  "request": {
+   "method": "POST",
+   "path": "/v1/realtime/client_secrets",
+   "headers": {
+    "Authorization": [
+     "Bearer good-key"
+    ]
+   },
+   "body": "{\"expires_after\":{\"seconds\":5}}"
+  },
+  "status": 400,
+  "headers": {
+   "Access-Control-Allow-Headers": [
+    "*"
+   ],
+   "Access-Control-Allow-Methods": [
+    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+   ],
+   "Access-Control-Allow-Origin": [
+    "*"
+   ],
+   "Access-Control-Expose-Headers": [
+    "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+   ],
+   "Content-Type": [
+    "application/json; charset=utf-8"
+   ]
+  },
+  "body": "{\"error\":{\"code\":\"invalid_expires_after\",\"message\":\"expires_after.seconds must be between 10 and 7200\",\"param\":null,\"type\":\"invalid_request_error\"}}",
+  "sent": []
+ },
+ {
+  "name": "secret_unsupported",
+  "server": "main",
+  "request": {
+   "method": "POST",
+   "path": "/v1/realtime/client_secrets",
+   "headers": {
+    "Authorization": [
+     "Bearer good-key"
+    ]
+   },
+   "body": "{\"session\":{\"type\":\"transcription\"}}"
+  },
+  "status": 501,
+  "headers": {
+   "Access-Control-Allow-Headers": [
+    "*"
+   ],
+   "Access-Control-Allow-Methods": [
+    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+   ],
+   "Access-Control-Allow-Origin": [
+    "*"
+   ],
+   "Access-Control-Expose-Headers": [
+    "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+   ],
+   "Content-Type": [
+    "application/json; charset=utf-8"
+   ]
+  },
+  "body": "{\"error\":{\"code\":\"realtime_capability_not_supported\",\"message\":\"Realtime session type is not supported by the Codex OAuth upstream: \\\"transcription\\\"\",\"param\":null,\"type\":\"not_supported_error\"}}",
+  "sent": []
+ },
+ {
+  "name": "secret_too_large",
+  "server": "main",
+  "request": {
+   "method": "POST",
+   "path": "/v1/realtime/client_secrets",
+   "headers": {
+    "Authorization": [
+     "Bearer good-key"
+    ]
+   },
+   "body": "                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 "
+  },
+  "status": 413,
+  "headers": {
+   "Access-Control-Allow-Headers": [
+    "*"
+   ],
+   "Access-Control-Allow-Methods": [
+    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+   ],
+   "Access-Control-Allow-Origin": [
+    "*"
+   ],
+   "Access-Control-Expose-Headers": [
+    "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+   ],
+   "Content-Type": [
+    "application/json; charset=utf-8"
+   ]
+  },
+  "body": "{\"error\":{\"code\":\"invalid_request\",\"message\":\"Codex live request body too large\",\"param\":null,\"type\":\"invalid_request_error\"}}",
+  "sent": []
+ },
+ {
+  "name": "legacy_session",
+  "server": "main",
+  "request": {
+   "method": "POST",
+   "path": "/v1/realtime/sessions",
+   "headers": {
+    "Authorization": [
+     "Bearer good-key"
+    ]
+   },
+   "body": "{\"model\":\"gpt-realtime-mini\",\"voice\":\"alloy\"}"
+  },
+  "status": 200,
+  "headers": {
+   "Access-Control-Allow-Headers": [
+    "*"
+   ],
+   "Access-Control-Allow-Methods": [
+    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+   ],
+   "Access-Control-Allow-Origin": [
+    "*"
+   ],
+   "Access-Control-Expose-Headers": [
+    "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+   ],
+   "Cache-Control": [
+    "no-store"
+   ],
+   "Content-Type": [
+    "application/json; charset=utf-8"
+   ]
+  },
+  "body": "{\"client_secret\":{\"expires_at\":0,\"value\":\"ek_\u003csecret\u003e\"},\"expires_at\":0,\"id\":\"sess_\u003cid\u003e\",\"model\":\"gpt-realtime-mini\",\"object\":\"realtime.session\",\"type\":\"realtime\",\"voice\":\"alloy\"}",
+  "sent": []
+ },
+ {
+  "name": "legacy_session_array",
+  "server": "main",
+  "request": {
+   "method": "POST",
+   "path": "/v1/realtime/sessions",
+   "headers": {
+    "Authorization": [
+     "Bearer good-key"
+    ]
+   },
+   "body": "[]"
+  },
+  "status": 400,
+  "headers": {
+   "Access-Control-Allow-Headers": [
+    "*"
+   ],
+   "Access-Control-Allow-Methods": [
+    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+   ],
+   "Access-Control-Allow-Origin": [
+    "*"
+   ],
+   "Access-Control-Expose-Headers": [
+    "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+   ],
+   "Content-Type": [
+    "application/json; charset=utf-8"
+   ]
+  },
+  "body": "{\"error\":{\"code\":\"invalid_session\",\"message\":\"session must be a valid JSON object\",\"param\":null,\"type\":\"invalid_request_error\"}}",
+  "sent": []
+ },
+ {
+  "name": "ek_call_sdp",
+  "server": "main",
+  "request": {
+   "method": "POST",
+   "path": "/v1/realtime/calls",
+   "headers": {
+    "Authorization": [
+     "Bearer ek_\u003csecret-1\u003e"
+    ],
+    "Content-Type": [
+     "application/sdp"
+    ]
+   },
+   "body": "v=0\r\no=- 1 2 IN IP4 127.0.0.1\r\ns=-\r\n"
+  },
+  "upstream": {
+   "status": 201,
+   "headers": {
+    "Content-Type": [
+     "application/sdp"
+    ],
+    "Location": [
+     "/v1/realtime/calls/call-ek"
+    ]
+   },
+   "body": "v=0 ek"
+  },
+  "status": 201,
+  "headers": {
+   "Access-Control-Allow-Headers": [
+    "*"
+   ],
+   "Access-Control-Allow-Methods": [
+    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+   ],
+   "Access-Control-Allow-Origin": [
+    "*"
+   ],
+   "Access-Control-Expose-Headers": [
+    "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+   ],
+   "Content-Type": [
+    "application/sdp"
+   ],
+   "Location": [
+    "/v1/realtime/calls/call-ek"
+   ],
+   "X-Cpa-Trace-Id": [
+    "20261003074603-ed3d6b1db19d35a0-01a100ba-2cfd-70eb-acac-e7847bb66bf8"
+   ]
+  },
+  "body": "v=0 ek",
+  "sent": [
+   {
+    "method": "POST",
+    "url": "https://chatgpt.com/backend-api/codex/realtime/calls?intent=quicksilver\u0026architecture=avas",
+    "headers": {
+     "Authorization": [
+      "Bearer oauth-token"
+     ],
+     "Chatgpt-Account-Id": [
+      "acct-1"
+     ],
+     "Content-Type": [
+      "application/json"
+     ],
+     "X-Operator": [
+      "op-value"
+     ]
+    },
+    "body": "{\"sdp\":\"v=0\\r\\no=- 1 2 IN IP4 127.0.0.1\\r\\ns=-\\r\\n\",\"session\":{\"instructions\":\"\\u003chelp\\u003e\",\"model\":\"gpt-live-1-codex\",\"n\":1.5,\"type\":\"realtime\"}}",
+    "auth_id": "b-codex-oauth"
+   }
+  ]
+ },
+ {
+  "name": "ek_hangup_rejected",
+  "server": "main",
+  "request": {
+   "method": "POST",
+   "path": "/v1/realtime/calls/call-ek/hangup",
+   "headers": {
+    "Authorization": [
+     "Bearer ek_\u003csecret-1\u003e"
+    ]
+   },
+   "body": ""
+  },
+  "status": 401,
+  "headers": {
+   "Access-Control-Allow-Headers": [
+    "*"
+   ],
+   "Access-Control-Allow-Methods": [
+    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+   ],
+   "Access-Control-Allow-Origin": [
+    "*"
+   ],
+   "Access-Control-Expose-Headers": [
+    "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+   ],
+   "Content-Type": [
+    "application/json; charset=utf-8"
+   ]
+  },
+  "body": "{\"error\":{\"code\":\"invalid_api_key\",\"message\":\"Invalid API key\",\"param\":null,\"type\":\"authentication_error\"}}",
+  "sent": []
+ },
+ {
+  "name": "ek_direct_model_mismatch",
+  "server": "main",
+  "request": {
+   "method": "GET",
+   "path": "/v1/realtime?model=gpt-4o",
+   "headers": {
+    "Authorization": [
+     "Bearer ek_\u003csecret-1\u003e"
+    ],
+    "Connection": [
+     "Upgrade"
+    ],
+    "Sec-WebSocket-Key": [
+     "dGhlIHNhbXBsZSBub25jZQ=="
+    ],
+    "Sec-WebSocket-Version": [
+     "13"
+    ],
+    "Upgrade": [
+     "websocket"
+    ]
+   },
+   "body": ""
+  },
+  "status": 403,
+  "headers": {
+   "Access-Control-Allow-Headers": [
+    "*"
+   ],
+   "Access-Control-Allow-Methods": [
+    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+   ],
+   "Access-Control-Allow-Origin": [
+    "*"
+   ],
+   "Access-Control-Expose-Headers": [
+    "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+   ],
+   "Content-Type": [
+    "application/json; charset=utf-8"
+   ]
+  },
+  "body": "{\"error\":{\"code\":\"realtime_client_secret_scope_mismatch\",\"message\":\"Realtime client secret is not valid for the requested model\",\"param\":null,\"type\":\"invalid_request_error\"}}",
+  "sent": []
+ },
+ {
+  "name": "ek_translation",
+  "server": "main",
+  "request": {
+   "method": "GET",
+   "path": "/v1/realtime/translations",
+   "headers": {
+    "Authorization": [
+     "Bearer ek_\u003csecret-1\u003e"
+    ]
+   },
+   "body": ""
+  },
+  "status": 501,
+  "headers": {
+   "Access-Control-Allow-Headers": [
+    "*"
+   ],
+   "Access-Control-Allow-Methods": [
+    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+   ],
+   "Access-Control-Allow-Origin": [
+    "*"
+   ],
+   "Access-Control-Expose-Headers": [
+    "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+   ],
+   "Content-Type": [
+    "application/json; charset=utf-8"
+   ]
+  },
+  "body": "{\"error\":{\"code\":\"realtime_capability_not_supported\",\"message\":\"Realtime translation sessions are not supported by the ChatGPT/Codex OAuth upstream\",\"param\":null,\"type\":\"not_supported_error\"}}",
+  "sent": []
+ },
+ {
+  "name": "live_sideband_no_upgrade",
+  "server": "main",
+  "request": {
+   "method": "GET",
+   "path": "/v1/live/call-123",
+   "headers": {
+    "Authorization": [
+     "Bearer good-key"
+    ]
+   },
+   "body": ""
+  },
+  "status": 426,
+  "headers": {
+   "Access-Control-Allow-Headers": [
+    "*"
+   ],
+   "Access-Control-Allow-Methods": [
+    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+   ],
+   "Access-Control-Allow-Origin": [
+    "*"
+   ],
+   "Access-Control-Expose-Headers": [
+    "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+   ],
+   "Content-Type": [
+    "application/json; charset=utf-8"
+   ],
+   "Upgrade": [
+    "websocket"
+   ]
+  },
+  "body": "{\"error\":\"WebSocket upgrade required\"}",
+  "sent": []
+ },
+ {
+  "name": "calls_sideband_no_upgrade",
+  "server": "main",
+  "request": {
+   "method": "GET",
+   "path": "/v1/realtime/calls/call-123",
+   "headers": {
+    "Authorization": [
+     "Bearer good-key"
+    ]
+   },
+   "body": ""
+  },
+  "status": 426,
+  "headers": {
+   "Access-Control-Allow-Headers": [
+    "*"
+   ],
+   "Access-Control-Allow-Methods": [
+    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+   ],
+   "Access-Control-Allow-Origin": [
+    "*"
+   ],
+   "Access-Control-Expose-Headers": [
+    "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+   ],
+   "Content-Type": [
+    "application/json; charset=utf-8"
+   ],
+   "Upgrade": [
+    "websocket"
+   ]
+  },
+  "body": "{\"error\":{\"code\":\"realtime_request_failed\",\"message\":\"WebSocket upgrade required\",\"param\":null,\"type\":\"invalid_request_error\"}}",
+  "sent": []
+ },
+ {
+  "name": "realtime_query_sideband_no_upgrade",
+  "server": "main",
+  "request": {
+   "method": "GET",
+   "path": "/v1/realtime?call_id=call-123",
+   "headers": {
+    "Authorization": [
+     "Bearer good-key"
+    ]
+   },
+   "body": ""
+  },
+  "status": 426,
+  "headers": {
+   "Access-Control-Allow-Headers": [
+    "*"
+   ],
+   "Access-Control-Allow-Methods": [
+    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+   ],
+   "Access-Control-Allow-Origin": [
+    "*"
+   ],
+   "Access-Control-Expose-Headers": [
+    "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+   ],
+   "Content-Type": [
+    "application/json; charset=utf-8"
+   ],
+   "Upgrade": [
+    "websocket"
+   ]
+  },
+  "body": "{\"error\":{\"code\":\"realtime_request_failed\",\"message\":\"WebSocket upgrade required\",\"param\":null,\"type\":\"invalid_request_error\"}}",
+  "sent": []
+ },
+ {
+  "name": "realtime_direct_no_upgrade",
+  "server": "main",
+  "request": {
+   "method": "GET",
+   "path": "/v1/realtime",
+   "headers": {
+    "Authorization": [
+     "Bearer good-key"
+    ]
+   },
+   "body": ""
+  },
+  "status": 426,
+  "headers": {
+   "Access-Control-Allow-Headers": [
+    "*"
+   ],
+   "Access-Control-Allow-Methods": [
+    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+   ],
+   "Access-Control-Allow-Origin": [
+    "*"
+   ],
+   "Access-Control-Expose-Headers": [
+    "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+   ],
+   "Content-Type": [
+    "application/json; charset=utf-8"
+   ],
+   "Upgrade": [
+    "websocket"
+   ]
+  },
+  "body": "{\"error\":{\"code\":\"websocket_upgrade_required\",\"message\":\"WebSocket upgrade required\",\"param\":null,\"type\":\"invalid_request_error\"}}",
+  "sent": []
+ },
+ {
+  "name": "sideband_invalid_call_id",
+  "server": "main",
+  "request": {
+   "method": "GET",
+   "path": "/v1/live/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "headers": {
+    "Authorization": [
+     "Bearer good-key"
+    ],
+    "Connection": [
+     "Upgrade"
+    ],
+    "Sec-WebSocket-Key": [
+     "dGhlIHNhbXBsZSBub25jZQ=="
+    ],
+    "Sec-WebSocket-Version": [
+     "13"
+    ],
+    "Upgrade": [
+     "websocket"
+    ]
+   },
+   "body": ""
+  },
+  "status": 400,
+  "headers": {
+   "Access-Control-Allow-Headers": [
+    "*"
+   ],
+   "Access-Control-Allow-Methods": [
+    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+   ],
+   "Access-Control-Allow-Origin": [
+    "*"
+   ],
+   "Access-Control-Expose-Headers": [
+    "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+   ],
+   "Content-Type": [
+    "application/json; charset=utf-8"
+   ]
+  },
+  "body": "{\"error\":\"Invalid Codex live call ID\"}",
+  "sent": []
+ },
+ {
+  "name": "sideband_query_invalid_call_id",
+  "server": "main",
+  "request": {
+   "method": "GET",
+   "path": "/v1/realtime?call_id=a%20b",
+   "headers": {
+    "Authorization": [
+     "Bearer good-key"
+    ],
+    "Connection": [
+     "Upgrade"
+    ],
+    "Sec-WebSocket-Key": [
+     "dGhlIHNhbXBsZSBub25jZQ=="
+    ],
+    "Sec-WebSocket-Version": [
+     "13"
+    ],
+    "Upgrade": [
+     "websocket"
+    ]
+   },
+   "body": ""
+  },
+  "status": 400,
+  "headers": {
+   "Access-Control-Allow-Headers": [
+    "*"
+   ],
+   "Access-Control-Allow-Methods": [
+    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+   ],
+   "Access-Control-Allow-Origin": [
+    "*"
+   ],
+   "Access-Control-Expose-Headers": [
+    "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+   ],
+   "Content-Type": [
+    "application/json; charset=utf-8"
+   ]
+  },
+  "body": "{\"error\":{\"code\":\"realtime_request_failed\",\"message\":\"Invalid Codex live call ID\",\"param\":null,\"type\":\"invalid_request_error\"}}",
+  "sent": []
+ },
+ {
+  "name": "sideband_unknown_call",
+  "server": "main",
+  "request": {
+   "method": "GET",
+   "path": "/v1/realtime/calls/call-unknown",
+   "headers": {
+    "Authorization": [
+     "Bearer good-key"
+    ],
+    "Connection": [
+     "Upgrade"
+    ],
+    "Sec-WebSocket-Key": [
+     "dGhlIHNhbXBsZSBub25jZQ=="
+    ],
+    "Sec-WebSocket-Version": [
+     "13"
+    ],
+    "Upgrade": [
+     "websocket"
+    ]
+   },
+   "body": ""
+  },
+  "status": 404,
+  "headers": {
+   "Access-Control-Allow-Headers": [
+    "*"
+   ],
+   "Access-Control-Allow-Methods": [
+    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+   ],
+   "Access-Control-Allow-Origin": [
+    "*"
+   ],
+   "Access-Control-Expose-Headers": [
+    "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+   ],
+   "Content-Type": [
+    "application/json; charset=utf-8"
+   ]
+  },
+  "body": "{\"error\":{\"code\":\"realtime_request_failed\",\"message\":\"Codex live session not found\",\"param\":null,\"type\":\"invalid_request_error\"}}",
+  "sent": []
+ },
+ {
+  "name": "sideband_ek_principal_mismatch",
+  "server": "main",
+  "request": {
+   "method": "GET",
+   "path": "/v1/realtime/calls/call-123",
+   "headers": {
+    "Authorization": [
+     "Bearer ek_\u003csecret-1\u003e"
+    ],
+    "Connection": [
+     "Upgrade"
+    ],
+    "Sec-WebSocket-Key": [
+     "dGhlIHNhbXBsZSBub25jZQ=="
+    ],
+    "Sec-WebSocket-Version": [
+     "13"
+    ],
+    "Upgrade": [
+     "websocket"
+    ]
+   },
+   "body": ""
+  },
+  "status": 403,
+  "headers": {
+   "Access-Control-Allow-Headers": [
+    "*"
+   ],
+   "Access-Control-Allow-Methods": [
+    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+   ],
+   "Access-Control-Allow-Origin": [
+    "*"
+   ],
+   "Access-Control-Expose-Headers": [
+    "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+   ],
+   "Content-Type": [
+    "application/json; charset=utf-8"
+   ]
+  },
+  "body": "{\"error\":{\"code\":\"realtime_client_secret_scope_mismatch\",\"message\":\"Realtime client secret is not valid for this call\",\"param\":null,\"type\":\"invalid_request_error\"}}",
+  "sent": []
+ },
+ {
+  "name": "hangup_invalid_call_id",
+  "server": "main",
+  "request": {
+   "method": "POST",
+   "path": "/v1/realtime/calls/a%20b/hangup",
+   "headers": {
+    "Authorization": [
+     "Bearer good-key"
+    ]
+   },
+   "body": ""
+  },
+  "status": 400,
+  "headers": {
+   "Access-Control-Allow-Headers": [
+    "*"
+   ],
+   "Access-Control-Allow-Methods": [
+    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+   ],
+   "Access-Control-Allow-Origin": [
+    "*"
+   ],
+   "Access-Control-Expose-Headers": [
+    "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+   ],
+   "Content-Type": [
+    "application/json; charset=utf-8"
+   ]
+  },
+  "body": "{\"error\":{\"code\":\"invalid_call_id\",\"message\":\"Invalid Realtime call ID\",\"param\":null,\"type\":\"invalid_request_error\"}}",
+  "sent": []
+ },
+ {
+  "name": "hangup_unknown_call",
+  "server": "main",
+  "request": {
+   "method": "POST",
+   "path": "/v1/realtime/calls/call-unknown/hangup",
+   "headers": {
+    "Authorization": [
+     "Bearer good-key"
+    ]
+   },
+   "body": ""
+  },
+  "status": 404,
+  "headers": {
+   "Access-Control-Allow-Headers": [
+    "*"
+   ],
+   "Access-Control-Allow-Methods": [
+    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+   ],
+   "Access-Control-Allow-Origin": [
+    "*"
+   ],
+   "Access-Control-Expose-Headers": [
+    "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+   ],
+   "Content-Type": [
+    "application/json; charset=utf-8"
+   ]
+  },
+  "body": "{\"error\":{\"code\":\"realtime_call_not_found\",\"message\":\"Realtime call not found\",\"param\":null,\"type\":\"invalid_request_error\"}}",
+  "sent": []
+ },
+ {
+  "name": "hangup_upstream_error_keeps_call",
+  "server": "main",
+  "request": {
+   "method": "POST",
+   "path": "/v1/realtime/calls/call-123/hangup",
+   "headers": {
+    "Authorization": [
+     "Bearer good-key"
+    ],
+    "Content-Type": [
+     "application/json"
+    ],
+    "OpenAI-Alpha": [
+     "v"
+    ]
+   },
+   "body": "{\"reason\":\"bye\"}"
+  },
+  "upstream": {
+   "status": 500,
+   "headers": {
+    "Content-Type": [
+     "application/json"
+    ],
+    "X-Request-Id": [
+     "h-1"
+    ]
+   },
+   "body": "{\"error\":\"boom\"}"
+  },
+  "status": 500,
+  "headers": {
+   "Access-Control-Allow-Headers": [
+    "*"
+   ],
+   "Access-Control-Allow-Methods": [
+    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+   ],
+   "Access-Control-Allow-Origin": [
+    "*"
+   ],
+   "Access-Control-Expose-Headers": [
+    "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+   ],
+   "Content-Type": [
+    "application/json"
+   ],
+   "X-Cpa-Trace-Id": [
+    "20261003074603-ed3d6b1db19d35a0-01a100ba-2cfe-7879-a1ff-3e5744467bb7"
+   ],
+   "X-Request-Id": [
+    "h-1"
+   ]
+  },
+  "body": "{\"error\":\"boom\"}",
+  "sent": [
+   {
+    "method": "POST",
+    "url": "https://api.openai.com/v1/realtime/calls/call-123/hangup",
+    "headers": {
+     "Authorization": [
+      "Bearer oauth-token"
+     ],
+     "Chatgpt-Account-Id": [
+      "acct-1"
+     ],
+     "Content-Type": [
+      "application/json"
+     ],
+     "Openai-Alpha": [
+      "v"
+     ],
+     "X-Operator": [
+      "op-value"
+     ]
+    },
+    "body": "{\"reason\":\"bye\"}",
+    "auth_id": "b-codex-oauth"
+   }
+  ]
+ },
+ {
+  "name": "hangup",
+  "server": "main",
+  "request": {
+   "method": "POST",
+   "path": "/v1/realtime/calls/call-123/hangup",
+   "headers": {
+    "Authorization": [
+     "Bearer good-key"
+    ]
+   },
+   "body": ""
+  },
+  "upstream": {
+   "status": 200,
+   "headers": {
+    "Content-Type": [
+     "application/json"
+    ]
+   },
+   "body": "{\"status\":\"ok\"}"
+  },
+  "status": 200,
+  "headers": {
+   "Access-Control-Allow-Headers": [
+    "*"
+   ],
+   "Access-Control-Allow-Methods": [
+    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+   ],
+   "Access-Control-Allow-Origin": [
+    "*"
+   ],
+   "Access-Control-Expose-Headers": [
+    "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+   ],
+   "Content-Type": [
+    "application/json"
+   ],
+   "X-Cpa-Trace-Id": [
+    "20261003074603-ed3d6b1db19d35a0-01a100ba-2cfe-7c71-a3f5-3caf9d5dd3d0"
+   ]
+  },
+  "body": "{\"status\":\"ok\"}",
+  "sent": [
+   {
+    "method": "POST",
+    "url": "https://api.openai.com/v1/realtime/calls/call-123/hangup",
+    "headers": {
+     "Authorization": [
+      "Bearer oauth-token"
+     ],
+     "Chatgpt-Account-Id": [
+      "acct-1"
+     ],
+     "X-Operator": [
+      "op-value"
+     ]
+    },
+    "body": "",
+    "auth_id": "b-codex-oauth"
+   }
+  ]
+ },
+ {
+  "name": "hangup_again_not_found",
+  "server": "main",
+  "request": {
+   "method": "POST",
+   "path": "/v1/realtime/calls/call-123/hangup",
+   "headers": {
+    "Authorization": [
+     "Bearer good-key"
+    ]
+   },
+   "body": ""
+  },
+  "status": 404,
+  "headers": {
+   "Access-Control-Allow-Headers": [
+    "*"
+   ],
+   "Access-Control-Allow-Methods": [
+    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+   ],
+   "Access-Control-Allow-Origin": [
+    "*"
+   ],
+   "Access-Control-Expose-Headers": [
+    "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+   ],
+   "Content-Type": [
+    "application/json; charset=utf-8"
+   ]
+  },
+  "body": "{\"error\":{\"code\":\"realtime_call_not_found\",\"message\":\"Realtime call not found\",\"param\":null,\"type\":\"invalid_request_error\"}}",
+  "sent": []
+ },
+ {
+  "name": "hangup_ek_call",
+  "server": "main",
+  "request": {
+   "method": "POST",
+   "path": "/v1/realtime/calls/call-ek/hangup",
+   "headers": {
+    "Authorization": [
+     "Bearer good-key"
+    ]
+   },
+   "body": ""
+  },
+  "upstream": {
+   "status": 204,
+   "body": ""
+  },
+  "status": 204,
+  "headers": {
+   "Access-Control-Allow-Headers": [
+    "*"
+   ],
+   "Access-Control-Allow-Methods": [
+    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+   ],
+   "Access-Control-Allow-Origin": [
+    "*"
+   ],
+   "Access-Control-Expose-Headers": [
+    "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+   ],
+   "X-Cpa-Trace-Id": [
+    "20261003074603-ed3d6b1db19d35a0-01a100ba-2cff-7172-a1bf-915b536a5462"
+   ]
+  },
+  "body": "",
+  "sent": [
+   {
+    "method": "POST",
+    "url": "https://api.openai.com/v1/realtime/calls/call-ek/hangup",
+    "headers": {
+     "Authorization": [
+      "Bearer oauth-token"
+     ],
+     "Chatgpt-Account-Id": [
+      "acct-1"
+     ],
+     "X-Operator": [
+      "op-value"
+     ]
+    },
+    "body": "",
+    "auth_id": "b-codex-oauth"
+   }
+  ]
+ },
+ {
+  "name": "transcription_sessions",
+  "server": "main",
+  "request": {
+   "method": "POST",
+   "path": "/v1/realtime/transcription_sessions",
+   "headers": {
+    "Authorization": [
+     "Bearer good-key"
+    ]
+   },
+   "body": "{}"
+  },
+  "status": 501,
+  "headers": {
+   "Access-Control-Allow-Headers": [
+    "*"
+   ],
+   "Access-Control-Allow-Methods": [
+    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+   ],
+   "Access-Control-Allow-Origin": [
+    "*"
+   ],
+   "Access-Control-Expose-Headers": [
+    "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+   ],
+   "Content-Type": [
+    "application/json; charset=utf-8"
+   ]
+  },
+  "body": "{\"error\":{\"code\":\"realtime_capability_not_supported\",\"message\":\"Realtime transcription-only sessions are not supported by the ChatGPT/Codex OAuth upstream\",\"param\":null,\"type\":\"not_supported_error\"}}",
+  "sent": []
+ },
+ {
+  "name": "translations_get",
+  "server": "main",
+  "request": {
+   "method": "GET",
+   "path": "/v1/realtime/translations",
+   "headers": {
+    "Authorization": [
+     "Bearer good-key"
+    ]
+   },
+   "body": ""
+  },
+  "status": 501,
+  "headers": {
+   "Access-Control-Allow-Headers": [
+    "*"
+   ],
+   "Access-Control-Allow-Methods": [
+    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+   ],
+   "Access-Control-Allow-Origin": [
+    "*"
+   ],
+   "Access-Control-Expose-Headers": [
+    "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+   ],
+   "Content-Type": [
+    "application/json; charset=utf-8"
+   ]
+  },
+  "body": "{\"error\":{\"code\":\"realtime_capability_not_supported\",\"message\":\"Realtime translation sessions are not supported by the ChatGPT/Codex OAuth upstream\",\"param\":null,\"type\":\"not_supported_error\"}}",
+  "sent": []
+ },
+ {
+  "name": "translations_post",
+  "server": "main",
+  "request": {
+   "method": "POST",
+   "path": "/v1/realtime/translations",
+   "headers": {
+    "Authorization": [
+     "Bearer good-key"
+    ]
+   },
+   "body": "{}"
+  },
+  "status": 501,
+  "headers": {
+   "Access-Control-Allow-Headers": [
+    "*"
+   ],
+   "Access-Control-Allow-Methods": [
+    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+   ],
+   "Access-Control-Allow-Origin": [
+    "*"
+   ],
+   "Access-Control-Expose-Headers": [
+    "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+   ],
+   "Content-Type": [
+    "application/json; charset=utf-8"
+   ]
+  },
+  "body": "{\"error\":{\"code\":\"realtime_capability_not_supported\",\"message\":\"Realtime translation sessions are not supported by the ChatGPT/Codex OAuth upstream\",\"param\":null,\"type\":\"not_supported_error\"}}",
+  "sent": []
+ },
+ {
+  "name": "translations_client_secrets",
+  "server": "main",
+  "request": {
+   "method": "POST",
+   "path": "/v1/realtime/translations/client_secrets",
+   "headers": {
+    "Authorization": [
+     "Bearer good-key"
+    ]
+   },
+   "body": "{}"
+  },
+  "status": 501,
+  "headers": {
+   "Access-Control-Allow-Headers": [
+    "*"
+   ],
+   "Access-Control-Allow-Methods": [
+    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+   ],
+   "Access-Control-Allow-Origin": [
+    "*"
+   ],
+   "Access-Control-Expose-Headers": [
+    "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+   ],
+   "Content-Type": [
+    "application/json; charset=utf-8"
+   ]
+  },
+  "body": "{\"error\":{\"code\":\"realtime_capability_not_supported\",\"message\":\"Realtime translation sessions are not supported by the ChatGPT/Codex OAuth upstream\",\"param\":null,\"type\":\"not_supported_error\"}}",
+  "sent": []
+ },
+ {
+  "name": "sip_accept",
+  "server": "main",
+  "request": {
+   "method": "POST",
+   "path": "/v1/realtime/calls/call-1/accept",
+   "headers": {
+    "Authorization": [
+     "Bearer good-key"
+    ]
+   },
+   "body": "{}"
+  },
+  "status": 501,
+  "headers": {
+   "Access-Control-Allow-Headers": [
+    "*"
+   ],
+   "Access-Control-Allow-Methods": [
+    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+   ],
+   "Access-Control-Allow-Origin": [
+    "*"
+   ],
+   "Access-Control-Expose-Headers": [
+    "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+   ],
+   "Content-Type": [
+    "application/json; charset=utf-8"
+   ]
+  },
+  "body": "{\"error\":{\"code\":\"realtime_capability_not_supported\",\"message\":\"Realtime SIP accept are not supported by the ChatGPT/Codex OAuth upstream\",\"param\":null,\"type\":\"not_supported_error\"}}",
+  "sent": []
+ },
+ {
+  "name": "sip_reject",
+  "server": "main",
+  "request": {
+   "method": "POST",
+   "path": "/v1/realtime/calls/call-1/reject",
+   "headers": {
+    "Authorization": [
+     "Bearer good-key"
+    ]
+   },
+   "body": "{}"
+  },
+  "status": 501,
+  "headers": {
+   "Access-Control-Allow-Headers": [
+    "*"
+   ],
+   "Access-Control-Allow-Methods": [
+    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+   ],
+   "Access-Control-Allow-Origin": [
+    "*"
+   ],
+   "Access-Control-Expose-Headers": [
+    "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+   ],
+   "Content-Type": [
+    "application/json; charset=utf-8"
+   ]
+  },
+  "body": "{\"error\":{\"code\":\"realtime_capability_not_supported\",\"message\":\"Realtime SIP reject are not supported by the ChatGPT/Codex OAuth upstream\",\"param\":null,\"type\":\"not_supported_error\"}}",
+  "sent": []
+ },
+ {
+  "name": "sip_refer",
+  "server": "main",
+  "request": {
+   "method": "POST",
+   "path": "/v1/realtime/calls/call-1/refer",
+   "headers": {
+    "Authorization": [
+     "Bearer good-key"
+    ]
+   },
+   "body": "{}"
+  },
+  "status": 501,
+  "headers": {
+   "Access-Control-Allow-Headers": [
+    "*"
+   ],
+   "Access-Control-Allow-Methods": [
+    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+   ],
+   "Access-Control-Allow-Origin": [
+    "*"
+   ],
+   "Access-Control-Expose-Headers": [
+    "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+   ],
+   "Content-Type": [
+    "application/json; charset=utf-8"
+   ]
+  },
+  "body": "{\"error\":{\"code\":\"realtime_capability_not_supported\",\"message\":\"Realtime SIP refer are not supported by the ChatGPT/Codex OAuth upstream\",\"param\":null,\"type\":\"not_supported_error\"}}",
+  "sent": []
+ },
+ {
+  "name": "sip_without_key",
+  "server": "main",
+  "request": {
+   "method": "POST",
+   "path": "/v1/realtime/calls/call-1/accept",
+   "body": "{}"
+  },
+  "status": 401,
+  "headers": {
+   "Access-Control-Allow-Headers": [
+    "*"
+   ],
+   "Access-Control-Allow-Methods": [
+    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+   ],
+   "Access-Control-Allow-Origin": [
+    "*"
+   ],
+   "Access-Control-Expose-Headers": [
+    "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
+   ],
+   "Content-Type": [
+    "application/json; charset=utf-8"
+   ]
+  },
+  "body": "{\"error\":{\"code\":\"invalid_api_key\",\"message\":\"Missing API key\",\"param\":null,\"type\":\"authentication_error\"}}",
+  "sent": []
+ }
+]

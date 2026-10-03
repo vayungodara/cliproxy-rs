@@ -300,7 +300,12 @@ async fn unregistered_and_unserved_models_follow_go_error_contracts() {
                 "claude-off.json",
                 r#"{"type":"claude","access_token":"t","disabled":true}"#,
             ),
-            ("xai-a.json", r#"{"type":"xai","access_token":"fake-xai"}"#),
+            // A provider without an executor. Never use one that has an executor here: its
+            // request would go to the real provider host.
+            (
+                "antigravity-a.json",
+                r#"{"type":"antigravity","access_token":"fake-ag"}"#,
+            ),
         ],
     );
     let proxy = proxy(&dir, "http://127.0.0.1:9").await;
@@ -321,11 +326,11 @@ async fn unregistered_and_unserved_models_follow_go_error_contracts() {
     );
     // A registered model whose provider has no executor yet is auth_not_found (Go skips
     // auths whose executor is not registered).
-    let res = post(r#"{"model":"grok-4.7"}"#).await.unwrap();
+    let res = post(r#"{"model":"gemini-pro-agent"}"#).await.unwrap();
     assert_eq!(res.status().as_u16(), 503);
     assert_eq!(
         res.text().await.unwrap(),
-        r#"{"type":"error","error":{"type":"api_error","message":"auth_not_found: no auth available (providers=xai, model=grok-4.7)"}}"#
+        r#"{"type":"error","error":{"type":"api_error","message":"auth_not_found: no auth available (providers=antigravity, model=gemini-pro-agent)"}}"#
     );
     std::fs::remove_dir_all(dir).unwrap();
 }

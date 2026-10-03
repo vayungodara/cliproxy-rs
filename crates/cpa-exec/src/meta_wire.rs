@@ -93,7 +93,7 @@ fn store(slot: &mut Slot<'_>, value: &gj::Res<'_>) -> Result<(), String> {
     }
 }
 
-fn kind_name(value: &gj::Res<'_>) -> &'static str {
+pub(crate) fn kind_name(value: &gj::Res<'_>) -> &'static str {
     match value.kind {
         Kind::String => "string",
         Kind::Number => "number",
@@ -106,7 +106,7 @@ fn kind_name(value: &gj::Res<'_>) -> &'static str {
 
 /// Go's `foldName`: ASCII upper case, and every other rune folded to the smallest rune of
 /// its case-fold set. Only `ſ` (to `S`) and the Kelvin sign (to `K`) fold onto ASCII.
-fn fold(name: &str) -> String {
+pub(crate) fn fold(name: &str) -> String {
     name.chars()
         .map(|c| match c {
             'a'..='z' => c.to_ascii_uppercase(),

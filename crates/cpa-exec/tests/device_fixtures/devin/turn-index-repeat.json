@@ -1,0 +1,144 @@
+{
+  "name": "turn-index-repeat",
+  "credential": {
+    "api_key": "devin-session-token$fixture",
+    "base_url": "http://127.0.0.1:35821",
+    "device_seed": "seed-1",
+    "session_token": "devin-session-token$fixture",
+    "type": "devin"
+  },
+  "request": {
+    "body": "{\"model\":\"devin/swe-2\",\"session_id\":\"0f8fad5b-d9cb-469f-a165-70867728950b\",\"system_instruction\":\"Be helpful turn-index-repeat\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"hello\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"}],\"signature\":\"gpt#gAAAAB\"},{\"type\":\"thought\",\"content\":[{\"type\":\"text\",\"text\":\"pondering\"}]},{\"type\":\"function_call\",\"name\":\"run\",\"id\":\"fc_1\",\"arguments\":{\"cmd\":\"ls\"}},{\"type\":\"function_result\",\"call_id\":\"fc_1\",\"result\":[{\"type\":\"text\",\"text\":\"a.txt\"}]},{\"type\":\"function_result\",\"call_id\":\"orphan_9\",\"result\":\"lost\"},{\"type\":\"function_result\",\"call_id\":\"\",\"result\":{}},{\"type\":\"user_input\",\"content\":\"next\"}],\"generation_config\":{\"temperature\":0.7,\"max_output_tokens\":999999,\"thinking_level\":\"fast\"},\"tools\":[{\"type\":\"function\",\"name\":\"run\",\"description\":\"Run\",\"parameters\":{\"type\":\"object\"}},{\"function_declarations\":[{\"name\":\"decl_a\",\"description\":\"Takes a task_id parameter identifying the task\",\"parametersJsonSchema\":{\"type\":\"object\"}}]},{\"type\":\"namespace\",\"name\":\"mcp__codex_app\",\"tools\":[{\"name\":\"automation_update\",\"description\":\"x\"},{\"name\":\"open\",\"description\":\"Open\"}]}]}",
+    "model": "devin/swe-1-6",
+    "repeat": 2,
+    "source": "interactions",
+    "stream": false
+  },
+  "responses": [
+    {
+      "status": 200,
+      "headers": [
+        [
+          "Content-Type",
+          "application/connect+proto"
+        ]
+      ],
+      "body": "",
+      "body_b64": "AAAAAAMaAWEAAAAABxoFIG1vcmUAAAAAKzonEAUYAiAAKABCGwoMeC1yZXF1ZXN0LWlkEgtyZXFfZml4dHVyZUoAKAICAAAAAnt9"
+    },
+    {
+      "status": 200,
+      "headers": [
+        [
+          "Content-Type",
+          "application/connect+proto"
+        ]
+      ],
+      "body": "",
+      "body_b64": "AAAAAAMaAWIAAAAABxoFIG1vcmUAAAAAKzonEAUYAiAAKABCGwoMeC1yZXF1ZXN0LWlkEgtyZXFfZml4dHVyZUoAKAICAAAAAnt9"
+    }
+  ],
+  "upstream": [
+    {
+      "method": "POST",
+      "target": "/exa.api_server_pb.ApiServerService/GetChatMessage",
+      "headers": [
+        [
+          "Host",
+          "127.0.0.1:35821"
+        ],
+        [
+          "Content-Length",
+          "1456"
+        ],
+        [
+          "Accept",
+          "*/*"
+        ],
+        [
+          "Authorization",
+          "Basic devin-session-token$fixture-devin-session-token$fixture"
+        ],
+        [
+          "Connect-Protocol-Version",
+          "1"
+        ],
+        [
+          "Content-Type",
+          "application/connect+proto"
+        ],
+        [
+          "Sentry-Trace",
+          "37b4a071e91439e4d0af15e3d38d7b1e-4c1eeb98f05c299a-1"
+        ]
+      ],
+      "body": "",
+      "body_b64": "AAAABasKsAYKBmNoaXNlbBIKMzAwMC4xMC4yMRobZGV2aW4tc2Vzc2lvbi10b2tlbiRmaXh0dXJlIgJlbioFbGludXg6CjMwMDAuMTAuMjFiBmNoaXNlbPoB3AVkMzU3MTg4YTU3NGM3MmVjMjZhYWU3ODVhZjJhZDhhMjMzZWQzYjAzYjEyNDI1MTljOWFhMTZkOTg2ZjA3NWY3ZjdkMTA4NTk3MmM4MGMzOTVhMWUwYWFjYmYyYjM3Y2ZkMDkzYTQ1M2M0YWU4ZDczYTM5NDUxZjNhMzliZjk0NmM1YTJmMDI4NTBhYmUwOGE1NTYwNWEwY2Q3MzJhYWZjNTg0ZmYzOTA3NjkyM2MxYzQ4ZjIyMzZmMTRlMzg0Yzk0YmUyZjA0NDc5NGEyYzc5MGQ5ZTA4ZTY3NmU0NTExYzdlMzJjMWMzODI3ZjNiNDI2MmY5YTJhNzliZGU5Y2UyMmEwMjBjOWY3MTgxM2Q2OGQ1YTA1MjZjMTdiZDEyZWRmYTY4Y2FiNzA4NjYyMjI1YTVhMTEzZTMyNTVkYzdjYmNkNDJkOGE3Njg0NjM4ZTRkM2ZhNTBhMGVjNTJiNGQ2NTE5N2U3YzdmYzdjNjE4OWVkY2YzNWRkOWI0ZDQzODYyOWVkODYzZGM4NDllNDAyNjExMGEwZGY2MTI1ZDU0MmM0ODMxNDRiZTgzN2VjZjgyMDE2ZjFhYTc1ZTM5YmFlNWRjMGMwMWUyMjJkMGUwNjU1NTdmMWVlZTc3ZWEwMmU1NDBiZjM0ZmYyOWMxNWQ1MjkzYzA0ZmVmNTJhOGVjZjI5N2RjMDNkNGVmOGM5YWRlYmJhMTIxZWM4Nzg1MGU2MzA4OWE4ZGI0NjczNzNjMjNhZmZiMWM0MzU5MGZjNTVlMzFlNDA2Y2M4ZmE2ZDgyZjM5ZGIxZDE0NzU4ZDU2OWYyNjM4YTQ0MTE5YTNhZGZlYTU0YmRkOWE2MDljMTc4OWQwOTNjODU3MDc3ZTQwYzkyZmNlYTFlNGIwYzhhYzRiNjk1MmYxODUzNTY0ZjM5ODc4YzdmYmU2YWExMmM4OTllNTYxMzRhYTBlMTgzYmY2NTgwZGI5OTQ5NGUSHEJlIGhlbHBmdWwgdHVybi1pbmRleC1yZXBlYXQaLwokYmUwYjFhNzMtMWMxZi00ZjJiLWExNDMtZDcyNDEyOWRmZjVmEAEaBWhlbGxvGmMKJGI5ZDEyODExLWFkMmItNDQwNi05YmRiLTYwNTUyOTIyZjFkYhACGgJoaTIZCgRmY18xEgNydW4aDHsiY21kIjoibHMifVoJcG9uZGVyaW5nYgZnQUFBQUKSAQZvcGVuYWkaNQokOWZhZGI1MDItNTAxYy00ZTI5LThmYjItMzEyYzkxZTExMWEwEAQaBWEudHh0OgRmY18xGi4KJGQ1ZmI4NzFmLWRkOTItNDJmMS05YzRhLWU4MGQwNmZkYWI2MRABGgRsb3N0GiwKJDM4YmUwODk0LThkNzgtNDQwNy1iZTdmLTViZDcxMjRlOTgwMhABGgJ7fRouCiRhZDE5NDg5NS04Y2I3LTQ5NWItYmRjYi03Nzg3ZTg5ZjQxMzMQARoEbmV4dDgFQh0IARC/hD0YkAMpZmZmZmZm5j84KEEAAABgZmbuP1IdCgNydW4SA1J1bhoReyJ0eXBlIjoib2JqZWN0In1SSgoGZGVjbF9hEi1UYWtlcyBhIHRhc2tJZCBwYXJhbWV0ZXIgaWRlbnRpZnlpbmcgdGhlIHRhc2saEXsidHlwZSI6Im9iamVjdCJ9UgwKBG9wZW4SBE9wZW56KgokMGY4ZmFkNWItZDljYi00NjlmLWExNjUtNzA4Njc3Mjg5NTBiGAQgDoIBJDBmOGZhZDViLWQ5Y2ItNDY5Zi1hMTY1LTcwODY3NzI4OTUwYqABAaoBDHN3ZS0xLTYtZmFzdA=="
+    },
+    {
+      "method": "POST",
+      "target": "/exa.api_server_pb.ApiServerService/GetChatMessage",
+      "headers": [
+        [
+          "Host",
+          "127.0.0.1:35821"
+        ],
+        [
+          "Content-Length",
+          "1456"
+        ],
+        [
+          "Accept",
+          "*/*"
+        ],
+        [
+          "Authorization",
+          "Basic devin-session-token$fixture-devin-session-token$fixture"
+        ],
+        [
+          "Connect-Protocol-Version",
+          "1"
+        ],
+        [
+          "Content-Type",
+          "application/connect+proto"
+        ],
+        [
+          "Sentry-Trace",
+          "00fe65e64353d53564a56a33eef70cd6-334507c1d2594a39-1"
+        ]
+      ],
+      "body": "",
+      "body_b64": "AAAABasKsAYKBmNoaXNlbBIKMzAwMC4xMC4yMRobZGV2aW4tc2Vzc2lvbi10b2tlbiRmaXh0dXJlIgJlbioFbGludXg6CjMwMDAuMTAuMjFiBmNoaXNlbPoB3AVkMzU3MTg4YTU3NGM3MmVjMjZhYWU3ODVhZjJhZDhhMjMzZWQzYjAzYjEyNDI1MTljOWFhMTZkOTg2ZjA3NWY3ZjdkMTA4NTk3MmM4MGMzOTVhMWUwYWFjYmYyYjM3Y2ZkMDkzYTQ1M2M0YWU4ZDczYTM5NDUxZjNhMzliZjk0NmM1YTJmMDI4NTBhYmUwOGE1NTYwNWEwY2Q3MzJhYWZjNTg0ZmYzOTA3NjkyM2MxYzQ4ZjIyMzZmMTRlMzg0Yzk0YmUyZjA0NDc5NGEyYzc5MGQ5ZTA4ZTY3NmU0NTExYzdlMzJjMWMzODI3ZjNiNDI2MmY5YTJhNzliZGU5Y2UyMmEwMjBjOWY3MTgxM2Q2OGQ1YTA1MjZjMTdiZDEyZWRmYTY4Y2FiNzA4NjYyMjI1YTVhMTEzZTMyNTVkYzdjYmNkNDJkOGE3Njg0NjM4ZTRkM2ZhNTBhMGVjNTJiNGQ2NTE5N2U3YzdmYzdjNjE4OWVkY2YzNWRkOWI0ZDQzODYyOWVkODYzZGM4NDllNDAyNjExMGEwZGY2MTI1ZDU0MmM0ODMxNDRiZTgzN2VjZjgyMDE2ZjFhYTc1ZTM5YmFlNWRjMGMwMWUyMjJkMGUwNjU1NTdmMWVlZTc3ZWEwMmU1NDBiZjM0ZmYyOWMxNWQ1MjkzYzA0ZmVmNTJhOGVjZjI5N2RjMDNkNGVmOGM5YWRlYmJhMTIxZWM4Nzg1MGU2MzA4OWE4ZGI0NjczNzNjMjNhZmZiMWM0MzU5MGZjNTVlMzFlNDA2Y2M4ZmE2ZDgyZjM5ZGIxZDE0NzU4ZDU2OWYyNjM4YTQ0MTE5YTNhZGZlYTU0YmRkOWE2MDljMTc4OWQwOTNjODU3MDc3ZTQwYzkyZmNlYTFlNGIwYzhhYzRiNjk1MmYxODUzNTY0ZjM5ODc4YzdmYmU2YWExMmM4OTllNTYxMzRhYTBlMTgzYmY2NTgwZGI5OTQ5NGUSHEJlIGhlbHBmdWwgdHVybi1pbmRleC1yZXBlYXQaLwokODU5YTI5YWUtZjI1MC00NTY5LWFiNGEtMTlkMDQ4Zjc5YmMzEAEaBWhlbGxvGmMKJDkwYzFlMjQ3LTI1Y2EtNGIxZS1hOTYzLTliZmU5MzdlNDZiORACGgJoaTIZCgRmY18xEgNydW4aDHsiY21kIjoibHMifVoJcG9uZGVyaW5nYgZnQUFBQUKSAQZvcGVuYWkaNQokNzlkNGM3YjctZjI1Yi00OTMyLTk0NjgtNGE2YzIyZjhiZTE2EAQaBWEudHh0OgRmY18xGi4KJDJlYzlkNWQxLTcyMWEtNGY1NC05OGRiLTI1YjI0YTcxNWQzNxABGgRsb3N0GiwKJGFmMDA5MDEzLTFlMDEtNGFmZi1hYmQxLWM4ZjYyMzZhNDI2OBABGgJ7fRouCiRhNGQyMDBjMi04ODA3LTQ0MjAtYWY0NS0zZmY3OTIzNzdkMzkQARoEbmV4dDgFQh0IARC/hD0YkAMpZmZmZmZm5j84KEEAAABgZmbuP1IdCgNydW4SA1J1bhoReyJ0eXBlIjoib2JqZWN0In1SSgoGZGVjbF9hEi1UYWtlcyBhIHRhc2tJZCBwYXJhbWV0ZXIgaWRlbnRpZnlpbmcgdGhlIHRhc2saEXsidHlwZSI6Im9iamVjdCJ9UgwKBG9wZW4SBE9wZW56KgokMGY4ZmFkNWItZDljYi00NjlmLWExNjUtNzA4Njc3Mjg5NTBiEAEYBIIBJDBmOGZhZDViLWQ5Y2ItNDY5Zi1hMTY1LTcwODY3NzI4OTUwYqABAaoBDHN3ZS0xLTYtZmFzdA=="
+    }
+  ],
+  "downstream": {
+    "body": "{\"id\":\"interaction_495a216b-915\",\"model\":\"devin/swe-1-6\",\"status\":\"completed\",\"steps\":[{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b more\"}]}],\"usage\":{\"total_input_tokens\":5,\"total_output_tokens\":2,\"total_cached_tokens\":0,\"total_tokens\":7}}"
+  },
+  "extra": {
+    "usage": [
+      {
+        "cached_tokens": 0,
+        "failed": false,
+        "input_tokens": 5,
+        "model": "devin/swe-1-6",
+        "output_tokens": 2,
+        "reasoning_effort": "",
+        "reasoning_tokens": 0,
+        "response_model": "",
+        "total_tokens": 7
+      },
+      {
+        "cached_tokens": 0,
+        "failed": false,
+        "input_tokens": 5,
+        "model": "devin/swe-1-6",
+        "output_tokens": 2,
+        "reasoning_effort": "",
+        "reasoning_tokens": 0,
+        "response_model": "",
+        "total_tokens": 7
+      }
+    ]
+  }
+}

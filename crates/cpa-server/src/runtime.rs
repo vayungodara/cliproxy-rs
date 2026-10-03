@@ -27,7 +27,7 @@ use crate::registry::Registry;
 use crate::scheduler::{Policy, Scheduler};
 
 /// The config snapshot and credential epoch a registry was built from.
-type RegistryCache = (Arc<Config>, u64, Arc<Registry>);
+type RegistryCache = (Arc<Config>, (u64, u64), Arc<Registry>);
 
 pub struct Runtime {
     config: RwLock<Arc<Config>>,
@@ -180,7 +180,9 @@ impl Runtime {
     /// either changed, so it is always derived, never separately maintained.
     pub fn registry(&self) -> Arc<Registry> {
         let config = self.config();
-        let generation = self.store.epoch();
+        // A refreshed static catalog re-registers every credential (Go's model refresh
+        // callback), so the catalog generation is part of the key.
+        let generation = (self.store.epoch(), cpa_core::registry::catalog_generation());
         let mut cache = self.registry.lock().unwrap_or_else(PoisonError::into_inner);
         if let Some((cfg, g, registry)) = cache.as_ref()
             && Arc::ptr_eq(cfg, &config)

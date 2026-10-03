@@ -2,7 +2,7 @@
   "name": "claude-nonstream-delegated",
   "credential": {
     "access_token": "kimi-access-fixture",
-    "base_url": "http://127.0.0.1:43735/coding",
+    "base_url": "http://127.0.0.1:36711/coding",
     "device_id": "dev-fixture-1",
     "refresh_token": "kimi-refresh-fixture",
     "type": "kimi"
@@ -32,7 +32,7 @@
       "headers": [
         [
           "Host",
-          "127.0.0.1:43735"
+          "127.0.0.1:36711"
         ],
         [
           "User-Agent",
@@ -68,5 +68,20 @@
   ],
   "downstream": {
     "body": "{\"id\":\"msg_1\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"kimi-k3\",\"content\":[{\"type\":\"text\",\"text\":\"hello\"}],\"stop_reason\":\"end_turn\",\"usage\":{\"input_tokens\":3,\"output_tokens\":1}}"
+  },
+  "extra": {
+    "usage": [
+      {
+        "cached_tokens": 0,
+        "failed": false,
+        "input_tokens": 3,
+        "model": "kimi-k3",
+        "output_tokens": 1,
+        "reasoning_effort": "",
+        "reasoning_tokens": 0,
+        "response_model": "k3",
+        "total_tokens": 4
+      }
+    ]
   }
 }

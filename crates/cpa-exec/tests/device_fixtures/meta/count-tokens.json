@@ -4,7 +4,7 @@
     "access_token": "meta-key-fixture",
     "api_key": "meta-key-fixture",
     "auth_kind": "oauth",
-    "base_url": "http://127.0.0.1:42307/v1",
+    "base_url": "http://127.0.0.1:35715/v1",
     "dca_token": "dca:fixture",
     "type": "meta"
   },
@@ -22,5 +22,8 @@
   "upstream": null,
   "downstream": {
     "body": "{\"response\":{\"usage\":{\"input_tokens\":33,\"output_tokens\":0,\"total_tokens\":33}}}"
+  },
+  "extra": {
+    "usage": null
   }
 }
