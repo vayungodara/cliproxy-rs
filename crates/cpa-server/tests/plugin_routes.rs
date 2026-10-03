@@ -19,19 +19,76 @@ use serde_json::Value;
 struct Dirs {
     plugins: PathBuf,
     records: PathBuf,
+    auths: PathBuf,
     config: PathBuf,
+    /// Auth file name to its `auth_index`.
+    indexes: std::sync::Mutex<Vec<(String, String)>>,
 }
 
 impl Dirs {
     fn placeholders(&self, s: &str) -> String {
-        s.replace("PLUGINDIR", &self.plugins.to_string_lossy())
+        let mut s = s
+            .replace("PLUGINDIR", &self.plugins.to_string_lossy())
             .replace("RECORDDIR", &self.records.to_string_lossy())
+            .replace("AUTHDIR", &self.auths.to_string_lossy());
+        for (name, index) in self.indexes.lock().unwrap().iter() {
+            s = s.replace(&format!("AUTHINDEX({name})"), index);
+        }
+        s
     }
 
     fn normalize(&self, s: &str) -> String {
-        s.replace(&*self.plugins.to_string_lossy(), "PLUGINDIR")
+        let mut s = s
+            .replace(&*self.plugins.to_string_lossy(), "PLUGINDIR")
             .replace(&*self.records.to_string_lossy(), "RECORDDIR")
+            .replace(&*self.auths.to_string_lossy(), "AUTHDIR");
+        for (name, index) in self.indexes.lock().unwrap().iter() {
+            s = s.replace(index, &format!("AUTHINDEX({name})"));
+        }
+        s
     }
+
+    /// The quota.* calls the recorders received since the last call, normalized as the
+    /// generator does (callback context IDs are opaque counters).
+    fn records(&self) -> Value {
+        let mut out = Vec::new();
+        let mut files: Vec<_> = std::fs::read_dir(&self.records)
+            .unwrap()
+            .map(|e| e.unwrap().path())
+            .filter(|p| p.is_file())
+            .collect();
+        files.sort();
+        for path in files {
+            let label = path.file_stem().unwrap().to_string_lossy().into_owned();
+            let text = std::fs::read_to_string(&path).unwrap();
+            std::fs::remove_file(&path).unwrap();
+            for line in text.lines() {
+                let rec: Value = serde_json::from_str(line).unwrap();
+                let method = rec["method"].as_str().unwrap();
+                if !method.starts_with("quota.") {
+                    continue;
+                }
+                let request = self.normalize(rec["request"].as_str().unwrap());
+                let request = regex_lite_callback(&request);
+                out.push(serde_json::json!({"label": label, "method": method, "request": request}));
+            }
+        }
+        Value::Array(out)
+    }
+}
+
+/// `"host_callback_id":"<digits>"` as `"host_callback_id":"#"`.
+fn regex_lite_callback(s: &str) -> String {
+    const KEY: &str = "\"host_callback_id\":\"";
+    let mut out = String::new();
+    let mut rest = s;
+    while let Some(at) = rest.find(KEY) {
+        out.push_str(&rest[..at + KEY.len()]);
+        rest = rest[at + KEY.len()..].trim_start_matches(|c: char| c.is_ascii_digit());
+        out.push('#');
+    }
+    out.push_str(rest);
+    out
 }
 
 /// The binary's app (API routes, then management and its NoRoute) with every request
@@ -53,9 +110,21 @@ async fn serve(rt: Arc<cpa_server::Runtime>, state: Arc<Management>) -> String {
 async fn start(dirs: &Dirs, yaml: &str) -> String {
     let hash = bcrypt::hash("fake-secret", 4).unwrap();
     std::fs::write(&dirs.config, dirs.placeholders(yaml).replace("$HASH", &hash)).unwrap();
+    let config = Config::load(&dirs.config).unwrap();
+    let credentials = cpa_core::config::credentials::load(&config);
+    *dirs.indexes.lock().unwrap() = credentials
+        .iter()
+        .filter_map(|c| match &c.source {
+            cpa_core::credential::Source::File(path) => Some((
+                path.file_name()?.to_string_lossy().into_owned(),
+                cpa_core::config::credentials::auth_index(c),
+            )),
+            _ => None,
+        })
+        .collect();
     let rt = Arc::new(cpa_server::testing::runtime(
-        Config::load(&dirs.config).unwrap(),
-        vec![],
+        config,
+        credentials,
         Executors {
             claude: ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
             codex: Default::default(),
@@ -80,10 +149,13 @@ async fn plugin_routes_match_go() {
     let dirs = Dirs {
         plugins: work.join("plugins"),
         records: work.join("records"),
+        auths: work.join("auths"),
         config: work.join("config.yaml"),
+        indexes: Default::default(),
     };
     std::fs::create_dir_all(&dirs.plugins).unwrap();
     std::fs::create_dir_all(&dirs.records).unwrap();
+    std::fs::create_dir_all(&dirs.auths).unwrap();
     let client = wreq::Client::new();
     let mut base = String::new();
     let mut failures = Vec::new();
@@ -101,6 +173,25 @@ async fn plugin_routes_match_go() {
                 base = start(&dirs, args.as_str().unwrap()).await;
                 Value::Null
             }
+            "auths" => {
+                for (name, body) in args.as_object().unwrap() {
+                    std::fs::write(dirs.auths.join(name), body.as_str().unwrap()).unwrap();
+                }
+                Value::Null
+            }
+            "respond" => {
+                let dir = dirs.records.join("respond").join(args["label"].as_str().unwrap());
+                std::fs::create_dir_all(&dir).unwrap();
+                let path = dir.join(format!("{}.json", args["method"].as_str().unwrap()));
+                match args["envelope"].as_str().unwrap() {
+                    "" => {
+                        let _ = std::fs::remove_file(path);
+                    }
+                    envelope => std::fs::write(path, envelope).unwrap(),
+                }
+                Value::Null
+            }
+            "records" => dirs.records(),
             "settle" => {
                 tokio::time::sleep(std::time::Duration::from_millis(700)).await;
                 Value::Null
@@ -115,7 +206,10 @@ async fn plugin_routes_match_go() {
                 let method = wreq::Method::from_bytes(args["method"].as_str().unwrap().as_bytes()).unwrap();
                 let body = dirs.placeholders(args["body"].as_str().unwrap_or_default());
                 let mut req = client
-                    .request(method, format!("{base}{}", args["path"].as_str().unwrap()))
+                    .request(
+                        method,
+                        format!("{base}{}", dirs.placeholders(args["path"].as_str().unwrap())),
+                    )
                     .body(body);
                 if !args["no_key"].as_bool().unwrap_or(false) {
                     req = req.header("Authorization", "Bearer fake-secret");

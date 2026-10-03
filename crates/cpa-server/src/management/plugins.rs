@@ -44,6 +44,48 @@ fn body_json(status: StatusCode, body: String) -> Response {
         .into_response()
 }
 
+/// Go `url.ParseQuery` as `URL.Query()` uses it: pairs in order; a pair with a raw
+/// `;` or a bad percent escape is dropped, the rest kept; `+` is a space.
+pub(super) fn go_query(raw: &str) -> Vec<(String, String)> {
+    fn unescape(s: &str) -> Option<String> {
+        let b = s.as_bytes();
+        let mut out = Vec::with_capacity(b.len());
+        let mut i = 0;
+        while i < b.len() {
+            match b[i] {
+                b'%' => {
+                    let hex = b.get(i + 1..i + 3)?;
+                    out.push(u8::from_str_radix(std::str::from_utf8(hex).ok()?, 16).ok()?);
+                    i += 3;
+                }
+                b'+' => {
+                    out.push(b' ');
+                    i += 1;
+                }
+                c => {
+                    out.push(c);
+                    i += 1;
+                }
+            }
+        }
+        Some(String::from_utf8_lossy(&out).into_owned())
+    }
+    raw.split('&')
+        .filter(|pair| !pair.is_empty() && !pair.contains(';'))
+        .filter_map(|pair| {
+            let (k, v) = pair.split_once('=').unwrap_or((pair, ""));
+            Some((unescape(k)?, unescape(v)?))
+        })
+        .collect()
+}
+
+/// A struct-shaped value as Go's `encoding/json` writes it: fields in order.
+pub(super) fn ordered_json(v: &Value) -> String {
+    let mut out = String::new();
+    ordered(v, &mut out);
+    out
+}
+
 fn ordered(v: &Value, out: &mut String) {
     match v {
         Value::Object(map) => {
@@ -801,11 +843,9 @@ fn inbound(parts: &axum::http::request::Parts, body: Bytes) -> cpa_plugin::manag
             .or_default()
             .push(String::from_utf8_lossy(value.as_bytes()).into_owned());
     }
-    // ponytail: url::form_urlencoded keeps pairs Go's ParseQuery drops (semicolons,
-    // bad escapes); plugin routes see a superset in those malformed cases.
     let mut query = pjson::Header::new();
-    for (k, v) in url::form_urlencoded::parse(parts.uri.query().unwrap_or_default().as_bytes()) {
-        query.entry(k.into_owned()).or_default().push(v.into_owned());
+    for (k, v) in go_query(parts.uri.query().unwrap_or_default()) {
+        query.entry(k).or_default().push(v);
     }
     cpa_plugin::management::Inbound {
         method: parts.method.as_str().to_owned(),
