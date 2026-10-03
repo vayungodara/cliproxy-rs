@@ -1,4 +1,4 @@
-# Builds release archives for Linux, macOS and Windows, a SHA256SUMS file and the
+# Builds release archives for Linux and macOS, a SHA256SUMS file and the
 # single-file dashboard (management.html) for Go CLIProxyAPI servers.
 #
 # Pushing a tag such as v0.1.0 creates a draft GitHub release with every asset attached;
@@ -67,7 +67,9 @@ jobs:
           - { target: aarch64-unknown-linux-gnu, os: ubuntu-22.04-arm }
           - { target: aarch64-apple-darwin, os: macos-15 }
           - { target: x86_64-apple-darwin, os: macos-15-intel }
-          - { target: x86_64-pc-windows-msvc, os: windows-2025 }
+          # Windows returns as { target: x86_64-pc-windows-msvc, os: windows-2025 } once the
+          # workspace builds there; several modules still use std::os::unix without cfg(unix).
+          # The Windows steps below stay so that is a one-line change.
     runs-on: ${{ matrix.os }}
     defaults:
       run:
