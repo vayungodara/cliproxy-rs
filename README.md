@@ -13,7 +13,7 @@ cliproxy-rs follows CLIProxyAPI at commit `6fecc6e` (v8.0.10). It is new and doe
 Works today:
 
 - Client APIs: `POST /v1/messages` and `/v1/messages/count_tokens` (Anthropic), `POST /v1/chat/completions`, `/v1/completions`, `/v1/responses` and `/v1/responses/compact` (OpenAI), `/v1beta/models/...` and `/v1beta/interactions` (Gemini), `GET /v1/models`, and the Codex paths under `/backend-api/codex/`. Streaming (SSE) and non-streaming, with format translation between the three protocols.
-- Images and video: `POST /v1/images/generations` and `/v1/images/edits` (xAI image models, OpenAI-compatible image models and `gpt-image` models), and the `/v1/videos` and `/openai/v1/videos` routes for xAI video.
+- Images and video: `POST /v1/images/generations` and `/v1/images/edits` through xAI and OpenAI-compatible upstreams (including `gpt-image` models served by such an upstream), and the `/v1/videos` and `/openai/v1/videos` routes for xAI video.
 - WebSocket: the Responses WebSocket on `GET /v1/responses` and `GET /backend-api/codex/responses`, used by Codex clients, including response steering (`oauth.providers.codex.response-steering`).
 - Realtime and live through a Codex account: `/v1/realtime` (WebSocket and WebRTC calls), `/v1/live`, call sidebands and local ephemeral keys (`/v1/realtime/client_secrets`).
 - Providers: Claude (OAuth and API keys), Codex (OAuth and API keys), Kimi, Meta, xAI, Devin, Gemini API keys and Gemini Interactions, Vertex AI (service accounts imported with `-vertex-import`, and API keys), and OpenAI-compatible upstreams such as OpenRouter.
@@ -22,13 +22,16 @@ Works today:
 - The v8 Management API for configuration, credentials, OAuth sign-in, quota checks (`/requests/api-call`), usage counters, logs and model catalogs, plus the dashboard at `/management.html`.
 - HTTPS on the main port (`server.tls`), logging in Go's format to stdout or a rotating `main.log` with Go's per-request access log lines, request log files, LAN discovery (`-discover` and the `server.discovery` advertisement), `.env` loading, and remote model catalog updates as in Go (`-local-model` turns them off).
 - Plugins (`plugins`, Linux and macOS), with plugin-defined routes and the Management API routes to list, enable, configure and delete them. The plugin store and plugin quotas are not available yet.
-- Home mode (`-home-jwt`), the `PGSTORE_*`, `OBJECTSTORE_*` and `GITSTORE_*` storage backends, and the Redis-protocol usage subscriber on the main port.
+- Home mode (`-home-jwt`): bootstrap, config updates and dispatch through Home.
+- The `PGSTORE_*`, `OBJECTSTORE_*` and `GITSTORE_*` storage backends, and the Redis-protocol usage subscriber on the main port.
 - Config and credential files are watched and reloaded without a restart. A plaintext management key is hashed on first start, as Go does.
 
 Not yet supported (at the time of writing):
 
 - Providers: Antigravity and AI Studio. Vertex service accounts can be imported from the command line, not yet from the dashboard.
 - The WebRTC media relay for live calls is an optional build feature and is not in the release binaries.
+- Image generation and editing through Codex accounts (Go serves `gpt-image` models with a ChatGPT sign-in).
+- Home-managed plugins: Home's plugin sync, plugin tasks and plugin status reports.
 - The upstream request and response sections of request log files, the `pprof` listener and the terminal UI (`-tui`).
 
 The dashboard says when the server lacks an endpoint instead of failing: actions it cannot do are disabled and named, and pages it cannot load say which route is missing.

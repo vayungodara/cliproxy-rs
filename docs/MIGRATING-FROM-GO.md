@@ -41,6 +41,8 @@ These settings are accepted in `config.yaml` and kept on save, but cliproxy-rs d
 | --- | --- |
 | `observability.logs.request-log` and error request logs | Request log files and per-request error logs are written as in Go, with the client's request (headers masked) and the response it received, but without Go's `=== API REQUEST ===` and `=== API RESPONSE ===` sections: the provider executors do not report the upstream exchange to the log yet. |
 | `pprof` | No profiling endpoint. |
+| `gpt-image` models through Codex accounts | `/v1/images/generations` and `/v1/images/edits` reach xAI and OpenAI-compatible upstreams only. A request that routes to a Codex credential fails; Go serves it through the ChatGPT backend. |
+| Plugins managed by Home | With `-home-jwt`, bootstrap, config updates and dispatch through Home work, but Home's plugin sync, plugin tasks and plugin status reports are not implemented. Plugins load from the local configuration only. |
 | `management.panel-github-repository`, `management.disable-auto-update-panel`, `MANAGEMENT_STATIC_PATH` | The dashboard is built into the binary and never downloaded or read from disk. `management.disable-control-panel` is honoured. |
 | Config reload log summaries | The config is reloaded, but the changes are not summarised in the log. |
 

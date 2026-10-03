@@ -19,7 +19,7 @@ It started from a post on X by @maria_rcks on 2 October 2026: "why hasnt anyone 
 
 - One binary with the dashboard built in. Release builds for Linux (x86_64, arm64), macOS (Apple silicon, Intel) and Windows (x86_64), plus a Dockerfile.
 - The client routes for chat completions, completions, Responses, Messages, token counting, Gemini `generateContent` and Interactions, model lists and the Codex paths, streaming and non-streaming.
-- Image generation and editing (xAI, OpenAI-compatible and `gpt-image` models) and xAI video.
+- Image generation and editing through xAI and OpenAI-compatible upstreams, and xAI video.
 - WebSocket: the Responses WebSocket that Codex clients use, with response steering, and the Realtime WebSocket.
 - Realtime and live voice through a Codex account (`/v1/realtime`, `/v1/live`, WebRTC call setup).
 - Account sign-in from the command line or the dashboard for Claude, Codex (browser or device code), Kimi, Meta, xAI and Devin.
@@ -49,6 +49,7 @@ From [BENCHMARKS.md](BENCHMARKS.md): commit `d068002` against the Go v8.0.10 rel
 
 - Providers not supported yet: Antigravity and AI Studio.
 - The WebRTC media relay for live calls is an optional build feature, not in the release binaries.
+- No image generation through Codex accounts. Home mode does not sync Home-managed plugins.
 - Request log files lack the upstream request and response sections. No terminal UI, no pprof.
 - Codex CLI has not been tested end to end against cliproxy-rs.
 - The Windows build comes from the release workflow and has not been run by hand. The macOS builds are not signed or notarized.
