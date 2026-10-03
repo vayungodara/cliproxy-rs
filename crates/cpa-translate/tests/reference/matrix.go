@@ -161,6 +161,7 @@ func matrix(r registration, model string) []fixture {
 		out = append(out, claudeResponses()...)
 		if r.client == "openai-response" {
 			out = append(out, claudeToResponses()...)
+			out = append(out, claudeApplyPatchToResponses()...)
 		}
 		if r.client == "interactions" {
 			out = append(out, claudeToInteractions()...)
@@ -2743,6 +2744,90 @@ func antigravityToClaude() []fixture {
 		n.Original = searchOrig
 		n.Translated = searchReq
 		out = append(out, n)
+	}
+	return out
+}
+
+// claudeApplyPatchToResponses mirror the apply_patch bridge tests of
+// claude_openai-responses_response_test.go (built there with helpers the miner cannot
+// read): decoded previews, late and separate identities, interleaved calls, invalid and
+// truncated input, Unicode fragments, identity conflicts, snapshots, EOF, non-stream.
+func claudeApplyPatchToResponses() []fixture {
+	start := func(index int, id, name string) string {
+		return fmt.Sprintf(`data: {"type":"content_block_start","index":%d,"content_block":{"type":"tool_use","id":%q,"name":%q,"input":{}}}`, index, id, name)
+	}
+	snap := func(index int, id, name, input string) string {
+		return fmt.Sprintf(`data: {"type":"content_block_start","index":%d,"content_block":{"type":"tool_use","id":%q,"name":%q,"input":%s}}`, index, id, name, input)
+	}
+	frag := func(index int, fragment string) string {
+		return fmt.Sprintf(`data: {"type":"content_block_delta","index":%d,"delta":{"type":"input_json_delta","partial_json":%q}}`, index, fragment)
+	}
+	stop := func(index int) string { return fmt.Sprintf(`data: {"type":"content_block_stop","index":%d}`, index) }
+	msgStart := `data: {"type":"message_start","message":{"id":"msg_ap","usage":{"input_tokens":1}}}`
+	end := []string{`data: {"type":"message_delta","delta":{"stop_reason":"tool_use"}}`, `data: {"type":"message_stop"}`}
+	text := []string{`data: {"type":"content_block_start","index":9,"content_block":{"type":"text","text":""}}`, `data: {"type":"content_block_delta","index":9,"delta":{"type":"text_delta","text":"done"}}`, stop(9)}
+	request := `{"tools":[{"type":"custom","name":"apply_patch","format":{"type":"grammar","syntax":"lark","definition":"start: patch"}}]}`
+	namespaced := `{"tools":[{"type":"namespace","name":"ns","tools":[{"type":"custom","name":"apply_patch"}]},{"type":"function","name":"lookup"}]}`
+	shadowed := `{"tools":[{"type":"function","name":"apply_patch"},{"type":"custom","name":"apply_patch"}],"input":[{"type":"additional_tools","tools":[{"type":"custom","name":"apply_patch"}]}]}`
+	mixed := `{"tools":[{"type":"custom","name":"apply_patch"},{"type":"custom","name":"freeform"},{"type":"function","name":"lookup"}]}`
+	patch := "*** Begin Patch\n*** Add File: a.txt\n+hello\n*** End Patch"
+	type sc struct {
+		original string
+		finalize bool
+		lines    []string
+	}
+	join := func(parts ...[]string) []string {
+		var out []string
+		for _, p := range parts {
+			out = append(out, p...)
+		}
+		return out
+	}
+	cases := map[string]sc{
+		"preview":          {request, false, join([]string{msgStart, start(0, "c1", "apply_patch"), frag(0, `{"input":"*** Begin Patch\n*** Add File: a.txt\n+hello\n`), frag(0, `*** End Patch"}`), stop(0)}, end)},
+		"late-identity":    {request, false, join([]string{msgStart, start(0, "", ""), frag(0, `{"input":"first\n`), start(1, "c2", "apply_patch"), frag(1, `{"input":"second\n"}`), stop(1), start(0, "c1", "apply_patch"), frag(0, `more"}`), stop(0)}, text, end)},
+		"invalid":          {request, false, join([]string{msgStart, start(0, "c1", "apply_patch"), frag(0, `{"input":5}`), frag(0, `x`), stop(0)}, end)},
+		"invalid-key":      {request, false, join([]string{msgStart, start(0, "c1", "apply_patch"), frag(0, `{"patch":"x"}`), stop(0)}, end)},
+		"truncated":        {request, false, join([]string{msgStart, start(0, "c1", "apply_patch"), frag(0, `{"input":"*** Begin Patch\n`), stop(0)}, end)},
+		"unicode":          {request, false, join([]string{msgStart, start(0, "c1", "apply_patch"), frag(0, `{"input":"caf\u00`), frag(0, `e9 \ud83d`), frag(0, `\ude00 <b> é"}`), stop(0)}, end)},
+		"separate-ids":     {request, false, join([]string{msgStart, start(0, "", "apply_patch"), frag(0, `{"input":"x"}`), start(0, "c1", ""), stop(0)}, end)},
+		"conflict-id":      {request, false, join([]string{msgStart, start(0, "c1", "apply_patch"), start(0, "c2", "apply_patch"), frag(0, `{"input":"x"}`)}, end)},
+		"conflict-name":    {mixed, false, join([]string{msgStart, start(0, "c1", "freeform"), start(0, "c1", "apply_patch")}, end)},
+		"pending-id":       {request, false, join([]string{msgStart, start(0, "c1", ""), start(0, "c2", ""), start(0, "", "apply_patch")}, end)},
+		"missing-id":       {request, false, join([]string{msgStart, start(0, "", "apply_patch"), frag(0, `{"input":"`+strings.ReplaceAll(patch, "\n", `\n`)+`"}`), stop(0)}, end)},
+		"nameless":         {request, false, join([]string{msgStart, start(0, "", ""), frag(0, `{"input":"anon"}`), stop(0)}, end)},
+		"snapshot-ok":      {request, false, join([]string{msgStart, snap(0, "c1", "apply_patch", `{"input":"snap"}`), snap(0, "c1", "apply_patch", `{ "input" : "snap" }`), stop(0)}, end)},
+		"snapshot-diff":    {request, false, join([]string{msgStart, snap(0, "c1", "apply_patch", `{"input":"one"}`), snap(0, "c1", "apply_patch", `{"input":"two"}`)}, end)},
+		"snapshot-bad":     {request, false, join([]string{msgStart, snap(0, "c1", "", `{"input":7}`), start(0, "", "apply_patch")}, end)},
+		"snapshot-args":    {request, false, join([]string{msgStart, snap(0, "c1", "apply_patch", `{"input":"full"}`), frag(0, `{"input":"fu`), stop(0)}, end)},
+		"snapshot-extend":  {request, false, join([]string{msgStart, snap(0, "c1", "apply_patch", `{"input":"ab"}`), frag(0, `{"input":"a"}`), stop(0)}, end)},
+		"snapshot-badargs": {request, false, join([]string{msgStart, snap(0, "c1", "apply_patch", `{"input":"x"}`), frag(0, `{"input":5`), stop(0)}, end)},
+		"snapshot-late":    {request, false, join([]string{msgStart, start(0, "c1", "apply_patch"), frag(0, `{"input":"a"}`), stop(0), start(1, "c2", "lookup"), snap(0, "c1", "apply_patch", `{"input":"b"}`)}, end)},
+		"snapshot-same":    {request, false, join([]string{msgStart, start(0, "c1", "apply_patch"), frag(0, `{"input":"a"}`), stop(0), start(1, "c2", "lookup"), stop(1), snap(0, "c1", "apply_patch", `{"input":"a"}`)}, end)},
+		"namespace":        {namespaced, false, join([]string{msgStart, start(0, "c1", "ns__apply_patch"), frag(0, `{"input":"n"}`), stop(0), start(1, "c2", "lookup"), frag(1, `{}`), stop(1)}, end)},
+		"shadowed":         {shadowed, false, join([]string{msgStart, start(0, "c1", "apply_patch"), frag(0, `{"input":"s"}`), stop(0)}, end)},
+		"eof":              {request, true, []string{msgStart, start(0, "c1", "apply_patch"), frag(0, `{"input":"x"}`)}},
+		"eof-plain":        {`{"tools":[{"type":"function","name":"lookup"}]}`, true, []string{msgStart, start(0, "c1", "lookup")}},
+		"eof-completed":    {request, true, join([]string{msgStart}, end)},
+		"after-complete":   {request, false, join([]string{msgStart}, end, []string{start(0, "c9", "apply_patch")})},
+	}
+	var names []string
+	for name := range cases {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	var out []fixture
+	for _, name := range names {
+		c := cases[name]
+		f := streamCase("claude-apply-patch/"+name, "claude-sonnet-4-6", c.lines...)
+		f.Original = c.original
+		f.Finalize = c.finalize
+		out = append(out, f)
+		if !c.finalize {
+			n := nonStream("claude-apply-patch/non-stream/"+name, "claude-sonnet-4-6", strings.Join(c.lines, "\n"))
+			n.Original = c.original
+			out = append(out, n)
+		}
 	}
 	return out
 }
