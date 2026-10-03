@@ -42,7 +42,13 @@
     // Report "Cancelled" only once the server has the request: until then it keeps the
     // session, and with it the provider's local callback port, for up to five minutes.
     await api(`/oauth/session?state=${encodeURIComponent(s.state)}`, "DELETE").catch(() => {});
-    if (s === session) status = "cancelled";
+    if (s === session) finish("cancelled");
+  }
+  // A finished session replaces any in-progress message ("Callback sent…") so the toast
+  // never contradicts the panel. Errors stay: the panel shows them in place.
+  function finish(next: string) {
+    status = next;
+    if (store.toast && !store.toast.bad) store.toast = null;
   }
   $effect(() =>
     every(2000, async () => {
@@ -51,8 +57,8 @@
       const r = await api(`/oauth/status?state=${encodeURIComponent(s.state)}`).catch((e) => ({ status: "error", error: e.message }));
       // A reply for a session that was cancelled or replaced meanwhile is ignored.
       if (r.status === "wait" || s !== session || status !== "wait") return;
-      status = r.status;
       problem = r.error || "";
+      finish(r.status);
       if (r.status === "ok") {
         store.notify(`${label(s.provider)} account connected.`);
         store.creds.load(true);

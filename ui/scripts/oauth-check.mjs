@@ -24,6 +24,11 @@ page.on("pageerror", (e) => errors.push(String(e)));
 const main = page.locator("main");
 const button = (name) => main.getByRole("button", { name, exact: true });
 const pass = (t) => console.log(`PASS ${t}`);
+/** The toast, if any, must not still say a sign-in is in progress once it has finished. */
+async function noProgressToast(when) {
+  const toast = await page.locator(".toast").textContent({ timeout: 500 }).catch(() => "");
+  assert.ok(!/sent|finishing|waiting/i.test(toast), `${when}: stale toast "${toast.trim()}"`);
+}
 
 /** Start a sign-in and return the session state from the provider link. */
 async function begin(provider) {
@@ -54,6 +59,7 @@ try {
       assert.ok(href.startsWith("https://") && state, `${provider}: provider link ${href}`);
       await paste(redirect(state));
       await main.getByText("Connected", { exact: true }).waitFor({ timeout: 20_000 });
+      await noProgressToast(`${provider} connected`);
       await page.screenshot({ path: `${out}/oauth-${provider.toLowerCase()}-connected.png` });
       pass(`${provider}: authorize link, pasted callback, code exchange, credential saved (${email})`);
     }
@@ -85,13 +91,15 @@ try {
     await main.getByText("Failed", { exact: true }).waitFor({ timeout: 30_000 });
     const problem = await main.locator(".flow .error").textContent();
     assert.ok(/exchange/i.test(problem), problem);
+    await noProgressToast("Codex failed");
     await page.screenshot({ path: `${out}/oauth-codex-failed.png` });
     pass(`Codex with an unreachable token endpoint fails honestly: "${problem.trim()}"`);
     await button("Start again").click();
     await main.getByText("Waiting for approval").waitFor();
     await button("Cancel sign-in").click();
     await main.getByText("Cancelled", { exact: true }).waitFor();
-    pass("Start again opens a new session; Cancel ends it");
+    await noProgressToast("Codex cancelled");
+    pass("Start again opens a new session; Cancel ends it; no in-progress toast remains after any end state");
   }
   assert.deepEqual(errors, []);
 } finally {
