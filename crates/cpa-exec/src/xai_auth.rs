@@ -34,7 +34,7 @@ pub const SCOPE: &str = "openid profile email offline_access grok-cli:access api
 const DEVICE_GRANT: &str = "urn:ietf:params:oauth:grant-type:device_code";
 const DEFAULT_POLL_INTERVAL: Duration = Duration::from_secs(5);
 const HTTP_TIMEOUT: Duration = Duration::from_secs(30);
-const MAX_POLL_DURATION: Duration = Duration::from_secs(30 * 60);
+pub const MAX_POLL_DURATION: Duration = Duration::from_secs(30 * 60);
 /// SDK refresh lead (`xaiauth.RefreshLead`).
 pub const REFRESH_LEAD: Duration = Duration::from_secs(300);
 
@@ -334,8 +334,7 @@ impl XaiAuth {
         }
     }
 
-    #[cfg(test)]
-    pub(crate) fn with_issuer_origin(mut self, origin: &str) -> Self {
+    pub fn with_issuer_origin(mut self, origin: &str) -> Self {
         self.issuer_origin = Some(origin.into());
         self
     }
