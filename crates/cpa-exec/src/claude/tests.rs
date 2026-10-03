@@ -416,14 +416,41 @@ fn assert_go_error(name: &str, scenario: &Value, info: &serde_json::Map<String, 
 
 #[tokio::test]
 async fn executor_scenarios_match_go() {
+    // Sequenced through execute(): compat_replay_sequence_matches_go; config keys:
+    // m1_0041_to_m1_0056_config_keys_match_go.
+    scenarios_match_go("all", |name| !name.starts_with("replay-") && !is_config_scenario(name)).await;
+}
+
+/// Scenarios whose only purpose is a `config.yaml` key (Go generator, same pipeline).
+fn is_config_scenario(name: &str) -> bool {
+    name.starts_with("config-") || name == "apikey-cloak-config-strict-sensitive"
+}
+
+/// M1-0041 rebuild-mid-system-message, M1-0043 cloak.strict-mode, M1-0044
+/// cloak.sensitive-words, M1-0048..M1-0055 every header-defaults key (stabilized and
+/// not) and M1-0056 disable-claude-cloak-mode, each set in config.yaml and run through
+/// Go's executor by the scenario generator.
+#[tokio::test]
+async fn m1_0041_to_m1_0056_config_keys_match_go() {
     let fixture: Value = serde_json::from_str(include_str!("testdata/go_executor.json")).unwrap();
-    let root = std::env::temp_dir().join(format!("cpa-claude-go-{}", std::process::id()));
+    let count = fixture["scenarios"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|s| is_config_scenario(s["name"].as_str().unwrap()))
+        .count();
+    assert_eq!(count, 5);
+    scenarios_match_go("config", is_config_scenario).await;
+}
+
+async fn scenarios_match_go(run: &str, selected: fn(&str) -> bool) {
+    let fixture: Value = serde_json::from_str(include_str!("testdata/go_executor.json")).unwrap();
+    let root = std::env::temp_dir().join(format!("cpa-claude-go-{run}-{}", std::process::id()));
     let executor = ClaudeExecutor::with_client(wreq::Client::new(), DEFAULT_BASE_URL);
     let prompt_id = regex::Regex::new(r"cc_prompt_id=[0-9a-f-]{36};").unwrap();
     for scenario in fixture["scenarios"].as_array().unwrap() {
         let name = scenario["name"].as_str().unwrap();
-        if name.starts_with("replay-") {
-            // Sequenced through execute(): compat_replay_sequence_matches_go.
+        if !selected(name) {
             continue;
         }
         let dir = root.join(name);
@@ -544,6 +571,16 @@ async fn executor_scenarios_match_go() {
                 continue;
             }
             if k == "X-Claude-Code-Session-Id" && name.starts_with("apikey-cloak") {
+                continue;
+            }
+            // The default User-Agent names the build: CLIProxyAPI/dev in Go's generator.
+            if let Some(go_version) = b.strip_prefix("CLIProxyAPI/") {
+                assert_eq!(go_version, "dev", "{name}: header {k}");
+                assert_eq!(
+                    a,
+                    &format!("CLIProxyAPI/{}", env!("CARGO_PKG_VERSION")),
+                    "{name}: header {k}"
+                );
                 continue;
             }
             assert_eq!(a, b, "{name}: header {k}");

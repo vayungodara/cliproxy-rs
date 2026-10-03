@@ -15,8 +15,13 @@
 //! Payload rules (`cpa_common::payload`) run after cloaking, as in Go, and
 //! reconcile.rs repairs the cloak's model-specific additions afterwards.
 //!
-//! ponytail: not ported here, each with its owner noted in docs/reviews: Vertex
-//! delegation, Home KV identity, usage reporting and request logs.
+//! Usage reports go through `ExecRequest::usage` (Go's reporter: the upstream body and
+//! lines, the body sent, and empty failures). Go 6fecc6e has no Vertex delegation to
+//! this executor: `claudeCCHUpstreamVertex` has no caller, so CCH signing stays
+//! Anthropic-only.
+//!
+//! ponytail: Home KV device profiles and identities (M6, ultra/home) hook in front of
+//! `profile::resolve`; request logs belong to the server.
 
 mod alias;
 mod betas;

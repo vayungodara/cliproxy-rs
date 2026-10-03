@@ -742,16 +742,17 @@ fn origin(url: &url::Url) -> String {
 
 /// Whether Go's transport would speak HTTP/2 to `url`: what its origin last answered
 /// with; never over plain HTTP (no h2c).
-// ponytail: an origin not seen yet is assumed to offer h2 over TLS, as public APIs
-// do, so the first request to an HTTP/1.1-only TLS upstream says Go-http-client/2.0
-// where Go says /1.1. The protocol itself is always the negotiated one.
+// ponytail: an origin not seen yet counts as HTTP/1.1, so the first request to an h2
+// upstream says Go-http-client/1.1 where Go says /2.0 (only callers that set no
+// User-Agent). The protocol itself is always the negotiated one.
 fn expects_http2(url: &url::Url) -> bool {
     url.scheme() == "https"
-        && *origin_protocols()
+        && origin_protocols()
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .get(&origin(url))
-            .unwrap_or(&true)
+            .copied()
+            .unwrap_or(false)
 }
 
 fn remember_protocol(url: &url::Url, http2: bool) {
@@ -1247,8 +1248,8 @@ mod tests {
                     .map(|a| a.iter().map(|p| p.as_str().unwrap().to_owned()).collect()),
                 user_agent: case["user_agent"].as_str().unwrap().to_owned(),
             };
-            // The second request knows the origin's protocol; the first assumes h2 over
-            // TLS for the default User-Agent only (see `expects_http2`).
+            // The second request knows the origin's protocol; the first assumes HTTP/1.1
+            // for the default User-Agent only (see `expects_http2`).
             for attempt in ["first", "second"] {
                 let upstream = send_request(
                     &route,
@@ -1263,8 +1264,8 @@ mod tests {
                 assert_eq!(upstream.status, 200, "{name}");
                 assert_eq!(read_all(upstream.body, 16, false).await.unwrap(), "ok", "{name}");
                 let mut want = want.clone();
-                if attempt == "first" && scheme == "https" && want.proto == "HTTP/1.1" {
-                    want.user_agent = "Go-http-client/2.0".into();
+                if attempt == "first" && want.proto == "HTTP/2.0" {
+                    want.user_agent = "Go-http-client/1.1".into();
                 }
                 assert_eq!(*saw.lock().unwrap(), want, "{name} ({attempt} request)");
             }

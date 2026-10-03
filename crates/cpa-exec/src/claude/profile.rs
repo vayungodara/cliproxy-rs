@@ -26,7 +26,10 @@ pub(crate) const BASELINE: Baseline = Baseline {
 };
 
 /// Stabilized profiles live for seven days after last use.
-// ponytail: Home KV mode (shared profiles with a 5 s write lock) is not ported.
+// ponytail: Home KV mode (shared profiles with a 5 s write lock) is not ported. The
+// seam is [`resolve`]: Go's resolveClaudeDeviceProfile calls
+// resolveClaudeDeviceProfileHome instead when a Home KV client is current
+// (cpa_home::kv::current_client), and this local resolver otherwise.
 pub(crate) const PROFILE_TTL: Duration = Duration::from_secs(7 * 24 * 3600);
 
 pub(crate) struct Baseline {
