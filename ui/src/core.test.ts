@@ -94,11 +94,89 @@ test("usage events keep display fields only and summarise by model", () => {
 
 test("quota is percent used, not remaining; unknown payloads stay empty", () => {
   assert.deepEqual(quotaWindows("claude", { five_hour: { utilization: 37, resets_at: "later" }, seven_day: null }), [
-    { label: "five hour", used: 37, reset: "later" },
+    { label: "5-hour session", used: 37, reset: "later" },
   ]);
   assert.equal(quotaWindows("codex", { rate_limit: { primary_window: { used_percent: 24, reset_at: 1000 } } })[0].used, 24);
   assert.equal(quotaWindows("x", { groups: [{ displayName: "Pro", buckets: [{ remainingFraction: 0.25 }] }] })[0].used, 75);
   assert.deepEqual(quotaWindows("gemini", {}), []);
+});
+
+test("Claude usage: plain names, null placeholders hidden, cents shown as dollars", () => {
+  // The shape Anthropic sends today: real buckets plus null codenames.
+  const legacy = {
+    five_hour: { utilization: 12.0, resets_at: "2026-05-03T06:50Z" },
+    seven_day: { utilization: 70.0, resets_at: "2026-05-04T00:00Z" },
+    seven_day_sonnet: { utilization: 38.0, resets_at: "2026-05-04T00:00Z" },
+    seven_day_opus: null,
+    seven_day_omelette: { utilization: 100.0, resets_at: "2026-05-04T00:00Z" },
+    seven_day_oauth_apps: null,
+    seven_day_cowork: null,
+    tangelo: null,
+    iguana_necktie: null,
+    omelette_promotional: null,
+    extra_usage: { is_enabled: true, monthly_limit: 10000, used_credits: 1250, utilization: 12.5, currency: "USD" },
+  };
+  assert.deepEqual(quotaWindows("claude", legacy), [
+    { label: "5-hour session", used: 12, reset: "2026-05-03T06:50Z" },
+    { label: "Weekly (all models)", used: 70, reset: "2026-05-04T00:00Z" },
+    { label: "Weekly Opus", used: 100, reset: "2026-05-04T00:00Z" },
+    { label: "Weekly Sonnet", used: 38, reset: "2026-05-04T00:00Z" },
+    { label: "Extra usage", used: 12.5, reset: "", detail: "$12.50 of $100.00" },
+  ]);
+
+  // A codename that is not null still never shows its codename; a null percentage is dropped, not 0%.
+  assert.deepEqual(
+    quotaWindows("claude", {
+      five_hour: { utilization: null, resets_at: null },
+      seven_day_opus: { utilization: 41, resets_at: null },
+      seven_day_omelette: { utilization: 99, resets_at: null },
+      seven_day_cowork: { utilization: 3, resets_at: null },
+      iguana_necktie: { utilization: 0, resets_at: null },
+      extra_usage: { is_enabled: false, monthly_limit: 5000, used_credits: 100, utilization: 2 },
+    }),
+    [
+      { label: "Weekly Opus", used: 41, reset: "" },
+      { label: "Cowork", used: 3, reset: "" },
+      { label: "Other limit", used: 0, reset: "" },
+    ],
+  );
+
+  // The newer limits list wins: no duplicate session row, model caps by display name,
+  // legacy-only buckets still added, unknown codenames skipped, a null scoped cap dropped.
+  const modern = {
+    limits: [
+      { kind: "session", group: "session", percent: 44, resets_at: "2026-07-27T10:00:00+00:00", scope: null, is_active: true },
+      { kind: "weekly_all", group: "weekly", percent: 31, resets_at: "2026-07-28T10:00:00+00:00", scope: null, is_active: false },
+      { kind: "weekly_scoped", group: "weekly", percent: 64, resets_at: "2026-07-28T10:00:00+00:00", scope: { model: { id: null, display_name: "Fable" } }, is_active: true },
+      { kind: "weekly_scoped", group: "weekly", percent: null, resets_at: null, scope: { model: { id: null, display_name: "Opus" } }, is_active: false },
+    ],
+    five_hour: { utilization: 44, resets_at: "2026-07-27T10:00:00+00:00" },
+    seven_day_oauth_apps: { utilization: 5, resets_at: null },
+    iguana_necktie: { utilization: 64, resets_at: null },
+    spend: {
+      used: { amount_minor: 2599, currency: "EUR", exponent: 2 },
+      limit: { amount_minor: 5000, currency: "EUR", exponent: 2 },
+      percent: 51.98,
+      enabled: true,
+    },
+    extra_usage: { is_enabled: true, monthly_limit: 10000, used_credits: 1, utilization: 0 },
+  };
+  assert.deepEqual(
+    quotaWindows("claude", modern).map((w) => [w.label, w.used, w.detail ?? ""]),
+    [
+      ["5-hour session", 44, ""],
+      ["Weekly (all models)", 31, ""],
+      ["Weekly Fable", 64, ""],
+      ["Third-party apps", 5, ""],
+      ["Extra usage", 52, "€25.99 of €50.00"],
+    ],
+  );
+
+  // An extra-usage budget without a monthly limit has no percentage at all.
+  assert.deepEqual(quotaWindows("claude", { extra_usage: { is_enabled: true, monthly_limit: null, used_credits: 300, utilization: null } }), [
+    { label: "Extra usage", used: null, reset: "", detail: "$3.00 spent, no limit" },
+  ]);
+  for (const w of [...quotaWindows("claude", legacy), ...quotaWindows("claude", modern)]) assert.doesNotMatch(w.label, /_|iguana|tangelo|omelette/i);
 });
 
 test("reconcile keeps unchanged rows by identity", () => {

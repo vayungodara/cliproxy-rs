@@ -204,8 +204,12 @@ export function usageStats(events: Event[]) {
   };
 }
 
-/** One usage window. `source` is the signal-name prefix a passive window was read from. */
-export type Window = { label: string; used: number; reset: string; source?: string };
+/**
+ * One usage window. `used` is percent used, or null when the limit has no ceiling (an
+ * uncapped extra-usage budget) and only `detail` applies. `source` is the signal-name
+ * prefix a passive window was read from.
+ */
+export type Window = { label: string; used: number | null; reset: string; source?: string; detail?: string };
 const clamp = (n: number) => Math.round(Math.max(0, Math.min(100, n)) * 10) / 10;
 /** Normalised plugin groups first; then the built-in Claude, Codex and Kimi usage payloads. */
 export function quotaWindows(p: string, payload: Data): Window[] {
@@ -223,11 +227,8 @@ export function quotaWindows(p: string, payload: Data): Window[] {
       }
     return out;
   }
-  if (p === "claude") {
-    for (const [k, v] of Object.entries<Data>(payload))
-      if (v && typeof v.utilization === "number")
-        out.push({ label: k.replaceAll("_", " "), used: clamp(v.utilization), reset: v.resets_at || "" });
-  } else if (p === "codex") {
+  if (p === "claude") return claudeWindows(payload);
+  if (p === "codex") {
     for (const [k, v] of Object.entries<Data>(payload.rate_limit || payload.rateLimit || {}))
       if (v && typeof v.used_percent === "number")
         out.push({
@@ -239,6 +240,75 @@ export function quotaWindows(p: string, payload: Data): Window[] {
     for (const [k, v] of Object.entries<Data>(payload.usages || {}))
       if (v?.limit > 0)
         out.push({ label: k.replaceAll("_", " "), used: clamp((Number(v.used) / Number(v.limit)) * 100), reset: String(v.reset_time || "") });
+  }
+  return out;
+}
+
+const percent = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? clamp(v) : null);
+/** Claude's legacy usage buckets. Anthropic also sends unused codenames (tangelo, iguana_necktie, omelette_promotional), usually null. */
+const claudeBuckets: [string, string][] = [
+  ["five_hour", "5-hour session"],
+  ["seven_day", "Weekly (all models)"],
+  ["seven_day_opus", "Weekly Opus"],
+  ["seven_day_omelette", "Weekly Opus"],
+  ["seven_day_sonnet", "Weekly Sonnet"],
+  ["seven_day_oauth_apps", "Third-party apps"],
+  ["seven_day_cowork", "Cowork"],
+];
+const claudeKinds: Record<string, string> = { session: "5-hour session", weekly_all: "Weekly (all models)" };
+function money(minor: number, places: number, currency: string): string {
+  const amount = minor / 10 ** places;
+  try {
+    return new Intl.NumberFormat("en-US", { style: "currency", currency: currency || "USD" }).format(amount);
+  } catch {
+    return `${amount.toFixed(places)} ${currency}`;
+  }
+}
+
+/**
+ * Anthropic's /api/oauth/usage. Percentages are percent used (0 to 100); a null bucket or
+ * a null percentage means the limit does not apply and is left out, never shown as 0%.
+ * When the newer `limits` list is present it names the model caps itself, so legacy keys
+ * only add what it lacks and unknown codenames are skipped. Money is in minor units.
+ */
+export function claudeWindows(payload: Data): Window[] {
+  const out: Window[] = [];
+  const add = (w: Window) => out.some((o) => o.label === w.label) || out.push(w);
+  for (const l of Array.isArray(payload.limits) ? payload.limits : []) {
+    const used = percent(l?.percent);
+    if (used === null) continue;
+    const model = l.scope?.model?.display_name;
+    const label = l.kind === "weekly_scoped" && model ? `Weekly ${model}` : claudeKinds[l.kind] || "Other limit";
+    add({ label, used, reset: l.resets_at || "" });
+  }
+  const modern = out.length > 0;
+  const known = new Set([...claudeBuckets.map(([k]) => k), "extra_usage", "spend", "limits"]);
+  for (const [key, label] of claudeBuckets) {
+    if (key === "seven_day_omelette" && percent(payload.seven_day_opus?.utilization) !== null) continue;
+    const used = percent(payload[key]?.utilization);
+    if (used !== null) add({ label, used, reset: payload[key].resets_at || "" });
+  }
+  if (!modern)
+    for (const [key, v] of Object.entries<Data>(payload)) {
+      const used = known.has(key) ? null : percent(v?.utilization);
+      if (used !== null) out.push({ label: "Other limit", used, reset: v.resets_at || "" });
+    }
+  const spend = payload.spend;
+  const extra = payload.extra_usage;
+  if (spend?.used && spend.enabled !== false) {
+    const cur = spend.used.currency || "USD";
+    const spent = money(Number(spend.used.amount_minor), spend.used.exponent ?? 2, cur);
+    const cap = spend.limit && Number.isFinite(Number(spend.limit.amount_minor)) ? Number(spend.limit.amount_minor) : null;
+    const of = cap === null ? null : money(cap, spend.limit.exponent ?? 2, spend.limit.currency || cur);
+    const used = cap === null ? null : (percent(spend.percent) ?? (cap > 0 ? clamp((Number(spend.used.amount_minor) / cap) * 100) : 0));
+    out.push({ label: "Extra usage", used, reset: "", detail: of ? `${spent} of ${of}` : `${spent} spent, no limit` });
+  } else if (extra?.is_enabled && typeof extra.used_credits === "number") {
+    const places = extra.decimal_places ?? 2;
+    const cur = extra.currency || "USD";
+    const cap = typeof extra.monthly_limit === "number" ? extra.monthly_limit : null;
+    const spent = money(extra.used_credits, places, cur);
+    const used = cap === null ? null : (percent(extra.utilization) ?? (cap > 0 ? clamp((extra.used_credits / cap) * 100) : 0));
+    out.push({ label: "Extra usage", used, reset: "", detail: cap === null ? `${spent} spent, no limit` : `${spent} of ${money(cap, places, cur)}` });
   }
   return out;
 }
