@@ -438,11 +438,13 @@ struct KeyFile {
 }
 
 impl KeyFile {
-    /// `google.CredentialsFromJSON`: Go marshals the normalized map (keys sorted, as
-    /// serde_json's map is) and unmarshals it into `credentialsFile` (oauth2 v0.30.0), so a
-    /// wrongly typed member of any field fails.
+    /// `google.CredentialsFromJSON`: Go marshals the normalized map with its keys sorted
+    /// and unmarshals it into `credentialsFile` (oauth2 v0.30.0), so a wrongly typed
+    /// member of any field fails and, of keys that fold together, the last sorted wins.
+    /// The workspace map keeps file order, so the keys are sorted here.
     fn parse(sa: &Map<String, Value>) -> Result<Self, String> {
-        let data = serde_json::to_vec(sa).map_err(|e| e.to_string())?;
+        let sorted: BTreeMap<&String, &Value> = sa.iter().collect();
+        let data = serde_json::to_vec(&sorted).map_err(|e| e.to_string())?;
         let mut f = Self::default();
         let mut unused: [String; 13] = Default::default();
         let mut unused = unused.iter_mut();
@@ -546,9 +548,9 @@ fn query_escape(s: &str) -> String {
     out
 }
 
-/// One token from the key file: `google.CredentialsFromJSON(...).TokenSource.Token()`.
-/// Returns the access token, which may be empty (Go then sends no `Authorization`).
-pub async fn access_token(client: &wreq::Client, sa: &Map<String, Value>, now: i64) -> Result<String, String> {
+/// The token request for a key file: Go's `jwtSource` URL and form body, signed at
+/// `now` (Unix seconds), after `CredentialsFromJSON` decoded the key.
+pub fn token_request(sa: &Map<String, Value>, now: i64) -> Result<(String, String), String> {
     // ponytail: Go first tries the key as a `web`/`installed` OAuth client file
     // (ConfigFromJSON), whose token source then needs an interactive handler; a Go
     // service-account file never has those members.
@@ -587,6 +589,14 @@ pub async fn access_token(client: &wreq::Client, sa: &Map<String, Value>, now: i
         query_escape(&assertion),
         query_escape(GRANT_TYPE)
     );
+    Ok((token_url.to_owned(), body))
+}
+
+/// One token from the key file: `google.CredentialsFromJSON(...).TokenSource.Token()`.
+/// Returns the access token, which may be empty (Go then sends no `Authorization`).
+pub async fn access_token(client: &wreq::Client, sa: &Map<String, Value>, now: i64) -> Result<String, String> {
+    let (token_url, body) = token_request(sa, now)?;
+    let token_url = token_url.as_str();
     let mut headers = GoHeaders::new();
     headers.set("Content-Type", "application/x-www-form-urlencoded");
     let upstream = proxy::send(client, token_url, headers, Bytes::from(body), None)

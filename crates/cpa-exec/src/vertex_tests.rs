@@ -390,3 +390,25 @@ fn pem_decode_follows_go_rules() {
     let empty = vertex_auth::pem_decode(b"-----BEGIN E-----\n-----END E-----\n").unwrap();
     assert!(empty.bytes.is_empty());
 }
+
+/// Go marshals the service account with sorted keys before decoding it, so of keys that
+/// fold to the same field the last in sorted order wins, whatever the file order.
+#[test]
+fn key_file_folded_duplicates_follow_sorted_order() {
+    let pem = fixture()["keys"]["pkcs1"].as_str().unwrap();
+    let account = |entries: &[(&str, &str)]| {
+        let mut sa = serde_json::Map::new();
+        for (k, v) in entries {
+            sa.insert((*k).into(), Value::String((*v).into()));
+        }
+        sa.insert("private_key".into(), Value::String(pem.into()));
+        sa
+    };
+    // File order puts the bogus value last; sorted, "typE" < "type".
+    let sa = account(&[("type", "service_account"), ("typE", "bogus")]);
+    let token = vertex_auth::token_request(&sa, 1_700_000_000);
+    assert!(token.is_ok(), "{token:?}");
+    let sa = account(&[("typE", "service_account"), ("type", "bogus")]);
+    let token = vertex_auth::token_request(&sa, 1_700_000_000);
+    assert_eq!(token.err().as_deref(), Some(r#"unknown credential type: "bogus""#));
+}
