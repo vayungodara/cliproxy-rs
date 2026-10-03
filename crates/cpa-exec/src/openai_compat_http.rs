@@ -8,7 +8,6 @@ use cpa_core::credential::Credential;
 use cpa_core::exec::ExecError;
 use http::HeaderMap;
 
-use crate::kimi_http;
 use crate::proxy::{GoClients, Hooks, Proxy};
 
 pub(crate) use crate::proxy::{GoHeaders, Upstream};
@@ -63,20 +62,4 @@ pub(crate) fn lines(
     max: usize,
 ) -> futures_util::stream::BoxStream<'static, Result<Bytes, ExecError>> {
     crate::proxy::lines(upstream.body, max)
-}
-
-// ponytail: adapter for cpa_common::headers (owner: server thread), interim
-// kimi_http::custom_headers (Go util.ApplyCustomHeadersFromAttrs).
-pub(crate) fn custom_headers(
-    credential: &Credential,
-    inbound: &HeaderMap,
-    session: Option<&str>,
-) -> Vec<(String, String)> {
-    kimi_http::custom_headers(credential, inbound, session)
-}
-
-// ponytail: adapter for cpa_common::payload (owner: server thread; Go
-// helps.ApplyPayloadConfigWithRequest, M4-0031). Identity until payload rules land.
-pub(crate) fn apply_payload_rules(body: Vec<u8>, _cfg: &Config) -> Vec<u8> {
-    body
 }

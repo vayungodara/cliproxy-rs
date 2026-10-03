@@ -57,6 +57,8 @@ mod tokens;
 mod translate;
 mod upstream;
 mod wire;
+pub mod xai_auth;
+mod xai_url;
 
 use cpa_core::config::Config;
 use cpa_core::credential::{Credential, MetadataPatch};

@@ -1,0 +1,1273 @@
+{
+  "sprint": [
+    [
+      "\"  s  \"",
+      "s"
+    ],
+    [
+      "123",
+      "123"
+    ],
+    [
+      "100000000",
+      "1e+08"
+    ],
+    [
+      "1e21",
+      "1e+21"
+    ],
+    [
+      "1e20",
+      "1e+20"
+    ],
+    [
+      "123456",
+      "123456"
+    ],
+    [
+      "1234567",
+      "1.234567e+06"
+    ],
+    [
+      "0.0001",
+      "0.0001"
+    ],
+    [
+      "0.00001",
+      "1e-05"
+    ],
+    [
+      "-2.5",
+      "-2.5"
+    ],
+    [
+      "1.5e300",
+      "1.5e+300"
+    ],
+    [
+      "true",
+      "true"
+    ],
+    [
+      "false",
+      "false"
+    ],
+    [
+      "[1,\"a\",null]",
+      "[1 a \u003cnil\u003e]"
+    ],
+    [
+      "{\"b\":1,\"a\":\"x\"}",
+      "map[a:x b:1]"
+    ],
+    [
+      "0",
+      "0"
+    ],
+    [
+      "-0",
+      "-0"
+    ]
+  ],
+  "expiry": [
+    [
+      3600,
+      "2001-09-09T02:46:40Z"
+    ],
+    [
+      1,
+      "2001-09-09T01:46:41Z"
+    ],
+    [
+      9223372036854775807,
+      "2001-09-09T01:46:39Z"
+    ],
+    [
+      9223372037,
+      "1709-05-31T01:59:23Z"
+    ],
+    [
+      1099511627776,
+      "1770-08-01T03:49:13Z"
+    ]
+  ],
+  "validate": [
+    [
+      "",
+      false,
+      "xai discovery token_endpoint is empty"
+    ],
+    [
+      "   ",
+      false,
+      "xai discovery token_endpoint is empty"
+    ],
+    [
+      "https://auth.x.ai/oauth2/token",
+      true,
+      "https://auth.x.ai/oauth2/token"
+    ],
+    [
+      " https://x.ai/t ",
+      true,
+      "https://x.ai/t"
+    ],
+    [
+      "https://AUTH.X.AI/t",
+      true,
+      "https://AUTH.X.AI/t"
+    ],
+    [
+      "HTTPS://auth.x.ai/t",
+      true,
+      "HTTPS://auth.x.ai/t"
+    ],
+    [
+      "http://auth.x.ai/t",
+      false,
+      "xai discovery token_endpoint must use https: \"http://auth.x.ai/t\""
+    ],
+    [
+      "https://evilx.ai/t",
+      false,
+      "xai discovery token_endpoint host \"evilx.ai\" is not on x.ai"
+    ],
+    [
+      "https://x.ai.example.com/t",
+      false,
+      "xai discovery token_endpoint host \"x.ai.example.com\" is not on x.ai"
+    ],
+    [
+      "https://auth.x.ai:8443/t",
+      true,
+      "https://auth.x.ai:8443/t"
+    ],
+    [
+      "https://user:pw@auth.x.ai/t",
+      true,
+      "https://user:pw@auth.x.ai/t"
+    ],
+    [
+      "https://auth.x.ai./t",
+      false,
+      "xai discovery token_endpoint host \"auth.x.ai.\" is not on x.ai"
+    ],
+    [
+      "https://[::1]/t",
+      false,
+      "xai discovery token_endpoint host \"::1\" is not on x.ai"
+    ],
+    [
+      "ftp://x.ai/t",
+      false,
+      "xai discovery token_endpoint must use https: \"ftp://x.ai/t\""
+    ],
+    [
+      "https://%61uth.x.ai/t",
+      false,
+      "xai discovery token_endpoint is invalid: parse \"https://%61uth.x.ai/t\": invalid URL escape \"%61\""
+    ],
+    [
+      "https://auth.x.ai\\@evil.com/t",
+      false,
+      "xai discovery token_endpoint is invalid: parse \"https://auth.x.ai\\\\@evil.com/t\": net/url: invalid userinfo"
+    ],
+    [
+      "https://auth.x.ai\t/t",
+      false,
+      "xai discovery token_endpoint is invalid: parse \"https://auth.x.ai\\t/t\": net/url: invalid control character in URL"
+    ],
+    [
+      "https://auth.x.ai/t\n",
+      true,
+      "https://auth.x.ai/t"
+    ],
+    [
+      "https:auth.x.ai/t",
+      false,
+      "xai discovery token_endpoint host \"\" is not on x.ai"
+    ],
+    [
+      "https:///auth.x.ai/t",
+      false,
+      "xai discovery token_endpoint host \"\" is not on x.ai"
+    ],
+    [
+      "//auth.x.ai/t",
+      false,
+      "xai discovery token_endpoint must use https: \"//auth.x.ai/t\""
+    ],
+    [
+      "https://auth.x.ai#frag",
+      true,
+      "https://auth.x.ai#frag"
+    ],
+    [
+      "https://auth.x.ai?q=1",
+      true,
+      "https://auth.x.ai?q=1"
+    ],
+    [
+      "https://a_b.x.ai/t",
+      true,
+      "https://a_b.x.ai/t"
+    ],
+    [
+      "https://xn--fsq.x.ai/t",
+      true,
+      "https://xn--fsq.x.ai/t"
+    ],
+    [
+      "https://例.x.ai/t",
+      true,
+      "https://例.x.ai/t"
+    ],
+    [
+      "https://auth.x.ai:/t",
+      true,
+      "https://auth.x.ai:/t"
+    ],
+    [
+      "https://auth.x.ai:99999/t",
+      true,
+      "https://auth.x.ai:99999/t"
+    ],
+    [
+      "https://auth.x.ai%2f.evil.com/t",
+      false,
+      "xai discovery token_endpoint is invalid: parse \"https://auth.x.ai%2f.evil.com/t\": invalid URL escape \"%2f\""
+    ],
+    [
+      "https://auth.x.ai:80:90/t",
+      false,
+      "xai discovery token_endpoint is invalid: parse \"https://auth.x.ai:80:90/t\": invalid port \":80:90\" after host"
+    ],
+    [
+      "https://[fe80::1%25en0]/t",
+      false,
+      "xai discovery token_endpoint host \"fe80::1%en0\" is not on x.ai"
+    ],
+    [
+      "https://[1.2.3.4]/t",
+      false,
+      "xai discovery token_endpoint is invalid: parse \"https://[1.2.3.4]/t\": invalid IP-literal"
+    ],
+    [
+      "https://[::ffff:1.2.3.4]/t",
+      false,
+      "xai discovery token_endpoint host \"::ffff:1.2.3.4\" is not on x.ai"
+    ],
+    [
+      "*",
+      false,
+      "xai discovery token_endpoint must use https: \"*\""
+    ],
+    [
+      ":foo",
+      false,
+      "xai discovery token_endpoint is invalid: parse \":foo\": missing protocol scheme"
+    ],
+    [
+      "https://auth.x.ai/%zz",
+      false,
+      "xai discovery token_endpoint is invalid: parse \"https://auth.x.ai/%zz\": invalid URL escape \"%zz\""
+    ],
+    [
+      "https://auth.x.ai/#%zz",
+      false,
+      "xai discovery token_endpoint is invalid: parse \"https://auth.x.ai/#%zz\": invalid URL escape \"%zz\""
+    ],
+    [
+      "https://auth.x.ai/#ok%41",
+      true,
+      "https://auth.x.ai/#ok%41"
+    ],
+    [
+      "https://a%25b.x.ai/t",
+      true,
+      "https://a%25b.x.ai/t"
+    ],
+    [
+      "https://user%zz@auth.x.ai/t",
+      false,
+      "xai discovery token_endpoint is invalid: parse \"https://user%zz@auth.x.ai/t\": invalid URL escape \"%zz\""
+    ],
+    [
+      "https://[::1/t",
+      false,
+      "xai discovery token_endpoint is invalid: parse \"https://[::1/t\": missing ']' in host"
+    ],
+    [
+      "https://foo%e4%be%8b.x.ai/t",
+      true,
+      "https://foo%e4%be%8b.x.ai/t"
+    ],
+    [
+      "https://auth.x.ai/%e4",
+      true,
+      "https://auth.x.ai/%e4"
+    ],
+    [
+      "https://auth.x.ai/t?%zz",
+      true,
+      "https://auth.x.ai/t?%zz"
+    ],
+    [
+      "https://AUTH.x.AI",
+      true,
+      "https://AUTH.x.AI"
+    ],
+    [
+      "https://auth.x.ai%",
+      false,
+      "xai discovery token_endpoint is invalid: parse \"https://auth.x.ai%\": invalid URL escape \"%\""
+    ],
+    [
+      "https://auth.x.ai%4",
+      false,
+      "xai discovery token_endpoint is invalid: parse \"https://auth.x.ai%4\": invalid URL escape \"%4\""
+    ],
+    [
+      "https://u:p@w@auth.x.ai/t",
+      true,
+      "https://u:p@w@auth.x.ai/t"
+    ],
+    [
+      "https://auth.x.ai /t",
+      false,
+      "xai discovery token_endpoint is invalid: parse \"https://auth.x.ai /t\": invalid character \" \" in host name"
+    ],
+    [
+      "https://x.ai:443",
+      true,
+      "https://x.ai:443"
+    ],
+    [
+      "https://sub.X.Ai./t",
+      false,
+      "xai discovery token_endpoint host \"sub.x.ai.\" is not on x.ai"
+    ],
+    [
+      "https:/auth.x.ai/t",
+      false,
+      "xai discovery token_endpoint host \"\" is not on x.ai"
+    ],
+    [
+      "https://auth .x.ai/t",
+      true,
+      "https://auth .x.ai/t"
+    ],
+    [
+      "https://[::1]:8443/t",
+      false,
+      "xai discovery token_endpoint host \"::1\" is not on x.ai"
+    ],
+    [
+      "https://[::1]x/t",
+      false,
+      "xai discovery token_endpoint is invalid: parse \"https://[::1]x/t\": invalid port \"x\" after host"
+    ],
+    [
+      "postgres://a:1,b:2/t",
+      false,
+      "xai discovery token_endpoint must use https: \"postgres://a:1,b:2/t\""
+    ],
+    [
+      "postgresql://a:1:2/t",
+      false,
+      "xai discovery token_endpoint must use https: \"postgresql://a:1:2/t\""
+    ],
+    [
+      "https://a:1,b:2/t",
+      false,
+      "xai discovery token_endpoint is invalid: parse \"https://a:1,b:2/t\": invalid port \":1,b:2\" after host"
+    ],
+    [
+      "https://attacker.example\\[::1%25.x.ai]/oauth2/token",
+      true,
+      "https://attacker.example\\[::1%25.x.ai]/oauth2/token"
+    ]
+  ],
+  "file_names": [
+    [
+      "a@b.com",
+      "s",
+      "xai-a@b.com.json"
+    ],
+    [
+      "  A.B+c@x.ai ",
+      "",
+      "xai-A.B-c@x.ai.json"
+    ],
+    [
+      "",
+      "user|1",
+      "xai-user-1.json"
+    ],
+    [
+      "é@x.ai",
+      "",
+      "xai-@x.ai.json"
+    ],
+    [
+      "---",
+      "sub",
+      "xai-sub.json"
+    ],
+    [
+      "-a b-",
+      "",
+      "xai-a-b.json"
+    ],
+    [
+      "",
+      " -z- ",
+      "xai-z.json"
+    ]
+  ],
+  "login": [
+    {
+      "name": "success_after_pending",
+      "script": [
+        {
+          "path": "/.well-known/openid-configuration",
+          "status": 200,
+          "body": "{\"issuer\":\"https://auth.x.ai\",\"device_authorization_endpoint\":\"https://auth.x.ai/oauth2/device/code\",\"token_endpoint\":\"https://auth.x.ai/oauth2/token\"}"
+        },
+        {
+          "path": "/oauth2/device/code",
+          "status": 200,
+          "body": "{\"device_code\":\"dev-1\",\"user_code\":\"ABCD-EFGH\",\"verification_uri\":\"https://accounts.x.ai/device\",\"verification_uri_complete\":\"https://accounts.x.ai/device?user_code=ABCD-EFGH\",\"expires_in\":600,\"interval\":0}"
+        },
+        {
+          "path": "/oauth2/token",
+          "status": 400,
+          "body": "{\"error\":\"authorization_pending\"}"
+        },
+        {
+          "path": "/oauth2/token",
+          "status": 200,
+          "body": "{\"access_token\":\" at-1 \",\"refresh_token\":\"rt-1\",\"id_token\":\"eyJhbGciOiJub25lIn0.eyJlbWFpbCI6IiBEZXYuVXNlcit0ZXN0QEV4YW1wbGUuY29tICIsInN1YiI6InVzZXItNDIifQ.sig\",\"token_type\":\"Bearer\",\"expires_in\":3600}"
+        }
+      ],
+      "requests": [
+        "GET /.well-known/openid-configuration HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nAccept: application/json\r\nAccept-Encoding: gzip\r\n\r\n",
+        "POST /oauth2/device/code HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 119\r\nAccept: application/json\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nclient_id=b1a00492-073a-47ea-816f-4c329264a828\u0026scope=openid+profile+email+offline_access+grok-cli%3Aaccess+api%3Aaccess",
+        "POST /oauth2/token HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 130\r\nAccept: application/json\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nclient_id=b1a00492-073a-47ea-816f-4c329264a828\u0026device_code=dev-1\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code",
+        "POST /oauth2/token HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 130\r\nAccept: application/json\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nclient_id=b1a00492-073a-47ea-816f-4c329264a828\u0026device_code=dev-1\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code"
+      ],
+      "file_name": "xai-Dev.User-test@Example.com.json",
+      "file": "{\n  \"access_token\": \"at-1\",\n  \"auth_kind\": \"oauth\",\n  \"base_url\": \"https://api.x.ai/v1\",\n  \"disabled\": false,\n  \"email\": \"Dev.User+test@Example.com\",\n  \"expired\": \"TIME\",\n  \"expires_in\": 3600,\n  \"id_token\": \"eyJhbGciOiJub25lIn0.eyJlbWFpbCI6IiBEZXYuVXNlcit0ZXN0QEV4YW1wbGUuY29tICIsInN1YiI6InVzZXItNDIifQ.sig\",\n  \"last_refresh\": \"TIME\",\n  \"refresh_token\": \"rt-1\",\n  \"sub\": \"user-42\",\n  \"token_endpoint\": \"https://auth.x.ai/oauth2/token\",\n  \"token_type\": \"Bearer\",\n  \"type\": \"xai\"\n}\n",
+      "label": "Dev.User+test@Example.com"
+    },
+    {
+      "name": "subject_only_merges_existing_file",
+      "script": [
+        {
+          "path": "/.well-known/openid-configuration",
+          "status": 200,
+          "body": "{\"issuer\":\"https://auth.x.ai\",\"device_authorization_endpoint\":\"https://auth.x.ai/oauth2/device/code\",\"token_endpoint\":\"https://auth.x.ai/oauth2/token\"}"
+        },
+        {
+          "path": "/oauth2/device/code",
+          "status": 200,
+          "body": "{\"device_code\":\"dev-2\",\"user_code\":\"WXYZ\",\"verification_uri\":\"https://accounts.x.ai/device\"}"
+        },
+        {
+          "path": "/oauth2/token",
+          "status": 200,
+          "body": "{\"access_token\":\"at-2\",\"id_token\":\"eyJhbGciOiJub25lIn0.eyJzdWIiOiJhY2N0fDcifQ.sig\"}"
+        }
+      ],
+      "existing": "{\"type\":\"xai\",\"access_token\":\"old\",\"refresh_token\":\"old-rt\",\"expired\":\"2020-01-01T00:00:00Z\",\"prefix\":\"team\",\"proxy-url\":\"socks5://127.0.0.1:1080\",\"disabled\":true,\"priority\":1e1,\"note\":\"\u003ckept\u003e\"}",
+      "existing_name": "xai-acct-7.json",
+      "requests": [
+        "GET /.well-known/openid-configuration HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nAccept: application/json\r\nAccept-Encoding: gzip\r\n\r\n",
+        "POST /oauth2/device/code HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 119\r\nAccept: application/json\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nclient_id=b1a00492-073a-47ea-816f-4c329264a828\u0026scope=openid+profile+email+offline_access+grok-cli%3Aaccess+api%3Aaccess",
+        "POST /oauth2/token HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 130\r\nAccept: application/json\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nclient_id=b1a00492-073a-47ea-816f-4c329264a828\u0026device_code=dev-2\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code"
+      ],
+      "file_name": "xai-acct-7.json",
+      "file": "{\n  \"access_token\": \"at-2\",\n  \"auth_kind\": \"oauth\",\n  \"base_url\": \"https://api.x.ai/v1\",\n  \"disabled\": true,\n  \"expired\": \"\",\n  \"expires_in\": 0,\n  \"id_token\": \"eyJhbGciOiJub25lIn0.eyJzdWIiOiJhY2N0fDcifQ.sig\",\n  \"last_refresh\": \"TIME\",\n  \"note\": \"\\u003ckept\\u003e\",\n  \"prefix\": \"team\",\n  \"priority\": 10,\n  \"proxy_url\": \"socks5://127.0.0.1:1080\",\n  \"refresh_token\": \"\",\n  \"sub\": \"acct|7\",\n  \"token_endpoint\": \"https://auth.x.ai/oauth2/token\",\n  \"token_type\": \"\",\n  \"type\": \"xai\"\n}\n",
+      "label": "xAI"
+    },
+    {
+      "name": "slow_down_then_denied",
+      "script": [
+        {
+          "path": "/.well-known/openid-configuration",
+          "status": 200,
+          "body": "{\"issuer\":\"https://auth.x.ai\",\"device_authorization_endpoint\":\"https://auth.x.ai/oauth2/device/code\",\"token_endpoint\":\"https://auth.x.ai/oauth2/token\"}"
+        },
+        {
+          "path": "/oauth2/device/code",
+          "status": 200,
+          "body": "{\"device_code\":\"dev-1\",\"user_code\":\"ABCD-EFGH\",\"verification_uri\":\"https://accounts.x.ai/device\",\"verification_uri_complete\":\"https://accounts.x.ai/device?user_code=ABCD-EFGH\",\"expires_in\":600,\"interval\":0}"
+        },
+        {
+          "path": "/oauth2/token",
+          "status": 400,
+          "body": "{\"error\":\"slow_down\"}"
+        },
+        {
+          "path": "/oauth2/token",
+          "status": 400,
+          "body": "{\"error\":\"access_denied\"}"
+        }
+      ],
+      "requests": [
+        "GET /.well-known/openid-configuration HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nAccept: application/json\r\nAccept-Encoding: gzip\r\n\r\n",
+        "POST /oauth2/device/code HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 119\r\nAccept: application/json\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nclient_id=b1a00492-073a-47ea-816f-4c329264a828\u0026scope=openid+profile+email+offline_access+grok-cli%3Aaccess+api%3Aaccess",
+        "POST /oauth2/token HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 130\r\nAccept: application/json\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nclient_id=b1a00492-073a-47ea-816f-4c329264a828\u0026device_code=dev-1\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code",
+        "POST /oauth2/token HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 130\r\nAccept: application/json\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nclient_id=b1a00492-073a-47ea-816f-4c329264a828\u0026device_code=dev-1\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code"
+      ],
+      "error": "xai: xai device authorization denied"
+    },
+    {
+      "name": "expired_token",
+      "script": [
+        {
+          "path": "/.well-known/openid-configuration",
+          "status": 200,
+          "body": "{\"issuer\":\"https://auth.x.ai\",\"device_authorization_endpoint\":\"https://auth.x.ai/oauth2/device/code\",\"token_endpoint\":\"https://auth.x.ai/oauth2/token\"}"
+        },
+        {
+          "path": "/oauth2/device/code",
+          "status": 200,
+          "body": "{\"device_code\":\"dev-1\",\"user_code\":\"ABCD-EFGH\",\"verification_uri\":\"https://accounts.x.ai/device\",\"verification_uri_complete\":\"https://accounts.x.ai/device?user_code=ABCD-EFGH\",\"expires_in\":600,\"interval\":0}"
+        },
+        {
+          "path": "/oauth2/token",
+          "status": 400,
+          "body": "{\"error\":\"expired_token\"}"
+        }
+      ],
+      "requests": [
+        "GET /.well-known/openid-configuration HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nAccept: application/json\r\nAccept-Encoding: gzip\r\n\r\n",
+        "POST /oauth2/device/code HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 119\r\nAccept: application/json\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nclient_id=b1a00492-073a-47ea-816f-4c329264a828\u0026scope=openid+profile+email+offline_access+grok-cli%3Aaccess+api%3Aaccess",
+        "POST /oauth2/token HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 130\r\nAccept: application/json\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nclient_id=b1a00492-073a-47ea-816f-4c329264a828\u0026device_code=dev-1\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code"
+      ],
+      "error": "xai: xai device code expired"
+    },
+    {
+      "name": "token_error_with_description",
+      "script": [
+        {
+          "path": "/.well-known/openid-configuration",
+          "status": 200,
+          "body": "{\"issuer\":\"https://auth.x.ai\",\"device_authorization_endpoint\":\"https://auth.x.ai/oauth2/device/code\",\"token_endpoint\":\"https://auth.x.ai/oauth2/token\"}"
+        },
+        {
+          "path": "/oauth2/device/code",
+          "status": 200,
+          "body": "{\"device_code\":\"dev-1\",\"user_code\":\"ABCD-EFGH\",\"verification_uri\":\"https://accounts.x.ai/device\",\"verification_uri_complete\":\"https://accounts.x.ai/device?user_code=ABCD-EFGH\",\"expires_in\":600,\"interval\":0}"
+        },
+        {
+          "path": "/oauth2/token",
+          "status": 400,
+          "body": "{\"error\":\"invalid_grant\",\"error_description\":\" code reused \"}"
+        }
+      ],
+      "requests": [
+        "GET /.well-known/openid-configuration HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nAccept: application/json\r\nAccept-Encoding: gzip\r\n\r\n",
+        "POST /oauth2/device/code HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 119\r\nAccept: application/json\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nclient_id=b1a00492-073a-47ea-816f-4c329264a828\u0026scope=openid+profile+email+offline_access+grok-cli%3Aaccess+api%3Aaccess",
+        "POST /oauth2/token HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 130\r\nAccept: application/json\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nclient_id=b1a00492-073a-47ea-816f-4c329264a828\u0026device_code=dev-1\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code"
+      ],
+      "error": "xai: xai device token error: invalid_grant: code reused"
+    },
+    {
+      "name": "token_error_without_description",
+      "script": [
+        {
+          "path": "/.well-known/openid-configuration",
+          "status": 200,
+          "body": "{\"issuer\":\"https://auth.x.ai\",\"device_authorization_endpoint\":\"https://auth.x.ai/oauth2/device/code\",\"token_endpoint\":\"https://auth.x.ai/oauth2/token\"}"
+        },
+        {
+          "path": "/oauth2/device/code",
+          "status": 200,
+          "body": "{\"device_code\":\"dev-1\",\"user_code\":\"ABCD-EFGH\",\"verification_uri\":\"https://accounts.x.ai/device\",\"verification_uri_complete\":\"https://accounts.x.ai/device?user_code=ABCD-EFGH\",\"expires_in\":600,\"interval\":0}"
+        },
+        {
+          "path": "/oauth2/token",
+          "status": 400,
+          "body": "{\"error\":\"server_error\",\"error_description\":\"  \"}"
+        }
+      ],
+      "requests": [
+        "GET /.well-known/openid-configuration HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nAccept: application/json\r\nAccept-Encoding: gzip\r\n\r\n",
+        "POST /oauth2/device/code HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 119\r\nAccept: application/json\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nclient_id=b1a00492-073a-47ea-816f-4c329264a828\u0026scope=openid+profile+email+offline_access+grok-cli%3Aaccess+api%3Aaccess",
+        "POST /oauth2/token HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 130\r\nAccept: application/json\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nclient_id=b1a00492-073a-47ea-816f-4c329264a828\u0026device_code=dev-1\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code"
+      ],
+      "error": "xai: xai device token error: server_error"
+    },
+    {
+      "name": "token_status_without_error_field",
+      "script": [
+        {
+          "path": "/.well-known/openid-configuration",
+          "status": 200,
+          "body": "{\"issuer\":\"https://auth.x.ai\",\"device_authorization_endpoint\":\"https://auth.x.ai/oauth2/device/code\",\"token_endpoint\":\"https://auth.x.ai/oauth2/token\"}"
+        },
+        {
+          "path": "/oauth2/device/code",
+          "status": 200,
+          "body": "{\"device_code\":\"dev-1\",\"user_code\":\"ABCD-EFGH\",\"verification_uri\":\"https://accounts.x.ai/device\",\"verification_uri_complete\":\"https://accounts.x.ai/device?user_code=ABCD-EFGH\",\"expires_in\":600,\"interval\":0}"
+        },
+        {
+          "path": "/oauth2/token",
+          "status": 500,
+          "body": "{\"message\":\" busy \"}"
+        }
+      ],
+      "requests": [
+        "GET /.well-known/openid-configuration HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nAccept: application/json\r\nAccept-Encoding: gzip\r\n\r\n",
+        "POST /oauth2/device/code HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 119\r\nAccept: application/json\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nclient_id=b1a00492-073a-47ea-816f-4c329264a828\u0026scope=openid+profile+email+offline_access+grok-cli%3Aaccess+api%3Aaccess",
+        "POST /oauth2/token HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 130\r\nAccept: application/json\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nclient_id=b1a00492-073a-47ea-816f-4c329264a828\u0026device_code=dev-1\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code"
+      ],
+      "error": "xai: xai device token request failed with status 500: {\"message\":\" busy \"}"
+    },
+    {
+      "name": "token_missing_access_token",
+      "script": [
+        {
+          "path": "/.well-known/openid-configuration",
+          "status": 200,
+          "body": "{\"issuer\":\"https://auth.x.ai\",\"device_authorization_endpoint\":\"https://auth.x.ai/oauth2/device/code\",\"token_endpoint\":\"https://auth.x.ai/oauth2/token\"}"
+        },
+        {
+          "path": "/oauth2/device/code",
+          "status": 200,
+          "body": "{\"device_code\":\"dev-1\",\"user_code\":\"ABCD-EFGH\",\"verification_uri\":\"https://accounts.x.ai/device\",\"verification_uri_complete\":\"https://accounts.x.ai/device?user_code=ABCD-EFGH\",\"expires_in\":600,\"interval\":0}"
+        },
+        {
+          "path": "/oauth2/token",
+          "status": 200,
+          "body": "{\"access_token\":\"  \",\"refresh_token\":\"rt\"}"
+        }
+      ],
+      "requests": [
+        "GET /.well-known/openid-configuration HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nAccept: application/json\r\nAccept-Encoding: gzip\r\n\r\n",
+        "POST /oauth2/device/code HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 119\r\nAccept: application/json\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nclient_id=b1a00492-073a-47ea-816f-4c329264a828\u0026scope=openid+profile+email+offline_access+grok-cli%3Aaccess+api%3Aaccess",
+        "POST /oauth2/token HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 130\r\nAccept: application/json\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nclient_id=b1a00492-073a-47ea-816f-4c329264a828\u0026device_code=dev-1\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code"
+      ],
+      "error": "xai: xai device token response missing access_token"
+    },
+    {
+      "name": "discovery_status_error",
+      "script": [
+        {
+          "path": "/.well-known/openid-configuration",
+          "status": 503,
+          "body": " maintenance \n"
+        }
+      ],
+      "requests": [
+        "GET /.well-known/openid-configuration HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nAccept: application/json\r\nAccept-Encoding: gzip\r\n\r\n"
+      ],
+      "error": "xai: failed to start device flow: xai discovery failed with status 503: maintenance"
+    },
+    {
+      "name": "discovery_http_device_endpoint",
+      "script": [
+        {
+          "path": "/.well-known/openid-configuration",
+          "status": 200,
+          "body": "{\"device_authorization_endpoint\":\"http://auth.x.ai/oauth2/device/code\",\"token_endpoint\":\"https://auth.x.ai/oauth2/token\"}"
+        }
+      ],
+      "requests": [
+        "GET /.well-known/openid-configuration HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nAccept: application/json\r\nAccept-Encoding: gzip\r\n\r\n"
+      ],
+      "error": "xai: failed to start device flow: xai discovery device_authorization_endpoint must use https: \"http://auth.x.ai/oauth2/device/code\""
+    },
+    {
+      "name": "discovery_foreign_token_host",
+      "script": [
+        {
+          "path": "/.well-known/openid-configuration",
+          "status": 200,
+          "body": "{\"device_authorization_endpoint\":\"https://auth.x.ai/oauth2/device/code\",\"token_endpoint\":\"https://x.ai.example.com/oauth2/token\"}"
+        }
+      ],
+      "requests": [
+        "GET /.well-known/openid-configuration HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nAccept: application/json\r\nAccept-Encoding: gzip\r\n\r\n"
+      ],
+      "error": "xai: failed to start device flow: xai discovery token_endpoint host \"x.ai.example.com\" is not on x.ai"
+    },
+    {
+      "name": "discovery_missing_token_endpoint",
+      "script": [
+        {
+          "path": "/.well-known/openid-configuration",
+          "status": 200,
+          "body": "{\"device_authorization_endpoint\":\"https://auth.x.ai/oauth2/device/code\",\"token_endpoint\":null}"
+        }
+      ],
+      "requests": [
+        "GET /.well-known/openid-configuration HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nAccept: application/json\r\nAccept-Encoding: gzip\r\n\r\n"
+      ],
+      "error": "xai: failed to start device flow: xai discovery token_endpoint is empty"
+    },
+    {
+      "name": "device_missing_user_code",
+      "script": [
+        {
+          "path": "/.well-known/openid-configuration",
+          "status": 200,
+          "body": "{\"issuer\":\"https://auth.x.ai\",\"device_authorization_endpoint\":\"https://auth.x.ai/oauth2/device/code\",\"token_endpoint\":\"https://auth.x.ai/oauth2/token\"}"
+        },
+        {
+          "path": "/oauth2/device/code",
+          "status": 200,
+          "body": "{\"device_code\":\"d\",\"verification_uri\":\"https://accounts.x.ai/device\"}"
+        }
+      ],
+      "requests": [
+        "GET /.well-known/openid-configuration HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nAccept: application/json\r\nAccept-Encoding: gzip\r\n\r\n",
+        "POST /oauth2/device/code HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 119\r\nAccept: application/json\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nclient_id=b1a00492-073a-47ea-816f-4c329264a828\u0026scope=openid+profile+email+offline_access+grok-cli%3Aaccess+api%3Aaccess"
+      ],
+      "error": "xai: failed to start device flow: xai device code: response missing user_code"
+    },
+    {
+      "name": "device_missing_verification_uri",
+      "script": [
+        {
+          "path": "/.well-known/openid-configuration",
+          "status": 200,
+          "body": "{\"issuer\":\"https://auth.x.ai\",\"device_authorization_endpoint\":\"https://auth.x.ai/oauth2/device/code\",\"token_endpoint\":\"https://auth.x.ai/oauth2/token\"}"
+        },
+        {
+          "path": "/oauth2/device/code",
+          "status": 200,
+          "body": "{\"device_code\":\"d\",\"user_code\":\"u\",\"verification_uri\":\" \"}"
+        }
+      ],
+      "requests": [
+        "GET /.well-known/openid-configuration HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nAccept: application/json\r\nAccept-Encoding: gzip\r\n\r\n",
+        "POST /oauth2/device/code HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 119\r\nAccept: application/json\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nclient_id=b1a00492-073a-47ea-816f-4c329264a828\u0026scope=openid+profile+email+offline_access+grok-cli%3Aaccess+api%3Aaccess"
+      ],
+      "error": "xai: failed to start device flow: xai device code: response missing verification URI"
+    },
+    {
+      "name": "token_keys_fold_and_last_duplicate_wins",
+      "script": [
+        {
+          "path": "/.well-known/openid-configuration",
+          "status": 200,
+          "body": "{\"Device_Authorization_Endpoint\":\"https://auth.x.ai/oauth2/device/code\",\"token_endpoint\":\"https://evil.example/t\",\"TOKEN_ENDPOINT\":\"https://auth.x.ai/oauth2/token\"}"
+        },
+        {
+          "path": "/oauth2/device/code",
+          "status": 200,
+          "body": "{\"DEVICE_CODE\":\"dev-3\",\"user_code\":\"U\",\"verification_uri\":\"https://accounts.x.ai/device\",\"interval\":null,\"expires_in\":null}"
+        },
+        {
+          "path": "/oauth2/token",
+          "status": 200,
+          "body": "{\"ACCESS_TOKEN\":\"at-ci\",\"Refresh_Token\":\"rt-ci\",\"expires_in\":10,\"expires_in\":20,\"error\":null,\"extra\":[1,{\"a\":2}]}"
+        }
+      ],
+      "requests": [
+        "GET /.well-known/openid-configuration HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nAccept: application/json\r\nAccept-Encoding: gzip\r\n\r\n",
+        "POST /oauth2/device/code HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 119\r\nAccept: application/json\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nclient_id=b1a00492-073a-47ea-816f-4c329264a828\u0026scope=openid+profile+email+offline_access+grok-cli%3Aaccess+api%3Aaccess",
+        "POST /oauth2/token HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 130\r\nAccept: application/json\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nclient_id=b1a00492-073a-47ea-816f-4c329264a828\u0026device_code=dev-3\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code"
+      ],
+      "file_name": "xai-1790981908223.json",
+      "file": "{\n  \"access_token\": \"at-ci\",\n  \"auth_kind\": \"oauth\",\n  \"base_url\": \"https://api.x.ai/v1\",\n  \"disabled\": false,\n  \"expired\": \"TIME\",\n  \"expires_in\": 20,\n  \"id_token\": \"\",\n  \"last_refresh\": \"TIME\",\n  \"refresh_token\": \"rt-ci\",\n  \"token_endpoint\": \"https://auth.x.ai/oauth2/token\",\n  \"token_type\": \"\",\n  \"type\": \"xai\"\n}\n",
+      "label": "xAI"
+    },
+    {
+      "name": "discovery_not_json",
+      "script": [
+        {
+          "path": "/.well-known/openid-configuration",
+          "status": 200,
+          "body": "not json"
+        }
+      ],
+      "requests": [
+        "GET /.well-known/openid-configuration HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nAccept: application/json\r\nAccept-Encoding: gzip\r\n\r\n"
+      ],
+      "error": "xai: failed to start device flow: xai discovery: parse response: invalid character 'o' in literal null (expecting 'u')"
+    },
+    {
+      "name": "discovery_top_level_array",
+      "script": [
+        {
+          "path": "/.well-known/openid-configuration",
+          "status": 200,
+          "body": "[\"https://auth.x.ai/a\"]"
+        }
+      ],
+      "requests": [
+        "GET /.well-known/openid-configuration HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nAccept: application/json\r\nAccept-Encoding: gzip\r\n\r\n"
+      ],
+      "error": "xai: failed to start device flow: xai discovery: parse response: json: cannot unmarshal array into Go value of type struct { DeviceAuthorizationEndpoint string \"json:\\\"device_authorization_endpoint\\\"\"; TokenEndpoint string \"json:\\\"token_endpoint\\\"\" }"
+    },
+    {
+      "name": "discovery_top_level_null",
+      "script": [
+        {
+          "path": "/.well-known/openid-configuration",
+          "status": 200,
+          "body": "null"
+        }
+      ],
+      "requests": [
+        "GET /.well-known/openid-configuration HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nAccept: application/json\r\nAccept-Encoding: gzip\r\n\r\n"
+      ],
+      "error": "xai: failed to start device flow: xai discovery device_authorization_endpoint is empty"
+    },
+    {
+      "name": "device_interval_wrong_type",
+      "script": [
+        {
+          "path": "/.well-known/openid-configuration",
+          "status": 200,
+          "body": "{\"issuer\":\"https://auth.x.ai\",\"device_authorization_endpoint\":\"https://auth.x.ai/oauth2/device/code\",\"token_endpoint\":\"https://auth.x.ai/oauth2/token\"}"
+        },
+        {
+          "path": "/oauth2/device/code",
+          "status": 200,
+          "body": "{\"device_code\":\"d\",\"user_code\":\"u\",\"verification_uri\":\"https://accounts.x.ai/device\",\"interval\":\"5\"}"
+        }
+      ],
+      "requests": [
+        "GET /.well-known/openid-configuration HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nAccept: application/json\r\nAccept-Encoding: gzip\r\n\r\n",
+        "POST /oauth2/device/code HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 119\r\nAccept: application/json\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nclient_id=b1a00492-073a-47ea-816f-4c329264a828\u0026scope=openid+profile+email+offline_access+grok-cli%3Aaccess+api%3Aaccess"
+      ],
+      "error": "xai: failed to start device flow: xai device code: parse response: json: cannot unmarshal string into Go struct field DeviceCodeResponse.interval of type int"
+    },
+    {
+      "name": "token_expires_in_float",
+      "script": [
+        {
+          "path": "/.well-known/openid-configuration",
+          "status": 200,
+          "body": "{\"issuer\":\"https://auth.x.ai\",\"device_authorization_endpoint\":\"https://auth.x.ai/oauth2/device/code\",\"token_endpoint\":\"https://auth.x.ai/oauth2/token\"}"
+        },
+        {
+          "path": "/oauth2/device/code",
+          "status": 200,
+          "body": "{\"device_code\":\"dev-1\",\"user_code\":\"ABCD-EFGH\",\"verification_uri\":\"https://accounts.x.ai/device\",\"verification_uri_complete\":\"https://accounts.x.ai/device?user_code=ABCD-EFGH\",\"expires_in\":600,\"interval\":0}"
+        },
+        {
+          "path": "/oauth2/token",
+          "status": 200,
+          "body": "{\"access_token\":\"a\",\"expires_in\":1.5}"
+        }
+      ],
+      "requests": [
+        "GET /.well-known/openid-configuration HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nAccept: application/json\r\nAccept-Encoding: gzip\r\n\r\n",
+        "POST /oauth2/device/code HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 119\r\nAccept: application/json\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nclient_id=b1a00492-073a-47ea-816f-4c329264a828\u0026scope=openid+profile+email+offline_access+grok-cli%3Aaccess+api%3Aaccess",
+        "POST /oauth2/token HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 130\r\nAccept: application/json\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nclient_id=b1a00492-073a-47ea-816f-4c329264a828\u0026device_code=dev-1\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code"
+      ],
+      "error": "xai: xai device token: parse response: json: cannot unmarshal number 1.5 into Go struct field .expires_in of type int"
+    },
+    {
+      "name": "token_body_not_json",
+      "script": [
+        {
+          "path": "/.well-known/openid-configuration",
+          "status": 200,
+          "body": "{\"issuer\":\"https://auth.x.ai\",\"device_authorization_endpoint\":\"https://auth.x.ai/oauth2/device/code\",\"token_endpoint\":\"https://auth.x.ai/oauth2/token\"}"
+        },
+        {
+          "path": "/oauth2/device/code",
+          "status": 200,
+          "body": "{\"device_code\":\"dev-1\",\"user_code\":\"ABCD-EFGH\",\"verification_uri\":\"https://accounts.x.ai/device\",\"verification_uri_complete\":\"https://accounts.x.ai/device?user_code=ABCD-EFGH\",\"expires_in\":600,\"interval\":0}"
+        },
+        {
+          "path": "/oauth2/token",
+          "status": 502,
+          "body": "\u003chtml\u003ebad gateway\u003c/html\u003e"
+        }
+      ],
+      "requests": [
+        "GET /.well-known/openid-configuration HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nAccept: application/json\r\nAccept-Encoding: gzip\r\n\r\n",
+        "POST /oauth2/device/code HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 119\r\nAccept: application/json\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nclient_id=b1a00492-073a-47ea-816f-4c329264a828\u0026scope=openid+profile+email+offline_access+grok-cli%3Aaccess+api%3Aaccess",
+        "POST /oauth2/token HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 130\r\nAccept: application/json\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nclient_id=b1a00492-073a-47ea-816f-4c329264a828\u0026device_code=dev-1\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code"
+      ],
+      "error": "xai: xai device token: parse response: invalid character '\u003c' looking for beginning of value"
+    },
+    {
+      "name": "jwt_trailing_bits_names_file",
+      "script": [
+        {
+          "path": "/.well-known/openid-configuration",
+          "status": 200,
+          "body": "{\"issuer\":\"https://auth.x.ai\",\"device_authorization_endpoint\":\"https://auth.x.ai/oauth2/device/code\",\"token_endpoint\":\"https://auth.x.ai/oauth2/token\"}"
+        },
+        {
+          "path": "/oauth2/device/code",
+          "status": 200,
+          "body": "{\"device_code\":\"dev-1\",\"user_code\":\"ABCD-EFGH\",\"verification_uri\":\"https://accounts.x.ai/device\",\"verification_uri_complete\":\"https://accounts.x.ai/device?user_code=ABCD-EFGH\",\"expires_in\":600,\"interval\":0}"
+        },
+        {
+          "path": "/oauth2/token",
+          "status": 200,
+          "body": "{\"access_token\":\"a\",\"id_token\":\"a.eyJzdWIiOiJ1In1.sig\"}"
+        }
+      ],
+      "requests": [
+        "GET /.well-known/openid-configuration HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nAccept: application/json\r\nAccept-Encoding: gzip\r\n\r\n",
+        "POST /oauth2/device/code HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 119\r\nAccept: application/json\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nclient_id=b1a00492-073a-47ea-816f-4c329264a828\u0026scope=openid+profile+email+offline_access+grok-cli%3Aaccess+api%3Aaccess",
+        "POST /oauth2/token HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 130\r\nAccept: application/json\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nclient_id=b1a00492-073a-47ea-816f-4c329264a828\u0026device_code=dev-1\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code"
+      ],
+      "file_name": "xai-u.json",
+      "file": "{\n  \"access_token\": \"a\",\n  \"auth_kind\": \"oauth\",\n  \"base_url\": \"https://api.x.ai/v1\",\n  \"disabled\": false,\n  \"expired\": \"\",\n  \"expires_in\": 0,\n  \"id_token\": \"a.eyJzdWIiOiJ1In1.sig\",\n  \"last_refresh\": \"TIME\",\n  \"refresh_token\": \"\",\n  \"sub\": \"u\",\n  \"token_endpoint\": \"https://auth.x.ai/oauth2/token\",\n  \"token_type\": \"\",\n  \"type\": \"xai\"\n}\n",
+      "label": "xAI"
+    },
+    {
+      "name": "jwt_identity_from_untrimmed_token",
+      "script": [
+        {
+          "path": "/.well-known/openid-configuration",
+          "status": 200,
+          "body": "{\"issuer\":\"https://auth.x.ai\",\"device_authorization_endpoint\":\"https://auth.x.ai/oauth2/device/code\",\"token_endpoint\":\"https://auth.x.ai/oauth2/token\"}"
+        },
+        {
+          "path": "/oauth2/device/code",
+          "status": 200,
+          "body": "{\"device_code\":\"dev-1\",\"user_code\":\"ABCD-EFGH\",\"verification_uri\":\"https://accounts.x.ai/device\",\"verification_uri_complete\":\"https://accounts.x.ai/device?user_code=ABCD-EFGH\",\"expires_in\":600,\"interval\":0}"
+        },
+        {
+          "path": "/oauth2/token",
+          "status": 200,
+          "body": "{\"access_token\":\"a\",\"id_token\":\"a.eyJzdWIiOiJ1In0 \"}"
+        }
+      ],
+      "requests": [
+        "GET /.well-known/openid-configuration HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nAccept: application/json\r\nAccept-Encoding: gzip\r\n\r\n",
+        "POST /oauth2/device/code HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 119\r\nAccept: application/json\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nclient_id=b1a00492-073a-47ea-816f-4c329264a828\u0026scope=openid+profile+email+offline_access+grok-cli%3Aaccess+api%3Aaccess",
+        "POST /oauth2/token HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 130\r\nAccept: application/json\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nclient_id=b1a00492-073a-47ea-816f-4c329264a828\u0026device_code=dev-1\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code"
+      ],
+      "file_name": "xai-1790981908227.json",
+      "file": "{\n  \"access_token\": \"a\",\n  \"auth_kind\": \"oauth\",\n  \"base_url\": \"https://api.x.ai/v1\",\n  \"disabled\": false,\n  \"expired\": \"\",\n  \"expires_in\": 0,\n  \"id_token\": \"a.eyJzdWIiOiJ1In0\",\n  \"last_refresh\": \"TIME\",\n  \"refresh_token\": \"\",\n  \"token_endpoint\": \"https://auth.x.ai/oauth2/token\",\n  \"token_type\": \"\",\n  \"type\": \"xai\"\n}\n",
+      "label": "xAI"
+    },
+    {
+      "name": "existing_invalid_weight_blocks_save",
+      "script": [
+        {
+          "path": "/.well-known/openid-configuration",
+          "status": 200,
+          "body": "{\"issuer\":\"https://auth.x.ai\",\"device_authorization_endpoint\":\"https://auth.x.ai/oauth2/device/code\",\"token_endpoint\":\"https://auth.x.ai/oauth2/token\"}"
+        },
+        {
+          "path": "/oauth2/device/code",
+          "status": 200,
+          "body": "{\"device_code\":\"dev-1\",\"user_code\":\"ABCD-EFGH\",\"verification_uri\":\"https://accounts.x.ai/device\",\"verification_uri_complete\":\"https://accounts.x.ai/device?user_code=ABCD-EFGH\",\"expires_in\":600,\"interval\":0}"
+        },
+        {
+          "path": "/oauth2/token",
+          "status": 200,
+          "body": "{\"access_token\":\"a\",\"id_token\":\"eyJhbGciOiJub25lIn0.eyJzdWIiOiJ3In0.sig\"}"
+        }
+      ],
+      "existing": "{\"type\":\"xai\",\"weight\":1000001}",
+      "existing_name": "xai-w.json",
+      "requests": [
+        "GET /.well-known/openid-configuration HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nAccept: application/json\r\nAccept-Encoding: gzip\r\n\r\n",
+        "POST /oauth2/device/code HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 119\r\nAccept: application/json\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nclient_id=b1a00492-073a-47ea-816f-4c329264a828\u0026scope=openid+profile+email+offline_access+grok-cli%3Aaccess+api%3Aaccess",
+        "POST /oauth2/token HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 130\r\nAccept: application/json\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nclient_id=b1a00492-073a-47ea-816f-4c329264a828\u0026device_code=dev-1\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code"
+      ],
+      "error": "auth filestore: invalid metadata weight: weight must not exceed 1000000"
+    },
+    {
+      "name": "device_expires_in_overflows",
+      "script": [
+        {
+          "path": "/.well-known/openid-configuration",
+          "status": 200,
+          "body": "{\"issuer\":\"https://auth.x.ai\",\"device_authorization_endpoint\":\"https://auth.x.ai/oauth2/device/code\",\"token_endpoint\":\"https://auth.x.ai/oauth2/token\"}"
+        },
+        {
+          "path": "/oauth2/device/code",
+          "status": 200,
+          "body": "{\"device_code\":\"d\",\"user_code\":\"u\",\"verification_uri\":\"https://accounts.x.ai/device\",\"expires_in\":9223372037}"
+        },
+        {
+          "path": "/oauth2/token",
+          "status": 400,
+          "body": "{\"error\":\"authorization_pending\"}"
+        },
+        {
+          "path": "/oauth2/token",
+          "status": 200,
+          "body": "{\"access_token\":\"never\"}"
+        }
+      ],
+      "requests": [
+        "GET /.well-known/openid-configuration HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nAccept: application/json\r\nAccept-Encoding: gzip\r\n\r\n",
+        "POST /oauth2/device/code HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 119\r\nAccept: application/json\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nclient_id=b1a00492-073a-47ea-816f-4c329264a828\u0026scope=openid+profile+email+offline_access+grok-cli%3Aaccess+api%3Aaccess",
+        "POST /oauth2/token HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 126\r\nAccept: application/json\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nclient_id=b1a00492-073a-47ea-816f-4c329264a828\u0026device_code=d\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code"
+      ],
+      "error": "xai: xai device code expired"
+    },
+    {
+      "name": "token_expires_in_overflows",
+      "script": [
+        {
+          "path": "/.well-known/openid-configuration",
+          "status": 200,
+          "body": "{\"issuer\":\"https://auth.x.ai\",\"device_authorization_endpoint\":\"https://auth.x.ai/oauth2/device/code\",\"token_endpoint\":\"https://auth.x.ai/oauth2/token\"}"
+        },
+        {
+          "path": "/oauth2/device/code",
+          "status": 200,
+          "body": "{\"device_code\":\"dev-1\",\"user_code\":\"ABCD-EFGH\",\"verification_uri\":\"https://accounts.x.ai/device\",\"verification_uri_complete\":\"https://accounts.x.ai/device?user_code=ABCD-EFGH\",\"expires_in\":600,\"interval\":0}"
+        },
+        {
+          "path": "/oauth2/token",
+          "status": 200,
+          "body": "{\"access_token\":\"a\",\"expires_in\":9223372036854775807}"
+        }
+      ],
+      "requests": [
+        "GET /.well-known/openid-configuration HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nAccept: application/json\r\nAccept-Encoding: gzip\r\n\r\n",
+        "POST /oauth2/device/code HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 119\r\nAccept: application/json\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nclient_id=b1a00492-073a-47ea-816f-4c329264a828\u0026scope=openid+profile+email+offline_access+grok-cli%3Aaccess+api%3Aaccess",
+        "POST /oauth2/token HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 130\r\nAccept: application/json\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nclient_id=b1a00492-073a-47ea-816f-4c329264a828\u0026device_code=dev-1\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code"
+      ],
+      "file_name": "xai-1790981913230.json",
+      "file": "{\n  \"access_token\": \"a\",\n  \"auth_kind\": \"oauth\",\n  \"base_url\": \"https://api.x.ai/v1\",\n  \"disabled\": false,\n  \"expired\": \"TIME\",\n  \"expires_in\": 9223372036854775807,\n  \"id_token\": \"\",\n  \"last_refresh\": \"TIME\",\n  \"refresh_token\": \"\",\n  \"token_endpoint\": \"https://auth.x.ai/oauth2/token\",\n  \"token_type\": \"\",\n  \"type\": \"xai\"\n}\n",
+      "label": "xAI"
+    },
+    {
+      "name": "device_status_error",
+      "script": [
+        {
+          "path": "/.well-known/openid-configuration",
+          "status": 200,
+          "body": "{\"issuer\":\"https://auth.x.ai\",\"device_authorization_endpoint\":\"https://auth.x.ai/oauth2/device/code\",\"token_endpoint\":\"https://auth.x.ai/oauth2/token\"}"
+        },
+        {
+          "path": "/oauth2/device/code",
+          "status": 429,
+          "body": "{\"error\":\"slow\"}"
+        }
+      ],
+      "requests": [
+        "GET /.well-known/openid-configuration HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nAccept: application/json\r\nAccept-Encoding: gzip\r\n\r\n",
+        "POST /oauth2/device/code HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 119\r\nAccept: application/json\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nclient_id=b1a00492-073a-47ea-816f-4c329264a828\u0026scope=openid+profile+email+offline_access+grok-cli%3Aaccess+api%3Aaccess"
+      ],
+      "error": "xai: failed to start device flow: xai device code request failed with status 429: {\"error\":\"slow\"}"
+    }
+  ],
+  "refresh": [
+    {
+      "name": "explicit_endpoint",
+      "metadata": {
+        "base_url": "",
+        "email": "old@example.com",
+        "refresh_token": " rt-old ",
+        "token_endpoint": "http://UPSTREAM/oauth2/token",
+        "type": "xai"
+      },
+      "script": [
+        {
+          "path": "/oauth2/token",
+          "status": 200,
+          "body": "{\"access_token\":\"at-new\",\"refresh_token\":\"rt-new\",\"id_token\":\"eyJhbGciOiJub25lIn0.eyJlbWFpbCI6Im5ld0BleGFtcGxlLmNvbSIsInN1YiI6InVzZXItOSJ9.sig\",\"token_type\":\"Bearer\",\"expires_in\":7200}"
+        }
+      ],
+      "requests": [
+        "POST /oauth2/token HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 92\r\nAccept: application/json\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nclient_id=b1a00492-073a-47ea-816f-4c329264a828\u0026grant_type=refresh_token\u0026refresh_token=rt-old"
+      ],
+      "metadata_out": {
+        "access_token": "at-new",
+        "auth_kind": "oauth",
+        "base_url": "https://api.x.ai/v1",
+        "email": "new@example.com",
+        "expired": "TIME",
+        "expires_in": 7200,
+        "id_token": "eyJhbGciOiJub25lIn0.eyJlbWFpbCI6Im5ld0BleGFtcGxlLmNvbSIsInN1YiI6InVzZXItOSJ9.sig",
+        "last_refresh": "TIME",
+        "refresh_token": "rt-new",
+        "sub": "user-9",
+        "token_endpoint": "http://UPSTREAM/oauth2/token",
+        "token_type": "Bearer",
+        "type": "xai"
+      },
+      "attributes_out": {
+        "auth_kind": "oauth",
+        "base_url": "https://api.x.ai/v1"
+      }
+    },
+    {
+      "name": "keeps_fields_server_omits",
+      "metadata": {
+        "base_url": "https://custom.example/v1",
+        "id_token": "old-id",
+        "refresh_token": "rt-old",
+        "token_endpoint": "http://UPSTREAM/oauth2/token",
+        "type": "xai"
+      },
+      "attributes": {
+        "base_url": "https://custom.example/v1"
+      },
+      "script": [
+        {
+          "path": "/oauth2/token",
+          "status": 200,
+          "body": "{\"access_token\":\"at-new\"}"
+        }
+      ],
+      "requests": [
+        "POST /oauth2/token HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 92\r\nAccept: application/json\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nclient_id=b1a00492-073a-47ea-816f-4c329264a828\u0026grant_type=refresh_token\u0026refresh_token=rt-old"
+      ],
+      "metadata_out": {
+        "access_token": "at-new",
+        "auth_kind": "oauth",
+        "base_url": "https://custom.example/v1",
+        "id_token": "old-id",
+        "last_refresh": "TIME",
+        "refresh_token": "rt-old",
+        "token_endpoint": "http://UPSTREAM/oauth2/token",
+        "type": "xai"
+      },
+      "attributes_out": {
+        "auth_kind": "oauth",
+        "base_url": "https://custom.example/v1"
+      }
+    },
+    {
+      "name": "discovers_endpoint",
+      "metadata": {
+        "refresh_token": "rt-old",
+        "type": "xai"
+      },
+      "script": [
+        {
+          "path": "/.well-known/openid-configuration",
+          "status": 200,
+          "body": "{\"issuer\":\"https://auth.x.ai\",\"device_authorization_endpoint\":\"https://auth.x.ai/oauth2/device/code\",\"token_endpoint\":\"https://auth.x.ai/oauth2/token\"}"
+        },
+        {
+          "path": "/oauth2/token",
+          "status": 200,
+          "body": "{\"access_token\":\"at-new\",\"expires_in\":60}"
+        }
+      ],
+      "requests": [
+        "GET /.well-known/openid-configuration HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nAccept: application/json\r\nAccept-Encoding: gzip\r\n\r\n",
+        "POST /oauth2/token HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 92\r\nAccept: application/json\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nclient_id=b1a00492-073a-47ea-816f-4c329264a828\u0026grant_type=refresh_token\u0026refresh_token=rt-old"
+      ],
+      "metadata_out": {
+        "access_token": "at-new",
+        "auth_kind": "oauth",
+        "base_url": "https://api.x.ai/v1",
+        "expired": "TIME",
+        "expires_in": 60,
+        "last_refresh": "TIME",
+        "refresh_token": "rt-old",
+        "type": "xai"
+      },
+      "attributes_out": {
+        "auth_kind": "oauth",
+        "base_url": "https://api.x.ai/v1"
+      }
+    },
+    {
+      "name": "no_refresh_token",
+      "metadata": {
+        "access_token": "at",
+        "type": "xai"
+      },
+      "script": null,
+      "requests": [],
+      "metadata_out": {
+        "access_token": "at",
+        "type": "xai"
+      }
+    },
+    {
+      "name": "numeric_refresh_token_and_bool_base_url",
+      "metadata": {
+        "base_url": true,
+        "refresh_token": 100000000,
+        "token_endpoint": "http://UPSTREAM/oauth2/token",
+        "type": "xai"
+      },
+      "script": [
+        {
+          "path": "/oauth2/token",
+          "status": 200,
+          "body": "{\"access_token\":\"at-new\"}"
+        }
+      ],
+      "requests": [
+        "POST /oauth2/token HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 93\r\nAccept: application/json\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nclient_id=b1a00492-073a-47ea-816f-4c329264a828\u0026grant_type=refresh_token\u0026refresh_token=1e%2B08"
+      ],
+      "metadata_out": {
+        "access_token": "at-new",
+        "auth_kind": "oauth",
+        "base_url": true,
+        "last_refresh": "TIME",
+        "refresh_token": 100000000,
+        "token_endpoint": "http://UPSTREAM/oauth2/token",
+        "type": "xai"
+      },
+      "attributes_out": {
+        "auth_kind": "oauth",
+        "base_url": "https://api.x.ai/v1"
+      }
+    },
+    {
+      "name": "status_error",
+      "metadata": {
+        "refresh_token": "rt-old",
+        "token_endpoint": "http://UPSTREAM/oauth2/token",
+        "type": "xai"
+      },
+      "script": [
+        {
+          "path": "/oauth2/token",
+          "status": 401,
+          "body": "{\"error\":\"invalid_grant\"}"
+        }
+      ],
+      "requests": [
+        "POST /oauth2/token HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 92\r\nAccept: application/json\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nclient_id=b1a00492-073a-47ea-816f-4c329264a828\u0026grant_type=refresh_token\u0026refresh_token=rt-old"
+      ],
+      "error": "xai token request failed with status 401: {\"error\":\"invalid_grant\"}"
+    },
+    {
+      "name": "missing_access_token",
+      "metadata": {
+        "refresh_token": "rt-old",
+        "token_endpoint": "http://UPSTREAM/oauth2/token",
+        "type": "xai"
+      },
+      "script": [
+        {
+          "path": "/oauth2/token",
+          "status": 200,
+          "body": "{\"refresh_token\":\"rt-2\"}"
+        }
+      ],
+      "requests": [
+        "POST /oauth2/token HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 92\r\nAccept: application/json\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nclient_id=b1a00492-073a-47ea-816f-4c329264a828\u0026grant_type=refresh_token\u0026refresh_token=rt-old"
+      ],
+      "error": "xai token response missing access_token"
+    },
+    {
+      "name": "discovery_rejected",
+      "metadata": {
+        "refresh_token": "rt-old",
+        "type": "xai"
+      },
+      "script": [
+        {
+          "path": "/.well-known/openid-configuration",
+          "status": 200,
+          "body": "{\"device_authorization_endpoint\":\"https://auth.x.ai/d\",\"token_endpoint\":\"https://auth.x.ai.evil.com/t\"}"
+        }
+      ],
+      "requests": [
+        "GET /.well-known/openid-configuration HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nAccept: application/json\r\nAccept-Encoding: gzip\r\n\r\n"
+      ],
+      "error": "xai discovery token_endpoint host \"auth.x.ai.evil.com\" is not on x.ai"
+    }
+  ]
+}

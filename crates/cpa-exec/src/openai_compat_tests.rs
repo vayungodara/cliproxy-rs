@@ -15,7 +15,7 @@ const FIXTURE: &str = include_str!("../tests/fixtures/openai_compat_go.json");
 
 /// Shared helpers whose real port has not landed: scenarios that need them are skipped
 /// and listed, so integration can remove an entry and see the scenario run.
-const PENDING: &[&str] = &["translator"];
+const PENDING: &[&str] = &["translator", "session"];
 
 /// One-shot raw HTTP/1.1 capture server answering with the scripted response.
 struct Mock {
@@ -163,10 +163,11 @@ fn request(s: &Value) -> (ExecRequest, String) {
         }
         None => Bytes::from(s["payload"].as_str().unwrap().to_owned()),
     };
+    // Go sets opts.OriginalRequest only when the scenario has one.
     let original = s["original"]
         .as_str()
         .map(|o| Bytes::from(o.to_owned()))
-        .unwrap_or_else(|| payload.clone());
+        .unwrap_or_default();
     let mut headers = http::HeaderMap::new();
     for (k, v) in s["headers"].as_object().into_iter().flatten() {
         headers.insert(
@@ -310,9 +311,9 @@ async fn go_reference_scenarios() {
     assert_eq!(
         skipped,
         [
+            "custom_header_cpa_session_id_absent",
             "needs_translator_responses_source",
             "needs_translator_responses_eof_without_done",
-            "needs_translator_claude_code_prompt_cache",
         ]
     );
 }
@@ -389,5 +390,43 @@ fn go_primitive_vectors() {
             Ok(case[2].as_i64().unwrap()),
             "CountOpenAIChatTokens({model:?}, {payload})"
         );
+    }
+}
+
+/// A translator holding one unfinished Responses frame.
+struct Pending;
+
+impl StreamTranslator for Pending {
+    fn event(&mut self, _: &[u8]) -> Result<Vec<Bytes>, cpa_translate::Error> {
+        Ok(vec![])
+    }
+
+    fn finish(&mut self) -> Result<Vec<Bytes>, cpa_translate::Error> {
+        Ok(vec![])
+    }
+
+    fn flush_frames(&mut self) -> Vec<Bytes> {
+        vec![Bytes::from_static(b"event: pending\n\n")]
+    }
+}
+
+#[tokio::test]
+async fn terminal_errors_flush_pending_frames_first() {
+    // Go's responsesSSEFramer flushes before the handler writes a terminal error.
+    for (lines, status) in [
+        (
+            vec![
+                Ok(Bytes::from_static(b"data: {\"error\":{\"status\":429}}")),
+                Ok(Bytes::new()),
+            ],
+            429,
+        ),
+        (vec![Err(ExecError::local(502, FailureScope::Transport, "cut"))], 502),
+    ] {
+        let lines: ExecStream = futures_util::stream::iter(lines).boxed();
+        let out: Vec<_> = frames(lines, Box::new(Pending), true).collect().await;
+        assert_eq!(out.len(), 2);
+        assert_eq!(out[0].as_ref().unwrap(), &Bytes::from_static(b"event: pending\n\n"));
+        assert_eq!(out[1].as_ref().unwrap_err().status, status);
     }
 }

@@ -28,6 +28,9 @@ api-keys:
           image: true
         - name: gpt-4o
           alias: four
+        - name: acme-compat
+          alias: cc
+          is-compat: true
       keys:
         - api-key: sk-fake-acme
     - name: cachey
@@ -39,6 +42,53 @@ api-keys:
       keys:
         - api-key: sk-fake-cache
 `
+
+// payloadConfig adds requests.payload rules to baseConfig (helps.ApplyPayloadConfigWithRequest).
+const payloadConfig = baseConfig + `
+requests:
+  payload:
+    # One param per rule: Go ranges over each rule's params map, so several params in
+    # one rule are written in random order.
+    default:
+      - models:
+          - name: "acme-*"
+            protocol: "openai"
+        params:
+          "temperature": 0.25
+      - models:
+          - name: "acme-*"
+        params:
+          "metadata.tier": "gold"
+      - models:
+          - name: "acme-chat"
+        params:
+          "max_tokens": 1
+    default-raw:
+      - models:
+          - name: "acme-chat"
+            headers:
+              X-Tier: "pro*"
+        params:
+          "response_format": "{\"type\":\"json_object\"}"
+    override:
+      - models:
+          - name: "acme-chat"
+            from-protocol: "openai"
+        params:
+          "top_p": 0.5
+      - models:
+          - name: "acme-chat"
+            protocol: "claude"
+        params:
+          "never": true
+    filter:
+      - models:
+          - name: "acme-chat"
+        params:
+          - "user"
+`
+
+const claudeThinking = `{"model":"cc","max_tokens":10,"messages":[{"role":"user","content":"hi"},{"role":"assistant","content":[{"type":"thinking","thinking":"plan it","signature":"sig-not-gpt"},{"type":"text","text":"ok"}]},{"role":"user","content":"go"}]}`
 
 var jsonOK = &upstream{Status: 200, Headers: [][2]string{{"Content-Type", "application/json"}}, Body: `{"id":"chatcmpl_1","object":"chat.completion","created":1,"model":"acme-chat","choices":[{"index":0,"message":{"role":"assistant","content":"ok"},"finish_reason":"stop"}],"usage":{"prompt_tokens":3,"completion_tokens":1,"total_tokens":4}}`}
 
@@ -262,6 +312,47 @@ func scenarios() []scenario {
 			return s
 		}(),
 		func() scenario {
+			s := chat("chat_payload_rules", "acme-chat", "chat", `{"model":"chat","messages":[],"max_tokens":7,"user":"u-1","metadata":{"a":1}}`, jsonOK)
+			s.Config = payloadConfig
+			s.Headers = map[string]string{"X-Tier": "pro-plus"}
+			return s
+		}(),
+		func() scenario {
+			s := chat("chat_payload_rules_header_gate_misses", "acme-chat", "chat", `{"model":"chat","messages":[]}`, jsonOK)
+			s.Config = payloadConfig
+			s.Headers = map[string]string{"X-Tier": "free"}
+			return s
+		}(),
+		{Name: "custom_header_cpa_session_id", ConfigAuth: -1, Provider: "openai-compatible-solo",
+			Attributes: map[string]string{"base_url": "http://UPSTREAM/v1", "api_key": "sk-fake-solo", "header:X-Sess": "$CPA-SESSION-ID", "header:X-Mix": "pre-$cpa-session-id-post", "header:X-Echo": "$X-Claude-Code-Session-Id"},
+			Headers:    map[string]string{"X-Claude-Code-Session-Id": "sess-hdr-1"},
+			Model:      "solo", Payload: hi, Source: "openai", Op: "execute", Upstream: jsonOK},
+		// Go expands $CPA-SESSION-ID to CanonicalSessionID, message-hash fallback included;
+		// the shared Rust helper passes only the explicit session (integrator decision).
+		{Name: "custom_header_session_from_payload_without_original", ConfigAuth: -1, Provider: "openai-compatible-solo",
+			Attributes: map[string]string{"base_url": "http://UPSTREAM/v1", "api_key": "sk-fake-solo", "header:X-Sess": "$CPA-SESSION-ID"},
+			Model:      "solo", Payload: `{"model":"solo","messages":[{"role":"user","content":"hi"}],"prompt_cache_key":"pc-1"}`, Source: "openai", Op: "execute", Upstream: jsonOK},
+		{Name: "custom_header_cpa_session_id_absent", Needs: []string{"session"}, ConfigAuth: -1, Provider: "openai-compatible-solo",
+			Attributes: map[string]string{"base_url": "http://UPSTREAM/v1", "api_key": "sk-fake-solo", "header:X-Sess": "$CPA-SESSION-ID", "header:X-Mix": "pre-$CPA-SESSION-ID-post"},
+			Model:      "solo", Payload: hi, Source: "openai", Op: "execute", Upstream: jsonOK},
+		func() scenario {
+			// is-compat keeps assistant thinking whose signature is not GPT-compatible.
+			s := chat("claude_is_compat_keeps_thinking", "acme-compat", "cc", claudeThinking, jsonOK)
+			s.Source = "claude"
+			return s
+		}(),
+		func() scenario {
+			s := chat("claude_not_compat_drops_thinking", "acme-chat", "chat", strings.Replace(claudeThinking, `"cc"`, `"chat"`, 1), jsonOK)
+			s.Source = "claude"
+			return s
+		}(),
+		func() scenario {
+			// Codex clients get integer parameter types restored before translation.
+			s := chat("codex_user_agent_tool_integers", "acme-chat", "chat", `{"model":"chat","messages":[],"tools":[{"type":"function","function":{"name":"exec_command","parameters":{"type":"object","properties":{"timeout_ms":{"type":"number"},"cmd":{"type":"string"}}}}}]}`, jsonOK)
+			s.Headers = map[string]string{"User-Agent": "codex_cli_rs/0.50.0"}
+			return s
+		}(),
+		func() scenario {
 			s := chat("needs_translator_responses_source", "acme-chat", "chat", `{"model":"chat","input":"hello","max_output_tokens":20}`, jsonOK)
 			s.Source = "openai-response"
 			s.Needs = []string{"translator"}
@@ -280,7 +371,6 @@ func scenarios() []scenario {
 			s.ConfigAuth = 1
 			s.Source = "claude"
 			s.Headers = map[string]string{"X-Claude-Code-Session-Id": "sess-1"}
-			s.Needs = []string{"translator"}
 			return s
 		}(),
 	}
