@@ -271,7 +271,20 @@ impl Runtime {
         let aliases = crate::registry::global_aliases(cfg);
         let scope = selection.clone();
         let admit = admission(registry, &aliases, &scope, &self.executors);
-        let mut lease = self.store.select_with(selection, policy, &admit)?;
+        // `soonest-reset` ranks by the quota windows the executors last observed.
+        let now = std::time::SystemTime::now();
+        let ranks = |c: &Credential| {
+            let provider = c.provider.trim().to_ascii_lowercase();
+            let snapshot = match provider.as_str() {
+                "claude" => self.executors.claude.quota().snapshot(&c.id),
+                "codex" => self.executors.codex.quota().snapshot(&c.id),
+                _ => None,
+            };
+            snapshot.map_or_else(crate::scheduler::Windows::default, |s| {
+                crate::scheduler::Windows::observed(&provider, &s.signals, s.observed_at, now)
+            })
+        };
+        let mut lease = self.store.select_ranked(selection, policy, &admit, &ranks)?;
         if self.executors.readiness(&lease.credential, cfg) != Readiness::PrepareNow {
             return Ok(lease);
         }
@@ -965,6 +978,17 @@ impl CredentialStore {
         policy: Arc<Policy>,
         admit: &Admit<'_>,
     ) -> Result<Lease, AcquireError> {
+        self.select_ranked(selection, policy, admit, &|_| crate::scheduler::Windows::default())
+    }
+
+    /// [`Self::select_with`] with each credential's usage windows (`soonest-reset`).
+    pub fn select_ranked(
+        self: &Arc<Self>,
+        selection: Selection,
+        policy: Arc<Policy>,
+        admit: &Admit<'_>,
+        ranks: &crate::scheduler::Ranks<'_>,
+    ) -> Result<Lease, AcquireError> {
         let now = Instant::now();
         let credential = {
             let inner = self.read();
@@ -1000,7 +1024,7 @@ impl CredentialStore {
                 });
             }
             let refs: Vec<(&Credential, &str)> = candidates.iter().map(|(c, p)| (*c, p.as_str())).collect();
-            let picked = scheduler.pick(&refs, &selection, &policy, now).unwrap();
+            let picked = scheduler.pick_ranked(&refs, &selection, &policy, ranks, now).unwrap();
             inner.creds.iter().find(|c| c.id == picked.id).unwrap().clone()
         };
         let execution_model = admit(&credential).unwrap_or_else(|| selection.model.clone());

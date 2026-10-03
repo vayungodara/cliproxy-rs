@@ -80,9 +80,15 @@ Where cliproxy-rs has a feature, it aims to behave as Go does. These differences
 - OAuth callback: the unauthenticated `POST /v8/management/oauth/callback` (and the v0 `oauth-callback`) accepts a body of at most 64 KiB. Go reads it without a limit. Real callbacks are a few hundred bytes; the limit protects servers reachable from the internet.
 - WebRTC media relay for Codex live calls (`oauth.providers.codex.live-media-relay`): every Go build includes it, and the config turns it on. In cliproxy-rs it is an optional build feature (`cargo build --release -p cliproxy --features cpa-server/media-relay`); the release binaries and the Docker image are built without it, so calls negotiate media directly with the upstream.
 
+### Additions
+
+Features Go does not have. Each is opt-in; the defaults behave as Go does.
+
+- Reset-aware routing: `routing.strategy: soonest-reset` (alias `reset-first`). Among the accounts available right now, cliproxy-rs sends requests to the one whose weekly usage window resets soonest, and keeps using it until it cools down or one of its usage windows (Claude's 5-hour or 7-day, Codex's primary or secondary) is used up. Then it moves to the account with the next soonest reset. This spends quota that would otherwise expire at the reset, instead of spreading requests evenly. Reset times come from the rate-limit headers of each account's latest response (`anthropic-ratelimit-unified-*` for Claude, `x-codex-*` for Codex). Accounts without a known reset, including accounts not used yet, come after the ones with a known reset; accounts that rank equally take turns. Session affinity still wins: a conversation bound to an account stays on it. With several providers for one model, the first provider is used, as with `fill-first`. The default stays `round-robin`. Go reads `soonest-reset` as `round-robin`.
+
 ## Switching back
 
-Stop cliproxy-rs and start Go on the same config and credential directory. Credentials that cliproxy-rs connected or refreshed stay valid for Go, and the management key keeps working. cliproxy-rs has no settings of its own, so there is nothing in the config to undo.
+Stop cliproxy-rs and start Go on the same config and credential directory. Credentials that cliproxy-rs connected or refreshed stay valid for Go, and the management key keeps working. The config needs no changes: if it uses `routing.strategy: soonest-reset`, Go treats that as `round-robin`.
 
 ## Details
 

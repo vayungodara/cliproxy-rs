@@ -217,6 +217,8 @@ fn routing_strategy(s: &str) -> Option<&'static str> {
         "" | "round-robin" | "roundrobin" | "rr" => Some("round-robin"),
         "weighted-round-robin" | "weightedroundrobin" | "wrr" => Some("weighted-round-robin"),
         "fill-first" | "fillfirst" | "ff" => Some("fill-first"),
+        // cliproxy-rs addition (see crate::scheduler::Strategy::SoonestReset).
+        "soonest-reset" | "soonestreset" | "reset-first" | "resetfirst" => Some("soonest-reset"),
         _ => None,
     }
 }
