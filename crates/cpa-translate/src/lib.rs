@@ -87,6 +87,8 @@ mod openai_interactions_response;
 mod openai_responses;
 mod openai_responses_response;
 mod replay_cache;
+mod responses_interactions;
+mod responses_interactions_response;
 mod responses_tools;
 pub mod sse;
 pub mod stream;
@@ -209,6 +211,8 @@ fn registered(client: Format, upstream: Format) -> Option<&'static Registered> {
         (Format::Gemini, Format::Interactions) => Some(&gemini_interactions::GEMINI_TO_INTERACTIONS),
         (Format::OpenAI, Format::Interactions) => Some(&openai_interactions::OPENAI_TO_INTERACTIONS),
         (Format::Interactions, Format::OpenAI) => Some(&openai_interactions::INTERACTIONS_TO_OPENAI),
+        (Format::OpenAIResponse, Format::Interactions) => Some(&responses_interactions::RESPONSES_TO_INTERACTIONS),
+        (Format::Interactions, Format::OpenAIResponse) => Some(&responses_interactions::INTERACTIONS_TO_RESPONSES),
         _ => None,
     }
 }

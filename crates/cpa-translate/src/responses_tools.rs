@@ -21,15 +21,15 @@ pub(crate) struct Identity {
 }
 
 /// util.ResponsesToolDescriptor.
-struct Descriptor<'a> {
-    name: Vec<u8>,
-    local_name: Vec<u8>,
-    namespace: Vec<u8>,
-    custom: bool,
-    tool: Res<'a>,
+pub(crate) struct Descriptor<'a> {
+    pub name: Vec<u8>,
+    pub local_name: Vec<u8>,
+    pub namespace: Vec<u8>,
+    pub custom: bool,
+    pub tool: Res<'a>,
     priority: u8,
     direct: bool,
-    order: usize,
+    pub order: usize,
 }
 
 /// util.ResponsesToolDescription.
@@ -57,7 +57,7 @@ pub(crate) fn tool_parameters<'a>(tool: &Res<'a>) -> Option<Res<'a>> {
 
 /// util.CollectResponsesToolDescriptors: function and custom tools from `tools` and from
 /// `additional_tools` input items, with namespace children qualified.
-fn descriptors<'a>(root: &Res<'a>) -> Vec<Descriptor<'a>> {
+pub(crate) fn descriptors<'a>(root: &Res<'a>) -> Vec<Descriptor<'a>> {
     let mut sources: Vec<(Res<'a>, u8)> = vec![];
     let tools = root.get("tools");
     if tools.is_array() {
@@ -143,7 +143,7 @@ fn descriptors<'a>(root: &Res<'a>) -> Vec<Descriptor<'a>> {
 
 /// util.CollectResponsesToolWinners: per name, top-level beats additional_tools, direct
 /// beats namespaced, then first wins. Values are descriptor orders.
-fn winners(descriptors: &[Descriptor<'_>]) -> HashMap<Vec<u8>, usize> {
+pub(crate) fn winners(descriptors: &[Descriptor<'_>]) -> HashMap<Vec<u8>, usize> {
     let mut winners: HashMap<Vec<u8>, usize> = HashMap::new();
     for d in descriptors {
         let better = winners.get(&d.name).is_none_or(|&w| {

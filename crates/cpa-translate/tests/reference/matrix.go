@@ -70,6 +70,9 @@ func matrix(r registration, model string) []fixture {
 		if r.upstream == "openai" {
 			out = append(out, interactionsOpenAIRequests(model)...)
 		}
+		if r.upstream == "openai-response" {
+			out = append(out, interactionsResponsesRequests(model)...)
+		}
 	case "gemini":
 		out = append(out, geminiRequests(model)...)
 		if r.upstream == "interactions" {
@@ -108,6 +111,9 @@ func matrix(r registration, model string) []fixture {
 		if r.upstream == "openai" {
 			out = append(out, responsesOpenAIRequests(model)...)
 		}
+		if r.upstream == "interactions" {
+			out = append(out, responsesInteractionsRequests(model)...)
+		}
 	}
 	switch r.upstream {
 	case "codex":
@@ -143,6 +149,11 @@ func matrix(r registration, model string) []fixture {
 		if r.client == "openai" {
 			out = append(out, interactionsToOpenAI()...)
 		}
+		if r.client == "openai-response" {
+			out = append(out, interactionsToResponses()...)
+		}
+	case "openai-response":
+		out = append(out, responsesToInteractions()...)
 	case "openai":
 		out = append(out, openAIResponses()...)
 		if r.client == "claude" {
@@ -1735,6 +1746,221 @@ func openAIToInteractions() []fixture {
 		out = append(out, nonStream(fmt.Sprintf("openai-interactions/non-stream/%d", i), "gpt-test", body))
 		if i == 0 {
 			out = append(out, nonStream("openai-interactions/non-stream/antigravity", "antigravity-x", body))
+		}
+	}
+	return out
+}
+
+// responsesInteractionsRequests exercise ConvertOpenAIResponsesRequestToInteractions:
+// winning tool declarations (namespaces, custom tools, apply_patch, additional_tools),
+// Devin filtering and description obfuscation, tool choices, input items and the
+// antigravity variants.
+func responsesInteractionsRequests(model string) []fixture {
+	execDesc := `Runs a command, returning output or a session ID for ongoing interaction.`
+	stdinDesc := `WRITES characters to an existing unified exec session and returns recent output`
+	tools := `"tools":[{"type":"function","name":"lookup","description":"d <x>","parameters":{"type":"object"}},{"type":"function","function":{"name":"nested","description":"fd","parameters":{"p":1}}},{"type":"custom","name":"run","description":"r"},{"type":"custom","name":"apply_patch","description":"Patch. This is a FREEFORM tool, so do not wrap the patch in JSON."},{"type":"namespace","name":"mcp__codex_app","tools":[{"type":"function","name":"automation_update"},{"type":"function","name":"keep"}]},{"type":"function","name":"mcp__codex_app__automation_update"},{"type":"namespace","name":"shell","tools":[{"type":"function","name":"exec_command","description":"` + execDesc + `"},{"type":"function","name":"write_stdin","description":"` + stdinDesc + `."}]},{"type":"function","name":"exec_command","description":"` + execDesc + `"},{"type":"function","name":"lookup","description":"dup"},{"type":"web_search"},{"type":"function","name":"read_file","input_schema":{"s":1}}]`
+	input := `"input":[{"type":"message","role":"user","content":"hi <b>"},{"type":"message","role":"assistant","content":[{"type":"output_text","text":"a"},{"type":"input_image","image_url":"data:image/png;base64,AA"},{"type":"input_image","image_url":"data:;base64,BB"},{"type":"input_image","url":"https://img"},{"type":"output_image","data":"CC","mime_type":"image/gif"},{"type":"input_image"},{"text":"untyped"},{"type":"refusal"}]},{"type":"message","role":"model","content":{"type":"input_text","text":"obj"}},{"type":"message","role":"system","content":5},{"type":"function_call","call_id":"c1","name":"list","namespace":"mcp","arguments":"{\"a\":1}"},{"type":"function_call","id":"c2","name":"read_file","arguments":" {\"b\":2} "},{"type":"function_call","name":"noid","arguments":"not json"},{"type":"function_call","name":"objargs","arguments":{"o":1}},{"type":"function_call","name":"noargs"},{"type":"custom_tool_call","call_id":"c3","name":"run","input":"ls <x>"},{"type":"custom_tool_call","call_id":"c4","name":"apply_patch","arguments":"{\"input\":\"p\"}"},{"type":"function_call_output","call_id":"c1","output":"{\"ok\":true}"},{"type":"function_call_output","call_id":"c2","output":"plain"},{"type":"custom_tool_call_output","call_id":"c3","result":{"r":1}},{"type":"function_call_output","call_id":"zz","name":"explicit","namespace":"ns","output":5},{"type":"function_call_output"},{"type":"input_text","text":"it"},{"type":"output_text","text":"ot"},{"type":"text"},{"type":"input_image","image_url":"data:image/jpeg;base64,DD"},{"type":"output_image","url":"u"},{"type":"reasoning","summary":[]},{"type":"other","content":[{"type":"output_text","text":"o"}]},{"type":"additional_tools","tools":[{"type":"function","name":"extra"},{"type":"function","name":"lookup","description":"loses"}]}]`
+	inputs := map[string]string{
+		"full":              `{"instructions":"sys <i>",` + tools + `,` + input + `,"tool_choice":{"type":"function","function":{"name":"read_file"}},"reasoning":{"effort":" HIGH ","summary":"auto"},"text":{"format":{"type":"json_object"}},"max_output_tokens":10,"temperature":0.5,"top_p":1,"presence_penalty":"0.25","frequency_penalty":-1,"stop":["<s>"],"stream":false,"previous_response_id":"p","environment":{"id":"e"},"agent_config":{"a":1}}`,
+		"antigravity":       `{` + tools + `,` + input + `,"tool_choice":{"type":"function","name":"read_file"},"max_tokens":7,"temperature":1,"response_format":{"type":"text"}}`,
+		"antigravity/agent": `{"max_completion_tokens":3,"agent_config":{"max_total_tokens":9},"tool_choice":{"type":"custom","custom":{"name":"execute_code","namespace":" "}},"input":"x"}`,
+		"choice/namespace":  `{"tool_choice":{"type":"function","name":"list","namespace":"mcp"},"input":"x"}`,
+		"choice/custom":     `{"tool_choice":{"type":"custom","custom":{"name":"apply_patch"}},"input":"x"}`,
+		"choice/devin":      `{"tool_choice":{"type":"function","function":{"name":"automation_update","namespace":"mcp__codex_app"}},"input":"x"}`,
+		"choice/devin2":     `{"tool_choice":{"type":"function","name":"MCP__codex_app__automation_update"},"input":"x"}`,
+		"choice/string":     `{"tool_choice":"required","input":"x"}`,
+		"choice/blank":      `{"tool_choice":{"type":"auto"},"input":"x"}`,
+		"instructions/obj":  `{"instructions":{"text":"t"},"input":"x"}`,
+		"instructions/arr":  `{"instructions":{"content":[{"text":"a"},{"text":""},{"text":"b"}]},"input":"x"}`,
+		"instructions/num":  `{"instructions":5,"input":{"type":"input_text","text":"obj input"}}`,
+		"instructions/null": `{"instructions":null,"input":{"type":"unknown"}}`,
+		"reasoning/odd":     `{"reasoning":{"effort":5,"summary":7},"input":"x","stream":true}`,
+		"tools/array-root":  `[{"type":"function","name":"from_array"}]`,
+		"tools/none":        `{"tools":[{"type":"web_search"}],"input":"x"}`,
+		"model":             `{"model":"body-model","input":"x"}`,
+	}
+	var names []string
+	for name := range inputs {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	var out []fixture
+	for i, name := range names {
+		m := model
+		if strings.HasPrefix(name, "antigravity") {
+			m = "gemini-antigravity-1"
+		}
+		if name == "model" {
+			m = " "
+		}
+		out = append(out, req("responses-interactions/"+name, m, inputs[name], i%2 == 0))
+	}
+	out = append(out, req("responses-interactions/devin-model", "Devin/agent", `{`+tools+`,"input":"x"}`, false))
+	return out
+}
+
+// interactionsToResponses exercise ConvertInteractionsResponseToOpenAIResponses(NonStream):
+// step items, identities, the apply_patch bridge (streamed, late-named, snapshots,
+// invalid input, conflicts, failures, EOF) and completion states.
+func interactionsToResponses() []fixture {
+	original := `{"model":"client-model","input":"q","tools":[{"type":"function","name":"f"},{"type":"custom","name":"run"},{"type":"custom","name":"apply_patch"},{"type":"namespace","name":"mcp","tools":[{"type":"function","name":"list"},{"type":"custom","name":"exec"}]}]}`
+	plain := `{"model":"client-model","input":"q","tools":[{"type":"function","name":"f"},{"type":"namespace","name":"mcp","tools":[{"type":"function","name":"list"}]},{"type":"custom","name":"run"}]}`
+	created := `{"event_type":"interaction.created","interaction":{"id":"int_1","model":"m","environment":{"id":"env"}}}`
+	start := func(index int, step string) string {
+		return fmt.Sprintf(`{"event_type":"step.start","index":%d,"step":%s}`, index, step)
+	}
+	args := func(index int, a string) string {
+		return fmt.Sprintf(`{"event_type":"step.delta","index":%d,"delta":{"type":"arguments_delta","arguments":%q}}`, index, a)
+	}
+	stop := func(index int) string { return fmt.Sprintf(`{"event_type":"step.stop","index":%d}`, index) }
+	done := `{"event_type":"interaction.completed","interaction":{"id":"int_1","usage":{"total_input_tokens":3,"total_output_tokens":2}}}`
+	patchStart := `{"type":"function_call","name":"apply_patch","id":"ap_1","call_id":"call_ap","arguments":{}}`
+	type sc struct {
+		original string
+		finalize bool
+		lines    []string
+	}
+	cases := map[string]sc{
+		"basic": {plain, false, []string{created, start(0, `{"type":"thought","id":"th_1"}`), `{"event_type":"step.delta","index":0,"delta":{"type":"thought_signature","signature":" ` + geminiSig + ` "}}`, `{"event_type":"step.delta","index":0,"delta":{"type":"thought_summary","text":"think <b>"}}`, `{"event_type":"step.delta","index":0,"delta":{"type":"thought_summary","content":{"text":"more"}}}`, `{"event_type":"step.delta","index":0,"delta":{"type":"thought_summary"}}`, stop(0),
+			start(1, `{"type":"model_output"}`), `{"event_type":"step.delta","index":1,"delta":{"type":"text","text":"Hello é"}}`, `{"event_type":"step.delta","index":1,"delta":{"type":"text"}}`, stop(1),
+			start(2, `{"type":"function_call","name":"mcp__list","id":"fc_2","call_id":"call_2","arguments":{}}`), args(2, `{"q":`), args(2, `1}`), stop(2),
+			start(3, `{"type":"function_call","name":"run","call_id":"call_3"}`), args(3, `{"input":"ls -la"}`), stop(3),
+			start(4, `{"type":"function_call","name":"unknown_fn","id":"u4","arguments":{"x":"<y>"}}`), stop(4), stop(9), start(5, `{"type":"thought"}`), `{"event_type":"step.delta","index":5,"delta":{"type":"thought_signature","signature":"not-a-signature"}}`,
+			`{"event_type":"interaction.completed","interaction":{"status":"incomplete","usage":{"total_input_tokens":3,"total_output_tokens":2,"cached_tokens":1,"reasoning_tokens":4}}}`, "[DONE]", start(6, `{"type":"model_output"}`)}},
+		"patch-ok":        {original, false, []string{created, start(0, patchStart), args(0, `{"input":"*** Begin Patch\n`), args(0, `+hi <x> é\n*** End Patch"}`), stop(0), done, "[DONE]"}},
+		"patch-late-name": {original, false, []string{created, start(0, `{"type":"function_call","id":"ap_2","call_id":"call_2"}`), args(0, `{"input":"a`), args(0, `b"}`), `{"event_type":"step.delta","index":0,"step":{"name":"apply_patch"},"delta":{"type":"arguments_delta","arguments":""}}`, stop(0), done}},
+		"patch-snapshot":  {original, false, []string{created, start(0, `{"type":"function_call","name":"apply_patch","id":"ap_3","call_id":"call_3","arguments":{"input":"full"}}`), stop(0), `{"event_type":"interaction.completed","interaction":{"steps":[{"type":"function_call","name":"apply_patch","id":"ap_3","call_id":"call_3","arguments":{"input":"full"}}]}}`}},
+		"patch-invalid":   {original, false, []string{created, start(0, patchStart), args(0, `{"input":5}`), stop(0), done}},
+		"patch-conflict":  {original, false, []string{created, start(0, patchStart), `{"event_type":"step.delta","index":1,"step":{"id":"ap_1"},"delta":{"type":"arguments_delta","arguments":"x"}}`}},
+		"patch-eof":       {original, true, []string{created, start(0, patchStart), args(0, `{"input":"partial`)}},
+		"plain-eof":       {plain, true, []string{created, start(0, `{"type":"model_output"}`)}},
+		"patch-failed":    {original, false, []string{created, `{"event_type":"interaction.failed","error":{"message":"m"}}`}},
+		"failed":          {plain, false, []string{created, `{"event_type":"response.failed","interaction":{"id":"","error":{"message":"bad <x>","code":"429","type":"rate_limit"}}}`, start(0, `{"type":"model_output"}`)}},
+		"failed-bare":     {plain, false, []string{`{"event_type":"interaction.failed"}`}},
+		"invalid-step":    {original, false, []string{created, start(0, patchStart), `{"event_type":"step.delta","index":0,"delta":{"type":"arguments_delta","arguments":"x"}`}},
+		"invalid-env":     {plain, false, []string{created, `{"event_type":"interaction.completed","status":"incomplete"`}},
+		"unresolved":      {original, false, []string{created, start(0, `{"type":"function_call","id":"x0"}`), "data: [DONE]"}},
+		"done-event":      {plain, false, []string{created, start(0, `{"type":"model_output","id":"m0"}`), `{"event_type":"step.delta","index":0,"delta":{"type":"text","text":"x"}}`, `{"event_type":"done"}`, `{"event_type":"step.delta","index":0,"delta":{"type":"text","text":"late"}}`}},
+		"completed-steps": {original, false, []string{created, `{"event_type":"finish","finish_reason":"content_filter","steps":[{"type":"function_call","name":"apply_patch","arguments":"{\"input\":\"c\"}"},{"type":"model_output"}],"environment_id":"e2"}`}},
+		"resolve":         {plain, false, []string{created, `{"event_type":"step.start","step":{"type":"function_call","name":"f","id":"i1","call_id":"c1"}}`, `{"event_type":"step.delta","step":{"call_id":"c1"},"delta":{"type":"arguments_delta","arguments":"{}"}}`, `{"event_type":"step.start","step":{"type":"model_output","id":"i9"}}`, `{"event_type":"step.stop","step":{"id":"i9"}}`, `{"event_type":"step.stop","step":{"id":"i1","index":0}}`, done}},
+		"sse-shaped":      {plain, false, []string{"event: interaction.created\ndata: " + created, "data: " + start(0, `{"type":"model_output"}`), ": ping", "data:", stop(0)}},
+	}
+	var names []string
+	for name := range cases {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	var out []fixture
+	for _, name := range names {
+		c := cases[name]
+		f := streamCase("interactions-responses/"+name, "gemini-2.5-pro", c.lines...)
+		f.Original = c.original
+		f.Finalize = c.finalize
+		out = append(out, f)
+	}
+	ag := streamCase("interactions-responses/antigravity", "gemini-antigravity-1", created, start(0, `{"type":"function_call","name":"external_read_file","id":"r0"}`), stop(0), start(1, `{"type":"function_call","name":"external_other","id":"r1"}`), stop(1), done)
+	ag.Original = `{"tools":[{"type":"function","name":"read_file"}]}`
+	out = append(out, ag)
+	steps := `"steps":[{"type":"model_output","id":"mo","content":"str <b>"},{"type":"model_output","step_id":"st","content":[{"type":"text","text":"t"},{"text":"untyped"},{"type":"image","data":"AA","mime_type":"image/png"},{"type":"image","url":"https://i"},{"type":"audio","mime_type":"audio/wav"},{"type":"audio"},{"type":"audio","mime_type":"weird"},{"type":"video","data":"VV"},{"type":"document","url":"https://d","filename":"d.pdf"},{"type":"other"}]},{"type":"thought","signature":"bogus","content":[{"text":"r1","signature":"` + geminiSig + `"},{"content":{"text":"r2"}}]},{"type":"thought","encrypted_content":"` + gptSignature() + `","content":"plain"},{"type":"function_call","name":"mcp__list","call_id":"c1","arguments":{"a":"<b>"}},{"type":"function_call","name":"run","id":"c2","arguments":"{\"input\":\"ls\"}"},{"type":"function_call","name":"zzz"},{"type":"function_result","name":"f"}]`
+	for i, c := range []struct{ original, body string }{
+		{plain, `{"id":"i1","model":"m1",` + steps + `,"status":"incomplete","interaction":{"environment":{"id":"env-n"}},"usage":{"input_tokens":1,"output_tokens":2}}`},
+		{plain, `{"interaction":{"id":"i2","model":"","steps":[{"type":"model_output","content":"x"}],"status":"completed","finish_reason":"content_filter","environment_id":"e"},"metadata":{"usage":{"total_tokens":7}}}`},
+		{"", `{"steps":[],"finish_reason":"max_tokens"}`},
+		{original, `{"id":"p1","steps":[{"type":"function_call","name":"apply_patch","call_id":"c","arguments":"{\"input\":\"*** Begin Patch\\n*** End Patch\"}"}]}`},
+		{original, `{"id":"p2","steps":[{"type":"function_call","name":"apply_patch","arguments":{"input":5}}]}`},
+		{original, `{"id":"p3","steps":[{"type":"function_call","arguments":{}}]}`},
+		{original, `{"id":"p4","status":"failed","steps":[]}`},
+		{original, `{"id":"p5","error":null,"steps":[{"type":"model_output","content":"ok"}]}`},
+		{original, `{"id":"p6","interaction":{"error":{"message":"x"}},"steps":[]}`},
+		{original, `{"id":"p7","steps":[{"type":"function_call","name":"apply_patch","arguments":{"input":"x"}}]`},
+		{`{"request":{"tools":[{"type":"custom","name":"apply_patch"}]}}`, `{"steps":[{"type":"function_call","name":"apply_patch","arguments":"{\"input\":\"y\"}"}]}`},
+		{plain, `not json`},
+	} {
+		n := nonStream(fmt.Sprintf("interactions-responses/non-stream/%d", i), "gemini-2.5-pro", c.body)
+		n.Original = c.original
+		out = append(out, n)
+	}
+	return out
+}
+
+// interactionsResponsesRequests exercise ConvertInteractionsRequestToOpenAIResponses:
+// system text, every input step type, content parts per role, tools with snake
+// declarations, tool choices, thinking settings and the antigravity variant.
+func interactionsResponsesRequests(model string) []fixture {
+	steps := `"input":[{"type":"user_input","content":"plain"},{"type":"user_input","content":[{"type":"text","text":"a"},{"text":"b"},{"type":"image","data":"AA"},{"type":"image","mime_type":"image/png","data":"BB"},{"type":"image","file_data":"data:x"},{"type":"audio","mime_type":"audio/x-wav"},{"type":"audio","mime_type":"audio/"},{"type":"video","data":"VV","mime_type":"video/mp4"},{"type":"document","url":"https://d","filename":"d.pdf"},{"type":"document"},{"type":"thought"}]},{"type":"user_input","content":{"type":"text","text":"obj values"}},{"type":"model_output","content":[{"type":"text","text":"m"},{"type":"image","url":"u"},{"type":"video","data":"W"}]},{"type":"model_output","content":"answer"},{"type":"model_output"},{"type":"thought","content":[{"text":"t1"},{"content":{"text":"t2"}},{"text":""}]},{"type":"thought","content":"str"},{"type":"thought"},{"type":"function_call","name":"external_read_file","call_id":"c1","arguments":{"p":"<x>"}},{"type":"function_call","name":"g","id":"c2","arguments":"{\"s\":\"<y>\"}"},{"type":"function_call","name":"h"},{"type":"function_result","call_id":"c1","name":"external_read_file","result":{"ok":true}},{"type":"function_result","id":"c2","output":"done"},{"type":"function_result"},"bare",5,{"type":"unknown"}]`
+	inputs := map[string]string{
+		"steps":             `{` + steps + `}`,
+		"antigravity/steps": `{` + steps + `,"tools":[{"name":"external_write_file"},{"function_declarations":[{"name":"external_execute_code","description":"d"}],"functionDeclarations":[{"name":"ignored"}]}]}`,
+		"input/object":      `{"input":{"type":"model_output","content":"obj"}}`,
+		"input/string":      `{"input":"hello","stream":true}`,
+		"system/string":     `{"system_instruction":"s <x>","input":"x"}`,
+		"system/text":       `{"system_instruction":{"text":5},"input":"x"}`,
+		"system/parts":      `{"system_instruction":{"parts":[{"text":"a"},{"text":""},{"text":"b"}]},"input":"x"}`,
+		"system/other":      `{"system_instruction":{"content":"x"},"input":"x"}`,
+		"tools":             `{"tools":[{"name":"a","description":"d <x>","parameters":{"type":"object"}},{"function":{"name":"b","description":"fd","parameters":{"p":1}}},{"name":"c","parametersJsonSchema":{"j":1}},{"function_declarations":[{"name":"d"},{"description":"none"}]},{"name":"  "}],"input":"x"}`,
+		"choice/gen":        `{"generation_config":{"tool_choice":{"type":"auto"},"thinking_level":" HIGH ","thinking_summaries":"auto"},"tool_choice":"none","input":"x"}`,
+		"choice/top":        `{"tool_choice":"required","generation_config":{"thinkingConfig":{"thinkingLevel":"Low"},"thinking_summaries":5},"input":"x"}`,
+		"effort/snake":      `{"generation_config":{"thinking_config":{"thinking_level":"minimal"},"thinking_level":7},"input":"x"}`,
+		"effort/empty":      `{"generation_config":{"thinking_level":"  ","thinkingConfig":{"thinkingLevel":"high"}},"input":"x"}`,
+		"top-level":         `{"response_modalities":["TEXT"],"service_tier":"flex","response_format":{"type":"json_object"},"previous_interaction_id":" ","previous_response_id":"p","environment":{"id":"e"},"agent_config":{"a":1},"input":"x"}`,
+		"top-level/2":       `{"service_tier":3,"previous_interaction_id":"pi","environment_id":"ei","stream":1,"input":"x"}`,
+		"model":             `{"model":"body","input":"x"}`,
+	}
+	var names []string
+	for name := range inputs {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	var out []fixture
+	for i, name := range names {
+		m := model
+		if strings.HasPrefix(name, "antigravity/") {
+			m = "antigravity-agent"
+		}
+		if name == "model" {
+			m = ""
+		}
+		out = append(out, req("interactions-responses/"+name, m, inputs[name], i%2 == 1))
+	}
+	return out
+}
+
+// responsesToInteractions exercise ConvertOpenAIResponsesResponseToInteractions(NonStream):
+// Responses events to Interactions steps, with text and argument dedupe keys, message
+// fallbacks on item and response completion, and antigravity names.
+func responsesToInteractions() []fixture {
+	ev := func(body string) string { return "data: " + body }
+	cases := map[string][]string{
+		"text": {ev(`{"type":"response.created","response":{"id":"resp_1","model":"gpt-x"}}`), ev(`{"type":"response.output_item.added","output_index":0,"item":{"type":"message","id":"msg_1"}}`), ev(`{"type":"response.output_text.delta","item_id":"msg_1","output_index":0,"content_index":0,"delta":"Hi <b>"}`), ev(`{"type":"response.output_text.delta","item_id":"msg_1","output_index":0,"content_index":0,"delta":" é"}`),
+			ev(`{"type":"response.output_item.done","output_index":0,"item":{"type":"message","id":"msg_1","content":[{"type":"output_text","text":"Hi <b> é"},{"type":"output_text","text":"second part"},{"type":"refusal","text":"no"},{"type":"text","text":""}]}}`),
+			ev(`{"type":"response.output_text.delta","delta":"unkeyed"}`), ev(`{"type":"response.output_item.done","output_index":1,"item":{"type":"message","id":"msg_2","content":[{"type":"output_text","text":"skipped by unkeyed"}]}}`),
+			ev(`{"type":"response.completed","response":{"id":"resp_1","status":"completed","output":[{"type":"message","id":"msg_1","content":[{"type":"output_text","text":"dup"},{"type":"output_text","text":"dup2"}]},{"type":"message","id":"msg_3","content":[{"type":"output_text","text":"late text"}]},{"type":"reasoning"}],"usage":{"input_tokens":3,"output_tokens":4,"total_tokens":7,"input_tokens_details":{"cached_tokens":1},"output_tokens_details":{"reasoning_tokens":2}}}}`), "data: [DONE]"},
+		"tools": {ev(`{"type":"response.output_item.added","output_index":0,"item":{"type":"reasoning","id":"rs_1"}}`), ev(`{"type":"response.reasoning_summary_text.delta","delta":"think"}`), ev(`{"type":"response.output_item.done","output_index":0,"item":{"type":"reasoning","summary":[{"text":"s1"},{"text":""},{"text":"s2"}]}}`),
+			ev(`{"type":"response.output_item.added","output_index":1,"item":{"type":"function_call","id":"fc_1","call_id":"call_1","name":"read_file"}}`), ev(`{"type":"response.function_call_arguments.delta","item_id":"fc_1","output_index":1,"delta":"{\"p\":\"<x>\"}"}`), ev(`{"type":"response.output_item.done","output_index":1,"item":{"type":"function_call","id":"fc_1","call_id":"call_1","name":"read_file","arguments":"{\"p\":\"<x>\"}"}}`),
+			ev(`{"type":"response.output_item.done","output_index":2,"item":{"type":"function_call","id":"fc_2","name":"other","arguments":"{}"}}`), ev(`{"type":"response.function_call_arguments.delta","call_id":"call_3","delta":"{}"}`), ev(`{"type":"response.output_item.done","item":{"type":"function_call","call_id":"call_3","arguments":""}}`),
+			ev(`{"type":"response.output_item.added","item":{"type":"other"}}`), ev(`{"type":"response.incomplete","response":{"status":"incomplete","model":"gpt-y"}}`), ev(`{"type":"response.output_text.delta","delta":"after"}`)},
+		"framing":   {"", ": keepalive", "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"delta\":\"multi\"}", `{"type":"response.output_text.delta","delta":"bare"}`, "data: not json", "data: [DONE]", "data: [DONE]"},
+		"done-only": {"data: [DONE]"},
+	}
+	var names []string
+	for name := range cases {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	var out []fixture
+	for _, name := range names {
+		out = append(out, streamCase("responses-interactions/"+name, "gemini-2.5-pro", cases[name]...))
+		if name == "tools" {
+			out = append(out, streamCase("responses-interactions/antigravity-"+name, "antigravity-x", cases[name]...))
+		}
+	}
+	for i, body := range []string{
+		`{"id":"resp_9","model":"gpt-x","status":"incomplete","output":[{"type":"message","content":[{"type":"output_text","text":"a <b>"},{"type":"input_image","image_url":"data:image/png;base64,AA"},{"text":"untyped"},{"type":"refusal"}]},{"type":"function_call","call_id":"c1","name":"read_file","arguments":"{\"x\":1}"},{"type":"function_call","name":"f","namespace":"mcp","arguments":"not json"},{"type":"reasoning","summary":[{"text":"s"},{"text":""}]},{"type":"custom_tool_call","name":"run"}],"usage":{"input_tokens":1,"output_tokens":"2"}}`,
+		`{"output":{"a":{"type":"message","content":[]}}}`, `{}`, `not json`,
+	} {
+		out = append(out, nonStream(fmt.Sprintf("responses-interactions/non-stream/%d", i), "gemini-2.5-pro", body))
+		if i == 0 {
+			out = append(out, nonStream("responses-interactions/non-stream/antigravity", "antigravity-x", body))
 		}
 	}
 	return out
