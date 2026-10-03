@@ -4,7 +4,7 @@ A Rust rewrite of CLIProxyAPI (https://github.com/router-for-me/CLIProxyAPI) tar
 
 ## Reference
 
-- A read-only clone of CLIProxyAPI lives at `/home/vayun/projects/.amp/in/CLIProxyAPI` on vayun-core (commit `6fecc6e`). In other environments, clone it at that commit. Cite Go file paths in comments only where behaviour is non-obvious.
+- The reference is CLIProxyAPI at commit `6fecc6e`: clone https://github.com/router-for-me/CLIProxyAPI, check out that commit and treat the clone as read-only. Cite Go file paths in comments only where behaviour is non-obvious.
 - When Go behaviour and documentation disagree, the Go code wins. Port behaviour, not structure: idiomatic Rust over transliterated Go.
 
 ## Layout
@@ -16,7 +16,7 @@ A Rust rewrite of CLIProxyAPI (https://github.com/router-for-me/CLIProxyAPI) tar
 
 ## Rules
 
-- Build and test with `CARGO_BUILD_JOBS=6 nice -n 19 ionice -c3 cargo test --workspace` on vayun-core; it also runs a live Minecraft server.
+- Build and test with `cargo test --workspace`. On a shared or small machine, run it at low priority and limit parallel jobs, for example `CARGO_BUILD_JOBS=2 nice -n 19 cargo test --workspace`; the BoringSSL build and the release link use a lot of memory.
 - Request bodies are forwarded byte for byte unless a ported rule rewrites them. Never re-serialize JSON just to pass it through.
 - Upstream credentials and client keys must never be logged or forwarded to the wrong side.
 - Tests use local mock upstreams. Never send test traffic to real provider accounts.

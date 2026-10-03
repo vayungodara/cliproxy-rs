@@ -390,6 +390,46 @@ impl cpa_translate::StreamTranslator for PatchProbe {
     }
 }
 
+/// An error Go reports as `<message>: <upstream body>` where Rust withholds the body:
+/// Go's text must be Rust's message plus the body, and Rust's must not contain it.
+pub(crate) fn assert_go_message_without_body(name: &str, rust: &str, go: &str) {
+    let body = go
+        .strip_prefix(rust)
+        .and_then(|rest| rest.strip_prefix(": "))
+        .unwrap_or_else(|| panic!("{name}: {go:?} must be {rust:?} plus the upstream body"));
+    assert!(!body.is_empty(), "{name}: Go appends a body");
+    assert!(!rust.contains(body), "{name}: {rust:?} must not carry the body");
+}
+
+/// Captures every tracing event emitted on the current thread while installed (no
+/// subscriber crate needed): each event's fields, formatted.
+#[derive(Clone, Default)]
+pub(crate) struct LogCapture(pub Arc<Mutex<Vec<String>>>);
+
+impl tracing::Subscriber for LogCapture {
+    fn enabled(&self, _: &tracing::Metadata<'_>) -> bool {
+        true
+    }
+    fn new_span(&self, _: &tracing::span::Attributes<'_>) -> tracing::span::Id {
+        tracing::span::Id::from_u64(1)
+    }
+    fn record(&self, _: &tracing::span::Id, _: &tracing::span::Record<'_>) {}
+    fn record_follows_from(&self, _: &tracing::span::Id, _: &tracing::span::Id) {}
+    fn event(&self, event: &tracing::Event<'_>) {
+        struct Fields(String);
+        impl tracing::field::Visit for Fields {
+            fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
+                self.0.push_str(&format!("{}={value:?} ", field.name()));
+            }
+        }
+        let mut fields = Fields(String::new());
+        event.record(&mut fields);
+        self.0.lock().unwrap().push(fields.0);
+    }
+    fn enter(&self, _: &tracing::span::Id) {}
+    fn exit(&self, _: &tracing::span::Id) {}
+}
+
 /// Records what an executor reports to its usage sink (Server 6's `UsageSink`).
 #[derive(Default)]
 pub(crate) struct UsageLog(Mutex<Vec<(&'static str, Format, Vec<u8>)>>);
@@ -470,8 +510,12 @@ fn reported_tokens(format: Format, payload: &[u8]) -> Option<[i64; 4]> {
     Some(t)
 }
 
-/// The response model a reported payload names, by format.
+/// The response model a reported payload names, by format (Go's extractors need one
+/// valid JSON value).
 fn reported_model(format: Format, payload: &[u8]) -> Option<String> {
+    if !cpa_common::json::valid(payload) {
+        return None;
+    }
     let paths: &[&str] = match format {
         Format::Codex | Format::OpenAIResponse => &["response.model", "model"],
         Format::Interactions => &["interaction.model", "model"],
@@ -485,7 +529,8 @@ fn reported_model(format: Format, payload: &[u8]) -> Option<String> {
 
 /// Checks the usage reports against the record Go's `UsageReporter` published for the
 /// same fixture (`extra.usage`): the reported upstream payloads carry Go's token counts
-/// and response model, and the reported request yields Go's translated reasoning effort.
+/// (none for a failed attempt) and response model, and the reported request yields Go's
+/// translated reasoning effort.
 pub(crate) fn assert_usage_like_go(name: &str, fx: &Value, log: &UsageLog) {
     let Some(record) = fx["extra"]["usage"].as_array().and_then(|r| r.first()) else {
         return;
@@ -507,17 +552,38 @@ pub(crate) fn assert_usage_like_go(name: &str, fx: &Value, log: &UsageLog) {
         record["reasoning_effort"].as_str().unwrap(),
         "{name}: translated reasoning effort"
     );
-    if record["failed"].as_bool() == Some(true) {
-        return;
-    }
     let payloads = log.payloads();
-    let tokens = payloads
-        .iter()
-        .rev()
-        .find_map(|(f, p)| reported_tokens(*f, p))
-        .unwrap_or_default();
+    let tokens = if record["failed"].as_bool() == Some(true) {
+        // Go's `PublishFailure` publishes an empty detail: nothing reported may carry tokens.
+        let carried: Vec<_> = payloads
+            .iter()
+            .filter_map(|(f, p)| reported_tokens(*f, p))
+            .filter(|t| *t != [0; 4])
+            .collect();
+        assert!(
+            carried.is_empty(),
+            "{name}: a failed attempt reported tokens {carried:?}"
+        );
+        [0; 4]
+    } else {
+        payloads
+            .iter()
+            .rev()
+            .find_map(|(f, p)| reported_tokens(*f, p))
+            .unwrap_or_default()
+    };
     let want = ["input_tokens", "output_tokens", "total_tokens", "cached_tokens"].map(|k| record[k].as_i64().unwrap());
     assert_eq!(tokens, want, "{name}: reported tokens (input, output, total, cached)");
+    // Go's buffer ends with the last non-blank tier it observed (Observe never clears it).
+    if let Some(want) = record["service_tier"].as_str() {
+        let tier = payloads
+            .iter()
+            .rev()
+            .map(|(_, p)| crate::kimi_http::response_tier(p))
+            .find(|t| !t.is_empty())
+            .unwrap_or_default();
+        assert_eq!(tier, want, "{name}: reported response service tier");
+    }
     let model = payloads.iter().rev().find_map(|(f, p)| reported_model(*f, p));
     assert_eq!(
         model.unwrap_or_default(),

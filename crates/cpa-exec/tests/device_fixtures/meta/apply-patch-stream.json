@@ -1,0 +1,119 @@
+{
+  "attributes": {
+    "auth_kind": "oauth"
+  },
+  "credential": {
+    "access_token": "meta-key-fixture",
+    "api_key": "meta-key-fixture",
+    "auth_kind": "oauth",
+    "base_url": "http://127.0.0.1:40239/v1",
+    "dca_token": "dca:fixture",
+    "type": "meta"
+  },
+  "downstream": {
+    "chunks": [
+      "data: {\"type\":\"response.created\",\"response\":{\"id\":\"r1\",\"status\":\"in_progress\",\"model\":\"muse-spark-1.3\"}}",
+      "",
+      "data: {\"type\":\"response.output_item.added\",\"output_index\":0,\"sequence_number\":1,\"item\":{\"type\":\"custom_tool_call\",\"id\":\"fc1\",\"call_id\":\"c1\",\"name\":\"apply_patch\",\"status\":\"in_progress\",\"input\":\"\"}}\n\n",
+      "",
+      "data: {\"type\":\"response.custom_tool_call_input.delta\",\"item_id\":\"fc1\",\"call_id\":\"c1\",\"output_index\":0,\"sequence_number\":2,\"delta\":\"*** Begin Patch\\n+中\"}\n\n",
+      "",
+      "data: {\"type\":\"response.custom_tool_call_input.delta\",\"item_id\":\"fc1\",\"call_id\":\"c1\",\"output_index\":0,\"sequence_number\":3,\"delta\":\"😀\\n*** End Patch\\n\"}\n\n",
+      "",
+      "data: {\"type\":\"response.custom_tool_call_input.done\",\"item_id\":\"fc1\",\"call_id\":\"c1\",\"output_index\":0,\"sequence_number\":4,\"input\":\"*** Begin Patch\\n+中😀\\n*** End Patch\\n\"}\n\n",
+      "",
+      "data: {\"type\":\"response.output_item.done\",\"output_index\":0,\"sequence_number\":5,\"item\":{\"type\":\"custom_tool_call\",\"id\":\"fc1\",\"call_id\":\"c1\",\"name\":\"apply_patch\",\"status\":\"completed\",\"input\":\"*** Begin Patch\\n+中😀\\n*** End Patch\\n\"}}\n\n",
+      "",
+      "data: {\"type\":\"response.completed\",\"response\":{\"id\":\"r1\",\"status\":\"completed\",\"model\":\"muse-spark-1.3\",\"output\":[{\"type\":\"custom_tool_call\",\"id\":\"fc1\",\"call_id\":\"c1\",\"name\":\"apply_patch\",\"status\":\"completed\",\"input\":\"*** Begin Patch\\n+中😀\\n*** End Patch\\n\"}],\"usage\":{\"input_tokens\":9,\"output_tokens\":4,\"total_tokens\":13,\"output_tokens_details\":{\"reasoning_tokens\":0},\"input_tokens_details\":{\"cached_tokens\":0}}},\"sequence_number\":6}\n\n",
+      ""
+    ],
+    "frames": [
+      "data: {\"type\":\"response.created\",\"response\":{\"id\":\"r1\",\"status\":\"in_progress\",\"model\":\"muse-spark-1.3\"}}\n\n",
+      "data: {\"type\":\"response.output_item.added\",\"output_index\":0,\"sequence_number\":1,\"item\":{\"type\":\"custom_tool_call\",\"id\":\"fc1\",\"call_id\":\"c1\",\"name\":\"apply_patch\",\"status\":\"in_progress\",\"input\":\"\"}}\n\n",
+      "data: {\"type\":\"response.custom_tool_call_input.delta\",\"item_id\":\"fc1\",\"call_id\":\"c1\",\"output_index\":0,\"sequence_number\":2,\"delta\":\"*** Begin Patch\\n+中\"}\n\n",
+      "data: {\"type\":\"response.custom_tool_call_input.delta\",\"item_id\":\"fc1\",\"call_id\":\"c1\",\"output_index\":0,\"sequence_number\":3,\"delta\":\"😀\\n*** End Patch\\n\"}\n\n",
+      "data: {\"type\":\"response.custom_tool_call_input.done\",\"item_id\":\"fc1\",\"call_id\":\"c1\",\"output_index\":0,\"sequence_number\":4,\"input\":\"*** Begin Patch\\n+中😀\\n*** End Patch\\n\"}\n\n",
+      "data: {\"type\":\"response.output_item.done\",\"output_index\":0,\"sequence_number\":5,\"item\":{\"type\":\"custom_tool_call\",\"id\":\"fc1\",\"call_id\":\"c1\",\"name\":\"apply_patch\",\"status\":\"completed\",\"input\":\"*** Begin Patch\\n+中😀\\n*** End Patch\\n\"}}\n\n",
+      "data: {\"type\":\"response.completed\",\"response\":{\"id\":\"r1\",\"status\":\"completed\",\"model\":\"muse-spark-1.3\",\"output\":[{\"type\":\"custom_tool_call\",\"id\":\"fc1\",\"call_id\":\"c1\",\"name\":\"apply_patch\",\"status\":\"completed\",\"input\":\"*** Begin Patch\\n+中😀\\n*** End Patch\\n\"}],\"usage\":{\"input_tokens\":9,\"output_tokens\":4,\"total_tokens\":13,\"output_tokens_details\":{\"reasoning_tokens\":0},\"input_tokens_details\":{\"cached_tokens\":0}}},\"sequence_number\":6}\n\n"
+    ]
+  },
+  "extra": {
+    "usage": [
+      {
+        "cached_tokens": 0,
+        "failed": false,
+        "input_tokens": 9,
+        "model": "muse-spark-1.3",
+        "output_tokens": 4,
+        "reasoning_effort": "",
+        "reasoning_tokens": 0,
+        "response_model": "muse-spark-1.3",
+        "total_tokens": 13
+      }
+    ]
+  },
+  "name": "apply-patch-stream",
+  "request": {
+    "body": "{\"model\":\"muse-spark-1.3\",\"input\":[{\"type\":\"custom_tool_call\",\"call_id\":\"old\",\"name\":\"apply_patch\",\"input\":\"old\\n\"},{\"type\":\"custom_tool_call_output\",\"call_id\":\"old\",\"output\":\"ok\"}],\"tools\":[{\"type\":\"custom\",\"name\":\"apply_patch\",\"description\":\"Apply a patch\"}],\"tool_choice\":{\"type\":\"custom\",\"name\":\"apply_patch\"}}",
+    "model": "muse-spark-1.3",
+    "source": "openai-response",
+    "stream": true
+  },
+  "responses": [
+    {
+      "body": "data: {\"type\":\"response.created\",\"response\":{\"id\":\"r1\",\"status\":\"in_progress\",\"model\":\"muse-spark-1.3\"}}\n\ndata: {\"type\":\"response.output_item.added\",\"output_index\":0,\"item\":{\"type\":\"function_call\",\"id\":\"fc1\",\"call_id\":\"c1\",\"name\":\"apply_patch\",\"arguments\":\"\",\"status\":\"in_progress\"}}\n\ndata: {\"type\":\"response.function_call_arguments.delta\",\"item_id\":\"fc1\",\"output_index\":0,\"delta\":\"{\\\"input\\\":\\\"*** Begin Patch\\\\n+中\"}\n\ndata: {\"type\":\"response.function_call_arguments.delta\",\"item_id\":\"fc1\",\"output_index\":0,\"delta\":\"😀\\\\n*** End Patch\\\\n\\\"}\"}\n\ndata: {\"type\":\"response.function_call_arguments.done\",\"item_id\":\"fc1\",\"output_index\":0,\"arguments\":\"{\\\"input\\\":\\\"*** Begin Patch\\\\n+中😀\\\\n*** End Patch\\\\n\\\"}\"}\n\ndata: {\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"type\":\"function_call\",\"id\":\"fc1\",\"call_id\":\"c1\",\"name\":\"apply_patch\",\"arguments\":\"{\\\"input\\\":\\\"*** Begin Patch\\\\n+中😀\\\\n*** End Patch\\\\n\\\"}\",\"status\":\"completed\"}}\n\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"r1\",\"status\":\"completed\",\"model\":\"muse-spark-1.3\",\"output\":[{\"type\":\"function_call\",\"id\":\"fc1\",\"call_id\":\"c1\",\"name\":\"apply_patch\",\"arguments\":\"{\\\"input\\\":\\\"*** Begin Patch\\\\n+中😀\\\\n*** End Patch\\\\n\\\"}\",\"status\":\"completed\"}],\"usage\":{\"input_tokens\":9,\"output_tokens\":4,\"total_tokens\":13}}}\n\n",
+      "headers": [
+        [
+          "Content-Type",
+          "text/event-stream"
+        ]
+      ],
+      "status": 200
+    }
+  ],
+  "upstream": [
+    {
+      "body": "{\"model\":\"muse-spark-1.3\",\"input\":[{\"type\":\"function_call\",\"call_id\":\"old\",\"name\":\"apply_patch\",\"arguments\":\"{\\\"input\\\":\\\"old\\\\n\\\"}\"},{\"type\":\"function_call_output\",\"call_id\":\"old\",\"output\":\"ok\"}],\"tools\":[{\"type\":\"function\",\"name\":\"apply_patch\",\"description\":\"Apply a patch\\n\\nCall this function with a JSON object whose input field contains the complete patch text.\\nUse the Codex apply_patch format, not a conventional git unified diff.\\nStart with *** Begin Patch and end with *** End Patch.\\nUse *** Add File: path, *** Delete File: path, or *** Update File: path.\\nEvery added-file content line starts with +.\\nFor updates, use @@; context lines start with one space, removed lines with -, and added lines with +.\\nUse *** Move to: path for a rename and *** End of File when required by the patch grammar.\\nExample input:\\n*** Begin Patch\\n*** Update File: src/main.go\\n@@\\n-old\\n+new\\n*** End Patch\",\"parameters\":{\"type\":\"object\",\"properties\":{\"input\":{\"type\":\"string\",\"description\":\"The complete apply_patch patch text.\"}},\"required\":[\"input\"],\"additionalProperties\":false}}],\"tool_choice\":{\"type\":\"function\",\"name\":\"apply_patch\"},\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\"}",
+      "headers": [
+        [
+          "Host",
+          "127.0.0.1:40239"
+        ],
+        [
+          "User-Agent",
+          "muse-build/1.3.0 (interactive; macos-aarch64; build ac7280f2aca67769d1455a8847bb502b617d50f6)"
+        ],
+        [
+          "Content-Length",
+          "1254"
+        ],
+        [
+          "Accept",
+          "text/event-stream"
+        ],
+        [
+          "Authorization",
+          "Bearer meta-key-fixture"
+        ],
+        [
+          "Cache-Control",
+          "no-cache"
+        ],
+        [
+          "Content-Type",
+          "application/json"
+        ],
+        [
+          "X-Client-Id",
+          "tbh:tui"
+        ],
+        [
+          "Accept-Encoding",
+          "gzip"
+        ]
+      ],
+      "method": "POST",
+      "target": "/v1/responses"
+    }
+  ]
+}

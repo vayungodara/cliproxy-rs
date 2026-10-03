@@ -43,17 +43,19 @@ async fn codex_passive_quota_snapshots_appear_in_credential_entries() {
     f.rt.executors.codex.quota().observe(&codex, "", &headers);
     f.rt.executors.codex.quota().observe(&claude, "", &headers);
     let (base, server) = f.server().await;
-    let listed: Value = wreq::Client::new()
-        .get(format!("{base}/v8/management/credentials"))
-        .bearer_auth("fake-management-only")
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
-    server.abort();
-    let entry = |name: &str| {
+    let list = || async {
+        wreq::Client::new()
+            .get(format!("{base}/v8/management/credentials"))
+            .bearer_auth("fake-management-only")
+            .send()
+            .await
+            .unwrap()
+            .json::<Value>()
+            .await
+            .unwrap()
+    };
+    let listed = list().await;
+    let entry_in = |listed: &Value, name: &str| {
         listed["files"]
             .as_array()
             .unwrap()
@@ -62,6 +64,7 @@ async fn codex_passive_quota_snapshots_appear_in_credential_entries() {
             .unwrap()
             .clone()
     };
+    let entry = |name: &str| entry_in(&listed, name);
     let quota = entry("codex-a.json")["quota"].clone();
     assert_eq!(
         quota["signals"],
@@ -72,6 +75,36 @@ async fn codex_passive_quota_snapshots_appear_in_credential_entries() {
     assert!((chrono::Utc::now() - observed.to_utc()).num_seconds().abs() < 60);
     assert_eq!(entry("claude-b.json")["quota"], json!({"signals": {}}));
     assert!(entry("codex-a.json").get("model_quotas").is_none());
+
+    // Per-model observations (Go model_quotas): keyed by the model without its
+    // thinking suffix; the credential quota is the latest snapshot.
+    let mut mini = axum::http::HeaderMap::new();
+    mini.insert("x-codex-primary-used-percent", "70".parse().unwrap());
+    f.rt.executors.codex.quota().observe(&codex, "gpt-5.4(high)", &headers);
+    f.rt.executors.codex.quota().observe(&codex, "gpt-5.4-mini", &mini);
+    f.rt.executors
+        .codex
+        .quota()
+        .observe(&claude, "claude-sonnet-4-6", &headers);
+    let listed = list().await;
+    server.abort();
+    let codex_entry = entry_in(&listed, "codex-a.json");
+    let models = codex_entry["model_quotas"].as_object().unwrap();
+    assert_eq!(models.keys().collect::<Vec<_>>(), ["gpt-5.4", "gpt-5.4-mini"]);
+    assert_eq!(
+        models["gpt-5.4"]["signals"],
+        json!({"X-Codex-Plan-Type": "pro", "X-Codex-Primary-Used-Percent": "12"})
+    );
+    assert_eq!(
+        models["gpt-5.4-mini"]["signals"],
+        json!({"X-Codex-Primary-Used-Percent": "70"})
+    );
+    assert!(models["gpt-5.4-mini"]["observed_at"].is_string());
+    assert_eq!(
+        codex_entry["quota"]["signals"],
+        json!({"X-Codex-Primary-Used-Percent": "70"})
+    );
+    assert!(entry_in(&listed, "claude-b.json").get("model_quotas").is_none());
 }
 
 impl Fixture {
@@ -82,7 +115,7 @@ impl Fixture {
         let hash = bcrypt::hash("fake-management-only", 4).unwrap();
         std::fs::write(&path, format!("# operator note\nconfig-version: 8\nserver:\n  host: '127.0.0.1' # listener\n  port: 0\nmanagement:\n  secret-key: '{hash}'\noauth:\n  auth-dir: {}\nrouting:\n  retry:\n    request-retry: 3 # attempts\naccess:\n  api-keys: [fake-client]\n", dir.join("auth").display())).unwrap();
         let cfg = Config::load(&path).unwrap();
-        let rt = Arc::new(Runtime::new(
+        let rt = Arc::new(cpa_server::testing::runtime(
             cfg,
             vec![],
             Executors {
@@ -104,7 +137,7 @@ impl Fixture {
         let hash = bcrypt::hash("fake-management-only", 4).unwrap();
         std::fs::write(&path, yaml(&dir.join("auth"), &hash)).unwrap();
         let cfg = Config::load(&path).unwrap();
-        let rt = Arc::new(Runtime::new(
+        let rt = Arc::new(cpa_server::testing::runtime(
             cfg.clone(),
             cpa_core::config::credentials::load(&cfg),
             Executors {
@@ -388,10 +421,25 @@ fn plaintext_secret_loads_from_a_read_only_config_and_inherited_keys() {
     let cfg = loaded.expect("read-only config must load");
     assert!(bcrypt::verify("fake-plain-secret", &cfg.management.secret_key).unwrap());
     assert_eq!(std::fs::read_to_string(&path).unwrap(), text, "file untouched");
-    // A key inherited through a merge loads too (not persisted, ponytail).
-    std::fs::write(&path, "<<: {remote-management: {secret-key: fake-merged-secret}}\n").unwrap();
-    let cfg = Config::load(&path).unwrap();
-    assert!(bcrypt::verify("fake-merged-secret", &cfg.management.secret_key).unwrap());
+    // Keys inherited through a merge (legacy and v8 layout, at the root or inside the
+    // parent mapping) are persisted hashed, with no plaintext left in the merge.
+    for text in [
+        "<<: {remote-management: {secret-key: fake-merged-secret}}\n",
+        "<<: {management: {secret-key: fake-merged-secret}}\n",
+        "management:\n  <<: {secret-key: fake-merged-secret}\n",
+        "remote-management:\n  <<: {secret-key: fake-merged-secret}\n  allow-remote: false\n",
+    ] {
+        let layout = text;
+        std::fs::write(&path, text).unwrap();
+        let cfg = Config::load(&path).unwrap();
+        assert!(bcrypt::verify("fake-merged-secret", &cfg.management.secret_key).unwrap());
+        let file = std::fs::read_to_string(&path).unwrap();
+        assert!(!file.contains("fake-merged-secret"), "{layout}: {file}");
+        assert_eq!(
+            Config::load(&path).unwrap().management.secret_key,
+            cfg.management.secret_key
+        );
+    }
     // A writable plain layout is persisted as a hash, comments kept.
     std::fs::write(&path, "# keep\nmanagement:\n  secret-key: fake-v8-secret # note\n").unwrap();
     let cfg = Config::load(&path).unwrap();
@@ -1595,10 +1643,12 @@ async fn kimi_channel_selects_kimi_ai_and_codex_exchange_errors_read_like_go() {
         code: "fake-code".into(),
         error: String::new(),
     }));
+    // Go appends the upstream body; session errors are readable by anyone holding
+    // the state, so cliproxy-rs stops at the status (deliberate hardening).
     assert_eq!(
         final_status(&base, &state, 10).await,
         json!({"status": "error", "error":
-            "Failed to exchange authorization code for tokens: token exchange failed with status 400: {\"error\":\"invalid_grant\"}"})
+            "Failed to exchange authorization code for tokens: token exchange failed with status 400"})
     );
     server.abort();
     bad_server.abort();

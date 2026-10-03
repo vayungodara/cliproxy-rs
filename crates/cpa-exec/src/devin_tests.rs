@@ -630,7 +630,13 @@ async fn refresh_matches_go_fixtures() {
         }
         match fx["downstream"]["err_body"].as_str() {
             Some(message) => {
-                assert_eq!(result.unwrap_err().body, message.as_bytes(), "{name}");
+                let rust = String::from_utf8(result.unwrap_err().body.to_vec()).unwrap();
+                if name == "refresh-error" {
+                    // Go appends the seat-management body; it is withheld.
+                    crate::kimi_fixture::assert_go_message_without_body(name, &rust, message);
+                } else {
+                    assert_eq!(rust, message, "{name}");
+                }
                 continue;
             }
             None => {
@@ -705,7 +711,9 @@ async fn code_exchange_matches_go_fixtures() {
             .await;
         let go = &fx["downstream"];
         match go["err_body"].as_str() {
-            Some(message) => assert_eq!(result.unwrap_err(), message, "{name}"),
+            // Go appends the token endpoint's body, which can carry the session token; it
+            // is withheld because login logs this error.
+            Some(message) => crate::kimi_fixture::assert_go_message_without_body(name, &result.unwrap_err(), message),
             None => assert_eq!(result.unwrap(), go["body"].as_str().unwrap(), "{name}"),
         }
         let g = Captured::from_fixture(&fx["upstream"][0]);

@@ -1,0 +1,116 @@
+{
+  "credential": {
+    "access_token": "kimi-access-fixture",
+    "base_url": "http://127.0.0.1:36621/coding",
+    "device_id": "dev-fixture-1",
+    "refresh_token": "kimi-refresh-fixture",
+    "type": "kimi"
+  },
+  "downstream": {
+    "chunks": [
+      "data: {\"type\":\"response.output_item.added\",\"output_index\":0,\"sequence_number\":1,\"item\":{\"type\":\"custom_tool_call\",\"id\":\"fc1\",\"call_id\":\"c1\",\"name\":\"apply_patch\",\"status\":\"in_progress\",\"input\":\"\"}}\n\n\n",
+      "\n",
+      "data: {\"type\":\"response.custom_tool_call_input.delta\",\"item_id\":\"fc1\",\"call_id\":\"c1\",\"output_index\":0,\"sequence_number\":2,\"delta\":\"*** Begin\"}\n\n\n",
+      "\n",
+      "data: {\"type\":\"response.failed\",\"sequence_number\":3,\"response\":{\"id\":\"\",\"object\":\"response\",\"status\":\"failed\",\"error\":{\"type\":\"server_error\",\"code\":\"invalid_tool_arguments\",\"message\":\"Invalid apply_patch tool arguments received from upstream.\",\"param\":null}}}\n\n\n"
+    ],
+    "err_status": 502,
+    "frames": [
+      "data: {\"type\":\"response.output_item.added\",\"output_index\":0,\"sequence_number\":1,\"item\":{\"type\":\"custom_tool_call\",\"id\":\"fc1\",\"call_id\":\"c1\",\"name\":\"apply_patch\",\"status\":\"in_progress\",\"input\":\"\"}}\n\n",
+      "data: {\"type\":\"response.custom_tool_call_input.delta\",\"item_id\":\"fc1\",\"call_id\":\"c1\",\"output_index\":0,\"sequence_number\":2,\"delta\":\"*** Begin\"}\n\n",
+      "data: {\"type\":\"response.failed\",\"sequence_number\":3,\"response\":{\"id\":\"\",\"object\":\"response\",\"status\":\"failed\",\"error\":{\"type\":\"server_error\",\"code\":\"invalid_tool_arguments\",\"message\":\"Invalid apply_patch tool arguments received from upstream.\",\"param\":null}}}\n\n"
+    ],
+    "stream_err": "Invalid apply_patch tool arguments received from upstream."
+  },
+  "extra": {
+    "usage": [
+      {
+        "cached_tokens": 0,
+        "failed": true,
+        "input_tokens": 0,
+        "model": "kimi-k3",
+        "output_tokens": 0,
+        "reasoning_effort": "",
+        "reasoning_tokens": 0,
+        "response_model": "",
+        "total_tokens": 0
+      }
+    ]
+  },
+  "name": "responses-apply-patch-eof-stream",
+  "request": {
+    "body": "{\"model\":\"kimi-k3\",\"input\":[{\"type\":\"custom_tool_call\",\"call_id\":\"old\",\"name\":\"apply_patch\",\"input\":\"old\\n\"},{\"type\":\"custom_tool_call_output\",\"call_id\":\"old\",\"output\":\"ok\"}],\"tools\":[{\"type\":\"custom\",\"name\":\"apply_patch\",\"description\":\"Apply a patch\"}],\"tool_choice\":{\"type\":\"custom\",\"name\":\"apply_patch\"}}",
+    "model": "kimi-k3",
+    "source": "openai-response",
+    "stream": true
+  },
+  "responses": [
+    {
+      "body": "data: {\"type\":\"response.output_item.added\",\"output_index\":0,\"item\":{\"type\":\"function_call\",\"id\":\"fc1\",\"call_id\":\"c1\",\"name\":\"apply_patch\",\"arguments\":\"\",\"status\":\"in_progress\"}}\n\ndata: {\"type\":\"response.function_call_arguments.delta\",\"item_id\":\"fc1\",\"output_index\":0,\"delta\":\"{\\\"input\\\":\\\"*** Begin\"}\n\n",
+      "headers": [
+        [
+          "Content-Type",
+          "text/event-stream"
+        ]
+      ],
+      "status": 200
+    }
+  ],
+  "upstream": [
+    {
+      "body": "{\"model\":\"k3\",\"input\":[{\"type\":\"function_call\",\"call_id\":\"old\",\"name\":\"apply_patch\",\"arguments\":\"{\\\"input\\\":\\\"old\\\\n\\\"}\"},{\"type\":\"function_call_output\",\"call_id\":\"old\",\"output\":\"ok\"}],\"tools\":[{\"type\":\"function\",\"name\":\"apply_patch\",\"description\":\"Apply a patch\\n\\nCall this function with a JSON object whose input field contains the complete patch text.\\nUse the Codex apply_patch format, not a conventional git unified diff.\\nStart with *** Begin Patch and end with *** End Patch.\\nUse *** Add File: path, *** Delete File: path, or *** Update File: path.\\nEvery added-file content line starts with +.\\nFor updates, use @@; context lines start with one space, removed lines with -, and added lines with +.\\nUse *** Move to: path for a rename and *** End of File when required by the patch grammar.\\nExample input:\\n*** Begin Patch\\n*** Update File: src/main.go\\n@@\\n-old\\n+new\\n*** End Patch\",\"parameters\":{\"type\":\"object\",\"properties\":{\"input\":{\"type\":\"string\",\"description\":\"The complete apply_patch patch text.\"}},\"required\":[\"input\"],\"additionalProperties\":false}}],\"tool_choice\":{\"type\":\"function\",\"name\":\"apply_patch\"},\"stream\":true}",
+      "headers": [
+        [
+          "Host",
+          "127.0.0.1:36621"
+        ],
+        [
+          "User-Agent",
+          "CLIProxyAPI/0.1.0"
+        ],
+        [
+          "Content-Length",
+          "1141"
+        ],
+        [
+          "Accept",
+          "text/event-stream"
+        ],
+        [
+          "Authorization",
+          "Bearer kimi-access-fixture"
+        ],
+        [
+          "Content-Type",
+          "application/json"
+        ],
+        [
+          "X-Msh-Device-Id",
+          "dev-fixture-1"
+        ],
+        [
+          "X-Msh-Device-Model",
+          "linux amd64"
+        ],
+        [
+          "X-Msh-Device-Name",
+          "e2b.local"
+        ],
+        [
+          "X-Msh-Platform",
+          "CLIProxyAPI"
+        ],
+        [
+          "X-Msh-Version",
+          "0.1.0"
+        ],
+        [
+          "Accept-Encoding",
+          "gzip"
+        ]
+      ],
+      "method": "POST",
+      "target": "/coding/v1/responses"
+    }
+  ]
+}

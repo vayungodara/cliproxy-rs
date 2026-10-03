@@ -39,23 +39,23 @@ Place the file before the first visit to `/management.html`: if the file is miss
 
 ## Install through Go's updater
 
-Go can fetch the panel from a GitHub repository's latest release:
+Go can fetch the panel from a GitHub repository's latest release. Every cliproxy-rs release carries this file as `management.html`, built from the release commit:
 
 ```yaml
 management:
-  panel-github-repository: "https://github.com/<owner>/<repo>"
+  panel-github-repository: "https://github.com/vayungodara/cliproxy-rs"
   disable-auto-update-panel: false
 ```
 
-Go reads `https://api.github.com/repos/<owner>/<repo>/releases/latest`, takes the asset named exactly `management.html`, checks it against the asset's `sha256` digest when GitHub provides one, and writes it to `static/management.html`. It checks again every three hours and replaces the file when the release changes.
+Go reads `https://api.github.com/repos/vayungodara/cliproxy-rs/releases/latest`, takes the asset named exactly `management.html`, checks it against the asset's `sha256` digest when GitHub provides one, and writes it to `static/management.html`. It checks again every three hours and replaces the file when the release changes.
 
-No repository or release exists for this dashboard yet. Until one is published, install by hand.
+The updater only sees published releases, not drafts. Until the first release is published, install by hand.
 
 ## Checksum
 
 SHA-256 of the `dist-panel/management.html` built from this commit:
 
-<!-- sha256 -->`3b51902a0afcc15eeee7d5b1250353d91ea2980901b9cb95265a379db18de0ca`<!-- /sha256 -->
+<!-- sha256 -->`f9ab76aac405a8265fd967a0f17009853d5162ab31543e421b41e0b48acd6abb`<!-- /sha256 -->
 
 ```sh
 sha256sum static/management.html
