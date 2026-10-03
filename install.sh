@@ -69,7 +69,7 @@ main() {
   tag="${CLIPROXY_VERSION:-}"
   if [ -z "$tag" ]; then
     # /releases/latest redirects to /releases/tag/<tag> once a release exists.
-    latest=$(curl -fsSLI -o /dev/null -w '%{url_effective}' "$releases/latest") || fail "cannot reach $releases"
+    latest=$(curl -fsSLI --retry 3 -o /dev/null -w '%{url_effective}' "$releases/latest") || fail "cannot reach $releases"
     tag=${latest##*/tag/}
     [ "$tag" != "$latest" ] || fail "no release is published yet; build from source (docs/INSTALL.md)"
   fi
@@ -77,8 +77,8 @@ main() {
 
   tmp=$(mktemp -d)
   trap 'rm -rf "$tmp"' EXIT
-  curl -fsSL -o "$tmp/$name.tar.gz" "$releases/download/$tag/$name.tar.gz" || fail "could not download $name.tar.gz from release $tag"
-  curl -fsSL -o "$tmp/SHA256SUMS" "$releases/download/$tag/SHA256SUMS" || fail "could not download SHA256SUMS from release $tag"
+  curl -fsSL --retry 3 -o "$tmp/$name.tar.gz" "$releases/download/$tag/$name.tar.gz" || fail "could not download $name.tar.gz from release $tag"
+  curl -fsSL --retry 3 -o "$tmp/SHA256SUMS" "$releases/download/$tag/SHA256SUMS" || fail "could not download SHA256SUMS from release $tag"
   expected=$(awk -v f="$name.tar.gz" '$2 == f || $2 == "*" f { print $1 }' "$tmp/SHA256SUMS")
   [ -n "$expected" ] || fail "$name.tar.gz is not listed in SHA256SUMS"
   if command -v sha256sum >/dev/null 2>&1; then
