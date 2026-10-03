@@ -73,3 +73,28 @@ async fn client_version_selects_the_codex_catalog() {
     let (_, _, body) = get("/v1/models", CONFIG).await;
     assert_eq!(body["object"], "list");
 }
+
+/// The same config through Go's synthesis, registration and handler
+/// (tests/reference/codex_models): every client version's catalog must match byte for
+/// byte, including what config models declare (explicit thinking and input modalities)
+/// and the native web-search capability CPA clients see.
+#[tokio::test]
+async fn catalog_matches_go_for_config_models() {
+    let fixture: Value = serde_json::from_str(include_str!("fixtures/codex_models_go.json")).unwrap();
+    let cfg = fixture["config"].as_str().unwrap();
+    for version in ["0.150.0", "cpa", "0.143.0"] {
+        let (status, _, body) = get(&format!("/v1/models?client_version={version}"), cfg).await;
+        assert_eq!(status, 200);
+        let want: Value = serde_json::from_str(fixture[version].as_str().unwrap()).unwrap();
+        let (got, want) = (body["models"].as_array().unwrap(), want["models"].as_array().unwrap());
+        let slugs = |m: &[Value]| {
+            m.iter()
+                .map(|e| e["slug"].as_str().unwrap().to_owned())
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(slugs(got), slugs(want), "{version}: models and order");
+        for (g, w) in got.iter().zip(want) {
+            assert_eq!(g, w, "{version}: {}", w["slug"]);
+        }
+    }
+}

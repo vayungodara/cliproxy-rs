@@ -22,6 +22,26 @@ use super::{ModelInfo, ThinkingSupport, pinned};
 use crate::config::Config;
 use crate::credential::{Credential, Source};
 
+/// Go `responsesWebSearchProviderPathSupport`.
+fn provider_web_search_path(provider: &str) -> Option<bool> {
+    match provider.trim().to_lowercase().as_str() {
+        "codex" | "xai" | "claude" | "antigravity" => Some(true),
+        "openai"
+        | "openai-compatibility"
+        | "gemini"
+        | "aistudio"
+        | "vertex"
+        | "kimi"
+        | "kimi-ai"
+        | "kimi.ai"
+        | "kimi.com"
+        | "interactions"
+        | "gemini-interactions" => Some(false),
+        p if p.starts_with("openai-compatible-") => Some(false),
+        _ => None,
+    }
+}
+
 /// Go `canonicalModelKey`: the model without its terminal `(thinking)` suffix.
 pub fn canonical_model(model: &str) -> &str {
     let model = model.trim();
@@ -75,15 +95,29 @@ pub struct Spec {
     pub is_compat: bool,
     #[serde(skip)]
     pub user_defined: bool,
+    /// Go `ExplicitThinking`: a config model that set `thinking` (the Codex client
+    /// catalog lets it narrow the advertised reasoning levels).
+    #[serde(skip)]
+    pub explicit_thinking: bool,
+    /// Go `ExplicitInputModalities`: an OpenAI-compatible model that set
+    /// `input-modalities`.
+    #[serde(skip)]
+    pub explicit_input_modalities: bool,
+    /// Go `NativeCapabilities.WebSearch` from the static catalog (`native_capabilities`),
+    /// `None` when unknown.
+    #[serde(skip)]
+    pub native_web_search: Option<bool>,
 }
 
 impl Spec {
     fn from_static(info: &ModelInfo) -> Self {
-        serde_json::from_value(Value::Object(info.raw.clone())).unwrap_or_else(|_| Self {
+        let mut spec = serde_json::from_value(Value::Object(info.raw.clone())).unwrap_or_else(|_| Self {
             id: info.id.clone(),
             kind: info.kind.clone(),
             ..Self::default()
-        })
+        });
+        spec.native_web_search = native_web_search(info);
+        spec
     }
 
     /// The shared-contract view, for translators and executors.
@@ -246,6 +280,8 @@ pub struct ConfigModel {
     pub support_configuration_update: bool,
     pub image: bool,
     pub thinking: Option<ThinkingSupport>,
+    pub input_modalities: Vec<String>,
+    pub output_modalities: Vec<String>,
 }
 
 /// Configured models carried on a config-backed credential: full entries under
@@ -270,6 +306,8 @@ pub fn config_models(c: &Credential) -> Vec<ConfigModel> {
                     "force_mapping",
                     "is_compat",
                     "support_configuration_update",
+                    "input_modalities",
+                    "output_modalities",
                 ] {
                     if let Some(x) = m.remove(key) {
                         m.entry(key.replace('_', "-")).or_insert(x);
@@ -448,11 +486,36 @@ fn apply_excluded(models: Vec<Spec>, excluded: &[String]) -> Vec<Spec> {
         .collect()
 }
 
+/// `native_capabilities.web_search` of a static catalog model.
+fn native_web_search(info: &ModelInfo) -> Option<bool> {
+    info.raw
+        .get("native_capabilities")
+        .and_then(|c| c.get("web_search"))
+        .and_then(Value::as_bool)
+}
+
+/// Go `normalizeCompatConfigModalities`: lowercase, trimmed, unique, in order.
+fn normalize_modalities(raw: &[String]) -> Vec<String> {
+    let mut seen = std::collections::HashSet::new();
+    raw.iter()
+        .map(|m| m.trim().to_lowercase())
+        .filter(|m| !m.is_empty() && seen.insert(m.clone()))
+        .collect()
+}
+
 fn channel(name: &str) -> Vec<Spec> {
     pinned().channel(name).iter().map(Spec::from_static).collect()
 }
 
-fn build_config_models(models: &[ConfigModel], owned_by: &str, kind: &str, now: i64) -> Vec<Spec> {
+/// Go `buildConfigModels`; `metadata_channel` is the static channel whose native
+/// capabilities a configured upstream name inherits.
+fn build_config_models(
+    models: &[ConfigModel],
+    owned_by: &str,
+    kind: &str,
+    metadata_channel: &str,
+    now: i64,
+) -> Vec<Spec> {
     let mut seen = std::collections::HashSet::new();
     models
         .iter()
@@ -494,6 +557,12 @@ fn build_config_models(models: &[ConfigModel], owned_by: &str, kind: &str, now: 
                 is_compat: m.is_compat,
                 support_configuration_update: m.support_configuration_update,
                 user_defined: true,
+                explicit_thinking: m.thinking.is_some(),
+                native_web_search: pinned()
+                    .channel(metadata_channel)
+                    .iter()
+                    .find(|i| i.id == name)
+                    .and_then(native_web_search),
                 ..Spec::default()
             })
         })
@@ -566,6 +635,10 @@ fn compat_models(models: &[ConfigModel], owned_by: &str, now: i64) -> Vec<Spec> 
                 max_context_length: m.max_context_length.max(0),
                 thinking,
                 is_compat: m.is_compat,
+                explicit_thinking: m.thinking.is_some(),
+                explicit_input_modalities: !m.input_modalities.is_empty(),
+                supported_input_modalities: normalize_modalities(&m.input_modalities),
+                supported_output_modalities: normalize_modalities(&m.output_modalities),
                 ..Spec::default()
             })
         })
@@ -685,19 +758,19 @@ pub fn models_for(cfg: &Config, aliases: &HashMap<String, Vec<OAuthAlias>>, c: &
         let models = compat_models(&configured, &owned_by, now);
         return apply_prefix(models, credential_prefix(c), cfg.routing.force_model_prefix);
     }
-    let with_config = |channel_models: Vec<Spec>, owned_by: &str, kind: &str| {
+    let with_config = |channel_models: Vec<Spec>, owned_by: &str, kind: &str, metadata: &str| {
         if configured.is_empty() {
             channel_models
         } else {
-            build_config_models(&configured, owned_by, kind, now)
+            build_config_models(&configured, owned_by, kind, metadata, now)
         }
     };
     let models = match provider.as_str() {
-        "gemini" | "gemini-interactions" => with_config(channel("gemini"), "google", "gemini"),
-        "vertex" => with_config(channel("vertex"), "google", "vertex"),
+        "gemini" | "gemini-interactions" => with_config(channel("gemini"), "google", "gemini", "gemini"),
+        "vertex" => with_config(channel("vertex"), "google", "vertex", "vertex"),
         "aistudio" => channel("aistudio"),
         "antigravity" => channel("antigravity"),
-        "claude" => with_config(channel("claude"), "anthropic", "claude"),
+        "claude" => with_config(channel("claude"), "anthropic", "claude", "claude"),
         "codex" if api_key => {
             if configured.is_empty() {
                 let mut models = channel("codex-pro");
@@ -706,7 +779,8 @@ pub fn models_for(cfg: &Config, aliases: &HashMap<String, Vec<OAuthAlias>>, c: &
                 }
                 models
             } else {
-                build_config_models(&configured, "openai", "openai", now)
+                // Go's metadata channel "codex" is the Pro catalog.
+                build_config_models(&configured, "openai", "openai", "codex-pro", now)
             }
         }
         "codex" => {
@@ -723,8 +797,8 @@ pub fn models_for(cfg: &Config, aliases: &HashMap<String, Vec<OAuthAlias>>, c: &
             })
         }
         "kimi" | "kimi-ai" | "kimi.ai" | "kimi.com" => channel("kimi"),
-        "xai" => with_config(channel("xai"), "xai", "xai"),
-        "meta" => with_config(channel("meta"), "meta", "meta"),
+        "xai" => with_config(channel("xai"), "xai", "xai", "xai"),
+        "meta" => with_config(channel("meta"), "meta", "meta", "meta"),
         // Go `registry.GetDevinModels()`: the live Devin catalog, never config models.
         "devin" => super::devin::models().iter().map(Spec::from_static).collect(),
         _ => Vec::new(),
@@ -930,6 +1004,33 @@ impl Registry {
             .and_then(|p| reg.by_provider.get(p))
             .or(Some(&reg.info))
             .cloned()
+    }
+
+    /// Go `GetResponsesWebSearchCapability`: native web search across every route that
+    /// registered exactly `model`. A route known not to support it wins; any unknown
+    /// route makes the answer unknown.
+    pub fn responses_web_search(&self, model: &str) -> Option<bool> {
+        let model = model.trim();
+        let routes: Vec<(&str, Option<bool>)> = self
+            .clients
+            .values()
+            .filter_map(|c| c.models.get(model).map(|m| (c.provider.as_str(), m.native_web_search)))
+            .collect();
+        if routes.is_empty() {
+            return None;
+        }
+        let mut unknown = false;
+        for (provider, native) in routes {
+            if native == Some(false) {
+                return Some(false);
+            }
+            match provider_web_search_path(provider) {
+                None => unknown = true,
+                Some(false) => return Some(false),
+                Some(true) => unknown |= native.is_none(),
+            }
+        }
+        (!unknown).then_some(true)
     }
 
     /// Registered models in first-registration order, ignoring cooldown state.
