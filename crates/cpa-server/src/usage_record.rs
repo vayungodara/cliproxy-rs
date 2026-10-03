@@ -2111,4 +2111,234 @@ mod tests {
             assert_eq!(String::from_utf8_lossy(&got), String::from_utf8_lossy(&want), "{name}");
         }
     }
+
+    /// A runtime whose usage queue keeps records.
+    fn usage_runtime() -> std::sync::Arc<crate::Runtime> {
+        let cfg =
+            cpa_core::config::Config::parse("observability:\n  usage:\n    usage-statistics-enabled: true\n").unwrap();
+        let executors = cpa_exec::Executors {
+            claude: cpa_exec::claude::ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
+            codex: Default::default(),
+            devices: Default::default(),
+            openai: Default::default(),
+            google: Default::default(),
+        };
+        let rt = std::sync::Arc::new(crate::testing::runtime(cfg.clone(), Vec::new(), executors));
+        rt.usage_queue().configure(true, &cfg);
+        rt
+    }
+
+    fn credential_for(provider: &str) -> cpa_core::credential::Credential {
+        let mut metadata = serde_json::Map::new();
+        metadata.insert("type".into(), provider.into());
+        let mut c = cpa_core::credential::Credential::from_file(
+            std::path::Path::new("/auth"),
+            std::path::Path::new("/auth/a.json"),
+            metadata,
+        )
+        .unwrap();
+        c.attributes.insert("auth_kind".into(), "oauth".into());
+        c
+    }
+
+    /// The fields Go's reporter goldens compare, from one queued record.
+    fn summary(queued: &[u8]) -> Value {
+        let v: Value = serde_json::from_slice(queued).unwrap();
+        let tokens = &v["tokens"];
+        serde_json::json!({
+            "failed": v["failed"],
+            "fail_status": v["fail"]["status_code"].as_i64().unwrap_or(0),
+            "fail_body": v["fail"]["body"].as_str().unwrap_or(""),
+            "input": tokens["input_tokens"],
+            "output": tokens["output_tokens"],
+            "total": tokens["total_tokens"],
+            "response_model": v["response_model"].as_str().unwrap_or(""),
+            "reasoning_effort": v["reasoning_effort"].as_str().unwrap_or(""),
+            "model": v["model"],
+        })
+    }
+
+    /// Go `UsageReporter` call sequences as Go's executors make them
+    /// (tests/reference/server/main.go `reporterSequences`), replayed through the
+    /// tracker and the executor sink: what Go publishes, and when it publishes nothing.
+    #[test]
+    fn reporter_sequences_match_go() {
+        use cpa_core::exec::{ExecError, FailureScope};
+        let fixture: Value = serde_json::from_str(FIXTURE).unwrap();
+        let cases = fixture["reporter"].as_array().unwrap();
+        let gemini = [
+            r#"data: {"candidates":[{"content":{"parts":[{"text":"a"}]}}],"usageMetadata":{"promptTokenCount":4,"candidatesTokenCount":1,"totalTokenCount":5}}"#,
+            r#"data: {"candidates":[{"content":{"parts":[{"text":"b"}]}}],"usageMetadata":{"promptTokenCount":4,"candidatesTokenCount":3,"totalTokenCount":7}}"#,
+        ];
+        let claude = [
+            r#"data: {"type":"message_start","message":{"model":"claude-sonnet-4-6","usage":{"input_tokens":9,"output_tokens":1}}}"#,
+            r#"data: {"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":6}}"#,
+        ];
+        let kimi_chunk = r#"data: {"id":"c","object":"chat.completion.chunk","model":"kimi-k2","choices":[{"index":0,"delta":{"content":"x"}}]}"#;
+        let kimi_usage = r#"data: {"id":"c","object":"chat.completion.chunk","model":"kimi-k2","choices":[],"usage":{"prompt_tokens":5,"completion_tokens":2,"total_tokens":7}}"#;
+        let gemini_body = br#"{"usageMetadata":{"promptTokenCount":2,"candidatesTokenCount":2,"totalTokenCount":4}}"#;
+        let error = |status: u16, text: &str| ExecError::local(status, FailureScope::Request, text);
+        let rt = usage_runtime();
+        for case in cases {
+            let name = case["name"].as_str().unwrap();
+            let (provider, model) = match name.split(' ').next().unwrap() {
+                "gemini" | "publish" | "failure" => ("gemini", "gemini-2.5-pro"),
+                "claude" => ("claude", "claude-sonnet-4-6"),
+                "kimi" => ("kimi", "kimi-k2"),
+                "devin" => ("devin", "devin-chat"),
+                _ => ("codex", "gpt-5.5"),
+            };
+            let facts = std::sync::Arc::new(Facts::new(
+                Client::default(),
+                Format::OpenAI,
+                Format::OpenAI,
+                model,
+                b"{}",
+                true,
+            ));
+            let tracker = Tracker::start(&rt, &facts, &credential_for(provider), model);
+            let sink = tracker.sink();
+            let lines = |format: Format, lines: &[&str]| {
+                for line in lines {
+                    sink.response_line(format, line.as_bytes());
+                }
+            };
+            match name {
+                "gemini stream usage then scan error" => {
+                    lines(Format::Gemini, &gemini);
+                    tracker.fail(&error(0, "read: connection reset"));
+                }
+                "gemini stream usage" => {
+                    lines(Format::Gemini, &gemini);
+                    tracker.succeed();
+                }
+                "claude stream usage then scan error" => {
+                    lines(Format::Claude, &claude);
+                    tracker.fail(&error(502, "stream broke"));
+                }
+                "kimi stream without usage" => {
+                    sink.usage_required();
+                    lines(Format::OpenAI, &[kimi_chunk, "data: [DONE]"]);
+                    tracker.succeed();
+                }
+                "kimi stream with usage" => {
+                    sink.usage_required();
+                    lines(Format::OpenAI, &[kimi_chunk, kimi_usage, "data: [DONE]"]);
+                    tracker.succeed();
+                }
+                // The executor reports no body because Go's condition did not publish.
+                "kimi native nonstream without usage" => {
+                    sink.usage_required();
+                    tracker.succeed();
+                }
+                _ if name.starts_with("kimi translated effort ") => {
+                    let payload = name.trim_start_matches("kimi translated effort ");
+                    sink.request_for("kimi", payload.as_bytes());
+                    sink.response_body(
+                        Format::OpenAI,
+                        br#"{"usage":{"prompt_tokens":1,"completion_tokens":1,"total_tokens":2}}"#,
+                    );
+                    sink.publish();
+                    tracker.succeed();
+                }
+                "devin set response model" => {
+                    sink.response_model("  devin-model-x ");
+                    tracker.succeed();
+                }
+                // Go's deferred EnsurePublished wins over the stream error the client sees.
+                "devin truncated before EOS" => {
+                    sink.publish();
+                    tracker.fail(&error(0, "devin stream terminated prematurely before EOS trailer"));
+                }
+                "devin trailer error" => {
+                    sink.publish_failure(0, "devin trailer: permission_denied");
+                    tracker.fail(&error(403, "devin trailer: permission_denied"));
+                }
+                "publish then failure" => {
+                    sink.response_body(Format::Gemini, gemini_body);
+                    sink.publish();
+                    tracker.fail(&error(500, "late"));
+                }
+                "failure then publish" => {
+                    sink.publish_failure(429, "slow down");
+                    sink.response_body(Format::Gemini, gemini_body);
+                    sink.publish();
+                    tracker.succeed();
+                }
+                "terminal response model then set" => {
+                    sink.response_line(
+                        Format::OpenAIResponse,
+                        br#"data: {"type":"response.completed","response":{"model":"gpt-5.5-2026-01-01"}}"#,
+                    );
+                    sink.response_model("other-model");
+                    sink.publish();
+                    tracker.succeed();
+                }
+                other => panic!("unscripted Go case {other}"),
+            }
+            let got: Vec<Value> = rt.usage_queue().pop_oldest(10).iter().map(|q| summary(q)).collect();
+            let want: Vec<Value> = case["records"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|r| {
+                    // The golden holds Go's record before the queue; Go's queue plugin
+                    // (redisqueue/plugin.go `failDetail`) reports 200 for a success and
+                    // 500 for a failure without status, as `queued` does.
+                    let status = match (r["failed"].as_bool().unwrap(), r["fail_status"].as_i64().unwrap()) {
+                        (false, _) => 200,
+                        (true, s) if s <= 0 => 500,
+                        (true, s) => s,
+                    };
+                    serde_json::json!({
+                        "failed": r["failed"], "fail_status": status, "fail_body": r["fail_body"],
+                        "input": r["input"], "output": r["output"], "total": r["total"],
+                        "response_model": r["response_model"], "reasoning_effort": r["reasoning_effort"],
+                        "model": r["model"],
+                    })
+                })
+                .collect();
+            assert_eq!(got, want, "{name}");
+        }
+    }
+
+    /// Go `IsModelSubstituted` (tests/reference/server/main.go `substitutions`).
+    #[test]
+    fn model_substitution_matches_go() {
+        let fixture: Value = serde_json::from_str(FIXTURE).unwrap();
+        for case in fixture["substitution"].as_array().unwrap() {
+            let (requested, served) = (case["requested"].as_str().unwrap(), case["served"].as_str().unwrap());
+            assert_eq!(
+                is_model_substituted(requested, served),
+                case["substituted"].as_bool().unwrap(),
+                "{requested:?} -> {served:?}"
+            );
+        }
+    }
+
+    /// Go's TTFT: from the upstream request to the first body byte; the first packet
+    /// stands in until a token event; nothing without a start.
+    #[test]
+    fn ttft_marks_follow_go() {
+        let mut t = Ttft::default();
+        t.first_byte();
+        assert!(t.tracked);
+        assert_eq!(t.get(), std::time::Duration::ZERO);
+
+        let mut t = Ttft::default();
+        t.start();
+        std::thread::sleep(std::time::Duration::from_millis(5));
+        t.token(false);
+        let packet = t.get();
+        assert!(packet >= std::time::Duration::from_millis(5));
+        std::thread::sleep(std::time::Duration::from_millis(5));
+        t.token(false);
+        assert_eq!(t.get(), packet, "a second non-token frame changes nothing");
+        t.token(true);
+        let ttft = t.get();
+        assert!(ttft > packet);
+        t.first_byte();
+        t.start();
+        assert_eq!(t.get(), ttft, "the first TTFT wins");
+    }
 }

@@ -1396,6 +1396,34 @@ mod tests {
     use super::*;
     use std::os::unix::fs::PermissionsExt;
 
+    /// Go `nextRefreshCheckAt` skips `AuthKind() == apikey` for every provider. The
+    /// kinds are Go's `AuthKind` goldens (tests/fixtures/server_go.json `auth_kind`).
+    #[test]
+    fn refresh_skips_api_key_kinds_like_go() {
+        let fixture: serde_json::Value =
+            serde_json::from_str(include_str!("../tests/fixtures/server_go.json")).unwrap();
+        let mut kinds = std::collections::BTreeSet::new();
+        for case in fixture["auth_kind"].as_array().unwrap() {
+            let meta = serde_json::json!({"type": "kimi"}).as_object().unwrap().clone();
+            let mut c = Credential::from_file(Path::new("/a"), Path::new("/a/x.json"), meta).unwrap();
+            c.metadata = case["metadata"].as_object().cloned().unwrap_or_default();
+            c.attributes = case["attributes"]
+                .as_object()
+                .map(|a| {
+                    a.iter()
+                        .map(|(k, v)| (k.clone(), v.as_str().unwrap().to_owned()))
+                        .collect()
+                })
+                .unwrap_or_default();
+            let kind = case["kind"].as_str().unwrap();
+            kinds.insert(kind);
+            assert_eq!(refresh_candidate(&c), kind != "apikey", "case {case}");
+            c.disabled = true;
+            assert!(!refresh_candidate(&c));
+        }
+        assert!(kinds.contains("apikey") && kinds.contains("oauth"), "{kinds:?}");
+    }
+
     #[test]
     fn signature_cache_config_reads_v8_and_legacy_keys() {
         let at = |yaml: &str| signature_cache_config(&Config::parse(yaml).unwrap());

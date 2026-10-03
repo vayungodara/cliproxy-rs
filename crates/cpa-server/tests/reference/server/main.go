@@ -1247,6 +1247,8 @@ func reporterSequences() []reporterCase {
 		`data: {"candidates":[{"content":{"parts":[{"text":"b"}]}}],"usageMetadata":{"promptTokenCount":4,"candidatesTokenCount":3,"totalTokenCount":7}}`,
 	}
 	// gemini_executor.go stream: the scan error publishes before the deferred buffer.
+	// The lines stand for what the executor parses after FilterSSEUsageMetadata
+	// (Vertex parses unfiltered chunks like these).
 	run("gemini stream usage then scan error", func() {
 		r := helps.NewExecutorUsageReporter(ctx, gemini, "gemini-2.5-pro", credential)
 		defer r.EnsurePublished(ctx)
@@ -1350,7 +1352,7 @@ func reporterSequences() []reporterCase {
 	})
 	run("terminal response model then set", func() {
 		r := helps.NewExecutorUsageReporter(ctx, codex, "gpt-5.5", credential)
-		r.ObserveResponseModel([]byte(`data: {"type":"response.completed","response":{"model":"gpt-5.5-2026-01-01","usage":{"input_tokens":1,"output_tokens":1,"total_tokens":2}}}`))
+		r.ObserveResponseModel([]byte(`data: {"type":"response.completed","response":{"model":"gpt-5.5-2026-01-01"}}`))
 		r.SetResponseModel("other-model")
 		r.EnsurePublished(ctx)
 	})
