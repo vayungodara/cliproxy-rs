@@ -204,7 +204,8 @@ export function usageStats(events: Event[]) {
   };
 }
 
-export type Window = { label: string; used: number; reset: string };
+/** One usage window. `source` is the signal-name prefix a passive window was read from. */
+export type Window = { label: string; used: number; reset: string; source?: string };
 const clamp = (n: number) => Math.round(Math.max(0, Math.min(100, n)) * 10) / 10;
 /** Normalised plugin groups first; then the built-in Claude, Codex and Kimi usage payloads. */
 export function quotaWindows(p: string, payload: Data): Window[] {
@@ -263,16 +264,21 @@ export function signalWindows(p: string, quota: Data | undefined): Window[] {
         label: minutes === 300 ? "5-hour" : minutes === 10080 ? "Weekly" : minutes ? `${span(minutes * 60_000)} window` : w,
         used: clamp(used),
         reset: resetAt > 0 ? new Date(resetAt * 1000).toISOString() : after >= 0 && at ? new Date(at + after * 1000).toISOString() : "",
+        source: `x-codex-${w}-`,
       });
     }
   else if (p === "devin")
     for (const w of ["daily", "weekly"]) {
       const left = parseFloat(sig[`${w}_quota_remaining_percent`]);
       if (!Number.isNaN(left))
-        out.push({ label: w === "daily" ? "Daily" : "Weekly", used: clamp(100 - left), reset: sig[`${w}_quota_reset_at`] || "" });
+        out.push({ label: w === "daily" ? "Daily" : "Weekly", used: clamp(100 - left), reset: sig[`${w}_quota_reset_at`] || "", source: `${w}_quota_` });
     }
   return out;
 }
+
+/** Signals no window was read from (code-review limits, credits, retry-after), to show as they are. */
+export const otherSignals = (quota: Data | undefined, windows: Window[]): [string, string][] =>
+  Object.entries<string>(quota?.signals || {}).filter(([k]) => !windows.some((w) => w.source && k.toLowerCase().startsWith(w.source)));
 
 export const tools = ["Claude Code", "Codex CLI", "Cursor", "OpenAI SDK", "Anthropic SDK", "curl"] as const;
 /** A POSIX shell single-quoted literal: nothing inside is expanded. */

@@ -10,6 +10,7 @@ import {
   fieldPath,
   level,
   lineDiff,
+  otherSignals,
   quotaWindows,
   reconcile,
   signalWindows,
@@ -132,19 +133,42 @@ test("passive limits from Codex headers and Devin quota", () => {
     },
   });
   assert.deepEqual(codex, [
-    { label: "5-hour", used: 42.5, reset: "2026-10-02T14:00:00.000Z" },
+    { label: "5-hour", used: 42.5, reset: "2026-10-02T14:00:00.000Z", source: "x-codex-primary-" },
     // Relative resets count from when the server observed them, not from now.
-    { label: "Weekly", used: 7, reset: "2026-10-02T13:00:00.000Z" },
+    { label: "Weekly", used: 7, reset: "2026-10-02T13:00:00.000Z", source: "x-codex-secondary-" },
   ]);
   assert.deepEqual(signalWindows("codex", { signals: { "x-codex-primary-window-minutes": "300" } }), []);
   assert.deepEqual(
     signalWindows("devin", { signals: { daily_quota_remaining_percent: "87%", weekly_quota_remaining_percent: "100%", daily_quota_reset_at: "2026-10-03T00:00:00Z" } }),
     [
-      { label: "Daily", used: 13, reset: "2026-10-03T00:00:00Z" },
-      { label: "Weekly", used: 0, reset: "" },
+      { label: "Daily", used: 13, reset: "2026-10-03T00:00:00Z", source: "daily_quota_" },
+      { label: "Weekly", used: 0, reset: "", source: "weekly_quota_" },
     ],
   );
   assert.deepEqual(signalWindows("claude", { signals: { "x-codex-primary-used-percent": "5" } }), []);
+});
+
+test("signals not drawn as a window stay visible", () => {
+  const quota = {
+    signals: {
+      "X-Codex-Primary-Used-Percent": "40",
+      "x-codex-primary-window-minutes": "300",
+      // No used percent, so no secondary window: its reset must stay visible.
+      "x-codex-secondary-reset-at": "1790000000",
+      "x-codex-code-review-primary-used-percent": "100",
+      "x-codex-credits-balance": "5",
+      "retry-after": "30",
+    },
+  };
+  const keys = (w: ReturnType<typeof signalWindows>) => otherSignals(quota, w).map(([k]) => k);
+  assert.deepEqual(keys(signalWindows("codex", quota)), [
+    "x-codex-secondary-reset-at",
+    "x-codex-code-review-primary-used-percent",
+    "x-codex-credits-balance",
+    "retry-after",
+  ]);
+  // Windows from a live check carry no source, so every signal shows beside them.
+  assert.equal(keys([{ label: "5-hour", used: 1, reset: "" }]).length, 6);
 });
 
 test("expired sign-ins ask for a new sign-in; other errors stay errors", () => {

@@ -101,6 +101,7 @@ try {
     });
     if (!r.ok) throw new Error(`reset api-keys: HTTP ${r.status}`);
   }, secret);
+  await page.evaluate(() => (location.hash = "#overview"));
   await page.reload();
   await signIn(page);
   await start.getByText("0 of 3 done").waitFor();

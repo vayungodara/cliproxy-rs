@@ -1,7 +1,7 @@
 <script lang="ts">
   import { store, every } from "../store.svelte";
-  import { credState, credName, provider, label, ago } from "../core";
-  import { check, checkAll, canCheck, hasSource, limits } from "../quota";
+  import { credState, credName, provider, label, ago, otherSignals } from "../core";
+  import { check, checkAll, canCheck, hasSource, limits, quotaKey } from "../quota";
   import Load from "../Load.svelte";
   import Missing from "../Missing.svelte";
   import Meter from "../Meter.svelte";
@@ -34,7 +34,7 @@
       {#each list as a (`${a.name}\u0000${a.auth_index}`)}
         {@const s = credState(a)}
         {@const q = limits(a)}
-        {@const signals = Object.entries(a.quota?.signals || {})}
+        {@const signals = otherSignals(a.quota, q && "windows" in q ? q.windows : [])}
         <li class="stack quota-item">
           <div class="item">
             <span class="lamp {s.lamp}"></span>
@@ -49,7 +49,10 @@
           </div>
           {#if q && "windows" in q}
             {#each q.windows as w}<Meter {w} />{:else}<p class="legend">The provider answered without usage windows.</p>{/each}
-            <span class="legend">{q.at ? `Checked ${ago(q.at)}` : ""}</span>
+            <!-- Passive windows share the signals' "observed" line; only a live check was "checked". -->
+            <span class="legend"
+              >{!q.at ? "" : store.quota[quotaKey(a)] ? `Checked ${ago(q.at)}` : signals.length ? "" : `Observed ${ago(q.at)}`}</span
+            >
           {:else if q}<p class="note error"><span class="lamp bad"></span>{q.error}</p>{/if}
           {#if signals.length}<div class="chips">
               {#each signals as [k, v]}<span class="chip">{k}: {v}</span>{/each}

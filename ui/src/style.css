@@ -365,6 +365,7 @@ select { appearance: none; padding-right: 34px; background: var(--raised) url("d
   .creds .item > .state-label { grid-row: 1; grid-column: 3; text-align: right; }
   .columns { display: none; }
   .usage-row, .usage-model, .usage-event, .key-row, .quota, .list .catalog { display: flex; flex-wrap: wrap; gap: 8px 14px; padding-left: 0; }
+  .quota > .grow { flex: 1 0 auto; }
   .facts { grid-template-columns: 1fr 1fr; }
   .limits .item { grid-template-columns: 1fr; }
   .hint { display: none; }
