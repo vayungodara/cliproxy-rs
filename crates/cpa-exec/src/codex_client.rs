@@ -96,20 +96,28 @@ pub(crate) fn translate_request(
     ))
 }
 
+/// Routes whose handler runs Go's `prepareCodexMultiAgentV2Tools` before dispatch (the
+/// Responses HTTP and WebSocket endpoints, not compact). For an eligible client that
+/// sets Go's `CodexMultiAgentV2ToolsPreparedContextKey`.
+pub(crate) fn tools_prepared(request_path: &str) -> bool {
+    matches!(request_path, "/v1/responses" | "/backend-api/codex/responses")
+}
+
 /// `OptimizeCodexMultiAgentV2RequestForAuth`: the orphan rewrite, the multi-agent v2
 /// optimization (the `collaboration` namespace renamed upstream; `true` means responses
 /// need [`cc::restore_response`]), then the compat agent-input rewrite. `settings` must
-/// come from the credential's config view (`ForAPIKey` for API keys).
-// ponytail: Go skips re-preparing tools the Responses boundary already prepared (a gin
-// context flag); preparing again yields the same body, so it is always done here.
+/// come from the credential's config view (`ForAPIKey` for API keys). Tools the
+/// Responses boundary already prepared only lose `message.encrypted` again.
 pub(crate) fn optimize_for_auth(
     headers: &HeaderMap,
     body: &[u8],
     settings: &Settings,
     is_compat: bool,
+    tools_prepared: bool,
 ) -> (Vec<u8>, bool) {
     let body = cc::rewrite_orphan_delegation_input(headers, body, settings.orphan_delegation);
-    let (mut body, optimized) = cc::optimize_request(headers, &body, settings, false, cc::served_spawn_agent_models);
+    let (mut body, optimized) =
+        cc::optimize_request(headers, &body, settings, tools_prepared, cc::served_spawn_agent_models);
     if is_compat {
         body = cc::rewrite_multi_agent_v2_input(headers, &body, settings, true);
     }

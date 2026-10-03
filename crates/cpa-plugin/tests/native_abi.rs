@@ -25,7 +25,7 @@ impl CallbackHandler for NoCallbacks {
 
 #[test]
 fn calls_racing_shutdown_are_safe() {
-    let Some(built) = support::built_plugins() else {
+    let Some(built) = support::built_plugins_for("native_abi::calls_racing_shutdown_are_safe") else {
         return;
     };
     let client = Arc::new(

@@ -1538,6 +1538,36 @@
       "out": "[1,2]"
     }
   ],
+  "nonstream_keepalive": [
+    {
+      "name": "fast_ok",
+      "delay_ms": 0,
+      "status": 200,
+      "content_type": "application/json",
+      "body": "{\"id\":\"msg_1\",\"type\":\"message\"}"
+    },
+    {
+      "name": "slow_ok",
+      "delay_ms": 1500,
+      "status": 200,
+      "content_type": "application/json",
+      "body": "\n{\"id\":\"msg_1\",\"type\":\"message\"}"
+    },
+    {
+      "name": "fast_error",
+      "delay_ms": 0,
+      "status": 400,
+      "content_type": "application/json",
+      "body": "{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"bad input\"}}"
+    },
+    {
+      "name": "slow_error",
+      "delay_ms": 1500,
+      "status": 200,
+      "content_type": "application/json",
+      "body": "\n{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"bad input\"}}"
+    }
+  ],
   "resolved": [
     {
       "name": "alias",

@@ -108,7 +108,10 @@ pub struct ConfigDocument(Value);
 
 impl ConfigDocument {
     pub fn parse(text: &str) -> anyhow::Result<Self> {
-        let root = serde_yaml_ng::from_str::<Value>(text)?;
+        let mut root = serde_yaml_ng::from_str::<Value>(text)?;
+        // Go migrates the alias-expanded tree (`expandConfigAliases`): an edit next to
+        // an inherited setting must keep it rather than shadow the whole mapping.
+        super::expand_merges(&mut root)?;
         let root = match root {
             Value::Mapping(root) => root,
             // Go accepts an empty file on load, but management rejects empty writes.
