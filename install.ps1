@@ -80,7 +80,6 @@ function Install-CliproxyRs([bool]$Service, [bool]$BinaryOnly) {
   $config = Join-Path $data 'config.yaml'
   $keys = Join-Path $data 'keys.env'
   $log = Join-Path $data 'cliproxy.log'
-  $errlog = Join-Path $data 'cliproxy.err.log'
   if (-not (Test-Path $config)) {
     if (Test-Path $keys) { throw "install.ps1: $keys exists but $config does not; restore config.yaml, or move keys.env away to make new keys" }
     New-Item -ItemType Directory -Force -Path (Join-Path $data 'auth') | Out-Null
@@ -128,15 +127,26 @@ function Install-CliproxyRs([bool]$Service, [bool]$BinaryOnly) {
     if (($inServer -or $line -match '^port:') -and $line -match '^\s*port:\s*["'']?(\d+)') { $port = [int]$Matches[1]; break }
   }
 
-  # The start command, as a script so the sign-in entry can run the same thing.
+  # The start command, as a script so the sign-in entry can run the same thing. Win32_Process.Create
+  # starts the server outside this window: its parent is the WMI host, it gets its own hidden console
+  # and none of this shell's handles, so closing the window (or a CI step ending) leaves it running.
+  # cmd.exe only appends the server's output and errors to cliproxy.log.
   $q = { param($s) "'" + ($s -replace "'", "''") + "'" }
-  # Built on its own line: nested escaped quotes inside the string below would lose the path.
-  $arguments = '--config "' + $config + '"'
-  $start = @(
-    '# Starts cliproxy-rs in the background. Written by install.ps1.'
-    "`$p = Start-Process -FilePath $(& $q $exe) -ArgumentList $(& $q $arguments) -WorkingDirectory $(& $q $data) -WindowStyle Hidden -RedirectStandardOutput $(& $q $log) -RedirectStandardError $(& $q $errlog) -PassThru"
-    "Set-Content -Path $(& $q $pidfile) -Value `$p.Id"
-  ) -join "`n"
+  $command = 'cmd.exe /d /c ""' + $exe + '" --config "' + $config + '" >> "' + $log + '" 2>&1"'
+  $start = @'
+# Starts cliproxy-rs in the background, outside this window. Written by install.ps1.
+$startup = New-CimInstance -ClassName Win32_ProcessStartup -ClientOnly -Property @{ ShowWindow = [uint16]0 }
+$r = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{ CommandLine = @@COMMAND@@; CurrentDirectory = @@DATA@@; ProcessStartupInformation = $startup }
+if ($r.ReturnValue -ne 0) { throw "cliproxy-rs could not be started: Win32_Process.Create returned $($r.ReturnValue)" }
+# The server is that cmd.exe's child. It may be gone already if its config is broken.
+$server = $null
+for ($i = 0; $i -lt 30 -and -not $server; $i++) {
+  Start-Sleep -Milliseconds 100
+  $server = Get-CimInstance Win32_Process -Filter "ParentProcessId = $($r.ProcessId) AND Name = 'cliproxy.exe'"
+}
+Set-Content -Path @@PIDFILE@@ -Value $(if ($server) { $server.ProcessId } else { $r.ProcessId })
+'@
+  $start = $start.Replace('@@COMMAND@@', (& $q $command)).Replace('@@DATA@@', (& $q $data)).Replace('@@PIDFILE@@', (& $q $pidfile))
   Stop-Cliproxy $pidfile
   & ([scriptblock]::Create($start))
   if ($Service) {
@@ -151,16 +161,16 @@ function Install-CliproxyRs([bool]$Service, [bool]$BinaryOnly) {
   for ($i = 0; $i -lt 20 -and -not $up; $i++) {
     try { $up = (Invoke-WebRequest -Uri "http://127.0.0.1:$port/healthz" -UseBasicParsing -TimeoutSec 2).StatusCode -eq 200 } catch {
       if (-not $proc -or $proc.HasExited) {
-        $tail = @($errlog, $log) | ForEach-Object { Get-Content -Path $_ -Tail 20 -ErrorAction SilentlyContinue } | Out-String
-        throw "install.ps1: cliproxy-rs stopped right after starting. The end of its logs ($errlog, $log):`n$tail"
+        $tail = Get-Content -Path $log -Tail 20 -ErrorAction SilentlyContinue | Out-String
+        throw "install.ps1: cliproxy-rs stopped right after starting. The end of $log says:`n$tail"
       }
       Start-Sleep -Seconds 1
     }
   }
-  if (-not $up) { throw "install.ps1: cliproxy-rs did not answer on port $port; see $log and $errlog" }
+  if (-not $up) { throw "install.ps1: cliproxy-rs did not answer on port $port; see $log" }
   if (-not $proc -or $proc.HasExited) {
     Remove-Item $pidfile -Force
-    throw "install.ps1: another program already answers on port $port, so cliproxy-rs could not start there; see $errlog"
+    throw "install.ps1: another program already answers on port $port, so cliproxy-rs could not start there; see $log"
   }
 
   $url = "http://127.0.0.1:$port/management.html"
