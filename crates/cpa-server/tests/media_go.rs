@@ -43,6 +43,8 @@ struct Scenario {
     #[serde(default)]
     body_b64: String,
     #[serde(default)]
+    headers: BTreeMap<String, String>,
+    #[serde(default)]
     upstreams: Vec<Upstream>,
     status: u16,
     response_headers: BTreeMap<String, String>,
@@ -252,13 +254,21 @@ async fn media_routes_match_go() {
         *upstream.replies.lock().unwrap() = s.upstreams.iter().cloned().collect();
         upstream.requests.lock().unwrap().clear();
         let method = wreq::Method::from_bytes(s.method.as_bytes()).unwrap();
-        let mut req = client
-            .request(method, format!("{base}{}", s.path))
-            .header("Authorization", "Bearer client-key-1")
-            .header("User-Agent", "media-golden/1");
+        // The Go driver's header.Set calls: defaults, then the scenario's overrides.
+        let mut headers = wreq::header::HeaderMap::new();
+        let mut set = |name: &str, value: &str| {
+            let name = wreq::header::HeaderName::from_bytes(name.as_bytes()).unwrap();
+            headers.insert(name, value.parse().unwrap());
+        };
+        set("Authorization", "Bearer client-key-1");
+        set("User-Agent", "media-golden/1");
         if !s.content_type.is_empty() {
-            req = req.header("Content-Type", &s.content_type);
+            set("Content-Type", &s.content_type);
         }
+        for (name, value) in &s.headers {
+            set(name, value);
+        }
+        let mut req = client.request(method, format!("{base}{}", s.path)).headers(headers);
         if s.method == "POST" {
             req = req.body(if s.body_b64.is_empty() {
                 s.body.clone().into_bytes()

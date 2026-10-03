@@ -234,6 +234,12 @@ func scenarios() []scenario {
 		get("native_retrieve_upstream_error", "/v1/videos/req-native-2",
 			status(404, `{"error":"not found"}`)),
 
+		// --- GET /v1/models for Grok Shell (no upstream call) ---
+		{Name: "models_grok_shell", Method: "GET", Path: "/v1/models",
+			Headers: map[string]string{"User-Agent": "grok-pager/0.2.119 grok-shell/0.2.119 (macos; aarch64)"}},
+		{Name: "models_grok_shell_case", Method: "GET", Path: "/v1/models?client_version=1.0",
+			Headers: map[string]string{"User-Agent": "Grok-Shell/1.0"}},
+
 		// --- keep-alives: the reply arrives after one 1s interval ---
 		post("slow_gen_xai", gen, jsonType,
 			`{"model":"grok-imagine-image","prompt":"slow"}`,

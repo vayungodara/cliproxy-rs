@@ -18,6 +18,8 @@ cd "$gen" && go run . /tmp/cpa-go-server ../../fixtures/media_go.json
 Scenarios share one server, so order matters: video IDs created early are polled later
 (credential pinning), and the 429 cases run last because they cool their model down.
 Replies with `delay_ms` outlast the 1s keep-alive intervals in the shared config.
+The `models_grok_shell*` cases cover the Grok Shell `GET /v1/models` catalog, built from
+the same registry (xAI catalog, xAI image and video builtins, compat models).
 
 Normalized on both sides: the capture address (`UPSTREAM`), Go's random multipart
 boundary (`BOUNDARY`), with each group of form parts Go writes in map order sorted,
