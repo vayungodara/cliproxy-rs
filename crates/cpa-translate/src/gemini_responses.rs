@@ -38,7 +38,7 @@ const SUMMARY_FIELD: &str = "_cpa_reasoning_summary";
 // ---------------------------------------------------------------------------------------
 // Go base64 (encoding/base64 skips CR and LF and accepts non-zero trailing bits)
 
-fn go_base64(padded: bool) -> base64::engine::GeneralPurpose {
+pub(crate) fn go_base64(padded: bool) -> base64::engine::GeneralPurpose {
     use base64::engine::{DecodePaddingMode, GeneralPurposeConfig};
     base64::engine::GeneralPurpose::new(
         &base64::alphabet::STANDARD,
@@ -53,7 +53,7 @@ fn go_base64(padded: bool) -> base64::engine::GeneralPurpose {
     )
 }
 
-fn go_base64_decode(input: &[u8], padded: bool) -> Option<Vec<u8>> {
+pub(crate) fn go_base64_decode(input: &[u8], padded: bool) -> Option<Vec<u8>> {
     let input: Vec<u8> = input.iter().copied().filter(|&c| c != b'\r' && c != b'\n').collect();
     go_base64(padded).decode(input).ok()
 }
@@ -1563,7 +1563,7 @@ fn coalesce_model_contents(contents: Vec<Vec<u8>>) -> Vec<Vec<u8>> {
 
 /// common.MergeAdjacentGeminiUserContents: drops contents without parts and merges
 /// consecutive user turns that hold no function responses.
-fn merge_adjacent_user_contents(contents: Vec<Vec<u8>>) -> Vec<Vec<u8>> {
+pub(crate) fn merge_adjacent_user_contents(contents: Vec<Vec<u8>>) -> Vec<Vec<u8>> {
     if contents.len() <= 1 {
         return contents;
     }

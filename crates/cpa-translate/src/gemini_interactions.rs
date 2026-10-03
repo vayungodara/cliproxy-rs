@@ -301,7 +301,7 @@ pub(crate) fn interactions_to_gemini(model: &str, raw: &[u8]) -> Vec<u8> {
 }
 
 /// copyInteractionsSystemInstruction.
-fn copy_system_instruction(out: &mut Vec<u8>, root: &Res<'_>) {
+pub(crate) fn copy_system_instruction(out: &mut Vec<u8>, root: &Res<'_>) {
     let sys = root.get("system_instruction");
     if !sys.exists() {
         return;
@@ -327,7 +327,7 @@ fn copy_system_instruction(out: &mut Vec<u8>, root: &Res<'_>) {
 }
 
 /// copyInteractionsGenerationConfig.
-fn copy_generation_config(out: &mut Vec<u8>, root: &Res<'_>) {
+pub(crate) fn copy_generation_config(out: &mut Vec<u8>, root: &Res<'_>) {
     let cfg = root.get("generation_config");
     if cfg.exists() {
         gj::set_raw(out, "generationConfig", rename_keys(&cfg.raw, to_camel));
@@ -376,7 +376,7 @@ fn normalize_generation_config(out: &mut Vec<u8>) {
 }
 
 /// copyInteractionsResponseModalities.
-fn copy_response_modalities(out: &mut Vec<u8>, root: &Res<'_>) {
+pub(crate) fn copy_response_modalities(out: &mut Vec<u8>, root: &Res<'_>) {
     let mut mods = root.get("response_modalities");
     if !mods.exists() {
         mods = root.get("responseModalities");
@@ -933,7 +933,7 @@ fn function_result_part(item: &Res<'_>) -> Vec<u8> {
 }
 
 /// appendInteractionsInput.
-fn input_contents(input: &Res<'_>) -> Vec<Vec<u8>> {
+pub(crate) fn input_contents(input: &Res<'_>) -> Vec<Vec<u8>> {
     let mut ctx = Input::default();
     if !input.exists() {
         return ctx.items;

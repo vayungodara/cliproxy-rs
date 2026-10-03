@@ -1,15 +1,18 @@
-//! Adapter for internal/cache's Antigravity reasoning replay cache
+//! Adapters for two internal/cache stores: the Antigravity reasoning replay cache
 //! (antigravity_reasoning_replay_cache.go), which the Gemini Responses translator uses to
-//! keep thought signatures that trail visible text out of the client-visible output.
+//! keep thought signatures that trail visible text out of the client-visible output, and
+//! the thinking signature cache (signature_cache.go), which the Claude -> Antigravity
+//! translators use to recover signatures of thinking text the client sent back unsigned.
 //!
 //! ponytail: owner is whoever ports internal/cache with the Antigravity executor (Google
-//! thread). This is the in-process store only, keyed, normalized and bounded like Go (1 h
-//! sliding TTL, 10,240 entries, oldest 128 evicted); Go's Home KV backend, snapshots,
-//! compare-and-swap writes and absent-key tombstones are not ported, and only
-//! `thought_signature` items (the kind translators write) are accepted. Swap both
+//! thread). The replay cache is the in-process store only, keyed, normalized and bounded
+//! like Go (1 h sliding TTL, 10,240 entries, oldest 128 evicted); Go's Home KV backend,
+//! snapshots, compare-and-swap writes and absent-key tombstones are not ported, and only
+//! `thought_signature` items (the kind translators write) are accepted. Swap these
 //! functions for the shared cache at integration.
 
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{LazyLock, Mutex, PoisonError};
 use std::time::{Duration, Instant};
 
@@ -128,6 +131,110 @@ pub(crate) fn get(model: &str, session: &str) -> Option<Vec<Vec<u8>>> {
     }
     entry.at = now;
     Some(entry.items.clone())
+}
+
+// ---------------------------------------------------------------------------------------
+// Thinking signature cache (internal/cache/signature_cache.go)
+//
+// ponytail: same owner and swap as above. In-process store only: Go's Home KV backend is
+// not ported, and the 10-minute background purge is replaced by expiry on read.
+
+const SIGNATURE_TTL: Duration = Duration::from_secs(3 * 3600);
+const MIN_VALID_SIGNATURE_LEN: usize = 50;
+const GEMINI_BYPASS: &str = "skip_thought_signature_validator";
+
+type SignatureGroups = HashMap<String, HashMap<String, (String, Instant)>>;
+
+static SIGNATURES: LazyLock<Mutex<SignatureGroups>> = LazyLock::new(Default::default);
+static SIGNATURE_CACHE_ENABLED: AtomicBool = AtomicBool::new(true);
+static SIGNATURE_BYPASS_STRICT: AtomicBool = AtomicBool::new(false);
+
+/// cache.SetSignatureCacheEnabled and SetSignatureBypassStrictMode (Go applies config
+/// `antigravity-signature-cache-enabled`, default true, and
+/// `antigravity-signature-bypass-strict`, default false, on load and reload).
+pub fn set_signature_cache_config(enabled: bool, bypass_strict: bool) {
+    SIGNATURE_CACHE_ENABLED.store(enabled, Ordering::Relaxed);
+    SIGNATURE_BYPASS_STRICT.store(bypass_strict, Ordering::Relaxed);
+}
+
+/// cache.SignatureCacheEnabled.
+pub(crate) fn signature_cache_enabled() -> bool {
+    SIGNATURE_CACHE_ENABLED.load(Ordering::Relaxed)
+}
+
+/// cache.SignatureBypassStrictMode.
+pub(crate) fn signature_bypass_strict() -> bool {
+    SIGNATURE_BYPASS_STRICT.load(Ordering::Relaxed)
+}
+
+/// cache.GetModelGroup.
+pub(crate) fn model_group(model: &str) -> &str {
+    if model.contains("gpt") {
+        "gpt"
+    } else if model.contains("claude") {
+        "claude"
+    } else if model.contains("gemini") {
+        "gemini"
+    } else {
+        model
+    }
+}
+
+fn text_hash(text: &[u8]) -> String {
+    use sha2::{Digest, Sha256};
+    crate::common::hex(&Sha256::digest(text))[..16].to_owned()
+}
+
+/// cache.CacheSignatureBestEffort.
+pub(crate) fn cache_signature(model: &str, text: &[u8], signature: &[u8]) -> bool {
+    if text.is_empty() || signature.is_empty() || signature.len() < MIN_VALID_SIGNATURE_LEN {
+        return false;
+    }
+    let mut groups = SIGNATURES.lock().unwrap_or_else(PoisonError::into_inner);
+    groups.entry(model_group(model).to_owned()).or_default().insert(
+        text_hash(text),
+        (String::from_utf8_lossy(signature).into_owned(), Instant::now()),
+    );
+    true
+}
+
+/// cache.GetCachedSignatureRequired: a hit refreshes the entry; a Gemini-group miss is
+/// the bypass sentinel.
+pub(crate) fn cached_signature(model: &str, text: &[u8]) -> String {
+    let group = model_group(model);
+    let miss = || {
+        if group == "gemini" {
+            GEMINI_BYPASS.to_owned()
+        } else {
+            String::new()
+        }
+    };
+    if text.is_empty() {
+        return miss();
+    }
+    let mut groups = SIGNATURES.lock().unwrap_or_else(PoisonError::into_inner);
+    let Some(entries) = groups.get_mut(group) else {
+        return miss();
+    };
+    let hash = text_hash(text);
+    let now = Instant::now();
+    match entries.get_mut(&hash) {
+        Some((_, at)) if now.duration_since(*at) > SIGNATURE_TTL => {
+            entries.remove(&hash);
+            miss()
+        }
+        Some((signature, at)) => {
+            *at = now;
+            signature.clone()
+        }
+        None => miss(),
+    }
+}
+
+/// cache.HasValidSignature.
+pub(crate) fn has_valid_signature(model: &str, signature: &[u8]) -> bool {
+    (!signature.is_empty() && signature.len() >= MIN_VALID_SIGNATURE_LEN)
+        || (signature == GEMINI_BYPASS.as_bytes() && model_group(model) == "gemini")
 }
 
 #[cfg(test)]

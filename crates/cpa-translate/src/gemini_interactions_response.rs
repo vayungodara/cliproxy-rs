@@ -22,7 +22,7 @@ fn first_nonblank(values: &[&[u8]]) -> Vec<u8> {
 }
 
 /// interactionsThoughtSignature: the first non-blank signature field, trimmed.
-fn thought_signature(part: &Res<'_>) -> Vec<u8> {
+pub(crate) fn thought_signature(part: &Res<'_>) -> Vec<u8> {
     [
         "thoughtSignature",
         "thought_signature",

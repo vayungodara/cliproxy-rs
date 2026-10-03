@@ -59,7 +59,16 @@ pub(crate) fn convert(model: &str, input: &[u8]) -> Vec<u8> {
         normalize_tools(&mut raw, &tools, &names);
         remove_empty_function_tools(&mut raw);
     }
-    rewrite_function_names(&mut raw, &names);
+    rewrite_function_names(
+        &mut raw,
+        &names,
+        "request.contents",
+        &NAME_FIELDS,
+        &[
+            "request.toolConfig.functionCallingConfig.allowedFunctionNames",
+            "request.tool_config.function_calling_config.allowed_function_names",
+        ],
+    );
 
     let raw = if go_lower(model.as_bytes()).windows(6).any(|w| w == b"claude") {
         sanitize_claude_signatures(raw)
@@ -225,10 +234,16 @@ fn renamed(part: &Res<'_>, field: &str, names: &HashMap<Vec<u8>, Vec<u8>>) -> Op
     (name.kind != Kind::String || mapped != *current).then_some(mapped)
 }
 
-/// rewriteGeminiFunctionNames: function names in contents and allowed function names
-/// become their request-specific Gemini-safe names.
-fn rewrite_function_names(raw: &mut Vec<u8>, names: &HashMap<Vec<u8>, Vec<u8>>) {
-    let contents = gj::get(raw, "request.contents").into_owned();
+/// rewriteGeminiFunctionNames: function names in `fields` of the contents' parts and the
+/// allowed function names become their request-specific Gemini-safe names.
+pub(crate) fn rewrite_function_names(
+    raw: &mut Vec<u8>,
+    names: &HashMap<Vec<u8>, Vec<u8>>,
+    contents_path: &str,
+    fields: &[&str],
+    allowed_paths: &[&str],
+) {
+    let contents = gj::get(raw, contents_path).into_owned();
     let mut can_batch = contents.is_array();
     if can_batch {
         contents.each(|_, content| {
@@ -241,7 +256,7 @@ fn rewrite_function_names(raw: &mut Vec<u8>, names: &HashMap<Vec<u8>, Vec<u8>>) 
         let mut needed = false;
         contents.each(|_, content| {
             content.get("parts").each(|_, part| {
-                needed = NAME_FIELDS.iter().any(|f| renamed(&part, f, names).is_some());
+                needed = fields.iter().any(|f| renamed(&part, f, names).is_some());
                 !needed
             });
             !needed
@@ -254,7 +269,7 @@ fn rewrite_function_names(raw: &mut Vec<u8>, names: &HashMap<Vec<u8>, Vec<u8>>) 
                 let mut parts = vec![];
                 content.get("parts").each(|_, part| {
                     let mut part_json = part.raw.to_vec();
-                    for field in NAME_FIELDS {
+                    for field in fields {
                         if let Some(mapped) = renamed(&part, field, names) {
                             gj::set_str(&mut part_json, &format!("{field}.name"), &mapped);
                             changed = true;
@@ -269,24 +284,21 @@ fn rewrite_function_names(raw: &mut Vec<u8>, names: &HashMap<Vec<u8>, Vec<u8>>) 
                 items.push(content_json);
                 true
             });
-            gj::set_raw(raw, "request.contents", gj::join(&items));
+            gj::set_raw(raw, contents_path, gj::join(&items));
         }
     } else {
         for (ci, content) in contents.array().iter().enumerate() {
             for (pi, part) in content.get("parts").array().iter().enumerate() {
-                for field in NAME_FIELDS {
+                for field in fields {
                     if let Some(mapped) = renamed(part, field, names) {
-                        gj::set_str(raw, &format!("request.contents.{ci}.parts.{pi}.{field}.name"), &mapped);
+                        gj::set_str(raw, &format!("{contents_path}.{ci}.parts.{pi}.{field}.name"), &mapped);
                     }
                 }
             }
         }
     }
 
-    for path in [
-        "request.toolConfig.functionCallingConfig.allowedFunctionNames",
-        "request.tool_config.function_calling_config.allowed_function_names",
-    ] {
+    for &path in allowed_paths {
         let allowed = gj::get(raw, path).into_owned();
         if allowed.is_array() {
             let mut changed = false;

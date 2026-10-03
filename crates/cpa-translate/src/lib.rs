@@ -55,7 +55,10 @@ macro_rules! registered {
 }
 
 mod antigravity_chat;
+mod antigravity_claude;
+mod antigravity_claude_response;
 mod antigravity_gemini;
+mod antigravity_interactions;
 mod antigravity_responses;
 mod apply_patch;
 mod claude_chat_request;
@@ -105,6 +108,7 @@ pub use codex_claude::request_with_compat as claude_to_codex_with_compat;
 pub use gemini_claude::request_with_compat as claude_to_gemini_with_compat;
 pub use interactions_claude::request_with_compat as claude_to_interactions_with_compat;
 pub use openai_claude::request_with_compat as claude_to_openai_with_compat;
+pub use replay_cache::set_signature_cache_config as set_antigravity_signature_cache_config;
 
 /// ConvertOpenAIResponsesRequestToClaudeWithCompat: like the registered Responses ->
 /// Claude request, but unsigned reasoning history is kept for compatibility endpoints.
@@ -226,6 +230,8 @@ fn registered(client: Format, upstream: Format) -> Option<&'static Registered> {
         (Format::Gemini, Format::Antigravity) => Some(&antigravity_gemini::PAIR),
         (Format::OpenAI, Format::Antigravity) => Some(&antigravity_chat::PAIR),
         (Format::OpenAIResponse, Format::Antigravity) => Some(&antigravity_responses::PAIR),
+        (Format::Interactions, Format::Antigravity) => Some(&antigravity_interactions::PAIR),
+        (Format::Claude, Format::Antigravity) => Some(&antigravity_claude::PAIR),
         _ => None,
     }
 }

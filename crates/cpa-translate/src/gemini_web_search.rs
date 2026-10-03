@@ -36,7 +36,7 @@ fn normalize_antigravity_model(id: &str) -> String {
 
 /// registry.AntigravityWebSearchModelFor(model) != "": the first available Antigravity
 /// model with this normalized ID decides.
-fn antigravity_web_search(model: &str) -> bool {
+pub(crate) fn antigravity_web_search(model: &str) -> bool {
     let wanted = normalize_antigravity_model(model);
     if wanted.is_empty() {
         return false;

@@ -480,7 +480,7 @@ fn apply_tools(out: &mut Vec<u8>, raw: &[u8], names: &HashMap<Vec<u8>, Vec<u8>>)
 }
 
 /// util.DeduplicateFunctionDeclarations: the first declaration of each non-empty name.
-fn deduplicate_declarations(raw: &[u8]) -> Vec<u8> {
+pub(crate) fn deduplicate_declarations(raw: &[u8]) -> Vec<u8> {
     let parsed = gj::parse(raw);
     if !parsed.is_array() {
         return raw.to_vec();
