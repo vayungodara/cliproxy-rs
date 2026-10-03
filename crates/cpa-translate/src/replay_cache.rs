@@ -6,10 +6,12 @@
 //!
 //! ponytail: owner is whoever ports internal/cache with the Antigravity executor (Google
 //! thread). The replay cache is the in-process store only, keyed, normalized and bounded
-//! like Go (1 h sliding TTL, 10,240 entries, oldest 128 evicted); Go's Home KV backend,
-//! snapshots, compare-and-swap writes and absent-key tombstones are not ported, and only
-//! `thought_signature` items (the kind translators write) are accepted. Swap these
-//! functions for the shared cache at integration.
+//! like Go (1 h sliding TTL, 10,240 entries including absent-key tombstones, oldest 128
+//! evicted); Go's Home KV backend, snapshots, revisions and compare-and-swap writes (used
+//! by executors, not translators) are not ported, and only `thought_signature` items (the
+//! kind translators write) are accepted. Go's 10-minute background purge runs lazily, at
+//! the tick times, on the next cache access (`Caches::sweep`). Swap these functions for the
+//! shared cache at integration.
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -27,12 +29,113 @@ const MIN_SIGNATURE_LEN: usize = 16;
 const MAX_ITEMS_PER_ENTRY: usize = 4096;
 const MAX_BYTES_PER_ENTRY: usize = 16 << 20;
 
+/// One replay entry; `items` is empty for an absent-key tombstone (Go's `Deleted`).
 struct Entry {
     items: Vec<Vec<u8>>,
     at: Instant,
 }
 
-static ENTRIES: LazyLock<Mutex<HashMap<String, Entry>>> = LazyLock::new(Default::default);
+/// CacheCleanupInterval: Go's purge ticker, started by the first write to the signature
+/// cache or the first access to the replay cache (`cacheCleanupOnce`).
+const CLEANUP_INTERVAL: Duration = Duration::from_secs(600);
+
+/// Both in-process stores and Go's shared purge ticker, behind one lock.
+#[derive(Default)]
+struct Caches {
+    replay: HashMap<String, Entry>,
+    /// model group -> text hash -> (signature, last use).
+    signatures: HashMap<String, HashMap<String, (Vec<u8>, Instant)>>,
+    /// (ticker start, ticks already purged).
+    ticker: Option<(Instant, u32)>,
+}
+
+static CACHES: LazyLock<Mutex<Caches>> = LazyLock::new(Default::default);
+
+fn caches() -> std::sync::MutexGuard<'static, Caches> {
+    CACHES.lock().unwrap_or_else(PoisonError::into_inner)
+}
+
+impl Caches {
+    /// purgeExpiredCaches for every ticker tick that passed since the last access. No
+    /// access happens in between, so purging once at the latest missed tick time removes
+    /// exactly what Go's ticks would have removed by now. `start`: whether this access
+    /// starts Go's ticker (signature reads do not).
+    fn sweep(&mut self, now: Instant, start: bool) {
+        if self.ticker.is_none() && !start {
+            return;
+        }
+        let (begin, done) = self.ticker.get_or_insert((now, 0));
+        let ticks = (now.duration_since(*begin).as_secs() / CLEANUP_INTERVAL.as_secs()) as u32;
+        if ticks <= *done {
+            return;
+        }
+        *done = ticks;
+        let tick_at = *begin + CLEANUP_INTERVAL * ticks;
+        self.signatures.retain(|_, entries| {
+            entries.retain(|_, (_, at)| tick_at.saturating_duration_since(*at) <= SIGNATURE_TTL);
+            !entries.is_empty()
+        });
+        self.replay
+            .retain(|_, e| tick_at.saturating_duration_since(e.at) <= TTL);
+    }
+
+    /// evictOldestAntigravityReasoningReplayEntries.
+    fn evict_oldest(&mut self) {
+        let mut oldest: Vec<(Instant, String)> = self.replay.iter().map(|(k, e)| (e.at, k.clone())).collect();
+        oldest.sort();
+        for (_, k) in oldest.into_iter().take(EVICT_BATCH) {
+            self.replay.remove(&k);
+        }
+    }
+
+    fn put(&mut self, key: String, items: Vec<Vec<u8>>, now: Instant) {
+        self.sweep(now, true);
+        self.replay.insert(key, Entry { items, at: now });
+        if self.replay.len() > MAX_ENTRIES {
+            self.evict_oldest();
+        }
+    }
+
+    /// A hit refreshes the entry (tombstones included); a miss or an expired entry
+    /// reserves a tombstone that counts toward capacity
+    /// (reserveAntigravityReasoningReplayAbsentLocked).
+    fn get(&mut self, key: String, now: Instant) -> Option<Vec<Vec<u8>>> {
+        self.sweep(now, true);
+        if let Some(entry) = self.replay.get_mut(&key) {
+            if now.duration_since(entry.at) <= TTL {
+                entry.at = now;
+                return (!entry.items.is_empty()).then(|| entry.items.clone());
+            }
+            self.replay.remove(&key);
+        }
+        if self.replay.len() >= MAX_ENTRIES {
+            self.evict_oldest();
+        }
+        self.replay.insert(key, Entry { items: vec![], at: now });
+        None
+    }
+
+    fn cache_signature(&mut self, group: &str, hash: String, signature: &[u8], now: Instant) {
+        self.sweep(now, true);
+        self.signatures
+            .entry(group.to_owned())
+            .or_default()
+            .insert(hash, (signature.to_vec(), now));
+    }
+
+    /// A hit refreshes the entry; an expired entry is removed.
+    fn cached_signature(&mut self, group: &str, hash: &str, now: Instant) -> Option<Vec<u8>> {
+        self.sweep(now, false);
+        let entries = self.signatures.get_mut(group)?;
+        let (signature, at) = entries.get_mut(hash)?;
+        if now.duration_since(*at) > SIGNATURE_TTL {
+            entries.remove(hash);
+            return None;
+        }
+        *at = now;
+        Some(signature.clone())
+    }
+}
 
 fn key(model: &str, session: &str) -> Option<String> {
     let (model, session) = (model.trim(), session.trim());
@@ -101,51 +204,26 @@ pub(crate) fn put(model: &str, session: &str, items: &[Vec<u8>]) -> bool {
     let (Some(key), Some(items)) = (key(model, session), normalize(items)) else {
         return false;
     };
-    let mut entries = ENTRIES.lock().unwrap_or_else(PoisonError::into_inner);
-    entries.insert(
-        key,
-        Entry {
-            items,
-            at: Instant::now(),
-        },
-    );
-    if entries.len() > MAX_ENTRIES {
-        let mut oldest: Vec<(Instant, String)> = entries.iter().map(|(k, e)| (e.at, k.clone())).collect();
-        oldest.sort();
-        for (_, k) in oldest.into_iter().take(EVICT_BATCH) {
-            entries.remove(&k);
-        }
-    }
+    caches().put(key, items, Instant::now());
     true
 }
 
-/// cache.GetAntigravityReasoningReplayItems: a hit refreshes the entry's TTL.
+/// cache.GetAntigravityReasoningReplayItems.
 pub(crate) fn get(model: &str, session: &str) -> Option<Vec<Vec<u8>>> {
     let key = key(model, session)?;
-    let mut entries = ENTRIES.lock().unwrap_or_else(PoisonError::into_inner);
-    let now = Instant::now();
-    let entry = entries.get_mut(&key)?;
-    if now.duration_since(entry.at) > TTL {
-        entries.remove(&key);
-        return None;
-    }
-    entry.at = now;
-    Some(entry.items.clone())
+    caches().get(key, Instant::now())
 }
 
 // ---------------------------------------------------------------------------------------
 // Thinking signature cache (internal/cache/signature_cache.go)
 //
 // ponytail: same owner and swap as above. In-process store only: Go's Home KV backend is
-// not ported, and the 10-minute background purge is replaced by expiry on read.
+// not ported. Expired entries and empty groups go in `Caches::sweep`, as in Go.
 
 const SIGNATURE_TTL: Duration = Duration::from_secs(3 * 3600);
 const MIN_VALID_SIGNATURE_LEN: usize = 50;
 const GEMINI_BYPASS: &str = "skip_thought_signature_validator";
 
-type SignatureGroups = HashMap<String, HashMap<String, (String, Instant)>>;
-
-static SIGNATURES: LazyLock<Mutex<SignatureGroups>> = LazyLock::new(Default::default);
 static SIGNATURE_CACHE_ENABLED: AtomicBool = AtomicBool::new(true);
 static SIGNATURE_BYPASS_STRICT: AtomicBool = AtomicBool::new(false);
 
@@ -190,44 +268,22 @@ pub(crate) fn cache_signature(model: &str, text: &[u8], signature: &[u8]) -> boo
     if text.is_empty() || signature.is_empty() || signature.len() < MIN_VALID_SIGNATURE_LEN {
         return false;
     }
-    let mut groups = SIGNATURES.lock().unwrap_or_else(PoisonError::into_inner);
-    groups.entry(model_group(model).to_owned()).or_default().insert(
-        text_hash(text),
-        (String::from_utf8_lossy(signature).into_owned(), Instant::now()),
-    );
+    caches().cache_signature(model_group(model), text_hash(text), signature, Instant::now());
     true
 }
 
-/// cache.GetCachedSignatureRequired: a hit refreshes the entry; a Gemini-group miss is
-/// the bypass sentinel.
-pub(crate) fn cached_signature(model: &str, text: &[u8]) -> String {
+/// cache.GetCachedSignatureRequired: a Gemini-group miss is the bypass sentinel.
+pub(crate) fn cached_signature(model: &str, text: &[u8]) -> Vec<u8> {
     let group = model_group(model);
-    let miss = || {
-        if group == "gemini" {
-            GEMINI_BYPASS.to_owned()
-        } else {
-            String::new()
-        }
+    let hit = if text.is_empty() {
+        None
+    } else {
+        caches().cached_signature(group, &text_hash(text), Instant::now())
     };
-    if text.is_empty() {
-        return miss();
-    }
-    let mut groups = SIGNATURES.lock().unwrap_or_else(PoisonError::into_inner);
-    let Some(entries) = groups.get_mut(group) else {
-        return miss();
-    };
-    let hash = text_hash(text);
-    let now = Instant::now();
-    match entries.get_mut(&hash) {
-        Some((_, at)) if now.duration_since(*at) > SIGNATURE_TTL => {
-            entries.remove(&hash);
-            miss()
-        }
-        Some((signature, at)) => {
-            *at = now;
-            signature.clone()
-        }
-        None => miss(),
+    match hit {
+        Some(signature) => signature,
+        None if group == "gemini" => GEMINI_BYPASS.as_bytes().to_vec(),
+        None => vec![],
     }
 }
 
@@ -256,5 +312,64 @@ mod tests {
         assert!(!put("replay-test-model", "replay-test-empty", &items[1..]));
         assert!(get("replay-test-model", "replay-test-empty").is_none());
         assert!(!put(" ", "s", &items));
+    }
+
+    fn min(n: u64) -> Duration {
+        Duration::from_secs(60 * n)
+    }
+
+    #[test]
+    fn misses_reserve_tombstones_that_count_toward_capacity() {
+        let (mut c, t0) = (Caches::default(), Instant::now());
+        c.put("a".into(), vec![b"item".to_vec()], t0);
+        // 10,239 distinct misses fill the map; the next one evicts the oldest 128, `a` first.
+        for i in 1..MAX_ENTRIES {
+            assert!(
+                c.get(format!("absent-{i}"), t0 + Duration::from_micros(i as u64))
+                    .is_none()
+            );
+        }
+        assert_eq!(c.replay.len(), MAX_ENTRIES);
+        assert_eq!(c.get("a".into(), t0 + min(1)).as_deref(), Some(&[b"item".to_vec()][..]));
+        c.get("absent-last".into(), t0 + min(2));
+        assert_eq!(c.replay.len(), MAX_ENTRIES - EVICT_BATCH + 1);
+        assert!(c.replay.contains_key("a"), "refreshed by the hit");
+        assert!(!c.replay.contains_key("absent-1"));
+        // A tombstone hit stays a miss and refreshes the tombstone.
+        assert!(c.get("absent-last".into(), t0 + min(3)).is_none());
+        assert_eq!(c.replay["absent-last"].at, t0 + min(3));
+    }
+
+    #[test]
+    fn expired_entries_purge_at_go_tick_times() {
+        let (mut c, t0) = (Caches::default(), Instant::now());
+        c.put("first".into(), vec![b"i".to_vec()], t0); // starts the ticker
+        c.put("x".into(), vec![b"i".to_vec()], t0 + min(5));
+        // Tick 6 (t0+60m): `first` is exactly 60m old (Go deletes only past the TTL) and
+        // `x` 55m old, so both stay, although `x` is 61m old now.
+        c.get("y".into(), t0 + min(66));
+        assert!(c.replay.contains_key("x"));
+        assert!(c.replay.contains_key("first"));
+        c.get("z".into(), t0 + min(70) + Duration::from_secs(1));
+        assert!(!c.replay.contains_key("x") && !c.replay.contains_key("first"));
+        assert!(c.replay.contains_key("y") && c.replay.contains_key("z"));
+    }
+
+    #[test]
+    fn signature_groups_expire_and_reads_do_not_start_the_ticker() {
+        let (mut c, t0) = (Caches::default(), Instant::now());
+        assert!(c.cached_signature("claude", "h", t0).is_none());
+        assert!(c.ticker.is_none());
+        let sig = b"\xff raw bytes".to_vec();
+        c.cache_signature("claude", "h".into(), &sig, t0 + min(5));
+        c.cache_signature("gemini", "g".into(), &sig, t0 + min(5));
+        assert_eq!(c.ticker, Some((t0 + min(5), 0)));
+        assert_eq!(c.cached_signature("claude", "h", t0 + min(100)), Some(sig.clone()));
+        // gemini/g is 180m old at tick 18 (t0+185m): kept; past the TTL at tick 19.
+        c.cached_signature("claude", "none", t0 + min(186));
+        assert!(c.signatures.contains_key("gemini"));
+        c.cached_signature("claude", "none", t0 + min(196));
+        assert!(!c.signatures.contains_key("gemini"), "empty group removed");
+        assert!(c.signatures.contains_key("claude"), "refreshed at t0+100m");
     }
 }

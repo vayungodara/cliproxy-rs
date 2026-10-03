@@ -481,6 +481,79 @@ fn deeply_nested_upstream_bodies_translate_without_overflowing() {
 }
 
 #[test]
+fn deeply_nested_retained_state_translates_without_overflowing() {
+    let depth = 50_000;
+    let nested = [vec![b'['; depth], vec![b']'; depth]].concat();
+    let deep_run = |out: &[u8]| out.windows(depth).any(|w| w.iter().all(|&c| c == b'['));
+    // Responses completions echo the request's metadata (Go's Value() re-marshal) while
+    // the upstream events themselves are shallow.
+    let original = [&br#"{"model":"m","input":"q","metadata":{"x":"#[..], &nested, b"}}"].concat();
+    let ctx = ResponseCtx {
+        model: "gemini-2.5-pro",
+        original_request: &original,
+        translated_request: b"{}",
+    };
+    let gemini = pair(Format::OpenAIResponse, Format::Gemini).unwrap();
+    let mut stream = (gemini.stream)(&ctx);
+    let mut out = vec![];
+    for event in [
+        &b"data: {\"responseId\":\"r\",\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"x\"}]}}]}\n\n"[..],
+        b"data: [DONE]\n\n",
+    ] {
+        out.extend(stream.event(event).unwrap());
+    }
+    out.extend(stream.finish().unwrap());
+    let completed = out
+        .iter()
+        .find(|f| f.starts_with(b"event: response.completed"))
+        .unwrap();
+    assert!(deep_run(completed));
+    let body = br#"{"responseId":"r","candidates":[{"content":{"parts":[{"text":"x"}]},"finishReason":"STOP"}]}"#;
+    assert!(deep_run(&(gemini.non_stream)(&ctx, body).unwrap()));
+
+    // Tool arguments that only nest once the stream's string deltas are joined.
+    let ctx = ResponseCtx {
+        model: "claude-sonnet-4-5",
+        original_request: br#"{"model":"m","input":"q"}"#,
+        translated_request: b"{}",
+    };
+    let mut stream = (pair(Format::OpenAIResponse, Format::Claude).unwrap().stream)(&ctx);
+    let ev = |json: &str| format!("data: {json}\n\n").into_bytes();
+    let mut out = vec![];
+    out.extend(
+        stream
+            .event(&ev(r#"{"type":"message_start","message":{"id":"m1","model":"c"}}"#))
+            .unwrap(),
+    );
+    out.extend(
+        stream
+            .event(&ev(
+                r#"{"type":"content_block_start","index":0,"content_block":{"type":"tool_use","id":"t1","name":"f","input":{}}}"#,
+            ))
+            .unwrap(),
+    );
+    for part in [&b"{\"x\":"[..], &vec![b'['; depth], &vec![b']'; depth], b"}"] {
+        for piece in part.chunks(5_000) {
+            let delta = serde_json::json!({"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":String::from_utf8(piece.to_vec()).unwrap()}});
+            out.extend(stream.event(&ev(&delta.to_string())).unwrap());
+        }
+    }
+    for json in [
+        r#"{"type":"content_block_stop","index":0}"#,
+        r#"{"type":"message_delta","delta":{"stop_reason":"tool_use"},"usage":{"output_tokens":1}}"#,
+        r#"{"type":"message_stop"}"#,
+    ] {
+        out.extend(stream.event(&ev(json)).unwrap());
+    }
+    out.extend(stream.finish().unwrap());
+    let completed = out
+        .iter()
+        .find(|f| f.starts_with(b"event: response.completed"))
+        .unwrap();
+    assert!(deep_run(completed));
+}
+
+#[test]
 fn apply_patch_failures_reach_the_stream_contract() {
     let original = br#"{"model":"m","input":"q","tools":[{"type":"custom","name":"apply_patch"}]}"#;
     let ctx = ResponseCtx {

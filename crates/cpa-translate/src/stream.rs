@@ -263,6 +263,10 @@ struct Framed {
     responses: ResponsesFramer,
     /// Interactions upstreams: the lines of the SSE frame being read.
     frame: Vec<u8>,
+    /// Nesting of the requests the translator reads.
+    request_levels: usize,
+    /// Nesting of everything read from upstream so far (state the translator retains).
+    seen: crate::Depth,
 }
 
 /// geminiInteractionsSSEPayload (gemini_executor.go): a JSON frame as is, else its
@@ -352,10 +356,34 @@ impl StreamTranslator for Framed {
     }
 
     fn event(&mut self, event: &[u8]) -> Result<Vec<Bytes>, Error> {
-        crate::deep_stack(event, || self.translate(event))
+        self.seen.feed(event);
+        crate::deep_stack(self.levels(), || self.translate(event))
     }
 
     fn finish(&mut self) -> Result<Vec<Bytes>, Error> {
+        crate::deep_stack(self.levels(), || self.finish_frames())
+    }
+
+    fn tool_input_failed(&self) -> bool {
+        self.inner.tool_input_failed()
+    }
+
+    /// A stack that cannot be reserved leaves nothing to emit; `finish` then reports it.
+    fn finalize_tool_input(&mut self) -> Vec<Bytes> {
+        crate::deep_stack(self.levels(), || {
+            let chunks = self.inner.finalize_tool_input();
+            Ok(self.framed(chunks))
+        })
+        .unwrap_or_default()
+    }
+}
+
+impl Framed {
+    fn levels(&self) -> usize {
+        self.request_levels.max(self.seen.levels())
+    }
+
+    fn finish_frames(&mut self) -> Result<Vec<Bytes>, Error> {
         let mut out = vec![];
         if self.upstream == Format::Interactions {
             let chunks = self.interactions_frame()?;
@@ -367,17 +395,6 @@ impl StreamTranslator for Framed {
         Ok(out)
     }
 
-    fn tool_input_failed(&self) -> bool {
-        self.inner.tool_input_failed()
-    }
-
-    fn finalize_tool_input(&mut self) -> Vec<Bytes> {
-        let chunks = self.inner.finalize_tool_input();
-        self.framed(chunks)
-    }
-}
-
-impl Framed {
     /// The Gemini Interactions executor's emitFrame for the frame read so far: an
     /// Interactions client gets the frame itself (no translator runs), other clients get
     /// the translation of its joined `data:` payload (`[DONE]` for a done frame).
@@ -438,13 +455,20 @@ impl Framed {
 /// is an Interactions upstream: pass its SSE events as read (any split into lines works)
 /// and call `finish` at the end; the Gemini Interactions executor's frame handling (the
 /// passthrough to Interactions clients, payload joining, done frames) happens here.
-pub(crate) fn framed(client: Format, upstream: Format, inner: Box<dyn GoStream>) -> Box<dyn StreamTranslator> {
+pub(crate) fn framed(
+    client: Format,
+    upstream: Format,
+    inner: Box<dyn GoStream>,
+    request_levels: usize,
+) -> Box<dyn StreamTranslator> {
     Box::new(Framed {
         client,
         upstream,
         inner,
         responses: ResponsesFramer::default(),
         frame: vec![],
+        request_levels,
+        seen: crate::Depth::default(),
     })
 }
 
@@ -559,7 +583,7 @@ mod tests {
     #[test]
     fn openai_joined_data_payload_stays_one_line() {
         // Go scenario stream_multiline_data: the executor's joined payload keeps its newline.
-        let mut s = framed(Format::OpenAI, Format::OpenAI, Box::new(Echo(vec![])));
+        let mut s = framed(Format::OpenAI, Format::OpenAI, Box::new(Echo(vec![])), 0);
         let out = s.event(b"data: {\"id\":\"m\",\n\"choices\":[]}\n\n").unwrap();
         assert_eq!(
             out,
@@ -576,7 +600,7 @@ mod tests {
 
     #[test]
     fn events_become_scanner_lines_and_chunks_get_client_framing() {
-        let mut s = framed(Format::OpenAI, Format::OpenAI, Box::new(Echo(vec![])));
+        let mut s = framed(Format::OpenAI, Format::OpenAI, Box::new(Echo(vec![])), 0);
         let out = s.event(b"event: x\r\ndata: {}\n\n").unwrap();
         assert_eq!(
             out,
@@ -591,7 +615,7 @@ mod tests {
             [Bytes::from_static(b"data: : keep-alive\n\n")]
         );
         assert!(s.finish().unwrap().is_empty());
-        let mut s = framed(Format::Claude, Format::OpenAI, Box::new(Echo(vec![])));
+        let mut s = framed(Format::Claude, Format::OpenAI, Box::new(Echo(vec![])), 0);
         assert_eq!(
             s.event(b"event: e\ndata: 1\n\n").unwrap(),
             [Bytes::from_static(b"event: e"), Bytes::from_static(b"data: 1")]
@@ -603,7 +627,7 @@ mod tests {
     /// clients get each frame with its line breaks normalized and no translator call.
     #[test]
     fn interactions_upstream_frames_pass_through_to_interactions_clients() {
-        let mut s = framed(Format::Interactions, Format::Interactions, Box::new(Echo(vec![])));
+        let mut s = framed(Format::Interactions, Format::Interactions, Box::new(Echo(vec![])), 0);
         assert_eq!(
             s.event(b"event: interaction.created\r\ndata: {\"a\":1}\r\n\r\n")
                 .unwrap(),

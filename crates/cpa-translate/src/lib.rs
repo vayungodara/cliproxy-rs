@@ -25,25 +25,28 @@
 //! match Go.
 
 /// One Go registration (`translator.Register`). Request and non-stream transforms run
-/// deeply nested bodies on a Go-sized stack ([`deep_stack`]); stream events get the same
-/// protection in [`stream::framed`].
+/// deeply nested inputs (the body and, for responses, both requests the translator reads)
+/// on a stack sized for them ([`deep_stack`]); streams get the same protection in
+/// [`stream::framed`], over everything they have read.
 macro_rules! registered {
     ($client:ident -> $upstream:ident, request: $request:expr, non_stream: $non_stream:expr, go_stream: $go_stream:expr, token_count: $token_count:expr $(,)?) => {
         $crate::Registered {
             pair: $crate::Pair {
                 request: |ctx, body| {
                     let request: $crate::RequestFn = $request;
-                    $crate::deep_stack(body, || request(ctx, body))
+                    $crate::deep_stack($crate::levels(&[body]), || request(ctx, body))
                 },
                 non_stream: |ctx, body| {
                     let non_stream: $crate::NonStreamFn = $non_stream;
-                    $crate::deep_stack(body, || non_stream(ctx, body))
+                    let levels = $crate::levels(&[body, ctx.original_request, ctx.translated_request]);
+                    $crate::deep_stack(levels, || non_stream(ctx, body))
                 },
                 stream: |ctx| {
                     $crate::stream::framed(
                         cpa_core::format::Format::$client,
                         cpa_core::format::Format::$upstream,
                         ($go_stream)(ctx),
+                        $crate::levels(&[ctx.original_request, ctx.translated_request]),
                     )
                 },
                 count_tokens: None,
@@ -265,7 +268,7 @@ pub fn translate_request(
     body: &[u8],
 ) -> Result<Vec<u8>, Error> {
     if let Some(pair) = pair(client, upstream) {
-        return deep_stack(body, || {
+        return deep_stack(levels(&[body]), || {
             let summary = thinking::extract_translated_summary(body, client.as_str(), upstream.as_str());
             let out = (pair.request)(ctx, body)?;
             Ok(thinking::apply_summary_for_model(
@@ -298,7 +301,7 @@ pub fn translate_request_envelope(
     if (client, upstream) != (Format::OpenAIResponse, Format::Antigravity) {
         return translate_request(client, upstream, ctx, body);
     }
-    deep_stack(body, || {
+    deep_stack(levels(&[body]), || {
         let summary = thinking::extract_translated_summary(body, client.as_str(), upstream.as_str());
         let out = antigravity_responses::request_envelope(ctx, body, model_info);
         Ok(thinking::apply_summary_for_model(
@@ -319,55 +322,97 @@ pub fn translate_token_count(client: Format, upstream: Format, count: i64, body:
     }
 }
 
-/// Nesting depth (arrays and objects) of a JSON body, ignoring brackets inside strings.
-fn nesting_depth(body: &[u8]) -> usize {
-    let (mut depth, mut max, mut in_string, mut escaped) = (0usize, 0usize, false, false);
-    for &c in body {
-        if in_string {
-            if escaped {
-                escaped = false;
-            } else if c == b'\\' {
-                escaped = true;
-            } else if c == b'"' {
-                in_string = false;
-            }
-            continue;
-        }
-        match c {
-            b'"' => in_string = true,
-            b'{' | b'[' => {
-                depth += 1;
-                max = max.max(depth);
-            }
-            b'}' | b']' => depth = depth.saturating_sub(1),
-            _ => {}
-        }
-    }
-    max
+/// Bracket nesting Go's recursive JSON walkers may go through after reading some bytes:
+/// the deepest nesting outside strings, and every bracket opened inside a string (JSON
+/// text, such as tool arguments, that a translator may parse, or accumulate from stream
+/// deltas and parse later). Counting string brackets without closing them keeps the bound
+/// sound for any split or escaping; a body with much code in its strings over-counts and
+/// just runs on a larger stack. Fed in pieces, it covers what a stream retains.
+#[derive(Default)]
+pub(crate) struct Depth {
+    depth: usize,
+    max: usize,
+    string_opens: usize,
+    in_string: bool,
+    escaped: bool,
 }
 
-/// Runs `f` on a thread with Go's maximum goroutine stack (1 GiB, reserved lazily) when
-/// the body nests deeply. Go's JSON walkers recurse per nesting level and rely on
-/// growable stacks; the ported walkers do too, so very deep client bodies would otherwise
-/// overflow a native thread stack instead of translating as in Go.
-pub(crate) fn deep_stack<T: Send>(body: &[u8], f: impl FnOnce() -> T + Send) -> T {
+impl Depth {
+    pub(crate) fn feed(&mut self, bytes: &[u8]) {
+        for &c in bytes {
+            if self.in_string {
+                if self.escaped {
+                    self.escaped = false;
+                } else if c == b'\\' {
+                    self.escaped = true;
+                } else if c == b'"' {
+                    self.in_string = false;
+                } else if c == b'{' || c == b'[' {
+                    self.string_opens += 1;
+                }
+                continue;
+            }
+            match c {
+                b'"' => self.in_string = true,
+                b'{' | b'[' => {
+                    self.depth += 1;
+                    self.max = self.max.max(self.depth);
+                }
+                b'}' | b']' => self.depth = self.depth.saturating_sub(1),
+                _ => {}
+            }
+        }
+    }
+
+    pub(crate) fn levels(&self) -> usize {
+        self.max.max(self.string_opens)
+    }
+}
+
+/// The largest [`Depth::levels`] of separately scanned bodies.
+pub(crate) fn levels(bodies: &[&[u8]]) -> usize {
+    bodies
+        .iter()
+        .map(|body| {
+            let mut depth = Depth::default();
+            depth.feed(body);
+            depth.levels()
+        })
+        .max()
+        .unwrap_or(0)
+}
+
+/// Runs `f` on a thread with a stack sized for `levels` of nesting when that exceeds what
+/// a caller's stack (a 2 MiB async worker) safely holds. Go's JSON walkers recurse per
+/// nesting level on growable stacks (up to 1 GiB); the ported walkers recurse too, so
+/// deep data would otherwise overflow a native stack and abort the process. A stack that
+/// cannot be reserved (memory limits on a small host) is an error, not a panic.
+// ponytail: the stack is sized from a measured per-level cost of the deepest walkers
+// (under 2 KiB in debug builds, which use more stack than release; 4x margin), clamped
+// to Go's 1 GiB maximum. Once a stream's strings have held more than 256 brackets (code
+// in text deltas), each later event runs on a new thread (about 32 us measured); a
+// per-stream worker thread would remove that cost if it ever matters.
+pub(crate) fn deep_stack<T: Send>(levels: usize, f: impl FnOnce() -> Result<T, Error> + Send) -> Result<T, Error> {
     const DEEP: usize = 256;
+    const PER_LEVEL: usize = 8 << 10;
+    const MIN_STACK: usize = 8 << 20;
     thread_local! {
         static ON_DEEP_STACK: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
     }
-    if ON_DEEP_STACK.with(std::cell::Cell::get) || nesting_depth(body) <= DEEP {
+    if ON_DEEP_STACK.with(std::cell::Cell::get) || levels <= DEEP {
         return f();
     }
+    let size = levels.saturating_mul(PER_LEVEL).clamp(MIN_STACK, 1 << 30);
     std::thread::scope(|scope| {
-        std::thread::Builder::new()
-            .stack_size(1 << 30)
-            .spawn_scoped(scope, || {
-                ON_DEEP_STACK.with(|flag| flag.set(true));
-                f()
-            })
-            .map(|handle| handle.join())
+        let worker = std::thread::Builder::new().stack_size(size).spawn_scoped(scope, || {
+            ON_DEEP_STACK.with(|flag| flag.set(true));
+            f()
+        });
+        match worker {
+            Ok(handle) => handle.join().unwrap_or_else(|panic| std::panic::resume_unwind(panic)),
+            Err(e) => Err(Error(format!(
+                "translator: cannot reserve a {size}-byte stack for JSON nested {levels} levels deep: {e}"
+            ))),
+        }
     })
-    .ok()
-    .and_then(Result::ok)
-    .expect("deep JSON translation thread")
 }

@@ -209,7 +209,7 @@ fn resolve_thinking_signature(model: &str, text: &[u8], raw: &[u8]) -> Vec<u8> {
                         .map(String::into_bytes)
                         .unwrap_or_default();
                 }
-                return cached.into_bytes();
+                return cached;
             }
         }
         return vec![];
