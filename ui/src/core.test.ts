@@ -223,6 +223,8 @@ print(json.dumps({k.arg: k.value.value for n in ast.walk(ast.parse(sys.stdin.rea
     assert.equal(got.api_key, key, tool);
     assert.equal(got.model, model, tool);
   }
+  // tomllib arrived in Python 3.11; older versions skip only the TOML part.
+  if (spawnSync("python3", ["-c", "import tomllib"]).status !== 0) return t.skip("python3 has no tomllib (before 3.11)");
   const toml = codex.slice(0, codex.indexOf("# then"));
   const parsed = run("import json, sys, tomllib; print(json.dumps(tomllib.loads(sys.stdin.read())))", toml);
   assert.equal(parsed.model_providers.cliproxy.base_url, `${base}/v1`);
