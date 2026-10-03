@@ -1504,5 +1504,289 @@
    "compat": false
   },
   "source": "openai"
+ },
+ {
+  "name": "replay-1-store",
+  "config": "config-version: 8\naccess:\n  api-keys: [client-key-1]\noauth:\n  auth-dir: AUTH_DIR\napi-keys:\n  claude:\n    - base-url: http://gateway.invalid\n      keys:\n        - api-key: gw-FAKE-KEY\n          models:\n            - name: claude-sonnet-4-6\n              alias: gateway-model\n              is-compat: true\n",
+  "client_key": "client-key-1",
+  "model": "claude-sonnet-4-6",
+  "requested_model": "gateway-model",
+  "headers": [
+   [
+    "Authorization",
+    "Bearer client-key-1"
+   ],
+   [
+    "Content-Type",
+    "application/json"
+   ],
+   [
+    "Anthropic-Version",
+    "2023-06-01"
+   ],
+   [
+    "X-Claude-Code-Session-Id",
+    "5a1f3c2e-1111-4222-8333-444455556666"
+   ]
+  ],
+  "stream": false,
+  "count": false,
+  "body": "{\"model\":\"claude-sonnet-4-6\",\"max_tokens\":64,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+  "reply": {
+   "status": 200,
+   "content_type": "application/json",
+   "body": "{\"id\":\"msg_r1\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-sonnet-4-6\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"plan\",\"signature\":\"sig-r1\"},{\"type\":\"text\",\"text\":\"Calling.\"},{\"type\":\"tool_use\",\"id\":\"toolu_r1\",\"name\":\"read\",\"input\":{\"path\":\"a\"}}],\"stop_reason\":\"tool_use\",\"usage\":{\"input_tokens\":3,\"output_tokens\":1}}"
+  },
+  "resolved": {
+   "name": "claude-sonnet-4-6",
+   "compat": true
+  }
+ },
+ {
+  "name": "replay-2-restore",
+  "config": "config-version: 8\naccess:\n  api-keys: [client-key-1]\noauth:\n  auth-dir: AUTH_DIR\napi-keys:\n  claude:\n    - base-url: http://gateway.invalid\n      keys:\n        - api-key: gw-FAKE-KEY\n          models:\n            - name: claude-sonnet-4-6\n              alias: gateway-model\n              is-compat: true\n",
+  "client_key": "client-key-1",
+  "model": "claude-sonnet-4-6",
+  "requested_model": "gateway-model",
+  "headers": [
+   [
+    "Authorization",
+    "Bearer client-key-1"
+   ],
+   [
+    "Content-Type",
+    "application/json"
+   ],
+   [
+    "Anthropic-Version",
+    "2023-06-01"
+   ],
+   [
+    "X-Claude-Code-Session-Id",
+    "5a1f3c2e-1111-4222-8333-444455556666"
+   ]
+  ],
+  "stream": false,
+  "count": false,
+  "body": "{\"model\":\"claude-sonnet-4-6\",\"max_tokens\":64,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"Calling.\"},{\"type\":\"tool_use\",\"id\":\"toolu_r1\",\"name\":\"read\",\"input\":{\"path\":\"a\"}}]},{\"role\":\"user\",\"content\":[{\"type\":\"tool_result\",\"tool_use_id\":\"toolu_r1\",\"content\":\"x\"}]}]}",
+  "reply": {
+   "status": 200,
+   "content_type": "application/json",
+   "body": "{\"id\":\"msg_r2\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-sonnet-4-6\",\"content\":[{\"type\":\"text\",\"text\":\"done\"}],\"stop_reason\":\"end_turn\",\"usage\":{\"input_tokens\":3,\"output_tokens\":1}}"
+  },
+  "resolved": {
+   "name": "claude-sonnet-4-6",
+   "compat": true
+  }
+ },
+ {
+  "name": "payload-model-to-fable",
+  "config": "config-version: 8\naccess:\n  api-keys: [client-key-1]\noauth:\n  auth-dir: AUTH_DIR\nrequests:\n  payload:\n    override:\n      - models:\n          - name: claude-sonnet-4-6\n            protocol: claude\n        params:\n          model: claude-fable-5-1\n    override-raw:\n      - models:\n          - name: claude-sonnet-4-6\n            protocol: claude\n        params:\n          thinking: '{\"type\":\"adaptive\"}'\n",
+  "auth_file": "{\"type\": \"claude\", \"access_token\": \"sk-ant-oat01-FAKE-LOCAL-ONLY\", \"refresh_token\": \"sk-ant-ort01-FAKE-LOCAL-ONLY\", \"id_token\": \"\", \"email\": \"fixture@example.invalid\", \"account_uuid\": \"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee\", \"organization_uuid\": \"12345678-1234-4234-8234-123456789abc\", \"organization_name\": \"Fixture\", \"claude_device_ids\": [\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\"], \"expired\": \"2099-01-01T00:00:00Z\", \"last_refresh\": \"2026-10-01T00:00:00Z\"}",
+  "client_key": "client-key-1",
+  "model": "claude-sonnet-4-6",
+  "headers": [
+   [
+    "Authorization",
+    "Bearer client-key-1"
+   ],
+   [
+    "Content-Type",
+    "application/json"
+   ],
+   [
+    "Anthropic-Version",
+    "2023-06-01"
+   ]
+  ],
+  "stream": false,
+  "count": false,
+  "reply": {
+   "status": 200,
+   "content_type": "application/json",
+   "body": "{\"id\":\"msg_go_fixture\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-sonnet-4-6\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"usage\":{\"input_tokens\":5,\"output_tokens\":2}}",
+   "headers": [
+    [
+     "Request-Id",
+     "req_fixture_01"
+    ]
+   ]
+  },
+  "body": "{\"model\": \"claude-sonnet-4-6\", \"max_tokens\": 2048, \"system\": \"You are terse.\", \"messages\": [{\"role\": \"user\", \"content\": \"Summarise the plan in one line\"}]}"
+ },
+ {
+  "name": "payload-model-to-legacy",
+  "config": "config-version: 8\naccess:\n  api-keys: [client-key-1]\noauth:\n  auth-dir: AUTH_DIR\nrequests:\n  payload:\n    override:\n      - models:\n          - name: claude-sonnet-5\n            protocol: claude\n        params:\n          model: claude-sonnet-4-5\n",
+  "auth_file": "{\"type\": \"claude\", \"access_token\": \"sk-ant-oat01-FAKE-LOCAL-ONLY\", \"refresh_token\": \"sk-ant-ort01-FAKE-LOCAL-ONLY\", \"id_token\": \"\", \"email\": \"fixture@example.invalid\", \"account_uuid\": \"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee\", \"organization_uuid\": \"12345678-1234-4234-8234-123456789abc\", \"organization_name\": \"Fixture\", \"claude_device_ids\": [\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\"], \"expired\": \"2099-01-01T00:00:00Z\", \"last_refresh\": \"2026-10-01T00:00:00Z\"}",
+  "client_key": "client-key-1",
+  "model": "claude-sonnet-5",
+  "headers": [
+   [
+    "Authorization",
+    "Bearer client-key-1"
+   ],
+   [
+    "Content-Type",
+    "application/json"
+   ],
+   [
+    "Anthropic-Version",
+    "2023-06-01"
+   ]
+  ],
+  "stream": false,
+  "count": false,
+  "reply": {
+   "status": 200,
+   "content_type": "application/json",
+   "body": "{\"id\":\"msg_go_fixture\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-sonnet-4-6\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"usage\":{\"input_tokens\":5,\"output_tokens\":2}}",
+   "headers": [
+    [
+     "Request-Id",
+     "req_fixture_01"
+    ]
+   ]
+  },
+  "body": "{\"model\": \"claude-sonnet-5\", \"max_tokens\": 2048, \"thinking\": {\"type\": \"adaptive\"}, \"system\": [{\"type\": \"text\", \"text\": \"Follow the house style.\"}], \"messages\": [{\"role\": \"user\", \"content\": \"Write a haiku about rivers\"}]}"
+ },
+ {
+  "name": "payload-declassify-probe",
+  "config": "config-version: 8\naccess:\n  api-keys: [client-key-1]\noauth:\n  auth-dir: AUTH_DIR\nrequests:\n  payload:\n    override:\n      - models:\n          - name: claude-sonnet-4-6\n            protocol: claude\n        params:\n          max_tokens: 64\n",
+  "auth_file": "{\"type\": \"claude\", \"access_token\": \"sk-ant-oat01-FAKE-LOCAL-ONLY\", \"refresh_token\": \"sk-ant-ort01-FAKE-LOCAL-ONLY\", \"id_token\": \"\", \"email\": \"fixture@example.invalid\", \"account_uuid\": \"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee\", \"organization_uuid\": \"12345678-1234-4234-8234-123456789abc\", \"organization_name\": \"Fixture\", \"claude_device_ids\": [\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\"], \"expired\": \"2099-01-01T00:00:00Z\", \"last_refresh\": \"2026-10-01T00:00:00Z\"}",
+  "client_key": "client-key-1",
+  "model": "claude-sonnet-4-6",
+  "headers": [
+   [
+    "Authorization",
+    "Bearer client-key-1"
+   ],
+   [
+    "Content-Type",
+    "application/json"
+   ],
+   [
+    "Anthropic-Version",
+    "2023-06-01"
+   ]
+  ],
+  "stream": false,
+  "count": false,
+  "reply": {
+   "status": 200,
+   "content_type": "application/json",
+   "body": "{\"id\":\"msg_go_fixture\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-sonnet-4-6\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"usage\":{\"input_tokens\":5,\"output_tokens\":2}}",
+   "headers": [
+    [
+     "Request-Id",
+     "req_fixture_01"
+    ]
+   ]
+  },
+  "body": "{\"model\": \"claude-sonnet-4-6\", \"max_tokens\": 1, \"messages\": [{\"role\": \"user\", \"content\": \"quota\"}]}"
+ },
+ {
+  "name": "payload-make-probe-fable",
+  "config": "config-version: 8\naccess:\n  api-keys: [client-key-1]\noauth:\n  auth-dir: AUTH_DIR\nrequests:\n  payload:\n    override:\n      - models:\n          - name: claude-fable-5-1\n            protocol: claude\n        params:\n          max_tokens: 1\n",
+  "auth_file": "{\"type\": \"claude\", \"access_token\": \"sk-ant-oat01-FAKE-LOCAL-ONLY\", \"refresh_token\": \"sk-ant-ort01-FAKE-LOCAL-ONLY\", \"id_token\": \"\", \"email\": \"fixture@example.invalid\", \"account_uuid\": \"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee\", \"organization_uuid\": \"12345678-1234-4234-8234-123456789abc\", \"organization_name\": \"Fixture\", \"claude_device_ids\": [\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\"], \"expired\": \"2099-01-01T00:00:00Z\", \"last_refresh\": \"2026-10-01T00:00:00Z\"}",
+  "client_key": "client-key-1",
+  "model": "claude-fable-5-1",
+  "headers": [
+   [
+    "Authorization",
+    "Bearer client-key-1"
+   ],
+   [
+    "Content-Type",
+    "application/json"
+   ],
+   [
+    "Anthropic-Version",
+    "2023-06-01"
+   ]
+  ],
+  "stream": false,
+  "count": false,
+  "reply": {
+   "status": 200,
+   "content_type": "application/json",
+   "body": "{\"id\":\"msg_go_fixture\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-sonnet-4-6\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"usage\":{\"input_tokens\":5,\"output_tokens\":2}}",
+   "headers": [
+    [
+     "Request-Id",
+     "req_fixture_01"
+    ]
+   ]
+  },
+  "body": "{\"model\": \"claude-fable-5-1\", \"max_tokens\": 4096, \"thinking\": {\"type\": \"adaptive\"}, \"messages\": [{\"role\": \"user\", \"content\": \"quota\"}]}"
+ },
+ {
+  "name": "payload-default-reads-original",
+  "config": "config-version: 8\naccess:\n  api-keys: [client-key-1]\noauth:\n  auth-dir: AUTH_DIR\nrequests:\n  payload:\n    default-raw:\n      - models:\n          - name: claude-sonnet-4-6\n            protocol: claude\n        params:\n          diagnostics: '{\"previous_message_id\":\"msg_rule\"}'\n          context_management: '{\"edits\":[]}'\n",
+  "auth_file": "{\"type\": \"claude\", \"access_token\": \"sk-ant-oat01-FAKE-LOCAL-ONLY\", \"refresh_token\": \"sk-ant-ort01-FAKE-LOCAL-ONLY\", \"id_token\": \"\", \"email\": \"fixture@example.invalid\", \"account_uuid\": \"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee\", \"organization_uuid\": \"12345678-1234-4234-8234-123456789abc\", \"organization_name\": \"Fixture\", \"claude_device_ids\": [\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\"], \"expired\": \"2099-01-01T00:00:00Z\", \"last_refresh\": \"2026-10-01T00:00:00Z\"}",
+  "client_key": "client-key-1",
+  "model": "claude-sonnet-4-6",
+  "headers": [
+   [
+    "Authorization",
+    "Bearer client-key-1"
+   ],
+   [
+    "Content-Type",
+    "application/json"
+   ],
+   [
+    "Anthropic-Version",
+    "2023-06-01"
+   ]
+  ],
+  "stream": false,
+  "count": false,
+  "reply": {
+   "status": 200,
+   "content_type": "application/json",
+   "body": "{\"id\":\"msg_go_fixture\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-sonnet-4-6\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"usage\":{\"input_tokens\":5,\"output_tokens\":2}}",
+   "headers": [
+    [
+     "Request-Id",
+     "req_fixture_01"
+    ]
+   ]
+  },
+  "body": "{\"model\": \"claude-sonnet-4-6\", \"max_tokens\": 256, \"messages\": [{\"role\": \"user\", \"content\": \"Name three rivers in Europe\"}]}"
+ },
+ {
+  "name": "payload-filter-fable",
+  "config": "config-version: 8\naccess:\n  api-keys: [client-key-1]\noauth:\n  auth-dir: AUTH_DIR\nrequests:\n  payload:\n    filter:\n      - models:\n          - name: claude-fable-5-1\n            protocol: claude\n        params:\n          - fallbacks\n          - thinking.display\n",
+  "auth_file": "{\"type\": \"claude\", \"access_token\": \"sk-ant-oat01-FAKE-LOCAL-ONLY\", \"refresh_token\": \"sk-ant-ort01-FAKE-LOCAL-ONLY\", \"id_token\": \"\", \"email\": \"fixture@example.invalid\", \"account_uuid\": \"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee\", \"organization_uuid\": \"12345678-1234-4234-8234-123456789abc\", \"organization_name\": \"Fixture\", \"claude_device_ids\": [\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\"], \"expired\": \"2099-01-01T00:00:00Z\", \"last_refresh\": \"2026-10-01T00:00:00Z\"}",
+  "client_key": "client-key-1",
+  "model": "claude-fable-5-1",
+  "headers": [
+   [
+    "Authorization",
+    "Bearer client-key-1"
+   ],
+   [
+    "Content-Type",
+    "application/json"
+   ],
+   [
+    "Anthropic-Version",
+    "2023-06-01"
+   ]
+  ],
+  "stream": false,
+  "count": false,
+  "reply": {
+   "status": 200,
+   "content_type": "application/json",
+   "body": "{\"id\":\"msg_go_fixture\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-sonnet-4-6\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"usage\":{\"input_tokens\":5,\"output_tokens\":2}}",
+   "headers": [
+    [
+     "Request-Id",
+     "req_fixture_01"
+    ]
+   ]
+  },
+  "body": "{\"model\": \"claude-fable-5-1\", \"max_tokens\": 4096, \"thinking\": {\"type\": \"adaptive\"}, \"messages\": [{\"role\": \"user\", \"content\": \"Plan the migration in three steps\"}]}"
  }
 ]

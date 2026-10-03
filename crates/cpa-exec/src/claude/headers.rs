@@ -158,7 +158,8 @@ pub(crate) struct Plan<'a> {
     pub settings: &'a Settings,
     pub credential_id: &'a str,
     pub attributes: &'a std::collections::BTreeMap<String, String>,
-    /// Resolves `$CPA-SESSION-ID` in custom credential headers.
+    /// `$CPA-SESSION-ID` in custom credential headers: the explicit session only
+    /// (`cpa_common::session::cpa_session_id`), empty when there is none.
     pub cpa_session: &'a str,
 }
 
@@ -521,67 +522,12 @@ fn copy_caller_fingerprint(h: &mut GoHeader, incoming: &HeaderMap, confirmed: bo
     }
 }
 
-/// `util.ApplyCustomHeadersFromAttrs`: `header:<Name>` attributes, literal values or
-/// `$Header` references copied from the caller, plus `$CPA-SESSION-ID`.
+/// `util.ApplyCustomHeadersFromAttrs` through the shared `cpa_common::headers`.
 fn custom_headers(h: &mut GoHeader, p: &Plan<'_>) {
-    for (key, value) in p.attributes {
-        let Some(name) = key.strip_prefix("header:").map(str::trim).filter(|n| !n.is_empty()) else {
-            continue;
-        };
-        let value = value.trim();
-        if value.is_empty() {
-            continue;
-        }
-        let resolved = if value
-            .strip_prefix('$')
-            .is_some_and(|v| v.trim().eq_ignore_ascii_case("CPA-SESSION-ID"))
-        {
-            p.cpa_session.to_owned()
-        } else if value.to_uppercase().contains("$CPA-SESSION-ID") {
-            if p.cpa_session.is_empty() {
-                continue;
-            }
-            replace_ci(value, "$CPA-SESSION-ID", p.cpa_session)
-        } else if let Some(var) = value.strip_prefix('$') {
-            let var = var.trim();
-            if var.is_empty() {
-                continue;
-            }
-            p.incoming
-                .get_all(var)
-                .iter()
-                .filter_map(|v| v.to_str().ok())
-                .next()
-                .unwrap_or_default()
-                .to_owned()
-        } else {
-            value.to_owned()
-        };
-        if resolved.is_empty() {
-            continue;
-        }
-        h.set(name, resolved);
+    let session = Some(p.cpa_session).filter(|s| !s.is_empty());
+    for (name, value) in cpa_common::headers::custom_headers(p.attributes, p.incoming, session) {
+        h.set(&name, value);
     }
-}
-
-fn replace_ci(value: &str, target: &str, replacement: &str) -> String {
-    let lower = value.to_ascii_lowercase();
-    let target_lower = target.to_ascii_lowercase();
-    let mut out = String::new();
-    let mut start = 0;
-    let mut i = 0;
-    while i + target.len() <= value.len() {
-        if lower.as_bytes()[i] == b'$' && lower[i..].starts_with(&target_lower) {
-            out.push_str(&value[start..i]);
-            out.push_str(replacement);
-            i += target.len();
-            start = i;
-        } else {
-            i += 1;
-        }
-    }
-    out.push_str(&value[start..]);
-    out
 }
 
 /// Final `(name, value)` pairs in wire order and casing, excluding Content-Length,

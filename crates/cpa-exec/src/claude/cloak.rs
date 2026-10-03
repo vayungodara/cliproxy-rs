@@ -11,7 +11,7 @@ pub(crate) const CLI_IDENTITY: &str = "You are Claude Code, Anthropic's official
 pub(crate) const BILLING_PREFIX: &str = "x-anthropic-billing-header:";
 const FINGERPRINT_SALT: &str = "59cf53e54c78";
 pub(crate) const CONTEXT_MANAGEMENT: &str = r#"{"edits":[{"type":"clear_thinking_20251015","keep":"all"}]}"#;
-const FABLE_REPORTING: &str = "# Reporting outcomes\n\nReport what actually happened, not what you intended. When you say something is done, sent, saved, fixed, or verified, that claim must rest on a result you observed in this session — tool output, the file as it now reads, the page as it now loads — not on what the step should have produced. If you did not check, say you did not check. If any step failed, was skipped, or came back different from what you expected, say so in the first sentence of your report, before anything else, even when the rest of the work succeeded. Never quietly work around a failure in a way that makes it look resolved; a problem the user can see is recoverable, one your summary hides is not. When you stop before the task is complete, your first line says so plainly and names what is left. Do not describe partial work as done, and do not let a summary read as more certain than the evidence behind it.";
+pub(crate) const FABLE_REPORTING: &str = "# Reporting outcomes\n\nReport what actually happened, not what you intended. When you say something is done, sent, saved, fixed, or verified, that claim must rest on a result you observed in this session — tool output, the file as it now reads, the page as it now loads — not on what the step should have produced. If you did not check, say you did not check. If any step failed, was skipped, or came back different from what you expected, say so in the first sentence of your report, before anything else, even when the rest of the work succeeded. Never quietly work around a failure in a way that makes it look resolved; a problem the user can see is recoverable, one your summary hides is not. When you stop before the task is complete, your first line says so plainly and names what is left. Do not describe partial work as done, and do not let a summary read as more certain than the evidence behind it.";
 
 /// Official model IDs that reject a mid-conversation `role: system` turn.
 const LEGACY_SYSTEM_REMINDER_MODELS: &[&str] = &[
@@ -261,7 +261,7 @@ pub(crate) fn prepend_reminders(body: &str, texts: &[String]) -> String {
     body.to_owned()
 }
 
-fn message_text(content: &gjson::Value) -> String {
+pub(crate) fn message_text(content: &gjson::Value) -> String {
     match content.kind() {
         gjson::Kind::String => content.str().to_owned(),
         gjson::Kind::Array => content
@@ -460,15 +460,21 @@ pub(crate) fn inject_context_management(body: &str) -> Option<String> {
 }
 
 /// `reconcileClaudeCodeContextManagement` without payload-rule ownership.
-pub(crate) fn reconcile_context_management(body: &str, eligible: bool, caller_owned: bool, injected: bool) -> String {
+pub(crate) fn reconcile_context_management(
+    body: &str,
+    eligible: bool,
+    caller_owned: bool,
+    injected: bool,
+    payload_touched: bool,
+) -> String {
     let current = rawjson::get(body, "context_management");
     if !thinking_accepts_clear(body) {
-        if caller_owned || !injected || current.json() != CONTEXT_MANAGEMENT {
+        if caller_owned || !injected || payload_touched || current.json() != CONTEXT_MANAGEMENT {
             return body.to_owned();
         }
         return rawjson::delete(body, "context_management");
     }
-    if !eligible || caller_owned || current.exists() {
+    if !eligible || caller_owned || payload_touched || current.exists() {
         return body.to_owned();
     }
     rawjson::set_raw(body, "context_management", CONTEXT_MANAGEMENT)

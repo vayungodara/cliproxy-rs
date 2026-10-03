@@ -77,7 +77,8 @@ fn pipeline_reproduces_go_upstream_captures() {
         let prepared = if req.operation == Operation::CountTokens {
             ctx.prepare_count(&req, &translated).unwrap()
         } else {
-            ctx.prepare_messages(&req, &translated, req.stream).unwrap()
+            let original = translate::original(&req, &translated, &ctx.base_model, ctx.is_compat).unwrap();
+            ctx.prepare_messages(&req, &translated, &original, req.stream).unwrap()
         };
         assert_eq!(prepared.body, case["upstream_body"].as_str().unwrap(), "{name}: body");
         let go: Vec<(String, String)> = case["upstream_headers"]
@@ -285,6 +286,10 @@ async fn executor_scenarios_match_go() {
     let prompt_id = regex::Regex::new(r"cc_prompt_id=[0-9a-f-]{36};").unwrap();
     for scenario in fixture["scenarios"].as_array().unwrap() {
         let name = scenario["name"].as_str().unwrap();
+        if name.starts_with("replay-") {
+            // Sequenced through execute(): compat_replay_sequence_matches_go.
+            continue;
+        }
         let dir = root.join(name);
         std::fs::create_dir_all(dir.join("auth")).unwrap();
         let text = scenario["config"]
@@ -354,7 +359,8 @@ async fn executor_scenarios_match_go() {
             ctx.prepare_count(&req, &translated)
         } else {
             // generate(): translated clients always stream upstream.
-            ctx.prepare_messages(&req, &translated, stream || source != Format::Claude)
+            let original = translate::original(&req, &translated, &ctx.base_model, ctx.is_compat).unwrap();
+            ctx.prepare_messages(&req, &translated, &original, stream || source != Format::Claude)
         };
         if scenario["upstream"].as_array().is_none_or(Vec::is_empty) {
             // Go failed before sending (thinking validation and the like).
@@ -472,6 +478,98 @@ async fn executor_scenarios_match_go() {
                 &c.prompt_id,
             );
         }
+    }
+    let _ = std::fs::remove_dir_all(root);
+}
+
+/// Go's in-process compat replay across two requests (store, then restore), replayed
+/// through `execute()` against a local upstream that answers like Go's capture.
+#[tokio::test]
+async fn compat_replay_sequence_matches_go() {
+    use axum::response::IntoResponse;
+    let fixture: Value = serde_json::from_str(include_str!("testdata/go_executor.json")).unwrap();
+    let steps: Vec<&Value> = fixture["scenarios"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|s| s["name"].as_str().unwrap().starts_with("replay-"))
+        .collect();
+    assert_eq!(steps.len(), 2);
+    let replies: Vec<String> = steps
+        .iter()
+        .map(|s| s["reply"]["body"].as_str().unwrap().to_owned())
+        .collect();
+    let captured: Arc<std::sync::Mutex<Vec<String>>> = Arc::default();
+    let seen = captured.clone();
+    let router = axum::Router::new().fallback(move |body: String| {
+        let seen = seen.clone();
+        let replies = replies.clone();
+        async move {
+            let mut seen = seen.lock().unwrap();
+            let reply = replies[seen.len()].clone();
+            seen.push(body);
+            ([(http::header::CONTENT_TYPE, "application/json")], reply).into_response()
+        }
+    });
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let base = format!("http://{}", listener.local_addr().unwrap());
+    tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
+    // The mock is an HTTP proxy, so the credential keeps Go's gateway base URL (the
+    // config key match that binds is-compat uses it).
+    let client = wreq::Client::builder()
+        .proxy(wreq::Proxy::http(base.as_str()).unwrap())
+        .build()
+        .unwrap();
+    let executor = ClaudeExecutor::with_client(client, DEFAULT_BASE_URL);
+    let root = std::env::temp_dir().join(format!("cpa-claude-replay-{}", std::process::id()));
+    std::fs::create_dir_all(&root).unwrap();
+    for (step, scenario) in steps.iter().enumerate() {
+        let text = scenario["config"]
+            .as_str()
+            .unwrap()
+            .replace("AUTH_DIR", root.to_str().unwrap());
+        let cfg = Config::parse(&text).unwrap();
+        let credential = cpa_core::config::credentials::load(&cfg)
+            .into_iter()
+            .find(|c| c.provider == "claude")
+            .unwrap();
+        let body = Bytes::from(scenario["body"].as_str().unwrap().to_owned());
+        let headers: http::HeaderMap = scenario["headers"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|h| {
+                (
+                    h[0].as_str().unwrap().parse().unwrap(),
+                    h[1].as_str().unwrap().parse().unwrap(),
+                )
+            })
+            .collect();
+        let req = enrich(ExecRequest {
+            operation: Operation::Generate,
+            source_format: Format::Claude,
+            response_format: Format::Claude,
+            requested_model: scenario["requested_model"].as_str().unwrap().into(),
+            model: scenario["model"].as_str().unwrap().into(),
+            original_body: body.clone(),
+            body,
+            stream: false,
+            alt: None,
+            session: None,
+            execution_session: None,
+            derived_session: None,
+            request_path: String::new(),
+            headers,
+            caller: Caller {
+                principal: scenario["client_key"].as_str().unwrap().into(),
+                source: "authorization",
+            },
+        });
+        let response = executor.execute(&credential, req, &cfg).await.unwrap();
+        assert_eq!(response.status, 200);
+        let rust = captured.lock().unwrap()[step].clone();
+        let go = scenario["upstream"][0]["body"].as_str().unwrap();
+        assert_eq!(normalize_random(&rust), normalize_random(go), "step {step}");
     }
     let _ = std::fs::remove_dir_all(root);
 }

@@ -33,12 +33,21 @@ const PROFILE_URL: &str = "https://api.anthropic.com/api/oauth/profile";
 const ROLES_URL: &str = "https://api.anthropic.com/api/oauth/claude_cli/roles";
 
 type RefreshResult = Shared<BoxFuture<'static, Result<MetadataPatch, ExecError>>>;
-type Refreshes = Mutex<HashMap<[u8; 32], (Instant, RefreshResult)>>;
 
-/// Process-wide in-flight and recently completed refreshes.
-fn refreshes() -> &'static Refreshes {
-    static REFRESHES: std::sync::OnceLock<Refreshes> = std::sync::OnceLock::new();
-    REFRESHES.get_or_init(Refreshes::default)
+/// Process-wide refresh state keyed by token endpoint and refresh token: the exchange in
+/// flight (`claudeRefreshGroup`) and the 429 block (`claudeRefreshBlock`).
+#[derive(Default)]
+struct Refreshes {
+    in_flight: HashMap<[u8; 32], RefreshResult>,
+    blocked: HashMap<[u8; 32], Instant>,
+}
+
+fn refreshes() -> std::sync::MutexGuard<'static, Refreshes> {
+    static REFRESHES: std::sync::OnceLock<Mutex<Refreshes>> = std::sync::OnceLock::new();
+    REFRESHES
+        .get_or_init(Mutex::default)
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
 }
 
 #[derive(Clone)]
@@ -214,36 +223,72 @@ impl OAuth {
         Ok(patch)
     }
 
+    /// `ClaudeAuth.RefreshTokensWithRetry` with three attempts: each caller owns its
+    /// retry budget and backoff, so a caller that joins a failing exchange late still
+    /// retries, and a canceled caller stops retrying.
     pub async fn refresh(&self, refresh: &str) -> Result<MetadataPatch, ExecError> {
         if refresh.is_empty() {
             return Err(acquisition_error("refresh token is required"));
         }
+        for attempt in 0..3 {
+            if attempt > 0 {
+                tokio::time::sleep(Duration::from_secs(attempt)).await;
+            }
+            // isClaudeRefreshRetryable: 5xx and transport failures; never a 429.
+            match self.refresh_once(refresh).await {
+                Err(error) if error.status >= 500 && attempt < 2 => continue,
+                result => return result,
+            }
+        }
+        unreachable!("third attempt always returns")
+    }
+
+    /// `ClaudeAuth.RefreshTokens`: concurrent attempts for one token share a single
+    /// exchange; a finished result is never reused, so a forced refresh after an
+    /// upstream 401 always exchanges again. After a 429 the token is blocked until its
+    /// Retry-After; a success clears the block.
+    async fn refresh_once(&self, refresh: &str) -> Result<MetadataPatch, ExecError> {
         let key: [u8; 32] = Sha256::digest(format!("{}\0{refresh}", self.token_url).as_bytes()).into();
         let result = {
-            let mut map = refreshes().lock().expect("refresh state lock");
-            map.retain(|_, (until, _)| *until > Instant::now());
-            if let Some((_, result)) = map.get(&key) {
+            let mut state = refreshes();
+            let now = Instant::now();
+            if let Some(until) = state.blocked.get(&key).copied() {
+                if until > now {
+                    let mut error =
+                        ExecError::local(429, FailureScope::Credential, "Claude refresh temporarily blocked");
+                    error.retry_after = Some(until - now);
+                    return Err(error);
+                }
+                state.blocked.remove(&key);
+            }
+            if let Some(result) = state.in_flight.get(&key) {
                 result.clone()
             } else {
-                // ponytail: no admission limit, like Go. Entries expire (five minutes after
-                // success, the backoff after failure), so the map is bounded by the
-                // credentials refreshed in that window.
                 let oauth = self.clone();
                 let refresh = refresh.to_owned();
                 // A canceled caller must not abandon an already-rotated refresh token.
                 let task = tokio::spawn(async move {
-                    let result = oauth.refresh_with_retry(&refresh).await;
-                    let retention = match &result {
-                        // ponytail: retain successful exchanges for five minutes to protect
-                        // duplicate stale file snapshots; runtime still owns publication.
-                        Ok(_) => Duration::from_secs(300),
-                        Err(error) => error
-                            .retry_after
-                            .unwrap_or(Duration::from_secs(5))
-                            .clamp(Duration::from_secs(5), Duration::from_secs(300)),
+                    // Go's map marshaler sorts these four keys lexically.
+                    let body = serde_json::to_vec(&json!({
+                        "client_id": CLIENT_ID, "grant_type": "refresh_token",
+                        "refresh_token": refresh, "scope": SCOPE,
+                    }))
+                    .map_err(|_| acquisition_error("cannot encode OAuth request"));
+                    let result = match body {
+                        Ok(body) => oauth.tokens(body, &refresh, false).await,
+                        Err(error) => Err(error),
                     };
-                    if let Some((until, _)) = refreshes().lock().expect("refresh state lock").get_mut(&key) {
-                        *until = Instant::now() + retention;
+                    let mut state = refreshes();
+                    state.in_flight.remove(&key);
+                    match &result {
+                        Ok(_) => {
+                            state.blocked.remove(&key);
+                        }
+                        Err(error) if error.status == 429 => {
+                            let wait = error.retry_after.unwrap_or(Duration::from_secs(5));
+                            state.blocked.insert(key, Instant::now() + wait);
+                        }
+                        Err(_) => {}
                     }
                     result
                 });
@@ -253,30 +298,11 @@ impl OAuth {
                 }
                 .boxed()
                 .shared();
-                map.insert(key, (Instant::now() + Duration::from_secs(300), result.clone()));
+                state.in_flight.insert(key, result.clone());
                 result
             }
         };
         result.await
-    }
-
-    async fn refresh_with_retry(&self, refresh: &str) -> Result<MetadataPatch, ExecError> {
-        // Go's map marshaler sorts these four keys lexically.
-        let body = serde_json::to_vec(&json!({
-            "client_id": CLIENT_ID, "grant_type": "refresh_token",
-            "refresh_token": refresh, "scope": SCOPE,
-        }))
-        .map_err(|_| acquisition_error("cannot encode OAuth request"))?;
-        for attempt in 0..3 {
-            if attempt > 0 {
-                tokio::time::sleep(Duration::from_secs(attempt)).await;
-            }
-            match self.tokens(body.clone(), refresh, false).await {
-                Err(error) if error.status >= 500 && attempt < 2 => continue,
-                result => return result,
-            }
-        }
-        unreachable!("third attempt always returns")
     }
 
     pub async fn exchange(&self, code: &str, state: &str, verifier: &str) -> Result<MetadataPatch, ExecError> {

@@ -10,6 +10,8 @@ struct Mock {
     calls: Mutex<Vec<(String, http::HeaderMap, Vec<u8>)>>,
     profile_status: u16,
     token_status: u16,
+    /// Statuses for the next token calls, before `token_status` applies.
+    token_statuses: Mutex<std::collections::VecDeque<u16>>,
     omit_refresh: bool,
     started: tokio::sync::Notify,
     release: tokio::sync::Notify,
@@ -30,9 +32,15 @@ async fn handler(State(mock): State<Arc<Mock>>, request: Request) -> axum::respo
         if mock.hold {
             mock.release.notified().await;
         }
-        if mock.token_status != 0 {
+        let status = mock
+            .token_statuses
+            .lock()
+            .unwrap()
+            .pop_front()
+            .unwrap_or(mock.token_status);
+        if status != 0 {
             return (
-                http::StatusCode::from_u16(mock.token_status).unwrap(),
+                http::StatusCode::from_u16(status).unwrap(),
                 [("retry-after", "2")],
                 "fake-refresh-echo",
             )
@@ -172,7 +180,63 @@ async fn token_key_singleflight_survives_canceled_waiter() {
     mock.release.notify_one();
     let patch = waiter.await.unwrap().unwrap();
     assert_eq!(patch.set["refresh_token"], "fake-rotated");
-    assert_eq!(oauth.refresh("fake-refresh").await.unwrap().set, patch.set);
+    assert_eq!(mock.token_calls.load(Ordering::SeqCst), 1);
+    // A finished exchange is not reused (Go singleflight): a forced refresh after a 401
+    // exchanges again.
+    mock.release.notify_one();
+    oauth.refresh("fake-refresh").await.unwrap();
+    assert_eq!(mock.token_calls.load(Ordering::SeqCst), 2);
+}
+
+#[tokio::test]
+async fn a_late_joiner_keeps_its_own_retry_budget() {
+    // Go shares one exchange per token, not a caller's retry loop: B joins A's third
+    // (failing) attempt and still retries on its own budget.
+    let mock = Arc::new(Mock {
+        hold: true,
+        token_statuses: Mutex::new([503, 503, 503].into()),
+        ..Default::default()
+    });
+    let oauth = service(mock.clone()).await;
+    let refresh = |oauth: &OAuth| {
+        let oauth = oauth.clone();
+        tokio::spawn(async move { oauth.refresh("fake-refresh-late").await })
+    };
+    let a = refresh(&oauth);
+    for _ in 0..2 {
+        mock.started.notified().await;
+        mock.release.notify_one();
+    }
+    mock.started.notified().await;
+    let b = refresh(&oauth);
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    mock.release.notify_one();
+    assert_eq!(a.await.unwrap().unwrap_err().status, 503);
+    tokio::time::timeout(Duration::from_secs(5), mock.started.notified())
+        .await
+        .expect("the late joiner retries on its own budget");
+    mock.release.notify_one();
+    let patch = b.await.unwrap().unwrap();
+    assert_eq!(patch.set["refresh_token"], "fake-rotated");
+    assert_eq!(mock.token_calls.load(Ordering::SeqCst), 4);
+}
+
+#[tokio::test]
+async fn a_canceled_caller_stops_retrying() {
+    let mock = Arc::new(Mock {
+        token_statuses: Mutex::new([503].into()),
+        ..Default::default()
+    });
+    let oauth = service(mock.clone()).await;
+    let caller = {
+        let oauth = oauth.clone();
+        tokio::spawn(async move { oauth.refresh("fake-refresh-cancel").await })
+    };
+    mock.started.notified().await;
+    // The first exchange has failed; the caller is in its one-second backoff.
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    caller.abort();
+    tokio::time::sleep(Duration::from_millis(1500)).await;
     assert_eq!(mock.token_calls.load(Ordering::SeqCst), 1);
 }
 
@@ -183,13 +247,19 @@ async fn refresh_429_backoff_and_error_redaction() {
         ..Default::default()
     });
     let oauth = service(mock.clone()).await;
-    for _ in 0..2 {
-        let error = oauth.refresh("fake-refresh").await.unwrap_err();
-        assert_eq!(error.status, 429);
-        assert_eq!(error.retry_after, Some(Duration::from_secs(5)));
-        assert!(!error.to_string().contains("fake-refresh"));
-        assert!(error.headers.is_empty());
-    }
+    let error = oauth.refresh("fake-refresh-429").await.unwrap_err();
+    assert_eq!(error.status, 429);
+    assert_eq!(error.retry_after, Some(Duration::from_secs(5)));
+    assert!(!error.to_string().contains("fake-refresh"));
+    assert!(error.headers.is_empty());
+    // Blocked until Retry-After: no second exchange.
+    let error = oauth.refresh("fake-refresh-429").await.unwrap_err();
+    assert_eq!(error.status, 429);
+    assert!(
+        error
+            .retry_after
+            .is_some_and(|d| d <= Duration::from_secs(5) && !d.is_zero())
+    );
     assert_eq!(mock.token_calls.load(Ordering::SeqCst), 1);
     let mut headers = http::HeaderMap::new();
     headers.insert("retry-after-ms", "9000".parse().unwrap());
@@ -317,16 +387,33 @@ async fn raw_oauth_token_and_inspection_header_order_and_case() {
 }
 
 #[tokio::test]
-async fn retained_refreshes_never_refuse_another_credential() {
-    // Go has no admission limit: completed exchanges retained for stale-snapshot
-    // protection must not block refreshes of unrelated credentials.
+async fn many_credentials_refresh_without_an_admission_limit() {
     let mock = Arc::new(Mock::default());
     let oauth = service(mock.clone()).await;
     for i in 0..65 {
-        oauth.refresh(&format!("fake-refresh-{i}")).await.unwrap();
+        oauth.refresh(&format!("fake-refresh-many-{i}")).await.unwrap();
     }
     assert_eq!(mock.token_calls.load(Ordering::SeqCst), 65);
-    // A retained success is reused, not re-exchanged.
-    oauth.refresh("fake-refresh-0").await.unwrap();
-    assert_eq!(mock.token_calls.load(Ordering::SeqCst), 65);
+}
+
+#[tokio::test]
+async fn prepare_forces_a_refresh_outside_the_lead_window() {
+    // The runtime's refresh-and-retry after a 401 (Go tryRefreshAfterUnauthorized) calls
+    // prepare on an identified credential whose token has not expired yet.
+    let mock = Arc::new(Mock::default());
+    let oauth = service(mock.clone()).await;
+    let mut credential = credential();
+    credential
+        .metadata
+        .insert("expired".into(), "2099-01-01T00:00:00Z".into());
+    credential
+        .metadata
+        .insert("refresh_token".into(), "fake-refresh-forced".into());
+    credential
+        .metadata
+        .insert("claude_device_ids".into(), json!(["a".repeat(64)]));
+    assert!(!needs_prepare(&credential), "not due and identified");
+    let patch = oauth.prepare(&credential, &crate::proxy::Proxy::Inherit).await.unwrap();
+    assert_eq!(patch.set["access_token"], "sk-ant-oat-new-fake");
+    assert_eq!(mock.token_calls.load(Ordering::SeqCst), 1);
 }
