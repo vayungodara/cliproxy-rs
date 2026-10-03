@@ -1,0 +1,182 @@
+# Runs install.sh (Linux, macOS) and install.ps1 (Windows) against a published release
+# whenever an installer changes, or by hand for any tag. Each job installs on a clean
+# runner, checks the running server from a later step (so it outlived the installer),
+# reruns the installer, installs a second copy while 8317 is taken, and sets up start at
+# login.
+name: Installers
+
+on:
+  push:
+    branches: ["**"]
+    paths: [install.sh, install.ps1, .github/workflows/install.yml]
+  pull_request:
+    paths: [install.sh, install.ps1, .github/workflows/install.yml]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Release tag to install, such as v0.1.0, or latest
+        default: latest
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CLIPROXY_NO_OPEN: "1"
+  VERSION: ${{ inputs.version || 'latest' }}
+
+jobs:
+  unix:
+    name: install.sh (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install, as curl | sh does
+        run: |
+          [ "$VERSION" = latest ] || export CLIPROXY_VERSION="$VERSION"
+          sh -s < install.sh
+      - name: The server outlived the installer and answers with the generated keys
+        run: |
+          # shellcheck source=/dev/null
+          . ~/.cliproxy-rs/keys.env
+          code() { curl -s -o /dev/null -w '%{http_code}' "$@"; }
+          test "$CLIPROXY_PORT" = 8317
+          test "$(find ~/.cliproxy-rs/keys.env ~/.cliproxy-rs/config.yaml -perm 600 | wc -l)" -eq 2
+          test "$(code http://127.0.0.1:8317/healthz)" = 200
+          test "$(code -H "Authorization: Bearer $CLIPROXY_CLIENT_KEY" http://127.0.0.1:8317/v1/models)" = 200
+          test "$(code http://127.0.0.1:8317/v1/models)" = 401
+          test "$(code -H "Authorization: Bearer $CLIPROXY_MANAGEMENT_KEY" http://127.0.0.1:8317/v8/management/config)" = 200
+          test "$(code http://127.0.0.1:8317/management.html)" = 200
+      - name: A rerun keeps config and keys and restarts the server
+        run: |
+          [ "$VERSION" = latest ] || export CLIPROXY_VERSION="$VERSION"
+          before=$(cksum ~/.cliproxy-rs/config.yaml ~/.cliproxy-rs/keys.env)
+          old=$(cat ~/.cliproxy-rs/cliproxy.pid)
+          sh install.sh
+          test "$(cksum ~/.cliproxy-rs/config.yaml ~/.cliproxy-rs/keys.env)" = "$before"
+          test "$(cat ~/.cliproxy-rs/cliproxy.pid)" != "$old"
+          if kill -0 "$old" 2>/dev/null; then echo "the old server still runs"; exit 1; fi
+          curl -fsS http://127.0.0.1:8317/healthz
+      - name: A second install moves to the next free port
+        run: |
+          [ "$VERSION" = latest ] || export CLIPROXY_VERSION="$VERSION"
+          CLIPROXY_HOME="$RUNNER_TEMP/second" sh install.sh
+          grep -qx CLIPROXY_PORT=8318 "$RUNNER_TEMP/second/keys.env"
+          curl -fsS http://127.0.0.1:8318/healthz
+          curl -fsS http://127.0.0.1:8317/healthz
+          kill "$(cat "$RUNNER_TEMP/second/cliproxy.pid")"
+      - name: Start at login (systemd user unit)
+        if: runner.os == 'Linux'
+        run: |
+          [ "$VERSION" = latest ] || export CLIPROXY_VERSION="$VERSION"
+          sudo loginctl enable-linger "$USER"
+          XDG_RUNTIME_DIR="/run/user/$(id -u)"
+          export XDG_RUNTIME_DIR
+          for _ in $(seq 1 20); do systemctl --user show-environment >/dev/null 2>&1 && break; sleep 1; done
+          sh install.sh --service
+          test ! -e ~/.cliproxy-rs/cliproxy.pid
+          test "$(systemctl --user is-enabled cliproxy)$(systemctl --user is-active cliproxy)" = enabledactive
+          curl -fsS http://127.0.0.1:8317/healthz
+          sh install.sh
+          test "$(systemctl --user is-active cliproxy)" = active
+          systemctl --user disable --now cliproxy
+      - name: Start at login (launchd agent)
+        if: runner.os == 'macOS'
+        run: |
+          [ "$VERSION" = latest ] || export CLIPROXY_VERSION="$VERSION"
+          agent="gui/$(id -u)/io.github.vayungodara.cliproxy-rs"
+          sh install.sh --service
+          test ! -e ~/.cliproxy-rs/cliproxy.pid
+          launchctl print "$agent" | grep -q "state = running"
+          curl -fsS http://127.0.0.1:8317/healthz
+          sh install.sh
+          launchctl print "$agent" | grep -q "state = running"
+          curl -fsS http://127.0.0.1:8317/healthz
+          launchctl bootout "$agent"
+      - name: Server log
+        if: always()
+        run: tail -n 40 ~/.cliproxy-rs/cliproxy.log || true
+
+  windows:
+    name: install.ps1 (windows-2025)
+    runs-on: windows-2025
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: powershell
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install with Windows PowerShell 5.1, as irm | iex does
+        run: |
+          if ($env:VERSION -ne 'latest') { $env:CLIPROXY_VERSION = $env:VERSION }
+          Get-Content -Raw .\install.ps1 | Invoke-Expression
+      - name: The server outlived the installer and answers with the generated keys
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $data = "$env:USERPROFILE\.cliproxy-rs"
+          $k = @{}
+          Get-Content "$data\keys.env" | Where-Object { $_ -match '^(\w+)=(.*)$' } | ForEach-Object { $k[$Matches[1]] = $Matches[2] }
+          if ($k.CLIPROXY_PORT -ne '8317') { throw "port $($k.CLIPROXY_PORT)" }
+          function Code($uri, $key) {
+            $h = @{}
+            if ($key) { $h.Authorization = "Bearer $key" }
+            try { (Invoke-WebRequest -Uri $uri -Headers $h -UseBasicParsing).StatusCode } catch { [int]$_.Exception.Response.StatusCode }
+          }
+          if ((Code 'http://127.0.0.1:8317/healthz') -ne 200) { throw 'healthz' }
+          if ((Code 'http://127.0.0.1:8317/v1/models' $k.CLIPROXY_CLIENT_KEY) -ne 200) { throw 'client key' }
+          if ((Code 'http://127.0.0.1:8317/v1/models') -ne 401) { throw 'no key accepted' }
+          if ((Code 'http://127.0.0.1:8317/v8/management/config' $k.CLIPROXY_MANAGEMENT_KEY) -ne 200) { throw 'management key' }
+          $me = [Security.Principal.WindowsIdentity]::GetCurrent().Name
+          $who = (Get-Acl "$data\keys.env").Access.IdentityReference.Value | Sort-Object -Unique
+          $who
+          if ($who | Where-Object { $_ -notin $me, 'NT AUTHORITY\SYSTEM', 'BUILTIN\Administrators' }) { throw 'keys.env is readable by others' }
+      - name: A rerun keeps config and keys and restarts the server
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($env:VERSION -ne 'latest') { $env:CLIPROXY_VERSION = $env:VERSION }
+          $data = "$env:USERPROFILE\.cliproxy-rs"
+          $before = (Get-FileHash "$data\config.yaml", "$data\keys.env").Hash -join ','
+          $old = Get-Content "$data\cliproxy.pid"
+          Get-Content -Raw .\install.ps1 | Invoke-Expression
+          if (((Get-FileHash "$data\config.yaml", "$data\keys.env").Hash -join ',') -ne $before) { throw 'config or keys changed' }
+          if ((Get-Content "$data\cliproxy.pid") -eq $old) { throw 'server not restarted' }
+          if (Get-Process -Id $old -ErrorAction SilentlyContinue) { throw 'old server still running' }
+      - name: A second install moves to the next free port
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($env:VERSION -ne 'latest') { $env:CLIPROXY_VERSION = $env:VERSION }
+          $env:CLIPROXY_HOME = "$env:RUNNER_TEMP\second"
+          $env:CLIPROXY_INSTALL_DIR = "$env:RUNNER_TEMP\second-bin"
+          Get-Content -Raw .\install.ps1 | Invoke-Expression
+          if (-not (Select-String -Path "$env:CLIPROXY_HOME\keys.env" -Pattern '^CLIPROXY_PORT=8318$' -Quiet)) { throw 'not 8318' }
+          Invoke-WebRequest -Uri http://127.0.0.1:8318/healthz -UseBasicParsing | Out-Null
+          Stop-Process -Id (Get-Content "$env:CLIPROXY_HOME\cliproxy.pid")
+      - name: Start at sign-in, with PowerShell 7 and the -Service option
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($env:VERSION -ne 'latest') { $env:CLIPROXY_VERSION = $env:VERSION }
+          & ([scriptblock]::Create((Get-Content -Raw .\install.ps1))) -Service
+          $entry = (Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run').'cliproxy-rs'
+          $entry
+          # What Windows runs at sign-in, after stopping the server the installer started.
+          $data = "$env:USERPROFILE\.cliproxy-rs"
+          Stop-Process -Id (Get-Content "$data\cliproxy.pid")
+          Start-Sleep -Seconds 1
+          $launcher = Start-Process -FilePath powershell.exe -ArgumentList ($entry -replace '^powershell\.exe ', '') -PassThru
+          $launcher.WaitForExit()
+          Start-Sleep -Seconds 2
+          Invoke-WebRequest -Uri http://127.0.0.1:8317/healthz -UseBasicParsing | Out-Null
+          if ((Get-Process -Id (Get-Content "$data\cliproxy.pid")).ProcessName -ne 'cliproxy') { throw 'pid file' }
+          Remove-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name cliproxy-rs
+      - name: Server log
+        if: always()
+        run: Get-Content "$env:USERPROFILE\.cliproxy-rs\cliproxy.log", "$env:USERPROFILE\.cliproxy-rs\cliproxy.err.log" -Tail 40 -ErrorAction SilentlyContinue

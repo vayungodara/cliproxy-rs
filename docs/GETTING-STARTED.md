@@ -1,8 +1,8 @@
 # Getting started
 
-This guide takes you from nothing to a coding tool that runs on your own accounts through cliproxy-rs. It takes about ten minutes. If you would rather have a coding agent do it for you, give it [AI-SETUP.md](AI-SETUP.md).
+This guide takes you from nothing to a coding tool that runs on your own accounts through cliproxy-rs. It takes a few minutes. If you would rather have a coding agent do it for you, give it [AI-SETUP.md](AI-SETUP.md).
 
-## 1. Install
+## 1. Install and start it
 
 On macOS or Linux:
 
@@ -10,54 +10,37 @@ On macOS or Linux:
 curl -fsSL https://raw.githubusercontent.com/vayungodara/cliproxy-rs/master/install.sh | sh
 ```
 
-The script downloads the release for your machine, checks it against the release's `SHA256SUMS` and puts `cliproxy` in `~/.local/bin`. Release archives for Windows, the Docker image and building from source are covered in [INSTALL.md](INSTALL.md).
+On Windows, in PowerShell:
 
-## 2. Write a config
-
-cliproxy-rs reads one file, `config.yaml`. Make a folder for it and two random keys:
-
-```sh
-mkdir -p ~/.cliproxy-rs && cd ~/.cliproxy-rs
-openssl rand -hex 24   # copy this: your client key
-openssl rand -hex 24   # copy this: your management key
+```powershell
+irm https://raw.githubusercontent.com/vayungodara/cliproxy-rs/master/install.ps1 | iex
 ```
 
-Then create `~/.cliproxy-rs/config.yaml`, putting the two keys in place:
+The script downloads the release for your machine and checks it against the release's `SHA256SUMS`. It writes `~/.cliproxy-rs/config.yaml` with two new keys, starts the server in the background and checks that it answers. It ends like this:
 
-```yaml
-server:
-  host: "127.0.0.1"          # only this computer can connect
-  port: 8317
-access:
-  api-keys:
-    - "PASTE-CLIENT-KEY"     # your tools send this key to the proxy
-management:
-  secret-key: "PASTE-MANAGEMENT-KEY"  # the dashboard password
-oauth:
-  auth-dir: "~/.cliproxy-rs/auth"     # where account sign-ins are saved
+```text
+cliproxy-rs is running at http://127.0.0.1:8317
+  Dashboard  http://127.0.0.1:8317/management.html
+  Keys       /home/you/.cliproxy-rs/keys.env (show them with: cat /home/you/.cliproxy-rs/keys.env)
+  Config     /home/you/.cliproxy-rs/config.yaml
+  Log        /home/you/.cliproxy-rs/cliproxy.log
+  Stop       kill $(cat '/home/you/.cliproxy-rs/cliproxy.pid')
 ```
 
-Keep a copy of the management key somewhere safe. On first start the server replaces it in `config.yaml` with a bcrypt hash, so the file no longer shows it. [CONFIGURATION.md](CONFIGURATION.md) explains the other settings.
+The port is 8317 unless something already uses it, CLIProxyAPI for example; then the script takes the next free one. `keys.env` holds two keys:
 
-## 3. Start it
+- `CLIPROXY_MANAGEMENT_KEY` is the dashboard password.
+- `CLIPROXY_CLIENT_KEY` is what your tools send to the proxy.
 
-```sh
-cliproxy --config ~/.cliproxy-rs/config.yaml
-```
+Only you can read the file, and the script never prints the keys. Run the same command again later to upgrade; it keeps your config and keys. [INSTALL.md](INSTALL.md) covers starting the proxy at login, Docker, building from source and writing the config yourself.
 
-Leave it running and check it from another terminal:
+## 2. Open the dashboard
 
-```sh
-curl http://127.0.0.1:8317/healthz
-```
+The script opens <http://127.0.0.1:8317/management.html> in your browser (use your port if it picked another). Sign in with `CLIPROXY_MANAGEMENT_KEY`. On a server without a browser, open an SSH tunnel from your own computer first, as [INSTALL.md](INSTALL.md#with-the-install-script) shows.
 
-It answers `{"status":"ok"}`. To keep it running after you log out, see [running as a service](INSTALL.md#running-as-a-service).
+Until you connect an account, the Overview shows a short Get started card: connect an account, point a tool at the proxy, and send a test request. It goes away once all three are done, or when you dismiss it.
 
-## 4. Open the dashboard
-
-Go to <http://127.0.0.1:8317/management.html> and sign in with the management key. A short "Get started" list stays on the Overview until you have connected an account and created a client key.
-
-## 5. Connect an account
+## 3. Connect an account
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="img/connect-dark.png">
@@ -76,7 +59,7 @@ The other sign-in flags are `--codex-login`, `--codex-device-login`, `--kimi-log
 
 Using a subscription outside its official app can break the provider's terms, and providers have suspended accounts for it. Whether to do that is your call and your risk.
 
-## 6. Point a tool at it
+## 4. Point a tool at it
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="img/use-dark.png">
@@ -87,7 +70,7 @@ The dashboard's Use with tools page shows this server's address and your client 
 
 ```sh
 export ANTHROPIC_BASE_URL=http://127.0.0.1:8317
-export ANTHROPIC_AUTH_TOKEN=PASTE-CLIENT-KEY
+export ANTHROPIC_AUTH_TOKEN=PASTE-YOUR-CLIENT-KEY
 claude
 ```
 

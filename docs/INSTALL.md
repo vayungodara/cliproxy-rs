@@ -2,13 +2,75 @@
 
 cliproxy-rs is one executable, `cliproxy` (`cliproxy.exe` on Windows), with the dashboard built in. It needs a `config.yaml` and a directory for credential files. Nothing else is installed.
 
-## With install.sh (macOS and Linux)
+## With the install script
+
+On macOS or Linux:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/vayungodara/cliproxy-rs/master/install.sh | sh
 ```
 
-The script picks the archive for your system, downloads it with the release's `SHA256SUMS`, refuses to install if the checksum does not match, and copies `cliproxy` to `~/.local/bin` without `sudo`. It does not write a config or start anything. `CLIPROXY_VERSION=v0.1.0` installs a specific release and `CLIPROXY_INSTALL_DIR` changes the target folder. Read [the script](../install.sh) before piping it to a shell if you prefer; it is short.
+On Windows, in PowerShell:
+
+```powershell
+irm https://raw.githubusercontent.com/vayungodara/cliproxy-rs/master/install.ps1 | iex
+```
+
+Neither needs `sudo`, administrator rights, Rust or any other tool. The first run:
+
+1. Picks the release archive for your system, downloads it with the release's `SHA256SUMS`, and stops without installing anything if the checksum does not match.
+2. Installs the binary: `~/.local/bin/cliproxy` on macOS and Linux, `%LOCALAPPDATA%\Programs\cliproxy-rs\cliproxy.exe` on Windows.
+3. If `~/.cliproxy-rs/config.yaml` does not exist (`%USERPROFILE%\.cliproxy-rs` on Windows), writes it: the server listens on `127.0.0.1`, on port 8317 or the next free port if something such as CLIProxyAPI already uses 8317, with a credential folder `auth` and session affinity on. It creates a client key and a management key and saves both in `keys.env` next to the config. Only you can read the folder, and the script never prints the keys.
+4. Starts the server in the background, logging to `cliproxy.log`, and checks that `/healthz` answers.
+5. Prints the dashboard address and opens it in your browser when there is one.
+
+Sign in to the dashboard with the `CLIPROXY_MANAGEMENT_KEY` line from `keys.env` (`cat ~/.cliproxy-rs/keys.env`, or `Get-Content ~\.cliproxy-rs\keys.env` on Windows). Your tools use `CLIPROXY_CLIENT_KEY`.
+
+Running the script again upgrades the binary to the latest release and restarts the server. It never changes an existing `config.yaml` or `keys.env`, so it is safe to rerun and it also works on top of a config you wrote yourself.
+
+On a machine without a browser, such as a server you reach over SSH, keep the server on `127.0.0.1` and open an SSH tunnel from your own computer, for example `ssh -L 8317:127.0.0.1:8317 you@server`, then open `http://127.0.0.1:8317/management.html` there. [Tailscale](MULTI-ACCOUNT.md#reach-the-proxy-from-other-machines) works too. Never listen on `0.0.0.0` without client keys.
+
+Read [install.sh](../install.sh) or [install.ps1](../install.ps1) before you run them if you prefer.
+
+### Options
+
+| install.sh | install.ps1 | Effect |
+| --- | --- | --- |
+| `--service` | `-Service` | Also start cliproxy-rs at login; see below. |
+| `--binary-only` | `-BinaryOnly` | Install or upgrade the binary and stop there. |
+
+Pass options to a piped script like this:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/vayungodara/cliproxy-rs/master/install.sh | sh -s -- --service
+```
+
+```powershell
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/vayungodara/cliproxy-rs/master/install.ps1))) -Service
+```
+
+Both scripts read these environment variables:
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `CLIPROXY_VERSION` | the latest release | Release tag to install, such as `v0.1.0`. |
+| `CLIPROXY_INSTALL_DIR` | `~/.local/bin`, or `%LOCALAPPDATA%\Programs\cliproxy-rs` | Where the binary goes. |
+| `CLIPROXY_HOME` | `~/.cliproxy-rs`, or `%USERPROFILE%\.cliproxy-rs` | Config, keys, credentials and log. |
+| `CLIPROXY_NO_OPEN` | unset | Set to `1` to never open a browser. |
+
+### Start at login
+
+Without `--service`, the server runs until the computer restarts (on Windows, until you sign out). With it:
+
+- Linux: a systemd user unit, `~/.config/systemd/user/cliproxy.service`, enabled and started. It runs while you are logged in; for a server that should run without a login session, run `loginctl enable-linger` once. Stop it with `systemctl --user disable --now cliproxy`.
+- macOS: a launchd agent, `~/Library/LaunchAgents/io.github.vayungodara.cliproxy-rs.plist`, which also restarts the server if it crashes. Stop it with `launchctl bootout gui/$(id -u)/io.github.vayungodara.cliproxy-rs` and delete the file.
+- Windows: an entry named `cliproxy-rs` under `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` that runs `.cliproxy-rs\start.ps1` when you sign in. A window may flash briefly at sign-in. Remove it with `Remove-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\Run -Name cliproxy-rs`.
+
+Once set up, later runs of the script restart the server through the same mechanism.
+
+### Removing it
+
+Stop the server (`kill $(cat ~/.cliproxy-rs/cliproxy.pid)`, `Stop-Process -Id (Get-Content ~\.cliproxy-rs\cliproxy.pid)` on Windows, or the service command above), then delete the binary. `~/.cliproxy-rs` holds your config, keys and signed-in accounts; delete it only if you no longer need them.
 
 ## From a release
 
@@ -47,7 +109,7 @@ The Linux binaries link against glibc and libstdc++ and run on current distribut
 
 ## From source
 
-You need a Rust toolchain (stable, 1.88 or newer) and the tools to build BoringSSL: `cmake`, `clang` and `perl`. On Debian or Ubuntu:
+For contributors, and for systems without a release binary such as Alpine or other musl systems. You need a Rust toolchain (stable, 1.88 or newer) and the tools to build BoringSSL: `cmake`, `clang` and `perl`. On Debian or Ubuntu:
 
 ```sh
 sudo apt-get install -y build-essential cmake clang perl git
@@ -95,19 +157,36 @@ Browser sign-in inside a container needs the OAuth callback ports (54545 for Cla
 docker exec -it cliproxy cliproxy --config /data/config.yaml --codex-device-login
 ```
 
-## First run
+## First run without the install script
 
-1. Write `config.yaml`. [GETTING-STARTED.md](GETTING-STARTED.md) has a minimal one, and every setting in CLIProxyAPI's [`config.example.yaml`](https://github.com/router-for-me/CLIProxyAPI/blob/main/config.example.yaml) is accepted, although settings for features listed as not yet supported have no effect.
-2. Start the server: `cliproxy --config config.yaml`. With no `--config`, it reads `config.yaml` in the current directory.
+If you installed the binary another way, set it up by hand:
+
+1. Make two random keys, for example with `openssl rand -hex 24`, and write `config.yaml`:
+
+   ```yaml
+   server:
+     host: "127.0.0.1"          # only this computer can connect
+     port: 8317
+   access:
+     api-keys:
+       - "PASTE-CLIENT-KEY"     # your tools send this key to the proxy
+   management:
+     secret-key: "PASTE-MANAGEMENT-KEY"  # the dashboard password
+   oauth:
+     auth-dir: "~/.cliproxy-rs/auth"     # where account sign-ins are saved
+   ```
+
+   Keep a copy of the management key: on first start the server replaces it in `config.yaml` with a bcrypt hash. Every setting in CLIProxyAPI's [`config.example.yaml`](https://github.com/router-for-me/CLIProxyAPI/blob/main/config.example.yaml) is accepted, although settings for features listed as not yet supported have no effect; [CONFIGURATION.md](CONFIGURATION.md) explains the common ones.
+2. Start the server: `cliproxy --config config.yaml`. With no `--config`, it reads `config.yaml` in the current directory. Check it with `curl http://127.0.0.1:8317/healthz`, which answers `{"status":"ok"}`.
 3. Connect accounts with `--claude-login`, `--codex-login`, `--codex-device-login`, `--kimi-login`, `--kimi-ai-login`, `--meta-login`, `--xai-login` or `--devin-login`, import a Vertex AI service account with `--vertex-import key.json`, or connect accounts from the dashboard at `/management.html`. Add `--no-browser` on a machine without a browser.
 
 Go-style single-dash flags such as `-config config.yaml` work too.
 
 The server reloads `config.yaml` and the credential directory when they change. Set `RUST_LOG=debug` for more detailed logs; the default level is `info`.
 
-## Running as a service
+## Running as a system service
 
-On Linux with systemd, a unit like this runs it under a dedicated user:
+For a per-user service, use the install script's `--service`. On a Linux server, a system unit like this runs it under a dedicated user:
 
 ```ini
 # /etc/systemd/system/cliproxy.service
@@ -137,4 +216,4 @@ journalctl -u cliproxy -f
 
 The server writes to `config.yaml` (when the dashboard saves settings or hashes a plaintext management key) and to the credential directory, so both must be writable by the service user.
 
-On macOS, run it from a `launchd` agent or simply in a terminal. On Windows, run it from a terminal or wrap it with a service manager such as NSSM.
+On Windows, to run it as a system service without a signed-in user, wrap it with a service manager such as NSSM.

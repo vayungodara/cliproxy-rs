@@ -36,34 +36,25 @@ It is a Rust rewrite of [CLIProxyAPI](https://github.com/router-for-me/CLIProxyA
 
 ## Quick start
 
-1. Install. On macOS or Linux:
+1. Run one command. On macOS or Linux:
 
    ```sh
    curl -fsSL https://raw.githubusercontent.com/vayungodara/cliproxy-rs/master/install.sh | sh
    ```
 
-   On Windows, download the zip from the [releases page](https://github.com/vayungodara/cliproxy-rs/releases).
+   On Windows, in PowerShell:
 
-2. Create `~/.cliproxy-rs/config.yaml` and start the server:
-
-   ```yaml
-   server:
-     host: "127.0.0.1"
-     port: 8317
-   access:
-     api-keys:
-       - "pick-a-long-random-client-key"
-   management:
-     secret-key: "pick-a-long-random-management-key"
-   oauth:
-     auth-dir: "~/.cliproxy-rs/auth"
+   ```powershell
+   irm https://raw.githubusercontent.com/vayungodara/cliproxy-rs/master/install.ps1 | iex
    ```
 
-   ```sh
-   cliproxy --config ~/.cliproxy-rs/config.yaml
-   ```
+   It installs the latest release after checking its checksum, writes a config with new keys to `~/.cliproxy-rs`, starts the proxy in the background and opens the dashboard in your browser. The keys stay in `~/.cliproxy-rs/keys.env` and are never printed.
 
-3. Open <http://127.0.0.1:8317/management.html>, sign in with the management key, choose Connect account, then follow Use with tools to point your tools at the proxy.
+2. In the dashboard, sign in with the `CLIPROXY_MANAGEMENT_KEY` line from `keys.env` and choose Connect account.
+
+3. Open Use with tools and copy the settings for Claude Code, Codex CLI or another tool.
+
+Run the same command again to upgrade; your config and keys stay as they are. [docs/INSTALL.md](docs/INSTALL.md#start-at-login) shows how to start the proxy when you log in.
 
 [docs/GETTING-STARTED.md](docs/GETTING-STARTED.md) walks through the same steps in more detail.
 
@@ -79,7 +70,7 @@ https://github.com/vayungodara/cliproxy-rs/blob/master/docs/AI-SETUP.md exactly.
 Do not sign in to any of my accounts or print my keys; tell me when it is my turn.
 ```
 
-The agent installs the binary, picks a free port without touching an existing CLIProxyAPI, writes the config with fresh keys in a file only you can read, starts the server and checks it, then hands the account sign-in to you.
+The agent runs the installer, which picks a free port without touching an existing CLIProxyAPI and keeps the keys in a file only you can read. It checks that the proxy answers, then hands the account sign-in to you.
 
 ## Use it with your tools
 
@@ -103,12 +94,12 @@ cliproxy-rs serves the same routes and the same v8 Management API as CLIProxyAPI
 
 ## Install options
 
+- `install.sh` (macOS and Linux) and `install.ps1` (Windows), the commands in the quick start. They install the release binary, set it up and start it; `--binary-only` (`-BinaryOnly` on Windows) installs only the binary.
 - Release binaries for macOS (Apple silicon and Intel), Linux (x86_64 and arm64) and Windows (x86_64), with a `SHA256SUMS` file, on the [releases page](https://github.com/vayungodara/cliproxy-rs/releases).
-- `install.sh`, which downloads and checks the right release binary for macOS or Linux (the command in the quick start).
 - Docker, from the repository's `Dockerfile`.
-- Building from source with Rust, `cmake`, `clang` and `perl`.
+- Building from source, for contributors and platforms without a release binary.
 
-[docs/INSTALL.md](docs/INSTALL.md) covers each one and running the proxy as a service.
+[docs/INSTALL.md](docs/INSTALL.md) covers each one, starting the proxy at login, and removing it.
 
 ## Upcoming features
 
