@@ -130,9 +130,11 @@ function Install-CliproxyRs([bool]$Service, [bool]$BinaryOnly) {
 
   # The start command, as a script so the sign-in entry can run the same thing.
   $q = { param($s) "'" + ($s -replace "'", "''") + "'" }
+  # Built on its own line: nested escaped quotes inside the string below would lose the path.
+  $arguments = '--config "' + $config + '"'
   $start = @(
     '# Starts cliproxy-rs in the background. Written by install.ps1.'
-    "`$p = Start-Process -FilePath $(& $q $exe) -ArgumentList $(& $q "--config `"$config`"") -WorkingDirectory $(& $q $data) -WindowStyle Hidden -RedirectStandardOutput $(& $q $log) -RedirectStandardError $(& $q $errlog) -PassThru"
+    "`$p = Start-Process -FilePath $(& $q $exe) -ArgumentList $(& $q $arguments) -WorkingDirectory $(& $q $data) -WindowStyle Hidden -RedirectStandardOutput $(& $q $log) -RedirectStandardError $(& $q $errlog) -PassThru"
     "Set-Content -Path $(& $q $pidfile) -Value `$p.Id"
   ) -join "`n"
   Stop-Cliproxy $pidfile
