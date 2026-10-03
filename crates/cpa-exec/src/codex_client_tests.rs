@@ -66,7 +66,7 @@ fn replays_go_translation_and_optimization() {
             }
             "optimize_auth" => {
                 optimized += 1;
-                let (got, renamed) = optimize_for_auth(&h, input, &settings(v), flag(v, "compat"));
+                let (got, renamed) = optimize_for_auth(&h, input, &settings(v), flag(v, "compat"), false);
                 assert_eq!(String::from_utf8(got).unwrap(), want, "{v}");
                 assert_eq!(renamed, flag(v, "bool"), "{v}");
             }

@@ -600,6 +600,7 @@ dependencies = [
  "cpa-common",
  "cpa-core",
  "cpa-exec",
+ "cpa-translate",
  "futures-util",
  "http",
  "libc",

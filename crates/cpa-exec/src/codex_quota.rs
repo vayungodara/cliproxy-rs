@@ -376,33 +376,60 @@ pub struct Snapshot {
     pub signals: BTreeMap<String, String>,
 }
 
+/// One credential's snapshots: its own and one per model (Go `Auth.Quota` and
+/// `ModelState.Quota`).
+#[derive(Default)]
+struct Entry {
+    credential: Option<Snapshot>,
+    models: BTreeMap<String, Snapshot>,
+}
+
 #[derive(Default)]
 pub struct QuotaSignals {
-    snapshots: Mutex<HashMap<String, Snapshot>>,
+    snapshots: Mutex<HashMap<String, Entry>>,
 }
 
 impl QuotaSignals {
-    /// Replaces the credential's snapshot when `headers` carry any Codex quota signal.
-    pub fn observe(&self, credential_id: &str, headers: &HeaderMap) {
+    /// Go `ObserveResponseHeadersForProvider` on the credential and on `model`'s state
+    /// (`canonicalModelKey`): replaced when `headers` carry any Codex quota signal,
+    /// untouched otherwise.
+    // ponytail: Go keys model state by the conductor's state model; executors see the
+    // upstream model, which differs only for aliases mapped to another upstream name.
+    pub fn observe(&self, credential_id: &str, model: &str, headers: &HeaderMap) {
         let signals = collect_signals(headers);
         if signals.is_empty() {
             return;
         }
-        self.snapshots.lock().expect("quota snapshots").insert(
-            credential_id.to_owned(),
-            Snapshot {
-                observed_at: SystemTime::now(),
-                signals,
-            },
-        );
+        let snapshot = Snapshot {
+            observed_at: SystemTime::now(),
+            signals,
+        };
+        let mut snapshots = self.snapshots.lock().expect("quota snapshots");
+        let entry = snapshots.entry(credential_id.to_owned()).or_default();
+        let model = cpa_core::registry::dynamic::canonical_model(model);
+        if !model.is_empty() {
+            entry.models.insert(model.to_owned(), snapshot.clone());
+        }
+        entry.credential = Some(snapshot);
     }
 
+    /// The credential's latest snapshot (`quota`).
     pub fn snapshot(&self, credential_id: &str) -> Option<Snapshot> {
         self.snapshots
             .lock()
             .expect("quota snapshots")
             .get(credential_id)
-            .cloned()
+            .and_then(|e| e.credential.clone())
+    }
+
+    /// The latest snapshot per model (`model_quotas`), empty when none was observed.
+    pub fn model_snapshots(&self, credential_id: &str) -> BTreeMap<String, Snapshot> {
+        self.snapshots
+            .lock()
+            .expect("quota snapshots")
+            .get(credential_id)
+            .map(|e| e.models.clone())
+            .unwrap_or_default()
     }
 
     /// Drops state for credentials that no longer exist.

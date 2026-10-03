@@ -720,7 +720,7 @@ mod config_writes {
             let _ = std::fs::remove_dir_all(&dir);
         }
         assert!(failures.is_empty(), "{}", failures.join("\n"));
-        assert_eq!(compared, 79);
+        assert_eq!(compared, 88);
     }
 }
 

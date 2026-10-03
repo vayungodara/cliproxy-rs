@@ -10,16 +10,24 @@
 
 pub mod abi;
 pub mod api;
+pub mod auth;
 pub mod callbacks;
+pub mod cli;
 pub mod client;
 pub mod config;
+pub mod executor;
 pub mod gojson;
 pub mod host;
+pub mod interceptors;
 pub mod management;
+pub mod models;
 #[cfg(unix)]
 pub mod native;
 pub mod platform;
+pub mod quota;
+pub mod routing;
 pub mod rpc;
 pub mod streams;
+pub mod transform;
 
 pub use host::{Host, Record, RegisteredPluginInfo, Snapshot};

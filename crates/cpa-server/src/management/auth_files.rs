@@ -702,7 +702,7 @@ pub(crate) async fn download(State(state): State<Arc<Management>>, RawQuery(raw)
 }
 
 /// Exclusive 0600 temp file, then rename: a crash never leaves a partial credential.
-fn write_file(dst: &Path, data: &[u8]) -> std::io::Result<()> {
+pub(super) fn write_file(dst: &Path, data: &[u8]) -> std::io::Result<()> {
     use std::io::Write;
     use std::os::unix::fs::OpenOptionsExt;
     let dir = dst.parent().unwrap_or(Path::new("."));

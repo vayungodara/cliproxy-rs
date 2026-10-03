@@ -243,32 +243,43 @@ const V8_PARENTS: &[&str] = &[
     "oauth.providers.antigravity",
 ];
 
+/// Writes `hash` over the plaintext `secret-key` in place, keeping the rest of the text.
+fn persist_secret_hash(path: &Path, text: &str, hash: &str) -> anyhow::Result<()> {
+    let file: yaml_edit::YamlFile = text.parse()?;
+    let doc = file.document().context("config must be a mapping")?;
+    let root: Value = serde_yaml_ng::from_str(text)?;
+    let v8 = lookup(
+        root.as_mapping().context("config must be a mapping")?,
+        "management.secret-key",
+    )
+    .is_some();
+    let parent = if v8 { "management" } else { "remote-management" };
+    doc.get_mapping(parent)
+        .context("management must be a mapping")?
+        .set("secret-key", hash);
+    let updated = file.to_string();
+    // Only write text that still loads to the same key.
+    anyhow::ensure!(
+        Config::parse(&updated)?.management.secret_key == hash,
+        "secret key not updated"
+    );
+    ConfigDocument::write(path, &updated)
+}
+
 impl Config {
     pub fn load(path: &Path) -> anyhow::Result<Self> {
         let text = std::fs::read_to_string(path)?;
-        let config = Self::parse(&text)?;
+        let mut config = Self::parse(&text)?;
         if !config.management.secret_key.is_empty() && !is_bcrypt(&config.management.secret_key) {
             let hash = bcrypt::hash(&config.management.secret_key, 10)?;
-            let file: yaml_edit::YamlFile = text.parse()?;
-            let doc = file.document().context("config must be a mapping")?;
-            let parent = if lookup(
-                &serde_yaml_ng::from_str::<Value>(&text)?
-                    .as_mapping()
-                    .cloned()
-                    .unwrap_or_default(),
-                "management.secret-key",
-            )
-            .is_some()
-            {
-                "management"
-            } else {
-                "remote-management"
-            };
-            doc.get_mapping(parent)
-                .context("management must be a mapping")?
-                .set("secret-key", hash);
-            ConfigDocument::write(path, &file.to_string())?;
-            return Self::parse(&file.to_string());
+            // Go hashes in memory and persists best-effort (a read-only mount still
+            // starts). ponytail: a key inherited through a YAML alias is not persisted,
+            // so it is re-hashed on each start; Go rewrites the expanded file instead.
+            let _ = persist_secret_hash(path, &text, &hash);
+            config.management.secret_key = hash.clone();
+            if let Some(management) = config.document.get_mut("management").and_then(Value::as_mapping_mut) {
+                management.insert(Value::from("secret-key"), Value::from(hash));
+            }
         }
         Ok(config)
     }
