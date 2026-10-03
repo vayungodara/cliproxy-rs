@@ -506,6 +506,7 @@ dependencies = [
  "futures-util",
  "getrandom 0.3.4",
  "gjson",
+ "http-body",
  "hyper",
  "hyper-util",
  "regex",
