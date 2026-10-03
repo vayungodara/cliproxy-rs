@@ -51,6 +51,10 @@ pub(crate) trait MediaSession: Send + Sync {
     fn close(&self, reason: &str);
 }
 
+/// The relay for new calls: `None` when disabled, `Err` with Go's message when it could
+/// not be built.
+pub(crate) type CurrentRelay = Result<Option<Arc<dyn MediaRelay>>, String>;
+
 /// Runs once when a media session ends on its own, with the reason.
 pub(crate) type CloseHandler = Box<dyn FnOnce(String) + Send>;
 
@@ -206,14 +210,14 @@ pub(crate) struct Relays {
 #[derive(Clone)]
 struct Current {
     config: Result<RelayConfig, String>,
-    relay: Result<Option<Arc<dyn MediaRelay>>, String>,
+    relay: CurrentRelay,
 }
 
 impl Relays {
     /// The relay to use for a new call: `None` when disabled, `Err` with Go's message when
     /// it could not be built (every call then answers 503).
     #[cfg(test)]
-    pub fn current(&self, cfg: &Config) -> Result<Option<Arc<dyn MediaRelay>>, String> {
+    pub fn current(&self, cfg: &Config) -> CurrentRelay {
         let state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
         self.current_locked(state, cfg)
     }
@@ -221,21 +225,14 @@ impl Relays {
     /// The config snapshot and its relay, read together under the relay lock
     /// (`Handler.currentRuntime`): a request holding an older snapshot can no longer
     /// rebuild an older relay over a newer one.
-    pub fn snapshot(
-        &self,
-        config: impl FnOnce() -> Arc<Config>,
-    ) -> (Arc<Config>, Result<Option<Arc<dyn MediaRelay>>, String>) {
+    pub fn snapshot(&self, config: impl FnOnce() -> Arc<Config>) -> (Arc<Config>, CurrentRelay) {
         let state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
         let cfg = config();
         let relay = self.current_locked(state, &cfg);
         (cfg, relay)
     }
 
-    fn current_locked(
-        &self,
-        mut state: std::sync::MutexGuard<'_, Option<Current>>,
-        cfg: &Config,
-    ) -> Result<Option<Arc<dyn MediaRelay>>, String> {
+    fn current_locked(&self, mut state: std::sync::MutexGuard<'_, Option<Current>>, cfg: &Config) -> CurrentRelay {
         #[cfg(test)]
         if let Some(fixed) = &self.fixed {
             return Ok(Some(fixed.clone()));
@@ -262,7 +259,7 @@ impl Relays {
     }
 
     #[cfg(feature = "media-relay")]
-    fn build(&self, config: &RelayConfig) -> Result<Option<Arc<dyn MediaRelay>>, String> {
+    fn build(&self, config: &RelayConfig) -> CurrentRelay {
         if !config.enabled {
             return Ok(None);
         }
@@ -273,7 +270,7 @@ impl Relays {
     /// Default builds carry no WebRTC stack: an enabled relay is reported once per
     /// config and calls negotiate end to end with the upstream media servers.
     #[cfg(not(feature = "media-relay"))]
-    fn build(&self, config: &RelayConfig) -> Result<Option<Arc<dyn MediaRelay>>, String> {
+    fn build(&self, config: &RelayConfig) -> CurrentRelay {
         if config.enabled {
             tracing::warn!(
                 "codex.live-media-relay is enabled, but this build lacks the media relay (cargo feature `media-relay`); Codex Live calls negotiate without it"
