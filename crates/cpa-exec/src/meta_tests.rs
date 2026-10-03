@@ -215,6 +215,13 @@ async fn execution_matches_go_byte_for_byte() {
         "remint-from-dca",
         "remint-access-token-dca-minted-base",
         "remint-failure",
+        "apply-patch-stream",
+        "apply-patch-nonstream",
+        "apply-patch-invalid-stream",
+        "apply-patch-invalid-nonstream",
+        "apply-patch-eof-stream",
+        "stream-completed-then-error",
+        "stream-done-only",
     ] {
         let r = run(name).await;
         assert_upstream(&r, name);
@@ -890,7 +897,8 @@ async fn apply_patch_failures_end_meta_streams_like_go() {
         });
         let upstream =
             futures_util::stream::iter(lines.into_iter().map(|l| Ok(Bytes::from_static(l.as_bytes())))).boxed();
-        let out: Vec<String> = stream_events(upstream, translator, false)
+        let inactive = cpa_translate::apply_patch_responses::State::new(Format::OpenAIResponse, b"{}", b"{}");
+        let out: Vec<String> = stream_events(upstream, translator, false, inactive, Default::default())
             .map(|item| match item {
                 Ok(b) => String::from_utf8(b.to_vec()).unwrap(),
                 Err(e) => format!("ERR {} {}", e.status, String::from_utf8_lossy(&e.body)),
@@ -933,6 +941,13 @@ async fn usage_reports_match_go_records() {
         "payload-rules-and-headers",
         "remint-from-dca",
         "error-429-plain",
+        "apply-patch-stream",
+        "apply-patch-nonstream",
+        "apply-patch-invalid-stream",
+        "apply-patch-invalid-nonstream",
+        "apply-patch-eof-stream",
+        "stream-completed-then-error",
+        "stream-done-only",
     ] {
         let r = run(name).await;
         crate::kimi_fixture::assert_usage_like_go(name, &r.fx, &r.usage);

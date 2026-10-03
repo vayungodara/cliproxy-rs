@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -29,6 +30,10 @@ func TestRSFixMeta(t *testing.T) {
 	apiMeta := map[string]any{"type": "meta", "auth_kind": "oauth", "access_token": "meta-key-fixture", "api_key": "meta-key-fixture", "dca_token": "dca:fixture"}
 	oauthAttrs := map[string]string{"auth_kind": "oauth"}
 	body := `{"model":"muse-spark-1.3(high)","input":"hello","instructions":null,"temperature":0.2,"max_output_tokens":99,"prompt_cache_retention":"24h","safety_identifier":"x","client_metadata":{"a":1},"user":"u1","service_tier":"fast","stream_options":{"include_obfuscation":false},"tools":[{"type":"web_search_preview","search_content_types":["text"]},{"type":"namespace","name":"n","tools":[{"type":"web_search","search_content_types":["image"]}]}],"reasoning":{"summary":"auto"}}`
+	patchBody := `{"model":"muse-spark-1.3","input":[{"type":"custom_tool_call","call_id":"old","name":"apply_patch","input":"old\n"},{"type":"custom_tool_call_output","call_id":"old","output":"ok"}],"tools":[{"type":"custom","name":"apply_patch","description":"Apply a patch"}],"tool_choice":{"type":"custom","name":"apply_patch"}}`
+	patchSSE := rsfixPatchSSE("muse-spark-1.3", true)
+	patchBadSSE := rsfixPatchSSE("muse-spark-1.3", false)
+	patchEOF := rsfixPatchEOF()
 	mintOK := `{"api_key":"minted-key","base_url":"","user_email":"u@example.com","user_full_name":"U Ser","subs_tier_name":"Plus","subs_tier_id":"","is_subs_active":true,"has_payment_method":false}`
 	cases := []struct {
 		name      string
@@ -70,6 +75,15 @@ func TestRSFixMeta(t *testing.T) {
 			responses: []rsfixResponse{sseResp("event: response.created\n" + created + "\n\n")}},
 		{name: "stream-plain-json-lines", stream: true, body: `{"model":"muse-spark-1.3","input":"hi"}`, meta: apiMeta,
 			responses: []rsfixResponse{jsonResp(200, "{\"type\":\"response.created\",\"response\":{}}\r\ndata:{\"type\":\"response.in_progress\",\"response\":{\"id\":\"x\"}}\ndata: [DONE]")}},
+		{name: "apply-patch-stream", stream: true, body: patchBody, meta: apiMeta, responses: []rsfixResponse{sseResp(patchSSE)}},
+		{name: "apply-patch-nonstream", body: patchBody, meta: apiMeta, responses: []rsfixResponse{sseResp(patchSSE)}},
+		{name: "apply-patch-invalid-stream", stream: true, body: patchBody, meta: apiMeta, responses: []rsfixResponse{sseResp(patchBadSSE)}},
+		{name: "apply-patch-invalid-nonstream", body: patchBody, meta: apiMeta, responses: []rsfixResponse{sseResp(patchBadSSE)}},
+		{name: "apply-patch-eof-stream", stream: true, body: patchBody, meta: apiMeta, responses: []rsfixResponse{sseResp(patchEOF)}},
+		{name: "stream-completed-then-error", stream: true, body: `{"model":"muse-spark-1.3","input":"hi"}`, meta: apiMeta,
+			responses: []rsfixResponse{sseResp(created + "\n\n" + completedEmpty + "\n\nevent: error\ndata: {\"type\":\"error\",\"error\":{\"code\":503,\"message\":\"overloaded\"}}\n\n")}},
+		{name: "stream-done-only", stream: true, body: `{"model":"muse-spark-1.3","input":"hi"}`, meta: apiMeta,
+			responses: []rsfixResponse{sseResp(created + "\n\n" + `data: {"type":"response.done","response":{"id":"resp_m","status":"completed","model":"muse-spark-1.3-done","output":[],"usage":{"input_tokens":3,"output_tokens":1,"total_tokens":4}}}` + "\n\n")}},
 		{name: "compact-rejected", alt: "responses/compact", body: `{"model":"muse-spark-1.3","input":"hi"}`, meta: apiMeta},
 		{name: "count-tokens", count: true, body: `{"model":"muse-spark-1.3","instructions":"Be brief.","input":[{"type":"message","role":"user","content":[{"type":"input_text","text":"hello world"}]},{"type":"function_call","name":"lookup","arguments":"{\"q\":1}"},{"type":"function_call_output","output":"result text"}],"tools":[{"type":"function","name":"lookup","description":"Find things","parameters":{"type":"object"}}],"text":{"format":{"type":"json_schema","name":"out","schema":{"type":"object"}}}}`, meta: apiMeta},
 		{name: "config-apikey-headers", body: `{"model":"muse-spark-1.3","input":"hi"}`, noBase: true,
@@ -386,4 +400,35 @@ func TestRSFixMetaDecode(t *testing.T) {
 		bytesOut = append(bytesOut, map[string]any{"byte": b, "err": msg})
 	}
 	rsfixWrite(t, "meta", rsfixFixture{Name: "decode", Credential: map[string]any{}, Request: map[string]any{}, Extra: map[string]any{"cases": out, "bytes": bytesOut}})
+}
+
+// rsfixPatchSSE is a Responses stream whose function_call carries apply_patch arguments
+// (valid: the canonical {"input": patch}; invalid: a non-string input).
+func rsfixPatchSSE(model string, valid bool) string {
+	args := `{\"input\":\"*** Begin Patch\\n+中😀\\n*** End Patch\\n\"}`
+	d1, d2 := `{\"input\":\"*** Begin Patch\\n+中`, `😀\\n*** End Patch\\n\"}`
+	if !valid {
+		args, d1, d2 = `{\"input\":5}`, `{\"input\":`, `5}`
+	}
+	item := `{"type":"function_call","id":"fc1","call_id":"c1","name":"apply_patch","arguments":"` + args + `","status":"completed"}`
+	events := []string{
+		`{"type":"response.created","response":{"id":"r1","status":"in_progress","model":"` + model + `"}}`,
+		`{"type":"response.output_item.added","output_index":0,"item":{"type":"function_call","id":"fc1","call_id":"c1","name":"apply_patch","arguments":"","status":"in_progress"}}`,
+		`{"type":"response.function_call_arguments.delta","item_id":"fc1","output_index":0,"delta":"` + d1 + `"}`,
+		`{"type":"response.function_call_arguments.delta","item_id":"fc1","output_index":0,"delta":"` + d2 + `"}`,
+		`{"type":"response.function_call_arguments.done","item_id":"fc1","output_index":0,"arguments":"` + args + `"}`,
+		`{"type":"response.output_item.done","output_index":0,"item":` + item + `}`,
+		`{"type":"response.completed","response":{"id":"r1","status":"completed","model":"` + model + `","output":[` + item + `],"usage":{"input_tokens":9,"output_tokens":4,"total_tokens":13}}}`,
+	}
+	var b strings.Builder
+	for _, e := range events {
+		b.WriteString("data: " + e + "\n\n")
+	}
+	return b.String()
+}
+
+// rsfixPatchEOF ends the transport inside an apply_patch call.
+func rsfixPatchEOF() string {
+	return "data: " + `{"type":"response.output_item.added","output_index":0,"item":{"type":"function_call","id":"fc1","call_id":"c1","name":"apply_patch","arguments":"","status":"in_progress"}}` + "\n\n" +
+		"data: " + `{"type":"response.function_call_arguments.delta","item_id":"fc1","output_index":0,"delta":"{\"input\":\"*** Begin"}` + "\n\n"
 }

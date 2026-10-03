@@ -200,6 +200,44 @@ func TestRSFixKimi(t *testing.T) {
 			responses: []rsfixResponse{sseResp("data: {\"type\":\"response.output_text.delta\",\"delta\":\"a\"}\ndata: {\"type\":\"response.output_text.delta\",\"delta\":\"b\"}\n\ndata: [DONE]\n: keep\ndata: {\"type\":")},
 		},
 		{
+			name: "responses-apply-patch-stream", source: sdktranslator.FormatOpenAIResponse, model: "kimi-k3", stream: true, meta: kimiMeta,
+			body:      rsfixKimiPatchBody,
+			responses: []rsfixResponse{sseResp(rsfixPatchSSE("k3", true))},
+		},
+		{
+			name: "responses-apply-patch-nonstream", source: sdktranslator.FormatOpenAIResponse, model: "kimi-k3", meta: kimiMeta,
+			body:      rsfixKimiPatchBody,
+			responses: []rsfixResponse{jsonResp(200, rsfixPatchResponse(true))},
+		},
+		{
+			name: "responses-apply-patch-invalid-stream", source: sdktranslator.FormatOpenAIResponse, model: "kimi-k3", stream: true, meta: kimiMeta,
+			body:      rsfixKimiPatchBody,
+			responses: []rsfixResponse{sseResp(rsfixPatchSSE("k3", false))},
+		},
+		{
+			name: "responses-apply-patch-invalid-nonstream", source: sdktranslator.FormatOpenAIResponse, model: "kimi-k3", meta: kimiMeta,
+			body:      rsfixKimiPatchBody,
+			responses: []rsfixResponse{jsonResp(200, rsfixPatchResponse(false))},
+		},
+		{
+			name: "responses-apply-patch-eof-stream", source: sdktranslator.FormatOpenAIResponse, model: "kimi-k3", stream: true, meta: kimiMeta,
+			body:      rsfixKimiPatchBody,
+			responses: []rsfixResponse{sseResp(rsfixPatchEOF())},
+		},
+		{
+			name: "responses-nonstream-nested-usage", source: sdktranslator.FormatOpenAIResponse, model: "kimi-k3", meta: kimiMeta,
+			body:      `{"model":"kimi-k3","input":"hi"}`,
+			responses: []rsfixResponse{jsonResp(200, `{"type":"response.completed","response":{"id":"r9","status":"completed","model":"k3-nested","output":[{"type":"message","role":"assistant","content":[{"type":"output_text","text":"x"}]}],"usage":{"input_tokens":3,"output_tokens":2,"total_tokens":5}}}`)},
+		},
+		{
+			name: "responses-stream-incomplete-then-done", source: sdktranslator.FormatOpenAIResponse, model: "kimi-k3", stream: true, meta: kimiMeta,
+			body: `{"model":"kimi-k3","stream":true,"input":"hi"}`,
+			responses: []rsfixResponse{sseResp("data: {\"type\":\"response.incomplete\",\"response\":{\"id\":\"r\",\"model\":\"k3-a\",\"usage\":{\"input_tokens\":2,\"output_tokens\":1,\"total_tokens\":3}}}\n\n" +
+				"data: {\"type\":\"response.done\",\"usage\":{\"prompt_tokens\":0,\"completion_tokens\":4,\"total_tokens\":0}}\n\n" +
+				"data: {\"type\":\"response.completed\",\"response\":{\"id\":\"r\",\"usage\":{\"input_tokens\":0,\"output_tokens\":0,\"total_tokens\":0}}}\n\n" +
+				"{\"type\":\"response.completed\",\"response\":{\"id\":\"r\",\"usage\":{\"input_tokens\":50,\"output_tokens\":50,\"total_tokens\":100}}}\n\n")},
+		},
+		{
 			name: "responses-compact-rejected", source: sdktranslator.FormatOpenAIResponse, model: "kimi-k3", alt: "responses/compact", meta: kimiMeta,
 			body: `{"model":"kimi-k3","input":"hi"}`,
 		},
@@ -482,4 +520,15 @@ func TestRSFixKimiTransport(t *testing.T) {
 				Request: map[string]any{"source": "openai", "model": "kimi-k2", "stream": tc.stream, "body": tc.body, "headers": clientHeaders}, Responses: tc.responses, Upstream: srv.Captured(), Downstream: down})
 		})
 	}
+}
+
+const rsfixKimiPatchBody = `{"model":"kimi-k3","input":[{"type":"custom_tool_call","call_id":"old","name":"apply_patch","input":"old\n"},{"type":"custom_tool_call_output","call_id":"old","output":"ok"}],"tools":[{"type":"custom","name":"apply_patch","description":"Apply a patch"}],"tool_choice":{"type":"custom","name":"apply_patch"}}`
+
+// rsfixPatchResponse is a non-stream Responses body with one apply_patch function_call.
+func rsfixPatchResponse(valid bool) string {
+	args := `{\"input\":\"*** Begin Patch\\n+中😀\\n*** End Patch\\n\"}`
+	if !valid {
+		args = `{\"input\":5}`
+	}
+	return `{"id":"r1","object":"response","status":"completed","model":"k3","output":[{"type":"function_call","id":"fc1","call_id":"c1","name":"apply_patch","arguments":"` + args + `","status":"completed"}],"usage":{"input_tokens":9,"output_tokens":4,"total_tokens":13}}`
 }

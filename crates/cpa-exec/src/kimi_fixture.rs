@@ -470,8 +470,12 @@ fn reported_tokens(format: Format, payload: &[u8]) -> Option<[i64; 4]> {
     Some(t)
 }
 
-/// The response model a reported payload names, by format.
+/// The response model a reported payload names, by format (Go's extractors need one
+/// valid JSON value).
 fn reported_model(format: Format, payload: &[u8]) -> Option<String> {
+    if !cpa_common::json::valid(payload) {
+        return None;
+    }
     let paths: &[&str] = match format {
         Format::Codex | Format::OpenAIResponse => &["response.model", "model"],
         Format::Interactions => &["interaction.model", "model"],
@@ -485,7 +489,8 @@ fn reported_model(format: Format, payload: &[u8]) -> Option<String> {
 
 /// Checks the usage reports against the record Go's `UsageReporter` published for the
 /// same fixture (`extra.usage`): the reported upstream payloads carry Go's token counts
-/// and response model, and the reported request yields Go's translated reasoning effort.
+/// (none for a failed attempt) and response model, and the reported request yields Go's
+/// translated reasoning effort.
 pub(crate) fn assert_usage_like_go(name: &str, fx: &Value, log: &UsageLog) {
     let Some(record) = fx["extra"]["usage"].as_array().and_then(|r| r.first()) else {
         return;
@@ -507,15 +512,26 @@ pub(crate) fn assert_usage_like_go(name: &str, fx: &Value, log: &UsageLog) {
         record["reasoning_effort"].as_str().unwrap(),
         "{name}: translated reasoning effort"
     );
-    if record["failed"].as_bool() == Some(true) {
-        return;
-    }
     let payloads = log.payloads();
-    let tokens = payloads
-        .iter()
-        .rev()
-        .find_map(|(f, p)| reported_tokens(*f, p))
-        .unwrap_or_default();
+    let tokens = if record["failed"].as_bool() == Some(true) {
+        // Go's `PublishFailure` publishes an empty detail: nothing reported may carry tokens.
+        let carried: Vec<_> = payloads
+            .iter()
+            .filter_map(|(f, p)| reported_tokens(*f, p))
+            .filter(|t| *t != [0; 4])
+            .collect();
+        assert!(
+            carried.is_empty(),
+            "{name}: a failed attempt reported tokens {carried:?}"
+        );
+        [0; 4]
+    } else {
+        payloads
+            .iter()
+            .rev()
+            .find_map(|(f, p)| reported_tokens(*f, p))
+            .unwrap_or_default()
+    };
     let want = ["input_tokens", "output_tokens", "total_tokens", "cached_tokens"].map(|k| record[k].as_i64().unwrap());
     assert_eq!(tokens, want, "{name}: reported tokens (input, output, total, cached)");
     let model = payloads.iter().rev().find_map(|(f, p)| reported_model(*f, p));
