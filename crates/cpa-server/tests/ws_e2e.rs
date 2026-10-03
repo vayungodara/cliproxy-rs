@@ -192,10 +192,11 @@ fn go_frames(step: &Value) -> Vec<Frame> {
         .collect()
 }
 
-/// Headers both implementations must agree on. Transport headers (WebSocket key,
-/// extensions, connection, length, encoding) legitimately differ between gorilla/net
-/// http and wreq.
-const COMPARED_HEADERS: [&str; 10] = [
+/// Headers both implementations must agree on, the permessage-deflate offer included.
+/// Transport headers (WebSocket key, connection, length, encoding) legitimately differ
+/// between gorilla/net http and wreq.
+const COMPARED_HEADERS: [&str; 11] = [
+    "sec-websocket-extensions",
     "authorization",
     "openai-beta",
     "originator",

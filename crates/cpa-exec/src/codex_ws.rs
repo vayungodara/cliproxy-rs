@@ -22,8 +22,15 @@ use futures_util::{SinkExt, StreamExt};
 use gjson::Kind;
 use http::HeaderMap;
 use tokio::sync::{OwnedMutexGuard, mpsc, watch};
-use wreq::ws::WebSocket;
-use wreq::ws::message::Message;
+use tokio_tungstenite::WebSocketStream;
+use tokio_tungstenite::tungstenite::Message;
+use tokio_tungstenite::tungstenite::protocol::{Role, WebSocketConfig};
+
+use deflate::Inflate;
+
+/// The upstream socket: tungstenite over the upgraded connection, with permessage-deflate
+/// reads when negotiated.
+type WebSocket = WebSocketStream<Inflate<wreq::Upgraded>>;
 
 use crate::codex::CodexExecutor;
 use crate::codex_json::{set_raw, set_str};
@@ -116,7 +123,7 @@ impl Upstream {
         tokio::spawn(async move {
             let _ = tokio::time::timeout(Duration::from_secs(1), async {
                 let mut sink = this.sink.lock().await;
-                let _ = sink.send(Message::close(None)).await;
+                let _ = sink.send(Message::Close(None)).await;
                 let _ = sink.close().await;
             })
             .await;
@@ -641,14 +648,19 @@ impl CodexExecutor {
         model_level_cooling: bool,
     ) -> Result<(WebSocket, HeaderMap), ExecError> {
         // `newProxyAwareWebsocketDialer`: Go's standard dialer, environment proxies
-        // included when none is configured.
+        // included when none is configured, with `EnableCompression`.
+        let mut headers = headers.clone();
+        headers.insert(
+            http::header::SEC_WEBSOCKET_EXTENSIONS,
+            http::HeaderValue::from_static(deflate::OFFER),
+        );
+        let key = tokio_tungstenite::tungstenite::handshake::client::generate_key();
         let builder = self
             .transport
             .standard(&target.proxy)
             .websocket(&target.url)
-            .headers(headers.clone())
-            .max_frame_size(MAX_UPSTREAM_MESSAGE)
-            .max_message_size(MAX_UPSTREAM_MESSAGE);
+            .headers(headers)
+            .accept_key(key.clone());
         let attempt = async {
             let mut res = builder
                 .send()
@@ -674,10 +686,30 @@ impl CodexExecutor {
                 }
                 return Err(response::status_error(status, &body, handshake, model_level_cooling));
             }
-            let socket = res
-                .into_websocket()
-                .await
-                .map_err(|_| transport("codex websockets executor: websocket handshake failed"))?;
+            // gorilla `Dial`'s checks, then its permessage-deflate agreement.
+            let accept = tokio_tungstenite::tungstenite::handshake::derive_accept_key(key.as_bytes());
+            let handshake_failed = || transport("codex websockets executor: websocket handshake failed");
+            if !token_list_contains(&handshake, http::header::UPGRADE, "websocket")
+                || !token_list_contains(&handshake, http::header::CONNECTION, "upgrade")
+                || handshake.get(http::header::SEC_WEBSOCKET_ACCEPT).map(|v| v.as_bytes()) != Some(accept.as_bytes())
+            {
+                return Err(handshake_failed());
+            }
+            // ponytail: Go reports a failed negotiation (and a bad handshake) as a status
+            // error carrying 101; here both are transport failures.
+            let compressed = deflate::negotiated(&handshake)
+                .map_err(|()| transport("codex websockets executor: websocket: invalid compression negotiation"))?;
+            let response = std::mem::replace(&mut *res, wreq::Response::from(http::Response::new(Vec::<u8>::new())));
+            let upgraded = response.upgrade().await.map_err(|_| handshake_failed())?;
+            let config = WebSocketConfig::default()
+                .max_frame_size(Some(MAX_UPSTREAM_MESSAGE))
+                .max_message_size(Some(MAX_UPSTREAM_MESSAGE));
+            let socket = WebSocketStream::from_raw_socket(
+                Inflate::new(upgraded, compressed, MAX_UPSTREAM_MESSAGE),
+                Role::Client,
+                Some(config),
+            )
+            .await;
             Ok((socket, handshake))
         };
         tokio::time::timeout(HANDSHAKE_TIMEOUT, attempt)
@@ -812,12 +844,12 @@ async fn read_loop(mut stream: SplitStream<WebSocket>, session: Weak<Session>, c
                 Message::Text(text) => break text.as_str().to_owned(),
                 Message::Binary(_) => break 'read transport("codex websockets executor: unexpected binary message"),
                 Message::Close(frame) => {
-                    if let Some(frame) = frame.filter(|f| u16::from(f.code.clone()) == 1009) {
+                    if let Some(frame) = frame.filter(|f| u16::from(f.code) == 1009) {
                         break 'read message_too_big(frame.reason.as_str());
                     }
                     break 'read transport("codex websockets executor: upstream closed the connection");
                 }
-                Message::Ping(_) | Message::Pong(_) => continue,
+                Message::Ping(_) | Message::Pong(_) | Message::Frame(_) => continue,
             }
         };
         let active = conn.link.lock().expect("link").active.clone();
@@ -840,6 +872,19 @@ async fn read_loop(mut stream: SplitStream<WebSocket>, session: Weak<Session>, c
     }
 }
 
+/// gorilla `tokenListContainsValue`: a comma-separated token list holds `value`
+/// (ASCII case-insensitive).
+fn token_list_contains(headers: &HeaderMap, name: http::HeaderName, value: &str) -> bool {
+    headers.get_all(name).iter().any(|v| {
+        v.to_str().is_ok_and(|v| {
+            v.split(',')
+                .any(|t| t.trim_matches([' ', '\t']).eq_ignore_ascii_case(value))
+        })
+    })
+}
+
+#[path = "codex_ws_deflate.rs"]
+mod deflate;
 #[path = "codex_duplex.rs"]
 mod duplex;
 pub use duplex::SteeringInput;

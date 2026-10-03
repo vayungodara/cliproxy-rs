@@ -1,0 +1,275 @@
+{
+  "frames": [
+    {
+      "name": "single",
+      "bytes": "c107f248cdc9c90700",
+      "offer": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
+      "messages": [
+        "Hello"
+      ],
+      "read_error": true
+    },
+    {
+      "name": "fragmented_with_ping",
+      "bytes": "4103f248cd89008004c9c90700",
+      "offer": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
+      "messages": [
+        "Hello"
+      ],
+      "read_error": true
+    },
+    {
+      "name": "stored_block",
+      "bytes": "c10b000500faff48656c6c6f00",
+      "offer": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
+      "messages": [
+        "Hello"
+      ],
+      "read_error": true
+    },
+    {
+      "name": "uncompressed",
+      "bytes": "810548656c6c6f",
+      "offer": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
+      "messages": [
+        "Hello"
+      ],
+      "read_error": true
+    },
+    {
+      "name": "two_messages",
+      "bytes": "c107f248cdc9c90700c107f248cdc9c90700",
+      "offer": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
+      "messages": [
+        "Hello",
+        "Hello"
+      ],
+      "read_error": true
+    },
+    {
+      "name": "uncompressed_fragments",
+      "bytes": "0102486580036c6c6f",
+      "offer": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
+      "messages": [
+        "Hello"
+      ],
+      "read_error": true
+    },
+    {
+      "name": "rsv1_on_control",
+      "bytes": "c900810548656c6c6f",
+      "offer": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
+      "messages": [
+        "Hello"
+      ],
+      "read_error": true
+    },
+    {
+      "name": "rsv1_on_continuation",
+      "bytes": "4103f248cdc004c9c90700",
+      "offer": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
+      "messages": [
+        "Hello"
+      ],
+      "read_error": true
+    },
+    {
+      "name": "rsv1_on_uncompressed_continuation",
+      "bytes": "01024865c0036c6c6f",
+      "offer": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
+      "messages": [
+        "Hello"
+      ],
+      "read_error": true
+    },
+    {
+      "name": "rsv2_set",
+      "bytes": "a10548656c6c6f",
+      "offer": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
+      "messages": [],
+      "read_error": true
+    },
+    {
+      "name": "masked_server_frame",
+      "bytes": "81850000000048656c6c6f",
+      "offer": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
+      "messages": [],
+      "read_error": true
+    },
+    {
+      "name": "data_inside_compressed_message",
+      "bytes": "4103f248cd810548656c6c6f",
+      "offer": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
+      "messages": [],
+      "read_error": true
+    },
+    {
+      "name": "corrupt_deflate",
+      "bytes": "c103ffffff",
+      "offer": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
+      "messages": [],
+      "read_error": true
+    },
+    {
+      "name": "big_json",
+      "bytes": "c146ecd0bd0980401044e1566462b902ae19f16702e17497db3950c4de0d2c43a3c74bbf0b3a9dc8a80cb73d98acc99b06f1505a5834a2c7db8cd936af8c58a7c2ee9fcf1ae07e00",
+      "offer": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
+      "messages": [
+        "{\"type\":\"response.output_text.delta\",\"delta\":\"compressible compressible compressible compressible compressible compressible compressible compressible compressible compressible compressible compressible compressible compressible compressible compressible compressible compressible compressible compressible compressible compressible compressible compressible compressible compressible compressible compressible compressible compressible compressible compressible compressible compressible compressible compressible compressible compressible compressible compressible \"}"
+      ],
+      "read_error": true
+    }
+  ],
+  "negotiations": [
+    {
+      "headers": null,
+      "offer": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
+      "messages": [],
+      "read_error": true
+    },
+    {
+      "headers": [
+        "permessage-deflate; server_no_context_takeover; client_no_context_takeover"
+      ],
+      "offer": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
+      "messages": [
+        "Hello"
+      ],
+      "read_error": true
+    },
+    {
+      "headers": [
+        "permessage-deflate"
+      ],
+      "offer": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
+      "dial_error": "websocket: invalid compression negotiation",
+      "messages": [],
+      "read_error": false
+    },
+    {
+      "headers": [
+        "permessage-deflate; server_no_context_takeover"
+      ],
+      "offer": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
+      "dial_error": "websocket: invalid compression negotiation",
+      "messages": [],
+      "read_error": false
+    },
+    {
+      "headers": [
+        "permessage-deflate; client_no_context_takeover"
+      ],
+      "offer": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
+      "dial_error": "websocket: invalid compression negotiation",
+      "messages": [],
+      "read_error": false
+    },
+    {
+      "headers": [
+        "permessage-deflate; client_no_context_takeover; server_no_context_takeover"
+      ],
+      "offer": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
+      "messages": [
+        "Hello"
+      ],
+      "read_error": true
+    },
+    {
+      "headers": [
+        "permessage-deflate;server_no_context_takeover;client_no_context_takeover"
+      ],
+      "offer": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
+      "messages": [
+        "Hello"
+      ],
+      "read_error": true
+    },
+    {
+      "headers": [
+        "x-webkit-deflate-frame, permessage-deflate; server_no_context_takeover; client_no_context_takeover"
+      ],
+      "offer": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
+      "messages": [
+        "Hello"
+      ],
+      "read_error": true
+    },
+    {
+      "headers": [
+        "permessage-deflate; server_no_context_takeover; client_no_context_takeover; server_max_window_bits=10"
+      ],
+      "offer": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
+      "messages": [
+        "Hello"
+      ],
+      "read_error": true
+    },
+    {
+      "headers": [
+        "permessage-deflate; server_no_context_takeover=\"x\"; client_no_context_takeover"
+      ],
+      "offer": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
+      "messages": [
+        "Hello"
+      ],
+      "read_error": true
+    },
+    {
+      "headers": [
+        "PERMESSAGE-DEFLATE; server_no_context_takeover; client_no_context_takeover"
+      ],
+      "offer": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
+      "messages": [],
+      "read_error": true
+    },
+    {
+      "headers": [
+        "permessage-deflate; server_no_context_takeover; client_no_context_takeover, permessage-deflate"
+      ],
+      "offer": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
+      "messages": [
+        "Hello"
+      ],
+      "read_error": true
+    },
+    {
+      "headers": [
+        "permessage-deflate; client_no_context_takeover, permessage-deflate; server_no_context_takeover; client_no_context_takeover"
+      ],
+      "offer": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
+      "dial_error": "websocket: invalid compression negotiation",
+      "messages": [],
+      "read_error": false
+    },
+    {
+      "headers": [
+        "permessage-deflate; server_no_context_takeover; client_no_context_takeover; bad@"
+      ],
+      "offer": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
+      "messages": [],
+      "read_error": true
+    },
+    {
+      "headers": [
+        "foo",
+        "permessage-deflate; server_no_context_takeover; client_no_context_takeover"
+      ],
+      "offer": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
+      "messages": [
+        "Hello"
+      ],
+      "read_error": true
+    },
+    {
+      "headers": [
+        "foo; bar=\"unterminated",
+        "permessage-deflate; server_no_context_takeover; client_no_context_takeover"
+      ],
+      "offer": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
+      "messages": [
+        "Hello"
+      ],
+      "read_error": true
+    }
+  ]
+}

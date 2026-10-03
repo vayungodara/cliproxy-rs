@@ -606,6 +606,7 @@ dependencies = [
  "tiktoken-rs",
  "tokio",
  "tokio-btls",
+ "tokio-tungstenite",
  "tokio-util",
  "tracing",
  "url",
