@@ -14,7 +14,6 @@
 use std::collections::VecDeque;
 
 use bytes::Bytes;
-use cpa_common::gostr::trim_space;
 use cpa_common::json as gj;
 use cpa_common::thinking::{self, RequestThinking, parse_suffix};
 use cpa_core::config::Config;
@@ -83,29 +82,6 @@ fn status_err(status: u16, message: impl Into<Bytes>) -> ExecError {
 
 fn bad_gateway() -> ExecError {
     status_err(502, EMPTY_TRANSLATION)
-}
-
-fn not_registered(what: &str, from: Format, to: Format) -> ExecError {
-    ExecError::local(
-        501,
-        FailureScope::Request,
-        format!(
-            "{what} translation {} -> {} is not registered",
-            from.as_str(),
-            to.as_str()
-        ),
-    )
-}
-
-/// Fails before any upstream call when a translation the attempt needs is not ported.
-fn require_pairs(source: Format, upstream: Format, response: Format) -> Result<(), ExecError> {
-    if source != upstream && cpa_translate::pair(source, upstream).is_none() {
-        return Err(not_registered("request", source, upstream));
-    }
-    if response != upstream && cpa_translate::pair(response, upstream).is_none() {
-        return Err(not_registered("response", response, upstream));
-    }
-    Ok(())
 }
 
 /// `geminiAPIKey`: the attribute as stored.
@@ -363,9 +339,9 @@ async fn read_then_check(upstream: Upstream) -> Result<(http::HeaderMap, Bytes),
     Ok((headers, data))
 }
 
-/// `TranslateNonStream`: the registered transform, or the body itself for the
-/// passthrough pairs (gemini->gemini, interactions->interactions); then Go's
-/// empty-output check and Responses usage details.
+/// `TranslateNonStream`: the registered transform, or the body itself when Go registers
+/// none (a Codex client of a Gemini upstream); then Go's empty-output check and Responses
+/// usage details.
 fn translate_non_stream(
     req: &ExecRequest,
     upstream: Format,
@@ -433,7 +409,6 @@ impl GeminiExecutor {
     ) -> Result<ExecResponse, ExecError> {
         let base_model = parse_suffix(&req.model).model_name;
         let (from, to) = (req.source_format, Format::Gemini);
-        require_pairs(from, to, req.response_format)?;
         let resolved = resolved(credential, cfg, req);
         let compat = resolved.as_ref().is_some_and(|r| r.is_compat);
         let (original_translated, body) = translate_pair(req, to, &base_model, compat)?;
@@ -491,7 +466,6 @@ impl GeminiExecutor {
     ) -> Result<ExecResponse, ExecError> {
         let target = parse_suffix(&req.model).model_name;
         let (from, to) = (req.source_format, Format::Interactions);
-        require_pairs(from, to, req.response_format)?;
         let resolved = resolved(credential, cfg, req);
         let compat = resolved.as_ref().is_some_and(|r| r.is_compat);
         // Interactions clients are sent as they are, without the registry normalizer.
@@ -541,7 +515,7 @@ impl GeminiExecutor {
         }
         let response_headers = upstream.headers.clone();
         let output = Output::new(req, to, &body);
-        let stream = interactions_frames(proxy::lines(upstream.body, MAX_LINE), output);
+        let stream = interactions_lines(proxy::lines(upstream.body, MAX_LINE), output);
         Ok(ExecResponse {
             status: 200,
             headers: response_headers,
@@ -559,7 +533,6 @@ impl GeminiExecutor {
     ) -> Result<ExecResponse, ExecError> {
         let base_model = parse_suffix(&req.model).model_name;
         let (from, to) = (req.source_format, Format::Gemini);
-        require_pairs(from, to, req.response_format)?;
         let resolved = resolved(credential, cfg, req);
         let compat = resolved.as_ref().is_some_and(|r| r.is_compat);
         let body = translate(req, to, &base_model, &req.body, false, compat)?;
@@ -585,10 +558,40 @@ impl GeminiExecutor {
     }
 }
 
+/// Client items, and the terminal error that ends the stream after them.
+#[derive(Default)]
+struct Emit {
+    out: Vec<Bytes>,
+    stop: Option<ExecError>,
+}
+
+impl Emit {
+    /// Appends `next`; returns whether the stream stopped.
+    fn then(&mut self, next: Emit) -> bool {
+        self.out.extend(next.out);
+        self.stop = next.stop;
+        self.stop.is_some()
+    }
+}
+
+/// Go's `TranslateStream` without a registered transform: the payload as one chunk.
+/// Only Gemini upstreams reach it (a Codex client); every client format that takes the
+/// native Interactions path has a registered Interactions pair.
+struct Unregistered;
+
+impl StreamTranslator for Unregistered {
+    fn event(&mut self, event: &[u8]) -> Result<Vec<Bytes>, cpa_translate::Error> {
+        Ok(vec![Bytes::copy_from_slice(event)])
+    }
+
+    fn finish(&mut self) -> Result<Vec<Bytes>, cpa_translate::Error> {
+        Ok(Vec::new())
+    }
+}
+
 /// Turns Go stream chunks into the bytes the client's route handler writes.
 struct Output {
-    /// `None` for the passthrough pairs (gemini->gemini, interactions->interactions).
-    translator: Option<Box<dyn StreamTranslator>>,
+    translator: Box<dyn StreamTranslator>,
     client: Format,
     /// A Gemini client asked for `alt`: chunks are written bare.
     raw: bool,
@@ -598,13 +601,14 @@ struct Output {
 impl Output {
     fn new(req: &ExecRequest, upstream: Format, translated: &[u8]) -> Self {
         let client = req.response_format;
-        let translator = cpa_translate::pair(client, upstream).map(|pair| {
-            (pair.stream)(&ResponseCtx {
+        let translator = match cpa_translate::pair(client, upstream) {
+            Some(pair) => (pair.stream)(&ResponseCtx {
                 model: &req.model,
                 original_request: original_request(req),
                 translated_request: translated,
-            })
-        });
+            }),
+            None => Box::new(Unregistered),
+        };
         Self {
             translator,
             client,
@@ -613,71 +617,94 @@ impl Output {
         }
     }
 
-    /// One Go `TranslateStream` call with `payload`, framed for the client.
-    fn translate(&mut self, payload: &[u8]) -> Result<Vec<Bytes>, ExecError> {
-        let mut out = match &mut self.translator {
-            Some(translator) => translator.event(payload).map_err(|_| bad_gateway())?,
-            // PassthroughGeminiResponseStream: the payload itself, `[DONE]` dropped.
-            None if payload == b"[DONE]" => Vec::new(),
-            None => vec![Bytes::copy_from_slice(payload)],
+    /// One Go `TranslateStreamWithClaudeInputTokens` call, framed for the client, then
+    /// helps.StopApplyPatchStream: an apply_patch failure ends the stream after the
+    /// event's frames.
+    fn translate(&mut self, payload: &[u8]) -> Emit {
+        let mut out = match self.translator.event(payload) {
+            Ok(out) => out,
+            Err(_) => {
+                return Emit {
+                    out: Vec::new(),
+                    stop: Some(bad_gateway()),
+                };
+            }
         };
-        self.client_bytes(&mut out);
-        Ok(out)
+        self.frame(&mut out);
+        self.post_process(&mut out);
+        self.checked(out)
     }
 
-    /// End of stream: the translator's closing events.
-    fn finish(&mut self) -> Result<Vec<Bytes>, ExecError> {
-        let mut out = match &mut self.translator {
-            Some(translator) => translator.finish().map_err(|_| bad_gateway())?,
-            None => Vec::new(),
+    /// helps.EndApplyPatchStream: the translator's tool-input finalization when the
+    /// upstream transport ends, before any synthetic `[DONE]`. Go writes these chunks
+    /// without the usage and token post-processing of translated chunks.
+    fn finalize(&mut self) -> Emit {
+        let mut out = self.translator.finalize_tool_input();
+        self.frame(&mut out);
+        self.checked(out)
+    }
+
+    /// End of stream: frames the client side still holds (the handler's final flush).
+    fn finish(&mut self) -> Emit {
+        let mut out = match self.translator.finish() {
+            Ok(out) => out,
+            Err(_) => {
+                return Emit {
+                    out: Vec::new(),
+                    stop: Some(bad_gateway()),
+                };
+            }
         };
-        self.client_bytes(&mut out);
-        Ok(out)
+        self.frame(&mut out);
+        self.post_process(&mut out);
+        self.checked(out)
     }
 
     /// `responsesSSEFramer.Flush` before a terminal error.
     fn flush_frames(&mut self) -> Vec<Bytes> {
-        let mut out = match &mut self.translator {
-            Some(translator) => translator.flush_frames(),
-            None => Vec::new(),
-        };
-        self.client_bytes(&mut out);
+        let mut out = self.translator.flush_frames();
+        self.frame(&mut out);
+        self.post_process(&mut out);
         out
     }
 
-    fn client_bytes(&mut self, out: &mut Vec<Bytes>) {
-        match self.client {
-            Format::Gemini => {
-                for chunk in out.iter_mut() {
-                    // Translators frame Gemini chunks as SSE `data:` events; with `alt` the
-                    // Go handler writes the chunk itself.
-                    let bare = if self.translator.is_some() {
-                        chunk
-                            .strip_prefix(b"data: ")
-                            .and_then(|c| c.strip_suffix(b"\n\n"))
-                            .map_or_else(|| chunk.clone(), Bytes::copy_from_slice)
-                    } else {
-                        chunk.clone()
-                    };
-                    *chunk = if self.raw {
-                        bare
-                    } else {
-                        let mut framed = Vec::with_capacity(bare.len() + 8);
-                        framed.extend_from_slice(b"data: ");
-                        framed.extend_from_slice(&bare);
-                        framed.extend_from_slice(b"\n\n");
-                        Bytes::from(framed)
-                    };
-                }
+    fn checked(&self, out: Vec<Bytes>) -> Emit {
+        Emit {
+            out,
+            stop: self.translator.tool_input_failed().then(bad_gateway),
+        }
+    }
+
+    /// Gemini clients: translators frame chunks as SSE `data:` events; with `alt` the Go
+    /// handler writes the chunk itself.
+    fn frame(&self, out: &mut Vec<Bytes>) {
+        if self.client == Format::Gemini {
+            for chunk in out.iter_mut() {
+                let bare = chunk
+                    .strip_prefix(b"data: ")
+                    .and_then(|c| c.strip_suffix(b"\n\n"))
+                    .map_or_else(|| chunk.clone(), Bytes::copy_from_slice);
+                *chunk = if self.raw {
+                    bare
+                } else {
+                    let mut framed = Vec::with_capacity(bare.len() + 8);
+                    framed.extend_from_slice(b"data: ");
+                    framed.extend_from_slice(&bare);
+                    framed.extend_from_slice(b"\n\n");
+                    Bytes::from(framed)
+                };
             }
-            Format::OpenAIResponse => {
-                for chunk in out.iter_mut() {
-                    *chunk = Bytes::from(crate::openai_compat_payload::ensure_responses_usage_details(chunk));
-                }
-            }
-            _ => {}
         }
         out.retain(|c| !c.is_empty());
+    }
+
+    /// Responses usage details and the Claude input-token estimate on translated chunks.
+    fn post_process(&mut self, out: &mut [Bytes]) {
+        if self.client == Format::OpenAIResponse {
+            for chunk in out.iter_mut() {
+                *chunk = Bytes::from(crate::openai_compat_payload::ensure_responses_usage_details(chunk));
+            }
+        }
         self.claude.apply(out);
     }
 }
@@ -685,16 +712,16 @@ impl Output {
 /// One scanned upstream line in, client items out; `end` runs once at EOF or before a
 /// scanner error is reported.
 trait LineState: Send + 'static {
-    fn line(&mut self, line: &[u8]) -> Result<Vec<Bytes>, ExecError>;
-    fn end(&mut self) -> Result<Vec<Bytes>, ExecError>;
+    fn line(&mut self, line: &[u8]) -> Emit;
+    fn end(&mut self) -> Emit;
     /// Client frames still pending when a terminal error is written.
     fn flush(&mut self) -> Vec<Bytes>;
 }
 
-/// Runs `state` over `lines`. A translation error is terminal; a scanner error is
-/// reported after the end-of-stream items, like Go's `scanner.Err()` check. Pending
-/// client frames are flushed before any terminal error (Go's Responses handler flushes
-/// its framer before writing the error).
+/// Runs `state` over `lines`. A stop is terminal; a scanner error is reported after the
+/// end-of-stream items, like Go's `scanner.Err()` check. Pending client frames are
+/// flushed before any terminal error (Go's Responses handler flushes its framer before
+/// writing the error).
 fn drive<S: LineState>(lines: ExecStream, state: S) -> ExecStream {
     futures_util::stream::unfold(
         (lines, state, VecDeque::<Result<Bytes, ExecError>>::new(), false),
@@ -711,48 +738,45 @@ fn drive<S: LineState>(lines: ExecStream, state: S) -> ExecStream {
                     return None;
                 }
                 let scanned = lines.next().await;
-                let result = match &scanned {
+                let emit = match &scanned {
                     Some(Ok(line)) => state.line(line),
                     Some(Err(_)) | None => {
                         ended = true;
                         state.end()
                     }
                 };
-                match result {
-                    Ok(out) => ready.extend(out.into_iter().map(Ok)),
-                    Err(error) => {
-                        ready.extend(state.flush().into_iter().map(Ok));
-                        ready.push_back(Err(error));
-                        continue;
-                    }
-                }
-                if let Some(Err(error)) = scanned {
-                    ready.extend(state.flush().into_iter().map(Ok));
-                    ready.push_back(Err(error));
-                }
+                ready.extend(emit.out.into_iter().map(Ok));
+                let error = match (emit.stop, scanned) {
+                    (Some(error), _) | (None, Some(Err(error))) => error,
+                    _ => continue,
+                };
+                ready.extend(state.flush().into_iter().map(Ok));
+                ready.push_back(Err(error));
             }
         },
     )
     .boxed()
 }
 
-/// The streamGenerateContent loop: usage filtering, the JSON payload of each line, and
-/// a final `[DONE]` through the translator.
+/// The streamGenerateContent loop: usage filtering and the JSON payload of each line
+/// through the translator; at EOF the tool-input finalization, then `[DONE]`.
 struct GeminiLines(Output);
 
 impl LineState for GeminiLines {
-    fn line(&mut self, line: &[u8]) -> Result<Vec<Bytes>, ExecError> {
+    fn line(&mut self, line: &[u8]) -> Emit {
         let filtered = sse::filter_sse_usage_metadata(line);
         match sse::json_payload(&filtered) {
             Some(payload) => self.0.translate(payload),
-            None => Ok(Vec::new()),
+            None => Emit::default(),
         }
     }
 
-    fn end(&mut self) -> Result<Vec<Bytes>, ExecError> {
-        let mut out = self.0.translate(b"[DONE]")?;
-        out.extend(self.0.finish()?);
-        Ok(out)
+    fn end(&mut self) -> Emit {
+        let mut emit = self.0.finalize();
+        if emit.stop.is_none() && !emit.then(self.0.translate(b"[DONE]")) {
+            emit.then(self.0.finish());
+        }
+        emit
     }
 
     fn flush(&mut self) -> Vec<Bytes> {
@@ -764,73 +788,35 @@ fn gemini_lines(lines: ExecStream, output: Output) -> ExecStream {
     drive(lines, GeminiLines(output))
 }
 
-/// The Interactions stream loop: lines grouped into SSE frames at blank lines.
-/// Interactions clients get each frame as sent; others get its translated payload.
-struct InteractionsFrames {
-    output: Output,
-    frame: Vec<u8>,
-}
+/// The Interactions stream loop. The translator groups the lines into SSE frames at
+/// blank lines (`stream::Framed`): Interactions clients get each frame as sent, others
+/// its translated payload. At EOF the pending frame is emitted (Go's final emitFrame),
+/// then the tool-input finalization.
+struct InteractionsLines(Output);
 
-impl InteractionsFrames {
-    fn emit(&mut self) -> Result<Vec<Bytes>, ExecError> {
-        let raw = std::mem::take(&mut self.frame);
-        if trim_space(&raw).is_empty() {
-            return Ok(Vec::new());
-        }
-        let mut payload = sse::interactions_sse_payload(&raw);
-        if payload.is_none() && sse::interactions_sse_done(&raw) {
-            payload = Some(b"[DONE]".to_vec());
-        }
-        if self.output.client == Format::Interactions {
-            let end = raw
-                .iter()
-                .rposition(|b| !matches!(b, b'\r' | b'\n'))
-                .map_or(0, |i| i + 1);
-            let mut visible = raw[..end].to_vec();
-            visible.extend_from_slice(b"\n\n");
-            return Ok(cpa_translate::stream::frame(Format::Interactions, &visible)
-                .map(Bytes::from)
-                .into_iter()
-                .collect());
-        }
-        match payload {
-            Some(payload) => self.output.translate(&payload),
-            None => Ok(Vec::new()),
-        }
-    }
-}
-
-impl LineState for InteractionsFrames {
-    fn line(&mut self, line: &[u8]) -> Result<Vec<Bytes>, ExecError> {
-        if trim_space(line).is_empty() {
-            return self.emit();
-        }
-        if !self.frame.is_empty() {
-            self.frame.push(b'\n');
-        }
-        self.frame.extend_from_slice(line);
-        Ok(Vec::new())
+impl LineState for InteractionsLines {
+    fn line(&mut self, line: &[u8]) -> Emit {
+        let mut event = Vec::with_capacity(line.len() + 1);
+        event.extend_from_slice(line);
+        event.push(b'\n');
+        self.0.translate(&event)
     }
 
-    fn end(&mut self) -> Result<Vec<Bytes>, ExecError> {
-        let mut out = self.emit()?;
-        out.extend(self.output.finish()?);
-        Ok(out)
+    fn end(&mut self) -> Emit {
+        let mut emit = self.0.translate(b"\n");
+        if emit.stop.is_none() && !emit.then(self.0.finalize()) {
+            emit.then(self.0.finish());
+        }
+        emit
     }
 
     fn flush(&mut self) -> Vec<Bytes> {
-        self.output.flush_frames()
+        self.0.flush_frames()
     }
 }
 
-fn interactions_frames(lines: ExecStream, output: Output) -> ExecStream {
-    drive(
-        lines,
-        InteractionsFrames {
-            output,
-            frame: Vec::new(),
-        },
-    )
+fn interactions_lines(lines: ExecStream, output: Output) -> ExecStream {
+    drive(lines, InteractionsLines(output))
 }
 
 #[cfg(test)]

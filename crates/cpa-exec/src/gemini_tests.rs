@@ -236,18 +236,6 @@ fn missing(s: &Value) -> Vec<String> {
         .collect()
 }
 
-/// Non-Interactions clients on a native Interactions upstream. They became runnable when
-/// the Interactions pairs landed (translate increments 8-11) and fail until the executor
-/// feeds Interactions SSE through `pair.stream` the way `stream::Framed` expects (raw
-/// bytes per read, `finish()` at EOF).
-// ponytail: integrator gate; the Google thread removes each name as it passes.
-const AWAITING_INTERACTIONS_FRAMING: &[&str] = &[
-    "int_gemini_client_stream",
-    "int_openai_client",
-    "int_claude_client_stream",
-    "int_responses_client_stream",
-];
-
 #[tokio::test]
 async fn go_reference_scenarios() {
     let scenarios = fixture()["scenarios"].as_array().unwrap();
@@ -257,13 +245,12 @@ async fn go_reference_scenarios() {
     let mut skipped = Vec::new();
     let ids = regex::Regex::new(r"interaction_[0-9]{16,20}").unwrap();
     let stamps = regex::Regex::new(r#"\"(created|updated)\":\"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:]{8}Z\""#).unwrap();
+    // Interactions -> OpenAI chat stamps `created` with time.Now().Unix() (Go
+    // openai_interactions_response.go); only 10-digit Unix times count as clock values.
+    let unix = regex::Regex::new(r#"\"created\":1[0-9]{9}([,}])"#).unwrap();
     for s in scenarios {
         let name = s["name"].as_str().unwrap();
         let missing = missing(s);
-        if AWAITING_INTERACTIONS_FRAMING.contains(&name) {
-            skipped.push(format!("{name} (Interactions-upstream framing)"));
-            continue;
-        }
         if !missing.is_empty() {
             skipped.push(format!("{name} ({})", missing.join(", ")));
             continue;
@@ -306,7 +293,8 @@ async fn go_reference_scenarios() {
         // Their `created`/`updated` stamps are wall-clock RFC 3339 times as well.
         let norm = |text: &str| {
             let text = ids.replace_all(text, "interaction_<id>");
-            stamps.replace_all(&text, r#""$1":"<time>""#).into_owned()
+            let text = stamps.replace_all(&text, r#""$1":"<time>""#);
+            unix.replace_all(&text, r#""created":<unix>$1"#).into_owned()
         };
         assert_eq!(
             output.as_deref().map(norm),
@@ -589,7 +577,7 @@ async fn pending_responses_frame_is_flushed_before_terminal_error() {
         }
     }
     let output = Output {
-        translator: Some(Box::new(Pending(None))),
+        translator: Box::new(Pending(None)),
         client: Format::OpenAIResponse,
         raw: false,
         claude: ClaudeInputTokens::new(
@@ -643,4 +631,111 @@ fn resolved_model_follows_go_auth_kind() {
     empty.attributes.remove("auth_kind");
     empty.attributes.insert("api_key".into(), "  ".into());
     assert!(!resolve(&empty));
+}
+
+/// helps.StopApplyPatchStream / EndApplyPatchStream: a failed tool input ends the stream
+/// with the sanitized 502 right after that event's frames, and at EOF the translator's
+/// finalization runs before the synthetic `[DONE]` (which a stopped stream never sees).
+#[tokio::test]
+async fn apply_patch_hooks_follow_go_order() {
+    #[derive(Default)]
+    struct Hooks {
+        seen: Arc<Mutex<Vec<String>>>,
+        fail_on: Option<&'static [u8]>,
+        failed: bool,
+        finalize_fails: bool,
+    }
+    impl StreamTranslator for Hooks {
+        fn event(&mut self, event: &[u8]) -> Result<Vec<Bytes>, cpa_translate::Error> {
+            self.seen
+                .lock()
+                .unwrap()
+                .push(String::from_utf8_lossy(event).into_owned());
+            if self.fail_on == Some(event) {
+                self.failed = true;
+                return Ok(vec![Bytes::from_static(b"event: response.failed\ndata: {}\n\n")]);
+            }
+            Ok(vec![Bytes::from(format!(
+                "data: {}\n\n",
+                String::from_utf8_lossy(event)
+            ))])
+        }
+        fn finish(&mut self) -> Result<Vec<Bytes>, cpa_translate::Error> {
+            self.seen.lock().unwrap().push("finish".into());
+            Ok(Vec::new())
+        }
+        fn tool_input_failed(&self) -> bool {
+            self.failed
+        }
+        fn finalize_tool_input(&mut self) -> Vec<Bytes> {
+            self.seen.lock().unwrap().push("finalize".into());
+            if self.finalize_fails {
+                self.failed = true;
+                return vec![Bytes::from_static(b"event: response.failed\ndata: {\"eof\":1}\n\n")];
+            }
+            Vec::new()
+        }
+    }
+    let run = |hooks: Hooks| async move {
+        let output = Output {
+            translator: Box::new(hooks),
+            client: Format::OpenAI,
+            raw: false,
+            claude: ClaudeInputTokens::new(Format::OpenAI, Format::Gemini, Format::OpenAI, Bytes::new()),
+        };
+        let lines = futures_util::stream::iter([
+            Ok(Bytes::from_static(br#"data: {"a":1}"#)),
+            Ok(Bytes::from_static(br#"data: {"b":2}"#)),
+        ])
+        .boxed();
+        let items: Vec<Result<Bytes, ExecError>> = gemini_lines(lines, output).collect().await;
+        items
+            .into_iter()
+            .map(|i| match i {
+                Ok(b) => String::from_utf8(b.to_vec()).unwrap(),
+                Err(e) => format!("ERR {} {}", e.status, String::from_utf8_lossy(&e.body)),
+            })
+            .collect::<Vec<_>>()
+    };
+    let stop = format!("ERR 502 {EMPTY_TRANSLATION}");
+
+    let seen = Arc::new(Mutex::new(Vec::new()));
+    let out = run(Hooks {
+        seen: seen.clone(),
+        ..Hooks::default()
+    })
+    .await;
+    assert_eq!(out, ["data: {\"a\":1}\n\n", "data: {\"b\":2}\n\n", "data: [DONE]\n\n"]);
+    assert_eq!(
+        *seen.lock().unwrap(),
+        [r#"{"a":1}"#, r#"{"b":2}"#, "finalize", "[DONE]", "finish"]
+    );
+
+    let seen = Arc::new(Mutex::new(Vec::new()));
+    let out = run(Hooks {
+        seen: seen.clone(),
+        fail_on: Some(br#"{"a":1}"#),
+        ..Hooks::default()
+    })
+    .await;
+    assert_eq!(out, ["event: response.failed\ndata: {}\n\n".to_owned(), stop.clone()]);
+    assert_eq!(*seen.lock().unwrap(), [r#"{"a":1}"#]);
+
+    let seen = Arc::new(Mutex::new(Vec::new()));
+    let out = run(Hooks {
+        seen: seen.clone(),
+        finalize_fails: true,
+        ..Hooks::default()
+    })
+    .await;
+    assert_eq!(
+        out,
+        [
+            "data: {\"a\":1}\n\n".to_owned(),
+            "data: {\"b\":2}\n\n".to_owned(),
+            "event: response.failed\ndata: {\"eof\":1}\n\n".to_owned(),
+            stop
+        ]
+    );
+    assert_eq!(*seen.lock().unwrap(), [r#"{"a":1}"#, r#"{"b":2}"#, "finalize"]);
 }
