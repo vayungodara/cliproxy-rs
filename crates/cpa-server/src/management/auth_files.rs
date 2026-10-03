@@ -127,8 +127,8 @@ fn quota_observation(state: &Management, c: &Credential) -> Value {
     let snapshot = match c.provider.trim().to_lowercase().as_str() {
         "codex" => state.rt.executors.codex.quota().snapshot(&c.id),
         "claude" => state.rt.executors.claude.quota().snapshot(&c.id),
-        // ponytail: Go also observes devin response headers; that executor's snapshots
-        // are not wired here yet, so it reports none.
+        // Devin's credential snapshot comes from its status refresh.
+        cpa_exec::devin::PROVIDER => state.rt.executors.devices.devin.quota(&c.id),
         _ => None,
     };
     match snapshot {
@@ -145,6 +145,15 @@ fn model_quota_observations(state: &Management, c: &Credential) -> Map<String, V
             .rt
             .executors
             .codex
+            .quota()
+            .model_snapshots(&c.id)
+            .iter()
+            .map(|(model, s)| (model.clone(), observation(s)))
+            .collect(),
+        "claude" => state
+            .rt
+            .executors
+            .claude
             .quota()
             .model_snapshots(&c.id)
             .iter()

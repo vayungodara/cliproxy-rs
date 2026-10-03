@@ -448,8 +448,11 @@ impl ClaudeExecutor {
         // MarkResult observes the headers of every upstream answer to a Messages request
         // from a Claude credential, whatever its status or body (Go records them before
         // reading the body); count_tokens results skip observation in Go's conductor.
+        // ponytail: Go keys the model state by the conductor's state model; the executor
+        // sees the upstream base model, as Codex's observation does.
         if path == "/v1/messages" && ctx.credential.provider.trim().eq_ignore_ascii_case("claude") {
-            self.quota.observe(&ctx.credential.id, &upstream.headers);
+            self.quota
+                .observe_model(&ctx.credential.id, &ctx.base_model, &upstream.headers);
         }
         finish(decode_upstream(upstream).await, fast, ctx.settings.model_level_cooling).await
     }

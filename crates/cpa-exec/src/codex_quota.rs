@@ -396,14 +396,23 @@ impl QuotaSignals {
     // ponytail: Go keys model state by the conductor's state model; executors see the
     // upstream model, which differs only for aliases mapped to another upstream name.
     pub fn observe(&self, credential_id: &str, model: &str, headers: &HeaderMap) {
-        let signals = collect_signals(headers);
+        self.record(credential_id, model, collect_signals(headers), SystemTime::now());
+    }
+
+    /// Stores one response's already collected `signals` as the credential's and
+    /// `model`'s snapshot; empty signals leave both untouched. Providers with their own
+    /// header rules (Claude) share this store.
+    pub(crate) fn record(
+        &self,
+        credential_id: &str,
+        model: &str,
+        signals: BTreeMap<String, String>,
+        observed_at: SystemTime,
+    ) {
         if signals.is_empty() {
             return;
         }
-        let snapshot = Snapshot {
-            observed_at: SystemTime::now(),
-            signals,
-        };
+        let snapshot = Snapshot { observed_at, signals };
         let mut snapshots = self.snapshots.lock().expect("quota snapshots");
         let entry = snapshots.entry(credential_id.to_owned()).or_default();
         let model = cpa_core::registry::dynamic::canonical_model(model);

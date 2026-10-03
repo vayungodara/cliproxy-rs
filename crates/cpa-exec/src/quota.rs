@@ -187,37 +187,43 @@ pub fn claude_signals(headers: &HeaderMap) -> std::collections::BTreeMap<String,
     signals.into_iter().take(MAX_SIGNALS).collect()
 }
 
-/// The latest passive quota snapshot per Claude credential (Go
-/// `QuotaState.ObserveResponseHeadersForProvider` for provider `claude`): each upstream
-/// Messages response that carries a signal replaces the credential's snapshot; one
-/// without leaves it untouched.
+/// The latest passive quota snapshots per Claude credential and per model (Go
+/// `QuotaState.ObserveResponseHeadersForProvider` for provider `claude` on `Auth.Quota`
+/// and the result model's `ModelState.Quota`): each upstream Messages response that
+/// carries a signal replaces both snapshots; one without leaves them untouched. The
+/// store is Codex's; only the header rules differ.
 // ponytail: snapshots stay until the process restarts, one per Claude credential ever
 // used; Go drops them with the auth. Add a retain pass if credential churn ever matters.
 #[derive(Default)]
-pub struct Observations(std::sync::Mutex<std::collections::HashMap<String, crate::codex_quota::Snapshot>>);
+pub struct Observations(crate::codex_quota::QuotaSignals);
 
 impl Observations {
+    /// The credential's snapshot only.
     pub fn observe(&self, credential_id: &str, headers: &HeaderMap) {
-        self.observe_at(credential_id, headers, SystemTime::now());
+        self.observe_model(credential_id, "", headers);
     }
 
-    fn observe_at(&self, credential_id: &str, headers: &HeaderMap, observed_at: SystemTime) {
-        let signals = claude_signals(headers);
-        if signals.is_empty() {
-            return;
-        }
-        self.0.lock().unwrap_or_else(std::sync::PoisonError::into_inner).insert(
-            credential_id.to_owned(),
-            crate::codex_quota::Snapshot { observed_at, signals },
-        );
+    /// The credential's and `model`'s snapshots (keyed by the model without its
+    /// thinking suffix).
+    pub fn observe_model(&self, credential_id: &str, model: &str, headers: &HeaderMap) {
+        self.observe_at(credential_id, model, headers, SystemTime::now());
+    }
+
+    fn observe_at(&self, credential_id: &str, model: &str, headers: &HeaderMap, observed_at: SystemTime) {
+        self.0
+            .record(credential_id, model, claude_signals(headers), observed_at);
     }
 
     pub fn snapshot(&self, credential_id: &str) -> Option<crate::codex_quota::Snapshot> {
-        self.0
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .get(credential_id)
-            .cloned()
+        self.0.snapshot(credential_id)
+    }
+
+    /// The latest snapshot per model (Go `model_quotas`), empty when none was observed.
+    pub fn model_snapshots(
+        &self,
+        credential_id: &str,
+    ) -> std::collections::BTreeMap<String, crate::codex_quota::Snapshot> {
+        self.0.model_snapshots(credential_id)
     }
 }
 
@@ -338,13 +344,15 @@ mod tests {
 
     /// TestObserveResponseHeadersReplacesStaleWatermarks,
     /// ...KeepsSnapshotWhenResponseCarriesNoSignal, ...AdvancesObservedAtOnRepeatedValues
-    /// and ...RejectsControlCharacterValues, for Claude's headers.
+    /// and ...RejectsControlCharacterValues, for Claude's headers; per model as in
+    /// TestMarkResultQuotaFailureDoesNotEraseSiblingObservation.
     #[test]
     fn observations_replace_keep_advance_and_reject_like_go() {
         let at = |secs| UNIX_EPOCH + Duration::from_secs(secs);
         let obs = Observations::default();
         obs.observe_at(
             "c",
+            "claude-a(high)",
             &headers(&[
                 ("Retry-After", "120"),
                 ("Anthropic-Ratelimit-Unified-Status", "rejected"),
@@ -354,6 +362,7 @@ mod tests {
         assert_eq!(obs.snapshot("c").unwrap().signals["Retry-After"], "120");
         obs.observe_at(
             "c",
+            "claude-b",
             &headers(&[("Anthropic-Ratelimit-Unified-Status", "allowed")]),
             at(200),
         );
@@ -364,12 +373,29 @@ mod tests {
         );
         assert_eq!(snap.signals["Anthropic-Ratelimit-Unified-Status"], "allowed");
         assert_eq!(snap.observed_at, at(200));
-        // No signal: the previous snapshot stays.
-        obs.observe_at("c", &headers(&[("Content-Type", "application/json")]), at(300));
+        // Each model keeps its own latest snapshot, keyed without the thinking suffix:
+        // a response for one model never replaces a sibling's.
+        let models = obs.model_snapshots("c");
+        assert_eq!(models.keys().collect::<Vec<_>>(), ["claude-a", "claude-b"]);
+        assert_eq!(models["claude-a"].signals["Retry-After"], "120");
+        assert_eq!(models["claude-a"].observed_at, at(100));
+        assert_eq!(
+            models["claude-b"].signals["Anthropic-Ratelimit-Unified-Status"],
+            "allowed"
+        );
+        // No signal: the previous snapshots stay.
+        obs.observe_at(
+            "c",
+            "claude-b",
+            &headers(&[("Content-Type", "application/json")]),
+            at(300),
+        );
         assert_eq!(obs.snapshot("c").unwrap().observed_at, at(200));
+        assert_eq!(obs.model_snapshots("c")["claude-b"].observed_at, at(200));
         // Repeated values still advance the observation time.
         obs.observe_at(
             "c",
+            "claude-b",
             &headers(&[("Anthropic-Ratelimit-Unified-Status", "allowed")]),
             at(400),
         );
