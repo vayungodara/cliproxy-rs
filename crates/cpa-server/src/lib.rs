@@ -2,6 +2,7 @@
 
 mod access;
 mod affinity;
+pub mod capabilities;
 mod classify;
 mod claude;
 mod codex_alpha;

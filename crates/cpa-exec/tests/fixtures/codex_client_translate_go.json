@@ -1,0 +1,1170 @@
+[
+  {
+    "fn": "translate",
+    "from": "openai-response",
+    "to": "claude",
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "codex_cli_rs/0.150.0 (Linux; x86_64)",
+      "X-Openai-Subagent": "collab_spawn"
+    },
+    "in": "{\"model\":\"gpt-5.5\",\"instructions\":\"sys\",\"input\":[{\"type\":\"agent_message\",\"author\":\"a\",\"recipient\":\"b\",\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"hello agent\"}]},{\"type\":\"function_call_output\",\"call_id\":\"orphan\",\"name\":\"create_thread\",\"namespace\":\"codex_app\",\"output\":\"thread ok\"},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"reasoning\",\"summary\":[],\"content\":[{\"type\":\"reasoning_text\",\"text\":\"thinking\"}]}],\"tools\":[{\"type\":\"function\",\"name\":\"f\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}],\"reasoning\":{\"effort\":\"high\",\"summary\":\"auto\"}}",
+    "out": "{\"model\":\"test-model\",\"max_tokens\":32000,\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"hello agent\"},{\"type\":\"text\",\"text\":\"Tool output from codex_app__create_thread:\\nthread ok\"},{\"type\":\"text\",\"text\":\"hi\"}]}],\"metadata\":{\"user_id\":\"2c6846c3a38645c326a01fd622203f77b0142ee43f66e1d7975017965b3c0004\"},\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":24576,\"display\":\"summarized\"},\"stream\":true,\"system\":[{\"type\":\"text\",\"text\":\"sys\"}],\"tools\":[{\"name\":\"f\",\"description\":\"\",\"input_schema\":{\"properties\":{\"n\":{\"type\":\"integer\"}},\"type\":\"object\"}}]}"
+  },
+  {
+    "fn": "translate",
+    "from": "openai-response",
+    "to": "claude",
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "curl/8"
+    },
+    "in": "{\"model\":\"gpt-5.5\",\"instructions\":\"sys\",\"input\":[{\"type\":\"agent_message\",\"author\":\"a\",\"recipient\":\"b\",\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"hello agent\"}]},{\"type\":\"function_call_output\",\"call_id\":\"orphan\",\"name\":\"create_thread\",\"namespace\":\"codex_app\",\"output\":\"thread ok\"},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"reasoning\",\"summary\":[],\"content\":[{\"type\":\"reasoning_text\",\"text\":\"thinking\"}]}],\"tools\":[{\"type\":\"function\",\"name\":\"f\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}],\"reasoning\":{\"effort\":\"high\",\"summary\":\"auto\"}}",
+    "out": "{\"model\":\"test-model\",\"max_tokens\":32000,\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"hello agent\"},{\"type\":\"text\",\"text\":\"thread ok\"},{\"type\":\"text\",\"text\":\"hi\"}]}],\"metadata\":{\"user_id\":\"2c6846c3a38645c326a01fd622203f77b0142ee43f66e1d7975017965b3c0004\"},\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":24576,\"display\":\"summarized\"},\"stream\":true,\"system\":[{\"type\":\"text\",\"text\":\"sys\"}],\"tools\":[{\"name\":\"f\",\"description\":\"\",\"input_schema\":{\"properties\":{\"n\":{\"type\":\"integer\"}},\"type\":\"object\"}}]}"
+  },
+  {
+    "fn": "translate",
+    "from": "openai-response",
+    "to": "claude",
+    "target": "codex",
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "codex_cli_rs/0.150.0 (Linux; x86_64)",
+      "X-Openai-Subagent": "collab_spawn"
+    },
+    "in": "{\"model\":\"gpt-5.5\",\"instructions\":\"sys\",\"input\":[{\"type\":\"agent_message\",\"author\":\"a\",\"recipient\":\"b\",\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"hello agent\"}]},{\"type\":\"function_call_output\",\"call_id\":\"orphan\",\"name\":\"create_thread\",\"namespace\":\"codex_app\",\"output\":\"thread ok\"},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"reasoning\",\"summary\":[],\"content\":[{\"type\":\"reasoning_text\",\"text\":\"thinking\"}]}],\"tools\":[{\"type\":\"function\",\"name\":\"f\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}],\"reasoning\":{\"effort\":\"high\",\"summary\":\"auto\"}}",
+    "out": "{\"model\":\"test-model\",\"max_tokens\":32000,\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"hello agent\"},{\"type\":\"text\",\"text\":\"Tool output from codex_app__create_thread:\\nthread ok\"},{\"type\":\"text\",\"text\":\"hi\"}]}],\"metadata\":{\"user_id\":\"2c6846c3a38645c326a01fd622203f77b0142ee43f66e1d7975017965b3c0004\"},\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":24576,\"display\":\"summarized\"},\"stream\":true,\"system\":[{\"type\":\"text\",\"text\":\"sys\"}],\"tools\":[{\"name\":\"f\",\"description\":\"\",\"input_schema\":{\"properties\":{\"n\":{\"type\":\"integer\"}},\"type\":\"object\"}}]}"
+  },
+  {
+    "fn": "translate",
+    "from": "openai-response",
+    "to": "claude",
+    "target": "codex",
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "curl/8"
+    },
+    "in": "{\"model\":\"gpt-5.5\",\"instructions\":\"sys\",\"input\":[{\"type\":\"agent_message\",\"author\":\"a\",\"recipient\":\"b\",\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"hello agent\"}]},{\"type\":\"function_call_output\",\"call_id\":\"orphan\",\"name\":\"create_thread\",\"namespace\":\"codex_app\",\"output\":\"thread ok\"},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"reasoning\",\"summary\":[],\"content\":[{\"type\":\"reasoning_text\",\"text\":\"thinking\"}]}],\"tools\":[{\"type\":\"function\",\"name\":\"f\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}],\"reasoning\":{\"effort\":\"high\",\"summary\":\"auto\"}}",
+    "out": "{\"model\":\"test-model\",\"max_tokens\":32000,\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"hello agent\"},{\"type\":\"text\",\"text\":\"thread ok\"},{\"type\":\"text\",\"text\":\"hi\"}]}],\"metadata\":{\"user_id\":\"2c6846c3a38645c326a01fd622203f77b0142ee43f66e1d7975017965b3c0004\"},\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":24576,\"display\":\"summarized\"},\"stream\":true,\"system\":[{\"type\":\"text\",\"text\":\"sys\"}],\"tools\":[{\"name\":\"f\",\"description\":\"\",\"input_schema\":{\"properties\":{\"n\":{\"type\":\"integer\"}},\"type\":\"object\"}}]}"
+  },
+  {
+    "fn": "translate",
+    "from": "openai-response",
+    "to": "claude",
+    "compat": true,
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "codex_cli_rs/0.150.0 (Linux; x86_64)",
+      "X-Openai-Subagent": "collab_spawn"
+    },
+    "in": "{\"model\":\"gpt-5.5\",\"instructions\":\"sys\",\"input\":[{\"type\":\"agent_message\",\"author\":\"a\",\"recipient\":\"b\",\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"hello agent\"}]},{\"type\":\"function_call_output\",\"call_id\":\"orphan\",\"name\":\"create_thread\",\"namespace\":\"codex_app\",\"output\":\"thread ok\"},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"reasoning\",\"summary\":[],\"content\":[{\"type\":\"reasoning_text\",\"text\":\"thinking\"}]}],\"tools\":[{\"type\":\"function\",\"name\":\"f\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}],\"reasoning\":{\"effort\":\"high\",\"summary\":\"auto\"}}",
+    "out": "{\"model\":\"test-model\",\"max_tokens\":32000,\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"hello agent\"},{\"type\":\"text\",\"text\":\"Tool output from codex_app__create_thread:\\nthread ok\"},{\"type\":\"text\",\"text\":\"hi\"}]},{\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"thinking\",\"signature\":\"\"}]}],\"metadata\":{\"user_id\":\"2c6846c3a38645c326a01fd622203f77b0142ee43f66e1d7975017965b3c0004\"},\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":24576,\"display\":\"summarized\"},\"stream\":true,\"system\":[{\"type\":\"text\",\"text\":\"sys\"}],\"tools\":[{\"name\":\"f\",\"description\":\"\",\"input_schema\":{\"properties\":{\"n\":{\"type\":\"integer\"}},\"type\":\"object\"}}]}"
+  },
+  {
+    "fn": "translate",
+    "from": "openai-response",
+    "to": "claude",
+    "compat": true,
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "curl/8"
+    },
+    "in": "{\"model\":\"gpt-5.5\",\"instructions\":\"sys\",\"input\":[{\"type\":\"agent_message\",\"author\":\"a\",\"recipient\":\"b\",\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"hello agent\"}]},{\"type\":\"function_call_output\",\"call_id\":\"orphan\",\"name\":\"create_thread\",\"namespace\":\"codex_app\",\"output\":\"thread ok\"},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"reasoning\",\"summary\":[],\"content\":[{\"type\":\"reasoning_text\",\"text\":\"thinking\"}]}],\"tools\":[{\"type\":\"function\",\"name\":\"f\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}],\"reasoning\":{\"effort\":\"high\",\"summary\":\"auto\"}}",
+    "out": "{\"model\":\"test-model\",\"max_tokens\":32000,\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"hello agent\"},{\"type\":\"text\",\"text\":\"thread ok\"},{\"type\":\"text\",\"text\":\"hi\"}]},{\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"thinking\",\"signature\":\"\"}]}],\"metadata\":{\"user_id\":\"2c6846c3a38645c326a01fd622203f77b0142ee43f66e1d7975017965b3c0004\"},\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":24576,\"display\":\"summarized\"},\"stream\":true,\"system\":[{\"type\":\"text\",\"text\":\"sys\"}],\"tools\":[{\"name\":\"f\",\"description\":\"\",\"input_schema\":{\"properties\":{\"n\":{\"type\":\"integer\"}},\"type\":\"object\"}}]}"
+  },
+  {
+    "fn": "translate",
+    "from": "openai-response",
+    "to": "claude",
+    "target": "codex",
+    "compat": true,
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "codex_cli_rs/0.150.0 (Linux; x86_64)",
+      "X-Openai-Subagent": "collab_spawn"
+    },
+    "in": "{\"model\":\"gpt-5.5\",\"instructions\":\"sys\",\"input\":[{\"type\":\"agent_message\",\"author\":\"a\",\"recipient\":\"b\",\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"hello agent\"}]},{\"type\":\"function_call_output\",\"call_id\":\"orphan\",\"name\":\"create_thread\",\"namespace\":\"codex_app\",\"output\":\"thread ok\"},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"reasoning\",\"summary\":[],\"content\":[{\"type\":\"reasoning_text\",\"text\":\"thinking\"}]}],\"tools\":[{\"type\":\"function\",\"name\":\"f\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}],\"reasoning\":{\"effort\":\"high\",\"summary\":\"auto\"}}",
+    "out": "{\"model\":\"test-model\",\"max_tokens\":32000,\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"hello agent\"},{\"type\":\"text\",\"text\":\"Tool output from codex_app__create_thread:\\nthread ok\"},{\"type\":\"text\",\"text\":\"hi\"}]},{\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"thinking\",\"signature\":\"\"}]}],\"metadata\":{\"user_id\":\"2c6846c3a38645c326a01fd622203f77b0142ee43f66e1d7975017965b3c0004\"},\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":24576,\"display\":\"summarized\"},\"stream\":true,\"system\":[{\"type\":\"text\",\"text\":\"sys\"}],\"tools\":[{\"name\":\"f\",\"description\":\"\",\"input_schema\":{\"properties\":{\"n\":{\"type\":\"integer\"}},\"type\":\"object\"}}]}"
+  },
+  {
+    "fn": "translate",
+    "from": "openai-response",
+    "to": "claude",
+    "target": "codex",
+    "compat": true,
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "curl/8"
+    },
+    "in": "{\"model\":\"gpt-5.5\",\"instructions\":\"sys\",\"input\":[{\"type\":\"agent_message\",\"author\":\"a\",\"recipient\":\"b\",\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"hello agent\"}]},{\"type\":\"function_call_output\",\"call_id\":\"orphan\",\"name\":\"create_thread\",\"namespace\":\"codex_app\",\"output\":\"thread ok\"},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"reasoning\",\"summary\":[],\"content\":[{\"type\":\"reasoning_text\",\"text\":\"thinking\"}]}],\"tools\":[{\"type\":\"function\",\"name\":\"f\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}],\"reasoning\":{\"effort\":\"high\",\"summary\":\"auto\"}}",
+    "out": "{\"model\":\"test-model\",\"max_tokens\":32000,\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"hello agent\"},{\"type\":\"text\",\"text\":\"thread ok\"},{\"type\":\"text\",\"text\":\"hi\"}]},{\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"thinking\",\"signature\":\"\"}]}],\"metadata\":{\"user_id\":\"2c6846c3a38645c326a01fd622203f77b0142ee43f66e1d7975017965b3c0004\"},\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":24576,\"display\":\"summarized\"},\"stream\":true,\"system\":[{\"type\":\"text\",\"text\":\"sys\"}],\"tools\":[{\"name\":\"f\",\"description\":\"\",\"input_schema\":{\"properties\":{\"n\":{\"type\":\"integer\"}},\"type\":\"object\"}}]}"
+  },
+  {
+    "fn": "translate",
+    "from": "openai-response",
+    "to": "gemini",
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "codex_cli_rs/0.150.0 (Linux; x86_64)",
+      "X-Openai-Subagent": "collab_spawn"
+    },
+    "in": "{\"model\":\"gpt-5.5\",\"instructions\":\"sys\",\"input\":[{\"type\":\"agent_message\",\"author\":\"a\",\"recipient\":\"b\",\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"hello agent\"}]},{\"type\":\"function_call_output\",\"call_id\":\"orphan\",\"name\":\"create_thread\",\"namespace\":\"codex_app\",\"output\":\"thread ok\"},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"reasoning\",\"summary\":[],\"content\":[{\"type\":\"reasoning_text\",\"text\":\"thinking\"}]}],\"tools\":[{\"type\":\"function\",\"name\":\"f\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}],\"reasoning\":{\"effort\":\"high\",\"summary\":\"auto\"}}",
+    "out": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hello agent\"},{\"text\":\"Tool output from codex_app__create_thread:\\nthread ok\"},{\"text\":\"hi\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"\",\"thought\":true}]}],\"tools\":[{\"functionDeclarations\":[{\"name\":\"f\",\"description\":\"\",\"parametersJsonSchema\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}]}],\"systemInstruction\":{\"parts\":[{\"text\":\"sys\"}]},\"generationConfig\":{\"thinkingConfig\":{\"thinkingLevel\":\"high\",\"includeThoughts\":true}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+  },
+  {
+    "fn": "translate",
+    "from": "openai-response",
+    "to": "gemini",
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "curl/8"
+    },
+    "in": "{\"model\":\"gpt-5.5\",\"instructions\":\"sys\",\"input\":[{\"type\":\"agent_message\",\"author\":\"a\",\"recipient\":\"b\",\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"hello agent\"}]},{\"type\":\"function_call_output\",\"call_id\":\"orphan\",\"name\":\"create_thread\",\"namespace\":\"codex_app\",\"output\":\"thread ok\"},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"reasoning\",\"summary\":[],\"content\":[{\"type\":\"reasoning_text\",\"text\":\"thinking\"}]}],\"tools\":[{\"type\":\"function\",\"name\":\"f\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}],\"reasoning\":{\"effort\":\"high\",\"summary\":\"auto\"}}",
+    "out": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"thread ok\"},{\"text\":\"hi\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"\",\"thought\":true}]}],\"tools\":[{\"functionDeclarations\":[{\"name\":\"f\",\"description\":\"\",\"parametersJsonSchema\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}]}],\"systemInstruction\":{\"parts\":[{\"text\":\"sys\"}]},\"generationConfig\":{\"thinkingConfig\":{\"thinkingLevel\":\"high\",\"includeThoughts\":true}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+  },
+  {
+    "fn": "translate",
+    "from": "openai-response",
+    "to": "gemini",
+    "target": "codex",
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "codex_cli_rs/0.150.0 (Linux; x86_64)",
+      "X-Openai-Subagent": "collab_spawn"
+    },
+    "in": "{\"model\":\"gpt-5.5\",\"instructions\":\"sys\",\"input\":[{\"type\":\"agent_message\",\"author\":\"a\",\"recipient\":\"b\",\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"hello agent\"}]},{\"type\":\"function_call_output\",\"call_id\":\"orphan\",\"name\":\"create_thread\",\"namespace\":\"codex_app\",\"output\":\"thread ok\"},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"reasoning\",\"summary\":[],\"content\":[{\"type\":\"reasoning_text\",\"text\":\"thinking\"}]}],\"tools\":[{\"type\":\"function\",\"name\":\"f\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}],\"reasoning\":{\"effort\":\"high\",\"summary\":\"auto\"}}",
+    "out": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hello agent\"},{\"text\":\"Tool output from codex_app__create_thread:\\nthread ok\"},{\"text\":\"hi\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"\",\"thought\":true}]}],\"tools\":[{\"functionDeclarations\":[{\"name\":\"f\",\"description\":\"\",\"parametersJsonSchema\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}]}],\"systemInstruction\":{\"parts\":[{\"text\":\"sys\"}]},\"generationConfig\":{\"thinkingConfig\":{\"thinkingLevel\":\"high\",\"includeThoughts\":true}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+  },
+  {
+    "fn": "translate",
+    "from": "openai-response",
+    "to": "gemini",
+    "target": "codex",
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "curl/8"
+    },
+    "in": "{\"model\":\"gpt-5.5\",\"instructions\":\"sys\",\"input\":[{\"type\":\"agent_message\",\"author\":\"a\",\"recipient\":\"b\",\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"hello agent\"}]},{\"type\":\"function_call_output\",\"call_id\":\"orphan\",\"name\":\"create_thread\",\"namespace\":\"codex_app\",\"output\":\"thread ok\"},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"reasoning\",\"summary\":[],\"content\":[{\"type\":\"reasoning_text\",\"text\":\"thinking\"}]}],\"tools\":[{\"type\":\"function\",\"name\":\"f\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}],\"reasoning\":{\"effort\":\"high\",\"summary\":\"auto\"}}",
+    "out": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"thread ok\"},{\"text\":\"hi\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"\",\"thought\":true}]}],\"tools\":[{\"functionDeclarations\":[{\"name\":\"f\",\"description\":\"\",\"parametersJsonSchema\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}]}],\"systemInstruction\":{\"parts\":[{\"text\":\"sys\"}]},\"generationConfig\":{\"thinkingConfig\":{\"thinkingLevel\":\"high\",\"includeThoughts\":true}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+  },
+  {
+    "fn": "translate",
+    "from": "openai-response",
+    "to": "gemini",
+    "compat": true,
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "codex_cli_rs/0.150.0 (Linux; x86_64)",
+      "X-Openai-Subagent": "collab_spawn"
+    },
+    "in": "{\"model\":\"gpt-5.5\",\"instructions\":\"sys\",\"input\":[{\"type\":\"agent_message\",\"author\":\"a\",\"recipient\":\"b\",\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"hello agent\"}]},{\"type\":\"function_call_output\",\"call_id\":\"orphan\",\"name\":\"create_thread\",\"namespace\":\"codex_app\",\"output\":\"thread ok\"},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"reasoning\",\"summary\":[],\"content\":[{\"type\":\"reasoning_text\",\"text\":\"thinking\"}]}],\"tools\":[{\"type\":\"function\",\"name\":\"f\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}],\"reasoning\":{\"effort\":\"high\",\"summary\":\"auto\"}}",
+    "out": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hello agent\"},{\"text\":\"Tool output from codex_app__create_thread:\\nthread ok\"},{\"text\":\"hi\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"\",\"thought\":true}]}],\"tools\":[{\"functionDeclarations\":[{\"name\":\"f\",\"description\":\"\",\"parametersJsonSchema\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}]}],\"systemInstruction\":{\"parts\":[{\"text\":\"sys\"}]},\"generationConfig\":{\"thinkingConfig\":{\"thinkingLevel\":\"high\",\"includeThoughts\":true}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+  },
+  {
+    "fn": "translate",
+    "from": "openai-response",
+    "to": "gemini",
+    "compat": true,
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "curl/8"
+    },
+    "in": "{\"model\":\"gpt-5.5\",\"instructions\":\"sys\",\"input\":[{\"type\":\"agent_message\",\"author\":\"a\",\"recipient\":\"b\",\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"hello agent\"}]},{\"type\":\"function_call_output\",\"call_id\":\"orphan\",\"name\":\"create_thread\",\"namespace\":\"codex_app\",\"output\":\"thread ok\"},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"reasoning\",\"summary\":[],\"content\":[{\"type\":\"reasoning_text\",\"text\":\"thinking\"}]}],\"tools\":[{\"type\":\"function\",\"name\":\"f\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}],\"reasoning\":{\"effort\":\"high\",\"summary\":\"auto\"}}",
+    "out": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hello agent\"},{\"text\":\"thread ok\"},{\"text\":\"hi\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"\",\"thought\":true}]}],\"tools\":[{\"functionDeclarations\":[{\"name\":\"f\",\"description\":\"\",\"parametersJsonSchema\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}]}],\"systemInstruction\":{\"parts\":[{\"text\":\"sys\"}]},\"generationConfig\":{\"thinkingConfig\":{\"thinkingLevel\":\"high\",\"includeThoughts\":true}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+  },
+  {
+    "fn": "translate",
+    "from": "openai-response",
+    "to": "gemini",
+    "target": "codex",
+    "compat": true,
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "codex_cli_rs/0.150.0 (Linux; x86_64)",
+      "X-Openai-Subagent": "collab_spawn"
+    },
+    "in": "{\"model\":\"gpt-5.5\",\"instructions\":\"sys\",\"input\":[{\"type\":\"agent_message\",\"author\":\"a\",\"recipient\":\"b\",\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"hello agent\"}]},{\"type\":\"function_call_output\",\"call_id\":\"orphan\",\"name\":\"create_thread\",\"namespace\":\"codex_app\",\"output\":\"thread ok\"},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"reasoning\",\"summary\":[],\"content\":[{\"type\":\"reasoning_text\",\"text\":\"thinking\"}]}],\"tools\":[{\"type\":\"function\",\"name\":\"f\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}],\"reasoning\":{\"effort\":\"high\",\"summary\":\"auto\"}}",
+    "out": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hello agent\"},{\"text\":\"Tool output from codex_app__create_thread:\\nthread ok\"},{\"text\":\"hi\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"\",\"thought\":true}]}],\"tools\":[{\"functionDeclarations\":[{\"name\":\"f\",\"description\":\"\",\"parametersJsonSchema\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}]}],\"systemInstruction\":{\"parts\":[{\"text\":\"sys\"}]},\"generationConfig\":{\"thinkingConfig\":{\"thinkingLevel\":\"high\",\"includeThoughts\":true}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+  },
+  {
+    "fn": "translate",
+    "from": "openai-response",
+    "to": "gemini",
+    "target": "codex",
+    "compat": true,
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "curl/8"
+    },
+    "in": "{\"model\":\"gpt-5.5\",\"instructions\":\"sys\",\"input\":[{\"type\":\"agent_message\",\"author\":\"a\",\"recipient\":\"b\",\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"hello agent\"}]},{\"type\":\"function_call_output\",\"call_id\":\"orphan\",\"name\":\"create_thread\",\"namespace\":\"codex_app\",\"output\":\"thread ok\"},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"reasoning\",\"summary\":[],\"content\":[{\"type\":\"reasoning_text\",\"text\":\"thinking\"}]}],\"tools\":[{\"type\":\"function\",\"name\":\"f\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}],\"reasoning\":{\"effort\":\"high\",\"summary\":\"auto\"}}",
+    "out": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hello agent\"},{\"text\":\"thread ok\"},{\"text\":\"hi\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"\",\"thought\":true}]}],\"tools\":[{\"functionDeclarations\":[{\"name\":\"f\",\"description\":\"\",\"parametersJsonSchema\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}]}],\"systemInstruction\":{\"parts\":[{\"text\":\"sys\"}]},\"generationConfig\":{\"thinkingConfig\":{\"thinkingLevel\":\"high\",\"includeThoughts\":true}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+  },
+  {
+    "fn": "translate",
+    "from": "openai-response",
+    "to": "codex",
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "codex_cli_rs/0.150.0 (Linux; x86_64)",
+      "X-Openai-Subagent": "collab_spawn"
+    },
+    "in": "{\"model\":\"gpt-5.5\",\"instructions\":\"sys\",\"input\":[{\"type\":\"agent_message\",\"author\":\"a\",\"recipient\":\"b\",\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"hello agent\"}]},{\"type\":\"function_call_output\",\"call_id\":\"orphan\",\"name\":\"create_thread\",\"namespace\":\"codex_app\",\"output\":\"thread ok\"},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"reasoning\",\"summary\":[],\"content\":[{\"type\":\"reasoning_text\",\"text\":\"thinking\"}]}],\"tools\":[{\"type\":\"function\",\"name\":\"f\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}],\"reasoning\":{\"effort\":\"high\",\"summary\":\"auto\"}}",
+    "out": "{\"model\":\"gpt-5.5\",\"instructions\":\"sys\",\"input\":[{\"type\":\"agent_message\",\"author\":\"a\",\"recipient\":\"b\",\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"hello agent\"}]},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"Tool output from codex_app__create_thread:\\nthread ok\"}]},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"reasoning\",\"summary\":[],\"content\":[{\"type\":\"reasoning_text\",\"text\":\"thinking\"}]}],\"tools\":[{\"type\":\"function\",\"name\":\"f\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}],\"reasoning\":{\"effort\":\"high\",\"summary\":\"auto\"},\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"]}"
+  },
+  {
+    "fn": "translate",
+    "from": "openai-response",
+    "to": "codex",
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "curl/8"
+    },
+    "in": "{\"model\":\"gpt-5.5\",\"instructions\":\"sys\",\"input\":[{\"type\":\"agent_message\",\"author\":\"a\",\"recipient\":\"b\",\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"hello agent\"}]},{\"type\":\"function_call_output\",\"call_id\":\"orphan\",\"name\":\"create_thread\",\"namespace\":\"codex_app\",\"output\":\"thread ok\"},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"reasoning\",\"summary\":[],\"content\":[{\"type\":\"reasoning_text\",\"text\":\"thinking\"}]}],\"tools\":[{\"type\":\"function\",\"name\":\"f\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}],\"reasoning\":{\"effort\":\"high\",\"summary\":\"auto\"}}",
+    "out": "{\"model\":\"gpt-5.5\",\"instructions\":\"sys\",\"input\":[{\"type\":\"agent_message\",\"author\":\"a\",\"recipient\":\"b\",\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"hello agent\"}]},{\"type\":\"function_call_output\",\"call_id\":\"orphan\",\"name\":\"create_thread\",\"namespace\":\"codex_app\",\"output\":\"thread ok\"},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"reasoning\",\"summary\":[],\"content\":[{\"type\":\"reasoning_text\",\"text\":\"thinking\"}]}],\"tools\":[{\"type\":\"function\",\"name\":\"f\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}],\"reasoning\":{\"effort\":\"high\",\"summary\":\"auto\"},\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"]}"
+  },
+  {
+    "fn": "translate",
+    "from": "openai-response",
+    "to": "codex",
+    "target": "codex",
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "codex_cli_rs/0.150.0 (Linux; x86_64)",
+      "X-Openai-Subagent": "collab_spawn"
+    },
+    "in": "{\"model\":\"gpt-5.5\",\"instructions\":\"sys\",\"input\":[{\"type\":\"agent_message\",\"author\":\"a\",\"recipient\":\"b\",\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"hello agent\"}]},{\"type\":\"function_call_output\",\"call_id\":\"orphan\",\"name\":\"create_thread\",\"namespace\":\"codex_app\",\"output\":\"thread ok\"},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"reasoning\",\"summary\":[],\"content\":[{\"type\":\"reasoning_text\",\"text\":\"thinking\"}]}],\"tools\":[{\"type\":\"function\",\"name\":\"f\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}],\"reasoning\":{\"effort\":\"high\",\"summary\":\"auto\"}}",
+    "out": "{\"model\":\"gpt-5.5\",\"instructions\":\"sys\",\"input\":[{\"type\":\"agent_message\",\"author\":\"a\",\"recipient\":\"b\",\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"hello agent\"}]},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"Tool output from codex_app__create_thread:\\nthread ok\"}]},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"reasoning\",\"summary\":[],\"content\":[{\"type\":\"reasoning_text\",\"text\":\"thinking\"}]}],\"tools\":[{\"type\":\"function\",\"name\":\"f\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}],\"reasoning\":{\"effort\":\"high\",\"summary\":\"auto\"},\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"]}"
+  },
+  {
+    "fn": "translate",
+    "from": "openai-response",
+    "to": "codex",
+    "target": "codex",
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "curl/8"
+    },
+    "in": "{\"model\":\"gpt-5.5\",\"instructions\":\"sys\",\"input\":[{\"type\":\"agent_message\",\"author\":\"a\",\"recipient\":\"b\",\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"hello agent\"}]},{\"type\":\"function_call_output\",\"call_id\":\"orphan\",\"name\":\"create_thread\",\"namespace\":\"codex_app\",\"output\":\"thread ok\"},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"reasoning\",\"summary\":[],\"content\":[{\"type\":\"reasoning_text\",\"text\":\"thinking\"}]}],\"tools\":[{\"type\":\"function\",\"name\":\"f\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}],\"reasoning\":{\"effort\":\"high\",\"summary\":\"auto\"}}",
+    "out": "{\"model\":\"gpt-5.5\",\"instructions\":\"sys\",\"input\":[{\"type\":\"agent_message\",\"author\":\"a\",\"recipient\":\"b\",\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"hello agent\"}]},{\"type\":\"function_call_output\",\"call_id\":\"orphan\",\"name\":\"create_thread\",\"namespace\":\"codex_app\",\"output\":\"thread ok\"},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"reasoning\",\"summary\":[],\"content\":[{\"type\":\"reasoning_text\",\"text\":\"thinking\"}]}],\"tools\":[{\"type\":\"function\",\"name\":\"f\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}],\"reasoning\":{\"effort\":\"high\",\"summary\":\"auto\"},\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"]}"
+  },
+  {
+    "fn": "translate",
+    "from": "openai-response",
+    "to": "codex",
+    "compat": true,
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "codex_cli_rs/0.150.0 (Linux; x86_64)",
+      "X-Openai-Subagent": "collab_spawn"
+    },
+    "in": "{\"model\":\"gpt-5.5\",\"instructions\":\"sys\",\"input\":[{\"type\":\"agent_message\",\"author\":\"a\",\"recipient\":\"b\",\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"hello agent\"}]},{\"type\":\"function_call_output\",\"call_id\":\"orphan\",\"name\":\"create_thread\",\"namespace\":\"codex_app\",\"output\":\"thread ok\"},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"reasoning\",\"summary\":[],\"content\":[{\"type\":\"reasoning_text\",\"text\":\"thinking\"}]}],\"tools\":[{\"type\":\"function\",\"name\":\"f\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}],\"reasoning\":{\"effort\":\"high\",\"summary\":\"auto\"}}",
+    "out": "{\"model\":\"gpt-5.5\",\"instructions\":\"sys\",\"input\":[{\"type\":\"agent_message\",\"author\":\"a\",\"recipient\":\"b\",\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"hello agent\"}]},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"Tool output from codex_app__create_thread:\\nthread ok\"}]},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"reasoning\",\"summary\":[],\"content\":[{\"type\":\"reasoning_text\",\"text\":\"thinking\"}]}],\"tools\":[{\"type\":\"function\",\"name\":\"f\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}],\"reasoning\":{\"effort\":\"high\",\"summary\":\"auto\"},\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"]}"
+  },
+  {
+    "fn": "translate",
+    "from": "openai-response",
+    "to": "codex",
+    "compat": true,
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "curl/8"
+    },
+    "in": "{\"model\":\"gpt-5.5\",\"instructions\":\"sys\",\"input\":[{\"type\":\"agent_message\",\"author\":\"a\",\"recipient\":\"b\",\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"hello agent\"}]},{\"type\":\"function_call_output\",\"call_id\":\"orphan\",\"name\":\"create_thread\",\"namespace\":\"codex_app\",\"output\":\"thread ok\"},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"reasoning\",\"summary\":[],\"content\":[{\"type\":\"reasoning_text\",\"text\":\"thinking\"}]}],\"tools\":[{\"type\":\"function\",\"name\":\"f\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}],\"reasoning\":{\"effort\":\"high\",\"summary\":\"auto\"}}",
+    "out": "{\"model\":\"gpt-5.5\",\"instructions\":\"sys\",\"input\":[{\"type\":\"agent_message\",\"author\":\"a\",\"recipient\":\"b\",\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"hello agent\"}]},{\"type\":\"function_call_output\",\"call_id\":\"orphan\",\"name\":\"create_thread\",\"namespace\":\"codex_app\",\"output\":\"thread ok\"},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"reasoning\",\"summary\":[],\"content\":[{\"type\":\"reasoning_text\",\"text\":\"thinking\"}]}],\"tools\":[{\"type\":\"function\",\"name\":\"f\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}],\"reasoning\":{\"effort\":\"high\",\"summary\":\"auto\"},\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"]}"
+  },
+  {
+    "fn": "translate",
+    "from": "openai-response",
+    "to": "codex",
+    "target": "codex",
+    "compat": true,
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "codex_cli_rs/0.150.0 (Linux; x86_64)",
+      "X-Openai-Subagent": "collab_spawn"
+    },
+    "in": "{\"model\":\"gpt-5.5\",\"instructions\":\"sys\",\"input\":[{\"type\":\"agent_message\",\"author\":\"a\",\"recipient\":\"b\",\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"hello agent\"}]},{\"type\":\"function_call_output\",\"call_id\":\"orphan\",\"name\":\"create_thread\",\"namespace\":\"codex_app\",\"output\":\"thread ok\"},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"reasoning\",\"summary\":[],\"content\":[{\"type\":\"reasoning_text\",\"text\":\"thinking\"}]}],\"tools\":[{\"type\":\"function\",\"name\":\"f\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}],\"reasoning\":{\"effort\":\"high\",\"summary\":\"auto\"}}",
+    "out": "{\"model\":\"gpt-5.5\",\"instructions\":\"sys\",\"input\":[{\"type\":\"agent_message\",\"author\":\"a\",\"recipient\":\"b\",\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"hello agent\"}]},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"Tool output from codex_app__create_thread:\\nthread ok\"}]},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"reasoning\",\"summary\":[],\"content\":[{\"type\":\"reasoning_text\",\"text\":\"thinking\"}]}],\"tools\":[{\"type\":\"function\",\"name\":\"f\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}],\"reasoning\":{\"effort\":\"high\",\"summary\":\"auto\"},\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"]}"
+  },
+  {
+    "fn": "translate",
+    "from": "openai-response",
+    "to": "codex",
+    "target": "codex",
+    "compat": true,
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "curl/8"
+    },
+    "in": "{\"model\":\"gpt-5.5\",\"instructions\":\"sys\",\"input\":[{\"type\":\"agent_message\",\"author\":\"a\",\"recipient\":\"b\",\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"hello agent\"}]},{\"type\":\"function_call_output\",\"call_id\":\"orphan\",\"name\":\"create_thread\",\"namespace\":\"codex_app\",\"output\":\"thread ok\"},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"reasoning\",\"summary\":[],\"content\":[{\"type\":\"reasoning_text\",\"text\":\"thinking\"}]}],\"tools\":[{\"type\":\"function\",\"name\":\"f\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}],\"reasoning\":{\"effort\":\"high\",\"summary\":\"auto\"}}",
+    "out": "{\"model\":\"gpt-5.5\",\"instructions\":\"sys\",\"input\":[{\"type\":\"agent_message\",\"author\":\"a\",\"recipient\":\"b\",\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"hello agent\"}]},{\"type\":\"function_call_output\",\"call_id\":\"orphan\",\"name\":\"create_thread\",\"namespace\":\"codex_app\",\"output\":\"thread ok\"},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"reasoning\",\"summary\":[],\"content\":[{\"type\":\"reasoning_text\",\"text\":\"thinking\"}]}],\"tools\":[{\"type\":\"function\",\"name\":\"f\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}],\"reasoning\":{\"effort\":\"high\",\"summary\":\"auto\"},\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"]}"
+  },
+  {
+    "fn": "translate",
+    "from": "openai-response",
+    "to": "openai",
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "codex_cli_rs/0.150.0 (Linux; x86_64)",
+      "X-Openai-Subagent": "collab_spawn"
+    },
+    "in": "{\"model\":\"gpt-5.5\",\"instructions\":\"sys\",\"input\":[{\"type\":\"agent_message\",\"author\":\"a\",\"recipient\":\"b\",\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"hello agent\"}]},{\"type\":\"function_call_output\",\"call_id\":\"orphan\",\"name\":\"create_thread\",\"namespace\":\"codex_app\",\"output\":\"thread ok\"},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"reasoning\",\"summary\":[],\"content\":[{\"type\":\"reasoning_text\",\"text\":\"thinking\"}]}],\"tools\":[{\"type\":\"function\",\"name\":\"f\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}],\"reasoning\":{\"effort\":\"high\",\"summary\":\"auto\"}}",
+    "out": "{\"model\":\"test-model\",\"messages\":[{\"role\":\"system\",\"content\":\"sys\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"hello agent\"}]},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Tool output from codex_app__create_thread:\\nthread ok\"}]},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"}]},{\"role\":\"assistant\",\"content\":\"\",\"reasoning_content\":\"[reasoning unavailable]\"}],\"stream\":true,\"tools\":[{\"function\":{\"description\":\"\",\"name\":\"f\",\"parameters\":{\"properties\":{\"n\":{\"type\":\"integer\"}},\"type\":\"object\"}},\"type\":\"function\"}],\"reasoning_effort\":\"high\"}"
+  },
+  {
+    "fn": "translate",
+    "from": "openai-response",
+    "to": "openai",
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "curl/8"
+    },
+    "in": "{\"model\":\"gpt-5.5\",\"instructions\":\"sys\",\"input\":[{\"type\":\"agent_message\",\"author\":\"a\",\"recipient\":\"b\",\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"hello agent\"}]},{\"type\":\"function_call_output\",\"call_id\":\"orphan\",\"name\":\"create_thread\",\"namespace\":\"codex_app\",\"output\":\"thread ok\"},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"reasoning\",\"summary\":[],\"content\":[{\"type\":\"reasoning_text\",\"text\":\"thinking\"}]}],\"tools\":[{\"type\":\"function\",\"name\":\"f\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}],\"reasoning\":{\"effort\":\"high\",\"summary\":\"auto\"}}",
+    "out": "{\"model\":\"test-model\",\"messages\":[{\"role\":\"system\",\"content\":\"sys\"},{\"role\":\"user\",\"content\":\"thread ok\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"}]},{\"role\":\"assistant\",\"content\":\"\",\"reasoning_content\":\"[reasoning unavailable]\"}],\"stream\":true,\"tools\":[{\"function\":{\"description\":\"\",\"name\":\"f\",\"parameters\":{\"properties\":{\"n\":{\"type\":\"integer\"}},\"type\":\"object\"}},\"type\":\"function\"}],\"reasoning_effort\":\"high\"}"
+  },
+  {
+    "fn": "translate",
+    "from": "openai-response",
+    "to": "openai",
+    "target": "codex",
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "codex_cli_rs/0.150.0 (Linux; x86_64)",
+      "X-Openai-Subagent": "collab_spawn"
+    },
+    "in": "{\"model\":\"gpt-5.5\",\"instructions\":\"sys\",\"input\":[{\"type\":\"agent_message\",\"author\":\"a\",\"recipient\":\"b\",\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"hello agent\"}]},{\"type\":\"function_call_output\",\"call_id\":\"orphan\",\"name\":\"create_thread\",\"namespace\":\"codex_app\",\"output\":\"thread ok\"},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"reasoning\",\"summary\":[],\"content\":[{\"type\":\"reasoning_text\",\"text\":\"thinking\"}]}],\"tools\":[{\"type\":\"function\",\"name\":\"f\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}],\"reasoning\":{\"effort\":\"high\",\"summary\":\"auto\"}}",
+    "out": "{\"model\":\"test-model\",\"messages\":[{\"role\":\"system\",\"content\":\"sys\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"hello agent\"}]},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Tool output from codex_app__create_thread:\\nthread ok\"}]},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"}]},{\"role\":\"assistant\",\"content\":\"\",\"reasoning_content\":\"[reasoning unavailable]\"}],\"stream\":true,\"tools\":[{\"function\":{\"description\":\"\",\"name\":\"f\",\"parameters\":{\"properties\":{\"n\":{\"type\":\"integer\"}},\"type\":\"object\"}},\"type\":\"function\"}],\"reasoning_effort\":\"high\"}"
+  },
+  {
+    "fn": "translate",
+    "from": "openai-response",
+    "to": "openai",
+    "target": "codex",
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "curl/8"
+    },
+    "in": "{\"model\":\"gpt-5.5\",\"instructions\":\"sys\",\"input\":[{\"type\":\"agent_message\",\"author\":\"a\",\"recipient\":\"b\",\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"hello agent\"}]},{\"type\":\"function_call_output\",\"call_id\":\"orphan\",\"name\":\"create_thread\",\"namespace\":\"codex_app\",\"output\":\"thread ok\"},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"reasoning\",\"summary\":[],\"content\":[{\"type\":\"reasoning_text\",\"text\":\"thinking\"}]}],\"tools\":[{\"type\":\"function\",\"name\":\"f\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}],\"reasoning\":{\"effort\":\"high\",\"summary\":\"auto\"}}",
+    "out": "{\"model\":\"test-model\",\"messages\":[{\"role\":\"system\",\"content\":\"sys\"},{\"role\":\"user\",\"content\":\"thread ok\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"}]},{\"role\":\"assistant\",\"content\":\"\",\"reasoning_content\":\"[reasoning unavailable]\"}],\"stream\":true,\"tools\":[{\"function\":{\"description\":\"\",\"name\":\"f\",\"parameters\":{\"properties\":{\"n\":{\"type\":\"integer\"}},\"type\":\"object\"}},\"type\":\"function\"}],\"reasoning_effort\":\"high\"}"
+  },
+  {
+    "fn": "translate",
+    "from": "openai-response",
+    "to": "openai",
+    "compat": true,
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "codex_cli_rs/0.150.0 (Linux; x86_64)",
+      "X-Openai-Subagent": "collab_spawn"
+    },
+    "in": "{\"model\":\"gpt-5.5\",\"instructions\":\"sys\",\"input\":[{\"type\":\"agent_message\",\"author\":\"a\",\"recipient\":\"b\",\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"hello agent\"}]},{\"type\":\"function_call_output\",\"call_id\":\"orphan\",\"name\":\"create_thread\",\"namespace\":\"codex_app\",\"output\":\"thread ok\"},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"reasoning\",\"summary\":[],\"content\":[{\"type\":\"reasoning_text\",\"text\":\"thinking\"}]}],\"tools\":[{\"type\":\"function\",\"name\":\"f\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}],\"reasoning\":{\"effort\":\"high\",\"summary\":\"auto\"}}",
+    "out": "{\"model\":\"test-model\",\"messages\":[{\"role\":\"system\",\"content\":\"sys\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"hello agent\"}]},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Tool output from codex_app__create_thread:\\nthread ok\"}]},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"}]},{\"role\":\"assistant\",\"content\":\"\",\"reasoning_content\":\"[reasoning unavailable]\"}],\"stream\":true,\"tools\":[{\"function\":{\"description\":\"\",\"name\":\"f\",\"parameters\":{\"properties\":{\"n\":{\"type\":\"integer\"}},\"type\":\"object\"}},\"type\":\"function\"}],\"reasoning_effort\":\"high\"}"
+  },
+  {
+    "fn": "translate",
+    "from": "openai-response",
+    "to": "openai",
+    "compat": true,
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "curl/8"
+    },
+    "in": "{\"model\":\"gpt-5.5\",\"instructions\":\"sys\",\"input\":[{\"type\":\"agent_message\",\"author\":\"a\",\"recipient\":\"b\",\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"hello agent\"}]},{\"type\":\"function_call_output\",\"call_id\":\"orphan\",\"name\":\"create_thread\",\"namespace\":\"codex_app\",\"output\":\"thread ok\"},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"reasoning\",\"summary\":[],\"content\":[{\"type\":\"reasoning_text\",\"text\":\"thinking\"}]}],\"tools\":[{\"type\":\"function\",\"name\":\"f\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}],\"reasoning\":{\"effort\":\"high\",\"summary\":\"auto\"}}",
+    "out": "{\"model\":\"test-model\",\"messages\":[{\"role\":\"system\",\"content\":\"sys\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"hello agent\"}]},{\"role\":\"user\",\"content\":\"thread ok\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"}]},{\"role\":\"assistant\",\"content\":\"\",\"reasoning_content\":\"[reasoning unavailable]\"}],\"stream\":true,\"tools\":[{\"function\":{\"description\":\"\",\"name\":\"f\",\"parameters\":{\"properties\":{\"n\":{\"type\":\"integer\"}},\"type\":\"object\"}},\"type\":\"function\"}],\"reasoning_effort\":\"high\"}"
+  },
+  {
+    "fn": "translate",
+    "from": "openai-response",
+    "to": "openai",
+    "target": "codex",
+    "compat": true,
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "codex_cli_rs/0.150.0 (Linux; x86_64)",
+      "X-Openai-Subagent": "collab_spawn"
+    },
+    "in": "{\"model\":\"gpt-5.5\",\"instructions\":\"sys\",\"input\":[{\"type\":\"agent_message\",\"author\":\"a\",\"recipient\":\"b\",\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"hello agent\"}]},{\"type\":\"function_call_output\",\"call_id\":\"orphan\",\"name\":\"create_thread\",\"namespace\":\"codex_app\",\"output\":\"thread ok\"},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"reasoning\",\"summary\":[],\"content\":[{\"type\":\"reasoning_text\",\"text\":\"thinking\"}]}],\"tools\":[{\"type\":\"function\",\"name\":\"f\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}],\"reasoning\":{\"effort\":\"high\",\"summary\":\"auto\"}}",
+    "out": "{\"model\":\"test-model\",\"messages\":[{\"role\":\"system\",\"content\":\"sys\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"hello agent\"}]},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Tool output from codex_app__create_thread:\\nthread ok\"}]},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"}]},{\"role\":\"assistant\",\"content\":\"\",\"reasoning_content\":\"[reasoning unavailable]\"}],\"stream\":true,\"tools\":[{\"function\":{\"description\":\"\",\"name\":\"f\",\"parameters\":{\"properties\":{\"n\":{\"type\":\"integer\"}},\"type\":\"object\"}},\"type\":\"function\"}],\"reasoning_effort\":\"high\"}"
+  },
+  {
+    "fn": "translate",
+    "from": "openai-response",
+    "to": "openai",
+    "target": "codex",
+    "compat": true,
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "curl/8"
+    },
+    "in": "{\"model\":\"gpt-5.5\",\"instructions\":\"sys\",\"input\":[{\"type\":\"agent_message\",\"author\":\"a\",\"recipient\":\"b\",\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"hello agent\"}]},{\"type\":\"function_call_output\",\"call_id\":\"orphan\",\"name\":\"create_thread\",\"namespace\":\"codex_app\",\"output\":\"thread ok\"},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"reasoning\",\"summary\":[],\"content\":[{\"type\":\"reasoning_text\",\"text\":\"thinking\"}]}],\"tools\":[{\"type\":\"function\",\"name\":\"f\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}],\"reasoning\":{\"effort\":\"high\",\"summary\":\"auto\"}}",
+    "out": "{\"model\":\"test-model\",\"messages\":[{\"role\":\"system\",\"content\":\"sys\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"hello agent\"}]},{\"role\":\"user\",\"content\":\"thread ok\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"}]},{\"role\":\"assistant\",\"content\":\"\",\"reasoning_content\":\"[reasoning unavailable]\"}],\"stream\":true,\"tools\":[{\"function\":{\"description\":\"\",\"name\":\"f\",\"parameters\":{\"properties\":{\"n\":{\"type\":\"integer\"}},\"type\":\"object\"}},\"type\":\"function\"}],\"reasoning_effort\":\"high\"}"
+  },
+  {
+    "fn": "translate",
+    "from": "claude",
+    "to": "codex",
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "codex_cli_rs/0.150.0 (Linux; x86_64)",
+      "X-Openai-Subagent": "collab_spawn"
+    },
+    "in": "{\"model\":\"claude-x\",\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"plan\",\"signature\":\"\"},{\"type\":\"text\",\"text\":\"ok\"}]},{\"role\":\"user\",\"content\":\"go\"}],\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":1024},\"tools\":[{\"name\":\"t\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}]}",
+    "out": "{\"model\":\"test-model\",\"instructions\":\"\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"ok\"}]},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"go\"}]}],\"tool_choice\":\"auto\",\"parallel_tool_calls\":true,\"reasoning\":{\"effort\":\"low\"},\"stream\":true,\"store\":false,\"include\":[\"reasoning.encrypted_content\"],\"tools\":[{\"name\":\"t\",\"type\":\"function\",\"parameters\":{\"properties\":{\"n\":{\"type\":\"integer\"}},\"type\":\"object\"},\"strict\":false}]}"
+  },
+  {
+    "fn": "translate",
+    "from": "claude",
+    "to": "codex",
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "curl/8"
+    },
+    "in": "{\"model\":\"claude-x\",\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"plan\",\"signature\":\"\"},{\"type\":\"text\",\"text\":\"ok\"}]},{\"role\":\"user\",\"content\":\"go\"}],\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":1024},\"tools\":[{\"name\":\"t\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}]}",
+    "out": "{\"model\":\"test-model\",\"instructions\":\"\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"ok\"}]},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"go\"}]}],\"tool_choice\":\"auto\",\"parallel_tool_calls\":true,\"reasoning\":{\"effort\":\"low\"},\"stream\":true,\"store\":false,\"include\":[\"reasoning.encrypted_content\"],\"tools\":[{\"name\":\"t\",\"type\":\"function\",\"parameters\":{\"properties\":{\"n\":{\"type\":\"integer\"}},\"type\":\"object\"},\"strict\":false}]}"
+  },
+  {
+    "fn": "translate",
+    "from": "claude",
+    "to": "codex",
+    "target": "codex",
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "codex_cli_rs/0.150.0 (Linux; x86_64)",
+      "X-Openai-Subagent": "collab_spawn"
+    },
+    "in": "{\"model\":\"claude-x\",\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"plan\",\"signature\":\"\"},{\"type\":\"text\",\"text\":\"ok\"}]},{\"role\":\"user\",\"content\":\"go\"}],\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":1024},\"tools\":[{\"name\":\"t\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}]}",
+    "out": "{\"model\":\"test-model\",\"instructions\":\"\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"ok\"}]},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"go\"}]}],\"tool_choice\":\"auto\",\"parallel_tool_calls\":true,\"reasoning\":{\"effort\":\"low\"},\"stream\":true,\"store\":false,\"include\":[\"reasoning.encrypted_content\"],\"tools\":[{\"name\":\"t\",\"type\":\"function\",\"parameters\":{\"properties\":{\"n\":{\"type\":\"integer\"}},\"type\":\"object\"},\"strict\":false}]}"
+  },
+  {
+    "fn": "translate",
+    "from": "claude",
+    "to": "codex",
+    "target": "codex",
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "curl/8"
+    },
+    "in": "{\"model\":\"claude-x\",\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"plan\",\"signature\":\"\"},{\"type\":\"text\",\"text\":\"ok\"}]},{\"role\":\"user\",\"content\":\"go\"}],\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":1024},\"tools\":[{\"name\":\"t\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}]}",
+    "out": "{\"model\":\"test-model\",\"instructions\":\"\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"ok\"}]},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"go\"}]}],\"tool_choice\":\"auto\",\"parallel_tool_calls\":true,\"reasoning\":{\"effort\":\"low\"},\"stream\":true,\"store\":false,\"include\":[\"reasoning.encrypted_content\"],\"tools\":[{\"name\":\"t\",\"type\":\"function\",\"parameters\":{\"properties\":{\"n\":{\"type\":\"integer\"}},\"type\":\"object\"},\"strict\":false}]}"
+  },
+  {
+    "fn": "translate",
+    "from": "claude",
+    "to": "codex",
+    "compat": true,
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "codex_cli_rs/0.150.0 (Linux; x86_64)",
+      "X-Openai-Subagent": "collab_spawn"
+    },
+    "in": "{\"model\":\"claude-x\",\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"plan\",\"signature\":\"\"},{\"type\":\"text\",\"text\":\"ok\"}]},{\"role\":\"user\",\"content\":\"go\"}],\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":1024},\"tools\":[{\"name\":\"t\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}]}",
+    "out": "{\"model\":\"test-model\",\"instructions\":\"\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"reasoning\",\"summary\":[],\"content\":null,\"encrypted_content\":\"\"},{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"ok\"}]},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"go\"}]}],\"tool_choice\":\"auto\",\"parallel_tool_calls\":true,\"reasoning\":{\"effort\":\"low\"},\"stream\":true,\"store\":false,\"include\":[\"reasoning.encrypted_content\"],\"tools\":[{\"name\":\"t\",\"type\":\"function\",\"parameters\":{\"properties\":{\"n\":{\"type\":\"integer\"}},\"type\":\"object\"},\"strict\":false}]}"
+  },
+  {
+    "fn": "translate",
+    "from": "claude",
+    "to": "codex",
+    "compat": true,
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "curl/8"
+    },
+    "in": "{\"model\":\"claude-x\",\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"plan\",\"signature\":\"\"},{\"type\":\"text\",\"text\":\"ok\"}]},{\"role\":\"user\",\"content\":\"go\"}],\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":1024},\"tools\":[{\"name\":\"t\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}]}",
+    "out": "{\"model\":\"test-model\",\"instructions\":\"\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"reasoning\",\"summary\":[],\"content\":null,\"encrypted_content\":\"\"},{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"ok\"}]},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"go\"}]}],\"tool_choice\":\"auto\",\"parallel_tool_calls\":true,\"reasoning\":{\"effort\":\"low\"},\"stream\":true,\"store\":false,\"include\":[\"reasoning.encrypted_content\"],\"tools\":[{\"name\":\"t\",\"type\":\"function\",\"parameters\":{\"properties\":{\"n\":{\"type\":\"integer\"}},\"type\":\"object\"},\"strict\":false}]}"
+  },
+  {
+    "fn": "translate",
+    "from": "claude",
+    "to": "codex",
+    "target": "codex",
+    "compat": true,
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "codex_cli_rs/0.150.0 (Linux; x86_64)",
+      "X-Openai-Subagent": "collab_spawn"
+    },
+    "in": "{\"model\":\"claude-x\",\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"plan\",\"signature\":\"\"},{\"type\":\"text\",\"text\":\"ok\"}]},{\"role\":\"user\",\"content\":\"go\"}],\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":1024},\"tools\":[{\"name\":\"t\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}]}",
+    "out": "{\"model\":\"test-model\",\"instructions\":\"\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"reasoning\",\"summary\":[],\"content\":null,\"encrypted_content\":\"\"},{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"ok\"}]},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"go\"}]}],\"tool_choice\":\"auto\",\"parallel_tool_calls\":true,\"reasoning\":{\"effort\":\"low\"},\"stream\":true,\"store\":false,\"include\":[\"reasoning.encrypted_content\"],\"tools\":[{\"name\":\"t\",\"type\":\"function\",\"parameters\":{\"properties\":{\"n\":{\"type\":\"integer\"}},\"type\":\"object\"},\"strict\":false}]}"
+  },
+  {
+    "fn": "translate",
+    "from": "claude",
+    "to": "codex",
+    "target": "codex",
+    "compat": true,
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "curl/8"
+    },
+    "in": "{\"model\":\"claude-x\",\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"plan\",\"signature\":\"\"},{\"type\":\"text\",\"text\":\"ok\"}]},{\"role\":\"user\",\"content\":\"go\"}],\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":1024},\"tools\":[{\"name\":\"t\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}]}",
+    "out": "{\"model\":\"test-model\",\"instructions\":\"\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"reasoning\",\"summary\":[],\"content\":null,\"encrypted_content\":\"\"},{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"ok\"}]},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"go\"}]}],\"tool_choice\":\"auto\",\"parallel_tool_calls\":true,\"reasoning\":{\"effort\":\"low\"},\"stream\":true,\"store\":false,\"include\":[\"reasoning.encrypted_content\"],\"tools\":[{\"name\":\"t\",\"type\":\"function\",\"parameters\":{\"properties\":{\"n\":{\"type\":\"integer\"}},\"type\":\"object\"},\"strict\":false}]}"
+  },
+  {
+    "fn": "translate",
+    "from": "claude",
+    "to": "gemini",
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "codex_cli_rs/0.150.0 (Linux; x86_64)",
+      "X-Openai-Subagent": "collab_spawn"
+    },
+    "in": "{\"model\":\"claude-x\",\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"plan\",\"signature\":\"\"},{\"type\":\"text\",\"text\":\"ok\"}]},{\"role\":\"user\",\"content\":\"go\"}],\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":1024},\"tools\":[{\"name\":\"t\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}]}",
+    "out": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"go\"}]}],\"model\":\"test-model\",\"tools\":[{\"functionDeclarations\":[{\"name\":\"t\",\"parametersJsonSchema\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}]}],\"generationConfig\":{\"thinkingConfig\":{\"thinkingBudget\":1024}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+  },
+  {
+    "fn": "translate",
+    "from": "claude",
+    "to": "gemini",
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "curl/8"
+    },
+    "in": "{\"model\":\"claude-x\",\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"plan\",\"signature\":\"\"},{\"type\":\"text\",\"text\":\"ok\"}]},{\"role\":\"user\",\"content\":\"go\"}],\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":1024},\"tools\":[{\"name\":\"t\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}]}",
+    "out": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"go\"}]}],\"model\":\"test-model\",\"tools\":[{\"functionDeclarations\":[{\"name\":\"t\",\"parametersJsonSchema\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}]}],\"generationConfig\":{\"thinkingConfig\":{\"thinkingBudget\":1024}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+  },
+  {
+    "fn": "translate",
+    "from": "claude",
+    "to": "gemini",
+    "target": "codex",
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "codex_cli_rs/0.150.0 (Linux; x86_64)",
+      "X-Openai-Subagent": "collab_spawn"
+    },
+    "in": "{\"model\":\"claude-x\",\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"plan\",\"signature\":\"\"},{\"type\":\"text\",\"text\":\"ok\"}]},{\"role\":\"user\",\"content\":\"go\"}],\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":1024},\"tools\":[{\"name\":\"t\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}]}",
+    "out": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"go\"}]}],\"model\":\"test-model\",\"tools\":[{\"functionDeclarations\":[{\"name\":\"t\",\"parametersJsonSchema\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}]}],\"generationConfig\":{\"thinkingConfig\":{\"thinkingBudget\":1024}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+  },
+  {
+    "fn": "translate",
+    "from": "claude",
+    "to": "gemini",
+    "target": "codex",
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "curl/8"
+    },
+    "in": "{\"model\":\"claude-x\",\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"plan\",\"signature\":\"\"},{\"type\":\"text\",\"text\":\"ok\"}]},{\"role\":\"user\",\"content\":\"go\"}],\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":1024},\"tools\":[{\"name\":\"t\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}]}",
+    "out": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"go\"}]}],\"model\":\"test-model\",\"tools\":[{\"functionDeclarations\":[{\"name\":\"t\",\"parametersJsonSchema\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}]}],\"generationConfig\":{\"thinkingConfig\":{\"thinkingBudget\":1024}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+  },
+  {
+    "fn": "translate",
+    "from": "claude",
+    "to": "gemini",
+    "compat": true,
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "codex_cli_rs/0.150.0 (Linux; x86_64)",
+      "X-Openai-Subagent": "collab_spawn"
+    },
+    "in": "{\"model\":\"claude-x\",\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"plan\",\"signature\":\"\"},{\"type\":\"text\",\"text\":\"ok\"}]},{\"role\":\"user\",\"content\":\"go\"}],\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":1024},\"tools\":[{\"name\":\"t\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}]}",
+    "out": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"plan\",\"thought\":true,\"thoughtSignature\":\"skip_thought_signature_validator\"},{\"text\":\"ok\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"go\"}]}],\"model\":\"test-model\",\"tools\":[{\"functionDeclarations\":[{\"name\":\"t\",\"parametersJsonSchema\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}]}],\"generationConfig\":{\"thinkingConfig\":{\"thinkingBudget\":1024}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+  },
+  {
+    "fn": "translate",
+    "from": "claude",
+    "to": "gemini",
+    "compat": true,
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "curl/8"
+    },
+    "in": "{\"model\":\"claude-x\",\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"plan\",\"signature\":\"\"},{\"type\":\"text\",\"text\":\"ok\"}]},{\"role\":\"user\",\"content\":\"go\"}],\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":1024},\"tools\":[{\"name\":\"t\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}]}",
+    "out": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"plan\",\"thought\":true,\"thoughtSignature\":\"skip_thought_signature_validator\"},{\"text\":\"ok\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"go\"}]}],\"model\":\"test-model\",\"tools\":[{\"functionDeclarations\":[{\"name\":\"t\",\"parametersJsonSchema\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}]}],\"generationConfig\":{\"thinkingConfig\":{\"thinkingBudget\":1024}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+  },
+  {
+    "fn": "translate",
+    "from": "claude",
+    "to": "gemini",
+    "target": "codex",
+    "compat": true,
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "codex_cli_rs/0.150.0 (Linux; x86_64)",
+      "X-Openai-Subagent": "collab_spawn"
+    },
+    "in": "{\"model\":\"claude-x\",\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"plan\",\"signature\":\"\"},{\"type\":\"text\",\"text\":\"ok\"}]},{\"role\":\"user\",\"content\":\"go\"}],\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":1024},\"tools\":[{\"name\":\"t\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}]}",
+    "out": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"plan\",\"thought\":true,\"thoughtSignature\":\"skip_thought_signature_validator\"},{\"text\":\"ok\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"go\"}]}],\"model\":\"test-model\",\"tools\":[{\"functionDeclarations\":[{\"name\":\"t\",\"parametersJsonSchema\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}]}],\"generationConfig\":{\"thinkingConfig\":{\"thinkingBudget\":1024}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+  },
+  {
+    "fn": "translate",
+    "from": "claude",
+    "to": "gemini",
+    "target": "codex",
+    "compat": true,
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "curl/8"
+    },
+    "in": "{\"model\":\"claude-x\",\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"plan\",\"signature\":\"\"},{\"type\":\"text\",\"text\":\"ok\"}]},{\"role\":\"user\",\"content\":\"go\"}],\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":1024},\"tools\":[{\"name\":\"t\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}]}",
+    "out": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"plan\",\"thought\":true,\"thoughtSignature\":\"skip_thought_signature_validator\"},{\"text\":\"ok\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"go\"}]}],\"model\":\"test-model\",\"tools\":[{\"functionDeclarations\":[{\"name\":\"t\",\"parametersJsonSchema\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}]}],\"generationConfig\":{\"thinkingConfig\":{\"thinkingBudget\":1024}},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+  },
+  {
+    "fn": "translate",
+    "from": "claude",
+    "to": "interactions",
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "codex_cli_rs/0.150.0 (Linux; x86_64)",
+      "X-Openai-Subagent": "collab_spawn"
+    },
+    "in": "{\"model\":\"claude-x\",\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"plan\",\"signature\":\"\"},{\"type\":\"text\",\"text\":\"ok\"}]},{\"role\":\"user\",\"content\":\"go\"}],\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":1024},\"tools\":[{\"name\":\"t\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}]}",
+    "out": "{\"model\":\"test-model\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"}]},{\"type\":\"thought\",\"content\":[{\"type\":\"text\",\"text\":\"plan\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"go\"}]}],\"stream\":true,\"generation_config\":{\"max_output_tokens\":100,\"thinking_config\":{\"thinking_budget\":1024}},\"tools\":[{\"type\":\"function\",\"name\":\"t\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}]}"
+  },
+  {
+    "fn": "translate",
+    "from": "claude",
+    "to": "interactions",
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "curl/8"
+    },
+    "in": "{\"model\":\"claude-x\",\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"plan\",\"signature\":\"\"},{\"type\":\"text\",\"text\":\"ok\"}]},{\"role\":\"user\",\"content\":\"go\"}],\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":1024},\"tools\":[{\"name\":\"t\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}]}",
+    "out": "{\"model\":\"test-model\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"}]},{\"type\":\"thought\",\"content\":[{\"type\":\"text\",\"text\":\"plan\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"go\"}]}],\"stream\":true,\"generation_config\":{\"max_output_tokens\":100,\"thinking_config\":{\"thinking_budget\":1024}},\"tools\":[{\"type\":\"function\",\"name\":\"t\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}]}"
+  },
+  {
+    "fn": "translate",
+    "from": "claude",
+    "to": "interactions",
+    "target": "codex",
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "codex_cli_rs/0.150.0 (Linux; x86_64)",
+      "X-Openai-Subagent": "collab_spawn"
+    },
+    "in": "{\"model\":\"claude-x\",\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"plan\",\"signature\":\"\"},{\"type\":\"text\",\"text\":\"ok\"}]},{\"role\":\"user\",\"content\":\"go\"}],\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":1024},\"tools\":[{\"name\":\"t\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}]}",
+    "out": "{\"model\":\"test-model\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"}]},{\"type\":\"thought\",\"content\":[{\"type\":\"text\",\"text\":\"plan\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"go\"}]}],\"stream\":true,\"generation_config\":{\"max_output_tokens\":100,\"thinking_config\":{\"thinking_budget\":1024}},\"tools\":[{\"type\":\"function\",\"name\":\"t\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}]}"
+  },
+  {
+    "fn": "translate",
+    "from": "claude",
+    "to": "interactions",
+    "target": "codex",
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "curl/8"
+    },
+    "in": "{\"model\":\"claude-x\",\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"plan\",\"signature\":\"\"},{\"type\":\"text\",\"text\":\"ok\"}]},{\"role\":\"user\",\"content\":\"go\"}],\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":1024},\"tools\":[{\"name\":\"t\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}]}",
+    "out": "{\"model\":\"test-model\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"}]},{\"type\":\"thought\",\"content\":[{\"type\":\"text\",\"text\":\"plan\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"go\"}]}],\"stream\":true,\"generation_config\":{\"max_output_tokens\":100,\"thinking_config\":{\"thinking_budget\":1024}},\"tools\":[{\"type\":\"function\",\"name\":\"t\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}]}"
+  },
+  {
+    "fn": "translate",
+    "from": "claude",
+    "to": "interactions",
+    "compat": true,
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "codex_cli_rs/0.150.0 (Linux; x86_64)",
+      "X-Openai-Subagent": "collab_spawn"
+    },
+    "in": "{\"model\":\"claude-x\",\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"plan\",\"signature\":\"\"},{\"type\":\"text\",\"text\":\"ok\"}]},{\"role\":\"user\",\"content\":\"go\"}],\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":1024},\"tools\":[{\"name\":\"t\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}]}",
+    "out": "{\"model\":\"test-model\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"}]},{\"type\":\"thought\",\"content\":[{\"type\":\"text\",\"text\":\"plan\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"go\"}]}],\"stream\":true,\"generation_config\":{\"max_output_tokens\":100,\"thinking_config\":{\"thinking_budget\":1024}},\"tools\":[{\"type\":\"function\",\"name\":\"t\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}]}"
+  },
+  {
+    "fn": "translate",
+    "from": "claude",
+    "to": "interactions",
+    "compat": true,
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "curl/8"
+    },
+    "in": "{\"model\":\"claude-x\",\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"plan\",\"signature\":\"\"},{\"type\":\"text\",\"text\":\"ok\"}]},{\"role\":\"user\",\"content\":\"go\"}],\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":1024},\"tools\":[{\"name\":\"t\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}]}",
+    "out": "{\"model\":\"test-model\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"}]},{\"type\":\"thought\",\"content\":[{\"type\":\"text\",\"text\":\"plan\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"go\"}]}],\"stream\":true,\"generation_config\":{\"max_output_tokens\":100,\"thinking_config\":{\"thinking_budget\":1024}},\"tools\":[{\"type\":\"function\",\"name\":\"t\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}]}"
+  },
+  {
+    "fn": "translate",
+    "from": "claude",
+    "to": "interactions",
+    "target": "codex",
+    "compat": true,
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "codex_cli_rs/0.150.0 (Linux; x86_64)",
+      "X-Openai-Subagent": "collab_spawn"
+    },
+    "in": "{\"model\":\"claude-x\",\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"plan\",\"signature\":\"\"},{\"type\":\"text\",\"text\":\"ok\"}]},{\"role\":\"user\",\"content\":\"go\"}],\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":1024},\"tools\":[{\"name\":\"t\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}]}",
+    "out": "{\"model\":\"test-model\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"}]},{\"type\":\"thought\",\"content\":[{\"type\":\"text\",\"text\":\"plan\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"go\"}]}],\"stream\":true,\"generation_config\":{\"max_output_tokens\":100,\"thinking_config\":{\"thinking_budget\":1024}},\"tools\":[{\"type\":\"function\",\"name\":\"t\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}]}"
+  },
+  {
+    "fn": "translate",
+    "from": "claude",
+    "to": "interactions",
+    "target": "codex",
+    "compat": true,
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "curl/8"
+    },
+    "in": "{\"model\":\"claude-x\",\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"plan\",\"signature\":\"\"},{\"type\":\"text\",\"text\":\"ok\"}]},{\"role\":\"user\",\"content\":\"go\"}],\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":1024},\"tools\":[{\"name\":\"t\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}]}",
+    "out": "{\"model\":\"test-model\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"}]},{\"type\":\"thought\",\"content\":[{\"type\":\"text\",\"text\":\"plan\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"go\"}]}],\"stream\":true,\"generation_config\":{\"max_output_tokens\":100,\"thinking_config\":{\"thinking_budget\":1024}},\"tools\":[{\"type\":\"function\",\"name\":\"t\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}]}"
+  },
+  {
+    "fn": "translate",
+    "from": "claude",
+    "to": "openai",
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "codex_cli_rs/0.150.0 (Linux; x86_64)",
+      "X-Openai-Subagent": "collab_spawn"
+    },
+    "in": "{\"model\":\"claude-x\",\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"plan\",\"signature\":\"\"},{\"type\":\"text\",\"text\":\"ok\"}]},{\"role\":\"user\",\"content\":\"go\"}],\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":1024},\"tools\":[{\"name\":\"t\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}]}",
+    "out": "{\"model\":\"test-model\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}]},{\"role\":\"user\",\"content\":\"go\"}],\"max_tokens\":100,\"stream\":true,\"reasoning_effort\":\"low\",\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"t\",\"description\":\"\",\"parameters\":{\"properties\":{\"n\":{\"type\":\"integer\"}},\"type\":\"object\"}}}]}"
+  },
+  {
+    "fn": "translate",
+    "from": "claude",
+    "to": "openai",
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "curl/8"
+    },
+    "in": "{\"model\":\"claude-x\",\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"plan\",\"signature\":\"\"},{\"type\":\"text\",\"text\":\"ok\"}]},{\"role\":\"user\",\"content\":\"go\"}],\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":1024},\"tools\":[{\"name\":\"t\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}]}",
+    "out": "{\"model\":\"test-model\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}]},{\"role\":\"user\",\"content\":\"go\"}],\"max_tokens\":100,\"stream\":true,\"reasoning_effort\":\"low\",\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"t\",\"description\":\"\",\"parameters\":{\"properties\":{\"n\":{\"type\":\"integer\"}},\"type\":\"object\"}}}]}"
+  },
+  {
+    "fn": "translate",
+    "from": "claude",
+    "to": "openai",
+    "target": "codex",
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "codex_cli_rs/0.150.0 (Linux; x86_64)",
+      "X-Openai-Subagent": "collab_spawn"
+    },
+    "in": "{\"model\":\"claude-x\",\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"plan\",\"signature\":\"\"},{\"type\":\"text\",\"text\":\"ok\"}]},{\"role\":\"user\",\"content\":\"go\"}],\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":1024},\"tools\":[{\"name\":\"t\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}]}",
+    "out": "{\"model\":\"test-model\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}]},{\"role\":\"user\",\"content\":\"go\"}],\"max_tokens\":100,\"stream\":true,\"reasoning_effort\":\"low\",\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"t\",\"description\":\"\",\"parameters\":{\"properties\":{\"n\":{\"type\":\"integer\"}},\"type\":\"object\"}}}]}"
+  },
+  {
+    "fn": "translate",
+    "from": "claude",
+    "to": "openai",
+    "target": "codex",
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "curl/8"
+    },
+    "in": "{\"model\":\"claude-x\",\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"plan\",\"signature\":\"\"},{\"type\":\"text\",\"text\":\"ok\"}]},{\"role\":\"user\",\"content\":\"go\"}],\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":1024},\"tools\":[{\"name\":\"t\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}]}",
+    "out": "{\"model\":\"test-model\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}]},{\"role\":\"user\",\"content\":\"go\"}],\"max_tokens\":100,\"stream\":true,\"reasoning_effort\":\"low\",\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"t\",\"description\":\"\",\"parameters\":{\"properties\":{\"n\":{\"type\":\"integer\"}},\"type\":\"object\"}}}]}"
+  },
+  {
+    "fn": "translate",
+    "from": "claude",
+    "to": "openai",
+    "compat": true,
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "codex_cli_rs/0.150.0 (Linux; x86_64)",
+      "X-Openai-Subagent": "collab_spawn"
+    },
+    "in": "{\"model\":\"claude-x\",\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"plan\",\"signature\":\"\"},{\"type\":\"text\",\"text\":\"ok\"}]},{\"role\":\"user\",\"content\":\"go\"}],\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":1024},\"tools\":[{\"name\":\"t\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}]}",
+    "out": "{\"model\":\"test-model\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"reasoning_content\":\"plan\"},{\"role\":\"user\",\"content\":\"go\"}],\"max_tokens\":100,\"stream\":true,\"reasoning_effort\":\"low\",\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"t\",\"description\":\"\",\"parameters\":{\"properties\":{\"n\":{\"type\":\"integer\"}},\"type\":\"object\"}}}]}"
+  },
+  {
+    "fn": "translate",
+    "from": "claude",
+    "to": "openai",
+    "compat": true,
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "curl/8"
+    },
+    "in": "{\"model\":\"claude-x\",\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"plan\",\"signature\":\"\"},{\"type\":\"text\",\"text\":\"ok\"}]},{\"role\":\"user\",\"content\":\"go\"}],\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":1024},\"tools\":[{\"name\":\"t\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}]}",
+    "out": "{\"model\":\"test-model\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"reasoning_content\":\"plan\"},{\"role\":\"user\",\"content\":\"go\"}],\"max_tokens\":100,\"stream\":true,\"reasoning_effort\":\"low\",\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"t\",\"description\":\"\",\"parameters\":{\"properties\":{\"n\":{\"type\":\"integer\"}},\"type\":\"object\"}}}]}"
+  },
+  {
+    "fn": "translate",
+    "from": "claude",
+    "to": "openai",
+    "target": "codex",
+    "compat": true,
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "codex_cli_rs/0.150.0 (Linux; x86_64)",
+      "X-Openai-Subagent": "collab_spawn"
+    },
+    "in": "{\"model\":\"claude-x\",\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"plan\",\"signature\":\"\"},{\"type\":\"text\",\"text\":\"ok\"}]},{\"role\":\"user\",\"content\":\"go\"}],\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":1024},\"tools\":[{\"name\":\"t\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}]}",
+    "out": "{\"model\":\"test-model\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"reasoning_content\":\"plan\"},{\"role\":\"user\",\"content\":\"go\"}],\"max_tokens\":100,\"stream\":true,\"reasoning_effort\":\"low\",\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"t\",\"description\":\"\",\"parameters\":{\"properties\":{\"n\":{\"type\":\"integer\"}},\"type\":\"object\"}}}]}"
+  },
+  {
+    "fn": "translate",
+    "from": "claude",
+    "to": "openai",
+    "target": "codex",
+    "compat": true,
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "curl/8"
+    },
+    "in": "{\"model\":\"claude-x\",\"max_tokens\":100,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"plan\",\"signature\":\"\"},{\"type\":\"text\",\"text\":\"ok\"}]},{\"role\":\"user\",\"content\":\"go\"}],\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":1024},\"tools\":[{\"name\":\"t\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}]}",
+    "out": "{\"model\":\"test-model\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"reasoning_content\":\"plan\"},{\"role\":\"user\",\"content\":\"go\"}],\"max_tokens\":100,\"stream\":true,\"reasoning_effort\":\"low\",\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"t\",\"description\":\"\",\"parameters\":{\"properties\":{\"n\":{\"type\":\"integer\"}},\"type\":\"object\"}}}]}"
+  },
+  {
+    "fn": "translate",
+    "from": "openai",
+    "to": "claude",
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "codex_cli_rs/0.150.0 (Linux; x86_64)",
+      "X-Openai-Subagent": "collab_spawn"
+    },
+    "in": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":\"ok\",\"reasoning_content\":\"plan\"},{\"role\":\"user\",\"content\":\"go\"}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"t\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}}]}",
+    "out": "{\"model\":\"test-model\",\"max_tokens\":32000,\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"}]},{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}]},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"go\"}]}],\"metadata\":{\"user_id\":\"2b35ba29f7cec38e9220a584fafaa8f9eb2a8d01350e9d1c3653ae728471c5bb\"},\"stream\":true,\"tools\":[{\"name\":\"t\",\"description\":\"\",\"input_schema\":{\"properties\":{\"n\":{\"type\":\"integer\"}},\"type\":\"object\"}}]}"
+  },
+  {
+    "fn": "translate",
+    "from": "openai",
+    "to": "claude",
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "curl/8"
+    },
+    "in": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":\"ok\",\"reasoning_content\":\"plan\"},{\"role\":\"user\",\"content\":\"go\"}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"t\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}}]}",
+    "out": "{\"model\":\"test-model\",\"max_tokens\":32000,\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"}]},{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}]},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"go\"}]}],\"metadata\":{\"user_id\":\"2b35ba29f7cec38e9220a584fafaa8f9eb2a8d01350e9d1c3653ae728471c5bb\"},\"stream\":true,\"tools\":[{\"name\":\"t\",\"description\":\"\",\"input_schema\":{\"properties\":{\"n\":{\"type\":\"integer\"}},\"type\":\"object\"}}]}"
+  },
+  {
+    "fn": "translate",
+    "from": "openai",
+    "to": "claude",
+    "target": "codex",
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "codex_cli_rs/0.150.0 (Linux; x86_64)",
+      "X-Openai-Subagent": "collab_spawn"
+    },
+    "in": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":\"ok\",\"reasoning_content\":\"plan\"},{\"role\":\"user\",\"content\":\"go\"}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"t\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}}]}",
+    "out": "{\"model\":\"test-model\",\"max_tokens\":32000,\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"}]},{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}]},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"go\"}]}],\"metadata\":{\"user_id\":\"2b35ba29f7cec38e9220a584fafaa8f9eb2a8d01350e9d1c3653ae728471c5bb\"},\"stream\":true,\"tools\":[{\"name\":\"t\",\"description\":\"\",\"input_schema\":{\"properties\":{\"n\":{\"type\":\"integer\"}},\"type\":\"object\"}}]}"
+  },
+  {
+    "fn": "translate",
+    "from": "openai",
+    "to": "claude",
+    "target": "codex",
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "curl/8"
+    },
+    "in": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":\"ok\",\"reasoning_content\":\"plan\"},{\"role\":\"user\",\"content\":\"go\"}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"t\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}}]}",
+    "out": "{\"model\":\"test-model\",\"max_tokens\":32000,\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"}]},{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}]},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"go\"}]}],\"metadata\":{\"user_id\":\"2b35ba29f7cec38e9220a584fafaa8f9eb2a8d01350e9d1c3653ae728471c5bb\"},\"stream\":true,\"tools\":[{\"name\":\"t\",\"description\":\"\",\"input_schema\":{\"properties\":{\"n\":{\"type\":\"integer\"}},\"type\":\"object\"}}]}"
+  },
+  {
+    "fn": "translate",
+    "from": "openai",
+    "to": "claude",
+    "compat": true,
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "codex_cli_rs/0.150.0 (Linux; x86_64)",
+      "X-Openai-Subagent": "collab_spawn"
+    },
+    "in": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":\"ok\",\"reasoning_content\":\"plan\"},{\"role\":\"user\",\"content\":\"go\"}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"t\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}}]}",
+    "out": "{\"model\":\"test-model\",\"max_tokens\":32000,\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"}]},{\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"plan\",\"signature\":\"\"},{\"type\":\"text\",\"text\":\"ok\"}]},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"go\"}]}],\"metadata\":{\"user_id\":\"2b35ba29f7cec38e9220a584fafaa8f9eb2a8d01350e9d1c3653ae728471c5bb\"},\"stream\":true,\"tools\":[{\"name\":\"t\",\"description\":\"\",\"input_schema\":{\"properties\":{\"n\":{\"type\":\"integer\"}},\"type\":\"object\"}}]}"
+  },
+  {
+    "fn": "translate",
+    "from": "openai",
+    "to": "claude",
+    "compat": true,
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "curl/8"
+    },
+    "in": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":\"ok\",\"reasoning_content\":\"plan\"},{\"role\":\"user\",\"content\":\"go\"}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"t\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}}]}",
+    "out": "{\"model\":\"test-model\",\"max_tokens\":32000,\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"}]},{\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"plan\",\"signature\":\"\"},{\"type\":\"text\",\"text\":\"ok\"}]},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"go\"}]}],\"metadata\":{\"user_id\":\"2b35ba29f7cec38e9220a584fafaa8f9eb2a8d01350e9d1c3653ae728471c5bb\"},\"stream\":true,\"tools\":[{\"name\":\"t\",\"description\":\"\",\"input_schema\":{\"properties\":{\"n\":{\"type\":\"integer\"}},\"type\":\"object\"}}]}"
+  },
+  {
+    "fn": "translate",
+    "from": "openai",
+    "to": "claude",
+    "target": "codex",
+    "compat": true,
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "codex_cli_rs/0.150.0 (Linux; x86_64)",
+      "X-Openai-Subagent": "collab_spawn"
+    },
+    "in": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":\"ok\",\"reasoning_content\":\"plan\"},{\"role\":\"user\",\"content\":\"go\"}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"t\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}}]}",
+    "out": "{\"model\":\"test-model\",\"max_tokens\":32000,\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"}]},{\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"plan\",\"signature\":\"\"},{\"type\":\"text\",\"text\":\"ok\"}]},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"go\"}]}],\"metadata\":{\"user_id\":\"2b35ba29f7cec38e9220a584fafaa8f9eb2a8d01350e9d1c3653ae728471c5bb\"},\"stream\":true,\"tools\":[{\"name\":\"t\",\"description\":\"\",\"input_schema\":{\"properties\":{\"n\":{\"type\":\"integer\"}},\"type\":\"object\"}}]}"
+  },
+  {
+    "fn": "translate",
+    "from": "openai",
+    "to": "claude",
+    "target": "codex",
+    "compat": true,
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "curl/8"
+    },
+    "in": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":\"ok\",\"reasoning_content\":\"plan\"},{\"role\":\"user\",\"content\":\"go\"}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"t\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}}]}",
+    "out": "{\"model\":\"test-model\",\"max_tokens\":32000,\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"}]},{\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"plan\",\"signature\":\"\"},{\"type\":\"text\",\"text\":\"ok\"}]},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"go\"}]}],\"metadata\":{\"user_id\":\"2b35ba29f7cec38e9220a584fafaa8f9eb2a8d01350e9d1c3653ae728471c5bb\"},\"stream\":true,\"tools\":[{\"name\":\"t\",\"description\":\"\",\"input_schema\":{\"properties\":{\"n\":{\"type\":\"integer\"}},\"type\":\"object\"}}]}"
+  },
+  {
+    "fn": "translate",
+    "from": "openai",
+    "to": "codex",
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "codex_cli_rs/0.150.0 (Linux; x86_64)",
+      "X-Openai-Subagent": "collab_spawn"
+    },
+    "in": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":\"ok\",\"reasoning_content\":\"plan\"},{\"role\":\"user\",\"content\":\"go\"}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"t\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}}]}",
+    "out": "{\"instructions\":\"\",\"stream\":true,\"reasoning\":{\"effort\":\"medium\"},\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"model\":\"test-model\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"ok\"}]},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"go\"}]}],\"tools\":[{\"type\":\"function\",\"name\":\"t\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}},\"strict\":false}],\"store\":false}"
+  },
+  {
+    "fn": "translate",
+    "from": "openai",
+    "to": "codex",
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "curl/8"
+    },
+    "in": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":\"ok\",\"reasoning_content\":\"plan\"},{\"role\":\"user\",\"content\":\"go\"}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"t\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}}]}",
+    "out": "{\"instructions\":\"\",\"stream\":true,\"reasoning\":{\"effort\":\"medium\"},\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"model\":\"test-model\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"ok\"}]},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"go\"}]}],\"tools\":[{\"type\":\"function\",\"name\":\"t\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}},\"strict\":false}],\"store\":false}"
+  },
+  {
+    "fn": "translate",
+    "from": "openai",
+    "to": "codex",
+    "target": "codex",
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "codex_cli_rs/0.150.0 (Linux; x86_64)",
+      "X-Openai-Subagent": "collab_spawn"
+    },
+    "in": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":\"ok\",\"reasoning_content\":\"plan\"},{\"role\":\"user\",\"content\":\"go\"}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"t\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}}]}",
+    "out": "{\"instructions\":\"\",\"stream\":true,\"reasoning\":{\"effort\":\"medium\"},\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"model\":\"test-model\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"ok\"}]},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"go\"}]}],\"tools\":[{\"type\":\"function\",\"name\":\"t\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}},\"strict\":false}],\"store\":false}"
+  },
+  {
+    "fn": "translate",
+    "from": "openai",
+    "to": "codex",
+    "target": "codex",
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "curl/8"
+    },
+    "in": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":\"ok\",\"reasoning_content\":\"plan\"},{\"role\":\"user\",\"content\":\"go\"}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"t\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}}]}",
+    "out": "{\"instructions\":\"\",\"stream\":true,\"reasoning\":{\"effort\":\"medium\"},\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"model\":\"test-model\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"ok\"}]},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"go\"}]}],\"tools\":[{\"type\":\"function\",\"name\":\"t\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}},\"strict\":false}],\"store\":false}"
+  },
+  {
+    "fn": "translate",
+    "from": "openai",
+    "to": "codex",
+    "compat": true,
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "codex_cli_rs/0.150.0 (Linux; x86_64)",
+      "X-Openai-Subagent": "collab_spawn"
+    },
+    "in": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":\"ok\",\"reasoning_content\":\"plan\"},{\"role\":\"user\",\"content\":\"go\"}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"t\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}}]}",
+    "out": "{\"instructions\":\"\",\"stream\":true,\"reasoning\":{\"effort\":\"medium\"},\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"model\":\"test-model\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"ok\"}]},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"go\"}]}],\"tools\":[{\"type\":\"function\",\"name\":\"t\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}},\"strict\":false}],\"store\":false}"
+  },
+  {
+    "fn": "translate",
+    "from": "openai",
+    "to": "codex",
+    "compat": true,
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "curl/8"
+    },
+    "in": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":\"ok\",\"reasoning_content\":\"plan\"},{\"role\":\"user\",\"content\":\"go\"}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"t\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}}]}",
+    "out": "{\"instructions\":\"\",\"stream\":true,\"reasoning\":{\"effort\":\"medium\"},\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"model\":\"test-model\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"ok\"}]},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"go\"}]}],\"tools\":[{\"type\":\"function\",\"name\":\"t\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}},\"strict\":false}],\"store\":false}"
+  },
+  {
+    "fn": "translate",
+    "from": "openai",
+    "to": "codex",
+    "target": "codex",
+    "compat": true,
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "codex_cli_rs/0.150.0 (Linux; x86_64)",
+      "X-Openai-Subagent": "collab_spawn"
+    },
+    "in": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":\"ok\",\"reasoning_content\":\"plan\"},{\"role\":\"user\",\"content\":\"go\"}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"t\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}}]}",
+    "out": "{\"instructions\":\"\",\"stream\":true,\"reasoning\":{\"effort\":\"medium\"},\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"model\":\"test-model\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"ok\"}]},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"go\"}]}],\"tools\":[{\"type\":\"function\",\"name\":\"t\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}},\"strict\":false}],\"store\":false}"
+  },
+  {
+    "fn": "translate",
+    "from": "openai",
+    "to": "codex",
+    "target": "codex",
+    "compat": true,
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "curl/8"
+    },
+    "in": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":\"ok\",\"reasoning_content\":\"plan\"},{\"role\":\"user\",\"content\":\"go\"}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"t\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}}]}",
+    "out": "{\"instructions\":\"\",\"stream\":true,\"reasoning\":{\"effort\":\"medium\"},\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"model\":\"test-model\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"ok\"}]},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"go\"}]}],\"tools\":[{\"type\":\"function\",\"name\":\"t\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}},\"strict\":false}],\"store\":false}"
+  },
+  {
+    "fn": "optimize_auth",
+    "headers": {
+      "User-Agent": "codex_cli_rs/0.150.0 (Linux; x86_64)",
+      "X-Openai-Subagent": "collab_spawn"
+    },
+    "in": "{\"model\":\"gpt-5.5\",\"input\":[{\"type\":\"agent_message\",\"author\":\"a\",\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"hello agent\"}]},{\"type\":\"function_call_output\",\"call_id\":\"orphan\",\"name\":\"send_message_to_thread\",\"namespace\":\"codex_app\",\"output\":{\"ok\":true}}],\"tools\":[{\"type\":\"namespace\",\"name\":\"collaboration\",\"tools\":[{\"type\":\"function\",\"name\":\"spawn_agent\",\"description\":\"Spawns an agent.\",\"parameters\":{\"properties\":{\"message\":{\"type\":\"string\",\"encrypted\":true}}}}]}]}",
+    "out": "{\"model\":\"gpt-5.5\",\"input\":[{\"type\":\"agent_message\",\"author\":\"a\",\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"hello agent\"}]},{\"type\":\"function_call_output\",\"call_id\":\"orphan\",\"name\":\"send_message_to_thread\",\"namespace\":\"codex_app\",\"output\":{\"ok\":true}}],\"tools\":[{\"type\":\"namespace\",\"name\":\"collaboration\",\"tools\":[{\"type\":\"function\",\"name\":\"spawn_agent\",\"description\":\"Spawns an agent.\",\"parameters\":{\"properties\":{\"message\":{\"type\":\"string\",\"encrypted\":true}}}}]}]}"
+  },
+  {
+    "fn": "optimize_auth",
+    "compat": true,
+    "headers": {
+      "User-Agent": "codex_cli_rs/0.150.0 (Linux; x86_64)",
+      "X-Openai-Subagent": "collab_spawn"
+    },
+    "in": "{\"model\":\"gpt-5.5\",\"input\":[{\"type\":\"agent_message\",\"author\":\"a\",\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"hello agent\"}]},{\"type\":\"function_call_output\",\"call_id\":\"orphan\",\"name\":\"send_message_to_thread\",\"namespace\":\"codex_app\",\"output\":{\"ok\":true}}],\"tools\":[{\"type\":\"namespace\",\"name\":\"collaboration\",\"tools\":[{\"type\":\"function\",\"name\":\"spawn_agent\",\"description\":\"Spawns an agent.\",\"parameters\":{\"properties\":{\"message\":{\"type\":\"string\",\"encrypted\":true}}}}]}]}",
+    "out": "{\"model\":\"gpt-5.5\",\"input\":[{\"type\":\"message\",\"content\":[{\"type\":\"input_text\",\"text\":\"hello agent\"}],\"role\":\"user\"},{\"type\":\"function_call_output\",\"call_id\":\"orphan\",\"name\":\"send_message_to_thread\",\"namespace\":\"codex_app\",\"output\":{\"ok\":true}}],\"tools\":[{\"type\":\"namespace\",\"name\":\"collaboration\",\"tools\":[{\"type\":\"function\",\"name\":\"spawn_agent\",\"description\":\"Spawns an agent.\",\"parameters\":{\"properties\":{\"message\":{\"type\":\"string\",\"encrypted\":true}}}}]}]}"
+  },
+  {
+    "fn": "optimize_auth",
+    "orphan": true,
+    "headers": {
+      "User-Agent": "codex_cli_rs/0.150.0 (Linux; x86_64)",
+      "X-Openai-Subagent": "collab_spawn"
+    },
+    "in": "{\"model\":\"gpt-5.5\",\"input\":[{\"type\":\"agent_message\",\"author\":\"a\",\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"hello agent\"}]},{\"type\":\"function_call_output\",\"call_id\":\"orphan\",\"name\":\"send_message_to_thread\",\"namespace\":\"codex_app\",\"output\":{\"ok\":true}}],\"tools\":[{\"type\":\"namespace\",\"name\":\"collaboration\",\"tools\":[{\"type\":\"function\",\"name\":\"spawn_agent\",\"description\":\"Spawns an agent.\",\"parameters\":{\"properties\":{\"message\":{\"type\":\"string\",\"encrypted\":true}}}}]}]}",
+    "out": "{\"model\":\"gpt-5.5\",\"input\":[{\"type\":\"agent_message\",\"author\":\"a\",\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"hello agent\"}]},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"Tool output from codex_app__send_message_to_thread:\\n{\\\"ok\\\":true}\"}]}],\"tools\":[{\"type\":\"namespace\",\"name\":\"collaboration\",\"tools\":[{\"type\":\"function\",\"name\":\"spawn_agent\",\"description\":\"Spawns an agent.\",\"parameters\":{\"properties\":{\"message\":{\"type\":\"string\",\"encrypted\":true}}}}]}]}"
+  },
+  {
+    "fn": "optimize_auth",
+    "compat": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "codex_cli_rs/0.150.0 (Linux; x86_64)",
+      "X-Openai-Subagent": "collab_spawn"
+    },
+    "in": "{\"model\":\"gpt-5.5\",\"input\":[{\"type\":\"agent_message\",\"author\":\"a\",\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"hello agent\"}]},{\"type\":\"function_call_output\",\"call_id\":\"orphan\",\"name\":\"send_message_to_thread\",\"namespace\":\"codex_app\",\"output\":{\"ok\":true}}],\"tools\":[{\"type\":\"namespace\",\"name\":\"collaboration\",\"tools\":[{\"type\":\"function\",\"name\":\"spawn_agent\",\"description\":\"Spawns an agent.\",\"parameters\":{\"properties\":{\"message\":{\"type\":\"string\",\"encrypted\":true}}}}]}]}",
+    "out": "{\"model\":\"gpt-5.5\",\"input\":[{\"type\":\"message\",\"content\":[{\"type\":\"input_text\",\"text\":\"hello agent\"}],\"role\":\"user\"},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"Tool output from codex_app__send_message_to_thread:\\n{\\\"ok\\\":true}\"}]}],\"tools\":[{\"type\":\"namespace\",\"name\":\"collaboration\",\"tools\":[{\"type\":\"function\",\"name\":\"spawn_agent\",\"description\":\"Spawns an agent.\",\"parameters\":{\"properties\":{\"message\":{\"type\":\"string\",\"encrypted\":true}}}}]}]}"
+  },
+  {
+    "fn": "optimize_auth",
+    "optimize": true,
+    "headers": {
+      "User-Agent": "codex_cli_rs/0.150.0 (Linux; x86_64)",
+      "X-Openai-Subagent": "collab_spawn"
+    },
+    "in": "{\"model\":\"gpt-5.5\",\"input\":[{\"type\":\"agent_message\",\"author\":\"a\",\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"hello agent\"}]},{\"type\":\"function_call_output\",\"call_id\":\"orphan\",\"name\":\"send_message_to_thread\",\"namespace\":\"codex_app\",\"output\":{\"ok\":true}}],\"tools\":[{\"type\":\"namespace\",\"name\":\"collaboration\",\"tools\":[{\"type\":\"function\",\"name\":\"spawn_agent\",\"description\":\"Spawns an agent.\",\"parameters\":{\"properties\":{\"message\":{\"type\":\"string\",\"encrypted\":true}}}}]}]}",
+    "out": "{\"model\":\"gpt-5.5\",\"input\":[{\"type\":\"agent_message\",\"author\":\"a\",\"content\":[{\"type\":\"input_text\",\"text\":\"hello agent\"}]},{\"type\":\"function_call_output\",\"call_id\":\"orphan\",\"name\":\"send_message_to_thread\",\"namespace\":\"codex_app\",\"output\":{\"ok\":true}}],\"tools\":[{\"type\":\"namespace\",\"name\":\"collaboration-optimize\",\"tools\":[{\"type\":\"function\",\"name\":\"spawn_agent\",\"description\":\"Spawns an agent.\",\"parameters\":{\"properties\":{\"message\":{\"type\":\"string\"}}}}]}]}",
+    "bool": true
+  },
+  {
+    "fn": "optimize_auth",
+    "compat": true,
+    "optimize": true,
+    "headers": {
+      "User-Agent": "codex_cli_rs/0.150.0 (Linux; x86_64)",
+      "X-Openai-Subagent": "collab_spawn"
+    },
+    "in": "{\"model\":\"gpt-5.5\",\"input\":[{\"type\":\"agent_message\",\"author\":\"a\",\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"hello agent\"}]},{\"type\":\"function_call_output\",\"call_id\":\"orphan\",\"name\":\"send_message_to_thread\",\"namespace\":\"codex_app\",\"output\":{\"ok\":true}}],\"tools\":[{\"type\":\"namespace\",\"name\":\"collaboration\",\"tools\":[{\"type\":\"function\",\"name\":\"spawn_agent\",\"description\":\"Spawns an agent.\",\"parameters\":{\"properties\":{\"message\":{\"type\":\"string\",\"encrypted\":true}}}}]}]}",
+    "out": "{\"model\":\"gpt-5.5\",\"input\":[{\"type\":\"message\",\"content\":[{\"type\":\"input_text\",\"text\":\"hello agent\"}],\"role\":\"user\"},{\"type\":\"function_call_output\",\"call_id\":\"orphan\",\"name\":\"send_message_to_thread\",\"namespace\":\"codex_app\",\"output\":{\"ok\":true}}],\"tools\":[{\"type\":\"namespace\",\"name\":\"collaboration-optimize\",\"tools\":[{\"type\":\"function\",\"name\":\"spawn_agent\",\"description\":\"Spawns an agent.\",\"parameters\":{\"properties\":{\"message\":{\"type\":\"string\"}}}}]}]}",
+    "bool": true
+  },
+  {
+    "fn": "optimize_auth",
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "codex_cli_rs/0.150.0 (Linux; x86_64)",
+      "X-Openai-Subagent": "collab_spawn"
+    },
+    "in": "{\"model\":\"gpt-5.5\",\"input\":[{\"type\":\"agent_message\",\"author\":\"a\",\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"hello agent\"}]},{\"type\":\"function_call_output\",\"call_id\":\"orphan\",\"name\":\"send_message_to_thread\",\"namespace\":\"codex_app\",\"output\":{\"ok\":true}}],\"tools\":[{\"type\":\"namespace\",\"name\":\"collaboration\",\"tools\":[{\"type\":\"function\",\"name\":\"spawn_agent\",\"description\":\"Spawns an agent.\",\"parameters\":{\"properties\":{\"message\":{\"type\":\"string\",\"encrypted\":true}}}}]}]}",
+    "out": "{\"model\":\"gpt-5.5\",\"input\":[{\"type\":\"agent_message\",\"author\":\"a\",\"content\":[{\"type\":\"input_text\",\"text\":\"hello agent\"}]},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"Tool output from codex_app__send_message_to_thread:\\n{\\\"ok\\\":true}\"}]}],\"tools\":[{\"type\":\"namespace\",\"name\":\"collaboration-optimize\",\"tools\":[{\"type\":\"function\",\"name\":\"spawn_agent\",\"description\":\"Spawns an agent.\",\"parameters\":{\"properties\":{\"message\":{\"type\":\"string\"}}}}]}]}",
+    "bool": true
+  },
+  {
+    "fn": "optimize_auth",
+    "compat": true,
+    "optimize": true,
+    "orphan": true,
+    "headers": {
+      "User-Agent": "codex_cli_rs/0.150.0 (Linux; x86_64)",
+      "X-Openai-Subagent": "collab_spawn"
+    },
+    "in": "{\"model\":\"gpt-5.5\",\"input\":[{\"type\":\"agent_message\",\"author\":\"a\",\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"hello agent\"}]},{\"type\":\"function_call_output\",\"call_id\":\"orphan\",\"name\":\"send_message_to_thread\",\"namespace\":\"codex_app\",\"output\":{\"ok\":true}}],\"tools\":[{\"type\":\"namespace\",\"name\":\"collaboration\",\"tools\":[{\"type\":\"function\",\"name\":\"spawn_agent\",\"description\":\"Spawns an agent.\",\"parameters\":{\"properties\":{\"message\":{\"type\":\"string\",\"encrypted\":true}}}}]}]}",
+    "out": "{\"model\":\"gpt-5.5\",\"input\":[{\"type\":\"message\",\"content\":[{\"type\":\"input_text\",\"text\":\"hello agent\"}],\"role\":\"user\"},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"Tool output from codex_app__send_message_to_thread:\\n{\\\"ok\\\":true}\"}]}],\"tools\":[{\"type\":\"namespace\",\"name\":\"collaboration-optimize\",\"tools\":[{\"type\":\"function\",\"name\":\"spawn_agent\",\"description\":\"Spawns an agent.\",\"parameters\":{\"properties\":{\"message\":{\"type\":\"string\"}}}}]}]}",
+    "bool": true
+  }
+]

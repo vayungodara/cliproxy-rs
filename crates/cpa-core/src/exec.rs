@@ -88,6 +88,46 @@ pub struct ExecRequest {
     /// Contains client credentials: never log or forward wholesale.
     pub headers: HeaderMap,
     pub caller: Caller,
+    /// Go `cliproxyauth.ResolvedModelInfo(req)`: the model capabilities the dispatch
+    /// loop bound to this attempt for the selected credential and upstream model (Go
+    /// `attachResolvedExecutionModelInfo`, sdk/cliproxy/auth/api_key_model_capabilities.go).
+    /// `None` when Go binds nothing; executors then fall back to the registry lookup
+    /// (`cpa_core::registry::lookup_model`), as Go's helpers do. Callers outside the
+    /// dispatch loop set `None`.
+    pub resolved_model: Option<ResolvedModel>,
+}
+
+/// Capabilities bound to one execution attempt (Go `*registry.ModelInfo` stored under a
+/// request metadata key).
+#[derive(Debug, Clone)]
+pub struct ResolvedModel {
+    /// Go's `modelconfig.ResolveModelInfo` snapshot for configured API-key models (the
+    /// static definition of the suffix-free upstream name, renamed to it, typed for the
+    /// provider, configured thinking normalized, never user-defined), or the static
+    /// Codex plan catalog entry for Codex OAuth. `info.raw` carries `is_compat` and
+    /// `support_configuration_update` when set; `info.is_compat()` is Go's
+    /// `helps.APIKeyModelIsCompat`.
+    pub info: crate::registry::ModelInfo,
+    pub source: ResolvedSource,
+}
+
+impl ResolvedModel {
+    /// Go `ModelInfo.IsCompat` of the bound model (`helps.APIKeyModelIsCompat`).
+    pub fn is_compat(&self) -> bool {
+        self.info.is_compat()
+    }
+}
+
+/// Which request metadata key Go stores the binding under. Go's `ResolvedModelInfo`
+/// reads either; `ResolvedAPIKeyModelInfo` reads only [`ResolvedSource::ApiKey`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ResolvedSource {
+    /// `cliproxy.resolved_api_key_model_info`: a configured API-key model (any
+    /// family, OpenAI compatibility included) or an unlisted Codex API-key model.
+    ApiKey,
+    /// `cliproxy.resolved_codex_oauth_model_info`: a Codex OAuth credential's plan
+    /// catalog model.
+    CodexOAuth,
 }
 
 impl fmt::Debug for ExecRequest {
@@ -102,6 +142,10 @@ impl fmt::Debug for ExecRequest {
             .field("execution_session", &self.execution_session)
             .field("derived_session", &self.derived_session)
             .field("request_path", &self.request_path)
+            .field(
+                "resolved_model",
+                &self.resolved_model.as_ref().map(|r| (&r.info.id, r.source)),
+            )
             .field("body_len", &self.body.len())
             .finish_non_exhaustive()
     }

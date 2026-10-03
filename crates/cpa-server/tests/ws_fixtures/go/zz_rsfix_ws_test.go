@@ -484,6 +484,11 @@ func rsfixWSScenarios() []rsfixWSScenario {
 	ws := rsfixWSCred{ID: "codex-ws.json", Attrs: map[string]string{"api_key": "sk-fake-ws", "websockets": "true"}, Models: []string{"gpt-fixture"}}
 	httpCred := rsfixWSCred{ID: "codex-http.json", Attrs: map[string]string{"api_key": "sk-fake-http"}, Models: []string{"gpt-fixture"}}
 	cfg := "host: \"\"\n"
+	multiAgentCfg := cfg + "client:\n  codex:\n    optimize-multi-agent-v2: true\ncodex:\n  orphan-delegation-compatibility: true\n"
+	multiAgentHeaders := map[string]string{"User-Agent": "codex_cli_rs/0.150.0 (Linux; x86_64)", "X-Openai-Subagent": "collab_spawn", "session_id": "sess-ma"}
+	multiAgentTools := `"tools":[{"type":"namespace","name":"collaboration","tools":[{"type":"function","name":"spawn_agent","description":"Spawns an agent.","parameters":{"type":"object","properties":{"message":{"type":"string","encrypted":true}}}}]}]`
+	multiAgentInput := `[{"type":"function_call_output","call_id":"orphan","name":"create_thread","namespace":"codex_app","output":"thread ok"},` + user("delegate") + `]`
+	spawnCall := `{"type":"response.output_item.done","output_index":0,"item":{"type":"function_call","id":"fc_s","call_id":"call_s","namespace":"collaboration-optimize","name":"spawn_agent","arguments":"{\"message\":\"go\"}"}}`
 	return []rsfixWSScenario{
 		{
 			Name: "ws_two_turns", Config: cfg, Creds: []rsfixWSCred{ws},
@@ -574,6 +579,20 @@ func rsfixWSScenarios() []rsfixWSScenario {
 			},
 		},
 		{
+			Name: "ws_multi_agent_v2", Config: multiAgentCfg, Creds: []rsfixWSCred{ws}, ClientHeaders: multiAgentHeaders,
+			Steps: []rsfixWSStep{
+				{Send: `{"type":"response.create","model":"gpt-fixture","input":` + multiAgentInput + `,` + multiAgentTools + `}`, Read: "completed",
+					Upstream: []rsfixWSReply{{Events: []string{created("r1"), spawnCall, completed("r1")}}}},
+			},
+		},
+		{
+			Name: "http_multi_agent_v2", Config: multiAgentCfg, Creds: []rsfixWSCred{httpCred}, ClientHeaders: multiAgentHeaders,
+			Steps: []rsfixWSStep{
+				{Send: `{"type":"response.create","model":"gpt-fixture","input":` + multiAgentInput + `,` + multiAgentTools + `}`, Read: "completed",
+					Upstream: []rsfixWSReply{{Events: []string{created("r1"), spawnCall, completed("r1")}}}},
+			},
+		},
+		{
 			Name: "http_upstream_400_exposed", Config: cfg, Creds: []rsfixWSCred{httpCred},
 			Steps: []rsfixWSStep{
 				{Send: `{"type":"response.create","model":"gpt-fixture","input":[` + user("hi") + `]}`, Read: "close",
@@ -595,6 +614,8 @@ func rsfixRunWSScenario(t *testing.T, sc *rsfixWSScenario) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// internal/api/server_options.go copies this provider setting into the handlers' config.
+	cfg.SDKConfig.CodexOrphanDelegationCompatibility = cfg.Codex.OrphanDelegationCompatibility
 	manager := coreauth.NewManager(nil, nil, nil)
 	manager.SetConfig(cfg)
 	manager.RegisterExecutor(runtimeexecutor.NewCodexAutoExecutor(cfg))
