@@ -172,6 +172,8 @@ fn go_shape(c: &Credential, root: &Path) -> Value {
     } else {
         meta.remove("excluded_models");
         meta.remove("model_aliases");
+        // Go's registry reads `models` from config by index; Rust carries them along.
+        meta.remove("models");
     }
     c.attributes = attrs.clone();
     json!({
