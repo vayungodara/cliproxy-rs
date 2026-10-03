@@ -50,9 +50,11 @@ pub fn plan(local_model: bool, home_enabled: bool) -> Plan {
 pub fn start(local_model: bool, home_enabled: bool) {
     let plan = plan(local_model, home_enabled);
     // ponytail: the Codex client catalog updater (codex_client_models_updater.go, owner:
-    // Codex thread) and the Devin catalog updater (devin_models_updater.go, owner:
-    // device-providers thread) are not ported; start them here when `plan.codex_client`
-    // and `plan.devin` are set.
+    // Codex thread) is not on this base yet; start it here, before Devin, when
+    // `plan.codex_client` is set.
+    if plan.devin {
+        cpa_exec::devin_models::start_devin_models_updater();
+    }
     if plan.models {
         static STARTED: std::sync::OnceLock<()> = std::sync::OnceLock::new();
         STARTED.get_or_init(|| {

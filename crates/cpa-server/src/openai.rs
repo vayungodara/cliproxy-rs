@@ -90,7 +90,7 @@ pub async fn chat_completions(
     dispatch::serve(
         &rt,
         call(req, Format::OpenAI, model, body, stream, alt),
-        |result| async move {
+        move |result| async move {
             match result {
                 Err(failure) => errors::openai(&failure),
                 Ok(Done::Buffered { body, .. }) => respond::json(200, "application/json", body),
@@ -153,7 +153,7 @@ pub async fn completions(
     dispatch::serve(
         &rt,
         call(req, Format::OpenAI, model, Bytes::from(chat), stream, None),
-        |result| async move {
+        move |result| async move {
             match result {
                 Err(failure) => errors::openai(&failure),
                 Ok(Done::Buffered { body, .. }) => {
@@ -383,7 +383,7 @@ pub async fn responses(
     dispatch::serve(
         &rt,
         call(req, Format::OpenAIResponse, model, body, stream, None),
-        |result| async move {
+        move |result| async move {
             match result {
                 Err(failure) if stream => {
                     let mut failure = failure;

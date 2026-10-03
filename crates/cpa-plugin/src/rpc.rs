@@ -75,6 +75,17 @@ pub async fn call_raw<T: GoJson>(client: &Arc<GuardedClient>, method: &str, requ
     decode_response(method, &raw)
 }
 
+/// `rpc<X>Request`: a request struct's fields followed by `host_callback_id`
+/// (omitted when empty), as Go's embedding wrappers encode.
+pub fn encode_with_callback<R: gojson::GoStruct>(request: &R, callback_id: &str) -> Vec<u8> {
+    let mut out = Vec::new();
+    let mut w = gojson::ObjWriter::begin(&mut out);
+    w.embed(request);
+    w.field("host_callback_id", &callback_id.to_owned(), true);
+    w.end();
+    out
+}
+
 /// Go `decodeEnvelopeResult` after the envelope decode in `callPlugin`.
 pub fn decode_response<T: GoJson>(method: &str, raw: &[u8]) -> Result<T, CallError> {
     let envelope =
