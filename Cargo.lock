@@ -448,7 +448,6 @@ dependencies = [
  "socket2",
  "tokio",
  "tracing",
- "tracing-subscriber",
 ]
 
 [[package]]
@@ -589,6 +588,7 @@ dependencies = [
  "subtle",
  "tokio",
  "tracing",
+ "tracing-subscriber",
  "url",
  "uuid",
  "wreq",

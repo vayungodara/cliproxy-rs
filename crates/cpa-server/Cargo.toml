@@ -23,11 +23,13 @@ serde_yaml_ng.workspace = true
 sha2 = "0.10"
 tokio.workspace = true
 tracing.workspace = true
+tracing-subscriber.workspace = true
 uuid = { version = "1", features = ["v4"] }
 base64 = "0.22"
 bcrypt = "0.19"
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
 getrandom = "0.3"
+sha2 = "0.10"
 subtle = "2.6"
 wreq.workspace = true
 
