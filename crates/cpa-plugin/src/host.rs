@@ -108,6 +108,8 @@ impl std::fmt::Debug for Record {
 pub struct Snapshot {
     pub enabled: bool,
     pub records: Vec<Record>,
+    /// `quota.describe` supported providers per plugin, asked once per snapshot.
+    pub(crate) quota_supported: Mutex<HashMap<String, Vec<String>>>,
 }
 
 /// Go `RegisteredPluginInfo`.
@@ -144,6 +146,18 @@ pub(crate) struct State {
     pub config: Option<Arc<Config>>,
     pub management_routes: BTreeMap<String, crate::management::RouteRecord>,
     pub resource_routes: BTreeMap<String, crate::management::ResourceRecord>,
+    /// Thinking provider name to owning plugin ID.
+    pub thinking_providers: BTreeMap<String, String>,
+    /// Go `modelProviders`: plugin ID to the provider its models registered under.
+    pub model_providers: HashMap<String, String>,
+    pub model_registrations: HashMap<String, crate::models::ModelRegistration>,
+    pub model_client_ids: HashSet<String>,
+    pub executor_providers: HashSet<String>,
+    pub executor_model_client_ids: HashSet<String>,
+    pub provider_models: BTreeMap<String, Vec<api::ModelInfo>>,
+    /// Go `commandLineFlags` and `commandLineHits`.
+    pub command_line_flags: BTreeMap<String, crate::cli::CliFlag>,
+    pub command_line_hits: HashSet<String>,
 }
 
 pub(crate) struct Inner {
@@ -235,13 +249,23 @@ impl Host {
     /// Records still current: a record whose plugin was unloaded or replaced since the
     /// snapshot was taken is skipped (Go `activeRecordsFromSnapshot`).
     pub fn active_records(&self) -> Vec<Record> {
-        let snapshot = self.snapshot();
+        self.current_records(&self.snapshot())
+    }
+
+    /// Go `activeRecordsFromSnapshot`: the snapshot's records that are still current.
+    pub fn current_records(&self, snapshot: &Snapshot) -> Vec<Record> {
         snapshot
             .records
             .iter()
             .filter(|r| self.record_current(r))
             .cloned()
             .collect()
+    }
+
+    /// Whether a record may be called right now: not fused and still current. Go checks
+    /// this at every call, after earlier plugins in the same loop have run.
+    pub fn live(&self, record: &Record) -> bool {
+        !self.is_fused(&record.id) && self.record_current(record)
     }
 
     /// Go `recordCurrent` / `pluginIdentityCurrent`.
@@ -264,9 +288,11 @@ impl Host {
     /// Go `fusePlugin`: a host-side panic while serving the plugin disables it until its
     /// file changes.
     pub fn fuse(&self, id: &str, what: &str, panic: &str) {
-        self.state()
-            .fused
-            .insert(id.to_owned(), format!("{what} panic: {panic}"));
+        let mut state = self.state();
+        state.fused.insert(id.to_owned(), format!("{what} panic: {panic}"));
+        // Go `thinking.UnregisterPluginProviders`.
+        state.thinking_providers.retain(|_, owner| owner != id);
+        drop(state);
         tracing::error!(plugin_id = %id, method = %what, "pluginhost: plugin panic recovered: {panic}");
     }
 
@@ -371,6 +397,7 @@ impl Host {
         self.state().config = Some(cfg.clone());
         if !rc.enabled {
             self.deactivate_all();
+            self.refresh_thinking_providers().await;
             return;
         }
         let desired = config::desired_versions(&rc.items);
@@ -379,6 +406,7 @@ impl Host {
             Err(e) => {
                 tracing::warn!("pluginhost: failed to select plugin files: {e}");
                 self.deactivate_all();
+                self.refresh_thinking_providers().await;
                 return;
             }
         };
@@ -494,7 +522,12 @@ impl Host {
             rebuild_active_maps(&mut state, &records);
             cleanup
         };
-        self.store_snapshot(Snapshot { enabled: true, records });
+        self.store_snapshot(Snapshot {
+            enabled: true,
+            records,
+            ..Default::default()
+        });
+        self.refresh_thinking_providers().await;
         for (id, version, path, old_version, old_path) in hot_reloads {
             tracing::info!(plugin_id = %id, active_version = %version, active_path = %path.display(), retired_version = %old_version, retired_path = %old_path.display(), "pluginhost: plugin hot reloaded");
         }
@@ -757,8 +790,10 @@ impl Host {
         self.store_snapshot(Snapshot {
             enabled: snapshot.enabled,
             records,
+            ..Default::default()
         });
         self.inner.callbacks.close_plugin(id);
+        self.refresh_thinking_providers().await;
         for target in targets {
             let (name, version, path) = (target.name.clone(), target.version.clone(), target.path.clone());
             self.inner.callbacks.close_instance(id, target.client.instance());
@@ -782,12 +817,21 @@ impl Host {
             targets.extend(state.retired.drain().flat_map(|(_, lps)| lps));
             state.management_routes.clear();
             state.resource_routes.clear();
+            state.model_client_ids.clear();
+            state.executor_model_client_ids.clear();
+            state.model_providers.clear();
+            state.model_registrations.clear();
+            state.provider_models.clear();
+            state.executor_providers.clear();
+            state.command_line_flags.clear();
+            state.command_line_hits.clear();
             state.file_versions.clear();
             state.active_versions.clear();
             state.active_paths.clear();
             targets
         };
         self.store_snapshot(Snapshot::default());
+        self.state().thinking_providers.clear();
         self.inner.callbacks.close_all();
         for target in targets {
             self.inner
@@ -809,6 +853,34 @@ impl Host {
     pub async fn call<T: GoJson, R: GoJson>(&self, record: &Record, method: &str, request: &R) -> Result<T, CallError> {
         let result = rpc::call(&record.client, method, request).await;
         self.fuse_on_panic(&record.id, method, result)
+    }
+
+    /// One RPC that lets the plugin call back: opens a callback context for the record's
+    /// instance, sends its ID as `host_callback_id`, and closes it when the call returns
+    /// (Go `openHostCallbackContext` around adapter calls).
+    pub async fn call_with_callback<T: GoJson, R: crate::gojson::GoStruct>(
+        &self,
+        record: &Record,
+        method: &str,
+        request: &R,
+        scope: &crate::callbacks::RequestScope,
+    ) -> Result<T, CallError> {
+        let guard = self.open_callback(record, scope);
+        let raw = rpc::encode_with_callback(request, guard.id());
+        let result = self.call_raw(record, method, raw).await;
+        drop(guard);
+        result
+    }
+
+    /// Opens a callback context for `record`'s instance.
+    pub fn open_callback(
+        &self,
+        record: &Record,
+        scope: &crate::callbacks::RequestScope,
+    ) -> crate::callbacks::ContextGuard {
+        self.inner
+            .callbacks
+            .open(&record.id, Some(record.client.instance().clone()), scope.clone())
     }
 
     /// One RPC with a pre-encoded request.
@@ -868,6 +940,19 @@ fn rebuild_active_maps(state: &mut State, records: &[Record]) {
 fn remove_runtime_state(state: &mut State, id: &str) {
     state.management_routes.retain(|_, r| r.plugin_id != id);
     state.resource_routes.retain(|_, r| r.plugin_id != id);
+    let flags = &mut state.command_line_flags;
+    let hits = &mut state.command_line_hits;
+    flags.retain(|name, f| {
+        let keep = f.plugin_id != id;
+        if !keep {
+            hits.remove(name);
+        }
+        keep
+    });
+    if let Some(registration) = state.model_registrations.remove(id) {
+        state.provider_models.remove(&registration.provider);
+    }
+    state.model_providers.remove(id);
 }
 
 /// Payload bytes for an RPC field that Go fills with `bytes.Clone`.

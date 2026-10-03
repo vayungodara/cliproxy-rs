@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex, PoisonError};
 
 use axum::body::Bytes;
-use axum::extract::{OriginalUri, State};
+use axum::extract::{DefaultBodyLimit, OriginalUri, State};
 use axum::handler::Handler;
 use axum::http::{HeaderValue, Method, StatusCode, header};
 use axum::response::{IntoResponse, Response};
@@ -110,6 +110,7 @@ impl Management {
             log_zone,
         });
         oauth::install_callback_sink(&state);
+        access::start_purge(&state);
         state
     }
 
@@ -243,6 +244,10 @@ fn methods() -> MethodRouter<Arc<Management>> {
     any(|| async { access::not_found() }).head(|| async { access::not_found() })
 }
 
+/// The OAuth callback POST needs no key, so unlike Go it keeps a bound: legitimate
+/// bodies are a state, a code and a redirect URL.
+const CALLBACK_BODY_LIMIT: usize = 64 * 1024;
+
 pub fn router(state: Arc<Management>) -> Router {
     let s = &state;
     let v8 = "/v8/management";
@@ -351,7 +356,7 @@ pub fn router(state: Arc<Management>) -> Router {
             "oauth/callback",
             methods()
                 .get(open!(s, oauth::callback_get))
-                .post(open!(s, oauth::callback_post)),
+                .post(open!(s, oauth::callback_post).layer(DefaultBodyLimit::max(CALLBACK_BODY_LIMIT))),
         ),
     ] {
         router = router.route(&format!("{v8}/{path}"), route);
@@ -374,7 +379,7 @@ pub fn router(state: Arc<Management>) -> Router {
             "oauth-callback",
             methods()
                 .get(open!(s, oauth::callback_get))
-                .post(open!(s, oauth::callback_post)),
+                .post(open!(s, oauth::callback_post).layer(DefaultBodyLimit::max(CALLBACK_BODY_LIMIT))),
         ),
     ] {
         router = router.route(&format!("{v0}/{path}"), route);
@@ -440,6 +445,9 @@ pub fn router(state: Arc<Management>) -> Router {
         .route("/assets/{*path}", get(panel))
         .route("/fonts/{*path}", get(panel))
         .route("/favicon.svg", get(panel))
+        // gin reads management bodies without a size limit (uploads, config writes);
+        // they are only read after authentication.
+        .layer(DefaultBodyLimit::disable())
         .layer(middleware::from_fn(cors))
         .with_state(state)
 }
@@ -512,7 +520,8 @@ pub(crate) fn config_sync(state: &Management, path: &str, method: Method, body: 
     };
     let basis = doc.migrated_text(&original).unwrap_or_else(|| original.clone());
     let archived = doc.archive_unknown();
-    let yaml = path.ends_with("/config.yaml");
+    // Go keys this on the matched route: `/config/config.yaml` is a key lookup.
+    let yaml = path.ends_with("/management/config.yaml");
     let suffix = path
         .strip_prefix("/v8/management/config/")
         .unwrap_or_default()
@@ -536,12 +545,7 @@ pub(crate) fn config_sync(state: &Management, path: &str, method: Method, body: 
                 Err(_) => error(500, "decode_failed"),
             };
         }
-        // Go reads the decoded node tree: merge keys expanded, scalars as written.
-        let mut view = doc.value().clone();
-        if cpa_core::config::expand_merges(&mut view).is_err() {
-            return error(500, "decode_failed");
-        }
-        let mut result = match serde_json::to_value(&view) {
+        let mut result = match serde_json::to_value(doc.value()) {
             Ok(v) => v,
             Err(_) => return error(500, "decode_failed"),
         };
@@ -589,10 +593,14 @@ pub(crate) fn config_sync(state: &Management, path: &str, method: Method, body: 
             let t = l.trim();
             !t.is_empty() && !t.starts_with('#') && t != "---" && t != "..."
         });
-        let value = match serde_yaml_ng::from_slice::<serde_yaml_ng::Value>(body) {
+        let mut value = match serde_yaml_ng::from_slice::<serde_yaml_ng::Value>(body) {
             Ok(v) if has_document => v,
             _ => return error(400, "invalid_body"),
         };
+        // Go's typed saver flattens merges in an upload; a scalar merge fails to decode.
+        if let Err(e) = cpa_core::config::expand_merges(&mut value) {
+            return invalid_config(StatusCode::UNPROCESSABLE_ENTITY, e);
+        }
         if parts.is_empty() && !value.is_mapping() {
             return error(400, "config_must_be_object");
         }
@@ -624,11 +632,7 @@ pub(crate) fn config_sync(state: &Management, path: &str, method: Method, body: 
     if let Err(e) = Config::parse(&text) {
         return invalid_config(StatusCode::UNPROCESSABLE_ENTITY, e);
     }
-    // Go `ValidateV8Config` checks the alias- and merge-expanded document.
-    let mut expanded = doc.value().clone();
-    let checked = cpa_core::config::expand_merges(&mut expanded)
-        .and_then(|()| cpa_core::config::validate_config_fields(&expanded, true));
-    if let Err(e) = checked {
+    if let Err(e) = cpa_core::config::validate_config_fields(doc.value(), true) {
         return invalid_config(StatusCode::BAD_REQUEST, e);
     }
     // Go's typed saver re-encodes a JSON string in a bool field (accepted above as

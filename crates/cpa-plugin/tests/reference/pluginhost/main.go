@@ -22,6 +22,7 @@ import (
 
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/config"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/pluginhost"
+	"github.com/router-for-me/CLIProxyAPI/v8/internal/util"
 )
 
 type step struct {
@@ -55,6 +56,7 @@ func main() {
 	check(os.MkdirAll(r.pluginDir, 0o755))
 	check(os.MkdirAll(r.recordDir, 0o755))
 	scenarios(r)
+	capabilityScenarios(r)
 	out, err := json.MarshalIndent(map[string]any{"steps": r.steps}, "", "  ")
 	check(err)
 	check(os.WriteFile(os.Args[2], append(out, '\n'), 0o644))
@@ -85,6 +87,9 @@ func (r *runner) files(files map[string]string) {
 func (r *runner) apply(yaml string) {
 	text := strings.NewReplacer("PLUGINDIR", r.pluginDir, "RECORDDIR", r.recordDir).Replace(yaml)
 	cfg, err := config.ParseConfigBytes([]byte(text))
+	check(err)
+	// cmd/server/main.go resolves auth-dir before anything sees the config.
+	cfg.AuthDir, err = util.ResolveAuthDir(cfg.AuthDir)
 	check(err)
 	r.host.ApplyConfig(context.Background(), cfg)
 	r.add("apply", yaml, r.registered())
@@ -192,7 +197,9 @@ func (r *runner) records() {
 	check(err)
 	names := []string{}
 	for _, entry := range entries {
-		names = append(names, entry.Name())
+		if !entry.IsDir() {
+			names = append(names, entry.Name())
+		}
 	}
 	sort.Strings(names)
 	for _, name := range names {
@@ -212,10 +219,11 @@ func (r *runner) records() {
 	r.add("records", nil, out)
 }
 
-// normalize moves a lifecycle request's config_yaml into its own field as text with
+// normalize writes the record directory as RECORDDIR and moves a lifecycle request's config_yaml into its own field as text with
 // the run's directories replaced by placeholders; the Rust test compares it as YAML
 // (yaml.v3 and the Rust emitter format differently) and the rest byte for byte.
 func (r *runner) normalize(line map[string]string) {
+	line["request"] = strings.ReplaceAll(line["request"], r.recordDir, "RECORDDIR")
 	var req map[string]json.RawMessage
 	if json.Unmarshal([]byte(line["request"]), &req) != nil {
 		return

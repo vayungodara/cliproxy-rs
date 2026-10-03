@@ -92,6 +92,59 @@ pub fn clean(path: &Path) -> PathBuf {
     out
 }
 
+/// Go `filepath.Rel` (Unix rules): `targ` relative to `base`, both cleaned first;
+/// `None` when one is absolute and the other is not, or `base` climbs past `targ`.
+/// ponytail: Windows volume names and case-insensitive elements are not handled; the
+/// plugin host only loads native plugins on Unix.
+pub fn rel(base: &str, targ: &str) -> Option<String> {
+    let base = clean(Path::new(base)).to_string_lossy().into_owned();
+    let targ = clean(Path::new(targ)).to_string_lossy().into_owned();
+    if targ == base {
+        return Some(".".into());
+    }
+    let base = if base == "." { String::new() } else { base };
+    if base.starts_with('/') != targ.starts_with('/') {
+        return None;
+    }
+    let (b, t) = (base.as_bytes(), targ.as_bytes());
+    let (mut b0, mut bi, mut t0, mut ti) = (0, 0, 0, 0);
+    loop {
+        while bi < b.len() && b[bi] != b'/' {
+            bi += 1;
+        }
+        while ti < t.len() && t[ti] != b'/' {
+            ti += 1;
+        }
+        if t[t0..ti] != b[b0..bi] {
+            break;
+        }
+        if bi < b.len() {
+            bi += 1;
+        }
+        if ti < t.len() {
+            ti += 1;
+        }
+        b0 = bi;
+        t0 = ti;
+    }
+    if &b[b0..bi] == b"..".as_slice() {
+        return None;
+    }
+    if b0 != b.len() {
+        let seps = b[b0..].iter().filter(|c| **c == b'/').count();
+        let mut out = String::from("..");
+        for _ in 0..seps {
+            out.push_str("/..");
+        }
+        if t0 != t.len() {
+            out.push('/');
+            out.push_str(&targ[t0..]);
+        }
+        return Some(clean(Path::new(&out)).to_string_lossy().into_owned());
+    }
+    Some(targ[t0..].to_owned())
+}
+
 /// Go `pluginFileFromPath`.
 pub fn file_from_path(path: &Path, required_extension: &str) -> Option<PluginFile> {
     let base = path.file_name()?.to_string_lossy().into_owned();
