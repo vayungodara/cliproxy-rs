@@ -736,6 +736,7 @@ async fn serve(
         None => cpa_server::app(rt.clone(), cpa_server::management::router(management.clone())),
     }
     .layer(axum::middleware::from_fn(cpa_server::management::cors));
+    let app = cpa_server::request_logging::router(&management, app);
     let app = cpa_server::observability::router(&rt, app);
     // Go's listener also serves the Redis protocol (usage queue) to management clients;
     // in Home mode it answers "ERR redis usage output disabled in home mode".
