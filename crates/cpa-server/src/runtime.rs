@@ -42,6 +42,8 @@ pub struct Runtime {
     pool_offsets: Mutex<HashMap<String, usize>>,
     /// Usage records for `GET /observability/usage/queue` (management configures it).
     usage: crate::usage::UsageQueue,
+    /// `--local-model`: embedded model catalogs only, no remote catalog refresh.
+    local_model: std::sync::atomic::AtomicBool,
 }
 
 /// An OAuth provider redirect received on the main listener.
@@ -76,6 +78,7 @@ impl Runtime {
             oauth_sink: RwLock::default(),
             pool_offsets: Mutex::default(),
             usage: crate::usage::UsageQueue::default(),
+            local_model: Default::default(),
         };
         rt.publish_policy(policy);
         rt.store.configure_cooldown_store(cooldown_dir);
@@ -86,6 +89,17 @@ impl Runtime {
     /// `queuedUsageDetail` per upstream request when `accepts()` (additive API).
     pub fn usage_queue(&self) -> &crate::usage::UsageQueue {
         &self.usage
+    }
+
+    /// Records `--local-model` (Go `modelCatalogUpdaterPlan`'s `localModel`): remote
+    /// model catalog updaters must not start when set (additive API).
+    pub fn set_local_model(&self, on: bool) {
+        self.local_model.store(on, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    /// Whether `--local-model` was given.
+    pub fn local_model(&self) -> bool {
+        self.local_model.load(std::sync::atomic::Ordering::Relaxed)
     }
 
     /// The config snapshot to use for one whole request.
