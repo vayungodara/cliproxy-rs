@@ -364,13 +364,16 @@ pub(crate) enum UsageRule {
     MetaResponses,
 }
 
+/// An upstream usage line and the format it is reported in.
+type HeldLine = (cpa_core::format::Format, Vec<u8>);
+
 /// Usage held back until the response completes (Go's deferred `StreamUsageBuffer.Publish`;
 /// a failure publishes no usage, `PublishFailure` uses an empty detail). Call [`Self::commit`]
 /// exactly when the stream ends without an error.
 #[derive(Clone, Default)]
 pub(crate) struct DeferredUsage {
     sink: cpa_core::exec::UsageSink,
-    pending: std::sync::Arc<std::sync::Mutex<Vec<(cpa_core::format::Format, Vec<u8>)>>>,
+    pending: std::sync::Arc<std::sync::Mutex<Vec<HeldLine>>>,
 }
 
 impl DeferredUsage {
