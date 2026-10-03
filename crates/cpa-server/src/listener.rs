@@ -383,9 +383,10 @@ mod tests {
         assert!(accepted.nodelay().unwrap());
         let socket = socket2::SockRef::from(&accepted);
         assert!(socket.keepalive().unwrap());
-        assert_eq!(socket.tcp_keepalive_time().unwrap(), std::time::Duration::from_secs(15));
+        // Windows cannot read keep-alive timings back.
         #[cfg(target_os = "linux")]
         {
+            assert_eq!(socket.tcp_keepalive_time().unwrap(), std::time::Duration::from_secs(15));
             assert_eq!(
                 socket.tcp_keepalive_interval().unwrap(),
                 std::time::Duration::from_secs(15)

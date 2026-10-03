@@ -288,6 +288,63 @@ async fn nonstream_keepalive_commits_like_go() {
     }
 }
 
+/// gin without `HandleMethodNotAllowed` (Go `engine.handleHTTPRequest`): a known
+/// path's unregistered method and an unregistered HEAD run NoRoute, whose handler
+/// aborts with a bare 404; only `/healthz` registers HEAD. The Go binary comparison is
+/// harness/fixtures.py `wrong-method-chat`, `models-head`, `healthz-post`.
+#[tokio::test]
+async fn wrong_methods_are_gin_no_route() {
+    let p = proxy("", vec![oauth("a.json", "fake-ok", serde_json::json!({}))]).await;
+    let client = wreq::Client::new();
+    for (method, path) in [
+        (wreq::Method::GET, "/v1/chat/completions"),
+        (wreq::Method::PUT, "/v1/models"),
+        (wreq::Method::DELETE, "/v1/messages"),
+        (wreq::Method::HEAD, "/v1/models"),
+        (wreq::Method::HEAD, "/"),
+        (wreq::Method::POST, "/healthz"),
+        (wreq::Method::GET, "/v2/nothing"),
+    ] {
+        let res = client
+            .request(method.clone(), format!("{}{path}", p.url))
+            .header("authorization", "Bearer client-key")
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(res.status().as_u16(), 404, "{method} {path}");
+        assert!(
+            res.headers().get("allow").is_none(),
+            "{method} {path}: {:?}",
+            res.headers()
+        );
+        assert!(res.headers().get("content-type").is_none(), "{method} {path}");
+        assert_eq!(res.text().await.unwrap(), "", "{method} {path}");
+    }
+    // NoRoute runs no group middleware: no client key is asked for.
+    for (method, path) in [
+        (wreq::Method::GET, "/v2/nothing"),
+        (wreq::Method::GET, "/v1/chat/completions"),
+    ] {
+        let res = client
+            .request(method.clone(), format!("{}{path}", p.url))
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(res.status().as_u16(), 404, "{method} {path} without a key");
+    }
+    let res = client.get(format!("{}/v1/models", p.url)).send().await.unwrap();
+    assert_eq!(res.status().as_u16(), 401, "matched routes still require the key");
+    for (method, path) in [(wreq::Method::HEAD, "/healthz"), (wreq::Method::GET, "/v1/models")] {
+        let res = client
+            .request(method.clone(), format!("{}{path}", p.url))
+            .header("authorization", "Bearer client-key")
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(res.status().as_u16(), 200, "{method} {path}");
+    }
+}
+
 #[tokio::test]
 async fn legacy_completions_convert_both_ways() {
     let p = proxy("", vec![oauth("a.json", "fake-ok", serde_json::json!({}))]).await;

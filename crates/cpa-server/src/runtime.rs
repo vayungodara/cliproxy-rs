@@ -1299,7 +1299,6 @@ fn write_atomic(path: &Path, metadata: &Map<String, Value>) -> std::io::Result<(
 
 /// Replaces `path` with `bytes` through an exclusively created 0600 sibling.
 pub(crate) fn write_bytes_atomic(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
-    use std::os::unix::fs::OpenOptionsExt;
     static COUNTER: AtomicU64 = AtomicU64::new(0);
     let dir = path.parent().unwrap_or(Path::new("."));
     let name = path.file_name().unwrap_or_default().to_string_lossy();
@@ -1310,12 +1309,12 @@ pub(crate) fn write_bytes_atomic(path: &Path, bytes: &[u8]) -> std::io::Result<(
             COUNTER.fetch_add(1, Ordering::Relaxed)
         ));
         // create_new is O_CREAT|O_EXCL: it never follows or reuses an existing path.
-        match std::fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .mode(0o600)
-            .open(&tmp)
-        {
+        let mut options = std::fs::OpenOptions::new();
+        options.write(true).create_new(true);
+        // Go's 0600; on Windows Go ignores mode bits and creates the file plainly.
+        #[cfg(unix)]
+        std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o600);
+        match options.open(&tmp) {
             Ok(file) => break (tmp, file),
             Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => continue,
             Err(e) => return Err(e),
@@ -1394,6 +1393,7 @@ fn refresh_candidate(c: &Credential) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(unix)]
     use std::os::unix::fs::PermissionsExt;
 
     /// Go `nextRefreshCheckAt` skips `AuthKind() == apikey` for every provider. The
@@ -1524,6 +1524,7 @@ mod tests {
         // A stale temp-file-looking path and a symlink must not be reused or followed.
         let victim = dir.join("victim");
         std::fs::write(&victim, "keep").unwrap();
+        #[cfg(unix)]
         std::os::unix::fs::symlink(
             &victim,
             dir.join(format!(".claude-a.json.{}.0.tmp", std::process::id())),
@@ -1544,6 +1545,7 @@ mod tests {
             std::fs::read_to_string(&path).unwrap(),
             "{\"type\":\"claude\",\"access_token\":\"new\",\"zz_unknown\":{\"k\":[1,2]},\"email\":\"a@x.test\",\"disabled\":true}\n"
         );
+        #[cfg(unix)]
         assert_eq!(std::fs::metadata(&path).unwrap().permissions().mode() & 0o777, 0o600);
         assert_eq!(
             std::fs::read_to_string(&victim).unwrap(),
@@ -1899,6 +1901,7 @@ mod tests {
         lease.complete(Outcome::Failure(quota));
         let file = dir.join("a.cds");
         let written = std::fs::read_to_string(&file).expect("cooldown written");
+        #[cfg(unix)]
         assert_eq!(
             std::fs::metadata(&file).unwrap().permissions().mode() & 0o777,
             0o600,
