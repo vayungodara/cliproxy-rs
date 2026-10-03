@@ -246,7 +246,7 @@ pub(crate) fn prepare(
 }
 
 /// `xaiExecutionSessionID`.
-fn execution_session_id(req: &ExecRequest) -> String {
+pub(crate) fn execution_session_id(req: &ExecRequest) -> String {
     if let Some(s) = req
         .execution_session
         .as_deref()
