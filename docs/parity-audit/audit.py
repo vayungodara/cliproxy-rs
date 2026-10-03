@@ -224,11 +224,10 @@ def judge_route(item, routes, tests):
 
 
 # Provider families with no executor in Rust: their keys are accepted and never used.
-NO_EXECUTOR = {"vertex": "ultra/google", "antigravity": "ultra/google", "aistudio": "ultra/google",
-               "xai": "ultra/openai-xai", "devin": "ultra/device-providers"}
+NO_EXECUTOR = {"vertex": "ultra/google", "antigravity": "ultra/google", "aistudio": "ultra/google"}
 FAMILY_OWNER = {"claude": "ultra/claude", "codex": "ultra/codex", "gemini": "ultra/google", "interactions": "ultra/google",
                 "meta": "ultra/device-providers", "kimi": "ultra/device-providers", "openai-compatibility": "ultra/openai-xai",
-                **NO_EXECUTOR}
+                **NO_EXECUTOR, "xai": "ultra/openai-xai", "devin": "ultra/device-providers"}
 SECTION_OWNER = [("management.", "ultra/manage"), ("config-version", "ultra/manage"), ("plugins.", "ultra/plugins"),
                  ("server.discovery", "ultra/tui"), ("credentials.", "ultra/home"),
                  ("client.codex", "ultra/codex"), ("multimedia.", "ultra/openai-xai")]
@@ -304,18 +303,20 @@ def judge_config(item, sources):
         leaf = key.replace("[]", "").split(".")[-2].strip("{}")
     readers, tests = sources
     lit = f'"{leaf}"'
+    # A key appears as a whole string or as a segment of a dotted path ("server.trusted-proxies").
+    seg = re.compile(r'["./]' + re.escape(leaf) + r'["./]')
     if leaf in GENERIC_LEAVES and family:
         # Shared credential fields: synthesized for every API-key family.
-        used = [rel for rel in readers if rel.endswith(("config/credentials.rs", "config/sanitize.rs")) and lit in readers[rel]]
+        used = [rel for rel in readers if rel.endswith(("config/credentials.rs", "config/sanitize.rs")) and seg.search(readers[rel])]
     else:
-        used = [rel for rel, text in readers.items() if lit in text]
+        used = [rel for rel, text in readers.items() if seg.search(text)]
     if not used:
         return ("missing", f"accepted by the config schema; no runtime code reads {lit}", owner, "")
     if leaf == "max-context-length":
         return ("partial", f"parsed in {short(used)}", "ultra/codex", "Its consumer, the Codex client model catalog, is not ported.")
     family_token = {"interactions": "interactions", "openai-compatibility": "openai-compat"}.get(family, family)
     set_in = [rel for rel, text in tests.items()
-              if (f"{leaf}:" in text or lit in text) and (not family_token or family_token in text)]
+              if (f"{leaf}:" in text or seg.search(text)) and (not family_token or family_token in text)]
     if set_in:
         return ("covered", f"read in {short(used)}; set in {short(set_in)}", owner, "heuristic: key name match")
     return ("partial", f"read in {short(used)}; no test sets it", owner, "heuristic: key name match")
@@ -365,8 +366,8 @@ def main():
 
 
 # Milestones whose rows have been reviewed by hand; the others are not rendered yet.
-AUDITED = ["M1", "M2", "M3"]
-BASE = "d48b9e0"
+AUDITED = ["M1", "M2", "M3", "M4"]
+BASE = "4abce40"
 
 
 def title(r):
@@ -430,7 +431,7 @@ def render(rows):
     w("|---|---:|---:|---|")
     for owner in sorted(owners, key=lambda o: (-len(owners[o]["missing"]), -len(owners[o]["partial"]), o)):
         m, p = owners[owner]["missing"], owners[owner]["partial"]
-        w(f"| {owner} | {len(m)} | {len(p)} | {', '.join(m) or '—'} |")
+        w(f"| {owner} | {len(m)} | {len(p)} | {', '.join(sorted(m)) or '—'} |")
     w("")
     for ms in AUDITED:
         w(f"## {ms}")
