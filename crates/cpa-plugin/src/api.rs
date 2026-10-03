@@ -7,7 +7,7 @@ use std::collections::BTreeMap;
 use bytes::Bytes;
 
 use crate::go_struct;
-use crate::gojson::{GoJson, GoTime, Header, Metadata, Node, RawJson, StringMap};
+use crate::gojson::{GoJson, GoTime, Header, Metadata, Node, NonNilBytes, RawJson, StringMap};
 
 go_struct! {
     pub struct ConfigField("pluginapi.ConfigField") {
@@ -220,7 +220,8 @@ go_struct! {
         "Path" => path: String,
         "Headers" => headers: Header,
         "Query" => query: Header,
-        "Body" => body: Bytes,
+        /// Read with `io.ReadAll`, so never nil.
+        "Body" => body: NonNilBytes,
     }
 }
 
