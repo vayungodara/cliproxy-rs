@@ -137,7 +137,7 @@ async fn transform(
             .ok()
             .filter(|out| !out.is_empty())
             .ok_or_else(|| {
-                req.usage.failed();
+                publish_apply_patch_failure(&req.usage);
                 apply_patch_error()
             })?;
         Ok(ResponseBody::Buffered(Bytes::from(if responses {
@@ -146,6 +146,12 @@ async fn transform(
             out
         })))
     }
+}
+
+/// Go `reporter.PublishFailure(statusErr{502, ApplyPatchUpstreamErrorMessage})`: the
+/// rejection publishes no tokens, even after stream usage was seen.
+fn publish_apply_patch_failure(usage: &cpa_core::exec::UsageSink) {
+    usage.publish_failure(502, cpa_translate::APPLY_PATCH_UPSTREAM_ERROR);
 }
 
 /// helps.ApplyPatchUpstreamErrorMessage with Go's 502 `statusErr`: a plain status error,
@@ -207,7 +213,7 @@ fn streaming(
             let finalized = self.translator.finalize_tool_input();
             self.emit(finalized);
             if self.translator.tool_input_failed() {
-                self.usage.failed();
+                publish_apply_patch_failure(&self.usage);
                 return self.fail(apply_patch_error());
             }
             if let Some(error) = transport {
@@ -245,7 +251,7 @@ fn streaming(
                         Ok(events) => {
                             state.emit(events);
                             if state.translator.tool_input_failed() {
-                                state.usage.failed();
+                                publish_apply_patch_failure(&state.usage);
                                 state.error = Some(apply_patch_error());
                                 state.done = true;
                             }
@@ -463,14 +469,15 @@ mod tests {
         }
     }
 
-    /// Counts `UsageObserver::failed` reports.
+    /// Counts `UsageObserver::publish_failure` reports, checking Go's status and body.
     #[derive(Default)]
     struct Failures(std::sync::atomic::AtomicUsize);
     impl cpa_core::exec::UsageObserver for Failures {
         fn response_body(&self, _: Format, _: &[u8]) {}
         fn response_line(&self, _: Format, _: &[u8]) {}
         fn request(&self, _: Format, _: &[u8]) {}
-        fn failed(&self) {
+        fn publish_failure(&self, status: u16, body: &str) {
+            assert_eq!((status, body), (502, cpa_translate::APPLY_PATCH_UPSTREAM_ERROR));
             self.0.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         }
     }
