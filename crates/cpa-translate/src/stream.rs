@@ -269,6 +269,20 @@ struct Framed {
     seen: crate::Depth,
     /// A stack reservation that failed in `finalize_tool_input`; the stream is broken.
     failed: Option<Error>,
+    options: StreamOptions,
+}
+
+/// How a Go executor drives a pair's stream translator beyond reading lines; see
+/// [`crate::stream_with`].
+#[derive(Clone, Copy, Default)]
+pub struct StreamOptions {
+    /// Each event is one Go translator call, newlines included, as Go's AI Studio
+    /// executor passes every relay chunk (Gemini upstreams only).
+    pub whole_events: bool,
+    /// Applied to every chunk the translator returns for an event, before the client's
+    /// framing (AI Studio's `ensureColonSpacedJSON`). The tool-input finalization is
+    /// written without it, as Go's `EndApplyPatchStream` does.
+    pub chunk: Option<fn(&[u8]) -> Vec<u8>>,
 }
 
 /// geminiInteractionsSSEPayload (gemini_executor.go): a JSON frame as is, else its
@@ -455,10 +469,15 @@ impl Framed {
             for line in openai_lines(event) {
                 chunks.extend(self.inner.line(&line)?);
             }
+        } else if self.options.whole_events {
+            chunks.extend(self.inner.line(event)?);
         } else {
             for line in scan_lines(event) {
                 chunks.extend(self.inner.line(line)?);
             }
+        }
+        if let Some(hook) = self.options.chunk {
+            chunks = chunks.iter().map(|c| hook(c)).collect();
         }
         Ok(self.framed(chunks))
     }
@@ -477,6 +496,17 @@ pub(crate) fn framed(
     inner: Box<dyn GoStream>,
     request_levels: usize,
 ) -> Box<dyn StreamTranslator> {
+    framed_with(client, upstream, inner, request_levels, StreamOptions::default())
+}
+
+/// [`framed`] with a Go executor's [`StreamOptions`].
+pub(crate) fn framed_with(
+    client: Format,
+    upstream: Format,
+    inner: Box<dyn GoStream>,
+    request_levels: usize,
+    options: StreamOptions,
+) -> Box<dyn StreamTranslator> {
     Box::new(Framed {
         client,
         upstream,
@@ -486,6 +516,7 @@ pub(crate) fn framed(
         request_levels,
         seen: crate::Depth::default(),
         failed: None,
+        options,
     })
 }
 

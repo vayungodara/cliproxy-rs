@@ -155,6 +155,36 @@ pub(crate) fn go_rfc3339(s: &[u8]) -> bool {
             && num(&rest[4..6], 0, 59))
 }
 
+/// The length of the object at the start of `s`, up to the brace that closes it: the
+/// value a `json.Decoder` reads when more input follows (call [`check_valid`] on it).
+pub(crate) fn object_end(s: &[u8]) -> Option<usize> {
+    let (mut depth, mut in_string, mut escaped) = (0usize, false, false);
+    for (i, &c) in s.iter().enumerate() {
+        if in_string {
+            if escaped {
+                escaped = false;
+            } else if c == b'\\' {
+                escaped = true;
+            } else if c == b'"' {
+                in_string = false;
+            }
+            continue;
+        }
+        match c {
+            b'"' => in_string = true,
+            b'{' | b'[' => depth += 1,
+            b'}' | b']' => {
+                depth = depth.checked_sub(1)?;
+                if depth == 0 {
+                    return Some(i + 1);
+                }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
 pub(crate) fn kind_name(value: &gj::Res<'_>) -> &'static str {
     match value.kind {
         Kind::String => "string",

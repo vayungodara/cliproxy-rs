@@ -36,8 +36,8 @@ pub fn handles(provider: &str) -> bool {
     PROVIDERS.contains(&provider)
 }
 
-const DEFAULT_BASE_URL: &str = "https://generativelanguage.googleapis.com";
-const API_VERSION: &str = "v1beta";
+pub(crate) const DEFAULT_BASE_URL: &str = "https://generativelanguage.googleapis.com";
+pub(crate) const API_VERSION: &str = "v1beta";
 /// `streamScannerBuffer`.
 pub(crate) const MAX_LINE: usize = 52_428_800;
 /// `geminiInteractionsAPIRevision`.
@@ -555,13 +555,13 @@ impl GeminiExecutor {
 /// Client items, and the terminal error that ends the stream after them.
 #[derive(Default)]
 pub(crate) struct Emit {
-    out: Vec<Bytes>,
-    stop: Option<ExecError>,
+    pub(crate) out: Vec<Bytes>,
+    pub(crate) stop: Option<ExecError>,
 }
 
 impl Emit {
     /// Appends `next`; returns whether the stream stopped.
-    fn then(&mut self, next: Emit) -> bool {
+    pub(crate) fn then(&mut self, next: Emit) -> bool {
         self.out.extend(next.out);
         self.stop = next.stop;
         self.stop.is_some()
@@ -572,12 +572,20 @@ impl Emit {
 /// Only Gemini upstreams reach it (a Codex client); every client format that takes the
 /// native Interactions path has a registered Interactions pair. Executors that pass
 /// scanned lines as [`line_event`]s get the line back without the terminator.
-struct Unregistered;
+#[derive(Default)]
+struct Unregistered(cpa_translate::stream::StreamOptions);
 
 impl StreamTranslator for Unregistered {
     fn event(&mut self, event: &[u8]) -> Result<Vec<Bytes>, cpa_translate::Error> {
-        let line = event.strip_suffix(LINE_END).unwrap_or(event);
-        Ok(vec![Bytes::copy_from_slice(line)])
+        let line = if self.0.whole_events {
+            event
+        } else {
+            event.strip_suffix(LINE_END).unwrap_or(event)
+        };
+        Ok(vec![match self.0.chunk {
+            Some(hook) => Bytes::from(hook(line)),
+            None => Bytes::copy_from_slice(line),
+        }])
     }
 
     fn finish(&mut self) -> Result<Vec<Bytes>, cpa_translate::Error> {
@@ -598,15 +606,29 @@ pub(crate) struct Output {
 
 impl Output {
     pub(crate) fn new(req: &ExecRequest, upstream: Format, translated: &[u8]) -> Self {
+        Self::with_options(
+            req,
+            upstream,
+            translated,
+            cpa_translate::stream::StreamOptions::default(),
+        )
+    }
+
+    /// [`Output::new`] for an executor that drives the translator with `options`.
+    pub(crate) fn with_options(
+        req: &ExecRequest,
+        upstream: Format,
+        translated: &[u8],
+        options: cpa_translate::stream::StreamOptions,
+    ) -> Self {
         let client = req.response_format;
-        let translator = match cpa_translate::pair(client, upstream) {
-            Some(pair) => (pair.stream)(&ResponseCtx {
-                model: &req.model,
-                original_request: original_request(req),
-                translated_request: translated,
-            }),
-            None => Box::new(Unregistered),
+        let ctx = ResponseCtx {
+            model: &req.model,
+            original_request: original_request(req),
+            translated_request: translated,
         };
+        let translator = cpa_translate::stream_with(client, upstream, &ctx, options)
+            .unwrap_or_else(|| Box::new(Unregistered(options)));
         Self {
             translator,
             client,
@@ -614,6 +636,16 @@ impl Output {
             claude: ClaudeInputTokens::new(req.source_format, upstream, client, original_request(req).clone()),
             usage: req.usage.clone(),
         }
+    }
+
+    /// helps.EndApplyPatchStream, then the client side's pending frames: the end of a
+    /// stream that feeds no `[DONE]`.
+    pub(crate) fn end(&mut self) -> Emit {
+        let mut emit = self.finalize();
+        if emit.stop.is_none() {
+            emit.then(self.finish());
+        }
+        emit
     }
 
     /// End of a Gemini-upstream stream: the tool-input finalization, then `[DONE]`

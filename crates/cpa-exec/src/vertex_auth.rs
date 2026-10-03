@@ -672,7 +672,7 @@ fn decode_id_token(token: &str) -> Result<(), String> {
         // Any other first value fails: a non-object cannot fill the struct.
         return Err("json: cannot unmarshal into Go value of type jws.ClaimSet".into());
     }
-    let end = object_end(value).ok_or("unexpected EOF")?;
+    let end = meta_wire::object_end(value).ok_or("unexpected EOF")?;
     let (mut iss, mut scope, mut aud, mut typ, mut sub, mut prn) = Default::default();
     let (mut exp, mut iat) = (0, 0);
     let mut fields = [
@@ -686,35 +686,6 @@ fn decode_id_token(token: &str) -> Result<(), String> {
         ("prn", Slot::Str(&mut prn)),
     ];
     meta_wire::unmarshal(&value[..end], "jws", "ClaimSet", &mut fields)
-}
-
-/// The length of the object at the start of `s`: up to the brace that closes it.
-fn object_end(s: &[u8]) -> Option<usize> {
-    let (mut depth, mut in_string, mut escaped) = (0usize, false, false);
-    for (i, &c) in s.iter().enumerate() {
-        if in_string {
-            if escaped {
-                escaped = false;
-            } else if c == b'\\' {
-                escaped = true;
-            } else if c == b'"' {
-                in_string = false;
-            }
-            continue;
-        }
-        match c {
-            b'"' => in_string = true,
-            b'{' | b'[' => depth += 1,
-            b'}' | b']' => {
-                depth = depth.checked_sub(1)?;
-                if depth == 0 {
-                    return Some(i + 1);
-                }
-            }
-            _ => {}
-        }
-    }
-    None
 }
 
 /// `sanitizeFilePart`.

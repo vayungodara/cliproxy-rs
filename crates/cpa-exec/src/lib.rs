@@ -17,6 +17,7 @@
 //! `tryRefreshAfterUnauthorized`). An already expired token is still `RefreshSoon`:
 //! Go sends it and recovers on 401.
 
+pub mod aistudio;
 pub mod claude;
 pub mod claude_login;
 pub mod codex;
@@ -71,6 +72,7 @@ mod upstream;
 pub mod vertex;
 pub mod vertex_auth;
 mod wire;
+pub mod wsrelay;
 pub mod xai;
 mod xai_apply_patch;
 pub mod xai_auth;
@@ -112,6 +114,8 @@ pub struct GoogleExecutors {
     pub gemini: gemini::GeminiExecutor,
     /// `vertex` service accounts and API keys.
     pub vertex: vertex::VertexExecutor,
+    /// `aistudio` sessions on the `/v1/ws` relay, which the server route shares.
+    pub aistudio: aistudio::AiStudioExecutor,
 }
 
 /// OpenAI-wire executors, grouped like [`DeviceExecutors`].
@@ -146,6 +150,7 @@ impl Executors {
             p if openai_compat::handles(p) => self.openai.compat.execute(credential, req, cfg).await,
             p if gemini::handles(p) => self.google.gemini.execute(credential, req, cfg).await,
             p if vertex::handles(p) => self.google.vertex.execute(credential, req, cfg).await,
+            p if aistudio::handles(p) => self.google.aistudio.execute(credential, req, cfg).await,
             xai::PROVIDER => self.openai.xai.execute(credential, req, cfg, false).await,
             other => Err(no_executor(other)),
         }
@@ -230,6 +235,7 @@ impl Executors {
             || openai_compat::handles(provider)
             || gemini::handles(provider)
             || vertex::handles(provider)
+            || aistudio::handles(provider)
     }
 
     /// Go `authHasRefreshCredential`: whether an upstream 401 on `credential` should be

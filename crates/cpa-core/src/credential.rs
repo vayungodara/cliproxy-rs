@@ -45,6 +45,23 @@ impl Credential {
         self.metadata.get(key).and_then(Value::as_str)
     }
 
+    /// The runtime-only `aistudio` credential of a `/v1/ws` relay session (Go
+    /// `wsOnConnected`): the channel ID is its ID, label and metadata email.
+    pub fn relay_session(channel: &str) -> Self {
+        let mut metadata = Map::new();
+        metadata.insert("email".into(), Value::String(channel.to_owned()));
+        Self {
+            id: channel.to_owned(),
+            provider: "aistudio".into(),
+            source: Source::Runtime,
+            disabled: false,
+            label: channel.to_owned(),
+            attributes: BTreeMap::from([("runtime_only".to_owned(), "true".to_owned())]),
+            metadata,
+            revision: 0,
+        }
+    }
+
     /// Builds a credential from one auth file. Returns `None` for files CLIProxyAPI
     /// ignores here: no `type`, or `gemini-cli` (internal/watcher/synthesizer/file.go).
     pub fn from_file(auth_dir: &Path, path: &Path, metadata: Map<String, Value>) -> Option<Self> {
