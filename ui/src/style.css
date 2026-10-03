@@ -366,6 +366,7 @@ select { appearance: none; padding-right: 34px; background: var(--raised) url("d
   .usage-row, .usage-model, .usage-event, .key-row, .quota, .list .catalog { display: flex; flex-wrap: wrap; gap: 8px 14px; padding-left: 0; }
   .facts { grid-template-columns: 1fr 1fr; }
   .limits .item { grid-template-columns: 1fr; }
+  .hint { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }

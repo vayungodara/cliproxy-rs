@@ -124,7 +124,7 @@
             ></strong
           >
           <span class="legend"
-            >{!traffic ? "Not reported" : total ? `${fmt(failed)} failed` : "No requests yet"}{#if traffic && !total}{" · "}<a href="#use">Set up a tool</a>{/if}</span
+            >{!traffic ? "Not reported" : total ? `${fmt(failed)} failed` : "No requests yet"}{#if traffic && !total}<span class="hint">{" · "}<a href="#use">Set up a tool</a></span>{/if}</span
           >
         </div>
         <p class="routing legend">
