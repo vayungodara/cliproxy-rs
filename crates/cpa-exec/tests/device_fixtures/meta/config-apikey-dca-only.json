@@ -1,7 +1,7 @@
 {
   "name": "config-apikey-dca-only",
   "credential": {
-    "base_url": "http://127.0.0.1:32939/v1"
+    "base_url": "http://127.0.0.1:46283/v1"
   },
   "attributes": {
     "api_key": "dca:cfg",
@@ -20,6 +20,7 @@
     "err_body": "meta executor: meta-api-key requires a valid API key (DCA tokens require OAuth storage)"
   },
   "extra": {
-    "credential_scoped": false
+    "credential_scoped": false,
+    "usage": null
   }
 }

@@ -36,6 +36,8 @@ pub struct CodexExecutor {
     replay: Arc<crate::codex_replay::Cache>,
     /// Base for OAuth Alpha Search, which Go never derives from credential attributes.
     alpha_base_url: String,
+    /// Live call, sideband and hangup URLs (`codex_live`).
+    pub(crate) live: crate::codex_live::Endpoints,
 }
 
 /// The production executor. Construction only fails if the TLS backend cannot initialise.
@@ -71,6 +73,7 @@ impl CodexExecutor {
             ws: Default::default(),
             replay: Arc::default(),
             alpha_base_url: DEFAULT_BASE_URL.into(),
+            live: Default::default(),
         }
     }
 

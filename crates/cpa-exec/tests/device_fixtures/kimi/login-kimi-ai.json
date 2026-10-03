@@ -63,7 +63,7 @@
         ],
         [
           "X-Msh-Device-Id",
-          "941d8804-1930-47bb-8680-814042e2ed2b"
+          "3aecdb4d-845e-438d-9ebe-989b4907ace0"
         ],
         [
           "X-Msh-Device-Model",
@@ -114,7 +114,7 @@
         ],
         [
           "X-Msh-Device-Id",
-          "941d8804-1930-47bb-8680-814042e2ed2b"
+          "3aecdb4d-845e-438d-9ebe-989b4907ace0"
         ],
         [
           "X-Msh-Device-Model",
@@ -165,7 +165,7 @@
         ],
         [
           "X-Msh-Device-Id",
-          "941d8804-1930-47bb-8680-814042e2ed2b"
+          "3aecdb4d-845e-438d-9ebe-989b4907ace0"
         ],
         [
           "X-Msh-Device-Model",
@@ -193,22 +193,22 @@
   ],
   "downstream": {},
   "extra": {
-    "before_unix_ms": 1790961572613,
+    "before_unix_ms": 1791017375338,
     "file": {
       "access_token": "login-access",
       "base_url": "https://api.kimi.ai/coding",
-      "device_id": "941d8804-1930-47bb-8680-814042e2ed2b",
+      "device_id": "3aecdb4d-845e-438d-9ebe-989b4907ace0",
       "disabled": false,
       "domain": "kimi.ai",
-      "expired": "2026-10-02T18:19:42Z",
+      "expired": "2026-10-03T09:49:45Z",
       "refresh_token": "login-refresh",
       "scope": "kimi-code",
-      "timestamp": 1790961582619,
+      "timestamp": 1791017385344,
       "token_type": "Bearer",
       "type": "kimi-ai"
     },
-    "file_name": "kimi-ai-1790961582619.json",
-    "file_raw": "{\n  \"access_token\": \"login-access\",\n  \"base_url\": \"https://api.kimi.ai/coding\",\n  \"device_id\": \"941d8804-1930-47bb-8680-814042e2ed2b\",\n  \"disabled\": false,\n  \"domain\": \"kimi.ai\",\n  \"expired\": \"2026-10-02T18:19:42Z\",\n  \"refresh_token\": \"login-refresh\",\n  \"scope\": \"kimi-code\",\n  \"timestamp\": 1790961582619,\n  \"token_type\": \"Bearer\",\n  \"type\": \"kimi-ai\"\n}\n",
+    "file_name": "kimi-ai-1791017385344.json",
+    "file_raw": "{\n  \"access_token\": \"login-access\",\n  \"base_url\": \"https://api.kimi.ai/coding\",\n  \"device_id\": \"3aecdb4d-845e-438d-9ebe-989b4907ace0\",\n  \"disabled\": false,\n  \"domain\": \"kimi.ai\",\n  \"expired\": \"2026-10-03T09:49:45Z\",\n  \"refresh_token\": \"login-refresh\",\n  \"scope\": \"kimi-code\",\n  \"timestamp\": 1791017385344,\n  \"token_type\": \"Bearer\",\n  \"type\": \"kimi-ai\"\n}\n",
     "label": "Kimi.ai User"
   }
 }

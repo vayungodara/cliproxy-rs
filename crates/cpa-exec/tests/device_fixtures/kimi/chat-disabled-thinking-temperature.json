@@ -2,7 +2,7 @@
   "name": "chat-disabled-thinking-temperature",
   "credential": {
     "access_token": "kimi-access-fixture",
-    "base_url": "http://127.0.0.1:42841/coding",
+    "base_url": "http://127.0.0.1:39497/coding",
     "device_id": "dev-fixture-1",
     "refresh_token": "kimi-refresh-fixture",
     "type": "kimi"
@@ -32,7 +32,7 @@
       "headers": [
         [
           "Host",
-          "127.0.0.1:42841"
+          "127.0.0.1:39497"
         ],
         [
           "User-Agent",
@@ -84,5 +84,20 @@
   ],
   "downstream": {
     "body": "{\"id\":\"c2\",\"object\":\"chat.completion\",\"created\":2,\"model\":\"kimi-k2.6\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}]}"
+  },
+  "extra": {
+    "usage": [
+      {
+        "cached_tokens": 0,
+        "failed": false,
+        "input_tokens": 0,
+        "model": "kimi-k2.6",
+        "output_tokens": 0,
+        "reasoning_effort": "none",
+        "reasoning_tokens": 0,
+        "response_model": "kimi-k2.6",
+        "total_tokens": 0
+      }
+    ]
   }
 }

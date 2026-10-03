@@ -1,0 +1,6110 @@
+{
+  "auth_urls": [
+    "https://app.devin.ai/auth/cli/continue?redirect_uri=http%3A%2F%2F127.0.0.1%3A5555%2Fcallback\u0026state=st+ate\u0026prompt=select_account\u0026code_challenge=chal%2B%2F%3D\u0026code_challenge_method=S256",
+    "https://app.devin.ai/auth/cli/continue?prompt=select_account\u0026code_challenge=chal\u0026code_challenge_method=S256\u0026cli_pkce_marker=1",
+    "https://app.devin.ai/auth/cli/continue?state=s\u0026prompt=select_account\u0026code_challenge=c\u0026code_challenge_method=S256\u0026cli_pkce_marker=1"
+  ],
+  "catalog": [
+    {
+      "id": "devin/claude-opus-5-5",
+      "object": "model",
+      "created": 0,
+      "owned_by": "anthropic",
+      "type": "devin",
+      "display_name": "Claude Opus 5.5",
+      "inputTokenLimit": 1000000,
+      "outputTokenLimit": 64000,
+      "supportedGenerationMethods": [
+        "generateContent",
+        "countTokens"
+      ],
+      "context_length": 1000000,
+      "max_completion_tokens": 64000,
+      "supportedInputModalities": [
+        "text",
+        "image"
+      ],
+      "supportedOutputModalities": [
+        "text"
+      ],
+      "thinking": {
+        "levels": [
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max"
+        ]
+      }
+    },
+    {
+      "id": "devin/claude-fable-5-1",
+      "object": "model",
+      "created": 0,
+      "owned_by": "anthropic",
+      "type": "devin",
+      "display_name": "Claude Fable 5.1",
+      "inputTokenLimit": 1000000,
+      "outputTokenLimit": 64000,
+      "supportedGenerationMethods": [
+        "generateContent",
+        "countTokens"
+      ],
+      "context_length": 1000000,
+      "max_completion_tokens": 64000,
+      "supportedInputModalities": [
+        "text",
+        "image"
+      ],
+      "supportedOutputModalities": [
+        "text"
+      ],
+      "thinking": {
+        "levels": [
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max"
+        ]
+      }
+    },
+    {
+      "id": "devin/claude-sonnet-5",
+      "object": "model",
+      "created": 0,
+      "owned_by": "anthropic",
+      "type": "devin",
+      "display_name": "Claude Sonnet 5",
+      "inputTokenLimit": 1000000,
+      "outputTokenLimit": 64000,
+      "supportedGenerationMethods": [
+        "generateContent",
+        "countTokens"
+      ],
+      "context_length": 1000000,
+      "max_completion_tokens": 64000,
+      "supportedInputModalities": [
+        "text",
+        "image"
+      ],
+      "supportedOutputModalities": [
+        "text"
+      ],
+      "thinking": {
+        "levels": [
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max"
+        ]
+      }
+    },
+    {
+      "id": "devin/gemini-3-8-flash",
+      "object": "model",
+      "created": 0,
+      "owned_by": "google",
+      "type": "devin",
+      "display_name": "Gemini 3.8 Flash",
+      "inputTokenLimit": 1048576,
+      "outputTokenLimit": 64000,
+      "supportedGenerationMethods": [
+        "generateContent",
+        "countTokens"
+      ],
+      "context_length": 1048576,
+      "max_completion_tokens": 64000,
+      "supportedInputModalities": [
+        "text",
+        "image"
+      ],
+      "supportedOutputModalities": [
+        "text"
+      ],
+      "thinking": {
+        "levels": [
+          "low",
+          "medium",
+          "high"
+        ]
+      }
+    },
+    {
+      "id": "devin/gpt-6-astra",
+      "object": "model",
+      "created": 0,
+      "owned_by": "openai",
+      "type": "devin",
+      "display_name": "GPT-6 Astra",
+      "inputTokenLimit": 1000000,
+      "outputTokenLimit": 64000,
+      "supportedGenerationMethods": [
+        "generateContent",
+        "countTokens"
+      ],
+      "context_length": 1000000,
+      "max_completion_tokens": 64000,
+      "supportedInputModalities": [
+        "text",
+        "image"
+      ],
+      "supportedOutputModalities": [
+        "text"
+      ],
+      "thinking": {
+        "levels": [
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max"
+        ]
+      }
+    },
+    {
+      "id": "devin/gpt-6-sol",
+      "object": "model",
+      "created": 0,
+      "owned_by": "openai",
+      "type": "devin",
+      "display_name": "GPT-6 Sol",
+      "inputTokenLimit": 1000000,
+      "outputTokenLimit": 64000,
+      "supportedGenerationMethods": [
+        "generateContent",
+        "countTokens"
+      ],
+      "context_length": 1000000,
+      "max_completion_tokens": 64000,
+      "supportedInputModalities": [
+        "text",
+        "image"
+      ],
+      "supportedOutputModalities": [
+        "text"
+      ],
+      "thinking": {
+        "levels": [
+          "none",
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max"
+        ]
+      }
+    },
+    {
+      "id": "devin/gpt-6-luna",
+      "object": "model",
+      "created": 0,
+      "owned_by": "openai",
+      "type": "devin",
+      "display_name": "GPT-6 Luna",
+      "inputTokenLimit": 1000000,
+      "outputTokenLimit": 64000,
+      "supportedGenerationMethods": [
+        "generateContent",
+        "countTokens"
+      ],
+      "context_length": 1000000,
+      "max_completion_tokens": 64000,
+      "supportedInputModalities": [
+        "text",
+        "image"
+      ],
+      "supportedOutputModalities": [
+        "text"
+      ],
+      "thinking": {
+        "levels": [
+          "none",
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max"
+        ]
+      }
+    },
+    {
+      "id": "devin/glm-5-2",
+      "object": "model",
+      "created": 0,
+      "owned_by": "zhipu",
+      "type": "devin",
+      "display_name": "GLM-5.2",
+      "inputTokenLimit": 200000,
+      "outputTokenLimit": 64000,
+      "supportedGenerationMethods": [
+        "generateContent",
+        "countTokens"
+      ],
+      "context_length": 200000,
+      "max_completion_tokens": 64000,
+      "supportedInputModalities": [
+        "text"
+      ],
+      "supportedOutputModalities": [
+        "text"
+      ],
+      "thinking": {
+        "levels": [
+          "none",
+          "max"
+        ]
+      }
+    },
+    {
+      "id": "devin/kimi-k3",
+      "object": "model",
+      "created": 0,
+      "owned_by": "moonshot",
+      "type": "devin",
+      "display_name": "Kimi K3",
+      "inputTokenLimit": 1048576,
+      "outputTokenLimit": 64000,
+      "supportedGenerationMethods": [
+        "generateContent",
+        "countTokens"
+      ],
+      "context_length": 1048576,
+      "max_completion_tokens": 64000,
+      "supportedInputModalities": [
+        "text",
+        "image"
+      ],
+      "supportedOutputModalities": [
+        "text"
+      ],
+      "thinking": {
+        "levels": [
+          "low",
+          "high",
+          "max"
+        ]
+      }
+    },
+    {
+      "id": "devin/glm-5-3",
+      "object": "model",
+      "created": 0,
+      "owned_by": "zhipu",
+      "type": "devin",
+      "display_name": "GLM-5.3",
+      "inputTokenLimit": 1048576,
+      "outputTokenLimit": 64000,
+      "supportedGenerationMethods": [
+        "generateContent",
+        "countTokens"
+      ],
+      "context_length": 1048576,
+      "max_completion_tokens": 64000,
+      "supportedInputModalities": [
+        "text"
+      ],
+      "supportedOutputModalities": [
+        "text"
+      ],
+      "thinking": {
+        "levels": [
+          "low",
+          "high",
+          "max"
+        ]
+      }
+    },
+    {
+      "id": "devin/swe-1-7-lightning",
+      "object": "model",
+      "created": 0,
+      "owned_by": "cognition",
+      "type": "devin",
+      "display_name": "SWE-1.7 Lightning",
+      "inputTokenLimit": 202752,
+      "outputTokenLimit": 64000,
+      "supportedGenerationMethods": [
+        "generateContent",
+        "countTokens"
+      ],
+      "context_length": 202752,
+      "max_completion_tokens": 64000,
+      "supportedInputModalities": [
+        "text",
+        "image"
+      ],
+      "supportedOutputModalities": [
+        "text"
+      ],
+      "thinking": {
+        "levels": [
+          "medium"
+        ]
+      }
+    },
+    {
+      "id": "devin/swe-2",
+      "object": "model",
+      "created": 0,
+      "owned_by": "cognition",
+      "type": "devin",
+      "display_name": "SWE-2",
+      "inputTokenLimit": 262000,
+      "outputTokenLimit": 64000,
+      "supportedGenerationMethods": [
+        "generateContent",
+        "countTokens"
+      ],
+      "context_length": 262000,
+      "max_completion_tokens": 64000,
+      "supportedInputModalities": [
+        "text",
+        "image"
+      ],
+      "supportedOutputModalities": [
+        "text"
+      ],
+      "thinking": {
+        "levels": [
+          "medium",
+          "high",
+          "max"
+        ]
+      }
+    },
+    {
+      "id": "devin/claude-opus-4-7",
+      "object": "model",
+      "created": 0,
+      "owned_by": "anthropic",
+      "type": "devin",
+      "display_name": "Claude Opus 4.7",
+      "inputTokenLimit": 1000000,
+      "outputTokenLimit": 64000,
+      "supportedGenerationMethods": [
+        "generateContent",
+        "countTokens"
+      ],
+      "context_length": 1000000,
+      "max_completion_tokens": 64000,
+      "supportedInputModalities": [
+        "text",
+        "image"
+      ],
+      "supportedOutputModalities": [
+        "text"
+      ],
+      "thinking": {
+        "levels": [
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max"
+        ]
+      }
+    },
+    {
+      "id": "devin/claude-opus-4-8",
+      "object": "model",
+      "created": 0,
+      "owned_by": "anthropic",
+      "type": "devin",
+      "display_name": "Claude Opus 4.8",
+      "inputTokenLimit": 1000000,
+      "outputTokenLimit": 64000,
+      "supportedGenerationMethods": [
+        "generateContent",
+        "countTokens"
+      ],
+      "context_length": 1000000,
+      "max_completion_tokens": 64000,
+      "supportedInputModalities": [
+        "text",
+        "image"
+      ],
+      "supportedOutputModalities": [
+        "text"
+      ],
+      "thinking": {
+        "levels": [
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max"
+        ]
+      }
+    },
+    {
+      "id": "devin/claude-opus-5",
+      "object": "model",
+      "created": 0,
+      "owned_by": "anthropic",
+      "type": "devin",
+      "display_name": "Claude Opus 5",
+      "inputTokenLimit": 1000000,
+      "outputTokenLimit": 64000,
+      "supportedGenerationMethods": [
+        "generateContent",
+        "countTokens"
+      ],
+      "context_length": 1000000,
+      "max_completion_tokens": 64000,
+      "supportedInputModalities": [
+        "text",
+        "image"
+      ],
+      "supportedOutputModalities": [
+        "text"
+      ],
+      "thinking": {
+        "levels": [
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max"
+        ]
+      }
+    },
+    {
+      "id": "devin/claude-5-fable",
+      "object": "model",
+      "created": 0,
+      "owned_by": "anthropic",
+      "type": "devin",
+      "display_name": "Claude Fable 5",
+      "inputTokenLimit": 1000000,
+      "outputTokenLimit": 64000,
+      "supportedGenerationMethods": [
+        "generateContent",
+        "countTokens"
+      ],
+      "context_length": 1000000,
+      "max_completion_tokens": 64000,
+      "supportedInputModalities": [
+        "text",
+        "image"
+      ],
+      "supportedOutputModalities": [
+        "text"
+      ],
+      "thinking": {
+        "levels": [
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max"
+        ]
+      }
+    },
+    {
+      "id": "devin/gemini-3-5-flash",
+      "object": "model",
+      "created": 0,
+      "owned_by": "google",
+      "type": "devin",
+      "display_name": "Gemini 3.5 Flash",
+      "inputTokenLimit": 1048576,
+      "outputTokenLimit": 64000,
+      "supportedGenerationMethods": [
+        "generateContent",
+        "countTokens"
+      ],
+      "context_length": 1048576,
+      "max_completion_tokens": 64000,
+      "supportedInputModalities": [
+        "text",
+        "image"
+      ],
+      "supportedOutputModalities": [
+        "text"
+      ],
+      "thinking": {
+        "levels": [
+          "minimal",
+          "low",
+          "medium",
+          "high"
+        ]
+      }
+    },
+    {
+      "id": "devin/gemini-3-6-flash",
+      "object": "model",
+      "created": 0,
+      "owned_by": "google",
+      "type": "devin",
+      "display_name": "Gemini 3.6 Flash",
+      "inputTokenLimit": 1048576,
+      "outputTokenLimit": 64000,
+      "supportedGenerationMethods": [
+        "generateContent",
+        "countTokens"
+      ],
+      "context_length": 1048576,
+      "max_completion_tokens": 64000,
+      "supportedInputModalities": [
+        "text",
+        "image"
+      ],
+      "supportedOutputModalities": [
+        "text"
+      ],
+      "thinking": {
+        "levels": [
+          "minimal",
+          "low",
+          "medium",
+          "high"
+        ]
+      }
+    },
+    {
+      "id": "devin/gemini-3-7-flash",
+      "object": "model",
+      "created": 0,
+      "owned_by": "google",
+      "type": "devin",
+      "display_name": "Gemini 3.7 Flash",
+      "inputTokenLimit": 1048576,
+      "outputTokenLimit": 64000,
+      "supportedGenerationMethods": [
+        "generateContent",
+        "countTokens"
+      ],
+      "context_length": 1048576,
+      "max_completion_tokens": 64000,
+      "supportedInputModalities": [
+        "text",
+        "image"
+      ],
+      "supportedOutputModalities": [
+        "text"
+      ],
+      "thinking": {
+        "levels": [
+          "low",
+          "medium",
+          "high"
+        ]
+      }
+    },
+    {
+      "id": "devin/gpt-5-6-sol",
+      "object": "model",
+      "created": 0,
+      "owned_by": "openai",
+      "type": "devin",
+      "display_name": "GPT-5.6 Sol",
+      "inputTokenLimit": 1000000,
+      "outputTokenLimit": 64000,
+      "supportedGenerationMethods": [
+        "generateContent",
+        "countTokens"
+      ],
+      "context_length": 1000000,
+      "max_completion_tokens": 64000,
+      "supportedInputModalities": [
+        "text",
+        "image"
+      ],
+      "supportedOutputModalities": [
+        "text"
+      ],
+      "thinking": {
+        "levels": [
+          "none",
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max"
+        ]
+      }
+    },
+    {
+      "id": "devin/gpt-5-6-terra",
+      "object": "model",
+      "created": 0,
+      "owned_by": "openai",
+      "type": "devin",
+      "display_name": "GPT-5.6 Terra",
+      "inputTokenLimit": 1000000,
+      "outputTokenLimit": 64000,
+      "supportedGenerationMethods": [
+        "generateContent",
+        "countTokens"
+      ],
+      "context_length": 1000000,
+      "max_completion_tokens": 64000,
+      "supportedInputModalities": [
+        "text",
+        "image"
+      ],
+      "supportedOutputModalities": [
+        "text"
+      ],
+      "thinking": {
+        "levels": [
+          "none",
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max"
+        ]
+      }
+    },
+    {
+      "id": "devin/gpt-5-6-luna",
+      "object": "model",
+      "created": 0,
+      "owned_by": "openai",
+      "type": "devin",
+      "display_name": "GPT-5.6 Luna",
+      "inputTokenLimit": 1000000,
+      "outputTokenLimit": 64000,
+      "supportedGenerationMethods": [
+        "generateContent",
+        "countTokens"
+      ],
+      "context_length": 1000000,
+      "max_completion_tokens": 64000,
+      "supportedInputModalities": [
+        "text",
+        "image"
+      ],
+      "supportedOutputModalities": [
+        "text"
+      ],
+      "thinking": {
+        "levels": [
+          "none",
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max"
+        ]
+      }
+    },
+    {
+      "id": "devin/glm-5-2-1m",
+      "object": "model",
+      "created": 0,
+      "owned_by": "zhipu",
+      "type": "devin",
+      "display_name": "GLM-5.2 High 1M",
+      "inputTokenLimit": 1000000,
+      "outputTokenLimit": 64000,
+      "supportedGenerationMethods": [
+        "generateContent",
+        "countTokens"
+      ],
+      "context_length": 1000000,
+      "max_completion_tokens": 64000,
+      "supportedInputModalities": [
+        "text"
+      ],
+      "supportedOutputModalities": [
+        "text"
+      ],
+      "thinking": {
+        "levels": [
+          "none",
+          "max"
+        ]
+      }
+    },
+    {
+      "id": "devin/grok-4-5",
+      "object": "model",
+      "created": 0,
+      "owned_by": "xai",
+      "type": "devin",
+      "display_name": "Grok 4.5",
+      "inputTokenLimit": 500000,
+      "outputTokenLimit": 64000,
+      "supportedGenerationMethods": [
+        "generateContent",
+        "countTokens"
+      ],
+      "context_length": 500000,
+      "max_completion_tokens": 64000,
+      "supportedInputModalities": [
+        "text",
+        "image"
+      ],
+      "supportedOutputModalities": [
+        "text"
+      ],
+      "thinking": {
+        "levels": [
+          "low",
+          "medium",
+          "high"
+        ]
+      }
+    },
+    {
+      "id": "devin/grok-4-6",
+      "object": "model",
+      "created": 0,
+      "owned_by": "xai",
+      "type": "devin",
+      "display_name": "Grok 4.6",
+      "inputTokenLimit": 500000,
+      "outputTokenLimit": 64000,
+      "supportedGenerationMethods": [
+        "generateContent",
+        "countTokens"
+      ],
+      "context_length": 500000,
+      "max_completion_tokens": 64000,
+      "supportedInputModalities": [
+        "text",
+        "image"
+      ],
+      "supportedOutputModalities": [
+        "text"
+      ],
+      "thinking": {
+        "levels": [
+          "low",
+          "medium",
+          "high",
+          "xhigh"
+        ]
+      }
+    },
+    {
+      "id": "devin/grok-4-7",
+      "object": "model",
+      "created": 0,
+      "owned_by": "xai",
+      "type": "devin",
+      "display_name": "Grok 4.7",
+      "inputTokenLimit": 500000,
+      "outputTokenLimit": 64000,
+      "supportedGenerationMethods": [
+        "generateContent",
+        "countTokens"
+      ],
+      "context_length": 500000,
+      "max_completion_tokens": 64000,
+      "supportedInputModalities": [
+        "text",
+        "image"
+      ],
+      "supportedOutputModalities": [
+        "text"
+      ],
+      "thinking": {
+        "levels": [
+          "low",
+          "medium",
+          "high",
+          "xhigh"
+        ]
+      }
+    },
+    {
+      "id": "devin/inkling",
+      "object": "model",
+      "created": 0,
+      "owned_by": "devin",
+      "type": "devin",
+      "display_name": "Inkling",
+      "inputTokenLimit": 1048576,
+      "outputTokenLimit": 64000,
+      "supportedGenerationMethods": [
+        "generateContent",
+        "countTokens"
+      ],
+      "context_length": 1048576,
+      "max_completion_tokens": 64000,
+      "supportedInputModalities": [
+        "text"
+      ],
+      "supportedOutputModalities": [
+        "text"
+      ],
+      "thinking": {
+        "levels": [
+          "none",
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max"
+        ]
+      }
+    },
+    {
+      "id": "devin/glm-5-3-flash",
+      "object": "model",
+      "created": 0,
+      "owned_by": "zhipu",
+      "type": "devin",
+      "display_name": "GLM-5.3 Flash",
+      "inputTokenLimit": 1000000,
+      "outputTokenLimit": 64000,
+      "supportedGenerationMethods": [
+        "generateContent",
+        "countTokens"
+      ],
+      "context_length": 1000000,
+      "max_completion_tokens": 64000,
+      "supportedInputModalities": [
+        "text",
+        "image"
+      ],
+      "supportedOutputModalities": [
+        "text"
+      ],
+      "thinking": {
+        "levels": [
+          "low",
+          "high",
+          "max"
+        ]
+      }
+    },
+    {
+      "id": "devin/deepseek-v4-flash",
+      "object": "model",
+      "created": 0,
+      "owned_by": "deepseek",
+      "type": "devin",
+      "display_name": "DeepSeek V4 Flash",
+      "inputTokenLimit": 1048576,
+      "outputTokenLimit": 64000,
+      "supportedGenerationMethods": [
+        "generateContent",
+        "countTokens"
+      ],
+      "context_length": 1048576,
+      "max_completion_tokens": 64000,
+      "supportedInputModalities": [
+        "text"
+      ],
+      "supportedOutputModalities": [
+        "text"
+      ],
+      "thinking": {
+        "levels": [
+          "high",
+          "max"
+        ]
+      }
+    },
+    {
+      "id": "devin/deepseek-v4-1-flash",
+      "object": "model",
+      "created": 0,
+      "owned_by": "deepseek",
+      "type": "devin",
+      "display_name": "DeepSeek V4.1 Flash",
+      "inputTokenLimit": 1048576,
+      "outputTokenLimit": 64000,
+      "supportedGenerationMethods": [
+        "generateContent",
+        "countTokens"
+      ],
+      "context_length": 1048576,
+      "max_completion_tokens": 64000,
+      "supportedInputModalities": [
+        "text",
+        "image"
+      ],
+      "supportedOutputModalities": [
+        "text"
+      ],
+      "thinking": {
+        "levels": [
+          "high",
+          "max"
+        ]
+      }
+    },
+    {
+      "id": "devin/swe-1-7",
+      "object": "model",
+      "created": 0,
+      "owned_by": "cognition",
+      "type": "devin",
+      "display_name": "SWE-1.7",
+      "inputTokenLimit": 262000,
+      "outputTokenLimit": 64000,
+      "supportedGenerationMethods": [
+        "generateContent",
+        "countTokens"
+      ],
+      "context_length": 262000,
+      "max_completion_tokens": 64000,
+      "supportedInputModalities": [
+        "text",
+        "image"
+      ],
+      "supportedOutputModalities": [
+        "text"
+      ],
+      "thinking": {
+        "levels": [
+          "medium"
+        ]
+      }
+    },
+    {
+      "id": "devin/claude-opus-4-6",
+      "object": "model",
+      "created": 0,
+      "owned_by": "anthropic",
+      "type": "devin",
+      "display_name": "Claude Opus 4.6",
+      "inputTokenLimit": 200000,
+      "outputTokenLimit": 64000,
+      "supportedGenerationMethods": [
+        "generateContent",
+        "countTokens"
+      ],
+      "context_length": 200000,
+      "max_completion_tokens": 64000,
+      "supportedInputModalities": [
+        "text",
+        "image"
+      ],
+      "supportedOutputModalities": [
+        "text"
+      ]
+    },
+    {
+      "id": "devin/claude-opus-4-6-1m",
+      "object": "model",
+      "created": 0,
+      "owned_by": "anthropic",
+      "type": "devin",
+      "display_name": "Claude Opus 4.6 1M",
+      "inputTokenLimit": 1000000,
+      "outputTokenLimit": 64000,
+      "supportedGenerationMethods": [
+        "generateContent",
+        "countTokens"
+      ],
+      "context_length": 1000000,
+      "max_completion_tokens": 64000,
+      "supportedInputModalities": [
+        "text",
+        "image"
+      ],
+      "supportedOutputModalities": [
+        "text"
+      ]
+    },
+    {
+      "id": "devin/gpt-5-4",
+      "object": "model",
+      "created": 0,
+      "owned_by": "openai",
+      "type": "devin",
+      "display_name": "GPT-5.4",
+      "inputTokenLimit": 272000,
+      "outputTokenLimit": 64000,
+      "supportedGenerationMethods": [
+        "generateContent",
+        "countTokens"
+      ],
+      "context_length": 272000,
+      "max_completion_tokens": 64000,
+      "supportedInputModalities": [
+        "text",
+        "image"
+      ],
+      "supportedOutputModalities": [
+        "text"
+      ],
+      "thinking": {
+        "levels": [
+          "none",
+          "low",
+          "medium",
+          "high",
+          "xhigh"
+        ]
+      }
+    },
+    {
+      "id": "devin/gpt-5-5",
+      "object": "model",
+      "created": 0,
+      "owned_by": "openai",
+      "type": "devin",
+      "display_name": "GPT-5.5",
+      "inputTokenLimit": 272000,
+      "outputTokenLimit": 64000,
+      "supportedGenerationMethods": [
+        "generateContent",
+        "countTokens"
+      ],
+      "context_length": 272000,
+      "max_completion_tokens": 64000,
+      "supportedInputModalities": [
+        "text",
+        "image"
+      ],
+      "supportedOutputModalities": [
+        "text"
+      ],
+      "thinking": {
+        "levels": [
+          "none",
+          "low",
+          "medium",
+          "high",
+          "xhigh"
+        ]
+      }
+    },
+    {
+      "id": "devin/gpt-5-4-mini",
+      "object": "model",
+      "created": 0,
+      "owned_by": "openai",
+      "type": "devin",
+      "display_name": "GPT-5.4 Mini",
+      "inputTokenLimit": 400000,
+      "outputTokenLimit": 64000,
+      "supportedGenerationMethods": [
+        "generateContent",
+        "countTokens"
+      ],
+      "context_length": 400000,
+      "max_completion_tokens": 64000,
+      "supportedInputModalities": [
+        "text",
+        "image"
+      ],
+      "supportedOutputModalities": [
+        "text"
+      ],
+      "thinking": {
+        "levels": [
+          "low",
+          "medium",
+          "high",
+          "xhigh"
+        ]
+      }
+    },
+    {
+      "id": "devin/claude-sonnet-4-6",
+      "object": "model",
+      "created": 0,
+      "owned_by": "anthropic",
+      "type": "devin",
+      "display_name": "Claude Sonnet 4.6",
+      "inputTokenLimit": 200000,
+      "outputTokenLimit": 64000,
+      "supportedGenerationMethods": [
+        "generateContent",
+        "countTokens"
+      ],
+      "context_length": 200000,
+      "max_completion_tokens": 64000,
+      "supportedInputModalities": [
+        "text",
+        "image"
+      ],
+      "supportedOutputModalities": [
+        "text"
+      ]
+    },
+    {
+      "id": "devin/claude-sonnet-4-6-1m",
+      "object": "model",
+      "created": 0,
+      "owned_by": "anthropic",
+      "type": "devin",
+      "display_name": "Claude Sonnet 4.6 1M",
+      "inputTokenLimit": 1000000,
+      "outputTokenLimit": 64000,
+      "supportedGenerationMethods": [
+        "generateContent",
+        "countTokens"
+      ],
+      "context_length": 1000000,
+      "max_completion_tokens": 64000,
+      "supportedInputModalities": [
+        "text",
+        "image"
+      ],
+      "supportedOutputModalities": [
+        "text"
+      ]
+    },
+    {
+      "id": "devin/model_gpt_5_2",
+      "object": "model",
+      "created": 0,
+      "owned_by": "openai",
+      "type": "devin",
+      "display_name": "GPT-5.2",
+      "inputTokenLimit": 384000,
+      "outputTokenLimit": 64000,
+      "supportedGenerationMethods": [
+        "generateContent",
+        "countTokens"
+      ],
+      "context_length": 384000,
+      "max_completion_tokens": 64000,
+      "supportedInputModalities": [
+        "text",
+        "image"
+      ],
+      "supportedOutputModalities": [
+        "text"
+      ],
+      "thinking": {
+        "levels": [
+          "none",
+          "low",
+          "medium",
+          "high",
+          "xhigh"
+        ]
+      }
+    },
+    {
+      "id": "devin/model_claude_4_5_opus",
+      "object": "model",
+      "created": 0,
+      "owned_by": "anthropic",
+      "type": "devin",
+      "display_name": "Claude Opus 4.5",
+      "inputTokenLimit": 200000,
+      "outputTokenLimit": 64000,
+      "supportedGenerationMethods": [
+        "generateContent",
+        "countTokens"
+      ],
+      "context_length": 200000,
+      "max_completion_tokens": 64000,
+      "supportedInputModalities": [
+        "text",
+        "image"
+      ],
+      "supportedOutputModalities": [
+        "text"
+      ],
+      "thinking": {
+        "levels": [
+          "high"
+        ]
+      }
+    },
+    {
+      "id": "devin/model_private_11",
+      "object": "model",
+      "created": 0,
+      "owned_by": "anthropic",
+      "type": "devin",
+      "display_name": "Claude Haiku 4.5",
+      "inputTokenLimit": 200000,
+      "outputTokenLimit": 64000,
+      "supportedGenerationMethods": [
+        "generateContent",
+        "countTokens"
+      ],
+      "context_length": 200000,
+      "max_completion_tokens": 64000,
+      "supportedInputModalities": [
+        "text",
+        "image"
+      ],
+      "supportedOutputModalities": [
+        "text"
+      ]
+    },
+    {
+      "id": "devin/model_private_2",
+      "object": "model",
+      "created": 0,
+      "owned_by": "anthropic",
+      "type": "devin",
+      "display_name": "Claude Sonnet 4.5",
+      "inputTokenLimit": 200000,
+      "outputTokenLimit": 64000,
+      "supportedGenerationMethods": [
+        "generateContent",
+        "countTokens"
+      ],
+      "context_length": 200000,
+      "max_completion_tokens": 64000,
+      "supportedInputModalities": [
+        "text",
+        "image"
+      ],
+      "supportedOutputModalities": [
+        "text"
+      ]
+    },
+    {
+      "id": "devin/model_private_3",
+      "object": "model",
+      "created": 0,
+      "owned_by": "anthropic",
+      "type": "devin",
+      "display_name": "Claude Sonnet 4.5",
+      "inputTokenLimit": 200000,
+      "outputTokenLimit": 64000,
+      "supportedGenerationMethods": [
+        "generateContent",
+        "countTokens"
+      ],
+      "context_length": 200000,
+      "max_completion_tokens": 64000,
+      "supportedInputModalities": [
+        "text",
+        "image"
+      ],
+      "supportedOutputModalities": [
+        "text"
+      ]
+    },
+    {
+      "id": "devin/model_chat_gpt_4_1_2025_04_14",
+      "object": "model",
+      "created": 0,
+      "owned_by": "openai",
+      "type": "devin",
+      "display_name": "GPT-4.1",
+      "inputTokenLimit": 1047576,
+      "outputTokenLimit": 64000,
+      "supportedGenerationMethods": [
+        "generateContent",
+        "countTokens"
+      ],
+      "context_length": 1047576,
+      "max_completion_tokens": 64000,
+      "supportedInputModalities": [
+        "text",
+        "image"
+      ],
+      "supportedOutputModalities": [
+        "text"
+      ]
+    },
+    {
+      "id": "devin/model_private_12",
+      "object": "model",
+      "created": 0,
+      "owned_by": "openai",
+      "type": "devin",
+      "display_name": "GPT-5.1",
+      "inputTokenLimit": 272000,
+      "outputTokenLimit": 64000,
+      "supportedGenerationMethods": [
+        "generateContent",
+        "countTokens"
+      ],
+      "context_length": 272000,
+      "max_completion_tokens": 64000,
+      "supportedInputModalities": [
+        "text",
+        "image"
+      ],
+      "supportedOutputModalities": [
+        "text"
+      ]
+    },
+    {
+      "id": "devin/model_private_13",
+      "object": "model",
+      "created": 0,
+      "owned_by": "openai",
+      "type": "devin",
+      "display_name": "GPT-5.1",
+      "inputTokenLimit": 272000,
+      "outputTokenLimit": 64000,
+      "supportedGenerationMethods": [
+        "generateContent",
+        "countTokens"
+      ],
+      "context_length": 272000,
+      "max_completion_tokens": 64000,
+      "supportedInputModalities": [
+        "text",
+        "image"
+      ],
+      "supportedOutputModalities": [
+        "text"
+      ]
+    },
+    {
+      "id": "devin/model_private_14",
+      "object": "model",
+      "created": 0,
+      "owned_by": "openai",
+      "type": "devin",
+      "display_name": "GPT-5.1",
+      "inputTokenLimit": 272000,
+      "outputTokenLimit": 64000,
+      "supportedGenerationMethods": [
+        "generateContent",
+        "countTokens"
+      ],
+      "context_length": 272000,
+      "max_completion_tokens": 64000,
+      "supportedInputModalities": [
+        "text",
+        "image"
+      ],
+      "supportedOutputModalities": [
+        "text"
+      ]
+    },
+    {
+      "id": "devin/model_private_15",
+      "object": "model",
+      "created": 0,
+      "owned_by": "openai",
+      "type": "devin",
+      "display_name": "GPT-5.1",
+      "inputTokenLimit": 272000,
+      "outputTokenLimit": 64000,
+      "supportedGenerationMethods": [
+        "generateContent",
+        "countTokens"
+      ],
+      "context_length": 272000,
+      "max_completion_tokens": 64000,
+      "supportedInputModalities": [
+        "text",
+        "image"
+      ],
+      "supportedOutputModalities": [
+        "text"
+      ]
+    },
+    {
+      "id": "devin/gpt-5-3-codex",
+      "object": "model",
+      "created": 0,
+      "owned_by": "openai",
+      "type": "devin",
+      "display_name": "GPT-5.3-Codex",
+      "inputTokenLimit": 400000,
+      "outputTokenLimit": 64000,
+      "supportedGenerationMethods": [
+        "generateContent",
+        "countTokens"
+      ],
+      "context_length": 400000,
+      "max_completion_tokens": 64000,
+      "supportedInputModalities": [
+        "text",
+        "image"
+      ],
+      "supportedOutputModalities": [
+        "text"
+      ],
+      "thinking": {
+        "levels": [
+          "low",
+          "medium",
+          "high",
+          "xhigh"
+        ]
+      }
+    },
+    {
+      "id": "devin/kimi-k2-6",
+      "object": "model",
+      "created": 0,
+      "owned_by": "moonshot",
+      "type": "devin",
+      "display_name": "Kimi K2.6",
+      "inputTokenLimit": 262144,
+      "outputTokenLimit": 64000,
+      "supportedGenerationMethods": [
+        "generateContent",
+        "countTokens"
+      ],
+      "context_length": 262144,
+      "max_completion_tokens": 64000,
+      "supportedInputModalities": [
+        "text",
+        "image"
+      ],
+      "supportedOutputModalities": [
+        "text"
+      ]
+    },
+    {
+      "id": "devin/kimi-k2-7",
+      "object": "model",
+      "created": 0,
+      "owned_by": "moonshot",
+      "type": "devin",
+      "display_name": "Kimi K2.7",
+      "inputTokenLimit": 262144,
+      "outputTokenLimit": 64000,
+      "supportedGenerationMethods": [
+        "generateContent",
+        "countTokens"
+      ],
+      "context_length": 262144,
+      "max_completion_tokens": 64000,
+      "supportedInputModalities": [
+        "text",
+        "image"
+      ],
+      "supportedOutputModalities": [
+        "text"
+      ]
+    },
+    {
+      "id": "devin/nemotron-3-ultra",
+      "object": "model",
+      "created": 0,
+      "owned_by": "nvidia",
+      "type": "devin",
+      "display_name": "Nemotron 3 Ultra",
+      "inputTokenLimit": 1000000,
+      "outputTokenLimit": 64000,
+      "supportedGenerationMethods": [
+        "generateContent",
+        "countTokens"
+      ],
+      "context_length": 1000000,
+      "max_completion_tokens": 64000,
+      "supportedInputModalities": [
+        "text"
+      ],
+      "supportedOutputModalities": [
+        "text"
+      ],
+      "thinking": {
+        "levels": [
+          "none",
+          "medium",
+          "high"
+        ]
+      }
+    },
+    {
+      "id": "devin/swe-1-6",
+      "object": "model",
+      "created": 0,
+      "owned_by": "cognition",
+      "type": "devin",
+      "display_name": "SWE-1.6",
+      "inputTokenLimit": 200000,
+      "outputTokenLimit": 64000,
+      "supportedGenerationMethods": [
+        "generateContent",
+        "countTokens"
+      ],
+      "context_length": 200000,
+      "max_completion_tokens": 64000,
+      "supportedInputModalities": [
+        "text",
+        "image"
+      ],
+      "supportedOutputModalities": [
+        "text"
+      ]
+    },
+    {
+      "id": "devin/gemini-3-1-pro",
+      "object": "model",
+      "created": 0,
+      "owned_by": "google",
+      "type": "devin",
+      "display_name": "Gemini 3.1 Pro",
+      "inputTokenLimit": 1048576,
+      "outputTokenLimit": 64000,
+      "supportedGenerationMethods": [
+        "generateContent",
+        "countTokens"
+      ],
+      "context_length": 1048576,
+      "max_completion_tokens": 64000,
+      "supportedInputModalities": [
+        "text",
+        "image"
+      ],
+      "supportedOutputModalities": [
+        "text"
+      ],
+      "thinking": {
+        "levels": [
+          "low",
+          "high"
+        ]
+      }
+    },
+    {
+      "id": "devin/model_google_gemini_3_0_flash",
+      "object": "model",
+      "created": 0,
+      "owned_by": "google",
+      "type": "devin",
+      "display_name": "Gemini 3 Flash",
+      "inputTokenLimit": 1048576,
+      "outputTokenLimit": 64000,
+      "supportedGenerationMethods": [
+        "generateContent",
+        "countTokens"
+      ],
+      "context_length": 1048576,
+      "max_completion_tokens": 64000,
+      "supportedInputModalities": [
+        "text",
+        "image"
+      ],
+      "supportedOutputModalities": [
+        "text"
+      ],
+      "thinking": {
+        "levels": [
+          "minimal",
+          "low",
+          "medium",
+          "high"
+        ]
+      }
+    },
+    {
+      "id": "devin/deepseek-v4-pro",
+      "object": "model",
+      "created": 0,
+      "owned_by": "deepseek",
+      "type": "devin",
+      "display_name": "DeepSeek V4 Pro",
+      "inputTokenLimit": 1048576,
+      "outputTokenLimit": 64000,
+      "supportedGenerationMethods": [
+        "generateContent",
+        "countTokens"
+      ],
+      "context_length": 1048576,
+      "max_completion_tokens": 64000,
+      "supportedInputModalities": [
+        "text"
+      ],
+      "supportedOutputModalities": [
+        "text"
+      ],
+      "thinking": {
+        "levels": [
+          "high",
+          "max"
+        ]
+      }
+    },
+    {
+      "id": "devin/swe-1-6-slow",
+      "object": "model",
+      "created": 0,
+      "owned_by": "cognition",
+      "type": "devin",
+      "display_name": "SWE-1.6 Slow",
+      "inputTokenLimit": 200000,
+      "outputTokenLimit": 64000,
+      "supportedGenerationMethods": [
+        "generateContent",
+        "countTokens"
+      ],
+      "context_length": 200000,
+      "max_completion_tokens": 64000,
+      "supportedInputModalities": [
+        "text",
+        "image"
+      ],
+      "supportedOutputModalities": [
+        "text"
+      ]
+    }
+  ],
+  "fingerprints": {
+    "seed-1": "d357188a574c72ec26aae785af2ad8a233ed3b03b1242519c9aa16d986f075f7f7d1085972c80c395a1e0aacbf2b37cfd093a453c4ae8d73a39451f3a39bf946c5a2f02850abe08a55605a0cd732aafc584ff39076923c1c48f2236f14e384c94be2f044794a2c790d9e08e676e4511c7e32c1c3827f3b4262f9a2a79bde9ce22a020c9f71813d68d5a0526c17bd12edfa68cab708662225a5a113e3255dc7cbcd42d8a7684638e4d3fa50a0ec52b4d65197e7c7fc7c6189edcf35dd9b4d438629ed863dc849e4026110a0df6125d542c483144be837ecf82016f1aa75e39bae5dc0c01e222d0e065557f1eee77ea02e540bf34ff29c15d5293c04fef52a8ecf297dc03d4ef8c9adebba121ec87850e63089a8db467373c23affb1c43590fc55e31e406cc8fa6d82f39db1d14758d569f2638a44119a3adfea54bdd9a609c1789d093c857077e40c92fcea1e4b0c8ac4b6952f1853564f39878c7fbe6aa12c899e56134aa0e183bf6580db99494e",
+    "tok": "150c35c9067f40323d81aa18b94e1e47041d1458eb3be609656a79bff4d529a165dcf16ea3dfa49069628089eb4a75483070f5584b2a21ee64912b5f621f12dab9d7f2826c798e990d30dd291fddb436a01327c293788ce57195e60c7efb82b2823c72b0b895c3d404b6af5e9cc204a80a2ec3e9f0d004ec3ed90dfcd8c1ccd39a6e73d028d018f96d67f1a8114c64d52bf92ee50dd28090cba7524ddf94d4beacebc6f8e4c668167b1f91dfa5af2d4f1eaadcaa0fffb9ef3df0ed3cad610b20f52c0ac289512b149af9fae5e43aaade11d6e5ef7d1a44337eb1b65dce43413c62fcd3f03d26b381a192d6c92fd52357102e9d420bae655d7da33ddb74eb5610f989fe5b65a687a469523b675276e998adf9bf9dcb7c6c99a65917b22dbb2ec965d32d893b0e813473606b0ecb9da0610acfdcf00b7f196c3ec8ffb8925ae424184e4cc939fffb833e489ddeecd64007948cba298453db775228683725eac45b8fa47f1da31fae64daf42b55c2ec"
+  },
+  "format_tokens": {
+    "": "",
+    " devin-session-token$x ": "devin-session-token$x",
+    "eyJa": "devin-session-token$eyJa",
+    "other": "other"
+  },
+  "frames": [
+    {
+      "input_b64": "CgFvEAUaAWEaAWIgAigKMhQKAWkSAW4iA2JhZCoDZXJyMAFIA0oBdFICAQJSAQOKAQNtaWSqAQZzZWFsZWTyAQE/YQAAAAAAAPQ/bQAAgD8=",
+      "result": {
+        "OutputID": "o",
+        "Timestamp": 5,
+        "ContentText": "ab",
+        "DeltaTokens": 2,
+        "StopReason": 10,
+        "ToolCallDeltas": [
+          {
+            "ID": "i",
+            "Name": "n",
+            "Arguments": "",
+            "InvalidJSONStr": "bad",
+            "InvalidJSONErr": "err",
+            "IsCustomToolCall": true
+          }
+        ],
+        "ThinkingText": "t",
+        "DeltaSignature": "AQID",
+        "DeltaSignatureType": "sealed",
+        "Latency": 1.25,
+        "MessageID": "mid",
+        "Usage": null,
+        "ResponseDimensionGroups": null,
+        "UnknownFieldNumbers": [
+          30
+        ]
+      }
+    },
+    {
+      "input_b64": "EgQITRAJOigQAxAEIAEgAUIRCgpSZXF1ZXN0LUlkEgNyaWRCCHBsYWluLWlkMMgB",
+      "result": {
+        "OutputID": "",
+        "Timestamp": 77,
+        "ContentText": "",
+        "DeltaTokens": 0,
+        "StopReason": 0,
+        "ToolCallDeltas": null,
+        "ThinkingText": "",
+        "DeltaSignature": null,
+        "DeltaSignatureType": "",
+        "Latency": 0,
+        "MessageID": "",
+        "Usage": {
+          "prompt_tokens": 7,
+          "completion_tokens": 0,
+          "cached_tokens": 0,
+          "cache_write_tokens": 2,
+          "status_code": 200,
+          "request_id": "rid",
+          "headers": {
+            "Request-Id": "rid"
+          }
+        },
+        "ResponseDimensionGroups": null,
+        "UnknownFieldNumbers": null
+      }
+    },
+    {
+      "input_b64": "OhlCCXByaW50YWJsZUIMCgd4LW90aGVyEgF2",
+      "result": {
+        "OutputID": "",
+        "Timestamp": 0,
+        "ContentText": "",
+        "DeltaTokens": 0,
+        "StopReason": 0,
+        "ToolCallDeltas": null,
+        "ThinkingText": "",
+        "DeltaSignature": null,
+        "DeltaSignatureType": "",
+        "Latency": 0,
+        "MessageID": "",
+        "Usage": {
+          "prompt_tokens": 0,
+          "completion_tokens": 0,
+          "cached_tokens": 0,
+          "request_id": "printable",
+          "headers": {
+            "x-other": "v"
+          }
+        },
+        "ResponseDimensionGroups": null,
+        "UnknownFieldNumbers": null
+      }
+    },
+    {
+      "error": "consume varint error at offset 1: unexpected EOF",
+      "input_b64": "CA==",
+      "result": {
+        "OutputID": "",
+        "Timestamp": 0,
+        "ContentText": "",
+        "DeltaTokens": 0,
+        "StopReason": 0,
+        "ToolCallDeltas": null,
+        "ThinkingText": "",
+        "DeltaSignature": null,
+        "DeltaSignatureType": "",
+        "Latency": 0,
+        "MessageID": "",
+        "Usage": null,
+        "ResponseDimensionGroups": null,
+        "UnknownFieldNumbers": null
+      }
+    },
+    {
+      "error": "unsupported wire type 3 at offset 5",
+      "input_b64": "GgJvayM=",
+      "result": {
+        "OutputID": "",
+        "Timestamp": 0,
+        "ContentText": "",
+        "DeltaTokens": 0,
+        "StopReason": 0,
+        "ToolCallDeltas": null,
+        "ThinkingText": "",
+        "DeltaSignature": null,
+        "DeltaSignatureType": "",
+        "Latency": 0,
+        "MessageID": "",
+        "Usage": null,
+        "ResponseDimensionGroups": null,
+        "UnknownFieldNumbers": null
+      }
+    }
+  ],
+  "lookup": [
+    {
+      "found": "devin/swe-2",
+      "id": "swe-2"
+    },
+    {
+      "found": "devin/swe-2",
+      "id": "devin/SWE-2"
+    },
+    {
+      "found": "devin/claude-opus-5",
+      "id": "claude-opus-5-low-fast"
+    },
+    {
+      "found": "devin/gpt-6-astra",
+      "id": "gpt-6-astra-high"
+    },
+    {
+      "found": "devin/swe-1-6-slow",
+      "id": "swe-1-6-slow"
+    },
+    {
+      "found": "devin/swe-1-6",
+      "id": "swe-1-6-fast"
+    },
+    {
+      "id": "nope"
+    },
+    {
+      "id": ""
+    },
+    {
+      "found": "devin/glm-5-2-1m",
+      "id": "glm-5-2-max-1m"
+    },
+    {
+      "found": "devin/claude-opus-4-6-1m",
+      "id": "claude-opus-4-6-thinking-1m"
+    }
+  ],
+  "parse_interactions": [
+    {
+      "budget": 99,
+      "cascade_id": "conv-1",
+      "level": "high",
+      "max_tokens": 10,
+      "original": "{\"temperature\":1.5}",
+      "payload": "{\"system_instruction\":\"  sys  \",\"generation_config\":{\"temperature\":0.2,\"max_output_tokens\":10,\"thinking_level\":\"high\",\"thinking_config\":{\"thinking_budget\":99}},\"conversation_id\":\"conv-1\",\"input\":[{\"type\":\"user_input\",\"text\":\"t\"},{\"type\":\"thought\",\"text\":\"a\",\"signature\":\"AYsig\"},{\"type\":\"thought\",\"content\":\"b\"},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"x\"},{\"type\":\"text\",\"text\":\"y\"}]},{\"type\":\"function_call\",\"call_id\":\"c1\",\"name\":\"f\",\"arguments\":\"{\\\"a\\\":1}\"},{\"type\":\"function_call\",\"id\":\"c2\",\"name\":\"g\"},{\"type\":\"function_result\",\"result\":{\"type\":\"text\",\"text\":\"r1\"}},{\"type\":\"function_result\",\"id\":\"c2\",\"output\":[{\"type\":\"input_image\",\"image_url\":\"data:image/gif;base64,R0lG\"},{\"content\":\"wrapped\"},{\"type\":\"text\",\"text\":\"t\",\"extra\":1},{\"k\":\"v\"},\"s\"]}]}",
+      "prompts": [
+        {
+          "MessageID": "",
+          "Source": 1,
+          "Content": "t",
+          "Images": null,
+          "ToolCalls": null,
+          "ToolCallID": "",
+          "OriginalToolCallID": "",
+          "IsOrphanedTool": false,
+          "Thinking": "",
+          "Signature": null,
+          "SignatureType": ""
+        },
+        {
+          "MessageID": "",
+          "Source": 2,
+          "Content": "x\ny",
+          "Images": null,
+          "ToolCalls": [
+            {
+              "ID": "c1",
+              "Name": "f",
+              "Arguments": "{\"a\":1}"
+            },
+            {
+              "ID": "c2",
+              "Name": "g",
+              "Arguments": ""
+            }
+          ],
+          "ToolCallID": "",
+          "OriginalToolCallID": "",
+          "IsOrphanedTool": false,
+          "Thinking": "a\n\nb",
+          "Signature": "QVlzaWc=",
+          "SignatureType": "gemini"
+        },
+        {
+          "MessageID": "",
+          "Source": 4,
+          "Content": "r1",
+          "Images": null,
+          "ToolCalls": null,
+          "ToolCallID": "c1",
+          "OriginalToolCallID": "",
+          "IsOrphanedTool": false,
+          "Thinking": "",
+          "Signature": null,
+          "SignatureType": ""
+        },
+        {
+          "MessageID": "",
+          "Source": 4,
+          "Content": "[Image 1: pasted_image_1.gif]\n\nwrapped\n{\"type\":\"text\",\"text\":\"t\",\"extra\":1}\n{\"k\":\"v\"}\n\"s\"",
+          "Images": [
+            {
+              "Base64Data": "R0lG",
+              "MimeType": "image/gif"
+            }
+          ],
+          "ToolCalls": null,
+          "ToolCallID": "c2",
+          "OriginalToolCallID": "",
+          "IsOrphanedTool": false,
+          "Thinking": "",
+          "Signature": null,
+          "SignatureType": ""
+        }
+      ],
+      "session_id": "conv-1",
+      "system": "sys",
+      "temperature": 0.2,
+      "tools": null
+    },
+    {
+      "budget": 0,
+      "cascade_id": "orig-sess",
+      "level": "",
+      "max_tokens": 128000,
+      "original": "{\"session_id\":\" orig-sess \",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"image\",\"source\":{\"data\":\"QUJD\",\"media_type\":\"image/gif\"}}]},{\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"th\",\"signature\":\"gpt#gAAAAZ\"}]},{\"role\":\"tool\",\"tool_call_id\":\"zz\",\"content\":[{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,UE5H\"}}]}]}",
+      "payload": "{\"systemInstruction\":\"S\",\"generationConfig\":{\"max_output_tokens\":0},\"temperature\":0.9,\"messages\":[{\"role\":\"developer\",\"content\":\"dev\"},{\"role\":\"user\",\"content\":[{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:,abc\"}},{\"type\":\"text\",\"text\":\"hi\"}]},{\"role\":\"assistant\",\"content\":\"ok\",\"tool_calls\":[{\"id\":\"t1\",\"function\":{\"name\":\"fn\",\"arguments\":{\"z\":1}}}]},{\"role\":\"tool\",\"tool_call_id\":\"t1\",\"content\":\"\"},{\"role\":\"tool\",\"tool_call_id\":\"zz\",\"content\":[{\"type\":\"tool_result\",\"content\":\"inner\"}]}]}",
+      "prompts": [
+        {
+          "MessageID": "",
+          "Source": 1,
+          "Content": "[Image 1: pasted_image_1.png]\n\nhi",
+          "Images": [
+            {
+              "Base64Data": "abc",
+              "MimeType": "image/png"
+            }
+          ],
+          "ToolCalls": null,
+          "ToolCallID": "",
+          "OriginalToolCallID": "",
+          "IsOrphanedTool": false,
+          "Thinking": "",
+          "Signature": null,
+          "SignatureType": ""
+        },
+        {
+          "MessageID": "",
+          "Source": 2,
+          "Content": "ok",
+          "Images": null,
+          "ToolCalls": [
+            {
+              "ID": "t1",
+              "Name": "fn",
+              "Arguments": "{\"z\":1}"
+            }
+          ],
+          "ToolCallID": "",
+          "OriginalToolCallID": "",
+          "IsOrphanedTool": false,
+          "Thinking": "th",
+          "Signature": "Z0FBQUFa",
+          "SignatureType": "openai"
+        },
+        {
+          "MessageID": "",
+          "Source": 4,
+          "Content": "{}",
+          "Images": null,
+          "ToolCalls": null,
+          "ToolCallID": "t1",
+          "OriginalToolCallID": "",
+          "IsOrphanedTool": false,
+          "Thinking": "",
+          "Signature": null,
+          "SignatureType": ""
+        },
+        {
+          "MessageID": "",
+          "Source": 1,
+          "Content": "[Image 1: pasted_image_1.png]\n\ninner",
+          "Images": [
+            {
+              "Base64Data": "UE5H",
+              "MimeType": "image/png"
+            }
+          ],
+          "ToolCalls": null,
+          "ToolCallID": "",
+          "OriginalToolCallID": "zz",
+          "IsOrphanedTool": true,
+          "Thinking": "",
+          "Signature": null,
+          "SignatureType": ""
+        }
+      ],
+      "session_id": "orig-sess",
+      "system": "S",
+      "temperature": 0.9,
+      "tools": null
+    },
+    {
+      "budget": 0,
+      "cascade_id": "",
+      "level": "",
+      "max_tokens": 128000,
+      "original": "",
+      "payload": "{\"input\":[{\"type\":\"function_result\",\"call_id\":\"x\",\"content\":[{\"type\":\"tool_result\",\"tool_use_id\":\"x\",\"content\":[{\"type\":\"text\",\"text\":\"deep\"}],\"is_error\":false}]},{\"type\":\"function_result\",\"call_id\":\"y\",\"result\":[{\"type\":\"text\",\"text\":\"   \"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"image\",\"data\":\"SU1H\",\"mime_type\":\"image/jpeg\"},{\"type\":\"image\",\"inline_data\":{\"data\":\"SU1I\"}}]}]}",
+      "prompts": [
+        {
+          "MessageID": "",
+          "Source": 1,
+          "Content": "deep",
+          "Images": null,
+          "ToolCalls": null,
+          "ToolCallID": "",
+          "OriginalToolCallID": "x",
+          "IsOrphanedTool": true,
+          "Thinking": "",
+          "Signature": null,
+          "SignatureType": ""
+        },
+        {
+          "MessageID": "",
+          "Source": 1,
+          "Content": "{}",
+          "Images": null,
+          "ToolCalls": null,
+          "ToolCallID": "",
+          "OriginalToolCallID": "y",
+          "IsOrphanedTool": true,
+          "Thinking": "",
+          "Signature": null,
+          "SignatureType": ""
+        },
+        {
+          "MessageID": "",
+          "Source": 1,
+          "Content": "[Image 1: pasted_image_1.jpg]\n[Image 2: pasted_image_2.png]",
+          "Images": [
+            {
+              "Base64Data": "SU1H",
+              "MimeType": "image/jpeg"
+            },
+            {
+              "Base64Data": "SU1I",
+              "MimeType": "image/png"
+            }
+          ],
+          "ToolCalls": null,
+          "ToolCallID": "",
+          "OriginalToolCallID": "",
+          "IsOrphanedTool": false,
+          "Thinking": "",
+          "Signature": null,
+          "SignatureType": ""
+        }
+      ],
+      "session_id": "",
+      "system": "",
+      "tools": null
+    }
+  ],
+  "resolve_uid": [
+    {
+      "model": "",
+      "level": "",
+      "budget": 0,
+      "want": "swe-2-high"
+    },
+    {
+      "model": "",
+      "level": "minimal",
+      "budget": 0,
+      "want": "swe-2-high"
+    },
+    {
+      "model": "",
+      "level": "low",
+      "budget": 0,
+      "want": "swe-2-high"
+    },
+    {
+      "model": "",
+      "level": "medium",
+      "budget": 0,
+      "want": "swe-2-high"
+    },
+    {
+      "model": "",
+      "level": "high",
+      "budget": 0,
+      "want": "swe-2-high"
+    },
+    {
+      "model": "",
+      "level": "xhigh",
+      "budget": 0,
+      "want": "swe-2-high"
+    },
+    {
+      "model": "",
+      "level": "max",
+      "budget": 0,
+      "want": "swe-2-high"
+    },
+    {
+      "model": "",
+      "level": "none",
+      "budget": 0,
+      "want": "swe-2-high"
+    },
+    {
+      "model": "",
+      "level": "auto",
+      "budget": 0,
+      "want": "swe-2-high"
+    },
+    {
+      "model": "",
+      "level": "fast",
+      "budget": 0,
+      "want": "swe-2-high"
+    },
+    {
+      "model": "",
+      "level": "bogus",
+      "budget": 0,
+      "want": "swe-2-high"
+    },
+    {
+      "model": "",
+      "level": "",
+      "budget": 1,
+      "want": "swe-2-high"
+    },
+    {
+      "model": "",
+      "level": "",
+      "budget": 4096,
+      "want": "swe-2-high"
+    },
+    {
+      "model": "",
+      "level": "",
+      "budget": 4097,
+      "want": "swe-2-high"
+    },
+    {
+      "model": "",
+      "level": "",
+      "budget": 16384,
+      "want": "swe-2-high"
+    },
+    {
+      "model": "",
+      "level": "",
+      "budget": 30000,
+      "want": "swe-2-high"
+    },
+    {
+      "model": "",
+      "level": "",
+      "budget": 40000,
+      "want": "swe-2-high"
+    },
+    {
+      "model": "devin/swe-2",
+      "level": "",
+      "budget": 0,
+      "want": "swe-2-high"
+    },
+    {
+      "model": "devin/swe-2",
+      "level": "minimal",
+      "budget": 0,
+      "want": "swe-2-medium"
+    },
+    {
+      "model": "devin/swe-2",
+      "level": "low",
+      "budget": 0,
+      "want": "swe-2-medium"
+    },
+    {
+      "model": "devin/swe-2",
+      "level": "medium",
+      "budget": 0,
+      "want": "swe-2-medium"
+    },
+    {
+      "model": "devin/swe-2",
+      "level": "high",
+      "budget": 0,
+      "want": "swe-2-high"
+    },
+    {
+      "model": "devin/swe-2",
+      "level": "xhigh",
+      "budget": 0,
+      "want": "swe-2-max"
+    },
+    {
+      "model": "devin/swe-2",
+      "level": "max",
+      "budget": 0,
+      "want": "swe-2-max"
+    },
+    {
+      "model": "devin/swe-2",
+      "level": "none",
+      "budget": 0,
+      "want": "swe-2-high"
+    },
+    {
+      "model": "devin/swe-2",
+      "level": "auto",
+      "budget": 0,
+      "want": "swe-2-high"
+    },
+    {
+      "model": "devin/swe-2",
+      "level": "fast",
+      "budget": 0,
+      "want": "swe-2-high"
+    },
+    {
+      "model": "devin/swe-2",
+      "level": "bogus",
+      "budget": 0,
+      "want": "swe-2-high"
+    },
+    {
+      "model": "devin/swe-2",
+      "level": "",
+      "budget": 1,
+      "want": "swe-2-medium"
+    },
+    {
+      "model": "devin/swe-2",
+      "level": "",
+      "budget": 4096,
+      "want": "swe-2-medium"
+    },
+    {
+      "model": "devin/swe-2",
+      "level": "",
+      "budget": 4097,
+      "want": "swe-2-medium"
+    },
+    {
+      "model": "devin/swe-2",
+      "level": "",
+      "budget": 16384,
+      "want": "swe-2-medium"
+    },
+    {
+      "model": "devin/swe-2",
+      "level": "",
+      "budget": 30000,
+      "want": "swe-2-high"
+    },
+    {
+      "model": "devin/swe-2",
+      "level": "",
+      "budget": 40000,
+      "want": "swe-2-max"
+    },
+    {
+      "model": "DEVIN/swe-2-max",
+      "level": "",
+      "budget": 0,
+      "want": "swe-2-max"
+    },
+    {
+      "model": "DEVIN/swe-2-max",
+      "level": "minimal",
+      "budget": 0,
+      "want": "swe-2-max"
+    },
+    {
+      "model": "DEVIN/swe-2-max",
+      "level": "low",
+      "budget": 0,
+      "want": "swe-2-max"
+    },
+    {
+      "model": "DEVIN/swe-2-max",
+      "level": "medium",
+      "budget": 0,
+      "want": "swe-2-max"
+    },
+    {
+      "model": "DEVIN/swe-2-max",
+      "level": "high",
+      "budget": 0,
+      "want": "swe-2-max"
+    },
+    {
+      "model": "DEVIN/swe-2-max",
+      "level": "xhigh",
+      "budget": 0,
+      "want": "swe-2-max"
+    },
+    {
+      "model": "DEVIN/swe-2-max",
+      "level": "max",
+      "budget": 0,
+      "want": "swe-2-max"
+    },
+    {
+      "model": "DEVIN/swe-2-max",
+      "level": "none",
+      "budget": 0,
+      "want": "swe-2-max"
+    },
+    {
+      "model": "DEVIN/swe-2-max",
+      "level": "auto",
+      "budget": 0,
+      "want": "swe-2-max"
+    },
+    {
+      "model": "DEVIN/swe-2-max",
+      "level": "fast",
+      "budget": 0,
+      "want": "swe-2-max"
+    },
+    {
+      "model": "DEVIN/swe-2-max",
+      "level": "bogus",
+      "budget": 0,
+      "want": "swe-2-max"
+    },
+    {
+      "model": "DEVIN/swe-2-max",
+      "level": "",
+      "budget": 1,
+      "want": "swe-2-max"
+    },
+    {
+      "model": "DEVIN/swe-2-max",
+      "level": "",
+      "budget": 4096,
+      "want": "swe-2-max"
+    },
+    {
+      "model": "DEVIN/swe-2-max",
+      "level": "",
+      "budget": 4097,
+      "want": "swe-2-max"
+    },
+    {
+      "model": "DEVIN/swe-2-max",
+      "level": "",
+      "budget": 16384,
+      "want": "swe-2-max"
+    },
+    {
+      "model": "DEVIN/swe-2-max",
+      "level": "",
+      "budget": 30000,
+      "want": "swe-2-max"
+    },
+    {
+      "model": "DEVIN/swe-2-max",
+      "level": "",
+      "budget": 40000,
+      "want": "swe-2-max"
+    },
+    {
+      "model": "swe-2",
+      "level": "",
+      "budget": 0,
+      "want": "swe-2-high"
+    },
+    {
+      "model": "swe-2",
+      "level": "minimal",
+      "budget": 0,
+      "want": "swe-2-medium"
+    },
+    {
+      "model": "swe-2",
+      "level": "low",
+      "budget": 0,
+      "want": "swe-2-medium"
+    },
+    {
+      "model": "swe-2",
+      "level": "medium",
+      "budget": 0,
+      "want": "swe-2-medium"
+    },
+    {
+      "model": "swe-2",
+      "level": "high",
+      "budget": 0,
+      "want": "swe-2-high"
+    },
+    {
+      "model": "swe-2",
+      "level": "xhigh",
+      "budget": 0,
+      "want": "swe-2-max"
+    },
+    {
+      "model": "swe-2",
+      "level": "max",
+      "budget": 0,
+      "want": "swe-2-max"
+    },
+    {
+      "model": "swe-2",
+      "level": "none",
+      "budget": 0,
+      "want": "swe-2-high"
+    },
+    {
+      "model": "swe-2",
+      "level": "auto",
+      "budget": 0,
+      "want": "swe-2-high"
+    },
+    {
+      "model": "swe-2",
+      "level": "fast",
+      "budget": 0,
+      "want": "swe-2-high"
+    },
+    {
+      "model": "swe-2",
+      "level": "bogus",
+      "budget": 0,
+      "want": "swe-2-high"
+    },
+    {
+      "model": "swe-2",
+      "level": "",
+      "budget": 1,
+      "want": "swe-2-medium"
+    },
+    {
+      "model": "swe-2",
+      "level": "",
+      "budget": 4096,
+      "want": "swe-2-medium"
+    },
+    {
+      "model": "swe-2",
+      "level": "",
+      "budget": 4097,
+      "want": "swe-2-medium"
+    },
+    {
+      "model": "swe-2",
+      "level": "",
+      "budget": 16384,
+      "want": "swe-2-medium"
+    },
+    {
+      "model": "swe-2",
+      "level": "",
+      "budget": 30000,
+      "want": "swe-2-high"
+    },
+    {
+      "model": "swe-2",
+      "level": "",
+      "budget": 40000,
+      "want": "swe-2-max"
+    },
+    {
+      "model": "swe-2(xhigh)",
+      "level": "",
+      "budget": 0,
+      "want": "swe-2-max"
+    },
+    {
+      "model": "swe-2(xhigh)",
+      "level": "minimal",
+      "budget": 0,
+      "want": "swe-2-max"
+    },
+    {
+      "model": "swe-2(xhigh)",
+      "level": "low",
+      "budget": 0,
+      "want": "swe-2-max"
+    },
+    {
+      "model": "swe-2(xhigh)",
+      "level": "medium",
+      "budget": 0,
+      "want": "swe-2-max"
+    },
+    {
+      "model": "swe-2(xhigh)",
+      "level": "high",
+      "budget": 0,
+      "want": "swe-2-max"
+    },
+    {
+      "model": "swe-2(xhigh)",
+      "level": "xhigh",
+      "budget": 0,
+      "want": "swe-2-max"
+    },
+    {
+      "model": "swe-2(xhigh)",
+      "level": "max",
+      "budget": 0,
+      "want": "swe-2-max"
+    },
+    {
+      "model": "swe-2(xhigh)",
+      "level": "none",
+      "budget": 0,
+      "want": "swe-2-max"
+    },
+    {
+      "model": "swe-2(xhigh)",
+      "level": "auto",
+      "budget": 0,
+      "want": "swe-2-max"
+    },
+    {
+      "model": "swe-2(xhigh)",
+      "level": "fast",
+      "budget": 0,
+      "want": "swe-2-max"
+    },
+    {
+      "model": "swe-2(xhigh)",
+      "level": "bogus",
+      "budget": 0,
+      "want": "swe-2-max"
+    },
+    {
+      "model": "swe-2(xhigh)",
+      "level": "",
+      "budget": 1,
+      "want": "swe-2-max"
+    },
+    {
+      "model": "swe-2(xhigh)",
+      "level": "",
+      "budget": 4096,
+      "want": "swe-2-max"
+    },
+    {
+      "model": "swe-2(xhigh)",
+      "level": "",
+      "budget": 4097,
+      "want": "swe-2-max"
+    },
+    {
+      "model": "swe-2(xhigh)",
+      "level": "",
+      "budget": 16384,
+      "want": "swe-2-max"
+    },
+    {
+      "model": "swe-2(xhigh)",
+      "level": "",
+      "budget": 30000,
+      "want": "swe-2-max"
+    },
+    {
+      "model": "swe-2(xhigh)",
+      "level": "",
+      "budget": 40000,
+      "want": "swe-2-max"
+    },
+    {
+      "model": "swe-2:low",
+      "level": "",
+      "budget": 0,
+      "want": "swe-2-medium"
+    },
+    {
+      "model": "swe-2:low",
+      "level": "minimal",
+      "budget": 0,
+      "want": "swe-2-medium"
+    },
+    {
+      "model": "swe-2:low",
+      "level": "low",
+      "budget": 0,
+      "want": "swe-2-medium"
+    },
+    {
+      "model": "swe-2:low",
+      "level": "medium",
+      "budget": 0,
+      "want": "swe-2-medium"
+    },
+    {
+      "model": "swe-2:low",
+      "level": "high",
+      "budget": 0,
+      "want": "swe-2-medium"
+    },
+    {
+      "model": "swe-2:low",
+      "level": "xhigh",
+      "budget": 0,
+      "want": "swe-2-medium"
+    },
+    {
+      "model": "swe-2:low",
+      "level": "max",
+      "budget": 0,
+      "want": "swe-2-medium"
+    },
+    {
+      "model": "swe-2:low",
+      "level": "none",
+      "budget": 0,
+      "want": "swe-2-medium"
+    },
+    {
+      "model": "swe-2:low",
+      "level": "auto",
+      "budget": 0,
+      "want": "swe-2-medium"
+    },
+    {
+      "model": "swe-2:low",
+      "level": "fast",
+      "budget": 0,
+      "want": "swe-2-medium"
+    },
+    {
+      "model": "swe-2:low",
+      "level": "bogus",
+      "budget": 0,
+      "want": "swe-2-medium"
+    },
+    {
+      "model": "swe-2:low",
+      "level": "",
+      "budget": 1,
+      "want": "swe-2-medium"
+    },
+    {
+      "model": "swe-2:low",
+      "level": "",
+      "budget": 4096,
+      "want": "swe-2-medium"
+    },
+    {
+      "model": "swe-2:low",
+      "level": "",
+      "budget": 4097,
+      "want": "swe-2-medium"
+    },
+    {
+      "model": "swe-2:low",
+      "level": "",
+      "budget": 16384,
+      "want": "swe-2-medium"
+    },
+    {
+      "model": "swe-2:low",
+      "level": "",
+      "budget": 30000,
+      "want": "swe-2-medium"
+    },
+    {
+      "model": "swe-2:low",
+      "level": "",
+      "budget": 40000,
+      "want": "swe-2-medium"
+    },
+    {
+      "model": "swe-2(none)",
+      "level": "",
+      "budget": 0,
+      "want": "swe-2-high"
+    },
+    {
+      "model": "swe-2(none)",
+      "level": "minimal",
+      "budget": 0,
+      "want": "swe-2-high"
+    },
+    {
+      "model": "swe-2(none)",
+      "level": "low",
+      "budget": 0,
+      "want": "swe-2-high"
+    },
+    {
+      "model": "swe-2(none)",
+      "level": "medium",
+      "budget": 0,
+      "want": "swe-2-high"
+    },
+    {
+      "model": "swe-2(none)",
+      "level": "high",
+      "budget": 0,
+      "want": "swe-2-high"
+    },
+    {
+      "model": "swe-2(none)",
+      "level": "xhigh",
+      "budget": 0,
+      "want": "swe-2-high"
+    },
+    {
+      "model": "swe-2(none)",
+      "level": "max",
+      "budget": 0,
+      "want": "swe-2-high"
+    },
+    {
+      "model": "swe-2(none)",
+      "level": "none",
+      "budget": 0,
+      "want": "swe-2-high"
+    },
+    {
+      "model": "swe-2(none)",
+      "level": "auto",
+      "budget": 0,
+      "want": "swe-2-high"
+    },
+    {
+      "model": "swe-2(none)",
+      "level": "fast",
+      "budget": 0,
+      "want": "swe-2-high"
+    },
+    {
+      "model": "swe-2(none)",
+      "level": "bogus",
+      "budget": 0,
+      "want": "swe-2-high"
+    },
+    {
+      "model": "swe-2(none)",
+      "level": "",
+      "budget": 1,
+      "want": "swe-2-high"
+    },
+    {
+      "model": "swe-2(none)",
+      "level": "",
+      "budget": 4096,
+      "want": "swe-2-high"
+    },
+    {
+      "model": "swe-2(none)",
+      "level": "",
+      "budget": 4097,
+      "want": "swe-2-high"
+    },
+    {
+      "model": "swe-2(none)",
+      "level": "",
+      "budget": 16384,
+      "want": "swe-2-high"
+    },
+    {
+      "model": "swe-2(none)",
+      "level": "",
+      "budget": 30000,
+      "want": "swe-2-high"
+    },
+    {
+      "model": "swe-2(none)",
+      "level": "",
+      "budget": 40000,
+      "want": "swe-2-high"
+    },
+    {
+      "model": "claude-haiku-4.5",
+      "level": "",
+      "budget": 0,
+      "want": "MODEL_PRIVATE_11"
+    },
+    {
+      "model": "claude-haiku-4.5",
+      "level": "minimal",
+      "budget": 0,
+      "want": "MODEL_PRIVATE_11"
+    },
+    {
+      "model": "claude-haiku-4.5",
+      "level": "low",
+      "budget": 0,
+      "want": "MODEL_PRIVATE_11"
+    },
+    {
+      "model": "claude-haiku-4.5",
+      "level": "medium",
+      "budget": 0,
+      "want": "MODEL_PRIVATE_11"
+    },
+    {
+      "model": "claude-haiku-4.5",
+      "level": "high",
+      "budget": 0,
+      "want": "MODEL_PRIVATE_11"
+    },
+    {
+      "model": "claude-haiku-4.5",
+      "level": "xhigh",
+      "budget": 0,
+      "want": "MODEL_PRIVATE_11"
+    },
+    {
+      "model": "claude-haiku-4.5",
+      "level": "max",
+      "budget": 0,
+      "want": "MODEL_PRIVATE_11"
+    },
+    {
+      "model": "claude-haiku-4.5",
+      "level": "none",
+      "budget": 0,
+      "want": "MODEL_PRIVATE_11"
+    },
+    {
+      "model": "claude-haiku-4.5",
+      "level": "auto",
+      "budget": 0,
+      "want": "MODEL_PRIVATE_11"
+    },
+    {
+      "model": "claude-haiku-4.5",
+      "level": "fast",
+      "budget": 0,
+      "want": "MODEL_PRIVATE_11"
+    },
+    {
+      "model": "claude-haiku-4.5",
+      "level": "bogus",
+      "budget": 0,
+      "want": "MODEL_PRIVATE_11"
+    },
+    {
+      "model": "claude-haiku-4.5",
+      "level": "",
+      "budget": 1,
+      "want": "MODEL_PRIVATE_11"
+    },
+    {
+      "model": "claude-haiku-4.5",
+      "level": "",
+      "budget": 4096,
+      "want": "MODEL_PRIVATE_11"
+    },
+    {
+      "model": "claude-haiku-4.5",
+      "level": "",
+      "budget": 4097,
+      "want": "MODEL_PRIVATE_11"
+    },
+    {
+      "model": "claude-haiku-4.5",
+      "level": "",
+      "budget": 16384,
+      "want": "MODEL_PRIVATE_11"
+    },
+    {
+      "model": "claude-haiku-4.5",
+      "level": "",
+      "budget": 30000,
+      "want": "MODEL_PRIVATE_11"
+    },
+    {
+      "model": "claude-haiku-4.5",
+      "level": "",
+      "budget": 40000,
+      "want": "MODEL_PRIVATE_11"
+    },
+    {
+      "model": "gpt-4.1",
+      "level": "",
+      "budget": 0,
+      "want": "MODEL_CHAT_GPT_4_1_2025_04_14"
+    },
+    {
+      "model": "gpt-4.1",
+      "level": "minimal",
+      "budget": 0,
+      "want": "MODEL_CHAT_GPT_4_1_2025_04_14"
+    },
+    {
+      "model": "gpt-4.1",
+      "level": "low",
+      "budget": 0,
+      "want": "MODEL_CHAT_GPT_4_1_2025_04_14"
+    },
+    {
+      "model": "gpt-4.1",
+      "level": "medium",
+      "budget": 0,
+      "want": "MODEL_CHAT_GPT_4_1_2025_04_14"
+    },
+    {
+      "model": "gpt-4.1",
+      "level": "high",
+      "budget": 0,
+      "want": "MODEL_CHAT_GPT_4_1_2025_04_14"
+    },
+    {
+      "model": "gpt-4.1",
+      "level": "xhigh",
+      "budget": 0,
+      "want": "MODEL_CHAT_GPT_4_1_2025_04_14"
+    },
+    {
+      "model": "gpt-4.1",
+      "level": "max",
+      "budget": 0,
+      "want": "MODEL_CHAT_GPT_4_1_2025_04_14"
+    },
+    {
+      "model": "gpt-4.1",
+      "level": "none",
+      "budget": 0,
+      "want": "MODEL_CHAT_GPT_4_1_2025_04_14"
+    },
+    {
+      "model": "gpt-4.1",
+      "level": "auto",
+      "budget": 0,
+      "want": "MODEL_CHAT_GPT_4_1_2025_04_14"
+    },
+    {
+      "model": "gpt-4.1",
+      "level": "fast",
+      "budget": 0,
+      "want": "MODEL_CHAT_GPT_4_1_2025_04_14"
+    },
+    {
+      "model": "gpt-4.1",
+      "level": "bogus",
+      "budget": 0,
+      "want": "MODEL_CHAT_GPT_4_1_2025_04_14"
+    },
+    {
+      "model": "gpt-4.1",
+      "level": "",
+      "budget": 1,
+      "want": "MODEL_CHAT_GPT_4_1_2025_04_14"
+    },
+    {
+      "model": "gpt-4.1",
+      "level": "",
+      "budget": 4096,
+      "want": "MODEL_CHAT_GPT_4_1_2025_04_14"
+    },
+    {
+      "model": "gpt-4.1",
+      "level": "",
+      "budget": 4097,
+      "want": "MODEL_CHAT_GPT_4_1_2025_04_14"
+    },
+    {
+      "model": "gpt-4.1",
+      "level": "",
+      "budget": 16384,
+      "want": "MODEL_CHAT_GPT_4_1_2025_04_14"
+    },
+    {
+      "model": "gpt-4.1",
+      "level": "",
+      "budget": 30000,
+      "want": "MODEL_CHAT_GPT_4_1_2025_04_14"
+    },
+    {
+      "model": "gpt-4.1",
+      "level": "",
+      "budget": 40000,
+      "want": "MODEL_CHAT_GPT_4_1_2025_04_14"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "level": "",
+      "budget": 0,
+      "want": "MODEL_PRIVATE_2"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "level": "minimal",
+      "budget": 0,
+      "want": "MODEL_PRIVATE_3"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "level": "low",
+      "budget": 0,
+      "want": "MODEL_PRIVATE_3"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "level": "medium",
+      "budget": 0,
+      "want": "MODEL_PRIVATE_3"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "level": "high",
+      "budget": 0,
+      "want": "MODEL_PRIVATE_3"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "level": "xhigh",
+      "budget": 0,
+      "want": "MODEL_PRIVATE_3"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "level": "max",
+      "budget": 0,
+      "want": "MODEL_PRIVATE_3"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "level": "none",
+      "budget": 0,
+      "want": "MODEL_PRIVATE_2"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "level": "auto",
+      "budget": 0,
+      "want": "MODEL_PRIVATE_3"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "level": "fast",
+      "budget": 0,
+      "want": "MODEL_PRIVATE_3"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "level": "bogus",
+      "budget": 0,
+      "want": "MODEL_PRIVATE_2"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "level": "",
+      "budget": 1,
+      "want": "MODEL_PRIVATE_3"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "level": "",
+      "budget": 4096,
+      "want": "MODEL_PRIVATE_3"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "level": "",
+      "budget": 4097,
+      "want": "MODEL_PRIVATE_3"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "level": "",
+      "budget": 16384,
+      "want": "MODEL_PRIVATE_3"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "level": "",
+      "budget": 30000,
+      "want": "MODEL_PRIVATE_3"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "level": "",
+      "budget": 40000,
+      "want": "MODEL_PRIVATE_3"
+    },
+    {
+      "model": "claude-sonnet-4.5(high)",
+      "level": "",
+      "budget": 0,
+      "want": "MODEL_PRIVATE_3"
+    },
+    {
+      "model": "claude-sonnet-4.5(high)",
+      "level": "minimal",
+      "budget": 0,
+      "want": "MODEL_PRIVATE_3"
+    },
+    {
+      "model": "claude-sonnet-4.5(high)",
+      "level": "low",
+      "budget": 0,
+      "want": "MODEL_PRIVATE_3"
+    },
+    {
+      "model": "claude-sonnet-4.5(high)",
+      "level": "medium",
+      "budget": 0,
+      "want": "MODEL_PRIVATE_3"
+    },
+    {
+      "model": "claude-sonnet-4.5(high)",
+      "level": "high",
+      "budget": 0,
+      "want": "MODEL_PRIVATE_3"
+    },
+    {
+      "model": "claude-sonnet-4.5(high)",
+      "level": "xhigh",
+      "budget": 0,
+      "want": "MODEL_PRIVATE_3"
+    },
+    {
+      "model": "claude-sonnet-4.5(high)",
+      "level": "max",
+      "budget": 0,
+      "want": "MODEL_PRIVATE_3"
+    },
+    {
+      "model": "claude-sonnet-4.5(high)",
+      "level": "none",
+      "budget": 0,
+      "want": "MODEL_PRIVATE_3"
+    },
+    {
+      "model": "claude-sonnet-4.5(high)",
+      "level": "auto",
+      "budget": 0,
+      "want": "MODEL_PRIVATE_3"
+    },
+    {
+      "model": "claude-sonnet-4.5(high)",
+      "level": "fast",
+      "budget": 0,
+      "want": "MODEL_PRIVATE_3"
+    },
+    {
+      "model": "claude-sonnet-4.5(high)",
+      "level": "bogus",
+      "budget": 0,
+      "want": "MODEL_PRIVATE_3"
+    },
+    {
+      "model": "claude-sonnet-4.5(high)",
+      "level": "",
+      "budget": 1,
+      "want": "MODEL_PRIVATE_3"
+    },
+    {
+      "model": "claude-sonnet-4.5(high)",
+      "level": "",
+      "budget": 4096,
+      "want": "MODEL_PRIVATE_3"
+    },
+    {
+      "model": "claude-sonnet-4.5(high)",
+      "level": "",
+      "budget": 4097,
+      "want": "MODEL_PRIVATE_3"
+    },
+    {
+      "model": "claude-sonnet-4.5(high)",
+      "level": "",
+      "budget": 16384,
+      "want": "MODEL_PRIVATE_3"
+    },
+    {
+      "model": "claude-sonnet-4.5(high)",
+      "level": "",
+      "budget": 30000,
+      "want": "MODEL_PRIVATE_3"
+    },
+    {
+      "model": "claude-sonnet-4.5(high)",
+      "level": "",
+      "budget": 40000,
+      "want": "MODEL_PRIVATE_3"
+    },
+    {
+      "model": "gemini-3-flash",
+      "level": "",
+      "budget": 0,
+      "want": "gemini-3-8-flash-high"
+    },
+    {
+      "model": "gemini-3-flash",
+      "level": "minimal",
+      "budget": 0,
+      "want": "gemini-3-8-flash-low"
+    },
+    {
+      "model": "gemini-3-flash",
+      "level": "low",
+      "budget": 0,
+      "want": "gemini-3-8-flash-low"
+    },
+    {
+      "model": "gemini-3-flash",
+      "level": "medium",
+      "budget": 0,
+      "want": "gemini-3-8-flash-medium"
+    },
+    {
+      "model": "gemini-3-flash",
+      "level": "high",
+      "budget": 0,
+      "want": "gemini-3-8-flash-high"
+    },
+    {
+      "model": "gemini-3-flash",
+      "level": "xhigh",
+      "budget": 0,
+      "want": "gemini-3-8-flash-high"
+    },
+    {
+      "model": "gemini-3-flash",
+      "level": "max",
+      "budget": 0,
+      "want": "gemini-3-8-flash-high"
+    },
+    {
+      "model": "gemini-3-flash",
+      "level": "none",
+      "budget": 0,
+      "want": "gemini-3-8-flash-high"
+    },
+    {
+      "model": "gemini-3-flash",
+      "level": "auto",
+      "budget": 0,
+      "want": "gemini-3-8-flash-high"
+    },
+    {
+      "model": "gemini-3-flash",
+      "level": "fast",
+      "budget": 0,
+      "want": "gemini-3-8-flash-high"
+    },
+    {
+      "model": "gemini-3-flash",
+      "level": "bogus",
+      "budget": 0,
+      "want": "gemini-3-8-flash-high"
+    },
+    {
+      "model": "gemini-3-flash",
+      "level": "",
+      "budget": 1,
+      "want": "gemini-3-8-flash-low"
+    },
+    {
+      "model": "gemini-3-flash",
+      "level": "",
+      "budget": 4096,
+      "want": "gemini-3-8-flash-low"
+    },
+    {
+      "model": "gemini-3-flash",
+      "level": "",
+      "budget": 4097,
+      "want": "gemini-3-8-flash-medium"
+    },
+    {
+      "model": "gemini-3-flash",
+      "level": "",
+      "budget": 16384,
+      "want": "gemini-3-8-flash-medium"
+    },
+    {
+      "model": "gemini-3-flash",
+      "level": "",
+      "budget": 30000,
+      "want": "gemini-3-8-flash-high"
+    },
+    {
+      "model": "gemini-3-flash",
+      "level": "",
+      "budget": 40000,
+      "want": "gemini-3-8-flash-high"
+    },
+    {
+      "model": "model_gpt_5_2",
+      "level": "",
+      "budget": 0,
+      "want": "MODEL_GPT_5_2_LOW"
+    },
+    {
+      "model": "model_gpt_5_2",
+      "level": "minimal",
+      "budget": 0,
+      "want": "MODEL_GPT_5_2_LOW"
+    },
+    {
+      "model": "model_gpt_5_2",
+      "level": "low",
+      "budget": 0,
+      "want": "MODEL_GPT_5_2_LOW"
+    },
+    {
+      "model": "model_gpt_5_2",
+      "level": "medium",
+      "budget": 0,
+      "want": "MODEL_GPT_5_2_MEDIUM"
+    },
+    {
+      "model": "model_gpt_5_2",
+      "level": "high",
+      "budget": 0,
+      "want": "MODEL_GPT_5_2_HIGH"
+    },
+    {
+      "model": "model_gpt_5_2",
+      "level": "xhigh",
+      "budget": 0,
+      "want": "MODEL_GPT_5_2_XHIGH"
+    },
+    {
+      "model": "model_gpt_5_2",
+      "level": "max",
+      "budget": 0,
+      "want": "MODEL_GPT_5_2_XHIGH"
+    },
+    {
+      "model": "model_gpt_5_2",
+      "level": "none",
+      "budget": 0,
+      "want": "MODEL_GPT_5_2_NONE"
+    },
+    {
+      "model": "model_gpt_5_2",
+      "level": "auto",
+      "budget": 0,
+      "want": "MODEL_GPT_5_2_HIGH"
+    },
+    {
+      "model": "model_gpt_5_2",
+      "level": "fast",
+      "budget": 0,
+      "want": "MODEL_GPT_5_2_LOW"
+    },
+    {
+      "model": "model_gpt_5_2",
+      "level": "bogus",
+      "budget": 0,
+      "want": "MODEL_GPT_5_2_LOW"
+    },
+    {
+      "model": "model_gpt_5_2",
+      "level": "",
+      "budget": 1,
+      "want": "MODEL_GPT_5_2_LOW"
+    },
+    {
+      "model": "model_gpt_5_2",
+      "level": "",
+      "budget": 4096,
+      "want": "MODEL_GPT_5_2_LOW"
+    },
+    {
+      "model": "model_gpt_5_2",
+      "level": "",
+      "budget": 4097,
+      "want": "MODEL_GPT_5_2_MEDIUM"
+    },
+    {
+      "model": "model_gpt_5_2",
+      "level": "",
+      "budget": 16384,
+      "want": "MODEL_GPT_5_2_MEDIUM"
+    },
+    {
+      "model": "model_gpt_5_2",
+      "level": "",
+      "budget": 30000,
+      "want": "MODEL_GPT_5_2_HIGH"
+    },
+    {
+      "model": "model_gpt_5_2",
+      "level": "",
+      "budget": 40000,
+      "want": "MODEL_GPT_5_2_XHIGH"
+    },
+    {
+      "model": "MODEL_GPT_5_2(max)",
+      "level": "",
+      "budget": 0,
+      "want": "MODEL_GPT_5_2_XHIGH"
+    },
+    {
+      "model": "MODEL_GPT_5_2(max)",
+      "level": "minimal",
+      "budget": 0,
+      "want": "MODEL_GPT_5_2_XHIGH"
+    },
+    {
+      "model": "MODEL_GPT_5_2(max)",
+      "level": "low",
+      "budget": 0,
+      "want": "MODEL_GPT_5_2_XHIGH"
+    },
+    {
+      "model": "MODEL_GPT_5_2(max)",
+      "level": "medium",
+      "budget": 0,
+      "want": "MODEL_GPT_5_2_XHIGH"
+    },
+    {
+      "model": "MODEL_GPT_5_2(max)",
+      "level": "high",
+      "budget": 0,
+      "want": "MODEL_GPT_5_2_XHIGH"
+    },
+    {
+      "model": "MODEL_GPT_5_2(max)",
+      "level": "xhigh",
+      "budget": 0,
+      "want": "MODEL_GPT_5_2_XHIGH"
+    },
+    {
+      "model": "MODEL_GPT_5_2(max)",
+      "level": "max",
+      "budget": 0,
+      "want": "MODEL_GPT_5_2_XHIGH"
+    },
+    {
+      "model": "MODEL_GPT_5_2(max)",
+      "level": "none",
+      "budget": 0,
+      "want": "MODEL_GPT_5_2_XHIGH"
+    },
+    {
+      "model": "MODEL_GPT_5_2(max)",
+      "level": "auto",
+      "budget": 0,
+      "want": "MODEL_GPT_5_2_XHIGH"
+    },
+    {
+      "model": "MODEL_GPT_5_2(max)",
+      "level": "fast",
+      "budget": 0,
+      "want": "MODEL_GPT_5_2_XHIGH"
+    },
+    {
+      "model": "MODEL_GPT_5_2(max)",
+      "level": "bogus",
+      "budget": 0,
+      "want": "MODEL_GPT_5_2_XHIGH"
+    },
+    {
+      "model": "MODEL_GPT_5_2(max)",
+      "level": "",
+      "budget": 1,
+      "want": "MODEL_GPT_5_2_XHIGH"
+    },
+    {
+      "model": "MODEL_GPT_5_2(max)",
+      "level": "",
+      "budget": 4096,
+      "want": "MODEL_GPT_5_2_XHIGH"
+    },
+    {
+      "model": "MODEL_GPT_5_2(max)",
+      "level": "",
+      "budget": 4097,
+      "want": "MODEL_GPT_5_2_XHIGH"
+    },
+    {
+      "model": "MODEL_GPT_5_2(max)",
+      "level": "",
+      "budget": 16384,
+      "want": "MODEL_GPT_5_2_XHIGH"
+    },
+    {
+      "model": "MODEL_GPT_5_2(max)",
+      "level": "",
+      "budget": 30000,
+      "want": "MODEL_GPT_5_2_XHIGH"
+    },
+    {
+      "model": "MODEL_GPT_5_2(max)",
+      "level": "",
+      "budget": 40000,
+      "want": "MODEL_GPT_5_2_XHIGH"
+    },
+    {
+      "model": "model-google-gemini-3-0-flash",
+      "level": "",
+      "budget": 0,
+      "want": "MODEL_GOOGLE_GEMINI_3_0_FLASH_HIGH"
+    },
+    {
+      "model": "model-google-gemini-3-0-flash",
+      "level": "minimal",
+      "budget": 0,
+      "want": "MODEL_GOOGLE_GEMINI_3_0_FLASH_MINIMAL"
+    },
+    {
+      "model": "model-google-gemini-3-0-flash",
+      "level": "low",
+      "budget": 0,
+      "want": "MODEL_GOOGLE_GEMINI_3_0_FLASH_LOW"
+    },
+    {
+      "model": "model-google-gemini-3-0-flash",
+      "level": "medium",
+      "budget": 0,
+      "want": "MODEL_GOOGLE_GEMINI_3_0_FLASH_MEDIUM"
+    },
+    {
+      "model": "model-google-gemini-3-0-flash",
+      "level": "high",
+      "budget": 0,
+      "want": "MODEL_GOOGLE_GEMINI_3_0_FLASH_HIGH"
+    },
+    {
+      "model": "model-google-gemini-3-0-flash",
+      "level": "xhigh",
+      "budget": 0,
+      "want": "MODEL_GOOGLE_GEMINI_3_0_FLASH_HIGH"
+    },
+    {
+      "model": "model-google-gemini-3-0-flash",
+      "level": "max",
+      "budget": 0,
+      "want": "MODEL_GOOGLE_GEMINI_3_0_FLASH_HIGH"
+    },
+    {
+      "model": "model-google-gemini-3-0-flash",
+      "level": "none",
+      "budget": 0,
+      "want": "MODEL_GOOGLE_GEMINI_3_0_FLASH_HIGH"
+    },
+    {
+      "model": "model-google-gemini-3-0-flash",
+      "level": "auto",
+      "budget": 0,
+      "want": "MODEL_GOOGLE_GEMINI_3_0_FLASH_HIGH"
+    },
+    {
+      "model": "model-google-gemini-3-0-flash",
+      "level": "fast",
+      "budget": 0,
+      "want": "MODEL_GOOGLE_GEMINI_3_0_FLASH_HIGH"
+    },
+    {
+      "model": "model-google-gemini-3-0-flash",
+      "level": "bogus",
+      "budget": 0,
+      "want": "MODEL_GOOGLE_GEMINI_3_0_FLASH_HIGH"
+    },
+    {
+      "model": "model-google-gemini-3-0-flash",
+      "level": "",
+      "budget": 1,
+      "want": "MODEL_GOOGLE_GEMINI_3_0_FLASH_LOW"
+    },
+    {
+      "model": "model-google-gemini-3-0-flash",
+      "level": "",
+      "budget": 4096,
+      "want": "MODEL_GOOGLE_GEMINI_3_0_FLASH_LOW"
+    },
+    {
+      "model": "model-google-gemini-3-0-flash",
+      "level": "",
+      "budget": 4097,
+      "want": "MODEL_GOOGLE_GEMINI_3_0_FLASH_MEDIUM"
+    },
+    {
+      "model": "model-google-gemini-3-0-flash",
+      "level": "",
+      "budget": 16384,
+      "want": "MODEL_GOOGLE_GEMINI_3_0_FLASH_MEDIUM"
+    },
+    {
+      "model": "model-google-gemini-3-0-flash",
+      "level": "",
+      "budget": 30000,
+      "want": "MODEL_GOOGLE_GEMINI_3_0_FLASH_HIGH"
+    },
+    {
+      "model": "model-google-gemini-3-0-flash",
+      "level": "",
+      "budget": 40000,
+      "want": "MODEL_GOOGLE_GEMINI_3_0_FLASH_HIGH"
+    },
+    {
+      "model": "model_claude_4_5_opus",
+      "level": "",
+      "budget": 0,
+      "want": "MODEL_CLAUDE_4_5_OPUS"
+    },
+    {
+      "model": "model_claude_4_5_opus",
+      "level": "minimal",
+      "budget": 0,
+      "want": "MODEL_CLAUDE_4_5_OPUS_THINKING"
+    },
+    {
+      "model": "model_claude_4_5_opus",
+      "level": "low",
+      "budget": 0,
+      "want": "MODEL_CLAUDE_4_5_OPUS_THINKING"
+    },
+    {
+      "model": "model_claude_4_5_opus",
+      "level": "medium",
+      "budget": 0,
+      "want": "MODEL_CLAUDE_4_5_OPUS_THINKING"
+    },
+    {
+      "model": "model_claude_4_5_opus",
+      "level": "high",
+      "budget": 0,
+      "want": "MODEL_CLAUDE_4_5_OPUS_THINKING"
+    },
+    {
+      "model": "model_claude_4_5_opus",
+      "level": "xhigh",
+      "budget": 0,
+      "want": "MODEL_CLAUDE_4_5_OPUS_THINKING"
+    },
+    {
+      "model": "model_claude_4_5_opus",
+      "level": "max",
+      "budget": 0,
+      "want": "MODEL_CLAUDE_4_5_OPUS_THINKING"
+    },
+    {
+      "model": "model_claude_4_5_opus",
+      "level": "none",
+      "budget": 0,
+      "want": "MODEL_CLAUDE_4_5_OPUS"
+    },
+    {
+      "model": "model_claude_4_5_opus",
+      "level": "auto",
+      "budget": 0,
+      "want": "MODEL_CLAUDE_4_5_OPUS_THINKING"
+    },
+    {
+      "model": "model_claude_4_5_opus",
+      "level": "fast",
+      "budget": 0,
+      "want": "MODEL_CLAUDE_4_5_OPUS_THINKING"
+    },
+    {
+      "model": "model_claude_4_5_opus",
+      "level": "bogus",
+      "budget": 0,
+      "want": "MODEL_CLAUDE_4_5_OPUS"
+    },
+    {
+      "model": "model_claude_4_5_opus",
+      "level": "",
+      "budget": 1,
+      "want": "MODEL_CLAUDE_4_5_OPUS_THINKING"
+    },
+    {
+      "model": "model_claude_4_5_opus",
+      "level": "",
+      "budget": 4096,
+      "want": "MODEL_CLAUDE_4_5_OPUS_THINKING"
+    },
+    {
+      "model": "model_claude_4_5_opus",
+      "level": "",
+      "budget": 4097,
+      "want": "MODEL_CLAUDE_4_5_OPUS_THINKING"
+    },
+    {
+      "model": "model_claude_4_5_opus",
+      "level": "",
+      "budget": 16384,
+      "want": "MODEL_CLAUDE_4_5_OPUS_THINKING"
+    },
+    {
+      "model": "model_claude_4_5_opus",
+      "level": "",
+      "budget": 30000,
+      "want": "MODEL_CLAUDE_4_5_OPUS_THINKING"
+    },
+    {
+      "model": "model_claude_4_5_opus",
+      "level": "",
+      "budget": 40000,
+      "want": "MODEL_CLAUDE_4_5_OPUS_THINKING"
+    },
+    {
+      "model": "swe-1-7",
+      "level": "",
+      "budget": 0,
+      "want": "swe-1-7"
+    },
+    {
+      "model": "swe-1-7",
+      "level": "minimal",
+      "budget": 0,
+      "want": "swe-1-7"
+    },
+    {
+      "model": "swe-1-7",
+      "level": "low",
+      "budget": 0,
+      "want": "swe-1-7"
+    },
+    {
+      "model": "swe-1-7",
+      "level": "medium",
+      "budget": 0,
+      "want": "swe-1-7-medium"
+    },
+    {
+      "model": "swe-1-7",
+      "level": "high",
+      "budget": 0,
+      "want": "swe-1-7"
+    },
+    {
+      "model": "swe-1-7",
+      "level": "xhigh",
+      "budget": 0,
+      "want": "swe-1-7"
+    },
+    {
+      "model": "swe-1-7",
+      "level": "max",
+      "budget": 0,
+      "want": "swe-1-7"
+    },
+    {
+      "model": "swe-1-7",
+      "level": "none",
+      "budget": 0,
+      "want": "swe-1-7"
+    },
+    {
+      "model": "swe-1-7",
+      "level": "auto",
+      "budget": 0,
+      "want": "swe-1-7"
+    },
+    {
+      "model": "swe-1-7",
+      "level": "fast",
+      "budget": 0,
+      "want": "swe-1-7"
+    },
+    {
+      "model": "swe-1-7",
+      "level": "bogus",
+      "budget": 0,
+      "want": "swe-1-7"
+    },
+    {
+      "model": "swe-1-7",
+      "level": "",
+      "budget": 1,
+      "want": "swe-1-7"
+    },
+    {
+      "model": "swe-1-7",
+      "level": "",
+      "budget": 4096,
+      "want": "swe-1-7"
+    },
+    {
+      "model": "swe-1-7",
+      "level": "",
+      "budget": 4097,
+      "want": "swe-1-7-medium"
+    },
+    {
+      "model": "swe-1-7",
+      "level": "",
+      "budget": 16384,
+      "want": "swe-1-7-medium"
+    },
+    {
+      "model": "swe-1-7",
+      "level": "",
+      "budget": 30000,
+      "want": "swe-1-7"
+    },
+    {
+      "model": "swe-1-7",
+      "level": "",
+      "budget": 40000,
+      "want": "swe-1-7"
+    },
+    {
+      "model": "swe-1-6",
+      "level": "",
+      "budget": 0,
+      "want": "swe-1-6"
+    },
+    {
+      "model": "swe-1-6",
+      "level": "minimal",
+      "budget": 0,
+      "want": "swe-1-6"
+    },
+    {
+      "model": "swe-1-6",
+      "level": "low",
+      "budget": 0,
+      "want": "swe-1-6"
+    },
+    {
+      "model": "swe-1-6",
+      "level": "medium",
+      "budget": 0,
+      "want": "swe-1-6"
+    },
+    {
+      "model": "swe-1-6",
+      "level": "high",
+      "budget": 0,
+      "want": "swe-1-6"
+    },
+    {
+      "model": "swe-1-6",
+      "level": "xhigh",
+      "budget": 0,
+      "want": "swe-1-6"
+    },
+    {
+      "model": "swe-1-6",
+      "level": "max",
+      "budget": 0,
+      "want": "swe-1-6"
+    },
+    {
+      "model": "swe-1-6",
+      "level": "none",
+      "budget": 0,
+      "want": "swe-1-6"
+    },
+    {
+      "model": "swe-1-6",
+      "level": "auto",
+      "budget": 0,
+      "want": "swe-1-6"
+    },
+    {
+      "model": "swe-1-6",
+      "level": "fast",
+      "budget": 0,
+      "want": "swe-1-6-fast"
+    },
+    {
+      "model": "swe-1-6",
+      "level": "bogus",
+      "budget": 0,
+      "want": "swe-1-6"
+    },
+    {
+      "model": "swe-1-6",
+      "level": "",
+      "budget": 1,
+      "want": "swe-1-6"
+    },
+    {
+      "model": "swe-1-6",
+      "level": "",
+      "budget": 4096,
+      "want": "swe-1-6"
+    },
+    {
+      "model": "swe-1-6",
+      "level": "",
+      "budget": 4097,
+      "want": "swe-1-6"
+    },
+    {
+      "model": "swe-1-6",
+      "level": "",
+      "budget": 16384,
+      "want": "swe-1-6"
+    },
+    {
+      "model": "swe-1-6",
+      "level": "",
+      "budget": 30000,
+      "want": "swe-1-6"
+    },
+    {
+      "model": "swe-1-6",
+      "level": "",
+      "budget": 40000,
+      "want": "swe-1-6"
+    },
+    {
+      "model": "glm-5-2",
+      "level": "",
+      "budget": 0,
+      "want": "glm-5-2"
+    },
+    {
+      "model": "glm-5-2",
+      "level": "minimal",
+      "budget": 0,
+      "want": "glm-5-2"
+    },
+    {
+      "model": "glm-5-2",
+      "level": "low",
+      "budget": 0,
+      "want": "glm-5-2"
+    },
+    {
+      "model": "glm-5-2",
+      "level": "medium",
+      "budget": 0,
+      "want": "glm-5-2"
+    },
+    {
+      "model": "glm-5-2",
+      "level": "high",
+      "budget": 0,
+      "want": "glm-5-2"
+    },
+    {
+      "model": "glm-5-2",
+      "level": "xhigh",
+      "budget": 0,
+      "want": "glm-5-2"
+    },
+    {
+      "model": "glm-5-2",
+      "level": "max",
+      "budget": 0,
+      "want": "glm-5-2-max"
+    },
+    {
+      "model": "glm-5-2",
+      "level": "none",
+      "budget": 0,
+      "want": "glm-5-2-none"
+    },
+    {
+      "model": "glm-5-2",
+      "level": "auto",
+      "budget": 0,
+      "want": "glm-5-2"
+    },
+    {
+      "model": "glm-5-2",
+      "level": "fast",
+      "budget": 0,
+      "want": "glm-5-2"
+    },
+    {
+      "model": "glm-5-2",
+      "level": "bogus",
+      "budget": 0,
+      "want": "glm-5-2"
+    },
+    {
+      "model": "glm-5-2",
+      "level": "",
+      "budget": 1,
+      "want": "glm-5-2"
+    },
+    {
+      "model": "glm-5-2",
+      "level": "",
+      "budget": 4096,
+      "want": "glm-5-2"
+    },
+    {
+      "model": "glm-5-2",
+      "level": "",
+      "budget": 4097,
+      "want": "glm-5-2"
+    },
+    {
+      "model": "glm-5-2",
+      "level": "",
+      "budget": 16384,
+      "want": "glm-5-2"
+    },
+    {
+      "model": "glm-5-2",
+      "level": "",
+      "budget": 30000,
+      "want": "glm-5-2"
+    },
+    {
+      "model": "glm-5-2",
+      "level": "",
+      "budget": 40000,
+      "want": "glm-5-2-max"
+    },
+    {
+      "model": "glm-5-2-1m",
+      "level": "",
+      "budget": 0,
+      "want": "glm-5-2-1m"
+    },
+    {
+      "model": "glm-5-2-1m",
+      "level": "minimal",
+      "budget": 0,
+      "want": "glm-5-2-1m"
+    },
+    {
+      "model": "glm-5-2-1m",
+      "level": "low",
+      "budget": 0,
+      "want": "glm-5-2-1m"
+    },
+    {
+      "model": "glm-5-2-1m",
+      "level": "medium",
+      "budget": 0,
+      "want": "glm-5-2-1m"
+    },
+    {
+      "model": "glm-5-2-1m",
+      "level": "high",
+      "budget": 0,
+      "want": "glm-5-2-1m"
+    },
+    {
+      "model": "glm-5-2-1m",
+      "level": "xhigh",
+      "budget": 0,
+      "want": "glm-5-2-1m"
+    },
+    {
+      "model": "glm-5-2-1m",
+      "level": "max",
+      "budget": 0,
+      "want": "glm-5-2-max-1m"
+    },
+    {
+      "model": "glm-5-2-1m",
+      "level": "none",
+      "budget": 0,
+      "want": "glm-5-2-none-1m"
+    },
+    {
+      "model": "glm-5-2-1m",
+      "level": "auto",
+      "budget": 0,
+      "want": "glm-5-2-1m"
+    },
+    {
+      "model": "glm-5-2-1m",
+      "level": "fast",
+      "budget": 0,
+      "want": "glm-5-2-1m"
+    },
+    {
+      "model": "glm-5-2-1m",
+      "level": "bogus",
+      "budget": 0,
+      "want": "glm-5-2-1m"
+    },
+    {
+      "model": "glm-5-2-1m",
+      "level": "",
+      "budget": 1,
+      "want": "glm-5-2-1m"
+    },
+    {
+      "model": "glm-5-2-1m",
+      "level": "",
+      "budget": 4096,
+      "want": "glm-5-2-1m"
+    },
+    {
+      "model": "glm-5-2-1m",
+      "level": "",
+      "budget": 4097,
+      "want": "glm-5-2-1m"
+    },
+    {
+      "model": "glm-5-2-1m",
+      "level": "",
+      "budget": 16384,
+      "want": "glm-5-2-1m"
+    },
+    {
+      "model": "glm-5-2-1m",
+      "level": "",
+      "budget": 30000,
+      "want": "glm-5-2-1m"
+    },
+    {
+      "model": "glm-5-2-1m",
+      "level": "",
+      "budget": 40000,
+      "want": "glm-5-2-max-1m"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "level": "",
+      "budget": 0,
+      "want": "claude-opus-4-6"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "level": "minimal",
+      "budget": 0,
+      "want": "claude-opus-4-6-thinking"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "level": "low",
+      "budget": 0,
+      "want": "claude-opus-4-6-thinking"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "level": "medium",
+      "budget": 0,
+      "want": "claude-opus-4-6-thinking"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "level": "high",
+      "budget": 0,
+      "want": "claude-opus-4-6-thinking"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "level": "xhigh",
+      "budget": 0,
+      "want": "claude-opus-4-6-thinking"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "level": "max",
+      "budget": 0,
+      "want": "claude-opus-4-6-thinking"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "level": "none",
+      "budget": 0,
+      "want": "claude-opus-4-6"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "level": "auto",
+      "budget": 0,
+      "want": "claude-opus-4-6-thinking"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "level": "fast",
+      "budget": 0,
+      "want": "claude-opus-4-6-thinking"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "level": "bogus",
+      "budget": 0,
+      "want": "claude-opus-4-6"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "level": "",
+      "budget": 1,
+      "want": "claude-opus-4-6-thinking"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "level": "",
+      "budget": 4096,
+      "want": "claude-opus-4-6-thinking"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "level": "",
+      "budget": 4097,
+      "want": "claude-opus-4-6-thinking"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "level": "",
+      "budget": 16384,
+      "want": "claude-opus-4-6-thinking"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "level": "",
+      "budget": 30000,
+      "want": "claude-opus-4-6-thinking"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "level": "",
+      "budget": 40000,
+      "want": "claude-opus-4-6-thinking"
+    },
+    {
+      "model": "claude-opus-4-6-1m",
+      "level": "",
+      "budget": 0,
+      "want": "claude-opus-4-6-1m"
+    },
+    {
+      "model": "claude-opus-4-6-1m",
+      "level": "minimal",
+      "budget": 0,
+      "want": "claude-opus-4-6-thinking-1m"
+    },
+    {
+      "model": "claude-opus-4-6-1m",
+      "level": "low",
+      "budget": 0,
+      "want": "claude-opus-4-6-thinking-1m"
+    },
+    {
+      "model": "claude-opus-4-6-1m",
+      "level": "medium",
+      "budget": 0,
+      "want": "claude-opus-4-6-thinking-1m"
+    },
+    {
+      "model": "claude-opus-4-6-1m",
+      "level": "high",
+      "budget": 0,
+      "want": "claude-opus-4-6-thinking-1m"
+    },
+    {
+      "model": "claude-opus-4-6-1m",
+      "level": "xhigh",
+      "budget": 0,
+      "want": "claude-opus-4-6-thinking-1m"
+    },
+    {
+      "model": "claude-opus-4-6-1m",
+      "level": "max",
+      "budget": 0,
+      "want": "claude-opus-4-6-thinking-1m"
+    },
+    {
+      "model": "claude-opus-4-6-1m",
+      "level": "none",
+      "budget": 0,
+      "want": "claude-opus-4-6-1m"
+    },
+    {
+      "model": "claude-opus-4-6-1m",
+      "level": "auto",
+      "budget": 0,
+      "want": "claude-opus-4-6-thinking-1m"
+    },
+    {
+      "model": "claude-opus-4-6-1m",
+      "level": "fast",
+      "budget": 0,
+      "want": "claude-opus-4-6-thinking-1m"
+    },
+    {
+      "model": "claude-opus-4-6-1m",
+      "level": "bogus",
+      "budget": 0,
+      "want": "claude-opus-4-6-1m"
+    },
+    {
+      "model": "claude-opus-4-6-1m",
+      "level": "",
+      "budget": 1,
+      "want": "claude-opus-4-6-thinking-1m"
+    },
+    {
+      "model": "claude-opus-4-6-1m",
+      "level": "",
+      "budget": 4096,
+      "want": "claude-opus-4-6-thinking-1m"
+    },
+    {
+      "model": "claude-opus-4-6-1m",
+      "level": "",
+      "budget": 4097,
+      "want": "claude-opus-4-6-thinking-1m"
+    },
+    {
+      "model": "claude-opus-4-6-1m",
+      "level": "",
+      "budget": 16384,
+      "want": "claude-opus-4-6-thinking-1m"
+    },
+    {
+      "model": "claude-opus-4-6-1m",
+      "level": "",
+      "budget": 30000,
+      "want": "claude-opus-4-6-thinking-1m"
+    },
+    {
+      "model": "claude-opus-4-6-1m",
+      "level": "",
+      "budget": 40000,
+      "want": "claude-opus-4-6-thinking-1m"
+    },
+    {
+      "model": "claude-sonnet-4-6-1m",
+      "level": "",
+      "budget": 0,
+      "want": "claude-sonnet-4-6-1m"
+    },
+    {
+      "model": "claude-sonnet-4-6-1m",
+      "level": "minimal",
+      "budget": 0,
+      "want": "claude-sonnet-4-6-thinking-1m"
+    },
+    {
+      "model": "claude-sonnet-4-6-1m",
+      "level": "low",
+      "budget": 0,
+      "want": "claude-sonnet-4-6-thinking-1m"
+    },
+    {
+      "model": "claude-sonnet-4-6-1m",
+      "level": "medium",
+      "budget": 0,
+      "want": "claude-sonnet-4-6-thinking-1m"
+    },
+    {
+      "model": "claude-sonnet-4-6-1m",
+      "level": "high",
+      "budget": 0,
+      "want": "claude-sonnet-4-6-thinking-1m"
+    },
+    {
+      "model": "claude-sonnet-4-6-1m",
+      "level": "xhigh",
+      "budget": 0,
+      "want": "claude-sonnet-4-6-thinking-1m"
+    },
+    {
+      "model": "claude-sonnet-4-6-1m",
+      "level": "max",
+      "budget": 0,
+      "want": "claude-sonnet-4-6-thinking-1m"
+    },
+    {
+      "model": "claude-sonnet-4-6-1m",
+      "level": "none",
+      "budget": 0,
+      "want": "claude-sonnet-4-6-1m"
+    },
+    {
+      "model": "claude-sonnet-4-6-1m",
+      "level": "auto",
+      "budget": 0,
+      "want": "claude-sonnet-4-6-thinking-1m"
+    },
+    {
+      "model": "claude-sonnet-4-6-1m",
+      "level": "fast",
+      "budget": 0,
+      "want": "claude-sonnet-4-6-thinking-1m"
+    },
+    {
+      "model": "claude-sonnet-4-6-1m",
+      "level": "bogus",
+      "budget": 0,
+      "want": "claude-sonnet-4-6-1m"
+    },
+    {
+      "model": "claude-sonnet-4-6-1m",
+      "level": "",
+      "budget": 1,
+      "want": "claude-sonnet-4-6-thinking-1m"
+    },
+    {
+      "model": "claude-sonnet-4-6-1m",
+      "level": "",
+      "budget": 4096,
+      "want": "claude-sonnet-4-6-thinking-1m"
+    },
+    {
+      "model": "claude-sonnet-4-6-1m",
+      "level": "",
+      "budget": 4097,
+      "want": "claude-sonnet-4-6-thinking-1m"
+    },
+    {
+      "model": "claude-sonnet-4-6-1m",
+      "level": "",
+      "budget": 16384,
+      "want": "claude-sonnet-4-6-thinking-1m"
+    },
+    {
+      "model": "claude-sonnet-4-6-1m",
+      "level": "",
+      "budget": 30000,
+      "want": "claude-sonnet-4-6-thinking-1m"
+    },
+    {
+      "model": "claude-sonnet-4-6-1m",
+      "level": "",
+      "budget": 40000,
+      "want": "claude-sonnet-4-6-thinking-1m"
+    },
+    {
+      "model": "glm-5-3",
+      "level": "",
+      "budget": 0,
+      "want": "glm-5-3-high"
+    },
+    {
+      "model": "glm-5-3",
+      "level": "minimal",
+      "budget": 0,
+      "want": "glm-5-3-low"
+    },
+    {
+      "model": "glm-5-3",
+      "level": "low",
+      "budget": 0,
+      "want": "glm-5-3-low"
+    },
+    {
+      "model": "glm-5-3",
+      "level": "medium",
+      "budget": 0,
+      "want": "glm-5-3-high"
+    },
+    {
+      "model": "glm-5-3",
+      "level": "high",
+      "budget": 0,
+      "want": "glm-5-3-high"
+    },
+    {
+      "model": "glm-5-3",
+      "level": "xhigh",
+      "budget": 0,
+      "want": "glm-5-3-max"
+    },
+    {
+      "model": "glm-5-3",
+      "level": "max",
+      "budget": 0,
+      "want": "glm-5-3-max"
+    },
+    {
+      "model": "glm-5-3",
+      "level": "none",
+      "budget": 0,
+      "want": "glm-5-3-high"
+    },
+    {
+      "model": "glm-5-3",
+      "level": "auto",
+      "budget": 0,
+      "want": "glm-5-3-high"
+    },
+    {
+      "model": "glm-5-3",
+      "level": "fast",
+      "budget": 0,
+      "want": "glm-5-3-high"
+    },
+    {
+      "model": "glm-5-3",
+      "level": "bogus",
+      "budget": 0,
+      "want": "glm-5-3-high"
+    },
+    {
+      "model": "glm-5-3",
+      "level": "",
+      "budget": 1,
+      "want": "glm-5-3-low"
+    },
+    {
+      "model": "glm-5-3",
+      "level": "",
+      "budget": 4096,
+      "want": "glm-5-3-low"
+    },
+    {
+      "model": "glm-5-3",
+      "level": "",
+      "budget": 4097,
+      "want": "glm-5-3-high"
+    },
+    {
+      "model": "glm-5-3",
+      "level": "",
+      "budget": 16384,
+      "want": "glm-5-3-high"
+    },
+    {
+      "model": "glm-5-3",
+      "level": "",
+      "budget": 30000,
+      "want": "glm-5-3-high"
+    },
+    {
+      "model": "glm-5-3",
+      "level": "",
+      "budget": 40000,
+      "want": "glm-5-3-max"
+    },
+    {
+      "model": "gpt-5-6-sol",
+      "level": "",
+      "budget": 0,
+      "want": "gpt-5-6-sol-low"
+    },
+    {
+      "model": "gpt-5-6-sol",
+      "level": "minimal",
+      "budget": 0,
+      "want": "gpt-5-6-sol-low"
+    },
+    {
+      "model": "gpt-5-6-sol",
+      "level": "low",
+      "budget": 0,
+      "want": "gpt-5-6-sol-low"
+    },
+    {
+      "model": "gpt-5-6-sol",
+      "level": "medium",
+      "budget": 0,
+      "want": "gpt-5-6-sol-medium"
+    },
+    {
+      "model": "gpt-5-6-sol",
+      "level": "high",
+      "budget": 0,
+      "want": "gpt-5-6-sol-high"
+    },
+    {
+      "model": "gpt-5-6-sol",
+      "level": "xhigh",
+      "budget": 0,
+      "want": "gpt-5-6-sol-xhigh"
+    },
+    {
+      "model": "gpt-5-6-sol",
+      "level": "max",
+      "budget": 0,
+      "want": "gpt-5-6-sol-max"
+    },
+    {
+      "model": "gpt-5-6-sol",
+      "level": "none",
+      "budget": 0,
+      "want": "gpt-5-6-sol-none"
+    },
+    {
+      "model": "gpt-5-6-sol",
+      "level": "auto",
+      "budget": 0,
+      "want": "gpt-5-6-sol-high"
+    },
+    {
+      "model": "gpt-5-6-sol",
+      "level": "fast",
+      "budget": 0,
+      "want": "gpt-5-6-sol-low"
+    },
+    {
+      "model": "gpt-5-6-sol",
+      "level": "bogus",
+      "budget": 0,
+      "want": "gpt-5-6-sol-low"
+    },
+    {
+      "model": "gpt-5-6-sol",
+      "level": "",
+      "budget": 1,
+      "want": "gpt-5-6-sol-low"
+    },
+    {
+      "model": "gpt-5-6-sol",
+      "level": "",
+      "budget": 4096,
+      "want": "gpt-5-6-sol-low"
+    },
+    {
+      "model": "gpt-5-6-sol",
+      "level": "",
+      "budget": 4097,
+      "want": "gpt-5-6-sol-medium"
+    },
+    {
+      "model": "gpt-5-6-sol",
+      "level": "",
+      "budget": 16384,
+      "want": "gpt-5-6-sol-medium"
+    },
+    {
+      "model": "gpt-5-6-sol",
+      "level": "",
+      "budget": 30000,
+      "want": "gpt-5-6-sol-high"
+    },
+    {
+      "model": "gpt-5-6-sol",
+      "level": "",
+      "budget": 40000,
+      "want": "gpt-5-6-sol-max"
+    },
+    {
+      "model": "grok-4-6",
+      "level": "",
+      "budget": 0,
+      "want": "grok-4-6-high"
+    },
+    {
+      "model": "grok-4-6",
+      "level": "minimal",
+      "budget": 0,
+      "want": "grok-4-6-low"
+    },
+    {
+      "model": "grok-4-6",
+      "level": "low",
+      "budget": 0,
+      "want": "grok-4-6-low"
+    },
+    {
+      "model": "grok-4-6",
+      "level": "medium",
+      "budget": 0,
+      "want": "grok-4-6-medium"
+    },
+    {
+      "model": "grok-4-6",
+      "level": "high",
+      "budget": 0,
+      "want": "grok-4-6-high"
+    },
+    {
+      "model": "grok-4-6",
+      "level": "xhigh",
+      "budget": 0,
+      "want": "grok-4-6-xhigh"
+    },
+    {
+      "model": "grok-4-6",
+      "level": "max",
+      "budget": 0,
+      "want": "grok-4-6-xhigh"
+    },
+    {
+      "model": "grok-4-6",
+      "level": "none",
+      "budget": 0,
+      "want": "grok-4-6-high"
+    },
+    {
+      "model": "grok-4-6",
+      "level": "auto",
+      "budget": 0,
+      "want": "grok-4-6-high"
+    },
+    {
+      "model": "grok-4-6",
+      "level": "fast",
+      "budget": 0,
+      "want": "grok-4-6-high"
+    },
+    {
+      "model": "grok-4-6",
+      "level": "bogus",
+      "budget": 0,
+      "want": "grok-4-6-high"
+    },
+    {
+      "model": "grok-4-6",
+      "level": "",
+      "budget": 1,
+      "want": "grok-4-6-low"
+    },
+    {
+      "model": "grok-4-6",
+      "level": "",
+      "budget": 4096,
+      "want": "grok-4-6-low"
+    },
+    {
+      "model": "grok-4-6",
+      "level": "",
+      "budget": 4097,
+      "want": "grok-4-6-medium"
+    },
+    {
+      "model": "grok-4-6",
+      "level": "",
+      "budget": 16384,
+      "want": "grok-4-6-medium"
+    },
+    {
+      "model": "grok-4-6",
+      "level": "",
+      "budget": 30000,
+      "want": "grok-4-6-high"
+    },
+    {
+      "model": "grok-4-6",
+      "level": "",
+      "budget": 40000,
+      "want": "grok-4-6-xhigh"
+    },
+    {
+      "model": "deepseek-v4-flash",
+      "level": "",
+      "budget": 0,
+      "want": "deepseek-v4-flash-high"
+    },
+    {
+      "model": "deepseek-v4-flash",
+      "level": "minimal",
+      "budget": 0,
+      "want": "deepseek-v4-flash-high"
+    },
+    {
+      "model": "deepseek-v4-flash",
+      "level": "low",
+      "budget": 0,
+      "want": "deepseek-v4-flash-high"
+    },
+    {
+      "model": "deepseek-v4-flash",
+      "level": "medium",
+      "budget": 0,
+      "want": "deepseek-v4-flash-high"
+    },
+    {
+      "model": "deepseek-v4-flash",
+      "level": "high",
+      "budget": 0,
+      "want": "deepseek-v4-flash-high"
+    },
+    {
+      "model": "deepseek-v4-flash",
+      "level": "xhigh",
+      "budget": 0,
+      "want": "deepseek-v4-flash-max"
+    },
+    {
+      "model": "deepseek-v4-flash",
+      "level": "max",
+      "budget": 0,
+      "want": "deepseek-v4-flash-max"
+    },
+    {
+      "model": "deepseek-v4-flash",
+      "level": "none",
+      "budget": 0,
+      "want": "deepseek-v4-flash-high"
+    },
+    {
+      "model": "deepseek-v4-flash",
+      "level": "auto",
+      "budget": 0,
+      "want": "deepseek-v4-flash-high"
+    },
+    {
+      "model": "deepseek-v4-flash",
+      "level": "fast",
+      "budget": 0,
+      "want": "deepseek-v4-flash-high"
+    },
+    {
+      "model": "deepseek-v4-flash",
+      "level": "bogus",
+      "budget": 0,
+      "want": "deepseek-v4-flash-high"
+    },
+    {
+      "model": "deepseek-v4-flash",
+      "level": "",
+      "budget": 1,
+      "want": "deepseek-v4-flash-high"
+    },
+    {
+      "model": "deepseek-v4-flash",
+      "level": "",
+      "budget": 4096,
+      "want": "deepseek-v4-flash-high"
+    },
+    {
+      "model": "deepseek-v4-flash",
+      "level": "",
+      "budget": 4097,
+      "want": "deepseek-v4-flash-high"
+    },
+    {
+      "model": "deepseek-v4-flash",
+      "level": "",
+      "budget": 16384,
+      "want": "deepseek-v4-flash-high"
+    },
+    {
+      "model": "deepseek-v4-flash",
+      "level": "",
+      "budget": 30000,
+      "want": "deepseek-v4-flash-high"
+    },
+    {
+      "model": "deepseek-v4-flash",
+      "level": "",
+      "budget": 40000,
+      "want": "deepseek-v4-flash-max"
+    },
+    {
+      "model": "kimi-k3",
+      "level": "",
+      "budget": 0,
+      "want": "kimi-k3-high"
+    },
+    {
+      "model": "kimi-k3",
+      "level": "minimal",
+      "budget": 0,
+      "want": "kimi-k3-low"
+    },
+    {
+      "model": "kimi-k3",
+      "level": "low",
+      "budget": 0,
+      "want": "kimi-k3-low"
+    },
+    {
+      "model": "kimi-k3",
+      "level": "medium",
+      "budget": 0,
+      "want": "kimi-k3-high"
+    },
+    {
+      "model": "kimi-k3",
+      "level": "high",
+      "budget": 0,
+      "want": "kimi-k3-high"
+    },
+    {
+      "model": "kimi-k3",
+      "level": "xhigh",
+      "budget": 0,
+      "want": "kimi-k3-max"
+    },
+    {
+      "model": "kimi-k3",
+      "level": "max",
+      "budget": 0,
+      "want": "kimi-k3-max"
+    },
+    {
+      "model": "kimi-k3",
+      "level": "none",
+      "budget": 0,
+      "want": "kimi-k3-high"
+    },
+    {
+      "model": "kimi-k3",
+      "level": "auto",
+      "budget": 0,
+      "want": "kimi-k3-high"
+    },
+    {
+      "model": "kimi-k3",
+      "level": "fast",
+      "budget": 0,
+      "want": "kimi-k3-high"
+    },
+    {
+      "model": "kimi-k3",
+      "level": "bogus",
+      "budget": 0,
+      "want": "kimi-k3-high"
+    },
+    {
+      "model": "kimi-k3",
+      "level": "",
+      "budget": 1,
+      "want": "kimi-k3-low"
+    },
+    {
+      "model": "kimi-k3",
+      "level": "",
+      "budget": 4096,
+      "want": "kimi-k3-low"
+    },
+    {
+      "model": "kimi-k3",
+      "level": "",
+      "budget": 4097,
+      "want": "kimi-k3-high"
+    },
+    {
+      "model": "kimi-k3",
+      "level": "",
+      "budget": 16384,
+      "want": "kimi-k3-high"
+    },
+    {
+      "model": "kimi-k3",
+      "level": "",
+      "budget": 30000,
+      "want": "kimi-k3-high"
+    },
+    {
+      "model": "kimi-k3",
+      "level": "",
+      "budget": 40000,
+      "want": "kimi-k3-max"
+    },
+    {
+      "model": "unknown-model",
+      "level": "",
+      "budget": 0,
+      "want": "unknown-model"
+    },
+    {
+      "model": "unknown-model",
+      "level": "minimal",
+      "budget": 0,
+      "want": "unknown-model"
+    },
+    {
+      "model": "unknown-model",
+      "level": "low",
+      "budget": 0,
+      "want": "unknown-model"
+    },
+    {
+      "model": "unknown-model",
+      "level": "medium",
+      "budget": 0,
+      "want": "unknown-model"
+    },
+    {
+      "model": "unknown-model",
+      "level": "high",
+      "budget": 0,
+      "want": "unknown-model"
+    },
+    {
+      "model": "unknown-model",
+      "level": "xhigh",
+      "budget": 0,
+      "want": "unknown-model"
+    },
+    {
+      "model": "unknown-model",
+      "level": "max",
+      "budget": 0,
+      "want": "unknown-model"
+    },
+    {
+      "model": "unknown-model",
+      "level": "none",
+      "budget": 0,
+      "want": "unknown-model"
+    },
+    {
+      "model": "unknown-model",
+      "level": "auto",
+      "budget": 0,
+      "want": "unknown-model"
+    },
+    {
+      "model": "unknown-model",
+      "level": "fast",
+      "budget": 0,
+      "want": "unknown-model"
+    },
+    {
+      "model": "unknown-model",
+      "level": "bogus",
+      "budget": 0,
+      "want": "unknown-model"
+    },
+    {
+      "model": "unknown-model",
+      "level": "",
+      "budget": 1,
+      "want": "unknown-model"
+    },
+    {
+      "model": "unknown-model",
+      "level": "",
+      "budget": 4096,
+      "want": "unknown-model"
+    },
+    {
+      "model": "unknown-model",
+      "level": "",
+      "budget": 4097,
+      "want": "unknown-model"
+    },
+    {
+      "model": "unknown-model",
+      "level": "",
+      "budget": 16384,
+      "want": "unknown-model"
+    },
+    {
+      "model": "unknown-model",
+      "level": "",
+      "budget": 30000,
+      "want": "unknown-model"
+    },
+    {
+      "model": "unknown-model",
+      "level": "",
+      "budget": 40000,
+      "want": "unknown-model"
+    },
+    {
+      "model": "gpt-6-astra",
+      "level": "",
+      "budget": 0,
+      "want": "gpt-6-astra-medium"
+    },
+    {
+      "model": "gpt-6-astra",
+      "level": "minimal",
+      "budget": 0,
+      "want": "gpt-6-astra-low"
+    },
+    {
+      "model": "gpt-6-astra",
+      "level": "low",
+      "budget": 0,
+      "want": "gpt-6-astra-low"
+    },
+    {
+      "model": "gpt-6-astra",
+      "level": "medium",
+      "budget": 0,
+      "want": "gpt-6-astra-medium"
+    },
+    {
+      "model": "gpt-6-astra",
+      "level": "high",
+      "budget": 0,
+      "want": "gpt-6-astra-high"
+    },
+    {
+      "model": "gpt-6-astra",
+      "level": "xhigh",
+      "budget": 0,
+      "want": "gpt-6-astra-xhigh"
+    },
+    {
+      "model": "gpt-6-astra",
+      "level": "max",
+      "budget": 0,
+      "want": "gpt-6-astra-max"
+    },
+    {
+      "model": "gpt-6-astra",
+      "level": "none",
+      "budget": 0,
+      "want": "gpt-6-astra-medium"
+    },
+    {
+      "model": "gpt-6-astra",
+      "level": "auto",
+      "budget": 0,
+      "want": "gpt-6-astra-high"
+    },
+    {
+      "model": "gpt-6-astra",
+      "level": "fast",
+      "budget": 0,
+      "want": "gpt-6-astra-medium"
+    },
+    {
+      "model": "gpt-6-astra",
+      "level": "bogus",
+      "budget": 0,
+      "want": "gpt-6-astra-medium"
+    },
+    {
+      "model": "gpt-6-astra",
+      "level": "",
+      "budget": 1,
+      "want": "gpt-6-astra-low"
+    },
+    {
+      "model": "gpt-6-astra",
+      "level": "",
+      "budget": 4096,
+      "want": "gpt-6-astra-low"
+    },
+    {
+      "model": "gpt-6-astra",
+      "level": "",
+      "budget": 4097,
+      "want": "gpt-6-astra-medium"
+    },
+    {
+      "model": "gpt-6-astra",
+      "level": "",
+      "budget": 16384,
+      "want": "gpt-6-astra-medium"
+    },
+    {
+      "model": "gpt-6-astra",
+      "level": "",
+      "budget": 30000,
+      "want": "gpt-6-astra-high"
+    },
+    {
+      "model": "gpt-6-astra",
+      "level": "",
+      "budget": 40000,
+      "want": "gpt-6-astra-max"
+    },
+    {
+      "model": "claude-fable-5-1",
+      "level": "",
+      "budget": 0,
+      "want": "claude-fable-5-1-medium"
+    },
+    {
+      "model": "claude-fable-5-1",
+      "level": "minimal",
+      "budget": 0,
+      "want": "claude-fable-5-1-low"
+    },
+    {
+      "model": "claude-fable-5-1",
+      "level": "low",
+      "budget": 0,
+      "want": "claude-fable-5-1-low"
+    },
+    {
+      "model": "claude-fable-5-1",
+      "level": "medium",
+      "budget": 0,
+      "want": "claude-fable-5-1-medium"
+    },
+    {
+      "model": "claude-fable-5-1",
+      "level": "high",
+      "budget": 0,
+      "want": "claude-fable-5-1-high"
+    },
+    {
+      "model": "claude-fable-5-1",
+      "level": "xhigh",
+      "budget": 0,
+      "want": "claude-fable-5-1-xhigh"
+    },
+    {
+      "model": "claude-fable-5-1",
+      "level": "max",
+      "budget": 0,
+      "want": "claude-fable-5-1-max"
+    },
+    {
+      "model": "claude-fable-5-1",
+      "level": "none",
+      "budget": 0,
+      "want": "claude-fable-5-1-medium"
+    },
+    {
+      "model": "claude-fable-5-1",
+      "level": "auto",
+      "budget": 0,
+      "want": "claude-fable-5-1-high"
+    },
+    {
+      "model": "claude-fable-5-1",
+      "level": "fast",
+      "budget": 0,
+      "want": "claude-fable-5-1-medium"
+    },
+    {
+      "model": "claude-fable-5-1",
+      "level": "bogus",
+      "budget": 0,
+      "want": "claude-fable-5-1-medium"
+    },
+    {
+      "model": "claude-fable-5-1",
+      "level": "",
+      "budget": 1,
+      "want": "claude-fable-5-1-low"
+    },
+    {
+      "model": "claude-fable-5-1",
+      "level": "",
+      "budget": 4096,
+      "want": "claude-fable-5-1-low"
+    },
+    {
+      "model": "claude-fable-5-1",
+      "level": "",
+      "budget": 4097,
+      "want": "claude-fable-5-1-medium"
+    },
+    {
+      "model": "claude-fable-5-1",
+      "level": "",
+      "budget": 16384,
+      "want": "claude-fable-5-1-medium"
+    },
+    {
+      "model": "claude-fable-5-1",
+      "level": "",
+      "budget": 30000,
+      "want": "claude-fable-5-1-high"
+    },
+    {
+      "model": "claude-fable-5-1",
+      "level": "",
+      "budget": 40000,
+      "want": "claude-fable-5-1-max"
+    },
+    {
+      "model": "swe-1-6-slow",
+      "level": "",
+      "budget": 0,
+      "want": "swe-1-6-slow"
+    },
+    {
+      "model": "swe-1-6-slow",
+      "level": "minimal",
+      "budget": 0,
+      "want": "swe-1-6-slow"
+    },
+    {
+      "model": "swe-1-6-slow",
+      "level": "low",
+      "budget": 0,
+      "want": "swe-1-6-slow"
+    },
+    {
+      "model": "swe-1-6-slow",
+      "level": "medium",
+      "budget": 0,
+      "want": "swe-1-6-slow"
+    },
+    {
+      "model": "swe-1-6-slow",
+      "level": "high",
+      "budget": 0,
+      "want": "swe-1-6-slow"
+    },
+    {
+      "model": "swe-1-6-slow",
+      "level": "xhigh",
+      "budget": 0,
+      "want": "swe-1-6-slow"
+    },
+    {
+      "model": "swe-1-6-slow",
+      "level": "max",
+      "budget": 0,
+      "want": "swe-1-6-slow"
+    },
+    {
+      "model": "swe-1-6-slow",
+      "level": "none",
+      "budget": 0,
+      "want": "swe-1-6-slow"
+    },
+    {
+      "model": "swe-1-6-slow",
+      "level": "auto",
+      "budget": 0,
+      "want": "swe-1-6-slow"
+    },
+    {
+      "model": "swe-1-6-slow",
+      "level": "fast",
+      "budget": 0,
+      "want": "swe-1-6-slow"
+    },
+    {
+      "model": "swe-1-6-slow",
+      "level": "bogus",
+      "budget": 0,
+      "want": "swe-1-6-slow"
+    },
+    {
+      "model": "swe-1-6-slow",
+      "level": "",
+      "budget": 1,
+      "want": "swe-1-6-slow"
+    },
+    {
+      "model": "swe-1-6-slow",
+      "level": "",
+      "budget": 4096,
+      "want": "swe-1-6-slow"
+    },
+    {
+      "model": "swe-1-6-slow",
+      "level": "",
+      "budget": 4097,
+      "want": "swe-1-6-slow"
+    },
+    {
+      "model": "swe-1-6-slow",
+      "level": "",
+      "budget": 16384,
+      "want": "swe-1-6-slow"
+    },
+    {
+      "model": "swe-1-6-slow",
+      "level": "",
+      "budget": 30000,
+      "want": "swe-1-6-slow"
+    },
+    {
+      "model": "swe-1-6-slow",
+      "level": "",
+      "budget": 40000,
+      "want": "swe-1-6-slow"
+    },
+    {
+      "model": "gemini-3-8-flash",
+      "level": "",
+      "budget": 0,
+      "want": "gemini-3-8-flash-high"
+    },
+    {
+      "model": "gemini-3-8-flash",
+      "level": "minimal",
+      "budget": 0,
+      "want": "gemini-3-8-flash-low"
+    },
+    {
+      "model": "gemini-3-8-flash",
+      "level": "low",
+      "budget": 0,
+      "want": "gemini-3-8-flash-low"
+    },
+    {
+      "model": "gemini-3-8-flash",
+      "level": "medium",
+      "budget": 0,
+      "want": "gemini-3-8-flash-medium"
+    },
+    {
+      "model": "gemini-3-8-flash",
+      "level": "high",
+      "budget": 0,
+      "want": "gemini-3-8-flash-high"
+    },
+    {
+      "model": "gemini-3-8-flash",
+      "level": "xhigh",
+      "budget": 0,
+      "want": "gemini-3-8-flash-high"
+    },
+    {
+      "model": "gemini-3-8-flash",
+      "level": "max",
+      "budget": 0,
+      "want": "gemini-3-8-flash-high"
+    },
+    {
+      "model": "gemini-3-8-flash",
+      "level": "none",
+      "budget": 0,
+      "want": "gemini-3-8-flash-high"
+    },
+    {
+      "model": "gemini-3-8-flash",
+      "level": "auto",
+      "budget": 0,
+      "want": "gemini-3-8-flash-high"
+    },
+    {
+      "model": "gemini-3-8-flash",
+      "level": "fast",
+      "budget": 0,
+      "want": "gemini-3-8-flash-high"
+    },
+    {
+      "model": "gemini-3-8-flash",
+      "level": "bogus",
+      "budget": 0,
+      "want": "gemini-3-8-flash-high"
+    },
+    {
+      "model": "gemini-3-8-flash",
+      "level": "",
+      "budget": 1,
+      "want": "gemini-3-8-flash-low"
+    },
+    {
+      "model": "gemini-3-8-flash",
+      "level": "",
+      "budget": 4096,
+      "want": "gemini-3-8-flash-low"
+    },
+    {
+      "model": "gemini-3-8-flash",
+      "level": "",
+      "budget": 4097,
+      "want": "gemini-3-8-flash-medium"
+    },
+    {
+      "model": "gemini-3-8-flash",
+      "level": "",
+      "budget": 16384,
+      "want": "gemini-3-8-flash-medium"
+    },
+    {
+      "model": "gemini-3-8-flash",
+      "level": "",
+      "budget": 30000,
+      "want": "gemini-3-8-flash-high"
+    },
+    {
+      "model": "gemini-3-8-flash",
+      "level": "",
+      "budget": 40000,
+      "want": "gemini-3-8-flash-high"
+    },
+    {
+      "model": "Glm-5.3",
+      "level": "",
+      "budget": 0,
+      "want": "glm-5-3-high"
+    },
+    {
+      "model": "Glm-5.3",
+      "level": "minimal",
+      "budget": 0,
+      "want": "glm-5-3-low"
+    },
+    {
+      "model": "Glm-5.3",
+      "level": "low",
+      "budget": 0,
+      "want": "glm-5-3-low"
+    },
+    {
+      "model": "Glm-5.3",
+      "level": "medium",
+      "budget": 0,
+      "want": "glm-5-3-high"
+    },
+    {
+      "model": "Glm-5.3",
+      "level": "high",
+      "budget": 0,
+      "want": "glm-5-3-high"
+    },
+    {
+      "model": "Glm-5.3",
+      "level": "xhigh",
+      "budget": 0,
+      "want": "glm-5-3-max"
+    },
+    {
+      "model": "Glm-5.3",
+      "level": "max",
+      "budget": 0,
+      "want": "glm-5-3-max"
+    },
+    {
+      "model": "Glm-5.3",
+      "level": "none",
+      "budget": 0,
+      "want": "glm-5-3-high"
+    },
+    {
+      "model": "Glm-5.3",
+      "level": "auto",
+      "budget": 0,
+      "want": "glm-5-3-high"
+    },
+    {
+      "model": "Glm-5.3",
+      "level": "fast",
+      "budget": 0,
+      "want": "glm-5-3-high"
+    },
+    {
+      "model": "Glm-5.3",
+      "level": "bogus",
+      "budget": 0,
+      "want": "glm-5-3-high"
+    },
+    {
+      "model": "Glm-5.3",
+      "level": "",
+      "budget": 1,
+      "want": "glm-5-3-low"
+    },
+    {
+      "model": "Glm-5.3",
+      "level": "",
+      "budget": 4096,
+      "want": "glm-5-3-low"
+    },
+    {
+      "model": "Glm-5.3",
+      "level": "",
+      "budget": 4097,
+      "want": "glm-5-3-high"
+    },
+    {
+      "model": "Glm-5.3",
+      "level": "",
+      "budget": 16384,
+      "want": "glm-5-3-high"
+    },
+    {
+      "model": "Glm-5.3",
+      "level": "",
+      "budget": 30000,
+      "want": "glm-5-3-high"
+    },
+    {
+      "model": "Glm-5.3",
+      "level": "",
+      "budget": 40000,
+      "want": "glm-5-3-max"
+    },
+    {
+      "model": "devin/gpt-6-astra-low-fast",
+      "level": "",
+      "budget": 0,
+      "want": "gpt-6-astra-low-fast"
+    },
+    {
+      "model": "devin/gpt-6-astra-low-fast",
+      "level": "minimal",
+      "budget": 0,
+      "want": "gpt-6-astra-low-fast"
+    },
+    {
+      "model": "devin/gpt-6-astra-low-fast",
+      "level": "low",
+      "budget": 0,
+      "want": "gpt-6-astra-low-fast"
+    },
+    {
+      "model": "devin/gpt-6-astra-low-fast",
+      "level": "medium",
+      "budget": 0,
+      "want": "gpt-6-astra-low-fast"
+    },
+    {
+      "model": "devin/gpt-6-astra-low-fast",
+      "level": "high",
+      "budget": 0,
+      "want": "gpt-6-astra-low-fast"
+    },
+    {
+      "model": "devin/gpt-6-astra-low-fast",
+      "level": "xhigh",
+      "budget": 0,
+      "want": "gpt-6-astra-low-fast"
+    },
+    {
+      "model": "devin/gpt-6-astra-low-fast",
+      "level": "max",
+      "budget": 0,
+      "want": "gpt-6-astra-low-fast"
+    },
+    {
+      "model": "devin/gpt-6-astra-low-fast",
+      "level": "none",
+      "budget": 0,
+      "want": "gpt-6-astra-low-fast"
+    },
+    {
+      "model": "devin/gpt-6-astra-low-fast",
+      "level": "auto",
+      "budget": 0,
+      "want": "gpt-6-astra-low-fast"
+    },
+    {
+      "model": "devin/gpt-6-astra-low-fast",
+      "level": "fast",
+      "budget": 0,
+      "want": "gpt-6-astra-low-fast"
+    },
+    {
+      "model": "devin/gpt-6-astra-low-fast",
+      "level": "bogus",
+      "budget": 0,
+      "want": "gpt-6-astra-low-fast"
+    },
+    {
+      "model": "devin/gpt-6-astra-low-fast",
+      "level": "",
+      "budget": 1,
+      "want": "gpt-6-astra-low-fast"
+    },
+    {
+      "model": "devin/gpt-6-astra-low-fast",
+      "level": "",
+      "budget": 4096,
+      "want": "gpt-6-astra-low-fast"
+    },
+    {
+      "model": "devin/gpt-6-astra-low-fast",
+      "level": "",
+      "budget": 4097,
+      "want": "gpt-6-astra-low-fast"
+    },
+    {
+      "model": "devin/gpt-6-astra-low-fast",
+      "level": "",
+      "budget": 16384,
+      "want": "gpt-6-astra-low-fast"
+    },
+    {
+      "model": "devin/gpt-6-astra-low-fast",
+      "level": "",
+      "budget": 30000,
+      "want": "gpt-6-astra-low-fast"
+    },
+    {
+      "model": "devin/gpt-6-astra-low-fast",
+      "level": "",
+      "budget": 40000,
+      "want": "gpt-6-astra-low-fast"
+    }
+  ],
+  "sanitize": [
+    {
+      "input": "",
+      "matched": "",
+      "plain": ""
+    },
+    {
+      "input": "plain",
+      "matched": "plain",
+      "plain": "plain"
+    },
+    {
+      "input": "a\r\nb\n\n",
+      "matched": "a\nb",
+      "plain": "a\nb"
+    },
+    {
+      "input": "x-anthropic-billing-header: v\nkeep\n   You are Claude Code, an agent\nreal line",
+      "matched": "keep\nreal line",
+      "plain": "keep\nreal line"
+    },
+    {
+      "input": "this is SECRET stuff\nother ab line",
+      "matched": "",
+      "plain": "this is SECRET stuff\nother ab line"
+    },
+    {
+      "input": "Ünïcode word here",
+      "matched": "",
+      "plain": "Ünïcode word here"
+    },
+    {
+      "input": "  - Don’t output ANSI escape codes directly — the CLI renderer applies them.\nok",
+      "matched": "ok",
+      "plain": "ok"
+    },
+    {
+      "input": "Fast mode for Claude Code lets\nauthorized security testing\ndestructive techniques, DoS attacks",
+      "matched": "",
+      "plain": ""
+    },
+    {
+      "input": "Claude Code is available as a CLI\nend",
+      "matched": "end",
+      "plain": "end"
+    }
+  ],
+  "signatures": [
+    {
+      "bytes_b64": "",
+      "input": "",
+      "type": ""
+    },
+    {
+      "bytes_b64": "",
+      "input": "  ",
+      "type": ""
+    },
+    {
+      "bytes_b64": "c2VhbGVkLnYxLmFiYw==",
+      "input": "sealed.v1.abc",
+      "type": "sealed"
+    },
+    {
+      "bytes_b64": "RXFRQg==",
+      "input": "claude#EqQB",
+      "type": "anthropic"
+    },
+    {
+      "bytes_b64": "Z0FBQUE=",
+      "input": "gpt#gAAAA",
+      "type": "openai"
+    },
+    {
+      "bytes_b64": "QVl4eA==",
+      "input": "gemini#AYxx",
+      "type": "gemini"
+    },
+    {
+      "bytes_b64": "QVlhYmM=",
+      "input": "AYabc",
+      "type": "gemini"
+    },
+    {
+      "bytes_b64": "Q0FRU2FiYw==",
+      "input": "CAQSabc",
+      "type": "anthropic"
+    },
+    {
+      "bytes_b64": "c2VhbGVkLnYxLmlubmVy",
+      "input": "c2VhbGVkLnYxLmlubmVy",
+      "type": "sealed"
+    },
+    {
+      "bytes_b64": "Q0FRU3h5eg==",
+      "input": "Q0FRU3h5eg==",
+      "type": "anthropic"
+    },
+    {
+      "bytes_b64": "Z0FBQUFxcQ==",
+      "input": "Z0FBQUFxcQ==",
+      "type": "openai"
+    },
+    {
+      "bytes_b64": "QVFJPQ==",
+      "input": "AQI=",
+      "type": "gemini"
+    },
+    {
+      "bytes_b64": "Z0FBQUFwbGFpbg==",
+      "input": "gAAAAplain",
+      "type": "openai"
+    },
+    {
+      "bytes_b64": "cmFuZG9t",
+      "input": "random",
+      "type": "sealed"
+    },
+    {
+      "bytes_b64": "YUdWc2JHOD0=",
+      "input": "aGVsbG8=",
+      "type": "sealed"
+    },
+    {
+      "bytes_b64": "RXFRQkNrWUlCUmdDS2tC",
+      "input": "EqQBCkYIBRgCKkB",
+      "type": "sealed"
+    }
+  ],
+  "static_lookup": [
+    {
+      "id": "devin/swe-2",
+      "max_completion_tokens": 128000,
+      "type": "devin"
+    },
+    {
+      "id": "devin/swe-1-6-slow",
+      "max_completion_tokens": 64000,
+      "type": "devin"
+    },
+    {
+      "id": "devin/glm-5-3",
+      "max_completion_tokens": 128000,
+      "type": "devin"
+    },
+    {
+      "id": "swe-2"
+    },
+    {
+      "id": "devin/gpt-6-astra",
+      "max_completion_tokens": 64000,
+      "type": "devin"
+    }
+  ],
+  "tool_descriptions": [
+    {
+      "input": "Runs X, returning output or a session ID for ongoing interaction.",
+      "name": "exec_command",
+      "want": "Runs X, returning output or an session ID for ongoing interaction."
+    },
+    {
+      "input": "RETURNING OUTPUT OR A SESSION ID FOR ONGOING INTERACTION",
+      "name": "ns__exec_command",
+      "want": "returning output or an session ID for ongoing interaction"
+    },
+    {
+      "input": "Writes characters to an existing unified exec session and returns recent output.",
+      "name": "write_stdin",
+      "want": "Writes characters to a existing unified exec session and returns recent output."
+    },
+    {
+      "input": "writes characters to an existing unified exec session and returns recent output",
+      "name": "x__write_stdin",
+      "want": "Writes characters to a existing unified exec session and returns recent output"
+    },
+    {
+      "input": "returning output or a session ID for ongoing interaction",
+      "name": "other",
+      "want": "returning output or a session ID for ongoing interaction"
+    },
+    {
+      "input": "",
+      "name": "exec_command",
+      "want": ""
+    }
+  ],
+  "trailers": [
+    {
+      "code": 0,
+      "input": ""
+    },
+    {
+      "code": 0,
+      "input": "{}"
+    },
+    {
+      "code": 0,
+      "input": " {} "
+    },
+    {
+      "code": 0,
+      "input": "not json"
+    },
+    {
+      "code": 0,
+      "input": "{\"error\":null}"
+    },
+    {
+      "code": 400,
+      "error": "devin upstream error (invalid_argument): bad",
+      "input": "{\"error\":{\"code\":\"invalid_argument\",\"message\":\"bad\"}}"
+    },
+    {
+      "code": 502,
+      "error": "devin upstream error (invalid_argument): An Internal Error",
+      "input": "{\"error\":{\"code\":\"invalid_argument\",\"message\":\"An Internal Error\"}}"
+    },
+    {
+      "code": 502,
+      "error": "devin upstream error (INTERNAL): x",
+      "input": "{\"error\":{\"code\":\"INTERNAL\",\"message\":\"x\"}}"
+    },
+    {
+      "code": 401,
+      "error": "devin upstream error (unauthenticated): x",
+      "input": "{\"error\":{\"code\":\"unauthenticated\",\"message\":\"x\"}}"
+    },
+    {
+      "code": 403,
+      "error": "devin upstream error (permission_denied): x",
+      "input": "{\"error\":{\"code\":\"permission_denied\",\"message\":\"x\"}}"
+    },
+    {
+      "code": 429,
+      "error": "devin upstream error (permission_denied): High Demand",
+      "input": "{\"error\":{\"code\":\"permission_denied\",\"message\":\"High Demand\"}}"
+    },
+    {
+      "code": 429,
+      "error": "devin upstream error (resource_exhausted): ",
+      "input": "{\"error\":{\"code\":\"resource_exhausted\",\"message\":\"\"}}"
+    },
+    {
+      "code": 503,
+      "error": "devin upstream error (unavailable): ",
+      "input": "{\"error\":{\"code\":\"unavailable\"}}"
+    },
+    {
+      "code": 499,
+      "error": "devin upstream error (canceled): c",
+      "input": "{\"error\":{\"code\":\"canceled\",\"message\":\"c\"}}"
+    },
+    {
+      "code": 504,
+      "error": "devin upstream error (deadline_exceeded): d",
+      "input": "{\"error\":{\"code\":\"deadline_exceeded\",\"message\":\"d\"}}"
+    },
+    {
+      "code": 429,
+      "error": "devin upstream error (failed_precondition): ACU limit",
+      "input": "{\"error\":{\"code\":\"failed_precondition\",\"message\":\"ACU limit\"}}"
+    },
+    {
+      "code": 400,
+      "error": "devin upstream error (failed_precondition): nope",
+      "input": "{\"error\":{\"code\":\"failed_precondition\",\"message\":\"nope\"}}"
+    },
+    {
+      "code": 502,
+      "error": "devin upstream error (weird): w",
+      "input": "{\"error\":{\"code\":\"weird\",\"message\":\"w\"}}"
+    },
+    {
+      "code": 502,
+      "error": "devin upstream error (): ",
+      "input": "{\"error\":{}}"
+    }
+  ],
+  "user_status": {
+    "input_b64": "CnMaCGRldi51c2VyKgZ0ZWFtLTk6D2RldkBleGFtcGxlLmNvbWpACiASCVRlYW1zIFByb4oCEiIGb3JnLTc3QghBY21lIE9yZxIGCIDy1soGGgYIgNnb2QZwP3gAiAGA98TVBpgBBaICCHVzZXItMTIzwAIBEgdpZ25vcmVk",
+    "parsed": {
+      "email": "dev@example.com",
+      "user_name": "dev.user",
+      "user_id": "user-123",
+      "team_id": "team-9",
+      "org_id": "org-77",
+      "org_name": "Acme Org",
+      "plan": "Teams Pro",
+      "daily_quota_remaining_percent": 63,
+      "weekly_quota_remaining_percent": 0,
+      "daily_quota_reset_at": "2026-09-21T14:13:20Z",
+      "weekly_quota_reset_at": "0001-01-01T00:00:00Z",
+      "plan_start": "2026-01-01T00:00:00Z",
+      "plan_end": "2027-01-01T00:00:00Z"
+    }
+  },
+  "user_status_request_b64": "Cj0KBmNoaXNlbBIKMzAwMC4xMC4yMRoDdG9rIgJlbioFbGludXg6CjMwMDAuMTAuMjFiBmNoaXNlbPoBAmZw",
+  "utf8_feeds": [
+    {
+      "in_b64": "YWLi",
+      "out_b64": "YWI="
+    },
+    {
+      "in_b64": "gg==",
+      "out_b64": ""
+    },
+    {
+      "in_b64": "rCE=",
+      "out_b64": "4oKsIQ=="
+    },
+    {
+      "in_b64": "//4geA==",
+      "out_b64": "//4geA=="
+    },
+    {
+      "in_b64": "8J8=",
+      "out_b64": ""
+    },
+    {
+      "in_b64": "",
+      "out_b64": ""
+    },
+    {
+      "in_b64": "mIA=",
+      "out_b64": "8J+YgA=="
+    }
+  ],
+  "uuids": [
+    {
+      "input": "3f2a9c4e-1b7d-4e8a-9c3f-2d1e0b9a8c7d",
+      "want": "3f2a9c4e-1b7d-4e8a-9c3f-2d1e0b9a8c7d"
+    },
+    {
+      "input": "3F2A9C4E1B7D4E8A9C3F2D1E0B9A8C7D",
+      "want": "3F2A9C4E1B7D4E8A9C3F2D1E0B9A8C7D"
+    },
+    {
+      "input": "{3f2a9c4e-1b7d-4e8a-9c3f-2d1e0b9a8c7d}",
+      "want": "{3f2a9c4e-1b7d-4e8a-9c3f-2d1e0b9a8c7d}"
+    },
+    {
+      "input": "urn:uuid:3f2a9c4e-1b7d-4e8a-9c3f-2d1e0b9a8c7d",
+      "want": "urn:uuid:3f2a9c4e-1b7d-4e8a-9c3f-2d1e0b9a8c7d"
+    },
+    {
+      "input": "msg:abc",
+      "want": "a4036fc3-88d7-52bc-8b22-e9484790e7f9"
+    },
+    {
+      "input": " lcp:x ",
+      "want": "e5dd4e82-bc1c-5d22-81fa-f484f82f3488"
+    },
+    {
+      "input": "3f2a9c4e-1b7d-4e8a-9c3f-2d1e0b9a8c7",
+      "want": "16a889f4-3a05-581b-993f-144a1d739963"
+    }
+  ],
+  "validate": [
+    {
+      "error": "empty Devin models payload",
+      "input": ""
+    },
+    {
+      "error": "invalid Devin models JSON: expected non-empty 'devin'/'models' array or model list",
+      "input": "[]"
+    },
+    {
+      "error": "invalid Devin models JSON: expected non-empty 'devin'/'models' array or model list",
+      "input": "{\"devin\":[]}"
+    },
+    {
+      "input": "{\"models\":[{\"id\":\"a\"}]}",
+      "models": [
+        {
+          "id": "devin/a",
+          "object": "model",
+          "created": 0,
+          "owned_by": "",
+          "type": "devin",
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens"
+          ],
+          "supportedInputModalities": [
+            "text"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ]
+        }
+      ]
+    },
+    {
+      "error": "duplicate model id: \"devin/x\"",
+      "input": "[{\"id\":\"Devin/X\"},{\"id\":\"x\"}]"
+    },
+    {
+      "error": "model at index 0 is null",
+      "input": "[null]"
+    },
+    {
+      "error": "model at index 0 has empty id",
+      "input": "[{\"id\":\" \"}]"
+    },
+    {
+      "input": "{\"devin\":[{\"id\":\"m-low\",\"display_name\":\"M Low\",\"thinking\":{\"levels\":[\"priority\",\"low\"]}},{\"id\":\"m-high-fast\",\"context_length\":5,\"max_completion_tokens\":9,\"supported_input_modalities\":[\"image\"]},{\"id\":\"m\",\"display_name\":\"M Medium Thinking Fast\",\"owned_by\":\"o\"},{\"id\":\"n_LOW\"},{\"id\":\"q-thinking-1m\"},{\"id\":\"swe-1-6-fast\"}]}",
+      "models": [
+        {
+          "id": "devin/m",
+          "object": "model",
+          "created": 0,
+          "owned_by": "o",
+          "type": "devin",
+          "display_name": "M",
+          "inputTokenLimit": 5,
+          "outputTokenLimit": 9,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens"
+          ],
+          "context_length": 5,
+          "max_completion_tokens": 9,
+          "supportedInputModalities": [
+            "text"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "levels": [
+              "low",
+              "high"
+            ]
+          }
+        },
+        {
+          "id": "devin/n",
+          "object": "model",
+          "created": 0,
+          "owned_by": "",
+          "type": "devin",
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens"
+          ],
+          "supportedInputModalities": [
+            "text"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "levels": [
+              "low"
+            ]
+          }
+        },
+        {
+          "id": "devin/q-1m",
+          "object": "model",
+          "created": 0,
+          "owned_by": "",
+          "type": "devin",
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens"
+          ],
+          "supportedInputModalities": [
+            "text"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ]
+        },
+        {
+          "id": "devin/swe-1-6",
+          "object": "model",
+          "created": 0,
+          "owned_by": "",
+          "type": "devin",
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens"
+          ],
+          "supportedInputModalities": [
+            "text"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ]
+        }
+      ]
+    },
+    {
+      "error": "invalid Devin models JSON: expected non-empty 'devin'/'models' array or model list",
+      "input": "not json"
+    }
+  ]
+}

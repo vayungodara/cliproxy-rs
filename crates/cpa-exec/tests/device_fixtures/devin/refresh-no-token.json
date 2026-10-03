@@ -1,0 +1,21 @@
+{
+  "name": "refresh-no-token",
+  "credential": {
+    "type": "devin"
+  },
+  "request": {
+    "refresh": true
+  },
+  "responses": null,
+  "upstream": null,
+  "downstream": {},
+  "extra": {
+    "attributes_after": {},
+    "metadata_after": {
+      "type": "devin"
+    },
+    "quota_before": null,
+    "quota_signals": null,
+    "same_auth": true
+  }
+}

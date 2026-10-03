@@ -126,10 +126,10 @@
   "status": 403
  },
  "DELETE /v8/management/observability/logs": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0058",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "DELETE /v8/management/plugins/:id": {
   "body": "",
@@ -648,28 +648,28 @@
   "status": 403
  },
  "GET /v8/management/observability/logs": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0057",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "GET /v8/management/observability/logs/errors": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0059",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "GET /v8/management/observability/logs/errors/:name": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0060",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "GET /v8/management/observability/logs/requests/:id": {
-  "body": "",
+  "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",
   "id": "M5-0061",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 403
  },
  "GET /v8/management/observability/usage/api-keys": {
   "body": "{\"error\":\"IP banned due to too many failed attempts. Try again in 30m0s\"}",

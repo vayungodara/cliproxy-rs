@@ -6,7 +6,7 @@
     "access_token": "meta-key-fixture",
     "api_key": "meta-key-fixture",
     "auth_kind": "oauth",
-    "base_url": "http://127.0.0.1:45773/v1",
+    "base_url": "http://127.0.0.1:45313/v1",
     "dca_token": "dca:fixture",
     "type": "meta"
   },
@@ -20,6 +20,9 @@
       "{\"type\":\"response.created\",\"response\":{\"model\":\"muse-spark-1.3\"}}\ndata: {\"type\":\"response.in_progress\",\"response\":{\"id\":\"x\",\"model\":\"muse-spark-1.3\"}}\n\n",
       "data: [DONE]\n\n"
     ]
+  },
+  "extra": {
+    "usage": null
   },
   "name": "stream-plain-json-lines",
   "request": {
@@ -46,7 +49,7 @@
       "headers": [
         [
           "Host",
-          "127.0.0.1:45773"
+          "127.0.0.1:45313"
         ],
         [
           "User-Agent",

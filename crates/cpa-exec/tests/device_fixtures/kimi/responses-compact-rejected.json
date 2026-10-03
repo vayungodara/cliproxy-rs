@@ -2,7 +2,7 @@
   "name": "responses-compact-rejected",
   "credential": {
     "access_token": "kimi-access-fixture",
-    "base_url": "http://127.0.0.1:44113/coding",
+    "base_url": "http://127.0.0.1:45649/coding",
     "device_id": "dev-fixture-1",
     "refresh_token": "kimi-refresh-fixture",
     "type": "kimi"
@@ -19,5 +19,8 @@
   "downstream": {
     "err_status": 501,
     "err_body": "/responses/compact not supported"
+  },
+  "extra": {
+    "usage": null
   }
 }

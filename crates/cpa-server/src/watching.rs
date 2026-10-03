@@ -1,101 +1,254 @@
-//! Hot publication through existing runtime/store contracts.
+//! Hot reload of `config.yaml` and the auth directory (Go internal/watcher).
+//!
+//! Go watches the config file and the top level of the auth directory with fsnotify.
+//! A config event reloads after 150 ms without further events (`configReloadDebounce`);
+//! auth events apply at once, removals after a 50 ms replace check
+//! (`replaceCheckDelay`). Both compare content hashes, so self-writes and
+//! unchanged rewrites are no-ops.
+//!
+//! ponytail: portable metadata polling stands in for fsnotify. Every 50 ms the watcher
+//! stats the config file and the top-level `*.json` auth files and hashes only files
+//! whose metadata changed or that were modified in the last two seconds (git's racy
+//! timestamp rule), so the steady state reads nothing. A change applies once it has
+//! been stable for 150 ms (config) or one tick (auth files).
 use std::collections::BTreeMap;
+use std::os::unix::fs::MetadataExt;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, PoisonError};
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime};
 
 use cpa_core::config::{Config, credentials};
 use cpa_core::credential::{Credential, Source};
+use sha2::{Digest, Sha256};
 
 use crate::management::Management;
 
-#[derive(Default, PartialEq, Eq)]
-struct Fingerprint {
-    config: Vec<u8>,
-    auth: BTreeMap<std::path::PathBuf, Vec<u8>>,
+const TICK: Duration = Duration::from_millis(50);
+/// Go `configReloadDebounce`.
+const CONFIG_SETTLE: Duration = Duration::from_millis(150);
+/// Go `replaceCheckDelay`: one tick.
+const AUTH_SETTLE: Duration = Duration::from_millis(50);
+/// Files modified this recently are re-hashed even when their metadata is unchanged:
+/// coarse file timestamps cannot tell two quick same-size writes apart.
+const RACY: Duration = Duration::from_secs(2);
+
+type Hash = [u8; 32];
+
+/// Content identity of everything the watcher observes.
+#[derive(Clone, Default, PartialEq, Eq)]
+struct Snapshot {
+    /// `None` when the config file cannot be read (missing).
+    config: Option<Hash>,
+    auth: BTreeMap<PathBuf, Hash>,
 }
 
-fn fingerprint(state: &Management) -> std::io::Result<Fingerprint> {
-    let mut result = Fingerprint {
-        config: std::fs::read(&state.path)?,
-        auth: BTreeMap::new(),
-    };
-    let dir = state.rt.config().auth_dir.clone();
-    // An unreadable auth dir is an empty set (as in reload); config edits must still
-    // be noticed.
-    let Ok(entries) = std::fs::read_dir(dir) else {
-        return Ok(result);
-    };
-    for entry in entries {
-        let path = entry?.path();
-        // Go matches the extension case-insensitively.
-        let json = path
-            .file_name()
-            .is_some_and(|n| n.to_string_lossy().to_lowercase().ends_with(".json"));
-        if path.is_file() && json {
-            result.auth.insert(path.clone(), std::fs::read(path)?);
+/// File metadata that changes with any write or replacement.
+#[derive(Clone, Copy, PartialEq, Eq)]
+struct Stat {
+    len: u64,
+    ino: u64,
+    mtime: (i64, i64),
+    ctime: (i64, i64),
+}
+
+impl Stat {
+    fn of(meta: &std::fs::Metadata) -> Self {
+        Self {
+            len: meta.len(),
+            ino: meta.ino(),
+            mtime: (meta.mtime(), meta.mtime_nsec()),
+            ctime: (meta.ctime(), meta.ctime_nsec()),
         }
     }
-    Ok(result)
+}
+
+/// Hashes by path, reused while a file's metadata is unchanged and not racy.
+#[derive(Default)]
+struct HashCache(BTreeMap<PathBuf, (Stat, Hash)>);
+
+impl HashCache {
+    /// The content hash of `path`, or `None` when it cannot be read.
+    fn hash(&mut self, path: &Path, meta: &std::fs::Metadata, now: SystemTime) -> Option<Hash> {
+        let stat = Stat::of(meta);
+        let racy = meta
+            .modified()
+            .map_or(true, |m| now.duration_since(m).map_or(true, |age| age < RACY));
+        if let Some((cached, hash)) = self.0.get(path)
+            && *cached == stat
+            && !racy
+        {
+            return Some(*hash);
+        }
+        let data = std::fs::read(path).ok()?;
+        let hash: Hash = Sha256::digest(&data).into();
+        self.0.insert(path.to_owned(), (stat, hash));
+        Some(hash)
+    }
+}
+
+fn is_auth_json(path: &Path) -> bool {
+    // Go matches the extension case-insensitively when scanning.
+    path.file_name()
+        .is_some_and(|n| n.to_string_lossy().to_lowercase().ends_with(".json"))
+}
+
+fn observe(state: &Management, cache: &mut HashCache) -> Snapshot {
+    let now = SystemTime::now();
+    let mut seen = Vec::new();
+    let config = std::fs::metadata(&state.path)
+        .ok()
+        .and_then(|meta| cache.hash(&state.path, &meta, now));
+    seen.push(state.path.clone());
+    let mut auth = BTreeMap::new();
+    let dir = state.rt.config().auth_dir.clone();
+    // An unreadable auth dir is an empty set, as in reload.
+    for entry in std::fs::read_dir(dir).into_iter().flatten().flatten() {
+        let path = entry.path();
+        let Ok(meta) = std::fs::metadata(&path) else { continue };
+        if !meta.is_file() || !is_auth_json(&path) {
+            continue;
+        }
+        // An unreadable file is present but unknown; reload skips it.
+        let hash = cache.hash(&path, &meta, now).unwrap_or_default();
+        seen.push(path.clone());
+        auth.insert(path, hash);
+    }
+    cache.0.retain(|path, _| seen.contains(path));
+    Snapshot { config, auth }
+}
+
+/// Go's per-event log lines for auth files that changed between two snapshots.
+fn log_auth_changes(before: &Snapshot, after: &Snapshot) {
+    let name = |p: &Path| p.file_name().unwrap_or_default().to_string_lossy().into_owned();
+    for (path, hash) in &after.auth {
+        let op = match before.auth.get(path) {
+            None => "CREATE",
+            Some(old) if old != hash => "WRITE",
+            Some(_) => continue,
+        };
+        tracing::info!("auth file changed ({op}): {}, processing incrementally", name(path));
+    }
+    for path in before.auth.keys().filter(|p| !after.auth.contains_key(*p)) {
+        tracing::info!("auth file changed (REMOVE): {}, processing incrementally", name(path));
+    }
 }
 
 pub fn start(state: &Arc<Management>) -> tokio::task::JoinHandle<()> {
     let state = Arc::downgrade(state);
     tokio::spawn(async move {
-        let mut previous = None;
-        let mut observed = None;
+        let mut cache = HashCache::default();
+        // The state last reloaded; the first stable observation reloads once, as Go's
+        // watcher reloads clients when it starts.
+        let mut applied: Option<Snapshot> = None;
+        let mut observed: Option<Snapshot> = None;
         let mut since = Instant::now();
-        // ponytail: portable content polling rather than platform fsnotify. This scans
-        // top-level auth JSON every 50ms; replace with notify for very large auth dirs.
-        // Content identity ignores duplicate/self-write events and atomic replacements.
-        let mut ticks = tokio::time::interval(Duration::from_millis(50));
+        let mut ticks = tokio::time::interval(TICK);
         loop {
             ticks.tick().await;
             let Some(state) = state.upgrade() else {
                 return;
             };
-            let snapshot = tokio::task::spawn_blocking({
+            let (snapshot, returned) = tokio::task::spawn_blocking({
                 let state = state.clone();
                 move || {
                     let _guard = state.disk.lock().unwrap_or_else(PoisonError::into_inner);
-                    fingerprint(&state)
+                    let snapshot = observe(&state, &mut cache);
+                    (snapshot, cache)
                 }
             })
-            .await;
-            let Ok(Ok(snapshot)) = snapshot else {
-                continue;
-            };
+            .await
+            .unwrap_or_default();
+            cache = returned;
             if observed.as_ref() != Some(&snapshot) {
                 observed = Some(snapshot);
                 since = Instant::now();
                 continue;
             }
-            if since.elapsed() < Duration::from_millis(150) || observed == previous {
+            let Some(current) = observed.clone() else { continue };
+            if applied.as_ref() == Some(&current) {
                 continue;
+            }
+            let config_changed = applied.as_ref().is_none_or(|a| a.config != current.config);
+            if since.elapsed() < if config_changed { CONFIG_SETTLE } else { AUTH_SETTLE } {
+                continue;
+            }
+            if let Some(before) = &applied {
+                log_auth_changes(before, &current);
+                if config_changed && current.config.is_some() {
+                    tracing::info!("config file changed, reloading: {}", state.path.display());
+                }
             }
             let loaded = tokio::task::spawn_blocking({
                 let state = state.clone();
                 move || reload(&state)
             })
             .await;
-            if matches!(loaded, Ok(Ok(()))) {
-                previous = observed.take();
+            match loaded {
+                Ok(Ok(())) if config_changed && applied.is_some() => {
+                    tracing::info!("config successfully reloaded, triggering client reload");
+                }
+                Ok(Err(error)) if config_changed || applied.is_none() => match error {
+                    ReloadError::Missing(e) => tracing::error!(
+                        "failed to read config file for hash check: open {}: {}",
+                        state.path.display(),
+                        go_errno_text(&e)
+                    ),
+                    ReloadError::Invalid(e) => tracing::error!("failed to reload config: {e:#}"),
+                },
+                _ => {}
             }
+            // Applied once either way: a failed config load retries on its next change,
+            // as Go retries on its next file event, rather than every tick.
+            applied = Some(current);
         }
     })
 }
 
-/// Blocking reload. Shared with deterministic tests; no provider calls are made.
-pub fn reload(state: &Management) -> anyhow::Result<()> {
-    let _guard = state.disk.lock().unwrap_or_else(PoisonError::into_inner);
-    // A rejected config must not prevent disabled/deleted auth files from taking
-    // effect. Reconcile against the last good config while retaining the error.
-    let (config, config_error) = if std::fs::metadata(&state.path)?.len() == 0 {
-        ((*state.rt.config()).clone(), None)
-    } else {
-        match Config::load(&state.path) {
-            Ok(config) => (config, None),
-            Err(error) => ((*state.rt.config()).clone(), Some(error)),
+/// Go's `syscall.Errno` text: strerror in lower case, without Rust's suffix.
+fn go_errno_text(e: &std::io::Error) -> String {
+    let text = e.to_string();
+    let text = text.split(" (os error").next().unwrap_or_default();
+    let mut chars = text.chars();
+    chars
+        .next()
+        .map_or_else(String::new, |c| c.to_lowercase().chain(chars).collect())
+}
+
+/// Why [`reload`] kept the last good config.
+#[derive(Debug)]
+pub enum ReloadError {
+    /// The config file could not be read (Go logs it and keeps running).
+    Missing(std::io::Error),
+    /// The config file did not load (Go `failed to reload config`).
+    Invalid(anyhow::Error),
+}
+
+impl std::fmt::Display for ReloadError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Missing(e) => write!(f, "{e}"),
+            Self::Invalid(e) => write!(f, "{e:#}"),
         }
+    }
+}
+
+impl std::error::Error for ReloadError {}
+
+/// Blocking reload. Shared with deterministic tests; no provider calls are made.
+///
+/// A missing, empty or rejected config keeps the last good config, and the auth
+/// directory is reconciled against it anyway: Go handles auth events independently
+/// of the config file.
+pub fn reload(state: &Management) -> Result<(), ReloadError> {
+    let _guard = state.disk.lock().unwrap_or_else(PoisonError::into_inner);
+    let (config, config_error) = match std::fs::metadata(&state.path) {
+        Err(error) => ((*state.rt.config()).clone(), Some(ReloadError::Missing(error))),
+        // Go ignores an empty config write.
+        Ok(meta) if meta.len() == 0 => ((*state.rt.config()).clone(), None),
+        Ok(_) => match Config::load(&state.path) {
+            Ok(config) => (config, None),
+            Err(error) => ((*state.rt.config()).clone(), Some(ReloadError::Invalid(error))),
+        },
     };
     let mut files = credentials::from_auth_dir(&config);
     // A malformed in-place auth write is not a deletion. Keep the last good value;
@@ -113,8 +266,59 @@ pub fn reload(state: &Management) -> anyhow::Result<()> {
         }
     }
     state.publish(config, Some(files));
-    if let Some(error) = config_error {
-        return Err(error);
+    match config_error {
+        Some(error) => Err(error),
+        None => Ok(()),
     }
-    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn hash_cache_rereads_only_changed_or_racy_files() {
+        let dir = std::env::temp_dir().join(format!("cpa-watch-cache-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("a.json");
+        std::fs::write(&path, b"one").unwrap();
+        let old = SystemTime::now() - Duration::from_secs(60);
+        std::fs::File::options()
+            .write(true)
+            .open(&path)
+            .unwrap()
+            .set_modified(old)
+            .unwrap();
+        let mut cache = HashCache::default();
+        let now = SystemTime::now();
+        let first = cache.hash(&path, &std::fs::metadata(&path).unwrap(), now).unwrap();
+        // Same metadata, old mtime: the cached hash is reused even if the bytes were
+        // swapped behind the cache's back (proves no re-read happens).
+        let stat = cache.0[&path].0;
+        cache.0.insert(path.clone(), (stat, [7; 32]));
+        assert_eq!(
+            cache.hash(&path, &std::fs::metadata(&path).unwrap(), now),
+            Some([7; 32])
+        );
+        // A real change alters the metadata and is hashed again.
+        std::fs::write(&path, b"two!").unwrap();
+        std::fs::File::options()
+            .write(true)
+            .open(&path)
+            .unwrap()
+            .set_modified(old)
+            .unwrap();
+        let second = cache.hash(&path, &std::fs::metadata(&path).unwrap(), now).unwrap();
+        assert_ne!(first, second);
+        assert_eq!(second, <Hash>::from(Sha256::digest(b"two!")));
+        // A recently modified file is re-read even with identical cached metadata.
+        std::fs::write(&path, b"thr!").unwrap();
+        let meta = std::fs::metadata(&path).unwrap();
+        cache.0.insert(path.clone(), (Stat::of(&meta), [7; 32]));
+        assert_eq!(
+            cache.hash(&path, &meta, SystemTime::now()),
+            Some(Sha256::digest(b"thr!").into())
+        );
+        let _ = std::fs::remove_file(&path);
+    }
 }
