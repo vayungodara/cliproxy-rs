@@ -21,7 +21,7 @@ Works today:
 - Routing: round-robin, weighted and fill-first selection, retries, cooldowns, session affinity, model aliases and exclusions, payload rules, per-credential and global proxies.
 - The v8 Management API for configuration, credentials, OAuth sign-in, quota checks (`/requests/api-call`), usage counters, logs and model catalogs, plus the dashboard at `/management.html`.
 - HTTPS on the main port (`server.tls`), logging in Go's format to stdout or a rotating `main.log` with Go's per-request access log lines, LAN discovery (`-discover` and the `server.discovery` advertisement), `.env` loading, and remote model catalog updates as in Go (`-local-model` turns them off).
-- Plugins (`plugins`, Linux and macOS), with their Management API routes and plugin-defined routes.
+- Plugins (`plugins`, Linux and macOS), with plugin-defined routes and the Management API routes to list, enable, configure and delete them. The plugin store and plugin quotas are not available yet.
 - Home mode (`-home-jwt`), the `PGSTORE_*`, `OBJECTSTORE_*` and `GITSTORE_*` storage backends, and the Redis-protocol usage subscriber on the main port.
 - Config and credential files are watched and reloaded without a restart. A plaintext management key is hashed on first start, as Go does.
 
