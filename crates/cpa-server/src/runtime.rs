@@ -338,7 +338,7 @@ impl Runtime {
                     state.reconcile(&snapshot);
                     snapshot
                         .iter()
-                        .filter(|c| matches!(c.source, Source::File(_)) && !c.disabled)
+                        .filter(|c| refresh_candidate(c))
                         .filter(|c| rt.executors.readiness(c, &cfg) != Readiness::Ready)
                         .filter(|c| state.reserve(c, Instant::now()))
                         .cloned()
@@ -1349,6 +1349,12 @@ fn signature_cache_config(cfg: &Config) -> (bool, bool) {
         flag("signature-cache-enabled").unwrap_or(true),
         flag("signature-bypass-strict").unwrap_or(false),
     )
+}
+
+/// Credentials the background refresh considers: enabled auth files, never API-key
+/// kinds (Go `nextRefreshCheckAt` skips `AuthKind() == apikey` for every provider).
+fn refresh_candidate(c: &Credential) -> bool {
+    matches!(c.source, Source::File(_)) && !c.disabled && cpa_core::registry::dynamic::auth_kind(c) != Some("apikey")
 }
 
 #[cfg(test)]

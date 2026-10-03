@@ -1079,9 +1079,135 @@ impl ResponseModel {
         }
     }
 
+    /// Go `SetResponseModel`: trimmed and bounded, unless a terminal event fixed it.
+    pub fn set(&mut self, model: &str) {
+        let model = model.trim();
+        if self.final_ || model.is_empty() || model.len() > MAX_RESPONSE_MODEL {
+            return;
+        }
+        self.model = model.to_owned();
+    }
+
     pub fn get(&self) -> &str {
         &self.model
     }
+}
+
+/// Go `normalizeModelName`: lower case without the thinking suffix.
+fn normalize_model_name(model: &str) -> String {
+    let lower = model.trim().to_lowercase();
+    cpa_common::thinking::parse_suffix(&lower).model_name.trim().to_owned()
+}
+
+/// Go `isDatedModelAlias`: `dated` is `base` plus a date or a three-digit version.
+fn is_dated_model_alias(base: &str, dated: &str) -> bool {
+    let Some(suffix) = dated.strip_prefix(base).and_then(|s| s.strip_prefix('-')) else {
+        return false;
+    };
+    let digits = |s: &str| !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit());
+    match suffix.len() {
+        10 => {
+            let b = suffix.as_bytes();
+            b[4] == b'-' && b[7] == b'-' && digits(&suffix[..4]) && digits(&suffix[5..7]) && digits(&suffix[8..])
+        }
+        8 | 3 => digits(suffix),
+        _ => false,
+    }
+}
+
+/// Go `IsModelSubstituted`: whether the upstream served another model than the
+/// requested one; dated aliases, provider prefixes and `-latest` are the same model.
+pub fn is_model_substituted(requested: &str, served: &str) -> bool {
+    let served = normalize_model_name(served);
+    let requested = normalize_model_name(requested);
+    if served.is_empty() || requested.is_empty() || requested == served {
+        return false;
+    }
+    let dated = |a: &str, b: &str| is_dated_model_alias(a, b) || is_dated_model_alias(b, a);
+    if dated(&requested, &served) {
+        return false;
+    }
+    // Go `stripModelProviderPrefix`: after the last `/`, unless it ends the name.
+    let strip = |m: &str| match m.rfind('/') {
+        Some(i) if i < m.len() - 1 => m[i + 1..].to_owned(),
+        _ => m.to_owned(),
+    };
+    let (req, srv) = (strip(&requested), strip(&served));
+    if req == srv || dated(&req, &srv) {
+        return false;
+    }
+    let (req, srv) = (
+        req.strip_suffix("-latest").unwrap_or(&req),
+        srv.strip_suffix("-latest").unwrap_or(&srv),
+    );
+    !(req == srv || dated(req, srv))
+}
+
+/// Provider, credential ID, normalized requested and served model.
+type SubstitutionKey = (String, String, String, String);
+
+/// Go `codexModelSubstitutionWarns`: one warning per provider, credential and model
+/// pair per ten minutes, at most 1024 pairs remembered.
+fn substitution_warning_allowed(key: SubstitutionKey) -> bool {
+    use std::collections::HashMap;
+    use std::time::{Duration, Instant};
+    const WINDOW: Duration = Duration::from_secs(600);
+    const MAX: usize = 1024;
+    static LAST: std::sync::Mutex<Option<HashMap<SubstitutionKey, Instant>>> = std::sync::Mutex::new(None);
+    let mut guard = LAST.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let last = guard.get_or_insert_with(HashMap::new);
+    let now = Instant::now();
+    if last.get(&key).is_some_and(|at| now.duration_since(*at) < WINDOW) {
+        return false;
+    }
+    if last.len() >= MAX {
+        last.retain(|_, at| now.duration_since(*at) < WINDOW);
+        if last.len() >= MAX {
+            last.clear();
+        }
+    }
+    last.insert(key, now);
+    true
+}
+
+/// Go `warnModelSubstitution`, after an attempt's record is published.
+fn warn_model_substitution(record: &Record, upstream_model: &str, auth_id: &str) {
+    let served = record.response_model.as_str();
+    let expected = if upstream_model.is_empty() {
+        record.model.as_str()
+    } else {
+        upstream_model
+    };
+    if served.is_empty() || !is_model_substituted(expected, served) {
+        return;
+    }
+    if !record.model.is_empty() && !is_model_substituted(&record.model, served) {
+        return;
+    }
+    let provider = if record.provider.is_empty() {
+        "codex"
+    } else {
+        record.provider.as_str()
+    };
+    let key = (
+        provider.to_owned(),
+        auth_id.to_owned(),
+        normalize_model_name(expected),
+        normalize_model_name(served),
+    );
+    if !substitution_warning_allowed(key) {
+        return;
+    }
+    let index = if record.auth_index.trim().is_empty() {
+        "nil"
+    } else {
+        record.auth_index.trim()
+    };
+    tracing::warn!(
+        "{provider} executor: upstream served model {} for requested model {} (auth_index={index})",
+        cpa_common::gostr::quote(served),
+        cpa_common::gostr::quote(&record.model),
+    );
 }
 
 // ---- the queued record ---------------------------------------------------------
@@ -1368,6 +1494,68 @@ fn executor_identity(c: &cpa_core::credential::Credential) -> (String, &'static 
     (provider, executor)
 }
 
+/// Go's TTFT marks (`StartResponseTTFT`, `MarkFirstResponseByte`,
+/// `ObserveTokenEvent`), taken only when the executor reports them.
+#[derive(Default)]
+struct Ttft {
+    /// The executor reports marks; the server's own approximation is not used.
+    tracked: bool,
+    start: Option<std::time::Instant>,
+    ttft: Option<std::time::Duration>,
+    first_packet: Option<std::time::Duration>,
+}
+
+impl Ttft {
+    fn start(&mut self) {
+        self.tracked = true;
+        if self.ttft.is_none() && self.start.is_none() {
+            self.start = Some(std::time::Instant::now());
+        }
+    }
+
+    fn first_byte(&mut self) {
+        self.tracked = true;
+        if self.ttft.is_none()
+            && let Some(start) = self.start.take()
+        {
+            self.ttft = Some(start.elapsed());
+        }
+    }
+
+    fn token(&mut self, is_token: bool) {
+        self.tracked = true;
+        let Some(start) = self.start.filter(|_| self.ttft.is_none()) else {
+            return;
+        };
+        if !is_token && self.first_packet.is_some() {
+            return;
+        }
+        let elapsed = start.elapsed();
+        self.first_packet.get_or_insert(elapsed);
+        if is_token {
+            self.ttft = Some(elapsed);
+            self.start = None;
+        }
+    }
+
+    /// Go `ttftDuration`: TTFT, else the first packet, else zero.
+    fn get(&self) -> std::time::Duration {
+        self.ttft.or(self.first_packet).unwrap_or_default()
+    }
+}
+
+/// An attempt outcome the executor published itself (Go `Publish`/`PublishFailure`),
+/// with what Go's `buildRecord` reads at that moment.
+struct Outcome {
+    failed: bool,
+    status: i64,
+    body: String,
+    detail: Detail,
+    model: String,
+    latency: std::time::Duration,
+    ttft: std::time::Duration,
+}
+
 /// What an executor reported through `ExecRequest::usage`.
 #[derive(Default)]
 struct Reported {
@@ -1376,17 +1564,50 @@ struct Reported {
     stream: StreamUsage,
     model: ResponseModel,
     effort: Option<String>,
+    upstream_model: String,
+    ttft: Ttft,
+    usage_required: bool,
+    outcome: Option<Outcome>,
+}
+
+impl Reported {
+    /// The usage reported so far: a body, else the stream's last usage.
+    fn usage(&self) -> Option<Detail> {
+        self.body.clone().or_else(|| self.stream.detail().cloned())
+    }
 }
 
 /// The executor-facing observer; `provider` picks the response-model extractor.
 struct Observer {
     provider: String,
+    started: std::time::Instant,
     state: std::sync::Mutex<Reported>,
 }
 
 impl Observer {
     fn lock(&self) -> std::sync::MutexGuard<'_, Reported> {
         self.state.lock().unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+
+    fn settle(&self, failed: bool, status: i64, body: &str) {
+        let mut r = self.lock();
+        if r.outcome.is_some() {
+            return;
+        }
+        let detail = if failed {
+            Detail::default()
+        } else {
+            r.usage().unwrap_or_default()
+        };
+        r.outcome = Some(Outcome {
+            failed,
+            status,
+            body: body.trim().to_owned(),
+            detail,
+            model: r.model.get().to_owned(),
+            latency: self.started.elapsed(),
+            ttft: r.ttft.get(),
+        });
     }
 }
 
@@ -1406,19 +1627,63 @@ impl cpa_core::exec::UsageObserver for Observer {
     }
 
     fn request(&self, format: Format, payload: &[u8]) {
+        self.request_for(format.as_str(), payload);
+    }
+
+    fn request_for(&self, identifier: &str, payload: &[u8]) {
         self.lock().effort = Some(cpa_common::thinking::extract_translated_reasoning_effort(
-            payload,
-            format.as_str(),
+            payload, identifier,
         ));
+    }
+
+    fn upstream_model(&self, model: &str) {
+        self.lock().upstream_model = model.trim().to_owned();
+    }
+
+    fn response_model(&self, model: &str) {
+        self.lock().model.set(model);
+    }
+
+    fn round_trip_started(&self) {
+        self.lock().ttft.start();
+    }
+
+    fn first_byte(&self) {
+        self.lock().ttft.first_byte();
+    }
+
+    fn token_event(&self, is_token: bool) {
+        self.lock().ttft.token(is_token);
+    }
+
+    fn publish(&self) {
+        self.settle(false, 0, "");
+    }
+
+    fn publish_failure(&self, status: u16, body: &str) {
+        self.settle(true, i64::from(status), body);
+    }
+
+    fn usage_required(&self) {
+        self.lock().usage_required = true;
     }
 }
 
-/// One upstream attempt's record in progress. It publishes exactly once: on
-/// success, on failure, or when dropped mid-stream (Go's deferred publish).
+/// How the attempt ended for the server.
+enum Ending<'a> {
+    /// Success, or a stream the client dropped (Go's deferred publish).
+    Done,
+    Failed(&'a cpa_core::exec::ExecError),
+}
+
+/// One upstream attempt's record in progress. It publishes at most once: what the
+/// executor published itself, else on success, on failure, or when dropped
+/// mid-stream (Go's deferred publish).
 pub struct Tracker {
     queue: std::sync::Arc<crate::Runtime>,
     facts: std::sync::Arc<Facts>,
     record: Record,
+    auth_id: String,
     started: std::time::Instant,
     observer: std::sync::Arc<Observer>,
     stream: StreamUsage,
@@ -1456,13 +1721,16 @@ impl Tracker {
             provider: provider.clone(),
             ..Record::default()
         };
+        let started = std::time::Instant::now();
         Self {
             queue: rt.clone(),
             facts: facts.clone(),
             record,
-            started: std::time::Instant::now(),
+            auth_id: credential.id.clone(),
+            started,
             observer: std::sync::Arc::new(Observer {
                 provider,
+                started,
                 state: std::sync::Mutex::default(),
             }),
             stream: StreamUsage::default(),
@@ -1479,8 +1747,9 @@ impl Tracker {
     }
 
     /// The upstream answered; its headers are the record's `response_headers`.
-    // ponytail: TTFT is measured to the executor's response (buffered) or first event
-    // (streams); Go measures to the first upstream body byte.
+    // ponytail: without the executor's TTFT marks (`UsageSink::round_trip_started` and
+    // `first_byte`), TTFT is measured to the executor's response (buffered) or first
+    // event (streams); Go measures from the upstream request to its first body byte.
     pub fn arrived(&mut self, headers: &axum::http::HeaderMap) {
         self.first.get_or_insert_with(|| self.started.elapsed());
         self.record.response_headers = go_headers(headers);
@@ -1516,21 +1785,17 @@ impl Tracker {
     }
 
     pub fn succeed(mut self) {
-        self.publish();
+        self.publish(Ending::Done);
     }
 
-    /// Go `PublishFailure`: the error's status and body, and any usage seen so far.
+    /// Go `PublishFailure`: the error's status and body without usage. Claude's
+    /// executor fails through its stream buffer (`StreamUsageBuffer.PublishFailure`),
+    /// which keeps the usage seen so far.
     pub fn fail(mut self, error: &cpa_core::exec::ExecError) {
-        self.record.failed = true;
-        self.record.fail_status = i64::from(crate::classify::go_status(error));
-        self.record.fail_body = crate::classify::error_text(error);
-        if self.record.response_headers.is_empty() {
-            self.record.response_headers = go_headers(&error.headers);
-        }
-        self.publish();
+        self.publish(Ending::Failed(error));
     }
 
-    fn publish(&mut self) {
+    fn publish(&mut self, ending: Ending<'_>) {
         if std::mem::replace(&mut self.published, true) {
             return;
         }
@@ -1539,28 +1804,62 @@ impl Tracker {
             return;
         }
         let reported = std::mem::take(&mut *self.observer.lock());
-        let (detail, model) = if reported.seen {
-            let detail = reported.body.or_else(|| reported.stream.detail().cloned());
-            (detail, reported.model.get().to_owned())
-        } else {
-            let detail = self.body.take().or_else(|| self.stream.detail().cloned());
-            (detail, self.model.get().to_owned())
-        };
         let mut record = std::mem::take(&mut self.record);
-        record.detail = detail.unwrap_or_default();
-        record.response_model = model;
+        if let Some(outcome) = reported.outcome {
+            record.failed = outcome.failed;
+            record.fail_status = outcome.status;
+            record.fail_body = outcome.body;
+            record.detail = outcome.detail;
+            record.response_model = outcome.model;
+            record.latency_ms = outcome.latency.as_millis() as i64;
+            record.ttft_ms = outcome.ttft.as_millis() as i64;
+        } else {
+            let usage = if reported.seen {
+                reported.usage()
+            } else {
+                self.body.take().or_else(|| self.stream.detail().cloned())
+            };
+            let detail = match ending {
+                Ending::Done if reported.usage_required && usage.is_none() => return,
+                Ending::Done => usage.unwrap_or_default(),
+                Ending::Failed(error) => {
+                    record.failed = true;
+                    record.fail_status = i64::from(crate::classify::go_status(error));
+                    record.fail_body = crate::classify::error_text(error);
+                    if record.response_headers.is_empty() {
+                        record.response_headers = go_headers(&error.headers);
+                    }
+                    if self.observer.provider == "claude" {
+                        usage.unwrap_or_default()
+                    } else {
+                        Detail::default()
+                    }
+                }
+            };
+            record.detail = detail;
+            record.response_model = if reported.seen || !reported.model.get().is_empty() {
+                reported.model.get().to_owned()
+            } else {
+                self.model.get().to_owned()
+            };
+            record.latency_ms = self.started.elapsed().as_millis() as i64;
+            record.ttft_ms = if reported.ttft.tracked {
+                reported.ttft.get().as_millis() as i64
+            } else {
+                self.first.map_or(0, |d| d.as_millis() as i64)
+            };
+        }
         if let Some(effort) = reported.effort {
             record.reasoning_effort = effort;
         }
-        record.latency_ms = self.started.elapsed().as_millis() as i64;
-        record.ttft_ms = self.first.map_or(0, |d| d.as_millis() as i64);
         queue.enqueue(queued(&record, &self.facts.client));
+        warn_model_substitution(&record, &reported.upstream_model, &self.auth_id);
     }
 }
 
 impl Drop for Tracker {
     fn drop(&mut self) {
-        self.publish();
+        self.publish(Ending::Done);
     }
 }
 

@@ -113,6 +113,41 @@ pub trait UsageObserver: Send + Sync {
     /// The translated payload sent upstream in `format` (Go
     /// `SetTranslatedReasoningEffort`: the record's `reasoning_effort`).
     fn request(&self, format: Format, payload: &[u8]);
+    /// [`UsageObserver::request`] where Go passes an executor identifier instead of a
+    /// format (Kimi passes `kimi`).
+    fn request_for(&self, identifier: &str, payload: &[u8]) {
+        let _ = (identifier, payload);
+    }
+    /// Go `SetUpstreamModel`: the model the upstream is expected to serve, for the
+    /// substitution warning only.
+    fn upstream_model(&self, model: &str) {
+        let _ = model;
+    }
+    /// Go `SetResponseModel`: the served model, unless a terminal event fixed it.
+    fn response_model(&self, model: &str) {
+        let _ = model;
+    }
+    /// Go `StartResponseTTFT`: the upstream request is being sent.
+    fn round_trip_started(&self) {}
+    /// Go `MarkFirstResponseByte`: the first upstream body byte arrived.
+    fn first_byte(&self) {}
+    /// Go `ObserveTokenEvent`: an upstream frame arrived; `is_token` when it carried
+    /// output (Codex SSE marks TTFT at the first token, the first frame as fallback).
+    fn token_event(&self, is_token: bool) {
+        let _ = is_token;
+    }
+    /// Go `Publish`/`EnsurePublished` now, with the usage reported so far. The first
+    /// publish of an attempt wins (Go `once.Do`); the server's later outcome is ignored.
+    fn publish(&self) {}
+    /// Go `PublishFailure` now with `status` (0 when the error carries none) and
+    /// `body`; no usage. The first publish of an attempt wins.
+    fn publish_failure(&self, status: u16, body: &str) {
+        let _ = (status, body);
+    }
+    /// The Go path has no `EnsurePublished`: an attempt that ends without reported
+    /// usage (a reported body, or a stream line carrying usage) publishes nothing
+    /// unless it fails.
+    fn usage_required(&self) {}
 }
 
 /// A handle executors report usage through; cloning shares the observer.
@@ -144,6 +179,60 @@ impl UsageSink {
     pub fn request(&self, format: Format, payload: &[u8]) {
         if let Some(o) = &self.0 {
             o.request(format, payload);
+        }
+    }
+
+    pub fn request_for(&self, identifier: &str, payload: &[u8]) {
+        if let Some(o) = &self.0 {
+            o.request_for(identifier, payload);
+        }
+    }
+
+    pub fn upstream_model(&self, model: &str) {
+        if let Some(o) = &self.0 {
+            o.upstream_model(model);
+        }
+    }
+
+    pub fn response_model(&self, model: &str) {
+        if let Some(o) = &self.0 {
+            o.response_model(model);
+        }
+    }
+
+    pub fn round_trip_started(&self) {
+        if let Some(o) = &self.0 {
+            o.round_trip_started();
+        }
+    }
+
+    pub fn first_byte(&self) {
+        if let Some(o) = &self.0 {
+            o.first_byte();
+        }
+    }
+
+    pub fn token_event(&self, is_token: bool) {
+        if let Some(o) = &self.0 {
+            o.token_event(is_token);
+        }
+    }
+
+    pub fn publish(&self) {
+        if let Some(o) = &self.0 {
+            o.publish();
+        }
+    }
+
+    pub fn publish_failure(&self, status: u16, body: &str) {
+        if let Some(o) = &self.0 {
+            o.publish_failure(status, body);
+        }
+    }
+
+    pub fn usage_required(&self) {
+        if let Some(o) = &self.0 {
+            o.usage_required();
         }
     }
 }

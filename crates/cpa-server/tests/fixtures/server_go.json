@@ -1568,6 +1568,224 @@
       "body": "\n{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"bad input\"}}"
     }
   ],
+  "reporter": [
+    {
+      "name": "gemini stream usage then scan error",
+      "records": [
+        {
+          "failed": true,
+          "fail_status": 0,
+          "fail_body": "read: connection reset",
+          "input": 0,
+          "output": 0,
+          "total": 0,
+          "response_model": "",
+          "reasoning_effort": "",
+          "model": "gemini-2.5-pro"
+        }
+      ]
+    },
+    {
+      "name": "gemini stream usage",
+      "records": [
+        {
+          "failed": false,
+          "fail_status": 0,
+          "fail_body": "",
+          "input": 4,
+          "output": 3,
+          "total": 7,
+          "response_model": "",
+          "reasoning_effort": "",
+          "model": "gemini-2.5-pro"
+        }
+      ]
+    },
+    {
+      "name": "claude stream usage then scan error",
+      "records": [
+        {
+          "failed": true,
+          "fail_status": 502,
+          "fail_body": "stream broke",
+          "input": 9,
+          "output": 6,
+          "total": 15,
+          "response_model": "claude-sonnet-4-6",
+          "reasoning_effort": "",
+          "model": "claude-sonnet-4-6"
+        }
+      ]
+    },
+    {
+      "name": "kimi stream without usage",
+      "records": []
+    },
+    {
+      "name": "kimi stream with usage",
+      "records": [
+        {
+          "failed": false,
+          "fail_status": 0,
+          "fail_body": "",
+          "input": 5,
+          "output": 2,
+          "total": 7,
+          "response_model": "kimi-k2",
+          "reasoning_effort": "",
+          "model": "kimi-k2"
+        }
+      ]
+    },
+    {
+      "name": "kimi native nonstream without usage",
+      "records": []
+    },
+    {
+      "name": "kimi translated effort {\"model\":\"kimi-k2\",\"reasoning_effort\":\"high\"}",
+      "records": [
+        {
+          "failed": false,
+          "fail_status": 0,
+          "fail_body": "",
+          "input": 1,
+          "output": 1,
+          "total": 2,
+          "response_model": "",
+          "reasoning_effort": "high",
+          "model": "kimi-k2"
+        }
+      ]
+    },
+    {
+      "name": "kimi translated effort {\"model\":\"kimi-k2\",\"thinking\":{\"type\":\"enabled\"}}",
+      "records": [
+        {
+          "failed": false,
+          "fail_status": 0,
+          "fail_body": "",
+          "input": 1,
+          "output": 1,
+          "total": 2,
+          "response_model": "",
+          "reasoning_effort": "",
+          "model": "kimi-k2"
+        }
+      ]
+    },
+    {
+      "name": "kimi translated effort {\"model\":\"kimi-k2\",\"thinking\":{\"type\":\"disabled\"}}",
+      "records": [
+        {
+          "failed": false,
+          "fail_status": 0,
+          "fail_body": "",
+          "input": 1,
+          "output": 1,
+          "total": 2,
+          "response_model": "",
+          "reasoning_effort": "none",
+          "model": "kimi-k2"
+        }
+      ]
+    },
+    {
+      "name": "devin set response model",
+      "records": [
+        {
+          "failed": false,
+          "fail_status": 0,
+          "fail_body": "",
+          "input": 0,
+          "output": 0,
+          "total": 0,
+          "response_model": "devin-model-x",
+          "reasoning_effort": "",
+          "model": "devin-chat"
+        }
+      ]
+    },
+    {
+      "name": "devin truncated before EOS",
+      "records": [
+        {
+          "failed": false,
+          "fail_status": 0,
+          "fail_body": "",
+          "input": 0,
+          "output": 0,
+          "total": 0,
+          "response_model": "",
+          "reasoning_effort": "",
+          "model": "devin-chat"
+        }
+      ]
+    },
+    {
+      "name": "devin trailer error",
+      "records": [
+        {
+          "failed": true,
+          "fail_status": 0,
+          "fail_body": "devin trailer: permission_denied",
+          "input": 0,
+          "output": 0,
+          "total": 0,
+          "response_model": "",
+          "reasoning_effort": "",
+          "model": "devin-chat"
+        }
+      ]
+    },
+    {
+      "name": "publish then failure",
+      "records": [
+        {
+          "failed": false,
+          "fail_status": 0,
+          "fail_body": "",
+          "input": 2,
+          "output": 2,
+          "total": 4,
+          "response_model": "",
+          "reasoning_effort": "",
+          "model": "gemini-2.5-pro"
+        }
+      ]
+    },
+    {
+      "name": "failure then publish",
+      "records": [
+        {
+          "failed": true,
+          "fail_status": 429,
+          "fail_body": "slow down",
+          "input": 0,
+          "output": 0,
+          "total": 0,
+          "response_model": "",
+          "reasoning_effort": "",
+          "model": "gemini-2.5-pro"
+        }
+      ]
+    },
+    {
+      "name": "terminal response model then set",
+      "records": [
+        {
+          "failed": false,
+          "fail_status": 0,
+          "fail_body": "",
+          "input": 0,
+          "output": 0,
+          "total": 0,
+          "response_model": "gpt-5.5-2026-01-01",
+          "reasoning_effort": "",
+          "model": "gpt-5.5"
+        }
+      ]
+    }
+  ],
   "resolved": [
     {
       "name": "alias",
@@ -4252,6 +4470,103 @@
       "session_id": "",
       "hash_session_id": "",
       "caller_scope": ""
+    }
+  ],
+  "substitution": [
+    {
+      "requested": "gpt-5.5",
+      "served": "gpt-5.5",
+      "substituted": false
+    },
+    {
+      "requested": "gpt-5.5",
+      "served": "GPT-5.5",
+      "substituted": false
+    },
+    {
+      "requested": "gpt-5.5",
+      "served": "gpt-5.4",
+      "substituted": true
+    },
+    {
+      "requested": "gpt-5.5",
+      "served": "gpt-5.5-2026-01-01",
+      "substituted": false
+    },
+    {
+      "requested": "gpt-5.5-2026-01-01",
+      "served": "gpt-5.5",
+      "substituted": false
+    },
+    {
+      "requested": "gpt-5.5",
+      "served": "gpt-5.5-20260101",
+      "substituted": false
+    },
+    {
+      "requested": "gpt-5.5",
+      "served": "gpt-5.5-001",
+      "substituted": false
+    },
+    {
+      "requested": "gpt-5.5",
+      "served": "gpt-5.5-0001",
+      "substituted": true
+    },
+    {
+      "requested": "gpt-5.5",
+      "served": "gpt-5.5-2026-1-01",
+      "substituted": true
+    },
+    {
+      "requested": "claude-sonnet-4-6",
+      "served": "anthropic/claude-sonnet-4-6",
+      "substituted": false
+    },
+    {
+      "requested": "openai/gpt-5.5",
+      "served": "gpt-5.5-latest",
+      "substituted": false
+    },
+    {
+      "requested": "gpt-5.5-latest",
+      "served": "gpt-5.5-2026-01-01",
+      "substituted": false
+    },
+    {
+      "requested": "gpt-5.5(high)",
+      "served": "gpt-5.5",
+      "substituted": false
+    },
+    {
+      "requested": " gpt-5.5 ",
+      "served": "gpt-5.5",
+      "substituted": false
+    },
+    {
+      "requested": "",
+      "served": "gpt-5.5",
+      "substituted": false
+    },
+    {
+      "requested": "gpt-5.5",
+      "served": "",
+      "substituted": false
+    },
+    {
+      "requested": "kimi-k2",
+      "served": "kimi-k2.5",
+      "substituted": true
+    },
+    {
+      "requested": "a/b/",
+      "served": "b",
+      "substituted": true
+    },
+    {
+      "requested": "gemini-2.5-pro",
+      "served": "models/gemini-2.5-pro",
+      "substituted": false
     }
   ],
   "usage": [
