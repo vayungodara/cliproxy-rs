@@ -206,7 +206,7 @@ async fn vertex_api_key_routes_alias() {
         openai: Default::default(),
         google: Default::default(),
     };
-    let rt = Arc::new(Runtime::new(config, credentials, executors));
+    let rt = Arc::new(cpa_server::testing::runtime(config, credentials, executors));
     let url = serve(router(rt)).await;
     let (status, _, text) = post(&url, "/v1beta/models/vflash:generateContent", HI).await;
     assert_eq!(status, 200, "{text}");
@@ -284,7 +284,7 @@ async fn usage_records_match_go() {
                 openai: Default::default(),
                 google: Default::default(),
             };
-            let rt = Arc::new(Runtime::new(config, credentials, executors));
+            let rt = Arc::new(cpa_server::testing::runtime(config, credentials, executors));
             let queue = rt.usage_queue();
             queue.configure(
                 true,
