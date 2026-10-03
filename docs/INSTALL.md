@@ -1,6 +1,6 @@
 # Installing cliproxy-rs
 
-cliproxy-rs is one executable, `cliproxy`, with the dashboard built in. It needs a `config.yaml` and a directory for credential files. Nothing else is installed.
+cliproxy-rs is one executable, `cliproxy` (`cliproxy.exe` on Windows), with the dashboard built in. It needs a `config.yaml` and a directory for credential files. Nothing else is installed.
 
 ## From a release
 
@@ -12,8 +12,7 @@ Each [release](https://github.com/vayungodara/cliproxy-rs/releases) has an archi
 | Linux arm64 | `cliproxy-<version>-aarch64-unknown-linux-gnu.tar.gz` |
 | macOS Apple silicon | `cliproxy-<version>-aarch64-apple-darwin.tar.gz` |
 | macOS Intel | `cliproxy-<version>-x86_64-apple-darwin.tar.gz` |
-
-There is no Windows build yet: several modules use Unix-only file APIs (permission modes, raw path bytes) without a Windows fallback, so the workspace does not compile there. Docker Desktop or WSL runs the Linux build.
+| Windows x86_64 | `cliproxy-<version>-x86_64-pc-windows-msvc.zip` |
 
 The release also carries `management.html`, the dashboard as a single file for Go CLIProxyAPI servers (see [ui/PANEL.md](../ui/PANEL.md)). The Rust binary does not need it.
 
@@ -23,6 +22,8 @@ Check the download before you run it:
 sha256sum --check --ignore-missing SHA256SUMS      # Linux
 shasum -a 256 --check --ignore-missing SHA256SUMS  # macOS
 ```
+
+On Windows, compare the output of `Get-FileHash cliproxy-<version>-x86_64-pc-windows-msvc.zip` with the line in `SHA256SUMS`.
 
 Unpack and put the binary on your `PATH`:
 
@@ -45,7 +46,7 @@ sudo apt-get install -y build-essential cmake clang perl git
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 ```
 
-On macOS, `xcode-select --install` and `brew install cmake` are enough.
+On macOS, `xcode-select --install` and `brew install cmake` are enough. On Windows, install Visual Studio Build Tools with the C++ workload, CMake, LLVM (bindgen needs `libclang`) and NASM (BoringSSL's x86_64 assembly), for example `choco install cmake llvm nasm`, and put NASM on `PATH`. The Windows build is produced by the release workflow and has not been tested by hand.
 
 Then build:
 
@@ -128,4 +129,4 @@ journalctl -u cliproxy -f
 
 The server writes to `config.yaml` (when the dashboard saves settings or hashes a plaintext management key) and to the credential directory, so both must be writable by the service user.
 
-On macOS, run it from a `launchd` agent or simply in a terminal.
+On macOS, run it from a `launchd` agent or simply in a terminal. On Windows, run it from a terminal or wrap it with a service manager such as NSSM.

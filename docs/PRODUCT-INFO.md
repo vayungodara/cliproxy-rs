@@ -17,7 +17,7 @@ It started from a post on X by @maria_rcks on 2 October 2026: "why hasnt anyone 
 
 ## What it has
 
-- One binary with the dashboard built in. Release builds for Linux (x86_64, arm64) and macOS (Apple silicon, Intel), plus a Dockerfile.
+- One binary with the dashboard built in. Release builds for Linux (x86_64, arm64), macOS (Apple silicon, Intel) and Windows (x86_64), plus a Dockerfile.
 - The client routes for chat completions, completions, Responses, Messages, token counting, Gemini `generateContent` and Interactions, model lists and the Codex paths, streaming and non-streaming.
 - WebSocket: the Responses WebSocket that Codex clients use, and the Realtime WebSocket.
 - Realtime and live voice through a Codex account (`/v1/realtime`, `/v1/live`, WebRTC call setup).
@@ -50,7 +50,7 @@ From [BENCHMARKS.md](BENCHMARKS.md): commit `d068002` against the Go v8.0.10 rel
 - The WebRTC media relay for live calls is an optional build feature, not in the release binaries.
 - No request log files, no access log lines, no plugins, no terminal UI, no Home control plane, no pprof.
 - Codex CLI has not been tested end to end against cliproxy-rs.
-- No Windows build yet: some modules use Unix-only file APIs. WSL or Docker Desktop runs the Linux build. The macOS builds are not signed or notarized.
+- The Windows build comes from the release workflow and has not been run by hand. The macOS builds are not signed or notarized.
 - [MIGRATING-FROM-GO.md](MIGRATING-FROM-GO.md) and [PARITY-STATUS.md](PARITY-STATUS.md) list every difference.
 
 ## Risks users should know

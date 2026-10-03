@@ -33,7 +33,7 @@ The dashboard says when the server lacks an endpoint instead of failing: actions
 
 ## Install
 
-Download a binary for Linux or macOS from the [releases page](https://github.com/vayungodara/cliproxy-rs/releases), or build from source. See [docs/INSTALL.md](docs/INSTALL.md) for both, plus Docker and running as a service.
+Download a binary for Linux, macOS or Windows from the [releases page](https://github.com/vayungodara/cliproxy-rs/releases), or build from source. See [docs/INSTALL.md](docs/INSTALL.md) for both, plus Docker and running as a service.
 
 ```sh
 cargo build --release -p cliproxy     # needs Rust, cmake, clang and perl (BoringSSL)
