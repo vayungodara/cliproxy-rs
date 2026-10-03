@@ -28,20 +28,20 @@ It started from a post on X by @maria_rcks on 2 October 2026: "why hasnt anyone 
 ## The dashboard
 
 - A new design, built for this project in Svelte 5. It shows traffic per account for the last 200 minutes, account health and cooldowns, and covers connecting accounts, provider keys, client keys, models, payload rules, quotas, the full configuration (with a reviewed diff before saving), logs, usage, plugins and system information.
-- Small: 46.8 KB of gzipped JavaScript and 4.7 KB of gzipped CSS. The build fails past 47,200 B and 6,853 B.
-- Made for first-time users: a three-step start (connect an account, create a client key, point a tool at the proxy), a Use with tools page with ready-to-copy settings for Claude Code, Codex CLI, Cursor and the OpenAI and Anthropic SDKs, account limits on the overview, and sign-in errors that say what to change.
+- Small: 46.6 KB of gzipped JavaScript and 4.7 KB of gzipped CSS. The build fails past 47,200 B and 6,853 B.
+- Made for first-time users without getting in the way of everyone else: a three-step start that shows only until an account and a client key exist, a Use with tools page that tests your key and gives ready-to-copy settings for Claude Code, Codex CLI, Cursor and the OpenAI and Anthropic SDKs, account limits on the overview when known, and sign-in errors that say what to change.
 - No external requests: no CDN, web fonts or analytics. The management key stays in the tab's memory and is never written to browser storage.
 - When the server lacks a feature, the dashboard says so instead of showing an error or hiding the screen.
 - It also ships as a single `management.html` (184 KB, 71 KB gzipped) that Go CLIProxyAPI servers can use in place of their own panel. It was tested against an unmodified Go 6fecc6e server.
 
 ## Measured numbers
 
-From [BENCHMARKS.md](BENCHMARKS.md): commit `4abce40` against the Go v8.0.10 release binary, same config, a 2-vCPU virtual machine, a local fake upstream, median of three runs.
+From [BENCHMARKS.md](BENCHMARKS.md): commit `d068002` against the Go v8.0.10 release binary, same config, a 2-vCPU virtual machine, a local fake upstream, median of three runs.
 
-- Memory at idle: 13.8 MB (Go: 44.6 MB). Under load: 22 to 23 MB (Go: 57 to 79 MB). With 256 slow streams open: 42 MB (Go: 104 MB).
-- Startup to first answered request: 15 ms (Go: 82 ms).
-- Binary: 29.6 MB, 12.6 MB as a release archive (Go: 69.1 MB and 22.9 MB).
-- Throughput: Go handled about 20% more non-streaming requests per second (1,677 against 1,402) and more fast streams (989 against 627 per second). cliproxy-rs handled slightly more translated Anthropic-format streams (640 against 607) with lower CPU per request. Do not describe cliproxy-rs as faster than Go overall.
+- Memory at idle: 14.8 MB (Go: 45.1 MB). Under load: 24 to 25 MB (Go: 57 to 79 MB). With 256 slow streams open: 43 MB (Go: 104 MB).
+- Startup to first answered request: 13 ms (Go: 98 ms).
+- Binary: 33.0 MB, 14.0 MB as a release archive (Go: 69.1 MB and 22.9 MB).
+- Throughput: Go handled about 20% more non-streaming requests per second (1,696 against 1,403). Fast streams were level (956 against 940 per second). Translated Anthropic-format streams ran at 913 per second against Go's 613, with lower CPU per request. Do not describe cliproxy-rs as faster than Go overall.
 
 ## Gaps today
 

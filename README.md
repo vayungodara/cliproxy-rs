@@ -151,7 +151,7 @@ The same files work for both servers. [docs/MIGRATING-FROM-GO.md](docs/MIGRATING
 
 ## Performance
 
-On a 2-vCPU test machine with a local fake upstream, cliproxy-rs used 14 MB of memory at idle against Go's 45 MB, and 22 to 42 MB under load against 57 to 104 MB. Go handled about 20% more non-streaming requests per second, and more fast streams. The release binary is 29.6 MB against Go's 69.1 MB. [docs/BENCHMARKS.md](docs/BENCHMARKS.md) has the method, every number and the caveats.
+On a 2-vCPU test machine with a local fake upstream, cliproxy-rs used 15 MB of memory at idle against Go's 45 MB, and 24 to 43 MB under load against 57 to 104 MB. Go handled about 20% more non-streaming requests per second; streaming throughput was level, and translated Anthropic-format streams were about 50% faster on cliproxy-rs. The release binary is 33 MB against Go's 69 MB. [docs/BENCHMARKS.md](docs/BENCHMARKS.md) has the method, every number and the caveats.
 
 ## Development
 
