@@ -737,11 +737,14 @@ async fn serve(
     }
     .layer(axum::middleware::from_fn(cpa_server::management::cors));
     let app = cpa_server::observability::router(&rt, app);
-    // Go's listener also serves the Redis protocol (usage queue) to management clients.
-    // ponytail: in Home mode Go first answers "ERR redis usage output disabled in home
-    // mode"; here the RESP connection closes without it, as with management disabled.
-    let resp = home.is_none().then_some(management);
-    let mut server = Box::pin(cpa_server::listener::serve_with_resp(listener, app, tls, resp));
+    // Go's listener also serves the Redis protocol (usage queue) to management clients;
+    // in Home mode it answers "ERR redis usage output disabled in home mode".
+    let mut server = Box::pin(cpa_server::listener::serve_with_resp(
+        listener,
+        app,
+        tls,
+        Some(management),
+    ));
     let mut home = home;
     // Go `cancelServiceRun`: a Home subscriber that stops on its own (an unsafe drain or
     // an unsettled dispatch) stops the service; executions it could not drain end with
