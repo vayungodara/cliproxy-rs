@@ -730,7 +730,7 @@ async fn usage_reports_match_go_records() {
         let result = KimiExecutor::with_client(default_client())
             .execute(&claude(), &cred, req, &cfg)
             .await;
-        let _ = downstream(result).await;
-        crate::kimi_fixture::assert_usage_like_go(name, &fx, &log);
+        let down = downstream(result).await;
+        crate::kimi_fixture::assert_usage_like_go(name, &fx, &log, down.failure.as_ref());
     }
 }

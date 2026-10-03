@@ -338,8 +338,17 @@ fn thinking(body: &[u8], req: &ExecRequest, to: &str) -> Result<Vec<u8>, ExecErr
 const CHAT_LINE_LIMIT: usize = 1_048_576;
 const RESPONSES_LINE_LIMIT: usize = 52_428_800;
 
-async fn post(client: &wreq::Client, url: &str, headers: GoHeaders, body: Vec<u8>) -> Result<Upstream, ExecError> {
-    let upstream = send(client, url, headers, body, None).await?;
+async fn post(
+    client: &wreq::Client,
+    url: &str,
+    headers: GoHeaders,
+    body: Vec<u8>,
+    usage: &cpa_core::exec::UsageSink,
+) -> Result<Upstream, ExecError> {
+    // Go's TrackHTTPClient: the TTFT runs from the request to the first body byte.
+    usage.round_trip_started();
+    let mut upstream = send(client, url, headers, body, None).await?;
+    upstream.body = crate::kimi_http::track_first_byte(upstream.body, usage, false);
     if !(200..300).contains(&upstream.status) {
         return Err(status_error(upstream).await);
     }
@@ -390,12 +399,18 @@ async fn execute_chat(
     body = normalize_tool_message_links(body)?;
     body = normalize_tools(body);
     body = normalize_temperature(body);
-    crate::kimi_http::report_effort(&req.usage, &body, "kimi");
+    req.usage.upstream_model(&upstream_model);
+    req.usage.request_for("kimi", &body);
+    if req.stream {
+        // Go's stream publishes only through its usage buffer (no EnsurePublished).
+        req.usage.usage_required();
+    }
     let upstream = post(
         client,
         &chat_url(credential),
         headers(credential, &req, req.stream),
         body.clone(),
+        &req.usage,
     )
     .await?;
     let translated = Bytes::from(body);
@@ -710,12 +725,17 @@ async fn execute_responses(
     body = normalize_responses_input(body);
     body = normalize_tools(body);
     body = normalize_temperature(body);
-    crate::kimi_http::report_effort(&req.usage, &body, "kimi");
+    req.usage.upstream_model(&upstream_model);
+    req.usage.request_for("kimi", &body);
+    // Go publishes native Responses usage only when it has tokens (stream buffer, or the
+    // non-stream Codex/OpenAI usage check); there is no EnsurePublished.
+    req.usage.usage_required();
     let upstream = post(
         client,
         &responses_url(credential),
         headers(credential, &req, req.stream),
         body.clone(),
+        &req.usage,
     )
     .await?;
     let translated = Bytes::from(body);

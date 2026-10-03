@@ -382,7 +382,7 @@ def main():
 
 # Milestones whose rows have been reviewed by hand; the others are not rendered yet.
 AUDITED = ["M1", "M2", "M3", "M4", "M5", "M6"]
-BASE = "d068002"
+BASE = "b944482"
 
 
 def title(r):
@@ -419,7 +419,7 @@ def render(rows):
     w("")
     w("Gap owner names the thread that should close a partial or missing item. Threads: ultra/claude, ultra/codex, ultra/google, ultra/device-providers (Kimi, Meta, Devin), "
       "ultra/openai-xai, ultra/server, ultra/manage, ultra/dashboard, ultra/translate, ultra/realtime (\"Realtime and Live\"), ultra/plugins (\"Plugins\"), "
-      "ultra/home (\"Home control plane, credential concurrency, storage\") and ultra/tui (\"TUI and LAN discovery\", also crates/cliproxy startup).")
+      "ultra/home (\"Home control plane, credential concurrency, storage\") and ultra/tui (\"TUI and LAN discovery\", also crates/cliproxy startup) and ultra/observe (access log, pprof).")
     w("")
     w("Method: `docs/parity-audit/audit.py` regenerates this file. Routes come from `probe.py`, which starts the binary and requests every listed method and path "
       "without credentials (routed pairs answer from the auth guard or handler, unrouted ones 404/405). A route counts as covered when a test requests it. "

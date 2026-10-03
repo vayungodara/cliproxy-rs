@@ -88,6 +88,11 @@ impl Proxy {
 
     /// Credential `proxy_url` (attribute, then file metadata), then `requests.proxy-url`.
     pub fn effective(credential: &Credential, cfg: &Config) -> Self {
+        Self::parse(&Self::effective_url(credential, cfg))
+    }
+
+    /// The setting `effective` parses, trimmed (Go `proxyURLForAuth`).
+    pub fn effective_url(credential: &Credential, cfg: &Config) -> String {
         let own = credential
             .attributes
             .get("proxy_url")
@@ -97,15 +102,15 @@ impl Proxy {
             .map(str::trim)
             .unwrap_or_default();
         if !own.is_empty() {
-            return Self::parse(own);
+            return own.to_owned();
         }
-        let global = cfg
-            .document
+        cfg.document
             .get("requests")
             .and_then(|r| r.get("proxy-url"))
             .and_then(serde_yaml_ng::Value::as_str)
-            .unwrap_or_default();
-        Self::parse(global)
+            .unwrap_or_default()
+            .trim()
+            .to_owned()
     }
 
     /// Applies this proxy to a client. `inherit_env` mirrors Go's standard transport,

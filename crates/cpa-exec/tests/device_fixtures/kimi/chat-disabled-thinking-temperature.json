@@ -89,6 +89,8 @@
     "usage": [
       {
         "cached_tokens": 0,
+        "fail_body": "",
+        "fail_status": 0,
         "failed": false,
         "input_tokens": 0,
         "model": "kimi-k2.6",
@@ -96,7 +98,9 @@
         "reasoning_effort": "none",
         "reasoning_tokens": 0,
         "response_model": "kimi-k2.6",
-        "total_tokens": 0
+        "service_tier": "",
+        "total_tokens": 0,
+        "ttft_set": true
       }
     ]
   }

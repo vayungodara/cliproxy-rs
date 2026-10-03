@@ -79,6 +79,8 @@
     "usage": [
       {
         "cached_tokens": 0,
+        "fail_body": "",
+        "fail_status": 0,
         "failed": false,
         "input_tokens": 5,
         "model": "claude-sonnet-4-5",
@@ -86,7 +88,9 @@
         "reasoning_effort": "",
         "reasoning_tokens": 0,
         "response_model": "",
-        "total_tokens": 7
+        "service_tier": "",
+        "total_tokens": 7,
+        "ttft_set": true
       }
     ]
   }

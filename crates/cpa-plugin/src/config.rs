@@ -45,34 +45,26 @@ impl ItemConfig {
 }
 
 /// yaml.v3 decoding into a Go `bool`: YAML booleans plus the 1.1 spellings it accepts
-/// for typed bools (`yes`, `on`, `y`, ...).
+/// for typed bools (`yes`, `on`, `y`, ...; [`cpa_core::config::go_bool`]).
 pub fn yaml_bool(v: &Value) -> Option<bool> {
     match v {
         Value::Bool(b) => Some(*b),
-        Value::String(s) => match s.as_str() {
-            "y" | "Y" | "yes" | "Yes" | "YES" | "on" | "On" | "ON" => Some(true),
-            "n" | "N" | "no" | "No" | "NO" | "off" | "Off" | "OFF" => Some(false),
-            _ => None,
-        },
-        Value::Tagged(t) => yaml_bool(&t.value),
+        Value::String(s) => cpa_core::config::go_bool(s),
+        // yaml.v3 resolves a custom-tagged scalar as a string, so only the 1.1
+        // spellings decode (`!foo yes` is true, `!foo true` fails).
+        Value::Tagged(t) => cpa_core::config::go_bool(&yaml_string(&t.value)),
         _ => None,
     }
 }
 
-/// yaml.v3 decoding into a Go `int`: floats truncate toward zero when in range.
+/// yaml.v3 decoding into a Go `int`: floats truncate toward zero when in range
+/// ([`cpa_core::config::go_int`]).
 pub fn yaml_int(v: &Value) -> Option<i64> {
     match v {
-        Value::Number(n) => n.as_i64().or_else(|| float_to_int(n.as_f64()?)),
-        Value::Tagged(t) => yaml_int(&t.value),
-        _ => None,
+        // A custom-tagged scalar is a string to yaml.v3 and never decodes into an int.
+        Value::Tagged(_) => None,
+        other => cpa_core::config::go_int(other),
     }
-}
-
-/// yaml.v3's float-to-int rule: `f <= MaxInt64` and no overflow after truncation.
-fn float_to_int(f: f64) -> Option<i64> {
-    (-9.223_372_036_854_776e18..9.223_372_036_854_776e18)
-        .contains(&f)
-        .then_some(f as i64)
 }
 
 /// Go `PluginInstanceConfig.UnmarshalYAML` on a config built from a management JSON
@@ -122,7 +114,13 @@ pub fn check_json_item(fields: &[(String, crate::gojson::Node)]) -> Result<(), S
     if let Some(v) = get("priority") {
         let ok = match v {
             J::Null => true,
-            J::Number(n) => int_literal(n) || n.parse::<f64>().ok().and_then(float_to_int).is_some(),
+            J::Number(n) => {
+                int_literal(n)
+                    || n.parse::<f64>()
+                        .ok()
+                        .and_then(|f| cpa_core::config::go_int(&Value::from(f)))
+                        .is_some()
+            }
             _ => false,
         };
         if !ok {
@@ -371,7 +369,13 @@ mod tests {
             };
             assert_eq!(check_json_item(&fields).err(), want, "{body}");
         }
-        assert_eq!(yaml_int(&serde_yaml_ng::from_str("5.7").unwrap()), Some(5));
+        let yaml = |s: &str| serde_yaml_ng::from_str::<Value>(s).unwrap();
+        assert_eq!(yaml_int(&yaml("5.7")), Some(5));
+        assert_eq!(yaml_int(&yaml("!!int 5")), Some(5));
+        assert_eq!(yaml_int(&yaml("!foo 123")), None);
+        assert_eq!(yaml_bool(&yaml("!foo yes")), Some(true));
+        assert_eq!(yaml_bool(&yaml("!foo true")), None);
+        assert_eq!(yaml_bool(&yaml("!!str off")), Some(false));
     }
 
     fn doc(text: &str) -> Value {

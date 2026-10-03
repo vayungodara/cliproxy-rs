@@ -261,7 +261,7 @@ pub(super) async fn call(
             Err(message) => return traced(fail(400, &message)),
         };
         let route = super::relay::Route {
-            proxy: cpa_exec::proxy::Proxy::effective(&credential, &cfg),
+            proxy_url: cpa_exec::proxy::Proxy::effective_url(&credential, &cfg),
             credential: media_credential_name(&credential),
             auth_index: cpa_core::config::credentials::auth_index(&credential),
         };
@@ -810,7 +810,7 @@ mod relay_tests {
         let (offer, route) = relay.seen.lock().unwrap().take().unwrap();
         assert_eq!(offer, "v=0\r\no=desktop-offer\r\n");
         assert_eq!(
-            route.proxy,
+            cpa_exec::proxy::Proxy::parse(&route.proxy_url),
             cpa_exec::proxy::Proxy::Direct,
             "the credential's proxy wins over the global one"
         );

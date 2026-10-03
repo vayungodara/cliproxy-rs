@@ -630,13 +630,23 @@ fn bootstrap_eligible(status: u16) -> bool {
 
 /// The trace ID of the last credential selected for a request.
 #[derive(Default)]
-pub struct Trace(std::sync::Mutex<Option<String>>, std::sync::OnceLock<String>);
+pub struct Trace(
+    std::sync::Mutex<Option<String>>,
+    std::sync::OnceLock<String>,
+    cpa_core::exec::CaptureSink,
+);
 
 impl Trace {
     /// Uses the HTTP middleware identity; absent identity keeps internal execution's
     /// lazy UUID generation. Capture this before spawning background work.
     pub fn with_request_id(id: Option<String>) -> Self {
-        let trace = Self::default();
+        let trace = Self(
+            Default::default(),
+            Default::default(),
+            crate::request_logging::current()
+                .map(|log| log.capture_sink())
+                .unwrap_or_default(),
+        );
         if let Some(id) = id.filter(|id| !id.is_empty()) {
             let _ = trace.1.set(id);
         }
@@ -646,6 +656,13 @@ impl Trace {
     /// The request ID (Go `logging.GetRequestID`), created on first use.
     pub fn request_id(&self) -> String {
         self.1.get_or_init(request_id).clone()
+    }
+
+    /// Connection-owned transports pass their capture explicitly after leaving
+    /// middleware task scope, along with the same middleware request ID.
+    pub fn with_capture(mut self, capture: cpa_core::exec::CaptureSink) -> Self {
+        self.2 = capture;
+        self
     }
 
     /// The `X-CPA-TRACE-ID` value of the credential selected so far.
@@ -796,7 +813,7 @@ pub async fn run(rt: &Arc<Runtime>, call: Call, trace: &Trace) -> Result<Done, R
         execution_session: call.execution_session.clone(),
         derived_session: session.derived,
         resolved_model: None,
-        usage: Default::default(),
+        usage: cpa_core::exec::UsageSink::default().with_capture(trace.2.clone()),
         request_path: call.request_path.clone(),
         headers: call.headers.clone(),
         caller: call.caller.clone(),
@@ -1601,7 +1618,7 @@ async fn attempt(
         let start = |credential: &cpa_core::credential::Credential, req: &mut ExecRequest| {
             usage.map(|facts| {
                 let tracker = crate::usage_record::Tracker::start(rt, facts, credential, upstream);
-                req.usage = tracker.sink();
+                req.usage = tracker.sink().with_capture(req.capture().clone());
                 tracker
             })
         };

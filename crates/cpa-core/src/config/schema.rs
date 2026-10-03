@@ -30,6 +30,11 @@ fn child<'a>(schema: &'a Schema, key: &Value) -> Option<&'a Schema> {
 
 /// yaml.v3 decoding a number into a Go `int`: integers as they are, floats truncated
 /// toward zero when they fit (`decode.go`, reflect.Int). Strings are not numbers.
+///
+/// Known difference: yaml.v3 only checks `f <= MaxInt64`, so on amd64 floats at or
+/// beyond the range (2^63, -1e20, `-.inf`) decode to MinInt64 through the platform's
+/// float-to-int conversion. That result is platform-dependent, so these are rejected
+/// here instead of copied.
 pub fn go_int(value: &Value) -> Option<i64> {
     value.as_i64().or_else(|| {
         value

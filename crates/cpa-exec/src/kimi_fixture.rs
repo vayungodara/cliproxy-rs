@@ -301,6 +301,25 @@ pub(crate) struct Downstream {
     pub err_status: Option<u16>,
     pub err_body: Option<String>,
     pub raw: Vec<u8>,
+    /// The failure the server records for the attempt's error, if any ([`go_failure`]).
+    pub failure: Option<(u16, String)>,
+}
+
+/// The failure status and body the server records for an executor error when the
+/// executor publishes nothing itself (cpa_server::classify `go_status`, `error_text`):
+/// transport faults carry no status, as Go's plain errors.
+pub(crate) fn go_failure(e: &cpa_core::exec::ExecError) -> (u16, String) {
+    let status = if e.scope == cpa_core::exec::FailureScope::Transport {
+        0
+    } else {
+        e.status
+    };
+    let text = if e.body.is_empty() {
+        format!("status {}", e.status)
+    } else {
+        String::from_utf8_lossy(&e.body).into_owned()
+    };
+    (status, text)
 }
 
 /// The raw body of scripted response `index` (base64 bodies decoded).
@@ -317,6 +336,7 @@ pub(crate) async fn downstream(result: Result<ExecResponse, cpa_core::exec::Exec
         Err(e) => Downstream {
             err_status: Some(e.status),
             err_body: Some(String::from_utf8_lossy(&e.body).into_owned()),
+            failure: Some(go_failure(&e)),
             ..Downstream::default()
         },
         Ok(response) => match response.body {
@@ -333,6 +353,7 @@ pub(crate) async fn downstream(result: Result<ExecResponse, cpa_core::exec::Exec
                         Err(e) => {
                             out.err_status = Some(e.status);
                             out.err_body = Some(String::from_utf8_lossy(&e.body).into_owned());
+                            out.failure = Some(go_failure(&e));
                         }
                     }
                 }
@@ -406,6 +427,28 @@ pub(crate) fn assert_go_message_without_body(name: &str, rust: &str, go: &str) {
 #[derive(Clone, Default)]
 pub(crate) struct LogCapture(pub Arc<Mutex<Vec<String>>>);
 
+/// An installed [`LogCapture`]; capturing ends when it is dropped.
+pub(crate) struct LogCaptureGuard {
+    _default: tracing::subscriber::DefaultGuard,
+    _second: tracing::Dispatch,
+}
+
+impl LogCapture {
+    /// Installs the capture as this thread's default subscriber. With a single live
+    /// dispatcher, tracing-core computes a callsite's cached interest from the
+    /// registering thread's default alone (`Rebuilder::JustOne`), so a parallel test
+    /// that hits the same callsite first, with no subscriber, caches `never` for
+    /// everyone and the event never reaches this capture. A second live dispatcher
+    /// makes every registration consult all live dispatchers, this one included.
+    pub(crate) fn install(&self) -> LogCaptureGuard {
+        let second = tracing::Dispatch::new(LogCapture::default());
+        LogCaptureGuard {
+            _default: tracing::subscriber::set_default(self.clone()),
+            _second: second,
+        }
+    }
+}
+
 impl tracing::Subscriber for LogCapture {
     fn enabled(&self, _: &tracing::Metadata<'_>) -> bool {
         true
@@ -430,9 +473,25 @@ impl tracing::Subscriber for LogCapture {
     fn exit(&self, _: &tracing::span::Id) {}
 }
 
-/// Records what an executor reports to its usage sink (Server 6's `UsageSink`).
+/// A `UsageSink` call other than a reported payload (Server 13's additions).
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) enum UsageEvent {
+    RequestFor(String, Vec<u8>),
+    UpstreamModel(String),
+    ResponseModel(String),
+    RoundTripStarted,
+    FirstByte,
+    Token(bool),
+    Publish,
+    PublishFailure(u16, String),
+    UsageRequired,
+    Discard,
+}
+
+/// Records what an executor reports to its usage sink: the payloads (Server 6) and,
+/// in order, every other call.
 #[derive(Default)]
-pub(crate) struct UsageLog(Mutex<Vec<(&'static str, Format, Vec<u8>)>>);
+pub(crate) struct UsageLog(Mutex<Vec<(&'static str, Format, Vec<u8>)>>, Mutex<Vec<UsageEvent>>);
 
 impl cpa_core::exec::UsageObserver for UsageLog {
     fn response_body(&self, format: Format, body: &[u8]) {
@@ -444,11 +503,69 @@ impl cpa_core::exec::UsageObserver for UsageLog {
     fn request(&self, format: Format, payload: &[u8]) {
         self.0.lock().unwrap().push(("request", format, payload.to_vec()));
     }
+    fn request_for(&self, identifier: &str, payload: &[u8]) {
+        self.event(UsageEvent::RequestFor(identifier.into(), payload.to_vec()));
+    }
+    fn upstream_model(&self, model: &str) {
+        self.event(UsageEvent::UpstreamModel(model.into()));
+    }
+    fn response_model(&self, model: &str) {
+        self.event(UsageEvent::ResponseModel(model.into()));
+    }
+    fn round_trip_started(&self) {
+        self.event(UsageEvent::RoundTripStarted);
+    }
+    fn first_byte(&self) {
+        self.event(UsageEvent::FirstByte);
+    }
+    fn token_event(&self, is_token: bool) {
+        self.event(UsageEvent::Token(is_token));
+    }
+    fn publish(&self) {
+        self.event(UsageEvent::Publish);
+    }
+    fn publish_failure(&self, status: u16, body: &str) {
+        self.event(UsageEvent::PublishFailure(status, body.into()));
+    }
+    fn usage_required(&self) {
+        self.event(UsageEvent::UsageRequired);
+    }
+    fn discard(&self) {
+        self.event(UsageEvent::Discard);
+    }
 }
 
 impl UsageLog {
     pub(crate) fn sink(self: &Arc<Self>) -> cpa_core::exec::UsageSink {
         cpa_core::exec::UsageSink::new(self.clone())
+    }
+
+    fn event(&self, event: UsageEvent) {
+        self.1.lock().unwrap().push(event);
+    }
+
+    pub(crate) fn events(&self) -> Vec<UsageEvent> {
+        self.1.lock().unwrap().clone()
+    }
+
+    /// Whether a TTFT is recorded: the server's `Ttft` (Go `StartResponseTTFT`,
+    /// `MarkFirstResponseByte`, `ObserveTokenEvent`, `ttftDuration` > 0).
+    fn ttft_set(&self) -> bool {
+        let (mut started, mut ttft, mut packet) = (false, false, false);
+        for event in self.events() {
+            match event {
+                UsageEvent::RoundTripStarted if !ttft => started = true,
+                UsageEvent::FirstByte if started => (ttft, started) = (true, false),
+                UsageEvent::Token(is_token) if started => {
+                    packet = true;
+                    if is_token {
+                        (ttft, started) = (true, false);
+                    }
+                }
+                _ => {}
+            }
+        }
+        ttft || packet
     }
 
     /// The reported upstream payloads (bodies and lines, `data:` stripped), in order.
@@ -527,26 +644,113 @@ fn reported_model(format: Format, payload: &[u8]) -> Option<String> {
         .find(|m| !m.is_empty())
 }
 
+/// The record the server publishes from these reports (cpa_server usage_record
+/// `Tracker::publish`): the executor's first `publish`/`publish_failure`, else nothing
+/// after `discard`, else the attempt's `failure`, else a success, which `usage_required` drops when no usage was
+/// reported. `(failed, status, body)`; `None` when nothing is published.
+fn rust_record(log: &UsageLog, failure: Option<&(u16, String)>) -> Option<(bool, u16, String)> {
+    let events = log.events();
+    let published = events.iter().find_map(|e| match e {
+        UsageEvent::Publish => Some((false, 0, String::new())),
+        UsageEvent::PublishFailure(status, body) => Some((true, *status, body.trim().to_owned())),
+        _ => None,
+    });
+    if published.is_some() {
+        return published;
+    }
+    // `UsageSink::discard`: Go returned before it created a reporter.
+    if events.contains(&UsageEvent::Discard) {
+        return None;
+    }
+    if let Some((status, body)) = failure {
+        return Some((true, *status, body.trim().to_owned()));
+    }
+    let usage_reported = log.0.lock().unwrap().iter().any(|(kind, format, payload)| {
+        *kind == "body" || {
+            let t = payload.trim_ascii();
+            let p = t.strip_prefix(b"data:").map_or(t, <[u8]>::trim_ascii);
+            reported_tokens(*format, p).is_some() || !crate::kimi_http::response_tier(p).is_empty()
+        }
+    });
+    if events.contains(&UsageEvent::UsageRequired) && !usage_reported {
+        return None;
+    }
+    Some((false, 0, String::new()))
+}
+
 /// Checks the usage reports against the record Go's `UsageReporter` published for the
-/// same fixture (`extra.usage`): the reported upstream payloads carry Go's token counts
-/// (none for a failed attempt) and response model, and the reported request yields Go's
-/// translated reasoning effort.
-pub(crate) fn assert_usage_like_go(name: &str, fx: &Value, log: &UsageLog) {
+/// same fixture (`extra.usage`): whether a record is published at all, its outcome
+/// (failure status and body, from `failure` when the executor publishes nothing), the
+/// TTFT presence, the reported tokens (none for a failed attempt), service tier and
+/// response model, and the translated reasoning effort. `failure` is the attempt's
+/// error as [`go_failure`] maps it.
+pub(crate) fn assert_usage_like_go(name: &str, fx: &Value, log: &UsageLog, failure: Option<&(u16, String)>) {
+    if fx["request"]["count"].as_bool() == Some(true) {
+        // Token counting is not a tracked attempt.
+        return;
+    }
+    if fx["extra"].get("usage").is_none() {
+        // This generator did not capture usage.
+        return;
+    }
+    let rust = rust_record(log, failure);
     let Some(record) = fx["extra"]["usage"].as_array().and_then(|r| r.first()) else {
+        assert_eq!(rust, None, "{name}: Go publishes no usage record");
         return;
     };
-    let requests: Vec<(Format, Vec<u8>)> = log
-        .0
-        .lock()
-        .unwrap()
-        .iter()
-        .filter(|(kind, _, _)| *kind == "request")
-        .map(|(_, f, p)| (*f, p.clone()))
-        .collect();
-    let effort = requests
-        .last()
-        .map(|(f, p)| cpa_common::thinking::extract_translated_reasoning_effort(p, f.as_str()))
-        .unwrap_or_default();
+    let rust = rust.unwrap_or_else(|| panic!("{name}: Go publishes a usage record"));
+    if let Some(status) = record["fail_status"].as_u64() {
+        let go = (
+            record["failed"].as_bool().unwrap(),
+            status as u16,
+            record["fail_body"].as_str().unwrap().trim().to_owned(),
+        );
+        assert_eq!(rust, go, "{name}: record outcome (failed, status, body)");
+        assert_eq!(
+            log.ttft_set(),
+            record["ttft_set"].as_bool().unwrap(),
+            "{name}: TTFT recorded"
+        );
+    }
+    let events = log.events();
+    // Go's SetUpstreamModel never reaches the record (it feeds the substitution
+    // warning); the reported model must be the one Go sent upstream. Kimi and Devin set
+    // it on every upstream request, Meta never.
+    let upstream_model = events.iter().rev().find_map(|e| match e {
+        UsageEvent::UpstreamModel(m) => Some(m.clone()),
+        _ => None,
+    });
+    if let Some(sent) = fx["upstream"].as_array().and_then(|u| u.last()) {
+        let sent = Captured::from_fixture(sent).body;
+        match (fx["credential"]["type"].as_str(), &upstream_model) {
+            (Some("kimi" | "kimi-ai"), Some(model)) => assert_eq!(
+                cpa_common::json::get(&sent, "model").str(),
+                model.as_str(),
+                "{name}: upstream model"
+            ),
+            (Some("devin"), Some(model)) => assert!(
+                !model.is_empty() && sent.windows(model.len()).any(|w| w == model.as_bytes()),
+                "{name}: upstream model {model:?} is not in Go's request"
+            ),
+            (Some("meta"), None) => {}
+            (provider, model) => panic!("{name}: {provider:?} reported upstream model {model:?}"),
+        }
+    }
+    let effort = match events.iter().rev().find_map(|e| match e {
+        UsageEvent::RequestFor(identifier, payload) => Some((identifier.clone(), payload.clone())),
+        _ => None,
+    }) {
+        Some((identifier, payload)) => cpa_common::thinking::extract_translated_reasoning_effort(&payload, &identifier),
+        None => log
+            .0
+            .lock()
+            .unwrap()
+            .iter()
+            .rev()
+            .find(|(kind, _, _)| *kind == "request")
+            .map(|(_, f, p)| cpa_common::thinking::extract_translated_reasoning_effort(p, f.as_str()))
+            .unwrap_or_default(),
+    };
     assert_eq!(
         effort,
         record["reasoning_effort"].as_str().unwrap(),
@@ -584,10 +788,36 @@ pub(crate) fn assert_usage_like_go(name: &str, fx: &Value, log: &UsageLog) {
             .unwrap_or_default();
         assert_eq!(tier, want, "{name}: reported response service tier");
     }
-    let model = payloads.iter().rev().find_map(|(f, p)| reported_model(*f, p));
+    // The executors here report a response model either in payloads or through
+    // `response_model` (Devin), never both.
+    let model = events
+        .iter()
+        .rev()
+        .find_map(|e| match e {
+            UsageEvent::ResponseModel(m) => Some(m.trim().to_owned()),
+            _ => None,
+        })
+        .or_else(|| payloads.iter().rev().find_map(|(f, p)| reported_model(*f, p)));
     assert_eq!(
         model.unwrap_or_default(),
         record["response_model"].as_str().unwrap(),
         "{name}: reported response model"
     );
+}
+
+#[test]
+fn log_capture_sees_callsites_another_thread_registered_first() {
+    // Hit first on a thread without a subscriber. With a single live dispatcher tracing
+    // would cache `never` for this callsite there and drop the event below.
+    fn probe() {
+        tracing::warn!("log capture probe");
+    }
+    let capture = LogCapture::default();
+    let guard = capture.install();
+    std::thread::spawn(probe).join().unwrap();
+    probe();
+    drop(guard);
+    let logs = capture.0.lock().unwrap().clone();
+    assert_eq!(logs.len(), 1, "{logs:?}");
+    assert!(logs[0].contains("log capture probe"), "{logs:?}");
 }

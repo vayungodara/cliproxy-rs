@@ -93,6 +93,8 @@
     "usage": [
       {
         "cached_tokens": 0,
+        "fail_body": "",
+        "fail_status": 0,
         "failed": false,
         "input_tokens": 5,
         "model": "muse-spark-1.3",
@@ -100,7 +102,9 @@
         "reasoning_effort": "",
         "reasoning_tokens": 0,
         "response_model": "muse-spark-1.3",
-        "total_tokens": 7
+        "service_tier": "",
+        "total_tokens": 7,
+        "ttft_set": true
       }
     ]
   }

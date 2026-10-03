@@ -728,8 +728,141 @@ async fn unrestorable_tool_alias_publishes_no_tokens() {
         message.starts_with("restore Claude OAuth tool name from response: "),
         "{message}"
     );
-    let kinds: Vec<_> = usage.0.lock().unwrap().iter().map(|(kind, _, _)| *kind).collect();
-    assert_eq!(kinds, ["request", "body", "failed"]);
+    assert_eq!(
+        usage.kinds(),
+        ["request", "round_trip_started", "first_byte", "body", "publish_failure"]
+    );
+    let reports = usage.0.lock().unwrap();
+    assert_eq!(
+        reports.last().unwrap().2,
+        format!("0 {message}"),
+        "Go's plain error has no status"
+    );
+}
+
+/// Go's reporter calls on each Claude path (claude_executor_execute.go and
+/// claude_executor_stream.go): native Execute publishes, translated Execute and
+/// ExecuteStream require usage (no EnsurePublished), the TTFT marks bracket the round
+/// trip, a renamed upstream model is reported, and `responses/compact` returns before
+/// any reporter exists.
+#[tokio::test]
+async fn usage_reports_follow_go_reporter_calls() {
+    use axum::response::IntoResponse;
+    let router = axum::Router::new().fallback(|body: String| async move {
+        let model = gjson::get(&body, "model").str().to_owned();
+        if gjson::get(&body, "stream").bool() {
+            let events = format!(
+                "event: message_start\ndata: {{\"type\":\"message_start\",\"message\":{{\"id\":\"msg_u\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"{model}\",\"content\":[],\"usage\":{{\"input_tokens\":3,\"output_tokens\":1}}}}}}\n\n\
+                 event: message_delta\ndata: {{\"type\":\"message_delta\",\"delta\":{{\"stop_reason\":\"end_turn\"}},\"usage\":{{\"output_tokens\":2}}}}\n\n\
+                 event: message_stop\ndata: {{\"type\":\"message_stop\"}}\n\n"
+            );
+            ([(http::header::CONTENT_TYPE, "text/event-stream")], events).into_response()
+        } else {
+            let reply = format!(
+                r#"{{"id":"msg_u","type":"message","role":"assistant","model":"{model}","content":[{{"type":"text","text":"ok"}}],"stop_reason":"end_turn","usage":{{"input_tokens":3,"output_tokens":2}}}}"#
+            );
+            ([(http::header::CONTENT_TYPE, "application/json")], reply).into_response()
+        }
+    });
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let base = format!("http://{}", listener.local_addr().unwrap());
+    tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
+    let executor = ClaudeExecutor::with_client(wreq::Client::new(), DEFAULT_BASE_URL);
+    let mut credential = Credential::from_file(
+        Path::new("/fake"),
+        Path::new("/fake/claude.json"),
+        serde_json::json!({"type":"claude"}).as_object().unwrap().clone(),
+    )
+    .unwrap();
+    credential
+        .attributes
+        .insert("api_key".into(), "fake-gateway-key".into());
+    credential.attributes.insert("base_url".into(), base);
+    let cfg = Config::parse("").unwrap();
+    let run = |source: Format, stream: bool, alt: Option<&str>, delegation: Delegation| {
+        let usage = Arc::new(Usage::default());
+        let body = if source == Format::Claude {
+            Bytes::from_static(
+                br#"{"model":"claude-sonnet-4-6","max_tokens":8,"messages":[{"role":"user","content":"hi"}]}"#,
+            )
+        } else {
+            Bytes::from_static(br#"{"model":"claude-sonnet-4-6","messages":[{"role":"user","content":"hi"}]}"#)
+        };
+        let req = ExecRequest {
+            operation: Operation::Generate,
+            source_format: source,
+            response_format: source,
+            requested_model: "claude-sonnet-4-6".into(),
+            model: "claude-sonnet-4-6".into(),
+            original_body: body.clone(),
+            body,
+            stream,
+            alt: alt.map(str::to_owned),
+            session: None,
+            execution_session: None,
+            derived_session: None,
+            resolved_model: None,
+            usage: cpa_core::exec::UsageSink::new(usage.clone()),
+            request_path: String::new(),
+            headers: Default::default(),
+            caller: Caller {
+                principal: "fake-client".into(),
+                source: "x-api-key",
+            },
+        };
+        let (executor, credential, cfg) = (&executor, &credential, &cfg);
+        async move {
+            let response = executor.execute_delegated(credential, req, cfg, delegation).await;
+            if let Ok(ExecResponse {
+                body: ResponseBody::Stream(events),
+                ..
+            }) = response
+            {
+                let _: Vec<_> = events.collect().await;
+            }
+            usage
+        }
+    };
+    let without_lines = |usage: &Usage| usage.kinds().into_iter().filter(|k| *k != "line").collect::<Vec<_>>();
+    // Native Execute: reporter.Publish(ParseClaudeUsage(data)).
+    let usage = run(Format::Claude, false, None, Delegation::default()).await;
+    assert_eq!(
+        usage.kinds(),
+        ["request", "round_trip_started", "first_byte", "body", "publish"]
+    );
+    // Translated Execute: streamUsage.Publish only, so usage is required.
+    let usage = run(Format::OpenAI, false, None, Delegation::default()).await;
+    assert_eq!(
+        without_lines(&usage),
+        ["request", "round_trip_started", "first_byte", "usage_required"]
+    );
+    assert!(usage.kinds().contains(&"line"));
+    // ExecuteStream, native and translated: deferred streamUsage.Publish only.
+    for source in [Format::Claude, Format::OpenAI] {
+        let usage = run(source, true, None, Delegation::default()).await;
+        assert_eq!(
+            without_lines(&usage),
+            ["request", "round_trip_started", "first_byte", "usage_required"],
+            "{source:?}"
+        );
+    }
+    // A delegation renaming the model: reporter.SetUpstreamModel.
+    let renamed = Delegation {
+        upstream_model: Some(|base| format!("{base}-upstream")),
+        ..Default::default()
+    };
+    let usage = run(Format::Claude, false, None, renamed).await;
+    assert_eq!(usage.kinds()[0], "upstream_model");
+    assert_eq!(usage.0.lock().unwrap()[0].2, "claude-sonnet-4-6-upstream");
+    // responses/compact: Go returns before NewExecutorUsageReporter.
+    let usage = run(
+        Format::OpenAIResponse,
+        false,
+        Some("responses/compact"),
+        Delegation::default(),
+    )
+    .await;
+    assert_eq!(usage.kinds(), ["discard"]);
 }
 
 /// Go's in-process compat replay across two requests (store, then restore), replayed
@@ -851,10 +984,17 @@ async fn compat_replay_sequence_matches_go() {
         let reports = usage.0.lock().unwrap().clone();
         let mut want = Vec::new();
         if let Some(sent) = rust {
+            let reply = scenario["reply"]["body"].as_str().unwrap().to_owned();
             want.push(("request", Format::Claude, sent));
+            want.push(("round_trip_started", Format::Claude, String::new()));
+            if !reply.is_empty() {
+                want.push(("first_byte", Format::Claude, String::new()));
+            }
+            // Native Execute publishes ParseClaudeUsage of the body; errors leave the
+            // failure to the server (Go's deferred TrackFailure).
             if scenario["error_status"].is_null() {
-                let reply = scenario["reply"]["body"].as_str().unwrap().to_owned();
                 want.push(("body", Format::Claude, reply));
+                want.push(("publish", Format::Claude, String::new()));
             }
         }
         assert_eq!(reports, want, "step {step}: usage reports");
@@ -879,7 +1019,35 @@ impl cpa_core::exec::UsageObserver for Usage {
         let payload = String::from_utf8_lossy(payload).into_owned();
         self.0.lock().unwrap().push(("request", format, payload));
     }
-    fn failed(&self) {
-        self.0.lock().unwrap().push(("failed", Format::Claude, String::new()));
+    fn upstream_model(&self, model: &str) {
+        self.push("upstream_model", model);
+    }
+    fn round_trip_started(&self) {
+        self.push("round_trip_started", "");
+    }
+    fn first_byte(&self) {
+        self.push("first_byte", "");
+    }
+    fn publish(&self) {
+        self.push("publish", "");
+    }
+    fn publish_failure(&self, status: u16, body: &str) {
+        self.push("publish_failure", &format!("{status} {body}"));
+    }
+    fn usage_required(&self) {
+        self.push("usage_required", "");
+    }
+    fn discard(&self) {
+        self.push("discard", "");
+    }
+}
+
+impl Usage {
+    fn push(&self, kind: &'static str, value: &str) {
+        self.0.lock().unwrap().push((kind, Format::Claude, value.to_owned()));
+    }
+
+    fn kinds(&self) -> Vec<&'static str> {
+        self.0.lock().unwrap().iter().map(|(kind, _, _)| *kind).collect()
     }
 }

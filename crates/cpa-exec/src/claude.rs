@@ -15,8 +15,10 @@
 //! Payload rules (`cpa_common::payload`) run after cloaking, as in Go, and
 //! reconcile.rs repairs the cloak's model-specific additions afterwards.
 //!
-//! Usage reports go through `ExecRequest::usage` (Go's reporter: the upstream body and
-//! lines, the body sent, and empty failures). Go 6fecc6e has no Vertex delegation to
+//! Usage reports go through `ExecRequest::usage` with Go's reporter calls: the body
+//! sent, the upstream body and lines, the TTFT marks, `Publish` on native Execute,
+//! required usage on translated Execute and ExecuteStream (no `EnsurePublished`), and
+//! tokenless failures where Go's `TrackFailure` or apply_patch hooks publish them. Go 6fecc6e has no Vertex delegation to
 //! this executor: `claudeCCHUpstreamVertex` has no caller, so CCH signing stays
 //! Anthropic-only.
 //!
@@ -213,6 +215,8 @@ impl ClaudeExecutor {
         // Go never checks for a token here: an empty key counts locally, or reaches the
         // upstream unauthenticated and gets its answer.
         if req.alt.as_deref() == Some("responses/compact") {
+            // Go returns before it creates the usage reporter: no record at all.
+            req.usage.discard();
             return Err(ExecError::local(
                 501,
                 FailureScope::Request,
@@ -267,6 +271,10 @@ impl ClaudeExecutor {
         replay: Option<&replay::Scope>,
     ) -> Result<ExecResponse, ExecError> {
         let upstream_stream = req.stream || req.response_format != Format::Claude;
+        // reporter.SetUpstreamModel when the delegation renames the model.
+        if ctx.upstream_model != ctx.base_model {
+            req.usage.upstream_model(&ctx.upstream_model);
+        }
         let translated = translate::request(&req, ctx.codex, &ctx.base_model, ctx.is_compat)?;
         let original_translated = translate::original(&req, &translated, ctx.codex, &ctx.base_model, ctx.is_compat)?;
         let prepared = ctx.prepare_messages(&req, &translated, &original_translated, upstream_stream)?;
@@ -274,7 +282,7 @@ impl ClaudeExecutor {
         if req.usage.enabled() {
             req.usage.request(Format::Claude, prepared.body.as_bytes());
         }
-        let response = self.send(&ctx, &prepared, "/v1/messages").await;
+        let response = self.send(&ctx, &prepared, "/v1/messages", Some(&req.usage)).await;
         let response = response.inspect_err(|error| {
             // shouldClearKimiThinkingReplayAfterError: an upstream rejection of applied replay.
             if let Some(scope) = replay.filter(|s| s.applied)
@@ -299,6 +307,9 @@ impl ClaudeExecutor {
                         &continuity.prompt_id,
                     );
                 });
+                // ExecuteStream publishes through its stream buffer only (no
+                // EnsurePublished): a stream that never carried usage records nothing.
+                req.usage.usage_required();
                 let relayed = if req.response_format == Format::Claude {
                     stream::relay(raw, reverse, done, req.usage.clone())
                 } else {
@@ -309,6 +320,10 @@ impl ClaudeExecutor {
             ResponseBody::Stream(raw) => {
                 let data = collect(raw).await.map_err(wrap)?;
                 if upstream_stream {
+                    // Translated Execute publishes with streamUsage.Publish only: no usage
+                    // seen, no record. A restore failure below keeps the usage seen so far
+                    // (streamUsage.PublishFailure), which the server does for Claude.
+                    req.usage.usage_required();
                     stream::validate_buffered(&data).map_err(wrap)?;
                     let id = stream::buffered_message_id(&data);
                     session::commit(
@@ -348,16 +363,19 @@ impl ClaudeExecutor {
                         &continuity.prompt_id,
                     );
                     // A failed restore returns before ParseClaudeUsage: Go's deferred
-                    // TrackFailure publishes no tokens.
+                    // TrackFailure publishes no tokens. The error is plain (wrapped for a
+                    // fast request with the 2xx status), so Go records no status.
                     let restored = alias::restore_response(&text, &reverse).map_err(|m| {
-                        req.usage.failed();
-                        wrap(plain_error(format!(
-                            "restore Claude OAuth tool name from response: {m}"
-                        )))
+                        let message = format!("restore Claude OAuth tool name from response: {m}");
+                        req.usage.publish_failure(0, &message);
+                        wrap(plain_error(message))
                     })?;
                     if let Some(scope) = replay {
                         scope.store_response(restored.as_bytes());
                     }
+                    // reporter.Publish(ParseClaudeUsage(data)): native Execute always
+                    // publishes, with whatever usage the body carried.
+                    req.usage.publish();
                     ResponseBody::Buffered(Bytes::from(restored))
                 }
             }
@@ -407,7 +425,7 @@ impl ClaudeExecutor {
             });
         }
         let prepared = ctx.prepare_count(&req, &translated)?;
-        let response = self.send(&ctx, &prepared, "/v1/messages/count_tokens").await?;
+        let response = self.send(&ctx, &prepared, "/v1/messages/count_tokens", None).await?;
         let body = match response.body {
             ResponseBody::Stream(raw) => collect(raw).await?,
             ResponseBody::Buffered(b) => b,
@@ -419,7 +437,20 @@ impl ClaudeExecutor {
         })
     }
 
-    async fn send(&self, ctx: &Ctx<'_>, prepared: &Prepared, path: &str) -> Result<RawResponse, ExecError> {
+    /// Sends one Messages or count_tokens request. `usage` receives Go's TTFT marks
+    /// (`TrackHTTPClient`): the round trip starts, then the first raw body byte arrives,
+    /// before decoding and for any status.
+    // ponytail: Go's http.Client drains up to 2 KiB of a redirect response's body
+    // through the tracked transport, so a redirect with a body marks the first byte at
+    // that hop; this marks it on the final response only.
+    async fn send(
+        &self,
+        ctx: &Ctx<'_>,
+        prepared: &Prepared,
+        path: &str,
+        usage: Option<&cpa_core::exec::UsageSink>,
+    ) -> Result<RawResponse, ExecError> {
+        let usage = usage.filter(|u| u.enabled());
         let url = format!("{}{path}?beta=true", ctx.base_url);
         let fast = ctx.first_party && prepared.fast;
         let mut headers = GoHeaders::new();
@@ -442,9 +473,24 @@ impl ClaudeExecutor {
                 }
             })
         };
-        let upstream = crate::proxy::send_routed(&route, &url, headers, Bytes::from(prepared.body.clone()), None)
+        if let Some(usage) = usage {
+            usage.round_trip_started();
+        }
+        let mut upstream = crate::proxy::send_routed(&route, &url, headers, Bytes::from(prepared.body.clone()), None)
             .await
             .map_err(|e| fast_request_error(fast, e))?;
+        if let Some(usage) = usage.cloned() {
+            let mut marked = false;
+            upstream.body = upstream
+                .body
+                .inspect(move |chunk| {
+                    if !marked && chunk.as_ref().is_ok_and(|c| !c.is_empty()) {
+                        marked = true;
+                        usage.first_byte();
+                    }
+                })
+                .boxed();
+        }
         // MarkResult observes the headers of every upstream answer to a Messages request
         // from a Claude credential, whatever its status or body (Go records them before
         // reading the body); count_tokens results skip observation in Go's conductor.
