@@ -134,25 +134,30 @@ impl Spec {
         // Config `models[]` entries: thinking passes through unvalidated (thinking.IsUserDefinedModel).
         put("user_defined", self.user_defined.into());
         if let Some(t) = &self.thinking {
-            let mut m = Map::new();
-            for (k, v) in [("min", t.min), ("max", t.max)] {
-                if v != 0 {
-                    m.insert(k.into(), v.into());
-                }
-            }
-            if t.zero_allowed {
-                m.insert("zero_allowed".into(), true.into());
-            }
-            if t.dynamic_allowed {
-                m.insert("dynamic_allowed".into(), true.into());
-            }
-            if !t.levels.is_empty() {
-                m.insert("levels".into(), t.levels.clone().into());
-            }
-            raw.insert("thinking".into(), Value::Object(m));
+            raw.insert("thinking".into(), thinking_value(t));
         }
         ModelInfo::from_raw(raw).expect("spec renders a valid model")
     }
+}
+
+/// Go's JSON for a `ThinkingSupport` (`omitempty` on every field).
+pub fn thinking_value(t: &ThinkingSupport) -> Value {
+    let mut m = Map::new();
+    for (k, v) in [("min", t.min), ("max", t.max)] {
+        if v != 0 {
+            m.insert(k.into(), v.into());
+        }
+    }
+    if t.zero_allowed {
+        m.insert("zero_allowed".into(), true.into());
+    }
+    if t.dynamic_allowed {
+        m.insert("dynamic_allowed".into(), true.into());
+    }
+    if !t.levels.is_empty() {
+        m.insert("levels".into(), t.levels.clone().into());
+    }
+    Value::Object(m)
 }
 
 /// Go `Auth.AuthKind()` (sdk/cliproxy/auth/classification.go): a recognised

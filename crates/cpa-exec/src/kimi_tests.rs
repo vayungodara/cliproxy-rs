@@ -521,6 +521,7 @@ async fn claude_replay_sequence_matches_go() {
             session: None,
             execution_session: None,
             derived_session: None,
+            resolved_model: None,
             request_path: String::new(),
             headers,
             caller: cpa_core::exec::Caller {

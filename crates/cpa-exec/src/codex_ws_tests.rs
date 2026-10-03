@@ -195,6 +195,7 @@ fn request(body: &str) -> ExecRequest {
         session: None,
         execution_session: Some("conn-1".into()),
         derived_session: None,
+        resolved_model: None,
         request_path: String::new(),
         headers: HeaderMap::new(),
         caller: Caller {
