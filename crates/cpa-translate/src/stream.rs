@@ -267,6 +267,8 @@ struct Framed {
     request_levels: usize,
     /// Nesting of everything read from upstream so far (state the translator retains).
     seen: crate::Depth,
+    /// A stack reservation that failed in `finalize_tool_input`; the stream is broken.
+    failed: Option<Error>,
 }
 
 /// geminiInteractionsSSEPayload (gemini_executor.go): a JSON frame as is, else its
@@ -356,11 +358,17 @@ impl StreamTranslator for Framed {
     }
 
     fn event(&mut self, event: &[u8]) -> Result<Vec<Bytes>, Error> {
+        if let Some(e) = &self.failed {
+            return Err(e.clone());
+        }
         self.seen.feed(event);
         crate::deep_stack(self.levels(), || self.translate(event))
     }
 
     fn finish(&mut self) -> Result<Vec<Bytes>, Error> {
+        if let Some(e) = &self.failed {
+            return Err(e.clone());
+        }
         crate::deep_stack(self.levels(), || self.finish_frames())
     }
 
@@ -368,13 +376,20 @@ impl StreamTranslator for Framed {
         self.inner.tool_input_failed()
     }
 
-    /// A stack that cannot be reserved leaves nothing to emit; `finish` then reports it.
+    /// A stack that cannot be reserved emits nothing; every later `event` and `finish`
+    /// then returns that error.
     fn finalize_tool_input(&mut self) -> Vec<Bytes> {
-        crate::deep_stack(self.levels(), || {
+        if self.failed.is_some() {
+            return vec![];
+        }
+        let finalized = crate::deep_stack(self.levels(), || {
             let chunks = self.inner.finalize_tool_input();
             Ok(self.framed(chunks))
+        });
+        finalized.unwrap_or_else(|e| {
+            self.failed = Some(e);
+            vec![]
         })
-        .unwrap_or_default()
     }
 }
 
@@ -469,6 +484,7 @@ pub(crate) fn framed(
         frame: vec![],
         request_levels,
         seen: crate::Depth::default(),
+        failed: None,
     })
 }
 
@@ -492,6 +508,19 @@ mod tests {
             self.0.push(line.to_vec());
             Ok(vec![line.to_vec()])
         }
+    }
+
+    #[test]
+    fn a_failed_finalize_breaks_the_stream() {
+        let mut s = framed(Format::OpenAI, Format::OpenAI, Box::new(Echo(vec![])), 1000);
+        assert_eq!(s.event(b"data: {}\n\n").unwrap().len(), 1, "deep stack available");
+        crate::FAIL_SPAWN.with(|f| f.set(true));
+        assert!(s.finalize_tool_input().is_empty());
+        crate::FAIL_SPAWN.with(|f| f.set(false));
+        let err = s.finish().unwrap_err();
+        assert!(err.0.contains("stack"), "{err}");
+        assert_eq!(s.event(b"data: {}\n\n").unwrap_err(), err);
+        assert!(s.finalize_tool_input().is_empty());
     }
 
     fn responses(chunks: &[&[u8]]) -> Vec<Vec<u8>> {

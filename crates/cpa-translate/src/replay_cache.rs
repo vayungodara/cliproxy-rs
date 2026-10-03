@@ -10,8 +10,10 @@
 //! evicted); Go's Home KV backend, snapshots, revisions and compare-and-swap writes (used
 //! by executors, not translators) are not ported, and only `thought_signature` items (the
 //! kind translators write) are accepted. Go's 10-minute background purge runs lazily, at
-//! the tick times, on the next cache access (`Caches::sweep`). Swap these functions for the
-//! shared cache at integration.
+//! the nominal tick times, on the next cache access (`Caches::sweep`). Go purges when its
+//! goroutine wakes, a scheduler-dependent instant after the tick, so an entry exactly at
+//! its TTL on a tick can differ within that jitter; Go's own timing is not deterministic
+//! there either. Swap these functions for the shared cache at integration.
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};

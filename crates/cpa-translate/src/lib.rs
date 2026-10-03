@@ -106,17 +106,43 @@ pub mod sse;
 pub mod stream;
 mod thinking;
 
-pub use claude_chat_request::request_with_compat as openai_to_claude_with_compat;
-pub use codex_claude::request_with_compat as claude_to_codex_with_compat;
-pub use gemini_claude::request_with_compat as claude_to_gemini_with_compat;
-pub use interactions_claude::request_with_compat as claude_to_interactions_with_compat;
-pub use openai_claude::request_with_compat as claude_to_openai_with_compat;
 pub use replay_cache::set_signature_cache_config as set_antigravity_signature_cache_config;
+
+// Go's `...WithCompat` request converters, exported beside the registered pairs for
+// compatibility endpoints; deeply nested bodies run on a sized stack as registered
+// requests do.
+
+/// ConvertOpenAIRequestToClaudeWithCompat.
+pub fn openai_to_claude_with_compat(ctx: &RequestCtx<'_>, body: &[u8]) -> Result<Vec<u8>, Error> {
+    deep_stack(levels(&[body]), || claude_chat_request::request_with_compat(ctx, body))
+}
+
+/// ConvertClaudeRequestToCodexWithCompat.
+pub fn claude_to_codex_with_compat(ctx: &RequestCtx<'_>, body: &[u8]) -> Result<Vec<u8>, Error> {
+    deep_stack(levels(&[body]), || codex_claude::request_with_compat(ctx, body))
+}
+
+/// ConvertClaudeRequestToGeminiWithCompat.
+pub fn claude_to_gemini_with_compat(ctx: &RequestCtx<'_>, body: &[u8]) -> Result<Vec<u8>, Error> {
+    deep_stack(levels(&[body]), || gemini_claude::request_with_compat(ctx, body))
+}
+
+/// ConvertClaudeRequestToInteractionsWithCompat.
+pub fn claude_to_interactions_with_compat(ctx: &RequestCtx<'_>, body: &[u8]) -> Result<Vec<u8>, Error> {
+    deep_stack(levels(&[body]), || interactions_claude::request_with_compat(ctx, body))
+}
+
+/// ConvertClaudeRequestToOpenAIWithCompat.
+pub fn claude_to_openai_with_compat(ctx: &RequestCtx<'_>, body: &[u8]) -> Result<Vec<u8>, Error> {
+    deep_stack(levels(&[body]), || openai_claude::request_with_compat(ctx, body))
+}
 
 /// ConvertOpenAIResponsesRequestToClaudeWithCompat: like the registered Responses ->
 /// Claude request, but unsigned reasoning history is kept for compatibility endpoints.
 pub fn responses_to_claude_with_compat(ctx: &RequestCtx<'_>, body: &[u8]) -> Result<Vec<u8>, Error> {
-    Ok(claude_responses::convert(ctx.model, body, ctx.stream, true))
+    deep_stack(levels(&[body]), || {
+        Ok(claude_responses::convert(ctx.model, body, ctx.stream, true))
+    })
 }
 
 use bytes::Bytes;
@@ -326,8 +352,10 @@ pub fn translate_token_count(client: Format, upstream: Format, count: i64, body:
 /// the deepest nesting outside strings, and every bracket opened inside a string (JSON
 /// text, such as tool arguments, that a translator may parse, or accumulate from stream
 /// deltas and parse later). Counting string brackets without closing them keeps the bound
-/// sound for any split or escaping; a body with much code in its strings over-counts and
-/// just runs on a larger stack. Fed in pieces, it covers what a stream retains.
+/// sound for any split, and string brackets written as `\u005b`/`\u007b` count too (text
+/// escaped twice, JSON inside a string inside a string, is not decoded); a body with
+/// much code in its strings over-counts and just runs on a larger stack. Fed in pieces,
+/// it covers what a stream retains.
 #[derive(Default)]
 pub(crate) struct Depth {
     depth: usize,
@@ -335,14 +363,30 @@ pub(crate) struct Depth {
     string_opens: usize,
     in_string: bool,
     escaped: bool,
+    /// Inside a `\u` escape: (hex digits read, value so far).
+    unicode: Option<(u8, u32)>,
 }
 
 impl Depth {
     pub(crate) fn feed(&mut self, bytes: &[u8]) {
         for &c in bytes {
             if self.in_string {
+                if let Some((digits, value)) = self.unicode {
+                    if let Some(d) = (c as char).to_digit(16) {
+                        let value = value * 16 + d;
+                        self.unicode = (digits < 3).then_some((digits + 1, value));
+                        if digits == 3 && (value == u32::from(b'[') || value == u32::from(b'{')) {
+                            self.string_opens += 1;
+                        }
+                        continue;
+                    }
+                    self.unicode = None;
+                }
                 if self.escaped {
                     self.escaped = false;
+                    if c == b'u' {
+                        self.unicode = Some((0, 0));
+                    }
                 } else if c == b'\\' {
                     self.escaped = true;
                 } else if c == b'"' {
@@ -402,6 +446,10 @@ pub(crate) fn deep_stack<T: Send>(levels: usize, f: impl FnOnce() -> Result<T, E
     if ON_DEEP_STACK.with(std::cell::Cell::get) || levels <= DEEP {
         return f();
     }
+    #[cfg(test)]
+    if FAIL_SPAWN.with(std::cell::Cell::get) {
+        return Err(Error("translator: test stack reservation failure".into()));
+    }
     let size = levels.saturating_mul(PER_LEVEL).clamp(MIN_STACK, 1 << 30);
     std::thread::scope(|scope| {
         let worker = std::thread::Builder::new().stack_size(size).spawn_scoped(scope, || {
@@ -415,4 +463,36 @@ pub(crate) fn deep_stack<T: Send>(levels: usize, f: impl FnOnce() -> Result<T, E
             ))),
         }
     })
+}
+
+#[cfg(test)]
+thread_local! {
+    /// Makes [`deep_stack`] fail as if its stack could not be reserved.
+    pub(crate) static FAIL_SPAWN: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+#[cfg(test)]
+mod depth_tests {
+    use super::{Depth, levels};
+
+    #[test]
+    fn depth_counts_string_brackets_written_as_escapes() {
+        // Bare JSON strings: no structural nesting, so the count is the string brackets.
+        assert_eq!(levels(&[br#""\u005b\u005B\u007b x[""#]), 4);
+        assert_eq!(
+            levels(&[br#""\\u005b \u005c \u005bz""#]),
+            1,
+            "escaped backslash, other escapes"
+        );
+        assert_eq!(levels(&[br#""\u05b \u00""#]), 0, "malformed escapes");
+        assert_eq!(levels(&[br#""\"[""#]), 1, "escaped quote stays in the string");
+        // A stream's escapes split anywhere still count.
+        let body = format!(r#""{}""#, r"\u005b".repeat(300));
+        let mut depth = Depth::default();
+        for piece in body.as_bytes().chunks(3) {
+            depth.feed(piece);
+        }
+        assert_eq!(depth.levels(), 300);
+        assert_eq!(levels(&[b"[[[[]]]", br#"{"a":"]]]"}"#]), 4, "the deepest body");
+    }
 }

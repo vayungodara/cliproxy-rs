@@ -22,9 +22,7 @@ pub static PAIR: Registered = registered!(
 
 /// ConvertClaudeRequestToInteractionsWithCompat: empty thinking blocks are kept.
 pub fn request_with_compat(ctx: &RequestCtx<'_>, body: &[u8]) -> Result<Vec<u8>, Error> {
-    crate::deep_stack(crate::levels(&[body]), || {
-        Ok(convert(ctx.model, body, ctx.stream, true))
-    })
+    Ok(convert(ctx.model, body, ctx.stream, true))
 }
 
 fn string(res: &Res<'_>) -> Vec<u8> {
