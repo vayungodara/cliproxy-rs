@@ -245,17 +245,19 @@ export function quotaWindows(p: string, payload: Data): Window[] {
 }
 
 const percent = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? clamp(v) : null);
-/** Claude's legacy usage buckets. Anthropic also sends unused codenames (tangelo, iguana_necktie, omelette_promotional), usually null. */
+/**
+ * Claude's legacy buckets, titled as Claude Code's /usage titles them. Anthropic also sends
+ * placeholders and buckets Claude Code never shows (iguana_necktie, tangelo,
+ * omelette_promotional, seven_day_omelette, seven_day_cowork, seven_day_oauth_apps); they
+ * are skipped. cinder_cove has no known title and shows as "Other limit" when set.
+ */
 const claudeBuckets: [string, string][] = [
-  ["five_hour", "5-hour session"],
-  ["seven_day", "Weekly (all models)"],
-  ["seven_day_opus", "Weekly Opus"],
-  ["seven_day_omelette", "Weekly Opus"],
-  ["seven_day_sonnet", "Weekly Sonnet"],
-  ["seven_day_oauth_apps", "Third-party apps"],
-  ["seven_day_cowork", "Cowork"],
+  ["five_hour", "Current session"],
+  ["seven_day", "Current week (all models)"],
+  ["seven_day_sonnet", "Current week (Sonnet only)"],
+  ["seven_day_opus", "Current week (Opus only)"],
+  ["cinder_cove", "Other limit"],
 ];
-const claudeKinds: Record<string, string> = { session: "5-hour session", weekly_all: "Weekly (all models)" };
 function money(minor: number, places: number, currency: string): string {
   const amount = minor / 10 ** places;
   try {
@@ -266,43 +268,37 @@ function money(minor: number, places: number, currency: string): string {
 }
 
 /**
- * Anthropic's /api/oauth/usage. Percentages are percent used (0 to 100); a null bucket or
- * a null percentage means the limit does not apply and is left out, never shown as 0%.
- * When the newer `limits` list is present it names the model caps itself, so legacy keys
- * only add what it lacks and unknown codenames are skipped. Money is in minor units.
+ * Anthropic's /api/oauth/usage, rendered the way Claude Code's /usage renders it. When the
+ * `limits` list is present it is the only source: rows are classified by `kind` (never by
+ * label) and grouped by `group` in the server's order. Without it the legacy buckets apply.
+ * Percentages are percent used, 0 to 100; null means the limit does not apply and is left
+ * out, never shown as 0%. Extra usage is in cents and shows only when enabled.
  */
 export function claudeWindows(payload: Data): Window[] {
   const out: Window[] = [];
-  const add = (w: Window) => out.some((o) => o.label === w.label) || out.push(w);
-  for (const l of Array.isArray(payload.limits) ? payload.limits : []) {
-    const used = percent(l?.percent);
-    if (used === null) continue;
-    const model = l.scope?.model?.display_name;
-    const label = l.kind === "weekly_scoped" && model ? `Weekly ${model}` : claudeKinds[l.kind] || "Other limit";
-    add({ label, used, reset: l.resets_at || "" });
-  }
-  const modern = out.length > 0;
-  const known = new Set([...claudeBuckets.map(([k]) => k), "extra_usage", "spend", "limits"]);
-  for (const [key, label] of claudeBuckets) {
-    if (key === "seven_day_omelette" && percent(payload.seven_day_opus?.utilization) !== null) continue;
-    const used = percent(payload[key]?.utilization);
-    if (used !== null) add({ label, used, reset: payload[key].resets_at || "" });
-  }
-  if (!modern)
-    for (const [key, v] of Object.entries<Data>(payload)) {
-      const used = known.has(key) ? null : percent(v?.utilization);
-      if (used !== null) out.push({ label: "Other limit", used, reset: v.resets_at || "" });
+  const limits: Data[] = Array.isArray(payload.limits) ? payload.limits : [];
+  if (limits.length) {
+    const groups: string[] = [];
+    for (const l of limits) if (!groups.includes(String(l?.group))) groups.push(String(l?.group));
+    for (const g of groups)
+      for (const l of limits) {
+        const used = percent(l?.percent);
+        if (String(l?.group) !== g || used === null) continue;
+        const model = l.scope?.model?.display_name;
+        const label =
+          l.kind === "session" ? "Current session"
+          : l.kind === "weekly_all" ? "Current week (all models)"
+          : l.kind === "weekly_scoped" && model ? `Current week (${model} only)`
+          : "";
+        if (label) out.push({ label, used, reset: l.resets_at || "" });
+      }
+  } else
+    for (const [key, label] of claudeBuckets) {
+      const used = percent(payload[key]?.utilization);
+      if (used !== null) out.push({ label, used, reset: payload[key].resets_at || "" });
     }
-  const spend = payload.spend;
   const extra = payload.extra_usage;
-  if (spend?.used && spend.enabled !== false) {
-    const cur = spend.used.currency || "USD";
-    const spent = money(Number(spend.used.amount_minor), spend.used.exponent ?? 2, cur);
-    const cap = spend.limit && Number.isFinite(Number(spend.limit.amount_minor)) ? Number(spend.limit.amount_minor) : null;
-    const of = cap === null ? null : money(cap, spend.limit.exponent ?? 2, spend.limit.currency || cur);
-    const used = cap === null ? null : (percent(spend.percent) ?? (cap > 0 ? clamp((Number(spend.used.amount_minor) / cap) * 100) : 0));
-    out.push({ label: "Extra usage", used, reset: "", detail: of ? `${spent} of ${of}` : `${spent} spent, no limit` });
-  } else if (extra?.is_enabled && typeof extra.used_credits === "number") {
+  if (extra?.is_enabled === true && typeof extra.used_credits === "number") {
     const places = extra.decimal_places ?? 2;
     const cur = extra.currency || "USD";
     const cap = typeof extra.monthly_limit === "number" ? extra.monthly_limit : null;
@@ -349,6 +345,33 @@ export function signalWindows(p: string, quota: Data | undefined): Window[] {
 /** Signals no window was read from (code-review limits, credits, retry-after), to show as they are. */
 export const otherSignals = (quota: Data | undefined, windows: Window[]): [string, string][] =>
   Object.entries<string>(quota?.signals || {}).filter(([k]) => !windows.some((w) => w.source && k.toLowerCase().startsWith(w.source)));
+
+/** routing.strategy values, with a one-line explanation each. `rust`: offered only by cliproxy-rs. */
+export const strategies = [
+  { value: "round-robin", name: "Round robin", rust: false, help: "Takes the accounts in turn, one request each. This is the default." },
+  { value: "fill-first", name: "Fill first", rust: false, help: "Uses one account until it cools down or reaches a limit, then moves to the next." },
+  {
+    value: "weighted-round-robin",
+    name: "Weighted round robin",
+    rust: false,
+    help: "Takes the accounts in turn in proportion to each account's weight, which you set on Credentials.",
+  },
+  {
+    value: "soonest-reset",
+    name: "Soonest reset first",
+    rust: true,
+    help: "Use the account whose weekly limit resets soonest until it cools down or uses up a window, then move to the next. Conversations bound to an account stay on it.",
+  },
+] as const;
+/** The strategy a configured value selects, aliases included; anything else is round robin, as on the server. */
+export function strategy(value: unknown): (typeof strategies)[number] {
+  const v = String(value ?? "").trim().toLowerCase();
+  const alias: Record<string, string> = {
+    rr: "round-robin", roundrobin: "round-robin", ff: "fill-first", fillfirst: "fill-first",
+    wrr: "weighted-round-robin", weightedroundrobin: "weighted-round-robin", "reset-first": "soonest-reset",
+  };
+  return strategies.find((s) => s.value === (alias[v] || v)) || strategies[0];
+}
 
 export const tools = ["Claude Code", "Codex CLI", "Cursor", "OpenAI SDK", "Anthropic SDK", "curl"] as const;
 /** A POSIX shell single-quoted literal: nothing inside is expanded. */

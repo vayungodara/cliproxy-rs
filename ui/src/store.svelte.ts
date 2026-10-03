@@ -185,10 +185,13 @@ class Store {
       await after();
     }, done);
   }
-  /** Replace one config list after confirming nobody changed it since it was read. */
-  async replace(path: string, before: unknown, next: unknown) {
+  /**
+   * Replace one config value after confirming nobody changed it since it was read. `unset`
+   * is what an absent value reads as (an empty list or map unless given).
+   */
+  async replace(path: string, before: unknown, next: unknown, unset: unknown = Array.isArray(before) ? [] : {}) {
     const url = fieldPath(path);
-    const latest = await configValue(url, Array.isArray(before) ? [] : {});
+    const latest = await configValue(url, unset);
     if (!equal(latest, before)) {
       await this.config.load(true);
       throw new Error("This setting changed on the server. Nothing was written; the page now shows the server copy.");

@@ -319,7 +319,7 @@ pre.code-window { margin: 0; }
 /* Limits on Overview: the account, then its windows side by side */
 .limits .item { display: grid; grid-template-columns: minmax(0, 220px) minmax(0, 1fr); gap: 8px 24px; padding: 12px 0; }
 .windows { display: flex; flex-wrap: wrap; gap: 6px 32px; }
-.windows .quota { grid-template-columns: 136px 216px 44px; gap: 10px; padding-left: 0; }
+.windows .quota { grid-template-columns: 184px 216px 44px; gap: 10px; padding-left: 0; }
 .windows .quota .reset { grid-column: 2 / -1; margin-top: -4px; }
 .log { max-height: 62vh; }
 .log > div { padding: 1px 18px; }

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { tick } from "svelte";
   import { store, every } from "../store.svelte";
-  import { buckets, sumBuckets, sum, credState, credName, provider, label, readPath, newKey, ago, type Data } from "../core";
+  import { buckets, sumBuckets, sum, credState, credName, provider, label, readPath, newKey, ago, strategy, type Data } from "../core";
   import { checkAll, canCheck, limits } from "../quota";
   import Grille from "../Grille.svelte";
   import Load from "../Load.svelte";
@@ -135,7 +135,7 @@
           >
         </div>
         <p class="routing legend">
-          Routing <b>{routing.strategy || "server default"}</b>
+          Routing <b>{strategy(routing.strategy).name.toLowerCase()}</b>
           {#if routing.retry?.["request-retry"] !== undefined}· {routing.retry["request-retry"]} retries{/if}
           {#if routing["session-affinity"]}· session affinity{/if}
         </p>
