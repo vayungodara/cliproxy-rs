@@ -70,6 +70,7 @@ func rsfixRunExecutor(t *testing.T, provider string, exec cliproxyauth.ProviderE
 	req := cliproxyexecutor.Request{Model: tc.model, Payload: []byte(tc.body)}
 	opts := cliproxyexecutor.Options{SourceFormat: tc.source, Stream: tc.stream, Alt: tc.alt, OriginalRequest: []byte(tc.body), Headers: tc.headers}
 	ctx := context.Background()
+	rsfixResetUsage()
 	var down rsfixDownstream
 	switch {
 	case tc.count:
@@ -121,6 +122,7 @@ func rsfixRunExecutor(t *testing.T, provider string, exec cliproxyauth.ProviderE
 		Responses:  tc.responses,
 		Upstream:   srv.Captured(),
 		Downstream: down,
+		Extra:      map[string]any{"usage": rsfixTakeUsage()},
 	})
 }
 

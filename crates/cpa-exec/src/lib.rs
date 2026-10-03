@@ -22,6 +22,7 @@ pub mod claude_login;
 pub mod codex;
 mod codex_client;
 mod codex_json;
+pub mod codex_live;
 pub mod codex_oauth;
 pub mod codex_quota;
 mod codex_replay;
@@ -32,6 +33,11 @@ mod codex_testkit;
 mod codex_tls;
 mod codex_tokens;
 mod codex_ws;
+pub mod devin;
+pub mod devin_auth;
+pub mod devin_models;
+mod devin_request;
+mod devin_wire;
 pub mod gemini;
 mod gemini_payload;
 mod gemini_stream;
@@ -51,6 +57,8 @@ mod openai_compat_go;
 mod openai_compat_http;
 pub mod openai_compat_multipart;
 mod openai_compat_payload;
+#[cfg(test)]
+mod openai_compat_usage;
 pub mod proxy;
 mod quota;
 mod rawjson;
@@ -62,7 +70,12 @@ mod upstream;
 pub mod vertex;
 pub mod vertex_auth;
 mod wire;
+pub mod xai;
+mod xai_apply_patch;
 pub mod xai_auth;
+mod xai_replay;
+mod xai_request;
+mod xai_response;
 mod xai_url;
 
 use cpa_core::config::Config;
@@ -104,6 +117,7 @@ pub struct GoogleExecutors {
 #[derive(Default)]
 pub struct OpenAIExecutors {
     pub compat: openai_compat::OpenAICompatExecutor,
+    pub xai: xai::XaiExecutor,
 }
 
 /// Executors for the device-login providers, grouped so adding one does not touch every
@@ -112,6 +126,7 @@ pub struct OpenAIExecutors {
 pub struct DeviceExecutors {
     pub kimi: kimi::KimiExecutor,
     pub meta: meta::MetaExecutor,
+    pub devin: devin::DevinExecutor,
 }
 
 impl Executors {
@@ -126,9 +141,11 @@ impl Executors {
             "codex" => self.codex.execute(credential, req, cfg).await,
             p if kimi::PROVIDERS.contains(&p) => self.devices.kimi.execute(&self.claude, credential, req, cfg).await,
             meta::PROVIDER => self.devices.meta.execute(credential, req, cfg).await,
+            devin::PROVIDER => self.devices.devin.execute(credential, req, cfg).await,
             p if openai_compat::handles(p) => self.openai.compat.execute(credential, req, cfg).await,
             p if gemini::handles(p) => self.google.gemini.execute(credential, req, cfg).await,
             p if vertex::handles(p) => self.google.vertex.execute(credential, req, cfg).await,
+            xai::PROVIDER => self.openai.xai.execute(credential, req, cfg, false).await,
             other => Err(no_executor(other)),
         }
     }
@@ -145,6 +162,23 @@ impl Executors {
     ) -> Result<ExecResponse, ExecError> {
         match credential.provider.as_str() {
             p if openai_compat::handles(p) => self.openai.compat.images(credential, req, request_path, cfg).await,
+            xai::PROVIDER => self.openai.xai.images(credential, req, request_path, cfg).await,
+            other => Err(no_executor(other)),
+        }
+    }
+
+    /// The Videos API (`/v1/videos*`, `/openai/v1/videos*`) for providers that serve it.
+    /// `request_path` is the inbound route; a route other than generations, edits or
+    /// extensions polls the job named by the body's `request_id`.
+    pub async fn videos(
+        &self,
+        credential: &Credential,
+        req: ExecRequest,
+        request_path: &str,
+        cfg: &Config,
+    ) -> Result<ExecResponse, ExecError> {
+        match credential.provider.as_str() {
+            xai::PROVIDER => self.openai.xai.videos(credential, req, request_path, cfg).await,
             other => Err(no_executor(other)),
         }
     }
@@ -163,6 +197,7 @@ impl Executors {
         match credential.provider.as_str() {
             "codex" => self.codex.execute_in_session(credential, req, cfg, session).await,
             _ if session.continuation => Err(ExecError::replay_required()),
+            xai::PROVIDER => self.openai.xai.execute(credential, req, cfg, true).await,
             _ => self.execute(credential, req, cfg).await,
         }
     }
@@ -187,8 +222,10 @@ impl Executors {
     /// Whether an executor serves this provider. Credentials of other providers never
     /// enter selection (Go skips auths whose executor is not registered).
     pub fn supports(&self, provider: &str) -> bool {
-        matches!(provider, "claude" | "codex" | meta::PROVIDER)
-            || kimi::PROVIDERS.contains(&provider)
+        matches!(
+            provider,
+            "claude" | "codex" | meta::PROVIDER | xai::PROVIDER | devin::PROVIDER
+        ) || kimi::PROVIDERS.contains(&provider)
             || openai_compat::handles(provider)
             || gemini::handles(provider)
             || vertex::handles(provider)
@@ -232,6 +269,8 @@ impl Executors {
             "codex" => self.codex.needs_prepare(credential, cfg),
             p if kimi::PROVIDERS.contains(&p) => self.devices.kimi.needs_prepare(credential, cfg),
             meta::PROVIDER => self.devices.meta.needs_prepare(credential, cfg),
+            xai::PROVIDER => self.openai.xai.needs_prepare(credential, cfg),
+            devin::PROVIDER => self.devices.devin.needs_prepare(credential, cfg),
             _ => false,
         }
     }
@@ -243,6 +282,8 @@ impl Executors {
             "codex" => self.codex.prepare(credential, cfg).await,
             p if kimi::PROVIDERS.contains(&p) => self.devices.kimi.prepare(credential, cfg).await,
             meta::PROVIDER => self.devices.meta.prepare(credential, cfg).await,
+            xai::PROVIDER => self.openai.xai.prepare(credential, cfg).await,
+            devin::PROVIDER => self.devices.devin.prepare(credential, cfg).await,
             other => Err(no_executor(other)),
         }
     }

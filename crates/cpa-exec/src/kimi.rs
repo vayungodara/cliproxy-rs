@@ -22,7 +22,7 @@ use std::sync::Arc;
 use bytes::Bytes;
 use cpa_common::gostr::GoStr;
 use cpa_common::json::{self as gj, GoValue, Kind, Res};
-use cpa_common::thinking::{RequestThinking, apply_request_thinking, parse_suffix};
+use cpa_common::thinking::{ModelCaps, RequestThinking, apply_request_thinking, parse_suffix};
 use cpa_core::config::Config;
 use cpa_core::credential::{Credential, MetadataPatch};
 use cpa_core::exec::{ExecError, ExecRequest, ExecResponse, ExecStream, FailureScope, Operation, ResponseBody};
@@ -33,8 +33,8 @@ use futures_util::StreamExt;
 use crate::claude::{ClaudeExecutor, Delegation};
 use crate::kimi_auth::{self, DeviceFlow};
 use crate::kimi_http::{
-    BUILD_VERSION, credential_headers, go_arch, go_os, hostname, payload_rules, refresh_due, rfc3339_local_now,
-    status_error,
+    BUILD_VERSION, credential_headers, go_arch, go_os, hostname, payload_rules, refresh_due, report_lines,
+    rfc3339_local_now, status_error,
 };
 use crate::kimi_replay::{self, ReplayCache};
 use crate::meta_codex::go_trim_space;
@@ -307,6 +307,8 @@ fn original(req: &ExecRequest) -> &Bytes {
 fn thinking(body: &[u8], req: &ExecRequest, to: &str) -> Result<Vec<u8>, ExecError> {
     let has_request_transformer =
         Format::parse(to).is_some_and(|t| cpa_translate::pair(req.source_format, t).is_some());
+    // Go `cliproxyauth.ResolvedModelInfo`: capabilities bound to this attempt.
+    let caps = req.resolved_model.as_ref().map(|r| ModelCaps::from(&r.info));
     apply_request_thinking(&RequestThinking {
         body,
         payload: &req.body,
@@ -315,9 +317,7 @@ fn thinking(body: &[u8], req: &ExecRequest, to: &str) -> Result<Vec<u8>, ExecErr
         from: req.source_format.as_str(),
         to,
         provider: "kimi",
-        // ponytail: API-key model capabilities bound by the scheduler (Go
-        // ResolvedModelInfo) are not on ExecRequest; the registry lookup applies.
-        resolved: None,
+        resolved: caps.as_ref().map(Some),
         has_request_transformer,
         updates_changed: false,
     })
@@ -380,6 +380,7 @@ async fn execute_chat(
     body = normalize_tool_message_links(body)?;
     body = normalize_tools(body);
     body = normalize_temperature(body);
+    crate::kimi_http::report_effort(&req.usage, &body, "kimi");
     let upstream = post(
         client,
         &chat_url(credential),
@@ -395,12 +396,18 @@ async fn execute_chat(
     };
     let body = if req.stream {
         ResponseBody::Stream(translate_lines(
-            lines(upstream.body, CHAT_LINE_LIMIT),
+            report_lines(
+                lines(upstream.body, CHAT_LINE_LIMIT),
+                &req.usage,
+                Format::OpenAI,
+                |_| true,
+            ),
             (response_pair.stream)(&ctx),
             StreamEnd::Chat,
         ))
     } else {
         let data = read_all(upstream.body, usize::MAX, false).await?;
+        req.usage.response_body(Format::OpenAI, &data);
         // A translator error or empty output is Go's apply_patch 502.
         let out = (response_pair.non_stream)(&ctx, &data)
             .ok()
@@ -613,6 +620,7 @@ async fn execute_responses(
     body = normalize_responses_input(body);
     body = normalize_tools(body);
     body = normalize_temperature(body);
+    crate::kimi_http::report_effort(&req.usage, &body, "kimi");
     let upstream = post(
         client,
         &responses_url(credential),
@@ -626,16 +634,21 @@ async fn execute_responses(
         original_request: original(&req),
         translated_request: &translated,
     };
+    // Go observes every line's response model and publishes Codex (else OpenAI) usage.
+    // ponytail: Go publishes the first data line carrying tokens; the server's Codex
+    // stream parser reads terminal events, where Kimi reports usage.
+    let tapped = |body| report_lines(lines(body, RESPONSES_LINE_LIMIT), &req.usage, Format::Codex, |_| true);
     let out = match (req.stream, response_pair) {
         (true, Some(pair)) => ResponseBody::Stream(translate_lines(
-            lines(upstream.body, RESPONSES_LINE_LIMIT),
+            tapped(upstream.body),
             (pair.stream)(&ctx),
             StreamEnd::Responses,
         )),
         // Native Responses clients get every scanned line back, joined into frames.
-        (true, None) => ResponseBody::Stream(responses_frames(lines(upstream.body, RESPONSES_LINE_LIMIT))),
+        (true, None) => ResponseBody::Stream(responses_frames(tapped(upstream.body))),
         (false, pair) => {
             let data = read_all(upstream.body, usize::MAX, false).await?;
+            req.usage.response_body(Format::Codex, &data);
             match pair {
                 Some(pair) => ResponseBody::Buffered(Bytes::from(
                     (pair.non_stream)(&ctx, &data)

@@ -2,7 +2,7 @@
   "name": "responses-payload-rules",
   "credential": {
     "access_token": "kimi-access-fixture",
-    "base_url": "http://127.0.0.1:43717/coding",
+    "base_url": "http://127.0.0.1:36983/coding",
     "device_id": "dev-fixture-1",
     "refresh_token": "kimi-refresh-fixture",
     "type": "kimi"
@@ -33,7 +33,7 @@
       "headers": [
         [
           "Host",
-          "127.0.0.1:43717"
+          "127.0.0.1:36983"
         ],
         [
           "User-Agent",
@@ -85,5 +85,8 @@
   ],
   "downstream": {
     "body": "{\"id\":\"r\",\"object\":\"response\",\"status\":\"completed\",\"output\":[]}"
+  },
+  "extra": {
+    "usage": null
   }
 }

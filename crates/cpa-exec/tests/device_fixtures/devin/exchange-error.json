@@ -1,0 +1,58 @@
+{
+  "name": "exchange-error",
+  "credential": null,
+  "request": {
+    "exchange": "code-2",
+    "token": ""
+  },
+  "responses": [
+    {
+      "status": 400,
+      "headers": [
+        [
+          "Content-Type",
+          "application/json"
+        ]
+      ],
+      "body": "{\"error\":\"invalid_grant\"}"
+    }
+  ],
+  "upstream": [
+    {
+      "method": "POST",
+      "target": "/auth/cli/token",
+      "headers": [
+        [
+          "Host",
+          "127.0.0.1:42325"
+        ],
+        [
+          "User-Agent",
+          "Go-http-client/1.1"
+        ],
+        [
+          "Content-Length",
+          "46"
+        ],
+        [
+          "Accept",
+          "application/json"
+        ],
+        [
+          "Content-Type",
+          "application/json"
+        ],
+        [
+          "Accept-Encoding",
+          "gzip"
+        ]
+      ],
+      "body": "",
+      "body_b64": "eyJjb2RlIjoiY29kZS0yIiwiY29kZV92ZXJpZmllciI6InZlcmlmaWVyLTEifQ=="
+    }
+  ],
+  "downstream": {
+    "err_status": -1,
+    "err_body": "token exchange failed with status 400: {\"error\":\"invalid_grant\"}"
+  }
+}

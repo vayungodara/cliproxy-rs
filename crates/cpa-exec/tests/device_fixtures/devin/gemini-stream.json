@@ -1,0 +1,96 @@
+{
+  "name": "gemini-stream",
+  "credential": {
+    "api_key": "devin-session-token$fixture",
+    "base_url": "http://127.0.0.1:34897",
+    "device_seed": "seed-1",
+    "session_token": "devin-session-token$fixture",
+    "type": "devin"
+  },
+  "request": {
+    "body": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"Hi gemini-stream\"}]}],\"generationConfig\":{\"temperature\":0.1,\"thinkingConfig\":{\"thinkingBudget\":20000}}}",
+    "model": "gemini-3-flash",
+    "source": "gemini",
+    "stream": true
+  },
+  "responses": [
+    {
+      "status": 200,
+      "headers": [
+        [
+          "Content-Type",
+          "application/connect+proto"
+        ]
+      ],
+      "body": "",
+      "body_b64": "AAAAABgKBW91dF8xEIDiz6oGSglMZXQgbWUgdGgAAAAACkoIaW5rIGNhZsMAAAAAEEoCqS5SCnNpZy1wYXJ0LTEAAAAAI1ILfHNpZy1wYXJ0LTKqAQlhbnRocm9waWMaCEFuc3dlcjogAAAAACEyHwoGY2FsbF8xEgtnZXRfd2VhdGhlchoIeyJjaXR5IjoAAAAADDIKGggiUGFyaXMifQAAAAARGgVEb25lLpoGB3Vua25vd24AAAAAOzo3EAsYByACKANCGwoMeC1yZXF1ZXN0LWlkEgtyZXFfZml4dHVyZUoQdXBzdHJlYW0tbW9kZWwteCgKAgAAAAJ7fQ=="
+    }
+  ],
+  "upstream": [
+    {
+      "method": "POST",
+      "target": "/exa.api_server_pb.ApiServerService/GetChatMessage",
+      "headers": [
+        [
+          "Host",
+          "127.0.0.1:34897"
+        ],
+        [
+          "Content-Length",
+          "1027"
+        ],
+        [
+          "Accept",
+          "*/*"
+        ],
+        [
+          "Authorization",
+          "Basic devin-session-token$fixture-devin-session-token$fixture"
+        ],
+        [
+          "Connect-Protocol-Version",
+          "1"
+        ],
+        [
+          "Content-Type",
+          "application/connect+proto"
+        ],
+        [
+          "Sentry-Trace",
+          "021e714302f7bb6ee550fb7d0abfb324-b5d436d8a874214f-1"
+        ]
+      ],
+      "body": "",
+      "body_b64": "AAAAA/4KsAYKBmNoaXNlbBIKMzAwMC4xMC4yMRobZGV2aW4tc2Vzc2lvbi10b2tlbiRmaXh0dXJlIgJlbioFbGludXg6CjMwMDAuMTAuMjFiBmNoaXNlbPoB3AVkMzU3MTg4YTU3NGM3MmVjMjZhYWU3ODVhZjJhZDhhMjMzZWQzYjAzYjEyNDI1MTljOWFhMTZkOTg2ZjA3NWY3ZjdkMTA4NTk3MmM4MGMzOTVhMWUwYWFjYmYyYjM3Y2ZkMDkzYTQ1M2M0YWU4ZDczYTM5NDUxZjNhMzliZjk0NmM1YTJmMDI4NTBhYmUwOGE1NTYwNWEwY2Q3MzJhYWZjNTg0ZmYzOTA3NjkyM2MxYzQ4ZjIyMzZmMTRlMzg0Yzk0YmUyZjA0NDc5NGEyYzc5MGQ5ZTA4ZTY3NmU0NTExYzdlMzJjMWMzODI3ZjNiNDI2MmY5YTJhNzliZGU5Y2UyMmEwMjBjOWY3MTgxM2Q2OGQ1YTA1MjZjMTdiZDEyZWRmYTY4Y2FiNzA4NjYyMjI1YTVhMTEzZTMyNTVkYzdjYmNkNDJkOGE3Njg0NjM4ZTRkM2ZhNTBhMGVjNTJiNGQ2NTE5N2U3YzdmYzdjNjE4OWVkY2YzNWRkOWI0ZDQzODYyOWVkODYzZGM4NDllNDAyNjExMGEwZGY2MTI1ZDU0MmM0ODMxNDRiZTgzN2VjZjgyMDE2ZjFhYTc1ZTM5YmFlNWRjMGMwMWUyMjJkMGUwNjU1NTdmMWVlZTc3ZWEwMmU1NDBiZjM0ZmYyOWMxNWQ1MjkzYzA0ZmVmNTJhOGVjZjI5N2RjMDNkNGVmOGM5YWRlYmJhMTIxZWM4Nzg1MGU2MzA4OWE4ZGI0NjczNzNjMjNhZmZiMWM0MzU5MGZjNTVlMzFlNDA2Y2M4ZmE2ZDgyZjM5ZGIxZDE0NzU4ZDU2OWYyNjM4YTQ0MTE5YTNhZGZlYTU0YmRkOWE2MDljMTc4OWQwOTNjODU3MDc3ZTQwYzkyZmNlYTFlNGIwYzhhYzRiNjk1MmYxODUzNTY0ZjM5ODc4YzdmYmU2YWExMmM4OTllNTYxMzRhYTBlMTgzYmY2NTgwZGI5OTQ5NGUaOgokZmMxNzRlOWMtZjMwZC00YzVjLTkyYjktMDBhNWFhYTA3MTIyEAEaEEhpIGdlbWluaS1zdHJlYW04BUIdCAEQgOgHGJADKZqZmZmZmbk/OChBAAAAYGZm7j96KgokNGJmMWRmNzItYjM3Ni01ZjljLTgwMDEtMTVkMzBhNmUzZjdjGAQgDoIBJDRiZjFkZjcyLWIzNzYtNWY5Yy04MDAxLTE1ZDMwYTZlM2Y3Y6ABAaoBFWdlbWluaS0zLTgtZmxhc2gtaGlnaA=="
+    }
+  ],
+  "downstream": {
+    "chunks": [
+      "{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"Let me th\",\"thought\":true}],\"role\":\"model\"},\"index\":0}],\"modelVersion\":\"gemini-3-flash\",\"responseId\":\"interaction_78b0aaf7-e5e\"}",
+      "{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"ink caf\",\"thought\":true}],\"role\":\"model\"},\"index\":0}],\"modelVersion\":\"gemini-3-flash\",\"responseId\":\"interaction_78b0aaf7-e5e\"}",
+      "{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"é.\",\"thought\":true}],\"role\":\"model\"},\"index\":0}],\"modelVersion\":\"gemini-3-flash\",\"responseId\":\"interaction_78b0aaf7-e5e\"}",
+      "{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"\",\"thought\":true,\"thoughtSignature\":\"sig-part-1\"}],\"role\":\"model\"},\"index\":0}],\"modelVersion\":\"gemini-3-flash\",\"responseId\":\"interaction_78b0aaf7-e5e\"}",
+      "{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"\",\"thought\":true,\"thoughtSignature\":\"|sig-part-2\"}],\"role\":\"model\"},\"index\":0}],\"modelVersion\":\"gemini-3-flash\",\"responseId\":\"interaction_78b0aaf7-e5e\"}",
+      "{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"Answer: \"}],\"role\":\"model\"},\"index\":0}],\"modelVersion\":\"gemini-3-flash\",\"responseId\":\"interaction_78b0aaf7-e5e\"}",
+      "{\"candidates\":[{\"content\":{\"parts\":[{\"functionCall\":{\"name\":\"get_weather\",\"args\":{},\"id\":\"call_1\"}}],\"role\":\"model\"},\"index\":0}],\"modelVersion\":\"gemini-3-flash\",\"responseId\":\"interaction_78b0aaf7-e5e\"}",
+      "{\"candidates\":[{\"content\":{\"parts\":[{\"functionCall\":{\"name\":\"get_weather\",\"args\":{},\"id\":\"call_1\"}}],\"role\":\"model\"},\"index\":0}],\"modelVersion\":\"gemini-3-flash\",\"responseId\":\"interaction_78b0aaf7-e5e\"}",
+      "{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"Done.\"}],\"role\":\"model\"},\"index\":0}],\"modelVersion\":\"gemini-3-flash\",\"responseId\":\"interaction_78b0aaf7-e5e\"}",
+      "{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"\"}],\"role\":\"model\"},\"index\":0,\"finishReason\":\"STOP\"}],\"modelVersion\":\"gemini-3-flash\",\"responseId\":\"interaction_78b0aaf7-e5e\",\"usageMetadata\":{\"promptTokenCount\":14,\"promptTokensDetails\":[{\"modality\":\"TEXT\",\"tokenCount\":14}],\"candidatesTokenCount\":7,\"totalTokenCount\":21,\"cachedContentTokenCount\":3}}"
+    ]
+  },
+  "extra": {
+    "usage": [
+      {
+        "cached_tokens": 3,
+        "failed": false,
+        "input_tokens": 14,
+        "model": "gemini-3-flash",
+        "output_tokens": 7,
+        "reasoning_effort": "",
+        "reasoning_tokens": 0,
+        "response_model": "upstream-model-x",
+        "total_tokens": 21
+      }
+    ]
+  }
+}
