@@ -97,16 +97,21 @@ struct Proxy {
     _dir: std::path::PathBuf,
 }
 
-fn yaml(base: &str, strategy: &str) -> String {
+/// A private auth-dir: without one, credential loading falls back to Go's default
+/// `~/.cli-proxy-api`, which would pick up a developer's real logins.
+fn yaml(base: &str, strategy: &str, auth_dir: &std::path::Path) -> String {
     format!(
-        "api-keys:\n  - client-key\nrouting:\n  strategy: {strategy}\nclaude-api-key:\n  - api-key: sk-fake-1\n    base-url: {base}\n  - api-key: sk-fake-2\n    base-url: {base}\n"
+        "auth-dir: {}\napi-keys:\n  - client-key\nrouting:\n  strategy: {strategy}\nclaude-api-key:\n  - api-key: sk-fake-1\n    base-url: {base}\n  - api-key: sk-fake-2\n    base-url: {base}\n",
+        auth_dir.display()
     )
 }
 
 async fn proxy(name: &str, strategy: &str) -> Proxy {
     let up = Arc::new(Upstream::default());
     let base = serve(axum::Router::new().fallback(upstream).with_state(up.clone())).await;
-    let yaml = yaml(&base, strategy);
+    let dir = std::env::temp_dir().join(format!("cpa-soonest-{name}-{}", std::process::id()));
+    std::fs::create_dir_all(dir.join("auth")).unwrap();
+    let yaml = yaml(&base, strategy, &dir.join("auth"));
     let config = Config::parse(&yaml).unwrap();
     let mut credentials = cpa_core::config::credentials::load(&config);
     credentials.sort_by(|a, b| a.id.cmp(&b.id));
@@ -123,8 +128,6 @@ async fn proxy(name: &str, strategy: &str) -> Proxy {
             google: Default::default(),
         },
     ));
-    let dir = std::env::temp_dir().join(format!("cpa-soonest-{name}-{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
     let path = dir.join("config.yaml");
     std::fs::write(&path, &yaml).unwrap();
     let options = Options {
@@ -244,7 +247,7 @@ async fn management_api_and_reload_switch_the_strategy() {
     let (_, got) = p.management("GET", "/v0/management/routing/strategy", None).await;
     assert_eq!(got, json!({"strategy": "soonest-reset"}));
     // A reloaded config (the file watcher's publish) switches back to spreading.
-    p.rt.publish_config(Config::parse(&yaml(&p.base, "round-robin")).unwrap());
+    p.rt.publish_config(Config::parse(&yaml(&p.base, "round-robin", &p._dir.join("auth"))).unwrap());
     assert_eq!(p.rt.policy().strategy, Strategy::RoundRobin);
     let spread = p.route(2).await;
     assert!(spread.contains(&"x") && spread.contains(&"y"), "{spread:?}");
