@@ -70,7 +70,7 @@ Raw ClientHello TLS records, raw HTTP request heads, exact upstream body bytes,
 downstream status/header/body bytes and chunked transfer framing are retained as
 hex. Ordered/cased headers and parsed TLS fields are also readable JSON. JA3 and
 JA4 are calculated from the observed ClientHello, not the advertised User-Agent.
-The harness has 59 cases (`cases()` in `fixtures.py`). The committed
+The harness has 57 cases (`cases()` in `fixtures.py`). The committed
 [evidence archive](evidence/2026-10-02.json.gz) is from the first baseline run, when
 there were 33 cases, and holds their fixtures, observations, diffs and summary; use
 `gzip -dc` and `jq` to inspect it offline.

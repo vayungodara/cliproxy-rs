@@ -145,7 +145,7 @@ Go is faster on non-streaming throughput. On a 2-vCPU test machine with a local 
 
 ## Development
 
-The workspace is `crates/cpa-core` (config and account formats), `crates/cpa-exec` (one module per upstream provider), `crates/cpa-translate` (format translation), `crates/cpa-server` (routes, account selection and the Management API), `crates/cliproxy` (the binary) and `ui/` (the dashboard, see [ui/README.md](ui/README.md)). The workspace has 925 tests, run against local mock upstreams only; CI runs the whole suite on every push, with Go and PostgreSQL installed so the tests that compare against them run too. A [differential harness](harness/README.md) sends the same 59 cases to CLIProxyAPI and cliproxy-rs and compares the results.
+The workspace is `crates/cpa-core` (config and account formats), `crates/cpa-exec` (one module per upstream provider), `crates/cpa-translate` (format translation), `crates/cpa-server` (routes, account selection and the Management API), `crates/cliproxy` (the binary) and `ui/` (the dashboard, see [ui/README.md](ui/README.md)). The workspace has 935 tests, run against local mock upstreams only; CI runs the whole suite on every push, with Go and PostgreSQL installed so the tests that compare against them run too. A [differential harness](harness/README.md) sends the same 57 cases to CLIProxyAPI and cliproxy-rs and compares the results.
 
 ```sh
 cargo fmt --all --check
