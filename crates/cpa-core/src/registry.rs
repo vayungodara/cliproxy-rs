@@ -91,9 +91,15 @@ pub struct Catalog {
 
 impl Catalog {
     pub fn parse(json: &str) -> Result<Self, serde_json::Error> {
-        let root: Map<String, Value> = serde_json::from_str(json)?;
+        Self::from_root(serde_json::from_str(json)?)
+    }
+
+    fn from_root(root: Map<String, Value>) -> Result<Self, serde_json::Error> {
         let mut channels = Vec::with_capacity(root.len());
         for (name, models) in root {
+            if models.is_null() {
+                continue;
+            }
             let models: Vec<Map<String, Value>> = serde_json::from_value(models)?;
             let models = models.into_iter().map(ModelInfo::from_raw).collect::<Result<_, _>>()?;
             channels.push((name, models));
@@ -123,11 +129,132 @@ impl Catalog {
     }
 }
 
-/// The catalog embedded at build time.
+/// The static catalog in effect (Go `getModels()`): the embedded models.json until a
+/// remote refresh ([`refresh_catalog`]) replaces it.
 pub fn pinned() -> &'static Catalog {
-    static PINNED: LazyLock<Catalog> =
+    static EMBEDDED: LazyLock<Catalog> =
         LazyLock::new(|| Catalog::parse(MODELS_JSON).expect("embedded models.json is valid"));
-    &PINNED
+    CURRENT
+        .read()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .unwrap_or(&EMBEDDED)
+}
+
+/// The refreshed catalog, once one replaced the embedded copy.
+// ponytail: `pinned()` hands out `'static` borrows, so a replaced catalog is kept alive
+// (leaked) rather than freed: about half a megabyte per upstream catalog change, which
+// happens a few times a month. Switch callers to an `Arc` snapshot to reclaim it.
+static CURRENT: std::sync::RwLock<Option<&'static Catalog>> = std::sync::RwLock::new(None);
+static GENERATION: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// Bumped whenever [`refresh_catalog`] swaps in a different catalog; caches derived from
+/// [`pinned`] key on it.
+pub fn catalog_generation() -> u64 {
+    GENERATION.load(std::sync::atomic::Ordering::Acquire)
+}
+
+/// Go `validateModelsCatalog`: in the required sections every model is an object with a
+/// non-empty, unique (trimmed) `id`. Empty or missing sections are allowed.
+fn validate_catalog(root: &Map<String, Value>) -> Result<(), String> {
+    const REQUIRED: [&str; 12] = [
+        "claude",
+        "gemini",
+        "vertex",
+        "aistudio",
+        "codex-free",
+        "codex-team",
+        "codex-plus",
+        "codex-pro",
+        "kimi",
+        "antigravity",
+        "xai",
+        "meta",
+    ];
+    for section in REQUIRED {
+        let models = match root.get(section) {
+            None | Some(Value::Null) => continue,
+            Some(Value::Array(models)) => models,
+            Some(_) => return Err(format!("{section} is not a list")),
+        };
+        let mut seen = std::collections::HashSet::new();
+        for (i, model) in models.iter().enumerate() {
+            let Some(model) = model.as_object() else {
+                return Err(format!("{section}[{i}] is null"));
+            };
+            let id = model.get("id").and_then(Value::as_str).unwrap_or_default().trim();
+            if id.is_empty() {
+                return Err(format!("{section}[{i}] has empty id"));
+            }
+            if !seen.insert(id.to_owned()) {
+                return Err(format!("{section} contains duplicate model id {id:?}"));
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Go `detectChangedProviders`: the providers whose section differs. Gemini covers both
+/// Gemini protocols and the Codex tiers are one provider.
+fn changed_providers(old: &Catalog, new: &Catalog) -> Vec<String> {
+    const SECTIONS: [(&str, &str); 17] = [
+        ("claude", "claude"),
+        ("gemini", "gemini"),
+        ("gemini-interactions", "gemini"),
+        ("vertex", "vertex"),
+        ("aistudio", "aistudio"),
+        ("codex", "codex-free"),
+        ("codex", "codex-team"),
+        ("codex", "codex-plus"),
+        ("codex", "codex-pro"),
+        ("kimi", "kimi"),
+        ("kimi-ai", "kimi"),
+        ("kimi.ai", "kimi"),
+        ("kimi.com", "kimi"),
+        ("antigravity", "antigravity"),
+        ("xai", "xai"),
+        ("devin", "devin"),
+        ("meta", "meta"),
+    ];
+    let mut changed: Vec<String> = Vec::new();
+    for (provider, section) in SECTIONS {
+        if changed.iter().any(|p| p == provider) {
+            continue;
+        }
+        let raws = |c: &Catalog| c.channel(section).iter().map(|m| m.raw.clone()).collect::<Vec<_>>();
+        if raws(old) != raws(new) {
+            changed.push(provider.to_owned());
+        }
+    }
+    changed
+}
+
+/// Go `tryRefreshModels` after a fetch: parses and validates a remote models.json,
+/// keeps the current `meta` section when the remote one is empty, and swaps it in when
+/// it differs. Returns the changed providers (Go's refresh callback argument).
+pub fn refresh_catalog(json: &str) -> Result<Vec<String>, String> {
+    let mut root: Map<String, Value> = serde_json::from_str(json).map_err(|e| e.to_string())?;
+    validate_catalog(&root)?;
+    let old = pinned();
+    if root.get("meta").and_then(Value::as_array).is_none_or(Vec::is_empty) && !old.channel("meta").is_empty() {
+        let meta = old
+            .channel("meta")
+            .iter()
+            .map(|m| Value::Object(m.raw.clone()))
+            .collect();
+        root.insert("meta".into(), Value::Array(meta));
+    }
+    let new = Catalog::from_root(root).map_err(|e| e.to_string())?;
+    let changed = changed_providers(old, &new);
+    let same =
+        old.channels.len() == new.channels.len()
+            && old.channels.iter().zip(&new.channels).all(|((a, am), (b, bm))| {
+                a == b && am.len() == bm.len() && am.iter().zip(bm).all(|(x, y)| x.raw == y.raw)
+            });
+    if !same {
+        *CURRENT.write().unwrap_or_else(std::sync::PoisonError::into_inner) = Some(Box::leak(Box::new(new)));
+        GENERATION.fetch_add(1, std::sync::atomic::Ordering::AcqRel);
+    }
+    Ok(changed)
 }
 
 /// The server's dynamic registry, consulted before the pinned catalog.
@@ -196,6 +323,52 @@ pub fn credential_model(credential_id: &str, model: &str) -> Option<ModelInfo> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn catalog(json: &str) -> Catalog {
+        Catalog::parse(json).unwrap()
+    }
+
+    /// Go TestDetectChangedProviders_CodexConfigurationUpdate: an internal-field-only
+    /// change in a Codex tier reports `codex`.
+    #[test]
+    fn detect_changed_providers_codex_configuration_update() {
+        let old = catalog(r#"{"codex-free":[{"id":"gpt-6-luna"}]}"#);
+        let new = catalog(r#"{"codex-free":[{"id":"gpt-6-luna","support_configuration_update":true}]}"#);
+        assert_eq!(changed_providers(&old, &new), ["codex"]);
+    }
+
+    /// Go TestDetectChangedProviders_KimiAliases: a Kimi change reports every Kimi alias.
+    #[test]
+    fn detect_changed_providers_kimi_aliases() {
+        let old = catalog(r#"{"kimi":[{"id":"kimi-k2"}]}"#);
+        let new = catalog(r#"{"kimi":[{"id":"kimi-k2"},{"id":"kimi-k3"}]}"#);
+        assert_eq!(
+            changed_providers(&old, &new),
+            ["kimi", "kimi-ai", "kimi.ai", "kimi.com"]
+        );
+        // Gemini changes cover both Gemini protocols; unchanged sections report nothing.
+        let old = catalog(r#"{"gemini":[{"id":"g"}],"claude":[{"id":"c"}]}"#);
+        let new = catalog(r#"{"gemini":[{"id":"g","display_name":"G"}],"claude":[{"id":"c"}]}"#);
+        assert_eq!(changed_providers(&old, &new), ["gemini", "gemini-interactions"]);
+    }
+
+    /// Go validateModelsCatalog: null entries, empty ids and duplicates in required
+    /// sections reject the catalog; empty sections and unvalidated ones do not.
+    #[test]
+    fn validate_catalog_follows_go() {
+        let check = |json: &str| validate_catalog(&serde_json::from_str(json).unwrap());
+        assert!(check(r#"{"claude":[]}"#).is_ok());
+        assert!(check(r#"{"gemini-cli":[{"id":"x"},{"id":"x"}]}"#).is_ok());
+        assert_eq!(check(r#"{"claude":[null]}"#).unwrap_err(), "claude[0] is null");
+        assert_eq!(
+            check(r#"{"xai":[{"id":"a"},{"id":" "}]}"#).unwrap_err(),
+            "xai[1] has empty id"
+        );
+        assert_eq!(
+            check(r#"{"meta":[{"id":"m"},{"id":" m "}]}"#).unwrap_err(),
+            "meta contains duplicate model id \"m\""
+        );
+    }
 
     #[test]
     fn embedded_catalog_matches_go_channel_sizes() {

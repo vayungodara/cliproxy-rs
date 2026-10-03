@@ -572,7 +572,9 @@ async fn serve(config: Config, config_path: PathBuf, password: String, local_mod
     let listener =
         bind(&config.host, config.port).with_context(|| format!("binding {}:{}", config.host, config.port))?;
     let listener = tokio::net::TcpListener::from_std(listener)?;
-    tracing::info!(addr = %listener.local_addr()?, "listening");
+    // Go `Server.Start`: TLS is validated after the listener is open.
+    let tls = cpa_server::listener::tls_acceptor(&config)?;
+    tracing::info!(addr = %listener.local_addr()?, tls = tls.is_some(), "listening");
     let executors = Executors {
         claude: ClaudeExecutor::new(DEFAULT_BASE_URL)?,
         codex: cpa_exec::codex::CodexExecutor::new()?,
@@ -582,6 +584,8 @@ async fn serve(config: Config, config_path: PathBuf, password: String, local_mod
     };
     let rt = Arc::new(Runtime::new(config, credentials, executors));
     rt.set_local_model(local_model);
+    // Go `startModelCatalogUpdaters`; Home mode (-home-jwt) is refused above.
+    cpa_server::model_updater::start(rt.local_model(), false);
     // Translators and thinking validation read model capabilities through the global
     // overlay; without it they see only the static catalog.
     cpa_server::install_registry(&rt);
@@ -594,17 +598,16 @@ async fn serve(config: Config, config_path: PathBuf, password: String, local_mod
     let _watcher = cpa_server::watching::start(&management);
     let advertiser = {
         let rt = rt.clone();
-        // The listener above is plain TCP: advertise `tls=0` even if server.tls.enable
-        // is set, so discovered clients are not sent to an https:// URL that fails.
-        discovery::advertise::Advertiser::spawn(move || rt.config(), false)
+        // The served transport decides `tls=`: HTTPS exactly when server.tls loaded.
+        discovery::advertise::Advertiser::spawn(move || rt.config(), tls.is_some())
     };
     // Go applies its CORS middleware to every route, not only management.
     let app = router(rt)
         .merge(cpa_server::management::router(management))
         .layer(axum::middleware::from_fn(cpa_server::management::cors));
-    let server = axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>());
-    // ponytail: no HTTP drain on shutdown; Go drains with a deadline. The signal ends
-    // the process after the mDNS goodbye, as before minus the signal exit status.
+    let server = cpa_server::listener::serve(listener, app, tls);
+    // Go's Shutdown closes the HTTP server without draining (`Server.Stop` calls
+    // `http.Server.Close`); dropping the server future here does the same.
     tokio::select! {
         r = server => r?,
         _ = shutdown_signal() => {}
