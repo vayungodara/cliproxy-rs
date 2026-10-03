@@ -49,6 +49,60 @@ pub struct Call {
     /// A turn of a long-lived downstream session (the Responses WebSocket), `None` for
     /// ordinary HTTP requests.
     pub turn: Option<Arc<SessionTurn>>,
+    /// A media route (Go's `openai-image` / `openai-video` handler types), `None` for
+    /// inference routes.
+    pub media: Option<Arc<Media>>,
+}
+
+/// How a media route runs through [`run`]: which executor operation serves it, and the
+/// same credential binding a [`SessionTurn`] has (`WithPinnedAuthID`,
+/// `WithSelectedAuthIDCallback`), which the video routes use to keep a job on the
+/// credential that created it.
+pub struct Media {
+    pub kind: MediaKind,
+    /// Only this credential may serve the call.
+    pub pinned: Option<String>,
+    /// Called with each credential right before it is attempted.
+    pub on_selected: Option<OnSelected>,
+    /// The client gets an event stream (Go's image streams, also when emulated from a
+    /// buffered call): until the result renders, [`serve`] holds the connection with
+    /// `: keep-alive` frames every `requests.streaming.keepalive-seconds`
+    /// (`waitImagesStreamExecution`) instead of the non-stream keep-alive. A failure that
+    /// renders after that commit is replaced by the response's [`SseError`] event.
+    pub sse: bool,
+}
+
+/// The `event: error` frame a route attaches to an error response (as a response
+/// extension), for [`serve`] to write instead when the event stream already committed
+/// (`writeImagesStreamErrorEvent`).
+#[derive(Clone)]
+pub struct SseError(pub Bytes);
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MediaKind {
+    /// [`cpa_exec::Executors::images`]; image-only models are allowed
+    /// (`ExecuteImageWithAuthManager`).
+    Images,
+    /// [`cpa_exec::Executors::videos`].
+    Videos,
+}
+
+impl Call {
+    /// `WithPinnedAuthID` of a session turn or media call.
+    fn pinned(&self) -> Option<&str> {
+        self.turn
+            .as_ref()
+            .and_then(|t| t.pinned.as_deref())
+            .or_else(|| self.media.as_ref().and_then(|m| m.pinned.as_deref()))
+    }
+
+    /// `WithSelectedAuthIDCallback` of a session turn or media call.
+    fn on_selected(&self) -> Option<&OnSelected> {
+        self.turn
+            .as_ref()
+            .and_then(|t| t.on_selected.as_ref())
+            .or_else(|| self.media.as_ref().and_then(|m| m.on_selected.as_ref()))
+    }
 }
 
 /// How a session transport runs one turn through [`run`] (Go
@@ -333,7 +387,8 @@ fn route(rt: &Runtime, registry: &Registry, call: &Call) -> Result<(Vec<String>,
         .unwrap_or(&base)
         .trim()
         .to_lowercase();
-    if IMAGE_ONLY.contains(&image.as_str()) {
+    let images_route = call.media.as_ref().is_some_and(|m| m.kind == MediaKind::Images);
+    if IMAGE_ONLY.contains(&image.as_str()) && !images_route {
         return Err(Failure::ImageOnly(base).into());
     }
     let mut providers = registry.providers(&base);
@@ -371,59 +426,86 @@ fn canonical_model_raw(model: &str) -> &str {
 /// Non-stream generate calls run under Go's `StartNonStreamingKeepAlive`: when
 /// `requests.nonstream-keepalive-interval` is set and no result arrived within one
 /// interval, the response commits as 200 `application/json` and a `\n` goes out every
-/// interval until the rendered body follows. The rendered status and headers are lost
-/// then, as in Go, where they are written after the first keep-alive flush.
+/// interval until the call finishes; the rendered body follows. The rendered status and
+/// headers are lost then, as in Go, where they are written after the first keep-alive
+/// flush. Media calls marked [`Media::sse`] hold with event-stream keep-alives instead.
 pub async fn serve<F, Fut>(rt: &Arc<Runtime>, call: Call, render: F) -> axum::response::Response
 where
     F: FnOnce(Result<Done, Failure>) -> Fut + Send + 'static,
-    Fut: std::future::Future<Output = axum::response::Response> + Send,
+    Fut: std::future::Future<Output = axum::response::Response> + Send + 'static,
 {
-    let interval = nonstream_keepalive(&call, &rt.config());
+    let sse = call.media.as_ref().is_some_and(|m| m.sse);
+    let interval = if sse {
+        crate::respond::keepalive(&rt.config())
+    } else {
+        nonstream_keepalive(&call, &rt.config())
+    };
     let trace = Arc::new(Trace::default());
-    let mut work = Box::pin({
+    let mut run = Box::pin({
         let (rt, trace) = (rt.clone(), trace.clone());
-        async move {
-            let result = run_with_bootstrap_retries(&rt, call, &trace).await;
-            let mut response = render(result).await;
+        async move { run_with_bootstrap_retries(&rt, call, &trace).await }
+    });
+    let traced = {
+        let trace = trace.clone();
+        move |mut response: axum::response::Response| {
             if let Some(value) = trace.header() {
                 response.headers_mut().insert("x-cpa-trace-id", value);
             }
             response
         }
-    });
+    };
     let Some(interval) = interval else {
-        return work.await;
+        return traced(render(run.await).await);
     };
     tokio::select! {
         biased;
-        response = &mut work => return response,
+        result = &mut run => return traced(render(result).await),
         () = tokio::time::sleep(interval) => {}
     }
+    // Go's handlers stop the keep-alive as soon as Execute returns: no beats while the
+    // result renders (the video download, for one).
     let mut ticks = tokio::time::interval_at(tokio::time::Instant::now() + interval, interval);
     ticks.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
     enum Event {
         Tick,
-        Done(axum::response::Response),
+        Done(Result<Done, Failure>),
     }
-    let events = futures_util::stream::unfold(Some((work, ticks)), |state| async move {
-        let (mut work, mut ticks) = state?;
+    let events = futures_util::stream::unfold(Some((run, ticks)), |state| async move {
+        let (mut run, mut ticks) = state?;
         tokio::select! {
             biased;
-            response = &mut work => Some((Event::Done(response), None)),
-            _ = ticks.tick() => Some((Event::Tick, Some((work, ticks)))),
+            result = &mut run => Some((Event::Done(result), None)),
+            _ = ticks.tick() => Some((Event::Tick, Some((run, ticks)))),
         }
     });
-    let newline = || Ok::<_, axum::Error>(Bytes::from_static(b"\n"));
-    let body = futures_util::stream::iter([newline()]).chain(events.flat_map(move |event| match event {
-        Event::Tick => futures_util::stream::iter([newline()]).left_stream(),
-        Event::Done(response) => response.into_body().into_data_stream().right_stream(),
+    let beat = Bytes::from_static(if sse { b": keep-alive\n\n" } else { b"\n" });
+    let once = |bytes: Bytes| futures_util::stream::iter([Ok::<_, axum::Error>(bytes)]);
+    let first = once(beat.clone());
+    let mut render = Some(render);
+    let body = first.chain(events.flat_map(move |event| match event {
+        Event::Tick => once(beat.clone()).left_stream(),
+        Event::Done(result) => {
+            let render = render.take().expect("the run finishes once");
+            let rendered = futures_util::stream::once(render(result));
+            let body = rendered.flat_map(move |response| match response.extensions().get::<SseError>() {
+                Some(SseError(event)) if sse => once(event.clone()).left_stream(),
+                _ => response.into_body().into_data_stream().right_stream(),
+            });
+            body.right_stream()
+        }
     }));
-    let mut response = axum::response::Response::new(axum::body::Body::from_stream(body));
+    let body = axum::body::Body::from_stream(body);
+    let mut response = if sse {
+        crate::respond::sse(body)
+    } else {
+        let mut response = axum::response::Response::new(body);
+        response.headers_mut().insert(
+            axum::http::header::CONTENT_TYPE,
+            axum::http::HeaderValue::from_static("application/json"),
+        );
+        response
+    };
     let headers = response.headers_mut();
-    headers.insert(
-        axum::http::header::CONTENT_TYPE,
-        axum::http::HeaderValue::from_static("application/json"),
-    );
     // Go cpa_trace.go applies the trace ID when the first keep-alive commits headers.
     if let Some(value) = trace.header() {
         headers.insert("x-cpa-trace-id", value);
@@ -633,7 +715,7 @@ pub async fn run(rt: &Arc<Runtime>, call: Call, trace: &Trace) -> Result<Done, R
         ))
     });
     // `WithPinnedAuthID`: every other credential is excluded in every round.
-    let pinned_exclusion: Vec<String> = match call.turn.as_ref().and_then(|t| t.pinned.as_deref()) {
+    let pinned_exclusion: Vec<String> = match call.pinned() {
         Some(pinned) if !pinned.is_empty() => rt
             .store()
             .snapshot()
@@ -887,18 +969,20 @@ async fn attempt(
             })
         };
         let mut tracker = start(&lease.credential, &mut req);
-        if let Some(on_selected) = call.turn.as_ref().and_then(|t| t.on_selected.as_ref()) {
+        if let Some(on_selected) = call.on_selected() {
             on_selected(&lease.credential);
         }
         let execute = |credential: Arc<cpa_core::credential::Credential>, req: ExecRequest| async move {
             let credential = rt.for_executor(&credential);
-            match call.turn.as_ref() {
-                Some(turn) => {
+            match (call.turn.as_ref(), call.media.as_ref().map(|m| m.kind)) {
+                (Some(turn), _) => {
                     rt.executors
                         .execute_in_session(&credential, req, cfg, &turn.session)
                         .await
                 }
-                None => rt.executors.execute(&credential, req, cfg).await,
+                (None, Some(MediaKind::Images)) => rt.executors.images(&credential, req, &call.request_path, cfg).await,
+                (None, Some(MediaKind::Videos)) => rt.executors.videos(&credential, req, &call.request_path, cfg).await,
+                (None, None) => rt.executors.execute(&credential, req, cfg).await,
             }
         };
         let mut executed = execute(lease.credential.clone(), req.clone()).await;
@@ -1267,6 +1351,7 @@ mod tests {
             request_path: String::new(),
             peer: None,
             turn: None,
+            media: None,
         };
         let cfg = |yaml: &str| Config::parse(yaml).unwrap();
         let on = cfg("requests:\n  nonstream-keepalive-interval: 3\n");

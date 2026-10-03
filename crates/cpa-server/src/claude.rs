@@ -171,6 +171,7 @@ async fn handle(
         request_path: dispatch::route_path(matched, uri),
         peer,
         turn: None,
+        media: None,
     };
     let keepalive = respond::keepalive(&rt.config());
     dispatch::serve(&rt, call, move |result| async move {

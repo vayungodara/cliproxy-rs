@@ -630,6 +630,7 @@ impl Connection {
             request_path: self.request_path.clone(),
             peer: self.peer,
             turn: Some(turn),
+            media: None,
         };
         let result = dispatch::run_with_bootstrap_retries(&self.rt, call, &dispatch::Trace::default()).await;
         {

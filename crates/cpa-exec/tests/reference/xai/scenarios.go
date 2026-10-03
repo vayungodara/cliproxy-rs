@@ -17,6 +17,39 @@ func sse(events ...string) string {
 	return b.String()
 }
 
+// dataOnly frames events without event lines, as some upstream streams do.
+func dataOnly(events ...string) *upstream {
+	var b strings.Builder
+	for _, e := range events {
+		b.WriteString("data: " + e + "\n\n")
+	}
+	return &upstream{Status: 200, Headers: [][2]string{{"Content-Type", "text/event-stream"}}, Body: b.String()}
+}
+
+// foldedPatchRequest declares a custom apply_patch inside a namespace large enough to fold.
+func foldedPatchRequest() string {
+	declarations := []string{`{"type":"custom","name":"apply_patch"}`}
+	for i := 0; i < 205; i++ {
+		declarations = append(declarations, fmt.Sprintf(`{"type":"function","name":"lookup%d","parameters":{"type":"object"}}`, i))
+	}
+	tools := `[{"type":"namespace","name":"n","tools":[` + strings.Join(declarations, ",") + `]}]`
+	return `{"model":"grok-4","tools":` + tools + `,"input":[{"type":"custom_tool_call","call_id":"old","name":"apply_patch","namespace":"n","input":"old"},{"type":"custom_tool_call_output","call_id":"old","output":"ok"}]}`
+}
+
+func foldedPatchTurn() *upstream {
+	return dataOnly(
+		`{"type":"response.output_item.added","output_index":0,"item":{"type":"function_call","id":"a","name":"n","arguments":""}}`,
+		`{"type":"response.function_call_arguments.done","item_id":"a","arguments":"{\"name\":\"apply_patch\",\"arguments\":{\"input\":\"p\"}}"}`,
+		`{"type":"response.output_item.done","output_index":0,"item":{"type":"function_call","id":"a","call_id":"c","name":"n"}}`,
+		`{"type":"response.output_item.added","output_index":1,"item":{"type":"function_call","id":"b","name":"n","arguments":""}}`,
+		`{"type":"response.function_call_arguments.done","item_id":"b","arguments":"{\"name\":\"lookup0\",\"arguments\":{\"x\":1}}"}`,
+		`{"type":"response.output_item.done","output_index":1,"item":{"type":"function_call","id":"b","call_id":"d","name":"n"}}`,
+		`{"type":"response.completed","response":{"output":[]}}`,
+	)
+}
+
+const patchTool = `{"type":"custom","name":"apply_patch","description":"Patch files.","format":{"type":"grammar","syntax":"lark","definition":"start: /.+/"}}`
+
 func streamOf(events ...string) *upstream {
 	return &upstream{Status: 200, Headers: [][2]string{{"Content-Type", "text/event-stream"}, {"X-Request-Id", "req-1"}}, Body: sse(events...)}
 }
@@ -332,9 +365,37 @@ func scenarios() []scenario {
 			Payload: `{"prompt":"p"}`, Upstream: jsonReply(403, `{"error":{"code":"bad-credentials","message":"nope"}}`)},
 
 		// --- apply_patch (bridge pending in cpa-translate) ---
-		{Name: "apply_patch_custom_tool_bridged", ConfigAuth: -1, Attributes: apiKey, Model: "grok-4.3", Source: "openai-response", Op: "execute", Needs: []string{"apply_patch_bridge"},
-			Payload:  `{"model":"grok-4.3","input":"patch","tools":[{"type":"custom","name":"apply_patch","description":"Patch files.","format":{"type":"grammar","syntax":"lark","definition":"start: /.+/"}}]}`,
+		{Name: "apply_patch_custom_tool_bridged", ConfigAuth: -1, Attributes: apiKey, Model: "grok-4.3", Source: "openai-response", Op: "execute",
+			Payload:  `{"model":"grok-4.3","input":"patch","tools":[` + patchTool + `]}`,
 			Upstream: callTurn("grok-4.3", "apply_patch", `{"input":"*** Begin Patch\n*** End Patch"}`)},
+		{Name: "apply_patch_custom_tool_bridged_stream", ConfigAuth: -1, Attributes: apiKey, Model: "grok-4.3", Source: "openai-response", Op: "stream",
+			Payload:  `{"model":"grok-4.3","input":"patch","tools":[` + patchTool + `]}`,
+			Upstream: callTurn("grok-4.3", "apply_patch", `{"input":"*** Begin Patch\n*** End Patch"}`)},
+		{Name: "apply_patch_invalid_input_execute", ConfigAuth: -1, Attributes: apiKey, Model: "grok-4.3", Source: "openai-response", Op: "execute",
+			Payload:  `{"model":"grok-4.3","input":"patch","tools":[` + patchTool + `]}`,
+			Upstream: callTurn("grok-4.3", "apply_patch", `{"input":42}`)},
+		{Name: "apply_patch_invalid_input_stream", ConfigAuth: -1, Attributes: apiKey, Model: "grok-4.3", Source: "openai-response", Op: "stream",
+			Payload:  `{"model":"grok-4.3","input":"patch","tools":[` + patchTool + `]}`,
+			Upstream: callTurn("grok-4.3", "apply_patch", `{"input":42}`)},
+		{Name: "apply_patch_eof_without_completion_stream", ConfigAuth: -1, Attributes: apiKey, Model: "grok-4.3", Source: "openai-response", Op: "stream",
+			Payload: `{"model":"grok-4.3","input":"patch","tools":[` + patchTool + `]}`,
+			Upstream: streamOf(created("grok-4.3"),
+				`{"type":"response.output_item.added","sequence_number":1,"output_index":0,"item":{"type":"function_call","id":"fc_1","call_id":"call_1","name":"apply_patch","arguments":"","status":"in_progress"}}`,
+				`{"type":"response.function_call_arguments.delta","sequence_number":2,"item_id":"fc_1","output_index":0,"delta":"{\"input\":"}`)},
+		{Name: "apply_patch_eof_without_completion_execute", ConfigAuth: -1, Attributes: apiKey, Model: "grok-4.3", Source: "openai-response", Op: "execute",
+			Payload: `{"model":"grok-4.3","input":"patch","tools":[` + patchTool + `]}`,
+			Upstream: streamOf(created("grok-4.3"),
+				`{"type":"response.output_item.added","sequence_number":1,"output_index":0,"item":{"type":"function_call","id":"fc_1","call_id":"call_1","name":"apply_patch","arguments":"","status":"in_progress"}}`)},
+		{Name: "apply_patch_folded_namespace_execute", ConfigAuth: -1, Attributes: apiKey, Model: "grok-4", Source: "openai-response", Op: "execute",
+			Payload: foldedPatchRequest(), Upstream: foldedPatchTurn()},
+		{Name: "apply_patch_folded_namespace_stream", ConfigAuth: -1, Attributes: apiKey, Model: "grok-4", Source: "openai-response", Op: "stream",
+			Payload: foldedPatchRequest(), Upstream: foldedPatchTurn()},
+		{Name: "apply_patch_declared_history_to_claude", ConfigAuth: -1, Attributes: apiKey, Model: "grok-4.3", Source: "openai-response", Op: "stream",
+			Payload:  `{"model":"grok-4.3","input":[{"role":"user","content":"x"},{"type":"custom_tool_call","call_id":"p1","name":"apply_patch","input":"*** Begin Patch\n*** End Patch"},{"type":"custom_tool_call_output","call_id":"p1","output":"ok"}],"tools":[` + patchTool + `],"tool_choice":{"type":"custom","name":"apply_patch"}}`,
+			Upstream: callTurn("grok-4.3", "apply_patch", `{"input":"*** Begin Patch\n*** End Patch"}`)},
+		{Name: "apply_patch_invalid_history_input", ConfigAuth: -1, Attributes: apiKey, Model: "grok-4.3", Source: "openai-response", Op: "execute",
+			Payload:  `{"model":"grok-4.3","input":[{"type":"custom_tool_call","call_id":"p1","name":"apply_patch","input":42}]}`,
+			Upstream: textTurn("grok-4.3")},
 		{Name: "apply_patch_history_without_declaration", ConfigAuth: -1, Attributes: apiKey, Model: "grok-4.3", Source: "openai-response", Op: "execute",
 			Payload:  `{"model":"grok-4.3","input":[{"role":"user","content":"x"},{"type":"custom_tool_call","call_id":"p1","name":"apply_patch","input":"*** Begin Patch\n+<a & b>\n*** End Patch"},{"type":"custom_tool_call_output","call_id":"p1","output":"ok"}],"tools":[{"type":"function","name":"f","parameters":{"type":"object","properties":{}}}]}`,
 			Upstream: textTurn("grok-4.3")},

@@ -1075,6 +1075,7 @@ async fn session_turns_honour_pin_callback_and_session() {
         request_path: "/v1/responses".into(),
         peer: None,
         turn: Some(turn),
+        media: None,
     };
     let tokens = || -> Vec<String> { p.seen.requests.lock().unwrap().drain(..).map(|r| r.0).collect() };
 

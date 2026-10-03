@@ -72,7 +72,6 @@ pub mod vertex;
 pub mod vertex_auth;
 mod wire;
 pub mod xai;
-mod xai_apply_patch;
 pub mod xai_auth;
 mod xai_replay;
 mod xai_request;

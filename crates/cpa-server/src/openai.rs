@@ -44,6 +44,7 @@ fn call(req: Request, entry: Format, model: String, body: Bytes, stream: bool, a
         request_path: req.path,
         peer: req.peer,
         turn: None,
+        media: None,
     }
 }
 
@@ -465,7 +466,7 @@ fn codex_client(headers: &HeaderMap) -> bool {
 
 /// Go `responsesStreamErrorText`: sensitive values redacted, long text truncated, JSON
 /// errors reduced to their `error` object.
-fn sanitize_error_text(status: u16, text: &str) -> String {
+pub(crate) fn sanitize_error_text(status: u16, text: &str) -> String {
     let trimmed = gojson::trim(text);
     let trimmed = if trimmed.is_empty() {
         gojson::status_text(status)
