@@ -122,12 +122,9 @@ fn from_spec(s: &Spec) -> ModelFacts {
         context_length: s.context_length,
         metadata_model_id: s.metadata_model_id.clone(),
         thinking: s.thinking.clone(),
-        // ponytail: the dynamic registry does not record Go's ExplicitThinking and
-        // ExplicitInputModalities (config models that set them); without them those
-        // models keep the template's levels and modalities.
-        explicit_thinking: false,
+        explicit_thinking: s.explicit_thinking,
         input_modalities: s.supported_input_modalities.clone(),
-        explicit_input_modalities: false,
+        explicit_input_modalities: s.explicit_input_modalities,
     }
 }
 
@@ -178,10 +175,7 @@ impl codex_catalog::Registry for Facts<'_> {
         self.0.providers(id)
     }
 
-    // ponytail: Go reads tri-state native web-search capabilities per route for CPA
-    // clients (`client_version=cpa`); the registry does not carry them, so they stay
-    // unknown and `cpa_capabilities` is omitted.
-    fn web_search(&self, _id: &str) -> Option<bool> {
-        None
+    fn web_search(&self, id: &str) -> Option<bool> {
+        self.0.responses_web_search(id)
     }
 }
