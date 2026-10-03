@@ -12,7 +12,7 @@ use axum::response::{IntoResponse, Response};
 use cpa_core::config::Config;
 use cpa_exec::Executors;
 use cpa_exec::claude::ClaudeExecutor;
-use cpa_server::{Runtime, router};
+use cpa_server::router;
 
 /// Path with query, the upstream API key header, the Api-Revision header and the body.
 type Seen = Mutex<Vec<(String, Option<String>, Option<String>, String, Option<String>)>>;
@@ -76,7 +76,7 @@ async fn proxy() -> (String, Arc<Seen>) {
         openai: Default::default(),
         google: Default::default(),
     };
-    let rt = Arc::new(Runtime::new(config, credentials, executors));
+    let rt = Arc::new(cpa_server::testing::runtime(config, credentials, executors));
     (serve(router(rt)).await, seen)
 }
 

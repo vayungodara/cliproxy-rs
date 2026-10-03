@@ -330,7 +330,6 @@ mod access {
     use super::*;
     use cpa_exec::Executors;
     use cpa_exec::claude::ClaudeExecutor;
-    use cpa_server::Runtime;
     use cpa_server::management::{self, Management, Options};
     use std::sync::Arc;
 
@@ -365,7 +364,7 @@ mod access {
             yaml += &format!("server:\n  trusted-proxies: {}\n", Value::Array(t.clone()));
         }
         std::fs::write(&path, yaml).unwrap();
-        let rt = Arc::new(Runtime::new(
+        let rt = Arc::new(cpa_server::testing::runtime(
             Config::load(&path).unwrap(),
             vec![],
             Executors {
@@ -437,7 +436,7 @@ mod routes {
     use cpa_exec::Executors;
     use cpa_exec::claude::ClaudeExecutor;
     use cpa_server::management::{Management, Options};
-    use cpa_server::{Runtime, watching};
+    use cpa_server::watching;
     use std::sync::Arc;
 
     #[tokio::test]
@@ -455,7 +454,7 @@ mod routes {
             let path = dir.join("config.yaml");
             let write = |yaml: &str| std::fs::write(&path, yaml.replace("$HASH", &hash)).unwrap();
             write(scenario["yaml"].as_str().unwrap());
-            let rt = Arc::new(Runtime::new(
+            let rt = Arc::new(cpa_server::testing::runtime(
                 Config::load(&path).unwrap(),
                 vec![],
                 Executors {
@@ -539,7 +538,7 @@ mod config_writes {
     use super::*;
     use cpa_exec::Executors;
     use cpa_exec::claude::ClaudeExecutor;
-    use cpa_server::Runtime;
+
     use cpa_server::management::{Management, Options};
     use std::sync::Arc;
 
@@ -632,7 +631,7 @@ mod config_writes {
             std::fs::create_dir_all(&dir).unwrap();
             let path = dir.join("config.yaml");
             std::fs::write(&path, scenario["yaml"].as_str().unwrap().replace("$HASH", &hash)).unwrap();
-            let rt = Arc::new(Runtime::new(
+            let rt = Arc::new(cpa_server::testing::runtime(
                 Config::load(&path).unwrap(),
                 vec![],
                 Executors {
@@ -728,7 +727,7 @@ mod creds {
     use super::*;
     use cpa_exec::Executors;
     use cpa_exec::claude::ClaudeExecutor;
-    use cpa_server::Runtime;
+
     use cpa_server::management::{Management, Options};
     use std::collections::HashMap;
     use std::sync::Arc;
@@ -823,7 +822,7 @@ mod creds {
                 .replace("$AUTH", &auth.display().to_string());
             std::fs::write(&path, yaml).unwrap();
             let cfg = Config::load(&path).unwrap();
-            let rt = Arc::new(Runtime::new(
+            let rt = Arc::new(cpa_server::testing::runtime(
                 cfg.clone(),
                 credentials::load(&cfg),
                 Executors {
@@ -1098,7 +1097,7 @@ mod creds {
             .replace("$AUTH", &auth.display().to_string());
         std::fs::write(&path, yaml).unwrap();
         let cfg = Config::load(&path).unwrap();
-        let rt = Arc::new(Runtime::new(
+        let rt = Arc::new(cpa_server::testing::runtime(
             cfg.clone(),
             credentials::load(&cfg),
             Executors {

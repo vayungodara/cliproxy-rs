@@ -27,6 +27,8 @@ pub mod runtime;
 mod sanitize;
 pub mod scheduler;
 mod session;
+#[doc(hidden)]
+pub mod testing;
 pub mod usage;
 mod usage_record;
 pub mod watching;
@@ -139,11 +141,15 @@ fn html() -> Response {
         .into_response()
 }
 
-fn callback_query(query: &str) -> (String, String, String) {
+/// `code`, `state` and `error` (else `error_description`) of an OAuth redirect. Go's
+/// Devin handler trims each value before the fallback; the other handlers do not
+/// (server_routes.go).
+fn callback_query(query: &str, trim: bool) -> (String, String, String) {
     let get = |name| {
-        access::query_get(query, name)
+        let value = access::query_get(query, name)
             .map(|v| String::from_utf8_lossy(&v).into_owned())
-            .unwrap_or_default()
+            .unwrap_or_default();
+        if trim { gojson::trim(&value).to_owned() } else { value }
     };
     let mut error = get("error");
     if error.is_empty() {
@@ -160,7 +166,7 @@ async fn callback(State(rt): State<Arc<Runtime>>, OriginalUri(uri): OriginalUri)
         "/codex/callback" => "codex",
         _ => "antigravity",
     };
-    let (code, state, error) = callback_query(uri.query().unwrap_or_default());
+    let (code, state, error) = callback_query(uri.query().unwrap_or_default(), false);
     if !state.is_empty() {
         let _ = rt.deliver_oauth_callback(&runtime::OAuthCallback {
             provider,
@@ -173,8 +179,7 @@ async fn callback(State(rt): State<Arc<Runtime>>, OriginalUri(uri): OriginalUri)
 }
 
 async fn devin_callback(State(rt): State<Arc<Runtime>>, OriginalUri(uri): OriginalUri) -> Response {
-    let (code, state, error) = callback_query(uri.query().unwrap_or_default());
-    let (code, state, error) = (gojson::trim(&code), gojson::trim(&state), gojson::trim(&error));
+    let (code, state, error) = callback_query(uri.query().unwrap_or_default(), true);
     let no_store = |mut res: Response| {
         res.headers_mut()
             .insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
@@ -188,9 +193,9 @@ async fn devin_callback(State(rt): State<Arc<Runtime>>, OriginalUri(uri): Origin
     }
     let delivered = rt.deliver_oauth_callback(&runtime::OAuthCallback {
         provider: "devin",
-        state: state.to_owned(),
-        code: code.to_owned(),
-        error: error.to_owned(),
+        state,
+        code,
+        error,
     });
     if !delivered {
         return no_store(respond::gin_json(

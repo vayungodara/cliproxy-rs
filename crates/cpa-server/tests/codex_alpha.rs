@@ -13,7 +13,7 @@ use cpa_core::credential::Credential;
 use cpa_exec::Executors;
 use cpa_exec::codex::CodexExecutor;
 use cpa_exec::codex_oauth::CodexOAuth;
-use cpa_server::{Runtime, router};
+use cpa_server::router;
 
 type Seen = Arc<Mutex<Vec<(String, HeaderMap, Bytes)>>>;
 
@@ -74,7 +74,7 @@ async fn alpha_search_uses_policy_eligible_credential_and_passes_upstream_throug
             &[("auth_kind", "oauth")],
         ),
     ];
-    let rt = Arc::new(Runtime::new(
+    let rt = Arc::new(cpa_server::testing::runtime(
         Config::parse("{}").unwrap(),
         credentials,
         Executors {
