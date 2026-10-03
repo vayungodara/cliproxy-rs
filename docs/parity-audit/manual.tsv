@@ -7,7 +7,7 @@
 # crates/cpa-exec/tests/fixtures/gemini_go.json; harness = harness/run differential captures.
 #
 # ---------------------------------------------------------------------------------------- M1
-M1-0003	partial	probe GET /v1/models -> 401; crates/cpa-server/tests/routes.rs, claude_passthrough.rs	ultra/codex, ultra/openai-xai	Anthropic and OpenAI catalogs only: the Grok Shell and Codex (client_version) catalog formats fall back to the OpenAI list (ponytail in crates/cpa-server/src/models.rs).
+M1-0003	partial	probe GET /v1/models -> 401; crates/cpa-server/tests/routes.rs, claude_passthrough.rs; Codex client_version catalog in crates/cpa-server/src/codex_models.rs (tests/codex_models.rs)	ultra/openai-xai	The Grok Shell catalog falls back to the OpenAI list (ponytail in crates/cpa-server/src/models.rs).
 M1-0005	partial	probe POST /v1/messages/count_tokens -> 401; executor count path: claude scenarios count-oauth-mid-system, claude::tests::custom_origin_counts_locally_without_sending_credentials	ultra/server	No server test drives the route to a Claude credential.
 M1-0006	covered	crates/cpa-server/tests/routes.rs misc_routes_match_go (GET /)
 M1-0008	covered	crates/cpa-exec/src/claude_login_tests.rs callback_server_answers_like_go, success_page_escapes_the_platform_url
@@ -35,7 +35,7 @@ M1-0029	covered	crates/cpa-core/src/config/credentials.rs; claude scenarios conf
 M1-0030	covered	crates/cpa-core/src/config/credentials.rs; claude scenarios apikey-gateway-cli-stream, apikey-cloak-always (base-url)
 M1-0031	covered	crates/cpa-core/src/config/credentials.rs; claude scenarios with model aliases (apikey-firstparty-oauth-cli-alias)
 M1-0032	covered	crates/cpa-core/src/config/credentials.rs config_models_reach_the_registry_like_go (display names reach the registry; the test configures codex and vertex keys, Claude keys take the same path); crates/cpa-core/src/registry/dynamic.rs
-M1-0033	partial	parsed into crates/cpa-core/src/registry/dynamic.rs max_context_length; cpa_common::codex_client carries the embedded catalog	ultra/codex	The client_version catalog that advertises it is not served on /v1/models.
+M1-0033	covered	crates/cpa-core/src/registry/dynamic.rs max_context_length, advertised by crates/cpa-server/src/codex_models.rs; tests/codex_models.rs client_version_selects_the_codex_catalog
 M1-0034	covered	claude scenarios apikey-compat-openai-reasoning, apikey-plain-openai-reasoning; compat scenarios claude_is_compat_keeps_thinking, claude_not_compat_drops_thinking
 M1-0035	covered	claude scenarios apikey-resolved-thinking-in-range, apikey-resolved-thinking-out-of-range
 M1-0036	covered	claude scenarios apikey-resolved-thinking-in-range, apikey-resolved-thinking-out-of-range
@@ -145,7 +145,7 @@ M2-0032	covered	cpa_common::thinking recorded replay (go_calls.jsonl.gz, go_thin
 M2-0033	covered	9,435 translator byte goldens (crates/cpa-translate/tests/fixtures/pairs)
 M2-0034	partial	crates/cpa-server/src/respond.rs, websocket.rs	ultra/server	No test sets keepalive-seconds.
 M2-0035	covered	crates/cpa-server/tests/routes.rs bootstrap_retries_rerun_a_stream_that_broke_before_its_first_payload
-M2-0036	missing	only migrated in crates/cpa-core/src/config/document.rs	ultra/server	Non-stream keep-alive blank lines are not emitted.
+M2-0036	covered	crates/cpa-server/src/dispatch.rs nonstream_keepalive; tests/routes.rs nonstream_keepalive_commits_like_go (Go golden nonstream_keepalive in server_go.json)
 M2-0037	partial	crates/cpa-core/src/config/credentials.rs sanitized() keeps empty keys with a base URL	ultra/manage	Not ported by name.
 M2-0038	partial	cpa_common::signature (recorded replay) used by crates/cpa-exec/src/gemini.rs	ultra/google	Executor-level signature cases (Gemini and Vertex) are not ported.
 M2-0039	partial	gemini scenarios (75): gen_cap_*, gen_boundary_user_turns, gen_payload_rules, stream_*	ultra/google	28 Go cases; equivalents exist for capping, boundary turns and payload rules; not ported by name.
@@ -277,9 +277,9 @@ M3-0201	partial	crates/cpa-translate/src/replay_cache.rs (in-process store, tomb
 M3-0202	partial	crates/cpa-exec/src/codex_replay.rs (cache per model and Claude Code agent/session); codex_replay_tests.rs replay_scenarios_match_go (Go-generated codex_go.json replay scenarios), entries_keep_the_newest_turns	ultra/codex	Not ported by name.
 M3-0203	partial	crates/cpa-exec/src/kimi_replay.rs family_shares_k3_variants_only, conditional_writes_keep_newer_content	ultra/device-providers	Not ported by name.
 M3-0205	partial	crates/cpa-translate/src/apply_patch.rs ports tool.go (is_custom_tool, description, parameters, wrap_input, unwrap_input, escape_input_fragment); exercised by apply_patch goldens and tests/fixtures/apply_patch_responses.json	ultra/translate	Unit cases not ported by name.
-M3-0211	partial	cpa_common::codex_client CLIENT_MODELS_JSON (embedded Go catalog) feeds spawn_agent model lists	ultra/codex	Catalog cases not ported; /v1/models does not serve the client_version catalog (ponytail in crates/cpa-server/src/models.rs).
-M3-0212	partial	cpa_common::codex_client CLIENT_MODELS_JSON (embedded Go catalog) feeds spawn_agent model lists	ultra/codex	31 Go cases not ported; /v1/models does not serve the client_version catalog; the remote catalog updater is not ported.
-M3-0213	partial	cpa_common::codex_client CLIENT_MODELS_JSON (embedded Go catalog) feeds spawn_agent model lists	ultra/codex	Not ported by name.
+M3-0211	partial	cpa_common::codex_catalog (catalogs_match_go, validation_matches_go, versions_compare_like_go); served on GET /v1/models?client_version= by crates/cpa-server/src/codex_models.rs (tests/codex_models.rs client_version_selects_the_codex_catalog)	ultra/codex	Not ported by name.
+M3-0212	partial	cpa_common::codex_catalog (catalogs_match_go, validation_matches_go, versions_compare_like_go); served on GET /v1/models?client_version= by crates/cpa-server/src/codex_models.rs (tests/codex_models.rs client_version_selects_the_codex_catalog)	ultra/codex	31 Go cases; not ported by name.
+M3-0213	partial	cpa_common::codex_catalog (catalogs_match_go, validation_matches_go, versions_compare_like_go); served on GET /v1/models?client_version= by crates/cpa-server/src/codex_models.rs (tests/codex_models.rs client_version_selects_the_codex_catalog)	ultra/codex	Not ported by name.
 M3-0214	partial	cpa_common::codex_client multi-agent v2 rewrites; crates/cpa-common/tests/fixtures/codex_client_go.json (52 Go vectors); crates/cpa-exec/src/codex_client_tests.rs replays_go_translation_and_optimization	ultra/codex	35 Go cases; not ported by name.
 M3-0215	partial	cpa_common::codex_client orphan delegation (oauth.providers.codex.orphan-delegation-compatibility); crates/cpa-exec/src/codex_client_tests.rs orphan_delegation_written_oauth_only_skips_api_keys; codex_client_go.json vectors	ultra/codex	Not ported by name.
 M3-0216	partial	cpa_common::payload normalize_codex_tool_integer_types	ultra/codex	Not ported by name.
@@ -332,7 +332,7 @@ M3-0319	partial	crates/cpa-translate/src/codex_interactions.rs; goldens	ultra/tr
 M3-0325	partial	crates/cpa-translate/src/antigravity_*.rs tool renames; goldens	ultra/translate	Unit cases not ported.
 M3-0326	partial	crates/cpa-translate/src/responses_interactions.rs Devin tool filtering; goldens	ultra/translate	Unit cases not ported.
 M3-0327	partial	crates/cpa-server/src/session.rs, dispatch.rs (execution metadata)	ultra/server	15 Go cases; not ported by name.
-M3-0328	partial	cpa_common::codex_client CLIENT_MODELS_JSON (embedded Go catalog) feeds spawn_agent model lists	ultra/codex	The handler that serves the client_version catalog is not ported.
+M3-0328	partial	cpa_common::codex_catalog (catalogs_match_go, validation_matches_go, versions_compare_like_go); served on GET /v1/models?client_version= by crates/cpa-server/src/codex_models.rs (tests/codex_models.rs client_version_selects_the_codex_catalog)	ultra/codex	Not ported by name.
 M3-0330	covered	crates/cpa-exec/src/codex_oauth_tests.rs login_file_bytes_match_go_storage_serializer
 M3-0337	partial	crates/cpa-server/src/websocket.rs force-mapping forwarding	ultra/codex	Not ported by name.
 M3-0338	partial	crates/cpa-server/src/classify.rs, crates/cpa-exec/src/codex_response.rs (model not found)	ultra/server	Not ported by name.
@@ -342,14 +342,14 @@ M3-0341	partial	crates/cpa-core/src/credential.rs MetadataPatch	ultra/server	Not
 M3-0343	partial	crates/cpa-server/src/dispatch.rs	ultra/server	Not ported by name.
 M3-0345	partial	crates/cpa-server/src/affinity.rs (3 tests), server_go.json affinity	ultra/server	Not ported by name.
 M3-0346	partial	crates/cpa-exec/src/lib.rs Executors binding	ultra/codex	Not ported by name.
-M3-0347	partial	cpa_common::codex_client CLIENT_MODELS_JSON (embedded Go catalog) feeds spawn_agent model lists	ultra/codex	Catalog service cases not ported; no remote updater.
+M3-0347	partial	cpa_common::codex_catalog (catalogs_match_go, validation_matches_go, versions_compare_like_go); served on GET /v1/models?client_version= by crates/cpa-server/src/codex_models.rs (tests/codex_models.rs client_version_selects_the_codex_catalog)	ultra/codex	Not ported by name; the catalog updater is not started.
 M3-0348	partial	crates/cpa-server/src/openai.rs; codex_go.json oauth_stream_truncated	ultra/codex	Not ported by name.
 M3-0349	partial	crates/cpa-server/tests/routes.rs failover_stop_rules_and_cooldown_contracts; codex_go.json oauth_usage_limit_429	ultra/server	Not ported by name.
 M3-0350	partial	crates/cpa-server/tests/routes.rs empty_stream_fails_over_and_reports_empty_stream, bootstrap retries	ultra/server	Not ported by name.
 
-M3-0223	partial	cpa_common::codex_client CLIENT_MODELS_JSON (embedded Go catalog) feeds spawn_agent model lists	ultra/codex	Registry catalog cases not ported; no remote updater (StartCodexClientModelsUpdater).
+M3-0223	partial	crates/cpa-exec/src/codex_catalog_updater.rs refresh_falls_through_sources_and_validates	ultra/codex	The updater exists but nothing starts it: crates/cpa-server/src/model_updater.rs still has a ponytail saying it is not on the base.
 M3-0174	missing	live-media-relay settings are validated (crates/cpa-core/src/config/validate.rs) but the relay is not wired (ponytail in crates/cpa-server/src/realtime/http.rs)	ultra/realtime
-M3-0186	missing	crates/cpa-server/src/management/oauth.rs answers provider_not_found for Devin (ponytail in its header)	ultra/manage	
+M3-0186	covered	crates/cpa-server/tests/management.rs devin_login_completes_through_the_main_listener_callback
 M3-0193	partial	crates/cpa-exec/src/devin*.rs; devin_tests.rs (17 Go-fixture tests, tests/device_fixtures/devin: 46 recorded cases)	ultra/device-providers	Not ported by name.
 M3-0194	partial	crates/cpa-exec/src/devin_tests.rs auth_record_matches_go_fixtures	ultra/device-providers	Not ported by name.
 M3-0195	partial	crates/cpa-exec/src/devin_tests.rs user_status_matches_go	ultra/device-providers	Not ported by name.
@@ -663,3 +663,236 @@ M4-0507	partial	crates/cpa-exec/src/proxy.rs; proxy_go.json	ultra/claude	Not por
 M4-0508	partial	translator goldens	ultra/translate	Not ported by name.
 M4-0509	covered	recorded replay: crates/cpa-common/tests/fixtures/go_calls.jsonl.gz (Summary tests in ./test/)		
 M4-0510	partial	crates/cpa-server/tests/routes.rs usage_queue_records_every_attempt	ultra/server	Not ported by name.
+# ---------------------------------------------------------------------------------------- M5
+M5-0020	covered	crates/cpa-server/src/management/oauth.rs forwarder_redirect_keeps_the_query, forwarder_connections_have_go_deadlines		
+M5-0021	missing	no AI Studio WebSocket relay route	ultra/google	
+M5-0022	missing	no /keep-alive route	ultra/server	
+M5-0023	covered	crates/cpa-server/src/realtime/secrets.rs keys_expire_and_capacity_is_bounded; tests/realtime.rs realtime_http_matches_go, realtime_websockets_match_go (realtime_http_go.json, codex_live_ws_go.json)		
+M5-0024	partial	crates/cpa-exec/src/codex_ws.rs, crates/cpa-server/src/websocket*.rs; tests/ws_e2e.rs; websocket_requests_tests.rs (Go vectors)	ultra/codex	Duplex steering is absent (M2-0145..0149).
+M5-0025	covered	codex_go.json executor oauth_bootstrap_overload_failover, oauth_bootstrap_time_budget_spent, oauth_bootstrap_holds_then_releases; stream-bootstrap keys read in crates/cpa-exec/src/codex_request.rs		
+M5-0227	partial	probe: 95 of 237 listed routes routed	ultra/manage	Plugin routes and the deprecated v0 config subroutes are not registered.
+M5-0228	missing	v0-only quota/providers, quota/fetch, quota/reset and plugin config routes are not routed (probe 404)	ultra/manage	
+M5-0229	partial	crates/cpa-server/tests/management.rs (writes_normalize_only_what_they_touch, config_key_* tests); manage_go.json config_writes	ultra/manage	TURN credential and Home revision redaction are not tested.
+M5-0230	partial	crates/cpa-server/src/management/oauth.rs (claude, codex, kimi/kimi-ai, meta, xai, devin); tests/management.rs *_login_* tests	ultra/manage	Antigravity login (no executor) and plugin provider IDs are absent. The module header ponytail still says xai and devin answer provider_not_found; that is stale.
+M5-0231	partial	crates/cpa-server/src/management/auth_files.rs, multipart.rs (hostile_bodies_never_panic); manage_go.json credentials; tests/manage_go.rs go_credential_management_replay	ultra/manage	Not ported by name.
+M5-0232	covered	crates/cpa-server/src/management/access.rs (fifth failure bans for 30 minutes); tests/manage_go.rs every_go_access_scenario_replays_through_the_router (manage_go.json access)		
+M5-0233	covered	crates/cliproxy/src/main.rs --password (loopback-only management password) -> serve; every_go_flag_parses_in_single_and_double_dash_form		
+M5-0234	partial	crates/cliproxy/src/main.rs parses --management-base-url	ultra/tui	TUI client mode is not available.
+M5-0235	missing	no AI Studio relay	ultra/google	
+M5-0236	partial	crates/cpa-server/src/realtime/*, crates/cpa-exec/src/codex_live.rs; tests/realtime.rs (Go fixtures)	ultra/realtime	The WebRTC media relay is not wired (ponytail in realtime/http.rs).
+M5-0237	partial	crates/cpa-server/src/management*; tests/management.rs, tests/manage_go.rs (manage_go.json)	ultra/manage	Not ported by name.
+M5-0238	partial	crates/cpa-server/src/management*; tests/management.rs, tests/manage_go.rs (manage_go.json)	ultra/manage	Not ported by name.
+M5-0239	partial	crates/cpa-server/src/management*; tests/management.rs, tests/manage_go.rs (manage_go.json)	ultra/manage	Not ported by name.
+M5-0240	partial	crates/cpa-server/src/management*; tests/management.rs, tests/manage_go.rs (manage_go.json)	ultra/manage	Not ported by name.
+M5-0241	partial	crates/cpa-server/src/management*; tests/management.rs, tests/manage_go.rs (manage_go.json)	ultra/manage	Not ported by name.
+M5-0242	partial	crates/cpa-server/src/management*; tests/management.rs, tests/manage_go.rs (manage_go.json)	ultra/manage	Not ported by name.
+M5-0243	partial	crates/cpa-server/src/management*; tests/management.rs, tests/manage_go.rs (manage_go.json)	ultra/manage	Not ported by name.
+M5-0244	partial	crates/cpa-server/src/management*; tests/management.rs, tests/manage_go.rs (manage_go.json)	ultra/manage	Not ported by name.
+M5-0245	partial	crates/cpa-server/src/management*; tests/management.rs, tests/manage_go.rs (manage_go.json)	ultra/manage	Not ported by name.
+M5-0246	partial	crates/cpa-server/src/management*; tests/management.rs, tests/manage_go.rs (manage_go.json)	ultra/manage	Not ported by name.
+M5-0247	partial	crates/cpa-server/src/management*; tests/management.rs, tests/manage_go.rs (manage_go.json)	ultra/manage	Not ported by name.
+M5-0248	partial	crates/cpa-server/src/management*; tests/management.rs, tests/manage_go.rs (manage_go.json)	ultra/manage	Not ported by name.
+M5-0249	partial	crates/cpa-server/src/management*; tests/management.rs, tests/manage_go.rs (manage_go.json)	ultra/manage	Not ported by name.
+M5-0250	partial	crates/cpa-server/src/management*; tests/management.rs, tests/manage_go.rs (manage_go.json)	ultra/manage	Not ported by name.
+M5-0251	partial	crates/cpa-server/src/management*; tests/management.rs, tests/manage_go.rs (manage_go.json)	ultra/manage	Not ported by name.
+M5-0252	partial	crates/cpa-server/src/management*; tests/management.rs, tests/manage_go.rs (manage_go.json)	ultra/manage	Not ported by name.
+M5-0253	partial	crates/cpa-server/src/management*; tests/management.rs, tests/manage_go.rs (manage_go.json)	ultra/manage	Not ported by name.
+M5-0254	partial	crates/cpa-server/src/management*; tests/management.rs, tests/manage_go.rs (manage_go.json)	ultra/manage	Not ported by name.
+M5-0255	partial	crates/cpa-server/src/management*; tests/management.rs, tests/manage_go.rs (manage_go.json)	ultra/manage	Not ported by name.
+M5-0256	partial	crates/cpa-server/src/management*; tests/management.rs, tests/manage_go.rs (manage_go.json)	ultra/manage	Not ported by name.
+M5-0257	partial	crates/cpa-server/src/management*; tests/management.rs, tests/manage_go.rs (manage_go.json)	ultra/manage	Not ported by name.
+M5-0258	partial	crates/cpa-server/src/management*; tests/management.rs, tests/manage_go.rs (manage_go.json)	ultra/manage	Not ported by name.
+M5-0259	partial	crates/cpa-server/src/management*; tests/management.rs, tests/manage_go.rs (manage_go.json)	ultra/manage	Not ported by name.
+M5-0260	partial	crates/cpa-server/src/management*; tests/management.rs, tests/manage_go.rs (manage_go.json)	ultra/manage	Not ported by name.
+M5-0261	partial	crates/cpa-server/src/management*; tests/management.rs, tests/manage_go.rs (manage_go.json)	ultra/manage	Not ported by name.
+M5-0262	partial	crates/cpa-server/src/management*; tests/management.rs, tests/manage_go.rs (manage_go.json)	ultra/manage	Not ported by name.
+M5-0263	partial	crates/cpa-server/src/management*; tests/management.rs, tests/manage_go.rs (manage_go.json)	ultra/manage	Not ported by name.
+M5-0264	partial	crates/cpa-server/src/management*; tests/management.rs, tests/manage_go.rs (manage_go.json)	ultra/manage	Not ported by name.
+M5-0265	partial	crates/cpa-server/src/management*; tests/management.rs, tests/manage_go.rs (manage_go.json)	ultra/manage	Not ported by name.
+M5-0266	partial	crates/cpa-server/src/management*; tests/management.rs, tests/manage_go.rs (manage_go.json)	ultra/manage	Not ported by name.
+M5-0267	partial	crates/cpa-server/src/management*; tests/management.rs, tests/manage_go.rs (manage_go.json)	ultra/manage	Not ported by name.
+M5-0268	partial	crates/cpa-server/src/management*; tests/management.rs, tests/manage_go.rs (manage_go.json)	ultra/manage	Not ported by name.
+M5-0269	partial	crates/cpa-server/src/management*; tests/management.rs, tests/manage_go.rs (manage_go.json)	ultra/manage	Not ported by name.
+M5-0270	partial	crates/cpa-server/src/management*; tests/management.rs, tests/manage_go.rs (manage_go.json)	ultra/manage	Not ported by name.
+M5-0271	partial	crates/cpa-server/src/management*; tests/management.rs, tests/manage_go.rs (manage_go.json)	ultra/manage	Not ported by name.
+M5-0272	partial	crates/cpa-server/src/management*; tests/management.rs, tests/manage_go.rs (manage_go.json)	ultra/manage	Not ported by name.
+M5-0273	partial	crates/cpa-server/src/management*; tests/management.rs, tests/manage_go.rs (manage_go.json)	ultra/manage	Not ported by name.
+M5-0274	partial	crates/cpa-server/src/management*; tests/management.rs, tests/manage_go.rs (manage_go.json)	ultra/manage	Not ported by name.
+M5-0275	partial	crates/cpa-server/src/management*; tests/management.rs, tests/manage_go.rs (manage_go.json)	ultra/manage	Not ported by name.
+M5-0276	missing	v0 quota routes are not routed (probe 404)	ultra/manage	
+M5-0277	covered	n/a: Go test harness setup		
+M5-0278	partial	crates/cpa-server/src/management*; tests/management.rs, tests/manage_go.rs (manage_go.json)	ultra/manage	Not ported by name.
+M5-0279	partial	crates/cpa-server/src/management.rs router; tests/manage_go.rs go_server_routing_preflight_and_availability_replay	ultra/manage	Not ported by name.
+M5-0280	partial	crates/cpa-server/src/realtime/socket.rs; tests/realtime.rs realtime_websockets_match_go	ultra/realtime	Not ported by name.
+M5-0281	partial	crates/cpa-exec/src/codex_request.rs header defaults	ultra/codex	Not ported by name.
+M5-0282	partial	crates/cpa-core/src/config.rs ManagementConfig; tests/management.rs nonlocal_socket_requires_allow_remote_even_with_a_valid_key	ultra/manage	Not ported by name.
+M5-0283	partial	the control panel is the project's embedded dashboard (crates/cpa-server/src/management.rs panel)	ultra/dashboard	Decision needed: Go downloads and auto-updates its panel from panel-github-repository; Rust embeds its own dashboard and never fetches.
+M5-0284	missing	no duplex (steering) Codex WebSocket path	ultra/codex	
+M5-0285	missing	no duplex (steering) Codex WebSocket path	ultra/codex	
+M5-0286	missing	no duplex (steering) Codex WebSocket path	ultra/codex	
+M5-0287	missing	no duplex (steering) Codex WebSocket path	ultra/codex	
+M5-0288	missing	no duplex (steering) Codex WebSocket path	ultra/codex	
+M5-0289	missing	no duplex (steering) Codex WebSocket path	ultra/codex	
+M5-0290	missing	no duplex (steering) Codex WebSocket path	ultra/codex	
+M5-0291	partial	crates/cpa-exec/src/codex_ws.rs (codex_ws_tests.rs, codex_ws_errors.json); crates/cpa-server/tests/ws_e2e.rs	ultra/codex	Not ported by name.
+M5-0292	partial	crates/cpa-exec/src/codex_ws.rs (codex_ws_tests.rs, codex_ws_errors.json); crates/cpa-server/tests/ws_e2e.rs	ultra/codex	Not ported by name.
+M5-0293	partial	crates/cpa-exec/src/codex_ws.rs (codex_ws_tests.rs, codex_ws_errors.json); crates/cpa-server/tests/ws_e2e.rs	ultra/codex	Not ported by name.
+M5-0294	partial	crates/cpa-exec/src/codex_ws.rs (codex_ws_tests.rs, codex_ws_errors.json); crates/cpa-server/tests/ws_e2e.rs	ultra/codex	Not ported by name.
+M5-0295	partial	crates/cpa-server/src/websocket*.rs	ultra/codex	Not ported by name.
+M5-0296	partial	crates/cpa-exec/src/codex_ws.rs (codex_ws_tests.rs, codex_ws_errors.json); crates/cpa-server/tests/ws_e2e.rs	ultra/codex	Not ported by name.
+M5-0297	partial	crates/cpa-exec/src/codex_ws.rs (codex_ws_tests.rs, codex_ws_errors.json); crates/cpa-server/tests/ws_e2e.rs	ultra/codex	Not ported by name.
+M5-0298	partial	crates/cpa-exec/src/codex_ws.rs (codex_ws_tests.rs, codex_ws_errors.json); crates/cpa-server/tests/ws_e2e.rs	ultra/codex	Not ported by name.
+M5-0299	missing	the xAI executor has no WebSocket transport	ultra/openai-xai	
+M5-0300	missing	no AI Studio WebSocket relay	ultra/google	
+M5-0301	partial	crates/cpa-server/src/websocket*.rs; websocket_requests_tests.rs (Go vectors, ws_vectors.json); tests/ws_e2e.rs (ws_e2e.json)	ultra/codex	Not ported by name.
+M5-0302	partial	crates/cpa-server/src/websocket*.rs; websocket_requests_tests.rs (Go vectors, ws_vectors.json); tests/ws_e2e.rs (ws_e2e.json)	ultra/codex	Not ported by name.
+M5-0303	partial	crates/cpa-exec/src/codex_ws.rs	ultra/codex	Not ported by name.
+# ---------------------------------------------------------------------------------------- M6
+M6-0001	partial	crates/cpa-plugin/src/management.rs; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json management and resource steps)	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins. No plugin route reaches the cpa-server NoRoute path.
+M6-0045	partial	crates/cpa-home/src/config.rs (HomeConfig, normalize_home_port test); cpa-core Config has no home field and no deny_unknown_fields, so a YAML home: block is ignored	ultra/home	No test parses a home: block (Go TestParseConfigBytesIgnoresHomeConfig).
+M6-0046	covered	crates/cliproxy/src/main.rs (csv_flags, discover_options); every_go_flag_parses_in_single_and_double_dash_form, argv_prescan_matches_go (discovery_main_go.json)	ultra/tui	
+M6-0047	covered	crates/cliproxy/src/main.rs (csv_flags, discover_options); every_go_flag_parses_in_single_and_double_dash_form, argv_prescan_matches_go (discovery_main_go.json)	ultra/tui	
+M6-0048	partial	crates/cliproxy/src/main.rs parses the flag (and the home_jwt env) and refuses Home mode as unsupported	ultra/home	cpa-home is not wired into startup; coordinate the main.rs change with ultra/tui.
+M6-0049	partial	crates/cliproxy/src/main.rs parses the flag (and the home_jwt env) and refuses Home mode as unsupported	ultra/home	cpa-home is not wired into startup; coordinate the main.rs change with ultra/tui.
+M6-0050	partial	crates/cliproxy/src/main.rs parses --tui and prints "TUI error: the terminal UI is not available in this build yet"	ultra/tui	
+M6-0051	partial	crates/cliproxy/src/main.rs (DiscoverArgs, discover subcommand, --discover/--discover-json); discovery::tests::discover_output_matches_go_byte_for_byte (discovery_cmd_go.json runs)	ultra/plugins	The discover modes match Go; plugin-owned flags (CommandLinePlugin) are not registered before the main parse because cpa-plugin is not wired.
+M6-0052	covered	crates/cliproxy/src/main.rs (DiscoverArgs); discovery::cli (discovery_cmd_go.json runs and interface_lists)	ultra/tui	
+M6-0053	covered	crates/cliproxy/src/main.rs (DiscoverArgs); discovery::cli (discovery_cmd_go.json runs and interface_lists)	ultra/tui	
+M6-0054	covered	crates/cliproxy/src/main.rs (DiscoverArgs); discovery::cli (discovery_cmd_go.json runs and interface_lists)	ultra/tui	
+M6-0055	covered	crates/cliproxy/src/main.rs (DiscoverArgs); discovery::cli (discovery_cmd_go.json runs and interface_lists)	ultra/tui	
+M6-0056	covered	crates/cliproxy/src/main.rs (DiscoverArgs); discovery::cli (discovery_cmd_go.json runs and interface_lists)	ultra/tui	
+M6-0057	covered	crates/cliproxy/src/main.rs (DiscoverArgs); discovery::cli (discovery_cmd_go.json runs and interface_lists)	ultra/tui	
+M6-0058	missing	no terminal UI (--tui prints an error)	ultra/tui	
+M6-0059	missing	no terminal UI (--tui prints an error)	ultra/tui	
+M6-0060	covered	crates/cliproxy/src/discovery (advertise.rs, mdns.rs, dns.rs, iface.rs); tests.rs replays Go outputs (discovery_go.json, discovery_go_packets.json); mdns.rs responder/browser round trips	ultra/tui	Advertiser update/unregister has no live multicast test.
+M6-0061	partial	crates/cpa-home/src/cert.rs (cert_tests.rs)	ultra/home	Implemented and tested in cpa-home; the binary refuses -home-jwt and no crate depends on cpa-home.
+M6-0062	partial	crates/cpa-home/src/client.rs, subscriber.rs (client_tests.rs against fake.rs: GET/SUBSCRIBE config, CLUSTER NODES, failover, usage/log/plugin-status pushes)	ultra/home	Not wired: the binary refuses -home-jwt.
+M6-0063	partial	crates/cpa-home/src/dispatch.rs, client.rs rpop_auth and ambiguous-dispatch fencing (dispatch and client tests)	ultra/home	The auth manager never calls Home dispatch; the sdk/cliproxy/auth home_* integration is absent.
+M6-0064	partial	crates/cpa-home/src/release.rs, inflight.rs, config.rs (unit tests)	ultra/home	Not wired into credential selection.
+M6-0065	partial	crates/cpa-plugin/src/host.rs, native.rs, platform.rs, config.rs; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json apply, loaded, unload and shutdown steps); native_abi.rs	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins. The plugin store (internal/pluginstore: install, store auth, network scope) is not ported.
+M6-0066	covered	crates/cpa-plugin/src/abi.rs (envelopes_match_go_bytes); executor.rs negotiation_follows_go; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json)	ultra/plugins	Crate level; see M6-0065 for wiring.
+M6-0067	partial	crates/cpa-plugin/src/models.rs; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json: register_models)	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0068	partial	crates/cpa-plugin/src/models.rs; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json: models_for_auth)	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0069	partial	crates/cpa-plugin/src/auth.rs; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json: parse_auths, start_login, poll_login, refresh_auth)	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0070	partial	crates/cpa-plugin/src/auth.rs; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json: frontend_auth)	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0071	partial	crates/cpa-plugin/src/auth.rs (frontend_auth_provider_exclusive); Go-differential coverage: no exclusive case	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0072	partial	crates/cpa-plugin/src/routing.rs; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json: pick_auth)	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0073	partial	crates/cpa-plugin/src/routing.rs, rpc.rs (scheduler_across_priorities); crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json: pick_auth)	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0074	partial	crates/cpa-plugin/src/routing.rs; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json: route_model)	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0075	partial	crates/cpa-plugin/src/executor.rs, models.rs register_executors; Go-differential coverage: live_checks a_stale_executor_provider_replaced_by_a_builtin_one_is_kept only	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0076	partial	crates/cpa-plugin/src/executor.rs; Go-differential coverage: negotiation_follows_go only	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0077	partial	crates/cpa-plugin/src/executor.rs; Go-differential coverage: negotiation_follows_go only	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0078	partial	crates/cpa-plugin/src/executor.rs; Go-differential coverage: negotiation_follows_go only	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0079	partial	crates/cpa-plugin/src/transform.rs; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json: translate_request)	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0080	partial	crates/cpa-plugin/src/transform.rs; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json: normalize_request)	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0081	partial	crates/cpa-plugin/src/transform.rs; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json: translate_response)	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0082	partial	crates/cpa-plugin/src/transform.rs; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json: normalize_response_before)	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0083	partial	crates/cpa-plugin/src/transform.rs; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json: normalize_response_after)	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0084	partial	crates/cpa-plugin/src/interceptors.rs; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json: intercept_before, intercept_after)	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0085	partial	crates/cpa-plugin/src/interceptors.rs; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json: complete)	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0086	partial	crates/cpa-plugin/src/interceptors.rs; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json: intercept_response)	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0087	partial	crates/cpa-plugin/src/interceptors.rs; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json: intercept_stream_chunk)	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0088	partial	crates/cpa-plugin/src/interceptors.rs observe_websocket_response_event; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json: ws_event)	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0089	partial	crates/cpa-plugin/src/transform.rs; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json: thinking)	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0090	partial	crates/cpa-plugin/src/transform.rs (usage.handle adapter); Go-differential coverage: no test	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0091	partial	crates/cpa-plugin/src/cli.rs; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json: command_line)	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0092	partial	crates/cpa-plugin/src/management.rs; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json: management and resource steps)	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0093	partial	crates/cpa-plugin/src/quota.rs; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json: describe_quota, fetch_quota, reset_quota_by_plugin)	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0094	partial	crates/cpa-plugin/src/host.rs; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json: apply steps)	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0095	partial	crates/cpa-plugin/src/host.rs; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json: apply steps)	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0096	partial	crates/cpa-plugin/src/host.rs; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json: apply steps)	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0098	partial	crates/cpa-plugin/src/models.rs; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json: model.register responses)	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0099	partial	crates/cpa-plugin/src/models.rs; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json: model.static responses)	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0100	partial	crates/cpa-plugin/src/models.rs; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json: model.for_auth responses)	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0101	partial	crates/cpa-plugin/src/auth.rs; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json: auth.identifier responses)	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0102	partial	crates/cpa-plugin/src/auth.rs; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json: auth.parse responses)	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0103	partial	crates/cpa-plugin/src/auth.rs; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json: auth.login.start responses)	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0104	partial	crates/cpa-plugin/src/auth.rs; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json: auth.login.poll responses)	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0105	partial	crates/cpa-plugin/src/auth.rs; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json: auth.refresh responses)	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0106	partial	crates/cpa-plugin/src/auth.rs; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json: frontend_auth calls)	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0107	partial	crates/cpa-plugin/src/auth.rs; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json: frontend_auth.authenticate responses)	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0108	partial	crates/cpa-plugin/src/routing.rs; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json: scheduler.pick responses)	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0109	partial	crates/cpa-plugin/src/routing.rs; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json: model.route responses)	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0110	partial	crates/cpa-plugin/src/executor.rs; tests/live_checks.rs only	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0111	partial	crates/cpa-plugin/src/executor.rs; no Go-differential test	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0112	partial	crates/cpa-plugin/src/executor.rs; no Go-differential test	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0113	partial	crates/cpa-plugin/src/executor.rs; no Go-differential test	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0114	partial	crates/cpa-plugin/src/executor.rs; no Go-differential test	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0115	partial	crates/cpa-plugin/src/transform.rs; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json: request.translate responses)	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0116	partial	crates/cpa-plugin/src/transform.rs; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json: request.normalize responses)	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0117	partial	crates/cpa-plugin/src/interceptors.rs; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json: request.intercept_before responses)	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0118	partial	crates/cpa-plugin/src/interceptors.rs; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json: request.intercept_after responses)	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0119	partial	crates/cpa-plugin/src/interceptors.rs; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json: complete call and records)	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0120	partial	crates/cpa-plugin/src/transform.rs; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json: response.translate responses)	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0121	partial	crates/cpa-plugin/src/transform.rs; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json: response.normalize_before responses)	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0122	partial	crates/cpa-plugin/src/transform.rs; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json: response.normalize_after responses)	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0123	partial	crates/cpa-plugin/src/interceptors.rs; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json: response.intercept_after responses)	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0124	partial	crates/cpa-plugin/src/interceptors.rs; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json: response.intercept_stream_chunk responses)	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0125	partial	crates/cpa-plugin/src/interceptors.rs; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json: ws_event call)	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0126	partial	crates/cpa-plugin/src/transform.rs; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json: thinking.identifier responses)	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0127	partial	crates/cpa-plugin/src/transform.rs; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json: thinking.apply responses)	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0128	partial	crates/cpa-plugin/src/transform.rs; no Go-differential test	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0129	partial	crates/cpa-plugin/src/cli.rs; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json: command_line.register responses)	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0130	partial	crates/cpa-plugin/src/cli.rs; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json: command_line.execute responses)	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0131	partial	crates/cpa-plugin/src/management.rs; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json: register_management step)	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0132	partial	crates/cpa-plugin/src/management.rs; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json: management and resource steps)	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0133	partial	crates/cpa-plugin/src/quota.rs; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json: quota.identifier responses)	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0134	partial	crates/cpa-plugin/src/quota.rs; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json: quota.describe responses)	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0135	partial	crates/cpa-plugin/src/quota.rs; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json: quota.fetch responses)	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0136	partial	crates/cpa-plugin/src/quota.rs; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json: quota.reset responses)	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0147	partial	crates/cpa-plugin/src/callbacks.rs, streams.rs; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json: host.stream.emit in the management calls step)	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0148	partial	crates/cpa-plugin/src/callbacks.rs, streams.rs; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json: host.stream.close in the management calls step)	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0149	partial	crates/cpa-plugin/src/callbacks.rs host_log; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json: host.log in the management calls step)	ultra/plugins	cpa-plugin implements it and replays Go goldens, but no crate depends on cpa-plugin: the server and binary never load plugins.
+M6-0097	covered	crates/cpa-plugin/src/abi.rs (constant), native.rs shutdown export; native_abi.rs calls_racing_shutdown_are_safe	ultra/plugins	Go's host never sends plugin.shutdown over RPC either; both call the native shutdown export.
+M6-0137	missing	crates/cpa-plugin/src/callbacks.rs call_service answers "unsupported host callback"	ultra/plugins	Needs the server's HTTP, model-execution and auth services behind the host.
+M6-0138	missing	crates/cpa-plugin/src/callbacks.rs call_service answers "unsupported host callback"	ultra/plugins	Needs the server's HTTP, model-execution and auth services behind the host.
+M6-0139	missing	crates/cpa-plugin/src/callbacks.rs call_service answers "unsupported host callback"	ultra/plugins	Needs the server's HTTP, model-execution and auth services behind the host.
+M6-0140	missing	crates/cpa-plugin/src/callbacks.rs call_service answers "unsupported host callback"	ultra/plugins	Needs the server's HTTP, model-execution and auth services behind the host.
+M6-0141	missing	crates/cpa-plugin/src/callbacks.rs call_service answers "unsupported host callback"	ultra/plugins	Needs the server's HTTP, model-execution and auth services behind the host.
+M6-0142	missing	crates/cpa-plugin/src/callbacks.rs call_service answers "unsupported host callback"	ultra/plugins	Needs the server's HTTP, model-execution and auth services behind the host.
+M6-0143	missing	crates/cpa-plugin/src/callbacks.rs call_service answers "unsupported host callback"	ultra/plugins	Needs the server's HTTP, model-execution and auth services behind the host.
+M6-0144	missing	crates/cpa-plugin/src/callbacks.rs call_service answers "unsupported host callback"	ultra/plugins	Needs the server's HTTP, model-execution and auth services behind the host.
+M6-0145	missing	crates/cpa-plugin/src/callbacks.rs call_service answers "unsupported host callback"	ultra/plugins	Needs the server's HTTP, model-execution and auth services behind the host.
+M6-0146	missing	crates/cpa-plugin/src/callbacks.rs call_service answers "unsupported host callback"	ultra/plugins	Needs the server's HTTP, model-execution and auth services behind the host.
+M6-0150	missing	crates/cpa-plugin/src/callbacks.rs call_service answers "unsupported host callback"	ultra/plugins	Needs the server's auth store and session affinity behind the host.
+M6-0151	missing	crates/cpa-plugin/src/callbacks.rs call_service answers "unsupported host callback"	ultra/plugins	Needs the server's auth store and session affinity behind the host.
+M6-0152	missing	crates/cpa-plugin/src/callbacks.rs call_service answers "unsupported host callback"	ultra/plugins	Needs the server's auth store and session affinity behind the host.
+M6-0153	missing	crates/cpa-plugin/src/callbacks.rs call_service answers "unsupported host callback"	ultra/plugins	Needs the server's auth store and session affinity behind the host.
+M6-0154	missing	crates/cpa-plugin/src/callbacks.rs call_service answers "unsupported host callback"	ultra/plugins	Needs the server's auth store and session affinity behind the host.
+M6-0160	partial	crates/cliproxy/src/discovery/cli.rs load_scan_filters (discovery_cmd_go.json config_filters)	ultra/tui	Not ported by name.
+M6-0161			ultra/home	
+M6-0163	partial	crates/cpa-plugin/src/config.rs (items_follow_go, disabled_section_keeps_defaults, dir_resolution_matches_go)	ultra/plugins	The store-sources, store-auth and auth-revision cases have no counterpart (no plugin store).
+M6-0164	partial	crates/cliproxy/src/discovery/tests.rs (Go-recorded outputs: instance ID, TXT build/parse, validation, interface filters, merge limits)	ultra/tui	Advertiser idempotence/shutdown and the live browse integration are not ported.
+M6-0189			ultra/plugins	
+M6-0200	partial	crates/cpa-plugin/src/interceptors.rs observe_websocket_response_event; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json ws_event step)	ultra/plugins	Not ported by name; no WebSocket path calls the observer.
+M6-0209			ultra/server	
+M6-0211			ultra/plugins	Plugin request translators are not wired into the request pair.
+M6-0213			ultra/plugins	Plugin request translators are not wired into the request pair.
+M6-0172			ultra/home	
+M6-0173			ultra/home	
+M6-0212			ultra/home	
+M6-0221			ultra/home	
+M6-0222			ultra/home	
+M6-0223			ultra/home	
+M6-0224			ultra/home	
+M6-0225			ultra/home	
+M6-0226			ultra/home	
+M6-0227			ultra/home	
+M6-0228			ultra/home	
+M6-0229			ultra/home	
+M6-0230			ultra/home	
+M6-0231			ultra/home	
+M6-0232			ultra/home	
+M6-0233			ultra/home	
+M6-0234			ultra/home	
+M6-0235			ultra/home	
+M6-0236			ultra/home	
+M6-0237			ultra/home	
+M6-0218	missing	no terminal UI client	ultra/tui	
+M6-0243	partial	crates/cpa-plugin/src/abi.rs (envelopes_match_go_bytes)	ultra/plugins	Not ported by name.
+M6-0244	partial	crates/cpa-plugin/src/api.rs, gojson (model_info_round_trips_go_field_names, scheduler and quota decode tests)	ultra/plugins	Not ported by name.
+M6-0246	partial	crates/cpa-plugin/src/quota.rs; crates/cpa-plugin/tests/go_host.rs (pluginhost_go.json quota steps)	ultra/plugins	Not ported by name.
+# Owner corrections from the integrator (owner rulings).
+M4-0061			ultra/tui	Go reads it only in the v0 management handlers and the reload diff.
+M4-0062			ultra/tui	Go reads it only in the v0 management handlers and the reload diff.
+M4-0048			ultra/server	It only disables request logging; it ships with request-log capture (M4-0250).
