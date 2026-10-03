@@ -5,6 +5,8 @@
 //! exact request bytes every plugin received (config YAML compared as YAML, since the
 //! emitters format differently).
 
+#[path = "go_host/calls.rs"]
+mod calls;
 mod support;
 
 use std::collections::{BTreeMap, HashSet};
@@ -143,6 +145,29 @@ impl Runner {
                 Value::Null
             }
             "records" => self.records(),
+            "respond" => {
+                let dir = self.record_dir.join("respond").join(args["label"].as_str().unwrap());
+                std::fs::create_dir_all(&dir).unwrap();
+                let path = dir.join(format!("{}.json", args["method"].as_str().unwrap()));
+                match args["envelope"].as_str().unwrap() {
+                    "" => {
+                        let _ = std::fs::remove_file(path);
+                    }
+                    envelope => std::fs::write(path, envelope).unwrap(),
+                }
+                Value::Null
+            }
+            "settle" => {
+                tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+                Value::Null
+            }
+            "clear" => {
+                for entry in std::fs::read_dir(&self.plugin_dir).unwrap() {
+                    std::fs::remove_file(entry.unwrap().path()).unwrap();
+                }
+                Value::Null
+            }
+            "call" => calls::call(&self.host, args).await,
             other => panic!("unknown step {other}"),
         }
     }
@@ -154,6 +179,7 @@ impl Runner {
         let mut names: Vec<_> = std::fs::read_dir(&self.record_dir)
             .unwrap()
             .map(|e| e.unwrap().path())
+            .filter(|p| !p.is_dir())
             .collect();
         names.sort();
         for path in names {
@@ -163,7 +189,11 @@ impl Runner {
             let mut entries = Vec::new();
             for line in text.lines() {
                 let mut entry: serde_json::Map<String, Value> = serde_json::from_str(line).unwrap();
-                let request = entry["request"].as_str().unwrap().to_owned();
+                let request = entry["request"]
+                    .as_str()
+                    .unwrap()
+                    .replace(&*self.record_dir.to_string_lossy(), "RECORDDIR");
+                entry.insert("request".into(), request.clone().into());
                 if let Ok(Value::Object(req)) = serde_json::from_str::<Value>(&request)
                     && let Some(raw) = req.get("config_yaml")
                 {
@@ -192,6 +222,45 @@ impl Runner {
     }
 }
 
+/// Callback context IDs are opaque counters; contexts opened from background tasks
+/// (request completion) are numbered in scheduling order, so only their presence counts.
+fn without_callback_ids(s: &str) -> String {
+    const KEY: &str = "\"host_callback_id\":\"";
+    let mut out = String::with_capacity(s.len());
+    let mut rest = s;
+    while let Some(at) = rest.find(KEY) {
+        out.push_str(&rest[..at + KEY.len()]);
+        rest = rest[at + KEY.len()..].trim_start_matches(|c: char| c.is_ascii_digit());
+        out.push('#');
+    }
+    out.push_str(rest);
+    out
+}
+
+/// The first differing leaf, for failure messages.
+fn first_diff(go: &Value, rust: &Value, path: &str) -> String {
+    match (go, rust) {
+        (Value::Object(a), Value::Object(b)) => {
+            for (k, v) in a {
+                match b.get(k) {
+                    Some(w) if !same(v, w) => return first_diff(v, w, &format!("{path}.{k}")),
+                    None => return format!("{path}.{k}: missing in rust"),
+                    _ => {}
+                }
+            }
+            match b.keys().find(|k| !a.contains_key(*k)) {
+                Some(k) => format!("{path}.{k}: only in rust"),
+                None => format!("{path}: ?"),
+            }
+        }
+        (Value::Array(a), Value::Array(b)) if a.len() == b.len() => {
+            let i = a.iter().zip(b).position(|(v, w)| !same(v, w)).unwrap_or(0);
+            first_diff(&a[i], &b[i], &format!("{path}[{i}]"))
+        }
+        _ => format!("{path}:\n    go:   {go}\n    rust: {rust}"),
+    }
+}
+
 /// Config YAML is compared as YAML; everything else exactly.
 fn same(go: &Value, rust: &Value) -> bool {
     match (go, rust) {
@@ -211,6 +280,7 @@ fn same(go: &Value, rust: &Value) -> bool {
                 })
         }
         (Value::Array(a), Value::Array(b)) => a.len() == b.len() && a.iter().zip(b).all(|(v, w)| same(v, w)),
+        (Value::String(a), Value::String(b)) => without_callback_ids(a) == without_callback_ids(b),
         _ => go == rust,
     }
 }
@@ -236,10 +306,9 @@ async fn rust_host_matches_go_host() {
         let got = runner.step(op, &step["args"]).await;
         if !same(&step["result"], &got) {
             failures.push(format!(
-                "step {i} {op} {}\n  go:   {}\n  rust: {}",
+                "step {i} {op} {}\n  {}",
                 step["args"].to_string().chars().take(160).collect::<String>(),
-                step["result"],
-                got
+                first_diff(&step["result"], &got, "")
             ));
         }
     }

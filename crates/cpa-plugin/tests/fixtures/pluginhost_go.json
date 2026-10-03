@@ -1221,6 +1221,2262 @@
           }
         ]
       }
+    },
+    {
+      "op": "clear",
+      "args": null,
+      "result": null
+    },
+    {
+      "op": "files",
+      "args": {
+        "recorder-a.so": "recorder",
+        "recorder-b.so": "recorder",
+        "recorder-c.so": "recorder"
+      },
+      "result": null
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"ok\":true,\"result\":{\"identifier\":\"Claude\"}}",
+        "label": "b",
+        "method": "thinking.identifier"
+      },
+      "result": null
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"ok\":true,\"result\":{\"identifier\":\" Rec-C \"}}",
+        "label": "c",
+        "method": "auth.identifier"
+      },
+      "result": null
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"ok\":true,\"result\":{\"identifier\":\"A\"}}",
+        "label": "b",
+        "method": "quota.identifier"
+      },
+      "result": null
+    },
+    {
+      "op": "apply",
+      "args": "auth-dir: RECORDDIR/auths\nplugins:\n  enabled: true\n  dir: PLUGINDIR\n  configs:\n    recorder-a:\n      enabled: true\n      priority: 5\n      record: RECORDDIR\n      label: a\n      caps: request_interceptor,response_interceptor,response_stream_interceptor,request_lifecycle_plugin,websocket_response_observer,scheduler,model_router,request_normalizer,request_translator,response_translator,response_before_translator,response_after_translator,thinking_applier,auth_provider,frontend_auth_provider,quota_provider,model_provider,command_line_plugin\n    recorder-b:\n      enabled: true\n      priority: 5\n      record: RECORDDIR\n      label: b\n      schema: 5\n      caps: request_interceptor,response_interceptor,response_stream_interceptor,request_lifecycle_plugin,request_normalizer,response_before_translator,frontend_auth_provider,quota_provider,thinking_applier,model_registrar,command_line_plugin\n    recorder-c:\n      enabled: true\n      priority: 1\n      record: RECORDDIR\n      label: c\n      scope: static\n      caps: executor,model_registrar,model_router,command_line_plugin,auth_provider\n",
+      "result": [
+        {
+          "id": "recorder-a",
+          "priority": 5,
+          "metadata": {
+            "Author": "cliproxy-rs tests",
+            "ConfigFields": null,
+            "GitHubRepository": "https://example.invalid/recorder",
+            "Logo": "",
+            "Name": "a",
+            "Version": "1.0.0"
+          },
+          "supports_oauth": true,
+          "oauth_provider": "a",
+          "supports_quota": true,
+          "quota_provider": "a",
+          "menus": []
+        },
+        {
+          "id": "recorder-b",
+          "priority": 5,
+          "metadata": {
+            "Author": "cliproxy-rs tests",
+            "ConfigFields": null,
+            "GitHubRepository": "https://example.invalid/recorder",
+            "Logo": "",
+            "Name": "b",
+            "Version": "1.0.0"
+          },
+          "supports_oauth": false,
+          "oauth_provider": "",
+          "supports_quota": true,
+          "quota_provider": "a",
+          "menus": []
+        },
+        {
+          "id": "recorder-c",
+          "priority": 1,
+          "metadata": {
+            "Author": "cliproxy-rs tests",
+            "ConfigFields": null,
+            "GitHubRepository": "https://example.invalid/recorder",
+            "Logo": "",
+            "Name": "c",
+            "Version": "1.0.0"
+          },
+          "supports_oauth": true,
+          "oauth_provider": "rec-c",
+          "supports_quota": false,
+          "quota_provider": "",
+          "menus": []
+        }
+      ]
+    },
+    {
+      "op": "call",
+      "args": {
+        "fn": "has"
+      },
+      "result": {
+        "auth_identifiers": [
+          "a",
+          "rec-c"
+        ],
+        "auth_provider_rec_c": true,
+        "model_routers": true,
+        "quota_identifiers": [
+          "a"
+        ],
+        "quota_provider_plugin_a": true,
+        "request_interceptors": true,
+        "scheduler": true,
+        "scheduler_across": false,
+        "stream_history": false,
+        "stream_interceptors": true,
+        "stream_request_body": false,
+        "websocket_observers": true
+      }
+    },
+    {
+      "op": "records",
+      "args": null,
+      "result": {
+        "a": [
+          {
+            "config_yaml": "enabled: true\npriority: 5\nrecord: RECORDDIR\nlabel: a\ncaps: request_interceptor,response_interceptor,response_stream_interceptor,request_lifecycle_plugin,websocket_response_observer,scheduler,model_router,request_normalizer,request_translator,response_translator,response_before_translator,response_after_translator,thinking_applier,auth_provider,frontend_auth_provider,quota_provider,model_provider,command_line_plugin\n",
+            "method": "plugin.register",
+            "request": "{\"config_yaml\":\"\u003cconfig_yaml\u003e\",\"schema_version\":6}"
+          },
+          {
+            "method": "auth.identifier",
+            "request": "{}"
+          },
+          {
+            "method": "quota.identifier",
+            "request": "{}"
+          },
+          {
+            "method": "thinking.identifier",
+            "request": "{}"
+          }
+        ],
+        "b": [
+          {
+            "config_yaml": "enabled: true\npriority: 5\nrecord: RECORDDIR\nlabel: b\nschema: 5\ncaps: request_interceptor,response_interceptor,response_stream_interceptor,request_lifecycle_plugin,request_normalizer,response_before_translator,frontend_auth_provider,quota_provider,thinking_applier,model_registrar,command_line_plugin\n",
+            "method": "plugin.register",
+            "request": "{\"config_yaml\":\"\u003cconfig_yaml\u003e\",\"schema_version\":6}"
+          },
+          {
+            "method": "quota.identifier",
+            "request": "{}"
+          },
+          {
+            "method": "thinking.identifier",
+            "request": "{}"
+          }
+        ],
+        "c": [
+          {
+            "config_yaml": "enabled: true\npriority: 1\nrecord: RECORDDIR\nlabel: c\nscope: static\ncaps: executor,model_registrar,model_router,command_line_plugin,auth_provider\n",
+            "method": "plugin.register",
+            "request": "{\"config_yaml\":\"\u003cconfig_yaml\u003e\",\"schema_version\":6}"
+          },
+          {
+            "method": "auth.identifier",
+            "request": "{}"
+          }
+        ]
+      }
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"ok\":true,\"result\":{\"Body\":\"eyJhIjoxfQ==\",\"ClearHeaders\":[\"x-drop\"],\"Headers\":{\"X-A\":[\"1\"],\"x-lower\":[\"l\"]}}}",
+        "label": "a",
+        "method": "request.intercept_before"
+      },
+      "result": null
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"ok\":true,\"result\":{\"Headers\":{\"X-B\":[\"2\"]}}}",
+        "label": "b",
+        "method": "request.intercept_before"
+      },
+      "result": null
+    },
+    {
+      "op": "call",
+      "args": {
+        "fn": "intercept_before",
+        "req": {
+          "RequestID": "r1",
+          "SourceFormat": "openai",
+          "ToFormat": "claude",
+          "Model": "m",
+          "RequestedModel": "m-req",
+          "Stream": true,
+          "Headers": {
+            "X-Drop": [
+              "d"
+            ],
+            "X-Keep": [
+              "k"
+            ]
+          },
+          "Body": "e30=",
+          "Metadata": {
+            "n": 1,
+            "s": "x"
+          }
+        }
+      },
+      "result": {
+        "Headers": {
+          "X-A": [
+            "1"
+          ],
+          "X-B": [
+            "2"
+          ],
+          "X-Keep": [
+            "k"
+          ],
+          "X-Lower": [
+            "l"
+          ]
+        },
+        "Body": "eyJhIjoxfQ==",
+        "ClearHeaders": null,
+        "Terminate": false,
+        "StatusCode": 0,
+        "ResponseHeaders": null,
+        "ResponseBody": null
+      }
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"ok\":true,\"result\":{\"ResponseBody\":\"ZGVuaWVk\",\"ResponseHeaders\":{\"X-T\":[\"t\"]},\"StatusCode\":403,\"Terminate\":true}}",
+        "label": "a",
+        "method": "request.intercept_after"
+      },
+      "result": null
+    },
+    {
+      "op": "call",
+      "args": {
+        "fn": "intercept_after",
+        "req": {
+          "RequestID": "r1",
+          "SourceFormat": "openai",
+          "ToFormat": "claude",
+          "Model": "m",
+          "RequestedModel": "m-req",
+          "Stream": true,
+          "Headers": {
+            "X-Drop": [
+              "d"
+            ],
+            "X-Keep": [
+              "k"
+            ]
+          },
+          "Body": "e30=",
+          "Metadata": {
+            "n": 1,
+            "s": "x"
+          }
+        }
+      },
+      "result": {
+        "Headers": {
+          "X-Drop": [
+            "d"
+          ],
+          "X-Keep": [
+            "k"
+          ]
+        },
+        "Body": null,
+        "ClearHeaders": null,
+        "Terminate": true,
+        "StatusCode": 403,
+        "ResponseHeaders": {
+          "X-T": [
+            "t"
+          ]
+        },
+        "ResponseBody": "ZGVuaWVk"
+      }
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"ok\":true,\"result\":{\"Terminate\":true}}",
+        "label": "a",
+        "method": "request.intercept_after"
+      },
+      "result": null
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"error\":{\"code\":\"boom\",\"message\":\"after failed\"},\"ok\":false}",
+        "label": "b",
+        "method": "request.intercept_after"
+      },
+      "result": null
+    },
+    {
+      "op": "call",
+      "args": {
+        "fn": "intercept_after",
+        "req": {
+          "RequestID": "r1",
+          "SourceFormat": "openai",
+          "ToFormat": "claude",
+          "Model": "m",
+          "RequestedModel": "m-req",
+          "Stream": true,
+          "Headers": {
+            "X-Drop": [
+              "d"
+            ],
+            "X-Keep": [
+              "k"
+            ]
+          },
+          "Body": "e30=",
+          "Metadata": {
+            "n": 1,
+            "s": "x"
+          }
+        }
+      },
+      "result": {
+        "Headers": {
+          "X-Drop": [
+            "d"
+          ],
+          "X-Keep": [
+            "k"
+          ]
+        },
+        "Body": null,
+        "ClearHeaders": null,
+        "Terminate": true,
+        "StatusCode": 0,
+        "ResponseHeaders": null,
+        "ResponseBody": null
+      }
+    },
+    {
+      "op": "records",
+      "args": null,
+      "result": {
+        "a": [
+          {
+            "method": "request.intercept_before",
+            "request": "{\"RequestID\":\"r1\",\"TraceID\":\"\",\"SourceFormat\":\"openai\",\"ToFormat\":\"claude\",\"Model\":\"m\",\"RequestedModel\":\"m-req\",\"Stream\":true,\"Headers\":{\"X-Drop\":[\"d\"],\"X-Keep\":[\"k\"]},\"Body\":\"e30=\",\"Metadata\":{\"n\":1,\"s\":\"x\"},\"host_callback_id\":\"7\"}"
+          },
+          {
+            "method": "request.intercept_after",
+            "request": "{\"RequestID\":\"r1\",\"TraceID\":\"\",\"SourceFormat\":\"openai\",\"ToFormat\":\"claude\",\"Model\":\"m\",\"RequestedModel\":\"m-req\",\"Stream\":true,\"Headers\":{\"X-Drop\":[\"d\"],\"X-Keep\":[\"k\"]},\"Body\":\"e30=\",\"Metadata\":{\"n\":1,\"s\":\"x\"},\"host_callback_id\":\"9\"}"
+          },
+          {
+            "method": "request.intercept_after",
+            "request": "{\"RequestID\":\"r1\",\"TraceID\":\"\",\"SourceFormat\":\"openai\",\"ToFormat\":\"claude\",\"Model\":\"m\",\"RequestedModel\":\"m-req\",\"Stream\":true,\"Headers\":{\"X-Drop\":[\"d\"],\"X-Keep\":[\"k\"]},\"Body\":\"e30=\",\"Metadata\":{\"n\":1,\"s\":\"x\"},\"host_callback_id\":\"10\"}"
+          }
+        ],
+        "b": [
+          {
+            "method": "request.intercept_before",
+            "request": "{\"RequestID\":\"r1\",\"TraceID\":\"\",\"SourceFormat\":\"openai\",\"ToFormat\":\"claude\",\"Model\":\"m\",\"RequestedModel\":\"m-req\",\"Stream\":true,\"Headers\":{\"X-A\":[\"1\"],\"X-Keep\":[\"k\"],\"X-Lower\":[\"l\"]},\"Body\":\"eyJhIjoxfQ==\",\"Metadata\":{\"n\":1,\"s\":\"x\"},\"host_callback_id\":\"8\"}"
+          }
+        ]
+      }
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"ok\":true,\"result\":{\"Body\":\"cmVzcC1h\",\"Headers\":{\"X-R\":[\"a\"]}}}",
+        "label": "a",
+        "method": "response.intercept_after"
+      },
+      "result": null
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"error\":{\"code\":\"boom\",\"message\":\"bad\"},\"ok\":false}",
+        "label": "b",
+        "method": "response.intercept_after"
+      },
+      "result": null
+    },
+    {
+      "op": "call",
+      "args": {
+        "fn": "intercept_response",
+        "req": {
+          "RequestID": "r2",
+          "SourceFormat": "openai",
+          "Model": "m",
+          "Stream": false,
+          "RequestHeaders": {
+            "A": [
+              "1"
+            ]
+          },
+          "ResponseHeaders": {
+            "Content-Type": [
+              "application/json"
+            ]
+          },
+          "OriginalRequest": "b3JpZw==",
+          "RequestBody": "cmVx",
+          "Body": "cmVzcA==",
+          "StatusCode": 200
+        }
+      },
+      "result": {
+        "Headers": {
+          "Content-Type": [
+            "application/json"
+          ],
+          "X-R": [
+            "a"
+          ]
+        },
+        "Body": "cmVzcC1h",
+        "ClearHeaders": null
+      }
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"ok\":true,\"result\":{\"Body\":\"Y2h1bmstYQ==\",\"ClearHeaders\":[\"X-Gone\"]}}",
+        "label": "a",
+        "method": "response.intercept_stream_chunk"
+      },
+      "result": null
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"ok\":true,\"result\":{\"DropChunk\":true}}",
+        "label": "b",
+        "method": "response.intercept_stream_chunk"
+      },
+      "result": null
+    },
+    {
+      "op": "call",
+      "args": {
+        "fn": "intercept_stream_chunk",
+        "req": {
+          "RequestID": "r3",
+          "SourceFormat": "openai",
+          "Model": "m",
+          "RequestHeaders": {
+            "A": [
+              "1"
+            ]
+          },
+          "ResponseHeaders": {
+            "X-Gone": [
+              "g"
+            ],
+            "X-Stay": [
+              "s"
+            ]
+          },
+          "OriginalRequest": "b3JpZw==",
+          "RequestBody": "cmVx",
+          "Body": "Y2h1bms=",
+          "HistoryChunks": [
+            "aDE=",
+            "aDI="
+          ],
+          "ChunkIndex": 2
+        }
+      },
+      "result": {
+        "Headers": {
+          "X-Stay": [
+            "s"
+          ]
+        },
+        "Body": "Y2h1bmstYQ==",
+        "ClearHeaders": null,
+        "DropChunk": true
+      }
+    },
+    {
+      "op": "call",
+      "args": {
+        "fn": "intercept_stream_chunk",
+        "req": {
+          "RequestID": "r3",
+          "ChunkIndex": -1,
+          "ResponseHeaders": {
+            "X-Init": [
+              "i"
+            ]
+          }
+        }
+      },
+      "result": {
+        "Headers": {
+          "X-Init": [
+            "i"
+          ]
+        },
+        "Body": "Y2h1bmstYQ==",
+        "ClearHeaders": null,
+        "DropChunk": true
+      }
+    },
+    {
+      "op": "records",
+      "args": null,
+      "result": {
+        "a": [
+          {
+            "method": "response.intercept_after",
+            "request": "{\"RequestID\":\"r2\",\"SourceFormat\":\"openai\",\"Model\":\"m\",\"RequestedModel\":\"\",\"Stream\":false,\"RequestHeaders\":{\"A\":[\"1\"]},\"ResponseHeaders\":{\"Content-Type\":[\"application/json\"]},\"OriginalRequest\":\"b3JpZw==\",\"RequestBody\":\"cmVx\",\"Body\":\"cmVzcA==\",\"StatusCode\":200,\"Metadata\":null,\"host_callback_id\":\"11\"}"
+          },
+          {
+            "method": "response.intercept_stream_chunk",
+            "request": "{\"RequestID\":\"r3\",\"SourceFormat\":\"openai\",\"Model\":\"m\",\"RequestedModel\":\"\",\"RequestHeaders\":{\"A\":[\"1\"]},\"ResponseHeaders\":{\"X-Gone\":[\"g\"],\"X-Stay\":[\"s\"]},\"OriginalRequest\":null,\"RequestBody\":null,\"Body\":\"Y2h1bms=\",\"HistoryChunks\":null,\"ChunkIndex\":2,\"Metadata\":null,\"host_callback_id\":\"13\"}"
+          },
+          {
+            "method": "response.intercept_stream_chunk",
+            "request": "{\"RequestID\":\"r3\",\"SourceFormat\":\"\",\"Model\":\"\",\"RequestedModel\":\"\",\"RequestHeaders\":null,\"ResponseHeaders\":{\"X-Init\":[\"i\"]},\"OriginalRequest\":null,\"RequestBody\":null,\"Body\":null,\"HistoryChunks\":null,\"ChunkIndex\":-1,\"Metadata\":null,\"host_callback_id\":\"15\"}"
+          }
+        ],
+        "b": [
+          {
+            "method": "response.intercept_after",
+            "request": "{\"RequestID\":\"r2\",\"SourceFormat\":\"openai\",\"Model\":\"m\",\"RequestedModel\":\"\",\"Stream\":false,\"RequestHeaders\":{\"A\":[\"1\"]},\"ResponseHeaders\":{\"Content-Type\":[\"application/json\"],\"X-R\":[\"a\"]},\"OriginalRequest\":\"b3JpZw==\",\"RequestBody\":\"cmVx\",\"Body\":\"cmVzcC1h\",\"StatusCode\":200,\"Metadata\":null,\"host_callback_id\":\"12\"}"
+          },
+          {
+            "method": "response.intercept_stream_chunk",
+            "request": "{\"RequestID\":\"r3\",\"SourceFormat\":\"openai\",\"Model\":\"m\",\"RequestedModel\":\"\",\"RequestHeaders\":{\"A\":[\"1\"]},\"ResponseHeaders\":{\"X-Stay\":[\"s\"]},\"OriginalRequest\":null,\"RequestBody\":null,\"Body\":\"Y2h1bmstYQ==\",\"HistoryChunks\":null,\"ChunkIndex\":2,\"Metadata\":null,\"host_callback_id\":\"14\"}"
+          },
+          {
+            "method": "response.intercept_stream_chunk",
+            "request": "{\"RequestID\":\"r3\",\"SourceFormat\":\"\",\"Model\":\"\",\"RequestedModel\":\"\",\"RequestHeaders\":null,\"ResponseHeaders\":{\"X-Init\":[\"i\"]},\"OriginalRequest\":null,\"RequestBody\":null,\"Body\":\"Y2h1bmstYQ==\",\"HistoryChunks\":null,\"ChunkIndex\":-1,\"Metadata\":null,\"host_callback_id\":\"16\"}"
+          }
+        ]
+      }
+    },
+    {
+      "op": "call",
+      "args": {
+        "fn": "complete",
+        "req": {
+          "RequestID": "r4",
+          "SourceFormat": "openai",
+          "Model": "m",
+          "Outcome": "failed",
+          "StatusCode": 502,
+          "Error": "upstream",
+          "StartedAt": "2026-10-03T01:02:03.5Z",
+          "CompletedAt": "2026-10-03T01:02:04Z",
+          "Metadata": {
+            "k": [
+              1,
+              2
+            ]
+          }
+        }
+      },
+      "result": null
+    },
+    {
+      "op": "call",
+      "args": {
+        "fn": "ws_event",
+        "req": {
+          "RequestID": "r5",
+          "TraceID": "t",
+          "SourceFormat": "openai-response",
+          "Payload": "eyJ0eXBlIjoicmVzcG9uc2UuZG9uZSJ9"
+        }
+      },
+      "result": null
+    },
+    {
+      "op": "settle",
+      "args": null,
+      "result": null
+    },
+    {
+      "op": "records",
+      "args": null,
+      "result": {
+        "a": [
+          {
+            "method": "websocket.response_event",
+            "request": "{\"RequestID\":\"r5\",\"TraceID\":\"t\",\"SourceFormat\":\"openai-response\",\"Model\":\"\",\"RequestedModel\":\"\",\"Provider\":\"\",\"AuthID\":\"\",\"AuthLabel\":\"\",\"AuthType\":\"\",\"EventType\":\"\",\"Payload\":\"eyJ0eXBlIjoicmVzcG9uc2UuZG9uZSJ9\",\"Metadata\":null,\"host_callback_id\":\"17\"}"
+          },
+          {
+            "method": "request.complete",
+            "request": "{\"RequestID\":\"r4\",\"TraceID\":\"\",\"SourceFormat\":\"openai\",\"Model\":\"m\",\"RequestedModel\":\"\",\"Stream\":false,\"Outcome\":\"failed\",\"StatusCode\":502,\"Error\":\"upstream\",\"StartedAt\":\"2026-10-03T01:02:03.5Z\",\"CompletedAt\":\"2026-10-03T01:02:04Z\",\"Metadata\":{\"k\":[1,2]},\"host_callback_id\":\"18\"}"
+          }
+        ],
+        "b": [
+          {
+            "method": "request.complete",
+            "request": "{\"RequestID\":\"r4\",\"TraceID\":\"\",\"SourceFormat\":\"openai\",\"Model\":\"m\",\"RequestedModel\":\"\",\"Stream\":false,\"Outcome\":\"failed\",\"StatusCode\":502,\"Error\":\"upstream\",\"StartedAt\":\"2026-10-03T01:02:03.5Z\",\"CompletedAt\":\"2026-10-03T01:02:04Z\",\"Metadata\":{\"k\":[1,2]},\"host_callback_id\":\"19\"}"
+          }
+        ]
+      }
+    },
+    {
+      "op": "call",
+      "args": {
+        "fn": "pick_auth",
+        "req": {
+          "Provider": "claude",
+          "Providers": [
+            "claude",
+            "codex"
+          ],
+          "Model": "m",
+          "Stream": true,
+          "Options": {
+            "Headers": {
+              "X": [
+                "1"
+              ]
+            }
+          },
+          "Candidates": [
+            {
+              "ID": "x1",
+              "Provider": "claude",
+              "Priority": 1,
+              "Status": "active"
+            },
+            {
+              "ID": "x2",
+              "Provider": "codex",
+              "Attributes": {
+                "k": "v"
+              }
+            }
+          ]
+        }
+      },
+      "result": {
+        "error": "",
+        "handled": true,
+        "resp": {
+          "AuthID": "x2",
+          "DelegateBuiltin": "",
+          "Handled": true,
+          "Reject": false,
+          "RejectReason": "",
+          "RejectCode": ""
+        }
+      }
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"ok\":true,\"result\":{\"auth_id\":\"nope\",\"handled\":true}}",
+        "label": "a",
+        "method": "scheduler.pick"
+      },
+      "result": null
+    },
+    {
+      "op": "call",
+      "args": {
+        "fn": "pick_auth",
+        "req": {
+          "Provider": "claude",
+          "Providers": [
+            "claude",
+            "codex"
+          ],
+          "Model": "m",
+          "Stream": true,
+          "Options": {
+            "Headers": {
+              "X": [
+                "1"
+              ]
+            }
+          },
+          "Candidates": [
+            {
+              "ID": "x1",
+              "Provider": "claude",
+              "Priority": 1,
+              "Status": "active"
+            },
+            {
+              "ID": "x2",
+              "Provider": "codex",
+              "Attributes": {
+                "k": "v"
+              }
+            }
+          ]
+        }
+      },
+      "result": {
+        "error": "",
+        "handled": false,
+        "resp": null
+      }
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"error\":{\"code\":\"pick_failed\",\"message\":\"no capacity\"},\"ok\":false}",
+        "label": "a",
+        "method": "scheduler.pick"
+      },
+      "result": null
+    },
+    {
+      "op": "call",
+      "args": {
+        "fn": "pick_auth",
+        "req": {
+          "Provider": "claude",
+          "Providers": [
+            "claude",
+            "codex"
+          ],
+          "Model": "m",
+          "Stream": true,
+          "Options": {
+            "Headers": {
+              "X": [
+                "1"
+              ]
+            }
+          },
+          "Candidates": [
+            {
+              "ID": "x1",
+              "Provider": "claude",
+              "Priority": 1,
+              "Status": "active"
+            },
+            {
+              "ID": "x2",
+              "Provider": "codex",
+              "Attributes": {
+                "k": "v"
+              }
+            }
+          ]
+        }
+      },
+      "result": {
+        "error": "no capacity",
+        "handled": true,
+        "resp": {
+          "AuthID": "",
+          "DelegateBuiltin": "",
+          "Handled": false,
+          "Reject": false,
+          "RejectReason": "",
+          "RejectCode": ""
+        }
+      }
+    },
+    {
+      "op": "records",
+      "args": null,
+      "result": {
+        "a": [
+          {
+            "method": "scheduler.pick",
+            "request": "{\"Plugin\":{\"Name\":\"a\",\"Version\":\"1.0.0\",\"Author\":\"cliproxy-rs tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null},\"Provider\":\"claude\",\"Providers\":[\"claude\",\"codex\"],\"Model\":\"m\",\"Stream\":true,\"Options\":{\"Headers\":{\"X\":[\"1\"]},\"Metadata\":null},\"Candidates\":[{\"ID\":\"x1\",\"Provider\":\"claude\",\"Priority\":1,\"Status\":\"active\",\"Attributes\":null,\"Metadata\":null},{\"ID\":\"x2\",\"Provider\":\"codex\",\"Priority\":0,\"Status\":\"\",\"Attributes\":{\"k\":\"v\"},\"Metadata\":null}]}"
+          },
+          {
+            "method": "scheduler.pick",
+            "request": "{\"Plugin\":{\"Name\":\"a\",\"Version\":\"1.0.0\",\"Author\":\"cliproxy-rs tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null},\"Provider\":\"claude\",\"Providers\":[\"claude\",\"codex\"],\"Model\":\"m\",\"Stream\":true,\"Options\":{\"Headers\":{\"X\":[\"1\"]},\"Metadata\":null},\"Candidates\":[{\"ID\":\"x1\",\"Provider\":\"claude\",\"Priority\":1,\"Status\":\"active\",\"Attributes\":null,\"Metadata\":null},{\"ID\":\"x2\",\"Provider\":\"codex\",\"Priority\":0,\"Status\":\"\",\"Attributes\":{\"k\":\"v\"},\"Metadata\":null}]}"
+          },
+          {
+            "method": "scheduler.pick",
+            "request": "{\"Plugin\":{\"Name\":\"a\",\"Version\":\"1.0.0\",\"Author\":\"cliproxy-rs tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null},\"Provider\":\"claude\",\"Providers\":[\"claude\",\"codex\"],\"Model\":\"m\",\"Stream\":true,\"Options\":{\"Headers\":{\"X\":[\"1\"]},\"Metadata\":null},\"Candidates\":[{\"ID\":\"x1\",\"Provider\":\"claude\",\"Priority\":1,\"Status\":\"active\",\"Attributes\":null,\"Metadata\":null},{\"ID\":\"x2\",\"Provider\":\"codex\",\"Priority\":0,\"Status\":\"\",\"Attributes\":{\"k\":\"v\"},\"Metadata\":null}]}"
+          }
+        ]
+      }
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"ok\":true,\"result\":{\"Handled\":true,\"Target\":\" OpenAI \",\"TargetKind\":\"provider\"}}",
+        "label": "a",
+        "method": "model.route"
+      },
+      "result": null
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"ok\":true,\"result\":{\"Handled\":true,\"Reason\":\"r\",\"Target\":\"ignored\",\"TargetKind\":\"self\",\"TargetModel\":\" m2 \"}}",
+        "label": "c",
+        "method": "model.route"
+      },
+      "result": null
+    },
+    {
+      "op": "call",
+      "args": {
+        "fn": "route_model",
+        "req": {
+          "SourceFormat": "openai",
+          "RequestedModel": "m",
+          "Stream": false,
+          "Headers": {
+            "H": [
+              "1"
+            ]
+          },
+          "Query": {
+            "q": [
+              "1"
+            ]
+          },
+          "Body": "e30=",
+          "Metadata": {
+            "x": true
+          }
+        }
+      },
+      "result": {
+        "error": "",
+        "handled": true,
+        "resp": {
+          "Handled": true,
+          "TargetKind": "self",
+          "Target": "recorder-c",
+          "TargetModel": "m2",
+          "Reason": "r"
+        }
+      }
+    },
+    {
+      "op": "call",
+      "args": {
+        "fn": "route_model",
+        "req": {
+          "SourceFormat": "gemini-cli-unknown",
+          "RequestedModel": "m"
+        }
+      },
+      "result": {
+        "error": "",
+        "handled": false,
+        "resp": null
+      }
+    },
+    {
+      "op": "records",
+      "args": null,
+      "result": {
+        "a": [
+          {
+            "method": "model.route",
+            "request": "{\"Plugin\":{\"Name\":\"a\",\"Version\":\"1.0.0\",\"Author\":\"cliproxy-rs tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null},\"PluginID\":\"recorder-a\",\"SourceFormat\":\"openai\",\"RequestedModel\":\"m\",\"Stream\":false,\"Headers\":{\"H\":[\"1\"]},\"Query\":{\"q\":[\"1\"]},\"Body\":\"e30=\",\"Metadata\":{\"x\":true},\"AvailableProviders\":null,\"host_callback_id\":\"20\"}"
+          },
+          {
+            "method": "model.route",
+            "request": "{\"Plugin\":{\"Name\":\"a\",\"Version\":\"1.0.0\",\"Author\":\"cliproxy-rs tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null},\"PluginID\":\"recorder-a\",\"SourceFormat\":\"gemini-cli-unknown\",\"RequestedModel\":\"m\",\"Stream\":false,\"Headers\":null,\"Query\":null,\"Body\":null,\"Metadata\":null,\"AvailableProviders\":null,\"host_callback_id\":\"22\"}"
+          }
+        ],
+        "c": [
+          {
+            "method": "model.route",
+            "request": "{\"Plugin\":{\"Name\":\"c\",\"Version\":\"1.0.0\",\"Author\":\"cliproxy-rs tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null},\"PluginID\":\"recorder-c\",\"SourceFormat\":\"openai\",\"RequestedModel\":\"m\",\"Stream\":false,\"Headers\":{\"H\":[\"1\"]},\"Query\":{\"q\":[\"1\"]},\"Body\":\"e30=\",\"Metadata\":{\"x\":true},\"AvailableProviders\":null,\"host_callback_id\":\"21\"}"
+          },
+          {
+            "method": "executor.identifier",
+            "request": "{}"
+          },
+          {
+            "method": "model.route",
+            "request": "{\"Plugin\":{\"Name\":\"c\",\"Version\":\"1.0.0\",\"Author\":\"cliproxy-rs tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null},\"PluginID\":\"recorder-c\",\"SourceFormat\":\"gemini-cli-unknown\",\"RequestedModel\":\"m\",\"Stream\":false,\"Headers\":null,\"Query\":null,\"Body\":null,\"Metadata\":null,\"AvailableProviders\":null,\"host_callback_id\":\"23\"}"
+          },
+          {
+            "method": "executor.identifier",
+            "request": "{}"
+          }
+        ]
+      }
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"ok\":true,\"result\":{\"Body\":\"eyJuIjoiYSJ9\"}}",
+        "label": "a",
+        "method": "request.normalize"
+      },
+      "result": null
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"error\":{\"code\":\"x\",\"message\":\"y\"},\"ok\":false}",
+        "label": "b",
+        "method": "request.normalize"
+      },
+      "result": null
+    },
+    {
+      "op": "call",
+      "args": {
+        "fn": "normalize_request",
+        "from": "openai",
+        "to": "claude",
+        "model": "m",
+        "body": "{\"in\":1}",
+        "stream": true
+      },
+      "result": "{\"n\":\"a\"}"
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"ok\":true,\"result\":{\"Body\":\"eyJ0IjoxfQ==\"}}",
+        "label": "a",
+        "method": "request.translate"
+      },
+      "result": null
+    },
+    {
+      "op": "call",
+      "args": {
+        "fn": "translate_request",
+        "from": "openai",
+        "to": "claude",
+        "model": "m",
+        "body": "{\"in\":1}"
+      },
+      "result": {
+        "body": "{\"t\":1}",
+        "ok": true
+      }
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"ok\":true,\"result\":{}}",
+        "label": "a",
+        "method": "request.translate"
+      },
+      "result": null
+    },
+    {
+      "op": "call",
+      "args": {
+        "fn": "translate_request",
+        "from": "openai",
+        "to": "claude",
+        "model": "m",
+        "body": "{\"in\":2}"
+      },
+      "result": {
+        "body": "{\"in\":2}",
+        "ok": false
+      }
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"ok\":true,\"result\":{\"Body\":\"bmItYQ==\"}}",
+        "label": "a",
+        "method": "response.normalize_before"
+      },
+      "result": null
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"ok\":true,\"result\":{\"Body\":\"bmItYg==\"}}",
+        "label": "b",
+        "method": "response.normalize_before"
+      },
+      "result": null
+    },
+    {
+      "op": "call",
+      "args": {
+        "fn": "normalize_response_before",
+        "from": "claude",
+        "to": "openai",
+        "model": "m",
+        "original": "o",
+        "request": "q",
+        "body": "body",
+        "stream": true
+      },
+      "result": "nb-b"
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"ok\":true,\"result\":{\"Body\":\"dHI=\"}}",
+        "label": "a",
+        "method": "response.translate"
+      },
+      "result": null
+    },
+    {
+      "op": "call",
+      "args": {
+        "fn": "translate_response",
+        "from": "claude",
+        "to": "openai",
+        "model": "m",
+        "original": "o",
+        "request": "q",
+        "body": "body"
+      },
+      "result": {
+        "body": "tr",
+        "ok": true
+      }
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"error\":{\"code\":\"e\",\"message\":\"f\"},\"ok\":false}",
+        "label": "a",
+        "method": "response.normalize_after"
+      },
+      "result": null
+    },
+    {
+      "op": "call",
+      "args": {
+        "fn": "normalize_response_after",
+        "from": "claude",
+        "to": "openai",
+        "model": "m",
+        "original": "o",
+        "request": "q",
+        "body": "body"
+      },
+      "result": "body"
+    },
+    {
+      "op": "records",
+      "args": null,
+      "result": {
+        "a": [
+          {
+            "method": "request.normalize",
+            "request": "{\"FromFormat\":\"openai\",\"ToFormat\":\"claude\",\"Model\":\"m\",\"Stream\":true,\"Body\":\"eyJpbiI6MX0=\"}"
+          },
+          {
+            "method": "request.translate",
+            "request": "{\"FromFormat\":\"openai\",\"ToFormat\":\"claude\",\"Model\":\"m\",\"Stream\":false,\"Body\":\"eyJpbiI6MX0=\"}"
+          },
+          {
+            "method": "request.translate",
+            "request": "{\"FromFormat\":\"openai\",\"ToFormat\":\"claude\",\"Model\":\"m\",\"Stream\":false,\"Body\":\"eyJpbiI6Mn0=\"}"
+          },
+          {
+            "method": "response.normalize_before",
+            "request": "{\"FromFormat\":\"claude\",\"ToFormat\":\"openai\",\"Model\":\"m\",\"Stream\":true,\"OriginalRequest\":\"bw==\",\"TranslatedRequest\":\"cQ==\",\"Body\":\"Ym9keQ==\"}"
+          },
+          {
+            "method": "response.translate",
+            "request": "{\"FromFormat\":\"claude\",\"ToFormat\":\"openai\",\"Model\":\"m\",\"Stream\":false,\"OriginalRequest\":\"bw==\",\"TranslatedRequest\":\"cQ==\",\"Body\":\"Ym9keQ==\"}"
+          },
+          {
+            "method": "response.normalize_after",
+            "request": "{\"FromFormat\":\"claude\",\"ToFormat\":\"openai\",\"Model\":\"m\",\"Stream\":false,\"OriginalRequest\":\"bw==\",\"TranslatedRequest\":\"cQ==\",\"Body\":\"Ym9keQ==\"}"
+          }
+        ],
+        "b": [
+          {
+            "method": "request.normalize",
+            "request": "{\"FromFormat\":\"openai\",\"ToFormat\":\"claude\",\"Model\":\"m\",\"Stream\":true,\"Body\":\"eyJuIjoiYSJ9\"}"
+          },
+          {
+            "method": "response.normalize_before",
+            "request": "{\"FromFormat\":\"claude\",\"ToFormat\":\"openai\",\"Model\":\"m\",\"Stream\":true,\"OriginalRequest\":\"bw==\",\"TranslatedRequest\":\"cQ==\",\"Body\":\"bmItYQ==\"}"
+          }
+        ]
+      }
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"ok\":true,\"result\":{\"Body\":\"eyJ0aGlua2luZyI6dHJ1ZX0=\"}}",
+        "label": "a",
+        "method": "thinking.apply"
+      },
+      "result": null
+    },
+    {
+      "op": "call",
+      "args": {
+        "fn": "thinking",
+        "model": "m-think",
+        "body": "{\"x\":1}",
+        "provider": "A",
+        "budget": 1024,
+        "level": "high"
+      },
+      "result": {
+        "body": "{\"thinking\":true}",
+        "plugin": true
+      }
+    },
+    {
+      "op": "call",
+      "args": {
+        "fn": "thinking",
+        "model": "m-think",
+        "body": "{\"x\":1}",
+        "provider": "claude",
+        "budget": 1024
+      },
+      "result": {
+        "body": "{\"x\":1}",
+        "plugin": false
+      }
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"ok\":true,\"result\":{}}",
+        "label": "a",
+        "method": "thinking.apply"
+      },
+      "result": null
+    },
+    {
+      "op": "call",
+      "args": {
+        "fn": "thinking",
+        "model": "m",
+        "body": "{\"x\":2}",
+        "provider": "a"
+      },
+      "result": {
+        "body": "{\"x\":2}",
+        "plugin": true
+      }
+    },
+    {
+      "op": "records",
+      "args": null,
+      "result": {
+        "a": [
+          {
+            "method": "thinking.apply",
+            "request": "{\"Provider\":\"a\",\"Model\":{\"ID\":\"m-think\",\"Object\":\"model\",\"Created\":0,\"OwnedBy\":\"tests\",\"Type\":\"recorder\",\"DisplayName\":\"\",\"Name\":\"\",\"Version\":\"\",\"Description\":\"\",\"InputTokenLimit\":0,\"OutputTokenLimit\":0,\"SupportedGenerationMethods\":null,\"ContextLength\":0,\"MaxCompletionTokens\":0,\"SupportedParameters\":null,\"SupportedInputModalities\":null,\"SupportedOutputModalities\":null,\"Thinking\":null,\"UserDefined\":false},\"Config\":{\"Mode\":\"budget\",\"Budget\":1024,\"Level\":\"high\"},\"Body\":\"eyJ4IjoxfQ==\",\"host_callback_id\":\"24\"}"
+          },
+          {
+            "method": "thinking.apply",
+            "request": "{\"Provider\":\"a\",\"Model\":{\"ID\":\"m\",\"Object\":\"model\",\"Created\":0,\"OwnedBy\":\"tests\",\"Type\":\"recorder\",\"DisplayName\":\"\",\"Name\":\"\",\"Version\":\"\",\"Description\":\"\",\"InputTokenLimit\":0,\"OutputTokenLimit\":0,\"SupportedGenerationMethods\":null,\"ContextLength\":0,\"MaxCompletionTokens\":0,\"SupportedParameters\":null,\"SupportedInputModalities\":null,\"SupportedOutputModalities\":null,\"Thinking\":null,\"UserDefined\":false},\"Config\":{\"Mode\":\"budget\",\"Budget\":0,\"Level\":\"\"},\"Body\":\"eyJ4IjoyfQ==\",\"host_callback_id\":\"25\"}"
+          }
+        ]
+      }
+    },
+    {
+      "op": "call",
+      "args": {
+        "fn": "auth_data",
+        "req": {
+          "Provider": " A ",
+          "FileName": "f.json",
+          "Label": " L ",
+          "Prefix": " p ",
+          "ProxyURL": " http://proxy.invalid ",
+          "StorageJSON": "eyJ0b2tlbiI6InQiLCJwcmlvcml0eSI6MX0=",
+          "Metadata": {
+            "email": "e@x",
+            "n": 1.5,
+            "base-url": "u"
+          },
+          "Attributes": {
+            "k": "v"
+          },
+          "NextRefreshAfter": "2026-10-04T00:00:00Z"
+        },
+        "path": "/auth/dir/f.json",
+        "file_name": "other.json"
+      },
+      "result": {
+        "attributes": {
+          "k": "v",
+          "path": "/auth/dir/f.json",
+          "source": "/auth/dir/f.json",
+          "source_backend": "file"
+        },
+        "disabled": false,
+        "file_name": "f.json",
+        "id": "/auth/dir/f.json",
+        "label": "L",
+        "metadata": {
+          "base-url": "u",
+          "email": "e@x",
+          "n": 1.5,
+          "type": "a"
+        },
+        "next_refresh_after": "2026-10-04T00:00:00Z",
+        "prefix": "p",
+        "provider": "a",
+        "proxy_url": "http://proxy.invalid",
+        "status": "active",
+        "storage": "{\"base_url\":\"u\",\"email\":\"e@x\",\"n\":1.5,\"priority\":1,\"token\":\"t\",\"type\":\"a\"}"
+      }
+    },
+    {
+      "op": "call",
+      "args": {
+        "fn": "auth_data",
+        "req": {
+          "Provider": "x",
+          "Disabled": true
+        },
+        "file_name": "g.json"
+      },
+      "result": {
+        "attributes": {
+          "source": "g.json"
+        },
+        "disabled": true,
+        "file_name": "g.json",
+        "id": "g.json",
+        "label": "",
+        "metadata": {
+          "type": "x"
+        },
+        "next_refresh_after": "0001-01-01T00:00:00Z",
+        "prefix": "",
+        "provider": "x",
+        "proxy_url": "",
+        "status": "disabled",
+        "storage": "{\"type\":\"x\"}"
+      }
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"ok\":true,\"result\":{\"Auths\":[{\"Provider\":\" A \",\"FileName\":\"f.json\",\"Label\":\" L \",\"Prefix\":\" p \",\"ProxyURL\":\" http://proxy.invalid \",\"StorageJSON\":\"eyJ0b2tlbiI6InQiLCJwcmlvcml0eSI6MX0=\",\"Metadata\":{\"email\":\"e@x\",\"n\":1.5,\"base-url\":\"u\"},\"Attributes\":{\"k\":\"v\"},\"NextRefreshAfter\":\"2026-10-04T00:00:00Z\"},{\"Provider\":\"\"}],\"Handled\":true}}",
+        "label": "a",
+        "method": "auth.parse"
+      },
+      "result": null
+    },
+    {
+      "op": "call",
+      "args": {
+        "fn": "parse_auths",
+        "req": {
+          "Provider": "A",
+          "Path": "/auth/f.json",
+          "FileName": "f.json",
+          "RawJSON": "e30="
+        }
+      },
+      "result": {
+        "error": "",
+        "handled": true,
+        "resp": [
+          {
+            "attributes": {
+              "k": "v",
+              "path": "/auth/f.json",
+              "source": "/auth/f.json",
+              "source_backend": "file"
+            },
+            "disabled": false,
+            "file_name": "f.json",
+            "id": "/auth/f.json",
+            "label": "L",
+            "metadata": {
+              "base-url": "u",
+              "email": "e@x",
+              "n": 1.5,
+              "type": "a"
+            },
+            "next_refresh_after": "2026-10-04T00:00:00Z",
+            "prefix": "p",
+            "provider": "a",
+            "proxy_url": "http://proxy.invalid",
+            "status": "active",
+            "storage": "{\"base_url\":\"u\",\"email\":\"e@x\",\"n\":1.5,\"priority\":1,\"token\":\"t\",\"type\":\"a\"}"
+          },
+          {
+            "attributes": {
+              "path": "/auth/f.json",
+              "source": "/auth/f.json",
+              "source_backend": "file"
+            },
+            "disabled": false,
+            "file_name": "f.json",
+            "id": "/auth/f.json",
+            "label": "",
+            "metadata": {
+              "type": "a"
+            },
+            "next_refresh_after": "0001-01-01T00:00:00Z",
+            "prefix": "",
+            "provider": "a",
+            "proxy_url": "",
+            "status": "active",
+            "storage": "{\"type\":\"a\"}"
+          }
+        ]
+      }
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"ok\":true,\"result\":{\"Auth\":{\"Provider\":\" A \",\"FileName\":\"f.json\",\"Label\":\" L \",\"Prefix\":\" p \",\"ProxyURL\":\" http://proxy.invalid \",\"StorageJSON\":\"eyJ0b2tlbiI6InQiLCJwcmlvcml0eSI6MX0=\",\"Metadata\":{\"email\":\"e@x\",\"n\":1.5,\"base-url\":\"u\"},\"Attributes\":{\"k\":\"v\"},\"NextRefreshAfter\":\"2026-10-04T00:00:00Z\"},\"Handled\":true}}",
+        "label": "a",
+        "method": "auth.parse"
+      },
+      "result": null
+    },
+    {
+      "op": "call",
+      "args": {
+        "fn": "parse_auths",
+        "req": {
+          "Provider": "a",
+          "Path": "/auth/f.json"
+        }
+      },
+      "result": {
+        "error": "",
+        "handled": true,
+        "resp": [
+          {
+            "attributes": {
+              "k": "v",
+              "path": "/auth/f.json",
+              "source": "/auth/f.json",
+              "source_backend": "file"
+            },
+            "disabled": false,
+            "file_name": "f.json",
+            "id": "/auth/f.json",
+            "label": "L",
+            "metadata": {
+              "base-url": "u",
+              "email": "e@x",
+              "n": 1.5,
+              "type": "a"
+            },
+            "next_refresh_after": "2026-10-04T00:00:00Z",
+            "prefix": "p",
+            "provider": "a",
+            "proxy_url": "http://proxy.invalid",
+            "status": "active",
+            "storage": "{\"base_url\":\"u\",\"email\":\"e@x\",\"n\":1.5,\"priority\":1,\"token\":\"t\",\"type\":\"a\"}"
+          }
+        ]
+      }
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"ok\":true,\"result\":{\"Handled\":false}}",
+        "label": "a",
+        "method": "auth.parse"
+      },
+      "result": null
+    },
+    {
+      "op": "call",
+      "args": {
+        "fn": "parse_auths",
+        "req": {
+          "Provider": "a"
+        }
+      },
+      "result": {
+        "error": "",
+        "handled": false,
+        "resp": null
+      }
+    },
+    {
+      "op": "call",
+      "args": {
+        "fn": "parse_auths",
+        "req": {
+          "Provider": "nobody"
+        }
+      },
+      "result": {
+        "error": "",
+        "handled": false,
+        "resp": null
+      }
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"ok\":true,\"result\":{\"ExpiresAt\":\"2026-10-03T00:00:00Z\",\"State\":\"s1\",\"URL\":\"https://login.invalid/a\"}}",
+        "label": "a",
+        "method": "auth.login.start"
+      },
+      "result": null
+    },
+    {
+      "op": "call",
+      "args": {
+        "fn": "start_login",
+        "provider": " A ",
+        "base_url": "http://127.0.0.1:8317",
+        "metadata": {
+          "m": "v"
+        }
+      },
+      "result": {
+        "error": "",
+        "handled": true,
+        "resp": {
+          "Provider": "",
+          "URL": "https://login.invalid/a",
+          "State": "s1",
+          "ExpiresAt": "2026-10-03T00:00:00Z",
+          "Metadata": null
+        }
+      }
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"ok\":true,\"result\":{\"Auth\":{\"ID\":\"p1\",\"Provider\":\"a\"},\"Status\":\"complete\"}}",
+        "label": "a",
+        "method": "auth.login.poll"
+      },
+      "result": null
+    },
+    {
+      "op": "call",
+      "args": {
+        "fn": "poll_login",
+        "provider": "a",
+        "state": "s1"
+      },
+      "result": {
+        "error": "",
+        "handled": true,
+        "resp": {
+          "Status": "complete",
+          "Message": "",
+          "Auth": {
+            "Provider": "a",
+            "ID": "p1",
+            "FileName": "",
+            "Label": "",
+            "Prefix": "",
+            "ProxyURL": "",
+            "Disabled": false,
+            "StorageJSON": null,
+            "Metadata": null,
+            "Attributes": null,
+            "NextRefreshAfter": "0001-01-01T00:00:00Z"
+          },
+          "Auths": null
+        }
+      }
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"ok\":true,\"result\":{\"Auth\":{\"Attributes\":{\"n\":\"1\"},\"Label\":\"new\"},\"NextRefreshAfter\":\"2026-10-05T00:00:00Z\"}}",
+        "label": "c",
+        "method": "auth.refresh"
+      },
+      "result": null
+    },
+    {
+      "op": "call",
+      "args": {
+        "fn": "refresh_auth",
+        "req": {
+          "Provider": "rec-c",
+          "ID": "c1",
+          "Label": "old",
+          "Metadata": {
+            "priority": 3
+          },
+          "Attributes": {
+            "source_backend": "file",
+            "file_priority": "true",
+            "priority": "9"
+          },
+          "StorageJSON": "eyJ0b2tlbiI6InQifQ=="
+        },
+        "path": "/auth/c1.json"
+      },
+      "result": {
+        "error": "",
+        "handled": true,
+        "resp": {
+          "attributes": {
+            "file_priority": "true",
+            "n": "1",
+            "path": "/auth/c1.json",
+            "priority": "9",
+            "source": "/auth/c1.json",
+            "source_backend": "file"
+          },
+          "disabled": false,
+          "file_name": "",
+          "id": "c1",
+          "label": "new",
+          "metadata": {
+            "priority": 3,
+            "type": "rec-c"
+          },
+          "next_refresh_after": "2026-10-05T00:00:00Z",
+          "prefix": "",
+          "provider": "rec-c",
+          "proxy_url": "",
+          "status": "active",
+          "storage": "{\"priority\":3,\"token\":\"t\",\"type\":\"rec-c\"}"
+        }
+      }
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"error\":{\"code\":\"refresh_failed\",\"message\":\"expired\"},\"ok\":false}",
+        "label": "c",
+        "method": "auth.refresh"
+      },
+      "result": null
+    },
+    {
+      "op": "call",
+      "args": {
+        "fn": "refresh_auth",
+        "req": {
+          "Provider": "rec-c",
+          "ID": "c1"
+        }
+      },
+      "result": {
+        "error": "expired",
+        "handled": true,
+        "resp": null
+      }
+    },
+    {
+      "op": "records",
+      "args": null,
+      "result": {
+        "a": [
+          {
+            "method": "auth.parse",
+            "request": "{\"Provider\":\"a\",\"Path\":\"/auth/f.json\",\"FileName\":\"f.json\",\"RawJSON\":\"e30=\",\"Host\":{\"AuthDir\":\"RECORDDIR/auths\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null}}"
+          },
+          {
+            "method": "auth.parse",
+            "request": "{\"Provider\":\"a\",\"Path\":\"/auth/f.json\",\"FileName\":\"\",\"RawJSON\":null,\"Host\":{\"AuthDir\":\"RECORDDIR/auths\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null}}"
+          },
+          {
+            "method": "auth.parse",
+            "request": "{\"Provider\":\"a\",\"Path\":\"\",\"FileName\":\"\",\"RawJSON\":null,\"Host\":{\"AuthDir\":\"RECORDDIR/auths\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null}}"
+          },
+          {
+            "method": "auth.login.start",
+            "request": "{\"Provider\":\"a\",\"BaseURL\":\"http://127.0.0.1:8317\",\"Host\":{\"AuthDir\":\"RECORDDIR/auths\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"Metadata\":{\"m\":\"v\"},\"host_callback_id\":\"26\"}"
+          },
+          {
+            "method": "auth.login.poll",
+            "request": "{\"Provider\":\"a\",\"State\":\"s1\",\"Host\":{\"AuthDir\":\"RECORDDIR/auths\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"Metadata\":null,\"host_callback_id\":\"27\"}"
+          }
+        ],
+        "c": [
+          {
+            "method": "auth.refresh",
+            "request": "{\"AuthID\":\"c1\",\"AuthProvider\":\"rec-c\",\"StorageJSON\":\"eyJwcmlvcml0eSI6MywidG9rZW4iOiJ0IiwidHlwZSI6InJlYy1jIn0=\",\"Metadata\":{\"priority\":3,\"type\":\"rec-c\"},\"Attributes\":{\"file_priority\":\"true\",\"path\":\"/auth/c1.json\",\"priority\":\"9\",\"source\":\"/auth/c1.json\",\"source_backend\":\"file\"},\"Host\":{\"AuthDir\":\"RECORDDIR/auths\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"host_callback_id\":\"28\"}"
+          },
+          {
+            "method": "auth.refresh",
+            "request": "{\"AuthID\":\"c1\",\"AuthProvider\":\"rec-c\",\"StorageJSON\":\"eyJ0eXBlIjoicmVjLWMifQ==\",\"Metadata\":{\"type\":\"rec-c\"},\"Attributes\":null,\"Host\":{\"AuthDir\":\"RECORDDIR/auths\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"host_callback_id\":\"29\"}"
+          }
+        ]
+      }
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"ok\":true,\"result\":{\"Authenticated\":true,\"Metadata\":{\"k\":\"v\"},\"Principal\":\"alice\"}}",
+        "label": "a",
+        "method": "frontend_auth.authenticate"
+      },
+      "result": null
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"ok\":true,\"result\":{\"Authenticated\":false}}",
+        "label": "b",
+        "method": "frontend_auth.authenticate"
+      },
+      "result": null
+    },
+    {
+      "op": "call",
+      "args": {
+        "fn": "frontend_auth",
+        "body": "{\"m\":1}",
+        "method": "POST",
+        "target": "/v1/chat/completions?key=1\u0026key=2",
+        "headers": {
+          "Authorization": [
+            "Bearer t"
+          ]
+        }
+      },
+      "result": [
+        {
+          "error": "",
+          "provider": "plugin:recorder-a:a",
+          "result": {
+            "metadata": {
+              "k": "v"
+            },
+            "principal": "alice",
+            "provider": "plugin:recorder-a:a"
+          }
+        },
+        {
+          "error": "not_handled",
+          "provider": "plugin:recorder-b:b",
+          "result": null
+        }
+      ]
+    },
+    {
+      "op": "records",
+      "args": null,
+      "result": {
+        "a": [
+          {
+            "method": "frontend_auth.identifier",
+            "request": "{}"
+          },
+          {
+            "method": "frontend_auth.authenticate",
+            "request": "{\"Method\":\"POST\",\"Path\":\"/v1/chat/completions\",\"Headers\":{\"Authorization\":[\"Bearer t\"]},\"Query\":{\"key\":[\"1\",\"2\"]},\"Body\":\"eyJtIjoxfQ==\"}"
+          },
+          {
+            "method": "frontend_auth.identifier",
+            "request": "{}"
+          },
+          {
+            "method": "frontend_auth.identifier",
+            "request": "{}"
+          }
+        ],
+        "b": [
+          {
+            "method": "frontend_auth.identifier",
+            "request": "{}"
+          },
+          {
+            "method": "frontend_auth.authenticate",
+            "request": "{\"Method\":\"POST\",\"Path\":\"/v1/chat/completions\",\"Headers\":{\"Authorization\":[\"Bearer t\"]},\"Query\":{\"key\":[\"1\",\"2\"]},\"Body\":\"eyJtIjoxfQ==\"}"
+          },
+          {
+            "method": "frontend_auth.identifier",
+            "request": "{}"
+          }
+        ]
+      }
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"ok\":true,\"result\":{\"display_name\":\"A quota\",\"supported_providers\":[\"Claude\",\"codex\"],\"supports_reset\":true}}",
+        "label": "a",
+        "method": "quota.describe"
+      },
+      "result": null
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"error\":{\"code\":\"x\",\"message\":\"y\"},\"ok\":false}",
+        "label": "b",
+        "method": "quota.describe"
+      },
+      "result": null
+    },
+    {
+      "op": "call",
+      "args": {
+        "fn": "quota_providers"
+      },
+      "result": [
+        {
+          "plugin_id": "recorder-a",
+          "provider": "a",
+          "display_name": "A quota",
+          "supported_providers": [
+            "Claude",
+            "codex"
+          ],
+          "supports_reset": true
+        },
+        {
+          "plugin_id": "recorder-b",
+          "provider": "a",
+          "display_name": "b",
+          "supported_providers": [
+            "a"
+          ],
+          "supports_reset": false
+        }
+      ]
+    },
+    {
+      "op": "call",
+      "args": {
+        "fn": "describe_quota",
+        "plugin_id": "recorder-b"
+      },
+      "result": {
+        "error": "y",
+        "handled": true,
+        "resp": {}
+      }
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"ok\":true,\"result\":{\"server_time_offset_ms\":7,\"summary\":[{\"key\":\"k\",\"label\":\"L\",\"unit\":\"%\",\"value\":1.5}]}}",
+        "label": "a",
+        "method": "quota.fetch"
+      },
+      "result": null
+    },
+    {
+      "op": "call",
+      "args": {
+        "fn": "fetch_quota",
+        "req": {
+          "auth_index": "3",
+          "auth_id": "x",
+          "provider": "codex"
+        }
+      },
+      "result": {
+        "error": "",
+        "handled": true,
+        "resp": {
+          "summary": [
+            {
+              "key": "k",
+              "label": "L",
+              "value": 1.5,
+              "unit": "%"
+            }
+          ],
+          "serverTimeOffsetMs": 7
+        }
+      }
+    },
+    {
+      "op": "call",
+      "args": {
+        "fn": "fetch_quota",
+        "req": {
+          "auth_index": "3",
+          "provider": "recorder-a"
+        }
+      },
+      "result": {
+        "error": "",
+        "handled": true,
+        "resp": {
+          "summary": [
+            {
+              "key": "k",
+              "label": "L",
+              "value": 1.5,
+              "unit": "%"
+            }
+          ],
+          "serverTimeOffsetMs": 7
+        }
+      }
+    },
+    {
+      "op": "call",
+      "args": {
+        "fn": "fetch_quota",
+        "req": {
+          "provider": "nobody"
+        }
+      },
+      "result": {
+        "error": "",
+        "handled": false,
+        "resp": null
+      }
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"ok\":true,\"result\":{\"message\":\"done\",\"success\":true}}",
+        "label": "b",
+        "method": "quota.reset"
+      },
+      "result": null
+    },
+    {
+      "op": "call",
+      "args": {
+        "fn": "reset_quota_by_plugin",
+        "req": {
+          "auth_index": "1",
+          "provider": "b"
+        },
+        "plugin_id": "recorder-b"
+      },
+      "result": {
+        "error": "",
+        "handled": true,
+        "resp": {
+          "success": true,
+          "message": "done"
+        }
+      }
+    },
+    {
+      "op": "call",
+      "args": {
+        "fn": "reset_quota_by_plugin",
+        "req": {
+          "auth_index": "1"
+        },
+        "plugin_id": "recorder-a"
+      },
+      "result": {
+        "error": "unknown method: quota.reset",
+        "handled": true,
+        "resp": {
+          "success": false
+        }
+      }
+    },
+    {
+      "op": "call",
+      "args": {
+        "fn": "fetch_quota_by_plugin",
+        "req": {},
+        "plugin_id": "recorder-c"
+      },
+      "result": {
+        "error": "",
+        "handled": false,
+        "resp": null
+      }
+    },
+    {
+      "op": "records",
+      "args": null,
+      "result": {
+        "a": [
+          {
+            "method": "quota.describe",
+            "request": "{\"plugin\":{\"Name\":\"a\",\"Version\":\"1.0.0\",\"Author\":\"cliproxy-rs tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null}}"
+          },
+          {
+            "method": "quota.describe",
+            "request": "{\"plugin\":{\"Name\":\"a\",\"Version\":\"1.0.0\",\"Author\":\"cliproxy-rs tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null}}"
+          },
+          {
+            "method": "quota.fetch",
+            "request": "{\"auth_index\":\"3\",\"auth_id\":\"x\",\"provider\":\"codex\",\"host\":{\"AuthDir\":\"RECORDDIR/auths\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"host_callback_id\":\"30\"}"
+          },
+          {
+            "method": "quota.fetch",
+            "request": "{\"auth_index\":\"3\",\"auth_id\":\"\",\"provider\":\"recorder-a\",\"host\":{\"AuthDir\":\"RECORDDIR/auths\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"host_callback_id\":\"31\"}"
+          },
+          {
+            "method": "quota.reset",
+            "request": "{\"auth_index\":\"1\",\"auth_id\":\"\",\"provider\":\"\",\"host\":{\"AuthDir\":\"RECORDDIR/auths\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"host_callback_id\":\"33\"}"
+          }
+        ],
+        "b": [
+          {
+            "method": "quota.describe",
+            "request": "{\"plugin\":{\"Name\":\"b\",\"Version\":\"1.0.0\",\"Author\":\"cliproxy-rs tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null}}"
+          },
+          {
+            "method": "quota.describe",
+            "request": "{\"plugin\":{\"Name\":\"b\",\"Version\":\"1.0.0\",\"Author\":\"cliproxy-rs tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null}}"
+          },
+          {
+            "method": "quota.describe",
+            "request": "{\"plugin\":{\"Name\":\"b\",\"Version\":\"1.0.0\",\"Author\":\"cliproxy-rs tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null}}"
+          },
+          {
+            "method": "quota.reset",
+            "request": "{\"auth_index\":\"1\",\"auth_id\":\"\",\"provider\":\"b\",\"host\":{\"AuthDir\":\"RECORDDIR/auths\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"host_callback_id\":\"32\"}"
+          }
+        ]
+      }
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"ok\":true,\"result\":{\"Models\":[{\"DisplayName\":\"M1\",\"ID\":\" m1 \"},{\"ID\":\"\"}],\"Provider\":\" A \"}}",
+        "label": "a",
+        "method": "model.static"
+      },
+      "result": null
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"ok\":true,\"result\":{\"Models\":[{\"ID\":\"mb\"}],\"Provider\":\"b\"}}",
+        "label": "b",
+        "method": "model.register"
+      },
+      "result": null
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"ok\":true,\"result\":{\"Models\":[{\"ID\":\"mc\"}],\"Provider\":\"c\"}}",
+        "label": "c",
+        "method": "model.register"
+      },
+      "result": null
+    },
+    {
+      "op": "call",
+      "args": {
+        "fn": "register_models"
+      },
+      "result": [
+        {
+          "client": "plugin:recorder-a:a",
+          "models": [
+            "m1"
+          ],
+          "op": "register",
+          "provider": "a"
+        },
+        {
+          "client": "plugin:recorder-b:b",
+          "models": [
+            "mb"
+          ],
+          "op": "register",
+          "provider": "b"
+        }
+      ]
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"error\":{\"code\":\"gone\",\"message\":\"gone\"},\"ok\":false}",
+        "label": "b",
+        "method": "model.register"
+      },
+      "result": null
+    },
+    {
+      "op": "call",
+      "args": {
+        "fn": "register_models"
+      },
+      "result": [
+        {
+          "client": "plugin:recorder-a:a",
+          "models": [
+            "m1"
+          ],
+          "op": "register",
+          "provider": "a"
+        },
+        {
+          "client": "plugin:recorder-b:b",
+          "op": "unregister"
+        }
+      ]
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"ok\":true,\"result\":{\"AuthUpdate\":{\"Label\":\"upd\"},\"Models\":[{\"ID\":\"fa\"},{\"ID\":\" \"}],\"Provider\":\"a\"}}",
+        "label": "a",
+        "method": "model.for_auth"
+      },
+      "result": null
+    },
+    {
+      "op": "call",
+      "args": {
+        "fn": "models_for_auth",
+        "req": {
+          "Provider": "a",
+          "ID": "auth-1",
+          "Metadata": {
+            "email": "e"
+          }
+        },
+        "path": "/auth/auth-1.json"
+      },
+      "result": {
+        "auth": {
+          "attributes": {
+            "path": "/auth/auth-1.json",
+            "source": "/auth/auth-1.json",
+            "source_backend": "file"
+          },
+          "disabled": false,
+          "file_name": "",
+          "id": "auth-1",
+          "label": "upd",
+          "metadata": {
+            "email": "e",
+            "type": "a"
+          },
+          "next_refresh_after": "0001-01-01T00:00:00Z",
+          "prefix": "",
+          "provider": "a",
+          "proxy_url": "",
+          "status": "active",
+          "storage": "{\"email\":\"e\",\"type\":\"a\"}"
+        },
+        "error": "",
+        "handled": true,
+        "models": [
+          "fa"
+        ],
+        "provider": "a"
+      }
+    },
+    {
+      "op": "call",
+      "args": {
+        "fn": "models_for_auth",
+        "req": {
+          "Provider": "zzz",
+          "ID": "auth-2"
+        }
+      },
+      "result": {
+        "auth": null,
+        "error": "",
+        "handled": false,
+        "models": [],
+        "provider": ""
+      }
+    },
+    {
+      "op": "records",
+      "args": null,
+      "result": {
+        "a": [
+          {
+            "method": "model.static",
+            "request": "{\"Plugin\":{\"Name\":\"a\",\"Version\":\"1.0.0\",\"Author\":\"cliproxy-rs tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null},\"Host\":{\"AuthDir\":\"RECORDDIR/auths\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null}}"
+          },
+          {
+            "method": "model.static",
+            "request": "{\"Plugin\":{\"Name\":\"a\",\"Version\":\"1.0.0\",\"Author\":\"cliproxy-rs tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null},\"Host\":{\"AuthDir\":\"RECORDDIR/auths\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null}}"
+          },
+          {
+            "method": "model.for_auth",
+            "request": "{\"Plugin\":{\"Name\":\"a\",\"Version\":\"1.0.0\",\"Author\":\"cliproxy-rs tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null},\"AuthID\":\"auth-1\",\"AuthProvider\":\"a\",\"StorageJSON\":\"eyJlbWFpbCI6ImUiLCJ0eXBlIjoiYSJ9\",\"Metadata\":{\"email\":\"e\",\"type\":\"a\"},\"Attributes\":{\"path\":\"/auth/auth-1.json\",\"source\":\"/auth/auth-1.json\",\"source_backend\":\"file\"},\"Host\":{\"AuthDir\":\"RECORDDIR/auths\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"host_callback_id\":\"34\"}"
+          }
+        ],
+        "b": [
+          {
+            "method": "model.register",
+            "request": "{\"Plugin\":{\"Name\":\"b\",\"Version\":\"1.0.0\",\"Author\":\"cliproxy-rs tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null}}"
+          },
+          {
+            "method": "model.register",
+            "request": "{\"Plugin\":{\"Name\":\"b\",\"Version\":\"1.0.0\",\"Author\":\"cliproxy-rs tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null}}"
+          }
+        ],
+        "c": [
+          {
+            "method": "model.register",
+            "request": "{\"Plugin\":{\"Name\":\"c\",\"Version\":\"1.0.0\",\"Author\":\"cliproxy-rs tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null}}"
+          },
+          {
+            "method": "model.register",
+            "request": "{\"Plugin\":{\"Name\":\"c\",\"Version\":\"1.0.0\",\"Author\":\"cliproxy-rs tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null}}"
+          }
+        ]
+      }
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"ok\":true,\"result\":{\"Flags\":[{\"Name\":\"mine\",\"Type\":\"bool\",\"Usage\":\"u\"},{\"DefaultValue\":\"7\",\"Name\":\"count\",\"Type\":\"int\"},{\"Name\":\"config\",\"Type\":\"string\"},{\"Name\":\"bad name\"},{\"DefaultValue\":\"90s\",\"Name\":\"dur\",\"Type\":\"Duration\"},{\"Name\":\"x\",\"Type\":\"weird\"},{\"DefaultValue\":\"x\",\"Name\":\"n\",\"Type\":\"int\"}]}}",
+        "label": "a",
+        "method": "command_line.register"
+      },
+      "result": null
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"ok\":true,\"result\":{\"Flags\":[{\"Name\":\"mine\",\"Type\":\"string\"},{\"DefaultValue\":\"1e6\",\"Name\":\"ratio\",\"Type\":\"float64\"},{\"Name\":\"help\"}]}}",
+        "label": "b",
+        "method": "command_line.register"
+      },
+      "result": null
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"error\":{\"code\":\"no\",\"message\":\"flags\"},\"ok\":false}",
+        "label": "c",
+        "method": "command_line.register"
+      },
+      "result": null
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"ok\":true,\"result\":{\"Auths\":[{\"Provider\":\"\"}],\"Stderr\":\"ZXJyLWEK\",\"Stdout\":\"b3V0LWE=\"}}",
+        "label": "a",
+        "method": "command_line.execute"
+      },
+      "result": null
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"ok\":true,\"result\":{\"ExitCode\":3,\"Stdout\":\"b3V0LWIK\"}}",
+        "label": "b",
+        "method": "command_line.execute"
+      },
+      "result": null
+    },
+    {
+      "op": "call",
+      "args": {
+        "fn": "command_line",
+        "args": [
+          "-mine",
+          "--count=3",
+          "-ratio",
+          "0.5",
+          "-config",
+          "c.yaml",
+          "rest",
+          "-dur",
+          "1s"
+        ],
+        "builtin": [
+          "config",
+          "tui"
+        ]
+      },
+      "result": {
+        "exit": 1,
+        "flags": [
+          "config=",
+          "count=7",
+          "dur=1m30s",
+          "mine=false",
+          "ratio=1e+06",
+          "tui="
+        ],
+        "handled": true,
+        "parse_error": "",
+        "stderr": "err-a\npluginhost: command-line auth 1 is invalid\n",
+        "stdout": "out-aout-b\n",
+        "triggered": true
+      }
+    },
+    {
+      "op": "records",
+      "args": null,
+      "result": {
+        "a": [
+          {
+            "method": "command_line.register",
+            "request": "{\"Plugin\":{\"Name\":\"a\",\"Version\":\"1.0.0\",\"Author\":\"cliproxy-rs tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null}}"
+          },
+          {
+            "method": "command_line.execute",
+            "request": "{\"Plugin\":{\"Name\":\"a\",\"Version\":\"1.0.0\",\"Author\":\"cliproxy-rs tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null},\"Program\":\"cliproxy\",\"Args\":[\"-mine\",\"--count=3\",\"-ratio\",\"0.5\",\"-config\",\"c.yaml\",\"rest\",\"-dur\",\"1s\"],\"ConfigPath\":\"/etc/cliproxy/config.yaml\",\"Host\":{\"AuthDir\":\"RECORDDIR/auths\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"Flags\":{\"config\":{\"Name\":\"config\",\"Type\":\"\",\"Value\":\"c.yaml\",\"Set\":false},\"count\":{\"Name\":\"count\",\"Type\":\"int\",\"Value\":\"3\",\"Set\":true},\"dur\":{\"Name\":\"dur\",\"Type\":\"duration\",\"Value\":\"1m30s\",\"Set\":false},\"mine\":{\"Name\":\"mine\",\"Type\":\"bool\",\"Value\":\"true\",\"Set\":true},\"ratio\":{\"Name\":\"ratio\",\"Type\":\"float64\",\"Value\":\"0.5\",\"Set\":true},\"tui\":{\"Name\":\"tui\",\"Type\":\"\",\"Value\":\"\",\"Set\":false}},\"TriggeredFlags\":{\"count\":{\"Name\":\"count\",\"Type\":\"int\",\"Value\":\"3\",\"Set\":true},\"mine\":{\"Name\":\"mine\",\"Type\":\"bool\",\"Value\":\"true\",\"Set\":true}}}"
+          }
+        ],
+        "b": [
+          {
+            "method": "command_line.register",
+            "request": "{\"Plugin\":{\"Name\":\"b\",\"Version\":\"1.0.0\",\"Author\":\"cliproxy-rs tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null}}"
+          },
+          {
+            "method": "command_line.execute",
+            "request": "{\"Plugin\":{\"Name\":\"b\",\"Version\":\"1.0.0\",\"Author\":\"cliproxy-rs tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null},\"Program\":\"cliproxy\",\"Args\":[\"-mine\",\"--count=3\",\"-ratio\",\"0.5\",\"-config\",\"c.yaml\",\"rest\",\"-dur\",\"1s\"],\"ConfigPath\":\"/etc/cliproxy/config.yaml\",\"Host\":{\"AuthDir\":\"RECORDDIR/auths\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"Flags\":{\"config\":{\"Name\":\"config\",\"Type\":\"\",\"Value\":\"c.yaml\",\"Set\":false},\"count\":{\"Name\":\"count\",\"Type\":\"int\",\"Value\":\"3\",\"Set\":true},\"dur\":{\"Name\":\"dur\",\"Type\":\"duration\",\"Value\":\"1m30s\",\"Set\":false},\"mine\":{\"Name\":\"mine\",\"Type\":\"bool\",\"Value\":\"true\",\"Set\":true},\"ratio\":{\"Name\":\"ratio\",\"Type\":\"float64\",\"Value\":\"0.5\",\"Set\":true},\"tui\":{\"Name\":\"tui\",\"Type\":\"\",\"Value\":\"\",\"Set\":false}},\"TriggeredFlags\":{\"ratio\":{\"Name\":\"ratio\",\"Type\":\"float64\",\"Value\":\"0.5\",\"Set\":true}}}"
+          }
+        ],
+        "c": [
+          {
+            "method": "command_line.register",
+            "request": "{\"Plugin\":{\"Name\":\"c\",\"Version\":\"1.0.0\",\"Author\":\"cliproxy-rs tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null}}"
+          }
+        ]
+      }
+    },
+    {
+      "op": "shutdown",
+      "args": null,
+      "result": null
+    },
+    {
+      "op": "records",
+      "args": null,
+      "result": {
+        "a": [
+          {
+            "method": "\u003cshutdown\u003e",
+            "request": ""
+          }
+        ],
+        "b": [
+          {
+            "method": "\u003cshutdown\u003e",
+            "request": ""
+          }
+        ],
+        "c": [
+          {
+            "method": "\u003cshutdown\u003e",
+            "request": ""
+          }
+        ]
+      }
     }
   ]
 }
